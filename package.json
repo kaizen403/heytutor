@@ -1,0 +1,24 @@
+{
+  "name": "heytutor",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:tutor": "turbo run dev --filter=@heytutor/tutor",
+    "dev:tutor:reset": "pnpm --filter @heytutor/tutor dev:reset",
+    "dev:tutor:watch": "turbo run dev --filter=@heytutor/tutor...",
+    "dev:landing": "turbo run dev --filter=@heytutor/landing",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "r2:setup": "pnpm --filter @heytutor/tutor r2:setup",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "pnpm@10.32.0"
+}

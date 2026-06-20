@@ -1,0 +1,23 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# build outputs
+dist
+.next
+out
+.turbo
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+
+# misc
+.DS_Store
+coverage
+
+# agent working state
+.omo/run-continuation/
+.omo/evidence/
