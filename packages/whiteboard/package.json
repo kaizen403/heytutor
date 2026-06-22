@@ -1,0 +1,35 @@
+{
+  "name": "@heytutor/whiteboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --external react --external react-dom --external konva --external react-konva --external @heytutor/drawing --external @heytutor/design-tokens",
+    "dev": "tsup src/index.ts --format esm --dts --watch --external react --external react-dom --external konva --external react-konva --external @heytutor/drawing --external @heytutor/design-tokens",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@heytutor/drawing": "workspace:*"
+  },
+  "peerDependencies": {
+    "konva": "^10.3.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-konva": "^19.2.0"
+  },
+  "devDependencies": {
+    "@heytutor/typescript-config": "workspace:*",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3"
+  }
+}
