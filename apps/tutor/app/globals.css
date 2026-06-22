@@ -1,0 +1,217 @@
+@import "tailwindcss";
+
+:root {
+  --background: #1a1714;
+  --foreground: #F2EDE4;
+
+  /* Warm design tokens as CSS custom properties */
+  --wb-bg: #1a1714;
+  --wb-surface: #221e1a;
+  --wb-accent-amber: #C8893A;
+  --wb-accent-amber-light: #D49B4E;
+  --wb-paper: #F8F6F0;
+  --wb-paper-ink: #3a332c;
+  --wb-paper-border: #D4CDBE;
+  --wb-text-primary: #F2EDE4;
+  --wb-text-secondary: #C4B8A8;
+  --wb-text-tertiary: #8A7F72;
+  --wb-border: #3d3530;
+  --wb-cursor-blue: #3380FF;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-jakarta);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+}
+
+/* ── Entrance animations (ease-out-expo) ── */
+
+@keyframes wb-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes wb-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wb-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wb-bubble-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── State animations ── */
+
+@keyframes wb-pulse-amber {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.25);
+  }
+}
+
+@keyframes wb-glow-blue {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(51, 128, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(51, 128, 255, 0);
+  }
+}
+
+@keyframes wb-breathe {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* ── Animation utilities ── */
+
+.animate-wb-fade-in {
+  animation: wb-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-wb-slide-down {
+  animation: wb-slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-wb-slide-up {
+  animation: wb-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-wb-bubble-fade {
+  animation: wb-bubble-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-wb-pulse-amber {
+  animation: wb-pulse-amber 1.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.animate-wb-glow-blue {
+  animation: wb-glow-blue 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.animate-wb-breathe {
+  animation: wb-breathe 4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+/* ── Paper input focus state ── */
+
+.wb-input-wrap {
+  transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wb-input-wrap:focus-within {
+  border-color: rgba(119, 176, 170, 0.5) !important;
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ── Paper input placeholder ── */
+
+.wb-paper-input {
+  color: var(--wb-paper-ink);
+}
+
+.wb-paper-input::placeholder {
+  color: #9A9384;
+  font-style: italic;
+}
+
+/* ── Reduced motion ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-wb-fade-in,
+  .animate-wb-slide-down,
+  .animate-wb-slide-up,
+  .animate-wb-bubble-fade {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .animate-wb-pulse-amber,
+  .animate-wb-glow-blue,
+  .animate-wb-breathe {
+    animation: none !important;
+  }
+}
+
+/* ── Thinking progress bar ── */
+
+@keyframes wb-progress-sweep {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes wb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wb-progress-bar {
+  position: absolute;
+  top: 0;
+  left: -40%;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(51, 128, 255, 0.6) 50%,
+    transparent 100%
+  );
+  animation: wb-progress-sweep 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-progress-bar {
+    animation: none !important;
+  }
+}
