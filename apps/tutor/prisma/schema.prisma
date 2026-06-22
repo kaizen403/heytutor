@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  boards    Board[]
+  turns     Turn[]
+
+  @@map("users")
+}
+
+model Board {
+  id        String   @id
+  userId    String   @map("user_id")
+  title     String   @default("new board")
+  preview   String   @default("")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  turns     Turn[]
+
+  @@index([userId], map: "boards_user_id_idx")
+  @@map("boards")
+}
+
+model Turn {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  boardId         String    @map("board_id")
+  userId          String    @map("user_id")
+  orderIndex      Int       @map("order_index")
+  question        String
+  rawResponse     String    @map("raw_response")
+  speedMultiplier Float     @default(1) @map("speed_multiplier")
+  traceId         String?   @map("trace_id")
+  llmCostUsd      Float?    @map("llm_cost_usd")
+  ttsCostUsd      Float?    @map("tts_cost_usd")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  board           Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  segments        Segment[]
+
+  @@index([boardId], map: "turns_board_id_idx")
+  @@index([userId], map: "turns_user_id_idx")
+  @@map("turns")
+}
+
+model Segment {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turnId      String   @map("turn_id") @db.Uuid
+  orderIndex  Int      @map("order_index")
+  narration   String   @default("")
+  spokenText  String   @default("") @map("spoken_text")
+  command     Json?
+  audioUrl    String?  @map("audio_url")
+  audioFormat String?  @default("audio/mpeg") @map("audio_format")
+  durationMs  Int?     @map("duration_ms")
+  timings     Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  turn        Turn     @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  @@index([turnId], map: "segments_turn_id_idx")
+  @@map("segments")
+}
