@@ -1,0 +1,19 @@
+{
+  "extends": "@heytutor/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"],
+      "@heytutor/design-tokens": ["../../packages/design-tokens/src/index.ts"],
+      "@heytutor/drawing": ["../../packages/drawing/src/index.ts"],
+      "@heytutor/tutor-core": ["../../packages/tutor-core/src/index.ts"],
+      "@heytutor/whiteboard": ["../../packages/whiteboard/src/index.ts"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}
