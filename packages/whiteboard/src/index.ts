@@ -4,6 +4,8 @@ export {
   type WhiteboardProps,
   type WriteSchedule,
   type CursorState,
+  type AnnotationKind,
+  type AnnotationOptions,
 } from "./Whiteboard";
 export { VirtualCursor } from "./VirtualCursor";
 export { SpeakingWaveform } from "./SpeakingWaveform";
