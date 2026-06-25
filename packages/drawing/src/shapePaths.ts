@@ -105,6 +105,134 @@ export function linePath(
   return `M ${coord(x1)} ${coord(y1)} L ${coord(x2)} ${coord(y2)}`;
 }
 
+/** Slightly wavy underline segment for emphasis on existing text. */
+export function underlinePath(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): string {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const length = Math.hypot(dx, dy);
+
+  if (length < 4) {
+    return linePath(x1, y1, x2, y2);
+  }
+
+  const waveCount = Math.max(Math.round(length / 48), 2);
+  const amplitude = Math.min(length * 0.018, 3.5);
+  const perpX = (-dy / length) * amplitude;
+  const perpY = (dx / length) * amplitude;
+  const segments: string[] = [`M ${coord(x1)} ${coord(y1)}`];
+
+  for (let i = 1; i <= waveCount; i++) {
+    const t = i / waveCount;
+    const px = x1 + dx * t;
+    const py = y1 + dy * t;
+    const sign = i % 2 === 0 ? 1 : -1;
+    segments.push(`L ${coord(px + perpX * sign)} ${coord(py + perpY * sign)}`);
+  }
+
+  return segments.join(" ");
+}
+
+/** Open emphasis ellipse around a region — not a closed diagram circle. */
+export function emphasisEllipsePath(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): string {
+  const pad = 6;
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  const rx = width / 2 + pad;
+  const ry = height / 2 + pad;
+  const kappa = 0.552284749831;
+  const cRx = rx * kappa;
+  const cRy = ry * kappa;
+
+  return [
+    `M ${coord(cx + rx)} ${coord(cy)}`,
+    `C ${coord(cx + rx)} ${coord(cy + cRy)} ${coord(cx + cRx)} ${coord(cy + ry)} ${coord(cx)} ${coord(cy + ry)}`,
+    `C ${coord(cx - cRx)} ${coord(cy + ry)} ${coord(cx - rx)} ${coord(cy + cRy)} ${coord(cx - rx)} ${coord(cy)}`,
+    `C ${coord(cx - rx)} ${coord(cy - cRy)} ${coord(cx - cRx)} ${coord(cy - ry)} ${coord(cx)} ${coord(cy - ry)}`,
+    `C ${coord(cx + cRx)} ${coord(cy - ry)} ${coord(cx + rx)} ${coord(cy - cRy)} ${coord(cx + rx)} ${coord(cy)}`,
+  ].join(" ");
+}
+
+/** Line with arrowhead at the end point. */
+export function arrowPath(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): string {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const length = Math.hypot(dx, dy);
+
+  if (length < 2) {
+    return linePath(x1, y1, x2, y2);
+  }
+
+  const headLen = Math.min(Math.max(length * 0.14, 10), 22);
+  const angle = Math.atan2(dy, dx);
+  const leftAngle = angle + Math.PI * 0.82;
+  const rightAngle = angle - Math.PI * 0.82;
+  const leftX = x2 + headLen * Math.cos(leftAngle);
+  const leftY = y2 + headLen * Math.sin(leftAngle);
+  const rightX = x2 + headLen * Math.cos(rightAngle);
+  const rightY = y2 + headLen * Math.sin(rightAngle);
+
+  return [
+    linePath(x1, y1, x2, y2),
+    `M ${coord(x2)} ${coord(y2)} L ${coord(leftX)} ${coord(leftY)}`,
+    `M ${coord(x2)} ${coord(y2)} L ${coord(rightX)} ${coord(rightY)}`,
+  ].join(" ");
+}
+
+/** Closed rectangle for translucent highlight fill. */
+export function highlightRectPath(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): string {
+  return rectPath(x, y, width, height);
+}
+
+/** Quick jagged emphasis stroke through a bbox or polyline. */
+export function scribblePath(points: number[]): string {
+  if (points.length < 4) {
+    return linePath(points[0] ?? 0, points[1] ?? 0, points[2] ?? 0, points[3] ?? 0);
+  }
+
+  if (points.length >= 6) {
+    const segments = [`M ${coord(points[0])} ${coord(points[1])}`];
+    for (let i = 2; i + 1 < points.length; i += 2) {
+      segments.push(`L ${coord(points[i])} ${coord(points[i + 1])}`);
+    }
+    return segments.join(" ");
+  }
+
+  const [x1, y1, x2, y2] = points;
+  const minX = Math.min(x1, x2);
+  const maxX = Math.max(x1, x2);
+  const minY = Math.min(y1, y2);
+  const maxY = Math.max(y1, y2);
+  const midY = (minY + maxY) / 2;
+  const jitter = Math.max((maxX - minX) * 0.08, 4);
+
+  return [
+    `M ${coord(minX)} ${coord(midY)}`,
+    `L ${coord(minX + (maxX - minX) * 0.33)} ${coord(midY - jitter)}`,
+    `L ${coord(minX + (maxX - minX) * 0.66)} ${coord(midY + jitter)}`,
+    `L ${coord(maxX)} ${coord(midY)}`,
+  ].join(" ");
+}
+
 /**
  * Labels are written by the handwriting engine, not represented as geometry.
  * The coordinates are accepted to keep the shape API consistent.
