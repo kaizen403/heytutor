@@ -6,6 +6,11 @@ export type DrawCommandType =
   | 'DRAW_LINE'
   | 'WRITE'
   | 'LABEL'
+  | 'UNDERLINE'
+  | 'CIRCLE_AROUND'
+  | 'ARROW'
+  | 'HIGHLIGHT'
+  | 'SCRIBBLE'
   | 'PAUSE'
   | 'CLEAR'
   | 'ERASE';
@@ -27,7 +32,7 @@ export interface ParsedResponse {
 }
 
 const DRAWING_TAG_PATTERN =
-  /\[(DRAW_CUBOID|DRAW_CUBE|DRAW_RECT|DRAW_CIRCLE|DRAW_LINE|WRITE|LABEL|PAUSE|CLEAR|ERASE)(?::([^\]]*))?\]/g;
+  /\[(DRAW_CUBOID|DRAW_CUBE|DRAW_RECT|DRAW_CIRCLE|DRAW_LINE|WRITE|LABEL|UNDERLINE|CIRCLE_AROUND|ARROW|HIGHLIGHT|SCRIBBLE|PAUSE|CLEAR|ERASE)(?::([^\]]*))?\]/g;
 
 export function parseNumericParams(rawParams: string): number[] {
   if (rawParams.trim() === '') {
@@ -112,6 +117,30 @@ export function getSegmentCommands(segment: TutorSegment): DrawCommand[] {
   }
 
   return segment.command ? [segment.command] : [];
+}
+
+export function parseStoredSegmentCommands(stored: unknown): DrawCommand[] {
+  if (!stored || typeof stored !== "object") {
+    return [];
+  }
+
+  if ("commands" in stored && Array.isArray((stored as { commands: unknown }).commands)) {
+    return (stored as { commands: DrawCommand[] }).commands.filter(Boolean);
+  }
+
+  return [stored as DrawCommand];
+}
+
+export function serializeSegmentCommands(commands: DrawCommand[]): DrawCommand | { commands: DrawCommand[] } | null {
+  if (commands.length === 0) {
+    return null;
+  }
+
+  if (commands.length === 1) {
+    return commands[0]!;
+  }
+
+  return { commands };
 }
 
 function coalesceSegments(segments: TutorSegment[]): TutorSegment[] {
