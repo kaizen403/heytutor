@@ -4,6 +4,7 @@ import {
   parseDrawCommandFromTag,
   parseDrawingCommands,
   parsedResponseToSegments,
+  getSegmentCommands,
   type DrawCommand,
   type DrawCommandType,
   type TutorSegment,
@@ -12,7 +13,7 @@ import {
 const STEP_BLOCK_PATTERN = /\[STEP\]\s*([\s\S]*?)\s*\[\/STEP\]/gi;
 
 const DRAWING_TAG_PATTERN =
-  /\[(DRAW_CUBOID|DRAW_CUBE|DRAW_RECT|DRAW_CIRCLE|DRAW_LINE|WRITE|LABEL|PAUSE|CLEAR|ERASE)(?::([^\]]*))?\]/g;
+  /\[(DRAW_CUBOID|DRAW_CUBE|DRAW_RECT|DRAW_CIRCLE|DRAW_LINE|WRITE|LABEL|UNDERLINE|CIRCLE_AROUND|ARROW|HIGHLIGHT|SCRIBBLE|PAUSE|CLEAR|ERASE)(?::([^\]]*))?\]/g;
 
 interface StructuredBoardAction {
   command: DrawCommand;
@@ -112,13 +113,22 @@ export function parseStructuredLessonSteps(responseText: string): TutorSegment[]
     }
 
     let cursor = 0;
+    let lastCommandSegment: TutorSegment | null = null;
 
     for (const action of actions) {
       const narration = stripDrawingTags(block.slice(cursor, action.tagStart));
-      const segment = createSegment(narration, action.command);
+      const hasNarration = narration.trim().length > 0;
 
-      if (segment) {
-        segments.push(segment);
+      if (!hasNarration && lastCommandSegment) {
+        const merged = [...getSegmentCommands(lastCommandSegment), action.command];
+        lastCommandSegment.commands = merged;
+        lastCommandSegment.command = merged[0] ?? lastCommandSegment.command;
+      } else {
+        const segment = createSegment(narration, action.command);
+        if (segment) {
+          segments.push(segment);
+          lastCommandSegment = segment.command ? segment : lastCommandSegment;
+        }
       }
 
       cursor = action.tagEnd;
@@ -134,41 +144,53 @@ export function parseStructuredLessonSteps(responseText: string): TutorSegment[]
   return segments;
 }
 
+function sanitizeCommand(command: DrawCommand | null): DrawCommand | null {
+  if (!command) {
+    return null;
+  }
+
+  if (command.type === "WRITE" || command.type === "LABEL") {
+    return {
+      ...command,
+      text: normalizeBoardText(command.text ?? ""),
+    };
+  }
+
+  if (command.type === "DRAW_LINE") {
+    const [x1, y1, x2, y2] = command.params;
+    if (Math.hypot(x2 - x1, y2 - y1) < 2) {
+      return null;
+    }
+  }
+
+  return command;
+}
+
 function sanitizeLessonSegments(segments: TutorSegment[]): TutorSegment[] {
   const result: TutorSegment[] = [];
 
   for (const segment of segments) {
     const narration = segment.narration.trim();
-    let command = segment.command;
+    const sanitizedCommands = getSegmentCommands(segment)
+      .map((command) => sanitizeCommand(command))
+      .filter((command): command is DrawCommand => command !== null);
 
-    if (command?.type === 'CLEAR' && result.length === 0) {
+    if (sanitizedCommands.some((command) => command.type === "CLEAR") && result.length === 0) {
       continue;
     }
 
-    if (command?.type === 'WRITE' || command?.type === 'LABEL') {
-      command = {
-        ...command,
-        text: normalizeBoardText(command.text ?? ''),
-      };
-    }
-
-    if (command?.type === 'DRAW_LINE') {
-      const [x1, y1, x2, y2] = command.params;
-      if (Math.hypot(x2 - x1, y2 - y1) < 2) {
-        command = null;
-      }
-    }
-
-    if (!narration && !command) {
+    if (!narration && sanitizedCommands.length === 0) {
       continue;
     }
 
-    const syncedCommand = withSyncMetadata(narration, command);
+    const syncedCommands = sanitizedCommands
+      .map((command, index) => (index === 0 ? withSyncMetadata(narration, command) : command))
+      .filter((command): command is DrawCommand => command !== null);
 
     result.push({
       narration,
-      command: syncedCommand,
-      commands: syncedCommand ? [syncedCommand] : undefined,
+      command: syncedCommands[0] ?? null,
+      commands: syncedCommands.length > 0 ? syncedCommands : undefined,
     });
   }
 
