@@ -1,9 +1,67 @@
 import type { DrawCommandType } from './drawingProtocol';
 import type { TutorSegment } from './drawingProtocol';
+import { getSegmentCommands } from './drawingProtocol';
 
 export interface SegmentAlignmentResult {
   aligned: boolean;
   reason?: string;
+}
+
+const ANNOTATION_TYPES: DrawCommandType[] = [
+  'UNDERLINE',
+  'CIRCLE_AROUND',
+  'ARROW',
+  'HIGHLIGHT',
+  'SCRIBBLE',
+];
+
+const REVIEW_MODE_CUES = [
+  'here',
+  'this',
+  'notice',
+  'again',
+  'underline',
+  'circle',
+  'arrow',
+  'highlight',
+  'emphasize',
+  'remember',
+  'look at',
+  'that term',
+  'that part',
+  'this part',
+  'this side',
+  'variable',
+  'unknown',
+  'friction',
+  'normal',
+  'weight',
+  'applied',
+  'push',
+  'pull',
+  'opposes',
+  'net force',
+  'free body',
+  'surface',
+  'mg',
+  'mu',
+  'μ',
+  'gravity',
+  'tension',
+  'upward',
+  'downward',
+  'horizontal',
+  'vertical',
+  'direction',
+  'force',
+];
+
+function isAnnotationCommand(type: DrawCommandType): boolean {
+  return ANNOTATION_TYPES.includes(type);
+}
+
+function hasReviewModeCue(narration: string): boolean {
+  return REVIEW_MODE_CUES.some((cue) => narration.includes(cue));
 }
 
 const HARD_MISMATCHES: Array<{
@@ -50,28 +108,43 @@ function hasHardMismatch(narration: string, commandType: DrawCommandType): strin
 }
 
 export function checkSegmentAlignment(segment: TutorSegment): SegmentAlignmentResult {
-  if (!segment.command) {
+  const commands = getSegmentCommands(segment);
+  if (commands.length === 0) {
     return { aligned: true };
   }
 
   const narration = segment.narration.toLowerCase();
-  const cmd = segment.command;
 
-  if (cmd.type === 'WRITE' || cmd.type === 'LABEL') {
-    return { aligned: true };
-  }
+  for (const cmd of commands) {
+    if (cmd.type === 'WRITE' || cmd.type === 'LABEL') {
+      continue;
+    }
 
-  if (cmd.type === 'DRAW_LINE' && narration.includes('radius')) {
-    return { aligned: true };
-  }
+    if (isAnnotationCommand(cmd.type)) {
+      if (hasReviewModeCue(narration)) {
+        continue;
+      }
+      if (cmd.text && narration.includes(cmd.text.toLowerCase())) {
+        continue;
+      }
+      return {
+        aligned: false,
+        reason: `annotation ${cmd.type} without review-mode cue in narration`,
+      };
+    }
 
-  if (cmd.type === 'DRAW_CIRCLE' && narration.includes('circle')) {
-    return { aligned: true };
-  }
+    if (cmd.type === 'DRAW_LINE' && (narration.includes('radius') || narration.includes('force') || narration.includes('arrow'))) {
+      continue;
+    }
 
-  const mismatch = hasHardMismatch(narration, cmd.type);
-  if (mismatch) {
-    return { aligned: false, reason: mismatch };
+    if (cmd.type === 'DRAW_CIRCLE' && narration.includes('circle')) {
+      continue;
+    }
+
+    const mismatch = hasHardMismatch(narration, cmd.type);
+    if (mismatch) {
+      return { aligned: false, reason: mismatch };
+    }
   }
 
   return { aligned: true };
