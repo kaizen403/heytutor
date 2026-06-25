@@ -211,6 +211,50 @@ pnpm --filter @heytutor/tutor build
 
 Full lint may fail in some local environments if package-local `eslint` binaries are not linked; the tutor build runs Next lint/type checks for the app.
 
+Annotation path smoke test:
+
+```bash
+pnpm --filter @heytutor/tutor exec tsx "../../packages/tutor-core/scripts/verify-annotation-paths.ts"
+pnpm --filter @heytutor/tutor exec tsx "../../packages/tutor-core/scripts/verify-fbd-mock.ts"
+```
+
+Manual review-mode check:
+
+1. Ask: "solve 2x + 3 = 7 and explain each step"
+2. Expect: write the equation, then on review steps use UNDERLINE/CIRCLE_AROUND on **x** or **2x** instead of only adding new lines below.
+3. Langfuse marks to inspect: `annotate-start`, `annotate-snap` (when rect snap applied), `annotate-complete`.
+
+Manual physics FBD check (mock mode works without API keys):
+
+1. Ask: "Solve: a 5 kg box is pushed with 20 N on a surface with μ = 0.3. Find acceleration and draw the free-body diagram."
+2. Pass criteria:
+   - Full free-body diagram on the right (surface, block, mass label, F/f/N/mg) before left-side algebra.
+   - No long voice-only gap between drawing the box and drawing force arrows.
+   - During the solve phase, at least two review-mode annotations on the diagram when friction, normal, or weight are discussed.
+3. Langfuse marks to inspect:
+   - `fbd-phase-start` — first diagram ink in the diagram zone (x 400–900, y 140–520).
+   - `fbd-phase-complete` — surface + block + at least three force labels registered.
+   - `annotate-on-diagram` — annotation command whose probe coords fall in the diagram zone.
+   - `annotate-snap` — rect snap applied (including narration-based snap to F/f/N/mg anchors).
+
+The `verify-fbd-mock.ts` script asserts the keyword mock follows diagram-first pacing and includes solve-phase annotations.
+
+## Board Annotation Commands
+
+Review-mode gestures emphasize existing ink without rewriting:
+
+| Command | Use |
+|---|---|
+| `UNDERLINE` | Emphasize a term already on the board |
+| `CIRCLE_AROUND` | Loop around a phrase or subexpression |
+| `ARROW` | Point from a label to part of the work |
+| `HIGHLIGHT` | Soft translucent box behind text |
+| `SCRIBBLE` | Quick rough emphasis stroke |
+
+Path generators live in `packages/drawing/src/shapePaths.ts`. Runtime dispatch and rect snapping live in `page.tsx` via `resolveAnnotationTarget()` and `boardLayoutRef`. Highlights render on a layer below ink in `Whiteboard.drawAnnotation()`.
+
+Multi-command segments: `lessonPlanner.ts` groups consecutive tags with empty narration into one segment with `commands[]`. Persistence stores `{ commands: [...] }` in the segment `command` JSON when needed; replay uses `parseStoredSegmentCommands()`.
+
 ## Current Root-Cause Notes
 
 The most important recent finding: waiting for near-complete ElevenLabs timing alignment before drawing causes the exact user-visible bug: speech happens first, writing appears late.
