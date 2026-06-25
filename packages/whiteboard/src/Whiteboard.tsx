@@ -41,8 +41,27 @@ export interface WriteSchedule {
   }) => void;
 }
 
+export type AnnotationKind =
+  | "underline"
+  | "circle_around"
+  | "arrow"
+  | "highlight"
+  | "scribble";
+
+export interface AnnotationOptions {
+  strokeWidth?: number;
+  fillColor?: string;
+  fillOpacity?: number;
+}
+
 export interface WhiteboardHandle {
   drawShape: (pathData: string, duration: number) => Promise<void>;
+  drawAnnotation: (
+    kind: AnnotationKind,
+    pathData: string,
+    duration: number,
+    options?: AnnotationOptions,
+  ) => Promise<void>;
   writeText: (
     text: string,
     x: number,
@@ -79,6 +98,9 @@ const DEFAULT_WIDTH = 1200;
 const DEFAULT_HEIGHT = 700;
 const WHITEBOARD_COLOR = "#F8F6F0";
 const DEFAULT_INK_COLOR = "#222222";
+const HIGHLIGHT_FILL = "#B8D4B8";
+const HIGHLIGHT_OPACITY = 0.18;
+const ANNOTATION_STROKE_WIDTH = 3.25;
 const CURSOR_BLUE = "#3380FF";
 const DUSTER_WIDTH = 28;
 const DUSTER_HEIGHT = 14;
@@ -179,6 +201,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     ref,
   ) {
     const drawLayerRef = useRef<Konva.Layer>(null);
+    const highlightLayerRef = useRef<Konva.Layer>(null);
     const animLayerRef = useRef<Konva.Layer>(null);
     const cursorLayerRef = useRef<Konva.Layer>(null);
     const frameIdsRef = useRef<Set<number>>(new Set());
@@ -348,6 +371,85 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           listening: false,
         });
         const totalLength = path.getLength();
+
+        path.dash([totalLength]);
+        path.dashOffset(totalLength);
+        animLayer.add(path);
+        animNodesRef.current.add(path);
+        animLayer.batchDraw();
+
+        await animateOver(duration, (progress) => {
+          const drawnLength = progress * totalLength;
+          const point = path.getPointAtLength(drawnLength);
+
+          path.dashOffset(totalLength - drawnLength);
+          if (point) {
+            setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
+          }
+          animLayer.batchDraw();
+        });
+
+        path.dash([]);
+        path.dashOffset(0);
+        path.moveTo(drawLayer);
+        animNodesRef.current.delete(path);
+        completedNodesRef.current.add(path);
+        animLayer.batchDraw();
+        drawLayer.batchDraw();
+      },
+      [animateOver, setCursorViewSafely],
+    );
+
+    const drawAnnotation = useCallback(
+      async (
+        kind: AnnotationKind,
+        pathData: string,
+        duration: number,
+        options: AnnotationOptions = {},
+      ): Promise<void> => {
+        const drawLayer = drawLayerRef.current;
+        const highlightLayer = highlightLayerRef.current;
+        const animLayer = animLayerRef.current;
+
+        if (!drawLayer || !animLayer) {
+          return;
+        }
+
+        if (kind === "highlight") {
+          const targetLayer = highlightLayer ?? drawLayer;
+          const rect = new Konva.Path({
+            data: pathData,
+            fill: options.fillColor ?? HIGHLIGHT_FILL,
+            opacity: 0,
+            strokeEnabled: false,
+            listening: false,
+          });
+
+          targetLayer.add(rect);
+          completedNodesRef.current.add(rect);
+          targetLayer.batchDraw();
+
+          await animateOver(duration, (progress) => {
+            rect.opacity((options.fillOpacity ?? HIGHLIGHT_OPACITY) * progress);
+            targetLayer.batchDraw();
+          });
+
+          rect.opacity(options.fillOpacity ?? HIGHLIGHT_OPACITY);
+          targetLayer.batchDraw();
+          return;
+        }
+
+        const strokeWidth = options.strokeWidth ?? ANNOTATION_STROKE_WIDTH;
+        const path = new Konva.Path({
+          data: pathData,
+          stroke: inkColorRef.current,
+          strokeWidth,
+          fillEnabled: false,
+          lineCap: "round",
+          lineJoin: "round",
+          listening: false,
+        });
+        const totalLength = Math.max(path.getLength(), 1);
 
         path.dash([totalLength]);
         path.dashOffset(totalLength);
@@ -576,7 +678,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 y: charPath.y,
                 opacity: 0,
                 fontFamily: "Caveat, cursive",
-                fontSize: 32,
+                fontSize: charPath.fontSize ?? 32,
                 fill: inkColorRef.current,
                 listening: false,
               });
@@ -814,6 +916,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       ref,
       () => ({
         drawShape,
+        drawAnnotation,
         writeText,
         clearBoard,
         eraseRegion,
@@ -831,7 +934,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         getAnimLayer: () => animLayerRef.current,
         getCursorLayer: () => cursorLayerRef.current,
       }),
-      [cancelAnimations, clearBoard, drawShape, eraseRegion, flyCursorTo, setCursorViewSafely, updateCursorState, writeText],
+      [cancelAnimations, clearBoard, drawAnnotation, drawShape, eraseRegion, flyCursorTo, setCursorViewSafely, updateCursorState, writeText],
     );
 
     return (
@@ -840,6 +943,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         height={height}
         style={{ backgroundColor: WHITEBOARD_COLOR }}
       >
+        <Layer ref={highlightLayerRef} listening={false} />
         <Layer ref={drawLayerRef} listening={false} />
         <Layer ref={animLayerRef} listening={false}>
           <KonvaPath data={HIDDEN_PATH_DATA} visible={false} listening={false} />
