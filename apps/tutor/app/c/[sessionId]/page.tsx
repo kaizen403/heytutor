@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { InputBar } from "@/components/InputBar";
 import { ResponseBubble } from "@/components/ResponseBubble";
 import { TranscriptDialog } from "@/components/TranscriptDialog";
@@ -285,9 +285,12 @@ function playReplayAudio(
 export default function TutorSessionPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const sessionId = params.sessionId as string;
 
   const whiteboardRef = useRef<WhiteboardHandle>(null);
+  const pendingQuestionRef = useRef<string | null>(null);
+  const autoSubmitDoneRef = useRef(false);
   const boardContainerRef = useRef<HTMLDivElement>(null);
   const [boardScale, setBoardScale] = useState(1);
   const [phase, setPhase] = useState<TutorPhase>("idle");
@@ -328,14 +331,8 @@ export default function TutorSessionPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [boards, setBoards] = useState<BoardEntry[]>([]);
   const [boardLoaded, setBoardLoaded] = useState(false);
-  const [whiteboardReady, setWhiteboardReady] = useState(false);
   const [inputInteracted, setInputInteracted] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
-
-  const setWhiteboardRef = useCallback((instance: WhiteboardHandle | null) => {
-    whiteboardRef.current = instance;
-    setWhiteboardReady(instance !== null);
-  }, []);
 
   const boardsFetchedRef = useRef(false);
   useEffect(() => {
@@ -1725,6 +1722,27 @@ export default function TutorSessionPage() {
     [sessionId, boards, narrationText, phase, processResponseText, resetBoardLayout],
   );
 
+  useEffect(() => {
+    if (!pendingQuestionRef.current) return;
+    const interval = setInterval(() => {
+      if (whiteboardRef.current && pendingQuestionRef.current) {
+        const q = pendingQuestionRef.current;
+        pendingQuestionRef.current = null;
+        void handleQuestion(q);
+      }
+    }, 200);
+    return () => clearInterval(interval);
+  }, [handleQuestion]);
+
+  useEffect(() => {
+    if (!boardLoaded || autoSubmitDoneRef.current) return;
+    const q = searchParams.get("q");
+    if (!q || q.trim().length === 0) return;
+    autoSubmitDoneRef.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    void handleQuestion(q);
+  }, [boardLoaded, searchParams, handleQuestion]);
+
   const handleAskDoubt = useCallback(
     (question: string) => {
       void handleQuestion(`I have a doubt about this: ${question}`);
@@ -1952,7 +1970,7 @@ export default function TutorSessionPage() {
         <InputBar
           onSubmit={handleQuestion}
           onAskDoubt={handleAskDoubt}
-          disabled={phase !== "idle" || !boardLoaded || !whiteboardReady}
+          disabled={phase !== "idle" || !boardLoaded}
           isPaused={isPaused}
           onPauseToggle={() => (isPaused ? resumeTurn() : pauseTurn())}
           onCancel={stopTurn}
@@ -1977,7 +1995,7 @@ export default function TutorSessionPage() {
         onSelect={switchBoard}
         onNew={createNewBoard}
         onDelete={deleteBoard}
-        disabled={phase !== "idle" || !boardLoaded || !whiteboardReady}
+        disabled={phase !== "idle" || !boardLoaded}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         profileOpen={profileOpen}
@@ -2246,7 +2264,7 @@ export default function TutorSessionPage() {
                   }}
                 >
                   <Whiteboard
-                    ref={setWhiteboardRef}
+                    ref={whiteboardRef}
                     width={BOARD_WIDTH}
                     height={BOARD_HEIGHT}
                     cursorState={cursorState}
