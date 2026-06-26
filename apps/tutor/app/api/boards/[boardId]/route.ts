@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
-import { deleteAudio, lectureAudioKey } from "@/lib/r2";
 
 interface RouteContext {
   params: Promise<{ boardId: string }>;
@@ -127,37 +126,30 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  const { boardId } = await context.params;
-  await ensureUser(userId);
-
-  const board = await getOwnedBoard(boardId, userId);
-  if (!board) {
-    return NextResponse.json({ error: "not found" }, { status: 404 });
-  }
-
-  const turns = await prisma.turn.findMany({
-    where: { boardId },
-    select: {
-      id: true,
-      segments: { select: { orderIndex: true } },
-    },
-  });
-
-  for (const turn of turns) {
-    for (const segment of turn.segments) {
-      const key = lectureAudioKey(boardId, turn.id, segment.orderIndex);
-      await deleteAudio(key);
+  try {
+    const userId = await getUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
+
+    const { boardId } = await context.params;
+    await ensureUser(userId);
+
+    const board = await getOwnedBoard(boardId, userId);
+    if (!board) {
+      return NextResponse.json({ error: "not found" }, { status: 404 });
+    }
+
+    // DB cascade removes turns/segments. R2 audio cleanup is best-effort and
+    // must not run in this route — importing wrangler/child_process breaks
+    // Next dev webpack chunks for this handler (MODULE_NOT_FOUND ./217.js).
+    await prisma.board.delete({
+      where: { id: boardId },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("[boards] DELETE failed:", error);
+    return NextResponse.json({ error: "failed to delete board" }, { status: 500 });
   }
-
-  await prisma.board.delete({
-    where: { id: boardId },
-  });
-
-  return NextResponse.json({ ok: true });
 }
