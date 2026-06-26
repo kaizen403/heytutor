@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: heytutor-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: heytutor
+      POSTGRES_PASSWORD: heytutor
+      POSTGRES_DB: heytutor
+    volumes:
+      - heytutor_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U heytutor -d heytutor"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  heytutor_pgdata:
