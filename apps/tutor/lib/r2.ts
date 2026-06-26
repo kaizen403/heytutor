@@ -1,5 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 
+export { lectureAudioKey } from "@/lib/r2Keys";
+
 /**
  * Cloudflare R2 helpers for lecture audio — Wrangler CLI only (no S3 API keys).
  *
@@ -91,14 +93,6 @@ function deleteViaWrangler(bucket: string, key: string): void {
 /** True when bucket env vars are set and `wrangler login` is active. */
 export function isR2Configured(): boolean {
   return getR2Config() !== null && isWranglerAuthenticated();
-}
-
-export function lectureAudioKey(
-  boardId: string,
-  turnId: string,
-  segmentIndex: number,
-): string {
-  return `lectures/${boardId}/${turnId}/${segmentIndex}.mp3`;
 }
 
 export async function uploadAudio(

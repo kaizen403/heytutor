@@ -2,7 +2,8 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
-import { uploadAudio, lectureAudioKey } from "@/lib/r2";
+import { lectureAudioKey } from "@/lib/r2Keys";
+import { uploadAudio } from "@/lib/r2";
 
 interface RouteContext {
   params: Promise<{ boardId: string }>;
