@@ -1,45 +1,45 @@
 export const DS = {
   Colors: {
-    // Palette: #003C43 #135D66 #77B0AA #E3FEF7 (colorhunt.co)
+    // Palette: #0077CC #DAE8FC #333333 #EAEAEA #FFFFFF
 
-    // Deep dark teal — app shell, sidebar, darkest surfaces
-    background: '#003C43',
-    surface1: '#135D66',
-    surface2: '#0d4a52',
-    surface3: '#0a3a40',
-    surface4: '#062a30',
-    borderSubtle: 'rgba(119,176,170,0.2)',
-    borderStrong: '#77B0AA',
+    // Light background — app shell, surfaces
+    background: '#EAEAEA',
+    surface1: '#FFFFFF',
+    surface2: '#F5F5F5',
+    surface3: '#EAEAEA',
+    surface4: '#DAE8FC',
+    borderSubtle: 'rgba(0,119,204,0.2)',
+    borderStrong: '#0077CC',
 
-    // Text — mint and sage on dark teal
-    textPrimary: '#E3FEF7',
-    textSecondary: '#77B0AA',
-    textTertiary: 'rgba(119,176,170,0.5)',
+    // Text — dark text on light background
+    textPrimary: '#333333',
+    textSecondary: '#666666',
+    textTertiary: 'rgba(51,51,51,0.5)',
 
-    // Accent — sage for interactive elements
-    accentAmber: '#77B0AA',
-    accentAmberLight: '#9BC4BE',
-    accentAmberDark: '#5a8a85',
+    // Accent — blue for interactive elements
+    accentAmber: '#0077CC',
+    accentAmberLight: '#0099E5',
+    accentAmberDark: '#005599',
 
-    // Paper tones — mint-based for input and bubble
-    paper: '#135D66',
-    paperInk: '#E3FEF7',
-    paperBorder: 'rgba(119,176,170,0.3)',
-    paperMuted: '#0d4a52',
-    paperPlaceholder: 'rgba(119,176,170,0.5)',
+    // Paper tones — white for input and bubble
+    paper: '#FFFFFF',
+    paperInk: '#333333',
+    paperBorder: 'rgba(0,119,204,0.3)',
+    paperMuted: '#EAEAEA',
+    paperPlaceholder: 'rgba(51,51,51,0.5)',
 
     // Status colors
-    statusIdle: '#77B0AA',
-    statusThinking: '#77B0AA',
-    statusTeaching: '#E3FEF7',
+    statusIdle: '#0077CC',
+    statusThinking: '#0077CC',
+    statusTeaching: '#333333',
 
-    // Whiteboard — dry-erase cream surface with dark ink
-    whiteboard: '#F8F6F0',
-    ink: '#222222',
-    whiteboardInk: '#222222',
+    // Whiteboard — white surface with dark ink
+    whiteboard: '#FFFFFF',
+    ink: '#333333',
+    whiteboardInk: '#333333',
 
-    // Cursor — sage chalk
-    overlayCursorBlue: '#77B0AA',
+    // Cursor — blue chalk
+    overlayCursorBlue: '#0077CC',
   },
   CornerRadius: {
     small: 4,

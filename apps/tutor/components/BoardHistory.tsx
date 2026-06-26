@@ -55,7 +55,7 @@ export function BoardHistory({
         width,
         minWidth: width,
         height: "100vh",
-        background: "#003C43",
+        background: "#EAEAEA",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -76,7 +76,7 @@ export function BoardHistory({
           style={{
             fontSize: "1.125rem",
             fontWeight: 700,
-            color: "#E3FEF7",
+            color: "#333333",
             letterSpacing: "-0.02em",
             userSelect: "none",
           }}
@@ -99,13 +99,13 @@ export function BoardHistory({
               transition: "background 0.15s ease",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(119,176,170,0.12)";
+              e.currentTarget.style.background = "rgba(0,119,204,0.12)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "transparent";
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"             stroke="#9BC4BE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"             stroke="#0099E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
@@ -126,13 +126,13 @@ export function BoardHistory({
                 transition: "background 0.15s ease",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(119,176,170,0.12)";
+                e.currentTarget.style.background = "rgba(0,119,204,0.12)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"             stroke="#9BC4BE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"             stroke="#0099E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
                 <path d="M9 3v18" />
               </svg>
@@ -153,17 +153,17 @@ export function BoardHistory({
               width: "100%",
               padding: "8px 12px",
               borderRadius: 8,
-              border: "1px solid rgba(119,176,170,0.2)",
-        background: "#0a3a40",
-              color: "#77B0AA",
+              border: "1px solid rgba(0,119,204,0.2)",
+        background: "#FFFFFF",
+              color: "#0077CC",
               fontSize: "0.8125rem",
               outline: "none",
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor = "#77B0AA";
+              e.currentTarget.style.borderColor = "#0077CC";
             }}
             onBlur={(e) => {
-              e.currentTarget.style.borderColor = "rgba(119,176,170,0.2)";
+              e.currentTarget.style.borderColor = "rgba(0,119,204,0.2)";
             }}
           />
         </div>
@@ -181,23 +181,23 @@ export function BoardHistory({
             padding: "10px 14px",
             borderRadius: 8,
             border: "none",
-            background: "rgba(119,176,170,0.08)",
+            background: "rgba(0,119,204,0.08)",
             cursor: disabled ? "not-allowed" : "pointer",
             opacity: disabled ? 0.5 : 1,
             transition: "background 0.15s ease",
-            color: "#E3FEF7",
+            color: "#333333",
             fontSize: "0.875rem",
             fontWeight: 500,
             textAlign: "left",
           }}
           onMouseEnter={(e) => {
-            if (!disabled) e.currentTarget.style.background = "rgba(119,176,170,0.18)";
+            if (!disabled) e.currentTarget.style.background = "rgba(0,119,204,0.18)";
           }}
           onMouseLeave={(e) => {
-            if (!disabled) e.currentTarget.style.background = "rgba(119,176,170,0.08)";
+            if (!disabled) e.currentTarget.style.background = "rgba(0,119,204,0.08)";
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#77B0AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0077CC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             <path d="M12 7v6M9 10h6" />
           </svg>
@@ -215,7 +215,7 @@ export function BoardHistory({
           style={{
             fontSize: "0.6875rem",
             fontWeight: 700,
-            color: "#9BC4BE",
+            color: "#0099E5",
             textTransform: "uppercase",
             letterSpacing: "0.06em",
             userSelect: "none",
@@ -236,7 +236,7 @@ export function BoardHistory({
           <p
             style={{
               fontSize: "0.8125rem",
-              color: "rgba(119,176,170,0.5)",
+              color: "rgba(51,51,51,0.5)",
               padding: "8px 12px",
               lineHeight: 1.5,
             }}
@@ -254,12 +254,12 @@ export function BoardHistory({
                 position: "relative",
                 marginBottom: 2,
                 borderRadius: 8,
-                background: isActive ? "rgba(119,176,170,0.12)" : "transparent",
+                background: isActive ? "rgba(0,119,204,0.12)" : "transparent",
                 transition: "background 0.12s ease",
               }}
               onMouseEnter={(e) => {
                 if (!disabled && !isActive) {
-                  e.currentTarget.style.background = "rgba(119,176,170,0.06)";
+                  e.currentTarget.style.background = "rgba(0,119,204,0.06)";
                 }
                 const delBtn = e.currentTarget.querySelector('[data-delete-btn]') as HTMLElement | null;
                 if (delBtn) delBtn.style.opacity = "1";
@@ -293,7 +293,7 @@ export function BoardHistory({
                    style={{
                      fontSize: "0.875rem",
                      fontWeight: isActive ? 500 : 400,
-                      color: isActive ? "#E3FEF7" : "#77B0AA",
+                      color: isActive ? "#333333" : "#0077CC",
                      overflow: "hidden",
                      textOverflow: "ellipsis",
                      whiteSpace: "nowrap",
@@ -327,15 +327,15 @@ export function BoardHistory({
                     alignItems: "center",
                     justifyContent: "center",
                     transition: "opacity 0.15s ease, background 0.15s ease",
-                    color: "rgba(119,176,170,0.5)",
+                    color: "rgba(51,51,51,0.5)",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = "rgba(217,112,112,0.15)";
-                    e.currentTarget.style.color = "#D97070";
+                    e.currentTarget.style.color = "#9E4040";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = "rgba(119,176,170,0.5)";
+                    e.currentTarget.style.color = "rgba(51,51,51,0.5)";
                   }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -353,7 +353,7 @@ export function BoardHistory({
       <div
         style={{
           flexShrink: 0,
-          borderTop: "1px solid rgba(119, 176, 170, 0.15)",
+          borderTop: "1px solid rgba(0, 119, 204, 0.15)",
           padding: "10px 16px 12px",
           display: "flex",
           alignItems: "center",
@@ -371,16 +371,16 @@ export function BoardHistory({
             background: "transparent",
             cursor: onCreditsClick ? "pointer" : "default",
             padding: 0,
-            color: "rgba(227, 254, 247, 0.55)",
+            color: "rgba(51, 51, 51, 0.55)",
             fontSize: "0.8125rem",
             fontWeight: 500,
             transition: "color 0.15s ease",
           }}
           onMouseEnter={(e) => {
-            if (onCreditsClick) e.currentTarget.style.color = "rgba(227, 254, 247, 0.85)";
+            if (onCreditsClick) e.currentTarget.style.color = "rgba(51, 51, 51, 0.85)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = "rgba(227, 254, 247, 0.55)";
+            e.currentTarget.style.color = "rgba(51, 51, 51, 0.55)";
           }}
         >
           <span
@@ -388,7 +388,7 @@ export function BoardHistory({
               width: 24,
               height: 24,
               borderRadius: "50%",
-              border: "1px solid rgba(227, 254, 247, 0.18)",
+              border: "1px solid rgba(51, 51, 51, 0.18)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -411,14 +411,14 @@ export function BoardHistory({
                 right: 0,
                 padding: "0.75rem 1rem",
                 borderRadius: 10,
-                background: "rgba(19,93,102,0.97)",
-                border: "1px solid rgba(119,176,170,0.2)",
-                boxShadow: "0 12px 32px -8px rgba(0,0,0,0.7)",
+                background: "rgba(255,255,255,0.97)",
+                border: "1px solid rgba(0,119,204,0.2)",
+                boxShadow: "0 12px 32px -8px rgba(0,0,0,0.15)",
                 backdropFilter: "blur(12px)",
                 minWidth: 140,
                 zIndex: 20,
                 fontSize: "0.9rem",
-                color: "#9BC4BE",
+                color: "#0099E5",
               }}
             >
               Profile
@@ -434,27 +434,27 @@ export function BoardHistory({
               width: 28,
               height: 28,
               borderRadius: "50%",
-              border: "1px solid rgba(227, 254, 247, 0.14)",
+              border: "1px solid rgba(51, 51, 51, 0.14)",
               background: profileOpen
-                ? "rgba(119,176,170,0.18)"
-                : "rgba(227, 254, 247, 0.06)",
+                ? "rgba(0,119,204,0.18)"
+                : "rgba(51, 51, 51, 0.06)",
               cursor: onProfileToggle ? "pointer" : "default",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               padding: 0,
               transition: "all 0.15s ease",
-              color: "rgba(227, 254, 247, 0.7)",
+              color: "rgba(51, 51, 51, 0.7)",
             }}
             onMouseEnter={(e) => {
               if (onProfileToggle) {
-                e.currentTarget.style.borderColor = "rgba(119,176,170,0.35)";
-                e.currentTarget.style.color = "#9BC4BE";
+                e.currentTarget.style.borderColor = "rgba(0,119,204,0.35)";
+                e.currentTarget.style.color = "#0099E5";
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "rgba(227, 254, 247, 0.14)";
-              e.currentTarget.style.color = "rgba(227, 254, 247, 0.7)";
+              e.currentTarget.style.borderColor = "rgba(51, 51, 51, 0.14)";
+              e.currentTarget.style.color = "rgba(51, 51, 51, 0.7)";
             }}
           >
             <svg

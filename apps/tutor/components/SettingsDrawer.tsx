@@ -59,8 +59,8 @@ function SectionLabel({
 }) {
   return (
     <div className="flex items-center gap-1.5 pb-1.5 pt-1">
-      <Icon className="h-3.5 w-3.5 text-[#77B0AA]" />
-      <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-[#77B0AA]">
+      <Icon className="h-3.5 w-3.5 text-[#0077CC]" />
+      <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-[#0077CC]">
         {children}
       </span>
     </div>
@@ -69,7 +69,7 @@ function SectionLabel({
 
 function ComingSoonChip() {
   return (
-    <span className="absolute -right-1 -top-1.5 rounded-full bg-[rgba(119,176,170,0.18)] px-1.5 py-0.5 text-[0.5rem] font-semibold uppercase leading-none tracking-wide text-[#77B0AA]">
+    <span className="absolute -right-1 -top-1.5 rounded-full bg-[rgba(0,119,204,0.18)] px-1.5 py-0.5 text-[0.5rem] font-semibold uppercase leading-none tracking-wide text-[#0077CC]">
       soon
     </span>
   );
@@ -96,8 +96,8 @@ function SelectPill({
       className={[
         "relative rounded-md border px-2.5 py-1 text-xs transition-all",
         checked
-          ? "border-[#77B0AA] bg-[rgba(119,176,170,0.14)] text-[#C4E8DE]"
-          : "border-[rgba(119,176,170,0.15)] text-[#9BC4BE] hover:border-[rgba(119,176,170,0.3)]",
+          ? "border-[#0077CC] bg-[rgba(0,119,204,0.14)] text-[#333333]"
+          : "border-[rgba(0,119,204,0.15)] text-[#0099E5] hover:border-[rgba(0,119,204,0.3)]",
         disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
       ].join(" ")}
     >
@@ -126,7 +126,7 @@ export function SettingsDrawer({
       <SheetContent side="right" className="w-[300px] sm:max-w-[300px]">
         <SheetHeader className="px-5 pt-5 pb-1">
           <SheetTitle className="flex items-center gap-2 text-base">
-            <Settings className="h-4 w-4 text-[#77B0AA]" />
+            <Settings className="h-4 w-4 text-[#0077CC]" />
             Settings
           </SheetTitle>
           <SheetDescription className="text-xs">
@@ -146,9 +146,9 @@ export function SettingsDrawer({
               onChange={(event) =>
                 update({ speedMultiplier: Number(event.target.value) })
               }
-              className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-[rgba(119,176,170,0.2)] accent-[#77B0AA]"
+              className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-[rgba(0,119,204,0.2)] accent-[#0077CC]"
             />
-            <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums text-[#C4E8DE]">
+            <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums text-[#333333]">
               {settings.speedMultiplier}x
             </span>
           </div>
@@ -193,8 +193,8 @@ export function SettingsDrawer({
           <Separator className="my-2.5" />
 
           <SectionLabel icon={Captions}>Subtitles</SectionLabel>
-          <div className="relative flex items-center justify-between rounded-md border border-[rgba(119,176,170,0.15)] px-2.5 py-2">
-            <span className="text-xs text-[#C4E8DE]">Enable subtitles</span>
+          <div className="relative flex items-center justify-between rounded-md border border-[rgba(0,119,204,0.15)] px-2.5 py-2">
+            <span className="text-xs text-[#333333]">Enable subtitles</span>
             <Switch
               checked={settings.subtitlesEnabled}
               disabled
@@ -221,7 +221,7 @@ export function SettingsDrawer({
                   className={[
                     "h-7 w-7 rounded-full border-2 transition-transform",
                     selected
-                      ? "scale-110 border-[#C4E8DE]"
+                      ? "scale-110 border-[#333333]"
                       : "border-transparent hover:scale-105",
                   ].join(" ")}
                   style={{ backgroundColor: color }}

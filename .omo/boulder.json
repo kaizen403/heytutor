@@ -1,0 +1,233 @@
+{
+  "schema_version": 2,
+  "active_work_id": "eraser-duster-tool-43c9810e",
+  "works": {
+    "eraser-duster-tool-43c9810e": {
+      "work_id": "eraser-duster-tool-43c9810e",
+      "active_plan": "/home/kaizen/heytutor/.omo/plans/eraser-duster-tool.md",
+      "plan_name": "eraser-duster-tool",
+      "status": "active",
+      "started_at": "2026-06-22T20:41:45.383Z",
+      "updated_at": "2026-06-22T21:34:42.026Z",
+      "session_ids": [
+        "opencode:ses_11117ab65ffeB2AYDdLUb7kYuw"
+      ],
+      "session_origins": {
+        "opencode:ses_11117ab65ffeB2AYDdLUb7kYuw": "direct"
+      },
+      "agent": "atlas",
+      "task_sessions": {
+        "todo:1": {
+          "task_key": "todo:1",
+          "task_label": "1",
+          "task_title": "Add ERASE command type to drawing protocol + parser",
+          "session_id": "opencode:ses_10eed082bffe18eMjEC65mTJpn",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "updated_at": "2026-06-22T20:44:40.851Z",
+          "started_at": "2026-06-22T20:44:40.851Z",
+          "status": "running"
+        },
+        "todo:2": {
+          "task_key": "todo:2",
+          "task_label": "2",
+          "task_title": "Update system prompt with eraser instructions + mock responses",
+          "session_id": "opencode:ses_10ee784bcffeV9Bg36QkfyUrnY",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-06-22T20:47:40.813Z",
+          "status": "running",
+          "updated_at": "2026-06-22T20:55:16.407Z"
+        },
+        "todo:4": {
+          "task_key": "todo:4",
+          "task_label": "4",
+          "task_title": "Add ERASE duration calculations to audio sync",
+          "session_id": "opencode:ses_10ee7838bffeX1kVnIjCHMBrvO",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "updated_at": "2026-06-22T20:51:39.747Z",
+          "started_at": "2026-06-22T20:51:39.747Z",
+          "status": "running"
+        },
+        "todo:3": {
+          "task_key": "todo:3",
+          "task_label": "3",
+          "task_title": "Add eraseRegion() + duster cursor visual + animated clearBoard() to Whiteboard",
+          "session_id": "opencode:ses_10ee784bcffeV9Bg36QkfyUrnY",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "updated_at": "2026-06-22T20:52:27.068Z",
+          "started_at": "2026-06-22T20:52:27.068Z",
+          "status": "running"
+        },
+        "todo:5": {
+          "task_key": "todo:5",
+          "task_label": "5",
+          "task_title": "Wire ERASE command into page.tsx executeCommand()",
+          "session_id": "opencode:ses_10eda620bffehR04ieRdytYYhr",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-06-22T21:12:07.864Z",
+          "started_at": "2026-06-22T21:12:07.864Z",
+          "status": "running"
+        },
+        "final-wave:f2": {
+          "task_key": "final-wave:f2",
+          "task_label": "F2",
+          "task_title": "Code Quality Review — run build gates and review all changed files for code smells.",
+          "session_id": "opencode:ses_10ecf5239ffel71l4zW2LZ9Hwt",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-06-22T21:19:02.758Z",
+          "started_at": "2026-06-22T21:19:02.758Z",
+          "status": "running"
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "Plan Compliance Audit — verify every \"Must Have\" and \"Must NOT Have\" from the eraser-duster-tool plan.",
+          "session_id": "opencode:ses_10ecf7fb9ffeNDjor1sz0qvwpU",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-06-22T21:21:01.226Z",
+          "started_at": "2026-06-22T21:21:01.226Z",
+          "status": "running"
+        },
+        "final-wave:f4": {
+          "task_key": "final-wave:f4",
+          "task_label": "F4",
+          "task_title": "Scope Fidelity Check — verify 1:1 compliance between plan spec and actual implementation.",
+          "session_id": "opencode:ses_10ecf32b0ffePITny0awAUVT5H",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-06-22T21:23:41.436Z",
+          "started_at": "2026-06-22T21:23:41.436Z",
+          "status": "running"
+        },
+        "final-wave:f3": {
+          "task_key": "final-wave:f3",
+          "task_label": "F3",
+          "task_title": "Real Manual QA — verify the eraser duster tool works visually in the browser using Playwright.",
+          "session_id": "opencode:ses_10ecf4f54ffej4K1zaMHtutuEy",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-06-22T21:34:42.027Z",
+          "started_at": "2026-06-22T21:34:42.027Z",
+          "status": "running"
+        }
+      }
+    }
+  },
+  "active_plan": "/home/kaizen/heytutor/.omo/plans/eraser-duster-tool.md",
+  "started_at": "2026-06-22T20:41:45.383Z",
+  "status": "active",
+  "updated_at": "2026-06-22T21:34:42.026Z",
+  "session_ids": [
+    "opencode:ses_11117ab65ffeB2AYDdLUb7kYuw"
+  ],
+  "session_origins": {
+    "opencode:ses_11117ab65ffeB2AYDdLUb7kYuw": "direct"
+  },
+  "plan_name": "eraser-duster-tool",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Add ERASE command type to drawing protocol + parser",
+      "session_id": "opencode:ses_10eed082bffe18eMjEC65mTJpn",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-06-22T20:44:40.851Z",
+      "started_at": "2026-06-22T20:44:40.851Z",
+      "status": "running"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Update system prompt with eraser instructions + mock responses",
+      "session_id": "opencode:ses_10ee784bcffeV9Bg36QkfyUrnY",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-06-22T20:47:40.813Z",
+      "status": "running",
+      "updated_at": "2026-06-22T20:55:16.407Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Add ERASE duration calculations to audio sync",
+      "session_id": "opencode:ses_10ee7838bffeX1kVnIjCHMBrvO",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-06-22T20:51:39.747Z",
+      "started_at": "2026-06-22T20:51:39.747Z",
+      "status": "running"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Add eraseRegion() + duster cursor visual + animated clearBoard() to Whiteboard",
+      "session_id": "opencode:ses_10ee784bcffeV9Bg36QkfyUrnY",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-06-22T20:52:27.068Z",
+      "started_at": "2026-06-22T20:52:27.068Z",
+      "status": "running"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "Wire ERASE command into page.tsx executeCommand()",
+      "session_id": "opencode:ses_10eda620bffehR04ieRdytYYhr",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-06-22T21:12:07.864Z",
+      "started_at": "2026-06-22T21:12:07.864Z",
+      "status": "running"
+    },
+    "final-wave:f2": {
+      "task_key": "final-wave:f2",
+      "task_label": "F2",
+      "task_title": "Code Quality Review — run build gates and review all changed files for code smells.",
+      "session_id": "opencode:ses_10ecf5239ffel71l4zW2LZ9Hwt",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-06-22T21:19:02.758Z",
+      "started_at": "2026-06-22T21:19:02.758Z",
+      "status": "running"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan Compliance Audit — verify every \"Must Have\" and \"Must NOT Have\" from the eraser-duster-tool plan.",
+      "session_id": "opencode:ses_10ecf7fb9ffeNDjor1sz0qvwpU",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-06-22T21:21:01.226Z",
+      "started_at": "2026-06-22T21:21:01.226Z",
+      "status": "running"
+    },
+    "final-wave:f4": {
+      "task_key": "final-wave:f4",
+      "task_label": "F4",
+      "task_title": "Scope Fidelity Check — verify 1:1 compliance between plan spec and actual implementation.",
+      "session_id": "opencode:ses_10ecf32b0ffePITny0awAUVT5H",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-06-22T21:23:41.436Z",
+      "started_at": "2026-06-22T21:23:41.436Z",
+      "status": "running"
+    },
+    "final-wave:f3": {
+      "task_key": "final-wave:f3",
+      "task_label": "F3",
+      "task_title": "Real Manual QA — verify the eraser duster tool works visually in the browser using Playwright.",
+      "session_id": "opencode:ses_10ecf4f54ffej4K1zaMHtutuEy",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-06-22T21:34:42.027Z",
+      "started_at": "2026-06-22T21:34:42.027Z",
+      "status": "running"
+    }
+  },
+  "agent": "atlas"
+}

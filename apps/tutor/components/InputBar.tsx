@@ -154,10 +154,10 @@ export function InputBar({
         className="wb-input-wrap flex min-w-0 flex-1 items-center gap-1.5 px-2.5 py-2"
         style={{
           minHeight: "52px",
-          backgroundColor: "rgba(19, 93, 102, 0.85)",
-          border: "1px solid rgba(119, 176, 170, 0.2)",
+          backgroundColor: "rgba(255, 255, 255, 0.95)",
+          border: "1px solid rgba(0, 119, 204, 0.2)",
           borderRadius: "9999px",
-          boxShadow: "0 2px 16px -2px rgba(0, 0, 0, 0.45)",
+          boxShadow: "0 2px 16px -2px rgba(0, 0, 0, 0.1)",
         }}
       >
         <input
@@ -177,12 +177,12 @@ export function InputBar({
           disabled={disabled}
           aria-label="Add image"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40"
-          style={{ color: "rgba(227, 254, 247, 0.55)" }}
+          style={{ color: "rgba(51, 51, 51, 0.55)" }}
           onMouseEnter={(e) => {
-            if (!disabled) e.currentTarget.style.color = "rgba(227, 254, 247, 0.85)";
+            if (!disabled) e.currentTarget.style.color = "rgba(51, 51, 51, 0.85)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = "rgba(227, 254, 247, 0.55)";
+            e.currentTarget.style.color = "rgba(51, 51, 51, 0.55)";
           }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -204,7 +204,7 @@ export function InputBar({
           className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-[15px] focus:outline-none disabled:opacity-50"
           autoComplete="off"
           spellCheck={false}
-          style={{ color: "rgba(227, 254, 247, 0.9)" }}
+          style={{ color: "rgba(51, 51, 51, 0.9)" }}
         />
 
         <button
@@ -214,16 +214,16 @@ export function InputBar({
           aria-label={isListening ? "Stop dictation" : "Dictate question"}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40"
           style={{
-            color: isListening ? "#77B0AA" : "rgba(227, 254, 247, 0.55)",
+            color: isListening ? "#0077CC" : "rgba(51, 51, 51, 0.55)",
           }}
           onMouseEnter={(e) => {
             if (!disabled && !isListening) {
-              e.currentTarget.style.color = "rgba(227, 254, 247, 0.85)";
+              e.currentTarget.style.color = "rgba(51, 51, 51, 0.85)";
             }
           }}
           onMouseLeave={(e) => {
             if (!isListening) {
-              e.currentTarget.style.color = "rgba(227, 254, 247, 0.55)";
+              e.currentTarget.style.color = "rgba(51, 51, 51, 0.55)";
             }
           }}
         >
@@ -254,8 +254,8 @@ export function InputBar({
               aria-label={isPaused ? "Resume teaching" : "Pause teaching"}
               className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
               style={{
-                backgroundColor: "rgba(119, 176, 170, 0.12)",
-                color: "rgba(227, 254, 247, 0.9)",
+                backgroundColor: "rgba(0, 119, 204, 0.12)",
+                color: "rgba(51, 51, 51, 0.9)",
               }}
             >
               {isPaused ? (
@@ -277,7 +277,7 @@ export function InputBar({
                 className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
                 style={{
                   backgroundColor: "rgba(217, 112, 112, 0.15)",
-                  color: "#D97070",
+                  color: "#9E4040",
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -302,19 +302,19 @@ export function InputBar({
                 disabled={disabled}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all disabled:opacity-40"
                 style={{
-                  color: isDoubtMode ? "#D97070" : "rgba(227, 254, 247, 0.55)",
+                  color: isDoubtMode ? "#9E4040" : "rgba(51, 51, 51, 0.55)",
                   backgroundColor: isDoubtMode
                     ? "rgba(217, 112, 112, 0.12)"
                     : "transparent",
                 }}
                 onMouseEnter={(e) => {
                   if (!disabled && !isDoubtMode) {
-                    e.currentTarget.style.color = "rgba(227, 254, 247, 0.85)";
+                    e.currentTarget.style.color = "rgba(51, 51, 51, 0.85)";
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isDoubtMode) {
-                    e.currentTarget.style.color = "rgba(227, 254, 247, 0.55)";
+                    e.currentTarget.style.color = "rgba(51, 51, 51, 0.55)";
                   }
                 }}
               >
@@ -335,15 +335,15 @@ export function InputBar({
               className="mr-0.5 shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all"
               style={{
                 backgroundColor: buttonDisabled
-                  ? "rgba(119, 176, 170, 0.08)"
+                  ? "rgba(0, 119, 204, 0.08)"
                   : isDoubtMode
-                    ? "#D97070"
-                    : "#77B0AA",
+                    ? "#9E4040"
+                    : "#0077CC",
                 color: buttonDisabled
-                  ? "rgba(227, 254, 247, 0.35)"
+                  ? "rgba(51, 51, 51, 0.35)"
                   : isDoubtMode
-                    ? "#E3FEF7"
-                    : "#003C43",
+                    ? "#FFFFFF"
+                    : "#FFFFFF",
                 cursor: buttonDisabled ? "not-allowed" : "pointer",
               }}
             >

@@ -30,8 +30,8 @@ const Whiteboard = dynamic(
             height: 32,
             borderRadius: "50%",
             border: "2px solid transparent",
-            borderTopColor: "#77B0AA",
-            borderBottomColor: "#77B0AA",
+            borderTopColor: "#0077CC",
+            borderBottomColor: "#0077CC",
             animation: "wb-spin 0.8s linear infinite",
           }}
         />
@@ -1871,36 +1871,36 @@ export default function TutorSessionPage() {
     }
   > = {
     idle: {
-      color: "rgba(119,176,170,0.5)",
+      color: "rgba(0,119,204,0.5)",
       label: "ready",
       dotClass: "",
-      labelColor: "rgba(119,176,170,0.5)",
+      labelColor: "rgba(0,119,204,0.5)",
     },
     thinking: {
-      color: "#9BC4BE",
+      color: "#0099E5",
       label: "thinking\u2026",
       dotClass: "animate-wb-pulse-amber",
-      labelColor: "#9BC4BE",
+      labelColor: "#0099E5",
     },
     drawing: {
-      color: "#77B0AA",
+      color: "#0077CC",
       label: "teaching\u2026",
       dotClass: "animate-wb-glow-blue",
-      labelColor: "#77B0AA",
+      labelColor: "#0077CC",
     },
     speaking: {
-      color: "#77B0AA",
+      color: "#0077CC",
       label: "teaching\u2026",
       dotClass: "animate-wb-glow-blue",
-      labelColor: "#77B0AA",
+      labelColor: "#0077CC",
     },
   };
 
   const pausedStatus = {
-    color: "#E3FEF7",
+    color: "#333333",
     label: "paused",
     dotClass: "",
-    labelColor: "#E3FEF7",
+    labelColor: "#333333",
   };
 
   const activeStatus = isPaused ? pausedStatus : statusConfig[phase];
@@ -1920,7 +1920,7 @@ export default function TutorSessionPage() {
         border: "none",
         background: "transparent",
         cursor: "pointer",
-        color: settings.speedMultiplier > 1 ? "#77B0AA" : "rgba(196,232,222,0.7)",
+        color: settings.speedMultiplier > 1 ? "#0077CC" : "rgba(51,51,51,0.7)",
         opacity: 0.8,
       }}
     >
@@ -1968,7 +1968,7 @@ export default function TutorSessionPage() {
     <div
       className="relative flex h-screen overflow-hidden"
       style={{
-        background: "#062a30",
+        background: "#EAEAEA",
       }}
     >
       <BoardHistory
@@ -2011,7 +2011,7 @@ export default function TutorSessionPage() {
                 transition: "background 0.15s ease",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(119,176,170,0.1)";
+                e.currentTarget.style.background = "rgba(0,119,204,0.1)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
@@ -2019,7 +2019,7 @@ export default function TutorSessionPage() {
             >
                               <svg
                   width="22"
-                  height="22" viewBox="0 0 24 24" fill="none" stroke="#9BC4BE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  height="22" viewBox="0 0 24 24" fill="none" stroke="#0099E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
                 <path d="M9 3v18" />
               </svg>
@@ -2033,19 +2033,19 @@ export default function TutorSessionPage() {
                 aria-label="Replay lecture"
                 style={{
                   fontSize: "0.7rem",
-                  color: "#77B0AA",
-                  background: "rgba(119, 176, 170, 0.1)",
-                  border: "1px solid rgba(119, 176, 170, 0.25)",
+                  color: "#0077CC",
+                  background: "rgba(0, 119, 204, 0.1)",
+                  border: "1px solid rgba(0, 119, 204, 0.25)",
                   borderRadius: 9999,
                   padding: "4px 10px",
                   cursor: "pointer",
                   transition: "background 0.15s ease",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(119, 176, 170, 0.2)";
+                  e.currentTarget.style.background = "rgba(0, 119, 204, 0.2)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(119, 176, 170, 0.1)";
+                  e.currentTarget.style.background = "rgba(0, 119, 204, 0.1)";
                 }}
               >
                 Replay
@@ -2058,19 +2058,19 @@ export default function TutorSessionPage() {
                 aria-label="View lesson transcript"
                 style={{
                   fontSize: "0.7rem",
-                  color: "#9BC4BE",
-                  background: "rgba(119, 176, 170, 0.1)",
-                  border: "1px solid rgba(119, 176, 170, 0.25)",
+                  color: "#0099E5",
+                  background: "rgba(0, 119, 204, 0.1)",
+                  border: "1px solid rgba(0, 119, 204, 0.25)",
                   borderRadius: 9999,
                   padding: "4px 10px",
                   cursor: "pointer",
                   transition: "background 0.15s ease",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(119, 176, 170, 0.2)";
+                  e.currentTarget.style.background = "rgba(0, 119, 204, 0.2)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(119, 176, 170, 0.1)";
+                  e.currentTarget.style.background = "rgba(0, 119, 204, 0.1)";
                 }}
               >
                 Transcript
@@ -2083,7 +2083,7 @@ export default function TutorSessionPage() {
                 aria-label="Stop teaching"
                 style={{
                   fontSize: "0.7rem",
-                  color: "#D97070",
+                  color: "#9E4040",
                   background: "rgba(217, 112, 112, 0.12)",
                   border: "1px solid rgba(217, 112, 112, 0.35)",
                   borderRadius: 9999,
@@ -2138,7 +2138,7 @@ export default function TutorSessionPage() {
                 style={{
                   fontSize: "1.05rem",
                   fontWeight: 600,
-                  color: "#9BC4BE",
+                  color: "#0099E5",
                   textTransform: "capitalize",
                   letterSpacing: "0.01em",
                   userSelect: "none",
@@ -2153,17 +2153,17 @@ export default function TutorSessionPage() {
             className="relative min-h-0 flex-1 overflow-hidden"
             style={{
               background:
-                "linear-gradient(180deg, #faf8f4 0%, #f3efe8 50%, #ede9e2 100%)",
+                "linear-gradient(180deg, #FFFFFF 0%, #EAEAEA 50%, #EAEAEA 100%)",
               borderRadius: "8px",
               boxShadow:
-                "0 16px 48px -10px rgba(0,0,0,0.5), 0 4px 16px -4px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(0,0,0,0.08), inset 0 2px 6px rgba(255,255,255,0.7)",
+                "0 16px 48px -10px rgba(0,119,204,0.15), 0 4px 16px -4px rgba(0,0,0,0.1), inset 0 0 0 1px rgba(0,119,204,0.08), inset 0 2px 6px rgba(255,255,255,0.7)",
             }}
           >
             {isInputOverlay && (
               <div
                 className="pointer-events-none absolute inset-0 z-10"
                 style={{
-                  backgroundColor: "rgba(6, 42, 48, 0.4)",
+                  backgroundColor: "rgba(234, 234, 234, 0.6)",
                   backdropFilter: "blur(8px)",
                   WebkitBackdropFilter: "blur(8px)",
                 }}
@@ -2186,7 +2186,7 @@ export default function TutorSessionPage() {
                 className="absolute inset-0 z-20 pointer-events-none"
                 style={{
                   background:
-                    "linear-gradient(180deg, rgba(250,248,244,0.82) 0%, rgba(243,239,232,0.92) 100%)",
+                    "linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(234,234,234,0.92) 100%)",
                   backdropFilter: "blur(2px)",
                 }}
               >
@@ -2197,12 +2197,12 @@ export default function TutorSessionPage() {
                   <div
                     className="h-10 w-10 rounded-full border-2 border-transparent"
                     style={{
-                      borderTopColor: "#77B0AA",
-                      borderBottomColor: "#77B0AA",
+                      borderTopColor: "#0077CC",
+                      borderBottomColor: "#0077CC",
                       animation: "wb-spin 0.8s linear infinite",
                     }}
                   />
-                  <p style={{ fontSize: "0.9rem", color: "#5a8a85", fontWeight: 500 }}>
+                  <p style={{ fontSize: "0.9rem", color: "#0077CC", fontWeight: 500 }}>
                     thinking about how to teach this…
                   </p>
                 </div>

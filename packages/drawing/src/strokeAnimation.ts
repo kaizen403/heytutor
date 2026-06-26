@@ -29,7 +29,7 @@ export interface RoughAnimationOptions {
 }
 
 const DEFAULT_STROKE_WIDTH = 2;
-const DEFAULT_STROKE_COLOR = "#222222";
+const DEFAULT_STROKE_COLOR = "#333333";
 
 function clampProgress(progress: number): number {
   return Math.min(Math.max(progress, 0), 1);

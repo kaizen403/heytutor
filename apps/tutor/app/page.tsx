@@ -24,7 +24,7 @@ export default function Home() {
         alignItems: "center",
         justifyContent: "center",
         height: "100vh",
-        background: "#003C43",
+        background: "#EAEAEA",
       }}
     >
       {!ready && (
@@ -34,8 +34,8 @@ export default function Home() {
             height: 32,
             borderRadius: "50%",
             border: "2px solid transparent",
-            borderTopColor: "#77B0AA",
-            borderBottomColor: "#77B0AA",
+            borderTopColor: "#0077CC",
+            borderBottomColor: "#0077CC",
             animation: "wb-spin 0.8s linear infinite",
           }}
         />

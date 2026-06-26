@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --background: #1a1714;
-  --foreground: #F2EDE4;
+  --background: #EAEAEA;
+  --foreground: #333333;
 
-  /* Warm design tokens as CSS custom properties */
-  --wb-bg: #1a1714;
-  --wb-surface: #221e1a;
-  --wb-accent-amber: #C8893A;
-  --wb-accent-amber-light: #D49B4E;
-  --wb-paper: #F8F6F0;
-  --wb-paper-ink: #3a332c;
-  --wb-paper-border: #D4CDBE;
-  --wb-text-primary: #F2EDE4;
-  --wb-text-secondary: #C4B8A8;
-  --wb-text-tertiary: #8A7F72;
-  --wb-border: #3d3530;
-  --wb-cursor-blue: #3380FF;
+  /* Design tokens as CSS custom properties */
+  --wb-bg: #EAEAEA;
+  --wb-surface: #FFFFFF;
+  --wb-accent-amber: #0077CC;
+  --wb-accent-amber-light: #0099E5;
+  --wb-paper: #FFFFFF;
+  --wb-paper-ink: #333333;
+  --wb-paper-border: #DAE8FC;
+  --wb-text-primary: #333333;
+  --wb-text-secondary: #666666;
+  --wb-text-tertiary: #999999;
+  --wb-border: #DAE8FC;
+  --wb-cursor-blue: #0077CC;
 }
 
 @theme inline {
@@ -90,10 +90,10 @@ body {
 
 @keyframes wb-glow-blue {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(51, 128, 255, 0.5);
+    box-shadow: 0 0 0 0 rgba(0, 119, 204, 0.5);
   }
   50% {
-    box-shadow: 0 0 0 5px rgba(51, 128, 255, 0);
+    box-shadow: 0 0 0 5px rgba(0, 119, 204, 0);
   }
 }
 
@@ -144,8 +144,8 @@ body {
 }
 
 .wb-input-wrap:focus-within {
-  border-color: rgba(119, 176, 170, 0.5) !important;
-  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.4) !important;
+  border-color: rgba(0, 119, 204, 0.5) !important;
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.15) !important;
 }
 
 /* ── Paper input placeholder ── */
@@ -155,7 +155,7 @@ body {
 }
 
 .wb-paper-input::placeholder {
-  color: #9A9384;
+  color: #999999;
   font-style: italic;
 }
 
@@ -204,7 +204,7 @@ body {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(51, 128, 255, 0.6) 50%,
+    rgba(0, 119, 204, 0.6) 50%,
     transparent 100%
   );
   animation: wb-progress-sweep 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;

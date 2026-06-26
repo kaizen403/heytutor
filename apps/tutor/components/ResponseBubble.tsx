@@ -33,18 +33,18 @@ export function ResponseBubble({ text, visible }: ResponseBubbleProps) {
     <div
       className="animate-wb-bubble-fade pointer-events-none absolute left-1/2 top-5 z-10 max-w-xl -translate-x-1/2 px-6 py-3"
       style={{
-        backgroundColor: "rgba(19,93,102,0.92)",
-        color: "#E3FEF7",
+        backgroundColor: "rgba(255,255,255,0.92)",
+        color: "#333333",
         borderRadius: "8px",
-        boxShadow: "0 6px 20px -3px rgba(0, 0, 0, 0.4)",
-        border: `1px solid rgba(119,176,170,0.25)`,
+        boxShadow: "0 6px 20px -3px rgba(0, 0, 0, 0.15)",
+        border: `1px solid rgba(0,119,204,0.25)`,
         backdropFilter: "blur(8px)",
       }}
     >
       <p
         className="text-center text-base font-medium leading-relaxed"
         style={{
-          color: "#E3FEF7",
+          color: "#333333",
         }}
       >
         {displayText}
