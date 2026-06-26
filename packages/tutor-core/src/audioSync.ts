@@ -672,6 +672,11 @@ export interface DrawingDurations {
   DRAW_LINE: number;
   WRITE: number;
   LABEL: number;
+  UNDERLINE: number;
+  CIRCLE_AROUND: number;
+  ARROW: number;
+  HIGHLIGHT: number;
+  SCRIBBLE: number;
   CLEAR: number;
   PAUSE: number;
   ERASE: number;
@@ -689,6 +694,11 @@ const DEFAULT_DRAWING_DURATIONS: DrawingDurations = {
   DRAW_LINE: 600,
   WRITE: 0,
   LABEL: 0,
+  UNDERLINE: 350,
+  CIRCLE_AROUND: 700,
+  ARROW: 500,
+  HIGHLIGHT: 250,
+  SCRIBBLE: 400,
   CLEAR: 200,
   PAUSE: 500,
   ERASE: 1500,
@@ -721,6 +731,15 @@ export function getFlightDuration(command: DrawCommand): number {
   if (command.type === "PAUSE") return 0;
   if (command.type === "WRITE" || command.type === "LABEL") return 50;
   if (command.type === "ERASE") return 500;
+  if (
+    command.type === "UNDERLINE" ||
+    command.type === "CIRCLE_AROUND" ||
+    command.type === "ARROW" ||
+    command.type === "HIGHLIGHT" ||
+    command.type === "SCRIBBLE"
+  ) {
+    return 200;
+  }
   return 300;
 }
 
