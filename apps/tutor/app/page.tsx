@@ -2,145 +2,69 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBoard } from "@/lib/boardsClient";
+import { createBoard, fetchBoards } from "@/lib/boardsClient";
 
 export default function Home() {
   const router = useRouter();
-  const [question, setQuestion] = useState("");
-  const [loading, setLoading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const redirectStartedRef = useRef(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (redirectStartedRef.current) return;
+    redirectStartedRef.current = true;
 
-  const handleSubmit = async () => {
-    const trimmed = question.trim();
-    if (!trimmed || loading) return;
-    setLoading(true);
-    const id = crypto.randomUUID();
-    await createBoard(id);
-    router.replace(`/c/${id}?q=${encodeURIComponent(trimmed)}`);
-  };
+    void (async () => {
+      const question = new URLSearchParams(window.location.search).get("q")?.trim();
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSubmit();
-    }
-  };
+      const boards = await fetchBoards();
+      const unused = boards.find((b) => b.title === "new board" && !b.preview);
+      const board = unused ?? (await createBoard());
 
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        background: "#003C43",
-        padding: "24px",
-        gap: "32px",
-      }}
-    >
+      if (!board) {
+        setError("could not connect to the database — try running pnpm dev:tutor again");
+        return;
+      }
+
+      const path = `/c/${board.id}${question ? `?q=${encodeURIComponent(question)}` : ""}`;
+      router.replace(path);
+    })();
+  }, [router]);
+
+  if (error) {
+    return (
       <div
         style={{
+          minHeight: "100vh",
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
-          gap: "12px",
-          textAlign: "center",
+          justifyContent: "center",
+          padding: "2rem",
+          background: "#EAEAEA",
+          color: "#333333",
+          fontFamily: "system-ui, sans-serif",
         }}
       >
-        <h1
-          style={{
-            color: "#E3FEF7",
-            fontSize: "clamp(2.5rem, 6vw, 4rem)",
-            fontWeight: 800,
-            letterSpacing: "-0.02em",
-            margin: 0,
-          }}
-        >
-          HeyTutor
-        </h1>
-        <p
-          style={{
-            color: "rgba(227, 254, 247, 0.7)",
-            fontSize: "clamp(1rem, 2.5vw, 1.25rem)",
-            margin: 0,
-          }}
-        >
-          your AI whiteboard tutor
-        </p>
+        <div style={{ maxWidth: "24rem", textAlign: "center" }}>
+          <p style={{ marginBottom: "0.75rem", fontSize: "0.95rem" }}>{error}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            style={{
+              padding: "0.5rem 1rem",
+              borderRadius: "9999px",
+              border: "1px solid rgba(0, 119, 204, 0.3)",
+              background: "rgba(0, 119, 204, 0.1)",
+              color: "#0077CC",
+              cursor: "pointer",
+              fontSize: "0.875rem",
+            }}
+          >
+            retry
+          </button>
+        </div>
       </div>
+    );
+  }
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          width: "100%",
-          maxWidth: "640px",
-        }}
-      >
-        <input
-          ref={inputRef}
-          type="text"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={loading}
-          placeholder="What do you want to learn?"
-          style={{
-            flex: 1,
-            padding: "16px 24px",
-            fontSize: "1rem",
-            color: "#E3FEF7",
-            background: "rgba(19, 93, 102, 0.85)",
-            border: "1px solid rgba(119, 176, 170, 0.2)",
-            borderRadius: "999px",
-            outline: "none",
-            opacity: loading ? 0.6 : 1,
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => void handleSubmit()}
-          disabled={loading || !question.trim()}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "8px",
-            padding: "16px 28px",
-            fontSize: "1rem",
-            fontWeight: 600,
-            color: "#003C43",
-            background: "#77B0AA",
-            border: "none",
-            borderRadius: "999px",
-            cursor: loading || !question.trim() ? "not-allowed" : "pointer",
-            opacity: loading || !question.trim() ? 0.6 : 1,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {loading ? (
-            <span
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                border: "2px solid transparent",
-                borderTopColor: "#003C43",
-                borderBottomColor: "#003C43",
-                animation: "wb-spin 0.8s linear infinite",
-              }}
-            />
-          ) : (
-            "Get Started"
-          )}
-        </button>
-      </div>
-    </div>
-  );
+  return null;
 }
