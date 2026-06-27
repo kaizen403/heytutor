@@ -6,9 +6,22 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { InputBar } from "@/components/InputBar";
 import { ResponseBubble } from "@/components/ResponseBubble";
 import { TranscriptDialog } from "@/components/TranscriptDialog";
-import { BoardHistory, type BoardEntry } from "@/components/BoardHistory";
+import { BoardHistory, SIDEBAR_WIDTH, type BoardEntry } from "@/components/BoardHistory";
+import { LessonActions } from "@/components/LessonActions";
+import { ReplayControls } from "@/components/ReplayControls";
 import { SettingsDrawer, type SettingsState, getMarkerColorHex } from "@/components/SettingsDrawer";
-import type { WhiteboardHandle, CursorState, WriteSchedule } from "@heytutor/whiteboard";
+import { playReplayAudio, stopReplayAudio } from "@/lib/replayAudio";
+import {
+  buildReplayTimeline,
+  findCueAtTime,
+  getPartialCommandCount,
+  type ReplayCue,
+} from "@/lib/replayTimeline";
+import {
+  buildLocalStoredTurn,
+  enrichStoredSegmentsWithReplayAudio,
+} from "@/lib/replayTurns";
+import type { WhiteboardHandle, CursorState, WriteSchedule, AnnotationKind } from "@heytutor/whiteboard";
 
 const Whiteboard = dynamic(
   () => import("@heytutor/whiteboard").then((mod) => mod.Whiteboard),
@@ -49,10 +62,18 @@ import {
   rectPath,
   circlePath,
   linePath,
+  underlinePath,
+  emphasisEllipsePath,
+  arrowPath,
+  highlightRectPath,
+  scribblePath,
+  parseStoredSegmentCommands,
+  serializeSegmentCommands,
   IncrementalTagParser,
   checkSegmentAlignment,
   buildLessonSegments,
   lessonNarrationText,
+  measureTextWidth,
 } from "@heytutor/drawing";
 import {
   streamLLMResponse,
@@ -83,6 +104,7 @@ import {
   saveTurn,
   updateBoard,
   type RecordedSegmentPayload,
+  type StoredSegment,
   type StoredTurn,
 } from "@/lib/boardsClient";
 
@@ -90,11 +112,13 @@ type TutorPhase = "idle" | "thinking" | "drawing" | "speaking";
 
 const BOARD_WIDTH = DS.Canvas.width;
 const BOARD_HEIGHT = DS.Canvas.height;
+const WHITEBOARD_COLOR = "#F8F6F0";
+const PAGE_GUTTER_X = 28;
+const PAGE_GUTTER_Y = 10;
 const MAX_LLM_CONTINUATIONS = 3;
 
 const TEXT_LAYOUT = {
   marginX: 90,
-  firstTextMaxY: 180,
   topY: 64,
   headingBottomY: 118,
   workTopY: 142,
@@ -107,12 +131,32 @@ const TEXT_LAYOUT = {
   eraseHeight: 520,
 };
 
+const DIAGRAM_ZONE = {
+  x: 400,
+  y: 140,
+  width: 500,
+  height: 380,
+};
+
+function isInDiagramZone(x: number, y: number): boolean {
+  return (
+    x >= DIAGRAM_ZONE.x &&
+    x <= DIAGRAM_ZONE.x + DIAGRAM_ZONE.width &&
+    y >= DIAGRAM_ZONE.y &&
+    y <= DIAGRAM_ZONE.y + DIAGRAM_ZONE.height
+  );
+}
+
 interface BoardTextRect {
   x: number;
   y: number;
   width: number;
   height: number;
+  text?: string;
+  commandIndex?: number;
 }
+
+const ANNOTATION_SNAP_DISTANCE = 40;
 
 interface BoardLayoutState {
   rects: BoardTextRect[];
@@ -124,7 +168,8 @@ function clampNumber(value: number, min: number, max: number): number {
 }
 
 function estimateBoardTextWidth(text: string): number {
-  return clampNumber(text.length * 18 + 28, 80, BOARD_WIDTH - TEXT_LAYOUT.marginX * 2);
+  const measured = measureTextWidth(text, 32);
+  return clampNumber(measured + 16, 40, BOARD_WIDTH - TEXT_LAYOUT.marginX * 2);
 }
 
 function textRectsOverlap(a: BoardTextRect, b: BoardTextRect, padding = 12): boolean {
@@ -163,7 +208,298 @@ const FIXED_SHAPE_DRAW_MS: Partial<Record<DrawCommand["type"], number>> = {
   DRAW_RECT: 850,
   DRAW_CUBE: 1100,
   DRAW_CUBOID: 1200,
+  UNDERLINE: 350,
+  CIRCLE_AROUND: 700,
+  ARROW: 500,
+  HIGHLIGHT: 250,
+  SCRIBBLE: 400,
 };
+
+function pointNearRect(px: number, py: number, rect: BoardTextRect, padding = ANNOTATION_SNAP_DISTANCE): boolean {
+  return (
+    px >= rect.x - padding &&
+    px <= rect.x + rect.width + padding &&
+    py >= rect.y - padding &&
+    py <= rect.y + rect.height + padding
+  );
+}
+
+function lineNearRect(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  rect: BoardTextRect,
+  padding = ANNOTATION_SNAP_DISTANCE,
+): boolean {
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
+  return pointNearRect(midX, midY, rect, padding);
+}
+
+function bboxNearRect(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  rect: BoardTextRect,
+  padding = ANNOTATION_SNAP_DISTANCE,
+): boolean {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  return pointNearRect(cx, cy, rect, padding);
+}
+
+function pointRectDistance(px: number, py: number, rect: BoardTextRect): number {
+  const cx = rect.x + rect.width / 2;
+  const cy = rect.y + rect.height / 2;
+  return Math.hypot(px - cx, py - cy);
+}
+
+function findNearestTextRect(
+  probe: (rect: BoardTextRect) => boolean,
+  rects: BoardTextRect[],
+  referencePoint?: { x: number; y: number },
+): BoardTextRect | null {
+  const candidates = rects.filter(probe);
+  if (candidates.length === 0) {
+    return null;
+  }
+  if (candidates.length === 1) {
+    return candidates[0];
+  }
+  if (!referencePoint) {
+    return candidates[0];
+  }
+  let best = candidates[0];
+  let bestDist = pointRectDistance(referencePoint.x, referencePoint.y, best);
+  for (let i = 1; i < candidates.length; i++) {
+    const d = pointRectDistance(referencePoint.x, referencePoint.y, candidates[i]);
+    if (d < bestDist) {
+      best = candidates[i];
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
+function registerBoardAnchor(layout: BoardLayoutState, rect: BoardTextRect): void {
+  layout.rects.push(rect);
+}
+
+function getWorkAreaFlowStartY(layout: BoardLayoutState): number {
+  const hasHeading = layout.rects.some((rect) => rect.y < TEXT_LAYOUT.headingBottomY);
+  const queuedY = Math.max(layout.nextY, TEXT_LAYOUT.topY);
+  if (hasHeading && queuedY <= TEXT_LAYOUT.headingBottomY) {
+    return TEXT_LAYOUT.workTopY;
+  }
+  return queuedY;
+}
+
+function overlapsWorkArea(rect: BoardTextRect): boolean {
+  return textRectsOverlap(rect, {
+    x: TEXT_LAYOUT.eraseX,
+    y: TEXT_LAYOUT.eraseY,
+    width: TEXT_LAYOUT.eraseWidth,
+    height: TEXT_LAYOUT.eraseHeight,
+  }, 0);
+}
+
+function underlineParamsForRect(match: BoardTextRect, pad: number): number[] {
+  return [
+    match.x - pad,
+    match.y + match.height + 2,
+    match.x + match.width + pad,
+    match.y + match.height + 2,
+  ];
+}
+
+function bboxParamsForRect(match: BoardTextRect, pad: number): number[] {
+  return [match.x - pad, match.y - pad, match.width + pad * 2, match.height + pad * 2];
+}
+
+const NARRATION_LABEL_RULES: Array<{ cues: string[]; labels: string[] }> = [
+  { cues: ["mass", "the mass", "mass is", "this mass", "labeled m", "label m"], labels: ["m", "M"] },
+  { cues: ["friction", "frictional", "mu times", "mu is", "force of friction"], labels: ["f", "F_f", "f_k", "f_s"] },
+  { cues: ["normal force", "normal from", "normal pushes", "normal", "surface pushes"], labels: ["N", "F_N"] },
+  { cues: ["weight", "gravity", "gravitational", "mass times g", "mg", "w equals"], labels: ["mg", "W", "F_g"] },
+  { cues: ["applied push", "applied force", "push to the right", "push to the left", "applied"], labels: ["F", "F_app", "P"] },
+  { cues: ["tension", "rope pulls", "string pulls", "cable pulls"], labels: ["T", "F_T"] },
+  { cues: ["velocity", "the velocity", "speed"], labels: ["v", "V"] },
+  { cues: ["acceleration", "the acceleration", "accelerates"], labels: ["a", "A"] },
+  { cues: ["force", "the force", "net force"], labels: ["F", "F_net"] },
+  { cues: ["angle", "theta", "the angle"], labels: ["θ", "theta"] },
+  { cues: ["coefficient", "mu", "friction coefficient"], labels: ["μ", "mu"] },
+  { cues: ["distance", "displacement", "the distance"], labels: ["d", "x", "s"] },
+  { cues: ["height", "the height", "falls from"], labels: ["h", "H"] },
+  { cues: ["time", "the time"], labels: ["t", "T"] },
+  { cues: ["energy", "kinetic energy", "potential energy"], labels: ["E", "KE", "PE", "U"] },
+  { cues: ["momentum", "the momentum"], labels: ["p", "P"] },
+  { cues: ["charge", "the charge"], labels: ["q", "Q"] },
+  { cues: ["current", "the current"], labels: ["I", "i"] },
+  { cues: ["voltage", "potential difference", "the voltage"], labels: ["V", "ΔV"] },
+  { cues: ["resistance", "the resistance"], labels: ["R"] },
+  { cues: ["power", "the power"], labels: ["P"] },
+  { cues: ["frequency", "the frequency"], labels: ["f", "ν"] },
+  { cues: ["wavelength", "the wavelength"], labels: ["λ", "lambda"] },
+  { cues: ["temperature", "the temperature"], labels: ["T"] },
+  { cues: ["pressure", "the pressure"], labels: ["P", "p"] },
+  { cues: ["volume", "the volume"], labels: ["V", "v"] },
+  { cues: ["density", "the density"], labels: ["ρ", "rho"] },
+  { cues: ["area", "the area"], labels: ["A"] },
+];
+
+function normalizeLabel(text: string): string {
+  return text.trim().replace(/\s+/g, "").toLowerCase();
+}
+
+function findAnchorByNarration(narration: string, rects: BoardTextRect[]): BoardTextRect | null {
+  const normalized = narration.toLowerCase();
+
+  for (const rule of NARRATION_LABEL_RULES) {
+    if (!rule.cues.some((cue) => normalized.includes(cue))) {
+      continue;
+    }
+    for (const label of rule.labels) {
+      const target = normalizeLabel(label);
+      const match = rects.find((rect) => normalizeLabel(rect.text ?? "") === target);
+      if (match) {
+        return match;
+      }
+    }
+  }
+
+  for (const rect of rects) {
+    const rectText = (rect.text ?? "").trim().toLowerCase();
+    if (rectText.length === 0 || rectText.length > 30) {
+      continue;
+    }
+    if (normalized.includes(rectText)) {
+      return rect;
+    }
+  }
+
+  return null;
+}
+
+function resolveSnappedAnnotationParams(
+  kind: DrawCommand["type"],
+  params: number[],
+  rects: BoardTextRect[],
+  narration?: string,
+): { params: number[]; snapped: boolean; rect: BoardTextRect | null } {
+  const pad = 8;
+
+  if (kind === "UNDERLINE" && params.length >= 4) {
+    const [x1, y1, x2, y2] = params;
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    const match = findNearestTextRect(
+      (rect) => lineNearRect(x1, y1, x2, y2, rect),
+      rects,
+      { x: midX, y: midY },
+    );
+    if (match) {
+      return { params: underlineParamsForRect(match, pad), snapped: true, rect: match };
+    }
+  }
+
+  if ((kind === "CIRCLE_AROUND" || kind === "HIGHLIGHT") && params.length >= 4) {
+    const [x, y, w, h] = params;
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    const match = findNearestTextRect(
+      (rect) => bboxNearRect(x, y, w, h, rect),
+      rects,
+      { x: cx, y: cy },
+    );
+    if (match) {
+      return { params: bboxParamsForRect(match, pad), snapped: true, rect: match };
+    }
+    const nearby = findNearestTextRect(
+      (rect) => pointNearRect(cx, cy, rect, ANNOTATION_SNAP_DISTANCE * 2),
+      rects,
+      { x: cx, y: cy },
+    );
+    if (nearby) {
+      return { params: bboxParamsForRect(nearby, pad), snapped: true, rect: nearby };
+    }
+  }
+
+  if (kind === "ARROW" && params.length >= 4) {
+    const [x1, y1, x2, y2] = params;
+    const match = findNearestTextRect(
+      (rect) => pointNearRect(x2, y2, rect) || lineNearRect(x1, y1, x2, y2, rect),
+      rects,
+      { x: x2, y: y2 },
+    );
+    if (match) {
+      const cx = match.x + match.width / 2;
+      const cy = match.y + match.height / 2;
+      const startFar = Math.hypot(x1 - cx, y1 - cy) > ANNOTATION_SNAP_DISTANCE * 2;
+      return {
+        params: startFar ? [x1, y1, cx, cy] : [x1, y1, x2, y2],
+        snapped: true,
+        rect: match,
+      };
+    }
+  }
+
+  if (kind === "SCRIBBLE" && params.length >= 4) {
+    const [x1, y1, x2, y2] = params;
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    const match = findNearestTextRect(
+      (rect) => lineNearRect(x1, y1, x2, y2, rect),
+      rects,
+      { x: midX, y: midY },
+    );
+    if (match) {
+      return {
+        params: [
+          match.x,
+          match.y + match.height * 0.35,
+          match.x + match.width,
+          match.y + match.height * 0.65,
+        ],
+        snapped: true,
+        rect: match,
+      };
+    }
+  }
+
+  if (narration) {
+    const match = findAnchorByNarration(narration, rects);
+    if (match) {
+      if (kind === "UNDERLINE") {
+        return { params: underlineParamsForRect(match, pad), snapped: true, rect: match };
+      }
+      if (kind === "CIRCLE_AROUND" || kind === "HIGHLIGHT") {
+        return { params: bboxParamsForRect(match, pad), snapped: true, rect: match };
+      }
+      if (kind === "ARROW" && params.length >= 4) {
+        const [x1, y1] = params;
+        const cx = match.x + match.width / 2;
+        const cy = match.y + match.height / 2;
+        return { params: [x1, y1, cx, cy], snapped: true, rect: match };
+      }
+      if (kind === "SCRIBBLE") {
+        return {
+          params: [
+            match.x,
+            match.y + match.height * 0.35,
+            match.x + match.width,
+            match.y + match.height * 0.65,
+          ],
+          snapped: true,
+          rect: match,
+        };
+      }
+    }
+  }
+
+  return { params, snapped: false, rect: null };
+}
 
 function normalizeSegmentForAlignment(segment: TutorSegment): TutorSegment {
   const commands = getSegmentCommands(segment);
@@ -195,93 +531,6 @@ function normalizeSegmentForAlignment(segment: TutorSegment): TutorSegment {
   };
 }
 
-function stopReplayAudio(audio: HTMLAudioElement | null): void {
-  if (!audio) {
-    return;
-  }
-
-  audio.pause();
-  audio.removeAttribute("src");
-  audio.load();
-}
-
-function playReplayAudio(
-  url: string,
-  options: {
-    playbackRate?: number;
-    onStart?: (durationMs: number) => void;
-    shouldCancel?: () => boolean;
-  } = {},
-): { audio: HTMLAudioElement; done: Promise<void> } {
-  const audio = new Audio(url);
-  audio.playbackRate = options.playbackRate ?? 1;
-  audio.preload = "auto";
-
-  let cancelInterval: number | null = null;
-  let finishPlayback: ((error?: unknown) => void) | null = null;
-
-  const done = new Promise<void>((resolve, reject) => {
-    let settled = false;
-
-    const finish = (error?: unknown) => {
-      if (settled) {
-        return;
-      }
-
-      settled = true;
-
-      if (cancelInterval !== null) {
-        window.clearInterval(cancelInterval);
-        cancelInterval = null;
-      }
-
-      audio.onplay = null;
-      audio.onended = null;
-      audio.onerror = null;
-      finishPlayback = null;
-
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve();
-    };
-
-    finishPlayback = finish;
-
-    audio.onplay = () => {
-      const durationMs =
-        Number.isFinite(audio.duration) && audio.duration > 0
-          ? Math.round(audio.duration * 1000)
-          : 700;
-      options.onStart?.(durationMs);
-    };
-
-    audio.onended = () => finish();
-    audio.onerror = () => finish(new Error(`Replay audio failed: ${url}`));
-
-    void audio.play().catch((error: unknown) => finish(error));
-  });
-
-  if (options.shouldCancel) {
-    cancelInterval = window.setInterval(() => {
-      if (options.shouldCancel?.()) {
-        audio.pause();
-        finishPlayback?.();
-      }
-    }, 32);
-    void done.finally(() => {
-      if (cancelInterval !== null) {
-        window.clearInterval(cancelInterval);
-        cancelInterval = null;
-      }
-    });
-  }
-
-  return { audio, done };
-}
-
 export default function TutorSessionPage() {
   const params = useParams();
   const router = useRouter();
@@ -292,7 +541,11 @@ export default function TutorSessionPage() {
   const pendingQuestionRef = useRef<string | null>(null);
   const autoSubmitDoneRef = useRef(false);
   const boardContainerRef = useRef<HTMLDivElement>(null);
-  const [boardScale, setBoardScale] = useState(1);
+  const [boardViewport, setBoardViewport] = useState({
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+  });
   const [phase, setPhase] = useState<TutorPhase>("idle");
   const [isPaused, setIsPaused] = useState(false);
   const isPausedRef = useRef(false);
@@ -302,6 +555,7 @@ export default function TutorSessionPage() {
   const ttsClientRef = useRef<TTSClient | null>(null);
   const replayAudioRef = useRef<HTMLAudioElement | null>(null);
   const cancelRef = useRef(false);
+  const turnActiveRef = useRef(false);
   const delayTimersRef = useRef<number[]>([]);
   const turnAbortRef = useRef<AbortController | null>(null);
   const segmentChainRef = useRef(Promise.resolve());
@@ -317,6 +571,11 @@ export default function TutorSessionPage() {
     rects: [],
     nextY: TEXT_LAYOUT.topY,
   });
+  /** After a work-area erase, ignore LLM y coords and fill rows top-down. */
+  const forceSequentialWorkLayoutRef = useRef(false);
+  const fbdPhaseMarkedRef = useRef(false);
+  const fbdPhaseStartedRef = useRef(false);
+  const stopTurnRef = useRef<(() => void) | null>(null);
   const [settings, setSettings] = useState<SettingsState>({
     speedMultiplier: 1.5,
     audioLanguage: "english",
@@ -331,6 +590,12 @@ export default function TutorSessionPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [boards, setBoards] = useState<BoardEntry[]>([]);
   const [boardLoaded, setBoardLoaded] = useState(false);
+  const [isReplaying, setIsReplaying] = useState(false);
+  const [replayProgressMs, setReplayProgressMs] = useState(0);
+  const [replayTotalMs, setReplayTotalMs] = useState(0);
+  const replayGenerationRef = useRef(0);
+  const replayCueRef = useRef<ReplayCue | null>(null);
+  const replayBlobUrlsRef = useRef<string[]>([]);
   const [inputInteracted, setInputInteracted] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
 
@@ -358,9 +623,28 @@ export default function TutorSessionPage() {
     const updateScale = () => {
       const { width, height } = container.getBoundingClientRect();
       if (width <= 0 || height <= 0) return;
-      setBoardScale(
-        Math.min(width / BOARD_WIDTH, height / BOARD_HEIGHT),
-      );
+
+      const widthScale = width / BOARD_WIDTH;
+      const heightScale = height / BOARD_HEIGHT;
+
+      // Prefer filling the frame width; only letterbox horizontally if the full
+      // canvas height would not fit.
+      if (BOARD_HEIGHT * widthScale <= height) {
+        const scale = widthScale;
+        setBoardViewport({
+          scale,
+          offsetX: 0,
+          offsetY: (height - BOARD_HEIGHT * scale) / 2,
+        });
+        return;
+      }
+
+      const scale = heightScale;
+      setBoardViewport({
+        scale,
+        offsetX: (width - BOARD_WIDTH * scale) / 2,
+        offsetY: 0,
+      });
     };
 
     updateScale();
@@ -397,7 +681,15 @@ export default function TutorSessionPage() {
   const deleteBoard = useCallback(
     (id: string) => {
       void (async () => {
-        await deleteBoardApi(id);
+        if (id === sessionId && phase !== "idle") {
+          stopTurnRef.current?.();
+        }
+
+        const ok = await deleteBoardApi(id);
+        if (!ok) {
+          return;
+        }
+
         let remaining: BoardEntry[] = [];
         setBoards((prev) => {
           remaining = prev.filter((b) => b.id !== id);
@@ -408,12 +700,12 @@ export default function TutorSessionPage() {
           if (remaining.length > 0) {
             router.push(`/c/${remaining[0]!.id}`);
           } else {
-            router.push("/");
+            createNewBoard();
           }
         }
       })();
     },
-    [sessionId, router],
+    [sessionId, router, createNewBoard, phase],
   );
 
   useEffect(() => {
@@ -433,7 +725,39 @@ export default function TutorSessionPage() {
 
   const cancelWatchIntervalRef = useRef<number | null>(null);
 
-  const resetBoardLayout = useCallback((keepHeading = false): void => {
+  const registerReplayBlobUrl = useCallback((url: string) => {
+    replayBlobUrlsRef.current.push(url);
+  }, []);
+
+  const revokeReplayBlobUrls = useCallback(() => {
+    for (const url of replayBlobUrlsRef.current) {
+      URL.revokeObjectURL(url);
+    }
+    replayBlobUrlsRef.current = [];
+  }, []);
+
+  const persistTurnForReplay = useCallback(
+    (
+      question: string,
+      rawResponse: string,
+      recordedSegments: RecordedSegmentPayload[],
+    ): StoredTurn => {
+      const orderIndex = storedTurnsRef.current.length;
+      return buildLocalStoredTurn(
+        {
+          question,
+          rawResponse,
+          speedMultiplier: speedRef.current,
+          segments: recordedSegments,
+        },
+        orderIndex,
+        registerReplayBlobUrl,
+      );
+    },
+    [registerReplayBlobUrl],
+  );
+
+  const resetBoardLayout = useCallback((keepHeading = false, forceSequentialWorkLayout?: boolean): void => {
     const headingRects = keepHeading
       ? boardLayoutRef.current.rects.filter((rect) => rect.y < TEXT_LAYOUT.headingBottomY)
       : [];
@@ -442,17 +766,31 @@ export default function TutorSessionPage() {
       rects: headingRects,
       nextY: keepHeading && headingRects.length > 0 ? TEXT_LAYOUT.workTopY : TEXT_LAYOUT.topY,
     };
+
+    if (forceSequentialWorkLayout !== undefined) {
+      forceSequentialWorkLayoutRef.current = forceSequentialWorkLayout;
+    }
   }, []);
 
   const forgetErasedTextRects = useCallback((eraseRect: BoardTextRect): void => {
     boardLayoutRef.current.rects = boardLayoutRef.current.rects.filter(
       (rect) => !textRectsOverlap(rect, eraseRect, 0),
     );
+    const hasHeading = boardLayoutRef.current.rects.some(
+      (rect) => rect.y < TEXT_LAYOUT.headingBottomY,
+    );
     const remainingBottom = boardLayoutRef.current.rects.reduce(
       (bottom, rect) => Math.max(bottom, rect.y + TEXT_LAYOUT.lineHeight),
       TEXT_LAYOUT.topY,
     );
-    boardLayoutRef.current.nextY = Math.max(remainingBottom, TEXT_LAYOUT.topY);
+    let nextY = Math.max(remainingBottom, TEXT_LAYOUT.topY);
+    if (hasHeading && nextY <= TEXT_LAYOUT.headingBottomY) {
+      nextY = TEXT_LAYOUT.workTopY;
+    }
+    boardLayoutRef.current.nextY = nextY;
+    if (overlapsWorkArea(eraseRect)) {
+      forceSequentialWorkLayoutRef.current = true;
+    }
   }, []);
 
   const resolveTextPlacement = useCallback(
@@ -463,6 +801,22 @@ export default function TutorSessionPage() {
       applyLayout: boolean,
     ): Promise<{ x: number; y: number }> => {
       if (!applyLayout || !command.text) {
+        if (command.text && Number.isFinite(x) && Number.isFinite(y)) {
+          registerBoardAnchor(boardLayoutRef.current, {
+            x,
+            y,
+            width: estimateBoardTextWidth(command.text),
+            height: TEXT_LAYOUT.textHeight,
+            text: command.text,
+          });
+        }
+        return { x, y };
+      }
+
+      if (isInDiagramZone(x, y)) {
+        const width = estimateBoardTextWidth(command.text);
+        const height = TEXT_LAYOUT.textHeight;
+        registerBoardAnchor(boardLayoutRef.current, { x, y, width, height, text: command.text });
         return { x, y };
       }
 
@@ -471,11 +825,6 @@ export default function TutorSessionPage() {
       const maxX = BOARD_WIDTH - TEXT_LAYOUT.marginX - width;
       let layout = boardLayoutRef.current;
       const candidateX = clampNumber(x, TEXT_LAYOUT.marginX, Math.max(TEXT_LAYOUT.marginX, maxX));
-      let candidateY = clampNumber(y, TEXT_LAYOUT.topY, TEXT_LAYOUT.bottomY - height);
-
-      if (layout.rects.length === 0 && candidateY > TEXT_LAYOUT.firstTextMaxY) {
-        candidateY = TEXT_LAYOUT.topY;
-      }
 
       const findOpenY = (startY: number): number | null => {
         for (
@@ -491,7 +840,18 @@ export default function TutorSessionPage() {
         return null;
       };
 
-      let openY = findOpenY(candidateY);
+      const placementStartY = (() => {
+        if (forceSequentialWorkLayoutRef.current) {
+          return getWorkAreaFlowStartY(layout);
+        }
+        let candidateY = clampNumber(y, TEXT_LAYOUT.topY, TEXT_LAYOUT.bottomY - height);
+        if (layout.rects.length === 0 && candidateY > TEXT_LAYOUT.workTopY) {
+          candidateY = TEXT_LAYOUT.topY;
+        }
+        return candidateY;
+      })();
+
+      let openY = findOpenY(placementStartY);
 
       if (openY === null) {
         const wb = whiteboardRef.current;
@@ -508,13 +868,13 @@ export default function TutorSessionPage() {
             700,
           );
         }
-        resetBoardLayout(true);
+        resetBoardLayout(true, true);
         layout = boardLayoutRef.current;
-        openY = findOpenY(TEXT_LAYOUT.workTopY) ?? TEXT_LAYOUT.workTopY;
+        openY = findOpenY(getWorkAreaFlowStartY(layout)) ?? TEXT_LAYOUT.workTopY;
       }
 
-      const rect = { x: candidateX, y: openY, width, height };
-      boardLayoutRef.current.rects.push(rect);
+      const rect = { x: candidateX, y: openY, width, height, text: command.text };
+      registerBoardAnchor(boardLayoutRef.current, rect);
       boardLayoutRef.current.nextY = Math.max(
         boardLayoutRef.current.nextY,
         openY + TEXT_LAYOUT.lineHeight,
@@ -523,6 +883,21 @@ export default function TutorSessionPage() {
       return { x: rect.x, y: rect.y };
     },
     [resetBoardLayout],
+  );
+
+  const resolveAnnotationTarget = useCallback(
+    (
+      command: DrawCommand,
+      kind: DrawCommand["type"],
+      narration?: string,
+    ): { params: number[]; snapped: boolean; rect: BoardTextRect | null } =>
+      resolveSnappedAnnotationParams(
+        kind,
+        [...command.params],
+        boardLayoutRef.current.rects,
+        narration,
+      ),
+    [],
   );
 
   const waitForCancel = useCallback((): Promise<void> => {
@@ -592,6 +967,7 @@ export default function TutorSessionPage() {
         speechDurationMs?: number;
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
+        segmentNarration?: string;
       } = {},
     ): Promise<void> => {
       const wb = whiteboardRef.current;
@@ -608,6 +984,15 @@ export default function TutorSessionPage() {
       const durationScale = options.durationScale ?? 1;
       const speechDurationMs = options.speechDurationMs;
       const writeSchedule = options.writeSchedule;
+      const segmentNarration = options.segmentNarration;
+
+      const markFbdDiagramStart = (x: number, y: number) => {
+        if (fbdPhaseStartedRef.current || !isInDiagramZone(x, y)) {
+          return;
+        }
+        fbdPhaseStartedRef.current = true;
+        turnTelemetryRef.current?.mark("fbd-phase-start", { x: Math.round(x), y: Math.round(y) });
+      };
 
       const scaledDuration = (duration: number) =>
         Math.max(Math.round((duration / speedRef.current) * durationScale), 50);
@@ -659,6 +1044,7 @@ export default function TutorSessionPage() {
         case "DRAW_RECT": {
           const [x, y, w, h] = command.params;
           if ([x, y, w, h].every(Number.isFinite)) {
+            markFbdDiagramStart(x, y);
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(x, y, flightMs);
             if (cancelRef.current) return;
@@ -679,6 +1065,7 @@ export default function TutorSessionPage() {
         case "DRAW_LINE": {
           const [x1, y1, x2, y2] = command.params;
           if ([x1, y1, x2, y2].every(Number.isFinite)) {
+            markFbdDiagramStart(x1, y1);
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(x1, y1, flightMs);
             if (cancelRef.current) return;
@@ -687,6 +1074,15 @@ export default function TutorSessionPage() {
               lineLength < 2 ? circlePath(x1, y1, 4) : linePath(x1, y1, x2, y2),
               drawMs,
             );
+            if (isInDiagramZone((x1 + x2) / 2, (y1 + y2) / 2)) {
+              registerBoardAnchor(boardLayoutRef.current, {
+                x: Math.min(x1, x2),
+                y: Math.min(y1, y2),
+                width: Math.abs(x2 - x1) || 20,
+                height: Math.abs(y2 - y1) || 20,
+                text: undefined,
+              });
+            }
           }
           break;
         }
@@ -700,6 +1096,22 @@ export default function TutorSessionPage() {
               y,
               options.applyLayout !== false,
             );
+            if (isInDiagramZone(placement.x, placement.y)) {
+              const diagramLabels = boardLayoutRef.current.rects.filter(
+                (r) => r.x >= DIAGRAM_ZONE.x,
+              );
+              const hasSurface = diagramLabels.length >= 2;
+              const forceLabelCount = diagramLabels.filter((r) => {
+                const t = (r.text ?? "").trim();
+                return t === "F" || t === "f" || t === "N" || t === "mg";
+              }).length;
+              if (hasSurface && forceLabelCount >= 3 && !fbdPhaseMarkedRef.current) {
+                turnTelemetryRef.current?.mark("fbd-phase-complete", {
+                  force_labels: forceLabelCount,
+                });
+                fbdPhaseMarkedRef.current = true;
+              }
+            }
             if (writeSchedule && writeSchedule.charStartOffsetsMs.length > 0) {
               // Scheduled writing: each character is held against the true audio clock so
               // the pen tracks the narration token by token. Keep the approach flight short
@@ -727,7 +1139,7 @@ export default function TutorSessionPage() {
         case "CLEAR": {
           // Starting a fresh answer should not waste time showing the duster.
           await wb.clearBoard();
-          resetBoardLayout();
+          resetBoardLayout(false, true);
           break;
         }
         case "ERASE": {
@@ -741,11 +1153,114 @@ export default function TutorSessionPage() {
           }
           break;
         }
+        case "UNDERLINE":
+        case "CIRCLE_AROUND":
+        case "ARROW":
+        case "HIGHLIGHT":
+        case "SCRIBBLE": {
+          const tel = turnTelemetryRef.current;
+          tel?.mark("annotate-start", {
+            type: command.type,
+            params: command.params,
+          });
+
+          if (command.params.length >= 2) {
+            const px = command.params[0];
+            const py = command.params[1];
+            if (command.type === "ARROW") {
+              markFbdDiagramStart(px, py);
+            }
+            if (isInDiagramZone(px, py)) {
+              tel?.mark("annotate-on-diagram", {
+                type: command.type,
+                x: px,
+                y: py,
+              });
+            }
+          }
+
+          const { params, snapped, rect } = resolveAnnotationTarget(
+            command,
+            command.type,
+            segmentNarration,
+          );
+          if (snapped) {
+            tel?.mark("annotate-snap", {
+              type: command.type,
+              rect_text: rect?.text?.slice(0, 40),
+              rect_x: rect?.x,
+              rect_y: rect?.y,
+            });
+          }
+
+          const { flightMs, drawMs } = speechSplit(command);
+          const annotationKind = command.type.toLowerCase() as AnnotationKind;
+
+          if (command.type === "UNDERLINE" && params.length >= 4) {
+            const [x1, y1, x2, y2] = params;
+            if ([x1, y1, x2, y2].every(Number.isFinite)) {
+              await wb.flyCursorTo(x1, y1, flightMs);
+              if (cancelRef.current) return;
+              await wb.drawAnnotation(
+                annotationKind,
+                underlinePath(x1, y1, x2, y2),
+                drawMs,
+              );
+            }
+          } else if (command.type === "CIRCLE_AROUND" && params.length >= 4) {
+            const [x, y, w, h] = params;
+            if ([x, y, w, h].every(Number.isFinite)) {
+              await wb.flyCursorTo(x + w / 2, y, flightMs);
+              if (cancelRef.current) return;
+              await wb.drawAnnotation(
+                annotationKind,
+                emphasisEllipsePath(x, y, w, h),
+                drawMs,
+              );
+            }
+          } else if (command.type === "ARROW" && params.length >= 4) {
+            const [x1, y1, x2, y2] = params;
+            if ([x1, y1, x2, y2].every(Number.isFinite)) {
+              await wb.flyCursorTo(x1, y1, flightMs);
+              if (cancelRef.current) return;
+              await wb.drawAnnotation(
+                annotationKind,
+                arrowPath(x1, y1, x2, y2),
+                drawMs,
+              );
+            }
+          } else if (command.type === "HIGHLIGHT" && params.length >= 4) {
+            const [x, y, w, h] = params;
+            if ([x, y, w, h].every(Number.isFinite)) {
+              await wb.flyCursorTo(x + w / 2, y + h / 2, flightMs);
+              if (cancelRef.current) return;
+              await wb.drawAnnotation(
+                annotationKind,
+                highlightRectPath(x, y, w, h),
+                drawMs,
+              );
+            }
+          } else if (command.type === "SCRIBBLE" && params.length >= 4) {
+            if (params.every(Number.isFinite)) {
+              const [x1, y1] = params;
+              await wb.flyCursorTo(x1, y1, flightMs);
+              if (cancelRef.current) return;
+              await wb.drawAnnotation(
+                annotationKind,
+                scribblePath(params),
+                drawMs,
+              );
+            }
+          }
+
+          tel?.mark("annotate-complete", { type: command.type, snapped });
+          break;
+        }
       }
 
       tutorDebug("draw", "executeCommand done", { type: command.type });
     },
-    [cancellableDelay, forgetErasedTextRects, resetBoardLayout, resolveTextPlacement],
+    [cancellableDelay, forgetErasedTextRects, resetBoardLayout, resolveAnnotationTarget, resolveTextPlacement],
   );
 
   const executeCommandWithCancel = useCallback(
@@ -756,6 +1271,7 @@ export default function TutorSessionPage() {
         speechDurationMs?: number;
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
+        segmentNarration?: string;
       } = {},
     ): Promise<void> => {
       await raceWithCancel(executeCommand(command, options));
@@ -792,14 +1308,21 @@ export default function TutorSessionPage() {
         : "";
 
       whiteboardRef.current?.clearBoard();
-      resetBoardLayout();
+      resetBoardLayout(false, false);
       setNarrationText(lastNarration);
       setCurrentSegmentText("");
 
+      if (detail.turns.length === 0) {
+        setBoardLoaded(true);
+      }
+
       for (const turn of detail.turns) {
         for (const segment of turn.segments) {
-          if (segment.command && !cancelRef.current) {
-            await executeCommand(segment.command, { durationScale: 0.05, applyLayout: false });
+          const commands = parseStoredSegmentCommands(segment.command);
+          for (const command of commands) {
+            if (!cancelRef.current) {
+              await executeCommand(command, { durationScale: 0.05, applyLayout: false });
+            }
           }
         }
       }
@@ -810,6 +1333,12 @@ export default function TutorSessionPage() {
   );
 
   useEffect(() => {
+    return () => {
+      revokeReplayBlobUrls();
+    };
+  }, [revokeReplayBlobUrls]);
+
+  useEffect(() => {
     if (!sessionId) return;
 
     cancelRef.current = false;
@@ -817,6 +1346,23 @@ export default function TutorSessionPage() {
       void restoreBoardFromApi(sessionId);
     });
   }, [sessionId, restoreBoardFromApi]);
+
+  const finishLectureUi = useCallback(() => {
+    turnActiveRef.current = false;
+    isPausedRef.current = false;
+    setIsPaused(false);
+    whiteboardRef.current?.setPaused(false);
+    ttsClientRef.current?.stop();
+    setPhase("idle");
+    setCurrentSegmentText("");
+    setInputInteracted(true);
+  }, []);
+
+  const applyTurnPhase = useCallback((next: TutorPhase) => {
+    if (turnActiveRef.current && !cancelRef.current) {
+      setPhase(next);
+    }
+  }, []);
 
   const runSegment = useCallback(
     async (
@@ -844,7 +1390,7 @@ export default function TutorSessionPage() {
         return;
       }
 
-      setPhase("speaking");
+      applyTurnPhase("speaking");
       setCurrentSegmentText(segment.narration);
 
       const previousText = allSegments[index - 1]?.narration;
@@ -889,6 +1435,16 @@ export default function TutorSessionPage() {
       let timingTelemetryCount = 0;
       let lastTimingTelemetryChars = -1;
       const timingWaiters: Array<(timings: AudioTimings | null) => void> = [];
+
+      // Promise that resolves when TTS audio actually starts playing.
+      // Non-text commands (DRAW_LINE, DRAW_RECT, etc.) start drawing immediately
+      // without waiting for this. Text commands (WRITE/LABEL) await it inside
+      // runDraw so they can sync handwriting with speech.
+      let audioStartedFlag = false;
+      let audioStartedResolver: (() => void) | null = null;
+      const audioStartedPromise = new Promise<void>((resolve) => {
+        audioStartedResolver = resolve;
+      });
 
       // The ground-truth audio clock: position (ms) within the currently speaking segment,
       // measured from when its audio actually became audible. The Web Audio client schedules
@@ -953,6 +1509,19 @@ export default function TutorSessionPage() {
             }
 
             const isTextCommand = command.type === "WRITE" || command.type === "LABEL";
+
+            if (isTextCommand && hasNarration && !audioStartedFlag) {
+              const audioWaitStart = performance.now();
+              await raceWithCancel(audioStartedPromise);
+              if (cancelRef.current) return;
+              await waitForInitialTimings(40);
+              if (cancelRef.current) return;
+              tutorDebug("draw", "text command waited for audio start", {
+                index,
+                waited_ms: Math.round(performance.now() - audioWaitStart),
+              });
+            }
+
             const elapsedAtCommandStart =
               audioStartedAtMs === null ? 0 : performance.now() - audioStartedAtMs;
 
@@ -1009,6 +1578,7 @@ export default function TutorSessionPage() {
 
               let loggedChars = 0;
               await executeCommandWithCancel(command, {
+                segmentNarration: narration,
                 writeSchedule: {
                   charStartOffsetsMs: writeSchedule.offsetsMs,
                   charDurationsMs: writeSchedule.charDurationsMs,
@@ -1054,6 +1624,7 @@ export default function TutorSessionPage() {
               });
               tel?.mark("write-schedule-ready", scheduleMetadata);
               await executeCommandWithCancel(command, {
+                segmentNarration: narration,
                 speechDurationMs: revealMs,
               });
               continue;
@@ -1089,6 +1660,7 @@ export default function TutorSessionPage() {
                     Math.min(speechWindow?.durationMs ?? commandSpeechMs, naturalDrawMs));
 
             await executeCommandWithCancel(command, {
+              segmentNarration: narration,
               speechDurationMs: commandBudgetMs,
             });
           }
@@ -1162,57 +1734,25 @@ export default function TutorSessionPage() {
         } else if (hasNarration && hasCommand) {
           tutorDebug("segment", "paired narration+draw", { index });
 
-          let drawPromise: Promise<void> | null = null;
-          let speechSettled = false;
-          const waitForDraw = new Promise<void>((resolve) => {
-            const poll = () => {
-              if (drawPromise) {
-                void drawPromise.finally(resolve);
-                return;
-              }
-              if (speechSettled || cancelRef.current) {
-                resolve();
-                return;
-              }
-              window.requestAnimationFrame(poll);
-            };
-            poll();
-          });
+          const drawPromise = (async () => {
+            await runDraw(estimateSpeechMs, null);
+          })();
 
           const speechPromise = raceWithCancel(
             tts.speakSegment(narration, {
               ...speakOptions,
               onStart: () => {
-                if (cancelRef.current) return;
+                if (cancelRef.current || !turnActiveRef.current) return;
+                audioStartedFlag = true;
+                audioStartedResolver?.();
                 tutorDebug("tts", "segment audio started", { index });
                 tel?.mark("tts-start", {
                   segment_index: index,
                   chars: narration.length,
                   command_count: segmentCommands.length,
                 });
-                setPhase("drawing");
+                applyTurnPhase("drawing");
                 audioStartedAtMs = performance.now();
-                drawPromise = (async () => {
-                  const needsPhraseTiming = segmentCommands.some(
-                    (command) => command.type === "WRITE" || command.type === "LABEL",
-                  );
-                  const timingWaitStart = performance.now();
-                  const timings = needsPhraseTiming
-                    ? await waitForInitialTimings()
-                    : capturedTimings;
-                  tutorDebug("draw", "initial timing wait done", {
-                    index,
-                    waited_ms: Math.round(performance.now() - timingWaitStart),
-                    timing_chars: timings?.charStartTimes.length ?? 0,
-                    audio_pos_ms: Math.round(liveAudioPositionMs()),
-                  });
-                  if (cancelRef.current) return;
-                  const totalMs =
-                    timings?.totalDuration && timings.totalDuration > 0
-                      ? Math.round(timings.totalDuration * 1000)
-                      : estimateSpeechMs;
-                  await runDraw(totalMs, timings);
-                })();
               },
               onTimings: (timings) => {
                 captureTimings(timings);
@@ -1224,13 +1764,11 @@ export default function TutorSessionPage() {
                 }
               },
             }),
-          ).finally(() => {
-            speechSettled = true;
-          });
+          );
 
           await Promise.all([
             speechPromise,
-            waitForDraw,
+            drawPromise,
           ]);
 
           if (cancelRef.current) return;
@@ -1238,11 +1776,12 @@ export default function TutorSessionPage() {
         }
       } finally {
         if (!cancelRef.current) {
+          const segmentCommands = getSegmentCommands(segment);
           recordedSegmentsRef.current.push({
             orderIndex: index,
             narration: segment.narration,
             spokenText: mathToSpeech(narration),
-            command: segment.command,
+            command: serializeSegmentCommands(segmentCommands),
             audioBytes: capturedAudio,
             durationMs: capturedDurationMs,
             timings: capturedTimings,
@@ -1252,7 +1791,7 @@ export default function TutorSessionPage() {
         segmentSpan?.end(segmentMetadata);
       }
     },
-    [sessionId, cancellableDelay, executeCommandWithCancel, raceWithCancel],
+    [sessionId, cancellableDelay, executeCommandWithCancel, raceWithCancel, applyTurnPhase],
   );
 
   const enqueueSegment = useCallback(
@@ -1318,16 +1857,21 @@ export default function TutorSessionPage() {
 
       await segmentChainRef.current;
       setNarrationText(lessonNarrationText(responseText));
+
+      if (!cancelRef.current) {
+        finishLectureUi();
+      }
     },
-    [enqueueSegment],
+    [enqueueSegment, finishLectureUi],
   );
 
   const stopTurn = useCallback(() => {
-    if (phase === "idle") {
+    if (phase === "idle" && !isReplaying) {
       return;
     }
 
     cancelRef.current = true;
+    turnActiveRef.current = false;
 
     if (cancelWatchIntervalRef.current !== null) {
       window.clearInterval(cancelWatchIntervalRef.current);
@@ -1344,6 +1888,8 @@ export default function TutorSessionPage() {
     turnAbortRef.current?.abort();
     stopReplayAudio(replayAudioRef.current);
     replayAudioRef.current = null;
+    replayCueRef.current = null;
+    replayGenerationRef.current += 1;
     ttsClientRef.current?.stop();
     whiteboardRef.current?.cancelAnimations();
     whiteboardRef.current?.setPaused(false);
@@ -1351,10 +1897,16 @@ export default function TutorSessionPage() {
     segmentChainRef.current = Promise.resolve();
     collectedSegmentsRef.current = [];
 
-    setPhase("idle");
-    setCurrentSegmentText("");
+    setIsReplaying(false);
+    setReplayProgressMs(0);
+    setReplayTotalMs(0);
+    finishLectureUi();
     setTranscriptOpen(false);
-  }, [phase]);
+  }, [finishLectureUi, isReplaying, phase]);
+
+  useEffect(() => {
+    stopTurnRef.current = stopTurn;
+  }, [stopTurn]);
 
   const pauseTurn = useCallback(() => {
     if (phase === "idle" || isPausedRef.current) {
@@ -1364,9 +1916,10 @@ export default function TutorSessionPage() {
     isPausedRef.current = true;
     setIsPaused(true);
     ttsClientRef.current?.pause();
+    replayAudioRef.current?.pause();
     whiteboardRef.current?.setPaused(true);
     tutorDebug("turn", "paused");
-  }, [phase]);
+  }, [phase, isReplaying]);
 
   const resumeTurn = useCallback(() => {
     if (!isPausedRef.current) {
@@ -1376,6 +1929,7 @@ export default function TutorSessionPage() {
     isPausedRef.current = false;
     setIsPaused(false);
     ttsClientRef.current?.resume();
+    void replayAudioRef.current?.play().catch(() => undefined);
     whiteboardRef.current?.setPaused(false);
     tutorDebug("turn", "resumed");
   }, []);
@@ -1415,7 +1969,14 @@ export default function TutorSessionPage() {
   const handleQuestion = useCallback(
     async (question: string) => {
       const wb = whiteboardRef.current;
-      if (!wb || phase !== "idle") return;
+      if (!boardLoaded || !wb) {
+        pendingQuestionRef.current = question;
+        setInputInteracted(true);
+        return;
+      }
+      if (phase !== "idle") return;
+
+      pendingQuestionRef.current = null;
 
       tutorDebug("turn", "question submitted", {
         question_preview: question.slice(0, 120),
@@ -1425,7 +1986,9 @@ export default function TutorSessionPage() {
       cancelRef.current = false;
       isPausedRef.current = false;
       setIsPaused(false);
+      setIsReplaying(false);
       setTranscriptOpen(false);
+      turnActiveRef.current = true;
       const abortController = new AbortController();
 
       const boardIdForName = sessionId;
@@ -1466,7 +2029,10 @@ export default function TutorSessionPage() {
       currentTraceIdRef.current = null;
       segmentChainRef.current = Promise.resolve();
       turnStatsRef.current = { drawMs: 0, ttsChars: 0 };
-      resetBoardLayout();
+      revokeReplayBlobUrls();
+      resetBoardLayout(false, false);
+      fbdPhaseMarkedRef.current = false;
+      fbdPhaseStartedRef.current = false;
 
       const tel = createTurnTelemetry();
       turnTelemetryRef.current = tel;
@@ -1656,8 +2222,26 @@ export default function TutorSessionPage() {
               segments: recordedSegmentsRef.current,
             });
 
+            let turnForReplay: StoredTurn | null = null;
             if (savedTurn) {
-              storedTurnsRef.current = [...storedTurnsRef.current, savedTurn];
+              turnForReplay = {
+                ...savedTurn,
+                segments: enrichStoredSegmentsWithReplayAudio(
+                  savedTurn.segments,
+                  recordedSegmentsRef.current,
+                  registerReplayBlobUrl,
+                ),
+              };
+            } else if (recordedSegmentsRef.current.length > 0) {
+              turnForReplay = persistTurnForReplay(
+                question,
+                rawResponseRef.current,
+                recordedSegmentsRef.current,
+              );
+            }
+
+            if (turnForReplay) {
+              storedTurnsRef.current = [...storedTurnsRef.current, turnForReplay];
               setStoredTurnsCount(storedTurnsRef.current.length);
             }
 
@@ -1708,31 +2292,24 @@ export default function TutorSessionPage() {
           total_tts_chars: turnStatsRef.current.ttsChars,
         });
 
-        await tel.flush();
-        turnTelemetryRef.current = null;
+        finishLectureUi();
 
-        isPausedRef.current = false;
-        setIsPaused(false);
-        whiteboardRef.current?.setPaused(false);
-        ttsClientRef.current?.stop();
-        setPhase("idle");
-        setCurrentSegmentText("");
+        const telToFlush = turnTelemetryRef.current;
+        turnTelemetryRef.current = null;
+        void telToFlush?.flush();
       }
     },
-    [sessionId, boards, narrationText, phase, processResponseText, resetBoardLayout],
+    [sessionId, boards, narrationText, phase, processResponseText, resetBoardLayout, boardLoaded, persistTurnForReplay, registerReplayBlobUrl, revokeReplayBlobUrls, finishLectureUi],
   );
 
   useEffect(() => {
-    if (!pendingQuestionRef.current) return;
-    const interval = setInterval(() => {
-      if (whiteboardRef.current && pendingQuestionRef.current) {
-        const q = pendingQuestionRef.current;
-        pendingQuestionRef.current = null;
-        void handleQuestion(q);
-      }
+    const interval = window.setInterval(() => {
+      const pending = pendingQuestionRef.current;
+      if (!pending || !boardLoaded || !whiteboardRef.current) return;
+      void handleQuestion(pending);
     }, 200);
-    return () => clearInterval(interval);
-  }, [handleQuestion]);
+    return () => window.clearInterval(interval);
+  }, [boardLoaded, handleQuestion]);
 
   useEffect(() => {
     if (!boardLoaded || autoSubmitDoneRef.current) return;
@@ -1740,8 +2317,9 @@ export default function TutorSessionPage() {
     if (!q || q.trim().length === 0) return;
     autoSubmitDoneRef.current = true;
     window.history.replaceState(null, "", window.location.pathname);
-    void handleQuestion(q);
-  }, [boardLoaded, searchParams, handleQuestion]);
+    pendingQuestionRef.current = q.trim();
+    setInputInteracted(true);
+  }, [boardLoaded, searchParams]);
 
   const handleAskDoubt = useCallback(
     (question: string) => {
@@ -1750,134 +2328,359 @@ export default function TutorSessionPage() {
     [handleQuestion],
   );
 
-  const replayLecture = useCallback(async () => {
-    if (storedTurnsRef.current.length === 0) {
-      return;
+  const runReplaySegmentDraw = useCallback(
+    async (
+      segment: StoredSegment,
+      segmentCommands: DrawCommand[],
+      narration: string,
+      audio?: HTMLAudioElement,
+      fallbackDurationMs?: number,
+    ): Promise<void> => {
+      if (segmentCommands.length === 0 || cancelRef.current) {
+        return;
+      }
+
+      setPhase("drawing");
+      const playbackRate = Math.max(speedRef.current, 0.1);
+      const totalDrawWeight = segmentCommands.reduce(
+        (sum, cmd) => sum + getCommandDrawDurationMs(cmd),
+        0,
+      );
+      const durationMs =
+        fallbackDurationMs ??
+        segment.durationMs ??
+        Math.max(narration.length * 85, 700);
+
+      for (const command of segmentCommands) {
+        if (cancelRef.current) {
+          return;
+        }
+
+        const isTextCommand = command.type === "WRITE" || command.type === "LABEL";
+        const charSchedule =
+          isTextCommand && narration && segment.timings
+            ? getWriteCharScheduleMs(narration, command, segment.timings)
+            : null;
+
+        if (charSchedule && charSchedule.offsetsMs.length > 0 && audio) {
+          await executeCommandWithCancel(command, {
+            applyLayout: false,
+            writeSchedule: {
+              charStartOffsetsMs: charSchedule.offsetsMs,
+              charDurationsMs: charSchedule.charDurationsMs,
+              getAudioPositionMs: () => audio.currentTime * 1000,
+            },
+          });
+          continue;
+        }
+
+        const speechWindow =
+          narration && segment.timings
+            ? getCommandSpeechWindow(narration, command, segment.timings)
+            : {
+                startMs: 0,
+                durationMs,
+                matched: false,
+              };
+        const startDelayMs = Math.max(
+          Math.round(speechWindow.startMs / playbackRate),
+          0,
+        );
+
+        if (startDelayMs > 0) {
+          await cancellableDelay(startDelayMs);
+        }
+        if (cancelRef.current) {
+          return;
+        }
+
+        const commandWeight = getCommandDrawDurationMs(command);
+        const commandBudgetMs =
+          totalDrawWeight > 0
+            ? Math.max(Math.round(durationMs * (commandWeight / totalDrawWeight)), 50)
+            : Math.max(Math.round(speechWindow.durationMs / playbackRate), 50);
+
+        await executeCommandWithCancel(command, {
+          applyLayout: false,
+          speechDurationMs: commandBudgetMs,
+        });
+      }
+    },
+    [cancellableDelay, executeCommandWithCancel],
+  );
+
+  const waitWhileReplayPaused = useCallback(async (generation: number) => {
+    while (isPausedRef.current) {
+      if (cancelRef.current || generation !== replayGenerationRef.current) {
+        return false;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 80));
     }
+    return !cancelRef.current && generation === replayGenerationRef.current;
+  }, []);
 
-    cancelRef.current = false;
-    isPausedRef.current = false;
-    setIsPaused(false);
-    setPhase("speaking");
-    whiteboardRef.current?.clearBoard();
-    resetBoardLayout();
+  const renderBoardAtTime = useCallback(
+    async (timeMs: number, cues: ReplayCue[]) => {
+      const wb = whiteboardRef.current;
+      if (!wb) {
+        return;
+      }
 
-    try {
-      for (const turn of storedTurnsRef.current) {
-        for (const segment of turn.segments) {
+      wb.clearBoard();
+      resetBoardLayout(false, false);
+
+      for (const cue of cues) {
+        if (cue.startMs >= timeMs) {
+          break;
+        }
+
+        const partialCount =
+          cue.endMs <= timeMs
+            ? cue.commands.length
+            : getPartialCommandCount(cue, timeMs - cue.startMs);
+
+        for (let i = 0; i < partialCount; i++) {
           if (cancelRef.current) {
-            break;
+            return;
           }
+          await executeCommand(cue.commands[i]!, {
+            durationScale: 0.05,
+            applyLayout: false,
+          });
+        }
+      }
+    },
+    [executeCommand, resetBoardLayout],
+  );
 
-          const narration = segment.narration.trim();
-          const command = segment.command;
+  const playReplayCue = useCallback(
+    async (
+      cue: ReplayCue,
+      offsetMs: number,
+      generation: number,
+      skipDraw: boolean,
+    ) => {
+      if (cancelRef.current || generation !== replayGenerationRef.current) {
+        return;
+      }
 
-          if (narration) {
-            setCurrentSegmentText(narration);
+      const ready = await waitWhileReplayPaused(generation);
+      if (!ready) {
+        return;
+      }
+
+      replayCueRef.current = cue;
+      if (cue.narration) {
+        setCurrentSegmentText(cue.narration);
+      }
+
+      const fallbackDurationMs =
+        cue.durationMsStored ?? Math.max(cue.narration.length * 85, 700);
+      const remainingMs = Math.max(cue.durationMs - offsetMs, 0);
+
+      try {
+        if (cue.audioUrl) {
+          setPhase("speaking");
+          const { audio, done } = playReplayAudio(cue.audioUrl, {
+            playbackRate: speedRef.current,
+            maxDurationMs: fallbackDurationMs,
+            startAtMs: offsetMs,
+            shouldCancel: () =>
+              cancelRef.current || generation !== replayGenerationRef.current,
+          });
+          replayAudioRef.current = audio;
+
+          if (!skipDraw) {
+            setPhase("drawing");
+            const drawPromise = runReplaySegmentDraw(
+              cue.segment,
+              cue.commands,
+              cue.narration,
+              audio,
+              fallbackDurationMs,
+            );
+            await Promise.all([
+              raceWithCancel(done),
+              raceWithCancel(drawPromise),
+            ]);
+          } else {
+            await raceWithCancel(done);
           }
+          replayAudioRef.current = null;
+        } else if (!skipDraw && cue.commands.length > 0) {
+          await runReplaySegmentDraw(
+            cue.segment,
+            cue.commands,
+            cue.narration,
+            undefined,
+            fallbackDurationMs,
+          );
+        } else if (remainingMs > 0) {
+          setPhase("speaking");
+          await cancellableDelay(remainingMs);
+        }
+      } catch (error) {
+        tutorDebug("turn", "replay segment failed", {
+          order_index: cue.segment.orderIndex,
+          audio_url: cue.audioUrl,
+          error: error instanceof Error ? error.message : String(error),
+        });
 
-          try {
-            if (segment.audioUrl) {
-              let replayDrawPromise: Promise<void> = Promise.resolve();
-              const { audio, done } = playReplayAudio(segment.audioUrl, {
-                playbackRate: speedRef.current,
-                shouldCancel: () => cancelRef.current,
-                onStart: (durationMs) => {
-                  if (!command || cancelRef.current) {
-                    return;
-                  }
-
-                  setPhase("drawing");
-                  replayDrawPromise = (async () => {
-                    const playbackRate = Math.max(speedRef.current, 0.1);
-                    const isTextCommand =
-                      command.type === "WRITE" || command.type === "LABEL";
-
-                    const charSchedule =
-                      isTextCommand && narration && segment.timings
-                        ? getWriteCharScheduleMs(narration, command, segment.timings)
-                        : null;
-
-                    if (charSchedule && charSchedule.offsetsMs.length > 0) {
-                      // audio.currentTime is the source timeline (independent of playbackRate),
-                      // matching the recorded char timings — gate each character against it.
-                      await executeCommandWithCancel(command, {
-                        applyLayout: false,
-                        writeSchedule: {
-                          charStartOffsetsMs: charSchedule.offsetsMs,
-                          charDurationsMs: charSchedule.charDurationsMs,
-                          getAudioPositionMs: () => audio.currentTime * 1000,
-                        },
-                      });
-                      return;
-                    }
-
-                    const speechWindow = segment.timings
-                      ? getCommandSpeechWindow(narration, command, segment.timings)
-                      : {
-                          startMs: 0,
-                          durationMs,
-                          matched: false,
-                        };
-                    const startDelayMs = Math.max(
-                      Math.round(speechWindow.startMs / playbackRate),
-                      0,
-                    );
-
-                    if (startDelayMs > 0) {
-                      await cancellableDelay(startDelayMs);
-                    }
-                    if (cancelRef.current) {
-                      return;
-                    }
-
-                    await executeCommandWithCancel(command, {
-                      applyLayout: false,
-                      speechDurationMs: Math.max(
-                        Math.round(speechWindow.durationMs / playbackRate),
-                        50,
-                      ),
-                    });
-                  })();
-                },
-              });
-
-              replayAudioRef.current = audio;
-              await raceWithCancel(done);
-              await raceWithCancel(replayDrawPromise);
-              replayAudioRef.current = null;
-            } else if (command) {
-              await executeCommandWithCancel(command, { applyLayout: false });
-            } else if (narration) {
-              const fallbackMs = segment.durationMs ?? Math.max(narration.length * 85, 700);
-              await cancellableDelay(fallbackMs);
-            }
-          } catch (error) {
-            tutorDebug("turn", "replay segment failed", {
-              order_index: segment.orderIndex,
-              audio_url: segment.audioUrl,
-              error: error instanceof Error ? error.message : String(error),
-            });
-
-            if (command) {
-              await executeCommandWithCancel(command, { applyLayout: false });
-            }
-          }
+        if (!skipDraw && cue.commands.length > 0) {
+          await runReplaySegmentDraw(
+            cue.segment,
+            cue.commands,
+            cue.narration,
+            undefined,
+            fallbackDurationMs,
+          );
         }
       }
 
-      const lastTurn = storedTurnsRef.current[storedTurnsRef.current.length - 1];
-      if (lastTurn) {
-        setNarrationText(lessonNarrationText(lastTurn.rawResponse));
+      if (generation === replayGenerationRef.current) {
+        setReplayProgressMs(cue.endMs);
       }
-    } finally {
+    },
+    [
+      cancellableDelay,
+      raceWithCancel,
+      runReplaySegmentDraw,
+      waitWhileReplayPaused,
+    ],
+  );
+
+  const playReplayFrom = useCallback(
+    async (startMs: number) => {
+      const wb = whiteboardRef.current;
+      const timeline = buildReplayTimeline(storedTurnsRef.current);
+      if (!wb || timeline.cues.length === 0) {
+        return;
+      }
+
+      if (phase !== "idle" && !isReplaying) {
+        return;
+      }
+
+      const generation = ++replayGenerationRef.current;
+      cancelRef.current = false;
+      isPausedRef.current = false;
+      setIsPaused(false);
+      setIsReplaying(true);
+      setReplayTotalMs(timeline.totalMs);
+      setReplayProgressMs(startMs);
+      setPhase("speaking");
+
       stopReplayAudio(replayAudioRef.current);
       replayAudioRef.current = null;
-      ttsClientRef.current?.stop();
-      setPhase("idle");
-      setCurrentSegmentText("");
+
+      await renderBoardAtTime(startMs, timeline.cues);
+      if (cancelRef.current || generation !== replayGenerationRef.current) {
+        return;
+      }
+
+      const found = findCueAtTime(timeline.cues, startMs);
+      if (!found) {
+        stopReplayAudio(replayAudioRef.current);
+        replayAudioRef.current = null;
+        setIsReplaying(false);
+        finishLectureUi();
+        return;
+      }
+
+      try {
+        for (let i = found.index; i < timeline.cues.length; i++) {
+          if (cancelRef.current || generation !== replayGenerationRef.current) {
+            break;
+          }
+
+          const cue = timeline.cues[i]!;
+          const offsetMs = i === found.index ? found.offsetMs : 0;
+          const skipDraw = i === found.index && offsetMs > 0;
+          await playReplayCue(cue, offsetMs, generation, skipDraw);
+        }
+
+        const lastTurn =
+          storedTurnsRef.current[storedTurnsRef.current.length - 1];
+        if (lastTurn && generation === replayGenerationRef.current) {
+          setNarrationText(lessonNarrationText(lastTurn.rawResponse));
+        }
+      } finally {
+        if (generation !== replayGenerationRef.current) {
+          return;
+        }
+        stopReplayAudio(replayAudioRef.current);
+        replayAudioRef.current = null;
+        replayCueRef.current = null;
+        setIsReplaying(false);
+        setReplayProgressMs(timeline.totalMs);
+        finishLectureUi();
+      }
+    },
+    [
+      finishLectureUi,
+      isReplaying,
+      phase,
+      playReplayCue,
+      renderBoardAtTime,
+    ],
+  );
+
+  const replayLecture = useCallback(() => {
+    if (storedTurnsRef.current.length === 0 || isReplaying) {
+      return;
     }
-  }, [cancellableDelay, raceWithCancel, executeCommandWithCancel, resetBoardLayout]);
+    void playReplayFrom(0);
+  }, [isReplaying, playReplayFrom]);
+
+  const seekReplay = useCallback(
+    (timeMs: number) => {
+      if (!isReplaying) {
+        return;
+      }
+      void playReplayFrom(timeMs);
+    },
+    [isReplaying, playReplayFrom],
+  );
+
+  const toggleReplayPlayPause = useCallback(() => {
+    if (!isReplaying) {
+      return;
+    }
+    if (isPausedRef.current) {
+      resumeTurn();
+    } else {
+      pauseTurn();
+    }
+  }, [isReplaying, pauseTurn, resumeTurn]);
+
+  const handleReplaySpeedChange = useCallback((rate: number) => {
+    speedRef.current = rate;
+    setSettings((prev) => ({ ...prev, speedMultiplier: rate }));
+    if (replayAudioRef.current) {
+      replayAudioRef.current.playbackRate = rate;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isReplaying || isPaused) {
+      return;
+    }
+
+    let frameId = 0;
+    const tick = () => {
+      const cue = replayCueRef.current;
+      const audio = replayAudioRef.current;
+      if (cue && audio && !audio.paused && Number.isFinite(audio.currentTime)) {
+        setReplayProgressMs(
+          Math.min(cue.startMs + audio.currentTime * 1000, cue.endMs),
+        );
+      }
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isReplaying, isPaused]);
 
   const statusConfig: Record<
     TutorPhase,
@@ -1921,12 +2724,23 @@ export default function TutorSessionPage() {
     labelColor: "#333333",
   };
 
-  const activeStatus = isPaused ? pausedStatus : statusConfig[phase];
+  const activeStatus = isReplaying
+    ? {
+        color: "#0077CC",
+        label: "replaying\u2026",
+        dotClass: "animate-wb-glow-blue",
+        labelColor: "#0077CC",
+      }
+    : isPaused
+      ? pausedStatus
+      : statusConfig[phase];
 
   const activeBoard = boards.find((b) => b.id === sessionId);
   const activeBoardTitle = activeBoard?.title ?? "";
-  const canReplay = phase === "idle" && storedTurnsCount > 0;
+  const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying;
+  const canTranscript = phase === "idle" && narrationText.trim().length > 0 && !isReplaying;
   const isInputOverlay = phase === "idle" && !inputInteracted;
+  const inputSubmitMode = storedTurnsCount > 0 ? "doubt" : "ask";
 
   const settingsButton = (
     <button
@@ -1970,11 +2784,11 @@ export default function TutorSessionPage() {
         <InputBar
           onSubmit={handleQuestion}
           onAskDoubt={handleAskDoubt}
-          disabled={phase !== "idle" || !boardLoaded}
+          disabled={phase !== "idle"}
+          submitMode={inputSubmitMode}
           isPaused={isPaused}
           onPauseToggle={() => (isPaused ? resumeTurn() : pauseTurn())}
           onCancel={stopTurn}
-          placeholder="Ask anything"
           onUserInteractionChange={setInputInteracted}
         />
       </div>
@@ -1995,14 +2809,22 @@ export default function TutorSessionPage() {
         onSelect={switchBoard}
         onNew={createNewBoard}
         onDelete={deleteBoard}
-        disabled={phase !== "idle" || !boardLoaded}
+        disabled={phase !== "idle"}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         profileOpen={profileOpen}
         onProfileToggle={() => setProfileOpen(!profileOpen)}
       />
 
-      <div className="relative z-10 flex flex-1 flex-col min-h-0">
+      <div
+        className="relative z-10 flex flex-1 flex-col min-h-0"
+        style={{
+          marginLeft: sidebarCollapsed ? 0 : SIDEBAR_WIDTH,
+          paddingLeft: PAGE_GUTTER_X,
+          paddingRight: PAGE_GUTTER_X,
+          transition: "margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
+      >
         <div
           style={{
             display: "flex",
@@ -2044,61 +2866,18 @@ export default function TutorSessionPage() {
             </button>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {phase === "idle" && canReplay && (
-              <button
-                type="button"
-                onClick={() => void replayLecture()}
-                aria-label="Replay lecture"
-                style={{
-                  fontSize: "0.7rem",
-                  color: "#0077CC",
-                  background: "rgba(0, 119, 204, 0.1)",
-                  border: "1px solid rgba(0, 119, 204, 0.25)",
-                  borderRadius: 9999,
-                  padding: "4px 10px",
-                  cursor: "pointer",
-                  transition: "background 0.15s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(0, 119, 204, 0.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(0, 119, 204, 0.1)";
-                }}
-              >
-                Replay
-              </button>
-            )}
-            {phase === "idle" && narrationText.trim().length > 0 && (
-              <button
-                type="button"
-                onClick={() => setTranscriptOpen(true)}
-                aria-label="View lesson transcript"
-                style={{
-                  fontSize: "0.7rem",
-                  color: "#0099E5",
-                  background: "rgba(0, 119, 204, 0.1)",
-                  border: "1px solid rgba(0, 119, 204, 0.25)",
-                  borderRadius: 9999,
-                  padding: "4px 10px",
-                  cursor: "pointer",
-                  transition: "background 0.15s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(0, 119, 204, 0.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(0, 119, 204, 0.1)";
-                }}
-              >
-                Transcript
-              </button>
-            )}
-            {phase !== "idle" && (
+            <LessonActions
+              canReplay={canReplay}
+              canTranscript={canTranscript}
+              isReplaying={isReplaying}
+              onReplay={replayLecture}
+              onTranscript={() => setTranscriptOpen(true)}
+            />
+            {(phase !== "idle" || isReplaying) && (
               <button
                 type="button"
                 onClick={stopTurn}
-                aria-label="Stop teaching"
+                aria-label={isReplaying ? "Stop replay" : "Stop teaching"}
                 style={{
                   fontSize: "0.7rem",
                   color: "#9E4040",
@@ -2119,7 +2898,7 @@ export default function TutorSessionPage() {
                 Stop
               </button>
             )}
-            {phase !== "idle" && (
+            {(phase !== "idle" || isReplaying) && (
               <span
                 className={`inline-block h-2.5 w-2.5 rounded-full ${activeStatus.dotClass}`}
                 style={{
@@ -2127,7 +2906,7 @@ export default function TutorSessionPage() {
                 }}
               />
             )}
-            {phase !== "idle" && (
+            {(phase !== "idle" || isReplaying) && (
               <span
                 style={{
                   fontSize: "0.7rem",
@@ -2141,7 +2920,7 @@ export default function TutorSessionPage() {
           </div>
         </div>
 
-        <main className="relative flex flex-1 flex-col min-h-0 px-6 pt-2 pb-2">
+        <main className="relative flex flex-1 flex-col min-h-0">
           {activeBoardTitle && activeBoardTitle !== "new board" && (
             <div
               style={{
@@ -2168,13 +2947,11 @@ export default function TutorSessionPage() {
           )}
 
           <div
-            className="relative min-h-0 flex-1 overflow-hidden"
+            className="relative min-h-0 flex-1 overflow-hidden rounded-2xl"
             style={{
-              background:
-                "linear-gradient(180deg, #FFFFFF 0%, #EAEAEA 50%, #EAEAEA 100%)",
-              borderRadius: "8px",
-              boxShadow:
-                "0 16px 48px -10px rgba(0,119,204,0.15), 0 4px 16px -4px rgba(0,0,0,0.1), inset 0 0 0 1px rgba(0,119,204,0.08), inset 0 2px 6px rgba(255,255,255,0.7)",
+              background: WHITEBOARD_COLOR,
+              marginTop: PAGE_GUTTER_Y,
+              boxShadow: "0 1px 4px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(0, 119, 204, 0.08)",
             }}
           >
             {isInputOverlay && (
@@ -2227,14 +3004,6 @@ export default function TutorSessionPage() {
               </div>
             )}
 
-            <ResponseBubble
-              text={currentSegmentText}
-              visible={
-                settings.subtitlesEnabled &&
-                (phase === "speaking" || phase === "drawing")
-              }
-            />
-
             <TranscriptDialog
               text={narrationText}
               open={transcriptOpen}
@@ -2243,13 +3012,15 @@ export default function TutorSessionPage() {
 
             <div
               ref={boardContainerRef}
-              className="absolute inset-0 z-[1] flex items-center justify-center overflow-hidden"
+              className="absolute inset-0 z-[1] overflow-hidden"
             >
               <div
                 style={{
-                  width: BOARD_WIDTH * boardScale,
-                  height: BOARD_HEIGHT * boardScale,
-                  position: "relative",
+                  position: "absolute",
+                  top: boardViewport.offsetY,
+                  left: boardViewport.offsetX,
+                  width: BOARD_WIDTH * boardViewport.scale,
+                  height: BOARD_HEIGHT * boardViewport.scale,
                 }}
               >
                 <div
@@ -2259,7 +3030,7 @@ export default function TutorSessionPage() {
                     left: 0,
                     width: BOARD_WIDTH,
                     height: BOARD_HEIGHT,
-                    transform: `scale(${boardScale})`,
+                    transform: `scale(${boardViewport.scale})`,
                     transformOrigin: "top left",
                   }}
                 >
@@ -2271,13 +3042,36 @@ export default function TutorSessionPage() {
                     inkColor={getMarkerColorHex(settings.markerColor)}
                   />
                 </div>
+
+                <ResponseBubble
+                  text={currentSegmentText}
+                  visible={
+                    settings.subtitlesEnabled &&
+                    (phase === "speaking" || phase === "drawing")
+                  }
+                />
+
+                <ReplayControls
+                  visible={isReplaying}
+                  playing={isReplaying && !isPaused}
+                  progressMs={replayProgressMs}
+                  totalMs={replayTotalMs}
+                  playbackRate={settings.speedMultiplier}
+                  onPlayPause={toggleReplayPlayPause}
+                  onSeek={seekReplay}
+                  onPlaybackRateChange={handleReplaySpeedChange}
+                  onStop={stopTurn}
+                />
               </div>
             </div>
           </div>
         </main>
 
         {!isInputOverlay && (
-          <footer className="relative shrink-0 px-3 pb-3 pt-2">
+          <footer
+            className="relative shrink-0 pt-2 pb-3"
+            style={{ paddingTop: PAGE_GUTTER_Y }}
+          >
             {inputChrome}
           </footer>
         )}
