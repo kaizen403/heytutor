@@ -7,7 +7,7 @@ export interface StoredSegment {
   orderIndex: number;
   narration: string;
   spokenText: string;
-  command: DrawCommand | null;
+  command: DrawCommand | { commands: DrawCommand[] } | null;
   audioUrl: string | null;
   durationMs: number | null;
   timings: AudioTimings | null;
@@ -88,7 +88,7 @@ export interface RecordedSegmentPayload {
   orderIndex: number;
   narration: string;
   spokenText: string;
-  command: DrawCommand | null;
+  command: DrawCommand | { commands: DrawCommand[] } | null;
   audioBytes: Uint8Array | null;
   durationMs: number | null;
   timings: AudioTimings | null;
