@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 
 export interface BoardEntry {
   id: string;
@@ -24,6 +24,22 @@ interface BoardHistoryProps {
 }
 
 const SIDEBAR_WIDTH = 260;
+
+const sidebarFont: CSSProperties = {
+  fontFamily: '"Anthropic Sans", var(--font-inter), ui-sans-serif, system-ui, sans-serif',
+  fontFeatureSettings: '"cv01", "cv02", "cv03", "cv04"',
+  WebkitFontSmoothing: "antialiased",
+};
+
+const glassPanel: CSSProperties = {
+  background: "rgba(255, 255, 255, 0.42)",
+  backdropFilter: "blur(20px) saturate(1.4)",
+  WebkitBackdropFilter: "blur(20px) saturate(1.4)",
+  borderRight: "1px solid rgba(255, 255, 255, 0.55)",
+  boxShadow: "inset -1px 0 0 rgba(0, 119, 204, 0.06), 4px 0 24px -8px rgba(0, 0, 0, 0.06)",
+};
+
+export { SIDEBAR_WIDTH };
 
 export function BoardHistory({
   boards,
@@ -51,11 +67,17 @@ export function BoardHistory({
 
   return (
     <div
+      className="board-sidebar"
       style={{
+        position: "fixed",
+        left: 0,
+        top: 0,
+        zIndex: 40,
         width,
         minWidth: width,
         height: "100vh",
-        background: "#EAEAEA",
+        ...glassPanel,
+        ...sidebarFont,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -74,10 +96,10 @@ export function BoardHistory({
       >
         <span
           style={{
-            fontSize: "1.125rem",
-            fontWeight: 700,
+            fontSize: "1.0625rem",
+            fontWeight: 600,
             color: "#333333",
-            letterSpacing: "-0.02em",
+            letterSpacing: "-0.025em",
             userSelect: "none",
           }}
         >
@@ -153,11 +175,12 @@ export function BoardHistory({
               width: "100%",
               padding: "8px 12px",
               borderRadius: 8,
-              border: "1px solid rgba(0,119,204,0.2)",
-        background: "#FFFFFF",
+              border: "1px solid rgba(255, 255, 255, 0.5)",
+              background: "rgba(255, 255, 255, 0.35)",
               color: "#0077CC",
               fontSize: "0.8125rem",
               outline: "none",
+              backdropFilter: "blur(8px)",
             }}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = "#0077CC";
@@ -180,21 +203,28 @@ export function BoardHistory({
             width: "100%",
             padding: "10px 14px",
             borderRadius: 8,
-            border: "none",
-            background: "rgba(0,119,204,0.08)",
+            border: "1px solid rgba(255, 255, 255, 0.45)",
+            background: "rgba(255, 255, 255, 0.28)",
             cursor: disabled ? "not-allowed" : "pointer",
             opacity: disabled ? 0.5 : 1,
-            transition: "background 0.15s ease",
+            transition: "background 0.15s ease, border-color 0.15s ease",
             color: "#333333",
             fontSize: "0.875rem",
             fontWeight: 500,
             textAlign: "left",
+            backdropFilter: "blur(8px)",
           }}
           onMouseEnter={(e) => {
-            if (!disabled) e.currentTarget.style.background = "rgba(0,119,204,0.18)";
+            if (!disabled) {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.45)";
+              e.currentTarget.style.borderColor = "rgba(0, 119, 204, 0.25)";
+            }
           }}
           onMouseLeave={(e) => {
-            if (!disabled) e.currentTarget.style.background = "rgba(0,119,204,0.08)";
+            if (!disabled) {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.28)";
+              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.45)";
+            }
           }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0077CC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -214,14 +244,14 @@ export function BoardHistory({
         <span
           style={{
             fontSize: "0.6875rem",
-            fontWeight: 700,
-            color: "#0099E5",
+            fontWeight: 600,
+            color: "rgba(51, 51, 51, 0.45)",
             textTransform: "uppercase",
-            letterSpacing: "0.06em",
+            letterSpacing: "0.08em",
             userSelect: "none",
           }}
         >
-          recents
+          Recents
         </span>
       </div>
 
@@ -254,12 +284,16 @@ export function BoardHistory({
                 position: "relative",
                 marginBottom: 2,
                 borderRadius: 8,
-                background: isActive ? "rgba(0,119,204,0.12)" : "transparent",
+                background: isActive
+                  ? "rgba(255, 255, 255, 0.55)"
+                  : "transparent",
+                border: isActive ? "1px solid rgba(255, 255, 255, 0.5)" : "1px solid transparent",
+                backdropFilter: isActive ? "blur(8px)" : undefined,
                 transition: "background 0.12s ease",
               }}
               onMouseEnter={(e) => {
                 if (!disabled && !isActive) {
-                  e.currentTarget.style.background = "rgba(0,119,204,0.06)";
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.25)";
                 }
                 const delBtn = e.currentTarget.querySelector('[data-delete-btn]') as HTMLElement | null;
                 if (delBtn) delBtn.style.opacity = "1";
@@ -273,14 +307,15 @@ export function BoardHistory({
               }}
             >
               <button
+                type="button"
                 onClick={() => onSelect(board.id)}
                 disabled={disabled}
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   gap: "3px",
-                  width: "100%",
-                  padding: "10px 36px 10px 12px",
+                  width: "calc(100% - 36px)",
+                  padding: "10px 12px",
                   borderRadius: 8,
                   border: "none",
                   cursor: disabled ? "not-allowed" : "pointer",
@@ -304,25 +339,27 @@ export function BoardHistory({
               </button>
               {onDelete && (
                 <button
+                  type="button"
                   data-delete-btn
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     onDelete(board.id);
                   }}
-                  disabled={disabled}
-                  aria-label="Delete board"
+                  aria-label={`Delete ${board.title}`}
                   style={{
                     position: "absolute",
-                    right: 8,
+                    right: 6,
                     top: "50%",
                     transform: "translateY(-50%)",
-                    width: 24,
-                    height: 24,
+                    width: 28,
+                    height: 28,
                     borderRadius: 6,
                     border: "none",
                     background: "transparent",
-                    cursor: disabled ? "not-allowed" : "pointer",
+                    cursor: "pointer",
                     opacity: 0,
+                    zIndex: 2,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -353,7 +390,7 @@ export function BoardHistory({
       <div
         style={{
           flexShrink: 0,
-          borderTop: "1px solid rgba(0, 119, 204, 0.15)",
+          borderTop: "1px solid rgba(255, 255, 255, 0.45)",
           padding: "10px 16px 12px",
           display: "flex",
           alignItems: "center",
