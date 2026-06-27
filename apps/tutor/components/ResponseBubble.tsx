@@ -31,7 +31,7 @@ export function ResponseBubble({ text, visible }: ResponseBubbleProps) {
 
   return (
     <div
-      className="animate-wb-bubble-fade pointer-events-none absolute left-1/2 top-5 z-10 max-w-xl -translate-x-1/2 px-6 py-3"
+      className="animate-wb-bubble-fade pointer-events-none absolute bottom-5 left-1/2 z-10 max-w-xl -translate-x-1/2 px-6 py-3"
       style={{
         backgroundColor: "rgba(255,255,255,0.92)",
         color: "#333333",
