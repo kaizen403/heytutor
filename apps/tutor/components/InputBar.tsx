@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+export type InputSubmitMode = "ask" | "doubt";
+
 export interface InputBarProps {
   onSubmit: (question: string) => void;
   onAskDoubt?: (question: string) => void;
   onImageSelect?: (file: File) => void;
   disabled?: boolean;
+  submitMode?: InputSubmitMode;
   isPaused?: boolean;
   onPauseToggle?: () => void;
   onCancel?: () => void;
@@ -47,20 +50,37 @@ function getSpeechRecognitionCtor():
   return w.SpeechRecognition ?? w.webkitSpeechRecognition;
 }
 
+function submitButtonLabel(mode: InputSubmitMode): string {
+  return mode === "doubt" ? "Ask Doubt" : "Ask";
+}
+
+function submitButtonColors(mode: InputSubmitMode, inactive: boolean) {
+  if (inactive) {
+    return {
+      backgroundColor: mode === "doubt" ? "rgba(158, 64, 64, 0.08)" : "rgba(0, 119, 204, 0.08)",
+      color: "rgba(51, 51, 51, 0.35)",
+    };
+  }
+
+  return mode === "doubt"
+    ? { backgroundColor: "#9E4040", color: "#FFFFFF" }
+    : { backgroundColor: "#0077CC", color: "#FFFFFF" };
+}
+
 export function InputBar({
   onSubmit,
   onAskDoubt,
   onImageSelect,
   disabled = false,
+  submitMode = "ask",
   isPaused = false,
   onPauseToggle,
   onCancel,
-  placeholder = "Ask anything",
+  placeholder = "",
   onUserInteractionChange,
 }: InputBarProps) {
   const [question, setQuestion] = useState("");
   const [isListening, setIsListening] = useState(false);
-  const [isDoubtMode, setIsDoubtMode] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,19 +91,24 @@ export function InputBar({
   }, []);
 
   const trimmed = question.trim();
+  const isDoubt = submitMode === "doubt";
+  const submitLabel = submitButtonLabel(submitMode);
   const buttonDisabled = disabled || trimmed.length === 0;
 
-  const submitQuestion = useCallback(() => {
-    if (buttonDisabled) return;
-    if (isDoubtMode && onAskDoubt) {
-      onAskDoubt(trimmed);
+  const runSubmit = useCallback(() => {
+    if (isDoubt) {
+      onAskDoubt?.(trimmed);
     } else {
       onSubmit(trimmed);
     }
     onUserInteractionChange?.(true);
     setQuestion("");
-    setIsDoubtMode(false);
-  }, [buttonDisabled, isDoubtMode, onAskDoubt, onSubmit, trimmed, onUserInteractionChange]);
+  }, [isDoubt, onAskDoubt, onSubmit, onUserInteractionChange, trimmed]);
+
+  const submitQuestion = useCallback(() => {
+    if (buttonDisabled) return;
+    runSubmit();
+  }, [buttonDisabled, runSubmit]);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent) => {
@@ -147,6 +172,8 @@ export function InputBar({
     [onImageSelect],
   );
 
+  const submitColors = submitButtonColors(submitMode, buttonDisabled);
+
   return (
     <div className="flex w-full items-stretch gap-2">
       <form
@@ -200,7 +227,7 @@ export function InputBar({
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
           disabled={disabled}
-          placeholder={isDoubtMode ? "Ask a doubt" : placeholder}
+          placeholder={placeholder}
           className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-[15px] focus:outline-none disabled:opacity-50"
           autoComplete="off"
           spellCheck={false}
@@ -290,66 +317,30 @@ export function InputBar({
                 </svg>
               </button>
             )}
-          </div>
-        ) : (
-          <>
-            {onAskDoubt && (
-              <button
-                type="button"
-                onClick={() => setIsDoubtMode(!isDoubtMode)}
-                aria-pressed={isDoubtMode}
-                aria-label="Toggle doubt mode"
-                disabled={disabled}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all disabled:opacity-40"
-                style={{
-                  color: isDoubtMode ? "#9E4040" : "rgba(51, 51, 51, 0.55)",
-                  backgroundColor: isDoubtMode
-                    ? "rgba(217, 112, 112, 0.12)"
-                    : "transparent",
-                }}
-                onMouseEnter={(e) => {
-                  if (!disabled && !isDoubtMode) {
-                    e.currentTarget.style.color = "rgba(51, 51, 51, 0.85)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isDoubtMode) {
-                    e.currentTarget.style.color = "rgba(51, 51, 51, 0.55)";
-                  }
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7"
-                    stroke="currentColor"
-                    strokeWidth="1.75"
-                    strokeLinecap="round"
-                  />
-                  <circle cx="12" cy="17" r="1" fill="currentColor" />
-                </svg>
-              </button>
-            )}
             <button
-              type="submit"
-              disabled={buttonDisabled}
-              className="mr-0.5 shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all"
-              style={{
-                backgroundColor: buttonDisabled
-                  ? "rgba(0, 119, 204, 0.08)"
-                  : isDoubtMode
-                    ? "#9E4040"
-                    : "#0077CC",
-                color: buttonDisabled
-                  ? "rgba(51, 51, 51, 0.35)"
-                  : isDoubtMode
-                    ? "#FFFFFF"
-                    : "#FFFFFF",
-                cursor: buttonDisabled ? "not-allowed" : "pointer",
+              type="button"
+              aria-label="Ask Doubt"
+              className="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all"
+              style={submitButtonColors("doubt", false)}
+              onClick={() => {
+                // wired up later during live lecture
               }}
             >
-              {isDoubtMode ? "Ask Doubt" : "Ask"}
+              Ask Doubt
             </button>
-          </>
+          </div>
+        ) : (
+          <button
+            type="submit"
+            disabled={buttonDisabled}
+            className="mr-0.5 shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all"
+            style={{
+              ...submitColors,
+              cursor: buttonDisabled ? "not-allowed" : "pointer",
+            }}
+          >
+            {submitLabel}
+          </button>
         )}
       </form>
     </div>
