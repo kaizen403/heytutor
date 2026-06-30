@@ -71,6 +71,11 @@ export interface WhiteboardHandle {
   ) => Promise<void>;
   clearBoard: (duration?: number) => Promise<void>;
   eraseRegion: (x: number, y: number, width: number, height: number, duration: number) => Promise<void>;
+  /** Split diagram vector lines that pass through a label emphasis region. */
+  punchDiagramLineGapsInRect: (
+    rect: { x: number; y: number; width: number; height: number },
+    margin?: number,
+  ) => void;
   setCursorPos: (x: number, y: number) => void;
   setCursorState: (state: CursorState) => void;
   flyCursorTo: (x: number, y: number, duration: number, targetRotation?: number) => Promise<void>;
@@ -101,6 +106,9 @@ const DEFAULT_INK_COLOR = "#222222";
 const HIGHLIGHT_FILL = "#B8D4B8";
 const HIGHLIGHT_OPACITY = 0.18;
 const ANNOTATION_STROKE_WIDTH = 3.25;
+const SHAPE_STROKE_WIDTH = 2.5;
+const DIAGRAM_LINE_PATH_RE =
+  /^M\s*([-\d.]+)\s+([-\d.]+)\s+L\s*([-\d.]+)\s+([-\d.]+)\s*$/;
 const CURSOR_BLUE = "#3380FF";
 const DUSTER_WIDTH = 28;
 const DUSTER_HEIGHT = 14;
@@ -364,7 +372,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const path = new Konva.Path({
           data: pathData,
           stroke: inkColorRef.current,
-          strokeWidth: 2.5,
+          strokeWidth: SHAPE_STROKE_WIDTH,
           fillEnabled: false,
           lineCap: "round",
           lineJoin: "round",
@@ -398,6 +406,146 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         drawLayer.batchDraw();
       },
       [animateOver, setCursorViewSafely],
+    );
+
+    const punchDiagramLineGapsInRect = useCallback(
+      (
+        rect: { x: number; y: number; width: number; height: number },
+        margin = 8,
+      ): void => {
+        const drawLayer = drawLayerRef.current;
+        if (!drawLayer) {
+          return;
+        }
+
+        const gapLeft = rect.x - margin;
+        const gapRight = rect.x + rect.width + margin;
+        const gapTop = rect.y - margin;
+        const gapBottom = rect.y + rect.height + margin;
+        const toDestroy: Konva.Path[] = [];
+        const replacements: Konva.Path[] = [];
+
+        const considerNode = (node: Konva.Node, tracked: Set<Konva.Node>): void => {
+          if (!(node instanceof Konva.Path)) {
+            return;
+          }
+          if (node.strokeWidth() !== SHAPE_STROKE_WIDTH || !node.strokeEnabled()) {
+            return;
+          }
+
+          const data = node.data()?.trim();
+          if (!data) {
+            return;
+          }
+
+          const match = data.match(DIAGRAM_LINE_PATH_RE);
+          if (!match) {
+            return;
+          }
+
+          const x1 = Number.parseFloat(match[1]);
+          const y1 = Number.parseFloat(match[2]);
+          const x2 = Number.parseFloat(match[3]);
+          const y2 = Number.parseFloat(match[4]);
+          if (![x1, y1, x2, y2].every(Number.isFinite)) {
+            return;
+          }
+
+          const isHorizontal = Math.abs(y1 - y2) < 1;
+          const isVertical = Math.abs(x1 - x2) < 1;
+          if (!isHorizontal && !isVertical) {
+            return;
+          }
+
+          const segments: Array<[number, number, number, number]> = [];
+
+          if (isHorizontal) {
+            const y = (y1 + y2) / 2;
+            if (y < gapTop || y > gapBottom) {
+              return;
+            }
+
+            const left = Math.min(x1, x2);
+            const right = Math.max(x1, x2);
+            if (right < gapLeft || left > gapRight) {
+              return;
+            }
+
+            if (left < gapLeft - 0.5) {
+              segments.push([left, y, Math.min(gapLeft, right), y]);
+            }
+            if (right > gapRight + 0.5) {
+              segments.push([Math.max(gapRight, left), y, right, y]);
+            }
+          } else {
+            const x = (x1 + x2) / 2;
+            if (x < gapLeft || x > gapRight) {
+              return;
+            }
+
+            const top = Math.min(y1, y2);
+            const bottom = Math.max(y1, y2);
+            if (bottom < gapTop || top > gapBottom) {
+              return;
+            }
+
+            if (top < gapTop - 0.5) {
+              segments.push([x, top, x, Math.min(gapTop, bottom)]);
+            }
+            if (bottom > gapBottom + 0.5) {
+              segments.push([x, Math.max(gapBottom, top), x, bottom]);
+            }
+          }
+
+          if (segments.length === 0) {
+            toDestroy.push(node);
+            tracked.delete(node);
+            return;
+          }
+
+          toDestroy.push(node);
+          tracked.delete(node);
+
+          for (const [sx, sy, ex, ey] of segments) {
+            if (Math.hypot(ex - sx, ey - sy) < 1) {
+              continue;
+            }
+
+            replacements.push(
+              new Konva.Path({
+                data: `M ${sx} ${sy} L ${ex} ${ey}`,
+                stroke: node.stroke(),
+                strokeWidth: SHAPE_STROKE_WIDTH,
+                fillEnabled: false,
+                lineCap: "round",
+                lineJoin: "round",
+                listening: false,
+              }),
+            );
+          }
+        };
+
+        Array.from(completedNodesRef.current).forEach((node) => {
+          considerNode(node, completedNodesRef.current);
+        });
+        Array.from(animNodesRef.current).forEach((node) => {
+          considerNode(node, animNodesRef.current);
+        });
+
+        toDestroy.forEach((node) => {
+          node.destroy();
+        });
+
+        replacements.forEach((path) => {
+          drawLayer.add(path);
+          completedNodesRef.current.add(path);
+        });
+
+        if (toDestroy.length > 0 || replacements.length > 0) {
+          drawLayer.batchDraw();
+        }
+      },
+      [],
     );
 
     const drawAnnotation = useCallback(
@@ -524,6 +672,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         new Promise((resolve) => {
           let done = false;
           const startWall = performance.now();
+          let lastPositionMs = -1;
+          let stalledFrames = 0;
 
           const cleanup = (): void => {
             if (done) return;
@@ -538,12 +688,24 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               cleanup();
               return;
             }
-            if (getAudioPositionMs() >= targetMs) {
+            const positionMs = getAudioPositionMs();
+            if (positionMs >= targetMs) {
               cleanup();
               return;
             }
+            if (positionMs > 0 && positionMs === lastPositionMs) {
+              stalledFrames += 1;
+              // Audio clock stopped advancing — release the pen instead of hanging the lesson.
+              if (stalledFrames >= 30) {
+                cleanup();
+                return;
+              }
+            } else {
+              stalledFrames = 0;
+              lastPositionMs = positionMs;
+            }
             // Safety valve: never hang the lesson if the audio clock stalls (errored audio).
-            if (performance.now() - startWall > targetMs + 15000) {
+            if (performance.now() - startWall > targetMs + 4000) {
               cleanup();
               return;
             }
@@ -920,6 +1082,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         writeText,
         clearBoard,
         eraseRegion,
+        punchDiagramLineGapsInRect,
         setCursorPos: (x: number, y: number) => setCursorViewSafely(x, y),
         setCursorState: updateCursorState,
         flyCursorTo,
@@ -934,7 +1097,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         getAnimLayer: () => animLayerRef.current,
         getCursorLayer: () => cursorLayerRef.current,
       }),
-      [cancelAnimations, clearBoard, drawAnnotation, drawShape, eraseRegion, flyCursorTo, setCursorViewSafely, updateCursorState, writeText],
+      [cancelAnimations, clearBoard, drawAnnotation, drawShape, eraseRegion, flyCursorTo, punchDiagramLineGapsInRect, setCursorViewSafely, updateCursorState, writeText],
     );
 
     return (

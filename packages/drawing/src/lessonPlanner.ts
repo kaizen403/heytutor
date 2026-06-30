@@ -198,6 +198,38 @@ function sanitizeLessonSegments(segments: TutorSegment[]): TutorSegment[] {
 }
 
 /**
+ * Pull complete `[STEP]...[/STEP]` blocks off the front of a streaming buffer.
+ * Returns the remaining buffer (from the first incomplete `[STEP]` onward).
+ */
+export function drainCompleteStepBlocks(
+  buffer: string,
+  onBlock: (blockText: string) => void,
+): string {
+  let rest = buffer;
+
+  while (true) {
+    const openIdx = rest.search(/\[STEP\]/i);
+    if (openIdx === -1) {
+      return "";
+    }
+
+    if (openIdx > 0) {
+      rest = rest.slice(openIdx);
+    }
+
+    const closeMatch = /\[\/STEP\]/i.exec(rest);
+    if (!closeMatch || closeMatch.index === undefined) {
+      return rest;
+    }
+
+    const endIdx = closeMatch.index + closeMatch[0].length;
+    const block = rest.slice(0, endIdx);
+    rest = rest.slice(endIdx);
+    onBlock(block);
+  }
+}
+
+/**
  * Build executable lesson segments from an LLM response.
  * Prefers structured [STEP] blocks; falls back to inline tag parsing.
  */

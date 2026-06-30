@@ -33,6 +33,11 @@ const cases: Case[] = [
     narration: "sine theta equals y. cosine theta equals x. tangent theta equals y over x.",
     text: "sin θ = y",
   },
+  {
+    name: "chord half-angle",
+    narration: "D equals 2 R cosine theta over 2",
+    text: "D = 2R cos θ/2",
+  },
 ];
 
 function command(text: string): DrawCommand {

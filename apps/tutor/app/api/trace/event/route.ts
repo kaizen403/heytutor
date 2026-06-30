@@ -38,22 +38,18 @@ function parseBody(rawBody: string): TraceEventRequestBody | null {
     }
 
     const events = parsed.events;
+    const validEvents = Array.isArray(events) ? events.filter(isValidEvent).slice(0, 200) : [];
+    const traceMetadata = isRecord(parsed.traceMetadata) ? parsed.traceMetadata : undefined;
 
-    if (!Array.isArray(events)) {
-      return null;
-    }
-
-    const validEvents = events.filter(isValidEvent);
-
-    if (validEvents.length === 0) {
+    if (validEvents.length === 0 && !traceMetadata) {
       return null;
     }
 
     return {
       traceId: typeof parsed.traceId === "string" ? parsed.traceId : undefined,
       sessionId: typeof parsed.sessionId === "string" ? parsed.sessionId : undefined,
-      events: validEvents.slice(0, 200),
-      traceMetadata: isRecord(parsed.traceMetadata) ? parsed.traceMetadata : undefined,
+      events: validEvents,
+      traceMetadata,
     };
   } catch {
     return null;
@@ -65,14 +61,16 @@ export async function POST(request: Request): Promise<Response> {
   const body = parseBody(rawBody);
 
   if (!body?.traceId) {
-    return Response.json({ ok: false, reason: "missing traceId or events" }, { status: 400 });
+    return Response.json({ ok: false, reason: "missing traceId" }, { status: 400 });
   }
 
-  recordTurnEvents({
-    traceId: body.traceId,
-    sessionId: body.sessionId,
-    events: body.events ?? [],
-  });
+  if (body.events.length > 0) {
+    recordTurnEvents({
+      traceId: body.traceId,
+      sessionId: body.sessionId,
+      events: body.events,
+    });
+  }
 
   if (body.traceMetadata) {
     updateTurnTrace({

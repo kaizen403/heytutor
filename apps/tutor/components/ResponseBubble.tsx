@@ -1,13 +1,17 @@
 "use client";
 
+import { formatLiveSubtitle } from "@/lib/subtitleText";
+
 const LIVE_SUBTITLE_MAX_CHARS = 140;
 
 function truncateSubtitle(text: string): string {
-  if (text.length <= LIVE_SUBTITLE_MAX_CHARS) {
-    return text;
+  const cleaned = formatLiveSubtitle(text);
+
+  if (cleaned.length <= LIVE_SUBTITLE_MAX_CHARS) {
+    return cleaned;
   }
 
-  const truncated = text.slice(0, LIVE_SUBTITLE_MAX_CHARS).trimEnd();
+  const truncated = cleaned.slice(0, LIVE_SUBTITLE_MAX_CHARS).trimEnd();
   const lastSpace = truncated.lastIndexOf(" ");
 
   if (lastSpace > LIVE_SUBTITLE_MAX_CHARS * 0.6) {
@@ -31,7 +35,7 @@ export function ResponseBubble({ text, visible }: ResponseBubbleProps) {
 
   return (
     <div
-      className="animate-wb-bubble-fade pointer-events-none absolute bottom-5 left-1/2 z-10 max-w-xl -translate-x-1/2 px-6 py-3"
+      className="animate-wb-bubble-fade pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[calc(100%-2rem)] -translate-x-1/2 px-4 py-3 md:bottom-5 md:max-w-xl md:px-6"
       style={{
         backgroundColor: "rgba(255,255,255,0.92)",
         color: "#333333",
@@ -42,7 +46,7 @@ export function ResponseBubble({ text, visible }: ResponseBubbleProps) {
       }}
     >
       <p
-        className="text-center text-base font-medium leading-relaxed"
+        className="text-center text-sm font-medium leading-relaxed md:text-base"
         style={{
           color: "#333333",
         }}

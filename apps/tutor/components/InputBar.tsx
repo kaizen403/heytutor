@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 export type InputSubmitMode = "ask" | "doubt";
 
@@ -15,6 +16,7 @@ export interface InputBarProps {
   onCancel?: () => void;
   placeholder?: string;
   onUserInteractionChange?: (hasInteracted: boolean) => void;
+  compact?: boolean;
 }
 
 type SpeechRecognitionResultList = {
@@ -78,6 +80,7 @@ export function InputBar({
   onCancel,
   placeholder = "",
   onUserInteractionChange,
+  compact = false,
 }: InputBarProps) {
   const [question, setQuestion] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -198,29 +201,31 @@ export function InputBar({
           tabIndex={-1}
         />
 
-        <button
-          type="button"
-          onClick={handleImageClick}
-          disabled={disabled}
-          aria-label="Add image"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40"
-          style={{ color: "rgba(51, 51, 51, 0.55)" }}
-          onMouseEnter={(e) => {
-            if (!disabled) e.currentTarget.style.color = "rgba(51, 51, 51, 0.85)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = "rgba(51, 51, 51, 0.55)";
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 5v14M5 12h14"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
+        {!(compact && disabled) && (
+          <button
+            type="button"
+            onClick={handleImageClick}
+            disabled={disabled}
+            aria-label="Add image"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40"
+            style={{ color: "rgba(51, 51, 51, 0.55)" }}
+            onMouseEnter={(e) => {
+              if (!disabled) e.currentTarget.style.color = "rgba(51, 51, 51, 0.85)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "rgba(51, 51, 51, 0.55)";
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 5v14M5 12h14"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        )}
 
         <input
           type="text"
@@ -320,13 +325,29 @@ export function InputBar({
             <button
               type="button"
               aria-label="Ask Doubt"
-              className="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all"
+              className={cn(
+                "shrink-0 rounded-full font-medium transition-all",
+                compact
+                  ? "flex h-9 w-9 items-center justify-center"
+                  : "px-4 py-2 text-sm",
+              )}
               style={submitButtonColors("doubt", false)}
               onClick={() => {
                 // wired up later during live lecture
               }}
             >
-              Ask Doubt
+              {compact ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M12 20h.01M12 6a4 4 0 0 1 4 4c0 2-2 2.5-2 3.5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              ) : (
+                "Ask Doubt"
+              )}
             </button>
           </div>
         ) : (

@@ -19,6 +19,136 @@ const DESCENDER = -300;
 
 const glyphDataRecord = glyphData as unknown as Record<string, TegakiGlyphData>;
 
+/** Greek/math symbols missing from Caveat glyph data — rendered as synthetic strokes. */
+const SYNTHETIC_GREEK_CHARS = new Set(["θ", "Θ", "μ", "π"]);
+
+function syntheticGreekChar(
+  char: string,
+  currentX: number,
+  baselineY: number,
+  topY: number,
+  scale: number,
+  fontSize: number,
+): { path: CharacterPath; advance: number } | null {
+  if (char === "θ" || char === "Θ") {
+    const baseGlyph = glyphDataRecord.o;
+    const glyphWidth = (baseGlyph?.w ?? 353) * scale;
+    const strokes: StrokePath[] = [];
+
+    if (baseGlyph) {
+      for (const s of baseGlyph.s) {
+        const points = s.p;
+        const widths = points.map((p) => p[2] * scale);
+        const avgWidth = widths.reduce((a, b) => a + b, 0) / Math.max(widths.length, 1);
+        const pathData = polylineToSVGPath(points, scale, scale, currentX, baselineY);
+        const firstPoint = points[0];
+        strokes.push({
+          pathData,
+          startX: currentX + firstPoint[0] * scale,
+          startY: baselineY + firstPoint[1] * scale,
+          width: Math.max(avgWidth, 1.5),
+          delay: s.d,
+          duration: s.a,
+          priority: s.r ?? 0,
+        });
+      }
+    }
+
+    const barY = baselineY - 470 * scale;
+    const barX1 = currentX + 55 * scale;
+    const barX2 = currentX + glyphWidth - 55 * scale;
+    strokes.push({
+      pathData: `M ${barX1.toFixed(2)} ${barY.toFixed(2)} L ${barX2.toFixed(2)} ${barY.toFixed(2)}`,
+      startX: barX1,
+      startY: barY,
+      width: Math.max(2.2 * scale, 1.5),
+      delay: strokes.length > 0 ? 0.12 : 0,
+      duration: 0.1,
+      priority: 0,
+    });
+
+    return {
+      path: { char, strokes, x: currentX, y: topY, width: glyphWidth, fontSize },
+      advance: glyphWidth,
+    };
+  }
+
+  if (char === "μ") {
+    const uGlyph = glyphDataRecord.u;
+    const glyphWidth = (uGlyph?.w ?? 370) * scale;
+    const strokes: StrokePath[] = [];
+
+    if (uGlyph) {
+      for (const s of uGlyph.s) {
+        const points = s.p;
+        const widths = points.map((p) => p[2] * scale);
+        const avgWidth = widths.reduce((a, b) => a + b, 0) / Math.max(widths.length, 1);
+        const pathData = polylineToSVGPath(points, scale, scale, currentX, baselineY);
+        const firstPoint = points[0];
+        strokes.push({
+          pathData,
+          startX: currentX + firstPoint[0] * scale,
+          startY: baselineY + firstPoint[1] * scale,
+          width: Math.max(avgWidth, 1.5),
+          delay: s.d,
+          duration: s.a,
+          priority: s.r ?? 0,
+        });
+      }
+    }
+
+    return {
+      path: { char, strokes, x: currentX, y: topY, width: glyphWidth, fontSize },
+      advance: glyphWidth,
+    };
+  }
+
+  if (char === "π") {
+    const nGlyph = glyphDataRecord.n;
+    const glyphWidth = (nGlyph?.w ?? 450) * scale;
+    const strokes: StrokePath[] = [];
+
+    if (nGlyph) {
+      for (const s of nGlyph.s) {
+        const points = s.p;
+        const widths = points.map((p) => p[2] * scale);
+        const avgWidth = widths.reduce((a, b) => a + b, 0) / Math.max(widths.length, 1);
+        const pathData = polylineToSVGPath(points, scale, scale, currentX, baselineY);
+        const firstPoint = points[0];
+        strokes.push({
+          pathData,
+          startX: currentX + firstPoint[0] * scale,
+          startY: baselineY + firstPoint[1] * scale,
+          width: Math.max(avgWidth, 1.5),
+          delay: s.d,
+          duration: s.a,
+          priority: s.r ?? 0,
+        });
+      }
+    }
+
+    const barY = baselineY - 700 * scale;
+    const barX1 = currentX + 30 * scale;
+    const barX2 = currentX + glyphWidth - 20 * scale;
+    strokes.push({
+      pathData: `M ${barX1.toFixed(2)} ${barY.toFixed(2)} L ${barX2.toFixed(2)} ${barY.toFixed(2)}`,
+      startX: barX1,
+      startY: barY,
+      width: Math.max(2.4 * scale, 1.5),
+      delay: strokes.length > 0 ? 0.1 : 0,
+      duration: 0.09,
+      priority: 0,
+    });
+
+    return {
+      path: { char, strokes, x: currentX, y: topY, width: glyphWidth, fontSize },
+      advance: glyphWidth,
+    };
+  }
+
+  return null;
+}
+
 export interface StrokePath {
   pathData: string;
   startX: number;
@@ -36,6 +166,17 @@ export interface CharacterPath {
   y: number;
   width: number;
   fontSize?: number;
+}
+
+function syntheticGlyphWidth(char: string, scale: number): number {
+  if (char === "π" || char === "Θ" || char === "θ") {
+    const glyphW = char === "π" ? glyphDataRecord.n?.w ?? 450 : glyphDataRecord.o?.w ?? 353;
+    return glyphW * scale;
+  }
+  if (char === "μ") {
+    return (glyphDataRecord.u?.w ?? 370) * scale;
+  }
+  return 0;
 }
 
 function polylineToSVGPath(
@@ -73,6 +214,13 @@ function renderChar(
   fontScale: number,
   fontSize: number,
 ): { path: CharacterPath; advance: number } {
+  if (SYNTHETIC_GREEK_CHARS.has(char)) {
+    const synthetic = syntheticGreekChar(char, currentX, baselineY, topY, fontScale, fontSize);
+    if (synthetic) {
+      return synthetic;
+    }
+  }
+
   const glyph = glyphDataRecord[char];
 
   if (!glyph) {
@@ -282,6 +430,11 @@ export function measureTextWidth(text: string, fontSize: number = 32): number {
     }
 
     const glyph = glyphDataRecord[char];
+    if (!glyph && SYNTHETIC_GREEK_CHARS.has(char)) {
+      currentX += syntheticGlyphWidth(char, scale);
+      i++;
+      continue;
+    }
     currentX += glyph ? glyph.w * scale : fontSize * 0.5;
     i++;
   }

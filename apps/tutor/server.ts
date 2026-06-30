@@ -61,7 +61,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
 
   const upstreamUrl =
     `wss://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream-input` +
-    `?model_id=${encodeURIComponent(modelId)}&sync_alignment=true&optimize_streaming_latency=3`;
+    `?model_id=${encodeURIComponent(modelId)}&sync_alignment=true&optimize_streaming_latency=0`;
 
   const upstream = new WebSocket(upstreamUrl, {
     headers: {
@@ -72,6 +72,29 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
   let upstreamReady = false;
   let pendingSegmentText = "";
   const segmentStartedAt = { value: 0 };
+  let segmentFlushPending = false;
+  let upstreamIdleTimer: ReturnType<typeof setTimeout> | null = null;
+  const UPSTREAM_IDLE_FINALIZE_MS = 650;
+
+  const clearUpstreamIdleTimer = (): void => {
+    if (upstreamIdleTimer !== null) {
+      clearTimeout(upstreamIdleTimer);
+      upstreamIdleTimer = null;
+    }
+  };
+
+  const scheduleUpstreamIdleFinalize = (): void => {
+    clearUpstreamIdleTimer();
+    upstreamIdleTimer = setTimeout(() => {
+      upstreamIdleTimer = null;
+      if (!segmentFlushPending || clientWs.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      segmentFlushPending = false;
+      clientWs.send(JSON.stringify({ isFinal: true }));
+    }, UPSTREAM_IDLE_FINALIZE_MS);
+  };
 
   upstream.on("open", () => {
     const initMessage: ElevenLabsWsMessage = {
@@ -81,7 +104,8 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
         similarity_boost: 0.75,
       },
       generation_config: {
-        chunk_length_schedule: [50],
+        // Default schedule — [50] caused mid-sentence prosody breaks in live tutoring.
+        chunk_length_schedule: [120, 160, 250, 290],
       },
     };
 
@@ -97,10 +121,28 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
 
     if (isBinary) {
       clientWs.send(data, { binary: true });
+      if (segmentFlushPending) {
+        scheduleUpstreamIdleFinalize();
+      }
       return;
     }
 
-    clientWs.send(data.toString());
+    const payload = data.toString();
+    clientWs.send(payload);
+
+    try {
+      const message = JSON.parse(payload) as { isFinal?: boolean; is_final?: boolean };
+      if (message.isFinal === true || message.is_final === true) {
+        segmentFlushPending = false;
+        clearUpstreamIdleTimer();
+      }
+    } catch {
+      // non-json upstream payloads are forwarded as-is
+    }
+
+    if (segmentFlushPending) {
+      scheduleUpstreamIdleFinalize();
+    }
   });
 
   upstream.on("error", (error) => {
@@ -156,6 +198,8 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
 
         pendingSegmentText = "";
         segmentStartedAt.value = 0;
+        segmentFlushPending = true;
+        scheduleUpstreamIdleFinalize();
       }
     } catch {
       // non-json payloads are forwarded as-is
@@ -165,6 +209,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
   });
 
   clientWs.on("close", () => {
+    clearUpstreamIdleTimer();
     if (upstream.readyState === WebSocket.OPEN) {
       upstream.close();
     }

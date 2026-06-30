@@ -1,0 +1,23 @@
+{
+  "name": "Accelute",
+  "short_name": "Accelute",
+  "description": "AI whiteboard math tutor that draws and explains in sync.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#E3FEF7",
+  "theme_color": "#003C43",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

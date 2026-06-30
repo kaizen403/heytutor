@@ -49,8 +49,17 @@ export interface TTSClient {
    * the moment its audio became audible. Returns null when no position is known.
    * Negative values mean the audio is scheduled but not yet audible. Used to keep the
    * whiteboard writing synced to the true audio clock (not wall-clock at onStart).
+   *
+   * The value is in audio-buffer time (scaled by playback rate), so it can be compared
+   * directly against character alignment timings from onTimings.
    */
   getPlaybackPositionMs(): number | null;
+  /**
+   * Set the playback rate for live TTS audio. Takes effect immediately on currently
+   * playing audio and all subsequently scheduled segments. 1.0 = normal speed,
+   * 2.0 = twice as fast. Values below 0.1 are clamped.
+   */
+  setPlaybackRate(rate: number): void;
 }
 
 interface ElevenLabsClientOptions {
@@ -65,13 +74,26 @@ const DEFAULT_VOICE_SETTINGS = {
   similarity_boost: 0.75,
 };
 
-export function mathToSpeech(text: string): string {
+/** Insert spaces so `cosθ` and `2θ` tokenize like spoken math. */
+function spaceGreekMathSymbols(text: string): string {
   return text
+    .replace(/([a-z])([\u03b1-\u03c9])/gi, "$1 $2")
+    .replace(/([\u03b1-\u03c9])([a-z0-9])/gi, "$1 $2")
+    .replace(/(\d)([\u03b1-\u03c9])/g, "$1 $2");
+}
+
+export function mathToSpeech(text: string): string {
+  return spaceGreekMathSymbols(text)
     .replace(/(\w)\u00b2/g, "$1 squared")
     .replace(/(\w)\u00b3/g, "$1 cubed")
     .replace(/\u221a(\d+)/g, "square root of $1")
     .replace(/\u03c0/g, "pi")
     .replace(/\u03b8/g, "theta")
+    .replace(/\u03bc/g, "mu")
+    .replace(/\u03bb/g, "lambda")
+    .replace(/\u03c1/g, "rho")
+    .replace(/\u0394/g, "delta")
+    .replace(/\u03bd/g, "nu")
     .replace(/\bsin\b/gi, "sine")
     .replace(/\bcos\b/gi, "cosine")
     .replace(/\btan\b/gi, "tangent")
@@ -115,9 +137,9 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
-function concatUint8Arrays(chunks: Uint8Array[]): Uint8Array {
+function concatUint8Arrays(chunks: Uint8Array[]): Uint8Array<ArrayBuffer> {
   const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  const merged = new Uint8Array(total);
+  const merged = new Uint8Array(new ArrayBuffer(total));
   let offset = 0;
 
   for (const chunk of chunks) {
@@ -292,11 +314,10 @@ export class ElevenLabsTTSClient implements TTSClient {
   private proxyUrl: string;
   private streamUrl: string;
   private modelId: string;
-  private audioContext: AudioContext | null = null;
-  private activeSources: AudioBufferSourceNode[] = [];
+  private currentAudioEl: HTMLAudioElement | null = null;
   private playing = false;
-  private started = false;
   private paused = false;
+  private playbackRate = 1.0;
 
   constructor(options: ElevenLabsClientOptions) {
     this.proxyUrl = options.proxyUrl;
@@ -305,7 +326,7 @@ export class ElevenLabsTTSClient implements TTSClient {
   }
 
   async prewarm(_options?: PrewarmOptions): Promise<void> {
-    await this.ensureAudioContext();
+    // HTMLAudioElement does not require pre-warming.
   }
 
   async speak({ text, onStart, onEnd, onError, onTimings }: SpeakOptions): Promise<void> {
@@ -389,15 +410,12 @@ export class ElevenLabsTTSClient implements TTSClient {
       throw new Error("TTS stream returned no body");
     }
 
-    const ctx = await this.ensureAudioContext();
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
     let sseBuffer = "";
-    let playedAny = false;
-    let scheduledEnd = ctx.currentTime;
+    let collectedAny = false;
     let chunkOffsetSec = 0;
-    const sourceDonePromises: Promise<void>[] = [];
     const capturedChunks: Uint8Array[] = [];
     const timings: AudioTimings = {
       charStartTimes: [],
@@ -405,45 +423,14 @@ export class ElevenLabsTTSClient implements TTSClient {
       totalDuration: 0,
     };
 
-    const scheduleChunk = async (audioBase64: string, payload: TimestampChunkPayload) => {
-      if (!this.started) {
-        this.started = true;
-        this.playing = true;
-        options.onStart?.();
-      }
-
+    const collectChunk = (audioBase64: string, payload: TimestampChunkPayload) => {
       const bytes = base64ToUint8Array(audioBase64);
       capturedChunks.push(bytes);
-      const audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(
-        bytes.byteOffset,
-        bytes.byteOffset + bytes.byteLength,
-      ) as ArrayBuffer);
-
-      chunkOffsetSec = mergeTimings(timings, payload).totalDuration;
-
-      const startAt = Math.max(ctx.currentTime + 0.15, scheduledEnd);
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-
-      const donePromise = new Promise<void>((resolve) => {
-        source.onended = () => {
-          this.activeSources = this.activeSources.filter((node) => node !== source);
-
-          if (this.activeSources.length === 0) {
-            this.playing = false;
-            options.onEnd?.();
-          }
-
-          resolve();
-        };
-      });
-
-      this.activeSources.push(source);
-      source.start(startAt);
-      scheduledEnd = startAt + audioBuffer.duration;
-      sourceDonePromises.push(donePromise);
-      playedAny = true;
+      chunkOffsetSec = mergeAudioTimingChunk(timings, {
+        startTimesSec: payload.alignment?.character_start_times_seconds,
+        endTimesSec: payload.alignment?.character_end_times_seconds,
+      }, chunkOffsetSec);
+      collectedAny = true;
     };
 
     while (true) {
@@ -461,11 +448,11 @@ export class ElevenLabsTTSClient implements TTSClient {
         const payload = parseTimestampPayload(line);
         const audioBase64 = readStreamAudioBase64(payload);
 
-        if (!audioBase64) {
+        if (!audioBase64 || !payload) {
           continue;
         }
 
-        await scheduleChunk(audioBase64, payload!);
+        collectChunk(audioBase64, payload);
       }
     }
 
@@ -473,12 +460,12 @@ export class ElevenLabsTTSClient implements TTSClient {
       const payload = parseTimestampPayload(sseBuffer);
       const audioBase64 = readStreamAudioBase64(payload);
 
-      if (audioBase64) {
-        await scheduleChunk(audioBase64, payload!);
+      if (audioBase64 && payload) {
+        collectChunk(audioBase64, payload);
       }
     }
 
-    if (!playedAny) {
+    if (!collectedAny) {
       return false;
     }
 
@@ -493,78 +480,85 @@ export class ElevenLabsTTSClient implements TTSClient {
       });
     }
 
-    await Promise.all(sourceDonePromises);
+    const merged = concatUint8Arrays(capturedChunks);
+    const blob = new Blob([merged], { type: "audio/mpeg" });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.preservesPitch = true;
+    audio.playbackRate = this.playbackRate;
+    this.currentAudioEl = audio;
+
+    await new Promise<void>((resolve) => {
+      const finish = () => {
+        URL.revokeObjectURL(url);
+        if (this.currentAudioEl === audio) {
+          this.currentAudioEl = null;
+          this.playing = false;
+        }
+        resolve();
+      };
+      audio.onended = finish;
+      audio.onerror = finish;
+      this.playing = true;
+      options.onStart?.();
+      void audio.play().catch(finish);
+    });
+
+    options.onEnd?.();
     return true;
   }
 
   async playAudio(bytes: Uint8Array, options: { onStart?: () => void } = {}): Promise<void> {
-    const ctx = await this.ensureAudioContext();
-    const arrayBuffer = bytes.buffer.slice(
-      bytes.byteOffset,
-      bytes.byteOffset + bytes.byteLength,
-    ) as ArrayBuffer;
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-    const source = ctx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(ctx.destination);
+    const buffer = new ArrayBuffer(bytes.byteLength);
+    const copy = new Uint8Array(buffer);
+    copy.set(bytes);
+    const blob = new Blob([buffer], { type: "audio/mpeg" });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.preservesPitch = true;
+    audio.playbackRate = this.playbackRate;
+    this.currentAudioEl = audio;
 
     await new Promise<void>((resolve) => {
-      source.onended = () => {
-        this.activeSources = this.activeSources.filter((node) => node !== source);
-
-        if (this.activeSources.length === 0) {
+      const finish = () => {
+        URL.revokeObjectURL(url);
+        if (this.currentAudioEl === audio) {
+          this.currentAudioEl = null;
           this.playing = false;
         }
-
         resolve();
       };
-
-      this.activeSources.push(source);
+      audio.onended = finish;
+      audio.onerror = finish;
       this.playing = true;
-      this.started = true;
       options.onStart?.();
-      source.start();
+      void audio.play().catch(finish);
     });
   }
 
-  private async ensureAudioContext(): Promise<AudioContext> {
-    if (!this.audioContext) {
-      this.audioContext = new AudioContext();
+  setPlaybackRate(rate: number): void {
+    this.playbackRate = Math.max(rate, 0.1);
+    if (this.currentAudioEl) {
+      this.currentAudioEl.playbackRate = this.playbackRate;
     }
-
-    if (this.audioContext.state === "suspended" && !this.paused) {
-      try {
-        await this.audioContext.resume();
-      } catch {
-        // Autoplay policy: resume will succeed after user gesture
-      }
-    }
-
-    return this.audioContext;
   }
 
   pause(): void {
     this.paused = true;
-    void this.audioContext?.suspend();
+    this.currentAudioEl?.pause();
   }
 
   resume(): void {
     this.paused = false;
-    void this.audioContext?.resume();
+    void this.currentAudioEl?.play();
   }
 
   stop(): void {
-    for (const source of this.activeSources) {
-      try {
-        source.stop();
-      } catch {
-        // already stopped
-      }
+    if (this.currentAudioEl) {
+      this.currentAudioEl.pause();
+      this.currentAudioEl = null;
     }
-
-    this.activeSources = [];
     this.playing = false;
-    this.started = false;
     this.paused = false;
   }
 
@@ -573,13 +567,18 @@ export class ElevenLabsTTSClient implements TTSClient {
   }
 
   getPlaybackPositionMs(): number | null {
-    return null;
+    const audio = this.currentAudioEl;
+    if (!audio) {
+      return null;
+    }
+    return audio.currentTime * 1000;
   }
 }
 
 export class SpeechSynthesisTTSClient implements TTSClient {
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private playing = false;
+  private playbackRate = 1.0;
 
   async prewarm(_options?: PrewarmOptions): Promise<void> {
     // SpeechSynthesis has no connection to warm.
@@ -609,7 +608,7 @@ export class SpeechSynthesisTTSClient implements TTSClient {
 
     await new Promise<void>((resolve) => {
       const utterance = new SpeechSynthesisUtterance(spokenText);
-      utterance.rate = 1.0;
+      utterance.rate = this.playbackRate;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
@@ -660,6 +659,10 @@ export class SpeechSynthesisTTSClient implements TTSClient {
       this.currentUtterance = utterance;
       window.speechSynthesis.speak(utterance);
     });
+  }
+
+  setPlaybackRate(rate: number): void {
+    this.playbackRate = Math.max(rate, 0.1);
   }
 
   pause(): void {

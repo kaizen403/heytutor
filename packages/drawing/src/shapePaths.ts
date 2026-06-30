@@ -144,11 +144,13 @@ export function emphasisEllipsePath(
   width: number,
   height: number,
 ): string {
-  const pad = 6;
+  const padX = 6;
+  const padYTop = 5;
+  const padYBottom = 2;
   const cx = x + width / 2;
-  const cy = y + height / 2;
-  const rx = width / 2 + pad;
-  const ry = height / 2 + pad;
+  const cy = y + padYTop + (height - padYTop - padYBottom) / 2;
+  const rx = width / 2 + padX;
+  const ry = (height - padYTop - padYBottom) / 2 + (padYTop + padYBottom) / 2;
   const kappa = 0.552284749831;
   const cRx = rx * kappa;
   const cRy = ry * kappa;

@@ -33,7 +33,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const payload = buildElevenLabsPayload(body);
   const url = new URL(`${ELEVENLABS_TTS_BASE}/${voiceId}/stream/with-timestamps`);
-  url.searchParams.set("optimize_streaming_latency", "3");
+  url.searchParams.set("optimize_streaming_latency", "0");
 
   const startedAt = Date.now();
   const { traceId, sessionId } = readTraceHeaders(request);

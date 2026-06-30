@@ -1,6 +1,11 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 export interface BoardEntry {
   id: string;
@@ -16,6 +21,9 @@ interface BoardHistoryProps {
   onNew: () => void;
   onDelete?: (id: string) => void;
   disabled?: boolean;
+  variant?: "sidebar" | "drawer";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   profileOpen?: boolean;
@@ -41,19 +49,33 @@ const glassPanel: CSSProperties = {
 
 export { SIDEBAR_WIDTH };
 
-export function BoardHistory({
+interface BoardHistoryContentProps {
+  boards: BoardEntry[];
+  activeBoardId: string | null;
+  onSelect: (id: string) => void;
+  onNew: () => void;
+  onDelete?: (id: string) => void;
+  disabled?: boolean;
+  onToggleCollapse?: () => void;
+  showCollapseButton?: boolean;
+  profileOpen?: boolean;
+  onProfileToggle?: () => void;
+  onCreditsClick?: () => void;
+}
+
+function BoardHistoryContent({
   boards,
   activeBoardId,
   onSelect,
   onNew,
   onDelete,
   disabled = false,
-  collapsed = false,
   onToggleCollapse,
+  showCollapseButton = true,
   profileOpen = false,
   onProfileToggle,
   onCreditsClick,
-}: BoardHistoryProps) {
+}: BoardHistoryContentProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -63,27 +85,10 @@ export function BoardHistory({
       )
     : boards;
 
-  const width = collapsed ? 0 : SIDEBAR_WIDTH;
-
   return (
     <div
-      className="board-sidebar"
-      style={{
-        position: "fixed",
-        left: 0,
-        top: 0,
-        zIndex: 40,
-        width,
-        minWidth: width,
-        height: "100vh",
-        ...glassPanel,
-        ...sidebarFont,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        transition: "width 0.25s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-        flexShrink: 0,
-      }}
+      className="flex h-full flex-col overflow-hidden"
+      style={sidebarFont}
     >
       <div
         style={{
@@ -108,6 +113,7 @@ export function BoardHistory({
         <div style={{ display: "flex", gap: 6 }}>
           <button
             onClick={() => setSearchOpen(!searchOpen)}
+            aria-label="Search boards"
             style={{
               width: 32,
               height: 32,
@@ -127,14 +133,15 @@ export function BoardHistory({
               e.currentTarget.style.background = "transparent";
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"             stroke="#0099E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0099E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
           </button>
-          {onToggleCollapse && (
+          {showCollapseButton && onToggleCollapse && (
             <button
               onClick={onToggleCollapse}
+              aria-label="Collapse sidebar"
               style={{
                 width: 32,
                 height: 32,
@@ -154,7 +161,7 @@ export function BoardHistory({
                 e.currentTarget.style.background = "transparent";
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"             stroke="#0099E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0099E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
                 <path d="M9 3v18" />
               </svg>
@@ -325,17 +332,17 @@ export function BoardHistory({
                 }}
               >
                 <span
-                   style={{
-                     fontSize: "0.875rem",
-                     fontWeight: isActive ? 500 : 400,
-                      color: isActive ? "#333333" : "#0077CC",
-                     overflow: "hidden",
-                     textOverflow: "ellipsis",
-                     whiteSpace: "nowrap",
-                   }}
-                 >
-                   {board.title}
-                 </span>
+                  style={{
+                    fontSize: "0.875rem",
+                    fontWeight: isActive ? 500 : 400,
+                    color: isActive ? "#333333" : "#0077CC",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {board.title}
+                </span>
               </button>
               {onDelete && (
                 <button
@@ -510,6 +517,94 @@ export function BoardHistory({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function BoardHistory({
+  boards,
+  activeBoardId,
+  onSelect,
+  onNew,
+  onDelete,
+  disabled = false,
+  variant = "sidebar",
+  open = false,
+  onOpenChange,
+  collapsed = false,
+  onToggleCollapse,
+  profileOpen = false,
+  onProfileToggle,
+  onCreditsClick,
+}: BoardHistoryProps) {
+  const handleSelect = (id: string) => {
+    onSelect(id);
+    if (variant === "drawer") {
+      onOpenChange?.(false);
+    }
+  };
+
+  const handleNew = () => {
+    onNew();
+    if (variant === "drawer") {
+      onOpenChange?.(false);
+    }
+  };
+
+  const contentProps: BoardHistoryContentProps = {
+    boards,
+    activeBoardId,
+    onSelect: handleSelect,
+    onNew: handleNew,
+    onDelete,
+    disabled,
+    onToggleCollapse,
+    showCollapseButton: variant === "sidebar",
+    profileOpen,
+    onProfileToggle,
+    onCreditsClick,
+  };
+
+  if (variant === "drawer") {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent
+          side="left"
+          className="board-sidebar w-[min(100%,280px)] border-r border-[rgba(255,255,255,0.55)] p-0 sm:max-w-[280px]"
+          style={{
+            ...glassPanel,
+            boxShadow: "inset -1px 0 0 rgba(0, 119, 204, 0.06), 4px 0 24px -8px rgba(0, 0, 0, 0.06)",
+          }}
+        >
+          <SheetTitle className="sr-only">Board history</SheetTitle>
+          <BoardHistoryContent {...contentProps} />
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  const width = collapsed ? 0 : SIDEBAR_WIDTH;
+
+  return (
+    <div
+      className="board-sidebar hidden md:flex"
+      style={{
+        position: "fixed",
+        left: 0,
+        top: 0,
+        zIndex: 40,
+        width,
+        minWidth: width,
+        height: "100dvh",
+        ...glassPanel,
+        ...sidebarFont,
+        flexDirection: "column",
+        overflow: "hidden",
+        transition: "width 0.25s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+        flexShrink: 0,
+      }}
+    >
+      <BoardHistoryContent {...contentProps} />
     </div>
   );
 }

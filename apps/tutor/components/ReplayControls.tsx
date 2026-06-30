@@ -39,10 +39,21 @@ export function ReplayControls({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scrubbing, setScrubbing] = useState(false);
   const [scrubMs, setScrubMs] = useState(0);
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
   const displayMs = scrubbing ? scrubMs : progressMs;
-  const showChrome = hovered || !playing || scrubbing || settingsOpen;
+  const showPlayButton = hovered || !playing || scrubbing || settingsOpen;
+  const showBottomChrome =
+    hovered || !playing || scrubbing || settingsOpen || isCoarsePointer;
+
+  useEffect(() => {
+    const media = window.matchMedia("(pointer: coarse)");
+    const onChange = () => setIsCoarsePointer(media.matches);
+    onChange();
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -78,11 +89,12 @@ export function ReplayControls({
           setSettingsOpen(false);
         }
       }}
+      onPointerDown={() => setHovered(true)}
     >
       <div
         className={cn(
           "absolute inset-0 transition-colors duration-200",
-          showChrome ? "bg-black/10" : "bg-transparent",
+          showBottomChrome ? "bg-black/10" : "bg-transparent",
         )}
       />
 
@@ -93,7 +105,7 @@ export function ReplayControls({
         className={cn(
           "absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full",
           "bg-black/55 text-white shadow-lg backdrop-blur-sm transition-all duration-200",
-          showChrome ? "scale-100 opacity-100" : "scale-90 opacity-0 pointer-events-none",
+          showPlayButton ? "scale-100 opacity-100" : "scale-90 opacity-0 pointer-events-none",
         )}
       >
         {playing ? (
@@ -106,7 +118,7 @@ export function ReplayControls({
       <div
         className={cn(
           "absolute inset-x-0 bottom-0 transition-all duration-200",
-          showChrome ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0 pointer-events-none",
+          showBottomChrome ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0 pointer-events-none",
         )}
       >
         <div className="bg-gradient-to-t from-black/70 via-black/45 to-transparent px-4 pb-3 pt-10">

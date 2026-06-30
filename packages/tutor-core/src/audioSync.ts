@@ -160,6 +160,7 @@ function normalizeForSpeechMatch(text: string): string {
       .replace(/-/g, " minus ")
       .replace(/\*/g, " times ")
       .replace(/\//g, " divided by ")
+      .replace(/\bover\b/gi, " divided by ")
       .replace(/\bint\b/gi, " integral ")
       .replace(/\bpi\b/gi, " pi "),
   )
@@ -167,6 +168,23 @@ function normalizeForSpeechMatch(text: string): string {
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function tokenSpeechPhrases(token: string): string[] {
+  const phrases = [
+    normalizeForSpeechMatch(token),
+    normalizeForSpeechMatch(expandCompactFormulaTokens(token)),
+    normalizeForSpeechMatch(mathToSpeech(expandCompactFormulaTokens(token))),
+  ];
+
+  if (token.includes("/")) {
+    phrases.push(normalizeForSpeechMatch(token.replace(/\//g, " over ")));
+    phrases.push(
+      normalizeForSpeechMatch(mathToSpeech(token.replace(/\//g, " over "))),
+    );
+  }
+
+  return uniqueNormalized(phrases);
 }
 
 function normalizeSegmentTimings(narration: string, timings: AudioTimings): AudioTimings {
@@ -535,10 +553,7 @@ export function getWriteCharScheduleMs(
 
   for (const token of tokens) {
     const count = token.replace(/\s/g, "").length;
-    const phrases = uniqueNormalized([
-      normalizeForSpeechMatch(token),
-      normalizeForSpeechMatch(expandCompactFormulaTokens(token)),
-    ]);
+    const phrases = tokenSpeechPhrases(token);
 
     let foundIdx = -1;
     let foundLen = 0;

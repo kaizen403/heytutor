@@ -17,7 +17,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 export const MARKER_COLORS = [
   { id: "blue", color: "#81A6C6", label: "Blue" },
@@ -50,27 +50,65 @@ const SPEED_MIN = 1;
 const SPEED_MAX = 3;
 const SPEED_STEP = 0.5;
 
-function SectionLabel({
-  icon: Icon,
+const theme = {
+  darkest: "#003C43",
+  dark: "#135D66",
+  sage: "#77B0AA",
+  mint: "#E3FEF7",
+  border: "rgba(119, 176, 170, 0.28)",
+  borderSubtle: "rgba(119, 176, 170, 0.18)",
+} as const;
+
+function SettingsSection({
   children,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-1.5 pb-1.5 pt-1">
-      <Icon className="h-3.5 w-3.5 text-[#0077CC]" />
-      <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-[#0077CC]">
-        {children}
-      </span>
+    <section
+      className="rounded-xl border bg-white px-4 py-3.5 shadow-sm"
+      style={{ borderColor: theme.border }}
+    >
+      {children}
+    </section>
+  );
+}
+
+function SectionLabel({
+  icon: Icon,
+  children,
+  comingSoon = false,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+  comingSoon?: boolean;
+}) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: theme.dark }} />
+        <span
+          className="text-[0.6875rem] font-semibold uppercase tracking-wider"
+          style={{ color: theme.darkest }}
+        >
+          {children}
+        </span>
+      </div>
+      {comingSoon && <ComingSoonBadge />}
     </div>
   );
 }
 
-function ComingSoonChip() {
+function ComingSoonBadge() {
   return (
-    <span className="absolute -right-1 -top-1.5 rounded-full bg-[rgba(0,119,204,0.18)] px-1.5 py-0.5 text-[0.5rem] font-semibold uppercase leading-none tracking-wide text-[#0077CC]">
-      soon
+    <span
+      className="shrink-0 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold uppercase leading-none tracking-wide"
+      style={{
+        backgroundColor: theme.borderSubtle,
+        color: theme.dark,
+      }}
+    >
+      Soon
     </span>
   );
 }
@@ -79,13 +117,11 @@ function SelectPill({
   label,
   checked,
   disabled = false,
-  comingSoon = false,
   onClick,
 }: {
   label: string;
   checked: boolean;
   disabled?: boolean;
-  comingSoon?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -93,16 +129,15 @@ function SelectPill({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={[
-        "relative rounded-md border px-2.5 py-1 text-xs transition-all",
+      className={cn(
+        "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
         checked
-          ? "border-[#0077CC] bg-[rgba(0,119,204,0.14)] text-[#333333]"
-          : "border-[rgba(0,119,204,0.15)] text-[#0099E5] hover:border-[rgba(0,119,204,0.3)]",
-        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
-      ].join(" ")}
+          ? "border-[#003C43] bg-[rgba(0,60,67,0.08)] text-[#003C43] shadow-sm"
+          : "border-[rgba(119,176,170,0.28)] text-[#135D66] hover:border-[#77B0AA] hover:shadow-sm",
+        disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+      )}
     >
       {label}
-      {comingSoon && <ComingSoonChip />}
     </button>
   );
 }
@@ -123,112 +158,126 @@ export function SettingsDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[300px] sm:max-w-[300px]">
-        <SheetHeader className="px-5 pt-5 pb-1">
-          <SheetTitle className="flex items-center gap-2 text-base">
-            <Settings className="h-4 w-4 text-[#0077CC]" />
+      <SheetContent side="right" className="border-l" style={{ borderColor: theme.border }}>
+        <SheetHeader className="space-y-1 px-5 pb-2 pt-5">
+          <SheetTitle
+            className="flex items-center gap-2 text-base"
+            style={{ color: theme.darkest }}
+          >
+            <Settings className="h-4 w-4" style={{ color: theme.dark }} />
             Settings
           </SheetTitle>
-          <SheetDescription className="text-xs">
+          <SheetDescription className="text-xs" style={{ color: theme.sage }}>
             Playback, audio, and board preferences
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-col gap-0 px-5 pb-5 pt-2 overflow-y-auto">
-          <SectionLabel icon={Gauge}>Playback Speed</SectionLabel>
-          <div className="flex items-center gap-3 py-1">
-            <input
-              type="range"
-              min={SPEED_MIN}
-              max={SPEED_MAX}
-              step={SPEED_STEP}
-              value={settings.speedMultiplier}
-              onChange={(event) =>
-                update({ speedMultiplier: Number(event.target.value) })
-              }
-              className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-[rgba(0,119,204,0.2)] accent-[#0077CC]"
-            />
-            <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums text-[#333333]">
-              {settings.speedMultiplier}x
-            </span>
-          </div>
-
-          <Separator className="my-2.5" />
-
-          <SectionLabel icon={Volume2}>Audio Language</SectionLabel>
-          <div className="flex flex-wrap gap-1.5 py-1">
-            <SelectPill
-              label="English"
-              checked={settings.audioLanguage === "english"}
-              onClick={() => update({ audioLanguage: "english" })}
-            />
-            <SelectPill
-              label="Hindi"
-              checked={settings.audioLanguage === "hindi"}
-              onClick={() => update({ audioLanguage: "hindi" })}
-            />
-          </div>
-
-          <Separator className="my-2.5" />
-
-          <SectionLabel icon={Mic2}>Accent</SectionLabel>
-          <div className="flex flex-wrap gap-1.5 py-1">
-            {(
-              [
-                ["uk", "UK"],
-                ["us", "US"],
-                ["india", "India"],
-              ] as const
-            ).map(([value, label]) => (
-              <SelectPill
-                key={value}
-                label={label}
-                checked={settings.accent === value}
-                disabled
-                comingSoon
+        <div className="flex flex-col gap-3 overflow-y-auto px-5 pb-6 pt-1">
+          <SettingsSection>
+            <SectionLabel icon={Gauge}>Playback Speed</SectionLabel>
+            <div className="flex h-8 items-center gap-3">
+              <input
+                type="range"
+                min={SPEED_MIN}
+                max={SPEED_MAX}
+                step={SPEED_STEP}
+                value={settings.speedMultiplier}
+                onChange={(event) =>
+                  update({ speedMultiplier: Number(event.target.value) })
+                }
+                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-[#135D66]"
+                style={{ backgroundColor: theme.borderSubtle }}
               />
-            ))}
-          </div>
+              <span
+                className="flex h-8 w-10 shrink-0 items-center justify-end text-xs font-semibold tabular-nums"
+                style={{ color: theme.darkest }}
+              >
+                {settings.speedMultiplier}x
+              </span>
+            </div>
+          </SettingsSection>
 
-          <Separator className="my-2.5" />
+          <SettingsSection>
+            <SectionLabel icon={Volume2}>Audio Language</SectionLabel>
+            <div className="flex flex-wrap gap-2">
+              <SelectPill
+                label="English"
+                checked={settings.audioLanguage === "english"}
+                onClick={() => update({ audioLanguage: "english" })}
+              />
+              <SelectPill
+                label="Hindi"
+                checked={settings.audioLanguage === "hindi"}
+                onClick={() => update({ audioLanguage: "hindi" })}
+              />
+            </div>
+          </SettingsSection>
 
-          <SectionLabel icon={Captions}>Subtitles</SectionLabel>
-          <div className="relative flex items-center justify-between rounded-md border border-[rgba(0,119,204,0.15)] px-2.5 py-2">
-            <span className="text-xs text-[#333333]">Enable subtitles</span>
-            <Switch
-              checked={settings.subtitlesEnabled}
-              disabled
-              onCheckedChange={(checked) =>
-                update({ subtitlesEnabled: checked })
-              }
-            />
-            <ComingSoonChip />
-          </div>
-
-          <Separator className="my-2.5" />
-
-          <SectionLabel icon={PenLine}>Marker Color</SectionLabel>
-          <div className="flex flex-wrap gap-2 py-1">
-            {MARKER_COLORS.map(({ id, color, label }) => {
-              const selected = settings.markerColor === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  aria-label={label}
-                  title={label}
-                  onClick={() => update({ markerColor: id })}
-                  className={[
-                    "h-7 w-7 rounded-full border-2 transition-transform",
-                    selected
-                      ? "scale-110 border-[#333333]"
-                      : "border-transparent hover:scale-105",
-                  ].join(" ")}
-                  style={{ backgroundColor: color }}
+          <SettingsSection>
+            <SectionLabel icon={Mic2} comingSoon>
+              Accent
+            </SectionLabel>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["uk", "UK"],
+                  ["us", "US"],
+                  ["india", "India"],
+                ] as const
+              ).map(([value, label]) => (
+                <SelectPill
+                  key={value}
+                  label={label}
+                  checked={settings.accent === value}
+                  disabled
                 />
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          </SettingsSection>
+
+          <SettingsSection>
+            <SectionLabel icon={Captions} comingSoon>
+              Subtitles
+            </SectionLabel>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-medium" style={{ color: theme.darkest }}>
+                Enable subtitles
+              </span>
+              <Switch
+                checked={settings.subtitlesEnabled}
+                disabled
+                onCheckedChange={(checked) =>
+                  update({ subtitlesEnabled: checked })
+                }
+                className="data-[state=checked]:bg-[#003C43] data-[state=unchecked]:bg-[rgba(119,176,170,0.35)]"
+              />
+            </div>
+          </SettingsSection>
+
+          <SettingsSection>
+            <SectionLabel icon={PenLine}>Marker Color</SectionLabel>
+            <div className="flex flex-wrap gap-2.5">
+              {MARKER_COLORS.map(({ id, color, label }) => {
+                const selected = settings.markerColor === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-label={label}
+                    title={label}
+                    onClick={() => update({ markerColor: id })}
+                    className={[
+                      "h-8 w-8 rounded-full transition-all",
+                      selected
+                        ? "scale-105 ring-2 ring-[#003C43] ring-offset-2 ring-offset-white"
+                        : "ring-1 ring-[rgba(119,176,170,0.35)] hover:scale-105",
+                    ].join(" ")}
+                    style={{ backgroundColor: color }}
+                  />
+                );
+              })}
+            </div>
+          </SettingsSection>
         </div>
       </SheetContent>
     </Sheet>

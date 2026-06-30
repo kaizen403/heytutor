@@ -99,7 +99,11 @@ export function createTurnTelemetry(): TurnTelemetry {
     },
 
     async flush() {
-      if (!traceId || events.length === 0) {
+      if (!traceId) {
+        return;
+      }
+
+      if (events.length === 0 && Object.keys(traceMetadata).length === 0) {
         return;
       }
 
@@ -112,17 +116,6 @@ export function createTurnTelemetry(): TurnTelemetry {
 
       const body = JSON.stringify(payload);
 
-      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-        const sent = navigator.sendBeacon(
-          BEACON_URL,
-          new Blob([body], { type: "application/json" }),
-        );
-
-        if (sent) {
-          return;
-        }
-      }
-
       try {
         await fetch(BEACON_URL, {
           method: "POST",
@@ -130,8 +123,16 @@ export function createTurnTelemetry(): TurnTelemetry {
           body,
           keepalive: true,
         });
+        return;
       } catch {
-        // telemetry must not block the tutor UI
+        // fall through to sendBeacon
+      }
+
+      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        navigator.sendBeacon(
+          BEACON_URL,
+          new Blob([body], { type: "application/json" }),
+        );
       }
     },
   };
