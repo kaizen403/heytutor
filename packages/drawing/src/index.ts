@@ -4,6 +4,9 @@ export * from "./shapePaths";
 export * from "./handwriting";
 export * from "./alignmentCheck";
 export * from "./lessonPlanner";
+export * from "./boardZones";
+export * from "./commandPlacement";
+export * from "./templates/registry";
 export {
   animateStroke,
   animateRoughStroke,
