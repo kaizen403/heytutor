@@ -1,11 +1,17 @@
 /** Optional split-deploy origins. Empty = same origin as the page. */
+function envValue(key: string): string | undefined {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  const value = env?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
 export function getPublicApiOrigin(): string {
-  const origin = process.env.NEXT_PUBLIC_API_ORIGIN?.trim();
+  const origin = envValue("NEXT_PUBLIC_API_ORIGIN")?.trim();
   return origin?.replace(/\/$/, "") ?? "";
 }
 
 export function getPublicWsOrigin(): string {
-  const origin = process.env.NEXT_PUBLIC_WS_ORIGIN?.trim();
+  const origin = envValue("NEXT_PUBLIC_WS_ORIGIN")?.trim();
   return origin?.replace(/\/$/, "") ?? "";
 }
 
