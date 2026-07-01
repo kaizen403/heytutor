@@ -23,7 +23,7 @@ export interface DiagramTemplate {
   id: string;
   name: string;
   test: RegExp;
-  /** Fixed geometry drawn by runtime before the LLM teaches. */
+  /** Template geometry + reference label positions. Runtime pre-draws DRAW_* only; LABEL/WRITE sync with speech. */
   commands: TemplateCommand[];
   anchors: TemplateAnchor[];
   /**

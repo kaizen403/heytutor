@@ -16,7 +16,6 @@ export const COORDINATE_AXES_TEMPLATE: DiagramTemplate = {
     { id: "x", labels: ["x"], x: 860, y: 387, width: 36, height: 38 },
     { id: "y", labels: ["y"], x: 515, y: 175, width: 36, height: 38 },
   ],
-  promptAddon: `runtime template "coordinate_axes": x and y axes with origin O are ALREADY on the board.
-draw the curve or shape on top with [DRAW_LINE] or [DRAW_CIRCLE] segments in the diagram zone — do NOT redraw axes.
-label key points (vertex, focus, foci) as you introduce them, then write equations on the left.`,
+  promptAddon: `runtime template "coordinate_axes": x and y axis lines are ALREADY on the board (geometry only — no axis labels yet).
+label O, x, and y in separate [STEP]s as you introduce the axes — say the symbol, then [LABEL]. draw the curve on top with [DRAW_LINE] or [DRAW_CIRCLE] — do NOT redraw axes. label key points as you introduce them, then write equations on the left.`,
 };

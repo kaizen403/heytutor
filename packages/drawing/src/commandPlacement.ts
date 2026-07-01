@@ -176,7 +176,28 @@ export function isDuplicateTemplateDraw(
   );
 }
 
-/** Clamp shape/text anchors that land outside the diagram zone when they should be diagram ink. */
+/** Snap diagram LABEL commands to a template anchor when label text matches. */
+export function snapLabelToTemplateAnchor(
+  command: DrawCommand,
+  anchors: TemplateAnchor[],
+): DrawCommand {
+  if (command.type !== "LABEL" || !command.text || anchors.length === 0) {
+    return command;
+  }
+
+  const anchor =
+    findTemplateAnchor(anchors, command.text) ??
+    anchors.find((candidate) =>
+      candidate.labels.some((label) => normalizeLabel(label) === normalizeLabel(command.text!)),
+    );
+
+  if (!anchor) {
+    return command;
+  }
+
+  return { ...command, params: [anchor.x, anchor.y] };
+}
+
 export function repairDiagramCommand(command: DrawCommand): DrawCommand {
   if (command.params.length < 2) {
     return command;

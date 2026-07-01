@@ -22,6 +22,6 @@ export const CIRCUIT_TEMPLATE: DiagramTemplate = {
     { id: "R", labels: ["R", "resistance"], x: 705, y: 225, width: 36, height: 38 },
     { id: "I", labels: ["I", "current"], x: 520, y: 275, width: 36, height: 38 },
   ],
-  promptAddon: `runtime template "circuit": cell ε, resistor R, and current I loop are ALREADY drawn.
-do NOT redraw wires. explain each component, then apply V=IR or Kirchhoff rules on the left.`,
+  promptAddon: `runtime template "circuit": wire loop and component boxes are ALREADY on the board (geometry only — no labels yet).
+label ε, R, and I in separate [STEP]s as you introduce each — say the symbol, then [LABEL]. do NOT redraw wires. apply V=IR or Kirchhoff rules on the left.`,
 };

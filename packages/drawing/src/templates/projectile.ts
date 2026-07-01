@@ -20,6 +20,6 @@ export const PROJECTILE_TEMPLATE: DiagramTemplate = {
     { id: "R", labels: ["R", "range"], x: 790, y: 382, width: 36, height: 38 },
     { id: "H", labels: ["H", "height"], x: 710, y: 262, width: 36, height: 38 },
   ],
-  promptAddon: `runtime template "projectile": ground line, launch point, velocity u at angle θ, parabolic path, range R and max height H are ALREADY sketched.
-do NOT redraw the path. explain u, θ, R, H in separate steps with [CIRCLE_AROUND] on labels, then write kinematic equations on the left.`,
+  promptAddon: `runtime template "projectile": ground, launch point, and trajectory sketch are ALREADY on the board (geometry only — no labels yet).
+label u, θ, R, and H in separate [STEP]s as you explain each quantity — say the symbol, then [LABEL]. do NOT redraw the path. [CIRCLE_AROUND] on labels when revisiting. write kinematic equations on the left.`,
 };
