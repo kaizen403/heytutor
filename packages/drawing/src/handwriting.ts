@@ -20,7 +20,59 @@ const DESCENDER = -300;
 const glyphDataRecord = glyphData as unknown as Record<string, TegakiGlyphData>;
 
 /** Greek/math symbols missing from Caveat glyph data — rendered as synthetic strokes. */
-const SYNTHETIC_GREEK_CHARS = new Set(["θ", "Θ", "μ", "π"]);
+const SYNTHETIC_GREEK_CHARS = new Set([
+  "θ", "Θ", "μ", "π",
+  "φ", "Φ", "ω", "Ω", "α", "Α", "β", "Β", "γ", "Γ", "δ", "Δ",
+  "λ", "Λ", "ρ", "Ρ", "σ", "Σ", "τ", "Τ", "ε", "η", "κ", "ν", "ξ", "ψ", "χ", "ζ", "υ", "ι", "ο",
+]);
+
+const GREEK_LATIN_FALLBACK: Record<string, string> = {
+  φ: "o", Φ: "O", ω: "w", Ω: "W", α: "a", Α: "A", β: "b", Β: "B",
+  γ: "y", Γ: "r", δ: "d", λ: "l", Λ: "L", ρ: "p", Ρ: "P", σ: "o", Σ: "E",
+  τ: "t", Τ: "T", ε: "e", η: "n", κ: "k", ν: "v", ξ: "x", ψ: "y", χ: "x",
+  ζ: "z", υ: "u", ι: "i", ο: "o",
+};
+
+function cloneGlyphStrokes(
+  baseChar: string,
+  displayChar: string,
+  currentX: number,
+  baselineY: number,
+  topY: number,
+  scale: number,
+  fontSize: number,
+  extraStrokes: StrokePath[] = [],
+): { path: CharacterPath; advance: number } | null {
+  const baseGlyph = glyphDataRecord[baseChar];
+  if (!baseGlyph) {
+    return null;
+  }
+
+  const glyphWidth = baseGlyph.w * scale;
+  const strokes: StrokePath[] = baseGlyph.s.map((s) => {
+    const points = s.p;
+    const widths = points.map((p) => p[2] * scale);
+    const avgWidth = widths.reduce((a, b) => a + b, 0) / Math.max(widths.length, 1);
+    const pathData = polylineToSVGPath(points, scale, scale, currentX, baselineY);
+    const firstPoint = points[0];
+    return {
+      pathData,
+      startX: currentX + firstPoint[0] * scale,
+      startY: baselineY + firstPoint[1] * scale,
+      width: Math.max(avgWidth, 1.5),
+      delay: s.d,
+      duration: s.a,
+      priority: s.r ?? 0,
+    };
+  });
+
+  strokes.push(...extraStrokes);
+
+  return {
+    path: { char: displayChar, strokes, x: currentX, y: topY, width: glyphWidth, fontSize },
+    advance: glyphWidth,
+  };
+}
 
 function syntheticGreekChar(
   char: string,
@@ -146,6 +198,52 @@ function syntheticGreekChar(
     };
   }
 
+  if (char === "φ" || char === "Φ") {
+    const glyphWidth = (glyphDataRecord.o?.w ?? 353) * scale;
+    const stemX = currentX + glyphWidth * 0.5;
+    const stemTop = baselineY - 760 * scale;
+    const stemBottom = baselineY + 40 * scale;
+    const extra: StrokePath[] = [{
+      pathData: `M ${stemX.toFixed(2)} ${stemTop.toFixed(2)} L ${stemX.toFixed(2)} ${stemBottom.toFixed(2)}`,
+      startX: stemX,
+      startY: stemTop,
+      width: Math.max(2.2 * scale, 1.5),
+      delay: 0.12,
+      duration: 0.1,
+      priority: 0,
+    }];
+    return cloneGlyphStrokes("o", char, currentX, baselineY, topY, scale, fontSize, extra);
+  }
+
+  if (char === "Δ") {
+    const glyphWidth = 420 * scale;
+    const apexX = currentX + glyphWidth * 0.5;
+    const apexY = baselineY - 760 * scale;
+    const leftX = currentX + 40 * scale;
+    const rightX = currentX + glyphWidth - 40 * scale;
+    const baseY = baselineY + 20 * scale;
+    const strokes: StrokePath[] = [
+      {
+        pathData: `M ${apexX.toFixed(2)} ${apexY.toFixed(2)} L ${leftX.toFixed(2)} ${baseY.toFixed(2)} L ${rightX.toFixed(2)} ${baseY.toFixed(2)} Z`,
+        startX: apexX,
+        startY: apexY,
+        width: Math.max(2.4 * scale, 1.5),
+        delay: 0,
+        duration: 0.14,
+        priority: 0,
+      },
+    ];
+    return {
+      path: { char, strokes, x: currentX, y: topY, width: glyphWidth, fontSize },
+      advance: glyphWidth,
+    };
+  }
+
+  const latinBase = GREEK_LATIN_FALLBACK[char];
+  if (latinBase) {
+    return cloneGlyphStrokes(latinBase, char, currentX, baselineY, topY, scale, fontSize);
+  }
+
   return null;
 }
 
@@ -175,6 +273,16 @@ function syntheticGlyphWidth(char: string, scale: number): number {
   }
   if (char === "μ") {
     return (glyphDataRecord.u?.w ?? 370) * scale;
+  }
+  if (char === "φ" || char === "Φ") {
+    return (glyphDataRecord.o?.w ?? 353) * scale;
+  }
+  if (char === "Δ") {
+    return 420 * scale;
+  }
+  const latinBase = GREEK_LATIN_FALLBACK[char];
+  if (latinBase) {
+    return (glyphDataRecord[latinBase]?.w ?? 350) * scale;
   }
   return 0;
 }
