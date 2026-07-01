@@ -2179,7 +2179,7 @@ export default function TutorSessionPage() {
             }
             await executeCommandWithCancel(repairDiagramCommand(templateToDrawCommand(tcmd)), {
               applyLayout: false,
-              durationScale: 0.2,
+              durationScale: 0.45,
             });
           }
         }
