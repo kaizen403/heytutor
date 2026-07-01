@@ -262,4 +262,13 @@ export function buildTurnSystemPrompt(lessonPlanAddon: string): string {
   return `${TUTOR_BASE_PROMPT}\n\n--- current lesson (runtime) ---\n${addon}`;
 }
 
+/** Continuation prompt with optional compact template reminder when skeleton was pre-drawn. */
+export function buildContinuationPrompt(lessonPlanAddon: string): string {
+  const addon = lessonPlanAddon.trim();
+  if (!addon) {
+    return TUTOR_CONTINUATION_PROMPT;
+  }
+  return `${TUTOR_CONTINUATION_PROMPT}\n\n--- diagram reminder (runtime) ---\n${addon}`;
+}
+
 export const TUTOR_CONTINUATION_PROMPT = `continue your previous teaching response exactly where you left off. keep the same [STEP]...[/STEP] block format. do not repeat steps already taught and do not create a second heading. continue using unused board space top-down; if the work area is full, erase the work area with [ERASE:70,126,1060,520] before continuing. when revisiting terms already on the board, use review-mode annotations (UNDERLINE, CIRCLE_AROUND, ARROW, HIGHLIGHT, SCRIBBLE) instead of duplicating formulas. do not redraw diagram parts already on the board — reuse the existing labels and coordinates from earlier steps. teach the subject naturally, and keep each board command next to the spoken phrase it should sync with. if the topic has a visual component you have not drawn yet, draw it before writing more formulas. if you are in a diagram-explain-solve problem and the diagram is not yet complete, finish it before writing more equations. if the diagram is complete, annotate it when mentioning diagram labels in equations. on the board, always use greek unicode symbols (θ, φ, ω, μ, π) in WRITE and LABEL text — never spell them as english words. keep explaining the why behind each step — do not just recite calculations. every formula needs a reason, every number needs a meaning, every answer needs an interpretation.`;

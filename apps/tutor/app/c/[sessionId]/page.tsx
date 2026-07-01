@@ -79,15 +79,17 @@ import {
   templateToDrawCommand,
   repairDiagramCommand,
   resolveAnnotationWithAnchors,
+  isDuplicateTemplateDraw,
   type TemplateAnchor,
+  type DiagramTemplate,
 } from "@heytutor/drawing";
 import {
   JEE_NARRATION_LABEL_RULES,
   streamLLMResponse,
   createTTSClient,
   buildTurnSystemPrompt,
+  buildContinuationPrompt,
   planLesson,
-  TUTOR_CONTINUATION_PROMPT,
   getCommandDrawDurationMs,
   getCommandSpeechWindow,
   getEstimatedWriteCharScheduleMs,
@@ -548,6 +550,7 @@ export default function TutorSessionPage() {
   const currentTraceIdRef = useRef<string | null>(null);
   const turnTelemetryRef = useRef<TurnTelemetry | null>(null);
   const templateAnchorsRef = useRef<TemplateAnchor[]>([]);
+  const activeDiagramTemplateRef = useRef<DiagramTemplate | null>(null);
   const turnStatsRef = useRef({ drawMs: 0, ttsChars: 0 });
   const boardLayoutRef = useRef<BoardLayoutState>({
     rects: [],
@@ -972,6 +975,15 @@ export default function TutorSessionPage() {
 
       command = repairDiagramCommand(command);
 
+      const activeTemplate = activeDiagramTemplateRef.current;
+      if (activeTemplate && isDuplicateTemplateDraw(command, activeTemplate)) {
+        tutorDebug("draw", "skipped duplicate template skeleton draw", {
+          type: command.type,
+          template_id: activeTemplate.id,
+        });
+        return;
+      }
+
       tutorDebug("draw", "executeCommand start", {
         type: command.type,
         text: command.text?.slice(0, 60),
@@ -1365,6 +1377,7 @@ export default function TutorSessionPage() {
     setPlanningLesson(false);
     setCurrentSegmentText("");
     setInputInteracted(true);
+    activeDiagramTemplateRef.current = null;
   }, []);
 
   const applyTurnPhase = useCallback((next: TutorPhase) => {
@@ -1931,12 +1944,8 @@ export default function TutorSessionPage() {
 
       await segmentChainRef.current;
       setNarrationText(lessonNarrationText(responseText));
-
-      if (!cancelRef.current) {
-        finishLectureUi();
-      }
     },
-    [enqueueSegment, finishLectureUi],
+    [enqueueSegment],
   );
 
   const stopTurn = useCallback(() => {
@@ -2113,7 +2122,9 @@ export default function TutorSessionPage() {
       const diagramTemplate = matchDiagramTemplate(question);
       const lessonPlan = planLesson(question, diagramTemplate);
       templateAnchorsRef.current = diagramTemplate?.anchors ?? [];
+      activeDiagramTemplateRef.current = diagramTemplate;
       const turnSystemPrompt = buildTurnSystemPrompt(lessonPlan.promptAddon);
+      const continuationSystemPrompt = buildContinuationPrompt(lessonPlan.promptAddon);
 
       tutorDebug("turn", "lesson plan", {
         template_id: diagramTemplate?.id ?? null,
@@ -2200,7 +2211,7 @@ export default function TutorSessionPage() {
           const streamResult = await streamLLMResponse(
             {
               systemPrompt: isContinuation
-                ? TUTOR_CONTINUATION_PROMPT
+                ? continuationSystemPrompt
                 : turnSystemPrompt,
               userPrompt: isContinuation ? "continue" : question,
               conversationHistory: isContinuation

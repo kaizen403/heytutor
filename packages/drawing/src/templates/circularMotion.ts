@@ -16,7 +16,7 @@ export const CIRCULAR_MOTION_TEMPLATE: DiagramTemplate = {
   anchors: [
     { id: "O", labels: ["O", "center"], x: 630, y: 260, width: 36, height: 38 },
     { id: "theta", labels: ["θ", "theta"], x: 688, y: 332, width: 34, height: 34 },
-    { id: "m", labels: ["m", "bead"], x: 770, y: 278, width: 36, height: 38 },
+    { id: "m", labels: ["m"], x: 770, y: 278, width: 36, height: 38 },
     { id: "omega", labels: ["ω", "omega"], x: 550, y: 240, width: 36, height: 38 },
   ],
   promptAddon: `runtime template "circular_motion": hoop, center O, downward reference, radius line, labels θ, m, ω are ALREADY on the board.

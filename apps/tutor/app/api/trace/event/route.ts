@@ -64,11 +64,12 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: false, reason: "missing traceId" }, { status: 400 });
   }
 
-  if (body.events.length > 0) {
+  const events = body.events ?? [];
+  if (events.length > 0) {
     recordTurnEvents({
       traceId: body.traceId,
       sessionId: body.sessionId,
-      events: body.events,
+      events,
     });
   }
 
