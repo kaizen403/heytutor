@@ -92,6 +92,7 @@ import {
   buildTurnSystemPrompt,
   buildContinuationPrompt,
   planLesson,
+  resolveApiUrl,
   getCommandDrawDurationMs,
   getCommandSpeechWindow,
   getEstimatedWriteCharScheduleMs,
@@ -2083,7 +2084,7 @@ export default function TutorSessionPage() {
           (b) => b.id === boardIdForName,
         )?.title === "new board";
         if (needsName) {
-          void fetch("/api/board-name", {
+          void fetch(resolveApiUrl("/api/board-name"), {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ question }),
@@ -2226,7 +2227,7 @@ export default function TutorSessionPage() {
                     },
                   ]
                 : conversationHistoryRef.current,
-              proxyUrl: "/api/chat",
+              proxyUrl: resolveApiUrl("/api/chat"),
               sessionId: sessionId ?? undefined,
               signal: abortController.signal,
               onTraceId: (id) => {
