@@ -63,8 +63,44 @@ export function parseTextCommandParams(rawParams: string): { text: string; param
   return { text, params: [x, y] };
 }
 
+const GREEK_WORD_TO_SYMBOL: ReadonlyArray<readonly [RegExp, string]> = [
+  [/\bomicron\b/gi, 'ο'],
+  [/\bepsilon\b/gi, 'ε'],
+  [/\bupsilon\b/gi, 'υ'],
+  [/\blambda\b/gi, 'λ'],
+  [/\bomega\b/gi, 'ω'],
+  [/\btheta\b/gi, 'θ'],
+  [/\bphi\b/gi, 'φ'],
+  [/\balpha\b/gi, 'α'],
+  [/\bbeta\b/gi, 'β'],
+  [/\bgamma\b/gi, 'γ'],
+  [/\bdelta\b/gi, 'δ'],
+  [/\bDelta\b/g, 'Δ'],
+  [/\bmu\b/gi, 'μ'],
+  [/\bpi\b/gi, 'π'],
+  [/\brho\b/gi, 'ρ'],
+  [/\bsigma\b/gi, 'σ'],
+  [/\btau\b/gi, 'τ'],
+  [/\bpsi\b/gi, 'ψ'],
+  [/\bchi\b/gi, 'χ'],
+  [/\bnu\b/gi, 'ν'],
+  [/\bxi\b/gi, 'ξ'],
+  [/\bkappa\b/gi, 'κ'],
+  [/\beta\b/gi, 'η'],
+  [/\bzeta\b/gi, 'ζ'],
+  [/\biota\b/gi, 'ι'],
+];
+
+function normalizeGreekBoardSymbols(text: string): string {
+  let normalized = text;
+  for (const [pattern, symbol] of GREEK_WORD_TO_SYMBOL) {
+    normalized = normalized.replace(pattern, symbol);
+  }
+  return normalized;
+}
+
 export function normalizeBoardText(text: string): string {
-  return text
+  return normalizeGreekBoardSymbols(text)
     .replace(/\bdistance\s+squared\b/gi, 'd^2')
     .replace(/\bradius\s+squared\b/gi, 'r^2')
     .replace(/\br\s+squared\b/gi, 'r^2')
