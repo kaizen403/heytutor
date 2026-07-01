@@ -27,9 +27,14 @@ assert(bead?.id === "circular_motion", "circular motion template should match");
 const parabola = matchDiagramTemplate("find vertex of parabola y^2 = 4ax");
 assert(parabola?.id === "coordinate_axes", "coordinate axes template should match parabola");
 
+const fbdNewton = matchDiagramTemplate(
+  "newton's second law with friction — 5 kg box pushed with 20 N, mu = 0.3",
+);
+assert(fbdNewton?.id === "fbd", "FBD template should match newton + friction questions");
+
 const fbdPlan = planLesson("free body diagram 5kg friction", fbd);
 assert(fbdPlan.promptAddon.includes("geometry only"), "FBD plan should mention geometry-only skeleton");
-assert(fbdPlan.promptAddon.includes("no force arrows or labels"), "FBD plan should not pre-label forces");
+assert(fbdPlan.promptAddon.includes("no text labels"), "FBD plan should not pre-label forces");
 assert(fbdPlan.promptAddon.length < 4000, "per-turn addon should stay compact");
 assert(!fbdPlan.promptAddon.includes("MATHEMATICS:"), "should not dump full syllabus");
 
@@ -70,7 +75,7 @@ assert(continuation.includes("geometry only"), "continuation should repeat geome
 
 const fbdSkeleton = getTemplateSkeletonCommands(fbd!);
 assert(fbdSkeleton.every((cmd) => cmd.type !== "LABEL"), "skeleton must not pre-draw labels");
-assert(fbdSkeleton.length === 2, "FBD skeleton should be block + surface only");
+assert(fbdSkeleton.length === 6, "FBD skeleton should be block + surface + four force arrows");
 
 const duplicateDraw = isDuplicateTemplateDraw(
   { type: "DRAW_RECT", params: [540, 360, 240, 30], charPosition: 0, narrationBefore: "", syncable: false },
