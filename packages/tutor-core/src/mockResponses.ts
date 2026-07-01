@@ -1,5 +1,54 @@
 export const MOCK_RESPONSES: { keywords: string[]; response: string }[] = [
   {
+    keywords: ['bead', 'hoop', 'rotating hoop', 'rotating wire', 'circular hoop', 'angular velocity', 'small oscillation', 'charged bead'],
+    response: `[STEP]
+bead on a rotating hoop.
+[WRITE:bead on a rotating hoop,90,64]
+[DRAW_LINE:90,112,430,112]
+[/STEP]
+[STEP]
+picture the hoop as a circle in a vertical plane. the center stays fixed at o.
+[DRAW_CIRCLE:650,300,120]
+[LABEL:O,640,270]
+[/STEP]
+[STEP]
+theta measures how far the bead has swung up from the downward vertical. zero is straight down.
+[DRAW_LINE:650,300,650,420]
+[DRAW_LINE:650,300,770,300]
+[LABEL:θ,700,345]
+[CIRCLE_AROUND:688,332,34,34]
+[/STEP]
+[STEP]
+the bead sits on the wire at that angle. here is the radius from center to bead.
+[LABEL:m,780,288]
+[/STEP]
+[STEP]
+the hoop spins about the vertical axis with angular velocity omega.
+[LABEL:ω,560,250]
+[/STEP]
+[STEP]
+this is the angle theta from the downward vertical to the bead.
+[CIRCLE_AROUND:688,332,34,34]
+[/STEP]
+[STEP]
+for small oscillations near the bottom, the motion looks like simple harmonic motion.
+[WRITE:θ small,90,200]
+[/STEP]
+[STEP]
+the restoring piece comes from gravity along the hoop. the effective spring constant depends on g over r.
+[WRITE:ω_0^2 ≈ g/R,90,255]
+[/STEP]
+[STEP]
+when the hoop spins fast, centrifugal effects push the bead outward and change the equilibrium angle.
+[WRITE:cos θ = g/(Rω^2),90,310]
+[/STEP]
+[STEP]
+so theta is not just a label on the diagram. it tracks where the bead sits and how the forces balance on the wire.
+[CIRCLE_AROUND:688,332,34,34]
+[WRITE:θ = bead angle,90,365]
+[/STEP]`,
+  },
+  {
     keywords: ['integration by parts', 'integrate by parts', 'parts formula'],
     response: `[STEP]
 integration by parts is useful when an integral is a product of two pieces. it comes from reversing the product rule.
