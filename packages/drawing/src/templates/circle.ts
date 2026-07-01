@@ -16,6 +16,6 @@ export const CIRCLE_TEMPLATE: DiagramTemplate = {
     { id: "r", labels: ["r", "radius"], x: 675, y: 260, width: 36, height: 38 },
     { id: "point", labels: ["(x,y)", "x,y"], x: 750, y: 242, width: 56, height: 38 },
   ],
-  promptAddon: `runtime template "circle": circle with center (h,k), radius r, and point (x,y) is ALREADY drawn.
-do NOT redraw the circle. label and explain each part, then derive (x-h)^2+(y-k)^2=r^2 on the left.`,
+  promptAddon: `runtime template "circle": circle and radius line are ALREADY on the board (geometry only — no labels yet).
+label center (h,k), radius r, and point (x,y) in separate [STEP]s as you explain each — say the name, then [LABEL]. do NOT redraw the circle. derive (x-h)^2+(y-k)^2=r^2 on the left.`,
 };

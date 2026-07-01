@@ -25,6 +25,13 @@ export function matchDiagramTemplate(question: string): DiagramTemplate | null {
   return null;
 }
 
+/** Geometry-only commands pre-drawn before the LLM teaches. Labels are drawn per [STEP] with narration. */
+export function getTemplateSkeletonCommands(
+  template: DiagramTemplate,
+): DiagramTemplate["commands"] {
+  return template.commands.filter((cmd) => cmd.type !== "LABEL" && cmd.type !== "WRITE");
+}
+
 export function templateToDrawCommand(
   cmd: DiagramTemplate["commands"][number],
   charPosition = 0,

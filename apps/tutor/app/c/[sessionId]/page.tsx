@@ -77,9 +77,11 @@ import {
   measureTextWidth,
   matchDiagramTemplate,
   templateToDrawCommand,
+  getTemplateSkeletonCommands,
   repairDiagramCommand,
   resolveAnnotationWithAnchors,
   isDuplicateTemplateDraw,
+  snapLabelToTemplateAnchor,
   type TemplateAnchor,
   type DiagramTemplate,
 } from "@heytutor/drawing";
@@ -974,6 +976,7 @@ export default function TutorSessionPage() {
       if (!wb || cancelRef.current) return;
 
       command = repairDiagramCommand(command);
+      command = snapLabelToTemplateAnchor(command, templateAnchorsRef.current);
 
       const activeTemplate = activeDiagramTemplateRef.current;
       if (activeTemplate && isDuplicateTemplateDraw(command, activeTemplate)) {
@@ -2170,7 +2173,7 @@ export default function TutorSessionPage() {
       try {
         if (diagramTemplate) {
           tutorDebug("turn", "drawing diagram template skeleton", { id: diagramTemplate.id });
-          for (const tcmd of diagramTemplate.commands) {
+          for (const tcmd of getTemplateSkeletonCommands(diagramTemplate)) {
             if (cancelRef.current) {
               break;
             }

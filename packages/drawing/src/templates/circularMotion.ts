@@ -19,8 +19,7 @@ export const CIRCULAR_MOTION_TEMPLATE: DiagramTemplate = {
     { id: "m", labels: ["m"], x: 770, y: 278, width: 36, height: 38 },
     { id: "omega", labels: ["ω", "omega"], x: 550, y: 240, width: 36, height: 38 },
   ],
-  promptAddon: `runtime template "circular_motion": hoop, center O, downward reference, radius line, labels θ, m, ω are ALREADY on the board.
-do NOT redraw the circle or reference lines.
-explain each label in its own [STEP] — say what θ, m, and ω mean physically, then [CIRCLE_AROUND] on the existing θ label when discussing the angle.
-write equations on the left (x 90–400). use unicode θ and ω on the board, say "theta" and "omega" in speech.`,
+  promptAddon: `runtime template "circular_motion": hoop and reference lines are ALREADY on the board (geometry only — no labels yet).
+draw each label in its own [STEP] as you explain it: center O, angle θ, mass m, angular velocity ω. say the symbol in speech, then [LABEL] at the anchor position. one label per step.
+do NOT redraw the circle or reference lines. [CIRCLE_AROUND] on θ when discussing the angle. write equations on the left (x 90–400). use unicode θ and ω on the board.`,
 };

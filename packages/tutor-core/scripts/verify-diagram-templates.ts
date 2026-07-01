@@ -3,6 +3,7 @@ import {
   DIAGRAM_TEMPLATES,
   repairDiagramCommand,
   templateToDrawCommand,
+  getTemplateSkeletonCommands,
   resolveAnnotationWithAnchors,
   isDuplicateTemplateDraw,
 } from "@heytutor/drawing";
@@ -27,7 +28,8 @@ const parabola = matchDiagramTemplate("find vertex of parabola y^2 = 4ax");
 assert(parabola?.id === "coordinate_axes", "coordinate axes template should match parabola");
 
 const fbdPlan = planLesson("free body diagram 5kg friction", fbd);
-assert(fbdPlan.promptAddon.includes("ALREADY on the board"), "FBD plan should mention skeleton");
+assert(fbdPlan.promptAddon.includes("geometry only"), "FBD plan should mention geometry-only skeleton");
+assert(fbdPlan.promptAddon.includes("no force arrows or labels"), "FBD plan should not pre-label forces");
 assert(fbdPlan.promptAddon.length < 4000, "per-turn addon should stay compact");
 assert(!fbdPlan.promptAddon.includes("MATHEMATICS:"), "should not dump full syllabus");
 
@@ -64,7 +66,11 @@ assert(!noLabelSnap.snapped, "CIRCLE_AROUND should not snap without label match"
 const fbdPlanAddon = fbdPlan.promptAddon;
 const continuation = buildContinuationPrompt(fbdPlanAddon);
 assert(continuation.includes("diagram reminder"), "continuation should include template reminder");
-assert(continuation.includes("ALREADY on the board"), "continuation should repeat skeleton hint");
+assert(continuation.includes("geometry only"), "continuation should repeat geometry-only hint");
+
+const fbdSkeleton = getTemplateSkeletonCommands(fbd!);
+assert(fbdSkeleton.every((cmd) => cmd.type !== "LABEL"), "skeleton must not pre-draw labels");
+assert(fbdSkeleton.length === 2, "FBD skeleton should be block + surface only");
 
 const duplicateDraw = isDuplicateTemplateDraw(
   { type: "DRAW_RECT", params: [540, 360, 240, 30], charPosition: 0, narrationBefore: "", syncable: false },
