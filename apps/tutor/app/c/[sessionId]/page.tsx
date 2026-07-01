@@ -75,11 +75,18 @@ import {
   drainCompleteStepBlocks,
   lessonNarrationText,
   measureTextWidth,
+  matchDiagramTemplate,
+  templateToDrawCommand,
+  repairDiagramCommand,
+  resolveAnnotationWithAnchors,
+  type TemplateAnchor,
 } from "@heytutor/drawing";
 import {
+  JEE_NARRATION_LABEL_RULES,
   streamLLMResponse,
   createTTSClient,
-  TUTOR_SYSTEM_PROMPT,
+  buildTurnSystemPrompt,
+  planLesson,
   TUTOR_CONTINUATION_PROMPT,
   getCommandDrawDurationMs,
   getCommandSpeechWindow,
@@ -319,36 +326,7 @@ function bboxParamsForRect(match: BoardTextRect, pad: number): number[] {
   return [match.x - pad, match.y - pad, match.width + pad * 2, match.height + pad * 2];
 }
 
-const NARRATION_LABEL_RULES: Array<{ cues: string[]; labels: string[] }> = [
-  { cues: ["mass", "the mass", "mass is", "this mass", "labeled m", "label m"], labels: ["m", "M"] },
-  { cues: ["friction", "frictional", "mu times", "mu is", "force of friction"], labels: ["f", "F_f", "f_k", "f_s"] },
-  { cues: ["normal force", "normal from", "normal pushes", "normal", "surface pushes"], labels: ["N", "F_N"] },
-  { cues: ["weight", "gravity", "gravitational", "mass times g", "mg", "w equals"], labels: ["mg", "W", "F_g"] },
-  { cues: ["applied push", "applied force", "push to the right", "push to the left", "applied"], labels: ["F", "F_app", "P"] },
-  { cues: ["tension", "rope pulls", "string pulls", "cable pulls"], labels: ["T", "F_T"] },
-  { cues: ["velocity", "the velocity", "speed"], labels: ["v", "V"] },
-  { cues: ["acceleration", "the acceleration", "accelerates"], labels: ["a", "A"] },
-  { cues: ["force", "the force", "net force"], labels: ["F", "F_net"] },
-  { cues: ["angle", "theta", "the angle"], labels: ["θ", "theta"] },
-  { cues: ["coefficient", "mu", "friction coefficient"], labels: ["μ", "mu"] },
-  { cues: ["distance", "displacement", "the distance"], labels: ["d", "x", "s"] },
-  { cues: ["height", "the height", "falls from"], labels: ["h", "H"] },
-  { cues: ["time", "the time"], labels: ["t", "T"] },
-  { cues: ["energy", "kinetic energy", "potential energy"], labels: ["E", "KE", "PE", "U"] },
-  { cues: ["momentum", "the momentum"], labels: ["p", "P"] },
-  { cues: ["charge", "the charge"], labels: ["q", "Q"] },
-  { cues: ["current", "the current"], labels: ["I", "i"] },
-  { cues: ["voltage", "potential difference", "the voltage"], labels: ["V", "ΔV"] },
-  { cues: ["resistance", "the resistance"], labels: ["R"] },
-  { cues: ["power", "the power"], labels: ["P"] },
-  { cues: ["frequency", "the frequency"], labels: ["f", "ν"] },
-  { cues: ["wavelength", "the wavelength"], labels: ["λ", "lambda"] },
-  { cues: ["temperature", "the temperature"], labels: ["T"] },
-  { cues: ["pressure", "the pressure"], labels: ["P", "p"] },
-  { cues: ["volume", "the volume"], labels: ["V", "v"] },
-  { cues: ["density", "the density"], labels: ["ρ", "rho"] },
-  { cues: ["area", "the area"], labels: ["A"] },
-];
+const NARRATION_LABEL_RULES = JEE_NARRATION_LABEL_RULES;
 
 function normalizeLabel(text: string): string {
   return mathToSpeech(text).trim().replace(/\s+/g, "").toLowerCase();
@@ -569,6 +547,7 @@ export default function TutorSessionPage() {
   const rawResponseRef = useRef("");
   const currentTraceIdRef = useRef<string | null>(null);
   const turnTelemetryRef = useRef<TurnTelemetry | null>(null);
+  const templateAnchorsRef = useRef<TemplateAnchor[]>([]);
   const turnStatsRef = useRef({ drawMs: 0, ttsChars: 0 });
   const boardLayoutRef = useRef<BoardLayoutState>({
     rects: [],
@@ -897,13 +876,24 @@ export default function TutorSessionPage() {
       command: DrawCommand,
       kind: DrawCommand["type"],
       narration?: string,
-    ): { params: number[]; snapped: boolean; rect: BoardTextRect | null } =>
-      resolveSnappedAnnotationParams(
+    ): { params: number[]; snapped: boolean; rect: BoardTextRect | null } => {
+      const templateSnap = resolveAnnotationWithAnchors(
+        kind,
+        [...command.params],
+        templateAnchorsRef.current,
+        boardLayoutRef.current.rects,
+        narration,
+      );
+      if (templateSnap.snapped) {
+        return templateSnap;
+      }
+      return resolveSnappedAnnotationParams(
         kind,
         [...command.params],
         boardLayoutRef.current.rects,
         narration,
-      ),
+      );
+    },
     [],
   );
 
@@ -979,6 +969,8 @@ export default function TutorSessionPage() {
     ): Promise<void> => {
       const wb = whiteboardRef.current;
       if (!wb || cancelRef.current) return;
+
+      command = repairDiagramCommand(command);
 
       tutorDebug("draw", "executeCommand start", {
         type: command.type,
@@ -2118,6 +2110,17 @@ export default function TutorSessionPage() {
       setShowThinkingOverlay(true);
       setPlanningLesson(false);
 
+      const diagramTemplate = matchDiagramTemplate(question);
+      const lessonPlan = planLesson(question, diagramTemplate);
+      templateAnchorsRef.current = diagramTemplate?.anchors ?? [];
+      const turnSystemPrompt = buildTurnSystemPrompt(lessonPlan.promptAddon);
+
+      tutorDebug("turn", "lesson plan", {
+        template_id: diagramTemplate?.id ?? null,
+        matched_topics: lessonPlan.matchedTopicTitles,
+        prompt_addon_chars: lessonPlan.promptAddon.length,
+      });
+
       const tel = createTurnTelemetry();
       turnTelemetryRef.current = tel;
       const thinkingSpan = tel.span("thinking");
@@ -2154,6 +2157,19 @@ export default function TutorSessionPage() {
       });
 
       try {
+        if (diagramTemplate) {
+          tutorDebug("turn", "drawing diagram template skeleton", { id: diagramTemplate.id });
+          for (const tcmd of diagramTemplate.commands) {
+            if (cancelRef.current) {
+              break;
+            }
+            await executeCommandWithCancel(repairDiagramCommand(templateToDrawCommand(tcmd)), {
+              applyLayout: false,
+              durationScale: 0.2,
+            });
+          }
+        }
+
         let stepStreamBuffer = "";
 
         const enqueueStepBlock = (block: string) => {
@@ -2185,7 +2201,7 @@ export default function TutorSessionPage() {
             {
               systemPrompt: isContinuation
                 ? TUTOR_CONTINUATION_PROMPT
-                : TUTOR_SYSTEM_PROMPT,
+                : turnSystemPrompt,
               userPrompt: isContinuation ? "continue" : question,
               conversationHistory: isContinuation
                 ? [
@@ -2398,7 +2414,7 @@ export default function TutorSessionPage() {
         void telToFlush?.flush();
       }
     },
-    [sessionId, boards, narrationText, phase, processResponseText, resetBoardLayout, boardLoaded, persistTurnForReplay, registerReplayBlobUrl, revokeReplayBlobUrls, finishLectureUi, enqueueSegment],
+    [sessionId, boards, narrationText, phase, processResponseText, resetBoardLayout, boardLoaded, persistTurnForReplay, registerReplayBlobUrl, revokeReplayBlobUrls, finishLectureUi, enqueueSegment, executeCommandWithCancel],
   );
 
   useEffect(() => {
