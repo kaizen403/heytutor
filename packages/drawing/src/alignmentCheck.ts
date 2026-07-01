@@ -54,6 +54,45 @@ const REVIEW_MODE_CUES = [
   'vertical',
   'direction',
   'force',
+  // jee math
+  'slope',
+  'tangent',
+  'derivative',
+  'integral',
+  'focus',
+  'directrix',
+  'vertex',
+  'eccentricity',
+  'asymptote',
+  'vector',
+  'dot product',
+  'cross product',
+  'discriminant',
+  // jee chemistry
+  'equilibrium',
+  'reaction',
+  'oxidation',
+  'reduction',
+  'anode',
+  'cathode',
+  'electrode',
+  'ligand',
+  'hybridization',
+  'functional group',
+  'carbonyl',
+  'mechanism',
+  // jee optics & circuits
+  'lens',
+  'mirror',
+  'focal',
+  'ray',
+  'circuit',
+  'resistor',
+  'capacitor',
+  'inductor',
+  'field line',
+  'orbit',
+  'energy level',
 ];
 
 function isAnnotationCommand(type: DrawCommandType): boolean {
@@ -90,9 +129,34 @@ const HARD_MISMATCHES: Array<{
     label: 'cube',
   },
   {
-    keywords: ['cuboid', 'prism'],
-    incompatible: ['DRAW_CIRCLE', 'DRAW_LINE', 'DRAW_CUBE'],
-    label: 'cuboid',
+    keywords: ['parabola', 'ellipse', 'hyperbola', 'conic'],
+    incompatible: ['DRAW_CUBE', 'DRAW_CUBOID'],
+    label: 'conic section',
+  },
+  {
+    keywords: ['projectile', 'trajectory', 'path'],
+    incompatible: ['DRAW_CIRCLE', 'DRAW_CUBE', 'DRAW_CUBOID'],
+    label: 'trajectory',
+  },
+  {
+    keywords: ['circuit', 'resistor', 'capacitor', 'galvanic', 'wheatstone'],
+    incompatible: ['DRAW_CIRCLE', 'DRAW_CUBE', 'DRAW_CUBOID'],
+    label: 'circuit',
+  },
+  {
+    keywords: ['lens', 'mirror', 'ray', 'refraction', 'optics'],
+    incompatible: ['DRAW_CUBE', 'DRAW_CUBOID'],
+    label: 'optics ray diagram',
+  },
+  {
+    keywords: ['wave', 'wavelength', 'amplitude', 'sinusoidal'],
+    incompatible: ['DRAW_CUBE', 'DRAW_CUBOID', 'DRAW_RECT'],
+    label: 'wave',
+  },
+  {
+    keywords: ['orbital', 'energy level', 'bohr', 'shell'],
+    incompatible: ['DRAW_CUBE', 'DRAW_CUBOID'],
+    label: 'energy level',
   },
 ];
 
