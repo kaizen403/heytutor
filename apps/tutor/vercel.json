@@ -3,11 +3,5 @@
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "buildCommand": "cd ../.. && pnpm turbo run build --filter=@heytutor/tutor...",
   "framework": "nextjs",
-  "regions": ["bom1"],
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://20-219-9-142.sslip.io/api/:path*"
-    }
-  ]
+  "regions": ["bom1"]
 }
