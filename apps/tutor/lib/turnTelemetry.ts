@@ -1,4 +1,5 @@
 import type { TurnTelemetryEvent } from "@/lib/langfuse";
+import { resolveApiUrl } from "@heytutor/tutor-core";
 
 export interface TurnTelemetryPayload {
   traceId: string;
@@ -22,7 +23,6 @@ export interface TurnTelemetry {
   flush(): Promise<void>;
 }
 
-const BEACON_URL = "/api/trace/event";
 const MAX_EVENTS = 200;
 
 function perfToIso(perfMs: number, turnStartPerf: number, turnStartWall: number): string {
@@ -116,8 +116,10 @@ export function createTurnTelemetry(): TurnTelemetry {
 
       const body = JSON.stringify(payload);
 
+      const beaconUrl = resolveApiUrl("/api/trace/event");
+
       try {
-        await fetch(BEACON_URL, {
+        await fetch(beaconUrl, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body,
@@ -130,7 +132,7 @@ export function createTurnTelemetry(): TurnTelemetry {
 
       if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
         navigator.sendBeacon(
-          BEACON_URL,
+          beaconUrl,
           new Blob([body], { type: "application/json" }),
         );
       }

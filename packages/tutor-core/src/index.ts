@@ -1,3 +1,4 @@
+export * from "./publicOrigins";
 export * from "./tutorDebug";
 export * from "./audioSync";
 export * from "./createTTSClient";

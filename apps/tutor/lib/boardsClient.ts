@@ -1,4 +1,4 @@
-import type { AudioTimings } from "@heytutor/tutor-core";
+import { resolveApiUrl, type AudioTimings } from "@heytutor/tutor-core";
 import type { DrawCommand } from "@heytutor/drawing";
 import type { BoardEntry } from "@/components/BoardHistory";
 
@@ -28,7 +28,7 @@ export interface BoardDetail {
 }
 
 export async function fetchBoards(): Promise<BoardEntry[]> {
-  const res = await fetch("/api/boards");
+  const res = await fetch(resolveApiUrl("/api/boards"));
   if (!res.ok) {
     return [];
   }
@@ -38,7 +38,7 @@ export async function fetchBoards(): Promise<BoardEntry[]> {
 }
 
 export async function createBoard(id?: string): Promise<BoardEntry | null> {
-  const res = await fetch("/api/boards", {
+  const res = await fetch(resolveApiUrl("/api/boards"), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(id ? { id } : {}),
@@ -53,7 +53,7 @@ export async function createBoard(id?: string): Promise<BoardEntry | null> {
 }
 
 export async function fetchBoardDetail(boardId: string): Promise<BoardDetail | null> {
-  const res = await fetch(`/api/boards/${boardId}`);
+  const res = await fetch(resolveApiUrl(`/api/boards/${boardId}`));
   if (!res.ok) {
     return null;
   }
@@ -65,7 +65,7 @@ export async function updateBoard(
   boardId: string,
   patch: { title?: string; preview?: string },
 ): Promise<BoardEntry | null> {
-  const res = await fetch(`/api/boards/${boardId}`, {
+  const res = await fetch(resolveApiUrl(`/api/boards/${boardId}`), {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(patch),
@@ -80,7 +80,7 @@ export async function updateBoard(
 }
 
 export async function deleteBoardApi(boardId: string): Promise<boolean> {
-  const res = await fetch(`/api/boards/${boardId}`, { method: "DELETE" });
+  const res = await fetch(resolveApiUrl(`/api/boards/${boardId}`), { method: "DELETE" });
   return res.ok;
 }
 
@@ -132,7 +132,7 @@ export async function saveTurn(
     }
   }
 
-  const res = await fetch(`/api/boards/${boardId}/turns`, {
+  const res = await fetch(resolveApiUrl(`/api/boards/${boardId}/turns`), {
     method: "POST",
     body: formData,
   });

@@ -5,6 +5,7 @@ import {
   mathToSpeech,
 } from "./elevenLabsClient";
 import { tutorDebug } from "./tutorDebug";
+import { resolveApiUrl, resolveWebSocketUrl } from "./publicOrigins";
 
 interface TimestampChunkPayload {
   audio?: string;
@@ -45,7 +46,6 @@ interface SegmentJob {
   startedAt: number;
 }
 
-const HTTP_STREAM_URL = "/api/tts/stream";
 const DEFAULT_MODEL = "eleven_flash_v2_5";
 /** ElevenLabs WS relay often sends binary MP3 only (no JSON isFinal). */
 const SYNTHESIS_IDLE_FLUSH_MS = 750;
@@ -138,22 +138,7 @@ function parseHttpTimestampPayload(line: string): TimestampChunkPayload | null {
 }
 
 function getWebSocketUrl(path: string, traceId?: string, sessionId?: string): string {
-  if (typeof window === "undefined") {
-    return path;
-  }
-
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const url = new URL(`${protocol}//${window.location.host}${path}`);
-
-  if (traceId) {
-    url.searchParams.set("traceId", traceId);
-  }
-
-  if (sessionId) {
-    url.searchParams.set("sessionId", sessionId);
-  }
-
-  return url.toString();
+  return resolveWebSocketUrl(path, traceId, sessionId);
 }
 
 function isSynthesisFinalChunk(chunk: TimestampChunkPayload): boolean {
@@ -927,7 +912,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     spokenText: string,
     options: SpeakSegmentOptions,
   ): Promise<void> {
-    const response = await fetch(HTTP_STREAM_URL, {
+    const response = await fetch(resolveApiUrl("/api/tts/stream"), {
       method: "POST",
       headers: buildTtsHeaders(options),
       body: JSON.stringify({

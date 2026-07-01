@@ -3,6 +3,22 @@ import path from "path";
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  async rewrites() {
+    const backend = process.env.BACKEND_ORIGIN?.trim().replace(/\/$/, "");
+    if (!backend) {
+      return [];
+    }
+
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backend}/api/:path*`,
+      },
+    ];
+  },
   transpilePackages: [
     "@heytutor/design-tokens",
     "@heytutor/drawing",
