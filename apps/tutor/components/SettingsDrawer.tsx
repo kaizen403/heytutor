@@ -86,7 +86,9 @@ function SectionLabel({
   return (
     <div className="mb-3 flex items-center justify-between gap-2">
       <div className="flex min-w-0 items-center gap-2">
-        <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: theme.dark }} />
+        <span className="inline-flex shrink-0" style={{ color: theme.dark }}>
+          <Icon className="h-3.5 w-3.5" />
+        </span>
         <span
           className="text-[0.6875rem] font-semibold uppercase tracking-wider"
           style={{ color: theme.darkest }}

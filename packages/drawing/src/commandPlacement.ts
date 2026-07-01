@@ -1,6 +1,16 @@
 import type { DrawCommand } from "./drawingProtocol";
 import { clampToDiagramZone, isInDiagramZone } from "./boardZones";
-import type { TemplateAnchor } from "./templates/types";
+import type { DiagramTemplate, TemplateAnchor, TemplateCommand } from "./templates/types";
+
+const TEMPLATE_SKELETON_DRAW_TYPES = new Set<DrawCommand["type"]>([
+  "DRAW_CUBOID",
+  "DRAW_CUBE",
+  "DRAW_RECT",
+  "DRAW_CIRCLE",
+  "DRAW_LINE",
+]);
+
+const TEMPLATE_PARAM_TOLERANCE = 40;
 
 export interface BoardTextRect {
   x: number;
@@ -14,15 +24,43 @@ function normalizeLabel(text: string): string {
   return text.trim().replace(/\s+/g, "").toLowerCase();
 }
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Match diagram labels in narration without substring false positives (e.g. O in "hoop", m in "moves"). */
+export function narrationMentionsLabel(narration: string, label: string): boolean {
+  const target = label.trim();
+  if (!target) {
+    return false;
+  }
+
+  if (target === normalizeLabel(narration)) {
+    return true;
+  }
+
+  if (/[^\x00-\x7F]/.test(target)) {
+    return narration.includes(target);
+  }
+
+  const escaped = escapeRegExp(target);
+  if (target.length <= 2) {
+    return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(narration);
+  }
+
+  return new RegExp(`\\b${escaped}\\b`, "i").test(narration);
+}
+
 export function findTemplateAnchor(
   anchors: TemplateAnchor[],
   labelOrNarration: string,
 ): TemplateAnchor | null {
-  const normalized = labelOrNarration.toLowerCase();
   for (const anchor of anchors) {
     for (const label of anchor.labels) {
-      const target = normalizeLabel(label);
-      if (normalized.includes(target) || target === normalizeLabel(labelOrNarration)) {
+      if (
+        narrationMentionsLabel(labelOrNarration, label) ||
+        normalizeLabel(label) === normalizeLabel(labelOrNarration)
+      ) {
         return anchor;
       }
     }
@@ -62,8 +100,8 @@ export function resolveAnnotationWithAnchors(
   const narrationText = narration?.toLowerCase() ?? "";
 
   for (const anchor of templateAnchors) {
-    const labelHit = anchor.labels.some((label) => narrationText.includes(label.toLowerCase()));
-    if (!labelHit && kind !== "CIRCLE_AROUND") {
+    const labelHit = anchor.labels.some((label) => narrationMentionsLabel(narrationText, label));
+    if (!labelHit) {
       continue;
     }
     if (kind === "CIRCLE_AROUND" || kind === "HIGHLIGHT") {
@@ -82,16 +120,60 @@ export function resolveAnnotationWithAnchors(
     }
   }
 
-  const fromNarration = findTemplateAnchor(templateAnchors, narrationText);
-  if (fromNarration && (kind === "CIRCLE_AROUND" || kind === "HIGHLIGHT")) {
-    return {
-      params: bboxParamsForAnchor(fromNarration),
-      snapped: true,
-      rect: anchorToTextRect(fromNarration),
-    };
+  return { params, snapped: false, rect: boardRects[0] ?? null };
+}
+
+function commandAnchorInDiagramZone(command: DrawCommand): boolean {
+  if (command.params.length < 2) {
+    return false;
   }
 
-  return { params, snapped: false, rect: boardRects[0] ?? null };
+  const [x, y] = command.params;
+  if (isInDiagramZone(x, y)) {
+    return true;
+  }
+
+  if (command.type === "DRAW_LINE" && command.params.length >= 4) {
+    const x2 = command.params[2];
+    const y2 = command.params[3];
+    return isInDiagramZone(x2, y2);
+  }
+
+  return false;
+}
+
+function matchesTemplateSkeleton(command: DrawCommand, templateCommand: TemplateCommand): boolean {
+  if (command.type !== templateCommand.type) {
+    return false;
+  }
+
+  if (command.params.length !== templateCommand.params.length) {
+    return false;
+  }
+
+  return command.params.every(
+    (value, index) => Math.abs(value - templateCommand.params[index]!) <= TEMPLATE_PARAM_TOLERANCE,
+  );
+}
+
+/** True when an LLM DRAW_* in the diagram zone repeats runtime template skeleton ink. */
+export function isDuplicateTemplateDraw(
+  command: DrawCommand,
+  template: DiagramTemplate,
+): boolean {
+  if (!TEMPLATE_SKELETON_DRAW_TYPES.has(command.type)) {
+    return false;
+  }
+
+  if (!commandAnchorInDiagramZone(command)) {
+    return false;
+  }
+
+  return template.commands.some(
+    (templateCommand) =>
+      TEMPLATE_SKELETON_DRAW_TYPES.has(templateCommand.type) &&
+      matchesTemplateSkeleton(command, templateCommand),
+  );
 }
 
 /** Clamp shape/text anchors that land outside the diagram zone when they should be diagram ink. */
