@@ -25,6 +25,10 @@ echo "==> build tutor stack"
 pnpm turbo run build --filter=@heytutor/tutor...
 
 echo "==> migrate"
+set -a
+# shellcheck disable=SC1091
+source apps/tutor/.env.production
+set +a
 cd apps/tutor
 pnpm exec prisma migrate deploy
 cd "$ROOT"
