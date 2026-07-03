@@ -33,9 +33,9 @@ cd apps/tutor
 pnpm exec prisma migrate deploy
 cd "$ROOT"
 
-if systemctl is-active --quiet heytutor 2>/dev/null; then
+if sudo systemctl is-active --quiet heytutor 2>/dev/null; then
   echo "==> restart heytutor.service"
-  systemctl restart heytutor
+  sudo systemctl restart heytutor
 else
   echo "==> heytutor.service not installed — start manually or run setup-vm.sh"
 fi
