@@ -9,7 +9,11 @@ cd "$ROOT"
 echo "==> heytutor deploy @ $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
 echo "==> postgres"
-docker compose up -d postgres
+if docker compose version >/dev/null 2>&1; then
+  docker compose up -d postgres
+else
+  docker-compose up -d postgres
+fi
 
 echo "==> install"
 corepack enable
