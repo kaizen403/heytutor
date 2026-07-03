@@ -2448,7 +2448,7 @@ export default function TutorSessionPage() {
     autoSubmitDoneRef.current = true;
     window.history.replaceState(null, "", window.location.pathname);
     pendingQuestionRef.current = q.trim();
-    setInputInteracted(true);
+    queueMicrotask(() => setInputInteracted(true));
   }, [boardLoaded, searchParams]);
 
   const handleAskDoubt = useCallback(
