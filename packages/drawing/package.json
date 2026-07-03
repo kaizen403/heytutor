@@ -21,7 +21,9 @@
     "tegaki": "^0.18.0"
   },
   "devDependencies": {
+    "@heytutor/eslint-config": "workspace:*",
     "@heytutor/typescript-config": "workspace:*",
+    "eslint": "^9.39.4",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3"
   }

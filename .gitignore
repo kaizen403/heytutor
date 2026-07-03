@@ -21,3 +21,5 @@ coverage
 # agent working state
 .omo/run-continuation/
 .omo/evidence/
+.vercel
+.env*
