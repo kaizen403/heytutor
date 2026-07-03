@@ -6,6 +6,7 @@ RUN corepack enable && corepack prepare pnpm@10.32.0 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY apps/tutor/package.json apps/tutor/
+COPY apps/tutor/prisma apps/tutor/prisma
 COPY packages/design-tokens/package.json packages/design-tokens/
 COPY packages/drawing/package.json packages/drawing/
 COPY packages/tutor-core/package.json packages/tutor-core/
