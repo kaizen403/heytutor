@@ -20,8 +20,10 @@
     "@heytutor/drawing": "workspace:*"
   },
   "devDependencies": {
+    "@heytutor/eslint-config": "workspace:*",
     "@heytutor/typescript-config": "workspace:*",
     "@types/node": "^22.15.3",
+    "eslint": "^9.39.4",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3"
   }

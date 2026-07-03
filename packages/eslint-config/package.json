@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     "./next": "./next.mjs",
-    "./react": "./react.mjs"
+    "./react": "./react.mjs",
+    "./base": "./base.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

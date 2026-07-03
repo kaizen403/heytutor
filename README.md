@@ -128,6 +128,8 @@ pnpm --filter @heytutor/tutor db:migrate
 
 ## deploy
 
+See **[docs/ci-cd.md](docs/ci-cd.md)** for GitHub Actions CI, Azure backend deploy, and Vercel frontend setup.
+
 Vercel. set **Root Directory** per app:
 
 | app | root directory |

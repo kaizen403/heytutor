@@ -26,9 +26,11 @@
     "react-konva": "^19.2.0"
   },
   "devDependencies": {
+    "@heytutor/eslint-config": "workspace:*",
     "@heytutor/typescript-config": "workspace:*",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.4",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3"
   }

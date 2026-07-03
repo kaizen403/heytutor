@@ -39,7 +39,7 @@ export function narrationMentionsLabel(narration: string, label: string): boolea
     return true;
   }
 
-  if (/[^\x00-\x7F]/.test(target)) {
+  if ([...target].some((ch) => ch.charCodeAt(0) > 127)) {
     return narration.includes(target);
   }
 
