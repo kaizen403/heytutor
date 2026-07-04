@@ -105,6 +105,20 @@ export function linePath(
   return `M ${coord(x1)} ${coord(y1)} L ${coord(x2)} ${coord(y2)}`;
 }
 
+/** Generate a connected polyline path from [x1,y1,x2,y2,...]. */
+export function polylinePath(points: number[]): string {
+  if (points.length < 4) {
+    return linePath(points[0] ?? 0, points[1] ?? 0, points[2] ?? 0, points[3] ?? 0);
+  }
+
+  const segments: string[] = [`M ${coord(points[0] ?? 0)} ${coord(points[1] ?? 0)}`];
+  for (let i = 2; i + 1 < points.length; i += 2) {
+    segments.push(`L ${coord(points[i] ?? 0)} ${coord(points[i + 1] ?? 0)}`);
+  }
+
+  return segments.join(" ");
+}
+
 /** Slightly wavy underline segment for emphasis on existing text. */
 export function underlinePath(
   x1: number,
@@ -233,6 +247,185 @@ export function scribblePath(points: number[]): string {
     `L ${coord(minX + (maxX - minX) * 0.66)} ${coord(midY + jitter)}`,
     `L ${coord(maxX)} ${coord(midY)}`,
   ].join(" ");
+}
+
+/**
+ * Generate an ellipse with separate x/y radii, approximated by four cubic
+ * bezier curves — a generalized version of `circlePath`.
+ */
+export function ellipsePath(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+): string {
+  const kappa = 0.552284749831;
+  const cRx = rx * kappa;
+  const cRy = ry * kappa;
+
+  return [
+    `M ${coord(cx + rx)} ${coord(cy)}`,
+    `C ${coord(cx + rx)} ${coord(cy + cRy)} ${coord(cx + cRx)} ${coord(cy + ry)} ${coord(cx)} ${coord(cy + ry)}`,
+    `C ${coord(cx - cRx)} ${coord(cy + ry)} ${coord(cx - rx)} ${coord(cy + cRy)} ${coord(cx - rx)} ${coord(cy)}`,
+    `C ${coord(cx - rx)} ${coord(cy - cRy)} ${coord(cx - cRx)} ${coord(cy - ry)} ${coord(cx)} ${coord(cy - ry)}`,
+    `C ${coord(cx + cRx)} ${coord(cy - ry)} ${coord(cx + rx)} ${coord(cy - cRy)} ${coord(cx + rx)} ${coord(cy)}`,
+    "Z",
+  ].join(" ");
+}
+
+/**
+ * Curved arrow for organic chemistry electron-pushing mechanisms.
+ * A quadratic bezier from (x1,y1) through control point (cx,cy) to (x2,y2),
+ * with an arrowhead at the end oriented along the tangent at t=1.
+ */
+export function curvedArrowPath(
+  x1: number,
+  y1: number,
+  cx: number,
+  cy: number,
+  x2: number,
+  y2: number,
+): string {
+  // Tangent at t=1 for a quadratic bezier points from control to end.
+  const tdx = x2 - cx;
+  const tdy = y2 - cy;
+  const tlen = Math.hypot(tdx, tdy);
+
+  if (tlen < 2) {
+    // Degenerate — fall back to a straight arrow.
+    return arrowPath(x1, y1, x2, y2);
+  }
+
+  const headLen = 14;
+  const angle = Math.atan2(tdy, tdx);
+  const leftAngle = angle + Math.PI * 0.82;
+  const rightAngle = angle - Math.PI * 0.82;
+  const leftX = x2 + headLen * Math.cos(leftAngle);
+  const leftY = y2 + headLen * Math.sin(leftAngle);
+  const rightX = x2 + headLen * Math.cos(rightAngle);
+  const rightY = y2 + headLen * Math.sin(rightAngle);
+
+  return [
+    `M ${coord(x1)} ${coord(y1)} Q ${coord(cx)} ${coord(cy)} ${coord(x2)} ${coord(y2)}`,
+    `M ${coord(x2)} ${coord(y2)} L ${coord(leftX)} ${coord(leftY)}`,
+    `M ${coord(x2)} ${coord(y2)} L ${coord(rightX)} ${coord(rightY)}`,
+  ].join(" ");
+}
+
+/**
+ * Smooth cubic bezier spline through a series of points using
+ * Catmull-Rom-to-Bezier conversion. The flat array is [x1,y1,x2,y2,...].
+ * A tension of 0.5 produces natural curves for parabolas, sinusoids, etc.
+ */
+export function bezierSplinePath(points: number[]): string {
+  if (points.length < 4) {
+    return linePath(points[0] ?? 0, points[1] ?? 0, points[2] ?? 0, points[3] ?? 0);
+  }
+
+  const pts: Array<[number, number]> = [];
+  for (let i = 0; i + 1 < points.length; i += 2) {
+    pts.push([points[i]!, points[i + 1]!]);
+  }
+
+  if (pts.length < 2) {
+    return `M ${coord(pts[0]![0])} ${coord(pts[0]![1])}`;
+  }
+
+  const tension = 0.5;
+  const segments: string[] = [`M ${coord(pts[0]![0])} ${coord(pts[0]![1])}`];
+
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i === 0 ? 0 : i - 1]!;
+    const p1 = pts[i]!;
+    const p2 = pts[i + 1]!;
+    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1]!;
+
+    const c1x = p1[0] + (p2[0] - p0[0]) * tension / 3;
+    const c1y = p1[1] + (p2[1] - p0[1]) * tension / 3;
+    const c2x = p2[0] - (p3[0] - p1[0]) * tension / 3;
+    const c2y = p2[1] - (p3[1] - p1[1]) * tension / 3;
+
+    segments.push(
+      `C ${coord(c1x)} ${coord(c1y)} ${coord(c2x)} ${coord(c2y)} ${coord(p2[0])} ${coord(p2[1])}`,
+    );
+  }
+
+  return segments.join(" ");
+}
+
+/**
+ * A thin measurement bar that floats *beside* the geometry it measures.
+ *
+ * Unlike an engineering dimension bracket, this deliberately does NOT draw
+ * extension/witness lines back to the measured points, so the marking never
+ * touches or boxes-in the diagram. It is a light "from here to here" bar with
+ * small end ticks, meant to be rendered dashed and thin. `offset` pushes the
+ * bar perpendicular to the span (positive = below a left-to-right span).
+ *
+ * Returns `labelCenterX` (the bar midpoint) so the renderer can horizontally
+ * centre the distance text, and `labelY` (text top) placed clear of the bar.
+ */
+export function dimensionPath(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  offset: number,
+): { path: string; labelCenterX: number; labelY: number } {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  // Unit normal (bar sits along this direction, away from the geometry).
+  const nx = -dy / len;
+  const ny = dx / len;
+
+  const e1x = x1 + nx * offset;
+  const e1y = y1 + ny * offset;
+  const e2x = x2 + nx * offset;
+  const e2y = y2 + ny * offset;
+
+  // Small end ticks, perpendicular to the bar (i.e. along the normal), just to
+  // cap the span. They stay short so nothing reads as a box.
+  const capHalf = 5;
+  const cx = nx * capHalf;
+  const cy = ny * capHalf;
+
+  const path = [
+    `M ${coord(e1x)} ${coord(e1y)} L ${coord(e2x)} ${coord(e2y)}`,
+    `M ${coord(e1x - cx)} ${coord(e1y - cy)} L ${coord(e1x + cx)} ${coord(e1y + cy)}`,
+    `M ${coord(e2x - cx)} ${coord(e2y - cy)} L ${coord(e2x + cx)} ${coord(e2y + cy)}`,
+  ].join(" ");
+
+  const barMidX = (e1x + e2x) / 2;
+  const barMidY = (e1y + e2y) / 2;
+
+  // Place the distance text on the far side of the bar so it never overlaps
+  // either the bar or the geometry. `labelY` is the text *top*.
+  const TEXT_HEIGHT = 34;
+  const labelY = offset >= 0 ? barMidY + capHalf + 6 : barMidY - capHalf - TEXT_HEIGHT;
+
+  return {
+    path,
+    labelCenterX: barMidX,
+    labelY,
+  };
+}
+
+/**
+ * A short tick that marks an exact point on the diagram, so a label can point
+ * at "this spot" rather than sitting on top of a line. Defaults to a small
+ * vertical tick (used to mark points on a horizontal principal axis / wire).
+ */
+export function pointTickPath(
+  x: number,
+  y: number,
+  half = 6,
+  orientation: "vertical" | "horizontal" = "vertical",
+): string {
+  if (orientation === "horizontal") {
+    return `M ${coord(x - half)} ${coord(y)} L ${coord(x + half)} ${coord(y)}`;
+  }
+  return `M ${coord(x)} ${coord(y - half)} L ${coord(x)} ${coord(y + half)}`;
 }
 
 /**
