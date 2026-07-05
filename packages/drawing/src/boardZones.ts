@@ -11,12 +11,21 @@ export const WORK_ZONE = {
   lineHeight: 54,
 } as const;
 
+export const SECOND_WORK_ZONE = {
+  marginX: 500,
+  topY: 145,
+  maxWidth: 380,
+  lineHeight: 54,
+} as const;
+
 export const DIAGRAM_ZONE = {
   x: 400,
   y: 140,
-  width: 500,
+  // Extends to the right board edge so diagrams (and their right-hand labels)
+  // can sit fully in the right half, leaving the left half for the solution.
+  width: 760,
   height: 380,
-  centerX: 650,
+  centerX: 780,
   centerY: 300,
 } as const;
 
