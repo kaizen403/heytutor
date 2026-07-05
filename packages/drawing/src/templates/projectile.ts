@@ -1,4 +1,5 @@
 import type { DiagramTemplate } from "./types";
+import { withDiagramMarkingGuidance } from "./annotationGuidance";
 
 export const PROJECTILE_TEMPLATE: DiagramTemplate = {
   id: "projectile",
@@ -14,12 +15,29 @@ export const PROJECTILE_TEMPLATE: DiagramTemplate = {
     { type: "LABEL", params: [800, 400], text: "R", anchorId: "R" },
     { type: "LABEL", params: [720, 280], text: "H", anchorId: "H" },
   ],
+  introPhases: [
+    {
+      narration:
+        "the projectile starts from the ground, and the ground line gives us the reference level.",
+      commandIndices: [0],
+    },
+    {
+      narration:
+        "the launch direction is upward and forward, which is why the motion splits into horizontal and vertical parts.",
+      commandIndices: [1, 2],
+    },
+    {
+      narration:
+        "the curved path shows the object rising, slowing vertically, then coming back down.",
+      commandIndices: [3],
+    },
+  ],
   anchors: [
     { id: "u", labels: ["u", "initial velocity"], x: 495, y: 382, width: 36, height: 38 },
     { id: "theta", labels: ["θ", "theta"], x: 588, y: 348, width: 34, height: 34 },
     { id: "R", labels: ["R", "range"], x: 790, y: 382, width: 36, height: 38 },
     { id: "H", labels: ["H", "height"], x: 710, y: 262, width: 36, height: 38 },
   ],
-  promptAddon: `runtime template "projectile": ground, launch point, and trajectory sketch are ALREADY on the board (geometry only — no labels yet).
-label u, θ, R, and H in separate [STEP]s as you explain each quantity — say the symbol, then [LABEL]. do NOT redraw the path. [CIRCLE_AROUND] on labels when revisiting. write kinematic equations on the left.`,
+  promptAddon: withDiagramMarkingGuidance(`internal diagram note "projectile": the right side has the ground, launch point, and trajectory sketch as geometry only, with no text labels yet. do not mention this note to the student.
+label clean symbols u, θ, R, and H in separate [STEP]s as you explain each quantity — say the symbol, then [LABEL]. mark range R along the ground with [DIMENSION:R,...] when you state its value. do NOT redraw the path or axes. [CIRCLE_AROUND] on labels when revisiting. write kinematic equations on the left with y rows 145,205,265,325,385,445,505,565,625 only.`),
 };
