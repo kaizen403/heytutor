@@ -54,45 +54,6 @@ const REVIEW_MODE_CUES = [
   'vertical',
   'direction',
   'force',
-  // jee math
-  'slope',
-  'tangent',
-  'derivative',
-  'integral',
-  'focus',
-  'directrix',
-  'vertex',
-  'eccentricity',
-  'asymptote',
-  'vector',
-  'dot product',
-  'cross product',
-  'discriminant',
-  // jee chemistry
-  'equilibrium',
-  'reaction',
-  'oxidation',
-  'reduction',
-  'anode',
-  'cathode',
-  'electrode',
-  'ligand',
-  'hybridization',
-  'functional group',
-  'carbonyl',
-  'mechanism',
-  // jee optics & circuits
-  'lens',
-  'mirror',
-  'focal',
-  'ray',
-  'circuit',
-  'resistor',
-  'capacitor',
-  'inductor',
-  'field line',
-  'orbit',
-  'energy level',
 ];
 
 function isAnnotationCommand(type: DrawCommandType): boolean {
@@ -129,34 +90,9 @@ const HARD_MISMATCHES: Array<{
     label: 'cube',
   },
   {
-    keywords: ['parabola', 'ellipse', 'hyperbola', 'conic'],
-    incompatible: ['DRAW_CUBE', 'DRAW_CUBOID'],
-    label: 'conic section',
-  },
-  {
-    keywords: ['projectile', 'trajectory', 'path'],
-    incompatible: ['DRAW_CIRCLE', 'DRAW_CUBE', 'DRAW_CUBOID'],
-    label: 'trajectory',
-  },
-  {
-    keywords: ['circuit', 'resistor', 'capacitor', 'galvanic', 'wheatstone'],
-    incompatible: ['DRAW_CIRCLE', 'DRAW_CUBE', 'DRAW_CUBOID'],
-    label: 'circuit',
-  },
-  {
-    keywords: ['lens', 'mirror', 'ray', 'refraction', 'optics'],
-    incompatible: ['DRAW_CUBE', 'DRAW_CUBOID'],
-    label: 'optics ray diagram',
-  },
-  {
-    keywords: ['wave', 'wavelength', 'amplitude', 'sinusoidal'],
-    incompatible: ['DRAW_CUBE', 'DRAW_CUBOID', 'DRAW_RECT'],
-    label: 'wave',
-  },
-  {
-    keywords: ['orbital', 'energy level', 'bohr', 'shell'],
-    incompatible: ['DRAW_CUBE', 'DRAW_CUBOID'],
-    label: 'energy level',
+    keywords: ['cuboid', 'prism'],
+    incompatible: ['DRAW_CIRCLE', 'DRAW_LINE', 'DRAW_CUBE'],
+    label: 'cuboid',
   },
 ];
 
@@ -172,6 +108,10 @@ function hasHardMismatch(narration: string, commandType: DrawCommandType): strin
 }
 
 export function checkSegmentAlignment(segment: TutorSegment): SegmentAlignmentResult {
+  if (segment.templateIntro) {
+    return { aligned: true };
+  }
+
   const commands = getSegmentCommands(segment);
   if (commands.length === 0) {
     return { aligned: true };
@@ -180,7 +120,7 @@ export function checkSegmentAlignment(segment: TutorSegment): SegmentAlignmentRe
   const narration = segment.narration.toLowerCase();
 
   for (const cmd of commands) {
-    if (cmd.type === 'WRITE' || cmd.type === 'LABEL') {
+    if (cmd.type === 'WRITE' || cmd.type === 'LABEL' || cmd.type === 'DIMENSION') {
       continue;
     }
 
@@ -215,12 +155,45 @@ export function checkSegmentAlignment(segment: TutorSegment): SegmentAlignmentRe
 }
 
 export function filterAlignedSegments(segments: TutorSegment[]): TutorSegment[] {
-  return segments.filter((segment) => {
-    const result = checkSegmentAlignment(segment);
-    if (!result.aligned) {
-      console.warn('[alignment]', result.reason, segment.narration.slice(0, 80));
-      return segment.command === null;
+  const result: TutorSegment[] = [];
+
+  for (const segment of segments) {
+    const alignment = checkSegmentAlignment(segment);
+
+    if (alignment.aligned) {
+      result.push(segment);
+      continue;
     }
-    return true;
-  });
+
+    console.warn('[alignment]', alignment.reason, segment.narration.slice(0, 80));
+
+    const commands = getSegmentCommands(segment);
+    if (commands.length === 0) {
+      result.push(segment);
+      continue;
+    }
+
+    const keptCommands = commands.filter((cmd) => {
+      if (cmd.type === 'WRITE' || cmd.type === 'LABEL' || cmd.type === 'DIMENSION') {
+        return true;
+      }
+      if (isAnnotationCommand(cmd.type)) {
+        return true;
+      }
+      const mismatch = hasHardMismatch(segment.narration.toLowerCase(), cmd.type);
+      return mismatch === null;
+    });
+
+    if (keptCommands.length === 0) {
+      result.push({ ...segment, command: null, commands: undefined });
+    } else {
+      result.push({
+        ...segment,
+        command: keptCommands[0] ?? null,
+        commands: keptCommands.length > 0 ? keptCommands : undefined,
+      });
+    }
+  }
+
+  return result;
 }
