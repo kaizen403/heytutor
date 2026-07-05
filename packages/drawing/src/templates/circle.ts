@@ -11,6 +11,18 @@ export const CIRCLE_TEMPLATE: DiagramTemplate = {
     { type: "LABEL", params: [685, 268], text: "r", anchorId: "r" },
     { type: "LABEL", params: [760, 250], text: "(x,y)", anchorId: "point" },
   ],
+  introPhases: [
+    {
+      narration:
+        "the circle is the visual rule: every point stays the same distance from the center.",
+      commandIndices: [0],
+    },
+    {
+      narration:
+        "this radius segment connects the center to one point on the circle.",
+      commandIndices: [2],
+    },
+  ],
   anchors: [
     { id: "center", labels: ["(h,k)", "h,k", "center"], x: 590, y: 242, width: 56, height: 38 },
     { id: "r", labels: ["r", "radius"], x: 675, y: 260, width: 36, height: 38 },
