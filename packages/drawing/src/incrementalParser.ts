@@ -1,29 +1,9 @@
 import {
+  DRAW_COMMAND_TYPES,
+  parseDrawingTag,
   parseDrawCommandFromTag,
-  type DrawCommandType,
   type TutorSegment,
 } from './drawingProtocol';
-
-const TAG_NAMES: DrawCommandType[] = [
-  'DRAW_CUBOID',
-  'DRAW_CUBE',
-  'DRAW_RECT',
-  'DRAW_CIRCLE',
-  'DRAW_LINE',
-  'WRITE',
-  'LABEL',
-  'UNDERLINE',
-  'CIRCLE_AROUND',
-  'ARROW',
-  'HIGHLIGHT',
-  'SCRIBBLE',
-  'PAUSE',
-  'CLEAR',
-  'ERASE',
-];
-
-const COMPLETE_TAG_PATTERN =
-  /^\[(DRAW_CUBOID|DRAW_CUBE|DRAW_RECT|DRAW_CIRCLE|DRAW_LINE|WRITE|LABEL|UNDERLINE|CIRCLE_AROUND|ARROW|HIGHLIGHT|SCRIBBLE|PAUSE|CLEAR|ERASE)(?::([^\]]*))?\]$/;
 
 const MAX_TAG_BUFFER_LENGTH = 256;
 
@@ -90,18 +70,40 @@ export class IncrementalTagParser {
 
   private couldBeTagPrefix(): boolean {
     const inner = this.tagBuffer.slice(1);
+    const upperInner = inner.toUpperCase();
 
     if (inner.length === 0) {
       return true;
     }
 
-    for (const name of TAG_NAMES) {
-      if (name.startsWith(inner)) {
+    if ('DRAW:'.startsWith(upperInner) || upperInner.startsWith('DRAW:')) {
+      return true;
+    }
+
+    if ('DRAW,'.startsWith(upperInner) || upperInner.startsWith('DRAW,')) {
+      return true;
+    }
+
+    if (/^(LABEL|WRITE|DIMENSION),/i.test(inner) || 'LABEL,'.startsWith(upperInner) || 'WRITE,'.startsWith(upperInner) || 'DIMENSION,'.startsWith(upperInner)) {
+      return true;
+    }
+
+    if (
+      'DRAW_DOT'.startsWith(upperInner) ||
+      'DRAW_POINT'.startsWith(upperInner) ||
+      upperInner.startsWith('DRAW_DOT') ||
+      upperInner.startsWith('DRAW_POINT')
+    ) {
+      return true;
+    }
+
+    for (const name of DRAW_COMMAND_TYPES) {
+      if (name.startsWith(upperInner)) {
         return true;
       }
 
-      if (inner.startsWith(name)) {
-        const nextChar = inner[name.length];
+      if (upperInner.startsWith(name)) {
+        const nextChar = upperInner[name.length];
         return nextChar === undefined || nextChar === ':';
       }
     }
@@ -110,9 +112,9 @@ export class IncrementalTagParser {
   }
 
   private tryEmitCompleteTag(): void {
-    const match = COMPLETE_TAG_PATTERN.exec(this.tagBuffer);
+    const parsedTag = parseDrawingTag(this.tagBuffer);
 
-    if (!match) {
+    if (!parsedTag) {
       this.narrationBuffer += this.tagBuffer;
       this.charPosition += this.tagBuffer.length;
       this.tagBuffer = '';
@@ -120,11 +122,10 @@ export class IncrementalTagParser {
       return;
     }
 
-    const [, rawType, rawParams = ''] = match;
     const narration = this.narrationBuffer.trim();
     const command = parseDrawCommandFromTag(
-      rawType as DrawCommandType,
-      rawParams,
+      parsedTag.type,
+      parsedTag.rawParams,
       this.charPosition,
       narration,
     );
