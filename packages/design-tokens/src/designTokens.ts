@@ -1,45 +1,46 @@
 export const DS = {
   Colors: {
-    // Palette: #0077CC #DAE8FC #333333 #EAEAEA #FFFFFF
+    // Palette: #659287 #88BDA4 #B1D3B9 #E6F2DD #FFFFFF
+    // Sage green — darkest sage as primary accent, pale sage as background
 
     // Light background — app shell, surfaces
-    background: '#EAEAEA',
+    background: '#E6F2DD',
     surface1: '#FFFFFF',
-    surface2: '#F5F5F5',
-    surface3: '#EAEAEA',
-    surface4: '#DAE8FC',
-    borderSubtle: 'rgba(0,119,204,0.2)',
-    borderStrong: '#0077CC',
+    surface2: '#F0F7E8',
+    surface3: '#E6F2DD',
+    surface4: '#B1D3B9',
+    borderSubtle: 'rgba(101,146,135,0.2)',
+    borderStrong: '#659287',
 
     // Text — dark text on light background
     textPrimary: '#333333',
-    textSecondary: '#666666',
+    textSecondary: '#5A6B62',
     textTertiary: 'rgba(51,51,51,0.5)',
 
-    // Accent — blue for interactive elements
-    accentAmber: '#0077CC',
-    accentAmberLight: '#0099E5',
-    accentAmberDark: '#005599',
+    // Accent — sage for interactive elements
+    accentAmber: '#659287',
+    accentAmberLight: '#88BDA4',
+    accentAmberDark: '#4F7468',
 
     // Paper tones — white for input and bubble
     paper: '#FFFFFF',
     paperInk: '#333333',
-    paperBorder: 'rgba(0,119,204,0.3)',
-    paperMuted: '#EAEAEA',
+    paperBorder: 'rgba(101,146,135,0.3)',
+    paperMuted: '#E6F2DD',
     paperPlaceholder: 'rgba(51,51,51,0.5)',
 
     // Status colors
-    statusIdle: '#0077CC',
-    statusThinking: '#0077CC',
-    statusTeaching: '#333333',
+    statusIdle: '#659287',
+    statusThinking: '#88BDA4',
+    statusTeaching: '#659287',
 
-    // Whiteboard — white surface with dark ink
-    whiteboard: '#FFFFFF',
+    // Whiteboard — cream surface with dark ink (physical board metaphor)
+    whiteboard: '#F8F6F0',
     ink: '#333333',
     whiteboardInk: '#333333',
 
-    // Cursor — blue chalk
-    overlayCursorBlue: '#0077CC',
+    // Cursor — sage chalk
+    overlayCursorBlue: '#659287',
   },
   CornerRadius: {
     small: 4,
