@@ -354,6 +354,190 @@ now the space is free for new work.
 [WRITE:clean slate,340,250]
 [/STEP]`,
   },
+  {
+    keywords: ['stoichiometry', 'mole concept', 'limiting reagent', 'mole concept stoichiometry'],
+    response: `[STEP]
+stoichiometry — mole concept.
+[WRITE:mole concept,90,64]
+[DRAW_LINE:90,112,430,112]
+[/STEP]
+[STEP]
+the mole is the counting unit for atoms. one mole equals avogadro's number, six point zero two times ten to the twenty-three.
+[WRITE:1 mol = 6.02 x 10^23,90,205]
+[/STEP]
+[STEP]
+a balanced equation tells us the ratio of moles. for methane combustion: one c h four plus two o two give c o two plus two h two o.
+[WRITE:CH4 + 2O2 -> CO2 + 2H2O,90,265]
+[/STEP]
+[STEP]
+the coefficients are the mole ratios. one mole of methane needs two moles of oxygen.
+[WRITE:1 mol CH4 : 2 mol O2,90,325]
+[/STEP]
+[STEP]
+to find the limiting reagent, compare available moles to the required ratio. whichever runs out first limits the product.
+[WRITE:limiting = min available,90,385]
+[/STEP]
+[STEP]
+if you have two moles of methane and three moles of oxygen, oxygen is limiting because you need four moles for complete combustion.
+[WRITE:O2 limiting,90,445]
+[/STEP]`,
+  },
+  {
+    keywords: ['sn2', 'nucleophilic substitution', 'sn2 mechanism', 'backside attack'],
+    response: `[STEP]
+s n two mechanism — nucleophilic substitution.
+[WRITE:SN2 mechanism,90,64]
+[DRAW_LINE:90,112,430,112]
+[/STEP]
+[STEP]
+in s n two, a nucleophile attacks the carbon from the back side, opposite the leaving group. it is a one-step concerted reaction.
+[ARROW:500,300,680,250,600,200]
+[/STEP]
+[STEP]
+the nucleophile donates its electron pair to the carbon as the leaving group departs with its pair.
+[WRITE:Nu: -> C, leaving group -> X,90,205]
+[/STEP]
+[STEP]
+the transition state has five groups around carbon — a trigonal bipyramidal arrangement. the nucleophile and leaving group are partially bonded.
+[WRITE:[Nu---C---X],90,265]
+[/STEP]
+[STEP]
+the rate depends on both substrate and nucleophile concentration — second order kinetics.
+[WRITE:rate = k[substrate][Nu],90,325]
+[/STEP]
+[STEP]
+s n two gives inversion of configuration — walden inversion. the product has the opposite stereochemistry at the carbon.
+[WRITE:inversion at C,90,385]
+[/STEP]`,
+  },
+  {
+    keywords: ['pv diagram', 'isothermal', 'thermodynamics', 'pv diagram thermodynamics'],
+    response: `[STEP]
+p v diagram — isothermal process.
+[WRITE:PV diagram,90,64]
+[DRAW_LINE:90,112,430,112]
+[/STEP]
+[STEP]
+the p v diagram plots pressure on the vertical axis and volume on the horizontal.
+[DRAW_LINE:500,200,500,500]
+[DRAW_LINE:500,500,900,500]
+[LABEL:P,480,210]
+[LABEL:V,900,520]
+[/STEP]
+[STEP]
+in an isothermal process, temperature is constant. the curve follows p v equals n r t, so pressure is inversely proportional to volume.
+[DRAW_LINE:520,250,880,470,700,350,2]
+[/STEP]
+[STEP]
+the ideal gas law gives the shape of the isotherm — a rectangular hyperbola.
+[WRITE:PV = nRT,90,205]
+[/STEP]
+[STEP]
+work done by the gas is the area under the curve. for isothermal expansion from v one to v two:
+[WRITE:W = nRT ln(V2/V1),90,265]
+[/STEP]
+[STEP]
+since temperature is constant, internal energy does not change. all heat added becomes work done.
+[WRITE:ΔU = 0, Q = W,90,325]
+[/STEP]`,
+  },
+  {
+    keywords: ['galvanic cell', 'electrochemical', 'electrode', 'galvanic cell electrochemistry'],
+    response: `[STEP]
+galvanic cell — electrochemistry.
+[WRITE:galvanic cell,90,64]
+[DRAW_LINE:90,112,430,112]
+[/STEP]
+[STEP]
+a galvanic cell converts chemical energy to electrical energy. it has two half-cells connected by a salt bridge.
+[DRAW_RECT:500,200,120,200]
+[DRAW_RECT:740,200,120,200]
+[DRAW_LINE:620,250,740,250]
+[/STEP]
+[STEP]
+the anode is where oxidation happens. zinc loses electrons: z n gives z n two plus plus two e minus.
+[LABEL:anode,540,180]
+[WRITE:Zn -> Zn2+ + 2e-,90,205]
+[/STEP]
+[STEP]
+the cathode is where reduction happens. copper ions gain electrons: c u two plus plus two e minus gives c u.
+[LABEL:cathode,770,180]
+[WRITE:Cu2+ + 2e- -> Cu,90,265]
+[/STEP]
+[STEP]
+electrons flow from anode to cathode through the external wire. the salt bridge maintains charge balance.
+[ARROW:620,230,740,230]
+[WRITE:e- flow: anode -> cathode,90,325]
+[/STEP]
+[STEP]
+the cell potential is the difference between cathode and anode standard potentials.
+[WRITE:E_cell = E_cathode - E_anode,90,385]
+[/STEP]
+[STEP]
+for zinc copper: zero point seven six plus zero point three four gives one point one zero volts.
+[WRITE:E_cell = 1.10 V,90,445]
+[/STEP]`,
+  },
+  {
+    keywords: ['esterification', 'carboxylic acid', 'ester', 'esterification reaction'],
+    response: `[STEP]
+esterification — making an ester.
+[WRITE:esterification,90,64]
+[DRAW_LINE:90,112,430,112]
+[/STEP]
+[STEP]
+a carboxylic acid reacts with an alcohol to form an ester and water. this is a condensation reaction.
+[WRITE:RCOOH + R'OH -> RCOOR' + H2O,90,205]
+[/STEP]
+[STEP]
+the reaction uses acid catalysis — concentrated sulfuric acid. it is reversible, so excess of one reagent drives it forward.
+[WRITE:H2SO4 catalyst,90,265]
+[/STEP]
+[STEP]
+the mechanism: protonate the carbonyl oxygen, then the alcohol oxygen attacks the carbonyl carbon.
+[ARROW:500,350,700,300,600,280]
+[/STEP]
+[STEP]
+after proton transfer and loss of water, the ester forms. the c o o r prime group is the ester linkage.
+[WRITE:ester linkage -COO-,90,325]
+[/STEP]
+[STEP]
+a classic example: ethanoic acid plus ethanol gives ethyl ethanoate plus water. it smells like pears.
+[WRITE:CH3COOH + C2H5OH -> CH3COOC2H5,90,385]
+[/STEP]`,
+  },
+  {
+    keywords: ['balancing', 'balance equation', 'chemical equation', 'balancing chemical equations'],
+    response: `[STEP]
+balancing chemical equations.
+[WRITE:balancing equations,90,64]
+[DRAW_LINE:90,112,430,112]
+[/STEP]
+[STEP]
+a balanced equation has the same number of each atom on both sides. mass is conserved.
+[WRITE:atoms left = atoms right,90,205]
+[/STEP]
+[STEP]
+start with the most complex molecule. for combustion of ethane: c two h six plus o two gives c o two plus h two o.
+[WRITE:C2H6 + O2 -> CO2 + H2O,90,265]
+[/STEP]
+[STEP]
+balance carbon first: two c o two on the right to match two carbons.
+[WRITE:C2H6 + O2 -> 2CO2 + H2O,90,325]
+[/STEP]
+[STEP]
+balance hydrogen next: three h two o on the right to match six hydrogens.
+[WRITE:C2H6 + O2 -> 2CO2 + 3H2O,90,385]
+[/STEP]
+[STEP]
+now count oxygen on the right: four plus three equals seven. so you need seven over two o two on the left, or double everything.
+[WRITE:2C2H6 + 7O2 -> 4CO2 + 6H2O,90,445]
+[/STEP]
+[STEP]
+check: four carbons both sides, twelve hydrogens both sides, fourteen oxygens both sides. balanced.
+[WRITE:balanced!,90,505]
+[/STEP]`,
+  },
 ];
 
 export function getMockResponse(question: string): string {
