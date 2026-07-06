@@ -11,6 +11,7 @@ export type DrawCommandType =
   | 'ARROW'
   | 'HIGHLIGHT'
   | 'SCRIBBLE'
+  | 'DIMENSION'
   | 'PAUSE'
   | 'CLEAR'
   | 'ERASE';
@@ -31,8 +32,134 @@ export interface ParsedResponse {
   segments: { text: string; commandIndex: number }[];
 }
 
-const DRAWING_TAG_PATTERN =
-  /\[(DRAW_CUBOID|DRAW_CUBE|DRAW_RECT|DRAW_CIRCLE|DRAW_LINE|WRITE|LABEL|UNDERLINE|CIRCLE_AROUND|ARROW|HIGHLIGHT|SCRIBBLE|PAUSE|CLEAR|ERASE)(?::([^\]]*))?\]/g;
+export const DRAW_COMMAND_TYPES = [
+  'DRAW_CUBOID',
+  'DRAW_CUBE',
+  'DRAW_RECT',
+  'DRAW_CIRCLE',
+  'DRAW_LINE',
+  'WRITE',
+  'LABEL',
+  'UNDERLINE',
+  'CIRCLE_AROUND',
+  'ARROW',
+  'HIGHLIGHT',
+  'SCRIBBLE',
+  'DIMENSION',
+  'PAUSE',
+  'CLEAR',
+  'ERASE',
+] as const satisfies readonly DrawCommandType[];
+
+const DRAW_COMMAND_TYPE_SET = new Set<string>(DRAW_COMMAND_TYPES);
+
+export const DRAWING_TAG_SCAN_PATTERN = /\[[^\]\n]{1,256}\]/g;
+
+export interface ParsedDrawingTag {
+  type: DrawCommandType;
+  rawParams: string;
+}
+
+const LEGACY_DRAW_TYPE_ALIASES: Record<string, DrawCommandType | 'DOT'> = {
+  CUBOID: 'DRAW_CUBOID',
+  CUBE: 'DRAW_CUBE',
+  RECT: 'DRAW_RECT',
+  RECTANGLE: 'DRAW_RECT',
+  CIRCLE: 'DRAW_CIRCLE',
+  LINE: 'DRAW_LINE',
+  POINT: 'DOT',
+  DOT: 'DOT',
+};
+
+function splitNameAndParams(inner: string): { name: string; rawParams: string } {
+  const colonIndex = inner.indexOf(':');
+  const commaIndex = inner.indexOf(',');
+  const candidates = [colonIndex, commaIndex].filter((index) => index >= 0);
+  const splitIndex = candidates.length > 0 ? Math.min(...candidates) : -1;
+
+  if (splitIndex < 0) {
+    return { name: inner.trim(), rawParams: '' };
+  }
+
+  return {
+    name: inner.slice(0, splitIndex).trim(),
+    rawParams: inner.slice(splitIndex + 1).trim(),
+  };
+}
+
+function normalizeLegacyTextParams(rawParams: string): string {
+  const match = /^\s*([^,]+)\s*,\s*([^,]+)\s*,\s*(?:"([^"]*)"|'([^']*)'|(.+?))\s*$/.exec(rawParams);
+  if (!match) {
+    return rawParams;
+  }
+
+  const [, rawX = '', rawY = '', doubleQuoted, singleQuoted, unquoted] = match;
+  const text = (doubleQuoted ?? singleQuoted ?? unquoted ?? '').trim();
+  return `${text},${rawX.trim()},${rawY.trim()}`;
+}
+
+function normalizeDotParams(rawParams: string): string {
+  const params = parseNumericParams(rawParams);
+  if (params.length >= 3) {
+    return rawParams;
+  }
+  if (params.length >= 2) {
+    return `${params[0]},${params[1]},8`;
+  }
+  return rawParams;
+}
+
+export function parseDrawingTag(rawTag: string): ParsedDrawingTag | null {
+  if (!rawTag.startsWith('[') || !rawTag.endsWith(']')) {
+    return null;
+  }
+
+  const inner = rawTag.slice(1, -1).trim();
+  if (!inner || inner.startsWith('/')) {
+    return null;
+  }
+
+  if (/^DRAW[:_,]/i.test(inner)) {
+    const legacy = inner.replace(/^DRAW[:_,]/i, '');
+    const { name, rawParams } = splitNameAndParams(legacy);
+    const mappedType = LEGACY_DRAW_TYPE_ALIASES[name.trim().toUpperCase()];
+    if (!mappedType) {
+      return null;
+    }
+
+    if (mappedType === 'DOT') {
+      return { type: 'DRAW_CIRCLE', rawParams: normalizeDotParams(rawParams) };
+    }
+
+    return { type: mappedType, rawParams };
+  }
+
+  const { name, rawParams } = splitNameAndParams(inner);
+  const normalizedName = name.trim().toUpperCase();
+
+  if (normalizedName === 'DRAW_DOT' || normalizedName === 'DRAW_POINT') {
+    return { type: 'DRAW_CIRCLE', rawParams: normalizeDotParams(rawParams) };
+  }
+
+  if (normalizedName === 'LABEL' || normalizedName === 'WRITE') {
+    return {
+      type: normalizedName,
+      rawParams: inner.includes(',') && !inner.includes(':')
+        ? normalizeLegacyTextParams(rawParams)
+        : rawParams,
+    };
+  }
+
+  if (normalizedName === 'DIMENSION') {
+    return { type: 'DIMENSION', rawParams };
+  }
+
+  if (!DRAW_COMMAND_TYPE_SET.has(normalizedName)) {
+    return null;
+  }
+
+  return { type: normalizedName as DrawCommandType, rawParams };
+}
 
 export function parseNumericParams(rawParams: string): number[] {
   if (rawParams.trim() === '') {
@@ -61,6 +188,27 @@ export function parseTextCommandParams(rawParams: string): { text: string; param
   }
 
   return { text, params: [x, y] };
+}
+
+export function parseDimensionCommandParams(rawParams: string): { text: string; params: number[] } {
+  const parts = rawParams.split(',');
+
+  if (parts.length < 6) {
+    return { text: rawParams.trim(), params: [] };
+  }
+
+  const offset = Number(parts.at(-1)?.trim());
+  const y2 = Number(parts.at(-2)?.trim());
+  const x2 = Number(parts.at(-3)?.trim());
+  const y1 = Number(parts.at(-4)?.trim());
+  const x1 = Number(parts.at(-5)?.trim());
+  const text = normalizeBoardText(parts.slice(0, -5).join(',').trim());
+
+  if (![x1, y1, x2, y2, offset].every(Number.isFinite)) {
+    return { text: rawParams.trim(), params: [] };
+  }
+
+  return { text, params: [x1, y1, x2, y2, offset] };
 }
 
 const GREEK_WORD_TO_SYMBOL: ReadonlyArray<readonly [RegExp, string]> = [
@@ -130,7 +278,9 @@ export function parseDrawCommandFromTag(
   const parsed =
     type === 'WRITE' || type === 'LABEL'
       ? parseTextCommandParams(rawParams)
-      : { params: parseNumericParams(rawParams), text: undefined };
+      : type === 'DIMENSION'
+        ? parseDimensionCommandParams(rawParams)
+        : { params: parseNumericParams(rawParams), text: undefined };
 
   return {
     type,
@@ -145,6 +295,8 @@ export interface TutorSegment {
   narration: string;
   command: DrawCommand | null;
   commands?: DrawCommand[];
+  /** Runtime template intro — must not be blocked by duplicate-template filtering. */
+  templateIntro?: boolean;
 }
 
 export function getSegmentCommands(segment: TutorSegment): DrawCommand[] {
@@ -213,20 +365,25 @@ export function parseDrawingCommands(responseText: string): ParsedResponse {
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  DRAWING_TAG_PATTERN.lastIndex = 0;
+  DRAWING_TAG_SCAN_PATTERN.lastIndex = 0;
 
-  while ((match = DRAWING_TAG_PATTERN.exec(responseText)) !== null) {
-    const [fullTag, rawType, rawParams = ''] = match;
+  while ((match = DRAWING_TAG_SCAN_PATTERN.exec(responseText)) !== null) {
+    const [fullTag] = match;
+    const parsedTag = parseDrawingTag(fullTag);
+    if (!parsedTag) {
+      narration += responseText.slice(lastIndex, match.index + fullTag.length);
+      lastIndex = match.index + fullTag.length;
+      continue;
+    }
+
     const commandIndex = commands.length;
     const textBeforeTag = responseText.slice(lastIndex, match.index);
 
     narration += textBeforeTag;
     segments.push({ text: textBeforeTag, commandIndex });
 
-    const type = rawType as DrawCommandType;
-
     commands.push(
-      parseDrawCommandFromTag(type, rawParams, match.index, narration),
+      parseDrawCommandFromTag(parsedTag.type, parsedTag.rawParams, match.index, narration),
     );
 
     lastIndex = match.index + fullTag.length;
