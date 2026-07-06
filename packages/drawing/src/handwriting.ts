@@ -33,6 +33,24 @@ const GREEK_LATIN_FALLBACK: Record<string, string> = {
   ζ: "z", υ: "u", ι: "i", ο: "o",
 };
 
+/**
+ * Math operators / relations that Caveat has no glyph for. Each is drawn as
+ * synthetic pen strokes so the board can write real calculus and algebra
+ * (previously every one of these rendered as a blank gap).
+ */
+const MATH_GLYPH_UNITS: Record<string, number> = {
+  "→": 560, "←": 560, "↔": 620, "⇒": 600, "⇐": 600, "⇌": 600,
+  "±": 520, "∓": 520, "×": 460, "÷": 460, "·": 240, "∙": 240,
+  "≤": 520, "≥": 520, "≈": 520, "≠": 520, "≡": 520, "∝": 520,
+  "∞": 620, "√": 520, "∫": 380, "∮": 400, "∑": 560, "∏": 560,
+  "∂": 440, "∇": 460, "∴": 420, "∵": 420, "°": 300, "′": 200, "″": 320,
+  "∈": 460, "∉": 460, "⊂": 460, "⊆": 460, "⊃": 460, "⊇": 460,
+  "∪": 460, "∩": 460, "∅": 460, "∠": 480, "⊥": 460, "∥": 320,
+  "∀": 460, "∃": 440, "⋅": 240, "↛": 560,
+};
+
+const SYNTHETIC_MATH_CHARS = new Set(Object.keys(MATH_GLYPH_UNITS));
+
 function cloneGlyphStrokes(
   baseChar: string,
   displayChar: string,
@@ -239,12 +257,310 @@ function syntheticGreekChar(
     };
   }
 
+  if (char === "Ω") {
+    const glyphWidth = 470 * scale;
+    const cx = currentX + glyphWidth / 2;
+    const footY = baselineY;
+    const archTop = baselineY - 720 * scale;
+    const midY = baselineY - 250 * scale;
+    const innerL = cx - 128 * scale;
+    const innerR = cx + 128 * scale;
+    const outerL = cx - 225 * scale;
+    const outerR = cx + 225 * scale;
+    const ctrlOutL = cx - 275 * scale;
+    const ctrlOutR = cx + 275 * scale;
+    // Two flared feet on the baseline plus an open-bottom bell: the ohm sign.
+    const pathData =
+      `M ${outerL.toFixed(2)} ${footY.toFixed(2)} ` +
+      `L ${innerL.toFixed(2)} ${footY.toFixed(2)} ` +
+      `C ${ctrlOutL.toFixed(2)} ${midY.toFixed(2)} ${ctrlOutL.toFixed(2)} ${archTop.toFixed(2)} ${cx.toFixed(2)} ${archTop.toFixed(2)} ` +
+      `C ${ctrlOutR.toFixed(2)} ${archTop.toFixed(2)} ${ctrlOutR.toFixed(2)} ${midY.toFixed(2)} ${innerR.toFixed(2)} ${footY.toFixed(2)} ` +
+      `L ${outerR.toFixed(2)} ${footY.toFixed(2)}`;
+    return {
+      path: {
+        char,
+        strokes: [
+          {
+            pathData,
+            startX: outerL,
+            startY: footY,
+            width: Math.max(2.4 * scale, 1.6),
+            delay: 0,
+            duration: 0.18,
+            priority: 0,
+          },
+        ],
+        x: currentX,
+        y: topY,
+        width: glyphWidth,
+        fontSize,
+      },
+      advance: glyphWidth,
+    };
+  }
+
   const latinBase = GREEK_LATIN_FALLBACK[char];
   if (latinBase) {
     return cloneGlyphStrokes(latinBase, char, currentX, baselineY, topY, scale, fontSize);
   }
 
   return null;
+}
+
+/**
+ * Draws math operators and relation symbols as synthetic pen strokes.
+ * All glyph-space coordinates are relative to the pen origin (currentX, baseline);
+ * y is negative upward. Returns null for characters this function does not cover.
+ */
+function syntheticMathChar(
+  char: string,
+  currentX: number,
+  baselineY: number,
+  topY: number,
+  scale: number,
+  fontSize: number,
+): { path: CharacterPath; advance: number } | null {
+  const u = MATH_GLYPH_UNITS[char];
+  if (u === undefined) {
+    return null;
+  }
+  const advance = u * scale;
+
+  // (px, py) in glyph units → absolute "x y" string. py negative = upward.
+  const P = (px: number, py: number): string =>
+    `${(currentX + px * scale).toFixed(2)} ${(baselineY + py * scale).toFixed(2)}`;
+
+  // Circle outline centred at (cxu, cyu) with radius ru, via four cubic arcs.
+  const cir = (cxu: number, cyu: number, ru: number): string => {
+    const k = 0.5523 * ru;
+    return (
+      `M ${P(cxu + ru, cyu)} ` +
+      `C ${P(cxu + ru, cyu - k)} ${P(cxu + k, cyu - ru)} ${P(cxu, cyu - ru)} ` +
+      `C ${P(cxu - k, cyu - ru)} ${P(cxu - ru, cyu - k)} ${P(cxu - ru, cyu)} ` +
+      `C ${P(cxu - ru, cyu + k)} ${P(cxu - k, cyu + ru)} ${P(cxu, cyu + ru)} ` +
+      `C ${P(cxu + k, cyu + ru)} ${P(cxu + ru, cyu + k)} ${P(cxu + ru, cyu)}`
+    );
+  };
+
+  const strokes: StrokePath[] = [];
+  const push = (
+    pathData: string,
+    opts: { width?: number; delay?: number; duration?: number } = {},
+  ): void => {
+    // Approximate a start point from the first two numbers in the path.
+    const nums = pathData.match(/-?\d+(?:\.\d+)?/g);
+    const sx = nums ? Number(nums[0]) : currentX;
+    const sy = nums ? Number(nums[1]) : baselineY;
+    strokes.push({
+      pathData,
+      startX: sx,
+      startY: sy,
+      width: Math.max((opts.width ?? 2.4) * scale, 1.5),
+      delay: opts.delay ?? (strokes.length > 0 ? 0.06 : 0),
+      duration: opts.duration ?? 0.12,
+      priority: 0,
+    });
+  };
+
+  const cx = u / 2;
+
+  switch (char) {
+    case "→":
+      push(`M ${P(50, -260)} L ${P(u - 70, -260)} M ${P(u - 210, -350)} L ${P(u - 70, -260)} L ${P(u - 210, -170)}`);
+      break;
+    case "↛":
+      push(`M ${P(50, -260)} L ${P(u - 70, -260)} M ${P(u - 210, -350)} L ${P(u - 70, -260)} L ${P(u - 210, -170)}`);
+      push(`M ${P(cx + 40, -80)} L ${P(cx - 40, -440)}`);
+      break;
+    case "←":
+      push(`M ${P(u - 50, -260)} L ${P(70, -260)} M ${P(210, -350)} L ${P(70, -260)} L ${P(210, -170)}`);
+      break;
+    case "↔":
+      push(`M ${P(90, -260)} L ${P(u - 90, -260)} M ${P(210, -350)} L ${P(70, -260)} L ${P(210, -170)} M ${P(u - 210, -350)} L ${P(u - 70, -260)} L ${P(u - 210, -170)}`);
+      break;
+    case "⇒":
+      push(`M ${P(50, -220)} L ${P(u - 130, -220)} M ${P(50, -300)} L ${P(u - 130, -300)} M ${P(u - 220, -360)} L ${P(u - 70, -260)} L ${P(u - 220, -160)}`);
+      break;
+    case "⇐":
+      push(`M ${P(u - 50, -220)} L ${P(130, -220)} M ${P(u - 50, -300)} L ${P(130, -300)} M ${P(220, -360)} L ${P(70, -260)} L ${P(220, -160)}`);
+      break;
+    case "⇌":
+      // Two harpoons: upper points right, lower points left (equilibrium).
+      push(`M ${P(60, -330)} L ${P(u - 70, -330)} L ${P(u - 170, -390)}`);
+      push(`M ${P(u - 60, -190)} L ${P(70, -190)} L ${P(170, -130)}`);
+      break;
+    case "±":
+      push(`M ${P(cx, -200)} L ${P(cx, -470)} M ${P(cx - 140, -335)} L ${P(cx + 140, -335)}`);
+      push(`M ${P(cx - 150, -60)} L ${P(cx + 150, -60)}`);
+      break;
+    case "∓":
+      push(`M ${P(cx - 150, -520)} L ${P(cx + 150, -520)}`);
+      push(`M ${P(cx, -100)} L ${P(cx, -370)} M ${P(cx - 140, -235)} L ${P(cx + 140, -235)}`);
+      break;
+    case "×":
+      push(`M ${P(cx - 150, -410)} L ${P(cx + 150, -110)}`);
+      push(`M ${P(cx + 150, -410)} L ${P(cx - 150, -110)}`);
+      break;
+    case "÷":
+      push(`M ${P(cx - 150, -260)} L ${P(cx + 150, -260)}`);
+      push(cir(cx, -410, 26), { width: 3 });
+      push(cir(cx, -110, 26), { width: 3 });
+      break;
+    case "·":
+    case "∙":
+    case "⋅":
+      push(cir(cx, -260, 30), { width: 3 });
+      break;
+    case "≤":
+      push(`M ${P(u - 120, -430)} L ${P(120, -280)} L ${P(u - 120, -130)}`);
+      push(`M ${P(120, -50)} L ${P(u - 120, -50)}`);
+      break;
+    case "≥":
+      push(`M ${P(120, -430)} L ${P(u - 120, -280)} L ${P(120, -130)}`);
+      push(`M ${P(120, -50)} L ${P(u - 120, -50)}`);
+      break;
+    case "≈":
+      push(`M ${P(90, -330)} C ${P(180, -400)} ${P(280, -260)} ${P(u - 90, -330)}`);
+      push(`M ${P(90, -190)} C ${P(180, -260)} ${P(280, -120)} ${P(u - 90, -190)}`);
+      break;
+    case "≠":
+      push(`M ${P(110, -330)} L ${P(u - 110, -330)} M ${P(110, -190)} L ${P(u - 110, -190)}`);
+      push(`M ${P(u - 170, -90)} L ${P(170, -430)}`);
+      break;
+    case "≡":
+      push(`M ${P(110, -370)} L ${P(u - 110, -370)} M ${P(110, -260)} L ${P(u - 110, -260)} M ${P(110, -150)} L ${P(u - 110, -150)}`);
+      break;
+    case "∝":
+      // Open-right double curl, like a squished infinity that reads "proportional".
+      push(`M ${P(u - 60, -160)} C ${P(cx + 40, -120)} ${P(90, -160)} ${P(90, -260)} C ${P(90, -360)} ${P(cx + 40, -400)} ${P(u - 60, -360)}`, { duration: 0.16 });
+      break;
+    case "∞":
+      push(
+        `M ${P(cx, -260)} C ${P(cx - 60, -140)} ${P(70, -140)} ${P(70, -260)} ` +
+        `C ${P(70, -380)} ${P(cx - 60, -380)} ${P(cx, -260)} ` +
+        `C ${P(cx + 60, -140)} ${P(u - 70, -140)} ${P(u - 70, -260)} ` +
+        `C ${P(u - 70, -380)} ${P(cx + 60, -380)} ${P(cx, -260)}`,
+        { duration: 0.2 },
+      );
+      break;
+    case "√":
+      push(`M ${P(30, -230)} L ${P(150, -110)} L ${P(300, -640)} L ${P(u - 30, -640)}`, { duration: 0.18 });
+      break;
+    case "∫":
+      push(
+        `M ${P(cx + 110, -830)} C ${P(cx + 50, -880)} ${P(cx, -840)} ${P(cx, -760)} ` +
+        `L ${P(cx, 40)} ` +
+        `C ${P(cx, 120)} ${P(cx - 60, 160)} ${P(cx - 110, 110)}`,
+        { duration: 0.22 },
+      );
+      break;
+    case "∮":
+      push(
+        `M ${P(cx + 110, -830)} C ${P(cx + 50, -880)} ${P(cx, -840)} ${P(cx, -760)} ` +
+        `L ${P(cx, 40)} ` +
+        `C ${P(cx, 120)} ${P(cx - 60, 160)} ${P(cx - 110, 110)}`,
+        { duration: 0.22 },
+      );
+      push(cir(cx, -360, 95));
+      break;
+    case "∑":
+      push(`M ${P(u - 70, -720)} L ${P(90, -720)} L ${P(cx - 20, -340)} L ${P(90, 40)} L ${P(u - 70, 40)}`, { duration: 0.2 });
+      break;
+    case "∏":
+      push(`M ${P(60, -720)} L ${P(u - 60, -720)}`);
+      push(`M ${P(160, -720)} L ${P(160, 40)}`);
+      push(`M ${P(u - 160, -720)} L ${P(u - 160, 40)}`);
+      break;
+    case "∂":
+      push(
+        `M ${P(cx + 120, -520)} C ${P(cx - 40, -600)} ${P(cx - 170, -420)} ${P(cx - 130, -250)} ` +
+        `C ${P(cx - 95, -70)} ${P(cx + 150, -80)} ${P(cx + 150, -270)} ` +
+        `C ${P(cx + 150, -450)} ${P(cx - 60, -470)} ${P(cx - 120, -300)}`,
+        { duration: 0.2 },
+      );
+      break;
+    case "∇":
+      push(`M ${P(50, -680)} L ${P(u - 50, -680)} L ${P(cx, 20)} Z`, { duration: 0.18 });
+      break;
+    case "∴":
+      push(cir(140, -470, 30), { width: 3 });
+      push(cir(u - 140, -470, 30), { width: 3 });
+      push(cir(cx, -120, 30), { width: 3 });
+      break;
+    case "∵":
+      push(cir(cx, -470, 30), { width: 3 });
+      push(cir(140, -120, 30), { width: 3 });
+      push(cir(u - 140, -120, 30), { width: 3 });
+      break;
+    case "°":
+      push(cir(cx, -560, 90));
+      break;
+    case "′":
+      push(`M ${P(cx + 30, -560)} L ${P(cx - 20, -720)}`);
+      break;
+    case "″":
+      push(`M ${P(cx - 40, -560)} L ${P(cx - 90, -720)}`);
+      push(`M ${P(cx + 90, -560)} L ${P(cx + 40, -720)}`);
+      break;
+    case "∈":
+    case "∉":
+      push(`M ${P(u - 70, -560)} C ${P(120, -620)} ${P(120, -100)} ${P(u - 70, -160)}`);
+      push(`M ${P(120, -360)} L ${P(u - 160, -360)}`);
+      if (char === "∉") {
+        push(`M ${P(u - 60, -560)} L ${P(60, -80)}`);
+      }
+      break;
+    case "⊂":
+    case "⊆":
+      push(`M ${P(u - 70, -560)} C ${P(120, -620)} ${P(120, -140)} ${P(u - 70, -200)}`);
+      if (char === "⊆") {
+        push(`M ${P(120, -40)} L ${P(u - 70, -40)}`);
+      }
+      break;
+    case "⊃":
+    case "⊇":
+      push(`M ${P(70, -560)} C ${P(u - 120, -620)} ${P(u - 120, -140)} ${P(70, -200)}`);
+      if (char === "⊇") {
+        push(`M ${P(70, -40)} L ${P(u - 120, -40)}`);
+      }
+      break;
+    case "∪":
+      push(`M ${P(90, -620)} L ${P(90, -260)} C ${P(90, -60)} ${P(u - 90, -60)} ${P(u - 90, -260)} L ${P(u - 90, -620)}`);
+      break;
+    case "∩":
+      push(`M ${P(90, 20)} L ${P(90, -360)} C ${P(90, -620)} ${P(u - 90, -620)} ${P(u - 90, -360)} L ${P(u - 90, 20)}`);
+      break;
+    case "∅":
+      push(cir(cx, -320, 180));
+      push(`M ${P(u - 60, -560)} L ${P(60, -80)}`);
+      break;
+    case "∠":
+      push(`M ${P(u - 60, -40)} L ${P(80, -40)} L ${P(u - 120, -560)}`);
+      break;
+    case "⊥":
+      push(`M ${P(cx, -640)} L ${P(cx, -40)}`);
+      push(`M ${P(90, -40)} L ${P(u - 90, -40)}`);
+      break;
+    case "∥":
+      push(`M ${P(120, -640)} L ${P(120, -20)}`);
+      push(`M ${P(u - 120, -640)} L ${P(u - 120, -20)}`);
+      break;
+    case "∀":
+      push(`M ${P(60, -680)} L ${P(cx, 20)} L ${P(u - 60, -680)}`);
+      push(`M ${P(cx - 150, -280)} L ${P(cx + 150, -280)}`);
+      break;
+    case "∃":
+      push(`M ${P(90, -680)} L ${P(u - 90, -680)} L ${P(u - 90, 20)} L ${P(90, 20)}`);
+      push(`M ${P(90, -330)} L ${P(u - 90, -330)}`);
+      break;
+    default:
+      return null;
+  }
+
+  return {
+    path: { char, strokes, x: currentX, y: topY, width: advance, fontSize },
+    advance,
+  };
 }
 
 export interface StrokePath {
@@ -279,6 +595,13 @@ function syntheticGlyphWidth(char: string, scale: number): number {
   }
   if (char === "Δ") {
     return 420 * scale;
+  }
+  if (char === "Ω") {
+    return 470 * scale;
+  }
+  const mathUnits = MATH_GLYPH_UNITS[char];
+  if (mathUnits !== undefined) {
+    return mathUnits * scale;
   }
   const latinBase = GREEK_LATIN_FALLBACK[char];
   if (latinBase) {
@@ -324,6 +647,13 @@ function renderChar(
 ): { path: CharacterPath; advance: number } {
   if (SYNTHETIC_GREEK_CHARS.has(char)) {
     const synthetic = syntheticGreekChar(char, currentX, baselineY, topY, fontScale, fontSize);
+    if (synthetic) {
+      return synthetic;
+    }
+  }
+
+  if (SYNTHETIC_MATH_CHARS.has(char)) {
+    const synthetic = syntheticMathChar(char, currentX, baselineY, topY, fontScale, fontSize);
     if (synthetic) {
       return synthetic;
     }
@@ -380,7 +710,11 @@ function renderChar(
  * - `^(...)` or `_(...)` → everything inside the parens (parens stripped).
  * - `^x` or `_x`        → just the single character x.
  */
-function readScriptGroup(text: string, start: number): { content: string; nextIndex: number } {
+function readScriptGroup(
+  text: string,
+  start: number,
+  kind: "^" | "_" = "^",
+): { content: string; nextIndex: number } {
   if (start >= text.length) {
     return { content: "", nextIndex: start };
   }
@@ -403,7 +737,30 @@ function readScriptGroup(text: string, start: number): { content: string; nextIn
     return { content, nextIndex: i < text.length ? i + 1 : i };
   }
 
-  return { content: text[start], nextIndex: start + 1 };
+  // Consume a same-class run so "E_final" subscripts the whole word and
+  // "x^10" superscripts both digits — a single-char read leaves the rest of
+  // the word at normal size mid-word ("E_initial" → tiny i, normal "nitial"),
+  // which looks broken on the board. Same-class keeps "v_0t" as v₀t.
+  const first = text[start];
+  const runPattern =
+    kind === "^" || /[0-9]/.test(first) ? /[0-9]/ : /[A-Za-z]/.test(first) ? /[A-Za-z]/ : null;
+
+  if (runPattern === null) {
+    return { content: first, nextIndex: start + 1 };
+  }
+
+  let i = start;
+  let content = "";
+  while (i < text.length && runPattern.test(text[i])) {
+    content += text[i];
+    i++;
+  }
+
+  if (content.length === 0) {
+    return { content: first, nextIndex: start + 1 };
+  }
+
+  return { content, nextIndex: i };
 }
 
 export async function textToStrokePaths(
@@ -438,7 +795,7 @@ export async function textToStrokePaths(
     // ^ → superscript: render next char or (...) group raised and smaller
     if (char === "^") {
       i++;
-      const { content, nextIndex } = readScriptGroup(text, i);
+      const { content, nextIndex } = readScriptGroup(text, i, "^");
       i = nextIndex;
 
       for (const superChar of content) {
@@ -464,7 +821,7 @@ export async function textToStrokePaths(
     // _ → subscript: render next char or (...) group lowered and smaller
     if (char === "_") {
       i++;
-      const { content, nextIndex } = readScriptGroup(text, i);
+      const { content, nextIndex } = readScriptGroup(text, i, "_");
       i = nextIndex;
 
       for (const subChar of content) {
@@ -523,9 +880,9 @@ export function measureTextWidth(text: string, fontSize: number = 32): number {
 
     if (char === "^" || char === "_") {
       i++;
-      const { content, nextIndex } = readScriptGroup(text, i);
+      const { content, nextIndex } = readScriptGroup(text, i, char);
       i = nextIndex;
-      const subScale = char === "^" ? scriptScale : scriptScale;
+      const subScale = scriptScale;
       for (const subChar of content) {
         if (subChar === " ") {
           currentX += scriptFontSize * 0.3;
@@ -538,7 +895,7 @@ export function measureTextWidth(text: string, fontSize: number = 32): number {
     }
 
     const glyph = glyphDataRecord[char];
-    if (!glyph && SYNTHETIC_GREEK_CHARS.has(char)) {
+    if (!glyph && (SYNTHETIC_GREEK_CHARS.has(char) || SYNTHETIC_MATH_CHARS.has(char))) {
       currentX += syntheticGlyphWidth(char, scale);
       i++;
       continue;
