@@ -8,5 +8,3 @@ export * from "./llmAPI";
 export * from "./mockResponses";
 export * from "./sentenceChunker";
 export * from "./systemPrompt";
-export * from "./topicPlanner";
-export * from "./jee";
