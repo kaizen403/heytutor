@@ -18,7 +18,7 @@ export function ThinkingSpinner({
   x,
   y,
   visible = true,
-  color = "#3380FF",
+  color = "#659287",
   size = 14,
 }: ThinkingSpinnerProps) {
   const [rotation, setRotation] = useState(0);
