@@ -142,49 +142,110 @@ const DIGIT_WORDS: Record<string, string> = {
   "18": "eighteen",
   "19": "nineteen",
   "20": "twenty",
+  "30": "thirty",
+  "40": "forty",
+  "50": "fifty",
+  "60": "sixty",
+  "70": "seventy",
+  "80": "eighty",
+  "90": "ninety",
+  "100": "one hundred",
+  "200": "two hundred",
+  "500": "five hundred",
+  "1000": "one thousand",
 };
 
+const GREEK_SYMBOLS: Record<string, string> = {
+  "θ": "theta",
+  "μ": "mu",
+  "ω": "omega",
+  "π": "pi",
+  "λ": "lambda",
+  "Δ": "delta",
+  "α": "alpha",
+  "β": "beta",
+  "γ": "gamma",
+  "φ": "phi",
+  "ψ": "psi",
+  "ρ": "rho",
+  "σ": "sigma",
+  "τ": "tau",
+  "ε": "epsilon",
+  "η": "eta",
+  "ν": "nu",
+  "ξ": "xi",
+  "κ": "kappa",
+  "χ": "chi",
+  "ζ": "zeta",
+  "Θ": "capital theta",
+  "Ω": "omega",
+  "Σ": "sigma",
+  "Φ": "phi",
+  "Ψ": "psi",
+  "Λ": "lambda",
+};
+
+function expandGreekSymbols(text: string): string {
+  return text.replace(/[θμωπλΔαβγφψρστξηνκχζΘΩΣΦΨΛ]/g, (match) => GREEK_SYMBOLS[match] ?? match);
+}
+
+function expandDecimalNumber(numStr: string): string {
+  const parts = numStr.split(".");
+  const intPart = DIGIT_WORDS[parts[0]!] ?? parts[0]!;
+  if (parts.length === 1) {
+    return intPart;
+  }
+  const decimalPart = parts[1]!
+    .split("")
+    .map((digit) => DIGIT_WORDS[digit] ?? digit)
+    .join(" ");
+  return `${intPart} point ${decimalPart}`;
+}
+
+function expandPowersOfTen(text: string): string {
+  return text.replace(/(\d+)\s*\^\s*(\d+)/g, (_match, base, exp) => {
+    const baseWord = DIGIT_WORDS[base!] ?? base;
+    const expNum = Number(exp);
+    if (expNum === 2) return `${baseWord} squared`;
+    if (expNum === 3) return `${baseWord} cubed`;
+    return `${baseWord} to the power ${exp}`;
+  });
+}
+
 function expandSmallIntegers(text: string): string {
-  return text.replace(/\b\d+\b/g, (match) => DIGIT_WORDS[match] ?? match);
+  const withPowers = expandPowersOfTen(text);
+  return withPowers.replace(/\b\d+(?:\.\d+)?\b/g, (match) => {
+    if (DIGIT_WORDS[match]) {
+      return DIGIT_WORDS[match];
+    }
+    if (match.includes(".")) {
+      return expandDecimalNumber(match);
+    }
+    return match;
+  });
 }
 
 function normalizeForSpeechMatch(text: string): string {
   return expandSmallIntegers(
-    mathToSpeech(text)
-      .replace(/([0-9])([a-z])/gi, "$1 $2")
-      .replace(/([a-z])([0-9])/gi, "$1 $2")
-      .replace(/\bis\s+equal\s+to\b/gi, " equals ")
-      .replace(/\bequal\s+to\b/gi, " equals ")
-      .replace(/=/g, " equals ")
-      .replace(/\+/g, " plus ")
-      .replace(/-/g, " minus ")
-      .replace(/\*/g, " times ")
-      .replace(/\//g, " divided by ")
-      .replace(/\bover\b/gi, " divided by ")
-      .replace(/\bint\b/gi, " integral ")
-      .replace(/\bpi\b/gi, " pi "),
+    expandGreekSymbols(
+      mathToSpeech(text)
+        .replace(/([0-9])([a-z])/gi, "$1 $2")
+        .replace(/([a-z])([0-9])/gi, "$1 $2")
+        .replace(/\bis\s+equal\s+to\b/gi, " equals ")
+        .replace(/\bequal\s+to\b/gi, " equals ")
+        .replace(/=/g, " equals ")
+        .replace(/\+/g, " plus ")
+        .replace(/-/g, " minus ")
+        .replace(/\*/g, " times ")
+        .replace(/\//g, " divided by ")
+        .replace(/\bint\b/gi, " integral ")
+        .replace(/\bpi\b/gi, " pi "),
+    ),
   )
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function tokenSpeechPhrases(token: string): string[] {
-  const phrases = [
-    normalizeForSpeechMatch(token),
-    normalizeForSpeechMatch(expandCompactFormulaTokens(token)),
-    normalizeForSpeechMatch(mathToSpeech(expandCompactFormulaTokens(token))),
-  ];
-
-  if (token.includes("/")) {
-    phrases.push(normalizeForSpeechMatch(token.replace(/\//g, " over ")));
-    phrases.push(
-      normalizeForSpeechMatch(mathToSpeech(token.replace(/\//g, " over "))),
-    );
-  }
-
-  return uniqueNormalized(phrases);
 }
 
 function normalizeSegmentTimings(narration: string, timings: AudioTimings): AudioTimings {
@@ -310,6 +371,14 @@ interface SpeechCandidate {
   kind: SpeechCandidateKind;
 }
 
+function nthIndexOf(str: string, substr: string, n: number): number {
+  let idx = str.indexOf(substr);
+  for (let i = 0; i < n && idx >= 0; i++) {
+    idx = str.indexOf(substr, idx + 1);
+  }
+  return idx;
+}
+
 function uniqueCandidates(candidates: Array<{ text?: string; kind: SpeechCandidateKind }>): SpeechCandidate[] {
   const seen = new Set<string>();
   const result: SpeechCandidate[] = [];
@@ -369,6 +438,7 @@ export function getCommandSpeechWindow(
   narration: string,
   command: DrawCommand,
   timings?: AudioTimings | null,
+  textCommandIndex = 0,
 ): CommandSpeechWindow {
   if (!timings || timings.charStartTimes.length === 0 || timings.totalDuration <= 0) {
     return fallbackSpeechWindow(narration, command);
@@ -395,7 +465,7 @@ export function getCommandSpeechWindow(
   ]);
 
   for (const candidate of candidates) {
-    const matchIndex = normalizedNarration.indexOf(candidate.text);
+    const matchIndex = nthIndexOf(normalizedNarration, candidate.text, textCommandIndex);
     if (matchIndex < 0) {
       continue;
     }
@@ -470,7 +540,7 @@ export function isWriteScheduleUsable(
 
   const firstOffsetMs = schedule.offsetsMs[0] ?? 0;
   const lastOffsetMs = schedule.offsetsMs[schedule.offsetsMs.length - 1] ?? firstOffsetMs;
-  const maxFirstOffsetMs = Math.max(Math.round(durationMs * 0.42), 1200);
+  const maxFirstOffsetMs = Math.max(Math.round(durationMs * 0.60), 1500);
 
   if (firstOffsetMs > maxFirstOffsetMs) {
     return false;
@@ -511,6 +581,7 @@ export function getWriteCharScheduleMs(
   narration: string,
   command: DrawCommand,
   timings?: AudioTimings | null,
+  textCommandIndex = 0,
 ): WriteCharSchedule | null {
   const text = command.text ?? "";
   const nonSpaceCount = text.replace(/\s/g, "").length;
@@ -548,12 +619,28 @@ export function getWriteCharScheduleMs(
   const tokens = text.split(/\s+/).filter((token) => token.length > 0);
 
   let cursor = 0;
+  if (textCommandIndex > 0 && tokens.length > 0) {
+    const firstTokenPhrases = uniqueNormalized([
+      normalizeForSpeechMatch(tokens[0]),
+      normalizeForSpeechMatch(expandCompactFormulaTokens(tokens[0])),
+    ]);
+    for (const phrase of firstTokenPhrases) {
+      const idx = nthIndexOf(normalizedNarration, phrase, textCommandIndex);
+      if (idx >= 0) {
+        cursor = idx;
+        break;
+      }
+    }
+  }
   let matchedCount = 0;
   const windows: Array<{ startMs: number | null; endMs: number | null; count: number }> = [];
 
   for (const token of tokens) {
     const count = token.replace(/\s/g, "").length;
-    const phrases = tokenSpeechPhrases(token);
+    const phrases = uniqueNormalized([
+      normalizeForSpeechMatch(token),
+      normalizeForSpeechMatch(expandCompactFormulaTokens(token)),
+    ]);
 
     let foundIdx = -1;
     let foundLen = 0;
@@ -649,23 +736,31 @@ export function getWriteCharScheduleMs(
 export function getEstimatedWriteCharScheduleMs(
   narration: string,
   command: DrawCommand,
+  textCommandIndex = 0,
 ): WriteCharSchedule | null {
   const spokenNarration = mathToSpeech(narration.trim());
   if (spokenNarration.length === 0) {
     return null;
   }
 
-  const charStartTimes = Array.from(
-    { length: spokenNarration.length },
-    (_, index) => (index * MS_PER_CHAR) / 1000,
-  );
-  const charDurations = new Array(spokenNarration.length).fill(MS_PER_CHAR / 1000);
+  const n = spokenNarration.length;
+  const charStartTimes: number[] = [];
+  const charDurations: number[] = [];
+  let cumulativeMs = 0;
+  for (let i = 0; i < n; i++) {
+    const t = n > 1 ? i / (n - 1) : 0;
+    const velocityFactor = 1 + 0.3 * Math.sin(Math.PI * t);
+    const durationMs = MS_PER_CHAR / velocityFactor;
+    charStartTimes.push(cumulativeMs / 1000);
+    charDurations.push(durationMs / 1000);
+    cumulativeMs += durationMs;
+  }
 
   const schedule = getWriteCharScheduleMs(narration, command, {
     charStartTimes,
     charDurations,
-    totalDuration: (spokenNarration.length * MS_PER_CHAR) / 1000,
-  });
+    totalDuration: cumulativeMs / 1000,
+  }, textCommandIndex);
 
   if (!schedule?.matched) {
     return null;
@@ -692,6 +787,7 @@ export interface DrawingDurations {
   ARROW: number;
   HIGHLIGHT: number;
   SCRIBBLE: number;
+  DIMENSION: number;
   CLEAR: number;
   PAUSE: number;
   ERASE: number;
@@ -714,6 +810,7 @@ const DEFAULT_DRAWING_DURATIONS: DrawingDurations = {
   ARROW: 500,
   HIGHLIGHT: 250,
   SCRIBBLE: 400,
+  DIMENSION: 900,
   CLEAR: 200,
   PAUSE: 500,
   ERASE: 1500,
@@ -722,7 +819,8 @@ const DEFAULT_DRAWING_DURATIONS: DrawingDurations = {
 export function getDrawingDuration(command: DrawCommand): number {
   switch (command.type) {
     case "WRITE":
-    case "LABEL": {
+    case "LABEL":
+    case "DIMENSION": {
       const charCount = command.text?.length ?? 1;
       return Math.min(
         Math.max(charCount * WRITE_MS_PER_CHAR, MIN_WRITE_MS),
@@ -745,6 +843,7 @@ export function getFlightDuration(command: DrawCommand): number {
   if (command.type === "CLEAR") return 0;
   if (command.type === "PAUSE") return 0;
   if (command.type === "WRITE" || command.type === "LABEL") return 50;
+  if (command.type === "DIMENSION") return 120;
   if (command.type === "ERASE") return 500;
   if (
     command.type === "UNDERLINE" ||
