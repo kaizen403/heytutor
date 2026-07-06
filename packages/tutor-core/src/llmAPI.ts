@@ -142,7 +142,7 @@ export async function streamLLMResponse(
     signal,
     body: JSON.stringify({
       model,
-      max_tokens: 8192,
+      max_tokens: 12000,
       temperature: 0.3,
       stream: true,
       reasoning_effort: "none",

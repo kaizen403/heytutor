@@ -1,5 +1,10 @@
 import { findJeeTopicsByKeyword } from "./jee/jeeSyllabus";
-import type { DiagramTemplate } from "@heytutor/drawing";
+import { DIAGRAM_MARKING_GUIDANCE } from "@heytutor/drawing";
+
+interface DiagramTemplate {
+  id: string;
+  promptAddon: string;
+}
 
 export interface LessonPlan {
   template: DiagramTemplate | null;
@@ -24,7 +29,10 @@ export function planLesson(
   const matchedTopicTitles = matchedTopics.map((t) => t.title);
 
   if (template) {
-    parts.push(template.promptAddon);
+    const addon = template.promptAddon.includes("diagram marking rules")
+      ? template.promptAddon
+      : `${template.promptAddon}\n\n${DIAGRAM_MARKING_GUIDANCE}`;
+    parts.push(addon);
   }
 
   for (const topic of matchedTopics) {
