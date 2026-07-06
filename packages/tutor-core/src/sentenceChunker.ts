@@ -53,8 +53,37 @@ export function splitNarrationIntoChunks(text: string, maxLength = 120): string[
       } else {
         pushCurrent();
 
-        for (let i = 0; i < clause.length; i += maxLength) {
-          chunks.push(clause.slice(i, i + maxLength).trim());
+        let i = 0;
+        while (i < clause.length) {
+          let end = Math.min(i + maxLength, clause.length);
+
+          if (end < clause.length) {
+            const slice = clause.slice(i, end);
+            const eqIdx = slice.lastIndexOf("=");
+            const arrowIdx = slice.lastIndexOf("→");
+            const splitIdx = Math.max(eqIdx, arrowIdx);
+
+            if (splitIdx > maxLength * 0.4) {
+              end = i + splitIdx + 1;
+            } else {
+              let spaceIdx = slice.lastIndexOf(" ");
+              if (spaceIdx < maxLength * 0.4) {
+                for (let back = 1; back <= 20 && end - back > i; back++) {
+                  if (clause[end - back] === " ") {
+                    end = end - back;
+                    spaceIdx = end - i;
+                    break;
+                  }
+                }
+              }
+              if (spaceIdx >= maxLength * 0.4) {
+                end = i + spaceIdx;
+              }
+            }
+          }
+
+          chunks.push(clause.slice(i, end).trim());
+          i = end;
         }
       }
     }
