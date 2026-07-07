@@ -15,7 +15,6 @@ interface TegakiStroke {
 
 const UNITS_PER_EM = 1000;
 const ASCENDER = 960;
-const DESCENDER = -300;
 
 const glyphDataRecord = glyphData as unknown as Record<string, TegakiGlyphData>;
 
