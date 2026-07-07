@@ -10,7 +10,7 @@ import {
 import { formatReplayTime } from "@/lib/replayTimeline";
 import { cn } from "@/lib/utils";
 
-const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3] as const;
+const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3] as const;
 
 export interface ReplayControlsProps {
   visible: boolean;
@@ -136,7 +136,7 @@ export function ReplayControls({
               }}
               onPointerUp={() => setScrubbing(false)}
               onChange={(event) => handleScrub(Number(event.target.value))}
-              className="replay-slider h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/25 accent-[#0077CC]"
+              className="replay-slider h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/25 accent-[#88BDA4]"
             />
 
             <div className="flex items-center justify-between gap-3">
@@ -185,7 +185,7 @@ export function ReplayControls({
                           }}
                           className={cn(
                             "flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10",
-                            playbackRate === speed && "bg-[rgba(0,119,204,0.35)] text-white",
+                            playbackRate === speed && "bg-[rgba(136,189,164,0.35)] text-white",
                           )}
                         >
                           <span>{speed === 1 ? "Normal" : `${speed}x`}</span>
