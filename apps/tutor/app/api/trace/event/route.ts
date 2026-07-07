@@ -1,5 +1,5 @@
 import {
-  flushInBackground,
+  flushSafely,
   recordTurnEvents,
   updateTurnTrace,
   type TurnTelemetryEvent,
@@ -81,7 +81,7 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  flushInBackground();
+  await flushSafely();
 
   return Response.json({ ok: true, events: body.events?.length ?? 0 });
 }

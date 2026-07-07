@@ -36,6 +36,7 @@ interface ElevenLabsWsMessage {
   voice_settings?: {
     stability: number;
     similarity_boost: number;
+    speed?: number;
   };
   generation_config?: {
     chunk_length_schedule: number[];
@@ -46,6 +47,8 @@ interface ElevenLabsWsMessage {
 interface TtsRelayContext {
   traceId?: string;
   sessionId?: string;
+  /** ElevenLabs natural voice speed, 0.7–1.2. Pitch-preserving. */
+  speed?: number;
 }
 
 function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void {
@@ -102,6 +105,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
       voice_settings: {
         stability: 0.5,
         similarity_boost: 0.75,
+        ...(context.speed && context.speed !== 1 ? { speed: context.speed } : {}),
       },
       generation_config: {
         // Default schedule — [50] caused mid-sentence prosody breaks in live tutoring.
@@ -236,9 +240,13 @@ app.prepare().then(() => {
     if (pathname === "/api/tts/ws") {
       const traceId = typeof query.traceId === "string" ? query.traceId : undefined;
       const sessionId = typeof query.sessionId === "string" ? query.sessionId : undefined;
+      const rawSpeed = typeof query.speed === "string" ? Number(query.speed) : NaN;
+      const speed = Number.isFinite(rawSpeed)
+        ? Math.min(Math.max(rawSpeed, 0.7), 1.2)
+        : undefined;
 
       wss.handleUpgrade(request, socket, head, (ws) => {
-        relayTtsWebSocket(ws, { traceId, sessionId });
+        relayTtsWebSocket(ws, { traceId, sessionId, speed });
       });
       return;
     }
