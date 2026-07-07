@@ -14,7 +14,8 @@
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "verify": "tsx scripts/verify-diagram-templates.ts && tsx scripts/verify-speech-notation.ts && tsx scripts/verify-written-notation.ts && tsx scripts/verify-annotation-paths.ts && tsx scripts/verify-sync-schedules.ts && tsx scripts/verify-fbd-mock.ts && tsx scripts/verify-bead-mock.ts && tsx scripts/verify-jee-syllabus.ts"
   },
   "dependencies": {
     "@heytutor/drawing": "workspace:*"
@@ -25,6 +26,7 @@
     "@types/node": "^22.15.3",
     "eslint": "^9.39.4",
     "tsup": "^8.5.0",
+    "tsx": "^4.22.4",
     "typescript": "^5.8.3"
   }
 }
