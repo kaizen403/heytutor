@@ -371,21 +371,6 @@ export function mergeAudioTimingChunk(
   return existing.totalDuration;
 }
 
-function mergeTimings(existing: AudioTimings, chunk: TimestampChunkPayload): AudioTimings {
-  const align = chunk.alignment;
-
-  if (!align) {
-    return existing;
-  }
-
-  mergeAudioTimingChunk(existing, {
-    startTimesSec: align.character_start_times_seconds,
-    endTimesSec: align.character_end_times_seconds,
-  });
-
-  return existing;
-}
-
 export class ElevenLabsTTSClient implements TTSClient {
   private proxyUrl: string;
   private streamUrl: string;
@@ -666,7 +651,7 @@ export class SpeechSynthesisTTSClient implements TTSClient {
 
   async speakSegment(
     text: string,
-    { traceId, sessionId, onStart, onEnd, onError, onTimings, onAudioCaptured }: SpeakSegmentOptions = {},
+    { traceId, sessionId, onStart, onEnd, onError, onTimings, onAudioCaptured: _onAudioCaptured }: SpeakSegmentOptions = {},
   ): Promise<void> {
     if (typeof window === "undefined" || !window.speechSynthesis) {
       onError?.(new Error("SpeechSynthesis not available"));

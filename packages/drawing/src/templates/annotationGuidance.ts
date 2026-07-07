@@ -1,5 +1,3 @@
-import type { DiagramTemplate } from "./types";
-
 /** Shared per-template prompt suffix for marking and positional accuracy. */
 export const DIAGRAM_MARKING_GUIDANCE = `diagram marking rules (all visual problems):
 - point labels must POINT at the exact spot, not sit on the line. put the [LABEL] a clear gap away from any line (offset the letter ~24 px above/beside the point) so the text stays readable and never traces over the geometry. one [LABEL] per [STEP], spoken immediately before it.
