@@ -6,10 +6,11 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { InputBar } from "@/components/InputBar";
 import { ResponseBubble } from "@/components/ResponseBubble";
 import { TranscriptDialog } from "@/components/TranscriptDialog";
-import { BoardHistory, type BoardEntry } from "@/components/BoardHistory";
+import { BoardHistory, SIDEBAR_WIDTH, type BoardEntry } from "@/components/BoardHistory";
 import { LessonActions } from "@/components/LessonActions";
 import { ReplayControls } from "@/components/ReplayControls";
 import { SettingsDrawer, type SettingsState, getMarkerColorHex } from "@/components/SettingsDrawer";
+import { CanvasLanding, type CanvasLandingSuggestion } from "@/components/CanvasLanding";
 import { playReplayAudio, stopReplayAudio } from "@/lib/replayAudio";
 import {
   buildReplayTimeline,
@@ -43,8 +44,8 @@ const Whiteboard = dynamic(
             height: 32,
             borderRadius: "50%",
             border: "2px solid transparent",
-            borderTopColor: "#0077CC",
-            borderBottomColor: "#0077CC",
+            borderTopColor: "#659287",
+            borderBottomColor: "#659287",
             animation: "wb-spin 0.8s linear infinite",
           }}
         />
@@ -61,38 +62,42 @@ import {
   cubePath,
   rectPath,
   circlePath,
+  ellipsePath,
   linePath,
   underlinePath,
   emphasisEllipsePath,
   arrowPath,
+  curvedArrowPath,
   highlightRectPath,
   scribblePath,
+  bezierSplinePath,
+  polylinePath,
+  dimensionPath,
   parseStoredSegmentCommands,
   serializeSegmentCommands,
   IncrementalTagParser,
   checkSegmentAlignment,
   buildLessonSegments,
-  drainCompleteStepBlocks,
   lessonNarrationText,
   measureTextWidth,
   matchDiagramTemplate,
-  templateToDrawCommand,
-  getTemplateSkeletonCommands,
-  repairDiagramCommand,
-  resolveAnnotationWithAnchors,
+  buildTemplateIntroSegments,
+  isBlockedTemplateDiagramDraw,
   isDuplicateTemplateDraw,
+  prepareTemplateLessonSegments,
+  repairDiagramCommand,
   snapLabelToTemplateAnchor,
-  type TemplateAnchor,
+  snapGeometryCommand,
+  resolveAnnotationWithAnchors,
+  anchorToTextRect,
   type DiagramTemplate,
+  type TemplateAnchor,
 } from "@heytutor/drawing";
 import {
-  JEE_NARRATION_LABEL_RULES,
   streamLLMResponse,
   createTTSClient,
-  buildTurnSystemPrompt,
-  buildContinuationPrompt,
-  planLesson,
-  resolveApiUrl,
+  TUTOR_SYSTEM_PROMPT,
+  TUTOR_CONTINUATION_PROMPT,
   getCommandDrawDurationMs,
   getCommandSpeechWindow,
   getEstimatedWriteCharScheduleMs,
@@ -103,14 +108,14 @@ import {
   getFlightDuration,
   tutorDebug,
   mathToSpeech,
+  resolveApiUrl,
   type AudioTimings,
   type ConversationExchange,
   type TTSClient,
 } from "@heytutor/tutor-core";
 import { DS } from "@heytutor/design-tokens";
 import { createTurnTelemetry, type TurnTelemetry } from "@/lib/turnTelemetry";
-import { useIsMobile } from "@/lib/useMediaQuery";
-import { cn } from "@/lib/utils";
+import { exportNotesPdf, type NotesEpoch } from "@/lib/exportNotesPdf";
 import {
   createBoard,
   deleteBoardApi,
@@ -128,7 +133,43 @@ type TutorPhase = "idle" | "thinking" | "drawing" | "speaking";
 const BOARD_WIDTH = DS.Canvas.width;
 const BOARD_HEIGHT = DS.Canvas.height;
 const WHITEBOARD_COLOR = "#F8F6F0";
-const MAX_LLM_CONTINUATIONS = 3;
+const PAGE_GUTTER_X = 28;
+const PAGE_GUTTER_Y = 10;
+const MAX_LLM_CONTINUATIONS = 5;
+const STREAM_SEGMENTS_LIVE = true;
+
+const LANDING_SUGGESTIONS: CanvasLandingSuggestion[] = [
+  {
+    label: "Projectile motion",
+    question: "Explain projectile motion with a diagram",
+    hint: "physics · trajectories",
+  },
+  {
+    label: "Free body diagram",
+    question: "Draw a free body diagram for a block on a ramp",
+    hint: "forces · vectors",
+  },
+  {
+    label: "Pythagorean theorem",
+    question: "Prove the Pythagorean theorem step by step",
+    hint: "geometry · proof",
+  },
+  {
+    label: "Circle theorems",
+    question: "Explain the inscribed angle theorem with a circle",
+    hint: "geometry · arcs",
+  },
+  {
+    label: "Solve a quadratic",
+    question: "Solve x squared minus 5 x plus 6 by factoring",
+    hint: "algebra · roots",
+  },
+  {
+    label: "RC circuit",
+    question: "Walk me through a simple RC circuit charging up",
+    hint: "circuits · transients",
+  },
+];
 
 const TEXT_LAYOUT = {
   marginX: 90,
@@ -147,9 +188,19 @@ const TEXT_LAYOUT = {
 const DIAGRAM_ZONE = {
   x: 400,
   y: 140,
-  width: 500,
+  width: 760,
   height: 380,
 };
+
+interface SegmentPlanStats {
+  activeTemplateId: string | null;
+  activeTemplateName: string | null;
+  plannedSegmentCount: number;
+  introSegmentCount: number;
+  llmSegmentCount: number;
+  blockedTemplateDrawCommands: number;
+  droppedTemplateRedrawSegments: number;
+}
 
 function isInDiagramZone(x: number, y: number): boolean {
   return (
@@ -158,6 +209,36 @@ function isInDiagramZone(x: number, y: number): boolean {
     y >= DIAGRAM_ZONE.y &&
     y <= DIAGRAM_ZONE.y + DIAGRAM_ZONE.height
   );
+}
+
+function createEmptySegmentPlanStats(): SegmentPlanStats {
+  return {
+    activeTemplateId: null,
+    activeTemplateName: null,
+    plannedSegmentCount: 0,
+    introSegmentCount: 0,
+    llmSegmentCount: 0,
+    blockedTemplateDrawCommands: 0,
+    droppedTemplateRedrawSegments: 0,
+  };
+}
+
+function summarizeSegmentsForTrace(segments: TutorSegment[]): Array<{
+  index: number;
+  templateIntro: boolean;
+  narration: string;
+  commands: Array<{ type: DrawCommand["type"]; params: number[]; text?: string }>;
+}> {
+  return segments.slice(0, 24).map((segment, index) => ({
+    index,
+    templateIntro: segment.templateIntro === true,
+    narration: segment.narration.slice(0, 140),
+    commands: getSegmentCommands(segment).map((command) => ({
+      type: command.type,
+      params: command.params,
+      ...(command.text ? { text: command.text } : {}),
+    })),
+  }));
 }
 
 interface BoardTextRect {
@@ -195,10 +276,19 @@ function textRectsOverlap(a: BoardTextRect, b: BoardTextRect, padding = 12): boo
 }
 
 function isTeachingResponseIncomplete(
-  text: string,
-  contentChars?: number,
+  chunk: string,
+  fullResponse: string,
+  previousChunk?: string,
 ): boolean {
-  const trimmed = text.trim();
+  if (fullResponse.length >= 28000) {
+    return false;
+  }
+
+  if (previousChunk !== undefined && chunk === previousChunk) {
+    return false;
+  }
+
+  const trimmed = chunk.trim();
   if (!trimmed) {
     return false;
   }
@@ -207,11 +297,12 @@ function isTeachingResponseIncomplete(
     /[.!?]\s*$/.test(trimmed) ||
     /\[\/STEP\]\s*$/.test(trimmed) ||
     /\]\s*$/.test(trimmed);
-  if (endsCleanly && (contentChars ?? trimmed.length) < 7000) {
+
+  if (endsCleanly && trimmed.length < 6000) {
     return false;
   }
 
-  return !endsCleanly || (contentChars ?? 0) >= 7000;
+  return true;
 }
 
 /** Fixed draw budget for geometric commands — independent of TTS length. */
@@ -331,10 +422,39 @@ function bboxParamsForRect(match: BoardTextRect, pad: number): number[] {
   return [match.x - pad, match.y - pad, match.width + pad * 2, match.height + pad * 2];
 }
 
-const NARRATION_LABEL_RULES = JEE_NARRATION_LABEL_RULES;
+const NARRATION_LABEL_RULES: Array<{ cues: string[]; labels: string[] }> = [
+  { cues: ["mass", "the mass", "mass is", "this mass", "labeled m", "label m"], labels: ["m", "M"] },
+  { cues: ["friction", "frictional", "mu times", "mu is", "force of friction"], labels: ["f", "F_f", "f_k", "f_s"] },
+  { cues: ["normal force", "normal from", "normal pushes", "normal", "surface pushes"], labels: ["N", "F_N"] },
+  { cues: ["weight", "gravity", "gravitational", "mass times g", "mg", "w equals"], labels: ["mg", "W", "F_g"] },
+  { cues: ["applied push", "applied force", "push to the right", "push to the left", "applied"], labels: ["F", "F_app", "P"] },
+  { cues: ["tension", "rope pulls", "string pulls", "cable pulls"], labels: ["T", "F_T"] },
+  { cues: ["velocity", "the velocity", "speed"], labels: ["v", "V"] },
+  { cues: ["acceleration", "the acceleration", "accelerates"], labels: ["a", "A"] },
+  { cues: ["force", "the force", "net force"], labels: ["F", "F_net"] },
+  { cues: ["angle", "theta", "the angle"], labels: ["θ", "theta"] },
+  { cues: ["coefficient", "mu", "friction coefficient"], labels: ["μ", "mu"] },
+  { cues: ["distance", "displacement", "the distance"], labels: ["d", "x", "s"] },
+  { cues: ["height", "the height", "falls from"], labels: ["h", "H"] },
+  { cues: ["time", "the time"], labels: ["t", "T"] },
+  { cues: ["energy", "kinetic energy", "potential energy"], labels: ["E", "KE", "PE", "U"] },
+  { cues: ["momentum", "the momentum"], labels: ["p", "P"] },
+  { cues: ["charge", "the charge"], labels: ["q", "Q"] },
+  { cues: ["current", "the current"], labels: ["I", "i"] },
+  { cues: ["voltage", "potential difference", "the voltage"], labels: ["V", "ΔV"] },
+  { cues: ["resistance", "the resistance"], labels: ["R"] },
+  { cues: ["power", "the power"], labels: ["P"] },
+  { cues: ["frequency", "the frequency"], labels: ["f", "ν"] },
+  { cues: ["wavelength", "the wavelength"], labels: ["λ", "lambda"] },
+  { cues: ["temperature", "the temperature"], labels: ["T"] },
+  { cues: ["pressure", "the pressure"], labels: ["P", "p"] },
+  { cues: ["volume", "the volume"], labels: ["V", "v"] },
+  { cues: ["density", "the density"], labels: ["ρ", "rho"] },
+  { cues: ["area", "the area"], labels: ["A"] },
+];
 
 function normalizeLabel(text: string): string {
-  return mathToSpeech(text).trim().replace(/\s+/g, "").toLowerCase();
+  return text.trim().replace(/\s+/g, "").toLowerCase();
 }
 
 function findAnchorByNarration(narration: string, rects: BoardTextRect[]): BoardTextRect | null {
@@ -371,7 +491,21 @@ function resolveSnappedAnnotationParams(
   params: number[],
   rects: BoardTextRect[],
   narration?: string,
+  templateAnchors: TemplateAnchor[] = [],
 ): { params: number[]; snapped: boolean; rect: BoardTextRect | null } {
+  if (templateAnchors.length > 0 && narration) {
+    const templateSnap = resolveAnnotationWithAnchors(
+      kind,
+      params,
+      templateAnchors,
+      rects,
+      narration,
+    );
+    if (templateSnap.snapped) {
+      return templateSnap;
+    }
+  }
+
   const pad = 8;
 
   if (kind === "UNDERLINE" && params.length >= 4) {
@@ -486,6 +620,10 @@ function resolveSnappedAnnotationParams(
 }
 
 function normalizeSegmentForAlignment(segment: TutorSegment): TutorSegment {
+  if (segment.templateIntro) {
+    return segment;
+  }
+
   const commands = getSegmentCommands(segment);
   if (commands.length === 0) {
     return segment;
@@ -531,15 +669,16 @@ export default function TutorSessionPage() {
     offsetY: 0,
   });
   const [phase, setPhase] = useState<TutorPhase>("idle");
-  const [showThinkingOverlay, setShowThinkingOverlay] = useState(false);
-  const [planningLesson, setPlanningLesson] = useState(false);
+  const phaseRef = useRef<TutorPhase>("idle");
   const [isPaused, setIsPaused] = useState(false);
   const isPausedRef = useRef(false);
   const [narrationText, setNarrationText] = useState("");
   const [currentSegmentText, setCurrentSegmentText] = useState("");
+  const [lastError, setLastError] = useState<{ message: string; question: string } | null>(null);
   const conversationHistoryRef = useRef<ConversationExchange[]>([]);
   const ttsClientRef = useRef<TTSClient | null>(null);
   const replayAudioRef = useRef<HTMLAudioElement | null>(null);
+  const replayAudioPreloadRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const cancelRef = useRef(false);
   const turnActiveRef = useRef(false);
   const delayTimersRef = useRef<number[]>([]);
@@ -552,9 +691,10 @@ export default function TutorSessionPage() {
   const rawResponseRef = useRef("");
   const currentTraceIdRef = useRef<string | null>(null);
   const turnTelemetryRef = useRef<TurnTelemetry | null>(null);
-  const templateAnchorsRef = useRef<TemplateAnchor[]>([]);
-  const activeDiagramTemplateRef = useRef<DiagramTemplate | null>(null);
   const turnStatsRef = useRef({ drawMs: 0, ttsChars: 0 });
+  const notesEpochsRef = useRef<NotesEpoch[]>([]);
+  const narrationSinceEpochRef = useRef("");
+  const [isDownloading, setIsDownloading] = useState(false);
   const boardLayoutRef = useRef<BoardLayoutState>({
     rects: [],
     nextY: TEXT_LAYOUT.topY,
@@ -563,21 +703,21 @@ export default function TutorSessionPage() {
   const forceSequentialWorkLayoutRef = useRef(false);
   const fbdPhaseMarkedRef = useRef(false);
   const fbdPhaseStartedRef = useRef(false);
+  const activeDiagramTemplateRef = useRef<DiagramTemplate | null>(null);
+  const segmentPlanStatsRef = useRef<SegmentPlanStats>(createEmptySegmentPlanStats());
   const stopTurnRef = useRef<(() => void) | null>(null);
   const [settings, setSettings] = useState<SettingsState>({
-    speedMultiplier: 1,
+    speedMultiplier: 1.5,
     audioLanguage: "english",
     accent: "us",
     subtitlesEnabled: true,
     subtitleLanguage: "english",
-    markerColor: "black",
+    markerColor: "navy",
   });
-  const speedRef = useRef(1);
+  const speedRef = useRef(1.5);
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const isMobile = useIsMobile();
   const [boards, setBoards] = useState<BoardEntry[]>([]);
   const [boardLoaded, setBoardLoaded] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
@@ -606,6 +746,10 @@ export default function TutorSessionPage() {
     speedRef.current = settings.speedMultiplier;
     ttsClientRef.current?.setPlaybackRate(settings.speedMultiplier);
   }, [settings.speedMultiplier]);
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
 
   useEffect(() => {
     const container = boardContainerRef.current;
@@ -699,14 +843,21 @@ export default function TutorSessionPage() {
     [sessionId, router, createNewBoard, phase],
   );
 
+  const ensureTTSClient = useCallback((): TTSClient => {
+    if (!ttsClientRef.current) {
+      ttsClientRef.current = createTTSClient();
+    }
+    ttsClientRef.current.setPlaybackRate(speedRef.current);
+    return ttsClientRef.current;
+  }, []);
+
   useEffect(() => {
-    ttsClientRef.current = createTTSClient();
-    ttsClientRef.current?.setPlaybackRate(speedRef.current);
+    ensureTTSClient();
 
     return () => {
       ttsClientRef.current?.stop();
     };
-  }, []);
+  }, [ensureTTSClient]);
 
   const cursorState: CursorState =
     phase === "thinking"
@@ -814,8 +965,23 @@ export default function TutorSessionPage() {
 
       const width = estimateBoardTextWidth(command.text);
       const height = TEXT_LAYOUT.textHeight;
-      const maxX = BOARD_WIDTH - TEXT_LAYOUT.marginX - width;
       let layout = boardLayoutRef.current;
+
+      // A diagram claims the right half of the board. Keep the solution in a clean
+      // left column that stops short of the figure, so lines flow straight down
+      // the left instead of hopping around the diagram (which used to leave big
+      // vertical gaps). When there is no diagram, the solution uses the full width.
+      const isDiagramRect = (rect: BoardTextRect) => rect.x >= DIAGRAM_ZONE.x;
+      const diagramActive = fbdPhaseStartedRef.current;
+      const diagramRects = diagramActive ? layout.rects.filter(isDiagramRect) : [];
+      const diagramLeftEdge =
+        diagramRects.length > 0
+          ? Math.min(...diagramRects.map((rect) => rect.x))
+          : DIAGRAM_ZONE.x;
+      const columnRight = diagramActive
+        ? Math.max(TEXT_LAYOUT.marginX + 160, diagramLeftEdge - 28)
+        : BOARD_WIDTH - TEXT_LAYOUT.marginX;
+      const maxX = Math.min(BOARD_WIDTH - TEXT_LAYOUT.marginX, columnRight) - width;
       const candidateX = clampNumber(x, TEXT_LAYOUT.marginX, Math.max(TEXT_LAYOUT.marginX, maxX));
 
       const findOpenY = (startY: number): number | null => {
@@ -825,7 +991,16 @@ export default function TutorSessionPage() {
           tryY += TEXT_LAYOUT.lineHeight
         ) {
           const rect = { x: candidateX, y: tryY, width, height };
-          if (!layout.rects.some((occupied) => textRectsOverlap(rect, occupied))) {
+          // Solution lines only stack around each other. The diagram lives in its
+          // own right-hand column, so skip diagram rects when finding a free row —
+          // otherwise a wide equation would jump below the whole figure.
+          if (
+            !layout.rects.some(
+              (occupied) =>
+                !(diagramActive && isDiagramRect(occupied)) &&
+                textRectsOverlap(rect, occupied),
+            )
+          ) {
             return tryY;
           }
         }
@@ -848,19 +1023,43 @@ export default function TutorSessionPage() {
       if (openY === null) {
         const wb = whiteboardRef.current;
         if (wb && !cancelRef.current) {
+          // Keep an in-progress diagram: when one exists, only clear the left
+          // work column instead of the full board width.
+          const eraseWidth = fbdPhaseStartedRef.current
+            ? Math.max(DIAGRAM_ZONE.x - TEXT_LAYOUT.eraseX - 10, 40)
+            : TEXT_LAYOUT.eraseWidth;
           tutorDebug("draw", "layout erasing work area", {
             text: command.text.slice(0, 60),
             rect_count: layout.rects.length,
+            erase_width: eraseWidth,
           });
+          const preEraseSnapshot = wb.captureSnapshot(2);
+          if (preEraseSnapshot) {
+            notesEpochsRef.current.push({
+              index: notesEpochsRef.current.length,
+              snapshotDataUrl: preEraseSnapshot,
+              narrationText: narrationSinceEpochRef.current,
+              timestampMs: Date.now(),
+            });
+            narrationSinceEpochRef.current = "";
+          }
           await wb.eraseRegion(
             TEXT_LAYOUT.eraseX,
             TEXT_LAYOUT.eraseY,
-            TEXT_LAYOUT.eraseWidth,
+            eraseWidth,
             TEXT_LAYOUT.eraseHeight,
             700,
           );
         }
+        // Diagram-zone labels survive a work-column erase, so keep their
+        // rects registered for later annotation snapping.
+        const survivingDiagramRects = fbdPhaseStartedRef.current
+          ? boardLayoutRef.current.rects.filter(
+              (r) => r.x >= DIAGRAM_ZONE.x && r.y >= TEXT_LAYOUT.headingBottomY,
+            )
+          : [];
         resetBoardLayout(true, true);
+        boardLayoutRef.current.rects.push(...survivingDiagramRects);
         layout = boardLayoutRef.current;
         openY = findOpenY(getWorkAreaFlowStartY(layout)) ?? TEXT_LAYOUT.workTopY;
       }
@@ -882,24 +1081,14 @@ export default function TutorSessionPage() {
       command: DrawCommand,
       kind: DrawCommand["type"],
       narration?: string,
-    ): { params: number[]; snapped: boolean; rect: BoardTextRect | null } => {
-      const templateSnap = resolveAnnotationWithAnchors(
-        kind,
-        [...command.params],
-        templateAnchorsRef.current,
-        boardLayoutRef.current.rects,
-        narration,
-      );
-      if (templateSnap.snapped) {
-        return templateSnap;
-      }
-      return resolveSnappedAnnotationParams(
+    ): { params: number[]; snapped: boolean; rect: BoardTextRect | null } =>
+      resolveSnappedAnnotationParams(
         kind,
         [...command.params],
         boardLayoutRef.current.rects,
         narration,
-      );
-    },
+        activeDiagramTemplateRef.current?.anchors ?? [],
+      ),
     [],
   );
 
@@ -964,28 +1153,69 @@ export default function TutorSessionPage() {
 
   const executeCommand = useCallback(
     async (
-      command: DrawCommand,
+      rawCommand: DrawCommand,
       options: {
         durationScale?: number;
         speechDurationMs?: number;
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
         segmentNarration?: string;
+        skipTemplateDuplicateCheck?: boolean;
+        skipGeometrySnap?: boolean;
       } = {},
     ): Promise<void> => {
       const wb = whiteboardRef.current;
       if (!wb || cancelRef.current) return;
 
-      command = repairDiagramCommand(command);
-      command = snapLabelToTemplateAnchor(command, templateAnchorsRef.current);
-
+      let command = rawCommand;
       const activeTemplate = activeDiagramTemplateRef.current;
-      if (activeTemplate && isDuplicateTemplateDraw(command, activeTemplate)) {
-        tutorDebug("draw", "skipped duplicate template skeleton draw", {
-          type: command.type,
-          template_id: activeTemplate.id,
-        });
-        return;
+      if (activeTemplate) {
+        command = repairDiagramCommand(command);
+        if (
+          !options.skipTemplateDuplicateCheck &&
+          isBlockedTemplateDiagramDraw(command, activeTemplate)
+        ) {
+          turnTelemetryRef.current?.mark("template-draw-blocked", {
+            template: activeTemplate.id,
+            type: command.type,
+            params: command.params,
+          });
+          tutorDebug("draw", "block llm template diagram draw", {
+            template: activeTemplate.id,
+            type: command.type,
+            params: command.params,
+          });
+          return;
+        }
+        if (command.type === "LABEL") {
+          command = snapLabelToTemplateAnchor(command, activeTemplate.anchors);
+        }
+        const beforeGeometrySnap = command;
+        // Deterministic template-intro geometry is already exact; only snap
+        // LLM-emitted commands so we don't drag precise points off their marks.
+        if (!options.skipGeometrySnap) {
+          command = snapGeometryCommand(command, activeTemplate);
+        }
+        if (command.params.join(",") !== beforeGeometrySnap.params.join(",")) {
+          const metadata = {
+            template: activeTemplate.id,
+            type: command.type,
+            before: beforeGeometrySnap.params,
+            after: command.params,
+          };
+          turnTelemetryRef.current?.mark("geometry-snap", metadata);
+          tutorDebug("draw", "geometry snap applied", metadata);
+        }
+        if (
+          !options.skipTemplateDuplicateCheck &&
+          isDuplicateTemplateDraw(command, activeTemplate)
+        ) {
+          tutorDebug("draw", "skip duplicate template skeleton draw", {
+            type: command.type,
+            params: command.params,
+          });
+          return;
+        }
       }
 
       tutorDebug("draw", "executeCommand start", {
@@ -1009,8 +1239,11 @@ export default function TutorSessionPage() {
         turnTelemetryRef.current?.mark("fbd-phase-start", { x: Math.round(x), y: Math.round(y) });
       };
 
+      // Live voice speed is capped at ElevenLabs' natural 1.2x, so ink pace
+      // uses the same cap — otherwise drawing sprints ahead of the narration.
+      const effectiveSpeed = () => Math.min(Math.max(speedRef.current, 0.7), 1.2);
       const scaledDuration = (duration: number) =>
-        Math.max(Math.round((duration / speedRef.current) * durationScale), 50);
+        Math.max(Math.round((duration / effectiveSpeed()) * durationScale), 50);
 
       const speechSplit = (command: DrawCommand) => {
         if (speechDurationMs === undefined) {
@@ -1020,10 +1253,9 @@ export default function TutorSessionPage() {
           };
         }
 
-        // speechDurationMs is the natural (1x) TTS audio length.
-        // With HTMLAudioElement.preservesPitch, audio plays at speedRef.current,
-        // so drawings must match the speed-adjusted duration to avoid silence gaps.
-        const totalMs = Math.max(Math.round(speechDurationMs / speedRef.current), 50);
+        // speechDurationMs comes from real audio timings, which already reflect
+        // the generated voice speed — no extra scaling or ink races ahead.
+        const totalMs = Math.max(Math.round(speechDurationMs), 50);
         const flight = getFlightDuration(command);
         const draw = getDrawingDuration(command);
         const defaultTotal = flight + draw;
@@ -1069,8 +1301,17 @@ export default function TutorSessionPage() {
           break;
         }
         case "DRAW_CIRCLE": {
-          const [cx, cy, radius] = command.params;
-          if ([cx, cy, radius].every(Number.isFinite)) {
+          const [cx, cy, radius, ry] = command.params;
+          if (ry !== undefined && Number.isFinite(ry)) {
+            // 4 params [cx, cy, rx, ry] → ellipse
+            if ([cx, cy, radius, ry].every(Number.isFinite)) {
+              const { flightMs, drawMs } = speechSplit(command);
+              await wb.flyCursorTo(cx + radius, cy, flightMs);
+              if (cancelRef.current) return;
+              await wb.drawShape(ellipsePath(cx, cy, radius, ry), drawMs);
+            }
+          } else if ([cx, cy, radius].every(Number.isFinite)) {
+            // 3 params [cx, cy, r] → circle
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(cx + radius, cy, flightMs);
             if (cancelRef.current) return;
@@ -1079,17 +1320,77 @@ export default function TutorSessionPage() {
           break;
         }
         case "DRAW_LINE": {
-          const [x1, y1, x2, y2] = command.params;
+          const params = command.params;
+          const lastParam = params[params.length - 1];
+
+          // Bezier spline: 6+ coordinate params with last param = 2
+          // Points are all params except the last flag: [x1,y1,x2,y2,...,2]
+          if (params.length >= 7 && lastParam === 2) {
+            const splinePoints = params.slice(0, -1);
+            const [sx1, sy1] = splinePoints;
+            if (Number.isFinite(sx1) && Number.isFinite(sy1)) {
+              markFbdDiagramStart(sx1, sy1);
+              const { flightMs, drawMs } = speechSplit(command);
+              await wb.flyCursorTo(sx1, sy1, flightMs);
+              if (cancelRef.current) return;
+              await wb.drawShape(bezierSplinePath(splinePoints), drawMs);
+              const midIdx = Math.floor(splinePoints.length / 2);
+              const midX = splinePoints[midIdx - 1] ?? sx1;
+              const midY = splinePoints[midIdx] ?? sy1;
+              if (isInDiagramZone(midX, midY)) {
+                registerBoardAnchor(boardLayoutRef.current, {
+                  x: Math.min(...splinePoints.filter((_, i) => i % 2 === 0)),
+                  y: Math.min(...splinePoints.filter((_, i) => i % 2 === 1)),
+                  width: 100,
+                  height: 100,
+                  text: undefined,
+                });
+              }
+            }
+            break;
+          }
+
+          // Polyline: 3+ points with no style flag. Used for crisp circuit
+          // symbols such as zigzag resistors without adding another command.
+          if (params.length >= 6 && params.length % 2 === 0) {
+            const [sx1, sy1] = params;
+            if (params.every(Number.isFinite) && Number.isFinite(sx1) && Number.isFinite(sy1)) {
+              markFbdDiagramStart(sx1, sy1);
+              const { flightMs, drawMs } = speechSplit(command);
+              await wb.flyCursorTo(sx1, sy1, flightMs);
+              if (cancelRef.current) return;
+              await wb.drawShape(polylinePath(params), drawMs);
+              if (params.some((value, index) => index % 2 === 0 && isInDiagramZone(value, params[index + 1] ?? 0))) {
+                const xs = params.filter((_, i) => i % 2 === 0);
+                const ys = params.filter((_, i) => i % 2 === 1);
+                registerBoardAnchor(boardLayoutRef.current, {
+                  x: Math.min(...xs),
+                  y: Math.min(...ys),
+                  width: Math.max(...xs) - Math.min(...xs) || 20,
+                  height: Math.max(...ys) - Math.min(...ys) || 20,
+                  text: undefined,
+                });
+              }
+            }
+            break;
+          }
+
+          const [x1, y1, x2, y2, dashedFlag] = params;
           if ([x1, y1, x2, y2].every(Number.isFinite)) {
             markFbdDiagramStart(x1, y1);
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(x1, y1, flightMs);
             if (cancelRef.current) return;
             const lineLength = Math.hypot(x2 - x1, y2 - y1);
-            await wb.drawShape(
-              lineLength < 2 ? circlePath(x1, y1, 4) : linePath(x1, y1, x2, y2),
-              drawMs,
-            );
+            const isDashed = dashedFlag === 1;
+            if (isDashed) {
+              await wb.drawShape(linePath(x1, y1, x2, y2), drawMs, { dashed: true });
+            } else {
+              await wb.drawShape(
+                lineLength < 2 ? circlePath(x1, y1, 4) : linePath(x1, y1, x2, y2),
+                drawMs,
+              );
+            }
             if (isInDiagramZone((x1 + x2) / 2, (y1 + y2) / 2)) {
               registerBoardAnchor(boardLayoutRef.current, {
                 x: Math.min(x1, x2),
@@ -1098,6 +1399,37 @@ export default function TutorSessionPage() {
                 height: Math.abs(y2 - y1) || 20,
                 text: undefined,
               });
+            }
+          }
+          break;
+        }
+        case "DIMENSION": {
+          const [x1, y1, x2, y2, offset] = command.params;
+          if ([x1, y1, x2, y2, offset].every(Number.isFinite)) {
+            markFbdDiagramStart(x1, y1);
+            const { path, labelCenterX, labelY } = dimensionPath(x1, y1, x2, y2, offset);
+            const { flightMs, drawMs } = speechSplit(command);
+            const barStartX = x1 + (-(y2 - y1) / (Math.hypot(x2 - x1, y2 - y1) || 1)) * offset;
+            const barStartY = y1 + ((x2 - x1) / (Math.hypot(x2 - x1, y2 - y1) || 1)) * offset;
+            await wb.flyCursorTo(barStartX, barStartY, flightMs);
+            if (cancelRef.current) return;
+            // Thin, dotted measurement bar — a light guide, never a boxed bracket.
+            await wb.drawShape(path, drawMs, { dashed: true, strokeWidth: 1.4 });
+            if (command.text) {
+              const labelDrawMs = scaledDuration(Math.min(Math.max(command.text.length * 38, 420), 1200));
+              const labelX = labelCenterX - measureTextWidth(command.text) / 2;
+              await wb.flyCursorTo(labelX, labelY, 80, -35);
+              if (cancelRef.current) return;
+              await wb.writeText(command.text, labelX, labelY, labelDrawMs);
+              if (isInDiagramZone(labelX, labelY)) {
+                registerBoardAnchor(boardLayoutRef.current, {
+                  x: labelX,
+                  y: labelY,
+                  width: Math.max(measureTextWidth(command.text), 24),
+                  height: 28,
+                  text: command.text,
+                });
+              }
             }
           }
           break;
@@ -1147,7 +1479,7 @@ export default function TutorSessionPage() {
         case "PAUSE": {
           const pauseMs =
             speechDurationMs !== undefined
-              ? Math.max(Math.round(speechDurationMs / speedRef.current), 50)
+              ? Math.max(Math.round(speechDurationMs), 50)
               : scaledDuration(command.params[0] ?? 500);
           await cancellableDelay(pauseMs);
           break;
@@ -1159,8 +1491,26 @@ export default function TutorSessionPage() {
           break;
         }
         case "ERASE": {
-          const [x, y, w, h] = command.params;
+          const [x, y, rawW, h] = command.params;
+          let w = rawW;
           if ([x, y, w, h].every(Number.isFinite)) {
+            // A work-area erase that overreaches into the diagram zone would
+            // wipe a diagram the lesson still needs. Clip it to the left
+            // column; only rects that start inside the zone may erase it.
+            if (
+              fbdPhaseStartedRef.current &&
+              x < DIAGRAM_ZONE.x &&
+              x + w > DIAGRAM_ZONE.x &&
+              y < DIAGRAM_ZONE.y + DIAGRAM_ZONE.height &&
+              y + h > DIAGRAM_ZONE.y
+            ) {
+              const clippedW = Math.max(DIAGRAM_ZONE.x - x - 10, 40);
+              tutorDebug("draw", "erase clipped to preserve diagram", {
+                requested: [x, y, w, h],
+                clipped_width: clippedW,
+              });
+              w = clippedW;
+            }
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(x, y, flightMs);
             if (cancelRef.current) return;
@@ -1226,18 +1576,22 @@ export default function TutorSessionPage() {
           } else if (command.type === "CIRCLE_AROUND" && params.length >= 4) {
             const [x, y, w, h] = params;
             if ([x, y, w, h].every(Number.isFinite)) {
-              const emphasisRect =
-                snapped && rect
-                  ? rect
-                  : { x, y, width: w, height: h };
-              if (isInDiagramZone(emphasisRect.x, emphasisRect.y)) {
-                wb.punchDiagramLineGapsInRect(emphasisRect, 10);
-              }
               await wb.flyCursorTo(x + w / 2, y, flightMs);
               if (cancelRef.current) return;
               await wb.drawAnnotation(
                 annotationKind,
                 emphasisEllipsePath(x, y, w, h),
+                drawMs,
+              );
+            }
+          } else if (command.type === "ARROW" && params.length >= 6) {
+            const [x1, y1, cx, cy, x2, y2] = params;
+            if ([x1, y1, cx, cy, x2, y2].every(Number.isFinite)) {
+              await wb.flyCursorTo(x1, y1, flightMs);
+              if (cancelRef.current) return;
+              await wb.drawAnnotation(
+                annotationKind,
+                curvedArrowPath(x1, y1, cx, cy, x2, y2),
                 drawMs,
               );
             }
@@ -1295,6 +1649,8 @@ export default function TutorSessionPage() {
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
         segmentNarration?: string;
+        skipTemplateDuplicateCheck?: boolean;
+        skipGeometrySnap?: boolean;
       } = {},
     ): Promise<void> => {
       await raceWithCancel(executeCommand(command, options));
@@ -1320,6 +1676,10 @@ export default function TutorSessionPage() {
 
       storedTurnsRef.current = detail.turns;
       setStoredTurnsCount(detail.turns.length);
+      // Reset the input overlay state for the restored board: a board with no
+      // turns shows the Accelute landing (inputInteracted=false), while a board
+      // with prior turns shows the doubt InputBar (inputInteracted=true).
+      setInputInteracted(detail.turns.length > 0);
       conversationHistoryRef.current = detail.turns.map((turn) => ({
         user: turn.question,
         assistant: lessonNarrationText(turn.rawResponse),
@@ -1332,6 +1692,8 @@ export default function TutorSessionPage() {
 
       whiteboardRef.current?.clearBoard();
       resetBoardLayout(false, false);
+      notesEpochsRef.current = [];
+      narrationSinceEpochRef.current = "";
       setNarrationText(lastNarration);
       setCurrentSegmentText("");
 
@@ -1377,11 +1739,8 @@ export default function TutorSessionPage() {
     whiteboardRef.current?.setPaused(false);
     ttsClientRef.current?.stop();
     setPhase("idle");
-    setShowThinkingOverlay(false);
-    setPlanningLesson(false);
     setCurrentSegmentText("");
     setInputInteracted(true);
-    activeDiagramTemplateRef.current = null;
   }, []);
 
   const applyTurnPhase = useCallback((next: TutorPhase) => {
@@ -1396,8 +1755,9 @@ export default function TutorSessionPage() {
       index: number,
       allSegments: TutorSegment[],
     ): Promise<void> => {
-      const tts = ttsClientRef.current;
-      if (!tts || cancelRef.current) return;
+      if (cancelRef.current) return;
+
+      const tts = ensureTTSClient();
 
       tutorDebug("segment", "runSegment start", {
         index,
@@ -1434,6 +1794,10 @@ export default function TutorSessionPage() {
         (sum, cmd) => sum + getCommandDrawDurationMs(cmd),
         0,
       );
+      const multiShapeSegment =
+        segmentCommands.filter((cmd) =>
+          ["DRAW_CIRCLE", "DRAW_LINE", "DRAW_RECT", "DRAW_CUBE", "DRAW_CUBOID"].includes(cmd.type),
+        ).length > 1;
 
       const hasNarration = narration.length > 0;
       const hasCommand = segmentCommands.length > 0;
@@ -1481,24 +1845,42 @@ export default function TutorSessionPage() {
         }
       };
 
-      // The ground-truth audio clock: position (ms) within the currently speaking segment,
+      const waitForAudioStart = async (): Promise<void> => {
+        if (audioStartedFlag || !hasNarration) {
+          return;
+        }
+
+        await Promise.race([
+          raceWithCancel(audioStartedPromise),
+          cancellableDelay(8_000),
+        ]);
+
+        if (!audioStartedFlag && !cancelRef.current) {
+          tutorDebug("tts", "audio start timeout — proceeding with estimated write sync", {
+            index,
+          });
+          markSpeechComplete();
+          if (audioStartedAtMs === null) {
+            audioStartedAtMs = performance.now();
+          }
+        }
+      };
+
+      // The ground-truth audio clock:
       // measured from when its audio actually became audible. The Web Audio client schedules
       // playback ~150ms ahead and pauses freeze it, so this is far more accurate than
       // performance.now() at onStart. Monotonic + guarded so the prefetch pipeline flipping
       // to the next job at segment end can't make the clock jump backward and stall a gate.
       let maxAudioPositionMs = -Infinity;
       const wallClockMs = (): number =>
-        audioStartedAtMs === null
-          ? 0
-          : (performance.now() - audioStartedAtMs) * speedRef.current;
+        audioStartedAtMs === null ? 0 : performance.now() - audioStartedAtMs;
       const liveAudioPositionMs = (): number => {
-        const durationMs =
-          capturedDurationMs ??
-          (capturedTimings?.totalDuration
-            ? Math.round(capturedTimings.totalDuration * 1000)
-            : null);
-
-        if (speechComplete && durationMs !== null && durationMs > 0) {
+        if (speechComplete) {
+          const durationMs =
+            capturedDurationMs ??
+            (capturedTimings?.totalDuration
+              ? Math.round(capturedTimings.totalDuration * 1000)
+              : estimateSpeechMs);
           const endPosition = durationMs + 40;
           maxAudioPositionMs = Math.max(maxAudioPositionMs, endPosition);
           return endPosition;
@@ -1550,8 +1932,20 @@ export default function TutorSessionPage() {
         const drawName = `draw-${index}`;
         const drawSpan = tel?.span(drawName, segmentName);
         const drawStart = performance.now();
+        const templateDrawOptions = {
+          skipTemplateDuplicateCheck: segment.templateIntro === true,
+          skipGeometrySnap: segment.templateIntro === true,
+        };
 
         try {
+          if (hasNarration && multiShapeSegment) {
+            await waitForAudioStart();
+            if (cancelRef.current) {
+              return;
+            }
+          }
+
+          let textCommandIndex = 0;
           for (const command of segmentCommands) {
             if (cancelRef.current) {
               return;
@@ -1561,7 +1955,7 @@ export default function TutorSessionPage() {
 
             if (isTextCommand && hasNarration && !audioStartedFlag) {
               const audioWaitStart = performance.now();
-              await raceWithCancel(audioStartedPromise);
+              await waitForAudioStart();
               if (cancelRef.current) return;
               await waitForInitialTimings(40);
               if (cancelRef.current) return;
@@ -1588,11 +1982,11 @@ export default function TutorSessionPage() {
                 : totalSpeechMs);
             const timedSchedule =
               isTextCommand && hasNarration && capturedTimings && timingValidation?.valid
-                ? getWriteCharScheduleMs(narration, command, capturedTimings)
+                ? getWriteCharScheduleMs(narration, command, capturedTimings, textCommandIndex)
                 : null;
             const estimatedSchedule =
               isTextCommand && hasNarration
-                ? getEstimatedWriteCharScheduleMs(narration, command)
+                ? getEstimatedWriteCharScheduleMs(narration, command, textCommandIndex)
                 : null;
             const usableTimedSchedule =
               timedSchedule && isWriteScheduleUsable(timedSchedule, narration, segmentDurationMs)
@@ -1603,6 +1997,23 @@ export default function TutorSessionPage() {
             if (writeSchedule && writeSchedule.offsetsMs.length > 0) {
               const audioPosAtScheduleMs = Math.round(liveAudioPositionMs());
               const firstOffsetMs = writeSchedule.offsetsMs[0] ?? 0;
+
+              // When using an estimated schedule (no real TTS timings), the
+              // offsets are theoretical positions within the narration. If the
+              // audio has already advanced past the first offset, shift all
+              // offsets forward so writing starts from the current audio
+              // position instead of dumping chars that are already "past".
+              let effectiveOffsets = writeSchedule.offsetsMs;
+              if (
+                writeSchedule.source === "estimated" &&
+                audioPosAtScheduleMs > firstOffsetMs + 200
+              ) {
+                const shift = audioPosAtScheduleMs - firstOffsetMs;
+                effectiveOffsets = writeSchedule.offsetsMs.map(
+                  (offset) => Math.max(offset + shift, 0),
+                );
+              }
+
               const scheduleMetadata = {
                 segment_index: index,
                 text: command.text?.slice(0, 60),
@@ -1629,7 +2040,7 @@ export default function TutorSessionPage() {
               await executeCommandWithCancel(command, {
                 segmentNarration: narration,
                 writeSchedule: {
-                  charStartOffsetsMs: writeSchedule.offsetsMs,
+                  charStartOffsetsMs: effectiveOffsets,
                   charDurationsMs: writeSchedule.charDurationsMs,
                   getAudioPositionMs: liveAudioPositionMs,
                   onCharacterStart: ({ char, index: charIndex, targetMs, audioPositionMs }) => {
@@ -1649,6 +2060,7 @@ export default function TutorSessionPage() {
                     tel?.mark("write-char-start", charMetadata);
                   },
                 },
+                ...templateDrawOptions,
               });
               continue;
             }
@@ -1675,6 +2087,7 @@ export default function TutorSessionPage() {
               await executeCommandWithCancel(command, {
                 segmentNarration: narration,
                 speechDurationMs: revealMs,
+                ...templateDrawOptions,
               });
               continue;
             }
@@ -1687,7 +2100,7 @@ export default function TutorSessionPage() {
                 : Math.max(Math.round(totalSpeechMs / segmentCommands.length), 50);
             const speechWindow =
               hasNarration && (capturedTimings ?? audioTimings)
-                ? getCommandSpeechWindow(narration, command, capturedTimings ?? audioTimings)
+                ? getCommandSpeechWindow(narration, command, capturedTimings ?? audioTimings, textCommandIndex)
                 : null;
             const startDelayMs = speechWindow
               ? Math.max(Math.round(speechWindow.startMs - elapsedAtCommandStart), 0)
@@ -1705,13 +2118,18 @@ export default function TutorSessionPage() {
                 ? (speechWindow?.durationMs ?? naturalDrawMs)
                 : command.type === "PAUSE"
                   ? commandSpeechMs
-                  : (FIXED_SHAPE_DRAW_MS[command.type] ??
-                    Math.min(speechWindow?.durationMs ?? commandSpeechMs, naturalDrawMs));
+                  : !multiShapeSegment && FIXED_SHAPE_DRAW_MS[command.type]
+                    ? FIXED_SHAPE_DRAW_MS[command.type]
+                    : Math.max(speechWindow?.durationMs ?? commandSpeechMs, 50);
 
             await executeCommandWithCancel(command, {
               segmentNarration: narration,
               speechDurationMs: commandBudgetMs,
+              ...templateDrawOptions,
             });
+            if (isTextCommand) {
+              textCommandIndex++;
+            }
           }
         } finally {
           const drawMs = Math.round(performance.now() - drawStart);
@@ -1767,39 +2185,38 @@ export default function TutorSessionPage() {
           capturedAudio = audio.bytes;
         },
         onTimings: captureTimings,
-        onEnd: () => {
-          markSpeechComplete();
-        },
+        onEnd: markSpeechComplete,
         onError: () => {
           markSpeechComplete();
         },
       };
 
-      const speakSegmentWithTimeout = (
+      const speakSegmentWithTimeout = async (
         text: string,
-        options: Parameters<typeof tts.speakSegment>[1],
+        options: Parameters<TTSClient["speakSegment"]>[1] = {},
       ): Promise<void> => {
         const timeoutMs = Math.min(Math.max(text.length * 250, 45_000), 180_000);
-        return raceWithCancel(
-          Promise.race([
-            tts.speakSegment(text, options),
-            new Promise<never>((_, reject) => {
-              window.setTimeout(
-                () => reject(new Error(`tts segment timeout after ${timeoutMs}ms`)),
-                timeoutMs,
-              );
-            }),
-          ]),
-        )
-          .catch((error) => {
-            tutorDebug("tts", "segment speech failed", {
-              index,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          })
-          .finally(() => {
-            markSpeechComplete();
+
+        try {
+          await raceWithCancel(
+            Promise.race([
+              tts.speakSegment(text, options),
+              new Promise<never>((_, reject) => {
+                window.setTimeout(
+                  () => reject(new Error(`tts segment timeout after ${timeoutMs}ms`)),
+                  timeoutMs,
+                );
+              }),
+            ]),
+          );
+        } catch (error) {
+          tutorDebug("tts", "segment speech failed", {
+            index,
+            error: error instanceof Error ? error.message : String(error),
           });
+        } finally {
+          markSpeechComplete();
+        }
       };
 
       try {
@@ -1869,12 +2286,16 @@ export default function TutorSessionPage() {
             durationMs: capturedDurationMs,
             timings: capturedTimings,
           });
+          if (segment.narration.trim()) {
+            narrationSinceEpochRef.current +=
+              (narrationSinceEpochRef.current ? " " : "") + segment.narration.trim();
+          }
         }
         tutorDebug("segment", "runSegment end", { index, ...segmentMetadata });
         segmentSpan?.end(segmentMetadata);
       }
     },
-    [sessionId, cancellableDelay, executeCommandWithCancel, raceWithCancel, applyTurnPhase],
+    [sessionId, cancellableDelay, ensureTTSClient, executeCommandWithCancel, raceWithCancel, applyTurnPhase],
   );
 
   const enqueueSegment = useCallback(
@@ -1909,7 +2330,7 @@ export default function TutorSessionPage() {
   );
 
   const processResponseText = useCallback(
-    async (responseText: string) => {
+    async (responseText: string, introSegments: TutorSegment[] = [], liveEnqueued = false) => {
       const parsed = parseDrawingCommands(responseText);
 
       if (parsed.commands.length === 0 && !parsed.narration.trim() && !/\[STEP\]/i.test(responseText)) {
@@ -1919,35 +2340,74 @@ export default function TutorSessionPage() {
         return;
       }
 
-      const segments = buildLessonSegments(responseText);
+      const activeTemplate = activeDiagramTemplateRef.current;
+      const rawLlmSegments = buildLessonSegments(responseText);
+      const preparedLlmSegments = prepareTemplateLessonSegments(rawLlmSegments, activeTemplate);
+      const llmSegments = preparedLlmSegments.segments;
+      const segments = [...introSegments, ...llmSegments];
+
+      segmentPlanStatsRef.current = {
+        activeTemplateId: activeTemplate?.id ?? null,
+        activeTemplateName: activeTemplate?.name ?? null,
+        plannedSegmentCount: segments.length,
+        introSegmentCount: introSegments.length,
+        llmSegmentCount: llmSegments.length,
+        blockedTemplateDrawCommands: preparedLlmSegments.blockedCommandCount,
+        droppedTemplateRedrawSegments: preparedLlmSegments.droppedSegmentCount,
+      };
+
+      turnTelemetryRef.current?.mark("diagram-plan", {
+        active_template_id: activeTemplate?.id ?? null,
+        active_template_name: activeTemplate?.name ?? null,
+        planned_segment_count: segments.length,
+        intro_segment_count: introSegments.length,
+        raw_llm_segment_count: rawLlmSegments.length,
+        llm_segment_count: llmSegments.length,
+        blocked_template_draw_commands: preparedLlmSegments.blockedCommandCount,
+        dropped_template_redraw_segments: preparedLlmSegments.droppedSegmentCount,
+        segments: summarizeSegmentsForTrace(segments),
+      });
 
       tutorDebug("turn", "lesson segments built", {
         segment_count: segments.length,
+        intro_segment_count: introSegments.length,
+        raw_llm_segment_count: rawLlmSegments.length,
+        blocked_template_draw_commands: preparedLlmSegments.blockedCommandCount,
+        dropped_template_redraw_segments: preparedLlmSegments.droppedSegmentCount,
         structured: /\[STEP\]/i.test(responseText),
+        live_enqueued: liveEnqueued,
       });
+
+      if (liveEnqueued) {
+        await segmentChainRef.current;
+        setNarrationText(
+          [
+            ...introSegments.map((segment) => segment.narration).filter(Boolean),
+            lessonNarrationText(responseText),
+          ].join(" "),
+        );
+        return;
+      }
 
       if (segments.length === 0) {
         return;
       }
 
-      const alreadyQueued = collectedSegmentsRef.current.length;
+      collectedSegmentsRef.current = [];
+      recordedSegmentsRef.current = [];
+      segmentChainRef.current = Promise.resolve();
 
-      if (alreadyQueued > 0) {
-        for (let i = alreadyQueued; i < segments.length; i++) {
-          enqueueSegment(segments[i]);
-        }
-      } else {
-        collectedSegmentsRef.current = [];
-        recordedSegmentsRef.current = [];
-        segmentChainRef.current = Promise.resolve();
-
-        for (const segment of segments) {
-          enqueueSegment(segment);
-        }
+      for (const segment of segments) {
+        enqueueSegment(segment);
       }
 
       await segmentChainRef.current;
-      setNarrationText(lessonNarrationText(responseText));
+      setNarrationText(
+        [
+          ...introSegments.map((segment) => segment.narration).filter(Boolean),
+          lessonNarrationText(responseText),
+        ].join(" "),
+      );
     },
     [enqueueSegment],
   );
@@ -1976,6 +2436,10 @@ export default function TutorSessionPage() {
     stopReplayAudio(replayAudioRef.current);
     replayAudioRef.current = null;
     replayCueRef.current = null;
+    for (const preloaded of replayAudioPreloadRef.current.values()) {
+      stopReplayAudio(preloaded);
+    }
+    replayAudioPreloadRef.current.clear();
     replayGenerationRef.current += 1;
     ttsClientRef.current?.stop();
     whiteboardRef.current?.cancelAnimations();
@@ -2061,7 +2525,12 @@ export default function TutorSessionPage() {
         setInputInteracted(true);
         return;
       }
-      if (phase !== "idle") return;
+      if (phase !== "idle") {
+        // Drop the pending question instead of looping forever — a turn is
+        // already running, so retrying every tick would spin harmlessly.
+        pendingQuestionRef.current = null;
+        return;
+      }
 
       pendingQuestionRef.current = null;
 
@@ -2075,6 +2544,7 @@ export default function TutorSessionPage() {
       setIsPaused(false);
       setIsReplaying(false);
       setTranscriptOpen(false);
+      setLastError(null);
       turnActiveRef.current = true;
       const abortController = new AbortController();
 
@@ -2116,25 +2586,20 @@ export default function TutorSessionPage() {
       currentTraceIdRef.current = null;
       segmentChainRef.current = Promise.resolve();
       turnStatsRef.current = { drawMs: 0, ttsChars: 0 };
+      segmentPlanStatsRef.current = createEmptySegmentPlanStats();
       revokeReplayBlobUrls();
-      resetBoardLayout(false, false);
       fbdPhaseMarkedRef.current = false;
       fbdPhaseStartedRef.current = false;
-      setShowThinkingOverlay(true);
-      setPlanningLesson(false);
+      activeDiagramTemplateRef.current = matchDiagramTemplate(question);
+      resetBoardLayout(false, activeDiagramTemplateRef.current !== null);
 
-      const diagramTemplate = matchDiagramTemplate(question);
-      const lessonPlan = planLesson(question, diagramTemplate);
-      templateAnchorsRef.current = diagramTemplate?.anchors ?? [];
-      activeDiagramTemplateRef.current = diagramTemplate;
-      const turnSystemPrompt = buildTurnSystemPrompt(lessonPlan.promptAddon);
-      const continuationSystemPrompt = buildContinuationPrompt(lessonPlan.promptAddon);
-
-      tutorDebug("turn", "lesson plan", {
-        template_id: diagramTemplate?.id ?? null,
-        matched_topics: lessonPlan.matchedTopicTitles,
-        prompt_addon_chars: lessonPlan.promptAddon.length,
-      });
+      const runtimePromptAddon = activeDiagramTemplateRef.current?.promptAddon ?? "";
+      const turnSystemPrompt = runtimePromptAddon
+        ? `${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n${runtimePromptAddon}`
+        : TUTOR_SYSTEM_PROMPT;
+      const turnContinuationPrompt = runtimePromptAddon
+        ? `${TUTOR_CONTINUATION_PROMPT}\n\n--- diagram reminder ---\n${runtimePromptAddon}`
+        : TUTOR_CONTINUATION_PROMPT;
 
       const tel = createTurnTelemetry();
       turnTelemetryRef.current = tel;
@@ -2162,7 +2627,7 @@ export default function TutorSessionPage() {
         wsSpan.end(metadata);
       };
 
-      void ttsClientRef.current?.prewarm({
+      void ensureTTSClient().prewarm({
         onConnect: ({ ms, ok }) => {
           endWsConnect({
             latency_ms: Math.round(ms),
@@ -2171,35 +2636,48 @@ export default function TutorSessionPage() {
         },
       });
 
-      try {
-        if (diagramTemplate) {
-          tutorDebug("turn", "drawing diagram template skeleton", { id: diagramTemplate.id });
-          for (const tcmd of getTemplateSkeletonCommands(diagramTemplate)) {
-            if (cancelRef.current) {
-              break;
-            }
-            await executeCommandWithCancel(repairDiagramCommand(templateToDrawCommand(tcmd)), {
-              applyLayout: false,
-              durationScale: 0.45,
-            });
-          }
+      const activeTemplate = activeDiagramTemplateRef.current;
+      const introSegments = activeTemplate ? buildTemplateIntroSegments(activeTemplate, question) : [];
+      if (activeTemplate) {
+        fbdPhaseStartedRef.current = true;
+        for (const anchor of activeTemplate.anchors) {
+          registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
         }
+        turnTelemetryRef.current?.mark("template-intro-queued", {
+          template_id: activeTemplate.id,
+          template_name: activeTemplate.name,
+          intro_segment_count: introSegments.length,
+          command_count: activeTemplate.commands.length,
+          commands: activeTemplate.commands.map((command) => ({
+            type: command.type,
+            params: command.params,
+            ...(command.text ? { text: command.text } : {}),
+          })),
+        });
+        tutorDebug("draw", "queued template intro segments", {
+          template: activeTemplate.id,
+          segment_count: introSegments.length,
+        });
+      }
 
-        let stepStreamBuffer = "";
+      if (STREAM_SEGMENTS_LIVE) {
+        for (const segment of introSegments) {
+          enqueueSegment(segment);
+        }
+      }
 
-        const enqueueStepBlock = (block: string) => {
-          for (const segment of buildLessonSegments(block)) {
-            enqueueSegment(segment);
-          }
-        };
-
+      try {
         const parser = new IncrementalTagParser({
           onSegmentReady: (segment) => {
-            tutorDebug("parser", "segment ready from stream", {
-              narration_preview: segment.narration.slice(0, 80),
-              command_type: segment.command?.type ?? null,
-              deferred: stepStreamBuffer.length > 0 || /\[STEP\]/i.test(fullResponse),
-            });
+            if (STREAM_SEGMENTS_LIVE) {
+              enqueueSegment(segment);
+            } else {
+              tutorDebug("parser", "segment ready from stream", {
+                narration_preview: segment.narration.slice(0, 80),
+                command_type: segment.command?.type ?? null,
+                deferred: true,
+              });
+            }
           },
         });
 
@@ -2209,13 +2687,14 @@ export default function TutorSessionPage() {
         let lastStreamStats: Awaited<ReturnType<typeof streamLLMResponse>>["streamStats"];
         let traceId: string | null = null;
         let continueCount = 0;
+        let previousChunk = "";
 
         while (continueCount <= MAX_LLM_CONTINUATIONS) {
           const isContinuation = continueCount > 0;
           const streamResult = await streamLLMResponse(
             {
               systemPrompt: isContinuation
-                ? continuationSystemPrompt
+                ? turnContinuationPrompt
                 : turnSystemPrompt,
               userPrompt: isContinuation ? "continue" : question,
               conversationHistory: isContinuation
@@ -2237,12 +2716,6 @@ export default function TutorSessionPage() {
             },
             (delta) => {
               endThinking({ phase: "first_token", delta_chars: delta.length });
-              setShowThinkingOverlay(false);
-              setPlanningLesson(true);
-              stepStreamBuffer = drainCompleteStepBlocks(
-                stepStreamBuffer + delta,
-                enqueueStepBlock,
-              );
               if (delta.includes("[")) {
                 tutorDebug("parser", "draw tag delta", {
                   delta_chars: delta.length,
@@ -2264,12 +2737,14 @@ export default function TutorSessionPage() {
           if (
             !isTeachingResponseIncomplete(
               streamResult.text,
-              streamResult.streamStats?.contentChars,
+              fullResponse,
+              previousChunk,
             )
           ) {
             break;
           }
 
+          previousChunk = streamResult.text;
           continueCount += 1;
           if (continueCount > MAX_LLM_CONTINUATIONS) {
             break;
@@ -2307,7 +2782,6 @@ export default function TutorSessionPage() {
         }
 
         parser.flush();
-        stepStreamBuffer = drainCompleteStepBlocks(stepStreamBuffer, enqueueStepBlock);
 
         const responseText = rawResponse.trim();
         rawResponseRef.current = responseText;
@@ -2315,7 +2789,7 @@ export default function TutorSessionPage() {
         if (responseText.length === 0) {
           const reasoningOnly = (streamStats?.reasoningChars ?? 0) > 0;
           const message = reasoningOnly
-            ? "the model returned reasoning only with no teaching output. try asking again."
+            ? "the ai couldn't generate a response — try rephrasing"
             : "the ai returned an empty response. try asking again.";
           tutorDebug("turn", "empty response", {
             reasoning_chars: streamStats?.reasoningChars ?? 0,
@@ -2323,11 +2797,14 @@ export default function TutorSessionPage() {
           });
           setNarrationText(message);
           setCurrentSegmentText(message);
+          setLastError({ message, question });
           return;
         }
 
         tutorDebug("turn", "planning lesson from full response");
-        await processResponseText(responseText);
+        applyTurnPhase("speaking");
+
+        await processResponseText(responseText, introSegments, STREAM_SEGMENTS_LIVE);
 
         const finalNarration =
           responseText.length > 0 ? lessonNarrationText(responseText) : narrationText;
@@ -2395,9 +2872,17 @@ export default function TutorSessionPage() {
         }
 
         console.error("Tutor error:", error);
-        const message = "something went wrong. try asking again.";
+        let message = "something went wrong. try asking again.";
+        if (error instanceof TypeError && /fetch|network|failed to fetch/i.test(error.message)) {
+          message = "network error — check your connection";
+        } else if (error instanceof Error && /tts|audio|elevenlabs|speech/i.test(error.message)) {
+          message = "audio generation failed — the lesson continues without voice";
+        } else if (error instanceof Error && /timeout|aborted|abort/i.test(error.message)) {
+          message = "the request took too long. try asking again.";
+        }
         setNarrationText(message);
         setCurrentSegmentText(message);
+        setLastError({ message, question });
         endThinking({ phase: "error" });
       } finally {
         turnAbortRef.current = null;
@@ -2411,6 +2896,15 @@ export default function TutorSessionPage() {
           segment_count: collectedSegmentsRef.current.length,
           total_draw_ms: turnStatsRef.current.drawMs,
           total_tts_chars: turnStatsRef.current.ttsChars,
+          diagram_template_id: segmentPlanStatsRef.current.activeTemplateId,
+          diagram_template_name: segmentPlanStatsRef.current.activeTemplateName,
+          diagram_planned_segment_count: segmentPlanStatsRef.current.plannedSegmentCount,
+          diagram_intro_segment_count: segmentPlanStatsRef.current.introSegmentCount,
+          diagram_llm_segment_count: segmentPlanStatsRef.current.llmSegmentCount,
+          diagram_blocked_template_draw_commands:
+            segmentPlanStatsRef.current.blockedTemplateDrawCommands,
+          diagram_dropped_template_redraw_segments:
+            segmentPlanStatsRef.current.droppedTemplateRedrawSegments,
           question_preview: question.slice(0, 120),
           cancelled: turnCancelled,
         });
@@ -2429,27 +2923,40 @@ export default function TutorSessionPage() {
         void telToFlush?.flush();
       }
     },
-    [sessionId, boards, narrationText, phase, processResponseText, resetBoardLayout, boardLoaded, persistTurnForReplay, registerReplayBlobUrl, revokeReplayBlobUrls, finishLectureUi, enqueueSegment, executeCommandWithCancel],
+    [sessionId, boards, narrationText, phase, processResponseText, enqueueSegment, resetBoardLayout, boardLoaded, persistTurnForReplay, registerReplayBlobUrl, revokeReplayBlobUrls, finishLectureUi, ensureTTSClient, applyTurnPhase],
   );
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      const pending = pendingQuestionRef.current;
-      if (!pending || !boardLoaded || !whiteboardRef.current) return;
-      void handleQuestion(pending);
-    }, 200);
-    return () => window.clearInterval(interval);
-  }, [boardLoaded, handleQuestion]);
-
+  // Auto-submit a deep-linked question (?q=...) once the board and whiteboard
+  // are ready. Replaces the old 200ms polling loop, which spun forever when a
+  // turn was already running. Reads the query param once, then fires the turn
+  // as soon as the board is loaded and the whiteboard ref is attached.
   useEffect(() => {
     if (!boardLoaded || autoSubmitDoneRef.current) return;
     const q = searchParams.get("q");
     if (!q || q.trim().length === 0) return;
     autoSubmitDoneRef.current = true;
     window.history.replaceState(null, "", window.location.pathname);
-    pendingQuestionRef.current = q.trim();
+    const question = q.trim();
+    pendingQuestionRef.current = question;
     queueMicrotask(() => setInputInteracted(true));
-  }, [boardLoaded, searchParams]);
+
+    let cancelled = false;
+    const fire = () => {
+      if (cancelled || cancelRef.current) return;
+      if (phaseRef.current !== "idle") return;
+      if (!whiteboardRef.current) {
+        // Whiteboard (dynamic import) hasn't mounted yet — retry on the next
+        // animation frame instead of spinning an interval.
+        window.requestAnimationFrame(fire);
+        return;
+      }
+      void handleQuestion(question);
+    };
+    fire();
+    return () => {
+      cancelled = true;
+    };
+  }, [boardLoaded, searchParams, handleQuestion]);
 
   const handleAskDoubt = useCallback(
     (question: string) => {
@@ -2481,6 +2988,7 @@ export default function TutorSessionPage() {
         segment.durationMs ??
         Math.max(narration.length * 85, 700);
 
+      let textCommandIndex = 0;
       for (const command of segmentCommands) {
         if (cancelRef.current) {
           return;
@@ -2489,7 +2997,7 @@ export default function TutorSessionPage() {
         const isTextCommand = command.type === "WRITE" || command.type === "LABEL";
         const charSchedule =
           isTextCommand && narration && segment.timings
-            ? getWriteCharScheduleMs(narration, command, segment.timings)
+            ? getWriteCharScheduleMs(narration, command, segment.timings, textCommandIndex)
             : null;
 
         if (charSchedule && charSchedule.offsetsMs.length > 0 && audio) {
@@ -2506,7 +3014,7 @@ export default function TutorSessionPage() {
 
         const speechWindow =
           narration && segment.timings
-            ? getCommandSpeechWindow(narration, command, segment.timings)
+            ? getCommandSpeechWindow(narration, command, segment.timings, textCommandIndex)
             : {
                 startMs: 0,
                 durationMs,
@@ -2527,13 +3035,16 @@ export default function TutorSessionPage() {
         const commandWeight = getCommandDrawDurationMs(command);
         const commandBudgetMs =
           totalDrawWeight > 0
-            ? Math.max(Math.round(durationMs * (commandWeight / totalDrawWeight)), 50)
-            : Math.max(Math.round(speechWindow.durationMs), 50);
+            ? Math.max(Math.round((durationMs * (commandWeight / totalDrawWeight)) / playbackRate), 50)
+            : Math.max(Math.round(speechWindow.durationMs / playbackRate), 50);
 
         await executeCommandWithCancel(command, {
           applyLayout: false,
           speechDurationMs: commandBudgetMs,
         });
+        if (isTextCommand) {
+          textCommandIndex++;
+        }
       }
     },
     [cancellableDelay, executeCommandWithCancel],
@@ -2559,6 +3070,8 @@ export default function TutorSessionPage() {
       wb.clearBoard();
       resetBoardLayout(false, false);
 
+      // Render all completed commands instantly — no animation during seek.
+      // durationScale 0 makes the whiteboard jump to the final state.
       for (const cue of cues) {
         if (cue.startMs >= timeMs) {
           break;
@@ -2574,7 +3087,7 @@ export default function TutorSessionPage() {
             return;
           }
           await executeCommand(cue.commands[i]!, {
-            durationScale: 0.05,
+            durationScale: 0,
             applyLayout: false,
           });
         }
@@ -2589,6 +3102,7 @@ export default function TutorSessionPage() {
       offsetMs: number,
       generation: number,
       skipDraw: boolean,
+      nextCue?: ReplayCue,
     ) => {
       if (cancelRef.current || generation !== replayGenerationRef.current) {
         return;
@@ -2604,6 +3118,17 @@ export default function TutorSessionPage() {
         setCurrentSegmentText(cue.narration);
       }
 
+      // Preload the next segment's audio so there's no gap between cues.
+      if (nextCue?.audioUrl) {
+        const preloadKey = nextCue.audioUrl;
+        if (!replayAudioPreloadRef.current.has(preloadKey)) {
+          const preloaded = new Audio(nextCue.audioUrl);
+          preloaded.preload = "auto";
+          preloaded.playbackRate = speedRef.current;
+          replayAudioPreloadRef.current.set(preloadKey, preloaded);
+        }
+      }
+
       const fallbackDurationMs =
         cue.durationMsStored ?? Math.max(cue.narration.length * 85, 700);
       const remainingMs = Math.max(cue.durationMs - offsetMs, 0);
@@ -2611,6 +3136,12 @@ export default function TutorSessionPage() {
       try {
         if (cue.audioUrl) {
           setPhase("speaking");
+          // Reuse preloaded audio element if available — avoids re-fetching.
+          const preloaded = replayAudioPreloadRef.current.get(cue.audioUrl);
+          if (preloaded) {
+            replayAudioPreloadRef.current.delete(cue.audioUrl);
+          }
+
           const { audio, done } = playReplayAudio(cue.audioUrl, {
             playbackRate: speedRef.current,
             maxDurationMs: fallbackDurationMs,
@@ -2724,9 +3255,12 @@ export default function TutorSessionPage() {
           }
 
           const cue = timeline.cues[i]!;
+          const nextCue = timeline.cues[i + 1];
           const offsetMs = i === found.index ? found.offsetMs : 0;
-          const skipDraw = i === found.index && offsetMs > 0;
-          await playReplayCue(cue, offsetMs, generation, skipDraw);
+          // Don't skip draw on mid-segment seek — renderBoardAtTime already
+          // drew the completed portion instantly. Continue drawing the
+          // remaining commands in this cue alongside the audio.
+          await playReplayCue(cue, offsetMs, generation, false, nextCue);
         }
 
         const lastTurn =
@@ -2741,6 +3275,11 @@ export default function TutorSessionPage() {
         stopReplayAudio(replayAudioRef.current);
         replayAudioRef.current = null;
         replayCueRef.current = null;
+        // Clean up any preloaded audio elements.
+        for (const preloaded of replayAudioPreloadRef.current.values()) {
+          stopReplayAudio(preloaded);
+        }
+        replayAudioPreloadRef.current.clear();
         setIsReplaying(false);
         setReplayProgressMs(timeline.totalMs);
         finishLectureUi();
@@ -2761,6 +3300,39 @@ export default function TutorSessionPage() {
     }
     void playReplayFrom(0);
   }, [isReplaying, playReplayFrom]);
+
+  const downloadNotesPdf = useCallback(() => {
+    if (isDownloading || isReplaying) {
+      return;
+    }
+    const wb = whiteboardRef.current;
+    if (!wb) {
+      return;
+    }
+    setIsDownloading(true);
+    try {
+      const finalSnapshot = wb.captureSnapshot(2);
+      const epochs: NotesEpoch[] = [...notesEpochsRef.current];
+      if (finalSnapshot) {
+        epochs.push({
+          index: epochs.length,
+          snapshotDataUrl: finalSnapshot,
+          narrationText: narrationSinceEpochRef.current,
+          timestampMs: Date.now(),
+        });
+      }
+      if (epochs.length === 0) {
+        return;
+      }
+      const boardTitle = boards.find((b) => b.id === sessionId)?.title ?? "Lecture Notes";
+      exportNotesPdf({
+        title: boardTitle,
+        epochs,
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [boards, sessionId, isDownloading, isReplaying]);
 
   const seekReplay = useCallback(
     (timeMs: number) => {
@@ -2786,6 +3358,7 @@ export default function TutorSessionPage() {
   const handleReplaySpeedChange = useCallback((rate: number) => {
     speedRef.current = rate;
     setSettings((prev) => ({ ...prev, speedMultiplier: rate }));
+    ttsClientRef.current?.setPlaybackRate(rate);
     if (replayAudioRef.current) {
       replayAudioRef.current.playbackRate = rate;
     }
@@ -2797,6 +3370,9 @@ export default function TutorSessionPage() {
     }
 
     let frameId = 0;
+    const replayStartWallMs = performance.now();
+    const replayStartProgressMs = replayProgressMs;
+
     const tick = () => {
       const cue = replayCueRef.current;
       const audio = replayAudioRef.current;
@@ -2804,13 +3380,20 @@ export default function TutorSessionPage() {
         setReplayProgressMs(
           Math.min(cue.startMs + audio.currentTime * 1000, cue.endMs),
         );
+      } else if (cue) {
+        // No audio or audio not playing — advance from wall clock so
+        // draw-only and narration-only segments still move the progress bar.
+        const elapsed = (performance.now() - replayStartWallMs) * speedRef.current;
+        setReplayProgressMs(
+          Math.min(replayStartProgressMs + elapsed, cue.endMs),
+        );
       }
       frameId = window.requestAnimationFrame(tick);
     };
 
     frameId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frameId);
-  }, [isReplaying, isPaused]);
+  }, [isReplaying, isPaused, replayProgressMs]);
 
   const statusConfig: Record<
     TutorPhase,
@@ -2822,28 +3405,28 @@ export default function TutorSessionPage() {
     }
   > = {
     idle: {
-      color: "rgba(0,119,204,0.5)",
+      color: "rgba(101,146,135,0.5)",
       label: "ready",
       dotClass: "",
-      labelColor: "rgba(0,119,204,0.5)",
+      labelColor: "rgba(101,146,135,0.5)",
     },
     thinking: {
-      color: "#0099E5",
+      color: "#88BDA4",
       label: "thinking\u2026",
       dotClass: "animate-wb-pulse-amber",
-      labelColor: "#0099E5",
+      labelColor: "#88BDA4",
     },
     drawing: {
-      color: "#0077CC",
+      color: "#659287",
       label: "teaching\u2026",
       dotClass: "animate-wb-glow-blue",
-      labelColor: "#0077CC",
+      labelColor: "#659287",
     },
     speaking: {
-      color: "#0077CC",
+      color: "#659287",
       label: "teaching\u2026",
       dotClass: "animate-wb-glow-blue",
-      labelColor: "#0077CC",
+      labelColor: "#659287",
     },
   };
 
@@ -2856,53 +3439,83 @@ export default function TutorSessionPage() {
 
   const activeStatus = isReplaying
     ? {
-        color: "#0077CC",
+        color: "#659287",
         label: "replaying\u2026",
         dotClass: "animate-wb-glow-blue",
-        labelColor: "#0077CC",
+        labelColor: "#659287",
       }
     : isPaused
       ? pausedStatus
-      : phase === "thinking" && planningLesson
-        ? {
-            color: "#0099E5",
-            label: "planning lesson\u2026",
-            dotClass: "animate-wb-pulse-amber",
-            labelColor: "#0099E5",
-          }
-        : statusConfig[phase];
+      : statusConfig[phase];
 
   const activeBoard = boards.find((b) => b.id === sessionId);
   const activeBoardTitle = activeBoard?.title ?? "";
   const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying;
   const canTranscript = phase === "idle" && narrationText.trim().length > 0 && !isReplaying;
+  const canDownload = phase === "idle" && storedTurnsCount > 0 && !isReplaying;
   const isInputOverlay = phase === "idle" && !inputInteracted;
   const inputSubmitMode = storedTurnsCount > 0 ? "doubt" : "ask";
 
+  const settingsButton = (
+    <button
+      type="button"
+      aria-label="Settings"
+      onClick={() => setSettingsOpen(true)}
+      className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-lg transition-all hover:opacity-100"
+      style={{
+        border: "none",
+        background: "rgba(255,255,255,0.55)",
+        backdropFilter: "blur(4px)",
+        WebkitBackdropFilter: "blur(4px)",
+        cursor: "pointer",
+        color: settings.speedMultiplier > 1 ? "#659287" : "rgba(51,51,51,0.7)",
+        opacity: 0.85,
+      }}
+    >
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    </button>
+  );
+
   const inputChrome = (
     <div
-      className={`w-full ${isInputOverlay ? "max-w-full md:max-w-[720px]" : "max-w-3xl"}`}
-      style={{ margin: "0 auto" }}
+      className="flex w-full items-center gap-3"
+      style={{
+        maxWidth: isInputOverlay ? "720px" : "min(48rem, calc(100vw - 2rem))",
+        margin: "0 auto",
+      }}
     >
-      <InputBar
-        onSubmit={handleQuestion}
-        onAskDoubt={handleAskDoubt}
-        disabled={phase !== "idle"}
-        submitMode={inputSubmitMode}
-        isPaused={isPaused}
-        onPauseToggle={() => (isPaused ? resumeTurn() : pauseTurn())}
-        onCancel={stopTurn}
-        onUserInteractionChange={setInputInteracted}
-        compact={isMobile}
-      />
+      <div className="min-w-0 flex-1">
+        <InputBar
+          onSubmit={handleQuestion}
+          onAskDoubt={handleAskDoubt}
+          disabled={phase !== "idle"}
+          submitMode={inputSubmitMode}
+          isPaused={isPaused}
+          onPauseToggle={() => (isPaused ? resumeTurn() : pauseTurn())}
+          onCancel={stopTurn}
+          onUserInteractionChange={setInputInteracted}
+        />
+      </div>
     </div>
   );
 
   return (
     <div
-      className="relative flex h-dvh overflow-hidden"
+      className="relative flex h-screen overflow-hidden"
       style={{
-        background: "#EAEAEA",
+        background: "#659287",
       }}
     >
       <BoardHistory
@@ -2912,9 +3525,6 @@ export default function TutorSessionPage() {
         onNew={createNewBoard}
         onDelete={deleteBoard}
         disabled={phase !== "idle"}
-        variant={isMobile ? "drawer" : "sidebar"}
-        open={sidebarOpen}
-        onOpenChange={setSidebarOpen}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         profileOpen={profileOpen}
@@ -2922,88 +3532,93 @@ export default function TutorSessionPage() {
       />
 
       <div
-        className={cn(
-          "relative z-10 flex min-h-0 flex-1 flex-col px-3 transition-[margin-left] duration-[250ms] ease-[cubic-bezier(0.16,1,0.3,1)] md:px-7",
-          !sidebarCollapsed && "md:ml-[260px]",
-        )}
+        className="relative z-10 flex flex-1 flex-col min-h-0"
+        style={{
+          marginLeft: sidebarCollapsed ? 0 : SIDEBAR_WIDTH,
+          paddingLeft: PAGE_GUTTER_X,
+          paddingRight: PAGE_GUTTER_X,
+          transition: "margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
       >
-        <div className="flex shrink-0 items-center justify-end gap-1 px-1 py-2.5 pt-2.5 md:px-4 md:pb-1">
-          {isMobile && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            padding: "10px 16px 4px",
+            flexShrink: 0,
+          }}
+        >
+          {sidebarCollapsed && (
             <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open board history"
-              className="mr-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[rgba(0,119,204,0.1)] md:hidden"
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#0099E5"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect width="18" height="18" x="3" y="3" rx="2" />
-                <path d="M9 3v18" />
-              </svg>
-            </button>
-          )}
-          {!isMobile && sidebarCollapsed && (
-            <button
-              type="button"
               onClick={() => setSidebarCollapsed(false)}
-              aria-label="Open sidebar"
-              className="mr-auto hidden h-[30px] w-[30px] shrink-0 items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[rgba(0,119,204,0.1)] md:flex"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: "auto",
+                transition: "background 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.12)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+              }}
             >
               <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#0099E5"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+                  width="22"
+                  height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
                 <path d="M9 3v18" />
               </svg>
             </button>
           )}
-          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <LessonActions
               canReplay={canReplay}
               canTranscript={canTranscript}
+              canDownload={canDownload}
               isReplaying={isReplaying}
+              isDownloading={isDownloading}
               onReplay={replayLecture}
               onTranscript={() => setTranscriptOpen(true)}
-              compact={isMobile}
+              onDownload={downloadNotesPdf}
             />
             {(phase !== "idle" || isReplaying) && (
               <button
                 type="button"
                 onClick={stopTurn}
                 aria-label={isReplaying ? "Stop replay" : "Stop teaching"}
-                className="flex shrink-0 items-center justify-center rounded-full border border-[rgba(217,112,112,0.35)] bg-[rgba(217,112,112,0.12)] px-2.5 py-1 text-[0.7rem] text-[#9E4040] transition-colors hover:bg-[rgba(217,112,112,0.22)] sm:px-2.5"
+                style={{
+                  fontSize: "0.7rem",
+                  color: "#9E4040",
+                  background: "rgba(217, 112, 112, 0.12)",
+                  border: "1px solid rgba(217, 112, 112, 0.35)",
+                  borderRadius: 9999,
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                  transition: "background 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(217, 112, 112, 0.22)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(217, 112, 112, 0.12)";
+                }}
               >
-                <span className="hidden sm:inline">Stop</span>
-                <svg
-                  className="sm:hidden"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden
-                >
-                  <rect x="6" y="6" width="12" height="12" rx="1" />
-                </svg>
+                Stop
               </button>
             )}
             {(phase !== "idle" || isReplaying) && (
               <span
-                className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${activeStatus.dotClass}`}
+                className={`inline-block h-2.5 w-2.5 rounded-full ${activeStatus.dotClass}`}
                 style={{
                   backgroundColor: activeStatus.color,
                 }}
@@ -3011,8 +3626,8 @@ export default function TutorSessionPage() {
             )}
             {(phase !== "idle" || isReplaying) && (
               <span
-                className="hidden text-[0.7rem] sm:inline"
                 style={{
+                  fontSize: "0.7rem",
                   color: activeStatus.labelColor,
                   transition: "color 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
                 }}
@@ -3025,9 +3640,24 @@ export default function TutorSessionPage() {
 
         <main className="relative flex flex-1 flex-col min-h-0">
           {activeBoardTitle && activeBoardTitle !== "new board" && (
-            <div className="flex shrink-0 items-center justify-center px-3 py-1.5">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "6px 12px",
+                flexShrink: 0,
+              }}
+            >
               <span
-                className="select-none text-sm font-semibold capitalize tracking-wide text-[#0099E5] md:text-[1.05rem]"
+                style={{
+                  fontSize: "1.05rem",
+                  fontWeight: 600,
+                  color: "#659287",
+                  textTransform: "capitalize",
+                  letterSpacing: "0.01em",
+                  userSelect: "none",
+                }}
               >
                 {activeBoardTitle}
               </span>
@@ -3035,40 +3665,56 @@ export default function TutorSessionPage() {
           )}
 
           <div
-            className="relative mt-2 min-h-0 flex-1 overflow-hidden rounded-2xl md:mt-2.5"
+            className="relative min-h-0 flex-1 overflow-hidden rounded-2xl"
             style={{
               background: WHITEBOARD_COLOR,
-              boxShadow: "0 1px 4px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(0, 119, 204, 0.08)",
+              marginTop: PAGE_GUTTER_Y,
+              boxShadow: "0 1px 4px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(101, 146, 135, 0.08)",
             }}
           >
+            {settingsButton}
             {isInputOverlay && (
               <div
                 className="pointer-events-none absolute inset-0 z-10"
                 style={{
-                  backgroundColor: "rgba(234, 234, 234, 0.6)",
+                  backgroundColor: "rgba(230, 242, 221, 0.6)",
                   backdropFilter: "blur(8px)",
                   WebkitBackdropFilter: "blur(8px)",
                 }}
               />
             )}
 
-            {isInputOverlay && (
+            {isInputOverlay && storedTurnsCount === 0 && (
+              <div
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center px-4 overflow-y-auto"
+                style={{ pointerEvents: "none" }}
+              >
+                <div style={{ width: "100%", maxWidth: "720px", pointerEvents: "auto" }}>
+                  <CanvasLanding
+                    suggestions={LANDING_SUGGESTIONS}
+                    onSubmit={(question) => void handleQuestion(question)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {isInputOverlay && storedTurnsCount > 0 && (
               <div
                 className="absolute inset-0 z-20 flex flex-col items-center justify-center px-4"
                 style={{ pointerEvents: "none" }}
               >
-                <div className="pointer-events-auto w-full max-w-full md:max-w-[720px]">
+                <div style={{ width: "100%", maxWidth: "720px", pointerEvents: "auto" }}>
                   {inputChrome}
                 </div>
               </div>
             )}
 
-            {showThinkingOverlay && (
+            {phase === "thinking" && (
               <div
                 className="absolute inset-0 z-20 pointer-events-none"
                 style={{
                   background:
-                    "linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(234,234,234,0.92) 100%)",
+                    "linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(230,242,221,0.92) 100%)",
                   backdropFilter: "blur(2px)",
                 }}
               >
@@ -3079,12 +3725,12 @@ export default function TutorSessionPage() {
                   <div
                     className="h-10 w-10 rounded-full border-2 border-transparent"
                     style={{
-                      borderTopColor: "#0077CC",
-                      borderBottomColor: "#0077CC",
+                      borderTopColor: "#659287",
+                      borderBottomColor: "#659287",
                       animation: "wb-spin 0.8s linear infinite",
                     }}
                   />
-                  <p style={{ fontSize: "0.9rem", color: "#0077CC", fontWeight: 500 }}>
+                  <p style={{ fontSize: "0.9rem", color: "#659287", fontWeight: 500 }}>
                     thinking about how to teach this…
                   </p>
                 </div>
@@ -3096,36 +3742,6 @@ export default function TutorSessionPage() {
               open={transcriptOpen}
               onClose={() => setTranscriptOpen(false)}
             />
-
-            <button
-              type="button"
-              aria-label="Settings"
-              onClick={() => setSettingsOpen(true)}
-              className={cn(
-                "pointer-events-auto absolute right-3 z-40 flex h-10 w-10 items-center justify-center rounded-full transition-all",
-                "border border-[rgba(119,176,170,0.35)] bg-white/90 shadow-sm backdrop-blur-sm",
-                "hover:bg-white hover:shadow-md active:scale-95",
-                isReplaying ? "bottom-24 md:bottom-28" : "bottom-3",
-              )}
-              style={{
-                color: settings.speedMultiplier > 1 ? "#135D66" : "rgba(0,60,67,0.65)",
-              }}
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            </button>
 
             <div
               ref={boardContainerRef}
@@ -3168,6 +3784,36 @@ export default function TutorSessionPage() {
                   }
                 />
 
+                {phase === "idle" && lastError && (
+                  <div
+                    className="absolute bottom-20 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 rounded-lg bg-white/95 px-4 py-2.5 shadow-lg"
+                    style={{ pointerEvents: "auto" }}
+                  >
+                    <span className="text-sm text-gray-700">{lastError.message}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const q = lastError.question;
+                        setLastError(null);
+                        void handleQuestion(q);
+                      }}
+                      className="rounded-md px-3 py-1 text-sm text-white transition-opacity hover:opacity-90"
+                      style={{ background: "#659287", border: "none", cursor: "pointer" }}
+                    >
+                      retry
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLastError(null)}
+                      className="text-gray-400 transition-colors hover:text-gray-600"
+                      style={{ border: "none", background: "none", cursor: "pointer", fontSize: "16px" }}
+                      aria-label="dismiss"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
                 <ReplayControls
                   visible={isReplaying}
                   playing={isReplaying && !isPaused}
@@ -3185,7 +3831,10 @@ export default function TutorSessionPage() {
         </main>
 
         {!isInputOverlay && (
-          <footer className="relative shrink-0 pb-3 pt-2">
+          <footer
+            className="relative shrink-0 pt-2 pb-3"
+            style={{ paddingTop: PAGE_GUTTER_Y }}
+          >
             {inputChrome}
           </footer>
         )}
