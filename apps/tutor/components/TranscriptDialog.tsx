@@ -14,7 +14,7 @@ export function TranscriptDialog({ text, open, onClose }: TranscriptDialogProps)
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(234, 234, 234, 0.7)" }}
+      style={{ backgroundColor: "rgba(230, 242, 221, 0.7)" }}
       onClick={onClose}
       role="presentation"
     >
@@ -26,14 +26,14 @@ export function TranscriptDialog({ text, open, onClose }: TranscriptDialogProps)
         style={{
           backgroundColor: "#FFFFFF",
           borderRadius: "12px",
-          border: "1px solid rgba(0, 119, 204, 0.3)",
+          border: "1px solid rgba(101, 146, 135, 0.3)",
           boxShadow: "0 16px 48px -8px rgba(0, 0, 0, 0.15)",
         }}
         onClick={(event) => event.stopPropagation()}
       >
         <div
           className="flex items-center justify-between px-5 py-3"
-          style={{ borderBottom: "1px solid rgba(0, 119, 204, 0.2)" }}
+          style={{ borderBottom: "1px solid rgba(101, 146, 135, 0.2)" }}
         >
           <h2
             className="text-sm font-semibold tracking-wide"
