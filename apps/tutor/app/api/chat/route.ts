@@ -131,8 +131,8 @@ function injectStreamOptions(bodyText: string, serverModel: string): string {
     parsed.stream_options = { include_usage: true };
     parsed.reasoning_effort = "none";
     parsed.max_tokens = Math.min(
-      typeof parsed.max_tokens === "number" ? parsed.max_tokens : 8192,
-      8192,
+      typeof parsed.max_tokens === "number" ? parsed.max_tokens : 12000,
+      12000,
     );
     return JSON.stringify(parsed);
   } catch {
