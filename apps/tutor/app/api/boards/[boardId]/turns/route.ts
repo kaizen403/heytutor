@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type Turn, type Segment } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
@@ -61,11 +61,6 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "question and rawResponse required" }, { status: 400 });
   }
 
-  const turnCount = await prisma.turn.count({
-    where: { boardId },
-  });
-
-  const orderIndex = turnCount;
   const turnId = crypto.randomUUID();
   const segmentMeta = metadata.segments ?? [];
 
@@ -81,47 +76,76 @@ export async function POST(request: Request, context: RouteContext) {
     }
   }
 
-  const saved = await prisma.$transaction(async (tx) => {
-    const turn = await tx.turn.create({
-      data: {
-        id: turnId,
-        boardId,
-        userId,
-        orderIndex,
-        question: metadata.question,
-        rawResponse: metadata.rawResponse,
-        speedMultiplier: metadata.speedMultiplier ?? 1,
-        traceId: metadata.traceId ?? null,
-      },
-    });
+  const MAX_INSERT_ATTEMPTS = 3;
+  let saved: { turn: Turn; insertedSegments: Segment[] } | null = null;
+  let lastError: unknown = null;
 
-    const segmentValues = segmentMeta.map((segment) => ({
-      turnId,
-      orderIndex: segment.orderIndex,
-      narration: segment.narration ?? "",
-      spokenText: segment.spokenText ?? "",
-      command: segment.command === undefined ? undefined : (segment.command as Prisma.InputJsonValue),
-      audioUrl: audioUrls[segment.orderIndex] ?? null,
-      audioFormat: "audio/mpeg",
-      durationMs: segment.durationMs ?? null,
-      timings: segment.timings === undefined ? undefined : (segment.timings as Prisma.InputJsonValue),
-    }));
+  for (let attempt = 0; attempt < MAX_INSERT_ATTEMPTS; attempt += 1) {
+    try {
+      saved = await prisma.$transaction(async (tx) => {
+        // Lock the board row so concurrent turn saves serialize against it.
+        await tx.$queryRaw`SELECT 1 FROM "boards" WHERE "id" = ${boardId} FOR UPDATE`;
 
-    const insertedSegments =
-      segmentValues.length > 0
-        ? await tx.segment.createManyAndReturn({ data: segmentValues })
-        : [];
+        const turnCount = await tx.turn.count({ where: { boardId } });
+        const orderIndex = turnCount;
 
-    await tx.board.update({
-      where: { id: boardId },
-      data: {
-        preview: metadata.question.slice(0, 60),
-        updatedAt: new Date(),
-      },
-    });
+        const turn = await tx.turn.create({
+          data: {
+            id: turnId,
+            boardId,
+            userId,
+            orderIndex,
+            question: metadata.question,
+            rawResponse: metadata.rawResponse,
+            speedMultiplier: metadata.speedMultiplier ?? 1,
+            traceId: metadata.traceId ?? null,
+          },
+        });
 
-    return { turn, insertedSegments };
-  });
+        const segmentValues = segmentMeta.map((segment) => ({
+          turnId,
+          orderIndex: segment.orderIndex,
+          narration: segment.narration ?? "",
+          spokenText: segment.spokenText ?? "",
+          command: segment.command === undefined ? undefined : (segment.command as Prisma.InputJsonValue),
+          audioUrl: audioUrls[segment.orderIndex] ?? null,
+          audioFormat: "audio/mpeg",
+          durationMs: segment.durationMs ?? null,
+          timings: segment.timings === undefined ? undefined : (segment.timings as Prisma.InputJsonValue),
+        }));
+
+        const insertedSegments =
+          segmentValues.length > 0
+            ? await tx.segment.createManyAndReturn({ data: segmentValues })
+            : [];
+
+        await tx.board.update({
+          where: { id: boardId },
+          data: {
+            preview: metadata.question.slice(0, 60),
+            updatedAt: new Date(),
+          },
+        });
+
+        return { turn, insertedSegments };
+      });
+      break;
+    } catch (error) {
+      lastError = error;
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        // Unique constraint on (boardId, orderIndex) — retry to get a new index.
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  if (!saved) {
+    throw lastError ?? new Error("failed to save turn after retries");
+  }
 
   return NextResponse.json({
     turn: {
