@@ -2,10 +2,17 @@ import {
   BOARD_TITLE_SYSTEM_PROMPT,
   finalizeBoardTitle,
 } from "@/lib/boardTitle";
+import { ensureUser, getUserId } from "@/lib/auth";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 
 export async function POST(request: Request): Promise<Response> {
+  const userId = await getUserId();
+  if (!userId) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+  await ensureUser(userId);
+
   const body = await request.json().catch(() => ({} as Record<string, unknown>));
   const question = typeof body?.question === "string" ? body.question.trim() : "";
 
