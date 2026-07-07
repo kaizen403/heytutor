@@ -72,6 +72,12 @@ export function useBoardSession({
   const conversationHistoryRef = useRef<ConversationExchange[]>([]);
   const [inputInteracted, setInputInteracted] = useState(false);
   const replayBlobUrlsRef = useRef<string[]>([]);
+  const restoreGenerationRef = useRef(0);
+  const activeSessionIdRef = useRef(sessionId);
+
+  useEffect(() => {
+    activeSessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   useEffect(() => {
     speedRef.current = speedMultiplier;
@@ -195,15 +201,23 @@ export function useBoardSession({
   );
 
   const restoreBoardFromApi = useCallback(
-    async (boardId: string) => {
+    async (boardId: string, generation: number) => {
+      const isStale = () =>
+        generation !== restoreGenerationRef.current ||
+        boardId !== activeSessionIdRef.current;
+
       setBoardLoaded(false);
 
       let detail = await fetchBoardDetail(boardId);
+      if (isStale()) return;
 
       if (!detail) {
         await createBoard(boardId);
+        if (isStale()) return;
         detail = await fetchBoardDetail(boardId);
       }
+
+      if (isStale()) return;
 
       if (!detail) {
         setBoardLoaded(true);
@@ -238,15 +252,23 @@ export function useBoardSession({
       }
 
       for (const turn of detail.turns) {
+        if (isStale()) return;
+
         for (const segment of turn.segments) {
+          if (isStale()) return;
+
           const commands = parseStoredSegmentCommands(segment.command);
           for (const command of commands) {
-            if (!cancelRef.current) {
-              await executeCommand(command, { durationScale: 0.05, applyLayout: false });
+            if (isStale() || cancelRef.current) {
+              return;
             }
+
+            await executeCommand(command, { durationScale: 0.05, applyLayout: false });
           }
         }
       }
+
+      if (isStale()) return;
 
       setBoardLoaded(true);
     },
@@ -275,11 +297,15 @@ export function useBoardSession({
   useEffect(() => {
     if (!sessionId) return;
 
+    const generation = ++restoreGenerationRef.current;
+    stopTurnRef.current?.();
+    revokeReplayBlobUrls();
     cancelRef.current = false;
+
     queueMicrotask(() => {
-      void restoreBoardFromApi(sessionId);
+      void restoreBoardFromApi(sessionId, generation);
     });
-  }, [sessionId, restoreBoardFromApi, cancelRef]);
+  }, [sessionId, restoreBoardFromApi, cancelRef, stopTurnRef, revokeReplayBlobUrls]);
 
   return {
     boards,
