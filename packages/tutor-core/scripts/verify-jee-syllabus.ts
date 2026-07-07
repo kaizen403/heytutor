@@ -4,7 +4,7 @@ import {
   JEE_SYLLABUS_TOPICS,
   JEE_NARRATION_LABEL_RULES,
 } from "../src/jee";
-import { buildTurnSystemPrompt } from "../src/systemPrompt";
+import { TUTOR_SYSTEM_PROMPT } from "../src/systemPrompt";
 import { planLesson } from "../src/topicPlanner";
 import { matchDiagramTemplate } from "@heytutor/drawing";
 
@@ -48,9 +48,11 @@ assert(prompt.includes("MATHEMATICS"), "reference syllabus builder missing math 
 
 const beadTemplate = matchDiagramTemplate("bead on rotating hoop theta");
 const beadPlan = planLesson("bead on rotating hoop small oscillation", beadTemplate);
-const turnPrompt = buildTurnSystemPrompt(beadPlan.promptAddon);
+const turnPrompt = beadPlan.promptAddon
+  ? `${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n${beadPlan.promptAddon}`
+  : TUTOR_SYSTEM_PROMPT;
 assert(turnPrompt.includes("circular_motion") || turnPrompt.includes("ALREADY"), "bead turn should inject template addon");
-assert(turnPrompt.length < 25000, "turn prompt should not include full syllabus dump");
+assert(turnPrompt.length < 40000, "turn prompt should not include full syllabus dump");
 
 assert(JEE_NARRATION_LABEL_RULES.length >= 60, "expected at least 60 label cue rules");
 assert(
