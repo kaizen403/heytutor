@@ -17,11 +17,11 @@ The product is an AI whiteboard tutor. It should teach like a human teacher:
 
 The main live path is:
 
-1. User submits a question in `apps/tutor/app/c/[sessionId]/page.tsx`.
+1. User submits a question via `useQuestionHandler` in `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts` (rendered from `TutorSessionPage`).
 2. `streamLLMResponse()` in `packages/tutor-core/src/llmAPI.ts` streams text from Fireworks.
 3. The response is parsed into lesson segments by `buildLessonSegments()` in `packages/drawing/src/lessonPlanner.ts`.
-4. Each segment is queued through `enqueueSegment()` / `segmentChainRef` in `page.tsx`.
-5. `runSegment()` speaks the segment narration and runs the segment drawing command concurrently.
+4. Each segment is queued through `enqueueSegment()` / `segmentChainRef` in `useTurnControl.ts`.
+5. `runSegment()` in `useSegmentRunner.ts` speaks the segment narration and runs the segment drawing command concurrently.
 6. `createTTSClient()` returns `ElevenLabsWebSocketTTSClient` in the browser.
 7. `Whiteboard.writeText()` or `Whiteboard.drawShape()` renders on Konva layers.
 8. Captured audio/timings/commands are persisted as turns and replayed later by `replayLecture()`.
@@ -102,21 +102,21 @@ Known caveat:
 
 If WebSocket TTS falls back to HTTP streaming or browser `SpeechSynthesis`, exact playback position may be unavailable. The app then uses a wall-clock fallback from segment start. This is less exact, but should still draw during speech because the live path uses estimated schedules immediately.
 
-### `apps/tutor/app/c/[sessionId]/page.tsx`
+### `apps/tutor/features/tutor-session/hooks/turn/useSegmentRunner.ts`
 
-Main orchestration file.
+Main live segment orchestration hook.
 
 Key functions/sections:
 
 - `runSegment()` pairs narration and drawing.
 - `waitForInitialTimings()` waits only briefly for first TTS timing data. It must not wait for most of the sentence.
-- `runDraw()` executes commands for the segment.
+- `runDraw()` executes commands for the segment via `executeCommandWithCancel` from `useCommandExecution.ts`.
 - For `WRITE`/`LABEL`, live code should:
   - Use `getWriteCharScheduleMs()` if `capturedTimings` is already available.
   - Otherwise use `getEstimatedWriteCharScheduleMs()` immediately.
   - Pass `WriteSchedule` to `Whiteboard.writeText()`.
 - `liveAudioPositionMs()` is the clock passed into `Whiteboard.writeText()`.
-- `replayLecture()` uses persisted audio/timings and gates against `audio.currentTime`.
+- `replayLecture()` in `useReplay.ts` uses persisted audio/timings and gates against `audio.currentTime`.
 
 Debug logs to inspect:
 
@@ -251,7 +251,7 @@ Review-mode gestures emphasize existing ink without rewriting:
 | `HIGHLIGHT` | Soft translucent box behind text |
 | `SCRIBBLE` | Quick rough emphasis stroke |
 
-Path generators live in `packages/drawing/src/shapePaths.ts`. Runtime dispatch and rect snapping live in `page.tsx` via `resolveAnnotationTarget()` and `boardLayoutRef`. Highlights render on a layer below ink in `Whiteboard.drawAnnotation()`.
+Path generators live in `packages/drawing/src/shapePaths.ts`. Runtime dispatch and rect snapping live in `useCommandExecution.ts` via `resolveAnnotationTarget()` and `boardLayoutRef`. Highlights render on a layer below ink in `Whiteboard.drawAnnotation()`.
 
 Multi-command segments: `lessonPlanner.ts` groups consecutive tags with empty narration into one segment with `commands[]`. Persistence stores `{ commands: [...] }` in the segment `command` JSON when needed; replay uses `parseStoredSegmentCommands()`.
 
