@@ -72,7 +72,7 @@ export default function DashboardMockup() {
           </div>
         </div>
 
-        {/* Main content — whiteboard */}
+        {/* Main content: whiteboard */}
         <div className="flex flex-1 flex-col">
           {/* Status bar */}
           <div
@@ -115,7 +115,7 @@ export default function DashboardMockup() {
                 />
               ))}
 
-              {/* Drawn shapes — cuboid (isometric) */}
+              {/* Drawn shapes: cuboid (isometric) */}
               <svg className="absolute inset-0 h-full w-full" viewBox="0 0 600 350" fill="none">
                 {/* Cuboid front face */}
                 <path
