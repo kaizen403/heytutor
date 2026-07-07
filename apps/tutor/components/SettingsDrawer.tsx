@@ -20,8 +20,9 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 export const MARKER_COLORS = [
-  { id: "blue", color: "#81A6C6", label: "Blue" },
+  { id: "navy", color: "#1B2A4A", label: "Navy" },
   { id: "black", color: "#222222", label: "Black" },
+  { id: "blue", color: "#81A6C6", label: "Blue" },
   { id: "red", color: "#D64545", label: "Red" },
   { id: "green", color: "#4CAF7D", label: "Green" },
   { id: "purple", color: "#9B7ED9", label: "Purple" },
@@ -48,15 +49,15 @@ interface SettingsDrawerProps {
 
 const SPEED_MIN = 1;
 const SPEED_MAX = 3;
-const SPEED_STEP = 0.5;
+const SPEED_STEP = 0.25;
 
 const theme = {
-  darkest: "#003C43",
-  dark: "#135D66",
-  sage: "#77B0AA",
-  mint: "#E3FEF7",
-  border: "rgba(119, 176, 170, 0.28)",
-  borderSubtle: "rgba(119, 176, 170, 0.18)",
+  darkest: "#659287",
+  dark: "#4F7468",
+  sage: "#88BDA4",
+  mint: "#E6F2DD",
+  border: "rgba(101, 146, 135, 0.28)",
+  borderSubtle: "rgba(101, 146, 135, 0.18)",
 } as const;
 
 function SettingsSection({
@@ -134,8 +135,8 @@ function SelectPill({
       className={cn(
         "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
         checked
-          ? "border-[#003C43] bg-[rgba(0,60,67,0.08)] text-[#003C43] shadow-sm"
-          : "border-[rgba(119,176,170,0.28)] text-[#135D66] hover:border-[#77B0AA] hover:shadow-sm",
+          ? "border-[#659287] bg-[rgba(101,146,135,0.08)] text-[#659287] shadow-sm"
+          : "border-[rgba(101,146,135,0.28)] text-[#4F7468] hover:border-[#88BDA4] hover:shadow-sm",
         disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
       )}
     >
@@ -145,7 +146,7 @@ function SelectPill({
 }
 
 export function getMarkerColorHex(id: MarkerColorId): string {
-  return MARKER_COLORS.find((entry) => entry.id === id)?.color ?? "#81A6C6";
+  return MARKER_COLORS.find((entry) => entry.id === id)?.color ?? "#1B2A4A";
 }
 
 export function SettingsDrawer({
@@ -187,7 +188,7 @@ export function SettingsDrawer({
                 onChange={(event) =>
                   update({ speedMultiplier: Number(event.target.value) })
                 }
-                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-[#135D66]"
+                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-[#4F7468]"
                 style={{ backgroundColor: theme.borderSubtle }}
               />
               <span
@@ -251,7 +252,7 @@ export function SettingsDrawer({
                 onCheckedChange={(checked) =>
                   update({ subtitlesEnabled: checked })
                 }
-                className="data-[state=checked]:bg-[#003C43] data-[state=unchecked]:bg-[rgba(119,176,170,0.35)]"
+                className="data-[state=checked]:bg-[#659287] data-[state=unchecked]:bg-[rgba(101,146,135,0.35)]"
               />
             </div>
           </SettingsSection>
@@ -271,8 +272,8 @@ export function SettingsDrawer({
                     className={[
                       "h-8 w-8 rounded-full transition-all",
                       selected
-                        ? "scale-105 ring-2 ring-[#003C43] ring-offset-2 ring-offset-white"
-                        : "ring-1 ring-[rgba(119,176,170,0.35)] hover:scale-105",
+                        ? "scale-105 ring-2 ring-[#659287] ring-offset-2 ring-offset-white"
+                        : "ring-1 ring-[rgba(101,146,135,0.35)] hover:scale-105",
                     ].join(" ")}
                     style={{ backgroundColor: color }}
                   />
