@@ -54,8 +54,13 @@ export interface AnnotationOptions {
   fillOpacity?: number;
 }
 
+export interface ShapeDrawOptions {
+  dashed?: boolean;
+  strokeWidth?: number;
+}
+
 export interface WhiteboardHandle {
-  drawShape: (pathData: string, duration: number) => Promise<void>;
+  drawShape: (pathData: string, duration: number, options?: ShapeDrawOptions) => Promise<void>;
   drawAnnotation: (
     kind: AnnotationKind,
     pathData: string,
@@ -85,6 +90,12 @@ export interface WhiteboardHandle {
   getDrawLayer: () => Konva.Layer | null;
   getAnimLayer: () => Konva.Layer | null;
   getCursorLayer: () => Konva.Layer | null;
+  /**
+   * Capture the current board (draw + highlight + anim layers, cursor excluded)
+   * as a PNG data URL. Hides the cursor layer during capture and restores it
+   * afterwards. Returns null if the stage is not mounted.
+   */
+  captureSnapshot: (pixelRatio?: number) => string | null;
 }
 
 interface CursorView {
@@ -109,7 +120,6 @@ const ANNOTATION_STROKE_WIDTH = 3.25;
 const SHAPE_STROKE_WIDTH = 2.5;
 const DIAGRAM_LINE_PATH_RE =
   /^M\s*([-\d.]+)\s+([-\d.]+)\s+L\s*([-\d.]+)\s+([-\d.]+)\s*$/;
-const CURSOR_BLUE = "#3380FF";
 const DUSTER_WIDTH = 28;
 const DUSTER_HEIGHT = 14;
 const DUSTER_COLOR = "#D4CDBE";
@@ -153,6 +163,17 @@ function clamp(value: number, min: number, max: number): number {
 
 function smoothstep(progress: number): number {
   return progress * progress * (3 - 2 * progress);
+}
+
+/**
+ * Natural pen motion: gentle ease-in, sustained middle, gentle ease-out.
+ * Smooth enough for long strokes without the mechanical feel of linear time.
+ */
+function easePen(progress: number): number {
+  const t = clamp(progress, 0, 1);
+  return t < 0.5
+    ? 2 * t * t * t
+    : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 function distanceBetween(start: Point, end: Point): number {
@@ -361,7 +382,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     );
 
     const drawShape = useCallback(
-      async (pathData: string, duration: number): Promise<void> => {
+      async (pathData: string, duration: number, options?: ShapeDrawOptions): Promise<void> => {
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
 
@@ -372,13 +393,40 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const path = new Konva.Path({
           data: pathData,
           stroke: inkColorRef.current,
-          strokeWidth: SHAPE_STROKE_WIDTH,
+          strokeWidth: options?.strokeWidth ?? SHAPE_STROKE_WIDTH,
           fillEnabled: false,
           lineCap: "round",
           lineJoin: "round",
           listening: false,
         });
         const totalLength = path.getLength();
+
+        // Dashed lines are construction lines — appear instantly with a
+        // brief opacity fade instead of the stroke-by-stroke reveal.
+        if (options?.dashed) {
+          path.dash([6, 5]);
+          path.opacity(0);
+          animLayer.add(path);
+          animNodesRef.current.add(path);
+          animLayer.batchDraw();
+
+          await animateOver(Math.min(duration, 300), (progress) => {
+            path.opacity(progress);
+            const point = path.getPointAtLength(progress * totalLength);
+            if (point) {
+              setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
+            }
+            animLayer.batchDraw();
+          });
+
+          path.opacity(1);
+          path.moveTo(drawLayer);
+          animNodesRef.current.delete(path);
+          completedNodesRef.current.add(path);
+          animLayer.batchDraw();
+          drawLayer.batchDraw();
+          return;
+        }
 
         path.dash([totalLength]);
         path.dashOffset(totalLength);
@@ -387,7 +435,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         animLayer.batchDraw();
 
         await animateOver(duration, (progress) => {
-          const drawnLength = progress * totalLength;
+          const eased = easePen(progress);
+          const drawnLength = eased * totalLength;
           const point = path.getPointAtLength(drawnLength);
 
           path.dashOffset(totalLength - drawnLength);
@@ -606,7 +655,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         animLayer.batchDraw();
 
         await animateOver(duration, (progress) => {
-          const drawnLength = progress * totalLength;
+          const eased = easePen(progress);
+          const drawnLength = eased * totalLength;
           const point = path.getPointAtLength(drawnLength);
 
           path.dashOffset(totalLength - drawnLength);
@@ -704,8 +754,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               stalledFrames = 0;
               lastPositionMs = positionMs;
             }
-            // Safety valve: never hang the lesson if the audio clock stalls (errored audio).
-            if (performance.now() - startWall > targetMs + 4000) {
+            // Never block the lesson on a single character — cap wait time.
+            if (performance.now() - startWall > Math.min(targetMs + 2000, 8000)) {
               cleanup();
               return;
             }
@@ -922,7 +972,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               animLayer.batchDraw();
 
               await animateOver(strokeDuration, (progress) => {
-                const drawnLength = progress * totalLength;
+                const eased = easePen(progress);
+                const drawnLength = eased * totalLength;
                 const point = pathNode.getPointAtLength(drawnLength);
 
                 pathNode.dashOffset(totalLength - drawnLength);
@@ -1096,6 +1147,28 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         getDrawLayer: () => drawLayerRef.current,
         getAnimLayer: () => animLayerRef.current,
         getCursorLayer: () => cursorLayerRef.current,
+        captureSnapshot: (pixelRatio: number = 2): string | null => {
+          const drawLayer = drawLayerRef.current;
+          const cursorLayer = cursorLayerRef.current;
+          if (!drawLayer) {
+            return null;
+          }
+          const stage = drawLayer.getStage();
+          if (!stage) {
+            return null;
+          }
+          const cursorWasVisible = cursorLayer ? cursorLayer.visible() : false;
+          if (cursorLayer) {
+            cursorLayer.visible(false);
+          }
+          try {
+            return stage.toDataURL({ pixelRatio });
+          } finally {
+            if (cursorLayer) {
+              cursorLayer.visible(cursorWasVisible);
+            }
+          }
+        },
       }),
       [cancelAnimations, clearBoard, drawAnnotation, drawShape, eraseRegion, flyCursorTo, punchDiagramLineGapsInRect, setCursorViewSafely, updateCursorState, writeText],
     );
@@ -1137,7 +1210,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               y={cursorView.y}
               rotation={cursorView.rotation}
               scale={cursorView.scale}
-              color={CURSOR_BLUE}
+              color={inkColorRef.current}
               visible={cursorOpacity(activeCursorState) > 0}
               opacity={cursorOpacity(activeCursorState)}
               glowRadius={activeCursorState === "drawing" ? 14 : 10}

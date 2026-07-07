@@ -6,6 +6,7 @@ export {
   type CursorState,
   type AnnotationKind,
   type AnnotationOptions,
+  type ShapeDrawOptions,
 } from "./Whiteboard";
 export { VirtualCursor } from "./VirtualCursor";
 export { SpeakingWaveform } from "./SpeakingWaveform";
