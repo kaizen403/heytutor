@@ -31,20 +31,18 @@ interface BoardHistoryProps {
   onCreditsClick?: () => void;
 }
 
-const SIDEBAR_WIDTH = 260;
+const SIDEBAR_WIDTH = 264;
 
 const sidebarFont: CSSProperties = {
-  fontFamily: '"Anthropic Sans", var(--font-inter), ui-sans-serif, system-ui, sans-serif',
-  fontFeatureSettings: '"cv01", "cv02", "cv03", "cv04"',
   WebkitFontSmoothing: "antialiased",
 };
 
+// Solid dark green sidebar — slightly deeper than the #659287 page so the
+// boundary reads clearly. Text on top is near-white.
 const glassPanel: CSSProperties = {
-  background: "rgba(255, 255, 255, 0.42)",
-  backdropFilter: "blur(20px) saturate(1.4)",
-  WebkitBackdropFilter: "blur(20px) saturate(1.4)",
-  borderRight: "1px solid rgba(255, 255, 255, 0.55)",
-  boxShadow: "inset -1px 0 0 rgba(0, 119, 204, 0.06), 4px 0 24px -8px rgba(0, 0, 0, 0.06)",
+  background: "#4F7468",
+  borderRight: "1px solid rgba(0, 0, 0, 0.18)",
+  boxShadow: "4px 0 28px -10px rgba(0, 0, 0, 0.35)",
 };
 
 export { SIDEBAR_WIDTH };
@@ -95,7 +93,7 @@ function BoardHistoryContent({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "12px 16px 10px",
+          padding: "14px 16px 12px",
           flexShrink: 0,
         }}
       >
@@ -103,21 +101,22 @@ function BoardHistoryContent({
           style={{
             fontSize: "1.0625rem",
             fontWeight: 600,
-            color: "#333333",
+            color: "#FFFFFF",
             letterSpacing: "-0.025em",
             userSelect: "none",
+            textShadow: "0 1px 2px rgba(0, 0, 0, 0.18)",
           }}
         >
           Accelute
         </span>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 4 }}>
           <button
             onClick={() => setSearchOpen(!searchOpen)}
             aria-label="Search boards"
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 6,
+              width: 30,
+              height: 30,
+              borderRadius: 8,
               border: "none",
               background: "transparent",
               cursor: "pointer",
@@ -127,13 +126,13 @@ function BoardHistoryContent({
               transition: "background 0.15s ease",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(0,119,204,0.12)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.12)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "transparent";
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0099E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
@@ -143,9 +142,9 @@ function BoardHistoryContent({
               onClick={onToggleCollapse}
               aria-label="Collapse sidebar"
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: 6,
+                width: 30,
+                height: 30,
+                borderRadius: 8,
                 border: "none",
                 background: "transparent",
                 cursor: "pointer",
@@ -155,13 +154,13 @@ function BoardHistoryContent({
                 transition: "background 0.15s ease",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(0,119,204,0.12)";
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.12)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0099E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
                 <path d="M9 3v18" />
               </svg>
@@ -171,51 +170,53 @@ function BoardHistoryContent({
       </div>
 
       {searchOpen && (
-        <div style={{ padding: "0 16px 10px", flexShrink: 0 }}>
+        <div style={{ padding: "0 14px 12px", flexShrink: 0 }}>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="search boards..."
+            placeholder="search boards…"
             autoFocus
             style={{
               width: "100%",
               padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid rgba(255, 255, 255, 0.5)",
-              background: "rgba(255, 255, 255, 0.35)",
-              color: "#0077CC",
+              borderRadius: 9,
+              border: "1px solid rgba(255, 255, 255, 0.14)",
+              background: "rgba(255, 255, 255, 0.08)",
+              color: "#FFFFFF",
               fontSize: "0.8125rem",
               outline: "none",
               backdropFilter: "blur(8px)",
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor = "#0077CC";
+              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.32)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.12)";
             }}
             onBlur={(e) => {
-              e.currentTarget.style.borderColor = "rgba(0,119,204,0.2)";
+              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.14)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
             }}
           />
         </div>
       )}
 
-      <div style={{ padding: "0 12px 12px", flexShrink: 0 }}>
+      <div style={{ padding: "0 14px 12px", flexShrink: 0 }}>
         <button
           onClick={onNew}
           disabled={disabled}
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "8px",
+            gap: "9px",
             width: "100%",
             padding: "10px 14px",
-            borderRadius: 8,
-            border: "1px solid rgba(255, 255, 255, 0.45)",
-            background: "rgba(255, 255, 255, 0.28)",
+            borderRadius: 10,
+            border: "1px solid rgba(255, 255, 255, 0.16)",
+            background: "rgba(255, 255, 255, 0.10)",
             cursor: disabled ? "not-allowed" : "pointer",
             opacity: disabled ? 0.5 : 1,
-            transition: "background 0.15s ease, border-color 0.15s ease",
-            color: "#333333",
+            transition: "background 0.18s ease, border-color 0.18s ease, transform 0.18s ease",
+            color: "#FFFFFF",
             fontSize: "0.875rem",
             fontWeight: 500,
             textAlign: "left",
@@ -223,20 +224,21 @@ function BoardHistoryContent({
           }}
           onMouseEnter={(e) => {
             if (!disabled) {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.45)";
-              e.currentTarget.style.borderColor = "rgba(0, 119, 204, 0.25)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.18)";
+              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.30)";
+              e.currentTarget.style.transform = "translateY(-1px)";
             }
           }}
           onMouseLeave={(e) => {
             if (!disabled) {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.28)";
-              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.45)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.10)";
+              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.16)";
+              e.currentTarget.style.transform = "translateY(0)";
             }
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0077CC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            <path d="M12 7v6M9 10h6" />
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5v14M5 12h14" />
           </svg>
           new board
         </button>
@@ -244,7 +246,7 @@ function BoardHistoryContent({
 
       <div
         style={{
-          padding: "0 16px 6px",
+          padding: "6px 16px 8px",
           flexShrink: 0,
         }}
       >
@@ -252,9 +254,9 @@ function BoardHistoryContent({
           style={{
             fontSize: "0.6875rem",
             fontWeight: 600,
-            color: "rgba(51, 51, 51, 0.45)",
+            color: "rgba(255, 255, 255, 0.50)",
             textTransform: "uppercase",
-            letterSpacing: "0.08em",
+            letterSpacing: "0.10em",
             userSelect: "none",
           }}
         >
@@ -266,15 +268,15 @@ function BoardHistoryContent({
         style={{
           flex: 1,
           overflowY: "auto",
-          padding: "0 8px 12px",
+          padding: "0 10px 12px",
         }}
       >
         {filtered.length === 0 && (
           <p
             style={{
               fontSize: "0.8125rem",
-              color: "rgba(51,51,51,0.5)",
-              padding: "8px 12px",
+              color: "rgba(255, 255, 255, 0.45)",
+              padding: "10px 12px",
               lineHeight: 1.5,
             }}
           >
@@ -289,18 +291,23 @@ function BoardHistoryContent({
               key={board.id}
               style={{
                 position: "relative",
-                marginBottom: 2,
-                borderRadius: 8,
+                marginBottom: 3,
+                borderRadius: 10,
                 background: isActive
-                  ? "rgba(255, 255, 255, 0.55)"
+                  ? "rgba(255, 255, 255, 0.92)"
                   : "transparent",
-                border: isActive ? "1px solid rgba(255, 255, 255, 0.5)" : "1px solid transparent",
-                backdropFilter: isActive ? "blur(8px)" : undefined,
-                transition: "background 0.12s ease",
+                border: isActive
+                  ? "1px solid rgba(255, 255, 255, 0.85)"
+                  : "1px solid transparent",
+                boxShadow: isActive
+                  ? "0 6px 20px -8px rgba(0, 0, 0, 0.35)"
+                  : "none",
+                transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
               }}
               onMouseEnter={(e) => {
                 if (!disabled && !isActive) {
-                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.25)";
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.10)";
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.12)";
                 }
                 const delBtn = e.currentTarget.querySelector('[data-delete-btn]') as HTMLElement | null;
                 if (delBtn) delBtn.style.opacity = "1";
@@ -308,6 +315,7 @@ function BoardHistoryContent({
               onMouseLeave={(e) => {
                 if (!disabled && !isActive) {
                   e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.borderColor = "transparent";
                 }
                 const delBtn = e.currentTarget.querySelector('[data-delete-btn]') as HTMLElement | null;
                 if (delBtn) delBtn.style.opacity = "0";
@@ -321,9 +329,9 @@ function BoardHistoryContent({
                   display: "flex",
                   flexDirection: "column",
                   gap: "3px",
-                  width: "calc(100% - 36px)",
-                  padding: "10px 12px",
-                  borderRadius: 8,
+                  width: "calc(100% - 32px)",
+                  padding: "11px 13px",
+                  borderRadius: 10,
                   border: "none",
                   cursor: disabled ? "not-allowed" : "pointer",
                   opacity: disabled ? 0.5 : 1,
@@ -334,15 +342,29 @@ function BoardHistoryContent({
                 <span
                   style={{
                     fontSize: "0.875rem",
-                    fontWeight: isActive ? 500 : 400,
-                    color: isActive ? "#333333" : "#0077CC",
+                    fontWeight: isActive ? 600 : 450,
+                    color: isActive ? "#2f4a42" : "rgba(255, 255, 255, 0.88)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
+                    letterSpacing: "-0.005em",
                   }}
                 >
                   {board.title}
                 </span>
+                {!isActive && board.preview && (
+                  <span
+                    style={{
+                      fontSize: "0.72rem",
+                      color: "rgba(255, 255, 255, 0.50)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {board.preview}
+                  </span>
+                )}
               </button>
               {onDelete && (
                 <button
@@ -359,9 +381,9 @@ function BoardHistoryContent({
                     right: 6,
                     top: "50%",
                     transform: "translateY(-50%)",
-                    width: 28,
-                    height: 28,
-                    borderRadius: 6,
+                    width: 26,
+                    height: 26,
+                    borderRadius: 7,
                     border: "none",
                     background: "transparent",
                     cursor: "pointer",
@@ -371,18 +393,20 @@ function BoardHistoryContent({
                     alignItems: "center",
                     justifyContent: "center",
                     transition: "opacity 0.15s ease, background 0.15s ease",
-                    color: "rgba(51,51,51,0.5)",
+                    color: isActive ? "rgba(47, 74, 66, 0.55)" : "rgba(255, 255, 255, 0.6)",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(217,112,112,0.15)";
+                    e.currentTarget.style.background = isActive
+                      ? "rgba(158, 64, 64, 0.14)"
+                      : "rgba(217, 112, 112, 0.28)";
                     e.currentTarget.style.color = "#9E4040";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = "rgba(51,51,51,0.5)";
+                    e.currentTarget.style.color = isActive ? "rgba(47, 74, 66, 0.55)" : "rgba(255, 255, 255, 0.6)";
                   }}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                     <line x1="10" y1="11" x2="10" y2="17" />
                     <line x1="14" y1="11" x2="14" y2="17" />
@@ -397,8 +421,8 @@ function BoardHistoryContent({
       <div
         style={{
           flexShrink: 0,
-          borderTop: "1px solid rgba(255, 255, 255, 0.45)",
-          padding: "10px 16px 12px",
+          borderTop: "1px solid rgba(255, 255, 255, 0.10)",
+          padding: "11px 16px 13px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -410,21 +434,21 @@ function BoardHistoryContent({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
+            gap: 9,
             border: "none",
             background: "transparent",
             cursor: onCreditsClick ? "pointer" : "default",
             padding: 0,
-            color: "rgba(51, 51, 51, 0.55)",
+            color: "rgba(255, 255, 255, 0.65)",
             fontSize: "0.8125rem",
             fontWeight: 500,
             transition: "color 0.15s ease",
           }}
           onMouseEnter={(e) => {
-            if (onCreditsClick) e.currentTarget.style.color = "rgba(51, 51, 51, 0.85)";
+            if (onCreditsClick) e.currentTarget.style.color = "rgba(255, 255, 255, 0.92)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = "rgba(51, 51, 51, 0.55)";
+            e.currentTarget.style.color = "rgba(255, 255, 255, 0.65)";
           }}
         >
           <span
@@ -432,7 +456,7 @@ function BoardHistoryContent({
               width: 24,
               height: 24,
               borderRadius: "50%",
-              border: "1px solid rgba(51, 51, 51, 0.18)",
+              border: "1px solid rgba(255, 255, 255, 0.22)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -454,15 +478,16 @@ function BoardHistoryContent({
                 bottom: "calc(100% + 10px)",
                 right: 0,
                 padding: "0.75rem 1rem",
-                borderRadius: 10,
-                background: "rgba(255,255,255,0.97)",
-                border: "1px solid rgba(0,119,204,0.2)",
-                boxShadow: "0 12px 32px -8px rgba(0,0,0,0.15)",
-                backdropFilter: "blur(12px)",
+                borderRadius: 11,
+                background: "rgba(255, 255, 255, 0.95)",
+                border: "1px solid rgba(255, 255, 255, 0.6)",
+                boxShadow: "0 16px 38px -10px rgba(0, 0, 0, 0.4)",
+                backdropFilter: "blur(14px)",
                 minWidth: 140,
                 zIndex: 20,
                 fontSize: "0.9rem",
-                color: "#0099E5",
+                color: "#2f4a42",
+                fontWeight: 500,
               }}
             >
               Profile
@@ -475,30 +500,32 @@ function BoardHistoryContent({
             aria-expanded={profileOpen}
             onClick={onProfileToggle}
             style={{
-              width: 28,
-              height: 28,
+              width: 30,
+              height: 30,
               borderRadius: "50%",
-              border: "1px solid rgba(51, 51, 51, 0.14)",
+              border: "1px solid rgba(255, 255, 255, 0.20)",
               background: profileOpen
-                ? "rgba(0,119,204,0.18)"
-                : "rgba(51, 51, 51, 0.06)",
+                ? "rgba(255, 255, 255, 0.20)"
+                : "rgba(255, 255, 255, 0.08)",
               cursor: onProfileToggle ? "pointer" : "default",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               padding: 0,
               transition: "all 0.15s ease",
-              color: "rgba(51, 51, 51, 0.7)",
+              color: "rgba(255, 255, 255, 0.85)",
             }}
             onMouseEnter={(e) => {
               if (onProfileToggle) {
-                e.currentTarget.style.borderColor = "rgba(0,119,204,0.35)";
-                e.currentTarget.style.color = "#0099E5";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.42)";
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.16)";
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "rgba(51, 51, 51, 0.14)";
-              e.currentTarget.style.color = "rgba(51, 51, 51, 0.7)";
+              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.20)";
+              e.currentTarget.style.background = profileOpen
+                ? "rgba(255, 255, 255, 0.20)"
+                : "rgba(255, 255, 255, 0.08)";
             }}
           >
             <svg
@@ -570,10 +597,10 @@ export function BoardHistory({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="left"
-          className="board-sidebar w-[min(100%,280px)] border-r border-[rgba(255,255,255,0.55)] p-0 sm:max-w-[280px]"
+          className="board-sidebar w-[min(100%,280px)] border-r border-[rgba(0,0,0,0.18)] p-0 sm:max-w-[280px]"
           style={{
             ...glassPanel,
-            boxShadow: "inset -1px 0 0 rgba(0, 119, 204, 0.06), 4px 0 24px -8px rgba(0, 0, 0, 0.06)",
+            boxShadow: "4px 0 28px -10px rgba(0, 0, 0, 0.35)",
           }}
         >
           <SheetTitle className="sr-only">Board history</SheetTitle>
