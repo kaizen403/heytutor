@@ -1,0 +1,534 @@
+import { useCallback } from "react";
+import {
+  IncrementalTagParser,
+  lessonNarrationText,
+  matchDiagramTemplate,
+  buildTemplateIntroSegments,
+  anchorToTextRect,
+} from "@heytutor/drawing";
+import {
+  streamLLMResponse,
+  TUTOR_SYSTEM_PROMPT,
+  TUTOR_CONTINUATION_PROMPT,
+  tutorDebug,
+  resolveApiUrl,
+} from "@heytutor/tutor-core";
+import { createTurnTelemetry } from "@/lib/turnTelemetry";
+import { enrichStoredSegmentsWithReplayAudio } from "@/lib/replayTurns";
+import { saveTurn, updateBoard, type StoredTurn } from "@/lib/boardsClient";
+import { MAX_LLM_CONTINUATIONS, STREAM_SEGMENTS_LIVE } from "../../constants";
+import { registerBoardAnchor } from "../../lib/boardLayout";
+import {
+  createEmptySegmentPlanStats,
+  isTeachingResponseIncomplete,
+} from "../../lib/segmentPlanning";
+import type { TurnControlApi, UseTurnLifecycleParams } from "./types";
+
+export function useQuestionHandler(
+  params: UseTurnLifecycleParams,
+  turnControl: Pick<
+    TurnControlApi,
+    "finishLectureUi" | "applyTurnPhase" | "enqueueSegment" | "processResponseText"
+  >,
+) {
+  const {
+    sessionId,
+    boards,
+    narrationText,
+    phase,
+    boardLoaded,
+    whiteboardRef,
+    pendingQuestionRef,
+    cancelRef,
+    isPausedRef,
+    conversationHistoryRef,
+    turnActiveRef,
+    turnAbortRef,
+    collectedSegmentsRef,
+    recordedSegmentsRef,
+    rawResponseRef,
+    currentTraceIdRef,
+    segmentChainRef,
+    turnStatsRef,
+    segmentPlanStatsRef,
+    fbdPhaseMarkedRef,
+    fbdPhaseStartedRef,
+    activeDiagramTemplateRef,
+    boardLayoutRef,
+    turnTelemetryRef,
+    speedRef,
+    storedTurnsRef,
+    setInputInteracted,
+    setIsPaused,
+    setIsReplaying,
+    setTranscriptOpen,
+    setLastError,
+    setStoredTurnsCount,
+    setBoards,
+    setPhase,
+    setNarrationText,
+    setCurrentSegmentText,
+    ensureTTSClient,
+    resetBoardLayout,
+    persistTurnForReplay,
+    registerReplayBlobUrl,
+    revokeReplayBlobUrls,
+  } = params;
+
+  const { finishLectureUi, applyTurnPhase, enqueueSegment, processResponseText } = turnControl;
+
+  const handleQuestion = useCallback(
+    async (question: string) => {
+      const wb = whiteboardRef.current;
+      if (!boardLoaded || !wb) {
+        pendingQuestionRef.current = question;
+        setInputInteracted(true);
+        return;
+      }
+      if (phase !== "idle") {
+        pendingQuestionRef.current = null;
+        return;
+      }
+
+      pendingQuestionRef.current = null;
+
+      tutorDebug("turn", "question submitted", {
+        question_preview: question.slice(0, 120),
+        board_id: sessionId,
+      });
+
+      cancelRef.current = false;
+      isPausedRef.current = false;
+      setIsPaused(false);
+      setIsReplaying(false);
+      setTranscriptOpen(false);
+      setLastError(null);
+      turnActiveRef.current = true;
+      const abortController = new AbortController();
+
+      const boardIdForName = sessionId;
+      if (boardIdForName) {
+        const needsName = boards.find(
+          (b) => b.id === boardIdForName,
+        )?.title === "new board";
+        if (needsName) {
+          void fetch(resolveApiUrl("/api/board-name"), {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ question }),
+          })
+            .then((r) => r.json())
+            .then((data) => {
+              const title: string | undefined = data?.title;
+              if (!title) return;
+              void updateBoard(boardIdForName, { title }).then((board) => {
+                if (!board) return;
+                setBoards((prev) =>
+                  prev.map((b) => (b.id === boardIdForName ? { ...b, title: board.title } : b)),
+                );
+              });
+            })
+            .catch(() => {
+              // ignore — keep "new board" as fallback
+            });
+        }
+      }
+      turnAbortRef.current = abortController;
+      let turnCancelled = false;
+      setPhase("thinking");
+      setNarrationText("");
+      setCurrentSegmentText("");
+      collectedSegmentsRef.current = [];
+      recordedSegmentsRef.current = [];
+      rawResponseRef.current = "";
+      currentTraceIdRef.current = null;
+      segmentChainRef.current = Promise.resolve();
+      turnStatsRef.current = { drawMs: 0, ttsChars: 0 };
+      segmentPlanStatsRef.current = createEmptySegmentPlanStats();
+      revokeReplayBlobUrls();
+      fbdPhaseMarkedRef.current = false;
+      fbdPhaseStartedRef.current = false;
+      activeDiagramTemplateRef.current = matchDiagramTemplate(question);
+      resetBoardLayout(false, activeDiagramTemplateRef.current !== null);
+
+      const runtimePromptAddon = activeDiagramTemplateRef.current?.promptAddon ?? "";
+      const turnSystemPrompt = runtimePromptAddon
+        ? `${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n${runtimePromptAddon}`
+        : TUTOR_SYSTEM_PROMPT;
+      const turnContinuationPrompt = runtimePromptAddon
+        ? `${TUTOR_CONTINUATION_PROMPT}\n\n--- diagram reminder ---\n${runtimePromptAddon}`
+        : TUTOR_CONTINUATION_PROMPT;
+
+      const tel = createTurnTelemetry();
+      turnTelemetryRef.current = tel;
+      const thinkingSpan = tel.span("thinking");
+      let thinkingEnded = false;
+
+      const endThinking = (metadata?: Record<string, unknown>) => {
+        if (thinkingEnded) {
+          return;
+        }
+
+        thinkingEnded = true;
+        thinkingSpan.end(metadata);
+      };
+
+      const wsSpan = tel.span("websocket-connect");
+      let wsEnded = false;
+
+      const endWsConnect = (metadata: Record<string, unknown>) => {
+        if (wsEnded) {
+          return;
+        }
+
+        wsEnded = true;
+        wsSpan.end(metadata);
+      };
+
+      void ensureTTSClient().prewarm({
+        onConnect: ({ ms, ok }) => {
+          endWsConnect({
+            latency_ms: Math.round(ms),
+            ok,
+          });
+        },
+      });
+
+      const activeTemplate = activeDiagramTemplateRef.current;
+      const introSegments = activeTemplate ? buildTemplateIntroSegments(activeTemplate, question) : [];
+      if (activeTemplate) {
+        fbdPhaseStartedRef.current = true;
+        for (const anchor of activeTemplate.anchors) {
+          registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
+        }
+        turnTelemetryRef.current?.mark("template-intro-queued", {
+          template_id: activeTemplate.id,
+          template_name: activeTemplate.name,
+          intro_segment_count: introSegments.length,
+          command_count: activeTemplate.commands.length,
+          commands: activeTemplate.commands.map((command) => ({
+            type: command.type,
+            params: command.params,
+            ...(command.text ? { text: command.text } : {}),
+          })),
+        });
+        tutorDebug("draw", "queued template intro segments", {
+          template: activeTemplate.id,
+          segment_count: introSegments.length,
+        });
+      }
+
+      if (STREAM_SEGMENTS_LIVE) {
+        for (const segment of introSegments) {
+          enqueueSegment(segment);
+        }
+      }
+
+      try {
+        const parser = new IncrementalTagParser({
+          onSegmentReady: (segment) => {
+            if (STREAM_SEGMENTS_LIVE) {
+              enqueueSegment(segment);
+            } else {
+              tutorDebug("parser", "segment ready from stream", {
+                narration_preview: segment.narration.slice(0, 80),
+                command_type: segment.command?.type ?? null,
+                deferred: true,
+              });
+            }
+          },
+        });
+
+        tutorDebug("turn", "LLM stream starting");
+
+        let fullResponse = "";
+        let lastStreamStats: Awaited<ReturnType<typeof streamLLMResponse>>["streamStats"];
+        let traceId: string | null = null;
+        let continueCount = 0;
+        let previousChunk = "";
+
+        while (continueCount <= MAX_LLM_CONTINUATIONS) {
+          const isContinuation = continueCount > 0;
+          const streamResult = await streamLLMResponse(
+            {
+              systemPrompt: isContinuation
+                ? turnContinuationPrompt
+                : turnSystemPrompt,
+              userPrompt: isContinuation ? "continue" : question,
+              conversationHistory: isContinuation
+                ? [
+                    ...conversationHistoryRef.current,
+                    {
+                      user: question,
+                      assistant: lessonNarrationText(fullResponse),
+                    },
+                  ]
+                : conversationHistoryRef.current,
+              proxyUrl: resolveApiUrl("/api/chat"),
+              sessionId: sessionId ?? undefined,
+              signal: abortController.signal,
+              onTraceId: (id) => {
+                currentTraceIdRef.current = id;
+                tel.setTrace(id, sessionId ?? undefined);
+              },
+            },
+            (delta) => {
+              endThinking({ phase: "first_token", delta_chars: delta.length });
+              if (delta.includes("[")) {
+                tutorDebug("parser", "draw tag delta", {
+                  delta_chars: delta.length,
+                  preview: delta.slice(0, 80),
+                });
+              }
+              parser.push(delta);
+            },
+          );
+
+          fullResponse += streamResult.text;
+          traceId = streamResult.traceId;
+          lastStreamStats = streamResult.streamStats;
+
+          if (cancelRef.current) {
+            break;
+          }
+
+          if (
+            !isTeachingResponseIncomplete(
+              streamResult.text,
+              fullResponse,
+              previousChunk,
+            )
+          ) {
+            break;
+          }
+
+          previousChunk = streamResult.text;
+          continueCount += 1;
+          if (continueCount > MAX_LLM_CONTINUATIONS) {
+            break;
+          }
+
+          tutorDebug("turn", "continuing truncated LLM response", {
+            continuation: continueCount,
+            response_chars: fullResponse.length,
+          });
+        }
+
+        const rawResponse = fullResponse;
+        const streamStats = lastStreamStats;
+
+        tutorDebug("turn", "LLM stream finished", {
+          response_chars: rawResponse.length,
+          trace_id: traceId,
+          stream_stats: streamStats,
+          segments_so_far: collectedSegmentsRef.current.length,
+          continuations: continueCount,
+        });
+
+        if (cancelRef.current) {
+          turnCancelled = true;
+          return;
+        }
+
+        if (traceId) {
+          currentTraceIdRef.current = traceId;
+          tel.setTrace(traceId, sessionId ?? undefined);
+        }
+
+        if (!thinkingEnded) {
+          endThinking({ phase: "no_first_token" });
+        }
+
+        parser.flush();
+
+        const responseText = rawResponse.trim();
+        rawResponseRef.current = responseText;
+
+        if (responseText.length === 0) {
+          const reasoningOnly = (streamStats?.reasoningChars ?? 0) > 0;
+          const message = reasoningOnly
+            ? "the ai couldn't generate a response — try rephrasing"
+            : "the ai returned an empty response. try asking again.";
+          tutorDebug("turn", "empty response", {
+            reasoning_chars: streamStats?.reasoningChars ?? 0,
+            stream_stats: streamStats,
+          });
+          setNarrationText(message);
+          setCurrentSegmentText(message);
+          setLastError({ message, question });
+          return;
+        }
+
+        tutorDebug("turn", "planning lesson from full response");
+        applyTurnPhase("speaking");
+
+        await processResponseText(responseText, introSegments, STREAM_SEGMENTS_LIVE);
+
+        const finalNarration =
+          responseText.length > 0 ? lessonNarrationText(responseText) : narrationText;
+
+        if (finalNarration.trim() && !turnCancelled && !cancelRef.current) {
+          conversationHistoryRef.current.push({
+            user: question,
+            assistant: finalNarration,
+          });
+
+          if (conversationHistoryRef.current.length > 10) {
+            conversationHistoryRef.current.shift();
+          }
+
+          const currentId = sessionId;
+          if (currentId && rawResponseRef.current) {
+            const savedTurn = await saveTurn(currentId, {
+              question,
+              rawResponse: rawResponseRef.current,
+              speedMultiplier: speedRef.current,
+              traceId: currentTraceIdRef.current,
+              segments: recordedSegmentsRef.current,
+            });
+
+            let turnForReplay: StoredTurn | null = null;
+            if (savedTurn) {
+              turnForReplay = {
+                ...savedTurn,
+                segments: enrichStoredSegmentsWithReplayAudio(
+                  savedTurn.segments,
+                  recordedSegmentsRef.current,
+                  registerReplayBlobUrl,
+                ),
+              };
+            } else if (recordedSegmentsRef.current.length > 0) {
+              turnForReplay = persistTurnForReplay(
+                question,
+                rawResponseRef.current,
+                recordedSegmentsRef.current,
+              );
+            }
+
+            if (turnForReplay) {
+              storedTurnsRef.current = [...storedTurnsRef.current, turnForReplay];
+              setStoredTurnsCount(storedTurnsRef.current.length);
+            }
+
+            setBoards((prev) =>
+              prev.map((b) =>
+                b.id === currentId ? { ...b, preview: question.slice(0, 60) } : b,
+              ),
+            );
+          }
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          turnCancelled = true;
+          endThinking({ phase: "cancelled" });
+          return;
+        }
+
+        if (cancelRef.current) {
+          turnCancelled = true;
+          return;
+        }
+
+        console.error("Tutor error:", error);
+        let message = "something went wrong. try asking again.";
+        if (error instanceof TypeError && /fetch|network|failed to fetch/i.test(error.message)) {
+          message = "network error — check your connection";
+        } else if (error instanceof Error && /tts|audio|elevenlabs|speech/i.test(error.message)) {
+          message = "audio generation failed — the lesson continues without voice";
+        } else if (error instanceof Error && /timeout|aborted|abort/i.test(error.message)) {
+          message = "the request took too long. try asking again.";
+        }
+        setNarrationText(message);
+        setCurrentSegmentText(message);
+        setLastError({ message, question });
+        endThinking({ phase: "error" });
+      } finally {
+        turnAbortRef.current = null;
+        endWsConnect({ ok: false, reason: "turn_complete_without_connect_event" });
+        if (!thinkingEnded) {
+          endThinking({ phase: turnCancelled ? "cancelled" : "turn_complete" });
+        }
+
+        tel.meta({
+          total_duration_ms: tel.durationMs(),
+          segment_count: collectedSegmentsRef.current.length,
+          total_draw_ms: turnStatsRef.current.drawMs,
+          total_tts_chars: turnStatsRef.current.ttsChars,
+          diagram_template_id: segmentPlanStatsRef.current.activeTemplateId,
+          diagram_template_name: segmentPlanStatsRef.current.activeTemplateName,
+          diagram_planned_segment_count: segmentPlanStatsRef.current.plannedSegmentCount,
+          diagram_intro_segment_count: segmentPlanStatsRef.current.introSegmentCount,
+          diagram_llm_segment_count: segmentPlanStatsRef.current.llmSegmentCount,
+          diagram_blocked_template_draw_commands:
+            segmentPlanStatsRef.current.blockedTemplateDrawCommands,
+          diagram_dropped_template_redraw_segments:
+            segmentPlanStatsRef.current.droppedTemplateRedrawSegments,
+          question_preview: question.slice(0, 120),
+          cancelled: turnCancelled,
+        });
+
+        tutorDebug("turn", "turn complete", {
+          cancelled: turnCancelled,
+          segment_count: collectedSegmentsRef.current.length,
+          total_draw_ms: turnStatsRef.current.drawMs,
+          total_tts_chars: turnStatsRef.current.ttsChars,
+        });
+
+        finishLectureUi();
+
+        const telToFlush = turnTelemetryRef.current;
+        turnTelemetryRef.current = null;
+        void telToFlush?.flush();
+      }
+    },
+    [
+      sessionId,
+      boards,
+      narrationText,
+      phase,
+      processResponseText,
+      enqueueSegment,
+      resetBoardLayout,
+      boardLoaded,
+      persistTurnForReplay,
+      registerReplayBlobUrl,
+      revokeReplayBlobUrls,
+      finishLectureUi,
+      ensureTTSClient,
+      applyTurnPhase,
+      whiteboardRef,
+      pendingQuestionRef,
+      setInputInteracted,
+      cancelRef,
+      isPausedRef,
+      setIsPaused,
+      setIsReplaying,
+      setTranscriptOpen,
+      setLastError,
+      turnActiveRef,
+      turnAbortRef,
+      collectedSegmentsRef,
+      recordedSegmentsRef,
+      rawResponseRef,
+      currentTraceIdRef,
+      segmentChainRef,
+      turnStatsRef,
+      segmentPlanStatsRef,
+      fbdPhaseMarkedRef,
+      fbdPhaseStartedRef,
+      activeDiagramTemplateRef,
+      boardLayoutRef,
+      turnTelemetryRef,
+      conversationHistoryRef,
+      speedRef,
+      storedTurnsRef,
+      setStoredTurnsCount,
+      setBoards,
+      setPhase,
+      setNarrationText,
+      setCurrentSegmentText,
+    ],
+  );
+
+  return { handleQuestion };
+}
