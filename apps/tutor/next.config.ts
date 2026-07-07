@@ -3,9 +3,6 @@ import path from "path";
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   transpilePackages: [
     "@heytutor/design-tokens",
     "@heytutor/drawing",

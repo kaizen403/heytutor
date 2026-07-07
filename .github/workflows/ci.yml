@@ -49,6 +49,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Verify scripts
+        run: pnpm --filter @heytutor/tutor-core verify && pnpm --filter @heytutor/tutor verify
+
   docker-backend:
     name: Build backend Docker image
     runs-on: ubuntu-latest

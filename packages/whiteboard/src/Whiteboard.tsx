@@ -128,35 +128,6 @@ const DUSTER_CORNER_RADIUS = 3;
 const HANDWRITING_ROTATION = -35;
 const HIDDEN_PATH_DATA = "M 0 0";
 
-function rotationFromPathTangent(
-  path: Konva.Path,
-  drawnLength: number,
-  totalLength: number,
-  fallbackRotation: number,
-): number {
-  const point = path.getPointAtLength(drawnLength);
-  const aheadLength = Math.min(drawnLength + 2, totalLength);
-  const aheadPoint = path.getPointAtLength(aheadLength);
-
-  if (!point || !aheadPoint) {
-    return fallbackRotation;
-  }
-
-  const dx = aheadPoint.x - point.x;
-  const dy = aheadPoint.y - point.y;
-
-  if (Math.abs(dx) <= 0.01 && Math.abs(dy) <= 0.01) {
-    return fallbackRotation;
-  }
-
-  const rotation = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
-  return Math.max(-80, Math.min(80, rotation));
-}
-
-function clampPenRotation(rotation: number): number {
-  return Math.max(-60, Math.min(-20, rotation));
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -186,21 +157,6 @@ function resolveFlightDuration(distance: number, requestedDuration: number): num
   }
 
   return clamp(distance / 800, 0.4, 1.2) * 1000;
-}
-
-function bezierPoint(start: Point, control: Point, end: Point, t: number): Point {
-  const oneMinusT = 1 - t;
-
-  return {
-    x:
-      oneMinusT * oneMinusT * start.x +
-      2 * oneMinusT * t * control.x +
-      t * t * end.x,
-    y:
-      oneMinusT * oneMinusT * start.y +
-      2 * oneMinusT * t * control.y +
-      t * t * end.y,
-  };
 }
 
 function cursorOpacity(state: CursorState): number {
@@ -1112,14 +1068,18 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     useEffect(
       () => {
         mountedRef.current = true;
+        const animationCleanups = animationCleanupsRef.current;
+        const frameIds = frameIdsRef.current;
+        const animNodes = animNodesRef.current;
+        const completedNodes = completedNodesRef.current;
 
         return () => {
           mountedRef.current = false;
-          Array.from(animationCleanupsRef.current).forEach((cleanup) => cleanup());
-          Array.from(frameIdsRef.current).forEach((frameId) => cancelAnimationFrame(frameId));
-          frameIdsRef.current.clear();
-          clearTrackedNodes(animNodesRef.current);
-          clearTrackedNodes(completedNodesRef.current);
+          Array.from(animationCleanups).forEach((cleanup) => cleanup());
+          Array.from(frameIds).forEach((frameId) => cancelAnimationFrame(frameId));
+          frameIds.clear();
+          clearTrackedNodes(animNodes);
+          clearTrackedNodes(completedNodes);
         };
       },
       [clearTrackedNodes],

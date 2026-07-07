@@ -4,6 +4,7 @@ import {
   ELEVENLABS_TTS_BASE,
   upstreamErrorResponse,
 } from "@/lib/ttsProxy";
+import { getUserId } from "@/lib/auth";
 
 interface TtsRequestBody {
   text?: string;
@@ -54,6 +55,11 @@ async function recordTtsFromRequest(
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const userId = await getUserId();
+  if (!userId) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const body = await request.text();
   const apiKey = process.env.ELEVENLABS_API_KEY;
   const voiceId = process.env.ELEVENLABS_VOICE_ID;

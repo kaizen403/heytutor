@@ -1,5 +1,5 @@
 import { getSegmentCommands, type DrawCommand, type TutorSegment } from "./drawingProtocol";
-import { BOARD_CANVAS, DIAGRAM_ZONE, clampToDiagramZone, isInDiagramZone } from "./boardZones";
+import { DIAGRAM_ZONE, clampToDiagramZone, isInDiagramZone } from "./boardZones";
 import { snapGeometryCommand } from "./geometrySnap";
 import type { DiagramTemplate, TemplateAnchor, TemplateCommand } from "./templates/types";
 
@@ -12,8 +12,6 @@ const TEMPLATE_SKELETON_DRAW_TYPES = new Set<DrawCommand["type"]>([
 ]);
 
 const TEMPLATE_PARAM_TOLERANCE = 40;
-const TEMPLATE_REDRAW_NARRATION_PATTERN =
-  /\b(?:let me draw|i(?:'|’)ll draw|i will draw|draw(?:ing)? (?:the|a|an)|flat horizontal line|surface|box|block|force arrow|arrow|rectangle|ramp|spring|wall|setup first)\b/i;
 const TEMPLATE_ACTION_NARRATION_PATTERN =
   /\b(?:let me draw|i(?:'|’)ll draw|i will draw|let(?:'|’)s draw|i will mark|let me mark|i will label|let me label|i(?:'|’)ll label|let(?:'|’)s label|let(?:'|’)s circle|i will circle|let me circle|now circle)\b/i;
 
@@ -36,10 +34,6 @@ export interface PreparedTemplateSegments {
   segments: TutorSegment[];
   blockedCommandCount: number;
   droppedSegmentCount: number;
-}
-
-function shouldDropTemplateRedrawNarration(narration: string): boolean {
-  return TEMPLATE_REDRAW_NARRATION_PATTERN.test(narration);
 }
 
 function cleanTemplateActionNarration(narration: string): string {

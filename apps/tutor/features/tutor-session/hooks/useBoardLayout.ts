@@ -211,7 +211,7 @@ export function useBoardLayout({
 
       return { x: rect.x, y: rect.y };
     },
-    [resetBoardLayout],
+    [resetBoardLayout, cancelRef, fbdPhaseStartedRef, whiteboardRef],
   );
 
   return {

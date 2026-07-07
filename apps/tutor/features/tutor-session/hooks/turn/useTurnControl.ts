@@ -273,6 +273,16 @@ export function useTurnControl(
     stopTurnRef.current = stopTurn;
   }, [stopTurn, stopTurnRef]);
 
+  // On unmount, run stopTurn to abort any in-flight LLM stream, stop TTS,
+  // cancel whiteboard animations, and clear pending delay timers. React 18+
+  // silently ignores state updates after unmount, so the setters inside
+  // stopTurn are harmless no-ops.
+  useEffect(() => {
+    return () => {
+      stopTurnRef.current?.();
+    };
+  }, [stopTurnRef]);
+
   const pauseTurn = useCallback(() => {
     if (phase === "idle" || isPausedRef.current) {
       return;

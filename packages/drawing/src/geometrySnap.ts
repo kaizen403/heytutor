@@ -184,7 +184,6 @@ export function snapGeometryCommand(
     const params = [...command.params];
     const last = params[params.length - 1];
     const hasBezierFlag = params.length >= 7 && last === 2;
-    const hasDashedFlag = params.length >= 5 && last === 1 && !hasBezierFlag;
 
     if (params.length < 4) {
       return command;

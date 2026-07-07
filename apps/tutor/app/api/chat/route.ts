@@ -7,6 +7,7 @@ import {
   startTurnTrace,
   type TurnTrace,
 } from "@/lib/langfuse";
+import { ensureUser, getUserId } from "@/lib/auth";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 
@@ -267,6 +268,12 @@ function createTracingTransformStream(
 
 export async function POST(request: Request): Promise<Response> {
   const requestStartedAt = Date.now();
+  const userId = await getUserId();
+  if (!userId) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+  await ensureUser(userId);
+
   const rawBody = await request.text();
   const sessionId = request.headers.get("x-session-id") ?? undefined;
   const userInput = readPromptFromBody(rawBody);
