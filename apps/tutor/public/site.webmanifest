@@ -4,8 +4,8 @@
   "description": "AI whiteboard math tutor that draws and explains in sync.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#E3FEF7",
-  "theme_color": "#003C43",
+  "background_color": "#E6F2DD",
+  "theme_color": "#659287",
   "icons": [
     {
       "src": "/favicon.svg",
