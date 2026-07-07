@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import {
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
@@ -9,16 +9,27 @@ import {
 } from "@/lib/site";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+const anthropicSans = localFont({
+  src: [
+    {
+      path: "../public/fonts/AnthropicSans-Roman.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/AnthropicSans-Italic.woff2",
+      weight: "400",
+      style: "italic",
+    },
+  ],
+  variable: "--font-anthropic-sans",
+  display: "swap",
 });
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#E3FEF7" },
-    { media: "(prefers-color-scheme: dark)", color: "#003C43" },
+    { media: "(prefers-color-scheme: light)", color: "#E6F2DD" },
+    { media: "(prefers-color-scheme: dark)", color: "#659287" },
   ],
   colorScheme: "light",
   width: "device-width",
@@ -90,7 +101,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} h-full antialiased`}
+      className={`${anthropicSans.variable} h-full font-sans antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
