@@ -39,8 +39,6 @@ model Turn {
   rawResponse     String    @map("raw_response")
   speedMultiplier Float     @default(1) @map("speed_multiplier")
   traceId         String?   @map("trace_id")
-  llmCostUsd      Float?    @map("llm_cost_usd")
-  ttsCostUsd      Float?    @map("tts_cost_usd")
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   board           Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -48,6 +46,7 @@ model Turn {
 
   @@index([boardId], map: "turns_board_id_idx")
   @@index([userId], map: "turns_user_id_idx")
+  @@unique([boardId, orderIndex], map: "turns_board_id_order_index_key")
   @@map("turns")
 }
 

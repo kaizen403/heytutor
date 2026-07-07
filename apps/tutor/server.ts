@@ -4,6 +4,7 @@ import { parse as parseUrl } from "node:url";
 import next from "next";
 import { WebSocket, WebSocketServer } from "ws";
 import { flushInBackground, recordTtsSpan } from "./lib/langfuse";
+import { HTUTOR_UID_COOKIE } from "./middleware";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "localhost";
@@ -41,7 +42,6 @@ interface ElevenLabsWsMessage {
   generation_config?: {
     chunk_length_schedule: number[];
   };
-  xi_api_key?: string;
 }
 
 interface TtsRelayContext {
@@ -172,19 +172,26 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
     }
 
     const raw = data.toString();
+    let forwardPayload: string | null = null;
 
     try {
       const message = JSON.parse(raw) as ElevenLabsWsMessage;
 
-      if (typeof message.text === "string" && message.text.length > 0) {
-        if (pendingSegmentText.length === 0) {
-          segmentStartedAt.value = Date.now();
+      // Re-serialize only whitelisted fields so a malicious client cannot
+      // inject xi_api_key, voice_settings overrides, or other upstream options.
+      const sanitized: Record<string, unknown> = {};
+      if (typeof message.text === "string") {
+        sanitized.text = message.text;
+        if (message.text.length > 0) {
+          if (pendingSegmentText.length === 0) {
+            segmentStartedAt.value = Date.now();
+          }
+          pendingSegmentText += message.text;
         }
-
-        pendingSegmentText += message.text;
       }
 
       if (message.flush) {
+        sanitized.flush = true;
         const characters = pendingSegmentText.trim().length;
 
         if (characters > 0 && context.traceId) {
@@ -205,11 +212,34 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
         segmentFlushPending = true;
         scheduleUpstreamIdleFinalize();
       }
+
+      if (message.voice_settings && typeof message.voice_settings === "object") {
+        // Only forward the supported numeric voice settings; drop unknown keys.
+        const vs = message.voice_settings;
+        const filtered: Record<string, number> = {};
+        if (typeof vs.stability === "number") filtered.stability = vs.stability;
+        if (typeof vs.similarity_boost === "number") filtered.similarity_boost = vs.similarity_boost;
+        if (typeof vs.speed === "number") filtered.speed = vs.speed;
+        if (Object.keys(filtered).length > 0) sanitized.voice_settings = filtered;
+      }
+
+      if (message.generation_config && typeof message.generation_config === "object") {
+        const gc = message.generation_config;
+        if (Array.isArray(gc.chunk_length_schedule)) {
+          sanitized.generation_config = {
+            chunk_length_schedule: gc.chunk_length_schedule.filter((n) => typeof n === "number"),
+          };
+        }
+      }
+
+      forwardPayload = JSON.stringify(sanitized);
     } catch {
-      // non-json payloads are forwarded as-is
+      // non-json payloads are dropped — only structured TTS messages are forwarded
     }
 
-    upstream.send(raw);
+    if (forwardPayload !== null) {
+      upstream.send(forwardPayload);
+    }
   });
 
   clientWs.on("close", () => {
@@ -238,6 +268,17 @@ app.prepare().then(() => {
     const { pathname, query } = parseUrl(request.url ?? "", true);
 
     if (pathname === "/api/tts/ws") {
+      const cookieHeader = request.headers.cookie ?? "";
+      const hasUidCookie = cookieHeader
+        .split(";")
+        .map((c) => c.trim())
+        .some((c) => c.startsWith(`${HTUTOR_UID_COOKIE}=`));
+
+      if (!hasUidCookie) {
+        socket.destroy();
+        return;
+      }
+
       const traceId = typeof query.traceId === "string" ? query.traceId : undefined;
       const sessionId = typeof query.sessionId === "string" ? query.sessionId : undefined;
       const rawSpeed = typeof query.speed === "string" ? Number(query.speed) : NaN;

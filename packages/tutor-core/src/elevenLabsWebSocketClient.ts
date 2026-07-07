@@ -863,15 +863,12 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       charDurations: [],
       totalDuration: 0,
     };
-    let timingsEmitted = false;
-
     const emitTimings = (): void => {
       if (timings.totalDuration <= 0) {
         return;
       }
 
       options.onTimings?.(timings);
-      timingsEmitted = true;
     };
 
     const scheduleChunk = async (audioBase64: string, payload: TimestampChunkPayload) => {

@@ -5,6 +5,7 @@ import {
   type TurnTelemetryEvent,
 } from "@/lib/langfuse";
 import { enrichTraceMetadataWithCosts } from "@/lib/usageCost";
+import { ensureUser, getUserId } from "@/lib/auth";
 
 interface TraceEventRequestBody {
   traceId?: string;
@@ -57,6 +58,12 @@ function parseBody(rawBody: string): TraceEventRequestBody | null {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const userId = await getUserId();
+  if (!userId) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+  await ensureUser(userId);
+
   const rawBody = await request.text();
   const body = parseBody(rawBody);
 

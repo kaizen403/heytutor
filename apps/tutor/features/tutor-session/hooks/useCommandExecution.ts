@@ -85,7 +85,7 @@ export function useCommandExecution({
         narration,
         activeDiagramTemplateRef.current?.anchors ?? [],
       ),
-    [],
+    [boardLayoutRef, activeDiagramTemplateRef],
   );
 
   const executeCommand = useCallback(
@@ -574,7 +574,21 @@ export function useCommandExecution({
 
       tutorDebug("draw", "executeCommand done", { type: command.type });
     },
-    [cancellableDelay, forgetErasedTextRects, resetBoardLayout, resolveAnnotationTarget, resolveTextPlacement],
+    [
+      activeDiagramTemplateRef,
+      boardLayoutRef,
+      cancelRef,
+      cancellableDelay,
+      fbdPhaseMarkedRef,
+      fbdPhaseStartedRef,
+      forgetErasedTextRects,
+      resetBoardLayout,
+      resolveAnnotationTarget,
+      resolveTextPlacement,
+      speedRef,
+      turnTelemetryRef,
+      whiteboardRef,
+    ],
   );
 
   const executeCommandWithCancel = useCallback(

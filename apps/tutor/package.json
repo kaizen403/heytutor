@@ -16,7 +16,8 @@
     "db:migrate": "dotenv -e .env.local -- prisma migrate deploy",
     "db:migrate:dev": "dotenv -e .env.local -- prisma migrate dev",
     "postinstall": "prisma generate",
-    "r2:setup": "tsx scripts/r2-setup.ts"
+    "r2:setup": "tsx scripts/r2-setup.ts",
+    "verify": "tsx scripts/verify-board-title.ts && tsx scripts/verify-replay.ts"
   },
   "dependencies": {
     "@heytutor/design-tokens": "workspace:*",

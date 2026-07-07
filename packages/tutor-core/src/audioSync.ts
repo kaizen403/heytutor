@@ -409,9 +409,23 @@ function expandCompactFormulaTokens(text: string): string {
     return text;
   }
 
+  // Common English words that happen to be 2-3 letters. Expanding them
+  // ("the" → "t h e") breaks TTS-to-writing sync matching on natural speech.
+  const COMMON_WORDS = new Set([
+    "the", "and", "for", "but", "not", "you", "all", "any", "can", "had",
+    "her", "was", "one", "our", "out", "day", "get", "has", "him", "his",
+    "how", "man", "new", "now", "old", "see", "two", "way", "who", "boy",
+    "did", "its", "let", "put", "say", "she", "too", "use", "an", "as",
+    "at", "be", "by", "do", "go", "he", "if", "in", "is", "it", "me",
+    "my", "no", "of", "on", "or", "so", "to", "up", "us", "we", "am",
+  ]);
+
   return text.replace(/\b[a-z]{2,3}\b/gi, (token) => {
     const lower = token.toLowerCase();
-    if (['int', 'sin', 'cos', 'tan', 'log', 'sqrt', 'pi'].includes(lower)) {
+    if (COMMON_WORDS.has(lower)) {
+      return token;
+    }
+    if (['int', 'sin', 'cos', 'tan', 'log', 'sqrt', 'pi', 'sum', 'vec', 'det', 'lim', 'exp', 'max', 'min'].includes(lower)) {
       return token;
     }
     return token.split('').join(' ');
