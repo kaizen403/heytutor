@@ -7,6 +7,7 @@ import {
   ttsNotConfiguredResponse,
   upstreamErrorResponse,
 } from "@/lib/ttsProxy";
+import { getUserId } from "@/lib/auth";
 
 function readTraceHeaders(request: Request): { traceId?: string; sessionId?: string } {
   return {
@@ -16,6 +17,11 @@ function readTraceHeaders(request: Request): { traceId?: string; sessionId?: str
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const userId = await getUserId();
+  if (!userId) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const apiKey = process.env.ELEVENLABS_API_KEY;
   const voiceId = process.env.ELEVENLABS_VOICE_ID;
 

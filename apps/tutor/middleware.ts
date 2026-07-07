@@ -47,6 +47,7 @@ export async function middleware(request: NextRequest) {
     response.cookies.set(HTUTOR_UID_COOKIE, crypto.randomUUID(), {
       httpOnly: true,
       sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
       path: "/",
       maxAge: 60 * 60 * 24 * 365 * 10,
     });
