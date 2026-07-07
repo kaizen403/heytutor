@@ -28,7 +28,7 @@ import {
 import { getDrawingDuration, getFlightDuration, tutorDebug } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/turnTelemetry";
 import type { NotesEpoch } from "@/lib/exportNotesPdf";
-import { TEXT_LAYOUT, DIAGRAM_ZONE } from "../constants";
+import { DIAGRAM_ZONE } from "../constants";
 import type { BoardTextRect, BoardLayoutState } from "../types";
 import { isInDiagramZone, registerBoardAnchor } from "../lib/boardLayout";
 import { resolveSnappedAnnotationParams } from "../lib/annotationSnap";
