@@ -55,14 +55,9 @@ export default function Hero() {
       <div className="flex-1 min-h-8 shrink-0 sm:min-h-12 lg:min-h-16" />
 
       <div className="relative z-20 flex flex-col items-center px-5 text-center sm:px-8 lg:px-10">
-        <div className="animate-fade-up mb-4 flex items-center gap-2 rounded-full bg-[#003C43]/8 px-4 py-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#77B0AA]" />
-          <span className="text-[13px] font-medium text-[#003C43]/70">AI whiteboard math tutor</span>
-        </div>
-
-        <h1 className="text-[40px] font-normal leading-[1.05] tracking-tight text-[#003C43] min-[400px]:text-[44px] sm:text-6xl lg:text-7xl xl:text-[80px]">
-          <span className="block animate-fade-up">Learn math the way</span>
-          <span className="block animate-fade-up [animation-delay:100ms]">teachers actually teach it.</span>
+        <h1 className="font-heading text-[40px] font-medium leading-[1.05] tracking-[-0.03em] text-[#003C43] min-[400px]:text-[44px] sm:text-6xl lg:text-7xl xl:text-[80px]">
+          <span className="block animate-fade-up">Learn every subject</span>
+          <span className="block animate-fade-up [animation-delay:100ms]">the way teachers actually teach it.</span>
         </h1>
 
         <form
@@ -73,7 +68,7 @@ export default function Hero() {
           <div className="flex items-center gap-3 rounded-full bg-white py-1.5 pl-5 pr-1.5 shadow-lg shadow-[#003C43]/10 ring-1 ring-[#77B0AA]/25">
             <input
               type="text"
-              placeholder="e.g. find the volume of a cuboid"
+              placeholder="e.g. explain photosynthesis step by step"
               className="flex-1 bg-transparent py-2.5 text-sm text-[#003C43] outline-none placeholder-[#77B0AA]/70 sm:text-base"
             />
             <button
@@ -90,8 +85,8 @@ export default function Hero() {
           className="animate-fade-up mt-5 max-w-lg text-sm leading-relaxed text-[#135D66] sm:mt-6 sm:text-base lg:text-lg"
           style={{ animationDelay: '340ms' }}
         >
-          Type a question. Watch an AI tutor draw shapes,
-          write formulas, and talk you through every step —
+          Type a question. Watch an AI tutor draw diagrams,
+          write notes, and talk you through every step,
           stroke by stroke, out loud.
         </p>
 
@@ -127,7 +122,13 @@ export default function Hero() {
       <img
         src={GRASS_IMAGE}
         alt=""
-        className="pointer-events-none absolute bottom-0 left-0 z-10 w-full select-none"
+        className="hero-grass-blend pointer-events-none absolute bottom-0 left-0 z-10 w-full select-none"
+      />
+
+      {/* Soft edge only where grass meets the next section */}
+      <div
+        aria-hidden
+        className="hero-edge-blend pointer-events-none absolute inset-x-0 bottom-0 z-[11] h-6 sm:h-8"
       />
     </div>
   )
