@@ -1,33 +1,39 @@
 "use client";
 
-import { RotateCcw, ScrollText } from "lucide-react";
+import { Download, RotateCcw, ScrollText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface LessonActionsProps {
   canReplay: boolean;
   canTranscript: boolean;
+  canDownload?: boolean;
   isReplaying?: boolean;
+  isDownloading?: boolean;
   onReplay: () => void;
   onTranscript: () => void;
+  onDownload?: () => void;
   compact?: boolean;
 }
 
 export function LessonActions({
   canReplay,
   canTranscript,
+  canDownload = false,
   isReplaying = false,
+  isDownloading = false,
   onReplay,
   onTranscript,
+  onDownload,
   compact = false,
 }: LessonActionsProps) {
-  if (!canReplay && !canTranscript) {
+  if (!canReplay && !canTranscript && !canDownload) {
     return null;
   }
 
   const buttonClass = cn(
-    "h-8 shrink-0 rounded-full border-[rgba(0,119,204,0.28)] bg-[rgba(255,255,255,0.72)] shadow-sm backdrop-blur-sm",
-    "hover:border-[rgba(0,119,204,0.42)] hover:bg-[rgba(0,119,204,0.08)]",
+    "h-8 shrink-0 rounded-full border-[rgba(101,146,135,0.28)] bg-[rgba(255,255,255,0.72)] shadow-sm backdrop-blur-sm",
+    "hover:border-[rgba(101,146,135,0.42)] hover:bg-[rgba(101,146,135,0.08)]",
     "disabled:opacity-60",
     compact ? "w-8 px-0" : "gap-1.5 px-3",
   );
@@ -44,7 +50,7 @@ export function LessonActions({
           aria-label="Replay lecture"
           className={cn(
             buttonClass,
-            "text-xs font-medium text-[#0077CC] hover:text-[#0066B3]",
+            "text-xs font-medium text-[#659287] hover:text-[#4F7468]",
           )}
         >
           <RotateCcw
@@ -64,11 +70,28 @@ export function LessonActions({
           aria-label="View lesson transcript"
           className={cn(
             buttonClass,
-            "text-xs font-medium text-[#333333] hover:text-[#0077CC]",
+            "text-xs font-medium text-[#333333] hover:text-[#659287]",
           )}
         >
           <ScrollText className="h-3.5 w-3.5" aria-hidden />
           {!compact && "Transcript"}
+        </Button>
+      )}
+      {canDownload && onDownload && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onDownload}
+          disabled={isReplaying || isDownloading}
+          aria-label="Download notes as PDF"
+          className={cn(
+            buttonClass,
+            "text-xs font-medium text-[#333333] hover:text-[#659287]",
+          )}
+        >
+          <Download className="h-3.5 w-3.5" aria-hidden />
+          {!compact && (isDownloading ? "Generating\u2026" : "Download notes")}
         </Button>
       )}
     </div>
