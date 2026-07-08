@@ -50,6 +50,80 @@ const MATH_GLYPH_UNITS: Record<string, number> = {
 
 const SYNTHETIC_MATH_CHARS = new Set(Object.keys(MATH_GLYPH_UNITS));
 
+/**
+ * Unicode presentation forms the model sometimes emits (½, x², v₁, 2×10⁵)
+ * have no Caveat glyph and no synthetic stroke, so they fall back to a plain
+ * Konva text node in a different font — the "1/2 in a normal font" bug.
+ * Normalizing them to ASCII with ^ / _ / a/b keeps everything hand-drawn.
+ */
+const VULGAR_FRACTIONS: Record<string, string> = {
+  "½": "1/2", "⅓": "1/3", "⅔": "2/3", "¼": "1/4", "¾": "3/4",
+  "⅕": "1/5", "⅖": "2/5", "⅗": "3/5", "⅘": "4/5", "⅙": "1/6", "⅚": "5/6",
+  "⅐": "1/7", "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8",
+  "⅑": "1/9", "⅒": "1/10",
+};
+
+const SUPERSCRIPT_MAP: Record<string, string> = {
+  "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5",
+  "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
+  "⁺": "+", "⁻": "-", "⁼": "=", "⁽": "(", "⁾": ")", "ⁿ": "n", "ⁱ": "i",
+};
+
+const SUBSCRIPT_MAP: Record<string, string> = {
+  "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4", "₅": "5",
+  "₆": "6", "₇": "7", "₈": "8", "₉": "9",
+  "₊": "+", "₋": "-", "₌": "=", "₍": "(", "₎": ")",
+};
+
+/**
+ * Rewrites Unicode fractions and super/subscript runs into stroke-renderable
+ * tokens (^(...) / _(...) / a/b) so they draw in the handwriting font instead
+ * of falling back to a browser font.
+ */
+export function normalizeStrokeText(text: string): string {
+  let out = "";
+  let i = 0;
+
+  while (i < text.length) {
+    const ch = text[i];
+
+    const fraction = VULGAR_FRACTIONS[ch];
+    if (fraction !== undefined) {
+      out += fraction;
+      i++;
+      continue;
+    }
+
+    if (SUPERSCRIPT_MAP[ch] !== undefined) {
+      let run = "";
+      while (i < text.length && SUPERSCRIPT_MAP[text[i]] !== undefined) {
+        run += SUPERSCRIPT_MAP[text[i]];
+        i++;
+      }
+      out += run.length > 1 ? `^(${run})` : `^${run}`;
+      continue;
+    }
+
+    if (SUBSCRIPT_MAP[ch] !== undefined) {
+      let run = "";
+      while (i < text.length && SUBSCRIPT_MAP[text[i]] !== undefined) {
+        run += SUBSCRIPT_MAP[text[i]];
+        i++;
+      }
+      out += run.length > 1 ? `_(${run})` : `_${run}`;
+      continue;
+    }
+
+    out += ch;
+    i++;
+  }
+
+  return out;
+}
+
+/** Extra horizontal space added after each glyph so ink never sticks together. */
+const LETTER_TRACKING_RATIO = 0.07;
+
 function cloneGlyphStrokes(
   baseChar: string,
   displayChar: string,
@@ -631,6 +705,13 @@ const SCRIPT_FONT_RATIO = 0.62;
 const SUPER_RAISE_RATIO = 0.38;
 /** How far (in px) to drop the subscript baseline below the normal baseline. */
 const SUB_DROP_RATIO = 0.14;
+/**
+ * Kerning around script groups (fraction of font size). Without these,
+ * a subscript starts flush against the base glyph and the next full-size
+ * character starts flush against the script — "r_1 =" reads as one blob.
+ */
+const SCRIPT_KERN_BEFORE_RATIO = 0.09;
+const SCRIPT_KERN_AFTER_RATIO = 0.14;
 
 /**
  * Renders a single character as stroke paths at the given position and scale.
@@ -763,11 +844,13 @@ function readScriptGroup(
 }
 
 export async function textToStrokePaths(
-  text: string,
+  rawText: string,
   x: number,
   y: number,
   fontSize: number,
 ): Promise<CharacterPath[]> {
+  const text = normalizeStrokeText(rawText);
+  const tracking = fontSize * LETTER_TRACKING_RATIO;
   const scale = fontSize / UNITS_PER_EM;
   const baselineY = y + ASCENDER * scale;
 
@@ -797,6 +880,7 @@ export async function textToStrokePaths(
       const { content, nextIndex } = readScriptGroup(text, i, "^");
       i = nextIndex;
 
+      currentX += fontSize * SCRIPT_KERN_BEFORE_RATIO;
       for (const superChar of content) {
         if (superChar === " ") {
           currentX += scriptFontSize * 0.3;
@@ -812,8 +896,9 @@ export async function textToStrokePaths(
           scriptFontSize,
         );
         results.push(path);
-        currentX += advance;
+        currentX += advance + tracking;
       }
+      currentX += fontSize * SCRIPT_KERN_AFTER_RATIO;
       continue;
     }
 
@@ -823,6 +908,7 @@ export async function textToStrokePaths(
       const { content, nextIndex } = readScriptGroup(text, i, "_");
       i = nextIndex;
 
+      currentX += fontSize * SCRIPT_KERN_BEFORE_RATIO;
       for (const subChar of content) {
         if (subChar === " ") {
           currentX += scriptFontSize * 0.3;
@@ -838,15 +924,16 @@ export async function textToStrokePaths(
           scriptFontSize,
         );
         results.push(path);
-        currentX += advance;
+        currentX += advance + tracking;
       }
+      currentX += fontSize * SCRIPT_KERN_AFTER_RATIO;
       continue;
     }
 
     // Normal character
     const { path, advance } = renderChar(char, currentX, baselineY, y, scale, fontSize);
     results.push(path);
-    currentX += advance;
+    currentX += advance + tracking;
     i++;
   }
 
@@ -860,7 +947,9 @@ export async function textToStrokePaths(
  * This mirrors the layout loop in `textToStrokePaths` but skips stroke
  * generation, so it is cheap and synchronous.
  */
-export function measureTextWidth(text: string, fontSize: number = 32): number {
+export function measureTextWidth(rawText: string, fontSize: number = 32): number {
+  const text = normalizeStrokeText(rawText);
+  const tracking = fontSize * LETTER_TRACKING_RATIO;
   const scale = fontSize / UNITS_PER_EM;
   const scriptFontSize = fontSize * SCRIPT_FONT_RATIO;
   const scriptScale = scriptFontSize / UNITS_PER_EM;
@@ -882,24 +971,26 @@ export function measureTextWidth(text: string, fontSize: number = 32): number {
       const { content, nextIndex } = readScriptGroup(text, i, char);
       i = nextIndex;
       const subScale = scriptScale;
+      currentX += fontSize * SCRIPT_KERN_BEFORE_RATIO;
       for (const subChar of content) {
         if (subChar === " ") {
           currentX += scriptFontSize * 0.3;
           continue;
         }
         const glyph = glyphDataRecord[subChar];
-        currentX += glyph ? glyph.w * subScale : scriptFontSize * 0.5;
+        currentX += (glyph ? glyph.w * subScale : scriptFontSize * 0.5) + tracking;
       }
+      currentX += fontSize * SCRIPT_KERN_AFTER_RATIO;
       continue;
     }
 
     const glyph = glyphDataRecord[char];
     if (!glyph && (SYNTHETIC_GREEK_CHARS.has(char) || SYNTHETIC_MATH_CHARS.has(char))) {
-      currentX += syntheticGlyphWidth(char, scale);
+      currentX += syntheticGlyphWidth(char, scale) + tracking;
       i++;
       continue;
     }
-    currentX += glyph ? glyph.w * scale : fontSize * 0.5;
+    currentX += (glyph ? glyph.w * scale : fontSize * 0.5) + tracking;
     i++;
   }
 
