@@ -3,8 +3,8 @@ import { createServer, type IncomingMessage } from "http";
 import { parse as parseUrl } from "node:url";
 import next from "next";
 import { WebSocket, WebSocketServer } from "ws";
+import { HTUTOR_UID_COOKIE } from "./lib/cookies";
 import { flushInBackground, recordTtsSpan } from "./lib/langfuse";
-import { HTUTOR_UID_COOKIE } from "./middleware";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "localhost";
@@ -76,8 +76,9 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
   let pendingSegmentText = "";
   const segmentStartedAt = { value: 0 };
   let segmentFlushPending = false;
+  let segmentReceivedAudio = false;
   let upstreamIdleTimer: ReturnType<typeof setTimeout> | null = null;
-  const UPSTREAM_IDLE_FINALIZE_MS = 650;
+  const UPSTREAM_IDLE_FINALIZE_MS = 900;
 
   const clearUpstreamIdleTimer = (): void => {
     if (upstreamIdleTimer !== null) {
@@ -95,6 +96,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
       }
 
       segmentFlushPending = false;
+      segmentReceivedAudio = false;
       clientWs.send(JSON.stringify({ isFinal: true }));
     }, UPSTREAM_IDLE_FINALIZE_MS);
   };
@@ -126,6 +128,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
     if (isBinary) {
       clientWs.send(data, { binary: true });
       if (segmentFlushPending) {
+        segmentReceivedAudio = true;
         scheduleUpstreamIdleFinalize();
       }
       return;
@@ -135,16 +138,26 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
     clientWs.send(payload);
 
     try {
-      const message = JSON.parse(payload) as { isFinal?: boolean; is_final?: boolean };
+      const message = JSON.parse(payload) as {
+        audio?: unknown;
+        audio_base64?: unknown;
+        isFinal?: boolean;
+        is_final?: boolean;
+      };
+      if (message.audio || message.audio_base64) {
+        segmentReceivedAudio = true;
+      }
+
       if (message.isFinal === true || message.is_final === true) {
         segmentFlushPending = false;
+        segmentReceivedAudio = false;
         clearUpstreamIdleTimer();
       }
     } catch {
       // non-json upstream payloads are forwarded as-is
     }
 
-    if (segmentFlushPending) {
+    if (segmentFlushPending && segmentReceivedAudio) {
       scheduleUpstreamIdleFinalize();
     }
   });
@@ -210,7 +223,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
         pendingSegmentText = "";
         segmentStartedAt.value = 0;
         segmentFlushPending = true;
-        scheduleUpstreamIdleFinalize();
+        segmentReceivedAudio = false;
       }
 
       if (message.voice_settings && typeof message.voice_settings === "object") {

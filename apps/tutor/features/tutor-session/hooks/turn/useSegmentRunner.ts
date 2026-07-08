@@ -121,31 +121,26 @@ export function useSegmentRunner({
 
       const markSpeechComplete = () => {
         speechComplete = true;
-        if (!audioStartedFlag) {
-          audioStartedFlag = true;
-          audioStartedResolver?.();
-        }
       };
 
-      const waitForAudioStart = async (): Promise<void> => {
+      const waitForAudioStart = async (timeoutMs = 1_200): Promise<boolean> => {
         if (audioStartedFlag || !hasNarration) {
-          return;
+          return true;
         }
 
         await Promise.race([
           raceWithCancel(audioStartedPromise),
-          cancellableDelay(8_000),
+          cancellableDelay(timeoutMs),
         ]);
 
-        if (!audioStartedFlag && !cancelRef.current) {
-          tutorDebug("tts", "audio start timeout — proceeding with estimated write sync", {
+        if (!audioStartedFlag && !cancelRef.current && !speechComplete) {
+          tutorDebug("tts", "audio start still pending", {
             index,
+            waited_ms: timeoutMs,
           });
-          markSpeechComplete();
-          if (audioStartedAtMs === null) {
-            audioStartedAtMs = performance.now();
-          }
         }
+
+        return audioStartedFlag;
       };
 
       let maxAudioPositionMs = -Infinity;
@@ -165,7 +160,7 @@ export function useSegmentRunner({
 
         const position = tts.getPlaybackPositionMs();
         if (position === null || position + 50 < maxAudioPositionMs) {
-          return Math.max(maxAudioPositionMs, wallClockMs());
+          return audioStartedAtMs === null ? 0 : Math.max(maxAudioPositionMs, wallClockMs());
         }
         maxAudioPositionMs = Math.max(maxAudioPositionMs, position);
         return position;
@@ -216,7 +211,7 @@ export function useSegmentRunner({
 
         try {
           if (hasNarration && multiShapeSegment) {
-            await waitForAudioStart();
+            await waitForAudioStart(1_200);
             if (cancelRef.current) {
               return;
             }
@@ -232,7 +227,7 @@ export function useSegmentRunner({
 
             if (isTextCommand && hasNarration && !audioStartedFlag) {
               const audioWaitStart = performance.now();
-              await waitForAudioStart();
+              await waitForAudioStart(2_500);
               if (cancelRef.current) return;
               await waitForInitialTimings(40);
               if (cancelRef.current) return;
@@ -242,11 +237,24 @@ export function useSegmentRunner({
               });
             }
 
+            if (!isTextCommand && hasNarration && command.type !== "PAUSE" && !audioStartedFlag) {
+              const audioWaitStart = performance.now();
+              await waitForAudioStart(2_500);
+              if (cancelRef.current) return;
+              tutorDebug("draw", "shape command waited for audio start", {
+                index,
+                command_type: command.type,
+                waited_ms: Math.round(performance.now() - audioWaitStart),
+                audio_started: audioStartedFlag,
+              });
+            }
+
+            const textCanFollowAudio = !isTextCommand || !hasNarration || audioStartedFlag;
             const elapsedAtCommandStart =
               audioStartedAtMs === null ? 0 : performance.now() - audioStartedAtMs;
 
             const timingValidation =
-              isTextCommand && hasNarration && capturedTimings
+              isTextCommand && hasNarration && textCanFollowAudio && capturedTimings
                 ? validateAudioTimingsForNarration(narration, capturedTimings)
                 : null;
             const segmentDurationMs =
@@ -255,11 +263,11 @@ export function useSegmentRunner({
                 ? Math.round(capturedTimings.totalDuration * 1000)
                 : totalSpeechMs);
             const timedSchedule =
-              isTextCommand && hasNarration && capturedTimings && timingValidation?.valid
+              isTextCommand && hasNarration && textCanFollowAudio && capturedTimings && timingValidation?.valid
                 ? getWriteCharScheduleMs(narration, command, capturedTimings, textCommandIndex)
                 : null;
             const estimatedSchedule =
-              isTextCommand && hasNarration
+              isTextCommand && hasNarration && textCanFollowAudio
                 ? getEstimatedWriteCharScheduleMs(narration, command, textCommandIndex)
                 : null;
             const usableTimedSchedule =
@@ -512,8 +520,10 @@ export function useSegmentRunner({
               ...speakOptions,
               onStart: () => {
                 if (cancelRef.current || !turnActiveRef.current) return;
-                audioStartedFlag = true;
-                audioStartedResolver?.();
+                if (!audioStartedFlag) {
+                  audioStartedFlag = true;
+                  audioStartedResolver?.();
+                }
                 tutorDebug("tts", "segment audio started", { index });
                 tel?.mark("tts-start", {
                   segment_index: index,
@@ -521,7 +531,9 @@ export function useSegmentRunner({
                   command_count: segmentCommands.length,
                 });
                 applyTurnPhase("drawing");
-                audioStartedAtMs = performance.now();
+                if (audioStartedAtMs === null) {
+                  audioStartedAtMs = performance.now();
+                }
               },
               onTimings: (timings) => {
                 captureTimings(timings);

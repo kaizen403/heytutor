@@ -576,7 +576,7 @@ function FeatureCard({
   description,
   highlighted,
 }: {
-  mock: () => JSX.Element
+  mock: () => ReactNode
   title: string
   description: string
   highlighted?: boolean

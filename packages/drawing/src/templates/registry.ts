@@ -5,6 +5,7 @@ import { COORDINATE_AXES_TEMPLATE } from "./coordinateAxes";
 import { FBD_TEMPLATE } from "./fbd";
 import { INCLINE_FBD_TEMPLATE } from "./inclineFbd";
 import { PROJECTILE_TEMPLATE } from "./projectile";
+import { HORIZONTAL_SPRING_TEMPLATE } from "./horizontalSpring";
 import { RAMP_SPRING_TEMPLATE } from "./rampSpring";
 import { buildCircuitPrecisionSegments } from "./circuitPrecision";
 
@@ -35,6 +36,7 @@ import type { DiagramTemplate } from "./types";
 export const DIAGRAM_TEMPLATES: DiagramTemplate[] = [
   // Physics — specific mechanics
   CIRCULAR_MOTION_TEMPLATE,
+  HORIZONTAL_SPRING_TEMPLATE,
   RAMP_SPRING_TEMPLATE,
   PROJECTILE_TEMPLATE,
   CIRCUIT_TEMPLATE,

@@ -76,6 +76,15 @@ export class IncrementalTagParser {
       return true;
     }
 
+    if (
+      'STEP'.startsWith(upperInner) ||
+      '/STEP'.startsWith(upperInner) ||
+      upperInner.startsWith('STEP') ||
+      upperInner.startsWith('/STEP')
+    ) {
+      return true;
+    }
+
     if ('DRAW:'.startsWith(upperInner) || upperInner.startsWith('DRAW:')) {
       return true;
     }
@@ -112,6 +121,22 @@ export class IncrementalTagParser {
   }
 
   private tryEmitCompleteTag(): void {
+    const upperTag = this.tagBuffer.toUpperCase();
+    if (upperTag === '[STEP]') {
+      this.charPosition += this.tagBuffer.length;
+      this.tagBuffer = '';
+      this.state = 'NARRATION';
+      return;
+    }
+
+    if (upperTag === '[/STEP]') {
+      this.charPosition += this.tagBuffer.length;
+      this.tagBuffer = '';
+      this.state = 'NARRATION';
+      this.emitTrailingNarration();
+      return;
+    }
+
     const parsedTag = parseDrawingTag(this.tagBuffer);
 
     if (!parsedTag) {

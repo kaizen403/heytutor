@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
-export const HTUTOR_UID_COOKIE = "htutor_uid";
+import { HTUTOR_UID_COOKIE } from "@/lib/cookies";
 
 const BACKEND_ORIGIN = process.env.BACKEND_ORIGIN?.replace(/\/$/, "");
 
