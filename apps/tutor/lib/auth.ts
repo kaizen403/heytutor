@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { HTUTOR_UID_COOKIE } from "@/lib/cookies";
 import { prisma } from "@/lib/db/prisma";
-import { HTUTOR_UID_COOKIE } from "@/middleware";
 
 export async function getUserId(): Promise<string | null> {
   const cookieStore = await cookies();

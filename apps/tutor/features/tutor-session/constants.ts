@@ -6,7 +6,7 @@ export const BOARD_HEIGHT = DS.Canvas.height;
 export const WHITEBOARD_COLOR = "#F8F6F0";
 export const PAGE_GUTTER_X = 28;
 export const PAGE_GUTTER_Y = 10;
-export const MAX_LLM_CONTINUATIONS = 5;
+export const MAX_LLM_CONTINUATIONS = 1;
 export const STREAM_SEGMENTS_LIVE = true;
 
 export const LANDING_SUGGESTIONS: CanvasLandingSuggestion[] = [

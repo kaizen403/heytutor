@@ -10,6 +10,7 @@ import {
 import { ensureUser, getUserId } from "@/lib/auth";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
+const DEFAULT_MAX_TOKENS = 3600;
 
 interface ChatRequestBody {
   messages?: { role?: string; content?: unknown }[];
@@ -128,12 +129,20 @@ async function finalizeMockTrace(
 function injectStreamOptions(bodyText: string, serverModel: string): string {
   try {
     const parsed = JSON.parse(bodyText) as ChatRequestBody & Record<string, unknown>;
+    const configuredMaxTokens = Number.parseInt(
+      process.env.FIREWORKS_MAX_TOKENS ?? `${DEFAULT_MAX_TOKENS}`,
+      10,
+    );
+    const maxTokens = Number.isFinite(configuredMaxTokens)
+      ? Math.min(Math.max(configuredMaxTokens, 1200), 6000)
+      : DEFAULT_MAX_TOKENS;
+
     parsed.model = serverModel;
     parsed.stream_options = { include_usage: true };
     parsed.reasoning_effort = "none";
     parsed.max_tokens = Math.min(
-      typeof parsed.max_tokens === "number" ? parsed.max_tokens : 12000,
-      12000,
+      typeof parsed.max_tokens === "number" ? parsed.max_tokens : maxTokens,
+      maxTokens,
     );
     return JSON.stringify(parsed);
   } catch {
