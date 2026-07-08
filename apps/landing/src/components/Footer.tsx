@@ -58,7 +58,7 @@ function FooterLinkList({ links }: { links: FooterLink[] }) {
 
 export default function Footer() {
   return (
-    <footer id="pricing" className="landing-section-inset bg-[#0A0A0A] text-white">
+    <footer id="pricing" className="landing-section-inset bg-brand-footer text-white">
       <div aria-hidden className="footer-top-blend pointer-events-none h-10 sm:h-12" />
 
       <div className={CONTAINER}>
@@ -69,7 +69,7 @@ export default function Footer() {
 
           <a
             href="/app"
-            className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-white px-6 py-3 text-[14px] font-medium text-[#0A0A0A] no-underline transition-opacity hover:opacity-85"
+            className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-white px-6 py-3 text-[14px] font-medium text-brand-fg-soft no-underline transition-opacity hover:opacity-85"
           >
             Try it free
             <ArrowRight className="h-4 w-4" strokeWidth={2} />

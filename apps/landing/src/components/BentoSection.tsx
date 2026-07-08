@@ -1,17 +1,17 @@
 import { type ReactNode } from 'react'
 
 const C = {
-  section: '#F5F4F2',
-  card: '#EBEBEA',
+  section: '#F2F3F7',
+  card: '#FFFFFF',
   surface: '#FFFFFF',
-  text: '#171717',
-  muted: '#525252',
+  text: '#111827',
+  muted: '#6B7280',
   soft: '#737373',
-  positive: '#3F6B55',
+  positive: '#2563EB',
   warn: '#B45309',
-  alert: '#9E4040',
-  alertBg: '#C47070',
-  chart: '#4F7468',
+  alert: '#DC2626',
+  alertBg: '#FCA5A5',
+  chart: '#37546D',
 } as const
 
 function BentoCard({
@@ -100,7 +100,7 @@ function DoubtMock() {
         </span>
         <span className="text-[11px] font-medium text-neutral-700">Board follow-up</span>
       </div>
-      <div className="rounded-xl px-3 py-2.5" style={{ background: '#F5F5F4' }}>
+      <div className="rounded-xl px-3 py-2.5" style={{ background: '#F2F3F7' }}>
         <p className="text-[10px] font-medium text-neutral-500">You · just now</p>
         <p className="mt-1 text-[11px] font-normal leading-relaxed text-neutral-800">
           Why did we multiply both sides in step 3? I lost the jump from the diagram.
