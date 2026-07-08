@@ -2,19 +2,19 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowUp, Check } from 'lucide-react'
 
 const MOCK = {
-  bg: '#FAFAF9',
+  bg: '#FFFFFF',
   surface: '#FFFFFF',
   border: 'rgba(0, 0, 0, 0.08)',
   borderSoft: 'rgba(0, 0, 0, 0.06)',
-  text: '#171717',
-  textMuted: '#525252',
+  text: '#111827',
+  textMuted: '#6B7280',
   textSoft: '#737373',
-  accent: '#659287',
-  accentDark: '#4F7468',
-  bubble: '#262626',
-  mint: '#FAFAF9',
-  positive: '#3F6B55',
-  alert: '#9E4040',
+  accent: '#2563EB',
+  accentDark: '#37546D',
+  bubble: '#222222',
+  mint: '#F8F9FA',
+  positive: '#2563EB',
+  alert: '#DC2626',
 } as const
 
 function MockShell({ children }: { children: ReactNode }) {
@@ -387,7 +387,7 @@ function TemplatesMock() {
     <div ref={rootRef} className="h-full">
       <div
         className="flex h-full flex-col rounded-2xl p-4"
-        style={{ background: '#EEEDEB' }}
+        style={{ background: '#EDF3FD' }}
       >
         <div className="text-[11px] font-medium" style={{ color: MOCK.textMuted }}>
           Lessons
@@ -605,7 +605,7 @@ export default function FeaturesSection() {
   return (
     <section
       id="features"
-      className="landing-section-inset landing-section-rule relative z-20 -mt-px border-t border-neutral-900/[0.08] bg-[#F5F4F2] pb-20 pt-28 sm:pb-24 sm:pt-36 lg:pb-28 lg:pt-40"
+      className="landing-section-inset landing-section-rule relative z-20 -mt-px border-t border-black/[0.08] bg-brand-section pb-20 pt-28 sm:pb-24 sm:pt-36 lg:pb-28 lg:pt-40"
     >
       <div className="mx-auto max-w-6xl px-5 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-2xl text-center">

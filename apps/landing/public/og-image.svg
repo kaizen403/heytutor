@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Accelute · AI whiteboard tutor">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#E3FEF7"/>
-      <stop offset="55%" stop-color="#77B0AA"/>
-      <stop offset="100%" stop-color="#135D66"/>
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="45%" stop-color="#EDF3FD"/>
+      <stop offset="100%" stop-color="#2563EB"/>
     </linearGradient>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
-  <rect x="80" y="80" width="96" height="96" rx="22" fill="#E3FEF7"/>
-  <path fill="#003C43" transform="translate(104 104) scale(0.25)" d="M144 256 27.598 256 144 139.598ZM256 207.5 200 256V56H0l48-56h208v207.5ZM0 204.402V112h92.402z"/>
-  <text x="200" y="145" fill="#003C43" font-family="system-ui, sans-serif" font-size="56" font-weight="700">Accelute</text>
-  <text x="80" y="300" fill="#003C43" font-family="system-ui, sans-serif" font-size="52" font-weight="600">Learn every subject the way teachers actually teach it.</text>
-  <text x="80" y="390" fill="#003C43" fill-opacity="0.85" font-family="system-ui, sans-serif" font-size="28">AI whiteboard tutor · draws diagrams, writes notes, and explains out loud in sync.</text>
+  <rect x="80" y="80" width="96" height="96" rx="22" fill="#EDF3FD"/>
+  <path fill="#2563EB" transform="translate(104 104) scale(0.25)" d="M144 256 27.598 256 144 139.598ZM256 207.5 200 256V56H0l48-56h208v207.5ZM0 204.402V112h92.402z"/>
+  <text x="200" y="145" fill="#111827" font-family="system-ui, sans-serif" font-size="56" font-weight="700">Accelute</text>
+  <text x="80" y="300" fill="#111827" font-family="system-ui, sans-serif" font-size="52" font-weight="600">Learn every subject the way teachers actually teach it.</text>
+  <text x="80" y="390" fill="#4B5563" font-family="system-ui, sans-serif" font-size="28">AI whiteboard tutor · draws diagrams, writes notes, and explains out loud in sync.</text>
 </svg>
