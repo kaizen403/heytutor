@@ -30,6 +30,22 @@ type ExecuteCommand = (
   options?: ExecuteCommandOptions,
 ) => Promise<void>;
 
+async function waitForWhiteboard(
+  whiteboardRef: RefObject<WhiteboardHandle | null>,
+  maxMs = 4000,
+): Promise<boolean> {
+  const start = Date.now();
+  while (!whiteboardRef.current) {
+    if (Date.now() - start >= maxMs) {
+      return false;
+    }
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+  }
+  return true;
+}
+
 export interface UseBoardSessionParams {
   sessionId: string;
   router: AppRouterInstance;
@@ -200,13 +216,16 @@ export function useBoardSession({
     [registerReplayBlobUrl, storedTurnsRef, speedRef],
   );
 
+  const executeCommandRef = useRef(executeCommand);
+  useEffect(() => {
+    executeCommandRef.current = executeCommand;
+  }, [executeCommand]);
+
   const restoreBoardFromApi = useCallback(
     async (boardId: string, generation: number) => {
       const isStale = () =>
         generation !== restoreGenerationRef.current ||
         boardId !== activeSessionIdRef.current;
-
-      setBoardLoaded(false);
 
       let detail = await fetchBoardDetail(boardId);
       if (isStale()) return;
@@ -249,6 +268,14 @@ export function useBoardSession({
 
       if (detail.turns.length === 0) {
         setBoardLoaded(true);
+        return;
+      }
+
+      const whiteboardReady = await waitForWhiteboard(whiteboardRef);
+      if (isStale()) return;
+      if (!whiteboardReady) {
+        setBoardLoaded(true);
+        return;
       }
 
       for (const turn of detail.turns) {
@@ -263,7 +290,10 @@ export function useBoardSession({
               return;
             }
 
-            await executeCommand(command, { durationScale: 0.05, applyLayout: false });
+            await executeCommandRef.current(command, {
+              durationScale: 0.05,
+              applyLayout: false,
+            });
           }
         }
       }
@@ -273,7 +303,6 @@ export function useBoardSession({
       setBoardLoaded(true);
     },
     [
-      executeCommand,
       resetBoardLayout,
       whiteboardRef,
       cancelRef,
@@ -288,11 +317,27 @@ export function useBoardSession({
     ],
   );
 
+  const restoreBoardFromApiRef = useRef(restoreBoardFromApi);
+  useEffect(() => {
+    restoreBoardFromApiRef.current = restoreBoardFromApi;
+  }, [restoreBoardFromApi]);
+
   useEffect(() => {
     return () => {
       revokeReplayBlobUrls();
     };
   }, [revokeReplayBlobUrls]);
+
+  // Reset board state when sessionId changes. Using the "adjust state during
+  // render" pattern recommended by React docs — safe because React re-renders
+  // immediately before committing.
+  const [prevSessionId, setPrevSessionId] = useState(sessionId);
+  if (sessionId !== prevSessionId) {
+    setPrevSessionId(sessionId);
+    setBoardLoaded(false);
+    setStoredTurnsCount(0);
+    setInputInteracted(false);
+  }
 
   useEffect(() => {
     if (!sessionId) return;
@@ -303,9 +348,9 @@ export function useBoardSession({
     cancelRef.current = false;
 
     queueMicrotask(() => {
-      void restoreBoardFromApi(sessionId, generation);
+      void restoreBoardFromApiRef.current(sessionId, generation);
     });
-  }, [sessionId, restoreBoardFromApi, cancelRef, stopTurnRef, revokeReplayBlobUrls]);
+  }, [sessionId, cancelRef, stopTurnRef, revokeReplayBlobUrls]);
 
   return {
     boards,
