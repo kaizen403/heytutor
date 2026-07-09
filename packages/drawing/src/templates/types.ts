@@ -41,6 +41,12 @@ export interface DiagramTemplate {
    */
   allowLlmDrawInDiagramZone?: boolean;
   /**
+   * Set when this template was synthesized at runtime by the LLM diagram architect
+   * (not from the static registry). Planner diagrams are always authoritative —
+   * the teaching LLM must not redraw over the planner's diagram.
+   */
+  plannerGenerated?: boolean;
+  /**
    * Short per-lesson prompt addon (~10–20 lines). Injected only when this template matches.
    * The LLM must NOT redraw skeleton ink — only explain, annotate, and write algebra.
    */

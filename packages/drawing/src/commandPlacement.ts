@@ -263,6 +263,14 @@ export function isDuplicateTemplateDraw(
   );
 }
 
+/** Templates whose skeleton geometry is fully authoritative — block all LLM structural redraws. */
+const AUTHORITATIVE_DIAGRAM_TEMPLATES = new Set([
+  "circuit",
+  "rolling_incline",
+  "incline_fbd",
+  "wire_network_cube",
+]);
+
 /** True when a matched template owns the diagram and an LLM DRAW_* would improvise over it. */
 export function isBlockedTemplateDiagramDraw(
   command: DrawCommand,
@@ -272,12 +280,13 @@ export function isBlockedTemplateDiagramDraw(
     return false;
   }
 
-  // The circuit diagram is fully deterministic and authoritative. Block every
-  // structural draw or free-floating arrow/scribble the LLM tries to place over
-  // it (batteries, resistor boxes, current-source circles, flow arrows). Only
-  // annotations that target an existing label (CIRCLE_AROUND/UNDERLINE/
-  // HIGHLIGHT) and left-column WRITE/LABEL are allowed through.
-  if (template.id === "circuit") {
+  // Planner-generated diagrams are always authoritative — block all structural
+  // redraws in the diagram zone so the teaching LLM doesn't scribble over the
+  // architect's diagram.
+  const isAuthoritative =
+    AUTHORITATIVE_DIAGRAM_TEMPLATES.has(template.id) || template.plannerGenerated === true;
+
+  if (isAuthoritative) {
     const isStructuralDraw =
       TEMPLATE_SKELETON_DRAW_TYPES.has(command.type) ||
       command.type === "ARROW" ||
