@@ -16,7 +16,7 @@ import {
   type AudioTimings,
   type TTSClient,
 } from "@heytutor/tutor-core";
-import { FIXED_SHAPE_DRAW_MS } from "../../types";
+import { adaptiveShapeBudget } from "../../types";
 import type { UseSegmentRunnerParams } from "./types";
 
 export function useSegmentRunner({
@@ -34,6 +34,7 @@ export function useSegmentRunner({
   narrationSinceEpochRef,
   currentTraceIdRef,
   setCurrentSegmentText,
+  narrationDensityRef,
 }: UseSegmentRunnerParams) {
   const runSegment = useCallback(
     async (
@@ -103,6 +104,9 @@ export function useSegmentRunner({
       let capturedTimings: AudioTimings | null = null;
       let capturedDurationMs: number | null = null;
       const estimateSpeechMs = Math.max(narration.length * 85, 700);
+      // Feed the adaptive-speed hook with the narration density of this segment.
+      narrationDensityRef.current =
+        estimateSpeechMs > 0 ? narration.length / estimateSpeechMs : 0;
       const naturalDrawMs = Math.max(
         segmentCommands.reduce((sum, cmd) => sum + getCommandDrawDurationMs(cmd), 0),
         200,
@@ -395,9 +399,11 @@ export function useSegmentRunner({
                 ? (speechWindow?.durationMs ?? naturalDrawMs)
                 : command.type === "PAUSE"
                   ? commandSpeechMs
-                  : !multiShapeSegment && FIXED_SHAPE_DRAW_MS[command.type]
-                    ? FIXED_SHAPE_DRAW_MS[command.type]
-                    : Math.max(speechWindow?.durationMs ?? commandSpeechMs, 50);
+                  : speechWindow?.durationMs
+                    ? adaptiveShapeBudget(command.type, speechWindow.durationMs, 1)
+                    : multiShapeSegment
+                      ? Math.max(commandSpeechMs, 50)
+                      : adaptiveShapeBudget(command.type, undefined, 1);
 
             await executeCommandWithCancel(command, {
               segmentNarration: narration,
@@ -591,6 +597,7 @@ export function useSegmentRunner({
       narrationSinceEpochRef,
       currentTraceIdRef,
       setCurrentSegmentText,
+      narrationDensityRef,
     ],
   );
 
