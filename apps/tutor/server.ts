@@ -78,7 +78,11 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
   let segmentFlushPending = false;
   let segmentReceivedAudio = false;
   let upstreamIdleTimer: ReturnType<typeof setTimeout> | null = null;
-  const UPSTREAM_IDLE_FINALIZE_MS = 900;
+  // Idle window after the last audio chunk before synthesizing isFinal.
+  // Only armed once real audio for the flushed segment has arrived, so a
+  // shorter window can't fire before generation starts — it only trims the
+  // dead air between one sentence ending and the next one starting.
+  const UPSTREAM_IDLE_FINALIZE_MS = 550;
 
   const clearUpstreamIdleTimer = (): void => {
     if (upstreamIdleTimer !== null) {
