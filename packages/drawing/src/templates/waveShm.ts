@@ -4,7 +4,7 @@ export const WAVE_SHM_TEMPLATE: DiagramTemplate = {
   id: "wave_shm",
   name: "oscillations and waves",
   test:
-    /wave|wavelength|amplitude|frequency|sinusoidal|\bshm\b|simple harmonic|oscillation|periodic|\bnode\b|antinode|pendulum/i,
+    /wave|wavelength|amplitude|frequency|sinusoidal|\bshm\b|simple harmonic|oscillation|periodic|\bnode\b|antinode/i,
   commands: [
     { type: "DRAW_LINE", params: [460, 300, 880, 300] },
   ],

@@ -13,7 +13,7 @@ export const RAMP_SPRING_TEMPLATE: DiagramTemplate = {
   id: "ramp_spring",
   name: "ramp and spring",
   test:
-    /(?=.*(?:ramp|incline|inclined|height|mgh|slides? down|gravitational potential))(?=.*(?:spring|compress(?:ed|ion)?|1\/2\s*kx|elastic potential|energy conserv))/i,
+    /^(?=[\s\S]*(?:ramp|incline|inclined|hill|slope|height|mgh|slides? down|gravitational potential))(?=[\s\S]*(?:spring|compress(?:ed|ion)?|1\/2\s*kx|elastic potential|energy conserv))/i,
   commands: [
     // 0–1: ground + ramp
     { type: "DRAW_LINE", params: [460, 450, 920, 450] },

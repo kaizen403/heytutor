@@ -13,7 +13,7 @@ export const HORIZONTAL_SPRING_TEMPLATE: DiagramTemplate = {
   id: "horizontal_spring",
   name: "horizontal spring",
   test:
-    /(?=.*\bspring\b)(?=.*(?:horizontal|frictionless|natural length|speed|velocity|maximum compression|simple harmonic|SHM))(?!.*(?:ramp|incline|inclined|height|mgh|slides? down))/i,
+    /^(?=[\s\S]*\bspring\b)(?=[\s\S]*(?:horizontal|frictionless|natural length|speed|velocity|maximum compression|simple harmonic|SHM))(?![\s\S]*(?:ramp|incline|inclined|hill|slope|height|mgh|slides? down))/i,
   commands: [
     // 0: horizontal track
     { type: "DRAW_LINE", params: [500, 430, 900, 430] },
