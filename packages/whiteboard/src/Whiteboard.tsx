@@ -57,6 +57,12 @@ export interface AnnotationOptions {
 export interface ShapeDrawOptions {
   dashed?: boolean;
   strokeWidth?: number;
+  /** When provided, the shape draw duration is damped against the audio clock
+   * — the same reactive scheme used for handwritten text. If the voice is ahead
+   * of the ink, the pen speeds up; if behind, it slows down. */
+  getAudioPositionMs?: () => number;
+  /** The audio position (ms) this shape should align with. Lag = audioPos - this. */
+  targetMs?: number;
 }
 
 export interface WhiteboardHandle {
@@ -197,6 +203,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     const mountedRef = useRef(true);
     const isPausedRef = useRef(false);
     const animationSpeedRef = useRef(1);
+    // Damping state for the reactive shape-speed scheme — mirrors the
+    // `previousScheduledBudgetMs` local in writeText, but persists across
+    // separate drawShape calls within a turn.
+    const previousShapeBudgetMsRef = useRef<number | null>(null);
     const cursorViewRef = useRef<CursorView>({ x: width / 2, y: height / 2, rotation: 0, scale: 1 });
     const [cursorView, setCursorView] = useState<CursorView>(cursorViewRef.current);
     const [activeCursorState, setActiveCursorState] = useState<CursorState>(cursorState);
@@ -346,6 +356,35 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           return;
         }
 
+        // Reactive shape speed: when an audio clock is available, dampen the
+        // draw duration against the lag — the same scheme writeText uses per
+        // character, applied here to the whole stroke. Positive lag (voice
+        // ahead) shortens the budget; negative lag (ink ahead) lengthens it.
+        let effectiveDuration = duration;
+        if (options?.getAudioPositionMs && typeof options.targetMs === "number") {
+          const lagMs = options.getAudioPositionMs() - options.targetMs;
+          const targetBudgetMs =
+            lagMs > 220
+              ? clamp(duration * 0.55, 120, duration * 0.8)
+              : lagMs > 100
+                ? clamp(duration * 0.72, 140, duration * 0.9)
+                : lagMs < -220
+                  ? clamp(duration * 1.3, duration, duration * 1.6)
+                  : clamp(duration * 1.05, duration * 0.9, duration * 1.2);
+
+          const prev = previousShapeBudgetMsRef.current;
+          if (prev !== null) {
+            effectiveDuration = clamp(
+              prev * 0.65 + targetBudgetMs * 0.35,
+              prev * 0.72,
+              prev * 1.28,
+            );
+          } else {
+            effectiveDuration = targetBudgetMs;
+          }
+          previousShapeBudgetMsRef.current = effectiveDuration;
+        }
+
         const path = new Konva.Path({
           data: pathData,
           stroke: inkColorRef.current,
@@ -390,7 +429,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         animNodesRef.current.add(path);
         animLayer.batchDraw();
 
-        await animateOver(duration, (progress) => {
+        await animateOver(effectiveDuration, (progress) => {
           const eased = easePen(progress);
           const drawnLength = eased * totalLength;
           const point = path.getPointAtLength(drawnLength);
@@ -1056,6 +1095,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           drawLayer.batchDraw();
           cursorLayer.batchDraw();
         }
+
+        // Reset the reactive shape-speed damping so the next turn starts fresh.
+        previousShapeBudgetMsRef.current = null;
       },
       [animateOver, clearTrackedNodes, destroyNodesInRect, flyCursorTo, setCursorViewSafely, updateCursorState, height, width],
     );
