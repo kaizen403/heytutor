@@ -19,6 +19,7 @@ import { useCancelControl } from "./hooks/useCancelControl";
 import { useTurnLifecycle } from "./hooks/useTurnLifecycle";
 import { useBoardLayout } from "./hooks/useBoardLayout";
 import { useBoardSession } from "./hooks/useBoardSession";
+import { useAdaptiveDrawSpeed } from "./hooks/useAdaptiveDrawSpeed";
 import {
   type TutorSegment,
   type DiagramTemplate,
@@ -29,10 +30,11 @@ import {
 import { type TurnTelemetry } from "@/lib/turnTelemetry";
 import { type RecordedSegmentPayload } from "@/lib/boardsClient";
 import {
-  WHITEBOARD_COLOR,
   PAGE_GUTTER_X,
   PAGE_GUTTER_Y,
   LANDING_SUGGESTIONS,
+  BOARD_WIDTH,
+  BOARD_HEIGHT,
 } from "./constants";
 import type { TutorPhase, SegmentPlanStats } from "./types";
 import { createEmptySegmentPlanStats } from "./lib/segmentPlanning";
@@ -73,6 +75,8 @@ export function TutorSessionPage() {
   const activeDiagramTemplateRef = useRef<DiagramTemplate | null>(null);
   const segmentPlanStatsRef = useRef<SegmentPlanStats>(createEmptySegmentPlanStats());
   const stopTurnRef = useRef<(() => void) | null>(null);
+  const pendingSegmentCountRef = useRef(0);
+  const narrationDensityRef = useRef(0);
   const [settings, setSettings] = useState<SettingsState>({
     speedMultiplier: 1.5,
     audioLanguage: "english",
@@ -175,6 +179,17 @@ export function TutorSessionPage() {
     executeCommand,
   });
 
+  // Adaptive drawing speed: polls audio lag + queue depth + narration density
+  // and pushes a dynamic animation-speed factor to the whiteboard.
+  useAdaptiveDrawSpeed({
+    whiteboardRef,
+    ttsClientRef,
+    turnActiveRef,
+    speedRef,
+    pendingSegmentCountRef,
+    narrationDensityRef,
+  });
+
   const {
     finishLectureUi,
     stopTurn,
@@ -218,6 +233,8 @@ export function TutorSessionPage() {
     segmentPlanStatsRef,
     stopTurnRef,
     speedRef,
+    pendingSegmentCountRef,
+    narrationDensityRef,
     replayGenerationRef,
     replayCueRef,
     setPhase,
@@ -295,8 +312,9 @@ export function TutorSessionPage() {
   const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying;
   const canTranscript = phase === "idle" && narrationText.trim().length > 0 && !isReplaying;
   const canDownload = phase === "idle" && storedTurnsCount > 0 && !isReplaying;
-  const isInputOverlay = phase === "idle" && !inputInteracted;
+  const isInputOverlay = phase === "idle" && boardLoaded && !inputInteracted;
   const inputSubmitMode = storedTurnsCount > 0 ? "doubt" : "ask";
+  const showBoardLoading = !boardLoaded;
 
   const inputChrome = (
     <SessionInputChrome
@@ -316,7 +334,7 @@ export function TutorSessionPage() {
     <div
       className="relative flex h-screen overflow-hidden"
       style={{
-        background: "#659287",
+        background: "var(--wb-bg)",
       }}
     >
       <BoardHistory
@@ -338,12 +356,15 @@ export function TutorSessionPage() {
           marginLeft: sidebarCollapsed ? 0 : SIDEBAR_WIDTH,
           paddingLeft: PAGE_GUTTER_X,
           paddingRight: PAGE_GUTTER_X,
+          paddingTop: 16,
+          paddingBottom: 16,
           transition: "margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
         <SessionHeader
           sidebarCollapsed={sidebarCollapsed}
           onExpandSidebar={() => setSidebarCollapsed(false)}
+          boardTitle={activeBoardTitle}
           canReplay={canReplay}
           canTranscript={canTranscript}
           canDownload={canDownload}
@@ -355,52 +376,48 @@ export function TutorSessionPage() {
           onTranscript={() => setTranscriptOpen(true)}
           onDownload={downloadNotesPdf}
           onStop={stopTurn}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
 
         <main className="relative flex flex-1 flex-col min-h-0">
-          {activeBoardTitle && activeBoardTitle !== "new board" && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "6px 12px",
-                flexShrink: 0,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "1.05rem",
-                  fontWeight: 600,
-                  color: "#659287",
-                  textTransform: "capitalize",
-                  letterSpacing: "0.01em",
-                  userSelect: "none",
-                }}
-              >
-                {activeBoardTitle}
-              </span>
-            </div>
-          )}
-
           <div
-            className="relative min-h-0 flex-1 overflow-hidden rounded-2xl"
+            ref={boardContainerRef}
+            className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
             style={{
-              background: WHITEBOARD_COLOR,
               marginTop: PAGE_GUTTER_Y,
-              boxShadow: "0 1px 4px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(101, 146, 135, 0.08)",
             }}
           >
+            <div
+              className="wb-frame relative"
+              style={{
+                width: BOARD_WIDTH * boardViewport.scale + 32,
+                height: BOARD_HEIGHT * boardViewport.scale + 32,
+              }}
+            >
+            <div className="wb-surface absolute overflow-hidden">
             <BoardSettingsButton settings={settings} onOpen={() => setSettingsOpen(true)} />
             {isInputOverlay && (
               <div
                 className="pointer-events-none absolute inset-0 z-10"
                 style={{
-                  backgroundColor: "rgba(230, 242, 221, 0.6)",
+                  backgroundColor: "rgba(242, 247, 252, 0.72)",
                   backdropFilter: "blur(8px)",
                   WebkitBackdropFilter: "blur(8px)",
                 }}
               />
+            )}
+
+            {showBoardLoading && (
+              <div
+                className="absolute inset-0 z-30 flex items-center justify-center"
+                style={{
+                  backgroundColor: "rgba(242, 247, 252, 0.72)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                }}
+              >
+                <p className="text-sm text-slate-500">Loading board…</p>
+              </div>
             )}
 
             {isInputOverlay && storedTurnsCount === 0 && (
@@ -428,6 +445,10 @@ export function TutorSessionPage() {
               </div>
             )}
 
+            {phase === "planning" && (
+              <ThinkingOverlay message="planning the diagram…" />
+            )}
+
             {phase === "thinking" && <ThinkingOverlay />}
 
             <TranscriptDialog
@@ -437,7 +458,6 @@ export function TutorSessionPage() {
             />
 
             <SessionBoardCanvas
-              boardContainerRef={boardContainerRef}
               boardViewport={boardViewport}
               whiteboardRef={whiteboardRef}
               cursorState={cursorState}
@@ -459,12 +479,14 @@ export function TutorSessionPage() {
               onReplaySpeedChange={handleReplaySpeedChange}
               onStop={stopTurn}
             />
+            </div>
+            </div>
           </div>
         </main>
 
         {!isInputOverlay && (
           <footer
-            className="relative shrink-0 pt-2 pb-3"
+            className="relative shrink-0"
             style={{ paddingTop: PAGE_GUTTER_Y }}
           >
             {inputChrome}
