@@ -66,6 +66,10 @@ export type UseTurnLifecycleParams = {
   segmentPlanStatsRef: RefObject<SegmentPlanStats>;
   stopTurnRef: RefObject<(() => void) | null>;
   speedRef: RefObject<number>;
+  /** Live count of segments enqueued but not yet finished — drives adaptive speed. */
+  pendingSegmentCountRef: RefObject<number>;
+  /** Narration density (chars per ms) of the current segment — drives adaptive speed. */
+  narrationDensityRef: RefObject<number>;
   replayGenerationRef: RefObject<number>;
   replayCueRef: RefObject<ReplayCue | null>;
   setPhase: Dispatch<SetStateAction<TutorPhase>>;
@@ -113,6 +117,7 @@ export type UseSegmentRunnerParams = Pick<
   | "narrationSinceEpochRef"
   | "currentTraceIdRef"
   | "setCurrentSegmentText"
+  | "narrationDensityRef"
 > & {
   applyTurnPhase: (next: TutorPhase) => void;
 };
