@@ -3,7 +3,8 @@ import type { DiagramTemplate } from "./types";
 export const CIRCULAR_MOTION_TEMPLATE: DiagramTemplate = {
   id: "circular_motion",
   name: "bead on hoop / circular motion",
-  test: /bead.*hoop|hoop.*bead|rotating (hoop|wire)|circular (hoop|path)|angular velocity|charged particle on (a )?ring/i,
+  test:
+    /bead.*hoop|hoop.*bead|rotating (hoop|wire)|circular (hoop|path)|(?:bead|particle|mass|bob).{0,50}angular velocity|angular velocity.{0,50}(?:hoop|circle|ring)|charged particle on (?:a )?ring/i,
   commands: [
     { type: "DRAW_CIRCLE", params: [650, 300, 120] },
     { type: "LABEL", params: [640, 270], text: "O", anchorId: "O" },

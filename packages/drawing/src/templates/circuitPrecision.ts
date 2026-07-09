@@ -48,9 +48,12 @@ function ohms(value: number): string {
 }
 
 function extractResistors(question: string): number[] {
+  // Only scan the problem statement — trailing mentions like "power in the 8 Ω
+  // resistor" must not become extra components on the diagram.
+  const statement = question.split(/\b(?:find|calculate|determine|what is|how much)\b/i)[0] ?? question;
   const values: number[] = [];
   const pattern = /(\d+(?:\.\d+)?)\s*(?:\u03a9|ohms?)(?![a-z])/gi;
-  for (const match of question.matchAll(pattern)) {
+  for (const match of statement.matchAll(pattern)) {
     const value = Number(match[1]);
     if (Number.isFinite(value) && value > 0) {
       values.push(value);
