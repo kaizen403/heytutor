@@ -55,6 +55,7 @@ export function useTurnControl(
     setReplayProgressMs,
     setReplayTotalMs,
     clearCancelTimers,
+    pendingSegmentCountRef,
   } = params;
 
   const finishLectureUi = useCallback(() => {
@@ -93,6 +94,7 @@ export function useTurnControl(
       const segmentToRun = normalizeSegmentForAlignment(segment);
       collectedSegmentsRef.current.push(segmentToRun);
       const index = collectedSegmentsRef.current.length - 1;
+      pendingSegmentCountRef.current += 1;
 
       tutorDebug("parser", "segment enqueued", {
         index,
@@ -102,6 +104,7 @@ export function useTurnControl(
 
       segmentChainRef.current = segmentChainRef.current.then(async () => {
         if (cancelRef.current) {
+          pendingSegmentCountRef.current = Math.max(pendingSegmentCountRef.current - 1, 0);
           return;
         }
 
@@ -113,10 +116,18 @@ export function useTurnControl(
             index,
             error: error instanceof Error ? error.message : String(error),
           });
+        } finally {
+          pendingSegmentCountRef.current = Math.max(pendingSegmentCountRef.current - 1, 0);
         }
       });
     },
-    [runSegment, collectedSegmentsRef, segmentChainRef, cancelRef],
+    [
+      runSegment,
+      collectedSegmentsRef,
+      segmentChainRef,
+      cancelRef,
+      pendingSegmentCountRef,
+    ],
   );
 
   const processResponseText = useCallback(
