@@ -4,9 +4,20 @@ import { CIRCULAR_MOTION_TEMPLATE } from "./circularMotion";
 import { COORDINATE_AXES_TEMPLATE } from "./coordinateAxes";
 import { FBD_TEMPLATE } from "./fbd";
 import { INCLINE_FBD_TEMPLATE } from "./inclineFbd";
+import { ROLLING_INCLINE_TEMPLATE } from "./rollingIncline";
 import { PROJECTILE_TEMPLATE } from "./projectile";
+import { FLUID_FLOW_TEMPLATE } from "./fluidFlow";
 import { HORIZONTAL_SPRING_TEMPLATE } from "./horizontalSpring";
 import { RAMP_SPRING_TEMPLATE } from "./rampSpring";
+import { PULLEY_ATWOOD_TEMPLATE } from "./pulleyAtwood";
+import { PENDULUM_TEMPLATE } from "./pendulum";
+import { COLLISION_TEMPLATE } from "./collision";
+import { BANKED_ROAD_TEMPLATE } from "./bankedRoad";
+import { VERTICAL_CIRCLE_TEMPLATE } from "./verticalCircle";
+import { MOTION_GRAPH_TEMPLATE } from "./motionGraph";
+import { WIRE_NETWORK_CUBE_TEMPLATE } from "./wireNetworkCube";
+import { YDSE_TEMPLATE } from "./ydse";
+import { PHOTOELECTRIC_TEMPLATE } from "./photoelectric";
 import { buildCircuitPrecisionSegments } from "./circuitPrecision";
 
 import { OPTICS_RAY_TEMPLATE } from "./opticsRay";
@@ -34,20 +45,31 @@ import type { DiagramTemplate } from "./types";
 
 /** Order matters — more specific templates before generic ones. */
 export const DIAGRAM_TEMPLATES: DiagramTemplate[] = [
-  // Physics — specific mechanics
+  // Physics — specific mechanics (most specific first)
+  BANKED_ROAD_TEMPLATE,
+  ROLLING_INCLINE_TEMPLATE,
+  VERTICAL_CIRCLE_TEMPLATE,
   CIRCULAR_MOTION_TEMPLATE,
+  PULLEY_ATWOOD_TEMPLATE,
+  COLLISION_TEMPLATE,
+  FLUID_FLOW_TEMPLATE,
+  PENDULUM_TEMPLATE,
   HORIZONTAL_SPRING_TEMPLATE,
   RAMP_SPRING_TEMPLATE,
   PROJECTILE_TEMPLATE,
+  MOTION_GRAPH_TEMPLATE,
+  WIRE_NETWORK_CUBE_TEMPLATE,
   CIRCUIT_TEMPLATE,
   INCLINE_FBD_TEMPLATE,
   FBD_TEMPLATE,
 
   // Physics — thermal, waves, EM, modern
+  YDSE_TEMPLATE,
+  PHOTOELECTRIC_TEMPLATE,
   OPTICS_RAY_TEMPLATE,
   PV_DIAGRAM_TEMPLATE,
-  WAVE_SHM_TEMPLATE,
   ENERGY_LEVELS_TEMPLATE,
+  WAVE_SHM_TEMPLATE,
   ELECTROSTATICS_TEMPLATE,
   MAGNETISM_TEMPLATE,
   GRAVITATION_TEMPLATE,
@@ -105,7 +127,7 @@ export function buildTemplateIntroSegments(
       .map((phase) => {
         const commands = phase.commandIndices
           .map((index) => template.commands[index])
-          .filter((cmd): cmd is NonNullable<typeof cmd> => cmd !== undefined && cmd.type !== "LABEL" && cmd.type !== "WRITE")
+          .filter((cmd): cmd is NonNullable<typeof cmd> => cmd !== undefined && cmd.type !== "WRITE")
           .map((cmd) => templateToDrawCommand(cmd));
 
         if (commands.length === 0) {
