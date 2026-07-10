@@ -31,7 +31,7 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-[#FFFFFF] text-[#333333] shadow-2xl transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out",
+  "fixed z-50 gap-4 bg-[#FFFFFF] text-[#111827] shadow-2xl transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out",
   {
     variants: {
       side: {
@@ -65,8 +65,8 @@ const SheetContent = React.forwardRef<
       {...props}
     >
       {children}
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-[#FFFFFF] transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[#659287] focus:ring-offset-2 disabled:pointer-events-none">
-        <X className="h-5 w-5 text-[#88BDA4]" />
+      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-[#FFFFFF] transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:ring-offset-2 disabled:pointer-events-none">
+        <X className="h-5 w-5 text-[#6B7280]" />
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>
     </SheetPrimitive.Content>
@@ -91,7 +91,7 @@ const SheetTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Title
     ref={ref}
-    className={cn("text-lg font-semibold text-[#333333]", className)}
+    className={cn("text-lg font-semibold text-[#111827]", className)}
     {...props}
   />
 ));
@@ -103,7 +103,7 @@ const SheetDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-[#88BDA4]", className)}
+    className={cn("text-sm text-[#6B7280]", className)}
     {...props}
   />
 ));
