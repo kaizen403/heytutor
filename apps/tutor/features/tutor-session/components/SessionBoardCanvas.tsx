@@ -9,7 +9,6 @@ import { Whiteboard } from "./WhiteboardLoader";
 import { BoardErrorBanner } from "./BoardErrorBanner";
 
 export interface SessionBoardCanvasProps {
-  boardContainerRef: RefObject<HTMLDivElement | null>;
   boardViewport: BoardViewport;
   whiteboardRef: RefObject<WhiteboardHandle | null>;
   cursorState: CursorState;
@@ -30,7 +29,6 @@ export interface SessionBoardCanvasProps {
 }
 
 export function SessionBoardCanvas({
-  boardContainerRef,
   boardViewport,
   whiteboardRef,
   cursorState,
@@ -51,14 +49,13 @@ export function SessionBoardCanvas({
 }: SessionBoardCanvasProps) {
   return (
     <div
-      ref={boardContainerRef}
       className="absolute inset-0 z-[1] overflow-hidden"
     >
       <div
         style={{
           position: "absolute",
-          top: boardViewport.offsetY,
-          left: boardViewport.offsetX,
+          top: 0,
+          left: 0,
           width: BOARD_WIDTH * boardViewport.scale,
           height: BOARD_HEIGHT * boardViewport.scale,
         }}

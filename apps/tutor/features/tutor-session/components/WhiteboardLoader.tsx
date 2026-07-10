@@ -20,8 +20,8 @@ export const Whiteboard = dynamic(
             height: 32,
             borderRadius: "50%",
             border: "2px solid transparent",
-            borderTopColor: "#659287",
-            borderBottomColor: "#659287",
+            borderTopColor: "#2563EB",
+            borderBottomColor: "#2563EB",
             animation: "wb-spin 0.8s linear infinite",
           }}
         />
