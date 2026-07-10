@@ -52,12 +52,12 @@ const SPEED_MAX = 3;
 const SPEED_STEP = 0.25;
 
 const theme = {
-  darkest: "#659287",
-  dark: "#4F7468",
-  sage: "#88BDA4",
-  mint: "#E6F2DD",
-  border: "rgba(101, 146, 135, 0.28)",
-  borderSubtle: "rgba(101, 146, 135, 0.18)",
+  darkest: "#2563EB",
+  dark: "#111827",
+  sage: "#5FA4F9",
+  mint: "#F2F3F7",
+  border: "#E5E7EB",
+  borderSubtle: "rgba(229, 231, 235, 0.9)",
 } as const;
 
 function SettingsSection({
@@ -135,8 +135,8 @@ function SelectPill({
       className={cn(
         "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
         checked
-          ? "border-[#659287] bg-[rgba(101,146,135,0.08)] text-[#659287] shadow-sm"
-          : "border-[rgba(101,146,135,0.28)] text-[#4F7468] hover:border-[#88BDA4] hover:shadow-sm",
+          ? "border-[#2563EB] bg-[rgba(37,99,235,0.08)] text-[#2563EB] shadow-sm"
+          : "border-[rgba(37,99,235,0.28)] text-[#111827] hover:border-[#5FA4F9] hover:shadow-sm",
         disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
       )}
     >
@@ -188,7 +188,7 @@ export function SettingsDrawer({
                 onChange={(event) =>
                   update({ speedMultiplier: Number(event.target.value) })
                 }
-                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-[#4F7468]"
+                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-[#111827]"
                 style={{ backgroundColor: theme.borderSubtle }}
               />
               <span
@@ -252,7 +252,7 @@ export function SettingsDrawer({
                 onCheckedChange={(checked) =>
                   update({ subtitlesEnabled: checked })
                 }
-                className="data-[state=checked]:bg-[#659287] data-[state=unchecked]:bg-[rgba(101,146,135,0.35)]"
+                className="data-[state=checked]:bg-[#2563EB] data-[state=unchecked]:bg-[rgba(37,99,235,0.35)]"
               />
             </div>
           </SettingsSection>
@@ -272,8 +272,8 @@ export function SettingsDrawer({
                     className={[
                       "h-8 w-8 rounded-full transition-all",
                       selected
-                        ? "scale-105 ring-2 ring-[#659287] ring-offset-2 ring-offset-white"
-                        : "ring-1 ring-[rgba(101,146,135,0.35)] hover:scale-105",
+                        ? "scale-105 ring-2 ring-[#2563EB] ring-offset-2 ring-offset-white"
+                        : "ring-1 ring-[rgba(37,99,235,0.35)] hover:scale-105",
                     ].join(" ")}
                     style={{ backgroundColor: color }}
                   />
