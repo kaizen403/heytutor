@@ -33,16 +33,30 @@ interface BoardHistoryProps {
 
 const SIDEBAR_WIDTH = 264;
 
+const SIDEBAR = {
+  bg: "#E3ECF8",
+  card: "rgba(255, 255, 255, 0.62)",
+  cardBorder: "rgba(255, 255, 255, 0.88)",
+  cardShadow: "0 1px 2px rgba(37, 99, 235, 0.05), 0 4px 14px -8px rgba(37, 99, 235, 0.12)",
+  cardHover: "rgba(255, 255, 255, 0.92)",
+  cardActive: "#FFFFFF",
+  cardActiveBorder: "rgba(37, 99, 235, 0.28)",
+  cardActiveShadow: "0 6px 20px -8px rgba(37, 99, 235, 0.28), inset 3px 0 0 #2563EB",
+  divider: "rgba(37, 99, 235, 0.12)",
+  text: "#1E293B",
+  textMuted: "#64748B",
+  textFaint: "#94A3B8",
+  accent: "#2563EB",
+} as const;
+
 const sidebarFont: CSSProperties = {
   WebkitFontSmoothing: "antialiased",
 };
 
-// Solid dark green sidebar — slightly deeper than the #659287 page so the
-// boundary reads clearly. Text on top is near-white.
 const glassPanel: CSSProperties = {
-  background: "#4F7468",
-  borderRight: "1px solid rgba(0, 0, 0, 0.18)",
-  boxShadow: "4px 0 28px -10px rgba(0, 0, 0, 0.35)",
+  background: SIDEBAR.bg,
+  borderRight: `1px solid ${SIDEBAR.divider}`,
+  boxShadow: "4px 0 28px -14px rgba(37, 99, 235, 0.18)",
 };
 
 export { SIDEBAR_WIDTH };
@@ -101,10 +115,9 @@ function BoardHistoryContent({
           style={{
             fontSize: "1.0625rem",
             fontWeight: 600,
-            color: "#FFFFFF",
+            color: SIDEBAR.text,
             letterSpacing: "-0.025em",
             userSelect: "none",
-            textShadow: "0 1px 2px rgba(0, 0, 0, 0.18)",
           }}
         >
           Accelute
@@ -126,13 +139,13 @@ function BoardHistoryContent({
               transition: "background 0.15s ease",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.12)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.45)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "transparent";
             }}
           >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
@@ -154,13 +167,13 @@ function BoardHistoryContent({
                 transition: "background 0.15s ease",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.12)";
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.45)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
               }}
             >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
                 <path d="M9 3v18" />
               </svg>
@@ -181,20 +194,19 @@ function BoardHistoryContent({
               width: "100%",
               padding: "8px 12px",
               borderRadius: 9,
-              border: "1px solid rgba(255, 255, 255, 0.14)",
-              background: "rgba(255, 255, 255, 0.08)",
-              color: "#FFFFFF",
+              border: "1px solid rgba(255, 255, 255, 0.75)",
+              background: "rgba(255, 255, 255, 0.55)",
+              color: SIDEBAR.text,
               fontSize: "0.8125rem",
               outline: "none",
-              backdropFilter: "blur(8px)",
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.32)";
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.12)";
+              e.currentTarget.style.borderColor = "rgba(37, 99, 235, 0.35)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.92)";
             }}
             onBlur={(e) => {
-              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.14)";
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.75)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.55)";
             }}
           />
         </div>
@@ -211,33 +223,35 @@ function BoardHistoryContent({
             width: "100%",
             padding: "10px 14px",
             borderRadius: 10,
-            border: "1px solid rgba(255, 255, 255, 0.16)",
-            background: "rgba(255, 255, 255, 0.10)",
+            border: "1px solid rgba(255, 255, 255, 0.82)",
+            background: "rgba(255, 255, 255, 0.72)",
             cursor: disabled ? "not-allowed" : "pointer",
             opacity: disabled ? 0.5 : 1,
-            transition: "background 0.18s ease, border-color 0.18s ease, transform 0.18s ease",
-            color: "#FFFFFF",
+            transition: "background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease",
+            color: SIDEBAR.text,
             fontSize: "0.875rem",
             fontWeight: 500,
             textAlign: "left",
-            backdropFilter: "blur(8px)",
+            boxShadow: SIDEBAR.cardShadow,
           }}
           onMouseEnter={(e) => {
             if (!disabled) {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.18)";
-              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.30)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
+              e.currentTarget.style.borderColor = "rgba(37, 99, 235, 0.22)";
               e.currentTarget.style.transform = "translateY(-1px)";
+              e.currentTarget.style.boxShadow = SIDEBAR.cardActiveShadow;
             }
           }}
           onMouseLeave={(e) => {
             if (!disabled) {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.10)";
-              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.16)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.72)";
+              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.82)";
               e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = SIDEBAR.cardShadow;
             }
           }}
         >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={SIDEBAR.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
           new board
@@ -254,7 +268,7 @@ function BoardHistoryContent({
           style={{
             fontSize: "0.6875rem",
             fontWeight: 600,
-            color: "rgba(255, 255, 255, 0.50)",
+            color: SIDEBAR.textFaint,
             textTransform: "uppercase",
             letterSpacing: "0.10em",
             userSelect: "none",
@@ -275,7 +289,7 @@ function BoardHistoryContent({
           <p
             style={{
               fontSize: "0.8125rem",
-              color: "rgba(255, 255, 255, 0.45)",
+              color: SIDEBAR.textFaint,
               padding: "10px 12px",
               lineHeight: 1.5,
             }}
@@ -291,31 +305,31 @@ function BoardHistoryContent({
               key={board.id}
               style={{
                 position: "relative",
-                marginBottom: 3,
-                borderRadius: 10,
-                background: isActive
-                  ? "rgba(255, 255, 255, 0.92)"
-                  : "transparent",
+                marginBottom: 8,
+                borderRadius: 12,
+                background: isActive ? SIDEBAR.cardActive : SIDEBAR.card,
                 border: isActive
-                  ? "1px solid rgba(255, 255, 255, 0.85)"
-                  : "1px solid transparent",
-                boxShadow: isActive
-                  ? "0 6px 20px -8px rgba(0, 0, 0, 0.35)"
-                  : "none",
-                transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
+                  ? `1px solid ${SIDEBAR.cardActiveBorder}`
+                  : `1px solid ${SIDEBAR.cardBorder}`,
+                boxShadow: isActive ? SIDEBAR.cardActiveShadow : SIDEBAR.cardShadow,
+                transition: "background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease",
               }}
               onMouseEnter={(e) => {
                 if (!disabled && !isActive) {
-                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.10)";
-                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.12)";
+                  e.currentTarget.style.background = SIDEBAR.cardHover;
+                  e.currentTarget.style.borderColor = "rgba(37, 99, 235, 0.16)";
+                  e.currentTarget.style.boxShadow = "0 8px 22px -10px rgba(37, 99, 235, 0.2)";
+                  e.currentTarget.style.transform = "translateY(-1px)";
                 }
                 const delBtn = e.currentTarget.querySelector('[data-delete-btn]') as HTMLElement | null;
                 if (delBtn) delBtn.style.opacity = "1";
               }}
               onMouseLeave={(e) => {
                 if (!disabled && !isActive) {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.borderColor = "transparent";
+                  e.currentTarget.style.background = SIDEBAR.card;
+                  e.currentTarget.style.borderColor = SIDEBAR.cardBorder;
+                  e.currentTarget.style.boxShadow = SIDEBAR.cardShadow;
+                  e.currentTarget.style.transform = "translateY(0)";
                 }
                 const delBtn = e.currentTarget.querySelector('[data-delete-btn]') as HTMLElement | null;
                 if (delBtn) delBtn.style.opacity = "0";
@@ -328,10 +342,10 @@ function BoardHistoryContent({
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: "3px",
+                  gap: "2px",
                   width: "calc(100% - 32px)",
-                  padding: "11px 13px",
-                  borderRadius: 10,
+                  padding: "10px 12px",
+                  borderRadius: 12,
                   border: "none",
                   cursor: disabled ? "not-allowed" : "pointer",
                   opacity: disabled ? 0.5 : 1,
@@ -341,13 +355,13 @@ function BoardHistoryContent({
               >
                 <span
                   style={{
-                    fontSize: "0.875rem",
-                    fontWeight: isActive ? 600 : 450,
-                    color: isActive ? "#2f4a42" : "rgba(255, 255, 255, 0.88)",
+                    fontSize: "0.8125rem",
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? SIDEBAR.text : "#334155",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    letterSpacing: "-0.005em",
+                    letterSpacing: "-0.01em",
                   }}
                 >
                   {board.title}
@@ -355,11 +369,12 @@ function BoardHistoryContent({
                 {!isActive && board.preview && (
                   <span
                     style={{
-                      fontSize: "0.72rem",
-                      color: "rgba(255, 255, 255, 0.50)",
+                      fontSize: "0.6875rem",
+                      color: SIDEBAR.textFaint,
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
+                      opacity: 0.85,
                     }}
                   >
                     {board.preview}
@@ -393,17 +408,15 @@ function BoardHistoryContent({
                     alignItems: "center",
                     justifyContent: "center",
                     transition: "opacity 0.15s ease, background 0.15s ease",
-                    color: isActive ? "rgba(47, 74, 66, 0.55)" : "rgba(255, 255, 255, 0.6)",
+                    color: isActive ? "rgba(107, 114, 128, 0.85)" : "rgba(107, 114, 128, 0.75)",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = isActive
-                      ? "rgba(158, 64, 64, 0.14)"
-                      : "rgba(217, 112, 112, 0.28)";
-                    e.currentTarget.style.color = "#9E4040";
+                    e.currentTarget.style.background = "rgba(15, 23, 42, 0.06)";
+                    e.currentTarget.style.color = "#334155";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = isActive ? "rgba(47, 74, 66, 0.55)" : "rgba(255, 255, 255, 0.6)";
+                    e.currentTarget.style.color = isActive ? "rgba(107, 114, 128, 0.85)" : "rgba(107, 114, 128, 0.75)";
                   }}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -421,7 +434,7 @@ function BoardHistoryContent({
       <div
         style={{
           flexShrink: 0,
-          borderTop: "1px solid rgba(255, 255, 255, 0.10)",
+          borderTop: `1px solid ${SIDEBAR.divider}`,
           padding: "11px 16px 13px",
           display: "flex",
           alignItems: "center",
@@ -439,16 +452,16 @@ function BoardHistoryContent({
             background: "transparent",
             cursor: onCreditsClick ? "pointer" : "default",
             padding: 0,
-            color: "rgba(255, 255, 255, 0.65)",
+            color: SIDEBAR.textMuted,
             fontSize: "0.8125rem",
             fontWeight: 500,
             transition: "color 0.15s ease",
           }}
           onMouseEnter={(e) => {
-            if (onCreditsClick) e.currentTarget.style.color = "rgba(255, 255, 255, 0.92)";
+            if (onCreditsClick) e.currentTarget.style.color = SIDEBAR.text;
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = "rgba(255, 255, 255, 0.65)";
+            e.currentTarget.style.color = SIDEBAR.textMuted;
           }}
         >
           <span
@@ -456,7 +469,8 @@ function BoardHistoryContent({
               width: 24,
               height: 24,
               borderRadius: "50%",
-              border: "1px solid rgba(255, 255, 255, 0.22)",
+              border: "1px solid rgba(255, 255, 255, 0.75)",
+              background: "rgba(255, 255, 255, 0.45)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -479,14 +493,14 @@ function BoardHistoryContent({
                 right: 0,
                 padding: "0.75rem 1rem",
                 borderRadius: 11,
-                background: "rgba(255, 255, 255, 0.95)",
-                border: "1px solid rgba(255, 255, 255, 0.6)",
-                boxShadow: "0 16px 38px -10px rgba(0, 0, 0, 0.4)",
+                background: "#FFFFFF",
+                border: "1px solid #E5E7EB",
+                boxShadow: "0 16px 38px -10px rgba(0, 0, 0, 0.12)",
                 backdropFilter: "blur(14px)",
                 minWidth: 140,
                 zIndex: 20,
                 fontSize: "0.9rem",
-                color: "#2f4a42",
+                color: "#111827",
                 fontWeight: 500,
               }}
             >
@@ -503,29 +517,29 @@ function BoardHistoryContent({
               width: 30,
               height: 30,
               borderRadius: "50%",
-              border: "1px solid rgba(255, 255, 255, 0.20)",
+              border: "1px solid rgba(255, 255, 255, 0.75)",
               background: profileOpen
-                ? "rgba(255, 255, 255, 0.20)"
-                : "rgba(255, 255, 255, 0.08)",
+                ? "rgba(255, 255, 255, 0.95)"
+                : "rgba(255, 255, 255, 0.55)",
               cursor: onProfileToggle ? "pointer" : "default",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               padding: 0,
               transition: "all 0.15s ease",
-              color: "rgba(255, 255, 255, 0.85)",
+              color: "#475569",
             }}
             onMouseEnter={(e) => {
               if (onProfileToggle) {
-                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.42)";
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.16)";
+                e.currentTarget.style.borderColor = "rgba(37, 99, 235, 0.35)";
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.20)";
+              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.75)";
               e.currentTarget.style.background = profileOpen
-                ? "rgba(255, 255, 255, 0.20)"
-                : "rgba(255, 255, 255, 0.08)";
+                ? "rgba(255, 255, 255, 0.95)"
+                : "rgba(255, 255, 255, 0.55)";
             }}
           >
             <svg
@@ -597,10 +611,9 @@ export function BoardHistory({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="left"
-          className="board-sidebar w-[min(100%,280px)] border-r border-[rgba(0,0,0,0.18)] p-0 sm:max-w-[280px]"
+          className="board-sidebar w-[min(100%,280px)] border-r border-[rgba(37,99,235,0.12)] p-0 sm:max-w-[280px]"
           style={{
             ...glassPanel,
-            boxShadow: "4px 0 28px -10px rgba(0, 0, 0, 0.35)",
           }}
         >
           <SheetTitle className="sr-only">Board history</SheetTitle>
