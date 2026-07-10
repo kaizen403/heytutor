@@ -17,8 +17,8 @@ export default function OpenGraphImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "72px 80px",
-          background: "linear-gradient(145deg, #E6F2DD 0%, #88BDA4 55%, #659287 100%)",
-          color: "#659287",
+          background: "linear-gradient(145deg, #FFFFFF 0%, #EDF3FD 55%, #2563EB 100%)",
+          color: "#111827",
           fontFamily: "system-ui, sans-serif",
         }}
       >
@@ -28,7 +28,7 @@ export default function OpenGraphImage() {
               width: 72,
               height: 72,
               borderRadius: 18,
-              background: "#E6F2DD",
+              background: "#EDF3FD",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -44,11 +44,11 @@ export default function OpenGraphImage() {
           <div style={{ fontSize: 52, fontWeight: 600, lineHeight: 1.15, letterSpacing: "-0.02em" }}>
             Learn math the way teachers actually teach it.
           </div>
-          <div style={{ fontSize: 28, lineHeight: 1.45, color: "#659287", opacity: 0.88 }}>
+          <div style={{ fontSize: 28, lineHeight: 1.45, color: "#4B5563", opacity: 0.88 }}>
             {SITE_DESCRIPTION}
           </div>
         </div>
-        <div style={{ fontSize: 24, fontWeight: 600, color: "#4F7468" }}>{SITE_TAGLINE}</div>
+        <div style={{ fontSize: 24, fontWeight: 600, color: "#2563EB" }}>{SITE_TAGLINE}</div>
       </div>
     ),
     size,
