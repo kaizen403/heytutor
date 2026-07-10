@@ -1,4 +1,8 @@
-export function ThinkingOverlay() {
+interface ThinkingOverlayProps {
+  message?: string;
+}
+
+export function ThinkingOverlay({ message = "thinking about how to teach this…" }: ThinkingOverlayProps) {
   return (
     <div
       className="absolute inset-0 z-20 pointer-events-none"
@@ -15,13 +19,13 @@ export function ThinkingOverlay() {
         <div
           className="h-10 w-10 rounded-full border-2 border-transparent"
           style={{
-            borderTopColor: "#659287",
-            borderBottomColor: "#659287",
+            borderTopColor: "#2563EB",
+            borderBottomColor: "#2563EB",
             animation: "wb-spin 0.8s linear infinite",
           }}
         />
-        <p style={{ fontSize: "0.9rem", color: "#659287", fontWeight: 500 }}>
-          thinking about how to teach this…
+        <p style={{ fontSize: "0.9rem", color: "#2563EB", fontWeight: 500 }}>
+          {message}
         </p>
       </div>
     </div>
