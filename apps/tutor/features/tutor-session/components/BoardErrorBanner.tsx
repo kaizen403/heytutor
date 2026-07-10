@@ -15,7 +15,7 @@ export function BoardErrorBanner({ message, onRetry, onDismiss }: BoardErrorBann
         type="button"
         onClick={onRetry}
         className="rounded-md px-3 py-1 text-sm text-white transition-opacity hover:opacity-90"
-        style={{ background: "#659287", border: "none", cursor: "pointer" }}
+        style={{ background: "#222222", border: "none", cursor: "pointer" }}
       >
         retry
       </button>

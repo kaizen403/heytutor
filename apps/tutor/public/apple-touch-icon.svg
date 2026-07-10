@@ -1,4 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Accelute">
-  <rect width="180" height="180" rx="40" fill="#E6F2DD"/>
-  <path fill="#659287" transform="scale(0.703125)" d="M144 256 27.598 256 144 139.598ZM256 207.5 200 256V56H0l48-56h208v207.5ZM0 204.402V112h92.402z"/>
+  <rect width="180" height="180" rx="40" fill="#EDF3FD"/>
+  <path fill="#2563EB" transform="scale(0.703125)" d="M144 256 27.598 256 144 139.598ZM256 207.5 200 256V56H0l48-56h208v207.5ZM0 204.402V112h92.402z"/>
 </svg>

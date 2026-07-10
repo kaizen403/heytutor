@@ -18,7 +18,7 @@ export function BoardSettingsButton({ settings, onOpen }: BoardSettingsButtonPro
         backdropFilter: "blur(4px)",
         WebkitBackdropFilter: "blur(4px)",
         cursor: "pointer",
-        color: settings.speedMultiplier > 1 ? "#659287" : "rgba(51,51,51,0.7)",
+        color: settings.speedMultiplier > 1 ? "#2563EB" : "rgba(17,24,39,0.65)",
         opacity: 0.85,
       }}
     >

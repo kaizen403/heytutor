@@ -3,9 +3,9 @@ import type { CanvasLandingSuggestion } from "@/components/CanvasLanding";
 
 export const BOARD_WIDTH = DS.Canvas.width;
 export const BOARD_HEIGHT = DS.Canvas.height;
-export const WHITEBOARD_COLOR = "#F8F6F0";
-export const PAGE_GUTTER_X = 28;
-export const PAGE_GUTTER_Y = 10;
+export const WHITEBOARD_COLOR = "#FFFFFF";
+export const PAGE_GUTTER_X = 10;
+export const PAGE_GUTTER_Y = 6;
 export const MAX_LLM_CONTINUATIONS = 1;
 export const STREAM_SEGMENTS_LIVE = true;
 
