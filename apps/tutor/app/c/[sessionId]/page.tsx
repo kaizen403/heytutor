@@ -1,7 +1,4 @@
-"use client";
-
-import { TutorSessionPage } from "@/features/tutor-session";
-
+/** Session UI lives in layout.tsx so board switches do not remount the whole page. */
 export default function SessionPage() {
-  return <TutorSessionPage />;
+  return null;
 }
