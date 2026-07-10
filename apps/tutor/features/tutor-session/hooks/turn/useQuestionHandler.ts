@@ -5,6 +5,8 @@ import {
   matchDiagramTemplate,
   buildTemplateIntroSegments,
   anchorToTextRect,
+  prepareTemplateLessonSegments,
+  type TutorSegment,
 } from "@heytutor/drawing";
 import {
   streamLLMResponse,
@@ -12,12 +14,15 @@ import {
   TUTOR_CONTINUATION_PROMPT,
   tutorDebug,
   resolveApiUrl,
+  planDiagram,
+  type DiagramPlan,
 } from "@heytutor/tutor-core";
 import { createTurnTelemetry } from "@/lib/turnTelemetry";
 import { enrichStoredSegmentsWithReplayAudio } from "@/lib/replayTurns";
 import { saveTurn, updateBoard, type StoredTurn } from "@/lib/boardsClient";
 import { MAX_LLM_CONTINUATIONS, STREAM_SEGMENTS_LIVE } from "../../constants";
 import { registerBoardAnchor } from "../../lib/boardLayout";
+import { planToTemplate, buildPlannerIntroSegments } from "../../lib/planToTemplate";
 import {
   createEmptySegmentPlanStats,
   isTeachingResponseIncomplete,
@@ -148,16 +153,11 @@ export function useQuestionHandler(
       revokeReplayBlobUrls();
       fbdPhaseMarkedRef.current = false;
       fbdPhaseStartedRef.current = false;
-      activeDiagramTemplateRef.current = matchDiagramTemplate(question);
-      resetBoardLayout(false, activeDiagramTemplateRef.current !== null);
-
-      const runtimePromptAddon = activeDiagramTemplateRef.current?.promptAddon ?? "";
-      const turnSystemPrompt = runtimePromptAddon
-        ? `${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n${runtimePromptAddon}`
-        : TUTOR_SYSTEM_PROMPT;
-      const turnContinuationPrompt = runtimePromptAddon
-        ? `${TUTOR_CONTINUATION_PROMPT}\n\n--- diagram reminder ---\n${runtimePromptAddon}`
-        : TUTOR_CONTINUATION_PROMPT;
+      // Synchronous fallback so resetBoardLayout has a layout hint immediately.
+      // The planner may override this once it returns.
+      const fallbackTemplate = matchDiagramTemplate(question);
+      activeDiagramTemplateRef.current = fallbackTemplate;
+      resetBoardLayout(false, fallbackTemplate !== null);
 
       const tel = createTurnTelemetry();
       turnTelemetryRef.current = tel;
@@ -185,6 +185,12 @@ export function useQuestionHandler(
         wsSpan.end(metadata);
       };
 
+      // The planner runs concurrently with TTS prewarming. It understands the
+      // question and emits precise drawing commands; templates are the fallback.
+      setPhase("planning");
+      const plannerSpan = tel.span("planner");
+      const plannerStartedAt = Date.now();
+
       void ensureTTSClient().prewarm({
         onConnect: ({ ms, ok }) => {
           endWsConnect({
@@ -194,8 +200,72 @@ export function useQuestionHandler(
         },
       });
 
-      const activeTemplate = activeDiagramTemplateRef.current;
-      const introSegments = activeTemplate ? buildTemplateIntroSegments(activeTemplate, question) : [];
+      const plannerUrl = resolveApiUrl("/api/chat");
+      let plan: DiagramPlan | null = null;
+      try {
+        plan = await planDiagram(question, {
+          proxyUrl: plannerUrl,
+          sessionId: sessionId ?? undefined,
+          signal: abortController.signal,
+          timeoutMs: 8000,
+        });
+      } catch {
+        plan = null;
+      }
+      const plannerLatencyMs = Date.now() - plannerStartedAt;
+
+      // Resolve the active diagram source. Hand-crafted regex templates often
+      // have domain-specific details (resistor rectangles, terminal marks,
+      // detailed promptAddons with solution guidance) that the LLM planner
+      // can't replicate. So we prefer the template when it exists and is at
+      // least as detailed as the planner output. The planner is used for
+      // novel questions that don't match any template.
+      const plannerCommandCount = plan?.commands.length ?? 0;
+      const templateCommandCount = fallbackTemplate?.commands.length ?? 0;
+
+      let activeTemplate: import("@heytutor/drawing").DiagramTemplate | null;
+      let diagramSource: "planner" | "template" | "none";
+
+      if (fallbackTemplate && templateCommandCount >= plannerCommandCount) {
+        // Template is at least as detailed as the planner — prefer it.
+        activeTemplate = fallbackTemplate;
+        diagramSource = "template";
+      } else if (plan) {
+        // Planner is more detailed, or no template matched — use planner.
+        activeTemplate = planToTemplate(plan);
+        diagramSource = "planner";
+        activeDiagramTemplateRef.current = activeTemplate;
+      } else {
+        activeTemplate = fallbackTemplate;
+        diagramSource = activeTemplate ? "template" : "none";
+      }
+
+      plannerSpan.end({
+        source: diagramSource,
+        latency_ms: plannerLatencyMs,
+        diagram_type: plan?.diagramType ?? fallbackTemplate?.id ?? null,
+        command_count: plan?.commands.length ?? null,
+        template_command_count: templateCommandCount || null,
+        planner_command_count: plannerCommandCount || null,
+        template_preferred: diagramSource === "template" && plan !== null,
+      });
+
+      const runtimePromptAddon = activeTemplate?.promptAddon ?? "";
+      const turnSystemPrompt = runtimePromptAddon
+        ? `${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n${runtimePromptAddon}`
+        : TUTOR_SYSTEM_PROMPT;
+      const turnContinuationPrompt = runtimePromptAddon
+        ? `${TUTOR_CONTINUATION_PROMPT}\n\n--- diagram reminder ---\n${runtimePromptAddon}`
+        : TUTOR_CONTINUATION_PROMPT;
+
+      // Transition from planning back to thinking before the LLM stream starts.
+      setPhase("thinking");
+
+      const introSegments = activeTemplate
+        ? activeTemplate.plannerGenerated
+          ? buildPlannerIntroSegments(activeTemplate)
+          : buildTemplateIntroSegments(activeTemplate, question)
+        : [];
       if (activeTemplate) {
         fbdPhaseStartedRef.current = true;
         for (const anchor of activeTemplate.anchors) {
@@ -204,6 +274,8 @@ export function useQuestionHandler(
         turnTelemetryRef.current?.mark("template-intro-queued", {
           template_id: activeTemplate.id,
           template_name: activeTemplate.name,
+          diagram_source: diagramSource,
+          planner_latency_ms: plannerLatencyMs,
           intro_segment_count: introSegments.length,
           command_count: activeTemplate.commands.length,
           commands: activeTemplate.commands.map((command) => ({
@@ -212,9 +284,24 @@ export function useQuestionHandler(
             ...(command.text ? { text: command.text } : {}),
           })),
         });
-        tutorDebug("draw", "queued template intro segments", {
+        // Diagram-guard telemetry: the count of draw/label commands reflects how
+        // many components the deterministic builder placed. A mismatch against
+        // what the lesson later solves (e.g. a phantom extra resistor) shows up
+        // here as an extra draw+label pair for the same template.
+        const introCommands = introSegments.flatMap((segment) => segment.commands ?? []);
+        const diagramDrawCount = introCommands.filter((command) =>
+          command.type.startsWith("DRAW_"),
+        ).length;
+        const diagramLabelCount = introCommands.filter(
+          (command) => command.type === "LABEL",
+        ).length;
+        tutorDebug("draw", "queued diagram intro segments", {
           template: activeTemplate.id,
+          source: diagramSource,
           segment_count: introSegments.length,
+          diagram_draw_commands: diagramDrawCount,
+          diagram_labels: diagramLabelCount,
+          planner_latency_ms: plannerLatencyMs,
         });
       }
 
@@ -225,10 +312,35 @@ export function useQuestionHandler(
       }
 
       try {
+        // Mini-buffer for live-mode blocking: instead of enqueuing each segment
+        // immediately, buffer it until the next segment arrives (or the stream
+        // ends), then run prepareTemplateLessonSegments on the buffered segment
+        // and enqueue the filtered result. This ensures the template guard
+        // actually filters conflicting draw commands during the stream instead
+        // of only running as a post-hoc audit.
+        let bufferedSegment: TutorSegment | null = null;
+
+        const flushBufferedSegment = () => {
+          if (!bufferedSegment) return;
+          const prepared = prepareTemplateLessonSegments([bufferedSegment], activeTemplate);
+          for (const seg of prepared.segments) {
+            enqueueSegment(seg);
+          }
+          if (prepared.blockedCommandCount > 0 || prepared.droppedSegmentCount > 0) {
+            tutorDebug("draw", "live segment filtered by mini-buffer", {
+              blocked_commands: prepared.blockedCommandCount,
+              dropped_segments: prepared.droppedSegmentCount,
+            });
+          }
+          bufferedSegment = null;
+        };
+
         const parser = new IncrementalTagParser({
           onSegmentReady: (segment) => {
             if (STREAM_SEGMENTS_LIVE) {
-              enqueueSegment(segment);
+              // Flush the previously buffered segment, then buffer this one.
+              flushBufferedSegment();
+              bufferedSegment = segment;
             } else {
               tutorDebug("parser", "segment ready from stream", {
                 narration_preview: segment.narration.slice(0, 80),
@@ -246,9 +358,10 @@ export function useQuestionHandler(
         let traceId: string | null = null;
         let continueCount = 0;
         let previousChunk = "";
+        let reasoningOnlyRetry = false;
 
         while (continueCount <= MAX_LLM_CONTINUATIONS) {
-          const isContinuation = continueCount > 0;
+          const isContinuation = continueCount > 0 && !reasoningOnlyRetry;
           const streamResult = await streamLLMResponse(
             {
               systemPrompt: isContinuation
@@ -291,6 +404,26 @@ export function useQuestionHandler(
           if (cancelRef.current) {
             break;
           }
+
+          // Reasoning-only starvation: the model spent its budget thinking and
+          // emitted no spoken content. Retry the original question once instead
+          // of failing the turn (upstream already raised the token ceiling).
+          const reasoningOnlyChunk =
+            streamResult.text.trim().length === 0 &&
+            (streamResult.streamStats?.reasoningChars ?? 0) > 0;
+          if (
+            reasoningOnlyChunk &&
+            !reasoningOnlyRetry &&
+            continueCount < MAX_LLM_CONTINUATIONS
+          ) {
+            reasoningOnlyRetry = true;
+            continueCount += 1;
+            tutorDebug("turn", "reasoning-only response, retrying question", {
+              reasoning_chars: streamResult.streamStats?.reasoningChars ?? 0,
+            });
+            continue;
+          }
+          reasoningOnlyRetry = false;
 
           if (
             !isTeachingResponseIncomplete(
@@ -340,6 +473,8 @@ export function useQuestionHandler(
         }
 
         parser.flush();
+        // Flush the last buffered segment through the template guard.
+        flushBufferedSegment();
 
         const responseText = rawResponse.trim();
         rawResponseRef.current = responseText;
