@@ -38,8 +38,8 @@ export default function Home() {
           alignItems: "center",
           justifyContent: "center",
           padding: "2rem",
-          background: "#E6F2DD",
-          color: "#333333",
+          background: "#F2F3F7",
+          color: "#111827",
         }}
       >
         <div style={{ maxWidth: "24rem", textAlign: "center" }}>
@@ -52,7 +52,7 @@ export default function Home() {
               borderRadius: "9999px",
               border: "1px solid rgba(101, 146, 135, 0.3)",
               background: "rgba(101, 146, 135, 0.1)",
-              color: "#659287",
+              color: "#2563EB",
               cursor: "pointer",
               fontSize: "0.875rem",
             }}

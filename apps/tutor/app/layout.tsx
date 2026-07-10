@@ -28,8 +28,8 @@ const anthropicSans = localFont({
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#E6F2DD" },
-    { media: "(prefers-color-scheme: dark)", color: "#659287" },
+    { media: "(prefers-color-scheme: light)", color: "#F2F3F7" },
+    { media: "(prefers-color-scheme: dark)", color: "#2563EB" },
   ],
   colorScheme: "light",
   width: "device-width",
