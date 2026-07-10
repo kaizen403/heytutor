@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SITE_NAME } from "@/lib/site";
+import { TutorSessionPage } from "@/features/tutor-session";
 
 type SessionLayoutProps = {
   children: React.ReactNode;
@@ -27,6 +28,12 @@ export async function generateMetadata({ params }: Pick<SessionLayoutProps, "par
   };
 }
 
+/** Layout persists across /c/{id} navigations so sidebar + session state survive board switches. */
 export default function SessionLayout({ children }: SessionLayoutProps) {
-  return children;
+  return (
+    <>
+      <TutorSessionPage />
+      {children}
+    </>
+  );
 }
