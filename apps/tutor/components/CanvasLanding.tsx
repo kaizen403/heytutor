@@ -106,12 +106,12 @@ const STYLES = `
   font-size: clamp(2.75rem, 7vw, 4.75rem);
   letter-spacing: -0.045em;
   line-height: 1;
-  color: #2f4a42;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  color: #111827;
+  text-shadow: none;
 }
 
 .ac-canvas-landing__word {
-  background: linear-gradient(170deg, #4f7468 0%, #659287 55%, #88bda4 100%);
+  background: linear-gradient(170deg, #2563EB 0%, #5FA4F9 55%, #93C5FD 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -122,8 +122,8 @@ const STYLES = `
   height: 0.14em;
   margin-bottom: 0.18em;
   border-radius: 50%;
-  background: #88BDA4;
-  box-shadow: 0 0 0 4px rgba(136, 189, 164, 0.18);
+  background: #2563EB;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
   animation: wb-pulse-amber 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
@@ -132,7 +132,7 @@ const STYLES = `
   font-size: clamp(0.9rem, 2vw, 1.05rem);
   font-weight: 400;
   letter-spacing: 0.02em;
-  color: #5A6B62;
+  color: #6B7280;
 }
 
 .ac-canvas-landing__form {
@@ -142,10 +142,10 @@ const STYLES = `
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0.4rem 0.4rem 1.1rem;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(101, 146, 135, 0.22);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #E5E7EB;
   border-radius: 9999px;
-  box-shadow: 0 10px 40px -12px rgba(79, 116, 104, 0.28);
+  box-shadow: 0 10px 40px -12px rgba(37, 99, 235, 0.12);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -158,11 +158,11 @@ const STYLES = `
   outline: none;
   padding: 0.75rem 0.25rem;
   font-size: 0.98rem;
-  color: #333333;
+  color: #111827;
 }
 
 .ac-canvas-landing__input::placeholder {
-  color: rgba(51, 51, 51, 0.42);
+  color: rgba(107, 114, 128, 0.75);
   font-style: italic;
 }
 
@@ -171,7 +171,7 @@ const STYLES = `
   padding: 0.65rem 1.4rem;
   border: none;
   border-radius: 9999px;
-  background: #659287;
+  background: #222222;
   color: #FFFFFF;
   font-size: 0.9rem;
   font-weight: 600;
@@ -180,13 +180,13 @@ const STYLES = `
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
               background 0.2s ease;
-  box-shadow: 0 4px 14px -4px rgba(101, 146, 135, 0.55);
+  box-shadow: 0 4px 14px -4px rgba(34, 34, 34, 0.35);
 }
 
 .ac-canvas-landing__ask:hover:not(:disabled) {
-  background: #4F7468;
+  background: #111827;
   transform: translateY(-1px);
-  box-shadow: 0 8px 22px -6px rgba(79, 116, 104, 0.6);
+  box-shadow: 0 8px 22px -6px rgba(17, 24, 39, 0.28);
 }
 
 .ac-canvas-landing__ask:active:not(:disabled) {
@@ -194,8 +194,8 @@ const STYLES = `
 }
 
 .ac-canvas-landing__ask:disabled {
-  background: rgba(101, 146, 135, 0.12);
-  color: rgba(51, 51, 51, 0.4);
+  background: rgba(34, 34, 34, 0.08);
+  color: rgba(17, 24, 39, 0.35);
   cursor: not-allowed;
   box-shadow: none;
 }
@@ -214,7 +214,7 @@ const STYLES = `
   font-weight: 500;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(90, 107, 98, 0.7);
+  color: rgba(107, 114, 128, 0.85);
 }
 
 .ac-canvas-landing__chips {
@@ -235,8 +235,8 @@ const STYLES = `
   align-items: flex-start;
   gap: 0.25rem;
   padding: 0.8rem 1rem;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(101, 146, 135, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #E5E7EB;
   border-radius: 14px;
   text-align: left;
   cursor: pointer;
@@ -250,9 +250,9 @@ const STYLES = `
 
 .ac-canvas-landing__chip:hover {
   transform: translateY(-2px);
-  border-color: rgba(101, 146, 135, 0.5);
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 12px 30px -14px rgba(79, 116, 104, 0.45);
+  border-color: rgba(37, 99, 235, 0.35);
+  background: #FFFFFF;
+  box-shadow: 0 12px 30px -14px rgba(37, 99, 235, 0.18);
 }
 
 .ac-canvas-landing__chip:active {
@@ -262,7 +262,7 @@ const STYLES = `
 .ac-canvas-landing__chip-label {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #2f4a42;
+  color: #111827;
   letter-spacing: -0.005em;
 }
 
@@ -270,7 +270,7 @@ const STYLES = `
   font-size: 0.72rem;
   font-weight: 400;
   letter-spacing: 0.04em;
-  color: rgba(90, 107, 98, 0.85);
+  color: rgba(107, 114, 128, 0.9);
 }
 
 @media (max-width: 640px) {
