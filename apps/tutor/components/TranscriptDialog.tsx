@@ -37,7 +37,7 @@ export function TranscriptDialog({ text, open, onClose }: TranscriptDialogProps)
         >
           <h2
             className="text-sm font-semibold tracking-wide"
-            style={{ color: "#333333" }}
+            style={{ color: "#111827" }}
           >
             transcript
           </h2>

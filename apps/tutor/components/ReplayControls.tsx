@@ -136,7 +136,7 @@ export function ReplayControls({
               }}
               onPointerUp={() => setScrubbing(false)}
               onChange={(event) => handleScrub(Number(event.target.value))}
-              className="replay-slider h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/25 accent-[#88BDA4]"
+              className="replay-slider h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/25 accent-[#5FA4F9]"
             />
 
             <div className="flex items-center justify-between gap-3">
