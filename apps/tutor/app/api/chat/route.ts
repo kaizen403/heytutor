@@ -1,6 +1,11 @@
 import { getMockResponse } from "@heytutor/tutor-core";
 import { tutorDebug } from "@heytutor/tutor-core";
 import {
+  parseReasoningMode,
+  resolveReasoningEffort,
+  type ReasoningEffort,
+} from "@heytutor/tutor-core";
+import {
   endLlmGeneration,
   flushInBackground,
   genTraceId,
@@ -12,9 +17,24 @@ import { ensureUser, getUserId } from "@/lib/auth";
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 const DEFAULT_MAX_TOKENS = 3600;
 
+// Hard reasoning-token caps per tier. kimi-k2p6's `reasoning_effort` levels are
+// NOT hard budgets (low can out-reason medium and run until max_tokens), so we
+// use Fireworks' Anthropic-compatible `thinking.budget_tokens` instead, which
+// bounds reasoning and guarantees room for the lesson content. Must be >= 1024.
+const REASONING_BUDGET_TOKENS: Record<Exclude<ReasoningEffort, "none">, number> = {
+  low: 1024,
+  medium: 2048,
+};
+// Forces a short natural wrap-up before </think> when the budget is exhausted,
+// so the model transitions cleanly into the answer instead of a hard token slam.
+const REASONING_BUDGET_END_STR = "Okay, I have my plan. Here is the lesson.";
+
 interface ChatRequestBody {
   messages?: { role?: string; content?: unknown }[];
   stream_options?: { include_usage?: boolean };
+  max_tokens?: number;
+  reasoning_effort?: unknown;
+  thinking?: unknown;
 }
 
 interface FireworksUsage {
@@ -126,24 +146,44 @@ async function finalizeMockTrace(
   });
 }
 
-function injectStreamOptions(bodyText: string, serverModel: string): string {
+function injectStreamOptions(
+  bodyText: string,
+  serverModel: string,
+  reasoningEffort: ReasoningEffort,
+): string {
   try {
     const parsed = JSON.parse(bodyText) as ChatRequestBody & Record<string, unknown>;
     const configuredMaxTokens = Number.parseInt(
       process.env.FIREWORKS_MAX_TOKENS ?? `${DEFAULT_MAX_TOKENS}`,
       10,
     );
-    const maxTokens = Number.isFinite(configuredMaxTokens)
+    // Token budget reserved for the spoken lesson itself.
+    const contentBudget = Number.isFinite(configuredMaxTokens)
       ? Math.min(Math.max(configuredMaxTokens, 1200), 6000)
       : DEFAULT_MAX_TOKENS;
 
     parsed.model = serverModel;
     parsed.stream_options = { include_usage: true };
-    parsed.reasoning_effort = "none";
-    parsed.max_tokens = Math.min(
-      typeof parsed.max_tokens === "number" ? parsed.max_tokens : maxTokens,
-      maxTokens,
-    );
+
+    // We drive reasoning exclusively through `thinking` — Fireworks rejects a
+    // request that sets both `thinking` and `reasoning_effort`.
+    delete parsed.reasoning_effort;
+
+    if (reasoningEffort === "none") {
+      parsed.thinking = { type: "disabled" };
+      parsed.max_tokens = contentBudget;
+    } else {
+      const reasoningBudget = REASONING_BUDGET_TOKENS[reasoningEffort];
+      parsed.thinking = {
+        type: "enabled",
+        budget_tokens: reasoningBudget,
+        budget_end_str: REASONING_BUDGET_END_STR,
+      };
+      // max_tokens must cover BOTH the reasoning budget and the lesson content,
+      // otherwise reasoning eats the whole allowance and no content is emitted.
+      parsed.max_tokens = contentBudget + reasoningBudget;
+    }
+
     return JSON.stringify(parsed);
   } catch {
     return bodyText;
@@ -275,6 +315,108 @@ function createTracingTransformStream(
   });
 }
 
+interface PlannerRequestArgs {
+  rawBody: string;
+  apiKey: string;
+  traceId: string;
+  turnTrace: TurnTrace | null;
+  requestStartedAt: number;
+}
+
+async function handlePlannerRequest({
+  rawBody,
+  apiKey,
+  traceId,
+  turnTrace,
+  requestStartedAt,
+}: PlannerRequestArgs): Promise<Response> {
+  const plannerModel =
+    process.env.FIREWORKS_PLANNER_MODEL ??
+    "accounts/fireworks/models/kimi-k2p6";
+
+  try {
+    const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+    parsed.model = plannerModel;
+    delete parsed.reasoning_effort;
+    // Enable thinking with a small budget — the model needs to reason about
+    // the question to plan coordinates. Without thinking, it outputs garbage.
+    parsed.thinking = { type: "enabled", budget_tokens: 2048 };
+    parsed.max_tokens = 4000;
+    parsed.stream = false;
+    parsed.response_format = { type: "json_object" };
+
+    const upstreamStartedAt = Date.now();
+    const response = await fetch(FIREWORKS_CHAT_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(parsed),
+    });
+
+    tutorDebug("planner", "fireworks response", {
+      status: response.status,
+      connect_ms: Date.now() - upstreamStartedAt,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      endLlmGeneration(turnTrace, {
+        output: errorBody,
+        metadata: { error: true, status: response.status, planner: true },
+      });
+      flushInBackground();
+      return new Response(errorBody, {
+        status: response.status,
+        headers: { "content-type": "application/json", "x-heytutor-trace-id": traceId },
+      });
+    }
+
+    const jsonBody = await response.text();
+
+    // Trace the planner output (non-streaming, so accumulate at once).
+    try {
+      const parsedResponse = JSON.parse(jsonBody) as {
+        choices?: { message?: { content?: string; reasoning_content?: string } }[];
+        usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      };
+      const content = parsedResponse.choices?.[0]?.message?.content ?? "";
+      const reasoning = parsedResponse.choices?.[0]?.message?.reasoning_content ?? "";
+      endLlmGeneration(turnTrace, {
+        output: content,
+        usageDetails: buildUsageDetails(parsedResponse.usage as FireworksUsage | undefined),
+        metadata: {
+          planner: true,
+          content_chars: content.length,
+          reasoning_chars: reasoning.length,
+          elapsed_ms: Date.now() - requestStartedAt,
+        },
+      });
+    } catch {
+      // Still return the body even if tracing fails.
+    }
+    flushInBackground();
+
+    return new Response(jsonBody, {
+      status: response.status,
+      headers: {
+        "content-type": "application/json",
+        "x-heytutor-trace-id": traceId,
+      },
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "planner proxy error";
+    tutorDebug("planner", "proxy error", { message, elapsed_ms: Date.now() - requestStartedAt });
+    endLlmGeneration(turnTrace, { output: message, metadata: { error: true, planner: true } });
+    flushInBackground();
+    return Response.json(
+      { error: message },
+      { status: 500, headers: { "x-heytutor-trace-id": traceId } },
+    );
+  }
+}
+
 export async function POST(request: Request): Promise<Response> {
   const requestStartedAt = Date.now();
   const userId = await getUserId();
@@ -305,11 +447,29 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const serverModel = process.env.FIREWORKS_MODEL ?? "accounts/fireworks/models/kimi-k2p6";
-  const bodyToSend = injectStreamOptions(rawBody, serverModel);
+
+  // Planner branch: the LLM diagram architect calls with stream:false and a
+  // dedicated header. It needs its own (low) reasoning budget and max_tokens,
+  // and returns raw JSON — not an SSE stream — so it bypasses the teaching
+  // stream's reasoning classification and SSE tracing transform.
+  if (request.headers.get("x-planner") === "1") {
+    return handlePlannerRequest({
+      rawBody,
+      apiKey,
+      traceId,
+      turnTrace,
+      requestStartedAt,
+    });
+  }
+
+  const reasoningMode = parseReasoningMode(process.env.TUTOR_REASONING_MODE);
+  const reasoningEffort = resolveReasoningEffort(userInput, reasoningMode);
+  const bodyToSend = injectStreamOptions(rawBody, serverModel, reasoningEffort);
 
   tutorDebug("chat", "forwarding to Fireworks", {
     model: serverModel,
-    reasoning_effort: "none",
+    reasoning_mode: reasoningMode,
+    reasoning_effort: reasoningEffort,
   });
 
   try {
