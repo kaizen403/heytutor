@@ -20,8 +20,25 @@ import { YDSE_TEMPLATE } from "./ydse";
 import { PHOTOELECTRIC_TEMPLATE } from "./photoelectric";
 import { buildCircuitPrecisionSegments } from "./circuitPrecision";
 
-import { OPTICS_RAY_TEMPLATE } from "./opticsRay";
+import { OPTICS_FAMILY_TEMPLATES } from "./opticsFamily";
 import { buildOpticsPrecisionSegments } from "./opticsPrecision";
+export {
+  buildOpticsPrecisionIntro,
+  buildOpticsPrecisionSegments,
+  classifyOptics,
+  parseOpticsNumbers,
+  opticsDecisionMetadata,
+  type OpticsKind,
+  type OpticsClassifyResult,
+  type OpticsIntroBuildResult,
+  type OpticsParsedNumbers,
+} from "./opticsPrecision";
+export {
+  isOpticsTemplateId,
+  OPTICS_FAMILY_TEMPLATES,
+  OPTICS_TEMPLATE_IDS,
+  type OpticsTemplateId,
+} from "./opticsFamily";
 import { PV_DIAGRAM_TEMPLATE } from "./pvDiagram";
 import { WAVE_SHM_TEMPLATE } from "./waveShm";
 import { ENERGY_LEVELS_TEMPLATE } from "./energyLevels";
@@ -66,7 +83,8 @@ export const DIAGRAM_TEMPLATES: DiagramTemplate[] = [
   // Physics — thermal, waves, EM, modern
   YDSE_TEMPLATE,
   PHOTOELECTRIC_TEMPLATE,
-  OPTICS_RAY_TEMPLATE,
+  // Ray optics family (most specific first — see opticsFamily.ts)
+  ...OPTICS_FAMILY_TEMPLATES,
   PV_DIAGRAM_TEMPLATE,
   ENERGY_LEVELS_TEMPLATE,
   WAVE_SHM_TEMPLATE,

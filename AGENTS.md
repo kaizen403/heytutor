@@ -30,6 +30,7 @@ Mock mode works without API keys (`FIREWORKS_API_KEY`, `ELEVENLABS_API_KEY`).
 - [Backend API & lib modules](docs/agent/backend.md)
 - [Shared packages](docs/agent/packages.md)
 - [Sync / voice / drawing](docs/tutor-sync-architecture.md)
+- [Ray Optics debug playbook](docs/agent/optics-debug.md)
 - [CI/CD & deploy](docs/ci-cd.md)
 
 ## Critical Rules

@@ -1,6 +1,7 @@
 import { getSegmentCommands, type DrawCommand, type TutorSegment } from "./drawingProtocol";
 import { DIAGRAM_ZONE, clampToDiagramZone, isInDiagramZone } from "./boardZones";
 import { snapGeometryCommand } from "./geometrySnap";
+import { isOpticsTemplateId } from "./templates/opticsFamily";
 import type { DiagramTemplate, TemplateAnchor, TemplateCommand } from "./templates/types";
 
 const TEMPLATE_SKELETON_DRAW_TYPES = new Set<DrawCommand["type"]>([
@@ -14,6 +15,10 @@ const TEMPLATE_SKELETON_DRAW_TYPES = new Set<DrawCommand["type"]>([
 const TEMPLATE_PARAM_TOLERANCE = 40;
 const TEMPLATE_ACTION_NARRATION_PATTERN =
   /\b(?:let me draw|i(?:'|’)ll draw|i will draw|let(?:'|’)s draw|i will mark|let me mark|i will label|let me label|i(?:'|’)ll label|let(?:'|’)s label|let(?:'|’)s circle|i will circle|let me circle|now circle)\b/i;
+
+/** Labels the optics precision intro already owns — LLM must not rewrite these on the diagram. */
+const OPTICS_OWNED_LABEL_PATTERN =
+  /^(?:c|f|f'|f′|o|object|image|u|v|f\s*=|u\s*=|v\s*=|μ|mu|a|i|i_c|ic|δ|delta|n|f_?o|f_?e|f₁|f₂|f1|f2|feq|slab)(?:\b|[=\s]|$)/i;
 
 const TEMPLATE_OWNED_ZONE = {
   x: DIAGRAM_ZONE.x - 16,
@@ -271,11 +276,46 @@ const AUTHORITATIVE_DIAGRAM_TEMPLATES = new Set([
   "wire_network_cube",
 ]);
 
+/**
+ * Optics precision intros already place C/F/O, object/image, and u/f/v DIMENSION
+ * bars. Allow principal rays (DRAW_LINE) but block re-labelling and re-dimensioning
+ * so the board stays clean instead of stacking -u/-f on top of existing marks.
+ */
+export function isBlockedOpticsOwnedAnnotation(
+  command: DrawCommand,
+  template: DiagramTemplate,
+): boolean {
+  const isOptics =
+    isOpticsTemplateId(template.id) || template.id === "optics_ray";
+  if (!isOptics) {
+    return false;
+  }
+
+  if (command.type === "DIMENSION") {
+    return commandTouchesTemplateOwnedZone(command) || commandAnchorInDiagramZone(command);
+  }
+
+  // Block both LABEL and WRITE — the LLM often re-inks "F"/"O" with WRITE on the axis.
+  if ((command.type === "LABEL" || command.type === "WRITE") && command.text) {
+    const text = command.text.trim();
+    if (OPTICS_OWNED_LABEL_PATTERN.test(text)) {
+      return commandTouchesTemplateOwnedZone(command) || commandAnchorInDiagramZone(command);
+    }
+  }
+
+  return false;
+}
+
 /** True when a matched template owns the diagram and an LLM DRAW_* would improvise over it. */
 export function isBlockedTemplateDiagramDraw(
   command: DrawCommand,
   template: DiagramTemplate,
 ): boolean {
+  // Optics: always block owned annotations even when rays are allowed in the zone.
+  if (isBlockedOpticsOwnedAnnotation(command, template)) {
+    return true;
+  }
+
   if (template.allowLlmDrawInDiagramZone) {
     return false;
   }
@@ -335,7 +375,14 @@ export function snapLabelToTemplateAnchor(
     return command;
   }
 
-  return { ...command, params: [anchor.x, anchor.y] };
+  // Point-name anchors may sit near the axis for ray targeting. Never place the
+  // visible letter on the axis — keep a clear gap above y=300.
+  const AXIS_Y = 300;
+  const POINT_NAME = /^(?:c|f|f'|f′|o)$/i.test(command.text.trim());
+  const rawY = anchor.y;
+  const labelY = POINT_NAME ? Math.min(rawY, AXIS_Y - 52) : rawY;
+
+  return { ...command, params: [anchor.x, labelY] };
 }
 
 export function prepareTemplateLessonSegments(

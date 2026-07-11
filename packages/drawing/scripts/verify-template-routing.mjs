@@ -41,7 +41,13 @@ const cases = [
   // Unit 13 — Magnetism
   ["A solenoid with 200 turns per metre carries 2 A. Find the magnetic field inside.", "magnetism"],
   // Unit 16 — Optics
-  ["A concave mirror of focal length 15 cm forms an image of an object placed 30 cm away. Find the image distance.", "optics_ray"],
+  ["A concave mirror of focal length 15 cm forms an image of an object placed 30 cm away. Find the image distance.", "optics_mirror"],
+  ["An object is placed 40 cm in front of a convex lens of focal length 20 cm. Find the image distance.", "optics_lens"],
+  ["A prism of angle A = 60° and refractive index μ = 1.5. Find the minimum deviation.", "optics_prism"],
+  ["Find the critical angle for total internal reflection when μ = 1.5.", "optics_tir"],
+  ["Two thin lenses in contact have f1 = 20 cm and f2 = 30 cm. Find equivalent focal length.", "optics_lens_combo"],
+  ["A compound microscope has fo = 1 cm, fe = 5 cm, L = 15 cm. Find magnifying power.", "optics_instrument"],
+  ["A ray is incident on a glass slab of μ = 1.5 at i = 45°. Find lateral shift.", "optics_refraction_plane"],
   ["In Young's double slit experiment, d = 1 mm, D = 1 m and wavelength 600 nm. Find the fringe width.", "ydse"],
   // Unit 17 — Dual Nature
   ["Light of wavelength 400 nm falls on a metal with work function 2 eV. Find the stopping potential.", "photoelectric"],

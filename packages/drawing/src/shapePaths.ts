@@ -400,9 +400,14 @@ export function dimensionPath(
   const barMidY = (e1y + e2y) / 2;
 
   // Place the distance text on the far side of the bar so it never overlaps
-  // either the bar or the geometry. `labelY` is the text *top*.
+  // either the bar or the geometry. `labelY` is the text *top* — leave a real
+  // air gap (not 6px) so handwriting never sits on the dotted bar.
   const TEXT_HEIGHT = 34;
-  const labelY = offset >= 0 ? barMidY + capHalf + 6 : barMidY - capHalf - TEXT_HEIGHT;
+  const TEXT_GAP = 18;
+  const labelY =
+    offset >= 0
+      ? barMidY + capHalf + TEXT_GAP
+      : barMidY - capHalf - TEXT_GAP - TEXT_HEIGHT;
 
   return {
     path,
