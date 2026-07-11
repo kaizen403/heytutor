@@ -87,6 +87,8 @@ Important design rule:
 
 Live writing must not block on ElevenLabs alignment. Real timings may arrive after the relevant words are already spoken. The live path should use real timings only when already available; otherwise it should use the estimated script schedule. Persisted/replay paths can use exact timings.
 
+Paired narration+draw segments must finish prior ink, then run speech and draw together (`Promise.all`). Do not let the segment speech chain race ahead of `drawChainRef` (that caused the marker to lag a sentence behind). Shape `startDelayMs` may wait up to ~6s for the spoken cue; do not clamp to a few hundred ms or ink appears before the words.
+
 ### `packages/tutor-core/src/elevenLabsWebSocketClient.ts`
 
 Handles browser TTS streaming.
