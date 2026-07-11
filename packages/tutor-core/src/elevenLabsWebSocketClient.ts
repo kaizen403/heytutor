@@ -212,12 +212,50 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     return this.speakSegment(options.text, options);
   }
 
+  unlockAudio(): void {
+    this.paused = false;
+    this.audioContext = this.audioContext ?? new AudioContext();
+    if (this.audioContext.state === "suspended") {
+      void this.audioContext.resume().then(() => {
+        tutorDebug("tts", "audio unlocked", { state: this.audioContext?.state });
+      });
+    }
+  }
+
+  private stopActiveAudio(reason: string): void {
+    for (const source of this.activeSources) {
+      try {
+        source.stop();
+      } catch {
+        // already stopped
+      }
+    }
+    this.activeSources = [];
+    this.playing = false;
+    if (this.audioContext) {
+      this.scheduledEnd = this.audioContext.currentTime;
+    } else {
+      this.scheduledEnd = 0;
+    }
+    this.speechFallback.stop();
+    tutorDebug("tts", "stopActiveAudio", { reason });
+  }
+
   async speakSegment(text: string, options: SpeakSegmentOptions = {}): Promise<void> {
     const spokenText = mathToSpeech(text.trim());
     const generation = this.speakGeneration;
 
     if (spokenText.length === 0) {
       options.onEnd?.();
+      return;
+    }
+
+    const ctx = await this.ensureAudioContext();
+    if (ctx.state === "suspended") {
+      // WebAudio blocked (no gesture / autoplay). Browser speech still works.
+      tutorDebug("tts", "AudioContext suspended — using speechSynthesis fallback");
+      this.stopActiveAudio("suspended-fallback");
+      await this.speechFallback.speakSegment(spokenText, options);
       return;
     }
 
@@ -235,15 +273,38 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       return;
     }
 
+    let wsPlaybackStarted = false;
     if (this.ws?.readyState === WebSocket.OPEN) {
       try {
-        await this.enqueueWebSocketSegment(spokenText, options);
+        await this.enqueueWebSocketSegment(spokenText, {
+          ...options,
+          onStart: () => {
+            wsPlaybackStarted = true;
+            options.onStart?.();
+          },
+        });
         return;
       } catch (error) {
         if (this.speakGeneration !== generation) {
           return;
         }
-        options.onError?.(error);
+        // Always mute leftover WS buffers before any fallback — otherwise HTTP
+        // or speechSynthesis layers a second voice on top (user-reported echo).
+        this.stopActiveAudio("ws-segment-failed");
+        tutorDebug("tts", "websocket segment failed", {
+          error: error instanceof Error ? error.message : String(error),
+          playback_started: wsPlaybackStarted,
+        });
+        if (wsPlaybackStarted) {
+          // Student already heard this segment; do not replay it.
+          options.onEnd?.();
+          return;
+        }
+        // Drop any prefetched WS jobs so they cannot speak under HTTP fallback.
+        this.rejectAllJobs(new Error("superseded by http fallback"));
+        this.currentJob = null;
+        this.chunkTargetJob = null;
+        this.jobs = [];
       }
     }
 
@@ -257,8 +318,15 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       if (this.speakGeneration !== generation) {
         return;
       }
-      options.onError?.(error);
-      await this.speechFallback.speakSegment(spokenText, options);
+      this.stopActiveAudio("http-segment-failed");
+      tutorDebug("tts", "HTTP segment failed, trying speechSynthesis", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      try {
+        await this.speechFallback.speakSegment(spokenText, options);
+      } catch (fallbackError) {
+        options.onError?.(fallbackError);
+      }
     }
   }
 
@@ -270,22 +338,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     this.speakGeneration += 1;
     this.clearTimers();
     this.detachStreamHandler();
-
-    for (const source of this.activeSources) {
-      try {
-        source.stop();
-      } catch {
-        // already stopped
-      }
-    }
-    this.activeSources = [];
-    this.playing = false;
-
-    if (this.audioContext) {
-      this.scheduledEnd = this.audioContext.currentTime;
-    } else {
-      this.scheduledEnd = 0;
-    }
+    this.stopActiveAudio("abandonSpeaking");
 
     const error = new Error("tts segment abandoned");
     if (this.currentJob && !this.currentJob.settled) {
@@ -296,7 +349,6 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     this.rejectAllJobs(error);
     this.currentJob = null;
     this.chunkTargetJob = null;
-    this.speechFallback.stop();
     tutorDebug("tts", "abandonSpeaking");
   }
 
@@ -790,7 +842,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       window.clearTimeout(this.watchdogTimer);
     }
 
-    // Fail fast when ElevenLabs never returns audio — outer runner used to wait 45s.
+    // Fail when ElevenLabs never returns audio; leave room for cold WS + first chunk.
     this.watchdogTimer = window.setTimeout(() => {
       if (this.currentJob !== job || job.settled) {
         return;
@@ -802,7 +854,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       }
 
       void this.completeCurrentJob();
-    }, 5_000);
+    }, 12_000);
   }
 
   private clearTimers(): void {
@@ -841,6 +893,10 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     const job = this.currentJob;
     this.clearTimers();
 
+    // Mute any buffers already scheduled for this job so HTTP/speech fallback
+    // (or the next queue item) cannot overlap and echo.
+    this.stopActiveAudio("failCurrentJob");
+
     if (job && !job.settled) {
       job.settled = true;
       job.options.onError?.(error);
@@ -876,7 +932,9 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   }
 
   private async waitForTimelineReady(ctx: AudioContext): Promise<void> {
-    const deadline = performance.now() + 1_200;
+    // Never snap the playhead forward while buffers are still audible — that
+    // was a prime cause of overlapping voices on HTTP fallback.
+    const deadline = performance.now() + 8_000;
     while (
       (this.activeSources.length > 0 || this.scheduledEnd > ctx.currentTime + 0.05) &&
       performance.now() < deadline
@@ -885,9 +943,8 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
         window.setTimeout(resolve, 32);
       });
     }
-    // If still blocked, snap the schedule forward so HTTP fallback can play.
-    if (this.scheduledEnd > ctx.currentTime + 0.05) {
-      this.scheduledEnd = ctx.currentTime;
+    if (this.activeSources.length > 0 || this.scheduledEnd > ctx.currentTime + 0.05) {
+      this.stopActiveAudio("waitForTimelineReady-timeout");
     }
   }
 
@@ -1072,7 +1129,19 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     this.audioContext = this.audioContext ?? new AudioContext();
 
     if (this.audioContext.state === "suspended" && !this.paused) {
-      await this.audioContext.resume();
+      try {
+        await this.audioContext.resume();
+      } catch (error) {
+        tutorDebug("tts", "AudioContext resume failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    if (this.audioContext.state === "suspended") {
+      tutorDebug("tts", "AudioContext still suspended", {
+        paused: this.paused,
+      });
     }
 
     return this.audioContext;
