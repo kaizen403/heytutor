@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
+import { SITE_NAME } from "@/lib/site";
 
 export interface CanvasLandingSuggestion {
   label: string;
@@ -14,11 +14,17 @@ export interface CanvasLandingProps {
   onSubmit: (question: string) => void;
 }
 
+function splitHint(hint: string): { subject: string; detail: string } {
+  const [subject = "", detail = ""] = hint.split("·").map((part) => part.trim());
+  return { subject, detail };
+}
+
 export function CanvasLanding({
   suggestions,
   onSubmit,
 }: CanvasLandingProps) {
   const [draft, setDraft] = useState("");
+  const canAsk = draft.trim().length > 0;
 
   const handleSubmit = useCallback(
     (event: React.FormEvent) => {
@@ -31,50 +37,77 @@ export function CanvasLanding({
   );
 
   return (
-    <section className="ac-canvas-landing animate-wb-fade-in">
-      <div className="ac-canvas-landing__mark">
-        <span className="ac-canvas-landing__word">{SITE_NAME}</span>
-        <span className="ac-canvas-landing__dot" aria-hidden />
-      </div>
+    <section className="ac-landing animate-wb-fade-in">
+      <div className="ac-landing__atmosphere" aria-hidden />
 
-      <p className="ac-canvas-landing__tagline">{SITE_TAGLINE}</p>
+      <header className="ac-landing__hero">
+        <p className="ac-landing__eyebrow">Whiteboard session</p>
+        <h1 className="ac-landing__brand">
+          <span className="ac-landing__brand-word">{SITE_NAME}</span>
+          <span className="ac-landing__brand-mark" aria-hidden />
+        </h1>
+        <p className="ac-landing__lede">
+          Ask a question. Watch diagrams, notes, and explanations
+          appear stroke by stroke.
+        </p>
+      </header>
 
-      <form className="ac-canvas-landing__form wb-input-wrap" onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder="ask a math or physics question…"
-          className="ac-canvas-landing__input wb-paper-input"
-          autoComplete="off"
-          spellCheck={false}
-          aria-label="Ask a question"
-          autoFocus
-        />
-        <button
-          type="submit"
-          className="ac-canvas-landing__ask"
-          disabled={draft.trim().length === 0}
-        >
-          Ask
-        </button>
+      <form className="ac-landing__ask" onSubmit={handleSubmit}>
+        <label className="ac-landing__ask-label" htmlFor="ac-landing-question">
+          Your question
+        </label>
+        <div className="ac-landing__ask-row">
+          <input
+            id="ac-landing-question"
+            type="text"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="e.g. explain projectile motion with a diagram"
+            className="ac-landing__input"
+            autoComplete="off"
+            spellCheck={false}
+            autoFocus
+          />
+          <button
+            type="submit"
+            className="ac-landing__submit"
+            disabled={!canAsk}
+          >
+            Ask
+          </button>
+        </div>
       </form>
 
-      <div className="ac-canvas-landing__suggestions">
-        <p className="ac-canvas-landing__suggestions-label">try one of these</p>
-        <ul className="ac-canvas-landing__chips">
-          {suggestions.map((s) => (
-            <li key={s.question}>
-              <button
-                type="button"
-                className="ac-canvas-landing__chip"
-                onClick={() => onSubmit(s.question)}
+      <div className="ac-landing__topics">
+        <div className="ac-landing__topics-head">
+          <span className="ac-landing__topics-label">Start with a topic</span>
+        </div>
+        <ul className="ac-landing__topic-list">
+          {suggestions.map((suggestion, index) => {
+            const { subject, detail } = splitHint(suggestion.hint);
+            return (
+              <li
+                key={suggestion.question}
+                style={{ animationDelay: `${120 + index * 45}ms` }}
               >
-                <span className="ac-canvas-landing__chip-label">{s.label}</span>
-                <span className="ac-canvas-landing__chip-hint">{s.hint}</span>
-              </button>
-            </li>
-          ))}
+                <button
+                  type="button"
+                  className="ac-landing__topic"
+                  onClick={() => onSubmit(suggestion.question)}
+                >
+                  <span className="ac-landing__topic-meta">
+                    <span className="ac-landing__topic-subject">
+                      {detail ? `${subject} · ${detail}` : subject}
+                    </span>
+                  </span>
+                  <span className="ac-landing__topic-title">{suggestion.label}</span>
+                  <span className="ac-landing__topic-go" aria-hidden>
+                    →
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
 
@@ -84,243 +117,376 @@ export function CanvasLanding({
 }
 
 const STYLES = `
-.ac-canvas-landing {
+.ac-landing {
+  --ink: #152033;
+  --ink-soft: #4A5A72;
+  --ink-faint: #7B8BA3;
+  --line: rgba(37, 99, 235, 0.14);
+  --paper: #FBFCFE;
+  --accent: #2563EB;
+  --accent-deep: #1D4ED8;
+  --cta: #1A1F2C;
+
   position: relative;
   z-index: 1;
-  width: 100%;
-  max-width: 40rem;
+  width: min(100%, 42rem);
   margin: 0 auto;
+  padding: clamp(0.75rem, 2.5vh, 1.5rem) clamp(0.85rem, 3vw, 1.5rem);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: clamp(0.5rem, 2vh, 1rem) clamp(0.75rem, 3vw, 1.25rem);
+  align-items: stretch;
+  text-align: left;
+  isolation: isolate;
 }
 
-.ac-canvas-landing__mark {
+.ac-landing__atmosphere {
+  pointer-events: none;
+  position: absolute;
+  inset: -6% -2% auto;
+  height: 48%;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 65% 50% at 20% 18%, rgba(37, 99, 235, 0.05), transparent 72%),
+    radial-gradient(ellipse 50% 40% at 90% 10%, rgba(95, 164, 249, 0.06), transparent 70%);
+}
+
+.ac-landing__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  animation: ac-landing-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.ac-landing__eyebrow {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: var(--ink-soft);
+}
+
+.ac-landing__brand {
+  margin: 0;
   display: inline-flex;
   align-items: flex-end;
-  gap: 0.18em;
-  font-family: inherit;
+  gap: 0.12em;
+  font-size: clamp(2.4rem, 7vw, 3.75rem);
   font-weight: 700;
-  font-size: clamp(2rem, 6.5vw + 0.5rem, 4.75rem);
-  letter-spacing: -0.045em;
-  line-height: 1;
-  color: #111827;
-  text-shadow: none;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  color: var(--accent);
 }
 
-.ac-canvas-landing__word {
-  background: linear-gradient(170deg, #2563EB 0%, #5FA4F9 55%, #93C5FD 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.ac-landing__brand-word {
+  color: var(--accent);
 }
 
-.ac-canvas-landing__dot {
-  width: 0.14em;
-  height: 0.14em;
+.ac-landing__brand-mark {
+  width: 0.13em;
+  height: 0.13em;
   margin-bottom: 0.18em;
   border-radius: 50%;
-  background: #2563EB;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
-  animation: wb-pulse-amber 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  background: var(--accent);
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.12);
+  animation: wb-pulse-amber 2.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
-.ac-canvas-landing__tagline {
-  margin: 0.65rem 0 0;
-  font-size: clamp(0.85rem, 1.5vw + 0.55rem, 1.05rem);
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  color: #6B7280;
+.ac-landing__lede {
+  margin: 0.15rem 0 0;
   max-width: 28rem;
-  padding-inline: 0.5rem;
+  font-size: clamp(0.95rem, 1.4vw + 0.65rem, 1.08rem);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  letter-spacing: normal;
 }
 
-.ac-canvas-landing__form {
-  margin-top: clamp(1rem, 3vh, 1.75rem);
-  width: 100%;
+.ac-landing__ask {
+  margin-top: clamp(1.25rem, 3.5vh, 2rem);
+  animation: ac-landing-rise 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+}
+
+.ac-landing__ask-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ac-landing__ask-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.4rem 0.4rem 1.1rem;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid #E5E7EB;
+  gap: 0.55rem;
+  padding: 0.4rem 0.4rem 0.4rem 1.05rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-radius: 9999px;
-  box-shadow: 0 10px 40px -12px rgba(37, 99, 235, 0.12);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 14px 36px -18px rgba(37, 99, 235, 0.28);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
-.ac-canvas-landing__input {
+.ac-landing__ask-row:focus-within {
+  border-color: rgba(37, 99, 235, 0.42);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 16px 40px -16px rgba(37, 99, 235, 0.34);
+}
+
+.ac-landing__input {
   flex: 1;
   min-width: 0;
-  background: transparent;
-  border: none;
+  border: 0;
   outline: none;
-  padding: 0.75rem 0.25rem;
+  background: transparent;
+  padding: 0.8rem 0.2rem;
   font-size: 16px;
-  color: #111827;
+  color: var(--ink);
+  letter-spacing: normal;
 }
 
-.ac-canvas-landing__input::placeholder {
-  color: rgba(107, 114, 128, 0.75);
-  font-style: italic;
+.ac-landing__input::placeholder {
+  color: color-mix(in srgb, var(--ink-faint) 88%, white);
+  font-style: normal;
 }
 
-.ac-canvas-landing__ask {
+.ac-landing__submit {
   flex-shrink: 0;
   min-height: 44px;
-  padding: 0.65rem 1.4rem;
-  border: none;
+  min-width: 4.5rem;
+  padding: 0.7rem 1.25rem;
+  border: 0;
   border-radius: 9999px;
-  background: #222222;
-  color: #FFFFFF;
-  font-size: 0.9rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  background: var(--cta);
+  color: #F8FAFC;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: normal;
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-              background 0.2s ease;
-  box-shadow: 0 4px 14px -4px rgba(34, 34, 34, 0.35);
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+  box-shadow: 0 8px 18px -10px rgba(26, 31, 44, 0.55);
 }
 
-.ac-canvas-landing__ask:hover:not(:disabled) {
-  background: #111827;
+.ac-landing__submit:hover:not(:disabled) {
+  background: #0F1420;
   transform: translateY(-1px);
-  box-shadow: 0 8px 22px -6px rgba(17, 24, 39, 0.28);
 }
 
-.ac-canvas-landing__ask:active:not(:disabled) {
+.ac-landing__submit:active:not(:disabled) {
   transform: translateY(0);
 }
 
-.ac-canvas-landing__ask:disabled {
-  background: rgba(34, 34, 34, 0.08);
-  color: rgba(17, 24, 39, 0.35);
+.ac-landing__submit:disabled {
+  background: rgba(26, 31, 44, 0.08);
+  color: rgba(21, 32, 51, 0.35);
   cursor: not-allowed;
   box-shadow: none;
 }
 
-.ac-canvas-landing__suggestions {
-  margin-top: clamp(1rem, 3vh, 2rem);
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.ac-landing__topics {
+  margin-top: clamp(1.35rem, 3.8vh, 2.25rem);
+  animation: ac-landing-rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.14s both;
 }
 
-.ac-canvas-landing__suggestions-label {
-  margin: 0 0 0.85rem;
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(107, 114, 128, 0.85);
+.ac-landing__topics-head {
+  margin-bottom: 0.55rem;
 }
 
-.ac-canvas-landing__chips {
+.ac-landing__topics-label {
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: var(--ink-soft);
+}
+
+.ac-landing__topic-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
-  width: 100%;
-  max-width: 34rem;
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
 }
 
-.ac-canvas-landing__chip {
+.ac-landing__topic {
   width: 100%;
-  min-height: 44px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
-  padding: 0.8rem 1rem;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #E5E7EB;
-  border-radius: 14px;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 7.5rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 0.7rem 0.85rem;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
   text-align: left;
   cursor: pointer;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.25s ease,
-              box-shadow 0.25s ease,
-              background 0.25s ease;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  transition:
+    background 0.2s ease,
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: ac-landing-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.ac-canvas-landing__chip:hover {
-  transform: translateY(-2px);
-  border-color: rgba(37, 99, 235, 0.35);
-  background: #FFFFFF;
-  box-shadow: 0 12px 30px -14px rgba(37, 99, 235, 0.18);
+.ac-landing__topic:hover,
+.ac-landing__topic:focus-visible {
+  background: rgba(37, 99, 235, 0.06);
+  outline: none;
 }
 
-.ac-canvas-landing__chip:active {
-  transform: translateY(0);
+.ac-landing__topic:hover .ac-landing__topic-go,
+.ac-landing__topic:focus-visible .ac-landing__topic-go {
+  opacity: 1;
+  transform: translateX(0);
 }
 
-.ac-canvas-landing__chip-label {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #111827;
-  letter-spacing: -0.005em;
+.ac-landing__topic:active {
+  transform: scale(0.995);
 }
 
-.ac-canvas-landing__chip-hint {
-  font-size: 0.72rem;
+.ac-landing__topic-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.ac-landing__topic-subject {
+  font-size: 0.85rem;
   font-weight: 400;
-  letter-spacing: 0.04em;
-  color: rgba(107, 114, 128, 0.9);
+  letter-spacing: normal;
+  color: var(--ink-soft);
 }
 
-@media (max-width: 640px) {
-  .ac-canvas-landing__chips {
-    grid-template-columns: 1fr;
-    max-width: 22rem;
+.ac-landing__topic-title {
+  font-size: 0.98rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.ac-landing__topic-go {
+  font-size: 1rem;
+  color: var(--accent);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ac-landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
   }
-  .ac-canvas-landing__form {
-    padding-left: 0.9rem;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
-  .ac-canvas-landing__ask {
-    padding: 0.6rem 1.1rem;
+}
+
+@media (min-width: 640px) {
+  .ac-landing__topic-list {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem 0.55rem;
+  }
+
+  .ac-landing__topic {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    align-items: start;
+    gap: 0.2rem 0.5rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid transparent;
+  }
+
+  .ac-landing__topic:hover,
+  .ac-landing__topic:focus-visible {
+    border-color: rgba(37, 99, 235, 0.16);
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  .ac-landing__topic-meta {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .ac-landing__topic-title {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .ac-landing__topic-go {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+}
+
+@media (max-width: 420px) {
+  .ac-landing__topic {
+    grid-template-columns: 1fr auto;
+    gap: 0.2rem 0.5rem;
+  }
+
+  .ac-landing__topic-meta {
+    grid-column: 1;
+  }
+
+  .ac-landing__topic-title {
+    grid-column: 1;
+  }
+
+  .ac-landing__topic-go {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    opacity: 0.45;
+    transform: none;
   }
 }
 
 @media (max-height: 700px) {
-  .ac-canvas-landing__suggestions {
-    margin-top: 0.85rem;
+  .ac-landing__lede {
+    max-width: 24rem;
   }
-  .ac-canvas-landing__chips {
-    gap: 0.45rem;
-  }
-  .ac-canvas-landing__chip {
-    padding: 0.65rem 0.85rem;
+
+  .ac-landing__topic {
+    min-height: 44px;
+    padding-block: 0.55rem;
   }
 }
 
 @media (max-height: 560px) {
-  .ac-canvas-landing__tagline {
+  .ac-landing__eyebrow,
+  .ac-landing__lede {
     display: none;
   }
-  .ac-canvas-landing__suggestions-label {
-    display: none;
-  }
-  .ac-canvas-landing__chips {
-    grid-template-columns: 1fr 1fr;
-    max-width: 100%;
-  }
-  .ac-canvas-landing__chip-hint {
-    display: none;
+
+  .ac-landing__brand {
+    font-size: clamp(2rem, 7vw, 2.75rem);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ac-canvas-landing__dot {
+  .ac-landing__brand-mark,
+  .ac-landing__hero,
+  .ac-landing__ask,
+  .ac-landing__topics,
+  .ac-landing__topic {
     animation: none !important;
+  }
+
+  .ac-landing__topic-go {
+    transition: none;
   }
 }
 `;
