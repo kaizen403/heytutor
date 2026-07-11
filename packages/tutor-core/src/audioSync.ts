@@ -793,6 +793,8 @@ export interface DrawingDurations {
   DRAW_CUBE: number;
   DRAW_RECT: number;
   DRAW_CIRCLE: number;
+  DRAW_ARC: number;
+  DRAW_POINT: number;
   DRAW_LINE: number;
   WRITE: number;
   LABEL: number;
@@ -816,6 +818,8 @@ const DEFAULT_DRAWING_DURATIONS: DrawingDurations = {
   DRAW_CUBE: 1400,
   DRAW_RECT: 1200,
   DRAW_CIRCLE: 1200,
+  DRAW_ARC: 900,
+  DRAW_POINT: 280,
   DRAW_LINE: 600,
   WRITE: 0,
   LABEL: 0,

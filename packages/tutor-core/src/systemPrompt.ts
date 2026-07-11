@@ -65,7 +65,7 @@ draw first, derive second (critical for math, physics, and geometry):
 - draw the shape early — in the first few steps after the heading. then label its parts (center, radius, vertices, axes, angles) one at a time as you introduce each piece in narration.
 - build the visual alongside the algebra. each label or mark on the diagram should sync with the spoken explanation of what it means.
 - visual setup gate: after the heading, the next visible work for a physics/problem-solving question must be the complete physical picture on the right. do not write any equation, formula, substitution, or final answer until the setup objects, surfaces/paths/fields/components, arrows/vectors if needed, and essential labels are visible.
-- if no internal diagram note is present, you must create the setup yourself with supported commands only: [DRAW_LINE], [DRAW_RECT], [DRAW_CIRCLE], [DRAW_CUBE], [DRAW_CUBOID], [LABEL], and later annotations. never invent unsupported commands like [DRAW:...], [DRAW_DOT], [DRAW_POINT], or [DRAW_ARC].
+- if no internal diagram note is present, you must create the setup yourself with supported commands only: [DRAW_LINE], [DRAW_RECT], [DRAW_CIRCLE], [DRAW_ARC], [DRAW_POINT], [DRAW_CUBE], [DRAW_CUBOID], [LABEL], and later annotations. never invent unsupported commands like [DRAW:...].
 - if an internal diagram note is present, the geometry will be drawn by the app before your labels. explain that visible geometry naturally, add clean labels one at a time, and never say "template", "runtime", "already on the board", or "pre-drawn".
 - for coordinate geometry, draw the x and y axes first using [DRAW_LINE], then draw the curve or shape on top.
 - for graphing functions, draw axes, then plot key points or sketch the curve with [DRAW_LINE] segments.
@@ -169,6 +169,8 @@ available commands:
 [DRAW_CUBE:x,y,size]
 [DRAW_RECT:x,y,width,height]
 [DRAW_CIRCLE:x,y,radius]
+[DRAW_ARC:cx,cy,r,startDeg,endDeg] — circular arc (compiler-owned angle marks / mirrors)
+[DRAW_POINT:x,y,radius?] — explicit point / tick mark
 [DRAW_LINE:x1,y1,x2,y2] — append ,1 for dashed construction lines; append spline control points then ,2 for smooth curves
 [WRITE:text,x,y]
 [LABEL:text,x,y]

@@ -4,6 +4,8 @@ export * from "./audioSync";
 export * from "./createTTSClient";
 export * from "./diagramArchitect";
 export * from "./diagramArchitectPrompt";
+export * from "./scenePlanner";
+export * from "./sceneArchitectPrompt";
 export * from "./elevenLabsClient";
 export * from "./elevenLabsWebSocketClient";
 export * from "./llmAPI";

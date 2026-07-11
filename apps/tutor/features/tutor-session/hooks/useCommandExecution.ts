@@ -8,6 +8,8 @@ import {
   rectPath,
   circlePath,
   ellipsePath,
+  arcPath,
+  pointMarkPath,
   linePath,
   underlinePath,
   emphasisEllipsePath,
@@ -282,6 +284,41 @@ export function useCommandExecution({
             await wb.flyCursorTo(cx + radius, cy, flightMs);
             if (cancelRef.current) return;
             await wb.drawShape(circlePath(cx, cy, radius), drawMs);
+          }
+          break;
+        }
+        case "DRAW_ARC": {
+          const [cx, cy, radius, startDeg, endDeg] = command.params;
+          if ([cx, cy, radius, startDeg, endDeg].every(Number.isFinite)) {
+            const startRad = (startDeg * Math.PI) / 180;
+            const { flightMs, drawMs } = speechSplit(command);
+            await wb.flyCursorTo(
+              cx + radius * Math.cos(startRad),
+              cy + radius * Math.sin(startRad),
+              flightMs,
+            );
+            if (cancelRef.current) return;
+            await wb.drawShape(arcPath(cx, cy, radius, startDeg, endDeg), drawMs);
+          }
+          break;
+        }
+        case "DRAW_POINT": {
+          const [x, y, radius = 5] = command.params;
+          if ([x, y].every(Number.isFinite)) {
+            markFbdDiagramStart(x, y);
+            const { flightMs, drawMs } = speechSplit(command);
+            await wb.flyCursorTo(x, y, flightMs);
+            if (cancelRef.current) return;
+            await wb.drawShape(pointMarkPath(x, y, radius), Math.min(drawMs, 280));
+            if (isInDiagramZone(x, y)) {
+              registerBoardAnchor(boardLayoutRef.current, {
+                x: x - 8,
+                y: y - 8,
+                width: 16,
+                height: 16,
+                text: undefined,
+              });
+            }
           }
           break;
         }

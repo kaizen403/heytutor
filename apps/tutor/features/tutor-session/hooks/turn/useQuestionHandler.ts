@@ -9,7 +9,12 @@ import {
   isOpticsTemplateId,
   anchorToTextRect,
   prepareTemplateLessonSegments,
+  compileScene,
+  compiledSceneToTemplate,
+  inferSceneFromQuestion,
   type TutorSegment,
+  type CompiledScene,
+  type SceneSpec,
 } from "@heytutor/drawing";
 import {
   streamLLMResponse,
@@ -17,15 +22,14 @@ import {
   TUTOR_CONTINUATION_PROMPT,
   tutorDebug,
   resolveApiUrl,
-  planDiagram,
-  type DiagramPlan,
+  planScene,
 } from "@heytutor/tutor-core";
 import { createTurnTelemetry } from "@/lib/turnTelemetry";
 import { enrichStoredSegmentsWithReplayAudio } from "@/lib/replayTurns";
 import { saveTurn, updateBoard, type StoredTurn } from "@/lib/boardsClient";
 import { MAX_LLM_CONTINUATIONS, STREAM_SEGMENTS_LIVE } from "../../constants";
 import { registerBoardAnchor } from "../../lib/boardLayout";
-import { planToTemplate, buildPlannerIntroSegments } from "../../lib/planToTemplate";
+import { buildPlannerIntroSegments } from "../../lib/planToTemplate";
 import {
   createEmptySegmentPlanStats,
   isTeachingResponseIncomplete,
@@ -190,8 +194,8 @@ export function useQuestionHandler(
         wsSpan.end(metadata);
       };
 
-      // The planner runs concurrently with TTS prewarming. It understands the
-      // question and emits precise drawing commands; templates are the fallback.
+      // Scene autoformalizer + geometry compiler. Regex templates are telemetry-only
+      // during migration; compiled SceneSpec is the authoritative diagram source.
       setPhase("planning");
       const plannerSpan = tel.span("planner");
       const plannerStartedAt = Date.now();
@@ -206,64 +210,64 @@ export function useQuestionHandler(
       });
 
       const plannerUrl = resolveApiUrl("/api/chat");
-      let plan: DiagramPlan | null = null;
+      let scene: SceneSpec | null = null;
       try {
-        plan = await planDiagram(question, {
+        scene = await planScene(question, {
           proxyUrl: plannerUrl,
           sessionId: sessionId ?? undefined,
           signal: abortController.signal,
           timeoutMs: 8000,
         });
       } catch {
-        plan = null;
+        scene = null;
       }
+
+      if (!scene) {
+        scene = inferSceneFromQuestion(question);
+      }
+
+      let compiled: CompiledScene | null = scene
+        ? compileScene(scene, { question })
+        : null;
+      if (compiled && !compiled.ok) {
+        compiled = null;
+      }
+
       const plannerLatencyMs = Date.now() - plannerStartedAt;
 
-      // Resolve the active diagram source. Hand-crafted regex templates often
-      // have domain-specific details (resistor rectangles, terminal marks,
-      // detailed promptAddons with solution guidance) that the LLM planner
-      // can't replicate. So we prefer the template when it exists and is at
-      // least as detailed as the planner output. The planner is used for
-      // novel questions that don't match any template.
-      const plannerCommandCount = plan?.commands.length ?? 0;
-      const templateCommandCount = fallbackTemplate?.commands.length ?? 0;
+      // Telemetry-only template match (not used as diagram source when compile succeeds).
+      const templateCompareId = fallbackTemplate?.id ?? null;
 
       let activeTemplate: import("@heytutor/drawing").DiagramTemplate | null;
-      let diagramSource: "planner" | "template" | "none";
+      let diagramSource: "compiler" | "template" | "none";
       let plannerOverridden = false;
 
-      // Prefer hand-crafted optics family templates over the planner so lens/prism/TIR
-      // never get a wrong generic diagram from a novel planner sketch.
-      const opticsFamilyMatch =
-        fallbackTemplate !== null && isOpticsTemplateId(fallbackTemplate.id);
-
-      if (opticsFamilyMatch) {
-        activeTemplate = fallbackTemplate;
-        diagramSource = "template";
-        plannerOverridden = plan !== null;
+      if (compiled) {
+        activeTemplate = compiledSceneToTemplate(compiled, scene ?? undefined);
+        diagramSource = "compiler";
         activeDiagramTemplateRef.current = activeTemplate;
-      } else if (fallbackTemplate && templateCommandCount >= plannerCommandCount) {
-        // Template is at least as detailed as the planner — prefer it.
+        plannerOverridden = fallbackTemplate !== null;
+      } else if (fallbackTemplate) {
+        // Compile failed — last-resort regex template so the lesson still has ink.
         activeTemplate = fallbackTemplate;
         diagramSource = "template";
-      } else if (plan) {
-        // Planner is more detailed, or no template matched — use planner.
-        activeTemplate = planToTemplate(plan);
-        diagramSource = "planner";
         activeDiagramTemplateRef.current = activeTemplate;
       } else {
-        activeTemplate = fallbackTemplate;
-        diagramSource = activeTemplate ? "template" : "none";
+        activeTemplate = null;
+        diagramSource = "none";
       }
 
       plannerSpan.end({
         source: diagramSource,
         latency_ms: plannerLatencyMs,
-        diagram_type: plan?.diagramType ?? fallbackTemplate?.id ?? null,
-        command_count: plan?.commands.length ?? null,
-        template_command_count: templateCommandCount || null,
-        planner_command_count: plannerCommandCount || null,
-        template_preferred: diagramSource === "template" && plan !== null,
+        diagram_type: compiled?.diagramType ?? fallbackTemplate?.id ?? null,
+        kind: scene?.kind ?? null,
+        plugin: compiled?.plugin ?? null,
+        command_count: compiled?.commands.length ?? null,
+        residual: compiled?.residual ?? null,
+        template_compare_id: templateCompareId,
+        compiler_preferred: diagramSource === "compiler",
+        degrade_reason: compiled?.degradeReason ?? (scene ? null : "no_scene"),
       });
 
       const runtimePromptAddon = activeTemplate?.promptAddon ?? "";
@@ -278,9 +282,11 @@ export function useQuestionHandler(
       setPhase("thinking");
 
       const introSegments = activeTemplate
-        ? activeTemplate.plannerGenerated
-          ? buildPlannerIntroSegments(activeTemplate)
-          : buildTemplateIntroSegments(activeTemplate, question)
+        ? diagramSource === "compiler" && compiled && compiled.introSegments.length > 0
+          ? compiled.introSegments
+          : activeTemplate.plannerGenerated
+            ? buildPlannerIntroSegments(activeTemplate)
+            : buildTemplateIntroSegments(activeTemplate, question)
         : [];
       if (activeTemplate) {
         fbdPhaseStartedRef.current = true;
@@ -289,9 +295,11 @@ export function useQuestionHandler(
         }
 
         const opticsIntro =
-          isOpticsTemplateId(activeTemplate.id) || activeTemplate.id === "optics_ray"
-            ? buildOpticsPrecisionIntro(activeTemplate, question)
-            : null;
+          diagramSource === "compiler" && compiled?.kind === "optics"
+            ? null
+            : isOpticsTemplateId(activeTemplate.id) || activeTemplate.id === "optics_ray"
+              ? buildOpticsPrecisionIntro(activeTemplate, question)
+              : null;
 
         if (opticsIntro) {
           const matchPayload = {
@@ -326,6 +334,32 @@ export function useQuestionHandler(
               planner_overridden: plannerOverridden,
             }),
           );
+        } else if (compiled?.kind === "optics") {
+          tel.mark("optics-intro-built", {
+            segment_count: compiled.introSegments.length,
+            plugin: compiled.plugin,
+            diagram_type: compiled.diagramType,
+            source: "compiler",
+          });
+          tel.meta({
+            diagram_source: "compiler",
+            plugin: compiled.plugin,
+            kind: compiled.kind,
+            allow_llm_draw: compiled.allowLlmDrawInDiagramZone,
+            planner_overridden: plannerOverridden,
+          });
+        }
+
+        if (compiled) {
+          tel.mark("geometry-compile", {
+            ok: compiled.ok,
+            plugin: compiled.plugin,
+            kind: compiled.kind,
+            residual: compiled.residual,
+            command_count: compiled.commands.length,
+            anchor_count: compiled.anchors.length,
+            degrade_reason: compiled.degradeReason ?? null,
+          });
         }
 
         turnTelemetryRef.current?.mark("template-intro-queued", {
