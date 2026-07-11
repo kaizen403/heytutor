@@ -3,6 +3,8 @@ export type DrawCommandType =
   | 'DRAW_CUBE'
   | 'DRAW_RECT'
   | 'DRAW_CIRCLE'
+  | 'DRAW_ARC'
+  | 'DRAW_POINT'
   | 'DRAW_LINE'
   | 'WRITE'
   | 'LABEL'
@@ -37,6 +39,8 @@ export const DRAW_COMMAND_TYPES = [
   'DRAW_CUBE',
   'DRAW_RECT',
   'DRAW_CIRCLE',
+  'DRAW_ARC',
+  'DRAW_POINT',
   'DRAW_LINE',
   'WRITE',
   'LABEL',
@@ -137,8 +141,16 @@ export function parseDrawingTag(rawTag: string): ParsedDrawingTag | null {
   const { name, rawParams } = splitNameAndParams(inner);
   const normalizedName = name.trim().toUpperCase();
 
-  if (normalizedName === 'DRAW_DOT' || normalizedName === 'DRAW_POINT') {
+  if (normalizedName === 'DRAW_DOT') {
     return { type: 'DRAW_CIRCLE', rawParams: normalizeDotParams(rawParams) };
+  }
+
+  if (normalizedName === 'DRAW_POINT' || normalizedName === 'POINT') {
+    return { type: 'DRAW_POINT', rawParams: normalizeDotParams(rawParams) };
+  }
+
+  if (normalizedName === 'DRAW_ARC' || normalizedName === 'ARC') {
+    return { type: 'DRAW_ARC', rawParams };
   }
 
   if (normalizedName === 'LABEL' || normalizedName === 'WRITE') {

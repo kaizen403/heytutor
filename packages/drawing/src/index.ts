@@ -5,6 +5,7 @@ export * from "./handwriting";
 export * from "./alignmentCheck";
 export * from "./lessonPlanner";
 export * from "./templates/registry";
+export * from "./geometry";
 export {
   isBlockedTemplateDiagramDraw,
   isBlockedOpticsOwnedAnnotation,

@@ -274,6 +274,39 @@ export function ellipsePath(
 }
 
 /**
+ * Circular arc from startDeg→endDeg (degrees, CCW from +x), centered at (cx,cy).
+ * Params match DRAW_ARC: [cx, cy, r, startDeg, endDeg].
+ */
+export function arcPath(
+  cx: number,
+  cy: number,
+  radius: number,
+  startDeg: number,
+  endDeg: number,
+): string {
+  const start = (startDeg * Math.PI) / 180;
+  const end = (endDeg * Math.PI) / 180;
+  let sweep = end - start;
+  while (sweep <= -Math.PI * 2) sweep += Math.PI * 2;
+  while (sweep > Math.PI * 2) sweep -= Math.PI * 2;
+
+  const steps = Math.max(2, Math.ceil(Math.abs(sweep) / (Math.PI / 8)));
+  const parts: string[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = start + (sweep * i) / steps;
+    const x = cx + radius * Math.cos(t);
+    const y = cy + radius * Math.sin(t);
+    parts.push(`${i === 0 ? "M" : "L"} ${coord(x)} ${coord(y)}`);
+  }
+  return parts.join(" ");
+}
+
+/** Small point mark rendered as a tiny circle path. */
+export function pointMarkPath(x: number, y: number, radius = 4): string {
+  return circlePath(x, y, Math.max(2, radius));
+}
+
+/**
  * Curved arrow for organic chemistry electron-pushing mechanisms.
  * A quadratic bezier from (x1,y1) through control point (cx,cy) to (x2,y2),
  * with an arrowhead at the end oriented along the tangent at t=1.
