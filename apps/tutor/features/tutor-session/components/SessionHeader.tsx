@@ -3,7 +3,10 @@ import { LessonActions } from "@/components/LessonActions";
 import type { StatusDisplay, TutorPhase } from "../types";
 
 interface SessionHeaderProps {
-  sidebarCollapsed: boolean;
+  /** When true, always show the nav expand button (mobile drawer / collapsed sidebar). */
+  showNavButton?: boolean;
+  navButtonClassName?: string;
+  sidebarCollapsed?: boolean;
   onExpandSidebar: () => void;
   boardTitle: string;
   canReplay: boolean;
@@ -13,6 +16,7 @@ interface SessionHeaderProps {
   isDownloading: boolean;
   phase: TutorPhase;
   activeStatus: StatusDisplay;
+  compactActions?: boolean;
   onReplay: () => void;
   onTranscript: () => void;
   onDownload: () => void;
@@ -29,7 +33,9 @@ function displayBoardTitle(title: string): string {
 }
 
 export function SessionHeader({
-  sidebarCollapsed,
+  showNavButton = false,
+  navButtonClassName,
+  sidebarCollapsed = false,
   onExpandSidebar,
   boardTitle,
   canReplay,
@@ -39,6 +45,7 @@ export function SessionHeader({
   isDownloading,
   phase,
   activeStatus,
+  compactActions = false,
   onReplay,
   onTranscript,
   onDownload,
@@ -48,6 +55,7 @@ export function SessionHeader({
   const isLive = phase !== "idle" || isReplaying;
   const title = displayBoardTitle(boardTitle);
   const isFreshBoard = !boardTitle.trim() || boardTitle.trim().toLowerCase() === "new board";
+  const showNav = showNavButton || sidebarCollapsed;
 
   return (
     <header
@@ -57,12 +65,12 @@ export function SessionHeader({
       <div className="flex items-center gap-3">
         {/* Left: navigation + board identity */}
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          {sidebarCollapsed && (
+          {showNav && (
             <button
               type="button"
               onClick={onExpandSidebar}
-              aria-label="Expand sidebar"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] text-[#475569] transition-colors hover:border-[rgba(37,99,235,0.28)] hover:bg-[#EDF3FD] hover:text-[#2563EB]"
+              aria-label="Open navigation"
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] text-[#475569] transition-colors hover:border-[rgba(37,99,235,0.28)] hover:bg-[#EDF3FD] hover:text-[#2563EB] ${navButtonClassName ?? ""}`}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -89,13 +97,15 @@ export function SessionHeader({
                 </span>
               )}
             </div>
-            <p className="mt-0.5 truncate text-[11px] text-[#64748B] sm:text-xs">
-              {isFreshBoard
-                ? "Ask a question below to start this board"
-                : isLive
-                  ? "Lesson in progress on the whiteboard"
-                  : "Whiteboard session"}
-            </p>
+            {!compactActions && (
+              <p className="mt-0.5 truncate text-[11px] text-[#64748B] sm:text-xs">
+                {isFreshBoard
+                  ? "Ask a question below to start this board"
+                  : isLive
+                    ? "Lesson in progress on the whiteboard"
+                    : "Whiteboard session"}
+              </p>
+            )}
           </div>
         </div>
 
@@ -139,3 +149,4 @@ export function SessionHeader({
     </header>
   );
 }
+
