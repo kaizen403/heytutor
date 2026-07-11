@@ -59,7 +59,7 @@
     "@types/ws": "^8.18.1",
     "dotenv-cli": "^8.0.0",
     "eslint": "^9",
-    "eslint-config-next": "15.3.3",
+    "eslint-config-next": "16.2.10",
     "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
