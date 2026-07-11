@@ -188,6 +188,8 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   private streamHandler: ((event: MessageEvent) => void) | null = null;
   private idleCompleteTimer: number | null = null;
   private watchdogTimer: number | null = null;
+  /** Bumped by abandonSpeaking() so in-flight speakSegment work can bail out. */
+  private speakGeneration = 0;
 
   async prewarm(options: PrewarmOptions = {}): Promise<void> {
     await this.ensureAudioContext();
@@ -212,6 +214,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
 
   async speakSegment(text: string, options: SpeakSegmentOptions = {}): Promise<void> {
     const spokenText = mathToSpeech(text.trim());
+    const generation = this.speakGeneration;
 
     if (spokenText.length === 0) {
       options.onEnd?.();
@@ -228,20 +231,73 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       // HTTP fallback will be used if WS is unavailable.
     }
 
+    if (this.speakGeneration !== generation) {
+      return;
+    }
+
     if (this.ws?.readyState === WebSocket.OPEN) {
       try {
-        return await this.enqueueWebSocketSegment(spokenText, options);
+        await this.enqueueWebSocketSegment(spokenText, options);
+        return;
       } catch (error) {
+        if (this.speakGeneration !== generation) {
+          return;
+        }
         options.onError?.(error);
       }
+    }
+
+    if (this.speakGeneration !== generation) {
+      return;
     }
 
     try {
       await this.streamHttpSegment(spokenText, options);
     } catch (error) {
+      if (this.speakGeneration !== generation) {
+        return;
+      }
       options.onError?.(error);
       await this.speechFallback.speakSegment(spokenText, options);
     }
+  }
+
+  /**
+   * Abort stuck speech without closing the WebSocket permanently.
+   * Clears audio sources and rejects queued jobs so the segment runner can continue.
+   */
+  abandonSpeaking(): void {
+    this.speakGeneration += 1;
+    this.clearTimers();
+    this.detachStreamHandler();
+
+    for (const source of this.activeSources) {
+      try {
+        source.stop();
+      } catch {
+        // already stopped
+      }
+    }
+    this.activeSources = [];
+    this.playing = false;
+
+    if (this.audioContext) {
+      this.scheduledEnd = this.audioContext.currentTime;
+    } else {
+      this.scheduledEnd = 0;
+    }
+
+    const error = new Error("tts segment abandoned");
+    if (this.currentJob && !this.currentJob.settled) {
+      this.currentJob.settled = true;
+      this.currentJob.options.onError?.(error);
+      this.currentJob.reject(error);
+    }
+    this.rejectAllJobs(error);
+    this.currentJob = null;
+    this.chunkTargetJob = null;
+    this.speechFallback.stop();
+    tutorDebug("tts", "abandonSpeaking");
   }
 
   private shouldReconnect(_traceId?: string, _sessionId?: string): boolean {
@@ -726,7 +782,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       } else {
         this.scheduleIdleComplete(ctx, job);
       }
-    }, 2000);
+    }, 350);
   }
 
   private resetWatchdog(job: SegmentJob): void {
@@ -734,6 +790,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       window.clearTimeout(this.watchdogTimer);
     }
 
+    // Fail fast when ElevenLabs never returns audio — outer runner used to wait 45s.
     this.watchdogTimer = window.setTimeout(() => {
       if (this.currentJob !== job || job.settled) {
         return;
@@ -745,7 +802,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       }
 
       void this.completeCurrentJob();
-    }, 30000);
+    }, 5_000);
   }
 
   private clearTimers(): void {
@@ -790,11 +847,21 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       job.reject(error);
     }
 
-    this.rejectAllJobs(error);
+    // Drop only the failed job — keep the rest of the queue alive so later
+    // segments can still speak (HTTP fallback / next WS job).
+    if (this.jobs[0] === job) {
+      this.jobs.shift();
+    } else if (job) {
+      const idx = this.jobs.indexOf(job);
+      if (idx >= 0) {
+        this.jobs.splice(idx, 1);
+      }
+    }
+
     this.currentJob = null;
     this.chunkTargetJob = null;
-    this.jobs = [];
     this.detachStreamHandler();
+    void this.pumpJobQueue();
   }
 
   private rejectAllJobs(error: unknown): void {
@@ -809,10 +876,18 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   }
 
   private async waitForTimelineReady(ctx: AudioContext): Promise<void> {
-    while (this.activeSources.length > 0 || this.scheduledEnd > ctx.currentTime + 0.05) {
+    const deadline = performance.now() + 1_200;
+    while (
+      (this.activeSources.length > 0 || this.scheduledEnd > ctx.currentTime + 0.05) &&
+      performance.now() < deadline
+    ) {
       await new Promise<void>((resolve) => {
         window.setTimeout(resolve, 32);
       });
+    }
+    // If still blocked, snap the schedule forward so HTTP fallback can play.
+    if (this.scheduledEnd > ctx.currentTime + 0.05) {
+      this.scheduledEnd = ctx.currentTime;
     }
   }
 
