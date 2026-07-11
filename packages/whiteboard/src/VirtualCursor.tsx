@@ -1,6 +1,6 @@
 "use client";
 
-import { Group, Path, Rect, Line } from "react-konva";
+import { Group, Path, Rect, Line, Circle } from "react-konva";
 
 export interface VirtualCursorProps {
   x: number;
@@ -15,35 +15,32 @@ export interface VirtualCursorProps {
 }
 
 /**
- * Marker pen silhouette: writing tip at (0,0).
- *
- * The barrel/cap use a fixed high-contrast casing color so the pen
- * is always visible against the cream board (#F8F6F0), regardless of
- * which ink color is selected. Only the nib takes the ink color,
- * showing which color will be written.
- *
- * Layout (local coords, body extends upward in -Y):
- *   nib       0 → -7   cone, ink color, pointed tip
- *   ferrule  -7 → -10  metallic band
- *   barrel  -10 → -34  charcoal casing with side highlight
- *   cap     -34 → -40  darker rounded end
+ * Compact black/red whiteboard marker. Tip at (0,0), body in -Y.
+ * Sized small so handwriting motion stays smooth on the cream board.
  */
 
-const NIB_PATH = "M 0 0 L -3 -7 L 3 -7 Z";
-const FERRULE_Y = -10;
-const BARREL_Y = -34;
-const CAP_Y = -40;
-const BODY_HALF = 5;
-const HIGHLIGHT_HALF = 1.4;
+const NIB_PATH = "M 0 0 L -2.8 -5 L 2.8 -5 Z";
 
-// Fixed casing colors — solid navy blue, always visible against the cream board.
-const CASING_COLOR = "#1B2A4A";
-const CASING_DARK = "#08101F";
-const CASING_CAP = "#0A1224";
-const CASING_HIGHLIGHT = "#5274B0";
-const CASING_SHADE = "#0F1A33";
-const FERRULE_COLOR = "#C0C0C0";
-const FERRULE_DARK = "#888888";
+const FERRULE_Y = -7;
+const BAND_Y = -11;
+const BARREL_Y = -28;
+const CAP_Y = -33;
+
+const BODY_HALF = 3.6;
+const BARREL_HEIGHT = FERRULE_Y - BARREL_Y; // 21
+const BAND_HEIGHT = FERRULE_Y - BAND_Y; // 4
+const CAP_HEIGHT = BARREL_Y - CAP_Y; // 5
+
+const CASING_BLACK = "#1A1A1A";
+const CASING_BLACK_DARK = "#0A0A0A";
+const CASING_SHADE = "#000000";
+const CASING_HIGHLIGHT = "#555555";
+const RED_BAND = "#C62828";
+const RED_BAND_DARK = "#8E0000";
+const RED_BAND_HIGHLIGHT = "#EF5350";
+const FERRULE = "#B8B8B8";
+const FERRULE_DARK = "#787878";
+const CAP = "#111111";
 
 function darken(hex: string, amount: number): string {
   const m = hex.replace("#", "");
@@ -60,13 +57,13 @@ export function VirtualCursor({
   rotation = -35,
   scale = 1,
   visible = true,
-  color = "#222222",
-  glowRadius = 8,
+  color = "#1B2A4A",
+  glowRadius = 5,
   opacity = 1,
   shadowBlur,
 }: VirtualCursorProps) {
-  const effectiveShadowBlur = shadowBlur ?? glowRadius + (scale - 1) * 20;
-  const nibEdge = darken(color, 0.3);
+  const effectiveShadowBlur = Math.min(shadowBlur ?? glowRadius, 8);
+  const nibEdge = darken(color, 0.35);
 
   return (
     <Group
@@ -79,94 +76,120 @@ export function VirtualCursor({
       opacity={opacity}
       listening={false}
     >
-      {/* Soft contact glow at the nib tip — ink colored */}
-      <Path
-        data="M 0 0 m -6 0 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0"
-        fill={color}
-        opacity={0.18}
-        listening={false}
-      />
+      <Circle x={0} y={0} radius={4} fill={color} opacity={0.12} listening={false} />
 
-      {/* Nib — pointed cone in the selected ink color */}
       <Path
         data={NIB_PATH}
         fill={color}
         stroke={nibEdge}
-        strokeWidth={0.5}
+        strokeWidth={0.4}
         listening={false}
       />
 
-      {/* Ferrule — metallic band between nib and barrel */}
       <Rect
-        x={-BODY_HALF - 0.5}
+        x={-BODY_HALF - 0.3}
         y={FERRULE_Y}
-        width={BODY_HALF * 2 + 1}
-        height={3}
-        fill={FERRULE_COLOR}
+        width={BODY_HALF * 2 + 0.6}
+        height={2.2}
+        fill={FERRULE}
         stroke={FERRULE_DARK}
-        strokeWidth={0.5}
+        strokeWidth={0.4}
         cornerRadius={0.5}
         listening={false}
       />
-      <Line
-        points={[-BODY_HALF - 0.5, FERRULE_Y + 1.5, BODY_HALF + 0.5, FERRULE_Y + 1.5]}
-        stroke="rgba(255,255,255,0.5)"
-        strokeWidth={0.5}
+
+      <Rect
+        x={-BODY_HALF}
+        y={BAND_Y}
+        width={BODY_HALF * 2}
+        height={BAND_HEIGHT}
+        fill={RED_BAND}
+        stroke={RED_BAND_DARK}
+        strokeWidth={0.45}
+        cornerRadius={0.6}
+        listening={false}
+      />
+      <Rect
+        x={-BODY_HALF + 0.8}
+        y={BAND_Y + 0.6}
+        width={1.4}
+        height={BAND_HEIGHT - 1.2}
+        fill={RED_BAND_HIGHLIGHT}
+        opacity={0.5}
+        cornerRadius={0.4}
         listening={false}
       />
 
-      {/* Barrel — solid navy casing, always visible on cream board */}
       <Rect
         x={-BODY_HALF}
         y={BARREL_Y}
         width={BODY_HALF * 2}
-        height={BARREL_Y - FERRULE_Y + 24}
-        fill={CASING_COLOR}
-        stroke={CASING_DARK}
-        strokeWidth={0.9}
-        cornerRadius={1.5}
-        shadowColor="rgba(0,0,0,0.32)"
+        height={BARREL_HEIGHT - BAND_HEIGHT}
+        fill={CASING_BLACK}
+        stroke={CASING_BLACK_DARK}
+        strokeWidth={0.7}
+        cornerRadius={1.2}
+        shadowColor="rgba(0,0,0,0.35)"
         shadowBlur={effectiveShadowBlur}
-        shadowOpacity={0.6}
-        shadowOffsetX={1}
-        shadowOffsetY={1}
+        shadowOpacity={0.55}
+        shadowOffsetX={0.8}
+        shadowOffsetY={0.8}
         listening={false}
       />
 
-      {/* Right-side shade for cylindrical depth */}
       <Rect
-        x={HIGHLIGHT_HALF + 0.5}
+        x={1}
         y={BARREL_Y + 1}
-        width={BODY_HALF - HIGHLIGHT_HALF - 1}
-        height={BARREL_Y - FERRULE_Y + 22}
+        width={BODY_HALF - 1.6}
+        height={BARREL_HEIGHT - BAND_HEIGHT - 2}
         fill={CASING_SHADE}
-        opacity={0.55}
-        cornerRadius={1}
+        opacity={0.3}
+        cornerRadius={0.8}
         listening={false}
       />
-
-      {/* Vertical highlight stripe for cylindrical depth */}
       <Rect
-        x={-HIGHLIGHT_HALF - 1.5}
+        x={-BODY_HALF + 0.9}
         y={BARREL_Y + 1}
-        width={HIGHLIGHT_HALF * 2}
-        height={BARREL_Y - FERRULE_Y + 22}
+        width={1.5}
+        height={BARREL_HEIGHT - BAND_HEIGHT - 2}
         fill={CASING_HIGHLIGHT}
-        opacity={0.7}
-        cornerRadius={1}
+        opacity={0.5}
+        cornerRadius={0.6}
         listening={false}
       />
 
-      {/* Cap — darker rounded end */}
       <Rect
-        x={-BODY_HALF - 0.5}
+        x={-BODY_HALF + 1.2}
+        y={BARREL_Y + 6}
+        width={BODY_HALF * 2 - 2.4}
+        height={1.4}
+        fill={RED_BAND}
+        opacity={0.8}
+        cornerRadius={0.3}
+        listening={false}
+      />
+
+      <Rect
+        x={-BODY_HALF - 0.3}
         y={CAP_Y}
-        width={BODY_HALF * 2 + 1}
-        height={6}
-        fill={CASING_CAP}
-        stroke={CASING_DARK}
-        strokeWidth={0.9}
-        cornerRadius={3}
+        width={BODY_HALF * 2 + 0.6}
+        height={CAP_HEIGHT}
+        fill={CAP}
+        stroke={CASING_BLACK_DARK}
+        strokeWidth={0.7}
+        cornerRadius={2}
+        listening={false}
+      />
+
+      <Rect
+        x={BODY_HALF - 0.4}
+        y={CAP_Y + 1}
+        width={1.4}
+        height={11}
+        fill={CASING_HIGHLIGHT}
+        stroke={CASING_BLACK_DARK}
+        strokeWidth={0.35}
+        cornerRadius={0.6}
         listening={false}
       />
     </Group>
