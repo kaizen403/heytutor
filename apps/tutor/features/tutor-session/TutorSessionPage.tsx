@@ -63,6 +63,7 @@ export function TutorSessionPage() {
   const turnActiveRef = useRef(false);
   const turnAbortRef = useRef<AbortController | null>(null);
   const segmentChainRef = useRef(Promise.resolve());
+  const drawChainRef = useRef(Promise.resolve());
   const collectedSegmentsRef = useRef<TutorSegment[]>([]);
   const recordedSegmentsRef = useRef<RecordedSegmentPayload[]>([]);
   const rawResponseRef = useRef("");
@@ -218,6 +219,7 @@ export function TutorSessionPage() {
     turnActiveRef,
     turnAbortRef,
     segmentChainRef,
+    drawChainRef,
     collectedSegmentsRef,
     recordedSegmentsRef,
     storedTurnsRef,

@@ -51,6 +51,8 @@ export type UseTurnLifecycleParams = {
   turnActiveRef: RefObject<boolean>;
   turnAbortRef: RefObject<AbortController | null>;
   segmentChainRef: RefObject<Promise<void>>;
+  /** Serializes ink so drawing trails speech without blocking the next paragraph. */
+  drawChainRef: RefObject<Promise<void>>;
   collectedSegmentsRef: RefObject<TutorSegment[]>;
   recordedSegmentsRef: RefObject<RecordedSegmentPayload[]>;
   storedTurnsRef: RefObject<StoredTurn[]>;
@@ -118,6 +120,8 @@ export type UseSegmentRunnerParams = Pick<
   | "currentTraceIdRef"
   | "setCurrentSegmentText"
   | "narrationDensityRef"
+  | "activeDiagramTemplateRef"
+  | "drawChainRef"
 > & {
   applyTurnPhase: (next: TutorPhase) => void;
 };

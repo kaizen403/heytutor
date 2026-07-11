@@ -23,7 +23,27 @@ export interface TurnTelemetry {
   flush(): Promise<void>;
 }
 
-const MAX_EVENTS = 200;
+/** Optics intros + ray draws need headroom; keep decision events over char noise. */
+const MAX_EVENTS = 400;
+
+/** Prefer keeping named decision events when the budget is tight. */
+const DECISION_EVENT_PREFIXES = [
+  "optics-",
+  "geometry-snap",
+  "template-draw-blocked",
+  "template-intro",
+  "draw-complete",
+  "write-schedule-ready",
+  "tts-timing-",
+  "planner",
+  "thinking",
+] as const;
+
+function isDecisionEvent(name: string): boolean {
+  return DECISION_EVENT_PREFIXES.some(
+    (prefix) => name === prefix || name.startsWith(prefix),
+  );
+}
 
 function perfToIso(perfMs: number, turnStartPerf: number, turnStartWall: number): string {
   return new Date(turnStartWall + (perfMs - turnStartPerf)).toISOString();
@@ -39,11 +59,21 @@ export function createTurnTelemetry(): TurnTelemetry {
   const traceMetadata: Record<string, unknown> = {};
 
   const pushEvent = (event: TurnTelemetryEvent): void => {
-    if (events.length >= MAX_EVENTS) {
+    if (events.length < MAX_EVENTS) {
+      events.push(event);
       return;
     }
 
-    events.push(event);
+    // Drop per-character write noise first so optics decision events survive.
+    if (!isDecisionEvent(event.name)) {
+      return;
+    }
+
+    const dropIndex = events.findIndex((existing) => !isDecisionEvent(existing.name));
+    if (dropIndex >= 0) {
+      events.splice(dropIndex, 1);
+      events.push(event);
+    }
   };
 
   return {
