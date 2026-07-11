@@ -40,6 +40,11 @@ export interface TTSClient {
   speakSegment(text: string, options?: SpeakSegmentOptions): Promise<void>;
   playAudio(bytes: Uint8Array, options?: { onStart?: () => void }): Promise<void>;
   prewarm(options?: PrewarmOptions): Promise<void>;
+  /**
+   * Create/resume the AudioContext inside a user-gesture turn so the browser
+   * allows audible playback later (planning awaits would otherwise leave it suspended).
+   */
+  unlockAudio?(): void;
   pause(): void;
   resume(): void;
   stop(): void;
@@ -396,6 +401,10 @@ export class ElevenLabsTTSClient implements TTSClient {
     // HTMLAudioElement does not require pre-warming.
   }
 
+  unlockAudio(): void {
+    // No AudioContext on the HTTP client path.
+  }
+
   async speak({ text, onStart, onEnd, onError, onTimings }: SpeakOptions): Promise<void> {
     return this.speakSegment(text, { onStart, onEnd, onError, onTimings });
   }
@@ -649,6 +658,12 @@ export class SpeechSynthesisTTSClient implements TTSClient {
 
   async prewarm(_options?: PrewarmOptions): Promise<void> {
     // SpeechSynthesis has no connection to warm.
+  }
+
+  unlockAudio(): void {
+    if (typeof window !== "undefined") {
+      window.speechSynthesis?.resume();
+    }
   }
 
   async speak(options: SpeakOptions): Promise<void> {
