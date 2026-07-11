@@ -2,9 +2,11 @@ import type { SceneSpec } from "./sceneSpec";
 import type { CompileOptions, CompiledScene } from "./compileTypes";
 import { opticsPlugin } from "./plugins/opticsPlugin";
 import { circuitPlugin } from "./plugins/circuitPlugin";
+import { mechanicsPlugin } from "./plugins/mechanicsPlugin";
 import { euclideanPlugin } from "./plugins/euclideanPlugin";
 import { axesPlotPlugin } from "./plugins/axesPlotPlugin";
 import { genericPlugin } from "./plugins/genericPlugin";
+import { repairCompiledCommands } from "./postCompileRepair";
 
 /**
  * Geometry Compiler: SceneSpec → DrawCommands + anchors + intro segments.
@@ -17,6 +19,7 @@ export function compileScene(
   const plugins = [
     opticsPlugin,
     circuitPlugin,
+    mechanicsPlugin,
     euclideanPlugin,
     axesPlotPlugin,
     genericPlugin,
@@ -25,14 +28,13 @@ export function compileScene(
   for (const plugin of plugins) {
     const result = plugin(spec, options);
     if (result?.ok) {
-      return result;
+      return repairCompiledCommands(result);
     }
   }
 
-  // Last resort: try generic even for domain kinds that failed.
   const generic = genericPlugin(spec, options);
   if (generic?.ok) {
-    return generic;
+    return repairCompiledCommands(generic);
   }
 
   return {

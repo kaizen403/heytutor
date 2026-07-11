@@ -110,7 +110,8 @@ question → planScene() / inferSceneFromQuestion()
 | Planner | `packages/tutor-core/src/scenePlanner.ts` (`x-planner` HTTP path) |
 | Debug | [geometry-debug.md](geometry-debug.md) |
 
-Regex `DIAGRAM_TEMPLATES` remain as golden fixtures / last-resort fallback when compile fails — not the live diagram source when the compiler succeeds.
+Regex `DIAGRAM_TEMPLATES` remain as golden fixtures inside domain plugins and verify scripts — `matchDiagramTemplate` is telemetry-only on the live turn path (not a diagram source).
+
 
 ## Local Dev
 

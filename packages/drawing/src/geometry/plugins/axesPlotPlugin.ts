@@ -5,9 +5,15 @@ import {
   anchorsFromLabelCommands,
   buildPromptAddon,
   cmd,
-  segmentsFromCommands,
+  introSegmentsFromPhases,
 } from "../compileTypes";
 import type { TemplateCommand } from "../../templates/types";
+
+function asNumberArray(value: unknown): number[] | null {
+  if (!Array.isArray(value)) return null;
+  const nums = value.filter((item): item is number => typeof item === "number" && Number.isFinite(item));
+  return nums.length >= 4 && nums.length % 2 === 0 ? nums : null;
+}
 
 /**
  * Axes + sampled function curves for calculus / coordinate plots.
@@ -32,39 +38,64 @@ export const axesPlotPlugin: GeometryPlugin = (
     cmd("LABEL", [originX - 28, yMin + 10], "y"),
   ];
 
-  // Optional sampled curve from entity attrs.samples: number[] flat [x,y,...] in data space
-  // mapped into pixel space via attrs.xScale / yScale (defaults).
   for (const entity of spec.entities) {
     if (entity.type !== "curve") continue;
-    const samples = entity.attrs?.samples;
-    if (!Array.isArray(samples) && typeof entity.attrs?.fn !== "string") {
-      // Default projectile / parabola sketch when no samples provided.
-      if (spec.kind === "projectile" || /parabola|projectile/.test(spec.diagramType)) {
-        const pts: number[] = [];
-        for (let i = 0; i <= 20; i++) {
-          const t = i / 20;
-          const px = originX + 40 + t * 420;
-          const py = originY - 40 - 180 * (4 * t * (1 - t));
-          pts.push(px, py);
+
+    const sampleNums = asNumberArray(entity.attrs?.samples);
+    const xScale = typeof entity.attrs?.xScale === "number" ? entity.attrs.xScale : 40;
+    const yScale = typeof entity.attrs?.yScale === "number" ? entity.attrs.yScale : 40;
+    const dataSpace = entity.attrs?.dataSpace === true || entity.attrs?.data_space === true;
+
+    if (sampleNums) {
+      const pts: number[] = [];
+      for (let i = 0; i < sampleNums.length; i += 2) {
+        const sx = sampleNums[i]!;
+        const sy = sampleNums[i + 1]!;
+        if (dataSpace) {
+          pts.push(originX + sx * xScale, originY - sy * yScale);
+        } else {
+          pts.push(sx, sy);
         }
+      }
+      if (pts.length >= 4) {
         commands.push(cmd("DRAW_LINE", pts));
-        if (entity.role === "object" || /parabola|projectile/.test(spec.diagramType)) {
-          const markX = originX + 40 + 0.55 * 420;
-          const markY = originY - 40 - 180 * (4 * 0.55 * (1 - 0.55));
-          commands.push(cmd("DRAW_POINT", [markX, markY, 6]));
-          commands.push(cmd("LABEL", [markX + 12, markY - 16], entity.text ?? "P"));
-        }
       }
       continue;
     }
 
-    if (typeof samples === "string") {
-      // Ignore non-array
+    // Optional simple polynomial samples: attrs.fn = "x^2" | "parabola" | "projectile"
+    const fn = typeof entity.attrs?.fn === "string" ? entity.attrs.fn.toLowerCase() : "";
+    if (fn.includes("parabola") || fn.includes("projectile") || fn === "x^2" || fn === "x**2") {
+      const pts: number[] = [];
+      for (let i = 0; i <= 24; i++) {
+        const t = i / 24;
+        const px = originX + 40 + t * 420;
+        const py = originY - 40 - 180 * (4 * t * (1 - t));
+        pts.push(px, py);
+      }
+      commands.push(cmd("DRAW_LINE", pts));
       continue;
+    }
+
+    // Default projectile / parabola sketch when no samples provided.
+    if (spec.kind === "projectile" || /parabola|projectile/.test(spec.diagramType)) {
+      const pts: number[] = [];
+      for (let i = 0; i <= 20; i++) {
+        const t = i / 20;
+        const px = originX + 40 + t * 420;
+        const py = originY - 40 - 180 * (4 * t * (1 - t));
+        pts.push(px, py);
+      }
+      commands.push(cmd("DRAW_LINE", pts));
+      if (entity.role === "object" || /parabola|projectile/.test(spec.diagramType)) {
+        const markX = originX + 40 + 0.55 * 420;
+        const markY = originY - 40 - 180 * (4 * 0.55 * (1 - 0.55));
+        commands.push(cmd("DRAW_POINT", [markX, markY, 6]));
+        commands.push(cmd("LABEL", [markX + 12, markY - 16], entity.text ?? "P"));
+      }
     }
   }
 
-  // Mark labeled points from IR.
   for (const entity of spec.entities) {
     if (entity.type !== "point") continue;
     const xData = typeof entity.attrs?.x === "number" ? entity.attrs.x : null;
@@ -99,7 +130,7 @@ export const axesPlotPlugin: GeometryPlugin = (
     residual: 0,
     commands,
     anchors,
-    introSegments: segmentsFromCommands(commands, spec.introNarration),
+    introSegments: introSegmentsFromPhases(spec, commands),
     promptAddon: buildPromptAddon(spec, anchorLines),
     diagramType: spec.diagramType,
     kind: spec.kind,

@@ -5,7 +5,7 @@ import {
   anchorsFromLabelCommands,
   buildPromptAddon,
   cmd,
-  segmentsFromCommands,
+  introSegmentsFromPhases,
 } from "../compileTypes";
 import { solveConstraints } from "../solver";
 import type { TemplateCommand } from "../../templates/types";
@@ -103,7 +103,6 @@ export const euclideanPlugin: GeometryPlugin = (
   }
 
   if (commands.length === 0) {
-    // Minimal triangle fallback in diagram zone when IR is sparse.
     const cx = DIAGRAM_ZONE.centerX;
     const cy = DIAGRAM_ZONE.centerY;
     commands.push(
@@ -134,17 +133,21 @@ export const euclideanPlugin: GeometryPlugin = (
     (a) => `${a.labels[0] ?? a.id}→(${Math.round(a.x + a.width / 2)},${Math.round(a.y + a.height / 2)})`,
   );
 
+  const usable =
+    commands.length >= 2 &&
+    (solved.ok || solved.residual < 50 || spec.constraints.length === 0);
+
   return {
-    ok: solved.ok || commands.length >= 2,
+    ok: usable,
     residual: solved.residual,
     commands,
     anchors,
-    introSegments: segmentsFromCommands(commands, spec.introNarration),
+    introSegments: introSegmentsFromPhases(spec, commands),
     promptAddon: buildPromptAddon(spec, anchorLines),
     diagramType: spec.diagramType,
     kind: "euclidean",
     allowLlmDrawInDiagramZone: (spec.allowAdditions?.length ?? 0) > 0,
     plugin: "euclidean",
-    degradeReason: solved.ok ? undefined : "high_residual",
+    degradeReason: usable ? undefined : "high_residual",
   };
 };

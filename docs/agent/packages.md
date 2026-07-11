@@ -15,8 +15,9 @@ All packages live in `packages/`, built with **tsup** (ESM + `.d.ts`), consumed 
 | Shape paths | `src/shapePaths.ts` | SVG/Konva paths (cuboid, circle, annotation gestures) |
 | Board zones | `src/boardZones.ts` | Canvas layout — 1200×700, diagram zone x 400–900 |
 | Command placement | `src/commandPlacement.ts` | Template repair, label snapping, duplicate detection |
-| Geometry snap | `src/geometrySnap.ts` | Snap points to template anchors |
-| Geometry compiler | `src/geometry/` | SceneSpec IR, constraint solver, domain plugins → DrawCommands |
+| Geometry snap | `src/geometrySnap.ts` | Snap points to template / compiler anchors at draw time |
+| Geometry compiler | `src/geometry/` | SceneSpec IR, constraint solver (`angle`/`intersect`/`reflect`), plugins (optics/circuit/mechanics/euclidean/axes/generic) → DrawCommands |
+| Post-compile repair | `src/geometry/postCompileRepair.ts` | Clamp/round compiled commands before intro enqueue |
 | Stroke animation | `src/strokeAnimation.ts` | Animated drawing along paths |
 | Cursor animation | `src/cursorAnimation.ts` | Cursor follows bezier/path |
 | Templates | `src/templates/registry.ts` | Golden fixtures + last-resort fallback (FBD, circuits, optics family, …) |

@@ -73,8 +73,8 @@ export interface SceneEntity {
   type: EntityType;
   /** Semantic role for plugins and prompt addons. */
   role?: EntityRole;
-  /** Physical / layout attrs (u_cm, f_cm, angle_deg, width, …) — never raw teaching pixels. */
-  attrs?: Record<string, number | string | boolean | null>;
+  /** Physical / layout attrs (u_cm, f_cm, angle_deg, width, samples[], …) — never raw teaching pixels for freehand. */
+  attrs?: Record<string, number | string | boolean | null | number[]>;
   text?: string;
   /** Endpoint / membership refs by entity id. */
   from?: string;
@@ -111,6 +111,11 @@ export interface SceneSpec {
   introPhases?: SceneIntroPhase[];
   /** Entity ids the teaching LLM may still draw (e.g. extra rays). */
   allowAdditions?: string[];
+  /**
+   * Optional layout hint for the compiler (diagram zone pack).
+   * Defaults to the shared boardZones diagram rect when omitted.
+   */
+  diagramZone?: { x: number; y: number; width: number; height: number };
 }
 
 const ENTITY_TYPE_SET = new Set<string>(ENTITY_TYPES);
@@ -124,9 +129,9 @@ function asStringArray(value: unknown): string[] {
 
 function sanitizeAttrs(
   attrs: unknown,
-): Record<string, number | string | boolean | null> | undefined {
+): Record<string, number | string | boolean | null | number[]> | undefined {
   if (!attrs || typeof attrs !== "object" || Array.isArray(attrs)) return undefined;
-  const out: Record<string, number | string | boolean | null> = {};
+  const out: Record<string, number | string | boolean | null | number[]> = {};
   for (const [key, value] of Object.entries(attrs as Record<string, unknown>)) {
     if (
       typeof value === "number" ||
@@ -135,6 +140,10 @@ function sanitizeAttrs(
       value === null
     ) {
       out[key] = value;
+      continue;
+    }
+    if (Array.isArray(value) && value.every((item) => typeof item === "number" && Number.isFinite(item))) {
+      out[key] = value as number[];
     }
   }
   return Object.keys(out).length > 0 ? out : undefined;
@@ -240,7 +249,21 @@ export function validateSceneSpec(raw: unknown): SceneSpec | null {
     promptAddon,
     introPhases: introPhases.length > 0 ? introPhases : undefined,
     allowAdditions: asStringArray(plan.allowAdditions),
+    diagramZone: sanitizeDiagramZone(plan.diagramZone),
   };
+}
+
+function sanitizeDiagramZone(
+  value: unknown,
+): { x: number; y: number; width: number; height: number } | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const zone = value as Record<string, unknown>;
+  const x = typeof zone.x === "number" ? zone.x : NaN;
+  const y = typeof zone.y === "number" ? zone.y : NaN;
+  const width = typeof zone.width === "number" ? zone.width : NaN;
+  const height = typeof zone.height === "number" ? zone.height : NaN;
+  if (![x, y, width, height].every((n) => Number.isFinite(n) && n > 0)) return undefined;
+  return { x, y, width, height };
 }
 
 function inferKindFromDiagramType(diagramType: string): SceneKind {

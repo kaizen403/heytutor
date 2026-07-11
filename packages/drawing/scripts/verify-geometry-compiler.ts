@@ -121,6 +121,153 @@ assert(
   "axes should draw x and y",
 );
 
+// --- Sampled curve on axes ---
+const sampled: SceneSpec = {
+  kind: "axes_plot",
+  diagramType: "sampled_curve",
+  entities: [
+    {
+      id: "curve",
+      type: "curve",
+      attrs: {
+        dataSpace: true,
+        xScale: 50,
+        yScale: 40,
+        samples: [0, 0, 1, 1, 2, 0.5, 3, 2, 4, 1.5],
+      },
+    },
+  ],
+  constraints: [],
+  givens: [],
+  asks: [],
+  introNarration: "sampled curve",
+  promptAddon: "curve is on the board. do NOT redraw.",
+};
+const sampledCompiled = compileScene(sampled);
+assert(sampledCompiled.ok, "sampled curve should compile");
+assert(
+  sampledCompiled.commands.some((c) => c.type === "DRAW_LINE" && c.params.length >= 8),
+  "sampled curve should emit a multi-point DRAW_LINE",
+);
+
+// --- Intersect constraint ---
+const intersectSpec: SceneSpec = {
+  kind: "euclidean",
+  diagramType: "intersect_ab_cd",
+  entities: [
+    { id: "A", type: "point", attrs: { x: 450, y: 200 } },
+    { id: "B", type: "point", attrs: { x: 750, y: 450 } },
+    { id: "C", type: "point", attrs: { x: 450, y: 450 } },
+    { id: "D", type: "point", attrs: { x: 750, y: 200 } },
+    { id: "P", type: "point" },
+    { id: "AB", type: "segment", from: "A", to: "B" },
+    { id: "CD", type: "segment", from: "C", to: "D" },
+    { id: "labelP", type: "label", from: "P", text: "P" },
+  ],
+  constraints: [
+    { type: "intersect", entities: ["P", "A", "B", "C", "D"] },
+  ],
+  givens: [],
+  asks: [],
+  introNarration: "intersecting lines",
+  promptAddon: "intersection P is on the board. do NOT redraw.",
+};
+const intersectCompiled = compileScene(intersectSpec);
+assert(intersectCompiled.ok, "intersect scene should compile");
+const pAnchor = intersectCompiled.anchors.find((a) => a.id === "P" || a.labels.includes("P"));
+assert(pAnchor, "intersection point P should be anchored");
+const px = pAnchor!.x + pAnchor!.width / 2;
+const py = pAnchor!.y + pAnchor!.height / 2;
+assert(Math.abs(px - 600) < 40 && Math.abs(py - 325) < 40, `P should be near crossing, got (${px},${py})`);
+
+// --- Lens combo via infer ---
+const comboQ =
+  "A convex lens of focal length 20 cm is placed in contact with a concave lens of focal length 30 cm. An object is placed 40 cm to the left of the combination. Find the equivalent focal length.";
+const comboScene = inferSceneFromQuestion(comboQ);
+assert(comboScene?.diagramType === "optics_lens_combo", "combo should infer optics_lens_combo");
+const comboCompiled = compileScene(comboScene!, { question: comboQ });
+assert(comboCompiled.ok, "lens combo should compile");
+assert(comboCompiled.diagramType === "optics_lens_combo", "combo compile type");
+assert(
+  comboCompiled.commands.some((c) => c.type === "DRAW_LINE"),
+  "combo should draw skeleton lines",
+);
+
+// --- Arc entity emits DRAW_ARC ---
+const arcSpec: SceneSpec = {
+  kind: "euclidean",
+  diagramType: "angle_arc",
+  entities: [
+    { id: "O", type: "point", attrs: { x: 600, y: 350 } },
+    {
+      id: "arc1",
+      type: "arc",
+      center: "O",
+      attrs: { r: 40, start_deg: 0, end_deg: 90 },
+    },
+  ],
+  constraints: [],
+  givens: [],
+  asks: [],
+  introNarration: "angle mark",
+  promptAddon: "arc is on the board. do NOT redraw.",
+};
+const arcCompiled = compileScene(arcSpec);
+assert(arcCompiled.ok, "arc scene should compile");
+assert(
+  arcCompiled.commands.some((c) => c.type === "DRAW_ARC"),
+  "euclidean arc should emit DRAW_ARC",
+);
+
+// --- Reflect constraint ---
+const reflectSpec: SceneSpec = {
+  kind: "euclidean",
+  diagramType: "reflect_point",
+  entities: [
+    { id: "A", type: "point", attrs: { x: 500, y: 300 } },
+    { id: "M1", type: "point", attrs: { x: 600, y: 200 } },
+    { id: "M2", type: "point", attrs: { x: 600, y: 450 } },
+    { id: "Aprime", type: "point" },
+    { id: "labelA", type: "label", from: "A", text: "A" },
+    { id: "labelAp", type: "label", from: "Aprime", text: "A'" },
+  ],
+  constraints: [
+    { type: "reflect", entities: ["Aprime", "A", "M1", "M2"] },
+  ],
+  givens: [],
+  asks: [],
+  introNarration: "reflection",
+  promptAddon: "reflection is on the board. do NOT redraw.",
+};
+const reflectCompiled = compileScene(reflectSpec);
+assert(reflectCompiled.ok, "reflect scene should compile");
+const aPrime = reflectCompiled.anchors.find(
+  (a) => a.id === "Aprime" || a.labels.includes("A'"),
+);
+assert(aPrime, "reflected point should be anchored");
+const apx = aPrime!.x + aPrime!.width / 2;
+assert(Math.abs(apx - 700) < 50, `A' should be right of mirror, got x=${apx}`);
+
+// --- FBD / incline via mechanics plugin ---
+const fbdQ = "Draw the free-body diagram for a 5 kg block on a rough horizontal surface.";
+const fbdScene = inferSceneFromQuestion(fbdQ);
+assert(fbdScene?.kind === "fbd", "fbd question should infer fbd scene");
+const fbdCompiled = compileScene(fbdScene!, { question: fbdQ });
+assert(fbdCompiled.ok, "fbd scene should compile");
+assert(fbdCompiled.plugin === "mechanics", "mechanics plugin should run for fbd");
+assert(fbdCompiled.commands.length >= 4, "fbd should emit block + forces");
+
+const inclineQ =
+  "A block rests on a 30 degree incline. Draw the free-body diagram showing friction and normal.";
+const inclineScene = inferSceneFromQuestion(inclineQ);
+assert(
+  inclineScene?.kind === "incline" || inclineScene?.kind === "fbd",
+  "incline question should infer incline/fbd",
+);
+const inclineCompiled = compileScene(inclineScene!, { question: inclineQ });
+assert(inclineCompiled.ok, "incline scene should compile");
+assert(inclineCompiled.plugin === "mechanics", "mechanics plugin for incline");
+
 // --- validateSceneSpec rejects empty ---
 assert(validateSceneSpec({}) === null, "empty object should fail validation");
 assert(

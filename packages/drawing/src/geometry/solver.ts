@@ -283,9 +283,80 @@ function applyConstraint(
       }
       return err;
     }
-    case "angle":
-    case "intersect":
-    case "reflect":
+    case "angle": {
+      // entities: [vertex, armA, armB], value = desired interior angle in degrees
+      const vertex = getPoint(points, ids[0]!);
+      const armA = getPoint(points, ids[1]!);
+      const armB = getPoint(points, ids[2]!);
+      if (!vertex || !armA || !armB || constraint.value === undefined) return 0;
+      const ax = armA.x - vertex.x;
+      const ay = armA.y - vertex.y;
+      const bx = armB.x - vertex.x;
+      const by = armB.y - vertex.y;
+      const lenA = Math.hypot(ax, ay) || 1;
+      const lenB = Math.hypot(bx, by) || 1;
+      const current = Math.atan2(ay, ax);
+      const other = Math.atan2(by, bx);
+      let delta = other - current;
+      while (delta > Math.PI) delta -= 2 * Math.PI;
+      while (delta < -Math.PI) delta += 2 * Math.PI;
+      const targetRad = (constraint.value * Math.PI) / 180;
+      const err = delta - targetRad;
+      if (!armB.fixed) {
+        const next = current + targetRad;
+        armB.x = vertex.x + Math.cos(next) * lenB;
+        armB.y = vertex.y + Math.sin(next) * lenB;
+      } else if (!armA.fixed) {
+        const next = other - targetRad;
+        armA.x = vertex.x + Math.cos(next) * lenA;
+        armA.y = vertex.y + Math.sin(next) * lenA;
+      }
+      return err * 40;
+    }
+    case "intersect": {
+      // entities: [resultPoint, line1a, line1b, line2a, line2b]
+      // Place result at intersection of segments (line1a→line1b) and (line2a→line2b).
+      const result = getPoint(points, ids[0]!);
+      const a = getPoint(points, ids[1]!);
+      const b = getPoint(points, ids[2]!);
+      const c = getPoint(points, ids[3]!);
+      const d = getPoint(points, ids[4]!);
+      if (!result || !a || !b || !c || !d) return 0;
+      const den = (a.x - b.x) * (c.y - d.y) - (a.y - b.y) * (c.x - d.x);
+      if (Math.abs(den) < 1e-6) return 0;
+      const t =
+        ((a.x - c.x) * (c.y - d.y) - (a.y - c.y) * (c.x - d.x)) / den;
+      const ix = a.x + t * (b.x - a.x);
+      const iy = a.y + t * (b.y - a.y);
+      const err = Math.hypot(result.x - ix, result.y - iy);
+      if (!result.fixed) {
+        result.x = ix;
+        result.y = iy;
+      }
+      return err;
+    }
+    case "reflect": {
+      // entities: [image, object, mirrorA, mirrorB] — reflect object across mirror line.
+      const image = getPoint(points, ids[0]!);
+      const object = getPoint(points, ids[1]!);
+      const m0 = getPoint(points, ids[2]!);
+      const m1 = getPoint(points, ids[3]!);
+      if (!image || !object || !m0 || !m1) return 0;
+      const dx = m1.x - m0.x;
+      const dy = m1.y - m0.y;
+      const len2 = dx * dx + dy * dy || 1;
+      const t = ((object.x - m0.x) * dx + (object.y - m0.y) * dy) / len2;
+      const projX = m0.x + t * dx;
+      const projY = m0.y + t * dy;
+      const rx = 2 * projX - object.x;
+      const ry = 2 * projY - object.y;
+      const err = Math.hypot(image.x - rx, image.y - ry);
+      if (!image.fixed) {
+        image.x = rx;
+        image.y = ry;
+      }
+      return err;
+    }
     default:
       return 0;
   }

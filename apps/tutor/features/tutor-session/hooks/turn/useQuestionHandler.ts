@@ -162,11 +162,11 @@ export function useQuestionHandler(
       revokeReplayBlobUrls();
       fbdPhaseMarkedRef.current = false;
       fbdPhaseStartedRef.current = false;
-      // Synchronous fallback so resetBoardLayout has a layout hint immediately.
-      // The planner may override this once it returns.
-      const fallbackTemplate = matchDiagramTemplate(question);
-      activeDiagramTemplateRef.current = fallbackTemplate;
-      resetBoardLayout(false, fallbackTemplate !== null);
+      // Layout hint from local SceneSpec infer — regex templates are telemetry-only.
+      const inferredSceneHint = inferSceneFromQuestion(question);
+      const templateCompare = matchDiagramTemplate(question);
+      activeDiagramTemplateRef.current = null;
+      resetBoardLayout(false, inferredSceneHint !== null || templateCompare !== null);
 
       const tel = createTurnTelemetry();
       turnTelemetryRef.current = tel;
@@ -218,7 +218,7 @@ export function useQuestionHandler(
       let compiled: CompiledScene | null = scene
         ? compileScene(scene, { question })
         : null;
-      if (compiled && !compiled.ok) {
+      if (compiled && (!compiled.ok || (compiled.degradeReason === "high_residual" && compiled.residual > 40))) {
         compiled = null;
       }
 
@@ -235,45 +235,42 @@ export function useQuestionHandler(
           scene = null;
         }
         compiled = scene ? compileScene(scene, { question }) : null;
-        if (compiled && !compiled.ok) {
+        if (compiled && (!compiled.ok || (compiled.degradeReason === "high_residual" && compiled.residual > 40))) {
           compiled = null;
         }
       }
 
       const plannerLatencyMs = Date.now() - plannerStartedAt;
 
-      // Telemetry-only template match (not used as diagram source when compile succeeds).
-      const templateCompareId = fallbackTemplate?.id ?? null;
+      // Regex template match is telemetry-only (fixtures / migration compare).
+      const templateCompareId = templateCompare?.id ?? null;
 
       let activeTemplate: import("@heytutor/drawing").DiagramTemplate | null;
-      let diagramSource: "compiler" | "template" | "none";
+      let diagramSource: "compiler" | "none";
       let plannerOverridden = false;
 
       if (compiled) {
         activeTemplate = compiledSceneToTemplate(compiled, scene ?? undefined);
         diagramSource = "compiler";
         activeDiagramTemplateRef.current = activeTemplate;
-        plannerOverridden = fallbackTemplate !== null;
-      } else if (fallbackTemplate) {
-        // Compile failed — last-resort regex template so the lesson still has ink.
-        activeTemplate = fallbackTemplate;
-        diagramSource = "template";
-        activeDiagramTemplateRef.current = activeTemplate;
+        plannerOverridden = templateCompare !== null;
       } else {
+        // Compile failed — narration-only; do not re-enter the regex template hot path.
         activeTemplate = null;
         diagramSource = "none";
+        activeDiagramTemplateRef.current = null;
       }
 
       plannerSpan.end({
         source: diagramSource,
         latency_ms: plannerLatencyMs,
-        diagram_type: compiled?.diagramType ?? fallbackTemplate?.id ?? null,
+        diagram_type: compiled?.diagramType ?? null,
         kind: scene?.kind ?? null,
         plugin: compiled?.plugin ?? null,
         command_count: compiled?.commands.length ?? null,
         residual: compiled?.residual ?? null,
         template_compare_id: templateCompareId,
-        compiler_preferred: diagramSource === "compiler",
+        compiler_preferred: true,
         degrade_reason: compiled?.degradeReason ?? (scene ? null : "no_scene"),
       });
 
