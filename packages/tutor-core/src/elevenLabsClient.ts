@@ -43,6 +43,12 @@ export interface TTSClient {
   pause(): void;
   resume(): void;
   stop(): void;
+  /**
+   * Drop a stuck in-flight segment without tearing down the client.
+   * Used when the segment runner times out so zombie WS/HTTP work cannot
+   * block the next paragraph.
+   */
+  abandonSpeaking?(): void;
   get isPlaying(): boolean;
   /**
    * Current playback position of the actively-speaking segment, in milliseconds from
