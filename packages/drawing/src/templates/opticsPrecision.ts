@@ -161,6 +161,7 @@ export function parseOpticsNumbers(question: string): OpticsParsedNumbers {
   numbers.u = firstNumber(
     question.match(/object\s+(?:is\s+)?(?:placed\s+)?(?:at\s+)?(\d+(?:\.\d+)?)\s*cm/i),
     question.match(/(\d+(?:\.\d+)?)\s*cm\s+in\s+front\s+of/i),
+    question.match(/(\d+(?:\.\d+)?)\s*cm\s+to\s+the\s+left/i),
     question.match(/object\s+distance\s+(?:is\s+)?(\d+(?:\.\d+)?)\s*cm/i),
     question.match(/\bu\s*=?\s*[-−]?\s*(\d+(?:\.\d+)?)\s*cm/i),
   );
@@ -238,6 +239,22 @@ export function parseOpticsNumbers(question: string): OpticsParsedNumbers {
     if (pair) {
       numbers.f1 = numbers.f1 ?? Number(pair[1]);
       numbers.f2 = numbers.f2 ?? Number(pair[2]);
+    }
+  }
+
+  if (numbers.f1 == null || numbers.f2 == null) {
+    const lensFocals = [
+      ...question.matchAll(
+        /(convex|concave)\s+lens\s+of\s+focal\s+length\s+(\d+(?:\.\d+)?)\s*cm/gi,
+      ),
+    ];
+    if (lensFocals.length >= 2) {
+      const signed = lensFocals.map((match) => {
+        const magnitude = Number(match[2]);
+        return String(match[1]).toLowerCase() === "concave" ? -magnitude : magnitude;
+      });
+      numbers.f1 = numbers.f1 ?? signed[0] ?? null;
+      numbers.f2 = numbers.f2 ?? signed[1] ?? null;
     }
   }
 

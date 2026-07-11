@@ -164,7 +164,7 @@ export const OPTICS_LENS_COMBO_TEMPLATE: DiagramTemplate = {
   id: "optics_lens_combo",
   name: "ray optics — lens combination",
   test:
-    /lenses?\s+in\s+contact|combination\s+of\s+(?:thin\s+)?lenses|equivalent\s+focal|two\s+(?:thin\s+)?lenses|f1.*f2|f_1.*f_2/i,
+    /lenses?\s+in\s+contact|in\s+contact\s+with\s+(?:a\s+)?(?:concave|convex)\s+lens|combination\s+of\s+(?:thin\s+)?lenses|equivalent\s+focal|two\s+(?:thin\s+)?lenses|f1.*f2|f_1.*f_2|convex\s+lens[\s\S]{0,80}concave\s+lens|concave\s+lens[\s\S]{0,80}convex\s+lens/i,
   commands: [
     { type: "DRAW_LINE", params: [440, 300, 920, 300] },
     // Lens 1 (double-convex mark)
