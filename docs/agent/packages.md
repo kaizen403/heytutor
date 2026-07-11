@@ -18,7 +18,9 @@ All packages live in `packages/`, built with **tsup** (ESM + `.d.ts`), consumed 
 | Geometry snap | `src/geometrySnap.ts` | Snap points to template anchors |
 | Stroke animation | `src/strokeAnimation.ts` | Animated drawing along paths |
 | Cursor animation | `src/cursorAnimation.ts` | Cursor follows bezier/path |
-| Templates | `src/templates/registry.ts` | 30+ diagram templates (FBD, circuits, optics, calculus, chemistry, JEE topics) |
+| Templates | `src/templates/registry.ts` | 30+ diagram templates (FBD, circuits, optics family, calculus, chemistry, JEE topics) |
+| Optics family | `src/templates/opticsFamily.ts` | Ray Optics templates (mirror, lens, prism, TIR, combo, instruments, slab) |
+| Optics precision | `src/templates/opticsPrecision.ts` | Classifier + deterministic intro builders + debug payloads |
 
 **Verify scripts:** `pnpm --filter @heytutor/tutor-core verify` runs drawing-related smoke tests.
 
@@ -36,7 +38,7 @@ All packages live in `packages/`, built with **tsup** (ESM + `.d.ts`), consumed 
 | TTS factory | `src/createTTSClient.ts` | Browser → WebSocket; server → HTTP proxy |
 | Mock responses | `src/mockResponses.ts` | Fallback when no `FIREWORKS_API_KEY` |
 | Sentence chunker | `src/sentenceChunker.ts` | Splits narration for TTS |
-| Public origins | `src/publicOrigins.ts` | `resolveApiUrl()`, `resolveWebSocketUrl()` for split deploy |
+| Debug | `src/tutorDebug.ts` | Scoped console logging (`llm`, `draw`, `optics`, …) when `TUTOR_DEBUG=1` |
 | JEE syllabus | `src/jee/jeeSyllabus.ts`, `jeeLabelCues.ts` | JEE topic matching + narration label rules |
 | Topic planner | `src/topicPlanner.ts` | Per-question diagram/template prompt injection |
 | Debug | `src/tutorDebug.ts` | Structured debug logging (`[tutor:tts]`, `[tutor:draw]`, etc.) |

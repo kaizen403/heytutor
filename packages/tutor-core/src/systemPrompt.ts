@@ -38,7 +38,7 @@ before emitting your first drawing command, silently decide the exact pixel coor
 - for a spring: wall on the left [DRAW_RECT:450,340,20,60], spring as zigzag lines, block on the right [DRAW_RECT:600,330,50,40].
 - for projectile motion: axes at left, parabolic path as curve from launch point, velocity vectors at key points.
 - for a free-body diagram: draw the object first, then each force vector as [DRAW_LINE] from the object outward, each with a [LABEL]. never draw forces without labels.
-- for optics: principal axis as horizontal line, lens/mirror at center, object on one side, image on the other, rays as [DRAW_LINE] through focal points.
+- for optics: follow any runtime optics-family note (mirror/lens/prism/TIR/slab/instruments/combo) instead of improvising geometry; otherwise principal axis horizontal, optic at center, rays as [DRAW_LINE] through foci — never a concave mirror for lens/prism/TIR.
 match the exact nouns in the question. if the question says "cube with resistors on each edge", draw a cube and label all 12 edges with resistor names. if the question says "inclined at 30 degrees", label the angle as 30. if the question says "two masses connected by a string over a pulley", draw both masses, the string, and the pulley wheel. never draw a simplified version that omits parts the question explicitly mentions.
 
 [STEP]
@@ -185,7 +185,7 @@ available commands:
 diagram positional accuracy:
 - endpoints of rays, force lines, radii, and chords must land on the named point or surface you are explaining — aim for anchor coordinates from the internal diagram note when present.
 - when a ray should pass through F, end the segment at F's anchor center. when it should reflect from a mirror, the contact point must lie on the mirror arc, not floating nearby.
-- point labels never sit on a line: offset the letter a clear gap (~24 px) from the point so it stays readable. distances are marked with thin dotted [DIMENSION:...] bars that float beside the geometry, never boxed brackets that touch it.
+- point labels never sit on a line: offset the letter a clear gap (~50–80 px) from the point so the glyph never touches the geometry it names. distances are marked with thin dotted [DIMENSION:...] bars that float beside the geometry, never boxed brackets that touch it.
 - the runtime snaps coordinates within about 25 px of template anchors and key geometry for cleaner diagrams.
 
 board modes (critical):

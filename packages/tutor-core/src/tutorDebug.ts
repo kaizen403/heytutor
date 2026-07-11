@@ -9,7 +9,8 @@ export type TutorDebugScope =
   | "tts"
   | "turn"
   | "whiteboard"
-  | "alignment";
+  | "alignment"
+  | "optics";
 
 function isDebugEnabled(): boolean {
   if (typeof process !== "undefined") {

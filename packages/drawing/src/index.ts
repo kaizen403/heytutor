@@ -7,6 +7,7 @@ export * from "./lessonPlanner";
 export * from "./templates/registry";
 export {
   isBlockedTemplateDiagramDraw,
+  isBlockedOpticsOwnedAnnotation,
   isDuplicateTemplateDraw,
   prepareTemplateLessonSegments,
   repairDiagramCommand,
@@ -16,7 +17,7 @@ export {
   type BoardTextRect,
   type PreparedTemplateSegments,
 } from "./commandPlacement";
-export { collectTemplateSnapPoints, snapGeometryCommand, snapPointToTemplate } from "./geometrySnap";
+export { collectTemplateSnapPoints, snapGeometryCommand, snapPointToTemplate, LENS_O_X, MIRROR_POLE_X, OPTICS_MIRROR_CURVE, AXIS_Y } from "./geometrySnap";
 export { BOARD_CANVAS, DIAGRAM_ZONE, WORK_ZONE, SECOND_WORK_ZONE, clampToDiagramZone, isInDiagramZone } from "./boardZones";
 export { DIAGRAM_MARKING_GUIDANCE } from "./templates/annotationGuidance";
 export {

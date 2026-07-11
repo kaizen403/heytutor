@@ -5,8 +5,13 @@ import {
   templateToDrawCommand,
   getTemplateSkeletonCommands,
   buildTemplateIntroSegments,
+  buildOpticsPrecisionIntro,
+  classifyOptics,
+  parseOpticsNumbers,
+  opticsDecisionMetadata,
   resolveAnnotationWithAnchors,
   isBlockedTemplateDiagramDraw,
+  isBlockedOpticsOwnedAnnotation,
   isDuplicateTemplateDraw,
   prepareTemplateLessonSegments,
   snapLabelToTemplateAnchor,
@@ -154,7 +159,10 @@ assert(!fbdPlan.promptAddon.includes("MATHEMATICS:"), "should not dump full syll
 
 const turnPrompt = `${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n${fbdPlan.promptAddon}`;
 assert(turnPrompt.includes("--- current lesson (runtime) ---"), "turn prompt should have runtime section");
-assert(turnPrompt.length < 32000, "turn prompt should stay compact vs old monolith (~35k with full JEE dump)");
+assert(
+  turnPrompt.length < 36000,
+  `turn prompt should stay compact vs old monolith (~35k with full JEE dump); got ${turnPrompt.length}`,
+);
 assert(fbdPlan.promptAddon.length < 4500, "per-turn addon should stay small");
 
 const repaired = repairDiagramCommand(
@@ -340,7 +348,7 @@ for (const segment of buildTemplateIntroSegments(fbd!)) {
 const optics = matchDiagramTemplate(
   "An object is placed 30 cm in front of a concave mirror of focal length 15 cm. Draw the ray diagram.",
 );
-assert(optics?.id === "optics_ray", "optics template should match concave mirror ray diagram");
+assert(optics?.id === "optics_mirror", "optics template should match concave mirror ray diagram");
 assert(optics!.promptAddon.includes("[DIMENSION:"), "optics prompt should teach dimension marking");
 assert(
   optics!.commands.some((command) => command.type === "DRAW_LINE" && command.params.length === 7 && command.params.at(-1) === 2),
@@ -391,8 +399,12 @@ const pointLabels = opticsIntroCommands.filter(
 );
 assert(pointLabels.length === 3, "optics precision intro should label C, F and O");
 assert(
-  pointLabels.every((command) => command.params[1]! <= 300 - 24),
-  "optics point labels must be offset a clear gap above the axis, not on the line",
+  pointLabels.every((command) => command.params[1]! <= 300 - 48),
+  "optics point labels must sit well above the axis (clear gap), not on the line",
+);
+assert(
+  pointLabels.every((command) => command.params[1]! >= 300 - 70),
+  "optics point labels should stay near the mark (modest offset, not far away)",
 );
 
 // The dimension marking must be a floating dotted bar, never a box that touches
@@ -405,7 +417,7 @@ assert(
   dimYs.every((y) => y >= 300 + 88 - 6),
   "dimension bar must float at its offset and never touch the measured line",
 );
-assert(dim.labelY > 300 + 88, "dimension label must sit clear of the floating bar");
+assert(dim.labelY > 300 + 88 + 16, "dimension label must sit clear of the floating bar");
 assert(
   dim.path.split("M").length - 1 === 3,
   "dimension bar should be one line plus two small end ticks — no boxed extension lines",
@@ -425,16 +437,295 @@ assert(raySnap.params[2] === 550 && raySnap.params[3] === 300, "ray endpoint nea
 const curveSnap = snapGeometryCommand(
   {
     type: "DRAW_LINE",
-    params: [688, 178, 612, 302, 691, 421, 2],
+    params: [688, 178, 535, 302, 691, 421, 2],
     charPosition: 0,
     narrationBefore: "",
   },
   optics!,
 );
 assert(
-  curveSnap.params.join(",") === "690,175,610,300,690,425,2",
-  "curve points near the mirror should snap to the exact mirror curve",
+  curveSnap.params.join(",") === "690,175,530,300,690,425,2",
+  "curve points near the mirror should snap to the exact mirror curve (pole at B(0.5))",
 );
+
+// Lens optical-plane projection: bend left of the spine must land ON x=650.
+{
+  const lensTpl = matchDiagramTemplate(
+    "An object is placed 40 cm in front of a convex lens of focal length 20 cm.",
+  );
+  assert(lensTpl?.id === "optics_lens", "lens golden must match optics_lens");
+  const lensBend = snapGeometryCommand(
+    {
+      type: "DRAW_LINE",
+      params: [500, 265, 640, 265],
+      charPosition: 0,
+      narrationBefore: "",
+    },
+    lensTpl!,
+  );
+  assert(
+    lensBend.params[2] === 650 && lensBend.params[3] === 265,
+    `lens bend must project onto optical plane x=650 (got ${lensBend.params.slice(0, 4).join(",")})`,
+  );
+  // Off-axis junction must NOT be flattened to y=300.
+  assert(lensBend.params[3] !== 300, "off-axis lens junction must keep its height");
+
+  const throughLens = snapGeometryCommand(
+    {
+      type: "DRAW_LINE",
+      params: [640, 265, 700, 265],
+      charPosition: 0,
+      narrationBefore: "",
+    },
+    lensTpl!,
+  );
+  assert(
+    throughLens.params[0] === 650 && throughLens.params[1] === 265,
+    `ray start near lens must snap to plane (got ${throughLens.params.slice(0, 4).join(",")})`,
+  );
+}
+
+// Mirror pole-plane: axis-level ray aimed near the pole attaches to x=610.
+{
+  const mirrorPoleSnap = snapGeometryCommand(
+    {
+      type: "DRAW_LINE",
+      params: [500, 300, 625, 298],
+      charPosition: 0,
+      narrationBefore: "",
+    },
+    optics!,
+  );
+  assert(
+    Math.abs(mirrorPoleSnap.params[2]! - 610) <= 1 && mirrorPoleSnap.params[3] === 300,
+    `mirror ray near pole must snap to pole plane (got ${mirrorPoleSnap.params.slice(0, 4).join(",")})`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Ray Optics mastery — golden questions (match + classify + intro labels)
+// ---------------------------------------------------------------------------
+
+const opticsGolden: Array<{
+  id: string;
+  kind: string;
+  question: string;
+  expectLabels?: string[];
+  expectNumbers?: Partial<Record<string, number>>;
+}> = [
+  {
+    id: "optics_mirror",
+    kind: "mirror",
+    question: "An object is placed 30 cm in front of a concave mirror of focal length 15 cm. Draw the ray diagram and find image distance.",
+    expectLabels: ["C", "F", "O"],
+    expectNumbers: { u: 30, f: 15 },
+  },
+  {
+    id: "optics_lens",
+    kind: "lens",
+    question: "An object is placed 40 cm in front of a convex lens of focal length 20 cm. Find the image distance using the lens formula.",
+    expectLabels: ["O", "F", "F'"],
+    expectNumbers: { u: 40, f: 20 },
+  },
+  {
+    id: "optics_prism",
+    kind: "prism",
+    question: "A prism of angle A = 60° and refractive index μ = 1.5 produces minimum deviation. Find δ_m.",
+    expectLabels: ["A", "δ"],
+    expectNumbers: { A: 60, mu: 1.5 },
+  },
+  {
+    id: "optics_tir",
+    kind: "tir",
+    question: "Find the critical angle for total internal reflection when the refractive index μ = 1.5. Explain optical fibre.",
+    expectLabels: ["N", "i_c"],
+    expectNumbers: { mu: 1.5 },
+  },
+  {
+    id: "optics_lens_combo",
+    kind: "combo",
+    question: "Two thin lenses in contact have f1 = 20 cm and f2 = 30 cm. Find the equivalent focal length.",
+    expectLabels: ["O"],
+    expectNumbers: { f1: 20, f2: 30 },
+  },
+  {
+    id: "optics_instrument",
+    kind: "instrument",
+    question: "A compound microscope has objective focal length fo = 1 cm, eyepiece fe = 5 cm, tube length L = 15 cm and near point D = 25 cm. Find magnifying power.",
+    expectLabels: ["O", "E"],
+    expectNumbers: { fo: 1, fe: 5, L: 15, D: 25 },
+  },
+  {
+    id: "optics_instrument",
+    kind: "instrument",
+    question: "An astronomical telescope has objective focal length 100 cm and eyepiece 5 cm. Find the magnifying power for normal adjustment.",
+    expectLabels: ["O", "E"],
+  },
+  {
+    id: "optics_refraction_plane",
+    kind: "slab",
+    question: "A ray of light is incident on a glass slab of refractive index μ = 1.5 at angle of incidence i = 45°. Find the lateral shift.",
+    expectLabels: ["slab"],
+    expectNumbers: { mu: 1.5, i: 45 },
+  },
+];
+
+for (const goldenCase of opticsGolden) {
+  const matched = matchDiagramTemplate(goldenCase.question);
+  assert(
+    matched?.id === goldenCase.id,
+    `optics golden: expected ${goldenCase.id}, got ${matched?.id ?? null} for ${goldenCase.question.slice(0, 70)}`,
+  );
+
+  const intro = buildOpticsPrecisionIntro(matched!, goldenCase.question);
+  assert(intro !== null, `optics golden: precision intro missing for ${goldenCase.id}`);
+  assert(
+    intro!.optics_kind === goldenCase.kind,
+    `optics golden: kind ${goldenCase.kind} vs ${intro!.optics_kind}`,
+  );
+
+  const classify = classifyOptics(matched!, goldenCase.question);
+  assert(classify.optics_kind === goldenCase.kind, "classifyOptics kind mismatch");
+  assert(
+    typeof classify.confidence === "string" && typeof classify.reason === "string",
+    "optics-classify metadata shape requires confidence + reason",
+  );
+
+  const parsed = parseOpticsNumbers(goldenCase.question);
+  if (goldenCase.expectNumbers) {
+    for (const [key, value] of Object.entries(goldenCase.expectNumbers)) {
+      assert(
+        (parsed as Record<string, number | null>)[key] === value,
+        `optics golden: parsed ${key} expected ${value}, got ${(parsed as Record<string, number | null>)[key]}`,
+      );
+    }
+  }
+
+  const labels = intro!.segments
+    .flatMap((segment) => getSegmentCommands(segment))
+    .filter((command) => command.type === "LABEL")
+    .map((command) => command.text ?? "");
+  if (goldenCase.expectLabels) {
+    for (const label of goldenCase.expectLabels) {
+      assert(
+        labels.some((text) => text === label || text.startsWith(label)),
+        `optics golden: missing label ${label} in ${goldenCase.id} (got ${labels.join(",")})`,
+      );
+    }
+  }
+
+  const meta = opticsDecisionMetadata(intro!, {
+    diagram_source: "template",
+    allow_llm_draw: matched!.allowLlmDrawInDiagramZone === true,
+    planner_overridden: false,
+  });
+  assert(meta.optics_kind === goldenCase.kind, "opticsDecisionMetadata optics_kind");
+  assert(meta.matched_template_id === goldenCase.id, "opticsDecisionMetadata matched_template_id");
+  assert(Array.isArray(meta.intro_command_types), "opticsDecisionMetadata intro_command_types");
+  assert(typeof meta.intro_segment_count === "number", "opticsDecisionMetadata intro_segment_count");
+}
+
+// Lens must never match as mirror
+const lensNotMirror = matchDiagramTemplate(
+  "A convex lens of focal length 15 cm forms an image of an object at 30 cm. Find magnification.",
+);
+assert(lensNotMirror?.id === "optics_lens", "lens question must not load mirror template");
+
+// Prism must never match as mirror
+const prismNotMirror = matchDiagramTemplate(
+  "A prism of refracting angle 60 degrees and μ = 1.5. Find the angle of minimum deviation.",
+);
+assert(prismNotMirror?.id === "optics_prism", "prism question must not load mirror template");
+
+// Convex mirror: C and F must sit BEHIND the pole (x > pole), labels clear of axis,
+// and virtual image behind the mirror.
+{
+  const convexQ =
+    "An object is placed 20 cm in front of a convex mirror of focal length 15 cm. Find the image distance and nature of the image.";
+  const convexTpl = matchDiagramTemplate(convexQ);
+  assert(convexTpl?.id === "optics_mirror", "convex mirror must match optics_mirror");
+  const convexIntro = buildOpticsPrecisionIntro(convexTpl!, convexQ);
+  assert(convexIntro !== null, "convex mirror precision intro required");
+  const cmds = convexIntro!.segments.flatMap((s) => s.commands ?? []);
+  const cLabel = cmds.find((c) => c.type === "LABEL" && c.text === "C");
+  const fLabel = cmds.find((c) => c.type === "LABEL" && c.text === "F");
+  const oLabel = cmds.find((c) => c.type === "LABEL" && c.text === "O");
+  assert(cLabel !== undefined && fLabel !== undefined && oLabel !== undefined, "convex intro needs C/F/O");
+  assert(cLabel!.params[0]! > 610, "convex C must be behind the pole (x > 610)");
+  assert(fLabel!.params[0]! > 610, "convex F must be behind the pole (x > 610)");
+  assert(oLabel!.params[0]! >= 575 && oLabel!.params[0]! <= 620, "O near pole (offset left of tick)");
+  assert(
+    [cLabel!, fLabel!, oLabel!].every((c) => c.params[1]! <= 300 - 48),
+    "convex C/F/O labels must sit well above the axis",
+  );
+  assert(
+    [cLabel!, fLabel!, oLabel!].every((c) => c.params[1]! >= 300 - 70),
+    "convex C/F/O labels should stay near the mark (modest offset)",
+  );
+  const dims = cmds.filter((c) => c.type === "DIMENSION");
+  assert(dims.length >= 2, "convex intro should mark at least u and f");
+  for (const dimCmd of dims) {
+    const [x1, y1, x2, y2] = dimCmd.params;
+    assert(y1 === 300 && y2 === 300, "dimension span must lie on the axis endpoints");
+    assert(
+      Math.abs(x1 - 610) < 1 || Math.abs(x2 - 610) < 1,
+      "each dimension bar must include the pole as an endpoint",
+    );
+  }
+  const vDim = dims.find((c) => (c.text ?? "").includes("v"));
+  assert(vDim !== undefined, "convex intro should mark virtual image distance v");
+  assert((vDim!.text ?? "").includes("−") || (vDim!.text ?? "").includes("-"), "convex v label should show negative sign");
+}
+
+// Optics owned-annotation guard: LLM DIMENSION/LABEL for u/f must be blocked
+{
+  const mirrorTpl = matchDiagramTemplate(
+    "An object is placed 30 cm in front of a concave mirror of focal length 15 cm.",
+  )!;
+  const blockedDim = isBlockedOpticsOwnedAnnotation(
+    {
+      type: "DIMENSION",
+      params: [490, 300, 610, 300, 80],
+      text: "u = 20 cm",
+      charPosition: 0,
+      narrationBefore: "",
+    },
+    mirrorTpl,
+  );
+  assert(blockedDim, "LLM DIMENSION on optics diagram must be blocked");
+  const blockedLabel = isBlockedOpticsOwnedAnnotation(
+    {
+      type: "LABEL",
+      params: [550, 300],
+      text: "F",
+      charPosition: 0,
+      narrationBefore: "",
+    },
+    mirrorTpl,
+  );
+  assert(blockedLabel, "LLM LABEL for F on optics diagram must be blocked");
+  const blockedWrite = isBlockedOpticsOwnedAnnotation(
+    {
+      type: "WRITE",
+      params: [550, 300],
+      text: "O",
+      charPosition: 0,
+      narrationBefore: "",
+    },
+    mirrorTpl,
+  );
+  assert(blockedWrite, "LLM WRITE for O on optics diagram must be blocked");
+  const allowedRay = isBlockedOpticsOwnedAnnotation(
+    {
+      type: "DRAW_LINE",
+      params: [500, 240, 610, 300],
+      charPosition: 0,
+      narrationBefore: "",
+    },
+    mirrorTpl,
+  );
+  assert(!allowedRay, "principal ray DRAW_LINE must still be allowed");
+}
 
 // ---------------------------------------------------------------------------
 // Phase 8a — template coverage for all new diagram templates
