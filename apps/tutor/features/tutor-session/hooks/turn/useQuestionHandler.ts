@@ -194,13 +194,18 @@ export function useQuestionHandler(
         wsSpan.end(metadata);
       };
 
-      // Scene autoformalizer + geometry compiler. Regex templates are telemetry-only
-      // during migration; compiled SceneSpec is the authoritative diagram source.
+      // Unlock WebAudio inside the submit gesture before any await — otherwise
+      // planning (up to 8s) leaves AudioContext suspended and TTS is silent.
+      const tts = ensureTTSClient();
+      tts.unlockAudio?.();
+
+      // Fast path: deterministic domain infer (optics/circuit/…) compiles instantly.
+      // Only call the slow SceneSpec LLM when local infer cannot build a diagram.
       setPhase("planning");
       const plannerSpan = tel.span("planner");
       const plannerStartedAt = Date.now();
 
-      void ensureTTSClient().prewarm({
+      void tts.prewarm({
         onConnect: ({ ms, ok }) => {
           endWsConnect({
             latency_ms: Math.round(ms),
@@ -209,28 +214,30 @@ export function useQuestionHandler(
         },
       });
 
-      const plannerUrl = resolveApiUrl("/api/chat");
-      let scene: SceneSpec | null = null;
-      try {
-        scene = await planScene(question, {
-          proxyUrl: plannerUrl,
-          sessionId: sessionId ?? undefined,
-          signal: abortController.signal,
-          timeoutMs: 8000,
-        });
-      } catch {
-        scene = null;
-      }
-
-      if (!scene) {
-        scene = inferSceneFromQuestion(question);
-      }
-
+      let scene: SceneSpec | null = inferSceneFromQuestion(question);
       let compiled: CompiledScene | null = scene
         ? compileScene(scene, { question })
         : null;
       if (compiled && !compiled.ok) {
         compiled = null;
+      }
+
+      if (!compiled) {
+        const plannerUrl = resolveApiUrl("/api/chat");
+        try {
+          scene = await planScene(question, {
+            proxyUrl: plannerUrl,
+            sessionId: sessionId ?? undefined,
+            signal: abortController.signal,
+            timeoutMs: 8000,
+          });
+        } catch {
+          scene = null;
+        }
+        compiled = scene ? compileScene(scene, { question }) : null;
+        if (compiled && !compiled.ok) {
+          compiled = null;
+        }
       }
 
       const plannerLatencyMs = Date.now() - plannerStartedAt;

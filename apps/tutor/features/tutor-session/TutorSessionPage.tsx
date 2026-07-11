@@ -104,6 +104,22 @@ export function TutorSessionPage() {
     phaseRef.current = phase;
   }, [phase]);
 
+  // Keep AudioContext eligible for audible playback after long planning awaits.
+  useEffect(() => {
+    const handler = () => {
+      ttsClientRef.current?.unlockAudio?.();
+    };
+    const events: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "touchstart"];
+    for (const event of events) {
+      window.addEventListener(event, handler, { passive: true });
+    }
+    return () => {
+      for (const event of events) {
+        window.removeEventListener(event, handler);
+      }
+    };
+  }, []);
+
   const cursorState: CursorState =
     phase === "thinking"
       ? "thinking"
@@ -423,7 +439,7 @@ export function TutorSessionPage() {
             }}
           >
             {fullBleedLanding && (
-              <div className="absolute inset-0 z-20 flex flex-col overflow-y-auto overscroll-contain rounded-2xl border border-white/70 bg-white/95 shadow-[0_8px_30px_-18px_rgba(37,99,235,0.28)] backdrop-blur-md">
+              <div className="absolute inset-0 z-20 flex flex-col overflow-y-auto overscroll-contain rounded-2xl border border-[rgba(37,99,235,0.08)] bg-[#F7FAFF]">
                 <div className="my-auto w-full px-3 py-5 sm:px-6 sm:py-8">
                   <CanvasLanding
                     suggestions={LANDING_SUGGESTIONS}
