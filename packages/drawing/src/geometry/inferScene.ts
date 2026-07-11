@@ -63,7 +63,23 @@ function inferOptics(q: string): SceneSpec | null {
   if (nums.f != null) quantities.f_cm = nums.f;
   if (nums.R != null) quantities.R_cm = nums.R;
 
-  return base("optics", "optics", "optics diagram — do NOT redraw the skeleton.", {
+  const isCombo =
+    /two\s+(?:thin\s+)?lenses|lens\s+combo|combination\s+of\s+(?:thin\s+)?lenses|equivalent\s+focal|in\s+contact\s+with\s+(?:a\s+)?(?:concave|convex)\s+lens|convex\s+lens[\s\S]{0,80}concave\s+lens|concave\s+lens[\s\S]{0,80}convex\s+lens/i.test(
+      q,
+    );
+  const isMirror =
+    !isCombo &&
+    /\bmirror\b|concave\s+mirror|convex\s+mirror|radius\s+of\s+curvature/i.test(q);
+
+  const diagramType = isCombo
+    ? "optics_lens_combo"
+    : isMirror
+      ? "optics_mirror"
+      : /\bprism\b/i.test(q)
+        ? "optics_prism"
+        : "optics_lens";
+
+  return base("optics", diagramType, "optics diagram — do NOT redraw the skeleton.", {
     quantities,
     entities: [
       { id: "optic", type: "group", role: "optic" },

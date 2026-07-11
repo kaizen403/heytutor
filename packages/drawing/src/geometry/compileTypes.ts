@@ -110,10 +110,12 @@ export function buildPromptAddon(spec: SceneSpec, anchorLines: string[]): string
     anchorLines.length > 0
       ? `\nnamed anchors (do not redraw skeleton): ${anchorLines.join("; ")}.`
       : "";
+  const openingRule =
+    "\nif this question is a numerical/solve problem: no topic heading or title underline — diagram first, then algebra." +
+    "\nif this question is a concept/topic explain: a short heading+underline at y 64 is ok; never insert a heading mid-solution.";
   const ban =
     "\ndo NOT redraw the diagram skeleton. explain, annotate, and write algebra on the left.";
-  if (base.includes("do NOT redraw") || base.includes("do not redraw")) {
-    return `${base}${anchors}`;
-  }
-  return `${base}${anchors}${ban}`;
+  const hasBan = base.includes("do NOT redraw") || base.includes("do not redraw");
+  const hasOpening = base.includes("heading+underline") || base.includes("no topic heading");
+  return `${base}${anchors}${hasBan ? "" : ban}${hasOpening ? "" : openingRule}`;
 }
