@@ -1,5 +1,5 @@
 /**
- * Re-export geometry compiler verify from drawing (runs after package build).
+ * Geometry compiler smoke verify (drawing package has the full fixture suite).
  */
 import {
   compileScene,
@@ -55,6 +55,25 @@ const circuitQ =
 const circuitScene = inferSceneFromQuestion(circuitQ);
 assert(circuitScene?.kind === "circuit", "infer circuit");
 assert(compileScene(circuitScene!, { question: circuitQ }).ok, "circuit compile");
+
+const fbdQ = "Draw the free-body diagram for a block on a rough surface.";
+const fbdScene = inferSceneFromQuestion(fbdQ);
+assert(fbdScene?.kind === "fbd", "infer fbd");
+assert(compileScene(fbdScene!, { question: fbdQ }).plugin === "mechanics", "mechanics plugin");
+
+const axes: SceneSpec = {
+  kind: "axes_plot",
+  diagramType: "mark_point",
+  entities: [
+    { id: "P", type: "point", text: "P", attrs: { x: 2, y: 1 } },
+  ],
+  constraints: [],
+  givens: [],
+  asks: [],
+  introNarration: "axes",
+  promptAddon: "do NOT redraw.",
+};
+assert(compileScene(axes).commands.some((c) => c.type === "DRAW_POINT"), "DRAW_POINT");
 
 assert(validateSceneSpec({}) === null, "reject empty");
 

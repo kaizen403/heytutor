@@ -75,6 +75,65 @@ export function segmentsFromCommands(
   ];
 }
 
+/**
+ * Map SceneSpec.introPhases → TutorSegments using already-compiled commands.
+ * Commands are matched by LABEL text / anchorId / entity id heuristics; unmatched
+ * phases fall back to remaining unused commands in order.
+ */
+export function introSegmentsFromPhases(
+  spec: SceneSpec,
+  commands: TemplateCommand[],
+): TutorSegment[] {
+  const phases = spec.introPhases;
+  if (!phases || phases.length === 0) {
+    return segmentsFromCommands(commands, spec.introNarration);
+  }
+
+  const remaining = [...commands];
+  const segments: TutorSegment[] = [];
+
+  for (const phase of phases) {
+    const matched: TemplateCommand[] = [];
+    for (const entityId of phase.entityIds) {
+      const idx = remaining.findIndex((command) => commandMatchesEntity(command, entityId, spec));
+      if (idx >= 0) {
+        matched.push(...remaining.splice(idx, 1));
+      }
+    }
+    if (matched.length === 0 && remaining.length > 0) {
+      matched.push(remaining.shift()!);
+    }
+    if (matched.length === 0) continue;
+    const drawCommands = matched.map((c) => templateToDrawCommand(c));
+    segments.push({
+      narration: phase.narration,
+      command: drawCommands[0] ?? null,
+      commands: drawCommands,
+      templateIntro: true,
+    });
+  }
+
+  if (remaining.length > 0) {
+    segments.push(...segmentsFromCommands(remaining, spec.introNarration || "finishing the diagram."));
+  }
+
+  return segments.length > 0
+    ? segments
+    : segmentsFromCommands(commands, spec.introNarration);
+}
+
+function commandMatchesEntity(
+  command: TemplateCommand,
+  entityId: string,
+  spec: SceneSpec,
+): boolean {
+  if (command.anchorId === entityId) return true;
+  const entity = spec.entities.find((e) => e.id === entityId);
+  if (entity?.text && command.text === entity.text) return true;
+  if (command.text && command.text.toLowerCase() === entityId.toLowerCase()) return true;
+  return false;
+}
+
 export function segmentsToCommands(segments: TutorSegment[]): TemplateCommand[] {
   return segments.flatMap((segment) =>
     getSegmentCommands(segment).map((c) => ({

@@ -5,6 +5,7 @@ import {
   anchorsFromLabelCommands,
   buildPromptAddon,
   cmd,
+  introSegmentsFromPhases,
   segmentsFromCommands,
 } from "../compileTypes";
 import { solveConstraints } from "../solver";
@@ -152,6 +153,23 @@ export const genericPlugin: GeometryPlugin = (
     };
   }
 
+  // Plan accuracy gate: high residual is not an authoritative diagram.
+  if (!solved.ok || solved.residual > 40) {
+    return {
+      ok: false,
+      residual: solved.residual,
+      commands,
+      anchors: anchorsFromLabelCommands(commands),
+      introSegments: [],
+      promptAddon: spec.promptAddon,
+      diagramType: spec.diagramType,
+      kind: spec.kind,
+      allowLlmDrawInDiagramZone: false,
+      plugin: "generic",
+      degradeReason: "high_residual",
+    };
+  }
+
   const anchors = anchorsFromLabelCommands(commands);
   for (const [id, point] of solved.points) {
     if (!anchors.some((a) => a.id === id)) {
@@ -175,7 +193,7 @@ export const genericPlugin: GeometryPlugin = (
     residual: solved.residual,
     commands,
     anchors,
-    introSegments: segmentsFromCommands(commands, spec.introNarration),
+    introSegments: introSegmentsFromPhases(spec, commands),
     promptAddon: buildPromptAddon(spec, anchorLines),
     diagramType: spec.diagramType,
     kind: spec.kind,

@@ -1,5 +1,7 @@
 # Ray Optics Debug Playbook
 
+Optics diagrams are compiled via the **geometry engine** (`plugin=optics`). Start with [geometry-debug.md](geometry-debug.md) for SceneSpec → compile → turn wiring, then use this playbook for precision-builder internals.
+
 Every Ray Optics turn must leave a diagnosable Langfuse + `[tutor:optics]` timeline. No silent diagram decisions.
 
 ## Quick path

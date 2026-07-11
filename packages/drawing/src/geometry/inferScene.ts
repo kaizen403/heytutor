@@ -21,6 +21,9 @@ export function inferSceneFromQuestion(question: string): SceneSpec | null {
   const euclidean = inferEuclidean(q);
   if (euclidean) return euclidean;
 
+  const fbd = inferFbd(q);
+  if (fbd) return fbd;
+
   const incline = inferIncline(q);
   if (incline) return incline;
 
@@ -151,6 +154,26 @@ function inferEuclidean(q: string): SceneSpec | null {
       { type: "distance", entities: ["C", "A"], value: 180 },
     ],
     introNarration: "here is the geometric figure on the board.",
+  });
+}
+
+function inferFbd(q: string): SceneSpec | null {
+  if (
+    !/\b(?:free[\s-]?body|fbd|force\s+diagram|draw\s+(?:the\s+)?forces)\b/i.test(q) &&
+    !(/\b(?:friction|normal\s+force|tension|weight)\b/i.test(q) && /\b(?:block|mass|body)\b/i.test(q))
+  ) {
+    return null;
+  }
+  if (/\b(?:incline|inclined\s+plane|ramp)\b/i.test(q)) {
+    return inferIncline(q);
+  }
+  return base("fbd", "fbd", "free-body diagram — do NOT redraw the object or force arrows.", {
+    entities: [
+      { id: "block", type: "rect", role: "object" },
+      { id: "weight", type: "arrow", role: "force", text: "mg" },
+      { id: "normal", type: "arrow", role: "force", text: "N" },
+    ],
+    introNarration: "here is the free-body diagram on the board.",
   });
 }
 
