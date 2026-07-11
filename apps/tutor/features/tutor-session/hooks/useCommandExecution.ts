@@ -24,6 +24,7 @@ import {
   snapGeometryCommand,
   isBlockedTemplateDiagramDraw,
   isDuplicateTemplateDraw,
+  isOpticsTemplateId,
 } from "@heytutor/drawing";
 import { getDrawingDuration, getFlightDuration, tutorDebug } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/turnTelemetry";
@@ -99,6 +100,7 @@ export function useCommandExecution({
         segmentNarration?: string;
         skipTemplateDuplicateCheck?: boolean;
         skipGeometrySnap?: boolean;
+        segmentIndex?: number;
       } = {},
     ): Promise<void> => {
       const wb = whiteboardRef.current;
@@ -112,16 +114,19 @@ export function useCommandExecution({
           !options.skipTemplateDuplicateCheck &&
           isBlockedTemplateDiagramDraw(command, activeTemplate)
         ) {
-          turnTelemetryRef.current?.mark("template-draw-blocked", {
+          const blockMeta = {
+            template_id: activeTemplate.id,
             template: activeTemplate.id,
+            command_type: command.type,
             type: command.type,
             params: command.params,
-          });
-          tutorDebug("draw", "block llm template diagram draw", {
-            template: activeTemplate.id,
-            type: command.type,
-            params: command.params,
-          });
+            reason: "template-skeleton-guard",
+          };
+          turnTelemetryRef.current?.mark("template-draw-blocked", blockMeta);
+          tutorDebug("draw", "block llm template diagram draw", blockMeta);
+          if (isOpticsTemplateId(activeTemplate.id) || activeTemplate.id === "optics_ray") {
+            tutorDebug("optics", "template-draw-blocked", blockMeta);
+          }
           return;
         }
         if (command.type === "LABEL") {
@@ -135,13 +140,37 @@ export function useCommandExecution({
         }
         if (command.params.join(",") !== beforeGeometrySnap.params.join(",")) {
           const metadata = {
+            template_id: activeTemplate.id,
             template: activeTemplate.id,
             type: command.type,
             before: beforeGeometrySnap.params,
             after: command.params,
+            before_xy: beforeGeometrySnap.params.slice(0, 4),
+            after_xy: command.params.slice(0, 4),
+            snap_target: activeTemplate.id,
           };
           turnTelemetryRef.current?.mark("geometry-snap", metadata);
           tutorDebug("draw", "geometry snap applied", metadata);
+          if (isOpticsTemplateId(activeTemplate.id) || activeTemplate.id === "optics_ray") {
+            tutorDebug("optics", "geometry-snap", metadata);
+          }
+        }
+
+        if (
+          (isOpticsTemplateId(activeTemplate.id) || activeTemplate.id === "optics_ray") &&
+          command.type === "DRAW_LINE" &&
+          !options.skipTemplateDuplicateCheck
+        ) {
+          const snapped =
+            command.params.join(",") !== beforeGeometrySnap.params.join(",");
+          const rayPayload = {
+            template_id: activeTemplate.id,
+            params: command.params,
+            snapped,
+            segment_index: options.segmentIndex ?? null,
+          };
+          turnTelemetryRef.current?.mark("optics-ray-draw", rayPayload);
+          tutorDebug("optics", "optics-ray-draw", rayPayload);
         }
         if (
           !options.skipTemplateDuplicateCheck &&
@@ -602,6 +631,7 @@ export function useCommandExecution({
         segmentNarration?: string;
         skipTemplateDuplicateCheck?: boolean;
         skipGeometrySnap?: boolean;
+        segmentIndex?: number;
       } = {},
     ): Promise<void> => {
       await raceWithCancel(executeCommand(command, options));

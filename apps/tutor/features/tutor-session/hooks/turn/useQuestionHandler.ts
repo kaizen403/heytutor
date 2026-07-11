@@ -4,6 +4,9 @@ import {
   lessonNarrationText,
   matchDiagramTemplate,
   buildTemplateIntroSegments,
+  buildOpticsPrecisionIntro,
+  opticsDecisionMetadata,
+  isOpticsTemplateId,
   anchorToTextRect,
   prepareTemplateLessonSegments,
   type TutorSegment,
@@ -54,6 +57,7 @@ export function useQuestionHandler(
     rawResponseRef,
     currentTraceIdRef,
     segmentChainRef,
+    drawChainRef,
     turnStatsRef,
     segmentPlanStatsRef,
     fbdPhaseMarkedRef,
@@ -148,6 +152,7 @@ export function useQuestionHandler(
       rawResponseRef.current = "";
       currentTraceIdRef.current = null;
       segmentChainRef.current = Promise.resolve();
+      drawChainRef.current = Promise.resolve();
       turnStatsRef.current = { drawMs: 0, ttsChars: 0 };
       segmentPlanStatsRef.current = createEmptySegmentPlanStats();
       revokeReplayBlobUrls();
@@ -225,8 +230,19 @@ export function useQuestionHandler(
 
       let activeTemplate: import("@heytutor/drawing").DiagramTemplate | null;
       let diagramSource: "planner" | "template" | "none";
+      let plannerOverridden = false;
 
-      if (fallbackTemplate && templateCommandCount >= plannerCommandCount) {
+      // Prefer hand-crafted optics family templates over the planner so lens/prism/TIR
+      // never get a wrong generic diagram from a novel planner sketch.
+      const opticsFamilyMatch =
+        fallbackTemplate !== null && isOpticsTemplateId(fallbackTemplate.id);
+
+      if (opticsFamilyMatch) {
+        activeTemplate = fallbackTemplate;
+        diagramSource = "template";
+        plannerOverridden = plan !== null;
+        activeDiagramTemplateRef.current = activeTemplate;
+      } else if (fallbackTemplate && templateCommandCount >= plannerCommandCount) {
         // Template is at least as detailed as the planner — prefer it.
         activeTemplate = fallbackTemplate;
         diagramSource = "template";
@@ -271,6 +287,47 @@ export function useQuestionHandler(
         for (const anchor of activeTemplate.anchors) {
           registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
         }
+
+        const opticsIntro =
+          isOpticsTemplateId(activeTemplate.id) || activeTemplate.id === "optics_ray"
+            ? buildOpticsPrecisionIntro(activeTemplate, question)
+            : null;
+
+        if (opticsIntro) {
+          const matchPayload = {
+            template_id: activeTemplate.id,
+            regex_id: activeTemplate.id,
+            question_preview: question.slice(0, 120),
+          };
+          tel.mark("optics-match", matchPayload);
+          tutorDebug("optics", "optics-match", matchPayload);
+
+          const classifyPayload = {
+            optics_kind: opticsIntro.classify.optics_kind,
+            parsed_numbers: opticsIntro.classify.parsed_numbers,
+            confidence: opticsIntro.classify.confidence,
+            reason: opticsIntro.classify.reason,
+          };
+          tel.mark("optics-classify", classifyPayload);
+          tutorDebug("optics", "optics-classify", classifyPayload);
+
+          const introBuiltPayload = {
+            segment_count: opticsIntro.intro_segment_count,
+            command_summary: opticsIntro.command_summary,
+            optics_kind: opticsIntro.optics_kind,
+          };
+          tel.mark("optics-intro-built", introBuiltPayload);
+          tutorDebug("optics", "optics-intro-built", introBuiltPayload);
+
+          tel.meta(
+            opticsDecisionMetadata(opticsIntro, {
+              diagram_source: diagramSource,
+              allow_llm_draw: activeTemplate.allowLlmDrawInDiagramZone === true,
+              planner_overridden: plannerOverridden,
+            }),
+          );
+        }
+
         turnTelemetryRef.current?.mark("template-intro-queued", {
           template_id: activeTemplate.id,
           template_name: activeTemplate.name,
@@ -278,12 +335,30 @@ export function useQuestionHandler(
           planner_latency_ms: plannerLatencyMs,
           intro_segment_count: introSegments.length,
           command_count: activeTemplate.commands.length,
+          ...(opticsIntro
+            ? {
+                optics_kind: opticsIntro.optics_kind,
+                optics_intro_segment_count: opticsIntro.intro_segment_count,
+              }
+            : {}),
           commands: activeTemplate.commands.map((command) => ({
             type: command.type,
             params: command.params,
             ...(command.text ? { text: command.text } : {}),
           })),
         });
+
+        if (opticsIntro) {
+          const queuedPayload = {
+            segment_count: opticsIntro.intro_segment_count,
+            command_summary: opticsIntro.command_summary,
+            diagram_source: diagramSource,
+            optics_kind: opticsIntro.optics_kind,
+          };
+          tel.mark("optics-intro-queued", queuedPayload);
+          tutorDebug("optics", "optics-intro-queued", queuedPayload);
+        }
+
         // Diagram-guard telemetry: the count of draw/label commands reflects how
         // many components the deterministic builder placed. A mismatch against
         // what the lesson later solves (e.g. a phantom extra resistor) shows up
@@ -647,6 +722,7 @@ export function useQuestionHandler(
       rawResponseRef,
       currentTraceIdRef,
       segmentChainRef,
+      drawChainRef,
       turnStatsRef,
       segmentPlanStatsRef,
       fbdPhaseMarkedRef,

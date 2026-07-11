@@ -37,6 +37,7 @@ export function useTurnControl(
     turnActiveRef,
     turnAbortRef,
     segmentChainRef,
+    drawChainRef,
     collectedSegmentsRef,
     recordedSegmentsRef,
     activeDiagramTemplateRef,
@@ -181,6 +182,7 @@ export function useTurnControl(
 
       if (liveEnqueued) {
         await segmentChainRef.current;
+        await drawChainRef.current;
         setNarrationText(
           [
             ...introSegments.map((segment) => segment.narration).filter(Boolean),
@@ -197,12 +199,14 @@ export function useTurnControl(
       collectedSegmentsRef.current = [];
       recordedSegmentsRef.current = [];
       segmentChainRef.current = Promise.resolve();
+      drawChainRef.current = Promise.resolve();
 
       for (const segment of segments) {
         enqueueSegment(segment);
       }
 
       await segmentChainRef.current;
+      await drawChainRef.current;
       setNarrationText(
         [
           ...introSegments.map((segment) => segment.narration).filter(Boolean),
@@ -216,6 +220,7 @@ export function useTurnControl(
       segmentPlanStatsRef,
       turnTelemetryRef,
       segmentChainRef,
+      drawChainRef,
       collectedSegmentsRef,
       recordedSegmentsRef,
       setNarrationText,
@@ -249,6 +254,7 @@ export function useTurnControl(
     whiteboardRef.current?.setPaused(false);
 
     segmentChainRef.current = Promise.resolve();
+    drawChainRef.current = Promise.resolve();
     collectedSegmentsRef.current = [];
 
     setIsReplaying(false);
@@ -273,6 +279,7 @@ export function useTurnControl(
     ttsClientRef,
     whiteboardRef,
     segmentChainRef,
+    drawChainRef,
     collectedSegmentsRef,
     setIsReplaying,
     setReplayProgressMs,
