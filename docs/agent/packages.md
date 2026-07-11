@@ -16,11 +16,12 @@ All packages live in `packages/`, built with **tsup** (ESM + `.d.ts`), consumed 
 | Board zones | `src/boardZones.ts` | Canvas layout — 1200×700, diagram zone x 400–900 |
 | Command placement | `src/commandPlacement.ts` | Template repair, label snapping, duplicate detection |
 | Geometry snap | `src/geometrySnap.ts` | Snap points to template anchors |
+| Geometry compiler | `src/geometry/` | SceneSpec IR, constraint solver, domain plugins → DrawCommands |
 | Stroke animation | `src/strokeAnimation.ts` | Animated drawing along paths |
 | Cursor animation | `src/cursorAnimation.ts` | Cursor follows bezier/path |
-| Templates | `src/templates/registry.ts` | 30+ diagram templates (FBD, circuits, optics family, calculus, chemistry, JEE topics) |
-| Optics family | `src/templates/opticsFamily.ts` | Ray Optics templates (mirror, lens, prism, TIR, combo, instruments, slab) |
-| Optics precision | `src/templates/opticsPrecision.ts` | Classifier + deterministic intro builders + debug payloads |
+| Templates | `src/templates/registry.ts` | Golden fixtures + last-resort fallback (FBD, circuits, optics family, …) |
+| Optics family | `src/templates/opticsFamily.ts` | Ray Optics fixtures (mirror, lens, prism, TIR, combo, instruments, slab) |
+| Optics precision | `src/templates/opticsPrecision.ts` | Classifier + deterministic builders (optics compiler plugin) |
 
 **Verify scripts:** `pnpm --filter @heytutor/tutor-core verify` runs drawing-related smoke tests.
 
@@ -31,6 +32,8 @@ All packages live in `packages/`, built with **tsup** (ESM + `.d.ts`), consumed 
 | Module | File | Description |
 |--------|------|-------------|
 | LLM streaming | `src/llmAPI.ts` | `streamLLMResponse()` — SSE from `/api/chat` |
+| Scene planner | `src/scenePlanner.ts` | `planScene()` — SceneSpec autoformalizer via `x-planner` |
+| Diagram architect (legacy) | `src/diagramArchitect.ts` | Pixel `planDiagram()` kept for reference / migration |
 | System prompt | `src/systemPrompt.ts` | Teaching rules, sync-aware command placement |
 | Audio sync | `src/audioSync.ts` | TTS timings → per-char write schedules, command speech windows |
 | TTS HTTP | `src/elevenLabsClient.ts` | HTTP ElevenLabs client + `mathToSpeech()` |

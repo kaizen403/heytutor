@@ -82,6 +82,7 @@ The LLM embeds commands inline with narration:
 
 ```
 [DRAW_RECT:x,y,w,h]  [DRAW_CIRCLE:cx,cy,r]  [DRAW_LINE:x1,y1,x2,y2]
+[DRAW_ARC:cx,cy,r,startDeg,endDeg]  [DRAW_POINT:x,y,r?]
 [WRITE:text,x,y]     [LABEL:text,x,y]        [PAUSE:ms]
 [CLEAR]              [ERASE:x,y,w,h]
 [UNDERLINE:...]      [CIRCLE_AROUND:...]     [ARROW:...]  [HIGHLIGHT:...]
@@ -90,6 +91,26 @@ The LLM embeds commands inline with narration:
 Responses are wrapped in `[STEP]...[/STEP]` blocks. Each block becomes one or more `TutorSegment`s with paired narration + command.
 
 Full protocol: `packages/drawing/src/drawingProtocol.ts`
+
+## Geometry Engine (Scene IR)
+
+Diagrams are planned as a semantic **SceneSpec** (entities + constraints + quantities), then compiled to exact `DrawCommand`s:
+
+```
+question → planScene() / inferSceneFromQuestion()
+        → compileScene()  (optics/circuit/euclidean/axes/generic plugins)
+        → DiagramTemplate + intro segments
+        → teaching LLM (anchors only; no skeleton redraw)
+```
+
+| Module | Path |
+|--------|------|
+| Scene IR | `packages/drawing/src/geometry/sceneSpec.ts` |
+| Compiler | `packages/drawing/src/geometry/compileScene.ts` |
+| Planner | `packages/tutor-core/src/scenePlanner.ts` (`x-planner` HTTP path) |
+| Debug | [geometry-debug.md](geometry-debug.md) |
+
+Regex `DIAGRAM_TEMPLATES` remain as golden fixtures / last-resort fallback when compile fails — not the live diagram source when the compiler succeeds.
 
 ## Local Dev
 
