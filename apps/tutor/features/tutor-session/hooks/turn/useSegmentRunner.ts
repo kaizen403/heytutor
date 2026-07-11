@@ -381,7 +381,9 @@ export function useSegmentRunner({
             const startDelayMs = speechWindow
               ? Math.min(
                   Math.max(Math.round(speechWindow.startMs - elapsedAtCommandStart), 0),
-                  400,
+                  // Allow waiting for the spoken cue; a 400ms cap made shapes appear
+                  // long before the words they belong to.
+                  6_000,
                 )
               : 0;
 
@@ -555,45 +557,49 @@ export function useSegmentRunner({
         } else if (hasNarration && hasCommand) {
           tutorDebug("segment", "paired narration+draw", { index });
 
-          // Kick draw on the serial draw chain immediately (overlaps this segment's
-          // speech). Next paragraph can speak as soon as speech ends; ink stays ordered.
-          drawChainRef.current = drawChainRef.current.then(async () => {
-            if (cancelRef.current) return;
-            await runDraw(estimateSpeechMs, null);
-          });
+          // Finish prior ink first, then speak + draw this segment together so the
+          // marker stays with the words (do not let speech race ahead on drawChain).
+          await drawChainRef.current.catch(() => undefined);
+          if (cancelRef.current) return;
 
-          await speakSegmentWithTimeout(narration, {
-            ...speakOptions,
-            onStart: () => {
-              if (cancelRef.current || !turnActiveRef.current) return;
-              if (!audioStartedFlag) {
-                audioStartedFlag = true;
-                audioStartedResolver?.();
-              }
-              tutorDebug("tts", "segment audio started", { index });
-              tel?.mark("tts-start", {
-                segment_index: index,
-                chars: narration.length,
-                command_count: segmentCommands.length,
-              });
-              applyTurnPhase("drawing");
-              if (audioStartedAtMs === null) {
-                audioStartedAtMs = performance.now();
-              }
-            },
-            onTimings: (timings) => {
-              captureTimings(timings);
-              if (timings.totalDuration > 0) {
-                tutorDebug("tts", "segment timings", {
-                  index,
-                  total_duration_ms: Math.round(timings.totalDuration * 1000),
+          const drawPromise = runDraw(estimateSpeechMs, null);
+          drawChainRef.current = drawPromise.catch(() => undefined);
+
+          await Promise.all([
+            speakSegmentWithTimeout(narration, {
+              ...speakOptions,
+              onStart: () => {
+                if (cancelRef.current || !turnActiveRef.current) return;
+                if (!audioStartedFlag) {
+                  audioStartedFlag = true;
+                  audioStartedResolver?.();
+                }
+                tutorDebug("tts", "segment audio started", { index });
+                tel?.mark("tts-start", {
+                  segment_index: index,
+                  chars: narration.length,
+                  command_count: segmentCommands.length,
                 });
-              }
-            },
-          });
+                applyTurnPhase("drawing");
+                if (audioStartedAtMs === null) {
+                  audioStartedAtMs = performance.now();
+                }
+              },
+              onTimings: (timings) => {
+                captureTimings(timings);
+                if (timings.totalDuration > 0) {
+                  tutorDebug("tts", "segment timings", {
+                    index,
+                    total_duration_ms: Math.round(timings.totalDuration * 1000),
+                  });
+                }
+              },
+            }),
+            drawPromise,
+          ]);
 
           if (cancelRef.current) return;
-          tutorDebug("segment", "paired narration complete (draw may still trail)", { index });
+          tutorDebug("segment", "paired narration+draw complete", { index });
         }
       } finally {
         if (!cancelRef.current) {
