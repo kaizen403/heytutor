@@ -28,7 +28,9 @@ export function SessionInputChrome({
     <div
       className="flex w-full items-center gap-3"
       style={{
-        maxWidth: isInputOverlay ? "720px" : "min(48rem, calc(100vw - 2rem))",
+        maxWidth: isInputOverlay
+          ? "min(720px, 100%)"
+          : "min(48rem, calc(100vw - 1.5rem))",
         margin: "0 auto",
       }}
     >
