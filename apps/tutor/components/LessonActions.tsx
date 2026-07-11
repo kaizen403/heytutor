@@ -35,10 +35,12 @@ export function LessonActions({
   }
 
   const buttonClass = cn(
-    "h-8 shrink-0 rounded-full border-[#E5E7EB] bg-white shadow-sm",
+    "shrink-0 rounded-full border-[#E5E7EB] bg-white shadow-sm",
     "hover:border-[rgba(37,99,235,0.35)] hover:bg-[#EDF3FD]",
     "disabled:pointer-events-none disabled:opacity-40",
-    compact ? "w-8 px-0" : "gap-1.5 px-3",
+    compact
+      ? "h-10 w-10 px-0 sm:h-8 sm:w-8"
+      : "h-10 w-10 px-0 sm:h-8 sm:w-auto sm:gap-1.5 sm:px-3",
   );
 
   const showReplay = alwaysVisible || canReplay;
@@ -68,7 +70,11 @@ export function LessonActions({
             className={cn("h-3.5 w-3.5", isReplaying && "animate-spin")}
             aria-hidden
           />
-          {!compact && (isReplaying ? "Replaying…" : "Replay")}
+          {!compact && (
+            <span className="hidden sm:inline">
+              {isReplaying ? "Replaying…" : "Replay"}
+            </span>
+          )}
         </Button>
       )}
       {showTranscript && (
@@ -85,7 +91,7 @@ export function LessonActions({
           )}
         >
           <ScrollText className="h-3.5 w-3.5" aria-hidden />
-          {!compact && "Transcript"}
+          {!compact && <span className="hidden sm:inline">Transcript</span>}
         </Button>
       )}
       {showDownload && onDownload && (
@@ -102,7 +108,11 @@ export function LessonActions({
           )}
         >
           <Download className="h-3.5 w-3.5" aria-hidden />
-          {!compact && (isDownloading ? "Generating\u2026" : "Download notes")}
+          {!compact && (
+            <span className="hidden sm:inline">
+              {isDownloading ? "Generating\u2026" : "Download notes"}
+            </span>
+          )}
         </Button>
       )}
     </div>

@@ -120,6 +120,7 @@ export function SessionHeader({
             onReplay={onReplay}
             onTranscript={onTranscript}
             onDownload={onDownload}
+            compact={compactActions}
             alwaysVisible
           />
 

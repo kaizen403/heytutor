@@ -6,6 +6,7 @@ import {
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { SITE_NAME } from "@/lib/site";
 
 export interface BoardEntry {
   id: string;
@@ -33,30 +34,9 @@ interface BoardHistoryProps {
 
 const SIDEBAR_WIDTH = 264;
 
-const SIDEBAR = {
-  bg: "#E3ECF8",
-  card: "rgba(255, 255, 255, 0.62)",
-  cardBorder: "rgba(255, 255, 255, 0.88)",
-  cardShadow: "0 1px 2px rgba(37, 99, 235, 0.05), 0 4px 14px -8px rgba(37, 99, 235, 0.12)",
-  cardHover: "rgba(255, 255, 255, 0.92)",
-  cardActive: "#FFFFFF",
-  cardActiveBorder: "rgba(37, 99, 235, 0.28)",
-  cardActiveShadow: "0 6px 20px -8px rgba(37, 99, 235, 0.28), inset 3px 0 0 #2563EB",
-  divider: "rgba(37, 99, 235, 0.12)",
-  text: "#1E293B",
-  textMuted: "#64748B",
-  textFaint: "#94A3B8",
-  accent: "#2563EB",
-} as const;
-
-const sidebarFont: CSSProperties = {
-  WebkitFontSmoothing: "antialiased",
-};
-
-const glassPanel: CSSProperties = {
-  background: SIDEBAR.bg,
-  borderRight: `1px solid ${SIDEBAR.divider}`,
-  boxShadow: "4px 0 28px -14px rgba(37, 99, 235, 0.18)",
+const PANEL: CSSProperties = {
+  background: "#EEF3FA",
+  borderRight: "1px solid rgba(37, 99, 235, 0.1)",
 };
 
 export { SIDEBAR_WIDTH };
@@ -98,203 +78,73 @@ function BoardHistoryContent({
     : boards;
 
   return (
-    <div
-      className="flex h-full flex-col overflow-hidden"
-      style={sidebarFont}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "14px 16px 12px",
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            fontSize: "1.0625rem",
-            fontWeight: 600,
-            color: SIDEBAR.text,
-            letterSpacing: "-0.025em",
-            userSelect: "none",
-          }}
-        >
-          Accelute
-        </span>
-        <div style={{ display: "flex", gap: 4 }}>
+    <div className="bh flex h-full flex-col overflow-hidden">
+      <header className="bh__header">
+        <span className="bh__brand">{SITE_NAME}</span>
+        <div className="bh__header-actions">
           <button
+            type="button"
+            className="bh__icon-btn"
             onClick={() => setSearchOpen(!searchOpen)}
             aria-label="Search boards"
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 8,
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background 0.15s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.45)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-            }}
+            aria-pressed={searchOpen}
           >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
           </button>
           {showCollapseButton && onToggleCollapse && (
             <button
+              type="button"
+              className="bh__icon-btn"
               onClick={onToggleCollapse}
               aria-label="Collapse sidebar"
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "background 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.45)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-              }}
             >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
                 <path d="M9 3v18" />
               </svg>
             </button>
           )}
         </div>
-      </div>
+      </header>
 
       {searchOpen && (
-        <div style={{ padding: "0 14px 12px", flexShrink: 0 }}>
+        <div className="bh__search">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="search boards…"
+            placeholder="Search boards"
             autoFocus
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              borderRadius: 9,
-              border: "1px solid rgba(255, 255, 255, 0.75)",
-              background: "rgba(255, 255, 255, 0.55)",
-              color: SIDEBAR.text,
-              fontSize: "0.8125rem",
-              outline: "none",
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = "rgba(37, 99, 235, 0.35)";
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.92)";
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.75)";
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.55)";
-            }}
+            className="bh__search-input"
           />
         </div>
       )}
 
-      <div style={{ padding: "0 14px 12px", flexShrink: 0 }}>
+      <div className="bh__new-wrap">
         <button
+          type="button"
+          className="bh__new"
           onClick={onNew}
           disabled={disabled}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "9px",
-            width: "100%",
-            padding: "10px 14px",
-            borderRadius: 10,
-            border: "1px solid rgba(255, 255, 255, 0.82)",
-            background: "rgba(255, 255, 255, 0.72)",
-            cursor: disabled ? "not-allowed" : "pointer",
-            opacity: disabled ? 0.5 : 1,
-            transition: "background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease",
-            color: SIDEBAR.text,
-            fontSize: "0.875rem",
-            fontWeight: 500,
-            textAlign: "left",
-            boxShadow: SIDEBAR.cardShadow,
-          }}
-          onMouseEnter={(e) => {
-            if (!disabled) {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
-              e.currentTarget.style.borderColor = "rgba(37, 99, 235, 0.22)";
-              e.currentTarget.style.transform = "translateY(-1px)";
-              e.currentTarget.style.boxShadow = SIDEBAR.cardActiveShadow;
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!disabled) {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.72)";
-              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.82)";
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = SIDEBAR.cardShadow;
-            }
-          }}
         >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={SIDEBAR.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M12 5v14M5 12h14" />
           </svg>
-          new board
+          New board
         </button>
       </div>
 
-      <div
-        style={{
-          padding: "6px 16px 8px",
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            fontSize: "0.6875rem",
-            fontWeight: 600,
-            color: SIDEBAR.textFaint,
-            textTransform: "uppercase",
-            letterSpacing: "0.10em",
-            userSelect: "none",
-          }}
-        >
-          Recents
-        </span>
-      </div>
+      <div className="bh__section-label">Recent boards</div>
 
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "0 10px 12px",
-        }}
-      >
+      <div className="bh__list">
         {filtered.length === 0 && (
-          <p
-            style={{
-              fontSize: "0.8125rem",
-              color: SIDEBAR.textFaint,
-              padding: "10px 12px",
-              lineHeight: 1.5,
-            }}
-          >
-            {searchQuery ? "no boards match." : "no boards yet. ask a question to start."}
+          <p className="bh__empty">
+            {searchQuery
+              ? "No boards match."
+              : "No boards yet. Ask a question to start."}
           </p>
         )}
 
@@ -303,123 +153,32 @@ function BoardHistoryContent({
           return (
             <div
               key={board.id}
-              style={{
-                position: "relative",
-                marginBottom: 8,
-                borderRadius: 12,
-                background: isActive ? SIDEBAR.cardActive : SIDEBAR.card,
-                border: isActive
-                  ? `1px solid ${SIDEBAR.cardActiveBorder}`
-                  : `1px solid ${SIDEBAR.cardBorder}`,
-                boxShadow: isActive ? SIDEBAR.cardActiveShadow : SIDEBAR.cardShadow,
-                transition: "background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease",
-              }}
-              onMouseEnter={(e) => {
-                if (!disabled && !isActive) {
-                  e.currentTarget.style.background = SIDEBAR.cardHover;
-                  e.currentTarget.style.borderColor = "rgba(37, 99, 235, 0.16)";
-                  e.currentTarget.style.boxShadow = "0 8px 22px -10px rgba(37, 99, 235, 0.2)";
-                  e.currentTarget.style.transform = "translateY(-1px)";
-                }
-                const delBtn = e.currentTarget.querySelector('[data-delete-btn]') as HTMLElement | null;
-                if (delBtn) delBtn.style.opacity = "1";
-              }}
-              onMouseLeave={(e) => {
-                if (!disabled && !isActive) {
-                  e.currentTarget.style.background = SIDEBAR.card;
-                  e.currentTarget.style.borderColor = SIDEBAR.cardBorder;
-                  e.currentTarget.style.boxShadow = SIDEBAR.cardShadow;
-                  e.currentTarget.style.transform = "translateY(0)";
-                }
-                const delBtn = e.currentTarget.querySelector('[data-delete-btn]') as HTMLElement | null;
-                if (delBtn) delBtn.style.opacity = "0";
-              }}
+              className={`bh__item${isActive ? " bh__item--active" : ""}`}
             >
               <button
                 type="button"
+                className="bh__item-btn"
                 onClick={() => onSelect(board.id)}
                 disabled={disabled}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "2px",
-                  width: "calc(100% - 32px)",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  border: "none",
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  opacity: disabled ? 0.5 : 1,
-                  textAlign: "left",
-                  background: "transparent",
-                }}
               >
-                <span
-                  style={{
-                    fontSize: "0.8125rem",
-                    fontWeight: isActive ? 600 : 500,
-                    color: isActive ? SIDEBAR.text : "#334155",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    letterSpacing: "-0.01em",
-                  }}
-                >
-                  {board.title}
-                </span>
-                {!isActive && board.preview && (
-                  <span
-                    style={{
-                      fontSize: "0.6875rem",
-                      color: SIDEBAR.textFaint,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      opacity: 0.85,
-                    }}
-                  >
-                    {board.preview}
-                  </span>
-                )}
+                <span className="bh__item-title">{board.title}</span>
+                {!isActive && board.preview ? (
+                  <span className="bh__item-preview">{board.preview}</span>
+                ) : null}
               </button>
               {onDelete && (
                 <button
                   type="button"
                   data-delete-btn
+                  className="bh__delete"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     onDelete(board.id);
                   }}
                   aria-label={`Delete ${board.title}`}
-                  style={{
-                    position: "absolute",
-                    right: 6,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    width: 26,
-                    height: 26,
-                    borderRadius: 7,
-                    border: "none",
-                    background: "transparent",
-                    cursor: "pointer",
-                    opacity: 0,
-                    zIndex: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "opacity 0.15s ease, background 0.15s ease",
-                    color: isActive ? "rgba(107, 114, 128, 0.85)" : "rgba(107, 114, 128, 0.75)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(15, 23, 42, 0.06)";
-                    e.currentTarget.style.color = "#334155";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = isActive ? "rgba(107, 114, 128, 0.85)" : "rgba(107, 114, 128, 0.75)";
-                  }}
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                     <line x1="10" y1="11" x2="10" y2="17" />
                     <line x1="14" y1="11" x2="14" y2="17" />
@@ -431,136 +190,364 @@ function BoardHistoryContent({
         })}
       </div>
 
-      <div
-        style={{
-          flexShrink: 0,
-          borderTop: `1px solid ${SIDEBAR.divider}`,
-          padding: "11px 16px 13px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
+      <footer className="bh__footer">
         <button
           type="button"
+          className="bh__credits"
           onClick={onCreditsClick}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 9,
-            border: "none",
-            background: "transparent",
-            cursor: onCreditsClick ? "pointer" : "default",
-            padding: 0,
-            color: SIDEBAR.textMuted,
-            fontSize: "0.8125rem",
-            fontWeight: 500,
-            transition: "color 0.15s ease",
-          }}
-          onMouseEnter={(e) => {
-            if (onCreditsClick) e.currentTarget.style.color = SIDEBAR.text;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = SIDEBAR.textMuted;
-          }}
+          disabled={!onCreditsClick}
         >
-          <span
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              border: "1px solid rgba(255, 255, 255, 0.75)",
-              background: "rgba(255, 255, 255, 0.45)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "0.6875rem",
-              fontWeight: 600,
-              flexShrink: 0,
-            }}
-          >
-            $
-          </span>
           Credits
         </button>
 
-        <div style={{ position: "relative" }}>
+        <div className="bh__profile-wrap">
           {profileOpen && onProfileToggle && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: "calc(100% + 10px)",
-                right: 0,
-                padding: "0.75rem 1rem",
-                borderRadius: 11,
-                background: "#FFFFFF",
-                border: "1px solid #E5E7EB",
-                boxShadow: "0 16px 38px -10px rgba(0, 0, 0, 0.12)",
-                backdropFilter: "blur(14px)",
-                minWidth: 140,
-                zIndex: 20,
-                fontSize: "0.9rem",
-                color: "#111827",
-                fontWeight: 500,
-              }}
-            >
-              Profile
-            </div>
+            <div className="bh__profile-menu">Profile</div>
           )}
-
           <button
             type="button"
+            className={`bh__profile${profileOpen ? " bh__profile--open" : ""}`}
             aria-label="Profile"
             aria-expanded={profileOpen}
             onClick={onProfileToggle}
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: "50%",
-              border: "1px solid rgba(255, 255, 255, 0.75)",
-              background: profileOpen
-                ? "rgba(255, 255, 255, 0.95)"
-                : "rgba(255, 255, 255, 0.55)",
-              cursor: onProfileToggle ? "pointer" : "default",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 0,
-              transition: "all 0.15s ease",
-              color: "#475569",
-            }}
-            onMouseEnter={(e) => {
-              if (onProfileToggle) {
-                e.currentTarget.style.borderColor = "rgba(37, 99, 235, 0.35)";
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.75)";
-              e.currentTarget.style.background = profileOpen
-                ? "rgba(255, 255, 255, 0.95)"
-                : "rgba(255, 255, 255, 0.55)";
-            }}
+            disabled={!onProfileToggle}
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <circle cx="12" cy="8" r="4" />
               <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
             </svg>
           </button>
         </div>
-      </div>
+      </footer>
+
+      <style>{STYLES}</style>
     </div>
   );
 }
+
+const STYLES = `
+.bh {
+  --ink: #152033;
+  --ink-soft: #4A5A72;
+  --ink-faint: #7B8BA3;
+  --accent: #2563EB;
+  --line: rgba(37, 99, 235, 0.12);
+  --paper: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.bh__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem 1rem 0.75rem;
+  flex-shrink: 0;
+}
+
+.bh__brand {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  color: var(--accent);
+  user-select: none;
+}
+
+.bh__header-actions {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.bh__icon-btn {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.bh__icon-btn:hover {
+  background: rgba(255, 255, 255, 0.65);
+  color: var(--ink);
+}
+
+.bh__icon-btn[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--accent);
+}
+
+.bh__search {
+  padding: 0 1rem 0.75rem;
+  flex-shrink: 0;
+}
+
+.bh__search-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--ink);
+  font-size: 0.9rem;
+  letter-spacing: normal;
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.bh__search-input::placeholder {
+  color: var(--ink-faint);
+  font-style: normal;
+}
+
+.bh__search-input:focus {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: #fff;
+}
+
+.bh__new-wrap {
+  padding: 0 1rem 0.85rem;
+  flex-shrink: 0;
+}
+
+.bh__new {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.bh__new svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.bh__new:hover:not(:disabled) {
+  background: #fff;
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
+.bh__new:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bh__section-label {
+  padding: 0.15rem 1.05rem 0.45rem;
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.bh__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 0.65rem 0.75rem;
+}
+
+.bh__empty {
+  margin: 0;
+  padding: 0.55rem 0.55rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  letter-spacing: normal;
+  color: var(--ink-faint);
+}
+
+.bh__item {
+  position: relative;
+  margin-bottom: 0.2rem;
+  border-radius: 0.65rem;
+  transition: background 0.15s ease;
+}
+
+.bh__item:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.bh__item--active {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.bh__item--active:hover {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.bh__item-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: calc(100% - 2rem);
+  padding: 0.65rem 0.7rem;
+  border: 0;
+  border-radius: 0.65rem;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bh__item-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bh__item-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bh__item--active .bh__item-title {
+  color: var(--accent);
+}
+
+.bh__item-preview {
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bh__delete {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+  opacity: 0;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.bh__item:hover .bh__delete,
+.bh__item:focus-within .bh__delete {
+  opacity: 1;
+}
+
+.bh__delete:hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--ink);
+}
+
+.bh__footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--line);
+  padding: 0.75rem 1rem 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.bh__credits {
+  border: 0;
+  background: transparent;
+  padding: 0.25rem 0;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.bh__credits:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.bh__credits:disabled {
+  cursor: default;
+}
+
+.bh__profile-wrap {
+  position: relative;
+}
+
+.bh__profile-menu {
+  position: absolute;
+  bottom: calc(100% + 0.55rem);
+  right: 0;
+  padding: 0.65rem 0.9rem;
+  border-radius: 0.65rem;
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 12px 28px -12px rgba(15, 23, 42, 0.18);
+  min-width: 8rem;
+  z-index: 20;
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: var(--ink);
+}
+
+.bh__profile {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.bh__profile:hover:not(:disabled),
+.bh__profile--open {
+  background: #fff;
+  border-color: rgba(37, 99, 235, 0.28);
+  color: var(--ink);
+}
+
+.bh__profile:disabled {
+  cursor: default;
+}
+
+@media (hover: none) {
+  .bh__delete {
+    opacity: 0.55;
+  }
+}
+`;
 
 export function BoardHistory({
   boards,
@@ -611,10 +598,8 @@ export function BoardHistory({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="left"
-          className="board-sidebar w-[min(100%,280px)] border-r border-[rgba(37,99,235,0.12)] p-0 sm:max-w-[280px]"
-          style={{
-            ...glassPanel,
-          }}
+          className="board-sidebar w-[min(100%,280px)] border-r border-[rgba(37,99,235,0.1)] p-0 sm:max-w-[280px]"
+          style={PANEL}
         >
           <SheetTitle className="sr-only">Board history</SheetTitle>
           <BoardHistoryContent {...contentProps} />
@@ -627,7 +612,7 @@ export function BoardHistory({
 
   return (
     <div
-      className="board-sidebar hidden md:flex"
+      className="board-sidebar hidden lg:flex"
       style={{
         position: "fixed",
         left: 0,
@@ -636,11 +621,11 @@ export function BoardHistory({
         width,
         minWidth: width,
         height: "100dvh",
-        ...glassPanel,
-        ...sidebarFont,
+        ...PANEL,
         flexDirection: "column",
         overflow: "hidden",
-        transition: "width 0.25s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+        transition:
+          "width 0.25s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
         flexShrink: 0,
       }}
     >
