@@ -94,7 +94,7 @@ const STYLES = `
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 1rem 1.25rem;
+  padding: clamp(0.5rem, 2vh, 1rem) clamp(0.75rem, 3vw, 1.25rem);
 }
 
 .ac-canvas-landing__mark {
@@ -103,7 +103,7 @@ const STYLES = `
   gap: 0.18em;
   font-family: inherit;
   font-weight: 700;
-  font-size: clamp(2.75rem, 7vw, 4.75rem);
+  font-size: clamp(2rem, 6.5vw + 0.5rem, 4.75rem);
   letter-spacing: -0.045em;
   line-height: 1;
   color: #111827;
@@ -128,15 +128,17 @@ const STYLES = `
 }
 
 .ac-canvas-landing__tagline {
-  margin: 0.85rem 0 0;
-  font-size: clamp(0.9rem, 2vw, 1.05rem);
+  margin: 0.65rem 0 0;
+  font-size: clamp(0.85rem, 1.5vw + 0.55rem, 1.05rem);
   font-weight: 400;
   letter-spacing: 0.02em;
   color: #6B7280;
+  max-width: 28rem;
+  padding-inline: 0.5rem;
 }
 
 .ac-canvas-landing__form {
-  margin-top: 1.75rem;
+  margin-top: clamp(1rem, 3vh, 1.75rem);
   width: 100%;
   display: flex;
   align-items: center;
@@ -157,7 +159,7 @@ const STYLES = `
   border: none;
   outline: none;
   padding: 0.75rem 0.25rem;
-  font-size: 0.98rem;
+  font-size: 16px;
   color: #111827;
 }
 
@@ -168,6 +170,7 @@ const STYLES = `
 
 .ac-canvas-landing__ask {
   flex-shrink: 0;
+  min-height: 44px;
   padding: 0.65rem 1.4rem;
   border: none;
   border-radius: 9999px;
@@ -201,7 +204,7 @@ const STYLES = `
 }
 
 .ac-canvas-landing__suggestions {
-  margin-top: 2rem;
+  margin-top: clamp(1rem, 3vh, 2rem);
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -230,6 +233,7 @@ const STYLES = `
 
 .ac-canvas-landing__chip {
   width: 100%;
+  min-height: 44px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -283,6 +287,34 @@ const STYLES = `
   }
   .ac-canvas-landing__ask {
     padding: 0.6rem 1.1rem;
+  }
+}
+
+@media (max-height: 700px) {
+  .ac-canvas-landing__suggestions {
+    margin-top: 0.85rem;
+  }
+  .ac-canvas-landing__chips {
+    gap: 0.45rem;
+  }
+  .ac-canvas-landing__chip {
+    padding: 0.65rem 0.85rem;
+  }
+}
+
+@media (max-height: 560px) {
+  .ac-canvas-landing__tagline {
+    display: none;
+  }
+  .ac-canvas-landing__suggestions-label {
+    display: none;
+  }
+  .ac-canvas-landing__chips {
+    grid-template-columns: 1fr 1fr;
+    max-width: 100%;
+  }
+  .ac-canvas-landing__chip-hint {
+    display: none;
   }
 }
 

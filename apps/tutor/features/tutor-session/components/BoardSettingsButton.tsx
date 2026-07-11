@@ -11,7 +11,7 @@ export function BoardSettingsButton({ settings, onOpen }: BoardSettingsButtonPro
       type="button"
       aria-label="Settings"
       onClick={onOpen}
-      className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-lg transition-all hover:opacity-100"
+      className="absolute right-2 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-lg transition-all hover:opacity-100 sm:right-3 sm:top-3 sm:h-9 sm:w-9"
       style={{
         border: "none",
         background: "rgba(255,255,255,0.55)",

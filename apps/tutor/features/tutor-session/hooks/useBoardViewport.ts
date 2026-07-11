@@ -3,12 +3,15 @@ import { useEffect, useState } from "react";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "../constants";
 import type { BoardViewport } from "../types";
 
-/** Total frame padding (16px surface inset on each side). */
-const FRAME_PADDING = 32;
+/** Desktop frame padding (16px surface inset on each side). */
+const FRAME_PADDING_DESKTOP = 32;
+/** Mobile frame padding (10px surface inset on each side). */
+const FRAME_PADDING_MOBILE = 20;
+const MOBILE_MQ = "(max-width: 640px)";
 
 export function useBoardViewport(containerRef: RefObject<HTMLDivElement | null>): BoardViewport {
   const [viewport, setViewport] = useState<BoardViewport>({
-    scale: 1,
+    scale: 0.1,
     offsetX: 0,
     offsetY: 0,
   });
@@ -21,24 +24,36 @@ export function useBoardViewport(containerRef: RefObject<HTMLDivElement | null>)
       const { width, height } = container.getBoundingClientRect();
       if (width <= 0 || height <= 0) return;
 
-      const availWidth = Math.max(width - FRAME_PADDING, 1);
-      const availHeight = Math.max(height - FRAME_PADDING, 1);
+      const framePadding = window.matchMedia(MOBILE_MQ).matches
+        ? FRAME_PADDING_MOBILE
+        : FRAME_PADDING_DESKTOP;
+
+      const availWidth = Math.max(width - framePadding, 1);
+      const availHeight = Math.max(height - framePadding, 1);
 
       const widthScale = availWidth / BOARD_WIDTH;
       const heightScale = availHeight / BOARD_HEIGHT;
 
-      if (BOARD_HEIGHT * widthScale <= availHeight) {
-        setViewport({ scale: widthScale, offsetX: 0, offsetY: 0 });
-        return;
-      }
-
-      setViewport({ scale: heightScale, offsetX: 0, offsetY: 0 });
+      // Fit the board inside the container without cropping.
+      const nextScale = Math.min(widthScale, heightScale);
+      // Avoid sub-pixel thrash from ResizeObserver feedback.
+      setViewport((prev) => {
+        if (Math.abs(prev.scale - nextScale) < 0.001) return prev;
+        return { scale: nextScale, offsetX: 0, offsetY: 0 };
+      });
     };
 
     updateScale();
     const observer = new ResizeObserver(updateScale);
     observer.observe(container);
-    return () => observer.disconnect();
+
+    const media = window.matchMedia(MOBILE_MQ);
+    media.addEventListener("change", updateScale);
+
+    return () => {
+      observer.disconnect();
+      media.removeEventListener("change", updateScale);
+    };
   }, [containerRef]);
 
   return viewport;

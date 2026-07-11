@@ -23,3 +23,8 @@ export function useMediaQuery(query: string): boolean {
 export function useIsMobile(): boolean {
   return useMediaQuery("(max-width: 767px)");
 }
+
+/** Persistent sidebar only from large screens up; tablets use the drawer. */
+export function useIsCompactNav(): boolean {
+  return useMediaQuery("(max-width: 1023px)");
+}

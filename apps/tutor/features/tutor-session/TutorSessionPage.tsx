@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { TranscriptDialog } from "@/components/TranscriptDialog";
-import { BoardHistory, SIDEBAR_WIDTH } from "@/components/BoardHistory";
+import { BoardHistory } from "@/components/BoardHistory";
 import { SettingsDrawer, type SettingsState } from "@/components/SettingsDrawer";
 import { CanvasLanding } from "@/components/CanvasLanding";
 import { type ReplayCue } from "@/lib/replayTimeline";
 import type { WhiteboardHandle, CursorState } from "@heytutor/whiteboard";
+import { useIsCompactNav } from "@/lib/useMediaQuery";
 import { ThinkingOverlay } from "./components/ThinkingOverlay";
 import { BoardSettingsButton } from "./components/BoardSettingsButton";
 import { SessionInputChrome } from "./components/SessionInputChrome";
@@ -90,6 +91,8 @@ export function TutorSessionPage() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const isCompactNav = useIsCompactNav();
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayProgressMs, setReplayProgressMs] = useState(0);
   const [replayTotalMs, setReplayTotalMs] = useState(0);
@@ -332,9 +335,13 @@ export function TutorSessionPage() {
     />
   );
 
+  const showEmptyLanding = isInputOverlay && storedTurnsCount === 0;
+  const fullBleedLanding = showEmptyLanding && isCompactNav;
+  const framePad = isCompactNav ? 20 : 32;
+
   return (
     <div
-      className="relative flex h-screen overflow-hidden"
+      className="relative flex h-dvh max-h-dvh min-w-0 overflow-hidden"
       style={{
         background: "var(--wb-bg)",
       }}
@@ -352,20 +359,45 @@ export function TutorSessionPage() {
         onProfileToggle={() => setProfileOpen(!profileOpen)}
       />
 
+      <BoardHistory
+        variant="drawer"
+        open={mobileNavOpen}
+        onOpenChange={setMobileNavOpen}
+        boards={boards}
+        activeBoardId={sessionId}
+        onSelect={switchBoard}
+        onNew={createNewBoard}
+        onDelete={deleteBoard}
+        disabled={phase !== "idle"}
+        profileOpen={profileOpen}
+        onProfileToggle={() => setProfileOpen(!profileOpen)}
+      />
+
       <div
-        className="relative z-10 flex flex-1 flex-col min-h-0"
+        className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col ${
+          sidebarCollapsed ? "" : "lg:ml-[264px]"
+        }`}
         style={{
-          marginLeft: sidebarCollapsed ? 0 : SIDEBAR_WIDTH,
-          paddingLeft: PAGE_GUTTER_X,
-          paddingRight: PAGE_GUTTER_X,
-          paddingTop: 16,
-          paddingBottom: 16,
+          paddingLeft: `max(${PAGE_GUTTER_X}px, env(safe-area-inset-left))`,
+          paddingRight: `max(${PAGE_GUTTER_X}px, env(safe-area-inset-right))`,
+          paddingTop: `max(12px, env(safe-area-inset-top))`,
+          paddingBottom: `max(12px, env(safe-area-inset-bottom))`,
           transition: "margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
         <SessionHeader
-          sidebarCollapsed={sidebarCollapsed}
-          onExpandSidebar={() => setSidebarCollapsed(false)}
+          showNavButton
+          navButtonClassName={sidebarCollapsed ? undefined : "lg:hidden"}
+          onExpandSidebar={() => {
+            if (
+              typeof window !== "undefined" &&
+              window.matchMedia("(max-width: 1023px)").matches
+            ) {
+              setMobileNavOpen(true);
+              return;
+            }
+            setSidebarCollapsed(false);
+          }}
           boardTitle={activeBoardTitle}
           canReplay={canReplay}
           canTranscript={canTranscript}
@@ -374,6 +406,7 @@ export function TutorSessionPage() {
           isDownloading={isDownloading}
           phase={phase}
           activeStatus={activeStatus}
+          compactActions={isCompactNav}
           onReplay={replayLecture}
           onTranscript={() => setTranscriptOpen(true)}
           onDownload={downloadNotesPdf}
@@ -381,24 +414,39 @@ export function TutorSessionPage() {
           onOpenSettings={() => setSettingsOpen(true)}
         />
 
-        <main className="relative flex flex-1 flex-col min-h-0">
+        <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           <div
             ref={boardContainerRef}
-            className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+            className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden"
             style={{
               marginTop: PAGE_GUTTER_Y,
             }}
           >
+            {fullBleedLanding && (
+              <div className="absolute inset-0 z-20 flex flex-col overflow-y-auto overscroll-contain rounded-2xl border border-white/70 bg-white/95 shadow-[0_8px_30px_-18px_rgba(37,99,235,0.28)] backdrop-blur-md">
+                <div className="my-auto w-full px-3 py-5 sm:px-6 sm:py-8">
+                  <CanvasLanding
+                    suggestions={LANDING_SUGGESTIONS}
+                    onSubmit={(question) => void handleQuestion(question)}
+                  />
+                </div>
+              </div>
+            )}
+
             <div
-              className="wb-frame relative"
+              className={`wb-frame relative max-w-full ${
+                fullBleedLanding ? "pointer-events-none invisible absolute" : ""
+              }`}
               style={{
-                width: BOARD_WIDTH * boardViewport.scale + 32,
-                height: BOARD_HEIGHT * boardViewport.scale + 32,
+                width: BOARD_WIDTH * boardViewport.scale + framePad,
+                height: BOARD_HEIGHT * boardViewport.scale + framePad,
+                maxWidth: "100%",
               }}
+              aria-hidden={fullBleedLanding || undefined}
             >
             <div className="wb-surface absolute overflow-hidden">
             <BoardSettingsButton settings={settings} onOpen={() => setSettingsOpen(true)} />
-            {isInputOverlay && (
+            {isInputOverlay && !fullBleedLanding && (
               <div
                 className="pointer-events-none absolute inset-0 z-10"
                 style={{
@@ -422,12 +470,12 @@ export function TutorSessionPage() {
               </div>
             )}
 
-            {isInputOverlay && storedTurnsCount === 0 && (
+            {showEmptyLanding && !fullBleedLanding && (
               <div
-                className="absolute inset-0 z-20 flex flex-col items-center justify-center px-4 overflow-y-auto"
+                className="absolute inset-0 z-20 flex flex-col items-center justify-start overflow-y-auto overscroll-contain px-3 py-4 sm:justify-center sm:px-4 sm:py-6"
                 style={{ pointerEvents: "none" }}
               >
-                <div style={{ width: "100%", maxWidth: "720px", pointerEvents: "auto" }}>
+                <div className="my-auto w-full max-w-[720px]" style={{ pointerEvents: "auto" }}>
                   <CanvasLanding
                     suggestions={LANDING_SUGGESTIONS}
                     onSubmit={(question) => void handleQuestion(question)}
@@ -438,10 +486,10 @@ export function TutorSessionPage() {
 
             {isInputOverlay && storedTurnsCount > 0 && (
               <div
-                className="absolute inset-0 z-20 flex flex-col items-center justify-center px-4"
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center px-3 sm:px-4"
                 style={{ pointerEvents: "none" }}
               >
-                <div style={{ width: "100%", maxWidth: "720px", pointerEvents: "auto" }}>
+                <div className="w-full max-w-[720px]" style={{ pointerEvents: "auto" }}>
                   {inputChrome}
                 </div>
               </div>
