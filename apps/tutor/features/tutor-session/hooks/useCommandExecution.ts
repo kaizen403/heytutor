@@ -439,8 +439,15 @@ export function useCommandExecution({
         }
         case "WRITE":
         case "LABEL": {
-          const [x, y] = command.params;
+          const [x, y, maybeFontSize] = command.params;
           if (command.text && Number.isFinite(x) && Number.isFinite(y)) {
+            const fontSize =
+              typeof maybeFontSize === "number" &&
+              Number.isFinite(maybeFontSize) &&
+              maybeFontSize >= 12 &&
+              maybeFontSize <= 40
+                ? maybeFontSize
+                : 32;
             const placement = await resolveTextPlacement(
               command,
               x,
@@ -469,12 +476,26 @@ export function useCommandExecution({
               // because the first character's offset already holds the pen until its cue.
               await wb.flyCursorTo(placement.x, placement.y, 60, -35);
               if (cancelRef.current) return;
-              await wb.writeText(command.text, placement.x, placement.y, 0, writeSchedule);
+              await wb.writeText(
+                command.text,
+                placement.x,
+                placement.y,
+                0,
+                writeSchedule,
+                fontSize,
+              );
             } else {
               const { flightMs, drawMs } = speechSplit(command);
               await wb.flyCursorTo(placement.x, placement.y, flightMs, -35);
               if (cancelRef.current) return;
-              await wb.writeText(command.text, placement.x, placement.y, drawMs);
+              await wb.writeText(
+                command.text,
+                placement.x,
+                placement.y,
+                drawMs,
+                undefined,
+                fontSize,
+              );
             }
           }
           break;
@@ -625,10 +646,12 @@ export function useCommandExecution({
               const [x1, y1] = params;
               await wb.flyCursorTo(x1, y1, flightMs);
               if (cancelRef.current) return;
+              // Cross-outs stay thin and compact so they do not bury the glyph.
               await wb.drawAnnotation(
                 annotationKind,
                 scribblePath(params),
-                drawMs,
+                Math.min(drawMs, 280),
+                { strokeWidth: 1.55 },
               );
             }
           }
