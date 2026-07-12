@@ -712,36 +712,59 @@ function buildTirPrecision(numbers: OpticsParsedNumbers): TutorSegment[] {
 }
 
 function buildComboPrecision(numbers: OpticsParsedNumbers): TutorSegment[] {
+  // Keep short marks far apart: L1≈620, L2≈680. Never stack f1/f2/F/O on one spot.
+  const L1_X = 620;
+  const L2_X = 680;
+  const O_X = Math.round((L1_X + L2_X) / 2);
   const segments: TutorSegment[] = [
     segment("two thin lenses sit in contact — their optical centres coincide on the axis.", [
-      command("LABEL", [640, LABEL_ABOVE_Y], "O"),
+      command("LABEL", [O_X - 8, AXIS_Y - 28], "O"),
     ]),
   ];
 
   if (numbers.f1 !== null) {
+    const f1Text = `f_1 = ${formatCm(numbers.f1)} cm`;
     segments.push(
-      segment(`f₁ is the focal length of the first lens, ${formatCm(numbers.f1)} centimetres.`, [
-        command("LABEL", [540, LABEL_ABOVE_Y - 10], `f₁ = ${formatCm(numbers.f1)} cm`),
-      ]),
+      segment(
+        `f one is the focal length of the first lens, ${formatCm(numbers.f1)} centimetres.`,
+        [
+          command("LABEL", [L1_X - 70, LABEL_ABOVE_Y - 20], "f_1"),
+          command("LABEL", [L1_X - 90, LABEL_BELOW_Y + 8], f1Text),
+        ],
+      ),
     );
   }
 
   if (numbers.f2 !== null) {
+    const f2Text = `f_2 = ${formatCm(numbers.f2)} cm`;
     segments.push(
-      segment(`f₂ is the focal length of the second lens, ${formatCm(numbers.f2)} centimetres.`, [
-        command("LABEL", [720, LABEL_ABOVE_Y - 10], `f₂ = ${formatCm(numbers.f2)} cm`),
-      ]),
+      segment(
+        `f two is the focal length of the second lens, ${formatCm(numbers.f2)} centimetres.`,
+        [
+          command("LABEL", [L2_X + 24, LABEL_ABOVE_Y - 20], "f_2"),
+          command("LABEL", [L2_X + 8, LABEL_BELOW_Y + 8], f2Text),
+        ],
+      ),
     );
   }
 
   if (numbers.f1 !== null && numbers.f2 !== null) {
-    const F = (numbers.f1 * numbers.f2) / (numbers.f1 + numbers.f2);
-    if (Number.isFinite(F) && F > 0) {
-      segments.push(
-        segment(`the equivalent focal length F is ${formatCm(F)} centimetres from 1/F = 1/f₁ + 1/f₂.`, [
-          command("LABEL", [640, LABEL_ABOVE_Y - 36], `F = ${formatCm(F)} cm`),
-        ]),
-      );
+    const denom = numbers.f1 + numbers.f2;
+    if (Math.abs(denom) > 1e-9) {
+      const F = (numbers.f1 * numbers.f2) / denom;
+      if (Number.isFinite(F)) {
+        const FText = `F = ${formatCm(F)} cm`;
+        segments.push(
+          segment(
+            `capital F is the equivalent focal length, ${formatCm(F)} centimetres, from one over F equals one over f one plus one over f two.`,
+            [
+              // Equivalent F sits left of both lenses — never on f_2 / O.
+              command("LABEL", [500, LABEL_ABOVE_Y - 24], "F"),
+              command("LABEL", [470, LABEL_BELOW_Y + 36], FText),
+            ],
+          ),
+        );
+      }
     }
   }
 

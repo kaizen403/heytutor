@@ -191,15 +191,29 @@ export function parseTextCommandParams(rawParams: string): { text: string; param
     return { text: rawParams.trim(), params: [] };
   }
 
-  const y = Number(parts.at(-1)?.trim());
-  const x = Number(parts.at(-2)?.trim());
-  const text = normalizeBoardText(parts.slice(0, -2).join(',').trim());
+  const last = Number(parts.at(-1)?.trim());
+  const secondLast = Number(parts.at(-2)?.trim());
+  const thirdLast = Number(parts.at(-3)?.trim());
 
-  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+  // Optional compact font: [LABEL:text,x,y,fontSize] with fontSize in 12–40.
+  if (
+    parts.length >= 4 &&
+    Number.isFinite(last) &&
+    last >= 12 &&
+    last <= 40 &&
+    Number.isFinite(secondLast) &&
+    Number.isFinite(thirdLast)
+  ) {
+    const text = normalizeBoardText(parts.slice(0, -3).join(',').trim());
+    return { text, params: [thirdLast, secondLast, last] };
+  }
+
+  if (!Number.isFinite(secondLast) || !Number.isFinite(last)) {
     return { text: rawParams.trim(), params: [] };
   }
 
-  return { text, params: [x, y] };
+  const text = normalizeBoardText(parts.slice(0, -2).join(',').trim());
+  return { text, params: [secondLast, last] };
 }
 
 export function parseDimensionCommandParams(rawParams: string): { text: string; params: number[] } {

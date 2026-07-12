@@ -185,17 +185,20 @@ export const OPTICS_LENS_COMBO_TEMPLATE: DiagramTemplate = {
     },
   ],
   anchors: [
-    { id: "O", labels: ["O", "optical center", "centre"], x: 640, y: 280, width: 40, height: 28 },
-    { id: "f1", labels: ["f1", "f_1"], x: 560, y: 250, width: 40, height: 28 },
-    { id: "f2", labels: ["f2", "f_2"], x: 720, y: 250, width: 40, height: 28 },
-    { id: "feq", labels: ["F", "f", "feq", "equivalent"], x: 640, y: 220, width: 48, height: 28 },
+    { id: "O", labels: ["O", "optical center", "centre"], x: 642, y: 268, width: 28, height: 24 },
+    { id: "f1", labels: ["f1", "f_1", "f₁"], x: 540, y: 220, width: 36, height: 28 },
+    { id: "f2", labels: ["f2", "f_2", "f₂"], x: 704, y: 220, width: 36, height: 28 },
+    { id: "feq", labels: ["F", "F_eq", "feq", "equivalent"], x: 492, y: 216, width: 36, height: 28 },
   ],
   allowLlmDrawInDiagramZone: true,
   promptAddon: withDiagramMarkingGuidance(`internal diagram note "optics_lens_combo": axis and two thin lenses in contact are already drawn. do not mention this note.
 ${ANTI_SLOP}
 ${SIGN_CONVENTION}
 do NOT redraw the axis or either lens outline. you MAY draw principal rays through the equivalent system.
-phase 1 — mark f1, f2 and the equivalent focus. phase 2 — 1/F = 1/f1 + 1/f2 (contact, same medium). power P = P1 + P2.
+runtime already marks O (between the lenses), f_1 (left lens), f_2 (right lens), and capital F (equivalent, LEFT of both lenses) with their cm values BELOW the axis. do NOT re-emit [LABEL]/[WRITE]/or [DIMENSION] for O, f_1, f_2, F, or those cm strings — only [CIRCLE_AROUND] the existing label text when you revisit it.
+never write f2/F2 for the equivalent length — that is capital F only. f_1 and f_2 stay on opposite sides of the contact pair; do not stack labels on the same (x,y).
+if you must correct a wrong mark: light [SCRIBBLE] once over that glyph only, then rewrite the correct short symbol nearby at a smaller size [LABEL:text,x,y,22] — never scribble the same spot repeatedly.
+phase 1 — circle existing f_1 / f_2 / F while explaining. phase 2 — 1/F = 1/f_1 + 1/f_2 on the LEFT (contact, same medium). power P = P1 + P2.
 phase 3 — solve on the left with y rows 145,205,265,325,385,445,505,565,625 only.`),
 };
 

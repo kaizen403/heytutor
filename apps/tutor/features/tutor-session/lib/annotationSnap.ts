@@ -11,6 +11,10 @@ import {
 } from "./boardLayout";
 
 const NARRATION_LABEL_RULES: Array<{ cues: string[]; labels: string[] }> = [
+  { cues: ["focal length of the first", "f one", "f_1", "f1 is", "first lens"], labels: ["f_1", "f1", "f₁"] },
+  { cues: ["focal length of the second", "f two", "f_2", "f2 is", "second lens"], labels: ["f_2", "f2", "f₂"] },
+  { cues: ["equivalent focal", "capital f", "equivalent focus", "one over f"], labels: ["F", "F_eq"] },
+  { cues: ["optical centre", "optical center", "the centre o", "the center o"], labels: ["O"] },
   { cues: ["mass", "the mass", "mass is", "this mass", "labeled m", "label m"], labels: ["m", "M"] },
   { cues: ["friction", "frictional", "mu times", "mu is", "force of friction"], labels: ["f", "F_f", "f_k", "f_s"] },
   { cues: ["normal force", "normal from", "normal pushes", "normal", "surface pushes"], labels: ["N", "F_N"] },
@@ -163,10 +167,10 @@ export function resolveSnappedAnnotationParams(
     if (match) {
       return {
         params: [
-          match.x,
-          match.y + match.height * 0.35,
-          match.x + match.width,
-          match.y + match.height * 0.65,
+          match.x + 2,
+          match.y + match.height * 0.45,
+          match.x + Math.max(match.width - 2, 10),
+          match.y + match.height * 0.55,
         ],
         snapped: true,
         rect: match,
@@ -192,10 +196,10 @@ export function resolveSnappedAnnotationParams(
       if (kind === "SCRIBBLE") {
         return {
           params: [
-            match.x,
-            match.y + match.height * 0.35,
-            match.x + match.width,
-            match.y + match.height * 0.65,
+            match.x + 2,
+            match.y + match.height * 0.45,
+            match.x + Math.max(match.width - 2, 10),
+            match.y + match.height * 0.55,
           ],
           snapped: true,
           rect: match,

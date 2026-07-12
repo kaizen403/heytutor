@@ -226,6 +226,7 @@ export function scribblePath(points: number[]): string {
   }
 
   if (points.length >= 6) {
+    // Dense polylines: keep the intended path but do not amplify it.
     const segments = [`M ${coord(points[0])} ${coord(points[1])}`];
     for (let i = 2; i + 1 < points.length; i += 2) {
       segments.push(`L ${coord(points[i])} ${coord(points[i + 1])}`);
@@ -233,19 +234,20 @@ export function scribblePath(points: number[]): string {
     return segments.join(" ");
   }
 
+  // Cross-out / delete: one light strike through the glyph, not a thick scribble blob.
   const [x1, y1, x2, y2] = points;
   const minX = Math.min(x1, x2);
   const maxX = Math.max(x1, x2);
   const minY = Math.min(y1, y2);
   const maxY = Math.max(y1, y2);
   const midY = (minY + maxY) / 2;
-  const jitter = Math.max((maxX - minX) * 0.08, 4);
+  const span = Math.max(maxX - minX, 12);
+  const jitter = Math.min(Math.max(span * 0.04, 1.5), 3.5);
 
   return [
-    `M ${coord(minX)} ${coord(midY)}`,
-    `L ${coord(minX + (maxX - minX) * 0.33)} ${coord(midY - jitter)}`,
-    `L ${coord(minX + (maxX - minX) * 0.66)} ${coord(midY + jitter)}`,
-    `L ${coord(maxX)} ${coord(midY)}`,
+    `M ${coord(minX)} ${coord(midY - jitter)}`,
+    `L ${coord(minX + span * 0.5)} ${coord(midY + jitter)}`,
+    `L ${coord(maxX)} ${coord(midY - jitter * 0.5)}`,
   ].join(" ");
 }
 

@@ -79,6 +79,7 @@ export interface WhiteboardHandle {
     y: number,
     duration: number,
     schedule?: WriteSchedule,
+    fontSize?: number,
   ) => Promise<void>;
   clearBoard: (duration?: number) => Promise<void>;
   eraseRegion: (x: number, y: number, width: number, height: number, duration: number) => Promise<void>;
@@ -770,6 +771,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         y: number,
         duration: number,
         schedule?: WriteSchedule,
+        fontSize = 32,
       ): Promise<void> => {
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
@@ -778,8 +780,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           return;
         }
 
+        const resolvedFontSize = Math.min(Math.max(fontSize, 12), 40);
+
         try {
-          const characterPaths = await textToStrokePaths(text, x, y, 32);
+          const characterPaths = await textToStrokePaths(text, x, y, resolvedFontSize);
 
           if (characterPaths.length === 0) {
             return;
@@ -994,7 +998,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             y,
             opacity: 0,
             fontFamily: "Caveat, cursive",
-            fontSize: 32,
+            fontSize: resolvedFontSize,
             fill: inkColorRef.current,
             listening: false,
           });

@@ -474,14 +474,40 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const upstreamStartedAt = Date.now();
-    const response = await fetch(FIREWORKS_CHAT_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-      },
-      body: bodyToSend,
-    });
+    let response: Response | null = null;
+    let lastFetchError: unknown = null;
+
+    // Transient DNS/TLS/"fetch failed" blips are common; one quick retry avoids
+    // aborting a whole turn for a one-off network hiccup.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        response = await fetch(FIREWORKS_CHAT_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "content-type": "application/json",
+          },
+          body: bodyToSend,
+        });
+        lastFetchError = null;
+        break;
+      } catch (error: unknown) {
+        lastFetchError = error;
+        tutorDebug("chat", "Fireworks fetch failed", {
+          attempt: attempt + 1,
+          message: error instanceof Error ? error.message : String(error),
+        });
+        if (attempt === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 400));
+        }
+      }
+    }
+
+    if (!response) {
+      throw lastFetchError instanceof Error
+        ? lastFetchError
+        : new Error("fetch failed");
+    }
 
     tutorDebug("chat", "Fireworks response headers", {
       status: response.status,

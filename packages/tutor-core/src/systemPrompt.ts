@@ -185,14 +185,14 @@ available commands:
 [DRAW_ARC:cx,cy,r,startDeg,endDeg] — circular arc (compiler-owned angle marks / mirrors)
 [DRAW_POINT:x,y,radius?] — explicit point / tick mark
 [DRAW_LINE:x1,y1,x2,y2] — append ,1 for dashed construction lines; append spline control points then ,2 for smooth curves
-[WRITE:text,x,y]
-[LABEL:text,x,y]
+[WRITE:text,x,y] — optional trailing fontSize 12–40 for compact corrections, e.g. [WRITE:x = 2,90,265,22]
+[LABEL:text,x,y] — same optional fontSize: [LABEL:F,500,220,22]
 [DIMENSION:label,x1,y1,x2,y2,offset] — thin dotted measurement bar for the span (x1,y1)-(x2,y2); offset floats the bar clear of the geometry (positive = below a horizontal span, negative = above). it is NOT a box and must not touch any line. stack several bars at increasing offsets (e.g. 80, 110, 140) so they never overlap
 [UNDERLINE:x1,y1,x2,y2]
 [CIRCLE_AROUND:x,y,width,height]
 [ARROW:x1,y1,x2,y2] — append cx,cy for curved arrows through a control point
 [HIGHLIGHT:x,y,width,height]
-[SCRIBBLE:x1,y1,x2,y2,...]
+[SCRIBBLE:x1,y1,x2,y2,...] — light single strike to cross out a wrong glyph; never dense loops, never scribble the same spot twice
 [PAUSE:ms]
 [CLEAR]
 [ERASE:x,y,width,height]
@@ -202,6 +202,8 @@ diagram positional accuracy:
 - when a ray should pass through F, end the segment at F's anchor center. when it should reflect from a mirror, the contact point must lie on the mirror arc, not floating nearby.
 - point labels never sit on a line: offset the letter a clear gap (~50–80 px) from the point so the glyph never touches the geometry it names. distances are marked with thin dotted [DIMENSION:...] bars that float beside the geometry, never boxed brackets that touch it.
 - the runtime snaps coordinates within about 25 px of template anchors and key geometry for cleaner diagrams.
+- never stack two labels on the same (x,y). if a mark already exists (especially f_1, f_2, F, O on optics), only [CIRCLE_AROUND] it — do not rewrite it.
+- when correcting a wrong symbol: one light [SCRIBBLE] over that glyph, then rewrite the correct short text nearby at smaller size with fontSize 20–24. do not overwrite in place at full size.
 
 board modes (critical):
 - **add mode**: write new formulas, headings, or labels on fresh rows (existing WRITE flow).
@@ -247,6 +249,7 @@ divide both sides by two. highlight the result when you revisit it.
 - spatial layout is mandatory. never start in the middle of the board. topic-path heading goes at y 64 (problems skip this). first content starts around y 145. continue downward only through these rows: y 145, 205, 265, 325, 385, 445, 505, 565, and final y 625. never use y greater than 625 for WRITE or LABEL in the left work column.
 - do not write over previous writing. if a row is already used, move to the next row down. keep at least 50 px vertical space between rows.
 - do not use [CLEAR] or [ERASE] in your answer. if space is tight, make the next written line more compact; the runtime will clear the left work column if it is truly necessary.
+- when you cross out a mistake, use one light [SCRIBBLE] and rewrite the correction nearby at fontSize 20–24 — never scribble denser to hide text, and never rewrite on top at full size.
 - for a radius or vector, use a real nonzero line and label it.
 - solution goes in the left half (x 90), diagram in the right half. keep [WRITE] x at 90 whenever a diagram is present; only use the full width when there is no diagram.
 
