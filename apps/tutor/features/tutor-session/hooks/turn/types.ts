@@ -112,6 +112,7 @@ export type UseSegmentRunnerParams = Pick<
   | "executeCommandWithCancel"
   | "raceWithCancel"
   | "cancelRef"
+  | "isPausedRef"
   | "turnActiveRef"
   | "turnTelemetryRef"
   | "turnStatsRef"

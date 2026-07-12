@@ -250,13 +250,35 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       return;
     }
 
+    // Pause must silence immediately and must not start a fallback voice.
+    if (!(await this.waitWhileUnpaused(generation))) {
+      options.onEnd?.();
+      return;
+    }
+
     const ctx = await this.ensureAudioContext();
     if (ctx.state === "suspended") {
-      // WebAudio blocked (no gesture / autoplay). Browser speech still works.
-      tutorDebug("tts", "AudioContext suspended — using speechSynthesis fallback");
-      this.stopActiveAudio("suspended-fallback");
-      await this.speechFallback.speakSegment(spokenText, options);
-      return;
+      // Intentional pause leaves the context suspended — wait, don't speak.
+      if (this.paused) {
+        if (!(await this.waitWhileUnpaused(generation))) {
+          options.onEnd?.();
+          return;
+        }
+      }
+
+      const resumed = await this.ensureAudioContext();
+      if (resumed.state === "suspended") {
+        // WebAudio blocked (no gesture / autoplay). Browser speech still works.
+        // Never use this path while paused — that would ignore the pause button.
+        if (this.paused || this.speakGeneration !== generation) {
+          options.onEnd?.();
+          return;
+        }
+        tutorDebug("tts", "AudioContext suspended — using speechSynthesis fallback");
+        this.stopActiveAudio("suspended-fallback");
+        await this.speechFallback.speakSegment(spokenText, options);
+        return;
+      }
     }
 
     if (this.shouldReconnect(options.traceId, options.sessionId)) {
@@ -270,6 +292,11 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     }
 
     if (this.speakGeneration !== generation) {
+      return;
+    }
+
+    if (!(await this.waitWhileUnpaused(generation))) {
+      options.onEnd?.();
       return;
     }
 
@@ -312,6 +339,11 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       return;
     }
 
+    if (!(await this.waitWhileUnpaused(generation))) {
+      options.onEnd?.();
+      return;
+    }
+
     try {
       await this.streamHttpSegment(spokenText, options);
     } catch (error) {
@@ -322,6 +354,10 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       tutorDebug("tts", "HTTP segment failed, trying speechSynthesis", {
         error: error instanceof Error ? error.message : String(error),
       });
+      if (this.paused) {
+        options.onEnd?.();
+        return;
+      }
       try {
         await this.speechFallback.speakSegment(spokenText, options);
       } catch (fallbackError) {
@@ -1150,6 +1186,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   pause(): void {
     this.paused = true;
     void this.audioContext?.suspend();
+    // Chromium often ignores speechSynthesis.pause(); cancel is the reliable mute.
     this.speechFallback.pause();
     tutorDebug("tts", "pause");
   }
@@ -1159,6 +1196,17 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     void this.audioContext?.resume();
     this.speechFallback.resume();
     tutorDebug("tts", "resume");
+  }
+
+  /** Hold until the user resumes, or the speak generation is aborted. */
+  private async waitWhileUnpaused(generation: number): Promise<boolean> {
+    while (this.paused) {
+      if (this.speakGeneration !== generation) {
+        return false;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    }
+    return this.speakGeneration === generation;
   }
 
   stop(): void {

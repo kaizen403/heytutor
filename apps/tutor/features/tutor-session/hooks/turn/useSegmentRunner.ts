@@ -28,6 +28,7 @@ export function useSegmentRunner({
   raceWithCancel,
   applyTurnPhase,
   cancelRef,
+  isPausedRef,
   turnActiveRef,
   turnTelemetryRef,
   turnStatsRef,
@@ -39,6 +40,16 @@ export function useSegmentRunner({
   activeDiagramTemplateRef,
   drawChainRef,
 }: UseSegmentRunnerParams) {
+  const waitWhilePaused = useCallback(async (): Promise<boolean> => {
+    while (isPausedRef.current) {
+      if (cancelRef.current) {
+        return false;
+      }
+      await cancellableDelay(80);
+    }
+    return !cancelRef.current;
+  }, [cancelRef, cancellableDelay, isPausedRef]);
+
   const runSegment = useCallback(
     async (
       segment: TutorSegment,
@@ -46,6 +57,7 @@ export function useSegmentRunner({
       allSegments: TutorSegment[],
     ): Promise<void> => {
       if (cancelRef.current) return;
+      if (!(await waitWhilePaused())) return;
 
       const tts = ensureTTSClient();
 
@@ -242,6 +254,9 @@ export function useSegmentRunner({
           let textCommandIndex = 0;
           for (const command of segmentCommands) {
             if (cancelRef.current) {
+              return;
+            }
+            if (!(await waitWhilePaused())) {
               return;
             }
 
@@ -544,6 +559,8 @@ export function useSegmentRunner({
       };
 
       try {
+        if (!(await waitWhilePaused())) return;
+
         if (hasNarration && !hasCommand) {
           tutorDebug("segment", "narration-only", { index });
           await speakSegmentWithTimeout(narration, speakOptions);
@@ -561,6 +578,7 @@ export function useSegmentRunner({
           // marker stays with the words (do not let speech race ahead on drawChain).
           await drawChainRef.current.catch(() => undefined);
           if (cancelRef.current) return;
+          if (!(await waitWhilePaused())) return;
 
           const drawPromise = runDraw(estimateSpeechMs, null);
           drawChainRef.current = drawPromise.catch(() => undefined);
@@ -630,6 +648,8 @@ export function useSegmentRunner({
       raceWithCancel,
       applyTurnPhase,
       cancelRef,
+      isPausedRef,
+      waitWhilePaused,
       turnActiveRef,
       activeDiagramTemplateRef,
       turnTelemetryRef,
