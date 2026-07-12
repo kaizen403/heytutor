@@ -622,11 +622,16 @@ export class ElevenLabsTTSClient implements TTSClient {
   pause(): void {
     this.paused = true;
     this.currentAudioEl?.pause();
+    // Also silence any browser-speech fallback path if layered.
+    if (typeof window !== "undefined") {
+      window.speechSynthesis?.pause();
+      window.speechSynthesis?.cancel();
+    }
   }
 
   resume(): void {
     this.paused = false;
-    void this.currentAudioEl?.play();
+    void this.currentAudioEl?.play().catch(() => undefined);
   }
 
   stop(): void {
@@ -750,13 +755,17 @@ export class SpeechSynthesisTTSClient implements TTSClient {
   pause(): void {
     if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.pause();
+      // Chromium frequently keeps talking through pause(); cancel is the only
+      // reliable way to silence the utterance when the lesson is paused.
+      window.speechSynthesis.cancel();
     }
+    this.playing = false;
+    this.currentUtterance = null;
   }
 
   resume(): void {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.resume();
-    }
+    // cancel() was used on pause, so there is nothing to resume. The segment
+    // runner waits while paused and starts the next utterance after resume.
   }
 
   stop(): void {

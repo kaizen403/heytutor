@@ -310,6 +310,10 @@ export function useTurnControl(
     setIsPaused(true);
     ttsClientRef.current?.pause();
     replayAudioRef.current?.pause();
+    // Belt-and-suspenders: Chromium speechSynthesis often ignores pause().
+    if (typeof window !== "undefined") {
+      window.speechSynthesis?.cancel();
+    }
     whiteboardRef.current?.setPaused(true);
     tutorDebug("turn", "paused");
   }, [phase, isPausedRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef]);
