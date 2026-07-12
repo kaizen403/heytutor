@@ -11,34 +11,24 @@ export const STREAM_SEGMENTS_LIVE = true;
 
 export const LANDING_SUGGESTIONS: CanvasLandingSuggestion[] = [
   {
-    label: "Projectile motion",
-    question: "Explain projectile motion with a diagram",
-    hint: "physics · trajectories",
+    topic: "Resistors",
+    question:
+      "Three 12 ohm resistors in series and in parallel. Find both equivalent resistances and draw each circuit.",
   },
   {
-    label: "Free body diagram",
-    question: "Draw a free body diagram for a block on a ramp",
-    hint: "forces · vectors",
+    topic: "Resistors",
+    question:
+      "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint.",
   },
   {
-    label: "Pythagorean theorem",
-    question: "Prove the Pythagorean theorem step by step",
-    hint: "geometry · proof",
+    topic: "Ray optics",
+    question:
+      "Concave mirror, f = 15 cm, object at 20 cm. Locate the image and draw the ray diagram.",
   },
   {
-    label: "Circle theorems",
-    question: "Explain the inscribed angle theorem with a circle",
-    hint: "geometry · arcs",
-  },
-  {
-    label: "Solve a quadratic",
-    question: "Solve x squared minus 5 x plus 6 by factoring",
-    hint: "algebra · roots",
-  },
-  {
-    label: "RC circuit",
-    question: "Walk me through a simple RC circuit charging up",
-    hint: "circuits · transients",
+    topic: "Ray optics",
+    question:
+      "Light enters glass at 45° with n = 1.5. Find the angle of refraction and draw both rays.",
   },
 ];
 
