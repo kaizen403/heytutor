@@ -352,7 +352,7 @@ export function TutorSessionPage() {
   );
 
   const showEmptyLanding = isInputOverlay && storedTurnsCount === 0;
-  const fullBleedLanding = showEmptyLanding && isCompactNav;
+  const fullBleedLanding = showEmptyLanding;
   const framePad = isCompactNav ? 20 : 32;
 
   return (
@@ -440,7 +440,7 @@ export function TutorSessionPage() {
           >
             {fullBleedLanding && (
               <div className="absolute inset-0 z-20 flex flex-col overflow-y-auto overscroll-contain rounded-2xl border border-[rgba(37,99,235,0.08)] bg-[#F7FAFF]">
-                <div className="my-auto w-full px-3 py-5 sm:px-6 sm:py-8">
+                <div className="flex min-h-full w-full flex-col justify-center px-4 py-6 sm:px-8 sm:py-10">
                   <CanvasLanding
                     suggestions={LANDING_SUGGESTIONS}
                     onSubmit={(question) => void handleQuestion(question)}
@@ -461,7 +461,9 @@ export function TutorSessionPage() {
               aria-hidden={fullBleedLanding || undefined}
             >
             <div className="wb-surface absolute overflow-hidden">
-            <BoardSettingsButton settings={settings} onOpen={() => setSettingsOpen(true)} />
+            {!showEmptyLanding && (
+              <BoardSettingsButton settings={settings} onOpen={() => setSettingsOpen(true)} />
+            )}
             {isInputOverlay && !fullBleedLanding && (
               <div
                 className="pointer-events-none absolute inset-0 z-10"
@@ -483,20 +485,6 @@ export function TutorSessionPage() {
                 }}
               >
                 <p className="text-sm text-slate-500">Loading board…</p>
-              </div>
-            )}
-
-            {showEmptyLanding && !fullBleedLanding && (
-              <div
-                className="absolute inset-0 z-20 flex flex-col items-center justify-start overflow-y-auto overscroll-contain px-3 py-4 sm:justify-center sm:px-4 sm:py-6"
-                style={{ pointerEvents: "none" }}
-              >
-                <div className="my-auto w-full max-w-[720px]" style={{ pointerEvents: "auto" }}>
-                  <CanvasLanding
-                    suggestions={LANDING_SUGGESTIONS}
-                    onSubmit={(question) => void handleQuestion(question)}
-                  />
-                </div>
               </div>
             )}
 
