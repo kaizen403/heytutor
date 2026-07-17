@@ -23,7 +23,7 @@ jobs:
     environment: production
     steps:
       - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.AZURE_DEPLOY_HOST }}
           username: ${{ secrets.AZURE_DEPLOY_USER }}
