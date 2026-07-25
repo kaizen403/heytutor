@@ -12,6 +12,7 @@ const ANNOTATION_TYPES: DrawCommandType[] = [
   'CIRCLE_AROUND',
   'ARROW',
   'HIGHLIGHT',
+  'FOCUS',
   'SCRIBBLE',
 ];
 
@@ -24,6 +25,9 @@ const REVIEW_MODE_CUES = [
   'circle',
   'arrow',
   'highlight',
+  'focus',
+  'trace',
+  'follow',
   'emphasize',
   'remember',
   'look at',
@@ -108,7 +112,7 @@ function hasHardMismatch(narration: string, commandType: DrawCommandType): strin
 }
 
 export function checkSegmentAlignment(segment: TutorSegment): SegmentAlignmentResult {
-  if (segment.templateIntro) {
+  if (segment.verifiedDiagramIntro) {
     return { aligned: true };
   }
 

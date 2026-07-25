@@ -1,3 +1,5 @@
+import { normalizeStrokeText } from './handwriting';
+
 export type DrawCommandType =
   | 'DRAW_CUBOID'
   | 'DRAW_CUBE'
@@ -12,11 +14,28 @@ export type DrawCommandType =
   | 'CIRCLE_AROUND'
   | 'ARROW'
   | 'HIGHLIGHT'
+  | 'FOCUS'
   | 'SCRIBBLE'
   | 'DIMENSION'
   | 'PAUSE'
   | 'CLEAR'
   | 'ERASE';
+
+export type DrawStrokeRole = 'primary' | 'construction' | 'trace';
+
+export interface DrawCommandVisualStyle {
+  strokeRole?: DrawStrokeRole;
+  strokeWidth?: number;
+  dashed?: boolean;
+  /** Verified closed region rendered below its boundary ink. */
+  fillRole?: 'region';
+}
+
+export interface DrawCommandSemanticRef {
+  entityId?: string;
+  primitiveId?: string;
+  actionId?: string;
+}
 
 export interface DrawCommand {
   type: DrawCommandType;
@@ -26,6 +45,10 @@ export interface DrawCommand {
   narrationBefore: string;
   syncable?: boolean;
   syncReason?: string;
+  /** Optional verified-scene styling. Parser-produced freehand commands omit it. */
+  visualStyle?: DrawCommandVisualStyle;
+  /** Stable semantic ownership for compiled ink and later replay/debugging. */
+  semanticRef?: DrawCommandSemanticRef;
 }
 
 export interface ParsedResponse {
@@ -48,6 +71,7 @@ export const DRAW_COMMAND_TYPES = [
   'CIRCLE_AROUND',
   'ARROW',
   'HIGHLIGHT',
+  'FOCUS',
   'SCRIBBLE',
   'DIMENSION',
   'PAUSE',
@@ -58,6 +82,12 @@ export const DRAW_COMMAND_TYPES = [
 const DRAW_COMMAND_TYPE_SET = new Set<string>(DRAW_COMMAND_TYPES);
 
 export const DRAWING_TAG_SCAN_PATTERN = /\[[^\]\n]{1,256}\]/g;
+
+/** WRITE/LABEL bodies may contain "]" (evaluation bars). End at the nearest ,x,y]. */
+const WRITE_LABEL_HEADER_PATTERN = /^\[(WRITE|LABEL):/i;
+const WRITE_LABEL_ENDING_PATTERN =
+  /,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?\]/g;
+const WRITE_LABEL_BODY_BREAK_PATTERN = /\[(WRITE|LABEL|STEP|\/STEP|FOCUS|PAUSE)\b/i;
 
 export interface ParsedDrawingTag {
   type: DrawCommandType;
@@ -151,6 +181,13 @@ export function parseDrawingTag(rawTag: string): ParsedDrawingTag | null {
 
   if (normalizedName === 'DRAW_ARC' || normalizedName === 'ARC') {
     return { type: 'DRAW_ARC', rawParams };
+  }
+
+  if (normalizedName === 'FOCUS') {
+    return {
+      type: 'FOCUS',
+      rawParams: rawParams.trim(),
+    };
   }
 
   if (normalizedName === 'LABEL' || normalizedName === 'WRITE') {
@@ -274,21 +311,24 @@ function normalizeGreekBoardSymbols(text: string): string {
 }
 
 export function normalizeBoardText(text: string): string {
-  return normalizeGreekBoardSymbols(text)
-    .replace(/\bdistance\s+squared\b/gi, 'd^2')
-    .replace(/\bradius\s+squared\b/gi, 'r^2')
-    .replace(/\br\s+squared\b/gi, 'r^2')
-    .replace(/\bx\s+squared\b/gi, 'x^2')
-    .replace(/\by\s+squared\b/gi, 'y^2')
-    .replace(/\b([a-z0-9)])\s+squared\b/gi, '$1^2')
-    .replace(/\bsquare\s+root\s+of\s+([a-z0-9()+\-\s]+)\b/gi, 'sqrt($1)')
-    .replace(/\bminus\b/gi, '-')
-    .replace(/\bplus\b/gi, '+')
-    .replace(/\bequals\b/gi, '=')
-    .replace(/\btimes\b/gi, '*')
-    .replace(/\s+([=+\-*])\s+/g, ' $1 ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+  // Normalize math before the pen sees it so WRITE schedules and ink share one form.
+  return normalizeStrokeText(
+    normalizeGreekBoardSymbols(text)
+      .replace(/\bdistance\s+squared\b/gi, 'd^2')
+      .replace(/\bradius\s+squared\b/gi, 'r^2')
+      .replace(/\br\s+squared\b/gi, 'r^2')
+      .replace(/\bx\s+squared\b/gi, 'x^2')
+      .replace(/\by\s+squared\b/gi, 'y^2')
+      .replace(/\b([a-z0-9)])\s+squared\b/gi, '$1^2')
+      .replace(/\bsquare\s+root\s+of\s+([a-z0-9()+\-\s]+)\b/gi, 'sqrt($1)')
+      .replace(/\bminus\b/gi, '-')
+      .replace(/\bplus\b/gi, '+')
+      .replace(/\bequals\b/gi, '=')
+      .replace(/\btimes\b/gi, '*')
+      .replace(/\s+([=+\-*])\s+/g, ' $1 ')
+      .replace(/\s{2,}/g, ' ')
+      .trim(),
+  );
 }
 
 export function normalizeNarration(text: string): string {
@@ -302,7 +342,9 @@ export function parseDrawCommandFromTag(
   narrationBefore: string,
 ): DrawCommand {
   const parsed =
-    type === 'WRITE' || type === 'LABEL'
+    type === 'FOCUS'
+      ? { text: normalizeBoardText(rawParams), params: [] }
+      : type === 'WRITE' || type === 'LABEL'
       ? parseTextCommandParams(rawParams)
       : type === 'DIMENSION'
         ? parseDimensionCommandParams(rawParams)
@@ -321,8 +363,8 @@ export interface TutorSegment {
   narration: string;
   command: DrawCommand | null;
   commands?: DrawCommand[];
-  /** Runtime template intro — must not be blocked by duplicate-template filtering. */
-  templateIntro?: boolean;
+  /** Commands emitted by the verified scene compiler before teaching starts. */
+  verifiedDiagramIntro?: boolean;
 }
 
 export function getSegmentCommands(segment: TutorSegment): DrawCommand[] {
@@ -345,16 +387,37 @@ export function parseStoredSegmentCommands(stored: unknown): DrawCommand[] {
   return [stored as DrawCommand];
 }
 
-export function serializeSegmentCommands(commands: DrawCommand[]): DrawCommand | { commands: DrawCommand[] } | null {
+export interface StoredCommandEnvelope {
+  commands: DrawCommand[];
+  /** Commands were emitted by a verified deterministic compiler. */
+  trustedDiagramGeometry?: boolean;
+}
+
+export function isStoredCommandTrustedGeometry(stored: unknown): boolean {
+  return Boolean(
+    stored &&
+    typeof stored === "object" &&
+    "trustedDiagramGeometry" in stored &&
+    (stored as { trustedDiagramGeometry?: unknown }).trustedDiagramGeometry === true,
+  );
+}
+
+export function serializeSegmentCommands(
+  commands: DrawCommand[],
+  options: { trustedDiagramGeometry?: boolean } = {},
+): DrawCommand | StoredCommandEnvelope | null {
   if (commands.length === 0) {
     return null;
   }
 
-  if (commands.length === 1) {
+  if (commands.length === 1 && !options.trustedDiagramGeometry) {
     return commands[0]!;
   }
 
-  return { commands };
+  return {
+    commands,
+    ...(options.trustedDiagramGeometry ? { trustedDiagramGeometry: true } : {}),
+  };
 }
 
 function coalesceSegments(segments: TutorSegment[]): TutorSegment[] {
@@ -384,35 +447,100 @@ export function parsedResponseToSegments(parsed: ParsedResponse): TutorSegment[]
   return coalesceSegments(segments);
 }
 
+function matchWriteLabelTag(slice: string): string | null {
+  const header = WRITE_LABEL_HEADER_PATTERN.exec(slice);
+  if (!header) {
+    return null;
+  }
+
+  WRITE_LABEL_ENDING_PATTERN.lastIndex = header[0].length;
+  let ending: RegExpExecArray | null;
+  while ((ending = WRITE_LABEL_ENDING_PATTERN.exec(slice)) !== null) {
+    const body = slice.slice(header[0].length, ending.index);
+    if (WRITE_LABEL_BODY_BREAK_PATTERN.test(body)) {
+      return null;
+    }
+    return slice.slice(0, ending.index + ending[0].length);
+  }
+  return null;
+}
+
+export function isCompleteDrawingTag(rawTag: string): boolean {
+  if (WRITE_LABEL_HEADER_PATTERN.test(rawTag)) {
+    return matchWriteLabelTag(rawTag) === rawTag;
+  }
+  return rawTag.startsWith('[') && rawTag.endsWith(']');
+}
+
+export interface DrawingTagMatch {
+  index: number;
+  fullTag: string;
+}
+
+function nextDrawingTag(
+  responseText: string,
+  fromIndex: number,
+): DrawingTagMatch | null {
+  const openIndex = responseText.indexOf('[', fromIndex);
+  if (openIndex < 0) {
+    return null;
+  }
+
+  const slice = responseText.slice(openIndex);
+  const writeTag = matchWriteLabelTag(slice);
+  if (writeTag) {
+    return { index: openIndex, fullTag: writeTag };
+  }
+
+  DRAWING_TAG_SCAN_PATTERN.lastIndex = openIndex;
+  const match = DRAWING_TAG_SCAN_PATTERN.exec(responseText);
+  if (!match || match.index !== openIndex) {
+    // Skip a stray "[" and keep scanning.
+    return nextDrawingTag(responseText, openIndex + 1);
+  }
+  return { index: match.index, fullTag: match[0] };
+}
+
+/** Scan complete protocol tags without treating math brackets inside WRITE/LABEL as terminators. */
+export function scanDrawingTags(responseText: string): DrawingTagMatch[] {
+  const matches: DrawingTagMatch[] = [];
+  let fromIndex = 0;
+  let next = nextDrawingTag(responseText, fromIndex);
+
+  while (next) {
+    matches.push(next);
+    fromIndex = next.index + next.fullTag.length;
+    next = nextDrawingTag(responseText, fromIndex);
+  }
+
+  return matches;
+}
+
 export function parseDrawingCommands(responseText: string): ParsedResponse {
   const commands: DrawCommand[] = [];
   const segments: { text: string; commandIndex: number }[] = [];
   let narration = '';
   let lastIndex = 0;
-  let match: RegExpExecArray | null;
 
-  DRAWING_TAG_SCAN_PATTERN.lastIndex = 0;
-
-  while ((match = DRAWING_TAG_SCAN_PATTERN.exec(responseText)) !== null) {
-    const [fullTag] = match;
+  for (const { index, fullTag } of scanDrawingTags(responseText)) {
     const parsedTag = parseDrawingTag(fullTag);
     if (!parsedTag) {
-      narration += responseText.slice(lastIndex, match.index + fullTag.length);
-      lastIndex = match.index + fullTag.length;
+      narration += responseText.slice(lastIndex, index + fullTag.length);
+      lastIndex = index + fullTag.length;
       continue;
     }
 
     const commandIndex = commands.length;
-    const textBeforeTag = responseText.slice(lastIndex, match.index);
+    const textBeforeTag = responseText.slice(lastIndex, index);
 
     narration += textBeforeTag;
     segments.push({ text: textBeforeTag, commandIndex });
 
     commands.push(
-      parseDrawCommandFromTag(parsedTag.type, parsedTag.rawParams, match.index, narration),
+      parseDrawCommandFromTag(parsedTag.type, parsedTag.rawParams, index, narration),
     );
 
-    lastIndex = match.index + fullTag.length;
+    lastIndex = index + fullTag.length;
   }
 
   const trailingText = responseText.slice(lastIndex);
