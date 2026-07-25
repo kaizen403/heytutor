@@ -1,24 +1,27 @@
 import {
-  DRAWING_TAG_SCAN_PATTERN,
   normalizeBoardText,
   normalizeNarration,
   parseDrawingTag,
   parseDrawCommandFromTag,
   parseDrawingCommands,
   parsedResponseToSegments,
+  scanDrawingTags,
   getSegmentCommands,
   type DrawCommand,
   type DrawCommandType,
   type TutorSegment,
 } from './drawingProtocol';
-import { BOARD_CANVAS, DIAGRAM_ZONE, WORK_ZONE, SECOND_WORK_ZONE } from './boardZones';
+import { BOARD_CANVAS, DIAGRAM_ZONE, WORK_ZONE } from './boardZones';
 import { measureTextWidth } from './handwriting';
 
 const STEP_BLOCK_PATTERN = /\[STEP\]\s*([\s\S]*?)\s*\[\/STEP\]/gi;
 
 const RUNTIME_MANAGED_COMMAND_TYPES = new Set<DrawCommandType>(['CLEAR', 'ERASE']);
 const WORK_TEXT_BOTTOM_Y = WORK_ZONE.topY + WORK_ZONE.lineHeight * 9;
-const SECOND_WORK_BOTTOM_Y = SECOND_WORK_ZONE.topY + SECOND_WORK_ZONE.lineHeight * 9;
+const WORK_TEXT_RIGHT_GAP = 28;
+const WORK_TEXT_MAX_WIDTH = DIAGRAM_ZONE.x - WORK_TEXT_RIGHT_GAP - WORK_ZONE.marginX;
+const DEFAULT_WORK_FONT_SIZE = 32;
+const MIN_WORK_FONT_SIZE = 12;
 
 interface StructuredBoardAction {
   command: DrawCommand;
@@ -31,15 +34,14 @@ function extractActionsFromBlock(block: string, blockStartIndex: number): Struct
   const actions: StructuredBoardAction[] = [];
   let narrationCursor = 0;
 
-  DRAWING_TAG_SCAN_PATTERN.lastIndex = 0;
-  for (const match of block.matchAll(DRAWING_TAG_SCAN_PATTERN)) {
-    const fullTag = match[0];
+  for (const match of scanDrawingTags(block)) {
+    const { fullTag } = match;
     const parsedTag = parseDrawingTag(fullTag);
     if (!parsedTag) {
       continue;
     }
 
-    const tagIndex = match.index ?? 0;
+    const tagIndex = match.index;
     const syncAnchor = normalizeNarration(stripDrawingTags(block.slice(narrationCursor, tagIndex)));
     const command = parseDrawCommandFromTag(
       parsedTag.type,
@@ -61,10 +63,18 @@ function extractActionsFromBlock(block: string, blockStartIndex: number): Struct
 }
 
 function stripDrawingTags(text: string): string {
-  DRAWING_TAG_SCAN_PATTERN.lastIndex = 0;
-  return text
-    .replace(DRAWING_TAG_SCAN_PATTERN, (tag) => (parseDrawingTag(tag) ? '' : tag))
-    .trim();
+  let stripped = '';
+  let cursor = 0;
+
+  for (const { index, fullTag } of scanDrawingTags(text)) {
+    if (!parseDrawingTag(fullTag)) {
+      continue;
+    }
+    stripped += text.slice(cursor, index);
+    cursor = index + fullTag.length;
+  }
+
+  return `${stripped}${text.slice(cursor)}`.trim();
 }
 
 function withSyncMetadata(narration: string, command: DrawCommand | null): DrawCommand | null {
@@ -182,89 +192,67 @@ function clampCommandParams(command: DrawCommand): DrawCommand {
   return command;
 }
 
-function findBestSplitPoint(text: string): number {
-  const operators = ['=', '→', '≈', '≤', '≥', '+', '−', '-'];
-  let bestIdx = -1;
-  let bestScore = 0;
-
-  for (const op of operators) {
-    const idx = text.indexOf(op);
-    if (idx > 0 && idx < text.length - 1) {
-      const score = idx > text.length * 0.3 && idx < text.length * 0.7 ? 2 : 1;
-      if (score > bestScore) {
-        bestScore = score;
-        bestIdx = idx + 1;
-      }
+function fittedWorkFontSize(text: string, preferred: number): number {
+  for (let fontSize = preferred; fontSize >= MIN_WORK_FONT_SIZE; fontSize -= 1) {
+    if (measureTextWidth(text, fontSize) <= WORK_TEXT_MAX_WIDTH) {
+      return fontSize;
     }
   }
+  return MIN_WORK_FONT_SIZE;
+}
 
-  if (bestIdx < 0) {
-    for (let i = Math.floor(text.length * 0.6); i < text.length; i++) {
-      if (text[i] === ' ') {
-        bestIdx = i;
+function splitWorkText(text: string, fontSize: number): string[] {
+  if (measureTextWidth(text, fontSize) <= WORK_TEXT_MAX_WIDTH) return [text];
+  const lines: string[] = [];
+  let remaining = text.trim();
+  while (remaining && measureTextWidth(remaining, fontSize) > WORK_TEXT_MAX_WIDTH) {
+    let fit = 1;
+    for (let index = 2; index <= remaining.length; index += 1) {
+      if (measureTextWidth(remaining.slice(0, index), fontSize) > WORK_TEXT_MAX_WIDTH) break;
+      fit = index;
+    }
+
+    // Prefer a semantic boundary near the available edge. The hard split is a
+    // last resort for a single long symbolic token or chemical formula.
+    let splitAt = fit;
+    const searchFloor = Math.max(1, Math.floor(fit * 0.55));
+    for (let index = fit; index >= searchFloor; index -= 1) {
+      if (/\s|[=+−\-×÷→≈≤≥,;]/u.test(remaining[index - 1] ?? "")) {
+        splitAt = index;
         break;
       }
     }
+    lines.push(remaining.slice(0, splitAt).trim());
+    remaining = remaining.slice(splitAt).trim();
   }
-
-  return bestIdx;
+  if (remaining) lines.push(remaining);
+  return lines;
 }
 
-function clampWorkTextCommand(command: DrawCommand): DrawCommand | DrawCommand[] {
+export function fitWorkTextCommand(command: DrawCommand): DrawCommand[] {
   if (command.type !== 'WRITE' || command.params.length < 2) {
-    return command;
+    return [command];
   }
 
-  const [x, y] = command.params;
+  const [, y, requestedFontSize] = command.params;
   const text = command.text ?? '';
-  const textWidth = measureTextWidth(text, 32);
-  const rightBoundary = DIAGRAM_ZONE.x - 20;
+  const preferredFontSize =
+    Number.isFinite(requestedFontSize) && requestedFontSize >= MIN_WORK_FONT_SIZE
+      ? Math.min(requestedFontSize, DEFAULT_WORK_FONT_SIZE)
+      : DEFAULT_WORK_FONT_SIZE;
+  const fittedFontSize = fittedWorkFontSize(text, preferredFontSize);
+  const lines = splitWorkText(text, fittedFontSize);
+  const startY = Math.min(Math.max(y, WORK_ZONE.topY), WORK_TEXT_BOTTOM_Y);
 
-  if (x >= SECOND_WORK_ZONE.marginX && x <= SECOND_WORK_ZONE.marginX + SECOND_WORK_ZONE.maxWidth) {
-    const next = [...command.params];
-    next[1] = Math.min(Math.max(y, SECOND_WORK_ZONE.topY), SECOND_WORK_BOTTOM_Y);
-    return { ...command, params: next };
-  }
-
-  if (x >= DIAGRAM_ZONE.x) {
-    return command;
-  }
-
-  if (x + textWidth > rightBoundary && x < DIAGRAM_ZONE.x) {
-    const splitIdx = findBestSplitPoint(text);
-    if (splitIdx > 0) {
-      const part1 = text.slice(0, splitIdx).trim();
-      const part2 = text.slice(splitIdx).trim();
-      const part1Width = measureTextWidth(part1, 32);
-
-      if (x + part1Width <= rightBoundary && part2.length > 0) {
-        const clampedY1 = Math.min(Math.max(y, WORK_ZONE.topY), WORK_TEXT_BOTTOM_Y);
-        const clampedY2 = Math.min(Math.max(y + WORK_ZONE.lineHeight, WORK_ZONE.topY), WORK_TEXT_BOTTOM_Y);
-        return [
-          { ...command, text: part1, params: [x, clampedY1] },
-          { ...command, text: part2, params: [x, clampedY2] },
-        ];
-      }
-    }
-
-    const maxX = rightBoundary - textWidth;
-    if (maxX >= WORK_ZONE.marginX) {
-      const clampedY = Math.min(Math.max(y, WORK_ZONE.topY), WORK_TEXT_BOTTOM_Y);
-      return { ...command, params: [maxX, clampedY] };
-    }
-  }
-
-  if (y > WORK_TEXT_BOTTOM_Y) {
-    return {
-      ...command,
-      params: [SECOND_WORK_ZONE.marginX, Math.min(Math.max(y, SECOND_WORK_ZONE.topY), SECOND_WORK_BOTTOM_Y)],
-    };
-  }
-
-  const next = [...command.params];
-  next[0] = Math.min(Math.max(x, WORK_ZONE.marginX), WORK_ZONE.x + WORK_ZONE.width);
-  next[1] = Math.min(Math.max(y, WORK_ZONE.topY), WORK_TEXT_BOTTOM_Y);
-  return { ...command, params: next };
+  return lines.map((line, index) => ({
+    ...command,
+    text: line,
+    params: [
+      WORK_ZONE.marginX,
+      Math.min(startY + index * WORK_ZONE.lineHeight, WORK_TEXT_BOTTOM_Y),
+      fittedWorkFontSize(line, preferredFontSize),
+    ],
+  }));
 }
 
 function sanitizeCommand(command: DrawCommand | null): DrawCommand | DrawCommand[] | null {
@@ -279,17 +267,10 @@ function sanitizeCommand(command: DrawCommand | null): DrawCommand | DrawCommand
   const clamped = clampCommandParams(command);
 
   if (clamped.type === 'WRITE' || clamped.type === 'LABEL') {
-    const textResult = clampWorkTextCommand(clamped);
-    if (Array.isArray(textResult)) {
-      return textResult.map((cmd) => ({
-        ...cmd,
-        text: normalizeBoardText(cmd.text ?? ""),
-      }));
-    }
-    return {
-      ...textResult,
-      text: normalizeBoardText(textResult.text ?? ""),
-    };
+    return fitWorkTextCommand(clamped).map((cmd) => ({
+      ...cmd,
+      text: normalizeBoardText(cmd.text ?? ""),
+    }));
   }
 
   if (clamped.type === "DIMENSION") {
