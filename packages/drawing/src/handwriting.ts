@@ -76,16 +76,57 @@ const SUBSCRIPT_MAP: Record<string, string> = {
 };
 
 /**
- * Rewrites Unicode fractions and super/subscript runs into stroke-renderable
- * tokens (^(...) / _(...) / a/b) so they draw in the handwriting font instead
- * of falling back to a browser font.
+ * Rewrites Unicode fractions, LaTeX-ish limits, and super/subscript runs into
+ * stroke-renderable tokens (^(...) / _(...) / a/b) so they draw in the
+ * handwriting font instead of falling back to a browser font.
+ *
+ * Models often emit `∫_{-2}^{2}`; braces must become paren script groups or
+ * the board literally draws "{" and "}".
  */
 export function normalizeStrokeText(text: string): string {
+  // Do not use \b after the command name: LaTeX often continues with "_" / "^".
+  let source = text
+    .replace(/\\int(?![A-Za-z])/g, "∫")
+    .replace(/\\sum(?![A-Za-z])/g, "∑")
+    .replace(/\\prod(?![A-Za-z])/g, "∏")
+    .replace(/\\infty(?![A-Za-z])/g, "∞")
+    .replace(/\\partial(?![A-Za-z])/g, "∂")
+    .replace(/\\sqrt(?![A-Za-z])/g, "√")
+    .replace(/\\pm(?![A-Za-z])/g, "±")
+    .replace(/\\times(?![A-Za-z])/g, "×")
+    .replace(/\\cdot(?![A-Za-z])/g, "·")
+    .replace(/\\leq(?![A-Za-z])/g, "≤")
+    .replace(/\\geq(?![A-Za-z])/g, "≥")
+    .replace(/\\neq(?![A-Za-z])/g, "≠")
+    .replace(/\\approx(?![A-Za-z])/g, "≈")
+    .replace(/\\pi(?![A-Za-z])/g, "π")
+    .replace(/\\theta(?![A-Za-z])/g, "θ");
+
+  // Models sometimes drop "_" / "^" and emit `∫{-2}{2}` or spaced `∫ { -2 } { 2 }`.
+  source = source.replace(
+    /([∫∮∑∏])\s*_\s*\{\s*([^}]*)\s*\}\s*\^\s*\{\s*([^}]*)\s*\}/g,
+    "$1_($2)^($3)",
+  );
+  source = source.replace(
+    /([∫∮∑∏])\s*\{\s*([^}]*)\s*\}\s*\^\s*\{\s*([^}]*)\s*\}/g,
+    "$1_($2)^($3)",
+  );
+  source = source.replace(
+    /([∫∮∑∏])\s*\{\s*([^}]*)\s*\}\s*\{\s*([^}]*)\s*\}/g,
+    "$1_($2)^($3)",
+  );
+
+  // Convert LaTeX `_{...}` / `^{...}` (including nested braces) to `_(...)` / `^(...)`.
+  source = rewriteLatexScriptBraces(source);
+
+  // Allow spaces between script markers and groups: `∫_ (-2) ^ (2)`.
+  source = source.replace(/([_^])\s+\(/g, "$1(");
+
   let out = "";
   let i = 0;
 
-  while (i < text.length) {
-    const ch = text[i];
+  while (i < source.length) {
+    const ch = source[i];
 
     const fraction = VULGAR_FRACTIONS[ch];
     if (fraction !== undefined) {
@@ -96,8 +137,8 @@ export function normalizeStrokeText(text: string): string {
 
     if (SUPERSCRIPT_MAP[ch] !== undefined) {
       let run = "";
-      while (i < text.length && SUPERSCRIPT_MAP[text[i]] !== undefined) {
-        run += SUPERSCRIPT_MAP[text[i]];
+      while (i < source.length && SUPERSCRIPT_MAP[source[i]] !== undefined) {
+        run += SUPERSCRIPT_MAP[source[i]];
         i++;
       }
       out += run.length > 1 ? `^(${run})` : `^${run}`;
@@ -106,8 +147,8 @@ export function normalizeStrokeText(text: string): string {
 
     if (SUBSCRIPT_MAP[ch] !== undefined) {
       let run = "";
-      while (i < text.length && SUBSCRIPT_MAP[text[i]] !== undefined) {
-        run += SUBSCRIPT_MAP[text[i]];
+      while (i < source.length && SUBSCRIPT_MAP[source[i]] !== undefined) {
+        run += SUBSCRIPT_MAP[source[i]];
         i++;
       }
       out += run.length > 1 ? `_(${run})` : `_${run}`;
@@ -118,6 +159,39 @@ export function normalizeStrokeText(text: string): string {
     i++;
   }
 
+  return out;
+}
+
+function rewriteLatexScriptBraces(text: string): string {
+  let out = "";
+  let i = 0;
+  while (i < text.length) {
+    const marker = text[i];
+    if ((marker === "^" || marker === "_") && text[i + 1] === "{") {
+      let depth = 1;
+      let j = i + 2;
+      let content = "";
+      while (j < text.length && depth > 0) {
+        const ch = text[j];
+        if (ch === "{") depth++;
+        if (ch === "}") {
+          depth--;
+          if (depth === 0) {
+            j++;
+            break;
+          }
+        }
+        content += ch;
+        j++;
+      }
+      // Nested LaTeX scripts inside the group still need rewriting.
+      out += `${marker}(${rewriteLatexScriptBraces(content)})`;
+      i = j;
+      continue;
+    }
+    out += marker;
+    i++;
+  }
   return out;
 }
 
@@ -787,8 +861,8 @@ function renderChar(
 
 /**
  * Reads the characters that form a superscript or subscript group.
- * - `^(...)` or `_(...)` → everything inside the parens (parens stripped).
- * - `^x` or `_x`        → just the single character x.
+ * - `^(...)` / `_(...)` or `^{...}` / `_{...}` → grouped content (delimiters stripped).
+ * - `^x` or `_x` → a same-class run (digits/letters) or a single character.
  */
 function readScriptGroup(
   text: string,
@@ -799,14 +873,16 @@ function readScriptGroup(
     return { content: "", nextIndex: start };
   }
 
-  if (text[start] === "(") {
+  const opener = text[start];
+  if (opener === "(" || opener === "{") {
+    const closer = opener === "(" ? ")" : "}";
     let i = start + 1;
     let depth = 1;
     let content = "";
 
     while (i < text.length && depth > 0) {
-      if (text[i] === "(") depth++;
-      if (text[i] === ")") {
+      if (text[i] === opener) depth++;
+      if (text[i] === closer) {
         depth--;
         if (depth === 0) break;
       }
@@ -821,6 +897,20 @@ function readScriptGroup(
   // "x^10" superscripts both digits — a single-char read leaves the rest of
   // the word at normal size mid-word ("E_initial" → tiny i, normal "nitial"),
   // which looks broken on the board. Same-class keeps "v_0t" as v₀t.
+  // Also allow a leading sign so "_-2" becomes the lower limit -2.
+  if (text[start] === "+" || text[start] === "-") {
+    const sign = text[start];
+    let i = start + 1;
+    let digits = "";
+    while (i < text.length && /[0-9]/.test(text[i])) {
+      digits += text[i];
+      i++;
+    }
+    if (digits.length > 0) {
+      return { content: `${sign}${digits}`, nextIndex: i };
+    }
+  }
+
   const first = text[start];
   const runPattern =
     kind === "^" || /[0-9]/.test(first) ? /[0-9]/ : /[A-Za-z]/.test(first) ? /[A-Za-z]/ : null;
@@ -843,7 +933,89 @@ function readScriptGroup(
   return { content, nextIndex: i };
 }
 
+const STACKED_LIMIT_OWNERS = new Set(["∫", "∮", "∑", "∏"]);
+
+function renderScriptRun(
+  content: string,
+  startX: number,
+  baselineY: number,
+  topY: number,
+  scriptScale: number,
+  scriptFontSize: number,
+  tracking: number,
+): { paths: CharacterPath[]; width: number } {
+  const paths: CharacterPath[] = [];
+  let cursorX = startX;
+  for (const scriptChar of content) {
+    if (scriptChar === " ") {
+      cursorX += scriptFontSize * 0.3;
+      continue;
+    }
+    const { path, advance } = renderChar(
+      scriptChar,
+      cursorX,
+      baselineY,
+      topY,
+      scriptScale,
+      scriptFontSize,
+    );
+    paths.push(path);
+    cursorX += advance + tracking;
+  }
+  return { paths, width: Math.max(cursorX - startX, 0) };
+}
+
+const strokePathCache = new Map<string, Promise<CharacterPath[]>>();
+const STROKE_PATH_CACHE_LIMIT = 64;
+
+function strokePathCacheKey(
+  rawText: string,
+  x: number,
+  y: number,
+  fontSize: number,
+): string {
+  return `${rawText}\0${Math.round(x)}\0${Math.round(y)}\0${Math.round(fontSize)}`;
+}
+
+/** Warm Tegaki stroke generation so the first spoken character is not delayed by setup. */
+export function prefetchStrokePaths(
+  rawText: string,
+  x: number,
+  y: number,
+  fontSize: number,
+): void {
+  void textToStrokePaths(rawText, x, y, fontSize);
+}
+
 export async function textToStrokePaths(
+  rawText: string,
+  x: number,
+  y: number,
+  fontSize: number,
+): Promise<CharacterPath[]> {
+  const cacheKey = strokePathCacheKey(rawText, x, y, fontSize);
+  const cached = strokePathCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const buildPromise = buildStrokePaths(rawText, x, y, fontSize);
+  strokePathCache.set(cacheKey, buildPromise);
+  if (strokePathCache.size > STROKE_PATH_CACHE_LIMIT) {
+    const oldest = strokePathCache.keys().next().value;
+    if (oldest !== undefined) {
+      strokePathCache.delete(oldest);
+    }
+  }
+  try {
+    return await buildPromise;
+  } catch (error) {
+    strokePathCache.delete(cacheKey);
+    throw error;
+  }
+}
+
+async function buildStrokePaths(
   rawText: string,
   x: number,
   y: number,
@@ -881,24 +1053,17 @@ export async function textToStrokePaths(
       i = nextIndex;
 
       currentX += fontSize * SCRIPT_KERN_BEFORE_RATIO;
-      for (const superChar of content) {
-        if (superChar === " ") {
-          currentX += scriptFontSize * 0.3;
-          continue;
-        }
-
-        const { path, advance } = renderChar(
-          superChar,
-          currentX,
-          superBaselineY,
-          superTopY,
-          scriptScale,
-          scriptFontSize,
-        );
-        results.push(path);
-        currentX += advance + tracking;
-      }
-      currentX += fontSize * SCRIPT_KERN_AFTER_RATIO;
+      const rendered = renderScriptRun(
+        content,
+        currentX,
+        superBaselineY,
+        superTopY,
+        scriptScale,
+        scriptFontSize,
+        tracking,
+      );
+      results.push(...rendered.paths);
+      currentX += rendered.width + fontSize * SCRIPT_KERN_AFTER_RATIO;
       continue;
     }
 
@@ -909,24 +1074,24 @@ export async function textToStrokePaths(
       i = nextIndex;
 
       currentX += fontSize * SCRIPT_KERN_BEFORE_RATIO;
-      for (const subChar of content) {
-        if (subChar === " ") {
-          currentX += scriptFontSize * 0.3;
-          continue;
-        }
+      const rendered = renderScriptRun(
+        content,
+        currentX,
+        subBaselineY,
+        subTopY,
+        scriptScale,
+        scriptFontSize,
+        tracking,
+      );
+      results.push(...rendered.paths);
+      currentX += rendered.width + fontSize * SCRIPT_KERN_AFTER_RATIO;
+      continue;
+    }
 
-        const { path, advance } = renderChar(
-          subChar,
-          currentX,
-          subBaselineY,
-          subTopY,
-          scriptScale,
-          scriptFontSize,
-        );
-        results.push(path);
-        currentX += advance + tracking;
-      }
-      currentX += fontSize * SCRIPT_KERN_AFTER_RATIO;
+    // LaTeX brace delimiters must never become board ink. Script groups are
+    // already rewritten above; any leftover "{" / "}" is model slop.
+    if (char === "{" || char === "}") {
+      i++;
       continue;
     }
 
@@ -935,6 +1100,54 @@ export async function textToStrokePaths(
     results.push(path);
     currentX += advance + tracking;
     i++;
+
+    // Integral / sum / product limits stack beside the owner glyph instead of
+    // marching left-to-right as separate script runs.
+    if (STACKED_LIMIT_OWNERS.has(char)) {
+      let lower: string | null = null;
+      let upper: string | null = null;
+      let cursor = i;
+      while (cursor < text.length && (text[cursor] === "_" || text[cursor] === "^")) {
+        const marker = text[cursor] as "^" | "_";
+        cursor++;
+        const group = readScriptGroup(text, cursor, marker);
+        cursor = group.nextIndex;
+        if (marker === "_") lower = group.content;
+        else upper = group.content;
+      }
+      if (lower !== null || upper !== null) {
+        i = cursor;
+        const limitX = currentX + fontSize * SCRIPT_KERN_BEFORE_RATIO;
+        let limitWidth = 0;
+        if (upper !== null) {
+          const rendered = renderScriptRun(
+            upper,
+            limitX,
+            superBaselineY,
+            superTopY,
+            scriptScale,
+            scriptFontSize,
+            tracking,
+          );
+          results.push(...rendered.paths);
+          limitWidth = Math.max(limitWidth, rendered.width);
+        }
+        if (lower !== null) {
+          const rendered = renderScriptRun(
+            lower,
+            limitX,
+            subBaselineY,
+            subTopY,
+            scriptScale,
+            scriptFontSize,
+            tracking,
+          );
+          results.push(...rendered.paths);
+          limitWidth = Math.max(limitWidth, rendered.width);
+        }
+        currentX = limitX + limitWidth + fontSize * SCRIPT_KERN_AFTER_RATIO;
+      }
+    }
   }
 
   return results;
@@ -947,6 +1160,24 @@ export async function textToStrokePaths(
  * This mirrors the layout loop in `textToStrokePaths` but skips stroke
  * generation, so it is cheap and synchronous.
  */
+function measureScriptRunWidth(
+  content: string,
+  scriptFontSize: number,
+  scriptScale: number,
+  tracking: number,
+): number {
+  let width = 0;
+  for (const subChar of content) {
+    if (subChar === " ") {
+      width += scriptFontSize * 0.3;
+      continue;
+    }
+    const glyph = glyphDataRecord[subChar];
+    width += (glyph ? glyph.w * scriptScale : scriptFontSize * 0.5) + tracking;
+  }
+  return width;
+}
+
 export function measureTextWidth(rawText: string, fontSize: number = 32): number {
   const text = normalizeStrokeText(rawText);
   const tracking = fontSize * LETTER_TRACKING_RATIO;
@@ -970,17 +1201,14 @@ export function measureTextWidth(rawText: string, fontSize: number = 32): number
       i++;
       const { content, nextIndex } = readScriptGroup(text, i, char);
       i = nextIndex;
-      const subScale = scriptScale;
       currentX += fontSize * SCRIPT_KERN_BEFORE_RATIO;
-      for (const subChar of content) {
-        if (subChar === " ") {
-          currentX += scriptFontSize * 0.3;
-          continue;
-        }
-        const glyph = glyphDataRecord[subChar];
-        currentX += (glyph ? glyph.w * subScale : scriptFontSize * 0.5) + tracking;
-      }
+      currentX += measureScriptRunWidth(content, scriptFontSize, scriptScale, tracking);
       currentX += fontSize * SCRIPT_KERN_AFTER_RATIO;
+      continue;
+    }
+
+    if (char === "{" || char === "}") {
+      i++;
       continue;
     }
 
@@ -988,10 +1216,32 @@ export function measureTextWidth(rawText: string, fontSize: number = 32): number
     if (!glyph && (SYNTHETIC_GREEK_CHARS.has(char) || SYNTHETIC_MATH_CHARS.has(char))) {
       currentX += syntheticGlyphWidth(char, scale) + tracking;
       i++;
-      continue;
+    } else {
+      currentX += (glyph ? glyph.w * scale : fontSize * 0.5) + tracking;
+      i++;
     }
-    currentX += (glyph ? glyph.w * scale : fontSize * 0.5) + tracking;
-    i++;
+
+    if (STACKED_LIMIT_OWNERS.has(char)) {
+      let lower: string | null = null;
+      let upper: string | null = null;
+      let cursor = i;
+      while (cursor < text.length && (text[cursor] === "_" || text[cursor] === "^")) {
+        const marker = text[cursor] as "^" | "_";
+        cursor++;
+        const group = readScriptGroup(text, cursor, marker);
+        cursor = group.nextIndex;
+        if (marker === "_") lower = group.content;
+        else upper = group.content;
+      }
+      if (lower !== null || upper !== null) {
+        i = cursor;
+        const limitWidth = Math.max(
+          lower ? measureScriptRunWidth(lower, scriptFontSize, scriptScale, tracking) : 0,
+          upper ? measureScriptRunWidth(upper, scriptFontSize, scriptScale, tracking) : 0,
+        );
+        currentX += fontSize * SCRIPT_KERN_BEFORE_RATIO + limitWidth + fontSize * SCRIPT_KERN_AFTER_RATIO;
+      }
+    }
   }
 
   return currentX;
