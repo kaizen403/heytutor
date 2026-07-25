@@ -14,8 +14,8 @@
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "clean": "rm -rf dist",
-    "verify:geometry": "tsx scripts/verify-geometry-compiler.ts"
+    "verify": "tsx scripts/verify-drawing-protocol.ts",
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "roughjs": "^4.6.6",
