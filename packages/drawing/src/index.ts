@@ -4,23 +4,16 @@ export * from "./shapePaths";
 export * from "./handwriting";
 export * from "./alignmentCheck";
 export * from "./lessonPlanner";
-export * from "./templates/registry";
-export * from "./geometry";
+export * from "./verifiedDiagram";
 export {
-  isBlockedTemplateDiagramDraw,
-  isBlockedOpticsOwnedAnnotation,
-  isDuplicateTemplateDraw,
-  prepareTemplateLessonSegments,
-  repairDiagramCommand,
-  snapLabelToTemplateAnchor,
-  resolveAnnotationWithAnchors,
+  isBlockedVerifiedDiagramCommand,
+  prepareVerifiedLessonSegments,
   anchorToTextRect,
+  resolveVerifiedDiagramFocusTarget,
   type BoardTextRect,
-  type PreparedTemplateSegments,
+  type PreparedVerifiedSegments,
 } from "./commandPlacement";
-export { collectTemplateSnapPoints, snapGeometryCommand, snapPointToTemplate, LENS_O_X, MIRROR_POLE_X, OPTICS_MIRROR_CURVE, AXIS_Y } from "./geometrySnap";
 export { BOARD_CANVAS, DIAGRAM_ZONE, WORK_ZONE, SECOND_WORK_ZONE, clampToDiagramZone, isInDiagramZone } from "./boardZones";
-export { DIAGRAM_MARKING_GUIDANCE } from "./templates/annotationGuidance";
 export {
   animateStroke,
   animateRoughStroke,

@@ -1,5 +1,6 @@
 import {
   DRAW_COMMAND_TYPES,
+  isCompleteDrawingTag,
   parseDrawingTag,
   parseDrawCommandFromTag,
   type TutorSegment,
@@ -134,6 +135,12 @@ export class IncrementalTagParser {
       this.tagBuffer = '';
       this.state = 'NARRATION';
       this.emitTrailingNarration();
+      return;
+    }
+
+    // WRITE/LABEL text may itself contain closing brackets (for example an
+    // evaluation bar). Keep buffering until the tag has its terminal x,y].
+    if (!isCompleteDrawingTag(this.tagBuffer)) {
       return;
     }
 
