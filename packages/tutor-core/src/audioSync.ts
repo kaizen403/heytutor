@@ -788,6 +788,104 @@ export function getEstimatedWriteCharScheduleMs(
   };
 }
 
+/**
+ * When board text is not spoken token-for-token, still write during speech —
+ * never dump the whole line before the voice starts or after it finishes.
+ * Spreads characters across the latter half of the estimated narration window.
+ */
+export function getFallbackWriteCharScheduleMs(
+  narration: string,
+  command: DrawCommand,
+): WriteCharSchedule | null {
+  const text = command.text ?? "";
+  const nonSpaceCount = text.replace(/\s/g, "").length;
+  if (nonSpaceCount === 0) {
+    return null;
+  }
+
+  const spokenNarration = mathToSpeech(narration.trim());
+  const estimatedTotalMs = Math.max(
+    spokenNarration.length > 0 ? spokenNarration.length * MS_PER_CHAR : narration.length * MS_PER_CHAR,
+    700,
+  );
+  const startMs = Math.round(estimatedTotalMs * 0.40);
+  const endMs = Math.round(estimatedTotalMs * 0.90);
+  const span = Math.max(endMs - startMs, nonSpaceCount * 48);
+
+  const offsetsMs: number[] = [];
+  const charDurationsMs: number[] = [];
+  for (let i = 0; i < nonSpaceCount; i++) {
+    const offset = Math.round(startMs + (span * i) / nonSpaceCount);
+    const next = Math.round(startMs + (span * (i + 1)) / nonSpaceCount);
+    offsetsMs.push(offset);
+    charDurationsMs.push(Math.max(next - offset, 28));
+  }
+
+  return {
+    offsetsMs,
+    charDurationsMs,
+    matched: false,
+    source: "estimated",
+    validTiming: false,
+    reason: "fallback-spread-during-speech",
+  };
+}
+
+/**
+ * Select the strongest schedule currently available. This is deliberately
+ * usable before audio starts: the estimated schedule is anchored to the audio
+ * clock later, so a slow TTS connection never forces unscheduled handwriting.
+ */
+export function getBestWriteCharScheduleMs(
+  narration: string,
+  command: DrawCommand,
+  timings?: AudioTimings | null,
+  segmentDurationMs?: number,
+  textCommandIndex = 0,
+): WriteCharSchedule | null {
+  const timed = getWriteCharScheduleMs(
+    narration,
+    command,
+    timings,
+    textCommandIndex,
+  );
+  if (timed && isWriteScheduleUsable(timed, narration, segmentDurationMs)) {
+    return timed;
+  }
+
+  const estimated = getEstimatedWriteCharScheduleMs(
+    narration,
+    command,
+    textCommandIndex,
+  );
+  if (estimated) {
+    return timed
+      ? { ...estimated, reason: "tts-schedule-unusable" }
+      : estimated;
+  }
+
+  return getFallbackWriteCharScheduleMs(narration, command);
+}
+
+/**
+ * If the pen is already late for the first character, keep future cues and
+ * pull overdue characters to "now" so writing catches the voice instead of
+ * sliding the whole formula later in the sentence.
+ */
+export function catchUpWriteScheduleOffsets(
+  offsetsMs: number[],
+  audioPositionMs: number,
+): number[] {
+  if (offsetsMs.length === 0) {
+    return offsetsMs;
+  }
+  const firstOffsetMs = offsetsMs[0] ?? 0;
+  if (audioPositionMs <= firstOffsetMs + 80) {
+    return offsetsMs;
+  }
+  return offsetsMs.map((offset) => (offset < audioPositionMs ? Math.round(audioPositionMs) : offset));
+}
+
 export interface DrawingDurations {
   DRAW_CUBOID: number;
   DRAW_CUBE: number;
@@ -802,6 +900,7 @@ export interface DrawingDurations {
   CIRCLE_AROUND: number;
   ARROW: number;
   HIGHLIGHT: number;
+  FOCUS: number;
   SCRIBBLE: number;
   DIMENSION: number;
   CLEAR: number;
@@ -827,6 +926,7 @@ const DEFAULT_DRAWING_DURATIONS: DrawingDurations = {
   CIRCLE_AROUND: 700,
   ARROW: 500,
   HIGHLIGHT: 250,
+  FOCUS: 900,
   SCRIBBLE: 400,
   DIMENSION: 900,
   CLEAR: 200,
@@ -868,6 +968,7 @@ export function getFlightDuration(command: DrawCommand): number {
     command.type === "CIRCLE_AROUND" ||
     command.type === "ARROW" ||
     command.type === "HIGHLIGHT" ||
+    command.type === "FOCUS" ||
     command.type === "SCRIBBLE"
   ) {
     return 200;
