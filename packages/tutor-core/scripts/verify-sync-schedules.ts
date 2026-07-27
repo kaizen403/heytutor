@@ -1,9 +1,15 @@
 import type { DrawCommand } from "@heytutor/drawing";
 import {
+  catchUpWriteScheduleOffsets,
   getEstimatedWriteCharScheduleMs,
+  getBestWriteCharScheduleMs,
+  getFallbackWriteCharScheduleMs,
   getWriteCharScheduleMs,
   isWriteScheduleUsable,
   mathToSpeech,
+  mergeAudioTimingChunk,
+  hasPlayableSegmentAudio,
+  toSegmentRelativeAudioTimings,
 } from "../src/index";
 
 interface Case {
@@ -100,6 +106,93 @@ const unsyncable = getEstimatedWriteCharScheduleMs(
 );
 assert(unsyncable === null, "unsyncable board text should not get a character schedule");
 
+const beforeAudioStart = getBestWriteCharScheduleMs(
+  "write five x plus three on the board.",
+  command("5x + 3"),
+  null,
+);
+assert(beforeAudioStart, "text must receive an estimated schedule before audio starts");
+assert(
+  beforeAudioStart.source === "estimated",
+  "pre-audio text scheduling must use the deterministic estimate",
+);
+
+assert(
+  !hasPlayableSegmentAudio({
+    receivedAudio: false,
+    decodedAudio: false,
+    capturedChunkCount: 0,
+  }),
+  "a finalized websocket segment without audio must be rejected",
+);
+assert(
+  !hasPlayableSegmentAudio({
+    receivedAudio: true,
+    decodedAudio: false,
+    capturedChunkCount: 1,
+  }),
+  "undecodable websocket bytes must not count as playable audio",
+);
+assert(
+  hasPlayableSegmentAudio({
+    receivedAudio: true,
+    decodedAudio: true,
+    capturedChunkCount: 1,
+  }),
+  "a finalized websocket segment with captured audio must be playable",
+);
+
+const fallback = getFallbackWriteCharScheduleMs(
+  "this formula comes from rearranging the original equation.",
+  command("5x + 3"),
+);
+assert(fallback, "fallback schedule must exist when board text is not spoken");
+assert(fallback.offsetsMs.length === 4, "fallback schedule must cover non-space characters");
+assert((fallback.offsetsMs[0] ?? 0) > 200, "fallback writing must start mid-speech, not at t=0");
+assert(
+  (fallback.offsetsMs[fallback.offsetsMs.length - 1] ?? 0) <
+    Math.max("this formula comes from rearranging the original equation.".length * (1000 / 15), 700),
+  "fallback writing must finish during speech",
+);
+
+const caughtUp = catchUpWriteScheduleOffsets([100, 300, 500, 700], 450);
+assert(caughtUp[0] === 450 && caughtUp[1] === 450, "overdue characters must catch up to now");
+assert(caughtUp[2] === 500 && caughtUp[3] === 700, "future character cues must stay anchored");
+assert(
+  catchUpWriteScheduleOffsets([100, 300], 50).join(",") === "100,300",
+  "on-time schedules must not be rewritten",
+);
+
+const connectionRelative = {
+  charStartTimes: [] as number[],
+  charDurations: [] as number[],
+  totalDuration: 0,
+};
+let connectionOffset = mergeAudioTimingChunk(connectionRelative, {
+  startTimesMs: [39_000, 39_100],
+  durationsMs: [100, 100],
+});
+connectionOffset = mergeAudioTimingChunk(connectionRelative, {
+  startTimesMs: [39_200, 39_300],
+  durationsMs: [100, 100],
+}, connectionOffset);
+const relative = toSegmentRelativeAudioTimings(connectionRelative);
+assert(relative.charStartTimes.map((value) => value.toFixed(1)).join(",") === "0.0,0.1,0.2,0.3", "connection-relative timings were not rebased");
+assert(Math.abs(relative.totalDuration - 0.4) < 1e-9, "rebased timing duration is wrong");
+
+const firstLiveSegment = toSegmentRelativeAudioTimings({
+  charStartTimes: [0, 4.404],
+  charDurations: [0.1, 0.1],
+  totalDuration: 4.504,
+});
+const secondLiveSegment = toSegmentRelativeAudioTimings({
+  charStartTimes: [4.504, 8.073],
+  charDurations: [0.1, 0.1],
+  totalDuration: 8.173,
+});
+assert(Math.abs(firstLiveSegment.totalDuration - 4.504) < 1e-9, "first live segment changed unexpectedly");
+assert(Math.abs(secondLiveSegment.totalDuration - 3.669) < 1e-9, "later live segment retained its connection origin");
+
 const lateSchedule = getWriteCharScheduleMs(
   "let's use a real example. center at two comma three, radius five.",
   command("ex: (2,3), r=5"),
@@ -120,4 +213,6 @@ if (lateSchedule) {
   );
 }
 
-console.log(`verified ${cases.length} sync schedule cases and one unsyncable fallback case`);
+console.log(
+  `verified ${cases.length} sync schedule cases, fallback mid-speech writing, and catch-up offsets`,
+);
