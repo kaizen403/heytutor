@@ -1,4 +1,4 @@
-import { textToStrokePaths, measureTextWidth } from "@heytutor/drawing";
+import { textToStrokePaths, measureTextWidth, normalizeStrokeText } from "@heytutor/drawing";
 
 function assert(condition: unknown, message: string): void {
   if (!condition) {
@@ -49,6 +49,42 @@ await check("∫ x^2 dx line has integral ink", async () => {
 
 await check("√ radical line has ink", async () => {
   assert((await strokeCount("v = √(u^2 + 2as)")) >= 4, "radical line under-rendered");
+});
+
+await check("LaTeX integral braces normalize to paren script groups", () => {
+  assert(
+    normalizeStrokeText("∫_{-2}^{2}(4-x^2)dx") === "∫_(-2)^(2)(4-x^2)dx",
+    "LaTeX integral limits were not rewritten",
+  );
+  assert(
+    normalizeStrokeText("\\int_{-2}^{2} x dx") === "∫_(-2)^(2) x dx",
+    "\\int command was not rewritten",
+  );
+  assert(
+    normalizeStrokeText("∫{-2}{2}(4-x^2)dx") === "∫_(-2)^(2)(4-x^2)dx",
+    "bare brace limits were not rewritten",
+  );
+});
+
+await check("definite integral does not draw literal braces", async () => {
+  for (const sample of [
+    "A = ∫_{-2}^{2}(4 - x^2) dx",
+    "A = ∫{-2}{2}(4 - x^2) dx",
+    "A = ∫ { -2 } { 2 } (4 - x^2) dx",
+  ]) {
+    const glyphs = await textToStrokePaths(sample, 0, 0, 32);
+    assert(!glyphs.some((glyph) => glyph.char === "{" || glyph.char === "}"), `literal braces leaked for ${sample}`);
+    const integral = glyphs.find((glyph) => glyph.char === "∫");
+    assert(integral, `integral glyph missing for ${sample}`);
+    const upperTwos = glyphs.filter((glyph) => glyph.char === "2" && glyph.y < (integral?.y ?? 0));
+    const lowerMinus = glyphs.find((glyph) => glyph.char === "-" && glyph.y > (integral?.y ?? 0));
+    assert(upperTwos.length >= 1, `upper limit missing for ${sample}`);
+    assert(lowerMinus, `lower limit missing for ${sample}`);
+    assert(
+      Math.abs((lowerMinus?.x ?? 0) - (upperTwos[0]?.x ?? 99)) < 8,
+      `limits not stacked for ${sample}`,
+    );
+  }
 });
 
 // measureTextWidth must account for synthetic math glyphs (nonzero advance),
