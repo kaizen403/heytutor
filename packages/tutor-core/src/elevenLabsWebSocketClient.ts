@@ -3,6 +3,7 @@ import {
   SpeechSynthesisTTSClient,
   mergeAudioTimingChunk,
   mathToSpeech,
+  toSegmentRelativeAudioTimings,
 } from "./elevenLabsClient";
 import { tutorDebug } from "./tutorDebug";
 import { resolveApiUrl, resolveWebSocketUrl } from "./publicOrigins";
@@ -21,6 +22,7 @@ interface TimestampChunkPayload {
     charDurationsMs?: number[];
   };
   isFinal?: boolean;
+  is_final?: boolean;
 }
 
 interface SegmentJob {
@@ -30,7 +32,6 @@ interface SegmentJob {
   reject: (error: unknown) => void;
   settled: boolean;
   textSent: boolean;
-  synthesisFinalized: boolean;
   playbackStarted: boolean;
   /** ctx.currentTime (seconds) when this job's first audio source begins playing. */
   audibleStartCtxTime?: number;
@@ -39,8 +40,10 @@ interface SegmentJob {
   capturedChunks: Uint8Array[];
   pendingAudioBuffers: AudioBuffer[];
   sourceDonePromises: Promise<void>[];
+  pendingAudioIngestPromises: Promise<void>[];
   started: boolean;
   receivedAudio: boolean;
+  decodedAudio: boolean;
   chunkOffsetSec: number;
   startedAt: number;
 }
@@ -155,6 +158,14 @@ function clampVoiceSpeed(rate: number): number {
   return Math.min(Math.max(rate, 0.7), 1.2);
 }
 
+export function hasPlayableSegmentAudio(state: {
+  receivedAudio: boolean;
+  decodedAudio: boolean;
+  capturedChunkCount: number;
+}): boolean {
+  return state.receivedAudio && state.decodedAudio && state.capturedChunkCount > 0;
+}
+
 function parseWsPayload(data: string): TimestampChunkPayload | { type?: string; message?: string } | null {
   try {
     return JSON.parse(data) as TimestampChunkPayload | { type?: string; message?: string };
@@ -178,12 +189,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
 
   private jobs: SegmentJob[] = [];
   private currentJob: SegmentJob | null = null;
-  /**
-   * Job currently receiving audio chunks from the WebSocket.
-   * Decoupled from `currentJob` (the playing job) to enable prefetching:
-   * the next segment's text is sent to ElevenLabs as soon as the current
-   * segment's synthesis finalizes, so audio generation overlaps with playback.
-   */
+  /** Job currently receiving audio chunks from the WebSocket. */
   private chunkTargetJob: SegmentJob | null = null;
   private streamHandler: ((event: MessageEvent) => void) | null = null;
   private idleCompleteTimer: number | null = null;
@@ -327,7 +333,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
           options.onEnd?.();
           return;
         }
-        // Drop any prefetched WS jobs so they cannot speak under HTTP fallback.
+        // Drop queued WS jobs so they cannot speak under HTTP fallback.
         this.rejectAllJobs(new Error("superseded by http fallback"));
         this.currentJob = null;
         this.chunkTargetJob = null;
@@ -379,7 +385,6 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     const error = new Error("tts segment abandoned");
     if (this.currentJob && !this.currentJob.settled) {
       this.currentJob.settled = true;
-      this.currentJob.options.onError?.(error);
       this.currentJob.reject(error);
     }
     this.rejectAllJobs(error);
@@ -511,7 +516,6 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       reject: () => {},
       settled: false,
       textSent: false,
-      synthesisFinalized: false,
       playbackStarted: false,
       timingsEmitted: false,
       timings: {
@@ -522,8 +526,10 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       capturedChunks: [],
       pendingAudioBuffers: [],
       sourceDonePromises: [],
+      pendingAudioIngestPromises: [],
       started: false,
       receivedAudio: false,
+      decodedAudio: false,
       chunkOffsetSec: 0,
       startedAt: performance.now(),
     };
@@ -534,7 +540,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       return;
     }
 
-    job.options.onTimings?.(job.timings);
+    job.options.onTimings?.(toSegmentRelativeAudioTimings(job.timings));
 
     if (!job.timingsEmitted) {
       job.timingsEmitted = true;
@@ -583,7 +589,6 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       for (const job of this.jobs) {
         if (!job.settled) {
           job.settled = true;
-          job.options.onError?.(error);
           job.reject(error);
         }
       }
@@ -625,42 +630,12 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       nextJob.startedAt = performance.now();
     }
 
-    // If the job already has buffered audio from prefetching, start playback now.
+    // Decoding may finish just before the queue pump reaches this job.
     if (nextJob.pendingAudioBuffers.length > 0 && !nextJob.playbackStarted) {
       void this.tryStartJobPlayback(nextJob);
     }
 
     this.resetWatchdog(nextJob);
-  }
-
-  /**
-   * Send the next queued job's text to ElevenLabs immediately after the
-   * current job's synthesis finalizes. This overlaps audio generation for
-   * the next segment with playback of the current segment, eliminating the
-   * inter-segment gap where we'd otherwise wait for ElevenLabs to respond.
-   */
-  private prefetchNextJobText(): void {
-    const ws = this.ws;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
-    // Find the next job that hasn't had its text sent yet.
-    for (let i = 0; i < this.jobs.length; i++) {
-      const job = this.jobs[i];
-      if (job.settled || job.textSent) {
-        continue;
-      }
-      tutorDebug("tts", "ws prefetch next segment", {
-        spoken_chars: job.spokenText.length,
-        preview: job.spokenText.slice(0, 80),
-      });
-      this.sendSegmentText(ws, job.spokenText, job.options);
-      job.textSent = true;
-      job.startedAt = performance.now();
-      this.chunkTargetJob = job;
-      return;
-    }
   }
 
   private sendSegmentText(
@@ -705,7 +680,9 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
                 : null;
 
           if (arrayBuffer) {
-            await this.ingestAudioBuffer(ctx, job, arrayBuffer);
+            const ingestPromise = this.ingestAudioBuffer(ctx, job, arrayBuffer);
+            job.pendingAudioIngestPromises.push(ingestPromise);
+            await ingestPromise;
           }
 
           return;
@@ -718,19 +695,12 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
 
         const chunk = payload as TimestampChunkPayload;
 
-        if (chunk.isFinal) {
-          job.synthesisFinalized = true;
+        if (chunk.isFinal || chunk.is_final) {
           this.emitTimings(job);
 
-          // Prefetch: send the next job's text to ElevenLabs immediately,
-          // before the current job's audio playback finishes.
           if (job === this.currentJob) {
-            this.prefetchNextJobText();
             await this.completeCurrentJob();
           }
-          // If job !== this.currentJob (prefetched job finished synthesis
-          // while a previous job is still playing), just mark it as
-          // synthesisFinalized. Playback will start when it becomes currentJob.
           return;
         }
 
@@ -740,11 +710,13 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
         }
 
         const bytes = base64ToUint8Array(audioBase64);
-        await this.ingestAudioBuffer(
+        const ingestPromise = this.ingestAudioBuffer(
           ctx,
           job,
           bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
         );
+        job.pendingAudioIngestPromises.push(ingestPromise);
+        await ingestPromise;
         job.chunkOffsetSec = mergeChunkTimings(job.timings, chunk, job.chunkOffsetSec);
 
         if (job.timings.totalDuration > 0) {
@@ -801,6 +773,8 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   ): Promise<void> {
     job.receivedAudio = true;
     job.capturedChunks.push(new Uint8Array(arrayBuffer));
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+    job.decodedAudio = true;
 
     if (!job.started) {
       job.started = true;
@@ -809,8 +783,6 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       });
       job.options.onStart?.();
     }
-
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
 
     if (!this.canSchedulePlayback(job) || !job.playbackStarted) {
       job.pendingAudioBuffers.push(audioBuffer);
@@ -911,6 +883,17 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       return;
     }
 
+    await Promise.allSettled(job.pendingAudioIngestPromises);
+
+    if (!hasPlayableSegmentAudio({
+      receivedAudio: job.receivedAudio,
+      decodedAudio: job.decodedAudio,
+      capturedChunkCount: job.capturedChunks.length,
+    })) {
+      this.failCurrentJob(new Error("websocket tts finalized without audio"));
+      return;
+    }
+
     job.settled = true;
     this.clearTimers();
 
@@ -935,7 +918,6 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
 
     if (job && !job.settled) {
       job.settled = true;
-      job.options.onError?.(error);
       job.reject(error);
     }
 
@@ -960,7 +942,6 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     for (const job of this.jobs) {
       if (!job.settled) {
         job.settled = true;
-        job.options.onError?.(error);
         job.reject(error);
       }
     }
@@ -1257,9 +1238,8 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
 
   /**
    * Speed is achieved by asking ElevenLabs to generate faster natural speech
-   * (clamped to its supported 0.7–1.2 range), never by resampling playback —
-   * resampling shifts pitch and sounds like a chipmunk. The new speed applies
-   * from the next segment (requires a relay reconnect).
+   * (clamped to its supported 0.7–1.2 range), never by resampling playback.
+   * The new speed applies to the next unsent segment.
    */
   setPlaybackRate(rate: number): void {
     this.playbackRate = Math.max(rate, 0.1);
