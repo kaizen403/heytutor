@@ -11,6 +11,8 @@ export interface StreamLLMResponseParams {
   conversationHistory: ConversationExchange[];
   proxyUrl: string;
   sessionId?: string;
+  /** The turn has already been solved and audited by TurnPlanV3. */
+  hasAuthoritativePlan?: boolean;
   onTraceId?: (traceId: string) => void;
   signal?: AbortSignal;
 }
@@ -103,13 +105,19 @@ function buildMessages(
   return messages;
 }
 
-function buildRequestHeaders(sessionId?: string): Record<string, string> {
+function buildRequestHeaders(
+  sessionId?: string,
+  hasAuthoritativePlan = false,
+): Record<string, string> {
   const headers: Record<string, string> = {
     "content-type": "application/json",
   };
 
   if (sessionId) {
     headers["x-session-id"] = sessionId;
+  }
+  if (hasAuthoritativePlan) {
+    headers["x-heytutor-teaching-pass"] = "planned";
   }
 
   return headers;
@@ -122,6 +130,7 @@ export async function streamLLMResponse(
     conversationHistory,
     proxyUrl,
     sessionId,
+    hasAuthoritativePlan,
     onTraceId,
     signal,
   }: StreamLLMResponseParams,
@@ -138,7 +147,7 @@ export async function streamLLMResponse(
 
   const response = await fetch(proxyUrl, {
     method: "POST",
-    headers: buildRequestHeaders(sessionId),
+    headers: buildRequestHeaders(sessionId, hasAuthoritativePlan),
     signal,
     body: JSON.stringify({
       model,

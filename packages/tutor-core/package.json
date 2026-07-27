@@ -15,10 +15,11 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "clean": "rm -rf dist",
-    "verify": "tsx scripts/verify-diagram-templates.ts && tsx scripts/verify-geometry-compiler.ts && tsx scripts/verify-speech-notation.ts && tsx scripts/verify-written-notation.ts && tsx scripts/verify-annotation-paths.ts && tsx scripts/verify-sync-schedules.ts && tsx scripts/verify-fbd-mock.ts && tsx scripts/verify-bead-mock.ts && tsx scripts/verify-jee-syllabus.ts"
+    "verify": "tsx scripts/verify-turn-planner-v3.ts && tsx scripts/verify-problem-planner-v1.ts && tsx scripts/verify-optics-plan-audit.ts && tsx scripts/verify-scene-capabilities.ts && tsx scripts/verify-scene-planner-v2.ts && tsx scripts/verify-speech-notation.ts && tsx scripts/verify-written-notation.ts && tsx scripts/verify-annotation-paths.ts && tsx scripts/verify-sync-schedules.ts && tsx scripts/verify-websocket-tts-fallback.ts"
   },
   "dependencies": {
-    "@heytutor/drawing": "workspace:*"
+    "@heytutor/drawing": "workspace:*",
+    "@heytutor/scene-engine": "workspace:*"
   },
   "devDependencies": {
     "@heytutor/eslint-config": "workspace:*",
