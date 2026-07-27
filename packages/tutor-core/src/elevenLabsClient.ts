@@ -382,6 +382,27 @@ export function mergeAudioTimingChunk(
   return existing.totalDuration;
 }
 
+/**
+ * Convert connection-relative alignment into a fresh segment timeline without
+ * mutating the merger's raw coordinates. Long-lived websocket transports may
+ * start a later utterance at the previous utterance's cumulative timestamp.
+ */
+export function toSegmentRelativeAudioTimings(raw: AudioTimings): AudioTimings {
+  const firstFiniteStart = raw.charStartTimes.find(finiteNumber) ?? 0;
+  const origin = Math.max(firstFiniteStart, 0);
+  const charStartTimes = raw.charStartTimes.map((start) =>
+    finiteNumber(start) ? Math.max(0, start - origin) : 0);
+  const charDurations = raw.charDurations.map((duration) =>
+    finiteNumber(duration) ? Math.max(duration, 0.01) : 0.06);
+  const lastEnd = charStartTimes.reduce((maximum, start, index) =>
+    Math.max(maximum, start + (charDurations[index] ?? 0.06)), 0);
+  return {
+    charStartTimes,
+    charDurations,
+    totalDuration: Math.max(lastEnd, raw.totalDuration - origin, 0),
+  };
+}
+
 export class ElevenLabsTTSClient implements TTSClient {
   private proxyUrl: string;
   private streamUrl: string;
@@ -789,4 +810,3 @@ export class SpeechSynthesisTTSClient implements TTSClient {
     return null;
   }
 }
-
