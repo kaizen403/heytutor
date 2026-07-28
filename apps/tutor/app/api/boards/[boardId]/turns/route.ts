@@ -4,6 +4,8 @@ import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { lectureAudioKey } from "@/lib/r2Keys";
 import { uploadAudio } from "@/lib/r2";
+import { isTurnMetadataPersistable } from "@/lib/turnPersistencePolicy";
+import { canonicalizeTurnSceneMetadata } from "@/lib/turnScenePersistence";
 
 interface RouteContext {
   params: Promise<{ boardId: string }>;
@@ -23,7 +25,16 @@ interface TurnMetadata {
   rawResponse: string;
   speedMultiplier?: number;
   traceId?: string;
+  sceneDocument?: unknown;
+  sceneEngineVersion?: string | null;
+  validationReport?: unknown;
+  visualStatus?: "validated" | "text_only" | "legacy" | "retry_required" | null;
+  sceneArtifacts?: unknown;
   segments: TurnSegmentMeta[];
+}
+
+function nullableJson(value: unknown): Prisma.InputJsonValue | Prisma.NullTypes.DbNull {
+  return value == null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
 }
 
 export async function POST(request: Request, context: RouteContext) {
@@ -43,7 +54,12 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
-  const formData = await request.formData();
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: "invalid multipart form data" }, { status: 400 });
+  }
   const metadataRaw = formData.get("metadata");
 
   if (typeof metadataRaw !== "string") {
@@ -57,24 +73,37 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "invalid metadata json" }, { status: 400 });
   }
 
-  if (!metadata.question?.trim() || !metadata.rawResponse?.trim()) {
-    return NextResponse.json({ error: "question and rawResponse required" }, { status: 400 });
+  if (!isTurnMetadataPersistable(metadata)) {
+    return NextResponse.json(
+      { error: "question and rawResponse required unless persisting a required-diagram failure" },
+      { status: 400 },
+    );
   }
+
+  const canonicalScene = await canonicalizeTurnSceneMetadata(metadata);
+  if (!canonicalScene.ok) {
+    return NextResponse.json(
+      { error: `scene persistence rejected: ${canonicalScene.error}` },
+      { status: 400 },
+    );
+  }
+  metadata = {
+    ...metadata,
+    ...canonicalScene.value,
+  };
 
   const turnId = crypto.randomUUID();
   const segmentMeta = metadata.segments ?? [];
 
-  const audioUrls: (string | null)[] = [];
-  for (const segment of segmentMeta) {
+  const audioUrls = new Map<number, string | null>(await Promise.all(segmentMeta.map(async (segment) => {
     const file = formData.get(`audio-${segment.orderIndex}`);
     if (file instanceof File && file.size > 0) {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const key = lectureAudioKey(boardId, turnId, segment.orderIndex);
-      audioUrls[segment.orderIndex] = await uploadAudio(key, bytes);
-    } else {
-      audioUrls[segment.orderIndex] = null;
+      return [segment.orderIndex, await uploadAudio(key, bytes)] as const;
     }
-  }
+    return [segment.orderIndex, null] as const;
+  })));
 
   const MAX_INSERT_ATTEMPTS = 3;
   let saved: { turn: Turn; insertedSegments: Segment[] } | null = null;
@@ -99,6 +128,11 @@ export async function POST(request: Request, context: RouteContext) {
             rawResponse: metadata.rawResponse,
             speedMultiplier: metadata.speedMultiplier ?? 1,
             traceId: metadata.traceId ?? null,
+            sceneDocument: nullableJson(metadata.sceneDocument),
+            sceneEngineVersion: metadata.sceneEngineVersion ?? null,
+            validationReport: nullableJson(metadata.validationReport),
+            visualStatus: metadata.visualStatus ?? null,
+            sceneArtifacts: nullableJson(metadata.sceneArtifacts),
           },
         });
 
@@ -108,7 +142,7 @@ export async function POST(request: Request, context: RouteContext) {
           narration: segment.narration ?? "",
           spokenText: segment.spokenText ?? "",
           command: segment.command === undefined ? undefined : (segment.command as Prisma.InputJsonValue),
-          audioUrl: audioUrls[segment.orderIndex] ?? null,
+          audioUrl: audioUrls.get(segment.orderIndex) ?? null,
           audioFormat: "audio/mpeg",
           durationMs: segment.durationMs ?? null,
           timings: segment.timings === undefined ? undefined : (segment.timings as Prisma.InputJsonValue),
@@ -155,6 +189,11 @@ export async function POST(request: Request, context: RouteContext) {
       rawResponse: saved.turn.rawResponse,
       speedMultiplier: saved.turn.speedMultiplier,
       traceId: saved.turn.traceId,
+      sceneDocument: saved.turn.sceneDocument,
+      sceneEngineVersion: saved.turn.sceneEngineVersion,
+      validationReport: saved.turn.validationReport,
+      visualStatus: saved.turn.visualStatus,
+      sceneArtifacts: saved.turn.sceneArtifacts,
       createdAt: saved.turn.createdAt.getTime(),
       segments: saved.insertedSegments
         .sort((a, b) => a.orderIndex - b.orderIndex)
