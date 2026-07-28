@@ -2,7 +2,6 @@ import { getMockResponse } from "@heytutor/tutor-core";
 import { tutorDebug } from "@heytutor/tutor-core";
 import {
   parseReasoningMode,
-  resolveReasoningEffort,
   type ReasoningEffort,
 } from "@heytutor/tutor-core";
 import {
@@ -13,6 +12,16 @@ import {
   type TurnTrace,
 } from "@/lib/langfuse";
 import { ensureUser, getUserId } from "@/lib/auth";
+import {
+  fetchPlannerCompletion,
+  resolvePlannerMaxTokens,
+  resolvePlannerModels,
+} from "@/lib/plannerTransport";
+import {
+  fetchTeachingCompletion,
+  resolveTeachingModel,
+  resolveTeachingReasoningEffort,
+} from "@/lib/teachingTransport";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 const DEFAULT_MAX_TOKENS = 3600;
@@ -144,6 +153,103 @@ async function finalizeMockTrace(
       "x-heytutor-trace-id": traceId,
     },
   });
+}
+
+function finalizeMockPlannerTrace(
+  turnTrace: TurnTrace | null,
+  question: string,
+  traceId: string,
+): Response {
+  const document = {
+    schemaVersion: "scene-document/v2",
+    visualDecision: {
+      mode: "text_only",
+      reason: "Mock mode does not synthesize semantic geometry",
+    },
+    source: { question, givens: [], asks: [] },
+    quantities: [],
+    entities: [],
+    constructions: [],
+    relations: [],
+    assertions: [],
+    annotations: [],
+    requiredEntityIds: [],
+    revealGroups: [],
+    teachingTimeline: [],
+  };
+  const content = JSON.stringify(document);
+  endLlmGeneration(turnTrace, {
+    output: content,
+    usageDetails: { input: 0, output: 0, total: 0 },
+    metadata: { mock: true, planner: true, scene_planner_version: 2 },
+    mock: true,
+  });
+  flushInBackground();
+  return Response.json(
+    { choices: [{ message: { content } }] },
+    { headers: { "x-heytutor-trace-id": traceId } },
+  );
+}
+
+function finalizeMockTurnPlannerTrace(
+  turnTrace: TurnTrace | null,
+  question: string,
+  traceId: string,
+): Response {
+  const content = JSON.stringify({
+    schemaVersion: "turn-plan/v3",
+    question,
+    givens: [],
+    unknowns: [],
+    derived: [],
+    qualitativeClaims: [],
+    lawIds: [],
+    assumptions: ["Mock mode does not solve structured quantities."],
+    visualRequirement: /\b(?:draw|diagram|illustrat(?:e|ion)|sketch|construct|plot|graph)\b/i.test(question)
+      ? "required"
+      : "optional",
+  });
+  endLlmGeneration(turnTrace, {
+    output: content,
+    usageDetails: { input: 0, output: 0, total: 0 },
+    metadata: { mock: true, planner: true, turn_planner_version: 3 },
+    mock: true,
+  });
+  flushInBackground();
+  return Response.json(
+    { choices: [{ message: { content } }] },
+    { headers: { "x-heytutor-trace-id": traceId } },
+  );
+}
+
+function finalizeMockProblemIRTrace(
+  turnTrace: TurnTrace | null,
+  plannerInput: string,
+  traceId: string,
+): Response {
+  const question = plannerInput.match(/SUBMITTED QUESTION\n([\s\S]*?)\n\nVALIDATED TURN PLAN V3/)?.[1]?.trim() ?? plannerInput;
+  const content = JSON.stringify({
+    schemaVersion: "problem-ir/v1",
+    id: "mockProblem",
+    question,
+    facts: [],
+    entities: [],
+    expressions: [],
+    constraints: [],
+    representationIntents: [],
+    solveRequests: [],
+  });
+  endLlmGeneration(turnTrace, {
+    output: content,
+    usageDetails: { input: 0, output: 0, total: 0 },
+    metadata: { mock: true, planner: true, problem_ir_version: 1 },
+    mock: true,
+  });
+  flushInBackground();
+  return Response.json(
+    { choices: [{ message: { content } }] },
+    { headers: { "x-heytutor-trace-id": traceId } },
+  );
 }
 
 function injectStreamOptions(
@@ -321,6 +427,13 @@ interface PlannerRequestArgs {
   traceId: string;
   turnTrace: TurnTrace | null;
   requestStartedAt: number;
+  semanticSceneV2: boolean;
+  turnPlanV3: boolean;
+  problemIRV1: boolean;
+  plannerPhase: "plan" | "repair";
+  plannerLane: "primary" | "alternate";
+  deadlineMs: number;
+  signal: AbortSignal;
 }
 
 async function handlePlannerRequest({
@@ -329,42 +442,90 @@ async function handlePlannerRequest({
   traceId,
   turnTrace,
   requestStartedAt,
+  semanticSceneV2,
+  turnPlanV3,
+  problemIRV1,
+  plannerPhase,
+  plannerLane,
+  deadlineMs,
+  signal,
 }: PlannerRequestArgs): Promise<Response> {
-  const plannerModel =
-    process.env.FIREWORKS_PLANNER_MODEL ??
-    "accounts/fireworks/models/kimi-k2p6";
+  const plannerModels = resolvePlannerModels({
+    semanticSceneV2,
+    turnPlanV3,
+    problemIRV1,
+    plannerPhase,
+    plannerLane,
+  });
 
+  const deadlineController = new AbortController();
+  const deadlineId = setTimeout(
+    () => deadlineController.abort(new DOMException("Planner request deadline exceeded", "TimeoutError")),
+    deadlineMs,
+  );
+  const boundedSignal = mergePlannerSignals(signal, deadlineController.signal);
   try {
     const parsed = JSON.parse(rawBody) as Record<string, unknown>;
-    parsed.model = plannerModel;
     delete parsed.reasoning_effort;
-    // Enable thinking with a small budget — the model needs to reason about
-    // the question to plan coordinates. Without thinking, it outputs garbage.
-    parsed.thinking = { type: "enabled", budget_tokens: 2048 };
-    parsed.max_tokens = 4000;
+    if (semanticSceneV2 || turnPlanV3 || problemIRV1) {
+      // Hidden reasoning adds latency without improving the audited document.
+      // Complex scenes routinely exceed 1,400 output tokens; truncating JSON
+      // makes an otherwise usable scene indistinguishable from no scene.
+      parsed.thinking = { type: "disabled" };
+      parsed.max_tokens = resolvePlannerMaxTokens({
+        semanticSceneV2,
+        turnPlanV3,
+        problemIRV1,
+        plannerPhase,
+        plannerLane,
+      });
+      parsed.service_tier = "priority";
+    } else {
+      parsed.thinking = { type: "enabled", budget_tokens: 2048 };
+      parsed.max_tokens = 4000;
+    }
     parsed.stream = false;
     parsed.response_format = { type: "json_object" };
 
     const upstreamStartedAt = Date.now();
-    const response = await fetch(FIREWORKS_CHAT_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
+    const transport = await fetchPlannerCompletion({
+      url: FIREWORKS_CHAT_URL,
+      apiKey,
+      body: parsed,
+      models: plannerModels,
+      signal: boundedSignal,
+      onRetry: ({ attempt, delayMs, message, model, modelAttempt, status }) => {
+        tutorDebug("planner", message ? "Fireworks fetch failed" : "transient Fireworks response", {
+          attempt,
+          delay_ms: delayMs,
+          message,
+          model,
+          model_attempt: modelAttempt,
+          status,
+        });
       },
-      body: JSON.stringify(parsed),
     });
+    const { response } = transport;
 
     tutorDebug("planner", "fireworks response", {
       status: response.status,
       connect_ms: Date.now() - upstreamStartedAt,
+      model: transport.model,
+      attempts: transport.attemptCount,
     });
 
     if (!response.ok) {
       const errorBody = await response.text();
       endLlmGeneration(turnTrace, {
         output: errorBody,
-        metadata: { error: true, status: response.status, planner: true },
+        metadata: {
+          error: true,
+          status: response.status,
+          planner: true,
+          planner_model: transport.model,
+          planner_lane: plannerLane,
+          planner_attempts: transport.attemptCount,
+        },
       });
       flushInBackground();
       return new Response(errorBody, {
@@ -388,9 +549,15 @@ async function handlePlannerRequest({
         usageDetails: buildUsageDetails(parsedResponse.usage as FireworksUsage | undefined),
         metadata: {
           planner: true,
+          scene_planner_version: turnPlanV3 || problemIRV1 ? undefined : semanticSceneV2 ? 2 : 1,
+          turn_planner_version: turnPlanV3 ? 3 : undefined,
+          problem_ir_version: problemIRV1 ? 1 : undefined,
           content_chars: content.length,
           reasoning_chars: reasoning.length,
           elapsed_ms: Date.now() - requestStartedAt,
+          planner_model: transport.model,
+          planner_lane: plannerLane,
+          planner_attempts: transport.attemptCount,
         },
       });
     } catch {
@@ -403,6 +570,8 @@ async function handlePlannerRequest({
       headers: {
         "content-type": "application/json",
         "x-heytutor-trace-id": traceId,
+        "x-heytutor-planner-model": transport.model,
+        "x-heytutor-planner-lane": plannerLane,
       },
     });
   } catch (error: unknown) {
@@ -414,7 +583,21 @@ async function handlePlannerRequest({
       { error: message },
       { status: 500, headers: { "x-heytutor-trace-id": traceId } },
     );
+  } finally {
+    clearTimeout(deadlineId);
   }
+}
+
+function mergePlannerSignals(first: AbortSignal, second: AbortSignal): AbortSignal {
+  const controller = new AbortController();
+  const abort = (signal: AbortSignal) => {
+    if (!controller.signal.aborted) controller.abort(signal.reason);
+  };
+  if (first.aborted) abort(first);
+  else first.addEventListener("abort", () => abort(first), { once: true });
+  if (second.aborted) abort(second);
+  else second.addEventListener("abort", () => abort(second), { once: true });
+  return controller.signal;
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -443,31 +626,65 @@ export async function POST(request: Request): Promise<Response> {
 
   if (mock) {
     tutorDebug("chat", "using mock response (no FIREWORKS_API_KEY)");
+    if (request.headers.get("x-planner") === "1") {
+      if (request.headers.get("x-problem-ir-version") === "1") {
+        return finalizeMockProblemIRTrace(turnTrace, userInput, traceId);
+      }
+      if (request.headers.get("x-turn-planner-version") === "3") {
+        return finalizeMockTurnPlannerTrace(turnTrace, userInput, traceId);
+      }
+      return finalizeMockPlannerTrace(turnTrace, userInput, traceId);
+    }
     return finalizeMockTrace(turnTrace, userInput, traceId);
   }
 
-  const serverModel = process.env.FIREWORKS_MODEL ?? "accounts/fireworks/models/kimi-k2p6";
-
-  // Planner branch: the LLM diagram architect calls with stream:false and a
-  // dedicated header. It needs its own (low) reasoning budget and max_tokens,
+  // Planner branch: the semantic scene planner calls with stream:false and a
+  // dedicated header. It needs its own bounded reasoning budget and max_tokens,
   // and returns raw JSON — not an SSE stream — so it bypasses the teaching
   // stream's reasoning classification and SSE tracing transform.
   if (request.headers.get("x-planner") === "1") {
+    const turnPlanV3 = request.headers.get("x-turn-planner-version") === "3";
+    const problemIRV1 = request.headers.get("x-problem-ir-version") === "1";
     return handlePlannerRequest({
       rawBody,
       apiKey,
       traceId,
       turnTrace,
       requestStartedAt,
+      semanticSceneV2: !turnPlanV3 && !problemIRV1 && request.headers.get("x-scene-planner-version") === "2",
+      turnPlanV3,
+      problemIRV1,
+      plannerPhase: request.headers.get("x-scene-planner-phase") === "repair" ? "repair" : "plan",
+      plannerLane: (
+        turnPlanV3
+          ? request.headers.get("x-turn-planner-lane")
+          : request.headers.get("x-scene-planner-lane")
+      ) === "alternate" ? "alternate" : "primary",
+      deadlineMs: Math.min(
+        60_000,
+        Math.max(
+          1_000,
+          Number.parseInt(request.headers.get("x-planner-deadline-ms") ?? "60000", 10) || 60_000,
+        ),
+      ),
+      signal: request.signal,
     });
   }
 
+  const serverModel = resolveTeachingModel();
   const reasoningMode = parseReasoningMode(process.env.TUTOR_REASONING_MODE);
-  const reasoningEffort = resolveReasoningEffort(userInput, reasoningMode);
+  const hasAuthoritativePlan =
+    request.headers.get("x-heytutor-teaching-pass") === "planned";
+  const reasoningEffort = resolveTeachingReasoningEffort({
+    question: userInput,
+    hasAuthoritativePlan,
+    mode: reasoningMode,
+  });
   const bodyToSend = injectStreamOptions(rawBody, serverModel, reasoningEffort);
 
   tutorDebug("chat", "forwarding to Fireworks", {
     model: serverModel,
+    authoritative_plan: hasAuthoritativePlan,
     reasoning_mode: reasoningMode,
     reasoning_effort: reasoningEffort,
   });
@@ -479,15 +696,19 @@ export async function POST(request: Request): Promise<Response> {
 
     // Transient DNS/TLS/"fetch failed" blips are common; one quick retry avoids
     // aborting a whole turn for a one-off network hiccup.
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        response = await fetch(FIREWORKS_CHAT_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "content-type": "application/json",
+        response = await fetchTeachingCompletion({
+          url: FIREWORKS_CHAT_URL,
+          signal: request.signal,
+          init: {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "content-type": "application/json",
+            },
+            body: bodyToSend,
           },
-          body: bodyToSend,
         });
         lastFetchError = null;
         break;
@@ -497,8 +718,9 @@ export async function POST(request: Request): Promise<Response> {
           attempt: attempt + 1,
           message: error instanceof Error ? error.message : String(error),
         });
-        if (attempt === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 400));
+        if (request.signal.aborted) break;
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
         }
       }
     }
