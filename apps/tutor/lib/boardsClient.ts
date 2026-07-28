@@ -1,5 +1,5 @@
 import { resolveApiUrl, type AudioTimings } from "@heytutor/tutor-core";
-import type { DrawCommand } from "@heytutor/drawing";
+import type { DrawCommand, StoredCommandEnvelope } from "@heytutor/drawing";
 import type { BoardEntry } from "@/components/BoardHistory";
 
 export interface StoredSegment {
@@ -7,7 +7,7 @@ export interface StoredSegment {
   orderIndex: number;
   narration: string;
   spokenText: string;
-  command: DrawCommand | { commands: DrawCommand[] } | null;
+  command: DrawCommand | StoredCommandEnvelope | null;
   audioUrl: string | null;
   durationMs: number | null;
   timings: AudioTimings | null;
@@ -19,8 +19,16 @@ export interface StoredTurn {
   question: string;
   rawResponse: string;
   speedMultiplier: number;
+  traceId: string | null;
+  sceneDocument: unknown | null;
+  sceneEngineVersion: string | null;
+  validationReport: unknown | null;
+  visualStatus: SceneVisualStatus | null;
+  sceneArtifacts: unknown | null;
   segments: StoredSegment[];
 }
+
+export type SceneVisualStatus = "validated" | "text_only" | "legacy" | "retry_required";
 
 export interface BoardDetail {
   board: BoardEntry;
@@ -88,10 +96,34 @@ export interface RecordedSegmentPayload {
   orderIndex: number;
   narration: string;
   spokenText: string;
-  command: DrawCommand | { commands: DrawCommand[] } | null;
+  command: DrawCommand | StoredCommandEnvelope | null;
   audioBytes: Uint8Array | null;
   durationMs: number | null;
   timings: AudioTimings | null;
+}
+
+/** Persist the runtime-owned page transition so restore and replay match live ink. */
+export function withBoardEpochSegment(
+  segments: RecordedSegmentPayload[],
+): RecordedSegmentPayload[] {
+  const clearCommand: DrawCommand = {
+    type: "CLEAR",
+    params: [],
+    charPosition: 0,
+    narrationBefore: "",
+  };
+  return [
+    {
+      orderIndex: 0,
+      narration: "",
+      spokenText: "",
+      command: clearCommand,
+      audioBytes: null,
+      durationMs: 50,
+      timings: null,
+    },
+    ...segments,
+  ].map((segment, orderIndex) => ({ ...segment, orderIndex }));
 }
 
 export async function saveTurn(
@@ -101,6 +133,11 @@ export async function saveTurn(
     rawResponse: string;
     speedMultiplier: number;
     traceId?: string | null;
+    sceneDocument?: unknown | null;
+    sceneEngineVersion?: string | null;
+    validationReport?: unknown | null;
+    visualStatus?: SceneVisualStatus | null;
+    sceneArtifacts?: unknown | null;
     segments: RecordedSegmentPayload[];
   },
 ): Promise<StoredTurn | null> {
@@ -112,6 +149,11 @@ export async function saveTurn(
       rawResponse: payload.rawResponse,
       speedMultiplier: payload.speedMultiplier,
       traceId: payload.traceId ?? undefined,
+      sceneDocument: payload.sceneDocument ?? undefined,
+      sceneEngineVersion: payload.sceneEngineVersion ?? undefined,
+      validationReport: payload.validationReport ?? undefined,
+      visualStatus: payload.visualStatus ?? undefined,
+      sceneArtifacts: payload.sceneArtifacts ?? undefined,
       segments: payload.segments.map((segment) => ({
         orderIndex: segment.orderIndex,
         narration: segment.narration,
