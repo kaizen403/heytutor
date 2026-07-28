@@ -31,22 +31,27 @@ model Board {
 }
 
 model Turn {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  boardId         String    @map("board_id")
-  userId          String    @map("user_id")
-  orderIndex      Int       @map("order_index")
-  question        String
-  rawResponse     String    @map("raw_response")
-  speedMultiplier Float     @default(1) @map("speed_multiplier")
-  traceId         String?   @map("trace_id")
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  board           Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  segments        Segment[]
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  boardId            String    @map("board_id")
+  userId             String    @map("user_id")
+  orderIndex         Int       @map("order_index")
+  question           String
+  rawResponse        String    @map("raw_response")
+  speedMultiplier    Float     @default(1) @map("speed_multiplier")
+  traceId            String?   @map("trace_id")
+  sceneDocument      Json?     @map("scene_document")
+  sceneEngineVersion String?   @map("scene_engine_version")
+  validationReport   Json?     @map("validation_report")
+  visualStatus       String?   @map("visual_status")
+  sceneArtifacts     Json?     @map("scene_artifacts")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  board              Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  segments           Segment[]
 
+  @@unique([boardId, orderIndex], map: "turns_board_id_order_index_key")
   @@index([boardId], map: "turns_board_id_idx")
   @@index([userId], map: "turns_user_id_idx")
-  @@unique([boardId, orderIndex], map: "turns_board_id_order_index_key")
   @@map("turns")
 }
 
