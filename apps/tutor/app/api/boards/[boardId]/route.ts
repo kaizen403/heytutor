@@ -61,6 +61,11 @@ export async function GET(_request: Request, context: RouteContext) {
       rawResponse: turn.rawResponse,
       speedMultiplier: turn.speedMultiplier,
       traceId: turn.traceId,
+      sceneDocument: turn.sceneDocument,
+      sceneEngineVersion: turn.sceneEngineVersion,
+      validationReport: turn.validationReport,
+      visualStatus: turn.visualStatus,
+      sceneArtifacts: turn.sceneArtifacts,
       createdAt: turn.createdAt.getTime(),
       segments: (segmentsByTurn.get(turn.id) ?? []).map((segment) => ({
         id: segment.id,
