@@ -9,25 +9,25 @@ import type { SegmentPlanStats } from "../types";
 
 export function createEmptySegmentPlanStats(): SegmentPlanStats {
   return {
-    activeTemplateId: null,
-    activeTemplateName: null,
+    activeDiagramId: null,
+    activeDiagramName: null,
     plannedSegmentCount: 0,
     introSegmentCount: 0,
     llmSegmentCount: 0,
-    blockedTemplateDrawCommands: 0,
-    droppedTemplateRedrawSegments: 0,
+    blockedUnverifiedDrawCommands: 0,
+    droppedMarkerOnlySegments: 0,
   };
 }
 
 export function summarizeSegmentsForTrace(segments: TutorSegment[]): Array<{
   index: number;
-  templateIntro: boolean;
+  verifiedDiagramIntro: boolean;
   narration: string;
   commands: Array<{ type: DrawCommand["type"]; params: number[]; text?: string }>;
 }> {
   return segments.slice(0, 24).map((segment, index) => ({
     index,
-    templateIntro: segment.templateIntro === true,
+    verifiedDiagramIntro: segment.verifiedDiagramIntro === true,
     narration: segment.narration.slice(0, 140),
     commands: getSegmentCommands(segment).map((command) => ({
       type: command.type,
@@ -68,7 +68,7 @@ export function isTeachingResponseIncomplete(
 }
 
 export function normalizeSegmentForAlignment(segment: TutorSegment): TutorSegment {
-  if (segment.templateIntro) {
+  if (segment.verifiedDiagramIntro) {
     return segment;
   }
 
