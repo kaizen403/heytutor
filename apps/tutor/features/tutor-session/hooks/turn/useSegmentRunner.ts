@@ -1,16 +1,16 @@
 import { useCallback } from "react";
 import {
   getSegmentCommands,
-  isOpticsTemplateId,
+  prefetchStrokePaths,
+  type DrawCommand,
   type TutorSegment,
   serializeSegmentCommands,
 } from "@heytutor/drawing";
 import {
+  catchUpWriteScheduleOffsets,
+  getBestWriteCharScheduleMs,
   getCommandDrawDurationMs,
   getCommandSpeechWindow,
-  getEstimatedWriteCharScheduleMs,
-  getWriteCharScheduleMs,
-  isWriteScheduleUsable,
   validateAudioTimingsForNarration,
   tutorDebug,
   mathToSpeech,
@@ -30,6 +30,7 @@ export function useSegmentRunner({
   cancelRef,
   isPausedRef,
   turnActiveRef,
+  turnGenerationRef,
   turnTelemetryRef,
   turnStatsRef,
   recordedSegmentsRef,
@@ -37,8 +38,8 @@ export function useSegmentRunner({
   currentTraceIdRef,
   setCurrentSegmentText,
   narrationDensityRef,
-  activeDiagramTemplateRef,
   drawChainRef,
+  reserveTextCommandPlacement,
 }: UseSegmentRunnerParams) {
   const waitWhilePaused = useCallback(async (): Promise<boolean> => {
     while (isPausedRef.current) {
@@ -55,9 +56,13 @@ export function useSegmentRunner({
       segment: TutorSegment,
       index: number,
       allSegments: TutorSegment[],
+      turnGeneration: number,
     ): Promise<void> => {
-      if (cancelRef.current) return;
+      const isStale = () => turnGeneration !== turnGenerationRef.current;
+      const isCancelled = () => cancelRef.current || isStale();
+      if (isCancelled()) return;
       if (!(await waitWhilePaused())) return;
+      if (isStale()) return;
 
       const tts = ensureTTSClient();
 
@@ -72,20 +77,11 @@ export function useSegmentRunner({
       const tel = turnTelemetryRef.current;
       const segmentName = `segment-${index}`;
       const segmentSpan = tel?.span(segmentName);
-      const activeTemplate = activeDiagramTemplateRef.current;
-      const opticsKind =
-        activeTemplate &&
-        (isOpticsTemplateId(activeTemplate.id) || activeTemplate.id === "optics_ray")
-          ? activeTemplate.id
-          : null;
-      const OPTICS_SYNC_LAG_MS = 450;
-
-      if (cancelRef.current) {
+      if (isCancelled()) {
         segmentSpan?.end({ skipped: true, reason: "cancelled" });
         return;
       }
 
-      applyTurnPhase("speaking");
       setCurrentSegmentText(segment.narration);
 
       const previousText = allSegments[index - 1]?.narration;
@@ -98,7 +94,19 @@ export function useSegmentRunner({
         return;
       }
 
-      const segmentCommands = getSegmentCommands(segment);
+      let segmentCommands = getSegmentCommands(segment);
+      const reservedTextCommands = new Set<DrawCommand>();
+      if (segment.verifiedDiagramIntro !== true) {
+        const prepared: DrawCommand[] = [];
+        for (const command of segmentCommands) {
+          const resolved = await reserveTextCommandPlacement(command);
+          prepared.push(resolved);
+          if (resolved !== command) reservedTextCommands.add(resolved);
+        }
+        segmentCommands = prepared;
+      }
+      if (isCancelled()) return;
+      applyTurnPhase("speaking");
       const totalDrawWeight = segmentCommands.reduce(
         (sum, cmd) => sum + getCommandDrawDurationMs(cmd),
         0,
@@ -159,7 +167,7 @@ export function useSegmentRunner({
           cancellableDelay(timeoutMs),
         ]);
 
-        if (!audioStartedFlag && !cancelRef.current && !speechComplete) {
+        if (!audioStartedFlag && !isCancelled() && !speechComplete) {
           tutorDebug("tts", "audio start still pending", {
             index,
             waited_ms: timeoutMs,
@@ -186,7 +194,7 @@ export function useSegmentRunner({
 
         const position = tts.getPlaybackPositionMs();
         if (position === null || position + 50 < maxAudioPositionMs) {
-          return audioStartedAtMs === null ? 0 : Math.max(maxAudioPositionMs, wallClockMs());
+          return audioStartedAtMs === null ? -1 : Math.max(maxAudioPositionMs, wallClockMs());
         }
         maxAudioPositionMs = Math.max(maxAudioPositionMs, position);
         return position;
@@ -230,22 +238,36 @@ export function useSegmentRunner({
         const drawName = `draw-${index}`;
         const drawSpan = tel?.span(drawName, segmentName);
         const drawStart = performance.now();
-        const templateDrawOptions = {
-          skipTemplateDuplicateCheck: segment.templateIntro === true,
-          skipGeometrySnap: segment.templateIntro === true,
+        const diagramDrawOptions = {
+          trustedDiagramGeometry: segment.verifiedDiagramIntro === true,
+          applyLayout: segment.verifiedDiagramIntro !== true,
           segmentIndex: index,
+          isCancelled,
         };
 
         try {
+          // Warm handwriting paths while TTS connects so the first glyph is ready
+          // when its spoken cue arrives.
+          for (const command of segmentCommands) {
+            if (
+              (command.type === "WRITE" || command.type === "LABEL") &&
+              command.text &&
+              Number.isFinite(command.params[0]) &&
+              Number.isFinite(command.params[1])
+            ) {
+              prefetchStrokePaths(command.text, command.params[0]!, command.params[1]!, 32);
+            }
+          }
+
           // Wait once for audio — never per-command (that stacked 2.5s × N idle gaps).
           if (hasNarration) {
             await waitForAudioStart(700);
-            if (cancelRef.current) {
+            if (isCancelled()) {
               return;
             }
             if (audioStartedFlag) {
               await waitForInitialTimings(40);
-              if (cancelRef.current) {
+              if (isCancelled()) {
                 return;
               }
             }
@@ -253,7 +275,7 @@ export function useSegmentRunner({
 
           let textCommandIndex = 0;
           for (const command of segmentCommands) {
-            if (cancelRef.current) {
+            if (isCancelled()) {
               return;
             }
             if (!(await waitWhilePaused())) {
@@ -261,13 +283,11 @@ export function useSegmentRunner({
             }
 
             const isTextCommand = command.type === "WRITE" || command.type === "LABEL";
-
-            const textCanFollowAudio = !isTextCommand || !hasNarration || audioStartedFlag;
             const elapsedAtCommandStart =
               audioStartedAtMs === null ? 0 : performance.now() - audioStartedAtMs;
 
             const timingValidation =
-              isTextCommand && hasNarration && textCanFollowAudio && capturedTimings
+              isTextCommand && hasNarration && capturedTimings
                 ? validateAudioTimingsForNarration(narration, capturedTimings)
                 : null;
             const segmentDurationMs =
@@ -275,34 +295,24 @@ export function useSegmentRunner({
               (capturedTimings?.totalDuration
                 ? Math.round(capturedTimings.totalDuration * 1000)
                 : totalSpeechMs);
-            const timedSchedule =
-              isTextCommand && hasNarration && textCanFollowAudio && capturedTimings && timingValidation?.valid
-                ? getWriteCharScheduleMs(narration, command, capturedTimings, textCommandIndex)
+            const writeSchedule =
+              isTextCommand && hasNarration
+                ? getBestWriteCharScheduleMs(
+                    narration,
+                    command,
+                    capturedTimings,
+                    segmentDurationMs,
+                    textCommandIndex,
+                  )
                 : null;
-            const estimatedSchedule =
-              isTextCommand && hasNarration && textCanFollowAudio
-                ? getEstimatedWriteCharScheduleMs(narration, command, textCommandIndex)
-                : null;
-            const usableTimedSchedule =
-              timedSchedule && isWriteScheduleUsable(timedSchedule, narration, segmentDurationMs)
-                ? timedSchedule
-                : null;
-            const writeSchedule = usableTimedSchedule ?? estimatedSchedule;
 
             if (writeSchedule && writeSchedule.offsetsMs.length > 0) {
               const audioPosAtScheduleMs = Math.round(liveAudioPositionMs());
               const firstOffsetMs = writeSchedule.offsetsMs[0] ?? 0;
-
-              let effectiveOffsets = writeSchedule.offsetsMs;
-              if (
-                writeSchedule.source === "estimated" &&
-                audioPosAtScheduleMs > firstOffsetMs + 200
-              ) {
-                const shift = audioPosAtScheduleMs - firstOffsetMs;
-                effectiveOffsets = writeSchedule.offsetsMs.map(
-                  (offset) => Math.max(offset + shift, 0),
-                );
-              }
+              const effectiveOffsets = catchUpWriteScheduleOffsets(
+                writeSchedule.offsetsMs,
+                audioPosAtScheduleMs,
+              );
 
               const scheduleMetadata = {
                 segment_index: index,
@@ -313,13 +323,12 @@ export function useSegmentRunner({
                 audio_pos_ms: audioPosAtScheduleMs,
                 start_lag_ms: audioPosAtScheduleMs - firstOffsetMs,
                 matched: writeSchedule.matched,
-                syncable: true,
+                syncable: writeSchedule.matched,
                 valid_timing: writeSchedule.validTiming,
                 reason:
                   writeSchedule.reason ??
                   timingValidation?.reason ??
-                  (timedSchedule && !usableTimedSchedule ? "schedule-offset-too-late" : null),
-                ...(opticsKind ? { optics_kind: opticsKind } : {}),
+                  null,
               };
               tutorDebug("draw", "write schedule ready", {
                 index,
@@ -351,35 +360,12 @@ export function useSegmentRunner({
                     tel?.mark("write-char-start", charMetadata);
                   },
                 },
-                ...templateDrawOptions,
+                ...diagramDrawOptions,
+                textPlacementReserved: reservedTextCommands.has(command),
               });
-              continue;
-            }
-
-            if (isTextCommand && hasNarration) {
-              const revealMs = Math.min(
-                Math.max((command.text?.replace(/\s/g, "").length ?? 1) * 28, 320),
-                950,
-              );
-              const scheduleMetadata = {
-                segment_index: index,
-                text: command.text?.slice(0, 60),
-                schedule_source: "none",
-                timing_chars: capturedTimings?.charStartTimes.length ?? 0,
-                syncable: false,
-                valid_timing: timingValidation?.valid ?? false,
-                reason: timingValidation?.reason ?? "text-not-spoken",
-              };
-              tutorDebug("draw", "write unsyncable reveal", {
-                index,
-                ...scheduleMetadata,
-              });
-              tel?.mark("write-schedule-ready", scheduleMetadata);
-              await executeCommandWithCancel(command, {
-                segmentNarration: narration,
-                speechDurationMs: revealMs,
-                ...templateDrawOptions,
-              });
+              if (isTextCommand) {
+                textCommandIndex++;
+              }
               continue;
             }
 
@@ -404,13 +390,27 @@ export function useSegmentRunner({
 
             if (startDelayMs > 0) {
               await cancellableDelay(startDelayMs);
-              if (cancelRef.current) {
+              if (isCancelled()) {
                 return;
               }
             }
 
             const commandBudgetMs =
-              isTextCommand
+              segment.verifiedDiagramIntro === true
+                ? hasNarration
+                  ? // Keep every intro command proportional to speech so ink does not
+                    // outrun (or trail) the spoken beat after FOCUS traces.
+                    Math.min(
+                      Math.max(
+                        commandSpeechMs,
+                        command.type === "FOCUS" ? 420 : command.type === "DRAW_POINT" ? 160 : 280,
+                      ),
+                      command.type === "FOCUS" ? 1_200 : 900,
+                    )
+                  : isTextCommand
+                    ? 260
+                    : 180
+                : isTextCommand
                 ? (speechWindow?.durationMs ?? naturalDrawMs)
                 : command.type === "PAUSE"
                   ? commandSpeechMs
@@ -423,7 +423,8 @@ export function useSegmentRunner({
             await executeCommandWithCancel(command, {
               segmentNarration: narration,
               speechDurationMs: commandBudgetMs,
-              ...templateDrawOptions,
+              ...diagramDrawOptions,
+              textPlacementReserved: reservedTextCommands.has(command),
             });
             if (isTextCommand) {
               textCommandIndex++;
@@ -434,35 +435,15 @@ export function useSegmentRunner({
           turnStatsRef.current.drawMs += drawMs;
           const audioElapsedMs =
             audioStartedAtMs === null ? null : Math.round(performance.now() - audioStartedAtMs);
-          const lagMs =
-            audioElapsedMs === null ? null : drawMs - audioElapsedMs;
           tel?.mark("draw-complete", {
             segment_index: index,
             command_count: segmentCommands.length,
             duration_ms: drawMs,
-            ...(opticsKind ? { optics_kind: opticsKind } : {}),
             audio_elapsed_ms: audioElapsedMs,
           });
-          if (
-            opticsKind &&
-            lagMs !== null &&
-            Math.abs(lagMs) > OPTICS_SYNC_LAG_MS
-          ) {
-            const lagPayload = {
-              lag_ms: lagMs,
-              command_type: segmentCommands[0]?.type ?? null,
-              segment_index: index,
-              optics_kind: opticsKind,
-              draw_ms: drawMs,
-              audio_elapsed_ms: audioElapsedMs,
-            };
-            tel?.mark("optics-sync-lag", lagPayload);
-            tutorDebug("optics", "optics-sync-lag", lagPayload);
-          }
           drawSpan?.end({
             command_count: segmentCommands.length,
             duration_ms: drawMs,
-            ...(opticsKind ? { optics_kind: opticsKind } : {}),
           });
         }
       };
@@ -480,7 +461,6 @@ export function useSegmentRunner({
             segment_index: index,
             timing_chars: timings.charStartTimes.length,
             total_duration_ms: capturedDurationMs,
-            ...(opticsKind ? { optics_kind: opticsKind } : {}),
           });
           tel?.mark("tts-timing-validation", {
             segment_index: index,
@@ -488,7 +468,6 @@ export function useSegmentRunner({
             reason: validation.reason ?? null,
             total_duration_ms: validation.totalDurationMs,
             expected_max_ms: validation.expectedMaxMs,
-            ...(opticsKind ? { optics_kind: opticsKind } : {}),
           });
         }
         if (timings.charStartTimes.length > 0 && timingWaiters.length > 0) {
@@ -546,7 +525,6 @@ export function useSegmentRunner({
             segment_index: index,
             error: error instanceof Error ? error.message : String(error),
             timed_out: timedOut,
-            ...(opticsKind ? { optics_kind: opticsKind } : {}),
           });
           // Kill zombie WS/HTTP work so the next paragraph is not blocked.
           tts.abandonSpeaking?.();
@@ -564,12 +542,12 @@ export function useSegmentRunner({
         if (hasNarration && !hasCommand) {
           tutorDebug("segment", "narration-only", { index });
           await speakSegmentWithTimeout(narration, speakOptions);
-          if (cancelRef.current) return;
+          if (isCancelled()) return;
           tutorDebug("segment", "narration-only complete", { index });
         } else if (!hasNarration && hasCommand) {
           tutorDebug("segment", "draw-only", { index });
           await runDraw(naturalDrawMs);
-          if (cancelRef.current) return;
+          if (isCancelled()) return;
           tutorDebug("segment", "draw-only complete", { index });
         } else if (hasNarration && hasCommand) {
           tutorDebug("segment", "paired narration+draw", { index });
@@ -577,7 +555,7 @@ export function useSegmentRunner({
           // Finish prior ink first, then speak + draw this segment together so the
           // marker stays with the words (do not let speech race ahead on drawChain).
           await drawChainRef.current.catch(() => undefined);
-          if (cancelRef.current) return;
+          if (isCancelled()) return;
           if (!(await waitWhilePaused())) return;
 
           const drawPromise = runDraw(estimateSpeechMs, null);
@@ -587,7 +565,7 @@ export function useSegmentRunner({
             speakSegmentWithTimeout(narration, {
               ...speakOptions,
               onStart: () => {
-                if (cancelRef.current || !turnActiveRef.current) return;
+                if (isCancelled() || !turnActiveRef.current) return;
                 if (!audioStartedFlag) {
                   audioStartedFlag = true;
                   audioStartedResolver?.();
@@ -616,17 +594,18 @@ export function useSegmentRunner({
             drawPromise,
           ]);
 
-          if (cancelRef.current) return;
+          if (isCancelled()) return;
           tutorDebug("segment", "paired narration+draw complete", { index });
         }
       } finally {
-        if (!cancelRef.current) {
-          const segmentCommands = getSegmentCommands(segment);
+        if (!isCancelled()) {
           recordedSegmentsRef.current.push({
             orderIndex: index,
             narration: segment.narration,
             spokenText: mathToSpeech(narration),
-            command: serializeSegmentCommands(segmentCommands),
+            command: serializeSegmentCommands(segmentCommands, {
+              trustedDiagramGeometry: segment.verifiedDiagramIntro === true,
+            }),
             audioBytes: capturedAudio,
             durationMs: capturedDurationMs,
             timings: capturedTimings,
@@ -648,10 +627,9 @@ export function useSegmentRunner({
       raceWithCancel,
       applyTurnPhase,
       cancelRef,
-      isPausedRef,
       waitWhilePaused,
       turnActiveRef,
-      activeDiagramTemplateRef,
+      turnGenerationRef,
       turnTelemetryRef,
       turnStatsRef,
       recordedSegmentsRef,
@@ -660,6 +638,7 @@ export function useSegmentRunner({
       setCurrentSegmentText,
       narrationDensityRef,
       drawChainRef,
+      reserveTextCommandPlacement,
     ],
   );
 
