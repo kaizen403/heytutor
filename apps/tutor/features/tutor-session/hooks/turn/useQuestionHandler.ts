@@ -2,19 +2,9 @@ import { useCallback } from "react";
 import {
   IncrementalTagParser,
   lessonNarrationText,
-  matchDiagramTemplate,
-  buildTemplateIntroSegments,
-  buildOpticsPrecisionIntro,
-  opticsDecisionMetadata,
-  isOpticsTemplateId,
   anchorToTextRect,
-  prepareTemplateLessonSegments,
-  compileScene,
-  compiledSceneToTemplate,
-  inferSceneFromQuestion,
+  prepareVerifiedLessonSegments,
   type TutorSegment,
-  type CompiledScene,
-  type SceneSpec,
 } from "@heytutor/drawing";
 import {
   streamLLMResponse,
@@ -22,14 +12,63 @@ import {
   TUTOR_CONTINUATION_PROMPT,
   tutorDebug,
   resolveApiUrl,
-  planScene,
+  planSceneDocumentWithRepair,
+  revalidateScenePlanWithRepairResult,
+  planTurnV3,
+  auditTurnPlanV3,
+  planAndSolveProblemV1,
+  createFallbackTurnPlanV3,
+  inferSceneCapabilities,
+  type ProblemAuthorityV1Response,
+  type SceneCandidateValidation,
+  type ScenePlanWithRepairResult,
 } from "@heytutor/tutor-core";
+import {
+  SCENE_ENGINE_VERSION,
+  compileSceneDocument,
+  normalizeClaimedClosedRouteGeometry,
+  normalizeClaimedParaxialReflectionGeometry,
+  pruneDeadSceneEntities,
+  pruneUnverifiedSceneAnnotations,
+  validateSceneQuantityAgreement,
+  validateSceneDocument,
+  validateTurnPlanSceneProofs,
+  buildSolverAuthorityProjection,
+  reconcileTurnPlanWithSolver,
+  verifyTurnPlanAgainstSolver,
+  type RenderScene,
+  type SceneArtifactsV3,
+  type SceneDocument,
+  type TurnPlanV3,
+  type ValidationReport,
+} from "@heytutor/scene-engine";
 import { createTurnTelemetry } from "@/lib/turnTelemetry";
 import { enrichStoredSegmentsWithReplayAudio } from "@/lib/replayTurns";
-import { saveTurn, updateBoard, type StoredTurn } from "@/lib/boardsClient";
+import {
+  saveTurn,
+  updateBoard,
+  withBoardEpochSegment,
+  type StoredTurn,
+} from "@/lib/boardsClient";
 import { MAX_LLM_CONTINUATIONS, STREAM_SEGMENTS_LIVE } from "../../constants";
 import { registerBoardAnchor } from "../../lib/boardLayout";
-import { buildPlannerIntroSegments } from "../../lib/planToTemplate";
+import { buildVerifiedDiagramPresentation } from "../../lib/verifiedScenePresentation";
+import {
+  selectVerifiedRepresentation,
+  type RepresentationTier,
+} from "../../lib/representationFallbackV4";
+import {
+  SCENE_PLANNER_DEADLINE_MS,
+  PROBLEM_AUTHORITY_DEADLINE_MS,
+  TURN_PLAN_DEADLINE_MS,
+  selectBestAvailableTurnPlan,
+  shouldBlockLessonForDiagram,
+} from "../../lib/diagramGenerationV3";
+import {
+  findVerifiedSceneRecovery,
+  forgetVerifiedScene,
+  rememberVerifiedScene,
+} from "../../lib/verifiedSceneRecovery";
 import {
   createEmptySegmentPlanStats,
   isTeachingResponseIncomplete,
@@ -40,21 +79,22 @@ export function useQuestionHandler(
   params: UseTurnLifecycleParams,
   turnControl: Pick<
     TurnControlApi,
-    "finishLectureUi" | "applyTurnPhase" | "enqueueSegment" | "processResponseText"
+    "finishLectureUi" | "applyTurnPhase" | "enqueueSegment" | "enqueueVerifiedIntro" | "processResponseText"
   >,
 ) {
   const {
     sessionId,
     boards,
     narrationText,
-    phase,
     boardLoaded,
     whiteboardRef,
     pendingQuestionRef,
+    phaseRef,
     cancelRef,
     isPausedRef,
     conversationHistoryRef,
     turnActiveRef,
+    turnGenerationRef,
     turnAbortRef,
     collectedSegmentsRef,
     recordedSegmentsRef,
@@ -66,11 +106,12 @@ export function useQuestionHandler(
     segmentPlanStatsRef,
     fbdPhaseMarkedRef,
     fbdPhaseStartedRef,
-    activeDiagramTemplateRef,
+    activeVerifiedDiagramRef,
     boardLayoutRef,
     turnTelemetryRef,
     speedRef,
     storedTurnsRef,
+    pendingSegmentCountRef,
     setInputInteracted,
     setIsPaused,
     setIsReplaying,
@@ -82,13 +123,13 @@ export function useQuestionHandler(
     setNarrationText,
     setCurrentSegmentText,
     ensureTTSClient,
-    resetBoardLayout,
+    beginBoardEpoch,
     persistTurnForReplay,
     registerReplayBlobUrl,
     revokeReplayBlobUrls,
   } = params;
 
-  const { finishLectureUi, applyTurnPhase, enqueueSegment, processResponseText } = turnControl;
+  const { finishLectureUi, applyTurnPhase, enqueueSegment, enqueueVerifiedIntro, processResponseText } = turnControl;
 
   const handleQuestion = useCallback(
     async (question: string) => {
@@ -98,7 +139,11 @@ export function useQuestionHandler(
         setInputInteracted(true);
         return;
       }
-      if (phase !== "idle") {
+      if (
+        phaseRef.current !== "idle" ||
+        turnActiveRef.current ||
+        pendingSegmentCountRef.current > 0
+      ) {
         pendingQuestionRef.current = null;
         return;
       }
@@ -110,6 +155,8 @@ export function useQuestionHandler(
         board_id: sessionId,
       });
 
+      const turnGeneration = turnGenerationRef.current + 1;
+      turnGenerationRef.current = turnGeneration;
       cancelRef.current = false;
       isPausedRef.current = false;
       setIsPaused(false);
@@ -117,6 +164,7 @@ export function useQuestionHandler(
       setTranscriptOpen(false);
       setLastError(null);
       turnActiveRef.current = true;
+      phaseRef.current = "thinking";
       const abortController = new AbortController();
 
       const boardIdForName = sessionId;
@@ -162,11 +210,8 @@ export function useQuestionHandler(
       revokeReplayBlobUrls();
       fbdPhaseMarkedRef.current = false;
       fbdPhaseStartedRef.current = false;
-      // Layout hint from local SceneSpec infer — regex templates are telemetry-only.
-      const inferredSceneHint = inferSceneFromQuestion(question);
-      const templateCompare = matchDiagramTemplate(question);
-      activeDiagramTemplateRef.current = null;
-      resetBoardLayout(false, inferredSceneHint !== null || templateCompare !== null);
+      activeVerifiedDiagramRef.current = null;
+      await beginBoardEpoch();
 
       const tel = createTurnTelemetry();
       turnTelemetryRef.current = tel;
@@ -199,8 +244,7 @@ export function useQuestionHandler(
       const tts = ensureTTSClient();
       tts.unlockAudio?.();
 
-      // Fast path: deterministic domain infer (optics/circuit/…) compiles instantly.
-      // Only call the slow SceneSpec LLM when local infer cannot build a diagram.
+      // The verified semantic scene engine is the only diagram generation path.
       setPhase("planning");
       const plannerSpan = tel.span("planner");
       const plannerStartedAt = Date.now();
@@ -214,67 +258,608 @@ export function useQuestionHandler(
         },
       });
 
-      let scene: SceneSpec | null = inferSceneFromQuestion(question);
-      let compiled: CompiledScene | null = scene
-        ? compileScene(scene, { question })
-        : null;
-      if (compiled && (!compiled.ok || (compiled.degradeReason === "high_residual" && compiled.residual > 40))) {
-        compiled = null;
-      }
+      let sceneV2Document: SceneDocument | Record<string, unknown> | null = null;
+      let sceneV2Report: ValidationReport | null = null;
+      let sceneV2RenderScene: RenderScene | null = null;
+      let sceneV2IntroSegments: TutorSegment[] | null = null;
+      let sceneVisualStatus: "validated" | "text_only" | "retry_required" = "text_only";
+      let sceneV2Repaired = false;
+      let sceneArtifacts: SceneArtifactsV3 | null = null;
+      let representationTier: RepresentationTier | null = null;
+      let representationNonMetric = false;
+      let representationReason: string | null = null;
+      let exactDegradation: NonNullable<SceneArtifactsV3["degradation"]> | undefined;
+      let turnPlan: TurnPlanV3 | null = null;
+      let problemAuthority: ProblemAuthorityV1Response | null = null;
+      let turnPlanMs = 0;
 
-      if (!compiled) {
-        const plannerUrl = resolveApiUrl("/api/chat");
-        try {
-          scene = await planScene(question, {
+      const plannerUrl = resolveApiUrl("/api/chat");
+        const recentConversation = conversationHistoryRef.current
+          .slice(-3)
+          .map((exchange) => `User: ${exchange.user}\nTutor: ${exchange.assistant}`)
+          .join("\n\n");
+        let recoveredScene = findVerifiedSceneRecovery(question, storedTurnsRef.current);
+        let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
+
+        if (recoveredScene) {
+          turnPlan = recoveredScene.turnPlan;
+          problemAuthorityPromise = planAndSolveProblemV1(question, turnPlan, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
             signal: abortController.signal,
-            timeoutMs: 8000,
+            timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, SCENE_PLANNER_DEADLINE_MS),
           });
-        } catch {
-          scene = null;
+          tutorDebug("planner", "found verified scene recovery candidate", {
+            source: recoveredScene.source,
+          });
+        } else {
+          const turnPlanStartedAt = Date.now();
+          const plannedTurn = await planTurnV3(question, {
+            proxyUrl: plannerUrl,
+            sessionId: sessionId ?? undefined,
+            signal: abortController.signal,
+            timeoutMs: TURN_PLAN_DEADLINE_MS,
+            conversationContext: recentConversation,
+          });
+          if (plannedTurn) {
+            const remainingAuthorityMs = Math.max(
+              1_000,
+              SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
+            );
+            problemAuthorityPromise = planAndSolveProblemV1(question, plannedTurn.turnPlan, {
+              proxyUrl: plannerUrl,
+              sessionId: sessionId ?? undefined,
+              signal: abortController.signal,
+              timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, remainingAuthorityMs),
+            });
+          }
+          const remainingAuditMs = Math.max(
+            0,
+            TURN_PLAN_DEADLINE_MS - (Date.now() - turnPlanStartedAt),
+          );
+          const auditedTurn = plannedTurn && remainingAuditMs > 0
+            ? await auditTurnPlanV3(question, plannedTurn.turnPlan, {
+                proxyUrl: plannerUrl,
+                sessionId: sessionId ?? undefined,
+                signal: abortController.signal,
+                timeoutMs: remainingAuditMs,
+              })
+            : null;
+          turnPlanMs = Date.now() - turnPlanStartedAt;
+          turnPlan = selectBestAvailableTurnPlan(
+            auditedTurn?.turnPlan,
+            plannedTurn?.turnPlan,
+            createFallbackTurnPlanV3(question),
+            plannedTurn?.peerTurnPlans,
+          );
+          if (plannedTurn && !auditedTurn) {
+            tutorDebug("planner", "turn plan audit unavailable; using validated primary plan", {
+              elapsed_ms: turnPlanMs,
+            });
+          }
         }
-        compiled = scene ? compileScene(scene, { question }) : null;
-        if (compiled && (!compiled.ok || (compiled.degradeReason === "high_residual" && compiled.residual > 40))) {
-          compiled = null;
-        }
-      }
 
+        const planningTurnPlan = turnPlan;
+        const sceneCapabilities = inferSceneCapabilities(question, planningTurnPlan.lawIds);
+        const remainingPlannerMs = Math.max(
+          0,
+          SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
+        );
+        const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none";
+        const planContext = [
+          recentConversation,
+          `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\nDo not contradict, replace, or independently recalculate these quantities and claims.`,
+        ].filter(Boolean).join("\n\n");
+        type ValidatedSceneCandidate = {
+          document: SceneDocument;
+          renderScene: RenderScene;
+          report: ValidationReport;
+        };
+        const validateCandidateAgainstPlan = (
+          candidate: Record<string, unknown>,
+          authoritativePlan: TurnPlanV3,
+        ): SceneCandidateValidation<ValidatedSceneCandidate> => {
+          let validated = validateSceneDocument(pruneDeadSceneEntities(candidate));
+          if (!validated.document) {
+            return {
+              valid: false,
+              errors: validated.report.issues,
+            };
+          }
+          const routeNormalized = normalizeClaimedClosedRouteGeometry(
+            validated.document,
+            authoritativePlan,
+          );
+          const constraintNormalized = normalizeClaimedParaxialReflectionGeometry(
+            routeNormalized,
+            authoritativePlan,
+          );
+          if (constraintNormalized !== validated.document) {
+            validated = validateSceneDocument(pruneDeadSceneEntities(
+              constraintNormalized as unknown as Record<string, unknown>,
+            ));
+            if (!validated.document) {
+              return {
+                valid: false,
+                errors: validated.report.issues,
+              };
+            }
+          }
+          const annotationPruned = pruneUnverifiedSceneAnnotations(validated.document, authoritativePlan);
+          if (annotationPruned !== validated.document) {
+            validated = validateSceneDocument(pruneDeadSceneEntities(
+              annotationPruned as unknown as Record<string, unknown>,
+            ));
+            if (!validated.document) {
+              return {
+                valid: false,
+                errors: validated.report.issues,
+              };
+            }
+          }
+          const agreementIssues = validateSceneQuantityAgreement(
+            validated.document.quantities,
+            authoritativePlan,
+            [
+              ...validated.document.entities
+                .map((entity) => entity.label)
+                .filter((label): label is string => typeof label === "string"),
+              ...validated.document.annotations
+                .map((annotation) => annotation.text)
+                .filter((text): text is string => typeof text === "string"),
+            ],
+          );
+          const authorityIssues = agreementIssues.map((issue) => ({
+            code: issue.code,
+            message: issue.message,
+            path: issue.path,
+            severity: "fatal" as const,
+          }));
+          const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
+          const compiledScene = compileSceneDocument(validated.document);
+          const fatalIssues = [
+            ...authorityIssues,
+            ...proofIssues,
+            ...compiledScene.report.issues,
+          ].filter((issue) => issue.severity === "fatal");
+          if (fatalIssues.length > 0 || !compiledScene.ok || !compiledScene.renderScene) {
+            return {
+              valid: false,
+              errors: fatalIssues.length > 0 ? fatalIssues : compiledScene.report.issues,
+            };
+          }
+          return {
+            valid: true,
+            errors: [...proofIssues, ...compiledScene.report.issues],
+            qualityScore:
+              (validated.document.visualDecision.mode === "text_only" &&
+              authoritativePlan.visualRequirement !== "none"
+                ? authoritativePlan.visualRequirement === "required" ? 100_000 : 10_000
+                : 0) +
+              compiledScene.report.issues.filter((issue) => issue.severity === "warning").length * 1_000 +
+              compiledScene.report.stats.primitiveCount * 2 +
+              compiledScene.report.stats.entityCount +
+              compiledScene.report.stats.constructionCount,
+            value: {
+              document: validated.document,
+              renderScene: compiledScene.renderScene,
+              report: compiledScene.report,
+            },
+          };
+        };
+        const validateCandidate = (candidate: Record<string, unknown>) =>
+          validateCandidateAgainstPlan(candidate, planningTurnPlan);
+        let result: ScenePlanWithRepairResult<ValidatedSceneCandidate> | null = null;
+        let usedVerifiedRecovery = false;
+        if (shouldPlanExactScene && recoveredScene) {
+          const validation = validateCandidate(
+            recoveredScene.document as unknown as Record<string, unknown>,
+          );
+          if (validation.valid) {
+            const response = {
+              document: recoveredScene.document as unknown as Record<string, unknown>,
+              rawContent: JSON.stringify(recoveredScene.document),
+              phase: "plan" as const,
+              lane: "primary" as const,
+              elapsedMs: 0,
+              strategy: `verified_scene_recovery:${recoveredScene.source}`,
+            };
+            result = {
+              response,
+              validation,
+              repaired: false,
+              candidates: [{
+                candidateId: "verified-recovery-1",
+                response,
+                validation,
+                score: validation.qualityScore ?? 0,
+                selected: true,
+              }],
+            };
+            usedVerifiedRecovery = true;
+            tutorDebug("planner", "verified scene recovery accepted", {
+              source: recoveredScene.source,
+              primitive_count: validation.value?.report.stats.primitiveCount ?? 0,
+            });
+          } else {
+            tutorDebug("planner", "verified scene recovery rejected by current engine", {
+              source: recoveredScene.source,
+              error_codes: validation.errors.map((error) => error.code),
+            });
+            forgetVerifiedScene(question);
+            recoveredScene = null;
+          }
+        }
+        if (!result && shouldPlanExactScene && remainingPlannerMs > 0) {
+          result = await planSceneDocumentWithRepair(
+            question,
+            validateCandidate,
+            {
+            proxyUrl: plannerUrl,
+            sessionId: sessionId ?? undefined,
+            signal: abortController.signal,
+            timeoutMs: remainingPlannerMs,
+            conversationContext: planContext,
+            ...(sceneCapabilities.families.length > 0
+              ? {
+                  constructionOperators: sceneCapabilities.constructionOperators,
+                  proofPredicates: sceneCapabilities.proofPredicates,
+                  planningGuidance: sceneCapabilities.planningGuidance,
+                }
+              : {}),
+            },
+          ).catch(() => null);
+        }
+
+        if (problemAuthorityPromise) {
+          problemAuthority = await problemAuthorityPromise;
+          if (problemAuthority) {
+            turnPlan = reconcileTurnPlanWithSolver(
+              turnPlan,
+              problemAuthority.problemIR,
+              problemAuthority.solverResult,
+            );
+            const authorityAudit = verifyTurnPlanAgainstSolver(
+              problemAuthority.problemIR,
+              problemAuthority.solverResult,
+              turnPlan,
+              question,
+            );
+            problemAuthority = {
+              ...problemAuthority,
+              audit: authorityAudit,
+              projection: authorityAudit.status === "verified"
+                ? buildSolverAuthorityProjection(
+                    problemAuthority.problemIR,
+                    problemAuthority.solverResult,
+                    authorityAudit,
+                  )
+                : null,
+            };
+            tutorDebug("planner", "solver authority audit", {
+              status: authorityAudit.status,
+              issue_codes: authorityAudit.issues.map((issue) => issue.code),
+              binding_count: authorityAudit.bindings.length,
+              elapsed_ms: problemAuthority.elapsedMs,
+            });
+          }
+        }
+
+        if (result) {
+          result = await revalidateScenePlanWithRepairResult(
+            result,
+            (candidate) => validateCandidateAgainstPlan(candidate, turnPlan),
+          );
+        }
+        const solverAuthorityBlocked = problemAuthority?.audit.status === "contradiction";
+
+        sceneV2Document = result?.response.document ?? null;
+        sceneV2Report = result?.validation.value?.report ?? (shouldPlanExactScene ? {
+          engineVersion: SCENE_ENGINE_VERSION,
+          valid: false,
+          issues: result?.validation.errors ?? [{
+            code: "planner_unavailable",
+            message: "Semantic planner did not return a valid scene within the budget",
+            severity: "fatal" as const,
+          }],
+          stats: { entityCount: 0, constructionCount: 0, primitiveCount: 0, assertionCount: 0 },
+        } : {
+          engineVersion: SCENE_ENGINE_VERSION,
+          valid: true,
+          issues: [],
+          stats: { entityCount: 0, constructionCount: 0, primitiveCount: 0, assertionCount: 0 },
+        });
+        sceneV2Repaired = result?.repaired ?? false;
+
+        const value = !solverAuthorityBlocked && result?.validation.valid
+          ? result.validation.value
+          : undefined;
+        const exactIssueCodes = Array.from(new Set(
+          result?.candidates.flatMap((candidate) =>
+            candidate.validation.errors
+              .filter((issue) => issue.severity === "fatal")
+              .map((issue) => issue.code),
+          ) ?? sceneV2Report.issues
+            .filter((issue) => issue.severity === "fatal")
+            .map((issue) => issue.code),
+        ));
+        if (solverAuthorityBlocked) {
+          exactDegradation = {
+            attemptedTier: "exact_verified",
+            reason: "solver_contradiction",
+            issueCodes: problemAuthority?.audit.issues.map((issue) => issue.code) ?? [],
+            candidateCount: 0,
+          };
+        } else if (
+          shouldPlanExactScene &&
+          (!value || value.document.visualDecision.mode !== "scene")
+        ) {
+          const missingCapability = value?.document.visualDecision.mode === "text_only" ||
+            exactIssueCodes.some((code) => /unsupported_operator|missing_capability/.test(code));
+          exactDegradation = {
+            attemptedTier: "exact_verified",
+            reason: !result
+              ? "planner_unavailable"
+              : missingCapability ? "missing_capability" : "candidate_invalid",
+            issueCodes: exactIssueCodes,
+            candidateCount: result?.candidates.length ?? 0,
+          };
+        }
+        {
+          try {
+            const selected = selectVerifiedRepresentation({
+              question,
+              turnPlan,
+              exact: value && value.document.visualDecision.mode === "scene"
+                ? {
+                    sceneDocument: value.document,
+                    renderScene: value.renderScene,
+                    validationReport: value.report,
+                  }
+                : null,
+            });
+            sceneV2Document = selected.sceneDocument;
+            sceneV2RenderScene = selected.renderScene;
+            sceneV2Report = selected.validationReport;
+            sceneVisualStatus = selected.sceneDocument.visualDecision.mode === "scene"
+              ? "validated"
+              : "text_only";
+            representationTier = selected.tier;
+            representationNonMetric = selected.nonMetric;
+            representationReason = selected.reason;
+            if (selected.tier === "exact_verified" && turnPlan) {
+              rememberVerifiedScene(question, selected.sceneDocument, turnPlan);
+            }
+          } catch (error) {
+            // Invalid exact and fallback scenes are both kept off the canvas.
+            sceneV2RenderScene = null;
+            sceneVisualStatus = turnPlan.visualRequirement === "required"
+              ? "retry_required"
+              : "text_only";
+            representationReason = error instanceof Error ? error.message : String(error);
+          }
+        }
+
+        sceneArtifacts = {
+          schemaVersion: "scene-artifacts/v3",
+          turnPlan,
+          problemIR: problemAuthority?.problemIR ?? null,
+          solverResult: problemAuthority?.solverResult ?? null,
+          solverAuthority: problemAuthority?.audit ?? null,
+          representationTier: representationTier ?? undefined,
+          nonMetric: representationTier ? representationNonMetric : undefined,
+          candidates: result?.candidates.map((candidate) => {
+            const report = candidate.validation.value?.report ?? {
+              engineVersion: SCENE_ENGINE_VERSION,
+              valid: false,
+              issues: candidate.validation.errors,
+              stats: {
+                entityCount: Array.isArray(candidate.response.document.entities)
+                  ? candidate.response.document.entities.length : 0,
+                constructionCount: Array.isArray(candidate.response.document.constructions)
+                  ? candidate.response.document.constructions.length : 0,
+                primitiveCount: 0,
+                assertionCount: Array.isArray(candidate.response.document.assertions)
+                  ? candidate.response.document.assertions.length : 0,
+              },
+            } satisfies ValidationReport;
+            return {
+              candidateId: candidate.candidateId,
+              strategy: candidate.response.strategy,
+              phase: candidate.response.phase,
+              accepted: candidate.selected && representationTier === "exact_verified",
+              sceneDocument: candidate.response.document as unknown as SceneDocument,
+              validationReport: report,
+              score: candidate.score,
+              rejectionCodes: report.issues
+                .filter((issue) => issue.severity === "fatal")
+                .map((issue) => issue.code),
+            };
+          }) ?? [],
+          selectedCandidateId: representationTier === "exact_verified"
+            ? result?.candidates.find((candidate) => candidate.selected)?.candidateId ?? null
+            : null,
+          selectionReason: representationReason ?? (sceneVisualStatus === "validated"
+            ? usedVerifiedRecovery ? "verified_scene_recovery" : "validated_scene"
+            : sceneVisualStatus === "retry_required"
+              ? "required_diagram_failed"
+              : "text_only_fallback"),
+          degradation: exactDegradation,
+          diagramResultStatus:
+            sceneVisualStatus === "validated"
+              ? "ready"
+              : sceneVisualStatus === "retry_required"
+                ? "retry_required"
+                : turnPlan?.visualRequirement === "none" ? "not_required" : "text_only",
+          proofObligations: sceneV2Document && "assertions" in sceneV2Document && Array.isArray(sceneV2Document.assertions)
+            ? sceneV2Document.assertions.map((assertion, index) => {
+                const value = assertion as Record<string, unknown>;
+                return {
+                  id: typeof value.id === "string" ? value.id : `assertion-${index + 1}`,
+                  predicate: typeof value.predicate === "string" ? value.predicate : "unknown",
+                  inputs: Array.isArray(value.entities)
+                    ? value.entities.filter((id): id is string => typeof id === "string") : [],
+                  expected: value.expected,
+                  severity: value.severity === "warning" ? "warning" as const : "fatal" as const,
+                };
+              })
+            : [],
+          budgets: {
+            deadlineMs: SCENE_PLANNER_DEADLINE_MS,
+            planMs: turnPlanMs,
+            candidatesMs: Math.max(0, Date.now() - plannerStartedAt - turnPlanMs),
+          },
+        };
       const plannerLatencyMs = Date.now() - plannerStartedAt;
 
-      // Regex template match is telemetry-only (fixtures / migration compare).
-      const templateCompareId = templateCompare?.id ?? null;
+      let activeDiagram: import("@heytutor/drawing").VerifiedDiagram | null;
+      let diagramSource: "verified_scene" | "none";
 
-      let activeTemplate: import("@heytutor/drawing").DiagramTemplate | null;
-      let diagramSource: "compiler" | "none";
-      let plannerOverridden = false;
-
-      if (compiled) {
-        activeTemplate = compiledSceneToTemplate(compiled, scene ?? undefined);
-        diagramSource = "compiler";
-        activeDiagramTemplateRef.current = activeTemplate;
-        plannerOverridden = templateCompare !== null;
+      if (sceneV2RenderScene && sceneV2Document && "visualDecision" in sceneV2Document) {
+        const presentation = buildVerifiedDiagramPresentation(
+          sceneV2Document as SceneDocument,
+          sceneV2RenderScene,
+        );
+        activeDiagram = presentation.diagram;
+        sceneV2IntroSegments = presentation.introSegments;
+        diagramSource = "verified_scene";
+        activeVerifiedDiagramRef.current = activeDiagram;
       } else {
-        // Compile failed — narration-only; do not re-enter the regex template hot path.
-        activeTemplate = null;
+        // Failed or unnecessary diagrams never expose partial geometry.
+        activeDiagram = null;
         diagramSource = "none";
-        activeDiagramTemplateRef.current = null;
+        activeVerifiedDiagramRef.current = null;
       }
 
       plannerSpan.end({
         source: diagramSource,
         latency_ms: plannerLatencyMs,
-        diagram_type: compiled?.diagramType ?? null,
-        kind: scene?.kind ?? null,
-        plugin: compiled?.plugin ?? null,
-        command_count: compiled?.commands.length ?? null,
-        residual: compiled?.residual ?? null,
-        template_compare_id: templateCompareId,
-        compiler_preferred: true,
-        degrade_reason: compiled?.degradeReason ?? (scene ? null : "no_scene"),
+        scene_engine_version: SCENE_ENGINE_VERSION,
+        visual_status: sceneVisualStatus,
+        representation_tier: representationTier,
+        non_metric: representationNonMetric,
+        repaired: sceneV2Repaired,
+        validation_issue_count: sceneV2Report?.issues.length ?? null,
+        validation_fatal_count:
+          sceneV2Report?.issues.filter((issue) => issue.severity === "fatal").length ?? null,
+        primitive_count: sceneV2RenderScene?.primitives.length ?? null,
+        degrade_reason: sceneV2RenderScene ? null : "no_verified_scene",
+      });
+      tel.mark("verified-scene-decision", {
+        source: diagramSource,
+        visual_status: sceneVisualStatus,
+        repaired: sceneV2Repaired,
+        latency_ms: plannerLatencyMs,
+        primitive_count: sceneV2RenderScene?.primitives.length ?? 0,
+        issue_codes: sceneV2Report?.issues.map((issue) => issue.code) ?? [],
+        representation_tier: representationTier,
+        non_metric: representationNonMetric,
+      });
+      tel.meta({
+        scene_engine_version: SCENE_ENGINE_VERSION,
+        scene_visual_status: sceneVisualStatus,
+        scene_validation_valid: sceneV2Report?.valid ?? null,
+        scene_repaired: sceneV2Repaired,
+        scene_representation_tier: representationTier,
+        scene_non_metric: representationNonMetric,
+        solver_authority_status: problemAuthority?.audit.status ?? "unavailable",
       });
 
-      const runtimePromptAddon = activeTemplate?.promptAddon ?? "";
+      if (problemAuthority?.audit.status === "contradiction") {
+        setLastError({
+          message: "The independent solution checks disagreed, so the tutor stopped before presenting an unverified answer. Retry the question.",
+          question,
+        });
+        if (turnAbortRef.current === abortController) turnAbortRef.current = null;
+        endThinking({ phase: "solver_authority_contradiction" });
+        endWsConnect({ ok: false, reason: "solver_authority_contradiction" });
+        tel.meta({
+          total_duration_ms: tel.durationMs(),
+          diagram_result_status: "retry_required",
+          narration_started: false,
+          solver_authority_issues: problemAuthority.audit.issues.map((issue) => issue.code),
+        });
+        if (turnTelemetryRef.current === tel) turnTelemetryRef.current = null;
+        void tel.flush();
+        finishLectureUi(turnGeneration);
+        return;
+      }
+
+      if (
+        sceneVisualStatus === "retry_required" &&
+        shouldBlockLessonForDiagram("retry_required")
+      ) {
+        tel.mark("diagram-retry-required", {
+          latency_ms: plannerLatencyMs,
+          issue_codes: sceneV2Report?.issues.map((issue) => issue.code) ?? [],
+        });
+        setLastError({
+          message: "The required diagram could not be verified. Retry to try again — no partial diagram was shown.",
+          question,
+        });
+        const currentId = sessionId;
+        let requiredAttemptPersisted = false;
+        if (currentId && sceneArtifacts) {
+          const savedTurn = await saveTurn(currentId, {
+            question,
+            rawResponse: "",
+            speedMultiplier: speedRef.current,
+            traceId: currentTraceIdRef.current,
+            sceneDocument: sceneV2Document,
+            sceneEngineVersion: SCENE_ENGINE_VERSION,
+            validationReport: sceneV2Report,
+            visualStatus: "retry_required",
+            sceneArtifacts,
+            segments: [],
+          }).catch(() => null);
+          if (savedTurn) {
+            requiredAttemptPersisted = true;
+            storedTurnsRef.current = [...storedTurnsRef.current, savedTurn];
+            setStoredTurnsCount(storedTurnsRef.current.length);
+            setBoards((previous) => previous.map((board) =>
+              board.id === currentId ? { ...board, preview: question.slice(0, 60) } : board,
+            ));
+          }
+        }
+        if (turnAbortRef.current === abortController) turnAbortRef.current = null;
+        endThinking({ phase: "diagram_retry_required" });
+        endWsConnect({ ok: false, reason: "diagram_retry_required" });
+        tel.meta({
+          total_duration_ms: tel.durationMs(),
+          diagram_result_status: "retry_required",
+          narration_started: false,
+          persisted: requiredAttemptPersisted,
+        });
+        if (turnTelemetryRef.current === tel) turnTelemetryRef.current = null;
+        void tel.flush();
+        finishLectureUi(turnGeneration);
+        return;
+      }
+
+      const diagramPromptAddon = activeDiagram?.promptAddon ??
+        `The semantic scene engine selected text-only mode because no fully validated diagram was available.
+Do not emit any drawing, label, annotation, erase, highlight, or marker-movement tags.
+Use WRITE only for equations and symbolic work in the left work area (x below 360).`;
+      const turnPlanPromptAddon = turnPlan
+        ? `AUTHORITATIVE TURN PLAN V3
+Use these verified quantities and qualitative claims for the explanation. Do not replace them with independently guessed values or contradict them.
+${JSON.stringify({
+  givens: turnPlan.givens,
+  unknowns: turnPlan.unknowns,
+  derived: turnPlan.derived,
+  qualitativeClaims: turnPlan.qualitativeClaims,
+  lawIds: turnPlan.lawIds,
+  assumptions: turnPlan.assumptions,
+})}`
+        : "";
+      const solverPromptAddon = problemAuthority?.projection
+        ? `INDEPENDENT SOLVER AUTHORITY V1
+Use exactly these solver-verified values and formulation inputs. Do not independently replace or contradict them.
+${JSON.stringify(problemAuthority.projection)}`
+        : "";
+      const runtimePromptAddon = [diagramPromptAddon, turnPlanPromptAddon, solverPromptAddon]
+        .filter(Boolean)
+        .join("\n\n");
       const turnSystemPrompt = runtimePromptAddon
         ? `${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n${runtimePromptAddon}`
         : TUTOR_SYSTEM_PROMPT;
@@ -285,122 +870,30 @@ export function useQuestionHandler(
       // Transition from planning back to thinking before the LLM stream starts.
       setPhase("thinking");
 
-      const introSegments = activeTemplate
-        ? diagramSource === "compiler" && compiled && compiled.introSegments.length > 0
-          ? compiled.introSegments
-          : activeTemplate.plannerGenerated
-            ? buildPlannerIntroSegments(activeTemplate)
-            : buildTemplateIntroSegments(activeTemplate, question)
+      const introSegments = activeDiagram && sceneV2IntroSegments
+        ? sceneV2IntroSegments
         : [];
-      if (activeTemplate) {
+      if (activeDiagram) {
         fbdPhaseStartedRef.current = true;
-        for (const anchor of activeTemplate.anchors) {
+        for (const anchor of activeDiagram.anchors) {
           registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
         }
 
-        const opticsIntro =
-          diagramSource === "compiler" && compiled?.kind === "optics"
-            ? null
-            : isOpticsTemplateId(activeTemplate.id) || activeTemplate.id === "optics_ray"
-              ? buildOpticsPrecisionIntro(activeTemplate, question)
-              : null;
-
-        if (opticsIntro) {
-          const matchPayload = {
-            template_id: activeTemplate.id,
-            regex_id: activeTemplate.id,
-            question_preview: question.slice(0, 120),
-          };
-          tel.mark("optics-match", matchPayload);
-          tutorDebug("optics", "optics-match", matchPayload);
-
-          const classifyPayload = {
-            optics_kind: opticsIntro.classify.optics_kind,
-            parsed_numbers: opticsIntro.classify.parsed_numbers,
-            confidence: opticsIntro.classify.confidence,
-            reason: opticsIntro.classify.reason,
-          };
-          tel.mark("optics-classify", classifyPayload);
-          tutorDebug("optics", "optics-classify", classifyPayload);
-
-          const introBuiltPayload = {
-            segment_count: opticsIntro.intro_segment_count,
-            command_summary: opticsIntro.command_summary,
-            optics_kind: opticsIntro.optics_kind,
-          };
-          tel.mark("optics-intro-built", introBuiltPayload);
-          tutorDebug("optics", "optics-intro-built", introBuiltPayload);
-
-          tel.meta(
-            opticsDecisionMetadata(opticsIntro, {
-              diagram_source: diagramSource,
-              allow_llm_draw: activeTemplate.allowLlmDrawInDiagramZone === true,
-              planner_overridden: plannerOverridden,
-            }),
-          );
-        } else if (compiled?.kind === "optics") {
-          tel.mark("optics-intro-built", {
-            segment_count: compiled.introSegments.length,
-            plugin: compiled.plugin,
-            diagram_type: compiled.diagramType,
-            source: "compiler",
-          });
-          tel.meta({
-            diagram_source: "compiler",
-            plugin: compiled.plugin,
-            kind: compiled.kind,
-            allow_llm_draw: compiled.allowLlmDrawInDiagramZone,
-            planner_overridden: plannerOverridden,
-          });
-        }
-
-        if (compiled) {
-          tel.mark("geometry-compile", {
-            ok: compiled.ok,
-            plugin: compiled.plugin,
-            kind: compiled.kind,
-            residual: compiled.residual,
-            command_count: compiled.commands.length,
-            anchor_count: compiled.anchors.length,
-            degrade_reason: compiled.degradeReason ?? null,
-          });
-        }
-
-        turnTelemetryRef.current?.mark("template-intro-queued", {
-          template_id: activeTemplate.id,
-          template_name: activeTemplate.name,
+        turnTelemetryRef.current?.mark("verified-scene-intro-queued", {
+          diagram_id: activeDiagram.id,
+          diagram_name: activeDiagram.name,
           diagram_source: diagramSource,
           planner_latency_ms: plannerLatencyMs,
           intro_segment_count: introSegments.length,
-          command_count: activeTemplate.commands.length,
-          ...(opticsIntro
-            ? {
-                optics_kind: opticsIntro.optics_kind,
-                optics_intro_segment_count: opticsIntro.intro_segment_count,
-              }
-            : {}),
-          commands: activeTemplate.commands.map((command) => ({
+          command_count: activeDiagram.commands.length,
+          commands: activeDiagram.commands.map((command) => ({
             type: command.type,
             params: command.params,
             ...(command.text ? { text: command.text } : {}),
           })),
         });
 
-        if (opticsIntro) {
-          const queuedPayload = {
-            segment_count: opticsIntro.intro_segment_count,
-            command_summary: opticsIntro.command_summary,
-            diagram_source: diagramSource,
-            optics_kind: opticsIntro.optics_kind,
-          };
-          tel.mark("optics-intro-queued", queuedPayload);
-          tutorDebug("optics", "optics-intro-queued", queuedPayload);
-        }
-
-        // Diagram-guard telemetry: the count of draw/label commands reflects how
-        // many components the deterministic builder placed. A mismatch against
-        // what the lesson later solves (e.g. a phantom extra resistor) shows up
-        // here as an extra draw+label pair for the same template.
+        // Keep a compact trace of the committed scene for visual diagnostics.
         const introCommands = introSegments.flatMap((segment) => segment.commands ?? []);
         const diagramDrawCount = introCommands.filter((command) =>
           command.type.startsWith("DRAW_"),
@@ -409,7 +902,7 @@ export function useQuestionHandler(
           (command) => command.type === "LABEL",
         ).length;
         tutorDebug("draw", "queued diagram intro segments", {
-          template: activeTemplate.id,
+          diagram: activeDiagram.id,
           source: diagramSource,
           segment_count: introSegments.length,
           diagram_draw_commands: diagramDrawCount,
@@ -419,25 +912,19 @@ export function useQuestionHandler(
       }
 
       if (STREAM_SEGMENTS_LIVE) {
-        for (const segment of introSegments) {
-          enqueueSegment(segment);
-        }
+        enqueueVerifiedIntro(introSegments, turnGeneration);
       }
 
       try {
-        // Mini-buffer for live-mode blocking: instead of enqueuing each segment
-        // immediately, buffer it until the next segment arrives (or the stream
-        // ends), then run prepareTemplateLessonSegments on the buffered segment
-        // and enqueue the filtered result. This ensures the template guard
-        // actually filters conflicting draw commands during the stream instead
-        // of only running as a post-hoc audit.
+        // Buffer one segment so unverified marker commands are removed before
+        // they enter the speech and drawing queues.
         let bufferedSegment: TutorSegment | null = null;
 
         const flushBufferedSegment = () => {
           if (!bufferedSegment) return;
-          const prepared = prepareTemplateLessonSegments([bufferedSegment], activeTemplate);
+          const prepared = prepareVerifiedLessonSegments([bufferedSegment], activeDiagram);
           for (const seg of prepared.segments) {
-            enqueueSegment(seg);
+            enqueueSegment(seg, turnGeneration);
           }
           if (prepared.blockedCommandCount > 0 || prepared.droppedSegmentCount > 0) {
             tutorDebug("draw", "live segment filtered by mini-buffer", {
@@ -492,6 +979,15 @@ export function useQuestionHandler(
                 : conversationHistoryRef.current,
               proxyUrl: resolveApiUrl("/api/chat"),
               sessionId: sessionId ?? undefined,
+              hasAuthoritativePlan: Boolean(
+                turnPlan &&
+                (
+                  turnPlan.givens.length > 0 ||
+                  turnPlan.derived.length > 0 ||
+                  turnPlan.qualitativeClaims.length > 0 ||
+                  turnPlan.lawIds.length > 0
+                )
+              ),
               signal: abortController.signal,
               onTraceId: (id) => {
                 currentTraceIdRef.current = id;
@@ -586,7 +1082,7 @@ export function useQuestionHandler(
         }
 
         parser.flush();
-        // Flush the last buffered segment through the template guard.
+        // Flush the final segment through verified-scene ownership filtering.
         flushBufferedSegment();
 
         const responseText = rawResponse.trim();
@@ -610,7 +1106,12 @@ export function useQuestionHandler(
         tutorDebug("turn", "planning lesson from full response");
         applyTurnPhase("speaking");
 
-        await processResponseText(responseText, introSegments, STREAM_SEGMENTS_LIVE);
+        await processResponseText(
+          responseText,
+          introSegments,
+          STREAM_SEGMENTS_LIVE,
+          turnGeneration,
+        );
 
         const finalNarration =
           responseText.length > 0 ? lessonNarrationText(responseText) : narrationText;
@@ -627,42 +1128,47 @@ export function useQuestionHandler(
 
           const currentId = sessionId;
           if (currentId && rawResponseRef.current) {
-            const savedTurn = await saveTurn(currentId, {
+            const responseForPersistence = rawResponseRef.current;
+            const recordedForPersistence = withBoardEpochSegment(recordedSegmentsRef.current);
+            const localTurn = persistTurnForReplay(
               question,
-              rawResponse: rawResponseRef.current,
-              speedMultiplier: speedRef.current,
-              traceId: currentTraceIdRef.current,
-              segments: recordedSegmentsRef.current,
-            });
-
-            let turnForReplay: StoredTurn | null = null;
-            if (savedTurn) {
-              turnForReplay = {
-                ...savedTurn,
-                segments: enrichStoredSegmentsWithReplayAudio(
-                  savedTurn.segments,
-                  recordedSegmentsRef.current,
-                  registerReplayBlobUrl,
-                ),
-              };
-            } else if (recordedSegmentsRef.current.length > 0) {
-              turnForReplay = persistTurnForReplay(
-                question,
-                rawResponseRef.current,
-                recordedSegmentsRef.current,
-              );
-            }
-
-            if (turnForReplay) {
-              storedTurnsRef.current = [...storedTurnsRef.current, turnForReplay];
-              setStoredTurnsCount(storedTurnsRef.current.length);
-            }
-
+              responseForPersistence,
+              recordedForPersistence,
+            );
+            storedTurnsRef.current = [...storedTurnsRef.current, localTurn];
+            setStoredTurnsCount(storedTurnsRef.current.length);
             setBoards((prev) =>
               prev.map((b) =>
                 b.id === currentId ? { ...b, preview: question.slice(0, 60) } : b,
               ),
             );
+
+            void saveTurn(currentId, {
+              question,
+              rawResponse: responseForPersistence,
+              speedMultiplier: speedRef.current,
+              traceId: currentTraceIdRef.current,
+              sceneDocument: sceneV2Document,
+              sceneEngineVersion: SCENE_ENGINE_VERSION,
+              validationReport: sceneV2Report,
+              visualStatus: sceneVisualStatus,
+              sceneArtifacts,
+              segments: recordedForPersistence,
+            }).then((savedTurn) => {
+              if (!savedTurn) return;
+              const turnForReplay: StoredTurn = {
+                ...savedTurn,
+                segments: enrichStoredSegmentsWithReplayAudio(
+                  savedTurn.segments,
+                  recordedForPersistence,
+                  registerReplayBlobUrl,
+                ),
+              };
+              storedTurnsRef.current = storedTurnsRef.current.map((turn) =>
+                turn.id === localTurn.id ? turnForReplay : turn,
+              );
+              setStoredTurnsCount(storedTurnsRef.current.length);
+            }).catch(() => undefined);
           }
         }
       } catch (error) {
@@ -691,7 +1197,23 @@ export function useQuestionHandler(
         setLastError({ message, question });
         endThinking({ phase: "error" });
       } finally {
-        turnAbortRef.current = null;
+        if (
+          turnGeneration === turnGenerationRef.current &&
+          !turnCancelled &&
+          !cancelRef.current
+        ) {
+          // A stream failure can occur after the intro was enqueued. Do not expose
+          // an idle UI until that exact turn's ink has settled; otherwise the next
+          // question resets scene ownership underneath commands still in flight.
+          const segmentQueue = segmentChainRef.current;
+          await segmentQueue.catch(() => undefined);
+          const drawQueue = drawChainRef.current;
+          await drawQueue.catch(() => undefined);
+        }
+
+        if (turnAbortRef.current === abortController) {
+          turnAbortRef.current = null;
+        }
         endWsConnect({ ok: false, reason: "turn_complete_without_connect_event" });
         if (!thinkingEnded) {
           endThinking({ phase: turnCancelled ? "cancelled" : "turn_complete" });
@@ -702,15 +1224,15 @@ export function useQuestionHandler(
           segment_count: collectedSegmentsRef.current.length,
           total_draw_ms: turnStatsRef.current.drawMs,
           total_tts_chars: turnStatsRef.current.ttsChars,
-          diagram_template_id: segmentPlanStatsRef.current.activeTemplateId,
-          diagram_template_name: segmentPlanStatsRef.current.activeTemplateName,
+          verified_diagram_id: segmentPlanStatsRef.current.activeDiagramId,
+          verified_diagram_name: segmentPlanStatsRef.current.activeDiagramName,
           diagram_planned_segment_count: segmentPlanStatsRef.current.plannedSegmentCount,
           diagram_intro_segment_count: segmentPlanStatsRef.current.introSegmentCount,
           diagram_llm_segment_count: segmentPlanStatsRef.current.llmSegmentCount,
-          diagram_blocked_template_draw_commands:
-            segmentPlanStatsRef.current.blockedTemplateDrawCommands,
-          diagram_dropped_template_redraw_segments:
-            segmentPlanStatsRef.current.droppedTemplateRedrawSegments,
+          diagram_blocked_unverified_draw_commands:
+            segmentPlanStatsRef.current.blockedUnverifiedDrawCommands,
+          diagram_dropped_marker_only_segments:
+            segmentPlanStatsRef.current.droppedMarkerOnlySegments,
           question_preview: question.slice(0, 120),
           cancelled: turnCancelled,
         });
@@ -722,21 +1244,23 @@ export function useQuestionHandler(
           total_tts_chars: turnStatsRef.current.ttsChars,
         });
 
-        finishLectureUi();
+        finishLectureUi(turnGeneration);
 
-        const telToFlush = turnTelemetryRef.current;
-        turnTelemetryRef.current = null;
-        void telToFlush?.flush();
+        if (turnGeneration === turnGenerationRef.current) {
+          turnTelemetryRef.current = null;
+        }
+        void tel.flush();
       }
     },
     [
       sessionId,
       boards,
       narrationText,
-      phase,
+      phaseRef,
       processResponseText,
       enqueueSegment,
-      resetBoardLayout,
+      enqueueVerifiedIntro,
+      beginBoardEpoch,
       boardLoaded,
       persistTurnForReplay,
       registerReplayBlobUrl,
@@ -754,6 +1278,7 @@ export function useQuestionHandler(
       setTranscriptOpen,
       setLastError,
       turnActiveRef,
+      turnGenerationRef,
       turnAbortRef,
       collectedSegmentsRef,
       recordedSegmentsRef,
@@ -765,12 +1290,13 @@ export function useQuestionHandler(
       segmentPlanStatsRef,
       fbdPhaseMarkedRef,
       fbdPhaseStartedRef,
-      activeDiagramTemplateRef,
+      activeVerifiedDiagramRef,
       boardLayoutRef,
       turnTelemetryRef,
       conversationHistoryRef,
       speedRef,
       storedTurnsRef,
+      pendingSegmentCountRef,
       setStoredTurnsCount,
       setBoards,
       setPhase,
