@@ -2,7 +2,8 @@ import { useCallback, type RefObject } from "react";
 import type { WhiteboardHandle, WriteSchedule, AnnotationKind } from "@heytutor/whiteboard";
 import {
   type DrawCommand,
-  type DiagramTemplate,
+  type VerifiedDiagram,
+  type VerifiedDiagramCommand,
   cuboidPath,
   cubePath,
   rectPath,
@@ -21,12 +22,9 @@ import {
   polylinePath,
   dimensionPath,
   measureTextWidth,
-  repairDiagramCommand,
-  snapLabelToTemplateAnchor,
-  snapGeometryCommand,
-  isBlockedTemplateDiagramDraw,
-  isDuplicateTemplateDraw,
-  isOpticsTemplateId,
+  prefetchStrokePaths,
+  isBlockedVerifiedDiagramCommand,
+  resolveVerifiedDiagramFocusTarget,
 } from "@heytutor/drawing";
 import { getDrawingDuration, getFlightDuration, tutorDebug } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/turnTelemetry";
@@ -44,7 +42,7 @@ export interface UseCommandExecutionParams {
   forceSequentialWorkLayoutRef: RefObject<boolean>;
   fbdPhaseMarkedRef: RefObject<boolean>;
   fbdPhaseStartedRef: RefObject<boolean>;
-  activeDiagramTemplateRef: RefObject<DiagramTemplate | null>;
+  activeVerifiedDiagramRef: RefObject<VerifiedDiagram | null>;
   turnTelemetryRef: RefObject<TurnTelemetry | null>;
   notesEpochsRef: RefObject<NotesEpoch[]>;
   narrationSinceEpochRef: RefObject<string>;
@@ -67,7 +65,7 @@ export function useCommandExecution({
   boardLayoutRef,
   fbdPhaseMarkedRef,
   fbdPhaseStartedRef,
-  activeDiagramTemplateRef,
+  activeVerifiedDiagramRef,
   turnTelemetryRef,
   cancellableDelay,
   forgetErasedTextRects,
@@ -86,9 +84,8 @@ export function useCommandExecution({
         [...command.params],
         boardLayoutRef.current.rects,
         narration,
-        activeDiagramTemplateRef.current?.anchors ?? [],
       ),
-    [boardLayoutRef, activeDiagramTemplateRef],
+    [boardLayoutRef],
   );
 
   const executeCommand = useCallback(
@@ -100,90 +97,93 @@ export function useCommandExecution({
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
         segmentNarration?: string;
-        skipTemplateDuplicateCheck?: boolean;
-        skipGeometrySnap?: boolean;
+        trustedDiagramGeometry?: boolean;
         segmentIndex?: number;
+        isCancelled?: () => boolean;
+        textPlacementReserved?: boolean;
       } = {},
     ): Promise<void> => {
       const wb = whiteboardRef.current;
-      if (!wb || cancelRef.current) return;
+      const commandCancelled = () => cancelRef.current || options.isCancelled?.() === true;
+      if (!wb || commandCancelled()) return;
+      const drawShape: WhiteboardHandle["drawShape"] = (path, duration, shapeOptions) => {
+        if (rawCommand.visualStyle?.strokeRole === "trace") {
+          return wb.drawAnnotation("underline", path, duration, {
+            strokeWidth: rawCommand.visualStyle.strokeWidth ?? 1.25,
+            transient: true,
+            shouldCancel: commandCancelled,
+          });
+        }
+        if (rawCommand.visualStyle?.fillRole === "region") {
+          return Promise.all([
+            wb.drawAnnotation("highlight", path, duration, {
+              fillColor: "#B8D4B8",
+              fillOpacity: 0.18,
+              shouldCancel: commandCancelled,
+            }),
+            wb.drawShape(path, duration, {
+              ...shapeOptions,
+              strokeWidth: shapeOptions?.strokeWidth ?? rawCommand.visualStyle?.strokeWidth,
+              dashed: shapeOptions?.dashed ?? rawCommand.visualStyle?.dashed,
+              shouldCancel: commandCancelled,
+            }),
+          ]).then(() => undefined);
+        }
+        return wb.drawShape(path, duration, {
+          ...shapeOptions,
+          strokeWidth: shapeOptions?.strokeWidth ?? rawCommand.visualStyle?.strokeWidth,
+          dashed: shapeOptions?.dashed ?? rawCommand.visualStyle?.dashed,
+          shouldCancel: commandCancelled,
+        });
+      };
+      const writeText = (
+        text: string,
+        x: number,
+        y: number,
+        duration: number,
+        schedule?: WriteSchedule,
+        fontSize?: number,
+      ) => wb.writeText(text, x, y, duration, schedule, fontSize, commandCancelled);
+      const drawAnnotation: WhiteboardHandle["drawAnnotation"] = (
+        kind,
+        path,
+        duration,
+        annotationOptions,
+      ) => wb.drawAnnotation(kind, path, duration, {
+        ...annotationOptions,
+        shouldCancel: commandCancelled,
+      });
 
-      let command = rawCommand;
-      const activeTemplate = activeDiagramTemplateRef.current;
-      if (activeTemplate) {
-        command = repairDiagramCommand(command);
-        if (
-          !options.skipTemplateDuplicateCheck &&
-          isBlockedTemplateDiagramDraw(command, activeTemplate)
-        ) {
+      const command = rawCommand;
+      const activeDiagram = activeVerifiedDiagramRef.current;
+      const trustedDiagramGeometry = options.trustedDiagramGeometry === true;
+      if (!activeDiagram && !trustedDiagramGeometry && isUnsafeUncompiledDiagramCommand(command)) {
+        const blockMeta = {
+          command_type: command.type,
+          type: command.type,
+          params: command.params,
+          reason: "uncompiled-diagram-guard",
+        };
+        turnTelemetryRef.current?.mark("uncompiled-draw-blocked", blockMeta);
+        tutorDebug("draw", "block uncompiled diagram draw", blockMeta);
+        return;
+      }
+      if (
+        activeDiagram &&
+        !trustedDiagramGeometry &&
+        isBlockedVerifiedDiagramCommand(command, activeDiagram)
+      ) {
           const blockMeta = {
-            template_id: activeTemplate.id,
-            template: activeTemplate.id,
+            diagram_id: activeDiagram.id,
             command_type: command.type,
             type: command.type,
+            text: command.text?.slice(0, 40),
             params: command.params,
-            reason: "template-skeleton-guard",
+            reason: "verified-scene-ownership",
           };
-          turnTelemetryRef.current?.mark("template-draw-blocked", blockMeta);
-          tutorDebug("draw", "block llm template diagram draw", blockMeta);
-          if (isOpticsTemplateId(activeTemplate.id) || activeTemplate.id === "optics_ray") {
-            tutorDebug("optics", "template-draw-blocked", blockMeta);
-          }
+          turnTelemetryRef.current?.mark("unverified-draw-blocked", blockMeta);
+          tutorDebug("draw", "block unverified diagram command", blockMeta);
           return;
-        }
-        if (command.type === "LABEL") {
-          command = snapLabelToTemplateAnchor(command, activeTemplate.anchors);
-        }
-        const beforeGeometrySnap = command;
-        // Deterministic template-intro geometry is already exact; only snap
-        // LLM-emitted commands so we don't drag precise points off their marks.
-        if (!options.skipGeometrySnap) {
-          command = snapGeometryCommand(command, activeTemplate);
-        }
-        if (command.params.join(",") !== beforeGeometrySnap.params.join(",")) {
-          const metadata = {
-            template_id: activeTemplate.id,
-            template: activeTemplate.id,
-            type: command.type,
-            before: beforeGeometrySnap.params,
-            after: command.params,
-            before_xy: beforeGeometrySnap.params.slice(0, 4),
-            after_xy: command.params.slice(0, 4),
-            snap_target: activeTemplate.id,
-          };
-          turnTelemetryRef.current?.mark("geometry-snap", metadata);
-          tutorDebug("draw", "geometry snap applied", metadata);
-          if (isOpticsTemplateId(activeTemplate.id) || activeTemplate.id === "optics_ray") {
-            tutorDebug("optics", "geometry-snap", metadata);
-          }
-        }
-
-        if (
-          (isOpticsTemplateId(activeTemplate.id) || activeTemplate.id === "optics_ray") &&
-          command.type === "DRAW_LINE" &&
-          !options.skipTemplateDuplicateCheck
-        ) {
-          const snapped =
-            command.params.join(",") !== beforeGeometrySnap.params.join(",");
-          const rayPayload = {
-            template_id: activeTemplate.id,
-            params: command.params,
-            snapped,
-            segment_index: options.segmentIndex ?? null,
-          };
-          turnTelemetryRef.current?.mark("optics-ray-draw", rayPayload);
-          tutorDebug("optics", "optics-ray-draw", rayPayload);
-        }
-        if (
-          !options.skipTemplateDuplicateCheck &&
-          isDuplicateTemplateDraw(command, activeTemplate)
-        ) {
-          tutorDebug("draw", "skip duplicate template skeleton draw", {
-            type: command.type,
-            params: command.params,
-          });
-          return;
-        }
       }
 
       tutorDebug("draw", "executeCommand start", {
@@ -242,8 +242,8 @@ export function useCommandExecution({
           if ([x, y, w, h, d].every(Number.isFinite)) {
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(x, y, flightMs);
-            if (cancelRef.current) return;
-            await wb.drawShape(cuboidPath(x, y, w, h, d), drawMs);
+            if (commandCancelled()) return;
+            await drawShape(cuboidPath(x, y, w, h, d), drawMs);
           }
           break;
         }
@@ -252,8 +252,8 @@ export function useCommandExecution({
           if ([x, y, size].every(Number.isFinite)) {
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(x, y, flightMs);
-            if (cancelRef.current) return;
-            await wb.drawShape(cubePath(x, y, size), drawMs);
+            if (commandCancelled()) return;
+            await drawShape(cubePath(x, y, size), drawMs);
           }
           break;
         }
@@ -263,8 +263,8 @@ export function useCommandExecution({
             markFbdDiagramStart(x, y);
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(x, y, flightMs);
-            if (cancelRef.current) return;
-            await wb.drawShape(rectPath(x, y, w, h), drawMs);
+            if (commandCancelled()) return;
+            await drawShape(rectPath(x, y, w, h), drawMs);
           }
           break;
         }
@@ -275,15 +275,15 @@ export function useCommandExecution({
             if ([cx, cy, radius, ry].every(Number.isFinite)) {
               const { flightMs, drawMs } = speechSplit(command);
               await wb.flyCursorTo(cx + radius, cy, flightMs);
-              if (cancelRef.current) return;
-              await wb.drawShape(ellipsePath(cx, cy, radius, ry), drawMs);
+              if (commandCancelled()) return;
+              await drawShape(ellipsePath(cx, cy, radius, ry), drawMs);
             }
           } else if ([cx, cy, radius].every(Number.isFinite)) {
             // 3 params [cx, cy, r] → circle
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(cx + radius, cy, flightMs);
-            if (cancelRef.current) return;
-            await wb.drawShape(circlePath(cx, cy, radius), drawMs);
+            if (commandCancelled()) return;
+            await drawShape(circlePath(cx, cy, radius), drawMs);
           }
           break;
         }
@@ -297,8 +297,8 @@ export function useCommandExecution({
               cy + radius * Math.sin(startRad),
               flightMs,
             );
-            if (cancelRef.current) return;
-            await wb.drawShape(arcPath(cx, cy, radius, startDeg, endDeg), drawMs);
+            if (commandCancelled()) return;
+            await drawShape(arcPath(cx, cy, radius, startDeg, endDeg), drawMs);
           }
           break;
         }
@@ -308,8 +308,8 @@ export function useCommandExecution({
             markFbdDiagramStart(x, y);
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(x, y, flightMs);
-            if (cancelRef.current) return;
-            await wb.drawShape(pointMarkPath(x, y, radius), Math.min(drawMs, 280));
+            if (commandCancelled()) return;
+            await drawShape(pointMarkPath(x, y, radius), Math.min(drawMs, 280));
             if (isInDiagramZone(x, y)) {
               registerBoardAnchor(boardLayoutRef.current, {
                 x: x - 8,
@@ -335,8 +335,8 @@ export function useCommandExecution({
               markFbdDiagramStart(sx1, sy1);
               const { flightMs, drawMs } = speechSplit(command);
               await wb.flyCursorTo(sx1, sy1, flightMs);
-              if (cancelRef.current) return;
-              await wb.drawShape(bezierSplinePath(splinePoints), drawMs);
+              if (commandCancelled()) return;
+              await drawShape(bezierSplinePath(splinePoints), drawMs);
               const midIdx = Math.floor(splinePoints.length / 2);
               const midX = splinePoints[midIdx - 1] ?? sx1;
               const midY = splinePoints[midIdx] ?? sy1;
@@ -361,8 +361,8 @@ export function useCommandExecution({
               markFbdDiagramStart(sx1, sy1);
               const { flightMs, drawMs } = speechSplit(command);
               await wb.flyCursorTo(sx1, sy1, flightMs);
-              if (cancelRef.current) return;
-              await wb.drawShape(polylinePath(params), drawMs);
+              if (commandCancelled()) return;
+              await drawShape(polylinePath(params), drawMs);
               if (params.some((value, index) => index % 2 === 0 && isInDiagramZone(value, params[index + 1] ?? 0))) {
                 const xs = params.filter((_, i) => i % 2 === 0);
                 const ys = params.filter((_, i) => i % 2 === 1);
@@ -383,13 +383,13 @@ export function useCommandExecution({
             markFbdDiagramStart(x1, y1);
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(x1, y1, flightMs);
-            if (cancelRef.current) return;
+            if (commandCancelled()) return;
             const lineLength = Math.hypot(x2 - x1, y2 - y1);
             const isDashed = dashedFlag === 1;
             if (isDashed) {
-              await wb.drawShape(linePath(x1, y1, x2, y2), drawMs, { dashed: true });
+              await drawShape(linePath(x1, y1, x2, y2), drawMs, { dashed: true });
             } else {
-              await wb.drawShape(
+              await drawShape(
                 lineLength < 2 ? circlePath(x1, y1, 4) : linePath(x1, y1, x2, y2),
                 drawMs,
               );
@@ -415,15 +415,15 @@ export function useCommandExecution({
             const barStartX = x1 + (-(y2 - y1) / (Math.hypot(x2 - x1, y2 - y1) || 1)) * offset;
             const barStartY = y1 + ((x2 - x1) / (Math.hypot(x2 - x1, y2 - y1) || 1)) * offset;
             await wb.flyCursorTo(barStartX, barStartY, flightMs);
-            if (cancelRef.current) return;
+            if (commandCancelled()) return;
             // Thin, dotted measurement bar — a light guide, never a boxed bracket.
-            await wb.drawShape(path, drawMs, { dashed: true, strokeWidth: 1.4 });
+            await drawShape(path, drawMs, { dashed: true, strokeWidth: 1.4 });
             if (command.text) {
               const labelDrawMs = scaledDuration(Math.min(Math.max(command.text.length * 38, 420), 1200));
               const labelX = labelCenterX - measureTextWidth(command.text) / 2;
               await wb.flyCursorTo(labelX, labelY, 80, -35);
-              if (cancelRef.current) return;
-              await wb.writeText(command.text, labelX, labelY, labelDrawMs);
+              if (commandCancelled()) return;
+              await writeText(command.text, labelX, labelY, labelDrawMs);
               if (isInDiagramZone(labelX, labelY)) {
                 registerBoardAnchor(boardLayoutRef.current, {
                   x: labelX,
@@ -448,12 +448,14 @@ export function useCommandExecution({
               maybeFontSize <= 40
                 ? maybeFontSize
                 : 32;
-            const placement = await resolveTextPlacement(
-              command,
-              x,
-              y,
-              options.applyLayout !== false,
-            );
+            const placement = options.textPlacementReserved
+              ? { x, y }
+              : await resolveTextPlacement(
+                  command,
+                  x,
+                  y,
+                  options.applyLayout !== false,
+                );
             if (isInDiagramZone(placement.x, placement.y)) {
               const diagramLabels = boardLayoutRef.current.rects.filter(
                 (r) => r.x >= DIAGRAM_ZONE.x,
@@ -470,13 +472,16 @@ export function useCommandExecution({
                 fbdPhaseMarkedRef.current = true;
               }
             }
+            // Build Tegaki paths during the cursor flight so the first spoken
+            // character does not wait on handwriting setup.
+            prefetchStrokePaths(command.text, placement.x, placement.y, fontSize);
             if (writeSchedule && writeSchedule.charStartOffsetsMs.length > 0) {
               // Scheduled writing: each character is held against the true audio clock so
               // the pen tracks the narration token by token. Keep the approach flight short
               // because the first character's offset already holds the pen until its cue.
               await wb.flyCursorTo(placement.x, placement.y, 60, -35);
-              if (cancelRef.current) return;
-              await wb.writeText(
+              if (commandCancelled()) return;
+              await writeText(
                 command.text,
                 placement.x,
                 placement.y,
@@ -487,8 +492,8 @@ export function useCommandExecution({
             } else {
               const { flightMs, drawMs } = speechSplit(command);
               await wb.flyCursorTo(placement.x, placement.y, flightMs, -35);
-              if (cancelRef.current) return;
-              await wb.writeText(
+              if (commandCancelled()) return;
+              await writeText(
                 command.text,
                 placement.x,
                 placement.y,
@@ -537,10 +542,43 @@ export function useCommandExecution({
             }
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(x, y, flightMs);
-            if (cancelRef.current) return;
+            if (commandCancelled()) return;
             await wb.eraseRegion(x, y, w, h, drawMs);
             forgetErasedTextRects({ x, y, width: w, height: h });
           }
+          break;
+        }
+        case "FOCUS": {
+          const target = resolveVerifiedDiagramFocusTarget(command, activeDiagram);
+          if (!target || !activeDiagram) break;
+          const targetCommands = activeDiagram.commands.filter((candidate) =>
+            candidate.semanticRef?.entityId === target.id &&
+            !candidate.semanticRef?.actionId
+          );
+          const tracePaths = targetCommands
+            .map(verifiedCommandTracePath)
+            .filter((candidate): candidate is { path: string; x: number; y: number } => candidate !== null);
+          const fallback = {
+            path: emphasisEllipsePath(target.x - 5, target.y - 5, target.width + 10, target.height + 10),
+            x: target.x + target.width / 2,
+            y: target.y,
+          };
+          const paths = tracePaths.length > 0 ? tracePaths.slice(0, 4) : [fallback];
+          const totalMs = Math.max(speechDurationMs ?? 900, 420);
+          for (const candidate of paths) {
+            await wb.flyCursorTo(candidate.x, candidate.y, Math.min(160, totalMs / paths.length));
+            if (commandCancelled()) return;
+            await drawAnnotation(
+              "underline",
+              candidate.path,
+              Math.max(Math.round(totalMs / paths.length) - 160, 220),
+              { strokeWidth: 1.25, transient: true },
+            );
+          }
+          turnTelemetryRef.current?.mark("verified-focus-complete", {
+            target_id: target.id,
+            path_count: paths.length,
+          });
           break;
         }
         case "UNDERLINE":
@@ -590,8 +628,8 @@ export function useCommandExecution({
             const [x1, y1, x2, y2] = params;
             if ([x1, y1, x2, y2].every(Number.isFinite)) {
               await wb.flyCursorTo(x1, y1, flightMs);
-              if (cancelRef.current) return;
-              await wb.drawAnnotation(
+              if (commandCancelled()) return;
+              await drawAnnotation(
                 annotationKind,
                 underlinePath(x1, y1, x2, y2),
                 drawMs,
@@ -601,8 +639,8 @@ export function useCommandExecution({
             const [x, y, w, h] = params;
             if ([x, y, w, h].every(Number.isFinite)) {
               await wb.flyCursorTo(x + w / 2, y, flightMs);
-              if (cancelRef.current) return;
-              await wb.drawAnnotation(
+              if (commandCancelled()) return;
+              await drawAnnotation(
                 annotationKind,
                 emphasisEllipsePath(x, y, w, h),
                 drawMs,
@@ -612,8 +650,8 @@ export function useCommandExecution({
             const [x1, y1, cx, cy, x2, y2] = params;
             if ([x1, y1, cx, cy, x2, y2].every(Number.isFinite)) {
               await wb.flyCursorTo(x1, y1, flightMs);
-              if (cancelRef.current) return;
-              await wb.drawAnnotation(
+              if (commandCancelled()) return;
+              await drawAnnotation(
                 annotationKind,
                 curvedArrowPath(x1, y1, cx, cy, x2, y2),
                 drawMs,
@@ -623,19 +661,22 @@ export function useCommandExecution({
             const [x1, y1, x2, y2] = params;
             if ([x1, y1, x2, y2].every(Number.isFinite)) {
               await wb.flyCursorTo(x1, y1, flightMs);
-              if (cancelRef.current) return;
-              await wb.drawAnnotation(
+              if (commandCancelled()) return;
+              await drawAnnotation(
                 annotationKind,
                 arrowPath(x1, y1, x2, y2),
                 drawMs,
+                command.visualStyle?.strokeRole === "trace"
+                  ? { strokeWidth: command.visualStyle.strokeWidth ?? 1.25, transient: true }
+                  : undefined,
               );
             }
           } else if (command.type === "HIGHLIGHT" && params.length >= 4) {
             const [x, y, w, h] = params;
             if ([x, y, w, h].every(Number.isFinite)) {
               await wb.flyCursorTo(x + w / 2, y + h / 2, flightMs);
-              if (cancelRef.current) return;
-              await wb.drawAnnotation(
+              if (commandCancelled()) return;
+              await drawAnnotation(
                 annotationKind,
                 highlightRectPath(x, y, w, h),
                 drawMs,
@@ -645,9 +686,9 @@ export function useCommandExecution({
             if (params.every(Number.isFinite)) {
               const [x1, y1] = params;
               await wb.flyCursorTo(x1, y1, flightMs);
-              if (cancelRef.current) return;
+              if (commandCancelled()) return;
               // Cross-outs stay thin and compact so they do not bury the glyph.
-              await wb.drawAnnotation(
+              await drawAnnotation(
                 annotationKind,
                 scribblePath(params),
                 Math.min(drawMs, 280),
@@ -664,7 +705,7 @@ export function useCommandExecution({
       tutorDebug("draw", "executeCommand done", { type: command.type });
     },
     [
-      activeDiagramTemplateRef,
+      activeVerifiedDiagramRef,
       boardLayoutRef,
       cancelRef,
       cancellableDelay,
@@ -689,9 +730,10 @@ export function useCommandExecution({
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
         segmentNarration?: string;
-        skipTemplateDuplicateCheck?: boolean;
-        skipGeometrySnap?: boolean;
+        trustedDiagramGeometry?: boolean;
         segmentIndex?: number;
+        isCancelled?: () => boolean;
+        textPlacementReserved?: boolean;
       } = {},
     ): Promise<void> => {
       await raceWithCancel(executeCommand(command, options));
@@ -700,4 +742,141 @@ export function useCommandExecution({
   );
 
   return { executeCommand, executeCommandWithCancel, resolveAnnotationTarget };
+}
+
+function verifiedCommandTracePath(
+  command: VerifiedDiagramCommand,
+): { path: string; x: number; y: number } | null {
+  const params = command.params;
+  switch (command.type) {
+    case "DRAW_CUBOID": {
+      const [x, y, width, height, depth] = params;
+      return [x, y, width, height, depth].every(Number.isFinite)
+        ? { path: cuboidPath(x!, y!, width!, height!, depth!), x: x!, y: y! }
+        : null;
+    }
+    case "DRAW_CUBE": {
+      const [x, y, size] = params;
+      return [x, y, size].every(Number.isFinite)
+        ? { path: cubePath(x!, y!, size!), x: x!, y: y! }
+        : null;
+    }
+    case "DRAW_RECT": {
+      const [x, y, width, height] = params;
+      return [x, y, width, height].every(Number.isFinite)
+        ? { path: rectPath(x!, y!, width!, height!), x: x!, y: y! }
+        : null;
+    }
+    case "DRAW_CIRCLE": {
+      const [x, y, radius, radiusY] = params;
+      if (![x, y, radius].every(Number.isFinite)) return null;
+      return {
+        path: Number.isFinite(radiusY)
+          ? ellipsePath(x!, y!, radius!, radiusY!)
+          : circlePath(x!, y!, radius!),
+        x: x! + radius!,
+        y: y!,
+      };
+    }
+    case "DRAW_ARC": {
+      const [x, y, radius, startAngle, endAngle] = params;
+      if (![x, y, radius, startAngle, endAngle].every(Number.isFinite)) return null;
+      const startRadians = startAngle! * Math.PI / 180;
+      return {
+        path: arcPath(x!, y!, radius!, startAngle!, endAngle!),
+        x: x! + radius! * Math.cos(startRadians),
+        y: y! + radius! * Math.sin(startRadians),
+      };
+    }
+    case "DRAW_LINE": {
+      if (params.length >= 7 && params.at(-1) === 2) {
+        const points = params.slice(0, -1);
+        return points.every(Number.isFinite)
+          ? { path: bezierSplinePath(points), x: points[0]!, y: points[1]! }
+          : null;
+      }
+      if (params.length >= 6 && params.length % 2 === 0) {
+        return params.every(Number.isFinite)
+          ? { path: polylinePath(params), x: params[0]!, y: params[1]! }
+          : null;
+      }
+      const [x1, y1, x2, y2] = params;
+      return [x1, y1, x2, y2].every(Number.isFinite)
+        ? { path: linePath(x1!, y1!, x2!, y2!), x: x1!, y: y1! }
+        : null;
+    }
+    case "ARROW": {
+      const [x1, y1, a, b, x2, y2] = params;
+      if (params.length >= 6 && [x1, y1, a, b, x2, y2].every(Number.isFinite)) {
+        return {
+          path: curvedArrowPath(x1!, y1!, a!, b!, x2!, y2!),
+          x: x1!,
+          y: y1!,
+        };
+      }
+      return [x1, y1, a, b].every(Number.isFinite)
+        ? { path: arrowPath(x1!, y1!, a!, b!), x: x1!, y: y1! }
+        : null;
+    }
+    default:
+      return null;
+  }
+}
+
+const UNCOMPILED_STRUCTURAL_TYPES = new Set<DrawCommand["type"]>([
+  "DRAW_CUBOID",
+  "DRAW_CUBE",
+  "DRAW_RECT",
+  "DRAW_CIRCLE",
+  "DRAW_ARC",
+  "DRAW_POINT",
+  "DRAW_LINE",
+  "LABEL",
+  "UNDERLINE",
+  "CIRCLE_AROUND",
+  "ARROW",
+  "HIGHLIGHT",
+  "SCRIBBLE",
+  "DIMENSION",
+]);
+
+function isUnsafeUncompiledDiagramCommand(command: DrawCommand): boolean {
+  if (!UNCOMPILED_STRUCTURAL_TYPES.has(command.type)) return false;
+  const [x = 0, y = 0, a = 0, b = 0] = command.params;
+  let bounds = { left: x, top: y, right: x, bottom: y };
+
+  if (command.type === "DRAW_RECT") {
+    bounds = { left: x, top: y, right: x + Math.abs(a), bottom: y + Math.abs(b) };
+  } else if (
+    command.type === "DRAW_CIRCLE" ||
+    command.type === "DRAW_ARC" ||
+    command.type === "DRAW_POINT"
+  ) {
+    bounds = { left: x - Math.abs(a), top: y - Math.abs(a), right: x + Math.abs(a), bottom: y + Math.abs(a) };
+  } else if (command.type === "DRAW_CUBE" || command.type === "DRAW_CUBOID") {
+    bounds = { left: x, top: y - Math.abs(b || a), right: x + Math.abs(a), bottom: y };
+  } else if (command.type === "DRAW_LINE" || command.type === "ARROW" || command.type === "DIMENSION") {
+    const coordinateCount = command.type === "DIMENSION" ? 4 : command.params.length % 2 === 1 ? command.params.length - 1 : command.params.length;
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (let index = 0; index + 1 < coordinateCount; index += 2) {
+      xs.push(command.params[index]!);
+      ys.push(command.params[index + 1]!);
+    }
+    bounds = {
+      left: Math.min(...xs),
+      top: Math.min(...ys),
+      right: Math.max(...xs),
+      bottom: Math.max(...ys),
+    };
+  }
+
+  const zoneRight = DIAGRAM_ZONE.x + DIAGRAM_ZONE.width;
+  const zoneBottom = DIAGRAM_ZONE.y + DIAGRAM_ZONE.height;
+  return (
+    bounds.right >= DIAGRAM_ZONE.x &&
+    bounds.left <= zoneRight &&
+    bounds.bottom >= DIAGRAM_ZONE.y &&
+    bounds.top <= zoneBottom
+  );
 }
