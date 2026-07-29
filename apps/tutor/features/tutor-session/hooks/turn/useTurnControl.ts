@@ -1,11 +1,11 @@
-import { useCallback, useEffect, type RefObject } from "react";
+import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { stopReplayAudio } from "@/lib/replayAudio";
 import {
   parseDrawingCommands,
   type TutorSegment,
   buildLessonSegments,
   lessonNarrationText,
-  prepareTemplateLessonSegments,
+  prepareVerifiedLessonSegments,
 } from "@heytutor/drawing";
 import { tutorDebug } from "@heytutor/tutor-core";
 import {
@@ -35,12 +35,15 @@ export function useTurnControl(
     replayAudioPreloadRef,
     cancelRef,
     turnActiveRef,
+    turnGenerationRef,
     turnAbortRef,
     segmentChainRef,
     drawChainRef,
     collectedSegmentsRef,
     recordedSegmentsRef,
-    activeDiagramTemplateRef,
+    activeVerifiedDiagramRef,
+    fbdPhaseMarkedRef,
+    fbdPhaseStartedRef,
     segmentPlanStatsRef,
     stopTurnRef,
     replayGenerationRef,
@@ -57,19 +60,29 @@ export function useTurnControl(
     setReplayTotalMs,
     clearCancelTimers,
     pendingSegmentCountRef,
+    resetBoardLayout,
   } = params;
+  const activeIntroTransactionRef = useRef<string | null>(null);
 
-  const finishLectureUi = useCallback(() => {
+  const finishLectureUi = useCallback((turnGeneration?: number) => {
+    if (
+      turnGeneration !== undefined &&
+      turnGeneration !== turnGenerationRef.current
+    ) {
+      return;
+    }
     turnActiveRef.current = false;
     isPausedRef.current = false;
     setIsPaused(false);
     whiteboardRef.current?.setPaused(false);
     ttsClientRef.current?.stop();
+    phaseRef.current = "idle";
     setPhase("idle");
     setCurrentSegmentText("");
     setInputInteracted(true);
   }, [
     turnActiveRef,
+    turnGenerationRef,
     isPausedRef,
     whiteboardRef,
     ttsClientRef,
@@ -77,21 +90,26 @@ export function useTurnControl(
     setPhase,
     setCurrentSegmentText,
     setInputInteracted,
+    phaseRef,
   ]);
 
   const applyTurnPhase = useCallback(
     (next: TutorPhase) => {
       if (turnActiveRef.current && !cancelRef.current) {
+        phaseRef.current = next;
         setPhase(next);
       }
     },
-    [turnActiveRef, cancelRef, setPhase],
+    [turnActiveRef, cancelRef, phaseRef, setPhase],
   );
 
   const { runSegment } = useSegmentRunner({ ...params, applyTurnPhase });
 
   const enqueueSegment = useCallback(
-    (segment: TutorSegment) => {
+    (segment: TutorSegment, turnGeneration = turnGenerationRef.current) => {
+      if (turnGeneration !== turnGenerationRef.current) {
+        return;
+      }
       const segmentToRun = normalizeSegmentForAlignment(segment);
       collectedSegmentsRef.current.push(segmentToRun);
       const index = collectedSegmentsRef.current.length - 1;
@@ -104,13 +122,18 @@ export function useTurnControl(
       });
 
       segmentChainRef.current = segmentChainRef.current.then(async () => {
-        if (cancelRef.current) {
+        if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
           pendingSegmentCountRef.current = Math.max(pendingSegmentCountRef.current - 1, 0);
           return;
         }
 
         try {
-          await runSegment(segmentToRun, index, collectedSegmentsRef.current);
+          await runSegment(
+            segmentToRun,
+            index,
+            collectedSegmentsRef.current,
+            turnGeneration,
+          );
         } catch (error) {
           console.error(`Segment ${index} failed:`, error);
           tutorDebug("segment", "segment failed", {
@@ -127,12 +150,105 @@ export function useTurnControl(
       collectedSegmentsRef,
       segmentChainRef,
       cancelRef,
+      turnGenerationRef,
       pendingSegmentCountRef,
     ],
   );
 
+  const enqueueVerifiedIntro = useCallback(
+    (segments: TutorSegment[], turnGeneration = turnGenerationRef.current) => {
+      if (segments.length === 0 || turnGeneration !== turnGenerationRef.current) return;
+      const normalized = segments.map(normalizeSegmentForAlignment);
+      const unsafeCommand = normalized.flatMap((segment) => segment.commands ?? []).find((command) =>
+        !(
+          command.type.startsWith("DRAW_") ||
+          ["ARROW", "LABEL", "DIMENSION", "FOCUS"].includes(command.type)
+        )
+      );
+      if (unsafeCommand) {
+        throw new Error(`verified intro contains non-transactional command ${unsafeCommand.type}`);
+      }
+      const startIndex = collectedSegmentsRef.current.length;
+      collectedSegmentsRef.current.push(...normalized);
+      pendingSegmentCountRef.current += normalized.length;
+
+      segmentChainRef.current = segmentChainRef.current.then(async () => {
+        const wb = whiteboardRef.current;
+        if (!wb || cancelRef.current || turnGeneration !== turnGenerationRef.current) {
+          pendingSegmentCountRef.current = Math.max(
+            pendingSegmentCountRef.current - normalized.length,
+            0,
+          );
+          return;
+        }
+        const transactionId = wb.beginDrawTransaction();
+        activeIntroTransactionRef.current = transactionId;
+        let committed = false;
+        try {
+          for (const [offset, segment] of normalized.entries()) {
+            if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
+              throw new DOMException("verified intro cancelled", "AbortError");
+            }
+            await runSegment(
+              segment,
+              startIndex + offset,
+              collectedSegmentsRef.current,
+              turnGeneration,
+            );
+          }
+          if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
+            throw new DOMException("verified intro cancelled", "AbortError");
+          }
+          wb.commitDrawTransaction(transactionId);
+          committed = true;
+        } catch (error) {
+          wb.abortDrawTransaction(transactionId);
+          activeVerifiedDiagramRef.current = null;
+          fbdPhaseMarkedRef.current = false;
+          fbdPhaseStartedRef.current = false;
+          resetBoardLayout(false, true);
+          cancelRef.current = true;
+          pendingSegmentCountRef.current = 0;
+          turnAbortRef.current?.abort(error);
+          throw error;
+        } finally {
+          if (!committed) wb.finishAbortedDrawTransaction(transactionId);
+          if (activeIntroTransactionRef.current === transactionId) {
+            activeIntroTransactionRef.current = null;
+          }
+          pendingSegmentCountRef.current = Math.max(
+            pendingSegmentCountRef.current - normalized.length,
+            0,
+          );
+        }
+      });
+    },
+    [
+      activeVerifiedDiagramRef,
+      cancelRef,
+      collectedSegmentsRef,
+      fbdPhaseMarkedRef,
+      fbdPhaseStartedRef,
+      pendingSegmentCountRef,
+      resetBoardLayout,
+      runSegment,
+      segmentChainRef,
+      turnAbortRef,
+      turnGenerationRef,
+      whiteboardRef,
+    ],
+  );
+
   const processResponseText = useCallback(
-    async (responseText: string, introSegments: TutorSegment[] = [], liveEnqueued = false) => {
+    async (
+      responseText: string,
+      introSegments: TutorSegment[] = [],
+      liveEnqueued = false,
+      turnGeneration = turnGenerationRef.current,
+    ) => {
+      if (turnGeneration !== turnGenerationRef.current) {
+        return;
+      }
       const parsed = parseDrawingCommands(responseText);
 
       if (parsed.commands.length === 0 && !parsed.narration.trim() && !/\[STEP\]/i.test(responseText)) {
@@ -142,31 +258,31 @@ export function useTurnControl(
         return;
       }
 
-      const activeTemplate = activeDiagramTemplateRef.current;
+      const activeDiagram = activeVerifiedDiagramRef.current;
       const rawLlmSegments = buildLessonSegments(responseText);
-      const preparedLlmSegments = prepareTemplateLessonSegments(rawLlmSegments, activeTemplate);
+      const preparedLlmSegments = prepareVerifiedLessonSegments(rawLlmSegments, activeDiagram);
       const llmSegments = preparedLlmSegments.segments;
       const segments = [...introSegments, ...llmSegments];
 
       segmentPlanStatsRef.current = {
-        activeTemplateId: activeTemplate?.id ?? null,
-        activeTemplateName: activeTemplate?.name ?? null,
+        activeDiagramId: activeDiagram?.id ?? null,
+        activeDiagramName: activeDiagram?.name ?? null,
         plannedSegmentCount: segments.length,
         introSegmentCount: introSegments.length,
         llmSegmentCount: llmSegments.length,
-        blockedTemplateDrawCommands: preparedLlmSegments.blockedCommandCount,
-        droppedTemplateRedrawSegments: preparedLlmSegments.droppedSegmentCount,
+        blockedUnverifiedDrawCommands: preparedLlmSegments.blockedCommandCount,
+        droppedMarkerOnlySegments: preparedLlmSegments.droppedSegmentCount,
       };
 
       turnTelemetryRef.current?.mark("diagram-plan", {
-        active_template_id: activeTemplate?.id ?? null,
-        active_template_name: activeTemplate?.name ?? null,
+        active_diagram_id: activeDiagram?.id ?? null,
+        active_diagram_name: activeDiagram?.name ?? null,
         planned_segment_count: segments.length,
         intro_segment_count: introSegments.length,
         raw_llm_segment_count: rawLlmSegments.length,
         llm_segment_count: llmSegments.length,
-        blocked_template_draw_commands: preparedLlmSegments.blockedCommandCount,
-        dropped_template_redraw_segments: preparedLlmSegments.droppedSegmentCount,
+        blocked_unverified_draw_commands: preparedLlmSegments.blockedCommandCount,
+        dropped_marker_only_segments: preparedLlmSegments.droppedSegmentCount,
         segments: summarizeSegmentsForTrace(segments),
       });
 
@@ -174,15 +290,20 @@ export function useTurnControl(
         segment_count: segments.length,
         intro_segment_count: introSegments.length,
         raw_llm_segment_count: rawLlmSegments.length,
-        blocked_template_draw_commands: preparedLlmSegments.blockedCommandCount,
-        dropped_template_redraw_segments: preparedLlmSegments.droppedSegmentCount,
+        blocked_unverified_draw_commands: preparedLlmSegments.blockedCommandCount,
+        dropped_marker_only_segments: preparedLlmSegments.droppedSegmentCount,
         structured: /\[STEP\]/i.test(responseText),
         live_enqueued: liveEnqueued,
       });
 
       if (liveEnqueued) {
-        await segmentChainRef.current;
-        await drawChainRef.current;
+        const segmentQueue = segmentChainRef.current;
+        await segmentQueue;
+        const drawQueue = drawChainRef.current;
+        await drawQueue;
+        if (turnGeneration !== turnGenerationRef.current) {
+          return;
+        }
         setNarrationText(
           [
             ...introSegments.map((segment) => segment.narration).filter(Boolean),
@@ -201,12 +322,18 @@ export function useTurnControl(
       segmentChainRef.current = Promise.resolve();
       drawChainRef.current = Promise.resolve();
 
-      for (const segment of segments) {
-        enqueueSegment(segment);
+      enqueueVerifiedIntro(introSegments, turnGeneration);
+      for (const segment of llmSegments) {
+        enqueueSegment(segment, turnGeneration);
       }
 
-      await segmentChainRef.current;
-      await drawChainRef.current;
+      const segmentQueue = segmentChainRef.current;
+      await segmentQueue;
+      const drawQueue = drawChainRef.current;
+      await drawQueue;
+      if (turnGeneration !== turnGenerationRef.current) {
+        return;
+      }
       setNarrationText(
         [
           ...introSegments.map((segment) => segment.narration).filter(Boolean),
@@ -216,13 +343,15 @@ export function useTurnControl(
     },
     [
       enqueueSegment,
-      activeDiagramTemplateRef,
+      enqueueVerifiedIntro,
+      activeVerifiedDiagramRef,
       segmentPlanStatsRef,
       turnTelemetryRef,
       segmentChainRef,
       drawChainRef,
       collectedSegmentsRef,
       recordedSegmentsRef,
+      turnGenerationRef,
       setNarrationText,
       setCurrentSegmentText,
     ],
@@ -235,6 +364,20 @@ export function useTurnControl(
 
     cancelRef.current = true;
     turnActiveRef.current = false;
+    turnGenerationRef.current += 1;
+
+    const telemetry = turnTelemetryRef.current;
+    telemetry?.mark("turn-cancelled", {
+      phase,
+      pending_segment_count: pendingSegmentCountRef.current,
+    });
+    telemetry?.meta({
+      cancelled: true,
+      cancel_phase: phase,
+      pending_segment_count: pendingSegmentCountRef.current,
+      total_duration_ms: telemetry.durationMs(),
+    });
+    void telemetry?.flush();
 
     clearCancelTimers();
 
@@ -251,6 +394,10 @@ export function useTurnControl(
     replayGenerationRef.current += 1;
     ttsClientRef.current?.stop();
     whiteboardRef.current?.cancelAnimations();
+    const activeIntroTransaction = activeIntroTransactionRef.current;
+    if (activeIntroTransaction) {
+      whiteboardRef.current?.abortDrawTransaction(activeIntroTransaction);
+    }
     whiteboardRef.current?.setPaused(false);
 
     segmentChainRef.current = Promise.resolve();
@@ -268,6 +415,7 @@ export function useTurnControl(
     phase,
     cancelRef,
     turnActiveRef,
+    turnGenerationRef,
     clearCancelTimers,
     isPausedRef,
     setIsPaused,
@@ -281,6 +429,8 @@ export function useTurnControl(
     segmentChainRef,
     drawChainRef,
     collectedSegmentsRef,
+    turnTelemetryRef,
+    pendingSegmentCountRef,
     setIsReplaying,
     setReplayProgressMs,
     setReplayTotalMs,
@@ -410,6 +560,7 @@ export function useTurnControl(
     finishLectureUi,
     applyTurnPhase,
     enqueueSegment,
+    enqueueVerifiedIntro,
     processResponseText,
     stopTurn,
     pauseTurn,
