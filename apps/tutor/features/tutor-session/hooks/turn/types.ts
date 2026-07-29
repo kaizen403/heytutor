@@ -2,7 +2,7 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { ReplayCue } from "@/lib/replayTimeline";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
-import type { DrawCommand, DiagramTemplate } from "@heytutor/drawing";
+import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
 import type { ConversationExchange, TTSClient } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/turnTelemetry";
 import type { RecordedSegmentPayload, StoredTurn } from "@/lib/boardsClient";
@@ -26,8 +26,12 @@ export type ExecuteCommandOptions = {
   };
   applyLayout?: boolean;
   segmentNarration?: string;
-  skipTemplateDuplicateCheck?: boolean;
-  skipGeometrySnap?: boolean;
+  /** Preserve coordinates emitted by the verified scene compiler. */
+  trustedDiagramGeometry?: boolean;
+  /** Stops a command whose owning turn has been superseded. */
+  isCancelled?: () => boolean;
+  /** Text row was reserved before audio started; preserve the resolved coordinates. */
+  textPlacementReserved?: boolean;
 };
 
 export type UseTurnLifecycleParams = {
@@ -49,6 +53,8 @@ export type UseTurnLifecycleParams = {
   replayAudioPreloadRef: RefObject<Map<string, HTMLAudioElement>>;
   cancelRef: RefObject<boolean>;
   turnActiveRef: RefObject<boolean>;
+  /** Monotonic owner for async work. A segment may only mutate the board for its turn. */
+  turnGenerationRef: RefObject<number>;
   turnAbortRef: RefObject<AbortController | null>;
   segmentChainRef: RefObject<Promise<void>>;
   /** Serializes ink so drawing trails speech without blocking the next paragraph. */
@@ -64,7 +70,7 @@ export type UseTurnLifecycleParams = {
   boardLayoutRef: RefObject<BoardLayoutState>;
   fbdPhaseMarkedRef: RefObject<boolean>;
   fbdPhaseStartedRef: RefObject<boolean>;
-  activeDiagramTemplateRef: RefObject<DiagramTemplate | null>;
+  activeVerifiedDiagramRef: RefObject<VerifiedDiagram | null>;
   segmentPlanStatsRef: RefObject<SegmentPlanStats>;
   stopTurnRef: RefObject<(() => void) | null>;
   speedRef: RefObject<number>;
@@ -95,6 +101,8 @@ export type UseTurnLifecycleParams = {
   raceWithCancel: <T>(promise: Promise<T>) => Promise<T | undefined>;
   clearCancelTimers: () => void;
   resetBoardLayout: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
+  beginBoardEpoch: () => Promise<void>;
+  reserveTextCommandPlacement: (command: DrawCommand) => Promise<DrawCommand>;
   persistTurnForReplay: (
     question: string,
     rawResponse: string,
@@ -114,6 +122,7 @@ export type UseSegmentRunnerParams = Pick<
   | "cancelRef"
   | "isPausedRef"
   | "turnActiveRef"
+  | "turnGenerationRef"
   | "turnTelemetryRef"
   | "turnStatsRef"
   | "recordedSegmentsRef"
@@ -121,20 +130,22 @@ export type UseSegmentRunnerParams = Pick<
   | "currentTraceIdRef"
   | "setCurrentSegmentText"
   | "narrationDensityRef"
-  | "activeDiagramTemplateRef"
   | "drawChainRef"
+  | "reserveTextCommandPlacement"
 > & {
   applyTurnPhase: (next: TutorPhase) => void;
 };
 
 export type TurnControlApi = {
-  finishLectureUi: () => void;
+  finishLectureUi: (turnGeneration?: number) => void;
   applyTurnPhase: (next: TutorPhase) => void;
-  enqueueSegment: (segment: TutorSegment) => void;
+  enqueueSegment: (segment: TutorSegment, turnGeneration?: number) => void;
+  enqueueVerifiedIntro: (segments: TutorSegment[], turnGeneration?: number) => void;
   processResponseText: (
     responseText: string,
     introSegments?: TutorSegment[],
     liveEnqueued?: boolean,
+    turnGeneration?: number,
   ) => Promise<void>;
   stopTurn: () => void;
   pauseTurn: () => void;
