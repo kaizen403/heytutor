@@ -3,13 +3,13 @@ import type { DrawCommand } from "@heytutor/drawing";
 export type TutorPhase = "idle" | "planning" | "thinking" | "drawing" | "speaking";
 
 export interface SegmentPlanStats {
-  activeTemplateId: string | null;
-  activeTemplateName: string | null;
+  activeDiagramId: string | null;
+  activeDiagramName: string | null;
   plannedSegmentCount: number;
   introSegmentCount: number;
   llmSegmentCount: number;
-  blockedTemplateDrawCommands: number;
-  droppedTemplateRedrawSegments: number;
+  blockedUnverifiedDrawCommands: number;
+  droppedMarkerOnlySegments: number;
 }
 
 export interface BoardTextRect {
@@ -50,6 +50,7 @@ export const BASE_SHAPE_DRAW_MS: Partial<Record<DrawCommand["type"], number>> = 
   CIRCLE_AROUND: 700,
   ARROW: 500,
   HIGHLIGHT: 250,
+  FOCUS: 900,
   SCRIBBLE: 400,
 };
 

@@ -1,4 +1,4 @@
-import { resolveAnnotationWithAnchors, type DrawCommand, type TemplateAnchor } from "@heytutor/drawing";
+import type { DrawCommand } from "@heytutor/drawing";
 import { ANNOTATION_SNAP_DISTANCE } from "../constants";
 import type { BoardTextRect } from "../types";
 import {
@@ -83,21 +83,7 @@ export function resolveSnappedAnnotationParams(
   params: number[],
   rects: BoardTextRect[],
   narration?: string,
-  templateAnchors: TemplateAnchor[] = [],
 ): { params: number[]; snapped: boolean; rect: BoardTextRect | null } {
-  if (templateAnchors.length > 0 && narration) {
-    const templateSnap = resolveAnnotationWithAnchors(
-      kind,
-      params,
-      templateAnchors,
-      rects,
-      narration,
-    );
-    if (templateSnap.snapped) {
-      return templateSnap;
-    }
-  }
-
   const pad = 8;
 
   if (kind === "UNDERLINE" && params.length >= 4) {
