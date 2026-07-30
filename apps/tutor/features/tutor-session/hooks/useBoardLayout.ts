@@ -4,15 +4,16 @@ import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import { tutorDebug } from "@heytutor/tutor-core";
 import type { NotesEpoch } from "@/lib/exportNotesPdf";
 import { useBoardViewport } from "./useBoardViewport";
-import { BOARD_WIDTH, TEXT_LAYOUT, DIAGRAM_ZONE } from "../constants";
+import { TEXT_LAYOUT, DIAGRAM_ZONE } from "../constants";
 import type { BoardTextRect, BoardLayoutState } from "../types";
 import {
   isInDiagramZone,
-  clampNumber,
   estimateBoardTextWidth,
+  estimateBoardTextWidthAtSize,
   textRectsOverlap,
   registerBoardAnchor,
   getWorkAreaFlowStartY,
+  findWorkTextSlot,
   overlapsWorkArea,
 } from "../lib/boardLayout";
 
@@ -52,6 +53,24 @@ export function useBoardLayout({
       forceSequentialWorkLayoutRef.current = forceSequentialWorkLayout;
     }
   }, []);
+
+  const beginBoardEpoch = useCallback(async (): Promise<void> => {
+    const wb = whiteboardRef.current;
+    if (wb && boardLayoutRef.current.rects.length > 0) {
+      const snapshotDataUrl = wb.captureSnapshot(2);
+      if (snapshotDataUrl) {
+        notesEpochsRef.current.push({
+          index: notesEpochsRef.current.length,
+          snapshotDataUrl,
+          narrationText: narrationSinceEpochRef.current,
+          timestampMs: Date.now(),
+        });
+      }
+    }
+    narrationSinceEpochRef.current = "";
+    if (wb) await wb.clearBoard();
+    resetBoardLayout(false, true);
+  }, [resetBoardLayout, whiteboardRef]);
 
   const forgetErasedTextRects = useCallback((eraseRect: BoardTextRect): void => {
     boardLayoutRef.current.rects = boardLayoutRef.current.rects.filter(
@@ -94,14 +113,19 @@ export function useBoardLayout({
         return { x, y };
       }
 
-      if (isInDiagramZone(x, y)) {
+      if (command.type !== "WRITE" && isInDiagramZone(x, y)) {
         const width = estimateBoardTextWidth(command.text);
         const height = TEXT_LAYOUT.textHeight;
         registerBoardAnchor(boardLayoutRef.current, { x, y, width, height, text: command.text });
         return { x, y };
       }
 
-      const width = estimateBoardTextWidth(command.text);
+      const requestedFontSize = command.params[2];
+      const fontSize =
+        Number.isFinite(requestedFontSize) && requestedFontSize >= 12 && requestedFontSize <= 40
+          ? requestedFontSize
+          : 32;
+      const width = estimateBoardTextWidthAtSize(command.text, fontSize);
       const height = TEXT_LAYOUT.textHeight;
       let layout = boardLayoutRef.current;
 
@@ -109,56 +133,22 @@ export function useBoardLayout({
       // left column that stops short of the figure, so lines flow straight down
       // the left instead of hopping around the diagram (which used to leave big
       // vertical gaps). When there is no diagram, the solution uses the full width.
-      const isDiagramRect = (rect: BoardTextRect) => rect.x >= DIAGRAM_ZONE.x;
       const diagramActive = fbdPhaseStartedRef.current;
-      const diagramRects = diagramActive ? layout.rects.filter(isDiagramRect) : [];
-      const diagramLeftEdge =
-        diagramRects.length > 0
-          ? Math.min(...diagramRects.map((rect) => rect.x))
-          : DIAGRAM_ZONE.x;
-      const columnRight = diagramActive
-        ? Math.max(TEXT_LAYOUT.marginX + 160, diagramLeftEdge - 28)
-        : BOARD_WIDTH - TEXT_LAYOUT.marginX;
-      const maxX = Math.min(BOARD_WIDTH - TEXT_LAYOUT.marginX, columnRight) - width;
-      const candidateX = clampNumber(x, TEXT_LAYOUT.marginX, Math.max(TEXT_LAYOUT.marginX, maxX));
+      const sequential = command.type === "WRITE" || forceSequentialWorkLayoutRef.current;
+      const findSlot = () => findWorkTextSlot({
+        layout,
+        requestedX: x,
+        requestedY: y,
+        width,
+        height,
+        diagramActive,
+        sequential,
+        runtimeOwnsX: command.type === "WRITE",
+      });
 
-      const findOpenY = (startY: number): number | null => {
-        for (
-          let tryY = clampNumber(startY, TEXT_LAYOUT.topY, TEXT_LAYOUT.bottomY - height);
-          tryY <= TEXT_LAYOUT.bottomY - height;
-          tryY += TEXT_LAYOUT.lineHeight
-        ) {
-          const rect = { x: candidateX, y: tryY, width, height };
-          // Solution lines only stack around each other. The diagram lives in its
-          // own right-hand column, so skip diagram rects when finding a free row —
-          // otherwise a wide equation would jump below the whole figure.
-          if (
-            !layout.rects.some(
-              (occupied) =>
-                !(diagramActive && isDiagramRect(occupied)) &&
-                textRectsOverlap(rect, occupied),
-            )
-          ) {
-            return tryY;
-          }
-        }
-        return null;
-      };
+      let slot = findSlot();
 
-      const placementStartY = (() => {
-        if (forceSequentialWorkLayoutRef.current) {
-          return getWorkAreaFlowStartY(layout);
-        }
-        let candidateY = clampNumber(y, TEXT_LAYOUT.topY, TEXT_LAYOUT.bottomY - height);
-        if (layout.rects.length === 0 && candidateY > TEXT_LAYOUT.workTopY) {
-          candidateY = TEXT_LAYOUT.topY;
-        }
-        return candidateY;
-      })();
-
-      let openY = findOpenY(placementStartY);
-
-      if (openY === null) {
+      if (slot === null) {
         const wb = whiteboardRef.current;
         if (wb && !cancelRef.current) {
           // Keep an in-progress diagram: when one exists, only clear the left
@@ -199,19 +189,40 @@ export function useBoardLayout({
         resetBoardLayout(true, true);
         boardLayoutRef.current.rects.push(...survivingDiagramRects);
         layout = boardLayoutRef.current;
-        openY = findOpenY(getWorkAreaFlowStartY(layout)) ?? TEXT_LAYOUT.workTopY;
+        slot = findSlot() ?? {
+          x: TEXT_LAYOUT.marginX,
+          y: getWorkAreaFlowStartY(layout),
+          maxWidth: Math.max(DIAGRAM_ZONE.x - 28 - TEXT_LAYOUT.marginX, 40),
+        };
       }
 
-      const rect = { x: candidateX, y: openY, width, height, text: command.text };
+      const rect = {
+        x: slot.x,
+        y: slot.y,
+        width: Math.min(width, slot.maxWidth),
+        height,
+        text: command.text,
+      };
       registerBoardAnchor(boardLayoutRef.current, rect);
       boardLayoutRef.current.nextY = Math.max(
         boardLayoutRef.current.nextY,
-        openY + TEXT_LAYOUT.lineHeight,
+        slot.y + TEXT_LAYOUT.lineHeight,
       );
 
       return { x: rect.x, y: rect.y };
     },
     [resetBoardLayout, cancelRef, fbdPhaseStartedRef, whiteboardRef],
+  );
+
+  const reserveTextCommandPlacement = useCallback(
+    async (command: DrawCommand): Promise<DrawCommand> => {
+      if (command.type !== "WRITE" || !command.text) return command;
+      const [x, y, ...rest] = command.params;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return command;
+      const placement = await resolveTextPlacement(command, x, y, true);
+      return { ...command, params: [placement.x, placement.y, ...rest] };
+    },
+    [resolveTextPlacement],
   );
 
   return {
@@ -222,7 +233,9 @@ export function useBoardLayout({
     narrationSinceEpochRef,
     forceSequentialWorkLayoutRef,
     resetBoardLayout,
+    beginBoardEpoch,
     forgetErasedTextRects,
     resolveTextPlacement,
+    reserveTextCommandPlacement,
   };
 }

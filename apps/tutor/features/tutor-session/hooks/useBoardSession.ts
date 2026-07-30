@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
-import { lessonNarrationText, parseStoredSegmentCommands } from "@heytutor/drawing";
+import {
+  isStoredCommandTrustedGeometry,
+  lessonNarrationText,
+  parseStoredSegmentCommands,
+} from "@heytutor/drawing";
 import {
   createTTSClient,
   type ConversationExchange,
@@ -23,6 +27,7 @@ import type { TutorPhase } from "../types";
 type ExecuteCommandOptions = {
   durationScale?: number;
   applyLayout?: boolean;
+  trustedDiagramGeometry?: boolean;
 };
 
 type ExecuteCommand = (
@@ -58,6 +63,8 @@ export interface UseBoardSessionParams {
   ttsClientRef: RefObject<TTSClient | null>;
   speedRef: RefObject<number>;
   stopTurnRef: RefObject<(() => void) | null>;
+  replayAudioRef: RefObject<HTMLAudioElement | null>;
+  replayAudioPreloadRef: RefObject<Map<string, HTMLAudioElement>>;
   setNarrationText: Dispatch<SetStateAction<string>>;
   setCurrentSegmentText: Dispatch<SetStateAction<string>>;
   resetBoardLayout: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
@@ -76,6 +83,8 @@ export function useBoardSession({
   ttsClientRef,
   speedRef,
   stopTurnRef,
+  replayAudioRef,
+  replayAudioPreloadRef,
   setNarrationText,
   setCurrentSegmentText,
   resetBoardLayout,
@@ -96,9 +105,26 @@ export function useBoardSession({
   }, [sessionId]);
 
   useEffect(() => {
-    speedRef.current = speedMultiplier;
-    ttsClientRef.current?.setPlaybackRate(speedMultiplier);
-  }, [speedMultiplier, speedRef, ttsClientRef]);
+    const rate = Math.max(speedMultiplier, 0.1);
+    speedRef.current = rate;
+    ttsClientRef.current?.setPlaybackRate(rate);
+    whiteboardRef.current?.setAnimationSpeed(rate);
+    // Settings drawer and replay controls share speedMultiplier — keep the
+    // playing lecture element in lockstep when speed changes mid-cue.
+    const playing = replayAudioRef.current;
+    if (playing) {
+      playing.playbackRate = rate;
+      if ("preservesPitch" in playing) {
+        (playing as HTMLAudioElement & { preservesPitch: boolean }).preservesPitch = true;
+      }
+    }
+    for (const preloaded of replayAudioPreloadRef.current.values()) {
+      preloaded.playbackRate = rate;
+      if ("preservesPitch" in preloaded) {
+        (preloaded as HTMLAudioElement & { preservesPitch: boolean }).preservesPitch = true;
+      }
+    }
+  }, [speedMultiplier, speedRef, ttsClientRef, whiteboardRef, replayAudioRef, replayAudioPreloadRef]);
 
   const boardsFetchedRef = useRef(false);
   useEffect(() => {
@@ -285,6 +311,7 @@ export function useBoardSession({
           if (isStale()) return;
 
           const commands = parseStoredSegmentCommands(segment.command);
+          const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
           for (const command of commands) {
             if (isStale() || cancelRef.current) {
               return;
@@ -293,6 +320,7 @@ export function useBoardSession({
             await executeCommandRef.current(command, {
               durationScale: 0.05,
               applyLayout: false,
+              trustedDiagramGeometry,
             });
           }
         }

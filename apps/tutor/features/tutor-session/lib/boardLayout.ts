@@ -25,6 +25,11 @@ export function estimateBoardTextWidth(text: string): number {
   return clampNumber(measured + 16, 40, BOARD_WIDTH - TEXT_LAYOUT.marginX * 2);
 }
 
+export function estimateBoardTextWidthAtSize(text: string, fontSize: number): number {
+  const measured = measureTextWidth(text, fontSize);
+  return clampNumber(measured + 8, 24, BOARD_WIDTH - TEXT_LAYOUT.marginX * 2);
+}
+
 export function textRectsOverlap(a: BoardTextRect, b: BoardTextRect, padding = 12): boolean {
   return (
     a.x < b.x + b.width + padding &&
@@ -118,6 +123,71 @@ export function getWorkAreaFlowStartY(layout: BoardLayoutState): number {
     return TEXT_LAYOUT.workTopY;
   }
   return queuedY;
+}
+
+export interface WorkTextSlotOptions {
+  layout: BoardLayoutState;
+  requestedX: number;
+  requestedY: number;
+  width: number;
+  height: number;
+  diagramActive: boolean;
+  sequential: boolean;
+  runtimeOwnsX: boolean;
+}
+
+/** Pure slot selection used by live drawing and deterministic layout tests. */
+export function findWorkTextSlot({
+  layout,
+  requestedX,
+  requestedY,
+  width,
+  height,
+  diagramActive,
+  sequential,
+  runtimeOwnsX,
+}: WorkTextSlotOptions): { x: number; y: number; maxWidth: number } | null {
+  const isDiagramRect = (rect: BoardTextRect) => rect.x >= DIAGRAM_ZONE.x;
+  const diagramRects = diagramActive ? layout.rects.filter(isDiagramRect) : [];
+  const diagramLeftEdge =
+    diagramRects.length > 0
+      ? Math.min(...diagramRects.map((rect) => rect.x))
+      : DIAGRAM_ZONE.x;
+  const columnRight = diagramActive
+    ? Math.max(TEXT_LAYOUT.marginX + 160, diagramLeftEdge - 28)
+    : BOARD_WIDTH - TEXT_LAYOUT.marginX;
+  const maxWidth = Math.max(columnRight - TEXT_LAYOUT.marginX, 40);
+  const occupiedWidth = Math.min(width, maxWidth);
+  const maxX = columnRight - occupiedWidth;
+  const candidateX = runtimeOwnsX
+    ? TEXT_LAYOUT.marginX
+    : clampNumber(requestedX, TEXT_LAYOUT.marginX, Math.max(TEXT_LAYOUT.marginX, maxX));
+  const flowStart = Math.max(
+    getWorkAreaFlowStartY(layout),
+    diagramActive ? TEXT_LAYOUT.workTopY : TEXT_LAYOUT.topY,
+  );
+  const startY = sequential
+    ? flowStart
+    : clampNumber(requestedY, TEXT_LAYOUT.topY, TEXT_LAYOUT.bottomY - height);
+
+  for (
+    let tryY = clampNumber(startY, TEXT_LAYOUT.topY, TEXT_LAYOUT.bottomY - height);
+    tryY <= TEXT_LAYOUT.bottomY - height;
+    tryY += TEXT_LAYOUT.lineHeight
+  ) {
+    const rect = { x: candidateX, y: tryY, width: occupiedWidth, height };
+    if (
+      !layout.rects.some(
+        (occupied) =>
+          !(diagramActive && isDiagramRect(occupied)) &&
+          textRectsOverlap(rect, occupied),
+      )
+    ) {
+      return { x: candidateX, y: tryY, maxWidth };
+    }
+  }
+
+  return null;
 }
 
 export function overlapsWorkArea(rect: BoardTextRect): boolean {
