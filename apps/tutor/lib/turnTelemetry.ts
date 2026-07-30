@@ -23,15 +23,13 @@ export interface TurnTelemetry {
   flush(): Promise<void>;
 }
 
-/** Optics intros + ray draws need headroom; keep decision events over char noise. */
+/** Verified scene decisions need headroom; keep them over per-character noise. */
 const MAX_EVENTS = 400;
 
 /** Prefer keeping named decision events when the budget is tight. */
 const DECISION_EVENT_PREFIXES = [
-  "optics-",
-  "geometry-snap",
-  "template-draw-blocked",
-  "template-intro",
+  "verified-scene",
+  "unverified-draw-blocked",
   "draw-complete",
   "write-schedule-ready",
   "tts-timing-",

@@ -71,7 +71,7 @@ const TOPIC_PATTERNS: Array<{
     title: "Circle geometry",
   },
   {
-    test: /fraction/i,
+    test: /\bfractions?\b/i,
     title: "Fractions",
   },
   {
