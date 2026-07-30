@@ -1,5 +1,8 @@
 import type { DrawCommand } from "@heytutor/drawing";
-import { parseStoredSegmentCommands } from "@heytutor/drawing";
+import {
+  isStoredCommandTrustedGeometry,
+  parseStoredSegmentCommands,
+} from "@heytutor/drawing";
 import type { StoredSegment, StoredTurn } from "@/lib/boardsClient";
 
 export interface ReplayCue {
@@ -11,6 +14,7 @@ export interface ReplayCue {
   durationMs: number;
   narration: string;
   commands: DrawCommand[];
+  trustedDiagramGeometry: boolean;
   audioUrl: string | null;
   durationMsStored: number | null;
   timings: StoredSegment["timings"];
@@ -61,6 +65,7 @@ export function buildReplayTimeline(turns: StoredTurn[]): ReplayTimeline {
         durationMs,
         narration,
         commands,
+        trustedDiagramGeometry: isStoredCommandTrustedGeometry(segment.command),
         audioUrl: segment.audioUrl,
         durationMsStored: segment.durationMs,
         timings: segment.timings,

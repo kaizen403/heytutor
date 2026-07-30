@@ -1,4 +1,9 @@
-import type { RecordedSegmentPayload, StoredSegment, StoredTurn } from "@/lib/boardsClient";
+import type {
+  RecordedSegmentPayload,
+  SceneVisualStatus,
+  StoredSegment,
+  StoredTurn,
+} from "@/lib/boardsClient";
 
 export function createReplayAudioBlobUrl(bytes: Uint8Array): string {
   return URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "audio/mpeg" }));
@@ -30,6 +35,12 @@ export function buildLocalStoredTurn(
     question: string;
     rawResponse: string;
     speedMultiplier: number;
+    traceId?: string | null;
+    sceneDocument?: unknown | null;
+    sceneEngineVersion?: string | null;
+    validationReport?: unknown | null;
+    visualStatus?: SceneVisualStatus | null;
+    sceneArtifacts?: unknown | null;
     segments: RecordedSegmentPayload[];
   },
   orderIndex: number,
@@ -41,6 +52,12 @@ export function buildLocalStoredTurn(
     question: payload.question,
     rawResponse: payload.rawResponse,
     speedMultiplier: payload.speedMultiplier,
+    traceId: payload.traceId ?? null,
+    sceneDocument: payload.sceneDocument ?? null,
+    sceneEngineVersion: payload.sceneEngineVersion ?? null,
+    validationReport: payload.validationReport ?? null,
+    visualStatus: payload.visualStatus ?? null,
+    sceneArtifacts: payload.sceneArtifacts ?? null,
     segments: payload.segments.map((segment) => {
       const audioUrl =
         segment.audioBytes && segment.audioBytes.length > 0
