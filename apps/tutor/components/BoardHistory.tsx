@@ -35,8 +35,8 @@ interface BoardHistoryProps {
 const SIDEBAR_WIDTH = 264;
 
 const PANEL: CSSProperties = {
-  background: "#EEF3FA",
-  borderRight: "1px solid rgba(37, 99, 235, 0.1)",
+  background: "#0D1117",
+  borderRight: "1px solid rgba(240, 246, 252, 0.08)",
 };
 
 export { SIDEBAR_WIDTH };
@@ -227,12 +227,13 @@ function BoardHistoryContent({
 
 const STYLES = `
 .bh {
-  --ink: #152033;
-  --ink-soft: #4A5A72;
-  --ink-faint: #7B8BA3;
-  --accent: #2563EB;
-  --line: rgba(37, 99, 235, 0.12);
-  --paper: rgba(255, 255, 255, 0.72);
+  --ink: #E6EDF3;
+  --ink-soft: #8B949E;
+  --ink-faint: #6E7681;
+  --accent: #58A6FF;
+  --line: rgba(240, 246, 252, 0.08);
+  --paper: #161B22;
+  --hover: #21262D;
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
 }
@@ -274,12 +275,12 @@ const STYLES = `
 }
 
 .bh__icon-btn:hover {
-  background: rgba(255, 255, 255, 0.65);
+  background: var(--hover);
   color: var(--ink);
 }
 
 .bh__icon-btn[aria-pressed="true"] {
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--hover);
   color: var(--accent);
 }
 
@@ -293,7 +294,7 @@ const STYLES = `
   padding: 0.55rem 0.75rem;
   border-radius: 0.65rem;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--paper);
   color: var(--ink);
   font-size: 0.9rem;
   letter-spacing: normal;
@@ -307,8 +308,8 @@ const STYLES = `
 }
 
 .bh__search-input:focus {
-  border-color: rgba(37, 99, 235, 0.35);
-  background: #fff;
+  border-color: rgba(88, 166, 255, 0.4);
+  background: var(--hover);
 }
 
 .bh__new-wrap {
@@ -340,8 +341,8 @@ const STYLES = `
 }
 
 .bh__new:hover:not(:disabled) {
-  background: #fff;
-  border-color: rgba(37, 99, 235, 0.28);
+  background: var(--hover);
+  border-color: rgba(88, 166, 255, 0.35);
 }
 
 .bh__new:disabled {
@@ -382,15 +383,15 @@ const STYLES = `
 }
 
 .bh__item:hover {
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--hover);
 }
 
 .bh__item--active {
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--hover);
 }
 
 .bh__item--active:hover {
-  background: rgba(255, 255, 255, 0.98);
+  background: #30363D;
 }
 
 .bh__item-btn {
@@ -461,8 +462,8 @@ const STYLES = `
 }
 
 .bh__delete:hover {
-  background: rgba(15, 23, 42, 0.06);
-  color: var(--ink);
+  background: rgba(248, 81, 73, 0.15);
+  color: #F85149;
 }
 
 .bh__footer {
@@ -505,9 +506,9 @@ const STYLES = `
   right: 0;
   padding: 0.65rem 0.9rem;
   border-radius: 0.65rem;
-  background: #fff;
-  border: 1px solid #E5E7EB;
-  box-shadow: 0 12px 28px -12px rgba(15, 23, 42, 0.18);
+  background: #161B22;
+  border: 1px solid rgba(240, 246, 252, 0.1);
+  box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.55);
   min-width: 8rem;
   z-index: 20;
   font-size: 0.9rem;
@@ -521,7 +522,7 @@ const STYLES = `
   height: 2rem;
   border-radius: 9999px;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--paper);
   color: var(--ink-soft);
   cursor: pointer;
   display: inline-flex;
@@ -533,8 +534,8 @@ const STYLES = `
 
 .bh__profile:hover:not(:disabled),
 .bh__profile--open {
-  background: #fff;
-  border-color: rgba(37, 99, 235, 0.28);
+  background: var(--hover);
+  border-color: rgba(88, 166, 255, 0.35);
   color: var(--ink);
 }
 
@@ -598,7 +599,7 @@ export function BoardHistory({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="left"
-          className="board-sidebar w-[min(100%,280px)] border-r border-[rgba(37,99,235,0.1)] p-0 sm:max-w-[280px]"
+          className="board-sidebar w-[min(100%,280px)] border-r border-[rgba(240,246,252,0.08)] p-0 sm:max-w-[280px]"
           style={PANEL}
         >
           <SheetTitle className="sr-only">Board history</SheetTitle>
