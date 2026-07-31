@@ -56,15 +56,15 @@ function submitButtonLabel(mode: InputSubmitMode): string {
   return mode === "doubt" ? "Ask Doubt" : "Ask";
 }
 
-function submitButtonColors(mode: InputSubmitMode, inactive: boolean) {
+function submitButtonColors(_mode: InputSubmitMode, inactive: boolean) {
   if (inactive) {
     return {
-      backgroundColor: "rgba(34, 34, 34, 0.08)",
-      color: "rgba(17, 24, 39, 0.35)",
+      backgroundColor: "rgba(240, 246, 252, 0.06)",
+      color: "rgba(139, 148, 158, 0.7)",
     };
   }
 
-  return { backgroundColor: "#222222", color: "#FFFFFF" };
+  return { backgroundColor: "#238636", color: "#FFFFFF" };
 }
 
 export function InputBar({
@@ -182,10 +182,10 @@ export function InputBar({
         className="wb-input-wrap flex min-w-0 flex-1 items-center gap-1.5 px-2.5 py-2"
         style={{
           minHeight: "52px",
-          backgroundColor: "rgba(255, 255, 255, 0.95)",
-          border: "1px solid #E5E7EB",
+          backgroundColor: "#161B22",
+          border: "1px solid #30363D",
           borderRadius: "9999px",
-          boxShadow: "0 2px 16px -2px rgba(0, 0, 0, 0.1)",
+          boxShadow: "0 8px 24px -4px rgba(0, 0, 0, 0.45)",
         }}
       >
         <input
@@ -206,12 +206,12 @@ export function InputBar({
             disabled={disabled}
             aria-label="Add image"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40"
-            style={{ color: "#6B7280" }}
+            style={{ color: "#8B949E" }}
             onMouseEnter={(e) => {
-              if (!disabled) e.currentTarget.style.color = "#111827";
+              if (!disabled) e.currentTarget.style.color = "#E6EDF3";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = "rgba(51, 51, 51, 0.55)";
+              e.currentTarget.style.color = "#8B949E";
             }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -231,10 +231,10 @@ export function InputBar({
           onChange={(event) => setQuestion(event.target.value)}
           disabled={disabled}
           placeholder={placeholder}
-          className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-[15px] focus:outline-none disabled:opacity-50"
+          className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-[15px] focus:outline-none disabled:opacity-50 placeholder:text-[#6E7681]"
           autoComplete="off"
           spellCheck={false}
-          style={{ color: "#111827" }}
+          style={{ color: "#E6EDF3" }}
         />
 
         <button
@@ -244,16 +244,16 @@ export function InputBar({
           aria-label={isListening ? "Stop dictation" : "Dictate question"}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40"
           style={{
-            color: isListening ? "#2563EB" : "#6B7280",
+            color: isListening ? "#58A6FF" : "#8B949E",
           }}
           onMouseEnter={(e) => {
             if (!disabled && !isListening) {
-              e.currentTarget.style.color = "rgba(51, 51, 51, 0.85)";
+              e.currentTarget.style.color = "#E6EDF3";
             }
           }}
           onMouseLeave={(e) => {
             if (!isListening) {
-              e.currentTarget.style.color = "rgba(51, 51, 51, 0.55)";
+              e.currentTarget.style.color = "#8B949E";
             }
           }}
         >
@@ -284,8 +284,8 @@ export function InputBar({
               aria-label={isPaused ? "Resume teaching" : "Pause teaching"}
               className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
               style={{
-                backgroundColor: "rgba(37, 99, 235, 0.08)",
-                color: "#111827",
+                backgroundColor: "rgba(88, 166, 255, 0.15)",
+                color: "#E6EDF3",
               }}
             >
               {isPaused ? (
@@ -306,8 +306,8 @@ export function InputBar({
                 aria-label="Cancel teaching"
                 className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
                 style={{
-                  backgroundColor: "rgba(15, 23, 42, 0.06)",
-                  color: "#475569",
+                  backgroundColor: "rgba(240, 246, 252, 0.06)",
+                  color: "#8B949E",
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
