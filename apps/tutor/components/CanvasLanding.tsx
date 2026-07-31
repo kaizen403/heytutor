@@ -93,13 +93,13 @@ export function CanvasLanding({
 
 const STYLES = `
 .ac-landing {
-  --ink: #152033;
-  --ink-soft: #4A5A72;
-  --ink-faint: #7B8BA3;
-  --line: rgba(37, 99, 235, 0.14);
-  --paper: #fff;
-  --accent: #2563EB;
-  --cta: #1A1F2C;
+  --ink: #E6EDF3;
+  --ink-soft: #8B949E;
+  --ink-faint: #6E7681;
+  --line: rgba(240, 246, 252, 0.1);
+  --paper: #161B22;
+  --accent: #58A6FF;
+  --cta: #238636;
 
   width: 100%;
   max-width: 40rem;
@@ -161,11 +161,11 @@ const STYLES = `
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 9999px;
-  box-shadow: 0 10px 28px -16px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 10px 28px -16px rgba(0, 0, 0, 0.45);
 }
 
 .ac-landing__ask-row:focus-within {
-  border-color: rgba(37, 99, 235, 0.35);
+  border-color: rgba(88, 166, 255, 0.4);
 }
 
 .ac-landing__input {
@@ -197,8 +197,8 @@ const STYLES = `
 }
 
 .ac-landing__submit:disabled {
-  background: rgba(26, 31, 44, 0.08);
-  color: rgba(21, 32, 51, 0.35);
+  background: rgba(240, 246, 252, 0.06);
+  color: rgba(139, 148, 158, 0.7);
   cursor: not-allowed;
 }
 
@@ -227,7 +227,7 @@ const STYLES = `
   padding: 0.75rem 0.9rem;
   border: 1px solid var(--line);
   border-radius: 0.65rem;
-  background: rgba(255, 255, 255, 0.85);
+  background: #161B22;
   text-align: left;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
@@ -235,8 +235,8 @@ const STYLES = `
 
 .ac-landing__question:hover,
 .ac-landing__question:focus-visible {
-  background: #fff;
-  border-color: rgba(37, 99, 235, 0.28);
+  background: #21262D;
+  border-color: rgba(88, 166, 255, 0.35);
   outline: none;
 }
 
