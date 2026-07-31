@@ -47,17 +47,17 @@ interface SettingsDrawerProps {
   onSettingsChange: (settings: SettingsState) => void;
 }
 
-const SPEED_MIN = 1;
+const SPEED_MIN = 0.5;
 const SPEED_MAX = 3;
 const SPEED_STEP = 0.25;
 
 const theme = {
-  darkest: "#2563EB",
-  dark: "#111827",
-  sage: "#5FA4F9",
-  mint: "#F2F3F7",
-  border: "#E5E7EB",
-  borderSubtle: "rgba(229, 231, 235, 0.9)",
+  darkest: "#E6EDF3",
+  dark: "#8B949E",
+  sage: "#58A6FF",
+  mint: "#161B22",
+  border: "#30363D",
+  borderSubtle: "rgba(48, 54, 61, 0.9)",
 } as const;
 
 function SettingsSection({
@@ -67,7 +67,7 @@ function SettingsSection({
 }) {
   return (
     <section
-      className="rounded-xl border bg-white px-4 py-3.5 shadow-sm"
+      className="rounded-xl border bg-[#161B22] px-4 py-3.5 shadow-sm"
       style={{ borderColor: theme.border }}
     >
       {children}
@@ -135,8 +135,8 @@ function SelectPill({
       className={cn(
         "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
         checked
-          ? "border-[#2563EB] bg-[rgba(37,99,235,0.08)] text-[#2563EB] shadow-sm"
-          : "border-[rgba(37,99,235,0.28)] text-[#111827] hover:border-[#5FA4F9] hover:shadow-sm",
+          ? "border-[#58A6FF] bg-[rgba(88,166,255,0.12)] text-[#58A6FF] shadow-sm"
+          : "border-[#30363D] text-[#E6EDF3] hover:border-[#58A6FF] hover:shadow-sm",
         disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
       )}
     >
@@ -188,7 +188,7 @@ export function SettingsDrawer({
                 onChange={(event) =>
                   update({ speedMultiplier: Number(event.target.value) })
                 }
-                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-[#111827]"
+                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-[#58A6FF]"
                 style={{ backgroundColor: theme.borderSubtle }}
               />
               <span
@@ -252,7 +252,7 @@ export function SettingsDrawer({
                 onCheckedChange={(checked) =>
                   update({ subtitlesEnabled: checked })
                 }
-                className="data-[state=checked]:bg-[#2563EB] data-[state=unchecked]:bg-[rgba(37,99,235,0.35)]"
+                className="data-[state=checked]:bg-[#58A6FF] data-[state=unchecked]:bg-[#30363D]"
               />
             </div>
           </SettingsSection>
@@ -272,8 +272,8 @@ export function SettingsDrawer({
                     className={[
                       "h-8 w-8 rounded-full transition-all",
                       selected
-                        ? "scale-105 ring-2 ring-[#2563EB] ring-offset-2 ring-offset-white"
-                        : "ring-1 ring-[rgba(37,99,235,0.35)] hover:scale-105",
+                        ? "scale-105 ring-2 ring-[#58A6FF] ring-offset-2 ring-offset-[#161B22]"
+                        : "ring-1 ring-[#30363D] hover:scale-105",
                     ].join(" ")}
                     style={{ backgroundColor: color }}
                   />

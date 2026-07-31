@@ -14,7 +14,7 @@ export function TranscriptDialog({ text, open, onClose }: TranscriptDialogProps)
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(230, 242, 221, 0.7)" }}
+      style={{ backgroundColor: "rgba(1, 4, 9, 0.72)" }}
       onClick={onClose}
       role="presentation"
     >
@@ -24,20 +24,20 @@ export function TranscriptDialog({ text, open, onClose }: TranscriptDialogProps)
         aria-label="Lesson transcript"
         className="flex max-h-[min(70vh,520px)] w-full max-w-lg flex-col overflow-hidden"
         style={{
-          backgroundColor: "#FFFFFF",
+          backgroundColor: "#161B22",
           borderRadius: "12px",
-          border: "1px solid rgba(101, 146, 135, 0.3)",
-          boxShadow: "0 16px 48px -8px rgba(0, 0, 0, 0.15)",
+          border: "1px solid #30363D",
+          boxShadow: "0 16px 48px -8px rgba(0, 0, 0, 0.55)",
         }}
         onClick={(event) => event.stopPropagation()}
       >
         <div
           className="flex items-center justify-between px-5 py-3"
-          style={{ borderBottom: "1px solid rgba(101, 146, 135, 0.2)" }}
+          style={{ borderBottom: "1px solid #30363D" }}
         >
           <h2
             className="text-sm font-semibold tracking-wide"
-            style={{ color: "#111827" }}
+            style={{ color: "#E6EDF3" }}
           >
             transcript
           </h2>
@@ -46,7 +46,7 @@ export function TranscriptDialog({ text, open, onClose }: TranscriptDialogProps)
             onClick={onClose}
             aria-label="Close transcript"
             className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
-            style={{ color: "rgba(51, 51, 51, 0.8)" }}
+            style={{ color: "#8B949E" }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path
@@ -61,7 +61,7 @@ export function TranscriptDialog({ text, open, onClose }: TranscriptDialogProps)
         <div className="overflow-y-auto px-5 py-4">
           <p
             className="text-base leading-relaxed"
-            style={{ color: "rgba(51, 51, 51, 0.92)" }}
+            style={{ color: "#E6EDF3" }}
           >
             {text}
           </p>
