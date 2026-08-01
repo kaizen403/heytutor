@@ -59,7 +59,7 @@ export function SessionHeader({
 
   return (
     <header
-      className="mb-3 shrink-0 rounded-2xl border border-white/70 bg-white/90 px-3 py-2.5 shadow-[0_8px_30px_-18px_rgba(37,99,235,0.35)] backdrop-blur-md sm:px-4"
+      className="mb-3 shrink-0 rounded-2xl border border-[rgba(240,246,252,0.08)] bg-[#161B22]/90 px-3 py-2.5 shadow-[0_8px_30px_-18px_rgba(0,0,0,0.55)] backdrop-blur-md sm:px-4"
       style={{ flexShrink: 0 }}
     >
       <div className="flex items-center gap-3">
@@ -70,7 +70,7 @@ export function SessionHeader({
               type="button"
               onClick={onExpandSidebar}
               aria-label="Open navigation"
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] text-[#475569] transition-colors hover:border-[rgba(37,99,235,0.28)] hover:bg-[#EDF3FD] hover:text-[#2563EB] ${navButtonClassName ?? ""}`}
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#30363D] bg-[#21262D] text-[#8B949E] transition-colors hover:border-[rgba(88,166,255,0.35)] hover:bg-[#30363D] hover:text-[#58A6FF] ${navButtonClassName ?? ""}`}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -82,13 +82,13 @@ export function SessionHeader({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span
-                className="truncate text-[15px] font-semibold capitalize tracking-[-0.02em] text-[#0F172A] sm:text-base"
+                className="truncate text-[15px] font-semibold capitalize tracking-[-0.02em] text-[#E6EDF3] sm:text-base"
                 title={title}
               >
                 {title}
               </span>
               {isLive && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EDF3FD] px-2 py-0.5 text-[11px] font-medium text-[#2563EB]">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(88,166,255,0.12)] px-2 py-0.5 text-[11px] font-medium text-[#58A6FF]">
                   <span
                     className={`inline-block h-1.5 w-1.5 rounded-full ${activeStatus.dotClass}`}
                     style={{ backgroundColor: activeStatus.color }}
@@ -98,7 +98,7 @@ export function SessionHeader({
               )}
             </div>
             {!compactActions && (
-              <p className="mt-0.5 truncate text-[11px] text-[#64748B] sm:text-xs">
+              <p className="mt-0.5 truncate text-[11px] text-[#8B949E] sm:text-xs">
                 {isFreshBoard
                   ? "Ask a question below to start this board"
                   : isLive
@@ -124,13 +124,13 @@ export function SessionHeader({
             alwaysVisible
           />
 
-          <div className="hidden h-6 w-px bg-[#E2E8F0] sm:block" aria-hidden />
+          <div className="hidden h-6 w-px bg-[#30363D] sm:block" aria-hidden />
 
           <button
             type="button"
             onClick={onOpenSettings}
             aria-label="Board settings"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#475569] shadow-sm transition-colors hover:border-[rgba(37,99,235,0.3)] hover:bg-[#EDF3FD] hover:text-[#2563EB] sm:h-9 sm:w-9"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#30363D] bg-[#21262D] text-[#8B949E] shadow-sm transition-colors hover:border-[rgba(88,166,255,0.35)] hover:bg-[#30363D] hover:text-[#58A6FF] sm:h-9 sm:w-9"
           >
             <Settings className="h-4 w-4" strokeWidth={1.75} />
           </button>
@@ -140,7 +140,7 @@ export function SessionHeader({
               type="button"
               onClick={onStop}
               aria-label={isReplaying ? "Stop replay" : "Stop teaching"}
-              className="rounded-full border border-[#E5E7EB] bg-white px-3 py-1.5 text-[11px] font-medium text-[#475569] shadow-sm transition-colors hover:border-[rgba(37,99,235,0.3)] hover:bg-[#EDF3FD] hover:text-[#2563EB] sm:text-xs"
+              className="rounded-full border border-[#30363D] bg-[#21262D] px-3 py-1.5 text-[11px] font-medium text-[#8B949E] shadow-sm transition-colors hover:border-[rgba(88,166,255,0.35)] hover:bg-[#30363D] hover:text-[#E6EDF3] sm:text-xs"
             >
               Stop
             </button>
@@ -150,4 +150,3 @@ export function SessionHeader({
     </header>
   );
 }
-

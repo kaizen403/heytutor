@@ -14,12 +14,12 @@ export function BoardSettingsButton({ settings, onOpen }: BoardSettingsButtonPro
       className="absolute right-2 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-lg transition-all hover:opacity-100 sm:right-3 sm:top-3 sm:h-9 sm:w-9"
       style={{
         border: "none",
-        background: "rgba(255,255,255,0.55)",
+        background: "rgba(22,27,34,0.75)",
         backdropFilter: "blur(4px)",
         WebkitBackdropFilter: "blur(4px)",
         cursor: "pointer",
-        color: settings.speedMultiplier > 1 ? "#2563EB" : "rgba(17,24,39,0.65)",
-        opacity: 0.85,
+        color: settings.speedMultiplier > 1 ? "#58A6FF" : "rgba(230,237,243,0.75)",
+        opacity: 0.9,
       }}
     >
       <svg
