@@ -8,7 +8,7 @@ export function ThinkingOverlay({ message = "thinking about how to teach this…
       className="absolute inset-0 z-20 pointer-events-none"
       style={{
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(230,242,221,0.92) 100%)",
+          "linear-gradient(180deg, rgba(13,17,23,0.72) 0%, rgba(22,27,34,0.88) 100%)",
         backdropFilter: "blur(2px)",
       }}
     >
@@ -19,12 +19,12 @@ export function ThinkingOverlay({ message = "thinking about how to teach this…
         <div
           className="h-10 w-10 rounded-full border-2 border-transparent"
           style={{
-            borderTopColor: "#2563EB",
-            borderBottomColor: "#2563EB",
+            borderTopColor: "#58A6FF",
+            borderBottomColor: "#58A6FF",
             animation: "wb-spin 0.8s linear infinite",
           }}
         />
-        <p style={{ fontSize: "0.9rem", color: "#2563EB", fontWeight: 500 }}>
+        <p style={{ fontSize: "0.9rem", color: "#58A6FF", fontWeight: 500 }}>
           {message}
         </p>
       </div>
