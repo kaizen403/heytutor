@@ -23,7 +23,7 @@ import { useBoardSession } from "./hooks/useBoardSession";
 import { useAdaptiveDrawSpeed } from "./hooks/useAdaptiveDrawSpeed";
 import {
   type TutorSegment,
-  type DiagramTemplate,
+  type VerifiedDiagram,
 } from "@heytutor/drawing";
 import {
   type TTSClient,
@@ -62,6 +62,7 @@ export function TutorSessionPage() {
   const replayAudioPreloadRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const cancelRef = useRef(false);
   const turnActiveRef = useRef(false);
+  const turnGenerationRef = useRef(0);
   const turnAbortRef = useRef<AbortController | null>(null);
   const segmentChainRef = useRef(Promise.resolve());
   const drawChainRef = useRef(Promise.resolve());
@@ -74,7 +75,7 @@ export function TutorSessionPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const fbdPhaseMarkedRef = useRef(false);
   const fbdPhaseStartedRef = useRef(false);
-  const activeDiagramTemplateRef = useRef<DiagramTemplate | null>(null);
+  const activeVerifiedDiagramRef = useRef<VerifiedDiagram | null>(null);
   const segmentPlanStatsRef = useRef<SegmentPlanStats>(createEmptySegmentPlanStats());
   const stopTurnRef = useRef<(() => void) | null>(null);
   const pendingSegmentCountRef = useRef(0);
@@ -137,8 +138,10 @@ export function TutorSessionPage() {
     narrationSinceEpochRef,
     forceSequentialWorkLayoutRef,
     resetBoardLayout,
+    beginBoardEpoch,
     forgetErasedTextRects,
     resolveTextPlacement,
+    reserveTextCommandPlacement,
   } = useBoardLayout({
     whiteboardRef,
     cancelRef,
@@ -153,7 +156,7 @@ export function TutorSessionPage() {
     forceSequentialWorkLayoutRef,
     fbdPhaseMarkedRef,
     fbdPhaseStartedRef,
-    activeDiagramTemplateRef,
+    activeVerifiedDiagramRef,
     turnTelemetryRef,
     notesEpochsRef,
     narrationSinceEpochRef,
@@ -193,6 +196,8 @@ export function TutorSessionPage() {
     ttsClientRef,
     speedRef,
     stopTurnRef,
+    replayAudioRef,
+    replayAudioPreloadRef,
     setNarrationText,
     setCurrentSegmentText,
     resetBoardLayout,
@@ -236,6 +241,7 @@ export function TutorSessionPage() {
     replayAudioPreloadRef,
     cancelRef,
     turnActiveRef,
+    turnGenerationRef,
     turnAbortRef,
     segmentChainRef,
     drawChainRef,
@@ -250,7 +256,7 @@ export function TutorSessionPage() {
     boardLayoutRef,
     fbdPhaseMarkedRef,
     fbdPhaseStartedRef,
-    activeDiagramTemplateRef,
+    activeVerifiedDiagramRef,
     segmentPlanStatsRef,
     stopTurnRef,
     speedRef,
@@ -276,6 +282,8 @@ export function TutorSessionPage() {
     raceWithCancel,
     clearCancelTimers,
     resetBoardLayout,
+    beginBoardEpoch,
+    reserveTextCommandPlacement,
     persistTurnForReplay,
     registerReplayBlobUrl,
     revokeReplayBlobUrls,
@@ -439,7 +447,7 @@ export function TutorSessionPage() {
             }}
           >
             {fullBleedLanding && (
-              <div className="absolute inset-0 z-20 flex flex-col overflow-y-auto overscroll-contain rounded-2xl border border-[rgba(37,99,235,0.08)] bg-[#F7FAFF]">
+              <div className="absolute inset-0 z-20 flex flex-col overflow-y-auto overscroll-contain rounded-2xl border border-[rgba(240,246,252,0.08)] bg-[#0D1117]">
                 <div className="flex min-h-full w-full flex-col justify-center px-4 py-6 sm:px-8 sm:py-10">
                   <CanvasLanding
                     suggestions={LANDING_SUGGESTIONS}
@@ -468,7 +476,7 @@ export function TutorSessionPage() {
               <div
                 className="pointer-events-none absolute inset-0 z-10"
                 style={{
-                  backgroundColor: "rgba(242, 247, 252, 0.72)",
+                  backgroundColor: "rgba(13, 17, 23, 0.55)",
                   backdropFilter: "blur(8px)",
                   WebkitBackdropFilter: "blur(8px)",
                 }}
@@ -479,12 +487,12 @@ export function TutorSessionPage() {
               <div
                 className="absolute inset-0 z-30 flex items-center justify-center"
                 style={{
-                  backgroundColor: "rgba(242, 247, 252, 0.72)",
+                  backgroundColor: "rgba(13, 17, 23, 0.55)",
                   backdropFilter: "blur(8px)",
                   WebkitBackdropFilter: "blur(8px)",
                 }}
               >
-                <p className="text-sm text-slate-500">Loading board…</p>
+                <p className="text-sm text-[#8B949E]">Loading board…</p>
               </div>
             )}
 
