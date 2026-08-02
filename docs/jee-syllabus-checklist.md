@@ -406,7 +406,7 @@
 ## Notes for heytutor Coverage Verification
 
 - Topics deleted from JEE Main 2025 syllabus (do NOT implement): Mathematical Induction, Mathematical Reasoning, Communication Systems.
-- Physics Section B (experimental skills) requires diagram templates for apparatus — consider how to represent vernier callipers, screw gauge, metre bridge, resonance tube, etc.
+- Physics Section B (experimental skills) requires reusable apparatus entities and measurement operators for vernier callipers, screw gauges, metre bridges, resonance tubes, and related setups.
 - Calculus notation support (d/dx, lim, integral, infinity) is planned in Phase 4 of the JEE Full Coverage Plan.
 - Mensuration overlaps between Calculus (area under curves) and Coordinate Geometry (area of triangles, tangent conditions) — verify both paths work.
 - Templates already planned for calculus (calculusGraph.ts) and 3D geometry (threeDAxes.ts) in Phase 2b — these directly support first-focus units.
