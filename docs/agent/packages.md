@@ -1,89 +1,78 @@
 # Shared Packages
 
-All packages live in `packages/`, built with **tsup** (ESM + `.d.ts`), consumed by apps via `workspace:*` deps.
+All packages live in `packages/`, build with tsup, and are consumed through
+workspace dependencies.
+
+## `@heytutor/scene-engine`
+
+The only structural diagram authority.
+
+| Concern | File |
+|---|---|
+| Scene contracts | `src/contractsV3.ts`, `src/types.ts` |
+| Universal problem and solver contracts | `src/problemIR.ts`, `src/solver.ts` |
+| Solver authority binding | `src/solverAuthority.ts` |
+| Safe remote solver boundary | `src/remoteSolver.ts` |
+| Expression evaluation | `src/expression.ts` |
+| Validation and compile | `src/validation.ts`, `src/compiler.ts` |
+| Topology proofs | `src/topology.ts` |
+| Optics / reflection laws | `src/opticsLaws.ts` |
+| Label placement | `src/labelEngine.ts` |
+| Golden corpus | `scripts/verify-golden-corpus.ts` |
+| Capability corpora | `scripts/verify-physics-evaluation-corpus.ts`, `scripts/verify-math-evaluation-corpus.ts` |
+
+The package consumes coordinate-free semantic documents and emits validated
+screen-space render primitives. It contains reusable operators and assertions,
+not syllabus-topic plugins.
 
 ## `@heytutor/drawing`
 
-**What to draw** — protocol, parsing, shapes, handwriting, diagram templates.
+Generic whiteboard transport and animation utilities.
 
-| Module | File | Description |
-|--------|------|-------------|
-| Protocol | `src/drawingProtocol.ts` | `DrawCommand` types, tag parsing |
-| Incremental parser | `src/incrementalParser.ts` | `IncrementalTagParser` — char-by-char during LLM stream |
-| Lesson planner | `src/lessonPlanner.ts` | `buildLessonSegments()` — splits `[STEP]...[/STEP]` into segments |
-| Handwriting | `src/handwriting.ts` | Tegaki stroke paths for text |
-| Shape paths | `src/shapePaths.ts` | SVG/Konva paths (cuboid, circle, annotation gestures) |
-| Board zones | `src/boardZones.ts` | Canvas layout — 1200×700, diagram zone x 400–900 |
-| Command placement | `src/commandPlacement.ts` | Template repair, label snapping, duplicate detection |
-| Geometry snap | `src/geometrySnap.ts` | Snap points to template / compiler anchors at draw time |
-| Geometry compiler | `src/geometry/` | SceneSpec IR, constraint solver (`angle`/`intersect`/`reflect`), plugins (optics/circuit/mechanics/euclidean/axes/generic) → DrawCommands |
-| Post-compile repair | `src/geometry/postCompileRepair.ts` | Clamp/round compiled commands before intro enqueue |
-| Stroke animation | `src/strokeAnimation.ts` | Animated drawing along paths |
-| Cursor animation | `src/cursorAnimation.ts` | Cursor follows bezier/path |
-| Templates | `src/templates/registry.ts` | Golden fixtures + last-resort fallback (FBD, circuits, optics family, …) |
-| Optics family | `src/templates/opticsFamily.ts` | Ray Optics fixtures (mirror, lens, prism, TIR, combo, instruments, slab) |
-| Optics precision | `src/templates/opticsPrecision.ts` | Classifier + deterministic builders (optics compiler plugin) |
+| Concern | File |
+|---|---|
+| Command protocol and persistence envelopes | `src/drawingProtocol.ts` |
+| Streaming tag parser | `src/incrementalParser.ts` |
+| Step segmentation | `src/lessonPlanner.ts` |
+| Verified diagram transport | `src/verifiedDiagram.ts` |
+| Teaching command ownership | `src/commandPlacement.ts` |
+| Shape and handwriting paths | `src/shapePaths.ts`, `src/handwriting.ts` |
+| Board zones | `src/boardZones.ts` |
+| Stroke/cursor animation | `src/strokeAnimation.ts`, `src/cursorAnimation.ts` |
 
-**Verify scripts:** `pnpm --filter @heytutor/tutor-core verify` runs drawing-related smoke tests.
+This package no longer contains topic templates, a geometry compiler, domain
+plugins, or endpoint snapping.
 
 ## `@heytutor/tutor-core`
 
-**How to talk** — LLM client, TTS clients, audio-drawing sync, prompts.
+Planning transport, teaching model, TTS, and audio synchronization.
 
-| Module | File | Description |
-|--------|------|-------------|
-| LLM streaming | `src/llmAPI.ts` | `streamLLMResponse()` — SSE from `/api/chat` |
-| Scene planner | `src/scenePlanner.ts` | `planScene()` — SceneSpec autoformalizer via `x-planner` |
-| Diagram architect (legacy) | `src/diagramArchitect.ts` | Pixel `planDiagram()` kept for reference / migration |
-| System prompt | `src/systemPrompt.ts` | Teaching rules, sync-aware command placement |
-| Audio sync | `src/audioSync.ts` | TTS timings → per-char write schedules, command speech windows |
-| TTS HTTP | `src/elevenLabsClient.ts` | HTTP ElevenLabs client + `mathToSpeech()` |
-| TTS WebSocket | `src/elevenLabsWebSocketClient.ts` | Browser streaming TTS with alignment |
-| TTS factory | `src/createTTSClient.ts` | Browser → WebSocket; server → HTTP proxy |
-| Mock responses | `src/mockResponses.ts` | Fallback when no `FIREWORKS_API_KEY` |
-| Sentence chunker | `src/sentenceChunker.ts` | Splits narration for TTS |
-| Debug | `src/tutorDebug.ts` | Scoped console logging (`llm`, `draw`, `optics`, …) when `TUTOR_DEBUG=1` |
-| JEE syllabus | `src/jee/jeeSyllabus.ts`, `jeeLabelCues.ts` | JEE topic matching + narration label rules |
-| Topic planner | `src/topicPlanner.ts` | Per-question diagram/template prompt injection |
-| Debug | `src/tutorDebug.ts` | Structured debug logging (`[tutor:tts]`, `[tutor:draw]`, etc.) |
+| Concern | File |
+|---|---|
+| Turn plan | `src/turnPlannerV3.ts` |
+| Problem IR planner | `src/problemPlannerV1.ts` |
+| Scene-document planner and repair | `src/scenePlannerV2.ts`, `src/scenePlannerV2Prompt.ts` |
+| Scene capability catalog | `src/sceneCapabilities.ts` |
+| Teaching prompt | `src/systemPrompt.ts` |
+| LLM stream | `src/llmAPI.ts` |
+| Audio sync | `src/audioSync.ts` |
+| TTS | `src/createTTSClient.ts`, `src/elevenLabsClient.ts`, `src/elevenLabsWebSocketClient.ts` |
 
-**Not exported from index** but used internally: `topicPlanner.ts`, JEE modules.
+The teaching prompt is domain-neutral and cannot author diagram ink.
 
 ## `@heytutor/whiteboard`
 
-**Where to draw** — Konva canvas with imperative handle.
+Konva rendering and imperative draw/write APIs. It renders trusted commands but
+does not decide diagram semantics.
 
-| File | Description |
-|------|-------------|
-| `Whiteboard.tsx` | Main canvas — `writeText()`, `drawShape()`, `eraseRegion()`, `clearBoard()`, annotation gestures |
-| `VirtualCursor.tsx` | Animated teaching cursor |
-| `SpeakingWaveform.tsx` | Voice activity indicator |
-| `ThinkingSpinner.tsx` | Loading state |
-
-Key API: `WhiteboardHandle` with `writeText(text, x, y, duration, schedule?)` where `schedule` is a `WriteSchedule` from `audioSync.ts`.
-
-## `@heytutor/design-tokens`
-
-Shared design constants. `src/designTokens.ts` exports `DS` — sage-green palette, whiteboard colors, canvas size, corner radii. Used by tutor app and landing site.
-
-## `@heytutor/eslint-config` / `@heytutor/typescript-config`
-
-Shared tooling configs. Not imported at runtime.
-
-- ESLint: `base.mjs`, `react.mjs`, `next.mjs`
-- TypeScript: `base.json`, `react-library.json`, `nextjs.json`
-
-## Building Packages
+## Verification
 
 ```bash
-# Build all packages (turbo handles dependency order)
-pnpm build
-
-# Watch a single package during dev
-pnpm --filter @heytutor/drawing dev
-
-# Typecheck everything
+pnpm --filter @heytutor/scene-engine verify
+pnpm --filter @heytutor/tutor-core verify
+pnpm --filter @heytutor/whiteboard verify
+pnpm --filter @heytutor/tutor verify
 pnpm typecheck
+pnpm lint
+pnpm build
 ```
-
-Turbo `dev` task has `dependsOn: ["^build"]`, so `pnpm dev:tutor` rebuilds packages automatically.
