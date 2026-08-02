@@ -8,23 +8,29 @@ Always read this file before touching the tutor sync path.
 
 The product is an AI whiteboard tutor. It should teach like a human teacher:
 
-- Speak and draw/write at the same time.
+- Commit a verified diagram first, then speak and write at the same time.
 - If the tutor says "five x plus three", the board should write `5x + 3` while those words are spoken, not after the sentence finishes.
-- Drawing should support any subject, not only math: formulas, diagrams, labels, vocabulary, cause/effect flows, summaries, etc.
+- Diagram geometry/labels come only from `@heytutor/scene-engine`. The teaching stream owns narration and left work-area `WRITE`.
 - The narration should teach concepts. It should not narrate UI actions like "I am drawing a circle."
+
+For diagram authority, representation tiers, and ownership rules see
+[universal-illustration-engine-v4.md](universal-illustration-engine-v4.md) and
+[agent/architecture.md](agent/architecture.md). This file is about speech ↔
+handwriting sync after the verified scene is committed.
 
 ## High-Level Flow
 
 The main live path is:
 
 1. User submits a question via `useQuestionHandler` in `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts` (rendered from `TutorSessionPage`).
-2. `streamLLMResponse()` in `packages/tutor-core/src/llmAPI.ts` streams text from Fireworks.
-3. The response is parsed into lesson segments by `buildLessonSegments()` in `packages/drawing/src/lessonPlanner.ts`.
-4. Each segment is queued through `enqueueSegment()` / `segmentChainRef` in `useTurnControl.ts`.
-5. `runSegment()` in `useSegmentRunner.ts` speaks the segment narration and runs the segment drawing command concurrently.
-6. `createTTSClient()` returns `ElevenLabsWebSocketTTSClient` in the browser.
-7. `Whiteboard.writeText()` or `Whiteboard.drawShape()` renders on Konva layers.
-8. Captured audio/timings/commands are persisted as turns and replayed later by `replayLecture()`.
+2. The verified-scene pipeline commits diagram ink (TurnPlanV3 → ProblemIR/solver → SceneDocument → presentation). Teaching does not start until that commit.
+3. `streamLLMResponse()` in `packages/tutor-core/src/llmAPI.ts` streams teaching text from Fireworks.
+4. `prepareVerifiedLessonSegments()` keeps narration and work-area `WRITE`/`PAUSE` only.
+5. Segments are queued through `enqueueSegment()` / `segmentChainRef` in `useTurnControl.ts`.
+6. `runSegment()` in `useSegmentRunner.ts` speaks the segment narration and runs allowed write commands concurrently.
+7. `createTTSClient()` returns `ElevenLabsWebSocketTTSClient` in the browser (multi-context per segment).
+8. `Whiteboard.writeText()` renders work-area ink on Konva layers; verified reveal groups animate separately.
+9. Captured audio/timings/commands are persisted as turns and replayed later by `replayLecture()`.
 
 ## Critical Files
 
@@ -208,54 +214,34 @@ Run:
 
 ```bash
 pnpm turbo run typecheck
+pnpm --filter @heytutor/tutor verify
 pnpm --filter @heytutor/tutor build
 ```
 
-Full lint may fail in some local environments if package-local `eslint` binaries are not linked; the tutor build runs Next lint/type checks for the app.
-
-Annotation path smoke test:
+Useful sync-adjacent verifies:
 
 ```bash
-pnpm --filter @heytutor/tutor exec tsx "../../packages/tutor-core/scripts/verify-annotation-paths.ts"
-pnpm --filter @heytutor/tutor exec tsx "../../packages/tutor-core/scripts/verify-fbd-mock.ts"
+pnpm --filter @heytutor/tutor exec tsx scripts/verify-tts-relay-protocol.ts
+pnpm --filter @heytutor/tutor exec tsx scripts/verify-teaching-transport.ts
+pnpm --filter @heytutor/tutor exec tsx scripts/verify-replay-speed.ts
 ```
 
-Manual review-mode check:
+Manual work-area sync check:
 
 1. Ask: "solve 2x + 3 = 7 and explain each step"
-2. Expect: write the equation, then on review steps use UNDERLINE/CIRCLE_AROUND on **x** or **2x** instead of only adding new lines below.
-3. Langfuse marks to inspect: `annotate-start`, `annotate-snap` (when rect snap applied), `annotate-complete`.
+2. Expect: verified diagram (if required) commits first; then equation `WRITE`s appear while the matching spoken cue is heard, not after the full sentence.
+3. Rejected diagram tags from the teaching stream must not drop useful narration.
+4. Langfuse marks to inspect: segment schedule events, `unverified-draw-blocked`, TTS context-final / alignment rebase.
 
-Manual physics FBD check (mock mode works without API keys):
+Diagram correctness is owned by the scene-engine corpora and
+[agent/geometry-debug.md](agent/geometry-debug.md), not by teaching-stream
+annotation mocks.
 
-1. Ask: "Solve: a 5 kg box is pushed with 20 N on a surface with μ = 0.3. Find acceleration and draw the free-body diagram."
-2. Pass criteria:
-   - Full free-body diagram on the right (surface, block, mass label, F/f/N/mg) before left-side algebra.
-   - No long voice-only gap between drawing the box and drawing force arrows.
-   - During the solve phase, at least two review-mode annotations on the diagram when friction, normal, or weight are discussed.
-3. Langfuse marks to inspect:
-   - `fbd-phase-start` — first diagram ink in the diagram zone (x 400–900, y 140–520).
-   - `fbd-phase-complete` — surface + block + at least three force labels registered.
-   - `annotate-on-diagram` — annotation command whose probe coords fall in the diagram zone.
-   - `annotate-snap` — rect snap applied (including narration-based snap to F/f/N/mg anchors).
-
-The `verify-fbd-mock.ts` script asserts the keyword mock follows diagram-first pacing and includes solve-phase annotations.
-
-## Board Annotation Commands
-
-Review-mode gestures emphasize existing ink without rewriting:
-
-| Command | Use |
-|---|---|
-| `UNDERLINE` | Emphasize a term already on the board |
-| `CIRCLE_AROUND` | Loop around a phrase or subexpression |
-| `ARROW` | Point from a label to part of the work |
-| `HIGHLIGHT` | Soft translucent box behind text |
-| `SCRIBBLE` | Quick rough emphasis stroke |
-
-Path generators live in `packages/drawing/src/shapePaths.ts`. Runtime dispatch and rect snapping live in `useCommandExecution.ts` via `resolveAnnotationTarget()` and `boardLayoutRef`. Highlights render on a layer below ink in `Whiteboard.drawAnnotation()`.
-
-Multi-command segments: `lessonPlanner.ts` groups consecutive tags with empty narration into one segment with `commands[]`. Persistence stores `{ commands: [...] }` in the segment `command` JSON when needed; replay uses `parseStoredSegmentCommands()`.
+Multi-command segments: `lessonPlanner.ts` groups consecutive tags with empty
+narration into one segment with `commands[]`. Persistence stores
+`{ commands: [...] }` in the segment `command` JSON when needed; replay uses
+`parseStoredSegmentCommands()`. Work-area coordinates are runtime-allocated;
+model-supplied text coordinates cannot enter the diagram viewport.
 
 ## Current Root-Cause Notes
 

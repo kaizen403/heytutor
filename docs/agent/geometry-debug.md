@@ -1,53 +1,47 @@
-# Geometry Engine Debug Playbook
+# Verified Scene Debug Playbook
 
-Diagrams come from **SceneSpec → Geometry Compiler**, not from LLM pixel guessing or live regex template matching.
-
-Regex templates remain as golden fixtures inside domain plugins (optics/circuit/mechanics) and for test verification. `matchDiagramTemplate` is telemetry-only on the turn path.
-
-For Ray Optics precision-builder internals still used by the optics plugin, see [optics-debug.md](optics-debug.md).
-
-## Quick path
+## Trace Order
 
 1. Open the Langfuse turn by `traceId`.
-2. Read planner span metadata: `source`, `kind`, `plugin`, `residual`, `command_count`, `template_compare_id`, `degrade_reason`.
-3. Look for `geometry-compile` / planner `source=compiler`.
-4. For optics, also follow [optics-debug.md](optics-debug.md) (`optics-intro-built`, snaps, ray draws).
+2. Inspect `TurnPlanV3`: exact quantities, claims, laws, assumptions, and
+   `visualRequirement`.
+3. Inspect candidate spans and structured validation issue codes.
+4. Inspect the accepted scene artifact, compiler counts, and render primitives.
+5. Inspect `verified-scene-intro-queued` and `unverified-draw-blocked` events.
+6. Confirm narration starts only after a `validated` commit.
 
-## Event → failure mode
+## Common Failures
 
-| Symptom | Look at | Means |
+| Symptom | Evidence | Likely boundary |
 |---|---|---|
-| No diagram / narration-only | `degrade_reason`, compile `ok`, `source=none` | Scene missing, high residual, or compile failed |
-| Wrong domain (circuit for optics) | `kind` / `plugin` | Autoformalizer or `inferSceneFromQuestion` mis-route |
-| Soft geometry / drifted points | `residual` | Constraint solver did not converge |
-| Optics quality regression | `plugin=optics` + optics events | Precision builder / classify path |
-| Template compare id set but source=compiler | `template_compare_id` | Fixture would have matched; compiler owns ink |
-| LLM redrew skeleton | `template-draw-blocked` | Guard working; check `allowLlmDrawInDiagramZone` |
+| Conceptual fallback instead of exact diagram | `scene_representation_tier` is not `exact_verified` | Planner transport, unsupported operator, or fatal exact-scene validation |
+| No required diagram | `visual_status=retry_required` | Exact and source representations both failed; treat as an invariant bug |
+| Wrong value or sign | quantity agreement / turn-plan proof issue | Turn plan or scene candidate |
+| Wrong connection | topology assertion issue | Scene endpoints or construction graph |
+| Missing object | required-render issue | Scene entity or compiler primitive coverage |
+| Labels collide | label placement issue | Screen-space label engine |
+| Speech stops after bad draw tag | segment filtering counters | Teaching filter or queue; narration should be retained |
+| Diagram is overwritten | `unverified-draw-blocked` absent | Verified diagram ownership guard |
 
-## Happy path
-
-```
-inferSceneFromQuestion (fast) or planScene (LLM SceneSpec)
-  → compileScene (optics/circuit/mechanics/euclidean/axes/generic + repair)
-  → intro segments (introPhases when present)
-  → teaching stream with named anchors
-```
-
-## Key files
+## Key Files
 
 | Concern | File |
 |---|---|
-| Scene IR | `packages/drawing/src/geometry/sceneSpec.ts` |
-| Compiler | `packages/drawing/src/geometry/compileScene.ts` |
-| Constraint solver | `packages/drawing/src/geometry/solver.ts` |
-| Plugins | `packages/drawing/src/geometry/plugins/` |
-| Local infer | `packages/drawing/src/geometry/inferScene.ts` |
-| Planner HTTP | `packages/tutor-core/src/scenePlanner.ts` |
-| Turn wiring | `apps/tutor/.../useQuestionHandler.ts` |
+| Contracts | `packages/scene-engine/src/contractsV3.ts`, `types.ts` |
+| Problem and solver proofs | `packages/scene-engine/src/problemIR.ts`, `solver.ts`, `solverAuthority.ts`, `remoteSolver.ts` |
+| Validation/compiler | `packages/scene-engine/src/validation.ts`, `compiler.ts` |
+| Topology | `packages/scene-engine/src/topology.ts` |
+| Labels | `packages/scene-engine/src/labelEngine.ts` |
+| Planner transport | `packages/tutor-core/src/scenePlannerV2.ts`, `apps/tutor/lib/plannerTransport.ts` |
+| Presentation / fallback | `apps/tutor/features/tutor-session/lib/verifiedScenePresentation.ts`, `representationFallbackV4.ts` |
+| Persistence trust | `apps/tutor/lib/turnScenePersistence.ts` |
+| Turn wiring | `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts` |
+| Command ownership | `packages/drawing/src/commandPlacement.ts` |
 
 ## Verify
 
 ```bash
-pnpm --filter @heytutor/drawing verify:geometry
+pnpm --filter @heytutor/scene-engine verify
 pnpm --filter @heytutor/tutor-core verify
+pnpm --filter @heytutor/tutor verify
 ```
