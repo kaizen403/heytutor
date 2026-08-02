@@ -1,124 +1,80 @@
 # Architecture
 
-## Mental Model
+HeyTutor has two coordinated streams with one authority boundary: a verified
+diagram stream and a narrated work stream.
 
-```
-User question
-    ↓
-streamLLMResponse()          ← packages/tutor-core (Fireworks SSE via /api/chat)
-    ↓
-buildLessonSegments()        ← packages/drawing (parse [STEP] blocks + drawing tags)
-    ↓
-enqueueSegment() → runSegment() ← apps/tutor/features/tutor-session/hooks/
-    ↓
-TTS (ElevenLabs WS)  +  Whiteboard (Konva)   ← parallel, synced via audioSync.ts
-    ↓
-saveTurn() → Postgres + R2    ← apps/tutor/app/api/boards/[boardId]/turns
-```
+## Turn Flow
 
-## Apps
+```text
+question
+  -> TurnPlanV3 (quantities, claims, laws, visualRequirement)
+  -> ProblemIR/v1 + SolverResult/v1 (source-grounded numeric authority)
+  -> scene-document/v2 candidates + reusable constraint compilers
+  -> deterministic validation, proof checks, repair, compile, label layout
+  -> exact_verified | qualitative_verified | question_representation
+  -> atomic VerifiedDiagram commit
+  -> trusted reveal commands on Konva
 
-### `apps/tutor` — main product
-
-Next.js 15 app with a **custom Node server** (`server.ts`) that serves Next.js and relays WebSocket TTS at `/api/tts/ws`.
-
-| Area | Path | Role |
-|------|------|------|
-| Session route | `app/c/[sessionId]/page.tsx` | Thin wrapper → `TutorSessionPage` |
-| Orchestrator | `features/tutor-session/TutorSessionPage.tsx` | Whiteboard, input, replay, settings |
-| Turn lifecycle | `features/tutor-session/hooks/useTurnLifecycle.ts` | Composes question + segment hooks |
-| Question flow | `hooks/turn/useQuestionHandler.ts` | Submits question, streams LLM, enqueues segments |
-| Segment playback | `hooks/turn/useSegmentRunner.ts` | Runs TTS + drawing per segment |
-| Command dispatch | `hooks/useCommandExecution.ts` | Executes `DrawCommand`s on whiteboard |
-| Board loading | `hooks/useBoardSession.ts` | Fetches board + turns from API |
-| Replay | `hooks/useReplay.ts` | Replays saved turns with audio + drawing |
-| Custom server | `server.ts` | HTTP + WebSocket TTS relay to ElevenLabs |
-| Dev bootstrap | `scripts/dev.ts` | Starts Postgres, runs migrations, starts server |
-
-### `apps/landing` — marketing site
-
-Vite + React 19 static site. No backend. Uses `@heytutor/design-tokens`.
-
-## Package Dependency Graph
-
-```
-design-tokens          (standalone)
-drawing                (roughjs, tegaki)
-tutor-core             → drawing
-whiteboard             → drawing, design-tokens
-tutor app              → drawing, tutor-core, whiteboard, design-tokens
+question + TurnPlanV3 + visible diagram context
+  -> teaching LLM [STEP] narration + work-area WRITE
+  -> incremental parser
+  -> TTS and handwriting schedules
 ```
 
-## Data Model (Prisma)
+The teaching model cannot draw, label, annotate, erase, or move diagram ink.
+`prepareVerifiedLessonSegments()` removes those commands before queueing, and
+`useCommandExecution()` enforces the same ownership again at execution time.
+`[FOCUS:entity_id]` may only trace existing verified geometry.
 
-```
-User (id from cookie)
-  └── Board (id, title, preview)
-        └── Turn (question, rawResponse, speedMultiplier, traceId)
-              └── Segment (narration, spokenText, command JSON, audioUrl, timings JSON)
-```
+## Main App
 
-Schema: `apps/tutor/prisma/schema.prisma`
+| Concern | Path |
+|---|---|
+| Turn planning and commit | `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts` |
+| Speech/draw scheduling | `apps/tutor/features/tutor-session/hooks/turn/useSegmentRunner.ts` |
+| Command execution guard | `apps/tutor/features/tutor-session/hooks/useCommandExecution.ts` |
+| Verified presentation | `apps/tutor/features/tutor-session/lib/verifiedScenePresentation.ts` |
+| Representation fallback | `apps/tutor/features/tutor-session/lib/representationFallbackV4.ts` |
+| Scene recovery | `apps/tutor/features/tutor-session/lib/verifiedSceneRecovery.ts` |
+| Replay | `apps/tutor/features/tutor-session/hooks/useReplay.ts` |
+| Persistence trust boundary | `apps/tutor/lib/turnScenePersistence.ts` |
+| Persistence API | `apps/tutor/app/api/boards/[boardId]/turns/route.ts` |
+| Planner/chat proxy | `apps/tutor/app/api/chat/route.ts` |
 
-## Auth
+## Packages
 
-No login. `middleware.ts` sets an httpOnly `htutor_uid` cookie (10-year maxAge). `lib/auth.ts` reads it and upserts a `User` row.
-
-## Split Deploy
-
-Production can split frontend and backend:
-
-| Component | Where | Env |
-|-----------|-------|-----|
-| Next.js UI | Vercel | `BACKEND_ORIGIN` in middleware |
-| API + WebSocket | Azure VM (Docker) | `server.ts` |
-| Client API/WS URLs | Browser | `NEXT_PUBLIC_API_ORIGIN`, `NEXT_PUBLIC_WS_ORIGIN` |
-
-See [ci-cd.md](../ci-cd.md).
-
-## Drawing Protocol
-
-The LLM embeds commands inline with narration:
-
-```
-[DRAW_RECT:x,y,w,h]  [DRAW_CIRCLE:cx,cy,r]  [DRAW_LINE:x1,y1,x2,y2]
-[DRAW_ARC:cx,cy,r,startDeg,endDeg]  [DRAW_POINT:x,y,r?]
-[WRITE:text,x,y]     [LABEL:text,x,y]        [PAUSE:ms]
-[CLEAR]              [ERASE:x,y,w,h]
-[UNDERLINE:...]      [CIRCLE_AROUND:...]     [ARROW:...]  [HIGHLIGHT:...]
+```text
+scene-engine          semantic contracts, validation, proofs, layout, compile
+drawing               generic command protocol, filtering, paths, animation
+tutor-core            planners, teaching stream, TTS, audio synchronization
+whiteboard            Konva renderer
+design-tokens         shared visual constants
 ```
 
-Responses are wrapped in `[STEP]...[/STEP]` blocks. Each block becomes one or more `TutorSegment`s with paired narration + command.
+## Persistence
 
-Full protocol: `packages/drawing/src/drawingProtocol.ts`
+Before write, the server revalidates the turn plan, recompiles the accepted
+scene, rebuilds non-metric fallbacks when needed, recomputes supported solver
+results, and accepts trusted command envelopes only when they exactly match the
+fresh server presentation. A turn stores narration segments plus verified-scene
+artifacts when present: turn plan, candidates, accepted scene document, engine
+version, validation report, and visual status.
 
-## Geometry Engine (Scene IR)
+Historical `visualStatus: "legacy"` is a read-compatibility value only. New
+legacy turns normalize to text-only.
 
-Diagrams are planned as a semantic **SceneSpec** (entities + constraints + quantities), then compiled to exact `DrawCommand`s:
+## Failure Rules
 
-```
-question → planScene() / inferSceneFromQuestion()
-        → compileScene()  (optics/circuit/euclidean/axes/generic plugins)
-        → DiagramTemplate + intro segments
-        → teaching LLM (anchors only; no skeleton redraw)
-```
+- Invalid or partial candidates never render.
+- A required visual whose exact candidate fails becomes a separately compiled,
+  non-metric source representation before narration starts when operators can
+  express meaningful structure; otherwise `retry_required`.
+- Optional visuals may teach text-only.
+- Fallbacks never render question tokens, fact cards, or derived claims as boxes.
+- Planner recovery must pass the same validators as a fresh scene.
+- New visual capability is implemented as reusable operators/assertions, never
+  as a topic template, regex router, or fixed-pixel plugin.
 
-| Module | Path |
-|--------|------|
-| Scene IR | `packages/drawing/src/geometry/sceneSpec.ts` |
-| Compiler | `packages/drawing/src/geometry/compileScene.ts` |
-| Planner | `packages/tutor-core/src/scenePlanner.ts` (`x-planner` HTTP path) |
-| Debug | [geometry-debug.md](geometry-debug.md) |
-
-Regex `DIAGRAM_TEMPLATES` remain as golden fixtures inside domain plugins and verify scripts — `matchDiagramTemplate` is telemetry-only on the live turn path (not a diagram source).
-
-
-## Local Dev
-
-```bash
-pnpm install
-cp apps/tutor/.env.example apps/tutor/.env.local   # if present
-pnpm dev:tutor
-```
-
-`dev.ts` auto-starts Postgres via `docker-compose.yml` (port 5433) when `DATABASE_URL` points at localhost.
+See [geometry-debug.md](geometry-debug.md),
+[../universal-illustration-engine-v4.md](../universal-illustration-engine-v4.md),
+and [../diagram-accuracy-architecture.md](../diagram-accuracy-architecture.md).
