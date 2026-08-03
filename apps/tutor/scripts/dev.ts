@@ -5,7 +5,7 @@
  */
 
 import { execSync, spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +13,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const tutorRoot = resolve(__dirname, "..");
 const repoRoot = resolve(tutorRoot, "../..");
 const envFile = join(tutorRoot, ".env.local");
+const nextOutputDir = join(tutorRoot, ".next");
+
+function removeProductionNextOutput(): void {
+  if (!existsSync(join(nextOutputDir, "BUILD_ID"))) return;
+
+  console.log("[dev] Removing production .next output before starting development...");
+  rmSync(nextOutputDir, { recursive: true, force: true });
+}
 
 function loadDatabaseUrl(): string | undefined {
   if (existsSync(envFile)) {
@@ -90,5 +98,6 @@ function startServer(): void {
   });
 }
 
+removeProductionNextOutput();
 ensureLocalDb();
 startServer();
