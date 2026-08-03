@@ -41,4 +41,12 @@ assert(
   "valid descriptive title should pass validation",
 );
 
+const refractionQuestion =
+  "Light enters glass at 45 degrees with n = 1.5. Find the angle of refraction and draw both rays.";
+const refractionTitle = deriveBoardTitleFromQuestion(refractionQuestion);
+assert(
+  refractionTitle !== "Fractions" && /light enters glass/i.test(refractionTitle),
+  `refraction must not match the fractions title rule: ${refractionTitle}`,
+);
+
 console.log("verify-board-title: all checks passed");

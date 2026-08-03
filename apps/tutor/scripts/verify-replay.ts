@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import type { DrawCommand } from "@heytutor/drawing";
+import {
+  isStoredCommandTrustedGeometry,
+  parseStoredSegmentCommands,
+  serializeSegmentCommands,
+  type DrawCommand,
+} from "@heytutor/drawing";
 import {
   buildLocalStoredTurn,
   enrichStoredSegmentsWithReplayAudio,
@@ -22,13 +27,19 @@ const writeCommand = {
   charPosition: 0,
   narrationBefore: "",
 } satisfies DrawCommand;
+const trustedCommand = serializeSegmentCommands([writeCommand], {
+  trustedDiagramGeometry: true,
+});
+assert.ok(trustedCommand);
+assert.equal(isStoredCommandTrustedGeometry(trustedCommand), true);
+assert.deepEqual(parseStoredSegmentCommands(trustedCommand), [writeCommand]);
 
 const recorded = [
   {
     orderIndex: 0,
     narration: "hello world",
     spokenText: "hello world",
-    command: writeCommand,
+    command: trustedCommand,
     audioBytes: new Uint8Array([1, 2, 3, 4]),
     durationMs: 900,
     timings: null,
@@ -41,7 +52,7 @@ const savedSegments = [
     orderIndex: 0,
     narration: "hello world",
     spokenText: "hello world",
-    command: writeCommand,
+    command: trustedCommand,
     audioUrl: null,
     durationMs: 900,
     timings: null,
@@ -67,6 +78,7 @@ assert.ok(localTurn.segments[0]?.audioUrl?.startsWith("blob:"));
 
 const timeline = buildReplayTimeline([localTurn]);
 assert.equal(timeline.cues.length, 1);
+assert.equal(timeline.cues[0]?.trustedDiagramGeometry, true);
 assert.equal(timeline.totalMs, 900);
 assert.equal(formatReplayTime(900), "0:00");
 const atMid = findCueAtTime(timeline.cues, 450);
