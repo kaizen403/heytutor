@@ -9,6 +9,7 @@ COPY apps/tutor/package.json apps/tutor/
 COPY apps/tutor/prisma apps/tutor/prisma
 COPY packages/design-tokens/package.json packages/design-tokens/
 COPY packages/drawing/package.json packages/drawing/
+COPY packages/scene-engine/package.json packages/scene-engine/
 COPY packages/tutor-core/package.json packages/tutor-core/
 COPY packages/whiteboard/package.json packages/whiteboard/
 
