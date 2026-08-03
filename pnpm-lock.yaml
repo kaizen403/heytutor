@@ -75,6 +75,9 @@ importers:
       '@heytutor/drawing':
         specifier: workspace:*
         version: link:../../packages/drawing
+      '@heytutor/scene-engine':
+        specifier: workspace:*
+        version: link:../../packages/scene-engine
       '@heytutor/tutor-core':
         specifier: workspace:*
         version: link:../../packages/tutor-core
@@ -236,6 +239,9 @@ importers:
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -264,11 +270,35 @@ importers:
         specifier: ^8.61.1
         version: 8.61.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
 
+  packages/scene-engine:
+    devDependencies:
+      '@heytutor/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@heytutor/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      eslint:
+        specifier: ^9.39.4
+        version: 9.39.4(jiti@2.7.0)
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
   packages/tutor-core:
     dependencies:
       '@heytutor/drawing':
         specifier: workspace:*
         version: link:../drawing
+      '@heytutor/scene-engine':
+        specifier: workspace:*
+        version: link:../scene-engine
     devDependencies:
       '@heytutor/eslint-config':
         specifier: workspace:*
