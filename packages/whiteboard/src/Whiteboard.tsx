@@ -12,8 +12,8 @@ import {
 import { textToStrokePaths } from "@heytutor/drawing";
 import { Layer, Path as KonvaPath, Rect, Stage } from "react-konva";
 import { VirtualCursor } from "./VirtualCursor";
-
-export type CursorState = "idle" | "thinking" | "speaking" | "drawing" | "erasing";
+import { cursorOpacity, type CursorState } from "./cursorState";
+import { DrawTransactionRegistry } from "./drawTransactionRegistry";
 
 export interface WhiteboardProps {
   width?: number;
@@ -52,6 +52,10 @@ export interface AnnotationOptions {
   strokeWidth?: number;
   fillColor?: string;
   fillOpacity?: number;
+  /** Remove the gesture after a short fade so review traces do not overwrite ink. */
+  transient?: boolean;
+  /** Allows the owning turn or transaction to abort stale annotation work. */
+  shouldCancel?: () => boolean;
 }
 
 export interface ShapeDrawOptions {
@@ -63,6 +67,8 @@ export interface ShapeDrawOptions {
   getAudioPositionMs?: () => number;
   /** The audio position (ms) this shape should align with. Lag = audioPos - this. */
   targetMs?: number;
+  /** Allows the owner to abort stale work between animation frames. */
+  shouldCancel?: () => boolean;
 }
 
 export interface WhiteboardHandle {
@@ -80,6 +86,7 @@ export interface WhiteboardHandle {
     duration: number,
     schedule?: WriteSchedule,
     fontSize?: number,
+    shouldCancel?: () => boolean,
   ) => Promise<void>;
   clearBoard: (duration?: number) => Promise<void>;
   eraseRegion: (x: number, y: number, width: number, height: number, duration: number) => Promise<void>;
@@ -93,6 +100,10 @@ export interface WhiteboardHandle {
   flyCursorTo: (x: number, y: number, duration: number, targetRotation?: number) => Promise<void>;
   setPaused: (paused: boolean) => void;
   cancelAnimations: () => void;
+  beginDrawTransaction: () => string;
+  commitDrawTransaction: (transactionId: string) => void;
+  abortDrawTransaction: (transactionId: string) => void;
+  finishAbortedDrawTransaction: (transactionId: string) => void;
   setAnimationSpeed: (multiplier: number) => void;
   getDrawLayer: () => Konva.Layer | null;
   getAnimLayer: () => Konva.Layer | null;
@@ -166,22 +177,6 @@ function resolveFlightDuration(distance: number, requestedDuration: number): num
   return clamp(distance / 800, 0.4, 1.2) * 1000;
 }
 
-function cursorOpacity(state: CursorState): number {
-  if (state === "erasing") {
-    return 0.95;
-  }
-
-  if (state === "thinking") {
-    return 0.75;
-  }
-
-  if (state === "speaking") {
-    return 0.9;
-  }
-
-  return 1;
-}
-
 export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
   function Whiteboard(
     {
@@ -200,6 +195,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     const animationCleanupsRef = useRef<Set<() => void>>(new Set());
     const completedNodesRef = useRef<Set<Konva.Node>>(new Set());
     const animNodesRef = useRef<Set<Konva.Node>>(new Set());
+    const drawTransactionsRef = useRef(new DrawTransactionRegistry<Konva.Node>());
     const strokeLengthCacheRef = useRef<Map<string, number>>(new Map());
     const mountedRef = useRef(true);
     const isPausedRef = useRef(false);
@@ -330,6 +326,39 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       nodes.clear();
     }, []);
 
+    const trackNode = useCallback((node: Konva.Node, nodes: Set<Konva.Node>): boolean => {
+      if (!drawTransactionsRef.current.track(node)) return false;
+      nodes.add(node);
+      return true;
+    }, []);
+
+    const untrackNode = useCallback((node: Konva.Node, nodes: Set<Konva.Node>): void => {
+      nodes.delete(node);
+    }, []);
+
+    const beginDrawTransaction = useCallback((): string => {
+      return drawTransactionsRef.current.begin();
+    }, []);
+
+    const commitDrawTransaction = useCallback((transactionId: string): void => {
+      drawTransactionsRef.current.commit(transactionId);
+    }, []);
+
+    const abortDrawTransaction = useCallback((transactionId: string): void => {
+      const nodes = drawTransactionsRef.current.abort(transactionId);
+      nodes.forEach((node) => {
+        animNodesRef.current.delete(node);
+        completedNodesRef.current.delete(node);
+      });
+      animLayerRef.current?.batchDraw();
+      drawLayerRef.current?.batchDraw();
+      highlightLayerRef.current?.batchDraw();
+    }, []);
+
+    const finishAbortedDrawTransaction = useCallback((transactionId: string): void => {
+      drawTransactionsRef.current.finishAborted(transactionId);
+    }, []);
+
     const destroyNodesInRect = useCallback(
       (nodes: Set<Konva.Node>, rect: { x: number; y: number; width: number; height: number }): void => {
         nodes.forEach((node) => {
@@ -353,7 +382,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
 
-        if (!drawLayer || !animLayer) {
+        if (!drawLayer || !animLayer || options?.shouldCancel?.()) {
           return;
         }
 
@@ -403,7 +432,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           path.dash([6, 5]);
           path.opacity(0);
           animLayer.add(path);
-          animNodesRef.current.add(path);
+          trackNode(path, animNodesRef.current);
           animLayer.batchDraw();
 
           await animateOver(Math.min(duration, 300), (progress) => {
@@ -415,10 +444,17 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             animLayer.batchDraw();
           });
 
+          if (options?.shouldCancel?.()) {
+            path.destroy();
+            untrackNode(path, animNodesRef.current);
+            animLayer.batchDraw();
+            return;
+          }
+
           path.opacity(1);
           path.moveTo(drawLayer);
-          animNodesRef.current.delete(path);
-          completedNodesRef.current.add(path);
+          untrackNode(path, animNodesRef.current);
+          trackNode(path, completedNodesRef.current);
           animLayer.batchDraw();
           drawLayer.batchDraw();
           return;
@@ -427,7 +463,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         path.dash([totalLength]);
         path.dashOffset(totalLength);
         animLayer.add(path);
-        animNodesRef.current.add(path);
+        trackNode(path, animNodesRef.current);
         animLayer.batchDraw();
 
         await animateOver(effectiveDuration, (progress) => {
@@ -442,15 +478,22 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           animLayer.batchDraw();
         });
 
+        if (options?.shouldCancel?.()) {
+          path.destroy();
+          untrackNode(path, animNodesRef.current);
+          animLayer.batchDraw();
+          return;
+        }
+
         path.dash([]);
         path.dashOffset(0);
         path.moveTo(drawLayer);
-        animNodesRef.current.delete(path);
-        completedNodesRef.current.add(path);
+        untrackNode(path, animNodesRef.current);
+        trackNode(path, completedNodesRef.current);
         animLayer.batchDraw();
         drawLayer.batchDraw();
       },
-      [animateOver, setCursorViewSafely],
+      [animateOver, setCursorViewSafely, trackNode, untrackNode],
     );
 
     const punchDiagramLineGapsInRect = useCallback(
@@ -583,14 +626,14 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
         replacements.forEach((path) => {
           drawLayer.add(path);
-          completedNodesRef.current.add(path);
+          trackNode(path, completedNodesRef.current);
         });
 
         if (toDestroy.length > 0 || replacements.length > 0) {
           drawLayer.batchDraw();
         }
       },
-      [],
+      [trackNode],
     );
 
     const drawAnnotation = useCallback(
@@ -604,7 +647,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const highlightLayer = highlightLayerRef.current;
         const animLayer = animLayerRef.current;
 
-        if (!drawLayer || !animLayer) {
+        if (!drawLayer || !animLayer || options.shouldCancel?.()) {
           return;
         }
 
@@ -619,13 +662,20 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           });
 
           targetLayer.add(rect);
-          completedNodesRef.current.add(rect);
+          trackNode(rect, completedNodesRef.current);
           targetLayer.batchDraw();
 
           await animateOver(duration, (progress) => {
             rect.opacity((options.fillOpacity ?? HIGHLIGHT_OPACITY) * progress);
             targetLayer.batchDraw();
           });
+
+          if (options.shouldCancel?.()) {
+            rect.destroy();
+            untrackNode(rect, completedNodesRef.current);
+            targetLayer.batchDraw();
+            return;
+          }
 
           rect.opacity(options.fillOpacity ?? HIGHLIGHT_OPACITY);
           targetLayer.batchDraw();
@@ -647,7 +697,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         path.dash([totalLength]);
         path.dashOffset(totalLength);
         animLayer.add(path);
-        animNodesRef.current.add(path);
+        trackNode(path, animNodesRef.current);
         animLayer.batchDraw();
 
         await animateOver(duration, (progress) => {
@@ -662,15 +712,33 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           animLayer.batchDraw();
         });
 
+        if (options.shouldCancel?.()) {
+          path.destroy();
+          untrackNode(path, animNodesRef.current);
+          animLayer.batchDraw();
+          return;
+        }
+
+        if (options.transient) {
+          await animateOver(180, (progress) => {
+            path.opacity(1 - progress);
+            animLayer.batchDraw();
+          });
+          path.destroy();
+          untrackNode(path, animNodesRef.current);
+          animLayer.batchDraw();
+          return;
+        }
+
         path.dash([]);
         path.dashOffset(0);
         path.moveTo(drawLayer);
-        animNodesRef.current.delete(path);
-        completedNodesRef.current.add(path);
+        untrackNode(path, animNodesRef.current);
+        trackNode(path, completedNodesRef.current);
         animLayer.batchDraw();
         drawLayer.batchDraw();
       },
-      [animateOver, setCursorViewSafely],
+      [animateOver, setCursorViewSafely, trackNode, untrackNode],
     );
 
     const flyCursorTo = useCallback(
@@ -720,6 +788,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           const startWall = performance.now();
           let lastPositionMs = -1;
           let stalledFrames = 0;
+          let audioClockStarted = false;
 
           const cleanup = (): void => {
             if (done) return;
@@ -735,6 +804,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               return;
             }
             const positionMs = getAudioPositionMs();
+            if (positionMs >= 0) {
+              audioClockStarted = true;
+            }
             if (positionMs >= targetMs) {
               cleanup();
               return;
@@ -751,7 +823,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               lastPositionMs = positionMs;
             }
             // Never block the lesson on a single character — cap wait time.
-            if (performance.now() - startWall > Math.min(targetMs + 2000, 8000)) {
+            if (
+              audioClockStarted &&
+              performance.now() - startWall > Math.min(targetMs + 2000, 8000)
+            ) {
               cleanup();
               return;
             }
@@ -772,11 +847,12 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         duration: number,
         schedule?: WriteSchedule,
         fontSize = 32,
+        shouldCancel?: () => boolean,
       ): Promise<void> => {
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
 
-        if (!drawLayer || !animLayer) {
+        if (!drawLayer || !animLayer || shouldCancel?.()) {
           return;
         }
 
@@ -826,6 +902,52 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             return;
           }
 
+          // Compiler-owned labels have tiny budgets and no audio schedule. Rendering
+          // every glyph stroke on a separate animation frame turns a 260 ms label into
+          // several seconds. Commit those paths in one batch; teaching text keeps the
+          // normal handwritten reveal.
+          const visibleCharacterCount = charInfos.filter(
+            (info) => info.charPath.char.trim().length > 0,
+          ).length;
+          if (!schedule && duration <= visibleCharacterCount * 18) {
+            for (const { charPath } of charInfos) {
+              if (shouldCancel?.()) return;
+              if (charPath.strokes.length === 0) {
+                const textNode = new Konva.Text({
+                  text: charPath.char,
+                  x: charPath.x,
+                  y: charPath.y,
+                  fontFamily: "Caveat, cursive",
+                  fontSize: charPath.fontSize ?? resolvedFontSize,
+                  fill: inkColorRef.current,
+                  listening: false,
+                });
+                drawLayer.add(textNode);
+                trackNode(textNode, completedNodesRef.current);
+                continue;
+              }
+              for (const stroke of charPath.strokes) {
+                const pathNode = new Konva.Path({
+                  data: stroke.pathData,
+                  stroke: inkColorRef.current,
+                  strokeWidth: stroke.width,
+                  fillEnabled: false,
+                  lineCap: "round",
+                  lineJoin: "round",
+                  listening: false,
+                });
+                drawLayer.add(pathNode);
+                trackNode(pathNode, completedNodesRef.current);
+              }
+            }
+            const last = charInfos.at(-1)?.charPath;
+            if (last) {
+              setCursorViewSafely(last.x + last.width, last.y, HANDWRITING_ROTATION);
+            }
+            drawLayer.batchDraw();
+            return;
+          }
+
           // When a schedule is supplied, each character is gated against the true audio
           // playback clock so writing tracks the narration word by word — and never drifts,
           // because every character re-anchors to the real audio position.
@@ -841,7 +963,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           let previousScheduledBudgetMs = 72;
 
           for (let ci = 0; ci < charInfos.length; ci++) {
-            if (!mountedRef.current) return;
+            if (!mountedRef.current || shouldCancel?.()) return;
 
             const { charPath, strokeLengths, pathLength } = charInfos[ci];
 
@@ -850,7 +972,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               const start = offsets[Math.min(ci, offsets.length - 1)] ?? 0;
               // Hold this character until the voice actually reaches its spoken moment.
               await waitForAudioPosition(start, audioPositionMs);
-              if (!mountedRef.current) return;
+              if (!mountedRef.current || shouldCancel?.()) return;
               schedule?.onCharacterStart?.({
                 char: charPath.char,
                 index: ci,
@@ -896,7 +1018,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
               const charDuration = Math.max(charBudgetMs, 30);
               animLayer.add(textNode);
-              animNodesRef.current.add(textNode);
+              trackNode(textNode, animNodesRef.current);
               animLayer.batchDraw();
 
               await animateOver(charDuration, (progress) => {
@@ -909,17 +1031,24 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 animLayer.batchDraw();
               });
 
+              if (shouldCancel?.()) {
+                textNode.destroy();
+                untrackNode(textNode, animNodesRef.current);
+                animLayer.batchDraw();
+                return;
+              }
+
               textNode.opacity(1);
               textNode.moveTo(drawLayer);
-              animNodesRef.current.delete(textNode);
-              completedNodesRef.current.add(textNode);
+              untrackNode(textNode, animNodesRef.current);
+              trackNode(textNode, completedNodesRef.current);
               animLayer.batchDraw();
               drawLayer.batchDraw();
               continue;
             }
 
             for (let si = 0; si < charPath.strokes.length; si++) {
-              if (!mountedRef.current) return;
+              if (!mountedRef.current || shouldCancel?.()) return;
 
               const stroke = charPath.strokes[si];
               const pathLength = strokeLengths[si];
@@ -967,7 +1096,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               pathNode.dash([totalLength]);
               pathNode.dashOffset(totalLength);
               animLayer.add(pathNode);
-              animNodesRef.current.add(pathNode);
+              trackNode(pathNode, animNodesRef.current);
               animLayer.batchDraw();
 
               await animateOver(strokeDuration, (progress) => {
@@ -982,11 +1111,18 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 animLayer.batchDraw();
               });
 
+              if (shouldCancel?.()) {
+                pathNode.destroy();
+                untrackNode(pathNode, animNodesRef.current);
+                animLayer.batchDraw();
+                return;
+              }
+
               pathNode.dash([]);
               pathNode.dashOffset(0);
               pathNode.moveTo(drawLayer);
-              animNodesRef.current.delete(pathNode);
-              completedNodesRef.current.add(pathNode);
+              untrackNode(pathNode, animNodesRef.current);
+              trackNode(pathNode, completedNodesRef.current);
               animLayer.batchDraw();
               drawLayer.batchDraw();
             }
@@ -1004,7 +1140,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           });
 
           animLayer.add(textNode);
-          animNodesRef.current.add(textNode);
+          trackNode(textNode, animNodesRef.current);
           setCursorViewSafely(x, y, HANDWRITING_ROTATION);
           animLayer.batchDraw();
 
@@ -1014,15 +1150,22 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             animLayer.batchDraw();
           });
 
+          if (shouldCancel?.()) {
+            textNode.destroy();
+            untrackNode(textNode, animNodesRef.current);
+            animLayer.batchDraw();
+            return;
+          }
+
           textNode.opacity(1);
           textNode.moveTo(drawLayer);
-          animNodesRef.current.delete(textNode);
-          completedNodesRef.current.add(textNode);
+          untrackNode(textNode, animNodesRef.current);
+          trackNode(textNode, completedNodesRef.current);
           animLayer.batchDraw();
           drawLayer.batchDraw();
         }
       },
-      [animateOver, flyCursorTo, setCursorViewSafely, waitForAudioPosition],
+      [animateOver, flyCursorTo, setCursorViewSafely, trackNode, untrackNode, waitForAudioPosition],
     );
 
     const eraseRegion = useCallback(
@@ -1102,6 +1245,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
         // Reset the reactive shape-speed damping so the next turn starts fresh.
         previousShapeBudgetMsRef.current = null;
+        drawTransactionsRef.current.clear();
       },
       [animateOver, clearTrackedNodes, destroyNodesInRect, flyCursorTo, setCursorViewSafely, updateCursorState, height, width],
     );
@@ -1118,6 +1262,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const frameIds = frameIdsRef.current;
         const animNodes = animNodesRef.current;
         const completedNodes = completedNodesRef.current;
+        const drawTransactions = drawTransactionsRef.current;
 
         return () => {
           mountedRef.current = false;
@@ -1126,6 +1271,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           frameIds.clear();
           clearTrackedNodes(animNodes);
           clearTrackedNodes(completedNodes);
+          drawTransactions.clear();
         };
       },
       [clearTrackedNodes],
@@ -1147,6 +1293,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           isPausedRef.current = paused;
         },
         cancelAnimations,
+        beginDrawTransaction,
+        commitDrawTransaction,
+        abortDrawTransaction,
+        finishAbortedDrawTransaction,
         setAnimationSpeed: (multiplier: number) => {
           animationSpeedRef.current = Math.max(0.25, Math.min(multiplier, 4));
         },
@@ -1176,7 +1326,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           }
         },
       }),
-      [cancelAnimations, clearBoard, drawAnnotation, drawShape, eraseRegion, flyCursorTo, punchDiagramLineGapsInRect, setCursorViewSafely, updateCursorState, writeText],
+      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, clearBoard, commitDrawTransaction, drawAnnotation, drawShape, eraseRegion, finishAbortedDrawTransaction, flyCursorTo, punchDiagramLineGapsInRect, setCursorViewSafely, updateCursorState, writeText],
     );
 
     return (
