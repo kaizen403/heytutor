@@ -14,6 +14,7 @@
     "dev": "tsup src/index.ts --format esm --dts --watch --external react --external react-dom --external konva --external react-konva --external @heytutor/drawing --external @heytutor/design-tokens",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
+    "verify": "tsx scripts/verify-draw-transactions.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {
