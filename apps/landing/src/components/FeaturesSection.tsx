@@ -151,7 +151,6 @@ function ChatMock() {
 
   useEffect(() => {
     if (!active || reduceMotion) {
-      setPhase('typing')
       return
     }
 
