@@ -1,6 +1,6 @@
 "use client";
 
-import { Group, Path, Rect, Line, Circle } from "react-konva";
+import { Group, Path, Rect, Circle } from "react-konva";
 
 export interface VirtualCursorProps {
   x: number;
