@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "math-visual-evaluation/v1",
+  "description": "Capability oracles for calculus, coordinate geometry, and mensuration. These fixtures are never selected by the live runtime.",
+  "families": [
+    "function_geometry",
+    "differential_geometry",
+    "integral_solids",
+    "mensuration",
+    "coordinate_constraints"
+  ],
+  "questions": [
+    {
+      "id": "function-roots-parabola",
+      "family": "function_geometry",
+      "difficulty": "easy",
+      "question": "Sketch y = x^2 - 4, mark every x-intercept and the vertex, and state the intercept coordinates.",
+      "representations": ["function_graph"],
+      "expected": { "quantities": [{ "id": "root_left", "value": -2, "unit": "1" }, { "id": "root_right", "value": 2, "unit": "1" }], "claims": ["vertex_below_axis", "two_real_roots"] },
+      "capabilities": { "operators": ["axes", "function_curve", "point", "label"], "assertions": ["root", "function_value"] },
+      "mutations": ["wrong_root_sign", "missing_root", "curve_bridges_invalid_domain"]
+    },
+    {
+      "id": "function-area-parabola-line",
+      "family": "function_geometry",
+      "difficulty": "medium",
+      "question": "The curve y = x^2 and the line y = 4 enclose a region. Sketch it and find its area using integration.",
+      "representations": ["function_graph", "bounded_region", "representative_slice"],
+      "expected": { "quantities": [{ "id": "area", "value": 10.666666666666666, "unit": "square units" }], "claims": ["upper_boundary_line", "lower_boundary_parabola", "symmetric_about_y_axis"] },
+      "capabilities": { "operators": ["axes", "function_curve", "function_region", "representative_slice"], "assertions": ["root", "function_value", "between"] },
+      "mutations": ["swapped_region_boundaries", "triangle_approximation", "wrong_intersection", "fabricated_area_label"]
+    },
+    {
+      "id": "function-parametric-tangent",
+      "family": "function_geometry",
+      "difficulty": "hard",
+      "question": "For x = t^2 - 1 and y = t^3 - t, sketch the curve near t = 2 and draw the tangent at that parameter value.",
+      "representations": ["parametric_curve", "tangent"],
+      "expected": { "quantities": [{ "id": "point_x", "value": 3, "unit": "1" }, { "id": "point_y", "value": 6, "unit": "1" }, { "id": "tangent_slope", "value": 2.75, "unit": "1" }], "claims": ["tangent_attached_to_curve"] },
+      "capabilities": { "operators": ["axes", "parametric_curve", "tangent_line", "point"], "assertions": ["on", "incident"] },
+      "mutations": ["wrong_parameter_point", "reciprocal_slope", "detached_tangent"]
+    },
+    {
+      "id": "differential-tangent-normal",
+      "family": "differential_geometry",
+      "difficulty": "easy",
+      "question": "Draw y = x^2 with its tangent and normal at x = 2, and calculate both slopes.",
+      "representations": ["function_graph", "tangent", "normal"],
+      "expected": { "quantities": [{ "id": "tangent_slope", "value": 4, "unit": "1" }, { "id": "normal_slope", "value": -0.25, "unit": "1" }], "claims": ["tangent_normal_perpendicular"] },
+      "capabilities": { "operators": ["function_curve", "tangent_line", "normal_line"], "assertions": ["on", "perpendicular"] },
+      "mutations": ["wrong_derivative", "normal_not_perpendicular", "wrong_contact_point"]
+    },
+    {
+      "id": "differential-polar-tangent",
+      "family": "differential_geometry",
+      "difficulty": "medium",
+      "question": "Sketch the polar curve r = 2 cos(theta) for 0 <= theta <= pi and mark its tangent direction at theta = pi/3.",
+      "representations": ["polar_curve", "tangent"],
+      "expected": { "quantities": [{ "id": "radius_at_parameter", "value": 1, "unit": "1" }], "claims": ["closed_circle_trace", "tangent_attached_to_curve"] },
+      "capabilities": { "operators": ["axes", "polar_curve", "tangent_line"], "assertions": ["on", "incident"] },
+      "mutations": ["degree_radian_confusion", "detached_tangent", "wrong_parameter_domain"]
+    },
+    {
+      "id": "solid-disk-sqrt",
+      "family": "integral_solids",
+      "difficulty": "easy",
+      "question": "The region under y = sqrt(x) from x = 0 to x = 4 is revolved about the x-axis. Sketch the region and representative disk, then find the volume.",
+      "representations": ["bounded_region", "solid_of_revolution", "representative_slice"],
+      "expected": { "quantities": [{ "id": "volume", "value": 25.132741228718345, "unit": "cubic units" }], "claims": ["disk_method", "axis_is_x_axis"] },
+      "capabilities": { "operators": ["function_curve", "function_region", "representative_slice", "solid_of_revolution"], "assertions": ["function_value", "between"] },
+      "mutations": ["shell_drawn_as_disk", "wrong_axis", "wrong_radius"]
+    },
+    {
+      "id": "solid-washer-parabola-line",
+      "family": "integral_solids",
+      "difficulty": "medium",
+      "question": "Revolve the region between y = 4 and y = x^2 about the x-axis. Draw a representative washer and find the volume.",
+      "representations": ["bounded_region", "solid_of_revolution", "representative_slice"],
+      "expected": { "quantities": [{ "id": "volume", "value": 160.8495438637974, "unit": "cubic units" }], "claims": ["washer_method", "outer_radius_four", "inner_radius_x_squared"] },
+      "capabilities": { "operators": ["function_region", "representative_slice", "solid_of_revolution"], "assertions": ["root", "between"] },
+      "mutations": ["inner_outer_radius_swapped", "wrong_bounds", "solid_profile_open"]
+    },
+    {
+      "id": "mensuration-cylinder",
+      "family": "mensuration",
+      "difficulty": "easy",
+      "question": "Draw a right circular cylinder of radius 3 cm and height 5 cm with clear dimensions, then find its volume and total surface area.",
+      "representations": ["solid_projection", "dimensions"],
+      "expected": { "quantities": [{ "id": "volume", "value": 141.3716694115407, "unit": "cm^3" }, { "id": "surface_area", "value": 150.79644737231007, "unit": "cm^2" }], "claims": ["radius_three", "height_five"] },
+      "capabilities": { "operators": ["solid_projection", "dimension", "label"], "assertions": ["equal_length", "perpendicular"] },
+      "mutations": ["diameter_labeled_as_radius", "dimension_collision", "missing_hidden_edge"]
+    },
+    {
+      "id": "mensuration-frustum",
+      "family": "mensuration",
+      "difficulty": "medium",
+      "question": "A right circular conical frustum has radii 5 cm and 2 cm and vertical height 4 cm. Draw and dimension it, then find its volume and total surface area.",
+      "representations": ["solid_projection", "dimensions", "section"],
+      "expected": { "quantities": [{ "id": "volume", "value": 163.36281798666926, "unit": "cm^3" }, { "id": "surface_area", "value": 201.06192982974676, "unit": "cm^2" }], "claims": ["slant_height_five", "coaxial_circles"] },
+      "capabilities": { "operators": ["solid_projection", "solid_cross_section", "dimension"], "assertions": ["parallel", "perpendicular"] },
+      "mutations": ["radii_swapped_without_geometry", "slant_vertical_confusion", "label_overlap"]
+    },
+    {
+      "id": "mensuration-composite-cap",
+      "family": "mensuration",
+      "difficulty": "hard",
+      "question": "A cylinder of radius 3 cm and height 8 cm is closed at the bottom and topped by a hemisphere of the same radius. Draw the composite solid and find its volume and exposed surface area.",
+      "representations": ["composite_solid", "dimensions", "section"],
+      "expected": { "quantities": [{ "id": "volume", "value": 282.7433388230814, "unit": "cm^3" }, { "id": "surface_area", "value": 235.61944901923448, "unit": "cm^2" }], "claims": ["shared_circular_boundary", "internal_join_not_exposed"] },
+      "capabilities": { "operators": ["solid_projection", "solid_cross_section", "dimension"], "assertions": ["connected", "same_side"] },
+      "mutations": ["internal_join_counted_exposed", "mismatched_radius", "disconnected_cap"]
+    },
+    {
+      "id": "coordinate-right-triangle",
+      "family": "coordinate_constraints",
+      "difficulty": "easy",
+      "question": "Plot A(0,0), B(4,0), and C(0,3), mark the right angle, and calculate the area of triangle ABC.",
+      "representations": ["coordinate_geometry", "polygon"],
+      "expected": { "quantities": [{ "id": "area", "value": 6, "unit": "square units" }], "claims": ["right_angle_at_a"] },
+      "capabilities": { "operators": ["axes", "point", "polygon", "right_angle_mark"], "assertions": ["perpendicular", "on"] },
+      "mutations": ["wrong_vertex_order", "right_angle_at_wrong_vertex", "wrong_area"]
+    },
+    {
+      "id": "coordinate-parabola-circle",
+      "family": "coordinate_constraints",
+      "difficulty": "hard",
+      "question": "Sketch y = x^2 and x^2 + (y - 3)^2 = 9 on common axes and mark every real intersection point.",
+      "representations": ["implicit_curve", "function_graph", "intersections"],
+      "expected": { "quantities": [{ "id": "upper_x_magnitude", "value": 2.23606797749979, "unit": "1" }, { "id": "upper_y", "value": 5, "unit": "1" }], "claims": ["three_real_intersections", "symmetric_about_y_axis"] },
+      "capabilities": { "operators": ["axes", "function_curve", "implicit_curve", "point"], "assertions": ["on", "function_value"] },
+      "mutations": ["missing_origin_intersection", "wrong_circle_center", "only_one_symmetric_intersection"]
+    }
+  ]
+}
