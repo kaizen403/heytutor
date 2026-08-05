@@ -1,0 +1,232 @@
+{
+  "id": "circuit-series-parallel-12ohm",
+  "version": 1,
+  "domain": "circuit",
+  "question": "Three 12 ohm resistors in series and in parallel. Find both equivalent resistances and draw each circuit.",
+  "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Three 12 ohm resistors in series and in parallel. Find both equivalent resistances and draw each circuit.",
+    "givens": [
+      { "id": "r", "symbol": "R", "value": 12, "unit": "ohm", "provenance": "given", "sourceText": "12 ohm" }
+    ],
+    "unknowns": [
+      { "id": "r_series", "symbol": "R_s", "unit": "ohm" },
+      { "id": "r_parallel", "symbol": "R_p", "unit": "ohm" }
+    ],
+    "derived": [
+      {
+        "id": "r_series",
+        "symbol": "R_s",
+        "value": 36,
+        "unit": "ohm",
+        "provenance": "derived",
+        "dependsOn": ["r"],
+        "sourceText": "36 ohm"
+      },
+      {
+        "id": "r_parallel",
+        "symbol": "R_p",
+        "value": 4,
+        "unit": "ohm",
+        "provenance": "derived",
+        "dependsOn": ["r"],
+        "sourceText": "4 ohm"
+      }
+    ],
+    "qualitativeClaims": [
+      { "id": "series_path", "claim": "three_resistors_ordered_series_path", "expected": true },
+      { "id": "parallel_shared", "claim": "three_branches_same_terminals", "expected": true }
+    ],
+    "lawIds": ["series_resistance", "parallel_resistance"],
+    "assumptions": ["identical resistors", "ideal wires", "two separate views"],
+    "visualRequirement": "required"
+  },
+  "expectations": {
+    "views": ["series", "parallel"],
+    "layoutMode": "schematic",
+    "requiredQuantities": {
+      "r_series_ohm": 36,
+      "r_parallel_ohm": 4
+    },
+    "forbidden": [
+      "bypass_wire_across_series",
+      "orphan_points",
+      "duplicate_labels",
+      "cross_view_edges",
+      "extra_components"
+    ],
+    "series": {
+      "requiredEntityRoles": ["resistor", "resistor", "resistor"],
+      "proofObligations": [
+        {
+          "id": "series_path",
+          "predicate": "path",
+          "inputs": ["r1", "r2", "r3"],
+          "expected": true,
+          "severity": "fatal",
+          "reason": "Three resistors form one ordered series path"
+        },
+        {
+          "id": "series_end_degree",
+          "predicate": "degree",
+          "inputs": ["n0"],
+          "expected": 1,
+          "severity": "fatal",
+          "reason": "Series start node degree is 1 within the resistor chain subgraph (battery may add edges in full scene)"
+        }
+      ]
+    },
+    "parallel": {
+      "proofObligations": [
+        {
+          "id": "parallel_same_terminals",
+          "predicate": "sameTerminalPair",
+          "inputs": ["r1", "r2", "r3"],
+          "expected": true,
+          "severity": "fatal",
+          "reason": "Three parallel branches share both terminals"
+        },
+        {
+          "id": "parallel_path_count",
+          "predicate": "pathCount",
+          "inputs": ["a", "b"],
+          "expected": 3,
+          "severity": "fatal",
+          "reason": "Exactly three simple paths between shared terminals"
+        },
+        {
+          "id": "parallel_terminal_degree",
+          "predicate": "degree",
+          "inputs": ["a"],
+          "expected": 3,
+          "severity": "fatal",
+          "reason": "Each shared terminal has degree 3 from the three branches"
+        }
+      ]
+    }
+  },
+  "sceneDocuments": {
+    "series": {
+      "schemaVersion": "scene-document/v2",
+      "visualDecision": { "mode": "scene", "reason": "series equivalent resistance view" },
+      "source": { "question": "Three 12 ohm resistors in series", "view": "series" },
+      "quantities": [
+        { "id": "r", "value": 12, "unit": "ohm" },
+        { "id": "r_series", "value": 36, "unit": "ohm" }
+      ],
+      "entities": [
+        { "id": "n0", "kind": "point", "role": "node" },
+        { "id": "n1", "kind": "point", "role": "node" },
+        { "id": "n2", "kind": "point", "role": "node" },
+        { "id": "n3", "kind": "point", "role": "node" },
+        { "id": "r1", "kind": "component", "role": "resistor", "label": "12Ω" },
+        { "id": "r2", "kind": "component", "role": "resistor", "label": "12Ω" },
+        { "id": "r3", "kind": "component", "role": "resistor", "label": "12Ω" }
+      ],
+      "constructions": [
+        { "id": "p0", "operator": "point", "inputs": { "x": 0, "y": 0, "coordinateSpace": "layout" }, "outputs": ["n0"] },
+        { "id": "p1", "operator": "point", "inputs": { "x": 1, "y": 0, "coordinateSpace": "layout" }, "outputs": ["n1"] },
+        { "id": "p2", "operator": "point", "inputs": { "x": 2, "y": 0, "coordinateSpace": "layout" }, "outputs": ["n2"] },
+        { "id": "p3", "operator": "point", "inputs": { "x": 3, "y": 0, "coordinateSpace": "layout" }, "outputs": ["n3"] },
+        { "id": "make_r1", "operator": "symbol", "inputs": { "symbol": "resistor", "start": "n0", "end": "n1" }, "outputs": ["r1"] },
+        { "id": "make_r2", "operator": "symbol", "inputs": { "symbol": "resistor", "start": "n1", "end": "n2" }, "outputs": ["r2"] },
+        { "id": "make_r3", "operator": "symbol", "inputs": { "symbol": "resistor", "start": "n2", "end": "n3" }, "outputs": ["r3"] }
+      ],
+      "relations": [],
+      "assertions": [
+        { "id": "series_path", "predicate": "path", "entities": ["r1", "r2", "r3"], "expected": true, "severity": "fatal", "reason": "ordered series path" },
+        { "id": "n0_degree", "predicate": "degree", "entities": ["n0"], "expected": 1, "severity": "fatal" },
+        { "id": "n1_degree", "predicate": "degree", "entities": ["n1"], "expected": 2, "severity": "fatal" },
+        { "id": "exists_r", "predicate": "entity_count", "entities": ["r1", "r2", "r3"], "expected": 3, "severity": "fatal" }
+      ],
+      "annotations": [
+        { "id": "ann_req", "kind": "label", "targetIds": ["r3"], "text": "36Ω", "quantityId": "r_series" }
+      ],
+      "requiredEntityIds": ["n0", "n1", "n2", "n3", "r1", "r2", "r3"],
+      "revealGroups": [
+        { "id": "series_view", "entityIds": ["n0", "n1", "n2", "n3", "r1", "r2", "r3"], "dependsOn": [], "narrationCue": "series circuit" }
+      ],
+      "teachingTimeline": [
+        { "id": "show_series", "action": "reveal", "targetId": "series_view", "dependsOn": [], "narrationIntent": "draw series" }
+      ]
+    },
+    "parallel": {
+      "schemaVersion": "scene-document/v2",
+      "visualDecision": { "mode": "scene", "reason": "parallel equivalent resistance view" },
+      "source": { "question": "Three 12 ohm resistors in parallel", "view": "parallel" },
+      "quantities": [
+        { "id": "r", "value": 12, "unit": "ohm" },
+        { "id": "r_parallel", "value": 4, "unit": "ohm" }
+      ],
+      "entities": [
+        { "id": "a", "kind": "point", "role": "terminal" },
+        { "id": "b", "kind": "point", "role": "terminal" },
+        { "id": "r1", "kind": "component", "role": "resistor", "label": "12Ω" },
+        { "id": "r2", "kind": "component", "role": "resistor", "label": "12Ω" },
+        { "id": "r3", "kind": "component", "role": "resistor", "label": "12Ω" }
+      ],
+      "constructions": [
+        { "id": "pa", "operator": "point", "inputs": { "x": 0, "y": 1, "coordinateSpace": "layout" }, "outputs": ["a"] },
+        { "id": "pb", "operator": "point", "inputs": { "x": 2, "y": 1, "coordinateSpace": "layout" }, "outputs": ["b"] },
+        { "id": "make_r1", "operator": "symbol", "inputs": { "symbol": "resistor", "start": "a", "end": "b" }, "outputs": ["r1"] },
+        { "id": "make_r2", "operator": "symbol", "inputs": { "symbol": "resistor", "start": "a", "end": "b" }, "outputs": ["r2"] },
+        { "id": "make_r3", "operator": "symbol", "inputs": { "symbol": "resistor", "start": "a", "end": "b" }, "outputs": ["r3"] }
+      ],
+      "relations": [],
+      "assertions": [
+        { "id": "parallel_same_terminals", "predicate": "sameTerminalPair", "entities": ["r1", "r2", "r3"], "expected": true, "severity": "fatal" },
+        { "id": "parallel_path_count", "predicate": "pathCount", "entities": ["a", "b"], "expected": 3, "severity": "fatal" },
+        { "id": "a_degree", "predicate": "degree", "entities": ["a"], "expected": 3, "severity": "fatal" },
+        { "id": "b_degree", "predicate": "degree", "entities": ["b"], "expected": 3, "severity": "fatal" }
+      ],
+      "annotations": [
+        { "id": "ann_req", "kind": "label", "targetIds": ["r2"], "text": "4Ω", "quantityId": "r_parallel" }
+      ],
+      "requiredEntityIds": ["a", "b", "r1", "r2", "r3"],
+      "revealGroups": [
+        { "id": "parallel_view", "entityIds": ["a", "b", "r1", "r2", "r3"], "dependsOn": [], "narrationCue": "parallel circuit" }
+      ],
+      "teachingTimeline": [
+        { "id": "show_parallel", "action": "reveal", "targetId": "parallel_view", "dependsOn": [], "narrationIntent": "draw parallel" }
+      ]
+    },
+    "series_with_bypass_invalid": {
+      "schemaVersion": "scene-document/v2",
+      "visualDecision": { "mode": "scene", "reason": "mutation: bypass wire" },
+      "source": { "question": "mutation fixture", "view": "series" },
+      "quantities": [],
+      "entities": [
+        { "id": "n0", "kind": "point", "role": "node" },
+        { "id": "n1", "kind": "point", "role": "node" },
+        { "id": "n2", "kind": "point", "role": "node" },
+        { "id": "n3", "kind": "point", "role": "node" },
+        { "id": "r1", "kind": "component", "role": "resistor" },
+        { "id": "r2", "kind": "component", "role": "resistor" },
+        { "id": "r3", "kind": "component", "role": "resistor" },
+        { "id": "bypass", "kind": "connector", "role": "wire" }
+      ],
+      "constructions": [
+        { "id": "p0", "operator": "point", "inputs": { "x": 0, "y": 0, "coordinateSpace": "layout" }, "outputs": ["n0"] },
+        { "id": "p1", "operator": "point", "inputs": { "x": 1, "y": 0, "coordinateSpace": "layout" }, "outputs": ["n1"] },
+        { "id": "p2", "operator": "point", "inputs": { "x": 2, "y": 0, "coordinateSpace": "layout" }, "outputs": ["n2"] },
+        { "id": "p3", "operator": "point", "inputs": { "x": 3, "y": 0, "coordinateSpace": "layout" }, "outputs": ["n3"] },
+        { "id": "make_r1", "operator": "symbol", "inputs": { "symbol": "resistor", "start": "n0", "end": "n1" }, "outputs": ["r1"] },
+        { "id": "make_r2", "operator": "symbol", "inputs": { "symbol": "resistor", "start": "n1", "end": "n2" }, "outputs": ["r2"] },
+        { "id": "make_r3", "operator": "symbol", "inputs": { "symbol": "resistor", "start": "n2", "end": "n3" }, "outputs": ["r3"] },
+        { "id": "make_bypass", "operator": "connect", "inputs": { "start": "n0", "end": "n3" }, "outputs": ["bypass"] }
+      ],
+      "relations": [],
+      "assertions": [
+        { "id": "no_bypass_path_count", "predicate": "pathCount", "entities": ["n0", "n3"], "expected": 1, "severity": "fatal", "reason": "bypass creates a second path" }
+      ],
+      "annotations": [],
+      "requiredEntityIds": ["n0", "n1", "n2", "n3", "r1", "r2", "r3", "bypass"],
+      "revealGroups": [
+        { "id": "bad", "entityIds": ["n0", "n1", "n2", "n3", "r1", "r2", "r3", "bypass"], "dependsOn": [], "narrationCue": "bad" }
+      ],
+      "teachingTimeline": [
+        { "id": "show", "action": "reveal", "targetId": "bad", "dependsOn": [], "narrationIntent": "bad" }
+      ]
+    }
+  }
+}

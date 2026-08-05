@@ -1,0 +1,467 @@
+{
+  "schemaVersion": "jee-physics-evaluation/v1",
+  "description": "Representative JEE physics evaluation corpus. These are answer and capability oracles, not live topic templates.",
+  "domains": [
+    "mechanics",
+    "fluids_thermal",
+    "shm_waves",
+    "electrostatics_current",
+    "magnetism_emi_ac",
+    "optics",
+    "modern_physics"
+  ],
+  "questions": [
+    {
+      "id": "mechanics-easy-incline-force",
+      "priority": "p0",
+      "domain": "mechanics",
+      "difficulty": "easy",
+      "question": "A 5 kg block rests on a rough horizontal floor. A 20 N force is applied at 37 degrees above the horizontal. If the coefficient of kinetic friction is 0.20 and g = 10 m/s^2, draw the free-body diagram and find the normal reaction, friction, and acceleration.",
+      "visualRequirement": "required",
+      "representations": ["free_body_diagram"],
+      "expected": {
+        "quantities": [
+          { "id": "normal", "value": 38, "unit": "N", "tolerance": 0.01 },
+          { "id": "friction", "value": 7.6, "unit": "N", "tolerance": 0.01 },
+          { "id": "acceleration", "value": 1.68, "unit": "m/s^2", "tolerance": 0.01 }
+        ],
+        "claims": ["weight_down", "normal_up", "friction_opposes_motion"]
+      },
+      "capabilities": {
+        "operators": ["rectangle", "vector", "vector_components", "dimension", "label"],
+        "assertions": ["perpendicular", "opposite_direction", "connected"],
+        "missingProofs": ["vector_sum", "quantity_equation", "force_attached_to_body"]
+      }
+    },
+    {
+      "id": "mechanics-medium-projectile",
+      "priority": "p1",
+      "domain": "mechanics",
+      "difficulty": "medium",
+      "question": "A projectile is launched from level ground with speed 20 m/s at 30 degrees above the horizontal. Take g = 10 m/s^2. Draw its trajectory with the initial velocity components and mark the highest point and landing point. Find the time of flight, maximum height, and horizontal range.",
+      "visualRequirement": "required",
+      "representations": ["trajectory_graph", "vector_decomposition"],
+      "expected": {
+        "quantities": [
+          { "id": "time_of_flight", "value": 2, "unit": "s", "tolerance": 0.001 },
+          { "id": "maximum_height", "value": 5, "unit": "m", "tolerance": 0.01 },
+          { "id": "range", "value": 34.641016, "unit": "m", "tolerance": 0.01 }
+        ],
+        "claims": ["parabolic_path", "vertical_velocity_zero_at_apex"]
+      },
+      "capabilities": {
+        "operators": ["axes", "function_curve", "point", "vector", "vector_components", "label"],
+        "assertions": ["root", "function_value", "perpendicular", "on"],
+        "missingProofs": ["extremum", "vector_sum", "quantity_equation"]
+      }
+    },
+    {
+      "id": "mechanics-hard-pulley-incline",
+      "priority": "p0",
+      "domain": "mechanics",
+      "difficulty": "hard",
+      "question": "A 2 kg block on a 37 degree rough incline is connected by a light inextensible string over a smooth pulley to a hanging 3 kg block. The coefficient of kinetic friction on the incline is 0.25 and g = 10 m/s^2. Draw the apparatus and separate free-body diagrams, then find the acceleration and string tension.",
+      "visualRequirement": "required",
+      "representations": ["apparatus", "free_body_diagram_block_1", "free_body_diagram_block_2"],
+      "expected": {
+        "quantities": [
+          { "id": "acceleration", "value": 2.8, "unit": "m/s^2", "tolerance": 0.01 },
+          { "id": "tension", "value": 21.6, "unit": "N", "tolerance": 0.01 }
+        ],
+        "claims": ["hanging_block_moves_down", "incline_block_moves_up", "equal_string_tension"]
+      },
+      "capabilities": {
+        "operators": ["line", "circle", "rectangle", "polyline", "vector", "vector_components", "label"],
+        "assertions": ["connected", "parallel", "perpendicular", "opposite_direction"],
+        "missingProofs": ["tangent", "same_path_length", "equal_quantity", "vector_sum", "view_ownership"]
+      }
+    },
+    {
+      "id": "fluids-easy-hydraulic-lift",
+      "priority": "p2",
+      "domain": "fluids_thermal",
+      "difficulty": "easy",
+      "question": "A hydraulic lift has circular pistons of radii 2 cm and 10 cm. A downward force of 100 N is applied to the smaller piston. Draw the connected fluid setup and find the upward force on the larger piston, neglecting height differences.",
+      "visualRequirement": "required",
+      "representations": ["apparatus"],
+      "expected": {
+        "quantities": [
+          { "id": "output_force", "value": 2500, "unit": "N", "tolerance": 0.1 }
+        ],
+        "claims": ["equal_pressure", "output_force_up"]
+      },
+      "capabilities": {
+        "operators": ["rectangle", "connect", "dimension", "vector", "label"],
+        "assertions": ["connected", "parallel", "distance_ratio"],
+        "missingProofs": ["area_ratio", "quantity_equation", "fluid_region_continuity"]
+      }
+    },
+    {
+      "id": "fluids-medium-venturi",
+      "priority": "p1",
+      "domain": "fluids_thermal",
+      "difficulty": "medium",
+      "question": "Water flows steadily through a horizontal pipe whose diameter narrows from 4 cm to 2 cm. At the wider section the speed is 1 m/s and pressure is 2.00e5 Pa. Take water density as 1000 kg/m^3. Draw the pipe with flow direction and section labels, then find the speed and pressure at the narrow section.",
+      "visualRequirement": "required",
+      "representations": ["apparatus", "flow_profile"],
+      "expected": {
+        "quantities": [
+          { "id": "narrow_speed", "value": 4, "unit": "m/s", "tolerance": 0.001 },
+          { "id": "narrow_pressure", "value": 192500, "unit": "Pa", "tolerance": 1 }
+        ],
+        "claims": ["flow_left_to_right", "narrow_section_faster", "narrow_section_lower_pressure"]
+      },
+      "capabilities": {
+        "operators": ["polygon", "polyline", "dimension", "vector", "label"],
+        "assertions": ["connected", "parallel", "distance_ratio"],
+        "missingProofs": ["area_ratio", "continuity_equation", "bernoulli_equation", "inside"]
+      }
+    },
+    {
+      "id": "thermal-hard-pv-cycle",
+      "priority": "p0",
+      "domain": "fluids_thermal",
+      "difficulty": "hard",
+      "question": "A gas executes the clockwise rectangular cycle A(V0,P0) to D(V0,2P0) to C(2V0,2P0) to B(2V0,P0) to A, where P0 = 1.00e5 Pa and V0 = 2.00e-3 m^3. Draw the directed P-V cycle and calculate the net work done by the gas and the net heat supplied in one cycle.",
+      "visualRequirement": "required",
+      "representations": ["pv_graph"],
+      "expected": {
+        "quantities": [
+          { "id": "net_work", "aliases": ["Wnet", "W_net", "work_net"], "value": 200, "unit": "J", "tolerance": 0.01 },
+          { "id": "net_heat", "aliases": ["Qnet", "Q_net", "heat_net"], "value": 200, "unit": "J", "tolerance": 0.01 }
+        ],
+        "claims": ["closed_cycle", "clockwise_cycle", "positive_net_work"]
+      },
+      "capabilities": {
+        "operators": ["axes", "point", "polyline", "vector", "label"],
+        "assertions": ["connected", "on", "between"],
+        "missingProofs": ["closed_path", "path_orientation", "signed_area", "quantity_equation"]
+      }
+    },
+    {
+      "id": "shm-easy-spring",
+      "priority": "p2",
+      "domain": "shm_waves",
+      "difficulty": "easy",
+      "question": "A 0.50 kg block attached to a horizontal spring of force constant 200 N/m oscillates with amplitude 0.10 m on a frictionless surface. Draw the equilibrium and extreme positions and find the angular frequency, period, and maximum speed.",
+      "visualRequirement": "required",
+      "representations": ["apparatus", "position_states"],
+      "expected": {
+        "quantities": [
+          { "id": "angular_frequency", "value": 20, "unit": "rad/s", "tolerance": 0.001 },
+          { "id": "period", "value": 0.314159, "unit": "s", "tolerance": 0.001 },
+          { "id": "maximum_speed", "value": 2, "unit": "m/s", "tolerance": 0.001 }
+        ],
+        "claims": ["extremes_symmetric_about_equilibrium"]
+      },
+      "capabilities": {
+        "operators": ["polyline", "rectangle", "point", "dimension", "label"],
+        "assertions": ["collinear", "equal_length", "between"],
+        "missingProofs": ["spring_symbol", "quantity_equation", "symmetric_about"]
+      }
+    },
+    {
+      "id": "shm-medium-pendulum",
+      "priority": "p1",
+      "domain": "shm_waves",
+      "difficulty": "medium",
+      "question": "A simple pendulum of length 1.0 m is displaced through a small angle and released. Take g = 10 m/s^2. Draw the mean and displaced positions, mark the angle and restoring tangential direction, and find its angular frequency and time period.",
+      "visualRequirement": "required",
+      "representations": ["apparatus", "construction_geometry"],
+      "expected": {
+        "quantities": [
+          { "id": "angular_frequency", "value": 3.162278, "unit": "rad/s", "tolerance": 0.001 },
+          { "id": "period", "value": 1.986918, "unit": "s", "tolerance": 0.001 }
+        ],
+        "claims": ["equal_string_length", "restoring_direction_toward_mean"]
+      },
+      "capabilities": {
+        "operators": ["point", "segment", "rotate", "arc", "circle", "vector", "dimension", "label"],
+        "assertions": ["equal_length", "connected", "on"],
+        "missingProofs": ["angle_value", "tangent", "toward_target", "quantity_equation"]
+      }
+    },
+    {
+      "id": "waves-hard-third-harmonic",
+      "priority": "p0",
+      "domain": "shm_waves",
+      "difficulty": "hard",
+      "question": "A string fixed at both ends has length 1.20 m and vibrates in its third harmonic at 150 Hz. Draw the standing-wave pattern with every node and antinode marked. Find the wave speed and fundamental frequency.",
+      "visualRequirement": "required",
+      "representations": ["standing_wave_graph"],
+      "expected": {
+        "quantities": [
+          { "id": "wave_speed", "value": 120, "unit": "m/s", "tolerance": 0.001 },
+          { "id": "fundamental_frequency", "value": 50, "unit": "Hz", "tolerance": 0.001 }
+        ],
+        "claims": ["three_loops", "four_nodes", "three_antinodes"]
+      },
+      "capabilities": {
+        "operators": ["axes", "function_curve", "point", "label", "dimension"],
+        "assertions": ["root", "function_value", "entity_count", "on"],
+        "missingProofs": ["extremum", "alternating_lobes", "quantity_equation"]
+      }
+    },
+    {
+      "id": "electrostatics-easy-null-point",
+      "priority": "p1",
+      "domain": "electrostatics_current",
+      "difficulty": "easy",
+      "question": "Two positive point charges +4 microcoulomb and +1 microcoulomb are fixed 3.0 m apart. Draw the charge arrangement and electric-field directions, and locate the point on the joining line where the net electric field is zero.",
+      "visualRequirement": "required",
+      "representations": ["field_construction"],
+      "expected": {
+        "quantities": [
+          { "id": "distance_from_4uC", "value": 2, "unit": "m", "tolerance": 0.001 },
+          { "id": "distance_from_1uC", "value": 1, "unit": "m", "tolerance": 0.001 }
+        ],
+        "claims": ["null_point_between_charges", "field_vectors_opposite_at_null"]
+      },
+      "capabilities": {
+        "operators": ["point", "segment", "vector", "dimension", "label"],
+        "assertions": ["between", "collinear", "distance_ratio", "opposite_direction"],
+        "missingProofs": ["equal_vector_magnitude", "quantity_equation"]
+      }
+    },
+    {
+      "id": "current-medium-series-parallel-source",
+      "priority": "p0",
+      "domain": "electrostatics_current",
+      "difficulty": "medium",
+      "question": "A 12 V ideal battery and a 2 ohm resistor are in series with a parallel combination of 6 ohm and 3 ohm resistors. Draw the complete circuit and find the total current and the current through each parallel branch.",
+      "visualRequirement": "required",
+      "representations": ["circuit"],
+      "expected": {
+        "quantities": [
+          { "id": "total_current", "value": 3, "unit": "A", "tolerance": 0.001 },
+          { "id": "current_6ohm", "value": 1, "unit": "A", "tolerance": 0.001 },
+          { "id": "current_3ohm", "value": 2, "unit": "A", "tolerance": 0.001 }
+        ],
+        "claims": ["single_series_path_before_split", "parallel_resistors_share_terminal_pair", "branch_currents_sum_to_total"]
+      },
+      "capabilities": {
+        "operators": ["point", "symbol", "connect", "vector", "label"],
+        "assertions": ["path", "pathCount", "sameTerminalPair", "degree"],
+        "missingProofs": ["directed_flow", "kcl", "ohms_law", "quantity_equation"]
+      }
+    },
+    {
+      "id": "current-hard-wheatstone",
+      "priority": "p0",
+      "domain": "electrostatics_current",
+      "difficulty": "hard",
+      "question": "In a balanced Wheatstone bridge, the four arms are P = 2 ohm, Q = 3 ohm, R = 4 ohm, and S unknown. Draw the bridge with a galvanometer across the middle nodes, find S, and state the galvanometer current.",
+      "visualRequirement": "required",
+      "representations": ["bridge_circuit"],
+      "expected": {
+        "quantities": [
+          { "id": "unknown_resistance", "value": 6, "unit": "ohm", "tolerance": 0.001 },
+          { "id": "galvanometer_current", "value": 0, "unit": "A", "tolerance": 0.001 }
+        ],
+        "claims": ["balanced_bridge", "middle_nodes_equipotential"]
+      },
+      "capabilities": {
+        "operators": ["point", "symbol", "connect", "label"],
+        "assertions": ["pathCount", "degree", "connected"],
+        "missingProofs": ["galvanometer_symbol", "component_value_ratio", "equipotential", "kcl", "kvl"]
+      }
+    },
+    {
+      "id": "magnetism-easy-straight-wire",
+      "priority": "p1",
+      "domain": "magnetism_emi_ac",
+      "difficulty": "easy",
+      "question": "A long straight vertical wire carries 5.0 A upward. Find the magnetic field at a point 10 cm to the right of the wire. Draw the wire, current direction, point, distance, and magnetic-field direction.",
+      "visualRequirement": "required",
+      "representations": ["field_construction"],
+      "expected": {
+        "quantities": [
+          { "id": "magnetic_field", "value": 0.00001, "unit": "T", "tolerance": 1e-9 }
+        ],
+        "claims": ["field_into_page_at_right_point", "circular_field_about_wire"]
+      },
+      "capabilities": {
+        "operators": ["line", "vector", "point", "circle", "dimension", "label"],
+        "assertions": ["perpendicular", "on", "distance_ratio"],
+        "missingProofs": ["right_hand_orientation", "tangent", "quantity_equation"]
+      }
+    },
+    {
+      "id": "emi-medium-moving-rod",
+      "priority": "p0",
+      "domain": "magnetism_emi_ac",
+      "difficulty": "medium",
+      "question": "A conducting rod of length 0.60 m moves rightward at 4 m/s along parallel rails through a uniform 0.50 T magnetic field directed into the page. The rails are connected through a 2 ohm resistor. Draw the complete setup and determine the induced emf, current direction, current magnitude, magnetic force on the rod, and external power required.",
+      "visualRequirement": "required",
+      "representations": ["apparatus_circuit", "direction_construction"],
+      "expected": {
+        "quantities": [
+          { "id": "induced_emf", "value": 1.2, "unit": "V", "tolerance": 0.001 },
+          { "id": "current", "value": 0.6, "unit": "A", "tolerance": 0.001 },
+          { "id": "magnetic_force", "value": 0.18, "unit": "N", "tolerance": 0.001 },
+          { "id": "external_power", "value": 0.72, "unit": "W", "tolerance": 0.001 }
+        ],
+        "claims": ["current_counterclockwise", "current_up_rod", "magnetic_force_left", "external_force_right"]
+      },
+      "capabilities": {
+        "operators": ["line", "segment", "symbol", "connect", "vector", "dimension", "label"],
+        "assertions": ["parallel", "perpendicular", "path", "opposite_direction", "connected"],
+        "missingProofs": ["field_pattern", "loop_orientation", "right_hand_orientation", "quantity_equation", "power_equivalence"]
+      }
+    },
+    {
+      "id": "ac-hard-series-lcr",
+      "priority": "p0",
+      "domain": "magnetism_emi_ac",
+      "difficulty": "hard",
+      "question": "A series LCR circuit with R = 40 ohm, L = 0.20 H, and C = 100 microfarad is connected to a 200 V rms, 50 Hz source. Draw the circuit and the voltage phasor diagram. Find the impedance, rms current, phase angle, whether current leads or lags, and average power.",
+      "visualRequirement": "required",
+      "representations": ["circuit", "phasor_diagram"],
+      "expected": {
+        "quantities": [
+          { "id": "impedance", "value": 50.606853, "unit": "ohm", "tolerance": 0.01 },
+          { "id": "current", "value": 3.952034, "unit": "A", "tolerance": 0.01 },
+          { "id": "phase_angle", "value": 37.776458, "unit": "degree", "tolerance": 0.1 },
+          { "id": "average_power", "value": 624.74288, "unit": "W", "tolerance": 0.5 }
+        ],
+        "claims": ["inductive_net_reactance", "current_lags_voltage"]
+      },
+      "capabilities": {
+        "operators": ["point", "symbol", "connect", "vector", "vector_components", "arc", "label"],
+        "assertions": ["path", "perpendicular", "connected"],
+        "missingProofs": ["capacitor_symbol", "inductor_symbol", "ac_source_symbol", "vector_sum", "angle_value", "phasor_scale", "quantity_equation"]
+      }
+    },
+    {
+      "id": "optics-easy-plane-mirror",
+      "priority": "p2",
+      "domain": "optics",
+      "difficulty": "easy",
+      "question": "A 3 cm tall object is placed 5 cm in front of a plane mirror. Draw a ray construction and locate the image, giving its distance, orientation, nature, and height.",
+      "visualRequirement": "required",
+      "representations": ["ray_diagram"],
+      "expected": {
+        "quantities": [
+          { "id": "image_distance", "value": 5, "unit": "cm", "tolerance": 0.001 },
+          { "id": "image_height", "value": 3, "unit": "cm", "tolerance": 0.001 }
+        ],
+        "claims": ["image_virtual", "image_upright", "image_behind_mirror", "unit_magnification"]
+      },
+      "capabilities": {
+        "operators": ["line", "point", "segment", "normal_at", "reflect_direction", "reflect_point", "vector", "dimension", "label"],
+        "assertions": ["equal_length", "perpendicular", "incident", "same_side"],
+        "missingProofs": ["opposite_sides", "equal_angle", "virtual_extension_style"]
+      }
+    },
+    {
+      "id": "optics-medium-concave-mirror",
+      "priority": "p0",
+      "domain": "optics",
+      "difficulty": "medium",
+      "question": "A concave mirror has focal length 15 cm and an object is placed 20 cm in front of it. Locate the image and draw the principal-ray diagram. State the image nature, orientation, and magnification.",
+      "visualRequirement": "required",
+      "representations": ["ray_diagram"],
+      "expected": {
+        "quantities": [
+          { "id": "image_distance", "value": 60, "unit": "cm", "tolerance": 0.001 },
+          { "id": "magnification", "value": -3, "unit": "1", "tolerance": 0.001 }
+        ],
+        "claims": ["image_real", "image_inverted", "image_magnified", "image_farther_than_object"]
+      },
+      "capabilities": {
+        "operators": ["line", "arc", "point", "segment", "surface_contact", "normal_at", "reflect_direction", "dimension", "label"],
+        "assertions": ["incident", "on", "parallel", "converges", "between", "distance_ratio"],
+        "missingProofs": ["ordered_axis", "mirror_formula", "magnification_equation"]
+      }
+    },
+    {
+      "id": "optics-hard-prism-minimum-deviation",
+      "priority": "p0",
+      "domain": "optics",
+      "difficulty": "hard",
+      "question": "A prism has apex angle 60 degrees and refractive index sqrt(3). A ray passes through it at minimum deviation. Draw the complete ray path with normals and all relevant angles, and find the angle of incidence, refraction angles, emergence angle, and minimum deviation.",
+      "visualRequirement": "required",
+      "representations": ["ray_diagram", "angle_construction"],
+      "expected": {
+        "quantities": [
+          { "id": "incidence_angle", "aliases": ["i", "incidence", "incidence_angle"], "value": 60, "unit": "degree", "tolerance": 0.01 },
+          { "id": "first_refraction_angle", "aliases": ["r1", "r_1", "first_refraction_angle"], "value": 30, "unit": "degree", "tolerance": 0.01 },
+          { "id": "second_refraction_angle", "aliases": ["r2", "r_2", "second_refraction_angle"], "value": 30, "unit": "degree", "tolerance": 0.01 },
+          { "id": "emergence_angle", "aliases": ["e", "emergence", "emergence_angle"], "value": 60, "unit": "degree", "tolerance": 0.01 },
+          { "id": "minimum_deviation", "aliases": ["delta_min", "dmin", "minimum_deviation"], "value": 60, "unit": "degree", "tolerance": 0.01 }
+        ],
+        "claims": ["symmetric_path_at_minimum_deviation"]
+      },
+      "capabilities": {
+        "operators": ["polygon", "ray", "surface_intersection", "normal_at", "refract_direction", "arc", "label"],
+        "assertions": ["incident", "on", "equal_length"],
+        "missingProofs": ["angle_value", "equal_angle", "inside", "ordered_intersections", "snells_law", "prism_deviation_equation"]
+      }
+    },
+    {
+      "id": "modern-easy-photoelectric",
+      "priority": "p2",
+      "domain": "modern_physics",
+      "difficulty": "easy",
+      "question": "Light of photon energy 3.0 eV falls on a metal of work function 2.0 eV. Draw an energy-balance illustration and find the maximum photoelectron kinetic energy and stopping potential.",
+      "visualRequirement": "required",
+      "representations": ["energy_diagram"],
+      "expected": {
+        "quantities": [
+          { "id": "maximum_kinetic_energy", "value": 1, "unit": "eV", "tolerance": 0.001 },
+          { "id": "stopping_potential", "value": 1, "unit": "V", "tolerance": 0.001 }
+        ],
+        "claims": ["emission_occurs", "photon_energy_exceeds_work_function"]
+      },
+      "capabilities": {
+        "operators": ["axes", "segment", "vector", "dimension", "label"],
+        "assertions": ["parallel", "connected", "distance_ratio"],
+        "missingProofs": ["quantity_equation", "greater_than", "energy_balance"]
+      }
+    },
+    {
+      "id": "modern-medium-hydrogen-transition",
+      "priority": "p1",
+      "domain": "modern_physics",
+      "difficulty": "medium",
+      "question": "An electron in a hydrogen atom falls from n = 3 to n = 2. Draw the relevant Bohr energy levels and transition, then calculate the emitted photon energy and wavelength.",
+      "visualRequirement": "required",
+      "representations": ["energy_level_diagram"],
+      "expected": {
+        "quantities": [
+          { "id": "photon_energy", "value": 1.888889, "unit": "eV", "tolerance": 0.001 },
+          { "id": "wavelength", "value": 656.39, "unit": "nm", "tolerance": 0.2 }
+        ],
+        "claims": ["downward_transition", "photon_emitted"]
+      },
+      "capabilities": {
+        "operators": ["axes", "segment", "vector", "label"],
+        "assertions": ["parallel", "connected", "between"],
+        "missingProofs": ["ordered_levels", "energy_difference", "quantity_equation"]
+      }
+    },
+    {
+      "id": "modern-hard-zener-regulator",
+      "priority": "p0",
+      "domain": "modern_physics",
+      "difficulty": "hard",
+      "question": "A 12 V supply feeds a 200 ohm series resistor and a 6.0 V ideal Zener diode connected in parallel with a 600 ohm load. Draw the regulator circuit and find the load current, series-resistor current, Zener current, and Zener power.",
+      "visualRequirement": "required",
+      "representations": ["circuit"],
+      "expected": {
+        "quantities": [
+          { "id": "load_current", "value": 0.01, "unit": "A", "tolerance": 0.00001 },
+          { "id": "series_current", "value": 0.03, "unit": "A", "tolerance": 0.00001 },
+          { "id": "zener_current", "value": 0.02, "unit": "A", "tolerance": 0.00001 },
+          { "id": "zener_power", "value": 0.12, "unit": "W", "tolerance": 0.001 }
+        ],
+        "claims": ["zener_reverse_biased", "load_and_zener_share_terminal_pair", "regulated_output_6V"]
+      },
+      "capabilities": {
+        "operators": ["point", "symbol", "connect", "vector", "label"],
+        "assertions": ["path", "pathCount", "sameTerminalPair", "degree"],
+        "missingProofs": ["zener_symbol", "source_polarity", "directed_flow", "kcl", "ohms_law", "power_equation"]
+      }
+    }
+  ]
+}

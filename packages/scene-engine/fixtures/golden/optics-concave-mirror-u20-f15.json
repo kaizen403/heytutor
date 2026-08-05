@@ -1,0 +1,173 @@
+{
+  "id": "optics-concave-mirror-u20-f15",
+  "version": 1,
+  "domain": "optics",
+  "question": "Concave mirror, f = 15 cm, object at 20 cm. Locate the image and draw the ray diagram.",
+  "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Concave mirror, f = 15 cm, object at 20 cm. Locate the image and draw the ray diagram.",
+    "givens": [
+      { "id": "f", "symbol": "f", "value": 15, "unit": "cm", "sign": "positive", "provenance": "given", "sourceText": "f = 15 cm" },
+      { "id": "u", "symbol": "u", "value": 20, "unit": "cm", "sign": "positive", "provenance": "given", "sourceText": "object at 20 cm" }
+    ],
+    "unknowns": [
+      { "id": "v", "symbol": "v", "unit": "cm" },
+      { "id": "m", "symbol": "m", "unit": "1" }
+    ],
+    "derived": [
+      {
+        "id": "v",
+        "symbol": "v",
+        "value": 60,
+        "unit": "cm",
+        "sign": "positive",
+        "provenance": "derived",
+        "dependsOn": ["f", "u"],
+        "sourceText": "v = 60 cm"
+      },
+      {
+        "id": "m",
+        "symbol": "m",
+        "value": -3,
+        "unit": "1",
+        "sign": "negative",
+        "provenance": "derived",
+        "dependsOn": ["v", "u"],
+        "sourceText": "m = -3"
+      }
+    ],
+    "qualitativeClaims": [
+      { "id": "image_real", "claim": "image_real", "expected": true, "relatedQuantityIds": ["v"] },
+      { "id": "image_inverted", "claim": "image_inverted", "expected": true, "relatedQuantityIds": ["m"] },
+      { "id": "image_farther", "claim": "image_farther_than_object", "expected": true, "relatedQuantityIds": ["v", "u"] }
+    ],
+    "lawIds": ["mirror_formula", "reflection_law", "magnification"],
+    "assumptions": ["paraxial rays", "Cartesian sign convention with object distance positive in front"],
+    "visualRequirement": "required"
+  },
+  "expectations": {
+    "views": ["ray_diagram"],
+    "layoutMode": "metric",
+    "requiredEntities": ["pole", "focus", "center", "object", "image", "axis", "ray_parallel", "ray_focus"],
+    "forbidden": [
+      "convex_mirror_for_concave",
+      "orphan_helper_points",
+      "duplicate_axis_labels",
+      "reflected_ray_missing_focus"
+    ],
+    "proofObligations": [
+      {
+        "id": "focus_exists",
+        "predicate": "exists",
+        "inputs": ["F"],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "parallel_ray_reflects_through_focus",
+        "predicate": "converges",
+        "inputs": ["ray_reflected_parallel", "F"],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "Ray parallel to axis reflects through F"
+      }
+    ],
+    "quantityAgreement": {
+      "f_cm": 15,
+      "u_cm": 20,
+      "v_cm": 60,
+      "m": -3
+    }
+  },
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": { "mode": "scene", "reason": "verified concave-mirror ray construction" },
+    "source": { "question": "Concave mirror, f = 15 cm, object at 20 cm", "view": "ray_diagram" },
+    "quantities": [
+      { "id": "f", "value": 15, "unit": "cm" },
+      { "id": "u", "value": 20, "unit": "cm" },
+      { "id": "v", "value": 60, "unit": "cm" },
+      { "id": "m", "value": -3, "unit": "1" }
+    ],
+    "entities": [
+      { "id": "left_axis", "kind": "point", "role": "axis endpoint" },
+      { "id": "right_axis", "kind": "point", "role": "axis endpoint" },
+      { "id": "axis", "kind": "segment", "role": "principal axis" },
+      { "id": "C", "kind": "point", "role": "center of curvature", "label": "C" },
+      { "id": "F", "kind": "point", "role": "focus", "label": "F" },
+      { "id": "P", "kind": "point", "role": "pole", "label": "P" },
+      { "id": "mirror", "kind": "arc", "role": "concave mirror" },
+      { "id": "object_base", "kind": "point", "role": "object base" },
+      { "id": "object_tip", "kind": "point", "role": "object tip" },
+      { "id": "object", "kind": "vector", "role": "object" },
+      { "id": "image_base", "kind": "point", "role": "image base" },
+      { "id": "image_tip", "kind": "point", "role": "image tip" },
+      { "id": "image", "kind": "vector", "role": "real inverted image" },
+      { "id": "hit_parallel", "kind": "point", "role": "surface intersection" },
+      { "id": "incident_parallel", "kind": "vector", "role": "incident ray" },
+      { "id": "normal_parallel", "kind": "vector", "role": "surface normal" },
+      { "id": "reflected_parallel", "kind": "ray", "role": "reflected ray" },
+      { "id": "hit_focus", "kind": "point", "role": "surface intersection" },
+      { "id": "incident_focus", "kind": "vector", "role": "incident ray" },
+      { "id": "normal_focus", "kind": "vector", "role": "surface normal" },
+      { "id": "reflected_focus", "kind": "ray", "role": "reflected ray" }
+    ],
+    "constructions": [
+      { "id": "make_left_axis", "operator": "point", "inputs": { "x": -70, "y": 0, "coordinateSpace": "world" }, "outputs": ["left_axis"] },
+      { "id": "make_right_axis", "operator": "point", "inputs": { "x": 5, "y": 0, "coordinateSpace": "world" }, "outputs": ["right_axis"] },
+      { "id": "make_axis", "operator": "segment", "inputs": { "start": "left_axis", "end": "right_axis" }, "outputs": ["axis"] },
+      { "id": "make_C", "operator": "point", "inputs": { "x": -30, "y": 0, "coordinateSpace": "world" }, "outputs": ["C"] },
+      { "id": "make_F", "operator": "point", "inputs": { "x": -15, "y": 0, "coordinateSpace": "world" }, "outputs": ["F"] },
+      { "id": "make_P", "operator": "point", "inputs": { "x": 0, "y": 0, "coordinateSpace": "world" }, "outputs": ["P"] },
+      { "id": "make_mirror", "operator": "arc", "inputs": { "center": "C", "radius": 30, "startAngle": -25, "endAngle": 25, "angleUnit": "degrees" }, "outputs": ["mirror"] },
+      { "id": "make_object_base", "operator": "point", "inputs": { "x": -20, "y": 0, "coordinateSpace": "world" }, "outputs": ["object_base"] },
+      { "id": "make_object_tip", "operator": "point", "inputs": { "x": -20, "y": 0.5, "coordinateSpace": "world" }, "outputs": ["object_tip"] },
+      { "id": "make_object", "operator": "vector", "inputs": { "start": "object_base", "end": "object_tip" }, "outputs": ["object"] },
+      { "id": "make_image_base", "operator": "point", "inputs": { "x": -60, "y": 0, "coordinateSpace": "world" }, "outputs": ["image_base"] },
+      { "id": "make_image_tip", "operator": "point", "inputs": { "x": -60, "y": -1.5, "coordinateSpace": "world" }, "outputs": ["image_tip"] },
+      { "id": "make_image", "operator": "vector", "inputs": { "start": "image_base", "end": "image_tip" }, "outputs": ["image"] },
+      { "id": "make_parallel_contact", "operator": "surface_contact", "inputs": { "origin": "object_tip", "direction": [1, 0], "surface": "mirror" }, "outputs": ["hit_parallel", "incident_parallel"] },
+      { "id": "make_parallel_normal", "operator": "normal_at", "inputs": { "point": "hit_parallel", "surface": "mirror" }, "outputs": ["normal_parallel"] },
+      { "id": "make_parallel_reflection", "operator": "reflect_direction", "inputs": { "origin": "hit_parallel", "incoming": "incident_parallel", "normal": "normal_parallel" }, "outputs": ["reflected_parallel"] },
+      { "id": "make_focus_contact", "operator": "surface_contact", "inputs": { "origin": "object_tip", "through": "F", "surface": "mirror" }, "outputs": ["hit_focus", "incident_focus"] },
+      { "id": "make_focus_normal", "operator": "normal_at", "inputs": { "point": "hit_focus", "surface": "mirror" }, "outputs": ["normal_focus"] },
+      { "id": "make_focus_reflection", "operator": "reflect_direction", "inputs": { "origin": "hit_focus", "incoming": "incident_focus", "normal": "normal_focus" }, "outputs": ["reflected_focus"] }
+    ],
+    "relations": [],
+    "assertions": [
+      { "id": "focus_between_center_and_pole", "predicate": "between", "entities": ["F", "C", "P"], "expected": true, "severity": "fatal" },
+      { "id": "image_distance_ratio", "predicate": "distance_ratio", "entities": ["image_base", "P", "object_base", "P"], "expected": 3, "tolerance": 0.0001, "severity": "fatal" },
+      { "id": "magnification_ratio", "predicate": "distance_ratio", "entities": ["image_base", "image_tip", "object_base", "object_tip"], "expected": 3, "tolerance": 0.0001, "severity": "fatal" },
+      { "id": "real_image_same_side", "predicate": "same_side", "entities": ["object_base", "image_base", "P"], "expected": true, "severity": "fatal" },
+      { "id": "image_inverted", "predicate": "opposite_direction", "entities": ["object", "image"], "expected": true, "tolerance": 0.0001, "severity": "fatal" },
+      { "id": "parallel_ray_through_focus", "predicate": "converges", "entities": ["reflected_parallel", "axis", "F"], "expected": true, "tolerance": 0.1, "severity": "fatal" },
+      { "id": "focus_ray_reflects_parallel", "predicate": "parallel", "entities": ["reflected_focus", "axis"], "expected": true, "tolerance": 0.03, "severity": "fatal" },
+      { "id": "rays_converge_at_image", "predicate": "converges", "entities": ["reflected_parallel", "reflected_focus", "image_tip"], "expected": true, "tolerance": 0.2, "severity": "fatal" }
+    ],
+    "annotations": [],
+    "requiredEntityIds": ["left_axis", "right_axis", "axis", "C", "F", "P", "mirror", "object_base", "object_tip", "object", "image_base", "image_tip", "image", "hit_parallel", "incident_parallel", "normal_parallel", "reflected_parallel", "hit_focus", "incident_focus", "normal_focus", "reflected_focus"],
+    "revealGroups": [
+      { "id": "mirror_setup", "entityIds": ["left_axis", "right_axis", "axis", "C", "F", "P", "mirror", "object_base", "object_tip", "object", "image_base", "image_tip", "image"], "dependsOn": [], "narrationCue": "mirror setup" },
+      { "id": "principal_rays", "entityIds": ["hit_parallel", "incident_parallel", "normal_parallel", "reflected_parallel", "hit_focus", "incident_focus", "normal_focus", "reflected_focus"], "dependsOn": ["mirror_setup"], "narrationCue": "verified principal rays" }
+    ],
+    "teachingTimeline": [
+      { "id": "show_setup", "action": "reveal", "targetId": "mirror_setup", "dependsOn": [], "narrationIntent": "draw mirror and metric object/image setup" },
+      { "id": "show_rays", "action": "reveal", "targetId": "principal_rays", "dependsOn": ["show_setup"], "narrationIntent": "draw law-derived reflected rays" }
+    ]
+  },
+  "notes": [
+    "The ray-construction scene is compiled from reusable surface-contact, normal, and reflection operators.",
+    "Mutation cases should flip f sign or swap concave/convex to assert rejection."
+  ],
+  "mutations": [
+    {
+      "id": "wrong_image_distance",
+      "description": "Derived v claimed as 30 cm must fail qualitative image_farther and numerical mirror formula check",
+      "derivedOverride": { "v": 30 }
+    },
+    {
+      "id": "convex_mislabel",
+      "description": "Using convex mirror geometry for a concave question must fail corpus entity/role checks"
+    }
+  ]
+}
