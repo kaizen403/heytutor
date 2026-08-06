@@ -73,6 +73,19 @@ assert(
   "streaming: an unknown bracket tag must remain narration",
 );
 
+const inlineUnknown = parseDrawingCommands("Keep [UNKNOWN:value] as narration.");
+assert(
+  inlineUnknown.segments.some((segment) =>
+    segment.text.includes("[UNKNOWN:value]"),
+  ),
+  "inline: unknown bracket tag must remain in a segment",
+);
+assert(
+  inlineUnknown.narration.includes("[UNKNOWN:value]"),
+  "inline: unknown bracket tag must remain in aggregate narration",
+);
+
+
 const nestedLabel = parseStructuredLessonSteps(
   "[STEP]Mark the evaluated value. [LABEL:A(2)=[x^2]_0^(2),480,180,20][/STEP]",
 );
