@@ -176,11 +176,10 @@ export function useBoardSession({
           return;
         }
 
-        let remaining: BoardEntry[] = [];
-        setBoards((prev) => {
-          remaining = prev.filter((b) => b.id !== id);
-          return remaining;
-        });
+        // Filter before setState — React may defer updaters, so reading a
+        // variable assigned inside the updater can leave navigation on [].
+        const remaining = boards.filter((b) => b.id !== id);
+        setBoards(remaining);
 
         if (id === sessionId) {
           if (remaining.length > 0) {
@@ -191,7 +190,7 @@ export function useBoardSession({
         }
       })();
     },
-    [sessionId, router, createNewBoard, phase, stopTurnRef],
+    [sessionId, router, createNewBoard, phase, stopTurnRef, boards],
   );
 
   const ensureTTSClient = useCallback((): TTSClient => {
