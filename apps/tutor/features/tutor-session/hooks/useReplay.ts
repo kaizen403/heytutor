@@ -126,6 +126,7 @@ export function useReplay({
       narration: string,
       audio?: HTMLAudioElement,
       fallbackDurationMs?: number,
+      initialTextCommandIndex = 0,
     ): Promise<void> => {
       if (segmentCommands.length === 0 || cancelRef.current) {
         return;
@@ -146,7 +147,7 @@ export function useReplay({
       const getRate = () => Math.max(speedRef.current, 0.1);
       const shouldCancel = () => cancelRef.current;
 
-      let textCommandIndex = 0;
+      let textCommandIndex = initialTextCommandIndex;
       for (const command of segmentCommands) {
         if (cancelRef.current) {
           return;
@@ -277,6 +278,7 @@ export function useReplay({
       generation: number,
       skipDraw: boolean,
       nextCue?: ReplayCue,
+      startCommandIndex = 0,
     ) => {
       if (cancelRef.current || generation !== replayGenerationRef.current) {
         return;
@@ -314,6 +316,12 @@ export function useReplay({
       const getRate = () => Math.max(speedRef.current, 0.1);
       const shouldCancel = () =>
         cancelRef.current || generation !== replayGenerationRef.current;
+      const startIdx = Math.max(0, startCommandIndex);
+      const remainingCommands = cue.commands.slice(startIdx);
+      const initialTextCommandIndex = cue.commands
+        .slice(0, startIdx)
+        .filter((command) => command.type === "WRITE" || command.type === "LABEL")
+        .length;
 
       try {
         if (cue.audioUrl) {
@@ -338,10 +346,11 @@ export function useReplay({
             setPhase("drawing");
             const drawPromise = runReplaySegmentDraw(
               cue.segment,
-              cue.commands,
+              remainingCommands,
               cue.narration,
               audio,
               fallbackDurationMs,
+              initialTextCommandIndex,
             );
             await Promise.all([
               raceWithCancel(done),
@@ -351,13 +360,14 @@ export function useReplay({
             await raceWithCancel(done);
           }
           replayAudioRef.current = null;
-        } else if (!skipDraw && cue.commands.length > 0) {
+        } else if (!skipDraw && remainingCommands.length > 0) {
           await runReplaySegmentDraw(
             cue.segment,
-            cue.commands,
+            remainingCommands,
             cue.narration,
             undefined,
             fallbackDurationMs,
+            initialTextCommandIndex,
           );
         } else if (remainingMs > 0) {
           setPhase("speaking");
@@ -373,13 +383,14 @@ export function useReplay({
           error: error instanceof Error ? error.message : String(error),
         });
 
-        if (!skipDraw && cue.commands.length > 0) {
+        if (!skipDraw && remainingCommands.length > 0) {
           await runReplaySegmentDraw(
             cue.segment,
-            cue.commands,
+            remainingCommands,
             cue.narration,
             undefined,
             fallbackDurationMs,
+            initialTextCommandIndex,
           );
         }
       }
@@ -453,9 +464,20 @@ export function useReplay({
           const nextCue = timeline.cues[i + 1];
           const offsetMs = i === found.index ? found.offsetMs : 0;
           // Don't skip draw on mid-segment seek — renderBoardAtTime already
-          // drew the completed portion instantly. Continue drawing the
+          // drew the completed portion instantly. Continue drawing only the
           // remaining commands in this cue alongside the audio.
-          await playReplayCue(cue, offsetMs, generation, false, nextCue);
+          const startCommandIndex =
+            i === found.index && offsetMs > 0
+              ? getPartialCommandCount(cue, offsetMs)
+              : 0;
+          await playReplayCue(
+            cue,
+            offsetMs,
+            generation,
+            false,
+            nextCue,
+            startCommandIndex,
+          );
         }
 
         const lastTurn =
