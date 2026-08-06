@@ -6,7 +6,11 @@ import {
   toSegmentRelativeAudioTimings,
 } from "./elevenLabsClient";
 import { tutorDebug } from "./tutorDebug";
-import { resolveApiUrl, resolveWebSocketUrl } from "./publicOrigins";
+import {
+  isCrossOriginWebSocket,
+  resolveApiUrl,
+  resolveWebSocketUrl,
+} from "./publicOrigins";
 
 interface TimestampChunkPayload {
   audio?: string;
@@ -141,12 +145,34 @@ function getWebSocketUrl(
   traceId?: string,
   sessionId?: string,
   voiceSpeed?: number,
+  ticket?: string,
 ): string {
-  const base = resolveWebSocketUrl(path, traceId, sessionId);
+  const base = resolveWebSocketUrl(path, traceId, sessionId, ticket);
   if (!voiceSpeed || voiceSpeed === 1) {
     return base;
   }
   return `${base}${base.includes("?") ? "&" : "?"}speed=${voiceSpeed}`;
+}
+
+async function fetchWsAuthTicket(): Promise<string | undefined> {
+  if (!isCrossOriginWebSocket()) {
+    return undefined;
+  }
+
+  try {
+    const response = await fetch(resolveApiUrl("/api/tts/ws-ticket"), {
+      credentials: "include",
+    });
+    if (!response.ok) {
+      return undefined;
+    }
+    const data = (await response.json()) as { ticket?: string };
+    return typeof data.ticket === "string" && data.ticket.length > 0
+      ? data.ticket
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -448,57 +474,62 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     };
 
     const voiceSpeed = clampVoiceSpeed(this.playbackRate);
-    this.connectPromise = new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(getWebSocketUrl("/api/tts/ws", traceId, sessionId, voiceSpeed));
-      this.ws = ws;
-      this.connectedTraceId = traceId;
-      this.connectedSessionId = sessionId;
+    this.connectPromise = (async () => {
+      const ticket = await fetchWsAuthTicket();
+      await new Promise<void>((resolve, reject) => {
+        const ws = new WebSocket(
+          getWebSocketUrl("/api/tts/ws", traceId, sessionId, voiceSpeed, ticket),
+        );
+        this.ws = ws;
+        this.connectedTraceId = traceId;
+        this.connectedSessionId = sessionId;
 
-      const timeout = window.setTimeout(() => {
-        notifyConnect(false);
-        reject(new Error("websocket connection timeout"));
-        ws.close();
-      }, 5000);
+        const timeout = window.setTimeout(() => {
+          notifyConnect(false);
+          reject(new Error("websocket connection timeout"));
+          ws.close();
+        }, 5000);
 
-      const onReady = (event: MessageEvent) => {
-        const payload = parseWsPayload(String(event.data));
+        const onReady = (event: MessageEvent) => {
+          const payload = parseWsPayload(String(event.data));
 
-        if (payload && "type" in payload && payload.type === "ready") {
-          window.clearTimeout(timeout);
-          ws.removeEventListener("message", onReady);
-          notifyConnect(true);
-          resolve();
-        }
+          if (payload && "type" in payload && payload.type === "ready") {
+            window.clearTimeout(timeout);
+            ws.removeEventListener("message", onReady);
+            notifyConnect(true);
+            resolve();
+          }
 
-        if (payload && "type" in payload && payload.type === "error") {
+          if (payload && "type" in payload && payload.type === "error") {
+            window.clearTimeout(timeout);
+            ws.removeEventListener("message", onReady);
+            notifyConnect(false);
+            reject(new Error(payload.message ?? "websocket tts error"));
+          }
+        };
+
+        ws.addEventListener("message", onReady);
+
+        ws.onerror = () => {
           window.clearTimeout(timeout);
           ws.removeEventListener("message", onReady);
           notifyConnect(false);
-          reject(new Error(payload.message ?? "websocket tts error"));
-        }
-      };
+          reject(new Error("websocket connection failed"));
+        };
 
-      ws.addEventListener("message", onReady);
-
-      ws.onerror = () => {
-        window.clearTimeout(timeout);
-        ws.removeEventListener("message", onReady);
-        notifyConnect(false);
-        reject(new Error("websocket connection failed"));
-      };
-
-      ws.onclose = () => {
-        this.ws = null;
-        this.connectPromise = null;
-        this.connectedTraceId = undefined;
-        this.connectedSessionId = undefined;
-        this.detachStreamHandler();
-        this.rejectAllJobs(new Error("websocket closed"));
-        this.currentJob = null;
-        this.chunkTargetJob = null;
-        this.jobs = [];
-      };
-    });
+        ws.onclose = () => {
+          this.ws = null;
+          this.connectPromise = null;
+          this.connectedTraceId = undefined;
+          this.connectedSessionId = undefined;
+          this.detachStreamHandler();
+          this.rejectAllJobs(new Error("websocket closed"));
+          this.currentJob = null;
+          this.chunkTargetJob = null;
+          this.jobs = [];
+        };
+      });
+    })();
 
     try {
       await this.connectPromise;

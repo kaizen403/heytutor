@@ -9,6 +9,7 @@ import {
   buildMultiContextSegmentMessages,
   normalizeMultiContextServerPayload,
 } from "./lib/ttsRelayProtocol";
+import { verifyWsTicket } from "./lib/wsTicket";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "localhost";
@@ -232,7 +233,12 @@ app.prepare().then(() => {
         .map((c) => c.trim())
         .some((c) => c.startsWith(`${HTUTOR_UID_COOKIE}=`));
 
-      if (!hasUidCookie) {
+      const ticket = typeof query.ticket === "string" ? query.ticket : "";
+      const hasValidTicket = ticket.length > 0 && verifyWsTicket(ticket);
+
+      // Split deploy: host-only htutor_uid on Vercel is not sent to Azure WS.
+      // Accept either the cookie (same-origin) or a short-lived ticket query param.
+      if (!hasUidCookie && !hasValidTicket) {
         socket.destroy();
         return;
       }

@@ -1,18 +1,23 @@
 /** Optional split-deploy origins. Empty = same origin as the page. */
-function envValue(key: string): string | undefined {
-  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-  const value = env?.[key];
-  return typeof value === "string" ? value : undefined;
+function normalizeOrigin(origin: string | undefined): string {
+  const value = origin?.trim();
+  return value ? value.replace(/\/$/, "") : "";
 }
 
+const PUBLIC_API_ORIGIN = normalizeOrigin(
+  typeof process !== "undefined" ? process.env.NEXT_PUBLIC_API_ORIGIN : undefined,
+);
+
+const PUBLIC_WS_ORIGIN = normalizeOrigin(
+  typeof process !== "undefined" ? process.env.NEXT_PUBLIC_WS_ORIGIN : undefined,
+);
+
 export function getPublicApiOrigin(): string {
-  const origin = envValue("NEXT_PUBLIC_API_ORIGIN")?.trim();
-  return origin?.replace(/\/$/, "") ?? "";
+  return PUBLIC_API_ORIGIN;
 }
 
 export function getPublicWsOrigin(): string {
-  const origin = envValue("NEXT_PUBLIC_WS_ORIGIN")?.trim();
-  return origin?.replace(/\/$/, "") ?? "";
+  return PUBLIC_WS_ORIGIN;
 }
 
 export function resolveApiUrl(path: string): string {
@@ -23,7 +28,12 @@ export function resolveApiUrl(path: string): string {
   return `${apiOrigin}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-export function resolveWebSocketUrl(path: string, traceId?: string, sessionId?: string): string {
+export function resolveWebSocketUrl(
+  path: string,
+  traceId?: string,
+  sessionId?: string,
+  ticket?: string,
+): string {
   if (typeof window === "undefined") {
     return path;
   }
@@ -40,6 +50,25 @@ export function resolveWebSocketUrl(path: string, traceId?: string, sessionId?: 
   if (sessionId) {
     url.searchParams.set("sessionId", sessionId);
   }
+  if (ticket) {
+    url.searchParams.set("ticket", ticket);
+  }
 
   return url.toString();
+}
+
+/** True when WS is not same-origin, so the host-only uid cookie will not be sent. */
+export function isCrossOriginWebSocket(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const wsOrigin = getPublicWsOrigin();
+  if (!wsOrigin) {
+    return false;
+  }
+  try {
+    return new URL(wsOrigin).origin !== window.location.origin;
+  } catch {
+    return true;
+  }
 }
