@@ -85,6 +85,16 @@ assert(
   "inline: unknown bracket tag must remain in aggregate narration",
 );
 
+const deltaBoard = "[WRITE:Delta T = delta x,10,20]";
+const deltaParsed = parseDrawingCommands(deltaBoard);
+assert(deltaParsed.commands[0]?.text?.includes("Δ"), "uppercase Delta must become Δ");
+assert(deltaParsed.commands[0]?.text?.includes("δ"), "lowercase delta must become δ");
+assert(
+  !deltaParsed.commands[0]?.text?.includes("δ T"),
+  "uppercase Delta must not be lowercased to δ before Δ normalization",
+);
+
+
 
 const nestedLabel = parseStructuredLessonSteps(
   "[STEP]Mark the evaluated value. [LABEL:A(2)=[x^2]_0^(2),480,180,20][/STEP]",
