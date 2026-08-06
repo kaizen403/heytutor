@@ -420,6 +420,11 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   }
 
   private shouldReconnect(_traceId?: string, _sessionId?: string): boolean {
+    // Reuse an in-flight CONNECTING socket / connectPromise instead of
+    // orphaning it with resetConnection (which only closes OPEN sockets).
+    if (this.connectPromise || this.ws?.readyState === WebSocket.CONNECTING) {
+      return false;
+    }
     return this.ws === null || this.ws.readyState !== WebSocket.OPEN;
   }
 
@@ -431,7 +436,11 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     this.chunkTargetJob = null;
     this.jobs = [];
 
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    if (
+      this.ws &&
+      (this.ws.readyState === WebSocket.OPEN ||
+        this.ws.readyState === WebSocket.CONNECTING)
+    ) {
       this.ws.close();
     }
 
