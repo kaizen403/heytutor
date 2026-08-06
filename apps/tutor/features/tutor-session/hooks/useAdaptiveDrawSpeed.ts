@@ -79,20 +79,27 @@ export function useAdaptiveDrawSpeed({
       const dtMs = now - lastPollAtRef.current;
       lastPollAtRef.current = now;
 
-      // Advance the estimated draw position by wall-clock time scaled by the
-      // current factor — this is our proxy for "where the pen should be".
-      drawPositionMsRef.current += dtMs * adaptiveFactorRef.current;
-
-      // --- Signal 1: audio lag ---
+      // --- Signal 1: audio lag (current segment only) ---
       const tts = ttsClientRef.current;
-      let audioPosMs = 0;
-      if (tts) {
-        const pos = tts.getPlaybackPositionMs();
-        if (pos !== null && pos > maxAudioPositionMsRef.current) {
-          maxAudioPositionMsRef.current = pos;
-        }
-        audioPosMs = maxAudioPositionMsRef.current;
+      const pos = tts?.getPlaybackPositionMs() ?? null;
+
+      // Planning / pause / between segments: no live TTS clock. Do not advance
+      // the draw proxy against a frozen timeline or lag will ratchet negative.
+      if (pos === null || pos < 0) {
+        return;
       }
+
+      // Per-segment TTS position resets when a new job starts — reset the draw
+      // baseline so lag stays on the same timeline as the current segment.
+      if (pos + 80 < maxAudioPositionMsRef.current) {
+        drawPositionMsRef.current = pos;
+        maxAudioPositionMsRef.current = pos;
+      } else if (pos > maxAudioPositionMsRef.current) {
+        maxAudioPositionMsRef.current = pos;
+      }
+
+      drawPositionMsRef.current += dtMs * adaptiveFactorRef.current;
+      const audioPosMs = maxAudioPositionMsRef.current;
       const lagMs = audioPosMs - drawPositionMsRef.current;
       // Positive lag (audio ahead) → speed up; negative (ink ahead) → slow down.
       // Map ±1000ms lag to roughly 0.6–1.4 multiplier.
