@@ -55,10 +55,17 @@ export function isTeachingResponseIncomplete(
     return false;
   }
 
+  const openSteps = (trimmed.match(/\[STEP\]/gi) ?? []).length;
+  const closeSteps = (trimmed.match(/\[\/STEP\]/gi) ?? []).length;
+  // Open [STEP] blocks must be closed — a trailing ] from [FOCUS:...] is not enough.
+  if (openSteps > closeSteps) {
+    return true;
+  }
+
   const endsCleanly =
     /[.!?]\s*$/.test(trimmed) ||
     /\[\/STEP\]\s*$/.test(trimmed) ||
-    /\]\s*$/.test(trimmed);
+    (openSteps === 0 && /\]\s*$/.test(trimmed));
 
   if (endsCleanly && trimmed.length < 6000) {
     return false;
