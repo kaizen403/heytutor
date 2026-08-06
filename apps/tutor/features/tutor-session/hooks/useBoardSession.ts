@@ -28,6 +28,7 @@ type ExecuteCommandOptions = {
   durationScale?: number;
   applyLayout?: boolean;
   trustedDiagramGeometry?: boolean;
+  isCancelled?: () => boolean;
 };
 
 type ExecuteCommand = (
@@ -340,6 +341,7 @@ export function useBoardSession({
                 durationScale: 0.05,
                 applyLayout: false,
                 trustedDiagramGeometry,
+                isCancelled: isStale,
               });
             }
           }
