@@ -109,7 +109,7 @@ export type UseTurnLifecycleParams = {
     recordedSegments: RecordedSegmentPayload[],
   ) => StoredTurn;
   registerReplayBlobUrl: (url: string) => void;
-  revokeReplayBlobUrls: () => void;
+  revokeUnreferencedReplayBlobUrls: () => void;
 };
 
 export type UseSegmentRunnerParams = Pick<
