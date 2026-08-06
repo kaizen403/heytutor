@@ -1173,6 +1173,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
         const cursorLayer = cursorLayerRef.current;
+        const highlightLayer = highlightLayerRef.current;
 
         if (!drawLayer || !animLayer || !cursorLayer) {
           return;
@@ -1195,6 +1196,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
           drawLayer.batchDraw();
           animLayer.batchDraw();
+          highlightLayer?.batchDraw();
           cursorLayer.batchDraw();
         });
 
@@ -1208,6 +1210,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
         const cursorLayer = cursorLayerRef.current;
+        const highlightLayer = highlightLayerRef.current;
 
         if (!drawLayer || !animLayer || !cursorLayer) {
           return;
@@ -1231,6 +1234,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
             drawLayer.batchDraw();
             animLayer.batchDraw();
+            highlightLayer?.batchDraw();
             cursorLayer.batchDraw();
           });
 
@@ -1240,6 +1244,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           clearTrackedNodes(completedNodesRef.current);
           animLayer.batchDraw();
           drawLayer.batchDraw();
+          highlightLayer?.batchDraw();
           cursorLayer.batchDraw();
         }
 
