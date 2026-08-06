@@ -521,19 +521,25 @@ export function parseDrawingCommands(responseText: string): ParsedResponse {
   const segments: { text: string; commandIndex: number }[] = [];
   let narration = '';
   let lastIndex = 0;
+  // Unknown bracketed text is carried into the next segment / trailing text so
+  // lesson execution (which consumes segments) does not drop it.
+  let carryText = '';
 
   for (const { index, fullTag } of scanDrawingTags(responseText)) {
     const parsedTag = parseDrawingTag(fullTag);
     if (!parsedTag) {
-      narration += responseText.slice(lastIndex, index + fullTag.length);
+      const chunk = responseText.slice(lastIndex, index + fullTag.length);
+      narration += chunk;
+      carryText += chunk;
       lastIndex = index + fullTag.length;
       continue;
     }
 
     const commandIndex = commands.length;
-    const textBeforeTag = responseText.slice(lastIndex, index);
+    const textBeforeTag = carryText + responseText.slice(lastIndex, index);
+    carryText = '';
 
-    narration += textBeforeTag;
+    narration += responseText.slice(lastIndex, index);
     segments.push({ text: textBeforeTag, commandIndex });
 
     commands.push(
@@ -543,8 +549,8 @@ export function parseDrawingCommands(responseText: string): ParsedResponse {
     lastIndex = index + fullTag.length;
   }
 
-  const trailingText = responseText.slice(lastIndex);
-  narration += trailingText;
+  const trailingText = carryText + responseText.slice(lastIndex);
+  narration += responseText.slice(lastIndex);
 
   if (trailingText.length > 0 || segments.length === 0) {
     segments.push({ text: trailingText, commandIndex: commands.length });
