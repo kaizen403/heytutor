@@ -1,32 +1,50 @@
 import { useCallback, useRef } from "react";
 
+type CancelWait = {
+  promise: Promise<void>;
+  dispose: () => void;
+};
+
 export function useCancelControl(cancelRef: React.RefObject<boolean>) {
   const delayTimersRef = useRef<number[]>([]);
-  const cancelWatchIntervalRef = useRef<number | null>(null);
+  const cancelWaitDisposersRef = useRef<Set<() => void>>(new Set());
 
-  const waitForCancel = useCallback((): Promise<void> => {
+  const waitForCancel = useCallback((): CancelWait => {
     if (cancelRef.current) {
-      return Promise.resolve();
+      return { promise: Promise.resolve(), dispose: () => undefined };
     }
 
-    return new Promise((resolve) => {
-      if (cancelWatchIntervalRef.current !== null) {
-        window.clearInterval(cancelWatchIntervalRef.current);
-      }
+    let intervalId: number | null = null;
+    let settled = false;
 
-      cancelWatchIntervalRef.current = window.setInterval(() => {
+    const promise = new Promise<void>((resolve) => {
+      intervalId = window.setInterval(() => {
         if (!cancelRef.current) {
           return;
         }
 
-        if (cancelWatchIntervalRef.current !== null) {
-          window.clearInterval(cancelWatchIntervalRef.current);
-          cancelWatchIntervalRef.current = null;
+        if (intervalId !== null) {
+          window.clearInterval(intervalId);
+          intervalId = null;
         }
 
-        resolve();
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
       }, 32);
     });
+
+    const dispose = () => {
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+        intervalId = null;
+      }
+      cancelWaitDisposersRef.current.delete(dispose);
+    };
+
+    cancelWaitDisposersRef.current.add(dispose);
+    return { promise, dispose };
   }, [cancelRef]);
 
   const cancellableDelay = useCallback(
@@ -52,25 +70,34 @@ export function useCancelControl(cancelRef: React.RefObject<boolean>) {
         return undefined;
       }
 
-      const result = await Promise.race([
-        promise.then((value) => ({ kind: "value" as const, value })),
-        waitForCancel().then(() => ({ kind: "cancelled" as const })),
-      ]);
+      const cancelWait = waitForCancel();
 
-      if (result.kind === "cancelled" || cancelRef.current) {
-        return undefined;
+      try {
+        const result = await Promise.race([
+          promise.then((value) => ({ kind: "value" as const, value })),
+          cancelWait.promise.then(() => ({ kind: "cancelled" as const })),
+        ]);
+
+        if (result.kind === "cancelled" || cancelRef.current) {
+          return undefined;
+        }
+
+        return result.value;
+      } finally {
+        // Always dispose the watcher when the race settles — whether the
+        // source promise won or cancel did — so intervals cannot leak or
+        // clear each other across concurrent races.
+        cancelWait.dispose();
       }
-
-      return result.value;
     },
     [cancelRef, waitForCancel],
   );
 
   const clearCancelTimers = useCallback(() => {
-    if (cancelWatchIntervalRef.current !== null) {
-      window.clearInterval(cancelWatchIntervalRef.current);
-      cancelWatchIntervalRef.current = null;
+    for (const dispose of cancelWaitDisposersRef.current) {
+      dispose();
     }
+    cancelWaitDisposersRef.current.clear();
 
     for (const timerId of delayTimersRef.current) {
       window.clearTimeout(timerId);
@@ -79,7 +106,7 @@ export function useCancelControl(cancelRef: React.RefObject<boolean>) {
   }, []);
 
   return {
-    waitForCancel,
+    waitForCancel: () => waitForCancel().promise,
     cancellableDelay,
     raceWithCancel,
     clearCancelTimers,
