@@ -253,82 +253,85 @@ export function useBoardSession({
         generation !== restoreGenerationRef.current ||
         boardId !== activeSessionIdRef.current;
 
-      let detail = await fetchBoardDetail(boardId);
-      if (isStale()) return;
-
-      if (!detail) {
-        await createBoard(boardId);
-        if (isStale()) return;
-        detail = await fetchBoardDetail(boardId);
-      }
-
-      if (isStale()) return;
-
-      if (!detail) {
-        setBoardLoaded(true);
-        return;
-      }
-
-      storedTurnsRef.current = detail.turns;
-      setStoredTurnsCount(detail.turns.length);
-      // Reset the input overlay state for the restored board: a board with no
-      // turns shows the Accelute landing (inputInteracted=false), while a board
-      // with prior turns shows the doubt InputBar (inputInteracted=true).
-      setInputInteracted(detail.turns.length > 0);
-      conversationHistoryRef.current = detail.turns.map((turn) => ({
-        user: turn.question,
-        assistant: lessonNarrationText(turn.rawResponse),
-      }));
-
-      const lastTurn = detail.turns[detail.turns.length - 1];
-      const lastNarration = lastTurn
-        ? lessonNarrationText(lastTurn.rawResponse)
-        : "";
-
-      whiteboardRef.current?.clearBoard();
-      resetBoardLayout(false, false);
-      notesEpochsRef.current = [];
-      narrationSinceEpochRef.current = "";
-      setNarrationText(lastNarration);
-      setCurrentSegmentText("");
-
-      if (detail.turns.length === 0) {
-        setBoardLoaded(true);
-        return;
-      }
-
-      const whiteboardReady = await waitForWhiteboard(whiteboardRef);
-      if (isStale()) return;
-      if (!whiteboardReady) {
-        setBoardLoaded(true);
-        return;
-      }
-
-      for (const turn of detail.turns) {
+      try {
+        let detail = await fetchBoardDetail(boardId);
         if (isStale()) return;
 
-        for (const segment of turn.segments) {
+        if (!detail) {
+          await createBoard(boardId);
+          if (isStale()) return;
+          detail = await fetchBoardDetail(boardId);
+        }
+
+        if (isStale()) return;
+
+        if (!detail) {
+          return;
+        }
+
+        storedTurnsRef.current = detail.turns;
+        setStoredTurnsCount(detail.turns.length);
+        // Reset the input overlay state for the restored board: a board with no
+        // turns shows the Accelute landing (inputInteracted=false), while a board
+        // with prior turns shows the doubt InputBar (inputInteracted=true).
+        setInputInteracted(detail.turns.length > 0);
+        conversationHistoryRef.current = detail.turns.map((turn) => ({
+          user: turn.question,
+          assistant: lessonNarrationText(turn.rawResponse),
+        }));
+
+        const lastTurn = detail.turns[detail.turns.length - 1];
+        const lastNarration = lastTurn
+          ? lessonNarrationText(lastTurn.rawResponse)
+          : "";
+
+        whiteboardRef.current?.clearBoard();
+        resetBoardLayout(false, false);
+        notesEpochsRef.current = [];
+        narrationSinceEpochRef.current = "";
+        setNarrationText(lastNarration);
+        setCurrentSegmentText("");
+
+        if (detail.turns.length === 0) {
+          return;
+        }
+
+        const whiteboardReady = await waitForWhiteboard(whiteboardRef);
+        if (isStale()) return;
+        if (!whiteboardReady) {
+          return;
+        }
+
+        for (const turn of detail.turns) {
           if (isStale()) return;
 
-          const commands = parseStoredSegmentCommands(segment.command);
-          const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
-          for (const command of commands) {
-            if (isStale() || cancelRef.current) {
-              return;
-            }
+          for (const segment of turn.segments) {
+            if (isStale()) return;
 
-            await executeCommandRef.current(command, {
-              durationScale: 0.05,
-              applyLayout: false,
-              trustedDiagramGeometry,
-            });
+            const commands = parseStoredSegmentCommands(segment.command);
+            const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
+            for (const command of commands) {
+              if (isStale() || cancelRef.current) {
+                return;
+              }
+
+              await executeCommandRef.current(command, {
+                durationScale: 0.05,
+                applyLayout: false,
+                trustedDiagramGeometry,
+              });
+            }
           }
         }
+
+        if (isStale()) return;
+      } catch {
+        // Network-level fetch failures must still clear the loading overlay.
+      } finally {
+        if (!isStale()) {
+          setBoardLoaded(true);
+        }
       }
-
-      if (isStale()) return;
-
-      setBoardLoaded(true);
     },
     [
       resetBoardLayout,
