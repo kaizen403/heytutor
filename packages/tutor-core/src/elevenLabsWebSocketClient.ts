@@ -651,7 +651,9 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     }
 
     this.currentJob = nextJob;
-    if (this.chunkTargetJob === null) {
+    // Advance chunk routing with the job queue — a settled prior target must
+    // not keep absorbing (and discarding) chunks meant for the next segment.
+    if (this.chunkTargetJob === null || this.chunkTargetJob.settled) {
       this.chunkTargetJob = nextJob;
     }
     const ctx = await this.ensureAudioContext();
@@ -945,6 +947,9 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     }
 
     this.currentJob = null;
+    if (this.chunkTargetJob === job) {
+      this.chunkTargetJob = null;
+    }
     await this.pumpJobQueue();
   }
 
