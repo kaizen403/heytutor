@@ -126,7 +126,7 @@ export function useQuestionHandler(
     beginBoardEpoch,
     persistTurnForReplay,
     registerReplayBlobUrl,
-    revokeReplayBlobUrls,
+    revokeUnreferencedReplayBlobUrls,
   } = params;
 
   const { finishLectureUi, applyTurnPhase, enqueueSegment, enqueueVerifiedIntro, processResponseText } = turnControl;
@@ -207,7 +207,7 @@ export function useQuestionHandler(
       drawChainRef.current = Promise.resolve();
       turnStatsRef.current = { drawMs: 0, ttsChars: 0 };
       segmentPlanStatsRef.current = createEmptySegmentPlanStats();
-      revokeReplayBlobUrls();
+      revokeUnreferencedReplayBlobUrls();
       fbdPhaseMarkedRef.current = false;
       fbdPhaseStartedRef.current = false;
       activeVerifiedDiagramRef.current = null;
@@ -1264,7 +1264,7 @@ ${JSON.stringify(problemAuthority.projection)}`
       boardLoaded,
       persistTurnForReplay,
       registerReplayBlobUrl,
-      revokeReplayBlobUrls,
+      revokeUnreferencedReplayBlobUrls,
       finishLectureUi,
       ensureTTSClient,
       applyTurnPhase,

@@ -182,7 +182,7 @@ export function TutorSessionPage() {
     deleteBoard,
     ensureTTSClient,
     registerReplayBlobUrl,
-    revokeReplayBlobUrls,
+    revokeUnreferencedReplayBlobUrls,
     persistTurnForReplay,
   } = useBoardSession({
     sessionId,
@@ -286,7 +286,7 @@ export function TutorSessionPage() {
     reserveTextCommandPlacement,
     persistTurnForReplay,
     registerReplayBlobUrl,
-    revokeReplayBlobUrls,
+    revokeUnreferencedReplayBlobUrls,
   });
 
   const {

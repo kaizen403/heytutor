@@ -220,6 +220,28 @@ export function useBoardSession({
     replayBlobUrlsRef.current = [];
   }, []);
 
+  /** Revoke blob URLs no longer referenced by stored turns (keep pending local audio). */
+  const revokeUnreferencedReplayBlobUrls = useCallback(() => {
+    const referenced = new Set<string>();
+    for (const turn of storedTurnsRef.current) {
+      for (const segment of turn.segments) {
+        if (segment.audioUrl?.startsWith("blob:")) {
+          referenced.add(segment.audioUrl);
+        }
+      }
+    }
+
+    const kept: string[] = [];
+    for (const url of replayBlobUrlsRef.current) {
+      if (referenced.has(url)) {
+        kept.push(url);
+      } else {
+        URL.revokeObjectURL(url);
+      }
+    }
+    replayBlobUrlsRef.current = kept;
+  }, [storedTurnsRef]);
+
   const persistTurnForReplay = useCallback(
     (
       question: string,
@@ -398,6 +420,7 @@ export function useBoardSession({
     ensureTTSClient,
     registerReplayBlobUrl,
     revokeReplayBlobUrls,
+    revokeUnreferencedReplayBlobUrls,
     persistTurnForReplay,
   };
 }
