@@ -789,6 +789,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           let lastPositionMs = -1;
           let stalledFrames = 0;
           let audioClockStarted = false;
+          let pausedAt: number | null = null;
+          let pausedTotalMs = 0;
 
           const cleanup = (): void => {
             if (done) return;
@@ -803,6 +805,22 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               cleanup();
               return;
             }
+
+            // While paused the audio clock is frozen — do not count stall frames
+            // or wall-clock budget, so resume still waits for the cue.
+            if (isPausedRef.current) {
+              if (pausedAt === null) {
+                pausedAt = performance.now();
+              }
+              stalledFrames = 0;
+              requestTrackedFrame(step);
+              return;
+            }
+            if (pausedAt !== null) {
+              pausedTotalMs += performance.now() - pausedAt;
+              pausedAt = null;
+            }
+
             const positionMs = getAudioPositionMs();
             if (positionMs >= 0) {
               audioClockStarted = true;
@@ -825,7 +843,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             // Never block the lesson on a single character — cap wait time.
             if (
               audioClockStarted &&
-              performance.now() - startWall > Math.min(targetMs + 2000, 8000)
+              performance.now() - startWall - pausedTotalMs >
+                Math.min(targetMs + 2000, 8000)
             ) {
               cleanup();
               return;
