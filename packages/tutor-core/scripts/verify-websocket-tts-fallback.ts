@@ -138,4 +138,43 @@ assert(errors === 0, "recoverable websocket failure leaked through onError");
 assert(capturedBytes > 0, "fallback audio was not captured for replay");
 
 client.stop();
-console.log("verified empty websocket audio falls back to one HTTP playback");
+
+let pendingHttpSignal: AbortSignal | null = null;
+let notifyHttpStarted: (() => void) | null = null;
+const httpStarted = new Promise<void>((resolve) => {
+  notifyHttpStarted = resolve;
+});
+Object.defineProperty(globalThis, "fetch", {
+  configurable: true,
+  value: async (_input: unknown, init?: RequestInit) => {
+    pendingHttpSignal = init?.signal ?? null;
+    notifyHttpStarted?.();
+    return await new Promise<Response>((_resolve, reject) => {
+      pendingHttpSignal?.addEventListener("abort", () => {
+        reject(new DOMException("aborted", "AbortError"));
+      }, { once: true });
+    });
+  },
+});
+
+const stoppedClient = new ElevenLabsWebSocketTTSClient();
+let stoppedStarts = 0;
+let stoppedEnds = 0;
+let stoppedCapturedBytes = 0;
+const stoppedSpeak = stoppedClient.speakSegment("Stop this fallback before its first chunk.", {
+  onStart: () => stoppedStarts++,
+  onEnd: () => stoppedEnds++,
+  onAudioCaptured: ({ bytes }) => {
+    stoppedCapturedBytes += bytes.length;
+  },
+});
+await httpStarted;
+stoppedClient.stop();
+await stoppedSpeak;
+
+assert(pendingHttpSignal?.aborted === true, "stop did not abort the in-flight HTTP fallback");
+assert(stoppedStarts === 0, "stopped HTTP fallback invoked onStart");
+assert(stoppedEnds === 0, "stopped HTTP fallback invoked onEnd");
+assert(stoppedCapturedBytes === 0, "stopped HTTP fallback captured stale audio");
+
+console.log("verified websocket fallback and HTTP stop cancellation");
