@@ -186,12 +186,8 @@ function main(): void {
     R2_PUBLIC_BASE_URL: publicBaseUrl,
   };
 
+  // Write provisioned IDs only to the local env file. Never mutate .env.example.
   mergeEnvFile(envFile, vars, dryRun, true);
-
-  const exampleFile = resolve(tutorRoot, ".env.example");
-  if (existsSync(exampleFile) || !dryRun) {
-    mergeEnvFile(exampleFile, vars, dryRun, true);
-  }
 
   let uploadOk = false;
   const pingPath = join(tmpdir(), `heytutor-r2-setup-${Date.now()}.txt`);

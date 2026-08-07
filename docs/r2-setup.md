@@ -31,7 +31,7 @@ This runs (via `apps/tutor/scripts/r2-setup.ts`):
 | Read public URL | `wrangler r2 bucket dev-url get heytutor-lectures` |
 | Upload smoke test | `wrangler r2 object put … --remote` |
 
-It writes `R2_ACCOUNT_ID`, `R2_BUCKET`, and `R2_PUBLIC_BASE_URL` into `apps/tutor/.env.local` and `.env.example`.
+It writes `R2_ACCOUNT_ID`, `R2_BUCKET`, and `R2_PUBLIC_BASE_URL` into `apps/tutor/.env.local` only (never into `.env.example`).
 
 ### Options
 
@@ -75,12 +75,8 @@ wrangler r2 bucket domain --help
 - Object key pattern: `lectures/{boardId}/{turnId}/{segmentIndex}.mp3`
 - Public URL: `{R2_PUBLIC_BASE_URL}/{key}`
 
-## Current provisioned resources (this workspace)
+## Local values
 
-| Resource | Value |
-|----------|-------|
-| Account ID | `37fe66534312238914af0ff34d128ac3` |
-| Bucket | `heytutor-lectures` |
-| Public base URL | `https://pub-f2027524da874779ae9726cb99d4205d.r2.dev` |
+After `pnpm r2:setup`, check `apps/tutor/.env.local` for `R2_ACCOUNT_ID`, `R2_BUCKET`, and `R2_PUBLIC_BASE_URL`. Do not commit those values.
 
 Re-run `pnpm r2:setup` after switching Cloudflare accounts or buckets.
