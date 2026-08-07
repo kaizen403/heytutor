@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import Logo from './Logo'
+import { TUTOR_APP_HREF } from '../lib/tutorAppHref'
 
 type FooterLink = { label: string; href: string }
 
@@ -15,7 +16,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Whiteboard', href: '#how-it-works' },
       { label: 'Voice tutor', href: '#how-it-works' },
       { label: 'Templates', href: '#features' },
-      { label: 'Try the app', href: '/app' },
+      { label: 'Try the app', href: TUTOR_APP_HREF },
     ],
   },
   {
@@ -68,7 +69,7 @@ export default function Footer() {
           </h2>
 
           <a
-            href="/app"
+            href={TUTOR_APP_HREF}
             className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-white px-6 py-3 text-[14px] font-medium text-brand-fg-soft no-underline transition-opacity hover:opacity-85"
           >
             Try it free

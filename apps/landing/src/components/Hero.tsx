@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ArrowUp, Play } from 'lucide-react'
 import Navbar from './Navbar'
 import DashboardMockup from './DashboardMockup'
+import { TUTOR_APP_HREF, tutorQuestionHref } from '../lib/tutorAppHref'
 
 const DESIGN_WIDTH = 896
 const BG_IMAGE = 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260611_133301_d5f2a94a-b22e-4e4a-a6b6-eacdddf1f5b0.png&w=1280&q=85'
@@ -45,6 +46,13 @@ function ScaledDashboard() {
 }
 
 export default function Hero() {
+  const submitQuestion = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const question = new FormData(event.currentTarget).get('question')
+    if (typeof question !== 'string' || !question.trim()) return
+    window.location.assign(tutorQuestionHref(question))
+  }
+
   return (
     <div
       className="relative flex min-h-[100svh] flex-col overflow-hidden bg-cover bg-center"
@@ -65,11 +73,14 @@ export default function Hero() {
         <form
           className="animate-fade-up mt-6 w-full max-w-xl sm:mt-7"
           style={{ animationDelay: '220ms' }}
-          onSubmit={(e) => e.preventDefault()}
+          onSubmit={submitQuestion}
         >
           <div className="flex items-center gap-3 rounded-full bg-white py-1.5 pl-5 pr-1.5 shadow-lg shadow-black/10 ring-1 ring-brand-border">
             <input
               type="text"
+              name="question"
+              required
+              maxLength={1000}
               placeholder="e.g. explain photosynthesis step by step"
               className="flex-1 bg-transparent py-2.5 text-sm text-brand-fg-soft outline-none placeholder:text-brand-muted sm:text-base"
             />
@@ -97,7 +108,7 @@ export default function Hero() {
           style={{ animationDelay: '460ms' }}
         >
           <a
-            href="/app"
+            href={TUTOR_APP_HREF}
             className="flex items-center gap-2 rounded-full bg-brand-cta px-6 py-3 text-sm font-medium text-white transition-all hover:bg-brand-fg-soft hover:shadow-lg"
           >
             <Play className="h-4 w-4" />
