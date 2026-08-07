@@ -222,6 +222,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   private watchdogTimer: number | null = null;
   /** Bumped by abandonSpeaking() so in-flight speakSegment work can bail out. */
   private speakGeneration = 0;
+  private httpStreamAbortController: AbortController | null = null;
 
   async prewarm(options: PrewarmOptions = {}): Promise<void> {
     await this.ensureAudioContext();
@@ -255,6 +256,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   }
 
   private stopActiveAudio(reason: string): void {
+    this.abortHttpStream(reason);
     for (const source of this.activeSources) {
       try {
         source.stop();
@@ -271,6 +273,15 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     }
     this.speechFallback.stop();
     tutorDebug("tts", "stopActiveAudio", { reason });
+  }
+
+  private abortHttpStream(reason: string): void {
+    if (!this.httpStreamAbortController) {
+      return;
+    }
+    this.httpStreamAbortController.abort();
+    this.httpStreamAbortController = null;
+    tutorDebug("tts", "abortHttpStream", { reason });
   }
 
   async speakSegment(text: string, options: SpeakSegmentOptions = {}): Promise<void> {
@@ -377,7 +388,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     }
 
     try {
-      await this.streamHttpSegment(spokenText, options);
+      await this.streamHttpSegment(spokenText, options, generation);
     } catch (error) {
       if (this.speakGeneration !== generation) {
         return;
@@ -406,6 +417,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     this.speakGeneration += 1;
     this.clearTimers();
     this.detachStreamHandler();
+    this.abortHttpStream("abandonSpeaking");
     this.stopActiveAudio("abandonSpeaking");
 
     const error = new Error("tts segment abandoned");
@@ -1013,145 +1025,174 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   private async streamHttpSegment(
     spokenText: string,
     options: SpeakSegmentOptions,
+    generation: number,
   ): Promise<void> {
-    const ctx = await this.ensureAudioContext();
-    await this.waitForTimelineReady(ctx);
-    this.scheduledEnd = Math.max(this.scheduledEnd, ctx.currentTime);
-
-    const response = await fetch(resolveApiUrl(HTTP_STREAM_URL), {
-      method: "POST",
-      headers: buildTtsHeaders(options),
-      body: JSON.stringify({
-        text: spokenText,
-        model_id: DEFAULT_MODEL,
-        voice_settings: {
-          ...DEFAULT_VOICE_SETTINGS,
-          ...(clampVoiceSpeed(this.playbackRate) !== 1
-            ? { speed: clampVoiceSpeed(this.playbackRate) }
-            : {}),
-        },
-        previous_text: options.previousText,
-        next_text: options.nextText,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`TTS stream error ${response.status}`);
-    }
-
-    if (!response.body) {
-      throw new Error("TTS stream returned no body");
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-
-    let sseBuffer = "";
-    let playedAny = false;
-    let chunkOffsetSec = 0;
-    let playbackStarted = false;
-    const sourceDonePromises: Promise<void>[] = [];
-    const capturedChunks: Uint8Array[] = [];
-    const timings: AudioTimings = {
-      charStartTimes: [],
-      charDurations: [],
-      totalDuration: 0,
-    };
-    const emitTimings = (): void => {
-      if (timings.totalDuration <= 0) {
-        return;
+    const controller = new AbortController();
+    this.abortHttpStream("http-stream-replaced");
+    this.httpStreamAbortController = controller;
+    const isCurrentSpeak = () =>
+      this.speakGeneration === generation &&
+      this.httpStreamAbortController === controller &&
+      !controller.signal.aborted;
+    const throwIfStopped = () => {
+      if (!isCurrentSpeak()) {
+        throw new DOMException("tts stopped", "AbortError");
       }
-
-      options.onTimings?.(timings);
     };
 
-    const scheduleChunk = async (audioBase64: string, payload: TimestampChunkPayload) => {
-      if (!playbackStarted) {
-        playbackStarted = true;
-        this.playing = true;
-        options.onStart?.();
-      }
+    try {
+      const ctx = await this.ensureAudioContext();
+      throwIfStopped();
+      await this.waitForTimelineReady(ctx);
+      throwIfStopped();
+      this.scheduledEnd = Math.max(this.scheduledEnd, ctx.currentTime);
 
-      const bytes = base64ToUint8Array(audioBase64);
-      capturedChunks.push(bytes);
-      const audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(
-        bytes.byteOffset,
-        bytes.byteOffset + bytes.byteLength,
-      ) as ArrayBuffer);
-
-      chunkOffsetSec = mergeChunkTimings(timings, payload, chunkOffsetSec);
-
-      const startAt = Math.max(ctx.currentTime + 0.05, this.scheduledEnd);
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-
-      const donePromise = new Promise<void>((resolve) => {
-        source.onended = () => {
-          this.activeSources = this.activeSources.filter((node) => node !== source);
-
-          if (this.activeSources.length === 0) {
-            this.playing = false;
-          }
-
-          resolve();
-        };
+      const response = await fetch(resolveApiUrl(HTTP_STREAM_URL), {
+        method: "POST",
+        signal: controller.signal,
+        headers: buildTtsHeaders(options),
+        body: JSON.stringify({
+          text: spokenText,
+          model_id: DEFAULT_MODEL,
+          voice_settings: {
+            ...DEFAULT_VOICE_SETTINGS,
+            ...(clampVoiceSpeed(this.playbackRate) !== 1
+              ? { speed: clampVoiceSpeed(this.playbackRate) }
+              : {}),
+          },
+          previous_text: options.previousText,
+          next_text: options.nextText,
+        }),
       });
+      throwIfStopped();
 
-      this.activeSources.push(source);
-      source.start(startAt);
-      this.scheduledEnd = startAt + audioBuffer.duration;
-      sourceDonePromises.push(donePromise);
-      playedAny = true;
-    };
-
-    while (true) {
-      const { value, done } = await reader.read();
-
-      if (done) {
-        break;
+      if (!response.ok) {
+        throw new Error(`TTS stream error ${response.status}`);
       }
 
-      sseBuffer += decoder.decode(value, { stream: true });
-      const lines = sseBuffer.split(/\r?\n/);
-      sseBuffer = lines.pop() ?? "";
+      if (!response.body) {
+        throw new Error("TTS stream returned no body");
+      }
 
-      for (const line of lines) {
-        const payload = parseHttpTimestampPayload(line);
-        const audioBase64 = payload ? readAudioBase64(payload) : undefined;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
 
-        if (!audioBase64 || !payload) {
-          continue;
+      let sseBuffer = "";
+      let playedAny = false;
+      let chunkOffsetSec = 0;
+      let playbackStarted = false;
+      const sourceDonePromises: Promise<void>[] = [];
+      const capturedChunks: Uint8Array[] = [];
+      const timings: AudioTimings = {
+        charStartTimes: [],
+        charDurations: [],
+        totalDuration: 0,
+      };
+      const emitTimings = (): void => {
+        if (timings.totalDuration <= 0 || !isCurrentSpeak()) {
+          return;
         }
 
-        await scheduleChunk(audioBase64, payload);
+        options.onTimings?.(timings);
+      };
+
+      const scheduleChunk = async (audioBase64: string, payload: TimestampChunkPayload) => {
+        throwIfStopped();
+        if (!playbackStarted) {
+          playbackStarted = true;
+          this.playing = true;
+          options.onStart?.();
+        }
+
+        const bytes = base64ToUint8Array(audioBase64);
+        capturedChunks.push(bytes);
+        const audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength,
+        ) as ArrayBuffer);
+        throwIfStopped();
+
+        chunkOffsetSec = mergeChunkTimings(timings, payload, chunkOffsetSec);
+
+        const startAt = Math.max(ctx.currentTime + 0.05, this.scheduledEnd);
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(ctx.destination);
+
+        const donePromise = new Promise<void>((resolve) => {
+          source.onended = () => {
+            this.activeSources = this.activeSources.filter((node) => node !== source);
+
+            if (this.activeSources.length === 0) {
+              this.playing = false;
+            }
+
+            resolve();
+          };
+        });
+
+        this.activeSources.push(source);
+        source.start(startAt);
+        this.scheduledEnd = startAt + audioBuffer.duration;
+        sourceDonePromises.push(donePromise);
+        playedAny = true;
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        throwIfStopped();
+
+        if (done) {
+          break;
+        }
+
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split(/\r?\n/);
+        sseBuffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const payload = parseHttpTimestampPayload(line);
+          const audioBase64 = payload ? readAudioBase64(payload) : undefined;
+
+          if (!audioBase64 || !payload) {
+            continue;
+          }
+
+          await scheduleChunk(audioBase64, payload);
+        }
+      }
+
+      if (sseBuffer.trim()) {
+        const payload = parseHttpTimestampPayload(sseBuffer);
+        const audioBase64 = payload ? readAudioBase64(payload) : undefined;
+
+        if (audioBase64 && payload) {
+          await scheduleChunk(audioBase64, payload);
+        }
+      }
+
+      if (!playedAny) {
+        throw new Error("TTS stream returned no audio");
+      }
+
+      emitTimings();
+
+      if (capturedChunks.length > 0 && isCurrentSpeak()) {
+        options.onAudioCaptured?.({
+          bytes: concatUint8Arrays(capturedChunks),
+          mimeType: "audio/mpeg",
+        });
+      }
+
+      await Promise.all(sourceDonePromises);
+      if (isCurrentSpeak()) {
+        options.onEnd?.();
+      }
+    } finally {
+      if (this.httpStreamAbortController === controller) {
+        this.httpStreamAbortController = null;
       }
     }
-
-    if (sseBuffer.trim()) {
-      const payload = parseHttpTimestampPayload(sseBuffer);
-      const audioBase64 = payload ? readAudioBase64(payload) : undefined;
-
-      if (audioBase64 && payload) {
-        await scheduleChunk(audioBase64, payload);
-      }
-    }
-
-    if (!playedAny) {
-      throw new Error("TTS stream returned no audio");
-    }
-
-    emitTimings();
-
-    if (capturedChunks.length > 0) {
-      options.onAudioCaptured?.({
-        bytes: concatUint8Arrays(capturedChunks),
-        mimeType: "audio/mpeg",
-      });
-    }
-
-    await Promise.all(sourceDonePromises);
-    options.onEnd?.();
   }
 
   async playAudio(bytes: Uint8Array, options: { onStart?: () => void } = {}): Promise<void> {
@@ -1236,8 +1277,10 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   }
 
   stop(): void {
+    this.speakGeneration += 1;
     this.clearTimers();
     this.detachStreamHandler();
+    this.abortHttpStream("stop");
     this.rejectAllJobs(new Error("tts stopped"));
     this.currentJob = null;
     this.chunkTargetJob = null;
