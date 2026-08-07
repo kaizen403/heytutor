@@ -29,7 +29,7 @@ Runs when backend-related paths change on `main`, or manually from **Actions →
 
 On the VM it runs `deploy/azure/deploy.sh`:
 
-- Starts Postgres via Docker Compose
+- Starts Postgres via Docker Compose on `127.0.0.1:5433`, with container credentials loaded from `apps/tutor/.env.production` (or derived from its `DATABASE_URL`)
 - Installs deps, builds the tutor monorepo slice
 - Runs `prisma migrate deploy`
 - Restarts `heytutor.service`
@@ -56,7 +56,9 @@ Create an environment named **`production`** (Settings → Environments) and opt
 sudo ./deploy/azure/setup-vm.sh <PUBLIC_IP> https://github.com/kaizen403/heytutor.git
 ```
 
-Copy `apps/tutor/.env.example` → `apps/tutor/.env.production` on the VM and fill in production keys.
+Copy `apps/tutor/.env.example` → `apps/tutor/.env.production` on the VM and fill in production keys before the first successful backend deploy. `setup-vm.sh` and `deploy.sh` now require that file so they can inject the Postgres container credentials instead of falling back to repository-known defaults.
+
+Because both scripts `source` `.env.production`, keep it shell-compatible: quote values that contain `#`, spaces, or other shell-significant characters. A quoted `DATABASE_URL` is supported and its username/password/database pieces are decoded before being passed into Docker Compose.
 
 Ensure the VM can `git pull` from GitHub (deploy key or public clone).
 
@@ -69,7 +71,10 @@ Connect the GitHub repo in Vercel with:
 | tutor | `apps/tutor` | (uses `vercel.json`) |
 | landing | `apps/landing` | default Vite build |
 
-Set production env vars in Vercel (see `apps/tutor/.env.example`). Point `BACKEND_ORIGIN` / `NEXT_PUBLIC_*` at your Azure API URL.
+Set production env vars in Vercel:
+
+- Tutor project: see `apps/tutor/.env.example`. Point `BACKEND_ORIGIN` / `NEXT_PUBLIC_*` at your Azure API URL.
+- Landing project: set `VITE_TUTOR_ORIGIN` to the public tutor deployment URL if you are not using the default `https://heytutor.vercel.app` domain.
 
 Vercel deploys automatically on push; no GitHub deploy workflow required for the frontend.
 
