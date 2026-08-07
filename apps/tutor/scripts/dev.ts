@@ -14,6 +14,12 @@ const tutorRoot = resolve(__dirname, "..");
 const repoRoot = resolve(tutorRoot, "../..");
 const envFile = join(tutorRoot, ".env.local");
 const nextOutputDir = join(tutorRoot, ".next");
+const localPostgresEnv = {
+  ...process.env,
+  POSTGRES_USER: process.env.POSTGRES_USER ?? "heytutor",
+  POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD ?? "heytutor",
+  POSTGRES_DB: process.env.POSTGRES_DB ?? "heytutor",
+};
 
 function removeProductionNextOutput(): void {
   if (!existsSync(join(nextOutputDir, "BUILD_ID"))) return;
@@ -48,6 +54,7 @@ function isPostgresReady(): boolean {
     execSync("docker compose exec -T postgres pg_isready -U heytutor -d heytutor", {
       cwd: repoRoot,
       stdio: "pipe",
+      env: localPostgresEnv,
     });
     return true;
   } catch {
@@ -76,7 +83,11 @@ function ensureLocalDb(): void {
 
   if (!isPostgresReady()) {
     console.log("[dev] Starting local Postgres (docker compose up -d postgres)…");
-    run("docker compose up -d postgres");
+    execSync("docker compose up -d postgres", {
+      cwd: repoRoot,
+      stdio: "inherit",
+      env: localPostgresEnv,
+    });
     waitForPostgres();
     console.log("[dev] Postgres ready");
   }

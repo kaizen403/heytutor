@@ -4,15 +4,15 @@ services:
     container_name: heytutor-postgres
     restart: unless-stopped
     ports:
-      - "5433:5432"
+      - "${POSTGRES_BIND_HOST:-127.0.0.1}:5433:5432"
     environment:
-      POSTGRES_USER: heytutor
-      POSTGRES_PASSWORD: heytutor
-      POSTGRES_DB: heytutor
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
     volumes:
       - heytutor_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U heytutor -d heytutor"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 5

@@ -61,7 +61,7 @@ fill in `.env.local` — the app runs in mock mode without api keys (no llm or t
 pnpm dev:tutor
 ```
 
-this starts postgres via docker automatically if `DATABASE_URL` points at localhost, runs migrations, then starts the server at `http://localhost:3000`.
+this starts postgres via docker automatically if `DATABASE_URL` points at localhost, runs migrations, then starts the server at `http://localhost:3000`. the compose database port is now loopback-only (`127.0.0.1:5433`), so it is not exposed on every host interface.
 
 for audio storage (optional):
 
