@@ -147,6 +147,51 @@ try {
     throw new Error(`object-shaped calculus result was not recovered: ${JSON.stringify(compactCalculusPlan.turnPlan.derived)}`);
   }
 
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    choices: [{ message: { content: JSON.stringify({
+      schemaVersion: "turn-plan/v3",
+      question: "Find the area of a circle of radius 2 cm.",
+      givens: { r: "2 cm" },
+      unknowns: { area: "area" },
+      derived: { area: "4*pi cm^2" },
+      qualitativeClaims: [],
+      lawIds: ["area-formula"],
+      assumptions: [],
+      visualRequirement: "optional",
+    }) } }],
+  }), { status: 200 });
+  const symbolicResultPlan = await planTurnV3(
+    "Find the area of a circle of radius 2 cm.",
+    { proxyUrl: "http://planner.test", timeoutMs: 1000 },
+  );
+  if (!symbolicResultPlan) {
+    throw new Error("symbolic planner result was not normalized into a valid plan");
+  }
+  if (Math.abs((symbolicResultPlan.turnPlan.derived[0]?.value ?? 0) - 4 * Math.PI) > 1e-9) {
+    throw new Error(`symbolic planner value was truncated instead of evaluated: ${JSON.stringify(symbolicResultPlan.turnPlan.derived)}`);
+  }
+
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    choices: [{ message: { content: JSON.stringify({
+      schemaVersion: "turn-plan/v3",
+      question: "Find the result.",
+      givens: {},
+      unknowns: { answer: "answer" },
+      derived: { answer: "4*x" },
+      qualitativeClaims: [],
+      lawIds: [],
+      assumptions: [],
+      visualRequirement: "optional",
+    }) } }],
+  }), { status: 200 });
+  const freeVariableResultPlan = await planTurnV3(
+    "Find the result.",
+    { proxyUrl: "http://planner.test", timeoutMs: 1000 },
+  );
+  if (freeVariableResultPlan?.turnPlan.derived.some((quantity) => quantity.value === 0)) {
+    throw new Error(`free-variable planner value was evaluated authoritatively at x=0: ${JSON.stringify(freeVariableResultPlan.turnPlan.derived)}`);
+  }
+
   let repairAttempt = 0;
   const repairLanes: string[] = [];
   globalThis.fetch = async (_input, init) => {
