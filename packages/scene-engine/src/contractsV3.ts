@@ -1075,16 +1075,15 @@ export function validateSceneQuantityAgreement(
     const numericValue = typeof quantity.value === "number" && Number.isFinite(quantity.value)
       ? quantity.value
       : null;
-    const unit = typeof quantity.unit === "string" ? normalizeUnit(quantity.unit) : null;
-    const compatible = planned ?? (numericValue !== null && unit
+    const compatible = planned ?? (numericValue !== null
       ? planQuantities.find((candidate) =>
           equivalentMeasuredQuantity(candidate.value, candidate.unit, numericValue, quantity.unit))
       : undefined);
     if (!planned && compatible) return;
-    if (!planned && numericValue !== null && unit && qualitativeEvidence.some((evidence) =>
+    if (!planned && numericValue !== null && qualitativeEvidence.some((evidence) =>
       equivalentMeasuredQuantity(evidence.value, evidence.unit, numericValue, quantity.unit)
     )) return;
-    if (!planned && numericValue !== null && unit) {
+    if (!planned && numericValue !== null) {
       issues.push({ code: "scene_quantity_unverified", path: `quantities[${index}]`, message: `${quantity.id} is not supported by TurnPlanV3` });
       return;
     }

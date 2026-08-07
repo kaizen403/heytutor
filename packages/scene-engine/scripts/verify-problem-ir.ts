@@ -283,6 +283,246 @@ const domainRestrictedRoots = domainRestrictedResult.values.find((value) => valu
 assert.deepEqual(domainRestrictedRoots?.approximate, [2]);
 assert.deepEqual(domainRestrictedRoots?.exact, [{ kind: "integer", value: "2" }]);
 
+const oscillatoryQuestion = "Evaluate the definite integral of cos(4096*pi*x) from x=0 to x=1.";
+const oscillatoryQuote = "cos(4096*pi*x)";
+const oscillatoryStart = oscillatoryQuestion.indexOf(oscillatoryQuote);
+if (oscillatoryStart < 0) throw new Error("missing oscillatory fixture quote");
+const oscillatoryProblem: ProblemIR = {
+  schemaVersion: PROBLEM_IR_VERSION,
+  id: "oscillatoryIntegral",
+  question: oscillatoryQuestion,
+  facts: [{
+    id: "integrandFact",
+    kind: "given",
+    statement: "The integrand is cos(4096*pi*x).",
+    evidence: {
+      source: "question",
+      start: oscillatoryStart,
+      end: oscillatoryStart + oscillatoryQuote.length,
+      quote: oscillatoryQuote,
+    },
+  }],
+  entities: [],
+  expressions: [{
+    id: "oscillatoryExpression",
+    valueType: "function",
+    root: {
+      kind: "call",
+      function: "cos",
+      argument: {
+        kind: "binary",
+        operator: "*",
+        left: {
+          kind: "binary",
+          operator: "*",
+          left: { kind: "number", value: 4096 },
+          right: { kind: "constant", name: "pi" },
+        },
+        right: { kind: "variable", name: "x" },
+      },
+    },
+    evidenceFactIds: ["integrandFact"],
+  }],
+  constraints: [],
+  representationIntents: [],
+  solveRequests: [{
+    id: "oscillatoryArea",
+    kind: "definite_integral",
+    expressionId: "oscillatoryExpression",
+    variable: "x",
+    lower: 0,
+    upper: 1,
+  }],
+};
+const oscillatoryResult = await provider.solve(oscillatoryProblem);
+assert.equal(oscillatoryResult.status, "solved", JSON.stringify(oscillatoryResult.issues));
+const oscillatoryArea = oscillatoryResult.values.find((value) => value.requestId === "oscillatoryArea");
+assert.deepEqual(oscillatoryArea?.exact, { kind: "integer", value: "0" });
+assert.equal(oscillatoryArea?.approximate, 0);
+
+const nonzeroTrigProblem = structuredClone(oscillatoryProblem);
+nonzeroTrigProblem.id = "nonzeroTrigIntegral";
+nonzeroTrigProblem.question = "Evaluate the definite integral of sin(pi*x) from x=0 to x=1.";
+nonzeroTrigProblem.facts[0] = {
+  id: "integrandFact",
+  kind: "given",
+  statement: "The integrand is sin(pi*x).",
+  evidence: {
+    source: "question",
+    start: nonzeroTrigProblem.question.indexOf("sin(pi*x)"),
+    end: nonzeroTrigProblem.question.indexOf("sin(pi*x)") + "sin(pi*x)".length,
+    quote: "sin(pi*x)",
+  },
+};
+nonzeroTrigProblem.expressions[0]!.root = {
+  kind: "call",
+  function: "sin",
+  argument: {
+    kind: "binary",
+    operator: "*",
+    left: { kind: "constant", name: "pi" },
+    right: { kind: "variable", name: "x" },
+  },
+};
+const nonzeroTrigResult = await provider.solve(nonzeroTrigProblem);
+assert.equal(nonzeroTrigResult.status, "solved", JSON.stringify(nonzeroTrigResult.issues));
+const nonzeroTrigArea = nonzeroTrigResult.values.find((value) => value.requestId === "oscillatoryArea");
+assert.deepEqual(nonzeroTrigArea?.exact, { kind: "symbolic", value: "(2)/(pi)" });
+assert.ok(Math.abs(Number(nonzeroTrigArea?.approximate) - 2 / Math.PI) < 1e-12);
+assert.ok(Number(nonzeroTrigArea?.errorBound) > 0);
+
+const tangentialQuestion = "Solve (sin(x)-0.1)^2 = 0 on 0 <= x <= pi.";
+const tangentialQuote = "(sin(x)-0.1)^2";
+const tangentialStart = tangentialQuestion.indexOf(tangentialQuote);
+if (tangentialStart < 0) throw new Error("missing tangential fixture quote");
+const tangentialProblem: ProblemIR = {
+  schemaVersion: PROBLEM_IR_VERSION,
+  id: "tangentialRoots",
+  question: tangentialQuestion,
+  facts: [{
+    id: "equationFact",
+    kind: "requested",
+    statement: "Solve (sin(x)-0.1)^2 = 0.",
+    evidence: {
+      source: "question",
+      start: tangentialStart,
+      end: tangentialStart + tangentialQuote.length,
+      quote: tangentialQuote,
+    },
+  }],
+  entities: [],
+  expressions: [{
+    id: "tangentialExpression",
+    valueType: "function",
+    root: {
+      kind: "binary",
+      operator: "^",
+      left: {
+        kind: "binary",
+        operator: "-",
+        left: {
+          kind: "call",
+          function: "sin",
+          argument: { kind: "variable", name: "x" },
+        },
+        right: { kind: "number", value: 0.1 },
+      },
+      right: { kind: "number", value: 2 },
+    },
+    evidenceFactIds: ["equationFact"],
+  }],
+  constraints: [],
+  representationIntents: [],
+  solveRequests: [{
+    id: "findTangentialRoots",
+    kind: "roots",
+    expressionId: "tangentialExpression",
+    variable: "x",
+    domain: { min: 0, max: Math.PI },
+  }],
+};
+const tangentialResult = await provider.solve(tangentialProblem);
+assert.equal(tangentialResult.status, "solved", JSON.stringify(tangentialResult.issues));
+const tangentialRoots = tangentialResult.values.find((value) => value.requestId === "findTangentialRoots");
+assert.ok(Array.isArray(tangentialRoots?.approximate));
+assert.equal(tangentialRoots?.approximate.length, 2);
+assert.ok(Math.abs(tangentialRoots!.approximate[0]! - Math.asin(0.1)) < 1e-9);
+assert.ok(Math.abs(tangentialRoots!.approximate[1]! - (Math.PI - Math.asin(0.1))) < 1e-9);
+assert.deepEqual(tangentialRoots?.exact, [
+  { kind: "symbolic", value: "asin(1/10)" },
+  { kind: "symbolic", value: "pi-asin(1/10)" },
+]);
+
+const duplicateFamilyProblem = structuredClone(tangentialProblem);
+duplicateFamilyProblem.id = "deduplicatedTrigFamilies";
+duplicateFamilyProblem.question = "Solve sin(x)-1 = 0 on 0 <= x <= 1000.";
+duplicateFamilyProblem.facts[0] = {
+  id: "equationFact",
+  kind: "requested",
+  statement: "Solve sin(x)-1 = 0.",
+  evidence: {
+    source: "question",
+    start: duplicateFamilyProblem.question.indexOf("sin(x)-1"),
+    end: duplicateFamilyProblem.question.indexOf("sin(x)-1") + "sin(x)-1".length,
+    quote: "sin(x)-1",
+  },
+};
+duplicateFamilyProblem.expressions[0]!.root = {
+  kind: "binary",
+  operator: "-",
+  left: {
+    kind: "call",
+    function: "sin",
+    argument: { kind: "variable", name: "x" },
+  },
+  right: { kind: "number", value: 1 },
+};
+const duplicateFamilyRequest = duplicateFamilyProblem.solveRequests[0];
+if (!duplicateFamilyRequest || duplicateFamilyRequest.kind !== "roots") throw new Error("missing duplicate-family roots request");
+duplicateFamilyRequest.domain = { min: 0, max: 1000 };
+const duplicateFamilyResult = await provider.solve(duplicateFamilyProblem);
+assert.equal(duplicateFamilyResult.status, "solved", JSON.stringify(duplicateFamilyResult.issues));
+const duplicateFamilyRoots = duplicateFamilyResult.values.find((value) => value.requestId === "findTangentialRoots");
+assert.ok(Array.isArray(duplicateFamilyRoots?.approximate));
+assert.equal(duplicateFamilyRoots.approximate.length, 159);
+
+const excessiveRootsProblem = structuredClone(tangentialProblem);
+excessiveRootsProblem.id = "excessiveTrigRoots";
+excessiveRootsProblem.question = "Solve sin(1000000000000*x) = 0 on 0 <= x <= 1.";
+excessiveRootsProblem.facts[0] = {
+  id: "equationFact",
+  kind: "requested",
+  statement: "Solve sin(1000000000000*x) = 0.",
+  evidence: {
+    source: "question",
+    start: excessiveRootsProblem.question.indexOf("sin(1000000000000*x)"),
+    end: excessiveRootsProblem.question.indexOf("sin(1000000000000*x)") + "sin(1000000000000*x)".length,
+    quote: "sin(1000000000000*x)",
+  },
+};
+excessiveRootsProblem.expressions[0]!.root = {
+  kind: "call",
+  function: "sin",
+  argument: {
+    kind: "binary",
+    operator: "*",
+    left: { kind: "number", value: 1e12 },
+    right: { kind: "variable", name: "x" },
+  },
+};
+const excessiveRootsRequest = excessiveRootsProblem.solveRequests[0];
+if (!excessiveRootsRequest || excessiveRootsRequest.kind !== "roots") throw new Error("missing excessive roots request");
+excessiveRootsRequest.domain = { min: 0, max: 1 };
+const excessiveRootsResult = await provider.solve(excessiveRootsProblem);
+assert.equal(excessiveRootsResult.status, "failed");
+assert.ok(excessiveRootsResult.issues.some((issue) => issue.message.includes("root count exceeds")));
+
+const greekProblem = structuredClone(problem);
+const greekBinding = greekProblem.solveRequests.find((request) => request.id === "findArea");
+if (!greekBinding || greekBinding.kind !== "definite_integral" || !greekBinding.resultBinding) {
+  throw new Error("missing Greek symbol binding fixture");
+}
+greekBinding.resultBinding.turnPlanQuantityId = "phase";
+greekBinding.resultBinding.symbol = "φ";
+greekBinding.resultBinding.unit = "square units";
+const greekPlan: TurnPlanV3 = {
+  ...areaTurnPlan,
+  unknowns: [{ id: "phase", symbol: "θ", unit: "square units" }],
+  derived: [{
+    id: "phase",
+    symbol: "θ",
+    value: 32 / 3,
+    unit: "square units",
+    provenance: "derived",
+    sourceText: "θ = 32/3 square units",
+  }],
+};
+assert.equal(
+  verifyTurnPlanAgainstSolver(greekProblem, result, greekPlan, question).status,
+  "contradiction",
+  "Greek symbol mismatches must remain distinct during solver authority checks",
+);
+
 const invalidProblemResult = await provider.solve(adversarial);
 assert.equal(invalidProblemResult.status, "failed");
 assert.equal(invalidProblemResult.values.length, 0);

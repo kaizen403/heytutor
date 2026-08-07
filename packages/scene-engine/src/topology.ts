@@ -15,9 +15,14 @@ export interface TopologyEdge {
 export interface TopologyGraph {
   nodes: Set<string>;
   edges: TopologyEdge[];
+  edgeById: Map<string, TopologyEdge>;
   /** nodeId -> incident edge ids */
   adjacency: Map<string, string[]>;
 }
+
+const MAX_PATH_COUNT_EDGES = 48;
+const MAX_PATH_COUNT_STEPS = 20_000;
+const MAX_PATH_COUNT_RESULTS = 4_096;
 
 /**
  * Invariants that are always true for a well-formed port graph. These do not
@@ -119,6 +124,7 @@ function normalizeTopologySemantic(value: string): string {
 
 export function buildTopologyGraph(document: SceneDocument): TopologyGraph {
   const edges: TopologyEdge[] = [];
+  const edgeById = new Map<string, TopologyEdge>();
   const nodes = new Set<string>();
   const adjacency = new Map<string, string[]>();
 
@@ -136,17 +142,19 @@ export function buildTopologyGraph(document: SceneDocument): TopologyGraph {
     const edgeId = construction.outputs[0];
     if (!start || !end || !edgeId) continue;
     if (start === end) continue;
-    edges.push({
+    const edge: TopologyEdge = {
       id: edgeId,
       a: start,
       b: end,
       kind: construction.operator,
-    });
+    };
+    edges.push(edge);
+    edgeById.set(edgeId, edge);
     link(start, edgeId);
     link(end, edgeId);
   }
 
-  return { nodes, edges, adjacency };
+  return { nodes, edges, edgeById, adjacency };
 }
 
 export function evaluateTopologyAssertion(
@@ -196,6 +204,15 @@ export function evaluateTopologyAssertion(
       }
       const [from, to] = assertion.entities;
       const count = countSimplePaths(graph, from!, to!);
+      if (count === null) {
+        issues.push({
+          code: "assertion_failed",
+          message: assertion.reason ?? `Assertion ${assertion.id}: pathCount graph is too complex for deterministic validation limits`,
+          severity,
+          entityIds: assertion.entities,
+        });
+        return false;
+      }
       const expected = Number(assertion.expected);
       const passed = count === expected;
       if (!passed) {
@@ -282,7 +299,7 @@ export function evaluateTopologyAssertion(
 
 function edgesFormOrderedPath(graph: TopologyGraph, edgeIds: string[]): boolean {
   if (new Set(edgeIds).size !== edgeIds.length) return false;
-  const edges = edgeIds.map((id) => graph.edges.find((edge) => edge.id === id));
+  const edges = edgeIds.map((id) => graph.edgeById.get(id));
   if (edges.some((edge) => !edge)) return false;
   if (edges.length === 1) return true;
 
@@ -316,18 +333,24 @@ function edgesFormOrderedPath(graph: TopologyGraph, edgeIds: string[]): boolean 
   return false;
 }
 
-function countSimplePaths(graph: TopologyGraph, from: string, to: string): number {
+function countSimplePaths(graph: TopologyGraph, from: string, to: string): number | null {
   if (from === to) return 0;
   if (!graph.nodes.has(from) || !graph.nodes.has(to)) return 0;
+  if (graph.edges.length > MAX_PATH_COUNT_EDGES) return null;
 
   let count = 0;
+  let steps = 0;
   const visit = (node: string, visitedNodes: Set<string>) => {
+    steps += 1;
+    if (steps > MAX_PATH_COUNT_STEPS || count > MAX_PATH_COUNT_RESULTS) {
+      throw new Error("path_count_limit");
+    }
     if (node === to) {
       count += 1;
       return;
     }
     for (const edgeId of graph.adjacency.get(node) ?? []) {
-      const edge = graph.edges.find((item) => item.id === edgeId);
+      const edge = graph.edgeById.get(edgeId);
       if (!edge) continue;
       const next = edge.a === node ? edge.b : edge.a;
       if (visitedNodes.has(next)) continue;
@@ -336,20 +359,27 @@ function countSimplePaths(graph: TopologyGraph, from: string, to: string): numbe
       visitedNodes.delete(next);
     }
   };
-  visit(from, new Set([from]));
-  return count;
+  try {
+    visit(from, new Set([from]));
+    return count;
+  } catch (error) {
+    if (error instanceof Error && error.message === "path_count_limit") return null;
+    throw error;
+  }
 }
 
 function graphWithEdges(edges: TopologyEdge[]): TopologyGraph {
   const nodes = new Set<string>();
+  const edgeById = new Map<string, TopologyEdge>();
   const adjacency = new Map<string, string[]>();
   for (const edge of edges) {
     nodes.add(edge.a);
     nodes.add(edge.b);
+    edgeById.set(edge.id, edge);
     adjacency.set(edge.a, [...(adjacency.get(edge.a) ?? []), edge.id]);
     adjacency.set(edge.b, [...(adjacency.get(edge.b) ?? []), edge.id]);
   }
-  return { nodes, edges, adjacency };
+  return { nodes, edges, edgeById, adjacency };
 }
 
 /** Ordinary connectors identify electrical nodes even when drawn as several leads. */
@@ -388,7 +418,7 @@ function findPathEdges(graph: TopologyGraph, from: string, to: string): string[]
   const visit = (node: string, visited: Set<string>, path: string[]): string[] => {
     if (node === to) return path;
     for (const edgeId of graph.adjacency.get(node) ?? []) {
-      const edge = graph.edges.find((candidate) => candidate.id === edgeId);
+      const edge = graph.edgeById.get(edgeId);
       if (!edge) continue;
       const next = edge.a === node ? edge.b : edge.a;
       if (visited.has(next)) continue;
@@ -401,7 +431,7 @@ function findPathEdges(graph: TopologyGraph, from: string, to: string): string[]
 }
 
 function edgeTerminals(graph: TopologyGraph, edgeId: string): [string, string] | null {
-  const edge = graph.edges.find((item) => item.id === edgeId);
+  const edge = graph.edgeById.get(edgeId);
   return edge ? [edge.a, edge.b] : null;
 }
 

@@ -245,7 +245,12 @@ export function reconcileTurnPlanWithSolver(
 }
 
 function normalizeSymbol(value: string): string {
-  return value.toLowerCase().replace(/\\(?:mathrm|text|operatorname)/g, "").replace(/[^a-z0-9]+/g, "");
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/\\(?:mathrm|text|operatorname)\s*/g, "")
+    .replace(/[{}]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
 function normalizeUnit(value: string | undefined): string {
