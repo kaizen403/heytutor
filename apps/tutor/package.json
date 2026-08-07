@@ -17,7 +17,7 @@
     "db:migrate:dev": "dotenv -e .env.local -- prisma migrate dev",
     "postinstall": "prisma generate",
     "r2:setup": "tsx scripts/r2-setup.ts",
-    "verify": "tsx scripts/verify-board-title.ts && tsx scripts/verify-replay.ts && tsx scripts/verify-board-layout.ts && tsx scripts/verify-verified-scene-presentation.ts && tsx scripts/verify-diagram-generation-v3.ts && tsx scripts/verify-no-legacy-diagram-path.ts && tsx scripts/verify-planner-transport.ts && tsx scripts/verify-teaching-transport.ts && tsx scripts/verify-tts-relay-protocol.ts && tsx scripts/verify-ws-ticket.ts && tsx scripts/verify-segment-planning.ts && tsx scripts/verify-verified-scene-recovery.ts && tsx scripts/verify-media-query-hydration.ts && tsx scripts/verify-representation-fallback-v4.ts && tsx scripts/verify-turn-scene-persistence.ts && tsx scripts/verify-representation-corpus-v4.ts"
+    "verify": "tsx scripts/verify-board-title.ts && tsx scripts/verify-replay.ts && tsx scripts/verify-turn-async-guards.ts && tsx scripts/verify-board-layout.ts && tsx scripts/verify-verified-scene-presentation.ts && tsx scripts/verify-diagram-generation-v3.ts && tsx scripts/verify-no-legacy-diagram-path.ts && tsx scripts/verify-planner-transport.ts && tsx scripts/verify-teaching-transport.ts && tsx scripts/verify-tts-relay-protocol.ts && tsx scripts/verify-ws-ticket.ts && tsx scripts/verify-segment-planning.ts && tsx scripts/verify-verified-scene-recovery.ts && tsx scripts/verify-media-query-hydration.ts && tsx scripts/verify-representation-fallback-v4.ts && tsx scripts/verify-turn-scene-persistence.ts && tsx scripts/verify-representation-corpus-v4.ts"
   },
   "dependencies": {
     "@heytutor/design-tokens": "workspace:*",

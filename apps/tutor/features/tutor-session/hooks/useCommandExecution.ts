@@ -58,6 +58,23 @@ export interface UseCommandExecutionParams {
   raceWithCancel: <T>(promise: Promise<T>) => Promise<T | undefined>;
 }
 
+export async function eraseWhiteboardRegionIfCurrent(
+  whiteboard: Pick<WhiteboardHandle, "eraseRegion">,
+  region: { x: number; y: number; width: number; height: number; duration: number },
+  isCancelled: () => boolean,
+): Promise<boolean> {
+  if (isCancelled()) return false;
+  await whiteboard.eraseRegion(
+    region.x,
+    region.y,
+    region.width,
+    region.height,
+    region.duration,
+    isCancelled,
+  );
+  return !isCancelled();
+}
+
 export function useCommandExecution({
   whiteboardRef,
   cancelRef,
@@ -543,7 +560,12 @@ export function useCommandExecution({
             const { flightMs, drawMs } = speechSplit(command);
             await wb.flyCursorTo(x, y, flightMs);
             if (commandCancelled()) return;
-            await wb.eraseRegion(x, y, w, h, drawMs);
+            const erased = await eraseWhiteboardRegionIfCurrent(
+              wb,
+              { x, y, width: w, height: h, duration: drawMs },
+              commandCancelled,
+            );
+            if (!erased) return;
             forgetErasedTextRects({ x, y, width: w, height: h });
           }
           break;
