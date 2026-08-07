@@ -16,7 +16,9 @@ import {
   type ValidationReport,
 } from "@heytutor/scene-engine";
 import {
+  isBlockedVerifiedDiagramCommand,
   isStoredCommandTrustedGeometry,
+  fitWorkTextCommand,
   parseStoredSegmentCommands,
   serializeSegmentCommands,
   type DrawCommand,
@@ -75,6 +77,8 @@ export async function canonicalizeTurnSceneMetadata(
     if (metadata.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command))) {
       return failure("trusted diagram commands require a server-validated scene");
     }
+    const teachingCommands = canonicalizeTeachingCommands(metadata.segments, null);
+    if (!teachingCommands.ok) return teachingCommands;
     const retryRequired = metadata.visualStatus === "retry_required";
     const plan = validatedOptionalTurnPlan(metadata.sceneArtifacts, question);
     const degradation = validatedDegradation(metadata.sceneArtifacts);
@@ -92,7 +96,7 @@ export async function canonicalizeTurnSceneMetadata(
               degradation,
             )
           : null,
-        segments: metadata.segments.map(stripUntrustedEnvelopeFlag),
+        segments: teachingCommands.segments,
       },
     };
   }
@@ -173,6 +177,11 @@ export async function canonicalizeTurnSceneMetadata(
   const expectedPresentation = buildVerifiedDiagramPresentation(document, renderScene);
   const commandCheck = validateTrustedCommands(metadata.segments, expectedPresentation.introSegments);
   if (!commandCheck.ok) return commandCheck;
+  const teachingCommands = canonicalizeTeachingCommands(
+    metadata.segments,
+    expectedPresentation.diagram,
+  );
+  if (!teachingCommands.ok) return teachingCommands;
 
   const solver = await canonicalSolverArtifacts(metadata.sceneArtifacts, turnPlan, question);
   if (!solver.ok) return solver;
@@ -218,7 +227,7 @@ export async function canonicalizeTurnSceneMetadata(
       validationReport: report,
       visualStatus: "validated",
       sceneArtifacts: canonicalArtifacts,
-      segments: metadata.segments.map((segment) => ({ ...segment })),
+      segments: teachingCommands.segments,
     },
   };
 }
@@ -355,10 +364,131 @@ function validatedOptionalTurnPlan(artifacts: unknown, question: string): TurnPl
   return validateTurnPlanV3(artifacts.turnPlan, question).plan;
 }
 
-function stripUntrustedEnvelopeFlag(segment: SubmittedTurnSegment): SubmittedTurnSegment {
-  if (!isRecord(segment.command) || !Array.isArray(segment.command.commands)) return { ...segment };
-  const commands = parseStoredSegmentCommands(segment.command);
-  return { ...segment, command: serializeSegmentCommands(commands) };
+function canonicalizeTeachingCommands(
+  segments: SubmittedTurnSegment[],
+  diagram: Parameters<typeof isBlockedVerifiedDiagramCommand>[1],
+): { ok: true; segments: SubmittedTurnSegment[] } | { ok: false; error: string } {
+  const canonical: SubmittedTurnSegment[] = [];
+
+  for (const [segmentIndex, segment] of segments.entries()) {
+    if (segment.command == null || isStoredCommandTrustedGeometry(segment.command)) {
+      canonical.push({ ...segment });
+      continue;
+    }
+
+    const commands = parseStoredSegmentCommands(segment.command);
+    if (commands.length === 0 || commands.length > 16) {
+      return failure(`segment ${segment.orderIndex} has an invalid teaching command envelope`);
+    }
+
+    const normalized: DrawCommand[] = [];
+    for (const command of commands) {
+      const runtimeClear =
+        command?.type === "CLEAR" &&
+        commands.length === 1 &&
+        segmentIndex === 0 &&
+        segment.orderIndex === 0 &&
+        segment.narration.trim() === "" &&
+        segment.spokenText.trim() === "" &&
+        Array.isArray(command.params) &&
+        command.params.length === 0;
+      if (runtimeClear) {
+        normalized.push({
+          type: "CLEAR",
+          params: [],
+          charPosition: 0,
+          narrationBefore: "",
+        });
+        continue;
+      }
+
+      const checked = canonicalTeachingCommand(command);
+      const safeCommands = checked?.type === "WRITE" ? fitWorkTextCommand(checked) : checked ? [checked] : [];
+      if (
+        safeCommands.length === 0 ||
+        normalized.length + safeCommands.length > 16 ||
+        safeCommands.some((candidate) => isBlockedVerifiedDiagramCommand(candidate, diagram))
+      ) {
+        const type = isRecord(command) && typeof command.type === "string"
+          ? command.type
+          : "unknown";
+        return failure(`teaching command ${type} is not allowed for persistence`);
+      }
+      normalized.push(...safeCommands);
+    }
+
+    canonical.push({
+      ...segment,
+      command: serializeSegmentCommands(normalized),
+    });
+  }
+
+  return { ok: true, segments: canonical };
+}
+
+function canonicalTeachingCommand(command: unknown): DrawCommand | null {
+  if (!isRecord(command) || !Array.isArray(command.params)) return null;
+  if (!command.params.every((value) => typeof value === "number" && Number.isFinite(value))) {
+    return null;
+  }
+  const charPosition = command.charPosition;
+  const narrationBefore = command.narrationBefore;
+  if (
+    !Number.isInteger(charPosition) ||
+    (charPosition as number) < 0 ||
+    (charPosition as number) > 10_000_000 ||
+    typeof narrationBefore !== "string" ||
+    narrationBefore.length > 8_000
+  ) return null;
+
+  if (
+    command.type === "WRITE" &&
+    command.params.length >= 2 &&
+    command.params.length <= 3 &&
+    typeof command.text === "string" &&
+    command.text.length > 0 &&
+    command.text.length <= 2_000
+  ) {
+    return {
+      type: "WRITE",
+      params: [...command.params] as number[],
+      text: command.text,
+      charPosition: charPosition as number,
+      narrationBefore,
+    };
+  }
+
+  if (
+    command.type === "PAUSE" &&
+    command.params.length === 1 &&
+    command.params[0]! >= 0 &&
+    command.params[0]! <= 60_000
+  ) {
+    return {
+      type: "PAUSE",
+      params: [...command.params] as number[],
+      charPosition: charPosition as number,
+      narrationBefore,
+    };
+  }
+
+  if (
+    command.type === "FOCUS" &&
+    command.params.length === 0 &&
+    typeof command.text === "string" &&
+    command.text.trim().length > 0 &&
+    command.text.length <= 128
+  ) {
+    return {
+      type: "FOCUS",
+      params: [],
+      text: command.text.trim(),
+      charPosition: charPosition as number,
+      narrationBefore,
+    };
+  }
+
+  return null;
 }
 
 function sourceQuestionMatches(document: SceneDocument, question: string): boolean {
