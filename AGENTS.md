@@ -62,6 +62,10 @@ render.
 - [Syllabus capability plan v5](docs/universal-syllabus-capability-plan-v5.md)
 - [CI/CD & deploy](docs/ci-cd.md)
 
+## Git authorship
+
+Never add Cursor / `cursoragent` as a commit co-author. Never commit `.cursor/` or Cursor IDE lockfiles. Author commits as the user only.
+
 ## Critical Rules
 
 1. **Canvas is 1200×700**, origin top-left. Diagram zone: x 400–900.

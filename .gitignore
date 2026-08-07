@@ -18,6 +18,10 @@ out
 .DS_Store
 coverage
 
+# Cursor IDE (local only; never commit)
+.cursor/
+skills-lock.json
+
 # agent working state
 .omo/run-continuation/
 .omo/evidence/
