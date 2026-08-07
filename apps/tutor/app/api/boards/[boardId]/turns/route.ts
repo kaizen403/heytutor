@@ -6,6 +6,10 @@ import { lectureAudioKey } from "@/lib/r2Keys";
 import { uploadAudio } from "@/lib/r2";
 import { isTurnMetadataPersistable } from "@/lib/turnPersistencePolicy";
 import { canonicalizeTurnSceneMetadata } from "@/lib/turnScenePersistence";
+import {
+  validateTurnUploadHeaders,
+  validateTurnUploadParts,
+} from "@/lib/turnUploadLimits";
 
 interface RouteContext {
   params: Promise<{ boardId: string }>;
@@ -38,6 +42,11 @@ function nullableJson(value: unknown): Prisma.InputJsonValue | Prisma.NullTypes.
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  const uploadPreflight = validateTurnUploadHeaders(request.headers);
+  if (!uploadPreflight.ok) {
+    return NextResponse.json({ error: uploadPreflight.error }, { status: uploadPreflight.status });
+  }
+
   const userId = await getUserId();
   if (!userId) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -73,6 +82,11 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "invalid metadata json" }, { status: 400 });
   }
 
+  const uploadParts = validateTurnUploadParts(formData, metadataRaw, metadata.segments);
+  if (!uploadParts.ok) {
+    return NextResponse.json({ error: uploadParts.error }, { status: uploadParts.status });
+  }
+
   if (!isTurnMetadataPersistable(metadata)) {
     return NextResponse.json(
       { error: "question and rawResponse required unless persisting a required-diagram failure" },
@@ -95,15 +109,17 @@ export async function POST(request: Request, context: RouteContext) {
   const turnId = crypto.randomUUID();
   const segmentMeta = metadata.segments ?? [];
 
-  const audioUrls = new Map<number, string | null>(await Promise.all(segmentMeta.map(async (segment) => {
+  const audioUrls = new Map<number, string | null>();
+  for (const segment of segmentMeta) {
     const file = formData.get(`audio-${segment.orderIndex}`);
     if (file instanceof File && file.size > 0) {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const key = lectureAudioKey(boardId, turnId, segment.orderIndex);
-      return [segment.orderIndex, await uploadAudio(key, bytes)] as const;
+      audioUrls.set(segment.orderIndex, await uploadAudio(key, bytes));
+    } else {
+      audioUrls.set(segment.orderIndex, null);
     }
-    return [segment.orderIndex, null] as const;
-  })));
+  }
 
   const MAX_INSERT_ATTEMPTS = 3;
   let saved: { turn: Turn; insertedSegments: Segment[] } | null = null;
