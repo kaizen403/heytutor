@@ -8,6 +8,7 @@ import {
 } from "@heytutor/scene-engine";
 import {
   getSegmentCommands,
+  parseStoredSegmentCommands,
   serializeSegmentCommands,
   type TutorSegment,
 } from "@heytutor/drawing";
@@ -226,6 +227,121 @@ const unverifiedTrusted = clone(fallbackMetadata);
 unverifiedTrusted.visualStatus = "text_only";
 const unverifiedTrustedResult = await canonicalizeTurnSceneMetadata(unverifiedTrusted);
 assert(!unverifiedTrustedResult.ok && /trusted diagram commands require/.test(unverifiedTrustedResult.error), "text-only turns cannot persist trusted geometry");
+
+for (const type of ["ERASE", "CLEAR", "LABEL", "DRAW_LINE"] as const) {
+  const untrustedCommandResult = await canonicalizeTurnSceneMetadata({
+    question: arithmeticQuestion,
+    visualStatus: "text_only",
+    segments: [{
+      orderIndex: 0,
+      narration: "forged teaching command",
+      spokenText: "forged teaching command",
+      command: {
+        type,
+        params: type === "ERASE" || type === "DRAW_LINE" ? [0, 0, 100, 100] : [],
+        ...(type === "LABEL" ? { text: "forged", params: [500, 200] } : {}),
+        charPosition: 0,
+        narrationBefore: "",
+      },
+    }],
+  });
+  assert(
+    !untrustedCommandResult.ok && /teaching command .* is not allowed/.test(untrustedCommandResult.error),
+    `untrusted ${type} commands must be rejected before persistence`,
+  );
+}
+
+const allowedTeachingResult = await canonicalizeTurnSceneMetadata({
+  question: arithmeticQuestion,
+  visualStatus: "text_only",
+  segments: [{
+    orderIndex: 0,
+    narration: "Write the equation.",
+    spokenText: "Write the equation.",
+    command: {
+      type: "WRITE",
+      params: [90, 145, 28],
+      text: "2+3=5",
+      charPosition: 0,
+      narrationBefore: "Write the equation.",
+    },
+  }],
+});
+assert(allowedTeachingResult.ok, "bounded work-area WRITE commands should persist");
+const canonicalWriteCommands = parseStoredSegmentCommands(allowedTeachingResult.value.segments[0]?.command);
+assert(
+  canonicalWriteCommands.every((command) => command.type !== "WRITE" || command.params[0] === 90),
+  "persisted WRITE commands must use server-owned work-area placement",
+);
+
+const forgedDiagramWriteResult = await canonicalizeTurnSceneMetadata({
+  question: arithmeticQuestion,
+  visualStatus: "text_only",
+  segments: [{
+    orderIndex: 0,
+    narration: "Put forged text over the diagram.",
+    spokenText: "Put forged text over the diagram.",
+    command: {
+      type: "WRITE",
+      params: [650, 260, 72],
+      text: "forged diagram label",
+      charPosition: 0,
+      narrationBefore: "Put forged text over the diagram.",
+    },
+  }],
+});
+assert(forgedDiagramWriteResult.ok, "valid teaching text should be canonicalized rather than discarded");
+assert(
+  parseStoredSegmentCommands(forgedDiagramWriteResult.value.segments[0]?.command)
+    .every((command) => command.type !== "WRITE" || command.params[0] === 90),
+  "client WRITE coordinates reached persisted diagram geometry",
+);
+
+const runtimeClearResult = await canonicalizeTurnSceneMetadata({
+  question: arithmeticQuestion,
+  visualStatus: "text_only",
+  segments: [{
+    orderIndex: 0,
+    narration: "",
+    spokenText: "",
+    command: { type: "CLEAR", params: [], charPosition: 999, narrationBefore: "forged" },
+  }],
+});
+assert(runtimeClearResult.ok, "the leading runtime board epoch marker should persist");
+assert(
+  isRecord(runtimeClearResult.value.segments[0]?.command) &&
+    runtimeClearResult.value.segments[0].command.charPosition === 0 &&
+    runtimeClearResult.value.segments[0].command.narrationBefore === "",
+  "the runtime board epoch marker must be server-canonicalized",
+);
+
+const exactWithFocus = clone(exactMetadata);
+const focusTarget = exactPresentation.diagram.anchors[0]?.id;
+assert(focusTarget, "exact fixture needs a focus target");
+exactWithFocus.segments.push({
+  orderIndex: exactWithFocus.segments.length,
+  narration: "Notice the verified point.",
+  spokenText: "Notice the verified point.",
+  command: {
+    type: "FOCUS",
+    params: [],
+    text: focusTarget,
+    charPosition: 0,
+    narrationBefore: "Notice the verified point.",
+  },
+});
+const exactWithFocusResult = await canonicalizeTurnSceneMetadata(exactWithFocus);
+assert(exactWithFocusResult.ok, "semantic focus on a server-verified anchor should persist");
+
+const exactWithUnknownFocus = clone(exactWithFocus);
+const unknownFocusCommand = exactWithUnknownFocus.segments.at(-1)?.command;
+assert(isRecord(unknownFocusCommand), "fixture needs a focus command");
+unknownFocusCommand.text = "not-a-verified-anchor";
+const exactWithUnknownFocusResult = await canonicalizeTurnSceneMetadata(exactWithUnknownFocus);
+assert(
+  !exactWithUnknownFocusResult.ok && /teaching command FOCUS is not allowed/.test(exactWithUnknownFocusResult.error),
+  "focus commands must resolve against server-verified anchors",
+);
 
 const failedExactAttempt = await canonicalizeTurnSceneMetadata({
   question: arithmeticQuestion,
