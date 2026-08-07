@@ -1,29 +1,65 @@
-# dependencies
-node_modules
-.pnpm-store
+# Dependencies
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+.pnp.*
 
-# build outputs
-dist
-.next
-out
-.turbo
+# Build / cache
+dist/
+build/
+out/
+.next/
+.turbo/
+.cache/
 *.tsbuildinfo
+*.esm.js.map
+*.cjs.js.map
 
-# env
+# Test / coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+*.lcov
+
+# Environment and secrets (keep committed examples)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!**/.env.example
 
-# misc
+# Logs and debug
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS
 .DS_Store
-coverage
+Thumbs.db
+Desktop.ini
 
-# Cursor IDE (local only; never commit)
+# Editors / IDEs (local only)
 .cursor/
+.idea/
+*.swp
+*.swo
+*~
 skills-lock.json
 
-# agent working state
-.omo/run-continuation/
-.omo/evidence/
-.vercel
-.env*
+# Vercel
+.vercel/
+
+# Agent / automation working state (local only)
+.omo/
+.omx/
+
+# Misc local scratch
+*.local
+tmp/
+temp/
+.temp/

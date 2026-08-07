@@ -2,8 +2,11 @@
 .github
 .vercel
 **/.vercel
-.omx
+
 .omo
+.omx
+.cursor
+.idea
 
 node_modules
 **/node_modules
@@ -16,12 +19,16 @@ node_modules
 dist
 **/dist
 coverage
+**/coverage
 *.tsbuildinfo
 
 .DS_Store
 *.log
+tmp
+temp
 
 .env
 .env.*
 **/.env
 **/.env.*
+!**/.env.example
