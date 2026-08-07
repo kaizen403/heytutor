@@ -68,6 +68,92 @@ if (
   throw new Error(`live YDSE law alias correction failed: ${JSON.stringify(liveYdseAudit)}`);
 }
 
+const divergingLensPlan: TurnPlanV3 = {
+  schemaVersion: "turn-plan/v3",
+  question: "An object is 20 cm from a diverging lens of focal length -10 cm.",
+  givens: [
+    { id: "u", symbol: "u", value: 20, unit: "cm", provenance: "given" },
+    { id: "f", symbol: "f", value: -10, unit: "cm", provenance: "given" },
+  ],
+  unknowns: [
+    { id: "v", symbol: "v", unit: "cm" },
+    { id: "m", symbol: "m", unit: "1" },
+  ],
+  derived: [
+    { id: "v", symbol: "v", value: 20, unit: "cm", provenance: "derived" },
+    { id: "m", symbol: "m", value: -1, unit: "1", provenance: "derived" },
+  ],
+  qualitativeClaims: [],
+  lawIds: ["thin lens formula"],
+  assumptions: [],
+  visualRequirement: "required",
+};
+const divergingLensAudit = reconcileTurnPlanWithOpticsLaws(divergingLensPlan);
+if (Math.abs((divergingLensAudit.plan.derived.find((item) => item.id === "v")?.value ?? 0) + 20 / 3) > 1e-9) {
+  throw new Error(`diverging lens image distance lost its sign: ${JSON.stringify(divergingLensAudit.plan.derived)}`);
+}
+if (Math.abs((divergingLensAudit.plan.derived.find((item) => item.id === "m")?.value ?? 0) - 1 / 3) > 1e-9) {
+  throw new Error(`diverging lens magnification was not recomputed from signed distances: ${JSON.stringify(divergingLensAudit.plan.derived)}`);
+}
+
+const phasePlan: TurnPlanV3 = {
+  schemaVersion: "turn-plan/v3",
+  question: "Find the phase difference in degrees.",
+  givens: [
+    { id: "delta_x", symbol: "Δx", value: 0.25, unit: "um", provenance: "given" },
+    { id: "lambda", symbol: "λ", value: 1, unit: "um", provenance: "given" },
+  ],
+  unknowns: [{ id: "phi", symbol: "φ", unit: "degree" }],
+  derived: [{ id: "phi", symbol: "φ", value: 0, unit: "degree", provenance: "derived" }],
+  qualitativeClaims: [],
+  lawIds: ["phase difference"],
+  assumptions: [],
+  visualRequirement: "optional",
+};
+const phaseAudit = reconcileTurnPlanWithOpticsLaws(phasePlan);
+if (Math.abs((phaseAudit.plan.derived[0]?.value ?? 0) - 90) > 1e-9) {
+  throw new Error(`phase difference was not converted to degrees: ${JSON.stringify(phaseAudit.plan.derived)}`);
+}
+
+const singleSlitPlan: TurnPlanV3 = {
+  schemaVersion: "turn-plan/v3",
+  question: "Find the angular width of the central maximum in degrees.",
+  givens: [
+    { id: "lambda", symbol: "λ", value: 500, unit: "nm", provenance: "given" },
+    { id: "a", symbol: "a", value: 0.2, unit: "mm", provenance: "given" },
+    { id: "D", symbol: "D", value: 2, unit: "m", provenance: "given" },
+  ],
+  unknowns: [{ id: "angular_width", symbol: "theta", unit: "degree" }],
+  derived: [{ id: "angular_width", symbol: "theta", value: 0, unit: "degree", provenance: "derived" }],
+  qualitativeClaims: [],
+  lawIds: ["single slit diffraction"],
+  assumptions: [],
+  visualRequirement: "optional",
+};
+const singleSlitAudit = reconcileTurnPlanWithOpticsLaws(singleSlitPlan);
+if (Math.abs((singleSlitAudit.plan.derived[0]?.value ?? 0) - (0.005 * 180 / Math.PI)) > 1e-9) {
+  throw new Error(`single-slit angular width was not converted to degrees: ${JSON.stringify(singleSlitAudit.plan.derived)}`);
+}
+
+const telescopeResolutionPlan: TurnPlanV3 = {
+  schemaVersion: "turn-plan/v3",
+  question: "Find the diffraction-limited angular resolution in degrees.",
+  givens: [
+    { id: "lambda", symbol: "λ", value: 550, unit: "nm", provenance: "given" },
+    { id: "D", symbol: "D", value: 10, unit: "cm", provenance: "given" },
+  ],
+  unknowns: [{ id: "theta_min", symbol: "theta_min", unit: "degree" }],
+  derived: [{ id: "theta_min", symbol: "theta_min", value: 0, unit: "degree", provenance: "derived" }],
+  qualitativeClaims: [],
+  lawIds: ["telescope resolution"],
+  assumptions: [],
+  visualRequirement: "optional",
+};
+const telescopeResolutionAudit = reconcileTurnPlanWithOpticsLaws(telescopeResolutionPlan);
+if (Math.abs((telescopeResolutionAudit.plan.derived[0]?.value ?? 0) - (1.22 * 550e-9 / 0.1 * 180 / Math.PI)) > 1e-12) {
+  throw new Error(`telescope resolution angle was not converted to degrees: ${JSON.stringify(telescopeResolutionAudit.plan.derived)}`);
+}
+
 const unrelated = structuredClone(mirrorPlan);
 unrelated.lawIds = ["conservation_of_energy"];
 const unrelatedAudit = reconcileTurnPlanWithOpticsLaws(unrelated);

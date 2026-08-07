@@ -423,14 +423,13 @@ function normalizePlannerTurnPlan(value: unknown, question: string): unknown {
     if (!resultLike) return null;
     const text = raw.replace(/[−–]/g, "-").replace(/π/g, "pi");
     const rhs = text.includes("=") ? text.slice(text.lastIndexOf("=") + 1) : text;
-    if (!text.includes("=") && !resultLike) return null;
-    const candidates = rhs.match(/[+-]?(?:(?:\d+(?:\.\d*)?|\.\d+)(?:\s*[+*/^]\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+))*)/g) ?? [];
-    for (const candidate of candidates.reverse()) {
+    for (const candidate of resultExpressionCandidates(rhs)) {
+      if (/(^|[^a-z0-9_])[xy]([^a-z0-9_]|$)/i.test(candidate)) continue;
       try {
         const numeric = evaluateMathExpression(candidate, 0);
         if (Number.isFinite(numeric)) return numeric;
       } catch {
-        // Continue to the next numeric fragment in explanatory model text.
+        // Try the next whole-expression candidate.
       }
     }
     return null;
@@ -724,6 +723,133 @@ function semanticQuantityKeysMatch(first: string, second: string): boolean {
   if (first.length < 4 || second.length < 4) return false;
   return first.includes(second) || second.includes(first);
 }
+
+function resultExpressionCandidates(raw: string): string[] {
+  const trimmed = raw.trim();
+  if (trimmed === "") return [];
+  const candidates = [trimmed];
+  for (const match of trimmed.matchAll(/\s+/g)) {
+    const splitIndex = match.index ?? -1;
+    if (splitIndex <= 0) continue;
+    const prefix = trimmed.slice(0, splitIndex).trim();
+    const suffix = trimmed.slice(splitIndex).trim();
+    if (!prefix || !suffix || !looksLikeUnitSuffix(suffix)) continue;
+    candidates.push(prefix);
+  }
+  return [...new Set(candidates)];
+}
+
+function looksLikeUnitSuffix(raw: string): boolean {
+  const normalized = raw.toLowerCase()
+    .replace(/µ|μ/g, "u")
+    .replace(/°/g, " degree ")
+    .replace(/,/g, " ")
+    .trim();
+  if (normalized === "" || !/[a-z]/.test(normalized)) return false;
+  if (!/^[a-z0-9\s/^*.-]+$/.test(normalized)) return false;
+  const segments = normalized.split(/\s+/).filter(Boolean);
+  if (segments.length === 0) return false;
+  return segments.every((segment) => {
+    const unitParts = segment.split("/").flatMap((part) => part.split("*"));
+    return unitParts.every((part) => {
+      const base = part.replace(/^-+/, "").replace(/\^-?\d+$/g, "").replace(/\d+$/g, "");
+      return base !== "" && RESULT_UNIT_TOKENS.has(base);
+    });
+  });
+}
+
+const RESULT_UNIT_TOKENS = new Set([
+  "a",
+  "amp",
+  "ampere",
+  "amperes",
+  "amps",
+  "c",
+  "cal",
+  "calorie",
+  "calories",
+  "cm",
+  "coulomb",
+  "coulombs",
+  "cu",
+  "cubic",
+  "d",
+  "deg",
+  "degree",
+  "degrees",
+  "diopter",
+  "diopters",
+  "dioptre",
+  "dioptres",
+  "f",
+  "farad",
+  "farads",
+  "g",
+  "gram",
+  "grams",
+  "h",
+  "henry",
+  "henrys",
+  "hour",
+  "hours",
+  "hz",
+  "j",
+  "joule",
+  "joules",
+  "k",
+  "kg",
+  "kilogram",
+  "kilograms",
+  "km",
+  "l",
+  "liter",
+  "liters",
+  "litre",
+  "litres",
+  "m",
+  "meter",
+  "meters",
+  "metre",
+  "metres",
+  "min",
+  "minute",
+  "minutes",
+  "mm",
+  "mol",
+  "n",
+  "newton",
+  "newtons",
+  "nm",
+  "ns",
+  "ohm",
+  "ohms",
+  "pa",
+  "pascal",
+  "pascals",
+  "per",
+  "rad",
+  "radian",
+  "radians",
+  "s",
+  "second",
+  "seconds",
+  "sq",
+  "square",
+  "t",
+  "tesla",
+  "u",
+  "um",
+  "unit",
+  "units",
+  "v",
+  "volt",
+  "volts",
+  "w",
+  "watt",
+  "watts",
+  "weber",
+  "webers",
+]);
 
 function mergeAbortSignals(first: AbortSignal, second: AbortSignal): AbortSignal {
   const controller = new AbortController();

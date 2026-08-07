@@ -68,7 +68,7 @@ after choosing, find d u from u and find v from d v.
 [/STEP]`,
   },
   {
-    keywords: ['equation', 'circle', 'derive', 'standard form'],
+    keywords: ['circle'],
     response: `[STEP]
 to find the equation of a circle, start with what a circle actually is. every point on it is the same distance from one fixed spot called the center, and that equal distance is the radius.
 [DRAW_CIRCLE:520,300,140]

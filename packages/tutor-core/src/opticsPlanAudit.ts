@@ -75,7 +75,7 @@ function evaluatePlanLaw(
 
   if (lawId === "mirror_formula" || lawId === "thin_lens_formula") {
     const objectDistance = length(["object_distance", "objectdistance", "u"], true);
-    const focalLength = length(["focal_length", "focallength", "f"], true);
+    const focalLength = length(["focal_length", "focallength", "f"]);
     if (objectDistance === null || focalLength === null) return null;
     const values = evaluate({ objectDistance, focalLength });
     return values ? { outputs: [
@@ -220,7 +220,7 @@ function evaluatePlanLaw(
     const wavelength = length(["wavelength", "lambda"]);
     if (pathDifference === null || wavelength === null) return null;
     const values = evaluate({ pathDifference, wavelength });
-    return values ? { outputs: [output(["phase_difference", "phase", "phi"], values.phaseDifferenceRad!, "scalar")] } : null;
+    return values ? { outputs: [output(["phase_difference", "phase", "phi"], radiansToDegrees(values.phaseDifferenceRad!), "angle")] } : null;
   }
   if (lawId === "single_slit_diffraction") {
     const wavelength = length(["wavelength", "lambda"]);
@@ -229,7 +229,7 @@ function evaluatePlanLaw(
     if (wavelength === null || slitWidth === null || screenDistance === null) return null;
     const values = evaluate({ wavelength, slitWidth, screenDistance });
     return values ? { outputs: [
-      output(["angular_width", "angularWidth"], values.angularWidthRad!, "scalar"),
+      output(["angular_width", "angularWidth"], radiansToDegrees(values.angularWidthRad!), "angle"),
       output(["central_width", "central_maximum_width", "W"], values.centralWidth!, "length"),
     ] } : null;
   }
@@ -239,7 +239,7 @@ function evaluatePlanLaw(
     if (wavelength === null || aperture === null) return null;
     const values = evaluate({ wavelength, aperture });
     return values ? { outputs: [
-      output(["minimum_angle", "angular_resolution", "theta_min"], values.minimumAngleRad!, "scalar"),
+      output(["minimum_angle", "angular_resolution", "theta_min"], radiansToDegrees(values.minimumAngleRad!), "angle"),
       output(["resolving_power", "RP"], values.resolvingPower!, "scalar"),
     ] } : null;
   }
@@ -423,4 +423,8 @@ function normalizeUnit(value: string | undefined): string {
 
 function approximatelyEqual(first: number, second: number): boolean {
   return Math.abs(first - second) <= Math.max(1e-10, Math.abs(second) * 1e-9);
+}
+
+function radiansToDegrees(value: number): number {
+  return value * 180 / Math.PI;
 }
