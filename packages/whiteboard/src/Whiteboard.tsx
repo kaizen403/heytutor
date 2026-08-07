@@ -89,7 +89,14 @@ export interface WhiteboardHandle {
     shouldCancel?: () => boolean,
   ) => Promise<void>;
   clearBoard: (duration?: number) => Promise<void>;
-  eraseRegion: (x: number, y: number, width: number, height: number, duration: number) => Promise<void>;
+  eraseRegion: (
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    duration: number,
+    shouldCancel?: () => boolean,
+  ) => Promise<void>;
   /** Split diagram vector lines that pass through a label emphasis region. */
   punchDiagramLineGapsInRect: (
     rect: { x: number; y: number; width: number; height: number },
@@ -249,7 +256,11 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     );
 
     const animateOver = useCallback(
-      (duration: number, onFrame: (progress: number) => void): Promise<void> =>
+      (
+        duration: number,
+        onFrame: (progress: number) => void,
+        shouldCancel?: () => boolean,
+      ): Promise<void> =>
         new Promise((resolve) => {
           let frameId: number | null = null;
           let startTime: number | null = null;
@@ -272,6 +283,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
           const step = (now: number): void => {
             if (isDone) {
+              return;
+            }
+            if (shouldCancel?.()) {
+              cleanup();
               return;
             }
 
@@ -1188,13 +1203,20 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     );
 
     const eraseRegion = useCallback(
-      async (x: number, y: number, regionWidth: number, regionHeight: number, duration: number): Promise<void> => {
+      async (
+        x: number,
+        y: number,
+        regionWidth: number,
+        regionHeight: number,
+        duration: number,
+        shouldCancel?: () => boolean,
+      ): Promise<void> => {
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
         const cursorLayer = cursorLayerRef.current;
         const highlightLayer = highlightLayerRef.current;
 
-        if (!drawLayer || !animLayer || !cursorLayer) {
+        if (!drawLayer || !animLayer || !cursorLayer || shouldCancel?.()) {
           return;
         }
 
@@ -1203,6 +1225,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
         const targetY = y + regionHeight / 2;
         await flyCursorTo(x, targetY, Math.min(duration * 0.3, 800));
+        if (shouldCancel?.()) return;
 
         const sweepDuration = Math.max(duration * 0.7, 100);
         await animateOver(sweepDuration, (progress) => {
@@ -1217,9 +1240,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           animLayer.batchDraw();
           highlightLayer?.batchDraw();
           cursorLayer.batchDraw();
-        });
+        }, shouldCancel);
 
-        updateCursorState(previousCursorState);
+        if (!shouldCancel?.()) updateCursorState(previousCursorState);
       },
       [animateOver, destroyNodesInRect, flyCursorTo, setCursorViewSafely, updateCursorState],
     );

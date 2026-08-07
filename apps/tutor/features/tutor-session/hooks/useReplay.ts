@@ -38,7 +38,18 @@ type ExecuteCommandOptions = {
   applyLayout?: boolean;
   segmentNarration?: string;
   trustedDiagramGeometry?: boolean;
+  isCancelled?: () => boolean;
 };
+
+type ReplayGenerationState = {
+  generation: number;
+  activeGeneration: number;
+  cancelled: boolean;
+};
+
+export function isReplayGenerationCurrent(state: ReplayGenerationState): boolean {
+  return state.generation === state.activeGeneration && !state.cancelled;
+}
 
 export type UseReplayParams = {
   whiteboardRef: RefObject<WhiteboardHandle | null>;
@@ -124,11 +135,19 @@ export function useReplay({
       segment: StoredSegment,
       segmentCommands: DrawCommand[],
       narration: string,
+      generation: number,
       audio?: HTMLAudioElement,
       fallbackDurationMs?: number,
       initialTextCommandIndex = 0,
     ): Promise<void> => {
-      if (segmentCommands.length === 0 || cancelRef.current) {
+      const isCurrentReplay = () =>
+        isReplayGenerationCurrent({
+          generation,
+          activeGeneration: replayGenerationRef.current,
+          cancelled: cancelRef.current,
+        });
+
+      if (segmentCommands.length === 0 || !isCurrentReplay()) {
         return;
       }
 
@@ -145,11 +164,11 @@ export function useReplay({
         Math.max(narration.length * 85, 700);
       const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
       const getRate = () => Math.max(speedRef.current, 0.1);
-      const shouldCancel = () => cancelRef.current;
+      const shouldCancel = () => !isCurrentReplay();
 
       let textCommandIndex = initialTextCommandIndex;
       for (const command of segmentCommands) {
-        if (cancelRef.current) {
+        if (!isCurrentReplay()) {
           return;
         }
 
@@ -164,6 +183,7 @@ export function useReplay({
         if (charSchedule && charSchedule.offsetsMs.length > 0 && audio) {
           await executeCommandWithCancel(command, {
             applyLayout: false,
+            isCancelled: () => !isCurrentReplay(),
             trustedDiagramGeometry,
             writeSchedule: {
               charStartOffsetsMs: charSchedule.offsetsMs,
@@ -200,7 +220,7 @@ export function useReplay({
             });
           }
         }
-        if (cancelRef.current) {
+        if (!isCurrentReplay()) {
           return;
         }
 
@@ -213,6 +233,7 @@ export function useReplay({
 
         await executeCommandWithCancel(command, {
           applyLayout: false,
+          isCancelled: () => !isCurrentReplay(),
           speechDurationMs: commandBudgetMs,
           trustedDiagramGeometry,
         });
@@ -221,7 +242,7 @@ export function useReplay({
         }
       }
     },
-    [cancelRef, speedRef, setPhase, whiteboardRef, executeCommandWithCancel],
+    [cancelRef, replayGenerationRef, speedRef, setPhase, whiteboardRef, executeCommandWithCancel],
   );
 
   const waitWhileReplayPaused = useCallback(async (generation: number) => {
@@ -235,9 +256,19 @@ export function useReplay({
   }, [cancelRef, isPausedRef, replayGenerationRef]);
 
   const renderBoardAtTime = useCallback(
-    async (timeMs: number, cues: ReplayCue[]) => {
+    async (timeMs: number, cues: ReplayCue[], generation: number) => {
       const wb = whiteboardRef.current;
+      const isCurrentReplay = () =>
+        isReplayGenerationCurrent({
+          generation,
+          activeGeneration: replayGenerationRef.current,
+          cancelled: cancelRef.current,
+        });
       if (!wb) {
+        return;
+      }
+
+      if (!isCurrentReplay()) {
         return;
       }
 
@@ -257,18 +288,19 @@ export function useReplay({
             : getPartialCommandCount(cue, timeMs - cue.startMs);
 
         for (let i = 0; i < partialCount; i++) {
-          if (cancelRef.current) {
+          if (!isCurrentReplay()) {
             return;
           }
           await executeCommand(cue.commands[i]!, {
             durationScale: 0,
             applyLayout: false,
+            isCancelled: () => !isCurrentReplay(),
             trustedDiagramGeometry: cue.trustedDiagramGeometry,
           });
         }
       }
     },
-    [whiteboardRef, cancelRef, executeCommand, resetBoardLayout],
+    [whiteboardRef, replayGenerationRef, cancelRef, executeCommand, resetBoardLayout],
   );
 
   const playReplayCue = useCallback(
@@ -348,6 +380,7 @@ export function useReplay({
               cue.segment,
               remainingCommands,
               cue.narration,
+              generation,
               audio,
               fallbackDurationMs,
               initialTextCommandIndex,
@@ -365,6 +398,7 @@ export function useReplay({
             cue.segment,
             remainingCommands,
             cue.narration,
+            generation,
             undefined,
             fallbackDurationMs,
             initialTextCommandIndex,
@@ -383,11 +417,16 @@ export function useReplay({
           error: error instanceof Error ? error.message : String(error),
         });
 
-        if (!skipDraw && remainingCommands.length > 0) {
+        if (isReplayGenerationCurrent({
+          generation,
+          activeGeneration: replayGenerationRef.current,
+          cancelled: cancelRef.current,
+        }) && !skipDraw && remainingCommands.length > 0) {
           await runReplaySegmentDraw(
             cue.segment,
             remainingCommands,
             cue.narration,
+            generation,
             undefined,
             fallbackDurationMs,
             initialTextCommandIndex,
@@ -440,7 +479,7 @@ export function useReplay({
       stopReplayAudio(replayAudioRef.current);
       replayAudioRef.current = null;
 
-      await renderBoardAtTime(startMs, timeline.cues);
+      await renderBoardAtTime(startMs, timeline.cues, generation);
       if (cancelRef.current || generation !== replayGenerationRef.current) {
         return;
       }

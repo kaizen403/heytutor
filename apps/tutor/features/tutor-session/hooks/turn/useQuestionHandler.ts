@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import {
   IncrementalTagParser,
   lessonNarrationText,
@@ -73,7 +73,54 @@ import {
   createEmptySegmentPlanStats,
   isTeachingResponseIncomplete,
 } from "../../lib/segmentPlanning";
+import type { TutorPhase } from "../../types";
 import type { TurnControlApi, UseTurnLifecycleParams } from "./types";
+
+type PendingQuestionFlushState = {
+  pendingQuestion: string | null;
+  boardLoaded: boolean;
+  hasWhiteboard: boolean;
+  phase: TutorPhase;
+  turnActive: boolean;
+  pendingSegmentCount: number;
+};
+
+type TurnContinuationState = {
+  turnGeneration: number;
+  activeTurnGeneration: number;
+  cancelled: boolean;
+  aborted: boolean;
+};
+
+export function shouldFlushPendingQuestion(state: PendingQuestionFlushState): boolean {
+  return Boolean(
+    state.pendingQuestion?.trim() &&
+      state.boardLoaded &&
+      state.hasWhiteboard &&
+      state.phase === "idle" &&
+      !state.turnActive &&
+      state.pendingSegmentCount === 0,
+  );
+}
+
+export function canContinueTurnAfterAsync(state: TurnContinuationState): boolean {
+  return (
+    state.turnGeneration === state.activeTurnGeneration &&
+    !state.cancelled &&
+    !state.aborted
+  );
+}
+
+export async function awaitCurrentTurn<T>(
+  operation: Promise<T>,
+  isCurrent: () => boolean,
+): Promise<T> {
+  const result = await operation;
+  if (!isCurrent()) {
+    throw new DOMException("turn cancelled", "AbortError");
+  }
+  return result;
+}
 
 export function useQuestionHandler(
   params: UseTurnLifecycleParams,
@@ -213,6 +260,28 @@ export function useQuestionHandler(
       activeVerifiedDiagramRef.current = null;
       await beginBoardEpoch();
 
+      const isCurrentTurn = () =>
+        canContinueTurnAfterAsync({
+          turnGeneration,
+          activeTurnGeneration: turnGenerationRef.current,
+          cancelled: cancelRef.current,
+          aborted: abortController.signal.aborted,
+        });
+      const throwIfTurnCancelled = () => {
+        if (!isCurrentTurn()) {
+          throw new DOMException("turn cancelled", "AbortError");
+        }
+      };
+      const setPhaseIfCurrent = (next: TutorPhase) => {
+        if (!isCurrentTurn()) {
+          return;
+        }
+        phaseRef.current = next;
+        setPhase(next);
+      };
+
+      throwIfTurnCancelled();
+
       const tel = createTurnTelemetry();
       turnTelemetryRef.current = tel;
       const thinkingSpan = tel.span("thinking");
@@ -245,7 +314,7 @@ export function useQuestionHandler(
       tts.unlockAudio?.();
 
       // The verified semantic scene engine is the only diagram generation path.
-      setPhase("planning");
+      setPhaseIfCurrent("planning");
       const plannerSpan = tel.span("planner");
       const plannerStartedAt = Date.now();
 
@@ -294,13 +363,13 @@ export function useQuestionHandler(
           });
         } else {
           const turnPlanStartedAt = Date.now();
-          const plannedTurn = await planTurnV3(question, {
+          const plannedTurn = await awaitCurrentTurn(planTurnV3(question, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
             signal: abortController.signal,
             timeoutMs: TURN_PLAN_DEADLINE_MS,
             conversationContext: recentConversation,
-          });
+          }), isCurrentTurn);
           if (plannedTurn) {
             const remainingAuthorityMs = Math.max(
               1_000,
@@ -318,12 +387,12 @@ export function useQuestionHandler(
             TURN_PLAN_DEADLINE_MS - (Date.now() - turnPlanStartedAt),
           );
           const auditedTurn = plannedTurn && remainingAuditMs > 0
-            ? await auditTurnPlanV3(question, plannedTurn.turnPlan, {
+            ? await awaitCurrentTurn(auditTurnPlanV3(question, plannedTurn.turnPlan, {
                 proxyUrl: plannerUrl,
                 sessionId: sessionId ?? undefined,
                 signal: abortController.signal,
                 timeoutMs: remainingAuditMs,
-              })
+              }), isCurrentTurn)
             : null;
           turnPlanMs = Date.now() - turnPlanStartedAt;
           turnPlan = selectBestAvailableTurnPlan(
@@ -491,7 +560,7 @@ export function useQuestionHandler(
           }
         }
         if (!result && shouldPlanExactScene && remainingPlannerMs > 0) {
-          result = await planSceneDocumentWithRepair(
+          result = await awaitCurrentTurn(planSceneDocumentWithRepair(
             question,
             validateCandidate,
             {
@@ -508,11 +577,11 @@ export function useQuestionHandler(
                 }
               : {}),
             },
-          ).catch(() => null);
+          ).catch(() => null), isCurrentTurn);
         }
 
         if (problemAuthorityPromise) {
-          problemAuthority = await problemAuthorityPromise;
+          problemAuthority = await awaitCurrentTurn(problemAuthorityPromise, isCurrentTurn);
           if (problemAuthority) {
             turnPlan = reconcileTurnPlanWithSolver(
               turnPlan,
@@ -546,10 +615,10 @@ export function useQuestionHandler(
         }
 
         if (result) {
-          result = await revalidateScenePlanWithRepairResult(
+          result = await awaitCurrentTurn(revalidateScenePlanWithRepairResult(
             result,
             (candidate) => validateCandidateAgainstPlan(candidate, turnPlan),
-          );
+          ), isCurrentTurn);
         }
         const solverAuthorityBlocked = problemAuthority?.audit.status === "contradiction";
 
@@ -710,6 +779,7 @@ export function useQuestionHandler(
             candidatesMs: Math.max(0, Date.now() - plannerStartedAt - turnPlanMs),
           },
         };
+      throwIfTurnCancelled();
       const plannerLatencyMs = Date.now() - plannerStartedAt;
 
       let activeDiagram: import("@heytutor/drawing").VerifiedDiagram | null;
@@ -800,7 +870,7 @@ export function useQuestionHandler(
         const currentId = sessionId;
         let requiredAttemptPersisted = false;
         if (currentId && sceneArtifacts) {
-          const savedTurn = await saveTurn(currentId, {
+          const savedTurn = await awaitCurrentTurn(saveTurn(currentId, {
             question,
             rawResponse: "",
             speedMultiplier: speedRef.current,
@@ -811,7 +881,7 @@ export function useQuestionHandler(
             visualStatus: "retry_required",
             sceneArtifacts,
             segments: [],
-          }).catch(() => null);
+          }).catch(() => null), isCurrentTurn);
           if (savedTurn) {
             requiredAttemptPersisted = true;
             storedTurnsRef.current = [...storedTurnsRef.current, savedTurn];
@@ -868,7 +938,8 @@ ${JSON.stringify(problemAuthority.projection)}`
         : TUTOR_CONTINUATION_PROMPT;
 
       // Transition from planning back to thinking before the LLM stream starts.
-      setPhase("thinking");
+      throwIfTurnCancelled();
+      setPhaseIfCurrent("thinking");
 
       const introSegments = activeDiagram && sceneV2IntroSegments
         ? sceneV2IntroSegments
@@ -995,6 +1066,9 @@ ${JSON.stringify(problemAuthority.projection)}`
               },
             },
             (delta) => {
+              if (!isCurrentTurn()) {
+                return;
+              }
               endThinking({ phase: "first_token", delta_chars: delta.length });
               if (delta.includes("[")) {
                 tutorDebug("parser", "draw tag delta", {
@@ -1006,6 +1080,7 @@ ${JSON.stringify(problemAuthority.projection)}`
             },
           );
 
+          throwIfTurnCancelled();
           fullResponse += streamResult.text;
           traceId = streamResult.traceId;
           lastStreamStats = streamResult.streamStats;
@@ -1084,11 +1159,15 @@ ${JSON.stringify(problemAuthority.projection)}`
         parser.flush();
         // Flush the final segment through verified-scene ownership filtering.
         flushBufferedSegment();
+        throwIfTurnCancelled();
 
         const responseText = rawResponse.trim();
         rawResponseRef.current = responseText;
 
         if (responseText.length === 0) {
+          if (!isCurrentTurn()) {
+            return;
+          }
           const reasoningOnly = (streamStats?.reasoningChars ?? 0) > 0;
           const message = reasoningOnly
             ? "the ai couldn't generate a response — try rephrasing"
@@ -1104,14 +1183,15 @@ ${JSON.stringify(problemAuthority.projection)}`
         }
 
         tutorDebug("turn", "planning lesson from full response");
+        throwIfTurnCancelled();
         applyTurnPhase("speaking");
 
-        await processResponseText(
+        await awaitCurrentTurn(processResponseText(
           responseText,
           introSegments,
           STREAM_SEGMENTS_LIVE,
           turnGeneration,
-        );
+        ), isCurrentTurn);
 
         const finalNarration =
           responseText.length > 0 ? lessonNarrationText(responseText) : narrationText;
@@ -1179,6 +1259,11 @@ ${JSON.stringify(problemAuthority.projection)}`
         }
 
         if (cancelRef.current) {
+          turnCancelled = true;
+          return;
+        }
+
+        if (!isCurrentTurn()) {
           turnCancelled = true;
           return;
         }
@@ -1304,6 +1389,58 @@ ${JSON.stringify(problemAuthority.projection)}`
       setCurrentSegmentText,
     ],
   );
+
+  useEffect(() => {
+    if (!boardLoaded || typeof window === "undefined") {
+      return;
+    }
+
+    let frameId = 0;
+    let cancelled = false;
+
+    const flushPendingQuestion = () => {
+      if (cancelled) {
+        return;
+      }
+
+      const pendingQuestion = pendingQuestionRef.current;
+      if (!pendingQuestion?.trim()) {
+        return;
+      }
+
+      if (!shouldFlushPendingQuestion({
+        pendingQuestion,
+        boardLoaded,
+        hasWhiteboard: whiteboardRef.current !== null,
+        phase: phaseRef.current,
+        turnActive: turnActiveRef.current,
+        pendingSegmentCount: pendingSegmentCountRef.current,
+      })) {
+        frameId = window.requestAnimationFrame(flushPendingQuestion);
+        return;
+      }
+
+      pendingQuestionRef.current = null;
+      void handleQuestion(pendingQuestion);
+    };
+
+    flushPendingQuestion();
+
+    return () => {
+      cancelled = true;
+      if (frameId !== 0) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [
+    boardLoaded,
+    handleQuestion,
+    pendingQuestionRef,
+    pendingSegmentCountRef,
+    phaseRef,
+    turnActiveRef,
+    whiteboardRef,
+  ]);
 
   return { handleQuestion };
 }
