@@ -4,5 +4,17 @@
   "buildCommand": "pnpm turbo run build --filter=@heytutor/landing...",
   "outputDirectory": "dist",
   "framework": "vite",
+  "redirects": [
+    {
+      "source": "/app",
+      "destination": "https://heytutor.vercel.app",
+      "permanent": false
+    },
+    {
+      "source": "/app/:path*",
+      "destination": "https://heytutor.vercel.app/:path*",
+      "permanent": false
+    }
+  ],
   "regions": ["bom1"]
 }

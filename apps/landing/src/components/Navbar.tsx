@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import Logo from './Logo'
+import { TUTOR_APP_HREF } from '../lib/tutorAppHref'
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -26,7 +27,7 @@ export default function Navbar() {
 
       <div className="flex items-center gap-3">
         <a
-          href="/app"
+          href={TUTOR_APP_HREF}
           className="hidden rounded-full bg-brand-cta px-4 py-2 text-[13px] font-medium text-white hover:bg-brand-fg-soft sm:px-5 md:inline-block"
         >
           Try it free
@@ -51,7 +52,7 @@ export default function Navbar() {
           <a href="#pricing" className="block py-2.5 text-[15px] text-brand-muted hover:text-brand-fg">
             Pricing
           </a>
-          <a href="/app" className="mt-2 block rounded-full bg-brand-cta px-4 py-2 text-center text-[13px] font-medium text-white">
+          <a href={TUTOR_APP_HREF} className="mt-2 block rounded-full bg-brand-cta px-4 py-2 text-center text-[13px] font-medium text-white">
             Try it free
           </a>
         </div>
