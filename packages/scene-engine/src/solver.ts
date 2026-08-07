@@ -13,6 +13,7 @@ export const SOLVER_RESULT_VERSION = "solver-result/v1" as const;
 export const LOCAL_SOLVER_PROVIDER_ID = "local-deterministic/v1" as const;
 
 const ROOT_TOLERANCE = 1e-9;
+const MAX_ANALYTIC_ROOTS = 256;
 const MAX_POLYNOMIAL_DEGREE = 8;
 const MAX_INTEGER_BITS = 256;
 
@@ -33,7 +34,14 @@ export interface SolverValue {
 export interface SolverProofEvidence {
   id: string;
   requestId: string;
-  method: "exact_arithmetic" | "polynomial_roots" | "numeric_bracketing" | "exact_polynomial_integral" | "numeric_quadrature";
+  method:
+    | "exact_arithmetic"
+    | "polynomial_roots"
+    | "numeric_bracketing"
+    | "exact_polynomial_integral"
+    | "numeric_quadrature"
+    | "analytic_trig_integral"
+    | "analytic_trig_roots";
   expressionIds: string[];
   verified: boolean;
   residual: number;
@@ -213,7 +221,7 @@ export function validateSolverResult(raw: unknown, problem?: ProblemIR): SolverR
       if (proofRequestIds.has(proof.requestId)) add(issues, "duplicate_proof", `${path}.requestId`, `duplicate proof for ${proof.requestId}`);
       proofRequestIds.add(proof.requestId);
     }
-    if (!["exact_arithmetic", "polynomial_roots", "numeric_bracketing", "exact_polynomial_integral", "numeric_quadrature"].includes(String(proof.method))) add(issues, "invalid_proof_method", `${path}.method`, "invalid proof method");
+    if (!["exact_arithmetic", "polynomial_roots", "numeric_bracketing", "exact_polynomial_integral", "numeric_quadrature", "analytic_trig_integral", "analytic_trig_roots"].includes(String(proof.method))) add(issues, "invalid_proof_method", `${path}.method`, "invalid proof method");
     if (!Array.isArray(proof.expressionIds) || proof.expressionIds.length === 0 || proof.expressionIds.some((id) => typeof id !== "string" || (problem !== undefined && !expressionIds.has(id)))) {
       add(issues, "invalid_proof_inputs", `${path}.expressionIds`, "expressionIds must reference known expressions");
     } else if (problem && typeof proof.requestId === "string") {
@@ -268,14 +276,11 @@ function solveRequest(request: SolveRequest, expressions: Map<string, ProblemExp
     const approximate = fractionNumber(exact);
     return solvedScalar(request.id, approximate, exactValue(exact), "exact_polynomial_integral", [expression.id], 0, "Integrated exact rational polynomial coefficients over exact rational bounds.");
   }
-  const parsed = parseMathExpression(expressionToSafeSource(expression.root, request.variable));
-  const min = Math.min(request.lower, request.upper);
-  const max = Math.max(request.lower, request.upper);
-  parsed.assertContinuousOn(min, max);
-  const coarse = compositeSimpson(parsed.evaluate, request.lower, request.upper, 1024);
-  const fine = compositeSimpson(parsed.evaluate, request.lower, request.upper, 2048);
-  const error = Math.max(Math.abs(fine - coarse) / 15, Number.EPSILON * Math.max(1, Math.abs(fine)) * 32);
-  return solvedScalar(request.id, fine, undefined, "numeric_quadrature", [expression.id], error, "Composite Simpson quadrature converged at two deterministic resolutions.", error);
+  const analyticTrigIntegral = solveAnalyticTrigIntegral(request, expression);
+  if (analyticTrigIntegral) return analyticTrigIntegral;
+  throw new Error(
+    "non-polynomial quadrature cannot be certified by the local deterministic solver without a rigorous error bound",
+  );
 }
 
 function solveRoots(request: Extract<SolveRequest, { kind: "roots" | "intersections" }>, left: ProblemExpression, right?: ProblemExpression): { value: SolverValue; proof: SolverProofEvidence } {
@@ -299,14 +304,11 @@ function solveRoots(request: Extract<SolveRequest, { kind: "roots" | "intersecti
     const residual = maximumResidual(approximate, (x) => evaluatePolynomial(coefficients.map(fractionNumber), x));
     return solvedSet(request.id, approximate, exact, "polynomial_roots", expressionIds, residual, Math.max(ROOT_TOLERANCE, residual), "Isolated all real polynomial roots between derivative critical points and verified residuals.");
   }
-  const leftParsed = parseMathExpression(expressionToSafeSource(left.root, request.variable));
-  const rightParsed = right ? parseMathExpression(expressionToSafeSource(right.root, request.variable)) : null;
-  leftParsed.assertContinuousOn(request.domain.min, request.domain.max);
-  rightParsed?.assertContinuousOn(request.domain.min, request.domain.max);
-  const difference = (x: number) => leftParsed.evaluate(x) - (rightParsed?.evaluate(x) ?? 0);
-  const approximate = bracketedRoots(difference, request.domain.min, request.domain.max);
-  const residual = maximumResidual(approximate, difference);
-  return solvedSet(request.id, approximate, undefined, "numeric_bracketing", expressionIds, residual, Math.max(ROOT_TOLERANCE, residual), "Detected sign-changing roots on a deterministic bounded grid; tangential non-polynomial roots are outside this provider's completeness guarantee.");
+  const analyticTrigRoots = solveAnalyticTrigRoots(request, left, right);
+  if (analyticTrigRoots) return analyticTrigRoots;
+  throw new Error(
+    `non-polynomial ${right ? "intersection" : "root"} enumeration cannot prove a complete result set`,
+  );
 }
 
 function solvedScalar(requestId: string, approximate: number, exact: ExactSolverValue | undefined, method: SolverProofEvidence["method"], expressionIds: string[], residual: number, detail: string, errorBound = 0): { value: SolverValue; proof: SolverProofEvidence } {
@@ -328,6 +330,10 @@ function proof(requestId: string, method: SolverProofEvidence["method"], express
 }
 
 type Fraction = { numerator: bigint; denominator: bigint };
+type AffineConstant = { rational: Fraction; pi: Fraction };
+type LinearForm = { constant: AffineConstant; variable: AffineConstant };
+type LinearTrigIntegrand = { fn: "sin" | "cos"; scale: Fraction; argument: LinearForm };
+type TrigEquation = { fn: "sin" | "cos"; scale: Fraction; offset: Fraction; argument: LinearForm };
 
 function fraction(numerator: bigint, denominator = 1n): Fraction {
   if (denominator === 0n) throw new Error("division by zero");
@@ -437,6 +443,389 @@ function integratePolynomial(coefficients: Fraction[], lower: Fraction, upper: F
   return result;
 }
 
+function solveAnalyticTrigIntegral(
+  request: Extract<SolveRequest, { kind: "definite_integral" }>,
+  expression: ProblemExpression,
+): { value: SolverValue; proof: SolverProofEvidence } | null {
+  const integrand = linearTrigIntegrand(expression.root, request.variable);
+  if (!integrand) return null;
+  const slopeNumber = affineNumber(integrand.argument.variable);
+  if (!Number.isFinite(slopeNumber) || Math.abs(slopeNumber) <= ROOT_TOLERANCE) return null;
+  const lowerAngle = affineAt(integrand.argument, request.lower);
+  const upperAngle = affineAt(integrand.argument, request.upper);
+  const upperValue = specialTrigValue(integrand.fn === "cos" ? "sin" : "cos", upperAngle);
+  const lowerValue = specialTrigValue(integrand.fn === "cos" ? "sin" : "cos", lowerAngle);
+  if (!upperValue || !lowerValue) return null;
+
+  let numerator = multiplyFraction(integrand.scale, subtractFraction(upperValue, lowerValue));
+  if (integrand.fn === "sin") numerator = fraction(-numerator.numerator, numerator.denominator);
+  const slopeFraction = affinePureRational(integrand.argument.variable);
+
+  if (numerator.numerator === 0n) {
+    return solvedScalar(
+      request.id,
+      0,
+      exactValue(fraction(0n)),
+      "analytic_trig_integral",
+      [expression.id],
+      0,
+      "Integrated a linear-angle trigonometric term analytically and evaluated exact antiderivative endpoints.",
+    );
+  }
+
+  const purePiSlope = affinePurePi(integrand.argument.variable);
+  if (!slopeFraction && !purePiSlope) return null;
+  const exact = slopeFraction
+    ? exactValue(divideFraction(numerator, slopeFraction))
+    : ({
+        kind: "symbolic" as const,
+        value: `${parenthesize(fractionText(numerator))}/${parenthesize(affineText(integrand.argument.variable))}`,
+      });
+  const approximate = fractionNumber(numerator) / slopeNumber;
+  const errorBound = slopeFraction
+    ? 0
+    : Number.EPSILON * Math.max(1, Math.abs(approximate)) * 64;
+  return solvedScalar(
+    request.id,
+    approximate,
+    exact,
+    "analytic_trig_integral",
+    [expression.id],
+    0,
+    "Integrated a linear-angle trigonometric term analytically and evaluated exact antiderivative endpoints.",
+    errorBound,
+  );
+}
+
+function solveAnalyticTrigRoots(
+  request: Extract<SolveRequest, { kind: "roots" | "intersections" }>,
+  left: ProblemExpression,
+  right?: ProblemExpression,
+): { value: SolverValue; proof: SolverProofEvidence } | null {
+  const expressionIds = right ? [left.id, right.id] : [left.id];
+  const rootNode: ExpressionNodeIR = right
+    ? { kind: "binary", operator: "-", left: left.root, right: right.root }
+    : left.root;
+  const equation = trigEquation(rootNode, request.variable);
+  if (!equation) return null;
+
+  const slopeNumber = affineNumber(equation.argument.variable);
+  if (!Number.isFinite(slopeNumber) || Math.abs(slopeNumber) <= ROOT_TOLERANCE) return null;
+  const target = fractionNumber(divideFraction(fraction(-equation.offset.numerator, equation.offset.denominator), equation.scale));
+  if (!Number.isFinite(target)) return null;
+
+  const families = trigFamilies(equation.fn, target);
+  if (!families) return null;
+  const uniqueFamilies = families.filter((family, index, allFamilies) =>
+    allFamilies.findIndex((candidate) => equivalentTrigFamily(candidate, family)) === index,
+  );
+
+  const candidateRoots: Array<{ approximate: number; exact: string }> = [];
+  for (const family of uniqueFamilies) {
+    candidateRoots.push(...enumerateTrigRoots(
+      family,
+      equation.argument,
+      request.domain.min,
+      request.domain.max,
+      MAX_ANALYTIC_ROOTS - candidateRoots.length,
+    ));
+  }
+  const sortedRoots = [...candidateRoots]
+    .sort((leftRoot, rightRoot) => leftRoot.approximate - rightRoot.approximate)
+    .filter((root, index, roots) => index === 0 || Math.abs(root.approximate - roots[index - 1]!.approximate) > ROOT_TOLERANCE * 8);
+  const approximate = sortedRoots.map((root) => clamp(root.approximate, request.domain.min, request.domain.max));
+  const exact = sortedRoots.map((root) => ({ kind: "symbolic" as const, value: root.exact }));
+  const parsed = parseMathExpression(expressionToSafeSource(rootNode, request.variable));
+  const residual = maximumResidual(approximate, (x) => parsed.evaluate(x));
+  return solvedSet(
+    request.id,
+    approximate,
+    exact,
+    "analytic_trig_roots",
+    expressionIds,
+    residual,
+    Math.max(ROOT_TOLERANCE, residual),
+    "Reduced the bounded equation to a linear-angle trigonometric family and exhaustively enumerated every in-domain branch.",
+  );
+}
+
+function linearTrigIntegrand(node: ExpressionNodeIR, variable: string): LinearTrigIntegrand | null {
+  const direct = directTrigCall(node, variable);
+  if (direct) return direct;
+  if (node.kind === "unary") {
+    const inner = linearTrigIntegrand(node.operand, variable);
+    if (!inner) return null;
+    return node.operator === "+"
+      ? inner
+      : { ...inner, scale: fraction(-inner.scale.numerator, inner.scale.denominator) };
+  }
+  if (node.kind !== "binary") return null;
+  if (node.operator === "*") {
+    const scalarLeft = fractionExpression(node.left);
+    const scalarRight = fractionExpression(node.right);
+    if (scalarLeft) {
+      const right = linearTrigIntegrand(node.right, variable);
+      return right ? { ...right, scale: multiplyFraction(scalarLeft, right.scale) } : null;
+    }
+    if (scalarRight) {
+      const leftSide = linearTrigIntegrand(node.left, variable);
+      return leftSide ? { ...leftSide, scale: multiplyFraction(leftSide.scale, scalarRight) } : null;
+    }
+    return null;
+  }
+  if (node.operator === "/") {
+    const denominator = fractionExpression(node.right);
+    if (!denominator) return null;
+    const numerator = linearTrigIntegrand(node.left, variable);
+    return numerator ? { ...numerator, scale: divideFraction(numerator.scale, denominator) } : null;
+  }
+  return null;
+}
+
+function directTrigCall(node: ExpressionNodeIR, variable: string): LinearTrigIntegrand | null {
+  if (node.kind !== "call" || (node.function !== "sin" && node.function !== "cos")) return null;
+  const argument = linearExpression(node.argument, variable);
+  return argument ? { fn: node.function, scale: fraction(1n), argument } : null;
+}
+
+function trigEquation(node: ExpressionNodeIR, variable: string): TrigEquation | null {
+  if (node.kind === "binary" && node.operator === "^") {
+    const exponent = fractionExpression(node.right);
+    if (exponent && exponent.denominator === 1n && exponent.numerator > 0n) return trigEquation(node.left, variable);
+    return null;
+  }
+
+  const direct = directTrigEquation(node, variable);
+  if (direct) return direct;
+
+  if (node.kind === "unary") {
+    const inner = trigEquation(node.operand, variable);
+    if (!inner) return null;
+    return node.operator === "+"
+      ? inner
+      : {
+          ...inner,
+          scale: fraction(-inner.scale.numerator, inner.scale.denominator),
+          offset: fraction(-inner.offset.numerator, inner.offset.denominator),
+        };
+  }
+
+  if (node.kind !== "binary") return null;
+  const scalarLeft = fractionExpression(node.left);
+  const scalarRight = fractionExpression(node.right);
+  if (node.operator === "+" || node.operator === "-") {
+    const left = trigEquation(node.left, variable);
+    if (left && scalarRight) {
+      return {
+        ...left,
+        offset: node.operator === "+" ? addFraction(left.offset, scalarRight) : subtractFraction(left.offset, scalarRight),
+      };
+    }
+    if (scalarLeft) {
+      const rightSide = trigEquation(node.right, variable);
+      if (!rightSide) return null;
+      return {
+        ...rightSide,
+        scale: node.operator === "+" ? rightSide.scale : fraction(-rightSide.scale.numerator, rightSide.scale.denominator),
+        offset: node.operator === "+" ? addFraction(scalarLeft, rightSide.offset) : subtractFraction(scalarLeft, rightSide.offset),
+      };
+    }
+    return null;
+  }
+  if (node.operator === "*") {
+    if (scalarLeft) {
+      const rightSide = trigEquation(node.right, variable);
+      return rightSide
+        ? {
+            ...rightSide,
+            scale: multiplyFraction(scalarLeft, rightSide.scale),
+            offset: multiplyFraction(scalarLeft, rightSide.offset),
+          }
+        : null;
+    }
+    if (scalarRight) {
+      const leftSide = trigEquation(node.left, variable);
+      return leftSide
+        ? {
+            ...leftSide,
+            scale: multiplyFraction(leftSide.scale, scalarRight),
+            offset: multiplyFraction(leftSide.offset, scalarRight),
+          }
+        : null;
+    }
+    return null;
+  }
+  if (node.operator === "/") {
+    if (!scalarRight) return null;
+    const numerator = trigEquation(node.left, variable);
+    return numerator
+      ? {
+          ...numerator,
+          scale: divideFraction(numerator.scale, scalarRight),
+          offset: divideFraction(numerator.offset, scalarRight),
+        }
+      : null;
+  }
+  return null;
+}
+
+function directTrigEquation(node: ExpressionNodeIR, variable: string): TrigEquation | null {
+  const direct = directTrigCall(node, variable);
+  return direct ? { ...direct, offset: fraction(0n) } : null;
+}
+
+function linearExpression(node: ExpressionNodeIR, variable: string): LinearForm | null {
+  switch (node.kind) {
+    case "number":
+      return { constant: affineConstant(fractionFromNumber(node.value)), variable: zeroAffineConstant() };
+    case "constant":
+      return node.name === "pi"
+        ? { constant: { rational: fraction(0n), pi: fraction(1n) }, variable: zeroAffineConstant() }
+        : null;
+    case "variable":
+      return node.name === variable
+        ? { constant: zeroAffineConstant(), variable: affineConstant(fraction(1n)) }
+        : null;
+    case "call":
+      return null;
+    case "unary": {
+      const operand = linearExpression(node.operand, variable);
+      if (!operand) return null;
+      return node.operator === "+"
+        ? operand
+        : {
+            constant: negateAffineConstant(operand.constant),
+            variable: negateAffineConstant(operand.variable),
+          };
+    }
+    case "binary": {
+      const left = linearExpression(node.left, variable);
+      const right = linearExpression(node.right, variable);
+      if (node.operator === "+") {
+        return left && right
+          ? {
+              constant: addAffineConstant(left.constant, right.constant),
+              variable: addAffineConstant(left.variable, right.variable),
+            }
+          : null;
+      }
+      if (node.operator === "-") {
+        return left && right
+          ? {
+              constant: subtractAffineConstant(left.constant, right.constant),
+              variable: subtractAffineConstant(left.variable, right.variable),
+            }
+          : null;
+      }
+      if (node.operator === "*") {
+        if (left && affineZero(left.variable)) {
+          return multiplyLinearByAffineConstant(right, left.constant);
+        }
+        if (right && affineZero(right.variable)) {
+          return multiplyLinearByAffineConstant(left, right.constant);
+        }
+        return null;
+      }
+      if (node.operator === "/") {
+        if (!left || !right || !affineZero(right.variable)) return null;
+        const divisor = affinePureRational(right.constant);
+        if (!divisor) return null;
+        return {
+          constant: divideAffineConstant(left.constant, divisor),
+          variable: divideAffineConstant(left.variable, divisor),
+        };
+      }
+      return null;
+    }
+  }
+}
+
+function trigFamilies(
+  fn: "sin" | "cos",
+  target: number,
+): Array<{ baseAngle: number; baseText: string; periodPiMultiple: number }> | null {
+  if (target < -1 - ROOT_TOLERANCE || target > 1 + ROOT_TOLERANCE) return [];
+  const clampedTarget = Math.max(-1, Math.min(1, target));
+  const targetExact = exactValue(fractionFromNumber(clampedTarget)).value;
+  if (fn === "sin") {
+    const primary = Math.asin(clampedTarget);
+    return [
+      { baseAngle: primary, baseText: `asin(${targetExact})`, periodPiMultiple: 2 },
+      { baseAngle: Math.PI - primary, baseText: `pi-asin(${targetExact})`, periodPiMultiple: 2 },
+    ];
+  }
+  const principal = Math.acos(clampedTarget);
+  return [
+    { baseAngle: principal, baseText: `acos(${targetExact})`, periodPiMultiple: 2 },
+    { baseAngle: -principal, baseText: `-acos(${targetExact})`, periodPiMultiple: 2 },
+  ];
+}
+
+function equivalentTrigFamily(
+  left: { baseAngle: number; periodPiMultiple: number },
+  right: { baseAngle: number; periodPiMultiple: number },
+): boolean {
+  if (left.periodPiMultiple !== right.periodPiMultiple) return false;
+  const period = left.periodPiMultiple * Math.PI;
+  const turns = (left.baseAngle - right.baseAngle) / period;
+  return Math.abs(turns - Math.round(turns)) <= ROOT_TOLERANCE;
+}
+
+function enumerateTrigRoots(
+  family: { baseAngle: number; baseText: string; periodPiMultiple: number },
+  argument: LinearForm,
+  min: number,
+  max: number,
+  remainingLimit: number,
+): Array<{ approximate: number; exact: string }> {
+  const slope = affineNumber(argument.variable);
+  const offset = affineNumber(argument.constant);
+  if (!Number.isFinite(slope) || !Number.isFinite(offset) || Math.abs(slope) <= ROOT_TOLERANCE) return [];
+  const thetaMin = slope * min + offset;
+  const thetaMax = slope * max + offset;
+  const low = Math.min(thetaMin, thetaMax);
+  const high = Math.max(thetaMin, thetaMax);
+  const period = family.periodPiMultiple * Math.PI;
+  const start = Math.ceil((low - family.baseAngle - ROOT_TOLERANCE) / period);
+  const end = Math.floor((high - family.baseAngle + ROOT_TOLERANCE) / period);
+  const branchCount = Math.max(0, end - start + 1);
+  if (!Number.isSafeInteger(branchCount) || branchCount > remainingLimit) {
+    throw new Error(`analytic trigonometric root count exceeds ${MAX_ANALYTIC_ROOTS}`);
+  }
+  const roots: Array<{ approximate: number; exact: string }> = [];
+  for (let k = start; k <= end; k += 1) {
+    const angle = family.baseAngle + period * k;
+    const root = (angle - offset) / slope;
+    if (root < min - ROOT_TOLERANCE || root > max + ROOT_TOLERANCE) continue;
+    roots.push({
+      approximate: root,
+      exact: exactRootText(family.baseText, family.periodPiMultiple * k, argument),
+    });
+  }
+  return roots;
+}
+
+function exactRootText(baseAngleText: string, piMultiple: number, argument: LinearForm): string {
+  const angleText = addPiMultiple(baseAngleText, piMultiple);
+  const offset = argument.constant;
+  const slope = argument.variable;
+  if (affineZero(offset) && affineOne(slope)) return angleText;
+  if (affineZero(offset) && affineNegativeOne(slope)) return `-(${angleText})`;
+  return `${parenthesize(affineZero(offset) ? angleText : `${angleText}-${affineText(offset)}`)}/${parenthesize(affineText(slope))}`;
+}
+
+function addPiMultiple(base: string, multiple: number): string {
+  if (multiple === 0) return base;
+  const shift = piMultipleText(multiple);
+  return `(${base}${multiple < 0 ? shift : `+${shift}`})`;
+}
+
+function piMultipleText(multiple: number): string {
+  if (multiple === 1) return "pi";
+  if (multiple === -1) return "-pi";
+  return `${multiple}*pi`;
+}
+
 function exactPolynomialRoots(coefficients: Fraction[], approximate: number[]): ExactSolverValue[] | undefined {
   const degree = coefficients.length - 1;
   if (degree === 0) return [];
@@ -488,21 +877,123 @@ function realPolynomialRoots(coefficients: number[], min: number, max: number): 
   return uniqueSorted(roots.map((root) => clamp(root, min, max)));
 }
 
-function bracketedRoots(fn: (x: number) => number, min: number, max: number): number[] {
-  const segments = 4096;
-  const roots: number[] = [];
-  let previousX = min;
-  let previousValue = fn(previousX);
-  for (let index = 1; index <= segments; index += 1) {
-    const x = min + (max - min) * index / segments;
-    const value = fn(x);
-    if (Math.abs(previousValue) <= ROOT_TOLERANCE) roots.push(previousX);
-    if (previousValue * value < 0) roots.push(bisect(fn, previousX, x));
-    previousX = x;
-    previousValue = value;
+function affineConstant(rational: Fraction, pi = fraction(0n)): AffineConstant {
+  return { rational, pi };
+}
+
+function zeroAffineConstant(): AffineConstant {
+  return affineConstant(fraction(0n));
+}
+
+function addAffineConstant(left: AffineConstant, right: AffineConstant): AffineConstant {
+  return { rational: addFraction(left.rational, right.rational), pi: addFraction(left.pi, right.pi) };
+}
+
+function subtractAffineConstant(left: AffineConstant, right: AffineConstant): AffineConstant {
+  return { rational: subtractFraction(left.rational, right.rational), pi: subtractFraction(left.pi, right.pi) };
+}
+
+function negateAffineConstant(value: AffineConstant): AffineConstant {
+  return { rational: fraction(-value.rational.numerator, value.rational.denominator), pi: fraction(-value.pi.numerator, value.pi.denominator) };
+}
+
+function multiplyAffineConstant(left: AffineConstant, right: AffineConstant): AffineConstant | null {
+  if (left.pi.numerator !== 0n && right.pi.numerator !== 0n) return null;
+  return {
+    rational: multiplyFraction(left.rational, right.rational),
+    pi: addFraction(multiplyFraction(left.rational, right.pi), multiplyFraction(left.pi, right.rational)),
+  };
+}
+
+function multiplyLinearByAffineConstant(value: LinearForm | null, scalar: AffineConstant): LinearForm | null {
+  if (!value) return null;
+  const constant = multiplyAffineConstant(value.constant, scalar);
+  const variable = multiplyAffineConstant(value.variable, scalar);
+  return constant && variable ? { constant, variable } : null;
+}
+
+function divideAffineConstant(value: AffineConstant, divisor: Fraction): AffineConstant {
+  return { rational: divideFraction(value.rational, divisor), pi: divideFraction(value.pi, divisor) };
+}
+
+function affineZero(value: AffineConstant): boolean {
+  return value.rational.numerator === 0n && value.pi.numerator === 0n;
+}
+
+function affineOne(value: AffineConstant): boolean {
+  return value.pi.numerator === 0n && value.rational.numerator === value.rational.denominator;
+}
+
+function affineNegativeOne(value: AffineConstant): boolean {
+  return value.pi.numerator === 0n && value.rational.numerator === -value.rational.denominator;
+}
+
+function affinePureRational(value: AffineConstant): Fraction | null {
+  return value.pi.numerator === 0n ? value.rational : null;
+}
+
+function affinePurePi(value: AffineConstant): Fraction | null {
+  return value.rational.numerator === 0n && value.pi.numerator !== 0n ? value.pi : null;
+}
+
+function affineNumber(value: AffineConstant): number {
+  return fractionNumber(value.rational) + fractionNumber(value.pi) * Math.PI;
+}
+
+function affineAt(value: LinearForm, x: number): AffineConstant {
+  return addAffineConstant(value.constant, scaleAffineConstant(value.variable, fractionFromNumber(x)));
+}
+
+function scaleAffineConstant(value: AffineConstant, scalar: Fraction): AffineConstant {
+  return { rational: multiplyFraction(value.rational, scalar), pi: multiplyFraction(value.pi, scalar) };
+}
+
+function affineText(value: AffineConstant): string {
+  const parts: string[] = [];
+  if (value.rational.numerator !== 0n) parts.push(fractionText(value.rational));
+  if (value.pi.numerator !== 0n) {
+    const piText = fractionText(value.pi);
+    parts.push(
+      value.pi.denominator === 1n && abs(value.pi.numerator) === 1n
+        ? `${value.pi.numerator < 0n ? "-" : ""}pi`
+        : `${piText}*pi`,
+    );
   }
-  if (Math.abs(previousValue) <= ROOT_TOLERANCE) roots.push(max);
-  return uniqueSorted(roots);
+  if (parts.length === 0) return "0";
+  return parts.reduce((text, part, index) => {
+    if (index === 0) return part;
+    return part.startsWith("-") ? `${text}${part}` : `${text}+${part}`;
+  }, "");
+}
+
+function specialTrigValue(fn: "sin" | "cos", angle: AffineConstant): Fraction | null {
+  if (angle.rational.numerator !== 0n) return null;
+  const normalized = normalizePiFraction(angle.pi);
+  if (normalized.denominator === 1n) {
+    if (fn === "sin") return fraction(0n);
+    return normalized.numerator % 2n === 0n ? fraction(1n) : fraction(-1n);
+  }
+  if (normalized.denominator === 2n) {
+    const mod4 = Number(((normalized.numerator % 4n) + 4n) % 4n);
+    if (fn === "sin") {
+      if (mod4 === 1) return fraction(1n);
+      if (mod4 === 3) return fraction(-1n);
+      return fraction(0n);
+    }
+    return mod4 % 2 === 0 ? (mod4 === 0 ? fraction(1n) : fraction(-1n)) : fraction(0n);
+  }
+  return null;
+}
+
+function normalizePiFraction(value: Fraction): Fraction {
+  const denominator = value.denominator;
+  const modulus = denominator * 4n;
+  const numerator = ((value.numerator % modulus) + modulus) % modulus;
+  return fraction(numerator, denominator);
+}
+
+function parenthesize(value: string): string {
+  return value.startsWith("(") && value.endsWith(")") ? value : `(${value})`;
 }
 
 function bisect(fn: (x: number) => number, start: number, end: number): number {
@@ -520,15 +1011,6 @@ function bisect(fn: (x: number) => number, start: number, end: number): number {
     }
   }
   return (left + right) / 2;
-}
-
-function compositeSimpson(fn: (x: number) => number, lower: number, upper: number, intervals: number): number {
-  const width = (upper - lower) / intervals;
-  let sum = fn(lower) + fn(upper);
-  for (let index = 1; index < intervals; index += 1) sum += (index % 2 === 0 ? 2 : 4) * fn(lower + index * width);
-  const result = sum * width / 3;
-  if (!Number.isFinite(result)) throw new Error("numeric integration produced a non-finite result");
-  return result;
 }
 
 function requiredExpression(expressions: Map<string, ProblemExpression>, id: string): ProblemExpression {

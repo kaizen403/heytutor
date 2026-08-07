@@ -1107,13 +1107,16 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         const targetValue = values.at(-1);
         if (values.length >= 3 && targetValue?.kind === "point") {
           const target = asPoint(targetValue);
-          const lines = values.slice(0, -1).map((value) => asLine(value));
+          const targetLines = values.slice(0, -1);
+          const lines = targetLines.map((value) => asLine(value));
           residual = Math.max(...lines.map((line) => pointLineResidual(target, line)));
           const exactTolerance = tolerance(assertion);
           const convergenceTolerance = typeof assertion.tolerance === "number"
             ? exactTolerance
             : Math.max(exactTolerance, geometryScale(geometry) * 0.005);
-          passed = lines.length >= 2 && residual < convergenceTolerance;
+          passed = lines.length >= 2 &&
+            residual < convergenceTolerance &&
+            targetLines.every((value) => geometryCanReachTarget(value, target, convergenceTolerance));
           if (passed && residual >= exactTolerance) {
             issues.push({
               code: "approximate_convergence",
@@ -2452,9 +2455,26 @@ function intersectSurface(origin: Point, direction: Point, surface: Geometry, wh
       .map((t) => ({ t, point: { x: origin.x + t * unit.x, y: origin.y + t * unit.y } }));
     if (surface.kind === "arc") hits = hits.filter(({ point }) => angleOnArc(Math.atan2(point.y - surface.center.y, point.x - surface.center.x), surface.startAngle, surface.endAngle));
   } else if (surface.kind === "path") {
-    const point = intersect([origin, { x: origin.x + unit.x, y: origin.y + unit.y }], asLine(surface));
-    const t = (point.x - origin.x) * unit.x + (point.y - origin.y) * unit.y;
-    hits = t > EPSILON ? [{ t, point }] : [];
+    const rayLine: [Point, Point] = [origin, { x: origin.x + unit.x, y: origin.y + unit.y }];
+    if (surface.infinite) {
+      const point = intersect(rayLine, asLine(surface));
+      const t = (point.x - origin.x) * unit.x + (point.y - origin.y) * unit.y;
+      hits = t > EPSILON ? [{ t, point }] : [];
+    } else {
+      hits = surface.points.slice(1).flatMap((end, index) => {
+        const segment: [Point, Point] = [surface.points[index]!, end];
+        let point: Point;
+        try {
+          point = intersect(rayLine, segment);
+        } catch {
+          return [];
+        }
+        const t = (point.x - origin.x) * unit.x + (point.y - origin.y) * unit.y;
+        return t > EPSILON && pointSegmentResidual(point, segment) <= 1e-4
+          ? [{ t, point }]
+          : [];
+      });
+    }
   } else {
     throw new Error("surface_intersection supports line, circle, or arc geometry");
   }
@@ -2538,6 +2558,19 @@ function parallelResidual(a:[Point,Point],b:[Point,Point]):number{const u=normal
 function perpendicularResidual(a:[Point,Point],b:[Point,Point]):number{const u=normalize({x:a[1].x-a[0].x,y:a[1].y-a[0].y});const v=normalize({x:b[1].x-b[0].x,y:b[1].y-b[0].y});return Math.abs(u.x*v.x+u.y*v.y);}
 function collinearResidual(points:Point[]):number{if(points.length<3)return 0;const[a,b]=points;return Math.max(...points.slice(2).map((p)=>Math.abs((b!.x-a!.x)*(p.y-a!.y)-(b!.y-a!.y)*(p.x-a!.x))));}
 function pointLineResidual(point:Point,line:[Point,Point]):number{const[a,b]=line;const lineLength=Math.hypot(b.x-a.x,b.y-a.y);if(lineLength<EPSILON)return Infinity;return Math.abs((b.x-a.x)*(a.y-point.y)-(a.x-point.x)*(b.y-a.y))/lineLength;}
+function geometryCanReachTarget(value: Geometry | undefined, target: Point, tolerance: number): boolean {
+  if (value?.kind !== "path" || value.directed !== true || value.points.length < 2) return true;
+  const start = value.points[0]!;
+  const end = value.points.at(-1)!;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const pathLength = Math.hypot(dx, dy);
+  if (pathLength < EPSILON) return false;
+  const projectedDistance = ((target.x - start.x) * dx + (target.y - start.y) * dy) / pathLength;
+  if (projectedDistance < -tolerance) return false;
+  if (value.infinite === true) return true;
+  return projectedDistance <= pathLength + tolerance;
+}
 function isBetween(p:Point,a:Point,b:Point):boolean{return collinearResidual([a,p,b])<EPSILON&&p.x>=Math.min(a.x,b.x)-EPSILON&&p.x<=Math.max(a.x,b.x)+EPSILON&&p.y>=Math.min(a.y,b.y)-EPSILON&&p.y<=Math.max(a.y,b.y)+EPSILON;}
 function pointGeometryResidual(pointGeometry:Geometry|undefined,target:Geometry|undefined):number{
   const point=asPoint(pointGeometry);

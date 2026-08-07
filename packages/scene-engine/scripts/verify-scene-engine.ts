@@ -75,6 +75,24 @@ if (!compiled.renderScene.primitives.some((primitive) => primitive.id === "callo
 }
 if (compiled.renderScene.timeline[1]?.dependsOn[0] !== "show_triangle") throw new Error("timeline dependency was not preserved");
 
+let malformedEntityValidation:
+  | ReturnType<typeof validateSceneDocument>
+  | undefined;
+try {
+  malformedEntityValidation = validateSceneDocument({
+    ...structuredClone(candidate),
+    entities: [null],
+  });
+} catch (error) {
+  throw new Error(`malformed array entries must return a validation report, not throw: ${String(error)}`);
+}
+if (
+  malformedEntityValidation.document ||
+  !malformedEntityValidation.report.issues.some((issue) => issue.code === "invalid_id")
+) {
+  throw new Error(`malformed array entries were not reported structurally: ${JSON.stringify(malformedEntityValidation.report.issues)}`);
+}
+
 const narrationAliasCandidate = structuredClone(candidate);
 narrationAliasCandidate.teachingTimeline = [
   {
@@ -2681,6 +2699,13 @@ const wrongMetricDisplay = validateSceneQuantityAgreement([], metricDisplayPlan,
 if (!wrongMetricDisplay.some((issue) => issue.code === "displayed_quantity_unverified")) {
   throw new Error("a materially different metric display was accepted");
 }
+const forgedUnitlessQuantity = validateSceneQuantityAgreement(
+  [{ id: "forged", value: 999 }],
+  authoritativePlan.plan,
+);
+if (!forgedUnitlessQuantity.some((issue) => issue.code === "scene_quantity_unverified")) {
+  throw new Error("an unplanned finite unitless quantity bypassed TurnPlan grounding");
+}
 const annotationPruningScene = structuredClone(validated.document!);
 annotationPruningScene.annotations.push(
   { id: "supported_value", kind: "label", text: "12 ohm", targetIds: ["a"] },
@@ -4266,6 +4291,131 @@ invalidPolarSamples.constructions[0].inputs.samples = 64;
 const invalidPolarResult = validateSceneDocument(invalidPolarSamples);
 if (invalidPolarResult.document || !invalidPolarResult.report.issues.some((issue) => issue.code === "invalid_polar_curve_samples")) {
   throw new Error("polar_curve accepted an invalid even sample count");
+}
+
+const reversedConvergence = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "reject rays that point away from the asserted target" },
+  source: { question: "Two backward rays do not converge on the marked point." },
+  quantities: [],
+  entities: [
+    { id: "target", kind: "point", role: "claimed convergence point", label: "P" },
+    { id: "ray1_start", kind: "point", role: "ray start" },
+    { id: "ray1_end", kind: "point", role: "ray direction point" },
+    { id: "ray2_start", kind: "point", role: "ray start" },
+    { id: "ray2_end", kind: "point", role: "ray direction point" },
+    { id: "ray1", kind: "ray", role: "ray" },
+    { id: "ray2", kind: "ray", role: "ray" },
+  ],
+  constructions: [
+    { id: "make_target", operator: "point", inputs: { x: 0, y: 0 }, outputs: ["target"] },
+    { id: "make_ray1_start", operator: "point", inputs: { x: 1000, y: 0 }, outputs: ["ray1_start"] },
+    { id: "make_ray1_end", operator: "point", inputs: { x: 2000, y: 0 }, outputs: ["ray1_end"] },
+    { id: "make_ray2_start", operator: "point", inputs: { x: 0, y: 1000 }, outputs: ["ray2_start"] },
+    { id: "make_ray2_end", operator: "point", inputs: { x: 0, y: 2000 }, outputs: ["ray2_end"] },
+    { id: "make_ray1", operator: "ray", inputs: { start: "ray1_start", end: "ray1_end" }, outputs: ["ray1"] },
+    { id: "make_ray2", operator: "ray", inputs: { start: "ray2_start", end: "ray2_end" }, outputs: ["ray2"] },
+  ],
+  relations: [],
+  assertions: [
+    { id: "backward_convergence", predicate: "converges", entities: ["ray1", "ray2", "target"], severity: "fatal" },
+  ],
+  annotations: [],
+  requiredEntityIds: ["target", "ray1_start", "ray1_end", "ray2_start", "ray2_end", "ray1", "ray2"],
+  revealGroups: [{ id: "rays", entityIds: ["target", "ray1_start", "ray1_end", "ray2_start", "ray2_end", "ray1", "ray2"], dependsOn: [], narrationCue: "show the claimed convergence" }],
+  teachingTimeline: [{ id: "show_rays", action: "reveal", targetId: "rays", dependsOn: [], narrationIntent: "show the claimed convergence" }],
+};
+const reversedConvergenceDocument = validateSceneDocument(reversedConvergence).document;
+const reversedConvergenceCompiled = reversedConvergenceDocument
+  ? compileSceneDocument(reversedConvergenceDocument)
+  : null;
+if (reversedConvergenceCompiled?.ok || !reversedConvergenceCompiled?.report.issues.some((issue) => issue.code === "assertion_failed")) {
+  throw new Error("convergence assertions accepted rays whose directions point away from the target");
+}
+
+const outOfBoundsSurfaceIntersection = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "reject line-only hits outside a finite surface" },
+  source: { question: "A ray missing a finite mirror segment must not register a hit." },
+  quantities: [],
+  entities: [
+    { id: "segment_start", kind: "point", role: "surface endpoint" },
+    { id: "segment_end", kind: "point", role: "surface endpoint" },
+    { id: "ray_origin", kind: "point", role: "ray origin" },
+    { id: "ray_through", kind: "point", role: "ray direction point" },
+    { id: "surface", kind: "segment", role: "mirror segment" },
+    { id: "hit", kind: "point", role: "intersection point" },
+  ],
+  constructions: [
+    { id: "make_segment_start", operator: "point", inputs: { x: 0, y: 0 }, outputs: ["segment_start"] },
+    { id: "make_segment_end", operator: "point", inputs: { x: 1, y: 0 }, outputs: ["segment_end"] },
+    { id: "make_origin", operator: "point", inputs: { x: 2, y: 1 }, outputs: ["ray_origin"] },
+    { id: "make_through", operator: "point", inputs: { x: 2, y: 0 }, outputs: ["ray_through"] },
+    { id: "make_surface", operator: "segment", inputs: { start: "segment_start", end: "segment_end" }, outputs: ["surface"] },
+    { id: "make_hit", operator: "surface_intersection", inputs: { origin: "ray_origin", through: "ray_through", surface: "surface" }, outputs: ["hit"] },
+  ],
+  relations: [],
+  assertions: [],
+  annotations: [],
+  requiredEntityIds: ["segment_start", "segment_end", "ray_origin", "ray_through", "surface", "hit"],
+  revealGroups: [{ id: "setup", entityIds: ["segment_start", "segment_end", "ray_origin", "ray_through", "surface", "hit"], dependsOn: [], narrationCue: "show the attempted hit" }],
+  teachingTimeline: [{ id: "show_setup", action: "reveal", targetId: "setup", dependsOn: [], narrationIntent: "show the attempted hit" }],
+};
+const outOfBoundsSurfaceDocument = validateSceneDocument(outOfBoundsSurfaceIntersection).document;
+const outOfBoundsSurfaceCompiled = outOfBoundsSurfaceDocument
+  ? compileSceneDocument(outOfBoundsSurfaceDocument)
+  : null;
+if (outOfBoundsSurfaceCompiled?.ok || !outOfBoundsSurfaceCompiled?.report.issues.some((issue) => issue.code === "construction_failed")) {
+  throw new Error("surface_intersection accepted a hit outside the finite segment bounds");
+}
+
+const densePathCountDocument = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "guard pathCount against dense-graph explosion" },
+  source: { question: "Count every simple path in a dense graph." },
+  quantities: [],
+  entities: [] as Array<Record<string, unknown>>,
+  constructions: [] as Array<Record<string, unknown>>,
+  relations: [],
+  assertions: [],
+  annotations: [],
+  requiredEntityIds: [],
+  revealGroups: [],
+  teachingTimeline: [],
+};
+for (let index = 0; index < 11; index += 1) {
+  densePathCountDocument.entities.push({ id: `n${index}`, kind: "point", role: "graph node" });
+  densePathCountDocument.constructions.push({
+    id: `make_n${index}`,
+    operator: "point",
+    inputs: { x: index, y: index % 3 },
+    outputs: [`n${index}`],
+  });
+}
+for (let start = 0; start < 11; start += 1) {
+  for (let end = start + 1; end < 11; end += 1) {
+    densePathCountDocument.entities.push({ id: `e_${start}_${end}`, kind: "component", role: "edge" });
+    densePathCountDocument.constructions.push({
+      id: `make_e_${start}_${end}`,
+      operator: "symbol",
+      inputs: { symbol: "resistor", start: `n${start}`, end: `n${end}` },
+      outputs: [`e_${start}_${end}`],
+    });
+  }
+}
+const denseIssues: SceneIssue[] = [];
+const densePathCountPassed = evaluateTopologyAssertion(
+  { id: "dense_paths", predicate: "pathCount", entities: ["n0", "n10"], expected: 1, severity: "fatal" },
+  densePathCountDocument as any,
+  denseIssues,
+);
+if (
+  densePathCountPassed !== false ||
+  !denseIssues.some((issue) =>
+    issue.code === "assertion_failed" &&
+    /too complex|capped|limit/i.test(issue.message))
+) {
+  throw new Error(`pathCount did not fail closed on dense graphs: ${JSON.stringify(denseIssues)}`);
 }
 
 for (const symbol of [
