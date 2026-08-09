@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://heytutor.local/schemas/question-bank/syllabus-unit-rules-v1.schema.json",
+  "title": "Deterministic lexical rules for regular syllabus units",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "subject", "units"],
+  "properties": {
+    "schema_version": { "const": "question-bank-syllabus-unit-rules/v1" },
+    "subject": { "enum": ["Mathematics", "Physics"] },
+    "units": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "unit_id",
+          "strong_phrases",
+          "supporting_phrases",
+          "patterns",
+          "exclusions"
+        ],
+        "properties": {
+          "unit_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._|-]*$"
+          },
+          "strong_phrases": { "$ref": "#/$defs/string_array" },
+          "supporting_phrases": { "$ref": "#/$defs/string_array" },
+          "patterns": { "$ref": "#/$defs/string_array" },
+          "exclusions": { "$ref": "#/$defs/string_array" }
+        },
+        "anyOf": [
+          { "properties": { "strong_phrases": { "minItems": 1 } } },
+          { "properties": { "supporting_phrases": { "minItems": 1 } } },
+          { "properties": { "patterns": { "minItems": 1 } } }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "string_array": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}
