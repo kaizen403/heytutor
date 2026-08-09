@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://heytutor.local/schemas/question-bank/classification-rules-v1.schema.json",
+  "title": "Question bank deterministic classification rules",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "rules"],
+  "properties": {
+    "schema_version": { "const": "question-bank-classification-rules/v1" },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "subject",
+          "topic",
+          "subtopic",
+          "difficulty",
+          "keywords_any",
+          "keywords_all",
+          "priority"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "subject": { "type": ["string", "null"], "minLength": 1 },
+          "topic": { "type": "string", "minLength": 1 },
+          "subtopic": { "type": "string", "minLength": 1 },
+          "difficulty": { "enum": ["easy", "medium", "hard", null] },
+          "keywords_any": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "keywords_all": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "priority": { "type": "integer" }
+        }
+      }
+    }
+  }
+}
