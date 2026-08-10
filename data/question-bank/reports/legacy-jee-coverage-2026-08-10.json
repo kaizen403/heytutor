@@ -1,0 +1,449 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "jee-2000-mathematics-screening",
+      "comparison_basis": null,
+      "independent_source_count": 0,
+      "independent_source_families": [],
+      "language": null,
+      "notes": "No non-commercial institutional source was recovered during this audit.",
+      "paper_label": "Screening Paper",
+      "set_label": null,
+      "source_probes": [],
+      "source_urls": [],
+      "stage": "screening",
+      "status": "missing",
+      "status_note": "no recoverable institutional source was probed",
+      "subject": "Mathematics",
+      "successful_probe_count": 0,
+      "year": 2000
+    },
+    {
+      "artifact_id": "jee-2000-mathematics-main",
+      "comparison_basis": null,
+      "independent_source_count": 0,
+      "independent_source_families": [],
+      "language": null,
+      "notes": "No non-commercial institutional source was recovered during this audit.",
+      "paper_label": "Main Paper",
+      "set_label": null,
+      "source_probes": [],
+      "source_urls": [],
+      "stage": "main",
+      "status": "missing",
+      "status_note": "no recoverable institutional source was probed",
+      "subject": "Mathematics",
+      "successful_probe_count": 0,
+      "year": 2000
+    },
+    {
+      "artifact_id": "jee-2001-mathematics-screening",
+      "comparison_basis": null,
+      "independent_source_count": 0,
+      "independent_source_families": [],
+      "language": null,
+      "notes": "No non-commercial institutional source was recovered during this audit.",
+      "paper_label": "Screening Paper",
+      "set_label": null,
+      "source_probes": [],
+      "source_urls": [],
+      "stage": "screening",
+      "status": "missing",
+      "status_note": "no recoverable institutional source was probed",
+      "subject": "Mathematics",
+      "successful_probe_count": 0,
+      "year": 2001
+    },
+    {
+      "artifact_id": "jee-2001-mathematics-main",
+      "comparison_basis": null,
+      "independent_source_count": 0,
+      "independent_source_families": [],
+      "language": null,
+      "notes": "No non-commercial institutional source was recovered during this audit.",
+      "paper_label": "Main Paper",
+      "set_label": null,
+      "source_probes": [],
+      "source_urls": [],
+      "stage": "main",
+      "status": "missing",
+      "status_note": "no recoverable institutional source was probed",
+      "subject": "Mathematics",
+      "successful_probe_count": 0,
+      "year": 2001
+    },
+    {
+      "artifact_id": "jee-2002-mathematics-screening",
+      "comparison_basis": null,
+      "independent_source_count": 0,
+      "independent_source_families": [],
+      "language": null,
+      "notes": "No non-commercial institutional source was recovered during this audit.",
+      "paper_label": "Screening Paper",
+      "set_label": null,
+      "source_probes": [],
+      "source_urls": [],
+      "stage": "screening",
+      "status": "missing",
+      "status_note": "no recoverable institutional source was probed",
+      "subject": "Mathematics",
+      "successful_probe_count": 0,
+      "year": 2002
+    },
+    {
+      "artifact_id": "jee-2002-mathematics-main",
+      "comparison_basis": null,
+      "independent_source_count": 0,
+      "independent_source_families": [],
+      "language": null,
+      "notes": "No non-commercial institutional source was recovered during this audit.",
+      "paper_label": "Main Paper",
+      "set_label": null,
+      "source_probes": [],
+      "source_urls": [],
+      "stage": "main",
+      "status": "missing",
+      "status_note": "no recoverable institutional source was probed",
+      "subject": "Mathematics",
+      "successful_probe_count": 0,
+      "year": 2002
+    },
+    {
+      "artifact_id": "jee-2003-mathematics-screening",
+      "comparison_basis": null,
+      "independent_source_count": 1,
+      "independent_source_families": [
+        "math.iitb.ac.in"
+      ],
+      "language": "English",
+      "notes": "Institutional commentary PDF; no second non-commercial mirror was located in this pass.",
+      "paper_label": "Screening Paper",
+      "set_label": null,
+      "source_probes": [
+        {
+          "body_sha256": "ad3a1610dca20f0ec4501751acbe54c49dc258b3ac179e9c60b6642b053357fc",
+          "bytes_sha256": "ad3a1610dca20f0ec4501751acbe54c49dc258b3ac179e9c60b6642b053357fc",
+          "content_type": "application/pdf",
+          "error": null,
+          "final_url": "https://www.math.iitb.ac.in/~kdjoshi/jee2003.pdf",
+          "host": "math.iitb.ac.in",
+          "magic": "pdf",
+          "page1_image_sha256": "a57b1b20ecb949284b5e6993e03d6ae4d519318175415dbdcea0b0a3edecec75",
+          "page1_text_sha256": "2ad89724977a8f9efc0b91bb14583bc974171f3aa5cc3badbadd214a6257bbc8",
+          "page_count": 48,
+          "staged_path": "/tmp/legacy-jee-stage/jee-2003-mathematics-screening-1.pdf",
+          "status": 200,
+          "title": null,
+          "url": "https://www.math.iitb.ac.in/~kdjoshi/jee2003.pdf"
+        }
+      ],
+      "source_urls": [
+        "https://www.math.iitb.ac.in/~kdjoshi/jee2003.pdf"
+      ],
+      "stage": "screening",
+      "status": "candidate-only",
+      "status_note": "fewer than two independent institutional hosts were recovered",
+      "subject": "Mathematics",
+      "successful_probe_count": 1,
+      "year": 2003
+    },
+    {
+      "artifact_id": "jee-2003-mathematics-main",
+      "comparison_basis": null,
+      "independent_source_count": 1,
+      "independent_source_families": [
+        "math.iitb.ac.in"
+      ],
+      "language": "English",
+      "notes": "Institutional commentary PDF; no second non-commercial mirror was located in this pass.",
+      "paper_label": "Main Paper",
+      "set_label": null,
+      "source_probes": [
+        {
+          "body_sha256": "ad3a1610dca20f0ec4501751acbe54c49dc258b3ac179e9c60b6642b053357fc",
+          "bytes_sha256": "ad3a1610dca20f0ec4501751acbe54c49dc258b3ac179e9c60b6642b053357fc",
+          "content_type": "application/pdf",
+          "error": null,
+          "final_url": "https://www.math.iitb.ac.in/~kdjoshi/jee2003.pdf",
+          "host": "math.iitb.ac.in",
+          "magic": "pdf",
+          "page1_image_sha256": "a57b1b20ecb949284b5e6993e03d6ae4d519318175415dbdcea0b0a3edecec75",
+          "page1_text_sha256": "2ad89724977a8f9efc0b91bb14583bc974171f3aa5cc3badbadd214a6257bbc8",
+          "page_count": 48,
+          "staged_path": "/tmp/legacy-jee-stage/jee-2003-mathematics-main-1.pdf",
+          "status": 200,
+          "title": null,
+          "url": "https://www.math.iitb.ac.in/~kdjoshi/jee2003.pdf"
+        }
+      ],
+      "source_urls": [
+        "https://www.math.iitb.ac.in/~kdjoshi/jee2003.pdf"
+      ],
+      "stage": "main",
+      "status": "candidate-only",
+      "status_note": "fewer than two independent institutional hosts were recovered",
+      "subject": "Mathematics",
+      "successful_probe_count": 1,
+      "year": 2003
+    },
+    {
+      "artifact_id": "jee-2004-mathematics-screening",
+      "comparison_basis": null,
+      "independent_source_count": 1,
+      "independent_source_families": [
+        "math.iitb.ac.in"
+      ],
+      "language": "English",
+      "notes": "Institutional commentary PDF; no second non-commercial mirror was located in this pass.",
+      "paper_label": "Screening Paper",
+      "set_label": null,
+      "source_probes": [
+        {
+          "body_sha256": "6e24eefc9bd263d9b05e60b64f579a94e3ee501d7c4644cd399dc51ad277c5f5",
+          "bytes_sha256": "6e24eefc9bd263d9b05e60b64f579a94e3ee501d7c4644cd399dc51ad277c5f5",
+          "content_type": "application/pdf",
+          "error": null,
+          "final_url": "https://www.math.iitb.ac.in/~kdjoshi/jee2004.pdf",
+          "host": "math.iitb.ac.in",
+          "magic": "pdf",
+          "page1_image_sha256": "6084b4b71fc90cc64cd66205901448123df3d0a5a7b71a161a149bb1e153b725",
+          "page1_text_sha256": "6b31fd3190f743078376d18e0b7adf8c43565ca0393327970d1d4aa82523d597",
+          "page_count": 64,
+          "staged_path": "/tmp/legacy-jee-stage/jee-2004-mathematics-screening-1.pdf",
+          "status": 200,
+          "title": null,
+          "url": "https://www.math.iitb.ac.in/~kdjoshi/jee2004.pdf"
+        }
+      ],
+      "source_urls": [
+        "https://www.math.iitb.ac.in/~kdjoshi/jee2004.pdf"
+      ],
+      "stage": "screening",
+      "status": "candidate-only",
+      "status_note": "fewer than two independent institutional hosts were recovered",
+      "subject": "Mathematics",
+      "successful_probe_count": 1,
+      "year": 2004
+    },
+    {
+      "artifact_id": "jee-2004-mathematics-main",
+      "comparison_basis": null,
+      "independent_source_count": 1,
+      "independent_source_families": [
+        "math.iitb.ac.in"
+      ],
+      "language": "English",
+      "notes": "Institutional commentary PDF; no second non-commercial mirror was located in this pass.",
+      "paper_label": "Main Paper",
+      "set_label": null,
+      "source_probes": [
+        {
+          "body_sha256": "6e24eefc9bd263d9b05e60b64f579a94e3ee501d7c4644cd399dc51ad277c5f5",
+          "bytes_sha256": "6e24eefc9bd263d9b05e60b64f579a94e3ee501d7c4644cd399dc51ad277c5f5",
+          "content_type": "application/pdf",
+          "error": null,
+          "final_url": "https://www.math.iitb.ac.in/~kdjoshi/jee2004.pdf",
+          "host": "math.iitb.ac.in",
+          "magic": "pdf",
+          "page1_image_sha256": "6084b4b71fc90cc64cd66205901448123df3d0a5a7b71a161a149bb1e153b725",
+          "page1_text_sha256": "6b31fd3190f743078376d18e0b7adf8c43565ca0393327970d1d4aa82523d597",
+          "page_count": 64,
+          "staged_path": "/tmp/legacy-jee-stage/jee-2004-mathematics-main-1.pdf",
+          "status": 200,
+          "title": null,
+          "url": "https://www.math.iitb.ac.in/~kdjoshi/jee2004.pdf"
+        }
+      ],
+      "source_urls": [
+        "https://www.math.iitb.ac.in/~kdjoshi/jee2004.pdf"
+      ],
+      "stage": "main",
+      "status": "candidate-only",
+      "status_note": "fewer than two independent institutional hosts were recovered",
+      "subject": "Mathematics",
+      "successful_probe_count": 1,
+      "year": 2004
+    },
+    {
+      "artifact_id": "jee-2005-mathematics-screening",
+      "comparison_basis": null,
+      "independent_source_count": 1,
+      "independent_source_families": [
+        "math.iitb.ac.in"
+      ],
+      "language": "English",
+      "notes": "Institutional commentary PDF; no second non-commercial mirror was located in this pass.",
+      "paper_label": "Screening Paper",
+      "set_label": null,
+      "source_probes": [
+        {
+          "body_sha256": "e558fe4522693d43619d0869e0c57387ae93a7af577aa28b151eece3b9eeea84",
+          "bytes_sha256": "e558fe4522693d43619d0869e0c57387ae93a7af577aa28b151eece3b9eeea84",
+          "content_type": "application/pdf",
+          "error": null,
+          "final_url": "https://www.math.iitb.ac.in/~kdjoshi/jee2005.pdf",
+          "host": "math.iitb.ac.in",
+          "magic": "pdf",
+          "page1_image_sha256": "5a5ed24147e291d2516fc34f04b1b1b375ef0ddc8efc1646c5df7a97a2585f9b",
+          "page1_text_sha256": "9098721c3b2dcff18823a5e66b0f83fca7325a31b40dc45b653bdd29296c3dc2",
+          "page_count": 77,
+          "staged_path": "/tmp/legacy-jee-stage/jee-2005-mathematics-screening-1.pdf",
+          "status": 200,
+          "title": null,
+          "url": "https://www.math.iitb.ac.in/~kdjoshi/jee2005.pdf"
+        }
+      ],
+      "source_urls": [
+        "https://www.math.iitb.ac.in/~kdjoshi/jee2005.pdf"
+      ],
+      "stage": "screening",
+      "status": "candidate-only",
+      "status_note": "fewer than two independent institutional hosts were recovered",
+      "subject": "Mathematics",
+      "successful_probe_count": 1,
+      "year": 2005
+    },
+    {
+      "artifact_id": "jee-2005-mathematics-main",
+      "comparison_basis": null,
+      "independent_source_count": 1,
+      "independent_source_families": [
+        "math.iitb.ac.in"
+      ],
+      "language": "English",
+      "notes": "Institutional commentary PDF; no second non-commercial mirror was located in this pass.",
+      "paper_label": "Main Paper",
+      "set_label": null,
+      "source_probes": [
+        {
+          "body_sha256": "e558fe4522693d43619d0869e0c57387ae93a7af577aa28b151eece3b9eeea84",
+          "bytes_sha256": "e558fe4522693d43619d0869e0c57387ae93a7af577aa28b151eece3b9eeea84",
+          "content_type": "application/pdf",
+          "error": null,
+          "final_url": "https://www.math.iitb.ac.in/~kdjoshi/jee2005.pdf",
+          "host": "math.iitb.ac.in",
+          "magic": "pdf",
+          "page1_image_sha256": "5a5ed24147e291d2516fc34f04b1b1b375ef0ddc8efc1646c5df7a97a2585f9b",
+          "page1_text_sha256": "9098721c3b2dcff18823a5e66b0f83fca7325a31b40dc45b653bdd29296c3dc2",
+          "page_count": 77,
+          "staged_path": "/tmp/legacy-jee-stage/jee-2005-mathematics-main-1.pdf",
+          "status": 200,
+          "title": null,
+          "url": "https://www.math.iitb.ac.in/~kdjoshi/jee2005.pdf"
+        }
+      ],
+      "source_urls": [
+        "https://www.math.iitb.ac.in/~kdjoshi/jee2005.pdf"
+      ],
+      "stage": "main",
+      "status": "candidate-only",
+      "status_note": "fewer than two independent institutional hosts were recovered",
+      "subject": "Mathematics",
+      "successful_probe_count": 1,
+      "year": 2005
+    },
+    {
+      "artifact_id": "jee-2006-mathematics-paper",
+      "comparison_basis": null,
+      "independent_source_count": 1,
+      "independent_source_families": [
+        "math.iitb.ac.in"
+      ],
+      "language": "English",
+      "notes": "Single objective mathematics paper; the institutional commentary describes it as 53 problems in two hours.",
+      "paper_label": "Mathematics Paper",
+      "set_label": null,
+      "source_probes": [
+        {
+          "body_sha256": "802ef0b2c2084cbaea116138f55a7a119b0d11f5d6e837ff7754e022011714b1",
+          "bytes_sha256": "802ef0b2c2084cbaea116138f55a7a119b0d11f5d6e837ff7754e022011714b1",
+          "content_type": "application/pdf",
+          "error": null,
+          "final_url": "https://www.math.iitb.ac.in/~kdjoshi/jee2006",
+          "host": "math.iitb.ac.in",
+          "magic": "pdf",
+          "page1_image_sha256": "9d33f8301a4edb88819c06b9cc604a6c213a087b4384c35df90f4800fd5b94f2",
+          "page1_text_sha256": "ba3edb6b131b31c21ceb0c1ba27348c7269927d4ee504cf70c08b4786cf7d6b8",
+          "page_count": 133,
+          "staged_path": "/tmp/legacy-jee-stage/jee-2006-mathematics-paper-1.pdf",
+          "status": 200,
+          "title": null,
+          "url": "https://www.math.iitb.ac.in/~kdjoshi/jee2006"
+        }
+      ],
+      "source_urls": [
+        "https://www.math.iitb.ac.in/~kdjoshi/jee2006"
+      ],
+      "stage": "single",
+      "status": "candidate-only",
+      "status_note": "fewer than two independent institutional hosts were recovered",
+      "subject": "Mathematics",
+      "successful_probe_count": 1,
+      "year": 2006
+    }
+  ],
+  "as_of": "2026-08-09",
+  "boundary": {
+    "official_archive_starts_year": 2007,
+    "official_archive_url": "https://jeeadv.ac.in/archive.html"
+  },
+  "context_sources": [
+    {
+      "body_sha256": "cb2493b3b52a8700a32ac5779743b477a51fe48e0bc100151466d625833c995a",
+      "content_type": "text/html",
+      "context_id": "official-archive-boundary",
+      "error": null,
+      "final_url": "https://jeeadv.ac.in/archive.html",
+      "label": "Official archive boundary",
+      "notes": "The official JEE Advanced archive starts at 2007 and lists question papers from 2007 onward.",
+      "status": 200,
+      "title": "JEE (Advanced) 2026",
+      "url": "https://jeeadv.ac.in/archive.html"
+    },
+    {
+      "body_sha256": "b0da9c58f0c4a5d71ef60d8a61fc1aacbac68f30ee275e667261bb2a5808312c",
+      "content_type": "text/html",
+      "context_id": "iitb-chronology",
+      "error": null,
+      "final_url": "https://www.civil.iitb.ac.in/tvm/4201-bioData/tvmcv/tvmcv.html",
+      "label": "IIT Bombay chronology note",
+      "notes": "Institutional CV listing JEE 2001 screening, 2002 main, 2003 screening/main, 2004 screening/main, 2005 screening/main, and 2006 main.",
+      "status": 200,
+      "title": "Tom V. Mathew",
+      "url": "https://www.civil.iitb.ac.in/tvm/4201-bioData/tvmcv/tvmcv.html"
+    },
+    {
+      "body_sha256": "0843e2fd4dbee9055fba4b89abca311c490c36a683c68a4fcbf0207d65953a3a",
+      "content_type": "text/html",
+      "context_id": "iitb-commentary-index",
+      "error": null,
+      "final_url": "https://www.math.iitb.ac.in/~kdjoshi/jee",
+      "label": "IIT Bombay commentary index",
+      "notes": "Index page linking the JEE mathematics commentary PDFs from 2003 onward.",
+      "status": 200,
+      "title": "Personal Home Page of K. D. Joshi",
+      "url": "https://www.math.iitb.ac.in/~kdjoshi/jee"
+    }
+  ],
+  "generated_at": "2026-08-09T23:44:30.226100Z",
+  "schema_version": "question-bank-legacy-jee-sources/v1",
+  "scope": {
+    "exam": "IIT-JEE",
+    "excluded_provenance_families": [
+      "commercial topic databases"
+    ],
+    "notes": "This report is intentionally narrow to the institutional mathematics commentary family that was recoverable without commercial topic databases. Physics and chemistry mirrors were not grounded in this pass.",
+    "recoverability_threshold": 2,
+    "subject_scope": [
+      "Mathematics"
+    ],
+    "years": "2000-2006"
+  },
+  "summary": {
+    "artifact_total": 13,
+    "candidate_only": 7,
+    "conflicting": 0,
+    "missing": 6,
+    "verified": 0
+  }
+}
