@@ -1,0 +1,11 @@
+{
+  "failures": [],
+  "methods": {
+    "hybrid-ocr-eng-fast-v1": 3,
+    "pdftotext-layout": 3
+  },
+  "operation": "stage-pdf-text",
+  "reused": 4,
+  "selected_documents": 6,
+  "written": 2
+}
