@@ -1,0 +1,10 @@
+{
+  "failures": [],
+  "methods": {
+    "tesseract-ocr-eng-fast-v1": 4
+  },
+  "operation": "stage-pdf-text",
+  "reused": 0,
+  "selected_documents": 4,
+  "written": 4
+}
