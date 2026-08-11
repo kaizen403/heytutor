@@ -1,0 +1,69 @@
+{
+  "allow_regional_fallback": false,
+  "by_year": {
+    "2022": 13,
+    "2023": 4
+  },
+  "copied_raw_document_ids": [
+    "jee-main-2022-06-24-shift-1",
+    "jee-main-2022-06-24-shift-2",
+    "jee-main-2022-06-25-shift-1",
+    "jee-main-2022-06-25-shift-2",
+    "jee-main-2022-06-26-shift-1",
+    "jee-main-2022-06-26-shift-2",
+    "jee-main-2022-06-27-shift-1",
+    "jee-main-2022-06-27-shift-2",
+    "jee-main-2022-06-28-shift-1",
+    "jee-main-2022-06-28-shift-2",
+    "jee-main-2022-06-29-shift-1",
+    "jee-main-2022-06-29-shift-2",
+    "jee-main-2022-06-30-shift-1",
+    "jee-main-2023-04-06-shift-2",
+    "jee-main-2023-04-08-shift-1",
+    "jee-main-2023-04-10-shift-1",
+    "jee-main-2023-04-15-shift-1"
+  ],
+  "imported_document_ids": [
+    "jee-main-2022-06-24-shift-1",
+    "jee-main-2022-06-24-shift-2",
+    "jee-main-2022-06-25-shift-1",
+    "jee-main-2022-06-25-shift-2",
+    "jee-main-2022-06-26-shift-1",
+    "jee-main-2022-06-26-shift-2",
+    "jee-main-2022-06-27-shift-1",
+    "jee-main-2022-06-27-shift-2",
+    "jee-main-2022-06-28-shift-1",
+    "jee-main-2022-06-28-shift-2",
+    "jee-main-2022-06-29-shift-1",
+    "jee-main-2022-06-29-shift-2",
+    "jee-main-2022-06-30-shift-1",
+    "jee-main-2023-04-06-shift-2",
+    "jee-main-2023-04-08-shift-1",
+    "jee-main-2023-04-10-shift-1",
+    "jee-main-2023-04-15-shift-1"
+  ],
+  "input_report_path": "data/question-bank/reports/nta-jee-main-quarantine-reverify-2026-08-10.json",
+  "input_report_schema_version": "nta-jee-main-quarantine-reverify-report/v1",
+  "manifest_path": "/home/kaizen/heytutor/data/question-bank/manifest.jsonl",
+  "missing_schedule_keys": [],
+  "notes": [
+    "Only canonical official NTA candidates are imported.",
+    "Partial official imports are allowed; remaining schedule gaps stay candidate_only.",
+    "Question text is intentionally excluded from the import report."
+  ],
+  "operation": "import-nta-jee-main",
+  "raw_dir": "/home/kaizen/heytutor/data/question-bank/raw",
+  "reused_manifest_document_ids": [],
+  "reused_raw_document_ids": [],
+  "schema_version": "nta-jee-main-import-report/v1",
+  "source_release_status": "candidate_only",
+  "staging_dir": "/home/kaizen/heytutor/data/question-bank/staging/nta-jee-main",
+  "summary": {
+    "canonical_candidates": 17,
+    "copied_raw_documents": 17,
+    "imported_documents": 17,
+    "missing_schedule_keys": 0,
+    "reused_manifest_documents": 0,
+    "reused_raw_documents": 0
+  }
+}
