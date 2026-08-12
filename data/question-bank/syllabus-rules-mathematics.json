@@ -1,0 +1,593 @@
+{
+  "schema_version": "question-bank-syllabus-unit-rules/v1",
+  "subject": "Mathematics",
+  "units": [
+    {
+      "unit_id": "maths|1",
+      "strong_phrases": [
+        "power set",
+        "equivalence relation",
+        "one-one function",
+        "onto function",
+        "into function",
+        "composition of functions",
+        "domain and range",
+        "union intersection complement",
+        "algebra of sets",
+        "types of relations",
+        "cartesian product",
+        "bijective function",
+        "number of onto functions",
+        "number of one-one functions",
+        "inverse of the function"
+      ],
+      "supporting_phrases": [
+        "ordered pair relation",
+        "set builder form",
+        "roster form",
+        "identity relation",
+        "reflexive symmetric transitive",
+        "many one function",
+        "inverse relation",
+        "image and preimage"
+      ],
+      "patterns": [
+        "\\bn\\s*\\(\\s*[A-Z]\\s*(?:∪|∩)\\s*[A-Z]\\s*\\)",
+        "\\bR\\s*∘\\s*S\\b"
+      ],
+      "exclusions": [
+        "limit",
+        "continuity",
+        "differentiability",
+        "derivative",
+        "integral",
+        "quadratic equation"
+      ]
+    },
+    {
+      "unit_id": "maths|2",
+      "strong_phrases": [
+        "argand diagram",
+        "complex number",
+        "modulus and argument",
+        "ordered pairs of reals",
+        "quadratic equations",
+        "nature of roots",
+        "roots and coefficients",
+        "formation of quadratic equation",
+        "square root of a complex number",
+        "triangle inequality",
+        "roots of the quadratic equation",
+        "complex numbers"
+      ],
+      "supporting_phrases": [
+        "real and imaginary parts",
+        "representation in the form a + ib",
+        "conjugate complex number",
+        "discriminant of quadratic",
+        "sum and product of roots",
+        "equation with given roots",
+        "amplitude of a complex number"
+      ],
+      "patterns": [
+        "(?<!\\w)\\|\\s*z\\s*\\|(?!\\w)",
+        "\\barg\\s*\\(?\\s*z\\s*\\)?\\b",
+        "\\b(?:Re|Im)\\s*\\(?\\s*z\\s*\\)?\\b",
+        "\\bax\\^2\\s*\\+\\s*bx\\s*\\+\\s*c\\s*=\\s*0\\b"
+      ],
+      "exclusions": [
+        "matrix",
+        "determinant",
+        "binomial theorem",
+        "sequence and series",
+        "trigonometric identity"
+      ]
+    },
+    {
+      "unit_id": "maths|3",
+      "strong_phrases": [
+        "adjoint of a matrix",
+        "inverse of a square matrix",
+        "determinants of order two and three",
+        "properties of determinants",
+        "evaluation of determinants",
+        "types of matrices",
+        "algebra of matrices",
+        "consistency of linear equations",
+        "simultaneous linear equations using matrices",
+        "area of triangles using determinants",
+        "skew-symmetric matrices",
+        "skew-symmetric matrix",
+        "symmetric matrices of same order",
+        "determinant of the matrix",
+        "inverse of the matrix",
+        "cofactor of",
+        "transpose of the matrix",
+        "order of the matrix",
+        "system of equations using matrices",
+        "minor of the element"
+      ],
+      "supporting_phrases": [
+        "singular matrix",
+        "non singular matrix",
+        "cofactor expansion",
+        "transpose of a matrix",
+        "row operation",
+        "column operation",
+        "Cramer's rule"
+      ],
+      "patterns": [
+        "\\bdet\\s*\\(?\\s*[A-Z]\\s*\\)?\\b",
+        "\\b[A-Z]\\s*\\^\\s*\\{-?1\\}|[A-Z]\\s*\\^-1\\b",
+        "\\badj\\s*\\(?\\s*[A-Z]\\s*\\)?\\b",
+        "\\b\\[\\s*\\["
+      ],
+      "exclusions": [
+        "probability",
+        "circle",
+        "parabola",
+        "ellipse",
+        "hyperbola",
+        "vector product"
+      ]
+    },
+    {
+      "unit_id": "maths|4",
+      "strong_phrases": [
+        "fundamental principle of counting",
+        "permutations and combinations",
+        "meaning of p(n, r)",
+        "meaning of c(n, r)",
+        "arrangements of objects",
+        "selection of objects",
+        "circular permutation",
+        "simple applications of counting"
+      ],
+      "supporting_phrases": [
+        "arranged in a row",
+        "distinct objects",
+        "repetition allowed",
+        "without repetition",
+        "committee formation",
+        "distribution of items"
+      ],
+      "patterns": [
+        "\\bP\\s*\\(\\s*n\\s*,\\s*r\\s*\\)\\b",
+        "\\bC\\s*\\(\\s*n\\s*,\\s*r\\s*\\)\\b",
+        "\\bnP[rR]\\b",
+        "\\bnC[rR]\\b",
+        "\\bn!\\s*/\\s*\\(?\\s*n-r\\s*\\)?!",
+        "\\b(?:number|how many).{0,40}\\bways\\b.{0,160}\\b(?:arrang\\w*|draw\\w*|choos\\w*|select\\w*|form\\w*|distribut\\w*|place\\w*|put\\w*|accommodat\\w*|exit\\w*|visit\\w*|wins?|teams?|committee|queue|cards?|balls?|persons?)\\b"
+      ],
+      "exclusions": [
+        "probability distribution",
+        "bayes theorem",
+        "binomial distribution",
+        "general term",
+        "arithmetic progression"
+      ]
+    },
+    {
+      "unit_id": "maths|5",
+      "strong_phrases": [
+        "binomial theorem",
+        "positive integral index",
+        "general term",
+        "middle term",
+        "binomial coefficients",
+        "coefficient of x^r",
+        "expansion of (a + b)^n",
+        "simple applications of binomial theorem"
+      ],
+      "supporting_phrases": [
+        "nth term in expansion",
+        "term independent of x",
+        "greatest coefficient",
+        "Pascal identity",
+        "symmetry of coefficients"
+      ],
+      "patterns": [
+        "\\b\\([^\\n()]+[+\\-][^\\n()]+\\)\\s*\\^\\s*n\\b",
+        "\\bT\\s*_{?\\s*r\\s*\\+\\s*1\\s*}?\\b",
+        "\\bcoefficient of\\s+x\\^"
+      ],
+      "exclusions": [
+        "bernoulli trials",
+        "binomial distribution",
+        "permutation",
+        "arithmetic progression",
+        "differential equation"
+      ]
+    },
+    {
+      "unit_id": "maths|6",
+      "strong_phrases": [
+        "arithmetic progression",
+        "geometric progression",
+        "arithmetico geometric progression",
+        "insertion of arithmetic means",
+        "insertion of geometric means",
+        "relation between a.m. and g.m.",
+        "sum up to n terms",
+        "sequence and series",
+        "arithmetic means between"
+      ],
+      "supporting_phrases": [
+        "common difference",
+        "common ratio",
+        "nth term",
+        "sum of special series",
+        "sn sn2 sn3",
+        "harmonic style mean relation"
+      ],
+      "patterns": [
+        "\\bA\\.?P\\.?\\b.{0,80}\\b(?:terms?|sequence|common difference|sum|progression|roots?)\\b|\\b(?:terms?|sequence|common difference|sum|progression|roots?)\\b.{0,80}\\bA\\.?P\\.?\\b",
+        "\\bG\\.?P\\.?\\b.{0,80}\\b(?:terms?|sequence|common ratio|sum|progression|roots?)\\b|\\b(?:terms?|sequence|common ratio|sum|progression|roots?)\\b.{0,80}\\bG\\.?P\\.?\\b",
+        "\\bS_n\\b",
+        "\\ba_n\\b"
+      ],
+      "exclusions": [
+        "binomial theorem",
+        "probability",
+        "differential equation",
+        "determinant",
+        "trigonometric identity"
+      ]
+    },
+    {
+      "unit_id": "maths|7",
+      "strong_phrases": [
+        "limit continuity and differentiability",
+        "real valued functions",
+        "algebra of functions",
+        "differentiation of composite functions",
+        "implicit differentiation",
+        "rolle's theorem",
+        "lagrange's mean value theorem",
+        "maxima and minima",
+        "tangents and normals",
+        "rate of change of quantities",
+        "rate of increase",
+        "increasing at the rate",
+        "monotonic increasing and decreasing",
+        "absolute maximum and absolute minimum",
+        "increasing function",
+        "decreasing function",
+        "local maxima",
+        "local minima",
+        "strictly increasing",
+        "rate of change",
+        "mean value theorem",
+        "differentiable at",
+        "local minimum",
+        "increasing in the interval",
+        "decreasing in the interval",
+        "right hand derivative"
+      ],
+      "supporting_phrases": [
+        "inverse functions",
+        "graphs of simple functions",
+        "derivatives up to order two",
+        "product rule",
+        "quotient rule",
+        "chain rule",
+        "stationary point"
+      ],
+      "patterns": [
+        "\\blim\\s*[_\\{]?",
+        "\\b(?:first|second)\\s+derivative\\b",
+        "\\bdifferentiab(?:le|ility)\\b",
+        "\\bimplicit\\s+differentiation\\b",
+        "\\bf''?\\s*\\(",
+        "\\b(?:Rolle|Lagrange)\\b"
+      ],
+      "exclusions": [
+        "definite integral",
+        "indefinite integral",
+        "fundamental theorem of calculus",
+        "separation of variables",
+        "heights and distances"
+      ]
+    },
+    {
+      "unit_id": "maths|8",
+      "strong_phrases": [
+        "integral calculus",
+        "anti derivative",
+        "integration by substitution",
+        "integration by parts",
+        "integration by partial fractions",
+        "integral as limit of a sum",
+        "fundamental theorem of calculus",
+        "properties of definite integrals",
+        "evaluation of definite integrals",
+        "using integration",
+        "area bounded by",
+        "area of the region bounded by",
+        "areas of regions bounded by curves",
+        "value of the integral",
+        "area of the region bounded",
+        "area enclosed by"
+      ],
+      "supporting_phrases": [
+        "indefinite integral",
+        "definite integral",
+        "integrand",
+        "area under the curve",
+        "standard integrals",
+        "trigonometric identities in integration"
+      ],
+      "patterns": [
+        "∫",
+        "\\bF\\s*\\(\\s*b\\s*\\)\\s*[-−]\\s*F\\s*\\(\\s*a\\s*\\)",
+        "\\bdefinite\\s+integral\\b",
+        "\\bintegration\\s+by\\s+(?:substitution|parts|partial\\s+fractions)\\b"
+      ],
+      "exclusions": [
+        "differentiability",
+        "rolle's theorem",
+        "lagrange's mean value theorem",
+        "dy/dx + p(x)y = q(x)",
+        "direction cosines"
+      ]
+    },
+    {
+      "unit_id": "maths|9",
+      "strong_phrases": [
+        "ordinary differential equations",
+        "order and degree",
+        "separation of variables",
+        "homogeneous differential equation",
+        "linear differential equation",
+        "dy/dx + p(x)y = q(x)",
+        "solution of differential equation",
+        "particular solution of the differential equation",
+        "general solution of the differential equation",
+        "order and the degree of the differential equation",
+        "order and degree of the differential equation",
+        "solution of the following differential equation",
+        "degree of the differential equation",
+        "differential equation of the family",
+        "form the differential equation",
+        "degree and order",
+        "general solution of",
+        "particular solution of"
+      ],
+      "supporting_phrases": [
+        "integrating factor",
+        "first order differential equation",
+        "general solution",
+        "particular solution",
+        "initial condition"
+      ],
+      "patterns": [
+        "\\bdy\\s*/\\s*dx\\s*\\+\\s*[^=]+=",
+        "\\bd\\^?2y\\s*/\\s*dx\\^?2\\b",
+        "\\border\\s+and\\s+degree\\b",
+        "\\bseparation\\s+of\\s+variables\\b",
+        "\\bintegrating\\s+factor\\b"
+      ],
+      "exclusions": [
+        "definite integral",
+        "area under the curve",
+        "maxima and minima",
+        "circle",
+        "probability"
+      ]
+    },
+    {
+      "unit_id": "maths|10",
+      "strong_phrases": [
+        "coordinate geometry",
+        "co-ordinate geometry",
+        "distance formula",
+        "section formula",
+        "locus and its equation",
+        "equation of tangent to a circle",
+        "family of circles through three points",
+        "parabola ellipse hyperbola",
+        "parabola",
+        "ellipse",
+        "hyperbola",
+        "latus rectum",
+        "directrix",
+        "eccentricity",
+        "equation of the circle",
+        "circle passing through",
+        "tangent to the circle",
+        "centre of the circle",
+        "center of the circle",
+        "chord of the circle",
+        "condition for y = mx + c to be a tangent",
+        "centroid orthocentre incentre",
+        "equation of the tangent"
+      ],
+      "supporting_phrases": [
+        "slope of a line",
+        "intercepts of a line",
+        "angle between two lines",
+        "distance of a point from a line",
+        "internal and external bisectors",
+        "conic sections",
+        "focus of the conic",
+        "foci of the conic",
+        "standard form of circle"
+      ],
+      "patterns": [
+        "\\bax\\s*\\+\\s*by\\s*\\+\\s*c\\s*=\\s*0\\b",
+        "\\b\\(x-h\\)\\^2\\s*\\+\\s*\\(y-k\\)\\^2\\s*=\\s*r\\^2\\b",
+        "\\bx\\^2\\s*/\\s*a\\^2\\s*[+\\-]\\s*y\\^2\\s*/\\s*b\\^2\\b",
+        "\\by\\^2\\s*=\\s*4ax\\b"
+      ],
+      "exclusions": [
+        "direction ratios",
+        "direction cosines",
+        "skew lines",
+        "scalar product",
+        "vector product"
+      ]
+    },
+    {
+      "unit_id": "maths|11",
+      "strong_phrases": [
+        "three dimensional geometry",
+        "three-dimensional geometry",
+        "coordinates of a point in space",
+        "direction ratios",
+        "direction cosines",
+        "skew lines",
+        "shortest distance between them",
+        "equations of a line and a plane",
+        "intersection of a line and a plane",
+        "coplanar lines",
+        "shortest distance between the lines",
+        "equation of the plane",
+        "angle between the lines",
+        "equation of the line passing through",
+        "vector equation of the line"
+      ],
+      "supporting_phrases": [
+        "distance between two points in space",
+        "angle between two intersecting lines",
+        "equation of a plane",
+        "space coordinates",
+        "line in symmetric form"
+      ],
+      "patterns": [
+        "\\bx\\s*=\\s*x_1\\s*\\+\\s*(?:lambda|λ)\\s*[a-z]\\b",
+        "\\b\\(x\\s*[-−]\\s*x_1\\)\\s*/\\s*[a-z]\\s*=\\s*\\(y\\s*[-−]\\s*y_1\\)\\b",
+        "\\bdirection\\s+cosines?\\b",
+        "\\bplane\\s*:\\s*[a-z]?x\\s*[+\\-]\\s*[a-z]?y\\s*[+\\-]\\s*[a-z]?z\\b",
+        "\\bskew\\s+lines\\b"
+      ],
+      "exclusions": [
+        "circle",
+        "parabola",
+        "ellipse",
+        "scalar triple product",
+        "vector triple product"
+      ]
+    },
+    {
+      "unit_id": "maths|12",
+      "strong_phrases": [
+        "vector algebra",
+        "vectors and scalars",
+        "components of a vector",
+        "scalar product",
+        "dot product",
+        "vector product",
+        "cross product",
+        "scalar triple product",
+        "vector triple product",
+        "unit vector perpendicular to",
+        "magnitude of the vector",
+        "coplanar vectors",
+        "direction of the vector"
+      ],
+      "supporting_phrases": [
+        "unit vector",
+        "magnitude of a vector",
+        "projection of vector",
+        "collinear vectors",
+        "coplanarity using triple product"
+      ],
+      "patterns": [
+        "\\bvec\\s*[A-Za-z]\\b",
+        "\\b[a-zA-Z]\\s*·\\s*[a-zA-Z]\\b",
+        "(?<!\\w)\\|\\s*[a-zA-Z]\\s*×\\s*[a-zA-Z]\\s*\\|(?!\\w)"
+      ],
+      "exclusions": [
+        "equation of a plane",
+        "skew lines",
+        "straight lines",
+        "circle",
+        "probability distribution"
+      ]
+    },
+    {
+      "unit_id": "maths|13",
+      "strong_phrases": [
+        "statistics and probability",
+        "mean median mode",
+        "standard deviation",
+        "variance",
+        "mean deviation",
+        "bayes theorem",
+        "probability distribution",
+        "random variate",
+        "bernoulli trials",
+        "binomial distribution",
+        "addition theorem of probability",
+        "multiplication theorem of probability",
+        "independent events",
+        "mutually exclusive events",
+        "conditional probability",
+        "random variable",
+        "mutually exclusive",
+        "drawn at random from",
+        "probability that exactly",
+        "probability of the event"
+      ],
+      "supporting_phrases": [
+        "grouped data",
+        "ungrouped data",
+        "measures of dispersion",
+        "conditional probability",
+        "expected frequency"
+      ],
+      "patterns": [
+        "\\bP\\s*\\(\\s*[A-Z]\\s*(?:∩|∪|\\|)\\s*[A-Z]\\s*\\)",
+        "\\b(?:arithmetic|sample|weighted)\\s+mean\\b",
+        "\\bmean\\s+deviation\\b",
+        "\\bvariance\\b",
+        "\\bBayes'?\\s+theorem\\b"
+      ],
+      "exclusions": [
+        "permutation",
+        "combination",
+        "general term",
+        "determinant",
+        "tangent to a circle"
+      ]
+    },
+    {
+      "unit_id": "maths|14",
+      "strong_phrases": [
+        "trigonometry",
+        "trigonometrical identities",
+        "trigonometrical functions",
+        "trigonometric identities and equations",
+        "inverse trigonometric functions",
+        "properties of inverse trigonometric functions",
+        "principal value branch",
+        "heights and distances",
+        "solution of trigonometric equation",
+        "principal value of"
+      ],
+      "supporting_phrases": [
+        "principal value",
+        "compound angle",
+        "multiple angle",
+        "sum to product",
+        "product to sum",
+        "allied angles"
+      ],
+      "patterns": [
+        "\\btrigonometr(?:ic|ical)\\s+(?:identit(?:y|ies)|equation(?:s)?)\\b",
+        "\\binverse\\s+trigonometr(?:ic|ical)\\s+functions?\\b",
+        "\\bprincipal\\s+value\\b",
+        "\\b(?:sin|cos|tan)\\s*\\^\\s*(?:\\{\\s*-?1\\s*\\}|-?1)\\s*(?:\\(|[A-Za-z])",
+        "\\barc(?:sin|cos|tan)\\s*(?:\\(|[A-Za-z])",
+        "\\bheights?\\s+and\\s+distances?\\b"
+      ],
+      "exclusions": [
+        "differentiate",
+        "derivative",
+        "integration",
+        "definite integral",
+        "coordinate geometry"
+      ]
+    }
+  ]
+}
