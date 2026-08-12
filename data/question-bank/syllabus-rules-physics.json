@@ -1,0 +1,871 @@
+{
+  "schema_version": "question-bank-syllabus-unit-rules/v1",
+  "subject": "Physics",
+  "units": [
+    {
+      "unit_id": "physics|1",
+  "strong_phrases": [
+    "system of units",
+    "least count",
+        "significant figures",
+        "accuracy and precision",
+        "errors in measurements",
+        "dimensional analysis",
+        "dimension of physical quantity",
+        "dimensional formula"
+      ],
+  "supporting_phrases": [
+    "si units",
+    "fundamental and derived units",
+        "percentage error",
+        "relative error",
+        "absolute error",
+        "order of magnitude",
+        "measurement uncertainty"
+      ],
+      "patterns": [
+        "\\bdimension(?:al)?\\s+(?:analysis|formula)\\b",
+        "\\b(?:absolute|relative|percentage)\\s+error\\b",
+        "\\b(?:accuracy|precision)\\b.{0,40}\\b(?:measurement|instrument)\\b",
+        "\\bleast count\\b",
+        "\\bsignificant figures?\\b"
+      ],
+      "exclusions": [
+        "vernier callipers",
+        "screw gauge",
+        "half-deflection method"
+      ]
+    },
+    {
+      "unit_id": "physics|2",
+      "strong_phrases": [
+        "frame of reference",
+        "motion in a straight line",
+        "uniformly accelerated motion",
+        "position time graph",
+        "velocity time graph",
+        "relative velocity",
+    "motion in a plane",
+    "projectile motion",
+    "projected from the ground",
+    "uniform circular motion"
+      ],
+      "supporting_phrases": [
+        "average speed",
+        "instantaneous velocity",
+        "equation of trajectory",
+        "time of flight",
+        "maximum height of projectile",
+        "horizontal range"
+      ],
+      "patterns": [
+        "\\bframe of reference\\b",
+        "\\b(?:position|velocity)[ -]time graph\\b",
+    "\\brelative velocity\\b",
+    "\\bprojectile motion\\b|\\bequation of trajectory\\b",
+    "\\b(?:time of flight|horizontal range|maximum height)\\b.{0,40}\\bprojectile\\b|\\bprojectile\\b.{0,80}\\b(?:maximum height|hits? the ground|horizontal range|coordinates? as a function of time)\\b"
+      ],
+      "exclusions": [
+        "banked road",
+        "work-energy theorem",
+        "moment of inertia"
+      ]
+    },
+    {
+      "unit_id": "physics|3",
+      "strong_phrases": [
+        "newton's first law",
+        "newton's second law",
+        "newton's third law",
+        "law of conservation of linear momentum",
+        "equilibrium of concurrent forces",
+    "static friction",
+    "kinetic friction",
+    "rolling friction",
+    "banked road"
+  ],
+  "supporting_phrases": [
+    "centripetal force",
+        "force and inertia",
+        "impulse momentum theorem",
+        "limiting friction",
+        "angle of friction",
+        "level circular road",
+        "vehicle on a banked road"
+      ],
+      "patterns": [
+        "\\bnewton'?s\\s+(?:first|second|third)\\s+law\\b",
+        "\\bconservation of linear momentum\\b",
+    "\\b(?:static|kinetic|rolling)\\s+friction\\b",
+    "\\b(?:level|banked)\\s+road\\b",
+    "\\bimpulse\\b.{0,30}\\bmomentum\\b",
+    "\\bcoefficient of friction\\b.{0,100}\\b(?:inclined plane|ladder|wall|static equilibrium)\\b|\\b(?:inclined plane|ladder|wall|static equilibrium)\\b.{0,100}\\bcoefficient of friction\\b"
+      ],
+      "exclusions": [
+        "projectile motion",
+        "vertical circle",
+        "moment of inertia"
+      ]
+    },
+    {
+      "unit_id": "physics|4",
+      "strong_phrases": [
+        "work done by a variable force",
+        "work-energy theorem",
+    "conservation of mechanical energy",
+    "potential energy of a spring",
+    "motion in a vertical circle",
+    "elastic collision",
+    "inelastic collision"
+  ],
+  "supporting_phrases": [
+    "conservative and non-conservative forces",
+    "power delivered",
+        "kinetic and potential energies",
+        "instantaneous power",
+        "loss of kinetic energy",
+        "coefficient of restitution",
+        "spring potential energy",
+        "mechanical energy"
+      ],
+      "patterns": [
+        "\\bwork[- ]energy theorem\\b",
+    "\\b(?:elastic|inelastic)\\s+collision\\b",
+    "\\bvertical circle\\b",
+    "\\bpotential energy of (?:a )?spring\\b"
+      ],
+      "exclusions": [
+        "banked road",
+        "moment of inertia",
+        "escape velocity"
+      ]
+    },
+    {
+      "unit_id": "physics|5",
+      "strong_phrases": [
+    "centre of mass",
+    "moment of a force",
+    "net torque about an axis",
+    "moment of inertia",
+    "radius of gyration",
+    "parallel axes theorem",
+    "perpendicular axes theorem",
+    "rolling without slipping",
+    "rolls without slipping",
+    "equilibrium of rigid bodies"
+      ],
+  "supporting_phrases": [
+    "angular momentum",
+    "conservation of angular momentum",
+    "rigid body rotation",
+    "rotational motion",
+    "rolling motion",
+    "comparison of linear and rotational motion",
+        "angular acceleration",
+        "axis of rotation",
+        "rotational equilibrium",
+        "couple acting on a rigid body"
+      ],
+  "patterns": [
+        "\\bcent(?:er|re) of mass\\b",
+        "\\bmoment of inertia\\b|\\bradius of gyration\\b",
+    "\\bparallel axes theorem\\b|\\bperpendicular axes theorem\\b",
+        "\\b(?:net )?torque\\b.{0,30}\\b(?:axis|rigid body|rotation(?:al)?|equilibrium)\\b",
+        "\\bequilibrium of rigid bod(?:y|ies)\\b|\\brigid body rotation\\b"
+      ],
+      "exclusions": [
+        "elastic collision",
+        "banked road",
+        "escape velocity",
+    "electric dipole",
+    "current loop",
+    "bohr",
+    "hydrogen atom",
+    "photon",
+    "electron",
+    "atomic",
+    "nucleus",
+    "nuclear",
+    "satellite",
+    "planet",
+    "star",
+    "coulomb"
+      ]
+    },
+    {
+      "unit_id": "physics|6",
+  "strong_phrases": [
+    "universal law of gravitation",
+    "variation of g with altitude",
+        "variation of g with depth",
+        "kepler's laws",
+        "gravitational potential",
+        "gravitational potential energy",
+        "escape velocity",
+        "orbital velocity",
+        "geostationary satellite"
+      ],
+  "supporting_phrases": [
+    "acceleration due to gravity",
+        "planetary motion",
+        "satellite motion",
+        "g at a height",
+        "g below the earth surface",
+        "gravitational field intensity",
+        "weightlessness in a satellite"
+      ],
+      "patterns": [
+    "\\buniversal law of gravitation\\b",
+    "\\bkepler'?s\\s+(?:first|second|third)?\\s*laws?\\b",
+    "\\b(?:escape|orbital) velocity\\b",
+    "\\bgeostationary satellite\\b",
+    "\\bacceleration due to gravity\\b.{0,40}\\b(?:altitude|depth|height)\\b"
+      ],
+      "exclusions": [
+    "coulomb's law",
+    "electric potential",
+    "potential energy of a spring",
+    "projectile",
+    "fluid pressure",
+    "pendulum",
+    "circular motion",
+    "electric field",
+    "magnetic field"
+      ]
+    },
+    {
+      "unit_id": "physics|7",
+      "strong_phrases": [
+        "stress strain relationship",
+        "young's modulus",
+        "bulk modulus",
+        "modulus of rigidity",
+        "pascal's law",
+        "stokes' law",
+    "bernoulli's principle",
+    "surface tension",
+    "coefficient of viscosity",
+    "viscous force",
+    "breaking stress",
+    "maximum stress",
+    "capillary rise",
+        "specific heat capacity of a solid or liquid",
+        "latent heat",
+        "newton's law of cooling"
+      ],
+      "supporting_phrases": [
+        "elastic behaviour",
+        "terminal velocity",
+        "reynolds number",
+        "angle of contact",
+        "thermal expansion",
+        "calorimetry"
+      ],
+      "patterns": [
+        "\\bstress[- ]strain\\b|\\byoung'?s modulus\\b",
+        "\\b(?:bulk modulus|modulus of rigidity)\\b",
+        "\\b(?:surface tension|capillary rise|angle of contact)\\b",
+        "\\b(?:stokes'? law|terminal velocity|reynolds number|bernoulli'?s principle)\\b",
+        "\\b(?:specific heat capacity|specific heat)\\b.{0,40}\\b(?:solid|liquid|calorimetry|calorimeter)\\b|\\b(?:latent heat|calorimetry|newton'?s law of cooling|thermal expansion)\\b"
+      ],
+      "exclusions": [
+        "carnot engine",
+        "rms speed",
+        "equation of state of a perfect gas",
+        "specific heat capacities of gases",
+        "molar specific heat",
+        "determine young's modulus of the material of a wire",
+        "young's modulus of the material of a given wire",
+        "surface tension of water by capillary rise",
+        "young's modulus of the material of a wire",
+        "capillary rise method",
+        "determine the surface tension"
+      ]
+    },
+    {
+      "unit_id": "physics|8",
+      "strong_phrases": [
+        "zeroth law of thermodynamics",
+    "first law of thermodynamics",
+    "second law of thermodynamics",
+    "thermodynamic process",
+        "thermal equilibrium",
+        "internal energy",
+        "isothermal process",
+        "adiabatic process",
+        "reversible process",
+        "irreversible process",
+        "carnot engine",
+        "carnot efficiency"
+      ],
+      "supporting_phrases": [
+        "heat and work",
+        "pdv work",
+        "heat engine",
+        "thermodynamic cycle",
+        "change in internal energy",
+        "efficiency of a heat engine"
+      ],
+      "patterns": [
+        "\\b(?:zeroth|first|second)\\s+law of thermodynamics\\b",
+        "\\b(?:isothermal|adiabatic)\\s+process\\b",
+        "\\bcarnot\\b.{0,20}\\b(?:engine|cycle|efficiency)\\b",
+    "\\b(?:reversible|irreversible)\\s+process\\b",
+    "\\binternal energy\\b|\\bthermal equilibrium\\b",
+    "\\b(?:isothermal(?:ly)?|adiabatic(?:ally)?|isobaric(?:ally)?|isochoric(?:ally)?)\\b.{0,80}\\b(?:gas|expan\\w*|compress\\w*|process|cycle|state|work|heat|volume|pressure|temperature)\\b|\\b(?:gas|expan\\w*|compress\\w*|process|cycle|state|work|heat|volume|pressure|temperature)\\b.{0,80}\\b(?:isothermal(?:ly)?|adiabatic(?:ally)?|isobaric(?:ally)?|isochoric(?:ally)?)\\b"
+      ],
+      "exclusions": [
+        "newton's law of cooling",
+        "rms speed",
+        "metre bridge"
+      ]
+    },
+    {
+      "unit_id": "physics|9",
+      "strong_phrases": [
+        "kinetic theory of gases",
+        "equation of state of a perfect gas",
+        "kinetic interpretation of temperature",
+        "rms speed of gas molecules",
+    "degrees of freedom",
+    "law of equipartition of energy",
+    "specific heat capacities of gases",
+        "avogadro's number"
+      ],
+  "supporting_phrases": [
+    "mean free path",
+        "ideal gas equation",
+        "pressure of an ideal gas",
+        "root mean square speed",
+        "molar specific heat",
+        "ratio of specific heats",
+        "compressing a gas"
+      ],
+      "patterns": [
+        "\\bequation of state of (?:a )?(?:perfect|ideal) gas\\b",
+    "\\b(?:root mean square|rms) speed\\b",
+    "\\bdegrees of freedom\\b",
+    "\\bequipartition(?: of energy)?\\b"
+      ],
+      "exclusions": [
+    "rms value of current",
+    "carnot engine",
+    "capillary rise",
+    "electron",
+    "metal",
+    "conductor",
+    "conductivity",
+    "resistivity",
+    "electric current"
+      ]
+    },
+    {
+      "unit_id": "physics|10",
+      "strong_phrases": [
+        "simple harmonic motion",
+        "oscillations of a spring",
+        "time period of a simple pendulum",
+        "kinetic and potential energy in shm",
+        "progressive wave",
+        "standing wave",
+        "organ pipe",
+        "fundamental mode and harmonics",
+        "beats",
+        "doppler effect in sound"
+      ],
+      "supporting_phrases": [
+        "periodic motion",
+        "angular frequency",
+        "longitudinal and transverse waves",
+        "principle of superposition of waves",
+        "node and antinode",
+        "speed of a travelling wave"
+      ],
+      "patterns": [
+        "\\bsimple harmonic motion\\b|\\bshm\\b",
+        "\\b(?:simple pendulum|spring)\\b.{0,40}\\btime period\\b",
+        "\\b(?:progressive|travelling|standing)\\s+wave\\b",
+    "\\b(?:organ pipe|fundamental mode|harmonics|beats)\\b",
+    "\\bfixed at two ends\\b.{0,80}\\bharmonic\\b|\\bharmonic\\b.{0,80}\\bfixed at two ends\\b",
+    "\\bdoppler effect\\b.{0,30}\\b(?:sound|source|observer)\\b"
+      ],
+      "exclusions": [
+        "young's double-slit experiment",
+        "electromagnetic spectrum",
+        "resonance tube"
+      ]
+    },
+    {
+      "unit_id": "physics|11",
+      "strong_phrases": [
+        "coulomb's law",
+        "superposition principle for electric charges",
+    "continuous charge distribution",
+    "electric field lines",
+    "electric potential at",
+    "electric dipole",
+        "gauss's law",
+        "electric flux",
+        "equipotential surfaces",
+        "electrostatics of conductors",
+    "dielectric polarisation",
+    "capacitance",
+    "rc circuit",
+    "rc series circuit",
+    "energy stored in a capacitor"
+      ],
+      "supporting_phrases": [
+        "torque on an electric dipole",
+        "electric potential difference",
+        "parallel plate capacitor",
+        "series and parallel combination of capacitors",
+        "capacitor with dielectric",
+        "potential due to a system of charges"
+      ],
+      "patterns": [
+        "\\bcoulomb'?s law\\b",
+        "\\bsuperposition principle\\b.{0,30}\\b(?:charges?|electrostatic|coulomb)\\b",
+        "\\bgauss'?s law\\b|\\belectric flux\\b",
+        "\\belectric dipole\\b|\\btorque on (?:an )?electric dipole\\b|\\bdipole\\b.{0,20}\\belectric field\\b",
+        "\\b(?:equipotential surfaces?|electrostatics of conductors|dielectric(?: polarisation)?)\\b",
+        "\\b(?:capacitor|capacitance|energy stored in (?:a )?capacitor)\\b"
+      ],
+  "exclusions": [
+    "drift velocity",
+    "moving coil galvanometer",
+    "photoelectric effect",
+    "electromagnetic wave",
+    "electromagnetic waves",
+    "em wave",
+    "em waves",
+    "ampere-maxwell law",
+    "maxwell's generalization of ampere's circuital law",
+    "brewster",
+    "polarisation",
+    "polarization",
+    "unpolarised light",
+    "unpolarized light",
+    "alternating current",
+    "ac voltage",
+    "ac source",
+    "ac circuit",
+    "reactance",
+    "impedance",
+    "inductor",
+    "displacement current",
+    "displacement currents"
+      ]
+    },
+    {
+      "unit_id": "physics|12",
+      "strong_phrases": [
+        "current electricity",
+        "drift velocity",
+        "ohm's law",
+        "v-i characteristics",
+        "electrical resistivity",
+        "temperature dependence of resistance",
+        "internal resistance of a cell",
+        "combination of cells in series and parallel",
+        "kirchhoff's laws",
+        "wheatstone bridge",
+        "metre bridge"
+      ],
+      "supporting_phrases": [
+        "mobility of charge carriers",
+        "ohmic and non-ohmic conductors",
+        "conductivity of a material",
+        "loop rule and junction rule",
+        "emf and potential difference",
+        "series and parallel combinations of resistors"
+      ],
+      "patterns": [
+        "\\bcurrent electricity\\b|\\bdrift velocity\\b|\\bmobility\\b",
+        "\\bohm'?s law\\b|\\bv-i characteristics\\b",
+        "\\bkirchhoff'?s\\s+(?:first|second|junction|loop)\\s+law\\b",
+        "\\bwheatstone bridge\\b|\\bmet(?:re|er) bridge\\b",
+        "\\binternal resistance\\b.{0,30}\\bcell\\b"
+      ],
+  "exclusions": [
+    "coulomb's law",
+    "moving coil galvanometer",
+    "zener diode",
+    "intrinsic semiconductor",
+    "intrinsic semiconductors",
+    "extrinsic semiconductor",
+    "extrinsic semiconductors",
+    "p-type semiconductor",
+    "p-type semiconductors",
+    "n-type semiconductor",
+    "n-type semiconductors"
+      ]
+    },
+    {
+      "unit_id": "physics|13",
+      "strong_phrases": [
+    "biot-savart law",
+    "ampere's law",
+    "magnetic field due to",
+        "force between two parallel current carrying conductors",
+        "force on a current carrying conductor in a magnetic field",
+        "torque on a current loop",
+        "torque on a magnetic dipole in a magnetic field",
+        "moving coil galvanometer",
+        "conversion of galvanometer into ammeter",
+        "conversion of galvanometer into voltmeter",
+        "bar magnet",
+        "earth's magnetic field",
+        "magnetic elements",
+        "magnetic dipole",
+        "paramagnetic diamagnetic ferromagnetic substances"
+      ],
+      "supporting_phrases": [
+        "magnetic field due to a circular loop",
+        "long straight wire and solenoid",
+        "force on a moving charge in a magnetic field",
+        "torque on a magnetic dipole",
+        "neutral point",
+        "magnetic meridian",
+        "temperature dependence of magnetic properties",
+        "galvanometer sensitivity"
+      ],
+      "patterns": [
+        "\\bbiot[- ]savart law\\b",
+        "\\bampere'?s(?: circuital)? law\\b",
+        "\\b(?:moving coil galvanometer\\b.{0,40}\\b(?:sensitivity|conversion|ammeter|voltmeter|shunt)\\b|(?:sensitivity|conversion)\\b.{0,40}\\bmoving coil galvanometer\\b)",
+        "\\bconversion of (?:a )?galvanometer into (?:an )?(?:ammeter|voltmeter)\\b|\\bgalvanometer\\b.{0,30}\\b(?:ammeter|voltmeter)\\b",
+        "\\btorque on (?:a )?(?:magnetic dipole|current loop)\\b.{0,30}\\bmagnetic field\\b",
+        "\\bearth'?s magnetic field\\b|\\bmagnetic elements\\b",
+        "\\b(?:para|dia|ferro)magnetic\\b|\\bbar magnet\\b|\\bmagnetic dipole\\b",
+        "\\belectron\\b.{0,100}\\b(?:moves?|revolv(?:e|es|ing)|orbits?)\\b.{0,100}\\b(?:equivalent current|circulating current|magnetic moment)\\b"
+      ],
+      "exclusions": [
+        "faraday's law",
+        "lcr circuit",
+        "electromagnetic spectrum",
+        "half-deflection method",
+        "figure of merit of galvanometer",
+        "resistance of a galvanometer",
+        "resistance of a moving coil galvanometer"
+      ]
+    },
+    {
+      "unit_id": "physics|14",
+      "strong_phrases": [
+        "electromagnetic induction",
+        "faraday's law",
+        "lenz's law",
+        "eddy currents",
+        "self inductance",
+        "mutual inductance",
+        "alternating current",
+        "rms value of alternating current",
+        "rms value of ac voltage",
+        "reactance and impedance",
+        "lcr series circuit",
+        "wattless current",
+        "ac generator",
+        "transformer"
+      ],
+      "supporting_phrases": [
+        "peak value of alternating voltage",
+        "phasor diagram",
+        "power factor",
+        "resonant frequency of lcr circuit",
+        "average emf induced",
+        "series ac circuit"
+      ],
+      "patterns": [
+        "\\bfaraday'?s law\\b|\\belectromagnetic induction\\b",
+        "\\blenz'?s law\\b",
+        "\\b(?:self|mutual) inductance\\b|\\beddy currents\\b",
+    "\\b(?:alternating current|ac generator|transformer)\\b",
+    "\\b(?:ac|alternating current)\\s+(?:voltage|source|circuit)\\b.{0,100}\\b(?:capacitor|inductor|reactance|impedance)\\b|\\b(?:capacitor|inductor|reactance|impedance)\\b.{0,100}\\b(?:ac|alternating current)\\s+(?:voltage|source|circuit)\\b",
+    "\\b(?:rms|root mean square)\\s+value\\b.{0,30}\\b(?:ac|alternating|current|voltage|emf)\\b|\\b(?:impedance|reactance|power factor|wattless current|lcr series circuit)\\b"
+      ],
+      "exclusions": [
+        "rms speed of gas molecules",
+        "earth's magnetic field"
+      ]
+    },
+    {
+      "unit_id": "physics|15",
+  "strong_phrases": [
+    "displacement current",
+    "displacement currents",
+    "displacement current in a capacitor",
+    "electromagnetic wave",
+    "electromagnetic waves",
+    "em wave",
+    "em waves",
+    "ampere-maxwell law",
+    "maxwell's generalization of ampere's circuital law",
+    "transverse nature of electromagnetic waves",
+    "electromagnetic spectrum"
+      ],
+      "supporting_phrases": [
+        "displacement current in a capacitor",
+        "alternating current through a capacitor",
+        "characteristics of electromagnetic waves",
+        "applications of electromagnetic waves",
+        "visible region of spectrum",
+        "speed of electromagnetic waves",
+    "maxwell electromagnetic wave",
+    "spectrum ordering",
+    "radio waves",
+    "microwaves",
+    "infrared radiation",
+    "ultraviolet radiation",
+    "x-rays",
+    "gamma rays"
+      ],
+      "patterns": [
+    "\\bdisplacement currents?\\b.{0,40}\\b(?:capacitor|dielectric|alternating current|ac|maxwell)\\b|\\bdisplacement currents?\\b",
+    "\\belectromagnetic spectrum\\b",
+    "\\bem waves?\\b|\\bampere[- ]maxwell law\\b|\\bmaxwell'?s generalization of ampere'?s circuital law\\b",
+    "\\b(?P<em_band>radio|micro|infrared|ultraviolet|x-ray|gamma)(?:\\s*waves?|\\s*radiation|waves?|s|\\s*rays?)?\\b.{0,160}\\b(?!(?P=em_band))(?:radio waves?|microwaves?|infrared(?: radiation)?|ultraviolet(?: radiation)?|x-rays?|gamma rays?)\\b",
+        "\\btransverse nature of electromagnetic waves\\b",
+        "\\belectromagnetic waves?\\b.{0,30}\\b(?:characteristics|applications)\\b"
+      ],
+  "exclusions": [
+    "young's double-slit experiment",
+    "photoelectric effect",
+    "communication system",
+    "carrier wave",
+    "modulation",
+    "ground wave",
+    "sky wave",
+    "space wave",
+    "antenna",
+    "paschen",
+    "lyman",
+    "balmer",
+    "hydrogen spectrum",
+    "x-ray tube",
+    "characteristic x-rays",
+    "characteristic spectrum",
+    "x-ray spectrum",
+    "k-alpha",
+    "kα",
+    "moseley"
+      ]
+    },
+    {
+      "unit_id": "physics|16",
+      "strong_phrases": [
+        "mirror formula",
+        "lens maker's formula",
+        "total internal reflection",
+        "power of a lens",
+        "combination of thin lenses",
+        "prism deviation",
+        "microscope",
+        "astronomical telescope",
+        "huygens' principle",
+        "huygens principle",
+        "young's double-slit experiment",
+        "single slit diffraction",
+        "resolving power",
+    "polarisation of light",
+    "brewster's law",
+    "brewster angle"
+      ],
+      "supporting_phrases": [
+        "spherical mirrors",
+        "thin lens formula",
+        "fringe width",
+        "coherent sources",
+        "central maximum",
+        "plane polarised light"
+      ],
+      "patterns": [
+        "\\bmirror formula\\b|\\blens maker'?s formula\\b",
+        "\\b(?:total internal reflection|power of a lens|combination of thin lenses|prism)\\b",
+        "\\bhuygens'? principle\\b|\\byoung'?s double[- ]slit experiment\\b",
+        "\\b(?:single slit diffraction|fringe width|resolving power|central maximum)\\b",
+        "\\b(?:polarisation|brewster'?s law|polaroids?|microscope|astronomical telescope)\\b"
+      ],
+      "exclusions": [
+        "de broglie wavelength",
+        "electromagnetic spectrum",
+        "travelling microscope"
+      ]
+    },
+    {
+      "unit_id": "physics|17",
+      "strong_phrases": [
+        "dual nature of radiation",
+        "photoelectric effect",
+        "hertz and lenard",
+        "einstein's photoelectric equation",
+        "particle nature of light",
+        "work function",
+        "threshold frequency",
+        "stopping potential",
+        "matter waves",
+        "de broglie relation"
+      ],
+      "supporting_phrases": [
+        "photoelectric current",
+        "cut-off potential",
+        "photons of light",
+        "wave nature of particle",
+        "photoelectric emission",
+        "de broglie wavelength"
+      ],
+      "patterns": [
+        "\\bphotoelectric effect\\b|\\bphotoelectric emission\\b",
+        "\\beinstein'?s photoelectric equation\\b",
+        "\\b(?:work function|threshold frequency|stopping potential|cut[- ]off potential)\\b",
+        "\\bde broglie\\b|\\bmatter waves?\\b",
+        "\\bdual nature of (?:matter|radiation)\\b"
+      ],
+      "exclusions": [
+        "hydrogen spectrum",
+        "zener diode",
+        "young's double-slit experiment"
+      ]
+    },
+    {
+      "unit_id": "physics|18",
+      "strong_phrases": [
+        "alpha-particle scattering",
+        "rutherford's model of atom",
+        "bohr model",
+    "hydrogen spectrum",
+    "energy levels of hydrogen atom",
+    "moseley's law",
+    "characteristic x-rays",
+    "k-alpha x-ray",
+        "composition of nucleus",
+        "mass defect",
+    "binding energy per nucleon",
+    "half life of",
+    "nuclear fission",
+        "nuclear fusion"
+      ],
+      "supporting_phrases": [
+        "radius of nucleus",
+        "atomic masses",
+        "mass-energy relation",
+        "balmer series",
+        "size of nucleus",
+        "variation of binding energy"
+      ],
+      "patterns": [
+        "\\balpha[- ]particle scattering\\b|\\brutherford'?s model\\b",
+        "\\bbohr(?:'s)? model\\b|\\bhydrogen spectrum\\b",
+        "\\b(?:mass defect|binding energy per nucleon)\\b",
+        "\\b(?:nuclear fission|nuclear fusion)\\b",
+        "\\b(?:nuclear radius|(?:radius|size|composition) of (?:a |the )?nucleus|nucleus of mass number)\\b"
+      ],
+      "exclusions": [
+        "photoelectric effect",
+        "semiconductor diode",
+        "logic gates"
+      ]
+    },
+    {
+      "unit_id": "physics|19",
+      "strong_phrases": [
+    "intrinsic semiconductor",
+    "intrinsic semiconductors",
+    "extrinsic semiconductor",
+    "extrinsic semiconductors",
+        "p-n junction diode",
+        "forward bias",
+        "reverse bias",
+        "diode as a rectifier",
+    "light emitting diode",
+    "photodiode",
+    "photo diode",
+    "photo diodes",
+    "photo-diode",
+    "photo-diodes",
+        "solar cell",
+        "zener diode",
+        "voltage regulator",
+    "logic gates",
+    "logic gate",
+    "common emitter amplifier",
+        "transistor amplifier"
+      ],
+      "supporting_phrases": [
+        "p-type semiconductor",
+        "n-type semiconductor",
+        "depletion region",
+        "reverse breakdown voltage",
+        "and or not nand nor",
+        "semiconductor device",
+        "common emitter configuration",
+        "current gain of transistor"
+      ],
+      "patterns": [
+    "\\b(?:intrinsic|extrinsic)\\s+semiconductors?\\b",
+    "\\b(?:energy bands?(?: diagrams?)?|conduction band|valence band|[pn][ -]?type semiconductors?|(?:forbidden (?:energy )?gap|band gap)\\b.{0,80}\\b(?:semiconductors?|insulators?|crystalline solids?|energy bands?|conduction band|valence band)\\b|\\b(?:semiconductors?|insulators?|crystalline solids?|energy bands?|conduction band|valence band)\\b.{0,80}(?:forbidden (?:energy )?gap|band gap))\\b",
+        "\\bp-?n junction\\b|\\bforward bias\\b|\\breverse bias\\b",
+    "\\b(?:rectifier|photo[- ]?diodes?|solar cell|light[- ]emitting diodes?)\\b|(?-i:\\bLEDs?\\b)",
+        "\\bzener diode\\b|\\bvoltage regulator\\b",
+    "\\b(?:logic gates?|and gate|or gate|not gate|nand gate|nor gate)\\b",
+        "\\bcommon emitter\\b.{0,30}\\b(?:amplifier|configuration|current gain|transistor)\\b|\\btransistor amplifier\\b"
+      ],
+      "exclusions": [
+        "characteristic curves of a transistor",
+        "study the characteristics of a transistor",
+        "input characteristic of a transistor",
+        "output characteristic of a transistor",
+        "identifying diode led transistor ic resistor capacitor",
+        "half-deflection method"
+      ]
+    },
+    {
+      "unit_id": "physics|20",
+      "strong_phrases": [
+        "vernier callipers",
+        "screw gauge",
+        "l-t^2 graph",
+        "principle of moments",
+        "young's modulus of the material of a wire",
+        "young's modulus of the material of a given wire",
+        "surface tension of water by capillary rise",
+        "half-deflection method",
+        "figure of merit of galvanometer",
+        "figure of merit of a moving coil galvanometer",
+        "resistance of a galvanometer",
+        "resistance of a moving coil galvanometer",
+        "resonance tube",
+        "travelling microscope",
+        "characteristic curves of a zener diode",
+        "characteristic curves of a transistor",
+        "mixed collection of components",
+        "identify logic gates"
+      ],
+      "supporting_phrases": [
+        "zero error correction",
+        "pitch and least count of screw gauge",
+        "capillary rise method",
+        "determine young's modulus of a wire",
+        "given wire",
+        "refractive index of a glass slab",
+        "reverse breakdown voltage",
+        "current gain of transistor by experiment",
+        "input and output characteristics"
+      ],
+      "patterns": [
+        "\\b(?:vernier callipers?|screw gauge|resonance tube|travelling microscope)\\b",
+        "\\b(?:determine|find|measure)\\b.{0,50}\\byoung'?s modulus\\b.{0,40}\\bwire\\b|\\byoung'?s modulus of the material of (?:a |a given |the given )?wire\\b|\\bsurface tension of water by capillary rise\\b|\\bcapillary rise method\\b",
+        "\\bhalf[- ]deflection method\\b|\\b(?:figure of merit|resistance) of (?:a )?(?:moving coil )?galvanometer\\b",
+        "\\b(?:l-t\\^?2 graph|distance and magnification)\\b",
+        "\\b(?:study|plot|draw|obtain|measure)\\b.{0,50}\\b(?:characteristic curves?|input characteristic|output characteristic|current gain)\\b.{0,30}\\b(?:transistor|common emitter|zener diode)\\b|\\bcharacteristic curves? of (?:a )?(?:zener diode|transistor)\\b",
+        "\\b(?:identify(?:ing)?|identification of)\\b.{0,60}\\b(?:diode|led|transistor|ic|resistor|capacitor|logic gates?)\\b"
+      ],
+      "exclusions": [
+        "dimensional analysis",
+        "coulomb's law",
+        "carnot engine",
+        "common emitter amplifier",
+        "conversion of galvanometer into ammeter"
+      ]
+    }
+  ]
+}
