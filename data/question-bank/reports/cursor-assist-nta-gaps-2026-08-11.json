@@ -1,0 +1,62 @@
+{
+  "schema_version": "cursor-assist-report/v1",
+  "generated_by": "cursor-agent",
+  "date": "2026-08-11",
+  "purpose": "Ranked NTA/JEE Main acquisition gaps for Codex decision-making. Read-only assist; does not edit importer or manifest.",
+  "sources": [
+    "data/question-bank/reports/nta-jee-main-coverage-2026-08-10.json",
+    "data/question-bank/manifest.jsonl"
+  ],
+  "current_manifest": {
+    "jee_main_documents_by_year": { "2026": 9 },
+    "note": "Local manifest currently holds only the nine linked 2026 Session-2 style papers."
+  },
+  "coverage_summary": {
+    "direct_question_paper_pdf_count": 9,
+    "years_with_direct_question_papers": [2026],
+    "historical_candidate_unique_count": 628,
+    "historical_raw_row_count": 1750,
+    "historical_unique_nonempty_paperfile_count": 873
+  },
+  "ranked_actions": [
+    {
+      "priority": 1,
+      "action": "finish_verified_historical_import_pipeline",
+      "why": "628 unique historical candidates already exist on the official endpoint inventory; importer + schedule-key verification is the bottleneck, not discovery.",
+      "owner": "codex",
+      "do_not": "Bulk-import all 628 paths without date/shift/header/hash agreement."
+    },
+    {
+      "priority": 2,
+      "action": "accept_or_chase_2026_session_1_gap",
+      "year": 2026,
+      "status": "session_gap",
+      "why": "Live official menu exposes Session 2 B.E./B.Tech papers only. Keep Session 1 as an explicit known gap unless an official Session 1 PDF appears.",
+      "recommendation": "accept_as_known_gap_for_now"
+    },
+    {
+      "priority": 3,
+      "action": "import_recent_years_first_after_schedule_keys",
+      "years_in_order": [2025, 2024, 2023, 2022, 2021, 2020, 2019],
+      "why": "Coverage report marks 2019–2025 as no_direct_official_question_paper_pdf_linked on the direct menu, while historical endpoint still has candidates. Prefer newest years first for tutor usefulness.",
+      "recommendation": "Import one verified English (or English-Hindi) render per real date/shift key; retain language variants in audit ledger only."
+    },
+    {
+      "priority": 4,
+      "action": "keep_ambiguous_and_excluded_rows_out_of_manifest",
+      "why": "Inventory already separates ambiguous/excluded/suspect metadata. Promoting those would create fake paper identity.",
+      "recommendation": "Leave in reports only until schedule + PDF probe agree."
+    }
+  ],
+  "year_gap_table": [
+    { "year": 2026, "status": "session_gap", "detail": "Session 2 present (9 direct PDFs in manifest); Session 1 missing on official menu" },
+    { "year": 2025, "status": "no_direct_official_question_paper_pdf_linked", "detail": "Use historical endpoint + schedule keys" },
+    { "year": 2024, "status": "no_direct_official_question_paper_pdf_linked", "detail": "Use historical endpoint + schedule keys" },
+    { "year": 2023, "status": "no_direct_official_question_paper_pdf_linked", "detail": "Use historical endpoint + schedule keys" },
+    { "year": 2022, "status": "no_direct_official_question_paper_pdf_linked", "detail": "Use historical endpoint + schedule keys" },
+    { "year": 2021, "status": "no_direct_official_question_paper_pdf_linked", "detail": "Use historical endpoint + schedule keys; watch suspect date conflicts" },
+    { "year": 2020, "status": "no_direct_official_question_paper_pdf_linked", "detail": "Use historical endpoint + schedule keys; verify Jan gaps against official answer-key schedules" },
+    { "year": 2019, "status": "no_direct_official_question_paper_pdf_linked", "detail": "Lowest tutor priority among listed years" }
+  ],
+  "collaboration_note": "Cursor will not edit import_nta_jee_main.py, nta_jee_main_sources.py, or manifest.jsonl. Codex owns acquisition; Cursor can refresh this ranking after the next coverage report."
+}
