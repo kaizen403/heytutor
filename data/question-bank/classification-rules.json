@@ -1,0 +1,588 @@
+{
+  "schema_version": "question-bank-classification-rules/v1",
+  "rules": [
+    {
+      "id": "mathematics-three-dimensional-geometry-skew-lines-shortest-distance",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Skew lines and shortest distance",
+      "difficulty": null,
+      "keywords_any": [
+        "skew lines",
+        "shortest distance between skew lines",
+        "shortest distance between the lines",
+        "shortest distance between two lines",
+        "common perpendicular",
+        "common perpendicular to the two lines"
+      ],
+      "keywords_all": [],
+      "priority": 300
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-direction-ratios-cosines",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Direction ratios and direction cosines",
+      "difficulty": null,
+      "keywords_any": [
+        "direction ratios",
+        "direction ratio",
+        "direction cosines",
+        "direction cosine",
+        "direction ratios of a line",
+        "direction cosines of a line"
+      ],
+      "keywords_all": [],
+      "priority": 290
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-coplanar-lines",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Intersection of a line and a plane; coplanar lines",
+      "difficulty": null,
+      "keywords_any": [
+        "coplanar lines",
+        "lines are coplanar",
+        "show that the lines are coplanar",
+        "are the lines coplanar",
+        "whether the lines are coplanar"
+      ],
+      "keywords_all": [],
+      "priority": 285
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-line-plane-intersection",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Intersection of a line and a plane; coplanar lines",
+      "difficulty": null,
+      "keywords_any": [
+        "intersection of the line and the plane",
+        "point of intersection of the line and the plane",
+        "point of intersection of the line and plane",
+        "line intersects the plane",
+        "line lies in the plane"
+      ],
+      "keywords_all": [],
+      "priority": 280
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-angle-between-lines",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Angle between two intersecting lines",
+      "difficulty": null,
+      "keywords_any": [
+        "angle between the lines",
+        "angle between two lines",
+        "acute angle between the lines",
+        "angle between the given lines"
+      ],
+      "keywords_all": [],
+      "priority": 270
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-line-equations",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Equations of a line in different forms",
+      "difficulty": null,
+      "keywords_any": [
+        "vector equation of the line",
+        "vector equation of the line passing through",
+        "cartesian equation of the line",
+        "cartesian equations of the line",
+        "symmetric equation of the line",
+        "line in symmetric form",
+        "equation of a line in space"
+      ],
+      "keywords_all": [],
+      "priority": 260
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-plane-line-of-intersection",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Equations of a plane in different forms",
+      "difficulty": null,
+      "keywords_any": [
+        "line of intersection"
+      ],
+      "keywords_all": [
+        "of the planes"
+      ],
+      "priority": 258
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-plane-line-of-intersection-two-planes",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Equations of a plane in different forms",
+      "difficulty": null,
+      "keywords_any": [
+        "line of intersection"
+      ],
+      "keywords_all": [
+        "two planes"
+      ],
+      "priority": 258
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-plane-line-of-intersection-given-planes",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Equations of a plane in different forms",
+      "difficulty": null,
+      "keywords_any": [
+        "line of intersection"
+      ],
+      "keywords_all": [
+        "given planes"
+      ],
+      "priority": 258
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-plane-containing-lines",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Equations of a plane in different forms",
+      "difficulty": null,
+      "keywords_any": [
+        "plane containing the lines",
+        "plane containing two lines",
+        "plane containing the two lines",
+        "plane containing both the lines",
+        "plane containing these lines",
+        "plane which contains the lines",
+        "plane that contains the lines",
+        "plane containing l1 and l2"
+      ],
+      "keywords_all": [],
+      "priority": 256
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-point-reflection-in-plane",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Distance of a point from a plane; reflection in a plane",
+      "difficulty": null,
+      "keywords_any": [
+        "image of the point",
+        "mirror image of the point",
+        "reflection of the point"
+      ],
+      "keywords_all": [
+        "in the plane"
+      ],
+      "priority": 254
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-point-reflection-with-respect-to-plane",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Distance of a point from a plane; reflection in a plane",
+      "difficulty": null,
+      "keywords_any": [
+        "image of the point",
+        "mirror image of the point",
+        "reflection of the point"
+      ],
+      "keywords_all": [
+        "with respect to the plane"
+      ],
+      "priority": 254
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-foot-perpendicular-to-plane",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Distance of a point from a plane; reflection in a plane",
+      "difficulty": null,
+      "keywords_any": [
+        "foot of the perpendicular",
+        "foot of perpendicular"
+      ],
+      "keywords_all": [
+        "to the plane"
+      ],
+      "priority": 252
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-plane-equations",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Equations of a plane in different forms",
+      "difficulty": null,
+      "keywords_any": [
+        "equation of the plane",
+        "equation of the plane passing through",
+        "plane in intercept form",
+        "normal form of the plane",
+        "vector equation of the plane",
+        "vector equation of the plane passing through",
+        "cartesian equation of the plane",
+        "plane passing through the intersection of the planes",
+        "distance of the plane from the origin"
+      ],
+      "keywords_all": [],
+      "priority": 250
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-section-formula",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Section formula",
+      "difficulty": null,
+      "keywords_any": [
+        "section formula",
+        "divides the line segment joining",
+        "divides the join of",
+        "internally in the ratio",
+        "externally in the ratio"
+      ],
+      "keywords_all": [
+        "space"
+      ],
+      "priority": 240
+    },
+    {
+      "id": "mathematics-three-dimensional-geometry-point-coordinates-distance",
+      "subject": "Mathematics",
+      "topic": "Three-Dimensional Geometry",
+      "subtopic": "Coordinates of a point in space; distance between two points",
+      "difficulty": null,
+      "keywords_any": [
+        "point in space",
+        "coordinates of a point in space",
+        "distance between two points in space",
+        "distance between points in space",
+        "3-dimensional coordinates"
+      ],
+      "keywords_all": [],
+      "priority": 230
+    },
+    {
+      "id": "physics-electromagnetic-induction-ac-transformer",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Transformer",
+      "difficulty": null,
+      "keywords_any": [
+        "transformer",
+        "step-up transformer",
+        "step-down transformer",
+        "ideal transformer",
+        "primary and secondary coils",
+        "turns ratio",
+        "laminated core",
+        "efficiency of the transformer",
+        "losses in a real transformer"
+      ],
+      "keywords_all": [],
+      "priority": 320
+    },
+    {
+      "id": "physics-electromagnetic-induction-ac-generator",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "AC generator",
+      "difficulty": null,
+      "keywords_any": [
+        "ac generator",
+        "a.c. generator",
+        "alternator",
+        "rotating coil generator",
+        "slip rings"
+      ],
+      "keywords_all": [],
+      "priority": 310
+    },
+    {
+      "id": "physics-electromagnetic-induction-ac-power-wattless-current",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Power in AC circuits; wattless current",
+      "difficulty": null,
+      "keywords_any": [
+        "wattless current",
+        "power factor",
+        "power factor of an ac circuit",
+        "average power",
+        "average power consumed by the circuit",
+        "true power",
+        "power consumed in ac circuit",
+        "purely inductive circuit",
+        "purely resistive circuit"
+      ],
+      "keywords_all": [],
+      "priority": 300
+    },
+    {
+      "id": "physics-electromagnetic-induction-ac-resonance",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Resonance in AC circuits",
+      "difficulty": null,
+      "keywords_any": [
+        "resonance in lcr circuit",
+        "resonance in a series lcr circuit",
+        "series resonance",
+        "electrical resonance"
+      ],
+      "keywords_all": [],
+      "priority": 295
+    },
+    {
+      "id": "physics-electromagnetic-induction-ac-resonance-circuit-context",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Resonance in AC circuits",
+      "difficulty": null,
+      "keywords_any": [
+        "resonant frequency",
+        "condition for resonance",
+        "at resonance",
+        "before and after the resonance"
+      ],
+      "keywords_all": [
+        "circuit"
+      ],
+      "priority": 294
+    },
+    {
+      "id": "physics-electromagnetic-induction-ac-lcr-series-circuit",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "LCR series circuit",
+      "difficulty": null,
+      "keywords_any": [
+        "lcr series circuit",
+        "rlc series circuit",
+        "series lcr circuit",
+        "series rlc circuit",
+        "series lc circuit",
+        "series lc circuit connected to an ac source"
+      ],
+      "keywords_all": [],
+      "priority": 290
+    },
+    {
+      "id": "physics-electromagnetic-induction-ac-reactance-impedance",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Reactance and impedance",
+      "difficulty": null,
+      "keywords_any": [
+        "reactance",
+        "impedance",
+        "inductive reactance",
+        "capacitive reactance",
+        "net reactance",
+        "reactance of the capacitor",
+        "reactance of the inductor",
+        "impedance of a series lcr circuit",
+        "phasor diagram"
+      ],
+      "keywords_all": [],
+      "priority": 285
+    },
+    {
+      "id": "physics-electromagnetic-induction-ac-rms-peak-values",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Peak and RMS values of AC voltage and current",
+      "difficulty": null,
+      "keywords_any": [
+        "rms value",
+        "root mean square value",
+        "peak value",
+        "maximum value"
+      ],
+      "keywords_all": [
+        "alternating current"
+      ],
+      "priority": 280
+    },
+    {
+      "id": "physics-electromagnetic-induction-ac-rms-peak-voltage-context",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Peak and RMS values of AC voltage and current",
+      "difficulty": null,
+      "keywords_any": [
+        "rms value",
+        "root mean square value",
+        "peak value",
+        "maximum value"
+      ],
+      "keywords_all": [
+        "alternating voltage"
+      ],
+      "priority": 280
+    },
+    {
+      "id": "physics-electromagnetic-induction-ac-rms-peak-qualified-values",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Peak and RMS values of AC voltage and current",
+      "difficulty": null,
+      "keywords_any": [
+        "rms current",
+        "rms voltage",
+        "root mean square current",
+        "root mean square voltage",
+        "peak current",
+        "peak voltage",
+        "rms value of ac current",
+        "rms value of ac voltage",
+        "root mean square value of ac current",
+        "root mean square value of ac voltage",
+        "mean value of alternating current",
+        "peak and rms values of alternating current",
+        "ratio of maximum value to rms value of alternating current"
+      ],
+      "keywords_all": [],
+      "priority": 279
+    },
+    {
+      "id": "physics-electromagnetic-induction-eddy-currents",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Eddy currents",
+      "difficulty": null,
+      "keywords_any": [
+        "eddy current",
+        "eddy currents",
+        "foucault current",
+        "foucault currents"
+      ],
+      "keywords_all": [],
+      "priority": 275
+    },
+    {
+      "id": "physics-electromagnetic-induction-self-inductance",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Self inductance",
+      "difficulty": null,
+      "keywords_any": [
+        "self inductance",
+        "self-inductance",
+        "coefficient of self inductance",
+        "coefficient of self-induction",
+        "self-induced emf",
+        "self induction",
+        "self-inductance of a coil"
+      ],
+      "keywords_all": [],
+      "priority": 270
+    },
+    {
+      "id": "physics-electromagnetic-induction-mutual-inductance",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Mutual inductance",
+      "difficulty": null,
+      "keywords_any": [
+        "mutual inductance",
+        "mutual inductance between",
+        "coefficient of mutual inductance",
+        "mutual induction",
+        "induced emf in the secondary",
+        "coaxial solenoids"
+      ],
+      "keywords_all": [],
+      "priority": 265
+    },
+    {
+      "id": "physics-electromagnetic-induction-lenz-law",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Induced current; Lenz's law",
+      "difficulty": null,
+      "keywords_any": [
+        "lenz's law",
+        "lenz’s law",
+        "lenzs law",
+        "state lenz’s law",
+        "direction of induced current",
+        "polarity of induced emf"
+      ],
+      "keywords_all": [],
+      "priority": 260
+    },
+    {
+      "id": "physics-electromagnetic-induction-loop-reverse-induced-phrasing",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Electromagnetic induction; Faraday's law; induced EMF",
+      "difficulty": null,
+      "keywords_any": [
+        "emf induced",
+        "e.m.f. induced",
+        "current induced",
+        "emf is induced",
+        "e.m.f. is induced",
+        "current is induced"
+      ],
+      "keywords_all": [
+        "in the loop"
+      ],
+      "priority": 255
+    },
+    {
+      "id": "physics-electromagnetic-induction-conducting-loop",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Electromagnetic induction; Faraday's law; induced EMF",
+      "difficulty": null,
+      "keywords_any": [
+        "induced current",
+        "induced emf",
+        "induced e.m.f."
+      ],
+      "keywords_all": [
+        "conducting loop"
+      ],
+      "priority": 254
+    },
+    {
+      "id": "physics-electromagnetic-induction-faraday-law-induced-emf",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Electromagnetic induction; Faraday's law; induced EMF",
+      "difficulty": null,
+      "keywords_any": [
+        "faraday's law",
+        "faraday’s law",
+        "faradays law",
+        "state faraday’s law of electromagnetic induction",
+        "electromagnetic induction",
+        "induced emf",
+        "induced e.m.f.",
+        "motional emf",
+        "change in magnetic flux"
+      ],
+      "keywords_all": [],
+      "priority": 250
+    },
+    {
+      "id": "physics-electromagnetic-induction-alternating-current-source",
+      "subject": "Physics",
+      "topic": "Electromagnetic Induction and Alternating Currents",
+      "subtopic": "Alternating current and voltage",
+      "difficulty": null,
+      "keywords_any": [
+        "alternating current",
+        "alternating voltage",
+        "ac source",
+        "a.c. source",
+        "ac voltage source",
+        "a.c. voltage source"
+      ],
+      "keywords_all": [],
+      "priority": 245
+    }
+  ]
+}
