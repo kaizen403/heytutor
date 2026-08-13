@@ -1,0 +1,36 @@
+{
+  "schema_version": "cursor-assist-report/v1",
+  "generated_by": "cursor-agent",
+  "date": "2026-08-13",
+  "purpose": "Resume Codex question-bank work after credits ran out. Codex last ran 2026-08-11 04:27 IST.",
+  "codex_last_intent": [
+    "Freeze Cursor JEE Advanced parser and tests",
+    "Re-extract JEE Advanced into the canonical question corpus",
+    "OCR image-backed NTA papers (47 existing + newly imported 2022/2023)",
+    "Keep question-syllabus.jsonl untouched until NTA OCR and extract finish",
+    "Then one final sidecar/sqlite rebuild"
+  ],
+  "codex_had_finished": [
+    "Imported 17 verified NTA papers: 13x 2022 Session 1 (Jun 24-30) and 4x 2023 April",
+    "Manifest JEE Main count 47 -> 64",
+    "Added 2022 Q: image-export detector and OCR improvement gate in stage_pdf_text.py",
+    "Added historical schedule fallbacks in nta_jee_main_acquisition.py",
+    "Physics phrases magnetic field due to / electric potential at / half life of already in syllabus-rules-physics.json",
+    "Set up nta-ocr-batch-2026-08-11 partition dirs but wrote no OCR text"
+  ],
+  "cursor_completed_on_resume": [
+    "Re-extracted 40 JEE Advanced papers into build/questions.all.jsonl: 2020 -> 2122 unique questions, 0 grouped ranges, 0 blocking issues",
+    "Fixed NTA Q: header regex so OCR page-start headers after form feed still count; 2022 smoke OCR is 90/90 substantive vs 0 native stems"
+  ],
+  "in_progress": "OCR of the 13 imported 2022 Session 1 papers into data/question-bank/text/",
+  "still_todo": [
+    "OCR 2021 (11 papers, 669 pages), 2023 (4 papers, 457 pages), 2024 (13 papers, 1474 pages), 2025 (14 papers, 953 pages)",
+    "Extract OCR'd NTA papers into questions.all.jsonl",
+    "Final sidecar rebuild of question-syllabus.jsonl using live Math+Physics rules",
+    "Remaining acquisition gaps: 2019-2020, 2022 Session 2, rest of 2023, 2026 Session 1"
+  ],
+  "do_not": [
+    "Rebuild question-syllabus.jsonl until NTA OCR+extract for the current 64 JEE Main docs is done",
+    "Revert Cursor JEE parser tests or Math phrase rules"
+  ]
+}
