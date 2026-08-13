@@ -1,0 +1,15 @@
+{
+  "document_statuses": {
+    "extracted": 474
+  },
+  "documents": 474,
+  "generated_at": "2026-08-10T00:07:55.451660Z",
+  "manifest": "data/question-bank/manifest.jsonl",
+  "operation": "validate",
+  "question_statuses": {
+    "classified": 783
+  },
+  "questions": 783,
+  "questions_file": "data/question-bank/build/questions.target.jsonl",
+  "source_references": 909
+}
