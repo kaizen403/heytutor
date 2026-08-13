@@ -1,0 +1,39 @@
+{
+  "failures": [
+    {
+      "document_id": "jee-main-2022-06-24-shift-1",
+      "error": "NTA OCR lost question-number coverage: 86 < 90"
+    },
+    {
+      "document_id": "jee-main-2022-06-25-shift-1",
+      "error": "NTA OCR lost question-number coverage: 84 < 90"
+    },
+    {
+      "document_id": "jee-main-2022-06-26-shift-1",
+      "error": "NTA OCR lost question-number coverage: 84 < 90"
+    },
+    {
+      "document_id": "jee-main-2022-06-27-shift-1",
+      "error": "NTA OCR lost question-number coverage: 87 < 90"
+    },
+    {
+      "document_id": "jee-main-2022-06-28-shift-2",
+      "error": "NTA OCR lost question-number coverage: 81 < 90"
+    },
+    {
+      "document_id": "jee-main-2022-06-29-shift-1",
+      "error": "NTA OCR lost question-number coverage: 87 < 90"
+    },
+    {
+      "document_id": "jee-main-2022-06-30-shift-1",
+      "error": "NTA OCR lost question-number coverage: 84 < 90"
+    }
+  ],
+  "methods": {
+    "tesseract-ocr-eng-fast-v1": 6
+  },
+  "operation": "stage-pdf-text",
+  "reused": 0,
+  "selected_documents": 13,
+  "written": 6
+}
