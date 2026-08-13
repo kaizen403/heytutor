@@ -1,0 +1,3143 @@
+{
+  "candidate_pairs": 238,
+  "generated_at": "2026-08-10T00:06:41.686799Z",
+  "limit": 1000,
+  "minimum_similarity": 0.94,
+  "operation": "near-duplicates",
+  "pairs": [
+    {
+      "left_document_ids": [
+        "cbse-2025-main-physics-55-2-2-physics-ebb68952ca"
+      ],
+      "left_question_id": "q_161597a9a716a79ae305b680205e2dfb1b510a2e2c54a5cbe89b92d75b7926d6",
+      "right_document_ids": [
+        "cbse-2025-main-physics-55-2-3-physics-12a4b220af"
+      ],
+      "right_question_id": "q_fdfa65fc9a64d59d7ae2ec6322dedc102d72bb4f2f008b5d8fe2dc194fca517e",
+      "sequence_ratio": 0.997118,
+      "shingle_jaccard": 1.0,
+      "similarity": 1.0
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-bhubaneshwar-set-1",
+        "cbse-2015-main-physics-bhubaneshwar-set-3"
+      ],
+      "left_question_id": "q_44df1f37d175d63ad4b4f61801c7817cca0a4c1cae51a181ce88b2899f4d15bb",
+      "right_document_ids": [
+        "cbse-2015-main-physics-bhubaneshwar-set-2"
+      ],
+      "right_question_id": "q_aa14c8057069e5486d8e4567717b8bd45c723965f286f62682c9583ddf8bff1a",
+      "sequence_ratio": 0.999106,
+      "shingle_jaccard": 1.0,
+      "similarity": 1.0
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-main-physics-archive-55-3-physics-e4fc77b8fd"
+      ],
+      "left_question_id": "q_7331ddd85e8b892b9f4b9e0d649cb6641f4c5754c0a8ec9076b9f4d7ded95d57",
+      "right_document_ids": [
+        "cbse-2018-main-physics-archive-55-1-physics-5cb1b3225e"
+      ],
+      "right_question_id": "q_e7361b2ec21d16749e4d3e48de3dee288c91177e13d36e5f51529cf13b04c693",
+      "sequence_ratio": 0.999052,
+      "shingle_jaccard": 1.0,
+      "similarity": 1.0
+    },
+    {
+      "left_document_ids": [
+        "cbse-2023-main-mathematics-65-4-1-mathematics-e5f463e645"
+      ],
+      "left_question_id": "q_a81de4341c79f55b632d0ad2c21f59257b2defb2a2b4fcf252caf31fcb2a8880",
+      "right_document_ids": [
+        "cbse-2023-main-mathematics-65-4-2-mathematics-1d28e12a1d"
+      ],
+      "right_question_id": "q_d699a67b3b2e27be1b5a486c17fb0a91740670cf12ba700e95f62daaf74831d6",
+      "sequence_ratio": 0.997015,
+      "shingle_jaccard": 1.0,
+      "similarity": 1.0
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-main-physics-archive-55-3-physics-e4fc77b8fd"
+      ],
+      "left_question_id": "q_43ba6ae97403e28a0bfe0fb49b69066b6ffd812167e112ab4e562bd16daeb4e3",
+      "right_document_ids": [
+        "cbse-2018-main-physics-archive-55-2-physics-06a9820efa"
+      ],
+      "right_question_id": "q_5eb183f17b119347e6073f9f0f6ef109c7d587f8c28b6b6d857fc8afe0749f1e",
+      "sequence_ratio": 0.999465,
+      "shingle_jaccard": 0.988701,
+      "similarity": 0.999465
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-main-physics-archive-55-3-physics-e4fc77b8fd"
+      ],
+      "left_question_id": "q_43ba6ae97403e28a0bfe0fb49b69066b6ffd812167e112ab4e562bd16daeb4e3",
+      "right_document_ids": [
+        "cbse-2018-main-physics-archive-55-1-physics-5cb1b3225e"
+      ],
+      "right_question_id": "q_a1c4f1dc2d2088995b66c8d8d5b3c603fbc553db2fb56939cd5df158954d2b43",
+      "sequence_ratio": 0.999465,
+      "shingle_jaccard": 0.988701,
+      "similarity": 0.999465
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-main-physics-archive-55-2-physics-06a9820efa"
+      ],
+      "left_question_id": "q_5eb183f17b119347e6073f9f0f6ef109c7d587f8c28b6b6d857fc8afe0749f1e",
+      "right_document_ids": [
+        "cbse-2018-main-physics-archive-55-1-physics-5cb1b3225e"
+      ],
+      "right_question_id": "q_a1c4f1dc2d2088995b66c8d8d5b3c603fbc553db2fb56939cd5df158954d2b43",
+      "sequence_ratio": 0.999465,
+      "shingle_jaccard": 0.988701,
+      "similarity": 0.999465
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-uttarakhand-set-3"
+      ],
+      "left_question_id": "q_043869cafeaea8510243403e8370cba982eff20d26fe251fa0973b2c41c2a943",
+      "right_document_ids": [
+        "cbse-2015-main-physics-uttarakhand-set-1"
+      ],
+      "right_question_id": "q_13d5d2e94c853c9a04d57763b8ce1842c4f96159eec400476b65eb043e5e5539",
+      "sequence_ratio": 0.999312,
+      "shingle_jaccard": 0.988072,
+      "similarity": 0.999312
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-uttarakhand-set-3"
+      ],
+      "left_question_id": "q_043869cafeaea8510243403e8370cba982eff20d26fe251fa0973b2c41c2a943",
+      "right_document_ids": [
+        "cbse-2015-main-physics-uttarakhand-set-2"
+      ],
+      "right_question_id": "q_8a31d6a1c6c1daec9b02c2bca2a8fccc7a8eefa49107ab7944cba291ed8d5176",
+      "sequence_ratio": 0.999312,
+      "shingle_jaccard": 0.988072,
+      "similarity": 0.999312
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-uttarakhand-set-1"
+      ],
+      "left_question_id": "q_13d5d2e94c853c9a04d57763b8ce1842c4f96159eec400476b65eb043e5e5539",
+      "right_document_ids": [
+        "cbse-2015-main-physics-uttarakhand-set-2"
+      ],
+      "right_question_id": "q_8a31d6a1c6c1daec9b02c2bca2a8fccc7a8eefa49107ab7944cba291ed8d5176",
+      "sequence_ratio": 0.999312,
+      "shingle_jaccard": 0.988072,
+      "similarity": 0.999312
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-e-physics-theory-79b61aff8b"
+      ],
+      "left_question_id": "q_3c3f18f4acc8ef39875720f78bc6afb84ddbd296aa582405bd50cbfc70fe27e1",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-e-physics-theory-6f818b7ab1"
+      ],
+      "right_question_id": "q_6d05adcfa77d1224999e1564ab504b9b528333e12b9390600b65c770e446e713",
+      "sequence_ratio": 0.99926,
+      "shingle_jaccard": 0.985149,
+      "similarity": 0.99926
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-delhi-set-1"
+      ],
+      "left_question_id": "q_11a813ebab1e9607bfa8c61e34edaf1947b12490639a283546a0201c6ad0f2a5",
+      "right_document_ids": [
+        "cbse-2015-main-physics-delhi-set-3"
+      ],
+      "right_question_id": "q_621112b37c75e5ad290de7e4c98b97b591caeffab00cfd100bef546623aae84d",
+      "sequence_ratio": 0.99924,
+      "shingle_jaccard": 0.985526,
+      "similarity": 0.99924
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-1"
+      ],
+      "left_question_id": "q_0aef959aa4bead085275fbc0ba4dcd71ac4519ea8202409f42199f044cdfef5a",
+      "right_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-2"
+      ],
+      "right_question_id": "q_52ba4aa51aa3ee5bd3462afebf24ba10f29affbd9c3b7bf3524c9e3dbd3f151b",
+      "sequence_ratio": 0.999153,
+      "shingle_jaccard": 0.984169,
+      "similarity": 0.999153
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-1"
+      ],
+      "left_question_id": "q_0aef959aa4bead085275fbc0ba4dcd71ac4519ea8202409f42199f044cdfef5a",
+      "right_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-3"
+      ],
+      "right_question_id": "q_aadc7718df2bce88ab4e1d26c0f46555cc9b4d9abb3461011c0fe9b075673751",
+      "sequence_ratio": 0.999153,
+      "shingle_jaccard": 0.984169,
+      "similarity": 0.999153
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-2"
+      ],
+      "left_question_id": "q_52ba4aa51aa3ee5bd3462afebf24ba10f29affbd9c3b7bf3524c9e3dbd3f151b",
+      "right_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-3"
+      ],
+      "right_question_id": "q_aadc7718df2bce88ab4e1d26c0f46555cc9b4d9abb3461011c0fe9b075673751",
+      "sequence_ratio": 0.999153,
+      "shingle_jaccard": 0.984169,
+      "similarity": 0.999153
+    },
+    {
+      "left_document_ids": [
+        "cbse-2024-compartment-physics-55-s-3-physics-4f18ae6091"
+      ],
+      "left_question_id": "q_44d1ce1584a3def53b7d4dd94e723dd8a25c313101d791c74fe4c7f6d083ba21",
+      "right_document_ids": [
+        "cbse-2024-compartment-physics-55-s-2-physics-a48c944900"
+      ],
+      "right_question_id": "q_6bb2b7947ed05e3ac32e1ff4403af5fe846ad0c2f0eba0c561d22c9883d49fa3",
+      "sequence_ratio": 0.998998,
+      "shingle_jaccard": 0.973684,
+      "similarity": 0.998998
+    },
+    {
+      "left_document_ids": [
+        "cbse-2024-main-physics-55-5-3-physics-3bafde3b31"
+      ],
+      "left_question_id": "q_e48cd8758fb6ccc8b3c76a3d7a5f97ad3a3132dfb948991054be6b3b1814076b",
+      "right_document_ids": [
+        "cbse-2024-main-physics-55-5-2-physics-141e13b6fe"
+      ],
+      "right_question_id": "q_fb0f20139729b6250b135e5f07a843ba14137ccf2913b6f34daea87c28fb8fdf",
+      "sequence_ratio": 0.99897,
+      "shingle_jaccard": 0.954545,
+      "similarity": 0.99897
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-3"
+      ],
+      "left_question_id": "q_4d9450ddd635905910407cdac6d36b82e47a2facffd020f4fa56f2d7c14cfaed",
+      "right_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-1",
+        "cbse-2015-main-physics-chandigarh-set-2"
+      ],
+      "right_question_id": "q_765119635ca97572b5b6d431b5cf1155a2e49bd2d1dfa511b79918687eaa1782",
+      "sequence_ratio": 0.998917,
+      "shingle_jaccard": 0.997245,
+      "similarity": 0.998917
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-physics-foreign-55-2-2-physics-647bf95353"
+      ],
+      "left_question_id": "q_38dc91be3c63f4eac823a4522e25ff73215feb11e791c7ab6c0a7b7e2aebf90d",
+      "right_document_ids": [
+        "cbse-2017-main-physics-foreign-55-2-3-physics-58357f03ef"
+      ],
+      "right_question_id": "q_9f39bf02945a34f88c19e38a9ce0071cd319874793769213f528e3412a1552c3",
+      "sequence_ratio": 0.998848,
+      "shingle_jaccard": 0.984906,
+      "similarity": 0.998848
+    },
+    {
+      "left_document_ids": [
+        "cbse-2025-compartment-physics-55-s-2-physics-51a4afec59"
+      ],
+      "left_question_id": "q_834d4d97bf60d9dd74709738094a62c279904c54f52bd7c62b62fff95d69f959",
+      "right_document_ids": [
+        "cbse-2025-compartment-physics-55-s-1-physics-d84876d49b"
+      ],
+      "right_question_id": "q_c9d28a55f2433d00353581ce1031de9b0a0fc5ed79912d64aaed5773db796412",
+      "sequence_ratio": 0.998833,
+      "shingle_jaccard": 0.969543,
+      "similarity": 0.998833
+    },
+    {
+      "left_document_ids": [
+        "cbse-2024-main-physics-55-1-3-physics-df0385fb4e"
+      ],
+      "left_question_id": "q_a619f01dc15b8852956bba89871e7a942bb97f4a952fa37b8b71916126723ede",
+      "right_document_ids": [
+        "cbse-2024-main-physics-55-1-1-physics-dd6bbd6b37"
+      ],
+      "right_question_id": "q_a96ff9110eccd05ab21264837650b7460e5fd5378ca3704bb3d6a2d6637ee60d",
+      "sequence_ratio": 0.998734,
+      "shingle_jaccard": 0.972441,
+      "similarity": 0.998734
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-patna-set-2"
+      ],
+      "left_question_id": "q_1251159d500620216e7d131f212d16a947b37e233795d345b298c8b624c176bc",
+      "right_document_ids": [
+        "cbse-2015-main-physics-patna-set-3"
+      ],
+      "right_question_id": "q_a12cde1fffa71214525d940433efca1784129a1421d210f49023821f373c07bc",
+      "sequence_ratio": 0.998361,
+      "shingle_jaccard": 0.969925,
+      "similarity": 0.998361
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-physics-archive-55-5-3-physics-22cfb1cf73"
+      ],
+      "left_question_id": "q_af9cbe25a15edbb81f24c96c418781a9433fc6d68c7168051e5a5a13474b9edc",
+      "right_document_ids": [
+        "cbse-2020-main-physics-archive-55-5-1-physics-879eea98f8"
+      ],
+      "right_question_id": "q_b81e37ef33d78de9f4c5f5012836299d5a545fdfd5b3054ad307b016e24fd4f9",
+      "sequence_ratio": 0.998203,
+      "shingle_jaccard": 0.96063,
+      "similarity": 0.998203
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-main-physics-archive-55-3-physics-e4fc77b8fd"
+      ],
+      "left_question_id": "q_3b1d434ec80d664eb60295a72e44ecce302ebbb7c0b55ec3c64388fd016d4fbb",
+      "right_document_ids": [
+        "cbse-2018-main-physics-archive-55-1-physics-5cb1b3225e"
+      ],
+      "right_question_id": "q_db958f789da25a1a882f25928ffe1c2ebec4a09c5ea386b5d5b4eab5bb007141",
+      "sequence_ratio": 0.99815,
+      "shingle_jaccard": 0.97349,
+      "similarity": 0.99815
+    },
+    {
+      "left_document_ids": [
+        "cbse-2025-compartment-physics-55-s-3-physics-f49515191f"
+      ],
+      "left_question_id": "q_454fd48e067b1f466b9fce9ec11c3fc3f2636f45484ff61be13fa251f9b43913",
+      "right_document_ids": [
+        "cbse-2025-compartment-physics-55-s-2-physics-51a4afec59"
+      ],
+      "right_question_id": "q_af7ea2f54b47d3d3a7eed5bbfae0326d054d162a3cc8511e53ba6a0be3fd2f16",
+      "sequence_ratio": 0.998084,
+      "shingle_jaccard": 0.969072,
+      "similarity": 0.998084
+    },
+    {
+      "left_document_ids": [
+        "cbse-2024-compartment-physics-55-s-3-physics-4f18ae6091"
+      ],
+      "left_question_id": "q_44d1ce1584a3def53b7d4dd94e723dd8a25c313101d791c74fe4c7f6d083ba21",
+      "right_document_ids": [
+        "cbse-2024-compartment-physics-55-s-1-physics-9925ba37fc"
+      ],
+      "right_question_id": "q_a8874a4846a338e5ec08f99f179bf87d490130721c4b2ca972ea42e72e6136ec",
+      "sequence_ratio": 0.997996,
+      "shingle_jaccard": 0.965066,
+      "similarity": 0.997996
+    },
+    {
+      "left_document_ids": [
+        "cbse-2024-compartment-physics-55-s-2-physics-a48c944900"
+      ],
+      "left_question_id": "q_6bb2b7947ed05e3ac32e1ff4403af5fe846ad0c2f0eba0c561d22c9883d49fa3",
+      "right_document_ids": [
+        "cbse-2024-compartment-physics-55-s-1-physics-9925ba37fc"
+      ],
+      "right_question_id": "q_a8874a4846a338e5ec08f99f179bf87d490130721c4b2ca972ea42e72e6136ec",
+      "sequence_ratio": 0.997996,
+      "shingle_jaccard": 0.965066,
+      "similarity": 0.997996
+    },
+    {
+      "left_document_ids": [
+        "cbse-2025-main-physics-55-6-1-physics-f0fb3ba795"
+      ],
+      "left_question_id": "q_34e0caf45ab627acc090fa24312382ed75f57cca439241486fb9845f02c2344b",
+      "right_document_ids": [
+        "cbse-2025-main-physics-55-6-2-physics-8ecaaf4d34"
+      ],
+      "right_question_id": "q_9dd0bc2e3806ebc5427521620296b9eb4d59fe9a30f7078bc87ebffbfc2b8cd2",
+      "sequence_ratio": 0.997818,
+      "shingle_jaccard": 0.968553,
+      "similarity": 0.997818
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-physics-all-india-scheme-55-2-physics-b20badec21"
+      ],
+      "left_question_id": "q_0dc354f08c4d1a788f2b75ce354b4f69ce031c5a2d277f44ff91ad06a53db3dd",
+      "right_document_ids": [
+        "cbse-2017-main-physics-all-india-scheme-55-1-physics-671ca47430"
+      ],
+      "right_question_id": "q_27e8881a5f622cea4167238d458180e84cfebc54aa2c7f33c5185e85a07b6b39",
+      "sequence_ratio": 0.997732,
+      "shingle_jaccard": 0.981132,
+      "similarity": 0.997732
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-physics-archive-55-5-3-physics-22cfb1cf73"
+      ],
+      "left_question_id": "q_6754bd09a77447c7a31101d71f1d0108aabaca70502f79ae5154df9090981187",
+      "right_document_ids": [
+        "cbse-2020-main-physics-archive-55-5-1-physics-879eea98f8"
+      ],
+      "right_question_id": "q_f80aeb670b42d0fff41001168dae7b22781ecaa1b767d01e6a869473ccefddda",
+      "sequence_ratio": 0.997297,
+      "shingle_jaccard": 0.932584,
+      "similarity": 0.997297
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-bhubaneshwar-set-3"
+      ],
+      "left_question_id": "q_8f5b29b9c8ed1b63d8c38748ed0779565fa66e748a81fcb9742b75f758d1ebba",
+      "right_document_ids": [
+        "cbse-2015-main-physics-bhubaneshwar-set-2"
+      ],
+      "right_question_id": "q_c12cef6398150d9022f6319cfcd2ddc93824470552e45da216a4adaddd8fdc75",
+      "sequence_ratio": 0.997226,
+      "shingle_jaccard": 0.969646,
+      "similarity": 0.997226
+    },
+    {
+      "left_document_ids": [
+        "cbse-2023-main-mathematics-65-4-1-mathematics-e5f463e645"
+      ],
+      "left_question_id": "q_14adb02bad122fd00eda6cfb6e49b506a5f4d4efccb36f83f6995c28afc06053",
+      "right_document_ids": [
+        "cbse-2023-main-mathematics-65-4-3-mathematics-6ac95ad6d1"
+      ],
+      "right_question_id": "q_c8e4882b18347d6d5c72f24238f74b8f891a650d3bddf81c12c7c7135e87939f",
+      "sequence_ratio": 0.997118,
+      "shingle_jaccard": 0.942308,
+      "similarity": 0.997118
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-patna-set-3"
+      ],
+      "left_question_id": "q_67cfa2f1e1c6f60eb7b925a44e24fbcc2406895634192d901a93f8fe21bbfc65",
+      "right_document_ids": [
+        "cbse-2015-main-physics-patna-set-2"
+      ],
+      "right_question_id": "q_d7666ddd29da51bbad46e1681be7c4ff7fdaf36ae02ef39df51a43d3f1019141",
+      "sequence_ratio": 0.996919,
+      "shingle_jaccard": 0.970909,
+      "similarity": 0.996919
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-guwahati-set-2"
+      ],
+      "left_question_id": "q_40b454e874f78faf34965e9790a0fd826346a78e9918e9e8588da890df6065bf",
+      "right_document_ids": [
+        "cbse-2015-main-physics-guwahati-set-1"
+      ],
+      "right_question_id": "q_512dc900ef8039310a3bf3951b5a999ce53a28fa5ce76e808e97191c85aa6a4f",
+      "sequence_ratio": 0.996743,
+      "shingle_jaccard": 0.973485,
+      "similarity": 0.996743
+    },
+    {
+      "left_document_ids": [
+        "cbse-2024-main-physics-55-3-3-physics-97e20418df"
+      ],
+      "left_question_id": "q_32b6a946b944abc3aa81e5ef69679ccd8681a5979732327c31b47ca146dbae52",
+      "right_document_ids": [
+        "cbse-2024-main-physics-55-3-2-physics-d7923fc4fe"
+      ],
+      "right_question_id": "q_bcd2d028aa0051da12999a582fe88e924dc84f1ddfa3160495f85eb488dbf1f5",
+      "sequence_ratio": 0.996656,
+      "shingle_jaccard": 0.922078,
+      "similarity": 0.996656
+    },
+    {
+      "left_document_ids": [
+        "cbse-2025-main-physics-55-5-1-physics-ab49190772"
+      ],
+      "left_question_id": "q_180b5daaa319e7fea105a737528b6906523dac9eff8a7c8feff63443626a4791",
+      "right_document_ids": [
+        "cbse-2025-main-physics-55-5-3-physics-3246f53fa5"
+      ],
+      "right_question_id": "q_d6029a9a1434916d17454d486428e45ce1778543fd8225140ad95dfb8ff0fd07",
+      "sequence_ratio": 0.996591,
+      "shingle_jaccard": 0.942708,
+      "similarity": 0.996591
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-physics-55-4-2-749694881d"
+      ],
+      "left_question_id": "q_16780ad4e7287c0b3b3db201c92a9089706a724ba137ae100b2b7deede8a2326",
+      "right_document_ids": [
+        "cbse-2026-main-physics-55-4-1-db098243f1"
+      ],
+      "right_question_id": "q_9d72312022cd75a6fe453c08abc8d485751e0d05c21417b7bc26c74da1313517",
+      "sequence_ratio": 0.996552,
+      "shingle_jaccard": 0.944444,
+      "similarity": 0.996552
+    },
+    {
+      "left_document_ids": [
+        "cbse-2025-compartment-physics-55-s-2-physics-51a4afec59"
+      ],
+      "left_question_id": "q_834d4d97bf60d9dd74709738094a62c279904c54f52bd7c62b62fff95d69f959",
+      "right_document_ids": [
+        "cbse-2025-compartment-physics-55-s-3-physics-f49515191f"
+      ],
+      "right_question_id": "q_e75c021ac21819aaa2fb404e227e31bd6462e47477d6d786b9e36596f89e7a30",
+      "sequence_ratio": 0.996495,
+      "shingle_jaccard": 0.944724,
+      "similarity": 0.996495
+    },
+    {
+      "left_document_ids": [
+        "cbse-2025-compartment-physics-55-s-1-physics-d84876d49b"
+      ],
+      "left_question_id": "q_c9d28a55f2433d00353581ce1031de9b0a0fc5ed79912d64aaed5773db796412",
+      "right_document_ids": [
+        "cbse-2025-compartment-physics-55-s-3-physics-f49515191f"
+      ],
+      "right_question_id": "q_e75c021ac21819aaa2fb404e227e31bd6462e47477d6d786b9e36596f89e7a30",
+      "sequence_ratio": 0.996495,
+      "shingle_jaccard": 0.944724,
+      "similarity": 0.996495
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-compartment-physics-archive-55-c-3-physics-873b93ae52"
+      ],
+      "left_question_id": "q_acaecfe7527a3154e9818a9ae338ec7d76dd1c0b99da4fa912da5265f11a1c6b",
+      "right_document_ids": [
+        "cbse-2020-compartment-physics-archive-55-c-1-physics-925e284837"
+      ],
+      "right_question_id": "q_f64c2d543178267acca86310f3c6748b429766b73ab619748a6fb86e8d1f937a",
+      "sequence_ratio": 0.996032,
+      "shingle_jaccard": 0.90625,
+      "similarity": 0.996032
+    },
+    {
+      "left_document_ids": [
+        "cbse-2024-main-physics-55-5-2-physics-141e13b6fe"
+      ],
+      "left_question_id": "q_fb0f20139729b6250b135e5f07a843ba14137ccf2913b6f34daea87c28fb8fdf",
+      "right_document_ids": [
+        "cbse-2024-main-physics-55-5-1-physics-710ede0cbe"
+      ],
+      "right_question_id": "q_fd1487dd282f3603839a65384ce7c7fd5f07670aaebd57ac260b45f5b97c16b2",
+      "sequence_ratio": 0.995876,
+      "shingle_jaccard": 0.868421,
+      "similarity": 0.995876
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-mathematics-65-4-1-r-4cb90242c3"
+      ],
+      "left_question_id": "q_5a38494ead6cc86b3d89f1609af669d9fc9e1866419474c728e15b19ffa25ef6",
+      "right_document_ids": [
+        "cbse-2026-main-mathematics-65-4-2-r-76c0b67428"
+      ],
+      "right_question_id": "q_686935ca87cb9c6bf9cb07870b41f598c4bedd144e4d1d8806f2672fdf608a7a",
+      "sequence_ratio": 0.995745,
+      "shingle_jaccard": 0.988235,
+      "similarity": 0.995745
+    },
+    {
+      "left_document_ids": [
+        "cbse-2025-compartment-mathematics-65-s-3-mathematics-522083d8b9"
+      ],
+      "left_question_id": "q_f46a4c756bcc043eb9d83be0ea420a8c8ea65e19ace9a988789574dc21e7a8c4",
+      "right_document_ids": [
+        "cbse-2025-compartment-mathematics-65-s-2-mathematics-b74d95343e"
+      ],
+      "right_question_id": "q_f6fbbe3fcfa06988b3dadbbe7a4ab003e114a2dd53f633f9e140c4d1ab02b66b",
+      "sequence_ratio": 0.995349,
+      "shingle_jaccard": 0.99115,
+      "similarity": 0.995349
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-compartment-physics-archive-55-3-physics-ce930746ee"
+      ],
+      "left_question_id": "q_2505ebf3ce806eba86d29dc805f0de3a28d9b7cfb9d0e56400c3d86e417ee560",
+      "right_document_ids": [
+        "cbse-2018-compartment-physics-archive-55-2-physics-84c8381457"
+      ],
+      "right_question_id": "q_6aede34d968af99e369fd65e9f561bbc483ca5d19a38329a0ae5f080bf9886d4",
+      "sequence_ratio": 0.995215,
+      "shingle_jaccard": 0.969178,
+      "similarity": 0.995215
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-physics-all-india-scheme-55-2-physics-b20badec21"
+      ],
+      "left_question_id": "q_94f87ed545ec0da3ecb4bb50c34507db26ccc76daaf72eee147dba31db489466",
+      "right_document_ids": [
+        "cbse-2017-main-physics-all-india-scheme-55-1-physics-671ca47430"
+      ],
+      "right_question_id": "q_bfab3edd607d5c1c2caedadcc1e7f8893e0282251cf8ecd9bf3a1fe074805623",
+      "sequence_ratio": 0.995142,
+      "shingle_jaccard": 0.972358,
+      "similarity": 0.995142
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-delhi-scheme-55-1-1-d-physics-f5512aa5ee"
+      ],
+      "left_question_id": "q_2ed56b8e868044f1dba95369bd4be74e85e4fc284513e55c1996b76425f6f368",
+      "right_document_ids": [
+        "cbse-2016-main-physics-delhi-scheme-55-1-2-d-physics-0715f31004"
+      ],
+      "right_question_id": "q_a6d55d58d80caaf2535184ea5ffa00f41e94534d05c6eb16c4739184be59f440",
+      "sequence_ratio": 0.995138,
+      "shingle_jaccard": 0.978134,
+      "similarity": 0.995138
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-patna-set-1"
+      ],
+      "left_question_id": "q_0ffa25bbd9eeb15b6be2cdd0415e5b2ae38ef6cfe3b36f79a522fab8a82bc6e7",
+      "right_document_ids": [
+        "cbse-2015-main-physics-patna-set-3"
+      ],
+      "right_question_id": "q_54a533a12d74c27fc45afee059f83c91571139e6a587a68cd35ad75621d3a638",
+      "sequence_ratio": 0.995115,
+      "shingle_jaccard": 0.966887,
+      "similarity": 0.995115
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-c-physics-theory-f5c78c7cec"
+      ],
+      "left_question_id": "q_1c8f2a618992730da8c8c621ddb2963869b942b2fb683370e6218e366fe7892e",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-c-physics-theory-72500c6a13"
+      ],
+      "right_question_id": "q_fa0ef3e79b18b7c45e1dd49f851279acb57403ab8d55c75ab43143e744c48bbc",
+      "sequence_ratio": 0.994972,
+      "shingle_jaccard": 0.973019,
+      "similarity": 0.994972
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-thiruvananthapuram_chennai-set-3"
+      ],
+      "left_question_id": "q_5a10d50a45310fe43d3ce97dda85acb9e733a3d238bc00fbd8e630aeb5b37985",
+      "right_document_ids": [
+        "cbse-2015-main-physics-thiruvananthapuram_chennai-set-1"
+      ],
+      "right_question_id": "q_67c3044831341cf103cee4eb2fcbfbdb874bce844c6f33b30b647a1b046bb02b",
+      "sequence_ratio": 0.994924,
+      "shingle_jaccard": 0.968278,
+      "similarity": 0.994924
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-patna-set-3"
+      ],
+      "left_question_id": "q_54a533a12d74c27fc45afee059f83c91571139e6a587a68cd35ad75621d3a638",
+      "right_document_ids": [
+        "cbse-2015-main-physics-patna-set-2"
+      ],
+      "right_question_id": "q_868608be7c63d9d9302d66d1efaba437c3bb11f7f3e83c894185ea7f1520682e",
+      "sequence_ratio": 0.994892,
+      "shingle_jaccard": 0.965517,
+      "similarity": 0.994892
+    },
+    {
+      "left_document_ids": [
+        "cbse-2024-main-physics-55-5-3-physics-3bafde3b31"
+      ],
+      "left_question_id": "q_e48cd8758fb6ccc8b3c76a3d7a5f97ad3a3132dfb948991054be6b3b1814076b",
+      "right_document_ids": [
+        "cbse-2024-main-physics-55-5-1-physics-710ede0cbe"
+      ],
+      "right_question_id": "q_fd1487dd282f3603839a65384ce7c7fd5f07670aaebd57ac260b45f5b97c16b2",
+      "sequence_ratio": 0.994851,
+      "shingle_jaccard": 0.86087,
+      "similarity": 0.994851
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-physics-all-india-scheme-55-2-physics-b20badec21"
+      ],
+      "left_question_id": "q_0dc354f08c4d1a788f2b75ce354b4f69ce031c5a2d277f44ff91ad06a53db3dd",
+      "right_document_ids": [
+        "cbse-2017-main-physics-all-india-scheme-55-3-physics-ee90c436e7"
+      ],
+      "right_question_id": "q_11583ed1df49054847af8b5ce1cd53d6f9da97366ec46311543a4d5a9524826a",
+      "sequence_ratio": 0.994685,
+      "shingle_jaccard": 0.980952,
+      "similarity": 0.994685
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-compartment-physics-all-india-scheme-55-1-physics-1ebbdebef2"
+      ],
+      "left_question_id": "q_162f2b7ce35da134da872af53fafe17812482e0e227ccec2f9b425cdd12bd2b8",
+      "right_document_ids": [
+        "cbse-2017-compartment-physics-all-india-scheme-55-3-physics-ce930746ee"
+      ],
+      "right_question_id": "q_b56c2fde5b2a74bf9dfb5b3632697c8bbff92827f11cf528c7ffffc890c9bcd9",
+      "sequence_ratio": 0.994674,
+      "shingle_jaccard": 0.986395,
+      "similarity": 0.994674
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-n-physics-theory-e92b6cc9b0"
+      ],
+      "left_question_id": "q_d12b4d39e20d92ef5d5da4d03c3aeeed4d9addd8b15383dbec32f402177b6c96",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-n-physics-theory-77121dd35c"
+      ],
+      "right_question_id": "q_fec9118c044a8803d6b50349e40c6b1cb652b856a772dfa9dbdad57c895d78a4",
+      "sequence_ratio": 0.994312,
+      "shingle_jaccard": 0.962963,
+      "similarity": 0.994312
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-e-physics-theory-79b61aff8b"
+      ],
+      "left_question_id": "q_469296203cc8ae1fa20235d10bef7f5f26180bcf941d80010dbb960cb34e35e9",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-e-physics-theory-7b39c456d0"
+      ],
+      "right_question_id": "q_d426d57d5ff6f4ea0a15dbf42c98eecfb9e9d1795e9291d30b0d5ae57cb0f5c9",
+      "sequence_ratio": 0.994232,
+      "shingle_jaccard": 0.944444,
+      "similarity": 0.994232
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-mathematics-foreign-65-2-2-mathematics-8a8f4dc9dd"
+      ],
+      "left_question_id": "q_722029575a48eee59bf9ad51736542a24493d4997c16dbea50bb678069f88ec9",
+      "right_document_ids": [
+        "cbse-2017-main-mathematics-foreign-65-2-1-mathematics-92cb11aded"
+      ],
+      "right_question_id": "q_b781b9b5bda3027487be8c26d69550821d1edb6ab898772cc33ba59bddbbdaf8",
+      "sequence_ratio": 0.99399,
+      "shingle_jaccard": 0.978495,
+      "similarity": 0.99399
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-physics-foreign-55-2-1-physics-ce4e619ecb"
+      ],
+      "left_question_id": "q_364533781d59fb074cb3022ff022227779c26bf759a307bf23f8ea5674b0bee5",
+      "right_document_ids": [
+        "cbse-2017-main-physics-foreign-55-2-2-physics-647bf95353"
+      ],
+      "right_question_id": "q_38dc91be3c63f4eac823a4522e25ff73215feb11e791c7ab6c0a7b7e2aebf90d",
+      "sequence_ratio": 0.993922,
+      "shingle_jaccard": 0.967925,
+      "similarity": 0.993922
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-physics-foreign-55-2-1-physics-ce4e619ecb"
+      ],
+      "left_question_id": "q_364533781d59fb074cb3022ff022227779c26bf759a307bf23f8ea5674b0bee5",
+      "right_document_ids": [
+        "cbse-2017-main-physics-foreign-55-2-3-physics-58357f03ef"
+      ],
+      "right_question_id": "q_9f39bf02945a34f88c19e38a9ce0071cd319874793769213f528e3412a1552c3",
+      "sequence_ratio": 0.993922,
+      "shingle_jaccard": 0.967925,
+      "similarity": 0.993922
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-physics-all-india-scheme-55-3-physics-ee90c436e7"
+      ],
+      "left_question_id": "q_11583ed1df49054847af8b5ce1cd53d6f9da97366ec46311543a4d5a9524826a",
+      "right_document_ids": [
+        "cbse-2017-main-physics-all-india-scheme-55-1-physics-671ca47430"
+      ],
+      "right_question_id": "q_27e8881a5f622cea4167238d458180e84cfebc54aa2c7f33c5185e85a07b6b39",
+      "sequence_ratio": 0.993921,
+      "shingle_jaccard": 0.980952,
+      "similarity": 0.993921
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-compartment-physics-archive-55-3-physics-ce930746ee"
+      ],
+      "left_question_id": "q_78352ab0c60a78605799f0f19492993c185471d5a9e919ad28ebc8b4874e43cd",
+      "right_document_ids": [
+        "cbse-2018-compartment-physics-archive-55-1-physics-1ebbdebef2"
+      ],
+      "right_question_id": "q_b7ec07de9dabf37023b82f9ce1762db12753e4d31593173596960d2be9588fd8",
+      "sequence_ratio": 0.993849,
+      "shingle_jaccard": 0.976744,
+      "similarity": 0.993849
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-1"
+      ],
+      "left_question_id": "q_a753aa9f2654166ea96dad20b5389689dc433c9b558416c2d96d025798a8a1e2",
+      "right_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-3"
+      ],
+      "right_question_id": "q_e05bd055b1b326c7732399c76bc604380c372314f6cdce8460aefe00b619069e",
+      "sequence_ratio": 0.993733,
+      "shingle_jaccard": 0.979058,
+      "similarity": 0.993733
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-ajmer-set-1"
+      ],
+      "left_question_id": "q_7ea8fc28a52d2d9d5410f5c5d46368076e0ad1f400f3eeb5025251e928588a3f",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-ajmer-set-2"
+      ],
+      "right_question_id": "q_c7d255938c5957f711d9d18f8fd1915e516ddba4828ff6448da320cb3938a0b1",
+      "sequence_ratio": 0.993631,
+      "shingle_jaccard": 0.947644,
+      "similarity": 0.993631
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-1"
+      ],
+      "left_question_id": "q_024470725c962d56053965a950833a1c15fe986e16be337ffc675883278fb7cd",
+      "right_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-3"
+      ],
+      "right_question_id": "q_5f2c6efd1ef5bc265d84c97b3758decd43589436c78c52e89e8fbf0582c0dec6",
+      "sequence_ratio": 0.993296,
+      "shingle_jaccard": 0.977415,
+      "similarity": 0.993296
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-allahabad_uttarakhand-set-1"
+      ],
+      "left_question_id": "q_5b75aa5544258573c0569d71e93cbe26cf7fc6138d3d7c15ee678787a0d80bd5",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-allahabad_uttarakhand-set-2"
+      ],
+      "right_question_id": "q_7b49dcd34f191fa5d6395e5b3579571f77979cb3602f4c78755a5ffa4be7e3a0",
+      "sequence_ratio": 0.993261,
+      "shingle_jaccard": 0.955157,
+      "similarity": 0.993261
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-c-physics-theory-f5c78c7cec"
+      ],
+      "left_question_id": "q_1c8f2a618992730da8c8c621ddb2963869b942b2fb683370e6218e366fe7892e",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-c-physics-theory-14987d38b6"
+      ],
+      "right_question_id": "q_ad39a8193e5648aafd027a8282d8a2d47b6af807a265a215645709013c66f8d6",
+      "sequence_ratio": 0.993225,
+      "shingle_jaccard": 0.963272,
+      "similarity": 0.993225
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-c-physics-theory-14987d38b6"
+      ],
+      "left_question_id": "q_ad39a8193e5648aafd027a8282d8a2d47b6af807a265a215645709013c66f8d6",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-c-physics-theory-72500c6a13"
+      ],
+      "right_question_id": "q_fa0ef3e79b18b7c45e1dd49f851279acb57403ab8d55c75ab43143e744c48bbc",
+      "sequence_ratio": 0.993225,
+      "shingle_jaccard": 0.956739,
+      "similarity": 0.993225
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-delhi-set-3"
+      ],
+      "left_question_id": "q_048233816605fe287b32671e3f07adbdfccc330bbf3cb3f3790d0aa7cf3adaca",
+      "right_document_ids": [
+        "cbse-2015-main-physics-delhi-set-2"
+      ],
+      "right_question_id": "q_060b754d638de89edc7b6d7608d7ed23f13584a75d9d34a9362719c07d08e415",
+      "sequence_ratio": 0.993197,
+      "shingle_jaccard": 0.94863,
+      "similarity": 0.993197
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-3"
+      ],
+      "left_question_id": "q_b62ade0d0e400055ec648cd9e39c68c958548d41f4009a12c124098d2b61e142",
+      "right_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-1"
+      ],
+      "right_question_id": "q_e052d72a6b5c26891aceacef8bdc6cc418ff2e1c7259027e1757932d848498de",
+      "sequence_ratio": 0.992894,
+      "shingle_jaccard": 0.959545,
+      "similarity": 0.992894
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-2"
+      ],
+      "left_question_id": "q_c9d14e40e00ff14c7a228f1cb05ab9c2b5866218338a6c411e6519a116b547d7",
+      "right_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-1"
+      ],
+      "right_question_id": "q_e052d72a6b5c26891aceacef8bdc6cc418ff2e1c7259027e1757932d848498de",
+      "sequence_ratio": 0.992894,
+      "shingle_jaccard": 0.965736,
+      "similarity": 0.992894
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-compartment-physics-all-india-scheme-55-2-physics-84c8381457"
+      ],
+      "left_question_id": "q_a23b33eea339b70e61df485a55160be661a890006369bdada02a8e3de0f8c445",
+      "right_document_ids": [
+        "cbse-2017-compartment-physics-all-india-scheme-55-3-physics-ce930746ee"
+      ],
+      "right_question_id": "q_aae3e82755bd80d5636260d207d947455da0bb0d65c3213703062fec25a55e8d",
+      "sequence_ratio": 0.992791,
+      "shingle_jaccard": 0.956962,
+      "similarity": 0.992791
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-patna-set-1"
+      ],
+      "left_question_id": "q_857df2631e171986756d14e576b796206bd5292a204512ba5978075481bce59d",
+      "right_document_ids": [
+        "cbse-2015-main-physics-patna-set-2"
+      ],
+      "right_question_id": "q_d7666ddd29da51bbad46e1681be7c4ff7fdaf36ae02ef39df51a43d3f1019141",
+      "sequence_ratio": 0.992593,
+      "shingle_jaccard": 0.967153,
+      "similarity": 0.992593
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-1-n-mathematics-9598ccf699"
+      ],
+      "left_question_id": "q_9b083870b7ee65587f7bf03d99c6c936b5575ba5dc61615c594ba3bea4bcf8c7",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-2-n-mathematics-9dc6c3560b"
+      ],
+      "right_question_id": "q_c6b9d128e5e1027fda7f01587b5ef47fec44396d030f8ccc5ad32d26d68bd8a3",
+      "sequence_ratio": 0.992333,
+      "shingle_jaccard": 0.9,
+      "similarity": 0.992333
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-compartment-physics-archive-55-3-physics-ce930746ee"
+      ],
+      "left_question_id": "q_78352ab0c60a78605799f0f19492993c185471d5a9e919ad28ebc8b4874e43cd",
+      "right_document_ids": [
+        "cbse-2018-compartment-physics-archive-55-2-physics-84c8381457"
+      ],
+      "right_question_id": "q_d37f5146e3ec8738a7f3ca46f7895c8e6b8d930a5435699e47bcd84ce4491b2d",
+      "sequence_ratio": 0.99211,
+      "shingle_jaccard": 0.975398,
+      "similarity": 0.99211
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-compartment-physics-archive-55-1-physics-1ebbdebef2"
+      ],
+      "left_question_id": "q_b7ec07de9dabf37023b82f9ce1762db12753e4d31593173596960d2be9588fd8",
+      "right_document_ids": [
+        "cbse-2018-compartment-physics-archive-55-2-physics-84c8381457"
+      ],
+      "right_question_id": "q_d37f5146e3ec8738a7f3ca46f7895c8e6b8d930a5435699e47bcd84ce4491b2d",
+      "sequence_ratio": 0.99211,
+      "shingle_jaccard": 0.981132,
+      "similarity": 0.99211
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-physics-all-india-scheme-55-3-physics-ee90c436e7"
+      ],
+      "left_question_id": "q_61f09b0c2e2aeccd998a85021b2393ad55516a2e08edc52f8e7df70c7b020604",
+      "right_document_ids": [
+        "cbse-2017-main-physics-all-india-scheme-55-1-physics-671ca47430"
+      ],
+      "right_question_id": "q_bfab3edd607d5c1c2caedadcc1e7f8893e0282251cf8ecd9bf3a1fe074805623",
+      "sequence_ratio": 0.992074,
+      "shingle_jaccard": 0.953301,
+      "similarity": 0.992074
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-guwahati-set-1"
+      ],
+      "left_question_id": "q_512dc900ef8039310a3bf3951b5a999ce53a28fa5ce76e808e97191c85aa6a4f",
+      "right_document_ids": [
+        "cbse-2015-main-physics-guwahati-set-3"
+      ],
+      "right_question_id": "q_e0c0d7a462854beb40a1ab86380acc5fdbc3fe03e84ec91811c220945f0c4cac",
+      "sequence_ratio": 0.992005,
+      "shingle_jaccard": 0.958647,
+      "similarity": 0.992005
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-patna-set-3"
+      ],
+      "left_question_id": "q_67cfa2f1e1c6f60eb7b925a44e24fbcc2406895634192d901a93f8fe21bbfc65",
+      "right_document_ids": [
+        "cbse-2015-main-physics-patna-set-1"
+      ],
+      "right_question_id": "q_857df2631e171986756d14e576b796206bd5292a204512ba5978075481bce59d",
+      "sequence_ratio": 0.99198,
+      "shingle_jaccard": 0.967153,
+      "similarity": 0.99198
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-delhi-scheme-55-1-3-d-physics-652d5fb12c"
+      ],
+      "left_question_id": "q_9cb47ad6706055923583fb5088c88c2a212c1330b3bd33047b9bd1aa0e1a6b6d",
+      "right_document_ids": [
+        "cbse-2016-main-physics-delhi-scheme-55-1-2-d-physics-0715f31004"
+      ],
+      "right_question_id": "q_a6d55d58d80caaf2535184ea5ffa00f41e94534d05c6eb16c4739184be59f440",
+      "sequence_ratio": 0.991916,
+      "shingle_jaccard": 0.961095,
+      "similarity": 0.991916
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-physics-foreign-55-2-1-physics-ce4e619ecb",
+        "cbse-2017-main-physics-foreign-55-2-2-physics-647bf95353"
+      ],
+      "left_question_id": "q_0b3de43c7e64e0a5f28596390f4fcac93df28e682a675715a1ec916773d8660c",
+      "right_document_ids": [
+        "cbse-2017-main-physics-foreign-55-2-3-physics-58357f03ef"
+      ],
+      "right_question_id": "q_5df99ca8111da824a7419e0f686cede433bc461a00ae8e84b5d24e4cd2878099",
+      "sequence_ratio": 0.991794,
+      "shingle_jaccard": 0.977612,
+      "similarity": 0.991794
+    },
+    {
+      "left_document_ids": [
+        "cbse-2022-main-mathematics-65-2-2-mathematics-9f72fb061b"
+      ],
+      "left_question_id": "q_344339a362b97e5fbe7c150560a25ea94d16bd0e7f1c6622c42baeeabfe2e9a6",
+      "right_document_ids": [
+        "cbse-2022-main-mathematics-65-2-1-mathematics-2316966070"
+      ],
+      "right_question_id": "q_a1ba99ea7ba7959db2d4fdf94fb610e23b5034e1cb91dcec7efe6ac2ad0023b4",
+      "sequence_ratio": 0.991597,
+      "shingle_jaccard": 0.979592,
+      "similarity": 0.991597
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-1"
+      ],
+      "left_question_id": "q_024470725c962d56053965a950833a1c15fe986e16be337ffc675883278fb7cd",
+      "right_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-2"
+      ],
+      "right_question_id": "q_c78a1c20b6cd198e5b6261e3af372d294b353afe8b7be38089e75e6b757b03ca",
+      "sequence_ratio": 0.991397,
+      "shingle_jaccard": 0.979899,
+      "similarity": 0.991397
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-ajmer-set-1"
+      ],
+      "left_question_id": "q_c8e8d054cedb8b479f0ea37adbfd963c26348094ce674c0160cfd5340c55504c",
+      "right_document_ids": [
+        "cbse-2015-main-physics-ajmer-set-2"
+      ],
+      "right_question_id": "q_d54f3c0d5f4a841e1470cb1458e76774aab4f60c87a8f5306c396f468a954c76",
+      "sequence_ratio": 0.991288,
+      "shingle_jaccard": 0.950719,
+      "similarity": 0.991288
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-mathematics-outside-set-2"
+      ],
+      "left_question_id": "q_01235f102987386262d2833dcefccd07261f34368b94de9f11e324cdf9ad33ac",
+      "right_document_ids": [
+        "cbse-2015-compartment-mathematics-outside-set-3"
+      ],
+      "right_question_id": "q_d23acd8db8aaf4b44796b028663d6ff0c166324d4f89169bba512acfbf918205",
+      "sequence_ratio": 0.991283,
+      "shingle_jaccard": 0.947712,
+      "similarity": 0.991283
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-physics-foreign-55-2-1-physics-ce4e619ecb"
+      ],
+      "left_question_id": "q_1b00955aa6dcb790428308fb99f0842cffa876ee33a909c804bf123e3b7edab8",
+      "right_document_ids": [
+        "cbse-2017-main-physics-foreign-55-2-3-physics-58357f03ef"
+      ],
+      "right_question_id": "q_4e4e3330bc9b40bca8c99e6a7482327c1b12213a1b2fb4da38db78064af5b7f9",
+      "sequence_ratio": 0.991261,
+      "shingle_jaccard": 0.977941,
+      "similarity": 0.991261
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-main-physics-archive-55-2-physics-06a9820efa"
+      ],
+      "left_question_id": "q_740a58f7ff4b3a5e99ebed8b55811165720279e920a7610f48b4dbec90a4ffdf",
+      "right_document_ids": [
+        "cbse-2018-main-physics-archive-55-1-physics-5cb1b3225e"
+      ],
+      "right_question_id": "q_db958f789da25a1a882f25928ffe1c2ebec4a09c5ea386b5d5b4eab5bb007141",
+      "sequence_ratio": 0.991228,
+      "shingle_jaccard": 0.966325,
+      "similarity": 0.991228
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-3"
+      ],
+      "left_question_id": "q_5f2c6efd1ef5bc265d84c97b3758decd43589436c78c52e89e8fbf0582c0dec6",
+      "right_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-2"
+      ],
+      "right_question_id": "q_c78a1c20b6cd198e5b6261e3af372d294b353afe8b7be38089e75e6b757b03ca",
+      "sequence_ratio": 0.991208,
+      "shingle_jaccard": 0.977415,
+      "similarity": 0.991208
+    },
+    {
+      "left_document_ids": [
+        "cbse-2023-main-physics-55-5-3-physics-3bafde3b31"
+      ],
+      "left_question_id": "q_30c8b7bb0f73f559e62b815fb89445e6969d5012384f5534422627834b075779",
+      "right_document_ids": [
+        "cbse-2023-main-physics-55-5-2-physics-141e13b6fe"
+      ],
+      "right_question_id": "q_51d6dc228455b281fc92b2351162368a1af3a34463191b7c92b7185f5a877e97",
+      "sequence_ratio": 0.991202,
+      "shingle_jaccard": 0.878788,
+      "similarity": 0.991202
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-compartment-physics-archive-55-1-physics-1ebbdebef2"
+      ],
+      "left_question_id": "q_1df9be5455e247b1cf27fb6a5a2f3477d0f0a2d992a2e7ea553c126c98efd095",
+      "right_document_ids": [
+        "cbse-2018-compartment-physics-archive-55-2-physics-84c8381457"
+      ],
+      "right_question_id": "q_6aede34d968af99e369fd65e9f561bbc483ca5d19a38329a0ae5f080bf9886d4",
+      "sequence_ratio": 0.991136,
+      "shingle_jaccard": 0.97561,
+      "similarity": 0.991136
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-compartment-physics-delhi-scheme-55-1-1-physics-d150dd5555"
+      ],
+      "left_question_id": "q_adecb60e6d056269b8f276703611d0139aaf24ae537522e79791366eda812ed4",
+      "right_document_ids": [
+        "cbse-2017-compartment-physics-delhi-scheme-55-1-2-physics-547e318ff9"
+      ],
+      "right_question_id": "q_bbc1a828c6e1ea7e72c0a45f3ddb1f8b8eb6c0f7964ff02b53dcc090703069c1",
+      "sequence_ratio": 0.991111,
+      "shingle_jaccard": 0.925234,
+      "similarity": 0.991111
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-patna-set-1"
+      ],
+      "left_question_id": "q_0ffa25bbd9eeb15b6be2cdd0415e5b2ae38ef6cfe3b36f79a522fab8a82bc6e7",
+      "right_document_ids": [
+        "cbse-2015-main-physics-patna-set-2"
+      ],
+      "right_question_id": "q_868608be7c63d9d9302d66d1efaba437c3bb11f7f3e83c894185ea7f1520682e",
+      "sequence_ratio": 0.991,
+      "shingle_jaccard": 0.952692,
+      "similarity": 0.991
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-delhi-set-3"
+      ],
+      "left_question_id": "q_048233816605fe287b32671e3f07adbdfccc330bbf3cb3f3790d0aa7cf3adaca",
+      "right_document_ids": [
+        "cbse-2015-main-physics-delhi-set-1"
+      ],
+      "right_question_id": "q_4ecb885aef71c8b08821f35f9c821c7cfa7e31ef98214fcc099108a2cab27450",
+      "sequence_ratio": 0.99095,
+      "shingle_jaccard": 0.955172,
+      "similarity": 0.99095
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-thiruvananthapuram_chennai-set-2"
+      ],
+      "left_question_id": "q_37cd9d55036e465193b88605b628ce873be9149e97d9c08837f9b6e98e265936",
+      "right_document_ids": [
+        "cbse-2015-main-physics-thiruvananthapuram_chennai-set-1"
+      ],
+      "right_question_id": "q_67c3044831341cf103cee4eb2fcbfbdb874bce844c6f33b30b647a1b046bb02b",
+      "sequence_ratio": 0.990809,
+      "shingle_jaccard": 0.961136,
+      "similarity": 0.990809
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-thiruvananthapuram_chennai-set-2"
+      ],
+      "left_question_id": "q_37cd9d55036e465193b88605b628ce873be9149e97d9c08837f9b6e98e265936",
+      "right_document_ids": [
+        "cbse-2015-main-physics-thiruvananthapuram_chennai-set-3"
+      ],
+      "right_question_id": "q_5a10d50a45310fe43d3ce97dda85acb9e733a3d238bc00fbd8e630aeb5b37985",
+      "sequence_ratio": 0.990771,
+      "shingle_jaccard": 0.959398,
+      "similarity": 0.990771
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-bhubaneshwar-set-1"
+      ],
+      "left_question_id": "q_89af266675de159a819d40e01c2d3a98570b97ac79cc8d44fbccc9ad6e854390",
+      "right_document_ids": [
+        "cbse-2015-main-physics-bhubaneshwar-set-2"
+      ],
+      "right_question_id": "q_c12cef6398150d9022f6319cfcd2ddc93824470552e45da216a4adaddd8fdc75",
+      "sequence_ratio": 0.990682,
+      "shingle_jaccard": 0.951586,
+      "similarity": 0.990682
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-delhi-set-2"
+      ],
+      "left_question_id": "q_2c3a15e236a81045c8924083bf07215fbda49371a9db4e52c0da00e1ed39cd43",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-delhi-set-1"
+      ],
+      "right_question_id": "q_fd68b88c51df332f304c3256c2638ce257dcc7257ca0fed9bbb6be164b3933ba",
+      "sequence_ratio": 0.990629,
+      "shingle_jaccard": 0.924138,
+      "similarity": 0.990629
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-physics-delhi-set-3"
+      ],
+      "left_question_id": "q_481e1981a140914c0b1134de88358eee7f70e4c9017f9c99b1a80448ffd58862",
+      "right_document_ids": [
+        "cbse-2015-compartment-physics-delhi-set-1",
+        "cbse-2015-compartment-physics-delhi-set-2"
+      ],
+      "right_question_id": "q_f07e9b27f2bea93868838c11830100392e58a4749d8790937d9614f4f53ce093",
+      "sequence_ratio": 0.99046,
+      "shingle_jaccard": 0.96648,
+      "similarity": 0.99046
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-foreign-55-2-3-f-physics-set-3-830ae8d065"
+      ],
+      "left_question_id": "q_90e9556733c43feaa6b0bf79d24b85700799c4d3cf87c2b5c473f21c6e5480af",
+      "right_document_ids": [
+        "cbse-2016-main-physics-foreign-55-2-1-f-physics-set-1-0660121280"
+      ],
+      "right_question_id": "q_97f3980c66011acd0f0da91fff822692682daf519f496d2d4e10d6200fb9a83a",
+      "sequence_ratio": 0.990453,
+      "shingle_jaccard": 0.933566,
+      "similarity": 0.990453
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-main-physics-archive-55-3-physics-e4fc77b8fd"
+      ],
+      "left_question_id": "q_3b1d434ec80d664eb60295a72e44ecce302ebbb7c0b55ec3c64388fd016d4fbb",
+      "right_document_ids": [
+        "cbse-2018-main-physics-archive-55-2-physics-06a9820efa"
+      ],
+      "right_question_id": "q_740a58f7ff4b3a5e99ebed8b55811165720279e920a7610f48b4dbec90a4ffdf",
+      "sequence_ratio": 0.990305,
+      "shingle_jaccard": 0.952035,
+      "similarity": 0.990305
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-guwahati-set-2"
+      ],
+      "left_question_id": "q_40b454e874f78faf34965e9790a0fd826346a78e9918e9e8588da890df6065bf",
+      "right_document_ids": [
+        "cbse-2015-main-physics-guwahati-set-3"
+      ],
+      "right_question_id": "q_e0c0d7a462854beb40a1ab86380acc5fdbc3fe03e84ec91811c220945f0c4cac",
+      "sequence_ratio": 0.989953,
+      "shingle_jaccard": 0.962547,
+      "similarity": 0.989953
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-mathematics-outside-set-2"
+      ],
+      "left_question_id": "q_01235f102987386262d2833dcefccd07261f34368b94de9f11e324cdf9ad33ac",
+      "right_document_ids": [
+        "cbse-2015-compartment-mathematics-outside-set-1"
+      ],
+      "right_question_id": "q_1b8e51e11a26cc581a7313132a9f8f545d00dcdd8974e2ea2c19627ed65d672b",
+      "sequence_ratio": 0.98995,
+      "shingle_jaccard": 0.94702,
+      "similarity": 0.98995
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-patna-set-2"
+      ],
+      "left_question_id": "q_1251159d500620216e7d131f212d16a947b37e233795d345b298c8b624c176bc",
+      "right_document_ids": [
+        "cbse-2015-main-physics-patna-set-1"
+      ],
+      "right_question_id": "q_a5bee8f04bbcc7124924dfd1982ffe91e79ffb81866c1c2bb7027612e919fd7f",
+      "sequence_ratio": 0.989725,
+      "shingle_jaccard": 0.945137,
+      "similarity": 0.989725
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-patna-set-3"
+      ],
+      "left_question_id": "q_a12cde1fffa71214525d940433efca1784129a1421d210f49023821f373c07bc",
+      "right_document_ids": [
+        "cbse-2015-main-physics-patna-set-1"
+      ],
+      "right_question_id": "q_a5bee8f04bbcc7124924dfd1982ffe91e79ffb81866c1c2bb7027612e919fd7f",
+      "sequence_ratio": 0.989725,
+      "shingle_jaccard": 0.945137,
+      "similarity": 0.989725
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-foreign-55-2-3-f-physics-set-3-830ae8d065"
+      ],
+      "left_question_id": "q_04e8bd9a2437aa4217534fc7a798c30b9bb9db22dca49972c7954d234d5e46bd",
+      "right_document_ids": [
+        "cbse-2016-main-physics-foreign-55-2-1-f-physics-set-1-0660121280"
+      ],
+      "right_question_id": "q_8f9a81cd72e61d270a8d6e0ecb7cb00006c9dcd9cfe9fc370264b2d8a7bdbde6",
+      "sequence_ratio": 0.98972,
+      "shingle_jaccard": 0.967585,
+      "similarity": 0.98972
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-foreign-55-2-3-f-physics-set-3-830ae8d065"
+      ],
+      "left_question_id": "q_04e8bd9a2437aa4217534fc7a798c30b9bb9db22dca49972c7954d234d5e46bd",
+      "right_document_ids": [
+        "cbse-2016-main-physics-foreign-55-2-2-f-physics-set-2-76a1d7d584"
+      ],
+      "right_question_id": "q_c77fe20d93ad8f40a7b8c97a2bc2aceccb3886b8f370db162eff2c444d96fd7b",
+      "sequence_ratio": 0.98972,
+      "shingle_jaccard": 0.964344,
+      "similarity": 0.98972
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-foreign-55-2-1-f-physics-set-1-0660121280"
+      ],
+      "left_question_id": "q_8f9a81cd72e61d270a8d6e0ecb7cb00006c9dcd9cfe9fc370264b2d8a7bdbde6",
+      "right_document_ids": [
+        "cbse-2016-main-physics-foreign-55-2-2-f-physics-set-2-76a1d7d584"
+      ],
+      "right_question_id": "q_c77fe20d93ad8f40a7b8c97a2bc2aceccb3886b8f370db162eff2c444d96fd7b",
+      "sequence_ratio": 0.98972,
+      "shingle_jaccard": 0.977199,
+      "similarity": 0.98972
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-3"
+      ],
+      "left_question_id": "q_b62ade0d0e400055ec648cd9e39c68c958548d41f4009a12c124098d2b61e142",
+      "right_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-2"
+      ],
+      "right_question_id": "q_c9d14e40e00ff14c7a228f1cb05ab9c2b5866218338a6c411e6519a116b547d7",
+      "sequence_ratio": 0.989663,
+      "shingle_jaccard": 0.965952,
+      "similarity": 0.989663
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-compartment-physics-archive-55-1-physics-1ebbdebef2"
+      ],
+      "left_question_id": "q_1df9be5455e247b1cf27fb6a5a2f3477d0f0a2d992a2e7ea553c126c98efd095",
+      "right_document_ids": [
+        "cbse-2018-compartment-physics-archive-55-3-physics-ce930746ee"
+      ],
+      "right_question_id": "q_2505ebf3ce806eba86d29dc805f0de3a28d9b7cfb9d0e56400c3d86e417ee560",
+      "sequence_ratio": 0.989541,
+      "shingle_jaccard": 0.972222,
+      "similarity": 0.989541
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-compartment-physics-all-india-scheme-55-1-physics-1ebbdebef2"
+      ],
+      "left_question_id": "q_83ce18ae3efb0d9a3aa1c7bf897949ecafc76749a283b0fc0c35baeea58abe69",
+      "right_document_ids": [
+        "cbse-2017-compartment-physics-all-india-scheme-55-2-physics-84c8381457"
+      ],
+      "right_question_id": "q_a23b33eea339b70e61df485a55160be661a890006369bdada02a8e3de0f8c445",
+      "sequence_ratio": 0.989537,
+      "shingle_jaccard": 0.969349,
+      "similarity": 0.989537
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-n-physics-theory-3e9561059d"
+      ],
+      "left_question_id": "q_50297c11db550c1ae8e4fc31b1aa4f5577eb1eba718ffd4490eda8f5deb15f55",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-n-physics-theory-e92b6cc9b0"
+      ],
+      "right_question_id": "q_d12b4d39e20d92ef5d5da4d03c3aeeed4d9addd8b15383dbec32f402177b6c96",
+      "sequence_ratio": 0.989527,
+      "shingle_jaccard": 0.94636,
+      "similarity": 0.989527
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-n-physics-theory-3e9561059d"
+      ],
+      "left_question_id": "q_50297c11db550c1ae8e4fc31b1aa4f5577eb1eba718ffd4490eda8f5deb15f55",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-n-physics-theory-77121dd35c"
+      ],
+      "right_question_id": "q_fec9118c044a8803d6b50349e40c6b1cb652b856a772dfa9dbdad57c895d78a4",
+      "sequence_ratio": 0.989527,
+      "shingle_jaccard": 0.948177,
+      "similarity": 0.989527
+    },
+    {
+      "left_document_ids": [
+        "cbse-2025-main-physics-55-1-1-physics-699ed95435"
+      ],
+      "left_question_id": "q_1f814a5da3fddbebe3088547d541a39df3c31c67c47899215915f38fad4f50e2",
+      "right_document_ids": [
+        "cbse-2025-main-physics-55-1-2-physics-a67b15ccf4"
+      ],
+      "right_question_id": "q_228e4326a337bdfefa01863e23cc454df789c4470bfdb9ecb757aa44b2f46d31",
+      "sequence_ratio": 0.989474,
+      "shingle_jaccard": 0.795918,
+      "similarity": 0.989474
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-n-physics-theory-77121dd35c"
+      ],
+      "left_question_id": "q_b92f61c3bcf9e34469fcec34454dbf71d7daf5baf1bbe59257f715dea086d418",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-n-physics-theory-3e9561059d",
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-n-physics-theory-e92b6cc9b0"
+      ],
+      "right_question_id": "q_e3d09dcf4398232751ff7a72e4fff422c2aa9dee282ef2aa2d66ca4e13f98613",
+      "sequence_ratio": 0.989305,
+      "shingle_jaccard": 0.928571,
+      "similarity": 0.989305
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-delhi-scheme-55-1-2-d-physics-0715f31004",
+        "cbse-2016-main-physics-delhi-scheme-55-1-3-d-physics-652d5fb12c"
+      ],
+      "left_question_id": "q_428f3f9e1344bff2e6dee97f854b4dd9127f4ffaf75e9b3e5180d27dac80ef34",
+      "right_document_ids": [
+        "cbse-2016-main-physics-delhi-scheme-55-1-1-d-physics-f5512aa5ee"
+      ],
+      "right_question_id": "q_8505ccd9a4eb243f68065f57c4c2b84881969ae94c0c78624111111a151d574e",
+      "sequence_ratio": 0.989247,
+      "shingle_jaccard": 0.958824,
+      "similarity": 0.989247
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-bhubaneshwar-set-1"
+      ],
+      "left_question_id": "q_89af266675de159a819d40e01c2d3a98570b97ac79cc8d44fbccc9ad6e854390",
+      "right_document_ids": [
+        "cbse-2015-main-physics-bhubaneshwar-set-3"
+      ],
+      "right_question_id": "q_8f5b29b9c8ed1b63d8c38748ed0779565fa66e748a81fcb9742b75f758d1ebba",
+      "sequence_ratio": 0.988939,
+      "shingle_jaccard": 0.958333,
+      "similarity": 0.988939
+    },
+    {
+      "left_document_ids": [
+        "cbse-2022-main-mathematics-65-2-3-mathematics-ab16bbab59"
+      ],
+      "left_question_id": "q_8ac3cffe35417f2c4ff999252bf646eb4f45d8193896b5e046da0fad8632a1c6",
+      "right_document_ids": [
+        "cbse-2022-main-mathematics-65-2-1-mathematics-2316966070"
+      ],
+      "right_question_id": "q_a1ba99ea7ba7959db2d4fdf94fb610e23b5034e1cb91dcec7efe6ac2ad0023b4",
+      "sequence_ratio": 0.988827,
+      "shingle_jaccard": 0.96,
+      "similarity": 0.988827
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-mathematics-outside-set-1"
+      ],
+      "left_question_id": "q_1b8e51e11a26cc581a7313132a9f8f545d00dcdd8974e2ea2c19627ed65d672b",
+      "right_document_ids": [
+        "cbse-2015-compartment-mathematics-outside-set-3"
+      ],
+      "right_question_id": "q_d23acd8db8aaf4b44796b028663d6ff0c166324d4f89169bba512acfbf918205",
+      "sequence_ratio": 0.988792,
+      "shingle_jaccard": 0.922581,
+      "similarity": 0.988792
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-ajmer-set-3"
+      ],
+      "left_question_id": "q_ac1b8cab40076ebf780edf3a9cac2d1b9752bd57bc8982deb422954bdd276b41",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-ajmer-set-2"
+      ],
+      "right_question_id": "q_c7d255938c5957f711d9d18f8fd1915e516ddba4828ff6448da320cb3938a0b1",
+      "sequence_ratio": 0.988732,
+      "shingle_jaccard": 0.938462,
+      "similarity": 0.988732
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-delhi-scheme-55-1-1-d-physics-f5512aa5ee"
+      ],
+      "left_question_id": "q_2ed56b8e868044f1dba95369bd4be74e85e4fc284513e55c1996b76425f6f368",
+      "right_document_ids": [
+        "cbse-2016-main-physics-delhi-scheme-55-1-3-d-physics-652d5fb12c"
+      ],
+      "right_question_id": "q_9cb47ad6706055923583fb5088c88c2a212c1330b3bd33047b9bd1aa0e1a6b6d",
+      "sequence_ratio": 0.988682,
+      "shingle_jaccard": 0.962482,
+      "similarity": 0.988682
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-delhi-set-1"
+      ],
+      "left_question_id": "q_11a813ebab1e9607bfa8c61e34edaf1947b12490639a283546a0201c6ad0f2a5",
+      "right_document_ids": [
+        "cbse-2015-main-physics-delhi-set-2"
+      ],
+      "right_question_id": "q_cf6c1b04ef76b9def046ca982d38793d77f7b9899289f6ba9813683ec8df703f",
+      "sequence_ratio": 0.988679,
+      "shingle_jaccard": 0.965116,
+      "similarity": 0.988679
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-delhi-set-3"
+      ],
+      "left_question_id": "q_621112b37c75e5ad290de7e4c98b97b591caeffab00cfd100bef546623aae84d",
+      "right_document_ids": [
+        "cbse-2015-main-physics-delhi-set-2"
+      ],
+      "right_question_id": "q_cf6c1b04ef76b9def046ca982d38793d77f7b9899289f6ba9813683ec8df703f",
+      "sequence_ratio": 0.988679,
+      "shingle_jaccard": 0.963871,
+      "similarity": 0.988679
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-compartment-mathematics-archive-65-c-1-mathematics-f74537dc37",
+        "cbse-2020-compartment-mathematics-archive-65-c-2-mathematics-7f025841d2"
+      ],
+      "left_question_id": "q_ba264b87cad916a1aec81188dfded7f76fedbe936e65640fc9d484dda79d460f",
+      "right_document_ids": [
+        "cbse-2020-compartment-mathematics-archive-65-c-3-mathematics-ff07a41e3a"
+      ],
+      "right_question_id": "q_e1af4f98741c57539e1a9bc73ddeb287f9e5c754d6cd30e19d5c2934f3702935",
+      "sequence_ratio": 0.988669,
+      "shingle_jaccard": 0.970588,
+      "similarity": 0.988669
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-allahabad_uttarakhand-set-3"
+      ],
+      "left_question_id": "q_758b67ffb6e674d969e22e48ba29e913f6b5ed0355b0599d03996614cc704ebd",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-allahabad_uttarakhand-set-2"
+      ],
+      "right_question_id": "q_7b49dcd34f191fa5d6395e5b3579571f77979cb3602f4c78755a5ffa4be7e3a0",
+      "sequence_ratio": 0.988598,
+      "shingle_jaccard": 0.947137,
+      "similarity": 0.988598
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-foreign-55-2-2-f-physics-set-2-76a1d7d584"
+      ],
+      "left_question_id": "q_746e8eb991d24993a3027f0bb04e9bbb851203ad66598067caf2ca1824ad1a80",
+      "right_document_ids": [
+        "cbse-2016-main-physics-foreign-55-2-3-f-physics-set-3-830ae8d065"
+      ],
+      "right_question_id": "q_90e9556733c43feaa6b0bf79d24b85700799c4d3cf87c2b5c473f21c6e5480af",
+      "sequence_ratio": 0.988464,
+      "shingle_jaccard": 0.938182,
+      "similarity": 0.988464
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-compartment-physics-all-india-scheme-55-1-physics-1ebbdebef2"
+      ],
+      "left_question_id": "q_83ce18ae3efb0d9a3aa1c7bf897949ecafc76749a283b0fc0c35baeea58abe69",
+      "right_document_ids": [
+        "cbse-2017-compartment-physics-all-india-scheme-55-3-physics-ce930746ee"
+      ],
+      "right_question_id": "q_aae3e82755bd80d5636260d207d947455da0bb0d65c3213703062fec25a55e8d",
+      "sequence_ratio": 0.988294,
+      "shingle_jaccard": 0.942138,
+      "similarity": 0.988294
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-physics-all-india-scheme-55-3-physics-ee90c436e7"
+      ],
+      "left_question_id": "q_61f09b0c2e2aeccd998a85021b2393ad55516a2e08edc52f8e7df70c7b020604",
+      "right_document_ids": [
+        "cbse-2017-main-physics-all-india-scheme-55-2-physics-b20badec21"
+      ],
+      "right_question_id": "q_94f87ed545ec0da3ecb4bb50c34507db26ccc76daaf72eee147dba31db489466",
+      "sequence_ratio": 0.988283,
+      "shingle_jaccard": 0.952077,
+      "similarity": 0.988283
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-3-n-mathematics-eabc520c4a"
+      ],
+      "left_question_id": "q_2d7be5de411c5c817bb2510c407448fbc66c05d5a7a7a794b97cb1dc73039e3a",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-1-n-mathematics-9598ccf699"
+      ],
+      "right_question_id": "q_9b083870b7ee65587f7bf03d99c6c936b5575ba5dc61615c594ba3bea4bcf8c7",
+      "sequence_ratio": 0.988108,
+      "shingle_jaccard": 0.940397,
+      "similarity": 0.988108
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-ajmer-set-3"
+      ],
+      "left_question_id": "q_a371a9d3dcf4d0687311e18218171c68b129a5f4e9ac39224e69c598f7f46f29",
+      "right_document_ids": [
+        "cbse-2015-main-physics-ajmer-set-1"
+      ],
+      "right_question_id": "q_c8e8d054cedb8b479f0ea37adbfd963c26348094ce674c0160cfd5340c55504c",
+      "sequence_ratio": 0.988099,
+      "shingle_jaccard": 0.942857,
+      "similarity": 0.988099
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-compartment-physics-delhi-scheme-55-1-2-physics-547e318ff9"
+      ],
+      "left_question_id": "q_35f53f8bf009d251db99c84b12b2911eb7987d3d55b16efc2b53e697ac08c1de",
+      "right_document_ids": [
+        "cbse-2017-compartment-physics-delhi-scheme-55-1-1-physics-d150dd5555"
+      ],
+      "right_question_id": "q_7077f427cef2ab19ad5c200a9e04a6c1e4643bad5a4afe667e868dc275f1c6d3",
+      "sequence_ratio": 0.988079,
+      "shingle_jaccard": 0.961905,
+      "similarity": 0.988079
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-delhi-set-2"
+      ],
+      "left_question_id": "q_060b754d638de89edc7b6d7608d7ed23f13584a75d9d34a9362719c07d08e415",
+      "right_document_ids": [
+        "cbse-2015-main-physics-delhi-set-1"
+      ],
+      "right_question_id": "q_4ecb885aef71c8b08821f35f9c821c7cfa7e31ef98214fcc099108a2cab27450",
+      "sequence_ratio": 0.987613,
+      "shingle_jaccard": 0.93266,
+      "similarity": 0.987613
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-physics-archive-55-5-1-physics-879eea98f8"
+      ],
+      "left_question_id": "q_b81e37ef33d78de9f4c5f5012836299d5a545fdfd5b3054ad307b016e24fd4f9",
+      "right_document_ids": [
+        "cbse-2020-main-physics-archive-55-5-2-physics-2e2c6e0167"
+      ],
+      "right_question_id": "q_f2698e64d57d2e51b21052b87a0034d7737832098cf1ab87cd24c1456e48367a",
+      "sequence_ratio": 0.987556,
+      "shingle_jaccard": 0.949416,
+      "similarity": 0.987556
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-delhi-scheme-65-1-2-d-mathematics-0df28d4564"
+      ],
+      "left_question_id": "q_41bd23d31da1e909d3c117226dd03ead72bd29bdb92f343c765db90289aba89f",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-delhi-scheme-65-1-3-d-mathematics-ac8ddc119c"
+      ],
+      "right_question_id": "q_6bcf567506c4c95fd4b21f208dad4972cfad776707a8a8a16c57decd797068a0",
+      "sequence_ratio": 0.987474,
+      "shingle_jaccard": 0.90566,
+      "similarity": 0.987474
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-e-physics-theory-79b61aff8b"
+      ],
+      "left_question_id": "q_3c3f18f4acc8ef39875720f78bc6afb84ddbd296aa582405bd50cbfc70fe27e1",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-e-physics-theory-7b39c456d0"
+      ],
+      "right_question_id": "q_4698d46af9b7b210d9871cd0123e09c42cab0fadfcf85ad2825f2b6f7323f413",
+      "sequence_ratio": 0.987426,
+      "shingle_jaccard": 0.96088,
+      "similarity": 0.987426
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-e-physics-theory-7b39c456d0"
+      ],
+      "left_question_id": "q_4698d46af9b7b210d9871cd0123e09c42cab0fadfcf85ad2825f2b6f7323f413",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-e-physics-theory-6f818b7ab1"
+      ],
+      "right_question_id": "q_6d05adcfa77d1224999e1564ab504b9b528333e12b9390600b65c770e446e713",
+      "sequence_ratio": 0.987426,
+      "shingle_jaccard": 0.96088,
+      "similarity": 0.987426
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-e-physics-theory-6f818b7ab1"
+      ],
+      "left_question_id": "q_66f49c276be27a1642d6a828694e1315fe7d782b8d85db0cf9a150168e0c5c35",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-e-physics-theory-7b39c456d0"
+      ],
+      "right_question_id": "q_d426d57d5ff6f4ea0a15dbf42c98eecfb9e9d1795e9291d30b0d5ae57cb0f5c9",
+      "sequence_ratio": 0.987207,
+      "shingle_jaccard": 0.975207,
+      "similarity": 0.987207
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-physics-55-3-3-34abecc6a1"
+      ],
+      "left_question_id": "q_1cfa9b30121eb45b076135b7df07dee8bc1797ab1fb952d178c2b13424f89479",
+      "right_document_ids": [
+        "cbse-2026-main-physics-55-3-2-ec461dd302"
+      ],
+      "right_question_id": "q_fe937d9bc1475f9a1b0e08d855d1c1033d5fec3432505ce85d012a328452fe14",
+      "sequence_ratio": 0.987166,
+      "shingle_jaccard": 0.92887,
+      "similarity": 0.987166
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-c-physics-theory-14987d38b6",
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-c-physics-theory-72500c6a13"
+      ],
+      "left_question_id": "q_50c2938718b260a0fee92d1d7bbc948d2371aba0c1f2a34462f2fcafbb04c45a",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-c-physics-theory-f5c78c7cec"
+      ],
+      "right_question_id": "q_e0789593ed47df3d7ea7bc6ed55fd6d9a99b5206bd4f2fb4c39eed4e22aa71ea",
+      "sequence_ratio": 0.987084,
+      "shingle_jaccard": 0.952991,
+      "similarity": 0.987084
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-chandigarh_panchkula-set-3"
+      ],
+      "left_question_id": "q_77471f50c3b1029b05035fe3523e3cde6ad05bb301874cd7e8157ab575e7b385",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-chandigarh_panchkula-set-1"
+      ],
+      "right_question_id": "q_ce754f3ba23b60abdbeb8de002b8ad3bd79f9354b136690e751a5e22468f8425",
+      "sequence_ratio": 0.987013,
+      "shingle_jaccard": 0.945946,
+      "similarity": 0.987013
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-1"
+      ],
+      "left_question_id": "q_a753aa9f2654166ea96dad20b5389689dc433c9b558416c2d96d025798a8a1e2",
+      "right_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-2"
+      ],
+      "right_question_id": "q_ed661080ad202c466ab24df39a1e0ef6ce67e44747be16d25b1bd2432d95a685",
+      "sequence_ratio": 0.986784,
+      "shingle_jaccard": 0.949749,
+      "similarity": 0.986784
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-physics-archive-55-5-3-physics-22cfb1cf73"
+      ],
+      "left_question_id": "q_af9cbe25a15edbb81f24c96c418781a9433fc6d68c7168051e5a5a13474b9edc",
+      "right_document_ids": [
+        "cbse-2020-main-physics-archive-55-5-2-physics-2e2c6e0167"
+      ],
+      "right_question_id": "q_f2698e64d57d2e51b21052b87a0034d7737832098cf1ab87cd24c1456e48367a",
+      "sequence_ratio": 0.986667,
+      "shingle_jaccard": 0.949416,
+      "similarity": 0.986667
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-compartment-mathematics-delhi-scheme-65-1-3-mathematics-5a86c9bedd"
+      ],
+      "left_question_id": "q_40f4b6a6e7f6e423e456523e0dc9e585a4df313baa8316366b1ddd6ba04948aa",
+      "right_document_ids": [
+        "cbse-2017-compartment-mathematics-delhi-scheme-65-1-1-mathematics-48467435a0",
+        "cbse-2017-compartment-mathematics-delhi-scheme-65-1-2-mathematics-f01a57285e"
+      ],
+      "right_question_id": "q_ec4f6a0a11998f3a781c1771de2d7d3f39212233d2e57eb8435b8b9a024a733d",
+      "sequence_ratio": 0.986371,
+      "shingle_jaccard": 0.96,
+      "similarity": 0.986371
+    },
+    {
+      "left_document_ids": [
+        "cbse-2022-main-mathematics-65-2-2-mathematics-9f72fb061b"
+      ],
+      "left_question_id": "q_344339a362b97e5fbe7c150560a25ea94d16bd0e7f1c6622c42baeeabfe2e9a6",
+      "right_document_ids": [
+        "cbse-2022-main-mathematics-65-2-3-mathematics-ab16bbab59"
+      ],
+      "right_question_id": "q_8ac3cffe35417f2c4ff999252bf646eb4f45d8193896b5e046da0fad8632a1c6",
+      "sequence_ratio": 0.98615,
+      "shingle_jaccard": 0.941176,
+      "similarity": 0.98615
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-physics-55-4-2-749694881d"
+      ],
+      "left_question_id": "q_16780ad4e7287c0b3b3db201c92a9089706a724ba137ae100b2b7deede8a2326",
+      "right_document_ids": [
+        "cbse-2026-main-physics-55-4-3-16fd6ae547"
+      ],
+      "right_question_id": "q_d62cd89f63120169b0b1088948e23314d0d840fc78b4efc231b9fe24e435b31c",
+      "sequence_ratio": 0.986014,
+      "shingle_jaccard": 0.919048,
+      "similarity": 0.986014
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-physics-55-4-1-db098243f1"
+      ],
+      "left_question_id": "q_9d72312022cd75a6fe453c08abc8d485751e0d05c21417b7bc26c74da1313517",
+      "right_document_ids": [
+        "cbse-2026-main-physics-55-4-3-16fd6ae547"
+      ],
+      "right_question_id": "q_d62cd89f63120169b0b1088948e23314d0d840fc78b4efc231b9fe24e435b31c",
+      "sequence_ratio": 0.986014,
+      "shingle_jaccard": 0.919048,
+      "similarity": 0.986014
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-ajmer-set-3"
+      ],
+      "left_question_id": "q_a371a9d3dcf4d0687311e18218171c68b129a5f4e9ac39224e69c598f7f46f29",
+      "right_document_ids": [
+        "cbse-2015-main-physics-ajmer-set-2"
+      ],
+      "right_question_id": "q_d54f3c0d5f4a841e1470cb1458e76774aab4f60c87a8f5306c396f468a954c76",
+      "sequence_ratio": 0.985879,
+      "shingle_jaccard": 0.9591,
+      "similarity": 0.985879
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-e-physics-theory-7b39c456d0"
+      ],
+      "left_question_id": "q_1a6a4d8fe84403faf4b0a01092ef4cfca858f148fe38640869a758241f2027b6",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-e-physics-theory-6f818b7ab1",
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-e-physics-theory-79b61aff8b"
+      ],
+      "right_question_id": "q_5e483e808bb1fd9e3d3983dac7a869eadebf25cd495efd23f51949e8a09340a1",
+      "sequence_ratio": 0.985554,
+      "shingle_jaccard": 0.942857,
+      "similarity": 0.985554
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-3"
+      ],
+      "left_question_id": "q_1eba78bbef1897a1fd73655b6ac1d7100d0b30f4ead07d8f97ad6437375090a2",
+      "right_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-1",
+        "cbse-2015-compartment-physics-outside-set-2"
+      ],
+      "right_question_id": "q_b890da4adf649739d35603287215316f21600c2928103079e22b8bd3dd56aaa2",
+      "sequence_ratio": 0.985469,
+      "shingle_jaccard": 0.955357,
+      "similarity": 0.985469
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-1-c-mathematics-d5037aca40"
+      ],
+      "left_question_id": "q_90d21e10dbe1cfcc388ee166f08e674bb1bc6fdbf8357ddf93ad18f3f7f03fe5",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-3-c-mathematics-794454642b"
+      ],
+      "right_question_id": "q_92c9e9e9acd5829c47df79099db19ec98380fabe55af6438cc556d0960e00cc7",
+      "sequence_ratio": 0.985465,
+      "shingle_jaccard": 0.944444,
+      "similarity": 0.985465
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-chandigarh_panchkula-set-2"
+      ],
+      "left_question_id": "q_39b6204242f5e7b57a93855601b2798cdab87ebf3ddf29e0c79ca793860f1c9f",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-chandigarh_panchkula-set-1"
+      ],
+      "right_question_id": "q_ce754f3ba23b60abdbeb8de002b8ad3bd79f9354b136690e751a5e22468f8425",
+      "sequence_ratio": 0.984733,
+      "shingle_jaccard": 0.884298,
+      "similarity": 0.984733
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-3-c-mathematics-794454642b"
+      ],
+      "left_question_id": "q_92c9e9e9acd5829c47df79099db19ec98380fabe55af6438cc556d0960e00cc7",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-2-c-mathematics-c9d6b07386"
+      ],
+      "right_question_id": "q_9ced45da30e63e4d77ec55a3aa1511f1c53e4ca445d26f97f0c9cb9358fe58aa",
+      "sequence_ratio": 0.984397,
+      "shingle_jaccard": 0.881356,
+      "similarity": 0.984397
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-1-e-mathematics-f173b21822"
+      ],
+      "left_question_id": "q_295a311dbd81e62f28785922c67c149d7c120cea3fdcaebfbf1ca7fcc290d8b6",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-2-e-mathematics-7455edf54c"
+      ],
+      "right_question_id": "q_a24254e05dc5d6a7145f03c432cc420601a165bb5a71689e92b9e1518a2a0aef",
+      "sequence_ratio": 0.984375,
+      "shingle_jaccard": 0.938776,
+      "similarity": 0.984375
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-compartment-mathematics-archive-65-2-mathematics-846f91f952"
+      ],
+      "left_question_id": "q_6e2049384aa97f7520e12a7631db07d6bb62a40d6a3af0d336faa8156d191f1f",
+      "right_document_ids": [
+        "cbse-2018-compartment-mathematics-archive-65-1-mathematics-398e2dd5dc",
+        "cbse-2018-compartment-mathematics-archive-65-3-mathematics-15ff97537e"
+      ],
+      "right_question_id": "q_7e238659c090b5046e088535f93e91f88071a0462b78f2796565a6a6bc1a232a",
+      "sequence_ratio": 0.984067,
+      "shingle_jaccard": 0.950249,
+      "similarity": 0.984067
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-3"
+      ],
+      "left_question_id": "q_e05bd055b1b326c7732399c76bc604380c372314f6cdce8460aefe00b619069e",
+      "right_document_ids": [
+        "cbse-2015-compartment-physics-outside-set-2"
+      ],
+      "right_question_id": "q_ed661080ad202c466ab24df39a1e0ef6ce67e44747be16d25b1bd2432d95a685",
+      "sequence_ratio": 0.984043,
+      "shingle_jaccard": 0.949239,
+      "similarity": 0.984043
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-uttarakhand-set-3"
+      ],
+      "left_question_id": "q_501cdc0c56d831364a65def2cba186d9a44a13c8105bd7f908666b345052722a",
+      "right_document_ids": [
+        "cbse-2015-main-physics-uttarakhand-set-1",
+        "cbse-2015-main-physics-uttarakhand-set-2"
+      ],
+      "right_question_id": "q_80c2c8099f355e3a425b5e440805edbff3ab17ea8c707824a1935d3405e08570",
+      "sequence_ratio": 0.983977,
+      "shingle_jaccard": 0.921348,
+      "similarity": 0.983977
+    },
+    {
+      "left_document_ids": [
+        "cbse-2025-main-physics-55-5-2-physics-33035a3059"
+      ],
+      "left_question_id": "q_7fcfeaec535ffe1a9211e384ff6e3b2000225543e276d8fdf847834172c41b36",
+      "right_document_ids": [
+        "cbse-2025-main-physics-55-5-3-physics-3246f53fa5"
+      ],
+      "right_question_id": "q_d6029a9a1434916d17454d486428e45ce1778543fd8225140ad95dfb8ff0fd07",
+      "sequence_ratio": 0.983815,
+      "shingle_jaccard": 0.919355,
+      "similarity": 0.983815
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-e-physics-theory-79b61aff8b"
+      ],
+      "left_question_id": "q_469296203cc8ae1fa20235d10bef7f5f26180bcf941d80010dbb960cb34e35e9",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-e-physics-theory-6f818b7ab1"
+      ],
+      "right_question_id": "q_66f49c276be27a1642d6a828694e1315fe7d782b8d85db0cf9a150168e0c5c35",
+      "sequence_ratio": 0.983537,
+      "shingle_jaccard": 0.951613,
+      "similarity": 0.983537
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-patna-set-1"
+      ],
+      "left_question_id": "q_47c636553e2e6ff2435ce5fa406fa32d89ee5c5f6ad6310cd613f78140283dc4",
+      "right_document_ids": [
+        "cbse-2015-main-physics-patna-set-2",
+        "cbse-2015-main-physics-patna-set-3"
+      ],
+      "right_question_id": "q_998b3dfaa28488a8373bde37033f76a476a270f7cef049ed4a2d2183df81443f",
+      "sequence_ratio": 0.983529,
+      "shingle_jaccard": 0.964286,
+      "similarity": 0.983529
+    },
+    {
+      "left_document_ids": [
+        "cbse-2022-main-mathematics-65-4-1-mathematics-90e80f4bf5"
+      ],
+      "left_question_id": "q_42fc355a182c3beb18c5b0676b87811667f929893d2b2c8e7d2d2362ccf5f832",
+      "right_document_ids": [
+        "cbse-2022-main-mathematics-65-4-2-mathematics-164f0b2ec7",
+        "cbse-2022-main-mathematics-65-4-3-mathematics-c1109d882c"
+      ],
+      "right_question_id": "q_70f81a0af1aac8576c5d7606898e1bc684d2670824cb0b047d96fcf07a212f75",
+      "sequence_ratio": 0.983333,
+      "shingle_jaccard": 0.941176,
+      "similarity": 0.983333
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-mathematics-delhi-set-1"
+      ],
+      "left_question_id": "q_4f40ea32f43ac7708447b1d4c8144534d921cf232c17b773442fd8d6d8d5b50a",
+      "right_document_ids": [
+        "cbse-2015-compartment-mathematics-delhi-set-2"
+      ],
+      "right_question_id": "q_78bdfe865e2b58dd4f443181d0ffa4ccfccc3f3083b226e364e69900baae4e6e",
+      "sequence_ratio": 0.983118,
+      "shingle_jaccard": 0.920732,
+      "similarity": 0.983118
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-allahabad_uttarakhand-set-3"
+      ],
+      "left_question_id": "q_2c1e99030aced950e2c0ff61787d8ee0eb6616b997cb88bd9e7136f5051f3aba",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-allahabad_uttarakhand-set-1"
+      ],
+      "right_question_id": "q_6a585bf0a230651d853156efec4a991d31316b27a56ef4b148be189e9460838d",
+      "sequence_ratio": 0.983051,
+      "shingle_jaccard": 0.95082,
+      "similarity": 0.983051
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-physics-2384-1-55-2-1-physics-67342ebfc9",
+        "cbse-2026-main-physics-2384-3-55-2-3-physics-53a3d6cdf6"
+      ],
+      "left_question_id": "q_7218650f62a72cec1ed6a2feacf0d382af1197e883c1980bc5d2c76eefee7c94",
+      "right_document_ids": [
+        "cbse-2026-main-physics-2384-2-55-2-2-physics-06bf278e42"
+      ],
+      "right_question_id": "q_a97fd512b5f55b5082f60ec2b3dfb5f3a23e51f671848c0df2c433cff0fc2da5",
+      "sequence_ratio": 0.983051,
+      "shingle_jaccard": 0.893082,
+      "similarity": 0.983051
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-compartment-physics-delhi-scheme-55-1-2-physics-547e318ff9"
+      ],
+      "left_question_id": "q_35f53f8bf009d251db99c84b12b2911eb7987d3d55b16efc2b53e697ac08c1de",
+      "right_document_ids": [
+        "cbse-2017-compartment-physics-delhi-scheme-55-1-3-physics-3cadd8e4af"
+      ],
+      "right_question_id": "q_a24e7696cb87f5463597216ee504ae778375f83128185083c7d92eb32ed672a6",
+      "sequence_ratio": 0.982962,
+      "shingle_jaccard": 0.967681,
+      "similarity": 0.982962
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-3-n-mathematics-eabc520c4a"
+      ],
+      "left_question_id": "q_2d7be5de411c5c817bb2510c407448fbc66c05d5a7a7a794b97cb1dc73039e3a",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-2-n-mathematics-9dc6c3560b"
+      ],
+      "right_question_id": "q_c6b9d128e5e1027fda7f01587b5ef47fec44396d030f8ccc5ad32d26d68bd8a3",
+      "sequence_ratio": 0.982684,
+      "shingle_jaccard": 0.882353,
+      "similarity": 0.982684
+    },
+    {
+      "left_document_ids": [
+        "cbse-2025-main-physics-55-5-1-physics-ab49190772"
+      ],
+      "left_question_id": "q_180b5daaa319e7fea105a737528b6906523dac9eff8a7c8feff63443626a4791",
+      "right_document_ids": [
+        "cbse-2025-main-physics-55-5-2-physics-33035a3059"
+      ],
+      "right_question_id": "q_7fcfeaec535ffe1a9211e384ff6e3b2000225543e276d8fdf847834172c41b36",
+      "sequence_ratio": 0.982679,
+      "shingle_jaccard": 0.914439,
+      "similarity": 0.982679
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-ajmer-set-1"
+      ],
+      "left_question_id": "q_7ea8fc28a52d2d9d5410f5c5d46368076e0ad1f400f3eeb5025251e928588a3f",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-ajmer-set-3"
+      ],
+      "right_question_id": "q_ac1b8cab40076ebf780edf3a9cac2d1b9752bd57bc8982deb422954bdd276b41",
+      "sequence_ratio": 0.982505,
+      "shingle_jaccard": 0.891626,
+      "similarity": 0.982505
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-mathematics-delhi-scheme-65-1-2-mathematics-c365c3e53e"
+      ],
+      "left_question_id": "q_487a19d156a297122affdf3a48e3ebf41e2e072d5552717522e3ba9c1ad95c28",
+      "right_document_ids": [
+        "cbse-2017-main-mathematics-delhi-scheme-65-1-3-mathematics-fb9b99ccb6"
+      ],
+      "right_question_id": "q_77c88974b6fbb0ca3b3dffce8405bf28f43ba449e86cad7009ca0d75bfe05c1d",
+      "sequence_ratio": 0.982276,
+      "shingle_jaccard": 0.891026,
+      "similarity": 0.982276
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-allahabad_uttarakhand-set-1"
+      ],
+      "left_question_id": "q_5b75aa5544258573c0569d71e93cbe26cf7fc6138d3d7c15ee678787a0d80bd5",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-allahabad_uttarakhand-set-3"
+      ],
+      "right_question_id": "q_758b67ffb6e674d969e22e48ba29e913f6b5ed0355b0599d03996614cc704ebd",
+      "sequence_ratio": 0.982012,
+      "shingle_jaccard": 0.922747,
+      "similarity": 0.982012
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-mathematics-2414-1-65-2-1-mathematics-6fb4d9eb68"
+      ],
+      "left_question_id": "q_8036252251a07565098d2a0bc5818098e4127599510a1442a6d11484ce02cd80",
+      "right_document_ids": [
+        "cbse-2026-main-mathematics-2414-2-65-2-2-mathematics-08ac615b2d"
+      ],
+      "right_question_id": "q_fe7483a147fac6ce54bcc46a2861f58ea671fc6ae53250479b6af8dd96f012b1",
+      "sequence_ratio": 0.981982,
+      "shingle_jaccard": 0.941176,
+      "similarity": 0.981982
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-physics-2383-3-55-1-3-physics-c5f8bbacd8"
+      ],
+      "left_question_id": "q_528ed6cf38f5dec7af85ee3253fd29eeeb49e016fa9ea4c8cfbaf770df2a9fb2",
+      "right_document_ids": [
+        "cbse-2026-main-physics-2383-2-55-1-2-physics-918fabad59"
+      ],
+      "right_question_id": "q_c7f69d4f0276ec4cd51c27b8dfaf15f41784f2edd9a616d687c4df0c415815fc",
+      "sequence_ratio": 0.981966,
+      "shingle_jaccard": 0.907767,
+      "similarity": 0.981966
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-bhubaneshwar-set-1",
+        "cbse-2015-main-mathematics-bhubaneshwar-set-3"
+      ],
+      "left_question_id": "q_42cb2447891189e2cc4e521084cc1ef916009ee99ad2c56ae9ec1eaa5c52ca9a",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-bhubaneshwar-set-2"
+      ],
+      "right_question_id": "q_bb6ec6246d0e94931d6e53ae2c239779a550b883829b70fe090e6558f58dd80b",
+      "sequence_ratio": 0.981777,
+      "shingle_jaccard": 0.914894,
+      "similarity": 0.981777
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-3-e-mathematics-e623f50b24"
+      ],
+      "left_question_id": "q_64f0c08192ed2c9de3ad5ef5e1de5b543ac214d182f648b18541e7e7e186b4d8",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-2-e-mathematics-7455edf54c"
+      ],
+      "right_question_id": "q_a24254e05dc5d6a7145f03c432cc420601a165bb5a71689e92b9e1518a2a0aef",
+      "sequence_ratio": 0.981308,
+      "shingle_jaccard": 0.968421,
+      "similarity": 0.981308
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-foreign-55-2-2-f-physics-set-2-76a1d7d584"
+      ],
+      "left_question_id": "q_746e8eb991d24993a3027f0bb04e9bbb851203ad66598067caf2ca1824ad1a80",
+      "right_document_ids": [
+        "cbse-2016-main-physics-foreign-55-2-1-f-physics-set-1-0660121280"
+      ],
+      "right_question_id": "q_97f3980c66011acd0f0da91fff822692682daf519f496d2d4e10d6200fb9a83a",
+      "sequence_ratio": 0.981291,
+      "shingle_jaccard": 0.921429,
+      "similarity": 0.981291
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-main-physics-archive-55-3-physics-e4fc77b8fd"
+      ],
+      "left_question_id": "q_454fa1b3e3013939a81ad18ab2a0a6d462d19e2ff1c02f80eec7f3af45d01fd2",
+      "right_document_ids": [
+        "cbse-2018-main-physics-archive-55-2-physics-06a9820efa"
+      ],
+      "right_question_id": "q_4caa8a76211744bbb467d4bc072a34d3ec2bc970ee014ef0128590cc6cd00c36",
+      "sequence_ratio": 0.980978,
+      "shingle_jaccard": 0.921875,
+      "similarity": 0.980978
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-main-physics-archive-55-3-physics-e4fc77b8fd"
+      ],
+      "left_question_id": "q_454fa1b3e3013939a81ad18ab2a0a6d462d19e2ff1c02f80eec7f3af45d01fd2",
+      "right_document_ids": [
+        "cbse-2018-main-physics-archive-55-1-physics-5cb1b3225e"
+      ],
+      "right_question_id": "q_f3c9ecb79bc01118852000429be34b8929b6e4e64a8619ae6ed64e82b0247d81",
+      "sequence_ratio": 0.980978,
+      "shingle_jaccard": 0.944,
+      "similarity": 0.980978
+    },
+    {
+      "left_document_ids": [
+        "cbse-2022-main-mathematics-65-4-2-mathematics-164f0b2ec7"
+      ],
+      "left_question_id": "q_67f1bfc7d169c417e448dcf5ab7fc3e8f37be7492e36dd4f0ff5b3be7028459e",
+      "right_document_ids": [
+        "cbse-2022-main-mathematics-65-4-3-mathematics-c1109d882c"
+      ],
+      "right_question_id": "q_e40520f8264c35c80373f3653d7d6ab178c98a802d3c62066c06afce7e16c619",
+      "sequence_ratio": 0.980707,
+      "shingle_jaccard": 0.862069,
+      "similarity": 0.980707
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-physics-2384-2-55-2-2-physics-06bf278e42"
+      ],
+      "left_question_id": "q_67bbee067356b08b17e30e5cfa3ea4d400ca062022dac70648974269446b7096",
+      "right_document_ids": [
+        "cbse-2026-main-physics-2384-3-55-2-3-physics-53a3d6cdf6"
+      ],
+      "right_question_id": "q_ea4a815b68e81a9b996a93026c40c496951707935dc4cfbdf150a2a22890b50f",
+      "sequence_ratio": 0.980143,
+      "shingle_jaccard": 0.888158,
+      "similarity": 0.980143
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-physics-55-4-2-749694881d",
+        "cbse-2026-main-physics-55-4-3-16fd6ae547"
+      ],
+      "left_question_id": "q_8a9cf1e641fe7b82409c871f9088dafaa052d3ec0a1bd88da0cab01e316facc9",
+      "right_document_ids": [
+        "cbse-2026-main-physics-55-4-1-db098243f1"
+      ],
+      "right_question_id": "q_c07b37c359867b0bf011b519352a229dec52ad28254547b1cbfeb3f80fc0f6a4",
+      "sequence_ratio": 0.980132,
+      "shingle_jaccard": 0.884354,
+      "similarity": 0.980132
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-mathematics-foreign-65-2-2-mathematics-8a8f4dc9dd"
+      ],
+      "left_question_id": "q_722029575a48eee59bf9ad51736542a24493d4997c16dbea50bb678069f88ec9",
+      "right_document_ids": [
+        "cbse-2017-main-mathematics-foreign-65-2-3-mathematics-2cfaf12f58"
+      ],
+      "right_question_id": "q_88a8174143e87d29dd3a25c1d24348f22919f0327ecfee1f30f2457c14adfb4d",
+      "sequence_ratio": 0.979858,
+      "shingle_jaccard": 0.912458,
+      "similarity": 0.979858
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-chandigarh_panchkula-set-2"
+      ],
+      "left_question_id": "q_39b6204242f5e7b57a93855601b2798cdab87ebf3ddf29e0c79ca793860f1c9f",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-chandigarh_panchkula-set-3"
+      ],
+      "right_question_id": "q_77471f50c3b1029b05035fe3523e3cde6ad05bb301874cd7e8157ab575e7b385",
+      "sequence_ratio": 0.979381,
+      "shingle_jaccard": 0.897436,
+      "similarity": 0.979381
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-2-c-mathematics-c9d6b07386"
+      ],
+      "left_question_id": "q_b93c38ee1034178e99d20a738672bdd3614cdebb8b1d690862a137eb0aaaf734",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-1-c-mathematics-d5037aca40"
+      ],
+      "right_question_id": "q_ea98f38be8953a837bf7f4db51f282c19fe96c623dcbc3753bc46a05dfcf03db",
+      "sequence_ratio": 0.97931,
+      "shingle_jaccard": 0.939759,
+      "similarity": 0.97931
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-mathematics-delhi-set-3"
+      ],
+      "left_question_id": "q_1ff9c1991d5cadac1cbf578e1b19064e4dcd6919717c03390bba8605bd5bf029",
+      "right_document_ids": [
+        "cbse-2015-compartment-mathematics-delhi-set-2"
+      ],
+      "right_question_id": "q_78bdfe865e2b58dd4f443181d0ffa4ccfccc3f3083b226e364e69900baae4e6e",
+      "sequence_ratio": 0.979228,
+      "shingle_jaccard": 0.961783,
+      "similarity": 0.979228
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-2"
+      ],
+      "left_question_id": "q_09dd68433314d7fd648f18ea50039a5299d15962e5b3e5ce567ce7f6b86840bd",
+      "right_document_ids": [
+        "cbse-2015-main-physics-chandigarh-set-1",
+        "cbse-2015-main-physics-chandigarh-set-3"
+      ],
+      "right_question_id": "q_98a79180cfc3cbeba6615c40f840cfd9cdd27189800dc21576bd47ea0780fda4",
+      "sequence_ratio": 0.979104,
+      "shingle_jaccard": 0.953125,
+      "similarity": 0.979104
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-mathematics-foreign-65-2-3-mathematics-2cfaf12f58"
+      ],
+      "left_question_id": "q_88a8174143e87d29dd3a25c1d24348f22919f0327ecfee1f30f2457c14adfb4d",
+      "right_document_ids": [
+        "cbse-2017-main-mathematics-foreign-65-2-1-mathematics-92cb11aded"
+      ],
+      "right_question_id": "q_b781b9b5bda3027487be8c26d69550821d1edb6ab898772cc33ba59bddbbdaf8",
+      "sequence_ratio": 0.978799,
+      "shingle_jaccard": 0.906977,
+      "similarity": 0.978799
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-main-physics-archive-55-2-physics-06a9820efa"
+      ],
+      "left_question_id": "q_4caa8a76211744bbb467d4bc072a34d3ec2bc970ee014ef0128590cc6cd00c36",
+      "right_document_ids": [
+        "cbse-2018-main-physics-archive-55-1-physics-5cb1b3225e"
+      ],
+      "right_question_id": "q_f3c9ecb79bc01118852000429be34b8929b6e4e64a8619ae6ed64e82b0247d81",
+      "sequence_ratio": 0.978667,
+      "shingle_jaccard": 0.902256,
+      "similarity": 0.978667
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-main-physics-archive-55-2-physics-06a9820efa"
+      ],
+      "left_question_id": "q_c7e676e943b5d36826c6400200aa1129be07a354751ca3f3451e8dbfde16aede",
+      "right_document_ids": [
+        "cbse-2018-main-physics-archive-55-1-physics-5cb1b3225e"
+      ],
+      "right_question_id": "q_e7361b2ec21d16749e4d3e48de3dee288c91177e13d36e5f51529cf13b04c693",
+      "sequence_ratio": 0.978644,
+      "shingle_jaccard": 0.935323,
+      "similarity": 0.978644
+    },
+    {
+      "left_document_ids": [
+        "cbse-2023-main-mathematics-65-2-3-mathematics-6f6a886085"
+      ],
+      "left_question_id": "q_149019ed3736c9c59dbb00b4ce7b56d0e6339308aa6b0a35c48a75664c7d11bd",
+      "right_document_ids": [
+        "cbse-2023-main-mathematics-65-2-1-mathematics-c771062fce"
+      ],
+      "right_question_id": "q_9965c6a4ebb7b1bd2d439438f99e689ca90cb6a9991fa4e8563e93295ce3fd2e",
+      "sequence_ratio": 0.978541,
+      "shingle_jaccard": 0.746835,
+      "similarity": 0.978541
+    },
+    {
+      "left_document_ids": [
+        "cbse-2023-main-physics-55-4-1-physics-c1e9f89119",
+        "cbse-2023-main-physics-55-4-2-physics-9630f19a50"
+      ],
+      "left_question_id": "q_1cd6050f55507005d34de515e27fdb40f1075808002d5e99123da42a761d52c5",
+      "right_document_ids": [
+        "cbse-2023-main-physics-55-4-3-physics-67f63737bb"
+      ],
+      "right_question_id": "q_878dca1736581dd5aeeec398c6b40886059df1b2542bcda27540dbba1ce0ded7",
+      "sequence_ratio": 0.977918,
+      "shingle_jaccard": 0.902597,
+      "similarity": 0.977918
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-main-physics-archive-55-3-physics-e4fc77b8fd"
+      ],
+      "left_question_id": "q_7331ddd85e8b892b9f4b9e0d649cb6641f4c5754c0a8ec9076b9f4d7ded95d57",
+      "right_document_ids": [
+        "cbse-2018-main-physics-archive-55-2-physics-06a9820efa"
+      ],
+      "right_question_id": "q_c7e676e943b5d36826c6400200aa1129be07a354751ca3f3451e8dbfde16aede",
+      "sequence_ratio": 0.977737,
+      "shingle_jaccard": 0.935323,
+      "similarity": 0.977737
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-compartment-physics-delhi-scheme-55-1-1-physics-d150dd5555"
+      ],
+      "left_question_id": "q_7077f427cef2ab19ad5c200a9e04a6c1e4643bad5a4afe667e868dc275f1c6d3",
+      "right_document_ids": [
+        "cbse-2017-compartment-physics-delhi-scheme-55-1-3-physics-3cadd8e4af"
+      ],
+      "right_question_id": "q_a24e7696cb87f5463597216ee504ae778375f83128185083c7d92eb32ed672a6",
+      "sequence_ratio": 0.97772,
+      "shingle_jaccard": 0.95283,
+      "similarity": 0.97772
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-physics-archive-55-2-2-physics-5ff0f6b448"
+      ],
+      "left_question_id": "q_44cacd9eca52a6a4760b9a033c49046aead2a0a60f4ec313305d02fb733fb12d",
+      "right_document_ids": [
+        "cbse-2020-main-physics-archive-55-2-1-physics-3cd6064407",
+        "cbse-2020-main-physics-archive-55-2-3-physics-f9c673a7bd"
+      ],
+      "right_question_id": "q_bd96a731cc2607b5a0426492a572fbb3489ff72b154d6752af004dcc6f8b30ad",
+      "sequence_ratio": 0.977556,
+      "shingle_jaccard": 0.850575,
+      "similarity": 0.977556
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-mathematics-delhi-set-3"
+      ],
+      "left_question_id": "q_1ff9c1991d5cadac1cbf578e1b19064e4dcd6919717c03390bba8605bd5bf029",
+      "right_document_ids": [
+        "cbse-2015-compartment-mathematics-delhi-set-1"
+      ],
+      "right_question_id": "q_4f40ea32f43ac7708447b1d4c8144534d921cf232c17b773442fd8d6d8d5b50a",
+      "sequence_ratio": 0.976654,
+      "shingle_jaccard": 0.933735,
+      "similarity": 0.976654
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-delhi-scheme-65-1-2-d-mathematics-0df28d4564"
+      ],
+      "left_question_id": "q_41bd23d31da1e909d3c117226dd03ead72bd29bdb92f343c765db90289aba89f",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-delhi-scheme-65-1-1-d-mathematics-27104061c8"
+      ],
+      "right_question_id": "q_755c93ab7e0468db08357c1d18788b937de592aa17aacec037a1029493b44c4b",
+      "sequence_ratio": 0.976645,
+      "shingle_jaccard": 0.84472,
+      "similarity": 0.976645
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-mathematics-archive-65-1-2-mathematics-54339ea0b2",
+        "cbse-2020-main-mathematics-archive-65-1-3-mathematics-ee908ecaf9"
+      ],
+      "left_question_id": "q_3da0ba7d49703c158faf3a6a492023fdffeab436aa92a3b9b87efe4aa6162b95",
+      "right_document_ids": [
+        "cbse-2020-main-mathematics-archive-65-1-1-mathematics-d64cede0fe"
+      ],
+      "right_question_id": "q_bc197382a38f850fe8e92d08f9262d8d72b4c34b7506cf2b4213627962088388",
+      "sequence_ratio": 0.976602,
+      "shingle_jaccard": 0.865385,
+      "similarity": 0.976602
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-physics-archive-55-5-1-physics-879eea98f8"
+      ],
+      "left_question_id": "q_78ec039ff510980b6c059c0db5e5d8ac57108d25844d6126a45e95a18e529ada",
+      "right_document_ids": [
+        "cbse-2020-main-physics-archive-55-5-2-physics-2e2c6e0167",
+        "cbse-2020-main-physics-archive-55-5-3-physics-22cfb1cf73"
+      ],
+      "right_question_id": "q_8a643725be6307f7f28f177ff6ce2cafae6d51964d181445e0252e66ca15d553",
+      "sequence_ratio": 0.975543,
+      "shingle_jaccard": 0.847826,
+      "similarity": 0.975543
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-1-c-mathematics-d5037aca40"
+      ],
+      "left_question_id": "q_90d21e10dbe1cfcc388ee166f08e674bb1bc6fdbf8357ddf93ad18f3f7f03fe5",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-2-c-mathematics-c9d6b07386"
+      ],
+      "right_question_id": "q_9ced45da30e63e4d77ec55a3aa1511f1c53e4ca445d26f97f0c9cb9358fe58aa",
+      "sequence_ratio": 0.97554,
+      "shingle_jaccard": 0.894737,
+      "similarity": 0.97554
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-1-e-mathematics-f173b21822"
+      ],
+      "left_question_id": "q_295a311dbd81e62f28785922c67c149d7c120cea3fdcaebfbf1ca7fcc290d8b6",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-3-e-mathematics-e623f50b24"
+      ],
+      "right_question_id": "q_64f0c08192ed2c9de3ad5ef5e1de5b543ac214d182f648b18541e7e7e186b4d8",
+      "sequence_ratio": 0.97546,
+      "shingle_jaccard": 0.910891,
+      "similarity": 0.97546
+    },
+    {
+      "left_document_ids": [
+        "cbse-2023-compartment-physics-55-c-2-physics-db08fcca84"
+      ],
+      "left_question_id": "q_1c64d752fa06e017c011f9f63bf561dbd2c49de18bf460cebe92d0b18da9133c",
+      "right_document_ids": [
+        "cbse-2023-compartment-physics-55-c-1-physics-85eafe30c4"
+      ],
+      "right_question_id": "q_3569dfd47fe8112a328fa8b96f632a9915dc93f808faf4b691cb6c748279b7bb",
+      "sequence_ratio": 0.973635,
+      "shingle_jaccard": 0.878049,
+      "similarity": 0.973635
+    },
+    {
+      "left_document_ids": [
+        "cbse-2023-compartment-physics-55-c-2-physics-db08fcca84",
+        "cbse-2023-compartment-physics-55-c-3-physics-59f188feec"
+      ],
+      "left_question_id": "q_279a812cebb2a6604acbe97f928f434a953148d5c5ede66242585a4ddfce0a40",
+      "right_document_ids": [
+        "cbse-2023-compartment-physics-55-c-1-physics-85eafe30c4"
+      ],
+      "right_question_id": "q_6bf5b5075fc830dc3914dec4f6b2a6cf36f0c136d463fa939d7597de6dcaeec0",
+      "sequence_ratio": 0.97281,
+      "shingle_jaccard": 0.851485,
+      "similarity": 0.97281
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-mathematics-delhi-set-2",
+        "cbse-2015-compartment-mathematics-delhi-set-3"
+      ],
+      "left_question_id": "q_472b4e1a396d2a60cd7235a24ec47b633103be07c15e5615992cc40da2b2fc99",
+      "right_document_ids": [
+        "cbse-2015-compartment-mathematics-delhi-set-1"
+      ],
+      "right_question_id": "q_d8f7492d8af345150477c62fd3b783cbcfa430906afd835c5f02eb4ca2bd28b3",
+      "sequence_ratio": 0.971993,
+      "shingle_jaccard": 0.868421,
+      "similarity": 0.971993
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-mathematics-delhi-scheme-65-1-2-mathematics-c365c3e53e"
+      ],
+      "left_question_id": "q_205badb10676f860291e8e3c0312afdd8a652dbff76b78129fca5e3fa0448fb8",
+      "right_document_ids": [
+        "cbse-2017-main-mathematics-delhi-scheme-65-1-1-mathematics-bee067b909",
+        "cbse-2017-main-mathematics-delhi-scheme-65-1-3-mathematics-fb9b99ccb6"
+      ],
+      "right_question_id": "q_34100b3f049e421a8759f6b310445181a68345b60d3821a659cf5743cff804dc",
+      "sequence_ratio": 0.971429,
+      "shingle_jaccard": 0.868687,
+      "similarity": 0.971429
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-mathematics-delhi-scheme-65-1-1-mathematics-bee067b909"
+      ],
+      "left_question_id": "q_124f4aa9d366fdde0b9f9e3729b889c14d1262c9f9ca30d24c2f8015d262d572",
+      "right_document_ids": [
+        "cbse-2017-main-mathematics-delhi-scheme-65-1-2-mathematics-c365c3e53e"
+      ],
+      "right_question_id": "q_487a19d156a297122affdf3a48e3ebf41e2e072d5552717522e3ba9c1ad95c28",
+      "sequence_ratio": 0.971323,
+      "shingle_jaccard": 0.901587,
+      "similarity": 0.971323
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-delhi-set-2"
+      ],
+      "left_question_id": "q_2c3a15e236a81045c8924083bf07215fbda49371a9db4e52c0da00e1ed39cd43",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-delhi-set-3"
+      ],
+      "right_question_id": "q_d4012d67b254435f9b4da5ea3386b5c5b60f782566fe41c1fcb2f1a58f48d7b6",
+      "sequence_ratio": 0.971204,
+      "shingle_jaccard": 0.92517,
+      "similarity": 0.971204
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-mathematics-65-5-1-r-0122142148",
+        "cbse-2026-main-mathematics-65-5-3-r-17b910aac9"
+      ],
+      "left_question_id": "q_3ee35385799065b7cb87e31288c51f5c9a031b5e0510576664933ab12c216cad",
+      "right_document_ids": [
+        "cbse-2026-main-mathematics-65-5-2-r-d5c9accae9"
+      ],
+      "right_question_id": "q_f427f26a3254ee95493f9b8fe225173236cb41d6f7ed63401ba95cd037ade449",
+      "sequence_ratio": 0.970711,
+      "shingle_jaccard": 0.883333,
+      "similarity": 0.970711
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-physics-archive-55-4-3-physics-770a7b9d84"
+      ],
+      "left_question_id": "q_0f2c739ce19dcdf846c00f545c63b788cb11c5f400b7fbb82a9f7b650d3ae395",
+      "right_document_ids": [
+        "cbse-2020-main-physics-archive-55-4-1-physics-8c3ebab686",
+        "cbse-2020-main-physics-archive-55-4-2-physics-cc503cdbd9"
+      ],
+      "right_question_id": "q_61ed3d5c1833c40c5f699cc97f24944a9294117886e4e13409055c0a16be31bb",
+      "sequence_ratio": 0.970359,
+      "shingle_jaccard": 0.829268,
+      "similarity": 0.970359
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-allahabad_uttarakhand-set-3"
+      ],
+      "left_question_id": "q_2c1e99030aced950e2c0ff61787d8ee0eb6616b997cb88bd9e7136f5051f3aba",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-allahabad_uttarakhand-set-2"
+      ],
+      "right_question_id": "q_ea29b799af9fecf20bb78ac91867bf3b9de4180d138da81aa02eaf0b4393e0b1",
+      "sequence_ratio": 0.968974,
+      "shingle_jaccard": 0.865672,
+      "similarity": 0.968974
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-patna-set-2"
+      ],
+      "left_question_id": "q_518f5afedd71779658288f7fc57890180b2acc9e429049d4b3710d79e06edc2b",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-patna-set-1"
+      ],
+      "right_question_id": "q_f74fa18de656c7e5e3ee08fc6464db364c90a96264e4027634d03ce235ad4032",
+      "sequence_ratio": 0.968858,
+      "shingle_jaccard": 0.857143,
+      "similarity": 0.968858
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-delhi-scheme-65-1-3-d-mathematics-ac8ddc119c"
+      ],
+      "left_question_id": "q_6bcf567506c4c95fd4b21f208dad4972cfad776707a8a8a16c57decd797068a0",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-delhi-scheme-65-1-1-d-mathematics-27104061c8"
+      ],
+      "right_question_id": "q_755c93ab7e0468db08357c1d18788b937de592aa17aacec037a1029493b44c4b",
+      "sequence_ratio": 0.968421,
+      "shingle_jaccard": 0.809524,
+      "similarity": 0.968421
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-physics-2384-1-55-2-1-physics-67342ebfc9"
+      ],
+      "left_question_id": "q_8ce8654bda5a120224cad8e2eb1c1bee3d090fabf8cefb6a0a458bc8b648fd0b",
+      "right_document_ids": [
+        "cbse-2026-main-physics-2384-3-55-2-3-physics-53a3d6cdf6"
+      ],
+      "right_question_id": "q_ea4a815b68e81a9b996a93026c40c496951707935dc4cfbdf150a2a22890b50f",
+      "sequence_ratio": 0.96823,
+      "shingle_jaccard": 0.884848,
+      "similarity": 0.96823
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-mathematics-archive-65-4-3-mathematics-c871a3adc9"
+      ],
+      "left_question_id": "q_e97f37bf30b0d850d1351f3c6d70b70cc3d46ce2827fcdf6b119a011b407a8a2",
+      "right_document_ids": [
+        "cbse-2020-main-mathematics-archive-65-4-1-mathematics-e8d78d2cf7"
+      ],
+      "right_question_id": "q_e9964f952127a9e0274dcd750e3f0eb063e536fa40d56595589c8b9d352f984d",
+      "sequence_ratio": 0.967391,
+      "shingle_jaccard": 0.863636,
+      "similarity": 0.967391
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-delhi-set-3"
+      ],
+      "left_question_id": "q_d4012d67b254435f9b4da5ea3386b5c5b60f782566fe41c1fcb2f1a58f48d7b6",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-delhi-set-1"
+      ],
+      "right_question_id": "q_fd68b88c51df332f304c3256c2638ce257dcc7257ca0fed9bbb6be164b3933ba",
+      "sequence_ratio": 0.967235,
+      "shingle_jaccard": 0.880795,
+      "similarity": 0.967235
+    },
+    {
+      "left_document_ids": [
+        "cbse-2024-main-physics-55-3-3-physics-97e20418df"
+      ],
+      "left_question_id": "q_32b6a946b944abc3aa81e5ef69679ccd8681a5979732327c31b47ca146dbae52",
+      "right_document_ids": [
+        "cbse-2024-main-physics-55-3-1-physics-8566854ba7"
+      ],
+      "right_question_id": "q_bec653d883a08d6f8bee254b9ea820fe8bb6ea42080a685d249a6776fc23802e",
+      "sequence_ratio": 0.967185,
+      "shingle_jaccard": 0.810811,
+      "similarity": 0.967185
+    },
+    {
+      "left_document_ids": [
+        "cbse-2024-main-physics-55-3-2-physics-d7923fc4fe"
+      ],
+      "left_question_id": "q_bcd2d028aa0051da12999a582fe88e924dc84f1ddfa3160495f85eb488dbf1f5",
+      "right_document_ids": [
+        "cbse-2024-main-physics-55-3-1-physics-8566854ba7"
+      ],
+      "right_question_id": "q_bec653d883a08d6f8bee254b9ea820fe8bb6ea42080a685d249a6776fc23802e",
+      "sequence_ratio": 0.967185,
+      "shingle_jaccard": 0.810811,
+      "similarity": 0.967185
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-compartment-mathematics-archive-65-1-mathematics-398e2dd5dc"
+      ],
+      "left_question_id": "q_3bbcdb1129ef51095920b9b187223990175d18ebc8d7bdb9db6b4251c634b03f",
+      "right_document_ids": [
+        "cbse-2018-compartment-mathematics-archive-65-3-mathematics-15ff97537e"
+      ],
+      "right_question_id": "q_81c6dc1e900046955ff6aee84f8f19afa9ec575a3203daff5b6d66cffb7b0131",
+      "sequence_ratio": 0.967164,
+      "shingle_jaccard": 0.916667,
+      "similarity": 0.967164
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-e-physics-theory-79b61aff8b"
+      ],
+      "left_question_id": "q_7a137ede503803afbd97762e18c0d2440457086a76ec9b3c8e60366ce01cf8af",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-e-physics-theory-7b39c456d0",
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-e-physics-theory-6f818b7ab1"
+      ],
+      "right_question_id": "q_c434f275e6302f1c78a1f5b6b3b277f5cfbab9eea913e0334f112dc5682573c2",
+      "sequence_ratio": 0.965894,
+      "shingle_jaccard": 0.841121,
+      "similarity": 0.965894
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-physics-archive-55-2-3-physics-f9c673a7bd"
+      ],
+      "left_question_id": "q_aab0f618124c0a917df37b62fef451772c2ae0b382ea54e3db7e258ded9981e4",
+      "right_document_ids": [
+        "cbse-2020-main-physics-archive-55-2-1-physics-3cd6064407",
+        "cbse-2020-main-physics-archive-55-2-2-physics-5ff0f6b448"
+      ],
+      "right_question_id": "q_bd3f3392187814ab9004722b830f619f7ffe3f8b8340d5c5230d172a703c1d60",
+      "sequence_ratio": 0.965612,
+      "shingle_jaccard": 0.855856,
+      "similarity": 0.965612
+    },
+    {
+      "left_document_ids": [
+        "cbse-2023-main-physics-55-3-1-physics-8566854ba7"
+      ],
+      "left_question_id": "q_79c10000f85a1eb839e1832c1b4d11c6712d5be3842bad70874af8a6b66d4235",
+      "right_document_ids": [
+        "cbse-2023-main-physics-55-3-2-physics-d7923fc4fe"
+      ],
+      "right_question_id": "q_bea62126764c5a4f65d1cba36c250f2eab2817590deb07839a00f7ecf1ab5f73",
+      "sequence_ratio": 0.965251,
+      "shingle_jaccard": 0.802632,
+      "similarity": 0.965251
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-main-mathematics-delhi-scheme-65-1-1-mathematics-bee067b909"
+      ],
+      "left_question_id": "q_124f4aa9d366fdde0b9f9e3729b889c14d1262c9f9ca30d24c2f8015d262d572",
+      "right_document_ids": [
+        "cbse-2017-main-mathematics-delhi-scheme-65-1-3-mathematics-fb9b99ccb6"
+      ],
+      "right_question_id": "q_77c88974b6fbb0ca3b3dffce8405bf28f43ba449e86cad7009ca0d75bfe05c1d",
+      "sequence_ratio": 0.962652,
+      "shingle_jaccard": 0.849359,
+      "similarity": 0.962652
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-allahabad_uttarakhand-set-1"
+      ],
+      "left_question_id": "q_6a585bf0a230651d853156efec4a991d31316b27a56ef4b148be189e9460838d",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-allahabad_uttarakhand-set-2"
+      ],
+      "right_question_id": "q_ea29b799af9fecf20bb78ac91867bf3b9de4180d138da81aa02eaf0b4393e0b1",
+      "sequence_ratio": 0.962441,
+      "shingle_jaccard": 0.828571,
+      "similarity": 0.962441
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-1-s-physics-theory-5eaa6bb2ac",
+        "cbse-2016-main-physics-all-india-scheme-055-set-2-s-physics-theory-807d773fe4"
+      ],
+      "left_question_id": "q_b99a05ffa6b7466da2ced3937f07bd7b7b5dfa141bb07838b443137328ce5965",
+      "right_document_ids": [
+        "cbse-2016-main-physics-all-india-scheme-055-set-3-s-physics-theory-dc69c1dc0a"
+      ],
+      "right_question_id": "q_c620811bb1615b1635c5441fba7f7524a900602a255abb64b896bd7e0fd5a285",
+      "sequence_ratio": 0.961373,
+      "shingle_jaccard": 0.86747,
+      "similarity": 0.961373
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-bhubaneshwar-set-1",
+        "cbse-2015-main-physics-bhubaneshwar-set-3"
+      ],
+      "left_question_id": "q_57d544c7b24cec3ebdf6b5d7c4ea47532c2a4d0068cd4fca9987ece0afe8e673",
+      "right_document_ids": [
+        "cbse-2015-main-physics-bhubaneshwar-set-2"
+      ],
+      "right_question_id": "q_bd9734a455c227f707ce370cbd02417f20640a42a6029eb8199be7e302c07e3c",
+      "sequence_ratio": 0.961165,
+      "shingle_jaccard": 0.8875,
+      "similarity": 0.961165
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-mathematics-archive-65-5-2-mathematics-58e729aac9"
+      ],
+      "left_question_id": "q_4429468aeea93c3b8ccc7bd01d98952ea14a4693916ff0104d1b3e31bd272127",
+      "right_document_ids": [
+        "cbse-2020-main-mathematics-archive-65-5-1-mathematics-5ae9d7dbd1"
+      ],
+      "right_question_id": "q_7eaacbb0f0d3ab0a51d35db04ac20925780759ce7cf1b4f8c81381f1000245e8",
+      "sequence_ratio": 0.961145,
+      "shingle_jaccard": 0.822785,
+      "similarity": 0.961145
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-compartment-physics-delhi-scheme-55-1-3-physics-3cadd8e4af"
+      ],
+      "left_question_id": "q_784c68eac5e205d203d46b952e2f771569cb4e82120553681d25f022f054f75d",
+      "right_document_ids": [
+        "cbse-2017-compartment-physics-delhi-scheme-55-1-1-physics-d150dd5555"
+      ],
+      "right_question_id": "q_adecb60e6d056269b8f276703611d0139aaf24ae537522e79791366eda812ed4",
+      "sequence_ratio": 0.960739,
+      "shingle_jaccard": 0.873786,
+      "similarity": 0.960739
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-compartment-physics-delhi-scheme-55-1-3-physics-3cadd8e4af"
+      ],
+      "left_question_id": "q_784c68eac5e205d203d46b952e2f771569cb4e82120553681d25f022f054f75d",
+      "right_document_ids": [
+        "cbse-2017-compartment-physics-delhi-scheme-55-1-2-physics-547e318ff9"
+      ],
+      "right_question_id": "q_bbc1a828c6e1ea7e72c0a45f3ddb1f8b8eb6c0f7964ff02b53dcc090703069c1",
+      "sequence_ratio": 0.960739,
+      "shingle_jaccard": 0.873786,
+      "similarity": 0.960739
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-compartment-physics-delhi-set-2"
+      ],
+      "left_question_id": "q_0a71120e435c722847c234929bec4b99bd3c97c82332573fab7e04ed3112df6f",
+      "right_document_ids": [
+        "cbse-2015-compartment-physics-delhi-set-1",
+        "cbse-2015-compartment-physics-delhi-set-3"
+      ],
+      "right_question_id": "q_d2b668f4ec50bae73f1523a60b3587c2ab39d2d35f52916ac50500d30c8e03b2",
+      "sequence_ratio": 0.958209,
+      "shingle_jaccard": 0.854839,
+      "similarity": 0.958209
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-ajmer-set-1"
+      ],
+      "left_question_id": "q_27315aa90824ad40522eb14cfe24e484e2c81f6f0728e9e61148de11f576c1e2",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-ajmer-set-3"
+      ],
+      "right_question_id": "q_7c80ede4f0baf8c126ebb91c48f03e249c297093a72686e26b2a1be09d337686",
+      "sequence_ratio": 0.956229,
+      "shingle_jaccard": 0.843137,
+      "similarity": 0.956229
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-mathematics-archive-65-3-1-mathematics-6c4da52201"
+      ],
+      "left_question_id": "q_50a55ec0384d3e2aecf24783655b7336643563f1631e525f4f853b9ffce2ecc0",
+      "right_document_ids": [
+        "cbse-2020-main-mathematics-archive-65-3-2-mathematics-0abe08e6bf",
+        "cbse-2020-main-mathematics-archive-65-3-3-mathematics-0fd8ec3a5f"
+      ],
+      "right_question_id": "q_b613b997900024aa79536ca7f45d170c71e5106d363e587c7bd327ac8730ac6e",
+      "sequence_ratio": 0.955224,
+      "shingle_jaccard": 0.8,
+      "similarity": 0.955224
+    },
+    {
+      "left_document_ids": [
+        "cbse-2025-compartment-physics-55-s-2-physics-51a4afec59"
+      ],
+      "left_question_id": "q_159fc828dce10bd511a62eebba2f7cbbd426acfe347c5ee4bd983803543ca4ec",
+      "right_document_ids": [
+        "cbse-2025-compartment-physics-55-s-3-physics-f49515191f"
+      ],
+      "right_question_id": "q_5a567fc32fdd3f831635f5fc822fe5967b1681db8d44e77e635bf8015ae8e9ee",
+      "sequence_ratio": 0.954899,
+      "shingle_jaccard": 0.797468,
+      "similarity": 0.954899
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-mathematics-archive-65-5-3-mathematics-7af6983976"
+      ],
+      "left_question_id": "q_14495ed09ccb5319c14de45104398d7d3b42642f4337655078cc3b400e08ad9f",
+      "right_document_ids": [
+        "cbse-2020-main-mathematics-archive-65-5-2-mathematics-58e729aac9"
+      ],
+      "right_question_id": "q_b2a55a30e1f8f953665c6a6c8cda95f5aa6656003df8957153ce3e93b74b8e67",
+      "sequence_ratio": 0.954082,
+      "shingle_jaccard": 0.814815,
+      "similarity": 0.954082
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-physics-archive-55-2-1-physics-3cd6064407",
+        "cbse-2020-main-physics-archive-55-2-3-physics-f9c673a7bd"
+      ],
+      "left_question_id": "q_5ca3d32c668d6eb529cec511bace025bb98830502896686a69a1d52588b3a7b7",
+      "right_document_ids": [
+        "cbse-2020-main-physics-archive-55-2-2-physics-5ff0f6b448"
+      ],
+      "right_question_id": "q_6e1cd87c85ad73eeffd4ece7b8ddad5366c1878331bd1d679d886114c0f72c71",
+      "sequence_ratio": 0.95393,
+      "shingle_jaccard": 0.717391,
+      "similarity": 0.95393
+    },
+    {
+      "left_document_ids": [
+        "cbse-2020-main-physics-archive-55-4-1-physics-8c3ebab686",
+        "cbse-2020-main-physics-archive-55-4-3-physics-770a7b9d84"
+      ],
+      "left_question_id": "q_334b5f35275c30664416ad5a287b8c06f6179ba6d9143cda37bbdcb238594eeb",
+      "right_document_ids": [
+        "cbse-2020-main-physics-archive-55-4-2-physics-cc503cdbd9"
+      ],
+      "right_question_id": "q_cb4c7dd351b4e2bfbbb62b42acf0e202d24e3ba4217a90812b164421082c6f32",
+      "sequence_ratio": 0.951613,
+      "shingle_jaccard": 0.695652,
+      "similarity": 0.951613
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-physics-2384-2-55-2-2-physics-06bf278e42"
+      ],
+      "left_question_id": "q_67bbee067356b08b17e30e5cfa3ea4d400ca062022dac70648974269446b7096",
+      "right_document_ids": [
+        "cbse-2026-main-physics-2384-1-55-2-1-physics-67342ebfc9"
+      ],
+      "right_question_id": "q_8ce8654bda5a120224cad8e2eb1c1bee3d090fabf8cefb6a0a458bc8b648fd0b",
+      "sequence_ratio": 0.951426,
+      "shingle_jaccard": 0.849057,
+      "similarity": 0.951426
+    },
+    {
+      "left_document_ids": [
+        "cbse-2018-compartment-mathematics-archive-65-1-mathematics-398e2dd5dc"
+      ],
+      "left_question_id": "q_3bbcdb1129ef51095920b9b187223990175d18ebc8d7bdb9db6b4251c634b03f",
+      "right_document_ids": [
+        "cbse-2018-compartment-mathematics-archive-65-2-mathematics-846f91f952"
+      ],
+      "right_question_id": "q_cba08836352c69aa610593b40a305fe3bcb59625245f179673f010e5989f8554",
+      "sequence_ratio": 0.950147,
+      "shingle_jaccard": 0.905882,
+      "similarity": 0.950147
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-physics-uttarakhand-set-1",
+        "cbse-2015-main-physics-uttarakhand-set-3"
+      ],
+      "left_question_id": "q_0be1351405b7dddf8f7fcef33b9cfc7438edb4bf8fa0e23be4b26ad971d93890",
+      "right_document_ids": [
+        "cbse-2015-main-physics-uttarakhand-set-2"
+      ],
+      "right_question_id": "q_29393dc1a2e5b27638766ba28b5cfcb63f7a473e5f34562286c5b2ffcabbcae3",
+      "sequence_ratio": 0.94864,
+      "shingle_jaccard": 0.883117,
+      "similarity": 0.94864
+    },
+    {
+      "left_document_ids": [
+        "cbse-2026-main-physics-2384-1-55-2-1-physics-67342ebfc9"
+      ],
+      "left_question_id": "q_36fc6303fa3b3942740757cac27055037c0296696365c8157b5135e32de5dc13",
+      "right_document_ids": [
+        "cbse-2026-main-physics-2384-3-55-2-3-physics-53a3d6cdf6"
+      ],
+      "right_question_id": "q_8fd6f680ce6e47843509c3ac339cd25a72c4921ee48405dbb8cc20218e6df9db",
+      "sequence_ratio": 0.948276,
+      "shingle_jaccard": 0.776316,
+      "similarity": 0.948276
+    },
+    {
+      "left_document_ids": [
+        "cbse-2025-compartment-physics-55-s-3-physics-f49515191f"
+      ],
+      "left_question_id": "q_506bb204dc85e29a404f1f8610ad45abd2283e17726454215eae27d993b63dc7",
+      "right_document_ids": [
+        "cbse-2025-compartment-physics-55-s-1-physics-d84876d49b"
+      ],
+      "right_question_id": "q_75157fb1b550388a1de50f0a7935dd4224d2c540b847eeaabe91610da6041188",
+      "sequence_ratio": 0.945996,
+      "shingle_jaccard": 0.849057,
+      "similarity": 0.945996
+    },
+    {
+      "left_document_ids": [
+        "cbse-2024-main-mathematics-65-2-2-mathematics-e242663487"
+      ],
+      "left_question_id": "q_a713bd388ed7e31d847d98bacbd55ef0bab7f52bd34d67adb8c4e1ea799268b4",
+      "right_document_ids": [
+        "cbse-2024-main-mathematics-65-2-3-mathematics-e011df32c0"
+      ],
+      "right_question_id": "q_e52fcb2a3a9c1b4f61aab870cdefa2da75045f3be5c1b241a0cc2a828d4c93d3",
+      "sequence_ratio": 0.944882,
+      "shingle_jaccard": 0.770833,
+      "similarity": 0.944882
+    },
+    {
+      "left_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-3-c-mathematics-794454642b"
+      ],
+      "left_question_id": "q_818c53ee5323b8218281c0ee4855e2c69f459e8eb45e17bb7109c3f0b0c74ac9",
+      "right_document_ids": [
+        "cbse-2016-main-mathematics-all-india-scheme-065-set-2-c-mathematics-c9d6b07386"
+      ],
+      "right_question_id": "q_b93c38ee1034178e99d20a738672bdd3614cdebb8b1d690862a137eb0aaaf734",
+      "sequence_ratio": 0.944568,
+      "shingle_jaccard": 0.829787,
+      "similarity": 0.944568
+    },
+    {
+      "left_document_ids": [
+        "cbse-2015-main-mathematics-ajmer-set-2"
+      ],
+      "left_question_id": "q_217cf5133e0c9129877c691d8da236c474da68816a33ee30c138c9687b2e0f62",
+      "right_document_ids": [
+        "cbse-2015-main-mathematics-ajmer-set-3"
+      ],
+      "right_question_id": "q_7c80ede4f0baf8c126ebb91c48f03e249c297093a72686e26b2a1be09d337686",
+      "sequence_ratio": 0.941176,
+      "shingle_jaccard": 0.796296,
+      "similarity": 0.941176
+    },
+    {
+      "left_document_ids": [
+        "cbse-2017-compartment-physics-all-india-scheme-55-1-physics-1ebbdebef2"
+      ],
+      "left_question_id": "q_162f2b7ce35da134da872af53fafe17812482e0e227ccec2f9b425cdd12bd2b8",
+      "right_document_ids": [
+        "cbse-2017-compartment-physics-all-india-scheme-55-2-physics-84c8381457"
+      ],
+      "right_question_id": "q_dc26f95a325d44d52cb8a2d57ad6380065a2b0d5aaabdbb1f4ea003a6afee287",
+      "sequence_ratio": 0.940857,
+      "shingle_jaccard": 0.74184,
+      "similarity": 0.940857
+    }
+  ],
+  "questions": 783,
+  "questions_file": "data/question-bank/build/questions.target.jsonl",
+  "truncated": false
+}
