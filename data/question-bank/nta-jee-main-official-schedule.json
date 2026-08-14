@@ -1,0 +1,931 @@
+{
+  "as_of": "2026-08-10",
+  "program": "B.E./B.Tech. Paper 1",
+  "schema_version": "nta-jee-main-official-schedule/v1",
+  "sessions": [
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "inferred_from_conduct_notice",
+          "exam_date": "2020-01-07",
+          "expected_gap": true,
+          "shift": 1
+        },
+        {
+          "evidence_type": "inferred_from_conduct_notice",
+          "exam_date": "2020-01-07",
+          "expected_gap": true,
+          "shift": 2
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-01-08",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-01-08",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-01-09",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-01-09",
+          "expected_gap": false,
+          "shift": 2
+        }
+      ],
+      "label": "2020 January",
+      "session_id": "2020-jan",
+      "source_url": "https://nta.ac.in/Download/Notice/Notice_20200912035511.pdf",
+      "year": 2020
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-09-02",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-09-02",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-09-03",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-09-03",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-09-04",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-09-04",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-09-05",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-09-05",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-09-06",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "official_endpoint_inventory",
+          "exam_date": "2020-09-06",
+          "expected_gap": false,
+          "shift": 2
+        }
+      ],
+      "label": "2020 September",
+      "session_id": "2020-sep",
+      "source_url": "https://nta.ac.in/Download/Notice/Notice_20200912035511.pdf",
+      "year": 2020
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-02-24",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-02-24",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-02-25",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-02-25",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-02-26",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-02-26",
+          "expected_gap": false,
+          "shift": 2
+        }
+      ],
+      "label": "2021 February",
+      "session_id": "2021-feb",
+      "source_url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2022/01/2022012171.pdf",
+      "year": 2021
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-03-16",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-03-16",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-03-17",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-03-17",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-03-18",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-03-18",
+          "expected_gap": false,
+          "shift": 2
+        }
+      ],
+      "label": "2021 March",
+      "session_id": "2021-mar",
+      "source_url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2022/01/2022012180.pdf",
+      "year": 2021
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-07-20",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-07-20",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-07-22",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-07-25",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-07-25",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-07-27",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-07-27",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-08-03",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-08-03",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-08-04",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-08-04",
+          "expected_gap": false,
+          "shift": 2
+        }
+      ],
+      "label": "2021 Session 3",
+      "session_id": "2021-session-3",
+      "source_url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2022/01/2022012138.pdf",
+      "year": 2021
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-08-26",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-08-26",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-08-27",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-08-27",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-08-31",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-08-31",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2021-09-01",
+          "expected_gap": false,
+          "shift": 2
+        }
+      ],
+      "label": "2021 Session 4",
+      "session_id": "2021-session-4",
+      "source_url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2022/01/2022012133.pdf",
+      "year": 2021
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-24",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-24",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-25",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-25",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-26",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-26",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-27",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-27",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-28",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-28",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-29",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-29",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-06-30",
+          "expected_gap": false,
+          "shift": 1
+        }
+      ],
+      "label": "2022 Session 1",
+      "session_id": "2022-session-1",
+      "source_url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2022/07/2022070665.pdf",
+      "year": 2022
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-07-25",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-07-25",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-07-26",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-07-26",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-07-27",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-07-27",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-07-28",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-07-28",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-07-29",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-07-29",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "provisional_final_key_notice",
+          "exam_date": "2022-07-30",
+          "expected_gap": false,
+          "shift": 2
+        }
+      ],
+      "label": "2022 Session 2",
+      "session_id": "2022-session-2",
+      "source_url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2022/08/2022080776.pdf",
+      "year": 2022
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-01-24",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-01-24",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-01-25",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-01-25",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-01-29",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-01-29",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-01-30",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-01-30",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-01-31",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-01-31",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-02-01",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-02-01",
+          "expected_gap": false,
+          "shift": 2
+        }
+      ],
+      "label": "2023 Session 1",
+      "session_id": "2023-session-1",
+      "source_url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2023/02/2023020697.pdf",
+      "year": 2023
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-04-06",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-04-06",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-04-08",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-04-08",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-04-10",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-04-10",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-04-11",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-04-11",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-04-12",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-04-13",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-04-13",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2023-04-15",
+          "expected_gap": false,
+          "shift": 1
+        }
+      ],
+      "label": "2023 Session 2",
+      "session_id": "2023-session-2",
+      "source_url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2023/04/2023042948.pdf",
+      "year": 2023
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-01-27",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-01-27",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-01-29",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-01-29",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-01-30",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-01-30",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-01-31",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-01-31",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-02-01",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-02-01",
+          "expected_gap": false,
+          "shift": 2
+        }
+      ],
+      "label": "2024 Session 1",
+      "session_id": "2024-session-1",
+      "source_url": "https://nta.ac.in/download/notice/notice_20240212120843.pdf",
+      "year": 2024
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-04-04",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-04-04",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-04-05",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-04-05",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-04-06",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-04-06",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-04-08",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-04-08",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-04-09",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2024-04-09",
+          "expected_gap": false,
+          "shift": 2
+        }
+      ],
+      "label": "2024 Session 2",
+      "session_id": "2024-session-2",
+      "source_url": "https://www.nta.ac.in/Download/Notice/Notice_20240422121837.pdf",
+      "year": 2024
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "revised_final_key_notice",
+          "exam_date": "2025-01-22",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "revised_final_key_notice",
+          "exam_date": "2025-01-22",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "revised_final_key_notice",
+          "exam_date": "2025-01-23",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "revised_final_key_notice",
+          "exam_date": "2025-01-23",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "revised_final_key_notice",
+          "exam_date": "2025-01-24",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "revised_final_key_notice",
+          "exam_date": "2025-01-24",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "revised_final_key_notice",
+          "exam_date": "2025-01-28",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "revised_final_key_notice",
+          "exam_date": "2025-01-28",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "revised_final_key_notice",
+          "exam_date": "2025-01-29",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "revised_final_key_notice",
+          "exam_date": "2025-01-29",
+          "expected_gap": false,
+          "shift": 2
+        }
+      ],
+      "label": "2025 Session 1",
+      "session_id": "2025-session-1",
+      "source_url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2025/02/2025021053.pdf",
+      "year": 2025
+    },
+    {
+      "alternate_source_urls": [],
+      "keys": [
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2025-04-02",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2025-04-02",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2025-04-03",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2025-04-03",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2025-04-04",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2025-04-04",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2025-04-07",
+          "expected_gap": false,
+          "shift": 1
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2025-04-07",
+          "expected_gap": false,
+          "shift": 2
+        },
+        {
+          "evidence_type": "final_key_notice",
+          "exam_date": "2025-04-08",
+          "expected_gap": false,
+          "shift": 2
+        }
+      ],
+      "label": "2025 Session 2",
+      "session_id": "2025-session-2",
+      "source_url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2025/04/2025041892.pdf",
+      "year": 2025
+    }
+  ]
+}
