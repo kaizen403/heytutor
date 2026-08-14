@@ -1,0 +1,102 @@
+{
+  "schema_version": "cursor-assist-report/v1",
+  "generated_by": "cursor-agent",
+  "date": "2026-08-14",
+  "purpose": "Finish NTA OCR, extract passing JEE Main papers, and rebuild the syllabus sidecar.",
+  "pipeline_changes": [
+    "NTA extract pattern now matches Q: headers as well as Question Number headers",
+    "2022 Topic Name blocks recover garbled Ql headers and dropped-digit Q:4-for-Q:14 cases",
+    "OCR renders pages in chunks so 100+ page scans cannot keep every image in RAM",
+    "Empty Tesseract pages retry PSM 4 before they are accepted or rejected"
+  ],
+  "ocr": {
+    "engine": "tesseract-ocr-eng-fast-v1",
+    "dpi": 200,
+    "completed_full_papers": {
+      "2021": 11,
+      "2022": 13,
+      "2023": 4,
+      "2024": 13,
+      "2025_april": 8,
+      "2026_native": 9
+    },
+    "not_extracted": {
+      "2022_incomplete_unique_numbers": [
+        "jee-main-2022-06-26-shift-1",
+        "jee-main-2022-06-27-shift-1",
+        "jee-main-2022-06-28-shift-2",
+        "jee-main-2022-06-30-shift-1"
+      ],
+      "2025_january_blank_pages": [
+        "jee-main-2025-01-22-shift-2",
+        "jee-main-2025-01-23-shift-1",
+        "jee-main-2025-01-23-shift-2",
+        "jee-main-2025-01-24-shift-2",
+        "jee-main-2025-01-28-shift-1"
+      ],
+      "2025_april_ocr_gate_failed": [
+        "jee-main-2025-04-04-shift-1"
+      ]
+    }
+  },
+  "extract": {
+    "report": "data/question-bank/reports/nta-extract-2026-08-14.json",
+    "backup": "data/question-bank/build/questions.all.jsonl.bak-pre-nta-extract-2026-08-14",
+    "documents_extracted_this_run": 45,
+    "documents_failed_coverage": 9,
+    "questions_before": 12464,
+    "questions_after": 16394,
+    "jee_main_manifest": {
+      "extracted": 54,
+      "acquired_not_extracted": 10,
+      "total": 64
+    },
+    "jee_main_source_occurrences_by_year": {
+      "2021": 990,
+      "2022": 810,
+      "2023": 360,
+      "2024": 1170,
+      "2025": 600,
+      "2026": 675
+    },
+    "unique_questions_with_jee_main_ref": 4605
+  },
+  "sidecar": {
+    "assignments": "data/question-bank/build/question-syllabus.jsonl",
+    "database": "data/question-bank/build/question-bank-full.sqlite",
+    "report": "data/question-bank/reports/syllabus-index-2026-08-14.json",
+    "questions": 16394,
+    "status_counts": {
+      "classified": 4786,
+      "needs_review": 9604,
+      "out_of_scope": 2004
+    },
+    "confidence_counts": {
+      "high": 4206,
+      "medium": 1339,
+      "null": 10849
+    }
+  },
+  "acquisition_gaps_remaining": {
+    "note": "No new NTA download was started. The frozen work was OCR+extract+sidecar for the current 64 imported papers. Remaining schedule keys need a separate acquisition campaign.",
+    "imported_jee_main_documents": 64,
+    "schedule_keys_not_imported_excluding_expected_gaps": {
+      "2020": 14,
+      "2021": 19,
+      "2022": 11,
+      "2023": 20,
+      "2024": 7,
+      "2025": 5,
+      "total": 76
+    },
+    "also_unimported": [
+      "2019 (no official schedule session in nta-jee-main-official-schedule.json)",
+      "2022 Session 2 remainder",
+      "2023 remainder beyond the four April papers",
+      "2026 Session 1"
+    ]
+  },
+  "tests": {
+    "question_bank_unittest": "234 passed"
+  }
+}
