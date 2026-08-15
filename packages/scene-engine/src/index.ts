@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./capabilityManifest";
 export * from "./validation";
 export * from "./compiler";
 export * from "./contractsV3";
