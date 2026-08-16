@@ -58,6 +58,7 @@ import {
   type RepresentationTier,
 } from "../../lib/representationFallbackV4";
 import {
+  finalizeScenePlanAfterAuthority,
   SCENE_PLANNER_DEADLINE_MS,
   PROBLEM_AUTHORITY_DEADLINE_MS,
   TURN_PLAN_DEADLINE_MS,
@@ -614,12 +615,15 @@ export function useQuestionHandler(
           }
         }
 
-        if (result) {
-          result = await awaitCurrentTurn(revalidateScenePlanWithRepairResult(
-            result,
+        result = await awaitCurrentTurn(finalizeScenePlanAfterAuthority(result, {
+          problemAuthorityAvailable: problemAuthority !== null,
+          planningTurnPlan,
+          authoritativeTurnPlan: turnPlan,
+          revalidate: (sceneResult) => revalidateScenePlanWithRepairResult(
+            sceneResult,
             (candidate) => validateCandidateAgainstPlan(candidate, turnPlan),
-          ), isCurrentTurn);
-        }
+          ),
+        }), isCurrentTurn);
         const solverAuthorityBlocked = problemAuthority?.audit.status === "contradiction";
 
         sceneV2Document = result?.response.document ?? null;
