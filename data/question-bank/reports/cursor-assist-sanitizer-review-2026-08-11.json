@@ -1,0 +1,63 @@
+{
+  "schema_version": "cursor-assist-report/v1",
+  "generated_by": "cursor-agent",
+  "date": "2026-08-11",
+  "review_of": "CBSE PUA sanitizer after Codex PARTIAL audit",
+  "verdict": "PASS",
+  "code_under_review": {
+    "file": "tools/question-bank/build_corpus.py",
+    "functions": [
+      "_strip_cbse_unreadable_pua_lines",
+      "_sanitize_cbse_english_occurrence"
+    ],
+    "tests": "tools/question-bank/test_cbse_english_variants.py"
+  },
+  "prior_audit": {
+    "source": "Codex child /root sanitizer audit",
+    "verdict": "PARTIAL",
+    "claim": "Line-drop sanitizer removed mixed English/math lines on 248 of 256 changed questions",
+    "cited_examples": [
+      "cbse-2024-main-mathematics-65-4-1-mathematics-1f51a8ec0d.txt e2x / ex derivative",
+      "cbse-2018-compartment-mathematics-archive-65-b-mathematics-69bac29daf.txt If A = 3B / |B| = 2",
+      "cbse-2018-compartment-mathematics-archive-65-2-mathematics-846f91f952.txt AA' = 9I"
+    ]
+  },
+  "what_changed_since_partial": "Current code no longer drops whole PUA lines. It strips E000-EFFF glyphs and keeps unique readable residue when English remains usable. Unreadable-only occurrences are left untouched so they stay review-flagged.",
+  "tests": {
+    "command": "python3 -m unittest test_cbse_english_variants -v",
+    "result": "8 passed",
+    "mixed_line_regression": "test_unique_readable_formula_on_mixed_pua_line_is_preserved passed"
+  },
+  "batch_rescan": {
+    "files": 14,
+    "questions": 638,
+    "with_e000_efff_pua": 417,
+    "naive_whole_line_drop": {
+      "changed": 417,
+      "unique_readable_token_loss": 217
+    },
+    "current_sanitizer": {
+      "changed_and_pua_free": 272,
+      "changed_but_still_pua": 0,
+      "unique_readable_token_loss": 0,
+      "skipped_unusable_left_flaggable": 145
+    }
+  },
+  "cited_examples_rechecked": {
+    "e2x_ex_derivative": "preserved after sanitizer; options ex / 2ex / 2e2x remain",
+    "If A = 3B": "preserved; sanitized text keeps If A = 3B and | B | = 2",
+    "AA_prime_equals_9I": "preserved; sanitized text keeps If A = ... AA' = 9I, find x"
+  },
+  "gaps_closed": [
+    "Proved naive line-drop is harmful on this batch (217 unique-token losses).",
+    "Proved current sanitizer has 0 unique-token losses on the same 14 files.",
+    "Proved the three cited mixed-line examples now survive.",
+    "Did not edit sanitizer/parser/OCR files. Did not rebuild corpus."
+  ],
+  "residual_risks": [
+    "145 PUA questions are intentionally not sanitized because English residue is unusable; they should stay in review.",
+    "Staged text files still contain PUA; sanitizer runs only at corpus build time.",
+    "Final rebuild remains Codex-owned. This review does not claim the live question-syllabus sidecar already includes sanitized text."
+  ],
+  "recommendation_to_codex": "Keep the residue-preserving sanitizer. Do not revert to whole-line PUA drops. Apply it on the single-owner final rebuild. No further sanitizer patch is required for the cited mixed-line failure mode."
+}

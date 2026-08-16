@@ -1,0 +1,13 @@
+{
+  "failures": [
+    {
+      "document_id": "jee-main-2025-01-22-shift-2",
+      "error": "tesseract produced no text for page-23.jpg"
+    }
+  ],
+  "methods": {},
+  "operation": "stage-pdf-text",
+  "reused": 0,
+  "selected_documents": 1,
+  "written": 0
+}

@@ -13,6 +13,12 @@ import { obstaclesFromPrimitives, placeLabels, type LabelOwner } from "./labelEn
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "./topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "./validation";
 import { parseMathExpression, parseMathExpression2D } from "./expression";
+import {
+  isExecutableSceneConstructionOperator,
+  isExecutableSceneProofPredicate,
+  isTopologySceneProofPredicate,
+  type SupportedSceneConstructionOperator,
+} from "./capabilityManifest";
 
 type Point = { x: number; y: number };
 type Viewport = { x: number; y: number; width: number; height: number; padding?: number };
@@ -67,7 +73,11 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       const inputs = laneOffset === undefined
         ? construction.inputs
         : { ...construction.inputs, __parallelLane: laneOffset };
-      const outputs = evaluateConstruction(construction.operator, inputs, geometry, quantities);
+      const operator = construction.operator;
+      if (!isExecutableSceneConstructionOperator(operator)) {
+        throw new Error(`unsupported operator ${operator}`);
+      }
+      const outputs = evaluateConstruction(operator, inputs, geometry, quantities);
       if (construction.operator === "point" && construction.outputs[0]) {
         const override = layoutOverrides.get(construction.outputs[0]);
         if (override) outputs[0] = { kind: "point", point: override };
@@ -685,7 +695,7 @@ function collectStrings(value: unknown, visit: (value: string) => void): void {
 }
 
 function evaluateConstruction(
-  operator: string,
+  operator: SupportedSceneConstructionOperator,
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
@@ -901,28 +911,36 @@ function evaluateConstruction(
       const refracted = refract(incoming, normal, n1 / n2); return [{ kind: "path", directed: true, infinite: true, points: [origin, { x: origin.x + refracted.x, y: origin.y + refracted.y }] }];
     }
     case "function_curve": return [functionCurveGeometry(inputs, quantities)];
-    default: throw new Error(`unsupported operator ${operator}`);
+    default: return assertNeverSceneCapability(operator);
   }
 }
 
 function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geometry>, document: SceneDocument, issues: SceneIssue[]): void {
   const severity = assertion.severity;
-  const topologyResult = evaluateTopologyAssertion(assertion, document, issues);
-  if (topologyResult !== null) return;
-
+  const predicate = assertion.predicate;
   const values = assertion.entities.map((id) => geometry.get(id));
-  if (
-    assertion.predicate !== "exists" &&
-    assertion.predicate !== "label_attached" &&
-    values.some((value) => value === undefined)
-  ) {
+  const hasUnconstructedGeometry =
+    predicate !== "exists" &&
+    predicate !== "label_attached" &&
+    values.some((value) => value === undefined);
+  if (!isExecutableSceneProofPredicate(predicate)) {
+    issues.push(hasUnconstructedGeometry
+      ? { code: "assertion_entity_unconstructed", message: `Assertion ${assertion.id} references unconstructed geometry`, severity, entityIds: assertion.entities }
+      : { code: "unsupported_assertion", message: `Assertion predicate ${predicate} is not deterministically implemented`, severity: "fatal", entityIds: assertion.entities });
+    return;
+  }
+  if (isTopologySceneProofPredicate(predicate)) {
+    evaluateTopologyAssertion(assertion, document, issues);
+    return;
+  }
+  if (hasUnconstructedGeometry) {
     issues.push({ code: "assertion_entity_unconstructed", message: `Assertion ${assertion.id} references unconstructed geometry`, severity, entityIds: assertion.entities });
     return;
   }
   let passed = false;
   let residual: number | undefined;
   try {
-    switch (assertion.predicate) {
+    switch (predicate) {
       case "exists": passed = assertion.entities.every((id) => geometry.has(id) || document.entities.some((entity) => entity.id === id)); break;
       case "entity_count": passed = assertion.entities.length === Number(assertion.expected); break;
       case "connected": passed = values.length >= 2 && values.slice(1).every((value) => areConnected(values[0], value, geometry)); break;
@@ -1155,7 +1173,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         passed = residual < tolerance(assertion);
         break;
       }
-      default: issues.push({ code: "unsupported_assertion", message: `Assertion predicate ${assertion.predicate} is not deterministically implemented`, severity: "fatal", entityIds: assertion.entities }); return;
+      default: return assertNeverSceneCapability(predicate);
     }
   } catch { passed = false; }
   if (assertion.expected === false) passed = !passed;
@@ -3021,5 +3039,8 @@ function round(value:number):number{return Math.round(value*100)/100;}
 function circleBounds(center:Point,radius:number):Point[]{return[{x:center.x-radius,y:center.y-radius},{x:center.x+radius,y:center.y+radius}];}
 function boundsOf(points:Point[]){const xs=points.map((p)=>p.x),ys=points.map((p)=>p.y);const x=Math.min(...xs),y=Math.min(...ys);return{x,y,width:Math.max(...xs)-x,height:Math.max(...ys)-y};}
 function unionBounds(a:{x:number;y:number;width:number;height:number},b:{x:number;y:number;width:number;height:number}){const x=Math.min(a.x,b.x),y=Math.min(a.y,b.y),right=Math.max(a.x+a.width,b.x+b.width),bottom=Math.max(a.y+a.height,b.y+b.height);return{x,y,width:right-x,height:bottom-y};}
+function assertNeverSceneCapability(capability: never): never {
+  throw new Error(`unhandled scene capability ${String(capability)}`);
+}
 function errorMessage(error:unknown):string{return error instanceof Error?error.message:String(error);}
 function isRecord(value:unknown):value is Record<string,unknown>{return typeof value==="object"&&value!==null&&!Array.isArray(value);}

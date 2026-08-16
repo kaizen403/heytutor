@@ -1,0 +1,80 @@
+{
+  "dry_run": false,
+  "duplicate_candidates_merged": 0,
+  "extracted": [
+    {
+      "candidates": 90,
+      "discarded_language_variants": 0,
+      "document_id": "jee-main-2022-06-26-shift-1",
+      "inference": "nta-global-question-numbering/v1",
+      "method": "tesseract-ocr-eng-fast-v1",
+      "pdf_sha256_ok": true,
+      "review_required": false,
+      "subjects": {
+        "Chemistry": 30,
+        "Mathematics": 30,
+        "Physics": 30
+      },
+      "unique_numbers": 90,
+      "year": 2022
+    },
+    {
+      "candidates": 90,
+      "discarded_language_variants": 0,
+      "document_id": "jee-main-2022-06-27-shift-1",
+      "inference": "nta-global-question-numbering/v1",
+      "method": "tesseract-ocr-eng-fast-v1",
+      "pdf_sha256_ok": true,
+      "review_required": false,
+      "subjects": {
+        "Chemistry": 30,
+        "Mathematics": 30,
+        "Physics": 30
+      },
+      "unique_numbers": 90,
+      "year": 2022
+    },
+    {
+      "candidates": 90,
+      "discarded_language_variants": 0,
+      "document_id": "jee-main-2022-06-28-shift-2",
+      "inference": "nta-global-question-numbering/v1",
+      "method": "tesseract-ocr-eng-fast-v1",
+      "pdf_sha256_ok": true,
+      "review_required": false,
+      "subjects": {
+        "Chemistry": 30,
+        "Mathematics": 30,
+        "Physics": 30
+      },
+      "unique_numbers": 90,
+      "year": 2022
+    },
+    {
+      "candidates": 90,
+      "discarded_language_variants": 0,
+      "document_id": "jee-main-2022-06-30-shift-1",
+      "inference": "nta-global-question-numbering/v1",
+      "method": "tesseract-ocr-eng-fast-v1",
+      "pdf_sha256_ok": true,
+      "review_required": false,
+      "subjects": {
+        "Chemistry": 30,
+        "Mathematics": 30,
+        "Physics": 30
+      },
+      "unique_numbers": 90,
+      "year": 2022
+    }
+  ],
+  "failures": [],
+  "operation": "extract-nta-jee-main",
+  "questions_after": 16754,
+  "questions_before": 16394,
+  "selected": [
+    "jee-main-2022-06-26-shift-1",
+    "jee-main-2022-06-27-shift-1",
+    "jee-main-2022-06-28-shift-2",
+    "jee-main-2022-06-30-shift-1"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "failures": [],
+  "methods": {
+    "pdftotext-layout": 195,
+    "tesseract-ocr-eng-fast-v1": 30
+  },
+  "operation": "stage-pdf-text",
+  "reused": 195,
+  "selected_documents": 225,
+  "written": 30
+}

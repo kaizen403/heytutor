@@ -1,0 +1,14 @@
+{
+  "document_statuses": {
+    "acquired": 225,
+    "extracted": 249
+  },
+  "documents": 474,
+  "generated_at": "2026-08-09T23:58:39.127177Z",
+  "manifest": "/home/kaizen/heytutor/data/question-bank/manifest.jsonl",
+  "operation": "validate",
+  "question_statuses": {},
+  "questions": 0,
+  "questions_file": "/home/kaizen/heytutor/data/question-bank/questions.jsonl",
+  "source_references": 0
+}

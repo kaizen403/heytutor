@@ -1,0 +1,70 @@
+{
+  "schema_version": "cursor-assist-report/v1",
+  "generated_by": "cursor-agent",
+  "date": "2026-08-11",
+  "purpose": "Read-only Physics auto-label candidates for Codex. Does not edit syllabus-rules-physics.json.",
+  "slice": "Physics needs_review without possible_merged_questions, high_character_corruption_ratio, or option_only_fragment",
+  "baseline": {
+    "clean_physics_needs_review": 2495,
+    "pure_no_unit_evidence": 2069
+  },
+  "method": "Count casefold substring hits in clean Physics no_unit_evidence rows for phrases not already present as strong_phrases. Prefer longer stems before applying; short stems need a zero-drift dry-run.",
+  "high_hit_but_risky_short_stems": [
+    {
+      "phrase": "magnetic field",
+      "hits": 243,
+      "likely_unit": "physics|13",
+      "risk": "Too broad alone; can collide with EMI/AC and experimental wording. Prefer longer forms."
+    },
+    {
+      "phrase": "electric field",
+      "hits": 125,
+      "likely_unit": "physics|11",
+      "risk": "Broad; pair with electrostatic context phrases."
+    },
+    {
+      "phrase": "kinetic energy",
+      "hits": 73,
+      "likely_unit": "physics|4",
+      "risk": "Also appears in gas-kinetic and nuclear contexts."
+    },
+    {
+      "phrase": "potential energy",
+      "hits": 61,
+      "likely_unit": "physics|4",
+      "risk": "Also gravitational/electrostatic potential energy."
+    }
+  ],
+  "safer_candidate_batch_for_dry_run": [
+    { "unit_id": "physics|11", "phrases": ["electric field due to", "electric potential at", "equipotential surface"] },
+    { "unit_id": "physics|13", "phrases": ["magnetic field due to", "force on a current carrying", "magnetic moment of"] },
+    { "unit_id": "physics|12", "phrases": ["kirchhoff's law", "kirchhoff's junction", "kirchhoff's loop"] },
+    { "unit_id": "physics|16", "phrases": ["diffraction pattern", "polarization of light", "young's double slit experiment"] },
+    { "unit_id": "physics|17", "phrases": ["photoelectric effect", "de broglie wavelength"] },
+    { "unit_id": "physics|18", "phrases": ["bohr model", "binding energy per nucleon", "half life of"] },
+    { "unit_id": "physics|19", "phrases": ["p-type semiconductor", "n-type semiconductor", "logic gate"] },
+    { "unit_id": "physics|3", "phrases": ["coefficient of friction", "limiting friction"] },
+    { "unit_id": "physics|6", "phrases": ["escape velocity", "kepler's law"] },
+    { "unit_id": "physics|2", "phrases": ["projectile motion", "time of flight"] }
+  ],
+  "hit_counts_observed": {
+    "magnetic field": 243,
+    "electric field": 125,
+    "kinetic energy": 73,
+    "potential energy": 61,
+    "diffraction": 22,
+    "electric potential": 21,
+    "semiconductor": 21,
+    "bohr": 18,
+    "kirchhoff": 13,
+    "half life": 11,
+    "gravitation": 7,
+    "photoelectric": 3,
+    "binding energy": 3,
+    "projectile": 2,
+    "lenz": 1,
+    "polarization": 1,
+    "coefficient of friction": 1
+  },
+  "collaboration_note": "Codex owns syllabus-rules-physics.json today. Cursor can run a zero-drift Physics phrase pass only after Codex frees that file, or Codex can consume this candidate list. Do not apply short stems without the same phrase-induced-drift gate used for Math."
+}

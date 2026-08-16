@@ -1,0 +1,63 @@
+{
+  "schema_version": "cursor-assist-report/v1",
+  "generated_by": "cursor-agent",
+  "date": "2026-08-11",
+  "review_of": "JEE Advanced legacy deferred/paragraph parser leftovers",
+  "verdict": "PASS",
+  "owner": "cursor",
+  "code_changed": [
+    "tools/question-bank/question_bank/pipeline.py",
+    "tools/question-bank/test_qbank.py"
+  ],
+  "do_not_revert": true,
+  "tests": {
+    "command": "python3 -m unittest test_qbank -v",
+    "result": "63 passed"
+  },
+  "live_scan": {
+    "jee_advanced_text_files": 40,
+    "questions_emitted": 2123,
+    "grouped_ranges": [],
+    "blocking_issues": 0
+  },
+  "pasteur_leftovers_before": {
+    "jee-advanced-2011-paper-1-english": ["42-43", "58-60"],
+    "jee-advanced-2011-paper-2-english": ["13-18", "42-43", "53-55", "56,58", "3,60"],
+    "jee-advanced-2012-paper-1-english": ["18,19,20,6"],
+    "jee-advanced-2013-paper-1-english": ["54-55"],
+    "jee-advanced-2013-paper-2-english": []
+  },
+  "live_after": {
+    "jee-advanced-2011-paper-1-english": {"questions": 61, "grouped": [], "blocking": 0},
+    "jee-advanced-2011-paper-2-english": {"questions": 44, "grouped": [], "blocking": 0},
+    "jee-advanced-2012-paper-1-english": {"questions": 60, "grouped": [], "blocking": 0},
+    "jee-advanced-2012-paper-2-english": {"questions": 60, "grouped": [], "blocking": 0},
+    "jee-advanced-2013-paper-1-english": {"questions": 53, "grouped": [], "blocking": 0},
+    "jee-advanced-2013-paper-2-english": {"questions": 56, "grouped": [], "blocking": 0}
+  },
+  "fixes": [
+    "Recognize OCR section headers with tilde/em-dash separators and SECTION II: Paragraph Type colons",
+    "Treat Paragraph for Question Nos. X to Y as a deferred-block boundary, not body text",
+    "Keep empty deferred runs across bare subject reprints such as PHYSICS after blank 23./24.",
+    "Accept successor blank comma headings such as 44, before OCR garbage or a subject reprint",
+    "Absorb only implausible false headings inside deferred runs (8: 15, 6), 2. 2 =); do not swallow skipped forward numbers such as 50. after 48.",
+    "Reject backward-jump empty headings such as 3. after 58 unless a real subject restart just occurred",
+    "Split a complete deferred block when extra unnumbered Q+A follows the expected answer count",
+    "Treat wrapped This section contains ... copy as section-instruction tail"
+  ],
+  "residual_ocr_gaps_not_parser_grouping": [
+    "2011 paper 1 still misses early physics numbers and 61-62 paragraph-first stems without blank headings",
+    "2011 paper 2 still misses some chemistry/math numbers where OCR dropped the heading entirely",
+    "2013 paper 1 still misses 49; 50 is recovered",
+    "Some unassigned page chrome and bilingual residue remain review-only"
+  ],
+  "nta_acquisition": {
+    "cursor_touched": false,
+    "manifest_jee_main_docs": 47,
+    "years_present": {"2021": 11, "2024": 13, "2025": 14, "2026": 9},
+    "still_missing": ["2019", "2020", "2022", "2023", "2026 Session 1"],
+    "owner": "codex",
+    "note": "Gibbs/Leibniz still own historical import. Cursor did not edit import_nta_jee_main.py, nta_jee_main_sources.py, or manifest.jsonl."
+  },
+  "collaboration_note": "Preserve pipeline.py and the new test_qbank deferred/paragraph cases. Re-extract JEE Advanced after accepting this parser; do not rebuild question-syllabus.jsonl until Codex finishes the NTA import lane."
+}

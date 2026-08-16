@@ -1,0 +1,7 @@
+# Bulk and reproducible artifacts stay local. Curated JSONL, rules, schemas, and
+# reports are intentionally trackable.
+/raw/
+/staging/
+/cache/
+/text/
+/build/

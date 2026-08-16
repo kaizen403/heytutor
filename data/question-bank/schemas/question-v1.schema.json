@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://heytutor.local/schemas/question-bank/question-v1.schema.json",
+  "title": "Canonical extracted question",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "question_id",
+    "text",
+    "content_sha256",
+    "topic",
+    "subtopic",
+    "difficulty",
+    "answer",
+    "status",
+    "source_refs"
+  ],
+  "properties": {
+    "schema_version": { "const": "question-bank-question/v1" },
+    "question_id": { "type": "string", "pattern": "^q_[0-9a-f]{64}$" },
+    "text": { "type": "string", "minLength": 1 },
+    "content_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "topic": { "type": ["string", "null"], "minLength": 1 },
+    "subtopic": { "type": ["string", "null"], "minLength": 1 },
+    "difficulty": { "enum": ["easy", "medium", "hard", null] },
+    "answer": { "type": ["string", "null"], "minLength": 1 },
+    "status": { "enum": ["extracted", "classified", "reviewed"] },
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/source_ref" }
+    }
+  },
+  "$defs": {
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_id",
+        "document_sha256",
+        "page_number",
+        "page_end",
+        "question_number",
+        "extraction_method",
+        "extracted_text_sha256"
+      ],
+      "properties": {
+        "document_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+        "document_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "page_number": { "type": "integer", "minimum": 1 },
+        "page_end": { "type": "integer", "minimum": 1 },
+        "question_number": { "type": "string", "minLength": 1 },
+        "extraction_method": { "type": "string", "minLength": 1 },
+        "extracted_text_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
+  }
+}

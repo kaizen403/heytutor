@@ -1,0 +1,48 @@
+{
+  "by_exam": {
+    "CBSE Class XII Board Examination": 200,
+    "JEE Advanced": 40,
+    "JEE Main": 9
+  },
+  "by_subject": {
+    "Mathematics": 101,
+    "Physics": 99,
+    "Physics, Chemistry, Mathematics": 49
+  },
+  "by_year": {
+    "2007": 2,
+    "2008": 2,
+    "2009": 2,
+    "2010": 2,
+    "2011": 2,
+    "2012": 2,
+    "2013": 2,
+    "2014": 2,
+    "2015": 2,
+    "2016": 2,
+    "2017": 2,
+    "2018": 2,
+    "2019": 2,
+    "2020": 2,
+    "2021": 2,
+    "2022": 42,
+    "2023": 42,
+    "2024": 44,
+    "2025": 48,
+    "2026": 43
+  },
+  "duplicate_pdf_hash_groups": 3,
+  "duplicate_pdf_occurrences": 6,
+  "imported_documents": 249,
+  "manifest_documents": 249,
+  "missing_artifacts": [],
+  "operation": "import-staged",
+  "retrieved_at": "2026-08-09T23:17:19.317471Z",
+  "skipped_members": [
+    {
+      "artifact_id": "cbse-2023-compartment-mathematics",
+      "member": "Mathematics/465_C Applied Mathematics.pdf",
+      "reason": "applied-mathematics-outside-target-syllabus"
+    }
+  ]
+}

@@ -1,0 +1,127 @@
+{
+  "schema_version": "cursor-assist-report/v1",
+  "generated_by": "cursor-agent",
+  "date": "2026-08-11",
+  "review_of": "stale question-syllabus sidecar vs live in-memory classification",
+  "verdict": "PASS",
+  "claim_under_review": "~4,110 classified / ~7,424 needs review on the on-disk sidecar",
+  "artifacts": {
+    "sidecar": "data/question-bank/build/question-syllabus.jsonl",
+    "questions_all": "data/question-bank/build/questions.all.jsonl",
+    "index_report_matching_sidecar": "data/question-bank/reports/syllabus-index-2026-08-10-math-hybrid-pilot.json",
+    "math_rules": "data/question-bank/syllabus-rules-mathematics.json",
+    "physics_rules": "data/question-bank/syllabus-rules-physics.json"
+  },
+  "method": "Reclassified every row in questions.all.jsonl in memory with current Mathematics + Physics rules. Did not rewrite question-syllabus.jsonl, manifest.jsonl, or sqlite.",
+  "sidecar_on_disk": {
+    "mtime_note": "2026-08-11 02:55 IST",
+    "rows": 12335,
+    "status_counts": {
+      "classified": 4110,
+      "needs_review": 7424,
+      "out_of_scope": 801
+    },
+    "mathematics": {
+      "classified": 1726,
+      "needs_review": 4213
+    },
+    "physics": {
+      "classified": 2384,
+      "needs_review": 2940
+    },
+    "cursor_owned_math_needs_review": 3559,
+    "cursor_owned_math_no_unit_evidence": 3324
+  },
+  "live_in_memory": {
+    "mtime_note": "questions.all.jsonl 2026-08-11 03:30 IST",
+    "rows": 12362,
+    "status_counts": {
+      "classified": 4207,
+      "needs_review": 7354,
+      "out_of_scope": 801
+    },
+    "mathematics": {
+      "classified": 1823,
+      "needs_review": 4143
+    },
+    "physics": {
+      "classified": 2384,
+      "needs_review": 2940
+    },
+    "chemistry_out_of_scope": 801,
+    "cursor_owned_math_needs_review": 3472,
+    "cursor_owned_math_no_unit_evidence": 3258,
+    "needs_review_reason_any": {
+      "no_unit_evidence": 5899,
+      "high_character_corruption_ratio": 1067,
+      "unit_score_below_threshold": 274,
+      "missing_subject_context": 270,
+      "multi_unit_evidence": 197,
+      "uncorroborated_existing_topic_projection": 170,
+      "unit_score_tie": 85,
+      "possible_merged_questions": 47,
+      "unit_margin_below_threshold": 25,
+      "very_short_non_mathematical_text": 20,
+      "option_only_fragment": 3,
+      "conflicting_subject_context": 1
+    }
+  },
+  "diff": {
+    "questions_only_in_questions_all": 27,
+    "questions_only_in_sidecar": 0,
+    "overlap": 12335,
+    "only_in_questions_all_status": {
+      "classified": 4,
+      "needs_review": 23
+    },
+    "only_in_questions_all_docs": [
+      "cbse-2017-compartment-mathematics-all-india-scheme-65-1-mathematics-398e2dd5dc",
+      "cbse-2017-compartment-mathematics-all-india-scheme-65-3-mathematics-15ff97537e",
+      "cbse-2017-compartment-mathematics-all-india-scheme-65-b-3d61c907ed"
+    ],
+    "status_transitions_on_overlap": {
+      "classified->classified": 4110,
+      "needs_review->needs_review": 7331,
+      "out_of_scope->out_of_scope": 801,
+      "needs_review->classified": 93
+    },
+    "new_classified_on_overlap": 93,
+    "new_classified_on_overlap_subject": "Mathematics only",
+    "lost_classified_on_overlap": 0,
+    "unit_flips_still_classified": 0,
+    "physics_unchanged": true,
+    "math_classified_unit_deltas": {
+      "maths|1": 2,
+      "maths|3": 5,
+      "maths|6": 1,
+      "maths|7": 21,
+      "maths|8": 3,
+      "maths|9": 19,
+      "maths|11": 13,
+      "maths|12": 5,
+      "maths|13": 25,
+      "maths|14": 1,
+      "maths|supplemental|linear-programming": 2
+    }
+  },
+  "interpretation": "The 4,110 / 7,424 counts are real for the 02:55 sidecar and the matching hybrid-pilot index report. They are stale relative to current Mathematics rules and the 03:30 questions.all.jsonl. Live in-memory classification is 4,207 classified / 7,354 needs review / 801 out of scope. The +93 overlap promotions are exactly Math phrase pass 4, with zero lost classified and zero unit flips. Physics is unchanged. The extra 27 questions.all rows are three CBSE 2017 compartment Math papers not present in the sidecar; 4 of those classify, but their text is still heavily garbled.",
+  "gaps_closed": [
+    "Confirmed the on-disk sidecar still reads 4110 / 7424 / 801.",
+    "Produced live counts on current questions.all + current Math/Physics rules without rewriting the sidecar.",
+    "Proved the 93 overlap promotions are Mathematics-only, zero drift, zero unit flips.",
+    "Separated those 93 from the 27 new questions.all rows Codex added after the sidecar was written."
+  ],
+  "residual_risks": [
+    "question-syllabus.jsonl and the hybrid-pilot index report are still the stale 02:55 artifacts. Do not treat them as current coverage.",
+    "Live counts do not yet include sanitizer-at-build-time text changes. Final rebuild may move more corruption-flagged rows.",
+    "4 newly classified CBSE 2017 compartment rows look garbled; do not treat them as high-confidence until those papers are cleaned.",
+    "Cursor-owned Math still has about 3,472 needs_review rows, 3,258 of them no_unit_evidence only."
+  ],
+  "recommendation_to_codex": "Keep using 4207 / 7354 / 801 as the planning numbers, not 4110 / 7424. Rebuild question-syllabus.jsonl only on the single-owner final rebuild. Preserve data/question-bank/syllabus-rules-mathematics.json. Do not revert Physics. Gauss can consume the sanitizer PASS report instead of re-auditing mixed-line drops.",
+  "did_not": [
+    "rewrite question-syllabus.jsonl",
+    "rewrite manifest.jsonl",
+    "rebuild sqlite",
+    "edit Physics rules, parser, or OCR files"
+  ]
+}

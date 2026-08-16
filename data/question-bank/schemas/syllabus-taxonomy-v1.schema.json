@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://heytutor.local/schemas/question-bank/syllabus-taxonomy-v1.schema.json",
+  "title": "Versioned examination syllabus taxonomy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "active_framework_id", "frameworks", "subjects"],
+  "properties": {
+    "schema_version": { "const": "question-bank-syllabus-taxonomy/v1" },
+    "active_framework_id": { "type": "string", "minLength": 1 },
+    "frameworks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/framework" }
+    },
+    "subjects": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/subject" }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._|-]*$"
+    },
+    "nullable_nonempty_string": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "framework": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["framework_id", "label", "status", "source"],
+      "properties": {
+        "framework_id": { "$ref": "#/$defs/identifier" },
+        "label": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["active", "historical"] },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["publisher", "url", "local_path", "notes"],
+          "properties": {
+            "publisher": { "type": "string", "minLength": 1 },
+            "url": { "$ref": "#/$defs/nullable_nonempty_string" },
+            "local_path": { "$ref": "#/$defs/nullable_nonempty_string" },
+            "notes": { "$ref": "#/$defs/nullable_nonempty_string" }
+          }
+        }
+      }
+    },
+    "topic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topic_id", "label", "aliases", "framework_ids", "notes"],
+      "properties": {
+        "topic_id": { "$ref": "#/$defs/identifier" },
+        "label": { "type": "string", "minLength": 1 },
+        "aliases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "framework_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/identifier" }
+        },
+        "notes": { "$ref": "#/$defs/nullable_nonempty_string" }
+      }
+    },
+    "regular_unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit_id", "unit_number", "name", "topics"],
+      "properties": {
+        "unit_id": { "$ref": "#/$defs/identifier" },
+        "unit_number": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "topics": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/topic" }
+        }
+      }
+    },
+    "supplemental_unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit_id", "unit_number", "name", "topics"],
+      "properties": {
+        "unit_id": { "$ref": "#/$defs/identifier" },
+        "unit_number": { "type": "null" },
+        "name": { "type": "string", "minLength": 1 },
+        "topics": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/topic" }
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_id", "name", "units", "supplemental_units"],
+      "properties": {
+        "subject_id": { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "minLength": 1 },
+        "units": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/regular_unit" }
+        },
+        "supplemental_units": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/supplemental_unit" }
+        }
+      }
+    }
+  }
+}

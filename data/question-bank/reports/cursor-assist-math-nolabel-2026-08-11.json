@@ -1,0 +1,458 @@
+{
+  "schema_version": "cursor-assist-report/v1",
+  "generated_by": "cursor-agent",
+  "date": "2026-08-11",
+  "ownership": {
+    "agent": "cursor",
+    "slice": "Mathematics needs_review rows without possible_merged_questions, high_character_corruption_ratio, or option_only_fragment",
+    "files_owned": [
+      "data/question-bank/syllabus-rules-mathematics.json",
+      "data/question-bank/reports/cursor-assist-math-nolabel-2026-08-11.json",
+      "tools/question-bank/test_syllabus_index.py"
+    ],
+    "files_not_touched": [
+      "data/question-bank/syllabus-rules-physics.json",
+      "tools/question-bank/question_bank/syllabus.py",
+      "tools/question-bank/test_qbank.py",
+      "data/question-bank/source-catalog.json",
+      "data/question-bank/manifest.jsonl"
+    ]
+  },
+  "phrase_additions": {
+    "maths|3": [
+      "skew-symmetric matrices",
+      "skew-symmetric matrix",
+      "symmetric matrices of same order"
+    ],
+    "maths|7": [
+      "absolute maximum and absolute minimum"
+    ],
+    "maths|9": [
+      "particular solution of the differential equation",
+      "general solution of the differential equation",
+      "order and the degree of the differential equation",
+      "order and degree of the differential equation",
+      "solution of the following differential equation"
+    ],
+    "maths|11": [
+      "shortest distance between the lines"
+    ],
+    "maths|12": [
+      "unit vector perpendicular to"
+    ],
+    "maths|13": [
+      "independent events",
+      "mutually exclusive events"
+    ]
+  },
+  "intentionally_omitted": [
+    "solve the differential equation",
+    "differential equation",
+    "the differential equation",
+    "quadratic equation",
+    "following differential equation"
+  ],
+  "omit_reason": "Bare or short DE/quadratic cues caused multi_unit_evidence ties or unit flips on already-classified Mathematics rows (especially merged DE+integration pages).",
+  "quality_gates": {
+    "zero_drift_on_prior_math_classified": true,
+    "broad_stems_avoided": true
+  },
+  "metrics_before": {
+    "status_counts": {
+      "classified": 3484,
+      "needs_review": 8718,
+      "out_of_scope": 779
+    },
+    "cursor_owned_needs_review": 3765
+  },
+  "metrics_after": {
+    "status_counts": {
+      "classified": 4207,
+      "needs_review": 7354,
+      "out_of_scope": 801
+    },
+    "latest_pass": 4,
+    "pass4_owned_uplift": 93,
+    "pass4_phrase_drift": 0,
+    "cursor_owned_math_open_approx": 3472
+  },
+  "notes": "Codex owns merged extraction, corruption cleanup, Physics rules, NTA acquisition, syllabus.py, and test_qbank.py. Pass 4 scored OCR-cleaned CBSE text in memory without rewriting manifest.jsonl. Final rebuilds should preserve these math rule additions.",
+  "verification": {
+    "question_bank_tests": "182 passed",
+    "zero_phrase_induced_drift": true,
+    "syllabus_index_rebuilt": false
+  },
+  "passes": [
+    {
+      "pass": 2,
+      "phrase_additions": {
+        "maths|3": [
+          "determinant of the matrix",
+          "inverse of the matrix"
+        ],
+        "maths|7": [
+          "increasing function",
+          "decreasing function",
+          "local maxima",
+          "local minima",
+          "strictly increasing"
+        ],
+        "maths|8": [
+          "value of the integral"
+        ],
+        "maths|11": [
+          "equation of the plane"
+        ],
+        "maths|13": [
+          "conditional probability"
+        ],
+        "maths|2": [
+          "roots of the quadratic equation"
+        ],
+        "maths|1": [
+          "bijective function"
+        ]
+      },
+      "intentionally_omitted": [
+        "system of linear equations",
+        "strictly decreasing",
+        "one-one and onto",
+        "nCr",
+        "nPr",
+        "evaluate the integral",
+        "dot product of",
+        "cross product of"
+      ],
+      "omit_reason": "Caused phrase-induced multi_unit ties or zero uplift on dry-run.",
+      "quality_gates": {
+        "zero_phrase_induced_drift_on_math_classified": true
+      },
+      "metrics_engine_old_vs_new": {
+        "status_old": {
+          "classified": 3170,
+          "needs_review": 8379,
+          "out_of_scope": 781
+        },
+        "status_new": {
+          "classified": 3295,
+          "needs_review": 8254,
+          "out_of_scope": 781
+        },
+        "classified_delta": 125,
+        "owned_open_old": 2993,
+        "owned_open_new": 2868,
+        "owned_uplift": 125,
+        "owned_uplift_by_unit": {
+          "maths|11": 47,
+          "maths|7": 52,
+          "maths|8": 7,
+          "maths|3": 5,
+          "maths|1": 3,
+          "maths|13": 10,
+          "maths|2": 1
+        }
+      },
+      "sidecar_after_rebuild": {
+        "classified": 3295,
+        "needs_review": 8254,
+        "out_of_scope": 781
+      }
+    },
+    {
+      "pass": 3,
+      "phrase_additions": {
+        "maths|1": [
+          "number of onto functions",
+          "number of one-one functions"
+        ],
+        "maths|2": [
+          "complex numbers"
+        ],
+        "maths|3": [
+          "cofactor of",
+          "transpose of the matrix"
+        ],
+        "maths|7": [
+          "rate of change",
+          "mean value theorem",
+          "differentiable at"
+        ],
+        "maths|8": [
+          "area of the region bounded"
+        ],
+        "maths|9": [
+          "degree of the differential equation"
+        ],
+        "maths|10": [
+          "equation of the tangent"
+        ],
+        "maths|11": [
+          "angle between the lines"
+        ],
+        "maths|13": [
+          "random variable",
+          "mutually exclusive"
+        ]
+      },
+      "intentionally_omitted": [
+        "using matrices",
+        "continuous at",
+        "composite function",
+        "order of the differential equation",
+        "equation of the normal",
+        "radius of the circle",
+        "unit vector in the direction"
+      ],
+      "quality_gates": {
+        "zero_phrase_induced_drift_on_math_classified": true
+      },
+      "metrics_engine_old_vs_new": {
+        "status_old": {
+          "classified": 3295,
+          "needs_review": 8254,
+          "out_of_scope": 781
+        },
+        "status_new": {
+          "classified": 3369,
+          "needs_review": 8180,
+          "out_of_scope": 781
+        },
+        "classified_delta": 74,
+        "owned_open_old": 2868,
+        "owned_open_new": 2794,
+        "owned_uplift": 74,
+        "owned_uplift_by_unit": {
+          "maths|7": 22,
+          "maths|11": 15,
+          "maths|1": 3,
+          "maths|13": 7,
+          "maths|2": 7,
+          "maths|3": 6,
+          "maths|10": 6,
+          "maths|9": 7,
+          "maths|8": 1
+        },
+        "phrase_drift": 0
+      },
+      "sidecar_after_rebuild": {
+        "classified": 3369,
+        "needs_review": 8180,
+        "out_of_scope": 781
+      }
+    },
+    {
+      "pass": 4,
+      "ocr_context": {
+        "stage_report": "data/question-bank/reports/stage-math-corruption-cbse-batch-2026-08-11.json",
+        "ocr_docs_scored_in_memory": 14,
+        "ocr_questions_parsed": 638,
+        "manifest_rewritten": false
+      },
+      "phrase_additions": {
+        "maths|1": [
+          "inverse of the function"
+        ],
+        "maths|3": [
+          "order of the matrix",
+          "system of equations using matrices",
+          "minor of the element"
+        ],
+        "maths|6": [
+          "arithmetic means between"
+        ],
+        "maths|7": [
+          "local minimum",
+          "increasing in the interval",
+          "decreasing in the interval",
+          "right hand derivative"
+        ],
+        "maths|8": [
+          "area enclosed by"
+        ],
+        "maths|9": [
+          "differential equation of the family",
+          "form the differential equation",
+          "degree and order",
+          "general solution of",
+          "particular solution of"
+        ],
+        "maths|11": [
+          "equation of the line passing through",
+          "vector equation of the line"
+        ],
+        "maths|12": [
+          "magnitude of the vector",
+          "coplanar vectors",
+          "direction of the vector"
+        ],
+        "maths|13": [
+          "drawn at random from",
+          "probability that exactly",
+          "probability of the event"
+        ],
+        "maths|14": [
+          "principal value of"
+        ]
+      },
+      "intentionally_omitted": [
+        "symmetric matrix",
+        "position vector of",
+        "local maximum",
+        "projection of the vector",
+        "square matrix of order",
+        "normal to the curve",
+        "domain of the function",
+        "approximate value of",
+        "absolute maximum",
+        "area of the region enclosed",
+        "slope of the tangent",
+        "absolute minimum",
+        "angle of elevation",
+        "point of intersection of the lines",
+        "integrating factor of",
+        "unit vector in the direction of"
+      ],
+      "omit_reason": "Caused phrase-induced multi_unit ties, unit flips on already-classified Mathematics rows, or zero owned uplift.",
+      "quality_gates": {
+        "zero_phrase_induced_drift_on_math_classified": true
+      },
+      "metrics_engine_old_vs_new": {
+        "status_old": {
+          "classified": 4114,
+          "needs_review": 7447,
+          "out_of_scope": 801
+        },
+        "status_new": {
+          "classified": 4207,
+          "needs_review": 7354,
+          "out_of_scope": 801
+        },
+        "classified_delta": 93,
+        "owned_open_old": 3565,
+        "owned_open_new": 3472,
+        "owned_uplift": 93,
+        "owned_uplift_by_unit": {
+          "maths|13": 24,
+          "maths|7": 20,
+          "maths|9": 19,
+          "maths|11": 13,
+          "maths|12": 5,
+          "maths|3": 5,
+          "maths|8": 3,
+          "maths|1": 2,
+          "maths|14": 1,
+          "maths|6": 1
+        },
+        "phrase_drift": 0
+      }
+    }
+  ],
+  "phrase_additions_pass2": {
+    "maths|3": [
+      "determinant of the matrix",
+      "inverse of the matrix"
+    ],
+    "maths|7": [
+      "increasing function",
+      "decreasing function",
+      "local maxima",
+      "local minima",
+      "strictly increasing"
+    ],
+    "maths|8": [
+      "value of the integral"
+    ],
+    "maths|11": [
+      "equation of the plane"
+    ],
+    "maths|13": [
+      "conditional probability"
+    ],
+    "maths|2": [
+      "roots of the quadratic equation"
+    ],
+    "maths|1": [
+      "bijective function"
+    ]
+  },
+  "phrase_additions_pass3": {
+    "maths|1": [
+      "number of onto functions",
+      "number of one-one functions"
+    ],
+    "maths|2": [
+      "complex numbers"
+    ],
+    "maths|3": [
+      "cofactor of",
+      "transpose of the matrix"
+    ],
+    "maths|7": [
+      "rate of change",
+      "mean value theorem",
+      "differentiable at"
+    ],
+    "maths|8": [
+      "area of the region bounded"
+    ],
+    "maths|9": [
+      "degree of the differential equation"
+    ],
+    "maths|10": [
+      "equation of the tangent"
+    ],
+    "maths|11": [
+      "angle between the lines"
+    ],
+    "maths|13": [
+      "random variable",
+      "mutually exclusive"
+    ]
+  },
+  "phrase_additions_pass4": {
+    "maths|1": [
+      "inverse of the function"
+    ],
+    "maths|3": [
+      "order of the matrix",
+      "system of equations using matrices",
+      "minor of the element"
+    ],
+    "maths|6": [
+      "arithmetic means between"
+    ],
+    "maths|7": [
+      "local minimum",
+      "increasing in the interval",
+      "decreasing in the interval",
+      "right hand derivative"
+    ],
+    "maths|8": [
+      "area enclosed by"
+    ],
+    "maths|9": [
+      "differential equation of the family",
+      "form the differential equation",
+      "degree and order",
+      "general solution of",
+      "particular solution of"
+    ],
+    "maths|11": [
+      "equation of the line passing through",
+      "vector equation of the line"
+    ],
+    "maths|12": [
+      "magnitude of the vector",
+      "coplanar vectors",
+      "direction of the vector"
+    ],
+    "maths|13": [
+      "drawn at random from",
+      "probability that exactly",
+      "probability of the event"
+    ],
+    "maths|14": [
+      "principal value of"
+    ]
+  }
+}

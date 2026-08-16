@@ -7,27 +7,17 @@ import {
   type ValidationResult,
 } from "./types";
 import { parseMathExpression, parseMathExpression2D } from "./expression";
+import {
+  isExecutableSceneConstructionOperator,
+  SUPPORTED_SCENE_COMPONENT_SYMBOLS,
+  type SupportedSceneConstructionOperator,
+  type SupportedSceneComponentSymbol,
+} from "./capabilityManifest";
 
 const ARRAY_FIELDS = [
   "quantities", "entities", "constructions", "relations", "assertions",
   "annotations", "requiredEntityIds", "revealGroups", "teachingTimeline",
 ] as const;
-
-const SUPPORTED_OPERATORS = new Set([
-  "point", "segment", "ray", "line", "circle", "arc", "rectangle", "polygon",
-  "polyline", "vector", "axes", "function_curve", "function_region", "parametric_curve",
-  "polar_curve", "implicit_curve", "tangent_line", "normal_line", "representative_slice", "solid_of_revolution",
-  "solid_projection", "solid_cross_section",
-  "wavefront_family", "aperture", "screen_pattern", "transverse_field", "polarizer",
-  "optical_train",
-  "intersection", "midpoint",
-  "surface_intersection", "surface_contact", "normal_at",
-  "project", "translate", "rotate", "reflect_point", "reflect_direction",
-  "refract_direction", "reflect_at", "refract_at", "parallel_through", "perpendicular_through", "angle_bisector",
-  "angle_mark", "right_angle_mark", "tick_mark",
-  "vector_components", "dimension", "connect", "symbol",
-  "label",
-]);
 
 const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   segment: "segment", ray: "ray", line: "line", circle: "circle", arc: "arc",
@@ -52,8 +42,10 @@ const CONSTRUCTION_ENTITY_REFERENCE_KEYS = new Set([
 ]);
 
 /** Capability-corpus gate: fixtures may only name executable scene operators. */
-export function isSupportedSceneOperator(operator: string): boolean {
-  return SUPPORTED_OPERATORS.has(operator);
+export function isSupportedSceneOperator(
+  operator: string,
+): operator is SupportedSceneConstructionOperator {
+  return isExecutableSceneConstructionOperator(operator);
 }
 
 const SAMPLED_CURVE_OPERATORS = new Set(["function_curve", "parametric_curve", "polar_curve"]);
@@ -67,11 +59,6 @@ const WAVE_VISUAL_OPERATORS = new Set([
 ]);
 const SURFACE_RAY_OPERATORS = new Set(["reflect_at", "refract_at"]);
 const SOLID_PROJECTION_KINDS = new Set(["cylinder", "cone", "frustum", "sphere", "hemisphere"]);
-const SUPPORTED_COMPONENT_SYMBOLS = [
-  "galvanometer", "voltmeter", "ammeter", "capacitor", "inductor", "resistor",
-  "ac_source", "battery", "zener", "diode", "switch", "lamp", "cell",
-] as const;
-
 /**
  * Remove entities that are provably planner artifacts before strict validation.
  * This is deliberately narrower than schema repair: ordinary dead entities are
@@ -1180,8 +1167,8 @@ function normalizeRecognizedComponentOperators(
   return changed ? { ...raw, constructions } : raw;
 }
 
-function recognizedComponentSymbol(semantic: string): typeof SUPPORTED_COMPONENT_SYMBOLS[number] | undefined {
-  return SUPPORTED_COMPONENT_SYMBOLS.find((candidate) => {
+function recognizedComponentSymbol(semantic: string): SupportedSceneComponentSymbol | undefined {
+  return SUPPORTED_SCENE_COMPONENT_SYMBOLS.find((candidate) => {
     const phrase = candidate.replace(/_/g, " ");
     return new RegExp(`(?:^|[^a-z])${phrase}(?:[^a-z]|$)`, "i").test(semantic);
   });
@@ -3564,7 +3551,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     }
   });
   document.constructions.forEach((construction, index) => {
-    if (!SUPPORTED_OPERATORS.has(construction.operator)) issues.push({ code: "unsupported_operator", message: `Unsupported operator ${construction.operator}`, severity: "fatal", path: `constructions[${index}].operator` });
+    if (!isSupportedSceneOperator(construction.operator)) issues.push({ code: "unsupported_operator", message: `Unsupported operator ${construction.operator}`, severity: "fatal", path: `constructions[${index}].operator` });
     if (!isRecord(construction.inputs)) issues.push({ code: "invalid_inputs", message: "Construction inputs must be an object", severity: "fatal", path: `constructions[${index}].inputs` });
     if (!Array.isArray(construction.outputs) || construction.outputs.length === 0) issues.push({ code: "missing_outputs", message: "Construction must declare outputs", severity: "fatal", path: `constructions[${index}].outputs` });
     else construction.outputs.forEach((id, outputIndex) => requireEntity(id, `constructions[${index}].outputs[${outputIndex}]`));

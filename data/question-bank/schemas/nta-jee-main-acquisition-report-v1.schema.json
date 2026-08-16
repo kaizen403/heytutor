@@ -1,0 +1,244 @@
+{
+  "$id": "https://heytutor.local/schemas/question-bank/nta-jee-main-acquisition-report-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NTA JEE Main Acquisition Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "canonical_candidates",
+    "config",
+    "dry_run",
+    "expected_schedule_keys",
+    "inventory_observed_at",
+    "inventory_report_filename_date",
+    "inventory_report_path",
+    "missing_schedule_keys",
+    "notes",
+    "planned_candidates",
+    "quarantined_candidates",
+    "schedule_as_of",
+    "schedule_path",
+    "schema_version",
+    "summary",
+    "suppressed_candidates",
+    "verified_candidates"
+  ],
+  "properties": {
+    "schema_version": { "const": "nta-jee-main-acquisition-report/v1" },
+    "inventory_report_path": { "type": "string", "minLength": 1 },
+    "inventory_observed_at": { "type": "string", "minLength": 1 },
+    "inventory_report_filename_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "schedule_path": { "type": "string", "minLength": 1 },
+    "schedule_as_of": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "dry_run": { "type": "boolean" },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_file_bytes",
+        "max_total_bytes",
+        "staging_dir",
+        "timeout_seconds"
+      ],
+      "properties": {
+        "staging_dir": { "type": "string", "minLength": 1 },
+        "max_file_bytes": { "type": "integer", "minimum": 1 },
+        "max_total_bytes": { "type": "integer", "minimum": 1 },
+        "timeout_seconds": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "expected_schedule_keys": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scheduleKey" }
+    },
+    "planned_candidates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/plannedCandidate" }
+    },
+    "suppressed_candidates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/suppressedCandidate" }
+    },
+    "verified_candidates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/verifiedCandidate" }
+    },
+    "quarantined_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["paper_url", "quarantine_reason", "status"],
+        "properties": {
+          "paper_url": { "type": "string", "format": "uri" },
+          "quarantine_reason": { "type": "string", "minLength": 1 },
+          "status": { "const": "quarantined" }
+        }
+      }
+    },
+    "canonical_candidates": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/scheduleKey" },
+          {
+            "type": "object",
+            "additionalProperties": true,
+            "required": ["alternates", "canonical", "regional_fallback"],
+            "properties": {
+              "canonical": { "$ref": "#/$defs/verifiedCandidate" },
+              "alternates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["alternate_reason", "language_variant", "paper_url", "sha256"],
+                  "properties": {
+                    "alternate_reason": { "type": "string", "minLength": 1 },
+                    "language_variant": { "type": "string", "minLength": 1 },
+                    "paper_url": { "type": "string", "format": "uri" },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  }
+                }
+              },
+              "regional_fallback": { "type": "boolean" }
+            }
+          }
+        ]
+      }
+    },
+    "missing_schedule_keys": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scheduleKey" }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_candidates",
+        "expected_schedule_keys",
+        "missing_schedule_keys",
+        "planned_candidates",
+        "quarantined_candidates",
+        "suppressed_candidates",
+        "verified_candidates"
+      ],
+      "properties": {
+        "expected_schedule_keys": { "type": "integer", "minimum": 0 },
+        "planned_candidates": { "type": "integer", "minimum": 0 },
+        "suppressed_candidates": { "type": "integer", "minimum": 0 },
+        "verified_candidates": { "type": "integer", "minimum": 0 },
+        "quarantined_candidates": { "type": "integer", "minimum": 0 },
+        "canonical_candidates": { "type": "integer", "minimum": 0 },
+        "missing_schedule_keys": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "scheduleKey": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "alternate_source_urls",
+        "evidence_type",
+        "exam_date",
+        "expected_gap",
+        "official_key",
+        "session_id",
+        "session_label",
+        "shift",
+        "source_url",
+        "year"
+      ],
+      "properties": {
+        "official_key": { "type": "string", "minLength": 1 },
+        "exam_date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "shift": { "type": "integer", "enum": [1, 2] },
+        "evidence_type": { "type": "string", "minLength": 1 },
+        "expected_gap": { "type": "boolean" },
+        "session_id": { "type": "string", "minLength": 1 },
+        "session_label": { "type": "string", "minLength": 1 },
+        "source_url": { "type": "string", "format": "uri" },
+        "alternate_source_urls": {
+          "type": "array",
+          "items": { "type": "string", "format": "uri" }
+        },
+        "year": { "type": "integer", "minimum": 2020, "maximum": 2026 }
+      }
+    },
+    "plannedCandidate": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "paper_file",
+        "paper_url",
+        "plan_rank",
+        "plan_reason",
+        "reported_schedule_keys",
+        "variant_rank"
+      ],
+      "properties": {
+        "paper_file": { "type": "string", "minLength": 1 },
+        "paper_url": { "type": "string", "format": "uri" },
+        "plan_rank": { "type": "integer", "minimum": 1 },
+        "plan_reason": { "type": "string", "minLength": 1 },
+        "reported_schedule_keys": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "variant_rank": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "suppressedCandidate": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["paper_file", "paper_url", "suppression_reasons"],
+      "properties": {
+        "paper_file": { "type": "string", "minLength": 1 },
+        "paper_url": { "type": "string", "format": "uri" },
+        "suppression_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "verifiedCandidate": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "official_key",
+        "paper_url",
+        "sha256",
+        "variant_rank"
+      ],
+      "properties": {
+        "official_key": { "type": "string", "minLength": 1 },
+        "paper_url": { "type": "string", "format": "uri" },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "variant_rank": { "type": "integer", "minimum": 1 },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,608 @@
+{
+  "assignment_schema_version": "question-bank-syllabus-assignment/v1",
+  "confidence_counts": {
+    "high": 3702,
+    "medium": 1172,
+    "null": 7461
+  },
+  "framework_id": "jee-main-2026",
+  "generated_at": "2026-08-10T21:25:36.948141Z",
+  "input_counts": {
+    "documents": 474,
+    "frameworks": 2,
+    "questions": 12335,
+    "rule_units": 34,
+    "source_references": 14829,
+    "subjects": 2,
+    "topics": 307,
+    "units": 38
+  },
+  "method": "deterministic-lexical/v1",
+  "output_counts": {
+    "assignments": 12335,
+    "candidate_units": 5949,
+    "evidence": 9247,
+    "matched_topics": 637,
+    "review_reasons": 8135
+  },
+  "per_unit": [
+    {
+      "classified": 59,
+      "name": "Sets, Relations and Functions",
+      "needs_review": 23,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|1"
+    },
+    {
+      "classified": 79,
+      "name": "Coordinate Geometry",
+      "needs_review": 8,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|10"
+    },
+    {
+      "classified": 163,
+      "name": "Three-Dimensional Geometry",
+      "needs_review": 98,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|11"
+    },
+    {
+      "classified": 20,
+      "name": "Vector Algebra",
+      "needs_review": 16,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|12"
+    },
+    {
+      "classified": 183,
+      "name": "Statistics and Probability",
+      "needs_review": 27,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|13"
+    },
+    {
+      "classified": 36,
+      "name": "Trigonometry",
+      "needs_review": 4,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|14"
+    },
+    {
+      "classified": 24,
+      "name": "Complex Numbers and Quadratic Equations",
+      "needs_review": 2,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|2"
+    },
+    {
+      "classified": 169,
+      "name": "Matrices and Determinants",
+      "needs_review": 20,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|3"
+    },
+    {
+      "classified": 11,
+      "name": "Permutations and Combinations",
+      "needs_review": 0,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|4"
+    },
+    {
+      "classified": 1,
+      "name": "Binomial Theorem and its Simple Applications",
+      "needs_review": 0,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|5"
+    },
+    {
+      "classified": 25,
+      "name": "Sequence and Series",
+      "needs_review": 1,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|6"
+    },
+    {
+      "classified": 289,
+      "name": "Limit, Continuity and Differentiability",
+      "needs_review": 35,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|7"
+    },
+    {
+      "classified": 333,
+      "name": "Integral Calculus",
+      "needs_review": 48,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|8"
+    },
+    {
+      "classified": 228,
+      "name": "Differential Equations",
+      "needs_review": 28,
+      "subject": "Mathematics",
+      "supplemental": false,
+      "unit_id": "maths|9"
+    },
+    {
+      "classified": 106,
+      "name": "Linear Programming",
+      "needs_review": 11,
+      "subject": "Mathematics",
+      "supplemental": true,
+      "unit_id": "maths|supplemental|linear-programming"
+    },
+    {
+      "classified": 0,
+      "name": "Mathematical Induction",
+      "needs_review": 0,
+      "subject": "Mathematics",
+      "supplemental": true,
+      "unit_id": "maths|supplemental|mathematical-induction"
+    },
+    {
+      "classified": 0,
+      "name": "Mathematical Reasoning",
+      "needs_review": 0,
+      "subject": "Mathematics",
+      "supplemental": true,
+      "unit_id": "maths|supplemental|mathematical-reasoning"
+    },
+    {
+      "classified": 12,
+      "name": "Units and Measurements",
+      "needs_review": 1,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|1"
+    },
+    {
+      "classified": 14,
+      "name": "Oscillations and Waves",
+      "needs_review": 2,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|10"
+    },
+    {
+      "classified": 312,
+      "name": "Electrostatics",
+      "needs_review": 70,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|11"
+    },
+    {
+      "classified": 150,
+      "name": "Current Electricity",
+      "needs_review": 17,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|12"
+    },
+    {
+      "classified": 122,
+      "name": "Magnetic Effects of Current and Magnetism",
+      "needs_review": 16,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|13"
+    },
+    {
+      "classified": 251,
+      "name": "Electromagnetic Induction and Alternating Currents",
+      "needs_review": 197,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|14"
+    },
+    {
+      "classified": 179,
+      "name": "Electromagnetic Waves",
+      "needs_review": 6,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|15"
+    },
+    {
+      "classified": 468,
+      "name": "Optics",
+      "needs_review": 46,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|16"
+    },
+    {
+      "classified": 254,
+      "name": "Dual Nature of Matter and Radiation",
+      "needs_review": 21,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|17"
+    },
+    {
+      "classified": 146,
+      "name": "Atoms and Nuclei",
+      "needs_review": 16,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|18"
+    },
+    {
+      "classified": 318,
+      "name": "Electronic Devices",
+      "needs_review": 39,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|19"
+    },
+    {
+      "classified": 2,
+      "name": "Kinematics",
+      "needs_review": 0,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|2"
+    },
+    {
+      "classified": 11,
+      "name": "Experimental Skills",
+      "needs_review": 0,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|20"
+    },
+    {
+      "classified": 8,
+      "name": "Laws of Motion",
+      "needs_review": 0,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|3"
+    },
+    {
+      "classified": 5,
+      "name": "Work, Energy and Power",
+      "needs_review": 0,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|4"
+    },
+    {
+      "classified": 28,
+      "name": "Rotational Motion",
+      "needs_review": 0,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|5"
+    },
+    {
+      "classified": 3,
+      "name": "Gravitation",
+      "needs_review": 0,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|6"
+    },
+    {
+      "classified": 33,
+      "name": "Properties of Solids and Liquids",
+      "needs_review": 1,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|7"
+    },
+    {
+      "classified": 25,
+      "name": "Thermodynamics",
+      "needs_review": 1,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|8"
+    },
+    {
+      "classified": 1,
+      "name": "Kinetic Theory of Gases",
+      "needs_review": 0,
+      "subject": "Physics",
+      "supplemental": false,
+      "unit_id": "physics|9"
+    },
+    {
+      "classified": 42,
+      "name": "Communication Systems",
+      "needs_review": 10,
+      "subject": "Physics",
+      "supplemental": true,
+      "unit_id": "physics|supplemental|communication-systems"
+    }
+  ],
+  "review_reason_counts": {
+    "conflicting_subject_context": 1,
+    "high_character_corruption_ratio": 1050,
+    "missing_subject_context": 270,
+    "multi_unit_evidence": 196,
+    "no_unit_evidence": 5966,
+    "option_only_fragment": 3,
+    "possible_merged_questions": 47,
+    "uncorroborated_existing_topic_projection": 187,
+    "unit_margin_below_threshold": 25,
+    "unit_score_below_threshold": 282,
+    "unit_score_tie": 88,
+    "very_short_non_mathematical_text": 20
+  },
+  "review_samples": {
+    "conflicting_subject_context": [
+      "q_8e5e42365a190d8d9f156c404efb064e0d9353790ecbc0c49ef9d6a382de5f36"
+    ],
+    "high_character_corruption_ratio": [
+      "q_001232c2c7fcfbc86f55b4b2378f442c0f89d2be8098a40dce023004704089eb",
+      "q_003926c970bab40249b3d48723b03b9899212ca58dbbd00ff47540f1e8c88f97",
+      "q_003dac577bbb66f952441ce754ba90f825c51a4f0dd7b9a1353ea4ab003d56d8",
+      "q_00e5f9c7b18c9a175d7430cff7b51df10578f13e4fa87ad53a7893b48df5466b",
+      "q_0129f3d3c7a5989d00d9bfdf900098ff6ef605e1fc0cad315c82ce5fbf697f81",
+      "q_013a0fda291b285bbe2c83f7292bdf2dd76ea3ea39d31f68eba6a1624b69f965",
+      "q_01a7e63a17b330d0883a73694600913ef69ed2b4c293d82577d1914d650d977e",
+      "q_01b1f65244f5927d283f79c10dd8cdeaab086efd483167773ee28c004645f92d",
+      "q_01be7fd6062f5ae37f7e0020e049935d4e1a2c3a07a7e133ef2d7c4d9cd16b6e",
+      "q_01c6c73436017cf138285e99ff404bb5af107e7b417b08fb3d5d3d8516918760",
+      "q_025d8b92d749f9f0094a10f4baeb8fecf2bcc6cf6955e217cf88cadc070527f5",
+      "q_0285938f431aad014a93d87993ddf7d1b0926eb80f19c7e7de2ed5da88dcf903",
+      "q_02876d60bd55127b6288ad4b1743521a73a7389fe3161f7086b8d2586c853cfd",
+      "q_02c7761271c51dbc00996f5db61fd5327a7fbda4c7ef7e63238bf9cbc81cf5e4",
+      "q_03f6d29c3a89e9b016f01a90d3dcfff2938463ecc97138d71253d4bd9a163018",
+      "q_040fcb2d131fee44566f018f26f21652b911c06709dd900d0651aa22b32100a0",
+      "q_04a70d55b6dec57e6cc2aff8117292b753ae268283516f2b14eb56cd520dd52e",
+      "q_04a7c1251e9465aa8e881e51fc7c3ebd7c135bb1492a7386a7d454707a78819c",
+      "q_04b8b69def6db9d90993e39ab815bb05fdd977fe84df3d1d82846032b096bb05",
+      "q_052ad9b6afd3496ab07054c6fe79a5bb7470ec82379de2a698cba5e3127b7c08"
+    ],
+    "missing_subject_context": [
+      "q_0196035697d363c4c8d76ef0b832f263735b33569ad672a41f8142050e99d3d5",
+      "q_01d1f7b17057f5845dec8c1ce8038c485496d7f8f77f2e11d1f4516c109c8397",
+      "q_0317bbd72c27ae2f363ce7d69db409112b68043836280ead4a1b9db3938a1803",
+      "q_0351ad237895ef6521907067ce6dd6523a79760ed1adb798759ac896169f2185",
+      "q_037055ded3f9044ce32bfbfd26c9f5191015edc6ec7d91dd1962bd01e0700b06",
+      "q_03b53e64f5d071eb5909616c14af73b1a49722581f7862b0072db2c35f8e62fc",
+      "q_058f80f69e4064c154703e74a7cee755ed6867105cd2a909e19268fd14929b77",
+      "q_06353134c40a80376da16c27133a3d7b2bdf76d014a7a0da7f25056d52655c6f",
+      "q_06cb81bdea00caca9e02f841c1b97a73186cd4a3cae9b5a46071c7b0c8e55873",
+      "q_09d6af4beff56ece1918df65efe83f3e6efe7c111ab15b1b4916326d269a7bb0",
+      "q_09daba5ea1062e26433acb3247f17b5e4fc1170f8da518a54a70008ac7614978",
+      "q_0acc269917003bf9fce7dd075f98ce91e9a392c53a19e0e220de27769ae10bd1",
+      "q_0bdfd558e93b3b550bd6dcc855da185eff1525305bc223690c34ca919a2eaa80",
+      "q_0ccb250fbdc70c9eda0afef1636e19376e3f7ac6ebe43fa2005f53d032bc97f7",
+      "q_0d04b11ab5533ab28dd7d967a61328e168f490c55ca3210bcd187fd28374bdf3",
+      "q_0d3e53eeffba1a3bd197c2b25cf96c5e4986fdd63ed6cafaa3e0ced6ba46ffba",
+      "q_0dd7dc5edbc991c0e710b1333d8e0da7f963f91754233b912d95c43def234451",
+      "q_0ddbf8e8ede28294d3a4f77d324d38af74a17849a953445a3ad5334a2f40cdb2",
+      "q_0e839fa6e6c7a5435090360cc5c5e9b8fb32ba3ee42e9c2222cf3b92af7f19b7",
+      "q_0f4be3eb5053a2ff7f3f6557c9b4d45f842f4b6f374cc3f41ef57f9de92114ea"
+    ],
+    "multi_unit_evidence": [
+      "q_001105b0724b9d42eff25452b21a2a49782e2ae394e68b4eee5a3706d0ffc5a8",
+      "q_04a4b163e1ad29b5c0376ecfd6c0cc69e0643e00f0c89636f1307164a218ef6b",
+      "q_069d63424a93f6374fa714bf10c90a855e9cc4731f84f29ce4b6da1d75ae22f7",
+      "q_0739715b463c0ff462782f959d9d0e7738f4c84db6c3cd69a143d0fec68ed7b0",
+      "q_0786a53f58ad23038d1dc63b67bd3e884c597868e8c4673b771d27d36448f5fa",
+      "q_07932ba2fad9054bf5d53c52a048554fb8f1d9572823f0462c0f60040fd78026",
+      "q_0a3ee5070e98a7929507efe9ba38bdc2fc1cd662faab011ca26fed20b71008a8",
+      "q_0d17ec2bb7e3bf2279683a3fe59c7432f60fabbac9fc04b3947a4ef4eb5706f5",
+      "q_0d95dbfebcc8dc9e0ac928e58719465a691924e26bd3b4dfef56bef1618c29bc",
+      "q_0e6b84aac779a82a77710f0a97208e947fa90c5ca9b0a406ee21679c2364f420",
+      "q_0e8ed70cedc4b93ba22a3bc6c6b10f34cedb62c0aa4152c5f66e09140e553724",
+      "q_10028f496623cb929c63af3627b04e3472d8eb35368eae03704a409f15ba0b1c",
+      "q_10a76c812efb089db41be9e66feda106a13d5594bff8a28c8c868966fe45a17c",
+      "q_111739baa3b3c16ddec186dfe0e2bd949972a971869d918d2acdb4e33ae5a3fa",
+      "q_11a813ebab1e9607bfa8c61e34edaf1947b12490639a283546a0201c6ad0f2a5",
+      "q_12dace33c378514f17290e74e8022a997a084fa0797578955a1052ebc6183513",
+      "q_138957541c593d729fc0e82b5d0cdd829e6b7ef32613c44bc4cf4b5983788703",
+      "q_188b910f1fc51096a1296e9efb7b48814546cb92cb92a5398fe4071d4f0ff9b3",
+      "q_19416234639131e83482f13c86f90728bc98099530f372ea3bc1e6ed9aa2c2c7",
+      "q_19417be863695f779333108699597f8a14adc6bd1e31b13b6321c05b5b4daf98"
+    ],
+    "no_unit_evidence": [
+      "q_001232c2c7fcfbc86f55b4b2378f442c0f89d2be8098a40dce023004704089eb",
+      "q_00137c3657a397f589d6ebecc8a72279904dbbf9370c4a0745da2fca02f5742e",
+      "q_001e69989077d92031b3715e149a07f808183c4ce319c9186ab063728dade4a5",
+      "q_0024666d32acfa47c95f9658ea4128193421802159d2824fbddcef29c0f4786c",
+      "q_002df6219b64be1a8892b603233ba53a9ceb472b782a2dc42a9fb4b5d86b61d3",
+      "q_0033bf0924bfbee2e3d6dbd315355a542e67c12962667cadf125dc1229e903ae",
+      "q_0035f6ad30ad0af5eeb63dc6fd7c1792998b6b1f156c967219f7bcf9b3313d3d",
+      "q_0037014fc1ef9d576fd8ecb8375595684fc53947373175b9541b17fd71656ccd",
+      "q_003926c970bab40249b3d48723b03b9899212ca58dbbd00ff47540f1e8c88f97",
+      "q_003dac577bbb66f952441ce754ba90f825c51a4f0dd7b9a1353ea4ab003d56d8",
+      "q_003f4c0df068e7db426f06890741e6ffc7fc5a59dea6602f6be8c3c043dddd40",
+      "q_00400089ada326de28a59d9b7fbc9da055ee6d22d461500602cba00382d99ab9",
+      "q_004199a9f7e29a67a0a765d042ff1e1e626982a173635e0dc7bfe57a83095ae3",
+      "q_005449be9bf5b80f98726a3b8095adea721ba55abdc44146721bcf2cdb20d477",
+      "q_0054dd731df0df36e96e9f5aeb975c130a0d0612a1c59ee344c03eaf01cd3b2e",
+      "q_005edf3a5e5466889565bc46e25493702a294b836c96d7e2aa3fcc25614596eb",
+      "q_00682aa3e2598f91af5f6aeae100b63f7ab7b2213d610bbaf944b9ecefae43bc",
+      "q_0079917da2c7e40fff86babbad4b69e7de4dca96142eed39ca38654c575a118f",
+      "q_008c4ba6bda272ac0d870b7548c0764ac0763910f5f3439e87a628ed22f7811d",
+      "q_0090d95487ec34ac4b6681309c7f195f12fa7d6eb75a17056b2597d4618e7238"
+    ],
+    "option_only_fragment": [
+      "q_285bcf12b147682f1fbd6b79dfe56773e7a6e1579f7d5af470f0a73b93b74295",
+      "q_bb5296550fc17f35b95bd5d7b6f39945c25a6c3f39ce6fa0bdb8b622deb7a427",
+      "q_bea6e509181a331d240dd3c139ea0ded0833e2e785a6c705e31a4f509d83f67a"
+    ],
+    "possible_merged_questions": [
+      "q_190b8d9a9dd7a0eeedaed7a21ccf5e8d8ef14bb56f2960f0ce70e38925442121",
+      "q_1933c915326baf02c0c860152a00a35fc345f0d65c00ab6da43b68c5dff1e478",
+      "q_226e58d3757df21ea22e179ddd15aa9710f19e5eda44a1c351e58ee7fe60ea50",
+      "q_31af3537feffb90190a6ce637d974bf6ebb6d20490414500356c3fbb2f09a576",
+      "q_32499284822c031a61045003b4124c61b9e86a0bee62cab84c0991f0cbf94400",
+      "q_3355fa4f7fd361dbb0a6f067c556c99533c51763650b503f9445ef946f09783f",
+      "q_3adf385fecdb4f5a4586a01d38a32f55ed6ae8589bbdab3b8394594ac7b71a8b",
+      "q_3c15f574a9be6a88b5d450e2f758a56a7f197f7a52eea04bb39f9fe63c3e454f",
+      "q_4378811d8c50fef5a46e861ac2c887037de0bd7c0821ff4476a60785d9a8925e",
+      "q_4a1739ba40c93308ea26c1d2a0d6d913716e3ceba443e99ba6048f8e71a6de2d",
+      "q_5eb332eb1087e1277e17248f47248a99d5214ca7cc2f14a5c632629c15d3b2bc",
+      "q_682176259eec9a0f1b370fc4b8042ee3b0c4a97962faf34c5e6a14a18b6507cd",
+      "q_69b1d543cc2eae2eda81f0a443d0cd399cecc564e70fb0792aa3c5974c1d3336",
+      "q_73c441e9e3296d7d3f7431c088d67db8b29b2e48fd14658c3559323389459a1e",
+      "q_7a771c2cb9db487b3837c59b810bbfe378a98b474d4f17708f02ed43ff3612bd",
+      "q_7bb59316effbead73c178ea621d139f9a2ba4f5024580c61d46ddd21d5915e82",
+      "q_81ce33009d62c78593829783efe0f56069272d4f7585a2605a138619464632bc",
+      "q_83def262319e60d481ffae59bdf101f7db8efa0f4296d55c08de0d41b0f68f9a",
+      "q_85e657fb595684f131cb23c1153e7d2a12dfe993269369291bfbc66321e9772c",
+      "q_9073db2cd913aa89de55c8b8d10b5315d7db0567c94857d9ac4d5bf6c4577257"
+    ],
+    "uncorroborated_existing_topic_projection": [
+      "q_004894b9fd2b6d3c8fbd5b9d9ec18e5af42d0246042e087481777f77673ac9a5",
+      "q_0170e83af16177e1a6433a0f877098ebe764a4dda2090321e4b4b89c68b58f27",
+      "q_0320ad410da6a4b5f7f2b655476506392aebed6d0a2f0607090eacc079406874",
+      "q_09446c78854672d76e3db9102abd3f03d8976ceab61aebc2ae8266a041695d69",
+      "q_0a0420c0aa3186ebc47c84a22c02a3ae2c74deafe356db6b5484d8a100495a5c",
+      "q_0a0e03972d2ae32cd945b9229c7e0e0910e8657cee1dd348930134440490a97e",
+      "q_0b210e23c520bcf923bb8bbfe63b7c0f856c08cef8f96451c03084ab85c77f3a",
+      "q_0b4a546dfe3205a5981ee25fe0978a97de500bad195ccc2167ce743b627305d3",
+      "q_0b7424c8d61c489c4ce33275ecd7ac90cd75ffcf8bbfba92efee9548b5b3209f",
+      "q_0be1351405b7dddf8f7fcef33b9cfc7438edb4bf8fa0e23be4b26ad971d93890",
+      "q_0bef559d70192174ee8f1468e5341935157265e49c484b09a1bb15adb0ba84e8",
+      "q_0c119919d39e97db067186c2439d656f989b8c4df3b869273eb3537d3b272f57",
+      "q_0c481d9b95b78e1869ade2f6b3c843adb5e82cacf374218071628cbd20a79502",
+      "q_0e77b45411d928d80e3ad0ca6109e60a893d3d3d28836745df0b3e78227fd775",
+      "q_0e864e4edc3dbd2fad87983ddb040f3aad1ef698e550bad7b227ebebce73836d",
+      "q_0fa2b942ada9ec0dabed203d99172b09437fe188d818d3a11717aef3b79ab2bf",
+      "q_157bb1710de7c7b9dc789cb012fb7510c699fa47c2ada33b46ff7960248b088e",
+      "q_162f2b7ce35da134da872af53fafe17812482e0e227ccec2f9b425cdd12bd2b8",
+      "q_17eee3aff89ea994eddbbc0624a6c1be5d6e53e6123211a449e13cc54df4759a",
+      "q_198a4ddcaa4a7601ac53bbc4e9a5e3d5cf3cd3355dcb1ea70a1b4f795f4c645b"
+    ],
+    "unit_margin_below_threshold": [
+      "q_0dd36169718e310428c572cf1379df0a3f69d1fb3489d0ee57fed5ab409f3473",
+      "q_213702bc95a713495114ab81b3ed3563e410867689f086886767421f53ebd8a0",
+      "q_2e2004ca1ae66979511de410ebca2703be165f80428fc119f202645671b451d4",
+      "q_3319cac2ea12016d770346a371ab6abbeadc9e5d4f7809d2a8b1a5f3b3830ca1",
+      "q_3c6fe908b1596baf487d725a7f7d62a6cc9dec987f5c596bb8f86885f391d7e2",
+      "q_64a6aa9bb36333a8bb268c2afbe6b7a1c52f1b0128c92fdf4c3a0f13cd2c5b2a",
+      "q_6937948c7faa998106bdc493bd5b1cac7985e8a5a323471f2f900c728d70effe",
+      "q_6bfea2a7ea5f2958301950b702f26183a7116195cb393d7a67c938b755017c78",
+      "q_6dab532cb90b38d523c52fd87822704a733677ca3a5bf54e74a0ed60fcb82d37",
+      "q_828de3c10c1233b45f01a6993e662d3a57c1e7ef0cf3006dcf9e939afd55c7a3",
+      "q_96b0cd87d09490ebac3a9a6fc4d1c00c207b23bfeaa8c1965da3a9ef68c4534d",
+      "q_98c7ff3586ed7bd28a38255d64aaebf02f1bc324e32929ed28e8d636f0b134af",
+      "q_9cc0cd8acf506b31bbe189463effc4051740861dd4ef34244a81f04af919f1b1",
+      "q_9dc5349dd7ae686c9fcc0ea202786b9d6ec602e8b3f5d156a537440eced67817",
+      "q_a6fff0ec0232b5fbfe20c7628410e7f264a159e93070a6a54ce2c594b6e647a6",
+      "q_a838470bcc86a2121ab1fd271be7bdf4d0e31e09656ea6617ee8d49c9632ae4c",
+      "q_afd5850c64fb73d4d0130cb31e23650a3751a9ac353c5a3b4f897af0c0b0a9e8",
+      "q_b0b93e166d0b7fd0185efd73480416d8396ef1fe276c9cca77cd880426c43ba0",
+      "q_b6aa39b072dc58e1fe99c0abc538cc5c1ec173f5273053d1757a21a9930e660d",
+      "q_cd5a6e648a2f8ae52b981b7a7dd38736c4564bb46856b95134bc6848e9e62e45"
+    ],
+    "unit_score_below_threshold": [
+      "q_0057c6a985425932774aeb5171c561a13bafe0ac36a957f1d344c81aed2a9547",
+      "q_015e71b8c1ecaf4322bcf7e41b0c17bce9296a6d5830a99f9465b90214b736d9",
+      "q_081e3fb45fa0e48350e20096a4999c5757474689ac88eedfaa09c35d6f338ff1",
+      "q_08875960efcc09c9184d7d35a95f60fff5b5e79a4d98e93b7de5f3e7219b9fbf",
+      "q_08bb84c464ff03391463b84921ee344f5051115f0de6f4ee7c4216a1e7884957",
+      "q_0911332fda602a13a71e8cf82ab9dd58621fedf65fc5b9789d98eb830ad38cd0",
+      "q_097545e8a6f87f0799de64c689978e1c9545d1e1a3068c5f0321a40951fdb4b6",
+      "q_097b067c5625f91a01b016042834015fff8f3a06342be41e56b174ea89d5734b",
+      "q_0a1b897b55214d04412176f4cc092f543c6567865b428d6b246dfcf9a7321110",
+      "q_0a629deeb787c7d9016febc01c4ef1b1ab286bf104f6fef1c02d80eb0d054e8f",
+      "q_0b5d4ff025f1a2bb345e1afeb8c95b4fdcd0d91654afa96affc98024e21f981f",
+      "q_0c1d18988d234ba37e117c7180a3c3f75f36c92f9fd10845558fe712ffeefb9d",
+      "q_0d35fd044068b975ea74bbf0560f80fe5d1587ab9900f223f294c901ef1e189e",
+      "q_0fbd9cb032c7f9e48cf655974a6bf532ca3355a9928b9fcfcbadabc67d58366e",
+      "q_10baed2c089b39a770747ca4b0ddfb4040b339a05bac79da12972c2ac838249d",
+      "q_11498868b1332b934c73b8768e78842d8c17ba72e2e29e1a95eab51a12ee95f8",
+      "q_123bb760a079a9d8c62a078900bddef7b5725cf99575fa0e694da812afbd02e3",
+      "q_1302cc0d9f18f95abd172b5186e99094cbcbc3e854bbdc2759cbbd9ca5f594b6",
+      "q_15fca4208c5b5154b47c9de579355c70670442bee6b0b43212becbecdc0888e7",
+      "q_1762df7d88488ac278306e660694abc6a56c9089c73d502e916b5d667cdc7845"
+    ],
+    "unit_score_tie": [
+      "q_0e8ed70cedc4b93ba22a3bc6c6b10f34cedb62c0aa4152c5f66e09140e553724",
+      "q_0fb358387dccd9ddccacac5b8b1d0384736929cf86ca59ed2dc3728b50743abd",
+      "q_10a76c812efb089db41be9e66feda106a13d5594bff8a28c8c868966fe45a17c",
+      "q_138957541c593d729fc0e82b5d0cdd829e6b7ef32613c44bc4cf4b5983788703",
+      "q_188b910f1fc51096a1296e9efb7b48814546cb92cb92a5398fe4071d4f0ff9b3",
+      "q_18c52fc6d364f31e985714f8af8892dfc8161db4c9d2b0e41531fc2f1c188918",
+      "q_19416234639131e83482f13c86f90728bc98099530f372ea3bc1e6ed9aa2c2c7",
+      "q_1e3406eff23a3eafdf8e56df3e2dc5dbab255de3da24ed80227b01a28a4a5e7a",
+      "q_2734ea6e632c9a765257577971ec427ee06880ac790a115ea87a56a9edad663c",
+      "q_2da55196b08e9977daab5c98ec1f002192d5647cd7be3cc6c6535c39c89ebf58",
+      "q_387f996e6bf1f9292a20c3f917b62272fc1d13a47ced8dedc805cb63fc7fd3f0",
+      "q_3b331159513b736254e92ad1f218527adcf22615aa8f8f683d9a70633ed0c022",
+      "q_4360ca9ba2a8f21cc411ba33104bd6f072690c6d296859394ccffc38a4f7c6cc",
+      "q_48f7c0af61ac5e79fb67d5f9f57b2f3bc5f0416d499507622648f4d5f86c1548",
+      "q_514b2cc7971eb31e1f252b49506e259762e80fd189ab776af95151872719c08f",
+      "q_5969c1bed9630fae7005bb7d96f297ce9ddcc4a8bb52048c37dee4ff6094d15e",
+      "q_5c83856785fdd6b86fe0d99cd3eb7cbcfa141c208a391d276a2b039a6f0e8a36",
+      "q_5fb9f36f9aba324e6b9edb5d816c625bf04db6c186d27e4b82a82201781bb954",
+      "q_5fc9c42a60c1e9c3a195ccda32f0dee3dba3063dc1e9789862bae827bf90afda",
+      "q_61521f4cb13d161debbf01204c3a610bc2863084a155bf850bb4d1c5823744f4"
+    ],
+    "very_short_non_mathematical_text": [
+      "q_13d0f387db31db7a3a27c3b55e832c9e5b02a6f347f51c70388eddf1155ee06f",
+      "q_2c9f08835c4caf03e76fe6f482e8e8c0be8eea0f6f7d7176acc0828c5d563486",
+      "q_34f6f44910e6af4caed78445d8235bcce9fc7dc95227e96b63c034c9739912e8",
+      "q_392a52e4f77c40bf3321dc2feac356fac2a906a80c961748170af4ce2bce1e6a",
+      "q_58640ba09b9e3e31d00792e2f4e5954013fd382f644d7402de0365f1e3baef1f",
+      "q_5ade8eae73f14a2e9ac1965a7440c2190c4d5bdd38bb506da9436a4548bdfbf8",
+      "q_5bedffe75332a535ea5f0830faf2fe97b84dc4ab72661b93135ed6c29a14f09a",
+      "q_5ed125ced8888b18a2b662d9bd7d3cf5285335a66358131190ae0e44c52d6ada",
+      "q_5f1dd13ddbb6e6af611de8d580254e0252520c3cb2c7181714b7a8e03efbd4d0",
+      "q_8b5cc4df7eec7d32a7814eca4af047ae33b2d52342667715682e19c25b0b9faa",
+      "q_8cca9bdc836007edec9df387444bbca0513dcdc3c3b8317206b9c53d045554f2",
+      "q_9257517cc29c1bced1c4419c9047898c1a6c1d8366bdeea95ed0dde19bde8cf1",
+      "q_ad389884aac18bd18308a9f65b7c259dd695d1289a10bc1faddf8df308bba2a7",
+      "q_ae880f463cae892d952844918d75c739805d0b2355459a5322eeafae07ca1b07",
+      "q_c45d1cdbb0b2b40ae9e1981e586ef223c0e82ea8a228f34fc311828a706eb995",
+      "q_d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+      "q_db888ed45ae6e717f58d81e65952f18c2b7b0e4c304978c581279645d9266b5f",
+      "q_ec3916f8cd89c7b5c6807f8ffd73c67465296dc69479d90e6b83070d7e296636",
+      "q_f89bf797c3b1dda4ee48380783e5e979067686a6a9540c5a40e8d75ae5f3d199",
+      "q_f9f78e544d38deac1e2d673f7dbfd8f688165955a2000accd5bf6a7279d191b8"
+    ]
+  },
+  "schema_version": "question-bank-syllabus-report/v1",
+  "source_release_status": "candidate_only",
+  "status_counts": {
+    "classified": 4110,
+    "needs_review": 7424,
+    "out_of_scope": 801
+  },
+  "subject_counts": {
+    "Chemistry": 801,
+    "Mathematics": 5939,
+    "Physics": 5324,
+    "null": 271
+  },
+  "subject_status_counts": {
+    "conflict": 1,
+    "missing_context": 270,
+    "out_of_scope": 801,
+    "resolved": 11263
+  },
+  "syllabus_scope_counts": {
+    "active": 2218,
+    "out_of_scope": 801,
+    "outside_active_syllabus": 323,
+    "undetermined": 8993
+  },
+  "taxonomy_schema_version": "question-bank-syllabus-taxonomy/v1",
+  "zero_coverage_unit_ids": [
+    "maths|supplemental|mathematical-induction",
+    "maths|supplemental|mathematical-reasoning"
+  ]
+}

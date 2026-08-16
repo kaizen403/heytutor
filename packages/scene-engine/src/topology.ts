@@ -4,6 +4,7 @@
  */
 
 import type { SceneAssertion, SceneDocument, SceneIssue } from "./types";
+import { isTopologySceneProofPredicate } from "./capabilityManifest";
 
 export interface TopologyEdge {
   id: string;
@@ -164,8 +165,10 @@ export function evaluateTopologyAssertion(
 ): boolean | null {
   const graph = buildTopologyGraph(document);
   const severity = assertion.severity;
+  const predicate = assertion.predicate;
+  if (!isTopologySceneProofPredicate(predicate)) return null;
 
-  switch (assertion.predicate) {
+  switch (predicate) {
     case "path": {
       const edgeIds = assertion.entities;
       if (edgeIds.length < 1) {
@@ -293,8 +296,12 @@ export function evaluateTopologyAssertion(
       return passed;
     }
     default:
-      return null;
+      return assertNeverTopologyPredicate(predicate);
   }
+}
+
+function assertNeverTopologyPredicate(predicate: never): never {
+  throw new Error(`unhandled topology predicate ${String(predicate)}`);
 }
 
 function edgesFormOrderedPath(graph: TopologyGraph, edgeIds: string[]): boolean {

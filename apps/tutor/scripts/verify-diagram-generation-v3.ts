@@ -1,4 +1,5 @@
 import {
+  finalizeScenePlanAfterAuthority,
   REQUIRED_DIAGRAM_RETRY_ENABLED,
   PROBLEM_AUTHORITY_DEADLINE_MS,
   TURN_PLAN_ATTEMPT_DEADLINE_MS,
@@ -6,6 +7,7 @@ import {
   diagramFailureVisualStatus,
   resolvePlannedSceneVisualStatus,
   selectBestAvailableTurnPlan,
+  shouldRevalidateSceneCandidatesAfterAuthority,
 } from "../features/tutor-session/lib/diagramGenerationV3";
 import { isTurnMetadataPersistable } from "../lib/turnPersistencePolicy";
 import {
@@ -73,6 +75,75 @@ assert(
   ) === completePrimary,
   "two agreeing complete plans must outvote a disagreeing complete audit",
 );
+assert(
+  !shouldRevalidateSceneCandidatesAfterAuthority({
+    problemAuthorityAvailable: false,
+    planningTurnPlan: completePrimary,
+    authoritativeTurnPlan: structuredClone(completePrimary),
+  }),
+  "scene candidates must not be revalidated again when solver authority is unavailable and the plan is unchanged",
+);
+assert(
+  shouldRevalidateSceneCandidatesAfterAuthority({
+    problemAuthorityAvailable: true,
+    planningTurnPlan: completePrimary,
+    authoritativeTurnPlan: structuredClone(completePrimary),
+  }),
+  "solver authority must always trigger final candidate revalidation",
+);
+assert(
+  shouldRevalidateSceneCandidatesAfterAuthority({
+    problemAuthorityAvailable: false,
+    planningTurnPlan: completePrimary,
+    authoritativeTurnPlan: disagreeingCompleteAudit,
+  }),
+  "scene candidates must be revalidated when the authoritative plan differs even without solver authority",
+);
+
+const unchangedResult = { strategy: "already_validated" };
+async function verifyAuthorityFinalization(): Promise<void> {
+  let skippedRevalidationCalls = 0;
+  const reusedResult = await finalizeScenePlanAfterAuthority(unchangedResult, {
+    problemAuthorityAvailable: false,
+    planningTurnPlan: completePrimary,
+    authoritativeTurnPlan: structuredClone(completePrimary),
+    revalidate: async () => {
+      skippedRevalidationCalls += 1;
+      return { strategy: "unexpected_revalidation" };
+    },
+  });
+  assert(reusedResult === unchangedResult, "safe finalization must preserve the validated result object");
+  assert(skippedRevalidationCalls === 0, "safe finalization must perform zero revalidation calls");
+
+  let authorityRevalidationCalls = 0;
+  const revalidatedResult = await finalizeScenePlanAfterAuthority(unchangedResult, {
+    problemAuthorityAvailable: true,
+    planningTurnPlan: completePrimary,
+    authoritativeTurnPlan: structuredClone(completePrimary),
+    revalidate: async (result) => {
+      authorityRevalidationCalls += 1;
+      return { ...result, strategy: "revalidated" };
+    },
+  });
+  assert(authorityRevalidationCalls === 1, "solver authority must force exactly one final revalidation call");
+  assert(revalidatedResult?.strategy === "revalidated", "forced finalization must return the revalidated result");
+
+  let changedPlanRevalidationCalls = 0;
+  const changedPlanResult = await finalizeScenePlanAfterAuthority(unchangedResult, {
+    problemAuthorityAvailable: false,
+    planningTurnPlan: completePrimary,
+    authoritativeTurnPlan: disagreeingCompleteAudit,
+    revalidate: async (result) => {
+      changedPlanRevalidationCalls += 1;
+      return { ...result, strategy: "changed_plan_revalidated" };
+    },
+  });
+  assert(changedPlanRevalidationCalls === 1, "a changed plan must force exactly one final revalidation call");
+  assert(
+    changedPlanResult?.strategy === "changed_plan_revalidated",
+    "changed-plan finalization must return the revalidated result",
+  );
+}
 
 assert(
   resolvePlannedSceneVisualStatus({
@@ -196,4 +267,11 @@ assert(
   "model-provided equation coordinates must not control work-area placement",
 );
 
-console.log("diagram generation V3 verification passed");
+verifyAuthorityFinalization()
+  .then(() => {
+    console.log("diagram generation V3 verification passed");
+  })
+  .catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  });

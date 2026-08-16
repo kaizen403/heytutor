@@ -1,0 +1,82 @@
+{
+  "schema_version": "question-bank-classification-audit/v2",
+  "generated_at": "2026-08-10T00:07:12Z",
+  "scope": {
+    "mathematics": "Three-Dimensional Geometry",
+    "physics": "Electromagnetic Induction and Alternating Currents"
+  },
+  "inputs": {
+    "classification_rules": {
+      "path": "data/question-bank/classification-rules.json",
+      "sha256": "296f6f095eb97055bad2be4970e457ccba1139196953af79ebdc06d71c539fc8",
+      "rules": 34
+    },
+    "target_questions": {
+      "path": "data/question-bank/build/questions.target.jsonl",
+      "sha256": "0102b76fe5829a09d61da8a7b19c744cc015acafcf63dee6e130bb64c4566359"
+    },
+    "corpus_build_report": {
+      "path": "data/question-bank/reports/corpus-build-2026-08-10.json",
+      "sha256": "8c4e5dccfaa77ef1b214714324e066600eae3bc81ad77e5f2699d8d98606954a"
+    }
+  },
+  "corpus": {
+    "documents": 474,
+    "raw_question_candidates": 14880,
+    "deduplicated_questions": 12984,
+    "exact_duplicate_candidates_merged": 1896,
+    "discarded_bilingual_question_variants": 6835,
+    "documents_failed": 0,
+    "documents_requiring_segmentation_review": 474,
+    "release_status": "candidate_only"
+  },
+  "classification": {
+    "classified_target_questions": 783,
+    "source_occurrences": 909,
+    "ambiguous": 0,
+    "context_required_abstentions": 306,
+    "unmatched": 12201,
+    "difficulty_null": 783,
+    "by_topic": {
+      "Electromagnetic Induction and Alternating Currents": 511,
+      "Three-Dimensional Geometry": 272
+    },
+    "source_occurrences_by_exam": {
+      "CBSE Class XII Board Examination": 858,
+      "JEE Advanced": 38,
+      "JEE Main": 13
+    }
+  },
+  "precision_checks": {
+    "focused_classification_regressions": {
+      "passed": 25,
+      "failed": 0
+    },
+    "full_question_bank_tests": {
+      "passed": 63,
+      "failed": 0
+    },
+    "target_text_suspect_hits": {
+      "gas_or_molecular_rms_speed": 0,
+      "non_coplanar_vectors": 0,
+      "sound_or_air_column_resonance": 0,
+      "nta_question_metadata": 0,
+      "nta_section_metadata": 0
+    },
+    "rule_ambiguities": 0,
+    "all_rule_difficulties_null": true
+  },
+  "safety_boundaries": [
+    "Rules are reusable concept patterns; no document, year, or question identifiers are classification exceptions.",
+    "Combined-subject papers without trustworthy subject context abstain instead of enabling all PCM rules.",
+    "Headerless JEE Advanced subject inference runs only for exactly three END-delimited blocks with decisive lexical assignment evidence.",
+    "Near-duplicate candidates are reported for review and are never merged automatically.",
+    "Classification never assigns answers, difficulty, or reviewed status."
+  ],
+  "limitations": [
+    "Every extracted document still has splitter diagnostics requiring human review, so all 783 records remain candidate-only.",
+    "OCR can damage mathematical notation, diagrams, option layout, and paragraph-child question boundaries.",
+    "Deterministic rules are a high-precision candidate filter, not proof of exhaustive topic recall.",
+    "The source inventory has explicit historical gaps; corpus counts must not be described as every paper from 2000 through 2026."
+  ]
+}

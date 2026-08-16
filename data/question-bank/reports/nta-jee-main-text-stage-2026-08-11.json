@@ -1,0 +1,10 @@
+{
+  "failures": [],
+  "methods": {
+    "pdftotext-layout": 38
+  },
+  "operation": "stage-pdf-text",
+  "reused": 0,
+  "selected_documents": 38,
+  "written": 38
+}

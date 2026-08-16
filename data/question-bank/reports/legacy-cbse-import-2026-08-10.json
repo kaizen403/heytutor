@@ -1,0 +1,48 @@
+{
+  "by_subject": {
+    "Mathematics": 114,
+    "Physics": 111
+  },
+  "by_year": {
+    "2007": 5,
+    "2008": 3,
+    "2009": 6,
+    "2010": 2,
+    "2011": 6,
+    "2012": 6,
+    "2013": 6,
+    "2015": 62,
+    "2016": 38,
+    "2017": 34,
+    "2018": 17,
+    "2020": 40
+  },
+  "duplicate_pdf_hash_groups": 1,
+  "duplicate_pdf_occurrences": 2,
+  "imported_documents": 225,
+  "manifest_documents": 474,
+  "operation": "import-legacy-cbse",
+  "report": "data/question-bank/reports/legacy-cbse-coverage-2026-08-10.json",
+  "retrieved_at": "2026-08-09T23:38:17.738325Z",
+  "skipped": [
+    {
+      "artifact_id": "cbse-2007-main-mathematics-outside",
+      "reason": "verification-status-anomalous"
+    },
+    {
+      "artifact_id": "cbse-2017-main-mathematics-delhi-scheme",
+      "member": "maths/maths_urdu/46-1-1 MATHS URDU VERSION.pdf",
+      "reason": "non-english-urdu-variant"
+    },
+    {
+      "artifact_id": "cbse-2017-main-mathematics-delhi-scheme",
+      "member": "maths/maths_urdu/46-1-2 MATHS URDU VERSION.pdf",
+      "reason": "non-english-urdu-variant"
+    },
+    {
+      "artifact_id": "cbse-2017-main-mathematics-delhi-scheme",
+      "member": "maths/maths_urdu/46-4-3 MATHS URDU VERSION.pdf",
+      "reason": "non-english-urdu-variant"
+    }
+  ]
+}

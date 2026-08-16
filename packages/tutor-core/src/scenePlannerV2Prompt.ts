@@ -1,3 +1,15 @@
+import {
+  isPlannerVisibleSceneConstructionOperator,
+  isPlannerVisibleSceneProofPredicate,
+  PLANNER_VISIBLE_SCENE_CONSTRUCTION_OPERATORS as DEFAULT_SCENE_CONSTRUCTION_OPERATORS,
+  PLANNER_VISIBLE_SCENE_PROOF_PREDICATES as DEFAULT_SCENE_PROOF_PREDICATES,
+} from "@heytutor/scene-engine";
+
+export {
+  DEFAULT_SCENE_CONSTRUCTION_OPERATORS,
+  DEFAULT_SCENE_PROOF_PREDICATES,
+};
+
 /**
  * Semantic scene-planning contract for the general scene engine.
  *
@@ -5,61 +17,6 @@
  * layout or canvas coordinates; those belong to the deterministic compiler.
  */
 export const SCENE_DOCUMENT_VERSION = "scene-document/v2" as const;
-
-export const DEFAULT_SCENE_CONSTRUCTION_OPERATORS = [
-  "point",
-  "segment",
-  "ray",
-  "line",
-  "circle",
-  "arc",
-  "rectangle",
-  "polygon",
-  "polyline",
-  "function_curve",
-  "function_region",
-  "parametric_curve",
-  "polar_curve",
-  "implicit_curve",
-  "tangent_line",
-  "normal_line",
-  "representative_slice",
-  "solid_of_revolution",
-  "solid_projection",
-  "solid_cross_section",
-  "wavefront_family",
-  "aperture",
-  "screen_pattern",
-  "transverse_field",
-  "polarizer",
-  "optical_train",
-  "vector",
-  "axes",
-  "intersection",
-  "surface_intersection",
-  "surface_contact",
-  "normal_at",
-  "midpoint",
-  "project",
-  "translate",
-  "rotate",
-  "reflect_point",
-  "reflect_direction",
-  "refract_direction",
-  "reflect_at",
-  "refract_at",
-  "parallel_through",
-  "perpendicular_through",
-  "angle_bisector",
-  "angle_mark",
-  "right_angle_mark",
-  "tick_mark",
-  "vector_components",
-  "dimension",
-  "connect",
-  "symbol",
-  "label",
-] as const;
 
 export interface ScenePlannerPromptContext {
   conversationContext?: string;
@@ -72,7 +29,12 @@ export function buildSceneDocumentPlannerPrompt(
   question: string,
   context: ScenePlannerPromptContext = {},
 ): string {
-  const operators = context.constructionOperators ?? DEFAULT_SCENE_CONSTRUCTION_OPERATORS;
+  const operators = context.constructionOperators === undefined
+    ? DEFAULT_SCENE_CONSTRUCTION_OPERATORS
+    : context.constructionOperators.filter(isPlannerVisibleSceneConstructionOperator);
+  const proofPredicates = context.proofPredicates === undefined
+    ? DEFAULT_SCENE_PROOF_PREDICATES
+    : context.proofPredicates.filter(isPlannerVisibleSceneProofPredicate);
   const operatorContracts = selectConstructionInputContracts(operators);
   const conversation = context.conversationContext?.trim()
     ? `\nCONVERSATION CONTEXT\n${context.conversationContext.trim()}\n`
@@ -90,7 +52,7 @@ OPERATOR INPUT CONTRACTS
 ${operatorContracts}
 
 AVAILABLE PROOF PREDICATES
-${(context.proofPredicates ?? DEFAULT_SCENE_PROOF_PREDICATES).map((predicate) => `- ${predicate}`).join("\n")}
+${proofPredicates.map((predicate) => `- ${predicate}`).join("\n")}
 ${capabilityGuidance}
 ${conversation}
 QUESTION
@@ -139,15 +101,8 @@ ANNOTATION AND TEACHING
 
 ALLOWED KINDS
 Entities: point, segment, ray, line, circle, arc, rectangle, polygon, polyline, vector, axes, object, component, connector, label, dimension, angle_mark, right_angle_mark, tick_mark, wavefront_family, aperture, screen_pattern, transverse_field, polarizer, group.
-Predicates: entity_count, connected, incident, on, between, parallel, perpendicular, collinear, equal_length, equal_angle, angle_between, converges, label_attached, distance_ratio, same_side, opposite_direction, inside, ordered_along, equal_spacing, snells_law, function_value, root, path, pathCount, sameTerminalPair, degree.
+Predicates: ${DEFAULT_SCENE_PROOF_PREDICATES.join(", ")}.
 equal_angle compares two angles using four path IDs. angle_between checks two path IDs against expected:{value,unit:"degree"|"radian"}. function_value uses entities:[curve_id], expected:{x,y}. root uses entities:[curve_id], expected:x or {x}.`;
-
-export const DEFAULT_SCENE_PROOF_PREDICATES = [
-  "entity_count", "connected", "incident", "on", "between", "parallel", "perpendicular",
-  "collinear", "equal_length", "equal_angle", "angle_between", "converges", "label_attached", "distance_ratio",
-  "same_side", "opposite_direction", "inside", "ordered_along", "equal_spacing", "snells_law",
-  "function_value", "root", "path", "pathCount", "sameTerminalPair", "degree",
-] as const;
 
 export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Use these exact input keys. Entity references are stable ID strings. Numeric inputs may be numbers or quantity IDs.
 - point: {x, y, coordinateSpace:"world"|"layout"}. World coordinates preserve physical distances, angles, and directions; exact givens stay exact, while an unstated vector length may use a normalized local frame. Layout coordinates are small dimensionless integers used only to arrange topology with no metric or directional claim.
