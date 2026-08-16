@@ -61,6 +61,29 @@ export function shouldBlockLessonForDiagram(status: DiagramGenerationStatus): bo
   return status === "retry_required";
 }
 
+export function shouldRevalidateSceneCandidatesAfterAuthority(options: {
+  problemAuthorityAvailable: boolean;
+  planningTurnPlan: unknown;
+  authoritativeTurnPlan: unknown;
+}): boolean {
+  if (options.problemAuthorityAvailable) return true;
+  return !deepEqual(options.planningTurnPlan, options.authoritativeTurnPlan);
+}
+
+export async function finalizeScenePlanAfterAuthority<T>(
+  result: T | null,
+  options: {
+    problemAuthorityAvailable: boolean;
+    planningTurnPlan: unknown;
+    authoritativeTurnPlan: unknown;
+    revalidate: (result: T) => Promise<T>;
+  },
+): Promise<T | null> {
+  if (result === null) return null;
+  if (!shouldRevalidateSceneCandidatesAfterAuthority(options)) return result;
+  return options.revalidate(result);
+}
+
 export function selectBestAvailableTurnPlan<T>(
   audited: T | null | undefined,
   planned: T | null | undefined,
@@ -148,4 +171,25 @@ function requestedResultFingerprint(value: unknown): string {
       ? `${keys.sort().join("|")}:${Number(result.value.toPrecision(12))}:${unit}`
       : `${keys.sort().join("|")}:missing`;
   }).sort().join(";");
+}
+
+function deepEqual(first: unknown, second: unknown): boolean {
+  if (first === second) return true;
+  if (typeof first !== typeof second) return false;
+  if (Array.isArray(first) || Array.isArray(second)) {
+    return Array.isArray(first) &&
+      Array.isArray(second) &&
+      first.length === second.length &&
+      first.every((value, index) => deepEqual(value, second[index]));
+  }
+  if (!isRecord(first) || !isRecord(second)) return false;
+  const firstKeys = Object.keys(first).sort();
+  const secondKeys = Object.keys(second).sort();
+  return firstKeys.length === secondKeys.length &&
+    firstKeys.every((key, index) =>
+      key === secondKeys[index] && deepEqual(first[key], second[key]));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
