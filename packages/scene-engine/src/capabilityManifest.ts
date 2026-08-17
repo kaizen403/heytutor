@@ -177,6 +177,7 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
     { id: "snells_law", plannerVisible: true, evaluator: "geometry" },
     { id: "function_value", plannerVisible: true, evaluator: "geometry" },
     { id: "root", plannerVisible: true, evaluator: "geometry" },
+    { id: "wave_cycles", plannerVisible: true, evaluator: "geometry" },
     { id: "path", plannerVisible: true, evaluator: "topology" },
     { id: "pathCount", plannerVisible: true, evaluator: "topology" },
     { id: "sameTerminalPair", plannerVisible: true, evaluator: "topology" },
