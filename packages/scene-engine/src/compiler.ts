@@ -85,7 +85,11 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       if (outputs.length !== construction.outputs.length) {
         throw new Error(`operator produced ${outputs.length} outputs, expected ${construction.outputs.length}`);
       }
-      construction.outputs.forEach((id, outputIndex) => geometry.set(id, outputs[outputIndex]!));
+      construction.outputs.forEach((id, outputIndex) => {
+        const next = outputs[outputIndex]!;
+        if (assignChainedRefractInternalPath(id, outputIndex, construction, document, geometry)) return;
+        geometry.set(id, next);
+      });
     } catch (error) {
       issues.push({ code: "construction_failed", message: `${construction.id}: ${errorMessage(error)}`, severity: "fatal", path: `constructions[${originalIndex}]`, entityIds: construction.outputs });
     }
@@ -148,7 +152,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         (explicitlyParallelPathAliases(document, existing, existingValue, entityId, value) ||
           coincidentPhasorAliases(document, existing, existingValue, entityId, value) ||
           coincidentAxisRayAliases(document, existing, existingValue, entityId, value) ||
-          coincidentIncidentReflectionAliases(document, existing, existingValue, entityId, value))
+          coincidentIncidentReflectionAliases(document, existing, existingValue, entityId, value) ||
+          coincidentSupportingLineAliases(existingValue, value))
       ) {
         coincidentPathAliases.set(entityId, existing);
       }
@@ -428,6 +433,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (!renderedIds.has(id) && !constructionOnlyIds.has(id)) issues.push({ code: "required_entity_not_rendered", message: `Required entity ${id} produced no render primitive`, severity: "fatal", entityIds: [id] });
   }
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
+  pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
+  if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
 
   const entityBounds: Record<string, { x: number; y: number; width: number; height: number }> = {};
   for (const primitive of primitives) {
@@ -558,7 +565,13 @@ function createEntityTransformPlan(
 ): EntityTransformPlan | null {
   const renderGeometry = [...geometry.entries()].filter(([id]) => !constructionOnlyIds.has(id));
   const fallbackViewport = withLabelPadding(viewport, hasLabels);
-  const fallback = createTransform(renderGeometry.map(([, value]) => value), fallbackViewport);
+  const fitEntries = renderGeometry.filter(([id]) =>
+    document.entities.find((entity) => entity.id === id)?.kind !== "label",
+  );
+  const fallback = createTransform(
+    (fitEntries.length > 0 ? fitEntries : renderGeometry).map(([, value]) => value),
+    fallbackViewport,
+  );
   if (!fallback) return null;
 
   const components = constructionComponents(document, geometry)
@@ -589,7 +602,8 @@ function createEntityTransformPlan(
     const slot = slots[index]!;
     const values = component.ids.flatMap((id) => {
       const value = geometry.get(id);
-      return value && !constructionOnlyIds.has(id) ? [value] : [];
+      const kind = document.entities.find((entity) => entity.id === id)?.kind;
+      return value && !constructionOnlyIds.has(id) && kind !== "label" ? [value] : [];
     });
     const componentTransform = createTransform(values, withLabelPadding(slot, hasLabels));
     if (!componentTransform) return;
@@ -964,6 +978,13 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           ? exactTolerance
           : Math.max(exactTolerance, geometryScale(geometry) * 0.005);
         passed = residual < relationTolerance;
+        if (!passed) {
+          const bodyResidual = rigidBodyContactResidual(values[0], values[1], geometry);
+          if (bodyResidual !== null) {
+            residual = bodyResidual;
+            passed = residual < relationTolerance;
+          }
+        }
         if (passed && assertion.expected !== false && residual >= exactTolerance) {
           issues.push(approximateRelationIssue(assertion, residual, relationTolerance));
         }
@@ -1016,7 +1037,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         if (values.length !== 2) break;
         const expectedAngle = expectedAngleRadians(assertion.expected);
         residual = Math.abs(acuteAngleBetween(asLine(values[0]), asLine(values[1])) - expectedAngle);
-        passed = residual < tolerance(assertion);
+        passed = residual < angularTolerance(assertion);
         break;
       }
       case "snells_law": {
@@ -1173,6 +1194,21 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         passed = residual < tolerance(assertion);
         break;
       }
+      case "wave_cycles": {
+        const expected = assertion.expected;
+        const claimedCycles = typeof expected === "number"
+          ? expected
+          : isRecord(expected) && typeof expected.cycles === "number" ? expected.cycles : null;
+        if (claimedCycles === null || !(claimedCycles > 0)) throw new Error("wave_cycles expected must be cycles or {cycles}");
+        const cycleResidual = waveCycleResidual(values[0], claimedCycles);
+        if (cycleResidual === null) {
+          passed = false;
+          break;
+        }
+        residual = cycleResidual;
+        passed = residual < tolerance(assertion);
+        break;
+      }
       default: return assertNeverSceneCapability(predicate);
     }
   } catch { passed = false; }
@@ -1199,15 +1235,130 @@ function approximateRelationIssue(assertion: SceneAssertion, residual: number, m
   };
 }
 
+const MIN_PLANAR_SCREEN_PX = 12;
+
 function createTransform(values: Geometry[], viewport: { x: number; y: number; width: number; height: number; padding?: number }): ((point: Point) => RenderPoint) | null {
-  const points = values.flatMap(pointsOf).filter(finitePoint);
+  const points = fitGeometryPoints(values);
   if (points.length === 0) return null;
-  const minX = Math.min(...points.map((point) => point.x)); const maxX = Math.max(...points.map((point) => point.x));
-  const minY = Math.min(...points.map((point) => point.y)); const maxY = Math.max(...points.map((point) => point.y));
-  const padding = viewport.padding ?? 24; const width = Math.max(maxX - minX, 1); const height = Math.max(maxY - minY, 1);
-  const scale = Math.min((viewport.width - 2 * padding) / width, (viewport.height - 2 * padding) / height);
-  const usedWidth = width * scale; const usedHeight = height * scale; const offsetX = viewport.x + (viewport.width - usedWidth) / 2; const offsetY = viewport.y + (viewport.height - usedHeight) / 2;
-  return (point) => ({ x: round(offsetX + (point.x - minX) * scale), y: round(offsetY + usedHeight - (point.y - minY) * scale) });
+  const minX = Math.min(...points.map((point) => point.x));
+  const maxX = Math.max(...points.map((point) => point.x));
+  const minY = Math.min(...points.map((point) => point.y));
+  const maxY = Math.max(...points.map((point) => point.y));
+  const padding = viewport.padding ?? 24;
+  const spanX = Math.max(maxX - minX, 0);
+  const spanY = Math.max(maxY - minY, 0);
+  const innerWidth = viewport.width - 2 * padding;
+  const innerHeight = viewport.height - 2 * padding;
+  const width = Math.max(spanX, 1);
+  const height = Math.max(spanY, 1);
+  const uniformScale = Math.min(innerWidth / width, innerHeight / height);
+  if (shouldSplitPlotAxes(values, spanX, spanY, uniformScale)) {
+    const scaleX = innerWidth / Math.max(spanX, EPSILON);
+    const scaleY = innerHeight / Math.max(spanY, EPSILON);
+    const offsetX = viewport.x + padding;
+    const offsetY = viewport.y + padding;
+    return (point) => ({
+      x: round(offsetX + (point.x - minX) * scaleX),
+      y: round(offsetY + innerHeight - (point.y - minY) * scaleY),
+    });
+  }
+  const usedWidth = width * uniformScale;
+  const usedHeight = height * uniformScale;
+  const offsetX = viewport.x + (viewport.width - usedWidth) / 2;
+  const offsetY = viewport.y + (viewport.height - usedHeight) / 2;
+  return (point) => ({
+    x: round(offsetX + (point.x - minX) * uniformScale),
+    y: round(offsetY + usedHeight - (point.y - minY) * uniformScale),
+  });
+}
+
+function fitGeometryPoints(values: Geometry[]): Point[] {
+  const finite = values.flatMap((value) => {
+    if (value.kind === "path" && value.infinite) return [];
+    return pointsOf(value);
+  }).filter(finitePoint);
+  return finite.length > 0 ? finite : values.flatMap(pointsOf).filter(finitePoint);
+}
+
+function shouldSplitPlotAxes(
+  values: Geometry[],
+  spanX: number,
+  spanY: number,
+  uniformScale: number,
+): boolean {
+  if (spanX < EPSILON || spanY < EPSILON) return false;
+  if (values.some((value) =>
+    value.kind === "circle" ||
+    value.kind === "arc" ||
+    (value.kind === "path" && value.sampledCurve))) {
+    return false;
+  }
+  const rings = planarRings(values);
+  if (rings.length === 0 || rings.some((ring) => !ringAxisAligned(ring))) return false;
+  return Math.min(spanX, spanY) * uniformScale < MIN_PLANAR_SCREEN_PX;
+}
+
+function planarRings(values: Geometry[]): Point[][] {
+  return values.flatMap((value) => {
+    if (value.kind !== "path" || value.points.length < 3) return [];
+    const first = value.points[0]!;
+    const last = value.points.at(-1)!;
+    const closed = value.closed === true || distance(first, last) < EPSILON;
+    const ring = closed && distance(first, last) < EPSILON && value.points.length >= 4
+      ? value.points.slice(0, -1)
+      : value.points;
+    if (ring.length < 3 || Math.abs(polygonArea(ring)) <= EPSILON) return [];
+    return [ring];
+  });
+}
+
+function ringAxisAligned(ring: Point[]): boolean {
+  return ring.every((point, index) => {
+    const next = ring[(index + 1) % ring.length]!;
+    return Math.abs(point.x - next.x) < EPSILON || Math.abs(point.y - next.y) < EPSILON;
+  });
+}
+
+function polygonArea(polygon: Point[]): number {
+  return polygon.reduce((area, point, index) => {
+    const next = polygon[(index + 1) % polygon.length]!;
+    return area + point.x * next.y - next.x * point.y;
+  }, 0) / 2;
+}
+
+function infinitePathFarPoint(start: Point, next: Point): Point {
+  return {
+    x: start.x + (next.x - start.x) * 1e6,
+    y: start.y + (next.y - start.y) * 1e6,
+  };
+}
+
+function pushDegenerateProjectedGeometryIssues(
+  geometry: Map<string, Geometry>,
+  primitives: RenderPrimitive[],
+  constructionOnlyIds: Set<string>,
+  issues: SceneIssue[],
+): void {
+  const byEntity = new Map<string, RenderPrimitive[]>();
+  for (const primitive of primitives) {
+    if (primitive.kind === "label") continue;
+    byEntity.set(primitive.entityId, [...(byEntity.get(primitive.entityId) ?? []), primitive]);
+  }
+  geometry.forEach((value, id) => {
+    if (constructionOnlyIds.has(id) || planarRings([value]).length === 0) return;
+    const rendered = byEntity.get(id) ?? [];
+    const points = rendered.flatMap((primitive) => primitive.points);
+    if (points.length < 3) return;
+    const width = Math.max(...points.map((point) => point.x)) - Math.min(...points.map((point) => point.x));
+    const height = Math.max(...points.map((point) => point.y)) - Math.min(...points.map((point) => point.y));
+    if (Math.min(width, height) >= MIN_PLANAR_SCREEN_PX) return;
+    issues.push({
+      code: "degenerate_projected_geometry",
+      message: `${id} is a 2D region that collapsed to a line on the canvas`,
+      severity: "fatal",
+      entityIds: [id],
+    });
+  });
 }
 
 function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false): RenderPrimitive[] {
@@ -1275,8 +1426,13 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
           ? "polyline"
           : "line";
   const transformedPoints = value.points.map(transform);
-  let renderPoints = value.infinite && !forceFinite && transformedPoints.length >= 2
-    ? clipInfinitePath(transformedPoints[0]!, transformedPoints[1]!, value.directed === true, viewport)
+  let renderPoints = value.infinite && !forceFinite && value.points.length >= 2
+    ? clipInfinitePath(
+        transform(value.points[0]!),
+        transform(infinitePathFarPoint(value.points[0]!, value.points[1]!)),
+        value.directed === true,
+        viewport,
+      )
     : transformedPoints;
   if (directionOverlay && renderPoints.length >= 2) {
     renderPoints = offsetDirectionMarker(renderPoints[0]!, renderPoints.at(-1)!);
@@ -1918,6 +2074,43 @@ function screenPatternGeometry(
     return [markCenter, { x: markCenter.x + normal.x * markLength, y: markCenter.y + normal.y * markLength }];
   });
   return { kind: "multi_path", paths: marks };
+}
+
+/**
+ * Two `refract_at` bundles that share the internal path id (first bundle's
+ * refracted output, second bundle's incident output) would otherwise overwrite
+ * that path. Replace it with the chord between the two contact points so angle
+ * marks at both faces meet an endpoint.
+ */
+function assignChainedRefractInternalPath(
+  id: string,
+  outputIndex: number,
+  construction: SceneDocument["constructions"][number],
+  document: SceneDocument,
+  geometry: Map<string, Geometry>,
+): boolean {
+  if (construction.operator !== "refract_at" || (outputIndex !== 0 && outputIndex !== 2)) return false;
+  const bundles = document.constructions.filter((candidate) =>
+    candidate.operator === "refract_at" && Array.isArray(candidate.outputs),
+  );
+  const upstream = bundles.find((candidate) => candidate.outputs[2] === id);
+  const downstream = bundles.find((candidate) =>
+    candidate.id !== upstream?.id && candidate.outputs[0] === id,
+  );
+  if (!upstream || !downstream || !isRecord(upstream.inputs) || !isRecord(downstream.inputs)) return false;
+  try {
+    const previousContact = resolvePoint(first(upstream.inputs, ["point", "contact"]), geometry);
+    const thisContact = resolvePoint(first(downstream.inputs, ["point", "contact"]), geometry);
+    if (distance(previousContact, thisContact) < EPSILON) return false;
+    geometry.set(id, {
+      kind: "path",
+      directed: true,
+      points: [previousContact, thisContact],
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function surfaceRayBundleGeometry(
@@ -2564,11 +2757,69 @@ function routedConnectorPoints(
     end,
   ];
 }
-function centerOf(value:Geometry):Point { const points=pointsOf(value); return{x:points.reduce((sum,p)=>sum+p.x,0)/points.length,y:points.reduce((sum,p)=>sum+p.y,0)/points.length}; }
+function centerOf(value:Geometry):Point {
+  if (value.kind === "path" && value.infinite === true && value.points[0]) return value.points[0];
+  const points=pointsOf(value);
+  return{x:points.reduce((sum,p)=>sum+p.x,0)/points.length,y:points.reduce((sum,p)=>sum+p.y,0)/points.length};
+}
 function normalize(p:Point):Point { const magnitude=Math.hypot(p.x,p.y); if(magnitude<EPSILON)throw new Error("zero vector"); return{x:p.x/magnitude,y:p.y/magnitude}; }
 function positive(value:number,name:string):number{if(value<=0)throw new Error(`${name} must be positive`);return value;}
 function angle(value:number,inputs:Record<string,unknown>):number{return inputs.angleUnit==="degrees"||Math.abs(value)>2*Math.PI?value*Math.PI/180:value;}
 function tolerance(assertion:SceneAssertion):number{return typeof assertion.tolerance==="number"?assertion.tolerance:1e-4;}
+
+/**
+ * Residual between the claimed and measured number of oscillation cycles on a
+ * transverse wave bundle. A transverse_field emits a multi_path of
+ * [axis, oscillating wave, axis tick]; we isolate the wave as the path with the
+ * largest total perpendicular deviation from the bundle's propagation axis, then
+ * count zero-crossings of the perpendicular displacement. A sinusoid of N cycles
+ * crosses the axis 2N times (endpoints excluded), so cycles ≈ crossings / 2.
+ * Returns the absolute difference between measured and claimed cycles, or null
+ * when the value carries no oscillating path.
+ */
+function waveCycleResidual(value: Geometry | undefined, claimedCycles: number): number | null {
+  if (!value || value.kind !== "multi_path" || value.paths.length < 2) return null;
+  // Propagation axis = the straight two-point path (the wave guide).
+  const axisPath = value.paths.find((path) => path.length === 2);
+  if (!axisPath) return null;
+  const axisStart = axisPath[0]!;
+  const axisEnd = axisPath[1]!;
+  const axisLength = distance(axisStart, axisEnd);
+  if (axisLength < EPSILON) return null;
+  const direction = { x: (axisEnd.x - axisStart.x) / axisLength, y: (axisEnd.y - axisStart.y) / axisLength };
+  const normal = { x: -direction.y, y: direction.x };
+  // The wave is the densest path that is not the straight axis.
+  const wave = value.paths
+    .filter((path) => path.length > 2)
+    .sort((a, b) => b.length - a.length)[0];
+  if (!wave || wave.length < 9) return null;
+  // Count sign changes of perpendicular displacement relative to the axis line.
+  const displacements = wave.map((point) => {
+    const rel = { x: point.x - axisStart.x, y: point.y - axisStart.y };
+    const along = rel.x * direction.x + rel.y * direction.y;
+    if (along < -EPSILON || along > axisLength + EPSILON) return null; // off-axis ticks
+    return rel.x * normal.x + rel.y * normal.y;
+  });
+  const samples = displacements.filter((d): d is number => d !== null);
+  if (samples.length < 9) return null;
+  // A transverse wave of N cycles oscillates as sin(2πN·t) over t∈[0,1], whose
+  // displacement touches/crosses the axis 2N+1 times including both endpoints.
+  // Counting sign transitions between consecutive samples misses exact-zero
+  // endpoints, so detect peaks between consecutive axis touchings instead: each
+  // half-cycle contributes one extremum, and N cycles = (2N+1 touchings) − 1
+  // intervals → extrema pairs. The robust proxy is: full cycles = number of
+  // times the displacement returns to the same-signed extremum, i.e. count
+  // positive peaks; a sinusoid has exactly one positive peak per cycle.
+  let positivePeaks = 0;
+  for (let index = 1; index < samples.length - 1; index++) {
+    const previous = samples[index - 1]!;
+    const current = samples[index]!;
+    const next = samples[index + 1]!;
+    if (current > 0 && current >= previous && current > next) positivePeaks++;
+  }
+  const measuredCycles = positivePeaks;
+  return Math.abs(measuredCycles - claimedCycles);
+}
 function geometryScale(geometry:Map<string,Geometry>):number{const points=[...geometry.values()].flatMap(pointsOf);if(points.length===0)return 1;const xs=points.map((point)=>point.x);const ys=points.map((point)=>point.y);return Math.max(1,Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys));}
 function length(line:[Point,Point]):number{return distance(line[0],line[1]);}
 function distance(a:Point,b:Point):number{return Math.hypot(a.x-b.x,a.y-b.y);}
@@ -2625,6 +2876,8 @@ function areConnected(a: Geometry | undefined, b: Geometry | undefined, all: Map
 }
 
 function geometriesTouch(first: Geometry, second: Geometry): boolean {
+  if (circleTouchesGeometry(first, second) || circleTouchesGeometry(second, first)) return true;
+  if (closedPathContainsTerminal(first, second) || closedPathContainsTerminal(second, first)) return true;
   const firstPoints = geometryTerminals(first);
   const secondPoints = geometryTerminals(second);
   if (firstPoints.some((point) => secondPoints.some((candidate) => distance(point, candidate) < EPSILON))) return true;
@@ -2635,6 +2888,23 @@ function geometriesTouch(first: Geometry, second: Geometry): boolean {
   return firstSegments.some((firstSegment) =>
     secondSegments.some((secondSegment) => segmentsTouch(firstSegment, secondSegment)),
   );
+}
+
+function circleTouchesGeometry(circle: Geometry, other: Geometry): boolean {
+  if (circle.kind !== "circle") return false;
+  if (geometryTerminals(other).some((point) =>
+    distance(point, circle.center) < EPSILON ||
+    Math.abs(distance(point, circle.center) - circle.radius) < EPSILON)) {
+    return true;
+  }
+  return geometrySegments(other).some((segment) =>
+    pointSegmentResidual(circle.center, segment) <= circle.radius + EPSILON,
+  );
+}
+
+function closedPathContainsTerminal(body: Geometry, other: Geometry): boolean {
+  if (body.kind !== "path" || body.closed !== true || body.points.length < 3) return false;
+  return geometryTerminals(other).some((point) => pointInsidePolygon(point, body.points));
 }
 
 function geometrySegments(value: Geometry): Array<[Point, Point]> {
@@ -2716,6 +2986,74 @@ function directionOverlayEntity(
   const directedId = candidate.directed ? candidateId : existingId;
   const directedGeometry = candidate.directed ? candidate : existing;
   return directedGeometry.infinite ? null : directedId;
+}
+
+function coincidentSupportingLineAliases(
+  existing: Geometry | undefined,
+  candidate: Geometry,
+): boolean {
+  if (existing?.kind !== "path" || candidate.kind !== "path") return false;
+  if (existing.infinite !== true && candidate.infinite !== true) return false;
+  if (existing.points.length < 2 || candidate.points.length < 2) return false;
+  const first: [Point, Point] = [existing.points[0]!, existing.points.at(-1)!];
+  const second: [Point, Point] = [candidate.points[0]!, candidate.points.at(-1)!];
+  return (
+    (distance(first[0], second[0]) < EPSILON && distance(first[1], second[1]) < EPSILON) ||
+    (distance(first[0], second[1]) < EPSILON && distance(first[1], second[0]) < EPSILON)
+  );
+}
+
+function rigidBodyContactResidual(
+  pointGeometry: Geometry | undefined,
+  target: Geometry | undefined,
+  all: Map<string, Geometry>,
+): number | null {
+  if (pointGeometry?.kind !== "point" || !target) return null;
+  const line = target.kind === "path" && target.points.length >= 2
+    ? [target.points[0]!, target.points.at(-1)!] as [Point, Point]
+    : null;
+  if (!line) return null;
+  const point = pointGeometry.point;
+  for (const value of all.values()) {
+    if (value.kind === "circle" && distance(point, value.center) < EPSILON) {
+      return Math.max(0, pointLineResidual(point, line) - value.radius);
+    }
+    if (
+      value.kind === "path" &&
+      value.closed === true &&
+      value.points.length >= 3 &&
+      pointInsidePolygon(point, value.points)
+    ) {
+      if (closedPathIntersectsLine(value, line)) return 0;
+    }
+  }
+  return null;
+}
+
+function closedPathIntersectsLine(path: Extract<Geometry, { kind: "path" }>, line: [Point, Point]): boolean {
+  const signed = (point: Point) =>
+    (point.x - line[0].x) * (line[1].y - line[0].y) - (point.y - line[0].y) * (line[1].x - line[0].x);
+  const signs = path.points.map(signed);
+  if (signs.some((value) => Math.abs(value) < EPSILON)) return true;
+  for (let index = 0; index < signs.length; index += 1) {
+    const next = (index + 1) % signs.length;
+    if (signs[index]! * signs[next]! < 0) return true;
+  }
+  return false;
+}
+
+function angularTolerance(assertion: SceneAssertion): number {
+  if (typeof assertion.tolerance === "number") return assertion.tolerance;
+  const expected = assertion.expected;
+  const unit = isRecord(expected) && typeof expected.unit === "string"
+    ? expected.unit.trim().toLowerCase()
+    : "";
+  const rawValue = typeof expected === "number"
+    ? expected
+    : isRecord(expected) && typeof expected.value === "number" ? expected.value : null;
+  const isDegree = unit === "degree" || unit === "degrees" || unit === "deg" || unit === "°" ||
+    (rawValue !== null && unit === "" && Math.abs(rawValue) > Math.PI * 2);
+  return isDegree ? 0.5 * Math.PI / 180 : 1e-4;
 }
 
 function explicitlyParallelPathAliases(
