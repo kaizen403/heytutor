@@ -102,6 +102,7 @@ const EXPECTED_EXECUTABLE_PROOF_PREDICATES = [
   "snells_law",
   "function_value",
   "root",
+  "wave_cycles",
   "path",
   "pathCount",
   "sameTerminalPair",
@@ -131,6 +132,7 @@ const EXPECTED_PLANNER_PROOF_PREDICATES = [
   "snells_law",
   "function_value",
   "root",
+  "wave_cycles",
   "path",
   "pathCount",
   "sameTerminalPair",
@@ -253,7 +255,12 @@ if (DEFAULT_SCENE_PROOF_PREDICATES !== PLANNER_VISIBLE_SCENE_PROOF_PREDICATES) {
 function promptCapabilitySection(prompt: string, heading: string): string[] {
   const section = prompt.split(`${heading}\n`, 2)[1]?.split("\n\n", 1)[0];
   if (!section) throw new Error(`prompt omitted ${heading}`);
-  return section.split("\n").map((line) => line.replace(/^- /, ""));
+  // Operators are listed one per line ("- op"); predicates are a single
+  // comma-separated line to keep the serialized prompt under its size budget.
+  return section
+    .split(/\n|,\s*/)
+    .map((line) => line.replace(/^- /, "").trim())
+    .filter((line) => line.length > 0);
 }
 
 const defaultCapabilityPrompt = buildSceneDocumentPlannerPrompt("capability drift check");
@@ -393,6 +400,222 @@ if (
   instrumentPrompt.includes("Use aperture for the physical opening")
 ) {
   throw new Error("instrument prompt did not receive only its selected compact invariants");
+}
+
+const physicsEvalPath = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../scene-engine/fixtures/evaluation/jee-physics-core-v1.json",
+);
+const mathEvalPath = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../scene-engine/fixtures/evaluation/math-visual-core-v1.json",
+);
+const physicsEval = JSON.parse(readFileSync(physicsEvalPath, "utf8")) as {
+  questions: Array<{ id: string; question: string; capabilities: { operators: string[] } }>;
+};
+const mathEval = JSON.parse(readFileSync(mathEvalPath, "utf8")) as {
+  questions: Array<{ id: string; question: string; capabilities: { operators: string[] } }>;
+};
+
+function evalQuestion(
+  corpus: { questions: Array<{ id: string; question: string; capabilities: { operators: string[] } }> },
+  id: string,
+): { id: string; question: string; capabilities: { operators: string[] } } {
+  const match = corpus.questions.find((item) => item.id === id);
+  if (!match) throw new Error(`missing evaluation question ${id}`);
+  return match;
+}
+
+function assertCompactFamily(
+  id: string,
+  question: string,
+  family: string,
+  requiredOperators: readonly string[],
+  omittedContracts: readonly string[],
+): void {
+  const capabilities = inferSceneCapabilities(question);
+  if (!capabilities.families.includes(family as typeof capabilities.families[number])) {
+    throw new Error(`${id}: expected family ${family}, got ${JSON.stringify(capabilities.families)}`);
+  }
+  if (capabilities.planningGuidance.length === 0) {
+    throw new Error(`${id}: compact invariants were omitted`);
+  }
+  for (const operator of requiredOperators) {
+    if (!capabilities.constructionOperators.includes(operator)) {
+      throw new Error(`${id}: family ${family} did not select ${operator}`);
+    }
+  }
+  const prompt = buildSceneDocumentPlannerPrompt(question, {
+    constructionOperators: capabilities.constructionOperators,
+    proofPredicates: capabilities.proofPredicates,
+    planningGuidance: capabilities.planningGuidance,
+  });
+  if (!prompt.includes("SELECTED VISUAL INVARIANTS")) {
+    throw new Error(`${id}: compact prompt omitted selected invariants`);
+  }
+  for (const operator of omittedContracts) {
+    if (prompt.includes(`- ${operator}:`)) {
+      throw new Error(`${id}: compact prompt retained unrelated contract ${operator}`);
+    }
+  }
+}
+
+const pulley = evalQuestion(physicsEval, "mechanics-hard-pulley-incline");
+assertCompactFamily(
+  pulley.id,
+  pulley.question,
+  "contact_body",
+  ["rectangle", "vector", "vector_components", "circle", "surface_contact"],
+  ["optical_train", "refract_at", "solid_projection"],
+);
+const inclineForce = evalQuestion(physicsEval, "mechanics-easy-incline-force");
+assertCompactFamily(
+  inclineForce.id,
+  inclineForce.question,
+  "contact_body",
+  ["rectangle", "vector", "vector_components"],
+  ["optical_train", "refract_at"],
+);
+const lcr = evalQuestion(physicsEval, "ac-hard-series-lcr");
+assertCompactFamily(
+  lcr.id,
+  lcr.question,
+  "circuit_network",
+  ["symbol", "connect", "vector", "vector_components"],
+  ["optical_train", "refract_at", "solid_projection"],
+);
+const seriesParallel = evalQuestion(physicsEval, "current-medium-series-parallel-source");
+assertCompactFamily(
+  seriesParallel.id,
+  seriesParallel.question,
+  "circuit_network",
+  ["symbol", "connect"],
+  ["optical_train", "function_curve"],
+);
+const pvCycle = evalQuestion(physicsEval, "thermal-hard-pv-cycle");
+assertCompactFamily(
+  pvCycle.id,
+  pvCycle.question,
+  "state_plot",
+  ["axes", "point", "polygon", "polyline"],
+  ["optical_train", "refract_at", "symbol"],
+);
+const parametric = evalQuestion(mathEval, "function-parametric-tangent");
+assertCompactFamily(
+  parametric.id,
+  parametric.question,
+  "analytic_curve",
+  ["axes", "parametric_curve", "tangent_line"],
+  ["optical_train", "symbol", "refract_at"],
+);
+const parabolaCircle = evalQuestion(mathEval, "coordinate-parabola-circle");
+assertCompactFamily(
+  parabolaCircle.id,
+  parabolaCircle.question,
+  "analytic_curve",
+  ["axes", "function_curve", "implicit_curve"],
+  ["optical_train", "symbol"],
+);
+const compositeSolid = evalQuestion(mathEval, "mensuration-composite-cap");
+assertCompactFamily(
+  compositeSolid.id,
+  compositeSolid.question,
+  "solid_figure",
+  ["solid_projection", "dimension"],
+  ["optical_train", "refract_at", "symbol"],
+);
+const prism = evalQuestion(physicsEval, "optics-hard-prism-minimum-deviation");
+const prismCapabilities = inferSceneCapabilities(prism.question);
+if (!prismCapabilities.families.includes("interface") || !prismCapabilities.families.includes("ray_path")) {
+  throw new Error(`prism lost optics families: ${JSON.stringify(prismCapabilities.families)}`);
+}
+if (prismCapabilities.families.includes("contact_body") || prismCapabilities.families.includes("circuit_network")) {
+  throw new Error(`prism was routed to a non-optics family: ${JSON.stringify(prismCapabilities.families)}`);
+}
+
+const hydraulic = evalQuestion(physicsEval, "fluids-easy-hydraulic-lift");
+assertCompactFamily(
+  hydraulic.id,
+  hydraulic.question,
+  "fluid_apparatus",
+  ["rectangle", "connect", "dimension"],
+  ["optical_train", "refract_at", "function_curve"],
+);
+const venturi = evalQuestion(physicsEval, "fluids-medium-venturi");
+assertCompactFamily(
+  venturi.id,
+  venturi.question,
+  "fluid_apparatus",
+  ["polygon", "polyline", "dimension"],
+  ["optical_train", "refract_at"],
+);
+const pendulum = evalQuestion(physicsEval, "shm-medium-pendulum");
+assertCompactFamily(
+  pendulum.id,
+  pendulum.question,
+  "contact_body",
+  ["rotate", "arc", "vector"],
+  ["optical_train", "refract_at", "symbol"],
+);
+const standingWave = evalQuestion(physicsEval, "waves-hard-third-harmonic");
+assertCompactFamily(
+  standingWave.id,
+  standingWave.question,
+  "analytic_curve",
+  ["axes", "function_curve"],
+  ["optical_train", "symbol", "refract_at"],
+);
+const nullPoint = evalQuestion(physicsEval, "electrostatics-easy-null-point");
+assertCompactFamily(
+  nullPoint.id,
+  nullPoint.question,
+  "point_field",
+  ["point", "vector", "dimension"],
+  ["optical_train", "symbol", "refract_at"],
+);
+const photoelectric = evalQuestion(physicsEval, "modern-easy-photoelectric");
+assertCompactFamily(
+  photoelectric.id,
+  photoelectric.question,
+  "energy_level",
+  ["axes", "segment", "vector"],
+  ["optical_train", "refract_at", "symbol"],
+);
+const triangle = evalQuestion(mathEval, "coordinate-right-triangle");
+assertCompactFamily(
+  triangle.id,
+  triangle.question,
+  "coordinate_figure",
+  ["axes", "point", "polygon", "right_angle_mark"],
+  ["optical_train", "symbol", "refract_at"],
+);
+const areaRegion = evalQuestion(mathEval, "function-area-parabola-line");
+assertCompactFamily(
+  areaRegion.id,
+  areaRegion.question,
+  "bounded_region",
+  ["function_curve", "function_region", "representative_slice"],
+  ["optical_train", "symbol"],
+);
+assertCompactFamily(
+  "3d-line-vector-equation",
+  "Find the vector equation of the line passing through the point A(1, 2, -1) and parallel to a given line.",
+  "coordinate_figure",
+  ["axes", "point", "line"],
+  ["optical_train", "symbol", "refract_at"],
+);
+
+const GENERIC_EVAL_OPERATORS = new Set(["point", "label", "segment", "line"]);
+for (const question of [...physicsEval.questions, ...mathEval.questions]) {
+  const capabilities = inferSceneCapabilities(question.question);
+  if (capabilities.families.length === 0) {
+    throw new Error(`${question.id}: evaluation stem inferred no visual family`);
+  }
+  const demanded = question.capabilities.operators.filter((operator) => !GENERIC_EVAL_OPERATORS.has(operator));
+  const missed = demanded.filter((operator) => !capabilities.constructionOperators.includes(operator));
+  if (missed.length > 0) {
+    throw new Error(`${question.id}: compact family ${JSON.stringify(capabilities.families)} omitted ${missed.join(", ")}`);
+  }
 }
 
 console.log("verify-scene-capabilities: ok");
