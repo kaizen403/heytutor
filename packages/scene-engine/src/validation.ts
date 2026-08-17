@@ -79,6 +79,7 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
   raw = repairUniquelyAssertedPoweredLoop(raw);
   raw = normalizeMechanicalPlannerArtifacts(raw);
   raw = normalizeProofDerivedOpticsGeometry(raw);
+  raw = normalizeAssertedSharedVertexAngleGeometry(raw);
   raw = normalizeProofDerivedOpticalTrain(raw);
   raw = normalizeMissingReferenceLineEndpoints(raw);
   raw = pruneRedundantIncidentPathDeclarations(raw);
@@ -2604,12 +2605,37 @@ function normalizeSnellAssertionShape(
     }
     const ids = assertion.entities.filter((id): id is string => typeof id === "string");
     const pathIds = ids.filter((id) => isPathConstruction(producers.get(id)));
-    const incident = pathIds.find((id) => /\bincident\b/.test(semantic(id)));
-    const normal = pathIds.find((id) => /\bnormal\b/.test(semantic(id)));
-    const refracted = pathIds.find((id) => /\brefract/.test(semantic(id)));
+    const incident = pathIds.find((id) => /\bincident\b/.test(semantic(id)))
+      ?? (pathIds.length === 3 ? pathIds[0] : undefined);
+    const normal = pathIds.find((id) => /\bnormal/.test(semantic(id)))
+      ?? (pathIds.length === 3 ? pathIds[1] : undefined);
+    const refracted = pathIds.find((id) => /\brefract/.test(semantic(id)))
+      ?? pathIds.find((id) => /\binternal\b/.test(semantic(id)))
+      ?? (incident && normal
+        ? pathIds.find((id) => id !== incident && id !== normal)
+        : undefined)
+      ?? (pathIds.length === 3 ? pathIds[2] : undefined);
     const expected = isRecord(assertion.expected) ? assertion.expected : {};
-    const n1 = typeof expected.n1 === "number" ? expected.n1 : quantityValue(/\bn\s*1\b|\bn1\b/i);
-    const n2 = typeof expected.n2 === "number" ? expected.n2 : quantityValue(/\bn\s*2\b|\bn2\b/i);
+    const refractBundle = [incident, normal]
+      .flatMap((id) => id ? [producers.get(id)] : [])
+      .find((producer) => producer?.operator === "refract_at");
+    const bundleInputs = refractBundle && isRecord(refractBundle.inputs) ? refractBundle.inputs : null;
+    let n1 = typeof expected.n1 === "number" ? expected.n1 : quantityValue(/\bn\s*1\b|\bn1\b/i);
+    let n2 = typeof expected.n2 === "number" ? expected.n2 : quantityValue(/\bn\s*2\b|\bn2\b/i);
+    if (n1 === null && typeof bundleInputs?.n1 === "number") n1 = bundleInputs.n1;
+    if (n2 === null && typeof bundleInputs?.n2 === "number") n2 = bundleInputs.n2;
+    if (n1 === null || n2 === null) {
+      const index = [...quantityById].find(([id, quantity]) =>
+        /^(?:n|μ|mu)$/i.test(id) || /^(?:n|μ|mu)$/i.test(String(quantity.symbol ?? "")));
+      const n = index && typeof index[1].value === "number" && index[1].value > 0 ? index[1].value : null;
+      if (n !== null) {
+        if (n1 === null && n2 === null) {
+          n1 = 1;
+          n2 = n;
+        } else if (n2 === null) n2 = n;
+        else n1 = n;
+      }
+    }
     if (!incident || !normal || !refracted || !(n1 !== null && n1 > 0) || !(n2 !== null && n2 > 0)) {
       return assertion;
     }
@@ -3214,6 +3240,157 @@ function constructionEndpoint(
   return null;
 }
 
+/**
+ * When two constructed legs share a vertex and `angle_between` names that
+ * interior angle, rotate the far endpoints (and collinear face points) to the
+ * asserted opening. Planner coordinates are a guess; the assertion is the
+ * contract. Line-line acute readings that are not the interior vertex angle
+ * are left alone.
+ */
+function normalizeAssertedSharedVertexAngleGeometry(raw: Record<string, unknown>): Record<string, unknown> {
+  if (!Array.isArray(raw.constructions) || !Array.isArray(raw.assertions)) return raw;
+  const constructions = raw.constructions.map((construction) =>
+    isRecord(construction)
+      ? { ...construction, inputs: isRecord(construction.inputs) ? { ...construction.inputs } : construction.inputs }
+      : construction,
+  );
+  let changed = false;
+
+  for (const assertion of raw.assertions) {
+    if (
+      !isRecord(assertion) ||
+      assertion.predicate !== "angle_between" ||
+      assertion.expected === false ||
+      !Array.isArray(assertion.entities) ||
+      assertion.entities.length !== 2
+    ) continue;
+    const firstId = assertion.entities[0];
+    const secondId = assertion.entities[1];
+    if (typeof firstId !== "string" || typeof secondId !== "string") continue;
+    const producers = constructionProducers(constructions);
+    const firstEnds = segmentEndpointIds(producers.get(firstId));
+    const secondEnds = segmentEndpointIds(producers.get(secondId));
+    if (!firstEnds || !secondEnds) continue;
+    const shared = firstEnds.filter((id) => secondEnds.includes(id));
+    if (shared.length !== 1) continue;
+    const vertexId = shared[0]!;
+    const far1Id = firstEnds.find((id) => id !== vertexId);
+    const far2Id = secondEnds.find((id) => id !== vertexId);
+    if (!far1Id || !far2Id || far1Id === far2Id) continue;
+    const vertex = proofDerivedPoint(vertexId, producers);
+    const far1 = proofDerivedPoint(far1Id, producers);
+    const far2 = proofDerivedPoint(far2Id, producers);
+    if (!vertex || !far1 || !far2) continue;
+    let expected: number;
+    try {
+      expected = assertedAngleRadians(assertion.expected);
+    } catch {
+      continue;
+    }
+    if (!(expected > 1e-6 && expected < Math.PI - 1e-6)) continue;
+    const v1 = { x: far1.x - vertex.x, y: far1.y - vertex.y };
+    const v2 = { x: far2.x - vertex.x, y: far2.y - vertex.y };
+    const len1 = Math.hypot(v1.x, v1.y);
+    const len2 = Math.hypot(v2.x, v2.y);
+    if (len1 < 1e-9 || len2 < 1e-9) continue;
+    const u1 = { x: v1.x / len1, y: v1.y / len1 };
+    const u2 = { x: v2.x / len2, y: v2.y / len2 };
+    const interior = Math.acos(Math.max(-1, Math.min(1, u1.x * u2.x + u1.y * u2.y)));
+    const acute = Math.min(interior, Math.PI - interior);
+    if (Math.abs(interior - expected) > Math.abs(acute - expected) + 1e-9) continue;
+    if (Math.abs(interior - expected) < 0.5 * Math.PI / 180) continue;
+
+    let bisector = { x: u1.x + u2.x, y: u1.y + u2.y };
+    const bisLen = Math.hypot(bisector.x, bisector.y);
+    bisector = bisLen < 1e-9
+      ? { x: -u1.y, y: u1.x }
+      : { x: bisector.x / bisLen, y: bisector.y / bisLen };
+    const signed = (from: PointValue, to: PointValue) =>
+      Math.atan2(from.x * to.y - from.y * to.x, from.x * to.x + from.y * to.y);
+    let s1 = Math.sign(signed(bisector, u1));
+    let s2 = Math.sign(signed(bisector, u2));
+    if (s1 === 0) s1 = 1;
+    if (s2 === 0 || s1 === s2) s2 = -s1;
+    const rotate = (u: PointValue, angle: number): PointValue => ({
+      x: u.x * Math.cos(angle) - u.y * Math.sin(angle),
+      y: u.x * Math.sin(angle) + u.y * Math.cos(angle),
+    });
+    const dir1 = rotate(bisector, s1 * expected / 2);
+    const dir2 = rotate(bisector, s2 * expected / 2);
+    const newFar1 = { x: vertex.x + dir1.x * len1, y: vertex.y + dir1.y * len1 };
+    const newFar2 = { x: vertex.x + dir2.x * len2, y: vertex.y + dir2.y * len2 };
+    const parameterOnLeg = (point: PointValue, far: PointValue): number | null => {
+      const dx = far.x - vertex.x;
+      const dy = far.y - vertex.y;
+      const span = dx * dx + dy * dy;
+      const t = ((point.x - vertex.x) * dx + (point.y - vertex.y) * dy) / span;
+      if (t < -1e-4 || t > 1 + 1e-4) return null;
+      const proj = { x: vertex.x + t * dx, y: vertex.y + t * dy };
+      if (Math.hypot(point.x - proj.x, point.y - proj.y) > Math.max(1e-3, Math.sqrt(span) * 1e-4)) return null;
+      return Math.min(1, Math.max(0, t));
+    };
+    const relocated = new Map<string, PointValue>([
+      [far1Id, newFar1],
+      [far2Id, newFar2],
+    ]);
+    for (const construction of constructions) {
+      if (!isRecord(construction) || construction.operator !== "point" || !isRecord(construction.inputs)) continue;
+      if (!Array.isArray(construction.outputs) || typeof construction.outputs[0] !== "string") continue;
+      const id = construction.outputs[0];
+      if (id === vertexId || id === far1Id || id === far2Id) continue;
+      const point = proofDerivedPoint(id, producers);
+      if (!point) continue;
+      const t1 = parameterOnLeg(point, far1);
+      const t2 = parameterOnLeg(point, far2);
+      if (t1 !== null && t2 === null) {
+        relocated.set(id, {
+          x: vertex.x + (newFar1.x - vertex.x) * t1,
+          y: vertex.y + (newFar1.y - vertex.y) * t1,
+        });
+      } else if (t2 !== null && t1 === null) {
+        relocated.set(id, {
+          x: vertex.x + (newFar2.x - vertex.x) * t2,
+          y: vertex.y + (newFar2.y - vertex.y) * t2,
+        });
+      }
+    }
+    for (const construction of constructions) {
+      if (!isRecord(construction) || construction.operator !== "point" || !isRecord(construction.inputs)) continue;
+      if (!Array.isArray(construction.outputs) || typeof construction.outputs[0] !== "string") continue;
+      const next = relocated.get(construction.outputs[0]);
+      if (!next) continue;
+      construction.inputs = { ...construction.inputs, x: next.x, y: next.y };
+      changed = true;
+    }
+  }
+
+  return changed ? { ...raw, constructions } : raw;
+}
+
+function segmentEndpointIds(
+  construction: Record<string, unknown> | undefined,
+): [string, string] | null {
+  if (!construction || !isRecord(construction.inputs)) return null;
+  if (!["segment", "line", "ray"].includes(String(construction.operator))) return null;
+  const start = constructionEndpoint(construction.inputs, ["start", "from", "a"]);
+  const end = constructionEndpoint(construction.inputs, ["end", "to", "b"]);
+  if (!start || !end || start === end) return null;
+  return [start, end];
+}
+
+function assertedAngleRadians(expected: unknown): number {
+  const value = typeof expected === "number"
+    ? expected
+    : isRecord(expected) && typeof expected.value === "number" ? expected.value : NaN;
+  if (!Number.isFinite(value)) throw new Error("angle_between expected must be a finite angle");
+  const unit = isRecord(expected) && typeof expected.unit === "string"
+    ? expected.unit.trim().toLowerCase()
+    : "";
+  if (unit === "degree" || unit === "degrees" || unit === "deg" || unit === "°") return value * Math.PI / 180;
+  if (unit === "radian" || unit === "radians" || unit === "rad") return value;
+  return Math.abs(value) > Math.PI * 2 ? value * Math.PI / 180 : value;
+}
+
 function canonicalTerminalPair(a: string, b: string): string {
   return a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`;
 }
@@ -3401,34 +3578,50 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     );
   }
   if (Array.isArray(normalizedRaw.teachingTimeline)) {
-    normalizedRaw.teachingTimeline = normalizedRaw.teachingTimeline.map((timelineAction, index) => {
-      if (!isRecord(timelineAction)) return timelineAction;
+    const groupIds = new Set(
+      (Array.isArray(normalizedRaw.revealGroups) ? normalizedRaw.revealGroups : []).flatMap((group) =>
+        isRecord(group) && typeof group.id === "string" ? [group.id] : [],
+      ),
+    );
+    const entityIdsForTimeline = new Set(
+      (Array.isArray(normalizedRaw.entities) ? normalizedRaw.entities : []).flatMap((entity) =>
+        isRecord(entity) && typeof entity.id === "string" ? [entity.id] : [],
+      ),
+    );
+    const annotationIds = new Set(
+      (Array.isArray(normalizedRaw.annotations) ? normalizedRaw.annotations : []).flatMap((annotation) =>
+        isRecord(annotation) && typeof annotation.id === "string" ? [annotation.id] : [],
+      ),
+    );
+    const isKnownTarget = (id: string) =>
+      groupIds.has(id) || entityIdsForTimeline.has(id) || annotationIds.has(id);
+    normalizedRaw.teachingTimeline = normalizedRaw.teachingTimeline.flatMap((timelineAction, index) => {
+      if (!isRecord(timelineAction)) return [timelineAction];
       const action = typeof timelineAction.action === "string"
         ? timelineAction.action
         : typeof timelineAction.type === "string" ? timelineAction.type : "reveal";
-      const targetId = typeof timelineAction.targetId === "string"
-        ? timelineAction.targetId
-        : typeof timelineAction.target === "string"
-          ? timelineAction.target
-          : typeof timelineAction.groupId === "string"
-            ? timelineAction.groupId
-            : Array.isArray(timelineAction.targetIds) && typeof timelineAction.targetIds[0] === "string"
-              ? timelineAction.targetIds[0]
-              : undefined;
+      const targetCandidates = [
+        timelineAction.targetId,
+        timelineAction.target,
+        timelineAction.groupId,
+        ...(Array.isArray(timelineAction.targetIds) ? timelineAction.targetIds : []),
+      ].filter((id): id is string => typeof id === "string");
+      const targetId = targetCandidates.find(isKnownTarget);
+      if (!targetId) return [];
       const narrationIntent = typeof timelineAction.narrationIntent === "string"
         ? timelineAction.narrationIntent
         // Planner models often emit `narration` instead of `narrationIntent`.
         : typeof timelineAction.narration === "string"
           ? timelineAction.narration
-          : `${action} ${targetId ?? "scene"}`;
-      return {
+          : `${action} ${targetId}`;
+      return [{
             ...timelineAction,
             action,
             targetId,
             id: typeof timelineAction.id === "string" ? timelineAction.id : `timeline_${index + 1}`,
             dependsOn: Array.isArray(timelineAction.dependsOn) ? timelineAction.dependsOn : [],
             narrationIntent,
-          };
+          }];
     });
   }
   if (Array.isArray(normalizedRaw.requiredEntityIds)) {
@@ -3938,7 +4131,7 @@ function reconcileConstructionOwnership(raw: Record<string, unknown>): void {
     );
     const owner = candidates.length === 1
       ? candidates[0]
-      : groups.length === 1 ? groups[0] : undefined;
+      : groups[0];
     if (owner && Array.isArray(owner.entityIds)) owner.entityIds.push(entityId);
   };
 
