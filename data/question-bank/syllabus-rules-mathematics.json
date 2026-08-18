@@ -19,7 +19,8 @@
         "bijective function",
         "number of onto functions",
         "number of one-one functions",
-        "inverse of the function"
+        "inverse of the function",
+        "one-one and onto"
       ],
       "supporting_phrases": [
         "ordered pair relation",
@@ -105,6 +106,7 @@
         "transpose of the matrix",
         "order of the matrix",
         "system of equations using matrices",
+        "system of linear equations",
         "minor of the element"
       ],
       "supporting_phrases": [
@@ -128,7 +130,9 @@
         "parabola",
         "ellipse",
         "hyperbola",
-        "vector product"
+        "vector product",
+        "equation of the plane",
+        "skew lines"
       ]
     },
     {
@@ -483,7 +487,8 @@
         "unit vector perpendicular to",
         "magnitude of the vector",
         "coplanar vectors",
-        "direction of the vector"
+        "direction of the vector",
+        "projection of the vector"
       ],
       "supporting_phrases": [
         "unit vector",
