@@ -412,7 +412,8 @@
     "capacitance",
     "rc circuit",
     "rc series circuit",
-    "energy stored in a capacitor"
+    "energy stored in a capacitor",
+    "electric field due to"
       ],
       "supporting_phrases": [
         "torque on an electric dipole",
@@ -453,7 +454,9 @@
     "impedance",
     "inductor",
     "displacement current",
-    "displacement currents"
+    "displacement currents",
+    "current density",
+    "potentiometer"
       ]
     },
     {
@@ -468,8 +471,11 @@
         "internal resistance of a cell",
         "combination of cells in series and parallel",
         "kirchhoff's laws",
+        "kirchhoff's rules",
         "wheatstone bridge",
-        "metre bridge"
+        "metre bridge",
+        "current density",
+        "potentiometer"
       ],
       "supporting_phrases": [
         "mobility of charge carriers",
@@ -517,7 +523,10 @@
         "earth's magnetic field",
         "magnetic elements",
         "magnetic dipole",
-        "paramagnetic diamagnetic ferromagnetic substances"
+        "paramagnetic diamagnetic ferromagnetic substances",
+        "lorentz force",
+        "cyclotron",
+        "charged particle in a uniform magnetic field"
       ],
       "supporting_phrases": [
         "magnetic field due to a circular loop",
@@ -546,7 +555,9 @@
         "half-deflection method",
         "figure of merit of galvanometer",
         "resistance of a galvanometer",
-        "resistance of a moving coil galvanometer"
+        "resistance of a moving coil galvanometer",
+        "induced emf",
+        "motional emf"
       ]
     },
     {
@@ -665,6 +676,7 @@
         "huygens principle",
         "young's double-slit experiment",
         "single slit diffraction",
+        "diffraction pattern",
         "resolving power",
     "polarisation of light",
     "brewster's law",
