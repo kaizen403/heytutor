@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   compileSceneDocument,
   evaluateMathExpression,
@@ -4467,6 +4470,310 @@ for (const symbol of [
       `${symbol} symbol did not compile: ${JSON.stringify(symbolCompiled?.report.issues ?? symbolValidation.report.issues)}`,
     );
   }
+}
+
+const pulleyApparatus = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "pulley incline apparatus" },
+  source: { question: "A 2 kg block on a 37 degree incline is connected over a pulley to a 3 kg hanging block. Draw the apparatus." },
+  quantities: [],
+  entities: [
+    { id: "origin", kind: "point", role: "layout origin" },
+    { id: "incline_base", kind: "point", role: "incline foot" },
+    { id: "incline_top", kind: "point", role: "incline head" },
+    { id: "pulley_center", kind: "point", role: "pulley axis" },
+    { id: "m1_center", kind: "point", role: "block center" },
+    { id: "m2_center", kind: "point", role: "hanging center" },
+    { id: "incline_surface", kind: "line", role: "inclined plane" },
+    { id: "incline_ground", kind: "segment", role: "ground" },
+    { id: "ground_line", kind: "line", role: "ground line" },
+    { id: "pulley_circle", kind: "circle", role: "pulley" },
+    { id: "m1_block", kind: "polygon", role: "incline block" },
+    { id: "m2_block", kind: "polygon", role: "hanging block" },
+    { id: "string_incline", kind: "segment", role: "string" },
+    { id: "string_hang", kind: "segment", role: "string" },
+  ],
+  constructions: [
+    { id: "make_origin", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "layout" }, outputs: ["origin"] },
+    { id: "make_base", operator: "point", inputs: { x: 2, y: 0, coordinateSpace: "layout" }, outputs: ["incline_base"] },
+    { id: "make_top", operator: "point", inputs: { x: 6, y: 3, coordinateSpace: "layout" }, outputs: ["incline_top"] },
+    { id: "make_pulley", operator: "point", inputs: { x: 6, y: 5, coordinateSpace: "layout" }, outputs: ["pulley_center"] },
+    { id: "make_m1", operator: "point", inputs: { x: 4, y: 2, coordinateSpace: "layout" }, outputs: ["m1_center"] },
+    { id: "make_m2", operator: "point", inputs: { x: 8, y: 2, coordinateSpace: "layout" }, outputs: ["m2_center"] },
+    { id: "make_incline", operator: "line", inputs: { start: "incline_base", end: "incline_top" }, outputs: ["incline_surface"] },
+    { id: "make_ground", operator: "segment", inputs: { start: "origin", end: "incline_base" }, outputs: ["incline_ground"] },
+    { id: "make_ground_line", operator: "line", inputs: { start: "origin", end: "incline_base" }, outputs: ["ground_line"] },
+    { id: "make_pulley_circle", operator: "circle", inputs: { center: "pulley_center", radius: 0.5 }, outputs: ["pulley_circle"] },
+    { id: "make_m1_block", operator: "rectangle", inputs: { center: "m1_center", width: 0.8, height: 0.6 }, outputs: ["m1_block"] },
+    { id: "make_m2_block", operator: "rectangle", inputs: { center: "m2_center", width: 0.8, height: 0.6 }, outputs: ["m2_block"] },
+    { id: "make_string_1", operator: "segment", inputs: { start: "m1_center", end: "pulley_center" }, outputs: ["string_incline"] },
+    { id: "make_string_2", operator: "segment", inputs: { start: "pulley_center", end: "m2_center" }, outputs: ["string_hang"] },
+  ],
+  relations: [],
+  assertions: [
+    { id: "incline_angle", predicate: "angle_between", entities: ["ground_line", "incline_surface"], expected: { value: 37, unit: "degree" }, severity: "fatal" },
+    { id: "m1_on_incline", predicate: "on", entities: ["m1_center", "incline_surface"], expected: true, severity: "fatal" },
+    { id: "string_to_m1", predicate: "connected", entities: ["string_incline", "m1_block", "pulley_circle"], expected: true, severity: "fatal" },
+    { id: "string_to_m2", predicate: "connected", entities: ["string_hang", "pulley_circle", "m2_block"], expected: true, severity: "fatal" },
+  ],
+  annotations: [],
+  requiredEntityIds: [
+    "origin", "incline_base", "incline_top", "pulley_center", "m1_center", "m2_center",
+    "incline_surface", "incline_ground", "ground_line", "pulley_circle", "m1_block", "m2_block",
+    "string_incline", "string_hang",
+  ],
+  revealGroups: [
+    {
+      id: "apparatus",
+      entityIds: [
+        "incline_base", "incline_top", "pulley_center", "m1_center", "m2_center",
+        "incline_surface", "incline_ground", "ground_line", "pulley_circle", "m1_block", "m2_block",
+        "string_incline", "string_hang",
+      ],
+    },
+    { id: "fbd", entityIds: [] },
+  ],
+  teachingTimeline: [
+    { action: "reveal", targetIds: ["apparatus"] },
+    { action: "annotate", targetIds: ["a", "T"] },
+  ],
+};
+const pulleyValidated = validateSceneDocument(pruneDeadSceneEntities(pulleyApparatus));
+const pulleyCompiled = pulleyValidated.document ? compileSceneDocument(pulleyValidated.document) : null;
+if (!pulleyValidated.document || !pulleyCompiled?.ok) {
+  throw new Error(`pulley apparatus scene did not compile: ${JSON.stringify({
+    validation: pulleyValidated.report.issues,
+    compile: pulleyCompiled?.report.issues,
+    groupedOrigin: pulleyValidated.document?.revealGroups.some((group) => group.entityIds.includes("origin")),
+  })}`);
+}
+if (pulleyValidated.document.teachingTimeline.some((action) => action.targetId === "a")) {
+  throw new Error("quantity-only timeline actions must be dropped");
+}
+
+const farOnPoint = structuredClone(pulleyApparatus) as Record<string, any>;
+farOnPoint.entities = [
+  { id: "p", kind: "point", role: "isolated point" },
+  { id: "axis", kind: "line", role: "axis" },
+];
+farOnPoint.constructions = [
+  { id: "make_p", operator: "point", inputs: { x: 0, y: 4, coordinateSpace: "layout" }, outputs: ["p"] },
+  { id: "make_axis", operator: "line", inputs: { start: { x: 0, y: 0, coordinateSpace: "layout" }, end: { x: 4, y: 0, coordinateSpace: "layout" } }, outputs: ["axis"] },
+];
+farOnPoint.assertions = [
+  { id: "false_on", predicate: "on", entities: ["p", "axis"], expected: true, severity: "fatal" },
+];
+farOnPoint.requiredEntityIds = ["p", "axis"];
+farOnPoint.revealGroups = [{ id: "setup", entityIds: ["p", "axis"] }];
+farOnPoint.teachingTimeline = [{ action: "reveal", targetId: "setup" }];
+const farOnCompiled = compileSceneDocument(validateSceneDocument(pruneDeadSceneEntities(farOnPoint)).document!);
+if (farOnCompiled.ok || !farOnCompiled.report.issues.some((issue) => issue.code === "assertion_failed")) {
+  throw new Error("a point far from a line must still fail on");
+}
+
+const pvCycleSiUnits = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "clockwise rectangular P-V cycle" },
+  source: {
+    question: "A gas executes the clockwise rectangular cycle A(V0,P0) to D(V0,2P0) to C(2V0,2P0) to B(2V0,P0) to A. Draw the directed P-V cycle.",
+  },
+  quantities: [
+    { id: "P0", value: 1e5, unit: "Pa" },
+    { id: "V0", value: 2e-3, unit: "m^3" },
+  ],
+  entities: [
+    { id: "A", kind: "point", role: "corner", label: "A" },
+    { id: "D", kind: "point", role: "corner", label: "D" },
+    { id: "C", kind: "point", role: "corner", label: "C" },
+    { id: "B", kind: "point", role: "corner", label: "B" },
+    { id: "AD", kind: "segment", role: "isochoric" },
+    { id: "DC", kind: "segment", role: "isobaric" },
+    { id: "CB", kind: "segment", role: "isochoric" },
+    { id: "BA", kind: "segment", role: "isobaric" },
+    { id: "cycle", kind: "polyline", role: "P-V cycle" },
+    { id: "Paxis", kind: "line", role: "P axis", label: "P" },
+    { id: "Vaxis", kind: "line", role: "V axis" },
+    { id: "V_label", kind: "label", role: "axis label" },
+  ],
+  constructions: [
+    { id: "make_A", operator: "point", inputs: { x: 0.002, y: 1e5, coordinateSpace: "world" }, outputs: ["A"] },
+    { id: "make_D", operator: "point", inputs: { x: 0.002, y: 2e5, coordinateSpace: "world" }, outputs: ["D"] },
+    { id: "make_C", operator: "point", inputs: { x: 0.004, y: 2e5, coordinateSpace: "world" }, outputs: ["C"] },
+    { id: "make_B", operator: "point", inputs: { x: 0.004, y: 1e5, coordinateSpace: "world" }, outputs: ["B"] },
+    { id: "make_AD", operator: "segment", inputs: { start: "A", end: "D" }, outputs: ["AD"] },
+    { id: "make_DC", operator: "segment", inputs: { start: "D", end: "C" }, outputs: ["DC"] },
+    { id: "make_CB", operator: "segment", inputs: { start: "C", end: "B" }, outputs: ["CB"] },
+    { id: "make_BA", operator: "segment", inputs: { start: "B", end: "A" }, outputs: ["BA"] },
+    { id: "make_cycle", operator: "polyline", inputs: { points: ["A", "D", "C", "B", "A"] }, outputs: ["cycle"] },
+    { id: "make_Paxis", operator: "line", inputs: { start: "A", direction: [0, 1] }, outputs: ["Paxis"] },
+    { id: "make_Vaxis", operator: "line", inputs: { start: "A", direction: [1, 0] }, outputs: ["Vaxis"] },
+    { id: "lbl_V", operator: "label", inputs: { target: "Vaxis", text: "V" }, outputs: ["V_label"] },
+  ],
+  relations: [],
+  assertions: [
+    { id: "right_adc", predicate: "perpendicular", entities: ["AD", "DC"], expected: true, severity: "fatal" },
+    { id: "right_dcb", predicate: "perpendicular", entities: ["DC", "CB"], expected: true, severity: "fatal" },
+    { id: "closed", predicate: "connected", entities: ["A", "D", "C", "B"], expected: true, severity: "fatal" },
+  ],
+  annotations: [],
+  requiredEntityIds: ["A", "D", "C", "B", "AD", "DC", "CB", "BA", "cycle", "Paxis", "Vaxis", "V_label"],
+  revealGroups: [{
+    id: "cycle_group",
+    entityIds: ["A", "D", "C", "B", "AD", "DC", "CB", "BA", "cycle", "Paxis", "Vaxis", "V_label"],
+    dependsOn: [],
+    narrationCue: "draw the P-V cycle",
+  }],
+  teachingTimeline: [{ action: "reveal", targetIds: ["cycle_group"] }],
+};
+const pvCycleValidated = validateSceneDocument(pruneDeadSceneEntities(pvCycleSiUnits));
+const pvCycleCompiled = pvCycleValidated.document
+  ? compileSceneDocument(pvCycleValidated.document)
+  : null;
+if (!pvCycleValidated.document || !pvCycleCompiled?.ok || !pvCycleCompiled.renderScene) {
+  throw new Error(`SI P-V cycle did not compile: ${JSON.stringify({
+    validation: pvCycleValidated.report.issues,
+    compile: pvCycleCompiled?.report.issues,
+  })}`);
+}
+const pvCyclePrimitive = pvCycleCompiled.renderScene.primitives.find((primitive) =>
+  primitive.entityId === "cycle" && primitive.kind === "polyline",
+);
+if (!pvCyclePrimitive) throw new Error("SI P-V cycle produced no polyline primitive");
+const pvXs = [...new Set(pvCyclePrimitive.points.map((point) => point.x))];
+const pvYs = [...new Set(pvCyclePrimitive.points.map((point) => point.y))];
+const pvWidth = Math.max(...pvXs) - Math.min(...pvXs);
+const pvHeight = Math.max(...pvYs) - Math.min(...pvYs);
+if (pvXs.length < 2 || pvYs.length < 2 || pvWidth < 80 || pvHeight < 80) {
+  throw new Error(`SI P-V rectangle collapsed under Euclidean fit: ${JSON.stringify({
+    xs: pvXs,
+    ys: pvYs,
+    width: pvWidth,
+    height: pvHeight,
+  })}`);
+}
+const renderedCorner = (id: string) => {
+  const primitive = pvCycleCompiled.renderScene!.primitives.find((item) =>
+    item.entityId === id && item.kind === "point",
+  );
+  if (!primitive?.points[0]) throw new Error(`missing rendered corner ${id}`);
+  return primitive.points[0];
+};
+const renderedA = renderedCorner("A");
+const renderedC = renderedCorner("C");
+if (!(renderedC.x > renderedA.x + 40) || !(renderedC.y < renderedA.y - 40)) {
+  throw new Error(`SI P-V corners are not a screen-space rectangle: ${JSON.stringify({ renderedA, renderedC })}`);
+}
+
+const euclideanSquare = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "axis-aligned Euclidean square" },
+  source: { question: "Draw square ABCD with side 2." },
+  quantities: [],
+  entities: [
+    { id: "A", kind: "point", role: "vertex" },
+    { id: "B", kind: "point", role: "vertex" },
+    { id: "C", kind: "point", role: "vertex" },
+    { id: "D", kind: "point", role: "vertex" },
+    { id: "square", kind: "polygon", role: "square" },
+  ],
+  constructions: [
+    { id: "make_A", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "layout" }, outputs: ["A"] },
+    { id: "make_B", operator: "point", inputs: { x: 2, y: 0, coordinateSpace: "layout" }, outputs: ["B"] },
+    { id: "make_C", operator: "point", inputs: { x: 2, y: 2, coordinateSpace: "layout" }, outputs: ["C"] },
+    { id: "make_D", operator: "point", inputs: { x: 0, y: 2, coordinateSpace: "layout" }, outputs: ["D"] },
+    { id: "make_square", operator: "polygon", inputs: { points: ["A", "B", "C", "D"] }, outputs: ["square"] },
+  ],
+  relations: [],
+  assertions: [],
+  annotations: [],
+  requiredEntityIds: ["A", "B", "C", "D", "square"],
+  revealGroups: [{ id: "figure", entityIds: ["A", "B", "C", "D", "square"] }],
+  teachingTimeline: [{ action: "reveal", targetId: "figure" }],
+};
+const squareCompiled = compileSceneDocument(
+  validateSceneDocument(pruneDeadSceneEntities(euclideanSquare)).document!,
+);
+const squarePrimitive = squareCompiled.renderScene?.primitives.find((primitive) =>
+  primitive.entityId === "square",
+);
+if (!squareCompiled.ok || !squarePrimitive) {
+  throw new Error(`Euclidean square did not compile: ${JSON.stringify(squareCompiled.report.issues)}`);
+}
+const squareWidth = Math.max(...squarePrimitive.points.map((point) => point.x)) -
+  Math.min(...squarePrimitive.points.map((point) => point.x));
+const squareHeight = Math.max(...squarePrimitive.points.map((point) => point.y)) -
+  Math.min(...squarePrimitive.points.map((point) => point.y));
+if (Math.abs(squareWidth - squareHeight) / Math.max(squareWidth, squareHeight) > 0.15) {
+  throw new Error(`Euclidean square was stretched by plot-axis scaling: ${JSON.stringify({
+    squareWidth,
+    squareHeight,
+  })}`);
+}
+
+const skewedSiRegion = structuredClone(pvCycleSiUnits) as Record<string, any>;
+skewedSiRegion.source.question = "Draw the parallelogram with vertices at incommensurable scales.";
+skewedSiRegion.constructions = [
+  { id: "make_A", operator: "point", inputs: { x: 0.002, y: 1e5, coordinateSpace: "world" }, outputs: ["A"] },
+  { id: "make_D", operator: "point", inputs: { x: 0.0025, y: 2e5, coordinateSpace: "world" }, outputs: ["D"] },
+  { id: "make_C", operator: "point", inputs: { x: 0.004, y: 2.05e5, coordinateSpace: "world" }, outputs: ["C"] },
+  { id: "make_B", operator: "point", inputs: { x: 0.0035, y: 1.05e5, coordinateSpace: "world" }, outputs: ["B"] },
+  { id: "make_AD", operator: "segment", inputs: { start: "A", end: "D" }, outputs: ["AD"] },
+  { id: "make_DC", operator: "segment", inputs: { start: "D", end: "C" }, outputs: ["DC"] },
+  { id: "make_CB", operator: "segment", inputs: { start: "C", end: "B" }, outputs: ["CB"] },
+  { id: "make_BA", operator: "segment", inputs: { start: "B", end: "A" }, outputs: ["BA"] },
+  { id: "make_cycle", operator: "polyline", inputs: { points: ["A", "D", "C", "B", "A"] }, outputs: ["cycle"] },
+  { id: "make_Paxis", operator: "line", inputs: { start: "A", direction: [0, 1] }, outputs: ["Paxis"] },
+  { id: "make_Vaxis", operator: "line", inputs: { start: "A", direction: [1, 0] }, outputs: ["Vaxis"] },
+  { id: "lbl_V", operator: "label", inputs: { target: "Vaxis", text: "V" }, outputs: ["V_label"] },
+];
+skewedSiRegion.assertions = [];
+const skewedCompiled = compileSceneDocument(
+  validateSceneDocument(pruneDeadSceneEntities(skewedSiRegion)).document!,
+);
+if (
+  skewedCompiled.ok ||
+  !skewedCompiled.report.issues.some((issue) => issue.code === "degenerate_projected_geometry")
+) {
+  throw new Error("a non-axis-aligned 2D region that collapses on screen must fail closed");
+}
+
+const prismMinDeviationPlanner = JSON.parse(
+  readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "../fixtures/regression/prism-min-deviation-planner-v1.json"),
+    "utf8",
+  ),
+) as Record<string, unknown>;
+const prismValidated = validateSceneDocument(pruneDeadSceneEntities(prismMinDeviationPlanner));
+const prismCompiled = prismValidated.document
+  ? compileSceneDocument(prismValidated.document)
+  : null;
+if (!prismValidated.document || !prismCompiled?.ok || !prismCompiled.renderScene) {
+  throw new Error(`prism minimum-deviation planner scene did not compile: ${JSON.stringify({
+    validation: prismValidated.report.issues,
+    compile: prismCompiled?.report.issues,
+  })}`);
+}
+const prismInternal = prismCompiled.renderScene.primitives.find((primitive) =>
+  primitive.entityId === "internal_ray"
+);
+if (!prismInternal || prismInternal.points.length < 2) {
+  throw new Error("prism internal ray was not rendered");
+}
+const prismInternalSpan = Math.hypot(
+  prismInternal.points[0]!.x - prismInternal.points.at(-1)!.x,
+  prismInternal.points[0]!.y - prismInternal.points.at(-1)!.y,
+);
+if (prismInternalSpan < 40) {
+  throw new Error(`prism internal ray collapsed: ${JSON.stringify(prismInternal.points)}`);
+}
+const prismIncident = prismCompiled.renderScene.primitives.find((primitive) =>
+  primitive.entityId === "incident_ray"
+);
+const prismEmergent = prismCompiled.renderScene.primitives.find((primitive) =>
+  primitive.entityId === "emergent_ray"
+);
+if (!prismIncident || !prismEmergent) {
+  throw new Error("prism ray path is missing an incident or emergent ray");
 }
 
 console.log("scene-engine verification passed");
