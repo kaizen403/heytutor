@@ -52,7 +52,7 @@ OPERATOR INPUT CONTRACTS
 ${operatorContracts}
 
 AVAILABLE PROOF PREDICATES
-${proofPredicates.map((predicate) => `- ${predicate}`).join("\n")}
+${proofPredicates.join(", ")}
 ${capabilityGuidance}
 ${conversation}
 QUESTION
