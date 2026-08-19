@@ -1,0 +1,589 @@
+{
+  "schemaVersion": "scene-document/v2",
+  "visualDecision": {
+    "mode": "scene",
+    "reason": "prism at minimum deviation"
+  },
+  "source": {
+    "question": "A prism has apex angle 60 degrees and refractive index sqrt(3). A ray passes through it at minimum deviation. Draw the complete ray path with normals and all relevant angles."
+  },
+  "quantities": [
+    {
+      "id": "A",
+      "value": 60,
+      "unit": "\u00b0"
+    },
+    {
+      "id": "n",
+      "value": 1.7320508075688772,
+      "unit": ""
+    },
+    {
+      "id": "r1",
+      "value": 30,
+      "unit": "\u00b0"
+    },
+    {
+      "id": "r2",
+      "value": 30,
+      "unit": "\u00b0"
+    },
+    {
+      "id": "i",
+      "value": 60,
+      "unit": "\u00b0"
+    },
+    {
+      "id": "e",
+      "value": 60,
+      "unit": "\u00b0"
+    },
+    {
+      "id": "dmin",
+      "value": 60,
+      "unit": "\u00b0"
+    }
+  ],
+  "entities": [
+    {
+      "id": "apex",
+      "kind": "point"
+    },
+    {
+      "id": "base_left",
+      "kind": "point"
+    },
+    {
+      "id": "base_right",
+      "kind": "point"
+    },
+    {
+      "id": "surface1",
+      "kind": "segment"
+    },
+    {
+      "id": "surface2",
+      "kind": "segment"
+    },
+    {
+      "id": "base",
+      "kind": "segment"
+    },
+    {
+      "id": "incident_point",
+      "kind": "point"
+    },
+    {
+      "id": "emergent_point",
+      "kind": "point"
+    },
+    {
+      "id": "incident_ray",
+      "kind": "ray"
+    },
+    {
+      "id": "internal_ray",
+      "kind": "segment"
+    },
+    {
+      "id": "emergent_ray",
+      "kind": "ray"
+    },
+    {
+      "id": "normal1",
+      "kind": "segment"
+    },
+    {
+      "id": "normal2",
+      "kind": "segment"
+    },
+    {
+      "id": "angle_i",
+      "kind": "angle_mark"
+    },
+    {
+      "id": "angle_r1",
+      "kind": "angle_mark"
+    },
+    {
+      "id": "angle_r2",
+      "kind": "angle_mark"
+    },
+    {
+      "id": "angle_e",
+      "kind": "angle_mark"
+    },
+    {
+      "id": "angle_A",
+      "kind": "angle_mark"
+    },
+    {
+      "id": "prism",
+      "kind": "polygon"
+    },
+    {
+      "id": "label_i",
+      "kind": "label"
+    },
+    {
+      "id": "label_r1",
+      "kind": "label"
+    },
+    {
+      "id": "label_r2",
+      "kind": "label"
+    },
+    {
+      "id": "label_e",
+      "kind": "label"
+    },
+    {
+      "id": "label_A",
+      "kind": "label"
+    },
+    {
+      "id": "label_dmin",
+      "kind": "label"
+    },
+    {
+      "id": "label_n",
+      "kind": "label"
+    }
+  ],
+  "constructions": [
+    {
+      "id": "apex_point",
+      "operator": "point",
+      "inputs": {
+        "x": 0,
+        "y": 2,
+        "coordinateSpace": "world"
+      },
+      "outputs": [
+        "apex"
+      ]
+    },
+    {
+      "id": "base_left_point",
+      "operator": "point",
+      "inputs": {
+        "x": -1.732,
+        "y": 0,
+        "coordinateSpace": "world"
+      },
+      "outputs": [
+        "base_left"
+      ]
+    },
+    {
+      "id": "base_right_point",
+      "operator": "point",
+      "inputs": {
+        "x": 1.732,
+        "y": 0,
+        "coordinateSpace": "world"
+      },
+      "outputs": [
+        "base_right"
+      ]
+    },
+    {
+      "id": "prism_poly",
+      "operator": "polygon",
+      "inputs": {
+        "points": [
+          "apex",
+          "base_right",
+          "base_left"
+        ]
+      },
+      "outputs": [
+        "prism"
+      ]
+    },
+    {
+      "id": "surface1_seg",
+      "operator": "segment",
+      "inputs": {
+        "start": "apex",
+        "end": "base_left"
+      },
+      "outputs": [
+        "surface1"
+      ]
+    },
+    {
+      "id": "surface2_seg",
+      "operator": "segment",
+      "inputs": {
+        "start": "apex",
+        "end": "base_right"
+      },
+      "outputs": [
+        "surface2"
+      ]
+    },
+    {
+      "id": "base_seg",
+      "operator": "segment",
+      "inputs": {
+        "start": "base_left",
+        "end": "base_right"
+      },
+      "outputs": [
+        "base"
+      ]
+    },
+    {
+      "id": "incident_pt",
+      "operator": "point",
+      "inputs": {
+        "x": -0.866,
+        "y": 1,
+        "coordinateSpace": "world"
+      },
+      "outputs": [
+        "incident_point"
+      ]
+    },
+    {
+      "id": "emergent_pt",
+      "operator": "point",
+      "inputs": {
+        "x": 0.866,
+        "y": 1,
+        "coordinateSpace": "world"
+      },
+      "outputs": [
+        "emergent_point"
+      ]
+    },
+    {
+      "id": "refract_at_1",
+      "operator": "refract_at",
+      "inputs": {
+        "point": "incident_point",
+        "surface": "surface1",
+        "incidentAngleDeg": 60,
+        "n1": 1,
+        "n2": 1.7320508075688772,
+        "tangentSign": 1,
+        "span": 2
+      },
+      "outputs": [
+        "incident_ray",
+        "normal1",
+        "internal_ray"
+      ]
+    },
+    {
+      "id": "refract_at_2",
+      "operator": "refract_at",
+      "inputs": {
+        "point": "emergent_point",
+        "surface": "surface2",
+        "incidentAngleDeg": 30,
+        "n1": 1.7320508075688772,
+        "n2": 1,
+        "tangentSign": -1,
+        "span": 2
+      },
+      "outputs": [
+        "internal_ray",
+        "normal2",
+        "emergent_ray"
+      ]
+    },
+    {
+      "id": "angle_i_mark",
+      "operator": "angle_mark",
+      "inputs": {
+        "vertex": "incident_point",
+        "a": "incident_ray",
+        "b": "normal1",
+        "radius": 0.6
+      },
+      "outputs": [
+        "angle_i"
+      ]
+    },
+    {
+      "id": "angle_r1_mark",
+      "operator": "angle_mark",
+      "inputs": {
+        "vertex": "incident_point",
+        "a": "normal1",
+        "b": "internal_ray",
+        "radius": 0.5
+      },
+      "outputs": [
+        "angle_r1"
+      ]
+    },
+    {
+      "id": "angle_r2_mark",
+      "operator": "angle_mark",
+      "inputs": {
+        "vertex": "emergent_point",
+        "a": "internal_ray",
+        "b": "normal2",
+        "radius": 0.5
+      },
+      "outputs": [
+        "angle_r2"
+      ]
+    },
+    {
+      "id": "angle_e_mark",
+      "operator": "angle_mark",
+      "inputs": {
+        "vertex": "emergent_point",
+        "a": "normal2",
+        "b": "emergent_ray",
+        "radius": 0.6
+      },
+      "outputs": [
+        "angle_e"
+      ]
+    },
+    {
+      "id": "angle_A_mark",
+      "operator": "angle_mark",
+      "inputs": {
+        "vertex": "apex",
+        "a": "surface1",
+        "b": "surface2",
+        "radius": 0.4
+      },
+      "outputs": [
+        "angle_A"
+      ]
+    },
+    {
+      "id": "label_i_con",
+      "operator": "label",
+      "inputs": {
+        "target": "angle_i",
+        "text": "i=60\u00b0"
+      },
+      "outputs": [
+        "label_i"
+      ]
+    },
+    {
+      "id": "label_r1_con",
+      "operator": "label",
+      "inputs": {
+        "target": "angle_r1",
+        "text": "r\u2081=30\u00b0"
+      },
+      "outputs": [
+        "label_r1"
+      ]
+    },
+    {
+      "id": "label_r2_con",
+      "operator": "label",
+      "inputs": {
+        "target": "angle_r2",
+        "text": "r\u2082=30\u00b0"
+      },
+      "outputs": [
+        "label_r2"
+      ]
+    },
+    {
+      "id": "label_e_con",
+      "operator": "label",
+      "inputs": {
+        "target": "angle_e",
+        "text": "e=60\u00b0"
+      },
+      "outputs": [
+        "label_e"
+      ]
+    },
+    {
+      "id": "label_A_con",
+      "operator": "label",
+      "inputs": {
+        "target": "angle_A",
+        "text": "A=60\u00b0"
+      },
+      "outputs": [
+        "label_A"
+      ]
+    },
+    {
+      "id": "label_dmin_con",
+      "operator": "label",
+      "inputs": {
+        "target": "emergent_ray",
+        "text": "\u03b4_min=60\u00b0"
+      },
+      "outputs": [
+        "label_dmin"
+      ]
+    },
+    {
+      "id": "label_n_con",
+      "operator": "label",
+      "inputs": {
+        "target": "prism",
+        "text": "n=\u221a3"
+      },
+      "outputs": [
+        "label_n"
+      ]
+    }
+  ],
+  "relations": [],
+  "assertions": [
+    {
+      "id": "assert_apex_angle",
+      "predicate": "angle_between",
+      "entities": [
+        "surface1",
+        "surface2"
+      ],
+      "expected": {
+        "value": 60,
+        "unit": "degree"
+      },
+      "severity": "required"
+    },
+    {
+      "id": "assert_incidence_60",
+      "predicate": "angle_between",
+      "entities": [
+        "incident_ray",
+        "normal1"
+      ],
+      "expected": {
+        "value": 60,
+        "unit": "degree"
+      },
+      "severity": "required"
+    },
+    {
+      "id": "assert_r1_30",
+      "predicate": "angle_between",
+      "entities": [
+        "normal1",
+        "internal_ray"
+      ],
+      "expected": {
+        "value": 30,
+        "unit": "degree"
+      },
+      "severity": "required"
+    },
+    {
+      "id": "assert_r2_30",
+      "predicate": "angle_between",
+      "entities": [
+        "internal_ray",
+        "normal2"
+      ],
+      "expected": {
+        "value": 30,
+        "unit": "degree"
+      },
+      "severity": "required"
+    },
+    {
+      "id": "assert_emergence_60",
+      "predicate": "angle_between",
+      "entities": [
+        "emergent_ray",
+        "normal2"
+      ],
+      "expected": {
+        "value": 60,
+        "unit": "degree"
+      },
+      "severity": "required"
+    },
+    {
+      "id": "assert_snell_1",
+      "predicate": "snells_law",
+      "entities": [
+        "incident_ray",
+        "normal1",
+        "internal_ray"
+      ],
+      "expected": true,
+      "severity": "required"
+    }
+  ],
+  "annotations": [],
+  "requiredEntityIds": [
+    "apex",
+    "base_left",
+    "base_right",
+    "surface1",
+    "surface2",
+    "base",
+    "incident_point",
+    "emergent_point",
+    "incident_ray",
+    "internal_ray",
+    "emergent_ray",
+    "normal1",
+    "normal2",
+    "angle_i",
+    "angle_r1",
+    "angle_r2",
+    "angle_e",
+    "angle_A",
+    "prism",
+    "label_i",
+    "label_r1",
+    "label_r2",
+    "label_e",
+    "label_A",
+    "label_dmin",
+    "label_n"
+  ],
+  "revealGroups": [
+    {
+      "id": "main_scene",
+      "entityIds": [
+        "apex",
+        "base_left",
+        "base_right",
+        "surface1",
+        "surface2",
+        "base",
+        "incident_point",
+        "emergent_point",
+        "incident_ray",
+        "internal_ray",
+        "emergent_ray",
+        "normal1",
+        "normal2",
+        "angle_i",
+        "angle_r1",
+        "angle_r2",
+        "angle_e",
+        "angle_A",
+        "prism",
+        "label_i",
+        "label_r1",
+        "label_r2",
+        "label_e",
+        "label_A",
+        "label_dmin",
+        "label_n"
+      ]
+    }
+  ],
+  "teachingTimeline": [
+    {
+      "action": "reveal",
+      "targetIds": [
+        "main_scene"
+      ]
+    }
+  ]
+}
