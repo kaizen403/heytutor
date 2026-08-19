@@ -5,7 +5,7 @@ import {
 } from "@heytutor/scene-engine";
 import { evaluateMathExpression } from "@heytutor/scene-engine";
 import { tutorDebug } from "./tutorDebug";
-import { inferSceneCapabilities } from "./sceneCapabilities";
+import { inferSceneCapabilities, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
 import { reconcileTurnPlanWithOpticsLaws } from "./opticsPlanAudit";
 
 export interface TurnPlannerV3Options {
@@ -227,10 +227,24 @@ export function explicitDiagramRequest(question: string): boolean {
   return /\b(?:draw|diagram|illustrat(?:e|ion)|sketch|construct|plot|graph|locate|mark|show\s+(?:the\s+)?(?:ray|circuit|figure|geometry|position|image))\b/i.test(question);
 }
 
+/** References an accompanying figure without an explicit draw verb ("as shown in the figure", "the figure shows"). */
+export function referencesFigure(question: string): boolean {
+  return /\b(?:as\s+shown\s+in\s+(?:the\s+)?(?:figure|diagram)|in\s+the\s+(?:figure|diagram)|the\s+(?:figure|diagram)\s+shows|shown\s+in\s+the\s+(?:figure|diagram)|figure\s+below|diagram\s+below|see\s+(?:the\s+)?figure)\b/i.test(question);
+}
+
+/** Pure-concept markers where an honest text-only answer is expected, even if hardware words appear. */
+function isQualitativeConceptQuestion(question: string): boolean {
+  return /\b(?:assertion|reason\s*\(?r?|which\s+of\s+the\s+following|which\s+of\s+these|correct\s+statement|statement(?:s)?\s+(?:is|are)|not\s+true|does\s+not\s+occur|true\s+about)\b/i.test(question);
+}
+
 export function questionRequiresVisual(question: string): boolean {
+  // A qualitative assertion/reason or multiple-choice concept check teaches
+  // text-only; a figure keyword inside it must not force a scene render.
+  if (isQualitativeConceptQuestion(question)) return explicitDiagramRequest(question);
   return explicitDiagramRequest(question) ||
-    inferSceneCapabilities(question).families.length > 0 ||
-    /\b(?:mirror|lens|prism|ray\s+optics|circuit|free[- ]body|force\s+diagram|field\s+line|vector\s+diagram|geometry\s+construction|apparatus|ray\s+diagram)\b/i.test(question);
+    referencesFigure(question) ||
+    sceneFamiliesForceVisualRequirement(inferSceneCapabilities(question).families) ||
+    /\b(?:mirror|lens|prism|ray\s+optics|circuit|free[- ]body|force\s+diagram|field\s+line|vector\s+diagram|geometry\s+construction|apparatus|ray\s+diagram|parabola|ellipse|hyperbola|directrix|eccentricity|foci|latus\s+rectum|tangent\s+to\s+the\s+(?:curve|circle|parabola|ellipse|hyperbola)|normal\s+to\s+the\s+(?:curve|circle))\b/i.test(question);
 }
 
 export function selectTurnPlanV3Consensus(
@@ -862,7 +876,13 @@ function mergeAbortSignals(first: AbortSignal, second: AbortSignal): AbortSignal
   return controller.signal;
 }
 
-const TURN_PLAN_V3_PROMPT = `Return only one compact turn-plan/v3 JSON object. Do not emit prose, pixels, drawing commands, or scene geometry.
+export const TURN_PLAN_V3_VISUAL_GROUNDING =
+  "Set visualRequirement=required when quantities/entities must be located or related in space, even without a draw verb.";
+
+/** Prompt length before the visualRequirement grounding line (chars). Growth must stay ≤ 150. */
+export const TURN_PLAN_V3_PROMPT_BASELINE_CHARS = 2648;
+
+export const TURN_PLAN_V3_PROMPT = `Return only one compact turn-plan/v3 JSON object. Do not emit prose, pixels, drawing commands, or scene geometry.
 
 Required keys: schemaVersion, question, givens, unknowns, derived, qualitativeClaims, lawIds, assumptions, visualRequirement.
 
@@ -874,6 +894,7 @@ Set visualRequirement to:
 - "required" when the user explicitly asks to draw, diagram, sketch, construct, plot, graph, illustrate, locate spatially, or when a faithful visual is necessary to answer the requested task.
 - "optional" when a visual would help but the requested answer remains complete without one.
 - "none" when a visual adds no instructional meaning.
+${TURN_PLAN_V3_VISUAL_GROUNDING}
 
 Copy numeric givens exactly. Derive only values you can justify using named lawIds. Every requested numerical unknown must have a corresponding finite numeric item in derived; solve simultaneous equations completely. Never put null, NaN, infinity, or a symbolic-only equation in a derived value. Put intermediate equations in sourceText or computation on a finite result instead. Every explicit arithmetic expression in sourceText or computation must evaluate to the item's declared value.
 Keep the plan compact enough to finish as valid JSON: givens contains only independent values stated by the question; derived contains every requested numeric answer plus at most four indispensable intermediate scalars; qualitativeClaims contains at most eight claims; assumptions contains at most six strings; each sourceText is at most 180 characters. Do not expand coordinate labels, process endpoints, or repeated multiples into separate quantities when they can be expressed from an original given.
@@ -893,6 +914,6 @@ Required checks:
 - for directional claims, define a coordinate convention and evaluate vector or orientation operations component by component;
 - check qualitative claims against conservation laws, boundary conditions, limiting cases, and each other;
 - keep only assumptions necessary to make the question well-defined;
-- retain visualRequirement=required whenever the question explicitly requests or requires a spatial explanation.
+- retain visualRequirement=required whenever the question explicitly requests a visual, the candidate already set required for a spatial setup, or quantities/entities must be located or related in space.
 
 Use the same required keys and shapes as turn-plan/v3. The question field must contain the submitted question. Return the complete corrected plan, even when the candidate was already correct.`;
