@@ -5,6 +5,9 @@ import {
   planTurnV3,
   questionRequiresVisual,
   selectTurnPlanV3Consensus,
+  TURN_PLAN_V3_PROMPT,
+  TURN_PLAN_V3_PROMPT_BASELINE_CHARS,
+  TURN_PLAN_V3_VISUAL_GROUNDING,
 } from "../src/turnPlannerV3";
 
 const originalFetch = globalThis.fetch;
@@ -65,6 +68,7 @@ try {
   if (capturedPlanLanes.join(",") !== "primary,alternate") {
     throw new Error(`independent turn-plan lanes were not started: ${capturedPlanLanes.join(",")}`);
   }
+  const firstPlanRequestBody = capturedBody;
 
   const audited = await auditTurnPlanV3(question, response.turnPlan, {
     proxyUrl: "http://planner.test",
@@ -231,10 +235,110 @@ try {
 
   if (!explicitDiagramRequest("plot y = x squared")) throw new Error("explicit plot request was not detected");
   if (!questionRequiresVisual("Find the image formed by a concave mirror")) throw new Error("inherently spatial apparatus was not detected");
+  // Figure reference without an explicit draw verb still requires a diagram.
+  if (!questionRequiresVisual("Two blocks are connected by a wire over a smooth pulley as shown in the figure. Find the acceleration.")) {
+    throw new Error("an explicit figure reference was not detected");
+  }
+  // Conic-section geometry is inherently a figure even with no figure keyword.
+  if (!questionRequiresVisual("Let P be the parabola whose focus is (-2, 1) and directrix is 2x + y + 2 = 0.")) {
+    throw new Error("conic-section geometry was not detected");
+  }
+  // A qualitative concept question mentioning a circuit stays text-only.
+  if (questionRequiresVisual("Which of the following statements is true about the electromagnetic wave in a circuit?")) {
+    throw new Error("a qualitative concept question was force-marked as requiring a visual");
+  }
   const fallback = createFallbackTurnPlanV3("Draw a ray diagram");
   if (fallback.visualRequirement !== "required" || fallback.assumptions.length === 0) {
     throw new Error("conservative fallback plan is not auditable");
   }
+
+  if (TURN_PLAN_V3_VISUAL_GROUNDING.length > 120) {
+    throw new Error(`visualRequirement grounding line is too long: ${TURN_PLAN_V3_VISUAL_GROUNDING.length}`);
+  }
+  if (TURN_PLAN_V3_PROMPT.length > TURN_PLAN_V3_PROMPT_BASELINE_CHARS + 150) {
+    throw new Error(
+      `TurnPlanV3 prompt grew too much: ${TURN_PLAN_V3_PROMPT.length} vs baseline ${TURN_PLAN_V3_PROMPT_BASELINE_CHARS}`,
+    );
+  }
+  if (!TURN_PLAN_V3_PROMPT.includes(TURN_PLAN_V3_VISUAL_GROUNDING)) {
+    throw new Error("TurnPlanV3 prompt omitted the visualRequirement grounding line");
+  }
+  if (
+    !TURN_PLAN_V3_PROMPT.includes('"required"') ||
+    !TURN_PLAN_V3_PROMPT.includes('"optional"') ||
+    !TURN_PLAN_V3_PROMPT.includes('"none"')
+  ) {
+    throw new Error("TurnPlanV3 prompt lost the required/optional/none rubric");
+  }
+  const firstRequest = JSON.parse(firstPlanRequestBody) as { messages?: Array<{ content?: string }> };
+  if (!firstRequest.messages?.[0]?.content?.includes(TURN_PLAN_V3_VISUAL_GROUNDING)) {
+    throw new Error("live plan request did not send the visualRequirement grounding line");
+  }
+
+  const bareNounStem =
+    "Two point charges +q and -q rest 2 cm apart. The force on +q equals what value?";
+  if (questionRequiresVisual(bareNounStem)) {
+    throw new Error("bare-noun spatial stem was force-marked required by the pre-filter");
+  }
+
+  const planBareNoun = async (visualRequirement: "required" | "optional") => {
+    globalThis.fetch = async (_input, init) => {
+      capturedBody = String(init?.body ?? "");
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({
+          schemaVersion: "turn-plan/v3",
+          question: bareNounStem,
+          givens: [{ id: "q", symbol: "q", value: 1e-6, unit: "C", provenance: "given" }],
+          unknowns: [{ id: "f", symbol: "F", unit: "N" }],
+          derived: [{
+            id: "f",
+            symbol: "F",
+            value: 9,
+            unit: "N",
+            provenance: "derived",
+            sourceText: "F = 9 N",
+          }],
+          qualitativeClaims: [{ id: "opposite", claim: "charges_opposite", expected: true }],
+          lawIds: ["coulomb"],
+          assumptions: [],
+          visualRequirement,
+        }) } }],
+      }), { status: 200 });
+    };
+    return planTurnV3(bareNounStem, { proxyUrl: "http://planner.test", timeoutMs: 1000 });
+  };
+
+  const requiredBare = await planBareNoun("required");
+  if (!requiredBare || requiredBare.turnPlan.visualRequirement !== "required") {
+    throw new Error("LLM visualRequirement=required on a bare-noun spatial stem was not retained");
+  }
+  const optionalBare = await planBareNoun("optional");
+  if (!optionalBare || optionalBare.turnPlan.visualRequirement !== "optional") {
+    throw new Error("pre-filter force-upgraded a bare-noun stem the model marked optional");
+  }
+
+  const qualitativeStem = "Which of the following statements is true about the electromagnetic wave in a circuit?";
+  if (questionRequiresVisual(qualitativeStem)) {
+    throw new Error("a qualitative concept question was force-marked as requiring a visual");
+  }
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    choices: [{ message: { content: JSON.stringify({
+      schemaVersion: "turn-plan/v3",
+      question: qualitativeStem,
+      givens: [],
+      unknowns: [],
+      derived: [],
+      qualitativeClaims: [{ id: "concept", claim: "wave_is_transverse", expected: true }],
+      lawIds: [],
+      assumptions: [],
+      visualRequirement: "optional",
+    }) } }],
+  }), { status: 200 });
+  const qualitativePlan = await planTurnV3(qualitativeStem, { proxyUrl: "http://planner.test", timeoutMs: 1000 });
+  if (!qualitativePlan || qualitativePlan.turnPlan.visualRequirement !== "optional") {
+    throw new Error("qualitative stem did not remain visualRequirement=optional");
+  }
+
   console.log("turn planner V3 verification passed");
 } finally {
   globalThis.fetch = originalFetch;
