@@ -28,7 +28,7 @@ async function main(): Promise<void> {
     env: {},
   });
   assert(
-    alternateSceneModels[0] === "accounts/fireworks/models/deepseek-v4-flash",
+    alternateSceneModels[0] === "accounts/fireworks/models/deepseek-v4-flash-0731",
     "the alternate scene lane must use an independent fast model family",
   );
   assert(
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
     env: {},
   });
   assert(
-    alternateTurnModels[0] === "accounts/fireworks/models/deepseek-v4-flash",
+    alternateTurnModels[0] === "accounts/fireworks/models/deepseek-v4-flash-0731",
     "an invalid turn plan must be repaired by an independent model family",
   );
   assert(
@@ -194,6 +194,29 @@ async function main(): Promise<void> {
   assert(permanentFailure.response.status === 400, "permanent upstream status must be preserved");
   assert(await permanentFailure.response.text() === "invalid request", "permanent response body must be preserved");
   assert(permanentAttempts === 1, "permanent 4xx responses must not be retried");
+
+  const unavailableThenFallbackModels: string[] = [];
+  const unavailableThenFallback = await fetchPlannerCompletion({
+    apiKey: "test-key",
+    body: {},
+    models: ["retired", "fallback"],
+    maxAttemptsPerModel: 2,
+    fetchImpl: async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as { model: string };
+      unavailableThenFallbackModels.push(body.model);
+      return body.model === "retired"
+        ? new Response("model not found", { status: 404 })
+        : new Response("ok", { status: 200 });
+    },
+    sleep: async () => undefined,
+    url: "https://planner.test",
+  });
+  assert(unavailableThenFallback.response.status === 200, "an undeployed model must reach the next configured model");
+  assert(unavailableThenFallback.model === "fallback", "the successful fallback model must be reported after a 404");
+  assert(
+    unavailableThenFallbackModels.join(",") === "retired,fallback",
+    "a missing model must skip remaining attempts on that id",
+  );
 
   let exhaustedAttempts = 0;
   const exhausted = await fetchPlannerCompletion({
