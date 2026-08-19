@@ -136,7 +136,7 @@ pnpm --filter @heytutor/tutor-core verify
 pnpm --filter @heytutor/tutor verify
 ```
 
-CI runs install, Prisma validate, typecheck, lint, build, and a Docker image smoke test on every push and PR to `main`. Details: [docs/ci-cd.md](docs/ci-cd.md).
+There is no CI — run these checks locally before pushing.
 
 ## Deployment
 
@@ -144,7 +144,7 @@ CI runs install, Prisma validate, typecheck, lint, build, and a Docker image smo
 |---------|----------|--------|
 | Tutor UI | Vercel | Root directory `apps/tutor` |
 | Landing | Vercel | Root directory `apps/landing` |
-| API + WebSocket TTS relay | Azure VM | `server.ts`; GitHub Actions deploy workflow |
+| API + WebSocket TTS relay | Azure VM | `server.ts`; manual deploy via `deploy/azure/deploy.sh` |
 
 Split deploy: set `BACKEND_ORIGIN` on Vercel so `/api/*` proxies to Azure. Full runbook: [docs/ci-cd.md](docs/ci-cd.md). R2: [docs/r2-setup.md](docs/r2-setup.md).
 
@@ -159,7 +159,7 @@ Split deploy: set `BACKEND_ORIGIN` on Vercel so `/api/*` proxies to Azure. Full 
 | [docs/tutor-sync-architecture.md](docs/tutor-sync-architecture.md) | Voice / handwriting sync |
 | [docs/universal-illustration-engine-v4.md](docs/universal-illustration-engine-v4.md) | Illustration engine v4 |
 | [docs/diagram-accuracy-architecture.md](docs/diagram-accuracy-architecture.md) | Verified diagram design |
-| [docs/ci-cd.md](docs/ci-cd.md) | CI and deploy |
+| [docs/ci-cd.md](docs/ci-cd.md) | Deploy runbook |
 
 ## Product constraints (non-negotiable)
 

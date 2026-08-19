@@ -1,33 +1,30 @@
-# CI/CD
+# Deploy
 
-HeyTutor uses **GitHub Actions** for validation and deployment.
+HeyTutor has **no CI**: the GitHub Actions workflows were removed and `main`
+has no required status checks. Validate locally before pushing:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm check    # typecheck + lint + build
+```
 
 ## Architecture
 
 | Target | Platform | Trigger |
 |--------|----------|---------|
 | Tutor frontend (Next.js) | [Vercel](https://vercel.com) | Push to `main` / PR previews (Vercel Git integration) |
-| Tutor API + WebSocket + TTS relay | Azure VM | Push to `main` (paths below) or manual workflow |
+| Tutor API + WebSocket + TTS relay | Azure VM | Manual deploy (below) |
 | Landing site | Vercel | Same as tutor (separate Vercel project, root `apps/landing`) |
 
-## Workflows
+## Backend deploy (manual, on VM)
 
-### `CI` (`.github/workflows/ci.yml`)
+```bash
+cd /opt/heytutor
+git pull origin main
+./deploy/azure/deploy.sh
+```
 
-Runs on every push and pull request to `main`:
-
-1. `pnpm install --frozen-lockfile`
-2. `prisma validate`
-3. `pnpm typecheck`
-4. `pnpm lint`
-5. `pnpm build`
-6. Docker image build smoke test (`deploy/azure/Dockerfile`)
-
-### `Deploy Backend (Azure)` (`.github/workflows/deploy-backend.yml`)
-
-Runs when backend-related paths change on `main`, or manually from **Actions → Deploy Backend (Azure) → Run workflow**.
-
-On the VM it runs `deploy/azure/deploy.sh`:
+`deploy.sh`:
 
 - Starts Postgres via Docker Compose on `127.0.0.1:5433`, with container credentials loaded from `apps/tutor/.env.production` (or derived from its `DATABASE_URL`)
 - Installs deps, builds the tutor monorepo slice
@@ -36,21 +33,7 @@ On the VM it runs `deploy/azure/deploy.sh`:
 
 ## One-time setup
 
-### 1. GitHub secrets (Settings → Secrets and variables → Actions)
-
-| Secret | Description |
-|--------|-------------|
-| `AZURE_DEPLOY_HOST` | VM public IP or hostname |
-| `AZURE_DEPLOY_USER` | SSH user (e.g. `azureuser` or `root`) |
-| `AZURE_DEPLOY_SSH_KEY` | Private key (PEM) for that user |
-
-The repo is expected at `/opt/heytutor` on the VM (see `deploy/azure/setup-vm.sh`).
-
-### 2. GitHub environment
-
-Create an environment named **`production`** (Settings → Environments) and optionally require approval before backend deploys.
-
-### 3. Azure VM (first time)
+### 1. Azure VM (first time)
 
 ```bash
 sudo ./deploy/azure/setup-vm.sh <PUBLIC_IP> https://github.com/kaizen403/heytutor.git
@@ -62,7 +45,7 @@ Because both scripts `source` `.env.production`, keep it shell-compatible: quote
 
 Ensure the VM can `git pull` from GitHub (deploy key or public clone).
 
-### 4. Vercel (frontend)
+### 2. Vercel (frontend)
 
 Connect the GitHub repo in Vercel with:
 
@@ -77,25 +60,3 @@ Set production env vars in Vercel:
 - Landing project: set `VITE_TUTOR_ORIGIN` to the public tutor deployment URL if you are not using the default `https://heytutor.vercel.app` domain.
 
 Vercel deploys automatically on push; no GitHub deploy workflow required for the frontend.
-
-## Local commands (same as CI)
-
-```bash
-pnpm install --frozen-lockfile
-pnpm check    # typecheck + lint + build (same gates as CI)
-```
-
-## Manual backend deploy (on VM)
-
-```bash
-cd /opt/heytutor
-git pull origin main
-./deploy/azure/deploy.sh
-```
-
-## Branch protection (recommended)
-
-On `main`:
-
-- Require **CI / Lint, typecheck, build** to pass before merge
-- Optionally require **CI / Build backend Docker image**

@@ -62,7 +62,7 @@ render.
 - [Universal illustration engine v4](docs/universal-illustration-engine-v4.md)
 - [Verified diagram architecture](docs/diagram-accuracy-architecture.md)
 - [Syllabus capability plan v5](docs/universal-syllabus-capability-plan-v5.md)
-- [CI/CD & deploy](docs/ci-cd.md)
+- [Deploy runbook](docs/ci-cd.md) (no CI — workflows removed, no required checks on `main`)
 
 ## Git authorship
 
