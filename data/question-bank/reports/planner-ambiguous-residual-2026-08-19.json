@@ -1,0 +1,3486 @@
+{
+  "schema": "planner-ambiguous-residual/v1",
+  "generated": "2026-08-19T18:12:01.143Z",
+  "inputs": {
+    "questions": "/Users/kaizen/heytutor/data/question-bank/build/questions.all.jsonl",
+    "syllabus": "/Users/kaizen/heytutor/data/question-bank/build/question-syllabus.jsonl"
+  },
+  "totals": {
+    "measured_diagram_worthy": 1410,
+    "planner_readiness": {
+      "constructive": 509,
+      "qualitative": 88,
+      "ambiguous": 813
+    },
+    "prefilter_required": 918,
+    "residual_optional_ambiguous": 288,
+    "qualitative_false_positives": 4
+  },
+  "residual": [
+    {
+      "question_id": "q_13cfaec944a3d351fa8078f495ebfe5a405fbbc702c33eb97093a14ce5f7fb24",
+      "unit": "maths|10",
+      "stem_truncated": "Let a variable line passing through the centre of the circle x? +? - 16x — 4y =0, meet the positive co-ordinate axes at the points A and B. Then the minimum va…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_1ae5fd54b94eeb78b8b9c801ab50e2b1d88adf0b18294f419537ccbfbd6660d7",
+      "unit": "maths|10",
+      "stem_truncated": "Topic Name:Mathematics-Section B ItemCode:101484 Let the abscissae of the two points P and Q be the roots of 2x7—rx+p=0 and the ordinates of P and Q be the roo…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_3369cf3589fe55001a08d68fc523ded9d7811428c57974926be374189b1f9f46",
+      "unit": "maths|10",
+      "stem_truncated": "√5 Let 𝑂 be the centre of the circle 𝑥 2 + 𝑦 2 = 𝑟 2 , where 𝑟 > 2 . Suppose 𝑃𝑄 is a chord of this circle and the equation of the line passing through \ud835…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_4792a3e5edd7ff7a8a81fee0a8253b2a2844c0cdf3be7d76b7c22710fe870161",
+      "unit": "maths|10",
+      "stem_truncated": "Equation of the circle with AB as its diameter is A) 8 +y?- 12x +24=0 B) XY +y? + 12x+24=0 C) @ +y? + 24x-12=0 D) YX +y?-24x-12=0",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_50b14f769967e2ef0d1b42f40dd7174ec39531217e2e17e6b02179ff1fbd2a37",
+      "unit": "maths|10",
+      "stem_truncated": "Let a circle passing through (2, 0) have its centre at the point (h, k). Let (x,, y,) be the point of intersection of the lines 3x+5y=1 and (2+c)x+5c’y=1. If h…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_674f8bc2d35d25553e28fdd35ee49c2987d5e9d54f5843cee93b6657ccc706f6",
+      "unit": "maths|10",
+      "stem_truncated": "Let C be a circle having centre in the first quadrant and touching the x-axis at a distance of 3 units from the origin. If the circle C has an intercept of len…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_82c9a68d0802a4851007ca82c2185437b2d1b78f103f70ea85e3f40d16ed060e",
+      "unit": "maths|10",
+      "stem_truncated": "Consider a triangle ∆ whose two sides lie on the x-axis and the line 𝑥 + 𝑦 + 1 = 0. If the orthocenter of ∆ is (1, 1), then the equation of the circle passin…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_8efcde05a8b21c0737cd9993f9e0e0aca3f9575a8b7b7e275440518454b2fc46",
+      "unit": "maths|10",
+      "stem_truncated": "Topic Name:Mathematics-Section A ItemCode:101461 Let a circle C touch the lines L, : 4v—3y+K,=0 and L, : 4x—3y+K, =0, K,, K,eR. Ifa line passing through the ce…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_bbcd0f15ab5467326c31030e4606930ab525f6f020955667c6ccc634ea7120a3",
+      "unit": "maths|10",
+      "stem_truncated": "Topic Name:Mathematics-Section A ItemCode:101072 Let C be a circle passing through the points A(2, — 1) and B(3, 4). The line segment AB is nota diameter of C.…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_d8d8fe3f905fbc75132978f5c2ed39c557621a2306ccb5556dd11a238c53dacb",
+      "unit": "maths|10",
+      "stem_truncated": "Inscript Let the centre of the circle x? +} + 2gx + 2f + 25 = 0 be in the first quadrant and lie on the line 2x — y = 4. Let the area of an equilateral triangl…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e27ce82d21cfb086e4985802f8c5d3a507360301c3b4fe6a3474baba473b7151",
+      "unit": "maths|10",
+      "stem_truncated": "Topic Name:Mathematics-Section A ItemCode:101364 Let dy = ax — by +a where a, b, c are constants, represent a circle passing through the dx bx +cy +a _ point (…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_0c481d9b95b78e1869ade2f6b3c843adb5e82cacf374218071628cbd20a79502",
+      "unit": "maths|11",
+      "stem_truncated": "The vector equation of the line passing through the origin and perpendicular to the x y z x y z lines = = and = = is : 1 0 0 0 0 1 ® ® (A) r = l ^i (B) r = l ^…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_14495ed09ccb5319c14de45104398d7d3b42642f4337655078cc3b400e08ad9f",
+      "unit": "maths|11",
+      "stem_truncated": "The vector equation of a line which passes through the points (3, 4, –7) and (1, – 1, 6) is _______. OR The line of shortest distance between two skew lines is…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_14b8a36af5c61e70723ef21f5514c81eae7cae830bbbfcc702c93c9ef755238a",
+      "unit": "maths|11",
+      "stem_truncated": "Find the cartesian equation of the plane passing through the intersection of the planes x + 2y – 3 = 0 and 2x – y + z = 1 and the origin i.e. (0, 0, 0). Also w…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_14f20e24c9702ac1f97059dcf4be17dac0950f3c2e9886b30a25d58dd04adc5e",
+      "unit": "maths|11",
+      "stem_truncated": "— Write the direction cosines of the vector —27 + j — 5k. alae —2i + j — Sk & fee Stare feta | oo",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_1aedc4b57787f72bab21726514637dc4cd55acac4abe63bb71b627b94d87ebd7",
+      "unit": "maths|11",
+      "stem_truncated": "→ ∧ ∧ ∧ → ∧ ∧ ∧ → ∧ ∧ ∧ Find the vector equation of the line passing through (1, 2, 3) and parallel to each of the → ∧ ∧ ∧ → ∧ ∧ ∧ planes r · ( i – j + 2k) = 5…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_24a9f76d892a5c0a5b14ccb71abec996d828a93665d7c0d9d7b794b353b5570a",
+      "unit": "maths|11",
+      "stem_truncated": "Ø²Ö¤ãü (1, 2, 3) ÃÖê ÆüÖêÛú¸ü •ÖÖ®Öê ¾ÖÖ»Öß ˆÃÖ ¸êüÜÖÖ ÛúÖ ÃÖ×¤ü¿Ö ÃÖ´ÖßÛú¸üÞÖ ×»Ö×ÜÖ‹ •ÖÖê ÃÖ´ÖŸÖ»Ö → ^ ^ ^ r · ( i + 2j – 5k) + 9 = 0 ¯Ö¸ü »ÖÓ²Ö Æîü … 1 Writ…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_34a6bd2f544dbbd3b6399f0b327c9e09351c7e81303db66e2e8fb7dcb88731cb",
+      "unit": "maths|11",
+      "stem_truncated": "(a) Find the shortest distance between the lines = = and 3 – 16 7 x – 15 y – 29 z – 5 = = . 3 8 –5 OR (b) Find the point of intersection of the lines ® ^ ^ r =…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_3b998ac75a5fcad0fe37572883dfd3fce00d2f7c17d3defc5d087e882a227471",
+      "unit": "maths|11",
+      "stem_truncated": "se meme wr wer eT ew ar fagat B a wc oe Ret ST 14-5 =2E, —pekami+a+ke ag area, eS stp AGT +s fare fag oe MRCS ET &, See Fake a aT HIT 1 Find the vector equatio…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_3f08b286045f136d3841ed3aaf767685e8c603f32749ac57a04529ea1ae50a7c",
+      "unit": "maths|11",
+      "stem_truncated": "The vector equation of a line which passes through the points (3, 4, –7) and (1, – 1, 6) is _______. OR The line of shortest distance between two skew lines is…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_545c4a473682dbf3723f0839bfcc24f1c4cd496de27ac8006b9e9cc0261fc3a0",
+      "unit": "maths|11",
+      "stem_truncated": "(a) Find the vector equation of the line passing through the point (2, 1, 3) and perpendicular to both the lines x 1 y 2 z 3 x y z ; . 1 2 3 3 2 5 OR (b) The e…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_5cf325e4af71666beb0c6fb03a140be7375a4c42e49db9d0a5189287b4f9d5af",
+      "unit": "maths|11",
+      "stem_truncated": "The direction cosines of vector BA, where coordinates of A and B are (1, 2, 1) and (3, 4, 0) respectively, are : 2 2 1 (a) 2, 2, 1 (b) , , 3 3 3 2 2 1 (c) 2, 2…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_62652fd42daeee73d288f5bce473cb6b0957be94db283613dbf56031df5276f8",
+      "unit": "maths|11",
+      "stem_truncated": "The line L, is parallel to the vector a =—3i+2j+4k and passes through the point (7, 6, 2) and the line L, is parallel to the vector b =2i+j+3k and passes throu…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_787922382577575ac7b3b384efabeac064b883e978b78c161e84956ef2df8e75",
+      "unit": "maths|11",
+      "stem_truncated": "Ø²Ö¤ãü (1, 2, 3) ÃÖê ÆüÖêÛú¸ü •ÖÖ®Öê ¾ÖÖ»Öß ˆÃÖ ¸êüÜÖÖ ÛúÖ ÃÖ×¤ü¿Ö ÃÖ´ÖßÛú¸üÞÖ ×»Ö×ÜÖ‹ •ÖÖê ÃÖ´ÖŸÖ»Ö → ^ ^ ^ r · ( i + 2j – 5k) + 9 = 0 ¯Ö¸ü »ÖÓ²Ö Æîü … 1 Writ…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_813a362e8b571b4f5c29975cb27f4da59eb41dd60f67e766290307d1fc3f04d1",
+      "unit": "maths|11",
+      "stem_truncated": "The vector equation of the line passing through the point (–1, 5, 4) and perpendicular to the plane z = 0 is → ^ ^ ^ ^ ^ (A) r = – i + 5 j + 4k + λ (i + j ) → …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_84c070b0ce7ea3fe5c0d403122fc5156a31cc1099e34611fab8ad0b6a1148166",
+      "unit": "maths|11",
+      "stem_truncated": "The vector equation of the line passing through the point (–1, 5, 4) and perpendicular to the plane z = 0 is → ^ ^ ^ ^ ^ (A) r = – i + 5 j + 4k + λ (i + j ) → …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_909d84b3a1daefcf26d6a0d0446d99b693e721d969c3586fc82310fc11ba9587",
+      "unit": "maths|11",
+      "stem_truncated": "(a) Find: | cos? x elog sin x dy OR . 1 (b) Find: | Sgr de Find the vector equation of the line passing through the point (2, 3, —5) and making equal angles wi…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_9521623553e2e532af59c4d88ccd63befac7f6afaeb17b8029706856015b977b",
+      "unit": "maths|11",
+      "stem_truncated": "→ ∧ ∧ ∧ → ∧ ∧ ∧ → ∧ ∧ ∧ Find the vector equation of the line passing through (1, 2, 3) and parallel to each of the → ∧ ∧ ∧ → ∧ ∧ ∧ planes r · ( i – j + 2k) = 5…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_95ea9ad07cbfa0321c06398b6d24de26c0b72f7b44e4047045b8f11922d78315",
+      "unit": "maths|11",
+      "stem_truncated": "Ø²Ö¤ãü (1, 2, 3) ÃÖê ÆüÖêÛú¸ü •ÖÖ®Öê ¾ÖÖ»Öß ˆÃÖ ¸êüÜÖÖ ÛúÖ ÃÖ×¤ü¿Ö ÃÖ´ÖßÛú¸üÞÖ ×»Ö×ÜÖ‹ •ÖÖê ÃÖ´ÖŸÖ»Ö → ^ ^ ^ r · ( i + 2j – 5k) + 9 = 0 ¯Ö¸ü »ÖÓ²Ö Æîü … 1 Writ…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_9bdd1f17c64fbe4bf6bd947d8f6f4ab2cd52c91c7502f415edeeea26b5958a0e",
+      "unit": "maths|11",
+      "stem_truncated": "If the position vectors of two points A and B are i + 2 j 3k ^ ^ ^ and i 2 j + k respectively, then the direction cosines of the vector BA are : 2 4 4 1 2 2 (a…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_a713bd388ed7e31d847d98bacbd55ef0bab7f52bd34d67adb8c4e1ea799268b4",
+      "unit": "maths|11",
+      "stem_truncated": "Direction ratios of a vector parallel to line =–y= are : 2 6 (A) 2, – 1, 6 (B) 2, 1, 6 (C) 2, 1, 3 (D) 2, – 1, 3 écos x – sin x 0ù",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_b2313509bb571cab7e8f3741158a5d2186fe8534e95edf5fb46d7f6b84ca5555",
+      "unit": "maths|11",
+      "stem_truncated": "(a) Find the vector equation of the line passing through the point (2, 1, 3) and perpendicular to both the lines x 1 y 2 z 3 x y z ; . 1 2 3 3 2 5 OR (b) The e…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_b5cc5af20b427ae5cee41f7a50153fdff4f6ab1ed8d3ef5474eb4bad1aa21ad3",
+      "unit": "maths|11",
+      "stem_truncated": "Cg g_Vb H$m g{Xe g_rH$aU kmV H$s{OE Omo g_Vbm| → → r . (2 ^i + 2 ^j – 3^ k ) = 7, VWm r . (2 ^i + 5 ^ j + 3^ k ) = 9 H$s à{VÀN>oXZ aoIm VWm q~Xþ (2, 1, 3) go h…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_b9232aed9257ec6ba2c05b129018576b3a89516f71c5787014bc0d18b7e64b28",
+      "unit": "maths|11",
+      "stem_truncated": "A vector a of magnitude 14 has direction ratios <2, 3, –6>. Find the ∧ projection of the vector a on i. 2 ∧ ∧ ∧ ∧ ∧",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c5f09a756c62160e173cf37d81d871c9fffeef5ce04e3bca8936c8c9d77a76c7",
+      "unit": "maths|11",
+      "stem_truncated": "WH tar & ara aoe 6x - 2= by +1 = 22-228 | Se te fH aT Wa Ase | UH sea tar & aria an aie aime aa sire a fez (2,-1,-1) 8 dee oie 2 am a Ss ta ATR | awat ateaeit …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c8dc37cf17dee8deda5d52e713aa20c5de7bbb1d20890e9977ac1414e2c4e24d",
+      "unit": "maths|11",
+      "stem_truncated": "The vector equation of a line which passes through the points (3, 4, –7) and (1, – 1, 6) is _______. OR The line of shortest distance between two skew lines is…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_d30fdb416d648ffa1efffed89666d4c877a8ea624112107b10a387f41d52b403",
+      "unit": "maths|11",
+      "stem_truncated": "A vector makes equal angles with positive directions of x, y and z axes. The direction cosines of the vector are : 1 1 1 (A) , , 3 3 3 –1 –1 1 (B) , , 3 3 3 –1…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_d58a9b59f068a2f783246ca802e5b11e47276bb75ccf399f8ee07d574762b2b6",
+      "unit": "maths|11",
+      "stem_truncated": "(a) Find the shortest distance between the lines whose vector equations are : ^ ^ r = ^i + 2 ^j 4 k + (2 ^i + 3 ^j + 6 k ) and ^ ^ r = 3 ^i 3 ^j 5 k + ( 2 ^i +…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_db0d4a01fd9649a5edae7d1ebd02cc9bf9c2f670d5c708acbe73753d484d92e4",
+      "unit": "maths|11",
+      "stem_truncated": "The vector equation of the line passing through the points (0, 0, 2) and (3, – 2, 5) is : ® (A) r = 2 k^ + l (3 ^i + 2 ^j – 5 k^ ) ® (B) r = 2 k^ + l (3 ^i – 2…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e2e1a334dab513dd8ff9cbcf5b02e08b7f3b86663bc059189106643c08beac2a",
+      "unit": "maths|11",
+      "stem_truncated": "The portion of the line 4x +5y=20 in the first quadrant is trisected by the lines L, and L, passing through the origin, The tangent of an angle between the lin…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e52fcb2a3a9c1b4f61aab870cdefa2da75045f3be5c1b241a0cc2a828d4c93d3",
+      "unit": "maths|11",
+      "stem_truncated": "Direction ratios of a vector parallel to line =–y= are : 2 6 (A) 2, – 1, 6 (B) 2, 1, 6 (C) 2, 1, 3 (D) 2, – 1, 3 é tan x 1 ù",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_f00f84f8114a89b99105293dde5f439c9f4cf8bed5ebdb1d393d7fd7f2d37dd0",
+      "unit": "maths|11",
+      "stem_truncated": "The vector equation of the line passing through the point (–1, 5, 4) and perpendicular to the plane z = 0 is → ^ ^ ^ ^ ^ (A) r = – i + 5 j + 4k + λ (i + j ) → …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_f703308ef51d34a1501c50e593ee0401f85ae977ecff5d05c2edbc65369672f4",
+      "unit": "maths|11",
+      "stem_truncated": "→ ^ + λ (^i – 3^j + 2k) → ^ + μ (2^i + 3^j + k). r = (4^i + 5^j + 6k) ^ Find the shortest distance between the lines whose vector equations are given below : →…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_fe7f78bc508cd55b8acb6bfc8dec1e16a8bc9e418dbdf9dd9d7bcf31ddec69c8",
+      "unit": "maths|11",
+      "stem_truncated": "aoImAm| l1 VWm l2, {OZHo$ g{Xe g_rH$aU {ZåZ h¢, Ho$ ~rM H$s Ý`yZV_ Xÿar kmV H$s{OE : → → l1 : r = ^i + ^ j + λ (2 ^i – ^ k ), l2 : r = 2 ^i + ^ j +^ k + µ (3 ^…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_0545b51cb4bb6ccaf676cd109a6a6953fff5a841d5e1b0cab6021a7e1838237c",
+      "unit": "maths|12",
+      "stem_truncated": "A vector of magnitude 14 in the direction of the vector → ^ ^ ^ a = – 2 i + 3 j + 6 k is __________ . Question numbers 16 to 20 are very short answer type ques…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_1641db8889df169c95410946737957b6318586239fc96135cd994bd9f9f22993",
+      "unit": "maths|12",
+      "stem_truncated": "(a) A vector a makes equal angles with all the three axes. If the magnitude of the vector is 53 units, then find a. OR 2s (b) Ifc and are position vectors of t…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_17f2286d2bed81ce69dca919d2ae273c1cd4749c15516b5346d6d56f6eb92169",
+      "unit": "maths|12",
+      "stem_truncated": "Find a unit vector perpendicular to each of the vectors a and b where → ^ ^ ^ → ^ ^ ^ a = 5 i + 6 j – 2 k and b = 7 i + 6 j + 2 k . OR Find the volume of the p…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_46f0592a0ba0328eb16a3837b70f9dff2caf874c23f49c505abed0d12bf61d38",
+      "unit": "maths|12",
+      "stem_truncated": "EH$ _mÌH$ g{Xe {b{IE Omo g{Xem| a = ^i + ^j + ^k VWm b = ^i + ^j XmoZm| Ho$ bå~dV² hmo & → ^ ^ ^ Write a unit vector perpendicular to both the vectors a = i + …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_502e7137d609ea2c9518c911e7a428bec96ee6b6a4f80425351e37682bc09c20",
+      "unit": "maths|12",
+      "stem_truncated": "(a) A vector @ makes equal angles with all the three axes. If the magnitude of the vector is 5/3 units, then find a. OR (b) If@and B are position vectors of tw…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_5ef15b9f9626e6c3fa764340e6b922c568b4a1ec1b6d441fa0b5f59fef42e450",
+      "unit": "maths|12",
+      "stem_truncated": "The unit vector perpendicular to both vectors i + k and i – k is : ^ ^ (A) 2j (B) j ^ ^ ^ ^ i – k i + k (C) (D) 2 2 x –1 2z + 1",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_770b29ceb04b07ee2b8b526323305965c91e3b9f0f5ba920cccb1bffce3881a5",
+      "unit": "maths|12",
+      "stem_truncated": "g{Xem| ( a – b ) Am¡a ( c – b ) XmoZm| Ho$ bå~dV² EH$ _mÌH$ g{Xe kmV H$s{OE Ohm± → ^ ^ ^ → ^ ^ → ^ ^ ^ a = i + 2 j + k , b = 2 i + j VWm c = 3 i – 4 j – 5 k . …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_7ddc6b592a3d453a8d686a8324c4d57eb5cc71773b3c0ef5bd46b3bd89a6e841",
+      "unit": "maths|12",
+      "stem_truncated": "Find a unit vector perpendicular to each of the vectors ( a + b ) and ( a – b ) → ^ ^ ^ → ^ ^ ^ where a = i + j + k , b = i + 2 j + 3 k .",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_823ee05728014347a5d757c2e629fac9a33a087f422f2c9debdf319860daf7c2",
+      "unit": "maths|12",
+      "stem_truncated": "Find | a| and | b|, if | a| = 2| b| and ( a + b) . ( a – b) = 12. OR → Find the unit vector perpendicular to each of the vectors a = 4^i + 3^j + k^ → and b = 2…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_8e5e81b65cd65c5126e6beb374e47d31633bf1003c3f6adcc68ce4e1945d15a2",
+      "unit": "maths|12",
+      "stem_truncated": "Find a unit vector perpendicular to both of the vectors AB and ⎯→ BC , where A, B and C are (3, – 1, 2), (1, – 1, – 3) and (4, – 3, 1), respectively.",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_b0094b4cabe9eb6ab3fc9cbbfa8a32d0e3cb7b13938619506a18f973c3b3e374",
+      "unit": "maths|12",
+      "stem_truncated": "Suppose that P, Gand ? are three non-coplanar vectors in R* Let the components of a vector 3 along p, q and 7 be 4, 3 and 5, respectively. If the components of…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_b5ec53df592791209f6559639c0f523bc3f548bbf4de41bc0b403df55b72a48a",
+      "unit": "maths|12",
+      "stem_truncated": "`{X EH$ {Ì^wO ABC Ho$ erf© A(3, – 1, 2), B(1, – 1, – 3) VWm C(4, – 3, 1) h¢, Vmo {Ì^wO Ho$ g_Vb Ho$ bå~dV² EH$ _mÌH$ g{Xe kmV H$s{OE & Find a unit vector perpe…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c0c64c30d56d806456b428eee5250c992fc8b10ba2eacd7158d69bee62fa74c7",
+      "unit": "maths|12",
+      "stem_truncated": "Find | a| and | b|, if | a| = 2| b| and ( a + b) . ( a – b) = 12. OR → Find the unit vector perpendicular to each of the vectors a = 4^i + 3^j + k^ → and b = 2…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e44744588e6b0eed76f25fdfedba002c080be3ad25747a76353e858dee358b17",
+      "unit": "maths|12",
+      "stem_truncated": "Find a unit vector perpendicular to each of the vectors a and b where → ^ ^ ^ → ^ ^ ^ a = 5 i + 6 j – 2 k and b = 7 i + 6 j + 2 k . OR Find the volume of the p…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_f88a7601a2e2d1f5ec83c33ad600fa405f8c393e51a20dc18f97113f60272f48",
+      "unit": "maths|12",
+      "stem_truncated": "Find | a| and | b|, if | a| = 2| b| and ( a + b) . ( a – b) = 12. OR → Find the unit vector perpendicular to each of the vectors a = 4^i + 3^j + k^ → and b = 2…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_73200294ca2dbba6f5f83ff87de1adf7180c2da09ae7569763a73df8a0b30023",
+      "unit": "maths|14",
+      "stem_truncated": "65/5/3 The principal value of cot! (- = is: (a) -2 (B) -= T Qn @ + o) = If A = [aj is a 3 x 3 diagonal matrix such that aj; = 1, agg = 5 and agg =—2, then |A| …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_098558431bdd1d63e641c162e844d98bf59f03926bdccc745d589c7e6776ec13",
+      "unit": "maths|7",
+      "stem_truncated": "If the radius of the circle is increasing at the rate of 0·5 cm/s, then the rate of increase of its circumference is _____________ .",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_09fe5e0ba0b8bedb059e5227242598bf926d4fd74c58191a60211484e199c166",
+      "unit": "maths|7",
+      "stem_truncated": "Let y = f(x) be a thrice differentiable function in (—5, 5). Let the tangents to the curve y =f (x) at (1, {1)) and (3, (3)) make angles 7/6 and 7/4, respectiv…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_1e11d3fca4d4b80da67c5b1cfe897f0972744a79d9e6ae504c7185aa1462d263",
+      "unit": "maths|7",
+      "stem_truncated": "(a) (b) The median of an equilateral triangle is increasing at the rate of 2/3 cm/s. Find the rate at which its side is increasing. OR Sum of two numbers is 5.…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_2407292ad36e58131243c1f23820cf979029ba3ac0d8197a671900c77d9fec5d",
+      "unit": "maths|7",
+      "stem_truncated": "Topic Name:Mathematics-Section A ItemCode:101475 Let y=y(x) be the solution of the differential equation (x + 1)y’— y=e3%(x + 1)7, with y(0) = \" : . 4 . Then, …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_2b8814bc7443bf3ab260c7c9bd2cff314c38cec137ee1f7d492dd908eab41597",
+      "unit": "maths|7",
+      "stem_truncated": "In the given figure, the energy levels of hydrogen atom have been shown along with some transitions marked A, B, C, D and E. The transitions A, B and C respect…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_339d77d66a2f7c182a3146b4a5d9be8da4fb4ce7ea1be7df0d5ba76f3a9c16bf",
+      "unit": "maths|7",
+      "stem_truncated": "(a) The median of an equilateral triangle is increasing at the rate of 2/3 cm/s. Find the rate at which its side is increasing. OR (b) Sum of two numbers is 5.…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_5ee8432af32a098bc6c6fb7a17dcf60aeeec74b8570fc2cd2a9259bc77d08da8",
+      "unit": "maths|7",
+      "stem_truncated": "If the circumference of circle is increasing at the constant rate, prove that rate of change of area of circle is directly proportional to its radius. 2",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_61996986f91ce8617af997c8d5fb7d52078858c4591583e565bed1685f79bc32",
+      "unit": "maths|7",
+      "stem_truncated": ". : . T : - is continuous at x = 2 k @ A ae Sf af wer ¢ ot fra an afonita 2, x= Pm wom @ k cos x | ak xe tT 3, ae x= a ; 2 . 15. Find the intervals in which th…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_6d4d6498ae872ced58053cb1910cc506c988bcbfe91ced5fd3eac3512d2a498b",
+      "unit": "maths|7",
+      "stem_truncated": "If the radius of a circle is increasing at the rate of 0.5 cm/s, then the rate of increase of its circumference is : (A) 2 p cm/s (B) p cm/s 3 (C) 4 p cm/s (D)…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_78d5e2ea864126d6cf4f67b887dcddae83e4939208d05a88a3d04797b89020fa",
+      "unit": "maths|7",
+      "stem_truncated": "65/7/3 & B fe 2x-1 3x 12 Tf | = * #6 2s , then the value of (x — y) is: 0 y?-1 0 (A) 2or10 (B) -—2or10 (C) 2or-—10 (D) -2or-—10 Edge of a variable cube increas…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_9b10428c879399f7dfd4684672c92ea3ea21ba5714a8126a272a8dc8f24159bc",
+      "unit": "maths|7",
+      "stem_truncated": "If the radius of a circle is increasing at the rate of 0.5 cm/s, then the rate of increase of its circumference is : (A) 2 p cm/s (B) p cm/s 3 (C) 4 p cm/s (D)…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_a608641050007e633d7a9a9b35c44841fa6fc0c27a9bcacef26968550e797ce9",
+      "unit": "maths|7",
+      "stem_truncated": "‹Ûú ÃÖ´Ö²ÖÖÆãü ×¡Ö³Öã•Ö Ûúß ³Öã•ÖÖ 2 ÃÖê´Öß/s Ûúß ¤ü¸ü ÃÖê ²ÖœÌü ¸üÆüß Æîü … ‡ÃÖÛêú õÖê¡Ö±ú»Ö Ûúß ¾Öé×¨ü Ûúß ¤ü¸ü ŒµÖÖ Æîü •Ö²Ö ³Öã•ÖÖ Ûúß »Ö´²ÖÖ‡Ô 20 ÃÖê´Öß Æ…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_a6cd97177a285b24eed49e7f08e0e9144c07d971143d0c314d6451fb305c0888",
+      "unit": "maths|7",
+      "stem_truncated": "3 Let fbe a differentiable function on R such that f(2) = 1,f'(2)=4. Let lim (f (2 + x) =e\", x0 Then the number of times the curve y= 4x — 4x2—4(a—7) x—a meets…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_aa91c3b01a60115f5faa619a921e5b1f454785ed998a9413276a4827f9a97530",
+      "unit": "maths|7",
+      "stem_truncated": "we fares & rates at & x feenfial & fae Ages coat a UM St aT =I C(x) = 0-005x® - 0-02x? + 30x + 50 ERI yea @ | ale dia arma (marginal cost) et OI & aftada At x …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_b46f4dce8f0c04dec679b722bb615d21fc4663d3d3d23c8d0f3ad1df39863037",
+      "unit": "maths|7",
+      "stem_truncated": "Let f be a real-valued differentiable function on R (the set of all real numbers) such that f(1) = 1. If the y-intercept of the tangent at any point P(x, y) on…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c2670c6c2b5c5bb48fc995f043333c6f4e1063aa52ada23b68563f03237fcc97",
+      "unit": "maths|7",
+      "stem_truncated": "If the radius of the circle is increasing at the rate of 0·5 cm/s, then the rate of increase of its circumference is _____________ . 2x –9 –4 8",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_dc2f4d3771846b1a4448db82c0e775e80106d268bfb28df19d282bc2d6c97188",
+      "unit": "maths|7",
+      "stem_truncated": "If equal sides of an isosceles triangle with fixed base 10 cm are increasing at the rate of 4 cm/sec, how fast is the area of triangle increasing at an instant…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_ec03ad62d09332143fe15b05271391bed9c5fd987a42fc9be32042b40268a82c",
+      "unit": "maths|7",
+      "stem_truncated": "If the radius of the circle is increasing at the rate of 0·5 cm/s, then the rate of increase of its circumference is _____________ . ⎡ 2 ⎤ ⎢ ⎥",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_f99f5059e818ec9b93696ff9a63c3e58e39348d9413201aee1faa48fa0a4ff3a",
+      "unit": "maths|7",
+      "stem_truncated": "Examine the applicability of Rolle’s theorem for the function f(x) = sin 2x in [0, π]. Hence find the points where the tangent is parallel to x-axis.",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_07bf019e5c165d020068094e68d122a0b7b531efb1a2491def1ccade39180236",
+      "unit": "maths|8",
+      "stem_truncated": "Let Y= Y(X) be a curve lying in the first quadrant such that the area enclosed by the line Y-y = Y' (x)(X— x) and the co-ordinate axes, where (x, y) is any poi…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_12bf674ba0f3a80122e98d7152a4566eb7837d4a21b78747842657887bd7fb2e",
+      "unit": "maths|8",
+      "stem_truncated": "The area of the shaded region of the circle given below is equal to : 3 3 (A) ∫ 9 – y dy 1 2 (B) 2 ∫ 9 – y dy 1 2 b 3 3 (C) ∫ 0 9 – x 2 dx (D) 2 ∫ 0 9 – x 2 dx",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_1a40a77fcdc99038b0cb37fcd46b397d15ca2a26962498a2ed5b3f9c853961df",
+      "unit": "maths|8",
+      "stem_truncated": "The area bounded by the curve x = y , y-axis and the lines y = 3 and y = 4 is : 74 37 (A) sq units (B) sq units 3 3 (C) 74 sq units (D) 37 sq units",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_239d19afde0136ae2fa40b5cca7c7aaabb7dd5932a183faece85fa315a7ce2fe",
+      "unit": "maths|8",
+      "stem_truncated": "The area of the shaded region of the circle given below is equal to : 3 3 (A) ∫ 9 – y dy 1 2 (B) 2 ∫ 9 – y dy 1 2 3 3 (C) ∫ 9 – x dx 0 2 (D) 2 ∫ 9 – x dx 0 2 dy",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_334fc40761830cf433ef5d89a72b50e61529ad8d70c31fba83ae5ea6f0bd7f84",
+      "unit": "maths|8",
+      "stem_truncated": "Topic Name:Mathematics-Section A ItemCode:101070 ___ The area bounded by the curve y=|x?—9| and the line y=3 is: Question: “ 4(2V3 + V6 - 4) * a(4V3 + V6 - 4) …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_42d1b2b77f27dd89a25e14ccaaec755837b391f68e2126f8f2c0ec795d346ae3",
+      "unit": "maths|8",
+      "stem_truncated": "The area bounded by the curve y = x| x |, x-axis and the ordinates x = –1 and x = 1 is given by 1 1 (A) 0 (B) 3 2 4 (C) (D) 3 3 dx",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_58469d89410078c413a83ed10810c449424339ff56e7168815666b8fd0222f88",
+      "unit": "maths|8",
+      "stem_truncated": "(क) ाि क जए : ∫ sin3 x . cos4 x dx अथवा (ख) मान ाि क जए : 1 ∫ –2 |x3 – x| dx 65(B)/S Page 18 of 27 g # → ^ ^ → ^ ^ (b) Let a = 2 i + 3 ^j + 4 k , b = 4 i – 3 ^…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_6e403e14dec298447cdc93c1d012692368bc78bfa2ffa60a9a5da6fe4127461e",
+      "unit": "maths|8",
+      "stem_truncated": "The area of the region bounded by the curve y = max }|x|, x|x — 2|}, the x-axis and the lines x =—2 and x = 4 is equal to 1",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_73eeab3360c936bd0f7972d475d156b56076b0c8e501a2bb0b60ff8928c69570",
+      "unit": "maths|8",
+      "stem_truncated": "If the area of the region bounded by the line y = mx and the curve x2 = y 32 is sq. units, then find the positive value of m, using integration. 3 3 ^ ^ ^ ^ ^ …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_7f4dc125c9ea21bbb3029348673b9c0d95c7d2a88c74e922467cdfa6e0e67951",
+      "unit": "maths|8",
+      "stem_truncated": "The area of the region bounded by the curve y = x and x-axis, between x = 0 and x = 2 is : 1 (A) 2 sq. units (B) sq. unit 2 (C) 1 sq. unit (D) 4 sq. units",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_80b0e16b460933f4d3b70e59e22a4cabf2c42dbce20165fd298c8f2b8319c5cc",
+      "unit": "maths|8",
+      "stem_truncated": "The area of the region bounded by the curve y* = x between x = 0 and x=lis:",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_94140b13d0ec8625b268314336b0842be3a962305e047dd39371febc198b0638",
+      "unit": "maths|8",
+      "stem_truncated": "Topic Name:Mathematics-Section A ItemCode:101766 The area enclosed by y7=8x and y= V2 x that lies outside the triangle formed by onsna: V2 x, x =1,y =2V2, is e…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_9d3ce99baf01fe8e92e31bf1dda5628f3b3959abf16ad58a460e6c490fbdd115",
+      "unit": "maths|8",
+      "stem_truncated": "The area enclosed by the curve y = 4 – x2 and the coordinate axes in the first quadrant is : (A) 2p sq. units (B) p sq. units π (C) sq. units 2 (D) 4p sq. units",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_ad203e21b80d0243dd2fed7fd1d02ea9b85b4738129b2098f5fa48be233bc386",
+      "unit": "maths|8",
+      "stem_truncated": "The area bounded by the curve y = Vx , Y-axis and between the lines y =0 andy=3is: (A) 2V3 (B) 27 (C) 9 (D) 3",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_b28345861c4cc8451fa4220d34d8ec00ef221634ce7f600fd27ef7871c0cf50b",
+      "unit": "maths|8",
+      "stem_truncated": "The area of the region bounded by the curve y = x and x-axis, between x = 0 and x = 2 is : 1 (A) 2 sq. units (B) sq. unit 2 (C) 1 sq. unit (D) 4 sq. units ⎧ si…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_bb5b8a5ac67a128a456852f7399267292182981278a40360f6fddbeac2cbdbaa",
+      "unit": "maths|8",
+      "stem_truncated": "The area of the region bounded by the curve y” = x between x = 0 and x=lis:",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_bf3302e0d80445636f91fa5bc1e250f1f8abaec3f60df1819fcd1807931d10cd",
+      "unit": "maths|8",
+      "stem_truncated": "If the area bounded by the curve 2y” =3w, lines x +y=3, y=0 and outside the circle (x ar +y” =2 is A, then 4(7 +44) is equal to . 10",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_bf9b95334afc520b3c418b178113ff6f8faebfe5de6b09f9cab4e4c67e94928a",
+      "unit": "maths|8",
+      "stem_truncated": "Area of the region bounded by the curve y=e* and lines x=0 and y=e is (A) e-1 (B) [in(e+1-y)dy i 1 e (C) e-|e* dx (D) | Inydy ry 1 Answer y ) @ (A) (B) (CG) (D)",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_da8f7201619e53fa2d9349b861f6b16074a777de8ea4f41f1fb44e51df258840",
+      "unit": "maths|8",
+      "stem_truncated": "The area bounded by the curve y = f(x) and the lines x = 0, y = 0 and x = t, lies in the interval 8 21 11 21 A) (F] B) | Ga’1e C) (9,10) D) (0.51",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_928223eb2c8d6598da4dfe1539053ae97f1c5aa062975f198d77dee1c1b3fad3",
+      "unit": "maths|9",
+      "stem_truncated": "Find a vector of magnitude 4 units perpendicular to each of the vectors A ai ; +kandi+ ; —k and hence verify your answer. Find the particular solution of the d…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_124f4077824cf8a3cfffd4e817d28280d2aacaa463ba79df6ba4e3be7a933da0",
+      "unit": "physics|10",
+      "stem_truncated": "The time period of simple harmonic motion of mass M in the given figure is nt rs . Where the value of a is : 1",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_184d5dc8ba95d0b73f0eec55b6183de923cbefaf6adcd67bab335fac9e291c30",
+      "unit": "physics|10",
+      "stem_truncated": "Topic Name:Physics-Section A TtemCode:101008 Time period of a simple pendulum in a stationary lift is ‘T’. If the lift accelerates with : vertically upwards th…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_197dba5fda05aa8465c8ee159cc199bf31426ceec6f4db261e34c221255648ca",
+      "unit": "physics|10",
+      "stem_truncated": "Arigid dipole undergoes a simple harmonic motion about its centre in the presence of an electric field E 1= Eo x . If another electric field E » =2Eo (y + 2) i…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_504cd3ff86deb7e66fdabf41c95bf46f9eea540d92a4baa555468e2674af02b1",
+      "unit": "physics|10",
+      "stem_truncated": "x The equation of a plane progressive wave is given by y =5 cos {200 x) where x and y are in cm and f is in second. The velocity of the wave is m/s. Options : …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_ad3edae5fe820afdbf68ec720b4706ae3a1127605284ff98571182567e31881d",
+      "unit": "physics|10",
+      "stem_truncated": "A plane progressive wave is given by y=2cos2r(330t-x) m. The frequency of the wave is : Options: 878270220273, 00 Hz 878270220274, °40 Hz 878270220275, 990 Hz …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_edc837b0daae060ea10480569a0a1c3388215c518f73c133c01393e6e9565f5c",
+      "unit": "physics|10",
+      "stem_truncated": "A wooden block performs SHM on a frictionless surface with frequency, vo. The block carries a charge +Q on its surface. If now a uniform electric field E is sw…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_0972e80df9de09d7b49426a710b7adc9efaf7320c70688a08e03a7c97dc135a2",
+      "unit": "physics|11",
+      "stem_truncated": "An electric dipole of dipole moment P is kept in a uniform electric field > E. The amount of work done to rotate it from the position of stable equilibrium to …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_0cedb68f429c3604de39245fe20c044888bd1a56c3ac1e5c2634b7825cb0e682",
+      "unit": "physics|11",
+      "stem_truncated": "If the net electric flux through a closed surface is zero, then we can infer 1 (A) no net charge is enclosed by the surface. (B) uniform electric field exists …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_0e0319234a1bec02b9fa147bf9a30176f51070ab02404e73b5f3284f74b2783e",
+      "unit": "physics|11",
+      "stem_truncated": "An electric dipole with dipole moment → P = (2·54 % 10−28 C.m) (2·00 ^i + 3·00 j ) is placed in an electric field ^ → ⎛ N⎞ E = ⎜ 1000 ⎟^i . An external agent t…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_12ab1ca4dfb9b06fd81dfd1b306a62f81fc56cd372736861e7a1f625c315b292",
+      "unit": "physics|11",
+      "stem_truncated": "Depict the orientation of an electric dipole in (a) stable and (b) unstable equilibrium in an external uniform electric field. Write the potential energy of th…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_1aa645320312fcb32f7493e749c79a9e41ffca6a087d1bd1e02833d60b0bbe6e",
+      "unit": "physics|11",
+      "stem_truncated": "(a) Depict the equipotential surfaces for a system of two identical positive point charges placed a distance ‘d’ apart. (b) Deduce the expression for the poten…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_1ece857ac0ab5d66d138f983b58da65111c5b1f202f1ec9ff05a302b2e9d7a14",
+      "unit": "physics|11",
+      "stem_truncated": "A parallel plate capacitor has two parallel plates which are separated by an insulating medium like air, mica, etc. When the plates are connected to the termin…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_2c1223d6b4baa00bff71e65c769ecb8bd5ddf41e810a5b239fdebcc96c225c56",
+      "unit": "physics|11",
+      "stem_truncated": "(a) 3 55/1/2 8 (a) Write two properties by which electric potential is related to the electric field. (b) Two point charges q1 and q2, separated by a distance …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_2ca04c19e444bf1f58d09ed4d5785c0a02a5834f5fb0dc10e7c98bfb4b484a92",
+      "unit": "physics|11",
+      "stem_truncated": "A parallel plate capacitor is filled equally(half) with two dielectrics of dielectric constants €,and &, , as shown in figures. The distance between the plates…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_2db76f6540f561bfec327ecfbef0a20cffa24689241ed0e70a95860ba7fdef2a",
+      "unit": "physics|11",
+      "stem_truncated": "An electric field, E = ae Sats passes through the surface of 4 m? area having unit vector 7 = | ae | . The electric flux for that surface iss Vm. \\ V6 1",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_2e477f7b2980a5a56756b9cd2edd215f6dfd4173cf4b1ff6dc17b82ee2d3cea6",
+      "unit": "physics|11",
+      "stem_truncated": "An electric dipole of dipole moment is 6.0x10°Cm placed in a uniform electric field of 1.5x10°NC in such a way that dipole moment is along electric ~~ The work…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_34c3a25de42783ab9507f45801b8b9e4a390a6d9d1841834566ff3f3218e5cc2",
+      "unit": "physics|11",
+      "stem_truncated": "An electric dipole with dipole moment P = P0 i P0 j is placed in an ^ ^ electric field E = E1 i + E2 j , where P0, E1 and E2 are constants. The torque acting o…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_36d562756a94cdf64f1172a4addd658528b73bd293bbcfb4b5d78062d7b4b75a",
+      "unit": "physics|11",
+      "stem_truncated": "(a) {H$gr ~mø {dÚwV²-joÌ _| EH$ {ZH$m` ({gñQ>_) Ho$ Xmo Amdoe q1 VWm q2, H«$_e: → → r1 VWm r2 na pñWV h¢ & Bg {ZH$m` H$s pñW{VO D$Om© Ho$ {bE ì`§OH$ àmßV H$s{O…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_38a75b59eb0a6a4573302859cf6157aa435afff8ae132e46481e9af0f5433946",
+      "unit": "physics|11",
+      "stem_truncated": "A dipole with two electric charges of 2 wC magnitude each, with separation distance 0.5 um, is placed between the plates of a capacitor such that its axis is p…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_3c6d9d96ae6627425e236671cf4b88bc40ee77a60e8fd318ba99866a3eac2d96",
+      "unit": "physics|11",
+      "stem_truncated": "Electrostatics deals with the study of forces, fields and potentials arising from static charges. Force and electric field, due to a point charge is us to find…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_3ce5191361dfcdce6c25ed409a8f1864267c17532c45b305ed14b8cf0ab3fed0",
+      "unit": "physics|11",
+      "stem_truncated": "Xmo YZmË_H$ Amdoe EH$-Xÿgao go Hw$N> Xÿar na pñWV h¢ & BZHo$ H$maU {dÚwV²-joÌ aoImAm| H$m {MÌU H$s{OE & 1 Depict the electric field lines due to two positive c…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_3f841976e0ae33782833d81d706d7ab829bf9234d652aa080a127a8cf7da8cdc",
+      "unit": "physics|11",
+      "stem_truncated": "Xmo YZmË_H$ Amdoe EH$-Xÿgao go Hw$N> Xÿar na pñWV h¢ & BZHo$ H$maU {dÚwV²-joÌ aoImAm| H$m {MÌU H$s{OE & 1 Depict the electric field lines due to two positive c…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_411a0841f1b32cfb43a5d73a9f38bca315a8914ba6809908ce251428170de4a0",
+      "unit": "physics|11",
+      "stem_truncated": "A parallel plate capacitor of capacitance C is charged to V volt by a battery. After sometime the battery is disconnected and the distance between the plates i…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_487f8c5cf672cfcbdd3659015a4793ecdf3551380c2be80ca6e472d8b721e254",
+      "unit": "physics|11",
+      "stem_truncated": ", λ , 3+2 3+2 (a) State Gauss’ law. Using this law, obtain the expression for the electric field due to an infinitely long straight conductor of linear charge …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_494c4c2d88eff066373f65bd62c873b802dc5f0378f45ff34db8f1698edfd52b",
+      "unit": "physics|11",
+      "stem_truncated": "@lg Glelt Hatt Hr Faen Sle S| feet wets Ht Hatt set srrafs a Pk crt @ | Se STAT Srrafa wr vera Peat ag H ys Wl STAT HUTT @, a Ta yes S wlelectaeia satin etd S …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_49c77e9ba002f0a15e721ed081ab320bde906922fec0f3c35a5a78505eb9f5f6",
+      "unit": "physics|11",
+      "stem_truncated": "d¡ÚwV A{^dmh H$s n[a^mfm Xr{OE & BgH$m SI _mÌH$ {b{IE & JmCg Ho$ {Z`_ H$m Cn`moJ H$aHo$ {H$gr AZÝV bå~mB© Ho$ EH$g_mZ Amdo{eV grYo Vma Ho$ H$maU {dÚwV²-joÌ Vrd…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_4a3694cace6a87006f9c989dbf4787848909395457920616e042d0c6def71748",
+      "unit": "physics|11",
+      "stem_truncated": "S>r.gr. (d.c.) ~¡Q>ar go Omo‹S>Zo na {H$gr g_mÝVa n{Å>H$m g§Ym[aÌ Ho$ Amdo{eV hmoZo Ho$ àH«$_ H$mo g§jon _| ñnîQ> H$s{OE & {H$gr g§Ym[aÌ H$s Ym[aVm ‘C’ h¡ & EH…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_4c873b691ea3a9cbbf6e2d065fdb2a1eb94dd491906d6fcf019f052b45b568cd",
+      "unit": "physics|11",
+      "stem_truncated": ", λ , 3+2 3+2 55/1 12 (a) State Gauss’ law. Using this law, obtain the expression for the electric field due to an infinitely long straight conductor of linear…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_5169dbaf5f93ba11472525f0acb1177c42f66aa4b4b3cbf9fae6dbb4ea3815bb",
+      "unit": "physics|11",
+      "stem_truncated": "A parallel plate air capacitor has a capacitance C. When it is half filled as show in figure with a dielectric constant K=5, the percentage increase in the cap…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_516aea38855daf13990121aab56992f66e9f45d29461fc6f70f25791f67078ed",
+      "unit": "physics|11",
+      "stem_truncated": "An electric dipole of dipole moment (p)is kept in a uniform electric field E. Show graphically the variation of torque acting on the dipole (t) with its orient…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_56a831e4108c2ebb61b8d8b158ed5a9c287f605c3ed39988f523821f43b3787a",
+      "unit": "physics|11",
+      "stem_truncated": ", λ , 3+2 3+2 (a) State Gauss’ law. Using this law, obtain the expression for the electric field due to an infinitely long straight conductor of linear charge …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_56c0f7f1d4ba28a3af72d3b779defc383d68c0eedd79246605f228b6c07d21f5",
+      "unit": "physics|11",
+      "stem_truncated": "feat aga faye & faye areet at cfern fafa | ar ae afer g ao afew ? 1 Define dipole moment of an electric dipole. Is it a scalar or a vector ? 55/2/1 4",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_56c3425da172e40ec0f8e3593188c2ac674df4e1e5ad44208750cdd25633c2c8",
+      "unit": "physics|11",
+      "stem_truncated": "(a) {H$a˜mo\\$ Ho$ {Z`_m| H$mo {b{IE VWm ñnîQ> H$s{OE {H$ `o {H$g AmYma na VH©$g§JV h¢ & (b) Xmo gobm| Ho$ {dÚwV²-dmhH$ ~b (B©.E_.E\\$.) H«$_e: E1 VWm E2 h¢ Am¡a…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_59288ce98f03c8c772263c05aca69c0ef4ad6086ae52be67b57bd67bbd539da5",
+      "unit": "physics|11",
+      "stem_truncated": "(a) {H$gr ~mø {dÚwV²-joÌ _| EH$ {ZH$m` ({gñQ>_) Ho$ Xmo Amdoe q1 VWm q2, H«$_e: → → r1 VWm r2 na pñWV h¢ & Bg {ZH$m` H$s pñW{VO D$Om© Ho$ {bE ì`§OH$ àmßV H$s{O…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_5c479ec6623273e83b2da68e932a674812379123808fe189e6bd623eb273b8d7",
+      "unit": "physics|11",
+      "stem_truncated": "(a) Twelve negative charges of same magnitude are equally spaced and fixed on the circumference of a circle of radius R as shown in Fig. (i). Relative to poten…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_5e1d4b4afe77bccd5ac5cbecc2ceedbcd57b3cd5b5380ed53704c845875ddcb3",
+      "unit": "physics|11",
+      "stem_truncated": "A medium having dielectric constant K >1 fills the space between the plates of a parallel plate capacitor. The plates have large area, and the distance between…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": true,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_5fc2066ef3564d9e1cc764b6da7b066a710fe8b2af68a0c61685ce71b2126c18",
+      "unit": "physics|11",
+      "stem_truncated": "A parallel plate capacitor consists of two conducting plates kept generally parallel to each other at a distance. When the capacitor is charged, the charge res…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_63f98a4dd2d0b37c46a28f9b90141300f169878231ec2d4972093404ff17c988",
+      "unit": "physics|11",
+      "stem_truncated": "A parallel plate capacitor, each with plate area A and separation d, is charged to a potential difference V. The battery used to charge it is then disconnected…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_64fca6a4020a69c1d8dc173b4125afad0ed04b798368cfe3b0290214014f743e",
+      "unit": "physics|11",
+      "stem_truncated": "a¡{IH$ Amdoe KZËd + λ1 H$m H$moB© bå~m Amdo{eV ~obZ a¡{IH$ Amdoe KZËd − λ2 Ho$ {H$gr ImoIbo g_mj MmbH$ ~obZ go {Kam hþAm h¡ & JmCg {Z`_ H$m à`moJ H$aHo$ (i) Xm…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_66b79a39e484d23bd1277cdea4dcedef46d2c996930d90f2c704d114e0eb6598",
+      "unit": "physics|11",
+      "stem_truncated": "(a) Deduce the relation between the electric field (E) at a point due to a charge Q and (i) the force F on a charge q placed at that point. (ii) the potential …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_6a3cd1fba949bb2cd155c6ab3825b710e0ad44666cfe6e206764939f0e66c6fc",
+      "unit": "physics|11",
+      "stem_truncated": "(a) {H$gr ~mø {dÚwV²-joÌ _| EH$ {ZH$m` ({gñQ>_) Ho$ Xmo Amdoe q1 VWm q2, H«$_e: → → r1 VWm r2 na pñWV h¢ & Bg {ZH$m` H$s pñW{VO D$Om© Ho$ {bE ì`§OH$ àmßV H$s{O…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_6a5a0d7a301c748390a227481471e7280fd532eceda3b162b8bec261430dd03f",
+      "unit": "physics|11",
+      "stem_truncated": "An electric dipole of dipole moment 1·0 × 10 12 Cm lies along x-axis. An electric field of magnitude 2·0 × 104 NC 1 is switched on at an instant in the region.…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_6b1dd73b5e32b0b3598e3f1cf21ac82862b64425ddc25105a3034d58b5f14035",
+      "unit": "physics|11",
+      "stem_truncated": "The electric field due to a short electric dipole at a large distance (r) from center of dipole on the equatorial plane varies with distance as : Options: S 36…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_6b9ec8d2980f83094506fe4f91d7979a81eceb441a9c38a162d325740443e9d0",
+      "unit": "physics|11",
+      "stem_truncated": "Two co-axial conducting cylinders of same length ℓ with radii √2𝑅 and 2𝑅 are kept, as shown in Fig. 1. The charge on the inner cylinder is 𝑄 and the outer c…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_6c39099c9a0a56b3cee9936cc99caf844993a9c1356a02eeb3b1e87fcad636ec",
+      "unit": "physics|11",
+      "stem_truncated": "A parallel plate capacitor consists of two conducting plates kept generally parallel to each other at a distance. When the capacitor is charged, the charge res…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_7597b37962d0e13d9f7f2a7e6703780b61a12ed3b149c64ad1cc1c0f18e969bd",
+      "unit": "physics|11",
+      "stem_truncated": "55/1/3 8 (a) Write two properties by which electric potential is related to the electric field. (b) Two point charges q1 and q2, separated by a distance of r12…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_75cec195eb70a837c2405957b08dd4e534592e25519862cbade01adc1e1a634e",
+      "unit": "physics|11",
+      "stem_truncated": "An electric dipole consisting of charges + q and – q separated by a → distance L is in stable equilibrium in a uniform electric field E . The electrostatic pot…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_78367e4678520f20c5ccdf372fe60fac2d9db3f4ff22bd9ab612cb75e492d5d7",
+      "unit": "physics|11",
+      "stem_truncated": "A parallel plate capacitor consists of two conducting plates kept generally parallel to each other at a distance. When the capacitor is charged, the charge res…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_7a85a779acd613396983caad67b98d5824d6e3d59ec80ea0a245c057d7d08200",
+      "unit": "physics|11",
+      "stem_truncated": "Two point charges q1 = 2·5 × 10–7 C and q2 = – 2·5 × 10–7 C are located at points (0, 0, – 15 cm) and (0, 0, 15 cm) respectively. Find : (a) the electric dipol…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_7b35d38084fae67c31e9398d6b124055becaae39c098feac3cdf55c9610935aa",
+      "unit": "physics|11",
+      "stem_truncated": "Topic Name:Physics-Section A ItemCode:501148 If the electric potential at any point (x, y; z) m in space is given by Y= 3x~ volt. Question; The electric field …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_7c9388ccd8c620e487133b785ff7bd706e5947731e84a592209a595692d7599d",
+      "unit": "physics|11",
+      "stem_truncated": "(a) An electric dipole of dipole moment p is placed in a uniform → electric field E at an angle θ with it. Derive the expression for → torque ( τ ) acting on i…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_7e9fa8f838cf776932fa9eca2cdf3bb6f7ed9b922f15e94ae0bba50e43af24ad",
+      "unit": "physics|11",
+      "stem_truncated": "Torque acting on an electric dipole placed in an electric field is maximum when the angle between the electric field and the dipole moment is _______. 1 Answer…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_7fa8cb6a334f7dbde7d6008748f49370c7e27c6bc0482f403e7567c128b01e75",
+      "unit": "physics|11",
+      "stem_truncated": "(b) 2255/5/2 When a dielectric slab is inserted between the plates of an isolated charged capacitor, the energy stored in it : (A) increases and the electric f…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_801d173b47234d3664c73c3f4e458432dca4cfd1331e2b9cabb19bfb7b3beed3",
+      "unit": "physics|11",
+      "stem_truncated": "An electric dipole of dipole moment 2 x 10-° C-m in a uniform electric field experiences a maximum torque of 6 x 10-N-m. The magnitude of electric field is 1 (…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_84a74b31c3d11a4f8032b7c5d8b7cfdd3544fc57cb2075aca0def9e537cd278c",
+      "unit": "physics|11",
+      "stem_truncated": "Explain the underlying principle of working of a parallel plate capacitor. If two similar plates, each of area A having surface charge densities and are separa…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_85b88ca8a3af57b1d53585e86a068a02731e0e2ac569c6ebecd30e0278df62e6",
+      "unit": "physics|11",
+      "stem_truncated": "The equivalent capacitance of the combination shown is Cc ‘ (; C {* _I T | Options: © 3666949831. 7 5 ZC 3666949832. > 2C 3666949834. we",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_86322955112af693e54f7791d359f57ee41de61ce9519c632dd7655903e818d0",
+      "unit": "physics|11",
+      "stem_truncated": "(a) (i) An electric dipole is held in a uniform electric field E → such that its axis makes an angle θ with E . Show that the dipole does not undergo any trans…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_896d8c6716ef96e477a37896a9d14dd82d746d1705627e0861b03a65237a9b58",
+      "unit": "physics|11",
+      "stem_truncated": "Why can two electric field lines never cross each other ? 1",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_8b2ee316e9ecb704349d32b73476d83c65fb8e2e22d80f0dc664d81cf2a37df7",
+      "unit": "physics|11",
+      "stem_truncated": "Topic Name:Physics-Section B ItemCode:101426 The equivalent capacitance between points A and B in below shown figure will be pF. 8uF 8yuF _ A 8uF|/8puF 8yF SpF…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_8db39f7640af29801738cebb7bc170d3e28c202eb2b128533bdf2f9a05aeec79",
+      "unit": "physics|11",
+      "stem_truncated": "(a) {H$a˜mo\\$ Ho$ {Z`_m| H$mo {b{IE VWm ñnîQ> H$s{OE {H$ `o {H$g AmYma na VH©$g§JV h¢ & (b) Xmo gobm| Ho$ {dÚwV²-dmhH$ ~b (B©.E_.E\\$.) H«$_e: E1 VWm E2 h¢ Am¡a…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_8f05403f396cf06aef417acc1d5321dc4568ea60711e3f03b74fca96edc72d13",
+      "unit": "physics|11",
+      "stem_truncated": "Torque acting on an electric dipole placed in an electric field is maximum when the angle between the electric field and the dipole moment is _______. 1 10",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_97c8ceb6dba54f74aa93dae718cf6954d3084a5981ee0352f5b0e5f2ba2a691d",
+      "unit": "physics|11",
+      "stem_truncated": "3 (a) Define electric dipole moment. Is it a scalar or a vector ? (b) Derive the expression for the electric field due to a dipole at a point on the equatorial…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_97d610901bca26ae3f99660f6bf6ab989f410fa0ce782eacae9772b8b636970e",
+      "unit": "physics|11",
+      "stem_truncated": "(a) {H$a˜mo\\$ Ho$ {Z`_m| H$mo {b{IE VWm ñnîQ> H$s{OE {H$ `o {H$g AmYma na VH©$g§JV h¢ & (b) Xmo gobm| Ho$ {dÚwV²-dmhH$ ~b (B©.E_.E\\$.) H«$_e: E1 VWm E2 h¢ Am¡a…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_9e39e67d76d34db0a160040551869e0e5496c885930e685277b91df60dcd629f",
+      "unit": "physics|11",
+      "stem_truncated": "feat dats tt afta Ce? sk RQ sae 2 1 ee dois F df fecaga sat & fat we See et (re) afar | af wa tata at feet te weg ved 8 wir a fem om fre wodacia Ke, dt @ wet s…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_a24b8bef1ced1b99e494d6e95860a6d6cb1f163c4a4e1e27ee795f57ed0b47e2",
+      "unit": "physics|11",
+      "stem_truncated": "S>r.gr. (d.c.) ~¡Q>ar go Omo‹S>Zo na {H$gr g_mÝVa n{Å>H$m g§Ym[aÌ Ho$ Amdo{eV hmoZo Ho$ àH«$_ H$mo g§jon _| ñnîQ> H$s{OE & {H$gr g§Ym[aÌ H$s Ym[aVm ‘C’ h¡ & EH…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_a35976a5e2011896b6ba046c5ea6e74dee970bd9c72058b640ac866a552be7a5",
+      "unit": "physics|11",
+      "stem_truncated": "(a) (b) | 55/2/2 QrayyF++ 4p eee In the above figure P, Q are the two parallel plates of a capacitor. Plate Q is at positive potential with respect to plate P.…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_a726c7e04cfeec14d9c0254b7577d327bf07413160cd97770130201f5d015786",
+      "unit": "physics|11",
+      "stem_truncated": "(a) 3 (a) Write two properties by which electric potential is related to the electric field. (b) Two point charges q1 and q2, separated by a distance of r12 ar…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_abf5893ac5b72c29f6457b4d3b93b6a1e0ef98c74b457ea2a96ce7a661447907",
+      "unit": "physics|11",
+      "stem_truncated": "Define electric flux. Is it a scalar or a vector quantity ? d A point charge q is kept at a distance of directly above the centre of a 2 square of side d. Use …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_acdee2d8694b0dec6cbe3a0073d807ba2cd6433939de920054a059838e44e192",
+      "unit": "physics|11",
+      "stem_truncated": "(a) Define electric flux. Write its SI unit. (b) Using Gauss’s law, derive the expression for the electric field due to a uniformly charged thin spherical cond…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_ad5f199ca39c92f28111a9f4c69fba7cadedb3f21c74dd64d487a34ffe3aca7c",
+      "unit": "physics|11",
+      "stem_truncated": "(a) Write two important characteristics of equipotential surfaces. (b) A thin circular ring of radius r is charged uniformly so that its linear charge density …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_ae05bf1a6af100ee684c4fb200a240ea89878b4b5240700b597c17bffefcbd72",
+      "unit": "physics|11",
+      "stem_truncated": "(i) Pare Pereyer fryer oot fargactta ten & feet fee or fae as Se fe ee ers Sih | 3 (i) feet waea age da F fet eye ar G) ert, Gi) cert aren F ape Fate ater | (i…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_aea46ef0e7e6b09e567e52fedfcc80cd4fa4f7dcbc6d64655150ef51aa688d93",
+      "unit": "physics|11",
+      "stem_truncated": "S>r.gr. (d.c.) ~¡Q>ar go Omo‹S>Zo na {H$gr g_mÝVa n{Å>H$m g§Ym[aÌ Ho$ Amdo{eV hmoZo Ho$ àH«$_ H$mo g§jon _| ñnîQ> H$s{OE & {H$gr g§Ym[aÌ H$s Ym[aVm ‘C’ h¡ & EH…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_bd1363819837aa1748597305c3e18e95e6136a3a1c594f876f57ed985a73b580",
+      "unit": "physics|11",
+      "stem_truncated": "A parallel plate capacitor is an arrangement of two identical metal plates kept parallel, a small distance apart. The capacitance of a capacitor depends on the…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_bea0dd6af37f3319b48c0cad43cdb398fcb3a938010d6c6b9ef7311152db214a",
+      "unit": "physics|11",
+      "stem_truncated": "Two identical parallel plate (air) capacitors. C, and C, have capacitances C each. The space between their plates is now filled with dielectrics as shown. If t…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c232686620f5c4ec738c6e8c20bf871b333b640508059fbbfd726c1cebd3e3ad",
+      "unit": "physics|11",
+      "stem_truncated": "(a) (i) Define electric field. Write its SI units. Derive an expression for electric field due to a point charge at a point. Why must the test charge be as sma…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c2ee0a5a682023f8428cd8f7e94cdf5c09153df4bec62a8e53425933eee88695",
+      "unit": "physics|11",
+      "stem_truncated": "Xmo YZmË_H$ Amdoe EH$-Xÿgao go Hw$N> Xÿar na pñWV h¢ & BZHo$ H$maU {dÚwV²-joÌ aoImAm| H$m {MÌU H$s{OE & 1 Depict the electric field lines due to two positive c…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c392b33427b110761ef73f0f07a9de64ddd69454ef3b685d9d297e1e9cb7da3c",
+      "unit": "physics|11",
+      "stem_truncated": "Topic Name:Physics-Section A ItemCode:101510 C, is the capacitance of a parallel plate capacitor with air as a medium between the plates (as shown in Fig. 1). …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c5bcb90969729745de70aab666d452e606ce2a8e78940eebc4e7c01bb5eda374",
+      "unit": "physics|11",
+      "stem_truncated": "A parallel plate capacitor is an arrangement of two identical metal plates kept parallel, a small distance apart. The capacitance of a capacitor depends on the…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c65da2a065aee22034c1a0d109fd316a112fa80ae16b3300b7cee04aa331444d",
+      "unit": "physics|11",
+      "stem_truncated": "Consider an electric dipole comprising two charges +𝑞 and −𝑞 each with mass 𝑚, separated by a fixed distance 𝑑 and initially at rest with its dipole moment…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c6738930f2f151b1dac6bc836a6fe1a17cd040886123ebf0bed86b9e82372fbe",
+      "unit": "physics|11",
+      "stem_truncated": "Topic Name:Physics-Section A ItemCode:1738 Given below are two statements : Statement-I : A point charge is brought in an electric field. The value of electric…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_ca30a477c5bf1e8d13b0c29de843d53024c579dd602b21a438c80e4328adbf5d",
+      "unit": "physics|11",
+      "stem_truncated": "Define electric flux. Is it a scalar or a vector quantity ? d A point charge q is kept at a distance of directly above the centre of a 2 square of side d. Use …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_ca75206503bf20703f931bf16b1580f2c53217cd21a8304dc99ce6689e81a30f",
+      "unit": "physics|11",
+      "stem_truncated": "An electric dipole is a pair of equal and opposite point charges + q and q separated by a distance 2a. A dipole can be characterised by dipole moment determine…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_cc3f8e44fabaa5baa76bd3ff359d7157262b0d9c42f71814dc0fcbc7e37278f6",
+      "unit": "physics|11",
+      "stem_truncated": "Torque acting on an electric dipole placed in an electric field is maximum when the angle between the electric field and the dipole moment is _______. 1",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_d99b4379d2b0f127eb3c83161647da896af366e2825adaf00e3b5561418a3a91",
+      "unit": "physics|11",
+      "stem_truncated": "In a circuit shown in the figure, the capacitor 𝐶 is initially uncharged and the key 𝐾 is open. In this condition, a current of 1 A flows through the 1 Ω res…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": true,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_dc96a675551c5b9558498d71a11b1b6fafa31637e5f433dc2ec2a40dcae2907c",
+      "unit": "physics|11",
+      "stem_truncated": "Write Coulomb’s law in vector form. Two point charges q 1 = 10 mC and",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_dd3cbc3927c83f0172b2552d59ee4552723804dce1b66c02a77a5cd75c88019d",
+      "unit": "physics|11",
+      "stem_truncated": "An air-filled parallel plate capacitor is connected across a battery. The battery remains connected and a dielectric slab is inserted inside the capacitor to f…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_df5ffebf46edbe9f36b221c7d4dcb822829cb5c53dece3ada9511c8755672cc6",
+      "unit": "physics|11",
+      "stem_truncated": "Topic Name:Physics-Section A ItemCode:101414 A light wave travelling linearly in a medium of dielectric constant 4, incidents on the horizontal interface separ…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e6e6e66511f324c2531b5ec2e816fd6dee55c5dc15be3ec50b91bb92a56ad813",
+      "unit": "physics|11",
+      "stem_truncated": "(a) Write two important characteristics of equipotential surfaces. (b) A thin circular ring of radius r is charged uniformly so that its linear charge density …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e6f85ba8b072aca99951ea61064e6beea6212250c1eaed7d5b088fc25a018f14",
+      "unit": "physics|11",
+      "stem_truncated": "Derive the expression for the torque acting on an electric dipole, when it is held in a uniform electric field. Identify the orientation of the dipole in the e…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e85a3d50c59fd476fee48c7f6c965d2dc2765e501ed9f9c6a97a73965358de25",
+      "unit": "physics|11",
+      "stem_truncated": "An electric dipole placed in a non-uniform electric field can experience 1 (A) a force but not a torque. (B) a torque but not a force. (C) always a force and a…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e8910e890a58730ec1ee59a186b32053d0316d221d3081a6c71a225f72f9c9f9",
+      "unit": "physics|11",
+      "stem_truncated": "Figure shows two identical capacitors, C, and C,, each of 1 uF capacitance connected to a battery of 6 V. Initially switch ‘S’ is closed. After sometime ‘S’ is…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e8b50c8027b9b2b26a3a38fdfdc9f2c574ff5e4931895417504e2794c6783561",
+      "unit": "physics|11",
+      "stem_truncated": "Figure shows a sheet of aluminium foil of negligible thickness placed ° between the plates of a capacitor. How will its. capacitance be affected if (i) the foi…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_eb2af22b6a5c420f2ec43f2b3891173f0e49aa8e5e3bcac35346f1bb0005f399",
+      "unit": "physics|11",
+      "stem_truncated": "feet Grane fad a E ai fe we fad fee wr eye eort, B 2 va feya at gach cart sae & sear sae ae Fa 4 (am & far), va wR feu a are ard & fare caste fefiac | if Write…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_ebbabead0d9db453de213ef91ee41f3a27cb6f3642a04b04fb9bd2fd9b72cbbc",
+      "unit": "physics|11",
+      "stem_truncated": "10 μF VWm 20 μF Ym[aVm Ho$ Xmo g§Ym[aÌ 6 V H$s ~¡Q>ar go loUrH«$_ _| Ow‹‹S>o h¢ & g§Ym[aÌm| Ho$ nyU©V: Amdo{eV hmoZo na, XmoZm| g§Ym[aÌm| H$s ßboQ>m| (n{Å>H$mA…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_ebf07e199141971e8e0541e1c6332e48e3ebc3d8f23cf6fe244847eefa320f2a",
+      "unit": "physics|11",
+      "stem_truncated": "An electric dipole P = 2qa ^i is placed in x-y plane, centred at the origin. Let E1 and E2 be the magnitudes of electric field at a point distant r (>> a) from…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_ec57ccf865a89c6e603b07b5db7c8da4fe29a47c0aff2441d48e78a8d28a764c",
+      "unit": "physics|11",
+      "stem_truncated": "Three identical capacitors C,, C, and C, of capacitance 6 UF each are connected to a 12 V battery as shown. 3 C) =—12V is C2 Find (i) | charge on each capacito…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_f47181ab0caa5fbfcb56c6142df7d3e8a1abc3a312a5e3c9ed2cb41be00d3c45",
+      "unit": "physics|11",
+      "stem_truncated": "{H$gr EH$g_mZ {dÚwV²-joÌ _| pñWV d¡ÚwV {ÛY«wd {H$g A{^{dÝ`mg _| ñWm`r g§VwbZ _| hmoVm h¡ ? 1 In what orientation is an electric dipole placed in a uniform elec…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_f5000c837bf53d7a2e9fee7f8f7ae40f35b4175ab16e0019410f234f29a4d4b8",
+      "unit": "physics|11",
+      "stem_truncated": "An electric bulb B and a parallel plate capacitor C are connected in series to the a.c. mains as shown in the given figure. The bulb glows with some brightness…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_f505fe8406bf927fbc27e991d92fc4b0da6d85046c69d704ca238966fe30e58d",
+      "unit": "physics|11",
+      "stem_truncated": "(a) Derive an expression for the capacitance of a parallel plate capacitor of plate area A and plate separation d with air present between the plates. 5 (b) Tw…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_fa165e0112d0f8e797b304249bcda672200177ef37aa0baa1017ec0914c666ef",
+      "unit": "physics|11",
+      "stem_truncated": "10 μF VWm 20 μF Ym[aVm Ho$ Xmo g§Ym[aÌ 6 V H$s ~¡Q>ar go loUrH«$_ _| Ow‹‹S>o h¢ & g§Ym[aÌm| Ho$ nyU©V: Amdo{eV hmoZo na, XmoZm| g§Ym[aÌm| H$s ßboQ>m| (n{Å>H$mA…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_fbdef3f6a260c7da9e09099b24976178df7740d719dabcef2a531f79b7caa28a",
+      "unit": "physics|11",
+      "stem_truncated": "An air-filled parallel plate capacitor is connected across a battery. After it is fully charged, the battery is disconnected. Now a dielectric slab is inserted…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_fe2c339758a336007fb0cf01a9ea31013a684a45827d1e1c31d08bdc796d5bfa",
+      "unit": "physics|11",
+      "stem_truncated": "3 55(B) 6 C/1 (a) How is the electric field inside a charged parallel plate capacitor affected when a dielectric slab is inserted between the plates fully occu…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_0d09dc06a301fc0f9a7e9d644e3582d868c5e0602f43064be76c9ee2118b8e30",
+      "unit": "physics|12",
+      "stem_truncated": "In a current carrying conductor, the ratio of the electric field and the current density at a point is called 1 (A) Resistivity (B) Conductivity (C) Resistance…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_5cbb2bfee0715ad22f90211ba1c0dc98c91795b1212375e3c19fa86db7a13009",
+      "unit": "physics|12",
+      "stem_truncated": "Two cells are connected in opposition as shown, Cell E, is of 8 V emf and 2 (2 internal resistance; the cell E, is of 2 V emf and 4 (2 internal resistance. The…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_6fccba15dda758ababdafc80e733dd2fcdba3cfab3890fa84ef16b71fee0d996",
+      "unit": "physics|12",
+      "stem_truncated": "A potential difference V is applied across a conductor of length l and uniform cross-section area A. How will the (i) electric field E, (ii) drift velocity vd,…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_7287d8874db031b55707ecdd78bd6974e504113289ddfb030baad57de937f9d0",
+      "unit": "physics|12",
+      "stem_truncated": "In a metallic conductor, an electron, moving due to thermal motion, suffers collisions with the heavy fixed ions but after collision, it will emerge out with t…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_8014faece07a88cc97c5826bdf6e4a00dc806810a916178836d696359b3bda2f",
+      "unit": "physics|12",
+      "stem_truncated": "In a metallic conductor, an electron, moving due to thermal motion, suffers collisions with the heavy fixed ions but after collision, it will emerge out with t…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_8d48abca64edfb8e9aef9d37d5914cdd36d620c1353113bf0e4372b058bff7c2",
+      "unit": "physics|12",
+      "stem_truncated": "The ratio of current density and electric field is called 1 (A) Resistivity (B) Conductivity (C) Drift velocity (D) Mobility",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_de0135696d283a33e45c2414933cc2648c528860e451542189d9724bc221ca51",
+      "unit": "physics|12",
+      "stem_truncated": "In a metallic conductor, an electron, moving due to thermal motion, suffers collisions with the heavy fixed ions but after collision, it will emerge out with t…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_f27f101147492b7a2ffe8960453fa547f4614b74f6dfcf83ffac0ce35af69d1e",
+      "unit": "physics|12",
+      "stem_truncated": "The thickness of a conductor continuously decreases from its one end (A) to another end (B). It is connected across the terminals of a battery. What will be th…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_04dce289a3212328b3d6caef3f78e780dcc8bf9ce01dadbad010c95041580c37",
+      "unit": "physics|13",
+      "stem_truncated": "The horizontal component of earth's magnetic field at a place is 3.5X10-°T. A very long straight conductor carrying current of 2 A in the direction from South …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_06ddd9aa351e55d93f54b6f7fca2b9f8eee09566285339aa2183b415e9b5bcf0",
+      "unit": "physics|13",
+      "stem_truncated": "2 Depict the behaviour of magnetic field lines near (i) diamagnetic and (ii) paramagnetic substances. Justify, giving reasons.",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_09c3a66c7b6c176469478d3af3e9e9acf7c95d09bc46128cc1708415f8742691",
+      "unit": "physics|13",
+      "stem_truncated": "A straight long wire lying along y-axis, carries a current of 1 A along –y direction. The magnetic field due to the conductor at a point (50 cm, 0, 0) will poi…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_0c97c6be99c69b8c70049535b107515cb92881bb5a96dc1a492a0a438384fd7f",
+      "unit": "physics|13",
+      "stem_truncated": "A bar magnet is initially at right angles to a uniform magnetic field. The magnet is rotated till the torque acting on it becomes one-half of its initial value…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_0e1be40d9dc133356616af66da4f4e5388412065f67b41069ca695fd7897f24a",
+      "unit": "physics|13",
+      "stem_truncated": "? 5 5 55(B) 15 C/1 Explain the principle and working of a moving coil galvanometer. Write the importance of a radial magnetic field. How is it produced ? Defin…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_0f8e4977afc3b27eef5bc1eecc53ab8b25fdde3c0e365ba304fd14a2993f1f41",
+      "unit": "physics|13",
+      "stem_truncated": "Topic Name:Physics-Section A ItemCode:101410 A long straight wire with a circular cross-section having radius R, is carrying a steady current I. The current I …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_117839dc3405ecc867b77796377bd9009dea87b83368e43c8a1ca55b545332fa",
+      "unit": "physics|13",
+      "stem_truncated": "A moving coil galvanometer has 50 turns and each turn has an area 2 10 . The magnetic field produced by the magnet inside the galvanometer is 0.02 . The torsio…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_1465ea11b417e8f5053b56dded72b41cf85b368c2b14ef92b82a6ca0488f5308",
+      "unit": "physics|13",
+      "stem_truncated": "Eopån`a H$m n[anWr` {Z`_ {b{IE & Bg {Z`_ Ho$ Cn`moJ go EH$ grYr AZÝV bå~r {dÚwV² Ymamdmhr Vma go CËnÞ r Xÿar na Mwå~H$s` joÌ Ho$ {bE ì`§OH$ àmßV H$s{OE & 3 Sta…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_18c8ef647fd324fc7aaf047279e0676c73af64c8eec5bc639d7e4c901f8987ea",
+      "unit": "physics|13",
+      "stem_truncated": "Xmo bå~o, grYo g_mÝVa MmbH$m| go H«$_e: I1 VWm I2 pñWa YmamE± àdm{hV hmo ahr h¢ Omo EH$-Xÿgao go d Xÿar na pñWV h¢ & ì`m»`m H$s{OE {H$ EH$ MmbH$ Ûmam CËnÞ Mwå~…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_18f8890bb31975776d91a74f297ecce2e9ae798ce33b187937e38dc15e784df7",
+      "unit": "physics|13",
+      "stem_truncated": "State Biot-Savart law. Use this law to derive the expression for the magnetic field due to a circular current carrying coil at a point on its axis. 3",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_1e77ce93da0e39292b50024177cdfe2f31cd32ccc3533dd81ac4656cd0e040d7",
+      "unit": "physics|13",
+      "stem_truncated": "A moving coil galvanometer has 100 tums and each turn has an area of 2.0 cm’. The magnetic field produced by the magnet is 0.01 T and the deflection in the coi…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_1fe6332e42a5c665a8551d331bbfed28f4079487bf0086d33f21b16a28fa11cf",
+      "unit": "physics|13",
+      "stem_truncated": "A1cm straight segment of a conductor carrying 1 A current in x direction lies symmetrically at origin of Cartesian coordinate system. The magnetic field due to…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_2360f09efeacce7e03fe42c6f0a06130f46ecb6261281981be50616f066c3131",
+      "unit": "physics|13",
+      "stem_truncated": "Paramagnetic substances: A. align themselves along the directions of external magnetic field. B. attract strongly towards external magnetic field. C. has susce…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_3514c0cf24c1558b31f36bc10f62cbe0cbd2df5c7588dc96883995e2cc34df86",
+      "unit": "physics|13",
+      "stem_truncated": "Topic Name:Physics-Section A ItemCode:1844 A metallic conductor of length 1m rotates in a vertical plane parallel to east-west direction about one of its end w…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_3579ad9a2bfe2bacdc448eb491bbd535526bedb140e9a6728c8235e605043f60",
+      "unit": "physics|13",
+      "stem_truncated": "Topic Name:Physics-Section A ItemCode:1640 Given below are two statements : Statement —I : Susceptibilities of paramagnetic and ferromagnetic substances increa…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_36f1fa0a85870eb08d61dfc13ed9e9ae39be10377379fc5933b84475da1adb04",
+      "unit": "physics|13",
+      "stem_truncated": "The magnetic field lines are ___________ by a diamagnetic substance. 1 ZmoQ> : {ZåZ{b{IV Ho$ CÎma Xr{OE :",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_387c3ca868f28f7fbf8f2f86acb1c627ff8e79f597c37fa3faf2417b6733ceee",
+      "unit": "physics|13",
+      "stem_truncated": "feet anafra Grad tere aes & iat fava a am fer (stadt) eit ata 2 ak gaa aM ad Bt aa 2 HT Ms H ys WH saz ? 1 Why is the potential inside a hollow spherical charg…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_3b7a7ec34602e8b5e31ab74b47825b710adbbcf19f39fb3a0ce35e5a98d52445",
+      "unit": "physics|13",
+      "stem_truncated": "The magnetic field and angle of dip at a place on the earth are 0·3 G and 30°, respectively. The value of vertical component of the earth’s magnetic field at t…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_4721e30a654f754caa5d14b9f7c749cdc96ff2158b2f0fe53da8dafa8a869e19",
+      "unit": "physics|13",
+      "stem_truncated": "An electron (charge e, mass m) is revolving around a nucleus, in a hydrogen atom, in a circle of radius r. Derive an expression, in vector form, for the magnet…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_499c0cbc0492eb8be71b7ab2182231b3277a74e7d00e039b5a17a75352da9e2b",
+      "unit": "physics|13",
+      "stem_truncated": "Topic Name:Physics-Section B ItemCode:1959 A metallic rod of length 20 cm is placed in North-South direction and is moved at a constant speed of 20 m/s towards…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_532f9b2f10833e9807468dacb640887f661612e71108fdf27b7cee6878e27ee1",
+      "unit": "physics|13",
+      "stem_truncated": "Write the expression for the magnetic force F on a charge q → → moving with velocity v in a magnetic field B . Use this expression to define the SI unit of mag…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_56117047190276c233c4337f1669a09a5d188fb718d065ff774894430425c0f8",
+      "unit": "physics|13",
+      "stem_truncated": "(a) Differentiate between magnetic flux through an area and magnetic field at a point. (b) A bar magnet is held with its length along the axis of a closed coil…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_561a4ddf321ba65d9bddb72279a3cf2e2950d0f336feef74ca4dc3021e0aae4a",
+      "unit": "physics|13",
+      "stem_truncated": "A bar magnet of magnetic moment 4 JT –1 is kept along the direction of magnetic field of 0.4 T. The work done to rotate the magnet through an angle of 90° is :…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_6018798435b213f6ef8503d060636222db61bda646ca74534c850a6e3aa3e06f",
+      "unit": "physics|13",
+      "stem_truncated": "(a) the expression for the magnetic field due to a long straight current carrying wire of infinite length. (b) Biot- 3",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_6dd6119d68f21e10cf669743a7f05fa5b18c180c34a10ea1bbc655ccd938747f",
+      "unit": "physics|13",
+      "stem_truncated": "Using Biot-Savart law, derive expression for the magnetic field (B) due to a circular current carrying loop at a point on its axis and hence at its centre. 3",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_764bcaea02164acf6f352ef948b294a89057cfe988949c8cdc8613aadcce76c8",
+      "unit": "physics|13",
+      "stem_truncated": "A magnetic needle free to rotate in a vertical plane, orients itself vertically at a certain place on earth. What is the value of horizontal component of earth…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_79435f8ab0dd29f336d3a43706514151f0527b5d177a711245721b4a2be41b95",
+      "unit": "physics|13",
+      "stem_truncated": "(a) Write an expression of magnetic moment associated with a current (I) carrying circular coil of radius r having N turns. (b) Consider the above mentioned co…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_7ad98fc892a777183362fd20f30e9d4217af9f00df751311743f8670a14fa757",
+      "unit": "physics|13",
+      "stem_truncated": "Depict the behaviour of magnetic field lines near (i) diamagnetic and (ii) paramagnetic substances. Justify, giving reasons. 55/1/2 4",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_8b8b06117a715ae86528095c6b949f293a3dda2b6f34b2affc7d1664e48338ec",
+      "unit": "physics|13",
+      "stem_truncated": "Topic Name:Physics-Section A ItemCode:1842 - A bar magnet having a magnetic moment of 2.0 x 10° IT!, is placed along the direction of uniform magnetic field of…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_910fc0bcf8d0b3e6024703e454a89de8e465fee9a18cba9480092d1cc5d7e44f",
+      "unit": "physics|13",
+      "stem_truncated": "A circular coil having 200 turns, 2.5107 m? area and carrying 100 A current is placed in a uniform magnetic field of 1T. Initially the magnetic dipole moment (…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_934be94d18e5ac641f40e624db1cdb8eaf7e53365084f40278f5b25ba300d3a5",
+      "unit": "physics|13",
+      "stem_truncated": "Consider an induced magnetic field due to changing electric field and an induced electric field due to changing magnetic field. Which one is more easily observ…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_99de1d2e5d8a56f6908d5e229f22b5fdab1e6144f6181c47c1446450224c18a1",
+      "unit": "physics|13",
+      "stem_truncated": "Two identical bars, one of a paramagnetic material and another of a diamagnetic material are kept in a uniform magnetic field. Show diagrammatically the modifi…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_9a4ac7eea93d1db3e1489162db043ec0ef9fb02d2a66637d95d7ae25484494eb",
+      "unit": "physics|13",
+      "stem_truncated": "EH$ Am`VmH$ma nme (byn) go EH$ pñWa Ymam I àdm{hV hmo ahr h¡ & Bg nme H$mo → EH$g_mZ Mwå~H$s` joÌ B _| aIm J`m h¡ & {gÕ H$s{OE {H$ nme na bJZo → → → dmbo ~b-Am…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_9f5cf898ff9f5664fa5e44fe487788862d4ec12bf6011b409361a6f3d3ebdd2a",
+      "unit": "physics|13",
+      "stem_truncated": "A piece of a diamagnetic material, free to move when placed in a uniform magnetic field : (A) moves along the field (B) moves opposite to the field (C) moves p…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_a258ee6714502e8a9fb82d6a13fa4c3d9f139d861124fa70f46c14b8d9ac60b4",
+      "unit": "physics|13",
+      "stem_truncated": "Se Sie crete wr ars Peta freer 1-V afters ate fer anqare ater var; 1 ) : Name the junction diode whose I-V characteristics are drawn below : ) : pe oe 4, Pest …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_a51d9e379d30caa3ba9e55c9fbf3475aacfa14815fb9e480264f0dc1df65b57b",
+      "unit": "physics|13",
+      "stem_truncated": "(a) State Biot – Savart law and express it in the vector form. (b) Using Biot – Savart law, obtain the expression for the magnetic field due to a circular coil…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_a553633026e4f10d1500511ff55d6db63c6a2fedea6657db292faa9bf7a37422",
+      "unit": "physics|13",
+      "stem_truncated": "The change in the magnetic dipole moment associated with the orbit, at the end of the time interval of the magnetic field change, is fier wa serra A daply aa 4…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_b2ca2b0ae340faaa2865005291bbcf1dedad968a8a16bd60e4c9a1558bbd33ea",
+      "unit": "physics|13",
+      "stem_truncated": "State Biot-Savart law. 2 A current I flows in a conductor placed perpendicular to the plane of the paper. Indicate the direction of the magnetic field due to a…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_b7904794218ddc9e0a10f2c250cc8a98d2a1223d1f1592f22e03f59e659ed0fa",
+      "unit": "physics|13",
+      "stem_truncated": "The vertical component of Earth’s magnetic field at a place is 1 times the horizontal component. The value of angle of dip 3 at that place is ___________ . 1",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_bc2535cc2b92de86cc19e412562ee88b3a0ca850b8a5ed6ae17835bf3fce2556",
+      "unit": "physics|13",
+      "stem_truncated": "A piece of a diamagnetic material, free to move when placed in a uniform magnetic field : (A) moves along the field (B) moves opposite to the field (C) moves p…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_bc89a657a915b7fe3258d11f0c9d6625424b62395b3c3228ae1e8f1625a51712",
+      "unit": "physics|13",
+      "stem_truncated": "(a) State Biot – Savart law and express it in the vector form. (b) Using Biot – Savart law, obtain the expression for the magnetic field due to a circular coil…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_bfdf8eee1f0b9126fae0ae0f2c8bdd0a9e00df039f0c81dd615612f82faecf1e",
+      "unit": "physics|13",
+      "stem_truncated": "(a) Write an expression of magnetic moment associated with a current (I) carrying circular coil of radius r having N turns. (b) Consider the above mentioned co…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c8cb28742dc208f65b87cec2b4fc0d0bc78001211dbb0f88b82226055a6374f9",
+      "unit": "physics|13",
+      "stem_truncated": "fetter peat & pas aa or Aft gem Be ae set A ITT 60° @ | aga We yea & aaa aa ch Greate weap aT AM feet ee 2 1 The horizontal component of the earth’s magnetic f…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_d1e7af26769acf500f5794ba5f977957d8ee6d0ec4e1e958a57f96808a7e4692",
+      "unit": "physics|13",
+      "stem_truncated": "A magnetic dipole experiences a torque of 80/3 N m when placed in uniform magnetic field in such a way that dipole moment makes angle of 60° with magnetic fiel…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_d50fb2f3d0cb65a9633d1f06cb8efa945688a872cca6ecb2a1d0c6a4f01dd26c",
+      "unit": "physics|13",
+      "stem_truncated": "se ifs uf a aH fear free fata 4AM, 1mm wee Fi qen-aett dat 1600 A at vere fafencott fre FAM Ted ez | 1 Name the physical quantity which remains same for microw…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_d6c25e4a3b0fa8dcca3fae56dfe42d376cf55d80ce39c4f7ba725619aa0f3028",
+      "unit": "physics|13",
+      "stem_truncated": "(a) (i) What is the difference between an electric field and a magnetic field ? (ii) Briefly explain the condition under which a particle (charge q and mass m)…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_dd9e3e6276c9ec2c70e66d872ab44566df128cca84f886fa536873aafb9c5e1a",
+      "unit": "physics|13",
+      "stem_truncated": "The magnetic field lines are _________ by a paramagnetic substance. 1",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e211d12be3cd1894ec9238bc9f40bfa39aac16483a07a72ba9455336001ce40a",
+      "unit": "physics|13",
+      "stem_truncated": "(a) Explain the principle and working of a moving coil galvanometer. (b) Write the necessity of using a radial magnetic field in a galvanometer. 3",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e437183e2b017fcb9405479d26d3025957cf3a48f904d729d91d3ac31961f838",
+      "unit": "physics|13",
+      "stem_truncated": "~m`mo-gmdQ>© {Z`_ {b{IE Am¡a Bg {Z`_ H$mo g{Xe ê$n _| ì`º$ H$s{OE & {ÌÁ`m R H$s Xmo gd©g_ d¥ÎmmH$ma Hw$ÊS>{b`m± P Am¡a Q {OZgo H«$_e: 1 A Am¡a 3 A YmamE± àdm{h…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e97e4375e08d1fe95ccbf21ff451d862e68160450207bf5638bd76025328ce75",
+      "unit": "physics|13",
+      "stem_truncated": "(a) A circular loop of radius R carries a current I. Obtain an expression for the magnetic field at a point on its axis at a distance x from its centre. (b) A …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_f29de01680fc0f402ab21513737370795f2a348995b05bd1df893d5c39c17140",
+      "unit": "physics|13",
+      "stem_truncated": "The magnetic field due to a current carrying circular coil at a point far off on its axis at a d coil is proportional to : 1 1 (A) (B) r r2 1 1 (C) (D) r3/2 r3",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_19fa030eb31bd2ebd9d5227e28f4337cb50a10556485d55e4fd10472a56caec8",
+      "unit": "physics|14",
+      "stem_truncated": "Primary coil of a transformer is connected to 220 V ac. Primary and secondary turns of the transforms are 100 and 10 respectively. Secondary coil of transforme…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_43ba6ae97403e28a0bfe0fb49b69066b6ffd812167e112ab4e562bd16daeb4e3",
+      "unit": "physics|14",
+      "stem_truncated": "JrVm Ho$ {dÚmb` Ho$ {ejH$ {dÚm{W©`m| H$mo e¡{jH$ ^«_U Ho$ {bE eha go bJ^J 200 km H$s Xÿar na pñWV e{º$ g§`§Ì na bo JE & {ejH$ _hmoX` Zo ~Vm`m {H$ àË`mdVu Ymam …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_54c05c6f5ffc5e7d3a730fbdf35ff82a4a767f64f8d8e50b9b9cbd91805fe01c",
+      "unit": "physics|14",
+      "stem_truncated": "(a) Briefly explain how Lenz’s law is consistent with the law of conservation of energy. (b) Considering the case of the magnetic field B inside a solenoid of …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_5eb183f17b119347e6073f9f0f6ef109c7d587f8c28b6b6d857fc8afe0749f1e",
+      "unit": "physics|14",
+      "stem_truncated": "JrVm Ho$ {dÚmb` Ho$ {ejH$ {dÚm{W©`m| H$mo e¡{jH$ ^«_U Ho$ {bE eha go bJ^J 200 km H$s Xÿar na pñWV e{º$ g§`§Ì na bo JE & {ejH$ _hmoX` Zo ~Vm`m {H$ àË`mdVu Ymam …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_99fe851aee37c08d79c5f35e1484f03d94829c66a10d906d199ae2120f0371f1",
+      "unit": "physics|14",
+      "stem_truncated": "Figure shows the variation of inductive reactance X, of two ideal inductors of inductance L, and Ly, with angular frequency . The value of Ly — is 1",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_a1c4f1dc2d2088995b66c8d8d5b3c603fbc553db2fb56939cd5df158954d2b43",
+      "unit": "physics|14",
+      "stem_truncated": "JrVm Ho$ {dÚmb` Ho$ {ejH$ {dÚm{W©`m| H$mo e¡{jH$ ^«_U Ho$ {bE eha go bJ^J 200 km H$s Xÿar na pñWV e{º$ g§`§Ì na bo JE & {ejH$ _hmoX` Zo ~Vm`m {H$ àË`mdVu Ymam …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_aa581c01ea9e545e8f23363bf7db91155fd4b86cf65df8af95f68312bdd415a9",
+      "unit": "physics|14",
+      "stem_truncated": "In which orientation of the armature coil of an ac generator relative to the magnetic field, will the induced emf be maximum ? 1",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_be41bdacf0a6d6d944856ba47171a6954537842f7de3bfa03e24eceb7dfb4c3f",
+      "unit": "physics|14",
+      "stem_truncated": "Find the currents flowing through the branches AB and BC in the network shown. B A AAA WWW Cc 5Q 5Q mEi00 Ry 202 1| in N ‘| M I! D 5V 10V (a) (G) Define mutual…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c11574dc4e8fb24674a73f1b1034861c60674c13a158e3702e87308de29997b5",
+      "unit": "physics|14",
+      "stem_truncated": "A charged particle is moving horizontally with a velocity v . If a uniform magnetic field B directly vertically up is set-up in the region, the particle moves …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_cdef625e0b42a54ad483b37df29a6d71f0cf040b21b12567ea025c692fe5136c",
+      "unit": "physics|14",
+      "stem_truncated": "(i) State Faraday’s law of electromagnetic induction. (ii) A jet plane is travelling towards west at a speed of 1800 km/h. What is the voltage difference devel…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_d045d11eba98149f06298db282a2c693a617c6449ffa62165b65cd41a669bcf2",
+      "unit": "physics|14",
+      "stem_truncated": "Acoil of an ac generator, having 100 turns and area 0.1 m each, rotates at half a rotation per second in a magnetic field of 0.02 T. The maximum emf generated …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_dc7f4878150ad19e2b7c026c8defa26d94171e45de4da237bdcd258069e5a840",
+      "unit": "physics|14",
+      "stem_truncated": "A rectangular loop of length 2.5 m and width 2 m is placed at 60° to a magnetic field of 4 T. The loop is removed from the field in 10s. The average emf induce…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e622abdc1bc361644a0e9a2e4ff62b636422fb9664255d75b2d6708a75099bc3",
+      "unit": "physics|14",
+      "stem_truncated": "(a) State Faraday’s Law of electromagnetic induction. (b) A rectangular coil of area A having number of turns N is rotated with angular velocity ω in a uniform…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_fd06891a33a46a89a16c1cf9db71215c99dd5ca4ed8338f7928f0af77b84c4cd",
+      "unit": "physics|14",
+      "stem_truncated": "At time 𝑡𝑡 = 0, terminal A in the circuit shown in the figure is connected to B by a keyand an (𝜔𝜔𝜔𝜔), with 𝐼𝐼0 = 1Aand ω = 500 rad s-1 starts flowing …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": true,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_084463fca38296c22e5adf8743910756e66f150c7b4ddcb33fddc6e7f22e3bcb",
+      "unit": "physics|16",
+      "stem_truncated": "For a prism of prism angle 𝜃 = 60°, the refractive indices of the left half and the right half are, respectively, 𝑛1 and 𝑛2 (𝑛2 ≥ 𝑛1 ) as shown in the fig…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": true,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [
+          "interface",
+          "ray_path"
+        ],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_0f12630f4e65e0538f476f369956e312f5d1ef94c64733c657a64229ee2a86a3",
+      "unit": "physics|16",
+      "stem_truncated": "While conducting the Young’s double slit experiment, a student replaced the two slits with a large opaque plate in the x-y plane containing two small holes tha…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": true,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [
+          "wavefront",
+          "aperture"
+        ],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_e607554a4c8d87fd80a93aac921577786e75d910cc5763f306f35707a394805a",
+      "unit": "physics|16",
+      "stem_truncated": "An electron, a-particle and a proton have the same de-Broglie wavelength. Which of these particles has (i) minimum kinetic energy, (ii) maximum kinetic energy,…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [
+          "instrument_chain",
+          "axis_view"
+        ],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_29c5c01cb9a885c68d51df01fc222c8f558edbbd69d6ffbc12d1befd55c109fd",
+      "unit": "physics|2",
+      "stem_truncated": "A particle is projected with velocity wu so that its horizontal range is three times the maximum 2 height attained by it. The horizontal range of the projectil…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_462fca84750cc55161e3c38e3aac03a8143c73fb4da389dd6ca4474f1f55bd79",
+      "unit": "physics|2",
+      "stem_truncated": "Topic Name:Physics-Section A TtemCode:101605 A projectile is projected with velocity of 25 m/s at an angle 0 with the horizontal. After t seconds its inclinati…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_7d42e833d8357312bc6d2c2bb748d1c34327cc4b2868b52b2de4378fba7008fc",
+      "unit": "physics|2",
+      "stem_truncated": "The angle of projection for a projectile to have same horizontal range and maximum height is ; Options: tan” !(2) tan (4) aq | tan! (=) 4 oak | tan! (=) 2",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_b9e98e813065752af6cf82be48108935f6f828a90890a182b13e33138cc43394",
+      "unit": "physics|3",
+      "stem_truncated": "Topic Name:Physics-Section A ItemCode:501145 A block of mass 40 kg slides over a surface, when a mass of 4 kg is suspended through an inextensible massless str…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_dc858949cd1f80d2c2301857807ef5d1ab2a072f8e4a9cc53a02385b7dadfa47",
+      "unit": "physics|3",
+      "stem_truncated": "Given below are two statements ; Statement (1): When currents vary with time, Newton’s third law is valid only if momentum carried by the electromagnetic field…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_a72f7372089c0e64a41aab16ffde42592c1d3a50737a0d964b4d9ad067115742",
+      "unit": "physics|4",
+      "stem_truncated": "Topic Name:Physics-Section A ItemCode:1333 Astone of mass m, tied to a string is being whirled in a vertical circle with a Question: Uniform speed. The tension…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_ad19838c87768a7f4921493f09ec8ea191aeeae24702ec80b6b4bca9638e0eeb",
+      "unit": "physics|4",
+      "stem_truncated": "Topic Name:Physics-Section B ItemCode:101330 A pendulum of length 2 m consists of a wooden bob of mass 50 g. A bullet of mass 75 g is fired towards the station…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_c758739be43b2e9a004718bd5c76615721f9da32fa329cec29db3ca540b20195",
+      "unit": "physics|4",
+      "stem_truncated": "Topic Name:Physics-Section A ItemCode:1935 Astone tide to a string of length L is whirled in a vertical circle with the other end of the string at the centre. …",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_142fb409eda090d3045664bd375983a926921af67cab98b71a77831d1221326b",
+      "unit": "physics|5",
+      "stem_truncated": "Auniform thin metal plate of mass 10 kg with dimensions is shown. The ratio of x and y coordinates of center of mass of plate in - .The value of n is : (2,2 (0…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_83d57b327d4556ca344b68f7ef2c7d422e79ab320fe84fe839fa97a898a1450d",
+      "unit": "physics|5",
+      "stem_truncated": "The identical spheres each of mass 2M are placed at the corners of a right angled triangle with mutually perpendicular sides equal to 4 m each, Taking point of…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    },
+    {
+      "question_id": "q_ff4550622760e6c146571640ce5f62367c68555e66d9ed20f055102ac3931f0f",
+      "unit": "physics|5",
+      "stem_truncated": "Topic Name:Physics-Section A ItemCode:1734 Match List-I with List-II il |_| A. [Moment of inertia of solid sphere] I. [45 MR? of radius R about any tangent. a\"…",
+      "cues": {
+        "explicitDiagramRequest": false,
+        "referencesFigure": false,
+        "qualitativeConcept": false,
+        "inferSceneFamilies": [],
+        "questionRequiresVisual": false
+      }
+    }
+  ]
+}
