@@ -75,6 +75,31 @@ class PhysicsPhraseRecoveryTests(unittest.TestCase):
                 "fraction after 30 days.",
                 "physics|18",
             ),
+            (
+                "Use Kirchhoff's rules to find the current through the 3 ohm resistor "
+                "in the given network.",
+                "physics|12",
+            ),
+            (
+                "Write the expression for the Lorentz force on a particle of charge q "
+                "moving with velocity v in a magnetic field B.",
+                "physics|13",
+            ),
+            (
+                "State the underlying principle of a cyclotron and explain how it "
+                "accelerates charged particles.",
+                "physics|13",
+            ),
+            (
+                "The electric field due to an infinitely long uniformly charged straight "
+                "wire is radial.",
+                "physics|11",
+            ),
+            (
+                "Explain how the intensity of the diffraction pattern changes as the "
+                "order n of the diffraction band increases.",
+                "physics|16",
+            ),
         ]
 
         for text, expected_unit in cases:
@@ -83,6 +108,12 @@ class PhysicsPhraseRecoveryTests(unittest.TestCase):
                 self.assertEqual(assignment["status"], "classified")
                 self.assertEqual(assignment["primary_unit_id"], expected_unit)
                 self.assertEqual(assignment["confidence"], "high")
+
+        induced = self.assignment_for(
+            "A conducting rod of length l moves in a uniform magnetic field B. "
+            "Find the induced emf across the ends of the rod."
+        )
+        self.assertNotEqual(induced["primary_unit_id"], "physics|13")
 
 
 if __name__ == "__main__":

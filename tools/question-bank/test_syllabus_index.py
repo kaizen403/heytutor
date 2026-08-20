@@ -592,6 +592,21 @@ class SyllabusIndexTests(unittest.TestCase):
                 "The principal value of sin^{-1}(1/2) is:",
                 "maths|14",
             ),
+            # Pass 5 recoveries (English no_unit_evidence backlog)
+            (
+                "If f : A → B defined by f(x) = 2x is one-one and onto, find f inverse.",
+                "maths|1",
+            ),
+            (
+                "Let the system of linear equations x + y + z = 1, "
+                "2x + y + 3z = 4 and x + 2z = 1 have a unique solution.",
+                "maths|3",
+            ),
+            (
+                "Find the projection of the vector a = i + j + k on the vector "
+                "b = i - j.",
+                "maths|12",
+            ),
         ]
         for text, unit_id in cases:
             with self.subTest(unit_id=unit_id, text=text[:48]):
