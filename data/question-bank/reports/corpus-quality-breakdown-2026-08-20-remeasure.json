@@ -1,0 +1,112 @@
+{
+  "filtered_low_quality_split": {
+    "english_no_diagram_cue": 1744,
+    "not_english_diagram_cued": 1,
+    "not_english_no_diagram_cue": 3,
+    "not_english_with_clean_ascii_prompt": 2
+  },
+  "generated_at": "2026-08-19T18:46:42.167521Z",
+  "inputs": {
+    "manifest": "/Users/kaizen/heytutor/data/question-bank/manifest.jsonl",
+    "questions": "/Users/kaizen/heytutor/data/question-bank/build/questions.all.jsonl",
+    "syllabus": "/Users/kaizen/heytutor/data/question-bank/build/question-syllabus.jsonl"
+  },
+  "needs_review_reason_by_subject": {
+    "Mathematics": {
+      "high_character_corruption_ratio": 88,
+      "multi_unit_evidence": 65,
+      "no_unit_evidence": 4656,
+      "possible_merged_questions": 22,
+      "uncorroborated_existing_topic_projection": 50,
+      "unit_margin_below_threshold": 5,
+      "unit_score_below_threshold": 113,
+      "unit_score_tie": 51,
+      "very_short_non_mathematical_text": 14
+    },
+    "Physics": {
+      "high_character_corruption_ratio": 36,
+      "multi_unit_evidence": 154,
+      "no_unit_evidence": 3095,
+      "option_only_fragment": 3,
+      "possible_merged_questions": 20,
+      "uncorroborated_existing_topic_projection": 143,
+      "unit_margin_below_threshold": 21,
+      "unit_score_below_threshold": 234,
+      "unit_score_tie": 42,
+      "very_short_non_mathematical_text": 10
+    },
+    "null": {
+      "conflicting_subject_context": 1,
+      "missing_subject_context": 303
+    }
+  },
+  "not_english_by_exam": {
+    "cbse": 4
+  },
+  "not_english_by_extraction_method": {
+    "tesseract-ocr-eng-fast-v1": 4
+  },
+  "review_reason_counts": {
+    "conflicting_subject_context": 1,
+    "high_character_corruption_ratio": 124,
+    "missing_subject_context": 303,
+    "multi_unit_evidence": 219,
+    "no_unit_evidence": 7751,
+    "option_only_fragment": 3,
+    "possible_merged_questions": 42,
+    "uncorroborated_existing_topic_projection": 193,
+    "unit_margin_below_threshold": 26,
+    "unit_score_below_threshold": 347,
+    "unit_score_tie": 93,
+    "very_short_non_mathematical_text": 24
+  },
+  "samples": {
+    "english_no_diagram_cue": [
+      "q_0007db6710c7b76b08591a78d5fd9e753390931ade8bc83b11162a4d98ff5929",
+      "q_007611745cfa3240713b5fb255bfd69cb4d9f5a0453174a281b43a0554ed8bbb",
+      "q_00a9d89178d0d8465ea1bc39ae9b89c067d8b825c8697fc2f22b30e04d13d936",
+      "q_00bc2b6a1e742e7c368448de2d03313881b56a8231d0441b4b004958291e1413",
+      "q_010acbaa930cbfda1e6b67414d44b5efb22ebab97dca4560d7425095eed1d43d",
+      "q_012ae79b4550b59ecd771514d56a3a43458c1b7abba55e2798077d8e769dbe7e",
+      "q_0153c08079856cf98280cfb0983f4b7f05a4664cf3512a787cdba85882db8d84",
+      "q_015eea5ca929bed8e0cd303613a7b15cfc0736f167a991a85e08e32e54afc0a7",
+      "q_016d1877d375915f4e97d33c692a98869f0a43cb785ddde311119fe1895d9d74",
+      "q_0170e83af16177e1a6433a0f877098ebe764a4dda2090321e4b4b89c68b58f27",
+      "q_019ad16e57ff1faa547f6aaa92a1df43bdfcff2c977c8bb9a3fba1f275ed1412",
+      "q_01ad5c918740a827aa09e481ee75cba348edd27e9ea468f018d020904eeb6b96",
+      "q_024d51a99d0ee63aaf8c784277df6166860c00cf1d2b16795f917fdf92d9a7dd",
+      "q_02a4c7f4608774e75dc8ed6b9225b1113932fa1ee6224c85135d32c6f30e8828",
+      "q_02b34491b29150a1f0ce9def9400a7502f735396b4d02c8d869caba6f6885d17",
+      "q_02b7bc8c71b394c0f9f0c45e1d6d28c324e4d86e54697f1b3664b6999f53ef2e",
+      "q_02dc3b7cdacef8e8d4e07279007599e3f9fe31a96d2aafb778d99423c8b537d9",
+      "q_02de1a7782acef42982f738786b3d68c3d2e451dbf6514f6051f681c353456d9",
+      "q_0333b7c1f5a239301fdfa4ad10bf3768c44acb889af75b6bd315df0bec2cab24",
+      "q_035ae31175acaf4a309b409ce39cb13e68afab32e5dd0d0b1a3ca7f37056bfda"
+    ],
+    "not_english_diagram_cued": [
+      "q_8af8a59831d022feb41a79897f662a6f73b4a2c38ebe7a570c688f9da8e51010"
+    ],
+    "not_english_diagram_cued_all_ids": [
+      "q_8af8a59831d022feb41a79897f662a6f73b4a2c38ebe7a570c688f9da8e51010"
+    ],
+    "not_english_diagram_cued_total": 1,
+    "not_english_no_diagram_cue": [
+      "q_92eec578bf27710620e3b3bb9861b713346b9fd6d0ac1e067093ba76a8be472c",
+      "q_d4f3dce5aa084cb391d7a15072a53e843e8458d57b4a6c91177038dd11cc5c0b",
+      "q_e97e9d977da3ccaa710083e46869bb0f6610ded71b19f3e3636f03cc8d4c35d2"
+    ]
+  },
+  "schema": "corpus-quality-breakdown/v1",
+  "totals": {
+    "assignments": 16669,
+    "classified": 5517,
+    "classified_rows_seen": 5517,
+    "diagram_led_classified": 3369,
+    "filtered_low_quality": 1748,
+    "measured_diagram_worthy": 1621,
+    "needs_review": 8920,
+    "not_diagram_led": 2148,
+    "out_of_scope": 2232,
+    "questions": 16669
+  }
+}
