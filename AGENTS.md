@@ -49,6 +49,8 @@ render.
 | Drawing protocol | `packages/drawing/src/drawingProtocol.ts` |
 | Canvas rendering | `packages/whiteboard/src/Whiteboard.tsx` |
 | Turn persistence trust | `apps/tutor/lib/turnScenePersistence.ts` |
+| Syllabus capability coverage | `packages/scene-engine/scripts/verify-syllabus-corpus.ts` |
+| Question bank pipeline | `tools/question-bank/` + `data/question-bank/` |
 
 ## Agent Guidelines
 

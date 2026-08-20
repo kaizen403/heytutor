@@ -20,6 +20,7 @@ The only structural diagram authority.
 | Label placement | `src/labelEngine.ts` |
 | Golden corpus | `scripts/verify-golden-corpus.ts` |
 | Capability corpora | `scripts/verify-physics-evaluation-corpus.ts`, `scripts/verify-math-evaluation-corpus.ts` |
+| Syllabus capability corpus | `scripts/verify-syllabus-corpus.ts` (Tier A name-check over the local question bank + Tier A+ per-unit compile-and-prove) |
 
 The package consumes coordinate-free semantic documents and emits validated
 screen-space render primitives. It contains reusable operators and assertions,
