@@ -1,8 +1,11 @@
 const TRANSIENT_PLANNER_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+/** Retired or undeployed model IDs. Skip to the next model; do not retry the same one. */
+const MODEL_UNAVAILABLE_STATUSES = new Set([404, 410]);
 
 const KIMI_MODEL = "accounts/fireworks/models/kimi-k2p6";
 const KIMI_TURBO_ROUTER = "accounts/fireworks/routers/kimi-k2p6-turbo";
-const DEEPSEEK_V4_FLASH_MODEL = "accounts/fireworks/models/deepseek-v4-flash";
+/** Serverless GA Flash; the preview alias `deepseek-v4-flash` is no longer deployed. */
+const DEEPSEEK_V4_FLASH_MODEL = "accounts/fireworks/models/deepseek-v4-flash-0731";
 const DEFAULT_TURN_PLAN_MAX_TOKENS = 2800;
 const DEFAULT_PROBLEM_IR_MAX_TOKENS = 3600;
 const DEFAULT_SCENE_PLANNER_MAX_TOKENS = 4800;
@@ -219,6 +222,11 @@ export async function fetchPlannerCompletion(
           signal,
         });
         clearTimeout(timeoutId);
+
+        if (MODEL_UNAVAILABLE_STATUSES.has(response.status)) {
+          lastResponse = { response: await retainResponse(response), model };
+          break;
+        }
 
         if (!TRANSIENT_PLANNER_STATUSES.has(response.status)) {
           return { response, model, attemptCount: attempt };
