@@ -3,7 +3,11 @@ from __future__ import annotations
 import unittest
 import hashlib
 
-from build_corpus import _sanitize_cbse_english_occurrence, _select_cbse_english_variants
+from build_corpus import (
+    _is_english_enough_for_harness,
+    _sanitize_cbse_english_occurrence,
+    _select_cbse_english_variants,
+)
 from question_bank.models import validate_question
 from question_bank.pipeline import parse_questions_from_text
 
@@ -154,6 +158,64 @@ class CbseEnglishVariantSelectionTests(unittest.TestCase):
         self.assertIn("If A = 3B", sanitized["text"])
         self.assertIn("|B| = 2", sanitized["text"])
         self.assertIn("Determine the value of |A|", sanitized["text"])
+
+    def test_jee_main_unique_mixed_block_drops_garbled_hindi_and_keeps_circuit_stem(self) -> None:
+        questions = parse_questions_from_text(
+            "Question Number : 1 Question Id : 10001 Question Type : MCQ\n"
+            "ÃØæ\x81Øæ ·¤èçÁ° ç·¤ SÍæØè ¥ßSÍæ ×ð´ ç·¤âè ¥æÎàæü â´ÏæçÚU\x98æ ·¤æð a.c. dæðÌ âð "
+            "â´ØæðçÁÌ ·¤ÚUÙð ÂÚU ÏæÚUæ ÂýßæçãÌ ãæðÌè ãñÐ\n"
+            "Explain why current flows through an ideal capacitor in a circuit "
+            "connected to an a.c. source but not to a d.c. source.\n",
+            document_id="jee-main-2024-04-04-shift-1",
+            document_sha256="c" * 64,
+            extraction_method="tesseract-ocr-eng-fast-v1",
+            question_pattern=r"^\s*Question\s+Number\s*:\s*(?P<number>\d{1,3})\b.*$",
+        )
+        mixed = questions[0]["text"]
+        self.assertFalse(_is_english_enough_for_harness(mixed))
+
+        selected, discarded = _select_cbse_english_variants(
+            {"exam": "JEE Main"}, questions
+        )
+
+        self.assertEqual(discarded, 0)
+        text = selected[0]["text"]
+        self.assertNotIn("ÃØæ", text)
+        self.assertIn("circuit", text)
+        self.assertTrue(_is_english_enough_for_harness(text))
+        self.assertNotEqual(selected[0]["question_id"], questions[0]["question_id"])
+
+    def test_hindi_only_mojibake_stays_unsanitized(self) -> None:
+        question = parse_questions_from_text(
+            "1. âêØæðüÎØ ¥æñÚU âêØæüSÌ ·ð¤ â×Ø âêØü ÜæÜ \x80Øæð´ ÂýÌèÌ ãæðÌæ ãñ? "
+            "§â·¤æ ·¤æÚU\x87æ çÜç¹°Ð\n",
+            document_id="cbse-2015-main-physics-delhi-set-1",
+            document_sha256="d" * 64,
+            extraction_method="tesseract-ocr-eng-fast-v1",
+        )[0]
+
+        self.assertIs(_sanitize_cbse_english_occurrence(question), question)
+
+    def test_clean_english_occurrence_is_identity(self) -> None:
+        question = parse_questions_from_text(
+            "1. Find the magnitude of the current in the given circuit.\n",
+            document_id="cbse-2024-main-physics-set-1",
+            document_sha256="e" * 64,
+            extraction_method="test-text",
+        )[0]
+
+        self.assertIs(_sanitize_cbse_english_occurrence(question), question)
+
+    def test_mathematical_italic_equations_are_not_stripped_as_hindi(self) -> None:
+        question = parse_questions_from_text(
+            "1. Let 𝛼, 𝛽 and 𝛾 be real numbers such that the system of linear "
+            "equations 𝑥 + 2𝑦 + 3𝑧 = 𝛼 is consistent.\n",
+            document_id="jee-main-2021-02-25-shift-1",
+            document_sha256="f" * 64,
+            extraction_method="test-text",
+        )[0]
+
+        self.assertIs(_sanitize_cbse_english_occurrence(question), question)
 
 
 if __name__ == "__main__":

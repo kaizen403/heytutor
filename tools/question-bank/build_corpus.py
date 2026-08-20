@@ -187,50 +187,114 @@ def _cbse_readable_residue_tokens(text: str) -> set[str]:
     }
 
 
-def _strip_cbse_unreadable_pua_lines(text: str) -> str:
-    """Remove corrupt glyphs without discarding unique readable formula text."""
+def _is_english_enough_for_harness(text: str) -> bool:
+    """Match the syllabus capability harness isEnglishEnough gate."""
+
+    if len(text) < 30:
+        return False
+    non_ascii = sum(ord(character) > 127 for character in text)
+    return non_ascii / len(text) < 0.25
+
+
+def _is_garbled_non_english_character(character: str) -> bool:
+    """True for Hindi-font / mojibake letters, not for math operators or italics.
+
+    CBSE bilingual OCR of Kruti Dev / ISFOC fonts lands in Latin-1 letters and
+    combining marks. Mathematical alphanumerics (U+1D400+) and Latin-1 symbols
+    such as × ° ± are left intact.
+    """
+
+    code = ord(character)
+    if character == "\ufffd":
+        return True
+    if 0x80 <= code <= 0x9F:
+        return True
+    if 0x0300 <= code <= 0x036F:
+        return True
+    if 0x0900 <= code <= 0x097F:
+        return True
+    if 0xE000 <= code <= 0xEFFF:
+        return True
+    return character.isalpha() and 0x00C0 <= code <= 0x00FF
+
+
+def _line_is_unreadable_non_english(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if any(0xE000 <= ord(character) <= 0xEFFF for character in stripped):
+        return True
+    if any(0x0900 <= ord(character) <= 0x097F for character in stripped):
+        return True
+    visible = [character for character in stripped if not character.isspace()]
+    if not visible:
+        return False
+    garbled = sum(_is_garbled_non_english_character(character) for character in visible)
+    return garbled >= 3 and garbled / len(visible) >= 0.08
+
+
+def _readable_residue_from_garbled_line(line: str) -> str:
+    return re.sub(
+        r"[ \t]+",
+        " ",
+        "".join(
+            character
+            for character in line
+            if not _is_garbled_non_english_character(character)
+        ),
+    ).strip()
+
+
+def _strip_unreadable_non_english_lines(text: str) -> str:
+    """Drop Hindi/mojibake lines without discarding unique readable formula text."""
 
     lines = text.splitlines()
-    clean_lines = [
-        line
-        for line in lines
-        if not any(0xE000 <= ord(character) <= 0xEFFF for character in line)
-    ]
+    clean_lines = [line for line in lines if not _line_is_unreadable_non_english(line)]
     clean_tokens = _cbse_readable_residue_tokens("\n".join(clean_lines))
     sanitized_lines: list[str] = []
     for line in lines:
-        if not any(0xE000 <= ord(character) <= 0xEFFF for character in line):
+        if not _line_is_unreadable_non_english(line):
             sanitized_lines.append(line)
             continue
-        residue = re.sub(
-            r"[ \t]+",
-            " ",
-            "".join(
-                character
-                for character in line
-                if not 0xE000 <= ord(character) <= 0xEFFF
-            ),
-        ).strip()
+        residue = _readable_residue_from_garbled_line(line)
         residue_tokens = _cbse_readable_residue_tokens(residue)
-        if residue_tokens and not residue_tokens.issubset(clean_tokens):
+        keep_unique_formula = bool(residue_tokens) and not residue_tokens.issubset(
+            clean_tokens
+        )
+        keep_english = bool(residue) and (
+            _CBSE_ENGLISH_CONTENT_CUE_RE.search(residue) is not None
+            or len(re.findall(r"[A-Za-z]{2,}", residue)) >= 5
+        )
+        if keep_unique_formula or keep_english:
             sanitized_lines.append(residue)
     return "\n".join(sanitized_lines).strip()
 
 
-def _sanitize_cbse_english_occurrence(question: dict[str, Any]) -> dict[str, Any]:
-    """Drop unreadable Hindi custom-font lines only when English remains usable.
+def _strip_cbse_unreadable_pua_lines(text: str) -> str:
+    """Backward-compatible alias used by older sanitizer reviews."""
 
-    Official English CBSE booklets often interleave a Hindi rendering whose
-    legacy font extracts into E000-EFFF PUA.  The raw staged artifact remains
+    return _strip_unreadable_non_english_lines(text)
+
+
+def _sanitize_cbse_english_occurrence(question: dict[str, Any]) -> dict[str, Any]:
+    """Drop unreadable Hindi/mojibake lines only when English remains usable.
+
+    Official English CBSE booklets interleave a Hindi rendering (legacy PUA
+    fonts or Latin-1 OCR of Hindi fonts). NTA English/Hindi papers can merge
+    both columns into one question block. The raw staged artifact remains
     untouched; this removes only those unreadable lines from the selected
     English occurrence and updates all content-derived hashes.
     """
 
     original_text = question["text"]
-    if not any(0xE000 <= ord(character) <= 0xEFFF for character in original_text):
+    if not any(_line_is_unreadable_non_english(line) for line in original_text.splitlines()):
         return question
-    cleaned_text = _strip_cbse_unreadable_pua_lines(original_text)
-    if not cleaned_text:
+    cleaned_text = _strip_unreadable_non_english_lines(original_text)
+    if not cleaned_text or cleaned_text == original_text:
+        return question
+    if _is_english_enough_for_harness(original_text) and not _is_english_enough_for_harness(
+        cleaned_text
+    ):
         return question
     removed_ratio = (len(original_text) - len(cleaned_text)) / len(original_text)
     ascii_words = re.findall(r"[A-Za-z]{2,}", cleaned_text)
@@ -418,12 +482,7 @@ def _select_cbse_english_variants(
     for occurrences in grouped.values():
         if len(occurrences) == 1:
             index, question = occurrences[0]
-            winner = (
-                _sanitize_cbse_english_occurrence(question)
-                if document["exam"] == "CBSE Class XII Board Examination"
-                else question
-            )
-            selected.append((index, winner))
+            selected.append((index, _sanitize_cbse_english_occurrence(question)))
             continue
         # Standard CBSE bilingual booklets print Hindi first and English second;
         # the lexical score handles OCR ordering anomalies, while the occurrence
@@ -436,12 +495,7 @@ def _select_cbse_english_variants(
                 item[0],
             ),
         )
-        selected_question = (
-            _sanitize_cbse_english_occurrence(winner[1])
-            if document["exam"] == "CBSE Class XII Board Examination"
-            else winner[1]
-        )
-        selected.append((winner[0], selected_question))
+        selected.append((winner[0], _sanitize_cbse_english_occurrence(winner[1])))
         discarded += len(occurrences) - 1
     return [question for _, question in sorted(selected)], discarded
 
