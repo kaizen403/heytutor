@@ -19,6 +19,7 @@ import {
   planAndSolveProblemV1,
   createFallbackTurnPlanV3,
   inferSceneCapabilities,
+  questionRequiresVisual,
   type ProblemAuthorityV1Response,
   type SceneCandidateValidation,
   type ScenePlanWithRepairResult,
@@ -570,6 +571,8 @@ export function useQuestionHandler(
             signal: abortController.signal,
             timeoutMs: remainingPlannerMs,
             conversationContext: planContext,
+            // Any inferred family (FBD, circuit, conic, energy level, …) gets a
+            // compact operator catalog; optics is no longer the only match.
             ...(sceneCapabilities.families.length > 0
               ? {
                   constructionOperators: sceneCapabilities.constructionOperators,
@@ -706,9 +709,13 @@ export function useQuestionHandler(
           } catch (error) {
             // Invalid exact and fallback scenes are both kept off the canvas.
             sceneV2RenderScene = null;
-            sceneVisualStatus = turnPlan.visualRequirement === "required"
-              ? "retry_required"
-              : "text_only";
+            // Escalate to retry_required when the deterministic pre-filter flags the
+            // stem as diagram-worthy but the planner under-called visualRequirement.
+            // This only changes the retry decision, never the geometry.
+            sceneVisualStatus =
+              turnPlan.visualRequirement === "required" || questionRequiresVisual(question)
+                ? "retry_required"
+                : "text_only";
             representationReason = error instanceof Error ? error.message : String(error);
           }
         }
