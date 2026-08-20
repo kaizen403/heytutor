@@ -1,0 +1,866 @@
+{
+  "schema": "syllabus-capability-coverage/v1",
+  "generated": "2026-08-19T18:46:36.123Z",
+  "inputs": {
+    "questions": "/Users/kaizen/heytutor/data/question-bank/build/questions.all.jsonl",
+    "syllabus": "/Users/kaizen/heytutor/data/question-bank/build/question-syllabus.jsonl"
+  },
+  "totals": {
+    "classified_rows": 5517,
+    "measured_diagram_worthy": 1621,
+    "covered": 1621,
+    "not_diagram_led": 2148,
+    "filtered_low_quality": 1748,
+    "missing_operator": 0,
+    "missing_predicate": 0,
+    "coverage_pct": 100
+  },
+  "by_unit": {
+    "physics|16": {
+      "total": 442,
+      "covered": 442,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "physics|11": {
+      "total": 297,
+      "covered": 297,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "physics|14": {
+      "total": 190,
+      "covered": 190,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "maths|10": {
+      "total": 167,
+      "covered": 167,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "physics|13": {
+      "total": 130,
+      "covered": 130,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "physics|12": {
+      "total": 119,
+      "covered": 119,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "maths|8": {
+      "total": 84,
+      "covered": 84,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "maths|11": {
+      "total": 56,
+      "covered": 56,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "maths|7": {
+      "total": 40,
+      "covered": 40,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "maths|12": {
+      "total": 37,
+      "covered": 37,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "physics|5": {
+      "total": 28,
+      "covered": 28,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "physics|10": {
+      "total": 11,
+      "covered": 11,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "physics|3": {
+      "total": 7,
+      "covered": 7,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "physics|4": {
+      "total": 6,
+      "covered": 6,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "physics|2": {
+      "total": 5,
+      "covered": 5,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "maths|14": {
+      "total": 1,
+      "covered": 1,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    },
+    "maths|9": {
+      "total": 1,
+      "covered": 1,
+      "missing_operator": 0,
+      "missing_predicate": 0
+    }
+  },
+  "missing_operators": {},
+  "missing_predicates": {},
+  "planner_readiness": {
+    "ambiguous": 897,
+    "constructive": 633,
+    "qualitative": 91
+  },
+  "compile_probe": {
+    "totals": {
+      "passed": 17,
+      "failed": 0,
+      "not_implemented": 0
+    },
+    "by_unit": {
+      "maths|10": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "maths|11": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "maths|12": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "maths|14": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "maths|7": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "maths|8": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "maths|9": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "physics|10": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "physics|11": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "physics|12": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "physics|13": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "physics|14": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "physics|16": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "physics|2": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "physics|3": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "physics|4": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      },
+      "physics|5": {
+        "outcome": "probe_passed",
+        "fatalIssues": []
+      }
+    }
+  },
+  "compile_probe_depth": {
+    "totals": {
+      "levels": 31,
+      "passed": 31,
+      "failed": 0,
+      "not_implemented": 0
+    },
+    "by_unit": {
+      "maths|10": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "medium": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "composite": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "maths|11": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "maths|12": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "maths|14": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "maths|7": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "maths|8": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "medium": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "composite": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "maths|9": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "physics|10": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "physics|11": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "medium": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "composite": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "physics|12": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "medium": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "composite": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "physics|13": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "medium": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "composite": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "physics|14": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "medium": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "composite": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "physics|16": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "medium": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        },
+        "composite": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "physics|2": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "physics|3": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "physics|4": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      },
+      "physics|5": {
+        "easy": {
+          "outcome": "probe_passed",
+          "fatalIssues": []
+        }
+      }
+    }
+  },
+  "adversarial": {
+    "totals": {
+      "mutations": 80,
+      "rejected": 80,
+      "not_rejected": 0,
+      "no_mutation": 0
+    },
+    "by_unit": {
+      "maths|10": {
+        "passed": [
+          "easy: collinear: moved the middle point off the line",
+          "easy: perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+          "easy: parallel: rotated one asserted vector/segment so it is no longer parallel",
+          "medium: collinear: moved the middle point off the line",
+          "medium: perpendicular: re-asserted two parallel vertical lines as perpendicular",
+          "medium: parallel: rotated one asserted vector/segment so it is no longer parallel",
+          "composite: collinear: re-asserted collinearity including a point off the line",
+          "composite: perpendicular: re-asserted AB perpendicular to a parallel companion",
+          "composite: parallel: rotated one asserted vector/segment so it is no longer parallel",
+          "composite: equal_length: negated the equal_length claim"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "collinear: moved the middle point off the line",
+              "perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+              "parallel: rotated one asserted vector/segment so it is no longer parallel"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "medium": {
+            "passed": [
+              "collinear: moved the middle point off the line",
+              "perpendicular: re-asserted two parallel vertical lines as perpendicular",
+              "parallel: rotated one asserted vector/segment so it is no longer parallel"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "composite": {
+            "passed": [
+              "collinear: re-asserted collinearity including a point off the line",
+              "perpendicular: re-asserted AB perpendicular to a parallel companion",
+              "parallel: rotated one asserted vector/segment so it is no longer parallel",
+              "equal_length: negated the equal_length claim"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "maths|11": {
+        "passed": [
+          "easy: perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+          "easy: parallel: rotated one asserted vector/segment so it is no longer parallel"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+              "parallel: rotated one asserted vector/segment so it is no longer parallel"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "maths|12": {
+        "passed": [
+          "easy: perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+          "easy: parallel: rotated one asserted vector/segment so it is no longer parallel",
+          "easy: equal_length: changed one vector endpoint so lengths differ"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+              "parallel: rotated one asserted vector/segment so it is no longer parallel",
+              "equal_length: changed one vector endpoint so lengths differ"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "maths|14": {
+        "passed": [
+          "easy: equal_angle: broke equality by asserting angle with a wrong pair",
+          "easy: angle_between: shifted asserted angle by +20 degrees"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "equal_angle: broke equality by asserting angle with a wrong pair",
+              "angle_between: shifted asserted angle by +20 degrees"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "maths|7": {
+        "passed": [
+          "easy: function_value: moved asserted point off the curve (+0.5 y)"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "function_value: moved asserted point off the curve (+0.5 y)"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "maths|8": {
+        "passed": [
+          "easy: function_value: moved asserted point off the curve (+0.5 y)",
+          "medium: function_value: moved asserted point off the curve (+0.5 y)",
+          "composite: function_value: moved asserted point off the curve (+0.5 y)",
+          "composite: root: shifted the asserted root x by +0.5"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "function_value: moved asserted point off the curve (+0.5 y)"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "medium": {
+            "passed": [
+              "function_value: moved asserted point off the curve (+0.5 y)"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "composite": {
+            "passed": [
+              "function_value: moved asserted point off the curve (+0.5 y)",
+              "root: shifted the asserted root x by +0.5"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "maths|9": {
+        "passed": [
+          "easy: function_value: moved asserted point off the curve (+0.5 y)"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "function_value: moved asserted point off the curve (+0.5 y)"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "physics|10": {
+        "passed": [
+          "easy: equal_spacing: changed expected equal_spacing to a point set that is unevenly spaced",
+          "easy: wave_cycles: changed expected wave cycles from 3 to 4"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "equal_spacing: changed expected equal_spacing to a point set that is unevenly spaced",
+              "wave_cycles: changed expected wave cycles from 3 to 4"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "physics|11": {
+        "passed": [
+          "easy: equal_length: changed one vector endpoint so lengths differ",
+          "easy: parallel: rotated one asserted vector/segment so it is no longer parallel",
+          "easy: opposite_direction: re-asserted a vector opposite to itself (false)",
+          "medium: equal_length: changed one vector endpoint so lengths differ",
+          "medium: parallel: rotated one asserted vector/segment so it is no longer parallel",
+          "medium: opposite_direction: re-asserted a vector opposite to itself (false)",
+          "composite: equal_length: changed one vector endpoint so lengths differ",
+          "composite: parallel: rotated one asserted vector/segment so it is no longer parallel",
+          "composite: opposite_direction: re-asserted a vector opposite to itself (false)",
+          "composite: on: moved the asserted point off the supporting geometry",
+          "composite: vector_sum: moved the resultant tip so the parallelogram no longer closes",
+          "composite: angle_between: shifted asserted angle by +20 degrees"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "equal_length: changed one vector endpoint so lengths differ",
+              "parallel: rotated one asserted vector/segment so it is no longer parallel",
+              "opposite_direction: re-asserted a vector opposite to itself (false)"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "medium": {
+            "passed": [
+              "equal_length: changed one vector endpoint so lengths differ",
+              "parallel: rotated one asserted vector/segment so it is no longer parallel",
+              "opposite_direction: re-asserted a vector opposite to itself (false)"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "composite": {
+            "passed": [
+              "equal_length: changed one vector endpoint so lengths differ",
+              "parallel: rotated one asserted vector/segment so it is no longer parallel",
+              "opposite_direction: re-asserted a vector opposite to itself (false)",
+              "on: moved the asserted point off the supporting geometry",
+              "vector_sum: moved the resultant tip so the parallelogram no longer closes",
+              "angle_between: shifted asserted angle by +20 degrees"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "physics|12": {
+        "passed": [
+          "easy: path: rewired the second series resistor off the chain so the path breaks",
+          "easy: sameTerminalPair: moved one parallel branch so the two branches no longer share both terminals",
+          "easy: degree: rewired a terminal so node degree no longer matches",
+          "medium: path: rewired the second series resistor off the chain so the path breaks",
+          "medium: sameTerminalPair: moved one parallel branch so the two branches no longer share both terminals",
+          "medium: degree: rewired the series feed so terminal degree no longer matches",
+          "medium: pathCount: added a bypass wire so pathCount no longer matches (validation)",
+          "composite: path: rewired the outgoing series resistor off the chain",
+          "composite: sameTerminalPair: moved one parallel branch off the shared terminals",
+          "composite: degree: rewired a parallel branch so junction degree no longer matches",
+          "composite: pathCount: added a bypass wire so pathCount no longer matches (validation)"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "path: rewired the second series resistor off the chain so the path breaks",
+              "sameTerminalPair: moved one parallel branch so the two branches no longer share both terminals",
+              "degree: rewired a terminal so node degree no longer matches"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "medium": {
+            "passed": [
+              "path: rewired the second series resistor off the chain so the path breaks",
+              "sameTerminalPair: moved one parallel branch so the two branches no longer share both terminals",
+              "degree: rewired the series feed so terminal degree no longer matches",
+              "pathCount: added a bypass wire so pathCount no longer matches (validation)"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "composite": {
+            "passed": [
+              "path: rewired the outgoing series resistor off the chain",
+              "sameTerminalPair: moved one parallel branch off the shared terminals",
+              "degree: rewired a parallel branch so junction degree no longer matches",
+              "pathCount: added a bypass wire so pathCount no longer matches (validation)"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "physics|13": {
+        "passed": [
+          "easy: perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+          "easy: parallel: rotated one asserted vector/segment so it is no longer parallel",
+          "medium: perpendicular: re-asserted the parallel component perpendicular to the axis",
+          "medium: parallel: re-asserted the perpendicular component parallel to the axis",
+          "composite: perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+          "composite: parallel: rotated one asserted vector/segment so it is no longer parallel"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+              "parallel: rotated one asserted vector/segment so it is no longer parallel"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "medium": {
+            "passed": [
+              "perpendicular: re-asserted the parallel component perpendicular to the axis",
+              "parallel: re-asserted the perpendicular component parallel to the axis"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "composite": {
+            "passed": [
+              "perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+              "parallel: rotated one asserted vector/segment so it is no longer parallel"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "physics|14": {
+        "passed": [
+          "easy: path: disconnected the resistor from the series chain",
+          "easy: degree: rewired the resistor so middle-node degree is no longer 2",
+          "medium: path: disconnected the resistor from the series chain",
+          "medium: degree: rewired the resistor so middle-node degree is no longer 2",
+          "composite: path: rewired the inductor off the series chain",
+          "composite: degree: rewired a parallel branch so junction degree no longer matches",
+          "composite: pathCount: added a bypass wire so pathCount no longer matches (validation)",
+          "composite: sameTerminalPair: moved one parallel branch off the shared terminals"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "path: disconnected the resistor from the series chain",
+              "degree: rewired the resistor so middle-node degree is no longer 2"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "medium": {
+            "passed": [
+              "path: disconnected the resistor from the series chain",
+              "degree: rewired the resistor so middle-node degree is no longer 2"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "composite": {
+            "passed": [
+              "path: rewired the inductor off the series chain",
+              "degree: rewired a parallel branch so junction degree no longer matches",
+              "pathCount: added a bypass wire so pathCount no longer matches (validation)",
+              "sameTerminalPair: moved one parallel branch off the shared terminals"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "physics|16": {
+        "passed": [
+          "easy: snells_law: changed n2 from 1.5 to 2.5",
+          "easy: equal_angle: rotated the incident ray by +20 degrees so incidence ≠ reflection",
+          "easy: angle_between: shifted asserted angle by +20 degrees",
+          "medium: snells_law: changed n2 from 1.5 to 2.5",
+          "medium: equal_angle: rotated the incident ray by +20 degrees so incidence ≠ reflection",
+          "medium: angle_between: shifted asserted angle by +20 degrees",
+          "composite: snells_law: changed n2 from 1.5 to 2.5",
+          "composite: equal_angle: negated the equal_angle claim",
+          "composite: angle_between: shifted asserted angle by +20 degrees",
+          "composite: converges: re-asserted convergence at a point the rays do not meet"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "snells_law: changed n2 from 1.5 to 2.5",
+              "equal_angle: rotated the incident ray by +20 degrees so incidence ≠ reflection",
+              "angle_between: shifted asserted angle by +20 degrees"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "medium": {
+            "passed": [
+              "snells_law: changed n2 from 1.5 to 2.5",
+              "equal_angle: rotated the incident ray by +20 degrees so incidence ≠ reflection",
+              "angle_between: shifted asserted angle by +20 degrees"
+            ],
+            "failed": [],
+            "missing": []
+          },
+          "composite": {
+            "passed": [
+              "snells_law: changed n2 from 1.5 to 2.5",
+              "equal_angle: negated the equal_angle claim",
+              "angle_between: shifted asserted angle by +20 degrees",
+              "converges: re-asserted convergence at a point the rays do not meet"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "physics|2": {
+        "passed": [
+          "easy: function_value: moved asserted point off the curve (+0.5 y)"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "function_value: moved asserted point off the curve (+0.5 y)"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "physics|3": {
+        "passed": [
+          "easy: perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+          "easy: opposite_direction: re-asserted a vector opposite to itself (false)",
+          "easy: connected: moved the contact target so the block no longer touches it"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+              "opposite_direction: re-asserted a vector opposite to itself (false)",
+              "connected: moved the contact target so the block no longer touches it"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "physics|4": {
+        "passed": [
+          "easy: angle_between: shifted asserted angle by +20 degrees",
+          "easy: parallel: re-asserted force parallel to its perpendicular component (false)"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "angle_between: shifted asserted angle by +20 degrees",
+              "parallel: re-asserted force parallel to its perpendicular component (false)"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      },
+      "physics|5": {
+        "passed": [
+          "easy: perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+          "easy: angle_between: shifted asserted angle by +20 degrees"
+        ],
+        "failed": [],
+        "missing": [],
+        "by_level": {
+          "easy": {
+            "passed": [
+              "perpendicular: rotated one asserted vector/segment so it is no longer perpendicular",
+              "angle_between: shifted asserted angle by +20 degrees"
+            ],
+            "failed": [],
+            "missing": []
+          }
+        }
+      }
+    }
+  }
+}
