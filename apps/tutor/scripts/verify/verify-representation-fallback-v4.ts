@@ -6,7 +6,7 @@ import {
 import {
   buildSourceGroundedRepresentation,
   selectVerifiedRepresentation,
-} from "../features/tutor-session/lib/representationFallbackV4";
+} from "../../features/tutor-session/lib/representationFallbackV4";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

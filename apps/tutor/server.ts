@@ -4,12 +4,12 @@ import { parse as parseUrl } from "node:url";
 import next from "next";
 import { WebSocket, WebSocketServer } from "ws";
 import { HTUTOR_UID_COOKIE } from "./lib/cookies";
-import { flushInBackground, recordTtsSpan } from "./lib/langfuse";
+import { flushInBackground, recordTtsSpan } from "./lib/obs/langfuse";
 import {
   buildMultiContextSegmentMessages,
   normalizeMultiContextServerPayload,
-} from "./lib/ttsRelayProtocol";
-import { verifyWsTicket } from "./lib/wsTicket";
+} from "./lib/tts/ttsRelayProtocol";
+import { verifyWsTicket } from "./lib/tts/wsTicket";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "localhost";

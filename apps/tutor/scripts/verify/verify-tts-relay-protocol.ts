@@ -1,7 +1,7 @@
 import {
   buildMultiContextSegmentMessages,
   normalizeMultiContextServerPayload,
-} from "../lib/ttsRelayProtocol";
+} from "../../lib/tts/ttsRelayProtocol";
 
 const [initializeMessage, flushMessage] = buildMultiContextSegmentMessages(
   "segment_12",

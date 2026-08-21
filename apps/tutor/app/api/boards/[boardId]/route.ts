@@ -163,7 +163,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
     // Best-effort R2 audio cleanup in the background. Dynamic import keeps
     // child_process out of the route's webpack bundle at build time.
-    const { lectureAudioKey } = await import("@/lib/r2Keys");
+    const { lectureAudioKey } = await import("@/lib/r2/r2Keys");
     const audioKeys = turns
       .flatMap((turn) =>
         turn.segments
@@ -174,7 +174,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     if (audioKeys.length > 0) {
       void (async () => {
         try {
-          const { deleteAudio } = await import("@/lib/r2");
+          const { deleteAudio } = await import("@/lib/r2/r2");
           await Promise.all(audioKeys.map((key) => deleteAudio(key)));
         } catch {
           // best-effort — R2 may not be configured or wrangler unavailable

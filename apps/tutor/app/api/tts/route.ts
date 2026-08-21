@@ -1,9 +1,9 @@
-import { flushInBackground, recordTtsSpan } from "@/lib/langfuse";
+import { flushInBackground, recordTtsSpan } from "@/lib/obs/langfuse";
 import {
   DEFAULT_ELEVENLABS_MODEL,
   ELEVENLABS_TTS_BASE,
   upstreamErrorResponse,
-} from "@/lib/ttsProxy";
+} from "@/lib/tts/ttsProxy";
 import { getUserId } from "@/lib/auth";
 
 interface TtsRequestBody {

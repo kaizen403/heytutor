@@ -1,4 +1,4 @@
-import { flushInBackground, recordTtsSpan } from "@/lib/langfuse";
+import { flushInBackground, recordTtsSpan } from "@/lib/obs/langfuse";
 import {
   buildElevenLabsPayload,
   DEFAULT_ELEVENLABS_MODEL,
@@ -6,7 +6,7 @@ import {
   type ElevenLabsTtsBody,
   ttsNotConfiguredResponse,
   upstreamErrorResponse,
-} from "@/lib/ttsProxy";
+} from "@/lib/tts/ttsProxy";
 import { getUserId } from "@/lib/auth";
 
 function readTraceHeaders(request: Request): { traceId?: string; sessionId?: string } {

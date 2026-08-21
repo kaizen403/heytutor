@@ -1,4 +1,4 @@
-import { mintWsTicket, verifyWsTicket } from "../lib/wsTicket";
+import { mintWsTicket, verifyWsTicket } from "../../lib/tts/wsTicket";
 
 const ticket = mintWsTicket("user-123", 1_000_000);
 if (!verifyWsTicket(ticket, 1_000_000)) {

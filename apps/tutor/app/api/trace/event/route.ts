@@ -3,8 +3,8 @@ import {
   recordTurnEvents,
   updateTurnTrace,
   type TurnTelemetryEvent,
-} from "@/lib/langfuse";
-import { enrichTraceMetadataWithCosts } from "@/lib/usageCost";
+} from "@/lib/obs/langfuse";
+import { enrichTraceMetadataWithCosts } from "@/lib/obs/usageCost";
 import { ensureUser, getUserId } from "@/lib/auth";
 
 interface TraceEventRequestBody {

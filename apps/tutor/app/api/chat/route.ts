@@ -10,18 +10,18 @@ import {
   genTraceId,
   startTurnTrace,
   type TurnTrace,
-} from "@/lib/langfuse";
+} from "@/lib/obs/langfuse";
 import { ensureUser, getUserId } from "@/lib/auth";
 import {
   fetchPlannerCompletion,
   resolvePlannerMaxTokens,
   resolvePlannerModels,
-} from "@/lib/plannerTransport";
+} from "@/lib/llm/plannerTransport";
 import {
   fetchTeachingCompletion,
   resolveTeachingModel,
   resolveTeachingReasoningEffort,
-} from "@/lib/teachingTransport";
+} from "@/lib/llm/teachingTransport";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 const DEFAULT_MAX_TOKENS = 3600;

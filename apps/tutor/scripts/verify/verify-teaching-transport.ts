@@ -3,7 +3,7 @@ import {
   fetchTeachingCompletion,
   resolveTeachingModel,
   resolveTeachingReasoningEffort,
-} from "../lib/teachingTransport";
+} from "../../lib/llm/teachingTransport";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -38,6 +38,14 @@ assert(
     mode: "auto",
   }) === "medium",
   "unplanned fallback teaching lost its reasoning classifier",
+);
+assert(
+  resolveTeachingReasoningEffort({
+    question: "can yuou explain me the basics of dynamic programming with code",
+    hasAuthoritativePlan: false,
+    mode: "auto",
+  }) === "none",
+  "a polite explain-the-basics request must start speaking without a solve budget",
 );
 
 async function verifyTimeout(): Promise<void> {

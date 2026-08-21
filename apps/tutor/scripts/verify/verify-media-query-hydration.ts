@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { useIsCompactNav } from "../lib/useMediaQuery";
+import { useIsCompactNav } from "../../lib/client/useMediaQuery";
 
 function MediaQueryProbe() {
   return createElement("span", {

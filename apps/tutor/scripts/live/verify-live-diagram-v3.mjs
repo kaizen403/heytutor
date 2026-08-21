@@ -23,7 +23,7 @@ import {
 
 const question = process.argv.slice(2).join(" ").trim();
 if (!question) {
-  throw new Error("Usage: node scripts/verify-live-diagram-v3.mjs <question>");
+  throw new Error("Usage: node scripts/live/verify-live-diagram-v3.mjs <question>");
 }
 
 const origin = process.env.TUTOR_ORIGIN ?? "http://localhost:3000";

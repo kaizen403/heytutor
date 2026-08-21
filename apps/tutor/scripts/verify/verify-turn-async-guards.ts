@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { eraseWhiteboardRegionIfCurrent } from "../features/tutor-session/hooks/useCommandExecution";
+import { eraseWhiteboardRegionIfCurrent } from "../../features/tutor-session/hooks/useCommandExecution";
 import {
   awaitCurrentTurn,
   canContinueTurnAfterAsync,
   shouldFlushPendingQuestion,
-} from "../features/tutor-session/hooks/turn/useQuestionHandler";
-import { isReplayGenerationCurrent } from "../features/tutor-session/hooks/useReplay";
+} from "../../features/tutor-session/hooks/turn/useQuestionHandler";
+import { isReplayGenerationCurrent } from "../../features/tutor-session/hooks/useReplay";
 
 async function main(): Promise<void> {
   const readyQuestion = {

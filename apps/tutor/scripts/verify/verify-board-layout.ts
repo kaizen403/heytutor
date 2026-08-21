@@ -8,15 +8,15 @@ import {
   type TutorSegment,
   type VerifiedDiagram,
 } from "@heytutor/drawing";
-import { withBoardEpochSegment, type RecordedSegmentPayload } from "../lib/boardsClient";
+import { withBoardEpochSegment, type RecordedSegmentPayload } from "../../lib/boards/boardsClient";
 import {
   estimateBoardTextWidthAtSize,
   findWorkTextSlot,
   registerBoardAnchor,
   textRectsOverlap,
-} from "../features/tutor-session/lib/boardLayout";
-import { TEXT_LAYOUT } from "../features/tutor-session/constants";
-import type { BoardLayoutState } from "../features/tutor-session/types";
+} from "../../features/tutor-session/lib/boardLayout";
+import { TEXT_LAYOUT } from "../../features/tutor-session/constants";
+import type { BoardLayoutState } from "../../features/tutor-session/types";
 
 const WORK_MAX_WIDTH = 400 - 28 - TEXT_LAYOUT.marginX;
 

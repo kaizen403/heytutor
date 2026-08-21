@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth";
-import { mintWsTicket } from "@/lib/wsTicket";
+import { mintWsTicket } from "@/lib/tts/wsTicket";
 
 export async function GET(): Promise<Response> {
   const userId = await getUserId();

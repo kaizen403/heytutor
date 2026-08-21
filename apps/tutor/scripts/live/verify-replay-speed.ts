@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {
   applyReplayPlaybackRate,
   speedAwareDelay,
-} from "../lib/replayAudio";
+} from "../../lib/replay/replayAudio";
 
 async function main(): Promise<void> {
   const audio = {

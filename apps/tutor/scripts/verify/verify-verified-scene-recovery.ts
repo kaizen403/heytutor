@@ -4,8 +4,8 @@ import {
   forgetVerifiedScene,
   isRecoveryEligibleQuestion,
   rememberVerifiedScene,
-} from "../features/tutor-session/lib/verifiedSceneRecovery";
-import type { StoredTurn } from "../lib/boardsClient";
+} from "../../features/tutor-session/lib/verifiedSceneRecovery";
+import type { StoredTurn } from "../../lib/boards/boardsClient";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

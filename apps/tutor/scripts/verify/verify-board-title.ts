@@ -2,7 +2,7 @@ import {
   deriveBoardTitleFromQuestion,
   finalizeBoardTitle,
   isMetaOrInvalidBoardTitle,
-} from "../lib/boardTitle";
+} from "../../lib/boards/boardTitle";
 
 function assert(condition: unknown, message: string): void {
   if (!condition) {

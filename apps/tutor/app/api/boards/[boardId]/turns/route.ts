@@ -2,14 +2,14 @@ import { Prisma, type Turn, type Segment } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
-import { lectureAudioKey } from "@/lib/r2Keys";
-import { uploadAudio } from "@/lib/r2";
-import { isTurnMetadataPersistable } from "@/lib/turnPersistencePolicy";
-import { canonicalizeTurnSceneMetadata } from "@/lib/turnScenePersistence";
+import { lectureAudioKey } from "@/lib/r2/r2Keys";
+import { uploadAudio } from "@/lib/r2/r2";
+import { isTurnMetadataPersistable } from "@/lib/scene/turnPersistencePolicy";
+import { canonicalizeTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
 import {
   validateTurnUploadHeaders,
   validateTurnUploadParts,
-} from "@/lib/turnUploadLimits";
+} from "@/lib/scene/turnUploadLimits";
 
 interface RouteContext {
   params: Promise<{ boardId: string }>;

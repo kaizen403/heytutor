@@ -12,12 +12,12 @@ import {
   serializeSegmentCommands,
   type TutorSegment,
 } from "@heytutor/drawing";
-import { buildSourceGroundedRepresentation } from "../features/tutor-session/lib/representationFallbackV4";
-import { buildVerifiedDiagramPresentation } from "../features/tutor-session/lib/verifiedScenePresentation";
+import { buildSourceGroundedRepresentation } from "../../features/tutor-session/lib/representationFallbackV4";
+import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/verifiedScenePresentation";
 import {
   canonicalizeTurnSceneMetadata,
   type SubmittedTurnSceneMetadata,
-} from "../lib/turnScenePersistence";
+} from "../../lib/scene/turnScenePersistence";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

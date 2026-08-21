@@ -8,12 +8,12 @@ import {
 import {
   buildLocalStoredTurn,
   enrichStoredSegmentsWithReplayAudio,
-} from "../lib/replayTurns";
+} from "../../lib/replay/replayTurns";
 import {
   buildReplayTimeline,
   findCueAtTime,
   formatReplayTime,
-} from "../lib/replayTimeline";
+} from "../../lib/replay/replayTimeline";
 
 const blobUrls: string[] = [];
 const register = (url: string) => {

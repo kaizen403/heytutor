@@ -1,7 +1,7 @@
 import {
   BOARD_TITLE_SYSTEM_PROMPT,
   finalizeBoardTitle,
-} from "@/lib/boardTitle";
+} from "@/lib/boards/boardTitle";
 import { ensureUser, getUserId } from "@/lib/auth";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";

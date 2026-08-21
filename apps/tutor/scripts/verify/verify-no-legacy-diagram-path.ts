@@ -5,7 +5,7 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-const root = resolve(import.meta.dirname, "../../..");
+const root = resolve(import.meta.dirname, "../../../..");
 const deletedPaths = [
   "packages/drawing/src/templates/registry.ts",
   "packages/drawing/src/geometry/compileScene.ts",
@@ -34,7 +34,7 @@ for (const symbol of ["matchDiagramTemplate", "compileScene(", "inferSceneFromQu
   assert(!questionHandler.includes(symbol), `turn handler still contains ${symbol}`);
 }
 
-const systemPrompt = readFileSync(resolve(root, "packages/tutor-core/src/systemPrompt.ts"), "utf8");
+const systemPrompt = readFileSync(resolve(root, "packages/tutor-core/src/llm/systemPrompt.ts"), "utf8");
 assert(!systemPrompt.includes("[DRAW_"), "teaching prompt must not contain freehand structural commands");
 
 console.log("no legacy diagram runtime verification passed");

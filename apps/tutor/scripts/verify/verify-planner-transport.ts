@@ -2,7 +2,7 @@ import {
   fetchPlannerCompletion,
   resolvePlannerMaxTokens,
   resolvePlannerModels,
-} from "../lib/plannerTransport";
+} from "../../lib/llm/plannerTransport";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

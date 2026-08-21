@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { getSegmentCommands } from "@heytutor/drawing";
-import { buildSourceGroundedRepresentation } from "../features/tutor-session/lib/representationFallbackV4";
-import { buildVerifiedDiagramPresentation } from "../features/tutor-session/lib/verifiedScenePresentation";
+import { buildSourceGroundedRepresentation } from "../../features/tutor-session/lib/representationFallbackV4";
+import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/verifiedScenePresentation";
 
 interface CorpusQuestion {
   id: string;

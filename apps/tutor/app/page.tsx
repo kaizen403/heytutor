@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBoard, fetchBoards } from "@/lib/boardsClient";
+import { createBoard, fetchBoards } from "@/lib/boards/boardsClient";
 
 export default function Home() {
   const router = useRouter();

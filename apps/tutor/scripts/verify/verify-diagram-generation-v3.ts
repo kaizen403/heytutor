@@ -8,8 +8,8 @@ import {
   resolvePlannedSceneVisualStatus,
   selectBestAvailableTurnPlan,
   shouldRevalidateSceneCandidatesAfterAuthority,
-} from "../features/tutor-session/lib/diagramGenerationV3";
-import { isTurnMetadataPersistable } from "../lib/turnPersistencePolicy";
+} from "../../features/tutor-session/lib/diagramGenerationV3";
+import { isTurnMetadataPersistable } from "../../lib/scene/turnPersistencePolicy";
 import {
   prepareVerifiedLessonSegments,
   type DrawCommand,

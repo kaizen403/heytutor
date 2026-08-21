@@ -4,7 +4,7 @@ import {
   MAX_TURN_UPLOAD_BYTES,
   validateTurnUploadHeaders,
   validateTurnUploadParts,
-} from "../lib/turnUploadLimits";
+} from "../../lib/scene/turnUploadLimits";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

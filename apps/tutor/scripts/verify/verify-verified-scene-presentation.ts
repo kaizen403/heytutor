@@ -3,7 +3,7 @@ import {
   isBlockedVerifiedDiagramCommand,
   parseDrawingCommands,
 } from "@heytutor/drawing";
-import { buildVerifiedDiagramPresentation } from "../features/tutor-session/lib/verifiedScenePresentation";
+import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/verifiedScenePresentation";
 
 const document: SceneDocument = {
   schemaVersion: "scene-document/v2",
