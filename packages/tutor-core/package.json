@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "clean": "rm -rf dist",
-    "verify": "tsx scripts/verify/verify-turn-planner-v3.ts && tsx scripts/verify/verify-mock-responses.ts && tsx scripts/verify/verify-problem-planner-v1.ts && tsx scripts/verify/verify-optics-plan-audit.ts && tsx scripts/verify/verify-scene-capabilities.ts && tsx scripts/verify/verify-scene-planner-v2.ts && tsx scripts/verify/verify-question-text.ts && tsx scripts/verify/verify-speech-notation.ts && tsx scripts/verify/verify-written-notation.ts && tsx scripts/verify/verify-annotation-paths.ts && tsx scripts/verify/verify-sync-schedules.ts && tsx scripts/verify/verify-websocket-tts-fallback.ts"
+    "verify": "tsx scripts/verify/verify-turn-planner-v3.ts && tsx scripts/verify/verify-mock-responses.ts && tsx scripts/verify/verify-problem-planner-v1.ts && tsx scripts/verify/verify-optics-plan-audit.ts && tsx scripts/verify/verify-scene-capabilities.ts && tsx scripts/verify/verify-scene-planner-v2.ts && tsx scripts/verify/verify-question-text.ts && tsx scripts/verify/verify-speech-notation.ts && tsx scripts/verify/verify-written-notation.ts && tsx scripts/verify/verify-annotation-paths.ts && tsx scripts/verify/verify-sync-schedules.ts && tsx scripts/verify/verify-websocket-tts-fallback.ts && tsx scripts/verify/verify-given-value-intro.ts"
   },
   "dependencies": {
     "@heytutor/drawing": "workspace:*",
