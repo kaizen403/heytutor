@@ -1,4 +1,4 @@
-import { InputBar } from "@/components/InputBar";
+import { InputBar } from "@/features/tutor-session/components/InputBar";
 import type { TutorPhase } from "../types";
 
 interface SessionInputChromeProps {

@@ -1,5 +1,5 @@
 import { Settings } from "lucide-react";
-import { LessonActions } from "@/components/LessonActions";
+import { LessonActions } from "@/features/tutor-session/components/LessonActions";
 import type { StatusDisplay, TutorPhase } from "../types";
 
 interface SessionHeaderProps {

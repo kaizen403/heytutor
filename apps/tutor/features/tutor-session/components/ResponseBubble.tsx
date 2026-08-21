@@ -1,6 +1,6 @@
 "use client";
 
-import { formatLiveSubtitle } from "@/lib/subtitleText";
+import { formatLiveSubtitle } from "@/lib/client/subtitleText";
 
 const LIVE_SUBTITLE_MAX_CHARS = 140;
 

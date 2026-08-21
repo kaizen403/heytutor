@@ -7,7 +7,7 @@ import {
   Settings2,
   X,
 } from "lucide-react";
-import { formatReplayTime } from "@/lib/replayTimeline";
+import { formatReplayTime } from "@/lib/replay/replayTimeline";
 import { cn } from "@/lib/utils";
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3] as const;

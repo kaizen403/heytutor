@@ -7,13 +7,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { SITE_NAME } from "@/lib/site";
+import type { BoardEntry } from "@/lib/boards/types";
 
-export interface BoardEntry {
-  id: string;
-  title: string;
-  createdAt: number;
-  preview: string;
-}
+export type { BoardEntry };
 
 interface BoardHistoryProps {
   boards: BoardEntry[];

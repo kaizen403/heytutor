@@ -1,4 +1,4 @@
-import type { SettingsState } from "@/components/SettingsDrawer";
+import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 
 interface BoardSettingsButtonProps {
   settings: SettingsState;

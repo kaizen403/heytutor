@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
-import { ResponseBubble } from "@/components/ResponseBubble";
-import { ReplayControls } from "@/components/ReplayControls";
-import { getMarkerColorHex, type SettingsState } from "@/components/SettingsDrawer";
+import { ResponseBubble } from "@/features/tutor-session/components/ResponseBubble";
+import { ReplayControls } from "@/features/tutor-session/components/ReplayControls";
+import { getMarkerColorHex, type SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 import type { WhiteboardHandle, CursorState } from "@heytutor/whiteboard";
 import { BOARD_WIDTH, BOARD_HEIGHT } from "../constants";
 import type { BoardViewport, TutorPhase } from "../types";
