@@ -38,6 +38,11 @@ export interface PrewarmOptions {
 export interface TTSClient {
   speak(options: SpeakOptions): Promise<void>;
   speakSegment(text: string, options?: SpeakSegmentOptions): Promise<void>;
+  /**
+   * Start generating the next spoken line while the current one is still
+   * playing so the voice does not stall between sentences.
+   */
+  prefetchSegment?(text: string, options?: SpeakSegmentOptions): void;
   playAudio(bytes: Uint8Array, options?: { onStart?: () => void }): Promise<void>;
   prewarm(options?: PrewarmOptions): Promise<void>;
   /**
@@ -79,10 +84,13 @@ interface ElevenLabsClientOptions {
   modelId?: string;
 }
 
-const DEFAULT_MODEL = "eleven_flash_v2_5";
+const DEFAULT_MODEL = "eleven_multilingual_v2";
 const DEFAULT_VOICE_SETTINGS = {
-  stability: 0.5,
+  stability: 0.4,
   similarity_boost: 0.75,
+  style: 0.22,
+  use_speaker_boost: true,
+  speed: 0.88,
 };
 
 /** Insert spaces so `cosθ` and `2θ` tokenize like spoken math. */

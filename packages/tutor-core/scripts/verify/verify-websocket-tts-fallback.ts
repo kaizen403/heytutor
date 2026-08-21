@@ -1,10 +1,15 @@
-import { ElevenLabsWebSocketTTSClient } from "../../src/tts/elevenLabsWebSocketClient";
+import {
+  ElevenLabsWebSocketTTSClient,
+  shouldCompleteTtsJobAfterSilence,
+  TTS_WS_CONNECT_TIMEOUT_MS,
+} from "../../src/tts/elevenLabsWebSocketClient";
 
 type MessageListener = (event: { data: string }) => void;
 
 class FakeWebSocket {
   static readonly CONNECTING = 0;
   static readonly OPEN = 1;
+  static sendCount = 0;
 
   readyState = FakeWebSocket.CONNECTING;
   onerror: (() => void) | null = null;
@@ -27,6 +32,7 @@ class FakeWebSocket {
   }
 
   send(data: string): void {
+    FakeWebSocket.sendCount += 1;
     const payload = JSON.parse(data) as { flush?: boolean };
     if (payload.flush) {
       setTimeout(() => this.emit({ isFinal: true }), 0);
@@ -107,7 +113,11 @@ const httpPayload = {
 };
 Object.defineProperty(globalThis, "fetch", {
   configurable: true,
-  value: async () => {
+  value: async (input: unknown) => {
+    const url = String(input);
+    if (!url.includes("/api/tts/stream")) {
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }
     httpCalls++;
     return new Response(`data: ${JSON.stringify(httpPayload)}\n\n`, {
       status: 200,
@@ -136,6 +146,13 @@ assert(starts === 1, "fallback audio must start exactly once");
 assert(ends === 1, "fallback audio must complete exactly once");
 assert(errors === 0, "recoverable websocket failure leaked through onError");
 assert(capturedBytes > 0, "fallback audio was not captured for replay");
+const sendsAfterEmptyAudio = FakeWebSocket.sendCount;
+await client.speakSegment("The next sentence must not wait on the same failed websocket.");
+assert(httpCalls === 2, "the sentence after empty websocket audio must speak on HTTP");
+assert(
+  FakeWebSocket.sendCount === sendsAfterEmptyAudio,
+  "empty websocket audio must disable websocket so later lines do not pause",
+);
 
 client.stop();
 
@@ -146,7 +163,10 @@ const httpStarted = new Promise<void>((resolve) => {
 });
 Object.defineProperty(globalThis, "fetch", {
   configurable: true,
-  value: async (_input: unknown, init?: RequestInit) => {
+  value: async (input: unknown, init?: RequestInit) => {
+    if (!String(input).includes("/api/tts/stream")) {
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }
     pendingHttpSignal = init?.signal ?? null;
     notifyHttpStarted?.();
     return await new Promise<Response>((_resolve, reject) => {
@@ -176,5 +196,105 @@ assert(pendingHttpSignal?.aborted === true, "stop did not abort the in-flight HT
 assert(stoppedStarts === 0, "stopped HTTP fallback invoked onStart");
 assert(stoppedEnds === 0, "stopped HTTP fallback invoked onEnd");
 assert(stoppedCapturedBytes === 0, "stopped HTTP fallback captured stale audio");
+
+assert(
+  shouldCompleteTtsJobAfterSilence({
+    contextFinal: false,
+    scheduledEnd: 0,
+    currentTime: 1,
+  }) === false,
+  "a short network silence must not end speech before context-final",
+);
+assert(
+  shouldCompleteTtsJobAfterSilence({
+    contextFinal: true,
+    scheduledEnd: 1.2,
+    currentTime: 0.2,
+  }) === false,
+  "context-final must still wait for scheduled audio to finish",
+);
+assert(
+  shouldCompleteTtsJobAfterSilence({
+    contextFinal: true,
+    scheduledEnd: 1.0,
+    currentTime: 0.95,
+  }) === true,
+  "speech may complete only after context-final and playback drain",
+);
+
+class HangWebSocket {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  readyState = HangWebSocket.CONNECTING;
+  onerror: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  addEventListener(): void {}
+  removeEventListener(): void {}
+  send(): void {}
+  close(): void {
+    this.readyState = HangWebSocket.CONNECTING;
+    this.onclose?.();
+  }
+}
+
+Object.defineProperty(globalThis, "WebSocket", {
+  configurable: true,
+  value: HangWebSocket,
+});
+
+let hangHttpCalls = 0;
+Object.defineProperty(globalThis, "fetch", {
+  configurable: true,
+  value: async (input: unknown) => {
+    if (!String(input).includes("/api/tts/stream")) {
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }
+    hangHttpCalls++;
+    return new Response(`data: ${JSON.stringify(httpPayload)}\n\n`, {
+      status: 200,
+      headers: { "content-type": "text/event-stream" },
+    });
+  },
+});
+
+const hangClient = new ElevenLabsWebSocketTTSClient();
+const firstHangStarted = Date.now();
+await hangClient.speakSegment("First line after a dead websocket.");
+const firstHangMs = Date.now() - firstHangStarted;
+assert(hangHttpCalls >= 1, "dead websocket did not fall back to HTTP");
+assert(
+  firstHangMs < 5_000,
+  `dead websocket still used the old 5s connect wait (${firstHangMs}ms)`,
+);
+
+const secondHangStarted = Date.now();
+await hangClient.speakSegment("Second line must not wait for websocket again.");
+const secondHangMs = Date.now() - secondHangStarted;
+assert(hangHttpCalls >= 2, "second sentence did not use HTTP");
+assert(
+  secondHangMs < TTS_WS_CONNECT_TIMEOUT_MS,
+  `second sentence retried websocket (${secondHangMs}ms)`,
+);
+
+let prefetchFetches = 0;
+Object.defineProperty(globalThis, "fetch", {
+  configurable: true,
+  value: async (input: unknown) => {
+    if (!String(input).includes("/api/tts/stream")) {
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }
+    prefetchFetches++;
+    return new Response(`data: ${JSON.stringify(httpPayload)}\n\n`, {
+      status: 200,
+      headers: { "content-type": "text/event-stream" },
+    });
+  },
+});
+const prefetchClient = new ElevenLabsWebSocketTTSClient();
+prefetchClient.prefetchSegment("Prefetch this sentence so the next beat is ready.");
+await new Promise((resolve) => setTimeout(resolve, 20));
+assert(prefetchFetches === 1, "prefetch did not start HTTP generation early");
+await prefetchClient.speakSegment("Prefetch this sentence so the next beat is ready.");
+assert(prefetchFetches === 1, "speaking a prefetched sentence generated it a second time");
 
 console.log("verified websocket fallback and HTTP stop cancellation");
