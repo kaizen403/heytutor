@@ -18,6 +18,8 @@ out/
 
 # Test / coverage
 coverage/
+!data/question-bank/reports/coverage/
+!data/question-bank/reports/coverage/**
 .nyc_output/
 playwright-report/
 test-results/
