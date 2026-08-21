@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 import { ChevronRight, Download, FlaskConical, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Checkbox } from "./Checkbox";
-import { countItems, flattenItems, type SyllabusItem, type SyllabusSubject, type SyllabusTree } from "./parseSyllabus";
-import { StatusBadge } from "./StatusBadge";
-import { TopicSheet } from "./TopicSheet";
-import { useSyllabusProgress } from "./useSyllabusProgress";
+import { Checkbox } from "./components/Checkbox";
+import { countItems, flattenItems, type SyllabusItem, type SyllabusSubject, type SyllabusTree } from "./lib/parseSyllabus";
+import { StatusBadge } from "./components/StatusBadge";
+import { TopicSheet } from "./components/TopicSheet";
+import { useSyllabusProgress } from "./hooks/useSyllabusProgress";
 
 interface AdminPlaygroundProps {
   tree: SyllabusTree;

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { ItemStatus } from "./progressStorage";
+import type { ItemStatus } from "../lib/progressStorage";
 
 const STATUS_CONFIG: Record<
   Exclude<ItemStatus, "pending">,

@@ -12,7 +12,7 @@ import {
   type ItemStatus,
   type ProgressEntry,
   type ProgressMap,
-} from "./progressStorage";
+} from "../lib/progressStorage";
 
 export function useSyllabusProgress() {
   const [progress, setProgress] = useState<ProgressMap>(() => readProgressMap());

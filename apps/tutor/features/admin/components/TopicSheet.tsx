@@ -13,8 +13,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { resolveApiUrl } from "@heytutor/tutor-core";
-import type { SyllabusItem } from "./parseSyllabus";
-import type { ItemStatus } from "./progressStorage";
+import type { SyllabusItem } from "../lib/parseSyllabus";
+import type { ItemStatus } from "../lib/progressStorage";
 import { statusLabel } from "./StatusBadge";
 
 interface TopicSheetProps {

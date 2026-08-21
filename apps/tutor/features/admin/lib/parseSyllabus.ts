@@ -49,7 +49,7 @@ function makeItemId(subject: SyllabusSubject, unitNumber: number, itemIndex: num
 }
 
 /**
- * Parses docs/jee-syllabus-checklist.md into a structured tree.
+ * Parses docs/product/jee-syllabus-checklist.md into a structured tree.
  * Stops at "## Summary: First-Focus Units".
  */
 export function parseSyllabus(markdown: string): SyllabusTree {
