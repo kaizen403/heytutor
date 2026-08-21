@@ -39,22 +39,27 @@ Production and dev both use `tsx server.ts` (not `next start`):
 |------|---------|
 | `auth.ts` | `getUserId()`, `ensureUser()` — cookie → Postgres user |
 | `db/prisma.ts` | Prisma client singleton |
-| `boardsClient.ts` | Frontend API client — fetch/create/update boards, `saveTurn()` |
-| `plannerTransport.ts` | Planner model chain, retries, and completion fetch for turn/problem/scene plans |
-| `teachingTransport.ts` | Teaching-model selection, reasoning effort, and connect timeout |
-| `ttsRelayProtocol.ts` | Multi-context WebSocket message builders and payload normalization |
-| `turnScenePersistence.ts` | Server-side scene revalidation, trusted-command matching, fallback rebuild |
-| `turnPersistencePolicy.ts` | Whether submitted turn metadata is persistable |
-| `langfuse.ts` | Observability — traces, spans, LLM/TTS cost tracking |
-| `usageCost.ts` | Cost enrichment for Langfuse metadata |
-| `ttsProxy.ts` | ElevenLabs URL/payload helpers |
-| `r2.ts` / `r2Keys.ts` | Cloudflare R2 audio upload/delete |
-| `boardTitle.ts` | Board title prompt + fallback heuristics |
-| `turnTelemetry.ts` | Client-side turn span instrumentation |
-| `replayTurns.ts` / `replayAudio.ts` / `replayTimeline.ts` | Replay orchestration |
-| `exportNotesPdf.ts` | PDF export of board notes |
-| `subtitleText.ts` | Subtitle rendering helpers |
+| `boards/boardsClient.ts` | Frontend API client — fetch/create/update boards, `saveTurn()` |
+| `boards/boardTitle.ts` | Board title prompt + fallback heuristics |
+| `boards/types.ts` | Shared `BoardEntry` DTO |
+| `llm/plannerTransport.ts` | Planner model chain, retries, and completion fetch for turn/problem/scene plans |
+| `llm/teachingTransport.ts` | Teaching-model selection, reasoning effort, and connect timeout |
+| `tts/ttsRelayProtocol.ts` | Multi-context WebSocket message builders and payload normalization |
+| `tts/ttsProxy.ts` | ElevenLabs URL/payload helpers |
+| `tts/wsTicket.ts` | WebSocket TTS ticket mint/verify |
+| `scene/turnScenePersistence.ts` | Server-side scene revalidation, trusted-command matching, fallback rebuild |
+| `scene/turnPersistencePolicy.ts` | Whether submitted turn metadata is persistable |
+| `scene/turnUploadLimits.ts` | Multipart turn upload size/count gates |
+| `obs/langfuse.ts` | Observability — traces, spans, LLM/TTS cost tracking |
+| `obs/usageCost.ts` | Cost enrichment for Langfuse metadata |
+| `obs/turnTelemetry.ts` | Client-side turn span instrumentation |
+| `r2/r2.ts` / `r2/r2Keys.ts` | Cloudflare R2 audio upload/delete |
+| `replay/replayTurns.ts` / `replay/replayAudio.ts` / `replay/replayTimeline.ts` | Replay orchestration |
+| `client/exportNotesPdf.ts` | PDF export of board notes |
+| `client/subtitleText.ts` | Subtitle rendering helpers |
+| `client/useMediaQuery.ts` | Compact-nav media query hook |
 | `site.ts` | SEO metadata constants |
+| `utils.ts` | `cn()` and shared class helpers |
 
 ## Environment Variables
 
@@ -89,4 +94,4 @@ pnpm --filter @heytutor/tutor db:generate           # regenerate Prisma client
 - **CI:** `.github/workflows/ci.yml`
 - **Backend deploy:** `.github/workflows/deploy-backend.yml`
 
-See [ci-cd.md](../ci-cd.md) and [r2-setup.md](../r2-setup.md).
+See [ci-cd.md](../ops/ci-cd.md) and [r2-setup.md](../ops/r2-setup.md).

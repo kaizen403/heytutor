@@ -26,7 +26,7 @@ The teaching model cannot draw, label, annotate, erase, or supply diagram coordi
 
 Canvas: **1200×700**, origin top-left. Diagram zone: **x 400–900**.
 
-Deeper design notes: [docs/agent/architecture.md](docs/agent/architecture.md), [docs/diagram-accuracy-architecture.md](docs/diagram-accuracy-architecture.md), [docs/tutor-sync-architecture.md](docs/tutor-sync-architecture.md).
+Deeper design notes: [docs/agent/architecture.md](docs/agent/architecture.md), [docs/architecture/diagram-accuracy-architecture.md](docs/architecture/diagram-accuracy-architecture.md), [docs/architecture/tutor-sync-architecture.md](docs/architecture/tutor-sync-architecture.md).
 
 ## Repository layout
 
@@ -146,20 +146,21 @@ There is no CI — run these checks locally before pushing.
 | Landing | Vercel | Root directory `apps/landing` |
 | API + WebSocket TTS relay | Azure VM | `server.ts`; manual deploy via `deploy/azure/deploy.sh` |
 
-Split deploy: set `BACKEND_ORIGIN` on Vercel so `/api/*` proxies to Azure. Full runbook: [docs/ci-cd.md](docs/ci-cd.md). R2: [docs/r2-setup.md](docs/r2-setup.md).
+Split deploy: set `BACKEND_ORIGIN` on Vercel so `/api/*` proxies to Azure. Full runbook: [docs/ops/ci-cd.md](docs/ops/ci-cd.md). R2: [docs/ops/r2-setup.md](docs/ops/r2-setup.md).
 
 ## Documentation
 
 | Doc | Contents |
 |-----|----------|
 | [AGENTS.md](AGENTS.md) | Agent quick reference and critical ownership rules |
+| [docs/agent/layout.md](docs/agent/layout.md) | Where new files go |
 | [docs/agent/architecture.md](docs/agent/architecture.md) | Turn flow and key paths |
 | [docs/agent/backend.md](docs/agent/backend.md) | API and lib modules |
 | [docs/agent/packages.md](docs/agent/packages.md) | Shared package map |
-| [docs/tutor-sync-architecture.md](docs/tutor-sync-architecture.md) | Voice / handwriting sync |
-| [docs/universal-illustration-engine-v4.md](docs/universal-illustration-engine-v4.md) | Illustration engine v4 |
-| [docs/diagram-accuracy-architecture.md](docs/diagram-accuracy-architecture.md) | Verified diagram design |
-| [docs/ci-cd.md](docs/ci-cd.md) | Deploy runbook |
+| [docs/architecture/tutor-sync-architecture.md](docs/architecture/tutor-sync-architecture.md) | Voice / handwriting sync |
+| [docs/architecture/universal-illustration-engine-v4.md](docs/architecture/universal-illustration-engine-v4.md) | Illustration engine v4 |
+| [docs/architecture/diagram-accuracy-architecture.md](docs/architecture/diagram-accuracy-architecture.md) | Verified diagram design |
+| [docs/ops/ci-cd.md](docs/ops/ci-cd.md) | Deploy runbook |
 
 ## Product constraints (non-negotiable)
 

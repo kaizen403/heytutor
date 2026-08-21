@@ -37,7 +37,7 @@ The teaching model cannot draw, label, annotate, erase, or move diagram ink.
 | Representation fallback | `apps/tutor/features/tutor-session/lib/representationFallbackV4.ts` |
 | Scene recovery | `apps/tutor/features/tutor-session/lib/verifiedSceneRecovery.ts` |
 | Replay | `apps/tutor/features/tutor-session/hooks/useReplay.ts` |
-| Persistence trust boundary | `apps/tutor/lib/turnScenePersistence.ts` |
+| Persistence trust boundary | `apps/tutor/lib/scene/turnScenePersistence.ts` |
 | Persistence API | `apps/tutor/app/api/boards/[boardId]/turns/route.ts` |
 | Planner/chat proxy | `apps/tutor/app/api/chat/route.ts` |
 
@@ -76,5 +76,5 @@ legacy turns normalize to text-only.
   as a topic template, regex router, or fixed-pixel plugin.
 
 See [geometry-debug.md](geometry-debug.md),
-[../universal-illustration-engine-v4.md](../universal-illustration-engine-v4.md),
-and [../diagram-accuracy-architecture.md](../diagram-accuracy-architecture.md).
+[../architecture/universal-illustration-engine-v4.md](../architecture/universal-illustration-engine-v4.md),
+and [../architecture/diagram-accuracy-architecture.md](../architecture/diagram-accuracy-architecture.md).

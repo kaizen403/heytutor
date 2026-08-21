@@ -44,25 +44,26 @@ render.
 | Scene engine authority | `packages/scene-engine/` |
 | Scene presentation / reveal | `apps/tutor/features/tutor-session/lib/verifiedScenePresentation.ts` |
 | Representation fallback | `apps/tutor/features/tutor-session/lib/representationFallbackV4.ts` |
-| Voice + handwriting sync | [docs/tutor-sync-architecture.md](docs/tutor-sync-architecture.md) |
+| Voice + handwriting sync | [docs/architecture/tutor-sync-architecture.md](docs/architecture/tutor-sync-architecture.md) |
 | LLM / planner proxy | `apps/tutor/app/api/chat/route.ts` |
-| Drawing protocol | `packages/drawing/src/drawingProtocol.ts` |
+| Drawing protocol | `packages/drawing/src/protocol/drawingProtocol.ts` |
 | Canvas rendering | `packages/whiteboard/src/Whiteboard.tsx` |
-| Turn persistence trust | `apps/tutor/lib/turnScenePersistence.ts` |
-| Syllabus capability coverage | `packages/scene-engine/scripts/verify-syllabus-corpus.ts` |
+| Turn persistence trust | `apps/tutor/lib/scene/turnScenePersistence.ts` |
+| Syllabus capability coverage | `packages/scene-engine/scripts/verify/verify-syllabus-corpus.ts` |
 | Question bank pipeline | `tools/question-bank/` + `data/question-bank/` |
 
 ## Agent Guidelines
 
+- [Folder layout](docs/agent/layout.md)
 - [Architecture & data flow](docs/agent/architecture.md)
 - [Backend API & lib modules](docs/agent/backend.md)
 - [Shared packages](docs/agent/packages.md)
-- [Sync / voice / writing](docs/tutor-sync-architecture.md)
+- [Sync / voice / writing](docs/architecture/tutor-sync-architecture.md)
 - [Verified scene debug](docs/agent/geometry-debug.md)
-- [Universal illustration engine v4](docs/universal-illustration-engine-v4.md)
-- [Verified diagram architecture](docs/diagram-accuracy-architecture.md)
-- [Syllabus capability plan v5](docs/universal-syllabus-capability-plan-v5.md)
-- [Deploy runbook](docs/ci-cd.md) (no CI — workflows removed, no required checks on `main`)
+- [Universal illustration engine v4](docs/architecture/universal-illustration-engine-v4.md)
+- [Verified diagram architecture](docs/architecture/diagram-accuracy-architecture.md)
+- [Syllabus capability plan v5](docs/architecture/universal-syllabus-capability-plan-v5.md)
+- [Deploy runbook](docs/ops/ci-cd.md) (no CI — workflows removed, no required checks on `main`)
 
 ## Git authorship
 
