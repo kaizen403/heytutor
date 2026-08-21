@@ -1,12 +1,16 @@
 import {
   IncrementalTagParser,
+  checkSegmentAlignment,
   lessonNarrationText,
   normalizeBoardText,
   normalizeStrokeText,
   parseDrawingCommands,
   parseStructuredLessonSteps,
+  prepareVerifiedLessonSegments,
+  spokenFocusTarget,
   textToStrokePaths,
   type TutorSegment,
+  type VerifiedDiagram,
 } from "../src/index";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -136,5 +140,45 @@ assert(
   piGlyph.strokes[0]?.pathData !== nGlyph.strokes[0]?.pathData,
   "π must not reuse the latin n glyph (n-with-a-bar)",
 );
+
+const diagram: VerifiedDiagram = {
+  id: "verified_scene",
+  name: "optics",
+  commands: [],
+  anchors: [
+    { id: "object_base", labels: ["object_base", "O", "object position"], x: 420, y: 300, width: 12, height: 12 },
+    { id: "image_base", labels: ["image_base", "I", "image position"], x: 360, y: 300, width: 12, height: 12 },
+    { id: "object", labels: ["object", "O", "object"], x: 420, y: 250, width: 12, height: 80 },
+  ],
+  reveals: [],
+  promptAddon: "",
+};
+
+const imageAnchor = spokenFocusTarget("this is I, the image.", diagram);
+assert(imageAnchor?.id === "image_base", "spoken I must mark the image point");
+const objectAnchor = spokenFocusTarget("the object sits in front of the mirror.", diagram);
+assert(objectAnchor?.id === "object_base", "spoken object must mark the smaller object point, not the arrow");
+assert(
+  spokenFocusTarget("i will substitute the given distances.", diagram) === null,
+  "first-person i must not be treated as the image point",
+);
+
+const namedImage = prepareVerifiedLessonSegments([
+  { narration: "this is I, the image.", command: null },
+], diagram);
+assert(namedImage.segments[0]?.command?.type === "FOCUS", "naming I must attach a FOCUS command");
+assert(namedImage.segments[0]?.command?.text === "image_base", "FOCUS must target the verified image entity");
+assert(
+  checkSegmentAlignment({
+    narration: "this is I, the image.",
+    command: namedImage.segments[0]!.command,
+  }).aligned,
+  "verified FOCUS must stay aligned with the spoken name",
+);
+
+const firstPerson = prepareVerifiedLessonSegments([
+  { narration: "i will substitute the given distances.", command: null },
+], diagram);
+assert(firstPerson.segments[0]?.command === null, "first-person speech must not invent a FOCUS mark");
 
 console.log("verify-drawing-protocol: nested WRITE/LABEL math tags pass inline, structured, and streaming parsing");

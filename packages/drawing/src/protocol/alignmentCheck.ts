@@ -31,6 +31,11 @@ const REVIEW_MODE_CUES = [
   'emphasize',
   'remember',
   'look at',
+  'this is',
+  'the image',
+  'the object',
+  'the focus',
+  'the pole',
   'that term',
   'that part',
   'this part',
@@ -125,6 +130,10 @@ export function checkSegmentAlignment(segment: TutorSegment): SegmentAlignmentRe
 
   for (const cmd of commands) {
     if (cmd.type === 'WRITE' || cmd.type === 'LABEL' || cmd.type === 'DIMENSION') {
+      continue;
+    }
+
+    if (cmd.type === 'FOCUS') {
       continue;
     }
 
