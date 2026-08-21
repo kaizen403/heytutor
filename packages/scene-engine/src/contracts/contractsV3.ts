@@ -1715,13 +1715,19 @@ export function normalizeClaimedParaxialReflectionGeometry(
         const through = number === "1" ? hit1 : number === "2" ? focusId : number === "3" ? centerId : null;
         if (through) return { ...construction, inputs: { ...construction.inputs, through } };
       }
-      if (output === mirrorId && construction.operator === "arc") {
+      if (
+        output === mirrorId &&
+        (construction.operator === "arc" ||
+          construction.operator === "line" ||
+          construction.operator === "segment" ||
+          construction.operator === "perpendicular_through")
+      ) {
         const centerToVertex = subtractPoint(nextVertex, nextCenter);
         const angle = Math.atan2(centerToVertex.y, centerToVertex.x) * 180 / Math.PI;
         return {
           ...construction,
+          operator: "arc",
           inputs: {
-            ...construction.inputs,
             center: centerId,
             radius: 2 * focalDistance,
             startAngle: angle - 60,
@@ -1732,6 +1738,8 @@ export function normalizeClaimedParaxialReflectionGeometry(
       }
       return construction;
     }),
+    entities: document.entities.map((entity) =>
+      entity.id === mirrorId ? { ...entity, kind: "arc", role: entity.role || "spherical mirror" } : entity),
     assertions,
   };
 }
@@ -2823,7 +2831,8 @@ export const REQUIRED_DIAGRAM_BUDGET_MS = {
 
 /**
  * Feature flags (read by tutor app; documented here for contract clarity).
- * - NEXT_PUBLIC_SCENE_ENGINE_V3_REQUIRED_RETRY — block lesson on required-diagram failure
+ * - NEXT_PUBLIC_SCENE_ENGINE_V3_REQUIRED_RETRY — record required-diagram failure
+ *   status. Teaching still continues; unverified geometry is not drawn.
  */
 export function resolveDiagramFailureStatus(options: {
   visualRequirement: VisualRequirement;

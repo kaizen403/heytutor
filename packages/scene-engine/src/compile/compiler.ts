@@ -146,7 +146,16 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       const overlayId = sameRevealGroup
         ? directionOverlayEntity(existing, existingValue, entityId, value)
         : null;
-      if (coincidentPoint) coincidentPointAliases.set(entityId, existing);
+      if (coincidentPoint) {
+        const existingLabel = document.entities.find((entity) => entity.id === existing)?.label?.trim();
+        const currentLabel = document.entities.find((entity) => entity.id === entityId)?.label?.trim();
+        if (currentLabel && !existingLabel) {
+          coincidentPointAliases.set(existing, entityId);
+          geometrySignatures.set(signature, existingIds.map((id) => id === existing ? entityId : id));
+        } else {
+          coincidentPointAliases.set(entityId, existing);
+        }
+      }
       else if (
         sameRevealGroup &&
         (explicitlyParallelPathAliases(document, existing, existingValue, entityId, value) ||
@@ -2947,7 +2956,7 @@ function geometryCanReachTarget(value: Geometry | undefined, target: Point, tole
 function isBetween(p:Point,a:Point,b:Point):boolean{return collinearResidual([a,p,b])<EPSILON&&p.x>=Math.min(a.x,b.x)-EPSILON&&p.x<=Math.max(a.x,b.x)+EPSILON&&p.y>=Math.min(a.y,b.y)-EPSILON&&p.y<=Math.max(a.y,b.y)+EPSILON;}
 function pointGeometryResidual(pointGeometry:Geometry|undefined,target:Geometry|undefined):number{
   const point=asPoint(pointGeometry);
-  if(target?.kind==="circle")return Math.abs(distance(point,target.center)-target.radius);
+  if(target?.kind==="circle"||target?.kind==="arc")return Math.abs(distance(point,target.center)-target.radius);
   if(target?.kind==="path"){
     if(target.infinite)return pointLineResidual(point,[target.points[0]!,target.points.at(-1)!]);
     return Math.min(...target.points.slice(1).map((end,index)=>pointSegmentResidual(point,[target.points[index]!,end])));

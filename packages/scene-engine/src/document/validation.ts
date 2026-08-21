@@ -13,6 +13,7 @@ import {
   type SupportedSceneConstructionOperator,
   type SupportedSceneComponentSymbol,
 } from "../capability/capabilityManifest";
+import { ensureStudentFacingPointMarks } from "./namedPoints";
 
 const ARRAY_FIELDS = [
   "quantities", "entities", "constructions", "relations", "assertions",
@@ -416,7 +417,7 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
           typeof id === "string" && executableEntityIds.has(id)))
     : raw.assertions;
 
-  return {
+  return ensureStudentFacingPointMarks({
     ...raw,
     requiredEntityIds: raw.requiredEntityIds.filter((id) =>
       typeof id !== "string" || !prunable.has(id),
@@ -433,7 +434,7 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
       (!prunable.has(entity.id) && !solverOnlyPointDeclarations.has(entity.id)),
     ),
     constructions,
-  };
+  });
 }
 
 function normalizeMissingReferenceLineEndpoints(raw: Record<string, unknown>): Record<string, unknown> {

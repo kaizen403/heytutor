@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./capability/capabilityManifest";
 export * from "./document/validation";
+export * from "./document/namedPoints";
 export * from "./compile/compiler";
 export * from "./contracts/contractsV3";
 export * from "./topology/topology";
@@ -11,3 +12,4 @@ export * from "./ir/solver";
 export * from "./ir/remoteSolver";
 export * from "./ir/solverAuthority";
 export * from "./physics/opticsLaws";
+export * from "./synthesize/familyScene";
