@@ -554,7 +554,7 @@ export function isWriteScheduleUsable(
 
   const firstOffsetMs = schedule.offsetsMs[0] ?? 0;
   const lastOffsetMs = schedule.offsetsMs[schedule.offsetsMs.length - 1] ?? firstOffsetMs;
-  const maxFirstOffsetMs = Math.max(Math.round(durationMs * 0.60), 1500);
+  const maxFirstOffsetMs = Math.max(Math.round(durationMs * 0.35), 800);
 
   if (firstOffsetMs > maxFirstOffsetMs) {
     return false;
@@ -858,13 +858,34 @@ export function getBestWriteCharScheduleMs(
     command,
     textCommandIndex,
   );
-  if (estimated) {
+  if (estimated && isWriteScheduleUsable(estimated, narration, segmentDurationMs)) {
     return timed
       ? { ...estimated, reason: "tts-schedule-unusable" }
       : estimated;
   }
 
   return getFallbackWriteCharScheduleMs(narration, command);
+}
+
+/**
+ * Never sit idle for seconds waiting for a late spoken cue. Shift the whole
+ * schedule forward so writing starts with speech and still finishes in-voice.
+ */
+export function leadWriteScheduleToSpeech(
+  offsetsMs: number[],
+  audioPositionMs: number,
+  maxInitialWaitMs = 250,
+): number[] {
+  if (offsetsMs.length === 0) {
+    return offsetsMs;
+  }
+  const firstOffsetMs = offsetsMs[0] ?? 0;
+  const waitMs = firstOffsetMs - audioPositionMs;
+  if (waitMs <= maxInitialWaitMs) {
+    return offsetsMs;
+  }
+  const shiftMs = waitMs - maxInitialWaitMs;
+  return offsetsMs.map((offset) => Math.max(Math.round(offset - shiftMs), Math.round(audioPositionMs)));
 }
 
 /**

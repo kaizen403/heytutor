@@ -1,6 +1,7 @@
 import type { DrawCommand } from "@heytutor/drawing";
 import {
   catchUpWriteScheduleOffsets,
+  leadWriteScheduleToSpeech,
   getEstimatedWriteCharScheduleMs,
   getBestWriteCharScheduleMs,
   getFallbackWriteCharScheduleMs,
@@ -9,6 +10,8 @@ import {
   mathToSpeech,
   mergeAudioTimingChunk,
   hasPlayableSegmentAudio,
+  resolveLiveAudioPositionMs,
+  shouldReleaseAudioPositionWait,
   toSegmentRelativeAudioTimings,
 } from "../../src/index";
 
@@ -212,6 +215,83 @@ if (lateSchedule) {
     "late first offset schedule should be rejected",
   );
 }
+
+const delayedHttpStart = resolveLiveAudioPositionMs({
+  speechComplete: false,
+  capturedDurationMs: null,
+  estimateSpeechMs: 8000,
+  playbackPositionMs: null,
+  audioStartedAtMs: null,
+  nowMs: 800,
+  maxAudioPositionMs: Number.NEGATIVE_INFINITY,
+});
+assert(delayedHttpStart.positionMs >= 0, "late HTTP/WS audio must not leave the write clock at -1");
+assert(delayedHttpStart.positionMs < 200, "before audio starts, writing should use t=0 not the sentence end");
+
+const afterSpeech = resolveLiveAudioPositionMs({
+  speechComplete: true,
+  capturedDurationMs: 8200,
+  estimateSpeechMs: 8000,
+  playbackPositionMs: null,
+  audioStartedAtMs: null,
+  nowMs: 8200,
+  maxAudioPositionMs: 0,
+});
+assert(afterSpeech.positionMs >= 8200, "completed speech should release leftover ink");
+
+const wallClock = resolveLiveAudioPositionMs({
+  speechComplete: false,
+  capturedDurationMs: null,
+  estimateSpeechMs: 8000,
+  playbackPositionMs: null,
+  audioStartedAtMs: 1000,
+  nowMs: 2500,
+  maxAudioPositionMs: 0,
+});
+assert(wallClock.positionMs === 1500, "once audio starts, the write clock must follow wall time");
+
+const pinnedZeroPlayback = resolveLiveAudioPositionMs({
+  speechComplete: false,
+  capturedDurationMs: null,
+  estimateSpeechMs: 8000,
+  playbackPositionMs: 0,
+  audioStartedAtMs: 1000,
+  nowMs: 2800,
+  maxAudioPositionMs: 0,
+});
+assert(
+  pinnedZeroPlayback.positionMs === 1800,
+  "a zero TTS playback position must not pin writing at t=0",
+);
+
+const led = leadWriteScheduleToSpeech([4081, 4300, 4600, 5000], 0);
+assert((led[0] ?? 999) <= 250, "writing must start with speech instead of waiting seconds");
+assert((led[3] ?? 0) < 5000, "later characters must shift forward with the first");
+assert(
+  leadWriteScheduleToSpeech([120, 240], 0).join(",") === "120,240",
+  "on-time schedules must keep their spoken cues",
+);
+
+assert(
+  shouldReleaseAudioPositionWait({
+    positionMs: -1,
+    targetMs: 2400,
+    elapsedMs: 400,
+    clockEverStarted: false,
+    stalledFrames: 0,
+  }),
+  "writeText must not hang a full sentence waiting for a clock that never starts",
+);
+assert(
+  !shouldReleaseAudioPositionWait({
+    positionMs: 200,
+    targetMs: 2400,
+    elapsedMs: 200,
+    clockEverStarted: true,
+    stalledFrames: 0,
+  }),
+  "an advancing clock must still wait for its spoken cue",
+);
 
 console.log(
   `verified ${cases.length} sync schedule cases, fallback mid-speech writing, and catch-up offsets`,
