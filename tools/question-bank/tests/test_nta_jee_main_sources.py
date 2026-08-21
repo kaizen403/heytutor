@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+
 import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'importers'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from nta_jee_main_sources import (
     HISTORICAL_POST_URL,

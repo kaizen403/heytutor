@@ -7,12 +7,12 @@ that bucket so Hindi/mojibake recovery is not confused with English stems that
 simply have no lexical diagram cue.
 
 DIAGRAM_CUE / isEnglishEnough / diagram-led unit ids are copied from
-packages/scene-engine/scripts/verify-syllabus-corpus.ts as a diagnostic-only
+packages/scene-engine/scripts/verify/verify-syllabus-corpus.ts as a diagnostic-only
 classifier. They must not become runtime diagram routing (AGENTS.md rule 6).
 
 Usage (from repo root):
-  python3 tools/question-bank/measure_corpus_quality.py
-  python3 tools/question-bank/measure_corpus_quality.py --report data/question-bank/reports/corpus-quality-breakdown-<date>.json
+  python3 tools/question-bank/importers/measure_corpus_quality.py
+  python3 tools/question-bank/importers/measure_corpus_quality.py --report data/question-bank/reports/corpus-quality-breakdown-<date>.json
 
 Skips with exit 0 when the local corpus jsonl is absent.
 """
@@ -34,7 +34,7 @@ from question_bank.models import load_documents, load_jsonl
 from question_bank.syllabus import _is_clean_ascii_prompt_line
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
 DEFAULT_QUESTIONS = DATA_ROOT / "build" / "questions.all.jsonl"
 DEFAULT_SYLLABUS = DATA_ROOT / "build" / "question-syllabus.jsonl"
@@ -307,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
     report_path = args.report
     if report_path is None:
         stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        report_path = DATA_ROOT / "reports" / f"corpus-quality-breakdown-{stamp}.json"
+        report_path = DATA_ROOT / "reports" / "coverage" / f"corpus-quality-breakdown-{stamp}.json"
     _atomic_json(report_path, report)
     print(f"  report={report_path}")
     return 0

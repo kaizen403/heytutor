@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import io
 import os
 import sys
@@ -7,7 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'importers'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import legacy_jee_sources as legacy
 
@@ -76,7 +78,12 @@ class LegacyJeeSourcesTests(unittest.TestCase):
     def test_minimal_pdf_first_page_hashes_are_stable(self) -> None:
         pdf_bytes = _minimal_pdf("JEE 2004 MATHEMATICS PAPERS")
         image_hash, text_hash = legacy._first_page_hashes(pdf_bytes)
-        self.assertIsNotNone(image_hash)
+        if not legacy._command_available("pdftoppm"):
+            self.assertIsNone(image_hash)
+        else:
+            self.assertIsNotNone(image_hash)
+        if not legacy._command_available("pdftotext"):
+            self.skipTest("pdftotext is not available")
         self.assertIsNotNone(text_hash)
         again_image_hash, again_text_hash = legacy._first_page_hashes(pdf_bytes)
         self.assertEqual(image_hash, again_image_hash)

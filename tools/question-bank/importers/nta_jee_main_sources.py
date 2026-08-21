@@ -34,10 +34,10 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin, urlparse
 from urllib.request import Request, urlopen
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
 DEFAULT_REPORT = (
-    DATA_ROOT / "reports" / "nta-jee-main-coverage-2026-08-10.json"
+    DATA_ROOT / "reports" / "coverage" / "nta-jee-main-coverage-2026-08-10.json"
 )
 
 REPORT_FILENAME_DATE = "2026-08-10"

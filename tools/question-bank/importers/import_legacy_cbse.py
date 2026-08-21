@@ -26,9 +26,9 @@ from question_bank.models import (
 )
 from question_bank.pipeline import pdf_page_count
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
-DEFAULT_REPORT = DATA_ROOT / "reports" / "legacy-cbse-coverage-2026-08-10.json"
+DEFAULT_REPORT = DATA_ROOT / "reports" / "coverage" / "legacy-cbse-coverage-2026-08-10.json"
 DEFAULT_MANIFEST = DATA_ROOT / "manifest.jsonl"
 DEFAULT_RAW_DIR = DATA_ROOT / "raw"
 

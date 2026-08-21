@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import unittest
 
 from question_bank.syllabus import quality_review_reasons

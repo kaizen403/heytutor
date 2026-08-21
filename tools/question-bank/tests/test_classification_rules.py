@@ -4,7 +4,7 @@ from pathlib import Path
 from question_bank.pipeline import _load_classification_rules, _matching_rule
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 RULES_PATH = REPO_ROOT / "data/question-bank/classification-rules.json"
 
 

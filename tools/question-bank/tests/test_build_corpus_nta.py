@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import unittest
 
 from build_corpus import (

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import unittest
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from question_bank.models import (
 from question_bank.syllabus import assign_question, load_syllabus_inputs
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
 TAXONOMY_PATH = DATA_ROOT / "syllabus-taxonomy.json"
 MATHEMATICS_RULES_PATH = DATA_ROOT / "syllabus-rules-mathematics.json"

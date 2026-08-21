@@ -30,9 +30,9 @@ from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import quote, urlsplit, urlunsplit
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
-DEFAULT_REPORT = DATA_ROOT / "reports" / "legacy-cbse-coverage-2026-08-10.json"
+DEFAULT_REPORT = DATA_ROOT / "reports" / "coverage" / "legacy-cbse-coverage-2026-08-10.json"
 
 REPORT_SCHEMA_VERSION = "question-bank-legacy-cbse-sources/v1"
 AS_OF_DATE = "2026-08-09"

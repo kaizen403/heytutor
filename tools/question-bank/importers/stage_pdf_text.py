@@ -22,7 +22,7 @@ from urllib.request import urlopen
 from question_bank.models import load_documents, validate_document
 from question_bank.pipeline import PipelineError, normalize_cbse_symbol_text, pdf_to_text
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
 TESSDATA_FAST_ENG_URL = (
     "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/eng.traineddata"

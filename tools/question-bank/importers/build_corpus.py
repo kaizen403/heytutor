@@ -33,7 +33,7 @@ from question_bank.pipeline import (
     pdf_to_text,
 )
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
 NTA_QUESTION_PATTERN = (
     r"^\s*(?:Question\s+Number\s*[:.]?\s*|Q\s*[:.]\s*)(?P<number>\d{1,3})\b"

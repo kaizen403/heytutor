@@ -51,35 +51,35 @@ The reproducible first-party batch uses two additional entry points:
 
 ```bash
 # Rebuild the explicit issuer-verified artifact inventory.
-python3 tools/question-bank/corpus_sources.py write-catalog
+python3 tools/question-bank/importers/corpus_sources.py write-catalog
 
 # Import already downloaded JEE PDFs and expanded CBSE archive members.
-python3 tools/question-bank/corpus_sources.py import-staged --help
+python3 tools/question-bank/importers/corpus_sources.py import-staged --help
 
 # Preserve exact page boundaries, falling back to local Tesseract for scans.
-python3 tools/question-bank/stage_pdf_text.py --help
+python3 tools/question-bank/importers/stage_pdf_text.py --help
 
 # Audit and stage official legacy CBSE sources, then import only verified
 # artifacts and archive members with their container provenance intact.
-python3 tools/question-bank/legacy_cbse_sources.py --help
-python3 tools/question-bank/import_legacy_cbse.py --help
+python3 tools/question-bank/importers/legacy_cbse_sources.py --help
+python3 tools/question-bank/importers/import_legacy_cbse.py --help
 
 # Produce honest gap reports for official NTA Main and corroborated pre-2007
 # IIT-JEE sources. These commands do not promote candidate-only mirrors.
-python3 tools/question-bank/nta_jee_main_sources.py --help
-python3 tools/question-bank/nta_jee_main_acquisition.py --help
-python3 tools/question-bank/import_nta_jee_main.py --help
-python3 tools/question-bank/legacy_jee_sources.py --help
+python3 tools/question-bank/importers/nta_jee_main_sources.py --help
+python3 tools/question-bank/importers/nta_jee_main_acquisition.py --help
+python3 tools/question-bank/importers/import_nta_jee_main.py --help
+python3 tools/question-bank/importers/legacy_jee_sources.py --help
 
 # Verify every PDF/text page mapping, extract, classify, and build SQLite.
 # Splitter warnings block by default; the flag produces a candidate-only build.
-python3 tools/question-bank/build_corpus.py --help
+python3 tools/question-bank/importers/build_corpus.py --help
 
 # Build a deterministic full-syllabus sidecar and SQLite query index from the
 # candidate-only all-question corpus. Add --report only for an aggregate audit.
-python3 tools/question-bank/build_syllabus_index.py
-python3 tools/question-bank/build_syllabus_index.py \
-  --report data/question-bank/reports/syllabus-index.json
+python3 tools/question-bank/importers/build_syllabus_index.py
+python3 tools/question-bank/importers/build_syllabus_index.py \
+  --report data/question-bank/reports/coverage/syllabus-index.json
 ```
 
 `source-catalog.json` is an allowlist, not a crawler result. An absent year or
@@ -147,9 +147,9 @@ near-duplicate decisions remain a human review step.
 ## Verification
 
 ```bash
-python3 -m unittest discover -s tools/question-bank -p 'test_*.py' -v
+python3 -m unittest discover -s tools/question-bank/tests -t tools/question-bank -p 'test_*.py' -v
 python3 -m py_compile \
   tools/question-bank/qbank.py \
-  tools/question-bank/build_syllabus_index.py \
+  tools/question-bank/importers/build_syllabus_index.py \
   tools/question-bank/question_bank/*.py
 ```

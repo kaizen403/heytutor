@@ -24,11 +24,11 @@ from question_bank.models import (
     write_jsonl,
 )
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
-DEFAULT_REPORT = DATA_ROOT / "reports" / "nta-jee-main-import-2026-08-10.json"
+DEFAULT_REPORT = DATA_ROOT / "reports" / "coverage" / "nta-jee-main-import-2026-08-10.json"
 DEFAULT_ACQUISITION_REPORT = (
-    DATA_ROOT / "reports" / "nta-jee-main-acquisition-2026-08-10.json"
+    DATA_ROOT / "reports" / "coverage" / "nta-jee-main-acquisition-2026-08-10.json"
 )
 DEFAULT_MANIFEST = DATA_ROOT / "manifest.jsonl"
 DEFAULT_RAW_DIR = DATA_ROOT / "raw"

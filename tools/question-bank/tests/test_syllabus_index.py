@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import copy
 import json
 import sqlite3
@@ -32,7 +33,7 @@ from question_bank.syllabus import (
 )
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
 TAXONOMY_PATH = DATA_ROOT / "syllabus-taxonomy.json"
 MATHEMATICS_RULES_PATH = DATA_ROOT / "syllabus-rules-mathematics.json"

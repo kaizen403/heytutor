@@ -21,16 +21,16 @@ from urllib.request import Request, urlopen
 from nta_jee_main_sources import _parse_pdf_text_metadata, _validate_https
 from question_bank.models import sha256_file
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
 
 DEFAULT_INVENTORY_REPORT = (
-    DATA_ROOT / "reports" / "nta-jee-main-coverage-2026-08-10.json"
+    DATA_ROOT / "reports" / "coverage" / "nta-jee-main-coverage-2026-08-10.json"
 )
 DEFAULT_SCHEDULE = DATA_ROOT / "nta-jee-main-official-schedule.json"
 DEFAULT_STAGING_DIR = DATA_ROOT / "staging" / "nta-jee-main"
 DEFAULT_REPORT = (
-    DATA_ROOT / "reports" / "nta-jee-main-acquisition-2026-08-10.json"
+    DATA_ROOT / "reports" / "coverage" / "nta-jee-main-acquisition-2026-08-10.json"
 )
 
 SCHEDULE_SCHEMA_VERSION = "nta-jee-main-official-schedule/v1"

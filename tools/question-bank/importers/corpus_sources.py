@@ -33,7 +33,7 @@ from question_bank.models import (
     write_jsonl,
 )
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
 DEFAULT_CATALOG = DATA_ROOT / "source-catalog.json"
 DEFAULT_MANIFEST = DATA_ROOT / "manifest.jsonl"

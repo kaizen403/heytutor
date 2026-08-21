@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import unittest
 from pathlib import Path
 
@@ -7,7 +8,7 @@ from question_bank.models import question_content_sha256, question_id_for_text
 from question_bank.syllabus import assign_question, load_syllabus_inputs
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
 
 

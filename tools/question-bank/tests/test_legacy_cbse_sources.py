@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import io
 import sys
 import tempfile
@@ -7,7 +8,8 @@ import unittest
 import zipfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'importers'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import legacy_cbse_sources as legacy
 

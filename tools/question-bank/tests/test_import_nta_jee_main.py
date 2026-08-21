@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import hashlib
 import json
 import sys
@@ -8,7 +9,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'importers'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import import_nta_jee_main as importer
 from question_bank.models import load_documents
@@ -199,9 +201,17 @@ class ImportNtaJeeMainTests(unittest.TestCase):
         previews = previews or {}
 
         def fake_page_count(path: Path) -> int:
+            resolved = str(Path(path).resolve())
+            for stored, value in page_counts.items():
+                if str(Path(stored).resolve()) == resolved:
+                    return value
             return page_counts[str(path)]
 
         def fake_preview(path: Path) -> str:
+            resolved = str(Path(path).resolve())
+            for stored, value in previews.items():
+                if str(Path(stored).resolve()) == resolved:
+                    return value
             return previews[str(path)]
 
         with patch.object(importer.acquisition, "_pdf_page_count", side_effect=fake_page_count), patch.object(
