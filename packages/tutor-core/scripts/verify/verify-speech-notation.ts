@@ -1,4 +1,4 @@
-import { mathToSpeech } from "../src/elevenLabsClient";
+import { mathToSpeech } from "../../src/tts/elevenLabsClient";
 
 function assert(condition: unknown, message: string): void {
   if (!condition) {

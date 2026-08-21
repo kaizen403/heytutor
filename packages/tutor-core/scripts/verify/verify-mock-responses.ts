@@ -1,4 +1,4 @@
-import { getMockResponse } from "../src/mockResponses";
+import { getMockResponse } from "../../src/llm/mockResponses";
 
 const linearEquation = getMockResponse("Solve the equation 2x + 3 = 7");
 if (!linearEquation.includes("linear equation demo")) {

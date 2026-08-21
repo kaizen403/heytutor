@@ -4,13 +4,13 @@
  * questionRequiresVisual=false).
  *
  * DIAGRAM_CUE / CONSTRUCTIVE_CUE / QUALITATIVE_CUE / diagram-led unit ids are
- * copied from packages/scene-engine/scripts/verify-syllabus-corpus.ts as a
+ * copied from packages/scene-engine/scripts/verify/verify-syllabus-corpus.ts as a
  * diagnostic-only classifier. They must not become runtime diagram routing
  * (AGENTS.md rule 6). The runtime pre-filter is imported from turnPlannerV3.
  *
  * Usage:
- *   pnpm --filter @heytutor/tutor-core exec tsx scripts/measure-planner-visual-residual.ts
- *   pnpm --filter @heytutor/tutor-core exec tsx scripts/measure-planner-visual-residual.ts --report <path>
+ *   pnpm --filter @heytutor/tutor-core exec tsx scripts/measure/measure-planner-visual-residual.ts
+ *   pnpm --filter @heytutor/tutor-core exec tsx scripts/measure/measure-planner-visual-residual.ts --report <path>
  *
  * Skips with exit 0 when the local corpus jsonl is absent.
  */
@@ -18,12 +18,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { inferSceneCapabilities } from "../src/sceneCapabilities";
+import { inferSceneCapabilities } from "../../src/planners/sceneCapabilities";
 import {
   explicitDiagramRequest,
   questionRequiresVisual,
   referencesFigure,
-} from "../src/turnPlannerV3";
+} from "../../src/planners/turnPlannerV3";
 
 /** Diagram-led units from the syllabus harness UNIT_DEMAND (all entries are diagramLed). */
 const DIAGRAM_LED_UNITS = new Set([
@@ -94,7 +94,7 @@ function truncateStem(text: string): string {
 }
 
 function main(): void {
-  const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+  const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
   const questionsPath = resolve(repoRoot, "data/question-bank/build/questions.all.jsonl");
   const syllabusPath = resolve(repoRoot, "data/question-bank/build/question-syllabus.jsonl");
   const defaultReport = resolve(

@@ -1,4 +1,4 @@
-import { textToStrokePaths, measureTextWidth, normalizeStrokeText } from "@heytutor/drawing";
+import { textToStrokePaths, measureTextWidth, normalizeStrokeText, normalizeBoardText } from "@heytutor/drawing";
 
 function assert(condition: unknown, message: string): void {
   if (!condition) {
@@ -93,6 +93,22 @@ await check("measureTextWidth counts math glyph advance", () => {
   const withSym = measureTextWidth("a ∫ b", 32);
   const withoutSym = measureTextWidth("a  b", 32);
   assert(withSym > withoutSym, "∫ contributed no width to measurement");
+});
+
+await check("8pi and \\pi become π without eating English words", () => {
+  assert(normalizeBoardText("V = 8pi").includes("π"), "8pi did not become π");
+  assert(normalizeStrokeText("\\pi r^2").includes("π"), "\\pi did not become π");
+  assert(normalizeBoardText("area = pi r^2").includes("π"), "word pi did not become π");
+  assert(!normalizeBoardText("speed").includes("π"), "speed was rewritten as π");
+  assert(!normalizeBoardText("picky").includes("π"), "picky was rewritten as π");
+});
+
+await check("π ink is a bar and two legs, not latin n", async () => {
+  const pi = (await textToStrokePaths("π", 0, 100, 40))[0];
+  const n = (await textToStrokePaths("n", 0, 100, 40))[0];
+  assert(pi && pi.strokes.length >= 3, "π did not draw a top bar plus two legs");
+  assert(n && n.strokes.length >= 1, "latin n did not render");
+  assert(pi.strokes[0]?.pathData !== n.strokes[0]?.pathData, "π reused the latin n glyph");
 });
 
 console.log(`\n───────────────────────────────────`);

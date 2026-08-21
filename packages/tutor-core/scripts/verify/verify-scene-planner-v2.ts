@@ -2,7 +2,7 @@ import {
   normalizeSceneDocumentModelOutput,
   planSceneDocumentWithRepair,
   revalidateScenePlanWithRepairResult,
-} from "../src/scenePlannerV2";
+} from "../../src/planners/scenePlannerV2";
 
 const normalizedStringSource = normalizeSceneDocumentModelOutput(
   {

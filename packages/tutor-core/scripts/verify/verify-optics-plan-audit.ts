@@ -1,5 +1,5 @@
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
-import { reconcileTurnPlanWithOpticsLaws } from "../src/opticsPlanAudit";
+import { reconcileTurnPlanWithOpticsLaws } from "../../src/planners/opticsPlanAudit";
 
 const mirrorPlan: TurnPlanV3 = {
   schemaVersion: "turn-plan/v3",
@@ -152,6 +152,44 @@ const telescopeResolutionPlan: TurnPlanV3 = {
 const telescopeResolutionAudit = reconcileTurnPlanWithOpticsLaws(telescopeResolutionPlan);
 if (Math.abs((telescopeResolutionAudit.plan.derived[0]?.value ?? 0) - (1.22 * 550e-9 / 0.1 * 180 / Math.PI)) > 1e-12) {
   throw new Error(`telescope resolution angle was not converted to degrees: ${JSON.stringify(telescopeResolutionAudit.plan.derived)}`);
+}
+
+const microscopePlan: TurnPlanV3 = {
+  schemaVersion: "turn-plan/v3",
+  question: "A compound microscope has objective 4 mm and eyepiece 2.5 cm. An object is 4.5 mm from the objective. The final image is at the near point 25 cm from the eyepiece. Find the tube length and magnifying power.",
+  givens: [
+    { id: "f_o", symbol: "f_o", value: 4, unit: "mm", provenance: "given" },
+    { id: "f_e", symbol: "f_e", value: 2.5, unit: "cm", provenance: "given" },
+    { id: "u_o", symbol: "u_o", value: 4.5, unit: "mm", provenance: "given" },
+    { id: "D", symbol: "D", value: 25, unit: "cm", provenance: "given" },
+  ],
+  unknowns: [
+    { id: "tube_length", symbol: "L", unit: "cm" },
+    { id: "magnifying_power", symbol: "M", unit: "dimensionless" },
+  ],
+  derived: [
+    { id: "tube_length", symbol: "L", value: 1.327, unit: "cm", provenance: "derived", dependsOn: ["f_o", "u_o", "f_e", "D"] },
+    { id: "magnifying_power", symbol: "M", value: 88, unit: "dimensionless", provenance: "derived", dependsOn: ["tube_length"] },
+    { id: "v_o", symbol: "v_o", value: 36, unit: "mm", provenance: "derived", dependsOn: ["f_o", "u_o"] },
+    { id: "v_o_cm", symbol: "v_o", value: 36, unit: "cm", provenance: "derived", dependsOn: ["v_o"] },
+  ],
+  qualitativeClaims: [],
+  lawIds: ["compound_microscope_formula", "lens_formula"],
+  assumptions: [],
+  visualRequirement: "required",
+};
+const microscopeAudit = reconcileTurnPlanWithOpticsLaws(microscopePlan);
+const microscopeTube = microscopeAudit.plan.derived.find((item) => item.id === "tube_length")?.value ?? 0;
+const microscopePower = microscopeAudit.plan.derived.find((item) => item.id === "magnifying_power")?.value ?? 0;
+const microscopeImageCm = microscopeAudit.plan.derived.find((item) => item.id === "v_o_cm")?.value ?? 0;
+if (Math.abs(microscopeTube - (3.6 + 25 / 11)) > 1e-9) {
+  throw new Error(`microscope tube length was not recomputed from object distance: ${JSON.stringify(microscopeAudit.plan.derived)}`);
+}
+if (Math.abs(microscopePower + 88) > 1e-9) {
+  throw new Error(`microscope magnifying power was not signed from the two-lens chain: ${JSON.stringify(microscopeAudit.plan.derived)}`);
+}
+if (Math.abs(microscopeImageCm - 3.6) > 1e-9) {
+  throw new Error(`microscope mixed-unit image distance was not corrected: ${JSON.stringify(microscopeAudit.plan.derived)}`);
 }
 
 const unrelated = structuredClone(mirrorPlan);

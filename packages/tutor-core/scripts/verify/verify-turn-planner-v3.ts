@@ -8,7 +8,7 @@ import {
   TURN_PLAN_V3_PROMPT,
   TURN_PLAN_V3_PROMPT_BASELINE_CHARS,
   TURN_PLAN_V3_VISUAL_GROUNDING,
-} from "../src/turnPlannerV3";
+} from "../../src/planners/turnPlannerV3";
 
 const originalFetch = globalThis.fetch;
 let capturedHeaders = new Headers();
@@ -337,6 +337,50 @@ try {
   const qualitativePlan = await planTurnV3(qualitativeStem, { proxyUrl: "http://planner.test", timeoutMs: 1000 });
   if (!qualitativePlan || qualitativePlan.turnPlan.visualRequirement !== "optional") {
     throw new Error("qualitative stem did not remain visualRequirement=optional");
+  }
+
+  const parametricQuestion =
+    "Sketch the curve given by x = t^2 - 1, y = t^3 - t near t = 2, mark the point at that parameter, and draw the tangent there. Find the coordinates of the point and the slope of the tangent.";
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    choices: [{ message: { content: JSON.stringify({
+      schemaVersion: "turn-plan/v3",
+      question: parametricQuestion,
+      givens: [
+        { id: "x_t", symbol: "x(t)", value: "t^2 - 1", provenance: "given", sourceText: "x = t^2 - 1" },
+        { id: "y_t", symbol: "y(t)", value: "t^3 - t", provenance: "given", sourceText: "y = t^3 - t" },
+        { id: "t0", symbol: "t_0", value: 2, provenance: "given", sourceText: "near t = 2" },
+      ],
+      unknowns: [
+        { id: "P", symbol: "P", unit: "(x,y)" },
+        { id: "m", symbol: "m", unit: "slope" },
+      ],
+      derived: [
+        { id: "x_2", symbol: "x(2)", value: 3, provenance: "derived", dependsOn: ["x_t", "t0"], sourceText: "2^2 - 1 = 3" },
+        { id: "y_2", symbol: "y(2)", value: 6, provenance: "derived", dependsOn: ["y_t", "t0"], sourceText: "2^3 - 2 = 6" },
+        { id: "dx_dt", symbol: "dx/dt", value: "2t", provenance: "derived", dependsOn: ["x_t"], sourceText: "d/dt(t^2 - 1) = 2t" },
+        { id: "m_tan", symbol: "dy/dx", value: 2.75, provenance: "derived", dependsOn: ["dx_dt_2", "dy_dt_2"], sourceText: "11/4 = 2.75" },
+      ],
+      qualitativeClaims: [{
+        id: "c1",
+        claim: "Point P at t=2 has coordinates (3,6)",
+        expected: true,
+        relatedQuantityIds: ["x_2", "y_2"],
+      }],
+      lawIds: ["parametric-derivative-chain-rule"],
+      assumptions: [],
+      visualRequirement: "required",
+    }) } }],
+  }), { status: 200 });
+  const parametricPlan = await planTurnV3(parametricQuestion, { proxyUrl: "http://planner.test", timeoutMs: 1000 });
+  if (!parametricPlan) {
+    throw new Error("a parametric sketch plan with formula givens was discarded instead of keeping finite answers");
+  }
+  const derivedIds = new Set(parametricPlan.turnPlan.derived.map((quantity) => quantity.id));
+  if (!derivedIds.has("x_2") || !derivedIds.has("y_2") || !derivedIds.has("m_tan")) {
+    throw new Error(`parametric finite answers were dropped: ${[...derivedIds].join(",")}`);
+  }
+  if (parametricPlan.turnPlan.givens.some((quantity) => quantity.id === "x_t" || quantity.id === "y_t")) {
+    throw new Error("symbolic formula givens were kept as numeric quantities");
   }
 
   console.log("turn planner V3 verification passed");

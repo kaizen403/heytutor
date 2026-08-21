@@ -1,4 +1,4 @@
-import { ElevenLabsWebSocketTTSClient } from "../src/elevenLabsWebSocketClient";
+import { ElevenLabsWebSocketTTSClient } from "../../src/tts/elevenLabsWebSocketClient";
 
 type MessageListener = (event: { data: string }) => void;
 

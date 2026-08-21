@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { planAndSolveProblemV1 } from "../src/problemPlannerV1";
+import { planAndSolveProblemV1 } from "../../src/planners/problemPlannerV1";
 import type { ProblemIR, TurnPlanV3 } from "@heytutor/scene-engine";
 
 const question = "Find the value of 2 + 3.";

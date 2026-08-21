@@ -19,8 +19,8 @@ import {
   buildSceneDocumentPlannerPrompt,
   DEFAULT_SCENE_CONSTRUCTION_OPERATORS,
   DEFAULT_SCENE_PROOF_PREDICATES,
-} from "../src/scenePlannerV2Prompt";
-import { inferSceneCapabilities } from "../src/sceneCapabilities";
+} from "../../src/planners/scenePlannerV2Prompt";
+import { inferSceneCapabilities } from "../../src/planners/sceneCapabilities";
 
 const EXPECTED_CONSTRUCTION_OPERATORS = [
   "point",
@@ -313,7 +313,7 @@ if (!duplicateIdsRejected) throw new Error("duplicate capability IDs were not re
 
 const fixturePath = join(
   dirname(fileURLToPath(import.meta.url)),
-  "../../scene-engine/fixtures/evaluation/optics-syllabus-v1.json",
+  "../../../scene-engine/fixtures/evaluation/optics-syllabus-v1.json",
 );
 const corpus = JSON.parse(readFileSync(fixturePath, "utf8")) as {
   cases: Array<{
@@ -404,11 +404,11 @@ if (
 
 const physicsEvalPath = join(
   dirname(fileURLToPath(import.meta.url)),
-  "../../scene-engine/fixtures/evaluation/jee-physics-core-v1.json",
+  "../../../scene-engine/fixtures/evaluation/jee-physics-core-v1.json",
 );
 const mathEvalPath = join(
   dirname(fileURLToPath(import.meta.url)),
-  "../../scene-engine/fixtures/evaluation/math-visual-core-v1.json",
+  "../../../scene-engine/fixtures/evaluation/math-visual-core-v1.json",
 );
 const physicsEval = JSON.parse(readFileSync(physicsEvalPath, "utf8")) as {
   questions: Array<{ id: string; question: string; capabilities: { operators: string[] } }>;
@@ -604,6 +604,29 @@ assertCompactFamily(
   ["axes", "point", "line"],
   ["optical_train", "symbol", "refract_at"],
 );
+
+const HINGED_ROD =
+  "A thin uniform rod of mass 2 kg and length 1.0 m is hinged at one end and held horizontal. It is released from rest. Draw the rod in the horizontal and vertical positions, mark the hinge and the weight, and find the angular speed of the rod and the magnitude of the hinge reaction when the rod is vertical. Take g = 10 m/s^2.";
+assertCompactFamily(
+  "hinged-rod-two-positions",
+  HINGED_ROD,
+  "contact_body",
+  ["rotate", "segment", "vector"],
+  ["optical_train", "refract_at", "function_curve"],
+);
+assertCompactFamily(
+  "disc-fixed-axis",
+  "A uniform disc rotates about a fixed axis through its centre. Draw the disc, the axis, and the torque, then find the angular acceleration.",
+  "contact_body",
+  ["circle", "vector"],
+  ["optical_train", "refract_at"],
+);
+const telescopeMagnification = inferSceneCapabilities(
+  "An astronomical telescope in normal adjustment has objective focal length 1.2 m. Find the angular magnification.",
+);
+if (telescopeMagnification.families.includes("contact_body")) {
+  throw new Error(`angular magnification was routed to contact_body: ${JSON.stringify(telescopeMagnification.families)}`);
+}
 
 const GENERIC_EVAL_OPERATORS = new Set(["point", "label", "segment", "line"]);
 for (const question of [...physicsEval.questions, ...mathEval.questions]) {

@@ -10,7 +10,7 @@ import {
   mergeAudioTimingChunk,
   hasPlayableSegmentAudio,
   toSegmentRelativeAudioTimings,
-} from "../src/index";
+} from "../../src/index";
 
 interface Case {
   name: string;
