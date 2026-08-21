@@ -1,4 +1,4 @@
-import { parseMathExpression } from "./expression";
+import { parseMathExpression } from "../math/expression";
 
 export const PROBLEM_IR_VERSION = "problem-ir/v1" as const;
 

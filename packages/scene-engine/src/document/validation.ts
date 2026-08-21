@@ -5,14 +5,14 @@ import {
   type SceneIssue,
   type ValidationReport,
   type ValidationResult,
-} from "./types";
-import { parseMathExpression, parseMathExpression2D } from "./expression";
+} from "../types";
+import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import {
   isExecutableSceneConstructionOperator,
   SUPPORTED_SCENE_COMPONENT_SYMBOLS,
   type SupportedSceneConstructionOperator,
   type SupportedSceneComponentSymbol,
-} from "./capabilityManifest";
+} from "../capability/capabilityManifest";
 
 const ARRAY_FIELDS = [
   "quantities", "entities", "constructions", "relations", "assertions",
@@ -23,7 +23,7 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   segment: "segment", ray: "ray", line: "line", circle: "circle", arc: "arc",
   rectangle: "polygon", polygon: "polygon", polyline: "polyline", vector: "vector",
   axes: "axes", function_curve: "curve", function_region: "region",
-  parametric_curve: "curve", polar_curve: "curve", implicit_curve: "curve",
+  parametric_curve: "polyline", polar_curve: "polyline", implicit_curve: "polyline",
   tangent_line: "line", normal_line: "line", representative_slice: "region",
   solid_of_revolution: "solid", solid_projection: "solid", solid_cross_section: "region",
   wavefront_family: "polyline", aperture: "polyline", screen_pattern: "polyline",
@@ -39,6 +39,7 @@ const CONSTRUCTION_ENTITY_REFERENCE_KEYS = new Set([
   "through", "parallelTo", "first", "second", "point", "line", "incoming",
   "normal", "vertex", "curve", "upper", "lower", "profile", "solid", "basis",
   "vector", "target", "points", "direction", "axis", "objective", "eyepiece", "focus",
+  "object", "finalImage", "virtualImage",
 ]);
 
 /** Capability-corpus gate: fixtures may only name executable scene operators. */
@@ -1701,7 +1702,7 @@ function normalizeMechanicalPlannerArtifacts(raw: Record<string, unknown>): Reco
             rawConstruction.operator === "normal_at"
           )
           ? [originalId]
-          : [];
+          : inferOutputFromConstructionName(originalId, declaredEntityIds);
     // An outputless construction whose ID does not name a declared entity
     // cannot contribute deterministic geometry.
     if (outputs.length === 0) continue;
@@ -2133,11 +2134,399 @@ function normalizeProofDerivedOpticsGeometry(raw: Record<string, unknown>): Reco
   return changed ? { ...raw, entities, constructions, assertions } : raw;
 }
 
+function inferOutputFromConstructionName(
+  constructionId: string | undefined,
+  entityIds: ReadonlySet<string>,
+): string[] {
+  if (!constructionId) return [];
+  const stems = [
+    constructionId.replace(/_construct(?:ion)?$/i, ""),
+    constructionId.replace(/^make_/i, ""),
+    constructionId.replace(/^c_/i, ""),
+  ];
+  for (const stem of stems) {
+    if (stem !== constructionId && entityIds.has(stem)) return [stem];
+  }
+  return [];
+}
+
+function instrumentSourceQuestion(raw: Record<string, unknown>): string {
+  if (typeof raw.source === "string") return raw.source;
+  return isRecord(raw.source) && typeof raw.source.question === "string" ? raw.source.question : "";
+}
+
+function instrumentEntitySemantic(entity: Record<string, unknown>, id: string): string {
+  return `${id} ${String(entity.role ?? "")} ${String(entity.label ?? "")}`
+    .toLowerCase().replace(/[_-]+/g, " ").replace(/([a-z])(\d)/g, "$1 $2").replace(/\s+/g, " ");
+}
+
+function isNamedInstrumentElement(
+  entity: Record<string, unknown>,
+  name: "objective" | "eyepiece",
+): boolean {
+  const label = String(entity.label ?? "").trim().toLowerCase();
+  const role = String(entity.role ?? "").toLowerCase().replace(/[_-]+/g, " ");
+  return label === name || role === name || new RegExp(`\\b${name} (?:lens|element)\\b`).test(role);
+}
+
+function isFiniteOpticalInstrumentScene(raw: Record<string, unknown>): boolean {
+  const visual = raw.visualDecision;
+  if (visual === "text_only" || (isRecord(visual) && visual.mode === "text_only")) return false;
+  if (!Array.isArray(raw.entities)) return false;
+  const question = instrumentSourceQuestion(raw);
+  const entities = raw.entities.filter(isRecord);
+  const hasElements = (["objective", "eyepiece"] as const).every((name) =>
+    entities.some((entity) => isNamedInstrumentElement(entity, name)));
+  if (!hasElements && !/(?:microscope|telescope|objective|eyepiece)/i.test(question)) return false;
+  if (/microscope/i.test(question)) return true;
+  const pointSemantics = entities.flatMap((entity) =>
+    entity.kind === "point" && typeof entity.id === "string"
+      ? [instrumentEntitySemantic(entity, entity.id)]
+      : []);
+  return pointSemantics.some((semantic) => /\bobject\b/.test(semantic) && !/\b(?:image|lens)\b/.test(semantic)) &&
+    pointSemantics.some((semantic) => /\bintermediate\b/.test(semantic)) &&
+    pointSemantics.some((semantic) => /\b(?:final|virtual image|near point)\b/.test(semantic));
+}
+
+function preferInstrumentPoint(
+  ids: readonly string[],
+  entities: ReadonlyMap<string, Record<string, unknown>>,
+  kind: "object" | "intermediate" | "final" | "center" | "focus",
+): string | null {
+  if (ids.length === 0) return null;
+  const ranked = ids.map((id) => {
+    const semantic = instrumentEntitySemantic(entities.get(id) ?? {}, id);
+    const helper = /\b(?:top|bottom|tip|arrow|head|base)\b/.test(semantic) ? 2 : 0;
+    const named = kind === "object" && /\bobject position\b/.test(semantic) ? -1
+      : kind === "intermediate" && /\bintermediate(?: real)? image\b/.test(semantic) ? -1
+      : kind === "final" && /\bfinal(?: virtual)? image\b/.test(semantic) ? -1
+      : kind === "center" && /\b(?:lens )?center\b/.test(semantic) ? -1
+      : kind === "focus" && /\bfoc(?:al|us)\b/.test(semantic) ? -1
+      : 0;
+    return { id, score: helper + named };
+  }).sort((left, right) => left.score - right.score || left.id.localeCompare(right.id));
+  return ranked[0]?.id ?? null;
+}
+
+function finiteInstrumentDisplayLayout(quantities: unknown): Record<"O" | "Fo" | "Co" | "I" | "Fe" | "Ce" | "Ip", number> {
+  const list = Array.isArray(quantities) ? quantities : [];
+  const fo = proofDerivedLengthInMeters(list, /\bf\s*o\b|objective focal/i);
+  const fe = proofDerivedLengthInMeters(list, /\bf\s*e\b|eyepiece focal/i);
+  const uo = proofDerivedLengthInMeters(list, /\bu\s*o\b|object distance|object placed/i);
+  const nearPoint = proofDerivedLengthInMeters(list, /\bnear point\b|\bleast distance\b|(?:^|\s)d(?:\s|$)/i);
+  let xO = 0;
+  let xFo = 1;
+  let xCo = 1.5;
+  let xI = 3.2;
+  let xFe = 4.2;
+  let xCe = 5;
+  let xIp = -2.5;
+  if (fo !== null && uo !== null && uo > fo) {
+    const vo = fo * uo / (uo - fo);
+    const depth = nearPoint ?? vo * 4;
+    const ue = fe !== null && depth > 0 ? 1 / (1 / fe + 1 / depth) : vo * 0.15;
+    xO = 0;
+    xFo = uo - fo;
+    xCo = uo;
+    xI = uo + vo;
+    xCe = uo + vo + ue;
+    xFe = xCe - (fe ?? ue * 1.1);
+    xIp = xCe - depth;
+  }
+  const values = [xO, xFo, xCo, xI, xFe, xCe, xIp];
+  const min = Math.min(...values);
+  const span = Math.max(Math.max(...values) - min, 1e-9);
+  const map = (value: number) => (value - min) / span * 8;
+  return { O: map(xO), Fo: map(xFo), Co: map(xCo), I: map(xI), Fe: map(xFe), Ce: map(xCe), Ip: map(xIp) };
+}
+
+function deriveFiniteOpticalInstrumentChain(raw: Record<string, unknown>): Record<string, unknown> {
+  const entities = (Array.isArray(raw.entities) ? raw.entities : []).filter(isRecord);
+  const entityById = new Map(entities.flatMap((entity) =>
+    typeof entity.id === "string" ? [[entity.id, entity] as const] : []));
+  const pointIds = (test: (semantic: string) => boolean, kind: "object" | "intermediate" | "final" | "center" | "focus") =>
+    preferInstrumentPoint(
+      [...entityById].flatMap(([id, entity]) =>
+        entity.kind === "point" && test(instrumentEntitySemantic(entity, id)) ? [id] : []),
+      entityById,
+      kind,
+    );
+  const pickElement = (name: "objective" | "eyepiece"): string | null => {
+    const matches = entities.filter((entity) => isNamedInstrumentElement(entity, name));
+    const pathLike = matches.filter((entity) =>
+      ["line", "segment", "ray", "vector", "polyline", "object"].includes(String(entity.kind ?? "")));
+    const preferred = pathLike.filter((entity) => entity.kind === "line" || entity.kind === "segment");
+    const chosen = (preferred.length === 1 ? preferred : pathLike.length > 0 ? pathLike : matches)[0];
+    return typeof chosen?.id === "string" ? chosen.id : null;
+  };
+  const occupiedEntityIds = new Set(entityById.keys());
+  const ensureEntity = (id: string | null, fallback: string, kind: string, role: string): string => {
+    if (id && occupiedEntityIds.has(id)) return id;
+    let candidate = fallback;
+    let suffix = 2;
+    while (occupiedEntityIds.has(candidate)) candidate = `${fallback}_${suffix++}`;
+    occupiedEntityIds.add(candidate);
+    if (!entityById.has(candidate)) {
+      const entity = { id: candidate, kind, role };
+      entities.push(entity);
+      entityById.set(candidate, entity);
+    }
+    return candidate;
+  };
+  const axisId = ensureEntity(
+    [...entityById].find(([id, entity]) =>
+      (entity.kind === "line" || entity.kind === "segment") &&
+      /\b(?:optical |principal )?axis\b/.test(instrumentEntitySemantic(entity, id)))?.[0] ?? null,
+    "axis",
+    "line",
+    "optical axis",
+  );
+  const objectiveId = ensureEntity(pickElement("objective"), "obj_lens", "line", "objective lens");
+  const eyepieceId = ensureEntity(pickElement("eyepiece"), "eye_lens", "line", "eyepiece lens");
+  const objectId = ensureEntity(
+    pointIds((semantic) => /\bobject\b/.test(semantic) && !/\b(?:image|lens)\b/.test(semantic), "object"),
+    "O",
+    "point",
+    "object_position",
+  );
+  const intermediateId = ensureEntity(
+    pointIds((semantic) => /\bintermediate\b/.test(semantic), "intermediate"),
+    "I",
+    "point",
+    "intermediate_image",
+  );
+  const finalId = ensureEntity(
+    pointIds((semantic) => /\b(?:final|virtual image|near point)\b/.test(semantic) && !/\bintermediate\b/.test(semantic), "final"),
+    "I_prime",
+    "point",
+    "final_virtual_image",
+  );
+  const objectiveCenterId = ensureEntity(
+    pointIds((semantic) => /\b(?:objective|obj)\b/.test(semantic) && /\bcenter\b/.test(semantic), "center"),
+    "L_o",
+    "point",
+    "objective_lens_center",
+  );
+  const eyepieceCenterId = ensureEntity(
+    pointIds((semantic) => /\b(?:eyepiece|eye)\b/.test(semantic) && /\bcenter\b/.test(semantic), "center"),
+    "L_e",
+    "point",
+    "eyepiece_lens_center",
+  );
+  const objectiveFocusId = pointIds((semantic) => /\bobjective\b/.test(semantic) && /\bfoc(?:al|us)\b/.test(semantic), "focus");
+  const eyepieceFocusId = pointIds((semantic) => /\beyepiece\b/.test(semantic) && /\bfoc(?:al|us)\b/.test(semantic), "focus");
+  const layout = finiteInstrumentDisplayLayout(raw.quantities);
+  const placements = new Map<string, { x: number; y: number }>([
+    [objectId, { x: layout.O, y: 0 }],
+    [objectiveCenterId, { x: layout.Co, y: 0 }],
+    [intermediateId, { x: layout.I, y: 0 }],
+    [eyepieceCenterId, { x: layout.Ce, y: 0 }],
+    [finalId, { x: layout.Ip, y: 0 }],
+  ]);
+  if (objectiveFocusId) placements.set(objectiveFocusId, { x: layout.Fo, y: 0 });
+  if (eyepieceFocusId) placements.set(eyepieceFocusId, { x: layout.Fe, y: 0 });
+  for (const [id, entity] of entityById) {
+    if (entity.kind !== "point" || placements.has(id)) continue;
+    const semantic = instrumentEntitySemantic(entity, id);
+    const height = /\b(?:bottom|base)\b/.test(semantic) ? 0 : 0.55;
+    if (/\bobject\b/.test(semantic) && /\b(?:top|bottom|tip|arrow)\b/.test(semantic)) {
+      placements.set(id, { x: layout.O, y: /\b(?:bottom|base)\b/.test(semantic) ? 0 : height });
+    } else if (/\bintermediate\b/.test(semantic) && /\b(?:top|bottom|tip|arrow)\b/.test(semantic)) {
+      placements.set(id, { x: layout.I, y: /\b(?:bottom|base)\b/.test(semantic) ? 0 : -height });
+    } else if (/\b(?:final|virtual image)\b/.test(semantic) && /\b(?:top|bottom|tip|arrow)\b/.test(semantic)) {
+      placements.set(id, { x: layout.Ip, y: /\b(?:bottom|base)\b/.test(semantic) ? 0 : -height });
+    }
+  }
+
+  const existingRayIds = [...entityById].flatMap(([id, entity]) => entity.kind === "ray" ? [id] : []);
+  const trainRayIds = [...existingRayIds.slice(0, 6)];
+  const defaultRayIds = [
+    "incoming_upper", "incoming_lower", "internal_upper", "internal_lower", "outgoing_upper", "outgoing_lower",
+  ];
+  for (const rayId of defaultRayIds) {
+    if (trainRayIds.length >= 6) break;
+    trainRayIds.push(ensureEntity(null, rayId, "ray", "instrument ray"));
+  }
+  const droppedRayIds = new Set(existingRayIds.filter((id) => !trainRayIds.includes(id)));
+  for (const rayId of droppedRayIds) {
+    const index = entities.findIndex((entity) => entity.id === rayId);
+    if (index >= 0) entities.splice(index, 1);
+    entityById.delete(rayId);
+    occupiedEntityIds.delete(rayId);
+  }
+  const replacedOutputs = new Set([
+    axisId, objectiveId, eyepieceId, ...placements.keys(), ...existingRayIds,
+  ]);
+
+  const sourceConstructions = Array.isArray(raw.constructions) ? raw.constructions : [];
+  const occupiedConstructionIds = new Set([
+    ...sourceConstructions.flatMap((construction) =>
+      isRecord(construction) && typeof construction.id === "string" ? [construction.id] : []),
+    ...(Array.isArray(raw.assertions) ? raw.assertions : []).flatMap((assertion) =>
+      isRecord(assertion) && typeof assertion.id === "string" ? [assertion.id] : []),
+  ]);
+  const allocate = (base: string): string => {
+    if (!occupiedConstructionIds.has(base)) {
+      occupiedConstructionIds.add(base);
+      return base;
+    }
+    let suffix = 2;
+    while (occupiedConstructionIds.has(`${base}_${suffix}`)) suffix += 1;
+    const id = `${base}_${suffix}`;
+    occupiedConstructionIds.add(id);
+    return id;
+  };
+  const pointConstruction = (outputId: string, point: { x: number; y: number }) => ({
+    id: allocate(`derive_${outputId}`),
+    operator: "point",
+    inputs: { x: point.x, y: point.y, coordinateSpace: "world" },
+    outputs: [outputId],
+  });
+  const keptConstructions = sourceConstructions.filter((construction) => {
+    if (!isRecord(construction) || !Array.isArray(construction.outputs)) return true;
+    return !construction.outputs.some((output) => typeof output === "string" && replacedOutputs.has(output));
+  }).flatMap((construction) => {
+    if (!isRecord(construction) || construction.operator !== "dimension" || !isRecord(construction.inputs)) {
+      return [construction];
+    }
+    const outputId = Array.isArray(construction.outputs) ? construction.outputs[0] : null;
+    const dimensionEntity = typeof outputId === "string" ? entityById.get(outputId) : undefined;
+    const semantic = typeof outputId === "string"
+      ? instrumentEntitySemantic(dimensionEntity ?? {}, outputId)
+      : "";
+    if (/\btube\b/.test(semantic)) {
+      return [{
+        ...construction,
+        inputs: { ...construction.inputs, start: objectiveCenterId, end: eyepieceCenterId },
+      }];
+    }
+    return [construction];
+  });
+  const seenDimension = new Set<string>();
+  const dedupedConstructions = keptConstructions.filter((construction) => {
+    if (!isRecord(construction) || construction.operator !== "dimension" || !isRecord(construction.inputs)) return true;
+    const start = construction.inputs.start;
+    const end = construction.inputs.end;
+    if (typeof start !== "string" || typeof end !== "string") return true;
+    const key = [start, end].sort().join(":");
+    if (seenDimension.has(key)) return false;
+    seenDimension.add(key);
+    return true;
+  });
+  const derivedConstructions: unknown[] = [
+    ...[...placements].map(([id, point]) => pointConstruction(id, point)),
+    { id: allocate("derive_axis"), operator: "line", inputs: { start: objectId, end: eyepieceCenterId }, outputs: [axisId] },
+    {
+      id: allocate("derive_objective"),
+      operator: "perpendicular_through",
+      inputs: { through: objectiveCenterId, line: axisId },
+      outputs: [objectiveId],
+    },
+    {
+      id: allocate("derive_eyepiece"),
+      operator: "perpendicular_through",
+      inputs: { through: eyepieceCenterId, line: axisId },
+      outputs: [eyepieceId],
+    },
+    {
+      id: allocate("derive_optical_train"),
+      operator: "optical_train",
+      inputs: {
+        axis: axisId,
+        objective: objectiveId,
+        eyepiece: eyepieceId,
+        focus: intermediateId,
+        object: objectId,
+        finalImage: finalId,
+      },
+      outputs: trainRayIds,
+    },
+  ];
+
+  const keptAssertions = (Array.isArray(raw.assertions) ? raw.assertions : []).filter((assertion) => {
+    if (!isRecord(assertion) || !Array.isArray(assertion.entities)) return true;
+    if (assertion.predicate === "converges" || assertion.predicate === "ordered_along" || assertion.predicate === "between") return false;
+    return assertion.entities.every((id) => typeof id === "string" && !droppedRayIds.has(id) && occupiedEntityIds.has(id));
+  });
+  const assertions = [
+    ...keptAssertions.filter((assertion) => {
+      if (!isRecord(assertion) || !Array.isArray(assertion.entities)) return true;
+      const ids = assertion.entities.filter((id): id is string => typeof id === "string");
+      if (assertion.predicate === "perpendicular" && (ids.includes(objectiveId) || ids.includes(eyepieceId))) return false;
+      return true;
+    }),
+    { id: allocate("assert_objective_perp"), predicate: "perpendicular", entities: [objectiveId, axisId], expected: true, severity: "fatal" },
+    { id: allocate("assert_eyepiece_perp"), predicate: "perpendicular", entities: [eyepieceId, axisId], expected: true, severity: "fatal" },
+    { id: allocate("assert_object_on_axis"), predicate: "on", entities: [objectId, axisId], expected: true, severity: "fatal" },
+    { id: allocate("assert_image_on_axis"), predicate: "on", entities: [intermediateId, axisId], expected: true, severity: "fatal" },
+    { id: allocate("assert_final_on_axis"), predicate: "on", entities: [finalId, axisId], expected: true, severity: "fatal" },
+    { id: allocate("assert_intermediate_between"), predicate: "between", entities: [intermediateId, objectiveCenterId, eyepieceCenterId], expected: true, severity: "fatal" },
+    { id: allocate("assert_virtual_same_side"), predicate: "same_side", entities: [intermediateId, finalId, eyepieceCenterId], expected: true, severity: "fatal" },
+    { id: allocate("assert_intermediate_focus"), predicate: "converges", entities: [trainRayIds[2], trainRayIds[3], intermediateId], expected: true, severity: "fatal" },
+  ];
+
+  for (const id of [objectiveId, eyepieceId]) {
+    const entity = entityById.get(id);
+    if (entity) {
+      entity.kind = "line";
+      if (!isNamedInstrumentElement(entity, id === objectiveId ? "objective" : "eyepiece")) {
+        entity.role = id === objectiveId ? "objective lens" : "eyepiece lens";
+      }
+    }
+  }
+  for (const rayId of trainRayIds) {
+    const entity = entityById.get(rayId);
+    if (entity) entity.kind = "ray";
+  }
+
+  const visibleIds = [
+    axisId, objectiveId, eyepieceId, objectId, intermediateId, finalId,
+    objectiveCenterId, eyepieceCenterId, ...trainRayIds,
+  ];
+  const requiredEntityIds = [...new Set([
+    ...(Array.isArray(raw.requiredEntityIds) ? raw.requiredEntityIds : []).filter((id) =>
+      typeof id === "string" && occupiedEntityIds.has(id) && !droppedRayIds.has(id)),
+    ...visibleIds,
+  ])];
+  const revealGroups = (Array.isArray(raw.revealGroups) ? raw.revealGroups : []).map((group) => {
+    if (!isRecord(group) || !Array.isArray(group.entityIds)) return group;
+    const entityIds = [...new Set([
+      ...group.entityIds.filter((id) => typeof id === "string" && occupiedEntityIds.has(id) && !droppedRayIds.has(id)),
+      ...visibleIds,
+    ])];
+    return { ...group, entityIds };
+  });
+
+  const relations = (Array.isArray(raw.relations) ? raw.relations : []).filter((relation) => {
+    if (!isRecord(relation) || !Array.isArray(relation.entities)) return true;
+    return relation.entities.every((id) =>
+      typeof id !== "string" || (!droppedRayIds.has(id) && occupiedEntityIds.has(id)));
+  });
+
+  return {
+    ...raw,
+    entities,
+    constructions: [...dedupedConstructions, ...derivedConstructions],
+    assertions,
+    relations,
+    requiredEntityIds,
+    revealGroups: revealGroups.length > 0
+      ? revealGroups
+      : [{ id: "instrument", entityIds: visibleIds, dependsOn: [], narrationCue: "Draw the optical instrument chain." }],
+  };
+}
+
 function normalizeProofDerivedOpticalTrain(raw: Record<string, unknown>): Record<string, unknown> {
+  if (typeof raw.source === "string") {
+    raw = { ...raw, source: { question: raw.source } };
+  }
+  if (!Array.isArray(raw.entities) || !Array.isArray(raw.constructions) || !Array.isArray(raw.assertions)) {
+    return raw;
+  }
+  if (isFiniteOpticalInstrumentScene(raw)) {
+    return deriveFiniteOpticalInstrumentChain(raw);
+  }
   if (
-    !Array.isArray(raw.entities) ||
-    !Array.isArray(raw.constructions) ||
-    !Array.isArray(raw.assertions) ||
     !Array.isArray(raw.quantities) ||
     !isRecord(raw.source) ||
     typeof raw.source.question !== "string" ||
@@ -3519,12 +3908,31 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     );
   }
   if (Array.isArray(normalizedRaw.assertions)) {
-    normalizedRaw.assertions = normalizedRaw.assertions.map((assertion) => {
-      if (!isRecord(assertion)) return assertion;
+    const entityKindById = new Map(
+      (Array.isArray(normalizedRaw.entities) ? normalizedRaw.entities : []).flatMap((entity) =>
+        isRecord(entity) && typeof entity.id === "string" && typeof entity.kind === "string"
+          ? [[entity.id, entity.kind] as const]
+          : [],
+      ),
+    );
+    normalizedRaw.assertions = normalizedRaw.assertions.flatMap((assertion) => {
+      if (!isRecord(assertion)) return [assertion];
+      if (assertion.predicate === "angle_between") {
+        const ids = Array.isArray(assertion.entities)
+          ? assertion.entities.filter((id): id is string => typeof id === "string")
+          : [];
+        if (
+          ids.length !== 2 ||
+          ids[0] === ids[1] ||
+          ids.some((id) => entityKindById.get(id) === "axes")
+        ) {
+          return [];
+        }
+      }
       const severity = assertion.severity === "info" || assertion.severity === "warning"
         ? "warning"
         : "fatal";
-      return { ...assertion, severity };
+      return [{ ...assertion, severity }];
     });
   }
   if (Array.isArray(normalizedRaw.annotations)) {
@@ -3870,9 +4278,10 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
   document.assertions.forEach((assertion, index) => {
     assertion.entities.forEach((id, ref) => requireEntity(id, `assertions[${index}].entities[${ref}]`));
     if (assertion.predicate === "function_value") {
+      const operator = constructionByOutput.get(assertion.entities[0] ?? "")?.operator;
       if (
         assertion.entities.length !== 1 ||
-        constructionByOutput.get(assertion.entities[0] ?? "")?.operator !== "function_curve" ||
+        !SAMPLED_CURVE_OPERATORS.has(String(operator ?? "")) ||
         !isRecord(assertion.expected) ||
         typeof assertion.expected.x !== "number" ||
         !Number.isFinite(assertion.expected.x) ||
@@ -3881,7 +4290,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       ) {
         issues.push({
           code: "invalid_function_assertion",
-          message: "function_value requires one curve entity and finite expected {x, y}",
+          message: "function_value requires one sampled curve entity and finite expected {x, y}",
           severity: "fatal",
           path: `assertions[${index}]`,
         });
@@ -3974,6 +4383,45 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
   return result(issues.some((issue) => issue.severity === "fatal") ? null : document, issues, document);
 }
 
+function constructionByOutput(
+  constructions: unknown[],
+  id: unknown,
+): Record<string, unknown> | null {
+  if (typeof id !== "string") return null;
+  for (const construction of constructions) {
+    if (!isRecord(construction) || !Array.isArray(construction.outputs)) continue;
+    if (construction.outputs.includes(id)) return construction;
+  }
+  return null;
+}
+
+function inferRevolutionSliceMethod(
+  inputs: Record<string, unknown>,
+  constructions: unknown[],
+): "disk" | "washer" | null {
+  const atX = typeof (inputs.atX ?? inputs.x ?? inputs.at) === "number"
+    ? Number(inputs.atX ?? inputs.x ?? inputs.at)
+    : null;
+  const axisY = inputs.axisY === undefined ? 0
+    : typeof inputs.axisY === "number" ? inputs.axisY
+    : null;
+  if (atX === null || !Number.isFinite(atX) || axisY === null || !Number.isFinite(axisY)) return null;
+  const upper = constructionByOutput(constructions, inputs.upper ?? inputs.top);
+  const lower = constructionByOutput(constructions, inputs.lower ?? inputs.bottom);
+  if (upper?.operator !== "function_curve" || lower?.operator !== "function_curve") return null;
+  if (!isRecord(upper.inputs) || !isRecord(lower.inputs)) return null;
+  try {
+    const upperY = parseMathExpression(String(upper.inputs.expression)).evaluate(atX);
+    const lowerY = parseMathExpression(String(lower.inputs.expression)).evaluate(atX);
+    const inner = Math.min(Math.abs(upperY - axisY), Math.abs(lowerY - axisY));
+    const outer = Math.max(Math.abs(upperY - axisY), Math.abs(lowerY - axisY));
+    if (!(outer > inner + 1e-6)) return null;
+    return inner <= 1e-6 ? "disk" : "washer";
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Normalize unambiguous JSON-shape drift at the model boundary. This keeps the
  * scene contract semantic: aliases are repaired, while geometry and proofs
@@ -4014,6 +4462,63 @@ function normalizeGenericPlannerSchema(raw: Record<string, unknown>): Record<str
       })
     : [];
   if (Array.isArray(entities) && Array.isArray(constructions)) {
+    const sampledCurveOperators = new Set(["function_curve", "parametric_curve", "polar_curve", "implicit_curve"]);
+    const sampledCurveKinds = new Set([
+      "curve", "graph", "line", "segment", "path",
+      "function_curve", "parametric_curve", "polar_curve", "implicit_curve",
+    ]);
+    for (const construction of constructions) {
+      if (!isRecord(construction) || !sampledCurveOperators.has(String(construction.operator ?? ""))) continue;
+      const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
+      for (const output of outputs) {
+        if (typeof output !== "string") continue;
+        const entity = entities.find((candidate) => isRecord(candidate) && candidate.id === output);
+        if (isRecord(entity) && (sampledCurveKinds.has(String(entity.kind ?? "")) || entity.kind !== "polyline")) {
+          entity.kind = "polyline";
+          if (typeof entity.role !== "string" || entity.role.trim() === "" || sampledCurveKinds.has(String(entity.role))) {
+            entity.role = `${String(construction.operator).replace(/_/g, " ")} graph`;
+          }
+        }
+      }
+    }
+    const sliceOutputKinds = new Set(["region", "segment", "line", "path", "curve", "polygon"]);
+    const question = isRecord(raw.source) && typeof raw.source.question === "string"
+      ? raw.source.question
+      : "";
+    const revolutionAsked = /\b(?:disk|disc|washer|revolv(?:e|ed|ing)?|solid of revolution|volume of revolution)\b/i.test(question);
+    for (const construction of constructions) {
+      if (!isRecord(construction) || String(construction.operator ?? "") !== "representative_slice") continue;
+      const inputs = isRecord(construction.inputs) ? { ...construction.inputs } : {};
+      construction.inputs = inputs;
+      if (revolutionAsked && (inputs.method === undefined || inputs.method === "strip")) {
+        const inferred = inferRevolutionSliceMethod(inputs, constructions);
+        if (inferred) {
+          inputs.method = inferred;
+          if (inputs.axisY === undefined) inputs.axisY = 0;
+        }
+      }
+      const diskLike = inputs.method === "disk" || inputs.method === "washer";
+      const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
+      for (const output of outputs) {
+        if (typeof output !== "string") continue;
+        const entity = entities.find((candidate) => isRecord(candidate) && candidate.id === output);
+        if (isRecord(entity) && sliceOutputKinds.has(String(entity.kind ?? ""))) {
+          entity.kind = diskLike ? "polyline" : "segment";
+        }
+      }
+    }
+    for (const construction of constructions) {
+      if (!isRecord(construction) || String(construction.operator ?? "") !== "solid_of_revolution") continue;
+      const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
+      for (const output of outputs) {
+        if (typeof output !== "string") continue;
+        const entity = entities.find((candidate) => isRecord(candidate) && candidate.id === output);
+        const kind = isRecord(entity) ? String(entity.kind ?? "") : "";
+        if (isRecord(entity) && ["solid", "region", "path", "curve"].includes(kind)) {
+          entity.kind = "polygon";
+        }
+      }
+    }
     for (const construction of constructions) {
       if (!isRecord(construction) || !Array.isArray(construction.outputs)) continue;
       for (const output of construction.outputs) {
@@ -4031,7 +4536,9 @@ function normalizeGenericPlannerSchema(raw: Record<string, unknown>): Record<str
                             : operator === "dimension" ? "dimension"
                               : operator === "function_region" || operator === "solid_of_revolution" ? "polygon"
                                 : operator === "solid_projection" || operator === "solid_cross_section" ? "polyline"
-                                  : operator === "tangent_line" || operator === "normal_line" || operator === "representative_slice" ? "segment"
+                                : operator === "tangent_line" || operator === "normal_line" ? "segment"
+                                  : operator === "representative_slice"
+                                    ? (isRecord(construction.inputs) && (construction.inputs.method === "disk" || construction.inputs.method === "washer") ? "polyline" : "segment")
                             : "segment";
         entities.push({
           id: output,
@@ -4327,7 +4834,7 @@ function validateCalculusConstruction(
   const output = construction.outputs[0];
   const outputKind = document.entities.find((entity) => entity.id === output)?.kind;
   const allowedOutputKinds = operator === "solid_of_revolution"
-    ? ["polygon"]
+    ? ["polygon", "polyline"]
     : operator === "parametric_curve" || operator === "polar_curve" || operator === "implicit_curve"
       ? ["polyline"]
       : operator === "representative_slice"
@@ -4420,6 +4927,26 @@ function validateCalculusConstruction(
     if (upper?.operator !== "function_curve") addBadReference("upper", "a function_curve", upperId);
     if (lower?.operator !== "function_curve") addBadReference("lower", "a function_curve", lowerId);
     const atX = validationNumber(inputs.atX ?? inputs.x ?? inputs.at, document);
+    const axisY = inputs.axisY === undefined ? 0 : validationNumber(inputs.axisY, document);
+    const method = inputs.method === undefined ? "strip" : inputs.method;
+    if (method !== "strip" && method !== "disk" && method !== "washer") {
+      issues.push({
+        code: "invalid_representative_slice_method",
+        message: "representative_slice method must be strip, disk, or washer",
+        severity: "fatal",
+        path: `constructions[${index}].inputs.method`,
+        actual: inputs.method,
+      });
+    }
+    if (axisY === null) {
+      issues.push({
+        code: "invalid_representative_slice_axis",
+        message: "representative_slice axisY must be a finite number",
+        severity: "fatal",
+        path: `constructions[${index}].inputs.axisY`,
+        actual: inputs.axisY,
+      });
+    }
     const upperDomain = upper ? sampledCurveDomain(upper, document) : null;
     const lowerDomain = lower ? sampledCurveDomain(lower, document) : null;
     if (
@@ -4448,6 +4975,29 @@ function validateCalculusConstruction(
             expected: "upper(atX) > lower(atX)",
             actual: { upperY, lowerY },
           });
+        } else if ((method === "disk" || method === "washer") && axisY !== null) {
+          const inner = Math.min(Math.abs(upperY - axisY), Math.abs(lowerY - axisY));
+          const outer = Math.max(Math.abs(upperY - axisY), Math.abs(lowerY - axisY));
+          if (method === "disk" && inner > 1e-6) {
+            issues.push({
+              code: "invalid_representative_slice_disk",
+              message: "representative_slice method disk requires the inner curve to meet the axis",
+              severity: "fatal",
+              path: `constructions[${index}].inputs`,
+              expected: "min(|upper-axisY|, |lower-axisY|) ≈ 0",
+              actual: { inner, outer, axisY },
+            });
+          }
+          if (method === "washer" && (inner <= 1e-6 || outer - inner <= 1e-6)) {
+            issues.push({
+              code: "invalid_representative_slice_washer",
+              message: "representative_slice method washer requires distinct positive inner and outer radii",
+              severity: "fatal",
+              path: `constructions[${index}].inputs`,
+              expected: "0 < inner < outer",
+              actual: { inner, outer, axisY },
+            });
+          }
         }
       } catch {
         // The referenced function_curve validator reports malformed expressions.
@@ -4970,6 +5520,20 @@ function validateOpticalTrainConstruction(
       entityIds: typeof focus === "string" ? [focus] : undefined,
     });
   }
+  for (const key of ["object", "finalImage", "virtualImage"] as const) {
+    const value = construction.inputs[key];
+    if (value === undefined) continue;
+    const producer = typeof value === "string" ? constructionByOutput.get(value) : undefined;
+    if (producer?.operator !== "point" && producer?.operator !== "intersection") {
+      issues.push({
+        code: "invalid_optical_train_focus",
+        message: `optical_train ${key} must reference one constructed point`,
+        severity: "fatal",
+        path: `constructions[${index}].inputs.${key}`,
+        entityIds: typeof value === "string" ? [value] : undefined,
+      });
+    }
+  }
   for (const key of ["raySpan", "beamHalfHeight"] as const) {
     const value = construction.inputs[key];
     if (value !== undefined && !(typeof value === "number" && Number.isFinite(value) && value > 0)) {
@@ -5406,15 +5970,18 @@ function validateOpticalInstrumentProofContract(
     entity.kind === "ray" && /\b(?:incident|incoming|ray in)\b/.test(semantic(entity.id)) ? [entity.id] : []);
   const outgoingRayIds = document.entities.flatMap((entity) =>
     entity.kind === "ray" && /\b(?:emergent|outgoing|ray out)\b/.test(semantic(entity.id)) ? [entity.id] : []);
-  for (const [name, rayIds] of [["incoming", incomingRayIds], ["emergent", outgoingRayIds]] as const) {
-    if (rayIds.length < 2 || proves("parallel", rayIds.slice(0, 2))) continue;
-    issues.push({
-      code: "instrument_ray_bundle_not_proven",
-      message: `The ${name} ray bundle must include a parallel proof`,
-      severity: "fatal",
-      entityIds: rayIds,
-      expected: true,
-    });
+  const hasOpticalTrain = document.constructions.some((construction) => construction.operator === "optical_train");
+  if (!hasOpticalTrain) {
+    for (const [name, rayIds] of [["incoming", incomingRayIds], ["emergent", outgoingRayIds]] as const) {
+      if (rayIds.length < 2 || proves("parallel", rayIds.slice(0, 2))) continue;
+      issues.push({
+        code: "instrument_ray_bundle_not_proven",
+        message: `The ${name} ray bundle must include a parallel proof`,
+        severity: "fatal",
+        entityIds: rayIds,
+        expected: true,
+      });
+    }
   }
 
   const question = typeof document.source.question === "string" ? document.source.question : "";

@@ -152,10 +152,26 @@ export function evaluateOpticsLaw(
       };
     }
     case "compound_microscope": {
-      const tubeLength = positive(input("tubeLength"), "tubeLength");
       const objectiveFocalLength = positive(input("objectiveFocalLength"), "objectiveFocalLength");
       const eyepieceFocalLength = positive(input("eyepieceFocalLength"), "eyepieceFocalLength");
-      const nearPoint = positive(input("nearPoint"), "nearPoint");
+      const nearPoint = rawInputs.nearPoint === undefined
+        ? 0.25
+        : positive(input("nearPoint"), "nearPoint");
+      if (rawInputs.objectDistance !== undefined) {
+        const objectDistance = positive(input("objectDistance"), "objectDistance");
+        if (!(objectDistance > objectiveFocalLength)) {
+          throw new Error("compound microscope object must lie beyond the objective focal point");
+        }
+        const imageDistance = objectiveFocalLength * objectDistance / (objectDistance - objectiveFocalLength);
+        const eyepieceObjectDistance = 1 / (1 / eyepieceFocalLength + 1 / nearPoint);
+        return {
+          imageDistance,
+          eyepieceObjectDistance,
+          tubeLength: imageDistance + eyepieceObjectDistance,
+          magnifyingPower: -(imageDistance / objectDistance) * (1 + nearPoint / eyepieceFocalLength),
+        };
+      }
+      const tubeLength = positive(input("tubeLength"), "tubeLength");
       return { magnifyingPower: tubeLength * nearPoint / (objectiveFocalLength * eyepieceFocalLength) };
     }
     case "astronomical_telescope": {

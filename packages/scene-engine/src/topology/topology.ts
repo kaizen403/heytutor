@@ -3,8 +3,8 @@
  * Powers path, pathCount, sameTerminalPair, and degree assertions.
  */
 
-import type { SceneAssertion, SceneDocument, SceneIssue } from "./types";
-import { isTopologySceneProofPredicate } from "./capabilityManifest";
+import type { SceneAssertion, SceneDocument, SceneIssue } from "../types";
+import { isTopologySceneProofPredicate } from "../capability/capabilityManifest";
 
 export interface TopologyEdge {
   id: string;

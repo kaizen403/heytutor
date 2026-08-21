@@ -5,7 +5,7 @@
  * reject unresolved collisions rather than drawing over ink.
  */
 
-import type { RenderPoint, RenderPrimitive } from "./types";
+import type { RenderPoint, RenderPrimitive } from "../types";
 
 export interface LabelBounds {
   x: number;

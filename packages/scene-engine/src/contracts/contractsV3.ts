@@ -5,12 +5,12 @@
  * Full expression-tree CAS and vision-gated ready are deferred.
  */
 
-import { evaluateTopologyAssertion } from "./topology";
-import { evaluateMathExpression } from "./expression";
-import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from "./types";
-import type { ProblemIR } from "./problemIR";
-import type { SolverResult } from "./solver";
-import type { SolverAuthorityAudit } from "./solverAuthority";
+import { evaluateTopologyAssertion } from "../topology/topology";
+import { evaluateMathExpression } from "../math/expression";
+import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from "../types";
+import type { ProblemIR } from "../ir/problemIR";
+import type { SolverResult } from "../ir/solver";
+import type { SolverAuthorityAudit } from "../ir/solverAuthority";
 
 export const TURN_PLAN_V3_VERSION = "turn-plan/v3" as const;
 export const SCENE_ARTIFACTS_V3_VERSION = "scene-artifacts/v3" as const;
@@ -418,11 +418,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
   });
   unknowns.forEach((value, index) => {
     if (!isRecord(value) || typeof value.id !== "string") return;
-    const unit = String(value.unit ?? "").trim().toLowerCase();
-    if (
-      (unit === "" || unit === "none" || unit === "qualitative") &&
-      qualitativeOnlyUnknownIds.has(value.id)
-    ) return;
+    if (qualitativeOnlyUnknownIds.has(value.id)) return;
     const keys = [value.id, value.symbol]
       .filter((key): key is string => typeof key === "string")
       .map(normalizeQuantityMatchKey)
@@ -472,8 +468,12 @@ function normalizeQuantityMatchKey(value: string): string {
 
 function semanticQuantityKeysMatch(first: string, second: string): boolean {
   if (first === second) return true;
-  if (first.length < 4 || second.length < 4) return false;
-  return first.includes(second) || second.includes(first);
+  const [shorter, longer] = first.length <= second.length ? [first, second] : [second, first];
+  if (shorter.length === 0) return false;
+  if (shorter.length >= 4) return longer.includes(shorter);
+  if (!longer.startsWith(shorter)) return false;
+  const rest = longer.slice(shorter.length);
+  return rest.length === 0 || /^(?:[0-9]|tan|slope|val|at|prime)/.test(rest);
 }
 
 const QUALITATIVE_DESCRIPTOR_WORDS = new Set([
@@ -484,13 +484,19 @@ function shareSemanticAnswerAnchor(
   unknown: Record<string, unknown>,
   claim: Record<string, unknown>,
 ): boolean {
+  const keepShort = new Set(
+    [unknown.id, unknown.symbol]
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.toLowerCase()),
+  );
   const words = (values: unknown[]): Set<string> => new Set(values.flatMap((value) =>
     typeof value === "string"
       ? value
           .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
           .toLowerCase()
           .split(/[^a-z0-9]+/)
-          .filter((word) => word.length > 1 && !QUALITATIVE_DESCRIPTOR_WORDS.has(word))
+          .filter((word) =>
+            (word.length > 1 || keepShort.has(word)) && !QUALITATIVE_DESCRIPTOR_WORDS.has(word))
       : [],
   ));
   const unknownWords = words([unknown.id, unknown.symbol]);

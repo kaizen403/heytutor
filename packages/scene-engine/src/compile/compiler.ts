@@ -8,17 +8,17 @@ import {
   type SceneDocument,
   type SceneIssue,
   type ValidationReport,
-} from "./types";
-import { obstaclesFromPrimitives, placeLabels, type LabelOwner } from "./labelEngine";
-import { evaluateTopologyAssertion, validateTopologyInvariants } from "./topology";
-import { implicitSolverEntityIds, validateSceneDocument } from "./validation";
-import { parseMathExpression, parseMathExpression2D } from "./expression";
+} from "../types";
+import { obstaclesFromPrimitives, placeLabels, type LabelOwner } from "../labels/labelEngine";
+import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
+import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
+import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import {
   isExecutableSceneConstructionOperator,
   isExecutableSceneProofPredicate,
   isTopologySceneProofPredicate,
   type SupportedSceneConstructionOperator,
-} from "./capabilityManifest";
+} from "../capability/capabilityManifest";
 
 type Point = { x: number; y: number };
 type Viewport = { x: number; y: number; width: number; height: number; padding?: number };
@@ -775,11 +775,7 @@ function evaluateConstruction(
     case "tangent_line": return [derivedCurveLine(inputs, geometry, quantities, false)];
     case "normal_line": return [derivedCurveLine(inputs, geometry, quantities, true)];
     case "representative_slice": return [representativeSliceGeometry(inputs, geometry, quantities)];
-    case "solid_of_revolution": return [{
-      kind: "path",
-      closed: true,
-      points: solidOfRevolutionProfile(inputs, geometry, quantities),
-    }];
+    case "solid_of_revolution": return [solidOfRevolutionGeometry(inputs, geometry, quantities)];
     case "solid_projection": return [solidProjectionGeometry(inputs, geometry, quantities)];
     case "solid_cross_section": return [solidCrossSectionGeometry(inputs, geometry, quantities)];
     case "wavefront_family": return [wavefrontFamilyGeometry(inputs, geometry, quantities)];
@@ -960,18 +956,15 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
       case "connected": passed = values.length >= 2 && values.slice(1).every((value) => areConnected(values[0], value, geometry)); break;
       case "incident":
       case "on": {
-        residual = pointGeometryResidual(values[0], values[1]);
-        const point = values[0]?.kind === "point" ? values[0].point : null;
-        const sampledCurve = values[1]?.kind === "path"
-          ? values[1].sampledCurve
-          : undefined;
-        if (
-          point &&
-          sampledCurve?.curveKind === "function" &&
-          point.x >= sampledCurve.parameterMin - EPSILON &&
-          point.x <= sampledCurve.parameterMax + EPSILON
-        ) {
-          residual = distance(point, sampledCurve.evaluate(point.x));
+        const pointGeometry = values[0]?.kind === "point" ? values[0]
+          : values[1]?.kind === "point" ? values[1]
+            : undefined;
+        const support = pointGeometry === values[0] ? values[1] : values[0];
+        if (!pointGeometry || !support) break;
+        residual = pointGeometryResidual(pointGeometry, support);
+        const sampledCurve = support.kind === "path" ? support.sampledCurve : undefined;
+        if (sampledCurve) {
+          residual = sampledCurveCartesianResidual(sampledCurve, pointGeometry.point, {});
         }
         const exactTolerance = tolerance(assertion);
         const relationTolerance = typeof assertion.tolerance === "number" || !isDerivedDirection(assertion.entities[1], document)
@@ -1178,8 +1171,13 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         if (!isRecord(expected) || typeof expected.x !== "number" || typeof expected.y !== "number") {
           throw new Error("function_value expected must be {x, y}");
         }
-        const expression = curveExpression(assertion.entities[0], document);
-        residual = Math.abs(expression.evaluate(expected.x) - expected.y);
+        const sampled = values[0]?.kind === "path" ? values[0].sampledCurve : undefined;
+        if (sampled) {
+          residual = sampledCurveCartesianResidual(sampled, { x: expected.x, y: expected.y }, expected);
+        } else {
+          const expression = curveExpression(assertion.entities[0], document);
+          residual = Math.abs(expression.evaluate(expected.x) - expected.y);
+        }
         passed = residual < tolerance(assertion);
         break;
       }
@@ -1880,11 +1878,28 @@ function derivedCurveLine(
   };
 }
 
+function representativeSliceMethod(value: unknown): "strip" | "disk" | "washer" {
+  if (value === undefined || value === "strip") return "strip";
+  if (value === "disk" || value === "washer") return value;
+  throw new Error("representative_slice method must be strip, disk, or washer");
+}
+
+const REVOLUTION_FORESHORTEN = 0.24;
+
+function revolutionEllipse(atX: number, axisY: number, radius: number): Point[] {
+  if (!(radius > EPSILON)) throw new Error("revolution ellipse radius must be positive");
+  const rx = radius * REVOLUTION_FORESHORTEN;
+  return Array.from({ length: 33 }, (_, index) => ({
+    x: atX + rx * Math.sin((Math.PI * 2 * index) / 32),
+    y: axisY + radius * Math.cos((Math.PI * 2 * index) / 32),
+  }));
+}
+
 function representativeSliceGeometry(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
-): Extract<Geometry, { kind: "path" }> {
+): Geometry {
   const upper = functionCurveReference(first(inputs, ["upper", "top"]), geometry, "representative_slice upper");
   const lower = functionCurveReference(first(inputs, ["lower", "bottom"]), geometry, "representative_slice lower");
   const atX = resolveNumber(first(inputs, ["atX", "x", "at"]), quantities);
@@ -1895,14 +1910,38 @@ function representativeSliceGeometry(
   if (!(upperPoint.y > lowerPoint.y + EPSILON)) {
     throw new Error("representative_slice requires upper curve to be strictly above lower curve at atX");
   }
-  return { kind: "path", points: [lowerPoint, upperPoint] };
+  const method = representativeSliceMethod(inputs.method);
+  if (method === "strip") {
+    return { kind: "path", points: [lowerPoint, upperPoint] };
+  }
+  const axisY = inputs.axisY === undefined ? 0 : resolveNumber(inputs.axisY, quantities);
+  const upperRadius = Math.abs(upperPoint.y - axisY);
+  const lowerRadius = Math.abs(lowerPoint.y - axisY);
+  const outer = Math.max(upperRadius, lowerRadius);
+  const inner = Math.min(upperRadius, lowerRadius);
+  if (!(outer > EPSILON)) {
+    throw new Error("representative_slice disk/washer radius must be positive");
+  }
+  if (method === "disk" && inner > EPSILON) {
+    throw new Error("representative_slice method disk requires the inner curve to meet the axis");
+  }
+  if (method === "washer" && (!(inner > EPSILON) || !(outer - inner > EPSILON))) {
+    throw new Error("representative_slice method washer requires distinct positive inner and outer radii");
+  }
+  const paths = [revolutionEllipse(atX, axisY, outer)];
+  if (method === "washer") paths.push(revolutionEllipse(atX, axisY, inner));
+  paths.push([
+    { x: atX, y: axisY - outer },
+    { x: atX, y: axisY + outer },
+  ]);
+  return { kind: "multi_path", paths };
 }
 
-function solidOfRevolutionProfile(
+function solidOfRevolutionGeometry(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
-): Point[] {
+): Extract<Geometry, { kind: "compound" }> {
   const curve = functionCurveReference(first(inputs, ["profile", "curve"]), geometry, "solid_of_revolution profile");
   const xMin = inputs.xMin === undefined ? curve.parameterMin : resolveNumber(inputs.xMin, quantities);
   const xMax = inputs.xMax === undefined ? curve.parameterMax : resolveNumber(inputs.xMax, quantities);
@@ -1923,7 +1962,14 @@ function solidOfRevolutionProfile(
     throw new Error("solid_of_revolution profile must remain on one side of its axis");
   }
   const mirrored = profile.map((point) => ({ x: point.x, y: 2 * axisY - point.y })).reverse();
-  return [...profile, ...mirrored];
+  const start = profile[0]!;
+  const end = profile.at(-1)!;
+  const paths = [profile, mirrored];
+  const startRadius = Math.abs(start.y - axisY);
+  const endRadius = Math.abs(end.y - axisY);
+  if (startRadius > EPSILON) paths.push(revolutionEllipse(start.x, axisY, startRadius));
+  if (endRadius > EPSILON) paths.push(revolutionEllipse(end.x, axisY, endRadius));
+  return { kind: "compound", paths, terminals: [start, end] };
 }
 
 function solidProjectionGeometry(
@@ -2207,13 +2253,32 @@ function opticalTrainGeometry(
   const objectiveLower = offset(objectiveCenter, -beamHalfHeight);
   const eyepieceUpper = offset(eyepieceCenter, beamHalfHeight);
   const eyepieceLower = offset(eyepieceCenter, -beamHalfHeight);
+  const objectRef = inputs.object;
+  const finalRef = inputs.finalImage !== undefined ? inputs.finalImage : inputs.virtualImage;
+  const object = objectRef === undefined ? null : resolvePoint(objectRef, geometry);
+  const finalImage = finalRef === undefined ? null : resolvePoint(finalRef, geometry);
+  const incomingUpperStart = object ? offset(object, beamHalfHeight) : advance(objectiveUpper, -raySpan);
+  const incomingLowerStart = object ? offset(object, -beamHalfHeight) : advance(objectiveLower, -raySpan);
+  const outgoingDirection = (hit: Point): Point => {
+    if (!finalImage) return axisDirection;
+    const delta = { x: hit.x - finalImage.x, y: hit.y - finalImage.y };
+    return Math.hypot(delta.x, delta.y) < EPSILON ? axisDirection : normalize(delta);
+  };
+  const outgoingUpperEnd = {
+    x: eyepieceUpper.x + outgoingDirection(eyepieceUpper).x * raySpan,
+    y: eyepieceUpper.y + outgoingDirection(eyepieceUpper).y * raySpan,
+  };
+  const outgoingLowerEnd = {
+    x: eyepieceLower.x + outgoingDirection(eyepieceLower).x * raySpan,
+    y: eyepieceLower.y + outgoingDirection(eyepieceLower).y * raySpan,
+  };
   return [
-    { kind: "path", directed: true, points: [advance(objectiveUpper, -raySpan), objectiveUpper] },
-    { kind: "path", directed: true, points: [advance(objectiveLower, -raySpan), objectiveLower] },
+    { kind: "path", directed: true, points: [incomingUpperStart, objectiveUpper] },
+    { kind: "path", directed: true, points: [incomingLowerStart, objectiveLower] },
     { kind: "path", directed: true, points: [objectiveUpper, focus, eyepieceUpper] },
     { kind: "path", directed: true, points: [objectiveLower, focus, eyepieceLower] },
-    { kind: "path", directed: true, points: [eyepieceUpper, advance(eyepieceUpper, raySpan)] },
-    { kind: "path", directed: true, points: [eyepieceLower, advance(eyepieceLower, raySpan)] },
+    { kind: "path", directed: true, points: [eyepieceUpper, outgoingUpperEnd] },
+    { kind: "path", directed: true, points: [eyepieceLower, outgoingLowerEnd] },
   ];
 }
 
@@ -2429,6 +2494,45 @@ function sampledCurveReference(value: unknown, geometry: Map<string, Geometry>):
   const curve = geometry.get(value);
   if (curve?.kind !== "path" || !curve.sampledCurve) throw new Error(`${value} is not a sampled curve`);
   return curve.sampledCurve;
+}
+
+function sampledCurveCartesianResidual(
+  sampled: SampledCurve,
+  target: Point,
+  expected: Record<string, unknown>,
+): number {
+  if (sampled.curveKind === "function") {
+    return distance(sampled.evaluate(target.x), target);
+  }
+  const pinned = [expected.t, expected.parameter, expected.theta]
+    .find((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (pinned !== undefined) {
+    return distance(sampled.evaluate(pinned), target);
+  }
+  const steps = 64;
+  const span = sampled.parameterMax - sampled.parameterMin;
+  let bestParameter = sampled.parameterMin;
+  let best = Infinity;
+  for (let index = 0; index <= steps; index += 1) {
+    const parameter = sampled.parameterMin + span * index / steps;
+    const residual = distance(sampled.evaluate(parameter), target);
+    if (residual < best) {
+      best = residual;
+      bestParameter = parameter;
+    }
+  }
+  let low = Math.max(sampled.parameterMin, bestParameter - span / steps);
+  let high = Math.min(sampled.parameterMax, bestParameter + span / steps);
+  for (let index = 0; index < 24; index += 1) {
+    const left = low + (high - low) / 3;
+    const right = high - (high - low) / 3;
+    if (distance(sampled.evaluate(left), target) < distance(sampled.evaluate(right), target)) {
+      high = right;
+    } else {
+      low = left;
+    }
+  }
+  return distance(sampled.evaluate((low + high) / 2), target);
 }
 
 function functionCurveReference(value: unknown, geometry: Map<string, Geometry>, name: string): SampledCurve {

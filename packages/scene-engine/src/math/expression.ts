@@ -62,7 +62,7 @@ export function parseMathExpression(source: string): ParsedMathExpression {
   if (source.length > MAX_EXPRESSION_LENGTH) {
     throw new Error(`expression exceeds ${MAX_EXPRESSION_LENGTH} characters`);
   }
-  const normalized = source.trim();
+  const normalized = normalizePlainMathSource(source).trim();
   const root = new Parser(tokenize(normalized), new Set(["x"])).parse();
   return {
     source: normalized,
@@ -94,7 +94,7 @@ export function parseMathExpression2D(source: string): ParsedMathExpression2D {
   if (source.length > MAX_EXPRESSION_LENGTH) {
     throw new Error(`expression exceeds ${MAX_EXPRESSION_LENGTH} characters`);
   }
-  const normalized = source.trim();
+  const normalized = normalizePlainMathSource(source).trim();
   const root = new Parser(tokenize(normalized), new Set(["x", "y"])).parse();
   return {
     source: normalized,
@@ -126,6 +126,19 @@ export function parseMathExpression2D(source: string): ParsedMathExpression2D {
 
 export function evaluateMathExpression(source: string, x: number): number {
   return parseMathExpression(source).evaluate(x);
+}
+
+const SUPERSCRIPT_POWERS: Readonly<Record<string, string>> = {
+  "⁰": "^0", "¹": "^1", "²": "^2", "³": "^3", "⁴": "^4",
+  "⁵": "^5", "⁶": "^6", "⁷": "^7", "⁸": "^8", "⁹": "^9",
+};
+
+function normalizePlainMathSource(source: string): string {
+  let normalized = source.replaceAll(/[−–—]/g, "-");
+  for (const [glyph, power] of Object.entries(SUPERSCRIPT_POWERS)) {
+    normalized = normalized.replaceAll(glyph, power);
+  }
+  return normalized;
 }
 
 function tokenize(source: string): Token[] {

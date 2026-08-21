@@ -1,6 +1,6 @@
 import { validateProblemIR, type ProblemIR } from "./problemIR";
 import { validateSolverResult, type SolverResult, type SolverValue } from "./solver";
-import { validateTurnPlanV3, type TurnPlanV3 } from "./contractsV3";
+import { validateTurnPlanV3, type TurnPlanV3 } from "../contracts/contractsV3";
 
 export type SolverAuthorityStatus =
   | "verified"

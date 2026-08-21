@@ -1,4 +1,4 @@
-import { parseMathExpression } from "./expression";
+import { parseMathExpression } from "../math/expression";
 import {
   expressionToSafeSource,
   validateProblemIR,
