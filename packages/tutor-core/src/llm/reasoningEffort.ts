@@ -57,6 +57,15 @@ const MEDIUM_KEYWORDS =
   /\b(?:prove|proof|derive|derivation|kirchhoff|wheatstone|meter bridge|rolls?\s+without\s+slipping|rolling|moment of inertia|torque|coefficient of friction|minimum coefficient|banked|escape velocity|carnot|efficiency|superposition|interference|diffraction|combination|series\s+and\s+parallel|cube|equipotential|symmetry|network of wires|skeleton)\b/i;
 
 const CONCEPTUAL_LEAD = /^\s*(?:explain|what\s+is|what\s+are|describe|why|how\s+does|walk me through|tell me about|introduce|overview of)\b/i;
+const CONCEPT_LESSON = /(?:explain|what\s+is|what\s+are|describe|walk me through|tell me about|introduce|overview of|basics of)\b/i;
+
+/** True when the user asked to learn an idea, not to solve a numbered problem. */
+export function isConceptLessonQuestion(question: string): boolean {
+  const q = question.trim();
+  if (q.length === 0) return false;
+  if (/\b(?:find|calculate|determine|compute|evaluate)\b/i.test(q) && /\d/.test(q)) return false;
+  return CONCEPTUAL_LEAD.test(q) || CONCEPT_LESSON.test(q);
+}
 
 /** True for combination circuits (both series and parallel with 3+ resistors). */
 function isCombinationCircuit(question: string): boolean {
@@ -96,7 +105,7 @@ export function classifyReasoningEffort(question: string): ReasoningEffort {
 
   // Purely conceptual explanations with no numbers start instantly. Checked
   // before the numeric tier because leads like "what is" also count as an ask.
-  if (givens === 0 && CONCEPTUAL_LEAD.test(q)) {
+  if (givens === 0 && isConceptLessonQuestion(q)) {
     return "none";
   }
 

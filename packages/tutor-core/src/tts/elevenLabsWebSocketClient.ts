@@ -5,12 +5,12 @@ import {
   mathToSpeech,
   toSegmentRelativeAudioTimings,
 } from "./elevenLabsClient";
-import { tutorDebug } from "./tutorDebug";
+import { tutorDebug } from "../tutorDebug";
 import {
   isCrossOriginWebSocket,
   resolveApiUrl,
   resolveWebSocketUrl,
-} from "./publicOrigins";
+} from "../publicOrigins";
 
 interface TimestampChunkPayload {
   audio?: string;

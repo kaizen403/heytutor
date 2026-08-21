@@ -13,7 +13,7 @@ import {
   type SolverResult,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
-import { tutorDebug } from "./tutorDebug";
+import { tutorDebug } from "../tutorDebug";
 
 const PROBLEM_PLANNER_MODEL = "accounts/fireworks/routers/kimi-k2p6-turbo";
 

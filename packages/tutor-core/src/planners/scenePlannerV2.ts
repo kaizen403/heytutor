@@ -1,4 +1,4 @@
-import { tutorDebug } from "./tutorDebug";
+import { tutorDebug } from "../tutorDebug";
 import {
   buildSceneDocumentPlannerPrompt,
   SCENE_DOCUMENT_VERSION,

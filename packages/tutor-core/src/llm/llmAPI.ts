@@ -1,4 +1,4 @@
-import { tutorDebug } from "./tutorDebug";
+import { tutorDebug } from "../tutorDebug";
 
 export interface ConversationExchange {
   user: string;

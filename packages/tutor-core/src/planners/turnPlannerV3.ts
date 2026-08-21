@@ -4,7 +4,7 @@ import {
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import { evaluateMathExpression } from "@heytutor/scene-engine";
-import { tutorDebug } from "./tutorDebug";
+import { tutorDebug } from "../tutorDebug";
 import { inferSceneCapabilities, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
 import { reconcileTurnPlanWithOpticsLaws } from "./opticsPlanAudit";
 
@@ -483,13 +483,17 @@ function normalizePlannerTurnPlan(value: unknown, question: string): unknown {
     });
   };
   const normalizedRawGivens = modelQuantityEntries(plan.givens, "given");
-  const normalizedRawDerived = modelQuantityEntries(plan.derived, "derived").filter((quantity) => {
+  const allFiniteDerived = modelQuantityEntries(plan.derived, "derived");
+  const matchingDerived = allFiniteDerived.filter((quantity) => {
         if (!isRecord(quantity)) return false;
         const keys = [quantity.id, quantity.symbol]
           .filter((key): key is string => typeof key === "string")
           .map(normalizeQuantityKey);
         return keys.some((key) => unknownKeys.some((unknownKey) => semanticQuantityKeysMatch(key, unknownKey)));
       });
+  const extraDerived = allFiniteDerived.filter((quantity) =>
+    isRecord(quantity) && !matchingDerived.includes(quantity));
+  const normalizedRawDerived = [...matchingDerived, ...extraDerived].slice(0, 12);
   const derivedFromUnknownMap = !Array.isArray(plan.unknowns)
     ? modelQuantityEntries(plan.unknowns, "derived").filter((quantity) => {
         if (!isRecord(quantity)) return false;
@@ -734,8 +738,12 @@ function inferTrailingUnit(raw: string, key: string): string | undefined {
 
 function semanticQuantityKeysMatch(first: string, second: string): boolean {
   if (first === second) return true;
-  if (first.length < 4 || second.length < 4) return false;
-  return first.includes(second) || second.includes(first);
+  const [shorter, longer] = first.length <= second.length ? [first, second] : [second, first];
+  if (shorter.length === 0) return false;
+  if (shorter.length >= 4) return longer.includes(shorter);
+  if (!longer.startsWith(shorter)) return false;
+  const rest = longer.slice(shorter.length);
+  return rest.length === 0 || /^(?:[0-9]|tan|slope|val|at|prime)/.test(rest);
 }
 
 function resultExpressionCandidates(raw: string): string[] {

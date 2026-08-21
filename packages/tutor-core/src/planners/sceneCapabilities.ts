@@ -54,6 +54,7 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
   contact_body: [
     "rectangle", "circle", "line", "segment", "vector", "vector_components",
     "surface_contact", "angle_mark", "right_angle_mark", "polyline", "rotate", "arc",
+    "midpoint",
   ],
   circuit_network: [
     "symbol", "connect", "point", "vector", "vector_components", "arc", "angle_mark",
@@ -104,17 +105,17 @@ const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
   ray_path: "Derive every reflected or refracted direction with reflect_at/refract_at or the surface-contact chain; never guess ray endpoints. Prove incidence, angle, convergence, or parallelism named by the question.",
   axis_view: "Use one shared axis, reuse point IDs for named positions on it, prove their order, and attach each dimension to its actual endpoints. Compress display scale without changing authoritative ratios.",
   interface: "Construct one explicit interface and one shared contact point. Derive the normal and outgoing ray from that surface, and prove the contact and governing reflection/refraction law.",
-  instrument_chain: "Build one continuous optical chain on a shared axis. Objective and eyepiece lens elements are perpendicular to that axis. For an afocal normal-adjustment chain, reuse one point ID for the objective image and eyepiece focus, then use optical_train for the six rays. Prove parallel input/output bundles and intermediate convergence.",
+  instrument_chain: "Build one continuous optical chain on a shared axis. Objective and eyepiece lens elements are perpendicular to that axis. Use optical_train for the six rays; never guess ray endpoints or mix millimetre and centimetre world coordinates. For an afocal normal-adjustment chain, reuse one point ID for the objective image and eyepiece focus, then use optical_train for the six rays. Prove parallel input/output bundles and intermediate convergence. For a finite microscope chain, pass the object, intermediate image, and final virtual image into optical_train.",
   wavefront: "Use wavefront_family with a verified ray/path ID as direction. Prove each front is perpendicular to propagation and use derived reflected/refracted rays when a boundary is present.",
   aperture: "Use aperture for the physical opening; do not imitate slits with boxes or loose segments. Keep slit count and ordering faithful to the question.",
   screen_pattern: "Use screen_pattern for interference, diffraction, or resolution marks. Keep physical spacing in quantities and use normalized display spacing only for rendering.",
   transverse_field: "Use transverse_field for propagation plus field oscillation and prove its transverse relation. Do not substitute prose or a generic box for polarization state.",
   polarizer: "Use polarizer for every transmission axis, derive stated relative angles, and keep labels attached to their own optical element.",
-  contact_body: "Construct contact surfaces and rigid bodies first. Attach every force vector to its body with a shared point ID, using vector_components with the physical surface as basis on an incline. Prove contact, perpendicular normals, and opposite action-reaction. Never draw a free-body as floating arrows.",
+  contact_body: "Construct contact surfaces and rigid bodies first. Attach every force vector to its body with a shared point ID, using vector_components with the physical surface as basis on an incline. For a hinged rod or rotating rigid body, reuse one hinge/axis point and derive the second pose with rotate; attach weight at the centre of mass. Prove contact, perpendicular normals, equal rod lengths, and opposite action-reaction. Never draw a free-body as floating arrows or two disconnected copies of the same body.",
   circuit_network: "Every circuit component is a symbol with two terminals. Series components share consecutive terminals; parallel components share the same terminal pair. Prove path or sameTerminalPair. If a phasor diagram is named, put it in a second reveal group as vectors from one origin with angle_between; do not replace symbols with arrows.",
   state_plot: "Plot named states as points on axes whose x and y spans are comparable layout numbers, not raw SI magnitudes. A closed cycle is one polygon or polyline through shared point IDs. Independent axis scales are display-only; never place V=0.002 against P=1e5 in world coordinates.",
-  analytic_curve: "Use the question's expression in function_curve, parametric_curve, polar_curve, or implicit_curve. Derive tangent_line and normal_line from that curve; never send a slope or guessed endpoints. Mark named intercepts and intersections with on or function_value proofs.",
-  bounded_region: "Build each bounding curve with function_curve, then function_region for the enclosed area. A representative_slice or solid_of_revolution must be derived from those curves; never sketch a disk or washer by guessed polygons.",
+  analytic_curve: "Use the question's expression in function_curve, parametric_curve, polar_curve, or implicit_curve. Derive tangent_line and normal_line from that curve; never send a slope or guessed endpoints. Prove a named point with function_value {x, y} as cartesian coordinates on that curve (optionally include t or theta). Do not treat the parameter t as x.",
+  bounded_region: "Build each bounding curve with function_curve, then function_region for the enclosed area. For planar area, representative_slice is a vertical strip. For a disk or washer about y=axisY, set method to disk or washer so the engine draws the foreshortened circular face from those function radii; use solid_of_revolution for the generating-profile silhouette. Never sketch a disk or washer by guessed polygons.",
   solid_figure: "Use solid_projection for each named solid. Composite solids share the join radius. Dimension true radii and heights; do not invent hidden faces as separate guessed polygons.",
   fluid_apparatus: "Construct the connected vessel or pipe as closed polygons/rectangles that share terminals. Dimension named radii or diameters. Flow and force arrows attach to those bodies; do not draw disconnected tanks.",
   point_field: "Place each named charge or current-carrying wire as a point or line. Field and force vectors share those IDs. Circular field geometry around a wire is a circle, not a guessed arc family. Prove collinearity, opposite directions, or perpendicularity named by the question.",
@@ -133,7 +134,7 @@ const LAW_FAMILIES: ReadonlyArray<readonly [RegExp, readonly SceneVisualFamily[]
   [/resolution|resolving/i, ["aperture", "screen_pattern", "instrument_chain"]],
   [/brewster/i, ["ray_path", "interface", "polarizer"]],
   [/malus|polari[sz]/i, ["transverse_field", "polarizer"]],
-  [/newton|friction|tension|pulley|free.?body|hooke/i, ["contact_body"]],
+  [/newton|friction|tension|pulley|free.?body|hooke|torque|angular.?momentum|moment of inertia|rigid.?body/i, ["contact_body"]],
   [/kirchhoff|ohm|wheatstone|lcr|rlc|ac.?circuit/i, ["circuit_network"]],
   [/first.?law|thermodynamic|ideal.?gas|indicator.?diagram/i, ["state_plot"]],
   [/coulomb|gauss|biot|ampere|lorentz/i, ["point_field"]],
@@ -164,7 +165,7 @@ const QUESTION_FAMILIES: ReadonlyArray<readonly [RegExp, readonly SceneVisualFam
   [/(?:plot [A-Z]\s*\(|triangle [A-Z]{3}|right angle|argand|equation of (?:(?:the|a) )?(?:circle|parabola|ellipse|hyperbola|line|plane)|vector equation of the (?:line|plane)|cartesian equation of the (?:line|plane)|skew lines|direction cosines?|coordinates of|\bhyperbola\b|\bellipse\b|\bparabola\b|\bfoci\b|\bdirectrix\b)/i, ["coordinate_figure"]],
   [/(?:resultant of|two vectors|vector components|parallelogram law|dot product|cross product|vector algebra|unit vector|position vectors?|projection of the vector|a vector of magnitude)/i, ["vector_diagram"]],
   [/(?:v[-–]?t graph|s[-–]?t graph|velocity[- ]time|displacement[- ]time|indicator diagram)/i, ["state_plot"]],
-  [/(?:rolling without slipping|torque on a)/i, ["contact_body"]],
+  [/(?:rolling without slipping|torque on a|hinged|hinge reaction|about (?:a |the )?fixed (?:axis|end|hinge)|physical pendulum|uniform (?:rod|bar)\b|angular (?:speed|velocity|acceleration) of|rotat(?:es|ing|ed) about)/i, ["contact_body"]],
 ];
 
 export function inferSceneCapabilities(

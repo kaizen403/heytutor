@@ -1,5 +1,5 @@
 import type { DrawCommand, ParsedResponse } from "@heytutor/drawing";
-import { mathToSpeech, type AudioTimings } from "./elevenLabsClient";
+import { mathToSpeech, type AudioTimings } from "../tts/elevenLabsClient";
 
 const CHARS_PER_SECOND = 15;
 const MS_PER_CHAR = 1000 / CHARS_PER_SECOND;

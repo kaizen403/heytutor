@@ -167,10 +167,20 @@ function evaluatePlanLaw(
     ] } : null;
   }
   if (lawId === "compound_microscope") {
-    const tubeLength = length(["tube_length", "L"]);
     const objectiveFocalLength = length(["objective_focal_length", "f_o", "fo"]);
     const eyepieceFocalLength = length(["eyepiece_focal_length", "f_e", "fe"]);
     const nearPoint = length(["near_point", "least_distance", "D"]) ?? 0.25;
+    const objectDistance = length(["object_distance", "u_o", "uo"], true);
+    if (objectDistance !== null && objectiveFocalLength !== null && eyepieceFocalLength !== null) {
+      const values = evaluate({ objectDistance, objectiveFocalLength, eyepieceFocalLength, nearPoint });
+      return values ? { outputs: [
+        output(["tube_length", "L"], values.tubeLength!, "length"),
+        output(["magnifying_power", "magnification", "M"], values.magnifyingPower!, "scalar"),
+        output(["image_distance", "v_o", "vo"], values.imageDistance!, "length"),
+        output(["eyepiece_object_distance", "u_e", "ue"], values.eyepieceObjectDistance!, "length"),
+      ] } : null;
+    }
+    const tubeLength = length(["tube_length", "L"]);
     if (tubeLength === null || objectiveFocalLength === null || eyepieceFocalLength === null) return null;
     const values = evaluate({ tubeLength, objectiveFocalLength, eyepieceFocalLength, nearPoint });
     return values ? { outputs: [output(["magnifying_power", "magnification", "M"], values.magnifyingPower!, "scalar")] } : null;
@@ -310,7 +320,8 @@ function findOutputQuantities<T extends { id: string; symbol: string }>(
     if (aliases.some((alias) => quantity.id === alias || quantity.symbol === alias)) return true;
     const keys = [normalizeKey(quantity.id), normalizeKey(quantity.symbol)].filter(Boolean);
     return normalizedAliases.some((alias) => keys.some((key) =>
-      key === alias || (alias.length >= 4 && (key.startsWith(alias) || alias.startsWith(key))),
+      key === alias && (alias.length >= 4 || normalizeKey(quantity.id) === alias) ||
+      (alias.length >= 4 && key.length >= 4 && (key.startsWith(alias) || alias.startsWith(key))),
     ));
   });
 }
@@ -331,7 +342,7 @@ function findQuantity<T extends { id: string; symbol: string }>(
   if (exactNormalized.length === 1) return exactNormalized[0]!;
   const descriptiveAliases = normalizedAliases.filter((alias) => alias.length >= 5);
   const descriptive = quantities.filter((quantity) => {
-    const keys = [normalizeKey(quantity.id), normalizeKey(quantity.symbol)].filter(Boolean);
+    const keys = [normalizeKey(quantity.id), normalizeKey(quantity.symbol)].filter((key) => key.length >= 5);
     return descriptiveAliases.some((alias) => keys.some((key) => key.includes(alias) || alias.includes(key)));
   });
   return descriptive.length === 1 ? descriptive[0]! : null;
