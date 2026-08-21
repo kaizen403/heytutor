@@ -5,17 +5,17 @@ import {
   speedAwareDelay,
   stopReplayAudio,
   waitForReplayMediaTime,
-} from "@/lib/replayAudio";
+} from "@/lib/replay/replayAudio";
 import {
   buildReplayTimeline,
   findCueAtTime,
   getPartialCommandCount,
   type ReplayCue,
-} from "@/lib/replayTimeline";
-import { exportNotesPdf, type NotesEpoch } from "@/lib/exportNotesPdf";
-import type { BoardEntry } from "@/components/BoardHistory";
-import type { SettingsState } from "@/components/SettingsDrawer";
-import type { StoredSegment, StoredTurn } from "@/lib/boardsClient";
+} from "@/lib/replay/replayTimeline";
+import { exportNotesPdf, type NotesEpoch } from "@/lib/client/exportNotesPdf";
+import type { BoardEntry } from "@/lib/boards/types";
+import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
+import type { StoredSegment, StoredTurn } from "@/lib/boards/boardsClient";
 import type { DrawCommand } from "@heytutor/drawing";
 import {
   isStoredCommandTrustedGeometry,

@@ -27,8 +27,8 @@ import {
   resolveVerifiedDiagramFocusTarget,
 } from "@heytutor/drawing";
 import { getDrawingDuration, getFlightDuration, tutorDebug } from "@heytutor/tutor-core";
-import type { TurnTelemetry } from "@/lib/turnTelemetry";
-import type { NotesEpoch } from "@/lib/exportNotesPdf";
+import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
+import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { DIAGRAM_ZONE } from "../constants";
 import type { BoardTextRect, BoardLayoutState } from "../types";
 import { isInDiagramZone, registerBoardAnchor } from "../lib/boardLayout";

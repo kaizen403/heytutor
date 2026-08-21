@@ -2,7 +2,7 @@ import { useCallback, useRef, type RefObject } from "react";
 import type { DrawCommand } from "@heytutor/drawing";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import { tutorDebug } from "@heytutor/tutor-core";
-import type { NotesEpoch } from "@/lib/exportNotesPdf";
+import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { useBoardViewport } from "./useBoardViewport";
 import { TEXT_LAYOUT, DIAGRAM_ZONE } from "../constants";
 import type { BoardTextRect, BoardLayoutState } from "../types";

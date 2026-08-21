@@ -1,12 +1,12 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
-import type { ReplayCue } from "@/lib/replayTimeline";
+import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
 import type { ConversationExchange, TTSClient } from "@heytutor/tutor-core";
-import type { TurnTelemetry } from "@/lib/turnTelemetry";
-import type { RecordedSegmentPayload, StoredTurn } from "@/lib/boardsClient";
-import type { BoardEntry } from "@/components/BoardHistory";
+import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
+import type { RecordedSegmentPayload, StoredTurn } from "@/lib/boards/boardsClient";
+import type { BoardEntry } from "@/lib/boards/types";
 import type { TutorSegment } from "@heytutor/drawing";
 import type { TutorPhase, BoardLayoutState, SegmentPlanStats } from "../../types";
 

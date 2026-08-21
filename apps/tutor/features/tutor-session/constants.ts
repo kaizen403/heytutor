@@ -1,5 +1,5 @@
 import { DS } from "@heytutor/design-tokens";
-import type { CanvasLandingSuggestion } from "@/components/CanvasLanding";
+import type { CanvasLandingSuggestion } from "@/features/tutor-session/components/CanvasLanding";
 
 export const BOARD_WIDTH = DS.Canvas.width;
 export const BOARD_HEIGHT = DS.Canvas.height;

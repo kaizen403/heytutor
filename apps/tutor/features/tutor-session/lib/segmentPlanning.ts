@@ -62,6 +62,10 @@ export function isTeachingResponseIncomplete(
     return true;
   }
 
+  if (openSteps > 0 && openSteps === closeSteps && /\[\/STEP\]\s*$/i.test(trimmed)) {
+    return false;
+  }
+
   const endsCleanly =
     /[.!?]\s*$/.test(trimmed) ||
     /\[\/STEP\]\s*$/.test(trimmed) ||

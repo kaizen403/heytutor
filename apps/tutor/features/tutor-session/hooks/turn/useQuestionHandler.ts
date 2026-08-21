@@ -10,6 +10,8 @@ import {
   streamLLMResponse,
   TUTOR_SYSTEM_PROMPT,
   TUTOR_CONTINUATION_PROMPT,
+  CONCEPT_LESSON_RUNTIME_ADDON,
+  isConceptLessonQuestion,
   tutorDebug,
   resolveApiUrl,
   planSceneDocumentWithRepair,
@@ -19,6 +21,7 @@ import {
   planAndSolveProblemV1,
   createFallbackTurnPlanV3,
   inferSceneCapabilities,
+  normalizeTutorQuestion,
   questionRequiresVisual,
   type ProblemAuthorityV1Response,
   type SceneCandidateValidation,
@@ -43,14 +46,14 @@ import {
   type TurnPlanV3,
   type ValidationReport,
 } from "@heytutor/scene-engine";
-import { createTurnTelemetry } from "@/lib/turnTelemetry";
-import { enrichStoredSegmentsWithReplayAudio } from "@/lib/replayTurns";
+import { createTurnTelemetry } from "@/lib/obs/turnTelemetry";
+import { enrichStoredSegmentsWithReplayAudio } from "@/lib/replay/replayTurns";
 import {
   saveTurn,
   updateBoard,
   withBoardEpochSegment,
   type StoredTurn,
-} from "@/lib/boardsClient";
+} from "@/lib/boards/boardsClient";
 import { MAX_LLM_CONTINUATIONS, STREAM_SEGMENTS_LIVE } from "../../constants";
 import { registerBoardAnchor } from "../../lib/boardLayout";
 import { buildVerifiedDiagramPresentation } from "../../lib/verifiedScenePresentation";
@@ -181,7 +184,8 @@ export function useQuestionHandler(
   const { finishLectureUi, applyTurnPhase, enqueueSegment, enqueueVerifiedIntro, processResponseText } = turnControl;
 
   const handleQuestion = useCallback(
-    async (question: string) => {
+    async (rawQuestion: string) => {
+      const question = normalizeTutorQuestion(rawQuestion);
       const wb = whiteboardRef.current;
       if (!boardLoaded || !wb) {
         pendingQuestionRef.current = question;
@@ -938,7 +942,12 @@ ${JSON.stringify({
 Use exactly these solver-verified values and formulation inputs. Do not independently replace or contradict them.
 ${JSON.stringify(problemAuthority.projection)}`
         : "";
-      const runtimePromptAddon = [diagramPromptAddon, turnPlanPromptAddon, solverPromptAddon]
+      const runtimePromptAddon = [
+        diagramPromptAddon,
+        turnPlanPromptAddon,
+        solverPromptAddon,
+        isConceptLessonQuestion(question) ? CONCEPT_LESSON_RUNTIME_ADDON : "",
+      ]
         .filter(Boolean)
         .join("\n\n");
       const turnSystemPrompt = runtimePromptAddon

@@ -4,7 +4,7 @@ import {
   type SceneDocument,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
-import type { StoredTurn } from "@/lib/boardsClient";
+import type { StoredTurn } from "@/lib/boards/boardsClient";
 
 const MAX_MEMORY_ENTRIES = 32;
 

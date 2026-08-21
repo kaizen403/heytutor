@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { TranscriptDialog } from "@/components/TranscriptDialog";
-import { BoardHistory } from "@/components/BoardHistory";
-import { SettingsDrawer, type SettingsState } from "@/components/SettingsDrawer";
-import { CanvasLanding } from "@/components/CanvasLanding";
-import { type ReplayCue } from "@/lib/replayTimeline";
+import { TranscriptDialog } from "@/features/tutor-session/components/TranscriptDialog";
+import { BoardHistory } from "@/features/tutor-session/components/BoardHistory";
+import { SettingsDrawer, type SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
+import { CanvasLanding } from "@/features/tutor-session/components/CanvasLanding";
+import { type ReplayCue } from "@/lib/replay/replayTimeline";
 import type { WhiteboardHandle, CursorState } from "@heytutor/whiteboard";
-import { useIsCompactNav } from "@/lib/useMediaQuery";
+import { useIsCompactNav } from "@/lib/client/useMediaQuery";
 import { ThinkingOverlay } from "./components/ThinkingOverlay";
 import { BoardSettingsButton } from "./components/BoardSettingsButton";
 import { SessionInputChrome } from "./components/SessionInputChrome";
@@ -28,8 +28,8 @@ import {
 import {
   type TTSClient,
 } from "@heytutor/tutor-core";
-import { type TurnTelemetry } from "@/lib/turnTelemetry";
-import { type RecordedSegmentPayload } from "@/lib/boardsClient";
+import { type TurnTelemetry } from "@/lib/obs/turnTelemetry";
+import { type RecordedSegmentPayload } from "@/lib/boards/boardsClient";
 import {
   PAGE_GUTTER_X,
   PAGE_GUTTER_Y,

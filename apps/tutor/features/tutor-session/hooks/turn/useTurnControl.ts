@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
-import { stopReplayAudio } from "@/lib/replayAudio";
+import { stopReplayAudio } from "@/lib/replay/replayAudio";
 import {
   parseDrawingCommands,
   type TutorSegment,

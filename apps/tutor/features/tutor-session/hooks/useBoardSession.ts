@@ -11,9 +11,9 @@ import {
   type ConversationExchange,
   type TTSClient,
 } from "@heytutor/tutor-core";
-import type { NotesEpoch } from "@/lib/exportNotesPdf";
-import { buildLocalStoredTurn } from "@/lib/replayTurns";
-import type { BoardEntry } from "@/components/BoardHistory";
+import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
+import { buildLocalStoredTurn } from "@/lib/replay/replayTurns";
+import type { BoardEntry } from "@/lib/boards/types";
 import {
   createBoard,
   deleteBoardApi,
@@ -21,7 +21,7 @@ import {
   fetchBoards,
   type RecordedSegmentPayload,
   type StoredTurn,
-} from "@/lib/boardsClient";
+} from "@/lib/boards/boardsClient";
 import type { TutorPhase } from "../types";
 
 type ExecuteCommandOptions = {
