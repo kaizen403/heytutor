@@ -5,19 +5,19 @@ import {
   type ExpressionNodeIR,
   type ProblemIR,
   type QuestionSourceEvidence,
-} from "../src/problemIR";
+} from "../../src/ir/problemIR";
 import {
   LocalDeterministicSolverProvider,
   SOLVER_RESULT_VERSION,
   solveWithDeadline,
   validateSolverResult,
   type SolverProvider,
-} from "../src/solver";
-import { compileSceneDocument } from "../src/compiler";
-import { validateSceneDocument } from "../src/validation";
-import { verifyTurnPlanAgainstSolver } from "../src/solverAuthority";
-import type { TurnPlanV3 } from "../src/contractsV3";
-import type { SceneDocument } from "../src/types";
+} from "../../src/ir/solver";
+import { compileSceneDocument } from "../../src/compile/compiler";
+import { validateSceneDocument } from "../../src/document/validation";
+import { verifyTurnPlanAgainstSolver } from "../../src/ir/solverAuthority";
+import type { TurnPlanV3 } from "../../src/contracts/contractsV3";
+import type { SceneDocument } from "../../src/types";
 
 const question = "A curve y=x^2 and the line y=4 enclose a region. Sketch the region, then find its area using integration.";
 

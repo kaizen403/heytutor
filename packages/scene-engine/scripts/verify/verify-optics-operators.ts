@@ -1,4 +1,4 @@
-import { compileSceneDocument, pruneDeadSceneEntities, validateSceneDocument, type SceneDocument } from "../src";
+import { compileSceneDocument, pruneDeadSceneEntities, validateSceneDocument, type SceneDocument } from "../../src";
 
 const operatorCases: Array<{
   operator: string;
@@ -104,6 +104,55 @@ if (!(normalizedInstrument.constructions as Array<{ operator?: string }>).some((
     constructions: normalizedInstrument.constructions,
     assertions: normalizedInstrument.assertions,
   })}`);
+}
+
+for (const guessed of [guessedNearPointMicroscopeDocument(), guessedNearPointMicroscopeDocument({
+  question: "A compound microscope has objective 1.2 cm and eyepiece 5 cm. An object is 1.5 cm from the objective. The final image is at the near point 25 cm from the eyepiece. Draw the ray diagram and find the tube length.",
+  quantities: [
+    { id: "f_o", value: 1.2, unit: "cm" },
+    { id: "f_e", value: 5, unit: "cm" },
+    { id: "u_o", value: 1.5, unit: "cm" },
+    { id: "D", value: 25, unit: "cm" },
+  ],
+  objectiveX: 1.5,
+  coincidentImageX: 80,
+})]) {
+  const normalizedGuessed = pruneDeadSceneEntities(guessed);
+  if (!(normalizedGuessed.constructions as Array<{ operator?: string }>).some((construction) =>
+    construction.operator === "optical_train")) {
+    throw new Error(`near-point microscope rays were not compiled into optical_train: ${JSON.stringify({
+      entities: normalizedGuessed.entities,
+      constructions: normalizedGuessed.constructions,
+    })}`);
+  }
+  const guessedValidated = validateSceneDocument(normalizedGuessed);
+  const guessedCompiled = guessedValidated.document
+    ? compileSceneDocument(guessedValidated.document)
+    : null;
+  if (!guessedCompiled?.ok) {
+    throw new Error(`near-point microscope chain failed: ${JSON.stringify({
+      validation: guessedValidated.report.issues,
+      compilation: guessedCompiled?.report.issues,
+    })}`);
+  }
+  const pointX = (id: string): number => {
+    const construction = (guessedValidated.document?.constructions ?? []).find((item) =>
+      item.operator === "point" && item.outputs.includes(id));
+    const value = construction && typeof construction.inputs.x === "number" ? construction.inputs.x : NaN;
+    if (!Number.isFinite(value)) throw new Error(`missing laid-out instrument point ${id}`);
+    return value;
+  };
+  const objectX = pointX("O");
+  const objectiveX = pointX("L_o");
+  const imageX = pointX("I");
+  const eyepieceX = pointX("L_e");
+  const finalX = pointX("I_prime");
+  if (!(objectX < objectiveX && objectiveX < imageX && imageX < eyepieceX)) {
+    throw new Error(`microscope image plane was not between the lenses: ${JSON.stringify({ objectX, objectiveX, imageX, eyepieceX })}`);
+  }
+  if (!(finalX < eyepieceX - 1e-6)) {
+    throw new Error(`virtual final image was not on the object side of the eyepiece: ${JSON.stringify({ finalX, eyepieceX })}`);
+  }
 }
 const instrumentValidated = validateSceneDocument(normalizedInstrument);
 const instrumentCompiled = instrumentValidated.document
@@ -324,6 +373,69 @@ function proofDerivedWavefrontDocument(): SceneDocument {
     requiredEntityIds: ["interface", "incident", "normal", "refracted", "incident_front", "refracted_front"],
     revealGroups: [{ id: "setup", entityIds: ["interface", "incident", "normal", "refracted", "incident_front", "refracted_front"], dependsOn: [], narrationCue: "Reveal the verified ray and wavefront construction." }],
     teachingTimeline: [{ id: "show", action: "reveal", targetId: "setup", dependsOn: [], narrationIntent: "Explain each ray and perpendicular wavefront while drawing it." }],
+  };
+}
+
+function guessedNearPointMicroscopeDocument(options: {
+  question?: string;
+  quantities?: Array<{ id: string; value: number; unit: string }>;
+  objectiveX?: number;
+  coincidentImageX?: number;
+} = {}): Record<string, unknown> {
+  const question = options.question ?? (
+    "A compound microscope has an objective of focal length 4 mm and an eyepiece of focal length 2.5 cm. " +
+    "An object is placed 4.5 mm from the objective. The final image is formed at the near point, 25 cm from the eyepiece. " +
+    "Draw the ray diagram showing the objective, the eyepiece, the intermediate real image, and the final virtual image."
+  );
+  const quantities = options.quantities ?? [
+    { id: "f_o", value: 4, unit: "mm" },
+    { id: "f_e", value: 2.5, unit: "cm" },
+    { id: "u_o", value: 4.5, unit: "mm" },
+    { id: "D", value: 25, unit: "cm" },
+    { id: "v_o_cm", value: 36, unit: "cm" },
+  ];
+  const objectiveX = options.objectiveX ?? 4.5;
+  const imageX = options.coincidentImageX ?? 40.5;
+  const visible = ["O", "L_o", "I", "L_e", "I_prime", "axis", "obj_lens", "eye_lens", "ray1_obj", "ray1_int"];
+  return {
+    schemaVersion: "scene-document/v2",
+    visualDecision: "scene",
+    source: { question },
+    quantities,
+    entities: [
+      { id: "O", kind: "point", role: "object_position" },
+      { id: "L_o", kind: "point", role: "objective_lens_center" },
+      { id: "I", kind: "point", role: "intermediate_image" },
+      { id: "L_e", kind: "point", role: "eyepiece_lens_center" },
+      { id: "I_prime", kind: "point", role: "final_virtual_image" },
+      { id: "axis", kind: "line", role: "optical_axis" },
+      { id: "obj_lens", kind: "segment", role: "objective_lens" },
+      { id: "eye_lens", kind: "segment", role: "eyepiece_lens" },
+      { id: "ray1_obj", kind: "ray", role: "objective_ray_parallel" },
+      { id: "ray1_int", kind: "ray", role: "objective_ray_refracted" },
+    ],
+    constructions: [
+      { id: "c_O", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["O"] },
+      { id: "c_L_o", operator: "point", inputs: { x: objectiveX, y: 0, coordinateSpace: "world" }, outputs: ["L_o"] },
+      { id: "c_I", operator: "point", inputs: { x: imageX, y: 0, coordinateSpace: "world" }, outputs: ["I"] },
+      { id: "c_L_e", operator: "point", inputs: { x: imageX, y: 0, coordinateSpace: "world" }, outputs: ["L_e"] },
+      { id: "c_I_prime", operator: "point", inputs: { x: imageX + 25, y: 0, coordinateSpace: "world" }, outputs: ["I_prime"] },
+      { id: "c_axis", operator: "line", inputs: { start: "O", end: "I_prime" }, outputs: ["axis"] },
+      { id: "c_obj_lens", operator: "segment", inputs: { start: "L_o", end: "L_o" }, outputs: ["obj_lens"] },
+      { id: "c_eye_lens", operator: "segment", inputs: { start: "L_e", end: "L_e" }, outputs: ["eye_lens"] },
+      { id: "c_ray1_obj", operator: "ray", inputs: { start: "O", end: "I" }, outputs: ["ray1_obj"] },
+      { id: "c_ray1_int", operator: "ray", inputs: { start: "L_o", end: "I" }, outputs: ["ray1_int"] },
+    ],
+    relations: [],
+    assertions: [
+      { id: "a_obj_on_axis", predicate: "on", entities: ["O", "axis"], expected: true, severity: "error" },
+      { id: "a_intermediate_real", predicate: "between", entities: ["L_o", "I", "L_e"], expected: true, severity: "error" },
+      { id: "a_final_between_object_and_objective", predicate: "between", entities: ["I_prime", "O", "L_o"], expected: true, severity: "error" },
+    ],
+    annotations: [],
+    requiredEntityIds: visible,
+    revealGroups: [{ id: "setup", entityIds: visible, dependsOn: [], narrationCue: "Draw the microscope chain." }],
+    teachingTimeline: [{ id: "show", action: "reveal", targetId: "setup", dependsOn: [], narrationIntent: "Show the verified instrument chain." }],
   };
 }
 

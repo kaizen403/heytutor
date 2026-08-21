@@ -1,6 +1,6 @@
-import { HttpSolverProvider } from "../src/remoteSolver";
-import { LocalDeterministicSolverProvider, solveWithDeadline } from "../src/solver";
-import type { ProblemIR } from "../src/problemIR";
+import { HttpSolverProvider } from "../../src/ir/remoteSolver";
+import { LocalDeterministicSolverProvider, solveWithDeadline } from "../../src/ir/solver";
+import type { ProblemIR } from "../../src/ir/problemIR";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

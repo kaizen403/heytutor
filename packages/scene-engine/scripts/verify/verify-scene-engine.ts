@@ -14,8 +14,8 @@ import {
   validateSceneQuantityAgreement,
   validateTurnPlanSceneProofs,
   validateTurnPlanV3,
-} from "../src/index";
-import type { SceneIssue } from "../src/types";
+} from "../../src/index";
+import type { SceneIssue } from "../../src/types";
 
 const candidate = {
   schemaVersion: "scene-document/v2",
@@ -3909,8 +3909,8 @@ if (
 if (Math.abs(evaluateMathExpression("sin(pi / 2) + 2^3^2", 0) - 513) > 1e-9) {
   throw new Error("audited expression evaluator lost function or right-associative power semantics");
 }
-if (evaluateMathExpression("-2^2", 0) !== -4) {
-  throw new Error("audited expression evaluator lost unary/power precedence");
+if (Math.abs(evaluateMathExpression("x² − 4", 3) - 5) > 1e-9) {
+  throw new Error("audited expression evaluator lost superscript or minus-sign aliases");
 }
 for (const expression of ["2x", "globalThis.process", "sqrt(-1)", "1 / 0"]) {
   let rejected = false;
@@ -4088,6 +4088,134 @@ if (parametricPrimitive?.kind !== "polyline" || parametricPrimitive.points.lengt
   throw new Error("parametric_curve did not render a deterministic sampled path");
 }
 
+const plannerParametricCandidate = structuredClone(functionCurveCandidate) as Record<string, any>;
+plannerParametricCandidate.source.question =
+  "For x = t^2 - 1 and y = t^3 - t, sketch the curve near t = 2 and draw the tangent at that parameter value.";
+plannerParametricCandidate.entities = [
+  { id: "axes", kind: "axes", role: "coordinate axes" },
+  { id: "curve", kind: "line", role: "parametric curve", label: "r(t)" },
+  { id: "tangent", kind: "line", role: "tangent line" },
+];
+plannerParametricCandidate.constructions = [
+  { id: "make_axes", operator: "axes", inputs: { xMin: -1, xMax: 5, yMin: -2, yMax: 8 }, outputs: ["axes"] },
+  {
+    id: "make_curve",
+    operator: "parametric_curve",
+    inputs: { xExpression: "t^2 - 1", yExpression: "t^3 - t", tMin: 0, tMax: 3, samples: 65 },
+    outputs: ["curve"],
+  },
+  { id: "make_tangent", operator: "tangent_line", inputs: { curve: "curve", at: 2 }, outputs: ["tangent"] },
+];
+plannerParametricCandidate.assertions = [
+  { id: "point_at_t2", predicate: "function_value", entities: ["curve"], expected: { x: 3, y: 6 }, severity: "fatal" },
+];
+plannerParametricCandidate.requiredEntityIds = ["axes", "curve", "tangent"];
+plannerParametricCandidate.revealGroups = [{
+  id: "graph",
+  entityIds: ["axes", "curve", "tangent"],
+  dependsOn: [],
+  narrationCue: "show the curve and tangent",
+}];
+plannerParametricCandidate.teachingTimeline = [{
+  id: "show_graph",
+  action: "reveal",
+  targetId: "graph",
+  dependsOn: [],
+  narrationIntent: "graph the parametric curve",
+}];
+const plannerParametricPruned = pruneDeadSceneEntities(plannerParametricCandidate);
+const plannerParametricValidation = validateSceneDocument(plannerParametricPruned);
+const plannerParametricCompiled = plannerParametricValidation.document
+  ? compileSceneDocument(plannerParametricValidation.document)
+  : null;
+if (!plannerParametricCompiled?.ok || !plannerParametricCompiled.renderScene) {
+  throw new Error(
+    `planner-shaped parametric tangent failed: ${JSON.stringify(
+      plannerParametricCompiled?.report.issues ?? plannerParametricValidation.report.issues,
+    )}`,
+  );
+}
+const wrongParametricValue = structuredClone(plannerParametricCandidate);
+wrongParametricValue.assertions[0].expected = { x: 0, y: 1 };
+const wrongParametricCompiled = (() => {
+  const validated = validateSceneDocument(pruneDeadSceneEntities(wrongParametricValue));
+  return validated.document ? compileSceneDocument(validated.document) : null;
+})();
+if (
+  wrongParametricCompiled?.ok ||
+  !wrongParametricCompiled?.report.issues.some((issue) => issue.code === "assertion_failed")
+) {
+  throw new Error("parametric function_value accepted a cartesian point off the curve");
+}
+
+const unicodeParametricCandidate = structuredClone(plannerParametricCandidate);
+unicodeParametricCandidate.constructions[1].inputs.xExpression = "t² − 1";
+unicodeParametricCandidate.constructions[1].inputs.yExpression = "t³ − t";
+const unicodeParametricCompiled = (() => {
+  const validated = validateSceneDocument(pruneDeadSceneEntities(unicodeParametricCandidate));
+  return validated.document ? compileSceneDocument(validated.document) : null;
+})();
+if (!unicodeParametricCompiled?.ok) {
+  throw new Error(
+    `unicode parametric expressions failed: ${JSON.stringify(
+      unicodeParametricCompiled?.report.issues
+      ?? validateSceneDocument(pruneDeadSceneEntities(unicodeParametricCandidate)).report.issues,
+    )}`,
+  );
+}
+
+const operatorNamedCurveKind = structuredClone(plannerParametricCandidate) as Record<string, any>;
+operatorNamedCurveKind.entities.find((entity: { id: string }) => entity.id === "curve").kind = "parametric_curve";
+const operatorNamedCurveValidation = validateSceneDocument(pruneDeadSceneEntities(operatorNamedCurveKind));
+const operatorNamedCurveCompiled = operatorNamedCurveValidation.document
+  ? compileSceneDocument(operatorNamedCurveValidation.document)
+  : null;
+if (!operatorNamedCurveCompiled?.ok) {
+  throw new Error(
+    `parametric_curve entity kind was not coerced to polyline: ${JSON.stringify(
+      operatorNamedCurveCompiled?.report.issues ?? operatorNamedCurveValidation.report.issues,
+    )}`,
+  );
+}
+
+const livePlannerIncident = structuredClone(operatorNamedCurveKind) as Record<string, any>;
+livePlannerIncident.entities.push({ id: "point_t2", kind: "point", role: "point at t = 2" });
+livePlannerIncident.constructions.push({
+  id: "make_point",
+  operator: "point",
+  inputs: { x: 3, y: 6, coordinateSpace: "world" },
+  outputs: ["point_t2"],
+});
+livePlannerIncident.assertions = [
+  {
+    id: "incident_tangent_point",
+    predicate: "incident",
+    entities: ["tangent", "point_t2"],
+    expected: true,
+    severity: "critical",
+  },
+  {
+    id: "slope_vs_axes",
+    predicate: "angle_between",
+    entities: ["tangent", "axes"],
+    expected: { value: 2.75, unit: "dimensionless" },
+    severity: "error",
+  },
+];
+livePlannerIncident.requiredEntityIds = ["axes", "curve", "tangent", "point_t2"];
+livePlannerIncident.revealGroups[0].entityIds = ["axes", "curve", "tangent", "point_t2"];
+const livePlannerIncidentValidation = validateSceneDocument(pruneDeadSceneEntities(livePlannerIncident));
+const livePlannerIncidentCompiled = livePlannerIncidentValidation.document
+  ? compileSceneDocument(livePlannerIncidentValidation.document)
+  : null;
+if (!livePlannerIncidentCompiled?.ok) {
+  throw new Error(
+    `live planner parametric tangent/point proofs failed closed: ${JSON.stringify(
+      livePlannerIncidentCompiled?.report.issues ?? livePlannerIncidentValidation.report.issues,
+    )}`,
+  );
+}
+
 const polarCandidate = structuredClone(functionCurveCandidate) as Record<string, any>;
 polarCandidate.source.question = "Plot the polar curve r=2cos(3theta)";
 polarCandidate.entities[0] = { id: "curve", kind: "polyline", role: "polar curve", label: "r=2cos(3theta)" };
@@ -4227,6 +4355,104 @@ if (!sliceCompiled?.ok || slicePrimitive?.kind !== "line" || slicePrimitive.poin
   throw new Error(`representative_slice failed deterministic compilation: ${JSON.stringify(sliceCompiled?.report.issues ?? sliceValidation.report.issues)}`);
 }
 
+const diskMethodCandidate = structuredClone(functionCurveCandidate) as Record<string, any>;
+diskMethodCandidate.source.question = "The region under y = sqrt(x) from x = 0 to x = 4 is revolved about the x-axis. Sketch the region and representative disk.";
+diskMethodCandidate.entities = [
+  { id: "curve", kind: "polyline", role: "function graph", label: "y=sqrt(x)" },
+  { id: "axis", kind: "polyline", role: "function graph", label: "y=0" },
+  { id: "region", kind: "polygon", role: "region under the curve" },
+  { id: "disk", kind: "polyline", role: "representative disk" },
+  { id: "solid", kind: "polygon", role: "solid of revolution" },
+];
+diskMethodCandidate.constructions = [
+  { id: "make_curve", operator: "function_curve", inputs: { expression: "sqrt(x)", xMin: 0, xMax: 4, samples: 65 }, outputs: ["curve"] },
+  { id: "make_axis", operator: "function_curve", inputs: { expression: "0", xMin: 0, xMax: 4, samples: 65 }, outputs: ["axis"] },
+  { id: "make_region", operator: "function_region", inputs: { upper: "curve", lower: "axis", xMin: 0, xMax: 4, samples: 65 }, outputs: ["region"] },
+  { id: "make_disk", operator: "representative_slice", inputs: { upper: "curve", lower: "axis", atX: 1, method: "disk", axisY: 0 }, outputs: ["disk"] },
+  { id: "make_solid", operator: "solid_of_revolution", inputs: { profile: "curve", axisY: 0, xMin: 0, xMax: 4, samples: 65 }, outputs: ["solid"] },
+];
+diskMethodCandidate.assertions = [
+  { id: "curve_at_four", predicate: "function_value", entities: ["curve"], expected: { x: 4, y: 2 }, severity: "fatal" },
+];
+diskMethodCandidate.requiredEntityIds = ["curve", "axis", "region", "disk", "solid"];
+diskMethodCandidate.revealGroups = [{ id: "graph", entityIds: ["curve", "axis", "region", "disk", "solid"], dependsOn: [], narrationCue: "show the disk method" }];
+const diskValidation = validateSceneDocument(diskMethodCandidate);
+const diskCompiled = diskValidation.document ? compileSceneDocument(diskValidation.document) : null;
+const diskPrimitives = diskCompiled?.renderScene?.primitives.filter((primitive) => primitive.entityId === "disk") ?? [];
+const diskEllipse = diskPrimitives.find((primitive) => primitive.points.length > 8);
+const diskSpanY = diskEllipse
+  ? Math.max(...diskEllipse.points.map((point) => point.y)) - Math.min(...diskEllipse.points.map((point) => point.y))
+  : 0;
+const diskSpanX = diskEllipse
+  ? Math.max(...diskEllipse.points.map((point) => point.x)) - Math.min(...diskEllipse.points.map((point) => point.x))
+  : 0;
+if (
+  !diskCompiled?.ok ||
+  !diskEllipse ||
+  diskSpanY < 1.5 ||
+  diskSpanX < 0.1 ||
+  diskSpanX >= diskSpanY
+) {
+  throw new Error(`representative disk compiled as a strip instead of a foreshortened circular face: ${JSON.stringify({
+    issues: diskCompiled?.report.issues ?? diskValidation.report.issues,
+    primitiveCount: diskPrimitives.length,
+    kinds: diskPrimitives.map((primitive) => [primitive.kind, primitive.points.length]),
+    diskSpanX,
+    diskSpanY,
+  })}`);
+}
+const solidPrimitives = diskCompiled.renderScene?.primitives.filter((primitive) => primitive.entityId === "solid") ?? [];
+const curveScreen = diskCompiled.renderScene?.primitives.find((primitive) => primitive.entityId === "curve");
+const curveMaxX = curveScreen ? Math.max(...curveScreen.points.map((point) => point.x)) : Number.NaN;
+const solidEndCap = solidPrimitives.find((primitive) => {
+  if (primitive.points.length < 8) return false;
+  const xs = primitive.points.map((point) => point.x);
+  const ys = primitive.points.map((point) => point.y);
+  const spanX = Math.max(...xs) - Math.min(...xs);
+  const spanY = Math.max(...ys) - Math.min(...ys);
+  const midX = (Math.max(...xs) + Math.min(...xs)) / 2;
+  return Number.isFinite(curveMaxX) && Math.abs(midX - curveMaxX) < 40 && spanY > spanX && spanX > 8;
+});
+if (!solidEndCap) {
+  throw new Error(`solid_of_revolution omitted the circular end cap of the disk solid: ${JSON.stringify(solidPrimitives.map((primitive) => [primitive.kind, primitive.points.length]))}`);
+}
+
+const omittedDiskMethod = structuredClone(diskMethodCandidate) as Record<string, any>;
+delete omittedDiskMethod.constructions.find((construction: Record<string, any>) => construction.operator === "representative_slice").inputs.method;
+const omittedDiskValidation = validateSceneDocument(omittedDiskMethod);
+const omittedDiskCompiled = omittedDiskValidation.document ? compileSceneDocument(omittedDiskValidation.document) : null;
+const omittedDiskEllipse = omittedDiskCompiled?.renderScene?.primitives.find((primitive) =>
+  primitive.entityId === "disk" && primitive.points.length > 8,
+);
+if (!omittedDiskCompiled?.ok || !omittedDiskEllipse) {
+  throw new Error(`revolution stem with a strip slice was not repaired to a disk: ${JSON.stringify(omittedDiskCompiled?.report.issues ?? omittedDiskValidation.report.issues)}`);
+}
+
+const washerSliceCandidate = structuredClone(representativeSliceCandidate) as Record<string, any>;
+washerSliceCandidate.source.question = "Draw a representative washer between y=4 and y=x^2";
+washerSliceCandidate.constructions.find((construction: Record<string, any>) => construction.operator === "representative_slice").inputs = {
+  upper: "upper",
+  lower: "lower",
+  atX: 1,
+  method: "washer",
+  axisY: 0,
+};
+washerSliceCandidate.entities.find((entity: Record<string, any>) => entity.id === "slice").kind = "polyline";
+const washerValidation = validateSceneDocument(washerSliceCandidate);
+const washerCompiled = washerValidation.document ? compileSceneDocument(washerValidation.document) : null;
+const washerEllipses = (washerCompiled?.renderScene?.primitives.filter((primitive) => primitive.entityId === "slice") ?? [])
+  .filter((primitive) => primitive.points.length > 8);
+if (!washerCompiled?.ok || washerEllipses.length < 2) {
+  throw new Error(`representative washer did not compile as two foreshortened circular faces: ${JSON.stringify(washerCompiled?.report.issues ?? washerValidation.report.issues)}`);
+}
+
+const diskOffAxis = structuredClone(washerSliceCandidate) as Record<string, any>;
+diskOffAxis.constructions.find((construction: Record<string, any>) => construction.operator === "representative_slice").inputs.method = "disk";
+const diskOffAxisResult = validateSceneDocument(diskOffAxis);
+if (diskOffAxisResult.document || !diskOffAxisResult.report.issues.some((issue) => issue.code === "invalid_representative_slice_disk")) {
+  throw new Error("representative_slice method disk accepted a washer (inner radius off the axis)");
+}
+
 const solidProfileCandidate = structuredClone(functionCurveCandidate) as Record<string, any>;
 solidProfileCandidate.source.question = "Show the profile made by revolving y=4-x^2 about the x-axis from -2 to 2";
 solidProfileCandidate.entities[0] = { id: "profile", kind: "polyline", role: "function graph", label: "y=4-x^2" };
@@ -4240,8 +4466,12 @@ solidProfileCandidate.requiredEntityIds = ["profile", "solid"];
 solidProfileCandidate.revealGroups[0].entityIds = ["profile", "solid"];
 const solidValidation = validateSceneDocument(solidProfileCandidate);
 const solidCompiled = solidValidation.document ? compileSceneDocument(solidValidation.document) : null;
-const solidPrimitive = solidCompiled?.renderScene?.primitives.find((primitive) => primitive.entityId === "solid");
-if (!solidCompiled?.ok || solidPrimitive?.kind !== "polygon" || solidPrimitive.points.length !== 130) {
+const solidProfilePrimitive = solidCompiled?.renderScene?.primitives.filter((primitive) => primitive.entityId === "solid" && primitive.kind !== "label") ?? [];
+if (
+  !solidCompiled?.ok ||
+  solidProfilePrimitive.length < 2 ||
+  !solidProfilePrimitive.some((primitive) => primitive.kind === "polyline" && primitive.points.length === 65)
+) {
   throw new Error(`solid_of_revolution failed deterministic profile compilation: ${JSON.stringify(solidCompiled?.report.issues ?? solidValidation.report.issues)}`);
 }
 
@@ -4739,7 +4969,7 @@ if (
 
 const prismMinDeviationPlanner = JSON.parse(
   readFileSync(
-    join(dirname(fileURLToPath(import.meta.url)), "../fixtures/regression/prism-min-deviation-planner-v1.json"),
+    join(dirname(fileURLToPath(import.meta.url)), "../../fixtures/regression/prism-min-deviation-planner-v1.json"),
     "utf8",
   ),
 ) as Record<string, unknown>;
@@ -4774,6 +5004,64 @@ const prismEmergent = prismCompiled.renderScene.primitives.find((primitive) =>
 );
 if (!prismIncident || !prismEmergent) {
   throw new Error("prism ray path is missing an incident or emergent ray");
+}
+
+const hingedRodTwoPositions = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "hinged rod horizontal and vertical poses" },
+  source: {
+    question: "A thin uniform rod is hinged at one end and held horizontal. Draw the rod in the horizontal and vertical positions, mark the hinge and the weight.",
+  },
+  quantities: [],
+  entities: [
+    { id: "hinge", kind: "point", role: "hinge" },
+    { id: "free_h", kind: "point", role: "free end" },
+    { id: "rod_h", kind: "segment", role: "horizontal rod" },
+    { id: "free_v", kind: "point", role: "free end vertical" },
+    { id: "rod_v", kind: "segment", role: "vertical rod" },
+    { id: "cm_v", kind: "point", role: "centre of mass" },
+    { id: "weight", kind: "vector", role: "weight" },
+    { id: "hinge_label", kind: "label", role: "hinge label", label: "O" },
+  ],
+  constructions: [
+    { id: "make_hinge", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["hinge"] },
+    { id: "make_free_h", operator: "point", inputs: { x: 1, y: 0, coordinateSpace: "world" }, outputs: ["free_h"] },
+    { id: "make_rod_h", operator: "segment", inputs: { start: "hinge", end: "free_h" }, outputs: ["rod_h"] },
+    { id: "make_free_v", operator: "rotate", inputs: { point: "free_h", center: "hinge", angle: -90, angleUnit: "degrees" }, outputs: ["free_v"] },
+    { id: "make_rod_v", operator: "segment", inputs: { start: "hinge", end: "free_v" }, outputs: ["rod_v"] },
+    { id: "make_cm_v", operator: "midpoint", inputs: { a: "hinge", b: "free_v" }, outputs: ["cm_v"] },
+    { id: "make_weight", operator: "vector", inputs: { start: "cm_v", end: { x: 0.5, y: -1.5, coordinateSpace: "world" } }, outputs: ["weight"] },
+    { id: "make_hinge_label", operator: "label", inputs: { target: "hinge", text: "O" }, outputs: ["hinge_label"] },
+  ],
+  relations: [],
+  assertions: [
+    { id: "same_length", predicate: "equal_length", entities: ["rod_h", "rod_v"], expected: true, severity: "fatal" },
+    { id: "hinge_shared", predicate: "connected", entities: ["rod_h", "rod_v"], expected: true, severity: "fatal" },
+    { id: "poses_perp", predicate: "perpendicular", entities: ["rod_h", "rod_v"], expected: true, severity: "fatal" },
+  ],
+  annotations: [],
+  requiredEntityIds: ["hinge", "free_h", "rod_h", "free_v", "rod_v", "cm_v", "weight", "hinge_label"],
+  revealGroups: [{
+    id: "poses",
+    entityIds: ["hinge", "free_h", "rod_h", "free_v", "rod_v", "cm_v", "weight", "hinge_label"],
+    dependsOn: [],
+    narrationCue: "rod poses",
+  }],
+  teachingTimeline: [{ action: "reveal", targetId: "poses", dependsOn: [], narrationIntent: "show both rod positions" }],
+};
+const hingedValidated = validateSceneDocument(hingedRodTwoPositions);
+const hingedCompiled = hingedValidated.document ? compileSceneDocument(hingedValidated.document) : null;
+if (!hingedValidated.document || !hingedCompiled?.ok || !hingedCompiled.renderScene) {
+  throw new Error(`hinged rod two-position scene did not compile: ${JSON.stringify({
+    validation: hingedValidated.report.issues,
+    compile: hingedCompiled?.report.issues,
+  })}`);
+}
+const verticalRod = hingedCompiled.renderScene.primitives.find((primitive) =>
+  primitive.entityId === "rod_v" && primitive.kind !== "label",
+);
+if (!verticalRod || verticalRod.points.length < 2) {
+  throw new Error("vertical rod pose was not rendered from rotate");
 }
 
 console.log("scene-engine verification passed");

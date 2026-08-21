@@ -2,7 +2,7 @@
  * Syllabus capability coverage harness.
  *
  * Reads the classified question-bank corpus (built locally via
- * tools/question-bank/build_corpus.py + build_syllabus_index.py) and measures,
+ * tools/question-bank/importers/build_corpus.py + build_syllabus_index.py) and measures,
  * deterministically, whether the scene-engine capability manifest can express and
  * verify the geometry each question's syllabus unit demands.
  *
@@ -22,8 +22,8 @@
  * being faked green.
  *
  * Usage:
- *   pnpm --filter @heytutor/scene-engine tsx scripts/verify-syllabus-corpus.ts
- *   pnpm --filter @heytutor/scene-engine tsx scripts/verify-syllabus-corpus.ts --report <path>
+ *   pnpm --filter @heytutor/scene-engine tsx scripts/verify/verify-syllabus-corpus.ts
+ *   pnpm --filter @heytutor/scene-engine tsx scripts/verify/verify-syllabus-corpus.ts --report <path>
  *
  * Inputs (gitignored, local-only):
  *   data/question-bank/build/questions.all.jsonl
@@ -36,10 +36,10 @@ import { fileURLToPath } from "node:url";
 import {
   isExecutableSceneConstructionOperator,
   isExecutableSceneProofPredicate,
-} from "../src/capabilityManifest";
-import { compileSceneDocument } from "../src/compiler";
-import type { SceneDocument } from "../src/types";
-import { validateSceneDocument } from "../src/validation";
+} from "../../src/capability/capabilityManifest";
+import { compileSceneDocument } from "../../src/compile/compiler";
+import type { SceneDocument } from "../../src/types";
+import { validateSceneDocument } from "../../src/document/validation";
 
 // ---------------------------------------------------------------------------
 // Corpus input types (subset of the question-bank schemas we actually read).
@@ -2352,7 +2352,7 @@ function evaluateUnitDemand(demand: UnitCapabilityDemand): {
 }
 
 function main(): void {
-  const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+  const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
   const questionsPath = resolve(repoRoot, "data/question-bank/build/questions.all.jsonl");
   const syllabusPath = resolve(repoRoot, "data/question-bank/build/question-syllabus.jsonl");
 

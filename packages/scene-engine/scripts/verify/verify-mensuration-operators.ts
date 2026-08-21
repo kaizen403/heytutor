@@ -1,4 +1,4 @@
-import { compileSceneDocument, validateSceneDocument } from "../src/index";
+import { compileSceneDocument, validateSceneDocument } from "../../src/index";
 
 type SolidKind = "cylinder" | "cone" | "frustum" | "sphere" | "hemisphere";
 

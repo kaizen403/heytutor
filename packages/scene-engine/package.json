@@ -14,9 +14,9 @@
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "verify": "tsx scripts/verify-scene-engine.ts && tsx scripts/verify-mensuration-operators.ts && tsx scripts/verify-optics-operators.ts && tsx scripts/verify-optics-syllabus.ts && tsx scripts/verify-golden-corpus.ts && tsx scripts/verify-physics-evaluation-corpus.ts && tsx scripts/verify-math-evaluation-corpus.ts && tsx scripts/verify-problem-ir.ts && tsx scripts/verify-remote-solver.ts && tsx scripts/verify-syllabus-corpus.ts",
-    "verify:golden": "tsx scripts/verify-golden-corpus.ts",
-    "verify:syllabus": "tsx scripts/verify-syllabus-corpus.ts",
+    "verify": "tsx scripts/verify/verify-scene-engine.ts && tsx scripts/verify/verify-mensuration-operators.ts && tsx scripts/verify/verify-optics-operators.ts && tsx scripts/verify/verify-optics-syllabus.ts && tsx scripts/verify/verify-golden-corpus.ts && tsx scripts/verify/verify-physics-evaluation-corpus.ts && tsx scripts/verify/verify-math-evaluation-corpus.ts && tsx scripts/verify/verify-evaluation-compile.ts && tsx scripts/verify/verify-problem-ir.ts && tsx scripts/verify/verify-remote-solver.ts && tsx scripts/verify/verify-syllabus-corpus.ts",
+    "verify:golden": "tsx scripts/verify/verify-golden-corpus.ts",
+    "verify:syllabus": "tsx scripts/verify/verify-syllabus-corpus.ts",
     "clean": "rm -rf dist"
   },
   "devDependencies": {

@@ -5,11 +5,11 @@ import {
   OPTICS_VISUAL_FAMILIES,
   evaluateOpticsLaw,
   isOpticsLawId,
-} from "../src/opticsLaws";
+} from "../../src/physics/opticsLaws";
 
 const fixturePath = join(
   dirname(fileURLToPath(import.meta.url)),
-  "../fixtures/evaluation/optics-syllabus-v1.json",
+  "../../fixtures/evaluation/optics-syllabus-v1.json",
 );
 const raw = JSON.parse(readFileSync(fixturePath, "utf8")) as unknown;
 

@@ -5,19 +5,19 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { compileSceneDocument } from "../src/compiler";
+import { compileSceneDocument } from "../../src/compile/compiler";
 import {
   REQUIRED_DIAGRAM_DEADLINE_MS,
   REQUIRED_DIAGRAM_TARGET_MS,
   resolveDiagramFailureStatus,
   type TurnPlanV3,
-} from "../src/contractsV3";
-import { boundsOverlap, placeLabels } from "../src/labelEngine";
-import { evaluateTopologyAssertion, buildTopologyGraph } from "../src/topology";
-import { validateSceneDocument } from "../src/validation";
-import type { SceneAssertion, SceneDocument, SceneIssue } from "../src/types";
+} from "../../src/contracts/contractsV3";
+import { boundsOverlap, placeLabels } from "../../src/labels/labelEngine";
+import { evaluateTopologyAssertion, buildTopologyGraph } from "../../src/topology/topology";
+import { validateSceneDocument } from "../../src/document/validation";
+import type { SceneAssertion, SceneDocument, SceneIssue } from "../../src/types";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "../fixtures/golden");
+const root = join(dirname(fileURLToPath(import.meta.url)), "../../fixtures/golden");
 
 function loadJson(name: string): Record<string, unknown> {
   return JSON.parse(readFileSync(join(root, name), "utf8")) as Record<string, unknown>;

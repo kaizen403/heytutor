@@ -1,11 +1,11 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isSupportedSceneOperator } from "../src/validation";
+import { isSupportedSceneOperator } from "../../src/document/validation";
 
 const fixturePath = join(
   dirname(fileURLToPath(import.meta.url)),
-  "../fixtures/evaluation/jee-physics-core-v1.json",
+  "../../fixtures/evaluation/jee-physics-core-v1.json",
 );
 const raw = JSON.parse(readFileSync(fixturePath, "utf8")) as unknown;
 
