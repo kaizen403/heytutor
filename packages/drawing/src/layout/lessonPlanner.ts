@@ -10,9 +10,9 @@ import {
   type DrawCommand,
   type DrawCommandType,
   type TutorSegment,
-} from './drawingProtocol';
+} from '../protocol/drawingProtocol';
 import { BOARD_CANVAS, DIAGRAM_ZONE, WORK_ZONE } from './boardZones';
-import { measureTextWidth } from './handwriting';
+import { measureTextWidth } from '../handwriting/handwriting';
 
 const STEP_BLOCK_PATTERN = /\[STEP\]\s*([\s\S]*?)\s*\[\/STEP\]/gi;
 

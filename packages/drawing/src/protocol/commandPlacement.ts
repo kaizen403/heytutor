@@ -1,5 +1,5 @@
 import { getSegmentCommands, type DrawCommand, type TutorSegment } from "./drawingProtocol";
-import { fitWorkTextCommand } from "./lessonPlanner";
+import { fitWorkTextCommand } from "../layout/lessonPlanner";
 import type { VerifiedDiagram, VerifiedDiagramAnchor } from "./verifiedDiagram";
 
 const MARKER_ACTION_PATTERN =

@@ -1,6 +1,6 @@
 import type { Drawable, Op } from "roughjs/bin/core";
 
-import { createPathElement } from "./shapePaths";
+import { createPathElement } from "../handwriting/shapePaths";
 
 export interface Point {
   x: number;

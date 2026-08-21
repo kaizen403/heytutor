@@ -1,4 +1,4 @@
-import { normalizeStrokeText } from './handwriting';
+import { normalizeStrokeText } from '../handwriting/handwriting';
 
 export type DrawCommandType =
   | 'DRAW_CUBOID'
@@ -288,7 +288,7 @@ const GREEK_WORD_TO_SYMBOL: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bDelta\b/g, 'Δ'],
   [/\bdelta\b/gi, 'δ'],
   [/\bmu\b/gi, 'μ'],
-  [/\bpi\b/gi, 'π'],
+  [/(?<![A-Za-z\\])pi(?![A-Za-z])/gi, 'π'],
   [/\brho\b/gi, 'ρ'],
   [/\bsigma\b/gi, 'σ'],
   [/\btau\b/gi, 'τ'],

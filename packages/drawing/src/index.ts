@@ -1,10 +1,10 @@
-export * from "./drawingProtocol";
-export * from "./incrementalParser";
-export * from "./shapePaths";
-export * from "./handwriting";
-export * from "./alignmentCheck";
-export * from "./lessonPlanner";
-export * from "./verifiedDiagram";
+export * from "./protocol/drawingProtocol";
+export * from "./protocol/incrementalParser";
+export * from "./handwriting/shapePaths";
+export * from "./handwriting/handwriting";
+export * from "./protocol/alignmentCheck";
+export * from "./layout/lessonPlanner";
+export * from "./protocol/verifiedDiagram";
 export {
   isBlockedVerifiedDiagramCommand,
   prepareVerifiedLessonSegments,
@@ -12,15 +12,15 @@ export {
   resolveVerifiedDiagramFocusTarget,
   type BoardTextRect,
   type PreparedVerifiedSegments,
-} from "./commandPlacement";
-export { BOARD_CANVAS, DIAGRAM_ZONE, WORK_ZONE, SECOND_WORK_ZONE, clampToDiagramZone, isInDiagramZone } from "./boardZones";
+} from "./protocol/commandPlacement";
+export { BOARD_CANVAS, DIAGRAM_ZONE, WORK_ZONE, SECOND_WORK_ZONE, clampToDiagramZone, isInDiagramZone } from "./layout/boardZones";
 export {
   animateStroke,
   animateRoughStroke,
   type CancellableAnimation,
   type StrokeAnimationOptions,
   type RoughAnimationOptions,
-} from "./strokeAnimation";
+} from "./animation/strokeAnimation";
 export {
   getPathLength,
   getPointAtLength,
@@ -29,4 +29,4 @@ export {
   type Point,
   type BezierAnimationOptions,
   type PathFollowOptions,
-} from "./cursorAnimation";
+} from "./animation/cursorAnimation";

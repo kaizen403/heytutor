@@ -100,7 +100,8 @@ export function normalizeStrokeText(text: string): string {
     .replace(/\\neq(?![A-Za-z])/g, "≠")
     .replace(/\\approx(?![A-Za-z])/g, "≈")
     .replace(/\\pi(?![A-Za-z])/g, "π")
-    .replace(/\\theta(?![A-Za-z])/g, "θ");
+    .replace(/\\theta(?![A-Za-z])/g, "θ")
+    .replace(/(?<![A-Za-z\\])pi(?![A-Za-z])/gi, "π");
 
   // Models sometimes drop "_" / "^" and emit `∫{-2}{2}` or spaced `∫ { -2 } { 2 }`.
   source = source.replace(
@@ -321,42 +322,27 @@ function syntheticGreekChar(
   }
 
   if (char === "π") {
-    const nGlyph = glyphDataRecord.n;
-    const glyphWidth = (nGlyph?.w ?? 450) * scale;
+    const u = 460;
+    const glyphWidth = u * scale;
+    const P = (px: number, py: number): string =>
+      `${(currentX + px * scale).toFixed(2)} ${(baselineY + py * scale).toFixed(2)}`;
     const strokes: StrokePath[] = [];
-
-    if (nGlyph) {
-      for (const s of nGlyph.s) {
-        const points = s.p;
-        const widths = points.map((p) => p[2] * scale);
-        const avgWidth = widths.reduce((a, b) => a + b, 0) / Math.max(widths.length, 1);
-        const pathData = polylineToSVGPath(points, scale, scale, currentX, baselineY);
-        const firstPoint = points[0];
-        strokes.push({
-          pathData,
-          startX: currentX + firstPoint[0] * scale,
-          startY: baselineY + firstPoint[1] * scale,
-          width: Math.max(avgWidth, 1.5),
-          delay: s.d,
-          duration: s.a,
-          priority: s.r ?? 0,
-        });
-      }
-    }
-
-    const barY = baselineY - 700 * scale;
-    const barX1 = currentX + 30 * scale;
-    const barX2 = currentX + glyphWidth - 20 * scale;
-    strokes.push({
-      pathData: `M ${barX1.toFixed(2)} ${barY.toFixed(2)} L ${barX2.toFixed(2)} ${barY.toFixed(2)}`,
-      startX: barX1,
-      startY: barY,
-      width: Math.max(2.4 * scale, 1.5),
-      delay: strokes.length > 0 ? 0.1 : 0,
-      duration: 0.09,
-      priority: 0,
-    });
-
+    const push = (pathData: string, delay: number, duration: number): void => {
+      const nums = pathData.match(/-?\d+(?:\.\d+)?/g);
+      strokes.push({
+        pathData,
+        startX: nums ? Number(nums[0]) : currentX,
+        startY: nums ? Number(nums[1]) : baselineY,
+        width: Math.max(2.4 * scale, 1.5),
+        delay,
+        duration,
+        priority: 0,
+      });
+    };
+    // Handwritten pi: a top bar that overhangs two downward legs. Not latin n.
+    push(`M ${P(20, -650)} L ${P(u - 20, -630)}`, 0, 0.12);
+    push(`M ${P(150, -635)} L ${P(135, 30)}`, 0.06, 0.12);
+    push(`M ${P(u - 155, -632)} L ${P(u - 140, 30)}`, 0.06, 0.12);
     return {
       path: { char, strokes, x: currentX, y: topY, width: glyphWidth, fontSize },
       advance: glyphWidth,
@@ -730,9 +716,11 @@ export interface CharacterPath {
 }
 
 function syntheticGlyphWidth(char: string, scale: number): number {
-  if (char === "π" || char === "Θ" || char === "θ") {
-    const glyphW = char === "π" ? glyphDataRecord.n?.w ?? 450 : glyphDataRecord.o?.w ?? 353;
-    return glyphW * scale;
+  if (char === "π") {
+    return 460 * scale;
+  }
+  if (char === "Θ" || char === "θ") {
+    return (glyphDataRecord.o?.w ?? 353) * scale;
   }
   if (char === "μ") {
     return (glyphDataRecord.u?.w ?? 370) * scale;

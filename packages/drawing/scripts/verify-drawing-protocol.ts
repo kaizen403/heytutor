@@ -1,8 +1,11 @@
 import {
   IncrementalTagParser,
   lessonNarrationText,
+  normalizeBoardText,
+  normalizeStrokeText,
   parseDrawingCommands,
   parseStructuredLessonSteps,
+  textToStrokePaths,
   type TutorSegment,
 } from "../src/index";
 
@@ -108,6 +111,30 @@ assert(
 assert(
   nestedLabel[0]?.command?.params.join(",") === "480,180,20",
   "label: coordinates or font size were not parsed",
+);
+
+const piWrite = parseDrawingCommands("[WRITE:V = 8pi,10,20]");
+assert(piWrite.commands[0]?.text?.includes("π"), "8pi in WRITE must become π, not the letters p-i");
+assert(!piWrite.commands[0]?.text?.includes("pi"), "8pi must not remain as latin letters after board normalization");
+
+const latexPiWrite = parseDrawingCommands("[WRITE:\\pi r^2,10,20]");
+assert(latexPiWrite.commands[0]?.text?.includes("π"), "\\pi in WRITE must become π");
+assert(!latexPiWrite.commands[0]?.text?.includes("\\"), "\\pi must not leave a leftover backslash");
+
+assert(normalizeBoardText("area = pi x r^2").includes("π"), "word pi must become π");
+assert(normalizeStrokeText("V=8pi").includes("π"), "8pi must become π even without word boundaries");
+assert(!normalizeBoardText("speed").includes("π"), "English speed must not become π");
+assert(!normalizeBoardText("picky").includes("π"), "picky must not become π");
+
+const piGlyphs = await textToStrokePaths("π", 0, 100, 40);
+const nGlyphs = await textToStrokePaths("n", 0, 100, 40);
+const piGlyph = piGlyphs[0];
+const nGlyph = nGlyphs[0];
+assert(piGlyph && piGlyph.strokes.length >= 3, "handwritten π must be a top bar plus two legs");
+assert(nGlyph && nGlyph.strokes.length >= 1, "latin n must still render");
+assert(
+  piGlyph.strokes[0]?.pathData !== nGlyph.strokes[0]?.pathData,
+  "π must not reuse the latin n glyph (n-with-a-bar)",
 );
 
 console.log("verify-drawing-protocol: nested WRITE/LABEL math tags pass inline, structured, and streaming parsing");
