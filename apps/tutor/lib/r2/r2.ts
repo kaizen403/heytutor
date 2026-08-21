@@ -1,7 +1,7 @@
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 
-export { lectureAudioKey } from "@/lib/r2Keys";
+export { lectureAudioKey } from "@/lib/r2/r2Keys";
 
 /**
  * Cloudflare R2 helpers for lecture audio — Wrangler CLI only (no S3 API keys).

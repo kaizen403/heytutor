@@ -3,7 +3,7 @@ import type {
   SceneVisualStatus,
   StoredSegment,
   StoredTurn,
-} from "@/lib/boardsClient";
+} from "@/lib/boards/boardsClient";
 
 export function createReplayAudioBlobUrl(bytes: Uint8Array): string {
   return URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "audio/mpeg" }));

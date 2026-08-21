@@ -1,4 +1,4 @@
-import type { TurnTelemetryEvent } from "@/lib/langfuse";
+import type { TurnTelemetryEvent } from "@/lib/obs/langfuse";
 import { resolveApiUrl } from "@heytutor/tutor-core";
 
 export interface TurnTelemetryPayload {

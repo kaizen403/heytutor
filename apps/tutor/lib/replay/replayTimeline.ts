@@ -3,7 +3,7 @@ import {
   isStoredCommandTrustedGeometry,
   parseStoredSegmentCommands,
 } from "@heytutor/drawing";
-import type { StoredSegment, StoredTurn } from "@/lib/boardsClient";
+import type { StoredSegment, StoredTurn } from "@/lib/boards/boardsClient";
 
 export interface ReplayCue {
   id: string;

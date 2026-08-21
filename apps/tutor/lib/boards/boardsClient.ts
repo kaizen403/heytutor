@@ -1,6 +1,6 @@
 import { resolveApiUrl, type AudioTimings } from "@heytutor/tutor-core";
 import type { DrawCommand, StoredCommandEnvelope } from "@heytutor/drawing";
-import type { BoardEntry } from "@/components/BoardHistory";
+import type { BoardEntry } from "@/lib/boards/types";
 
 export interface StoredSegment {
   id: string;
