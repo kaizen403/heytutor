@@ -4,6 +4,7 @@ import {
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import { evaluateMathExpression } from "@heytutor/scene-engine";
+import { withFastModeHeader } from "../llm/fastMode";
 import { tutorDebug } from "../tutorDebug";
 import { inferSceneCapabilities, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
 import { reconcileTurnPlanWithOpticsLaws } from "./opticsPlanAudit";
@@ -14,6 +15,7 @@ export interface TurnPlannerV3Options {
   signal?: AbortSignal;
   timeoutMs: number;
   conversationContext?: string;
+  fastMode?: boolean;
 }
 
 export interface TurnPlanV3Response {
@@ -24,7 +26,7 @@ export interface TurnPlanV3Response {
   traceId?: string;
 }
 
-const TURN_PLAN_MODEL = "accounts/fireworks/routers/kimi-k2p6-turbo";
+const TURN_PLAN_MODEL = "server";
 const TURN_PLAN_PEER_GRACE_MS = 3_000;
 
 export async function planTurnV3(
@@ -163,6 +165,7 @@ async function requestTurnPlanV3(
         "x-turn-planner-lane": lane,
         "x-planner-deadline-ms": String(options.timeoutMs),
         ...(options.sessionId ? { "x-session-id": options.sessionId } : {}),
+        ...withFastModeHeader({}, options.fastMode),
       },
       signal,
       body: JSON.stringify({

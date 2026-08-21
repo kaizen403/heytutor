@@ -1,3 +1,4 @@
+import { withFastModeHeader } from "../llm/fastMode";
 import { tutorDebug } from "../tutorDebug";
 import {
   buildSceneDocumentPlannerPrompt,
@@ -44,6 +45,7 @@ export interface ScenePlannerOptions extends ScenePlannerPromptContext {
   signal?: AbortSignal;
   /** Total plan/repair hard deadline. Defaults to sixty seconds. */
   timeoutMs?: number;
+  fastMode?: boolean;
 }
 
 export interface ScenePlanWithRepairResult<T> {
@@ -66,7 +68,7 @@ export type SceneCandidateValidator<T> = (
 ) => SceneCandidateValidation<T> | Promise<SceneCandidateValidation<T>>;
 
 export const SCENE_PLANNER_TIMEOUT_MS = 60_000;
-const PLANNER_MODEL = "accounts/fireworks/routers/kimi-k2p6-turbo";
+const PLANNER_MODEL = "server";
 const MAX_SCENE_REPAIR_ROUNDS = 2;
 const REPAIR_CANDIDATES_PER_ROUND = 2;
 const INITIAL_SCENE_CANDIDATES = 2;
@@ -506,6 +508,7 @@ async function requestSceneDocument(
         "x-scene-planner-lane": lane,
         "x-planner-deadline-ms": String(timeoutMs),
         ...(sessionId ? { "x-session-id": sessionId } : {}),
+        ...withFastModeHeader({}, options.fastMode),
       },
       signal: combinedSignal,
       body: JSON.stringify({

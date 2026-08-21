@@ -13,9 +13,10 @@ import {
   type SolverResult,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
+import { withFastModeHeader } from "../llm/fastMode";
 import { tutorDebug } from "../tutorDebug";
 
-const PROBLEM_PLANNER_MODEL = "accounts/fireworks/routers/kimi-k2p6-turbo";
+const PROBLEM_PLANNER_MODEL = "server";
 
 export interface ProblemPlannerV1Options {
   proxyUrl: string;
@@ -24,6 +25,7 @@ export interface ProblemPlannerV1Options {
   timeoutMs: number;
   fetchImpl?: typeof fetch;
   provider?: SolverProvider;
+  fastMode?: boolean;
 }
 
 export interface ProblemAuthorityV1Response {
@@ -59,6 +61,7 @@ export async function planAndSolveProblemV1(
         "x-problem-ir-version": "1",
         "x-planner-deadline-ms": String(options.timeoutMs),
         ...(options.sessionId ? { "x-session-id": options.sessionId } : {}),
+        ...withFastModeHeader({}, options.fastMode),
       },
       signal,
       body: JSON.stringify({

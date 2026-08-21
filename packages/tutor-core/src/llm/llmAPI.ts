@@ -1,3 +1,4 @@
+import { withFastModeHeader } from "./fastMode";
 import { tutorDebug } from "../tutorDebug";
 
 export interface ConversationExchange {
@@ -13,6 +14,8 @@ export interface StreamLLMResponseParams {
   sessionId?: string;
   /** The turn has already been solved and audited by TurnPlanV3. */
   hasAuthoritativePlan?: boolean;
+  /** Prefer Fireworks Fast routers when the server has them configured. Default on. */
+  fastMode?: boolean;
   onTraceId?: (traceId: string) => void;
   signal?: AbortSignal;
 }
@@ -108,6 +111,7 @@ function buildMessages(
 function buildRequestHeaders(
   sessionId?: string,
   hasAuthoritativePlan = false,
+  fastMode = true,
 ): Record<string, string> {
   const headers: Record<string, string> = {
     "content-type": "application/json",
@@ -120,7 +124,7 @@ function buildRequestHeaders(
     headers["x-heytutor-teaching-pass"] = "planned";
   }
 
-  return headers;
+  return withFastModeHeader(headers, fastMode);
 }
 
 export async function streamLLMResponse(
@@ -131,12 +135,13 @@ export async function streamLLMResponse(
     proxyUrl,
     sessionId,
     hasAuthoritativePlan,
+    fastMode,
     onTraceId,
     signal,
   }: StreamLLMResponseParams,
   onDelta?: (chunk: string) => void,
 ): Promise<StreamLLMResult> {
-  const model = "accounts/fireworks/models/kimi-k2p6";
+  const model = "server";
   const streamStart = performance.now();
 
   tutorDebug("llm", "fetch start", {
@@ -147,7 +152,7 @@ export async function streamLLMResponse(
 
   const response = await fetch(proxyUrl, {
     method: "POST",
-    headers: buildRequestHeaders(sessionId, hasAuthoritativePlan),
+    headers: buildRequestHeaders(sessionId, hasAuthoritativePlan, fastMode),
     signal,
     body: JSON.stringify({
       model,

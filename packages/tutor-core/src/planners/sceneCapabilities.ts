@@ -145,6 +145,7 @@ const LAW_FAMILIES: ReadonlyArray<readonly [RegExp, readonly SceneVisualFamily[]
 const QUESTION_FAMILIES: ReadonlyArray<readonly [RegExp, readonly SceneVisualFamily[]]> = [
   [/(?:mirror|lens|magnification|optical power|focal point|principal axis)/i, ["axis_view", "ray_path"]],
   [/(?:refraction|refracted|critical angle|total internal reflection|optical fibre|optical fiber|prism|brewster)/i, ["interface", "ray_path"]],
+  [/(?:spherical (?:air|refracting|surface|interface)|air-glass interface|paraxial image|center of curvature|surface[- ]normal construction)/i, ["axis_view", "interface", "ray_path"]],
   [/(?:microscope|telescope|objective|eyepiece)/i, ["instrument_chain", "axis_view"]],
   [/(?:wavefront|huygens|secondary wavelet|coheren(?:t|ce))/i, ["wavefront"]],
   [/(?:double.?slit|young.?s experiment|slit separation|single.?slit|aperture)/i, ["aperture"]],
