@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 function loadSyllabusMarkdown(): string {
-  const docPath = join(process.cwd(), "../../docs/jee-syllabus-checklist.md");
+  const docPath = join(process.cwd(), "../../docs/product/jee-syllabus-checklist.md");
   return readFileSync(docPath, "utf8");
 }
 

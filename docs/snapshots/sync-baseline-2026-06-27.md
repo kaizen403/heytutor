@@ -59,18 +59,18 @@ when TTS timings are rejected. Not a TTS transport failure — a schedule fallba
 | Area | File |
 |---|---|
 | Session orchestration | `apps/tutor/app/c/[sessionId]/page.tsx` |
-| Schedule + validation | `packages/tutor-core/src/audioSync.ts` |
-| TTS timing merge | `packages/tutor-core/src/elevenLabsClient.ts` |
-| WS TTS client | `packages/tutor-core/src/elevenLabsWebSocketClient.ts` |
+| Schedule + validation | `packages/tutor-core/src/sync/audioSync.ts` |
+| TTS timing merge | `packages/tutor-core/src/tts/elevenLabsClient.ts` |
+| WS TTS client | `packages/tutor-core/src/tts/elevenLabsWebSocketClient.ts` |
 | Scheduled writing | `packages/whiteboard/src/Whiteboard.tsx` |
-| Lesson prompt | `packages/tutor-core/src/systemPrompt.ts` |
-| Sync architecture doc | `docs/tutor-sync-architecture.md` |
-| Schedule verification | `packages/tutor-core/scripts/verify-sync-schedules.ts` |
+| Lesson prompt | `packages/tutor-core/src/llm/systemPrompt.ts` |
+| Sync architecture doc | `docs/architecture/tutor-sync-architecture.md` |
+| Schedule verification | `packages/tutor-core/scripts/verify/verify-sync-schedules.ts` |
 
 ## Verification Commands (baseline passes)
 
 ```bash
-pnpm --filter @heytutor/tutor exec tsx "../../packages/tutor-core/scripts/verify-sync-schedules.ts"
+pnpm --filter @heytutor/tutor exec tsx "../../packages/tutor-core/scripts/verify/verify-sync-schedules.ts"
 pnpm turbo run typecheck
 pnpm --filter @heytutor/tutor build
 ```

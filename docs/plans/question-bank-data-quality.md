@@ -24,7 +24,7 @@ capability harness. Better Hindi handling recovers the ~122 diagram-cued rows.
 - Sidecar (`data/question-bank/build/question-syllabus.jsonl`):
   **5,367 classified / 9,121 needs_review / 2,232 out_of_scope.**
 - Capability report totals
-  (`data/question-bank/reports/syllabus-capability-coverage-2026-08-16.json`):
+  (`data/question-bank/reports/coverage/syllabus-capability-coverage-2026-08-16.json`):
   `measured_diagram_worthy=1410`, `covered=1410`, `not_diagram_led=2089`,
   `filtered_low_quality=1868`, `coverage_pct=100`.
 - Classifier: `tools/question-bank/question_bank/syllabus.py`
@@ -33,10 +33,10 @@ capability harness. Better Hindi handling recovers the ~122 diagram-cued rows.
   + `syllabus-rules-physics.json` / `syllabus-rules-mathematics.json` +
   `classification-rules.json`.
 - Pipeline entry points (run from repo root):
-  - `tools/question-bank/build_corpus.py` → builds `questions.all.jsonl`,
+  - `tools/question-bank/importers/build_corpus.py` → builds `questions.all.jsonl`,
     `questions.jsonl`, sqlite, and a build report.
-  - `tools/question-bank/build_syllabus_index.py` → builds the syllabus sidecar.
-  - `tools/question-bank/stage_pdf_text.py` — OCR gating for scanned PDFs.
+  - `tools/question-bank/importers/build_syllabus_index.py` → builds the syllabus sidecar.
+  - `tools/question-bank/importers/stage_pdf_text.py` — OCR gating for scanned PDFs.
   - `tools/question-bank/reverify_nta_quarantine.py` — re-check quarantined NTA rows.
 - Tests live beside the tools: `test_syllabus_index.py`,
   `test_classification_rules.py`, `test_syllabus_physics_rules.py`,
@@ -95,24 +95,24 @@ capability harness. Better Hindi handling recovers the ~122 diagram-cued rows.
 
 ```bash
 # from repo root
-python3 tools/question-bank/build_corpus.py \
+python3 tools/question-bank/importers/build_corpus.py \
   --raw-dir data/question-bank/raw \
   --text-dir data/question-bank/text \
   --all-questions data/question-bank/build/questions.all.jsonl \
   --target-questions data/question-bank/questions.jsonl \
   --database data/question-bank/build/question-bank.sqlite \
-  --report data/question-bank/reports/corpus-build-<date>.json \
+  --report data/question-bank/reports/coverage/corpus-build-<date>.json \
   --allow-segmentation-review
 
-python3 tools/question-bank/build_syllabus_index.py \
-  --report data/question-bank/reports/syllabus-index-<date>.json
+python3 tools/question-bank/importers/build_syllabus_index.py \
+  --report data/question-bank/reports/coverage/syllabus-index-<date>.json
 
 # tool tests
 python3 -m pytest tools/question-bank -q
 
 # capability harness re-measurement
-cd packages/scene-engine && pnpm exec tsx scripts/verify-syllabus-corpus.ts \
-  --report ../../data/question-bank/reports/syllabus-capability-coverage-<date>.json
+cd packages/scene-engine && pnpm exec tsx scripts/verify/verify-syllabus-corpus.ts \
+  --report ../../data/question-bank/reports/coverage/syllabus-capability-coverage-<date>.json
 ```
 
 ## Done criteria
@@ -129,10 +129,10 @@ cd packages/scene-engine && pnpm exec tsx scripts/verify-syllabus-corpus.ts \
 
 ## Reference files
 
-- `tools/question-bank/build_corpus.py`, `build_syllabus_index.py`,
+- `tools/question-bank/importers/build_corpus.py`, `build_syllabus_index.py`,
   `stage_pdf_text.py`, `reverify_nta_quarantine.py` — pipeline entry points.
 - `tools/question-bank/question_bank/syllabus.py` — classifier (statuses line ~44).
 - `data/question-bank/syllabus-taxonomy.json`, `syllabus-rules-physics.json`,
   `syllabus-rules-mathematics.json`, `classification-rules.json` — rule inputs.
-- `data/question-bank/reports/syllabus-capability-coverage-2026-08-16.json` — baseline totals.
+- `data/question-bank/reports/coverage/syllabus-capability-coverage-2026-08-16.json` — baseline totals.
 - `AGENTS.md` rule 6 — the bank is an oracle; this task grows the oracle only.

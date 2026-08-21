@@ -15,7 +15,7 @@ The product is an AI whiteboard tutor. It should teach like a human teacher:
 
 For diagram authority, representation tiers, and ownership rules see
 [universal-illustration-engine-v4.md](universal-illustration-engine-v4.md) and
-[agent/architecture.md](agent/architecture.md). This file is about speech ↔
+[../agent/architecture.md](../agent/architecture.md). This file is about speech ↔
 handwriting sync after the verified scene is committed.
 
 ## High-Level Flow
@@ -24,7 +24,7 @@ The main live path is:
 
 1. User submits a question via `useQuestionHandler` in `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts` (rendered from `TutorSessionPage`).
 2. The verified-scene pipeline commits diagram ink (TurnPlanV3 → ProblemIR/solver → SceneDocument → presentation). Teaching does not start until that commit.
-3. `streamLLMResponse()` in `packages/tutor-core/src/llmAPI.ts` streams teaching text from Fireworks.
+3. `streamLLMResponse()` in `packages/tutor-core/src/llm/llmAPI.ts` streams teaching text from Fireworks.
 4. `prepareVerifiedLessonSegments()` keeps narration and work-area `WRITE`/`PAUSE` only.
 5. Segments are queued through `enqueueSegment()` / `segmentChainRef` in `useTurnControl.ts`.
 6. `runSegment()` in `useSegmentRunner.ts` speaks the segment narration and runs allowed write commands concurrently.
@@ -34,7 +34,7 @@ The main live path is:
 
 ## Critical Files
 
-### `packages/tutor-core/src/systemPrompt.ts`
+### `packages/tutor-core/src/llm/systemPrompt.ts`
 
 Controls how the LLM structures teaching.
 
@@ -46,7 +46,7 @@ Important rules:
 
 If the model writes a command at the end of a long explanatory paragraph, the app can only draw after the cue phrase appears in speech. Prompt wording here directly affects sync.
 
-### `packages/drawing/src/lessonPlanner.ts`
+### `packages/drawing/src/layout/lessonPlanner.ts`
 
 Parses `[STEP]...[/STEP]` blocks into `TutorSegment`s.
 
@@ -78,7 +78,7 @@ first we think about the expression and how the terms combine. the expression is
 
 then drawing starts near the end of the spoken explanation because the board cue appears late.
 
-### `packages/tutor-core/src/audioSync.ts`
+### `packages/tutor-core/src/sync/audioSync.ts`
 
 Maps spoken narration to drawing/writing times.
 
@@ -95,7 +95,7 @@ Live writing must not block on ElevenLabs alignment. Real timings may arrive aft
 
 Paired narration+draw segments must finish prior ink, then run speech and draw together (`Promise.all`). Do not let the segment speech chain race ahead of `drawChainRef` (that caused the marker to lag a sentence behind). Shape `startDelayMs` may wait up to ~6s for the spoken cue; do not clamp to a few hundred ms or ink appears before the words.
 
-### `packages/tutor-core/src/elevenLabsWebSocketClient.ts`
+### `packages/tutor-core/src/tts/elevenLabsWebSocketClient.ts`
 
 Handles browser TTS streaming.
 
@@ -221,9 +221,9 @@ pnpm --filter @heytutor/tutor build
 Useful sync-adjacent verifies:
 
 ```bash
-pnpm --filter @heytutor/tutor exec tsx scripts/verify-tts-relay-protocol.ts
-pnpm --filter @heytutor/tutor exec tsx scripts/verify-teaching-transport.ts
-pnpm --filter @heytutor/tutor exec tsx scripts/verify-replay-speed.ts
+pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-tts-relay-protocol.ts
+pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-transport.ts
+pnpm --filter @heytutor/tutor exec tsx scripts/live/verify-replay-speed.ts
 ```
 
 Manual work-area sync check:
@@ -234,7 +234,7 @@ Manual work-area sync check:
 4. Langfuse marks to inspect: segment schedule events, `unverified-draw-blocked`, TTS context-final / alignment rebase.
 
 Diagram correctness is owned by the scene-engine corpora and
-[agent/geometry-debug.md](agent/geometry-debug.md), not by teaching-stream
+[../agent/geometry-debug.md](../agent/geometry-debug.md), not by teaching-stream
 annotation mocks.
 
 Multi-command segments: `lessonPlanner.ts` groups consecutive tags with empty

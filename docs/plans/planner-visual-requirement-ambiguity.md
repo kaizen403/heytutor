@@ -6,7 +6,7 @@ Effort: focused, prompt + measurement work
 
 ## Objective
 
-The deterministic pre-filter in `packages/tutor-core/src/turnPlannerV3.ts`
+The deterministic pre-filter in `packages/tutor-core/src/planners/turnPlannerV3.ts`
 (`questionRequiresVisual`) decides whether a question REQUIRES a diagram before
 any LLM call. It is now precise on keyword-rich stems (figure references, conic
 terms). What remains is the set of stems with **no lexical cue at all** — a bare
@@ -15,7 +15,7 @@ This task improves THAT judgment via prompt grounding, not more regex.
 
 ## Current state (verified facts)
 
-- Pre-filter: `packages/tutor-core/src/turnPlannerV3.ts`
+- Pre-filter: `packages/tutor-core/src/planners/turnPlannerV3.ts`
   - `explicitDiagramRequest` (~line 226): "draw / show / sketch" verbs.
   - `referencesFigure` (~line 231): "in the figure / as shown / the diagram".
   - `isQualitativeConceptQuestion` (~line 236): pure-definition guard.
@@ -24,7 +24,7 @@ This task improves THAT judgment via prompt grounding, not more regex.
   - `visualRequirement: questionRequiresVisual(q) ? "required" : "optional"`
     (~line 222) feeds the TurnPlanV3 prompt.
 - Corpus measurement (harness `planner_readiness` classifier,
-  `packages/scene-engine/scripts/verify-syllabus-corpus.ts` lines ~1425–1440):
+  `packages/scene-engine/scripts/verify/verify-syllabus-corpus.ts` lines ~1425–1440):
   `constructive` = has a construction verb; `qualitative` = definition-ish;
   `ambiguous` = neither.
 - Latest report `planner_readiness` totals: **ambiguous 813, constructive 509,
@@ -74,7 +74,7 @@ abstract — name NO topics. Verify the scene-planner prompt stays ≤ 19,000 ch
 
 ### Step 3 — Regression assertions
 
-Extend `packages/tutor-core/scripts/verify-turn-planner-v3.ts` with fixtures:
+Extend `packages/tutor-core/scripts/verify/verify-turn-planner-v3.ts` with fixtures:
 - a bare-noun ambiguous stem that SHOULD now be judged `required` by the
   grounded prompt (use a mock planner to keep it deterministic);
 - a qualitative definition stem that must remain `optional` unless an explicit
@@ -109,9 +109,9 @@ still passes (it is part of `tutor-core verify`).
 
 ## Reference files
 
-- `packages/tutor-core/src/turnPlannerV3.ts` — pre-filter + TurnPlanV3 prompt (edit target).
-- `packages/tutor-core/scripts/verify-turn-planner-v3.ts` — planner regression tests.
-- `packages/tutor-core/scripts/verify-scene-planner-v2.ts` — prompt budget gate (lines ~148–168).
-- `packages/scene-engine/scripts/verify-syllabus-corpus.ts` — planner_readiness classifier (~1425–1440).
+- `packages/tutor-core/src/planners/turnPlannerV3.ts` — pre-filter + TurnPlanV3 prompt (edit target).
+- `packages/tutor-core/scripts/verify/verify-turn-planner-v3.ts` — planner regression tests.
+- `packages/tutor-core/scripts/verify/verify-scene-planner-v2.ts` — prompt budget gate (lines ~148–168).
+- `packages/scene-engine/scripts/verify/verify-syllabus-corpus.ts` — planner_readiness classifier (~1425–1440).
 - `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts` — escalation net.
-- `docs/tutor-sync-architecture.md` — where visualRequirement feeds the turn pipeline.
+- `docs/architecture/tutor-sync-architecture.md` — where visualRequirement feeds the turn pipeline.

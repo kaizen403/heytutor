@@ -7,12 +7,12 @@ Effort: multi-day, incremental per unit
 ## Objective
 
 Today every diagram-led syllabus unit has exactly ONE passing compile probe in
-`packages/scene-engine/scripts/verify-syllabus-corpus.ts` (the `PROBE_SCENE` map).
+`packages/scene-engine/scripts/verify/verify-syllabus-corpus.ts` (the `PROBE_SCENE` map).
 That proves "the operator exists and one happy-path scene compiles + proves."
 It does NOT prove the operator holds up on harder geometry.
 
 Grow **probe depth** per unit toward the difficulty matrix in
-`docs/universal-syllabus-capability-plan-v5.md`: each diagram-led unit should
+`docs/architecture/universal-syllabus-capability-plan-v5.md`: each diagram-led unit should
 carry scenes at multiple difficulty levels (easy / medium / hard / composite),
 each with its own adversarial mutations. The goal is to surface real capability
 gaps ("operator exists but fails on a composite scene") before a live student
@@ -47,7 +47,7 @@ question does.
 
 ## Current state (verified facts)
 
-- Harness: `packages/scene-engine/scripts/verify-syllabus-corpus.ts` (1,768 lines).
+- Harness: `packages/scene-engine/scripts/verify/verify-syllabus-corpus.ts` (1,768 lines).
   - `UNIT_DEMAND` (line ~97): per-unit demanded operators + proof predicates.
   - `PROBE_SCENE` (line ~348): `Record<unitId, candidate>` — ONE scene per unit.
   - `runCompileProbe` (line ~890): validate + compile one candidate.
@@ -60,7 +60,7 @@ question does.
   `compileSceneDocument(document)` → `{ ok, report.issues[] }` with fatal
   `code` values (`assertion_failed`, `unsupported_assertion`, topology codes).
 - Unit volume ranking (from
-  `data/question-bank/reports/syllabus-capability-coverage-2026-08-16.json`
+  `data/question-bank/reports/coverage/syllabus-capability-coverage-2026-08-16.json`
   `by_unit`, sorted by diagram-worthy total desc) — work in THIS order:
   `physics|16` (383), `physics|11` (267), `maths|10` (166), `physics|14` (164),
   `physics|13` (102), `maths|8` (80), `physics|12` (75), then the rest.
@@ -121,7 +121,7 @@ s surfaced, but print a clear `GAPS` line listing any `not_implemented`
 Run from `packages/scene-engine`:
 
 ```bash
-pnpm exec tsx scripts/verify-syllabus-corpus.ts            # exit 0, depth section printed
+pnpm exec tsx scripts/verify/verify-syllabus-corpus.ts            # exit 0, depth section printed
 pnpm exec tsc --noEmit                                     # clean
 pnpm verify                                                # full suite green, exit 0
 ```
@@ -129,8 +129,8 @@ pnpm verify                                                # full suite green, e
 Then persist the report:
 
 ```bash
-pnpm exec tsx scripts/verify-syllabus-corpus.ts \
-  --report ../../data/question-bank/reports/syllabus-capability-coverage-2026-08-16.json
+pnpm exec tsx scripts/verify/verify-syllabus-corpus.ts \
+  --report ../../data/question-bank/reports/coverage/syllabus-capability-coverage-2026-08-16.json
 ```
 
 Also run repo-wide gates from the root:
@@ -155,11 +155,11 @@ pnpm --filter @heytutor/tutor verify
 
 ## Reference files
 
-- `packages/scene-engine/scripts/verify-syllabus-corpus.ts` — the file to extend.
-- `packages/scene-engine/scripts/verify-optics-operators.ts` — mutation pattern reference.
-- `packages/scene-engine/src/capabilityManifest.ts` — operator/predicate registry.
-- `packages/scene-engine/src/compiler.ts` — assertion evaluators (add here ONLY if a
+- `packages/scene-engine/scripts/verify/verify-syllabus-corpus.ts` — the file to extend.
+- `packages/scene-engine/scripts/verify/verify-optics-operators.ts` — mutation pattern reference.
+- `packages/scene-engine/src/capability/capabilityManifest.ts` — operator/predicate registry.
+- `packages/scene-engine/src/compile/compiler.ts` — assertion evaluators (add here ONLY if a
   genuinely reusable predicate is missing; that is a separate review).
-- `data/question-bank/reports/syllabus-capability-coverage-2026-08-16.json` — unit volumes.
-- `docs/universal-syllabus-capability-plan-v5.md` — the difficulty matrix target.
+- `data/question-bank/reports/coverage/syllabus-capability-coverage-2026-08-16.json` — unit volumes.
+- `docs/architecture/universal-syllabus-capability-plan-v5.md` — the difficulty matrix target.
 - `AGENTS.md` — rules 1, 5, 6 are binding.

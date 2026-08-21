@@ -98,7 +98,7 @@ submitted question
 
 ## 1. ProblemIR v2
 
-Extend `packages/scene-engine/src/problemIR.ts` from one-variable scalar
+Extend `packages/scene-engine/src/ir/problemIR.ts` from one-variable scalar
 arithmetic to a safe, typed constraint document.
 
 ### Required types
@@ -515,24 +515,24 @@ enforcement.
 
 ## File-Level Migration Map
 
-- `packages/scene-engine/src/problemIR.ts`: ProblemIR v2 and typed constraints.
-- `packages/scene-engine/src/solver.ts`: provider/certificate expansion.
-- `packages/scene-engine/src/contractsV3.ts`: migrate TurnPlan authority into
+- `packages/scene-engine/src/ir/problemIR.ts`: ProblemIR v2 and typed constraints.
+- `packages/scene-engine/src/ir/solver.ts`: provider/certificate expansion.
+- `packages/scene-engine/src/contracts/contractsV3.ts`: migrate TurnPlan authority into
   law/capability references.
-- `packages/scene-engine/src/validation.ts`: generated capability validation.
-- `packages/scene-engine/src/compiler.ts`: reusable evaluator families.
-- `packages/scene-engine/src/topology.ts`: generalized graph proofs.
-- `packages/scene-engine/src/labelEngine.ts`: leaders and hard collision gates.
-- `packages/tutor-core/src/problemPlannerV1.ts`: safe v2 model boundary.
-- `packages/tutor-core/src/turnPlannerV3.ts`: capability requirement prediction.
-- `packages/tutor-core/src/scenePlannerV2Prompt.ts`: generated compact schemas.
+- `packages/scene-engine/src/document/validation.ts`: generated capability validation.
+- `packages/scene-engine/src/compile/compiler.ts`: reusable evaluator families.
+- `packages/scene-engine/src/topology/topology.ts`: generalized graph proofs.
+- `packages/scene-engine/src/labels/labelEngine.ts`: leaders and hard collision gates.
+- `packages/tutor-core/src/planners/problemPlannerV1.ts`: safe v2 model boundary.
+- `packages/tutor-core/src/planners/turnPlannerV3.ts`: capability requirement prediction.
+- `packages/tutor-core/src/planners/scenePlannerV2Prompt.ts`: generated compact schemas.
 - `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts`: staged v5
   orchestration, telemetry, and degradation policy.
 - `apps/tutor/features/tutor-session/lib/representationFallbackV4.ts`: meaningful
   source representations only; no token boxes.
 - `apps/tutor/features/tutor-session/lib/verifiedScenePresentation.ts`:
   TeachingScriptIR reveal mapping.
-- `apps/tutor/lib/turnScenePersistence.ts`: server revalidation of new contracts.
+- `apps/tutor/lib/scene/turnScenePersistence.ts`: server revalidation of new contracts.
 - `packages/scene-engine/fixtures/evaluation`: syllabus certification matrix.
 
 ## ADR
