@@ -31,8 +31,8 @@ interface BoardHistoryProps {
 const SIDEBAR_WIDTH = 264;
 
 const PANEL: CSSProperties = {
-  background: "#0D1117",
-  borderRight: "1px solid rgba(240, 246, 252, 0.08)",
+  background: "#0B0B0C",
+  borderRight: "1px solid rgba(242, 242, 244, 0.08)",
 };
 
 export { SIDEBAR_WIDTH };
@@ -223,14 +223,15 @@ function BoardHistoryContent({
 
 const STYLES = `
 .bh {
-  --ink: #E6EDF3;
-  --ink-soft: #8B949E;
-  --ink-faint: #6E7681;
-  --accent: #58A6FF;
-  --line: rgba(240, 246, 252, 0.08);
-  --paper: #161B22;
-  --hover: #21262D;
+  --ink: #F2F2F4;
+  --ink-soft: #A6A6AE;
+  --ink-faint: #7A7A82;
+  --accent: #C9C9D2;
+  --line: rgba(242, 242, 244, 0.08);
+  --paper: #151517;
+  --hover: #1E1E21;
   color: var(--ink);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -239,14 +240,15 @@ const STYLES = `
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 1rem 1rem 0.75rem;
+  padding: 1.125rem 1rem 0.875rem;
   flex-shrink: 0;
 }
 
 .bh__brand {
-  font-size: 1.05rem;
+  font-size: 1.0625rem;
   font-weight: 600;
-  letter-spacing: normal;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
   color: var(--accent);
   user-select: none;
 }
@@ -292,8 +294,9 @@ const STYLES = `
   border: 1px solid var(--line);
   background: var(--paper);
   color: var(--ink);
-  font-size: 0.9rem;
-  letter-spacing: normal;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
   outline: none;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
@@ -304,7 +307,7 @@ const STYLES = `
 }
 
 .bh__search-input:focus {
-  border-color: rgba(88, 166, 255, 0.4);
+  border-color: rgba(201, 201, 210, 0.4);
   background: var(--hover);
 }
 
@@ -318,14 +321,15 @@ const STYLES = `
   align-items: center;
   gap: 0.55rem;
   width: 100%;
-  padding: 0.65rem 0.85rem;
+  padding: 0.7rem 0.85rem;
   border-radius: 0.7rem;
   border: 1px solid var(--line);
   background: var(--paper);
   color: var(--ink);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 500;
-  letter-spacing: normal;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
   text-align: left;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
@@ -338,7 +342,7 @@ const STYLES = `
 
 .bh__new:hover:not(:disabled) {
   background: var(--hover);
-  border-color: rgba(88, 166, 255, 0.35);
+  border-color: rgba(201, 201, 210, 0.35);
 }
 
 .bh__new:disabled {
@@ -347,10 +351,11 @@ const STYLES = `
 }
 
 .bh__section-label {
-  padding: 0.15rem 1.05rem 0.45rem;
-  font-size: 0.875rem;
-  font-weight: 400;
-  letter-spacing: normal;
+  padding: 0.25rem 1.05rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--ink-soft);
   flex-shrink: 0;
   user-select: none;
@@ -359,22 +364,22 @@ const STYLES = `
 .bh__list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 0.65rem 0.75rem;
+  padding: 0 0.65rem 0.875rem;
 }
 
 .bh__empty {
   margin: 0;
   padding: 0.55rem 0.55rem;
-  font-size: 0.875rem;
-  line-height: 1.45;
-  letter-spacing: normal;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
   color: var(--ink-faint);
 }
 
 .bh__item {
   position: relative;
-  margin-bottom: 0.2rem;
-  border-radius: 0.65rem;
+  margin-bottom: 0.25rem;
+  border-radius: 0.7rem;
   transition: background 0.15s ease;
 }
 
@@ -383,11 +388,24 @@ const STYLES = `
 }
 
 .bh__item--active {
-  background: var(--hover);
+  background: rgba(201, 201, 210, 0.08);
+}
+
+.bh__item--active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 1.15rem;
+  border-radius: 0 9999px 9999px 0;
+  background: var(--accent);
+  opacity: 0.9;
 }
 
 .bh__item--active:hover {
-  background: #30363D;
+  background: rgba(201, 201, 210, 0.12);
 }
 
 .bh__item-btn {
@@ -395,9 +413,9 @@ const STYLES = `
   flex-direction: column;
   gap: 0.15rem;
   width: calc(100% - 2rem);
-  padding: 0.65rem 0.7rem;
+  padding: 0.7rem 0.75rem;
   border: 0;
-  border-radius: 0.65rem;
+  border-radius: 0.7rem;
   background: transparent;
   text-align: left;
   cursor: pointer;
@@ -409,9 +427,10 @@ const STYLES = `
 }
 
 .bh__item-title {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  letter-spacing: normal;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -423,9 +442,10 @@ const STYLES = `
 }
 
 .bh__item-preview {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 400;
-  letter-spacing: normal;
+  letter-spacing: -0.005em;
+  line-height: 1.4;
   color: var(--ink-faint);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -459,13 +479,13 @@ const STYLES = `
 
 .bh__delete:hover {
   background: rgba(248, 81, 73, 0.15);
-  color: #F85149;
+  color: #E06858;
 }
 
 .bh__footer {
   flex-shrink: 0;
   border-top: 1px solid var(--line);
-  padding: 0.75rem 1rem 0.9rem;
+  padding: 0.875rem 1rem 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -477,9 +497,9 @@ const STYLES = `
   background: transparent;
   padding: 0.25rem 0;
   color: var(--ink-soft);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 400;
-  letter-spacing: normal;
+  letter-spacing: -0.005em;
   cursor: pointer;
   transition: color 0.15s ease;
 }
@@ -502,14 +522,14 @@ const STYLES = `
   right: 0;
   padding: 0.65rem 0.9rem;
   border-radius: 0.65rem;
-  background: #161B22;
+  background: #151517;
   border: 1px solid rgba(240, 246, 252, 0.1);
   box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.55);
   min-width: 8rem;
   z-index: 20;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 400;
-  letter-spacing: normal;
+  letter-spacing: -0.005em;
   color: var(--ink);
 }
 
@@ -531,7 +551,7 @@ const STYLES = `
 .bh__profile:hover:not(:disabled),
 .bh__profile--open {
   background: var(--hover);
-  border-color: rgba(88, 166, 255, 0.35);
+  border-color: rgba(201, 201, 210, 0.35);
   color: var(--ink);
 }
 
@@ -595,7 +615,7 @@ export function BoardHistory({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="left"
-          className="board-sidebar w-[min(100%,280px)] border-r border-[rgba(240,246,252,0.08)] p-0 sm:max-w-[280px]"
+          className="board-sidebar w-[min(100%,280px)] border-r border-[rgba(242,242,244,0.08)] p-0 sm:max-w-[280px]"
           style={PANEL}
         >
           <SheetTitle className="sr-only">Board history</SheetTitle>
