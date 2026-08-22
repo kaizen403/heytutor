@@ -1,27 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0D1117;
-  --foreground: #E6EDF3;
+  --background: #0B0B0C;
+  --foreground: #F2F2F4;
 
-  --wb-bg: #0D1117;
-  --wb-surface: #161B22;
-  --wb-accent: #58A6FF;
-  --wb-accent-light: #79B8FF;
-  --wb-accent-soft: rgba(88, 166, 255, 0.12);
-  --wb-cta: #238636;
+  --wb-bg: #0B0B0C;
+  --wb-surface: #151517;
+  --wb-accent: #C9C9D2;
+  --wb-accent-light: #DEDEE4;
+  --wb-accent-soft: rgba(201, 201, 210, 0.12);
+  --wb-cta: #6E6E76;
   --wb-paper: #FFFFFF;
   --wb-paper-ink: #111827;
-  --wb-paper-border: #30363D;
-  --wb-text-primary: #E6EDF3;
-  --wb-text-secondary: #8B949E;
-  --wb-text-tertiary: #6E7681;
-  --wb-border: #30363D;
-  --wb-cursor-blue: #58A6FF;
-  --wb-success: #3FB950;
-  --wb-danger: #F85149;
-  --wb-hover: #21262D;
-  --wb-raised: #161B22;
+  --wb-paper-border: #2E2E33;
+  --wb-text-primary: #F2F2F4;
+  --wb-text-secondary: #A6A6AE;
+  --wb-text-tertiary: #717177;
+  --wb-border: #2E2E33;
+  --wb-cursor-blue: #C9C9D2;
+  --wb-success: #C9C9D2;
+  --wb-danger: #E06858;
+  --wb-hover: #1E1E21;
+  --wb-raised: #1E1E21;
 
   /* Legacy aliases used in a few components */
   --wb-accent-amber: var(--wb-accent);
@@ -34,7 +34,7 @@
   --color-accent: var(--wb-accent);
   --color-border: var(--wb-border);
   --color-surface: var(--wb-surface);
-  --font-sans: var(--font-anthropic-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
@@ -104,10 +104,10 @@ body {
 
 @keyframes wb-glow-blue {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.45);
+    box-shadow: 0 0 0 0 rgba(201, 201, 210, 0.45);
   }
   50% {
-    box-shadow: 0 0 0 5px rgba(88, 166, 255, 0);
+    box-shadow: 0 0 0 5px rgba(201, 201, 210, 0);
   }
 }
 
@@ -164,9 +164,9 @@ body {
     ),
     linear-gradient(
       145deg,
-      #21262D 0%,
-      #1C2128 40%,
-      #161B22 100%
+      #1E1E21 0%,
+      #19191C 40%,
+      #151517 100%
     );
   box-shadow:
     0 30px 70px -18px rgba(0, 0, 0, 0.55),
@@ -245,8 +245,8 @@ body {
 }
 
 .wb-input-wrap:focus-within {
-  border-color: rgba(88, 166, 255, 0.45) !important;
-  box-shadow: 0 4px 24px -2px rgba(88, 166, 255, 0.12) !important;
+  border-color: rgba(201, 201, 210, 0.45) !important;
+  box-shadow: 0 4px 24px -2px rgba(201, 201, 210, 0.12) !important;
 }
 
 /* ── Paper input placeholder ── */
@@ -315,7 +315,7 @@ body {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(88, 166, 255, 0.55) 50%,
+    rgba(201, 201, 210, 0.55) 50%,
     transparent 100%
   );
   animation: wb-progress-sweep 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
