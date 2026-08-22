@@ -60,7 +60,9 @@ const renderScene: RenderScene = {
 
 const presentation = buildVerifiedDiagramPresentation(document, renderScene);
 if (presentation.diagram.id !== "verified_scene") throw new Error("wrong verified diagram id");
-if (presentation.introSegments.length !== 6) throw new Error("semantic reveal phases were not staged");
+if (presentation.introSegments.length !== 1) {
+  throw new Error(`the verified intro must be one spoken beat, got ${presentation.introSegments.length}`);
+}
 if (presentation.introSegments.some((segment) => segment.narration.trim() === "")) throw new Error("scene stages must be narrated while drawing");
 if (presentation.introSegments.some((segment) => !segment.command)) throw new Error("scene narration must remain paired with ink");
 if (presentation.diagram.commands.filter((command) => command.type === "LABEL").length !== 3) throw new Error("duplicate entity labels were emitted");
@@ -232,11 +234,11 @@ const labelHeavyPresentation = buildVerifiedDiagramPresentation(labelHeavyDocume
 const labelSegments = labelHeavyPresentation.introSegments.filter((segment) =>
   segment.commands?.some((command) => command.type === "LABEL"),
 );
-if (labelSegments.length !== 2) {
-  throw new Error("five verified labels must be split into two short spoken batches");
+if (labelSegments.length !== 1) {
+  throw new Error("labels in one reveal group must stay in one spoken beat");
 }
-if (labelSegments.some((segment) => (segment.commands?.length ?? 0) > 4)) {
-  throw new Error("a spoken label batch may not serialize more than four labels");
+if ((labelSegments[0]?.commands?.length ?? 0) !== 5) {
+  throw new Error("the group beat must keep every verified label");
 }
 for (const segment of labelSegments) {
   for (const command of segment.commands ?? []) {
@@ -244,6 +246,32 @@ for (const segment of labelSegments) {
       throw new Error(`label narration did not name ${command.text}`);
     }
   }
+}
+
+const pointFocusDocument: SceneDocument = {
+  ...document,
+  teachingTimeline: [
+    ...document.teachingTimeline,
+    {
+      id: "focus_a",
+      action: "focus",
+      targetId: "a",
+      dependsOn: ["reveal_setup"],
+      narrationIntent: "This is A, the starting point.",
+    },
+  ],
+};
+const pointFocusPresentation = buildVerifiedDiagramPresentation(pointFocusDocument, {
+  ...renderScene,
+  timeline: pointFocusDocument.teachingTimeline,
+});
+const pointFocus = pointFocusPresentation.introSegments.find((segment) =>
+  /this is a, the starting point/i.test(segment.narration));
+if (!pointFocus) throw new Error("point identity stages must keep the spoken name");
+if (!pointFocus.commands?.some((command) =>
+  command.visualStyle?.strokeRole === "trace" && command.semanticRef?.entityId === "a"
+)) {
+  throw new Error("naming a labeled point must mark it on the verified diagram");
 }
 
 console.log("verified scene presentation verification passed");

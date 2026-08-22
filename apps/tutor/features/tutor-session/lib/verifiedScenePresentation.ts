@@ -87,34 +87,27 @@ export function buildVerifiedDiagramPresentation(
       || group?.narrationCue
       || timelineCue
       || groupId;
-    const nonemptyPhases = REVEAL_PHASES.filter((phase) => phaseIndices[phase].length > 0);
+    const commandIndices = REVEAL_PHASES.flatMap((phase) => phaseIndices[phase]);
+    if (commandIndices.length === 0) return;
 
-    nonemptyPhases.forEach((phase, phaseIndex) => {
-      const chunks = chunk(
-        phaseIndices[phase],
-        phase === "detail" ? MAX_DETAIL_COMMANDS_PER_SEGMENT : MAX_COMMANDS_PER_SEGMENT,
+    chunk(commandIndices, MAX_COMMANDS_PER_GROUP).forEach((indices, chunkIndex) => {
+      const drawCommands = indices.map((index) =>
+        verifiedDiagramCommandToDrawCommand(commands[index]!),
       );
-      chunks.forEach((commandIndices, chunkIndex) => {
-        const drawCommands = commandIndices.map((index) =>
-          verifiedDiagramCommandToDrawCommand(commands[index]!),
-        );
-        const narration = phase === "detail"
-          ? detailNarration(drawCommands, cue)
-          : revealNarration({
-              cue,
-              phase,
-              groupIndex,
-              phaseIndex,
-              chunkIndex,
-              groupCount: orderedGroupIds.length,
-            });
-        reveals.push({ narration, commandIndices, kind: "reveal", targetId: groupId });
-        introSegments.push({
-          narration,
-          command: drawCommands[0] ?? null,
-          commands: drawCommands,
-          verifiedDiagramIntro: true,
-        });
+      const narration = groupRevealNarration({
+        cue,
+        drawCommands,
+        groupIndex,
+        chunkIndex,
+        groupCount: orderedGroupIds.length,
+        rolesByEntityId,
+      });
+      reveals.push({ narration, commandIndices: indices, kind: "reveal", targetId: groupId });
+      introSegments.push({
+        narration,
+        command: drawCommands[0] ?? null,
+        commands: drawCommands,
+        verifiedDiagramIntro: true,
       });
     });
   });
@@ -180,20 +173,52 @@ export function buildVerifiedDiagramPresentation(
       : "A complete metric diagram has already been compiled, validated, and is being explained as it is revealed."}
 Do not emit DRAW_*, LABEL, DIMENSION, ARROW, SCRIBBLE, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, ERASE, or CLEAR tags.
 When a solution step genuinely needs the learner to follow an existing diagram entity, you may append one semantic [FOCUS:entity_id] tag. Never provide coordinates. Use only these verified targets: ${focusTargets || "none"}.
-Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", or "look at" the named entity when using FOCUS.
+When you say what a labeled point is — for example the object O or the image I — put [FOCUS:entity_id] in that same step, immediately after the spoken name.
+Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", "look at", or "this is" the named entity when using FOCUS.
 Refer to diagram entities by their visible labels in narration.
 You may use WRITE only for equations and symbolic working in the left work area (x below 360).
 The scene engine owns all diagram geometry, labels, annotations, directions, connections, and markings.`,
   };
 
-  return { diagram, introSegments };
+  const spokenIntro = collapseIntroSpeech(introSegments);
+
+  // #region agent log
+  fetch('http://127.0.0.1:7280/ingest/352483c0-a316-40d0-8703-e595b34ba80f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e9a5f5'},body:JSON.stringify({sessionId:'e9a5f5',runId:'pre-fix',hypothesisId:'H5',location:'verifiedScenePresentation.ts:present',message:'scene intro built',data:{introCount:spokenIntro.length,revealGroupCount:orderedGroupIds.length,timelineActions:renderScene.timeline.map((a)=>a.action),commandCount:commands.length},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  return { diagram, introSegments: spokenIntro };
+}
+
+function collapseIntroSpeech(segments: TutorSegment[]): TutorSegment[] {
+  if (segments.length <= 1) {
+    return segments;
+  }
+  const commands = segments.flatMap((segment) =>
+    segment.commands ?? (segment.command ? [segment.command] : []),
+  );
+  const usable = segments
+    .map((segment) => segment.narration.trim())
+    .filter((text) =>
+      text.length > 0 &&
+      !/^the rest of this setup completes the figure\.?$/i.test(text) &&
+      !/^next comes scene\.?$/i.test(text),
+    );
+  const primary = [...usable].sort((left, right) => right.length - left.length)[0]
+    ?? "Here is the setup from the question.";
+  const extras = usable.filter((text) => text !== primary && !primary.includes(text));
+  const narration = [primary, ...extras].join(" ");
+  return [{
+    narration,
+    command: commands[0] ?? null,
+    commands,
+    verifiedDiagramIntro: true,
+  }];
 }
 
 type RevealPhase = "structure" | "direction" | "detail";
 
 const REVEAL_PHASES: RevealPhase[] = ["structure", "direction", "detail"];
-const MAX_COMMANDS_PER_SEGMENT = 7;
-const MAX_DETAIL_COMMANDS_PER_SEGMENT = 4;
+const MAX_COMMANDS_PER_GROUP = 14;
+const MAX_DETAIL_COMMANDS_PER_SEGMENT = 8;
 const MAX_TRACE_COMMANDS_PER_SEGMENT = 4;
 const LABEL_MIN_X = DIAGRAM_ZONE.x + 10;
 const LABEL_MAX_X = DIAGRAM_ZONE.x + DIAGRAM_ZONE.width - 10;
@@ -262,6 +287,40 @@ function ensureSpokenSentence(text: string): string {
   return /[.!?]$/.test(cleaned) ? cleaned : `${cleaned}.`;
 }
 
+function groupRevealNarration({
+  cue,
+  drawCommands,
+  groupIndex,
+  chunkIndex,
+  groupCount,
+  rolesByEntityId,
+}: {
+  cue: string;
+  drawCommands: DrawCommand[];
+  groupIndex: number;
+  chunkIndex: number;
+  groupCount: number;
+  rolesByEntityId: ReadonlyMap<string, string>;
+}): string {
+  if (chunkIndex > 0) {
+    return "The rest of this setup completes the figure.";
+  }
+  const hasLabels = drawCommands.some((command) =>
+    command.type === "LABEL" || command.type === "DIMENSION",
+  );
+  if (hasLabels) {
+    return detailNarration(drawCommands, cue, rolesByEntityId);
+  }
+  return revealNarration({
+    cue,
+    phase: "structure",
+    groupIndex,
+    phaseIndex: 0,
+    chunkIndex: 0,
+    groupCount,
+  });
+}
+
 function revealNarration({
   cue,
   phase,
@@ -304,14 +363,20 @@ function revealNarration({
     : `Next comes ${subject}.`;
 }
 
-function detailNarration(commands: DrawCommand[], cue: string): string {
-  const names = [...new Set(commands
+function detailNarration(
+  commands: DrawCommand[],
+  cue: string,
+  rolesByEntityId: ReadonlyMap<string, string>,
+): string {
+  const named = [...new Map(commands
     .filter((command) => command.type === "LABEL" || command.type === "DIMENSION")
-    .map((command) => command.text?.trim())
-    .filter((text): text is string => Boolean(text)))]
-    .slice(0, MAX_DETAIL_COMMANDS_PER_SEGMENT);
+    .flatMap((command) => {
+      const text = command.text?.trim();
+      if (!text) return [];
+      return [[text, pointMeaning(rolesByEntityId.get(command.semanticRef?.entityId ?? ""), text)] as const];
+    }))].slice(0, MAX_DETAIL_COMMANDS_PER_SEGMENT);
 
-  if (names.length === 0) {
+  if (named.length === 0) {
     return revealNarration({
       cue,
       phase: "detail",
@@ -322,12 +387,32 @@ function detailNarration(commands: DrawCommand[], cue: string): string {
     });
   }
 
+  const identified = named.filter(([, meaning]) => Boolean(meaning));
+  if (identified.length === named.length && identified.length > 0) {
+    const clauses = identified.map(([label, meaning]) => `${label} is the ${meaning}`);
+    return clauses.length === 1
+      ? `${clauses[0]}.`
+      : `${clauses.slice(0, -1).join(", ")}, and ${clauses.at(-1)}.`;
+  }
+
+  const names = named.map(([label]) => label);
   const spokenNames = names.length === 1
     ? names[0]
     : `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
   return names.length === 1
     ? `The label ${spokenNames} identifies this part of the figure.`
     : `The labels ${spokenNames} identify these parts of the figure.`;
+}
+
+function pointMeaning(role: string | undefined, label: string): string | null {
+  const semantic = `${label} ${role ?? ""}`.toLowerCase();
+  if (/\bimage\b/.test(semantic)) return "image";
+  if (/\bobject\b/.test(semantic)) return "object";
+  if (/\bfoc(?:us|al point)\b/.test(semantic)) return "focus";
+  if (/\bcurvature\b/.test(semantic)) return "centre of curvature";
+  if (/\bpole\b/.test(semantic)) return "pole";
+  if (/\bvertex\b/.test(semantic)) return "vertex";
+  return null;
 }
 
 function focusNarration(intent: string, targetId: string, chunkIndex = 0): string {
@@ -361,6 +446,19 @@ function traceCommandsForPrimitive(
   primitive: RenderPrimitive,
   actionId: string,
 ): VerifiedDiagramCommand[] {
+  const point = primitive.kind === "point" ? primitive.points[0] : undefined;
+  if (point) {
+    return [{
+      type: "DRAW_CIRCLE",
+      params: [point.x, point.y, 14],
+      visualStyle: { strokeRole: "trace", strokeWidth: 1.25 },
+      semanticRef: {
+        entityId: primitive.entityId,
+        primitiveId: primitive.id,
+        actionId,
+      },
+    }];
+  }
   const traceableTypes = new Set<VerifiedDiagramCommand["type"]>([
     "DRAW_CUBOID",
     "DRAW_CUBE",
@@ -368,6 +466,7 @@ function traceCommandsForPrimitive(
     "DRAW_CIRCLE",
     "DRAW_ARC",
     "DRAW_LINE",
+    "DRAW_POINT",
     "ARROW",
   ]);
   return primitiveCommands(primitive, { keys: new Set(), rects: [] }, true)
