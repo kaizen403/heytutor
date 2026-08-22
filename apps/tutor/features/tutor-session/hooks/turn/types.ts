@@ -74,6 +74,8 @@ export type UseTurnLifecycleParams = {
   segmentPlanStatsRef: RefObject<SegmentPlanStats>;
   stopTurnRef: RefObject<(() => void) | null>;
   speedRef: RefObject<number>;
+  /** Prefer Fireworks Fast routers when configured. Default on. */
+  fastModeRef: RefObject<boolean>;
   /** Live count of segments enqueued but not yet finished — drives adaptive speed. */
   pendingSegmentCountRef: RefObject<number>;
   /** Narration density (chars per ms) of the current segment — drives adaptive speed. */
@@ -146,6 +148,7 @@ export type TurnControlApi = {
     introSegments?: TutorSegment[],
     liveEnqueued?: boolean,
     turnGeneration?: number,
+    givenSegments?: TutorSegment[],
   ) => Promise<void>;
   stopTurn: () => void;
   pauseTurn: () => void;

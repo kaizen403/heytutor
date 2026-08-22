@@ -24,11 +24,11 @@ export function roundUsd(value: number): number {
 }
 
 function fireworksInputUsdPer1M(): number {
-  return readEnvNumber("FIREWORKS_INPUT_USD_PER_1M", 0.95);
+  return readEnvNumber("FIREWORKS_INPUT_USD_PER_1M", 0.22);
 }
 
 function fireworksOutputUsdPer1M(): number {
-  return readEnvNumber("FIREWORKS_OUTPUT_USD_PER_1M", 4);
+  return readEnvNumber("FIREWORKS_OUTPUT_USD_PER_1M", 0.66);
 }
 
 function elevenLabsUsdPer1kChars(): number {

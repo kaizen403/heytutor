@@ -13,6 +13,7 @@ import {
 } from "@heytutor/tutor-core";
 import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { buildLocalStoredTurn } from "@/lib/replay/replayTurns";
+import { nextQuestionBoardPath } from "@/features/tutor-session/lib/lessonFollowUp";
 import type { BoardEntry } from "@/lib/boards/types";
 import {
   createBoard,
@@ -140,22 +141,36 @@ export function useBoardSession({
     });
   }, []);
 
-  const createNewBoard = useCallback(() => {
-    void (async () => {
+  const openBoard = useCallback(
+    async (question = "") => {
       const unused = boards.find(
         (b) => b.title === "new board" && !b.preview,
       );
       if (unused) {
-        if (unused.id === sessionId) return;
-        router.push(`/c/${unused.id}`);
-        return;
+        if (unused.id === sessionId && !question.trim()) return;
+        if (unused.id !== sessionId) {
+          router.push(nextQuestionBoardPath(unused.id, question));
+          return;
+        }
       }
       const board = await createBoard();
       if (!board) return;
       setBoards((prev) => [board, ...prev.filter((b) => b.id !== board.id)]);
-      router.push(`/c/${board.id}`);
-    })();
-  }, [boards, sessionId, router]);
+      router.push(nextQuestionBoardPath(board.id, question));
+    },
+    [boards, sessionId, router],
+  );
+
+  const createNewBoard = useCallback(() => {
+    void openBoard();
+  }, [openBoard]);
+
+  const startNextQuestion = useCallback(
+    (question: string) => {
+      void openBoard(question);
+    },
+    [openBoard],
+  );
 
   const switchBoard = useCallback(
     (id: string) => {
@@ -417,6 +432,7 @@ export function useBoardSession({
     inputInteracted,
     setInputInteracted,
     createNewBoard,
+    startNextQuestion,
     switchBoard,
     deleteBoard,
     ensureTTSClient,

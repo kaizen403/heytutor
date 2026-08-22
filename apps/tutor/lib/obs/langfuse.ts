@@ -5,6 +5,7 @@ import {
   type LangfuseSpanClient,
   type LangfuseTraceClient,
 } from "langfuse";
+import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
 import {
   calculateLlmCostDetails,
   calculateTtsCostDetails,
@@ -106,7 +107,7 @@ export function startTurnTrace({
   }
 
   const serverModel =
-    model ?? process.env.FIREWORKS_MODEL ?? "accounts/fireworks/models/kimi-k2p6";
+    model ?? resolveFireworksModel();
 
   const trace = lf.trace({
     id: traceId,

@@ -8,9 +8,11 @@ import {
 } from "@heytutor/drawing";
 import {
   catchUpWriteScheduleOffsets,
+  leadWriteScheduleToSpeech,
   getBestWriteCharScheduleMs,
   getCommandDrawDurationMs,
   getCommandSpeechWindow,
+  resolveLiveAudioPositionMs,
   validateAudioTimingsForNarration,
   tutorDebug,
   mathToSpeech,
@@ -87,6 +89,14 @@ export function useSegmentRunner({
       const previousText = allSegments[index - 1]?.narration;
       const nextText = allSegments[index + 1]?.narration;
       const narration = segment.narration.trim();
+      if (nextText?.trim()) {
+        tts.prefetchSegment?.(nextText, {
+          previousText: narration,
+          nextText: allSegments[index + 2]?.narration,
+          traceId: currentTraceIdRef.current ?? undefined,
+          sessionId: sessionId ?? undefined,
+        });
+      }
 
       if (!narration && !segment.command) {
         tutorDebug("segment", "skipped empty segment", { index });
@@ -177,27 +187,23 @@ export function useSegmentRunner({
         return audioStartedFlag;
       };
 
-      let maxAudioPositionMs = -Infinity;
-      const wallClockMs = (): number =>
-        audioStartedAtMs === null ? 0 : performance.now() - audioStartedAtMs;
+      let maxAudioPositionMs = Number.NEGATIVE_INFINITY;
       const liveAudioPositionMs = (): number => {
-        if (speechComplete) {
-          const durationMs =
+        const resolved = resolveLiveAudioPositionMs({
+          speechComplete,
+          capturedDurationMs:
             capturedDurationMs ??
             (capturedTimings?.totalDuration
               ? Math.round(capturedTimings.totalDuration * 1000)
-              : estimateSpeechMs);
-          const endPosition = durationMs + 40;
-          maxAudioPositionMs = Math.max(maxAudioPositionMs, endPosition);
-          return endPosition;
-        }
-
-        const position = tts.getPlaybackPositionMs();
-        if (position === null || position + 50 < maxAudioPositionMs) {
-          return audioStartedAtMs === null ? -1 : Math.max(maxAudioPositionMs, wallClockMs());
-        }
-        maxAudioPositionMs = Math.max(maxAudioPositionMs, position);
-        return position;
+              : null),
+          estimateSpeechMs,
+          playbackPositionMs: tts.getPlaybackPositionMs(),
+          audioStartedAtMs,
+          nowMs: performance.now(),
+          maxAudioPositionMs,
+        });
+        maxAudioPositionMs = resolved.maxAudioPositionMs;
+        return resolved.positionMs;
       };
 
       const waitForInitialTimings = (timeoutMs = 40): Promise<AudioTimings | null> => {
@@ -265,6 +271,12 @@ export function useSegmentRunner({
             if (isCancelled()) {
               return;
             }
+            // HTTP/WS often start after this wait. A provisional clock lets
+            // estimated writing begin instead of hanging at position -1 until
+            // the sentence ends.
+            if (audioStartedAtMs === null) {
+              audioStartedAtMs = performance.now();
+            }
             if (audioStartedFlag) {
               await waitForInitialTimings(40);
               if (isCancelled()) {
@@ -309,8 +321,13 @@ export function useSegmentRunner({
             if (writeSchedule && writeSchedule.offsetsMs.length > 0) {
               const audioPosAtScheduleMs = Math.round(liveAudioPositionMs());
               const firstOffsetMs = writeSchedule.offsetsMs[0] ?? 0;
+              // #region agent log
+              if (textCommandIndex === 0) {
+                fetch('http://127.0.0.1:7280/ingest/352483c0-a316-40d0-8703-e595b34ba80f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e9a5f5'},body:JSON.stringify({sessionId:'e9a5f5',runId:'pre-fix',hypothesisId:'H5',location:'useSegmentRunner.ts:writeSchedule',message:'write clock at first text',data:{index,audioPosAtScheduleMs,firstOffsetMs,elapsedAtCommandStart:Math.round(elapsedAtCommandStart),audioStartedFlag,hasCapturedTimings:Boolean(capturedTimings),scheduleSource:writeSchedule.source??null,intro:segment.verifiedDiagramIntro===true,preview:narration.slice(0,50)},timestamp:Date.now()})}).catch(()=>{});
+              }
+              // #endregion
               const effectiveOffsets = catchUpWriteScheduleOffsets(
-                writeSchedule.offsetsMs,
+                leadWriteScheduleToSpeech(writeSchedule.offsetsMs, audioPosAtScheduleMs),
                 audioPosAtScheduleMs,
               );
 
@@ -379,7 +396,7 @@ export function useSegmentRunner({
               hasNarration && (capturedTimings ?? audioTimings)
                 ? getCommandSpeechWindow(narration, command, capturedTimings ?? audioTimings, textCommandIndex)
                 : null;
-            const startDelayMs = speechWindow
+            const startDelayMs = speechWindow && segment.verifiedDiagramIntro !== true
               ? Math.min(
                   Math.max(Math.round(speechWindow.startMs - elapsedAtCommandStart), 0),
                   // Allow waiting for the spoken cue; a 400ms cap made shapes appear
@@ -395,17 +412,18 @@ export function useSegmentRunner({
               }
             }
 
+            const introMany = segment.verifiedDiagramIntro === true && segmentCommands.length > 8;
             const commandBudgetMs =
               segment.verifiedDiagramIntro === true
                 ? hasNarration
-                  ? // Keep every intro command proportional to speech so ink does not
-                    // outrun (or trail) the spoken beat after FOCUS traces.
+                  ? // Fit the whole intro batch into the spoken window so leftover
+                    // ink cannot hold the next sentence and break the voice.
                     Math.min(
                       Math.max(
                         commandSpeechMs,
-                        command.type === "FOCUS" ? 420 : command.type === "DRAW_POINT" ? 160 : 280,
+                        command.type === "FOCUS" ? (introMany ? 160 : 360) : command.type === "DRAW_POINT" ? 80 : 100,
                       ),
-                      command.type === "FOCUS" ? 1_200 : 900,
+                      command.type === "FOCUS" ? (introMany ? 280 : 1_200) : introMany ? 220 : 900,
                     )
                   : isTextCommand
                     ? 260

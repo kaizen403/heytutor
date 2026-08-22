@@ -12,6 +12,8 @@ import {
   TUTOR_CONTINUATION_PROMPT,
   CONCEPT_LESSON_RUNTIME_ADDON,
   isConceptLessonQuestion,
+  buildGivenValueSegments,
+  givenValuesPromptAddon,
   tutorDebug,
   resolveApiUrl,
   planSceneDocumentWithRepair,
@@ -67,7 +69,6 @@ import {
   PROBLEM_AUTHORITY_DEADLINE_MS,
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
-  shouldBlockLessonForDiagram,
 } from "../../lib/diagramGenerationV3";
 import {
   findVerifiedSceneRecovery,
@@ -162,6 +163,7 @@ export function useQuestionHandler(
     boardLayoutRef,
     turnTelemetryRef,
     speedRef,
+    fastModeRef,
     storedTurnsRef,
     pendingSegmentCountRef,
     setInputInteracted,
@@ -363,6 +365,7 @@ export function useQuestionHandler(
             sessionId: sessionId ?? undefined,
             signal: abortController.signal,
             timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, SCENE_PLANNER_DEADLINE_MS),
+            fastMode: fastModeRef.current,
           });
           tutorDebug("planner", "found verified scene recovery candidate", {
             source: recoveredScene.source,
@@ -375,6 +378,7 @@ export function useQuestionHandler(
             signal: abortController.signal,
             timeoutMs: TURN_PLAN_DEADLINE_MS,
             conversationContext: recentConversation,
+            fastMode: fastModeRef.current,
           }), isCurrentTurn);
           if (plannedTurn) {
             const remainingAuthorityMs = Math.max(
@@ -386,6 +390,7 @@ export function useQuestionHandler(
               sessionId: sessionId ?? undefined,
               signal: abortController.signal,
               timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, remainingAuthorityMs),
+              fastMode: fastModeRef.current,
             });
           }
           const remainingAuditMs = Math.max(
@@ -398,6 +403,7 @@ export function useQuestionHandler(
                 sessionId: sessionId ?? undefined,
                 signal: abortController.signal,
                 timeoutMs: remainingAuditMs,
+                fastMode: fastModeRef.current,
               }), isCurrentTurn)
             : null;
           turnPlanMs = Date.now() - turnPlanStartedAt;
@@ -575,6 +581,7 @@ export function useQuestionHandler(
             signal: abortController.signal,
             timeoutMs: remainingPlannerMs,
             conversationContext: planContext,
+            fastMode: fastModeRef.current,
             // Any inferred family (FBD, circuit, conic, energy level, …) gets a
             // compact operator catalog; optics is no longer the only match.
             ...(sceneCapabilities.families.length > 0
@@ -690,6 +697,7 @@ export function useQuestionHandler(
             const selected = selectVerifiedRepresentation({
               question,
               turnPlan,
+              families: sceneCapabilities.families,
               exact: value && value.document.visualDecision.mode === "scene"
                 ? {
                     sceneDocument: value.document,
@@ -707,6 +715,9 @@ export function useQuestionHandler(
             representationTier = selected.tier;
             representationNonMetric = selected.nonMetric;
             representationReason = selected.reason;
+            // #region agent log
+            fetch('http://127.0.0.1:7280/ingest/352483c0-a316-40d0-8703-e595b34ba80f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e9a5f5'},body:JSON.stringify({sessionId:'e9a5f5',runId:'pre-fix',hypothesisId:'H1',location:'useQuestionHandler.ts:selectVerifiedRepresentation',message:'scene selected',data:{tier:selected.tier,reason:selected.reason,families:sceneCapabilities.families,exactProvided:Boolean(value&&value.document.visualDecision.mode==='scene'),operators:selected.sceneDocument.constructions.map((c)=>c.operator),assertionSeverities:selected.sceneDocument.assertions.map((a)=>({id:a.id,predicate:a.predicate,severity:a.severity,entities:a.entities})),guessedPoints:selected.sceneDocument.constructions.filter((c)=>c.operator==='point').map((c)=>({id:c.id,outputs:c.outputs,x:c.inputs.x,y:c.inputs.y})),solidProjection:selected.sceneDocument.constructions.filter((c)=>c.operator==='solid_projection').map((c)=>({id:c.id,kind:c.inputs.kind,center:c.inputs.center,radius:c.inputs.radius,height:c.inputs.height,axis:c.inputs.axis})),issueSeverities:selected.validationReport.issues.map((i)=>({code:i.code,severity:i.severity})).slice(0,20)},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             if (selected.tier === "exact_verified" && turnPlan) {
               rememberVerifiedScene(question, selected.sceneDocument, turnPlan);
             }
@@ -870,55 +881,11 @@ export function useQuestionHandler(
         return;
       }
 
-      if (
-        sceneVisualStatus === "retry_required" &&
-        shouldBlockLessonForDiagram("retry_required")
-      ) {
-        tel.mark("diagram-retry-required", {
+      if (sceneVisualStatus === "retry_required") {
+        tel.mark("diagram-unverified-continue", {
           latency_ms: plannerLatencyMs,
           issue_codes: sceneV2Report?.issues.map((issue) => issue.code) ?? [],
         });
-        setLastError({
-          message: "The required diagram could not be verified. Retry to try again — no partial diagram was shown.",
-          question,
-        });
-        const currentId = sessionId;
-        let requiredAttemptPersisted = false;
-        if (currentId && sceneArtifacts) {
-          const savedTurn = await awaitCurrentTurn(saveTurn(currentId, {
-            question,
-            rawResponse: "",
-            speedMultiplier: speedRef.current,
-            traceId: currentTraceIdRef.current,
-            sceneDocument: sceneV2Document,
-            sceneEngineVersion: SCENE_ENGINE_VERSION,
-            validationReport: sceneV2Report,
-            visualStatus: "retry_required",
-            sceneArtifacts,
-            segments: [],
-          }).catch(() => null), isCurrentTurn);
-          if (savedTurn) {
-            requiredAttemptPersisted = true;
-            storedTurnsRef.current = [...storedTurnsRef.current, savedTurn];
-            setStoredTurnsCount(storedTurnsRef.current.length);
-            setBoards((previous) => previous.map((board) =>
-              board.id === currentId ? { ...board, preview: question.slice(0, 60) } : board,
-            ));
-          }
-        }
-        if (turnAbortRef.current === abortController) turnAbortRef.current = null;
-        endThinking({ phase: "diagram_retry_required" });
-        endWsConnect({ ok: false, reason: "diagram_retry_required" });
-        tel.meta({
-          total_duration_ms: tel.durationMs(),
-          diagram_result_status: "retry_required",
-          narration_started: false,
-          persisted: requiredAttemptPersisted,
-        });
-        if (turnTelemetryRef.current === tel) turnTelemetryRef.current = null;
-        void tel.flush();
-        finishLectureUi(turnGeneration);
-        return;
       }
 
       const diagramPromptAddon = activeDiagram?.promptAddon ??
@@ -942,7 +909,9 @@ ${JSON.stringify({
 Use exactly these solver-verified values and formulation inputs. Do not independently replace or contradict them.
 ${JSON.stringify(problemAuthority.projection)}`
         : "";
+      const givenSegments = buildGivenValueSegments(question, turnPlan);
       const runtimePromptAddon = [
+        givenValuesPromptAddon(givenSegments.length > 0),
         diagramPromptAddon,
         turnPlanPromptAddon,
         solverPromptAddon,
@@ -1003,6 +972,9 @@ ${JSON.stringify(problemAuthority.projection)}`
       }
 
       if (STREAM_SEGMENTS_LIVE) {
+        for (const segment of givenSegments) {
+          enqueueSegment(segment, turnGeneration);
+        }
         enqueueVerifiedIntro(introSegments, turnGeneration);
       }
 
@@ -1079,6 +1051,7 @@ ${JSON.stringify(problemAuthority.projection)}`
                   turnPlan.lawIds.length > 0
                 )
               ),
+              fastMode: fastModeRef.current,
               signal: abortController.signal,
               onTraceId: (id) => {
                 currentTraceIdRef.current = id;
@@ -1211,6 +1184,7 @@ ${JSON.stringify(problemAuthority.projection)}`
           introSegments,
           STREAM_SEGMENTS_LIVE,
           turnGeneration,
+          givenSegments,
         ), isCurrentTurn);
 
         const finalNarration =
@@ -1400,6 +1374,7 @@ ${JSON.stringify(problemAuthority.projection)}`
       turnTelemetryRef,
       conversationHistoryRef,
       speedRef,
+      fastModeRef,
       storedTurnsRef,
       pendingSegmentCountRef,
       setStoredTurnsCount,

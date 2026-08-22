@@ -7,6 +7,7 @@ import {
   Mic2,
   Captions,
   PenLine,
+  Zap,
 } from "lucide-react";
 
 import {
@@ -33,6 +34,7 @@ export type MarkerColorId = (typeof MARKER_COLORS)[number]["id"];
 
 export interface SettingsState {
   speedMultiplier: number;
+  fastMode: boolean;
   audioLanguage: "english" | "hindi";
   accent: "uk" | "us" | "india";
   subtitlesEnabled: boolean;
@@ -52,11 +54,11 @@ const SPEED_MAX = 3;
 const SPEED_STEP = 0.25;
 
 const theme = {
-  darkest: "#E6EDF3",
-  dark: "#8B949E",
-  sage: "#58A6FF",
-  mint: "#161B22",
-  border: "#30363D",
+  darkest: "#F2F2F4",
+  dark: "#A6A6AE",
+  sage: "#C9C9D2",
+  mint: "#151517",
+  border: "#2E2E33",
   borderSubtle: "rgba(48, 54, 61, 0.9)",
 } as const;
 
@@ -67,7 +69,7 @@ function SettingsSection({
 }) {
   return (
     <section
-      className="rounded-xl border bg-[#161B22] px-4 py-3.5 shadow-sm"
+      className="rounded-xl border bg-[#151517] px-4 py-3.5 shadow-sm"
       style={{ borderColor: theme.border }}
     >
       {children}
@@ -135,8 +137,8 @@ function SelectPill({
       className={cn(
         "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
         checked
-          ? "border-[#58A6FF] bg-[rgba(88,166,255,0.12)] text-[#58A6FF] shadow-sm"
-          : "border-[#30363D] text-[#E6EDF3] hover:border-[#58A6FF] hover:shadow-sm",
+          ? "border-[#C9C9D2] bg-[rgba(201,201,210,0.12)] text-[#C9C9D2] shadow-sm"
+          : "border-[#2E2E33] text-[#F2F2F4] hover:border-[#C9C9D2] hover:shadow-sm",
         disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
       )}
     >
@@ -171,11 +173,30 @@ export function SettingsDrawer({
             Settings
           </SheetTitle>
           <SheetDescription className="text-xs" style={{ color: theme.sage }}>
-            Playback, audio, and board preferences
+            Playback, model, audio, and board preferences
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex flex-col gap-3 overflow-y-auto px-5 pb-6 pt-1">
+          <SettingsSection>
+            <SectionLabel icon={Zap}>Fast mode</SectionLabel>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="block text-xs font-medium" style={{ color: theme.darkest }}>
+                  Prefer the faster DeepSeek path
+                </span>
+                <span className="mt-1 block text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
+                  On by default. Uses your server model. Set a Fast model in ENV only if you want a different one.
+                </span>
+              </div>
+              <Switch
+                checked={settings.fastMode}
+                onCheckedChange={(checked) => update({ fastMode: checked })}
+                className="data-[state=checked]:bg-[#C9C9D2] data-[state=unchecked]:bg-[#2E2E33]"
+              />
+            </div>
+          </SettingsSection>
+
           <SettingsSection>
             <SectionLabel icon={Gauge}>Playback Speed</SectionLabel>
             <div className="flex h-8 items-center gap-3">
@@ -188,7 +209,7 @@ export function SettingsDrawer({
                 onChange={(event) =>
                   update({ speedMultiplier: Number(event.target.value) })
                 }
-                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-[#58A6FF]"
+                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-[#C9C9D2]"
                 style={{ backgroundColor: theme.borderSubtle }}
               />
               <span
@@ -252,7 +273,7 @@ export function SettingsDrawer({
                 onCheckedChange={(checked) =>
                   update({ subtitlesEnabled: checked })
                 }
-                className="data-[state=checked]:bg-[#58A6FF] data-[state=unchecked]:bg-[#30363D]"
+                className="data-[state=checked]:bg-[#C9C9D2] data-[state=unchecked]:bg-[#2E2E33]"
               />
             </div>
           </SettingsSection>
@@ -272,8 +293,8 @@ export function SettingsDrawer({
                     className={[
                       "h-8 w-8 rounded-full transition-all",
                       selected
-                        ? "scale-105 ring-2 ring-[#58A6FF] ring-offset-2 ring-offset-[#161B22]"
-                        : "ring-1 ring-[#30363D] hover:scale-105",
+                        ? "scale-105 ring-2 ring-[#C9C9D2] ring-offset-2 ring-offset-[#151517]"
+                        : "ring-1 ring-[#2E2E33] hover:scale-105",
                     ].join(" ")}
                     style={{ backgroundColor: color }}
                   />

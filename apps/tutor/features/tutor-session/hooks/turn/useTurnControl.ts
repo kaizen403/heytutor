@@ -21,6 +21,7 @@ export function useTurnControl(
   handleQuestionRef: RefObject<(question: string) => Promise<void>>,
 ): TurnControlApi {
   const {
+    sessionId,
     searchParams,
     phase,
     isReplaying,
@@ -31,6 +32,8 @@ export function useTurnControl(
     phaseRef,
     isPausedRef,
     ttsClientRef,
+    ensureTTSClient,
+    currentTraceIdRef,
     replayAudioRef,
     replayAudioPreloadRef,
     cancelRef,
@@ -121,6 +124,15 @@ export function useTurnControl(
         command_type: segmentToRun.command?.type ?? null,
       });
 
+      if (segmentToRun.narration.trim()) {
+        ensureTTSClient().prefetchSegment?.(segmentToRun.narration, {
+          previousText: collectedSegmentsRef.current[index - 1]?.narration,
+          nextText: undefined,
+          traceId: currentTraceIdRef.current ?? undefined,
+          sessionId: sessionId ?? undefined,
+        });
+      }
+
       segmentChainRef.current = segmentChainRef.current.then(async () => {
         if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
           pendingSegmentCountRef.current = Math.max(pendingSegmentCountRef.current - 1, 0);
@@ -152,6 +164,9 @@ export function useTurnControl(
       cancelRef,
       turnGenerationRef,
       pendingSegmentCountRef,
+      ensureTTSClient,
+      currentTraceIdRef,
+      sessionId,
     ],
   );
 
@@ -171,6 +186,16 @@ export function useTurnControl(
       const startIndex = collectedSegmentsRef.current.length;
       collectedSegmentsRef.current.push(...normalized);
       pendingSegmentCountRef.current += normalized.length;
+      const tts = ensureTTSClient();
+      normalized.forEach((segment, offset) => {
+        if (!segment.narration.trim()) return;
+        tts.prefetchSegment?.(segment.narration, {
+          previousText: normalized[offset - 1]?.narration ?? collectedSegmentsRef.current[startIndex - 1]?.narration,
+          nextText: normalized[offset + 1]?.narration,
+          traceId: currentTraceIdRef.current ?? undefined,
+          sessionId: sessionId ?? undefined,
+        });
+      });
 
       segmentChainRef.current = segmentChainRef.current.then(async () => {
         const wb = whiteboardRef.current;
@@ -236,6 +261,9 @@ export function useTurnControl(
       turnAbortRef,
       turnGenerationRef,
       whiteboardRef,
+      ensureTTSClient,
+      currentTraceIdRef,
+      sessionId,
     ],
   );
 
@@ -245,6 +273,7 @@ export function useTurnControl(
       introSegments: TutorSegment[] = [],
       liveEnqueued = false,
       turnGeneration = turnGenerationRef.current,
+      givenSegments: TutorSegment[] = [],
     ) => {
       if (turnGeneration !== turnGenerationRef.current) {
         return;
@@ -262,7 +291,7 @@ export function useTurnControl(
       const rawLlmSegments = buildLessonSegments(responseText);
       const preparedLlmSegments = prepareVerifiedLessonSegments(rawLlmSegments, activeDiagram);
       const llmSegments = preparedLlmSegments.segments;
-      const segments = [...introSegments, ...llmSegments];
+      const segments = [...givenSegments, ...introSegments, ...llmSegments];
 
       segmentPlanStatsRef.current = {
         activeDiagramId: activeDiagram?.id ?? null,
@@ -278,6 +307,7 @@ export function useTurnControl(
         active_diagram_id: activeDiagram?.id ?? null,
         active_diagram_name: activeDiagram?.name ?? null,
         planned_segment_count: segments.length,
+        given_segment_count: givenSegments.length,
         intro_segment_count: introSegments.length,
         raw_llm_segment_count: rawLlmSegments.length,
         llm_segment_count: llmSegments.length,
@@ -306,6 +336,7 @@ export function useTurnControl(
         }
         setNarrationText(
           [
+            ...givenSegments.map((segment) => segment.narration).filter(Boolean),
             ...introSegments.map((segment) => segment.narration).filter(Boolean),
             lessonNarrationText(responseText),
           ].join(" "),
@@ -322,6 +353,9 @@ export function useTurnControl(
       segmentChainRef.current = Promise.resolve();
       drawChainRef.current = Promise.resolve();
 
+      for (const segment of givenSegments) {
+        enqueueSegment(segment, turnGeneration);
+      }
       enqueueVerifiedIntro(introSegments, turnGeneration);
       for (const segment of llmSegments) {
         enqueueSegment(segment, turnGeneration);
@@ -336,6 +370,7 @@ export function useTurnControl(
       }
       setNarrationText(
         [
+          ...givenSegments.map((segment) => segment.narration).filter(Boolean),
           ...introSegments.map((segment) => segment.narration).filter(Boolean),
           lessonNarrationText(responseText),
         ].join(" "),

@@ -1,6 +1,7 @@
 import { getMockResponse } from "@heytutor/tutor-core";
 import { tutorDebug } from "@heytutor/tutor-core";
 import {
+  parseFastModeHeader,
   parseReasoningMode,
   type ReasoningEffort,
 } from "@heytutor/tutor-core";
@@ -432,6 +433,7 @@ interface PlannerRequestArgs {
   problemIRV1: boolean;
   plannerPhase: "plan" | "repair";
   plannerLane: "primary" | "alternate";
+  fastMode: boolean;
   deadlineMs: number;
   signal: AbortSignal;
 }
@@ -447,6 +449,7 @@ async function handlePlannerRequest({
   problemIRV1,
   plannerPhase,
   plannerLane,
+  fastMode,
   deadlineMs,
   signal,
 }: PlannerRequestArgs): Promise<Response> {
@@ -456,6 +459,7 @@ async function handlePlannerRequest({
     problemIRV1,
     plannerPhase,
     plannerLane,
+    fastMode,
   });
 
   const deadlineController = new AbortController();
@@ -478,8 +482,8 @@ async function handlePlannerRequest({
         problemIRV1,
         plannerPhase,
         plannerLane,
+        fastMode,
       });
-      parsed.service_tier = "priority";
     } else {
       parsed.thinking = { type: "enabled", budget_tokens: 2048 };
       parsed.max_tokens = 4000;
@@ -544,6 +548,33 @@ async function handlePlannerRequest({
       };
       const content = parsedResponse.choices?.[0]?.message?.content ?? "";
       const reasoning = parsedResponse.choices?.[0]?.message?.reasoning_content ?? "";
+      // #region agent log
+      if (semanticSceneV2 && !turnPlanV3 && !problemIRV1) {
+        try {
+          const parsedScene = JSON.parse(content) as {
+            constructions?: Array<{ operator?: string; inputs?: Record<string, unknown> }>;
+            assertions?: Array<{ id?: string; predicate?: string; severity?: string; entities?: string[] }>;
+          };
+          const { appendFileSync } = await import("node:fs");
+          appendFileSync("/Users/kaizen/heytutor/.cursor/debug-e9a5f5.log", `${JSON.stringify({
+            sessionId: "e9a5f5",
+            runId: "post-fix",
+            hypothesisId: "H1",
+            location: "chat/route.ts:planner",
+            message: "scene planner output",
+            data: {
+              plannerLane,
+              operators: (parsedScene.constructions ?? []).map((c) => c.operator ?? ""),
+              assertionSeverities: parsedScene.assertions ?? [],
+              hasSolidProjection: (parsedScene.constructions ?? []).some((c) => c.operator === "solid_projection"),
+            },
+            timestamp: Date.now(),
+          })}\n`);
+        } catch {
+          // ignore malformed planner JSON in debug capture
+        }
+      }
+      // #endregion
       endLlmGeneration(turnTrace, {
         output: content,
         usageDetails: buildUsageDetails(parsedResponse.usage as FireworksUsage | undefined),
@@ -660,6 +691,7 @@ export async function POST(request: Request): Promise<Response> {
           ? request.headers.get("x-turn-planner-lane")
           : request.headers.get("x-scene-planner-lane")
       ) === "alternate" ? "alternate" : "primary",
+      fastMode: parseFastModeHeader(request.headers.get("x-heytutor-fast-mode")),
       deadlineMs: Math.min(
         60_000,
         Math.max(
@@ -671,7 +703,8 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  const serverModel = resolveTeachingModel();
+  const fastMode = parseFastModeHeader(request.headers.get("x-heytutor-fast-mode"));
+  const serverModel = resolveTeachingModel(process.env, { fastMode });
   const reasoningMode = parseReasoningMode(process.env.TUTOR_REASONING_MODE);
   const hasAuthoritativePlan =
     request.headers.get("x-heytutor-teaching-pass") === "planned";

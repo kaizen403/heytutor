@@ -810,6 +810,16 @@ function verifiedCommandTracePath(
         y: y! + radius! * Math.sin(startRadians),
       };
     }
+    case "DRAW_POINT": {
+      const [x, y, radius = 5] = params;
+      if (![x, y].every(Number.isFinite)) return null;
+      const mark = Math.max(radius, 10);
+      return {
+        path: emphasisEllipsePath(x! - mark, y! - mark, mark * 2, mark * 2),
+        x: x!,
+        y: y!,
+      };
+    }
     case "DRAW_LINE": {
       if (params.length >= 7 && params.at(-1) === 2) {
         const points = params.slice(0, -1);

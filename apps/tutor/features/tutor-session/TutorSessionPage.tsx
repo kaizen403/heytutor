@@ -39,6 +39,7 @@ import {
 } from "./constants";
 import type { TutorPhase, SegmentPlanStats } from "./types";
 import { createEmptySegmentPlanStats } from "./lib/segmentPlanning";
+import { lessonFollowUpMode } from "./lib/lessonFollowUp";
 import { resolveActiveStatus } from "./lib/statusConfig";
 
 export function TutorSessionPage() {
@@ -82,6 +83,7 @@ export function TutorSessionPage() {
   const narrationDensityRef = useRef(0);
   const [settings, setSettings] = useState<SettingsState>({
     speedMultiplier: 1.5,
+    fastMode: true,
     audioLanguage: "english",
     accent: "us",
     subtitlesEnabled: true,
@@ -89,6 +91,7 @@ export function TutorSessionPage() {
     markerColor: "navy",
   });
   const speedRef = useRef(1.5);
+  const fastModeRef = useRef(true);
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -104,6 +107,24 @@ export function TutorSessionPage() {
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const stored = window.localStorage.getItem("htutor_fast_mode");
+    if (stored === "0") {
+      setSettings((current) => ({ ...current, fastMode: false }));
+      fastModeRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    fastModeRef.current = settings.fastMode;
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("htutor_fast_mode", settings.fastMode ? "1" : "0");
+    }
+  }, [settings.fastMode]);
 
   // Keep AudioContext eligible for audible playback after long planning awaits.
   useEffect(() => {
@@ -178,6 +199,7 @@ export function TutorSessionPage() {
     inputInteracted,
     setInputInteracted,
     createNewBoard,
+    startNextQuestion,
     switchBoard,
     deleteBoard,
     ensureTTSClient,
@@ -260,6 +282,7 @@ export function TutorSessionPage() {
     segmentPlanStatsRef,
     stopTurnRef,
     speedRef,
+    fastModeRef,
     pendingSegmentCountRef,
     narrationDensityRef,
     replayGenerationRef,
@@ -342,7 +365,7 @@ export function TutorSessionPage() {
   const canTranscript = phase === "idle" && narrationText.trim().length > 0 && !isReplaying;
   const canDownload = phase === "idle" && storedTurnsCount > 0 && !isReplaying;
   const isInputOverlay = phase === "idle" && boardLoaded && !inputInteracted;
-  const inputSubmitMode = storedTurnsCount > 0 ? "doubt" : "ask";
+  const inputSubmitMode = lessonFollowUpMode(storedTurnsCount > 0);
   const showBoardLoading = !boardLoaded;
 
   const inputChrome = (
@@ -351,7 +374,7 @@ export function TutorSessionPage() {
       phase={phase}
       isPaused={isPaused}
       inputSubmitMode={inputSubmitMode}
-      onSubmit={handleQuestion}
+      onSubmit={storedTurnsCount > 0 ? startNextQuestion : handleQuestion}
       onAskDoubt={handleAskDoubt}
       onPauseToggle={() => (isPaused ? resumeTurn() : pauseTurn())}
       onCancel={stopTurn}
@@ -447,7 +470,7 @@ export function TutorSessionPage() {
             }}
           >
             {fullBleedLanding && (
-              <div className="absolute inset-0 z-20 flex flex-col overflow-y-auto overscroll-contain rounded-2xl border border-[rgba(240,246,252,0.08)] bg-[#0D1117]">
+              <div className="absolute inset-0 z-20 flex flex-col overflow-y-auto overscroll-contain rounded-2xl border border-[rgba(242,242,244,0.08)] bg-[#0B0B0C]">
                 <div className="flex min-h-full w-full flex-col justify-center px-4 py-6 sm:px-8 sm:py-10">
                   <CanvasLanding
                     suggestions={LANDING_SUGGESTIONS}
@@ -492,7 +515,7 @@ export function TutorSessionPage() {
                   WebkitBackdropFilter: "blur(8px)",
                 }}
               >
-                <p className="text-sm text-[#8B949E]">Loading board…</p>
+                <p className="text-sm text-[#A6A6AE]">Loading board…</p>
               </div>
             )}
 
