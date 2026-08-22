@@ -1,9 +1,13 @@
 "use client";
 
+import { resolveApiUrl } from "@heytutor/tutor-core";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { compressQuestionImage } from "@/features/tutor-session/lib/compressQuestionImage";
+import { LESSON_DONE_PROMPT } from "@/features/tutor-session/lib/lessonFollowUp";
+import { fileFromClipboardData } from "@/features/tutor-session/lib/questionImageInput";
 import { cn } from "@/lib/utils";
 
-export type InputSubmitMode = "ask" | "doubt";
+export type InputSubmitMode = "ask" | "doubt" | "follow-up";
 
 export interface InputBarProps {
   onSubmit: (question: string) => void;
@@ -15,6 +19,7 @@ export interface InputBarProps {
   onPauseToggle?: () => void;
   onCancel?: () => void;
   placeholder?: string;
+  autoFocus?: boolean;
   onUserInteractionChange?: (hasInteracted: boolean) => void;
   compact?: boolean;
 }
@@ -53,7 +58,8 @@ function getSpeechRecognitionCtor():
 }
 
 function submitButtonLabel(mode: InputSubmitMode): string {
-  return mode === "doubt" ? "Ask Doubt" : "Ask";
+  if (mode === "doubt" || mode === "follow-up") return "Ask Doubt";
+  return "Ask";
 }
 
 function submitButtonColors(_mode: InputSubmitMode, inactive: boolean) {
@@ -64,7 +70,7 @@ function submitButtonColors(_mode: InputSubmitMode, inactive: boolean) {
     };
   }
 
-  return { backgroundColor: "#238636", color: "#FFFFFF" };
+  return { backgroundColor: "#6E6E76", color: "#FFFFFF" };
 }
 
 export function InputBar({
@@ -76,14 +82,19 @@ export function InputBar({
   isPaused = false,
   onPauseToggle,
   onCancel,
-  placeholder = "",
+  placeholder = "Ask a question or paste a photo",
+  autoFocus = false,
   onUserInteractionChange,
   compact = false,
 }: InputBarProps) {
   const [question, setQuestion] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractLatencyMs, setExtractLatencyMs] = useState<number | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const extractGenerationRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -92,9 +103,19 @@ export function InputBar({
   }, []);
 
   const trimmed = question.trim();
-  const isDoubt = submitMode === "doubt";
+  const isFollowUp = submitMode === "follow-up";
+  const isDoubt = submitMode === "doubt" || isFollowUp;
   const submitLabel = submitButtonLabel(submitMode);
-  const buttonDisabled = disabled || trimmed.length === 0;
+  const inputLocked = disabled || isExtracting;
+  const buttonDisabled = inputLocked || trimmed.length === 0;
+  const nextQuestionDisabled = inputLocked;
+
+  const finishInput = useCallback(() => {
+    onUserInteractionChange?.(true);
+    setQuestion("");
+    setExtractLatencyMs(null);
+    setExtractError(null);
+  }, [onUserInteractionChange]);
 
   const runSubmit = useCallback(() => {
     if (isDoubt) {
@@ -102,9 +123,14 @@ export function InputBar({
     } else {
       onSubmit(trimmed);
     }
-    onUserInteractionChange?.(true);
-    setQuestion("");
-  }, [isDoubt, onAskDoubt, onSubmit, onUserInteractionChange, trimmed]);
+    finishInput();
+  }, [finishInput, isDoubt, onAskDoubt, onSubmit, trimmed]);
+
+  const runNextQuestion = useCallback(() => {
+    if (nextQuestionDisabled) return;
+    onSubmit(trimmed);
+    finishInput();
+  }, [finishInput, nextQuestionDisabled, onSubmit, trimmed]);
 
   const submitQuestion = useCallback(() => {
     if (buttonDisabled) return;
@@ -120,7 +146,7 @@ export function InputBar({
   );
 
   const toggleListening = useCallback(() => {
-    if (disabled) return;
+    if (inputLocked) return;
 
     const SpeechRecognition = getSpeechRecognitionCtor();
     if (!SpeechRecognition) return;
@@ -155,35 +181,135 @@ export function InputBar({
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
-  }, [disabled, isListening]);
+  }, [inputLocked, isListening]);
 
   const handleImageClick = useCallback(() => {
-    if (disabled) return;
+    if (inputLocked) return;
     fileInputRef.current?.click();
-  }, [disabled]);
+  }, [inputLocked]);
 
-  const handleFileChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (file) {
+  const extractQuestionFromImage = useCallback(
+    async (file: File) => {
+      const generation = extractGenerationRef.current + 1;
+      extractGenerationRef.current = generation;
+      setExtractError(null);
+      setExtractLatencyMs(null);
+      setIsExtracting(true);
+      const startedAt = performance.now();
+      try {
+        const image = await compressQuestionImage(file);
+        const response = await fetch(resolveApiUrl("/api/extract-question"), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ image }),
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          question?: unknown;
+          error?: unknown;
+          latencyMs?: unknown;
+        };
+        if (extractGenerationRef.current !== generation) {
+          return;
+        }
+        if (!response.ok || typeof data.question !== "string") {
+          throw new Error(
+            typeof data.error === "string"
+              ? data.error
+              : "Could not read that image. Try a clearer photo.",
+          );
+        }
         onImageSelect?.(file);
+        setQuestion(data.question);
+        setExtractLatencyMs(
+          typeof data.latencyMs === "number"
+            ? data.latencyMs
+            : Math.round(performance.now() - startedAt),
+        );
+      } catch (error) {
+        if (extractGenerationRef.current !== generation) {
+          return;
+        }
+        setExtractError(
+          error instanceof Error
+            ? error.message
+            : "Could not read that image. Try a clearer photo.",
+        );
+      } finally {
+        if (extractGenerationRef.current === generation) {
+          setIsExtracting(false);
+        }
       }
-      event.target.value = "";
     },
     [onImageSelect],
   );
 
+  const handleFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (file) {
+        void extractQuestionFromImage(file);
+      }
+    },
+    [extractQuestionFromImage],
+  );
+
+  const submitPastedImage = useCallback(
+    (event: { clipboardData: DataTransfer | null; preventDefault(): void }) => {
+      if (inputLocked) return;
+      const file = fileFromClipboardData(event.clipboardData);
+      if (!file) return;
+      event.preventDefault();
+      void extractQuestionFromImage(file);
+    },
+    [extractQuestionFromImage, inputLocked],
+  );
+
+  useEffect(() => {
+    if (inputLocked) return;
+    const onWindowPaste = (event: ClipboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest('[role="dialog"], textarea, input[type="search"]')
+      ) {
+        return;
+      }
+      submitPastedImage(event);
+    };
+    window.addEventListener("paste", onWindowPaste);
+    return () => window.removeEventListener("paste", onWindowPaste);
+  }, [inputLocked, submitPastedImage]);
+
   const submitColors = submitButtonColors(submitMode, buttonDisabled);
 
   return (
-    <div className="flex w-full items-stretch gap-2">
+    <div className="flex w-full flex-col items-stretch gap-1.5">
+      {isFollowUp && !disabled && (
+        <p className="px-3 text-center text-[0.8125rem]" style={{ color: "#A6A6AE" }}>
+          {LESSON_DONE_PROMPT}
+        </p>
+      )}
       <form
         onSubmit={handleSubmit}
+        onDragOver={(event) => {
+          if (inputLocked) return;
+          if ([...event.dataTransfer.types].includes("Files")) {
+            event.preventDefault();
+          }
+        }}
+        onDrop={(event) => {
+          if (inputLocked) return;
+          const file = fileFromClipboardData(event.dataTransfer);
+          if (!file) return;
+          event.preventDefault();
+          void extractQuestionFromImage(file);
+        }}
         className="wb-input-wrap flex min-w-0 flex-1 items-center gap-1.5 px-2.5 py-2"
         style={{
           minHeight: "52px",
-          backgroundColor: "#161B22",
-          border: "1px solid #30363D",
+          backgroundColor: "#151517",
+          border: "1px solid #2E2E33",
           borderRadius: "9999px",
           boxShadow: "0 8px 24px -4px rgba(0, 0, 0, 0.45)",
         }}
@@ -194,7 +320,7 @@ export function InputBar({
           accept="image/*"
           className="hidden"
           onChange={handleFileChange}
-          disabled={disabled}
+          disabled={inputLocked}
           aria-hidden
           tabIndex={-1}
         />
@@ -203,23 +329,35 @@ export function InputBar({
           <button
             type="button"
             onClick={handleImageClick}
-            disabled={disabled}
-            aria-label="Add image"
+            disabled={inputLocked}
+            aria-label="Add question photo"
+            title="Upload or paste a question photo"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40"
-            style={{ color: "#8B949E" }}
+            style={{ color: isExtracting ? "#C9C9D2" : "#A6A6AE" }}
             onMouseEnter={(e) => {
-              if (!disabled) e.currentTarget.style.color = "#E6EDF3";
+              if (!inputLocked) e.currentTarget.style.color = "#F2F2F4";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = "#8B949E";
+              e.currentTarget.style.color = isExtracting ? "#C9C9D2" : "#A6A6AE";
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <rect
+                x="3.5"
+                y="6"
+                width="17"
+                height="13"
+                rx="2.25"
+                stroke="currentColor"
+                strokeWidth="1.75"
+              />
+              <circle cx="8.5" cy="10.25" r="1.35" fill="currentColor" />
               <path
-                d="M12 5v14M5 12h14"
+                d="M7 17.5l4.2-4.4a1.2 1.2 0 0 1 1.7 0L17.5 17.5"
                 stroke="currentColor"
                 strokeWidth="1.75"
                 strokeLinecap="round"
+                strokeLinejoin="round"
               />
             </svg>
           </button>
@@ -228,32 +366,41 @@ export function InputBar({
         <input
           type="text"
           value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          disabled={disabled}
-          placeholder={placeholder}
-          className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-[15px] focus:outline-none disabled:opacity-50 placeholder:text-[#6E7681]"
+          onChange={(event) => {
+            setExtractError(null);
+            setExtractLatencyMs(null);
+            setQuestion(event.target.value);
+          }}
+          disabled={inputLocked}
+          autoFocus={autoFocus}
+          placeholder={
+            isExtracting
+              ? "Reading the question…"
+              : extractError ?? placeholder
+          }
+          className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-[15px] focus:outline-none disabled:opacity-50 placeholder:text-[#717177]"
           autoComplete="off"
           spellCheck={false}
-          style={{ color: "#E6EDF3" }}
+          style={{ color: "#F2F2F4" }}
         />
 
         <button
           type="button"
           onClick={toggleListening}
-          disabled={disabled}
+          disabled={inputLocked}
           aria-label={isListening ? "Stop dictation" : "Dictate question"}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40"
           style={{
-            color: isListening ? "#58A6FF" : "#8B949E",
+            color: isListening ? "#C9C9D2" : "#A6A6AE",
           }}
           onMouseEnter={(e) => {
-            if (!disabled && !isListening) {
-              e.currentTarget.style.color = "#E6EDF3";
+            if (!inputLocked && !isListening) {
+              e.currentTarget.style.color = "#F2F2F4";
             }
           }}
           onMouseLeave={(e) => {
             if (!isListening) {
-              e.currentTarget.style.color = "#8B949E";
+              e.currentTarget.style.color = "#A6A6AE";
             }
           }}
         >
@@ -284,8 +431,8 @@ export function InputBar({
               aria-label={isPaused ? "Resume teaching" : "Pause teaching"}
               className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
               style={{
-                backgroundColor: "rgba(88, 166, 255, 0.15)",
-                color: "#E6EDF3",
+                backgroundColor: "rgba(201, 201, 210, 0.15)",
+                color: "#F2F2F4",
               }}
             >
               {isPaused ? (
@@ -307,7 +454,7 @@ export function InputBar({
                 className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
                 style={{
                   backgroundColor: "rgba(240, 246, 252, 0.06)",
-                  color: "#8B949E",
+                  color: "#A6A6AE",
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -349,19 +496,41 @@ export function InputBar({
             </button>
           </div>
         ) : (
-          <button
-            type="submit"
-            disabled={buttonDisabled}
-            className="mr-0.5 shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all"
-            style={{
-              ...submitColors,
-              cursor: buttonDisabled ? "not-allowed" : "pointer",
-            }}
-          >
-            {submitLabel}
-          </button>
+          <div className="mr-0.5 flex shrink-0 items-center gap-1.5">
+            <button
+              type="submit"
+              disabled={buttonDisabled}
+              className="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all"
+              style={{
+                ...submitColors,
+                cursor: buttonDisabled ? "not-allowed" : "pointer",
+              }}
+            >
+              {submitLabel}
+            </button>
+            {isFollowUp && (
+              <button
+                type="button"
+                onClick={runNextQuestion}
+                disabled={nextQuestionDisabled}
+                className="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all disabled:opacity-40"
+                style={{
+                  backgroundColor: "rgba(201, 201, 210, 0.15)",
+                  color: "#F2F2F4",
+                  cursor: nextQuestionDisabled ? "not-allowed" : "pointer",
+                }}
+              >
+                Next Question
+              </button>
+            )}
+          </div>
         )}
       </form>
+      {extractLatencyMs != null && !extractError && (
+        <p className="px-3 text-center text-[0.6875rem]" style={{ color: "#A6A6AE" }}>
+          Read in {(extractLatencyMs / 1000).toFixed(1)}s. Press Ask to start teaching.
+        </p>
+      )}
     </div>
   );
 }

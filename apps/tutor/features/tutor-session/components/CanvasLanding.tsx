@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
+import { InputBar } from "@/features/tutor-session/components/InputBar";
 
 export interface CanvasLandingSuggestion {
   question: string;
@@ -17,19 +17,6 @@ export function CanvasLanding({
   suggestions,
   onSubmit,
 }: CanvasLandingProps) {
-  const [draft, setDraft] = useState("");
-  const canAsk = draft.trim().length > 0;
-
-  const handleSubmit = useCallback(
-    (event: React.FormEvent) => {
-      event.preventDefault();
-      const trimmed = draft.trim();
-      if (trimmed.length === 0) return;
-      onSubmit(trimmed);
-    },
-    [draft, onSubmit],
-  );
-
   return (
     <section className="ac-landing animate-wb-fade-in">
       <header className="ac-landing__hero">
@@ -40,31 +27,13 @@ export function CanvasLanding({
         <p className="ac-landing__tagline">{SITE_TAGLINE}</p>
       </header>
 
-      <form className="ac-landing__ask" onSubmit={handleSubmit}>
-        <label className="ac-landing__ask-label" htmlFor="ac-landing-question">
-          Your question
-        </label>
-        <div className="ac-landing__ask-row">
-          <input
-            id="ac-landing-question"
-            type="text"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="Ask your own question"
-            className="ac-landing__input"
-            autoComplete="off"
-            spellCheck={false}
-            autoFocus
-          />
-          <button
-            type="submit"
-            className="ac-landing__submit"
-            disabled={!canAsk}
-          >
-            Ask
-          </button>
-        </div>
-      </form>
+      <div className="ac-landing__ask">
+        <InputBar
+          onSubmit={onSubmit}
+          autoFocus
+          placeholder="Ask a question or paste a photo"
+        />
+      </div>
 
       {suggestions.length > 0 && (
         <div className="ac-landing__suggestions">
@@ -93,13 +62,13 @@ export function CanvasLanding({
 
 const STYLES = `
 .ac-landing {
-  --ink: #E6EDF3;
-  --ink-soft: #8B949E;
-  --ink-faint: #6E7681;
+  --ink: #F2F2F4;
+  --ink-soft: #A6A6AE;
+  --ink-faint: #717177;
   --line: rgba(240, 246, 252, 0.1);
-  --paper: #161B22;
-  --accent: #58A6FF;
-  --cta: #238636;
+  --paper: #151517;
+  --accent: #C9C9D2;
+  --cta: #6E6E76;
 
   width: 100%;
   max-width: 40rem;
@@ -138,73 +107,16 @@ const STYLES = `
   margin: 0.55rem 0 0;
   font-size: 0.95rem;
   line-height: 1.45;
+  letter-spacing: -0.01em;
   color: var(--ink-soft);
-}
-
-.ac-landing__ask-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.ac-landing__ask-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.35rem 0.35rem 1rem;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 9999px;
-  box-shadow: 0 10px 28px -16px rgba(0, 0, 0, 0.45);
-}
-
-.ac-landing__ask-row:focus-within {
-  border-color: rgba(88, 166, 255, 0.4);
-}
-
-.ac-landing__input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  padding: 0.75rem 0.15rem;
-  font-size: 16px;
-  color: var(--ink);
-}
-
-.ac-landing__input::placeholder {
-  color: var(--ink-faint);
-}
-
-.ac-landing__submit {
-  flex-shrink: 0;
-  min-height: 42px;
-  padding: 0.65rem 1.15rem;
-  border: 0;
-  border-radius: 9999px;
-  background: var(--cta);
-  color: #f8fafc;
-  font-size: 0.92rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.ac-landing__submit:disabled {
-  background: rgba(240, 246, 252, 0.06);
-  color: rgba(139, 148, 158, 0.7);
-  cursor: not-allowed;
 }
 
 .ac-landing__suggestions-label {
   margin: 0 0 0.5rem;
-  font-size: 0.875rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--ink-soft);
   text-align: center;
 }
@@ -227,7 +139,7 @@ const STYLES = `
   padding: 0.75rem 0.9rem;
   border: 1px solid var(--line);
   border-radius: 0.65rem;
-  background: #161B22;
+  background: #151517;
   text-align: left;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
@@ -235,8 +147,8 @@ const STYLES = `
 
 .ac-landing__question:hover,
 .ac-landing__question:focus-visible {
-  background: #21262D;
-  border-color: rgba(88, 166, 255, 0.35);
+  background: #1E1E21;
+  border-color: rgba(201, 201, 210, 0.35);
   outline: none;
 }
 
@@ -244,11 +156,14 @@ const STYLES = `
   font-size: 0.92rem;
   font-weight: 500;
   line-height: 1.4;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 
 .ac-landing__question-topic {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
   color: var(--ink-faint);
 }
 `;
