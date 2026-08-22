@@ -1,11 +1,10 @@
+import { resolveFireworksModels } from "./fireworksModels";
+
 const TRANSIENT_PLANNER_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 /** Retired or undeployed model IDs. Skip to the next model; do not retry the same one. */
 const MODEL_UNAVAILABLE_STATUSES = new Set([404, 410]);
+const unavailableModels = new Set<string>();
 
-const KIMI_MODEL = "accounts/fireworks/models/kimi-k2p6";
-const KIMI_TURBO_ROUTER = "accounts/fireworks/routers/kimi-k2p6-turbo";
-/** Serverless GA Flash; the preview alias `deepseek-v4-flash` is no longer deployed. */
-const DEEPSEEK_V4_FLASH_MODEL = "accounts/fireworks/models/deepseek-v4-flash-0731";
 const DEFAULT_TURN_PLAN_MAX_TOKENS = 2800;
 const DEFAULT_PROBLEM_IR_MAX_TOKENS = 3600;
 const DEFAULT_SCENE_PLANNER_MAX_TOKENS = 4800;
@@ -20,6 +19,7 @@ export interface PlannerModelOptions {
   problemIRV1?: boolean;
   plannerPhase: PlannerPhase;
   plannerLane?: PlannerLane;
+  fastMode?: boolean;
   env?: Record<string, string | undefined>;
 }
 
@@ -53,17 +53,6 @@ export interface PlannerTransportResult {
   response: Response;
 }
 
-function parseModelList(value: string | undefined): string[] {
-  return (value ?? "")
-    .split(",")
-    .map((model) => model.trim())
-    .filter((model) => model.length > 0);
-}
-
-function uniqueModels(models: readonly string[]): string[] {
-  return [...new Set(models)];
-}
-
 export function resolvePlannerMaxTokens(options: PlannerModelOptions): number {
   const env = options.env ?? process.env;
   if (options.problemIRV1) {
@@ -94,58 +83,16 @@ export function resolvePlannerMaxTokens(options: PlannerModelOptions): number {
   return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1800), 6000) : fallback;
 }
 
-/** Resolve the server-owned model chain for one independently sampled planner lane. */
+function uniqueModels(models: readonly string[]): string[] {
+  return [...new Set(models)];
+}
+
+/** One ENV-owned model for every planner lane. */
 export function resolvePlannerModels(options: PlannerModelOptions): string[] {
-  const env = options.env ?? process.env;
-
-  if (options.turnPlanV3 || options.problemIRV1) {
-    if (options.plannerLane === "alternate") {
-      const primary =
-        env.FIREWORKS_TURN_PLANNER_ALTERNATE_MODEL ?? DEEPSEEK_V4_FLASH_MODEL;
-      const configured = parseModelList(
-        env.FIREWORKS_TURN_PLANNER_ALTERNATE_FALLBACK_MODELS,
-      );
-      const generic = parseModelList(env.FIREWORKS_PLANNER_FALLBACK_MODELS);
-      return uniqueModels([
-        primary,
-        ...(configured.length > 0 ? configured : [KIMI_TURBO_ROUTER]),
-        ...generic,
-      ]);
-    }
-    const primary = env.FIREWORKS_TURN_PLANNER_MODEL ?? KIMI_TURBO_ROUTER;
-    const configured = parseModelList(env.FIREWORKS_TURN_PLANNER_FALLBACK_MODELS);
-    const generic = parseModelList(env.FIREWORKS_PLANNER_FALLBACK_MODELS);
-    return uniqueModels([primary, ...(configured.length > 0 ? configured : [KIMI_MODEL]), ...generic]);
-  }
-
-  if (options.semanticSceneV2 && options.plannerLane === "alternate") {
-    const primary = env.FIREWORKS_SCENE_ALTERNATE_MODEL ?? DEEPSEEK_V4_FLASH_MODEL;
-    const configured = parseModelList(env.FIREWORKS_SCENE_ALTERNATE_FALLBACK_MODELS);
-    const generic = parseModelList(env.FIREWORKS_PLANNER_FALLBACK_MODELS);
-    return uniqueModels([
-      primary,
-      ...(configured.length > 0 ? configured : [KIMI_TURBO_ROUTER]),
-      ...generic,
-    ]);
-  }
-
-  if (options.semanticSceneV2 && options.plannerPhase === "repair") {
-    const primary = env.FIREWORKS_SCENE_REPAIR_MODEL ?? KIMI_TURBO_ROUTER;
-    const configured = parseModelList(env.FIREWORKS_SCENE_REPAIR_FALLBACK_MODELS);
-    const generic = parseModelList(env.FIREWORKS_PLANNER_FALLBACK_MODELS);
-    return uniqueModels([primary, ...(configured.length > 0 ? configured : [KIMI_MODEL]), ...generic]);
-  }
-
-  if (options.semanticSceneV2) {
-    const primary = env.FIREWORKS_SCENE_PLANNER_MODEL ?? KIMI_TURBO_ROUTER;
-    const configured = parseModelList(env.FIREWORKS_SCENE_PLANNER_FALLBACK_MODELS);
-    const generic = parseModelList(env.FIREWORKS_PLANNER_FALLBACK_MODELS);
-    return uniqueModels([primary, ...(configured.length > 0 ? configured : [KIMI_MODEL]), ...generic]);
-  }
-
-  const primary = env.FIREWORKS_PLANNER_MODEL ?? KIMI_MODEL;
-  const configured = parseModelList(env.FIREWORKS_PLANNER_FALLBACK_MODELS);
-  return uniqueModels([primary, ...(configured.length > 0 ? configured : [KIMI_TURBO_ROUTER])]);
+  return resolveFireworksModels({
+    fastMode: options.fastMode,
+    env: options.env,
+  });
 }
 
 function retryAfterMs(response: Response, nowMs: number, maxDelayMs: number): number | null {
@@ -187,7 +134,8 @@ export async function fetchPlannerCompletion(
   const attemptsPerModel = Math.max(1, Math.floor(options.maxAttemptsPerModel ?? 2));
   const attemptTimeoutMs = Math.max(1, Math.floor(options.attemptTimeoutMs ?? 25_000));
   const maxRetryDelayMs = Math.max(0, Math.floor(options.maxRetryDelayMs ?? 2000));
-  const models = uniqueModels(options.models.map((model) => model.trim()).filter(Boolean));
+  const models = uniqueModels(options.models.map((model) => model.trim()).filter(Boolean))
+    .filter((model) => !unavailableModels.has(model));
   if (models.length === 0) throw new Error("planner transport requires at least one model");
 
   const totalAttempts = models.length * attemptsPerModel;
@@ -224,6 +172,7 @@ export async function fetchPlannerCompletion(
         clearTimeout(timeoutId);
 
         if (MODEL_UNAVAILABLE_STATUSES.has(response.status)) {
+          unavailableModels.add(model);
           lastResponse = { response: await retainResponse(response), model };
           break;
         }

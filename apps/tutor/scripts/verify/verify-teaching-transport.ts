@@ -11,17 +11,25 @@ function assert(condition: unknown, message: string): asserts condition {
 
 assert(
   resolveTeachingModel({}) === DEFAULT_TEACHING_MODEL,
-  "teaching should default to the low-latency router",
+  "teaching should default to standard DeepSeek V4 Flash",
 );
 assert(
-  resolveTeachingModel({ FIREWORKS_TEACHING_MODEL: "teacher-model" }) === "teacher-model",
-  "the dedicated teaching-model override was ignored",
+  resolveTeachingModel({ FIREWORKS_MODEL: "only-this-model" }) === "only-this-model",
+  "FIREWORKS_MODEL must be the only teaching model",
 );
 assert(
-  resolveTeachingModel({
-    FIREWORKS_MODEL: "legacy-override",
-  }) === "legacy-override",
-  "the existing global model override must remain compatible",
+  resolveTeachingModel(
+    { FIREWORKS_MODEL: "standard-model", FIREWORKS_FAST_MODEL: "fast-model" },
+    { fastMode: true },
+  ) === "fast-model",
+  "fast mode teaching must use FIREWORKS_FAST_MODEL when set",
+);
+assert(
+  resolveTeachingModel(
+    { FIREWORKS_MODEL: "standard-model", FIREWORKS_FAST_MODEL: "fast-model" },
+    { fastMode: false },
+  ) === "standard-model",
+  "turning fast mode off must keep teaching on FIREWORKS_MODEL",
 );
 assert(
   resolveTeachingReasoningEffort({

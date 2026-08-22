@@ -3,8 +3,12 @@ import {
   type ReasoningEffort,
   type ReasoningMode,
 } from "@heytutor/tutor-core";
+import {
+  DEFAULT_FIREWORKS_MODEL,
+  resolveFireworksModel,
+} from "./fireworksModels";
 
-export const DEFAULT_TEACHING_MODEL = "accounts/fireworks/routers/kimi-k2p6-turbo";
+export const DEFAULT_TEACHING_MODEL = DEFAULT_FIREWORKS_MODEL;
 export const DEFAULT_TEACHING_CONNECT_TIMEOUT_MS = 25_000;
 
 export async function fetchTeachingCompletion(options: {
@@ -34,10 +38,12 @@ export async function fetchTeachingCompletion(options: {
 
 export function resolveTeachingModel(
   env: Record<string, string | undefined> = process.env,
+  options: { fastMode?: boolean } = {},
 ): string {
-  return env.FIREWORKS_TEACHING_MODEL ??
-    env.FIREWORKS_MODEL ??
-    DEFAULT_TEACHING_MODEL;
+  return resolveFireworksModel({
+    fastMode: options.fastMode,
+    env,
+  });
 }
 
 /**

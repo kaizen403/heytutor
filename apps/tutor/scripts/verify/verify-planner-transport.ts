@@ -16,35 +16,20 @@ async function main(): Promise<void> {
     env: {},
   });
   assert(
-    defaultSceneModels[0] === "accounts/fireworks/routers/kimi-k2p6-turbo",
-    "live scene planning must use the latency-bounded router before the base-model fallback",
+    defaultSceneModels[0] === "accounts/fireworks/models/deepseek-v4-flash-0731",
+    "the default ENV model must be DeepSeek V4 Flash",
   );
 
-  const alternateSceneModels = resolvePlannerModels({
+  const envOnly = resolvePlannerModels({
     semanticSceneV2: true,
     turnPlanV3: false,
     plannerPhase: "plan",
     plannerLane: "alternate",
-    env: {},
+    env: { FIREWORKS_MODEL: "only-this-model" },
   });
   assert(
-    alternateSceneModels[0] === "accounts/fireworks/models/deepseek-v4-flash-0731",
-    "the alternate scene lane must use an independent fast model family",
-  );
-  assert(
-    alternateSceneModels.includes("accounts/fireworks/routers/kimi-k2p6-turbo"),
-    "the alternate lane must retain the fast router as its transport fallback",
-  );
-  const alternateTurnModels = resolvePlannerModels({
-    semanticSceneV2: false,
-    turnPlanV3: true,
-    plannerPhase: "plan",
-    plannerLane: "alternate",
-    env: {},
-  });
-  assert(
-    alternateTurnModels[0] === "accounts/fireworks/models/deepseek-v4-flash-0731",
-    "an invalid turn plan must be repaired by an independent model family",
+    JSON.stringify(envOnly) === JSON.stringify(["only-this-model"]),
+    "FIREWORKS_MODEL must be the only model used",
   );
   assert(
     resolvePlannerMaxTokens({
@@ -64,8 +49,8 @@ async function main(): Promise<void> {
     env: {},
   });
   assert(
-    problemIRModels[0] === "accounts/fireworks/routers/kimi-k2p6-turbo",
-    "ProblemIR must use the same bounded generic planner lane rather than a topic model",
+    problemIRModels[0] === "accounts/fireworks/models/deepseek-v4-flash-0731",
+    "ProblemIR must use the same ENV model",
   );
   assert(
     resolvePlannerMaxTokens({
@@ -78,19 +63,16 @@ async function main(): Promise<void> {
     "ProblemIR JSON must use the bounded structured-planner token budget",
   );
 
-  const configuredAlternateModels = resolvePlannerModels({
+  const configuredModel = resolvePlannerModels({
     semanticSceneV2: true,
     turnPlanV3: false,
     plannerPhase: "repair",
     plannerLane: "alternate",
-    env: {
-      FIREWORKS_SCENE_ALTERNATE_MODEL: "alternate-primary",
-      FIREWORKS_SCENE_ALTERNATE_FALLBACK_MODELS: "alternate-fallback, alternate-primary",
-    },
+    env: { FIREWORKS_MODEL: "only-this-model" },
   });
   assert(
-    JSON.stringify(configuredAlternateModels) === JSON.stringify(["alternate-primary", "alternate-fallback"]),
-    "alternate model configuration must retain order and remove duplicates",
+    JSON.stringify(configuredModel) === JSON.stringify(["only-this-model"]),
+    "lane-specific ENV must not override FIREWORKS_MODEL",
   );
   assert(
     resolvePlannerMaxTokens({
@@ -123,19 +105,33 @@ async function main(): Promise<void> {
     "alternate scene token configuration must remain bounded",
   );
 
-  const resolvedModels = resolvePlannerModels({
+  const fastModels = resolvePlannerModels({
     semanticSceneV2: true,
     turnPlanV3: false,
     plannerPhase: "plan",
+    fastMode: true,
     env: {
-      FIREWORKS_SCENE_PLANNER_MODEL: "primary",
-      FIREWORKS_SCENE_PLANNER_FALLBACK_MODELS: " fallback-a, fallback-b, primary ",
-      FIREWORKS_PLANNER_FALLBACK_MODELS: "generic",
+      FIREWORKS_MODEL: "standard-model",
+      FIREWORKS_FAST_MODEL: "fast-model",
     },
   });
   assert(
-    JSON.stringify(resolvedModels) === JSON.stringify(["primary", "fallback-a", "fallback-b", "generic"]),
-    "planner models must retain configured order and remove duplicates",
+    JSON.stringify(fastModels) === JSON.stringify(["fast-model"]),
+    "fast mode must use FIREWORKS_FAST_MODEL when set",
+  );
+  const standardOnly = resolvePlannerModels({
+    semanticSceneV2: true,
+    turnPlanV3: false,
+    plannerPhase: "plan",
+    fastMode: false,
+    env: {
+      FIREWORKS_MODEL: "standard-model",
+      FIREWORKS_FAST_MODEL: "fast-model",
+    },
+  });
+  assert(
+    JSON.stringify(standardOnly) === JSON.stringify(["standard-model"]),
+    "turning fast mode off must use FIREWORKS_MODEL only",
   );
 
   const requestedModels: string[] = [];
