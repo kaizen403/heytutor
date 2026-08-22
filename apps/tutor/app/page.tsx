@@ -38,8 +38,8 @@ export default function Home() {
           alignItems: "center",
           justifyContent: "center",
           padding: "2rem",
-          background: "#0D1117",
-          color: "#E6EDF3",
+          background: "#0B0B0C",
+          color: "#F2F2F4",
         }}
       >
         <div style={{ maxWidth: "24rem", textAlign: "center" }}>
@@ -50,9 +50,9 @@ export default function Home() {
             style={{
               padding: "0.5rem 1rem",
               borderRadius: "9999px",
-              border: "1px solid #30363D",
-              background: "#21262D",
-              color: "#58A6FF",
+              border: "1px solid #2E2E33",
+              background: "#1E1E21",
+              color: "#C9C9D2",
               cursor: "pointer",
               fontSize: "0.875rem",
             }}

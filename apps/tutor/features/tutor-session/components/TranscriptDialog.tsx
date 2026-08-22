@@ -24,20 +24,20 @@ export function TranscriptDialog({ text, open, onClose }: TranscriptDialogProps)
         aria-label="Lesson transcript"
         className="flex max-h-[min(70vh,520px)] w-full max-w-lg flex-col overflow-hidden"
         style={{
-          backgroundColor: "#161B22",
+          backgroundColor: "#151517",
           borderRadius: "12px",
-          border: "1px solid #30363D",
+          border: "1px solid #2E2E33",
           boxShadow: "0 16px 48px -8px rgba(0, 0, 0, 0.55)",
         }}
         onClick={(event) => event.stopPropagation()}
       >
         <div
           className="flex items-center justify-between px-5 py-3"
-          style={{ borderBottom: "1px solid #30363D" }}
+          style={{ borderBottom: "1px solid #2E2E33" }}
         >
           <h2
             className="text-sm font-semibold tracking-wide"
-            style={{ color: "#E6EDF3" }}
+            style={{ color: "#F2F2F4" }}
           >
             transcript
           </h2>
@@ -46,7 +46,7 @@ export function TranscriptDialog({ text, open, onClose }: TranscriptDialogProps)
             onClick={onClose}
             aria-label="Close transcript"
             className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
-            style={{ color: "#8B949E" }}
+            style={{ color: "#A6A6AE" }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path
@@ -61,7 +61,7 @@ export function TranscriptDialog({ text, open, onClose }: TranscriptDialogProps)
         <div className="overflow-y-auto px-5 py-4">
           <p
             className="text-base leading-relaxed"
-            style={{ color: "#E6EDF3" }}
+            style={{ color: "#F2F2F4" }}
           >
             {text}
           </p>

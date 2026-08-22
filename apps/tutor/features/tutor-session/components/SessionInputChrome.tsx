@@ -5,7 +5,7 @@ interface SessionInputChromeProps {
   isInputOverlay: boolean;
   phase: TutorPhase;
   isPaused: boolean;
-  inputSubmitMode: "ask" | "doubt";
+  inputSubmitMode: "ask" | "doubt" | "follow-up";
   onSubmit: (question: string) => void;
   onAskDoubt: (question: string) => void;
   onPauseToggle: () => void;
@@ -39,6 +39,11 @@ export function SessionInputChrome({
           onSubmit={onSubmit}
           onAskDoubt={onAskDoubt}
           disabled={phase !== "idle"}
+          placeholder={
+            inputSubmitMode === "follow-up"
+              ? "Ask a doubt or the next question"
+              : "Ask a question or paste a photo"
+          }
           submitMode={inputSubmitMode}
           isPaused={isPaused}
           onPauseToggle={onPauseToggle}

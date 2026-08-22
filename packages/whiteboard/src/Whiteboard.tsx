@@ -837,7 +837,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             }
 
             const positionMs = getAudioPositionMs();
-            if (positionMs >= 0) {
+            if (positionMs > 0) {
               audioClockStarted = true;
             }
             if (positionMs >= targetMs) {
@@ -855,11 +855,17 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               stalledFrames = 0;
               lastPositionMs = positionMs;
             }
+            const elapsedMs = performance.now() - startWall - pausedTotalMs;
+            // A missing clock used to hang until speech ended, so every line
+            // spoke first and only then wrote. Release after a short wait.
+            if (!audioClockStarted && elapsedMs >= 400) {
+              cleanup();
+              return;
+            }
             // Never block the lesson on a single character — cap wait time.
             if (
               audioClockStarted &&
-              performance.now() - startWall - pausedTotalMs >
-                Math.min(targetMs + 2000, 8000)
+              elapsedMs > Math.min(targetMs + 2000, 8000)
             ) {
               cleanup();
               return;

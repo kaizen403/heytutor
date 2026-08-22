@@ -19,12 +19,12 @@ export function ThinkingOverlay({ message = "thinking about how to teach this…
         <div
           className="h-10 w-10 rounded-full border-2 border-transparent"
           style={{
-            borderTopColor: "#58A6FF",
-            borderBottomColor: "#58A6FF",
+            borderTopColor: "#C9C9D2",
+            borderBottomColor: "#C9C9D2",
             animation: "wb-spin 0.8s linear infinite",
           }}
         />
-        <p style={{ fontSize: "0.9rem", color: "#58A6FF", fontWeight: 500 }}>
+        <p style={{ fontSize: "0.9rem", color: "#C9C9D2", fontWeight: 500 }}>
           {message}
         </p>
       </div>
