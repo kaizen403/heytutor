@@ -42,6 +42,7 @@ interface ElevenLabsWsMessage {
   voice_settings?: {
     stability: number;
     similarity_boost: number;
+    style?: number;
     speed?: number;
   };
   generation_config?: {
@@ -59,7 +60,7 @@ interface TtsRelayContext {
 function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   const voiceId = process.env.ELEVENLABS_VOICE_ID;
-  const modelId = process.env.ELEVENLABS_MODEL ?? "eleven_flash_v2_5";
+  const modelId = process.env.ELEVENLABS_MODEL ?? "eleven_multilingual_v2";
 
   if (!apiKey || !voiceId) {
     clientWs.send(JSON.stringify({ type: "error", message: "TTS not configured" }));
@@ -150,10 +151,13 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
         const filtered: ElevenLabsWsMessage["voice_settings"] = {
           stability: typeof message.voice_settings.stability === "number"
             ? message.voice_settings.stability
-            : 0.5,
+            : 0.4,
           similarity_boost: typeof message.voice_settings.similarity_boost === "number"
             ? message.voice_settings.similarity_boost
             : 0.75,
+          ...(typeof message.voice_settings.style === "number"
+            ? { style: message.voice_settings.style }
+            : {}),
           ...(typeof message.voice_settings.speed === "number"
             ? { speed: message.voice_settings.speed }
             : {}),

@@ -1,6 +1,7 @@
 export interface RelayVoiceSettings {
   stability: number;
   similarity_boost: number;
+  style?: number;
   speed?: number;
 }
 

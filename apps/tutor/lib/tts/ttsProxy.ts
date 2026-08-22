@@ -1,5 +1,5 @@
 export const ELEVENLABS_TTS_BASE = "https://api.elevenlabs.io/v1/text-to-speech";
-export const DEFAULT_ELEVENLABS_MODEL = "eleven_flash_v2_5";
+export const DEFAULT_ELEVENLABS_MODEL = "eleven_multilingual_v2";
 
 export interface ElevenLabsTtsBody {
   text?: string;
