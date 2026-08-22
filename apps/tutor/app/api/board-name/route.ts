@@ -3,6 +3,7 @@ import {
   finalizeBoardTitle,
 } from "@/lib/boards/boardTitle";
 import { ensureUser, getUserId } from "@/lib/auth";
+import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 
@@ -26,7 +27,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ title: fallbackTitle });
   }
 
-  const model = process.env.FIREWORKS_MODEL ?? "accounts/fireworks/models/kimi-k2p6";
+  const model = resolveFireworksModel();
 
   try {
     const response = await fetch(FIREWORKS_CHAT_URL, {
@@ -37,7 +38,8 @@ export async function POST(request: Request): Promise<Response> {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 32,
+        // Headroom for reasoning_content on reasoning models — small caps starve the title into empty content.
+        max_tokens: 512,
         temperature: 0.2,
         reasoning_effort: "low",
         stream: false,
