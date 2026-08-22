@@ -7,6 +7,7 @@ import {
   diagramFailureVisualStatus,
   resolvePlannedSceneVisualStatus,
   selectBestAvailableTurnPlan,
+  shouldBlockLessonForDiagram,
   shouldRevalidateSceneCandidatesAfterAuthority,
 } from "../../features/tutor-session/lib/diagramGenerationV3";
 import { isTurnMetadataPersistable } from "../../lib/scene/turnPersistencePolicy";
@@ -21,7 +22,11 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-assert(REQUIRED_DIAGRAM_RETRY_ENABLED, "required diagrams must fail closed unless explicitly disabled");
+assert(REQUIRED_DIAGRAM_RETRY_ENABLED, "required-diagram failure status stays recorded unless explicitly disabled");
+assert(
+  !shouldBlockLessonForDiagram("retry_required"),
+  "a failed diagram must skip the canvas without stopping the lesson",
+);
 assert(TURN_PLAN_DEADLINE_MS === 20_000, "turn-plan work must leave 40 seconds for scene synthesis and repair");
 assert(
   TURN_PLAN_ATTEMPT_DEADLINE_MS >= 10_000 && TURN_PLAN_ATTEMPT_DEADLINE_MS < TURN_PLAN_DEADLINE_MS,
@@ -151,7 +156,7 @@ assert(
     hasValidatedScene: false,
     requiredRetryEnabled: true,
   }) === "retry_required",
-  "a valid text_only planner result must still block when TurnPlan requires a diagram",
+  "a missing required diagram is recorded as retry_required without implying a student-facing stop",
 );
 assert(
   resolvePlannedSceneVisualStatus({

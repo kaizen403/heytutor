@@ -1,11 +1,14 @@
 import {
   compileSceneDocument,
   parseMathExpression,
+  synthesizeFamilyScene,
+  synthesizeLastResortScene,
   type RenderScene,
   type SceneDocument,
   type TurnPlanV3,
   type ValidationReport,
 } from "@heytutor/scene-engine";
+import { inferSceneCapabilities } from "@heytutor/tutor-core";
 
 export const REPRESENTATION_TIERS = [
   "exact_verified",
@@ -35,6 +38,7 @@ export interface RepresentationSelectionInput {
   question: string;
   turnPlan?: TurnPlanV3 | unknown | null;
   exact?: ExactVerifiedRepresentation | null;
+  families?: readonly string[];
 }
 
 interface SourceFunctionFact {
@@ -96,7 +100,69 @@ export function selectVerifiedRepresentation(
     };
   }
 
-  return buildSourceGroundedRepresentation(input.question, input.turnPlan);
+  const families = input.families?.length
+    ? input.families
+    : inferSceneCapabilities(
+        input.question,
+        isRecord(input.turnPlan) && Array.isArray(input.turnPlan.lawIds)
+          ? input.turnPlan.lawIds.filter((id): id is string => typeof id === "string")
+          : [],
+      ).families;
+  const synthesized = synthesizeFamilyScene({
+    question: input.question,
+    turnPlan: input.turnPlan,
+    families,
+  });
+  if (synthesized) {
+    return {
+      tier: synthesized.tier,
+      nonMetric: synthesized.nonMetric,
+      sceneDocument: synthesized.document,
+      renderScene: synthesized.renderScene,
+      validationReport: synthesized.validationReport,
+      reason: synthesized.reason,
+    };
+  }
+
+  try {
+    return buildSourceGroundedRepresentation(input.question, input.turnPlan);
+  } catch {
+    const lastResort = synthesizeLastResortScene({
+      question: input.question,
+      turnPlan: input.turnPlan,
+      families,
+    });
+    if (lastResort) {
+      return {
+        tier: lastResort.tier,
+        nonMetric: lastResort.nonMetric,
+        sceneDocument: lastResort.document,
+        renderScene: lastResort.renderScene,
+        validationReport: lastResort.validationReport,
+        reason: lastResort.reason,
+      };
+    }
+    return buildTextOnlySelected(input.question);
+  }
+}
+
+function buildTextOnlySelected(question: string): SelectedRepresentation {
+  const document = buildTextOnlyRepresentation(question, [], "question_representation");
+  const compiled = compileSceneDocument(document);
+  return {
+    tier: "question_representation",
+    nonMetric: true,
+    sceneDocument: document,
+    renderScene: compiled.renderScene ?? {
+      engineVersion: compiled.report.engineVersion,
+      primitives: [],
+      revealGroups: [],
+      timeline: [],
+      entityBounds: {},
+    },
+    validationReport: compiled.report,
+    reason: "no family operator program was available",
+  };
 }
 
 /**
@@ -163,9 +229,12 @@ function isUsableExactRepresentation(
     typeof sourceQuestion !== "string" ||
     normalizeQuestion(sourceQuestion) !== normalizeQuestion(expectedQuestion) ||
     !candidate.validationReport.valid ||
-    candidate.validationReport.issues.some((issue) => issue.severity === "fatal") ||
+    candidate.validationReport.issues.some((issue) =>
+      issue.severity === "fatal" || issue.code === "assertion_failed") ||
     candidate.sceneDocument.visualDecision.mode !== "scene" ||
-    candidate.renderScene.primitives.length === 0
+    candidate.renderScene.primitives.length === 0 ||
+    usesMensurationSolidOnContactProblem(expectedQuestion, candidate.sceneDocument) ||
+    usesCollidingCircuitViews(expectedQuestion, candidate.sceneDocument)
   ) {
     return false;
   }
@@ -175,6 +244,37 @@ function isUsableExactRepresentation(
 
 function normalizeQuestion(value: string): string {
   return normalizeMathText(value).toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function usesMensurationSolidOnContactProblem(
+  question: string,
+  document: SceneDocument,
+): boolean {
+  if (!/(?:incline|inclined plane|slope|rolling without slipping|rolls without slipping)/i.test(question)) {
+    return false;
+  }
+  return document.constructions.some((construction) => construction.operator === "solid_projection");
+}
+
+function usesCollidingCircuitViews(
+  question: string,
+  document: SceneDocument,
+): boolean {
+  if (!/\bseries\b/i.test(question) || !/\bparallel\b/i.test(question)) return false;
+  const seen = new Map<string, string>();
+  for (const construction of document.constructions) {
+    if (construction.operator !== "point") continue;
+    const id = construction.outputs[0];
+    const x = construction.inputs.x;
+    const y = construction.inputs.y;
+    if (typeof id !== "string" || typeof x !== "number" || typeof y !== "number") continue;
+    const space = construction.inputs.coordinateSpace === "layout" ? "layout" : "world";
+    const key = `${space}:${x}:${y}`;
+    const prior = seen.get(key);
+    if (prior && prior !== id) return true;
+    if (!prior) seen.set(key, id);
+  }
+  return false;
 }
 
 function buildFunctionRepresentation(

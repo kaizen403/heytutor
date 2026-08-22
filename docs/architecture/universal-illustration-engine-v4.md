@@ -60,9 +60,9 @@ The selector commits exactly one of these results:
 
 Invalid exact candidates never leak into either fallback. A fallback is a
 different honest representation, not a repaired fragment or an authoritative
-partial diagram. A required visual returns `retry_required` when neither an exact
-scene nor a meaningful source-grounded operator scene exists. It never renders
-question tokens, fact cards, or generic boxes merely to avoid an empty canvas.
+partial diagram. A required visual that cannot be verified leaves the canvas
+empty and still teaches. It never renders question tokens, fact cards, or
+generic boxes merely to avoid an empty canvas.
 
 ## General Capabilities
 

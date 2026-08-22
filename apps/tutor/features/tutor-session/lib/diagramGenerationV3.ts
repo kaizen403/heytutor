@@ -1,9 +1,9 @@
 /**
- * Required-diagram retry UX flags and helpers.
+ * Required-diagram status helpers.
  *
- * Default: required diagram failures block the lesson and offer retry.
- * When NEXT_PUBLIC_SCENE_ENGINE_V3_REQUIRED_RETRY is disabled and the turn plan marks
- * visualRequirement=required → block speech and surface retry_required.
+ * A missing verified diagram must not stop the lesson. The engine first
+ * compiles a family scene from the turn plan; if that still fails it draws a
+ * last-resort schematic. Invalid planner fragments still never reach the canvas.
  */
 import {
   REQUIRED_DIAGRAM_DEADLINE_MS,
@@ -57,8 +57,9 @@ export function resolvePlannedSceneVisualStatus(options: {
   );
 }
 
-export function shouldBlockLessonForDiagram(status: DiagramGenerationStatus): boolean {
-  return status === "retry_required";
+/** Failed diagrams skip the canvas. They must not stop narration or work-area writing. */
+export function shouldBlockLessonForDiagram(_status: DiagramGenerationStatus): boolean {
+  return false;
 }
 
 export function shouldRevalidateSceneCandidatesAfterAuthority(options: {

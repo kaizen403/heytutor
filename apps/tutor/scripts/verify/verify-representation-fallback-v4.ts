@@ -1,5 +1,7 @@
 import {
   compileSceneDocument,
+  pruneDeadSceneEntities,
+  validateSceneDocument,
   type SceneDocument,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
@@ -239,6 +241,91 @@ const selectedExact = selectVerifiedRepresentation({
 assert(selectedExact.tier === "exact_verified", "a valid exact scene must always win over fallback tiers");
 assert(selectedExact.sceneDocument === exactDocument, "selector must preserve the accepted exact scene");
 
+const rollingQuestion =
+  "A solid cylinder of mass 2 kg and radius 10 cm rolls without slipping down an incline of height 1.5 m, starting from rest. Take g = 10 m/s^2.";
+const guessedRollingDocument: SceneDocument = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "planner guessed cylinder on a height triangle" },
+  source: { question: rollingQuestion },
+  quantities: [],
+  entities: [
+    { id: "p_top", kind: "point", role: "top" },
+    { id: "p_bottom", kind: "point", role: "bottom" },
+    { id: "p_ground", kind: "point", role: "ground" },
+    { id: "incline", kind: "segment", role: "incline" },
+    { id: "ground", kind: "segment", role: "ground" },
+    { id: "center", kind: "point", role: "center" },
+    { id: "contact", kind: "point", role: "contact" },
+    { id: "cylinder", kind: "polyline", role: "solid projection" },
+  ],
+  constructions: [
+    { id: "c_top", operator: "point", inputs: { x: 0, y: 1.5, coordinateSpace: "world" }, outputs: ["p_top"] },
+    { id: "c_bottom", operator: "point", inputs: { x: 2, y: 0, coordinateSpace: "world" }, outputs: ["p_bottom"] },
+    { id: "c_ground", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["p_ground"] },
+    { id: "c_incline", operator: "segment", inputs: { start: "p_top", end: "p_bottom" }, outputs: ["incline"] },
+    { id: "c_ground_seg", operator: "segment", inputs: { start: "p_ground", end: "p_bottom" }, outputs: ["ground"] },
+    { id: "c_center", operator: "point", inputs: { x: 1, y: 0.5, coordinateSpace: "world" }, outputs: ["center"] },
+    { id: "c_contact", operator: "point", inputs: { x: 1, y: 0, coordinateSpace: "world" }, outputs: ["contact"] },
+    {
+      id: "c_cylinder",
+      operator: "solid_projection",
+      inputs: { kind: "cylinder", center: "center", radius: 0.1, height: 0.2, axis: "vertical" },
+      outputs: ["cylinder"],
+    },
+  ],
+  relations: [],
+  assertions: [{
+    id: "a1",
+    predicate: "on",
+    entities: ["contact", "incline"],
+    expected: true,
+    severity: "warning",
+  }],
+  annotations: [],
+  requiredEntityIds: ["incline", "cylinder", "contact"],
+  revealGroups: [{
+    id: "rg1",
+    entityIds: ["incline", "ground", "cylinder", "contact"],
+    dependsOn: [],
+    narrationCue: "Draw the setup.",
+  }],
+  teachingTimeline: [],
+};
+const guessedRollingValidated = validateSceneDocument(pruneDeadSceneEntities(
+  guessedRollingDocument as unknown as Record<string, unknown>,
+));
+assert(guessedRollingValidated.document, "guessed rolling fixture must normalize");
+const guessedRollingCompiled = compileSceneDocument(guessedRollingValidated.document);
+assert(guessedRollingCompiled.ok && guessedRollingCompiled.renderScene, "guessed rolling fixture must still compile");
+assert(
+  guessedRollingCompiled.report.issues.some((issue) => issue.code === "assertion_failed"),
+  "contact-not-on-incline must surface as a failed proof",
+);
+const rejectedGuessedRolling = selectVerifiedRepresentation({
+  question: rollingQuestion,
+  families: ["contact_body", "solid_figure"],
+  exact: {
+    sceneDocument: guessedRollingValidated.document,
+    renderScene: guessedRollingCompiled.renderScene,
+    validationReport: guessedRollingCompiled.report,
+  },
+});
+assert(
+  rejectedGuessedRolling.tier !== "exact_verified" ||
+    !rejectedGuessedRolling.sceneDocument.constructions.some((construction) =>
+      construction.operator === "solid_projection"),
+  "a guessed mensuration cylinder on an incline must not be accepted as exact",
+);
+assert(
+  rejectedGuessedRolling.sceneDocument.constructions.some((construction) => construction.operator === "circle"),
+  "rolling incline fallback must draw a circular section on the plane",
+);
+assert(
+  !rejectedGuessedRolling.sceneDocument.constructions.some((construction) =>
+    construction.operator === "solid_projection"),
+  "rolling incline fallback must not keep the 3D solid",
+);
+
 const mismatchedExactDocument = structuredClone(exactDocument);
 mismatchedExactDocument.source.question = "A different submitted question";
 const mismatchedExact = selectVerifiedRepresentation({
@@ -250,7 +337,7 @@ const mismatchedExact = selectVerifiedRepresentation({
   },
 });
 assert(
-  mismatchedExact.tier === "question_representation",
+  mismatchedExact.tier !== "exact_verified",
   "an exact scene belonging to another question must not cross the selection boundary",
 );
 
@@ -267,6 +354,129 @@ const invalidExact = selectVerifiedRepresentation({
     },
   },
 });
-assert(invalidExact.tier === "question_representation", "a failed exact proof must never bypass fallback isolation");
+assert(invalidExact.tier !== "exact_verified", "a failed exact proof must never bypass fallback isolation");
+
+const selectedRefraction = selectVerifiedRepresentation({
+  question: refractionQuestion,
+  turnPlan: refractionPlan,
+  families: ["interface", "ray_path"],
+});
+assert(selectedRefraction.sceneDocument.visualDecision.mode === "scene", "required refraction must compile onto the board");
+assert(
+  selectedRefraction.sceneDocument.constructions.some((construction) => construction.operator === "refract_at"),
+  "required refraction must use refract_at",
+);
+assert(selectedRefraction.renderScene.primitives.length > 0, "required refraction produced no ink");
+
+const selectedCircuit = selectVerifiedRepresentation({
+  question: circuitQuestion,
+  turnPlan: circuitPlan,
+  families: ["circuit_network"],
+});
+assert(selectedCircuit.sceneDocument.visualDecision.mode === "scene", "named parallel resistors must compile a circuit");
+assert(
+  selectedCircuit.sceneDocument.constructions.some((construction) => construction.operator === "symbol"),
+  "circuit family must use symbol operators",
+);
+
+const mirrorQuestion =
+  "Concave mirror, f = 15 cm, object at 20 cm. Locate the image and draw the ray diagram.";
+const selectedMirror = selectVerifiedRepresentation({
+  question: mirrorQuestion,
+  turnPlan: {
+    schemaVersion: "turn-plan/v3",
+    question: mirrorQuestion,
+    givens: [
+      { id: "f", symbol: "f", value: 15, unit: "cm", provenance: "given" },
+      { id: "u", symbol: "u", value: 20, unit: "cm", provenance: "given" },
+    ],
+    unknowns: [{ id: "v", symbol: "v", unit: "cm" }],
+    derived: [{ id: "v", symbol: "v", value: 60, unit: "cm", provenance: "derived" }],
+    qualitativeClaims: [],
+    lawIds: ["mirror_formula"],
+    assumptions: [],
+    visualRequirement: "required",
+  },
+  families: ["axis_view", "ray_path"],
+});
+assert(selectedMirror.sceneDocument.visualDecision.mode === "scene", "required mirror must compile onto the board");
+assert(
+  selectedMirror.sceneDocument.entities.some((entity) => entity.kind === "arc"),
+  "required concave mirror must be an arc rather than a straight line",
+);
+assert(
+  selectedMirror.renderScene.primitives.some((primitive) => primitive.kind === "arc"),
+  "compiled mirror ink must be an arc",
+);
+
+const seriesParallelQuestion =
+  "Three 12 ohm resistors in series and in parallel. Find both equivalent resistances and draw each circuit.";
+const collidingCircuitDocument: SceneDocument = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "planner stacked both circuits on one origin" },
+  source: { question: seriesParallelQuestion },
+  quantities: [],
+  entities: [
+    { id: "series_p0", kind: "point", role: "terminal" },
+    { id: "series_p1", kind: "point", role: "terminal" },
+    { id: "series_r1", kind: "component", role: "resistor" },
+    { id: "parallel_p0", kind: "point", role: "terminal" },
+    { id: "parallel_p1", kind: "point", role: "terminal" },
+    { id: "parallel_r1", kind: "component", role: "resistor" },
+    { id: "parallel_r2", kind: "component", role: "resistor" },
+  ],
+  constructions: [
+    { id: "c_s0", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "layout" }, outputs: ["series_p0"] },
+    { id: "c_s1", operator: "point", inputs: { x: 2, y: 0, coordinateSpace: "layout" }, outputs: ["series_p1"] },
+    { id: "c_sr1", operator: "symbol", inputs: { symbol: "resistor", start: "series_p0", end: "series_p1" }, outputs: ["series_r1"] },
+    { id: "c_p0", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "layout" }, outputs: ["parallel_p0"] },
+    { id: "c_p1", operator: "point", inputs: { x: 2, y: 0, coordinateSpace: "layout" }, outputs: ["parallel_p1"] },
+    { id: "c_pr1", operator: "symbol", inputs: { symbol: "resistor", start: "parallel_p0", end: "parallel_p1" }, outputs: ["parallel_r1"] },
+    { id: "c_pr2", operator: "symbol", inputs: { symbol: "resistor", start: "parallel_p0", end: "parallel_p1" }, outputs: ["parallel_r2"] },
+  ],
+  relations: [],
+  assertions: [
+    { id: "series_path", predicate: "path", entities: ["series_r1"], expected: true, severity: "warning" },
+    { id: "parallel_pair", predicate: "sameTerminalPair", entities: ["parallel_r1", "parallel_r2"], expected: true, severity: "warning" },
+  ],
+  annotations: [],
+  requiredEntityIds: ["series_r1", "parallel_r1", "parallel_r2"],
+  revealGroups: [
+    { id: "series_group", entityIds: ["series_p0", "series_p1", "series_r1"], dependsOn: [], narrationCue: "series" },
+    { id: "parallel_group", entityIds: ["parallel_p0", "parallel_p1", "parallel_r1", "parallel_r2"], dependsOn: [], narrationCue: "parallel" },
+  ],
+  teachingTimeline: [],
+};
+const collidingValidated = validateSceneDocument(pruneDeadSceneEntities(
+  collidingCircuitDocument as unknown as Record<string, unknown>,
+));
+assert(collidingValidated.document, "colliding circuit fixture must normalize");
+const collidingCompiled = compileSceneDocument(collidingValidated.document);
+assert(collidingCompiled.ok && collidingCompiled.renderScene, "colliding circuit fixture must still compile");
+const rejectedCollidingCircuit = selectVerifiedRepresentation({
+  question: seriesParallelQuestion,
+  families: ["circuit_network"],
+  exact: {
+    sceneDocument: collidingValidated.document,
+    renderScene: collidingCompiled.renderScene,
+    validationReport: collidingCompiled.report,
+  },
+});
+assert(
+  rejectedCollidingCircuit.reason !== "caller supplied a fully verified exact scene",
+  "stacked series and parallel views must not win as exact",
+);
+assert(
+  rejectedCollidingCircuit.sceneDocument !== collidingValidated.document,
+  "selector must replace the colliding planner scene",
+);
+assert(
+  rejectedCollidingCircuit.sceneDocument.revealGroups.some((group) => group.id === "series_group") &&
+    rejectedCollidingCircuit.sceneDocument.revealGroups.some((group) => group.id === "parallel_group"),
+  "fallback must still draw both circuit views",
+);
+const selectedPointKeys = rejectedCollidingCircuit.sceneDocument.constructions.flatMap((construction) =>
+  construction.operator === "point" ? [`${construction.inputs.x}:${construction.inputs.y}`] : []);
+assert(new Set(selectedPointKeys).size === selectedPointKeys.length, "fallback circuit views must not share coordinates");
 
 console.log("representation fallback v4 verification passed");
