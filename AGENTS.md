@@ -32,9 +32,8 @@ question
   -> teaching [STEP] narration + work-area WRITE
 ```
 
-Required visuals that fail both exact and source-grounded representation return
-`retry_required`. Optional visuals may teach text-only. Partial candidates never
-render.
+Required visuals that fail both exact and source-grounded representation skip
+the canvas and still teach. Invalid or partial candidates never render.
 
 ## Where to Start
 
