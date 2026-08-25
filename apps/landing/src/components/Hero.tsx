@@ -55,7 +55,7 @@ export default function Hero() {
 
   return (
     <div
-      className="relative flex min-h-[100svh] flex-col overflow-hidden bg-cover bg-center"
+      className="relative flex min-h-[100svh] flex-col bg-cover bg-center"
       style={{ backgroundImage: `url(${BG_IMAGE})` }}
     >
       <Navbar />
@@ -125,7 +125,7 @@ export default function Hero() {
 
       <div className="flex-1 min-h-10 shrink-0 sm:min-h-12 lg:min-h-16" />
 
-      <div className="animate-hero-rise relative z-0 mx-auto w-[92%] max-w-4xl shrink-0 -mb-10 sm:w-[84%] sm:-mb-20 lg:w-[72%] lg:-mb-32"
+      <div className="animate-hero-rise relative z-30 mx-auto w-[88%] max-w-3xl shrink-0 -mb-10 sm:w-[76%] sm:-mb-20 lg:w-[62%] lg:-mb-32"
         style={{ animationDelay: '620ms' }}
       >
         <ScaledDashboard />
