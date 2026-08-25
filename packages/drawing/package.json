@@ -14,7 +14,7 @@
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "verify": "tsx scripts/verify-drawing-protocol.ts",
+    "verify": "tsx scripts/verify-drawing-protocol.ts && tsx scripts/verify-write-audio-clock.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {

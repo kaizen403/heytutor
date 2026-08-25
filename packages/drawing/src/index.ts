@@ -16,6 +16,14 @@ export {
 } from "./protocol/commandPlacement";
 export { BOARD_CANVAS, DIAGRAM_ZONE, WORK_ZONE, SECOND_WORK_ZONE, clampToDiagramZone, isInDiagramZone } from "./layout/boardZones";
 export {
+  createScheduledWriteClock,
+  resolveScheduledWriteClockMs,
+  shouldReleaseAudioPositionWait,
+  simulateScheduledWriteWait,
+  type ScheduledWriteClockInput,
+  type SimulatedWriteWaitResult,
+} from "./sync/writeAudioClock";
+export {
   animateStroke,
   animateRoughStroke,
   type CancellableAnimation,
