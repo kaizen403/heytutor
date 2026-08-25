@@ -72,3 +72,5 @@ return only [STEP]...[/STEP] blocks. do not repeat completed reasoning, restart 
 
 export const CONCEPT_LESSON_RUNTIME_ADDON = `CONCEPT LESSON
 Teach a complete beginner. Order: plain-language idea, then the names for that idea, then at most one tiny example, then (only if asked) one short snippet of that same example. Stop after that first loop. Do not jump to complexity analysis, space tricks, a second problem, or contest-style code.`;
+
+export const FAST_MODE_TEACHING_ADDON = `FAST MODE still requires a complete derivation. Keep 5-8 steps. Before substituting numbers, speak and [WRITE] the general formula or definition in symbols. Do not skip the symbolic law or jump straight to a plugged-in line.`;

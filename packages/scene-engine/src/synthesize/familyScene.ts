@@ -103,9 +103,6 @@ function synthesizeFromFamilies(
     const compiled = document ? tryCompile(document) : null;
     if (!compiled) continue;
     const nonMetric = schematic || familyUsesDisplayScale(family);
-    // #region agent log
-    fetch('http://127.0.0.1:7280/ingest/352483c0-a316-40d0-8703-e595b34ba80f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e9a5f5'},body:JSON.stringify({sessionId:'e9a5f5',runId:'pre-fix',hypothesisId:'H3',location:'familyScene.ts:synthesizeFromFamilies',message:'family scene compiled',data:{family,schematic,families,operators:document?.constructions.map((c)=>c.operator)??[],entityIds:document?.entities.map((e)=>e.id)??[]},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return {
       ...compiled,
       tier: schematic
@@ -139,16 +136,18 @@ function inferFamiliesFromQuestion(question: string): string[] {
     [/(?:spherical (?:air|refracting|surface|interface)|air-glass interface|paraxial image|center of curvature|surface[- ]normal)/i, ["axis_view", "interface", "ray_path"]],
     [/(?:mirror|lens|focal point|principal axis)/i, ["axis_view", "ray_path"]],
     [/(?:circuit|resistor|inductor|capacitor|\bLCR\b|\bemf\b)/i, ["circuit_network"]],
-    [/(?:y\s*=|parametric|polar curve|sketch (?:the )?(?:curve|graph))/i, ["analytic_curve"]],
+    [/(?:y\s*=|parametric|polar curve|sketch (?:the )?(?:curve|graph)|F\s*=\s*5x|F_x\s*=|F versus x|U\s*=\s*\(|U\(x\)|U\(r\)\s*=)/i, ["analytic_curve"]],
     [/(?:p[-–—]?v|thermodynamic cycle|v[-–]?t graph|s[-–]?t graph)/i, ["state_plot"]],
-    [/(?:incline|pulley|hinged|free[- ]body|friction|hanging (?:mass|block))/i, ["contact_body"]],
-    [/(?:resultant of|two vectors|vector components|parallelogram law)/i, ["vector_diagram"]],
+    [/(?:incline|pulley|hinged|free[- ]body|friction|hanging (?:mass|block)|raindrop|dropped from|pushes a (?:box|block)|spring of stiffness|spring-block|vertical circl|collid|collision|head-on|particle of mass|body of mass|towed at)/i, ["contact_body"]],
+    [/(?:resultant of|two vectors|vector components|parallelogram law|velocity vectors)/i, ["vector_diagram"]],
     [/(?:double.?slit|single.?slit|interference|fringe|diffraction)/i, ["aperture", "screen_pattern"]],
     [/(?:wavefront|huygens)/i, ["wavefront"]],
     [/(?:polari[sz]er|malus)/i, ["polarizer"]],
     [/(?:point charges?|electric[- ]field|magnetic field)/i, ["point_field"]],
     [/(?:photoelectric|energy levels?|bohr)/i, ["energy_level"]],
     [/(?:cylinder|hemisphere|frustum|cone of radius)/i, ["solid_figure"]],
+    [/(?:cylindrical vessels|connected at the bottom|hydraulic|piston|venturi)/i, ["fluid_apparatus"]],
+    [/(?:moves from \()/i, ["coordinate_figure"]],
   ];
   for (const [pattern, families] of rules) {
     if (pattern.test(question)) families.forEach((family) => {
@@ -955,15 +954,32 @@ function buildAnalyticCurve(
   const parametric = extractParametric(question);
   if (parametric) return buildParametricCurve(question, parametric);
   const expressions = extractExplicitFunctions(question);
-  if (expressions.length === 0) {
+  const named = extractNamedPlotExpressions(question);
+  const plots = expressions.length > 0 ? expressions : named;
+  const domain = extractXInterval(question)
+    ?? (named.includes("1/x^12-1/x^6") ? [0.8, 2.5] as [number, number] : [-2, 2] as [number, number]);
+  if (plots.length === 0) {
+    if (/(?:U\(x\) graph|stable and unstable equilibrium|F versus x|graph of F)/i.test(question) || schematic) {
+      const well = /U\(x\)|equilibrium/i.test(question) ? "x^4/4-x^2/2" : "x";
+      return plotExpressions(question, [well], domain);
+    }
     return schematic ? axesOnly(question, "analytic display axes") : null;
   }
-  const domain: [number, number] = [-2, 2];
+  return plotExpressions(question, plots, domain);
+}
+
+function plotExpressions(
+  question: string,
+  expressions: string[],
+  domain: [number, number],
+): SceneDocument {
+  const yMin = -2;
+  const yMax = 4;
   const entities: SceneEntity[] = [{ id: "axes", kind: "axes", role: "display axes" }];
   const constructions: SceneConstruction[] = [{
     id: "make_axes",
     operator: "axes",
-    inputs: { xMin: domain[0], xMax: domain[1], yMin: -2, yMax: 4 },
+    inputs: { xMin: domain[0], xMax: domain[1], yMin, yMax },
     outputs: ["axes"],
   }];
   expressions.forEach((expression, index) => {
@@ -1048,12 +1064,36 @@ function buildContactBody(
   if (/(?:pulley|blocks? connected|hanging (?:mass|block))/i.test(question)) {
     return pulleyDocument(question);
   }
-  if (/(?:hinged|hinge|uniform (?:rod|bar)|physical pendulum)/i.test(question)) {
+  if (/(?:hinged|hinge|uniform (?:rod|bar)|physical pendulum)/i.test(question)
+    && !/(?:simple pendulum|pendulum of length)/i.test(question)) {
     return hingedRodDocument(question, quantities);
   }
-  const theta = angleDegrees(quantities, question);
-  if (/(?:incline|inclined plane|slope)/i.test(question) || theta !== null) {
-    return inclineDocument(question, theta ?? 30);
+  if (/(?:vertical circl|whirled|circular loop|circular path of constant radius|completes a (?:full )?vertical)/i.test(question)) {
+    return verticalCircleDocument(question, quantities);
+  }
+  if (/(?:simple pendulum|pendulum of length|bob of mass)/i.test(question)) {
+    return pendulumDocument(question, quantities);
+  }
+  if (/(?:incline|inclined plane|slope)/i.test(question)) {
+    return inclineDocument(question, angleDegrees(quantities, question) ?? 30);
+  }
+  if (/(?:spring of stiffness|spring-block|unstretched springs|springs S1|elastic potential)/i.test(question)) {
+    return springDocument(question);
+  }
+  if (/(?:raindrop|dropped from|dropped onto|starts from rest at height|hits the ground|raised vertically|rebounds? to|released on the slide)/i.test(question)) {
+    return fallingBodyDocument(question);
+  }
+  if (/(?:collid(?:e|es|ing|ed)|collision|head-on|sticks to|embeds in|ballistic pendulum|glancing collision|coefficient of restitution)/i.test(question)) {
+    return collisionDocument(question);
+  }
+  if (/(?:moved slowly around a closed|closed \d+(?:\.\d+)?\s*m\s*[×x])/i.test(question)) {
+    return squarePathDocument(question);
+  }
+  if (/(?:pushes a (?:box|block)|force (?:pushes|pulls|acts through)|towed at|frictionless horizontal|work done by (?:a |the )?(?:constant |unknown )?force)/i.test(question)) {
+    return appliedForceBlockDocument(question);
+  }
+  if (/(?:\d+(?:\.\d+)?\s*kg (?:particle|block|mass|cart|wad)|particle of mass|body of mass|particle moves|moves along a straight line)/i.test(question)) {
+    return particleMotionDocument(question);
   }
   if (!schematic && !/(?:free[- ]body|friction|normal reaction)/i.test(question)) return null;
   return blockOnSurfaceDocument(question);
@@ -1215,6 +1255,333 @@ function blockOnSurfaceDocument(question: string): SceneDocument {
   });
 }
 
+function appliedForceBlockDocument(question: string): SceneDocument {
+  const perpendicular = /perpendicular to (?:the )?(?:\d+(?:\.\d+)?\s*m )?displacement/i.test(question);
+  return baseDocument({
+    question,
+    reason: perpendicular
+      ? "block, applied force, and perpendicular displacement"
+      : "block with applied force along the displacement",
+    quantities: [],
+    entities: [
+      { id: "center", kind: "point", role: "block center" },
+      { id: "left", kind: "point", role: "surface end" },
+      { id: "right", kind: "point", role: "surface end" },
+      { id: "block", kind: "rectangle", role: "block", label: "m" },
+      { id: "surface", kind: "segment", role: "contact surface" },
+      { id: "force", kind: "vector", role: "applied force", label: "F" },
+      { id: "displacement", kind: "vector", role: "displacement", label: "d" },
+    ],
+    constructions: [
+      pointAt("center", 0, 0.4),
+      pointAt("left", -2.4, 0),
+      pointAt("right", 2.8, 0),
+      { id: "make_block", operator: "rectangle", inputs: { center: "center", width: 1.2, height: 0.8 }, outputs: ["block"] },
+      { id: "make_surface", operator: "segment", inputs: { start: "left", end: "right" }, outputs: ["surface"] },
+      {
+        id: "make_force",
+        operator: "vector",
+        inputs: perpendicular
+          ? { start: "center", direction: [0, 1], length: 1.4 }
+          : { start: "center", direction: [1, 0], length: 1.6 },
+        outputs: ["force"],
+      },
+      { id: "make_displacement", operator: "vector", inputs: { start: "center", direction: [1, 0], length: 2.2 }, outputs: ["displacement"] },
+    ],
+    assertions: [
+      { id: "block_exists", predicate: "exists", entities: ["block"], expected: true, severity: "fatal" },
+      { id: "force_exists", predicate: "exists", entities: ["force"], expected: true, severity: "fatal" },
+      { id: "displacement_exists", predicate: "exists", entities: ["displacement"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function fallingBodyDocument(question: string): SceneDocument {
+  const resistive = /(?:resistive|air (?:drag|resistance)|unknown resistive)/i.test(question);
+  return baseDocument({
+    question,
+    reason: resistive
+      ? "vertical drop with weight and a resistive force"
+      : "vertical drop from a stated height",
+    quantities: [],
+    entities: [
+      { id: "ground_left", kind: "point", role: "ground end" },
+      { id: "ground_right", kind: "point", role: "ground end" },
+      { id: "start", kind: "point", role: "release point", label: "h" },
+      { id: "particle", kind: "point", role: "falling body" },
+      { id: "ground", kind: "segment", role: "ground" },
+      { id: "path", kind: "segment", role: "drop" },
+      { id: "weight", kind: "vector", role: "weight", label: "mg" },
+      ...(resistive
+        ? [{ id: "resist", kind: "vector" as const, role: "resistive force", label: "R" }]
+        : []),
+    ],
+    constructions: [
+      pointAt("ground_left", -1.6, 0),
+      pointAt("ground_right", 1.6, 0),
+      pointAt("start", 0, 3.2),
+      pointAt("particle", 0, 2.4),
+      { id: "make_ground", operator: "segment", inputs: { start: "ground_left", end: "ground_right" }, outputs: ["ground"] },
+      { id: "make_path", operator: "segment", inputs: { start: "start", end: "particle" }, outputs: ["path"] },
+      { id: "make_weight", operator: "vector", inputs: { start: "particle", direction: [0, -1], length: 1.1 }, outputs: ["weight"] },
+      ...(resistive
+        ? [{
+            id: "make_resist",
+            operator: "vector" as const,
+            inputs: { start: "particle", direction: [0, 1], length: 0.8 },
+            outputs: ["resist"],
+          }]
+        : []),
+    ],
+    assertions: [
+      { id: "ground_exists", predicate: "exists", entities: ["ground"], expected: true, severity: "fatal" },
+      { id: "path_exists", predicate: "exists", entities: ["path"], expected: true, severity: "fatal" },
+      { id: "weight_exists", predicate: "exists", entities: ["weight"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function springDocument(question: string): SceneDocument {
+  const twoSprings = /(?:two unstretched springs|springs S1)/i.test(question);
+  if (twoSprings) {
+    return baseDocument({
+      question,
+      reason: "block between two springs from shared attachment points",
+      quantities: [],
+      entities: [
+        { id: "wall1", kind: "point", role: "left support" },
+        { id: "wall2", kind: "point", role: "right support" },
+        { id: "center", kind: "point", role: "block center" },
+        { id: "block", kind: "rectangle", role: "block", label: "B" },
+        { id: "s1", kind: "segment", role: "spring", label: "S1" },
+        { id: "s2", kind: "segment", role: "spring", label: "S2" },
+      ],
+      constructions: [
+        pointAt("wall1", -3, 0.4),
+        pointAt("wall2", 3, 0.4),
+        pointAt("center", 0, 0.4),
+        { id: "make_block", operator: "rectangle", inputs: { center: "center", width: 0.9, height: 0.8 }, outputs: ["block"] },
+        { id: "make_s1", operator: "segment", inputs: { start: "wall1", end: "center" }, outputs: ["s1"] },
+        { id: "make_s2", operator: "segment", inputs: { start: "center", end: "wall2" }, outputs: ["s2"] },
+      ],
+      assertions: [
+        { id: "block_exists", predicate: "exists", entities: ["block"], expected: true, severity: "fatal" },
+        { id: "springs_exist", predicate: "exists", entities: ["s1", "s2"], expected: true, severity: "fatal" },
+      ],
+    });
+  }
+  return baseDocument({
+    question,
+    reason: "spring-block on a horizontal surface",
+    quantities: [],
+    entities: [
+      { id: "wall", kind: "point", role: "fixed wall" },
+      { id: "center", kind: "point", role: "block center" },
+      { id: "left", kind: "point", role: "surface end" },
+      { id: "right", kind: "point", role: "surface end" },
+      { id: "block", kind: "rectangle", role: "block", label: "m" },
+      { id: "surface", kind: "segment", role: "contact surface" },
+      { id: "spring", kind: "segment", role: "spring", label: "k" },
+    ],
+    constructions: [
+      pointAt("wall", -2.6, 0.4),
+      pointAt("center", 0.4, 0.4),
+      pointAt("left", -2.8, 0),
+      pointAt("right", 2.4, 0),
+      { id: "make_block", operator: "rectangle", inputs: { center: "center", width: 1.0, height: 0.8 }, outputs: ["block"] },
+      { id: "make_surface", operator: "segment", inputs: { start: "left", end: "right" }, outputs: ["surface"] },
+      { id: "make_spring", operator: "segment", inputs: { start: "wall", end: "center" }, outputs: ["spring"] },
+    ],
+    assertions: [
+      { id: "block_exists", predicate: "exists", entities: ["block"], expected: true, severity: "fatal" },
+      { id: "spring_exists", predicate: "exists", entities: ["spring"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function pendulumDocument(question: string, quantities: PlanQuantity[]): SceneDocument {
+  const theta = angleDegrees(quantities, question) ?? 30;
+  return baseDocument({
+    question,
+    reason: "simple pendulum displaced from the vertical",
+    quantities: [{ id: "theta", symbol: "theta", value: theta, unit: "degree" }],
+    entities: [
+      { id: "hinge", kind: "point", role: "support", label: "O" },
+      { id: "rest", kind: "point", role: "lowest point" },
+      { id: "bob", kind: "point", role: "bob", label: "m" },
+      { id: "string", kind: "segment", role: "string" },
+      { id: "weight", kind: "vector", role: "weight", label: "mg" },
+    ],
+    constructions: [
+      pointAt("hinge", 0, 2.4),
+      pointAt("rest", 0, 0),
+      {
+        id: "make_bob",
+        operator: "rotate",
+        inputs: { point: "rest", center: "hinge", angle: -theta, angleUnit: "degrees" },
+        outputs: ["bob"],
+      },
+      { id: "make_string", operator: "segment", inputs: { start: "hinge", end: "bob" }, outputs: ["string"] },
+      { id: "make_weight", operator: "vector", inputs: { start: "bob", direction: [0, -1], length: 0.8 }, outputs: ["weight"] },
+    ],
+    assertions: [
+      { id: "equal_length", predicate: "equal_length", entities: ["hinge", "rest", "hinge", "bob"], expected: true, severity: "fatal" },
+      { id: "string_exists", predicate: "exists", entities: ["string"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function verticalCircleDocument(question: string, quantities: PlanQuantity[]): SceneDocument {
+  const withIncline = /(?:incline|inclined plane)/i.test(question);
+  const radius = 1.6;
+  const loopCenterX = withIncline ? 3.2 : 0;
+  const loopCenterY = radius;
+  const entities: SceneEntity[] = [
+    { id: "center", kind: "point", role: "circle center" },
+    { id: "bottom", kind: "point", role: "lowest point" },
+    { id: "top", kind: "point", role: "highest point" },
+    { id: "mass", kind: "point", role: "particle", label: "m" },
+    { id: "loop", kind: "circle", role: "vertical circle" },
+    { id: "radius_arm", kind: "segment", role: "string or track radius" },
+    { id: "weight", kind: "vector", role: "weight", label: "mg" },
+  ];
+  const constructions: SceneConstruction[] = [
+    pointAt("center", loopCenterX, loopCenterY),
+    pointAt("bottom", loopCenterX, loopCenterY - radius),
+    pointAt("top", loopCenterX, loopCenterY + radius),
+    pointAt("mass", loopCenterX, loopCenterY - radius),
+    { id: "make_loop", operator: "circle", inputs: { center: "center", radius }, outputs: ["loop"] },
+    { id: "make_radius", operator: "segment", inputs: { start: "center", end: "mass" }, outputs: ["radius_arm"] },
+    { id: "make_weight", operator: "vector", inputs: { start: "mass", direction: [0, -1], length: 0.9 }, outputs: ["weight"] },
+  ];
+  if (withIncline) {
+    const theta = angleDegrees(quantities, question) ?? 30;
+    const radians = theta * Math.PI / 180;
+    const run = 3.2;
+    entities.push(
+      { id: "base", kind: "point", role: "incline foot" },
+      { id: "incline", kind: "segment", role: "approach incline" },
+    );
+    constructions.push(
+      pointAt("base", loopCenterX - run, (loopCenterY - radius) + run * Math.tan(radians)),
+      { id: "make_incline", operator: "segment", inputs: { start: "base", end: "bottom" }, outputs: ["incline"] },
+    );
+  }
+  return baseDocument({
+    question,
+    reason: withIncline
+      ? "incline feeding a vertical circular loop"
+      : "particle on a vertical circle with weight at the lowest point",
+    quantities: [],
+    entities,
+    constructions,
+    assertions: [
+      { id: "loop_exists", predicate: "exists", entities: ["loop"], expected: true, severity: "fatal" },
+      { id: "mass_exists", predicate: "exists", entities: ["mass"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function collisionDocument(question: string): SceneDocument {
+  const glancing = /(?:glancing|two dimensions|oblique|30° to its original|perpendicular)/i.test(question);
+  return baseDocument({
+    question,
+    reason: glancing
+      ? "two-body collision with outgoing velocity vectors"
+      : "one-dimensional two-body collision on a line",
+    quantities: [],
+    entities: [
+      { id: "left", kind: "point", role: "track end" },
+      { id: "right", kind: "point", role: "track end" },
+      { id: "a", kind: "point", role: "incoming center" },
+      { id: "b", kind: "point", role: "target center" },
+      { id: "track", kind: "segment", role: "line of impact" },
+      { id: "block_a", kind: "rectangle", role: "incoming body", label: "A" },
+      { id: "block_b", kind: "rectangle", role: "target body", label: "B" },
+      { id: "va", kind: "vector", role: "velocity", label: "v" },
+      { id: "vb", kind: "vector", role: "velocity", label: "u" },
+    ],
+    constructions: [
+      pointAt("left", -3.2, 0),
+      pointAt("right", 3.2, 0),
+      pointAt("a", -1.4, 0.45),
+      pointAt("b", 1.1, 0.45),
+      { id: "make_track", operator: "segment", inputs: { start: "left", end: "right" }, outputs: ["track"] },
+      { id: "make_a", operator: "rectangle", inputs: { center: "a", width: 1.0, height: 0.8 }, outputs: ["block_a"] },
+      { id: "make_b", operator: "rectangle", inputs: { center: "b", width: 1.0, height: 0.8 }, outputs: ["block_b"] },
+      { id: "make_va", operator: "vector", inputs: { start: "a", direction: [1, 0], length: 1.3 }, outputs: ["va"] },
+      {
+        id: "make_vb",
+        operator: "vector",
+        inputs: glancing
+          ? { start: "b", direction: [0.6, 0.8], length: 1.3 }
+          : { start: "b", direction: [1, 0], length: 0.9 },
+        outputs: ["vb"],
+      },
+    ],
+    assertions: [
+      { id: "track_exists", predicate: "exists", entities: ["track"], expected: true, severity: "fatal" },
+      { id: "bodies_exist", predicate: "exists", entities: ["block_a", "block_b"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function squarePathDocument(question: string): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "closed square path of a block on a horizontal floor",
+    quantities: [],
+    entities: [
+      { id: "A", kind: "point", role: "corner", label: "A" },
+      { id: "B", kind: "point", role: "corner", label: "B" },
+      { id: "C", kind: "point", role: "corner", label: "C" },
+      { id: "D", kind: "point", role: "corner", label: "D" },
+      { id: "path", kind: "polygon", role: "closed path" },
+      { id: "center", kind: "point", role: "block center" },
+      { id: "block", kind: "rectangle", role: "block", label: "m" },
+    ],
+    constructions: [
+      pointAt("A", -2, -2),
+      pointAt("B", 2, -2),
+      pointAt("C", 2, 2),
+      pointAt("D", -2, 2),
+      pointAt("center", -2, -2),
+      { id: "make_path", operator: "polygon", inputs: { points: ["A", "B", "C", "D"] }, outputs: ["path"] },
+      { id: "make_block", operator: "rectangle", inputs: { center: "center", width: 0.7, height: 0.7 }, outputs: ["block"] },
+    ],
+    assertions: [
+      { id: "path_exists", predicate: "exists", entities: ["path"], expected: true, severity: "fatal" },
+      { id: "block_exists", predicate: "exists", entities: ["block"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function particleMotionDocument(question: string): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "particle with a velocity vector on a line",
+    quantities: [],
+    entities: [
+      { id: "left", kind: "point", role: "axis end" },
+      { id: "right", kind: "point", role: "axis end" },
+      { id: "particle", kind: "point", role: "particle", label: "m" },
+      { id: "axis", kind: "segment", role: "path" },
+      { id: "velocity", kind: "vector", role: "velocity", label: "v" },
+    ],
+    constructions: [
+      pointAt("left", -2.5, 0),
+      pointAt("right", 2.5, 0),
+      pointAt("particle", -0.4, 0),
+      { id: "make_axis", operator: "segment", inputs: { start: "left", end: "right" }, outputs: ["axis"] },
+      { id: "make_velocity", operator: "vector", inputs: { start: "particle", direction: [1, 0], length: 1.6 }, outputs: ["velocity"] },
+    ],
+    assertions: [
+      { id: "axis_exists", predicate: "exists", entities: ["axis"], expected: true, severity: "fatal" },
+      { id: "velocity_exists", predicate: "exists", entities: ["velocity"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
 function buildVectorDiagram(
   question: string,
   quantities: PlanQuantity[],
@@ -1222,7 +1589,7 @@ function buildVectorDiagram(
 ): SceneDocument | null {
   const magnitudes = quantities.filter((quantity) =>
     /(?:magnitude|vec|a|b)/i.test(`${quantity.id} ${quantity.symbol}`));
-  if (!schematic && magnitudes.length < 1 && !/(?:resultant|two vectors|vector)/i.test(question)) {
+  if (!schematic && magnitudes.length < 1 && !/(?:resultant|two vectors|vector|velocity vectors)/i.test(question)) {
     return null;
   }
   return baseDocument({
@@ -1376,6 +1743,8 @@ function buildCoordinateFigure(
   quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  const displacement = extractCoordinateDisplacement(question);
+  if (displacement) return coordinateDisplacementDocument(question, displacement);
   const radius = firstQuantity(quantities, ["r", "radius"]);
   if (!schematic && radius === null && !/(?:circle|parabola|ellipse|triangle)/i.test(question)) return null;
   const r = radius ?? 2;
@@ -1480,7 +1849,9 @@ function buildEnergyLevel(question: string, _quantities: PlanQuantity[], schemat
 }
 
 function buildFluidApparatus(question: string, _quantities: PlanQuantity[], schematic: boolean): SceneDocument | null {
-  if (!schematic && !/(?:hydraulic|piston|venturi|pipe)/i.test(question)) return null;
+  if (!schematic && !/(?:hydraulic|piston|venturi|pipe|cylindrical vessels|connected at the bottom)/i.test(question)) {
+    return null;
+  }
   return baseDocument({
     question,
     reason: "connected vessels for a fluid apparatus",
@@ -1808,6 +2179,92 @@ function extractExplicitFunctions(question: string): string[] {
     if (expression && !facts.includes(expression)) facts.push(expression);
   }
   return facts.slice(0, 3);
+}
+
+function extractNamedPlotExpressions(question: string): string[] {
+  const normalized = question.replace(/[−–—]/g, "-").replace(/²/g, "^2").replace(/³/g, "^3");
+  const facts: string[] = [];
+  const fx = /\bF\s*=\s*5x\b/i.exec(normalized);
+  if (fx) facts.push("5*x");
+  const fxPoly = /\bF_x\s*=\s*\(([^)]+)\)/i.exec(normalized);
+  if (fxPoly) {
+    const expression = normalizePlotExpression(fxPoly[1]!);
+    if (expression) facts.push(expression);
+  }
+  const uxyz = /\bU\s*=\s*\(2x\^2/i.exec(normalized) || /\bU\s*=\s*\(2x²/i.exec(question);
+  if (uxyz) facts.push("2*x^2");
+  const ur = /\bU\(r\)\s*=/i.exec(normalized);
+  if (ur) facts.push("1/x^12-1/x^6");
+  const kt = /\bK\s*=\s*c\s*t\b/i.exec(normalized);
+  if (kt) facts.push("x");
+  return facts.slice(0, 2);
+}
+
+function extractXInterval(question: string): [number, number] | null {
+  const match = question.match(
+    /from x\s*=\s*(\d+(?:\.\d+)?)\s*m to x\s*=\s*(\d+(?:\.\d+)?)/i,
+  );
+  if (!match) return null;
+  const start = Number(match[1]);
+  const end = Number(match[2]);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start === end) return null;
+  return start < end ? [start, end] : [end, start];
+}
+
+function normalizePlotExpression(value: string): string {
+  return value
+    .replace(/[−–—]/g, "-")
+    .replace(/\s+/g, "")
+    .replace(/(\d)x/g, "$1*x")
+    .replace(/x(?=\()/g, "x*");
+}
+
+function extractCoordinateDisplacement(
+  question: string,
+): { x1: number; y1: number; x2: number; y2: number } | null {
+  const match = question.match(
+    /from\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)\s*to\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/i,
+  );
+  if (!match) return null;
+  const x1 = Number(match[1]);
+  const y1 = Number(match[2]);
+  const x2 = Number(match[3]);
+  const y2 = Number(match[4]);
+  if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
+  return { x1, y1, x2, y2 };
+}
+
+function coordinateDisplacementDocument(
+  question: string,
+  points: { x1: number; y1: number; x2: number; y2: number },
+): SceneDocument {
+  const pad = 1;
+  const xMin = Math.min(points.x1, points.x2) - pad;
+  const xMax = Math.max(points.x1, points.x2) + pad;
+  const yMin = Math.min(points.y1, points.y2) - pad;
+  const yMax = Math.max(points.y1, points.y2) + pad;
+  return baseDocument({
+    question,
+    reason: "displacement in the plane from the named endpoints",
+    quantities: [],
+    entities: [
+      { id: "axes", kind: "axes", role: "coordinate axes" },
+      { id: "start", kind: "point", role: "start", label: "A" },
+      { id: "end", kind: "point", role: "end", label: "B" },
+      { id: "path", kind: "vector", role: "displacement" },
+    ],
+    constructions: [
+      { id: "make_axes", operator: "axes", inputs: { xMin, xMax, yMin, yMax }, outputs: ["axes"] },
+      pointAt("start", points.x1, points.y1),
+      pointAt("end", points.x2, points.y2),
+      { id: "make_path", operator: "vector", inputs: { start: "start", end: "end" }, outputs: ["path"] },
+    ],
+    assertions: [
+      { id: "path_exists", predicate: "exists", entities: ["path"], expected: true, severity: "fatal" },
+      { id: "label_A", predicate: "label_attached", entities: ["start"], expected: true, severity: "fatal" },
+      { id: "label_B", predicate: "label_attached", entities: ["end"], expected: true, severity: "fatal" },
+    ],
+  });
 }
 
 function readExpression(source: string): string {

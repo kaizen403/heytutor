@@ -382,6 +382,70 @@ assert(lastResort, "last-resort energy-level schematic must still reach the boar
 assert(lastResort.tier === "question_representation", "last-resort must stay a non-authoritative schematic");
 assert(lastResort.renderScene.primitives.length > 0, "last-resort schematic produced no ink");
 
+const boxForceQuestion = "A constant 10 N force pushes a box 4.0 m in the same direction as the force. Find the work done by the force.";
+const boxForce = synthesizeFamilyScene({
+  question: boxForceQuestion,
+  families: ["contact_body"],
+  turnPlan: plan(boxForceQuestion, [
+    { id: "F", symbol: "F", value: 10, unit: "N", provenance: "given" },
+    { id: "d", symbol: "d", value: 4, unit: "m", provenance: "given" },
+  ]),
+});
+assert(boxForce, "constant-force box must compile a contact-body scene");
+assert(
+  boxForce.document.constructions.some((construction) => construction.outputs.includes("force")),
+  "constant-force box must draw the applied force",
+);
+
+const raindropQuestion = "A raindrop of mass 1 g starts from rest at height 1 km and hits the ground at 5 m/s.";
+const raindrop = synthesizeFamilyScene({
+  question: raindropQuestion,
+  families: ["contact_body"],
+  turnPlan: plan(raindropQuestion, [
+    { id: "m", symbol: "m", value: 0.001, unit: "kg", provenance: "given" },
+    { id: "h", symbol: "h", value: 1000, unit: "m", provenance: "given" },
+  ]),
+});
+assert(raindrop, "raindrop work problem must compile a falling-body scene");
+assert(
+  raindrop.document.entities.some((entity) => entity.id === "weight"),
+  "falling-body scene must include weight",
+);
+
+const pendulumAngleQuestion = "A simple pendulum of length 2.0 m is released from rest at 60° to the vertical. Find the speed at the bottom.";
+const pendulumAngle = synthesizeFamilyScene({
+  question: pendulumAngleQuestion,
+  families: ["contact_body"],
+  turnPlan: plan(pendulumAngleQuestion, [
+    { id: "L", symbol: "L", value: 2, unit: "m", provenance: "given" },
+    { id: "theta", symbol: "theta", value: 60, unit: "degree", provenance: "given" },
+  ]),
+});
+assert(pendulumAngle, "pendulum energy problem must compile");
+assert(
+  pendulumAngle.document.constructions.some((construction) => construction.operator === "rotate"),
+  "a pendulum angle must be derived with rotate, not drawn as an incline",
+);
+assert(
+  !pendulumAngle.document.entities.some((entity) => entity.id === "incline"),
+  "a degree angle on a pendulum must not become an inclined plane",
+);
+
+const forceGraphQuestion = "A block of mass 10 kg moves along the x-axis under F = 5x N (x in metres). Find the work from x = 2 m to x = 4 m.";
+const forceGraph = synthesizeFamilyScene({
+  question: forceGraphQuestion,
+  families: ["analytic_curve", "contact_body"],
+  turnPlan: plan(forceGraphQuestion, [
+    { id: "m", symbol: "m", value: 10, unit: "kg", provenance: "given" },
+  ]),
+});
+assert(forceGraph, "variable-force F=5x must compile");
+assert(forceGraph.family === "analytic_curve", "F(x) work should lead with the force-displacement graph");
+assert(
+  forceGraph.document.constructions.some((construction) => construction.operator === "function_curve"),
+  "F=5x must be drawn as a function curve",
+);
+
 const missing = synthesizeFamilyScene({
   question: "What is the capital of France?",
   families: [],

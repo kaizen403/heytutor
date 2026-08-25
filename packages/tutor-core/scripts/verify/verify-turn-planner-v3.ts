@@ -235,6 +235,15 @@ try {
 
   if (!explicitDiagramRequest("plot y = x squared")) throw new Error("explicit plot request was not detected");
   if (!questionRequiresVisual("Find the image formed by a concave mirror")) throw new Error("inherently spatial apparatus was not detected");
+  if (!questionRequiresVisual("A constant 10 N force pushes a box 4.0 m in the same direction as the force. Find the work done by the force.")) {
+    throw new Error("a constant-force word problem was not marked diagram-worthy");
+  }
+  if (!questionRequiresVisual("A raindrop of mass 1 g starts from rest at height 1 km and hits the ground at 5 m/s.")) {
+    throw new Error("a falling-body work problem was not marked diagram-worthy");
+  }
+  if (questionRequiresVisual("Classify each as conservative or non-conservative, with one line of reason: gravity near the Earth, an ideal spring, kinetic friction, and air drag.")) {
+    throw new Error("a definition-only conservative-force stem was force-marked as requiring a visual");
+  }
   // Figure reference without an explicit draw verb still requires a diagram.
   if (!questionRequiresVisual("Two blocks are connected by a wire over a smooth pulley as shown in the figure. Find the acceleration.")) {
     throw new Error("an explicit figure reference was not detected");
