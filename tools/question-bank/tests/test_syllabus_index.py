@@ -1289,7 +1289,7 @@ class SyllabusIndexTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     connection.execute("SELECT COUNT(*) FROM syllabus_topics").fetchone(),
-                    (307,),
+                    (525,),
                 )
                 self.assertEqual(connection.execute("PRAGMA foreign_key_check").fetchall(), [])
                 self.assertEqual(connection.execute("PRAGMA integrity_check").fetchone(), ("ok",))
