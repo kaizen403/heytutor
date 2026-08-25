@@ -127,8 +127,14 @@ export async function uploadAudio(
     return null;
   }
 
-  await uploadViaWrangler(config.bucket, key, bytes, contentType);
-  return publicUrlForKey(key);
+  try {
+    await uploadViaWrangler(config.bucket, key, bytes, contentType);
+    return publicUrlForKey(key);
+  } catch (error) {
+    console.error("R2 upload skipped; turn will save without remote audio", error);
+    wranglerAvailable = false;
+    return null;
+  }
 }
 
 /** Best-effort delete; returns false when R2 is not configured or delete fails. */

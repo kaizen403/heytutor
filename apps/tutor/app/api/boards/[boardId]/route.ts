@@ -174,8 +174,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
     if (audioKeys.length > 0) {
       void (async () => {
         try {
-          const { deleteAudio } = await import("@/lib/r2/r2");
-          await Promise.all(audioKeys.map((key) => deleteAudio(key)));
+          const { deleteAudioBulk } = await import("@/lib/r2/r2");
+          await deleteAudioBulk(audioKeys);
         } catch {
           // best-effort — R2 may not be configured or wrangler unavailable
         }
