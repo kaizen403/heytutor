@@ -5,9 +5,9 @@ const STATUS_CONFIG: Record<
   Exclude<ItemStatus, "pending">,
   { label: string; bg: string; text: string }
 > = {
-  accepted: { label: "Accepted", bg: "#DCFCE7", text: "#16A34A" },
-  rejected: { label: "Rejected", bg: "#FEE2E2", text: "#DC2626" },
-  "needs-improvement": { label: "Needs improvement", bg: "#FEF3C7", text: "#D97706" },
+  accepted: { label: "Accepted", bg: "rgba(201, 201, 210, 0.12)", text: "#C9C9D2" },
+  rejected: { label: "Rejected", bg: "rgba(224, 104, 88, 0.15)", text: "#E06858" },
+  "needs-improvement": { label: "Needs improvement", bg: "#1E1E21", text: "#A6A6AE" },
 };
 
 interface StatusBadgeProps {

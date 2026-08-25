@@ -1,0 +1,465 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|4",
+  "questions": [
+    {
+      "id": "physics|4|work-by-forces|easy",
+      "topicId": "physics|4|work-by-forces",
+      "difficulty": "easy",
+      "question": "A constant 10 N force pushes a box 4.0 m in the same direction as the force. Find the work done by the force. Then state the work if the same force is perpendicular to the 4.0 m displacement.",
+      "notes": "no bank item; authored. Bank constant-force work items are the 10 kg, F = 5x variable-force integral (next topic) and gravity-on-vessels."
+    },
+    {
+      "id": "physics|4|work-by-forces|medium",
+      "topicId": "physics|4|work-by-forces",
+      "difficulty": "medium",
+      "question": "A mass of 1 kg is at rest on a 30° incline. The whole assembly then moves up at constant velocity 4 m/s. Take g = 10 m/s². Find the work done by the frictional force in 2 s. Options included 10 J, 20 J, 25 J. The force of friction is constant because velocity of the assembly is constant.",
+      "source": {
+        "questionId": "q_e833fb3d88ef534f1b4cb682ea10c9fb36a6b499c54ea64a88b2bee9592032cb",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-05-shift-2"
+      }
+    },
+    {
+      "id": "physics|4|work-by-forces|hard",
+      "topicId": "physics|4|work-by-forces",
+      "difficulty": "hard",
+      "question": "A raindrop of mass 1 g starts from rest at height 1 km and hits the ground at 5 m/s. Take g = 10 m/s². Find the work done by the unknown resistive force, in joules. Options included −8.75, −8.35, −9.55, −9.98.",
+      "source": {
+        "questionId": "q_c0d4a721b36d1b10f5070ef75d5add88126dbcdac88359003c292bfee9aa17dc",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-06-shift-1"
+      }
+    },
+    {
+      "id": "physics|4|work-by-variable-force|easy",
+      "topicId": "physics|4|work-by-variable-force",
+      "difficulty": "easy",
+      "question": "A block of mass 10 kg moves along the x-axis under F = 5x N (x in metres). Find the work done by the force in moving the block from x = 2 m to x = 4 m, in joules.",
+      "source": {
+        "questionId": "q_da8f7cc1405dc78ec85c1073557b22d4cdd985767a1dfdafbe0febac9d2f9f98",
+        "exam": "JEE Main",
+        "year": 2023,
+        "documentId": "jee-main-2023-04-15-shift-1"
+      }
+    },
+    {
+      "id": "physics|4|work-by-variable-force|medium",
+      "topicId": "physics|4|work-by-variable-force",
+      "difficulty": "medium",
+      "question": "A particle experiences a variable force F = (4x î + 3 y² ĵ) N in the horizontal x–y plane (x, y in metres). It moves from (1, 2) to (2, 3). Find the change in kinetic energy. Options: 50 J, 25 J, 12.5 J. Use W = ∫ F · dr = ΔK.",
+      "source": {
+        "questionId": "q_a33520f030f10fe7931539d3bf17d25bfaf6110d956c2062cc57e24403b4744b",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-24-shift-1"
+      }
+    },
+    {
+      "id": "physics|4|work-by-variable-force|hard",
+      "topicId": "physics|4|work-by-variable-force",
+      "difficulty": "hard",
+      "question": "F_x = (6x − x²) N with x in metres. Find the work from x = 1.0 m to x = 3.0 m by integrating F dx. Then say why a graph of F versus x is safer than F_avg × Δx when F is not linear.",
+      "notes": "no bank item; authored. Bank variable-force items used F = 5x and F = 4x î + 3y² ĵ."
+    },
+    {
+      "id": "physics|4|kinetic-and-potential-energy|easy",
+      "topicId": "physics|4|kinetic-and-potential-energy",
+      "difficulty": "easy",
+      "question": "A 4.0 kg particle moves at 3.0 m/s. Find its kinetic energy. Then find the kinetic energy if the speed is doubled, and say whether K is linear in v.",
+      "notes": "no bank item; authored. Bank KE items are collision energy-transfer and rolling-cylinder KE (Unit 5)."
+    },
+    {
+      "id": "physics|4|kinetic-and-potential-energy|medium",
+      "topicId": "physics|4|kinetic-and-potential-energy",
+      "difficulty": "medium",
+      "question": "A 3.0 kg particle moves at 4.0 m/s. Find K. A second particle of mass 6.0 kg has the same kinetic energy; find its speed. Then say whether equal kinetic energy implies equal momentum.",
+      "notes": "no bank item; authored. The m-versus-5m KE-transfer MCQ is reserved for 1D elastic collisions."
+    },
+    {
+      "id": "physics|4|kinetic-and-potential-energy|hard",
+      "topicId": "physics|4|kinetic-and-potential-energy",
+      "difficulty": "hard",
+      "question": "A particle of mass m is initially at rest at the origin. A force starts it along the x-axis. Its kinetic energy changes with time as K = c t, where c is a positive constant. Which is/are true? (A) The force is constant (B) The speed is proportional to time (C) Distance from the origin increases linearly with time (D) The force is conservative. Use K = (1/2) m v² = c t.",
+      "source": {
+        "questionId": "q_70a9b0f10e9e7b4bcc6059c919c48c215fba05f0fce219e22c04080668adfe04",
+        "exam": "JEE Advanced",
+        "year": 2018,
+        "documentId": "jee-advanced-2018-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|4|gravitational-potential-energy|easy",
+      "topicId": "physics|4|gravitational-potential-energy",
+      "difficulty": "easy",
+      "question": "A 2.0 kg mass is raised vertically through 5.0 m. Take g = 10 m/s². Find the change in gravitational potential energy. Where did you put U = 0, and does that choice affect ΔU?",
+      "notes": "no bank item; authored. Bank GPE hits are dipole/gravitation or satellites, not mgh near Earth."
+    },
+    {
+      "id": "physics|4|gravitational-potential-energy|medium",
+      "topicId": "physics|4|gravitational-potential-energy",
+      "difficulty": "medium",
+      "question": "A 3.0 kg block slides 4.0 m down a 30° frictionless incline. Take g = 10 m/s². Find the change in gravitational potential energy. Show that you only need the vertical drop.",
+      "notes": "no bank item; authored. Same gap."
+    },
+    {
+      "id": "physics|4|gravitational-potential-energy|hard",
+      "topicId": "physics|4|gravitational-potential-energy",
+      "difficulty": "hard",
+      "question": "Two cylindrical vessels of equal cross-sectional area 2 m² contain water up to heights 10 m and 6 m. They are connected at the bottom. Density of water is 10³ kg/m³ and g = 10 m/s². Find the work done by the force of gravity as the levels equalize. Options included 4 × 10^4 J, 6 × 10^4 J, 8 × 10^4 J, 1 × 10^5 J.",
+      "source": {
+        "questionId": "q_164aae30ec6a13dee21d3342e3fa7de3b60a8ddd773732fbeef720033f54f163",
+        "exam": "JEE Main",
+        "year": 2025,
+        "documentId": "jee-main-2025-04-03-shift-2"
+      }
+    },
+    {
+      "id": "physics|4|work-energy-theorem|easy",
+      "topicId": "physics|4|work-energy-theorem",
+      "difficulty": "easy",
+      "question": "A constant 10 N force acts through 5.0 m on a 2.0 kg particle that starts from rest on a frictionless horizontal track. Using the work-energy theorem only, find the final speed.",
+      "notes": "no bank item; authored. Phrase ‘work-energy theorem’ never occurs; variable-force work items are under work-by-variable-force."
+    },
+    {
+      "id": "physics|4|work-energy-theorem|medium",
+      "topicId": "physics|4|work-energy-theorem",
+      "difficulty": "medium",
+      "question": "A particle of mass m moves on a straight line with velocity increasing with distance as v = α √x, where α is a constant. Using the work-energy theorem, find the total work done by all forces during the displacement from x = 0 to x = d.",
+      "source": {
+        "questionId": "q_459aa7ccab92b8f4243a0d83061451c86ebae1f484a2af636f53daf6146770fc",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-04-09-shift-1"
+      }
+    },
+    {
+      "id": "physics|4|work-energy-theorem|hard",
+      "topicId": "physics|4|work-energy-theorem",
+      "difficulty": "hard",
+      "question": "A body of mass 1 kg moves along a straight line with velocity v = 2 x² (x in metres, v in m/s). Using the work-energy theorem, find the work done on the body from x = 0 to x = 5 m. Options included 0, 1000, 1250 J.",
+      "source": {
+        "questionId": "q_5e5fcba24f91b35fad4b36f33ec0bf75259e93c1150344db603425629f6c8abb",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-06-shift-2"
+      },
+      "notes": "OCR printed v = 2x7; v = 2 x² is the companion that makes W = ΔK land on the listed 1250 J option with these numbers."
+    },
+    {
+      "id": "physics|4|power|easy",
+      "topicId": "physics|4|power",
+      "difficulty": "easy",
+      "question": "A force does 200 J of work in 4.0 s. Find the average power in watts and in kilowatts.",
+      "notes": "no bank item; authored. Bank power item is the circular-path P = F·v with a = k² r t² (hard)."
+    },
+    {
+      "id": "physics|4|power|medium",
+      "topicId": "physics|4|power",
+      "difficulty": "medium",
+      "question": "A boat is towed at a constant 5.0 m/s against a constant 40 N drag. Find the instantaneous power delivered by the towing force. Why is P = F v rather than F s here?",
+      "notes": "no bank item; authored. Same gap."
+    },
+    {
+      "id": "physics|4|power|hard",
+      "topicId": "physics|4|power",
+      "difficulty": "hard",
+      "question": "A particle of mass m moves on a circular path of constant radius r such that its centripetal acceleration varies with time as a = k² r t² (k a constant). The power delivered by the force acting on it is: (A) zero (B) m k² r² t (C) m k² r t (D) m r t. Note that speed is not constant, so this is not Unit 2 UCM kinematics.",
+      "source": {
+        "questionId": "q_7eb0ab92fe8a9dbcca1972416a7146803442ecb28b5fa22756c11ad9d71357b2",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-28-shift-1"
+      }
+    },
+    {
+      "id": "physics|4|spring-potential-energy|easy",
+      "topicId": "physics|4|spring-potential-energy",
+      "difficulty": "easy",
+      "question": "A spring of stiffness 200 N/m is stretched 10 cm from its natural length. Find the elastic potential energy stored. Write U = (1/2) k x² with x in metres.",
+      "notes": "no bank item; authored. Spring items in the bank are SHM or collisions, not ½kx² potential as a lecture slice."
+    },
+    {
+      "id": "physics|4|spring-potential-energy|medium",
+      "topicId": "physics|4|spring-potential-energy",
+      "difficulty": "medium",
+      "question": "A spring-block system rests on a frictionless floor: k = 2.0 N/m, block mass 2.0 kg, spring initially unstretched. A 1.0 kg block moving at 2.0 m/s collides elastically with the 2.0 kg block (the 2.0 kg block does not hit the wall). Find the maximum elastic potential energy stored in the spring after the collision.",
+      "source": {
+        "questionId": "q_c3c18a5828fa36e2aacf3673f008f45d424152f6132faab7218f8567a37e7034",
+        "exam": "JEE Advanced",
+        "year": 2018,
+        "documentId": "jee-advanced-2018-paper-1-english"
+      },
+      "notes": "Bank item asks the later distance between blocks; this prompt uses the same numbers and asks the spring-energy maximum, which is the lecture slice."
+    },
+    {
+      "id": "physics|4|spring-potential-energy|hard",
+      "topicId": "physics|4|spring-potential-energy",
+      "difficulty": "hard",
+      "question": "A block B is attached to two unstretched springs S1 and S2 of constants k and 4k. The other ends are attached to identical free supports (not walls). There is no friction. B is displaced a small distance x toward wall 1 and released. It then moves a maximum distance y toward wall 2. Displacements are from the equilibrium of B. Find the ratio y/x.",
+      "source": {
+        "questionId": "q_fe3d7e60fbb270288395ec5657ccdb789a8002abf20d0d6f8e27e054bc6d3e56",
+        "exam": "JEE Advanced",
+        "year": 2008,
+        "documentId": "jee-advanced-2008-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|4|conservation-of-mechanical-energy|easy",
+      "topicId": "physics|4|conservation-of-mechanical-energy",
+      "difficulty": "easy",
+      "question": "A stone is dropped from rest from 5.0 m. Take g = 10 m/s² and neglect air resistance. Use conservation of mechanical energy (not SUVAT) to find the speed just before it hits the ground.",
+      "notes": "no bank item; authored. ‘Mechanical energy’ hits are generators/satellites, not particle conservation."
+    },
+    {
+      "id": "physics|4|conservation-of-mechanical-energy|medium",
+      "topicId": "physics|4|conservation-of-mechanical-energy",
+      "difficulty": "medium",
+      "question": "A simple pendulum of length 2.0 m is released from rest at 60° to the vertical. Take g = 10 m/s². Find the speed at the bottom using conservation of energy. The string does no work; explain why.",
+      "notes": "no bank item; authored. ‘Mechanical energy’ hits are generators/satellites, not particle conservation."
+    },
+    {
+      "id": "physics|4|conservation-of-mechanical-energy|hard",
+      "topicId": "physics|4|conservation-of-mechanical-energy",
+      "difficulty": "hard",
+      "question": "A bob of mass m, suspended by a massless inextensible string of length L, is given the minimum speed at the lowest point required to complete a full vertical circle. Using conservation of mechanical energy and T = 0 at the top, find that launch speed. (The paper continues with an elastic collision at the top; stop before the collision.)",
+      "source": {
+        "questionId": "q_9143e2ebf7617f1f7d2abb15108ece86b313908e4ed1bff9ede7b39367d76b9c",
+        "exam": "JEE Advanced",
+        "year": 2013,
+        "documentId": "jee-advanced-2013-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|4|conservative-and-non-conservative-forces|easy",
+      "topicId": "physics|4|conservative-and-non-conservative-forces",
+      "difficulty": "easy",
+      "question": "Classify each as conservative or non-conservative, with one line of reason: gravity near the Earth, an ideal spring, kinetic friction, and air drag.",
+      "notes": "no bank item; authored. No conservative vs non-conservative closed-path item."
+    },
+    {
+      "id": "physics|4|conservative-and-non-conservative-forces|medium",
+      "topicId": "physics|4|conservative-and-non-conservative-forces",
+      "difficulty": "medium",
+      "question": "A 2.0 kg block is moved slowly around a closed 4.0 m × 4.0 m square on a horizontal floor with μ_k = 0.20. Take g = 10 m/s². Find the work done by friction around the loop and the work done by gravity around the loop.",
+      "notes": "no bank item; authored. No conservative vs non-conservative closed-path item."
+    },
+    {
+      "id": "physics|4|conservative-and-non-conservative-forces|hard",
+      "topicId": "physics|4|conservative-and-non-conservative-forces",
+      "difficulty": "hard",
+      "question": "Match the motions with the properties. Column I: (A) An object moves on the x-axis under a conservative force such that speed and position satisfy v² = c1 − c2 x² with c1, c2 > 0 (B) Velocity and displacement from the origin satisfy v = −k x with k > 0 (C) A mass on a spring hangs from the ceiling of an elevator that starts upward with constant acceleration a; observe from the elevator while that acceleration lasts (D) An object is projected vertically from the Earth with speed √(2 G M_E / R_E), neglecting other forces. Column II: (p) simple harmonic motion (q) does not change direction (r) kinetic energy keeps decreasing (s) can change direction only once. Match A–D to p–s.",
+      "source": {
+        "questionId": "q_d600c9ea31f937004270647344d82ea77b0a94b837fb6b23bb52a4dcbff6e83a",
+        "exam": "JEE Advanced",
+        "year": 2007,
+        "documentId": "jee-advanced-2007-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|4|potential-energy-curve-and-equilibrium|easy",
+      "topicId": "physics|4|potential-energy-curve-and-equilibrium",
+      "difficulty": "easy",
+      "question": "On a U(x) graph, how do you recognise stable and unstable equilibrium? Relate the force to the slope using F = −dU/dx.",
+      "notes": "no bank item; authored. Bank items are U(x,y,z) = 2x²+3y²+2z (medium) and the A,B interatomic U(r) (hard)."
+    },
+    {
+      "id": "physics|4|potential-energy-curve-and-equilibrium|medium",
+      "topicId": "physics|4|potential-energy-curve-and-equilibrium",
+      "difficulty": "medium",
+      "question": "The potential energy of a particle is U = (2x² + 3y² + 2z) J with x, y, z in metres. Find the magnitude of the x-component of force at P(1, 2, 3) m. Options: 2, 4, 6, 8 N. Use F_x = −∂U/∂x.",
+      "source": {
+        "questionId": "q_facb27fd52818e97734ed733a05445872150b4a57ac592845c7766c94b796301",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-29-shift-1"
+      }
+    },
+    {
+      "id": "physics|4|potential-energy-curve-and-equilibrium|hard",
+      "topicId": "physics|4|potential-energy-curve-and-equilibrium",
+      "difficulty": "hard",
+      "question": "Potential energy as a function of interatomic distance r is U(r) = A/r^{12} − B/r^6, where A and B are positive constants. Find the equilibrium separation from dU/dr = 0, and confirm it is a minimum. Options in the paper were of the form (2A/B)^{1/6} and (B/2A)^{1/6}.",
+      "source": {
+        "questionId": "q_02427a8963e16482f9e8197364e170d13924a226b12f70aeb4e5049a371d15c2",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-24-shift-2"
+      }
+    },
+    {
+      "id": "physics|4|motion-in-a-vertical-circle|easy",
+      "topicId": "physics|4|motion-in-a-vertical-circle",
+      "difficulty": "easy",
+      "question": "A stone of mass m tied to a string is whirled in a vertical circle with uniform speed. The tension in the string is: (A) the same throughout (B) minimum at the highest point (C) minimum at the lowest point (D) minimum when the string is horizontal. Speed is given as uniform in this paper; still identify where T is smallest from T − mg cosφ = m v² / L.",
+      "source": {
+        "questionId": "q_a72f7372089c0e64a41aab16ffde42592c1d3a50737a0d964b4d9ad067115742",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-24-shift-2"
+      }
+    },
+    {
+      "id": "physics|4|motion-in-a-vertical-circle|medium",
+      "topicId": "physics|4|motion-in-a-vertical-circle",
+      "difficulty": "medium",
+      "question": "A stone tied to a string of length L is whirled in a vertical circle about the other end. At the lowest point the speed is u. The magnitude of the change in velocity as it reaches the point where the string is horizontal is √x (u² − g L). Find x. Options: 3, 2, 1, 5.",
+      "source": {
+        "questionId": "q_c758739be43b2e9a004718bd5c76615721f9da32fa329cec29db3ca540b20195",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-27-shift-2"
+      }
+    },
+    {
+      "id": "physics|4|motion-in-a-vertical-circle|hard",
+      "topicId": "physics|4|motion-in-a-vertical-circle",
+      "difficulty": "hard",
+      "question": "A smooth incline ends in a vertical circular loop of radius R. A small body is released from height h. If it exerts a force of three times its weight on the track at the highest point of the circle, then h = α R. Find α. Options included 3, 4, 5/2.",
+      "source": {
+        "questionId": "q_f58d6acaaa32a21ac6d97f36a0cbed612d873cf500f3bd61d61b1a2aee1f2f9b",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-06-shift-1"
+      }
+    },
+    {
+      "id": "physics|4|collisions|easy",
+      "topicId": "physics|4|collisions",
+      "difficulty": "easy",
+      "question": "What percentage of kinetic energy of a moving particle is transferred to a stationary particle of 5 times its mass in a head-on elastic collision? Options: 50.0%, 66.6%, 55.6%, 83.3%. One dimension, e = 1, target at rest.",
+      "source": {
+        "questionId": "q_66ec559f3d8a732e27e8f28b391a1268293bad451b43ba191cbefe7642ab8ba2",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-27-shift-1"
+      }
+    },
+    {
+      "id": "physics|4|collisions|medium",
+      "topicId": "physics|4|collisions",
+      "difficulty": "medium",
+      "question": "Three objects A, B and C lie on a straight line on a frictionless horizontal surface, masses m, 2m and m. A moves toward B at 9 m/s and makes an elastic collision with B. Thereafter B makes a completely inelastic collision with C. All motion is on the same line. For this item, stop after the elastic A–B collision and find the speeds of A and B. (The inelastic sequel is the next topic.)",
+      "source": {
+        "questionId": "q_afdf2304182445ea14b365431b57bb5c4a9b91bd8217b624854aaef6c8d9d5a5",
+        "exam": "JEE Advanced",
+        "year": 2009,
+        "documentId": "jee-advanced-2009-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|4|collisions|hard",
+      "topicId": "physics|4|collisions",
+      "difficulty": "hard",
+      "question": "A 2.0 kg particle at 6.0 m/s collides elastically and head-on with a 1.0 kg particle at rest. Find both velocities after the collision from momentum conservation and e = 1. Check kinetic energy. Keep the motion in one dimension; this is not 2D.",
+      "notes": "no bank item; authored. Bank 1D elastic with two masses both moving was not cleanly OCR’d; equal-mass and m-vs-5m items already used."
+    },
+    {
+      "id": "physics|4|inelastic-collisions-1d|easy",
+      "topicId": "physics|4|inelastic-collisions-1d",
+      "difficulty": "easy",
+      "question": "What is an inelastic collision that is not perfectly inelastic? State what is conserved, what is not, and the range of e. Give one everyday example that does not stick together.",
+      "notes": "no bank item; authored. Bank 1D inelastic is the A–B–C line (medium)."
+    },
+    {
+      "id": "physics|4|inelastic-collisions-1d|medium",
+      "topicId": "physics|4|inelastic-collisions-1d",
+      "difficulty": "medium",
+      "question": "Three objects A, B, C on a line, masses m, 2m, m. A at 9 m/s makes an elastic collision with B at rest, then B makes a completely inelastic collision with C. Find the final speed of C in m/s. All motion is one-dimensional.",
+      "source": {
+        "questionId": "q_afdf2304182445ea14b365431b57bb5c4a9b91bd8217b624854aaef6c8d9d5a5",
+        "exam": "JEE Advanced",
+        "year": 2009,
+        "documentId": "jee-advanced-2009-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|4|inelastic-collisions-1d|hard",
+      "topicId": "physics|4|inelastic-collisions-1d",
+      "difficulty": "hard",
+      "question": "A 3.0 kg cart at 4.0 m/s collides with a 1.0 kg cart at rest. The coefficient of restitution is e = 0.50. Find both velocities after the collision, and the kinetic energy lost. Motion stays on one line; they do not stick (so this is not perfectly inelastic).",
+      "notes": "no bank item; authored. The A–B–C 2009 line is used once under 1D elastic (A–B) and once under inelastic (B–C sticks); this e = 0.5 numerical is distinct."
+    },
+    {
+      "id": "physics|4|perfectly-inelastic-collisions|easy",
+      "topicId": "physics|4|perfectly-inelastic-collisions",
+      "difficulty": "easy",
+      "question": "A 2.0 kg cart at 4.0 m/s sticks to a 2.0 kg cart at rest. Find the common speed and the kinetic energy lost. Why is e = 0 here?",
+      "notes": "no bank item; authored. The A–B–C line problem is used under inelastic 1D (elastic then perfectly inelastic)."
+    },
+    {
+      "id": "physics|4|perfectly-inelastic-collisions|medium",
+      "topicId": "physics|4|perfectly-inelastic-collisions",
+      "difficulty": "medium",
+      "question": "A pendulum of length 2 m has a wooden bob of mass 50 g. A bullet of mass 75 g is fired into the stationary bob, emerges with speed v/3, and the bob just completes a vertical circle. Take g = 10 m/s². Find v. This collision is inelastic (not perfectly, since the bullet emerges); if you treat a perfectly inelastic variant, contrast the required v.",
+      "source": {
+        "questionId": "q_ad19838c87768a7f4921493f09ec8ea191aeeae24702ec80b6b4bca9638e0eeb",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-27-shift-1"
+      },
+      "notes": "Bank ballistic-plus-loop item: inelastic 1D embed/emerge, then vertical circle. Prompt asks the perfectly inelastic contrast as well."
+    },
+    {
+      "id": "physics|4|perfectly-inelastic-collisions|hard",
+      "topicId": "physics|4|perfectly-inelastic-collisions",
+      "difficulty": "hard",
+      "question": "A 0.50 kg wad of clay at 8.0 m/s embeds in a 1.5 kg block hanging as a ballistic pendulum. Take g = 10 m/s². Find the speed just after they stick and the height the combined mass rises. Momentum is not conserved during the swing.",
+      "notes": "no bank item; authored. The A–B–C line problem is used under inelastic 1D (elastic then perfectly inelastic)."
+    },
+    {
+      "id": "physics|4|collisions-in-two-dimensions|easy",
+      "topicId": "physics|4|collisions-in-two-dimensions",
+      "difficulty": "easy",
+      "question": "In an elastic glancing collision of two equal masses, one initially at rest, the two final velocities are perpendicular. State this result, sketch the velocity vectors, and outline why it follows from momentum and kinetic energy.",
+      "notes": "no bank item; authored. No usable 2D/oblique collision with recoverable numbers."
+    },
+    {
+      "id": "physics|4|collisions-in-two-dimensions|medium",
+      "topicId": "physics|4|collisions-in-two-dimensions",
+      "difficulty": "medium",
+      "question": "Two equal-mass particles collide elastically. One is at rest. After the collision the first particle moves at 30° to its original direction. Find the direction of the second particle and, if the incoming speed is 10 m/s, both final speeds. Use the 90° rule.",
+      "notes": "no bank item; authored. No usable 2D/oblique collision with recoverable numbers."
+    },
+    {
+      "id": "physics|4|collisions-in-two-dimensions|hard",
+      "topicId": "physics|4|collisions-in-two-dimensions",
+      "difficulty": "hard",
+      "question": "In a scattering experiment a particle of mass 2m collides with a particle of mass m that is initially at rest. The collision is perfectly elastic. Find the maximum angular deviation θ of the heavier particle, in radians. Options included π, 1, π/6, and forms involving tan^{-1}(1/3).",
+      "source": {
+        "questionId": "q_fa40100c5890bbcf0a115c0b7d2b34386c02451deeaeba1a3d741b151d21c8e9",
+        "exam": "JEE Advanced",
+        "year": 2025,
+        "documentId": "jee-advanced-2025-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|4|coefficient-of-restitution|easy",
+      "topicId": "physics|4|coefficient-of-restitution",
+      "difficulty": "easy",
+      "question": "Define the coefficient of restitution e for a one-dimensional collision. What are e = 1 and e = 0? For a ball dropped onto a hard floor, write e in terms of speed just after rebound and speed just before impact.",
+      "notes": "no bank item; authored. Bank e item is the 1/√3 ground bounce after a slide (hard)."
+    },
+    {
+      "id": "physics|4|coefficient-of-restitution|medium",
+      "topicId": "physics|4|coefficient-of-restitution",
+      "difficulty": "medium",
+      "question": "A ball is dropped from 5.0 m onto a hard floor and rebounds to 1.25 m. Take g = 10 m/s². Find e from the heights, and also from the speeds just before and just after the bounce.",
+      "notes": "no bank item; authored. Same gap."
+    },
+    {
+      "id": "physics|4|coefficient-of-restitution|hard",
+      "topicId": "physics|4|coefficient-of-restitution",
+      "difficulty": "hard",
+      "question": "A slide with a frictionless curved surface becomes horizontal at its lower end, fixed on a terrace of height 3h. A ball of mass m is released on the slide from rest at height h above the terrace. It leaves with velocity u0 î, falls a distance d from the building at angle θ to the horizontal, bounces with velocity v, and reaches maximum height h1. Take g as given and coefficient of restitution of the ground e = 1/√3. Which is/are correct? (A) u0 = √(2 g h) î (B) v = √(2 g h)(î − ẑ) (C) θ = 60° (D) d/h1 = 2√3.",
+      "source": {
+        "questionId": "q_d7a14a657b79cec2fb5572b503a61d6e8d24920162e38f153fd44449183d24ab",
+        "exam": "JEE Advanced",
+        "year": 2023,
+        "documentId": "jee-advanced-2023-paper-1-english"
+      }
+    }
+  ]
+}

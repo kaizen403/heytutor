@@ -10,7 +10,8 @@ export interface ProgressEntry {
 
 export type ProgressMap = Record<string, ProgressEntry>;
 
-export const PROGRESS_STORAGE_KEY = "heytutor:admin:syllabus-progress:v1";
+/** Bumped to v2 so old `physics|1|0` markdown-index entries are abandoned. */
+export const PROGRESS_STORAGE_KEY = "heytutor:admin:syllabus-progress:v2";
 
 export const DEFAULT_PROGRESS_ENTRY: ProgressEntry = {
   checked: false,

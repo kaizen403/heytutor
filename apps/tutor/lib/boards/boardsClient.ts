@@ -60,6 +60,21 @@ export async function createBoard(id?: string): Promise<BoardEntry | null> {
   return data.board ?? null;
 }
 
+export async function createBoardWithTitle(title: string): Promise<BoardEntry | null> {
+  const res = await fetch(resolveApiUrl("/api/boards"), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+
+  if (!res.ok) {
+    return null;
+  }
+
+  const data = (await res.json()) as { board?: BoardEntry };
+  return data.board ?? null;
+}
+
 export async function fetchBoardDetail(boardId: string): Promise<BoardDetail | null> {
   const res = await fetch(resolveApiUrl(`/api/boards/${boardId}`));
   if (!res.ok) {

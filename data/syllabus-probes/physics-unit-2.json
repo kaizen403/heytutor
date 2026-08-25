@@ -1,0 +1,402 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|2",
+  "questions": [
+    {
+      "id": "physics|2|frame-of-reference|easy",
+      "topicId": "physics|2|frame-of-reference",
+      "difficulty": "easy",
+      "question": "What is a frame of reference? Give one inertial example and one non-inertial example, and explain in one sentence what “inertial” means for Newton’s first law.",
+      "notes": "no bank item; authored. Only ‘inertial frame’ hit is a momentum-conservation MCQ (used under linear momentum)."
+    },
+    {
+      "id": "physics|2|frame-of-reference|medium",
+      "topicId": "physics|2|frame-of-reference",
+      "difficulty": "medium",
+      "question": "A rocket moves in gravity-free space with constant acceleration 2 m/s² along +x. A chamber inside the rocket is 4 m long. A ball is thrown from the left end in the +x direction at 0.3 m/s relative to the rocket, and at the same instant another ball is thrown from the right end in the −x direction at 0.2 m/s relative to the rocket. Find the time when the two balls hit each other. Work in the rocket frame (pseudo-acceleration) or an inertial frame; state which.",
+      "source": {
+        "questionId": "q_47779f1eb2682c4fdc81c723822ad7c872f171876c0c8bdf67654bd8d22fc843",
+        "exam": "JEE Advanced",
+        "year": 2014,
+        "documentId": "jee-advanced-2014-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|2|frame-of-reference|hard",
+      "topicId": "physics|2|frame-of-reference",
+      "difficulty": "hard",
+      "question": "A train moves along a straight line with constant acceleration a. A boy in the train throws a ball forward at 10 m/s at 60° to the horizontal. He has to move forward by 1.15 m inside the train to catch the ball back at the initial height. Find a in m/s². Work in the train frame (constant a, effective g) or the ground frame; state which frame you used.",
+      "source": {
+        "questionId": "q_5cfdb3d8ad564f77b7c43bd391dca2ec821bf0510458a543d61ba46bd099856e",
+        "exam": "JEE Advanced",
+        "year": 2011,
+        "documentId": "jee-advanced-2011-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|2|motion-in-a-straight-line|easy",
+      "topicId": "physics|2|motion-in-a-straight-line",
+      "difficulty": "easy",
+      "question": "A small toy starts from rest under constant acceleration. If it travels 10 m in time t, the distance travelled in the next t seconds is: (A) 10 m (B) 20 m (C) 30 m (D) 40 m. Use s = (1/2) a t² on each interval; this is not free fall.",
+      "source": {
+        "questionId": "q_74e9b78762368456c92a30aca59302c1f14aae110847277f39ebb168c973f93f",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-29-shift-2"
+      }
+    },
+    {
+      "id": "physics|2|motion-in-a-straight-line|medium",
+      "topicId": "physics|2|motion-in-a-straight-line",
+      "difficulty": "medium",
+      "question": "A particle moving in a straight line covers half the distance with speed 6 m/s. The other half is covered in two equal time intervals with speeds 9 m/s and 15 m/s respectively. The average speed during the motion is: (A) 10 m/s (B) 8 m/s (C) 8.8 m/s (D) 9.2 m/s.",
+      "source": {
+        "questionId": "q_49dc5067dc13dbed8f3a5e750b12fc2b48d513493c3d39f62a415eca6fcc8650",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-04-09-shift-1"
+      }
+    },
+    {
+      "id": "physics|2|motion-in-a-straight-line|hard",
+      "topicId": "physics|2|motion-in-a-straight-line",
+      "difficulty": "hard",
+      "question": "A person starts from the centre O of a circular park of radius 200 m, walks along a radius to a point P on the circumference, then along the semicircular arc to Q, then back to O along a radius (path OPQO in the paper). The trip takes 3 min 58 s. Take π = 3.14. Find the average speed in m/s. Displacement is zero; what is the average velocity?",
+      "source": {
+        "questionId": "q_50ead487fe7bac5e04a5acfda1660d6cf0cb4d7d5215e35c19b9e044652dda8a",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-30-shift-1"
+      },
+      "notes": "Bank item is figure-labelled OPQO; the radius–semicircle–radius reconstruction is the standard companion that makes the 200 m and 3 min 58 s numbers teachable without the drawing."
+    },
+    {
+      "id": "physics|2|speed-velocity-and-accelerated-motion|easy",
+      "topicId": "physics|2|speed-velocity-and-accelerated-motion",
+      "difficulty": "easy",
+      "question": "A train starting from rest first accelerates uniformly up to 80 km/h in time t, then moves at that constant speed for time 3t. The average speed for the whole duration is (in km/h): (A) 70 (B) 30 (C) 40 (D) 80.",
+      "source": {
+        "questionId": "q_529e194effbb6893665f71a1fa85ad9b71307bbd31f8c5bb5b48199f8ae519ad",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-04-06-shift-1"
+      }
+    },
+    {
+      "id": "physics|2|speed-velocity-and-accelerated-motion|medium",
+      "topicId": "physics|2|speed-velocity-and-accelerated-motion",
+      "difficulty": "medium",
+      "question": "Use the same 6 m/s / 9 m/s / 15 m/s straight-line trip as motion-in-a-straight-line medium, but now also find the average velocity if the particle returns to the start after the second half. If that return is not given, instead: explain why average speed and average velocity differ for a round trip of 120 m east at 10 m/s and 120 m west at 20 m/s.",
+      "notes": "no bank item; authored. Distinct from the bank average-speed MCQ; this slice is speed vs velocity."
+    },
+    {
+      "id": "physics|2|speed-velocity-and-accelerated-motion|hard",
+      "topicId": "physics|2|speed-velocity-and-accelerated-motion",
+      "difficulty": "hard",
+      "question": "Position along a line is x = t³ metres with t in seconds. Find the instantaneous velocity at t = 2.0 s and the average velocity from t = 0 to t = 2.0 s. Is the motion uniform? Use v = dx/dt, not SUVAT.",
+      "notes": "no bank item; authored. Bank hard kinematics items used constant a or graphs, not v = dx/dt."
+    },
+    {
+      "id": "physics|2|suvat-equations|easy",
+      "topicId": "physics|2|suvat-equations",
+      "difficulty": "easy",
+      "question": "A particle starts from rest and has constant acceleration 4.0 m/s². Using v² = u² + 2 a s only, find the speed after it has travelled 8.0 m. Then check with v = u + a t after finding t from s = (1/2) a t². Do not use g.",
+      "notes": "no bank item; authored. The 10 m-in-time-t toy is used under motion-in-a-straight-line; this slice names the SUVAT formulae."
+    },
+    {
+      "id": "physics|2|suvat-equations|medium",
+      "topicId": "physics|2|suvat-equations",
+      "difficulty": "medium",
+      "question": "A body starts from rest with constant acceleration, covering S1 in the first (p−1) seconds and S2 in the first p seconds. Find in terms of p the time at which the displacement is S1 + S2. Options included (2p − 1) s.",
+      "source": {
+        "questionId": "q_3513181d59cb91a4eee9dba9527ec82a57b5b8d216d43da4aa76507e41c34720",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-29-shift-1"
+      }
+    },
+    {
+      "id": "physics|2|suvat-equations|hard",
+      "topicId": "physics|2|suvat-equations",
+      "difficulty": "hard",
+      "question": "A particle starts from rest, accelerates at 4.0 m/s² for 5.0 s, then decelerates at 2.0 m/s² until it stops. Find the maximum speed, the distance during acceleration, the distance during deceleration, and the total time. Do not use g.",
+      "notes": "no bank item; authored. Two-phase constant-a trip; bank two-phase items mixed a train frame with a projectile."
+    },
+    {
+      "id": "physics|2|free-fall-and-vertical-projection|easy",
+      "topicId": "physics|2|free-fall-and-vertical-projection",
+      "difficulty": "easy",
+      "question": "A ball is dropped from rest from 18 m above the ground. Take g = 10 m/s² and neglect air resistance. Find the height above the ground at which the magnitude of velocity equals the magnitude of g (in the same units). The answer is a length in metres.",
+      "source": {
+        "questionId": "q_4c29676ee7a46718f565670f5a2cf8f68593b3a82bf37224abd77c389eb989ff",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-05-shift-1"
+      }
+    },
+    {
+      "id": "physics|2|free-fall-and-vertical-projection|medium",
+      "topicId": "physics|2|free-fall-and-vertical-projection",
+      "difficulty": "medium",
+      "question": "From the top of a tower a ball thrown vertically upward reaches the ground in 6 s. A second ball thrown vertically downward from the same point with the same speed reaches the ground in 1.5 s. A third ball released from rest from the same location reaches the ground in how many seconds?",
+      "source": {
+        "questionId": "q_24651aee0abfb2e4b58444964372321e9a223c195bb6d90e7b0b33755f60adcd",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-24-shift-1"
+      }
+    },
+    {
+      "id": "physics|2|free-fall-and-vertical-projection|hard",
+      "topicId": "physics|2|free-fall-and-vertical-projection",
+      "difficulty": "hard",
+      "question": "Two balls A and B are placed at the top of a 180 m tower. Ball A is released from rest at t = 0. Ball B is thrown vertically down with speed u at t = 2 s. They meet 100 m above the ground. Take g = 10 m/s². Find u. Options included 10, 20, 30 m/s. There is no horizontal velocity.",
+      "source": {
+        "questionId": "q_37501d62d1b9392cd06e50652f482ca06cd03487b2a1cfd8081386d9c0985436",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-29-shift-1"
+      }
+    },
+    {
+      "id": "physics|2|motion-graphs|easy",
+      "topicId": "physics|2|motion-graphs",
+      "difficulty": "easy",
+      "question": "A velocity–time graph is a horizontal line at v = 10 m/s from t = 0 to t = 4.0 s. Sketch it, find the displacement from the area, and say what the corresponding x–t graph looks like if x = 0 at t = 0.",
+      "notes": "no bank item; authored. Bank v–t/x–t items need the printed figure (glycerine ball; students A and B)."
+    },
+    {
+      "id": "physics|2|motion-graphs|medium",
+      "topicId": "physics|2|motion-graphs",
+      "difficulty": "medium",
+      "question": "A particle starts from rest. Its v–t graph is a straight line from (0, 0) to (4.0 s, 20 m/s), then a horizontal line at 20 m/s until t = 7.0 s. Find the acceleration in each interval and the total displacement from the area of the graph.",
+      "notes": "no bank item; authored. Bank x–t item (students A and B) is figure-only; this is a self-contained lecture graph with the same skill."
+    },
+    {
+      "id": "physics|2|motion-graphs|hard",
+      "topicId": "physics|2|motion-graphs",
+      "difficulty": "hard",
+      "question": "A v–t graph goes linearly from (0, 0) to (2.0 s, 10 m/s), then linearly back to (5.0 s, 0). Velocity is never negative. Find the displacement, the average velocity over 5.0 s, and the acceleration in each interval. Then describe the shape of the x–t graph in each interval (x = 0 at t = 0).",
+      "notes": "no bank item; authored. Bank 40 s v–t item is figure-only with unreadable option art."
+    },
+    {
+      "id": "physics|2|relative-velocity|easy",
+      "topicId": "physics|2|relative-velocity",
+      "difficulty": "easy",
+      "question": "Car A travels east at 20 m/s and car B travels east at 5.0 m/s on the same straight road. Find the velocity of A relative to B and of B relative to A.",
+      "notes": "no bank item; authored. No usable 1D relative-velocity stem (relative-velocity hits were circular/projectile)."
+    },
+    {
+      "id": "physics|2|relative-velocity|medium",
+      "topicId": "physics|2|relative-velocity",
+      "difficulty": "medium",
+      "question": "Two cars A and B move in the same direction along a straight line at 100 km/h and 80 km/h respectively, with A ahead of B. A person in car B throws a stone with speed v (relative to B, along the line) so that it hits car A with a speed of 5 m/s relative to A. Find v in km/h. Options included 38 and 48. Convert 5 m/s to km/h and use 1D relative velocity only.",
+      "source": {
+        "questionId": "q_5581221a40cf8b468f21816ae40a5e208bf45374c8f4705e6a4cc23c39567bfe",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-04-shift-2"
+      }
+    },
+    {
+      "id": "physics|2|relative-velocity|hard",
+      "topicId": "physics|2|relative-velocity",
+      "difficulty": "hard",
+      "question": "Car A travels at a constant 15 m/s. Car B is 100 m ahead of A, travelling in the same direction at a constant 10 m/s. Find the time until A catches B. Then repeat if B instead starts from rest with acceleration 1.0 m/s² at the instant A is 100 m behind.",
+      "notes": "no bank item; authored. No usable 1D relative-velocity stem (relative-velocity hits were circular/projectile)."
+    },
+    {
+      "id": "physics|2|river-boat-problems|easy",
+      "topicId": "physics|2|river-boat-problems",
+      "difficulty": "easy",
+      "question": "A boat’s speed in still water is 5.0 m/s and the current is 3.0 m/s along the river. Find the speed downstream and upstream. Then find the time to go 100 m downstream and return 100 m upstream.",
+      "notes": "no bank item; authored. The bank river item is the 9 km/h, 27 km/h, 150° crossing (medium)."
+    },
+    {
+      "id": "physics|2|river-boat-problems|medium",
+      "topicId": "physics|2|river-boat-problems",
+      "difficulty": "medium",
+      "question": "A river flows west to east at 9 km/h. A boat with maximum speed 27 km/h in still water crosses in half a minute while moving at maximum speed at 150° to the direction of river flow. Find the width of the river. Options: 112.5 m, 112.5√3 m, 75 m, 300 m.",
+      "source": {
+        "questionId": "q_a39280cbd5aa80935a7f14557e12782aacc4102d8c8eabe5a4e41fb1e4f4df72",
+        "exam": "JEE Main",
+        "year": 2025,
+        "documentId": "jee-main-2025-04-02-shift-1"
+      }
+    },
+    {
+      "id": "physics|2|river-boat-problems|hard",
+      "topicId": "physics|2|river-boat-problems",
+      "difficulty": "hard",
+      "question": "Using an 80 m wide river, boat speed 5.0 m/s in still water, current 3.0 m/s: find the heading so that the resultant is straight across, the time for that crossing, and compare it with the shortest possible crossing time. Draw the two velocity triangles.",
+      "notes": "no bank item; authored. Bank has only the 150° numerical; this is the standard perpendicular-resultant companion."
+    },
+    {
+      "id": "physics|2|relative-velocity-in-a-plane|easy",
+      "topicId": "physics|2|relative-velocity-in-a-plane",
+      "difficulty": "easy",
+      "question": "Rain falls vertically at 10 m/s. A person walks east at 5.0 m/s. Find the magnitude of the rain’s velocity relative to the person and the angle that relative velocity makes with the vertical.",
+      "notes": "no bank item; authored. Bank rain-man item is the 45° umbrella (medium)."
+    },
+    {
+      "id": "physics|2|relative-velocity-in-a-plane|medium",
+      "topicId": "physics|2|relative-velocity-in-a-plane",
+      "difficulty": "medium",
+      "question": "A girl standing on a road holds her umbrella at 45° to the vertical to keep the rain away. If she starts running without the umbrella at speed (15√2) km/h, the raindrops hit her head vertically. Find the speed of the raindrops with respect to the moving girl. Options included 30 km/h and 15√2 km/h.",
+      "source": {
+        "questionId": "q_6ef8105a28c59364b00ba47f53266d6631746ac1df68920d133c55ac87c462a9",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-27-shift-1"
+      }
+    },
+    {
+      "id": "physics|2|relative-velocity-in-a-plane|hard",
+      "topicId": "physics|2|relative-velocity-in-a-plane",
+      "difficulty": "hard",
+      "question": "Rain falls at 10 m/s at 30° to the vertical, horizontal component toward the east. How fast, and in which direction, must a person walk so that the rain appears vertical? Then find the apparent speed of the rain for that walk.",
+      "notes": "no bank item; authored. No second distinct rain-man bank item with recoverable numbers."
+    },
+    {
+      "id": "physics|2|motion-in-a-plane|easy",
+      "topicId": "physics|2|motion-in-a-plane",
+      "difficulty": "easy",
+      "question": "A particle’s velocity is (3.0 î + 4.0 ĵ) m/s. Find its speed and the angle the velocity makes with the x-axis. This is not a projectile: there is no gravity in the problem.",
+      "notes": "no bank item; authored. Bank 2D items are the y = x²/2 trajectory (hard) and the 5 î m/s, a = (3 î + 2 ĵ) m/s², x = 84 m problem (medium)."
+    },
+    {
+      "id": "physics|2|motion-in-a-plane|medium",
+      "topicId": "physics|2|motion-in-a-plane",
+      "difficulty": "medium",
+      "question": "A particle starts from the origin at t = 0 with velocity 5 î m/s and moves in the x–y plane under a constant acceleration (3 î + 2 ĵ) m/s². If the x-coordinate of the particle at a later instant is 84 m, the speed at that instant is √a m/s. Find a. This is planar kinematics, not projectile motion under gravity.",
+      "source": {
+        "questionId": "q_cb2090b2d49e8d1660e072b13e765f807be67a342d12be28cf7232cb4fd0d802",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-27-shift-1"
+      },
+      "notes": "OCR dropped the acceleration vector; (3 î + 2 ĵ) m/s² is the standard companion that makes x = 84 m at an integer time with these u and a values."
+    },
+    {
+      "id": "physics|2|motion-in-a-plane|hard",
+      "topicId": "physics|2|motion-in-a-plane",
+      "difficulty": "hard",
+      "question": "Starting at t = 0 from the origin with speed 1 m/s, a particle follows a trajectory in the x–y plane with y = x²/2. Let a_x and a_y be the acceleration components. Which is/are correct? (A) a_x = 1 m/s² implies that at the origin a_y = 1 m/s² (B) a_x = 0 implies a_y = 1 m/s² at all times (C) at t = 0 the velocity points in the x-direction (D) a_x = 0 implies that at t = 1 s the angle between velocity and the x-axis is 45°. This is not projectile motion.",
+      "source": {
+        "questionId": "q_cb79771a84e7a2889ebf608a0f91fb0721f78f0a3b6e38b38e37e2e68ddf441c",
+        "exam": "JEE Advanced",
+        "year": 2020,
+        "documentId": "jee-advanced-2020-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|2|projectile-motion|easy",
+      "topicId": "physics|2|projectile-motion",
+      "difficulty": "easy",
+      "question": "A ball is projected from the ground at 45° to the horizontal and reaches a maximum height of 120 m before returning to the same level. Take g = 10 m/s² unless the height unit in the paper is otherwise. Find the projection speed from H = u² sin²θ / (2g) with θ = 45°. (The paper continues after bounce; stop at the first landing for this easy item.)",
+      "source": {
+        "questionId": "q_9daf6849a47449bff0b5e707e6ad43572d8805b98ab5a94b252f5fbda6811fac",
+        "exam": "JEE Advanced",
+        "year": 2018,
+        "documentId": "jee-advanced-2018-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|2|projectile-motion|medium",
+      "topicId": "physics|2|projectile-motion",
+      "difficulty": "medium",
+      "question": "Two balls of equal mass are projected with the same initial speed at different angles so that the maximum height reached by the first is 8 times that of the second. If T1 and T2 are the total times of flight, find T1 : T2. Options included √2 : 1, 2 : 1, and 2√2 : 1. Level ground; no incline.",
+      "source": {
+        "questionId": "q_1f15db9ada22221cc840ea9ce1ab9fbb1c536aa72c4b6fdd4fc91e11321c6d4d",
+        "exam": "JEE Main",
+        "year": 2025,
+        "documentId": "jee-main-2025-04-08-shift-2"
+      }
+    },
+    {
+      "id": "physics|2|projectile-motion|hard",
+      "topicId": "physics|2|projectile-motion",
+      "difficulty": "hard",
+      "question": "A projectile is thrown from O on the ground at 45° from the vertical with speed 5√2 m/s, g = 10 m/s². At the highest point it splits into two equal parts. One part falls vertically down and hits the ground 0.5 s after splitting. The other part hits the ground t seconds after splitting, a distance x from O. Find t.",
+      "source": {
+        "questionId": "q_1895d4beb15f0ec10f3c4d483948118732e0cc2d4230cc6230f9c6ce50b5c9bb",
+        "exam": "JEE Advanced",
+        "year": 2021,
+        "documentId": "jee-advanced-2021-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|2|projectile-from-height|easy",
+      "topicId": "physics|2|projectile-from-height",
+      "difficulty": "easy",
+      "question": "A ball is thrown horizontally at 10 m/s from a 45 m tower. Take g = 10 m/s². Find the time to reach the ground and the horizontal distance from the foot of the tower.",
+      "notes": "no bank item; authored. Bank from-height item is the M / 2M, H / 4H comparison (medium)."
+    },
+    {
+      "id": "physics|2|projectile-from-height|medium",
+      "topicId": "physics|2|projectile-from-height",
+      "difficulty": "medium",
+      "question": "A body of mass M thrown horizontally with speed u from the top of a tower of height H hits the ground 100 m from the foot. A body of mass 2M thrown horizontally with speed u/2 from a tower of height 4H hits at what horizontal distance from that foot? (Take the same g; masses cancel.)",
+      "source": {
+        "questionId": "q_0f8e4e03e94bcb709de834e81b134c2569461fb49530568a334e98c9c332cd5c",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-04-08-shift-2"
+      }
+    },
+    {
+      "id": "physics|2|projectile-from-height|hard",
+      "topicId": "physics|2|projectile-from-height",
+      "difficulty": "hard",
+      "question": "From an 80 m cliff a stone is projected at 20 m/s at 30° above the horizontal. Take g = 10 m/s² and +y upward from the cliff top. Write x(t) and y(t), solve y = −80 m for the positive time of impact, then find the horizontal distance from the cliff. This is not motion on an incline.",
+      "notes": "no bank item; authored. No bank item with both a height and a launch angle above horizontal and recoverable numbers."
+    },
+    {
+      "id": "physics|2|projectile-on-incline|easy",
+      "topicId": "physics|2|projectile-on-incline",
+      "difficulty": "easy",
+      "question": "A particle is projected from the foot of a 30° incline with speed 20 m/s at 30° to the incline (so 60° to the horizontal). Take g = 10 m/s². The landing surface is the incline. Using axes along and perpendicular to the incline, find the time of flight until it lands back on the slope.",
+      "notes": "no bank item; authored. Bank ‘inclination becomes zero’ items are level-ground projectiles, not motion on an inclined plane."
+    },
+    {
+      "id": "physics|2|projectile-on-incline|medium",
+      "topicId": "physics|2|projectile-on-incline",
+      "difficulty": "medium",
+      "question": "For the same 20 m/s launch at 30° to a 30° incline, g = 10 m/s², find the range measured along the incline.",
+      "notes": "no bank item; authored. Bank ‘inclination becomes zero’ items are level-ground projectiles, not motion on an inclined plane."
+    },
+    {
+      "id": "physics|2|projectile-on-incline|hard",
+      "topicId": "physics|2|projectile-on-incline",
+      "difficulty": "hard",
+      "question": "A particle is projected from the foot of a 30° incline at 20 m/s. Take g = 10 m/s². Find the maximum range up the incline and down the incline, and the angles of projection to the horizontal that achieve each. Use R_max,up = u² / [g(1 + sin α)] and R_max,down = u² / [g(1 − sin α)].",
+      "notes": "no bank item; authored. Bank ‘inclination becomes zero’ items are level-ground projectiles, not motion on an inclined plane."
+    },
+    {
+      "id": "physics|2|uniform-circular-motion|easy",
+      "topicId": "physics|2|uniform-circular-motion",
+      "difficulty": "easy",
+      "question": "A particle moves in a horizontal circle of radius 2.0 m with period 2.0 s. Find the speed, the angular speed, and the magnitude of the centripetal acceleration. Do not introduce a centripetal force; this topic is kinematics only.",
+      "notes": "no bank item; authored. Bank UCM item is the a(θ) vector MCQ (medium)."
+    },
+    {
+      "id": "physics|2|uniform-circular-motion|medium",
+      "topicId": "physics|2|uniform-circular-motion",
+      "difficulty": "medium",
+      "question": "For a particle in uniform circular motion, the acceleration at a point P(R, θ) on a circle of radius R (θ from the positive x-axis, uniform speed v) is which of: (A) (v²/R)(sinθ î + cosθ ĵ) (B) (v²/R)(cosθ î + sinθ ĵ) (C) −(v²/R)(cosθ î + sinθ ĵ) (D) −(v²/R)(sinθ î − cosθ ĵ). The centre is at the origin.",
+      "source": {
+        "questionId": "q_c5d46631912072719003bd6b5bda32772aac9f84ea9077a0c7a0fd4c285d6576",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-25-shift-2"
+      }
+    },
+    {
+      "id": "physics|2|uniform-circular-motion|hard",
+      "topicId": "physics|2|uniform-circular-motion",
+      "difficulty": "hard",
+      "question": "A particle travels at 10 m/s on a circle of radius 5.0 m. Find the magnitude of the change in velocity (i) between diametrically opposite points and (ii) over a 90° arc. Then find the average acceleration over that 90° arc and compare it with the instantaneous centripetal acceleration. Not a vertical circle; speed is constant.",
+      "notes": "no bank item; authored. Bank ‘change in velocity on a circle’ items are vertical-circle energy (Unit 4)."
+    }
+  ]
+}

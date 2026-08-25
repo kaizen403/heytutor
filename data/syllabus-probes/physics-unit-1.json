@@ -1,0 +1,389 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|1",
+  "questions": [
+    {
+      "id": "physics|1|units-systems-and-si|easy",
+      "topicId": "physics|1|units-systems-and-si",
+      "difficulty": "easy",
+      "question": "The SI unit of a physical quantity is pascal-second. Write pascal-second in SI base units, and hence write the dimensional formula of the quantity. Options from the paper: (A) [M L^{-1} T^{-1}] (B) [M L T^{-2}] (C) [M T^{-1}] (D) [M^{-1} L^3 T]. Find the correct dimensional formula.",
+      "source": {
+        "questionId": "q_a0e64b84028c8c3ec8c4ef93265244fafa5bcbaadf7a128a873740d68494838c",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-27-shift-2"
+      }
+    },
+    {
+      "id": "physics|1|units-systems-and-si|medium",
+      "topicId": "physics|1|units-systems-and-si",
+      "difficulty": "medium",
+      "question": "Sometimes it is convenient to construct a system of units so that all quantities can be expressed in terms of only one physical quantity X. In one such system, [position] = [X^α], [speed] = [X^β], [acceleration] = [X^p], [linear momentum] = [X^q], [force] = [X^r]. Which of the following is/are correct? (A) α + p = 2β (B) p + q − r = β (C) p − q + r = α (D) p + q + r = β.",
+      "source": {
+        "questionId": "q_6d68ae7dbfb750344da6a2df2b898b00068c8f7f30a10b501aed4f1432efd885",
+        "exam": "JEE Advanced",
+        "year": 2020,
+        "documentId": "jee-advanced-2020-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|1|units-systems-and-si|hard",
+      "topicId": "physics|1|units-systems-and-si",
+      "difficulty": "hard",
+      "question": "In a new system of units, the units of mass, length, time and current are 5 kg, 5 m, 5 s and 5 A, respectively. If μ0 and ε0 are the permeability and permittivity of free space, find the magnitude of one SI unit of √(μ0/ε0) in this new system.",
+      "source": {
+        "questionId": "q_fd565918719d9935bd0387c787bf7189154c44a8010dc369fdd7a7336d62aad0",
+        "exam": "JEE Advanced",
+        "year": 2026,
+        "documentId": "jee-advanced-2026-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|1|fundamental-derived-and-least-count|easy",
+      "topicId": "physics|1|fundamental-derived-and-least-count",
+      "difficulty": "easy",
+      "question": "Express 1 newton in SI base units. Then convert 1 N into dyne using 1 kg = 10^3 g and 1 m = 10^2 cm. This topic is derived units and conversion, not least count.",
+      "notes": "no bank item; authored. No self-contained derived-unit / SI-prefix conversion item survived OCR with usable numbers."
+    },
+    {
+      "id": "physics|1|fundamental-derived-and-least-count|medium",
+      "topicId": "physics|1|fundamental-derived-and-least-count",
+      "difficulty": "medium",
+      "question": "A car travels at 72 km/h. Convert this speed to m/s, showing every prefix and unit conversion. Then write the SI derived unit of speed in terms of SI base units.",
+      "notes": "no bank item; authored. No self-contained derived-unit / SI-prefix conversion item survived OCR with usable numbers."
+    },
+    {
+      "id": "physics|1|fundamental-derived-and-least-count|hard",
+      "topicId": "physics|1|fundamental-derived-and-least-count",
+      "difficulty": "hard",
+      "question": "Pressure has SI unit newton per square metre (the pascal). Rewrite 1 Pa in SI base units. Then convert 1.01 × 10^5 Pa into dyn/cm², keeping the CGS-to-SI factors for force and area.",
+      "notes": "no bank item; authored. No self-contained derived-unit / SI-prefix conversion item survived OCR with usable numbers."
+    },
+    {
+      "id": "physics|1|practical-units|easy",
+      "topicId": "physics|1|practical-units",
+      "difficulty": "easy",
+      "question": "The astronomical unit is 1.50 × 10^{11} m. What quantity does an AU measure, and how many kilometres is 1 AU? Then say in one sentence what a light year measures that an AU does not.",
+      "notes": "no bank item; authored. JEE Main/Advanced physics text has no AU / light-year / parsec item; eV hits are atomic/nuclear, not this practical-units slice."
+    },
+    {
+      "id": "physics|1|practical-units|medium",
+      "topicId": "physics|1|practical-units",
+      "difficulty": "medium",
+      "question": "A star is 4.2 light years from Earth. Taking c = 3.00 × 10^8 m/s and 1 year = 3.16 × 10^7 s, convert 4.2 ly into metres. Show the conversion as (distance) = (speed of light) × (time).",
+      "notes": "no bank item; authored. JEE Main/Advanced physics text has no AU / light-year / parsec item; eV hits are atomic/nuclear, not this practical-units slice."
+    },
+    {
+      "id": "physics|1|practical-units|hard",
+      "topicId": "physics|1|practical-units",
+      "difficulty": "hard",
+      "question": "A proton has rest energy 938 MeV. Convert this energy to joules (1 eV = 1.60 × 10^{-19} J) and then to an equivalent mass in kilograms using E = mc² with c = 3.00 × 10^8 m/s. Also, given 1 parsec = 3.26 ly, find how many astronomical units are in 1 parsec if 1 ly = 6.32 × 10^4 AU. Round the AU result to two significant figures.",
+      "notes": "no bank item; authored. JEE Main/Advanced physics text has no AU / light-year / parsec item; eV hits are atomic/nuclear, not this practical-units slice."
+    },
+    {
+      "id": "physics|1|least-count|easy",
+      "topicId": "physics|1|least-count",
+      "difficulty": "easy",
+      "question": "10 divisions on the main scale of a vernier calliper coincide with 11 divisions on the vernier scale. If each main-scale division is 5 units, find the least count of the instrument. Options in the paper included 5/11 and 50/11; compute LC = 1 MSD − 1 VSD.",
+      "source": {
+        "questionId": "q_498c829308c11a91b9ece7b14186f9a9b7966c9cbbdfda337b40a4d86827d16b",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-02-01-shift-1"
+      }
+    },
+    {
+      "id": "physics|1|least-count|medium",
+      "topicId": "physics|1|least-count",
+      "difficulty": "medium",
+      "question": "There are two vernier calipers, both with 1 cm divided into 10 equal main-scale divisions. On caliper C1, 10 vernier divisions correspond to 9 main-scale divisions. On caliper C2, 10 vernier divisions correspond to 11 main-scale divisions. Find the least count of each caliper (including the retrograde vernier C2).",
+      "source": {
+        "questionId": "q_7ebfc47ee7df7fa646afbeabfa094419bb073deea4026e9fe271ff28af01aa5d",
+        "exam": "JEE Advanced",
+        "year": 2016,
+        "documentId": "jee-advanced-2016-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|1|least-count|hard",
+      "topicId": "physics|1|least-count",
+      "difficulty": "hard",
+      "question": "The smallest division on the main scale of a vernier calipers is 0.1 cm. Ten divisions of the vernier scale correspond to nine divisions of the main scale. Find the least count. The zero-error configuration and a sphere held between the jaws are shown in the original paper; using that figure the correct diameter of the sphere is one of (A) 3.07 cm (B) 3.11 cm (C) 3.15 cm (D) 3.17 cm. State the least count first, then identify the diameter if the figure is available, otherwise stop after the least count.",
+      "source": {
+        "questionId": "q_87acdd4a5a77afa5c5b5ebbae60e8d537dbe80d088ea43f2d842a93c9550b592",
+        "exam": "JEE Advanced",
+        "year": 2021,
+        "documentId": "jee-advanced-2021-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|1|accuracy-and-precision|easy",
+      "topicId": "physics|1|accuracy-and-precision",
+      "difficulty": "easy",
+      "question": "A rod is known to be 2.00 m long. Four students report 1.8 m, 1.8 m, 1.9 m, and 1.8 m. Are these measurements precise, accurate, both, or neither? Define accuracy and precision in your explanation.",
+      "notes": "no bank item; authored. Bank has one ‘accuracy in g’ numerical (used as hard); no qualitative accuracy-vs-precision item."
+    },
+    {
+      "id": "physics|1|accuracy-and-precision|medium",
+      "topicId": "physics|1|accuracy-and-precision",
+      "difficulty": "medium",
+      "question": "An event lasts exactly 10.00 s. Stopwatch A records 10.2 s, 10.1 s, 10.2 s, 10.1 s. Stopwatch B records 9.4 s, 10.8 s, 10.1 s, 9.7 s. Compare the two instruments in accuracy and in precision.",
+      "notes": "no bank item; authored. Same gap as easy; bank ‘accuracy’ hit is the pendulum-g percentage below."
+    },
+    {
+      "id": "physics|1|accuracy-and-precision|hard",
+      "topicId": "physics|1|accuracy-and-precision",
+      "difficulty": "hard",
+      "question": "The measured length of a simple pendulum is 20 cm with 2 mm accuracy. The time for 50 oscillations was measured to be 40 seconds with 1 second resolution. From these measurements, the accuracy in g is N%. Find N. Options: 6, 4, 8, 5.",
+      "source": {
+        "questionId": "q_ad83d4fc06336f98830a9f0762daf12549728ff30a30cef49e3e2ffef6d7788a",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-31-shift-2"
+      }
+    },
+    {
+      "id": "physics|1|types-of-errors|easy",
+      "topicId": "physics|1|types-of-errors",
+      "difficulty": "easy",
+      "question": "Classify each of the following as a systematic error or a random error, and give a one-line reason: (i) a metre scale whose zero end is worn down, (ii) scatter in repeated timings of a pendulum with a handheld stopwatch.",
+      "notes": "no bank item; authored. Bank has no ‘systematic/random/gross error’ classification item."
+    },
+    {
+      "id": "physics|1|types-of-errors|medium",
+      "topicId": "physics|1|types-of-errors",
+      "difficulty": "medium",
+      "question": "A student always starts the stopwatch about 0.2 s late. Name the type of error and explain whether averaging many identical trials will remove it. Then contrast that with random scatter from reaction time that sometimes starts early and sometimes late.",
+      "notes": "no bank item; authored. Bank has no ‘systematic/random/gross error’ classification item."
+    },
+    {
+      "id": "physics|1|types-of-errors|hard",
+      "topicId": "physics|1|types-of-errors",
+      "difficulty": "hard",
+      "question": "In a metre-bridge experiment the resistance wire is not uniform along its length. Identify the error as systematic, random, or a mix, explain why it is not a simple zero error, and describe one experimental change that reduces it.",
+      "notes": "no bank item; authored. Bank has no ‘systematic/random/gross error’ classification item."
+    },
+    {
+      "id": "physics|1|absolute-relative-percentage-error|easy",
+      "topicId": "physics|1|absolute-relative-percentage-error",
+      "difficulty": "easy",
+      "question": "A student uses a simple pendulum of exactly 1 m length to determine g. He uses a stop watch with least count 1 s and records 40 seconds for 20 oscillations. Which of the following is/are true? (A) Error ΔT in measuring the time period T is 0.05 s (B) Error ΔT in measuring T is 1 s (C) Percentage error in g is 5% (D) Percentage error in g is 2.5%. Compute ΔT, ΔT/T, and Δg/g = 2 ΔT/T (L is exact).",
+      "source": {
+        "questionId": "q_4a895bbce8ca3dd8db855f3e6d26ee7b96f809dc37e8bdf970348cb4d18c1345",
+        "exam": "JEE Advanced",
+        "year": 2010,
+        "documentId": "jee-advanced-2010-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|1|absolute-relative-percentage-error|medium",
+      "topicId": "physics|1|absolute-relative-percentage-error",
+      "difficulty": "medium",
+      "question": "A silver wire has mass (0.6 ± 0.006) g, radius (0.5 ± 0.005) mm and length (4 ± 0.04) cm. Find the maximum percentage error in its density. Options: (A) 4% (B) 3% (C) 6% (D) 7%. Use ρ = m / (π r² L) so Δρ/ρ = Δm/m + 2 Δr/r + ΔL/L.",
+      "source": {
+        "questionId": "q_98b0da0c8dbca4a44110a6071caa9177b5f1974952c13a4aae64142891a5fec0",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-27-shift-1"
+      }
+    },
+    {
+      "id": "physics|1|absolute-relative-percentage-error|hard",
+      "topicId": "physics|1|absolute-relative-percentage-error",
+      "difficulty": "hard",
+      "question": "The dimensions of a cone are measured using a scale with least count 2 mm. The diameter of the base and the height are both measured to be 20.0 cm. Find the maximum percentage error in the volume of the cone.",
+      "source": {
+        "questionId": "q_1c961682257e274c9dc4f62e24b2d9eb282fe384dca2df6ffc89057ae95744bb",
+        "exam": "JEE Advanced",
+        "year": 2024,
+        "documentId": "jee-advanced-2024-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|1|combination-of-errors|easy",
+      "topicId": "physics|1|combination-of-errors",
+      "difficulty": "easy",
+      "question": "For z = a x^7 y^2, where a is a constant, the percentage errors in x and y are 4% and 12% respectively. Find the percentage error in z.",
+      "source": {
+        "questionId": "q_4c605fd95530c3a6ce72e7802ad84b7b437f31f33282b8139f3edf9eaaa98836",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-25-shift-2"
+      }
+    },
+    {
+      "id": "physics|1|combination-of-errors|medium",
+      "topicId": "physics|1|combination-of-errors",
+      "difficulty": "medium",
+      "question": "The energy of a system as a function of time t is E(t) = A² exp(−α t), where α = 0.2 s^{-1}. The measurement of A has an error of 1.25%. If the error in the measurement of time is 1.50%, find the percentage error in E at t = 5 s.",
+      "source": {
+        "questionId": "q_40a260df06568ed892defc6abd76dde5306eaa995ade7971170ee0d6bb1a145f",
+        "exam": "JEE Advanced",
+        "year": 2015,
+        "documentId": "jee-advanced-2015-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|1|combination-of-errors|hard",
+      "topicId": "physics|1|combination-of-errors",
+      "difficulty": "hard",
+      "question": "In an experiment to determine g, the period is T = 2π √((R − r)/g) with R = (60 ± 1) mm and r = (10 ± 1) mm. Five successive measurements of T are 0.52 s, 0.56 s, 0.57 s, 0.54 s and 0.59 s. The least count of the watch is 0.01 s. Which of the following is/are true? (A) The error in r is 10% (B) The error in T is 3.57% (C) The error in T is 2% (D) The error in the determined g is 11%. Combine the errors in R, r and T.",
+      "source": {
+        "questionId": "q_0943fef54ee0d512c177cee27054fb3d4ea28b2e0d435074dea09f6486105313",
+        "exam": "JEE Advanced",
+        "year": 2016,
+        "documentId": "jee-advanced-2016-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|1|significant-figures-and-errors|easy",
+      "topicId": "physics|1|significant-figures-and-errors",
+      "difficulty": "easy",
+      "question": "A student performs a titration with different burettes and finds titre values of 25.2 mL, 25.25 mL, and 25.0 mL. Find the number of significant figures in the average titre value.",
+      "source": {
+        "questionId": "q_e89a5326911da42171d1f9c6c24a886ed8774dea5e5c0ab26070835493970fcf",
+        "exam": "JEE Advanced",
+        "year": 2010,
+        "documentId": "jee-advanced-2010-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|1|significant-figures-and-errors|medium",
+      "topicId": "physics|1|significant-figures-and-errors",
+      "difficulty": "medium",
+      "question": "A person measures masses of three particles as 435.42 g, 226.3 g and 0.125 g. According to the rules for arithmetic operations with significant figures, the addition of the three masses will be: (A) 661.845 g (B) 662 g (C) 661.84 g (D) 661.8 g. Choose the correct value.",
+      "source": {
+        "questionId": "q_fe95df33d964d53a4ef8b3694f71e620d69815139e6e7d17ce50f7816b81b03b",
+        "exam": "JEE Main",
+        "year": 2025,
+        "documentId": "jee-main-2025-04-03-shift-1"
+      }
+    },
+    {
+      "id": "physics|1|significant-figures-and-errors|hard",
+      "topicId": "physics|1|significant-figures-and-errors",
+      "difficulty": "hard",
+      "question": "Length, breadth and thickness of a strip of uniform cross section are measured to be 10.5 cm, 0.05 mm and 6.0 μm respectively. Which option(s) give the volume in cm³ with correct significant figures? (A) 3.2 × 10^{-5} (B) 32.0 × 10^{-6} (C) 3.0 × 10^{-5} (D) 3 × 10^{-5}.",
+      "source": {
+        "questionId": "q_2c32e48c92480f73062baf57d02337280ce9557aaaa28d54853ae81748c29cd9",
+        "exam": "JEE Advanced",
+        "year": 2025,
+        "documentId": "jee-advanced-2025-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|1|dimensions|easy",
+      "topicId": "physics|1|dimensions",
+      "difficulty": "easy",
+      "question": "Write the dimensional formulae of force, pressure, and kinetic energy in M, L, T. Then show that pressure and energy density have the same dimensions.",
+      "notes": "no bank item; authored. Pascal-second bank stem is used under units-systems; this slice is [F], [p], [K]."
+    },
+    {
+      "id": "physics|1|dimensions|medium",
+      "topicId": "physics|1|dimensions",
+      "difficulty": "medium",
+      "question": "Find the dimensional formula of angular impulse. Options in the paper were of the form [M L² T^{-1}] and [M L T^{-1}]. Start from angular impulse = change in angular momentum = [M L² T^{-1}].",
+      "source": {
+        "questionId": "q_d19d6082a42f381e546068f6e7f60c8b554fbe6076be6f310b32c61f84de57a6",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-02-01-shift-1"
+      }
+    },
+    {
+      "id": "physics|1|dimensions|hard",
+      "topicId": "physics|1|dimensions",
+      "difficulty": "hard",
+      "question": "Identify the pair of physical quantities that have the same dimensions: (A) velocity gradient and decay constant (B) Wien’s constant and Stefan’s constant (C) angular frequency and angular momentum (D) wave number and Avogadro number.",
+      "source": {
+        "questionId": "q_f5ab4b17ed31ae035ec896cdbcecdb6701a24acc7f4116b7cbe22a9bc4ec4791",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-24-shift-2"
+      }
+    },
+    {
+      "id": "physics|1|dimensional-homogeneity|easy",
+      "topicId": "physics|1|dimensional-homogeneity",
+      "difficulty": "easy",
+      "question": "Statement I: Planck’s constant and angular momentum have the same dimensions. Statement II: Linear momentum and moment of force have the same dimensions. Which is true? Options: both true; both false; I true II false; I false II true.",
+      "source": {
+        "questionId": "q_1178991602361f559162778d2388986e26ac17b7ce0d97529ddf0335fd8407af",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-27-shift-1"
+      }
+    },
+    {
+      "id": "physics|1|dimensional-homogeneity|medium",
+      "topicId": "physics|1|dimensional-homogeneity",
+      "difficulty": "medium",
+      "question": "Using the same four pairs as the dimensions-hard item is not allowed. Instead: check whether v = u + at and s = ut + at² are dimensionally homogeneous. Restore the missing 1/2 in the second equation by requiring every term to have dimension of length.",
+      "notes": "no bank item; authored. Second homogeneity numerical would duplicate the Planck/pair items; this is the textbook check those MCQs assume."
+    },
+    {
+      "id": "physics|1|dimensional-homogeneity|hard",
+      "topicId": "physics|1|dimensional-homogeneity",
+      "difficulty": "hard",
+      "question": "A length-scale ℓ depends on the permittivity ε of a dielectric, Boltzmann constant k_B, temperature T, number density n of charged particles, and charge q on each. Which expression(s) for ℓ is/are dimensionally correct? (A) ℓ = [n q² / (ε k_B T)]^{1/2} (B) ℓ = [ε k_B T / (n q²)]^{1/2} (C) ℓ = [q² / (ε k_B T)]^{1/2} (D) ℓ = [q² / (ε n^{2/3} k_B T)]^{1/2}.",
+      "source": {
+        "questionId": "q_b664a67905a21bd9be51a94f9d13fb1eb415aceee32a09d35d404d637a6ec1c2",
+        "exam": "JEE Advanced",
+        "year": 2016,
+        "documentId": "jee-advanced-2016-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|1|dimensional-analysis|easy",
+      "topicId": "physics|1|dimensional-analysis",
+      "difficulty": "easy",
+      "question": "Assume the period T of a simple pendulum depends only on length ℓ and g as T = k ℓ^a g^b with k dimensionless. Use dimensional analysis to find a and b.",
+      "notes": "no bank item; authored. Bank dimensional-analysis items are the fog-signal and plasma-frequency problems (medium/hard)."
+    },
+    {
+      "id": "physics|1|dimensional-analysis|medium",
+      "topicId": "physics|1|dimensional-analysis",
+      "difficulty": "medium",
+      "question": "To find the distance d over which a signal can be seen clearly in foggy conditions, a railway engineer uses dimensional analysis and assumes that d depends on the mass density ρ of the fog, the intensity S (power/area) of the light, and its frequency f. The engineer finds that d is proportional to S^{1/n}. Find n.",
+      "source": {
+        "questionId": "q_2407c90d10f6b3c721eb32b3b2eac70e1f7af843b8e93c55d6659d8c309b6ca8",
+        "exam": "JEE Advanced",
+        "year": 2014,
+        "documentId": "jee-advanced-2014-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|1|dimensional-analysis|hard",
+      "topicId": "physics|1|dimensional-analysis",
+      "difficulty": "hard",
+      "question": "A dense collection of equal numbers of electrons and positive ions is a neutral plasma. Let N be the number density of free electrons, each of mass m. When displaced and released they oscillate at the plasma frequency ω_p. Taking electronic charge e and permittivity ε0, use dimensional analysis to choose the correct expression for ω_p among forms built from N, e, m, ε0 (the paper’s options are equivalent to ω_p = sqrt(N e² / (ε0 m)) and three dimensionally wrong variants).",
+      "source": {
+        "questionId": "q_469e483278c6551f133bcc7e1a8f3e9d5f97cf2c9033a43d6339ba276b8a3a0f",
+        "exam": "JEE Advanced",
+        "year": 2011,
+        "documentId": "jee-advanced-2011-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|1|dimensional-analysis-limitations|easy",
+      "topicId": "physics|1|dimensional-analysis-limitations",
+      "difficulty": "easy",
+      "question": "The displacement formula s = ut + (1/2) at² contains a factor 1/2. Explain why dimensional analysis cannot produce that 1/2, even though it can check that both terms are lengths.",
+      "notes": "no bank item; authored. Bank never states limitations of dimensional analysis as a question."
+    },
+    {
+      "id": "physics|1|dimensional-analysis-limitations|medium",
+      "topicId": "physics|1|dimensional-analysis-limitations",
+      "difficulty": "medium",
+      "question": "Kinetic energy and torque have the same dimensional formula. Explain why dimensional analysis cannot tell them apart. Give one other pair of different physical quantities that share dimensions.",
+      "notes": "no bank item; authored. Bank never states limitations of dimensional analysis as a question."
+    },
+    {
+      "id": "physics|1|dimensional-analysis-limitations|hard",
+      "topicId": "physics|1|dimensional-analysis-limitations",
+      "difficulty": "hard",
+      "question": "A damped oscillator has displacement x = A e^{-bt} cos(ωt). Explain why dimensional analysis cannot discover the exponential or the cosine, and what must be true of the arguments bt and ωt. Then give a second example: why it cannot decide between F = k v and F = k v² for air drag without more information.",
+      "notes": "no bank item; authored. Bank never states limitations of dimensional analysis as a question."
+    }
+  ]
+}

@@ -1,0 +1,473 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|3",
+  "questions": [
+    {
+      "id": "physics|3|force-inertia-and-first-law|easy",
+      "topicId": "physics|3|force-inertia-and-first-law",
+      "difficulty": "easy",
+      "question": "State Newton’s first law. A book rests on a table. Identify all horizontal forces on the book and explain, using inertia, why it stays at rest until you push it.",
+      "notes": "no bank item; authored. No Newton’s first-law / inertia numerical in the JEE physics pool."
+    },
+    {
+      "id": "physics|3|force-inertia-and-first-law|medium",
+      "topicId": "physics|3|force-inertia-and-first-law",
+      "difficulty": "medium",
+      "question": "A 2.0 kg block sits on a frictionless horizontal table. What net force is required to keep it moving at a constant 3.0 m/s? What net force is required to change that velocity to 5.0 m/s in 2.0 s? Contrast the two answers with the first and second laws.",
+      "notes": "no bank item; authored. No Newton’s first-law / inertia numerical in the JEE physics pool."
+    },
+    {
+      "id": "physics|3|force-inertia-and-first-law|hard",
+      "topicId": "physics|3|force-inertia-and-first-law",
+      "difficulty": "hard",
+      "question": "A 2.0 kg block on frictionless ice already moves at 4.0 m/s. No horizontal force acts. Find the velocity after 5.0 s, and explain using Newton’s first law why you must not write v = u + at with a = g. Then contrast with the same block on a rough floor with μ_k = 0.10, g = 10 m/s², which does slow down.",
+      "notes": "no bank item; authored. No Newton’s first-law / inertia numerical in the JEE physics pool."
+    },
+    {
+      "id": "physics|3|momentum-second-law-and-impulse|easy",
+      "topicId": "physics|3|momentum-second-law-and-impulse",
+      "difficulty": "easy",
+      "question": "A 2.0 kg particle’s velocity changes from 3.0 m/s east to 3.0 m/s west in 0.50 s. Find the change in momentum and the average net force. Use F_avg = Δp / Δt.",
+      "notes": "no bank item; authored. No F = dp/dt / second-law stem distinct from impulse/collision items."
+    },
+    {
+      "id": "physics|3|momentum-second-law-and-impulse|medium",
+      "topicId": "physics|3|momentum-second-law-and-impulse",
+      "difficulty": "medium",
+      "question": "A 0.20 kg particle’s velocity changes from 10 m/s east to 6.0 m/s west in 0.040 s. Find Δp and the average net force from F_avg = Δp / Δt. This is the second-law statement, not an impulse-from-a-graph item.",
+      "notes": "no bank item; authored. No F = dp/dt / second-law stem distinct from impulse/collision items."
+    },
+    {
+      "id": "physics|3|momentum-second-law-and-impulse|hard",
+      "topicId": "physics|3|momentum-second-law-and-impulse",
+      "difficulty": "hard",
+      "question": "A ball of mass 0.2 kg rests on a vertical post of height 5 m. A bullet of mass 0.01 kg travelling horizontally with speed V hits the centre of the ball. After the collision the ball and bullet travel independently. The ball hits the ground 20 m from the foot of the post and the bullet 100 m from the foot. Take g = 10 m/s². Find V. Options: 250 m/s, 250√2 m/s, 400 m/s, 500 m/s. Use horizontal momentum and the time of fall from 5 m.",
+      "source": {
+        "questionId": "q_1669ec80a13516f58122caea275e5bba96753d86d703761422a3be199093037a",
+        "exam": "JEE Advanced",
+        "year": 2011,
+        "documentId": "jee-advanced-2011-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|3|impulse|easy",
+      "topicId": "physics|3|impulse",
+      "difficulty": "easy",
+      "question": "A batsman hits back a ball of mass 0.4 kg straight toward the bowler without changing its initial speed of 15 m/s. Find the impulse on the ball. Take the incoming velocity as −15 m/s.",
+      "source": {
+        "questionId": "q_860c86d4b8600aa9a0353b38e36886dfac48baa38e5add197bed4affc0e41b1c",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-26-shift-2"
+      }
+    },
+    {
+      "id": "physics|3|impulse|medium",
+      "topicId": "physics|3|impulse",
+      "difficulty": "medium",
+      "question": "A spherical body of mass 100 g is dropped from 10 m and rebounds to 5 m. Take g = 9.8 m/s². Find the impulse of the force imparted by the ground.",
+      "source": {
+        "questionId": "q_5712f4ce2fc6639bc844aaf0038af94ecf4a87f134b3fe380c00033fe1582a5b",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-30-shift-1"
+      }
+    },
+    {
+      "id": "physics|3|impulse|hard",
+      "topicId": "physics|3|impulse",
+      "difficulty": "hard",
+      "question": "A block of mass 0.18 kg is attached to a spring of force constant 2 N/m. The coefficient of friction with the floor is 0.1. Initially the block is at rest and the spring is unstretched. An impulse is given to the block; it slides 0.06 m and comes to rest for the first time. The initial speed is V = N/10 m/s. Find N. Take g = 10 m/s².",
+      "source": {
+        "questionId": "q_455a2317a67ecda842c7b1a04f7fbfde9d432b780e4c1a65d123785386f36b95",
+        "exam": "JEE Advanced",
+        "year": 2011,
+        "documentId": "jee-advanced-2011-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|3|third-law-and-linear-momentum-conservation|easy",
+      "topicId": "physics|3|third-law-and-linear-momentum-conservation",
+      "difficulty": "easy",
+      "question": "A 50 kg person stands on ice and pushes a 10 kg box so that the box leaves at 2.0 m/s relative to the ice. Find the person’s recoil speed, and name the pair of forces that makes the recoils opposite.",
+      "notes": "no bank item; authored. Only third-law hit is an EM/field-momentum statement, not mechanical action–reaction."
+    },
+    {
+      "id": "physics|3|third-law-and-linear-momentum-conservation|medium",
+      "topicId": "physics|3|third-law-and-linear-momentum-conservation",
+      "difficulty": "medium",
+      "question": "Two blocks of masses 2.0 kg and 3.0 kg, initially at rest on ice, push apart by a compressed spring between them. The 2.0 kg block moves at 3.0 m/s. Find the speed of the 3.0 kg block. External horizontal force is zero.",
+      "notes": "no bank item; authored. Only third-law hit is an EM/field-momentum statement, not mechanical action–reaction."
+    },
+    {
+      "id": "physics|3|third-law-and-linear-momentum-conservation|hard",
+      "topicId": "physics|3|third-law-and-linear-momentum-conservation",
+      "difficulty": "hard",
+      "question": "A 60 kg skater at rest on ice pushes a 40 kg skater, who then moves at 3.0 m/s. Find the first skater’s recoil. Identify the action–reaction pair, and explain why the ice’s external force does not cancel the recoils (the ice is smooth horizontally).",
+      "notes": "no bank item; authored. Only third-law hit is an EM/field-momentum statement, not mechanical action–reaction."
+    },
+    {
+      "id": "physics|3|conservation-of-linear-momentum|easy",
+      "topicId": "physics|3|conservation-of-linear-momentum",
+      "difficulty": "easy",
+      "question": "A 2.0 kg cart at 4.0 m/s catches up with a 3.0 kg cart at 1.0 m/s on a smooth track, and they couple. Find the common speed. External horizontal force is zero; this is not yet a discussion of e.",
+      "notes": "no bank item; authored. The A–B–C collision line is reserved for Unit 4 inelastic; this isolation statement uses invented carts so momentum is not mixed with e."
+    },
+    {
+      "id": "physics|3|conservation-of-linear-momentum|medium",
+      "topicId": "physics|3|conservation-of-linear-momentum",
+      "difficulty": "medium",
+      "question": "If the resultant of all external forces on a system is zero, then from an inertial frame the linear momentum of the system does not change in time. Prove this from ΣF_ext = dP/dt, and give one internal-force example (two skaters pushing) that conserves P but not kinetic energy.",
+      "source": {
+        "questionId": "q_3f71af2a851448c0fe67b3340cad9077d8a3e9dbdc5488b91ce4510de78c4ed0",
+        "exam": "JEE Advanced",
+        "year": 2009,
+        "documentId": "jee-advanced-2009-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|3|conservation-of-linear-momentum|hard",
+      "topicId": "physics|3|conservation-of-linear-momentum",
+      "difficulty": "hard",
+      "question": "A 0.50 kg wad of clay at 8.0 m/s embeds in a 1.5 kg block at rest on a smooth table. Find the common speed. Then say why you may use momentum conservation even though kinetic energy is lost.",
+      "notes": "no bank item; authored. Ballistic-pendulum numbers; bank perfectly-inelastic line problem is Unit 4."
+    },
+    {
+      "id": "physics|3|equilibrium-of-concurrent-forces|easy",
+      "topicId": "physics|3|equilibrium-of-concurrent-forces",
+      "difficulty": "easy",
+      "question": "Three concurrent forces of 3.0 N, 4.0 N and 5.0 N act on a particle. Can they be in equilibrium? If the 3.0 N and 4.0 N forces are perpendicular, what third force is needed for equilibrium?",
+      "notes": "no bank item; authored. No Lami / three-concurrent-forces item; lamina/ladder hits are rigid-body."
+    },
+    {
+      "id": "physics|3|equilibrium-of-concurrent-forces|medium",
+      "topicId": "physics|3|equilibrium-of-concurrent-forces",
+      "difficulty": "medium",
+      "question": "A particle is in equilibrium under three concurrent forces. Two of them are 10 N due east and 10 N at 120° to the first. Find the third force using the closed vector triangle (or Lami’s theorem).",
+      "notes": "no bank item; authored. No Lami / three-concurrent-forces item; lamina/ladder hits are rigid-body."
+    },
+    {
+      "id": "physics|3|equilibrium-of-concurrent-forces|hard",
+      "topicId": "physics|3|equilibrium-of-concurrent-forces",
+      "difficulty": "hard",
+      "question": "A particle of weight 20 N is held by two strings that make 30° and 60° with the vertical. Find the two tensions. The three forces are concurrent; draw the triangle of forces.",
+      "notes": "no bank item; authored. No Lami / three-concurrent-forces item; lamina/ladder hits are rigid-body."
+    },
+    {
+      "id": "physics|3|friction|easy",
+      "topicId": "physics|3|friction",
+      "difficulty": "easy",
+      "question": "A uniform chain of length 6 m is placed on a table with part hanging over the edge. The system is at rest. The coefficient of static friction between chain and table is 0.5. Find the maximum length hanging from the table, in metres.",
+      "source": {
+        "questionId": "q_1502e5a41f12e1d0bb123793d7d0f6c7f98e8d69e11b52ff1729aba061ac5914",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-25-shift-1"
+      }
+    },
+    {
+      "id": "physics|3|friction|medium",
+      "topicId": "physics|3|friction",
+      "difficulty": "medium",
+      "question": "Two blocks m = 2 kg and M = 8 kg sit on a smooth table with m on top of M. The coefficient of static friction between the blocks is 0.5. Find the maximum horizontal force F that can be applied to M so that the blocks move together. Take g = 9.8 m/s². Options: 9.8 N, 39.2 N, 49 N, 78.4 N. The table is smooth; this is not an incline.",
+      "source": {
+        "questionId": "q_aca608b40ffd4450937f27e60b3fa98daa47bcef0272880213397b3ec24172a0",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-27-shift-1"
+      }
+    },
+    {
+      "id": "physics|3|friction|hard",
+      "topicId": "physics|3|friction",
+      "difficulty": "hard",
+      "question": "A ladder of mass m leans against a wall in static equilibrium at angle θ to the horizontal floor. The coefficient of friction between wall and ladder is μ1 and between floor and ladder is μ2. The normal reaction of the wall is N1 and of the floor is N2. If the ladder is about to slip, which of the following is/are true? (A) μ1 = 0, μ2 ≠ 0 and N2 tanθ = mg/2 (B) μ1 ≠ 0, μ2 = 0 and N1 tanθ = mg/2 (C) μ1 ≠ 0, μ2 ≠ 0 and N2 = mg / (1 + μ1 μ2) (D) μ1 = 0, μ2 ≠ 0 and N1 tanθ = mg/2.",
+      "source": {
+        "questionId": "q_ceddd6a0042824caf8295d2bd5be9e30a6f3862f05ae46fe2a124a0d554fc5a7",
+        "exam": "JEE Advanced",
+        "year": 2014,
+        "documentId": "jee-advanced-2014-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|3|rolling-friction|easy",
+      "topicId": "physics|3|rolling-friction",
+      "difficulty": "easy",
+      "question": "Define rolling friction (rolling resistance) and contrast it with kinetic friction of sliding. Why is the rolling-friction force usually much smaller than μ_k N for the same surfaces?",
+      "notes": "no bank item; authored. Phrase ‘rolling friction’ never occurs in the JEE physics corpus."
+    },
+    {
+      "id": "physics|3|rolling-friction|medium",
+      "topicId": "physics|3|rolling-friction",
+      "difficulty": "medium",
+      "question": "A 20 N wheel on a horizontal road has coefficient of rolling friction 0.02. Find the horizontal force needed to keep it rolling at constant speed, and compare with the force if the same wheel were sliding with μ_k = 0.30.",
+      "notes": "no bank item; authored. Phrase ‘rolling friction’ never occurs in the JEE physics corpus."
+    },
+    {
+      "id": "physics|3|rolling-friction|hard",
+      "topicId": "physics|3|rolling-friction",
+      "difficulty": "hard",
+      "question": "A cylinder of weight 100 N rolls at constant speed on the level under a horizontal pull of 2.0 N applied at the axle. Find the rolling-friction force and say where it acts. This is not rolling without slipping on an incline (Unit 5).",
+      "notes": "no bank item; authored. Phrase ‘rolling friction’ never occurs in the JEE physics corpus."
+    },
+    {
+      "id": "physics|3|motion-on-incline-with-friction|easy",
+      "topicId": "physics|3|motion-on-incline-with-friction",
+      "difficulty": "easy",
+      "question": "A cubic block of mass m slides down a 60° incline with acceleration g/2. Take g as given. Find the coefficient of kinetic friction. Options included (√3 − 1), 1/2, 1/√3. Use a = g(sinθ − μ cosθ).",
+      "source": {
+        "questionId": "q_66a4f9e21cb4343738b2ea93d70495472b7d80d836f6a8f1381598debca17a44",
+        "exam": "JEE Main",
+        "year": 2025,
+        "documentId": "jee-main-2025-04-07-shift-1"
+      }
+    },
+    {
+      "id": "physics|3|motion-on-incline-with-friction|medium",
+      "topicId": "physics|3|motion-on-incline-with-friction",
+      "difficulty": "medium",
+      "question": "The time taken by a block of mass m to slide down from the highest point to the lowest point on a rough 45° incline is 50% more than on an identical smooth 45° incline. Find the coefficient of kinetic friction. Options: 3/4, 2/3, 5/9, 4/9.",
+      "source": {
+        "questionId": "q_de6684967b9ebfbd64e8428b4323eee41f074aa96e68cf7635b8cb399e7656ec",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-04-shift-1"
+      }
+    },
+    {
+      "id": "physics|3|motion-on-incline-with-friction|hard",
+      "topicId": "physics|3|motion-on-incline-with-friction",
+      "difficulty": "hard",
+      "question": "A block moves on a 45° incline with coefficient of friction μ. The force required to just push it up the plane is 3 times the force required to just prevent it from sliding down. If N = 10μ, find N.",
+      "source": {
+        "questionId": "q_efe48f090a51552f95c65091a1dc648665e99bd0c64327b9b6dff49efa914fb7",
+        "exam": "JEE Advanced",
+        "year": 2011,
+        "documentId": "jee-advanced-2011-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|3|connected-bodies-and-pulleys|easy",
+      "topicId": "physics|3|connected-bodies-and-pulleys",
+      "difficulty": "easy",
+      "question": "A light string over a smooth light fixed pulley connects two blocks. If the acceleration of the system is g/8, find the ratio of the masses (larger/smaller). Options included 9/7, 8/7, 9/8, 7/5.",
+      "source": {
+        "questionId": "q_4df72192f68d73d2164e665871fe2f17a4c20348e0aa6da17b8d6598524a8551",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-31-shift-2"
+      }
+    },
+    {
+      "id": "physics|3|connected-bodies-and-pulleys|medium",
+      "topicId": "physics|3|connected-bodies-and-pulleys",
+      "difficulty": "medium",
+      "question": "A light string over a smooth light pulley connects masses m1 and m2 (m2 > m1). If the acceleration is g/√2, find m2/m1. Options included (√2+1)/(√2−1) and (1+√5)/(√5−1).",
+      "source": {
+        "questionId": "q_7ad0b60942dacfa1164c5452c84e1e4096ce80ec7685fb88265687363e1381c5",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-04-06-shift-1"
+      }
+    },
+    {
+      "id": "physics|3|connected-bodies-and-pulleys|hard",
+      "topicId": "physics|3|connected-bodies-and-pulleys",
+      "difficulty": "hard",
+      "question": "A light inextensible string over a smooth fixed pulley connects masses 0.36 kg and 0.72 kg. Take g = 10 m/s². Find the work done (in joules) by the string on the 0.36 kg block during the first second after release from rest.",
+      "source": {
+        "questionId": "q_74b698ba1891bb5bc7130eb6fd871fe648ee079213dd0f205883fda64076d58c",
+        "exam": "JEE Advanced",
+        "year": 2009,
+        "documentId": "jee-advanced-2009-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|3|apparent-weight-in-a-lift|easy",
+      "topicId": "physics|3|apparent-weight-in-a-lift",
+      "difficulty": "easy",
+      "question": "A person standing in an elevator experiences weight loss in which situation? (A) elevator moves upward with constant acceleration (B) elevator moves downward with constant acceleration (C) elevator moves upward with uniform velocity (D) elevator moves downward with uniform velocity.",
+      "source": {
+        "questionId": "q_674481d445fd4fafcef76154d9aa22264e90da834a20103cae950eedea161cb0",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-26-shift-1"
+      }
+    },
+    {
+      "id": "physics|3|apparent-weight-in-a-lift|medium",
+      "topicId": "physics|3|apparent-weight-in-a-lift",
+      "difficulty": "medium",
+      "question": "A person in a lift holds a water jar with a small hole at the lower end of its side. When the lift is at rest, the water jet hits the lift floor 1.2 m from the person. Match each motion with the landing distance d of the jet on the lift floor: (P) lift accelerating vertically up (Q) lift accelerating vertically down with a < g (R) lift moving vertically up at constant speed (S) lift in free fall; (1) d = 1.2 m (2) d > 1.2 m (3) d < 1.2 m (4) no water leaks out.",
+      "source": {
+        "questionId": "q_33767d654485432ce3ce7ad40556fce66d92a18aa48f586cf512303d808b41f0",
+        "exam": "JEE Advanced",
+        "year": 2014,
+        "documentId": "jee-advanced-2014-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|3|apparent-weight-in-a-lift|hard",
+      "topicId": "physics|3|apparent-weight-in-a-lift",
+      "difficulty": "hard",
+      "question": "A person in an elevator performs a weighing experiment with a 50 kg object. The height of the elevator from the ground is y = 8 [1 + sin(2π t / T)] metres with T = 40π s. Take g = 10 m/s². Find the maximum variation of the object’s weight (in N) as observed in the experiment.",
+      "source": {
+        "questionId": "q_bb5c773a2d37a82d9997c001b34c49d1f5afac238d488484578dfcc456d199b3",
+        "exam": "JEE Advanced",
+        "year": 2025,
+        "documentId": "jee-advanced-2025-paper-1-english"
+      }
+    },
+    {
+      "id": "physics|3|pseudo-force-in-non-inertial-frame|easy",
+      "topicId": "physics|3|pseudo-force-in-non-inertial-frame",
+      "difficulty": "easy",
+      "question": "A box of mass 2.0 kg sits on the floor of a truck that accelerates forward at 2.0 m/s². In the truck frame, draw the pseudo force on the box, find its magnitude, and say whether the box needs friction to stay put relative to the truck.",
+      "notes": "no bank item; authored. No ‘pseudo force’ / fictitious-force item in JEE physics text."
+    },
+    {
+      "id": "physics|3|pseudo-force-in-non-inertial-frame|medium",
+      "topicId": "physics|3|pseudo-force-in-non-inertial-frame",
+      "difficulty": "medium",
+      "question": "A pendulum hangs in a car accelerating horizontally at 2.0 m/s². Take g = 10 m/s². In the car frame, using a pseudo force, find the angle the string makes with the vertical in equilibrium.",
+      "notes": "no bank item; authored. No ‘pseudo force’ / fictitious-force item in JEE physics text."
+    },
+    {
+      "id": "physics|3|pseudo-force-in-non-inertial-frame|hard",
+      "topicId": "physics|3|pseudo-force-in-non-inertial-frame",
+      "difficulty": "hard",
+      "question": "A wire is bent as a parabola y = k x² (y vertical) with a bead of mass m that can slide without friction. The bead stays at the lowest point when the wire is at rest. The wire is then accelerated parallel to the x-axis with constant acceleration a. Find the distance of the new equilibrium (bead at rest relative to the wire) from the y-axis. Options were of the form a/(g k), a/(2 g k), 2a/(g k).",
+      "source": {
+        "questionId": "q_fe3fac03bcada94b377a4cd38fadcc77cf891332041380f13036fd61da7c3045",
+        "exam": "JEE Advanced",
+        "year": 2009,
+        "documentId": "jee-advanced-2009-paper-2-english"
+      }
+    },
+    {
+      "id": "physics|3|dynamics-of-uniform-circular-motion|easy",
+      "topicId": "physics|3|dynamics-of-uniform-circular-motion",
+      "difficulty": "easy",
+      "question": "If the radii of curvature of the paths of two particles of the same mass are in the ratio 3 : 4, then in order to have the same centripetal force their speeds are in the ratio: (A) √3 : 1 (B) 1 : √3 (C) √3 : 2 (D) 2 : √3. Use F = m v² / r.",
+      "source": {
+        "questionId": "q_6f0d26a98d21919d1d58db9b3e1c99accdf5f814b80bb5304dcac95af618ed17",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-29-shift-1"
+      }
+    },
+    {
+      "id": "physics|3|dynamics-of-uniform-circular-motion|medium",
+      "topicId": "physics|3|dynamics-of-uniform-circular-motion",
+      "difficulty": "medium",
+      "question": "A 0.5 kg mass is in contact with the inner wall of a cylindrical drum of radius 4 m rotating about its vertical axis. The minimum rotational speed so that the mass remains stuck to the wall without falling is 5 rad/s. Take g = 10 m/s². Find the coefficient of friction between the wall and the mass.",
+      "source": {
+        "questionId": "q_2adaf4a137eb8332a3a4a587c03f074aa2de0859b2139743e4e609f85639e730",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-02-shift-2"
+      }
+    },
+    {
+      "id": "physics|3|dynamics-of-uniform-circular-motion|hard",
+      "topicId": "physics|3|dynamics-of-uniform-circular-motion",
+      "difficulty": "hard",
+      "question": "A particle of mass m moves in a horizontal circle of radius r on a smooth table, held by a string through a hole. The speed is v. Find the tension. If the string is shortened slowly to r/2, what is conserved and what happens to T? Do not use vertical-circle energy.",
+      "notes": "no bank item; authored. Bank hard circular items are the rotating drum (medium) and vertical-loop energy (Unit 4)."
+    },
+    {
+      "id": "physics|3|conical-pendulum|easy",
+      "topicId": "physics|3|conical-pendulum",
+      "difficulty": "easy",
+      "question": "A conical pendulum has string length 2.0 m and makes 30° with the vertical. Take g = 10 m/s². Find the period and the speed of the bob. Draw T, mg, and the radius of the horizontal circle.",
+      "notes": "no bank item; authored. Phrase ‘conical pendulum’ never occurs."
+    },
+    {
+      "id": "physics|3|conical-pendulum|medium",
+      "topicId": "physics|3|conical-pendulum",
+      "difficulty": "medium",
+      "question": "The same 2.0 m string now makes 60° with the vertical, g = 10 m/s². Find the tension if the bob has mass 0.50 kg, and the period. Why is T > mg?",
+      "notes": "no bank item; authored. Phrase ‘conical pendulum’ never occurs."
+    },
+    {
+      "id": "physics|3|conical-pendulum|hard",
+      "topicId": "physics|3|conical-pendulum",
+      "difficulty": "hard",
+      "question": "A conical pendulum of string length ℓ and angle θ with the vertical has period T = 2π √(ℓ cosθ / g). Derive this from centripetal force = T sinθ and T cosθ = mg. Then find θ if T equals the simple-pendulum period 2π √(ℓ/g) — or show that equality is impossible for θ > 0.",
+      "notes": "no bank item; authored. Phrase ‘conical pendulum’ never occurs."
+    },
+    {
+      "id": "physics|3|vehicle-on-level-circular-road|easy",
+      "topicId": "physics|3|vehicle-on-level-circular-road",
+      "difficulty": "easy",
+      "question": "A car of mass 800 kg takes a level circular turn of radius 75 m at 20 m/s. Take g = 10 m/s². Find the minimum μ_s so that it does not skid. The road is not banked.",
+      "notes": "no bank item; authored. Bank level-road item is the 75 m / 30 m/s then 48 m comparison (medium)."
+    },
+    {
+      "id": "physics|3|vehicle-on-level-circular-road|medium",
+      "topicId": "physics|3|vehicle-on-level-circular-road",
+      "difficulty": "medium",
+      "question": "A curve on a level road has radius 75 m. The maximum speed without skidding is 30 m/s. If the radius is changed to 48 m and μ between tyres and road stays the same, find the new maximum allowed speed in m/s.",
+      "source": {
+        "questionId": "q_4afc986f6390509fe6347c7da995c5899aebbfaa84267a494a765b146ccdb201",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-25-shift-2"
+      }
+    },
+    {
+      "id": "physics|3|vehicle-on-level-circular-road|hard",
+      "topicId": "physics|3|vehicle-on-level-circular-road",
+      "difficulty": "hard",
+      "question": "On a level circular road, v_max = √(μ_s g R). If μ_s is halved and R is doubled, by what factor does v_max change? Then, with μ_s = 0.40, R = 50 m, g = 10 m/s², evaluate v_max.",
+      "notes": "no bank item; authored. Distinct numerical from the 75 m / 30 m/s bank item."
+    },
+    {
+      "id": "physics|3|vehicle-on-banked-road|easy",
+      "topicId": "physics|3|vehicle-on-banked-road",
+      "difficulty": "easy",
+      "question": "A curve of radius 90 m is banked at 30° with no friction. Take g = 10 m/s². Find the design speed from tanθ = v² / (R g).",
+      "notes": "no bank item; authored. The only banking item includes μ ≠ 0 (used under banking-with-friction)."
+    },
+    {
+      "id": "physics|3|vehicle-on-banked-road|medium",
+      "topicId": "physics|3|vehicle-on-banked-road",
+      "difficulty": "medium",
+      "question": "The same 90 m, 30° frictionless bank: if a car goes at twice the design speed, what horizontal force would be needed to keep it on the circle if the road could supply it? Since μ = 0, describe the actual tendency (up the bank).",
+      "notes": "no bank item; authored. The only banking item includes μ ≠ 0 (used under banking-with-friction)."
+    },
+    {
+      "id": "physics|3|vehicle-on-banked-road|hard",
+      "topicId": "physics|3|vehicle-on-banked-road",
+      "difficulty": "hard",
+      "question": "Derive v = √(R g tanθ) for a frictionless banked road from resolving N sinθ = m v² / R and N cosθ = mg. Then show that this v is independent of mass.",
+      "notes": "no bank item; authored. The only banking item includes μ ≠ 0 (used under banking-with-friction)."
+    },
+    {
+      "id": "physics|3|banking-with-friction|easy",
+      "topicId": "physics|3|banking-with-friction",
+      "difficulty": "easy",
+      "question": "A car takes a banked curve of radius 100 m at 30° with μ_s = 0.20. Take g = 10 m/s². Write the formula for the maximum safe speed including friction, then evaluate it. This is not the frictionless design speed.",
+      "notes": "no bank item; authored. Only one banked-with-friction bank item (800 kg, 300 m) — used as hard."
+    },
+    {
+      "id": "physics|3|banking-with-friction|medium",
+      "topicId": "physics|3|banking-with-friction",
+      "difficulty": "medium",
+      "question": "For a banked road with θ = 30°, R = 100 m, μ_s = 0.20, g = 10 m/s², find the minimum speed so the car does not slide down. Use v² = R g (sinθ − μ cosθ) / (cosθ + μ sinθ).",
+      "notes": "no bank item; authored. Companion to the easy authored numerical; bank item is the 800 kg max-speed problem."
+    },
+    {
+      "id": "physics|3|banking-with-friction|hard",
+      "topicId": "physics|3|banking-with-friction",
+      "difficulty": "hard",
+      "question": "A car of 800 kg takes a turn on a banked road of radius 300 m and banking angle 30°. The coefficient of static friction is 0.2. Take g = 10 m/s² and √3 = 1.73. Find the maximum speed with which the car can negotiate the turn safely. Options included 51.4 m/s, 70.4 m/s, 102.8 m/s.",
+      "source": {
+        "questionId": "q_e9d809ed6598239b6558a26c8697c72ef2805ee0b854903216f3bacdaf3796d5",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-04-06-shift-2"
+      }
+    }
+  ]
+}
