@@ -1,3 +1,7 @@
+import {
+  shouldReleaseAudioPositionWait,
+} from "@heytutor/drawing";
+
 /**
  * Live whiteboard clock. Writing must never wait for a missing TTS position
  * until the sentence ends — that is the "speak, pause, then ink" failure.
@@ -18,6 +22,7 @@ export interface LiveAudioClock {
 }
 
 const END_PADDING_MS = 40;
+const STUCK_PLAYBACK_BEHIND_WALL_MS = 250;
 
 export function resolveLiveAudioPositionMs(input: LiveAudioClockInput): LiveAudioClock {
   if (input.speechComplete) {
@@ -30,6 +35,11 @@ export function resolveLiveAudioPositionMs(input: LiveAudioClockInput): LiveAudi
   }
 
   const playback = input.playbackPositionMs;
+  const wallClockMs =
+    input.audioStartedAtMs !== null
+      ? Math.max(input.nowMs - input.audioStartedAtMs, 0)
+      : null;
+
   // 0 and negative positions mean "scheduled but not audible yet". Treating
   // them as a live clock pinned the pen at t=0 while speech was already going.
   if (
@@ -38,13 +48,16 @@ export function resolveLiveAudioPositionMs(input: LiveAudioClockInput): LiveAudi
     playback > 0 &&
     playback + 50 >= input.maxAudioPositionMs
   ) {
+    if (wallClockMs !== null && playback + STUCK_PLAYBACK_BEHIND_WALL_MS < wallClockMs) {
+      const positionMs = Math.max(input.maxAudioPositionMs, wallClockMs);
+      return { positionMs, maxAudioPositionMs: positionMs };
+    }
     const positionMs = playback;
     const maxAudioPositionMs = Math.max(input.maxAudioPositionMs, positionMs);
     return { positionMs, maxAudioPositionMs };
   }
 
-  if (input.audioStartedAtMs !== null) {
-    const wallClockMs = Math.max(input.nowMs - input.audioStartedAtMs, 0);
+  if (wallClockMs !== null) {
     const positionMs = Math.max(input.maxAudioPositionMs, wallClockMs);
     return { positionMs, maxAudioPositionMs: positionMs };
   }
@@ -54,25 +67,4 @@ export function resolveLiveAudioPositionMs(input: LiveAudioClockInput): LiveAudi
   return { positionMs: 0, maxAudioPositionMs: Math.max(input.maxAudioPositionMs, 0) };
 }
 
-/** True when the pen should stop waiting for a cue that will never arrive. */
-export function shouldReleaseAudioPositionWait(input: {
-  positionMs: number;
-  targetMs: number;
-  elapsedMs: number;
-  clockEverStarted: boolean;
-  stalledFrames: number;
-}): boolean {
-  if (input.positionMs >= input.targetMs) {
-    return true;
-  }
-  if (!input.clockEverStarted && input.elapsedMs >= 400) {
-    return true;
-  }
-  if (input.clockEverStarted && input.stalledFrames >= 30) {
-    return true;
-  }
-  if (input.clockEverStarted && input.elapsedMs > Math.min(input.targetMs + 2000, 8000)) {
-    return true;
-  }
-  return false;
-}
+export { shouldReleaseAudioPositionWait };

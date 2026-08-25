@@ -1,5 +1,14 @@
 import type { DrawCommand, ParsedResponse } from "@heytutor/drawing";
 import { mathToSpeech, type AudioTimings } from "../tts/elevenLabsClient";
+import {
+  type InkPace,
+  applySceneDuration,
+  applySceneFlight,
+  FOLLOW_FOCUS_SCALE,
+  SCENE_WRITE_MAX_MS,
+  SCENE_WRITE_MIN_MS,
+  SCENE_WRITE_MS_PER_CHAR,
+} from "./inkPace";
 
 const CHARS_PER_SECOND = 15;
 const MS_PER_CHAR = 1000 / CHARS_PER_SECOND;
@@ -955,12 +964,21 @@ const DEFAULT_DRAWING_DURATIONS: DrawingDurations = {
   ERASE: 1500,
 };
 
-export function getDrawingDuration(command: DrawCommand): number {
+export function getDrawingDuration(
+  command: DrawCommand,
+  pace: InkPace = "follow",
+): number {
   switch (command.type) {
     case "WRITE":
     case "LABEL":
     case "DIMENSION": {
       const charCount = command.text?.length ?? 1;
+      if (pace === "scene") {
+        return Math.min(
+          Math.max(charCount * SCENE_WRITE_MS_PER_CHAR, SCENE_WRITE_MIN_MS),
+          SCENE_WRITE_MAX_MS,
+        );
+      }
       return Math.min(
         Math.max(charCount * WRITE_MS_PER_CHAR, MIN_WRITE_MS),
         MAX_WRITE_MS,
@@ -973,18 +991,30 @@ export function getDrawingDuration(command: DrawCommand): number {
       const area = Math.abs((eraseWidth ?? 0) * (eraseHeight ?? 0));
       return Math.max(Math.min(Math.round(area / 50), 3000), 800);
     }
-    default:
-      return DEFAULT_DRAWING_DURATIONS[command.type] ?? 1500;
+    default: {
+      const baseMs = DEFAULT_DRAWING_DURATIONS[command.type] ?? 1500;
+      if (pace === "scene") {
+        return applySceneDuration(baseMs);
+      }
+      if (command.type === "FOCUS") {
+        return Math.round(baseMs * FOLLOW_FOCUS_SCALE);
+      }
+      return baseMs;
+    }
   }
 }
 
-export function getFlightDuration(command: DrawCommand): number {
-  if (command.type === "CLEAR") return 0;
-  if (command.type === "PAUSE") return 0;
-  if (command.type === "WRITE" || command.type === "LABEL") return 50;
-  if (command.type === "DIMENSION") return 120;
-  if (command.type === "ERASE") return 500;
-  if (
+export function getFlightDuration(
+  command: DrawCommand,
+  pace: InkPace = "follow",
+): number {
+  let baseMs = 300;
+  if (command.type === "CLEAR") baseMs = 0;
+  else if (command.type === "PAUSE") baseMs = 0;
+  else if (command.type === "WRITE" || command.type === "LABEL") baseMs = 50;
+  else if (command.type === "DIMENSION") baseMs = 120;
+  else if (command.type === "ERASE") baseMs = 500;
+  else if (
     command.type === "UNDERLINE" ||
     command.type === "CIRCLE_AROUND" ||
     command.type === "ARROW" ||
@@ -992,12 +1022,18 @@ export function getFlightDuration(command: DrawCommand): number {
     command.type === "FOCUS" ||
     command.type === "SCRIBBLE"
   ) {
-    return 200;
+    baseMs = 200;
   }
-  return 300;
+  if (pace === "scene" && baseMs > 0) {
+    return applySceneFlight(baseMs);
+  }
+  return baseMs;
 }
 
-export function getCommandDrawDurationMs(command: DrawCommand | null): number {
+export function getCommandDrawDurationMs(
+  command: DrawCommand | null,
+  pace: InkPace = "follow",
+): number {
   if (!command) {
     return 0;
   }
@@ -1007,10 +1043,10 @@ export function getCommandDrawDurationMs(command: DrawCommand | null): number {
   }
 
   if (command.type === "CLEAR") {
-    return getDrawingDuration(command);
+    return getDrawingDuration(command, pace);
   }
 
-  return getFlightDuration(command) + getDrawingDuration(command);
+  return getFlightDuration(command, pace) + getDrawingDuration(command, pace);
 }
 
 export function getSegmentDuration(

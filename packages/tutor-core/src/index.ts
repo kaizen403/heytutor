@@ -1,8 +1,15 @@
 export * from "./publicOrigins";
 export * from "./tutorDebug";
 export * from "./sync/audioSync";
+export * from "./sync/inkPace";
 export * from "./sync/liveAudioClock";
+export {
+  createScheduledWriteClock,
+  resolveScheduledWriteClockMs,
+  simulateScheduledWriteWait,
+} from "@heytutor/drawing";
 export * from "./tts/createTTSClient";
+export * from "./tts/audioContext";
 export * from "./planners/scenePlannerV2";
 export * from "./planners/scenePlannerV2Prompt";
 export * from "./planners/turnPlannerV3";

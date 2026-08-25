@@ -12,6 +12,7 @@ import {
   hasPlayableSegmentAudio,
   resolveLiveAudioPositionMs,
   shouldReleaseAudioPositionWait,
+  simulateScheduledWriteWait,
   toSegmentRelativeAudioTimings,
 } from "../../src/index";
 
@@ -291,6 +292,41 @@ assert(
     stalledFrames: 0,
   }),
   "an advancing clock must still wait for its spoken cue",
+);
+
+const parkedPenOffsets = [80, 160, 240, 320, 400];
+const nullClockWrite = simulateScheduledWriteWait({
+  offsetsMs: parkedPenOffsets,
+  getRawPositionMs: () => null,
+});
+assert(nullClockWrite.completed, "a WRITE+speech segment must not hang when getAudioPositionMs is null");
+assert(
+  nullClockWrite.elapsedMs <= parkedPenOffsets[parkedPenOffsets.length - 1]! + 64,
+  `null getAudioPositionMs parked the pen for ${nullClockWrite.elapsedMs}ms`,
+);
+const stuckClockWrite = simulateScheduledWriteWait({
+  offsetsMs: parkedPenOffsets,
+  getRawPositionMs: () => 16,
+  maxElapsedMs: 3_000,
+});
+assert(stuckClockWrite.completed, "a WRITE+speech segment must not hang when the audio clock is stuck");
+assert(
+  stuckClockWrite.elapsedMs < 2_000,
+  `stuck getAudioPositionMs parked the pen for ${stuckClockWrite.elapsedMs}ms`,
+);
+
+const stuckPlayback = resolveLiveAudioPositionMs({
+  speechComplete: false,
+  capturedDurationMs: null,
+  estimateSpeechMs: 8000,
+  playbackPositionMs: 16,
+  audioStartedAtMs: 1000,
+  nowMs: 2800,
+  maxAudioPositionMs: 16,
+});
+assert(
+  stuckPlayback.positionMs >= 1700,
+  "a stuck TTS playback position must fall through to wall time",
 );
 
 console.log(
