@@ -78,7 +78,26 @@ class FakeAudioContext {
   }
 
   async decodeAudioData(_bytes: ArrayBuffer): Promise<AudioBuffer> {
-    return { duration: 0.1 } as AudioBuffer;
+    const length = 4410;
+    const data = [new Float32Array(length)];
+    return {
+      duration: 0.1,
+      length,
+      sampleRate: 44_100,
+      numberOfChannels: 1,
+      getChannelData: (channel: number) => data[channel] ?? data[0],
+    } as AudioBuffer;
+  }
+
+  createBuffer(channels: number, length: number, sampleRate: number): AudioBuffer {
+    const data = Array.from({ length: channels }, () => new Float32Array(length));
+    return {
+      duration: length / sampleRate,
+      length,
+      sampleRate,
+      numberOfChannels: channels,
+      getChannelData: (channel: number) => data[channel] ?? data[0],
+    } as AudioBuffer;
   }
 
   createBufferSource(): AudioBufferSourceNode {

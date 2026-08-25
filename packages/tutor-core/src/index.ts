@@ -12,6 +12,7 @@ export * from "./planners/opticsPlanAudit";
 export * from "./planners/problemPlannerV1";
 export * from "./tts/elevenLabsClient";
 export * from "./tts/elevenLabsWebSocketClient";
+export * from "./tts/playbackSchedule";
 export * from "./llm/fastMode";
 export * from "./llm/llmAPI";
 export * from "./llm/mockResponses";
