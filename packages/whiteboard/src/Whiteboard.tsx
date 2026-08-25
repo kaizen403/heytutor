@@ -260,6 +260,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         duration: number,
         onFrame: (progress: number) => void,
         shouldCancel?: () => boolean,
+        playback?: { lockToWallClock?: boolean },
       ): Promise<void> =>
         new Promise((resolve) => {
           let frameId: number | null = null;
@@ -303,11 +304,12 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               pauseStartedAt = null;
             }
 
+            const speed = playback?.lockToWallClock ? 1 : animationSpeedRef.current;
             const progress =
               duration <= 0
                 ? 1
                 : clamp(
-                    ((now - startTime - pausedAccumMs) / duration) * animationSpeedRef.current,
+                    ((now - startTime - pausedAccumMs) / duration) * speed,
                     0,
                     1,
                   );
@@ -1069,7 +1071,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                   HANDWRITING_ROTATION,
                 );
                 animLayer.batchDraw();
-              });
+              }, undefined, scheduled ? { lockToWallClock: true } : undefined);
 
               if (shouldCancel?.()) {
                 textNode.destroy();
@@ -1149,7 +1151,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                   setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
                 }
                 animLayer.batchDraw();
-              });
+              }, undefined, scheduled ? { lockToWallClock: true } : undefined);
 
               if (shouldCancel?.()) {
                 pathNode.destroy();

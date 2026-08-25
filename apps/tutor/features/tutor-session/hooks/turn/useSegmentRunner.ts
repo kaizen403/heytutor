@@ -267,15 +267,9 @@ export function useSegmentRunner({
 
           // Wait once for audio — never per-command (that stacked 2.5s × N idle gaps).
           if (hasNarration) {
-            await waitForAudioStart(700);
+            await waitForAudioStart(2_400);
             if (isCancelled()) {
               return;
-            }
-            // HTTP/WS often start after this wait. A provisional clock lets
-            // estimated writing begin instead of hanging at position -1 until
-            // the sentence ends.
-            if (audioStartedAtMs === null) {
-              audioStartedAtMs = performance.now();
             }
             if (audioStartedFlag) {
               await waitForInitialTimings(40);
@@ -321,11 +315,6 @@ export function useSegmentRunner({
             if (writeSchedule && writeSchedule.offsetsMs.length > 0) {
               const audioPosAtScheduleMs = Math.round(liveAudioPositionMs());
               const firstOffsetMs = writeSchedule.offsetsMs[0] ?? 0;
-              // #region agent log
-              if (textCommandIndex === 0) {
-                fetch('http://127.0.0.1:7280/ingest/352483c0-a316-40d0-8703-e595b34ba80f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e9a5f5'},body:JSON.stringify({sessionId:'e9a5f5',runId:'pre-fix',hypothesisId:'H5',location:'useSegmentRunner.ts:writeSchedule',message:'write clock at first text',data:{index,audioPosAtScheduleMs,firstOffsetMs,elapsedAtCommandStart:Math.round(elapsedAtCommandStart),audioStartedFlag,hasCapturedTimings:Boolean(capturedTimings),scheduleSource:writeSchedule.source??null,intro:segment.verifiedDiagramIntro===true,preview:narration.slice(0,50)},timestamp:Date.now()})}).catch(()=>{});
-              }
-              // #endregion
               const effectiveOffsets = catchUpWriteScheduleOffsets(
                 leadWriteScheduleToSpeech(writeSchedule.offsetsMs, audioPosAtScheduleMs),
                 audioPosAtScheduleMs,

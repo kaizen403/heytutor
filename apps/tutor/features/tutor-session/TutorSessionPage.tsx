@@ -85,7 +85,7 @@ export function TutorSessionPage() {
     speedMultiplier: 1.5,
     fastMode: true,
     audioLanguage: "english",
-    accent: "us",
+    accent: "india",
     subtitlesEnabled: true,
     subtitleLanguage: "english",
     markerColor: "navy",
