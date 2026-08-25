@@ -50,6 +50,11 @@ export interface TTSClient {
    * allows audible playback later (planning awaits would otherwise leave it suspended).
    */
   unlockAudio?(): void;
+  /**
+   * Keep generating and capturing TTS, but do not play it through speakers.
+   * Writing sync still uses the audio clock.
+   */
+  setMuted?(muted: boolean): void;
   pause(): void;
   resume(): void;
   stop(): void;
@@ -411,6 +416,11 @@ export function toSegmentRelativeAudioTimings(raw: AudioTimings): AudioTimings {
   };
 }
 
+function applyHtmlAudioMute(audio: HTMLAudioElement, muted: boolean): void {
+  audio.muted = muted;
+  audio.volume = muted ? 0 : 1;
+}
+
 export class ElevenLabsTTSClient implements TTSClient {
   private proxyUrl: string;
   private streamUrl: string;
@@ -419,6 +429,7 @@ export class ElevenLabsTTSClient implements TTSClient {
   private playing = false;
   private paused = false;
   private playbackRate = 1.0;
+  private muted = false;
 
   constructor(options: ElevenLabsClientOptions) {
     this.proxyUrl = options.proxyUrl;
@@ -432,6 +443,13 @@ export class ElevenLabsTTSClient implements TTSClient {
 
   unlockAudio(): void {
     // No AudioContext on the HTTP client path.
+  }
+
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+    if (this.currentAudioEl) {
+      applyHtmlAudioMute(this.currentAudioEl, muted);
+    }
   }
 
   async speak({ text, onStart, onEnd, onError, onTimings }: SpeakOptions): Promise<void> {
@@ -591,6 +609,7 @@ export class ElevenLabsTTSClient implements TTSClient {
     const audio = new Audio(url);
     audio.preservesPitch = true;
     audio.playbackRate = this.playbackRate;
+    applyHtmlAudioMute(audio, this.muted);
     this.currentAudioEl = audio;
 
     await new Promise<void>((resolve) => {
@@ -622,6 +641,7 @@ export class ElevenLabsTTSClient implements TTSClient {
     const audio = new Audio(url);
     audio.preservesPitch = true;
     audio.playbackRate = this.playbackRate;
+    applyHtmlAudioMute(audio, this.muted);
     this.currentAudioEl = audio;
 
     await new Promise<void>((resolve) => {
@@ -689,6 +709,7 @@ export class SpeechSynthesisTTSClient implements TTSClient {
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private playing = false;
   private playbackRate = 1.0;
+  private muted = false;
 
   async prewarm(_options?: PrewarmOptions): Promise<void> {
     // SpeechSynthesis has no connection to warm.
@@ -697,6 +718,13 @@ export class SpeechSynthesisTTSClient implements TTSClient {
   unlockAudio(): void {
     if (typeof window !== "undefined") {
       window.speechSynthesis?.resume();
+    }
+  }
+
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+    if (this.currentUtterance) {
+      this.currentUtterance.volume = muted ? 0 : 1;
     }
   }
 
@@ -726,7 +754,7 @@ export class SpeechSynthesisTTSClient implements TTSClient {
       const utterance = new SpeechSynthesisUtterance(spokenText);
       utterance.rate = this.playbackRate;
       utterance.pitch = 1.0;
-      utterance.volume = 1.0;
+      utterance.volume = this.muted ? 0 : 1.0;
 
       const voices = window.speechSynthesis.getVoices();
       const preferredVoice =

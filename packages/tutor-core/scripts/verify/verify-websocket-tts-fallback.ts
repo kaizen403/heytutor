@@ -103,6 +103,13 @@ class FakeAudioContext {
   createBufferSource(): AudioBufferSourceNode {
     return new FakeAudioBufferSource() as unknown as AudioBufferSourceNode;
   }
+
+  createGain(): GainNode {
+    return {
+      gain: { value: 1 },
+      connect(_destination: unknown) {},
+    } as GainNode;
+  }
 }
 
 function assert(condition: unknown, message: string): asserts condition {

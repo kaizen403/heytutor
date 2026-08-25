@@ -16,6 +16,7 @@ import {
   concatDecodedAudioBuffers,
   nextScheduleStartSec,
 } from "./playbackSchedule";
+import { getSharedAudioContext } from "./audioContext";
 
 interface TimestampChunkPayload {
   audio?: string;
@@ -240,6 +241,7 @@ function parseWsPayload(data: string): TimestampChunkPayload | { type?: string; 
 export class ElevenLabsWebSocketTTSClient implements TTSClient {
   private ws: WebSocket | null = null;
   private audioContext: AudioContext | null = null;
+  private outputGain: GainNode | null = null;
   private activeSources: AudioBufferSourceNode[] = [];
   private playing = false;
   private connectPromise: Promise<void> | null = null;
@@ -249,6 +251,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   private speechFallback = new SpeechSynthesisTTSClient();
   private paused = false;
   private playbackRate = 1.0;
+  private muted = false;
 
   private jobs: SegmentJob[] = [];
   private currentJob: SegmentJob | null = null;
@@ -314,11 +317,19 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
 
   unlockAudio(): void {
     this.paused = false;
-    this.audioContext = this.audioContext ?? new AudioContext();
+    this.audioContext = getSharedAudioContext();
     if (this.audioContext.state === "suspended") {
       void this.audioContext.resume().then(() => {
         tutorDebug("tts", "audio unlocked", { state: this.audioContext?.state });
       });
+    }
+  }
+
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+    this.speechFallback.setMuted?.(muted);
+    if (this.outputGain) {
+      this.outputGain.gain.value = muted ? 0 : 1;
     }
   }
 
@@ -1008,7 +1019,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     }
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
-    source.connect(ctx.destination);
+    this.connectSource(source, ctx);
 
     const donePromise = new Promise<void>((resolveSource) => {
       source.onended = () => {
@@ -1241,7 +1252,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     }
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
-    source.connect(ctx.destination);
+    this.connectSource(source, ctx);
     const donePromise = new Promise<void>((resolve) => {
       source.onended = () => {
         this.activeSources = this.activeSources.filter((node) => node !== source);
@@ -1449,7 +1460,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     const startAt = Math.max(ctx.currentTime + 0.05, this.scheduledEnd);
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
-    source.connect(ctx.destination);
+    this.connectSource(source, ctx);
 
     await new Promise<void>((resolve) => {
       source.onended = () => {
@@ -1470,8 +1481,21 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     });
   }
 
+  private connectSource(source: AudioBufferSourceNode, ctx: AudioContext): void {
+    source.connect(this.ensureOutputGain(ctx));
+  }
+
+  private ensureOutputGain(ctx: AudioContext): GainNode {
+    if (!this.outputGain) {
+      this.outputGain = ctx.createGain();
+      this.outputGain.gain.value = this.muted ? 0 : 1;
+      this.outputGain.connect(ctx.destination);
+    }
+    return this.outputGain;
+  }
+
   private async ensureAudioContext(): Promise<AudioContext> {
-    this.audioContext = this.audioContext ?? new AudioContext();
+    this.audioContext = this.audioContext ?? getSharedAudioContext();
 
     if (this.audioContext.state === "suspended" && !this.paused) {
       try {
