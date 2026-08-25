@@ -182,9 +182,6 @@ The scene engine owns all diagram geometry, labels, annotations, directions, con
 
   const spokenIntro = collapseIntroSpeech(introSegments);
 
-  // #region agent log
-  fetch('http://127.0.0.1:7280/ingest/352483c0-a316-40d0-8703-e595b34ba80f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e9a5f5'},body:JSON.stringify({sessionId:'e9a5f5',runId:'pre-fix',hypothesisId:'H5',location:'verifiedScenePresentation.ts:present',message:'scene intro built',data:{introCount:spokenIntro.length,revealGroupCount:orderedGroupIds.length,timelineActions:renderScene.timeline.map((a)=>a.action),commandCount:commands.length},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   return { diagram, introSegments: spokenIntro };
 }
 

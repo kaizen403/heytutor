@@ -22,7 +22,9 @@ export function useTurnControl(
 ): TurnControlApi {
   const {
     sessionId,
-    searchParams,
+    autoQuestion,
+    replaceAutoQuestionUrl = false,
+    enableKeyboardControls = true,
     phase,
     isReplaying,
     boardLoaded,
@@ -517,6 +519,10 @@ export function useTurnControl(
   }, [isPausedRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef]);
 
   useEffect(() => {
+    if (!enableKeyboardControls) {
+      return;
+    }
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         stopTurn();
@@ -546,15 +552,17 @@ export function useTurnControl(
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [pauseTurn, phase, resumeTurn, stopTurn, isPausedRef]);
+  }, [enableKeyboardControls, pauseTurn, phase, resumeTurn, stopTurn, isPausedRef]);
 
   useEffect(() => {
     if (!boardLoaded || autoSubmitDoneRef.current) return;
-    const q = searchParams.get("q");
-    if (!q || q.trim().length === 0) return;
+    const q = autoQuestion?.trim();
+    if (!q) return;
     autoSubmitDoneRef.current = true;
-    window.history.replaceState(null, "", window.location.pathname);
-    const question = q.trim();
+    if (replaceAutoQuestionUrl && typeof window !== "undefined") {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    const question = q;
     pendingQuestionRef.current = question;
     queueMicrotask(() => setInputInteracted(true));
 
@@ -574,7 +582,8 @@ export function useTurnControl(
     };
   }, [
     boardLoaded,
-    searchParams,
+    autoQuestion,
+    replaceAutoQuestionUrl,
     handleQuestionRef,
     autoSubmitDoneRef,
     pendingQuestionRef,

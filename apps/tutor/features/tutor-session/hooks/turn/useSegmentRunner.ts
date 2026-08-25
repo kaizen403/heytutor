@@ -16,10 +16,13 @@ import {
   validateAudioTimingsForNarration,
   tutorDebug,
   mathToSpeech,
+  capSceneBatchDurations,
+  inkPaceContextForSegment,
+  selectInkPace,
   type AudioTimings,
   type TTSClient,
 } from "@heytutor/tutor-core";
-import { adaptiveShapeBudget } from "../../types";
+import { resolveCommandInkBudgetMs } from "../../types";
 import type { UseSegmentRunnerParams } from "./types";
 
 export function useSegmentRunner({
@@ -117,17 +120,26 @@ export function useSegmentRunner({
       }
       if (isCancelled()) return;
       applyTurnPhase("speaking");
-      const totalDrawWeight = segmentCommands.reduce(
-        (sum, cmd) => sum + getCommandDrawDurationMs(cmd),
-        0,
+      const hasNarration = narration.length > 0;
+      const hasCommand = segmentCommands.length > 0;
+      const paceContext = inkPaceContextForSegment({
+        verifiedDiagramIntro: segment.verifiedDiagramIntro === true,
+        commandCount: segmentCommands.length,
+        hasNarration,
+      });
+      const commandPaces = segmentCommands.map((cmd) => selectInkPace(cmd, paceContext));
+      const pacedDurations = segmentCommands.map((cmd, commandIndex) =>
+        getCommandDrawDurationMs(cmd, commandPaces[commandIndex]),
       );
+      const sceneBatchDurations =
+        segment.verifiedDiagramIntro === true
+          ? capSceneBatchDurations(pacedDurations)
+          : null;
+      const totalDrawWeight = pacedDurations.reduce((sum, ms) => sum + ms, 0);
       const multiShapeSegment =
         segmentCommands.filter((cmd) =>
           ["DRAW_CIRCLE", "DRAW_LINE", "DRAW_RECT", "DRAW_CUBE", "DRAW_CUBOID"].includes(cmd.type),
         ).length > 1;
-
-      const hasNarration = narration.length > 0;
-      const hasCommand = segmentCommands.length > 0;
 
       if (hasNarration) {
         turnStatsRef.current.ttsChars += narration.length;
@@ -148,7 +160,7 @@ export function useSegmentRunner({
       narrationDensityRef.current =
         estimateSpeechMs > 0 ? narration.length / estimateSpeechMs : 0;
       const naturalDrawMs = Math.max(
-        segmentCommands.reduce((sum, cmd) => sum + getCommandDrawDurationMs(cmd), 0),
+        pacedDurations.reduce((sum, ms) => sum + ms, 0),
         200,
       );
       let audioStartedAtMs: number | null = null;
@@ -280,7 +292,9 @@ export function useSegmentRunner({
           }
 
           let textCommandIndex = 0;
-          for (const command of segmentCommands) {
+          for (let commandIndex = 0; commandIndex < segmentCommands.length; commandIndex++) {
+            const command = segmentCommands[commandIndex]!;
+            const pace = commandPaces[commandIndex]!;
             if (isCancelled()) {
               return;
             }
@@ -368,6 +382,7 @@ export function useSegmentRunner({
                 },
                 ...diagramDrawOptions,
                 textPlacementReserved: reservedTextCommands.has(command),
+                inkPace: pace,
               });
               if (isTextCommand) {
                 textCommandIndex++;
@@ -375,8 +390,8 @@ export function useSegmentRunner({
               continue;
             }
 
-            const commandWeight = getCommandDrawDurationMs(command);
-            const naturalDrawMs = getCommandDrawDurationMs(command);
+            const commandWeight = pacedDurations[commandIndex] ?? getCommandDrawDurationMs(command, pace);
+            const naturalDrawMs = commandWeight;
             const commandSpeechMs =
               totalDrawWeight > 0
                 ? Math.max(Math.round(totalSpeechMs * (commandWeight / totalDrawWeight)), 50)
@@ -401,37 +416,24 @@ export function useSegmentRunner({
               }
             }
 
-            const introMany = segment.verifiedDiagramIntro === true && segmentCommands.length > 8;
-            const commandBudgetMs =
-              segment.verifiedDiagramIntro === true
-                ? hasNarration
-                  ? // Fit the whole intro batch into the spoken window so leftover
-                    // ink cannot hold the next sentence and break the voice.
-                    Math.min(
-                      Math.max(
-                        commandSpeechMs,
-                        command.type === "FOCUS" ? (introMany ? 160 : 360) : command.type === "DRAW_POINT" ? 80 : 100,
-                      ),
-                      command.type === "FOCUS" ? (introMany ? 280 : 1_200) : introMany ? 220 : 900,
-                    )
-                  : isTextCommand
-                    ? 260
-                    : 180
-                : isTextCommand
-                ? (speechWindow?.durationMs ?? naturalDrawMs)
-                : command.type === "PAUSE"
-                  ? commandSpeechMs
-                  : speechWindow?.durationMs
-                    ? adaptiveShapeBudget(command.type, speechWindow.durationMs, 1)
-                    : multiShapeSegment
-                      ? Math.max(commandSpeechMs, 50)
-                      : adaptiveShapeBudget(command.type, undefined, 1);
+            const commandBudgetMs = resolveCommandInkBudgetMs({
+              command,
+              pace,
+              verifiedDiagramIntro: segment.verifiedDiagramIntro === true,
+              isTextCommand,
+              speechWindowMs: speechWindow?.durationMs,
+              commandSpeechMs,
+              naturalDrawMs,
+              multiShapeSegment,
+              sceneBatchDurationMs: sceneBatchDurations?.[commandIndex],
+            });
 
             await executeCommandWithCancel(command, {
               segmentNarration: narration,
               speechDurationMs: commandBudgetMs,
               ...diagramDrawOptions,
               textPlacementReserved: reservedTextCommands.has(command),
+              inkPace: pace,
             });
             if (isTextCommand) {
               textCommandIndex++;

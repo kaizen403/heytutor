@@ -11,6 +11,7 @@ import {
   TUTOR_SYSTEM_PROMPT,
   TUTOR_CONTINUATION_PROMPT,
   CONCEPT_LESSON_RUNTIME_ADDON,
+  FAST_MODE_TEACHING_ADDON,
   isConceptLessonQuestion,
   buildGivenValueSegments,
   givenValuesPromptAddon,
@@ -181,7 +182,14 @@ export function useQuestionHandler(
     persistTurnForReplay,
     registerReplayBlobUrl,
     revokeUnreferencedReplayBlobUrls,
+    onComplete,
+    onError,
   } = params;
+
+  const emitError = useCallback((error: { message: string; question: string }) => {
+    setLastError(error);
+    onError?.(error);
+  }, [setLastError, onError]);
 
   const { finishLectureUi, applyTurnPhase, enqueueSegment, enqueueVerifiedIntro, processResponseText } = turnControl;
 
@@ -715,9 +723,6 @@ export function useQuestionHandler(
             representationTier = selected.tier;
             representationNonMetric = selected.nonMetric;
             representationReason = selected.reason;
-            // #region agent log
-            fetch('http://127.0.0.1:7280/ingest/352483c0-a316-40d0-8703-e595b34ba80f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e9a5f5'},body:JSON.stringify({sessionId:'e9a5f5',runId:'pre-fix',hypothesisId:'H1',location:'useQuestionHandler.ts:selectVerifiedRepresentation',message:'scene selected',data:{tier:selected.tier,reason:selected.reason,families:sceneCapabilities.families,exactProvided:Boolean(value&&value.document.visualDecision.mode==='scene'),operators:selected.sceneDocument.constructions.map((c)=>c.operator),assertionSeverities:selected.sceneDocument.assertions.map((a)=>({id:a.id,predicate:a.predicate,severity:a.severity,entities:a.entities})),guessedPoints:selected.sceneDocument.constructions.filter((c)=>c.operator==='point').map((c)=>({id:c.id,outputs:c.outputs,x:c.inputs.x,y:c.inputs.y})),solidProjection:selected.sceneDocument.constructions.filter((c)=>c.operator==='solid_projection').map((c)=>({id:c.id,kind:c.inputs.kind,center:c.inputs.center,radius:c.inputs.radius,height:c.inputs.height,axis:c.inputs.axis})),issueSeverities:selected.validationReport.issues.map((i)=>({code:i.code,severity:i.severity})).slice(0,20)},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
             if (selected.tier === "exact_verified" && turnPlan) {
               rememberVerifiedScene(question, selected.sceneDocument, turnPlan);
             }
@@ -862,7 +867,7 @@ export function useQuestionHandler(
       });
 
       if (problemAuthority?.audit.status === "contradiction") {
-        setLastError({
+        emitError({
           message: "The independent solution checks disagreed, so the tutor stopped before presenting an unverified answer. Retry the question.",
           question,
         });
@@ -916,6 +921,7 @@ ${JSON.stringify(problemAuthority.projection)}`
         turnPlanPromptAddon,
         solverPromptAddon,
         isConceptLessonQuestion(question) ? CONCEPT_LESSON_RUNTIME_ADDON : "",
+        fastModeRef.current ? FAST_MODE_TEACHING_ADDON : "",
       ]
         .filter(Boolean)
         .join("\n\n");
@@ -1171,7 +1177,7 @@ ${JSON.stringify(problemAuthority.projection)}`
           });
           setNarrationText(message);
           setCurrentSegmentText(message);
-          setLastError({ message, question });
+          emitError({ message, question });
           return;
         }
 
@@ -1217,7 +1223,7 @@ ${JSON.stringify(problemAuthority.projection)}`
               ),
             );
 
-            void saveTurn(currentId, {
+            const savePromise = saveTurn(currentId, {
               question,
               rawResponse: responseForPersistence,
               speedMultiplier: speedRef.current,
@@ -1243,6 +1249,13 @@ ${JSON.stringify(problemAuthority.projection)}`
               );
               setStoredTurnsCount(storedTurnsRef.current.length);
             }).catch(() => undefined);
+
+            if (onComplete) {
+              await savePromise;
+              if (isCurrentTurn() && !turnCancelled && !cancelRef.current) {
+                onComplete();
+              }
+            }
           }
         }
       } catch (error) {
@@ -1273,7 +1286,7 @@ ${JSON.stringify(problemAuthority.projection)}`
         }
         setNarrationText(message);
         setCurrentSegmentText(message);
-        setLastError({ message, question });
+        emitError({ message, question });
         endThinking({ phase: "error" });
       } finally {
         if (
@@ -1356,6 +1369,8 @@ ${JSON.stringify(problemAuthority.projection)}`
       setIsReplaying,
       setTranscriptOpen,
       setLastError,
+      emitError,
+      onComplete,
       turnActiveRef,
       turnGenerationRef,
       turnAbortRef,

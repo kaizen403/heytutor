@@ -26,7 +26,15 @@ import {
   isBlockedVerifiedDiagramCommand,
   resolveVerifiedDiagramFocusTarget,
 } from "@heytutor/drawing";
-import { getDrawingDuration, getFlightDuration, tutorDebug } from "@heytutor/tutor-core";
+import {
+  getDrawingDuration,
+  getFlightDuration,
+  selectInkPace,
+  effectiveWhiteboardInkSpeed,
+  liveInkSpeedCap,
+  tutorDebug,
+  type InkPace,
+} from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { DIAGRAM_ZONE } from "../constants";
@@ -56,6 +64,8 @@ export interface UseCommandExecutionParams {
     applyLayout: boolean,
   ) => Promise<{ x: number; y: number }>;
   raceWithCancel: <T>(promise: Promise<T>) => Promise<T | undefined>;
+  inkPaceRef: RefObject<InkPace>;
+  adaptiveFactorRef: RefObject<number>;
 }
 
 export async function eraseWhiteboardRegionIfCurrent(
@@ -89,6 +99,8 @@ export function useCommandExecution({
   resetBoardLayout,
   resolveTextPlacement,
   raceWithCancel,
+  inkPaceRef,
+  adaptiveFactorRef,
 }: UseCommandExecutionParams) {
   const resolveAnnotationTarget = useCallback(
     (
@@ -118,11 +130,27 @@ export function useCommandExecution({
         segmentIndex?: number;
         isCancelled?: () => boolean;
         textPlacementReserved?: boolean;
+        inkPace?: InkPace;
       } = {},
     ): Promise<void> => {
       const wb = whiteboardRef.current;
       const commandCancelled = () => cancelRef.current || options.isCancelled?.() === true;
       if (!wb || commandCancelled()) return;
+      const trustedDiagramGeometryEarly = options.trustedDiagramGeometry === true;
+      const inkPace =
+        options.inkPace ??
+        selectInkPace(rawCommand, { verifiedDiagramIntro: trustedDiagramGeometryEarly });
+      inkPaceRef.current = inkPace;
+      if (inkPace === "follow") {
+        // Drop inherited scene catch-up so formula strokes stay readable.
+        wb.setAnimationSpeed(
+          effectiveWhiteboardInkSpeed(
+            speedRef.current,
+            adaptiveFactorRef.current,
+            "follow",
+          ),
+        );
+      }
       const drawShape: WhiteboardHandle["drawShape"] = (path, duration, shapeOptions) => {
         if (rawCommand.visualStyle?.strokeRole === "trace") {
           return wb.drawAnnotation("underline", path, duration, {
@@ -140,6 +168,7 @@ export function useCommandExecution({
             }),
             wb.drawShape(path, duration, {
               ...shapeOptions,
+              pace: inkPace,
               strokeWidth: shapeOptions?.strokeWidth ?? rawCommand.visualStyle?.strokeWidth,
               dashed: shapeOptions?.dashed ?? rawCommand.visualStyle?.dashed,
               shouldCancel: commandCancelled,
@@ -148,6 +177,7 @@ export function useCommandExecution({
         }
         return wb.drawShape(path, duration, {
           ...shapeOptions,
+          pace: inkPace,
           strokeWidth: shapeOptions?.strokeWidth ?? rawCommand.visualStyle?.strokeWidth,
           dashed: shapeOptions?.dashed ?? rawCommand.visualStyle?.dashed,
           shouldCancel: commandCancelled,
@@ -209,6 +239,7 @@ export function useCommandExecution({
         params: command.params,
         speech_duration_ms: options.speechDurationMs,
         duration_scale: options.durationScale,
+        ink_pace: inkPace,
       });
 
       const durationScale = options.durationScale ?? 1;
@@ -224,25 +255,26 @@ export function useCommandExecution({
         turnTelemetryRef.current?.mark("fbd-phase-start", { x: Math.round(x), y: Math.round(y) });
       };
 
-      // Live voice speed is capped at ElevenLabs' natural 1.2x, so ink pace
-      // uses the same cap — otherwise drawing sprints ahead of the narration.
-      const effectiveSpeed = () => Math.min(Math.max(speedRef.current, 0.7), 1.2);
+      // Follow ink stays with live voice (ElevenLabs 1.2×). Scene setup may run
+      // faster — catch-up still applies on top via useAdaptiveDrawSpeed.
+      const effectiveSpeed = () =>
+        Math.min(Math.max(speedRef.current, 0.7), liveInkSpeedCap(inkPace));
       const scaledDuration = (duration: number) =>
         Math.max(Math.round((duration / effectiveSpeed()) * durationScale), 50);
 
       const speechSplit = (command: DrawCommand) => {
         if (speechDurationMs === undefined) {
           return {
-            flightMs: scaledDuration(getFlightDuration(command)),
-            drawMs: scaledDuration(getDrawingDuration(command)),
+            flightMs: scaledDuration(getFlightDuration(command, inkPace)),
+            drawMs: scaledDuration(getDrawingDuration(command, inkPace)),
           };
         }
 
         // speechDurationMs comes from real audio timings, which already reflect
         // the generated voice speed — no extra scaling or ink races ahead.
         const totalMs = Math.max(Math.round(speechDurationMs), 50);
-        const flight = getFlightDuration(command);
-        const draw = getDrawingDuration(command);
+        const flight = getFlightDuration(command, inkPace);
+        const draw = getDrawingDuration(command, inkPace);
         const defaultTotal = flight + draw;
 
         if (defaultTotal <= 0) {
@@ -436,7 +468,7 @@ export function useCommandExecution({
             // Thin, dotted measurement bar — a light guide, never a boxed bracket.
             await drawShape(path, drawMs, { dashed: true, strokeWidth: 1.4 });
             if (command.text) {
-              const labelDrawMs = scaledDuration(Math.min(Math.max(command.text.length * 38, 420), 1200));
+              const labelDrawMs = scaledDuration(getDrawingDuration(command, inkPace));
               const labelX = labelCenterX - measureTextWidth(command.text) / 2;
               await wb.flyCursorTo(labelX, labelY, 80, -35);
               if (commandCancelled()) return;
@@ -586,7 +618,8 @@ export function useCommandExecution({
             y: target.y,
           };
           const paths = tracePaths.length > 0 ? tracePaths.slice(0, 4) : [fallback];
-          const totalMs = Math.max(speechDurationMs ?? 900, 420);
+          const focusFloorMs = inkPace === "scene" ? 120 : 420;
+          const totalMs = Math.max(speechDurationMs ?? (inkPace === "scene" ? 220 : 900), focusFloorMs);
           for (const candidate of paths) {
             await wb.flyCursorTo(candidate.x, candidate.y, Math.min(160, totalMs / paths.length));
             if (commandCancelled()) return;
@@ -738,6 +771,8 @@ export function useCommandExecution({
       resolveAnnotationTarget,
       resolveTextPlacement,
       speedRef,
+      inkPaceRef,
+      adaptiveFactorRef,
       turnTelemetryRef,
       whiteboardRef,
     ],
@@ -756,6 +791,7 @@ export function useCommandExecution({
         segmentIndex?: number;
         isCancelled?: () => boolean;
         textPlacementReserved?: boolean;
+        inkPace?: InkPace;
       } = {},
     ): Promise<void> => {
       await raceWithCancel(executeCommand(command, options));

@@ -1,9 +1,8 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
-import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
-import type { ConversationExchange, TTSClient } from "@heytutor/tutor-core";
+import type { ConversationExchange, InkPace, TTSClient } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { RecordedSegmentPayload, StoredTurn } from "@/lib/boards/boardsClient";
 import type { BoardEntry } from "@/lib/boards/types";
@@ -32,11 +31,20 @@ export type ExecuteCommandOptions = {
   isCancelled?: () => boolean;
   /** Text row was reserved before audio started; preserve the resolved coordinates. */
   textPlacementReserved?: boolean;
+  /** Engine-selected pedagogical pace. Runtime-owned — never LLM. */
+  inkPace?: InkPace;
 };
 
 export type UseTurnLifecycleParams = {
   sessionId: string;
-  searchParams: ReadonlyURLSearchParams;
+  /** Submit this question once the board and whiteboard are ready. */
+  autoQuestion?: string | null;
+  /** Strip `?q=` from the URL after consuming autoQuestion (student `/c/` path). */
+  replaceAutoQuestionUrl?: boolean;
+  /** Space-to-pause / Escape-to-stop. Off for the headless admin runner. */
+  enableKeyboardControls?: boolean;
+  onComplete?: () => void;
+  onError?: (error: { message: string; question: string }) => void;
   phase: TutorPhase;
   isReplaying: boolean;
   boardLoaded: boolean;

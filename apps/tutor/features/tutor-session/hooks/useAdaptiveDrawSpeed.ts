@@ -1,7 +1,12 @@
 import { useEffect, useRef } from "react";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
-import type { TTSClient } from "@heytutor/tutor-core";
-import { tutorDebug } from "@heytutor/tutor-core";
+import {
+  clampAdaptiveInkFactor,
+  effectiveWhiteboardInkSpeed,
+  tutorDebug,
+  type InkPace,
+  type TTSClient,
+} from "@heytutor/tutor-core";
 
 export interface UseAdaptiveDrawSpeedParams {
   whiteboardRef: React.RefObject<WhiteboardHandle | null>;
@@ -12,6 +17,10 @@ export interface UseAdaptiveDrawSpeedParams {
   pendingSegmentCountRef: React.RefObject<number>;
   /** Narration density signal: chars of narration in the current segment / speech ms. */
   narrationDensityRef: React.RefObject<number>;
+  /** Engine pedagogical pace for the ink currently drawing. */
+  inkPaceRef: React.RefObject<InkPace>;
+  /** Shared so command execution can clamp follow pace immediately. */
+  adaptiveFactorRef: React.MutableRefObject<number>;
 }
 
 export interface UseAdaptiveDrawSpeedResult {
@@ -19,8 +28,6 @@ export interface UseAdaptiveDrawSpeedResult {
   adaptiveFactorRef: React.RefObject<number>;
 }
 
-const MIN_FACTOR = 0.5;
-const MAX_FACTOR = 2.0;
 const POLL_INTERVAL_MS = 250;
 const DAMPING_PREV = 0.7;
 const DAMPING_TARGET = 0.3;
@@ -30,9 +37,9 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /**
- * Computes a dynamic drawing-speed factor from three signals and pushes it to
- * the whiteboard via `setAnimationSpeed`. The factor is damped so the pen
- * accelerates and decelerates smoothly rather than snapping.
+ * Computes a dynamic drawing-speed factor from three catch-up signals, then
+ * clamps it by pedagogical pace (`follow` vs `scene`) before pushing it to
+ * the whiteboard via `setAnimationSpeed`.
  *
  * Signal 1 — audio lag (reactive): if the voice is ahead of the ink, speed up;
  * if the ink is ahead, slow down.
@@ -40,6 +47,9 @@ function clamp(value: number, min: number, max: number): number {
  * avoid falling behind on complex diagrams / long solutions.
  * Signal 3 — narration density: dense narration → faster ink; sparse → slower,
  * more deliberate strokes.
+ *
+ * Follow pace (formulas) still catch-up, but cannot sprint past 1.2×.
+ * Scene pace (verified diagram bodies) may run faster.
  */
 export function useAdaptiveDrawSpeed({
   whiteboardRef,
@@ -48,8 +58,9 @@ export function useAdaptiveDrawSpeed({
   speedRef,
   pendingSegmentCountRef,
   narrationDensityRef,
+  inkPaceRef,
+  adaptiveFactorRef,
 }: UseAdaptiveDrawSpeedParams): UseAdaptiveDrawSpeedResult {
-  const adaptiveFactorRef = useRef(1);
   const drawPositionMsRef = useRef(0);
   const lastPollAtRef = useRef<number | null>(null);
   const maxAudioPositionMsRef = useRef(0);
@@ -111,12 +122,13 @@ export function useAdaptiveDrawSpeed({
       const queueFactor = clamp(1 + pending * 0.05, 1.0, 1.3);
 
       // --- Signal 3: narration density ---
-      // density = chars/ms; typical speech ~0.004 chars/ms (4 chars per ms? no,
-      // ~15 chars/sec = 0.015 chars/ms). Normalize around 0.012.
+      // density = chars/ms; typical speech ~0.015 chars/ms. Normalize around 0.012.
       const density = narrationDensityRef.current;
       const densityFactor = clamp(0.85 + density * 12, 0.85, 1.25);
 
-      const targetFactor = clamp(lagFactor * queueFactor * densityFactor, MIN_FACTOR, MAX_FACTOR);
+      const pace = inkPaceRef.current;
+      const uncappedTarget = lagFactor * queueFactor * densityFactor;
+      const targetFactor = clampAdaptiveInkFactor(uncappedTarget, pace);
 
       // Dampen so the pen accelerates/decelerates like a hand, not a metronome.
       const damped = clamp(
@@ -124,13 +136,14 @@ export function useAdaptiveDrawSpeed({
         adaptiveFactorRef.current * 0.85,
         adaptiveFactorRef.current * 1.15,
       );
-      adaptiveFactorRef.current = clamp(damped, MIN_FACTOR, MAX_FACTOR);
+      adaptiveFactorRef.current = clampAdaptiveInkFactor(damped, pace);
 
-      // The whiteboard animation speed is the user's base speed multiplied by
-      // the adaptive factor. Audio stays at its natural pace (capped at 1.2x
-      // in useCommandExecution); ink can exceed that via animation speed.
       const userSpeed = speedRef.current;
-      const effectiveSpeed = clamp(userSpeed * adaptiveFactorRef.current, 0.4, 4.0);
+      const effectiveSpeed = effectiveWhiteboardInkSpeed(
+        userSpeed,
+        adaptiveFactorRef.current,
+        pace,
+      );
       whiteboardRef.current?.setAnimationSpeed(effectiveSpeed);
 
       tutorDebug("speed", "adaptive tick", {
@@ -139,6 +152,7 @@ export function useAdaptiveDrawSpeed({
         lag_ms: Math.round(lagMs),
         pending,
         density,
+        pace,
         lag_factor: Number(lagFactor.toFixed(2)),
         queue_factor: Number(queueFactor.toFixed(2)),
         density_factor: Number(densityFactor.toFixed(2)),
@@ -160,7 +174,16 @@ export function useAdaptiveDrawSpeed({
       // Reset to the user base speed when unmounting.
       wb?.setAnimationSpeed(userSpeed);
     };
-  }, [whiteboardRef, ttsClientRef, turnActiveRef, speedRef, pendingSegmentCountRef, narrationDensityRef]);
+  }, [
+    whiteboardRef,
+    ttsClientRef,
+    turnActiveRef,
+    speedRef,
+    pendingSegmentCountRef,
+    narrationDensityRef,
+    inkPaceRef,
+    adaptiveFactorRef,
+  ]);
 
   return { adaptiveFactorRef };
 }
