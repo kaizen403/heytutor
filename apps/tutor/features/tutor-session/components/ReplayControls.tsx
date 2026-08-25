@@ -8,9 +8,48 @@ import {
   X,
 } from "lucide-react";
 import { formatReplayTime } from "@/lib/replay/replayTimeline";
+import { DEFAULT_REPLAY_SPEED } from "@/lib/replay/replayAudio";
 import { cn } from "@/lib/utils";
 
-const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3] as const;
+export const REPLAY_SPEED_OPTIONS = [
+  0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3,
+] as const;
+
+export type ReplaySpeedOption = (typeof REPLAY_SPEED_OPTIONS)[number];
+
+export function ReplaySpeedSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: number;
+  onChange: (rate: number) => void;
+  className?: string;
+}) {
+  const matched = REPLAY_SPEED_OPTIONS.find((speed) => Math.abs(speed - value) < 0.001);
+  return (
+    <label
+      className={cn(
+        "inline-flex items-center gap-1.5 text-[11px] font-medium text-[#A6A6AE]",
+        className,
+      )}
+    >
+      <span>Speed</span>
+      <select
+        aria-label="Playback speed"
+        value={matched ?? DEFAULT_REPLAY_SPEED}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="h-7 rounded-full border border-[#2E2E33] bg-[#1E1E21] px-2 text-[11px] font-medium text-[#F2F2F4] outline-none hover:border-[rgba(201,201,210,0.35)]"
+      >
+        {REPLAY_SPEED_OPTIONS.map((speed) => (
+          <option key={speed} value={speed}>
+            {speed === 1 ? "1×" : `${speed}×`}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 export interface ReplayControlsProps {
   visible: boolean;
@@ -175,7 +214,7 @@ export function ReplayControls({
                       <p className="px-2 pb-1 text-[0.65rem] font-semibold uppercase tracking-wider text-white/55">
                         speed
                       </p>
-                      {SPEED_OPTIONS.map((speed) => (
+                      {REPLAY_SPEED_OPTIONS.map((speed) => (
                         <button
                           key={speed}
                           type="button"

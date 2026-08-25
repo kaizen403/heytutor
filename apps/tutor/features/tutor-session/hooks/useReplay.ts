@@ -1,10 +1,11 @@
 import { useCallback, useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
 import {
   applyReplayPlaybackRate,
+  applyReplaySpeed,
   playReplayAudio,
   speedAwareDelay,
   stopReplayAudio,
-  waitForReplayMediaTime,
+  waitUntilDrawClock,
 } from "@/lib/replay/replayAudio";
 import {
   buildReplayTimeline,
@@ -23,10 +24,18 @@ import {
 } from "@heytutor/drawing";
 import type { WriteSchedule, WhiteboardHandle } from "@heytutor/whiteboard";
 import {
+  capSceneBatchDurations,
+  catchUpWriteScheduleOffsets,
+  createScheduledWriteClock,
+  getBestWriteCharScheduleMs,
   getCommandDrawDurationMs,
   getCommandSpeechWindow,
-  getWriteCharScheduleMs,
+  inkPaceContextForSegment,
+  leadWriteScheduleToSpeech,
+  selectInkPace,
   tutorDebug,
+  unlockTutorAudio,
+  type InkPace,
   type TTSClient,
 } from "@heytutor/tutor-core";
 import type { TutorPhase } from "../types";
@@ -39,6 +48,7 @@ type ExecuteCommandOptions = {
   segmentNarration?: string;
   trustedDiagramGeometry?: boolean;
   isCancelled?: () => boolean;
+  inkPace?: InkPace;
 };
 
 type ReplayGenerationState = {
@@ -154,10 +164,18 @@ export function useReplay({
       setPhase("drawing");
       // Ink RAF speed tracks the live rate so mid-cue changes stay aligned.
       whiteboardRef.current?.setAnimationSpeed(Math.max(speedRef.current, 0.1));
-      const totalDrawWeight = segmentCommands.reduce(
-        (sum, cmd) => sum + getCommandDrawDurationMs(cmd),
-        0,
+      const paceContext = inkPaceContextForSegment({
+        verifiedDiagramIntro: isStoredCommandTrustedGeometry(segment.command),
+        commandCount: segmentCommands.length,
+        hasNarration: narration.length > 0,
+      });
+      const commandPaces = segmentCommands.map((cmd) => selectInkPace(cmd, paceContext));
+      const pacedDurations = segmentCommands.map((cmd, commandIndex) =>
+        getCommandDrawDurationMs(cmd, commandPaces[commandIndex]),
       );
+      const sceneBatch = commandPaces.filter((pace) => pace === "scene").length >= 4;
+      const sceneDurations = sceneBatch ? capSceneBatchDurations(pacedDurations) : null;
+      const totalDrawWeight = pacedDurations.reduce((sum, ms) => sum + ms, 0);
       const durationMs =
         fallbackDurationMs ??
         segment.durationMs ??
@@ -165,9 +183,17 @@ export function useReplay({
       const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
       const getRate = () => Math.max(speedRef.current, 0.1);
       const shouldCancel = () => !isCurrentReplay();
+      const wallOriginMs = performance.now();
+      const getDrawClockMs = createScheduledWriteClock({
+        getRawPositionMs: () =>
+          audio && Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0,
+        nowMs: () => wallOriginMs + (performance.now() - wallOriginMs) * getRate(),
+      });
 
       let textCommandIndex = initialTextCommandIndex;
-      for (const command of segmentCommands) {
+      for (let commandIndex = 0; commandIndex < segmentCommands.length; commandIndex++) {
+        const command = segmentCommands[commandIndex]!;
+        const pace = commandPaces[commandIndex]!;
         if (!isCurrentReplay()) {
           return;
         }
@@ -175,20 +201,35 @@ export function useReplay({
         whiteboardRef.current?.setAnimationSpeed(getRate());
 
         const isTextCommand = command.type === "WRITE" || command.type === "LABEL";
-        const charSchedule =
-          isTextCommand && narration && segment.timings
-            ? getWriteCharScheduleMs(narration, command, segment.timings, textCommandIndex)
-            : null;
+        const scheduleWorkWrite =
+          isTextCommand &&
+          Boolean(narration) &&
+          !(trustedDiagramGeometry && command.type === "LABEL");
+        const writePlan = scheduleWorkWrite
+          ? getBestWriteCharScheduleMs(
+              narration,
+              command,
+              segment.timings,
+              durationMs,
+              textCommandIndex,
+            )
+          : null;
 
-        if (charSchedule && charSchedule.offsetsMs.length > 0 && audio) {
+        if (writePlan && writePlan.offsetsMs.length > 0) {
+          const audioPosAtScheduleMs = Math.round(getDrawClockMs());
+          const effectiveOffsets = catchUpWriteScheduleOffsets(
+            leadWriteScheduleToSpeech(writePlan.offsetsMs, audioPosAtScheduleMs),
+            audioPosAtScheduleMs,
+          );
           await executeCommandWithCancel(command, {
             applyLayout: false,
             isCancelled: () => !isCurrentReplay(),
             trustedDiagramGeometry,
+            inkPace: pace,
             writeSchedule: {
-              charStartOffsetsMs: charSchedule.offsetsMs,
-              charDurationsMs: charSchedule.charDurationsMs,
-              getAudioPositionMs: () => audio.currentTime * 1000,
+              charStartOffsetsMs: effectiveOffsets,
+              charDurationsMs: writePlan.charDurationsMs,
+              getAudioPositionMs: getDrawClockMs,
             },
           });
           if (isTextCommand) {
@@ -206,28 +247,22 @@ export function useReplay({
                 matched: false,
               };
 
-        // Wait in media time so a mid-cue speed change retimes the remaining wait.
         if (speechWindow.startMs > 0) {
-          if (audio) {
-            await waitForReplayMediaTime(audio, speechWindow.startMs, {
-              shouldCancel,
-              getPlaybackRate: getRate,
-            });
-          } else {
-            await speedAwareDelay(speechWindow.startMs, {
-              shouldCancel,
-              getPlaybackRate: getRate,
-            });
-          }
+          await waitUntilDrawClock(getDrawClockMs, speechWindow.startMs, {
+            shouldCancel,
+            getPlaybackRate: getRate,
+          });
         }
         if (!isCurrentReplay()) {
           return;
         }
 
-        const commandWeight = getCommandDrawDurationMs(command);
-        // Budgets stay in media-ms; animationSpeed absorbs the live playback rate.
-        const commandBudgetMs =
-          totalDrawWeight > 0
+        const commandWeight = pacedDurations[commandIndex] ?? getCommandDrawDurationMs(command, pace);
+        // Scene batches keep their capped reveal time instead of stretching a
+        // train across the recorded sentence. Follow ink still fills the cue.
+        const commandBudgetMs = sceneDurations
+          ? sceneDurations[commandIndex] ?? commandWeight
+          : totalDrawWeight > 0
             ? Math.max(Math.round(durationMs * (commandWeight / totalDrawWeight)), 50)
             : Math.max(Math.round(speechWindow.durationMs), 50);
 
@@ -236,6 +271,7 @@ export function useReplay({
           isCancelled: () => !isCurrentReplay(),
           speechDurationMs: commandBudgetMs,
           trustedDiagramGeometry,
+          inkPace: pace,
         });
         if (isTextCommand) {
           textCommandIndex++;
@@ -340,6 +376,11 @@ export function useReplay({
             applyReplayPlaybackRate(existing, speedRef.current);
           }
         }
+      } else if (nextCue) {
+        const nextSpoken = (nextCue.segment.spokenText || nextCue.narration).trim();
+        if (nextSpoken) {
+          ttsClientRef.current?.prefetchSegment?.(nextSpoken);
+        }
       }
 
       const fallbackDurationMs =
@@ -354,6 +395,36 @@ export function useReplay({
         .slice(0, startIdx)
         .filter((command) => command.type === "WRITE" || command.type === "LABEL")
         .length;
+
+      const spokenText = (cue.segment.spokenText || cue.narration).trim();
+      const speakLiveTts = async (): Promise<void> => {
+        const tts = ttsClientRef.current;
+        if (!spokenText || !tts || shouldCancel()) {
+          if (remainingMs > 0) {
+            await speedAwareDelay(remainingMs, {
+              shouldCancel,
+              getPlaybackRate: getRate,
+            });
+          }
+          return;
+        }
+        unlockTutorAudio();
+        tts.unlockAudio?.();
+        tts.setMuted?.(false);
+        tts.setPlaybackRate(getRate());
+        await tts.speakSegment(spokenText);
+      };
+
+      const drawRemaining = (audio?: HTMLAudioElement) =>
+        runReplaySegmentDraw(
+          cue.segment,
+          remainingCommands,
+          cue.narration,
+          generation,
+          audio,
+          fallbackDurationMs,
+          initialTextCommandIndex,
+        );
 
       try {
         if (cue.audioUrl) {
@@ -374,41 +445,42 @@ export function useReplay({
           replayAudioRef.current = audio;
           whiteboardRef.current?.setAnimationSpeed(getRate());
 
+          const voiceDone = done.catch(async (error: unknown) => {
+            tutorDebug("turn", "replay audio missing or blocked; using live TTS", {
+              order_index: cue.segment.orderIndex,
+              audio_url: cue.audioUrl,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            replayAudioRef.current = null;
+            if (shouldCancel()) {
+              return;
+            }
+            await speakLiveTts();
+          });
+
           if (!skipDraw) {
             setPhase("drawing");
-            const drawPromise = runReplaySegmentDraw(
-              cue.segment,
-              remainingCommands,
-              cue.narration,
-              generation,
-              audio,
-              fallbackDurationMs,
-              initialTextCommandIndex,
-            );
             await Promise.all([
-              raceWithCancel(done),
-              raceWithCancel(drawPromise),
+              raceWithCancel(voiceDone),
+              raceWithCancel(drawRemaining(audio)),
             ]);
           } else {
-            await raceWithCancel(done);
+            await raceWithCancel(voiceDone);
           }
           replayAudioRef.current = null;
-        } else if (!skipDraw && remainingCommands.length > 0) {
-          await runReplaySegmentDraw(
-            cue.segment,
-            remainingCommands,
-            cue.narration,
-            generation,
-            undefined,
-            fallbackDurationMs,
-            initialTextCommandIndex,
-          );
-        } else if (remainingMs > 0) {
+        } else {
           setPhase("speaking");
-          await speedAwareDelay(remainingMs, {
-            shouldCancel,
-            getPlaybackRate: getRate,
-          });
+          whiteboardRef.current?.setAnimationSpeed(getRate());
+          const voiceDone = speakLiveTts();
+          if (!skipDraw && remainingCommands.length > 0) {
+            setPhase("drawing");
+            await Promise.all([
+              raceWithCancel(voiceDone),
+              raceWithCancel(drawRemaining()),
+            ]);
+          } else {
+            await raceWithCancel(voiceDone);
+          }
         }
       } catch (error) {
         tutorDebug("turn", "replay segment failed", {
@@ -445,6 +517,7 @@ export function useReplay({
       replayAudioPreloadRef,
       speedRef,
       replayAudioRef,
+      ttsClientRef,
       setCurrentSegmentText,
       setPhase,
       setReplayProgressMs,
@@ -568,8 +641,11 @@ export function useReplay({
     if (storedTurnsRef.current.length === 0 || isReplaying) {
       return;
     }
+    unlockTutorAudio();
+    ttsClientRef.current?.unlockAudio?.();
+    ttsClientRef.current?.setMuted?.(false);
     void playReplayFrom(0);
-  }, [storedTurnsRef, isReplaying, playReplayFrom]);
+  }, [storedTurnsRef, isReplaying, playReplayFrom, ttsClientRef]);
 
   const downloadNotesPdf = useCallback(() => {
     if (isDownloading || isReplaying) {
@@ -635,17 +711,15 @@ export function useReplay({
   }, [isReplaying, isPausedRef, pauseTurn, resumeTurn]);
 
   const handleReplaySpeedChange = useCallback((rate: number) => {
-    const safeRate = Math.max(rate, 0.1);
+    const safeRate = applyReplaySpeed({
+      rate,
+      audio: replayAudioRef.current,
+      preloaded: replayAudioPreloadRef.current.values(),
+      setTtsPlaybackRate: (next) => ttsClientRef.current?.setPlaybackRate(next),
+      setAnimationSpeed: (next) => whiteboardRef.current?.setAnimationSpeed(next),
+    });
     speedRef.current = safeRate;
     setSettings((prev) => ({ ...prev, speedMultiplier: safeRate }));
-    ttsClientRef.current?.setPlaybackRate(safeRate);
-    whiteboardRef.current?.setAnimationSpeed(safeRate);
-    if (replayAudioRef.current) {
-      applyReplayPlaybackRate(replayAudioRef.current, safeRate);
-    }
-    for (const preloaded of replayAudioPreloadRef.current.values()) {
-      applyReplayPlaybackRate(preloaded, safeRate);
-    }
   }, [speedRef, setSettings, ttsClientRef, replayAudioRef, replayAudioPreloadRef, whiteboardRef]);
 
   useEffect(() => {

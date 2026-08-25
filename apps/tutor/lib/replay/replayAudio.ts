@@ -1,3 +1,5 @@
+export const DEFAULT_REPLAY_SPEED = 1.5;
+
 export interface PlayReplayAudioOptions {
   playbackRate?: number;
   maxDurationMs?: number;
@@ -20,6 +22,50 @@ export function applyReplayPlaybackRate(
   if ("preservesPitch" in audio) {
     (audio as HTMLAudioElement & { preservesPitch: boolean }).preservesPitch = true;
   }
+}
+
+/**
+ * Apply an in-flight replay speed to HTML audio, live TTS, and ink together.
+ * Student ReplayControls and the admin Watch overlay share this path.
+ */
+export function applyReplaySpeed(options: {
+  rate: number;
+  audio?: HTMLAudioElement | null;
+  preloaded?: Iterable<HTMLAudioElement>;
+  setTtsPlaybackRate?: (rate: number) => void;
+  setAnimationSpeed?: (rate: number) => void;
+}): number {
+  const safeRate = Math.max(options.rate, 0.1);
+  options.setTtsPlaybackRate?.(safeRate);
+  options.setAnimationSpeed?.(safeRate);
+  if (options.audio) {
+    applyReplayPlaybackRate(options.audio, safeRate);
+  }
+  if (options.preloaded) {
+    for (const audio of options.preloaded) {
+      applyReplayPlaybackRate(audio, safeRate);
+    }
+  }
+  return safeRate;
+}
+
+/**
+ * Sync a controlled `playbackRate` prop onto `applySpeed` without render-phase setState.
+ * Overlay dropdowns should pass the same apply helper student ReplayControls use.
+ */
+export function syncControlledPlaybackRate(
+  playbackRate: number | undefined,
+  currentRate: number,
+  applySpeed: (rate: number) => void,
+): void {
+  if (typeof playbackRate !== "number" || !Number.isFinite(playbackRate)) {
+    return;
+  }
+  const safeRate = Math.max(playbackRate, 0.1);
+  if (Math.abs(currentRate - safeRate) < 0.001) {
+    return;
+  }
+  applySpeed(safeRate);
 }
 
 export function playReplayAudio(
@@ -182,19 +228,21 @@ export function stopReplayAudio(audio: HTMLAudioElement | null): void {
   audio.load();
 }
 
-/** Wait until media time reaches targetMs, tracking live playbackRate changes. */
-export function waitForReplayMediaTime(
-  audio: HTMLAudioElement,
+/** Wait until a draw clock (media or wall fallback) reaches targetMs. */
+export function waitUntilDrawClock(
+  getPositionMs: () => number,
   targetMs: number,
   options: {
     shouldCancel?: () => boolean;
     getPlaybackRate?: () => number;
+    nowMs?: () => number;
   } = {},
 ): Promise<void> {
   return new Promise((resolve) => {
     let done = false;
-    const startWall = performance.now();
-    const targetSec = Math.max(targetMs, 0) / 1000;
+    const nowMs = options.nowMs ?? (() => performance.now());
+    const startWall = nowMs();
+    const schedule = globalThis.setTimeout.bind(globalThis);
 
     const finish = () => {
       if (done) return;
@@ -208,24 +256,44 @@ export function waitForReplayMediaTime(
         finish();
         return;
       }
-      const rate = Math.max(options.getPlaybackRate?.() ?? audio.playbackRate ?? 1, 0.1);
-      if (Math.abs(audio.playbackRate - rate) > 0.001) {
-        applyReplayPlaybackRate(audio, rate);
-      }
-      if (audio.currentTime + 0.01 >= targetSec || audio.ended) {
+      const rate = Math.max(options.getPlaybackRate?.() ?? 1, 0.1);
+      if (getPositionMs() + 10 >= targetMs) {
         finish();
         return;
       }
-      // Bound wait so a stalled element cannot freeze the lecture.
-      if (performance.now() - startWall > Math.max(targetMs / rate + 4_000, 8_000)) {
+      if (nowMs() - startWall > Math.max(targetMs / rate + 4_000, 8_000)) {
         finish();
         return;
       }
-      window.requestAnimationFrame(step);
+      schedule(step, 16);
     };
 
-    window.requestAnimationFrame(step);
+    schedule(step, 0);
   });
+}
+
+/** Wait until media time reaches targetMs, tracking live playbackRate changes. */
+export function waitForReplayMediaTime(
+  audio: HTMLAudioElement,
+  targetMs: number,
+  options: {
+    shouldCancel?: () => boolean;
+    getPlaybackRate?: () => number;
+  } = {},
+): Promise<void> {
+  const origin = performance.now();
+  return waitUntilDrawClock(
+    () => {
+      const media = Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0;
+      if (media > 0 || audio.ended) {
+        return media;
+      }
+      const rate = Math.max(options.getPlaybackRate?.() ?? audio.playbackRate ?? 1, 0.1);
+      return (performance.now() - origin) * rate;
+    },
+    targetMs,
+    options,
+  );
 }
 
 /** Wall-clock delay that shortens/lengthens when speed changes mid-wait. */

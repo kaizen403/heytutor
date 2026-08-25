@@ -59,7 +59,7 @@ export function LessonActions({
           variant="outline"
           size="sm"
           onClick={onReplay}
-          disabled={!canReplay || isReplaying}
+          disabled={!canReplay}
           aria-label="Replay lecture"
           className={cn(
             buttonClass,
@@ -83,7 +83,7 @@ export function LessonActions({
           variant="outline"
           size="sm"
           onClick={onTranscript}
-          disabled={!canTranscript || isReplaying}
+          disabled={!canTranscript}
           aria-label="View lesson transcript"
           className={cn(
             buttonClass,

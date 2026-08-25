@@ -6,6 +6,10 @@ import {
   type DrawCommand,
 } from "@heytutor/drawing";
 import {
+  createScheduledWriteClock,
+  simulateScheduledWriteWait,
+} from "@heytutor/tutor-core";
+import {
   buildLocalStoredTurn,
   enrichStoredSegmentsWithReplayAudio,
 } from "../../lib/replay/replayTurns";
@@ -84,5 +88,24 @@ assert.equal(formatReplayTime(900), "0:00");
 const atMid = findCueAtTime(timeline.cues, 450);
 assert.ok(atMid);
 assert.equal(atMid!.offsetMs, 450);
+
+const parkedWatchWrite = simulateScheduledWriteWait({
+  offsetsMs: [80, 160, 240, 320, 400],
+  getRawPositionMs: () => 0,
+});
+assert.equal(parkedWatchWrite.completed, true, "Watch WRITE must not hang when replay audio currentTime is 0");
+assert.ok(
+  parkedWatchWrite.elapsedMs < 500,
+  `Watch live-TTS fallback parked the pen for ${parkedWatchWrite.elapsedMs}ms`,
+);
+
+let fakeNow = 0;
+const deadAudioClock = createScheduledWriteClock({
+  getRawPositionMs: () => 0,
+  nowMs: () => fakeNow,
+});
+assert.equal(deadAudioClock(), 0);
+fakeNow = 180;
+assert.equal(deadAudioClock(), 180, "a missing MP3 clock must write against wall time");
 
 console.log("verify-replay: ok");
