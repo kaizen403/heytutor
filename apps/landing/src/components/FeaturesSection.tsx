@@ -1,570 +1,344 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowUp, Check } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Check, Download, Play, ScrollText } from 'lucide-react'
 
-const MOCK = {
-  bg: '#FFFFFF',
-  surface: '#FFFFFF',
-  border: 'rgba(0, 0, 0, 0.08)',
-  borderSoft: 'rgba(0, 0, 0, 0.06)',
-  text: '#111827',
-  textMuted: '#6B7280',
-  textSoft: '#737373',
-  accent: '#2563EB',
-  accentDark: '#37546D',
-  bubble: '#222222',
-  mint: '#F8F9FA',
-  positive: '#2563EB',
-  alert: '#DC2626',
+/* The tutor's dark-studio palette (same tokens as the real dashboard) */
+const TUTOR = {
+  bg: '#0B0B0C',
+  panel: '#151517',
+  raised: '#1E1E21',
+  border: '#2E2E33',
+  line: 'rgba(242, 242, 244, 0.08)',
+  ink: '#F2F2F4',
+  soft: '#A6A6AE',
+  faint: '#717177',
+  accent: '#C9C9D2',
+  cta: '#6E6E76',
+  navy: '#1B2A4A',
+  bubble: 'rgba(22, 27, 34, 0.94)',
+  replay: '#5FA4F9',
 } as const
 
-function MockShell({ children }: { children: ReactNode }) {
+const CAVEAT = "'Caveat', cursive"
+
+function TutorPanel({ children }: { children: ReactNode }) {
   return (
     <div
-      className="flex h-full flex-col rounded-xl p-4"
-      style={{
-        background: MOCK.bg,
-        border: `1px solid ${MOCK.border}`,
-      }}
+      className="flex h-full flex-1 flex-col gap-2.5 rounded-xl p-3"
+      style={{ background: TUTOR.bg, border: `1px solid ${TUTOR.border}` }}
     >
       {children}
     </div>
   )
 }
 
-const CHAT_STEPS = [
-  {
-    title: 'Drawing cuboid',
-    tag: 'Geometry',
-    detail: 'Label l, w, h on each edge',
-  },
-  {
-    title: 'Writing formula',
-    tag: 'Mensuration',
-    detail: 'V = l × w × h, then substitute',
-  },
-] as const
-
-const CHAT_PHASES = [
-  { key: 'typing', ms: 1000 },
-  { key: 'question', ms: 500 },
-  { key: 'step1', ms: 650 },
-  { key: 'step2', ms: 650 },
-  { key: 'summary', ms: 500 },
-  { key: 'hold', ms: 3200 },
-] as const
-
-type ChatPhase = (typeof CHAT_PHASES)[number]['key']
-
-function phaseIndex(phase: ChatPhase) {
-  return CHAT_PHASES.findIndex((item) => item.key === phase)
-}
-
-function TypingIndicator() {
+function PanelLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="mb-3 flex justify-end">
-      <div
-        className="flex items-center gap-1 rounded-2xl px-3 py-2.5"
-        style={{ background: 'rgba(0, 0, 0, 0.06)' }}
-      >
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            className="chat-typing-dot h-1.5 w-1.5 rounded-full"
-            style={{
-              background: MOCK.textSoft,
-              animationDelay: `${i * 0.12}s`,
-            }}
-          />
-        ))}
-      </div>
+    <div className="text-[10px] font-medium" style={{ color: TUTOR.soft }}>
+      {children}
     </div>
   )
 }
 
-function ChatStepRow({
-  title,
-  tag,
-  detail,
-  animate,
-}: {
-  title: string
-  tag: string
-  detail: string
-  animate: boolean
-}) {
-  return (
-    <div className={`flex items-start gap-2 ${animate ? 'chat-enter-up' : ''}`}>
-      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2.5} style={{ color: MOCK.positive }} />
-      <div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[9px] font-medium uppercase tracking-wide" style={{ color: MOCK.textMuted }}>
-            {title}
-          </span>
-          <span
-            className="rounded px-1.5 py-0.5 text-[8px] font-medium uppercase tracking-wide"
-            style={{ background: 'rgba(0, 0, 0, 0.05)', color: MOCK.textSoft }}
-          >
-            {tag}
-          </span>
-        </div>
-        <p className="mt-0.5 text-[10px] font-normal" style={{ color: MOCK.textMuted }}>
-          {detail}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function chatVisibleStepCount(phase: ChatPhase) {
-  const index = phaseIndex(phase)
-  if (index < phaseIndex('step1')) return 0
-  if (index < phaseIndex('step2')) return 1
-  return 2
-}
-
-function ChatMock() {
-  const rootRef = useRef<HTMLDivElement>(null)
-  const [active, setActive] = useState(false)
-  const [reduceMotion, setReduceMotion] = useState(false)
-  const [phase, setPhase] = useState<ChatPhase>('typing')
-  const [cycleKey, setCycleKey] = useState(0)
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const update = () => setReduceMotion(mq.matches)
-    update()
-    mq.addEventListener('change', update)
-    return () => mq.removeEventListener('change', update)
-  }, [])
-
-  useEffect(() => {
-    const node = rootRef.current
-    if (!node) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setActive(entry.isIntersecting),
-      { threshold: 0.35 },
-    )
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
-
-  useEffect(() => {
-    if (!active || reduceMotion) {
-      return
-    }
-
-    let index = 0
-    let timer: ReturnType<typeof setTimeout> | undefined
-    let cancelled = false
-
-    const tick = () => {
-      if (cancelled) return
-
-      const current = CHAT_PHASES[index]
-      setPhase(current.key)
-
-      timer = setTimeout(() => {
-        if (cancelled) return
-        index = (index + 1) % CHAT_PHASES.length
-        if (index === 0) setCycleKey((k) => k + 1)
-        tick()
-      }, current.ms)
-    }
-
-    tick()
-    return () => {
-      cancelled = true
-      if (timer) clearTimeout(timer)
-    }
-  }, [active, reduceMotion])
-
-  if (reduceMotion) {
-    return (
-      <div ref={rootRef}>
-        <MockShell>
-          <div className="mb-3 text-[11px] font-medium tracking-normal" style={{ color: MOCK.textMuted }}>
-            Chat
-          </div>
-          <div className="mb-3 flex justify-end">
-            <div
-              className="max-w-[92%] rounded-2xl px-3.5 py-2.5 text-left"
-              style={{ background: MOCK.bubble }}
-            >
-              <p className="text-[11px] font-normal leading-snug" style={{ color: MOCK.mint }}>
-                How do I find the volume of a cuboid step by step?
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-1 flex-col gap-2.5 text-left">
-            {CHAT_STEPS.map((step) => (
-              <ChatStepRow key={step.title} {...step} animate={false} />
-            ))}
-            <p className="mt-1 text-[10px] font-normal leading-relaxed" style={{ color: MOCK.textMuted }}>
-              Watch it drawn stroke by stroke, with voice narration in sync.
-            </p>
-          </div>
-          <div
-            className="mt-3 flex items-center gap-2 rounded-full px-3 py-2"
-            style={{ background: MOCK.surface, border: `1px solid ${MOCK.borderSoft}` }}
-          >
-            <span className="flex-1 text-[10px] font-normal" style={{ color: MOCK.textSoft }}>
-              Ask about any topic…
-            </span>
-            <span
-              className="flex h-6 w-6 items-center justify-center rounded-full"
-              style={{ background: MOCK.bubble, color: MOCK.mint }}
-            >
-              <ArrowUp className="h-3 w-3" />
-            </span>
-          </div>
-        </MockShell>
-      </div>
-    )
-  }
-
-  const index = phaseIndex(phase)
-  const showTyping = phase === 'typing'
-  const showQuestion = index >= phaseIndex('question')
-  const visibleStepCount = chatVisibleStepCount(phase)
-  const showSummary = index >= phaseIndex('summary')
-
-  return (
-    <div ref={rootRef}>
-      <MockShell>
-        <div className="mb-3 text-[11px] font-medium tracking-normal" style={{ color: MOCK.textMuted }}>
-          Chat
-        </div>
-
-        <div key={cycleKey}>
-          {showTyping && <TypingIndicator />}
-
-          {showQuestion && (
-            <div className={`mb-3 flex justify-end ${phase === 'question' ? 'chat-enter-right' : ''}`}>
-              <div
-                className="max-w-[92%] rounded-2xl px-3.5 py-2.5 text-left"
-                style={{ background: MOCK.bubble }}
-              >
-                <p className="text-[11px] font-normal leading-snug" style={{ color: MOCK.mint }}>
-                  How do I find the volume of a cuboid step by step?
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="flex min-h-[108px] flex-1 flex-col gap-2.5 text-left">
-            {CHAT_STEPS.slice(0, visibleStepCount).map((step, stepIndex) => (
-              <ChatStepRow
-                key={step.title}
-                {...step}
-                animate={phase === (stepIndex === 0 ? 'step1' : 'step2')}
-              />
-            ))}
-
-            {showSummary && (
-              <p
-                className={`mt-1 text-[10px] font-normal leading-relaxed ${phase === 'summary' ? 'chat-enter-up' : ''}`}
-                style={{ color: MOCK.textMuted }}
-              >
-                Watch it drawn stroke by stroke, with voice narration in sync.
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div
-          className="mt-3 flex items-center gap-2 rounded-full px-3 py-2"
-          style={{ background: MOCK.surface, border: `1px solid ${MOCK.borderSoft}` }}
-        >
-          <span className="flex-1 text-[10px] font-normal" style={{ color: MOCK.textSoft }}>
-            Ask about any topic…
-          </span>
-          <span
-            className="flex h-6 w-6 items-center justify-center rounded-full"
-            style={{ background: MOCK.bubble, color: MOCK.mint }}
-          >
-            <ArrowUp className="h-3 w-3" />
-          </span>
-        </div>
-      </MockShell>
-    </div>
-  )
-}
-
-const LESSON_CHECKLIST = [
-  { label: 'Topic', value: 'Projectile motion' },
-  { label: 'Diagram', value: 'Parabola and launch angle' },
-  { label: 'Steps', value: 'Range formula derived' },
-  { label: 'Voice', value: 'Narration synced to drawing' },
-] as const
-
-const TEMPLATE_PHASES = [
-  { key: 'template', ms: 550 },
-  { key: 'link', ms: 450 },
-  { key: 'check0', ms: 500 },
-  { key: 'check1', ms: 500 },
-  { key: 'check2', ms: 500 },
-  { key: 'check3', ms: 500 },
-  { key: 'footer', ms: 550 },
-  { key: 'hold', ms: 2800 },
-] as const
-
-type TemplatePhase = (typeof TEMPLATE_PHASES)[number]['key'] | 'idle'
-
-function templatePhaseIndex(phase: TemplatePhase) {
-  if (phase === 'idle') return -1
-  return TEMPLATE_PHASES.findIndex((item) => item.key === phase)
-}
-
-function LessonCheckIcon({ animate }: { animate: boolean }) {
+function TeachingChip() {
   return (
     <span
-      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${animate ? 'chat-enter-up' : ''}`}
-      style={{ background: MOCK.positive }}
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[9px] font-medium"
+      style={{ background: 'rgba(201, 201, 210, 0.12)', color: TUTOR.accent }}
     >
-      <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+      <span className="h-1 w-1 rounded-full" style={{ background: TUTOR.accent }} />
+      teaching…
     </span>
   )
 }
 
-function TemplatesMock() {
-  const rootRef = useRef<HTMLDivElement>(null)
-  const [active, setActive] = useState(false)
-  const [reduceMotion, setReduceMotion] = useState(false)
-  const [phase, setPhase] = useState<TemplatePhase>('idle')
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const update = () => setReduceMotion(mq.matches)
-    update()
-    mq.addEventListener('change', update)
-    return () => mq.removeEventListener('change', update)
-  }, [])
-
-  useEffect(() => {
-    const node = rootRef.current
-    if (!node) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setActive(entry.isIntersecting),
-      { threshold: 0.35 },
-    )
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
-
-  useEffect(() => {
-    if (!active || reduceMotion) return
-
-    let index = 0
-    let timer: ReturnType<typeof setTimeout>
-
-    const tick = () => {
-      const current = TEMPLATE_PHASES[index]
-      setPhase(current.key)
-
-      timer = setTimeout(() => {
-        index = (index + 1) % TEMPLATE_PHASES.length
-        if (index === 0) setPhase('idle')
-        tick()
-      }, current.ms)
-    }
-
-    tick()
-    return () => clearTimeout(timer)
-  }, [active, reduceMotion])
-
-  const index = templatePhaseIndex(phase)
-  const showTemplate = reduceMotion || index >= templatePhaseIndex('template')
-  const showLink = reduceMotion || index >= templatePhaseIndex('link')
-  const visibleChecks = reduceMotion
-    ? LESSON_CHECKLIST.length
-    : Math.max(0, index - templatePhaseIndex('check0') + 1)
-  const showFooter = reduceMotion || index >= templatePhaseIndex('footer')
-
+function PhotoIcon() {
   return (
-    <div ref={rootRef} className="h-full">
-      <div
-        className="flex h-full flex-col rounded-2xl p-4"
-        style={{ background: '#EDF3FD' }}
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ color: TUTOR.soft, flexShrink: 0 }} aria-hidden>
+      <rect x="3.5" y="6" width="17" height="13" rx="2.25" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="8.5" cy="10.25" r="1.35" fill="currentColor" />
+      <path d="M7 17.5l4.2-4.4a1.2 1.2 0 0 1 1.7 0L17.5 17.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function MicIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style={{ color: TUTOR.soft, flexShrink: 0 }} aria-hidden>
+      <rect x="9" y="2" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M5 10a7 7 0 0 0 14 0M12 17v3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function MiniDoubtInput({ placeholder }: { placeholder: string }) {
+  return (
+    <div
+      className="mt-auto flex items-center gap-1.5 rounded-full px-2 py-1.5"
+      style={{ background: TUTOR.panel, border: `1px solid ${TUTOR.border}` }}
+    >
+      <PhotoIcon />
+      <span className="flex-1 truncate text-left italic" style={{ fontSize: 9.5, color: TUTOR.faint }}>
+        {placeholder}
+      </span>
+      <MicIcon />
+      <span
+        className="shrink-0 rounded-full px-2.5 py-1"
+        style={{ background: TUTOR.cta, color: '#FFFFFF', fontSize: 9.5, fontWeight: 500 }}
       >
-        <div className="text-[11px] font-medium" style={{ color: MOCK.textMuted }}>
-          Lessons
-        </div>
+        Ask Doubt
+      </span>
+    </div>
+  )
+}
 
-        <div className="mb-2 mt-3 text-[9px] font-medium uppercase tracking-wide" style={{ color: MOCK.textSoft }}>
-          Templates
-        </div>
+function MarkerCursor({ style }: { style: React.CSSProperties }) {
+  return (
+    <svg width="10" height="25" viewBox="-8 -36 16 40" style={style} aria-hidden>
+      <path d="M 0 0 L -2.8 -5 L 2.8 -5 Z" fill={TUTOR.navy} />
+      <rect x="-3.9" y="-7" width="7.8" height="2.2" rx="0.5" fill="#B8B8B8" />
+      <rect x="-3.6" y="-11" width="7.2" height="4" rx="0.6" fill="#C62828" />
+      <rect x="-3.6" y="-28" width="7.2" height="17" rx="1.2" fill="#1A1A1A" stroke="#0A0A0A" strokeWidth="0.7" />
+      <rect x="-3.9" y="-33" width="7.8" height="5" rx="2" fill="#111111" />
+    </svg>
+  )
+}
 
-        {showTemplate && (
+/* ── Card 1: the live whiteboard lesson ─────────────────────────────── */
+
+function LiveLessonMock() {
+  return (
+    <TutorPanel>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold tracking-[-0.01em]" style={{ color: TUTOR.ink, textTransform: 'capitalize' }}>
+          Volume of cuboid
+        </span>
+        <TeachingChip />
+      </div>
+
+      {/* mini whiteboard frame + cream surface */}
+      <div
+        className="relative flex-1 rounded-[10px]"
+        style={{
+          background: 'linear-gradient(145deg, #1E1E21 0%, #19191C 40%, #151517 100%)',
+          boxShadow: '0 12px 28px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(240, 246, 252, 0.07)',
+        }}
+      >
+        <div
+          className="absolute overflow-hidden rounded-[4px]"
+          style={{
+            inset: 8,
+            background: 'linear-gradient(180deg, #FFFFFF 0%, #F6F8FA 100%)',
+            boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.05)',
+          }}
+        >
+          {/* handwritten working */}
+          <div style={{ position: 'absolute', left: 12, top: 10, fontFamily: CAVEAT, color: TUTOR.navy, fontSize: 14, fontWeight: 500, lineHeight: 1.35 }}>
+            <div>V = l × w × h</div>
+            <div>V = 10 × 8 × 6</div>
+            <div>V = 480</div>
+          </div>
+
+          {/* cuboid diagram */}
+          <svg width="120" height="86" viewBox="0 0 140 100" fill="none" style={{ position: 'absolute', right: 10, top: 16 }} aria-hidden>
+            <path d="M 20 35 L 95 35 L 95 80 L 20 80 Z" stroke={TUTOR.navy} strokeWidth="2.2" strokeLinejoin="round" />
+            <path d="M 20 35 L 45 15 L 120 15 L 95 35 Z" stroke={TUTOR.navy} strokeWidth="2.2" strokeLinejoin="round" />
+            <path d="M 95 35 L 120 15 L 120 60 L 95 80 Z" stroke={TUTOR.navy} strokeWidth="2.2" strokeLinejoin="round" />
+            <text x="57" y="74" fill={TUTOR.navy} fontSize="11" fontFamily={CAVEAT} textAnchor="middle">l</text>
+            <text x="110" y="27" fill={TUTOR.navy} fontSize="11" fontFamily={CAVEAT} textAnchor="middle">w</text>
+            <text x="112" y="55" fill={TUTOR.navy} fontSize="11" fontFamily={CAVEAT} textAnchor="middle">h</text>
+          </svg>
+
+          <MarkerCursor
+            style={{ position: 'absolute', left: 52, top: 40, transform: 'rotate(-35deg)', transformOrigin: '5px 22.5px' }}
+          />
+
+          {/* narration bubble */}
           <div
-            className={`rounded-xl px-3 py-2.5 ${phase === 'template' ? 'chat-enter-up' : ''}`}
-            style={{ background: MOCK.surface, border: `1px solid ${MOCK.borderSoft}` }}
+            style={{
+              position: 'absolute',
+              bottom: 8,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: TUTOR.bubble,
+              border: '1px solid rgba(240, 246, 252, 0.1)',
+              borderRadius: 8,
+              padding: '6px 10px',
+              maxWidth: '92%',
+            }}
           >
-            <p className="text-[11px] font-medium" style={{ color: MOCK.text }}>
-              Projectile motion
-            </p>
-            <p className="mt-0.5 text-[10px] font-normal" style={{ color: MOCK.textMuted }}>
-              Diagram the parabola and derive range
+            <p className="text-center" style={{ fontSize: 9, fontWeight: 500, color: TUTOR.ink, lineHeight: 1.4, margin: 0, whiteSpace: 'nowrap' }}>
+              length times width times height
             </p>
           </div>
-        )}
+        </div>
+      </div>
 
-        {showLink && (
-          <p
-            className={`mt-2 text-[10px] font-medium ${phase === 'link' ? 'chat-enter-up' : ''}`}
-            style={{ color: MOCK.textMuted }}
-          >
-            + Describe your own topic
+      <MiniDoubtInput placeholder="Ask a doubt…" />
+    </TutorPanel>
+  )
+}
+
+/* ── Card 2: doubts mid-lesson ──────────────────────────────────────── */
+
+const DOUBT_CHAT = [
+  { from: 'student' as const, text: 'wait, why is the midpoint at 4.5 V?' },
+  { from: 'tutor' as const, text: 'the two 4.7 kΩ resistors split the 9 V equally, watch the board.' },
+  { from: 'student' as const, text: 'got it. and if the resistors aren’t equal?' },
+  { from: 'tutor' as const, text: 'then the voltage splits by resistance ratio. let me show you.' },
+]
+
+function DoubtBubble({ from, text }: { from: 'student' | 'tutor'; text: string }) {
+  const isStudent = from === 'student'
+  return (
+    <div className={`flex ${isStudent ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className="max-w-[86%] rounded-2xl px-3 py-2 text-left"
+        style={{
+          background: isStudent ? TUTOR.raised : TUTOR.panel,
+          border: `1px solid ${isStudent ? TUTOR.border : TUTOR.line}`,
+        }}
+      >
+        <p style={{ margin: 0, fontSize: 10, lineHeight: 1.45, color: TUTOR.ink }}>{text}</p>
+        {!isStudent && (
+          <p className="mt-1 flex items-center gap-1" style={{ margin: '4px 0 0', fontSize: 8, color: TUTOR.soft }}>
+            <span className="inline-block h-1 w-1 rounded-full" style={{ background: TUTOR.accent }} />
+            answering on the board
           </p>
         )}
-
-        <div
-          className="mt-auto space-y-2.5 pt-4"
-          style={{ borderTop: showTemplate ? `1px solid ${MOCK.borderSoft}` : undefined }}
-        >
-          {LESSON_CHECKLIST.slice(0, Math.min(visibleChecks, LESSON_CHECKLIST.length)).map((item, itemIndex) => (
-            <div
-              key={item.label}
-              className={`flex items-start gap-2 ${
-                !reduceMotion && phase === (`check${itemIndex}` as TemplatePhase) ? 'chat-enter-up' : ''
-              }`}
-            >
-              <LessonCheckIcon animate={!reduceMotion && phase === (`check${itemIndex}` as TemplatePhase)} />
-              <div className="min-w-0">
-                <p className="text-[9px] font-medium uppercase tracking-wide" style={{ color: MOCK.textSoft }}>
-                  {item.label}
-                </p>
-                <p className="text-[10px] font-normal" style={{ color: MOCK.textMuted }}>
-                  {item.value}
-                </p>
-              </div>
-            </div>
-          ))}
-
-          {showFooter && (
-            <div
-              className={`flex items-start justify-between gap-2 pt-2 ${phase === 'footer' ? 'chat-enter-up' : ''}`}
-              style={{ borderTop: visibleChecks > 0 ? `1px solid ${MOCK.borderSoft}` : undefined }}
-            >
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-medium" style={{ color: MOCK.text }}>
-                    Pythagorean proof
-                  </span>
-                  <span className="text-[8px] font-medium uppercase tracking-wide" style={{ color: MOCK.textSoft }}>
-                    Ready
-                  </span>
-                </div>
-                <p className="mt-0.5 text-[10px] font-normal" style={{ color: MOCK.textMuted }}>
-                  Right triangle lesson queued
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   )
 }
 
-function SessionsMock() {
-  const items = [
-    {
-      topic: 'Geometry',
-      status: 'Lesson complete',
-      detail: 'Volume of cuboid',
-      tone: 'positive' as const,
-      ago: '2d',
-    },
-    {
-      topic: 'Algebra',
-      status: 'Follow-up ready',
-      detail: 'Quadratic by factoring',
-      tone: 'positive' as const,
-      ago: '1d',
-    },
-    {
-      topic: 'Physics',
-      status: 'Diagram drawn',
-      detail: 'Free body on a ramp',
-      tone: 'neutral' as const,
-      ago: '3d',
-    },
-    {
-      topic: 'Calculus',
-      status: 'Needs review',
-      detail: 'Chain rule step missed',
-      tone: 'alert' as const,
-      ago: '5d',
-    },
-  ]
-
+function DoubtChatMock() {
   return (
-    <MockShell>
-      <div className="mb-3 text-[11px] font-medium" style={{ color: MOCK.textMuted }}>
-        Boards
+    <TutorPanel>
+      <div className="flex items-center justify-between">
+        <PanelLabel>Doubt chat</PanelLabel>
+        <TeachingChip />
       </div>
 
-      <div className="flex flex-1 flex-col gap-2.5">
-        {items.map((item, index) => (
-          <div
-            key={item.detail}
-            className="flex items-start justify-between gap-2 pb-2.5"
-            style={{
-              borderBottom: index < items.length - 1 ? `1px solid ${MOCK.borderSoft}` : undefined,
-            }}
-          >
-            <div className="min-w-0 text-left">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <span className="text-[10px] font-medium" style={{ color: MOCK.text }}>
-                  {item.topic}
-                </span>
-                <span
-                  className="text-[10px] font-normal"
-                  style={{
-                    color:
-                      item.tone === 'positive'
-                        ? MOCK.positive
-                        : item.tone === 'alert'
-                          ? MOCK.alert
-                          : MOCK.textMuted,
-                  }}
-                >
-                  {item.status}
-                </span>
-              </div>
-              <p className="mt-0.5 truncate text-[10px] font-normal" style={{ color: MOCK.textMuted }}>
-                {item.detail}
-              </p>
-            </div>
-            <span className="shrink-0 text-[9px] font-normal" style={{ color: MOCK.textSoft }}>
-              {item.ago}
-            </span>
-          </div>
+      <div className="flex flex-1 flex-col gap-2">
+        {DOUBT_CHAT.map((message) => (
+          <DoubtBubble key={message.text} {...message} />
         ))}
       </div>
-    </MockShell>
+
+      <MiniDoubtInput placeholder="Ask a doubt or question…" />
+    </TutorPanel>
   )
 }
 
+/* ── Card 3: notes / PDF intake + replay / transcript / downloads ───── */
+
+const ATTACHMENTS = [
+  { name: 'chapter-4-notes.pdf', meta: 'PDF · 6 pages read' },
+  { name: 'IMG_2401.jpg', meta: 'Photo · question read in 1.2s' },
+] as const
+
+function AttachmentRow({ name, meta }: { name: string; meta: string }) {
+  return (
+    <div
+      className="flex items-center gap-2.5 rounded-lg p-2.5"
+      style={{ background: TUTOR.panel, border: `1px solid ${TUTOR.line}` }}
+    >
+      <div
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
+        style={{ background: TUTOR.raised, border: `1px solid ${TUTOR.border}` }}
+      >
+        <PhotoIcon />
+      </div>
+      <div className="min-w-0 flex-1 text-left">
+        <p className="truncate" style={{ margin: 0, fontSize: 10, fontWeight: 500, color: TUTOR.ink }}>
+          {name}
+        </p>
+        <p style={{ margin: '1px 0 0', fontSize: 8.5, color: TUTOR.soft }}>{meta}</p>
+      </div>
+      <span
+        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full"
+        style={{ background: 'rgba(201, 201, 210, 0.15)' }}
+      >
+        <Check className="h-2.5 w-2.5" strokeWidth={3} style={{ color: TUTOR.accent }} />
+      </span>
+    </div>
+  )
+}
+
+function ToolPill({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <div
+      className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5"
+      style={{ background: TUTOR.raised, border: `1px solid ${TUTOR.border}` }}
+    >
+      {icon}
+      <span style={{ fontSize: 9, fontWeight: 500, color: TUTOR.soft }}>{label}</span>
+    </div>
+  )
+}
+
+function LectureToolsMock() {
+  return (
+    <TutorPanel>
+      <PanelLabel>From your notes</PanelLabel>
+
+      <div className="flex flex-col gap-2">
+        {ATTACHMENTS.map((file) => (
+          <AttachmentRow key={file.name} {...file} />
+        ))}
+      </div>
+
+      <div className="mt-1">
+        <PanelLabel>Replay &amp; keep</PanelLabel>
+      </div>
+
+      {/* replay scrubber */}
+      <div className="flex items-center gap-2">
+        <span
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+          style={{ background: 'rgba(240, 246, 252, 0.1)' }}
+        >
+          <Play className="h-2.5 w-2.5" style={{ color: TUTOR.ink, fill: TUTOR.ink }} />
+        </span>
+        <div className="relative h-1 flex-1 rounded-full" style={{ background: 'rgba(240, 246, 252, 0.12)' }}>
+          <div className="absolute left-0 top-0 h-full rounded-full" style={{ width: '42%', background: TUTOR.replay }} />
+          <div
+            className="absolute top-1/2 h-2 w-2 -translate-y-1/2 rounded-full"
+            style={{ left: '42%', background: '#FFFFFF', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}
+          />
+        </div>
+        <span style={{ fontSize: 8.5, color: TUTOR.soft, fontVariantNumeric: 'tabular-nums' }}>1:32 / 3:40</span>
+      </div>
+
+      <div className="mt-auto flex gap-1.5">
+        <ToolPill icon={<ScrollText className="h-3 w-3" style={{ color: TUTOR.soft }} />} label="Transcript" />
+        <ToolPill icon={<Download className="h-3 w-3" style={{ color: TUTOR.accent }} />} label="Download notes" />
+      </div>
+    </TutorPanel>
+  )
+}
+
+/* ── Section ────────────────────────────────────────────────────────── */
+
 const FEATURES = [
   {
-    mock: ChatMock,
-    title: 'Ask anything about any subject.',
-    description: 'Proofs, diagrams, timelines, and more are one question away.',
-    highlighted: false,
-  },
-  {
-    mock: TemplatesMock,
-    title: 'Start from a lesson template.',
-    description: 'Pick a topic or describe your own. Accelute plans the board and narration.',
+    mock: LiveLessonMock,
+    title: 'Watch it teach live on the whiteboard.',
+    description:
+      'Diagrams, notes, and voice stay in sync stroke by stroke, out loud. Pause, resume, or stop the lesson anytime.',
     highlighted: true,
   },
   {
-    mock: SessionsMock,
-    title: 'See every concept drawn live.',
-    description: 'Diagrams, notes, and voice stay in sync, stroke by stroke, out loud.',
+    mock: DoubtChatMock,
+    title: 'Ask doubts the moment they hit.',
+    description:
+      'Interrupt mid-lesson, ask a follow-up, or paste a photo of a question, and the tutor answers and picks right back up.',
+    highlighted: false,
+  },
+  {
+    mock: LectureToolsMock,
+    title: 'Chat through the whole lecture. Keep the notes.',
+    description:
+      'Teach straight from your photos and PDFs, replay any lesson at your pace, read the transcript, and download the notes.',
     highlighted: false,
   },
 ] as const
@@ -586,7 +360,7 @@ function FeatureCard({
         highlighted ? 'border-2 border-neutral-900' : 'border border-neutral-200'
       }`}
     >
-      <div className="relative mb-6 min-h-[280px] sm:min-h-[300px]">
+      <div className="relative mb-6 flex min-h-[280px] flex-col sm:min-h-[300px]">
         <Mock />
       </div>
 

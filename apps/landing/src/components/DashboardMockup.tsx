@@ -1,4 +1,8 @@
-import { Download, RotateCcw, ScrollText, Settings } from 'lucide-react'
+import { useRef } from 'react'
+import { ArrowUp, Download, RotateCcw, ScrollText, Settings, Volume2, VolumeX } from 'lucide-react'
+import LiveLessonBoard from './hero-lesson/LiveLessonBoard'
+import { useLessonSimulation } from './hero-lesson/useLessonSimulation'
+import { LESSON_TITLE, QUESTION_TEXT } from './hero-lesson/lessonScript'
 
 const SHELL_BG = '#0B0B0C'
 const LINE = 'rgba(242, 242, 244, 0.08)'
@@ -9,22 +13,27 @@ const ACCENT = '#C9C9D2'
 const PAPER = '#151517'
 const RAISED = '#1E1E21'
 const BORDER = '#2E2E33'
-const NAVY = '#1B2A4A'
 const FONT = "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-const CAVEAT = "'Caveat', cursive"
 
 const BOARDS = [
-  { title: 'Volume of cuboid', preview: 'V = l × w × h = 480 cm³', active: true },
+  { title: LESSON_TITLE, preview: 'v = u + at = 10 m/s', active: true },
+  { title: 'Volume of cuboid', preview: 'V = l × w × h …', active: false },
   { title: 'Pythagorean theorem', preview: 'a² + b² = c² …', active: false },
-  { title: 'Area of rectangle', preview: 'A = l × w …', active: false },
 ]
 
-export default function DashboardMockup() {
+export default function DashboardMockup({ recording = false }: { recording?: boolean }) {
+  const rootRef = useRef<HTMLDivElement>(null)
+  const { snapshot, sound, toggleSound, boardRef, cursorState } = useLessonSimulation(rootRef)
+
+  const typed = QUESTION_TEXT.slice(0, snapshot.typedCount)
+  const teaching = snapshot.teaching
+
   return (
     <div
+      ref={rootRef}
       className="overflow-hidden rounded-2xl text-left"
       style={{
-        width: 896,
+        width: 1280,
         background: SHELL_BG,
         border: '1px solid rgba(0, 0, 0, 0.6)',
         boxShadow: '0 -20px 80px rgba(0, 0, 0, 0.45)',
@@ -32,7 +41,10 @@ export default function DashboardMockup() {
         WebkitFontSmoothing: 'antialiased',
       }}
     >
-      <style>{`@keyframes mockup-status-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(1.25); } } .mockup-input::placeholder { color: #717177; font-style: italic; }`}</style>
+      <style>{`@keyframes mockup-status-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(1.25); } }
+@keyframes hero-caret-blink { 0%, 45% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes hero-sound-pulse { 0% { box-shadow: 0 0 0 0 rgba(201, 201, 210, 0.35); } 100% { box-shadow: 0 0 0 12px rgba(201, 201, 210, 0); } }
+.mockup-input::placeholder { color: #717177; font-style: italic; }`}</style>
 
       <div className="flex">
         {/* ── Left sidebar (BoardHistory) ── */}
@@ -69,33 +81,13 @@ export default function DashboardMockup() {
               Accelute
             </span>
             <div style={{ display: 'flex', gap: 2.4 }}>
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8.8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: INK_SOFT,
-                }}
-              >
+              <div style={{ width: 32, height: 32, borderRadius: 8.8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: INK_SOFT }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8" />
                   <path d="m21 21-4.35-4.35" />
                 </svg>
               </div>
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8.8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: INK_SOFT,
-                }}
-              >
+              <div style={{ width: 32, height: 32, borderRadius: 8.8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: INK_SOFT }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="18" height="18" x="3" y="3" rx="2" />
                   <path d="M9 3v18" />
@@ -172,15 +164,7 @@ export default function DashboardMockup() {
                     }}
                   />
                 )}
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 2.4,
-                    padding: '11.2px 12px',
-                    borderRadius: 11.2,
-                  }}
-                >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2.4, padding: '11.2px 12px', borderRadius: 11.2 }}>
                   <span
                     style={{
                       fontSize: 14,
@@ -249,14 +233,14 @@ export default function DashboardMockup() {
         </aside>
 
         {/* ── Main column ── */}
-        <div style={{ flex: 1, minWidth: 0, padding: '12px 10px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, minWidth: 0, padding: '14px 14px 16px', display: 'flex', flexDirection: 'column' }}>
           {/* Header (SessionHeader) */}
           <header
             style={{
               borderRadius: 16,
               border: `1px solid ${LINE}`,
               background: 'rgba(21, 21, 23, 0.9)',
-              padding: '10px 16px',
+              padding: '12px 18px',
               boxShadow: '0 8px 30px -18px rgba(0, 0, 0, 0.55)',
               display: 'flex',
               alignItems: 'center',
@@ -264,10 +248,10 @@ export default function DashboardMockup() {
             }}
           >
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span
                   style={{
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: 600,
                     letterSpacing: '-0.02em',
                     color: INK,
@@ -277,7 +261,7 @@ export default function DashboardMockup() {
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  Volume of cuboid
+                  {LESSON_TITLE}
                 </span>
                 <span
                   style={{
@@ -286,8 +270,8 @@ export default function DashboardMockup() {
                     gap: 6,
                     borderRadius: 9999,
                     background: 'rgba(201, 201, 210, 0.12)',
-                    padding: '2px 8px',
-                    fontSize: 11,
+                    padding: '2px 9px',
+                    fontSize: 11.5,
                     fontWeight: 500,
                     color: ACCENT,
                     flexShrink: 0,
@@ -302,194 +286,76 @@ export default function DashboardMockup() {
                       animation: 'mockup-status-pulse 1.5s ease-in-out infinite',
                     }}
                   />
-                  teaching…
+                  {snapshot.chip === 'teaching' ? 'teaching…' : 'thinking…'}
                 </span>
               </div>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: INK_SOFT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Lesson in progress on the whiteboard
+              <p style={{ margin: '3px 0 0', fontSize: 12.5, color: INK_SOFT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {snapshot.chip === 'teaching' ? 'Lesson in progress on the whiteboard' : 'Working on your question'}
               </p>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              {/* Replay (compact: icon-only, matches real app at this width; disabled mid-lesson) */}
-              <div aria-label="Replay lecture" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: ACCENT, opacity: 0.4 }}>
-                <RotateCcw size={14} aria-hidden />
+              <div aria-label="Replay lecture" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: ACCENT, opacity: 0.4 }}>
+                <RotateCcw size={15} aria-hidden />
               </div>
-              {/* Transcript */}
-              <div aria-label="Transcript" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, opacity: 0.4 }}>
-                <ScrollText size={14} aria-hidden />
+              <div aria-label="Transcript" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, opacity: 0.4 }}>
+                <ScrollText size={15} aria-hidden />
               </div>
-              {/* Download notes */}
-              <div aria-label="Download notes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, opacity: 0.4 }}>
-                <Download size={14} aria-hidden />
+              <div aria-label="Download notes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, opacity: 0.4 }}>
+                <Download size={15} aria-hidden />
               </div>
-              {/* Divider */}
               <div style={{ width: 1, height: 24, background: BORDER }} aria-hidden />
-              {/* Settings */}
-              <div style={{ width: 36, height: 36, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 38, height: 38, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Settings size={16} strokeWidth={1.75} aria-hidden />
               </div>
-              {/* Stop */}
-              <div style={{ borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, padding: '6px 12px', fontSize: 12, fontWeight: 500, color: INK_SOFT, whiteSpace: 'nowrap' }}>
+              <div style={{ borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, padding: '7px 14px', fontSize: 12.5, fontWeight: 500, color: INK_SOFT, whiteSpace: 'nowrap' }}>
                 Stop
               </div>
             </div>
           </header>
 
-          {/* Board frame (.wb-frame) */}
-          <div
-            style={{
-              position: 'relative',
-              width: 580,
-              height: 332,
-              margin: '6px auto 0',
-              borderRadius: 12,
-              background:
-                'linear-gradient(180deg, rgba(240, 246, 252, 0.06) 0%, transparent 18%, transparent 82%, rgba(0, 0, 0, 0.35) 100%), linear-gradient(145deg, #1E1E21 0%, #19191C 40%, #151517 100%)',
-              boxShadow:
-                '0 30px 70px -18px rgba(0, 0, 0, 0.55), 0 12px 28px -8px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(240, 246, 252, 0.08), inset 0 1px 0 rgba(240, 246, 252, 0.06), inset 0 -1px 0 rgba(0, 0, 0, 0.35)',
-            }}
-          >
-            {/* ::before — inner vignette */}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 10,
-                borderRadius: 6,
-                pointerEvents: 'none',
-                zIndex: 0,
-                boxShadow: 'inset 0 2px 6px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(240, 246, 252, 0.04)',
-              }}
-            />
-
-            {/* Surface (.wb-surface) */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 16,
-                left: 16,
-                right: 16,
-                bottom: 16,
-                borderRadius: 4,
-                background: 'linear-gradient(180deg, #FFFFFF 0%, #F6F8FA 100%)',
-                boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.06), inset 0 1px 2px rgba(0, 0, 0, 0.04)',
-                overflow: 'hidden',
-              }}
-            >
-              {/* Work area — Caveat handwriting (mirrors the real lesson flow) */}
-              <div style={{ position: 'absolute', left: 28, top: 22, fontFamily: CAVEAT, color: NAVY, fontSize: 21, fontWeight: 500, lineHeight: 1.3 }}>
-                <div>Given: l = 10, w = 8, h = 6</div>
-                <div>V = l × w × h</div>
-                <div>V = 10 × 8 × 6</div>
-                <div>V = 480</div>
-              </div>
-
-              {/* Floating board settings gear (BoardSettingsButton) */}
-              <div
-                aria-label="Settings"
+          {/* Board frame + sound toggle */}
+          <div style={{ position: 'relative' }}>
+            <LiveLessonBoard snapshot={snapshot} boardRef={boardRef} cursorState={cursorState} />
+            {!recording && (sound === 'off' || sound === 'on') && (
+              <button
+                type="button"
+                onClick={toggleSound}
+                aria-label={sound === 'on' ? 'Mute lesson voice' : 'Play lesson voice'}
+                title={sound === 'on' ? 'Mute' : 'Play with sound'}
                 style={{
                   position: 'absolute',
-                  right: 12,
-                  top: 12,
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
+                  right: 28,
+                  bottom: 28,
+                  zIndex: 5,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 9999,
+                  border: '1px solid rgba(240, 246, 252, 0.16)',
+                  background: 'rgba(22, 27, 34, 0.85)',
+                  color: INK,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: 'rgba(22, 27, 34, 0.75)',
+                  cursor: 'pointer',
                   backdropFilter: 'blur(4px)',
                   WebkitBackdropFilter: 'blur(4px)',
-                  color: ACCENT,
-                  opacity: 0.9,
+                  animation: sound === 'off' ? 'hero-sound-pulse 1.8s ease-out infinite' : undefined,
                 }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-              </div>
-
-              {/* Cuboid diagram (isometric, navy ink) */}
-              <svg width="280" height="200" viewBox="0 0 280 200" fill="none" style={{ position: 'absolute', right: 20, top: 50 }}>
-                <path d="M 40 60 L 190 60 L 190 150 L 40 150 Z" stroke={NAVY} strokeWidth="2.5" strokeLinejoin="round" />
-                <path d="M 40 60 L 90 20 L 240 20 L 190 60 Z" stroke={NAVY} strokeWidth="2.5" strokeLinejoin="round" />
-                <path d="M 190 60 L 240 20 L 240 110 L 190 150 Z" stroke={NAVY} strokeWidth="2.5" strokeLinejoin="round" />
-                <text x="115" y="132" fill={NAVY} fontSize="22" fontFamily={CAVEAT} textAnchor="middle">l</text>
-                <text x="215" y="44" fill={NAVY} fontSize="22" fontFamily={CAVEAT} textAnchor="middle">w</text>
-                <text x="218" y="88" fill={NAVY} fontSize="22" fontFamily={CAVEAT} textAnchor="middle">h</text>
-              </svg>
-
-              {/* Marker cursor (VirtualCursor) */}
-              <svg
-                width="16"
-                height="40"
-                viewBox="-8 -36 16 40"
-                style={{ position: 'absolute', left: 92, top: 88, transform: 'rotate(-35deg)', transformOrigin: '8px 36px' }}
-                aria-hidden
-              >
-                <defs>
-                  <filter id="mockup-marker-shadow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feDropShadow dx="0.8" dy="0.8" stdDeviation="2.5" floodColor="#000000" floodOpacity="0.19" />
-                  </filter>
-                </defs>
-                <circle cx="0" cy="0" r="4" fill={NAVY} opacity="0.12" />
-                <path d="M 0 0 L -2.8 -5 L 2.8 -5 Z" fill={NAVY} stroke="#121B30" strokeWidth="0.4" />
-                <rect x="-3.9" y="-7" width="7.8" height="2.2" rx="0.5" fill="#B8B8B8" stroke="#787878" strokeWidth="0.4" />
-                <rect x="-3.6" y="-11" width="7.2" height="4" rx="0.6" fill="#C62828" stroke="#8E0000" strokeWidth="0.45" />
-                <rect x="-2.8" y="-10.4" width="1.4" height="2.8" rx="0.4" fill="#EF5350" opacity="0.5" />
-                <rect x="-3.6" y="-28" width="7.2" height="17" rx="1.2" fill="#1A1A1A" stroke="#0A0A0A" strokeWidth="0.7" filter="url(#mockup-marker-shadow)" />
-                <rect x="-2.6" y="-27" width="2" height="15" rx="0.8" fill="#000000" opacity="0.3" />
-                <rect x="-2.7" y="-27" width="1.5" height="15" rx="0.6" fill="#555555" opacity="0.5" />
-                <rect x="-2.4" y="-22" width="4.8" height="1.4" rx="0.3" fill="#C62828" opacity="0.8" />
-                <rect x="-3.9" y="-33" width="7.8" height="5" rx="2" fill="#111111" stroke="#0A0A0A" strokeWidth="0.7" />
-                <rect x="3.2" y="-32" width="1.4" height="11" rx="0.6" fill="#555555" stroke="#0A0A0A" strokeWidth="0.35" />
-              </svg>
-
-              {/* Narration bubble (ResponseBubble) */}
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 12,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  background: 'rgba(22, 27, 34, 0.94)',
-                  color: INK,
-                  borderRadius: 10,
-                  boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.45)',
-                  border: '1px solid rgba(240, 246, 252, 0.1)',
-                  backdropFilter: 'blur(8px)',
-                  padding: '12px 16px',
-                  maxWidth: 'calc(100% - 2rem)',
-                }}
-              >
-                <p style={{ margin: 0, textAlign: 'center', fontSize: 14, fontWeight: 500, lineHeight: 1.5, color: INK, whiteSpace: 'nowrap' }}>
-                  the volume of a cuboid is length times width times height
-                </p>
-              </div>
-            </div>
-
-            {/* ::after — outer ring */}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                borderRadius: 12,
-                pointerEvents: 'none',
-                zIndex: 1,
-                boxShadow: 'inset 0 0 0 1px rgba(240, 246, 252, 0.04)',
-              }}
-            />
+                {sound === 'on' ? <Volume2 size={17} aria-hidden /> : <VolumeX size={17} aria-hidden />}
+              </button>
+            )}
           </div>
 
           {/* Input bar (InputBar) */}
-          <div style={{ width: '100%', maxWidth: 560, margin: '10px auto 0' }}>
+          <div style={{ width: '100%', maxWidth: 660, margin: '12px auto 0' }}>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                minHeight: 52,
+                minHeight: 56,
                 background: PAPER,
                 border: `1px solid ${BORDER}`,
                 borderRadius: 9999,
@@ -498,7 +364,7 @@ export default function DashboardMockup() {
               }}
             >
               {/* Photo */}
-              <div style={{ width: 36, height: 36, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', color: INK_SOFT, flexShrink: 0 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', color: INK_SOFT, flexShrink: 0 }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <rect x="3.5" y="6" width="17" height="13" rx="2.25" stroke="currentColor" strokeWidth="1.75" />
                   <circle cx="8.5" cy="10.25" r="1.35" fill="currentColor" />
@@ -506,51 +372,87 @@ export default function DashboardMockup() {
                 </svg>
               </div>
 
-              {/* Text input */}
-              <input
-                readOnly
-                placeholder="Ask a question or paste a photo"
+              {/* Text input — the question types itself live */}
+              <div
                 className="mockup-input"
                 style={{
                   flex: 1,
                   minWidth: 0,
-                  background: 'transparent',
-                  border: 0,
-                  outline: 'none',
                   padding: '6px 8px',
                   fontSize: 15,
                   color: INK,
-                  fontFamily: 'inherit',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
-              />
+              >
+                {typed ? (
+                  <>
+                    {typed}
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 1.5,
+                        height: 15,
+                        marginLeft: 1,
+                        verticalAlign: '-2px',
+                        background: ACCENT,
+                        animation: 'hero-caret-blink 1s step-end infinite',
+                      }}
+                    />
+                  </>
+                ) : (
+                  <span style={{ color: '#717177', fontStyle: 'italic' }}>Ask a question or paste a photo</span>
+                )}
+              </div>
 
               {/* Mic */}
-              <div style={{ width: 36, height: 36, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', color: INK_SOFT, flexShrink: 0 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', color: INK_SOFT, flexShrink: 0 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <rect x="9" y="2" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.75" />
                   <path d="M5 10a7 7 0 0 0 14 0M12 17v3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
                 </svg>
               </div>
 
-              {/* Pause teaching (live control) */}
-              <div aria-label="Pause teaching" style={{ width: 36, height: 36, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(201, 201, 210, 0.15)', color: INK, flexShrink: 0 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                  <rect x="6" y="4" width="4" height="16" rx="1" />
-                  <rect x="14" y="4" width="4" height="16" rx="1" />
-                </svg>
-              </div>
-
-              {/* Cancel teaching (live control) */}
-              <div aria-label="Cancel teaching" style={{ width: 36, height: 36, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(240, 246, 252, 0.06)', color: INK_SOFT, flexShrink: 0 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </div>
-
-              {/* Submit */}
-              <div style={{ borderRadius: 9999, padding: '8px 16px', fontSize: 14, fontWeight: 500, background: '#6E6E76', color: '#FFFFFF', flexShrink: 0 }}>
-                Ask Doubt
-              </div>
+              {teaching ? (
+                <>
+                  {/* Pause teaching (live control) */}
+                  <div aria-label="Pause teaching" style={{ width: 38, height: 38, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(201, 201, 210, 0.15)', color: INK, flexShrink: 0 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                      <rect x="6" y="4" width="4" height="16" rx="1" />
+                      <rect x="14" y="4" width="4" height="16" rx="1" />
+                    </svg>
+                  </div>
+                  {/* Cancel teaching (live control) */}
+                  <div aria-label="Cancel teaching" style={{ width: 38, height: 38, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(240, 246, 252, 0.06)', color: INK_SOFT, flexShrink: 0 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <div style={{ borderRadius: 9999, padding: '9px 18px', fontSize: 14, fontWeight: 500, background: '#6E6E76', color: '#FFFFFF', flexShrink: 0 }}>
+                    Ask Doubt
+                  </div>
+                </>
+              ) : (
+                <div
+                  aria-label="Send question"
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 9999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    background: typed ? '#6E6E76' : 'rgba(201, 201, 210, 0.1)',
+                    color: typed ? '#FFFFFF' : INK_SOFT,
+                    transform: snapshot.phase === 'submit' ? 'scale(0.88)' : 'scale(1)',
+                    transition: 'transform 120ms ease',
+                  }}
+                >
+                  <ArrowUp size={18} aria-hidden />
+                </div>
+              )}
             </div>
           </div>
         </div>
