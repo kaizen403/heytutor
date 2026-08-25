@@ -9,14 +9,23 @@ const FRAME_PADDING_DESKTOP = 32;
 const FRAME_PADDING_MOBILE = 20;
 const MOBILE_MQ = "(max-width: 640px)";
 
-export function useBoardViewport(containerRef: RefObject<HTMLDivElement | null>): BoardViewport {
-  const [viewport, setViewport] = useState<BoardViewport>({
-    scale: 0.1,
-    offsetX: 0,
-    offsetY: 0,
-  });
+export type BoardViewportMode = "fit" | "fixed";
+
+const FIXED_VIEWPORT: BoardViewport = { scale: 1, offsetX: 0, offsetY: 0 };
+
+export function useBoardViewport(
+  containerRef: RefObject<HTMLDivElement | null>,
+  mode: BoardViewportMode = "fit",
+): BoardViewport {
+  const [viewport, setViewport] = useState<BoardViewport>(
+    mode === "fixed" ? FIXED_VIEWPORT : { scale: 0.1, offsetX: 0, offsetY: 0 },
+  );
 
   useEffect(() => {
+    if (mode === "fixed") {
+      return;
+    }
+
     const container = containerRef.current;
     if (!container) return;
 
@@ -54,7 +63,7 @@ export function useBoardViewport(containerRef: RefObject<HTMLDivElement | null>)
       observer.disconnect();
       media.removeEventListener("change", updateScale);
     };
-  }, [containerRef]);
+  }, [containerRef, mode]);
 
   return viewport;
 }

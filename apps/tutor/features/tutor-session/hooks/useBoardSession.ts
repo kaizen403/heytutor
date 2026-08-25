@@ -58,6 +58,8 @@ export interface UseBoardSessionParams {
   router: AppRouterInstance;
   phase: TutorPhase;
   speedMultiplier: number;
+  /** Capture TTS without speaker playback. */
+  muted?: boolean;
   whiteboardRef: RefObject<WhiteboardHandle | null>;
   cancelRef: RefObject<boolean>;
   notesEpochsRef: RefObject<NotesEpoch[]>;
@@ -78,6 +80,7 @@ export function useBoardSession({
   router,
   phase,
   speedMultiplier,
+  muted = false,
   whiteboardRef,
   cancelRef,
   notesEpochsRef,
@@ -211,11 +214,13 @@ export function useBoardSession({
 
   const ensureTTSClient = useCallback((): TTSClient => {
     if (!ttsClientRef.current) {
-      ttsClientRef.current = createTTSClient();
+      ttsClientRef.current = createTTSClient({ muted });
+    } else {
+      ttsClientRef.current.setMuted?.(muted);
     }
     ttsClientRef.current.setPlaybackRate(speedRef.current);
     return ttsClientRef.current;
-  }, [ttsClientRef, speedRef]);
+  }, [ttsClientRef, speedRef, muted]);
 
   useEffect(() => {
     ensureTTSClient();
@@ -325,7 +330,7 @@ export function useBoardSession({
         whiteboardRef.current?.clearBoard();
         resetBoardLayout(false, false);
         notesEpochsRef.current = [];
-        narrationSinceEpochRef.current = "";
+        narrationSinceEpochRef.current = lastNarration;
         setNarrationText(lastNarration);
         setCurrentSegmentText("");
 

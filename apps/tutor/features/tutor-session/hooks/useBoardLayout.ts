@@ -3,7 +3,7 @@ import type { DrawCommand } from "@heytutor/drawing";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import { tutorDebug } from "@heytutor/tutor-core";
 import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
-import { useBoardViewport } from "./useBoardViewport";
+import { useBoardViewport, type BoardViewportMode } from "./useBoardViewport";
 import { TEXT_LAYOUT, DIAGRAM_ZONE } from "../constants";
 import type { BoardTextRect, BoardLayoutState } from "../types";
 import {
@@ -21,15 +21,17 @@ export interface UseBoardLayoutParams {
   whiteboardRef: RefObject<WhiteboardHandle | null>;
   cancelRef: RefObject<boolean>;
   fbdPhaseStartedRef: RefObject<boolean>;
+  viewportMode?: BoardViewportMode;
 }
 
 export function useBoardLayout({
   whiteboardRef,
   cancelRef,
   fbdPhaseStartedRef,
+  viewportMode = "fit",
 }: UseBoardLayoutParams) {
   const boardContainerRef = useRef<HTMLDivElement>(null);
-  const boardViewport = useBoardViewport(boardContainerRef);
+  const boardViewport = useBoardViewport(boardContainerRef, viewportMode);
   const notesEpochsRef = useRef<NotesEpoch[]>([]);
   const narrationSinceEpochRef = useRef("");
   const boardLayoutRef = useRef<BoardLayoutState>({

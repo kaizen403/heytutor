@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Caveat, Inter } from "next/font/google";
 import {
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
@@ -14,6 +14,13 @@ const inter = Inter({
   variable: "--font-inter",
   display: "swap",
   adjustFontFallback: true,
+});
+
+const caveat = Caveat({
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  variable: "--font-caveat",
+  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -91,7 +98,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} h-full font-sans antialiased`}
+      className={`${inter.variable} ${caveat.variable} h-full font-sans antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

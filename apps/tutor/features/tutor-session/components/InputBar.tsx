@@ -22,6 +22,7 @@ export interface InputBarProps {
   autoFocus?: boolean;
   onUserInteractionChange?: (hasInteracted: boolean) => void;
   compact?: boolean;
+  prominent?: boolean;
 }
 
 type SpeechRecognitionResultList = {
@@ -86,6 +87,7 @@ export function InputBar({
   autoFocus = false,
   onUserInteractionChange,
   compact = false,
+  prominent = false,
 }: InputBarProps) {
   const [question, setQuestion] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -305,9 +307,12 @@ export function InputBar({
           event.preventDefault();
           void extractQuestionFromImage(file);
         }}
-        className="wb-input-wrap flex min-w-0 flex-1 items-center gap-1.5 px-2.5 py-2"
+        className={cn(
+          "wb-input-wrap flex min-w-0 flex-1 items-center gap-1.5 py-2",
+          prominent ? "px-3" : "px-2.5",
+        )}
         style={{
-          minHeight: "52px",
+          minHeight: prominent ? "64px" : "52px",
           backgroundColor: "#151517",
           border: "1px solid #2E2E33",
           borderRadius: "9999px",
@@ -332,7 +337,10 @@ export function InputBar({
             disabled={inputLocked}
             aria-label="Add question photo"
             title="Upload or paste a question photo"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40"
+            className={cn(
+              "flex shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40",
+              prominent ? "h-10 w-10" : "h-9 w-9",
+            )}
             style={{ color: isExtracting ? "#C9C9D2" : "#A6A6AE" }}
             onMouseEnter={(e) => {
               if (!inputLocked) e.currentTarget.style.color = "#F2F2F4";
@@ -341,7 +349,13 @@ export function InputBar({
               e.currentTarget.style.color = isExtracting ? "#C9C9D2" : "#A6A6AE";
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <svg
+              width={prominent ? 22 : 20}
+              height={prominent ? 22 : 20}
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden
+            >
               <rect
                 x="3.5"
                 y="6"
@@ -378,7 +392,10 @@ export function InputBar({
               ? "Reading the question…"
               : extractError ?? placeholder
           }
-          className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-[15px] focus:outline-none disabled:opacity-50 placeholder:text-[#717177]"
+          className={cn(
+            "min-w-0 flex-1 bg-transparent px-2 py-1.5 focus:outline-none disabled:opacity-50 placeholder:text-[#717177]",
+            prominent ? "text-base" : "text-[15px]",
+          )}
           autoComplete="off"
           spellCheck={false}
           style={{ color: "#F2F2F4" }}
@@ -389,7 +406,10 @@ export function InputBar({
           onClick={toggleListening}
           disabled={inputLocked}
           aria-label={isListening ? "Stop dictation" : "Dictate question"}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40"
+          className={cn(
+            "flex shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40",
+            prominent ? "h-10 w-10" : "h-9 w-9",
+          )}
           style={{
             color: isListening ? "#C9C9D2" : "#A6A6AE",
           }}
@@ -404,7 +424,12 @@ export function InputBar({
             }
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <svg
+            width={prominent ? 20 : 18}
+            height={prominent ? 20 : 18}
+            viewBox="0 0 24 24"
+            fill="none"
+          >
             <rect
               x="9"
               y="2"
@@ -500,7 +525,10 @@ export function InputBar({
             <button
               type="submit"
               disabled={buttonDisabled}
-              className="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all"
+              className={cn(
+                "shrink-0 rounded-full font-medium transition-all",
+                prominent ? "px-5 py-2.5 text-[15px]" : "px-4 py-2 text-sm",
+              )}
               style={{
                 ...submitColors,
                 cursor: buttonDisabled ? "not-allowed" : "pointer",
