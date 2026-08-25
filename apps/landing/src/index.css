@@ -69,6 +69,23 @@ h4 {
   .chat-typing-dot {
     animation: none;
   }
+
+  .marquee-track {
+    animation: none;
+  }
+}
+
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.marquee-track {
+  animation: marquee-scroll 40s linear infinite;
+}
+
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
 }
 
 @keyframes chat-typing-dot {
@@ -98,15 +115,6 @@ h4 {
   animation: chat-enter-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.footer-top-blend {
-  background: linear-gradient(
-    to bottom,
-    #F2F3F7 0%,
-    #37546D 55%,
-    #06061F 100%
-  );
-}
-
 .hero-grass-blend {
   filter: saturate(1.18) brightness(0.9) contrast(1.06);
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 96%, rgba(0, 0, 0, 0.92) 98%, rgba(0, 0, 0, 0.45) 99.5%, transparent 100%);
@@ -127,6 +135,21 @@ h4 {
 @media (prefers-reduced-motion: reduce) {
   .chat-enter-right,
   .chat-enter-up {
+    animation: none;
+  }
+}
+
+@keyframes footer-wave-drift {
+  from { transform: translate3d(-1.5%, 1%, 0) scale(1.02); }
+  to { transform: translate3d(1.5%, -1%, 0) scale(1.05); }
+}
+
+.footer-wave {
+  animation: footer-wave-drift 16s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer-wave {
     animation: none;
   }
 }
