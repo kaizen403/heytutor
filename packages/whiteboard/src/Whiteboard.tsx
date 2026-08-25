@@ -9,7 +9,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { textToStrokePaths } from "@heytutor/drawing";
+import {
+  resolveScheduledWriteClockMs,
+  shouldReleaseAudioPositionWait,
+  textToStrokePaths,
+} from "@heytutor/drawing";
 import { Layer, Path as KonvaPath, Rect, Stage } from "react-konva";
 import { VirtualCursor } from "./VirtualCursor";
 import { cursorOpacity, type CursorState } from "./cursorState";
@@ -67,6 +71,12 @@ export interface ShapeDrawOptions {
   getAudioPositionMs?: () => number;
   /** The audio position (ms) this shape should align with. Lag = audioPos - this. */
   targetMs?: number;
+  /**
+   * Engine pedagogical pace. `scene` caps wall-clock stroke time so a long
+   * path (train, circuit, busy body) reveals as a figure, not a pen performance.
+   * `follow` keeps the caller duration (formulas / key construction).
+   */
+  pace?: "follow" | "scene";
   /** Allows the owner to abort stale work between animation frames. */
   shouldCancel?: () => boolean;
 }
@@ -143,6 +153,9 @@ const HIGHLIGHT_FILL = "#B8D4B8";
 const HIGHLIGHT_OPACITY = 0.18;
 const ANNOTATION_STROKE_WIDTH = 3.25;
 const SHAPE_STROKE_WIDTH = 2.5;
+/** Scene setup ink: visible, not a 10s sketch. Matches tutor-core SCENE_MAX_MS. */
+const SCENE_SHAPE_MAX_MS = 320;
+const SCENE_SHAPE_MIN_MS = 70;
 const DIAGRAM_LINE_PATH_RE =
   /^M\s*([-\d.]+)\s+([-\d.]+)\s+L\s*([-\d.]+)\s+([-\d.]+)\s*$/;
 const DUSTER_WIDTH = 28;
@@ -432,6 +445,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           previousShapeBudgetMsRef.current = effectiveDuration;
         }
 
+        if (options?.pace === "scene") {
+          effectiveDuration = clamp(effectiveDuration, SCENE_SHAPE_MIN_MS, SCENE_SHAPE_MAX_MS);
+        }
+
         const path = new Konva.Path({
           data: pathData,
           stroke: inkColorRef.current,
@@ -452,7 +469,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           trackNode(path, animNodesRef.current);
           animLayer.batchDraw();
 
-          await animateOver(Math.min(duration, 300), (progress) => {
+          await animateOver(Math.min(options?.pace === "scene" ? SCENE_SHAPE_MAX_MS : duration, 300), (progress) => {
             path.opacity(progress);
             const point = path.getPointAtLength(progress * totalLength);
             if (point) {
@@ -799,19 +816,27 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     );
 
     const waitForAudioPosition = useCallback(
-      (targetMs: number, getAudioPositionMs: () => number): Promise<void> =>
+      (
+        targetMs: number,
+        getAudioPositionMs: () => number,
+        originWallMs: number,
+      ): Promise<void> =>
         new Promise((resolve) => {
           let done = false;
-          const startWall = performance.now();
-          let lastPositionMs = -1;
+          let timeoutId: number | null = null;
+          let lastRawPositionMs = -1;
           let stalledFrames = 0;
-          let audioClockStarted = false;
           let pausedAt: number | null = null;
           let pausedTotalMs = 0;
+          let maxPositionMs = 0;
 
           const cleanup = (): void => {
             if (done) return;
             done = true;
+            if (timeoutId !== null) {
+              window.clearTimeout(timeoutId);
+              timeoutId = null;
+            }
             animationCleanupsRef.current.delete(cleanup);
             resolve();
           };
@@ -830,7 +855,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 pausedAt = performance.now();
               }
               stalledFrames = 0;
-              requestTrackedFrame(step);
+              timeoutId = window.setTimeout(step, 16);
               return;
             }
             if (pausedAt !== null) {
@@ -838,47 +863,43 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               pausedAt = null;
             }
 
-            const positionMs = getAudioPositionMs();
-            if (positionMs > 0) {
-              audioClockStarted = true;
-            }
-            if (positionMs >= targetMs) {
-              cleanup();
-              return;
-            }
-            if (positionMs > 0 && positionMs === lastPositionMs) {
+            const rawPositionMs = getAudioPositionMs();
+            if (rawPositionMs > 0 && rawPositionMs === lastRawPositionMs) {
               stalledFrames += 1;
-              // Audio clock stopped advancing — release the pen instead of hanging the lesson.
-              if (stalledFrames >= 30) {
-                cleanup();
-                return;
-              }
             } else {
               stalledFrames = 0;
-              lastPositionMs = positionMs;
+              lastRawPositionMs = rawPositionMs;
             }
-            const elapsedMs = performance.now() - startWall - pausedTotalMs;
-            // A missing clock used to hang until speech ended, so every line
-            // spoke first and only then wrote. Release after a short wait.
-            if (!audioClockStarted && elapsedMs >= 400) {
-              cleanup();
-              return;
-            }
-            // Never block the lesson on a single character — cap wait time.
+            const elapsedMs = performance.now() - originWallMs - pausedTotalMs;
+            const positionMs = Math.max(
+              maxPositionMs,
+              resolveScheduledWriteClockMs({
+                rawPositionMs,
+                elapsedWallMs: elapsedMs,
+                stalledFrames,
+              }),
+            );
+            maxPositionMs = positionMs;
             if (
-              audioClockStarted &&
-              elapsedMs > Math.min(targetMs + 2000, 8000)
+              positionMs >= targetMs ||
+              shouldReleaseAudioPositionWait({
+                positionMs,
+                targetMs,
+                elapsedMs,
+                clockEverStarted: positionMs > 0 || elapsedMs > 0,
+                stalledFrames,
+              })
             ) {
               cleanup();
               return;
             }
-            requestTrackedFrame(step);
+            timeoutId = window.setTimeout(step, 16);
           };
 
           animationCleanupsRef.current.add(cleanup);
-          requestTrackedFrame(step);
+          timeoutId = window.setTimeout(step, 0);
         }),
-      [requestTrackedFrame],
+      [],
     );
 
     const writeText = useCallback(
@@ -996,6 +1017,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           const offsets = schedule?.charStartOffsetsMs;
           const scheduled = Array.isArray(offsets) && offsets.length > 0;
           const audioPositionMs = schedule?.getAudioPositionMs;
+          const scheduleOriginMs = performance.now();
 
           const flyBudgetMs = Math.min(totalStrokes * 2, duration * 0.06);
           const drawBudgetMs = Math.max(duration - flyBudgetMs, totalStrokes * 3);
@@ -1012,8 +1034,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             let charBudgetMs: number;
             if (scheduled && offsets && audioPositionMs) {
               const start = offsets[Math.min(ci, offsets.length - 1)] ?? 0;
-              // Hold this character until the voice actually reaches its spoken moment.
-              await waitForAudioPosition(start, audioPositionMs);
+              // Hold this character until the voice reaches its spoken moment.
+              // Missing/stuck clocks fall through to wall time from this WRITE start.
+              await waitForAudioPosition(start, audioPositionMs, scheduleOriginMs);
               if (!mountedRef.current || shouldCancel?.()) return;
               schedule?.onCharacterStart?.({
                 char: charPath.char,
