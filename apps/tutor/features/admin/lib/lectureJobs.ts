@@ -1,4 +1,5 @@
 import type { TutorPhase } from "@/features/tutor-session/types";
+import { finalizeBoardTitle } from "@/lib/boards/boardTitle";
 import type { ProbeQuestion } from "./probes";
 
 export const EXPECTED_LECTURE_MS = 4 * 60 * 1000;
@@ -15,6 +16,8 @@ export type LectureJob = {
   topicId: string;
   difficulty: ProbeQuestion["difficulty"];
   question: string;
+  /** Dashboard-style board name, never a syllabus id like `physics|2|suvat-equations`. */
+  title: string;
   status: LectureJobStatus;
   boardId?: string;
   phase?: TutorPhase;
@@ -23,6 +26,20 @@ export type LectureJob = {
   error?: string;
 };
 
+const SYLLABUS_SLUG_TITLE = /^(?:\[Playground\]\s*)?(physics|maths)\|\d+\|/;
+
+export function isSyllabusSlugTitle(title: string): boolean {
+  return SYLLABUS_SLUG_TITLE.test(title.trim());
+}
+
+export function lectureJobTitle(job: Pick<LectureJob, "question"> & { title?: string }): string {
+  const named = job.title?.trim() ?? "";
+  if (named && !isSyllabusSlugTitle(named) && named.toLowerCase() !== "new board") {
+    return named;
+  }
+  return finalizeBoardTitle(job.question);
+}
+
 export function makeLectureJobs(questions: ProbeQuestion[], now: number): LectureJob[] {
   return questions.map((probe, index) => ({
     id: `${probe.id}:${now}:${index}`,
@@ -30,6 +47,7 @@ export function makeLectureJobs(questions: ProbeQuestion[], now: number): Lectur
     topicId: probe.topicId,
     difficulty: probe.difficulty,
     question: probe.question,
+    title: finalizeBoardTitle(probe.question),
     status: "queued",
   }));
 }
@@ -105,6 +123,32 @@ export function isLectureWatchable(
   return false;
 }
 
+/**
+ * In-progress recordings can be attached as Watch Live once the headless
+ * shell exists (`isRecording`). Queued jobs and finished boards are not live.
+ */
+export function isLectureLiveWatchable(
+  job: Pick<LectureJob, "status" | "boardId">,
+  options: { isRecording?: boolean } = {},
+): boolean {
+  if (!job.boardId) {
+    return false;
+  }
+  if (job.status !== "running") {
+    return false;
+  }
+  return Boolean(options.isRecording);
+}
+
+export function ongoingLectureJobs(jobs: readonly LectureJob[]): LectureJob[] {
+  return jobs.filter((job) => job.status === "running");
+}
+
+/** Keep the headless shell mounted after complete/fail while Watch Live is open. */
+export function shouldKeepHeadlessRuntime(boardId: string, heldBoardId: string | null): boolean {
+  return heldBoardId === boardId;
+}
+
 /** Finished leftover boards can be deleted; never a currently recording headless shell. */
 export function isLectureDeletable(
   job: Pick<LectureJob, "status" | "boardId">,
@@ -120,4 +164,30 @@ export function isLectureDeletable(
 }
 
 export const DELETE_LECTURE_CONFIRM =
-  "Delete this lecture recording? The whiteboard, transcript, and saved audio will be removed. This cannot be undone.";
+  "Delete this lecture recording? The whiteboard and saved audio will be removed. This cannot be undone.";
+
+export function deleteLecturesConfirm(count: number): string {
+  if (count <= 1) {
+    return DELETE_LECTURE_CONFIRM;
+  }
+  return `Delete ${count} lecture recordings? Whiteboards and saved audio will be removed. This cannot be undone.`;
+}
+
+export function deletableJobBoardIds(
+  jobs: readonly Pick<LectureJob, "status" | "boardId">[],
+  recordingBoardIds: ReadonlySet<string>,
+): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const job of jobs) {
+    if (!job.boardId || seen.has(job.boardId)) {
+      continue;
+    }
+    if (!isLectureDeletable(job, { isRecording: recordingBoardIds.has(job.boardId) })) {
+      continue;
+    }
+    seen.add(job.boardId);
+    ids.push(job.boardId);
+  }
+  return ids;
+}

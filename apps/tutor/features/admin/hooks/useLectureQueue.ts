@@ -1,18 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createBoardWithTitle, deleteBoardApi, fetchBoards } from "@/lib/boards/boardsClient";
+import { createBoardWithTitle, deleteBoardApi, fetchBoards, requestBoardTitle, updateBoard } from "@/lib/boards/boardsClient";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { TutorPhase } from "@/features/tutor-session/types";
+import { finalizeBoardTitle } from "@/lib/boards/boardTitle";
 import {
   drainLectureJobs,
   JOB_TIMEOUT_MS,
   makeLectureJobs,
   MAX_CONCURRENT_LECTURES,
   nextQueuedJobs,
+  shouldKeepHeadlessRuntime,
   type LectureJob,
 } from "../lib/lectureJobs";
-import { playgroundBoardTitle } from "../lib/playgroundBoards";
+import {
+  forgetLectureBoard,
+  parsePlaygroundBoardTitle,
+  rememberLectureBoard,
+} from "../lib/playgroundBoards";
 import type { ProbeQuestion } from "../lib/probes";
 
 export type HeadlessRuntime = {
@@ -29,6 +35,26 @@ function delay(ms: number): Promise<void> {
   });
 }
 
+async function adoptLegacyPlaygroundBoards(boards: BoardEntry[]): Promise<BoardEntry[]> {
+  const adopted: BoardEntry[] = [];
+  for (const board of boards) {
+    const parsed = parsePlaygroundBoardTitle(board.title);
+    if (!parsed) {
+      adopted.push(board);
+      continue;
+    }
+    rememberLectureBoard(board.id, parsed);
+    const named = board.preview.trim() ? finalizeBoardTitle(board.preview) : "";
+    if (!named) {
+      adopted.push(board);
+      continue;
+    }
+    const updated = await updateBoard(board.id, { title: named });
+    adopted.push(updated ?? board);
+  }
+  return adopted;
+}
+
 export function useLectureQueue() {
   const [jobs, setJobs] = useState<LectureJob[]>([]);
   const [runtimes, setRuntimes] = useState<HeadlessRuntime[]>([]);
@@ -41,6 +67,7 @@ export function useLectureQueue() {
   const pumpingRef = useRef(false);
   const settleByJobRef = useRef(new Map<string, (outcome: JobOutcome) => void>());
   const lastQuestionsRef = useRef<ProbeQuestion[]>([]);
+  const heldBoardIdRef = useRef<string | null>(null);
   const [lastBatchCount, setLastBatchCount] = useState(0);
   const concurrencyRef = useRef(concurrency);
   const aliveRef = useRef(true);
@@ -74,8 +101,9 @@ export function useLectureQueue() {
 
   const refreshBoards = useCallback(async () => {
     const list = await fetchBoards();
+    const adopted = await adoptLegacyPlaygroundBoards(list);
     if (aliveRef.current) {
-      setBoards(list);
+      setBoards(adopted);
     }
   }, []);
 
@@ -92,8 +120,28 @@ export function useLectureQueue() {
     if (!isBusy) {
       return;
     }
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(() => setNow(Date.now()), 250);
+    let worker: Worker | null = null;
+    let workerUrl: string | null = null;
+    try {
+      const source = "setInterval(() => postMessage(Date.now()), 250)";
+      workerUrl = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+      worker = new Worker(workerUrl);
+      worker.onmessage = () => {
+        if (aliveRef.current) {
+          setNow(Date.now());
+        }
+      };
+    } catch {
+      // Workers are unavailable in some test environments; the interval still ticks.
+    }
+    return () => {
+      window.clearInterval(timer);
+      worker?.terminate();
+      if (workerUrl) {
+        URL.revokeObjectURL(workerUrl);
+      }
+    };
   }, [isBusy]);
 
   const waitForOutcome = useCallback((jobId: string, timeoutMs: number) => {
@@ -115,12 +163,26 @@ export function useLectureQueue() {
     });
   }, []);
 
+  const nameLectureBoard = useCallback(
+    (jobId: string, boardId: string, question: string, currentTitle: string) => {
+      void requestBoardTitle(question).then(async (named) => {
+        if (!aliveRef.current || !named || named === currentTitle) {
+          return;
+        }
+        patchJob(jobId, { title: named });
+        await updateBoard(boardId, { title: named });
+        await refreshBoards();
+      });
+    },
+    [patchJob, refreshBoards],
+  );
+
   const runJob = useCallback(
     async (job: LectureJob) => {
       const startedAt = Date.now();
       patchJob(job.id, { status: "running", startedAt, phase: "idle", error: undefined });
 
-      const board = await createBoardWithTitle(playgroundBoardTitle(job.topicId, job.difficulty));
+      const board = await createBoardWithTitle(job.title);
       if (stopRef.current) {
         patchJob(job.id, { status: "failed", error: "stopped", endedAt: Date.now() });
         return;
@@ -134,6 +196,8 @@ export function useLectureQueue() {
         return;
       }
 
+      rememberLectureBoard(board.id, { topicId: job.topicId, difficulty: job.difficulty });
+      void nameLectureBoard(job.id, board.id, job.question, job.title);
       patchJob(job.id, { boardId: board.id });
       if (!aliveRef.current) {
         return;
@@ -142,7 +206,8 @@ export function useLectureQueue() {
       setRuntimes((current) => [...current.filter((entry) => entry.jobId !== job.id), runtime]);
 
       const outcome = await waitForOutcome(job.id, JOB_TIMEOUT_MS);
-      if (aliveRef.current) {
+      const held = shouldKeepHeadlessRuntime(board.id, heldBoardIdRef.current);
+      if (aliveRef.current && !held) {
         setRuntimes((current) => current.filter((entry) => entry.jobId !== job.id));
       }
       await delay(100);
@@ -158,7 +223,7 @@ export function useLectureQueue() {
       });
       await refreshBoards();
     },
-    [patchJob, refreshBoards, waitForOutcome],
+    [nameLectureBoard, patchJob, refreshBoards, waitForOutcome],
   );
 
   const pump = useCallback(async () => {
@@ -214,12 +279,34 @@ export function useLectureQueue() {
     [pump, syncJobs],
   );
 
+  const dropRuntimeIfIdle = useCallback((boardId: string) => {
+    const job = jobsRef.current.find((entry) => entry.boardId === boardId);
+    if (job?.status === "running") {
+      return;
+    }
+    if (aliveRef.current) {
+      setRuntimes((current) => current.filter((entry) => entry.boardId !== boardId));
+    }
+  }, []);
+
+  const setHeldBoardId = useCallback(
+    (boardId: string | null) => {
+      const previous = heldBoardIdRef.current;
+      heldBoardIdRef.current = boardId;
+      if (previous && previous !== boardId) {
+        dropRuntimeIfIdle(previous);
+      }
+    },
+    [dropRuntimeIfIdle],
+  );
+
   const startAgain = useCallback(() => {
     const questions = lastQuestionsRef.current;
     if (questions.length === 0) {
       return;
     }
     stopRef.current = true;
+    heldBoardIdRef.current = null;
     for (const finish of settleByJobRef.current.values()) {
       finish({ status: "failed", error: "stopped" });
     }
@@ -242,6 +329,7 @@ export function useLectureQueue() {
 
   const stopAll = useCallback(() => {
     stopRef.current = true;
+    heldBoardIdRef.current = null;
     for (const finish of settleByJobRef.current.values()) {
       finish({ status: "failed", error: "stopped" });
     }
@@ -294,6 +382,7 @@ export function useLectureQueue() {
     if (!ok) {
       return false;
     }
+    forgetLectureBoard(boardId);
     syncJobs(
       jobsRef.current.map((job) =>
         job.boardId === boardId ? { ...job, boardId: undefined } : job,
@@ -305,6 +394,23 @@ export function useLectureQueue() {
     await refreshBoards();
     return true;
   }, [refreshBoards, syncJobs]);
+
+  const removeRecordings = useCallback(async (boardIds: readonly string[]): Promise<{
+    deleted: number;
+    failed: number;
+  }> => {
+    let deleted = 0;
+    let failed = 0;
+    for (const boardId of boardIds) {
+      const ok = await removeRecording(boardId);
+      if (ok) {
+        deleted += 1;
+      } else {
+        failed += 1;
+      }
+    }
+    return { deleted, failed };
+  }, [removeRecording]);
 
   return {
     jobs,
@@ -321,6 +427,8 @@ export function useLectureQueue() {
     stopAll,
     refreshBoards,
     removeRecording,
+    removeRecordings,
+    setHeldBoardId,
     handlePhase,
     handleComplete,
     handleError,

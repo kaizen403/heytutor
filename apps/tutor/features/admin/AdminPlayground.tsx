@@ -1,24 +1,21 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Download, FlaskConical, RotateCcw } from "lucide-react";
+import { Download, FlaskConical, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  BOARD_HEIGHT,
-  BOARD_WIDTH,
-  TutorSessionShell,
-  unlockTutorAudio,
-} from "@/features/tutor-session";
+import { TutorSessionShell, unlockTutorAudio } from "@/features/tutor-session";
 import { JobsPanel } from "./components/JobsPanel";
-import { PlayMenu } from "./components/PlayMenu";
+import { MessageDialog } from "./components/MessageDialog";
+import { LiveRecordingsDock } from "./components/LiveRecordingsDock";
 import { Checkbox } from "./components/Checkbox";
 import { TopicRow } from "./components/TopicRow";
 import { TopicSheet } from "./components/TopicSheet";
 import { WatchDrawer, type WatchIntent } from "./components/WatchDrawer";
 import { useLectureQueue } from "./hooks/useLectureQueue";
+import { useLiveWatchSlot } from "./hooks/useLiveWatchSlot";
 import { useSyllabusProgress } from "./hooks/useSyllabusProgress";
-import { mergePlaygroundRecordings, recordingKey } from "./lib/playgroundBoards";
+import { mergePlaygroundRecordings, recordingBoardIdsForQuestions, recordingKey } from "./lib/playgroundBoards";
 import {
   PROBE_DIFFICULTIES,
   questionsByIds,
@@ -28,7 +25,14 @@ import {
   type ProbeDifficulty,
   type ProbeQuestion,
 } from "./lib/probes";
-import { DELETE_LECTURE_CONFIRM } from "./lib/lectureJobs";
+import { deletableJobBoardIds, deleteLecturesConfirm, isLectureLiveWatchable, lectureJobTitle } from "./lib/lectureJobs";
+import {
+  headlessLectureBoardStyle,
+  headlessLectureOffscreenStyle,
+  promotedLectureBoardStyle,
+  promotedLectureBoardWrapStyle,
+  promotedLectureFrameStyle,
+} from "./lib/headlessRuntime";
 import {
   countItems,
   flattenItems,
@@ -88,15 +92,22 @@ function unitProgress(
   return { accepted, total: items.length };
 }
 
-function difficultyCounts(questions: ProbeQuestion[]): Partial<Record<ProbeDifficulty, number>> {
-  const counts: Partial<Record<ProbeDifficulty, number>> = {};
-  for (const difficulty of PROBE_DIFFICULTIES) {
-    const count = questions.filter((question) => question.difficulty === difficulty).length;
-    if (count > 0) {
-      counts[difficulty] = count;
+function liveRecordingMap(
+  jobs: { status: string; topicId: string; difficulty: ProbeDifficulty; boardId?: string }[],
+  topicId: string,
+  recordingBoardIds: ReadonlySet<string>,
+): Partial<Record<ProbeDifficulty, string>> {
+  const recording: Partial<Record<ProbeDifficulty, string>> = {};
+  for (const job of jobs) {
+    if (job.status !== "running" || job.topicId !== topicId || !job.boardId) {
+      continue;
     }
+    if (!recordingBoardIds.has(job.boardId)) {
+      continue;
+    }
+    recording[job.difficulty] = job.boardId;
   }
-  return counts;
+  return recording;
 }
 
 export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
@@ -108,11 +119,19 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
   const [selectedItem, setSelectedItem] = useState<SyllabusItem | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [isSelecting, setIsSelecting] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const [watchBoardId, setWatchBoardId] = useState<string | null>(null);
   const [watchIntent, setWatchIntent] = useState<WatchIntent>("replay");
   const [watchTitle, setWatchTitle] = useState<string | undefined>(undefined);
   const [watchQuestion, setWatchQuestion] = useState<string | undefined>(undefined);
+  const [dialog, setDialog] = useState<{
+    mode: "confirm" | "notice";
+    title: string;
+    description: string;
+    confirmLabel?: string;
+    onConfirm?: () => void;
+  } | null>(null);
 
   const stats = useMemo(() => computeStats(tree, progress), [tree, progress]);
   const units = tree.subjects[subject];
@@ -125,22 +144,34 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     () => mergePlaygroundRecordings(queue.boards, queue.jobs, recordingBoardIds),
     [queue.boards, queue.jobs, recordingBoardIds],
   );
+  const isLiveWatch = watchIntent === "live" && watchBoardId !== null;
+  const liveSlot = useLiveWatchSlot(isLiveWatch, watchBoardId);
+  const liveJob = isLiveWatch
+    ? queue.jobs.find((job) => job.boardId === watchBoardId)
+    : undefined;
+
+  const setHeldBoardId = queue.setHeldBoardId;
 
   const closeWatch = useCallback(() => {
     setWatchBoardId(null);
     setWatchTitle(undefined);
     setWatchQuestion(undefined);
     setWatchIntent("replay");
-  }, []);
+    setHeldBoardId(null);
+  }, [setHeldBoardId]);
 
   const openLecture = (
     boardId: string,
     intent: WatchIntent,
     options?: { title?: string; question?: string },
   ) => {
+    if (intent === "live") {
+      return;
+    }
     if (recordingBoardIds.has(boardId)) {
       return;
     }
+    setHeldBoardId(null);
     unlockTutorAudio();
     setWatchIntent(intent);
     setWatchTitle(options?.title);
@@ -148,20 +179,68 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     setWatchBoardId(boardId);
   };
 
-  const deleteLecture = async (boardId: string) => {
-    if (recordingBoardIds.has(boardId)) {
+  const openLiveLecture = (
+    boardId: string,
+    options?: { title?: string; question?: string },
+  ) => {
+    const job = queue.jobs.find((entry) => entry.boardId === boardId);
+    if (
+      !job ||
+      !isLectureLiveWatchable(job, { isRecording: recordingBoardIds.has(boardId) })
+    ) {
       return;
     }
-    if (!window.confirm(DELETE_LECTURE_CONFIRM)) {
-      return;
-    }
-    if (watchBoardId === boardId) {
+    unlockTutorAudio();
+    setHeldBoardId(boardId);
+    setWatchIntent("live");
+    setWatchTitle(options?.title ?? lectureJobTitle(job));
+    setWatchQuestion(options?.question ?? job.question);
+    setWatchBoardId(boardId);
+  };
+
+  const performDelete = async (boardIds: string[]) => {
+    if (watchBoardId && boardIds.includes(watchBoardId)) {
       closeWatch();
     }
-    const ok = await queue.removeRecording(boardId);
-    if (!ok) {
-      window.alert("Could not delete this lecture recording.");
+    const result = await queue.removeRecordings(boardIds);
+    if (result.failed === 0) {
+      return;
     }
+    setDialog({
+      mode: "notice",
+      title: result.deleted === 0 ? "Could not delete" : "Some lectures were not deleted",
+      description:
+        result.deleted === 0
+          ? "Could not delete those lecture recordings."
+          : `Deleted ${result.deleted}, but ${result.failed} could not be removed.`,
+    });
+  };
+
+  const deleteLectures = (boardIds: string[]) => {
+    const unique = [...new Set(boardIds)].filter((boardId) => !recordingBoardIds.has(boardId));
+    if (unique.length === 0) {
+      if (boardIds.length > 0) {
+        setDialog({
+          mode: "notice",
+          title: "Still recording",
+          description: "Those lectures are still recording and cannot be deleted yet.",
+        });
+      }
+      return;
+    }
+    setDialog({
+      mode: "confirm",
+      title: unique.length === 1 ? "Delete lecture?" : `Delete ${unique.length} lectures?`,
+      description: deleteLecturesConfirm(unique.length),
+      confirmLabel: unique.length === 1 ? "Delete" : `Delete ${unique.length}`,
+      onConfirm: () => {
+        void performDelete(unique);
+      },
+    });
+  };
+
+  const deleteLecture = (boardId: string) => {
+    deleteLectures([boardId]);
   };
 
   const startSelected = () => {
@@ -172,13 +251,12 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     unlockTutorAudio();
     queue.enqueue(questions);
     setSelectedIds(new Set());
+    setIsSelecting(false);
   };
 
-  const selectQuestions = (questions: ProbeQuestion[]) => {
-    toggleSelected(
-      questions.map((question) => question.id),
-      true,
-    );
+  const cancelSelecting = () => {
+    setSelectedIds(new Set());
+    setIsSelecting(false);
   };
 
   const toggleSelected = (ids: string[], selected: boolean) => {
@@ -207,6 +285,18 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
 
   const selectedEntry = selectedItem ? get(selectedItem.id) : null;
   const selectedCount = selectedIds.size;
+  const selectedQuestions = useMemo(
+    () => questionsByIds(probes, selectedIds),
+    [probes, selectedIds],
+  );
+  const selectedRecordingIds = useMemo(
+    () => recordingBoardIdsForQuestions(selectedQuestions, recordings, recordingBoardIds),
+    [selectedQuestions, recordings, recordingBoardIds],
+  );
+  const completedJobRecordingIds = useMemo(
+    () => deletableJobBoardIds(queue.jobs, recordingBoardIds),
+    [queue.jobs, recordingBoardIds],
+  );
 
   return (
     <div
@@ -224,7 +314,6 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                 <h1 className="text-base font-semibold tracking-[-0.02em] text-[#F2F2F4]">Syllabus Playground</h1>
                 <p className="text-xs text-[#A6A6AE]">
                   Syllabus taxonomy · {countItems(tree)} topics · {stats.checked}/{stats.total} reviewed
-                  {" · "}square selects a test, round marks reviewed
                 </p>
               </div>
             </div>
@@ -248,9 +337,13 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  if (window.confirm("Reset all checklist progress? This cannot be undone.")) {
-                    resetAll();
-                  }
+                  setDialog({
+                    mode: "confirm",
+                    title: "Reset progress?",
+                    description: "This clears all checklist progress. It cannot be undone.",
+                    confirmLabel: "Reset",
+                    onConfirm: resetAll,
+                  });
                 }}
                 className="gap-1.5 text-[#A6A6AE]"
               >
@@ -283,7 +376,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         </div>
       </div>
 
-      <main className={cn("min-h-0 flex-1 overflow-y-auto px-4 pb-6", (selectedCount > 0 || queue.isBusy) && "pb-24")}>
+      <main className={cn("min-h-0 flex-1 overflow-y-auto px-4 pb-6", (isSelecting || queue.isBusy) && "pb-24")}>
         <div className="mx-auto flex max-w-4xl flex-col gap-4">
           <JobsPanel
             jobs={queue.jobs}
@@ -293,30 +386,49 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
             onConcurrencyChange={queue.setConcurrency}
             lastBatchCount={queue.lastBatchCount}
             onStartAgain={() => {
+              closeWatch();
               unlockTutorAudio();
               queue.startAgain();
             }}
             onClear={queue.clearJobs}
-            onStop={queue.stopAll}
+            onStop={() => {
+              closeWatch();
+              queue.stopAll();
+            }}
             boards={queue.boards}
             recordingBoardIds={recordingBoardIds}
+            onWatchLive={(boardId) => {
+              const job = queue.jobs.find((entry) => entry.boardId === boardId);
+              openLiveLecture(boardId, {
+                title: job ? lectureJobTitle(job) : undefined,
+                question: job?.question,
+              });
+            }}
             onWatch={(boardId) => {
               const job = queue.jobs.find((entry) => entry.boardId === boardId);
               openLecture(boardId, "replay", {
-                title: job ? `${job.topicId} · ${job.difficulty}` : undefined,
+                title: job ? lectureJobTitle(job) : undefined,
                 question: job?.question,
               });
             }}
             onNotes={(boardId) => {
               const job = queue.jobs.find((entry) => entry.boardId === boardId);
               openLecture(boardId, "notes", {
-                title: job ? `${job.topicId} · ${job.difficulty}` : undefined,
+                title: job ? lectureJobTitle(job) : undefined,
                 question: job?.question,
               });
             }}
             onDelete={(boardId) => {
-              void deleteLecture(boardId);
+              deleteLecture(boardId);
             }}
+            onDeleteCompleted={
+              completedJobRecordingIds.length > 0
+                ? () => {
+                    deleteLectures(completedJobRecordingIds);
+                  }
+                : undefined
+            }
+            completedDeleteCount={completedJobRecordingIds.length}
           />
 
           {units.map((unit) => {
@@ -328,6 +440,11 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
             const unitSelectedCount = unitProbeIds.filter((id) => selectedIds.has(id)).length;
             const unitAllSelected = unitProbeIds.length > 0 && unitSelectedCount === unitProbeIds.length;
             const unitSomeSelected = unitSelectedCount > 0 && !unitAllSelected;
+            const unitRecordingIds = recordingBoardIdsForQuestions(
+              unitQuestions,
+              recordings,
+              recordingBoardIds,
+            );
 
             return (
               <section
@@ -336,19 +453,21 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
               >
                 <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                   <div className="flex min-w-0 items-start gap-2.5">
-                    <Checkbox
-                      checked={unitAllSelected}
-                      indeterminate={unitSomeSelected}
-                      disabled={unitProbeIds.length === 0}
-                      onCheckedChange={(selected) => toggleSelected(unitProbeIds, selected)}
-                      aria-label={`Select Unit ${unit.number} for testing`}
-                      title={
-                        unitProbeIds.length === 0
-                          ? "No lecture fixtures for this unit yet"
-                          : "Select this unit for testing"
-                      }
-                      className="mt-0.5 rounded-[2px]"
-                    />
+                    {isSelecting ? (
+                      <Checkbox
+                        checked={unitAllSelected}
+                        indeterminate={unitSomeSelected}
+                        disabled={unitProbeIds.length === 0}
+                        onCheckedChange={(selected) => toggleSelected(unitProbeIds, selected)}
+                        aria-label={`Select Unit ${unit.number}`}
+                        title={
+                          unitProbeIds.length === 0
+                            ? "No lecture fixtures for this unit yet"
+                            : "Select this unit"
+                        }
+                        className="mt-0.5"
+                      />
+                    ) : null}
                     <div>
                       <h2 className="text-sm font-semibold text-[#F2F2F4]">
                         Unit {unit.number}: {unit.title}
@@ -369,12 +488,30 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                     <span className="text-xs text-[#A6A6AE]">
                       {accepted}/{total} accepted
                     </span>
-                    <PlayMenu
-                      label="Select"
-                      available={difficultyCounts(unitQuestions)}
-                      emptyTitle="No lecture fixtures for this unit yet"
-                      onPick={(choice) => selectQuestions(questionsForUnit(probes, unitId, choice))}
-                    />
+                    {unitRecordingIds.length > 0 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 text-[#A6A6AE] hover:text-[#E06858]"
+                        onClick={() => {
+                          void deleteLectures(unitRecordingIds);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete lectures ({unitRecordingIds.length})
+                      </Button>
+                    ) : null}
+                    {unitProbeIds.length > 0 ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsSelecting(true)}
+                      >
+                        Select
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
 
@@ -389,6 +526,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                         recorded[difficulty] = board.id;
                       }
                     }
+                    const recording = liveRecordingMap(runningJobs, item.id, recordingBoardIds);
                     const showSubsection =
                       item.subsection &&
                       (index === 0 || unit.items[index - 1]?.subsection !== item.subsection);
@@ -405,13 +543,11 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                           probes={topicProbes}
                           checked={entry.checked}
                           status={entry.status}
+                          selecting={isSelecting}
                           selectedIds={selectedIds}
                           expanded={expandedIds.has(item.id)}
                           recorded={recorded}
-                          recordingDifficulties={runningJobs
-                            .filter((job) => job.topicId === item.id)
-                            .map((job) => job.difficulty)}
-                          onToggleReviewed={(value) => setChecked(item.id, value)}
+                          recording={recording}
                           onToggleSelected={toggleSelected}
                           onToggleExpanded={() => {
                             setExpandedIds((current) => {
@@ -437,6 +573,13 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                                 recordings.get(recordingKey(item.id, difficulty))?.preview,
                             });
                           }}
+                          onWatchLive={(boardId, difficulty) => {
+                            const probe = topicProbes.find((entry) => entry.difficulty === difficulty);
+                            openLiveLecture(boardId, {
+                              title: item.text,
+                              question: probe?.question,
+                            });
+                          }}
                           onNotes={(boardId, difficulty) => {
                             const probe = topicProbes.find((entry) => entry.difficulty === difficulty);
                             openLecture(boardId, "notes", {
@@ -460,21 +603,45 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         </div>
       </main>
 
-      {selectedCount > 0 || queue.isBusy ? (
+      {isSelecting || queue.isBusy ? (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#2E2E33] bg-[#151517]/95 px-4 py-3 backdrop-blur-md">
           <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-[#A6A6AE]">
-              {selectedCount > 0
-                ? `${selectedCount} question${selectedCount === 1 ? "" : "s"} selected`
+              {isSelecting
+                ? selectedCount > 0
+                  ? `${selectedCount} selected`
+                  : "Tick the questions you want"
                 : "Lecture running"}
             </p>
             <div className="flex items-center gap-2">
               {queue.isBusy ? (
-                <Button type="button" variant="outline" size="sm" onClick={queue.stopAll}>
+                <Button type="button" variant="outline" size="sm" onClick={() => {
+                  closeWatch();
+                  queue.stopAll();
+                }}>
                   Stop testing
                 </Button>
               ) : null}
-              {selectedCount > 0 ? (
+              {isSelecting ? (
+                <Button type="button" variant="ghost" size="sm" onClick={cancelSelecting}>
+                  Cancel
+                </Button>
+              ) : null}
+              {isSelecting && selectedRecordingIds.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-[#A6A6AE] hover:text-[#E06858]"
+                  onClick={() => {
+                    void deleteLectures(selectedRecordingIds);
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete ({selectedRecordingIds.length})
+                </Button>
+              ) : null}
+              {isSelecting && selectedCount > 0 ? (
                 <Button type="button" size="sm" onClick={startSelected}>
                   Start testing ({selectedCount})
                 </Button>
@@ -486,12 +653,25 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
 
       <TopicSheet
         item={selectedItem}
+        probes={selectedItem ? questionsForTopic(probes, selectedItem.id) : []}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         checked={selectedEntry?.checked ?? false}
         status={selectedEntry?.status ?? "pending"}
         notes={selectedEntry?.notes ?? ""}
         boardId={selectedEntry?.boardId}
+        recording={
+          selectedItem
+            ? liveRecordingMap(runningJobs, selectedItem.id, recordingBoardIds)
+            : {}
+        }
+        onWatchLive={(boardId) => {
+          const job = queue.jobs.find((entry) => entry.boardId === boardId);
+          openLiveLecture(boardId, {
+            title: selectedItem?.text,
+            question: job?.question,
+          });
+        }}
         onCheckedChange={(checked) => {
           if (selectedItem) {
             setChecked(selectedItem.id, checked);
@@ -514,12 +694,35 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         }}
       />
 
+      <MessageDialog
+        open={dialog !== null}
+        title={dialog?.title ?? ""}
+        description={dialog?.description ?? ""}
+        mode={dialog?.mode ?? "notice"}
+        confirmLabel={dialog?.confirmLabel}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialog(null);
+          }
+        }}
+        onConfirm={dialog?.onConfirm}
+      />
+
       <WatchDrawer
         boardId={watchBoardId}
         intent={watchIntent}
         title={watchTitle}
         question={watchQuestion}
+        livePhase={liveJob?.phase}
+        liveStatus={
+          liveJob?.status === "complete" || liveJob?.status === "failed" || liveJob?.status === "running"
+            ? liveJob.status
+            : undefined
+        }
         onIntentChange={(next) => {
+          if (watchIntent === "live") {
+            return;
+          }
           if (next === "replay") {
             unlockTutorAudio();
           }
@@ -531,31 +734,64 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         }}
       />
 
-      {queue.runtimes.map((runtime, index) => (
-        <div
-          key={runtime.jobId}
-          aria-hidden
-          style={{
-            position: "fixed",
-            left: -2000,
-            top: index * (BOARD_HEIGHT + 16),
-            width: BOARD_WIDTH,
-            height: BOARD_HEIGHT,
-            overflow: "hidden",
-            pointerEvents: "none",
+      {!isLiveWatch ? (
+        <LiveRecordingsDock
+          jobs={queue.jobs}
+          now={queue.now}
+          recordingBoardIds={recordingBoardIds}
+          watchingBoardId={null}
+          onWatchLive={(boardId) => {
+            const job = queue.jobs.find((entry) => entry.boardId === boardId);
+            openLiveLecture(boardId, {
+              title: job ? lectureJobTitle(job) : undefined,
+              question: job?.question,
+            });
           }}
-        >
-          <TutorSessionShell
-            sessionId={runtime.boardId}
-            variant="headless"
-            autoQuestion={runtime.question}
-            muteAudio
-            onPhase={(phase) => queue.handlePhase(runtime.jobId, phase)}
-            onComplete={() => queue.handleComplete(runtime.jobId)}
-            onError={(error) => queue.handleError(runtime.jobId, error)}
-          />
-        </div>
-      ))}
+        />
+      ) : null}
+
+      {queue.runtimes.map((runtime, index) => {
+        const promoted = Boolean(
+          isLiveWatch && runtime.boardId === watchBoardId && liveSlot,
+        );
+        return (
+          <div
+            key={runtime.jobId}
+            aria-hidden
+            style={
+              promoted && liveSlot
+                ? promotedLectureFrameStyle(liveSlot)
+                : headlessLectureOffscreenStyle(index)
+            }
+          >
+            <div
+              style={
+                promoted && liveSlot
+                  ? promotedLectureBoardWrapStyle(liveSlot)
+                  : { width: "100%", height: "100%", overflow: "hidden" }
+              }
+            >
+              <div
+                style={
+                  promoted && liveSlot
+                    ? promotedLectureBoardStyle(liveSlot)
+                    : headlessLectureBoardStyle(1)
+                }
+              >
+                <TutorSessionShell
+                  sessionId={runtime.boardId}
+                  variant="headless"
+                  autoQuestion={runtime.question}
+                  muteAudio={!promoted}
+                  onPhase={(phase) => queue.handlePhase(runtime.jobId, phase)}
+                  onComplete={() => queue.handleComplete(runtime.jobId)}
+                  onError={(error) => queue.handleError(runtime.jobId, error)}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

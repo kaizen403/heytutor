@@ -12,23 +12,28 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { createBoardWithTitle } from "@/lib/boards/boardsClient";
+import { createBoard } from "@/lib/boards/boardsClient";
 import type { SyllabusItem } from "../lib/parseSyllabus";
 import type { ItemStatus } from "../lib/progressStorage";
+import { PROBE_DIFFICULTIES, type ProbeDifficulty, type ProbeQuestion } from "../lib/probes";
+import { Checkbox } from "./Checkbox";
 import { statusLabel } from "./StatusBadge";
 
 interface TopicSheetProps {
   item: SyllabusItem | null;
+  probes: ProbeQuestion[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   checked: boolean;
   status: ItemStatus;
   notes: string;
   boardId?: string;
+  recording?: Partial<Record<ProbeDifficulty, string>>;
   onCheckedChange: (checked: boolean) => void;
   onStatusChange: (status: ItemStatus) => void;
   onNotesChange: (notes: string) => void;
   onBoardIdChange: (boardId: string) => void;
+  onWatchLive?: (boardId: string, difficulty: ProbeDifficulty) => void;
 }
 
 const STATUS_OPTIONS: ItemStatus[] = ["pending", "accepted", "rejected", "needs-improvement"];
@@ -61,16 +66,19 @@ function NotesField({
 
 export function TopicSheet({
   item,
+  probes,
   open,
   onOpenChange,
   checked,
   status,
   notes,
   boardId,
+  recording = {},
   onCheckedChange,
   onStatusChange,
   onNotesChange,
   onBoardIdChange,
+  onWatchLive,
 }: TopicSheetProps) {
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +97,7 @@ export function TopicSheet({
     setError(null);
 
     try {
-      const board = await createBoardWithTitle(`[Playground] ${item.id} · live`);
+      const board = await createBoard();
       if (!board) {
         throw new Error("Could not create board");
       }
@@ -104,7 +112,10 @@ export function TopicSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full border-l border-[#2E2E33] sm:max-w-md">
+      <SheetContent
+        side="right"
+        className="flex w-full flex-col overflow-y-auto border-l border-[#2E2E33] sm:max-w-lg"
+      >
         {item ? (
           <>
             <SheetHeader className="space-y-1 px-1 pb-2 pt-2">
@@ -117,16 +128,50 @@ export function TopicSheet({
               </SheetDescription>
             </SheetHeader>
 
-            <div className="flex flex-col gap-4 overflow-y-auto px-1 pb-6">
+            <div className="flex flex-col gap-4 px-1 pb-6">
               <p className="text-sm leading-relaxed text-[#F2F2F4]">{item.text}</p>
 
+              <div className="rounded-xl border border-[#2E2E33] bg-[#151517] px-4 py-3.5">
+                <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A6A6AE]">
+                  Questions
+                </p>
+                <ul className="flex flex-col gap-3">
+                  {PROBE_DIFFICULTIES.map((difficulty) => {
+                    const probe = probes.find((entry) => entry.difficulty === difficulty);
+                    const liveBoardId = recording[difficulty];
+                    return (
+                      <li key={difficulty} data-topic-sheet-question={difficulty}>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-[#C9C9D2]">
+                            {difficulty}
+                          </p>
+                          {liveBoardId && onWatchLive ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => onWatchLive(liveBoardId, difficulty)}
+                            >
+                              Watch Live
+                            </Button>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-[#F2F2F4]">
+                          {probe ? probe.question : "No fixture yet"}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
               <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+                <Checkbox
                   id="topic-checked"
                   checked={checked}
-                  onChange={(event) => onCheckedChange(event.target.checked)}
-                  className="h-4 w-4 rounded border-[#2E2E33] accent-[#C9C9D2]"
+                  onCheckedChange={onCheckedChange}
+                  aria-label="Mark as reviewed"
                 />
                 <Label htmlFor="topic-checked" className="text-sm font-normal text-[#F2F2F4]">
                   Mark as reviewed

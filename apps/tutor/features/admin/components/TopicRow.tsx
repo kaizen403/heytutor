@@ -15,15 +15,16 @@ interface TopicRowProps {
   probes: ProbeQuestion[];
   checked: boolean;
   status: ItemStatus;
+  selecting: boolean;
   selectedIds: Set<string>;
   expanded: boolean;
   recorded: Partial<Record<ProbeDifficulty, string>>;
-  recordingDifficulties: ProbeDifficulty[];
-  onToggleReviewed: (checked: boolean) => void;
+  recording?: Partial<Record<ProbeDifficulty, string>>;
   onToggleSelected: (ids: string[], selected: boolean) => void;
   onToggleExpanded: () => void;
   onOpenSheet: () => void;
   onWatch: (boardId: string, difficulty: ProbeDifficulty) => void;
+  onWatchLive?: (boardId: string, difficulty: ProbeDifficulty) => void;
   onNotes: (boardId: string, difficulty: ProbeDifficulty) => void;
   onDelete: (boardId: string, difficulty: ProbeDifficulty) => void;
 }
@@ -33,15 +34,16 @@ export function TopicRow({
   probes,
   checked,
   status,
+  selecting,
   selectedIds,
   expanded,
   recorded,
-  recordingDifficulties,
-  onToggleReviewed,
+  recording = {},
   onToggleSelected,
   onToggleExpanded,
   onOpenSheet,
   onWatch,
+  onWatchLive,
   onNotes,
   onDelete,
 }: TopicRowProps) {
@@ -59,30 +61,26 @@ export function TopicRow({
           checked && "bg-[rgba(201,201,210,0.08)]",
         )}
       >
-        <Checkbox
-          checked={allSelected}
-          indeterminate={someSelected}
-          disabled={!hasFixtures}
-          onCheckedChange={(selected) => onToggleSelected(probeIds, selected)}
-          aria-label={`Select ${item.text} for testing`}
-          title={hasFixtures ? "Select for testing" : "No lecture fixtures for this topic yet"}
-          className="mt-0.5 rounded-[2px]"
-        />
-        <Checkbox
-          checked={checked}
-          onCheckedChange={onToggleReviewed}
-          aria-label={`Mark ${item.text} as reviewed`}
-          title="Mark as reviewed"
-          className="mt-0.5 rounded-full"
-        />
+        {selecting ? (
+          <Checkbox
+            checked={allSelected}
+            indeterminate={someSelected}
+            disabled={!hasFixtures}
+            onCheckedChange={(selected) => onToggleSelected(probeIds, selected)}
+            aria-label={`Select ${item.text}`}
+            title={hasFixtures ? "Select" : "No lecture fixtures for this topic yet"}
+            className="mt-0.5"
+          />
+        ) : null}
         <button type="button" onClick={onOpenSheet} className="min-w-0 flex-1 text-left">
           <span className="text-sm leading-snug text-[#F2F2F4]">{item.text}</span>
         </button>
         <div className="pt-0.5">
           <DifficultyChips
             recorded={recorded}
-            recordingDifficulties={recordingDifficulties}
+            recording={recording}
             onWatch={onWatch}
+            onWatchLive={onWatchLive}
             onDelete={onDelete}
           />
         </div>
@@ -103,28 +101,53 @@ export function TopicRow({
           {PROBE_DIFFICULTIES.map((difficulty) => {
             const probe = probes.find((entry) => entry.difficulty === difficulty);
             const boardId = recorded[difficulty];
-            const isRecording = recordingDifficulties.includes(difficulty);
+            const liveBoardId = recording[difficulty];
+            const isRecording = Boolean(liveBoardId);
+            const canWatchLive = Boolean(liveBoardId) && Boolean(onWatchLive);
             const canWatch = Boolean(boardId) && !isRecording;
             return (
-              <li key={difficulty} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-[#1E1E21]">
-                <Checkbox
-                  checked={probe ? selectedIds.has(probe.id) : false}
-                  disabled={!probe}
-                  onCheckedChange={(selected) => {
-                    if (probe) {
-                      onToggleSelected([probe.id], selected);
-                    }
-                  }}
-                  aria-label={`Select ${difficulty} for ${item.text}`}
-                  title="Select for testing"
-                  className="rounded-[3px]"
-                />
-                <span className="w-16 text-xs capitalize text-[#A6A6AE]">{difficulty}</span>
-                <span className="min-w-0 flex-1 truncate text-xs text-[#717177]">
-                  {probe ? probe.question : "No fixture yet"}
-                </span>
-                {boardId && canWatch ? (
-                  <div className="flex shrink-0 items-center gap-1">
+              <li key={difficulty} className="flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-[#1E1E21]">
+                {selecting ? (
+                  <Checkbox
+                    checked={probe ? selectedIds.has(probe.id) : false}
+                    disabled={!probe}
+                    onCheckedChange={(selected) => {
+                      if (probe) {
+                        onToggleSelected([probe.id], selected);
+                      }
+                    }}
+                    aria-label={`Select ${difficulty} for ${item.text}`}
+                    title="Select"
+                    className="mt-0.5"
+                  />
+                ) : null}
+                <span className="w-16 shrink-0 pt-0.5 text-xs capitalize text-[#A6A6AE]">{difficulty}</span>
+                <button
+                  type="button"
+                  onClick={onOpenSheet}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <span
+                    data-probe-question={probe ? probe.id : undefined}
+                    className="block whitespace-pre-wrap break-words text-xs leading-relaxed text-[#C9C9D2]"
+                  >
+                    {probe ? probe.question : "No fixture yet"}
+                  </span>
+                </button>
+                {canWatchLive && liveBoardId ? (
+                  <div className="flex shrink-0 items-center gap-1 pt-0.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => onWatchLive?.(liveBoardId, difficulty)}
+                    >
+                      Watch Live
+                    </Button>
+                  </div>
+                ) : boardId && canWatch ? (
+                  <div className="flex shrink-0 items-center gap-1 pt-0.5">
                     <Button
                       type="button"
                       variant="ghost"

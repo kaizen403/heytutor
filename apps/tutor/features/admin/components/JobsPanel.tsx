@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, ScrollText, Trash2 } from "lucide-react";
+import { Eye, Radio, ScrollText, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { LectureJob } from "../lib/lectureJobs";
@@ -8,8 +8,10 @@ import {
   CONCURRENCY_OPTIONS,
   countJobsByStatus,
   isLectureDeletable,
+  isLectureLiveWatchable,
   isLectureWatchable,
   jobProgressPercent,
+  lectureJobTitle,
 } from "../lib/lectureJobs";
 
 interface JobsPanelProps {
@@ -25,8 +27,11 @@ interface JobsPanelProps {
   boards: BoardEntry[];
   recordingBoardIds: ReadonlySet<string>;
   onWatch: (boardId: string) => void;
+  onWatchLive?: (boardId: string) => void;
   onNotes: (boardId: string) => void;
   onDelete: (boardId: string) => void;
+  onDeleteCompleted?: () => void;
+  completedDeleteCount?: number;
 }
 
 function statusLabel(job: LectureJob): string {
@@ -52,8 +57,11 @@ export function JobsPanel({
   boards,
   recordingBoardIds,
   onWatch,
+  onWatchLive,
   onNotes,
   onDelete,
+  onDeleteCompleted,
+  completedDeleteCount = 0,
 }: JobsPanelProps) {
   const counts = countJobsByStatus(jobs);
   const previewById = new Map(boards.map((board) => [board.id, board.preview]));
@@ -109,6 +117,16 @@ export function JobsPanel({
               Start again ({lastBatchCount})
             </button>
           ) : null}
+          {completedDeleteCount > 0 && onDeleteCompleted ? (
+            <button
+              type="button"
+              onClick={onDeleteCompleted}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#2E2E33] px-3 py-1 text-[11px] font-medium text-[#A6A6AE] hover:border-[#E06858] hover:text-[#E06858]"
+            >
+              <Trash2 className="h-3 w-3" />
+              Delete recordings ({completedDeleteCount})
+            </button>
+          ) : null}
           {!busy && jobs.length > 0 ? (
             <button
               type="button"
@@ -130,6 +148,9 @@ export function JobsPanel({
               isRecording: Boolean(boardId && recordingBoardIds.has(boardId)),
               boardPreview: boardId ? previewById.get(boardId) : undefined,
             });
+            const live = isLectureLiveWatchable(job, {
+              isRecording: Boolean(boardId && recordingBoardIds.has(boardId)),
+            });
             const deletable = isLectureDeletable(job, {
               isRecording: Boolean(boardId && recordingBoardIds.has(boardId)),
             });
@@ -137,7 +158,7 @@ export function JobsPanel({
               <li key={job.id} className="rounded-lg border border-[#2E2E33] bg-[#0B0B0C] px-3 py-2">
                 <div className="flex items-start justify-between gap-2">
                   <p className="min-w-0 truncate text-xs text-[#F2F2F4]">
-                    {job.topicId} · {job.difficulty}
+                    {lectureJobTitle(job)}
                   </p>
                   <span
                     className={cn(
@@ -159,7 +180,18 @@ export function JobsPanel({
                     />
                   </div>
                 ) : null}
-                {watchable && boardId ? (
+                {live && boardId && onWatchLive ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onWatchLive(boardId)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#C9C9D2] bg-[rgba(201,201,210,0.12)] px-3 py-1 text-[11px] font-medium text-[#C9C9D2] hover:bg-[rgba(201,201,210,0.2)]"
+                    >
+                      <Radio className="h-3 w-3" />
+                      Watch Live
+                    </button>
+                  </div>
+                ) : watchable && boardId ? (
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       type="button"
