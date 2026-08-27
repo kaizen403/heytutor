@@ -5,10 +5,12 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
-        heading: ['Manrope', 'Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        heading: ['Stack Sans Notch', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        accent: ['DM Mono', 'ui-monospace', 'monospace'],
         hand: ['Caveat', 'cursive'],
       },
       colors: {
+        accent: '#FF8001',
         brand: {
           fg: '#000000',
           'fg-soft': '#111827',

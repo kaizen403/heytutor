@@ -197,7 +197,7 @@ export default function BentoSection() {
     >
       <div className="mx-auto max-w-6xl">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-[32px] font-medium leading-[1.1] tracking-[-0.02em] text-neutral-900 sm:text-[40px]">
+          <h2 className="type-h2 text-neutral-900">
             Treat every topic like it deserves a teacher
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base font-normal leading-relaxed text-neutral-500 sm:text-lg">

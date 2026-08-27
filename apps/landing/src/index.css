@@ -2,6 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fonts: tester.army type system, local woff2 */
+@font-face {
+  font-family: 'Stack Sans Notch';
+  src: url('/fonts/stack-sans-notch.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/inter.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DM Mono';
+  src: url('/fonts/dm-mono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DM Mono';
+  src: url('/fonts/dm-mono-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -12,8 +45,92 @@ body {
   margin: 0;
   background: #ffffff;
   color: #111827;
-  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Type scale ported 1:1 from the TesterArmy design system */
+@layer components {
+  .type-h1 {
+    font-family: 'Stack Sans Notch', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0;
+    font-size: 40px;
+    font-weight: 500;
+    line-height: 46px;
+  }
+  @media (min-width: 640px) {
+    .type-h1 { font-size: 48px; line-height: 56px; }
+  }
+  @media (min-width: 1024px) {
+    .type-h1 { font-size: 60px; line-height: 68px; }
+  }
+
+  .type-h2 {
+    font-family: 'Stack Sans Notch', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0;
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 38px;
+  }
+  @media (min-width: 640px) {
+    .type-h2 { font-size: 38px; line-height: 46px; }
+  }
+  @media (min-width: 1024px) {
+    .type-h2 { font-size: 44px; line-height: 52px; }
+  }
+
+  .type-body-l {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 26px;
+  }
+  @media (min-width: 1024px) {
+    .type-body-l { font-size: 20px; line-height: 28px; }
+  }
+
+  .type-body-m {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 24px;
+  }
+
+  .type-body-s {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 14px;
+  }
+
+  .type-accent-m {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 20px;
+  }
+
+  .type-accent-s {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 14px;
+  }
+
+  .type-button {
+    font-family: 'DM Mono', ui-monospace, monospace;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 16px;
+  }
 }
 
 .landing-section-inset {
@@ -29,7 +146,22 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: Manrope, Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Stack Sans Notch', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.cm-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.cm-sprite {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform;
+  user-select: none;
 }
 
 @keyframes fade-up {

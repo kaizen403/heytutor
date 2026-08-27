@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { ArrowUp, Play, Volume2, VolumeX } from 'lucide-react'
 import Navbar from './Navbar'
+import ChalkComet from './ChalkComet'
 import { TUTOR_APP_HREF, tutorQuestionHref } from '../lib/tutorAppHref'
 
 const BG_IMAGE = 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260611_133301_d5f2a94a-b22e-4e4a-a6b6-eacdddf1f5b0.png&w=1280&q=85'
@@ -91,10 +92,12 @@ export default function Hero() {
     >
       <Navbar />
 
-      <div className="flex-1 min-h-8 shrink-0 sm:min-h-12 lg:min-h-16" />
+      <ChalkComet className="absolute inset-0 z-[5] pointer-events-none overflow-hidden" />
+
+      <div className="flex-1 min-h-4 shrink-0 sm:min-h-8" />
 
       <div className="relative z-20 flex flex-col items-center px-5 text-center sm:px-8 lg:px-10">
-        <h1 className="font-heading text-[40px] font-medium leading-[1.05] tracking-[-0.03em] text-brand-fg min-[400px]:text-[44px] sm:text-6xl lg:text-7xl xl:text-[80px]">
+        <h1 className="type-h1 text-brand-fg">
           <span className="block animate-fade-up">Learn every subject</span>
           <span className="block animate-fade-up [animation-delay:100ms]">
             the way <span className="text-brand-primary">teachers</span> actually teach it.
@@ -154,7 +157,7 @@ export default function Hero() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-10 shrink-0 sm:min-h-12 lg:min-h-16" />
+      <div data-comet-lane className="h-[132px] w-full shrink-0 sm:h-[150px] lg:h-[168px]" />
 
       <div className="animate-hero-rise relative z-30 mx-auto w-[94%] max-w-5xl shrink-0 -mb-10 sm:w-[90%] sm:-mb-20 lg:w-[86%] lg:-mb-32"
         style={{ animationDelay: '620ms' }}

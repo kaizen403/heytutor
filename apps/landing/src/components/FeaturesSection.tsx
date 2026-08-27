@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Check, Download, Play, ScrollText } from 'lucide-react'
+import { Check, Download, Play } from 'lucide-react'
 
 /* The tutor's dark-studio palette (same tokens as the real dashboard) */
 const TUTOR = {
@@ -310,7 +310,6 @@ function LectureToolsMock() {
       </div>
 
       <div className="mt-auto flex gap-1.5">
-        <ToolPill icon={<ScrollText className="h-3 w-3" style={{ color: TUTOR.soft }} />} label="Transcript" />
         <ToolPill icon={<Download className="h-3 w-3" style={{ color: TUTOR.accent }} />} label="Download notes" />
       </div>
     </TutorPanel>
@@ -338,7 +337,7 @@ const FEATURES = [
     mock: LectureToolsMock,
     title: 'Chat through the whole lecture. Keep the notes.',
     description:
-      'Teach straight from your photos and PDFs, replay any lesson at your pace, read the transcript, and download the notes.',
+      'Teach straight from your photos and PDFs, replay any lesson at your pace, and download the notes.',
     highlighted: false,
   },
 ] as const
@@ -382,7 +381,7 @@ export default function FeaturesSection() {
     >
       <div className="mx-auto max-w-6xl px-5 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-[32px] font-medium leading-[1.1] tracking-[-0.02em] text-neutral-900 sm:text-[40px]">
+          <h2 className="type-h2 text-neutral-900">
             Put your whole textbook to work
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base font-normal leading-relaxed text-neutral-500 sm:text-lg">

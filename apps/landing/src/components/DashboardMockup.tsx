@@ -1,5 +1,6 @@
 import { useRef } from 'react'
-import { ArrowUp, Download, RotateCcw, ScrollText, Settings, Volume2, VolumeX } from 'lucide-react'
+import { ArrowUp, Download, RotateCcw, Settings, Volume2, VolumeX } from 'lucide-react'
+import Logo from './Logo'
 import LiveLessonBoard from './hero-lesson/LiveLessonBoard'
 import { useLessonSimulation } from './hero-lesson/useLessonSimulation'
 import { LESSON_TITLE, QUESTION_TEXT } from './hero-lesson/lessonScript'
@@ -70,6 +71,9 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
           >
             <span
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
                 fontSize: 17,
                 fontWeight: 600,
                 letterSpacing: '-0.015em',
@@ -78,6 +82,7 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
                 userSelect: 'none',
               }}
             >
+              <Logo className="h-5 w-5 shrink-0" />
               Accelute
             </span>
             <div style={{ display: 'flex', gap: 2.4 }}>
@@ -102,22 +107,37 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8.8,
+                gap: 10,
                 width: '100%',
-                padding: '11.2px 13.6px',
-                borderRadius: 11.2,
-                border: `1px solid ${LINE}`,
-                background: PAPER,
+                padding: 8.8,
+                borderRadius: 13.6,
+                border: '1px solid rgba(201, 201, 210, 0.22)',
+                background: 'linear-gradient(180deg, #262629 0%, #1A1A1D 100%)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 2px rgba(0,0,0,0.28)',
                 color: INK,
-                fontSize: 14.4,
-                fontWeight: 500,
+                fontSize: 14,
+                fontWeight: 400,
                 lineHeight: 1.4,
-                letterSpacing: '-0.005em',
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: ACCENT, flexShrink: 0 }} aria-hidden>
-                <path d="M12 5v14M5 12h14" />
-              </svg>
+              <span
+                style={{
+                  width: 24.8,
+                  height: 24.8,
+                  borderRadius: 7.2,
+                  background: '#F2F2F4',
+                  color: '#0B0B0C',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+                aria-hidden
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </span>
               New board
             </div>
           </div>
@@ -125,11 +145,11 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
           {/* Section label */}
           <div
             style={{
-              padding: '4px 16.8px 8px',
-              fontSize: 11,
+              padding: '2.4px 16.8px 8.8px',
+              fontSize: 14,
               fontWeight: 500,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
+              letterSpacing: 0,
+              lineHeight: 1.3,
               color: INK_SOFT,
               userSelect: 'none',
             }}
@@ -168,8 +188,8 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
                   <span
                     style={{
                       fontSize: 14,
-                      fontWeight: 500,
-                      letterSpacing: '-0.01em',
+                      fontWeight: 400,
+                      letterSpacing: 0,
                       lineHeight: 1.35,
                       color: b.active ? ACCENT : INK,
                       whiteSpace: 'nowrap',
@@ -298,15 +318,8 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
               <div aria-label="Replay lecture" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: ACCENT, opacity: 0.4 }}>
                 <RotateCcw size={15} aria-hidden />
               </div>
-              <div aria-label="Transcript" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, opacity: 0.4 }}>
-                <ScrollText size={15} aria-hidden />
-              </div>
               <div aria-label="Download notes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, opacity: 0.4 }}>
                 <Download size={15} aria-hidden />
-              </div>
-              <div style={{ width: 1, height: 24, background: BORDER }} aria-hidden />
-              <div style={{ width: 38, height: 38, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Settings size={16} strokeWidth={1.75} aria-hidden />
               </div>
               <div style={{ borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, padding: '7px 14px', fontSize: 12.5, fontWeight: 500, color: INK_SOFT, whiteSpace: 'nowrap' }}>
                 Stop
@@ -429,29 +442,37 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
                       <path d="M18 6 6 18M6 6l12 12" />
                     </svg>
                   </div>
+                  <div aria-label="Board settings" style={{ width: 38, height: 38, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Settings size={16} strokeWidth={1.75} aria-hidden />
+                  </div>
                   <div style={{ borderRadius: 9999, padding: '9px 18px', fontSize: 14, fontWeight: 500, background: '#6E6E76', color: '#FFFFFF', flexShrink: 0 }}>
                     Ask Doubt
                   </div>
                 </>
               ) : (
-                <div
-                  aria-label="Send question"
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 9999,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    background: typed ? '#6E6E76' : 'rgba(201, 201, 210, 0.1)',
-                    color: typed ? '#FFFFFF' : INK_SOFT,
-                    transform: snapshot.phase === 'submit' ? 'scale(0.88)' : 'scale(1)',
-                    transition: 'transform 120ms ease',
-                  }}
-                >
-                  <ArrowUp size={18} aria-hidden />
-                </div>
+                <>
+                  <div aria-label="Board settings" style={{ width: 38, height: 38, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Settings size={16} strokeWidth={1.75} aria-hidden />
+                  </div>
+                  <div
+                    aria-label="Send question"
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 9999,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      background: typed ? '#6E6E76' : 'rgba(201, 201, 210, 0.1)',
+                      color: typed ? '#FFFFFF' : INK_SOFT,
+                      transform: snapshot.phase === 'submit' ? 'scale(0.88)' : 'scale(1)',
+                      transition: 'transform 120ms ease',
+                    }}
+                  >
+                    <ArrowUp size={18} aria-hidden />
+                  </div>
+                </>
               )}
             </div>
           </div>
