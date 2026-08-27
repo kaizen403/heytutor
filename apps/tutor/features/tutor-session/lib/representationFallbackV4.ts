@@ -8,7 +8,6 @@ import {
   type TurnPlanV3,
   type ValidationReport,
 } from "@heytutor/scene-engine";
-import { inferSceneCapabilities } from "@heytutor/tutor-core";
 
 export const REPRESENTATION_TIERS = [
   "exact_verified",
@@ -100,14 +99,7 @@ export function selectVerifiedRepresentation(
     };
   }
 
-  const families = input.families?.length
-    ? input.families
-    : inferSceneCapabilities(
-        input.question,
-        isRecord(input.turnPlan) && Array.isArray(input.turnPlan.lawIds)
-          ? input.turnPlan.lawIds.filter((id): id is string => typeof id === "string")
-          : [],
-      ).families;
+  const families = input.families?.length ? input.families : undefined;
   const synthesized = synthesizeFamilyScene({
     question: input.question,
     turnPlan: input.turnPlan,

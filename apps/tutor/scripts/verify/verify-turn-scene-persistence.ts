@@ -12,7 +12,7 @@ import {
   serializeSegmentCommands,
   type TutorSegment,
 } from "@heytutor/drawing";
-import { buildSourceGroundedRepresentation } from "../../features/tutor-session/lib/representationFallbackV4";
+import { selectVerifiedRepresentation } from "../../features/tutor-session/lib/representationFallbackV4";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/verifiedScenePresentation";
 import {
   canonicalizeTurnSceneMetadata,
@@ -182,7 +182,7 @@ const forgedSolverResult = await canonicalizeTurnSceneMetadata(forgedSolver);
 assert(!forgedSolverResult.ok && /server recomputation/.test(forgedSolverResult.error), "forged solver values must be rejected");
 
 const fallbackQuestion = "Sketch the curve y=x^2 and identify the curve.";
-const fallback = buildSourceGroundedRepresentation(fallbackQuestion);
+const fallback = selectVerifiedRepresentation({ question: fallbackQuestion });
 const fallbackPresentation = buildVerifiedDiagramPresentation(fallback.sceneDocument, fallback.renderScene);
 const fallbackArtifacts: SceneArtifactsV3 = {
   schemaVersion: "scene-artifacts/v3",

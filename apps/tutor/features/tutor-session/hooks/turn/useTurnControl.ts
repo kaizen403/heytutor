@@ -59,7 +59,6 @@ export function useTurnControl(
     setNarrationText,
     setCurrentSegmentText,
     setInputInteracted,
-    setTranscriptOpen,
     setIsReplaying,
     setReplayProgressMs,
     setReplayTotalMs,
@@ -445,7 +444,6 @@ export function useTurnControl(
     setReplayProgressMs(0);
     setReplayTotalMs(0);
     finishLectureUi();
-    setTranscriptOpen(false);
   }, [
     finishLectureUi,
     isReplaying,
@@ -471,7 +469,6 @@ export function useTurnControl(
     setIsReplaying,
     setReplayProgressMs,
     setReplayTotalMs,
-    setTranscriptOpen,
   ]);
 
   useEffect(() => {
@@ -571,7 +568,7 @@ export function useTurnControl(
       if (cancelled || cancelRef.current) return;
       if (phaseRef.current !== "idle") return;
       if (!whiteboardRef.current) {
-        window.requestAnimationFrame(fire);
+        window.setTimeout(fire, 16);
         return;
       }
       void handleQuestionRef.current(question);

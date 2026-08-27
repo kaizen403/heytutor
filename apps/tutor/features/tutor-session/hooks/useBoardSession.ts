@@ -24,6 +24,7 @@ import {
   type StoredTurn,
 } from "@/lib/boards/boardsClient";
 import type { TutorPhase } from "../types";
+import { waitForWhiteboard } from "../lib/whiteboardReady";
 
 type ExecuteCommandOptions = {
   durationScale?: number;
@@ -36,22 +37,6 @@ type ExecuteCommand = (
   command: import("@heytutor/drawing").DrawCommand,
   options?: ExecuteCommandOptions,
 ) => Promise<void>;
-
-async function waitForWhiteboard(
-  whiteboardRef: RefObject<WhiteboardHandle | null>,
-  maxMs = 4000,
-): Promise<boolean> {
-  const start = Date.now();
-  while (!whiteboardRef.current) {
-    if (Date.now() - start >= maxMs) {
-      return false;
-    }
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-    });
-  }
-  return true;
-}
 
 export interface UseBoardSessionParams {
   sessionId: string;
@@ -73,6 +58,11 @@ export interface UseBoardSessionParams {
   setCurrentSegmentText: Dispatch<SetStateAction<string>>;
   resetBoardLayout: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
   executeCommand: ExecuteCommand;
+  /**
+   * Watch auto-replay paints ink from the timeline. Instant restore would
+   * dump the finished board (no pen) and then fight the replay clock.
+   */
+  skipInkRestoreRef?: RefObject<boolean>;
 }
 
 export function useBoardSession({
@@ -94,6 +84,7 @@ export function useBoardSession({
   setCurrentSegmentText,
   resetBoardLayout,
   executeCommand,
+  skipInkRestoreRef,
 }: UseBoardSessionParams) {
   const [boards, setBoards] = useState<BoardEntry[]>([]);
   const [boardLoaded, setBoardLoaded] = useState(false);
@@ -327,20 +318,21 @@ export function useBoardSession({
           ? lessonNarrationText(lastTurn.rawResponse)
           : "";
 
-        whiteboardRef.current?.clearBoard();
-        resetBoardLayout(false, false);
         notesEpochsRef.current = [];
         narrationSinceEpochRef.current = lastNarration;
         setNarrationText(lastNarration);
         setCurrentSegmentText("");
 
-        if (detail.turns.length === 0) {
-          return;
-        }
-
         const whiteboardReady = await waitForWhiteboard(whiteboardRef);
         if (isStale()) return;
         if (!whiteboardReady) {
+          return;
+        }
+
+        await whiteboardRef.current?.clearBoard();
+        resetBoardLayout(false, false);
+
+        if (detail.turns.length === 0 || skipInkRestoreRef?.current) {
           return;
         }
 
@@ -388,6 +380,7 @@ export function useBoardSession({
       setCurrentSegmentText,
       setStoredTurnsCount,
       setInputInteracted,
+      skipInkRestoreRef,
     ],
   );
 

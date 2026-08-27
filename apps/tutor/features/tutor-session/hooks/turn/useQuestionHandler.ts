@@ -1,10 +1,12 @@
 import { useCallback, useEffect } from "react";
 import {
-  IncrementalTagParser,
   lessonNarrationText,
+  IncrementalTagParser,
   anchorToTextRect,
   prepareVerifiedLessonSegments,
   type TutorSegment,
+  cancelFrame,
+  scheduleFrame,
 } from "@heytutor/drawing";
 import {
   streamLLMResponse,
@@ -53,6 +55,7 @@ import { createTurnTelemetry } from "@/lib/obs/turnTelemetry";
 import { enrichStoredSegmentsWithReplayAudio } from "@/lib/replay/replayTurns";
 import {
   saveTurn,
+  requestBoardTitle,
   updateBoard,
   withBoardEpochSegment,
   type StoredTurn,
@@ -81,6 +84,7 @@ import {
   isTeachingResponseIncomplete,
 } from "../../lib/segmentPlanning";
 import type { TutorPhase } from "../../types";
+import { isWhiteboardReadyToDraw } from "../../lib/whiteboardReady";
 import type { TurnControlApi, UseTurnLifecycleParams } from "./types";
 
 type PendingQuestionFlushState = {
@@ -168,9 +172,9 @@ export function useQuestionHandler(
     storedTurnsRef,
     pendingSegmentCountRef,
     setInputInteracted,
+    setLiveQuestion,
     setIsPaused,
     setIsReplaying,
-    setTranscriptOpen,
     setLastError,
     setStoredTurnsCount,
     setBoards,
@@ -196,8 +200,8 @@ export function useQuestionHandler(
   const handleQuestion = useCallback(
     async (rawQuestion: string) => {
       const question = normalizeTutorQuestion(rawQuestion);
-      const wb = whiteboardRef.current;
-      if (!boardLoaded || !wb) {
+      setLiveQuestion?.(question);
+      if (!boardLoaded || !isWhiteboardReadyToDraw(whiteboardRef.current)) {
         pendingQuestionRef.current = question;
         setInputInteracted(true);
         return;
@@ -224,7 +228,6 @@ export function useQuestionHandler(
       isPausedRef.current = false;
       setIsPaused(false);
       setIsReplaying(false);
-      setTranscriptOpen(false);
       setLastError(null);
       turnActiveRef.current = true;
       phaseRef.current = "thinking";
@@ -236,14 +239,8 @@ export function useQuestionHandler(
           (b) => b.id === boardIdForName,
         )?.title === "new board";
         if (needsName) {
-          void fetch(resolveApiUrl("/api/board-name"), {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ question }),
-          })
-            .then((r) => r.json())
-            .then((data) => {
-              const title: string | undefined = data?.title;
+          void requestBoardTitle(question)
+            .then((title) => {
               if (!title) return;
               void updateBoard(boardIdForName, { title }).then((board) => {
                 if (!board) return;
@@ -429,7 +426,10 @@ export function useQuestionHandler(
         }
 
         const planningTurnPlan = turnPlan;
-        const sceneCapabilities = inferSceneCapabilities(question, planningTurnPlan.lawIds);
+        const sceneCapabilities = inferSceneCapabilities(question, {
+          lawIds: planningTurnPlan.lawIds,
+          turnPlan: planningTurnPlan,
+        });
         const remainingPlannerMs = Math.max(
           0,
           SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
@@ -702,10 +702,17 @@ export function useQuestionHandler(
         }
         {
           try {
+            const fallbackCapabilities = inferSceneCapabilities(question, {
+              lawIds: turnPlan?.lawIds ?? planningTurnPlan.lawIds,
+              problemIR: problemAuthority?.problemIR ?? null,
+              turnPlan,
+            });
             const selected = selectVerifiedRepresentation({
               question,
               turnPlan,
-              families: sceneCapabilities.families,
+              families: fallbackCapabilities.families.length > 0
+                ? fallbackCapabilities.families
+                : sceneCapabilities.families,
               exact: value && value.document.visualDecision.mode === "scene"
                 ? {
                     sceneDocument: value.document,
@@ -1235,7 +1242,7 @@ ${JSON.stringify(problemAuthority.projection)}`
               sceneArtifacts,
               segments: recordedForPersistence,
             }).then((savedTurn) => {
-              if (!savedTurn) return;
+              if (!savedTurn) return false;
               const turnForReplay: StoredTurn = {
                 ...savedTurn,
                 segments: enrichStoredSegmentsWithReplayAudio(
@@ -1248,12 +1255,21 @@ ${JSON.stringify(problemAuthority.projection)}`
                 turn.id === localTurn.id ? turnForReplay : turn,
               );
               setStoredTurnsCount(storedTurnsRef.current.length);
-            }).catch(() => undefined);
+              return true;
+            }).catch(() => false);
 
             if (onComplete) {
-              await savePromise;
-              if (isCurrentTurn() && !turnCancelled && !cancelRef.current) {
+              const saved = await savePromise;
+              if (!isCurrentTurn() || turnCancelled || cancelRef.current) {
+                return;
+              }
+              if (saved) {
                 onComplete();
+              } else {
+                emitError({
+                  message: "could not save the lecture recording",
+                  question,
+                });
               }
             }
           }
@@ -1363,11 +1379,11 @@ ${JSON.stringify(problemAuthority.projection)}`
       whiteboardRef,
       pendingQuestionRef,
       setInputInteracted,
+      setLiveQuestion,
       cancelRef,
       isPausedRef,
       setIsPaused,
       setIsReplaying,
-      setTranscriptOpen,
       setLastError,
       emitError,
       onComplete,
@@ -1421,12 +1437,12 @@ ${JSON.stringify(problemAuthority.projection)}`
       if (!shouldFlushPendingQuestion({
         pendingQuestion,
         boardLoaded,
-        hasWhiteboard: whiteboardRef.current !== null,
+        hasWhiteboard: isWhiteboardReadyToDraw(whiteboardRef.current),
         phase: phaseRef.current,
         turnActive: turnActiveRef.current,
         pendingSegmentCount: pendingSegmentCountRef.current,
       })) {
-        frameId = window.requestAnimationFrame(flushPendingQuestion);
+        frameId = scheduleFrame(flushPendingQuestion);
         return;
       }
 
@@ -1439,7 +1455,7 @@ ${JSON.stringify(problemAuthority.projection)}`
     return () => {
       cancelled = true;
       if (frameId !== 0) {
-        window.cancelAnimationFrame(frameId);
+        cancelFrame(frameId);
       }
     };
   }, [

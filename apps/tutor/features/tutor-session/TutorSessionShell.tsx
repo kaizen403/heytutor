@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { TranscriptDialog } from "@/features/tutor-session/components/TranscriptDialog";
-import { BoardHistory } from "@/features/tutor-session/components/BoardHistory";
+import { BoardHistory, SIDEBAR_WIDTH } from "@/features/tutor-session/components/BoardHistory";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   SettingsDrawer,
   getMarkerColorHex,
@@ -15,11 +19,11 @@ import {
 } from "@/features/tutor-session/components/CanvasLanding";
 import { type ReplayCue } from "@/lib/replay/replayTimeline";
 import type { WhiteboardHandle, CursorState } from "@heytutor/whiteboard";
-import { useIsCompactNav } from "@/lib/client/useMediaQuery";
+import { useIsCompactNav, useIsMobile } from "@/lib/client/useMediaQuery";
 import { ThinkingOverlay } from "./components/ThinkingOverlay";
-import { BoardSettingsButton } from "./components/BoardSettingsButton";
 import { SessionInputChrome } from "./components/SessionInputChrome";
 import { SessionHeader } from "./components/SessionHeader";
+import { NotesChatSidebar } from "./components/NotesChatSidebar";
 import { SessionBoardCanvas } from "./components/SessionBoardCanvas";
 import { Whiteboard } from "./components/WhiteboardLoader";
 import { useReplay } from "./hooks/useReplay";
@@ -29,6 +33,7 @@ import { useTurnLifecycle } from "./hooks/useTurnLifecycle";
 import { useBoardLayout } from "./hooks/useBoardLayout";
 import { useBoardSession } from "./hooks/useBoardSession";
 import { useAdaptiveDrawSpeed } from "./hooks/useAdaptiveDrawSpeed";
+import { useNotesChat } from "./hooks/useNotesChat";
 import {
   type TutorSegment,
   type VerifiedDiagram,
@@ -39,6 +44,7 @@ import {
 } from "@heytutor/tutor-core";
 import { type TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import { type RecordedSegmentPayload } from "@/lib/boards/boardsClient";
+import { liveNotesPayload } from "@/lib/boards/notesChatClient";
 import {
   DEFAULT_REPLAY_SPEED,
   syncControlledPlaybackRate,
@@ -46,6 +52,7 @@ import {
 import {
   PAGE_GUTTER_X,
   PAGE_GUTTER_Y,
+  NOTES_CHAT_RAIL_WIDTH,
   LANDING_SUGGESTIONS,
   BOARD_WIDTH,
   BOARD_HEIGHT,
@@ -53,7 +60,9 @@ import {
 import type { TutorPhase, SegmentPlanStats } from "./types";
 import { createEmptySegmentPlanStats } from "./lib/segmentPlanning";
 import { lessonFollowUpMode } from "./lib/lessonFollowUp";
+import { buildLessonNotes } from "./lib/lessonNotes";
 import { resolveActiveStatus } from "./lib/statusConfig";
+import { canStartStoredLectureReplay } from "./lib/autoReplay";
 
 export type TutorSessionVariant = "full" | "headless" | "embed";
 
@@ -146,14 +155,19 @@ export function TutorSessionShell({
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH);
+  const [sidebarResizing, setSidebarResizing] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [liveQuestion, setLiveQuestion] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
+  const notesUserToggledRef = useRef(false);
   const isCompactNav = useIsCompactNav();
+  const isMobile = useIsMobile();
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayProgressMs, setReplayProgressMs] = useState(0);
   const [replayTotalMs, setReplayTotalMs] = useState(0);
   const replayGenerationRef = useRef(0);
   const replayCueRef = useRef<ReplayCue | null>(null);
-  const [transcriptOpen, setTranscriptOpen] = useState(false);
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -200,10 +214,13 @@ export function TutorSessionShell({
     };
   }, []);
 
+  const skipInkRestoreRef = useRef(autoReplay);
+  skipInkRestoreRef.current = autoReplay;
+
   const cursorState: CursorState =
     phase === "thinking"
       ? "thinking"
-      : phase === "drawing" || phase === "speaking"
+      : isReplaying || phase === "drawing" || phase === "speaking"
         ? "drawing"
         : "idle";
 
@@ -300,6 +317,7 @@ export function TutorSessionShell({
     setCurrentSegmentText,
     resetBoardLayout,
     executeCommand,
+    skipInkRestoreRef,
   });
 
   const {
@@ -362,7 +380,7 @@ export function TutorSessionShell({
     setCurrentSegmentText,
     setLastError,
     setInputInteracted,
-    setTranscriptOpen,
+    setLiveQuestion,
     setIsReplaying,
     setReplayProgressMs,
     setReplayTotalMs,
@@ -380,6 +398,68 @@ export function TutorSessionShell({
     registerReplayBlobUrl,
     revokeUnreferencedReplayBlobUrls,
   });
+
+  const notesEnabled = !isEmbed && !isHeadless;
+  const lectureInProgress = phase !== "idle" && !isReplaying;
+  const lessonNotes = useMemo(
+    () =>
+      buildLessonNotes({
+        persistedTurns: storedTurnsRef.current,
+        lectureInProgress,
+        live: lectureInProgress
+          ? {
+              question:
+                liveQuestion || storedTurnsRef.current.at(-1)?.question || "",
+              collectedSegments: collectedSegmentsRef.current,
+              recordedSegments: recordedSegmentsRef.current,
+              currentSegmentText,
+              rawResponse: rawResponseRef.current,
+              sceneArtifacts:
+                storedTurnsRef.current.at(-1)?.question === liveQuestion
+                  ? storedTurnsRef.current.at(-1)?.sceneArtifacts
+                  : undefined,
+            }
+          : null,
+      }),
+    [
+      currentSegmentText,
+      lectureInProgress,
+      liveQuestion,
+      narrationText,
+      sessionId,
+      storedTurnsCount,
+    ],
+  );
+  const { messages: notesMessages, sending: notesSending, error: notesError, send: sendNotesChat } =
+    useNotesChat(sessionId, notesEnabled);
+
+  useEffect(() => {
+    notesUserToggledRef.current = false;
+    setLiveQuestion("");
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!notesEnabled || isMobile) return;
+    if (notesUserToggledRef.current) return;
+    if (phase !== "idle" || storedTurnsCount > 0) {
+      setNotesOpen(true);
+    }
+  }, [isMobile, notesEnabled, phase, storedTurnsCount]);
+
+  const toggleNotes = useCallback(() => {
+    notesUserToggledRef.current = true;
+    setNotesOpen((open) => !open);
+  }, []);
+
+  const notesRailOpen = notesEnabled && notesOpen && !isMobile;
+
+  const handleNotesChatSend = useCallback(
+    (message: string) => {
+      const liveTurn = lessonNotes.turns[lessonNotes.turns.length - 1] ?? null;
+      void sendNotesChat(message, liveNotesPayload(liveTurn), lectureInProgress);
+    },
+    [lectureInProgress, lessonNotes, sendNotesChat],
+  );
 
   const {
     replayLecture,
@@ -400,7 +480,7 @@ export function TutorSessionShell({
     ttsClientRef,
     notesEpochsRef,
     narrationSinceEpochRef,
-    phase,
+    phaseRef,
     isReplaying,
     isPaused,
     isDownloading,
@@ -447,18 +527,34 @@ export function TutorSessionShell({
   }, [autoReplay]);
 
   useEffect(() => {
-    if (!autoReplay || isHeadless || !boardLoaded || storedTurnsCount === 0 || isReplaying) {
+    if (
+      !canStartStoredLectureReplay({
+        autoReplay,
+        isHeadless,
+        boardLoaded,
+        storedTurnsCount,
+        isReplaying,
+        alreadyStarted: autoReplayStartedRef.current,
+        viewportMeasured: boardViewport.measured,
+      })
+    ) {
       return;
     }
-    if (autoReplayStartedRef.current) {
-      return;
-    }
-    if (storedTurnsRef.current.length === 0) {
+    if (!replayLecture()) {
       return;
     }
     autoReplayStartedRef.current = true;
-    replayLecture();
-  }, [autoReplay, isHeadless, boardLoaded, storedTurnsCount, isReplaying, replayLecture, storedTurnsRef]);
+  }, [
+    autoReplay,
+    isHeadless,
+    boardLoaded,
+    storedTurnsCount,
+    isReplaying,
+    replayLecture,
+    storedTurnsRef,
+    boardViewport.measured,
+    boardViewport.scale,
+  ]);
 
   const stopTurnOnUnmountRef = useRef(stopTurn);
   useEffect(() => {
@@ -498,8 +594,6 @@ export function TutorSessionShell({
   const activeBoard = boards.find((b) => b.id === sessionId);
   const activeBoardTitle = activeBoard?.title ?? "";
   const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying;
-  const canTranscript =
-    narrationText.trim().length > 0 && (isEmbed || (phase === "idle" && !isReplaying));
   const canDownload = phase === "idle" && storedTurnsCount > 0 && !isReplaying;
   const isInputOverlay = !isEmbed && phase === "idle" && boardLoaded && !inputInteracted;
   const inputSubmitMode = lessonFollowUpMode(storedTurnsCount > 0);
@@ -516,6 +610,7 @@ export function TutorSessionShell({
       onPauseToggle={() => (isPaused ? resumeTurn() : pauseTurn())}
       onCancel={stopTurn}
       onUserInteractionChange={setInputInteracted}
+      onOpenSettings={() => setSettingsOpen(true)}
     />
   );
 
@@ -527,7 +622,7 @@ export function TutorSessionShell({
     <div
       className={
         isEmbed
-          ? "relative flex h-full min-h-0 min-w-0 overflow-hidden"
+          ? "relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
           : "relative flex h-dvh max-h-dvh min-w-0 overflow-hidden"
       }
       data-tutor-session={isEmbed ? "embed" : "full"}
@@ -546,6 +641,8 @@ export function TutorSessionShell({
             disabled={phase !== "idle"}
             collapsed={sidebarCollapsed}
             onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+            onWidthChange={setSidebarWidth}
+            onResizingChange={setSidebarResizing}
             profileOpen={profileOpen}
             onProfileToggle={() => setProfileOpen(!profileOpen)}
           />
@@ -566,16 +663,72 @@ export function TutorSessionShell({
         </>
       ) : null}
 
+      {notesRailOpen ? (
+        <div
+          className="flex"
+          style={{
+            position: "fixed",
+            right: 0,
+            top: 0,
+            zIndex: 40,
+            width: NOTES_CHAT_RAIL_WIDTH,
+            height: "100dvh",
+            borderLeft: "1px solid rgba(242, 242, 244, 0.08)",
+          }}
+        >
+          <NotesChatSidebar
+            notes={lessonNotes}
+            messages={notesMessages}
+            sending={notesSending}
+            error={notesError}
+            live={lectureInProgress}
+            onClose={toggleNotes}
+            onSend={handleNotesChatSend}
+          />
+        </div>
+      ) : null}
+
+      {notesEnabled ? (
+        <Sheet open={isMobile && notesOpen} onOpenChange={(open) => {
+          notesUserToggledRef.current = true;
+          setNotesOpen(open);
+        }}>
+          <SheetContent
+            side="right"
+            className="w-[min(100%,380px)] border-l border-[rgba(242,242,244,0.08)] p-0 sm:max-w-[380px]"
+          >
+            <SheetTitle className="sr-only">Notes</SheetTitle>
+            <NotesChatSidebar
+              notes={lessonNotes}
+              messages={notesMessages}
+              sending={notesSending}
+              error={notesError}
+              live={lectureInProgress}
+              onSend={handleNotesChatSend}
+            />
+          </SheetContent>
+        </Sheet>
+      ) : null}
+
       <div
         className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col ${
-          isEmbed || sidebarCollapsed ? "" : "lg:ml-[264px]"
+          isEmbed ? "h-full" : ""
+        } ${
+          isEmbed ? "" : "md:mr-[var(--tutor-notes-width)] lg:ml-[var(--tutor-sidebar-width)]"
         }`}
         style={{
+          ["--tutor-sidebar-width" as string]:
+            isEmbed || sidebarCollapsed ? "0px" : `${sidebarWidth}px`,
+          ["--tutor-notes-width" as string]: notesRailOpen
+            ? `${NOTES_CHAT_RAIL_WIDTH}px`
+            : "0px",
           paddingLeft: `max(${PAGE_GUTTER_X}px, env(safe-area-inset-left))`,
           paddingRight: `max(${PAGE_GUTTER_X}px, env(safe-area-inset-right))`,
           paddingTop: `max(12px, env(safe-area-inset-top))`,
           paddingBottom: `max(12px, env(safe-area-inset-bottom))`,
-          transition: "margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+          transition: sidebarResizing
+            ? "none"
+            : "margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1), margin-right 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
         {!isEmbed ? (
@@ -594,18 +747,18 @@ export function TutorSessionShell({
             }}
             boardTitle={activeBoardTitle}
             canReplay={canReplay}
-            canTranscript={canTranscript}
             canDownload={canDownload}
             isReplaying={isReplaying}
             isDownloading={isDownloading}
             phase={phase}
             activeStatus={activeStatus}
             compactActions={isCompactNav}
+            notesOpen={notesOpen}
+            showNotesToggle={notesEnabled}
+            onToggleNotes={toggleNotes}
             onReplay={replayLecture}
-            onTranscript={() => setTranscriptOpen(true)}
             onDownload={downloadNotesPdf}
             onStop={stopTurn}
-            onOpenSettings={() => setSettingsOpen(true)}
           />
         ) : null}
 
@@ -623,6 +776,7 @@ export function TutorSessionShell({
                   <CanvasLanding
                     suggestions={LANDING_SUGGESTIONS}
                     onSubmit={(question) => void handleQuestion(question)}
+                    onOpenSettings={() => setSettingsOpen(true)}
                   />
                 </div>
                 <CanvasLandingDoodles />
@@ -641,9 +795,6 @@ export function TutorSessionShell({
               aria-hidden={fullBleedLanding || undefined}
             >
             <div className="wb-surface absolute overflow-hidden">
-            {!showEmptyLanding && !isEmbed && (
-              <BoardSettingsButton settings={settings} onOpen={() => setSettingsOpen(true)} />
-            )}
             {isInputOverlay && !fullBleedLanding && (
               <div
                 className="pointer-events-none absolute inset-0 z-10"
@@ -690,12 +841,6 @@ export function TutorSessionShell({
             )}
 
             {phase === "thinking" && <ThinkingOverlay />}
-
-            <TranscriptDialog
-              text={narrationText}
-              open={transcriptOpen}
-              onClose={() => setTranscriptOpen(false)}
-            />
 
             <SessionBoardCanvas
               boardViewport={boardViewport}

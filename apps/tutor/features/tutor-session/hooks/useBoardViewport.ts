@@ -11,14 +11,14 @@ const MOBILE_MQ = "(max-width: 640px)";
 
 export type BoardViewportMode = "fit" | "fixed";
 
-const FIXED_VIEWPORT: BoardViewport = { scale: 1, offsetX: 0, offsetY: 0 };
+const FIXED_VIEWPORT: BoardViewport = { scale: 1, offsetX: 0, offsetY: 0, measured: true };
 
 export function useBoardViewport(
   containerRef: RefObject<HTMLDivElement | null>,
   mode: BoardViewportMode = "fit",
 ): BoardViewport {
   const [viewport, setViewport] = useState<BoardViewport>(
-    mode === "fixed" ? FIXED_VIEWPORT : { scale: 0.1, offsetX: 0, offsetY: 0 },
+    mode === "fixed" ? FIXED_VIEWPORT : { scale: 0.1, offsetX: 0, offsetY: 0, measured: false },
   );
 
   useEffect(() => {
@@ -29,9 +29,19 @@ export function useBoardViewport(
     const container = containerRef.current;
     if (!container) return;
 
+    let rafId = 0;
+    let retries = 0;
+
     const updateScale = () => {
       const { width, height } = container.getBoundingClientRect();
-      if (width <= 0 || height <= 0) return;
+      if (width <= 0 || height <= 0) {
+        if (retries < 30) {
+          retries += 1;
+          rafId = requestAnimationFrame(updateScale);
+        }
+        return;
+      }
+      retries = 0;
 
       const framePadding = window.matchMedia(MOBILE_MQ).matches
         ? FRAME_PADDING_MOBILE
@@ -47,8 +57,8 @@ export function useBoardViewport(
       const nextScale = Math.min(widthScale, heightScale);
       // Avoid sub-pixel thrash from ResizeObserver feedback.
       setViewport((prev) => {
-        if (Math.abs(prev.scale - nextScale) < 0.001) return prev;
-        return { scale: nextScale, offsetX: 0, offsetY: 0 };
+        if (prev.measured && Math.abs(prev.scale - nextScale) < 0.001) return prev;
+        return { scale: nextScale, offsetX: 0, offsetY: 0, measured: true };
       });
     };
 
@@ -60,6 +70,7 @@ export function useBoardViewport(
     media.addEventListener("change", updateScale);
 
     return () => {
+      cancelAnimationFrame(rafId);
       observer.disconnect();
       media.removeEventListener("change", updateScale);
     };

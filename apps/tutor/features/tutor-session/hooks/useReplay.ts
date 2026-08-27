@@ -21,6 +21,8 @@ import type { DrawCommand } from "@heytutor/drawing";
 import {
   isStoredCommandTrustedGeometry,
   lessonNarrationText,
+  cancelFrame,
+  scheduleFrame,
 } from "@heytutor/drawing";
 import type { WriteSchedule, WhiteboardHandle } from "@heytutor/whiteboard";
 import {
@@ -39,6 +41,7 @@ import {
   type TTSClient,
 } from "@heytutor/tutor-core";
 import type { TutorPhase } from "../types";
+import { isWhiteboardReadyToDraw } from "../lib/whiteboardReady";
 
 type ExecuteCommandOptions = {
   durationScale?: number;
@@ -74,7 +77,7 @@ export type UseReplayParams = {
   ttsClientRef: RefObject<TTSClient | null>;
   notesEpochsRef: RefObject<NotesEpoch[]>;
   narrationSinceEpochRef: RefObject<string>;
-  phase: TutorPhase;
+  phaseRef: RefObject<TutorPhase>;
   isReplaying: boolean;
   isPaused: boolean;
   isDownloading: boolean;
@@ -116,7 +119,7 @@ export function useReplay({
   ttsClientRef,
   notesEpochsRef,
   narrationSinceEpochRef,
-  phase,
+  phaseRef,
   isReplaying,
   isPaused,
   isDownloading,
@@ -308,7 +311,11 @@ export function useReplay({
         return;
       }
 
-      wb.clearBoard();
+      if (!wb) {
+        return;
+      }
+
+      await wb.clearBoard();
       resetBoardLayout(false, false);
 
       // Render all completed commands instantly — no animation during seek.
@@ -532,11 +539,11 @@ export function useReplay({
     async (startMs: number) => {
       const wb = whiteboardRef.current;
       const timeline = buildReplayTimeline(storedTurnsRef.current);
-      if (!wb || timeline.cues.length === 0) {
+      if (!isWhiteboardReadyToDraw(wb) || timeline.cues.length === 0) {
         return;
       }
 
-      if (phase !== "idle" && !isReplaying) {
+      if (phaseRef.current !== "idle" && !isReplaying) {
         return;
       }
 
@@ -617,7 +624,7 @@ export function useReplay({
     [
       whiteboardRef,
       storedTurnsRef,
-      phase,
+      phaseRef,
       isReplaying,
       replayGenerationRef,
       cancelRef,
@@ -637,15 +644,19 @@ export function useReplay({
     ],
   );
 
-  const replayLecture = useCallback(() => {
+  const replayLecture = useCallback((): boolean => {
     if (storedTurnsRef.current.length === 0 || isReplaying) {
-      return;
+      return false;
+    }
+    if (!isWhiteboardReadyToDraw(whiteboardRef.current)) {
+      return false;
     }
     unlockTutorAudio();
     ttsClientRef.current?.unlockAudio?.();
     ttsClientRef.current?.setMuted?.(false);
     void playReplayFrom(0);
-  }, [storedTurnsRef, isReplaying, playReplayFrom, ttsClientRef]);
+    return true;
+  }, [storedTurnsRef, isReplaying, playReplayFrom, ttsClientRef, whiteboardRef]);
 
   const downloadNotesPdf = useCallback(() => {
     if (isDownloading || isReplaying) {
@@ -663,7 +674,7 @@ export function useReplay({
         epochs.push({
           index: epochs.length,
           snapshotDataUrl: finalSnapshot,
-          narrationText: narrationSinceEpochRef.current,
+          narrationText: "",
           timestampMs: Date.now(),
         });
       }
@@ -762,11 +773,11 @@ export function useReplay({
       } else {
         lastWallMs = now;
       }
-      frameId = window.requestAnimationFrame(tick);
+      frameId = scheduleFrame(tick);
     };
 
-    frameId = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frameId);
+    frameId = scheduleFrame(tick);
+    return () => cancelFrame(frameId);
     // replayProgressMs is intentionally read only at effect start / cue change;
     // including it every tick would reset the media baseline on each frame.
     // eslint-disable-next-line react-hooks/exhaustive-deps

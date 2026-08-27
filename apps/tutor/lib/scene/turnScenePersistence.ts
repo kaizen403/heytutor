@@ -23,7 +23,7 @@ import {
   serializeSegmentCommands,
   type DrawCommand,
 } from "@heytutor/drawing";
-import { buildSourceGroundedRepresentation } from "@/features/tutor-session/lib/representationFallbackV4";
+import { selectVerifiedRepresentation } from "@/features/tutor-session/lib/representationFallbackV4";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/verifiedScenePresentation";
 
 export interface SubmittedTurnSegment {
@@ -129,12 +129,18 @@ export async function canonicalizeTurnSceneMetadata(
   if (nonMetric) {
     let rebuilt;
     try {
-      rebuilt = buildSourceGroundedRepresentation(question, turnPlan ?? undefined);
+      rebuilt = selectVerifiedRepresentation({
+        question,
+        turnPlan: turnPlan ?? undefined,
+      });
     } catch (error) {
-      return failure(`source-grounded representation could not be rebuilt: ${errorMessage(error)}`);
+      return failure(`verified representation could not be rebuilt: ${errorMessage(error)}`);
+    }
+    if (rebuilt.sceneDocument.visualDecision.mode !== "scene") {
+      return failure("verified representation rebuilt as text-only");
     }
     if (rebuilt.tier !== tier || rebuilt.nonMetric !== true) {
-      return failure("submitted fallback tier does not match the current source-grounded selector");
+      return failure("submitted fallback tier does not match the current representation selector");
     }
     // The fallback document is entirely reproducible. Discard the browser's
     // copy instead of comparing planner-normalized metadata byte-for-byte;

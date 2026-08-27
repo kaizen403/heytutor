@@ -6,6 +6,7 @@ export const BOARD_HEIGHT = DS.Canvas.height;
 export const WHITEBOARD_COLOR = "#FFFFFF";
 export const PAGE_GUTTER_X = 10;
 export const PAGE_GUTTER_Y = 6;
+export const NOTES_CHAT_RAIL_WIDTH = 380;
 export const MAX_LLM_CONTINUATIONS = 1;
 export const STREAM_SEGMENTS_LIVE = true;
 

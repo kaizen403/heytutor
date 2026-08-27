@@ -64,7 +64,7 @@ export function useBoardLayout({
         notesEpochsRef.current.push({
           index: notesEpochsRef.current.length,
           snapshotDataUrl,
-          narrationText: narrationSinceEpochRef.current,
+          narrationText: "",
           timestampMs: Date.now(),
         });
       }
@@ -168,7 +168,7 @@ export function useBoardLayout({
             notesEpochsRef.current.push({
               index: notesEpochsRef.current.length,
               snapshotDataUrl: preEraseSnapshot,
-              narrationText: narrationSinceEpochRef.current,
+              narrationText: "",
               timestampMs: Date.now(),
             });
             narrationSinceEpochRef.current = "";

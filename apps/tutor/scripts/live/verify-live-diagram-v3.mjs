@@ -93,7 +93,10 @@ try {
     planned.peerTurnPlans,
   ) ?? selectCompleteTurnPlan(audited?.turnPlan, planned.turnPlan);
   const planningTurnPlan = turnPlan;
-  const sceneCapabilities = inferSceneCapabilities(question, planningTurnPlan.lawIds);
+  const sceneCapabilities = inferSceneCapabilities(question, {
+    lawIds: planningTurnPlan.lawIds,
+    turnPlan: planningTurnPlan,
+  });
 
   const validateAgainstPlan = (candidate, authoritativePlan) => {
     let validated = validateSceneDocument(pruneDeadSceneEntities(candidate));

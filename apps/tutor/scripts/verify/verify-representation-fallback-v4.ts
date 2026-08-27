@@ -479,4 +479,25 @@ const selectedPointKeys = rejectedCollidingCircuit.sceneDocument.constructions.f
   construction.operator === "point" ? [`${construction.inputs.x}:${construction.inputs.y}`] : []);
 assert(new Set(selectedPointKeys).size === selectedPointKeys.length, "fallback circuit views must not share coordinates");
 
+const relativeCars = selectVerifiedRepresentation({
+  question: "Car A travels east at 20 m/s and car B travels east at 5.0 m/s on the same straight road. Find the velocity of A relative to B and of B relative to A.",
+  families: [],
+});
+assert(relativeCars.sceneDocument.visualDecision.mode === "scene", "1D relative velocity must not stay text-only");
+assert(relativeCars.renderScene.primitives.length > 0, "1D relative velocity must put ink on the board");
+
+const projectileFallback = selectVerifiedRepresentation({
+  question: "A ball is projected from the ground at 45° to the horizontal and reaches a maximum height of 120 m.",
+  families: [],
+});
+assert(projectileFallback.sceneDocument.visualDecision.mode === "scene", "projectile lecture must not stay text-only");
+assert(projectileFallback.renderScene.primitives.length > 0, "projectile lecture must put ink on the board");
+
+const motionGraphFallback = selectVerifiedRepresentation({
+  question: "A velocity–time graph is a horizontal line at v = 10 m/s from t = 0 to t = 4.0 s. Sketch it.",
+  families: [],
+});
+assert(motionGraphFallback.sceneDocument.visualDecision.mode === "scene", "motion-graph lecture must not stay text-only");
+assert(motionGraphFallback.renderScene.primitives.length > 0, "motion-graph lecture must put ink on the board");
+
 console.log("representation fallback v4 verification passed");

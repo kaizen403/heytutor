@@ -1,6 +1,7 @@
 "use client";
 
-import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
+import { Logo } from "@/components/brand/Logo";
+import { LANDING_PROMPT, SITE_NAME } from "@/lib/site";
 import { InputBar } from "@/features/tutor-session/components/InputBar";
 
 export interface CanvasLandingSuggestion {
@@ -11,20 +12,23 @@ export interface CanvasLandingSuggestion {
 export interface CanvasLandingProps {
   suggestions: CanvasLandingSuggestion[];
   onSubmit: (question: string) => void;
+  onOpenSettings?: () => void;
 }
 
 export function CanvasLanding({
   suggestions,
   onSubmit,
+  onOpenSettings,
 }: CanvasLandingProps) {
   return (
     <section className="ac-landing animate-wb-fade-in">
       <header className="ac-landing__hero">
+        <Logo className="ac-landing__mark" />
         <h1 className="ac-landing__brand">
           <span>{SITE_NAME}</span>
-          <span className="ac-landing__brand-mark" aria-hidden />
+          <span className="ac-landing__brand-dot" aria-hidden />
         </h1>
-        <p className="ac-landing__tagline">{SITE_TAGLINE}</p>
+        <p className="ac-landing__prompt">{LANDING_PROMPT}</p>
       </header>
 
       <div className="ac-landing__ask">
@@ -33,6 +37,7 @@ export function CanvasLanding({
           autoFocus
           prominent
           placeholder="Ask a question or paste a photo"
+          onOpenSettings={onOpenSettings}
         />
       </div>
 
@@ -125,11 +130,25 @@ const STYLES = `
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
+}
+
+.ac-landing__ask {
+  margin-top: 0.15rem;
 }
 
 .ac-landing__hero {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ac-landing__mark {
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-bottom: 0.85rem;
+  color: var(--ink);
 }
 
 .ac-landing__brand {
@@ -138,27 +157,30 @@ const STYLES = `
   align-items: flex-end;
   justify-content: center;
   gap: 0.02em;
-  font-size: clamp(2.75rem, 7vw, 4.25rem);
-  font-weight: 700;
+  font-family: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
+  font-size: clamp(1.625rem, 3.6vw, 2.125rem);
+  font-weight: 500;
   letter-spacing: -0.03em;
   line-height: 1;
   color: var(--ink);
 }
 
-.ac-landing__brand-mark {
-  width: 0.09em;
-  height: 0.09em;
-  margin-bottom: 0.13em;
+.ac-landing__brand-dot {
+  width: 0.085em;
+  height: 0.085em;
+  margin-bottom: 0.12em;
   border-radius: 50%;
   background: var(--ink);
 }
 
-.ac-landing__tagline {
-  margin: 0.75rem 0 0;
-  font-size: 0.9375rem;
-  line-height: 1.5;
-  letter-spacing: -0.01em;
-  color: var(--ink-soft);
+.ac-landing__prompt {
+  margin: 0.7rem 0 0;
+  font-family: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
+  font-size: clamp(1.625rem, 4.2vw, 2.375rem);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+  color: var(--ink);
 }
 
 .ac-landing__suggestions-label {

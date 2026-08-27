@@ -1,11 +1,21 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   Sheet,
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Logo } from "@/components/brand/Logo";
 import { SITE_NAME } from "@/lib/site";
 import type { BoardEntry } from "@/lib/boards/types";
 
@@ -26,16 +36,45 @@ interface BoardHistoryProps {
   profileOpen?: boolean;
   onProfileToggle?: () => void;
   onCreditsClick?: () => void;
+  onWidthChange?: (width: number) => void;
+  onResizingChange?: (resizing: boolean) => void;
 }
 
 const SIDEBAR_WIDTH = 264;
+const SIDEBAR_MIN_WIDTH = 216;
+const SIDEBAR_MAX_WIDTH = 420;
+const SIDEBAR_WIDTH_KEY = "htutor_sidebar_width";
 
 const PANEL: CSSProperties = {
   background: "#0B0B0C",
   borderRight: "1px solid rgba(242, 242, 244, 0.08)",
 };
 
-export { SIDEBAR_WIDTH };
+export { SIDEBAR_WIDTH, SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH };
+
+function clampSidebarWidth(value: number): number {
+  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Math.round(value)));
+}
+
+function readStoredSidebarWidth(): number {
+  try {
+    const raw = window.localStorage.getItem(SIDEBAR_WIDTH_KEY);
+    if (!raw) return SIDEBAR_WIDTH;
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed)) return SIDEBAR_WIDTH;
+    return clampSidebarWidth(parsed);
+  } catch {
+    return SIDEBAR_WIDTH;
+  }
+}
+
+function writeStoredSidebarWidth(width: number): void {
+  try {
+    window.localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
 
 interface BoardHistoryContentProps {
   boards: BoardEntry[];
@@ -76,7 +115,10 @@ function BoardHistoryContent({
   return (
     <div className="bh flex h-full flex-col overflow-hidden">
       <header className="bh__header">
-        <span className="bh__brand">{SITE_NAME}</span>
+        <span className="bh__brand">
+          <Logo className="bh__logo" />
+          {SITE_NAME}
+        </span>
         <div className="bh__header-actions">
           <button
             type="button"
@@ -126,9 +168,11 @@ function BoardHistoryContent({
           onClick={onNew}
           disabled={disabled}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M12 5v14M5 12h14" />
-          </svg>
+          <span className="bh__new-icon" aria-hidden>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </span>
           New board
         </button>
       </div>
@@ -245,12 +289,22 @@ const STYLES = `
 }
 
 .bh__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
   font-size: 1.125rem;
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: 1.2;
   color: var(--ink);
   user-select: none;
+}
+
+.bh__logo {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
 }
 
 .bh__header-actions {
@@ -319,30 +373,43 @@ const STYLES = `
 .bh__new {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.65rem;
   width: 100%;
-  padding: 0.8rem 0.9rem;
-  border-radius: 0.9rem;
-  border: 1px solid var(--line);
-  background: var(--paper);
+  padding: 0.55rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(201, 201, 210, 0.22);
+  background: linear-gradient(180deg, #262629 0%, #1A1A1D 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.28);
   color: var(--ink);
-  font-size: 0.9375rem;
-  font-weight: 500;
+  font-size: 0.875rem;
+  font-weight: 400;
   line-height: 1.4;
-  letter-spacing: -0.005em;
+  letter-spacing: 0;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.bh__new svg {
-  color: var(--accent);
+.bh__new-icon {
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 0.45rem;
+  background: #F2F2F4;
+  color: #0B0B0C;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
 .bh__new:hover:not(:disabled) {
-  background: var(--hover);
-  border-color: rgba(201, 201, 210, 0.35);
+  border-color: rgba(201, 201, 210, 0.42);
+  background: linear-gradient(180deg, #2E2E32 0%, #202024 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.28);
 }
 
 .bh__new:disabled {
@@ -351,12 +418,12 @@ const STYLES = `
 }
 
 .bh__section-label {
-  padding: 0.25rem 1.05rem 0.625rem;
-  font-size: 0.6875rem;
+  padding: 0.15rem 1.05rem 0.55rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
+  letter-spacing: 0;
+  line-height: 1.3;
+  color: var(--ink-soft);
   flex-shrink: 0;
   user-select: none;
 }
@@ -416,9 +483,9 @@ const STYLES = `
 }
 
 .bh__item-title {
-  font-size: 0.9375rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0;
   line-height: 1.35;
   color: var(--ink);
   overflow: hidden;
@@ -544,6 +611,43 @@ const STYLES = `
   cursor: default;
 }
 
+.bh__resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  z-index: 6;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.bh__resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 1px;
+  background: transparent;
+  transition: background 0.15s ease, width 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bh__resize:hover::after,
+.bh__resize:focus-visible::after,
+.board-sidebar--resizing .bh__resize::after {
+  width: 2px;
+  background: rgba(201, 201, 210, 0.55);
+  box-shadow: 0 0 0 1px rgba(201, 201, 210, 0.12);
+}
+
+.bh__resize:focus-visible {
+  outline: none;
+}
+
 @media (hover: none) {
   .bh__delete {
     opacity: 0.55;
@@ -566,7 +670,48 @@ export function BoardHistory({
   profileOpen = false,
   onProfileToggle,
   onCreditsClick,
+  onWidthChange,
+  onResizingChange,
 }: BoardHistoryProps) {
+  const [width, setWidth] = useState(SIDEBAR_WIDTH);
+  const [resizing, setResizing] = useState(false);
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const widthRef = useRef(width);
+  widthRef.current = width;
+
+  const applyWidth = useCallback(
+    (next: number, persist: boolean) => {
+      const clamped = clampSidebarWidth(next);
+      setWidth(clamped);
+      onWidthChange?.(clamped);
+      if (persist) writeStoredSidebarWidth(clamped);
+    },
+    [onWidthChange],
+  );
+
+  useLayoutEffect(() => {
+    if (variant !== "sidebar") return;
+    const stored = readStoredSidebarWidth();
+    setWidth(stored);
+    onWidthChange?.(stored);
+  }, [variant, onWidthChange]);
+
+  useEffect(() => {
+    onResizingChange?.(resizing);
+  }, [resizing, onResizingChange]);
+
+  useEffect(() => {
+    if (!resizing) return;
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    return () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+    };
+  }, [resizing]);
+
   const handleSelect = (id: string) => {
     onSelect(id);
     if (variant === "drawer") {
@@ -580,6 +725,63 @@ export function BoardHistory({
       onOpenChange?.(false);
     }
   };
+
+  const stopDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    setResizing(false);
+    writeStoredSidebarWidth(widthRef.current);
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      /* already released */
+    }
+  }, []);
+
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      dragRef.current = { startX: event.clientX, startWidth: widthRef.current };
+      setResizing(true);
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!dragRef.current) return;
+      applyWidth(
+        dragRef.current.startWidth + (event.clientX - dragRef.current.startX),
+        false,
+      );
+    },
+    [applyWidth],
+  );
+
+  const handleDoubleClick = useCallback(() => {
+    applyWidth(SIDEBAR_WIDTH, true);
+  }, [applyWidth]);
+
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        applyWidth(widthRef.current - 16, true);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        applyWidth(widthRef.current + 16, true);
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        applyWidth(SIDEBAR_MIN_WIDTH, true);
+      } else if (event.key === "End") {
+        event.preventDefault();
+        applyWidth(SIDEBAR_MAX_WIDTH, true);
+      }
+    },
+    [applyWidth],
+  );
 
   const contentProps: BoardHistoryContentProps = {
     boards,
@@ -610,28 +812,49 @@ export function BoardHistory({
     );
   }
 
-  const width = collapsed ? 0 : SIDEBAR_WIDTH;
+  const frameWidth = collapsed ? 0 : width;
 
   return (
     <div
-      className="board-sidebar hidden lg:flex"
+      className={`board-sidebar hidden lg:flex${resizing ? " board-sidebar--resizing" : ""}`}
       style={{
         position: "fixed",
         left: 0,
         top: 0,
         zIndex: 40,
-        width,
-        minWidth: width,
+        width: frameWidth,
+        minWidth: frameWidth,
         height: "100dvh",
         ...PANEL,
         flexDirection: "column",
         overflow: "hidden",
-        transition:
-          "width 0.25s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+        transition: resizing
+          ? "none"
+          : "width 0.25s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
         flexShrink: 0,
       }}
     >
       <BoardHistoryContent {...contentProps} />
+      {!collapsed ? (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+          aria-valuemin={SIDEBAR_MIN_WIDTH}
+          aria-valuemax={SIDEBAR_MAX_WIDTH}
+          aria-valuenow={width}
+          title="Drag to resize"
+          tabIndex={0}
+          className="bh__resize"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={stopDrag}
+          onPointerCancel={stopDrag}
+          onLostPointerCapture={stopDrag}
+          onDoubleClick={handleDoubleClick}
+          onKeyDown={handleKeyDown}
+        />
+      ) : null}
     </div>
   );
 }

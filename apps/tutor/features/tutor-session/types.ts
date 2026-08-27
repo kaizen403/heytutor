@@ -31,6 +31,8 @@ export interface BoardViewport {
   scale: number;
   offsetX: number;
   offsetY: number;
+  /** False until the board container has a real size (fit mode). */
+  measured: boolean;
 }
 
 export interface StatusDisplay {

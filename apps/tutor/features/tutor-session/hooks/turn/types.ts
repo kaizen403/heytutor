@@ -96,7 +96,7 @@ export type UseTurnLifecycleParams = {
   setCurrentSegmentText: Dispatch<SetStateAction<string>>;
   setLastError: Dispatch<SetStateAction<{ message: string; question: string } | null>>;
   setInputInteracted: Dispatch<SetStateAction<boolean>>;
-  setTranscriptOpen: Dispatch<SetStateAction<boolean>>;
+  setLiveQuestion?: Dispatch<SetStateAction<string>>;
   setIsReplaying: Dispatch<SetStateAction<boolean>>;
   setReplayProgressMs: Dispatch<SetStateAction<number>>;
   setReplayTotalMs: Dispatch<SetStateAction<number>>;
