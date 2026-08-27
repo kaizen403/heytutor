@@ -1,0 +1,237 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|9",
+  "questions": [
+    {
+      "id": "physics|9|perfect-gas-equation-and-compression-work|easy",
+      "topicId": "physics|9|perfect-gas-equation-and-compression-work",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Equation of state of a perfect gas. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|perfect-gas-equation-and-compression-work|medium",
+      "topicId": "physics|9|perfect-gas-equation-and-compression-work",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Equation of state of a perfect gas and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|perfect-gas-equation-and-compression-work|hard",
+      "topicId": "physics|9|perfect-gas-equation-and-compression-work",
+      "difficulty": "hard",
+      "question": "Draw Equation of state of a perfect gas and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|work-in-compression-of-a-gas|easy",
+      "topicId": "physics|9|work-in-compression-of-a-gas",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Work done on compressing a gas. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|work-in-compression-of-a-gas|medium",
+      "topicId": "physics|9|work-in-compression-of-a-gas",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Work done on compressing a gas and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|work-in-compression-of-a-gas|hard",
+      "topicId": "physics|9|work-in-compression-of-a-gas",
+      "difficulty": "hard",
+      "question": "Draw Work done on compressing a gas and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|kinetic-theory-assumptions-and-pressure|easy",
+      "topicId": "physics|9|kinetic-theory-assumptions-and-pressure",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Assumptions of kinetic theory of gases and the concept of pressure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|kinetic-theory-assumptions-and-pressure|medium",
+      "topicId": "physics|9|kinetic-theory-assumptions-and-pressure",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Assumptions of kinetic theory of gases and the concept of pressure and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|kinetic-theory-assumptions-and-pressure|hard",
+      "topicId": "physics|9|kinetic-theory-assumptions-and-pressure",
+      "difficulty": "hard",
+      "question": "Draw Assumptions of kinetic theory of gases and the concept of pressure and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|temperature-and-rms-speed|easy",
+      "topicId": "physics|9|temperature-and-rms-speed",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Kinetic interpretation of temperature and RMS speed of gas molecules. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|temperature-and-rms-speed|medium",
+      "topicId": "physics|9|temperature-and-rms-speed",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Kinetic interpretation of temperature and RMS speed of gas molecules and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|temperature-and-rms-speed|hard",
+      "topicId": "physics|9|temperature-and-rms-speed",
+      "difficulty": "hard",
+      "question": "Draw Kinetic interpretation of temperature and RMS speed of gas molecules and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|average-and-most-probable-speed|easy",
+      "topicId": "physics|9|average-and-most-probable-speed",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Average speed and most probable speed of gas molecules.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|average-and-most-probable-speed|medium",
+      "topicId": "physics|9|average-and-most-probable-speed",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Average speed and most probable speed of gas molecules and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|average-and-most-probable-speed|hard",
+      "topicId": "physics|9|average-and-most-probable-speed",
+      "difficulty": "hard",
+      "question": "Draw Average speed and most probable speed of gas molecules and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|maxwell-speed-distribution|easy",
+      "topicId": "physics|9|maxwell-speed-distribution",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Maxwell speed distribution. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|maxwell-speed-distribution|medium",
+      "topicId": "physics|9|maxwell-speed-distribution",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Maxwell speed distribution and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|maxwell-speed-distribution|hard",
+      "topicId": "physics|9|maxwell-speed-distribution",
+      "difficulty": "hard",
+      "question": "Draw Maxwell speed distribution and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|degrees-of-freedom-and-equipartition|easy",
+      "topicId": "physics|9|degrees-of-freedom-and-equipartition",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Degrees of freedom and the law of equipartition of energy. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|degrees-of-freedom-and-equipartition|medium",
+      "topicId": "physics|9|degrees-of-freedom-and-equipartition",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Degrees of freedom and the law of equipartition of energy and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|degrees-of-freedom-and-equipartition|hard",
+      "topicId": "physics|9|degrees-of-freedom-and-equipartition",
+      "difficulty": "hard",
+      "question": "Draw Degrees of freedom and the law of equipartition of energy and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|specific-heat-capacities-of-gases|easy",
+      "topicId": "physics|9|specific-heat-capacities-of-gases",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Specific heat capacities of gases. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|specific-heat-capacities-of-gases|medium",
+      "topicId": "physics|9|specific-heat-capacities-of-gases",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Specific heat capacities of gases and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|specific-heat-capacities-of-gases|hard",
+      "topicId": "physics|9|specific-heat-capacities-of-gases",
+      "difficulty": "hard",
+      "question": "Draw Specific heat capacities of gases and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|mean-free-path-and-avogadros-number|easy",
+      "topicId": "physics|9|mean-free-path-and-avogadros-number",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Mean free path. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|mean-free-path-and-avogadros-number|medium",
+      "topicId": "physics|9|mean-free-path-and-avogadros-number",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Mean free path and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|mean-free-path-and-avogadros-number|hard",
+      "topicId": "physics|9|mean-free-path-and-avogadros-number",
+      "difficulty": "hard",
+      "question": "Draw Mean free path and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|avogadros-number|easy",
+      "topicId": "physics|9|avogadros-number",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Avogadro's number. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|avogadros-number|medium",
+      "topicId": "physics|9|avogadros-number",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Avogadro's number and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|avogadros-number|hard",
+      "topicId": "physics|9|avogadros-number",
+      "difficulty": "hard",
+      "question": "Draw Avogadro's number and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|mixture-of-ideal-gases|easy",
+      "topicId": "physics|9|mixture-of-ideal-gases",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Mixture of ideal gases. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|mixture-of-ideal-gases|medium",
+      "topicId": "physics|9|mixture-of-ideal-gases",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Mixture of ideal gases and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|9|mixture-of-ideal-gases|hard",
+      "topicId": "physics|9|mixture-of-ideal-gases",
+      "difficulty": "hard",
+      "question": "Draw Mixture of ideal gases and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

@@ -1,0 +1,363 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|5",
+  "questions": [
+    {
+      "id": "physics|5|centre-of-mass|easy",
+      "topicId": "physics|5|centre-of-mass",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Centre of mass of a two-particle system and of a rigid body. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|centre-of-mass|medium",
+      "topicId": "physics|5|centre-of-mass",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Centre of mass of a two-particle system and of a rigid body and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|centre-of-mass|hard",
+      "topicId": "physics|5|centre-of-mass",
+      "difficulty": "hard",
+      "question": "Draw Centre of mass of a two-particle system and of a rigid body and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|motion-of-centre-of-mass|easy",
+      "topicId": "physics|5|motion-of-centre-of-mass",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Motion of the centre of mass.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|motion-of-centre-of-mass|medium",
+      "topicId": "physics|5|motion-of-centre-of-mass",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Motion of the centre of mass and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|motion-of-centre-of-mass|hard",
+      "topicId": "physics|5|motion-of-centre-of-mass",
+      "difficulty": "hard",
+      "question": "Draw Motion of the centre of mass and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|rotational-motion-basics|easy",
+      "topicId": "physics|5|rotational-motion-basics",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Basic concepts of rotational motion. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|rotational-motion-basics|medium",
+      "topicId": "physics|5|rotational-motion-basics",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Basic concepts of rotational motion and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|rotational-motion-basics|hard",
+      "topicId": "physics|5|rotational-motion-basics",
+      "difficulty": "hard",
+      "question": "Draw Basic concepts of rotational motion and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|torque-and-angular-momentum|easy",
+      "topicId": "physics|5|torque-and-angular-momentum",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Moment of a force and torque. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|torque-and-angular-momentum|medium",
+      "topicId": "physics|5|torque-and-angular-momentum",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Moment of a force and torque and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|torque-and-angular-momentum|hard",
+      "topicId": "physics|5|torque-and-angular-momentum",
+      "difficulty": "hard",
+      "question": "Draw Moment of a force and torque and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|angular-momentum|easy",
+      "topicId": "physics|5|angular-momentum",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Angular momentum. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|angular-momentum|medium",
+      "topicId": "physics|5|angular-momentum",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Angular momentum and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|angular-momentum|hard",
+      "topicId": "physics|5|angular-momentum",
+      "difficulty": "hard",
+      "question": "Draw Angular momentum and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|angular-momentum-conservation|easy",
+      "topicId": "physics|5|angular-momentum-conservation",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Conservation of angular momentum and its applications. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|angular-momentum-conservation|medium",
+      "topicId": "physics|5|angular-momentum-conservation",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Conservation of angular momentum and its applications and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|angular-momentum-conservation|hard",
+      "topicId": "physics|5|angular-momentum-conservation",
+      "difficulty": "hard",
+      "question": "Draw Conservation of angular momentum and its applications and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|angular-impulse|easy",
+      "topicId": "physics|5|angular-impulse",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Angular impulse.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|angular-impulse|medium",
+      "topicId": "physics|5|angular-impulse",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Angular impulse and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|angular-impulse|hard",
+      "topicId": "physics|5|angular-impulse",
+      "difficulty": "hard",
+      "question": "Draw Angular impulse and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|moment-of-inertia-and-radius-of-gyration|easy",
+      "topicId": "physics|5|moment-of-inertia-and-radius-of-gyration",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Moment of inertia and radius of gyration. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|moment-of-inertia-and-radius-of-gyration|medium",
+      "topicId": "physics|5|moment-of-inertia-and-radius-of-gyration",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Moment of inertia and radius of gyration and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|moment-of-inertia-and-radius-of-gyration|hard",
+      "topicId": "physics|5|moment-of-inertia-and-radius-of-gyration",
+      "difficulty": "hard",
+      "question": "Draw Moment of inertia and radius of gyration and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|moments-of-inertia-for-simple-objects|easy",
+      "topicId": "physics|5|moments-of-inertia-for-simple-objects",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Values of moments of inertia for simple geometrical objects. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|moments-of-inertia-for-simple-objects|medium",
+      "topicId": "physics|5|moments-of-inertia-for-simple-objects",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Values of moments of inertia for simple geometrical objects and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|moments-of-inertia-for-simple-objects|hard",
+      "topicId": "physics|5|moments-of-inertia-for-simple-objects",
+      "difficulty": "hard",
+      "question": "Draw Values of moments of inertia for simple geometrical objects and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|axes-theorems|easy",
+      "topicId": "physics|5|axes-theorems",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Parallel and perpendicular axes theorems and their applications. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|axes-theorems|medium",
+      "topicId": "physics|5|axes-theorems",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Parallel and perpendicular axes theorems and their applications and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|axes-theorems|hard",
+      "topicId": "physics|5|axes-theorems",
+      "difficulty": "hard",
+      "question": "Draw Parallel and perpendicular axes theorems and their applications and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|equilibrium-of-rigid-bodies|easy",
+      "topicId": "physics|5|equilibrium-of-rigid-bodies",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Equilibrium of rigid bodies. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|equilibrium-of-rigid-bodies|medium",
+      "topicId": "physics|5|equilibrium-of-rigid-bodies",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Equilibrium of rigid bodies and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|equilibrium-of-rigid-bodies|hard",
+      "topicId": "physics|5|equilibrium-of-rigid-bodies",
+      "difficulty": "hard",
+      "question": "Draw Equilibrium of rigid bodies and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|rigid-body-rotation-equations|easy",
+      "topicId": "physics|5|rigid-body-rotation-equations",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Rigid body rotation and equations of rotational motion. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|rigid-body-rotation-equations|medium",
+      "topicId": "physics|5|rigid-body-rotation-equations",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Rigid body rotation and equations of rotational motion and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|rigid-body-rotation-equations|hard",
+      "topicId": "physics|5|rigid-body-rotation-equations",
+      "difficulty": "hard",
+      "question": "Draw Rigid body rotation and equations of rotational motion and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|linear-and-rotational-comparison|easy",
+      "topicId": "physics|5|linear-and-rotational-comparison",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Comparison of linear and rotational motions. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|linear-and-rotational-comparison|medium",
+      "topicId": "physics|5|linear-and-rotational-comparison",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Comparison of linear and rotational motions and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|linear-and-rotational-comparison|hard",
+      "topicId": "physics|5|linear-and-rotational-comparison",
+      "difficulty": "hard",
+      "question": "Draw Comparison of linear and rotational motions and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|rolling-without-slipping|easy",
+      "topicId": "physics|5|rolling-without-slipping",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Rolling without slipping. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|rolling-without-slipping|medium",
+      "topicId": "physics|5|rolling-without-slipping",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Rolling without slipping and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|rolling-without-slipping|hard",
+      "topicId": "physics|5|rolling-without-slipping",
+      "difficulty": "hard",
+      "question": "Draw Rolling without slipping and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|rolling-with-slipping|easy",
+      "topicId": "physics|5|rolling-with-slipping",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Rolling with slipping. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|rolling-with-slipping|medium",
+      "topicId": "physics|5|rolling-with-slipping",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Rolling with slipping and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|rolling-with-slipping|hard",
+      "topicId": "physics|5|rolling-with-slipping",
+      "difficulty": "hard",
+      "question": "Draw Rolling with slipping and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|combined-translation-and-rotation|easy",
+      "topicId": "physics|5|combined-translation-and-rotation",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Combined translational and rotational motion. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|combined-translation-and-rotation|medium",
+      "topicId": "physics|5|combined-translation-and-rotation",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Combined translational and rotational motion and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|combined-translation-and-rotation|hard",
+      "topicId": "physics|5|combined-translation-and-rotation",
+      "difficulty": "hard",
+      "question": "Draw Combined translational and rotational motion and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|instantaneous-axis-of-rotation|easy",
+      "topicId": "physics|5|instantaneous-axis-of-rotation",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Instantaneous axis of rotation. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|instantaneous-axis-of-rotation|medium",
+      "topicId": "physics|5|instantaneous-axis-of-rotation",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Instantaneous axis of rotation and label the named quantities. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|5|instantaneous-axis-of-rotation|hard",
+      "topicId": "physics|5|instantaneous-axis-of-rotation",
+      "difficulty": "hard",
+      "question": "Draw Instantaneous axis of rotation and mark any named directions, levels, or components on the figure. A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

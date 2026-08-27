@@ -1,0 +1,258 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|8",
+  "questions": [
+    {
+      "id": "physics|8|thermal-equilibrium-temperature-and-zeroth-law|easy",
+      "topicId": "physics|8|thermal-equilibrium-temperature-and-zeroth-law",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Thermal equilibrium, concept of temperature, and zeroth law of thermodynamics. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|thermal-equilibrium-temperature-and-zeroth-law|medium",
+      "topicId": "physics|8|thermal-equilibrium-temperature-and-zeroth-law",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Thermal equilibrium, concept of temperature, and zeroth law of thermodynamics and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|thermal-equilibrium-temperature-and-zeroth-law|hard",
+      "topicId": "physics|8|thermal-equilibrium-temperature-and-zeroth-law",
+      "difficulty": "hard",
+      "question": "Draw Thermal equilibrium, concept of temperature, and zeroth law of thermodynamics and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|heat-work-and-internal-energy|easy",
+      "topicId": "physics|8|heat-work-and-internal-energy",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Heat, work, and internal energy. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|heat-work-and-internal-energy|medium",
+      "topicId": "physics|8|heat-work-and-internal-energy",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Heat, work, and internal energy and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|heat-work-and-internal-energy|hard",
+      "topicId": "physics|8|heat-work-and-internal-energy",
+      "difficulty": "hard",
+      "question": "Draw Heat, work, and internal energy and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|first-law-of-thermodynamics|easy",
+      "topicId": "physics|8|first-law-of-thermodynamics",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for First law of thermodynamics. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|first-law-of-thermodynamics|medium",
+      "topicId": "physics|8|first-law-of-thermodynamics",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for First law of thermodynamics and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|first-law-of-thermodynamics|hard",
+      "topicId": "physics|8|first-law-of-thermodynamics",
+      "difficulty": "hard",
+      "question": "Draw First law of thermodynamics and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|isothermal-and-adiabatic-processes|easy",
+      "topicId": "physics|8|isothermal-and-adiabatic-processes",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Isothermal processes. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|isothermal-and-adiabatic-processes|medium",
+      "topicId": "physics|8|isothermal-and-adiabatic-processes",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Isothermal processes and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|isothermal-and-adiabatic-processes|hard",
+      "topicId": "physics|8|isothermal-and-adiabatic-processes",
+      "difficulty": "hard",
+      "question": "Draw Isothermal processes and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|adiabatic-processes|easy",
+      "topicId": "physics|8|adiabatic-processes",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Adiabatic processes. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|adiabatic-processes|medium",
+      "topicId": "physics|8|adiabatic-processes",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Adiabatic processes and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|adiabatic-processes|hard",
+      "topicId": "physics|8|adiabatic-processes",
+      "difficulty": "hard",
+      "question": "Draw Adiabatic processes and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|isobaric-and-isochoric-processes|easy",
+      "topicId": "physics|8|isobaric-and-isochoric-processes",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Isobaric and isochoric processes. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|isobaric-and-isochoric-processes|medium",
+      "topicId": "physics|8|isobaric-and-isochoric-processes",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Isobaric and isochoric processes and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|isobaric-and-isochoric-processes|hard",
+      "topicId": "physics|8|isobaric-and-isochoric-processes",
+      "difficulty": "hard",
+      "question": "Draw Isobaric and isochoric processes and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|work-on-pv-diagrams|easy",
+      "topicId": "physics|8|work-on-pv-diagrams",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Work done in processes on a P-V diagram. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|work-on-pv-diagrams|medium",
+      "topicId": "physics|8|work-on-pv-diagrams",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Work done in processes on a P-V diagram and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|work-on-pv-diagrams|hard",
+      "topicId": "physics|8|work-on-pv-diagrams",
+      "difficulty": "hard",
+      "question": "Draw Work done in processes on a P-V diagram and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|cp-cv-and-mayers-relation|easy",
+      "topicId": "physics|8|cp-cv-and-mayers-relation",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Cp, Cv, and Mayer's relation. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|cp-cv-and-mayers-relation|medium",
+      "topicId": "physics|8|cp-cv-and-mayers-relation",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Cp, Cv, and Mayer's relation and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|cp-cv-and-mayers-relation|hard",
+      "topicId": "physics|8|cp-cv-and-mayers-relation",
+      "difficulty": "hard",
+      "question": "Draw Cp, Cv, and Mayer's relation and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|second-law-and-process-reversibility|easy",
+      "topicId": "physics|8|second-law-and-process-reversibility",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Second law of thermodynamics. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|second-law-and-process-reversibility|medium",
+      "topicId": "physics|8|second-law-and-process-reversibility",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Second law of thermodynamics and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|second-law-and-process-reversibility|hard",
+      "topicId": "physics|8|second-law-and-process-reversibility",
+      "difficulty": "hard",
+      "question": "Draw Second law of thermodynamics and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|reversible-and-irreversible-processes|easy",
+      "topicId": "physics|8|reversible-and-irreversible-processes",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Reversible and irreversible processes. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|reversible-and-irreversible-processes|medium",
+      "topicId": "physics|8|reversible-and-irreversible-processes",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Reversible and irreversible processes and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|reversible-and-irreversible-processes|hard",
+      "topicId": "physics|8|reversible-and-irreversible-processes",
+      "difficulty": "hard",
+      "question": "Draw Reversible and irreversible processes and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|carnot-engine-and-efficiency|easy",
+      "topicId": "physics|8|carnot-engine-and-efficiency",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Carnot engine and its efficiency. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|carnot-engine-and-efficiency|medium",
+      "topicId": "physics|8|carnot-engine-and-efficiency",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Carnot engine and its efficiency and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|carnot-engine-and-efficiency|hard",
+      "topicId": "physics|8|carnot-engine-and-efficiency",
+      "difficulty": "hard",
+      "question": "Draw Carnot engine and its efficiency and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|refrigerator-and-heat-pump|easy",
+      "topicId": "physics|8|refrigerator-and-heat-pump",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Refrigerator and heat pump. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|refrigerator-and-heat-pump|medium",
+      "topicId": "physics|8|refrigerator-and-heat-pump",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Refrigerator and heat pump and label the named quantities. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|8|refrigerator-and-heat-pump|hard",
+      "topicId": "physics|8|refrigerator-and-heat-pump",
+      "difficulty": "hard",
+      "question": "Draw Refrigerator and heat pump and mark any named directions, levels, or components on the figure. Draw the named process on a P-V diagram or sketch the Maxwell speed curve.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

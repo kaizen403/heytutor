@@ -1,0 +1,510 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|11",
+  "questions": [
+    {
+      "id": "physics|11|charge-conservation-and-coulombs-law|easy",
+      "topicId": "physics|11|charge-conservation-and-coulombs-law",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electric charges and conservation of charge. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|charge-conservation-and-coulombs-law|medium",
+      "topicId": "physics|11|charge-conservation-and-coulombs-law",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electric charges and conservation of charge and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|charge-conservation-and-coulombs-law|hard",
+      "topicId": "physics|11|charge-conservation-and-coulombs-law",
+      "difficulty": "hard",
+      "question": "Draw Electric charges and conservation of charge and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|coulombs-law-for-point-charges|easy",
+      "topicId": "physics|11|coulombs-law-for-point-charges",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Coulomb's law for two point charges. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|coulombs-law-for-point-charges|medium",
+      "topicId": "physics|11|coulombs-law-for-point-charges",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Coulomb's law for two point charges and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|coulombs-law-for-point-charges|hard",
+      "topicId": "physics|11|coulombs-law-for-point-charges",
+      "difficulty": "hard",
+      "question": "Draw Coulomb's law for two point charges and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|multiple-charges-and-superposition|easy",
+      "topicId": "physics|11|multiple-charges-and-superposition",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Forces between multiple charges, superposition principle, and continuous charge distribution. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|multiple-charges-and-superposition|medium",
+      "topicId": "physics|11|multiple-charges-and-superposition",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Forces between multiple charges, superposition principle, and continuous charge distribution and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|multiple-charges-and-superposition|hard",
+      "topicId": "physics|11|multiple-charges-and-superposition",
+      "difficulty": "hard",
+      "question": "Draw Forces between multiple charges, superposition principle, and continuous charge distribution and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-field-for-point-charge|easy",
+      "topicId": "physics|11|electric-field-for-point-charge",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electric field due to a point charge. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-field-for-point-charge|medium",
+      "topicId": "physics|11|electric-field-for-point-charge",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electric field due to a point charge and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-field-for-point-charge|hard",
+      "topicId": "physics|11|electric-field-for-point-charge",
+      "difficulty": "hard",
+      "question": "Draw Electric field due to a point charge and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-field-lines|easy",
+      "topicId": "physics|11|electric-field-lines",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electric field lines. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-field-lines|medium",
+      "topicId": "physics|11|electric-field-lines",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electric field lines and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-field-lines|hard",
+      "topicId": "physics|11|electric-field-lines",
+      "difficulty": "hard",
+      "question": "Draw Electric field lines and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|field-on-axis-of-a-charged-ring|easy",
+      "topicId": "physics|11|field-on-axis-of-a-charged-ring",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electric field on the axis of a uniformly charged ring. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|field-on-axis-of-a-charged-ring|medium",
+      "topicId": "physics|11|field-on-axis-of-a-charged-ring",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electric field on the axis of a uniformly charged ring and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|field-on-axis-of-a-charged-ring|hard",
+      "topicId": "physics|11|field-on-axis-of-a-charged-ring",
+      "difficulty": "hard",
+      "question": "Draw Electric field on the axis of a uniformly charged ring and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-dipole-and-its-field|easy",
+      "topicId": "physics|11|electric-dipole-and-its-field",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electric dipole and electric field due to a dipole. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-dipole-and-its-field|medium",
+      "topicId": "physics|11|electric-dipole-and-its-field",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electric dipole and electric field due to a dipole and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-dipole-and-its-field|hard",
+      "topicId": "physics|11|electric-dipole-and-its-field",
+      "difficulty": "hard",
+      "question": "Draw Electric dipole and electric field due to a dipole and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|torque-on-electric-dipole|easy",
+      "topicId": "physics|11|torque-on-electric-dipole",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Torque on a dipole in a uniform electric field. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|torque-on-electric-dipole|medium",
+      "topicId": "physics|11|torque-on-electric-dipole",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Torque on a dipole in a uniform electric field and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|torque-on-electric-dipole|hard",
+      "topicId": "physics|11|torque-on-electric-dipole",
+      "difficulty": "hard",
+      "question": "Draw Torque on a dipole in a uniform electric field and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-flux-and-gausss-law|easy",
+      "topicId": "physics|11|electric-flux-and-gausss-law",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electric flux and Gauss's law. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-flux-and-gausss-law|medium",
+      "topicId": "physics|11|electric-flux-and-gausss-law",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electric flux and Gauss's law and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-flux-and-gausss-law|hard",
+      "topicId": "physics|11|electric-flux-and-gausss-law",
+      "difficulty": "hard",
+      "question": "Draw Electric flux and Gauss's law and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|gausss-law-field-applications|easy",
+      "topicId": "physics|11|gausss-law-field-applications",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Gauss's law for a uniformly charged thin spherical shell. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|gausss-law-field-applications|medium",
+      "topicId": "physics|11|gausss-law-field-applications",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Gauss's law for a uniformly charged thin spherical shell and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|gausss-law-field-applications|hard",
+      "topicId": "physics|11|gausss-law-field-applications",
+      "difficulty": "hard",
+      "question": "Draw Gauss's law for a uniformly charged thin spherical shell and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|gauss-law-infinite-line|easy",
+      "topicId": "physics|11|gauss-law-infinite-line",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Gauss's law for an infinitely long uniformly charged straight wire. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|gauss-law-infinite-line|medium",
+      "topicId": "physics|11|gauss-law-infinite-line",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Gauss's law for an infinitely long uniformly charged straight wire and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|gauss-law-infinite-line|hard",
+      "topicId": "physics|11|gauss-law-infinite-line",
+      "difficulty": "hard",
+      "question": "Draw Gauss's law for an infinitely long uniformly charged straight wire and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|gauss-law-infinite-sheet|easy",
+      "topicId": "physics|11|gauss-law-infinite-sheet",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Gauss's law for a uniformly charged infinite plane sheet. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|gauss-law-infinite-sheet|medium",
+      "topicId": "physics|11|gauss-law-infinite-sheet",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Gauss's law for a uniformly charged infinite plane sheet and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|gauss-law-infinite-sheet|hard",
+      "topicId": "physics|11|gauss-law-infinite-sheet",
+      "difficulty": "hard",
+      "question": "Draw Gauss's law for a uniformly charged infinite plane sheet and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-potential-and-potential-difference|easy",
+      "topicId": "physics|11|electric-potential-and-potential-difference",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electric potential and potential difference. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-potential-and-potential-difference|medium",
+      "topicId": "physics|11|electric-potential-and-potential-difference",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electric potential and potential difference and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electric-potential-and-potential-difference|hard",
+      "topicId": "physics|11|electric-potential-and-potential-difference",
+      "difficulty": "hard",
+      "question": "Draw Electric potential and potential difference and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|potential-for-point-charge-dipole-and-system|easy",
+      "topicId": "physics|11|potential-for-point-charge-dipole-and-system",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electric potential for a point charge, an electric dipole, and a system of charges. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|potential-for-point-charge-dipole-and-system|medium",
+      "topicId": "physics|11|potential-for-point-charge-dipole-and-system",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electric potential for a point charge, an electric dipole, and a system of charges and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|potential-for-point-charge-dipole-and-system|hard",
+      "topicId": "physics|11|potential-for-point-charge-dipole-and-system",
+      "difficulty": "hard",
+      "question": "Draw Electric potential for a point charge, an electric dipole, and a system of charges and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|equipotential-surfaces|easy",
+      "topicId": "physics|11|equipotential-surfaces",
+      "difficulty": "easy",
+      "question": "(a) (@) Draw equipotential surfaces for an electric dipole. (i) Two point charges q, and q, are located at ry and ry 5 respectively in an external electric field E. Obtain an expression for the potential energy of the system. (iii) The dipole moment of a molecule is 10-°° Cm. It is placed in an electric field E of 10° V/m such that its axis is along the electric - field. The direction of E is suddenly changed by 60° at an instant. Find the change in the potential energy of the dipole, at that instant. OR",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|11|equipotential-surfaces|medium",
+      "topicId": "physics|11|equipotential-surfaces",
+      "difficulty": "medium",
+      "question": "Give the logic symbol of NOR gate. 1 NOR te @ wh ote Cifar | 9... Draw 3 equipotential surfaces corresponding to a field that uniformly increases in magnitude but remains constant along Z-direction. How are these surfaces different from that of a constant electric field along Z-direction ? Z aa aa & aeqes diz aafewa yo difee fed ofr § wsenm of act 2, wed Z-fem % safer fad wa 2 1a ys a4 yet a fea var fis & ot fet fraa faqa-aa & Z-fem % afer % ? 55/1 4 - 10. Define electric flux. Write its S.I. unit. A charge q is enclosed by a spherical surface of radius R. If the radius is reduced to half, how would the electric flux through the surface change ? 2 aga vaea at often dfie | gaa SL. ae fafa | ae aay q fat R fea & ai ys Fae 2 1 ae feo a ae ee fa we, tos 8 ae ac aga yaaa H em oftada em ?",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|11|equipotential-surfaces|hard",
+      "topicId": "physics|11|equipotential-surfaces",
+      "difficulty": "hard",
+      "question": "(i) Draw electric field lines and equipotential surfaces for a system of two equal and opposite point charges separated by some distance. 3 (ii) Why electric field E at a point on an equipotential surface must be perpendicular to the surface at that point ?",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|11|electrostatic-potential-energy-of-charge-systems|easy",
+      "topicId": "physics|11|electrostatic-potential-energy-of-charge-systems",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electrical potential energy of a system of charges. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electrostatic-potential-energy-of-charge-systems|medium",
+      "topicId": "physics|11|electrostatic-potential-energy-of-charge-systems",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electrical potential energy of a system of charges and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|electrostatic-potential-energy-of-charge-systems|hard",
+      "topicId": "physics|11|electrostatic-potential-energy-of-charge-systems",
+      "difficulty": "hard",
+      "question": "Draw Electrical potential energy of a system of charges and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|dipole-potential-energy-in-field|easy",
+      "topicId": "physics|11|dipole-potential-energy-in-field",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electrical potential energy of an electric dipole in an electrostatic field. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|dipole-potential-energy-in-field|medium",
+      "topicId": "physics|11|dipole-potential-energy-in-field",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electrical potential energy of an electric dipole in an electrostatic field and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|dipole-potential-energy-in-field|hard",
+      "topicId": "physics|11|dipole-potential-energy-in-field",
+      "difficulty": "hard",
+      "question": "Draw Electrical potential energy of an electric dipole in an electrostatic field and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|conductors-insulators-and-polarization|easy",
+      "topicId": "physics|11|conductors-insulators-and-polarization",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Conductors and insulators. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|conductors-insulators-and-polarization|medium",
+      "topicId": "physics|11|conductors-insulators-and-polarization",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Conductors and insulators and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|conductors-insulators-and-polarization|hard",
+      "topicId": "physics|11|conductors-insulators-and-polarization",
+      "difficulty": "hard",
+      "question": "Draw Conductors and insulators and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|dielectrics-and-polarization|easy",
+      "topicId": "physics|11|dielectrics-and-polarization",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Dielectrics and electric polarization. Show the polarizer and the transmission axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|dielectrics-and-polarization|medium",
+      "topicId": "physics|11|dielectrics-and-polarization",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Dielectrics and electric polarization and label the named quantities. Show the polarizer and the transmission axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|dielectrics-and-polarization|hard",
+      "topicId": "physics|11|dielectrics-and-polarization",
+      "difficulty": "hard",
+      "question": "Draw Dielectrics and electric polarization and mark any named directions, levels, or components on the figure. Show the polarizer and the transmission axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|charge-sharing-between-conductors|easy",
+      "topicId": "physics|11|charge-sharing-between-conductors",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Sharing of charge between conductors. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|charge-sharing-between-conductors|medium",
+      "topicId": "physics|11|charge-sharing-between-conductors",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Sharing of charge between conductors and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|charge-sharing-between-conductors|hard",
+      "topicId": "physics|11|charge-sharing-between-conductors",
+      "difficulty": "hard",
+      "question": "Draw Sharing of charge between conductors and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|capacitors-and-combinations|easy",
+      "topicId": "physics|11|capacitors-and-combinations",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Capacitors, capacitance, and combinations of capacitors in series and parallel.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|capacitors-and-combinations|medium",
+      "topicId": "physics|11|capacitors-and-combinations",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Capacitors, capacitance, and combinations of capacitors in series and parallel and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|capacitors-and-combinations|hard",
+      "topicId": "physics|11|capacitors-and-combinations",
+      "difficulty": "hard",
+      "question": "Draw Capacitors, capacitance, and combinations of capacitors in series and parallel and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|parallel-plate-capacitor-with-dielectric|easy",
+      "topicId": "physics|11|parallel-plate-capacitor-with-dielectric",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Capacitance of a parallel plate capacitor with and without dielectric medium.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|parallel-plate-capacitor-with-dielectric|medium",
+      "topicId": "physics|11|parallel-plate-capacitor-with-dielectric",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Capacitance of a parallel plate capacitor with and without dielectric medium and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|parallel-plate-capacitor-with-dielectric|hard",
+      "topicId": "physics|11|parallel-plate-capacitor-with-dielectric",
+      "difficulty": "hard",
+      "question": "Draw Capacitance of a parallel plate capacitor with and without dielectric medium and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|capacitor-with-conducting-slab|easy",
+      "topicId": "physics|11|capacitor-with-conducting-slab",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Parallel plate capacitor with a conducting slab.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|capacitor-with-conducting-slab|medium",
+      "topicId": "physics|11|capacitor-with-conducting-slab",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Parallel plate capacitor with a conducting slab and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|capacitor-with-conducting-slab|hard",
+      "topicId": "physics|11|capacitor-with-conducting-slab",
+      "difficulty": "hard",
+      "question": "Draw Parallel plate capacitor with a conducting slab and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|energy-stored-in-capacitor|easy",
+      "topicId": "physics|11|energy-stored-in-capacitor",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Energy stored in a capacitor.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|energy-stored-in-capacitor|medium",
+      "topicId": "physics|11|energy-stored-in-capacitor",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Energy stored in a capacitor and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|11|energy-stored-in-capacitor|hard",
+      "topicId": "physics|11|energy-stored-in-capacitor",
+      "difficulty": "hard",
+      "question": "Draw Energy stored in a capacitor and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

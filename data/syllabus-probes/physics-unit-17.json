@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|17",
+  "questions": [
+    {
+      "id": "physics|17|dual-nature-of-radiation|easy",
+      "topicId": "physics|17|dual-nature-of-radiation",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Dual nature of radiation. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|dual-nature-of-radiation|medium",
+      "topicId": "physics|17|dual-nature-of-radiation",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Dual nature of radiation and label the named quantities. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|dual-nature-of-radiation|hard",
+      "topicId": "physics|17|dual-nature-of-radiation",
+      "difficulty": "hard",
+      "question": "Draw Dual nature of radiation and mark any named directions, levels, or components on the figure. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|photoelectric-effect-and-observations|easy",
+      "topicId": "physics|17|photoelectric-effect-and-observations",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Photoelectric effect and the observations of Hertz and Lenard. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|photoelectric-effect-and-observations|medium",
+      "topicId": "physics|17|photoelectric-effect-and-observations",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Photoelectric effect and the observations of Hertz and Lenard and label the named quantities. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|photoelectric-effect-and-observations|hard",
+      "topicId": "physics|17|photoelectric-effect-and-observations",
+      "difficulty": "hard",
+      "question": "Draw Photoelectric effect and the observations of Hertz and Lenard and mark any named directions, levels, or components on the figure. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|photoelectric-graphs-and-stopping-potential|easy",
+      "topicId": "physics|17|photoelectric-graphs-and-stopping-potential",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Photoelectric graphs, stopping potential, and the effects of intensity and frequency. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|photoelectric-graphs-and-stopping-potential|medium",
+      "topicId": "physics|17|photoelectric-graphs-and-stopping-potential",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Photoelectric graphs, stopping potential, and the effects of intensity and frequency and label the named quantities. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|photoelectric-graphs-and-stopping-potential|hard",
+      "topicId": "physics|17|photoelectric-graphs-and-stopping-potential",
+      "difficulty": "hard",
+      "question": "Draw Photoelectric graphs, stopping potential, and the effects of intensity and frequency and mark any named directions, levels, or components on the figure. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|einsteins-photoelectric-equation|easy",
+      "topicId": "physics|17|einsteins-photoelectric-equation",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Einstein's photoelectric equation and the particle nature of light. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|einsteins-photoelectric-equation|medium",
+      "topicId": "physics|17|einsteins-photoelectric-equation",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Einstein's photoelectric equation and the particle nature of light and label the named quantities. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|einsteins-photoelectric-equation|hard",
+      "topicId": "physics|17|einsteins-photoelectric-equation",
+      "difficulty": "hard",
+      "question": "Draw Einstein's photoelectric equation and the particle nature of light and mark any named directions, levels, or components on the figure. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|photon-energy-and-momentum|easy",
+      "topicId": "physics|17|photon-energy-and-momentum",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Energy and momentum of a photon. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|photon-energy-and-momentum|medium",
+      "topicId": "physics|17|photon-energy-and-momentum",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Energy and momentum of a photon and label the named quantities. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|photon-energy-and-momentum|hard",
+      "topicId": "physics|17|photon-energy-and-momentum",
+      "difficulty": "hard",
+      "question": "Draw Energy and momentum of a photon and mark any named directions, levels, or components on the figure. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|matter-waves-and-de-broglie-relation|easy",
+      "topicId": "physics|17|matter-waves-and-de-broglie-relation",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Matter waves, wave nature of particles, and the de Broglie relation. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|matter-waves-and-de-broglie-relation|medium",
+      "topicId": "physics|17|matter-waves-and-de-broglie-relation",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Matter waves, wave nature of particles, and the de Broglie relation and label the named quantities. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|matter-waves-and-de-broglie-relation|hard",
+      "topicId": "physics|17|matter-waves-and-de-broglie-relation",
+      "difficulty": "hard",
+      "question": "Draw Matter waves, wave nature of particles, and the de Broglie relation and mark any named directions, levels, or components on the figure. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|de-broglie-wavelength-of-an-electron|easy",
+      "topicId": "physics|17|de-broglie-wavelength-of-an-electron",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for de Broglie wavelength of an electron. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|de-broglie-wavelength-of-an-electron|medium",
+      "topicId": "physics|17|de-broglie-wavelength-of-an-electron",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for de Broglie wavelength of an electron and label the named quantities. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|de-broglie-wavelength-of-an-electron|hard",
+      "topicId": "physics|17|de-broglie-wavelength-of-an-electron",
+      "difficulty": "hard",
+      "question": "Draw de Broglie wavelength of an electron and mark any named directions, levels, or components on the figure. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|davisson-germer-experiment|easy",
+      "topicId": "physics|17|davisson-germer-experiment",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Davisson-Germer experiment. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|davisson-germer-experiment|medium",
+      "topicId": "physics|17|davisson-germer-experiment",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Davisson-Germer experiment and label the named quantities. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|17|davisson-germer-experiment|hard",
+      "topicId": "physics|17|davisson-germer-experiment",
+      "difficulty": "hard",
+      "question": "Draw Davisson-Germer experiment and mark any named directions, levels, or components on the figure. Show the energy levels or the matter-wave along a line.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

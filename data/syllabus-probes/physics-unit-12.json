@@ -1,0 +1,363 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|12",
+  "questions": [
+    {
+      "id": "physics|12|current-drift-velocity-and-mobility|easy",
+      "topicId": "physics|12|current-drift-velocity-and-mobility",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electric current and drift velocity and their relation. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|current-drift-velocity-and-mobility|medium",
+      "topicId": "physics|12|current-drift-velocity-and-mobility",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electric current and drift velocity and their relation and label the named quantities. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|current-drift-velocity-and-mobility|hard",
+      "topicId": "physics|12|current-drift-velocity-and-mobility",
+      "difficulty": "hard",
+      "question": "Draw Electric current and drift velocity and their relation and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|mobility-and-current-density|easy",
+      "topicId": "physics|12|mobility-and-current-density",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Mobility and current density. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|mobility-and-current-density|medium",
+      "topicId": "physics|12|mobility-and-current-density",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Mobility and current density and label the named quantities. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|mobility-and-current-density|hard",
+      "topicId": "physics|12|mobility-and-current-density",
+      "difficulty": "hard",
+      "question": "Draw Mobility and current density and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|ohms-law-and-resistance|easy",
+      "topicId": "physics|12|ohms-law-and-resistance",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Ohm's law and electrical resistance. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|ohms-law-and-resistance|medium",
+      "topicId": "physics|12|ohms-law-and-resistance",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Ohm's law and electrical resistance and label the named quantities. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|ohms-law-and-resistance|hard",
+      "topicId": "physics|12|ohms-law-and-resistance",
+      "difficulty": "hard",
+      "question": "Draw Ohm's law and electrical resistance and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|iv-characteristics|easy",
+      "topicId": "physics|12|iv-characteristics",
+      "difficulty": "easy",
+      "question": "Plot the I-V characteristic for V-I characteristics of Ohmic and non-ohmic conductors on labelled axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|iv-characteristics|medium",
+      "topicId": "physics|12|iv-characteristics",
+      "difficulty": "medium",
+      "question": "Sketch the characteristic curve for V-I characteristics of Ohmic and non-ohmic conductors and mark forward and reverse regions.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|iv-characteristics|hard",
+      "topicId": "physics|12|iv-characteristics",
+      "difficulty": "hard",
+      "question": "Draw V-I characteristics of Ohmic and non-ohmic conductors as a plot of current against voltage and label the axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|electrical-energy-and-power|easy",
+      "topicId": "physics|12|electrical-energy-and-power",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electrical energy and power. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|electrical-energy-and-power|medium",
+      "topicId": "physics|12|electrical-energy-and-power",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electrical energy and power and label the named quantities. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|electrical-energy-and-power|hard",
+      "topicId": "physics|12|electrical-energy-and-power",
+      "difficulty": "hard",
+      "question": "Draw Electrical energy and power and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|joules-law-of-heating|easy",
+      "topicId": "physics|12|joules-law-of-heating",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Joule's law of heating. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|joules-law-of-heating|medium",
+      "topicId": "physics|12|joules-law-of-heating",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Joule's law of heating and label the named quantities. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|joules-law-of-heating|hard",
+      "topicId": "physics|12|joules-law-of-heating",
+      "difficulty": "hard",
+      "question": "Draw Joule's law of heating and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|resistivity-and-conductivity|easy",
+      "topicId": "physics|12|resistivity-and-conductivity",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electrical resistivity and conductivity. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|resistivity-and-conductivity|medium",
+      "topicId": "physics|12|resistivity-and-conductivity",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electrical resistivity and conductivity and label the named quantities. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|resistivity-and-conductivity|hard",
+      "topicId": "physics|12|resistivity-and-conductivity",
+      "difficulty": "hard",
+      "question": "Draw Electrical resistivity and conductivity and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|resistance-from-dimensions|easy",
+      "topicId": "physics|12|resistance-from-dimensions",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Resistance from resistivity and geometry, R = rho l / A. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|resistance-from-dimensions|medium",
+      "topicId": "physics|12|resistance-from-dimensions",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Resistance from resistivity and geometry, R = rho l / A and label the named quantities. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|resistance-from-dimensions|hard",
+      "topicId": "physics|12|resistance-from-dimensions",
+      "difficulty": "hard",
+      "question": "Draw Resistance from resistivity and geometry, R = rho l / A and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|resistor-combinations|easy",
+      "topicId": "physics|12|resistor-combinations",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Series and parallel combinations of resistors.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|resistor-combinations|medium",
+      "topicId": "physics|12|resistor-combinations",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Series and parallel combinations of resistors and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|resistor-combinations|hard",
+      "topicId": "physics|12|resistor-combinations",
+      "difficulty": "hard",
+      "question": "Draw Series and parallel combinations of resistors and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|mixed-resistor-networks|easy",
+      "topicId": "physics|12|mixed-resistor-networks",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Mixed series-parallel resistor networks.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|mixed-resistor-networks|medium",
+      "topicId": "physics|12|mixed-resistor-networks",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Mixed series-parallel resistor networks and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|mixed-resistor-networks|hard",
+      "topicId": "physics|12|mixed-resistor-networks",
+      "difficulty": "hard",
+      "question": "Draw Mixed series-parallel resistor networks and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|temperature-dependence-of-resistance|easy",
+      "topicId": "physics|12|temperature-dependence-of-resistance",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Temperature dependence of resistance. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|temperature-dependence-of-resistance|medium",
+      "topicId": "physics|12|temperature-dependence-of-resistance",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Temperature dependence of resistance and label the named quantities. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|temperature-dependence-of-resistance|hard",
+      "topicId": "physics|12|temperature-dependence-of-resistance",
+      "difficulty": "hard",
+      "question": "Draw Temperature dependence of resistance and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|cell-emf-potential-difference-and-internal-resistance|easy",
+      "topicId": "physics|12|cell-emf-potential-difference-and-internal-resistance",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for EMF, potential difference, and internal resistance of a cell.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|cell-emf-potential-difference-and-internal-resistance|medium",
+      "topicId": "physics|12|cell-emf-potential-difference-and-internal-resistance",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for EMF, potential difference, and internal resistance of a cell and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|cell-emf-potential-difference-and-internal-resistance|hard",
+      "topicId": "physics|12|cell-emf-potential-difference-and-internal-resistance",
+      "difficulty": "hard",
+      "question": "Draw EMF, potential difference, and internal resistance of a cell and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|cell-combinations|easy",
+      "topicId": "physics|12|cell-combinations",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Combination of cells in series and parallel. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|cell-combinations|medium",
+      "topicId": "physics|12|cell-combinations",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Combination of cells in series and parallel and label the named quantities. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|cell-combinations|hard",
+      "topicId": "physics|12|cell-combinations",
+      "difficulty": "hard",
+      "question": "Draw Combination of cells in series and parallel and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|kirchhoffs-laws|easy",
+      "topicId": "physics|12|kirchhoffs-laws",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Kirchhoff's laws and their applications. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|kirchhoffs-laws|medium",
+      "topicId": "physics|12|kirchhoffs-laws",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Kirchhoff's laws and their applications and label the named quantities. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|kirchhoffs-laws|hard",
+      "topicId": "physics|12|kirchhoffs-laws",
+      "difficulty": "hard",
+      "question": "Draw Kirchhoff's laws and their applications and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|wheatstone-and-metre-bridge|easy",
+      "topicId": "physics|12|wheatstone-and-metre-bridge",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Wheatstone bridge. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|wheatstone-and-metre-bridge|medium",
+      "topicId": "physics|12|wheatstone-and-metre-bridge",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Wheatstone bridge and label the named quantities. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|wheatstone-and-metre-bridge|hard",
+      "topicId": "physics|12|wheatstone-and-metre-bridge",
+      "difficulty": "hard",
+      "question": "Draw Wheatstone bridge and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|metre-bridge|easy",
+      "topicId": "physics|12|metre-bridge",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Metre bridge. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|metre-bridge|medium",
+      "topicId": "physics|12|metre-bridge",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Metre bridge and label the named quantities. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|metre-bridge|hard",
+      "topicId": "physics|12|metre-bridge",
+      "difficulty": "hard",
+      "question": "Draw Metre bridge and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|potentiometer|easy",
+      "topicId": "physics|12|potentiometer",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Potentiometer, comparison of EMFs, and internal resistance of a cell. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|potentiometer|medium",
+      "topicId": "physics|12|potentiometer",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Potentiometer, comparison of EMFs, and internal resistance of a cell and label the named quantities. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|12|potentiometer|hard",
+      "topicId": "physics|12|potentiometer",
+      "difficulty": "hard",
+      "question": "Draw Potentiometer, comparison of EMFs, and internal resistance of a cell and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

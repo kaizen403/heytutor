@@ -1,0 +1,258 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|18",
+  "questions": [
+    {
+      "id": "physics|18|rutherford-scattering-and-model|easy",
+      "topicId": "physics|18|rutherford-scattering-and-model",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Alpha-particle scattering experiment and Rutherford's model of the atom. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|rutherford-scattering-and-model|medium",
+      "topicId": "physics|18|rutherford-scattering-and-model",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Alpha-particle scattering experiment and Rutherford's model of the atom and label the named quantities. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|rutherford-scattering-and-model|hard",
+      "topicId": "physics|18|rutherford-scattering-and-model",
+      "difficulty": "hard",
+      "question": "Draw Alpha-particle scattering experiment and Rutherford's model of the atom and mark any named directions, levels, or components on the figure. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|bohr-model-and-hydrogen-spectrum|easy",
+      "topicId": "physics|18|bohr-model-and-hydrogen-spectrum",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Bohr model and energy levels. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|bohr-model-and-hydrogen-spectrum|medium",
+      "topicId": "physics|18|bohr-model-and-hydrogen-spectrum",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Bohr model and energy levels and label the named quantities. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|bohr-model-and-hydrogen-spectrum|hard",
+      "topicId": "physics|18|bohr-model-and-hydrogen-spectrum",
+      "difficulty": "hard",
+      "question": "Draw Bohr model and energy levels and mark any named directions, levels, or components on the figure. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|bohr-orbit-radius-and-velocity|easy",
+      "topicId": "physics|18|bohr-orbit-radius-and-velocity",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Radius and speed of an electron in a Bohr orbit. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|bohr-orbit-radius-and-velocity|medium",
+      "topicId": "physics|18|bohr-orbit-radius-and-velocity",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Radius and speed of an electron in a Bohr orbit and label the named quantities. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|bohr-orbit-radius-and-velocity|hard",
+      "topicId": "physics|18|bohr-orbit-radius-and-velocity",
+      "difficulty": "hard",
+      "question": "Draw Radius and speed of an electron in a Bohr orbit and mark any named directions, levels, or components on the figure. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|hydrogen-spectral-series|easy",
+      "topicId": "physics|18|hydrogen-spectral-series",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Hydrogen spectrum and spectral series. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|hydrogen-spectral-series|medium",
+      "topicId": "physics|18|hydrogen-spectral-series",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Hydrogen spectrum and spectral series and label the named quantities. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|hydrogen-spectral-series|hard",
+      "topicId": "physics|18|hydrogen-spectral-series",
+      "difficulty": "hard",
+      "question": "Draw Hydrogen spectrum and spectral series and mark any named directions, levels, or components on the figure. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|nucleus-composition-size-and-masses|easy",
+      "topicId": "physics|18|nucleus-composition-size-and-masses",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Composition and size of the nucleus and atomic masses. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|nucleus-composition-size-and-masses|medium",
+      "topicId": "physics|18|nucleus-composition-size-and-masses",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Composition and size of the nucleus and atomic masses and label the named quantities. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|nucleus-composition-size-and-masses|hard",
+      "topicId": "physics|18|nucleus-composition-size-and-masses",
+      "difficulty": "hard",
+      "question": "Draw Composition and size of the nucleus and atomic masses and mark any named directions, levels, or components on the figure. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|mass-energy-relation-and-mass-defect|easy",
+      "topicId": "physics|18|mass-energy-relation-and-mass-defect",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Mass-energy relation and mass defect.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|mass-energy-relation-and-mass-defect|medium",
+      "topicId": "physics|18|mass-energy-relation-and-mass-defect",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Mass-energy relation and mass defect and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|mass-energy-relation-and-mass-defect|hard",
+      "topicId": "physics|18|mass-energy-relation-and-mass-defect",
+      "difficulty": "hard",
+      "question": "Draw Mass-energy relation and mass defect and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|binding-energy-per-nucleon|easy",
+      "topicId": "physics|18|binding-energy-per-nucleon",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Binding energy per nucleon and its variation with mass number.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|binding-energy-per-nucleon|medium",
+      "topicId": "physics|18|binding-energy-per-nucleon",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Binding energy per nucleon and its variation with mass number and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|binding-energy-per-nucleon|hard",
+      "topicId": "physics|18|binding-energy-per-nucleon",
+      "difficulty": "hard",
+      "question": "Draw Binding energy per nucleon and its variation with mass number and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|q-value-of-a-nuclear-reaction|easy",
+      "topicId": "physics|18|q-value-of-a-nuclear-reaction",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Q value of a nuclear reaction. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|q-value-of-a-nuclear-reaction|medium",
+      "topicId": "physics|18|q-value-of-a-nuclear-reaction",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Q value of a nuclear reaction and label the named quantities. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|q-value-of-a-nuclear-reaction|hard",
+      "topicId": "physics|18|q-value-of-a-nuclear-reaction",
+      "difficulty": "hard",
+      "question": "Draw Q value of a nuclear reaction and mark any named directions, levels, or components on the figure. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|nuclear-fission-and-fusion|easy",
+      "topicId": "physics|18|nuclear-fission-and-fusion",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Nuclear fission. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|nuclear-fission-and-fusion|medium",
+      "topicId": "physics|18|nuclear-fission-and-fusion",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Nuclear fission and label the named quantities. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|nuclear-fission-and-fusion|hard",
+      "topicId": "physics|18|nuclear-fission-and-fusion",
+      "difficulty": "hard",
+      "question": "Draw Nuclear fission and mark any named directions, levels, or components on the figure. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|nuclear-fusion|easy",
+      "topicId": "physics|18|nuclear-fusion",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Nuclear fusion. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|nuclear-fusion|medium",
+      "topicId": "physics|18|nuclear-fusion",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Nuclear fusion and label the named quantities. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|nuclear-fusion|hard",
+      "topicId": "physics|18|nuclear-fusion",
+      "difficulty": "hard",
+      "question": "Draw Nuclear fusion and mark any named directions, levels, or components on the figure. Show the n = 1 and n = 2 energy levels, or the scattering path if named.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|radioactive-decay-and-half-life|easy",
+      "topicId": "physics|18|radioactive-decay-and-half-life",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Radioactive decay and half-life.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|radioactive-decay-and-half-life|medium",
+      "topicId": "physics|18|radioactive-decay-and-half-life",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Radioactive decay and half-life and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|radioactive-decay-and-half-life|hard",
+      "topicId": "physics|18|radioactive-decay-and-half-life",
+      "difficulty": "hard",
+      "question": "Draw Radioactive decay and half-life and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|activity-and-decay-law|easy",
+      "topicId": "physics|18|activity-and-decay-law",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Activity and the radioactive decay law.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|activity-and-decay-law|medium",
+      "topicId": "physics|18|activity-and-decay-law",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Activity and the radioactive decay law and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|18|activity-and-decay-law|hard",
+      "topicId": "physics|18|activity-and-decay-law",
+      "difficulty": "hard",
+      "question": "Draw Activity and the radioactive decay law and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

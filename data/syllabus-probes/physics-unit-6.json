@@ -1,0 +1,300 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|6",
+  "questions": [
+    {
+      "id": "physics|6|universal-law-of-gravitation|easy",
+      "topicId": "physics|6|universal-law-of-gravitation",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Universal law of gravitation. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|universal-law-of-gravitation|medium",
+      "topicId": "physics|6|universal-law-of-gravitation",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Universal law of gravitation and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|universal-law-of-gravitation|hard",
+      "topicId": "physics|6|universal-law-of-gravitation",
+      "difficulty": "hard",
+      "question": "Draw Universal law of gravitation and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|gravitational-field-of-sphere-and-shell|easy",
+      "topicId": "physics|6|gravitational-field-of-sphere-and-shell",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Gravitational field of a uniform sphere and a spherical shell. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|gravitational-field-of-sphere-and-shell|medium",
+      "topicId": "physics|6|gravitational-field-of-sphere-and-shell",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Gravitational field of a uniform sphere and a spherical shell and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|gravitational-field-of-sphere-and-shell|hard",
+      "topicId": "physics|6|gravitational-field-of-sphere-and-shell",
+      "difficulty": "hard",
+      "question": "Draw Gravitational field of a uniform sphere and a spherical shell and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|acceleration-due-to-gravity|easy",
+      "topicId": "physics|6|acceleration-due-to-gravity",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Acceleration due to gravity and its variation with altitude. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|acceleration-due-to-gravity|medium",
+      "topicId": "physics|6|acceleration-due-to-gravity",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Acceleration due to gravity and its variation with altitude and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|acceleration-due-to-gravity|hard",
+      "topicId": "physics|6|acceleration-due-to-gravity",
+      "difficulty": "hard",
+      "question": "Draw Acceleration due to gravity and its variation with altitude and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|g-variation-with-depth|easy",
+      "topicId": "physics|6|g-variation-with-depth",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Variation of acceleration due to gravity with depth. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|g-variation-with-depth|medium",
+      "topicId": "physics|6|g-variation-with-depth",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Variation of acceleration due to gravity with depth and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|g-variation-with-depth|hard",
+      "topicId": "physics|6|g-variation-with-depth",
+      "difficulty": "hard",
+      "question": "Draw Variation of acceleration due to gravity with depth and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|keplers-laws|easy",
+      "topicId": "physics|6|keplers-laws",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Kepler's laws of planetary motion. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|keplers-laws|medium",
+      "topicId": "physics|6|keplers-laws",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Kepler's laws of planetary motion and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|keplers-laws|hard",
+      "topicId": "physics|6|keplers-laws",
+      "difficulty": "hard",
+      "question": "Draw Kepler's laws of planetary motion and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|gravitational-potential-and-potential-energy|easy",
+      "topicId": "physics|6|gravitational-potential-and-potential-energy",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Gravitational potential. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|gravitational-potential-and-potential-energy|medium",
+      "topicId": "physics|6|gravitational-potential-and-potential-energy",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Gravitational potential and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|gravitational-potential-and-potential-energy|hard",
+      "topicId": "physics|6|gravitational-potential-and-potential-energy",
+      "difficulty": "hard",
+      "question": "Draw Gravitational potential and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|gravitational-potential-energy|easy",
+      "topicId": "physics|6|gravitational-potential-energy",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Gravitational potential energy. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|gravitational-potential-energy|medium",
+      "topicId": "physics|6|gravitational-potential-energy",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Gravitational potential energy and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|gravitational-potential-energy|hard",
+      "topicId": "physics|6|gravitational-potential-energy",
+      "difficulty": "hard",
+      "question": "Draw Gravitational potential energy and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|escape-velocity|easy",
+      "topicId": "physics|6|escape-velocity",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Escape velocity.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|escape-velocity|medium",
+      "topicId": "physics|6|escape-velocity",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Escape velocity and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|escape-velocity|hard",
+      "topicId": "physics|6|escape-velocity",
+      "difficulty": "hard",
+      "question": "Draw Escape velocity and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|orbital-velocity|easy",
+      "topicId": "physics|6|orbital-velocity",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Orbital velocity of a satellite. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|orbital-velocity|medium",
+      "topicId": "physics|6|orbital-velocity",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Orbital velocity of a satellite and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|orbital-velocity|hard",
+      "topicId": "physics|6|orbital-velocity",
+      "difficulty": "hard",
+      "question": "Draw Orbital velocity of a satellite and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|satellite-motion-time-period-and-energy|easy",
+      "topicId": "physics|6|satellite-motion-time-period-and-energy",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Motion of a satellite and time period of a satellite. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|satellite-motion-time-period-and-energy|medium",
+      "topicId": "physics|6|satellite-motion-time-period-and-energy",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Motion of a satellite and time period of a satellite and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|satellite-motion-time-period-and-energy|hard",
+      "topicId": "physics|6|satellite-motion-time-period-and-energy",
+      "difficulty": "hard",
+      "question": "Draw Motion of a satellite and time period of a satellite and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|satellite-energy|easy",
+      "topicId": "physics|6|satellite-energy",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Energy of a satellite. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|satellite-energy|medium",
+      "topicId": "physics|6|satellite-energy",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Energy of a satellite and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|satellite-energy|hard",
+      "topicId": "physics|6|satellite-energy",
+      "difficulty": "hard",
+      "question": "Draw Energy of a satellite and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|geostationary-satellites|easy",
+      "topicId": "physics|6|geostationary-satellites",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Geostationary satellites. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|geostationary-satellites|medium",
+      "topicId": "physics|6|geostationary-satellites",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Geostationary satellites and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|geostationary-satellites|hard",
+      "topicId": "physics|6|geostationary-satellites",
+      "difficulty": "hard",
+      "question": "Draw Geostationary satellites and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|polar-satellites|easy",
+      "topicId": "physics|6|polar-satellites",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Polar satellites. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|polar-satellites|medium",
+      "topicId": "physics|6|polar-satellites",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Polar satellites and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|polar-satellites|hard",
+      "topicId": "physics|6|polar-satellites",
+      "difficulty": "hard",
+      "question": "Draw Polar satellites and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|weightlessness-in-orbit|easy",
+      "topicId": "physics|6|weightlessness-in-orbit",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Weightlessness in orbit. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|weightlessness-in-orbit|medium",
+      "topicId": "physics|6|weightlessness-in-orbit",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Weightlessness in orbit and label the named quantities. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|6|weightlessness-in-orbit|hard",
+      "topicId": "physics|6|weightlessness-in-orbit",
+      "difficulty": "hard",
+      "question": "Draw Weightlessness in orbit and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

@@ -1,0 +1,447 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|10",
+  "questions": [
+    {
+      "id": "physics|10|periodic-motion-and-functions|easy",
+      "topicId": "physics|10|periodic-motion-and-functions",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Periodic motion, time period, frequency, displacement as a function of time, and periodic functions. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|periodic-motion-and-functions|medium",
+      "topicId": "physics|10|periodic-motion-and-functions",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Periodic motion, time period, frequency, displacement as a function of time, and periodic functions and label the named quantities. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|periodic-motion-and-functions|hard",
+      "topicId": "physics|10|periodic-motion-and-functions",
+      "difficulty": "hard",
+      "question": "Draw Periodic motion, time period, frequency, displacement as a function of time, and periodic functions and mark any named directions, levels, or components on the figure. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|shm-and-equation|easy",
+      "topicId": "physics|10|shm-and-equation",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Simple harmonic motion and its equation.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|shm-and-equation|medium",
+      "topicId": "physics|10|shm-and-equation",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Simple harmonic motion and its equation and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|shm-and-equation|hard",
+      "topicId": "physics|10|shm-and-equation",
+      "difficulty": "hard",
+      "question": "Draw Simple harmonic motion and its equation and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|phase-of-shm|easy",
+      "topicId": "physics|10|phase-of-shm",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Phase of simple harmonic motion.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|phase-of-shm|medium",
+      "topicId": "physics|10|phase-of-shm",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Phase of simple harmonic motion and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|phase-of-shm|hard",
+      "topicId": "physics|10|phase-of-shm",
+      "difficulty": "hard",
+      "question": "Draw Phase of simple harmonic motion and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|shm-from-uniform-circular-motion|easy",
+      "topicId": "physics|10|shm-from-uniform-circular-motion",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Simple harmonic motion as the projection of uniform circular motion.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|shm-from-uniform-circular-motion|medium",
+      "topicId": "physics|10|shm-from-uniform-circular-motion",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Simple harmonic motion as the projection of uniform circular motion and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|shm-from-uniform-circular-motion|hard",
+      "topicId": "physics|10|shm-from-uniform-circular-motion",
+      "difficulty": "hard",
+      "question": "Draw Simple harmonic motion as the projection of uniform circular motion and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|spring-oscillations|easy",
+      "topicId": "physics|10|spring-oscillations",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Oscillations of a spring. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|spring-oscillations|medium",
+      "topicId": "physics|10|spring-oscillations",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Oscillations of a spring and label the named quantities. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|spring-oscillations|hard",
+      "topicId": "physics|10|spring-oscillations",
+      "difficulty": "hard",
+      "question": "Draw Oscillations of a spring and mark any named directions, levels, or components on the figure. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|spring-restoring-force-and-force-constant|easy",
+      "topicId": "physics|10|spring-restoring-force-and-force-constant",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Restoring force and force constant for spring oscillations. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|spring-restoring-force-and-force-constant|medium",
+      "topicId": "physics|10|spring-restoring-force-and-force-constant",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Restoring force and force constant for spring oscillations and label the named quantities. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|spring-restoring-force-and-force-constant|hard",
+      "topicId": "physics|10|spring-restoring-force-and-force-constant",
+      "difficulty": "hard",
+      "question": "Draw Restoring force and force constant for spring oscillations and mark any named directions, levels, or components on the figure. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|series-and-parallel-springs|easy",
+      "topicId": "physics|10|series-and-parallel-springs",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Oscillations of series and parallel combinations of springs. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|series-and-parallel-springs|medium",
+      "topicId": "physics|10|series-and-parallel-springs",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Oscillations of series and parallel combinations of springs and label the named quantities. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|series-and-parallel-springs|hard",
+      "topicId": "physics|10|series-and-parallel-springs",
+      "difficulty": "hard",
+      "question": "Draw Oscillations of series and parallel combinations of springs and mark any named directions, levels, or components on the figure. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|simple-pendulum-time-period|easy",
+      "topicId": "physics|10|simple-pendulum-time-period",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Time period of a simple pendulum.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|simple-pendulum-time-period|medium",
+      "topicId": "physics|10|simple-pendulum-time-period",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Time period of a simple pendulum and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|simple-pendulum-time-period|hard",
+      "topicId": "physics|10|simple-pendulum-time-period",
+      "difficulty": "hard",
+      "question": "Draw Time period of a simple pendulum and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|pendulum-time-period-derivation|easy",
+      "topicId": "physics|10|pendulum-time-period-derivation",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Derivation of the expression for the time period of a simple pendulum.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|pendulum-time-period-derivation|medium",
+      "topicId": "physics|10|pendulum-time-period-derivation",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Derivation of the expression for the time period of a simple pendulum and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|pendulum-time-period-derivation|hard",
+      "topicId": "physics|10|pendulum-time-period-derivation",
+      "difficulty": "hard",
+      "question": "Draw Derivation of the expression for the time period of a simple pendulum and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|energy-in-shm|easy",
+      "topicId": "physics|10|energy-in-shm",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Kinetic and potential energies in simple harmonic motion.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|energy-in-shm|medium",
+      "topicId": "physics|10|energy-in-shm",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Kinetic and potential energies in simple harmonic motion and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|energy-in-shm|hard",
+      "topicId": "physics|10|energy-in-shm",
+      "difficulty": "hard",
+      "question": "Draw Kinetic and potential energies in simple harmonic motion and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|superposition-of-two-shms|easy",
+      "topicId": "physics|10|superposition-of-two-shms",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Superposition of two simple harmonic motions along a straight line.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|superposition-of-two-shms|medium",
+      "topicId": "physics|10|superposition-of-two-shms",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Superposition of two simple harmonic motions along a straight line and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|superposition-of-two-shms|hard",
+      "topicId": "physics|10|superposition-of-two-shms",
+      "difficulty": "hard",
+      "question": "Draw Superposition of two simple harmonic motions along a straight line and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|wave-motion-and-types|easy",
+      "topicId": "physics|10|wave-motion-and-types",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Wave motion and longitudinal and transverse waves.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|wave-motion-and-types|medium",
+      "topicId": "physics|10|wave-motion-and-types",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Wave motion and longitudinal and transverse waves and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|wave-motion-and-types|hard",
+      "topicId": "physics|10|wave-motion-and-types",
+      "difficulty": "hard",
+      "question": "Draw Wave motion and longitudinal and transverse waves and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|travelling-wave-relation|easy",
+      "topicId": "physics|10|travelling-wave-relation",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Displacement relation for a progressive wave. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|travelling-wave-relation|medium",
+      "topicId": "physics|10|travelling-wave-relation",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Displacement relation for a progressive wave and label the named quantities. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|travelling-wave-relation|hard",
+      "topicId": "physics|10|travelling-wave-relation",
+      "difficulty": "hard",
+      "question": "Draw Displacement relation for a progressive wave and mark any named directions, levels, or components on the figure. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|speed-of-a-travelling-wave|easy",
+      "topicId": "physics|10|speed-of-a-travelling-wave",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Speed of a travelling wave on a string. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|speed-of-a-travelling-wave|medium",
+      "topicId": "physics|10|speed-of-a-travelling-wave",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Speed of a travelling wave on a string and label the named quantities. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|speed-of-a-travelling-wave|hard",
+      "topicId": "physics|10|speed-of-a-travelling-wave",
+      "difficulty": "hard",
+      "question": "Draw Speed of a travelling wave on a string and mark any named directions, levels, or components on the figure. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|superposition-and-reflection|easy",
+      "topicId": "physics|10|superposition-and-reflection",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Principle of superposition of waves. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|superposition-and-reflection|medium",
+      "topicId": "physics|10|superposition-and-reflection",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Principle of superposition of waves and label the named quantities. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|superposition-and-reflection|hard",
+      "topicId": "physics|10|superposition-and-reflection",
+      "difficulty": "hard",
+      "question": "Draw Principle of superposition of waves and mark any named directions, levels, or components on the figure. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|reflection-of-waves|easy",
+      "topicId": "physics|10|reflection-of-waves",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Reflection of waves. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|reflection-of-waves|medium",
+      "topicId": "physics|10|reflection-of-waves",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Reflection of waves and label the named quantities. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|reflection-of-waves|hard",
+      "topicId": "physics|10|reflection-of-waves",
+      "difficulty": "hard",
+      "question": "Draw Reflection of waves and mark any named directions, levels, or components on the figure. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|standing-waves-harmonics-and-beats|easy",
+      "topicId": "physics|10|standing-waves-harmonics-and-beats",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Standing waves in strings, fundamental mode, and harmonics.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|standing-waves-harmonics-and-beats|medium",
+      "topicId": "physics|10|standing-waves-harmonics-and-beats",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Standing waves in strings, fundamental mode, and harmonics and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|standing-waves-harmonics-and-beats|hard",
+      "topicId": "physics|10|standing-waves-harmonics-and-beats",
+      "difficulty": "hard",
+      "question": "Draw Standing waves in strings, fundamental mode, and harmonics and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|organ-pipes|easy",
+      "topicId": "physics|10|organ-pipes",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Standing waves in organ pipes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|organ-pipes|medium",
+      "topicId": "physics|10|organ-pipes",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Standing waves in organ pipes and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|organ-pipes|hard",
+      "topicId": "physics|10|organ-pipes",
+      "difficulty": "hard",
+      "question": "Draw Standing waves in organ pipes and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|beats|easy",
+      "topicId": "physics|10|beats",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Beats. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|beats|medium",
+      "topicId": "physics|10|beats",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Beats and label the named quantities. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|beats|hard",
+      "topicId": "physics|10|beats",
+      "difficulty": "hard",
+      "question": "Draw Beats and mark any named directions, levels, or components on the figure. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|intensity-and-amplitude-of-a-wave|easy",
+      "topicId": "physics|10|intensity-and-amplitude-of-a-wave",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Intensity and amplitude of a wave. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|intensity-and-amplitude-of-a-wave|medium",
+      "topicId": "physics|10|intensity-and-amplitude-of-a-wave",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Intensity and amplitude of a wave and label the named quantities. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|intensity-and-amplitude-of-a-wave|hard",
+      "topicId": "physics|10|intensity-and-amplitude-of-a-wave",
+      "difficulty": "hard",
+      "question": "Draw Intensity and amplitude of a wave and mark any named directions, levels, or components on the figure. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|doppler-effect-in-sound|easy",
+      "topicId": "physics|10|doppler-effect-in-sound",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Doppler effect in sound. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|doppler-effect-in-sound|medium",
+      "topicId": "physics|10|doppler-effect-in-sound",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Doppler effect in sound and label the named quantities. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|10|doppler-effect-in-sound|hard",
+      "topicId": "physics|10|doppler-effect-in-sound",
+      "difficulty": "hard",
+      "question": "Draw Doppler effect in sound and mark any named directions, levels, or components on the figure. Sketch the travelling wave named by the topic.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

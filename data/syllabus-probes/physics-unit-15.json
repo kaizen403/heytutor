@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|15",
+  "questions": [
+    {
+      "id": "physics|15|displacement-current|easy",
+      "topicId": "physics|15|displacement-current",
+      "difficulty": "easy",
+      "question": "What is meant by displacement current ? Show that during charging of a capacitor, displacement current is equal to conduction current in the circuit. 3",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|15|displacement-current|medium",
+      "topicId": "physics|15|displacement-current",
+      "difficulty": "medium",
+      "question": "(a) Give one use of electromagnetic radiations obtained in nuclear disintegrations. (b) Give one example each to illustrate the situation where there is (i) displacement current but no conduction current and (ii) only conduction current but no displacement current.",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|15|displacement-current|hard",
+      "topicId": "physics|15|displacement-current",
+      "difficulty": "hard",
+      "question": "What is displacement current (id) ? Considering the case of charging of a d φE capacitor, show that id = ε0 . What is the value of id for a conductor dt across which a constant voltage is applied ? 3",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|15|electromagnetic-waves-and-characteristics|easy",
+      "topicId": "physics|15|electromagnetic-waves-and-characteristics",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electromagnetic waves and their characteristics. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|electromagnetic-waves-and-characteristics|medium",
+      "topicId": "physics|15|electromagnetic-waves-and-characteristics",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electromagnetic waves and their characteristics and label the named quantities. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|electromagnetic-waves-and-characteristics|hard",
+      "topicId": "physics|15|electromagnetic-waves-and-characteristics",
+      "difficulty": "hard",
+      "question": "Draw Electromagnetic waves and their characteristics and mark any named directions, levels, or components on the figure. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|transverse-nature|easy",
+      "topicId": "physics|15|transverse-nature",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Transverse nature of electromagnetic waves. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|transverse-nature|medium",
+      "topicId": "physics|15|transverse-nature",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Transverse nature of electromagnetic waves and label the named quantities. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|transverse-nature|hard",
+      "topicId": "physics|15|transverse-nature",
+      "difficulty": "hard",
+      "question": "Draw Transverse nature of electromagnetic waves and mark any named directions, levels, or components on the figure. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|speed-of-electromagnetic-waves|easy",
+      "topicId": "physics|15|speed-of-electromagnetic-waves",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Speed of electromagnetic waves in vacuum and in a medium. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|speed-of-electromagnetic-waves|medium",
+      "topicId": "physics|15|speed-of-electromagnetic-waves",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Speed of electromagnetic waves in vacuum and in a medium and label the named quantities. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|speed-of-electromagnetic-waves|hard",
+      "topicId": "physics|15|speed-of-electromagnetic-waves",
+      "difficulty": "hard",
+      "question": "Draw Speed of electromagnetic waves in vacuum and in a medium and mark any named directions, levels, or components on the figure. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|energy-and-momentum-of-em-waves|easy",
+      "topicId": "physics|15|energy-and-momentum-of-em-waves",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Energy density, intensity, and momentum of electromagnetic waves. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|energy-and-momentum-of-em-waves|medium",
+      "topicId": "physics|15|energy-and-momentum-of-em-waves",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Energy density, intensity, and momentum of electromagnetic waves and label the named quantities. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|energy-and-momentum-of-em-waves|hard",
+      "topicId": "physics|15|energy-and-momentum-of-em-waves",
+      "difficulty": "hard",
+      "question": "Draw Energy density, intensity, and momentum of electromagnetic waves and mark any named directions, levels, or components on the figure. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|electromagnetic-spectrum|easy",
+      "topicId": "physics|15|electromagnetic-spectrum",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Electromagnetic spectrum.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|electromagnetic-spectrum|medium",
+      "topicId": "physics|15|electromagnetic-spectrum",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Electromagnetic spectrum and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|electromagnetic-spectrum|hard",
+      "topicId": "physics|15|electromagnetic-spectrum",
+      "difficulty": "hard",
+      "question": "Draw Electromagnetic spectrum and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|applications-of-electromagnetic-waves|easy",
+      "topicId": "physics|15|applications-of-electromagnetic-waves",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Applications of electromagnetic waves. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|applications-of-electromagnetic-waves|medium",
+      "topicId": "physics|15|applications-of-electromagnetic-waves",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Applications of electromagnetic waves and label the named quantities. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|applications-of-electromagnetic-waves|hard",
+      "topicId": "physics|15|applications-of-electromagnetic-waves",
+      "difficulty": "hard",
+      "question": "Draw Applications of electromagnetic waves and mark any named directions, levels, or components on the figure. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|production-of-electromagnetic-waves|easy",
+      "topicId": "physics|15|production-of-electromagnetic-waves",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Production of electromagnetic waves by an accelerating charge. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|production-of-electromagnetic-waves|medium",
+      "topicId": "physics|15|production-of-electromagnetic-waves",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Production of electromagnetic waves by an accelerating charge and label the named quantities. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|15|production-of-electromagnetic-waves|hard",
+      "topicId": "physics|15|production-of-electromagnetic-waves",
+      "difficulty": "hard",
+      "question": "Draw Production of electromagnetic waves by an accelerating charge and mark any named directions, levels, or components on the figure. Show the E and B vectors and the propagation direction.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

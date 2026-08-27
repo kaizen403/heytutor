@@ -1,0 +1,489 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|13",
+  "questions": [
+    {
+      "id": "physics|13|biot-savart-law|easy",
+      "topicId": "physics|13|biot-savart-law",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Biot-Savart law and its application to a current-carrying circular loop. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|biot-savart-law|medium",
+      "topicId": "physics|13|biot-savart-law",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Biot-Savart law and its application to a current-carrying circular loop and label the named quantities. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|biot-savart-law|hard",
+      "topicId": "physics|13|biot-savart-law",
+      "difficulty": "hard",
+      "question": "Draw Biot-Savart law and its application to a current-carrying circular loop and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|field-at-the-centre-of-an-arc|easy",
+      "topicId": "physics|13|field-at-the-centre-of-an-arc",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Magnetic field at the centre of a current-carrying arc.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|field-at-the-centre-of-an-arc|medium",
+      "topicId": "physics|13|field-at-the-centre-of-an-arc",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Magnetic field at the centre of a current-carrying arc and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|field-at-the-centre-of-an-arc|hard",
+      "topicId": "physics|13|field-at-the-centre-of-an-arc",
+      "difficulty": "hard",
+      "question": "Draw Magnetic field at the centre of a current-carrying arc and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|field-due-to-a-straight-wire|easy",
+      "topicId": "physics|13|field-due-to-a-straight-wire",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Magnetic field due to a long straight current-carrying wire.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|field-due-to-a-straight-wire|medium",
+      "topicId": "physics|13|field-due-to-a-straight-wire",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Magnetic field due to a long straight current-carrying wire and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|field-due-to-a-straight-wire|hard",
+      "topicId": "physics|13|field-due-to-a-straight-wire",
+      "difficulty": "hard",
+      "question": "Draw Magnetic field due to a long straight current-carrying wire and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|amperes-law|easy",
+      "topicId": "physics|13|amperes-law",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Ampere's law and its application to an infinitely long straight wire. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|amperes-law|medium",
+      "topicId": "physics|13|amperes-law",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Ampere's law and its application to an infinitely long straight wire and label the named quantities. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|amperes-law|hard",
+      "topicId": "physics|13|amperes-law",
+      "difficulty": "hard",
+      "question": "Draw Ampere's law and its application to an infinitely long straight wire and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|field-due-to-solenoid-and-toroid|easy",
+      "topicId": "physics|13|field-due-to-solenoid-and-toroid",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Ampere's law for a solenoid and a toroid. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|field-due-to-solenoid-and-toroid|medium",
+      "topicId": "physics|13|field-due-to-solenoid-and-toroid",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Ampere's law for a solenoid and a toroid and label the named quantities. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|field-due-to-solenoid-and-toroid|hard",
+      "topicId": "physics|13|field-due-to-solenoid-and-toroid",
+      "difficulty": "hard",
+      "question": "Draw Ampere's law for a solenoid and a toroid and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|force-on-moving-charge|easy",
+      "topicId": "physics|13|force-on-moving-charge",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Force on a moving charge in uniform magnetic and electric fields. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|force-on-moving-charge|medium",
+      "topicId": "physics|13|force-on-moving-charge",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Force on a moving charge in uniform magnetic and electric fields and label the named quantities. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|force-on-moving-charge|hard",
+      "topicId": "physics|13|force-on-moving-charge",
+      "difficulty": "hard",
+      "question": "Draw Force on a moving charge in uniform magnetic and electric fields and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|velocity-selector|easy",
+      "topicId": "physics|13|velocity-selector",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Velocity selector.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|velocity-selector|medium",
+      "topicId": "physics|13|velocity-selector",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Velocity selector and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|velocity-selector|hard",
+      "topicId": "physics|13|velocity-selector",
+      "difficulty": "hard",
+      "question": "Draw Velocity selector and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|cyclotron-and-circular-motion-in-b|easy",
+      "topicId": "physics|13|cyclotron-and-circular-motion-in-b",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Circular motion in a magnetic field and the cyclotron.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|cyclotron-and-circular-motion-in-b|medium",
+      "topicId": "physics|13|cyclotron-and-circular-motion-in-b",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Circular motion in a magnetic field and the cyclotron and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|cyclotron-and-circular-motion-in-b|hard",
+      "topicId": "physics|13|cyclotron-and-circular-motion-in-b",
+      "difficulty": "hard",
+      "question": "Draw Circular motion in a magnetic field and the cyclotron and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|helical-path-in-magnetic-field|easy",
+      "topicId": "physics|13|helical-path-in-magnetic-field",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Helical path of a charge in a magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|helical-path-in-magnetic-field|medium",
+      "topicId": "physics|13|helical-path-in-magnetic-field",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Helical path of a charge in a magnetic field and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|helical-path-in-magnetic-field|hard",
+      "topicId": "physics|13|helical-path-in-magnetic-field",
+      "difficulty": "hard",
+      "question": "Draw Helical path of a charge in a magnetic field and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|force-on-current-carrying-conductor|easy",
+      "topicId": "physics|13|force-on-current-carrying-conductor",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Force on a current-carrying conductor in a uniform magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|force-on-current-carrying-conductor|medium",
+      "topicId": "physics|13|force-on-current-carrying-conductor",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Force on a current-carrying conductor in a uniform magnetic field and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|force-on-current-carrying-conductor|hard",
+      "topicId": "physics|13|force-on-current-carrying-conductor",
+      "difficulty": "hard",
+      "question": "Draw Force on a current-carrying conductor in a uniform magnetic field and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|force-between-parallel-conductors|easy",
+      "topicId": "physics|13|force-between-parallel-conductors",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Force between two parallel current-carrying conductors.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|force-between-parallel-conductors|medium",
+      "topicId": "physics|13|force-between-parallel-conductors",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Force between two parallel current-carrying conductors and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|force-between-parallel-conductors|hard",
+      "topicId": "physics|13|force-between-parallel-conductors",
+      "difficulty": "hard",
+      "question": "Draw Force between two parallel current-carrying conductors and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|definition-of-ampere|easy",
+      "topicId": "physics|13|definition-of-ampere",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Definition of ampere. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|definition-of-ampere|medium",
+      "topicId": "physics|13|definition-of-ampere",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Definition of ampere and label the named quantities. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|definition-of-ampere|hard",
+      "topicId": "physics|13|definition-of-ampere",
+      "difficulty": "hard",
+      "question": "Draw Definition of ampere and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|torque-on-current-loop|easy",
+      "topicId": "physics|13|torque-on-current-loop",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Torque experienced by a current loop in a uniform magnetic field. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|torque-on-current-loop|medium",
+      "topicId": "physics|13|torque-on-current-loop",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Torque experienced by a current loop in a uniform magnetic field and label the named quantities. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|torque-on-current-loop|hard",
+      "topicId": "physics|13|torque-on-current-loop",
+      "difficulty": "hard",
+      "question": "Draw Torque experienced by a current loop in a uniform magnetic field and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|moving-coil-galvanometer|easy",
+      "topicId": "physics|13|moving-coil-galvanometer",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Moving coil galvanometer and its sensitivity. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|moving-coil-galvanometer|medium",
+      "topicId": "physics|13|moving-coil-galvanometer",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Moving coil galvanometer and its sensitivity and label the named quantities. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|moving-coil-galvanometer|hard",
+      "topicId": "physics|13|moving-coil-galvanometer",
+      "difficulty": "hard",
+      "question": "Draw Moving coil galvanometer and its sensitivity and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|galvanometer-to-ammeter-and-voltmeter|easy",
+      "topicId": "physics|13|galvanometer-to-ammeter-and-voltmeter",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Conversion of a galvanometer to an ammeter and a voltmeter. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|galvanometer-to-ammeter-and-voltmeter|medium",
+      "topicId": "physics|13|galvanometer-to-ammeter-and-voltmeter",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Conversion of a galvanometer to an ammeter and a voltmeter and label the named quantities. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|galvanometer-to-ammeter-and-voltmeter|hard",
+      "topicId": "physics|13|galvanometer-to-ammeter-and-voltmeter",
+      "difficulty": "hard",
+      "question": "Draw Conversion of a galvanometer to an ammeter and a voltmeter and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|current-loop-as-magnetic-dipole|easy",
+      "topicId": "physics|13|current-loop-as-magnetic-dipole",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Current loop as a magnetic dipole and its magnetic dipole moment. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|current-loop-as-magnetic-dipole|medium",
+      "topicId": "physics|13|current-loop-as-magnetic-dipole",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Current loop as a magnetic dipole and its magnetic dipole moment and label the named quantities. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|current-loop-as-magnetic-dipole|hard",
+      "topicId": "physics|13|current-loop-as-magnetic-dipole",
+      "difficulty": "hard",
+      "question": "Draw Current loop as a magnetic dipole and its magnetic dipole moment and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|magnetic-moment-of-a-revolving-charge|easy",
+      "topicId": "physics|13|magnetic-moment-of-a-revolving-charge",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Magnetic moment of a revolving charge. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|magnetic-moment-of-a-revolving-charge|medium",
+      "topicId": "physics|13|magnetic-moment-of-a-revolving-charge",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Magnetic moment of a revolving charge and label the named quantities. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|magnetic-moment-of-a-revolving-charge|hard",
+      "topicId": "physics|13|magnetic-moment-of-a-revolving-charge",
+      "difficulty": "hard",
+      "question": "Draw Magnetic moment of a revolving charge and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|bar-magnet-and-magnetic-field-lines|easy",
+      "topicId": "physics|13|bar-magnet-and-magnetic-field-lines",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Bar magnet and magnetic field lines.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|bar-magnet-and-magnetic-field-lines|medium",
+      "topicId": "physics|13|bar-magnet-and-magnetic-field-lines",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Bar magnet and magnetic field lines and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|bar-magnet-and-magnetic-field-lines|hard",
+      "topicId": "physics|13|bar-magnet-and-magnetic-field-lines",
+      "difficulty": "hard",
+      "question": "Draw Bar magnet and magnetic field lines and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|bar-magnet-as-equivalent-solenoid|easy",
+      "topicId": "physics|13|bar-magnet-as-equivalent-solenoid",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Bar magnet as an equivalent solenoid. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|bar-magnet-as-equivalent-solenoid|medium",
+      "topicId": "physics|13|bar-magnet-as-equivalent-solenoid",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Bar magnet as an equivalent solenoid and label the named quantities. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|bar-magnet-as-equivalent-solenoid|hard",
+      "topicId": "physics|13|bar-magnet-as-equivalent-solenoid",
+      "difficulty": "hard",
+      "question": "Draw Bar magnet as an equivalent solenoid and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|magnetic-field-of-bar-magnet|easy",
+      "topicId": "physics|13|magnetic-field-of-bar-magnet",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Magnetic field due to a magnetic dipole or bar magnet along its axis and perpendicular to its axis. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|magnetic-field-of-bar-magnet|medium",
+      "topicId": "physics|13|magnetic-field-of-bar-magnet",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Magnetic field due to a magnetic dipole or bar magnet along its axis and perpendicular to its axis and label the named quantities. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|magnetic-field-of-bar-magnet|hard",
+      "topicId": "physics|13|magnetic-field-of-bar-magnet",
+      "difficulty": "hard",
+      "question": "Draw Magnetic field due to a magnetic dipole or bar magnet along its axis and perpendicular to its axis and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|earths-magnetic-field-and-elements|easy",
+      "topicId": "physics|13|earths-magnetic-field-and-elements",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Earth's magnetic field and magnetic elements.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|earths-magnetic-field-and-elements|medium",
+      "topicId": "physics|13|earths-magnetic-field-and-elements",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Earth's magnetic field and magnetic elements and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|earths-magnetic-field-and-elements|hard",
+      "topicId": "physics|13|earths-magnetic-field-and-elements",
+      "difficulty": "hard",
+      "question": "Draw Earth's magnetic field and magnetic elements and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|torque-on-magnetic-dipole|easy",
+      "topicId": "physics|13|torque-on-magnetic-dipole",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Torque on a magnetic dipole in a uniform magnetic field. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|torque-on-magnetic-dipole|medium",
+      "topicId": "physics|13|torque-on-magnetic-dipole",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Torque on a magnetic dipole in a uniform magnetic field and label the named quantities. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|torque-on-magnetic-dipole|hard",
+      "topicId": "physics|13|torque-on-magnetic-dipole",
+      "difficulty": "hard",
+      "question": "Draw Torque on a magnetic dipole in a uniform magnetic field and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|magnetic-materials-and-temperature|easy",
+      "topicId": "physics|13|magnetic-materials-and-temperature",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Para-, dia-, and ferromagnetic substances with examples and the effect of temperature on magnetic properties. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|magnetic-materials-and-temperature|medium",
+      "topicId": "physics|13|magnetic-materials-and-temperature",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Para-, dia-, and ferromagnetic substances with examples and the effect of temperature on magnetic properties and label the named quantities. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|13|magnetic-materials-and-temperature|hard",
+      "topicId": "physics|13|magnetic-materials-and-temperature",
+      "difficulty": "hard",
+      "question": "Draw Para-, dia-, and ferromagnetic substances with examples and the effect of temperature on magnetic properties and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

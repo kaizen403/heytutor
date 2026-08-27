@@ -1,0 +1,573 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|16",
+  "questions": [
+    {
+      "id": "physics|16|reflection-and-spherical-mirrors|easy",
+      "topicId": "physics|16|reflection-and-spherical-mirrors",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Reflection of light, spherical mirrors, and the mirror formula. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|reflection-and-spherical-mirrors|medium",
+      "topicId": "physics|16|reflection-and-spherical-mirrors",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Reflection of light, spherical mirrors, and the mirror formula and label the named quantities. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|reflection-and-spherical-mirrors|hard",
+      "topicId": "physics|16|reflection-and-spherical-mirrors",
+      "difficulty": "hard",
+      "question": "Draw Reflection of light, spherical mirrors, and the mirror formula and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|refraction-at-surfaces|easy",
+      "topicId": "physics|16|refraction-at-surfaces",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Refraction of light at a plane surface and apparent depth. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|refraction-at-surfaces|medium",
+      "topicId": "physics|16|refraction-at-surfaces",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Refraction of light at a plane surface and apparent depth and label the named quantities. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|refraction-at-surfaces|hard",
+      "topicId": "physics|16|refraction-at-surfaces",
+      "difficulty": "hard",
+      "question": "Draw Refraction of light at a plane surface and apparent depth and mark any named directions, levels, or components on the figure. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|refraction-at-spherical-surface|easy",
+      "topicId": "physics|16|refraction-at-spherical-surface",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Refraction at a spherical surface. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|refraction-at-spherical-surface|medium",
+      "topicId": "physics|16|refraction-at-spherical-surface",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Refraction at a spherical surface and label the named quantities. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|refraction-at-spherical-surface|hard",
+      "topicId": "physics|16|refraction-at-spherical-surface",
+      "difficulty": "hard",
+      "question": "Draw Refraction at a spherical surface and mark any named directions, levels, or components on the figure. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|lens-formulas|easy",
+      "topicId": "physics|16|lens-formulas",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Thin lens formula. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|lens-formulas|medium",
+      "topicId": "physics|16|lens-formulas",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Thin lens formula and label the named quantities. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|lens-formulas|hard",
+      "topicId": "physics|16|lens-formulas",
+      "difficulty": "hard",
+      "question": "Draw Thin lens formula and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|lens-makers-formula|easy",
+      "topicId": "physics|16|lens-makers-formula",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Lens maker's formula. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|lens-makers-formula|medium",
+      "topicId": "physics|16|lens-makers-formula",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Lens maker's formula and label the named quantities. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|lens-makers-formula|hard",
+      "topicId": "physics|16|lens-makers-formula",
+      "difficulty": "hard",
+      "question": "Draw Lens maker's formula and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|total-internal-reflection|easy",
+      "topicId": "physics|16|total-internal-reflection",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Total internal reflection and its applications. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|total-internal-reflection|medium",
+      "topicId": "physics|16|total-internal-reflection",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Total internal reflection and its applications and label the named quantities. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|total-internal-reflection|hard",
+      "topicId": "physics|16|total-internal-reflection",
+      "difficulty": "hard",
+      "question": "Draw Total internal reflection and its applications and mark any named directions, levels, or components on the figure. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|optical-fibre|easy",
+      "topicId": "physics|16|optical-fibre",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Optical fibre as an application of total internal reflection. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|optical-fibre|medium",
+      "topicId": "physics|16|optical-fibre",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Optical fibre as an application of total internal reflection and label the named quantities. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|optical-fibre|hard",
+      "topicId": "physics|16|optical-fibre",
+      "difficulty": "hard",
+      "question": "Draw Optical fibre as an application of total internal reflection and mark any named directions, levels, or components on the figure. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|magnification-and-lens-power|easy",
+      "topicId": "physics|16|magnification-and-lens-power",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Magnification and power of a lens. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|magnification-and-lens-power|medium",
+      "topicId": "physics|16|magnification-and-lens-power",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Magnification and power of a lens and label the named quantities. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|magnification-and-lens-power|hard",
+      "topicId": "physics|16|magnification-and-lens-power",
+      "difficulty": "hard",
+      "question": "Draw Magnification and power of a lens and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|lens-combination|easy",
+      "topicId": "physics|16|lens-combination",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Combination of thin lenses in contact. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|lens-combination|medium",
+      "topicId": "physics|16|lens-combination",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Combination of thin lenses in contact and label the named quantities. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|lens-combination|hard",
+      "topicId": "physics|16|lens-combination",
+      "difficulty": "hard",
+      "question": "Draw Combination of thin lenses in contact and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|lens-and-mirror-combination|easy",
+      "topicId": "physics|16|lens-and-mirror-combination",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Combination of a thin lens and a spherical mirror. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|lens-and-mirror-combination|medium",
+      "topicId": "physics|16|lens-and-mirror-combination",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Combination of a thin lens and a spherical mirror and label the named quantities. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|lens-and-mirror-combination|hard",
+      "topicId": "physics|16|lens-and-mirror-combination",
+      "difficulty": "hard",
+      "question": "Draw Combination of a thin lens and a spherical mirror and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|prism-refraction|easy",
+      "topicId": "physics|16|prism-refraction",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Refraction of light through a prism. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|prism-refraction|medium",
+      "topicId": "physics|16|prism-refraction",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Refraction of light through a prism and label the named quantities. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|prism-refraction|hard",
+      "topicId": "physics|16|prism-refraction",
+      "difficulty": "hard",
+      "question": "Draw Refraction of light through a prism and mark any named directions, levels, or components on the figure. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|prism-minimum-deviation-and-dispersion|easy",
+      "topicId": "physics|16|prism-minimum-deviation-and-dispersion",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Minimum deviation and dispersion by a prism. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|prism-minimum-deviation-and-dispersion|medium",
+      "topicId": "physics|16|prism-minimum-deviation-and-dispersion",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Minimum deviation and dispersion by a prism and label the named quantities. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|prism-minimum-deviation-and-dispersion|hard",
+      "topicId": "physics|16|prism-minimum-deviation-and-dispersion",
+      "difficulty": "hard",
+      "question": "Draw Minimum deviation and dispersion by a prism and mark any named directions, levels, or components on the figure. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|optical-instruments|easy",
+      "topicId": "physics|16|optical-instruments",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Compound microscope and its magnifying power. Show the objective, the eyepiece, and the optical axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|optical-instruments|medium",
+      "topicId": "physics|16|optical-instruments",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Compound microscope and its magnifying power and label the named quantities. Show the objective, the eyepiece, and the optical axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|optical-instruments|hard",
+      "topicId": "physics|16|optical-instruments",
+      "difficulty": "hard",
+      "question": "Draw Compound microscope and its magnifying power and mark any named directions, levels, or components on the figure. Show the objective, the eyepiece, and the optical axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|astronomical-telescope|easy",
+      "topicId": "physics|16|astronomical-telescope",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Astronomical telescope, reflecting and refracting, and its magnifying power. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|astronomical-telescope|medium",
+      "topicId": "physics|16|astronomical-telescope",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Astronomical telescope, reflecting and refracting, and its magnifying power and label the named quantities. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|astronomical-telescope|hard",
+      "topicId": "physics|16|astronomical-telescope",
+      "difficulty": "hard",
+      "question": "Draw Astronomical telescope, reflecting and refracting, and its magnifying power and mark any named directions, levels, or components on the figure. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|wavefront-and-huygens-principle|easy",
+      "topicId": "physics|16|wavefront-and-huygens-principle",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Wavefront and Huygens' principle. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|wavefront-and-huygens-principle|medium",
+      "topicId": "physics|16|wavefront-and-huygens-principle",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Wavefront and Huygens' principle and label the named quantities. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|wavefront-and-huygens-principle|hard",
+      "topicId": "physics|16|wavefront-and-huygens-principle",
+      "difficulty": "hard",
+      "question": "Draw Wavefront and Huygens' principle and mark any named directions, levels, or components on the figure. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|reflection-and-refraction-via-huygens|easy",
+      "topicId": "physics|16|reflection-and-refraction-via-huygens",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Laws of reflection and refraction using Huygens' principle. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|reflection-and-refraction-via-huygens|medium",
+      "topicId": "physics|16|reflection-and-refraction-via-huygens",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Laws of reflection and refraction using Huygens' principle and label the named quantities. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|reflection-and-refraction-via-huygens|hard",
+      "topicId": "physics|16|reflection-and-refraction-via-huygens",
+      "difficulty": "hard",
+      "question": "Draw Laws of reflection and refraction using Huygens' principle and mark any named directions, levels, or components on the figure. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|coherent-sources-and-sustained-interference|easy",
+      "topicId": "physics|16|coherent-sources-and-sustained-interference",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Coherent sources and sustained interference of light. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|coherent-sources-and-sustained-interference|medium",
+      "topicId": "physics|16|coherent-sources-and-sustained-interference",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Coherent sources and sustained interference of light and label the named quantities. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|coherent-sources-and-sustained-interference|hard",
+      "topicId": "physics|16|coherent-sources-and-sustained-interference",
+      "difficulty": "hard",
+      "question": "Draw Coherent sources and sustained interference of light and mark any named directions, levels, or components on the figure. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|youngs-double-slit-and-fringe-width|easy",
+      "topicId": "physics|16|youngs-double-slit-and-fringe-width",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Young's double-slit experiment and the expression for fringe width. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|youngs-double-slit-and-fringe-width|medium",
+      "topicId": "physics|16|youngs-double-slit-and-fringe-width",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Young's double-slit experiment and the expression for fringe width and label the named quantities. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|youngs-double-slit-and-fringe-width|hard",
+      "topicId": "physics|16|youngs-double-slit-and-fringe-width",
+      "difficulty": "hard",
+      "question": "Draw Young's double-slit experiment and the expression for fringe width and mark any named directions, levels, or components on the figure. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|ydse-path-difference-and-glass-slab|easy",
+      "topicId": "physics|16|ydse-path-difference-and-glass-slab",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for YDSE with a path difference or a thin glass slab.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|ydse-path-difference-and-glass-slab|medium",
+      "topicId": "physics|16|ydse-path-difference-and-glass-slab",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for YDSE with a path difference or a thin glass slab and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|ydse-path-difference-and-glass-slab|hard",
+      "topicId": "physics|16|ydse-path-difference-and-glass-slab",
+      "difficulty": "hard",
+      "question": "Draw YDSE with a path difference or a thin glass slab and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|angular-width-of-interference-fringes|easy",
+      "topicId": "physics|16|angular-width-of-interference-fringes",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Angular width of interference fringes. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|angular-width-of-interference-fringes|medium",
+      "topicId": "physics|16|angular-width-of-interference-fringes",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Angular width of interference fringes and label the named quantities. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|angular-width-of-interference-fringes|hard",
+      "topicId": "physics|16|angular-width-of-interference-fringes",
+      "difficulty": "hard",
+      "question": "Draw Angular width of interference fringes and mark any named directions, levels, or components on the figure. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|thin-film-interference|easy",
+      "topicId": "physics|16|thin-film-interference",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Interference in thin films. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|thin-film-interference|medium",
+      "topicId": "physics|16|thin-film-interference",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Interference in thin films and label the named quantities. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|thin-film-interference|hard",
+      "topicId": "physics|16|thin-film-interference",
+      "difficulty": "hard",
+      "question": "Draw Interference in thin films and mark any named directions, levels, or components on the figure. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|single-slit-diffraction|easy",
+      "topicId": "physics|16|single-slit-diffraction",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Diffraction due to a single slit and width of the central maximum. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|single-slit-diffraction|medium",
+      "topicId": "physics|16|single-slit-diffraction",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Diffraction due to a single slit and width of the central maximum and label the named quantities. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|single-slit-diffraction|hard",
+      "topicId": "physics|16|single-slit-diffraction",
+      "difficulty": "hard",
+      "question": "Draw Diffraction due to a single slit and width of the central maximum and mark any named directions, levels, or components on the figure. Show the named slits or wavefronts and the screen.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|resolving-power-of-microscope-and-telescope|easy",
+      "topicId": "physics|16|resolving-power-of-microscope-and-telescope",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Resolving power of the microscope and telescope. Show the objective, the eyepiece, and the optical axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|resolving-power-of-microscope-and-telescope|medium",
+      "topicId": "physics|16|resolving-power-of-microscope-and-telescope",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Resolving power of the microscope and telescope and label the named quantities. Show the objective, the eyepiece, and the optical axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|resolving-power-of-microscope-and-telescope|hard",
+      "topicId": "physics|16|resolving-power-of-microscope-and-telescope",
+      "difficulty": "hard",
+      "question": "Draw Resolving power of the microscope and telescope and mark any named directions, levels, or components on the figure. Show the objective, the eyepiece, and the optical axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|polarization-and-brewsters-law|easy",
+      "topicId": "physics|16|polarization-and-brewsters-law",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Polarization, plane-polarized light, and Brewster's law. Show the polarizer and the transmission axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|polarization-and-brewsters-law|medium",
+      "topicId": "physics|16|polarization-and-brewsters-law",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Polarization, plane-polarized light, and Brewster's law and label the named quantities. Show the polarizer and the transmission axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|polarization-and-brewsters-law|hard",
+      "topicId": "physics|16|polarization-and-brewsters-law",
+      "difficulty": "hard",
+      "question": "Draw Polarization, plane-polarized light, and Brewster's law and mark any named directions, levels, or components on the figure. Show the polarizer and the transmission axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|malus-law|easy",
+      "topicId": "physics|16|malus-law",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Malus's law. Show the polarizer and the transmission axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|malus-law|medium",
+      "topicId": "physics|16|malus-law",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Malus's law and label the named quantities. Show the polarizer and the transmission axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|malus-law|hard",
+      "topicId": "physics|16|malus-law",
+      "difficulty": "hard",
+      "question": "Draw Malus's law and mark any named directions, levels, or components on the figure. Show the polarizer and the transmission axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|polaroid|easy",
+      "topicId": "physics|16|polaroid",
+      "difficulty": "easy",
+      "question": "Light from a sodium lamp (S) passes through two polaroid sheets P 1 and P2 as shown in fig. What will be the effect on the intensity of the light transmitted (i) by P1 and (ii) by P2 on rotating polaroid P1 about the direction of propagation of light ? Justify your answer in both cases. 2 OR Define the term ‘wave front of light’. A plane wave front AB propagating from denser medium (1) into a rarer medium (2) is incident on the surface P1P2 separating the two media as shown in fig. Using Huygen’s principle, draw the secondary wavelets and obtain the refracted wave front in the diagram. 2",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|16|polaroid|medium",
+      "topicId": "physics|16|polaroid",
+      "difficulty": "medium",
+      "question": "(a) When an unpolarized light of intensity Io is passed through a polaroid, what is the intensity of the linearly polarized light ? Does it depend on the orientation of the polaroid ? Explain your answer. (b) A plane polarized beam of light is passed through a polaroid. Show graphically the variation of the intensity of the transmitted light with angle of rotation of the polaroid in complete one rotation.",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|16|polaroid|hard",
+      "topicId": "physics|16|polaroid",
+      "difficulty": "hard",
+      "question": "feet Tenigs 8 WAS & aad ayfad vers, tela yfaa ver he a are @ ? eae Alfa | ws siekigs S tela glad veers Hl qEt vleniss a Ge sit a Wenge H An HITS gare ai velsia Pfau fH ct aK vere At aftrenay sit ct an aaa dtaa cei on aad 2 | 3 How does an unpolarized light get linearly polarized when passed through a polaroid ? Explain. When linearly polarized : light is viewed through a second polaroid which is rotated through 22, show that two maxima and two minima can be seen.",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|16|uses-of-plane-polarized-light|easy",
+      "topicId": "physics|16|uses-of-plane-polarized-light",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Uses of plane-polarized light. Show the polarizer and the transmission axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|uses-of-plane-polarized-light|medium",
+      "topicId": "physics|16|uses-of-plane-polarized-light",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Uses of plane-polarized light and label the named quantities. Show the polarizer and the transmission axis.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|16|uses-of-plane-polarized-light|hard",
+      "topicId": "physics|16|uses-of-plane-polarized-light",
+      "difficulty": "hard",
+      "question": "Draw Uses of plane-polarized light and mark any named directions, levels, or components on the figure. Show the polarizer and the transmission axis.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

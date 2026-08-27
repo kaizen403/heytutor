@@ -1,0 +1,699 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|20",
+  "questions": [
+    {
+      "id": "physics|20|vernier-callipers|easy",
+      "topicId": "physics|20|vernier-callipers",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Using vernier callipers to measure internal diameter, external diameter, and depth. Mark the named measured length.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|vernier-callipers|medium",
+      "topicId": "physics|20|vernier-callipers",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Using vernier callipers to measure internal diameter, external diameter, and depth and label the named quantities. Mark the named measured length.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|vernier-callipers|hard",
+      "topicId": "physics|20|vernier-callipers",
+      "difficulty": "hard",
+      "question": "Draw Using vernier callipers to measure internal diameter, external diameter, and depth and mark any named directions, levels, or components on the figure. Mark the named measured length.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|vernier-zero-error|easy",
+      "topicId": "physics|20|vernier-zero-error",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Zero error of a vernier calliper. Mark the named measured length.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|vernier-zero-error|medium",
+      "topicId": "physics|20|vernier-zero-error",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Zero error of a vernier calliper and label the named quantities. Mark the named measured length.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|vernier-zero-error|hard",
+      "topicId": "physics|20|vernier-zero-error",
+      "difficulty": "hard",
+      "question": "Draw Zero error of a vernier calliper and mark any named directions, levels, or components on the figure. Mark the named measured length.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|screw-gauge|easy",
+      "topicId": "physics|20|screw-gauge",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Using a screw gauge to determine the thickness or diameter of a thin sheet or wire. Mark the named measured length.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|screw-gauge|medium",
+      "topicId": "physics|20|screw-gauge",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Using a screw gauge to determine the thickness or diameter of a thin sheet or wire and label the named quantities. Mark the named measured length.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|screw-gauge|hard",
+      "topicId": "physics|20|screw-gauge",
+      "difficulty": "hard",
+      "question": "Draw Using a screw gauge to determine the thickness or diameter of a thin sheet or wire and mark any named directions, levels, or components on the figure. Mark the named measured length.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|screw-gauge-zero-error|easy",
+      "topicId": "physics|20|screw-gauge-zero-error",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Zero error of a screw gauge. Mark the named measured length.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|screw-gauge-zero-error|medium",
+      "topicId": "physics|20|screw-gauge-zero-error",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Zero error of a screw gauge and label the named quantities. Mark the named measured length.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|screw-gauge-zero-error|hard",
+      "topicId": "physics|20|screw-gauge-zero-error",
+      "difficulty": "hard",
+      "question": "Draw Zero error of a screw gauge and mark any named directions, levels, or components on the figure. Mark the named measured length.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|simple-pendulum-amplitude-squared-vs-time|easy",
+      "topicId": "physics|20|simple-pendulum-amplitude-squared-vs-time",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Simple pendulum dissipation of energy by plotting square of amplitude versus time.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|simple-pendulum-amplitude-squared-vs-time|medium",
+      "topicId": "physics|20|simple-pendulum-amplitude-squared-vs-time",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Simple pendulum dissipation of energy by plotting square of amplitude versus time and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|simple-pendulum-amplitude-squared-vs-time|hard",
+      "topicId": "physics|20|simple-pendulum-amplitude-squared-vs-time",
+      "difficulty": "hard",
+      "question": "Draw Simple pendulum dissipation of energy by plotting square of amplitude versus time and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|simple-pendulum-l-t-squared-graph|easy",
+      "topicId": "physics|20|simple-pendulum-l-t-squared-graph",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Simple pendulum dissipation of energy by plotting the L-T^2 graph.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|simple-pendulum-l-t-squared-graph|medium",
+      "topicId": "physics|20|simple-pendulum-l-t-squared-graph",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Simple pendulum dissipation of energy by plotting the L-T^2 graph and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|simple-pendulum-l-t-squared-graph|hard",
+      "topicId": "physics|20|simple-pendulum-l-t-squared-graph",
+      "difficulty": "hard",
+      "question": "Draw Simple pendulum dissipation of energy by plotting the L-T^2 graph and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|metre-scale-principle-of-moments|easy",
+      "topicId": "physics|20|metre-scale-principle-of-moments",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Using a metre scale to find the mass of a given object by the principle of moments. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|metre-scale-principle-of-moments|medium",
+      "topicId": "physics|20|metre-scale-principle-of-moments",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Using a metre scale to find the mass of a given object by the principle of moments and label the named quantities. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|metre-scale-principle-of-moments|hard",
+      "topicId": "physics|20|metre-scale-principle-of-moments",
+      "difficulty": "hard",
+      "question": "Draw Using a metre scale to find the mass of a given object by the principle of moments and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|youngs-modulus-of-wire|easy",
+      "topicId": "physics|20|youngs-modulus-of-wire",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Young's modulus of elasticity of the material of a metallic wire.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|youngs-modulus-of-wire|medium",
+      "topicId": "physics|20|youngs-modulus-of-wire",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Young's modulus of elasticity of the material of a metallic wire and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|youngs-modulus-of-wire|hard",
+      "topicId": "physics|20|youngs-modulus-of-wire",
+      "difficulty": "hard",
+      "question": "Draw Young's modulus of elasticity of the material of a metallic wire and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|surface-tension-by-capillary-rise|easy",
+      "topicId": "physics|20|surface-tension-by-capillary-rise",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Surface tension of water by capillary rise. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|surface-tension-by-capillary-rise|medium",
+      "topicId": "physics|20|surface-tension-by-capillary-rise",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Surface tension of water by capillary rise and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|surface-tension-by-capillary-rise|hard",
+      "topicId": "physics|20|surface-tension-by-capillary-rise",
+      "difficulty": "hard",
+      "question": "Draw Surface tension of water by capillary rise and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|effect-of-detergents-on-surface-tension|easy",
+      "topicId": "physics|20|effect-of-detergents-on-surface-tension",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Surface tension of water by capillary rise and effect of detergents. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|effect-of-detergents-on-surface-tension|medium",
+      "topicId": "physics|20|effect-of-detergents-on-surface-tension",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Surface tension of water by capillary rise and effect of detergents and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|effect-of-detergents-on-surface-tension|hard",
+      "topicId": "physics|20|effect-of-detergents-on-surface-tension",
+      "difficulty": "hard",
+      "question": "Draw Surface tension of water by capillary rise and effect of detergents and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|viscosity-of-given-liquid|easy",
+      "topicId": "physics|20|viscosity-of-given-liquid",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Coefficient of viscosity of a given viscous liquid. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|viscosity-of-given-liquid|medium",
+      "topicId": "physics|20|viscosity-of-given-liquid",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Coefficient of viscosity of a given viscous liquid and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|viscosity-of-given-liquid|hard",
+      "topicId": "physics|20|viscosity-of-given-liquid",
+      "difficulty": "hard",
+      "question": "Draw Coefficient of viscosity of a given viscous liquid and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|terminal-velocity-method-for-viscosity|easy",
+      "topicId": "physics|20|terminal-velocity-method-for-viscosity",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Coefficient of viscosity of a given viscous liquid by measuring terminal velocity of a spherical body. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|terminal-velocity-method-for-viscosity|medium",
+      "topicId": "physics|20|terminal-velocity-method-for-viscosity",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Coefficient of viscosity of a given viscous liquid by measuring terminal velocity of a spherical body and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|terminal-velocity-method-for-viscosity|hard",
+      "topicId": "physics|20|terminal-velocity-method-for-viscosity",
+      "difficulty": "hard",
+      "question": "Draw Coefficient of viscosity of a given viscous liquid by measuring terminal velocity of a spherical body and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|speed-of-sound-resonance-tube|easy",
+      "topicId": "physics|20|speed-of-sound-resonance-tube",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Speed of sound in air at room temperature using a resonance tube. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|speed-of-sound-resonance-tube|medium",
+      "topicId": "physics|20|speed-of-sound-resonance-tube",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Speed of sound in air at room temperature using a resonance tube and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|speed-of-sound-resonance-tube|hard",
+      "topicId": "physics|20|speed-of-sound-resonance-tube",
+      "difficulty": "hard",
+      "question": "Draw Speed of sound in air at room temperature using a resonance tube and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|specific-heat-capacity-by-mixtures|easy",
+      "topicId": "physics|20|specific-heat-capacity-by-mixtures",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Specific heat capacity of a given solid by the method of mixtures. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|specific-heat-capacity-by-mixtures|medium",
+      "topicId": "physics|20|specific-heat-capacity-by-mixtures",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Specific heat capacity of a given solid by the method of mixtures and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|specific-heat-capacity-by-mixtures|hard",
+      "topicId": "physics|20|specific-heat-capacity-by-mixtures",
+      "difficulty": "hard",
+      "question": "Draw Specific heat capacity of a given solid by the method of mixtures and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|specific-heat-capacity-of-a-liquid|easy",
+      "topicId": "physics|20|specific-heat-capacity-of-a-liquid",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Specific heat capacity of a given liquid by the method of mixtures. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|specific-heat-capacity-of-a-liquid|medium",
+      "topicId": "physics|20|specific-heat-capacity-of-a-liquid",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Specific heat capacity of a given liquid by the method of mixtures and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|specific-heat-capacity-of-a-liquid|hard",
+      "topicId": "physics|20|specific-heat-capacity-of-a-liquid",
+      "difficulty": "hard",
+      "question": "Draw Specific heat capacity of a given liquid by the method of mixtures and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|resistivity-using-metre-bridge|easy",
+      "topicId": "physics|20|resistivity-using-metre-bridge",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Resistivity of the material of a given wire using a metre bridge. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|resistivity-using-metre-bridge|medium",
+      "topicId": "physics|20|resistivity-using-metre-bridge",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Resistivity of the material of a given wire using a metre bridge and label the named quantities. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|resistivity-using-metre-bridge|hard",
+      "topicId": "physics|20|resistivity-using-metre-bridge",
+      "difficulty": "hard",
+      "question": "Draw Resistivity of the material of a given wire using a metre bridge and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|metre-bridge-end-correction|easy",
+      "topicId": "physics|20|metre-bridge-end-correction",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for End correction in a metre bridge. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|metre-bridge-end-correction|medium",
+      "topicId": "physics|20|metre-bridge-end-correction",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for End correction in a metre bridge and label the named quantities. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|metre-bridge-end-correction|hard",
+      "topicId": "physics|20|metre-bridge-end-correction",
+      "difficulty": "hard",
+      "question": "Draw End correction in a metre bridge and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|resistance-of-wire-using-ohms-law|easy",
+      "topicId": "physics|20|resistance-of-wire-using-ohms-law",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Resistance of a given wire using Ohm's law. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|resistance-of-wire-using-ohms-law|medium",
+      "topicId": "physics|20|resistance-of-wire-using-ohms-law",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Resistance of a given wire using Ohm's law and label the named quantities. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|resistance-of-wire-using-ohms-law|hard",
+      "topicId": "physics|20|resistance-of-wire-using-ohms-law",
+      "difficulty": "hard",
+      "question": "Draw Resistance of a given wire using Ohm's law and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|galvanometer-resistance-half-deflection|easy",
+      "topicId": "physics|20|galvanometer-resistance-half-deflection",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Resistance of a galvanometer by the half-deflection method. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|galvanometer-resistance-half-deflection|medium",
+      "topicId": "physics|20|galvanometer-resistance-half-deflection",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Resistance of a galvanometer by the half-deflection method and label the named quantities. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|galvanometer-resistance-half-deflection|hard",
+      "topicId": "physics|20|galvanometer-resistance-half-deflection",
+      "difficulty": "hard",
+      "question": "Draw Resistance of a galvanometer by the half-deflection method and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|galvanometer-figure-of-merit|easy",
+      "topicId": "physics|20|galvanometer-figure-of-merit",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Resistance and figure of merit of a galvanometer by the half-deflection method. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|galvanometer-figure-of-merit|medium",
+      "topicId": "physics|20|galvanometer-figure-of-merit",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Resistance and figure of merit of a galvanometer by the half-deflection method and label the named quantities. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|galvanometer-figure-of-merit|hard",
+      "topicId": "physics|20|galvanometer-figure-of-merit",
+      "difficulty": "hard",
+      "question": "Draw Resistance and figure of merit of a galvanometer by the half-deflection method and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|emf-internal-resistance-and-potential-difference-of-cell|easy",
+      "topicId": "physics|20|emf-internal-resistance-and-potential-difference-of-cell",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for EMF of a cell, internal resistance, and potential difference.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|emf-internal-resistance-and-potential-difference-of-cell|medium",
+      "topicId": "physics|20|emf-internal-resistance-and-potential-difference-of-cell",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for EMF of a cell, internal resistance, and potential difference and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|emf-internal-resistance-and-potential-difference-of-cell|hard",
+      "topicId": "physics|20|emf-internal-resistance-and-potential-difference-of-cell",
+      "difficulty": "hard",
+      "question": "Draw EMF of a cell, internal resistance, and potential difference and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|focal-length-by-parallax-method|easy",
+      "topicId": "physics|20|focal-length-by-parallax-method",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Focal length of a concave mirror using the parallax method. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|focal-length-by-parallax-method|medium",
+      "topicId": "physics|20|focal-length-by-parallax-method",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Focal length of a concave mirror using the parallax method and label the named quantities. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|focal-length-by-parallax-method|hard",
+      "topicId": "physics|20|focal-length-by-parallax-method",
+      "difficulty": "hard",
+      "question": "Draw Focal length of a concave mirror using the parallax method and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|focal-length-convex-mirror-parallax|easy",
+      "topicId": "physics|20|focal-length-convex-mirror-parallax",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Focal length of a convex mirror using the parallax method. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|focal-length-convex-mirror-parallax|medium",
+      "topicId": "physics|20|focal-length-convex-mirror-parallax",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Focal length of a convex mirror using the parallax method and label the named quantities. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|focal-length-convex-mirror-parallax|hard",
+      "topicId": "physics|20|focal-length-convex-mirror-parallax",
+      "difficulty": "hard",
+      "question": "Draw Focal length of a convex mirror using the parallax method and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|focal-length-convex-lens-parallax|easy",
+      "topicId": "physics|20|focal-length-convex-lens-parallax",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Focal length of a convex lens using the parallax method. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|focal-length-convex-lens-parallax|medium",
+      "topicId": "physics|20|focal-length-convex-lens-parallax",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Focal length of a convex lens using the parallax method and label the named quantities. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|focal-length-convex-lens-parallax|hard",
+      "topicId": "physics|20|focal-length-convex-lens-parallax",
+      "difficulty": "hard",
+      "question": "Draw Focal length of a convex lens using the parallax method and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|distance-and-magnification-for-convex-lens|easy",
+      "topicId": "physics|20|distance-and-magnification-for-convex-lens",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Plotting the graph between distance and magnification for a convex lens. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|distance-and-magnification-for-convex-lens|medium",
+      "topicId": "physics|20|distance-and-magnification-for-convex-lens",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Plotting the graph between distance and magnification for a convex lens and label the named quantities. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|distance-and-magnification-for-convex-lens|hard",
+      "topicId": "physics|20|distance-and-magnification-for-convex-lens",
+      "difficulty": "hard",
+      "question": "Draw Plotting the graph between distance and magnification for a convex lens and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|prism-deviation-vs-incidence|easy",
+      "topicId": "physics|20|prism-deviation-vs-incidence",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Plotting angle of deviation versus angle of incidence for a triangular prism. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|prism-deviation-vs-incidence|medium",
+      "topicId": "physics|20|prism-deviation-vs-incidence",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Plotting angle of deviation versus angle of incidence for a triangular prism and label the named quantities. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|prism-deviation-vs-incidence|hard",
+      "topicId": "physics|20|prism-deviation-vs-incidence",
+      "difficulty": "hard",
+      "question": "Draw Plotting angle of deviation versus angle of incidence for a triangular prism and mark any named directions, levels, or components on the figure. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|refractive-index-of-glass-slab|easy",
+      "topicId": "physics|20|refractive-index-of-glass-slab",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Refractive index of a glass slab using a travelling microscope. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|refractive-index-of-glass-slab|medium",
+      "topicId": "physics|20|refractive-index-of-glass-slab",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Refractive index of a glass slab using a travelling microscope and label the named quantities. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|refractive-index-of-glass-slab|hard",
+      "topicId": "physics|20|refractive-index-of-glass-slab",
+      "difficulty": "hard",
+      "question": "Draw Refractive index of a glass slab using a travelling microscope and mark any named directions, levels, or components on the figure. Show the interface and the incident and refracted rays.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|pn-junction-diode-characteristic-curves|easy",
+      "topicId": "physics|20|pn-junction-diode-characteristic-curves",
+      "difficulty": "easy",
+      "question": "Plot the I-V characteristic for Characteristic curves of a p-n junction diode in forward and reverse bias on labelled axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|pn-junction-diode-characteristic-curves|medium",
+      "topicId": "physics|20|pn-junction-diode-characteristic-curves",
+      "difficulty": "medium",
+      "question": "Sketch the characteristic curve for Characteristic curves of a p-n junction diode in forward and reverse bias and mark forward and reverse regions.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|pn-junction-diode-characteristic-curves|hard",
+      "topicId": "physics|20|pn-junction-diode-characteristic-curves",
+      "difficulty": "hard",
+      "question": "Draw Characteristic curves of a p-n junction diode in forward and reverse bias as a plot of current against voltage and label the axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|zener-diode-characteristic-curves|easy",
+      "topicId": "physics|20|zener-diode-characteristic-curves",
+      "difficulty": "easy",
+      "question": "Plot the I-V characteristic for Characteristic curves of a Zener diode and reverse breakdown voltage on labelled axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|zener-diode-characteristic-curves|medium",
+      "topicId": "physics|20|zener-diode-characteristic-curves",
+      "difficulty": "medium",
+      "question": "Sketch the characteristic curve for Characteristic curves of a Zener diode and reverse breakdown voltage and mark forward and reverse regions.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|zener-diode-characteristic-curves|hard",
+      "topicId": "physics|20|zener-diode-characteristic-curves",
+      "difficulty": "hard",
+      "question": "Draw Characteristic curves of a Zener diode and reverse breakdown voltage as a plot of current against voltage and label the axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|identify-basic-electronic-components|easy",
+      "topicId": "physics|20|identify-basic-electronic-components",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Identification of a diode, LED, resistor, and capacitor from a mixed collection.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|identify-basic-electronic-components|medium",
+      "topicId": "physics|20|identify-basic-electronic-components",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Identification of a diode, LED, resistor, and capacitor from a mixed collection and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|identify-basic-electronic-components|hard",
+      "topicId": "physics|20|identify-basic-electronic-components",
+      "difficulty": "hard",
+      "question": "Draw Identification of a diode, LED, resistor, and capacitor from a mixed collection and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|identify-transistor-and-ic|easy",
+      "topicId": "physics|20|identify-transistor-and-ic",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Identification of a transistor and an IC from a mixed collection. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|identify-transistor-and-ic|medium",
+      "topicId": "physics|20|identify-transistor-and-ic",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Identification of a transistor and an IC from a mixed collection and label the named quantities. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|identify-transistor-and-ic|hard",
+      "topicId": "physics|20|identify-transistor-and-ic",
+      "difficulty": "hard",
+      "question": "Draw Identification of a transistor and an IC from a mixed collection and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|transistor-characteristic-curves-and-current-gain|easy",
+      "topicId": "physics|20|transistor-characteristic-curves-and-current-gain",
+      "difficulty": "easy",
+      "question": "Plot the I-V characteristic for Transistor characteristics in common emitter configuration, characteristic curves, and finding current gain on labelled axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|transistor-characteristic-curves-and-current-gain|medium",
+      "topicId": "physics|20|transistor-characteristic-curves-and-current-gain",
+      "difficulty": "medium",
+      "question": "Sketch the characteristic curve for Transistor characteristics in common emitter configuration, characteristic curves, and finding current gain and mark forward and reverse regions.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|transistor-characteristic-curves-and-current-gain|hard",
+      "topicId": "physics|20|transistor-characteristic-curves-and-current-gain",
+      "difficulty": "hard",
+      "question": "Draw Transistor characteristics in common emitter configuration, characteristic curves, and finding current gain as a plot of current against voltage and label the axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|logic-gate-identification-and-truth-tables|easy",
+      "topicId": "physics|20|logic-gate-identification-and-truth-tables",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Identification of logic gates and truth tables.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|logic-gate-identification-and-truth-tables|medium",
+      "topicId": "physics|20|logic-gate-identification-and-truth-tables",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Identification of logic gates and truth tables and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|20|logic-gate-identification-and-truth-tables|hard",
+      "topicId": "physics|20|logic-gate-identification-and-truth-tables",
+      "difficulty": "hard",
+      "question": "Draw Identification of logic gates and truth tables and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

@@ -1,0 +1,573 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|7",
+  "questions": [
+    {
+      "id": "physics|7|elasticity-and-moduli|easy",
+      "topicId": "physics|7|elasticity-and-moduli",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Elastic behaviour, stress-strain relationship, and Hooke's law.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|elasticity-and-moduli|medium",
+      "topicId": "physics|7|elasticity-and-moduli",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Elastic behaviour, stress-strain relationship, and Hooke's law and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|elasticity-and-moduli|hard",
+      "topicId": "physics|7|elasticity-and-moduli",
+      "difficulty": "hard",
+      "question": "Draw Elastic behaviour, stress-strain relationship, and Hooke's law and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|youngs-modulus|easy",
+      "topicId": "physics|7|youngs-modulus",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Young's modulus.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|youngs-modulus|medium",
+      "topicId": "physics|7|youngs-modulus",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Young's modulus and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|youngs-modulus|hard",
+      "topicId": "physics|7|youngs-modulus",
+      "difficulty": "hard",
+      "question": "Draw Young's modulus and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|bulk-modulus-and-modulus-of-rigidity|easy",
+      "topicId": "physics|7|bulk-modulus-and-modulus-of-rigidity",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Bulk modulus and modulus of rigidity. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|bulk-modulus-and-modulus-of-rigidity|medium",
+      "topicId": "physics|7|bulk-modulus-and-modulus-of-rigidity",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Bulk modulus and modulus of rigidity and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|bulk-modulus-and-modulus-of-rigidity|hard",
+      "topicId": "physics|7|bulk-modulus-and-modulus-of-rigidity",
+      "difficulty": "hard",
+      "question": "Draw Bulk modulus and modulus of rigidity and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|poissons-ratio|easy",
+      "topicId": "physics|7|poissons-ratio",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Poisson's ratio. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|poissons-ratio|medium",
+      "topicId": "physics|7|poissons-ratio",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Poisson's ratio and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|poissons-ratio|hard",
+      "topicId": "physics|7|poissons-ratio",
+      "difficulty": "hard",
+      "question": "Draw Poisson's ratio and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|elastic-potential-energy|easy",
+      "topicId": "physics|7|elastic-potential-energy",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Elastic potential energy stored in a stretched wire or spring-like solid. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|elastic-potential-energy|medium",
+      "topicId": "physics|7|elastic-potential-energy",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Elastic potential energy stored in a stretched wire or spring-like solid and label the named quantities. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|elastic-potential-energy|hard",
+      "topicId": "physics|7|elastic-potential-energy",
+      "difficulty": "hard",
+      "question": "Draw Elastic potential energy stored in a stretched wire or spring-like solid and mark any named directions, levels, or components on the figure. Draw a spring-block oscillator and mark the amplitude.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|fluid-pressure-and-pascals-law|easy",
+      "topicId": "physics|7|fluid-pressure-and-pascals-law",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Pressure due to a fluid column. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|fluid-pressure-and-pascals-law|medium",
+      "topicId": "physics|7|fluid-pressure-and-pascals-law",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Pressure due to a fluid column and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|fluid-pressure-and-pascals-law|hard",
+      "topicId": "physics|7|fluid-pressure-and-pascals-law",
+      "difficulty": "hard",
+      "question": "Draw Pressure due to a fluid column and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|pascals-law-and-hydraulics|easy",
+      "topicId": "physics|7|pascals-law-and-hydraulics",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Pascal's law and hydraulic applications. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|pascals-law-and-hydraulics|medium",
+      "topicId": "physics|7|pascals-law-and-hydraulics",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Pascal's law and hydraulic applications and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|pascals-law-and-hydraulics|hard",
+      "topicId": "physics|7|pascals-law-and-hydraulics",
+      "difficulty": "hard",
+      "question": "Draw Pascal's law and hydraulic applications and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|gravity-effect-on-fluid-pressure|easy",
+      "topicId": "physics|7|gravity-effect-on-fluid-pressure",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Effect of gravity on fluid pressure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|gravity-effect-on-fluid-pressure|medium",
+      "topicId": "physics|7|gravity-effect-on-fluid-pressure",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Effect of gravity on fluid pressure and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|gravity-effect-on-fluid-pressure|hard",
+      "topicId": "physics|7|gravity-effect-on-fluid-pressure",
+      "difficulty": "hard",
+      "question": "Draw Effect of gravity on fluid pressure and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|buoyancy-and-archimedes-principle|easy",
+      "topicId": "physics|7|buoyancy-and-archimedes-principle",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Buoyancy and Archimedes' principle. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|buoyancy-and-archimedes-principle|medium",
+      "topicId": "physics|7|buoyancy-and-archimedes-principle",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Buoyancy and Archimedes' principle and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|buoyancy-and-archimedes-principle|hard",
+      "topicId": "physics|7|buoyancy-and-archimedes-principle",
+      "difficulty": "hard",
+      "question": "Draw Buoyancy and Archimedes' principle and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|viscosity-and-stokes-law|easy",
+      "topicId": "physics|7|viscosity-and-stokes-law",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Viscosity. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|viscosity-and-stokes-law|medium",
+      "topicId": "physics|7|viscosity-and-stokes-law",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Viscosity and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|viscosity-and-stokes-law|hard",
+      "topicId": "physics|7|viscosity-and-stokes-law",
+      "difficulty": "hard",
+      "question": "Draw Viscosity and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|stokes-law-and-terminal-velocity|easy",
+      "topicId": "physics|7|stokes-law-and-terminal-velocity",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Stokes' law and terminal velocity. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|stokes-law-and-terminal-velocity|medium",
+      "topicId": "physics|7|stokes-law-and-terminal-velocity",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Stokes' law and terminal velocity and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|stokes-law-and-terminal-velocity|hard",
+      "topicId": "physics|7|stokes-law-and-terminal-velocity",
+      "difficulty": "hard",
+      "question": "Draw Stokes' law and terminal velocity and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|streamline-turbulent-and-bernoulli|easy",
+      "topicId": "physics|7|streamline-turbulent-and-bernoulli",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Streamline flow, turbulent flow, and Bernoulli's principle with applications. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|streamline-turbulent-and-bernoulli|medium",
+      "topicId": "physics|7|streamline-turbulent-and-bernoulli",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Streamline flow, turbulent flow, and Bernoulli's principle with applications and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|streamline-turbulent-and-bernoulli|hard",
+      "topicId": "physics|7|streamline-turbulent-and-bernoulli",
+      "difficulty": "hard",
+      "question": "Draw Streamline flow, turbulent flow, and Bernoulli's principle with applications and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|equation-of-continuity|easy",
+      "topicId": "physics|7|equation-of-continuity",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Equation of continuity. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|equation-of-continuity|medium",
+      "topicId": "physics|7|equation-of-continuity",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Equation of continuity and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|equation-of-continuity|hard",
+      "topicId": "physics|7|equation-of-continuity",
+      "difficulty": "hard",
+      "question": "Draw Equation of continuity and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|critical-velocity|easy",
+      "topicId": "physics|7|critical-velocity",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Critical velocity. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|critical-velocity|medium",
+      "topicId": "physics|7|critical-velocity",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Critical velocity and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|critical-velocity|hard",
+      "topicId": "physics|7|critical-velocity",
+      "difficulty": "hard",
+      "question": "Draw Critical velocity and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|reynolds-number|easy",
+      "topicId": "physics|7|reynolds-number",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Reynolds number. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|reynolds-number|medium",
+      "topicId": "physics|7|reynolds-number",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Reynolds number and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|reynolds-number|hard",
+      "topicId": "physics|7|reynolds-number",
+      "difficulty": "hard",
+      "question": "Draw Reynolds number and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|surface-tension-basics|easy",
+      "topicId": "physics|7|surface-tension-basics",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Surface energy, surface tension, and angle of contact. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|surface-tension-basics|medium",
+      "topicId": "physics|7|surface-tension-basics",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Surface energy, surface tension, and angle of contact and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|surface-tension-basics|hard",
+      "topicId": "physics|7|surface-tension-basics",
+      "difficulty": "hard",
+      "question": "Draw Surface energy, surface tension, and angle of contact and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|excess-pressure-across-curved-surface|easy",
+      "topicId": "physics|7|excess-pressure-across-curved-surface",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Excess pressure across a curved surface. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|excess-pressure-across-curved-surface|medium",
+      "topicId": "physics|7|excess-pressure-across-curved-surface",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Excess pressure across a curved surface and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|excess-pressure-across-curved-surface|hard",
+      "topicId": "physics|7|excess-pressure-across-curved-surface",
+      "difficulty": "hard",
+      "question": "Draw Excess pressure across a curved surface and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|drops-and-bubbles|easy",
+      "topicId": "physics|7|drops-and-bubbles",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Excess pressure in drops and bubbles. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|drops-and-bubbles|medium",
+      "topicId": "physics|7|drops-and-bubbles",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Excess pressure in drops and bubbles and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|drops-and-bubbles|hard",
+      "topicId": "physics|7|drops-and-bubbles",
+      "difficulty": "hard",
+      "question": "Draw Excess pressure in drops and bubbles and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|surface-tension-applications|easy",
+      "topicId": "physics|7|surface-tension-applications",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Capillary rise. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|surface-tension-applications|medium",
+      "topicId": "physics|7|surface-tension-applications",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Capillary rise and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|surface-tension-applications|hard",
+      "topicId": "physics|7|surface-tension-applications",
+      "difficulty": "hard",
+      "question": "Draw Capillary rise and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|heat-temperature-and-thermal-expansion|easy",
+      "topicId": "physics|7|heat-temperature-and-thermal-expansion",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Heat, temperature, and linear thermal expansion. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|heat-temperature-and-thermal-expansion|medium",
+      "topicId": "physics|7|heat-temperature-and-thermal-expansion",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Heat, temperature, and linear thermal expansion and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|heat-temperature-and-thermal-expansion|hard",
+      "topicId": "physics|7|heat-temperature-and-thermal-expansion",
+      "difficulty": "hard",
+      "question": "Draw Heat, temperature, and linear thermal expansion and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|area-and-volume-expansion|easy",
+      "topicId": "physics|7|area-and-volume-expansion",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Area and volume thermal expansion. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|area-and-volume-expansion|medium",
+      "topicId": "physics|7|area-and-volume-expansion",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Area and volume thermal expansion and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|area-and-volume-expansion|hard",
+      "topicId": "physics|7|area-and-volume-expansion",
+      "difficulty": "hard",
+      "question": "Draw Area and volume thermal expansion and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|specific-heat-and-calorimetry|easy",
+      "topicId": "physics|7|specific-heat-and-calorimetry",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Specific heat capacity and calorimetry. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|specific-heat-and-calorimetry|medium",
+      "topicId": "physics|7|specific-heat-and-calorimetry",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Specific heat capacity and calorimetry and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|specific-heat-and-calorimetry|hard",
+      "topicId": "physics|7|specific-heat-and-calorimetry",
+      "difficulty": "hard",
+      "question": "Draw Specific heat capacity and calorimetry and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|change-of-state-and-latent-heat|easy",
+      "topicId": "physics|7|change-of-state-and-latent-heat",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Change of state and latent heat. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|change-of-state-and-latent-heat|medium",
+      "topicId": "physics|7|change-of-state-and-latent-heat",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Change of state and latent heat and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|change-of-state-and-latent-heat|hard",
+      "topicId": "physics|7|change-of-state-and-latent-heat",
+      "difficulty": "hard",
+      "question": "Draw Change of state and latent heat and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|heat-transfer|easy",
+      "topicId": "physics|7|heat-transfer",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Heat transfer by conduction. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|heat-transfer|medium",
+      "topicId": "physics|7|heat-transfer",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Heat transfer by conduction and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|heat-transfer|hard",
+      "topicId": "physics|7|heat-transfer",
+      "difficulty": "hard",
+      "question": "Draw Heat transfer by conduction and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|convection-and-radiation|easy",
+      "topicId": "physics|7|convection-and-radiation",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Heat transfer by convection and radiation. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|convection-and-radiation|medium",
+      "topicId": "physics|7|convection-and-radiation",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Heat transfer by convection and radiation and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|convection-and-radiation|hard",
+      "topicId": "physics|7|convection-and-radiation",
+      "difficulty": "hard",
+      "question": "Draw Heat transfer by convection and radiation and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|stefans-law|easy",
+      "topicId": "physics|7|stefans-law",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Stefan's law. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|stefans-law|medium",
+      "topicId": "physics|7|stefans-law",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Stefan's law and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|stefans-law|hard",
+      "topicId": "physics|7|stefans-law",
+      "difficulty": "hard",
+      "question": "Draw Stefan's law and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|newtons-law-of-cooling|easy",
+      "topicId": "physics|7|newtons-law-of-cooling",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Newton's law of cooling.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|newtons-law-of-cooling|medium",
+      "topicId": "physics|7|newtons-law-of-cooling",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Newton's law of cooling and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|7|newtons-law-of-cooling|hard",
+      "topicId": "physics|7|newtons-law-of-cooling",
+      "difficulty": "hard",
+      "question": "Draw Newton's law of cooling and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}

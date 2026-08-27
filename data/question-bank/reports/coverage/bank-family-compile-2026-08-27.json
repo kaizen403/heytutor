@@ -1,0 +1,411 @@
+{
+  "schema": "bank-family-compile/v1",
+  "generated": "2026-08-27T20:46:46.490Z",
+  "note": "Does not overwrite syllabus-capability-coverage-*.json. Bank is an oracle; runtime never keys on question id.",
+  "totals": {
+    "visualizable": 1485,
+    "physics": {
+      "visualizable": 1175,
+      "honest_text_only": 175,
+      "scenes": 1000,
+      "required_misses": 0
+    },
+    "maths": {
+      "visualizable": 310,
+      "honest_text_only": 24,
+      "scenes": 243,
+      "required_misses": 43
+    }
+  },
+  "by_unit": {
+    "physics|16": {
+      "visualizable": 304,
+      "honest_text_only": 10,
+      "scenes": 294,
+      "required_misses": 0,
+      "required": 294,
+      "miss_rate": 0
+    },
+    "physics|11": {
+      "visualizable": 209,
+      "honest_text_only": 31,
+      "scenes": 178,
+      "required_misses": 0,
+      "required": 178,
+      "miss_rate": 0
+    },
+    "physics|14": {
+      "visualizable": 139,
+      "honest_text_only": 18,
+      "scenes": 121,
+      "required_misses": 0,
+      "required": 121,
+      "miss_rate": 0
+    },
+    "maths|10": {
+      "visualizable": 125,
+      "honest_text_only": 10,
+      "scenes": 112,
+      "required_misses": 3,
+      "required": 115,
+      "miss_rate": 0.0261
+    },
+    "physics|19": {
+      "visualizable": 104,
+      "honest_text_only": 10,
+      "scenes": 94,
+      "required_misses": 0,
+      "required": 94,
+      "miss_rate": 0
+    },
+    "physics|13": {
+      "visualizable": 89,
+      "honest_text_only": 10,
+      "scenes": 79,
+      "required_misses": 0,
+      "required": 79,
+      "miss_rate": 0
+    },
+    "physics|15": {
+      "visualizable": 83,
+      "honest_text_only": 12,
+      "scenes": 71,
+      "required_misses": 0,
+      "required": 71,
+      "miss_rate": 0
+    },
+    "physics|12": {
+      "visualizable": 75,
+      "honest_text_only": 23,
+      "scenes": 52,
+      "required_misses": 0,
+      "required": 52,
+      "miss_rate": 0
+    },
+    "maths|8": {
+      "visualizable": 72,
+      "honest_text_only": 5,
+      "scenes": 50,
+      "required_misses": 17,
+      "required": 67,
+      "miss_rate": 0.2537
+    },
+    "physics|17": {
+      "visualizable": 65,
+      "honest_text_only": 25,
+      "scenes": 40,
+      "required_misses": 0,
+      "required": 40,
+      "miss_rate": 0
+    },
+    "maths|11": {
+      "visualizable": 45,
+      "honest_text_only": 0,
+      "scenes": 40,
+      "required_misses": 5,
+      "required": 45,
+      "miss_rate": 0.1111
+    },
+    "maths|7": {
+      "visualizable": 34,
+      "honest_text_only": 7,
+      "scenes": 10,
+      "required_misses": 17,
+      "required": 27,
+      "miss_rate": 0.6296
+    },
+    "maths|12": {
+      "visualizable": 32,
+      "honest_text_only": 1,
+      "scenes": 30,
+      "required_misses": 1,
+      "required": 31,
+      "miss_rate": 0.0323
+    },
+    "physics|18": {
+      "visualizable": 28,
+      "honest_text_only": 4,
+      "scenes": 24,
+      "required_misses": 0,
+      "required": 24,
+      "miss_rate": 0
+    },
+    "physics|5": {
+      "visualizable": 25,
+      "honest_text_only": 12,
+      "scenes": 13,
+      "required_misses": 0,
+      "required": 13,
+      "miss_rate": 0
+    },
+    "physics|8": {
+      "visualizable": 17,
+      "honest_text_only": 7,
+      "scenes": 10,
+      "required_misses": 0,
+      "required": 10,
+      "miss_rate": 0
+    },
+    "physics|7": {
+      "visualizable": 13,
+      "honest_text_only": 5,
+      "scenes": 8,
+      "required_misses": 0,
+      "required": 8,
+      "miss_rate": 0
+    },
+    "physics|10": {
+      "visualizable": 9,
+      "honest_text_only": 3,
+      "scenes": 6,
+      "required_misses": 0,
+      "required": 6,
+      "miss_rate": 0
+    },
+    "physics|2": {
+      "visualizable": 4,
+      "honest_text_only": 0,
+      "scenes": 4,
+      "required_misses": 0,
+      "required": 4,
+      "miss_rate": 0
+    },
+    "physics|3": {
+      "visualizable": 4,
+      "honest_text_only": 0,
+      "scenes": 4,
+      "required_misses": 0,
+      "required": 4,
+      "miss_rate": 0
+    },
+    "physics|4": {
+      "visualizable": 3,
+      "honest_text_only": 3,
+      "scenes": 0,
+      "required_misses": 0,
+      "required": 0,
+      "miss_rate": 0
+    },
+    "physics|6": {
+      "visualizable": 2,
+      "honest_text_only": 0,
+      "scenes": 2,
+      "required_misses": 0,
+      "required": 2,
+      "miss_rate": 0
+    },
+    "physics|20": {
+      "visualizable": 2,
+      "honest_text_only": 2,
+      "scenes": 0,
+      "required_misses": 0,
+      "required": 0,
+      "miss_rate": 0
+    },
+    "maths|14": {
+      "visualizable": 1,
+      "honest_text_only": 1,
+      "scenes": 0,
+      "required_misses": 0,
+      "required": 0,
+      "miss_rate": 0
+    },
+    "maths|9": {
+      "visualizable": 1,
+      "honest_text_only": 0,
+      "scenes": 1,
+      "required_misses": 0,
+      "required": 1,
+      "miss_rate": 0
+    }
+  },
+  "miss_clusters": {
+    "unmatched:other": {
+      "count": 22,
+      "samples": [
+        {
+          "question_id": "q_098558431bdd1d63e641c162e844d98bf59f03926bdccc745d589c7e6776ec13",
+          "unit": "maths|7",
+          "families": [],
+          "preview": "If the radius of the circle is increasing at the rate of 0·5 cm/s, then the rate of increase of its circumference is _____________ ."
+        },
+        {
+          "question_id": "q_12bf674ba0f3a80122e98d7152a4566eb7837d4a21b78747842657887bd7fb2e",
+          "unit": "maths|8",
+          "families": [],
+          "preview": "The area of the shaded region of the circle given below is equal to : 3 3 (A) ∫ 9 – y dy 1 2 (B) 2 ∫ 9 – y dy 1 2 b 3 3 (C) ∫ 0 9 – x 2 dx (D) 2 ∫ 0 9 – x 2 dx"
+        },
+        {
+          "question_id": "q_1cb1cfb4c7d7b477d850036e723233d1cedb47b71da4db00520647d4ad89aff1",
+          "unit": "maths|8",
+          "families": [],
+          "preview": "Using integration, find the area enclosed by the curve x2 y 2"
+        },
+        {
+          "question_id": "q_1e11d3fca4d4b80da67c5b1cfe897f0972744a79d9e6ae504c7185aa1462d263",
+          "unit": "maths|7",
+          "families": [],
+          "preview": "(a) (b) The median of an equilateral triangle is increasing at the rate of 2/3 cm/s. Find the rate at which its side is increasing. OR Sum of two numbers is 5. If the sum of the cubes of these numbers is least, then find"
+        },
+        {
+          "question_id": "q_239cce078b30835e08ac02f5a3855045f3cb76a5f75f47b5b7f686d4ad863724",
+          "unit": "maths|7",
+          "families": [],
+          "preview": "Show that of all the rectangles inscribed in a given fixed circle, the square has maximum area. OR Find the intervals in which the function f given by f(x) = sin x + cos x, 0 ≤ x ≤ 2π is strictly increasing or strictly d"
+        },
+        {
+          "question_id": "q_239d19afde0136ae2fa40b5cca7c7aaabb7dd5932a183faece85fa315a7ce2fe",
+          "unit": "maths|8",
+          "families": [],
+          "preview": "The area of the shaded region of the circle given below is equal to : 3 3 (A) ∫ 9 – y dy 1 2 (B) 2 ∫ 9 – y dy 1 2 3 3 (C) ∫ 9 – x dx 0 2 (D) 2 ∫ 9 – x dx 0 2 dy"
+        },
+        {
+          "question_id": "q_339d77d66a2f7c182a3146b4a5d9be8da4fb4ce7ea1be7df0d5ba76f3a9c16bf",
+          "unit": "maths|7",
+          "families": [],
+          "preview": "(a) The median of an equilateral triangle is increasing at the rate of 2/3 cm/s. Find the rate at which its side is increasing. OR (b) Sum of two numbers is 5. If the sum of the cubes of these numbers is least, then find"
+        },
+        {
+          "question_id": "q_5ee8432af32a098bc6c6fb7a17dcf60aeeec74b8570fc2cd2a9259bc77d08da8",
+          "unit": "maths|7",
+          "families": [],
+          "preview": "If the circumference of circle is increasing at the constant rate, prove that rate of change of area of circle is directly proportional to its radius. 2"
+        }
+      ]
+    },
+    "analytic_curve": {
+      "count": 12,
+      "samples": [
+        {
+          "question_id": "q_27363d4462556f8a5bd79586505f99c0d7e348167754d33284bd4bfeab017134",
+          "unit": "maths|8",
+          "families": [
+            "analytic_curve"
+          ],
+          "preview": "(a) Using integration, find the area of the region bounded by the curve y= 4 – x2 , the lines x = – 2 and x = 3 and the x-axis. OR (b) Using integration, evaluate the area of the region bounded by the curve y = x2, the l"
+        },
+        {
+          "question_id": "q_29900d02ba84c13b7dd95a68e3d5da45f394a9eae2f1f873f452d759bd3c4764",
+          "unit": "maths|8",
+          "families": [
+            "analytic_curve"
+          ],
+          "preview": "(a) Using integration, find the area of the region bounded by the curve y= 4 – x2 , the lines x = – 2 and x = 3 and the x-axis. OR (b) Using integration, evaluate the area of the region bounded by the curve y = x2, the l"
+        },
+        {
+          "question_id": "q_902f083cfb74b004c1a7afc179de10d1c6f6bef4d829e67c0022c9e515685be8",
+          "unit": "maths|8",
+          "families": [
+            "analytic_curve"
+          ],
+          "preview": "Find the area of the region bounded by curve 4x2 = y and the line y = 8x + 12, using integration. 4 x2"
+        },
+        {
+          "question_id": "q_9d3ce99baf01fe8e92e31bf1dda5628f3b3959abf16ad58a460e6c490fbdd115",
+          "unit": "maths|8",
+          "families": [
+            "analytic_curve"
+          ],
+          "preview": "The area enclosed by the curve y = 4 – x2 and the coordinate axes in the first quadrant is : (A) 2p sq. units (B) p sq. units π (C) sq. units 2 (D) 4p sq. units"
+        },
+        {
+          "question_id": "q_9dbe31e7577c66e09582e5ae4a277d70ca9e6cc01b4b1d7e2c2c19c5061dfce7",
+          "unit": "maths|8",
+          "families": [
+            "analytic_curve"
+          ],
+          "preview": "(a) Using integration, find the area of the region bounded by the curve y= 4 – x2 , the lines x = – 2 and x = 3 and the x-axis. OR (b) Using integration, evaluate the area of the region bounded by the curve y = x2, the l"
+        },
+        {
+          "question_id": "q_a6cd97177a285b24eed49e7f08e0e9144c07d971143d0c314d6451fb305c0888",
+          "unit": "maths|7",
+          "families": [
+            "analytic_curve"
+          ],
+          "preview": "3 Let fbe a differentiable function on R such that f(2) = 1,f'(2)=4. Let lim (f (2 + x) =e\", x0 Then the number of times the curve y= 4x — 4x2—4(a—7) x—a meets x-axis is : Options : 6034212611, 9 6034212612. 1 6034212613"
+        },
+        {
+          "question_id": "q_a9629c86a55b39b2f64de2c78df17b1d967588994c006072387b4484b8503b47",
+          "unit": "maths|10",
+          "families": [
+            "analytic_curve"
+          ],
+          "preview": "Find the equation of the tangent to the curve y = a/3x — 2 which is parallel to the line 4x-—2y+5=0. OR 1 Find the intervals in which the function f given by f(x) = e+ = »,x+#0is (i) increasing (ii) decreasing. amp y =/3"
+        },
+        {
+          "question_id": "q_bcfea9d32c0a30cb6d2300b53b727ba6d7a557739c7daa4e527da1d0f7a4a08a",
+          "unit": "maths|8",
+          "families": [
+            "analytic_curve"
+          ],
+          "preview": "Draw a rough sketch for the curve y = 2 + |x + 1|. Using integration, find the area of the region bounded by the curve y=2+ |x+1|,x=-—4,x=3 and y = 0."
+        }
+      ]
+    },
+    "unmatched:vector_diagram": {
+      "count": 8,
+      "samples": [
+        {
+          "question_id": "q_3601e38f47ccd2a6fd3ab3a913a879df399cc4773d5f43476b078c23402c5c62",
+          "unit": "maths|8",
+          "families": [],
+          "preview": "∫ sin3 x . cos4 x dx 1 ∫ –2 |x3 – x| dx 65(B)/S Page 18 of 27 g # → ^ ^ → ^ ^ (b) Let a = 2 i + 3 ^j + 4 k , b = 4 i – 3 ^j + 9 k and → ^ ^ → c = 3 i – 2 ^j + 6 k . Find a vector d which is → → → → perpendicular to both "
+        },
+        {
+          "question_id": "q_4ca38f4e6a68697e7583828bd227d51f43bdc4cd7bfdd3cd482256f3415b7e40",
+          "unit": "maths|11",
+          "families": [],
+          "preview": "(a) Represent the equations of lines l1 and l2 in vector form and check whether they are intersecting or not. x+3 y –1 z–5 l1 : = = –3 1 5 x +1 2–y z–5 l2 : = = –1 –2 5 OR (b) Opposite sides of a square are along the lin"
+        },
+        {
+          "question_id": "q_62652fd42daeee73d288f5bce473cb6b0957be94db283613dbf56031df5276f8",
+          "unit": "maths|11",
+          "families": [],
+          "preview": "The line L, is parallel to the vector a =—3i+2j+4k and passes through the point (7, 6, 2) and the line L, is parallel to the vector b =2i+j+3k and passes through the point (5, 3, 4). The shortest distance between the lin"
+        },
+        {
+          "question_id": "q_78d5e2ea864126d6cf4f67b887dcddae83e4939208d05a88a3d04797b89020fa",
+          "unit": "maths|7",
+          "families": [],
+          "preview": "65/7/3 & B fe 2x-1 3x 12 Tf | = * #6 2s , then the value of (x — y) is: 0 y?-1 0 (A) 2or10 (B) -—2or10 (C) 2or-—10 (D) -2or-—10 Edge of a variable cube increases at the rate of 5 cm/s. The rate at which the surface area "
+        },
+        {
+          "question_id": "q_b0094b4cabe9eb6ab3fc9cbbfa8a32d0e3cb7b13938619506a18f973c3b3e374",
+          "unit": "maths|12",
+          "families": [],
+          "preview": "Suppose that P, Gand ? are three non-coplanar vectors in R* Let the components of a vector 3 along p, q and 7 be 4, 3 and 5, respectively. If the components of this vector $ along (-p+qG+7), (p-qt+r) and (-B-q+r) are x, "
+        },
+        {
+          "question_id": "q_b1a62e76d1cf49bc2f760dace4faa0c986a2acc3c4bd673d71a33593db18d924",
+          "unit": "maths|11",
+          "families": [],
+          "preview": "(a) Represent the equations of lines l1 and l2 in vector form and check whether they are intersecting or not. x+3 y –1 z–5 l1 : = = –3 1 5 x +1 2–y z–5 l2 : = = –1 –2 5 OR b (b) Opposite sides of a square are along the l"
+        },
+        {
+          "question_id": "q_d58a9b59f068a2f783246ca802e5b11e47276bb75ccf399f8ee07d574762b2b6",
+          "unit": "maths|11",
+          "families": [],
+          "preview": "(a) Find the shortest distance between the lines whose vector equations are : ^ ^ r = ^i + 2 ^j 4 k + (2 ^i + 3 ^j + 6 k ) and ^ ^ r = 3 ^i 3 ^j 5 k + ( 2 ^i + 3 ^j + 8 k ) OR (b) Find the foot of the perpendicular drawn"
+        },
+        {
+          "question_id": "q_f703308ef51d34a1501c50e593ee0401f85ae977ecff5d05c2edbc65369672f4",
+          "unit": "maths|11",
+          "families": [],
+          "preview": "→ ^ + λ (^i – 3^j + 2k) → ^ + μ (2^i + 3^j + k). r = (4^i + 5^j + 6k) ^ Find the shortest distance between the lines whose vector equations are given below : → ^ + λ (^i – 3^j + 2k) r = (^i + 2^j + 3k) ^ and → ^ + μ (2^i"
+        }
+      ]
+    },
+    "unmatched:analytic_curve": {
+      "count": 1,
+      "samples": [
+        {
+          "question_id": "q_f99f5059e818ec9b93696ff9a63c3e58e39348d9413201aee1faa48fa0a4ff3a",
+          "unit": "maths|7",
+          "families": [],
+          "preview": "Examine the applicability of Rolle’s theorem for the function f(x) = sin 2x in [0, π]. Hence find the points where the tangent is parallel to x-axis."
+        }
+      ]
+    }
+  },
+  "required_misses": []
+}

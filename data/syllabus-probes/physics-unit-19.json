@@ -1,0 +1,300 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "physics|19",
+  "questions": [
+    {
+      "id": "physics|19|semiconductors|easy",
+      "topicId": "physics|19|semiconductors",
+      "difficulty": "easy",
+      "question": "Draw energy band diagrams of n-type and p-type semiconductors at temperature T > 0 K. Show the donor/acceptor energy levels with the order of difference of their energies from the bands. 2",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|19|semiconductors|medium",
+      "topicId": "physics|19|semiconductors",
+      "difficulty": "medium",
+      "question": "Draw energy band diagrams of n-type and p-type semiconductors at temperature T > OK, depicting the donor and acceptor energy levels. Mention the significance of these levels. 2",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|19|semiconductors|hard",
+      "topicId": "physics|19|semiconductors",
+      "difficulty": "hard",
+      "question": "Draw the energy band diagrams for conductors, semiconductors and insulators. Which band determines the electrical conductivity of a solid ? How is the electrical conductivity of a semiconductor affected with rise in its temperature ? Explain. 3",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|19|energy-bands|easy",
+      "topicId": "physics|19|energy-bands",
+      "difficulty": "easy",
+      "question": "Draw the energy band diagram for Energy bands in solids: metals, insulators, and semiconductors. Show valence and conduction bands.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|energy-bands|medium",
+      "topicId": "physics|19|energy-bands",
+      "difficulty": "medium",
+      "question": "Draw the energy band diagram for Energy bands in solids: metals, insulators, and semiconductors. Show valence and conduction bands.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|energy-bands|hard",
+      "topicId": "physics|19|energy-bands",
+      "difficulty": "hard",
+      "question": "Draw the energy band diagram for Energy bands in solids: metals, insulators, and semiconductors. Show valence and conduction bands and any donor or acceptor levels.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|intrinsic-and-extrinsic-semiconductors|easy",
+      "topicId": "physics|19|intrinsic-and-extrinsic-semiconductors",
+      "difficulty": "easy",
+      "question": "(a) Differentiate between intrinsic and extrinsic semiconductors. 2 OR (b) Draw the circuit arrangement for studying the V I characteristics of a p-n junction diode in forward bias and reverse bias. Show the plot of V I characteristic of a silicon diode. 2",
+      "notes": "bank-sourced compiling English item for this topic"
+    },
+    {
+      "id": "physics|19|intrinsic-and-extrinsic-semiconductors|medium",
+      "topicId": "physics|19|intrinsic-and-extrinsic-semiconductors",
+      "difficulty": "medium",
+      "question": "Draw the energy band diagram for Intrinsic and extrinsic semiconductors. Show valence and conduction bands.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|intrinsic-and-extrinsic-semiconductors|hard",
+      "topicId": "physics|19|intrinsic-and-extrinsic-semiconductors",
+      "difficulty": "hard",
+      "question": "Draw the energy band diagram for Intrinsic and extrinsic semiconductors. Show valence and conduction bands and any donor or acceptor levels.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|n-type-and-p-type-semiconductors|easy",
+      "topicId": "physics|19|n-type-and-p-type-semiconductors",
+      "difficulty": "easy",
+      "question": "Draw the energy band diagram for n-type and p-type semiconductors. Show valence and conduction bands.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|n-type-and-p-type-semiconductors|medium",
+      "topicId": "physics|19|n-type-and-p-type-semiconductors",
+      "difficulty": "medium",
+      "question": "Draw the energy band diagram for n-type and p-type semiconductors. Show valence and conduction bands.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|n-type-and-p-type-semiconductors|hard",
+      "topicId": "physics|19|n-type-and-p-type-semiconductors",
+      "difficulty": "hard",
+      "question": "Draw the energy band diagram for n-type and p-type semiconductors. Show valence and conduction bands and any donor or acceptor levels.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|pn-junction-and-diode-iv|easy",
+      "topicId": "physics|19|pn-junction-and-diode-iv",
+      "difficulty": "easy",
+      "question": "Plot the I-V characteristic for p-n junction and semiconductor diode I-V characteristics in forward and reverse bias on labelled axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|pn-junction-and-diode-iv|medium",
+      "topicId": "physics|19|pn-junction-and-diode-iv",
+      "difficulty": "medium",
+      "question": "Sketch the characteristic curve for p-n junction and semiconductor diode I-V characteristics in forward and reverse bias and mark forward and reverse regions.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|pn-junction-and-diode-iv|hard",
+      "topicId": "physics|19|pn-junction-and-diode-iv",
+      "difficulty": "hard",
+      "question": "Draw p-n junction and semiconductor diode I-V characteristics in forward and reverse bias as a plot of current against voltage and label the axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|diode-as-rectifier|easy",
+      "topicId": "physics|19|diode-as-rectifier",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Diode as a half-wave rectifier.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|diode-as-rectifier|medium",
+      "topicId": "physics|19|diode-as-rectifier",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Diode as a half-wave rectifier and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|diode-as-rectifier|hard",
+      "topicId": "physics|19|diode-as-rectifier",
+      "difficulty": "hard",
+      "question": "Draw Diode as a half-wave rectifier and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|full-wave-rectifier|easy",
+      "topicId": "physics|19|full-wave-rectifier",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Diode as a full-wave rectifier.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|full-wave-rectifier|medium",
+      "topicId": "physics|19|full-wave-rectifier",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Diode as a full-wave rectifier and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|full-wave-rectifier|hard",
+      "topicId": "physics|19|full-wave-rectifier",
+      "difficulty": "hard",
+      "question": "Draw Diode as a full-wave rectifier and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|special-purpose-diodes-and-solar-cell|easy",
+      "topicId": "physics|19|special-purpose-diodes-and-solar-cell",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for LED, photodiode, solar cell, and Zener diode as semiconductor devices.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|special-purpose-diodes-and-solar-cell|medium",
+      "topicId": "physics|19|special-purpose-diodes-and-solar-cell",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for LED, photodiode, solar cell, and Zener diode as semiconductor devices and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|special-purpose-diodes-and-solar-cell|hard",
+      "topicId": "physics|19|special-purpose-diodes-and-solar-cell",
+      "difficulty": "hard",
+      "question": "Draw LED, photodiode, solar cell, and Zener diode as semiconductor devices and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|iv-characteristics-of-special-devices|easy",
+      "topicId": "physics|19|iv-characteristics-of-special-devices",
+      "difficulty": "easy",
+      "question": "Plot the I-V characteristic for I-V characteristics of LED, photodiode, solar cell, and Zener diode on labelled axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|iv-characteristics-of-special-devices|medium",
+      "topicId": "physics|19|iv-characteristics-of-special-devices",
+      "difficulty": "medium",
+      "question": "Sketch the characteristic curve for I-V characteristics of LED, photodiode, solar cell, and Zener diode and mark forward and reverse regions.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|iv-characteristics-of-special-devices|hard",
+      "topicId": "physics|19|iv-characteristics-of-special-devices",
+      "difficulty": "hard",
+      "question": "Draw I-V characteristics of LED, photodiode, solar cell, and Zener diode as a plot of current against voltage and label the axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|zener-voltage-regulator|easy",
+      "topicId": "physics|19|zener-voltage-regulator",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Zener diode as a voltage regulator.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|zener-voltage-regulator|medium",
+      "topicId": "physics|19|zener-voltage-regulator",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Zener diode as a voltage regulator and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|zener-voltage-regulator|hard",
+      "topicId": "physics|19|zener-voltage-regulator",
+      "difficulty": "hard",
+      "question": "Draw Zener diode as a voltage regulator and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|transistor-characteristics-common-emitter|easy",
+      "topicId": "physics|19|transistor-characteristics-common-emitter",
+      "difficulty": "easy",
+      "question": "Plot the I-V characteristic for Transistor characteristics in common emitter configuration on labelled axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|transistor-characteristics-common-emitter|medium",
+      "topicId": "physics|19|transistor-characteristics-common-emitter",
+      "difficulty": "medium",
+      "question": "Sketch the characteristic curve for Transistor characteristics in common emitter configuration and mark forward and reverse regions.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|transistor-characteristics-common-emitter|hard",
+      "topicId": "physics|19|transistor-characteristics-common-emitter",
+      "difficulty": "hard",
+      "question": "Draw Transistor characteristics in common emitter configuration as a plot of current against voltage and label the axes.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|transistor-as-switch-or-amplifier|easy",
+      "topicId": "physics|19|transistor-as-switch-or-amplifier",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Transistor as a switch and as an amplifier. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|transistor-as-switch-or-amplifier|medium",
+      "topicId": "physics|19|transistor-as-switch-or-amplifier",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Transistor as a switch and as an amplifier and label the named quantities. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|transistor-as-switch-or-amplifier|hard",
+      "topicId": "physics|19|transistor-as-switch-or-amplifier",
+      "difficulty": "hard",
+      "question": "Draw Transistor as a switch and as an amplifier and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|logic-gates|easy",
+      "topicId": "physics|19|logic-gates",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for Logic gates: OR, AND, NOT, NAND, and NOR.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|logic-gates|medium",
+      "topicId": "physics|19|logic-gates",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for Logic gates: OR, AND, NOT, NAND, and NOR and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|logic-gates|hard",
+      "topicId": "physics|19|logic-gates",
+      "difficulty": "hard",
+      "question": "Draw Logic gates: OR, AND, NOT, NAND, and NOR and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|nand-and-nor-universal-gates|easy",
+      "topicId": "physics|19|nand-and-nor-universal-gates",
+      "difficulty": "easy",
+      "question": "Draw a labelled diagram for NAND and NOR as universal gates.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|nand-and-nor-universal-gates|medium",
+      "topicId": "physics|19|nand-and-nor-universal-gates",
+      "difficulty": "medium",
+      "question": "Draw the standard setup for NAND and NOR as universal gates and label the named quantities.",
+      "notes": "authored canonical stem from the topic label"
+    },
+    {
+      "id": "physics|19|nand-and-nor-universal-gates|hard",
+      "topicId": "physics|19|nand-and-nor-universal-gates",
+      "difficulty": "hard",
+      "question": "Draw NAND and NOR as universal gates and mark any named directions, levels, or components on the figure.",
+      "notes": "authored canonical stem from the topic label"
+    }
+  ]
+}
