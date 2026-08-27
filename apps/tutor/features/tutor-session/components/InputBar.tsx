@@ -1,5 +1,6 @@
 "use client";
 
+import { Settings } from "lucide-react";
 import { resolveApiUrl } from "@heytutor/tutor-core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { compressQuestionImage } from "@/features/tutor-session/lib/compressQuestionImage";
@@ -23,6 +24,7 @@ export interface InputBarProps {
   onUserInteractionChange?: (hasInteracted: boolean) => void;
   compact?: boolean;
   prominent?: boolean;
+  onOpenSettings?: () => void;
 }
 
 type SpeechRecognitionResultList = {
@@ -88,6 +90,7 @@ export function InputBar({
   onUserInteractionChange,
   compact = false,
   prominent = false,
+  onOpenSettings,
 }: InputBarProps) {
   const [question, setQuestion] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -492,6 +495,9 @@ export function InputBar({
                 </svg>
               </button>
             )}
+            {onOpenSettings ? (
+              <InputSettingsButton onOpen={onOpenSettings} prominent={prominent} />
+            ) : null}
             <button
               type="button"
               aria-label="Ask Doubt"
@@ -522,6 +528,9 @@ export function InputBar({
           </div>
         ) : (
           <div className="mr-0.5 flex shrink-0 items-center gap-1.5">
+            {onOpenSettings ? (
+              <InputSettingsButton onOpen={onOpenSettings} prominent={prominent} />
+            ) : null}
             <button
               type="submit"
               disabled={buttonDisabled}
@@ -560,5 +569,27 @@ export function InputBar({
         </p>
       )}
     </div>
+  );
+}
+
+function InputSettingsButton({
+  onOpen,
+  prominent,
+}: {
+  onOpen: () => void;
+  prominent: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label="Board settings"
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-full border border-[#2E2E33] bg-[#1E1E21] text-[#A6A6AE] transition-colors hover:border-[rgba(201,201,210,0.35)] hover:bg-[#2E2E33] hover:text-[#C9C9D2]",
+        prominent ? "h-10 w-10" : "h-9 w-9",
+      )}
+    >
+      <Settings className={prominent ? "h-[18px] w-[18px]" : "h-4 w-4"} strokeWidth={1.75} />
+    </button>
   );
 }

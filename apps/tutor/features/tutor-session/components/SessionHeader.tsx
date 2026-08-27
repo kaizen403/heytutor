@@ -1,4 +1,3 @@
-import { Settings } from "lucide-react";
 import { LessonActions } from "@/features/tutor-session/components/LessonActions";
 import type { StatusDisplay, TutorPhase } from "../types";
 
@@ -10,18 +9,18 @@ interface SessionHeaderProps {
   onExpandSidebar: () => void;
   boardTitle: string;
   canReplay: boolean;
-  canTranscript: boolean;
   canDownload: boolean;
   isReplaying: boolean;
   isDownloading: boolean;
   phase: TutorPhase;
   activeStatus: StatusDisplay;
   compactActions?: boolean;
+  notesOpen?: boolean;
+  showNotesToggle?: boolean;
+  onToggleNotes?: () => void;
   onReplay: () => void;
-  onTranscript: () => void;
   onDownload: () => void;
   onStop: () => void;
-  onOpenSettings: () => void;
 }
 
 function displayBoardTitle(title: string): string {
@@ -39,18 +38,18 @@ export function SessionHeader({
   onExpandSidebar,
   boardTitle,
   canReplay,
-  canTranscript,
   canDownload,
   isReplaying,
   isDownloading,
   phase,
   activeStatus,
   compactActions = false,
+  notesOpen = false,
+  showNotesToggle = false,
+  onToggleNotes,
   onReplay,
-  onTranscript,
   onDownload,
   onStop,
-  onOpenSettings,
 }: SessionHeaderProps) {
   const isLive = phase !== "idle" || isReplaying;
   const title = displayBoardTitle(boardTitle);
@@ -111,39 +110,49 @@ export function SessionHeader({
 
         {/* Right: actions */}
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          {showNotesToggle && onToggleNotes ? (
+            <button
+              type="button"
+              onClick={onToggleNotes}
+              aria-label={notesOpen ? "Hide notes" : "Show notes"}
+              aria-pressed={notesOpen}
+              className={`flex h-10 items-center justify-center rounded-full border shadow-sm sm:h-8 ${
+                compactActions ? "w-10 px-0 sm:w-8" : "w-10 px-0 sm:w-auto sm:gap-1.5 sm:px-3"
+              } ${
+                notesOpen
+                  ? "border-[rgba(201,201,210,0.45)] bg-[#2E2E33] text-[#F2F2F4]"
+                  : "border-[#2E2E33] bg-[#1E1E21] text-[#C9C9D2] hover:border-[rgba(201,201,210,0.4)] hover:bg-[#2E2E33] hover:text-[#DEDEE4]"
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
+              </svg>
+              {!compactActions ? <span className="hidden sm:inline text-xs font-medium">Notes</span> : null}
+            </button>
+          ) : null}
           <LessonActions
             canReplay={canReplay}
-            canTranscript={canTranscript}
             canDownload={canDownload}
             isReplaying={isReplaying}
             isDownloading={isDownloading}
             onReplay={onReplay}
-            onTranscript={onTranscript}
             onDownload={onDownload}
             compact={compactActions}
             alwaysVisible
           />
 
-          <div className="hidden h-6 w-px bg-[#2E2E33] sm:block" aria-hidden />
-
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            aria-label="Board settings"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#2E2E33] bg-[#1E1E21] text-[#A6A6AE] shadow-sm transition-colors hover:border-[rgba(201,201,210,0.35)] hover:bg-[#2E2E33] hover:text-[#C9C9D2] sm:h-9 sm:w-9"
-          >
-            <Settings className="h-4 w-4" strokeWidth={1.75} />
-          </button>
-
           {isLive && (
-            <button
-              type="button"
-              onClick={onStop}
-              aria-label={isReplaying ? "Stop replay" : "Stop teaching"}
-              className="rounded-full border border-[#2E2E33] bg-[#1E1E21] px-3 py-1.5 text-[11px] font-medium text-[#A6A6AE] shadow-sm transition-colors hover:border-[rgba(201,201,210,0.35)] hover:bg-[#2E2E33] hover:text-[#F2F2F4] sm:text-xs"
-            >
-              Stop
-            </button>
+            <>
+              <div className="hidden h-6 w-px bg-[#2E2E33] sm:block" aria-hidden />
+              <button
+                type="button"
+                onClick={onStop}
+                aria-label={isReplaying ? "Stop replay" : "Stop teaching"}
+                className="rounded-full border border-[#2E2E33] bg-[#1E1E21] px-3 py-1.5 text-[11px] font-medium text-[#A6A6AE] shadow-sm transition-colors hover:border-[rgba(201,201,210,0.35)] hover:bg-[#2E2E33] hover:text-[#F2F2F4] sm:text-xs"
+              >
+                Stop
+              </button>
+            </>
           )}
         </div>
       </div>

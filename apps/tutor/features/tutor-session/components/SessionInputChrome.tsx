@@ -11,6 +11,7 @@ interface SessionInputChromeProps {
   onPauseToggle: () => void;
   onCancel: () => void;
   onUserInteractionChange: (interacted: boolean) => void;
+  onOpenSettings?: () => void;
 }
 
 export function SessionInputChrome({
@@ -23,6 +24,7 @@ export function SessionInputChrome({
   onPauseToggle,
   onCancel,
   onUserInteractionChange,
+  onOpenSettings,
 }: SessionInputChromeProps) {
   return (
     <div
@@ -49,6 +51,7 @@ export function SessionInputChrome({
           onPauseToggle={onPauseToggle}
           onCancel={onCancel}
           onUserInteractionChange={onUserInteractionChange}
+          onOpenSettings={onOpenSettings}
         />
       </div>
     </div>

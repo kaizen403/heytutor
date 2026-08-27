@@ -100,23 +100,6 @@ export function exportNotesPdf({ title, epochs }: ExportNotesParams): void {
     }
     cursorY += fittedImageHeight + IMAGE_GAP_PT;
 
-    if (epoch.narrationText.trim()) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      doc.setTextColor(50);
-      const narrationLines = doc.splitTextToSize(epoch.narrationText.trim(), contentWidth);
-      const lineHeight = 14;
-      for (const line of narrationLines) {
-        if (cursorY + lineHeight > pageHeight - PAGE_MARGIN_PT) {
-          doc.addPage();
-          cursorY = PAGE_MARGIN_PT;
-        }
-        doc.text(line, PAGE_MARGIN_PT, cursorY);
-        cursorY += lineHeight;
-      }
-      doc.setTextColor(0);
-    }
-
     cursorY += SECTION_GAP_PT;
   });
 

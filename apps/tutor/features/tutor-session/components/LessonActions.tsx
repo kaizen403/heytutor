@@ -1,17 +1,15 @@
 "use client";
 
-import { Download, RotateCcw, ScrollText } from "lucide-react";
+import { Download, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface LessonActionsProps {
   canReplay: boolean;
-  canTranscript: boolean;
   canDownload?: boolean;
   isReplaying?: boolean;
   isDownloading?: boolean;
   onReplay: () => void;
-  onTranscript: () => void;
   onDownload?: () => void;
   compact?: boolean;
   /** Keep toolbar buttons visible (disabled when unavailable). */
@@ -20,17 +18,15 @@ export interface LessonActionsProps {
 
 export function LessonActions({
   canReplay,
-  canTranscript,
   canDownload = false,
   isReplaying = false,
   isDownloading = false,
   onReplay,
-  onTranscript,
   onDownload,
   compact = false,
   alwaysVisible = false,
 }: LessonActionsProps) {
-  if (!alwaysVisible && !canReplay && !canTranscript && !canDownload) {
+  if (!alwaysVisible && !canReplay && !canDownload) {
     return null;
   }
 
@@ -44,10 +40,9 @@ export function LessonActions({
   );
 
   const showReplay = alwaysVisible || canReplay;
-  const showTranscript = alwaysVisible || canTranscript;
   const showDownload = alwaysVisible || (canDownload && onDownload);
 
-  if (!showReplay && !showTranscript && !showDownload) {
+  if (!showReplay && !showDownload) {
     return null;
   }
 
@@ -75,23 +70,6 @@ export function LessonActions({
               {isReplaying ? "Replaying…" : "Replay"}
             </span>
           )}
-        </Button>
-      )}
-      {showTranscript && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onTranscript}
-          disabled={!canTranscript}
-          aria-label="View lesson transcript"
-          className={cn(
-            buttonClass,
-            "text-xs font-medium text-[#A6A6AE] hover:text-[#C9C9D2]",
-          )}
-        >
-          <ScrollText className="h-3.5 w-3.5" aria-hidden />
-          {!compact && <span className="hidden sm:inline">Transcript</span>}
         </Button>
       )}
       {showDownload && onDownload && (
