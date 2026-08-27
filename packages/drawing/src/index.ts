@@ -23,6 +23,7 @@ export {
   type ScheduledWriteClockInput,
   type SimulatedWriteWaitResult,
 } from "./sync/writeAudioClock";
+export { scheduleFrame, cancelFrame } from "./sync/scheduleFrame";
 export {
   animateStroke,
   animateRoughStroke,

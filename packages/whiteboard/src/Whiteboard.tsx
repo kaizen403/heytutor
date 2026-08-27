@@ -13,6 +13,8 @@ import {
   resolveScheduledWriteClockMs,
   shouldReleaseAudioPositionWait,
   textToStrokePaths,
+  cancelFrame,
+  scheduleFrame,
 } from "@heytutor/drawing";
 import { Layer, Path as KonvaPath, Rect, Stage } from "react-konva";
 import { VirtualCursor } from "./VirtualCursor";
@@ -242,7 +244,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     }, []);
 
     const requestTrackedFrame = useCallback((callback: FrameRequestCallback): number => {
-      const frameId = requestAnimationFrame((time) => {
+      const frameId = scheduleFrame((time) => {
         frameIdsRef.current.delete(frameId);
         callback(time);
       });
@@ -252,7 +254,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     }, []);
 
     const cancelTrackedFrame = useCallback((frameId: number): void => {
-      cancelAnimationFrame(frameId);
+      cancelFrame(frameId);
       frameIdsRef.current.delete(frameId);
     }, []);
 

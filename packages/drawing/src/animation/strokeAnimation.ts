@@ -1,6 +1,7 @@
 import type { Drawable, Op } from "roughjs/bin/core";
 
 import { createPathElement } from "../handwriting/shapePaths";
+import { cancelFrame, scheduleFrame } from "../sync/scheduleFrame";
 
 export interface Point {
   x: number;
@@ -127,20 +128,20 @@ export function animateStroke(options: StrokeAnimationOptions): CancellableAnima
     onProgress?.(progress, { x: point.x, y: point.y });
 
     if (progress < 1) {
-      frameId = requestAnimationFrame(step);
+      frameId = scheduleFrame(step);
       return;
     }
 
     finish();
   };
 
-  frameId = requestAnimationFrame(step);
+  frameId = scheduleFrame(step);
 
   return {
     cancel: () => {
       cancelled = true;
       if (frameId !== null) {
-        cancelAnimationFrame(frameId);
+        cancelFrame(frameId);
       }
     },
   };
@@ -178,7 +179,7 @@ export function animateRoughStroke(options: RoughAnimationOptions): CancellableA
   };
 
   if (totalOps === 0) {
-    frameId = requestAnimationFrame(() => {
+    frameId = scheduleFrame(() => {
       if (!cancelled) {
         onProgress?.(1, { x: 0, y: 0 });
         onComplete?.();
@@ -189,7 +190,7 @@ export function animateRoughStroke(options: RoughAnimationOptions): CancellableA
       cancel: () => {
         cancelled = true;
         if (frameId !== null) {
-          cancelAnimationFrame(frameId);
+          cancelFrame(frameId);
         }
       },
     };
@@ -207,20 +208,20 @@ export function animateRoughStroke(options: RoughAnimationOptions): CancellableA
     onProgress?.(progress, cursorPos);
 
     if (progress < 1) {
-      frameId = requestAnimationFrame(step);
+      frameId = scheduleFrame(step);
       return;
     }
 
     complete();
   };
 
-  frameId = requestAnimationFrame(step);
+  frameId = scheduleFrame(step);
 
   return {
     cancel: () => {
       cancelled = true;
       if (frameId !== null) {
-        cancelAnimationFrame(frameId);
+        cancelFrame(frameId);
       }
     },
   };

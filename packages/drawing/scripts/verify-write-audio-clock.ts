@@ -1,5 +1,7 @@
 import {
+  cancelFrame,
   createScheduledWriteClock,
+  scheduleFrame,
   simulateScheduledWriteWait,
 } from "../src/index";
 
@@ -56,3 +58,6 @@ fakeNow = 240;
 assert(wrapped() === 240, "a missing TTS position must follow wall time so ink tracks speech");
 
 console.log("verify-write-audio-clock: null/zero/stuck WRITE clocks finish during speech");
+
+const frameId = scheduleFrame(() => undefined);
+cancelFrame(frameId);

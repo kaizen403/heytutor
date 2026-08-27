@@ -1,3 +1,5 @@
+import { cancelFrame, scheduleFrame } from "../sync/scheduleFrame";
+
 export interface Point {
   x: number;
   y: number;
@@ -94,16 +96,16 @@ export function animateBezierArc({
       return;
     }
 
-    frameId = requestAnimationFrame(tick);
+    frameId = scheduleFrame(tick);
   };
 
-  frameId = requestAnimationFrame(tick);
+  frameId = scheduleFrame(tick);
 
   return {
     cancel: () => {
       cancelled = true;
       if (frameId !== null) {
-        cancelAnimationFrame(frameId);
+        cancelFrame(frameId);
       }
     },
   };
@@ -154,16 +156,16 @@ export function animateAlongPath({
       return;
     }
 
-    frameId = requestAnimationFrame(tick);
+    frameId = scheduleFrame(tick);
   };
 
-  frameId = requestAnimationFrame(tick);
+  frameId = scheduleFrame(tick);
 
   return {
     cancel: () => {
       cancelled = true;
       if (frameId !== null) {
-        cancelAnimationFrame(frameId);
+        cancelFrame(frameId);
       }
     },
   };
