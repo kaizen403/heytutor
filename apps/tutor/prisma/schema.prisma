@@ -8,26 +8,43 @@ datasource db {
 }
 
 model User {
-  id        String   @id
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  boards    Board[]
-  turns     Turn[]
+  id           String             @id
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  boards       Board[]
+  turns        Turn[]
+  chatMessages BoardChatMessage[]
 
   @@map("users")
 }
 
 model Board {
-  id        String   @id
-  userId    String   @map("user_id")
-  title     String   @default("new board")
-  preview   String   @default("")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  turns     Turn[]
+  id           String             @id
+  userId       String             @map("user_id")
+  title        String             @default("new board")
+  preview      String             @default("")
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  turns        Turn[]
+  chatMessages BoardChatMessage[]
 
   @@index([userId], map: "boards_user_id_idx")
   @@map("boards")
+}
+
+model BoardChatMessage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  boardId   String   @map("board_id")
+  userId    String   @map("user_id")
+  role      String
+  content   String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([boardId, createdAt], map: "board_chat_messages_board_id_created_at_idx")
+  @@index([userId], map: "board_chat_messages_user_id_idx")
+  @@map("board_chat_messages")
 }
 
 model Turn {

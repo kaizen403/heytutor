@@ -8,6 +8,7 @@ export type TutorDebugScope =
   | "draw"
   | "tts"
   | "turn"
+  | "notes-chat"
   | "whiteboard"
   | "alignment"
   | "optics";

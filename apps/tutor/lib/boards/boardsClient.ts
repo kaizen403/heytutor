@@ -1,6 +1,7 @@
 import { resolveApiUrl, type AudioTimings } from "@heytutor/tutor-core";
 import type { DrawCommand, StoredCommandEnvelope } from "@heytutor/drawing";
 import type { BoardEntry } from "@/lib/boards/types";
+import { finalizeBoardTitle } from "@/lib/boards/boardTitle";
 
 export interface StoredSegment {
   id: string;
@@ -73,6 +74,25 @@ export async function createBoardWithTitle(title: string): Promise<BoardEntry | 
 
   const data = (await res.json()) as { board?: BoardEntry };
   return data.board ?? null;
+}
+
+/** Same naming path the dashboard uses when a student asks the first question. */
+export async function requestBoardTitle(question: string): Promise<string> {
+  const fallback = finalizeBoardTitle(question);
+  try {
+    const response = await fetch(resolveApiUrl("/api/board-name"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+    if (!response.ok) {
+      return fallback;
+    }
+    const data = (await response.json()) as { title?: unknown };
+    return typeof data.title === "string" && data.title.trim() ? data.title.trim() : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export async function fetchBoardDetail(boardId: string): Promise<BoardDetail | null> {

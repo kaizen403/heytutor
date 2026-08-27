@@ -26,4 +26,5 @@ export * from "./llm/mockResponses";
 export * from "./llm/reasoningEffort";
 export * from "./sync/sentenceChunker";
 export * from "./llm/systemPrompt";
+export * from "./llm/notesChatPrompt";
 export * from "./llm/givenValueIntro";
