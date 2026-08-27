@@ -3,6 +3,8 @@
 HeyTutor has two coordinated streams with one authority boundary: a verified
 diagram stream and a narrated work stream.
 
+Map: [start.md](../../start.md) · [architecture.excalidraw](../../architecture.excalidraw)
+
 ## Turn Flow
 
 ```text

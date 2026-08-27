@@ -24,6 +24,7 @@ The only structural diagram authority.
 | Capability corpora | `scripts/verify/verify-physics-evaluation-corpus.ts`, `scripts/verify/verify-math-evaluation-corpus.ts` |
 | Compile oracles | `scripts/probes/evaluationCompileProbes.ts`, `scripts/verify/verify-evaluation-compile.ts` |
 | Syllabus capability corpus | `scripts/verify/verify-syllabus-corpus.ts` (Tier A name-check over the local question bank + Tier A+ per-unit compile-and-prove) |
+| Bank family compile | `scripts/verify/verify-bank-family-compile.ts` (live `synthesizeFamilyScene` over classified Physics+Maths diagram-worthy rows; dated report under `data/question-bank/reports/coverage/`) |
 
 The package consumes coordinate-free semantic documents and emits validated
 screen-space render primitives. It contains reusable operators and assertions,

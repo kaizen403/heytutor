@@ -49,10 +49,12 @@ the canvas and still teach. Invalid or partial candidates never render.
 | Canvas rendering | `packages/whiteboard/src/Whiteboard.tsx` |
 | Turn persistence trust | `apps/tutor/lib/scene/turnScenePersistence.ts` |
 | Syllabus capability coverage | `packages/scene-engine/scripts/verify/verify-syllabus-corpus.ts` |
+| Bank family compile (live ink) | `packages/scene-engine/scripts/verify/verify-bank-family-compile.ts` |
 | Question bank pipeline | `tools/question-bank/` + `data/question-bank/` |
 
 ## Agent Guidelines
 
+- [Start — architecture map](start.md)
 - [Folder layout](docs/agent/layout.md)
 - [Architecture & data flow](docs/agent/architecture.md)
 - [Backend API & lib modules](docs/agent/backend.md)
@@ -70,7 +72,7 @@ Never add Cursor / `cursoragent` as a commit co-author. Never commit `.cursor/` 
 
 ## Critical Rules
 
-1. **Canvas is 1200×700**, origin top-left. Diagram zone: x 400–900.
+1. **Canvas is 1200×700**, origin top-left. Diagram zone: x 400–1160.
 2. **`@heytutor/scene-engine` owns every diagram mark** — geometry, topology,
    labels, dimensions, layout, and reveal order. No topic templates, chapter
    registries, regex routers, fixed-pixel plugins, or model-authored diagram ink.
