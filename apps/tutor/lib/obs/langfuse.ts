@@ -91,6 +91,8 @@ export interface StartTurnTraceParams {
   traceId?: string;
   mock?: boolean;
   model?: string;
+  name?: string;
+  generationName?: string;
 }
 
 export function startTurnTrace({
@@ -99,6 +101,8 @@ export function startTurnTrace({
   traceId = genTraceId(),
   mock = false,
   model,
+  name = "tutor-turn",
+  generationName = "fireworks-llm",
 }: StartTurnTraceParams): TurnTrace | null {
   const lf = getClient();
 
@@ -111,14 +115,14 @@ export function startTurnTrace({
 
   const trace = lf.trace({
     id: traceId,
-    name: "tutor-turn",
+    name,
     sessionId,
     input,
     tags: buildTraceTags(mock ? ["mock"] : undefined),
   });
 
   const generation = trace.generation({
-    name: "fireworks-llm",
+    name: generationName,
     model: serverModel,
     input,
   });

@@ -35,6 +35,7 @@
   --color-border: var(--wb-border);
   --color-surface: var(--wb-surface);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
 }
 
 body {

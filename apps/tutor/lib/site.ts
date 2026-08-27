@@ -2,6 +2,8 @@ export const SITE_NAME = "Accelute";
 
 export const SITE_TAGLINE = "AI whiteboard math tutor";
 
+export const LANDING_PROMPT = "What are you stuck on?";
+
 export const SITE_DESCRIPTION =
   "An AI tutor that draws on a whiteboard and explains out loud — stroke by stroke, in sync. Ask a math or physics question and watch shapes, formulas, and diagrams appear as they're taught.";
 

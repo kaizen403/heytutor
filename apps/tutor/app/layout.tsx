@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat, Inter } from "next/font/google";
+import { Caveat, Fraunces, Inter } from "next/font/google";
 import {
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
@@ -20,6 +20,12 @@ const caveat = Caveat({
   subsets: ["latin"],
   weight: ["500", "600"],
   variable: "--font-caveat",
+  display: "swap",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
   display: "swap",
 });
 
@@ -98,7 +104,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${caveat.variable} h-full font-sans antialiased`}
+      className={`${inter.variable} ${caveat.variable} ${fraunces.variable} h-full font-sans antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
