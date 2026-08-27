@@ -20,7 +20,7 @@ import {
   DEFAULT_SCENE_CONSTRUCTION_OPERATORS,
   DEFAULT_SCENE_PROOF_PREDICATES,
 } from "../../src/planners/scenePlannerV2Prompt";
-import { inferSceneCapabilities } from "../../src/planners/sceneCapabilities";
+import { familiesFromProblemStructure, inferSceneCapabilities } from "../../src/planners/sceneCapabilities";
 
 const EXPECTED_CONSTRUCTION_OPERATORS = [
   "point",
@@ -626,6 +626,87 @@ const telescopeMagnification = inferSceneCapabilities(
 );
 if (telescopeMagnification.families.includes("contact_body")) {
   throw new Error(`angular magnification was routed to contact_body: ${JSON.stringify(telescopeMagnification.families)}`);
+}
+
+const conceptOnly = inferSceneCapabilities("Which of the following statements is correct?");
+if (conceptOnly.families.length > 0 || conceptOnly.visualRequired) {
+  throw new Error(`pure concept MCQ must stay text-only: ${JSON.stringify(conceptOnly.families)}`);
+}
+const irFreeBody = inferSceneCapabilities("Which of the following statements is correct?", {
+  problemIR: {
+    entities: [{ kind: "body" }],
+    representationIntents: [{ kind: "free_body" }],
+  },
+});
+if (!irFreeBody.families.includes("contact_body") || irFreeBody.families[0] !== "contact_body") {
+  throw new Error(`ProblemIR free_body must select contact_body first: ${JSON.stringify(irFreeBody.families)}`);
+}
+const irNetwork = familiesFromProblemStructure({
+  entities: [{ kind: "component" }],
+  representationIntents: [{ kind: "network" }],
+});
+if (!irNetwork.includes("circuit_network")) {
+  throw new Error(`ProblemIR network intent must map to circuit_network: ${JSON.stringify(irNetwork)}`);
+}
+const gaussLaw = inferSceneCapabilities(
+  "Apply Gauss's law to a uniformly charged thin spherical shell and find the electric field outside.",
+);
+if (!gaussLaw.families.includes("point_field")) {
+  throw new Error(`Gauss's law shell must be a point_field family: ${JSON.stringify(gaussLaw.families)}`);
+}
+const wheatstone = inferSceneCapabilities(
+  "In a Wheatstone bridge the four resistances are 10 ohm, 20 ohm, 30 ohm and 40 ohm. Find the galvanometer current.",
+);
+if (!wheatstone.families.includes("circuit_network")) {
+  throw new Error(`Wheatstone bridge must be a circuit_network: ${JSON.stringify(wheatstone.families)}`);
+}
+const depletionCaps = inferSceneCapabilities(
+  "With the help of a suitable diagram, explain the formation of depletion-region in a p-n junction.",
+);
+if (!depletionCaps.families.includes("energy_level") || depletionCaps.families.includes("circuit_network")) {
+  throw new Error(`depletion region must be energy_level, not a circuit: ${JSON.stringify(depletionCaps.families)}`);
+}
+const bandCaps = inferSceneCapabilities(
+  "Draw energy band diagrams of n-type and p-type semiconductors at temperature T > 0 K.",
+);
+if (!bandCaps.families.includes("energy_level") || bandCaps.families.includes("circuit_network")) {
+  throw new Error(`n-type/p-type bands must be energy_level: ${JSON.stringify(bandCaps.families)}`);
+}
+const diodeCircuitCaps = inferSceneCapabilities(
+  "Draw a p-n junction diode in forward bias with the battery and the junction.",
+);
+if (!diodeCircuitCaps.families.includes("circuit_network") || diodeCircuitCaps.families[0] === "energy_level") {
+  throw new Error(`biased junction diode with battery must stay a circuit: ${JSON.stringify(diodeCircuitCaps.families)}`);
+}
+const meterBridgeCaps = inferSceneCapabilities(
+  "State the principle of working of a meter bridge.",
+);
+if (!meterBridgeCaps.families.includes("circuit_network")) {
+  throw new Error(`meter bridge must be circuit_network: ${JSON.stringify(meterBridgeCaps.families)}`);
+}
+const magneticNewlineCaps = inferSceneCapabilities(
+  "The magnetic\nfield due to a straight segment of a conductor at a point is.",
+);
+if (!magneticNewlineCaps.families.includes("point_field")) {
+  throw new Error(`newline-split magnetic field must be point_field: ${JSON.stringify(magneticNewlineCaps.families)}`);
+}
+const variationCaps = inferSceneCapabilities(
+  "Draw a graph showing variation of drift velocity of electrons (vd) as a function of current density (J) in it.",
+);
+if (!variationCaps.families.includes("state_plot") || variationCaps.families[0] !== "state_plot") {
+  throw new Error(`named variation graph must prefer state_plot: ${JSON.stringify(variationCaps.families)}`);
+}
+const figureAbsentCaps = inferSceneCapabilities(
+  "The figure shows variation of current (I) with time (t) in four devices P, Q, R and S. The device in which an alternating current flows is : (a) P (b) Q (c) R (d) S",
+);
+if (figureAbsentCaps.families.includes("state_plot")) {
+  throw new Error(`figure-absent I-t MCQ must not invent a state plot: ${JSON.stringify(figureAbsentCaps.families)}`);
+}
+const fieldLineMcq = inferSceneCapabilities(
+  "Assertion (A): When a bar of copper is placed in an external magnetic field, the field lines get concentrated inside the bar. Reason (R): Copper is a paramagnetic substance.",
+);
+if (fieldLineMcq.visualRequired || fieldLineMcq.families.length > 0) {
+  throw new Error(`assertion-reason field-line MCQ must stay text-only: ${JSON.stringify(fieldLineMcq)}`);
 }
 
 const GENERIC_EVAL_OPERATORS = new Set(["point", "label", "segment", "line"]);

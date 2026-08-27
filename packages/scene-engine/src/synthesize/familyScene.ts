@@ -95,7 +95,7 @@ function synthesizeFromFamilies(
   const question = input.question.trim();
   if (!question) return null;
   const quantities = collectPlanQuantities(input.turnPlan);
-  const families = orderedFamilies(input.families ?? inferFamiliesFromQuestion(question));
+  const families = resolveRequestedFamilies(question, input.families);
   for (const family of families) {
     const builder = FAMILY_BUILDERS[family];
     if (!builder) continue;
@@ -128,31 +128,200 @@ function orderedFamilies(families: readonly string[]): string[] {
   return FAMILY_PRIORITY.filter((family) => known.has(family));
 }
 
+function resolveRequestedFamilies(question: string, requested?: readonly string[]): string[] {
+  const stem = normalizeStem(question);
+  const merged = new Set<string>([...(requested ?? []), ...inferFamiliesFromQuestion(question)]);
+  if ((isSemiconductorBandStem(stem) || isJunctionSpatialStem(stem)) && !isDeviceCircuitStem(stem)) {
+    merged.add("energy_level");
+    merged.delete("circuit_network");
+  }
+  if (isIvCharacteristicStem(stem) || isNamedVariationPlotStem(stem)) merged.add("state_plot");
+  if (isDeviceCircuitStem(stem)) merged.delete("energy_level");
+  if (isParallelPlateStem(stem)) merged.add("point_field");
+  if (isHangingWiresLoadStem(stem)) merged.add("contact_body");
+  if (isFigureAbsentStem(stem)) merged.delete("state_plot");
+  const ordered = orderedFamilies([...merged]);
+  if ((isSemiconductorBandStem(stem) || isJunctionSpatialStem(stem)) && merged.has("energy_level")) {
+    return ["energy_level", ...ordered.filter((family) => family !== "energy_level")];
+  }
+  if (
+    (isIvCharacteristicStem(stem) || isNamedVariationPlotStem(stem))
+    && merged.has("state_plot")
+  ) {
+    return ["state_plot", ...ordered.filter((family) => family !== "state_plot")];
+  }
+  if (isParallelPlateStem(stem) && merged.has("point_field")) {
+    return ["point_field", ...ordered.filter((family) => family !== "point_field")];
+  }
+  return ordered;
+}
+
+function normalizeStem(question: string): string {
+  return question
+    .replace(/[–—−]/g, "-")
+    .replace(/[³]/g, "^3")
+    .replace(/[²]/g, "^2")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isFigureAbsentStem(stem: string): boolean {
+  return /\b(?:shown in the figure|as shown in the figure|the figure shows|figure shows)\b/i.test(stem);
+}
+
+function isNamedVariationPlotStem(stem: string): boolean {
+  if (isFigureAbsentStem(stem)) return false;
+  return /(?:draw a graph showing variation|graph showing variation of|variation of .{1,120} as a function of)/i.test(stem);
+}
+
+function isParallelPlateStem(stem: string): boolean {
+  return /(?:parallel[- ]plate capacitor|metal sheets?.{0,80}parallel|kept parallel to each other|electrically conducting walls|horizontal metal plates)/i.test(stem);
+}
+
+function isHangingWiresLoadStem(stem: string): boolean {
+  return /(?:upper wire|breaking stress)/i.test(stem) && /(?:lower wire|\bpan\b)/i.test(stem);
+}
+
+function isCurrentSegmentFieldStem(stem: string): boolean {
+  return /(?:straight segment of a conductor|magnetic field due to this segment)/i.test(stem);
+}
+
+function isSemiconductorBandStem(stem: string): boolean {
+  return /(?:energy band|valence band|conduction band|(?:n-type|p-type)|intrinsic semiconductor)/i.test(stem);
+}
+
+function isIvCharacteristicStem(stem: string): boolean {
+  return /(?:transfer characteristic|i[-–]?v characteristic|characteristic curve)/i.test(stem);
+}
+
+function isDeviceCircuitStem(stem: string): boolean {
+  return /(?:rectifier|zener|(?:p-n|pn) junction diode|nand|nor gate|logic gate|with (?:a )?battery)/i.test(stem)
+    && !isSemiconductorBandStem(stem)
+    && !/(?:depletion.{0,4}region|solar cell|photodiode)/i.test(stem)
+    && !isIvCharacteristicStem(stem);
+}
+
+function isJunctionSpatialStem(stem: string): boolean {
+  if (isDeviceCircuitStem(stem)) return false;
+  return /(?:depletion.{0,4}region|solar cell|photodiode|light emitting|\bled\b|(?:p-n|pn) junction)/i.test(stem);
+}
+
+function isDiodeDeviceCircuit(question: string): boolean {
+  const stem = normalizeStem(question);
+  return /(?:zener|(?:p-n|pn) junction diode|rectifier|(?<!photo)diode)/i.test(stem)
+    && !isSemiconductorBandStem(stem)
+    && !/(?:depletion.{0,4}region|solar cell|photodiode|light emitting|\bled\b)/i.test(stem)
+    && !isIvCharacteristicStem(stem);
+}
+
+function diodeBiasDocument(question: string): SceneDocument {
+  const stem = normalizeStem(question);
+  const zener = /zener/i.test(stem);
+  const rectifier = /rectifier/i.test(stem);
+  const sourceSymbol = rectifier ? "ac_source" : "battery";
+  const deviceSymbol = zener ? "zener" : "diode";
+  return baseDocument({
+    question,
+    reason: zener
+      ? "Zener regulator as battery, series resistor, and Zener"
+      : "biased diode with a source on shared terminals",
+    quantities: [],
+    entities: [
+      { id: "n0", kind: "point", role: "node" },
+      { id: "n1", kind: "point", role: "node" },
+      { id: "n2", kind: "point", role: "node" },
+      { id: "src", kind: "component", role: "source", label: rectifier ? "AC" : "battery" },
+      { id: "device", kind: "component", role: "diode", label: zener ? "Zener" : "diode" },
+      ...(zener
+        ? [{ id: "rs", kind: "component" as const, role: "series resistor", label: "Rs" }]
+        : []),
+    ],
+    constructions: [
+      pointAt("n0", 0, 0),
+      pointAt("n1", 2, 0),
+      pointAt("n2", 4, 0),
+      { id: "make_src", operator: "symbol", inputs: { symbol: sourceSymbol, start: "n0", end: "n1" }, outputs: ["src"] },
+      ...(zener
+        ? [
+          { id: "make_rs", operator: "symbol" as const, inputs: { symbol: "resistor", start: "n1", end: "n2" }, outputs: ["rs"] },
+          { id: "make_device", operator: "symbol" as const, inputs: { symbol: deviceSymbol, start: "n1", end: "n2" }, outputs: ["device"] },
+        ]
+        : [
+          { id: "make_device", operator: "symbol" as const, inputs: { symbol: deviceSymbol, start: "n1", end: "n2" }, outputs: ["device"] },
+        ]),
+    ],
+    assertions: zener
+      ? [{
+          id: "zener_load_pair",
+          predicate: "sameTerminalPair",
+          entities: ["rs", "device"],
+          expected: true,
+          severity: "fatal",
+        }]
+      : [{
+          id: "diode_path",
+          predicate: "path",
+          entities: ["src", "device"],
+          expected: true,
+          severity: "fatal",
+        }],
+  });
+}
+
 function inferFamiliesFromQuestion(question: string): string[] {
+  const stem = normalizeStem(question);
   const matches: string[] = [];
   const rules: Array<readonly [RegExp, readonly string[]]> = [
     [/(?:microscope|telescope|objective|eyepiece)/i, ["instrument_chain", "axis_view"]],
     [/(?:refraction|refracted|critical angle|prism|brewster|optical fibr)/i, ["interface", "ray_path"]],
     [/(?:spherical (?:air|refracting|surface|interface)|air-glass interface|paraxial image|center of curvature|surface[- ]normal)/i, ["axis_view", "interface", "ray_path"]],
     [/(?:mirror|lens|focal point|principal axis)/i, ["axis_view", "ray_path"]],
-    [/(?:circuit|resistor|inductor|capacitor|\bLCR\b|\bemf\b)/i, ["circuit_network"]],
-    [/(?:y\s*=|parametric|polar curve|sketch (?:the )?(?:curve|graph)|F\s*=\s*5x|F_x\s*=|F versus x|U\s*=\s*\(|U\(x\)|U\(r\)\s*=)/i, ["analytic_curve"]],
-    [/(?:p[-–—]?v|thermodynamic cycle|v[-–]?t graph|s[-–]?t graph)/i, ["state_plot"]],
-    [/(?:incline|pulley|hinged|free[- ]body|friction|hanging (?:mass|block)|raindrop|dropped from|pushes a (?:box|block)|spring of stiffness|spring-block|vertical circl|collid|collision|head-on|particle of mass|body of mass|towed at)/i, ["contact_body"]],
-    [/(?:resultant of|two vectors|vector components|parallelogram law|velocity vectors)/i, ["vector_diagram"]],
+    [/(?:circuit|resistor|inductor|capacitor|\bLCR\b|\bemf\b|ohm['’]?s law|drift velocity|resistivity|transistor)/i, ["circuit_network"]],
+    [/(?:y\s*=|parametric|polar curve|sketch.{0,60}(?:curve|graph)|plot.{0,40}(?:curve|graph|against|versus)|F\s*=\s*5x|F_x\s*=|F versus x|U\s*=\s*\(|U\(x\)|U\(r\)\s*=|x\s*=\s*t|position along a line is x\s*=)/i, ["analytic_curve"]],
+    [/(?:p[-–—]?v|thermodynamic cycle|v-?t graph|s-?t graph|x-?t graph|velocity-?time|position-?time|displacement-?time|accelerates uniformly|train starting from rest|average speed for the whole)/i, ["state_plot"]],
+    [/(?:incline|pulley|hinged|free[- ]body|friction|hanging (?:mass|block)|raindrop|dropped from|pushes a (?:box|block)|spring of stiffness|spring of force constant|spring-block|vertical circl|collid|collision|head-on|particle of mass|body of mass|block of mass|towed at|average (?:speed|velocity)|instantaneous velocity|starts from rest|constant acceleration|round trip|circular park|straight-line trip|train starting|two cars|car [AB] travels|relative to [AB]|catches? [AB]|angular momentum|rigid body rotation)/i, ["contact_body"]],
+    [/(?:(?:(?<!not a )\bprojectile\b)|projected from|thrown horizontally|thrown vertically|from the top of a (?:tower|building)|uniform circular motion|horizontal circle|centripetal|circular turn|level circular|circular road|banked|frictionless bank|up the bank|conical pendulum|impulse|batsman|recoil|on ice|leans against|ladder of mass|hanging over|pseudo force|\blift\b|rolling friction|rests on a table|string now makes|bob has mass)/i, ["contact_body"]],
+    [/(?:resultant of|two vectors|vector components|parallelogram law|velocity vectors|velocity triangles?|river|still water|downstream|upstream|rain falls|concurrent forces|triangle of forces|[îĵ]|makes with the x-axis)/i, ["vector_diagram"]],
     [/(?:double.?slit|single.?slit|interference|fringe|diffraction)/i, ["aperture", "screen_pattern"]],
     [/(?:wavefront|huygens)/i, ["wavefront"]],
     [/(?:polari[sz]er|malus)/i, ["polarizer"]],
     [/(?:point charges?|electric[- ]field|magnetic field)/i, ["point_field"]],
-    [/(?:photoelectric|energy levels?|bohr)/i, ["energy_level"]],
+    [/(?:photo.?electric|photoelectron|threshold frequency|energy levels?|bohr|energy band|valence band|conduction band|depletion.{0,4}region|solar cell|light emitting)/i, ["energy_level"]],
     [/(?:cylinder|hemisphere|frustum|cone of radius)/i, ["solid_figure"]],
-    [/(?:cylindrical vessels|connected at the bottom|hydraulic|piston|venturi)/i, ["fluid_apparatus"]],
+    [/(?:cylindrical vessels|connected at the bottom|hydraulic|piston|venturi|connected fluid|buoyancy|archimedes|thermal expansion|heat transfer|fluid column|viscosity|method of mixtures|resonance tube)/i, ["fluid_apparatus"]],
     [/(?:moves from \()/i, ["coordinate_figure"]],
+    [/(?:gauss(?:['’]?s)? law|electric flux|equipotential|electric dipole|microcoulomb|nanocoulomb|\bμC\b|parallel[- ]plate capacitor|metal sheets?.{0,80}parallel|electrically conducting walls|horizontal metal plates|electric charges?|conservation of charge|electric potential)/i, ["point_field"]],
+    [/(?:solenoid|toroid|biot[- ]savart|ampere['’]?s law|cyclotron|bar magnet|lorentz)/i, ["point_field"]],
+    [/(?:wheatstone|met(?:er|re) bridge|potentiometer|kirchhoff|galvanometer)/i, ["circuit_network"]],
+    [/(?:faraday|lenz|motional emf|self inductance|mutual inductance|transformer)/i, ["circuit_network"]],
+    [/(?:kepler|satellite|escape velocity|orbital velocity|gravitat(?:ion|ional field)|acceleration due to gravity|weightlessness)/i, ["point_field"]],
+    [/(?:bernoulli|venturi|capillary|young['’]?s modulus|stress[- ]strain)/i, ["fluid_apparatus"]],
+    [/(?:isothermal|adiabatic|carnot|indicator diagram|first law of thermodynamics|isobaric|isochoric|zeroth law|refrigerator)/i, ["state_plot"]],
+    [/(?:organ pipe|standing waves?|transverse wave|travelling wave|traveling wave|beats|doppler effect|progressive wave)/i, ["analytic_curve"]],
+    [/(?:rutherford|bohr orbit|hydrogen spectrum)/i, ["energy_level"]],
+    [/(?:zener|(?:p-n|pn) junction diode|rectifier|logic gate|nand|nor gate)/i, ["circuit_network"]],
+    [/(?:(?:n-type|p-type) semiconductors?|photodiode|(?:p-n|pn) junction|\bled\b)/i, ["energy_level"]],
+    [/(?:transfer characteristic|i[-–]?v characteristic|characteristic curve|draw a graph showing variation|graph showing variation of|variation of .{1,120} as a function of)/i, ["state_plot"]],
+    [/(?:argand|complex plane)/i, ["coordinate_figure"]],
+    [/(?:electromagnetic wave|em wave|displacement current|electromagnetic spectrum)/i, ["transverse_field"]],
+    [/(?:simple harmonic|shm\b|vernier|screw gauge|least count|periodic motion|oscillations? of)/i, ["contact_body"]],
+    [/(?:cyclic process|p[-–]?t diagram|isobaric process|thermodynamic system)/i, ["state_plot"]],
+    [/(?:binding energy per nucleon|maxwell speed|amplitude modulat|modulating signal|carrier wave|beats|doppler effect|progressive wave)/i, ["analytic_curve"]],
+    [/(?:x-ray tube|x ray tube|de broglie|matter[- ]wave|nuclear fission|nuclear fusion|mass defect|radioactive decay|half-life|davisson|dual nature of radiation|q value)/i, ["energy_level"]],
+    [/(?:law of cooling)/i, ["analytic_curve"]],
+    [/(?:surface tension)/i, ["fluid_apparatus"]],
+    [/(?:parallel (?:wires|conductors)|wires carry (?:equal )?currents)/i, ["point_field"]],
   ];
   for (const [pattern, families] of rules) {
-    if (pattern.test(question)) families.forEach((family) => {
+    if (pattern.test(stem)) families.forEach((family) => {
       if (!matches.includes(family)) matches.push(family);
     });
+  }
+  if (isNamedVariationPlotStem(stem) && !matches.includes("state_plot")) matches.push("state_plot");
+  if (isParallelPlateStem(stem) && !matches.includes("point_field")) matches.push("point_field");
+  if (isHangingWiresLoadStem(stem) && !matches.includes("contact_body")) matches.push("contact_body");
+  if (isFigureAbsentStem(stem)) {
+    return matches.filter((family) => family !== "state_plot");
   }
   return matches;
 }
@@ -185,7 +354,8 @@ function buildInstrumentChain(
   quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
-  if (!/(?:microscope|telescope|objective|eyepiece)/i.test(question) && !schematic) return null;
+  const stem = normalizeStem(question);
+  if (!/(?:microscope|telescope|objective|eyepiece)/i.test(stem) && !schematic) return null;
   const fo = absQuantity(quantities, ["fo", "objectivefocallength", "focalobjective"]);
   const fe = absQuantity(quantities, ["fe", "eyepiecefocallength", "focaleyepiece"]);
   const uo = absQuantity(quantities, ["uo", "objectdistance", "uobjective"]);
@@ -851,11 +1021,15 @@ function buildCircuit(
   schematic: boolean,
 ): SceneDocument | null {
   const resistors = extractResistors(question, quantities);
-  if (resistors.length < 2 && !schematic) return null;
-  const count = Math.max(2, Math.min(resistors.length || 3, 4));
+  if (isDiodeDeviceCircuit(question) && resistors.length < 2) {
+    return diodeBiasDocument(question);
+  }
+  const namedNetwork = /(?:wheatstone|met(?:er|re) bridge|potentiometer|kirchhoff|galvanometer|transformer|\bLCR\b|\bRLC\b)/i.test(normalizeStem(question));
+  if (resistors.length < 2 && !schematic && !namedNetwork) return null;
+  const count = Math.max(2, Math.min(resistors.length || (namedNetwork ? 4 : 3), 4));
   const wantsParallel = /\bparallel\b/i.test(question) && !/\bin series except\b/i.test(question);
-  const wantsSeries = /\bseries\b/i.test(question);
-  if (!schematic && !wantsParallel && !wantsSeries) return null;
+  const wantsSeries = /\bseries\b/i.test(question) || (namedNetwork && !wantsParallel);
+  if (!schematic && !wantsParallel && !wantsSeries && resistors.length < 2) return null;
   if (wantsSeries && wantsParallel) {
     return buildSeparatedCircuitViews(question, resistors, count);
   }
@@ -957,8 +1131,10 @@ function buildAnalyticCurve(
   const named = extractNamedPlotExpressions(question);
   const plots = expressions.length > 0 ? expressions : named;
   const domain = extractXInterval(question)
+    ?? extractTimeInterval(question)
     ?? (named.includes("1/x^12-1/x^6") ? [0.8, 2.5] as [number, number] : [-2, 2] as [number, number]);
   if (plots.length === 0) {
+    if (isProjectileStem(question) || isMotionGraphStem(question)) return null;
     if (/(?:U\(x\) graph|stable and unstable equilibrium|F versus x|graph of F)/i.test(question) || schematic) {
       const well = /U\(x\)|equilibrium/i.test(question) ? "x^4/4-x^2/2" : "x";
       return plotExpressions(question, [well], domain);
@@ -1018,6 +1194,15 @@ function buildStatePlot(
   quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  if (isKinematicsVtStem(question)) {
+    return kinematicsVtDocument(question);
+  }
+  if (isIvCharacteristicStem(normalizeStem(question))) {
+    return ivCharacteristicDocument(question);
+  }
+  if (isNamedVariationPlotStem(normalizeStem(question))) {
+    return variationLineDocument(question);
+  }
   const pressures = quantities.filter((quantity) => /^p\d*$/i.test(normalizeKey(quantity.symbol))
     || /^p\d*$/i.test(normalizeKey(quantity.id)));
   const volumes = quantities.filter((quantity) => /^v\d*$/i.test(normalizeKey(quantity.symbol))
@@ -1061,41 +1246,79 @@ function buildContactBody(
   quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
-  if (/(?:pulley|blocks? connected|hanging (?:mass|block))/i.test(question)) {
+  const stem = normalizeStem(question);
+  if (/(?:pulley|blocks? connected|hanging (?:mass|block))/i.test(stem)
+    && !/(?:hanging over|hanging from the table)/i.test(stem)) {
     return pulleyDocument(question);
   }
-  if (/(?:hinged|hinge|uniform (?:rod|bar)|physical pendulum)/i.test(question)
-    && !/(?:simple pendulum|pendulum of length)/i.test(question)) {
+  if (/(?:hinged|hinge|uniform (?:rod|bar)|physical pendulum)/i.test(stem)
+    && !/(?:simple pendulum|pendulum of length|conical pendulum|pendulum hangs)/i.test(stem)) {
     return hingedRodDocument(question, quantities);
   }
-  if (/(?:vertical circl|whirled|circular loop|circular path of constant radius|completes a (?:full )?vertical)/i.test(question)) {
+  if (/(?:vertical circl|whirled|circular loop|circular path of constant radius|completes a (?:full )?vertical)/i.test(stem)) {
     return verticalCircleDocument(question, quantities);
   }
-  if (/(?:simple pendulum|pendulum of length|bob of mass)/i.test(question)) {
+  if (/(?:conical pendulum|string now makes|bob has mass)/i.test(stem)
+    || (/(?:string|bob).{0,80}with the vertical/i.test(stem) && !/(?:concurrent|two strings)/i.test(stem))) {
+    return conicalPendulumDocument(question, quantities);
+  }
+  if (/(?:simple pendulum|pendulum of length|bob of mass|pendulum hangs)/i.test(stem)) {
     return pendulumDocument(question, quantities);
   }
-  if (/(?:incline|inclined plane|slope)/i.test(question)) {
+  if (/(?:incline|inclined plane|slope|banked|frictionless bank|up the bank)/i.test(stem)) {
     return inclineDocument(question, angleDegrees(quantities, question) ?? 30);
   }
-  if (/(?:spring of stiffness|spring-block|unstretched springs|springs S1|elastic potential)/i.test(question)) {
+  if (isCircularMotionStem(stem)) {
+    return circularMotionDocument(question);
+  }
+  if (/(?:spring of stiffness|spring of force constant|force constant|spring-block|unstretched springs|springs S1|elastic potential)/i.test(stem)) {
     return springDocument(question);
   }
-  if (/(?:raindrop|dropped from|dropped onto|starts from rest at height|hits the ground|raised vertically|rebounds? to|released on the slide)/i.test(question)) {
+  if (isProjectileStem(stem)) {
+    return projectileDocument(question, quantities);
+  }
+  if (isFallingStem(stem)) {
     return fallingBodyDocument(question);
   }
-  if (/(?:collid(?:e|es|ing|ed)|collision|head-on|sticks to|embeds in|ballistic pendulum|glancing collision|coefficient of restitution)/i.test(question)) {
+  if (/(?:collid(?:e|es|ing|ed)|collision|head-on|sticks to|embeds in|ballistic pendulum|glancing collision|coefficient of restitution|impulse|batsman|recoil|on ice)/i.test(stem)) {
     return collisionDocument(question);
   }
-  if (/(?:moved slowly around a closed|closed \d+(?:\.\d+)?\s*m\s*[×x])/i.test(question)) {
+  if (isHangingWiresLoadStem(stem)) {
+    return hangingWiresLoadDocument(question);
+  }
+  if (/(?:hanging over|hanging from the table)/i.test(stem)) {
+    return hangingChainDocument(question);
+  }
+  if (/(?:leans against a wall|ladder of mass)/i.test(stem)) {
+    return ladderDocument(question, quantities);
+  }
+  if (/(?:rolling friction|coefficient of rolling friction|wheel on a horizontal)/i.test(stem)) {
+    return wheelOnRoadDocument(question);
+  }
+  if (/(?:moved slowly around a closed|closed \d+(?:\.\d+)?\s*m\s*[×x])/i.test(stem)) {
     return squarePathDocument(question);
   }
-  if (/(?:pushes a (?:box|block)|force (?:pushes|pulls|acts through)|towed at|frictionless horizontal|work done by (?:a |the )?(?:constant |unknown )?force)/i.test(question)) {
-    return appliedForceBlockDocument(question);
+  if (/circular park/i.test(stem)) {
+    return circularParkDocument(question);
   }
-  if (/(?:\d+(?:\.\d+)?\s*kg (?:particle|block|mass|cart|wad)|particle of mass|body of mass|particle moves|moves along a straight line)/i.test(question)) {
+  if (isRelativeVelocityStem(stem)) {
+    return relativeVelocityDocument(question);
+  }
+  if (isKinematicsMotionStem(stem)) {
     return particleMotionDocument(question);
   }
-  if (!schematic && !/(?:free[- ]body|friction|normal reaction)/i.test(question)) return null;
+  if (/(?:pushes a (?:box|block)|force (?:pushes|pulls|acts through)|towed at|frictionless horizontal|work done by (?:a |the )?(?:constant |unknown )?force)/i.test(stem)) {
+    return appliedForceBlockDocument(question);
+  }
+  if (/(?:\d+(?:\.\d+)?\s*kg (?:particle|block|mass|cart|wad)|particle of mass|body of mass|block of mass|box of mass|particle moves|moves along a straight line)/i.test(stem)) {
+    return particleMotionDocument(question);
+  }
+  if (
+    !schematic
+    && !/(?:free[- ]body|friction|normal reaction|pseudo force|\blift\b|rests on a table|truck that accelerates)/i.test(stem)
+  ) {
+    return null;
+  }
   return blockOnSurfaceDocument(question);
 }
 
@@ -1226,31 +1449,63 @@ function inclineDocument(question: string, theta: number): SceneDocument {
 }
 
 function blockOnSurfaceDocument(question: string): SceneDocument {
+  const stem = normalizeStem(question);
+  const pseudo = /(?:pseudo force|truck that accelerates|floor of a truck)/i.test(stem);
+  const lift = /\blift\b/i.test(stem);
   return baseDocument({
     question,
-    reason: "block on a horizontal surface with weight and normal",
+    reason: pseudo
+      ? "block in a non-inertial frame with weight, normal, and pseudo force"
+      : lift
+        ? "body in a lift with weight and acceleration"
+        : "block on a horizontal surface with weight and normal",
     quantities: [],
     entities: [
       { id: "center", kind: "point", role: "block center" },
+      { id: "contact", kind: "point", role: "contact point" },
       { id: "left", kind: "point", role: "surface end" },
       { id: "right", kind: "point", role: "surface end" },
       { id: "block", kind: "rectangle", role: "block" },
       { id: "surface", kind: "segment", role: "contact surface" },
       { id: "weight", kind: "vector", role: "weight", label: "mg" },
       { id: "normal", kind: "vector", role: "normal reaction", label: "N" },
+      ...(pseudo
+        ? [{ id: "pseudo", kind: "vector" as const, role: "pseudo force", label: "ma" }]
+        : []),
+      ...(lift
+        ? [{ id: "accel", kind: "vector" as const, role: "lift acceleration", label: "a" }]
+        : []),
     ],
     constructions: [
       pointAt("center", 0, 0.4),
+      pointAt("contact", 0, 0),
       pointAt("left", -2, 0),
       pointAt("right", 2, 0),
       { id: "make_block", operator: "rectangle", inputs: { center: "center", width: 1.2, height: 0.8 }, outputs: ["block"] },
       { id: "make_surface", operator: "segment", inputs: { start: "left", end: "right" }, outputs: ["surface"] },
       { id: "make_weight", operator: "vector", inputs: { start: "center", direction: [0, -1], length: 1 }, outputs: ["weight"] },
-      { id: "make_normal", operator: "normal_at", inputs: { point: "center", surface: "surface" }, outputs: ["normal"] },
+      { id: "make_normal", operator: "normal_at", inputs: { point: "contact", surface: "surface" }, outputs: ["normal"] },
+      ...(pseudo
+        ? [{
+            id: "make_pseudo",
+            operator: "vector" as const,
+            inputs: { start: "center", direction: [-1, 0], length: 1.2 },
+            outputs: ["pseudo"],
+          }]
+        : []),
+      ...(lift
+        ? [{
+            id: "make_accel",
+            operator: "vector" as const,
+            inputs: { start: "center", direction: [0, 1], length: 0.9 },
+            outputs: ["accel"],
+          }]
+        : []),
     ],
     assertions: [
       { id: "surface_exists", predicate: "exists", entities: ["surface"], expected: true, severity: "fatal" },
       { id: "block_exists", predicate: "exists", entities: ["block"], expected: true, severity: "fatal" },
+      { id: "contact_on_surface", predicate: "on", entities: ["contact", "surface"], expected: true, severity: "fatal" },
     ],
   });
 }
@@ -1401,15 +1656,62 @@ function springDocument(question: string): SceneDocument {
 
 function pendulumDocument(question: string, quantities: PlanQuantity[]): SceneDocument {
   const theta = angleDegrees(quantities, question) ?? 30;
+  const pseudo = /(?:pseudo force|accelerating horizontally)/i.test(normalizeStem(question));
   return baseDocument({
     question,
-    reason: "simple pendulum displaced from the vertical",
+    reason: pseudo
+      ? "pendulum in an accelerating frame with weight and pseudo force"
+      : "simple pendulum displaced from the vertical",
     quantities: [{ id: "theta", symbol: "theta", value: theta, unit: "degree" }],
     entities: [
       { id: "hinge", kind: "point", role: "support", label: "O" },
       { id: "rest", kind: "point", role: "lowest point" },
       { id: "bob", kind: "point", role: "bob", label: "m" },
       { id: "string", kind: "segment", role: "string" },
+      { id: "weight", kind: "vector", role: "weight", label: "mg" },
+      ...(pseudo
+        ? [{ id: "pseudo", kind: "vector" as const, role: "pseudo force", label: "ma" }]
+        : []),
+    ],
+    constructions: [
+      pointAt("hinge", 0, 2.4),
+      pointAt("rest", 0, 0),
+      {
+        id: "make_bob",
+        operator: "rotate",
+        inputs: { point: "rest", center: "hinge", angle: -theta, angleUnit: "degrees" },
+        outputs: ["bob"],
+      },
+      { id: "make_string", operator: "segment", inputs: { start: "hinge", end: "bob" }, outputs: ["string"] },
+      { id: "make_weight", operator: "vector", inputs: { start: "bob", direction: [0, -1], length: 0.8 }, outputs: ["weight"] },
+      ...(pseudo
+        ? [{
+            id: "make_pseudo",
+            operator: "vector" as const,
+            inputs: { start: "bob", direction: [-1, 0], length: 0.9 },
+            outputs: ["pseudo"],
+          }]
+        : []),
+    ],
+    assertions: [
+      { id: "equal_length", predicate: "equal_length", entities: ["hinge", "rest", "hinge", "bob"], expected: true, severity: "fatal" },
+      { id: "string_exists", predicate: "exists", entities: ["string"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function conicalPendulumDocument(question: string, quantities: PlanQuantity[]): SceneDocument {
+  const theta = angleDegrees(quantities, question) ?? 30;
+  return baseDocument({
+    question,
+    reason: "conical pendulum with tension, weight, and the horizontal radius",
+    quantities: [{ id: "theta", symbol: "theta", value: theta, unit: "degree" }],
+    entities: [
+      { id: "hinge", kind: "point", role: "support", label: "O" },
+      { id: "rest", kind: "point", role: "lowest point" },
+      { id: "bob", kind: "point", role: "bob", label: "m" },
+      { id: "string", kind: "segment", role: "string" },
+      { id: "tension", kind: "vector", role: "tension", label: "T" },
       { id: "weight", kind: "vector", role: "weight", label: "mg" },
     ],
     constructions: [
@@ -1422,6 +1724,7 @@ function pendulumDocument(question: string, quantities: PlanQuantity[]): SceneDo
         outputs: ["bob"],
       },
       { id: "make_string", operator: "segment", inputs: { start: "hinge", end: "bob" }, outputs: ["string"] },
+      { id: "make_tension", operator: "vector", inputs: { start: "bob", end: "hinge" }, outputs: ["tension"] },
       { id: "make_weight", operator: "vector", inputs: { start: "bob", direction: [0, -1], length: 0.8 }, outputs: ["weight"] },
     ],
     assertions: [
@@ -1582,33 +1885,381 @@ function particleMotionDocument(question: string): SceneDocument {
   });
 }
 
+function isKinematicsMotionStem(question: string): boolean {
+  return /(?:average (?:speed|velocity)|instantaneous velocity|starts from rest|constant acceleration|accelerates uniformly|round trip|circular park|motion in a straight.?line|straight-line trip|position along a line|train starting|covers half the distance)/i.test(normalizeStem(question));
+}
+
+function isRelativeVelocityStem(question: string): boolean {
+  return /(?:two cars|car [AB] travels|velocity of [AB] relative to [AB]|relative to [AB]|catches? [AB]|100 m ahead of [AB])/i.test(normalizeStem(question));
+}
+
+function isProjectileStem(question: string): boolean {
+  const stem = normalizeStem(question);
+  if (/\bnot a projectile\b/i.test(stem)) return false;
+  return /(?:\bprojectile\b|projected from|thrown horizontally|maximum height of)/i.test(stem);
+}
+
+function isFallingStem(question: string): boolean {
+  return /(?:raindrop|dropped from|dropped onto|starts from rest at height|hits the ground|raised vertically|rebounds? to|released on the slide|thrown vertically|from the top of a (?:tower|building)|released from rest)/i.test(normalizeStem(question));
+}
+
+function isCircularMotionStem(question: string): boolean {
+  return /(?:uniform circular motion|horizontal circle|centripetal|circular turn|level circular|circular road|curve on a level road)/i.test(normalizeStem(question));
+}
+
+function isMotionGraphStem(question: string): boolean {
+  return /(?:velocity-?time|position-?time|displacement-?time|v-t graph|s-t graph|x-t graph)/i.test(normalizeStem(question));
+}
+
+function projectileDocument(question: string, quantities: PlanQuantity[]): SceneDocument {
+  const stem = normalizeStem(question);
+  const fromHeight = /(?:thrown horizontally|from a \d+(?:\.\d+)?\s*m tower|from a tower)/i.test(stem);
+  const theta = fromHeight ? 0 : (angleDegrees(quantities, question) ?? 45);
+  return baseDocument({
+    question,
+    reason: fromHeight
+      ? "horizontal projection from a tower onto level ground"
+      : "projectile launched from level ground with the initial velocity",
+    quantities: [{ id: "theta", symbol: "theta", value: theta, unit: "degree" }],
+    entities: [
+      { id: "O", kind: "point", role: "launch point", label: "O" },
+      { id: "ground_left", kind: "point", role: "ground end" },
+      { id: "ground_right", kind: "point", role: "ground end" },
+      { id: "aim", kind: "point", role: "launch direction" },
+      { id: "ground", kind: "segment", role: "ground" },
+      { id: "velocity", kind: "vector", role: "launch velocity", label: "u" },
+      ...(fromHeight
+        ? [
+            { id: "foot", kind: "point" as const, role: "tower foot" },
+            { id: "tower", kind: "segment" as const, role: "tower" },
+          ]
+        : [{ id: "aim_h", kind: "point" as const, role: "horizontal launch reference" }]),
+    ],
+    constructions: [
+      pointAt("O", fromHeight ? -2.2 : -2.4, fromHeight ? 2.4 : 0),
+      pointAt("ground_left", -3.2, 0),
+      pointAt("ground_right", 3.2, 0),
+      { id: "make_ground", operator: "segment", inputs: { start: "ground_left", end: "ground_right" }, outputs: ["ground"] },
+      ...(fromHeight
+        ? [
+            pointAt("foot", -2.2, 0),
+            pointAt("aim", -0.4, 2.4),
+            { id: "make_tower", operator: "segment" as const, inputs: { start: "foot", end: "O" }, outputs: ["tower"] },
+            { id: "make_velocity", operator: "vector" as const, inputs: { start: "O", end: "aim" }, outputs: ["velocity"] },
+          ]
+        : [
+            pointAt("aim_h", -0.6, 0),
+            {
+              id: "make_aim",
+              operator: "rotate" as const,
+              inputs: { point: "aim_h", center: "O", angle: theta, angleUnit: "degrees" },
+              outputs: ["aim"],
+            },
+            { id: "make_velocity", operator: "vector" as const, inputs: { start: "O", end: "aim" }, outputs: ["velocity"] },
+          ]),
+    ],
+    assertions: [
+      { id: "ground_exists", predicate: "exists", entities: ["ground"], expected: true, severity: "fatal" },
+      { id: "velocity_exists", predicate: "exists", entities: ["velocity"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function hangingChainDocument(question: string): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "chain on a table with a hanging length over the edge",
+    quantities: [],
+    entities: [
+      { id: "table_left", kind: "point", role: "table end" },
+      { id: "edge", kind: "point", role: "table edge" },
+      { id: "hang", kind: "point", role: "hanging end" },
+      { id: "table", kind: "segment", role: "table" },
+      { id: "chain", kind: "segment", role: "hanging chain" },
+    ],
+    constructions: [
+      pointAt("table_left", -2.8, 0),
+      pointAt("edge", 0.6, 0),
+      pointAt("hang", 0.6, -1.8),
+      { id: "make_table", operator: "segment", inputs: { start: "table_left", end: "edge" }, outputs: ["table"] },
+      { id: "make_chain", operator: "segment", inputs: { start: "edge", end: "hang" }, outputs: ["chain"] },
+    ],
+    assertions: [
+      { id: "table_exists", predicate: "exists", entities: ["table"], expected: true, severity: "fatal" },
+      { id: "chain_exists", predicate: "exists", entities: ["chain"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function hangingWiresLoadDocument(question: string): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "two wires in series supporting a pan",
+    quantities: [],
+    entities: [
+      { id: "ceiling", kind: "point", role: "support" },
+      { id: "join", kind: "point", role: "wire joint" },
+      { id: "load", kind: "point", role: "pan centre" },
+      { id: "upper", kind: "segment", role: "upper wire", label: "upper" },
+      { id: "lower", kind: "segment", role: "lower wire", label: "lower" },
+      { id: "pan", kind: "rectangle", role: "pan" },
+    ],
+    constructions: [
+      pointAt("ceiling", 0, 2.4),
+      pointAt("join", 0, 0.6),
+      pointAt("load", 0, -1.4),
+      { id: "make_upper", operator: "segment", inputs: { start: "ceiling", end: "join" }, outputs: ["upper"] },
+      { id: "make_lower", operator: "segment", inputs: { start: "join", end: "load" }, outputs: ["lower"] },
+      { id: "make_pan", operator: "rectangle", inputs: { center: "load", width: 1.4, height: 0.4 }, outputs: ["pan"] },
+    ],
+    assertions: [
+      { id: "wires_exist", predicate: "exists", entities: ["upper", "lower"], expected: true, severity: "fatal" },
+      { id: "pan_exists", predicate: "exists", entities: ["pan"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function ladderDocument(question: string, quantities: PlanQuantity[]): SceneDocument {
+  const theta = angleDegrees(quantities, question) ?? 60;
+  const floorSpan = 2.4;
+  const wallSpan = floorSpan * Math.tan(theta * Math.PI / 180);
+  return baseDocument({
+    question,
+    reason: "ladder leaning on a floor and a wall",
+    quantities: [{ id: "theta", symbol: "theta", value: theta, unit: "degree" }],
+    entities: [
+      { id: "corner", kind: "point", role: "wall-floor corner" },
+      { id: "floor_end", kind: "point", role: "floor contact" },
+      { id: "wall_end", kind: "point", role: "wall contact" },
+      { id: "floor", kind: "segment", role: "floor" },
+      { id: "wall", kind: "segment", role: "wall" },
+      { id: "ladder", kind: "segment", role: "ladder" },
+    ],
+    constructions: [
+      pointAt("corner", 0, 0),
+      pointAt("floor_end", floorSpan, 0),
+      pointAt("wall_end", 0, Math.min(4.2, Math.max(1.2, wallSpan))),
+      { id: "make_floor", operator: "segment", inputs: { start: "corner", end: "floor_end" }, outputs: ["floor"] },
+      { id: "make_wall", operator: "segment", inputs: { start: "corner", end: "wall_end" }, outputs: ["wall"] },
+      { id: "make_ladder", operator: "segment", inputs: { start: "floor_end", end: "wall_end" }, outputs: ["ladder"] },
+    ],
+    assertions: [
+      { id: "ladder_exists", predicate: "exists", entities: ["ladder"], expected: true, severity: "fatal" },
+      { id: "floor_exists", predicate: "exists", entities: ["floor"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function wheelOnRoadDocument(question: string): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "wheel on a road with rolling-resistance along the surface",
+    quantities: [],
+    entities: [
+      { id: "center", kind: "point", role: "wheel center" },
+      { id: "contact", kind: "point", role: "contact point" },
+      { id: "left", kind: "point", role: "road end" },
+      { id: "right", kind: "point", role: "road end" },
+      { id: "wheel", kind: "circle", role: "wheel" },
+      { id: "road", kind: "segment", role: "road" },
+      { id: "friction", kind: "vector", role: "rolling friction", label: "fr" },
+    ],
+    constructions: [
+      pointAt("center", 0, 0.9),
+      pointAt("contact", 0, 0),
+      pointAt("left", -2.4, 0),
+      pointAt("right", 2.4, 0),
+      { id: "make_wheel", operator: "circle", inputs: { center: "center", radius: 0.9 }, outputs: ["wheel"] },
+      { id: "make_road", operator: "segment", inputs: { start: "left", end: "right" }, outputs: ["road"] },
+      { id: "make_friction", operator: "vector", inputs: { start: "contact", direction: [-1, 0], length: 1.1 }, outputs: ["friction"] },
+    ],
+    assertions: [
+      { id: "wheel_exists", predicate: "exists", entities: ["wheel"], expected: true, severity: "fatal" },
+      { id: "contact_on_road", predicate: "on", entities: ["contact", "road"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function circularMotionDocument(question: string): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "uniform circular motion with tangential velocity and inward acceleration",
+    quantities: [],
+    entities: [
+      { id: "O", kind: "point", role: "centre", label: "O" },
+      { id: "P", kind: "point", role: "particle", label: "P" },
+      { id: "path", kind: "circle", role: "circular path" },
+      { id: "radius", kind: "segment", role: "radius" },
+      { id: "velocity", kind: "vector", role: "tangential velocity", label: "v" },
+      { id: "accel", kind: "vector", role: "centripetal acceleration", label: "a" },
+    ],
+    constructions: [
+      pointAt("O", 0, 0),
+      pointAt("P", 2, 0),
+      { id: "make_path", operator: "circle", inputs: { center: "O", radius: 2 }, outputs: ["path"] },
+      { id: "make_radius", operator: "segment", inputs: { start: "O", end: "P" }, outputs: ["radius"] },
+      { id: "make_velocity", operator: "vector", inputs: { start: "P", direction: [0, 1], length: 1.3 }, outputs: ["velocity"] },
+      { id: "make_accel", operator: "vector", inputs: { start: "P", end: "O" }, outputs: ["accel"] },
+    ],
+    assertions: [
+      { id: "path_exists", predicate: "exists", entities: ["path"], expected: true, severity: "fatal" },
+      { id: "velocity_exists", predicate: "exists", entities: ["velocity"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function relativeVelocityDocument(question: string): SceneDocument {
+  const catching = /(?:catches? [AB]|ahead of [AB]|100 m ahead)/i.test(question);
+  return baseDocument({
+    question,
+    reason: catching
+      ? "two cars on a line with a gap, chasing in the same direction"
+      : "two cars on a line with velocity vectors in the same direction",
+    quantities: [],
+    entities: [
+      { id: "left", kind: "point", role: "road end" },
+      { id: "right", kind: "point", role: "road end" },
+      { id: "a", kind: "point", role: "car A center" },
+      { id: "b", kind: "point", role: "car B center" },
+      { id: "road", kind: "segment", role: "road" },
+      { id: "car_a", kind: "rectangle", role: "car", label: "A" },
+      { id: "car_b", kind: "rectangle", role: "car", label: "B" },
+      { id: "va", kind: "vector", role: "velocity", label: "vA" },
+      { id: "vb", kind: "vector", role: "velocity", label: "vB" },
+    ],
+    constructions: [
+      pointAt("left", -3.2, 0),
+      pointAt("right", 3.2, 0),
+      pointAt("a", catching ? -1.8 : -1.2, 0.45),
+      pointAt("b", catching ? 1.6 : 1.2, 0.45),
+      { id: "make_road", operator: "segment", inputs: { start: "left", end: "right" }, outputs: ["road"] },
+      { id: "make_a", operator: "rectangle", inputs: { center: "a", width: 1.1, height: 0.7 }, outputs: ["car_a"] },
+      { id: "make_b", operator: "rectangle", inputs: { center: "b", width: 1.1, height: 0.7 }, outputs: ["car_b"] },
+      { id: "make_va", operator: "vector", inputs: { start: "a", direction: [1, 0], length: catching ? 1.8 : 1.6 }, outputs: ["va"] },
+      { id: "make_vb", operator: "vector", inputs: { start: "b", direction: [1, 0], length: catching ? 1.1 : 0.9 }, outputs: ["vb"] },
+    ],
+    assertions: [
+      { id: "road_exists", predicate: "exists", entities: ["road"], expected: true, severity: "fatal" },
+      { id: "cars_exist", predicate: "exists", entities: ["car_a", "car_b"], expected: true, severity: "fatal" },
+      { id: "velocities_exist", predicate: "exists", entities: ["va", "vb"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function isKinematicsVtStem(question: string): boolean {
+  return /(?:accelerates uniformly|train starting from rest|average speed for the whole)/i.test(normalizeStem(question))
+    || isMotionGraphStem(question);
+}
+
+function kinematicsVtDocument(question: string): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "velocity-time graph for piecewise constant acceleration",
+    quantities: [],
+    entities: [
+      { id: "axes", kind: "axes", role: "v-t axes", label: "v-t" },
+      { id: "rest", kind: "point", role: "start", label: "0" },
+      { id: "peak", kind: "point", role: "end of boost" },
+      { id: "end", kind: "point", role: "end of cruise" },
+      { id: "graph", kind: "polyline", role: "v(t)" },
+    ],
+    constructions: [
+      { id: "make_axes", operator: "axes", inputs: { xMin: -0.5, xMax: 4.5, yMin: -0.5, yMax: 3 }, outputs: ["axes"] },
+      pointAt("rest", 0, 0),
+      pointAt("peak", 1.2, 2.2),
+      pointAt("end", 4, 2.2),
+      {
+        id: "make_graph",
+        operator: "polyline",
+        inputs: { points: ["rest", "peak", "end"] },
+        outputs: ["graph"],
+      },
+    ],
+    assertions: [
+      { id: "axes_exist", predicate: "exists", entities: ["axes"], expected: true, severity: "fatal" },
+      { id: "graph_exists", predicate: "exists", entities: ["graph"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function circularParkDocument(question: string): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "circular path with radial legs from the centre",
+    quantities: [],
+    entities: [
+      { id: "O", kind: "point", role: "centre", label: "O" },
+      { id: "P", kind: "point", role: "rim", label: "P" },
+      { id: "Q", kind: "point", role: "rim", label: "Q" },
+      { id: "park", kind: "circle", role: "circular park" },
+      { id: "OP", kind: "segment", role: "radius" },
+      { id: "QO", kind: "segment", role: "radius" },
+    ],
+    constructions: [
+      pointAt("O", 0, 0),
+      pointAt("P", 2, 0),
+      pointAt("Q", 0, -2),
+      { id: "make_park", operator: "circle", inputs: { center: "O", radius: 2 }, outputs: ["park"] },
+      { id: "make_OP", operator: "segment", inputs: { start: "O", end: "P" }, outputs: ["OP"] },
+      { id: "make_QO", operator: "segment", inputs: { start: "Q", end: "O" }, outputs: ["QO"] },
+    ],
+    assertions: [
+      { id: "park_exists", predicate: "exists", entities: ["park"], expected: true, severity: "fatal" },
+      { id: "radii_exist", predicate: "exists", entities: ["OP", "QO"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
 function buildVectorDiagram(
   question: string,
   quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  const stem = normalizeStem(question);
   const magnitudes = quantities.filter((quantity) =>
     /(?:magnitude|vec|a|b)/i.test(`${quantity.id} ${quantity.symbol}`));
-  if (!schematic && magnitudes.length < 1 && !/(?:resultant|two vectors|vector|velocity vectors)/i.test(question)) {
+  if (
+    !schematic
+    && magnitudes.length < 1
+    && !/(?:resultant|two vectors|vector|velocity vectors|velocity triangles?|river|still water|rain falls|concurrent forces|triangle of forces|[îĵ]|makes with the x-axis)/i.test(stem)
+  ) {
     return null;
   }
+  const three = /(?:three concurrent|triangle of forces|two strings|held by two strings)/i.test(stem);
+  const rain = /rain falls/i.test(stem);
   return baseDocument({
     question,
-    reason: "shared-origin vector diagram",
+    reason: rain
+      ? "relative-velocity triangle for rain and a walking observer"
+      : three
+        ? "concurrent forces from a shared origin"
+        : "shared-origin vector diagram",
     quantities: [],
     entities: [
       { id: "origin", kind: "point", role: "origin", label: "O" },
       { id: "a_end", kind: "point", role: "vector A tip" },
       { id: "b_end", kind: "point", role: "vector B tip" },
-      { id: "a", kind: "vector", role: "vector", label: "A" },
-      { id: "b", kind: "vector", role: "vector", label: "B" },
+      { id: "a", kind: "vector", role: "vector", label: rain ? "vrain" : "A" },
+      { id: "b", kind: "vector", role: "vector", label: rain ? "vwalk" : "B" },
+      ...(three
+        ? [
+            { id: "c_end", kind: "point" as const, role: "vector C tip" },
+            { id: "c", kind: "vector" as const, role: "vector", label: "C" },
+          ]
+        : []),
     ],
     constructions: [
       pointAt("origin", 0, 0),
-      pointAt("a_end", 3, 0),
-      pointAt("b_end", 1.5, 2),
+      pointAt("a_end", rain ? 0 : 3, rain ? -2.4 : 0),
+      pointAt("b_end", rain ? 1.8 : 1.5, rain ? 0 : 2),
       { id: "make_a", operator: "vector", inputs: { start: "origin", end: "a_end" }, outputs: ["a"] },
       { id: "make_b", operator: "vector", inputs: { start: "origin", end: "b_end" }, outputs: ["b"] },
+      ...(three
+        ? [
+            pointAt("c_end", -0.8, 2.2),
+            { id: "make_c", operator: "vector" as const, inputs: { start: "origin", end: "c_end" }, outputs: ["c"] },
+          ]
+        : []),
     ],
     assertions: [
       { id: "a_exists", predicate: "exists", entities: ["a"], expected: true, severity: "fatal" },
@@ -1714,7 +2365,7 @@ function buildPolarizer(question: string, quantities: PlanQuantity[], schematic:
 }
 
 function buildTransverseField(question: string, _quantities: PlanQuantity[], schematic: boolean): SceneDocument | null {
-  if (!schematic && !/(?:unpolari[sz]|plane.?polari[sz]|electric field direction)/i.test(question)) return null;
+  if (!schematic && !/(?:unpolari[sz]|plane.?polari[sz]|electric field direction|electromagnetic wave|em wave|electromagnetic spectrum)/i.test(question)) return null;
   return baseDocument({
     question,
     reason: "transverse field along a propagation axis",
@@ -1799,9 +2450,17 @@ function buildSolidFigure(question: string, quantities: PlanQuantity[], schemati
 }
 
 function buildPointField(question: string, _quantities: PlanQuantity[], schematic: boolean): SceneDocument | null {
-  if (!schematic && !/(?:point charge|electric[- ]field|magnetic field|current-carrying)/i.test(question)) {
+  const stem = normalizeStem(question);
+  if (
+    !schematic
+    && !/(?:point charge|electric[- ]field|magnetic field|current-carrying|gauss|dipole|coulomb|microcoulomb|\bμC\b|solenoid|toroid|kepler|satellite|equipotential|parallel (?:wires|conductors)|wires carry|electric charges?|conservation of charge|electric potential|acceleration due to gravity|weightlessness)/i.test(stem)
+    && !isParallelPlateStem(stem)
+    && !isCurrentSegmentFieldStem(stem)
+  ) {
     return null;
   }
+  if (isParallelPlateStem(stem)) return parallelPlateDocument(question);
+  if (isCurrentSegmentFieldStem(stem)) return currentSegmentFieldDocument(question);
   return baseDocument({
     question,
     reason: "two source points and the joining field line",
@@ -1820,8 +2479,77 @@ function buildPointField(question: string, _quantities: PlanQuantity[], schemati
   });
 }
 
+function parallelPlateDocument(question: string): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "two parallel conducting plates and the field between them",
+    quantities: [],
+    entities: [
+      { id: "p1a", kind: "point", role: "plate end" },
+      { id: "p1b", kind: "point", role: "plate end" },
+      { id: "p2a", kind: "point", role: "plate end" },
+      { id: "p2b", kind: "point", role: "plate end" },
+      { id: "plate1", kind: "segment", role: "conducting plate", label: "P1" },
+      { id: "plate2", kind: "segment", role: "conducting plate", label: "P2" },
+      { id: "field", kind: "vector", role: "field between plates", label: "E" },
+    ],
+    constructions: [
+      pointAt("p1a", -2.2, 1.2),
+      pointAt("p1b", 2.2, 1.2),
+      pointAt("p2a", -2.2, -1.2),
+      pointAt("p2b", 2.2, -1.2),
+      { id: "make_plate1", operator: "segment", inputs: { start: "p1a", end: "p1b" }, outputs: ["plate1"] },
+      { id: "make_plate2", operator: "segment", inputs: { start: "p2a", end: "p2b" }, outputs: ["plate2"] },
+      { id: "make_field", operator: "vector", inputs: { start: "p1a", end: "p2a" }, outputs: ["field"] },
+    ],
+    assertions: [
+      { id: "plates_exist", predicate: "exists", entities: ["plate1", "plate2"], expected: true, severity: "fatal" },
+      { id: "field_exists", predicate: "exists", entities: ["field"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function currentSegmentFieldDocument(question: string): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "current element and the magnetic field at a named point",
+    quantities: [],
+    entities: [
+      { id: "a", kind: "point", role: "wire end" },
+      { id: "b", kind: "point", role: "wire end" },
+      { id: "P", kind: "point", role: "field point", label: "P" },
+      { id: "wire", kind: "segment", role: "current element" },
+      { id: "field", kind: "vector", role: "magnetic field", label: "B" },
+    ],
+    constructions: [
+      pointAt("a", -1.6, 0),
+      pointAt("b", 1.6, 0),
+      pointAt("P", 1.6, 1.8),
+      { id: "make_wire", operator: "segment", inputs: { start: "a", end: "b" }, outputs: ["wire"] },
+      { id: "make_field", operator: "vector", inputs: { start: "P", end: "b" }, outputs: ["field"] },
+    ],
+    assertions: [
+      { id: "wire_exists", predicate: "exists", entities: ["wire"], expected: true, severity: "fatal" },
+      { id: "field_exists", predicate: "exists", entities: ["field"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
 function buildEnergyLevel(question: string, _quantities: PlanQuantity[], schematic: boolean): SceneDocument | null {
-  if (!schematic && !/(?:energy level|photoelectric|bohr|stopping potential)/i.test(question)) return null;
+  const stem = normalizeStem(question);
+  if (isJunctionSpatialStem(stem) && !isSemiconductorBandStem(stem)) {
+    return semiconductorJunctionDocument(question);
+  }
+  if (isSemiconductorBandStem(stem)) {
+    return semiconductorBandDocument(question);
+  }
+  if (!schematic && !/(?:energy level|photo.?electric|photoelectron|threshold frequency|bohr|stopping potential|rutherford|hydrogen spectrum|x-ray tube|x ray tube|de broglie|matter[- ]wave|nuclear fission|nuclear fusion|mass defect|radioactive decay|half-life|davisson|dual nature of radiation|q value)/i.test(normalizeStem(question))) {
+    return null;
+  }
+  return bohrLevelDocument(question);
+}
+
+function bohrLevelDocument(question: string): SceneDocument {
   return baseDocument({
     question,
     reason: "stacked energy levels on a display axis",
@@ -1848,8 +2576,241 @@ function buildEnergyLevel(question: string, _quantities: PlanQuantity[], schemat
   });
 }
 
+function semiconductorBandDocument(question: string): SceneDocument {
+  const stem = normalizeStem(question);
+  const bothTypes = /n-type/i.test(stem) && /p-type/i.test(stem);
+  const nType = /n-type/i.test(stem);
+  const pType = /p-type/i.test(stem);
+  const conductorSplit = /conductor/i.test(stem) && /(?:semiconductor|insulator)/i.test(stem);
+  const columns: Array<{
+    prefix: string;
+    x0: number;
+    x1: number;
+    extra: "donor" | "acceptor" | "narrow" | null;
+    caption: string;
+  }> = bothTypes
+    ? [
+      { prefix: "n", x0: -3.2, x1: -0.6, extra: "donor", caption: "n-type" },
+      { prefix: "p", x0: 0.6, x1: 3.2, extra: "acceptor", caption: "p-type" },
+    ]
+    : conductorSplit
+      ? [
+        { prefix: "cond", x0: -3.2, x1: -0.6, extra: "narrow", caption: "conductor" },
+        { prefix: "semi", x0: 0.6, x1: 3.2, extra: null, caption: "semiconductor" },
+      ]
+      : [{
+        prefix: "band",
+        x0: -2.4,
+        x1: 2.4,
+        extra: nType ? "donor" : pType ? "acceptor" : null,
+        caption: nType ? "n-type" : pType ? "p-type" : "intrinsic",
+      }];
+
+  const entities: SceneEntity[] = [];
+  const constructions: SceneConstruction[] = [];
+  const levelIds: string[] = [];
+  for (const column of columns) {
+    const evY = column.extra === "narrow" ? -0.25 : -1.2;
+    const ecY = column.extra === "narrow" ? 0.25 : 1.2;
+    const evL = `${column.prefix}_ev_l`;
+    const evR = `${column.prefix}_ev_r`;
+    const ecL = `${column.prefix}_ec_l`;
+    const ecR = `${column.prefix}_ec_r`;
+    const ev = `${column.prefix}_ev`;
+    const ec = `${column.prefix}_ec`;
+    entities.push(
+      { id: evL, kind: "point", role: "band end" },
+      { id: evR, kind: "point", role: "band end" },
+      { id: ecL, kind: "point", role: "band end" },
+      { id: ecR, kind: "point", role: "band end" },
+      { id: ev, kind: "segment", role: "valence band", label: "Ev" },
+      { id: ec, kind: "segment", role: "conduction band", label: "Ec" },
+    );
+    constructions.push(
+      pointAt(evL, column.x0, evY),
+      pointAt(evR, column.x1, evY),
+      pointAt(ecL, column.x0, ecY),
+      pointAt(ecR, column.x1, ecY),
+      { id: `make_${ev}`, operator: "segment", inputs: { start: evL, end: evR }, outputs: [ev] },
+      { id: `make_${ec}`, operator: "segment", inputs: { start: ecL, end: ecR }, outputs: [ec] },
+      { id: `label_${ev}`, operator: "label", inputs: { target: ev, text: "Ev" }, outputs: [`${ev}_label`] },
+      { id: `label_${ec}`, operator: "label", inputs: { target: ec, text: "Ec" }, outputs: [`${ec}_label`] },
+    );
+    entities.push(
+      { id: `${ev}_label`, kind: "label", role: "band label" },
+      { id: `${ec}_label`, kind: "label", role: "band label" },
+    );
+    levelIds.push(ev, ec);
+    if (column.extra === "donor" || column.extra === "acceptor") {
+      const extraY = column.extra === "donor" ? 0.7 : -0.7;
+      const extraText = column.extra === "donor" ? "Ed" : "Ea";
+      const a = `${column.prefix}_imp_l`;
+      const b = `${column.prefix}_imp_r`;
+      const seg = `${column.prefix}_imp`;
+      entities.push(
+        { id: a, kind: "point", role: "impurity end" },
+        { id: b, kind: "point", role: "impurity end" },
+        { id: seg, kind: "segment", role: "impurity level", label: extraText },
+        { id: `${seg}_label`, kind: "label", role: "band label" },
+      );
+      constructions.push(
+        pointAt(a, column.x0, extraY),
+        pointAt(b, column.x1, extraY),
+        { id: `make_${seg}`, operator: "segment", inputs: { start: a, end: b }, outputs: [seg] },
+        { id: `label_${seg}`, operator: "label", inputs: { target: seg, text: extraText }, outputs: [`${seg}_label`] },
+      );
+      levelIds.push(seg);
+    }
+    const cap = `${column.prefix}_caption`;
+    const capPt = `${column.prefix}_caption_pt`;
+    entities.push(
+      { id: capPt, kind: "point", role: "column caption" },
+      { id: cap, kind: "label", role: "column caption" },
+    );
+    constructions.push(
+      pointAt(capPt, (column.x0 + column.x1) / 2, -1.85),
+      { id: `label_${cap}`, operator: "label", inputs: { target: capPt, text: column.caption }, outputs: [cap] },
+    );
+  }
+
+  return baseDocument({
+    question,
+    reason: "semiconductor energy bands as stacked levels",
+    quantities: [],
+    entities,
+    constructions,
+    assertions: [{
+      id: "bands_exist",
+      predicate: "exists",
+      entities: levelIds.slice(0, 2),
+      expected: true,
+      severity: "fatal",
+    }],
+  });
+}
+
+function semiconductorJunctionDocument(question: string): SceneDocument {
+  const stem = normalizeStem(question);
+  const photon = /(?:solar cell|photodiode|photon|light emitting|\bled\b)/i.test(stem);
+  const emit = /(?:light emitting|\bled\b)/i.test(stem);
+  const entities: SceneEntity[] = [
+    { id: "p_center", kind: "point", role: "p-region center" },
+    { id: "n_center", kind: "point", role: "n-region center" },
+    { id: "dep_center", kind: "point", role: "depletion center" },
+    { id: "p_region", kind: "rectangle", role: "p-side", label: "p" },
+    { id: "n_region", kind: "rectangle", role: "n-side", label: "n" },
+    { id: "depletion", kind: "rectangle", role: "depletion region", label: "depletion" },
+    { id: "p_label", kind: "label", role: "region label" },
+    { id: "n_label", kind: "label", role: "region label" },
+    { id: "dep_label", kind: "label", role: "region label" },
+    { id: "e_start", kind: "point", role: "field start" },
+    { id: "e_end", kind: "point", role: "field end" },
+    { id: "field", kind: "vector", role: "built-in field", label: "E" },
+  ];
+  const constructions: SceneConstruction[] = [
+    pointAt("p_center", -1.8, 0),
+    pointAt("n_center", 1.8, 0),
+    pointAt("dep_center", 0, 0),
+    { id: "make_p", operator: "rectangle", inputs: { center: "p_center", width: 2.4, height: 1.8 }, outputs: ["p_region"] },
+    { id: "make_n", operator: "rectangle", inputs: { center: "n_center", width: 2.4, height: 1.8 }, outputs: ["n_region"] },
+    { id: "make_dep", operator: "rectangle", inputs: { center: "dep_center", width: 1.2, height: 1.8 }, outputs: ["depletion"] },
+    { id: "label_p", operator: "label", inputs: { target: "p_region", text: "p" }, outputs: ["p_label"] },
+    { id: "label_n", operator: "label", inputs: { target: "n_region", text: "n" }, outputs: ["n_label"] },
+    { id: "label_dep", operator: "label", inputs: { target: "depletion", text: "depletion" }, outputs: ["dep_label"] },
+    pointAt("e_start", 0.45, -1.15),
+    pointAt("e_end", -0.45, -1.15),
+    { id: "make_field", operator: "vector", inputs: { start: "e_start", end: "e_end" }, outputs: ["field"] },
+  ];
+  if (photon) {
+    entities.push(
+      { id: "photon_start", kind: "point", role: emit ? "emitted photon" : "incident photon" },
+      { id: "photon_end", kind: "point", role: emit ? "outgoing photon" : "absorbed photon" },
+      { id: "photon", kind: "vector", role: emit ? "emitted photon" : "incident photon", label: "hν" },
+    );
+    constructions.push(
+      pointAt("photon_start", 0, emit ? 1.05 : 2.4),
+      pointAt("photon_end", 0, emit ? 2.4 : 1.05),
+      { id: "make_photon", operator: "vector", inputs: { start: "photon_start", end: "photon_end" }, outputs: ["photon"] },
+    );
+  }
+  return baseDocument({
+    question,
+    reason: photon
+      ? "p-n junction with depletion region and incident photon"
+      : "p-n junction with p-side, n-side, and depletion region",
+    quantities: [],
+    entities,
+    constructions,
+    assertions: [{
+      id: "junction_exists",
+      predicate: "exists",
+      entities: ["p_region", "n_region", "depletion"],
+      expected: true,
+      severity: "fatal",
+    }],
+  });
+}
+
+function ivCharacteristicDocument(question: string): SceneDocument {
+  const points = [
+    { id: "iv0", x: -1.6, y: -0.15 },
+    { id: "iv1", x: -0.4, y: -0.05 },
+    { id: "iv2", x: 0.2, y: 0.08 },
+    { id: "iv3", x: 0.9, y: 0.45 },
+    { id: "iv4", x: 1.6, y: 1.7 },
+  ];
+  return baseDocument({
+    question,
+    reason: "qualitative device I-V characteristic on labelled axes",
+    quantities: [],
+    entities: [
+      { id: "axes", kind: "axes", role: "IV axes", label: "I-V" },
+      ...points.map((point) => ({ id: point.id, kind: "point" as const, role: "curve sample" })),
+      { id: "curve", kind: "polyline", role: "characteristic curve" },
+    ],
+    constructions: [
+      { id: "make_axes", operator: "axes", inputs: { xMin: -2.2, xMax: 2.2, yMin: -1.2, yMax: 2.2 }, outputs: ["axes"] },
+      ...points.map((point) => pointAt(point.id, point.x, point.y)),
+      {
+        id: "make_curve",
+        operator: "polyline",
+        inputs: { points: points.map((point) => point.id) },
+        outputs: ["curve"],
+      },
+    ],
+    assertions: [
+      { id: "axes_exist", predicate: "exists", entities: ["axes"], expected: true, severity: "fatal" },
+      { id: "curve_exists", predicate: "exists", entities: ["curve"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function variationLineDocument(question: string): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "named quantity versus named quantity on labelled axes",
+    quantities: [],
+    entities: [
+      { id: "axes", kind: "axes", role: "plot axes" },
+      { id: "origin", kind: "point", role: "origin" },
+      { id: "end", kind: "point", role: "sample" },
+      { id: "graph", kind: "polyline", role: "variation graph" },
+    ],
+    constructions: [
+      { id: "make_axes", operator: "axes", inputs: { xMin: -0.4, xMax: 3.4, yMin: -0.4, yMax: 3.2 }, outputs: ["axes"] },
+      pointAt("origin", 0, 0),
+      pointAt("end", 2.8, 2.4),
+      { id: "make_graph", operator: "polyline", inputs: { points: ["origin", "end"] }, outputs: ["graph"] },
+    ],
+    assertions: [
+      { id: "axes_exist", predicate: "exists", entities: ["axes"], expected: true, severity: "fatal" },
+      { id: "graph_exists", predicate: "exists", entities: ["graph"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
 function buildFluidApparatus(question: string, _quantities: PlanQuantity[], schematic: boolean): SceneDocument | null {
-  if (!schematic && !/(?:hydraulic|piston|venturi|pipe|cylindrical vessels|connected at the bottom)/i.test(question)) {
+  if (!schematic && !/(?:hydraulic|piston|venturi|pipe|cylindrical vessels|connected at the bottom|bernoulli|capillary|young['’]?s modulus|stress[- ]strain|surface tension|connected fluid|buoyancy|archimedes|thermal expansion|heat transfer|fluid column|viscosity|method of mixtures|resonance tube)/i.test(normalizeStem(question))) {
     return null;
   }
   return baseDocument({
@@ -2175,7 +3136,16 @@ function extractExplicitFunctions(question: string): string[] {
   const normalized = question.replace(/[−–—]/g, "-").replace(/²/g, "^2").replace(/³/g, "^3");
   for (const match of normalized.matchAll(/\by\s*=\s*/gi)) {
     const start = (match.index ?? 0) + match[0].length;
-    const expression = readExpression(normalized.slice(start, start + 80));
+    const expression = readExpression(normalized.slice(start, start + 80).replace(/π/g, "pi"));
+    if (!expression || /\bt\b/.test(expression)) continue;
+    if (!facts.includes(expression)) facts.push(expression);
+  }
+  for (const match of normalized.matchAll(/\bx\s*=\s*/gi)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const rest = normalized.slice(start, start + 80);
+    if (!/^t\b/i.test(rest)) continue;
+    const withT = readExpression(rest);
+    const expression = withT.replace(/\bt\b/g, "x");
     if (expression && !facts.includes(expression)) facts.push(expression);
   }
   return facts.slice(0, 3);
@@ -2197,6 +3167,12 @@ function extractNamedPlotExpressions(question: string): string[] {
   if (ur) facts.push("1/x^12-1/x^6");
   const kt = /\bK\s*=\s*c\s*t\b/i.exec(normalized);
   if (kt) facts.push("x");
+  if (/amplitude modulat|carrier wave|modulating signal/i.test(normalized)) {
+    facts.push("(1+0.5*sin(x))*sin(8*x)");
+  }
+  if (/binding energy per nucleon/i.test(normalized)) {
+    facts.push("8*x/(x+12)-x/40");
+  }
   return facts.slice(0, 2);
 }
 
@@ -2209,6 +3185,14 @@ function extractXInterval(question: string): [number, number] | null {
   const end = Number(match[2]);
   if (!Number.isFinite(start) || !Number.isFinite(end) || start === end) return null;
   return start < end ? [start, end] : [end, start];
+}
+
+function extractTimeInterval(question: string): [number, number] | null {
+  const match = question.match(/t\s*=\s*(\d+(?:\.\d+)?)\s*s/i);
+  if (!match) return null;
+  const end = Number(match[1]);
+  if (!Number.isFinite(end) || end <= 0) return null;
+  return [0, end];
 }
 
 function normalizePlotExpression(value: string): string {
@@ -2268,7 +3252,7 @@ function coordinateDisplacementDocument(
 }
 
 function readExpression(source: string): string {
-  const allowed = new Set(["x", "pi", "e", "sin", "cos", "tan", "sqrt", "abs", "ln", "log"]);
+  const allowed = new Set(["x", "t", "pi", "e", "sin", "cos", "tan", "sqrt", "abs", "ln", "log"]);
   let index = 0;
   while (index < source.length) {
     const character = source[index]!;

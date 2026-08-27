@@ -6,7 +6,7 @@ import {
 import { evaluateMathExpression } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
 import { tutorDebug } from "../tutorDebug";
-import { inferSceneCapabilities, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
+import { inferSceneCapabilities, isQualitativeConceptQuestion, qualitativeQuestionAllowsScene, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
 import { reconcileTurnPlanWithOpticsLaws } from "./opticsPlanAudit";
 
 export interface TurnPlannerV3Options {
@@ -235,15 +235,12 @@ export function referencesFigure(question: string): boolean {
   return /\b(?:as\s+shown\s+in\s+(?:the\s+)?(?:figure|diagram)|in\s+the\s+(?:figure|diagram)|the\s+(?:figure|diagram)\s+shows|shown\s+in\s+the\s+(?:figure|diagram)|figure\s+below|diagram\s+below|see\s+(?:the\s+)?figure)\b/i.test(question);
 }
 
-/** Pure-concept markers where an honest text-only answer is expected, even if hardware words appear. */
-function isQualitativeConceptQuestion(question: string): boolean {
-  return /\b(?:assertion|reason\s*\(?r?|which\s+of\s+the\s+following|which\s+of\s+these|correct\s+statement|statement(?:s)?\s+(?:is|are)|not\s+true|does\s+not\s+occur|true\s+about)\b/i.test(question);
-}
-
 export function questionRequiresVisual(question: string): boolean {
   // A qualitative assertion/reason or multiple-choice concept check teaches
-  // text-only; a figure keyword inside it must not force a scene render.
-  if (isQualitativeConceptQuestion(question)) return explicitDiagramRequest(question);
+  // text-only unless the stem still names a spatial apparatus to set up.
+  if (isQualitativeConceptQuestion(question) && !qualitativeQuestionAllowsScene(question)) {
+    return explicitDiagramRequest(question);
+  }
   return explicitDiagramRequest(question) ||
     referencesFigure(question) ||
     sceneFamiliesForceVisualRequirement(inferSceneCapabilities(question).families) ||

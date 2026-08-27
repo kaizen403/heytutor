@@ -33,6 +33,19 @@ export interface SceneCapabilityRequirements {
   planningGuidance: string[];
 }
 
+/** Optional plan/IR structure. English regex is backup when these are absent. */
+export interface SceneStructureHints {
+  lawIds?: readonly string[];
+  problemIR?: {
+    entities?: ReadonlyArray<{ kind?: string }>;
+    representationIntents?: ReadonlyArray<{ kind?: string }>;
+  } | null;
+  turnPlan?: {
+    lawIds?: readonly string[];
+    visualRequirement?: string;
+  } | null;
+}
+
 const BASE_OPERATORS = [
   "point", "segment", "line", "polyline", "vector", "label", "dimension", "angle_mark",
 ];
@@ -70,7 +83,7 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
   solid_figure: ["solid_projection", "solid_cross_section", "point", "dimension", "label"],
   fluid_apparatus: ["rectangle", "polygon", "polyline", "connect", "vector", "dimension", "circle"],
   point_field: ["point", "vector", "circle", "line", "dimension", "angle_mark"],
-  energy_level: ["axes", "segment", "vector", "dimension", "label"],
+  energy_level: ["axes", "segment", "vector", "dimension", "label", "rectangle", "point"],
   coordinate_figure: [
     "axes", "point", "line", "circle", "polygon", "intersection", "tangent_line",
     "right_angle_mark", "angle_mark", "angle_bisector",
@@ -119,7 +132,7 @@ const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
   solid_figure: "Use solid_projection for each named solid. Composite solids share the join radius. Dimension true radii and heights; do not invent hidden faces as separate guessed polygons.",
   fluid_apparatus: "Construct the connected vessel or pipe as closed polygons/rectangles that share terminals. Dimension named radii or diameters. Flow and force arrows attach to those bodies; do not draw disconnected tanks.",
   point_field: "Place each named charge or current-carrying wire as a point or line. Field and force vectors share those IDs. Circular field geometry around a wire is a circle, not a guessed arc family. Prove collinearity, opposite directions, or perpendicularity named by the question.",
-  energy_level: "Draw energy or stopping-potential as an axis-aligned level diagram. Transitions are segments or vectors between shared level IDs. Do not invent a circuit or a ray path for a photoelectric/Bohr energy balance.",
+  energy_level: "Draw energy or stopping-potential as an axis-aligned level diagram. Semiconductor topics reuse the same stacked levels: valence and conduction bands, optional donor/acceptor levels, and a p–n depletion region as adjacent regions on one axis. Transitions are segments or vectors between shared level IDs. Do not invent a circuit or a ray path for a photoelectric/Bohr energy balance; a device I–V curve is a state plot.",
   coordinate_figure: "Plot named points on axes, then construct the asked line, circle, polygon, or right-angle mark from those IDs. Intersections and tangents are derived operators, not guessed extra points.",
   vector_diagram: "Draw named vectors from a shared origin in one frame. Use vector_components for resolved parts and prove the named angle or perpendicular/parallel relation. Do not substitute a free-body or a circuit.",
 };
@@ -134,7 +147,7 @@ const LAW_FAMILIES: ReadonlyArray<readonly [RegExp, readonly SceneVisualFamily[]
   [/resolution|resolving/i, ["aperture", "screen_pattern", "instrument_chain"]],
   [/brewster/i, ["ray_path", "interface", "polarizer"]],
   [/malus|polari[sz]/i, ["transverse_field", "polarizer"]],
-  [/newton|friction|tension|pulley|free.?body|hooke|torque|angular.?momentum|moment of inertia|rigid.?body/i, ["contact_body"]],
+  [/newton|friction|tension|pulley|free.?body|hooke|torque|angular.?momentum|moment of inertia|rigid.?body|suvat|equations of motion/i, ["contact_body"]],
   [/work.?energy|conservation of mechanical energy/i, ["contact_body"]],
   [/kirchhoff|ohm|wheatstone|lcr|rlc|ac.?circuit/i, ["circuit_network"]],
   [/first.?law|thermodynamic|ideal.?gas|indicator.?diagram/i, ["state_plot"]],
@@ -164,31 +177,223 @@ const QUESTION_FAMILIES: ReadonlyArray<readonly [RegExp, readonly SceneVisualFam
   [/(?:collid(?:e|es|ing|ed)|collision|head-on|sticks to|embeds in|ballistic pendulum|coefficient of restitution|glancing collision)/i, ["contact_body"]],
   [/(?:moved slowly around a closed|closed \d+(?:\.\d+)?\s*m\s*[×x])/i, ["contact_body"]],
   [/(?:\d+(?:\.\d+)?\s*kg (?:particle|block|mass|cart|wad)|particle of mass|body of mass|cart at|moves along a straight line)/i, ["contact_body"]],
-  [/(?:circuit|resistor|inductor|capacitor|\bLCR\b|\bRLC\b|wheatstone|galvanometer|phasor|ac source|series[- ]parallel|zener|internal resistance|cells? (?:are )?connected|\bemf\b)/i, ["circuit_network"]],
+  [/(?:average (?:speed|velocity)|instantaneous velocity|starts from rest|constant acceleration|accelerates uniformly|round trip|circular park|motion in a straight.?line|straight-line trip|position along a line|train starting|covers half the distance)/i, ["contact_body"]],
+  [/(?:two cars|car [AB] travels|velocity of [AB] relative to [AB]|relative to [AB]|catches? [AB]|100 m ahead of [AB])/i, ["contact_body"]],
+  [/(?:(?:(?<!not a )\bprojectile\b)|projected from|thrown horizontally|thrown vertically|from the top of a (?:tower|building)|maximum height of)/i, ["contact_body"]],
+  [/(?:uniform circular motion|horizontal circle|centripetal|circular turn|level circular|circular road|curve on a level road|banked|frictionless bank|up the bank|conical pendulum)/i, ["contact_body"]],
+  [/(?:impulse|batsman|recoil|on ice|leans against a wall|ladder of mass|hanging over|pseudo force|\blift\b|rolling friction|spring of force constant|pendulum hangs|rests on a table|string now makes|bob has mass)/i, ["contact_body"]],
+  [/(?:x\s*=\s*t|position along a line is x\s*=)/i, ["analytic_curve"]],
+  [/(?:accelerates uniformly|train starting from rest|average speed for the whole|velocity-?time|position-?time|displacement-?time|v-t graph|s-t graph|x-t graph)/i, ["state_plot"]],
+  [/(?:river|still water|downstream|upstream|rain falls|concurrent forces|triangle of forces|velocity triangles?|[îĵ]|makes with the x-axis)/i, ["vector_diagram"]],
+  [/(?:circuit|resistor|inductor|capacitor|\bLCR\b|\bRLC\b|wheatstone|galvanometer|phasor|ac source|series[- ]parallel|zener|internal resistance|cells? (?:are )?connected|\bemf\b|ohm['’]?s law|drift velocity|resistivity|transistor)/i, ["circuit_network"]],
   [/(?:p[-–—]?v(?:\s+cycle|\s+diagram|\s+graph)?|thermodynamic cycle|clockwise rectangular cycle)/i, ["state_plot"]],
-  [/(?:y\s*=|sketch (?:the )?(?:curve|graph)|parametric|polar curve|tangent (?:at|to)|x-intercept|implicit|projectile|trajectory|standing[- ]wave|third harmonic|node and antinode|F\s*=\s*5x|F_x\s*=|F versus x|graph of F|U\s*=\s*\(|U\(x\)|U\(r\)\s*=|potential energy of a particle is U)/i, ["analytic_curve"]],
+  [/(?:y\s*=|x\s*=\s*t|sketch.{0,60}(?:curve|graph)|plot.{0,40}(?:curve|graph|against|versus)|parametric|polar curve|tangent (?:at|to)|x-intercept|implicit|trajectory|standing[- ]wave|third harmonic|node and antinode|F\s*=\s*5x|F_x\s*=|F versus x|graph of F|U\s*=\s*\(|U\(x\)|U\(r\)\s*=|potential energy of a particle is U)/i, ["analytic_curve"]],
   [/(?:enclose a region|region under|region between|revolve|washer|representative (?:disk|slice|washer)|solid of revolution|area using integration)/i, ["bounded_region"]],
   [/(?:cylinder|hemisphere|frustum|right circular|composite solid|cone of radius)/i, ["solid_figure"]],
-  [/(?:hydraulic|pistons?|venturi|pipe whose diameter|connected fluid|cylindrical vessels|connected at the bottom)/i, ["fluid_apparatus"]],
+  [/(?:hydraulic|pistons?|venturi|pipe whose diameter|connected fluid|cylindrical vessels|connected at the bottom|buoyancy|archimedes|thermal expansion|heat transfer|fluid column|viscosity|method of mixtures|resonance tube)/i, ["fluid_apparatus"]],
   [/(?:point charges?|electric[- ]field|magnetic field|null point|long straight|current-carrying|microcoulomb)/i, ["point_field"]],
-  [/(?:photoelectric|work function|stopping potential|bohr|energy levels?|photon energy|hydrogen atom)/i, ["energy_level"]],
+  [/(?:photo.?electric|photoelectron|threshold frequency|work function|stopping potential|bohr|energy levels?|photon energy|hydrogen atom|energy band|valence band|conduction band|depletion.{0,4}region|solar cell|light emitting)/i, ["energy_level"]],
   [/(?:plot [A-Z]\s*\(|triangle [A-Z]{3}|right angle|argand|equation of (?:(?:the|a) )?(?:circle|parabola|ellipse|hyperbola|line|plane)|vector equation of the (?:line|plane)|cartesian equation of the (?:line|plane)|skew lines|direction cosines?|coordinates of|\bhyperbola\b|\bellipse\b|\bparabola\b|\bfoci\b|\bdirectrix\b|moves from \()/i, ["coordinate_figure"]],
-  [/(?:resultant of|two vectors|vector components|parallelogram law|dot product|cross product|vector algebra|unit vector|position vectors?|projection of the vector|a vector of magnitude|velocity vectors)/i, ["vector_diagram"]],
+  [/(?:resultant of|two vectors|vector components|parallelogram law|dot product|cross product|vector algebra|unit vector|position vectors?|projection of the vector|a vector of magnitude|velocity vectors|velocity triangles?)/i, ["vector_diagram"]],
   [/(?:v[-–]?t graph|s[-–]?t graph|velocity[- ]time|displacement[- ]time|indicator diagram)/i, ["state_plot"]],
-  [/(?:rolling without slipping|torque on a|hinged|hinge reaction|about (?:a |the )?fixed (?:axis|end|hinge)|physical pendulum|uniform (?:rod|bar)\b|angular (?:speed|velocity|acceleration) of|rotat(?:es|ing|ed) about)/i, ["contact_body"]],
+  [/(?:rolling without slipping|torque on a|hinged|hinge reaction|about (?:a |the )?fixed (?:axis|end|hinge)|physical pendulum|uniform (?:rod|bar)\b|angular (?:speed|velocity|acceleration) of|rotat(?:es|ing|ed) about|angular momentum|rigid body rotation)/i, ["contact_body"]],
+  [/(?:gauss(?:['’]?s)? law|electric flux|equipotential|electric dipole|microcoulomb|nanocoulomb|\bμC\b|\bnC\b|parallel[- ]plate capacitor|metal sheets?.{0,80}parallel|electrically conducting walls|horizontal metal plates|electric charges?|conservation of charge|electric potential)/i, ["point_field"]],
+  [/(?:solenoid|toroid|biot[- ]savart|ampere['’]?s law|cyclotron|bar magnet|lorentz|velocity selector)/i, ["point_field"]],
+  [/(?:wheatstone|met(?:er|re) bridge|potentiometer|kirchhoff|galvanometer)/i, ["circuit_network"]],
+  [/(?:faraday|lenz|motional emf|self inductance|mutual inductance|transformer)/i, ["circuit_network"]],
+  [/(?:kepler|satellite|escape velocity|orbital velocity|gravitat(?:ion|ional field)|acceleration due to gravity|weightlessness)/i, ["point_field"]],
+  [/(?:bernoulli|venturi|capillary|young['’]?s modulus|stress[- ]strain|stokes['’]? law)/i, ["fluid_apparatus"]],
+  [/(?:isothermal|adiabatic|carnot|indicator diagram|first law of thermodynamics|isobaric|isochoric|zeroth law|refrigerator)/i, ["state_plot"]],
+  [/(?:organ pipe|standing waves?|transverse wave|travelling wave|traveling wave)/i, ["analytic_curve"]],
+  [/(?:rutherford|bohr orbit|hydrogen spectrum)/i, ["energy_level"]],
+  [/(?:zener|(?:p-n|pn) junction diode|rectifier|logic gate|nand|nor gate)/i, ["circuit_network"]],
+  [/(?:(?:n-type|p-type) semiconductors?|photodiode|(?:p-n|pn) junction|\bled\b)/i, ["energy_level"]],
+  [/(?:transfer characteristic|i[-–]?v characteristic|characteristic curve|draw a graph showing variation|graph showing variation of|variation of .{1,120} as a function of)/i, ["state_plot"]],
+  [/(?:argand|complex plane)/i, ["coordinate_figure"]],
+  [/(?:electromagnetic wave|em wave|displacement current|electromagnetic spectrum)/i, ["transverse_field"]],
+  [/(?:simple harmonic|shm\b|vernier|screw gauge|least count|periodic motion|oscillations? of)/i, ["contact_body"]],
+  [/(?:cyclic process|p[-–]?t diagram|isobaric process|thermodynamic system)/i, ["state_plot"]],
+  [/(?:binding energy per nucleon|maxwell speed|amplitude modulat|modulating signal|carrier wave|beats|doppler effect|progressive wave)/i, ["analytic_curve"]],
+  [/(?:x-ray tube|x ray tube|de broglie|matter[- ]wave|nuclear fission|nuclear fusion|mass defect|radioactive decay|half-life|davisson|dual nature of radiation|q value)/i, ["energy_level"]],
+  [/(?:law of cooling)/i, ["analytic_curve"]],
+  [/(?:surface tension)/i, ["fluid_apparatus"]],
+  [/(?:parallel (?:wires|conductors)|wires carry (?:equal )?currents)/i, ["point_field"]],
 ];
+
+const INTENT_FAMILIES: Record<string, readonly SceneVisualFamily[]> = {
+  graph: ["analytic_curve", "state_plot"],
+  bounded_region: ["bounded_region", "analytic_curve"],
+  network: ["circuit_network"],
+  apparatus: ["fluid_apparatus"],
+  free_body: ["contact_body"],
+  field: ["point_field"],
+  solid: ["solid_figure"],
+  section: ["solid_figure", "coordinate_figure"],
+};
+
+const ENTITY_FAMILIES: Record<string, readonly SceneVisualFamily[]> = {
+  field: ["point_field"],
+  component: ["circuit_network"],
+  body: ["contact_body"],
+  curve: ["analytic_curve"],
+  region: ["bounded_region"],
+  solid: ["solid_figure"],
+  state: ["state_plot"],
+};
+
+function normalizeStem(question: string): string {
+  return question
+    .replace(/[–—−]/g, "-")
+    .replace(/[³]/g, "^3")
+    .replace(/[²]/g, "^2")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isFigureAbsentStem(stem: string): boolean {
+  return /\b(?:shown in the figure|as shown in the figure|the figure shows|figure shows)\b/i.test(stem);
+}
+
+function isNamedVariationPlotStem(stem: string): boolean {
+  if (isFigureAbsentStem(stem)) return false;
+  return /(?:draw a graph showing variation|graph showing variation of|variation of .{1,120} as a function of)/i.test(stem);
+}
+
+function isParallelPlateStem(stem: string): boolean {
+  return /(?:parallel[- ]plate capacitor|metal sheets?.{0,80}parallel|kept parallel to each other|electrically conducting walls|horizontal metal plates)/i.test(stem);
+}
+
+function isHangingWiresLoadStem(stem: string): boolean {
+  return /(?:upper wire|breaking stress)/i.test(stem) && /(?:lower wire|\bpan\b)/i.test(stem);
+}
+
+/** `Array.isArray` predicates `any[]`, which never matches `readonly string[]`, so guard with an explicit predicate. */
+function isLawIdsArray(
+  value: readonly string[] | SceneStructureHints,
+): value is readonly string[] {
+  return Array.isArray(value);
+}
+
+function normalizeHints(
+  lawIdsOrHints: readonly string[] | SceneStructureHints,
+): SceneStructureHints {
+  if (isLawIdsArray(lawIdsOrHints)) return { lawIds: lawIdsOrHints };
+  return lawIdsOrHints;
+}
+
+/** Prefer TurnPlan / ProblemIR entity kinds over English keyword lists. */
+export function familiesFromProblemStructure(
+  problemIR?: SceneStructureHints["problemIR"],
+): SceneVisualFamily[] {
+  if (!problemIR) return [];
+  const families = new Set<SceneVisualFamily>();
+  for (const intent of problemIR.representationIntents ?? []) {
+    const kind = intent.kind ?? "";
+    if (kind === "conceptual") continue;
+    for (const family of INTENT_FAMILIES[kind] ?? []) families.add(family);
+  }
+  for (const entity of problemIR.entities ?? []) {
+    const kind = entity.kind ?? "";
+    for (const family of ENTITY_FAMILIES[kind] ?? []) families.add(family);
+  }
+  return [...families];
+}
+
+/** Pure-concept markers where an honest text-only answer is expected, even if hardware words appear. */
+export function isQualitativeConceptQuestion(question: string): boolean {
+  return /\b(?:assertion|reason\s*\(?r?|which\s+of\s+the\s+following|which\s+of\s+these|correct\s+statement|statement(?:s)?\s+(?:is|are)|not\s+true|does\s+not\s+occur|true\s+about|match the motions|match list|column i\b|column ii\b)\b/i.test(question);
+}
+
+/** A concept MCQ that still names a spatial apparatus should keep a setup figure. */
+export function qualitativeQuestionAllowsScene(question: string): boolean {
+  return /(?:leans against a wall|ladder of mass|conical pendulum|banked|inclined plane|free[- ]body|pulley|lens|mirror|prism|circuit|resistor|projectile|pendulum|ray path|slit|dipole|solenoid|capacitor|incline|bar magnet|kepler|satellite|venturi|hydraulic|wheatstone|met(?:er|re) bridge|galvanometer|transformer|cyclotron|toroid|gauss|equipotential|rolling without slipping|moment of inertia|energy band|depletion[- ]region|solar cell|p-n junction|light emitting|microscope|telescope)/i.test(question);
+}
+
+function isSemiconductorBandStem(stem: string): boolean {
+  return /(?:energy band|valence band|conduction band|(?:n-type|p-type)|intrinsic semiconductor)/i.test(stem);
+}
+
+function isJunctionSpatialStem(stem: string): boolean {
+  if (
+    /(?:rectifier|zener|(?:p-n|pn) junction diode|nand|nor gate|logic gate|with (?:a )?battery)/i.test(stem)
+    && !/(?:depletion.{0,4}region|solar cell|photodiode|energy band)/i.test(stem)
+  ) {
+    return false;
+  }
+  return /(?:depletion.{0,4}region|solar cell|photodiode|light emitting|\bled\b|(?:p-n|pn) junction)/i.test(stem);
+}
+
+function isIvCharacteristicStem(stem: string): boolean {
+  return /(?:transfer characteristic|i[-–]?v characteristic|characteristic curve)/i.test(stem);
+}
+
+function isDeviceCircuitStem(stem: string): boolean {
+  return /(?:rectifier|zener|(?:p-n|pn) junction diode|nand|nor gate|logic gate|with (?:a )?battery)/i.test(stem)
+    && !isSemiconductorBandStem(stem)
+    && !/(?:depletion.{0,4}region|solar cell|photodiode)/i.test(stem)
+    && !isIvCharacteristicStem(stem);
+}
+
+function routeSemiconductorFamilies(stem: string, families: Set<SceneVisualFamily>): void {
+  if ((isSemiconductorBandStem(stem) || isJunctionSpatialStem(stem)) && !isDeviceCircuitStem(stem)) {
+    families.add("energy_level");
+    families.delete("circuit_network");
+  }
+  if (isIvCharacteristicStem(stem)) families.add("state_plot");
+  if (isDeviceCircuitStem(stem)) families.delete("energy_level");
+}
+
+function preferSemiconductorFamilyOrder(
+  stem: string,
+  families: readonly SceneVisualFamily[],
+): SceneVisualFamily[] {
+  if (families.length === 0) return [];
+  if ((isSemiconductorBandStem(stem) || isJunctionSpatialStem(stem)) && families.includes("energy_level")) {
+    return ["energy_level", ...families.filter((family) => family !== "energy_level")];
+  }
+  if (
+    (isIvCharacteristicStem(stem) || isNamedVariationPlotStem(stem))
+    && families.includes("state_plot")
+  ) {
+    return ["state_plot", ...families.filter((family) => family !== "state_plot")];
+  }
+  if (isParallelPlateStem(stem) && families.includes("point_field")) {
+    return ["point_field", ...families.filter((family) => family !== "point_field")];
+  }
+  return [...families];
+}
 
 export function inferSceneCapabilities(
   question: string,
-  lawIds: readonly string[] = [],
+  lawIdsOrHints: readonly string[] | SceneStructureHints = [],
 ): SceneCapabilityRequirements {
-  const families = new Set<SceneVisualFamily>();
+  const hints = normalizeHints(lawIdsOrHints);
+  const lawIds = hints.lawIds ?? hints.turnPlan?.lawIds ?? [];
+  const stem = normalizeStem(question);
+  const explicitVisual = /\b(?:draw|diagram|illustrat(?:e|ion)|sketch|construct|plot|graph|locate|mark|show)\b/i.test(stem);
+  const structureFamilies = familiesFromProblemStructure(hints.problemIR);
+  if (
+    hints.turnPlan?.visualRequirement !== "required"
+    && isQualitativeConceptQuestion(stem)
+    && !explicitVisual
+    && !qualitativeQuestionAllowsScene(stem)
+    && structureFamilies.length === 0
+  ) {
+    return {
+      visualRequired: false,
+      families: [],
+      constructionOperators: [...BASE_OPERATORS],
+      proofPredicates: ["exists", "label_attached"],
+      planningGuidance: [],
+    };
+  }
+  const families = new Set<SceneVisualFamily>(structureFamilies);
   const lawText = lawIds.join(" ");
   for (const [pattern, matches] of LAW_FAMILIES) {
     if (pattern.test(lawText)) matches.forEach((family) => families.add(family));
   }
   for (const [pattern, matches] of QUESTION_FAMILIES) {
-    if (pattern.test(question)) matches.forEach((family) => families.add(family));
+    if (pattern.test(stem)) matches.forEach((family) => families.add(family));
   }
 
   // A wave-pattern calculation needs its physical aperture and propagation
@@ -203,12 +408,17 @@ export function inferSceneCapabilities(
   if (families.has("bounded_region")) families.add("analytic_curve");
   // Huygens reflection/refraction constructions need the interface and
   // derived normals even when the stem never says "incident ray".
-  if (families.has("wavefront") && /huygens/i.test(`${question} ${lawText}`)) {
+  if (families.has("wavefront") && /huygens/i.test(`${stem} ${lawText}`)) {
     families.add("ray_path");
-    if (/(?:reflect|refract|incident)/i.test(`${question} ${lawText}`)) {
+    if (/(?:reflect|refract|incident)/i.test(`${stem} ${lawText}`)) {
       families.add("interface");
     }
   }
+  if (isNamedVariationPlotStem(stem)) families.add("state_plot");
+  if (isParallelPlateStem(stem)) families.add("point_field");
+  if (isHangingWiresLoadStem(stem)) families.add("contact_body");
+  routeSemiconductorFamilies(stem, families);
+  if (isFigureAbsentStem(stem)) families.delete("state_plot");
 
   const operators = new Set(BASE_OPERATORS);
   const predicates = new Set(["exists", "label_attached"]);
@@ -218,10 +428,16 @@ export function inferSceneCapabilities(
     FAMILY_PREDICATES[family].forEach((predicate) => predicates.add(predicate));
     planningGuidance.add(FAMILY_GUIDANCE[family]);
   }
-  const explicitVisual = /\b(?:draw|diagram|illustrat(?:e|ion)|sketch|construct|plot|graph|locate|mark|show)\b/i.test(question);
+  const remaining = [...families].filter((family) => !structureFamilies.includes(family));
+  const orderedFamilies = preferSemiconductorFamilyOrder(stem, [
+    ...structureFamilies,
+    ...remaining,
+  ]);
   return {
-    visualRequired: families.size > 0 || explicitVisual,
-    families: [...families],
+    visualRequired: orderedFamilies.length > 0
+      || explicitVisual
+      || hints.turnPlan?.visualRequirement === "required",
+    families: orderedFamilies,
     constructionOperators: [...operators],
     proofPredicates: [...predicates],
     planningGuidance: [...planningGuidance],

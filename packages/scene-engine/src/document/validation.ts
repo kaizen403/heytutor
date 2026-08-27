@@ -5987,6 +5987,9 @@ function validateOpticalInstrumentProofContract(
 
   const question = typeof document.source.question === "string" ? document.source.question : "";
   if (!/\bnormal adjustment\b/i.test(question)) return;
+  // optical_train is the instrument proof. Do not demand a second LLM-style
+  // converges assertion just because the exam text mentions normal adjustment.
+  if (hasOpticalTrain) return;
   const objectiveFocalIds = document.entities.flatMap((entity) => {
     const name = semantic(entity.id);
     return entity.kind === "point" && /\bobjective\b/.test(name) && /\bfoc(?:al|us)\b/.test(name)

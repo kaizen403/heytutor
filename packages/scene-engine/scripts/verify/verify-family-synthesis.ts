@@ -446,11 +446,212 @@ assert(
   "F=5x must be drawn as a function curve",
 );
 
+const xtQuestion = "Position along a line is x = t^3 metres with t in seconds. Find the instantaneous velocity at t = 2.0 s and the average velocity from t = 0 to t = 2.0 s.";
+const xt = synthesizeFamilyScene({ question: xtQuestion });
+assert(xt, "x=t^3 must compile a position-time graph");
+assert(xt.family === "analytic_curve", "x(t) should lead with an analytic curve");
+assert(
+  xt.document.constructions.some((construction) => construction.operator === "function_curve"),
+  "x=t^3 must be drawn as a function curve",
+);
+
+const trainQuestion = "A train starting from rest first accelerates uniformly up to 80 km/h in time t, then moves at that constant speed for time 3t. The average speed for the whole duration is (in km/h): (A) 70";
+const train = synthesizeFamilyScene({ question: trainQuestion });
+assert(train, "train average-speed stem must compile a diagram");
+assert(
+  train.renderScene.primitives.length > 0,
+  "train average-speed stem produced no ink",
+);
+
+const roundTripQuestion = "Use the same 6 m/s / 9 m/s / 15 m/s straight-line trip as motion-in-a-straight-line medium, but now also find the average velocity if the particle returns to the start after the second half.";
+const roundTrip = synthesizeFamilyScene({ question: roundTripQuestion });
+assert(roundTrip, "round-trip average-velocity stem must compile a motion diagram");
+assert(roundTrip.renderScene.primitives.length > 0, "round-trip stem produced no ink");
+
+const unicodeXt = "Position along a line is x = t³ metres with t in seconds. Find the instantaneous velocity at t = 2.0 s and the average velocity from t = 0 to t = 2.0 s.";
+const unicodeXtScene = synthesizeFamilyScene({ question: unicodeXt, families: [] });
+assert(unicodeXtScene, "unicode x=t³ must still compile when the caller passes no families");
+assert(
+  unicodeXtScene.family === "analytic_curve",
+  "unicode x=t³ must be an analytic curve, not a locked empty family list",
+);
+
+const relativeEasy = "Car A travels east at 20 m/s and car B travels east at 5.0 m/s on the same straight road. Find the velocity of A relative to B and of B relative to A.";
+const relativeEasyScene = synthesizeFamilyScene({ question: relativeEasy, families: [] });
+assert(relativeEasyScene, "1D relative-velocity cars must compile a diagram");
+assert(
+  relativeEasyScene.renderScene.primitives.length > 0,
+  "relative-velocity cars produced no ink",
+);
+assert(
+  relativeEasyScene.document.entities.some((entity) => entity.label === "A")
+    && relativeEasyScene.document.entities.some((entity) => entity.label === "B"),
+  "relative-velocity cars must be labelled A and B",
+);
+
+const relativeCatch = "Car A travels at a constant 15 m/s. Car B is 100 m ahead of A, travelling in the same direction at a constant 10 m/s. Find the time until A catches B. Then repeat if B instead starts from rest with acceleration 1.0 m/s² at the instant A is 100 m behind.";
+const relativeCatchScene = synthesizeFamilyScene({ question: relativeCatch });
+assert(relativeCatchScene, "catching-up cars must compile a diagram");
+assert(
+  relativeCatchScene.document.entities.filter((entity) => entity.role === "car").length === 2,
+  "catching-up must draw two cars, not a single kinematics particle",
+);
+
+const projectileQuestion = "A ball is projected from the ground at 45° to the horizontal and reaches a maximum height of 120 m before returning to the same level.";
+const projectileScene = synthesizeFamilyScene({ question: projectileQuestion, families: [] });
+assert(projectileScene, "level-ground projectile must compile a diagram");
+assert(projectileScene.renderScene.primitives.length > 0, "projectile produced no ink");
+assert(
+  projectileScene.document.entities.some((entity) => entity.id === "velocity"),
+  "projectile must show the launch velocity",
+);
+
+const riverQuestion = "A boat’s speed in still water is 5.0 m/s and the current is 3.0 m/s along the river. Find the speed downstream and upstream.";
+const riverScene = synthesizeFamilyScene({ question: riverQuestion, families: [] });
+assert(riverScene, "river-boat stem must compile a velocity diagram");
+assert(riverScene.family === "vector_diagram", "river-boat must use the vector family");
+
+const rainQuestion = "Rain falls vertically at 10 m/s. A person walks east at 5.0 m/s. Find the magnitude of the rain’s velocity relative to the person.";
+const rainScene = synthesizeFamilyScene({ question: rainQuestion });
+assert(rainScene, "rain-man relative velocity must compile a diagram");
+assert(rainScene.renderScene.primitives.length > 0, "rain-man produced no ink");
+
+const motionGraphQuestion = "A velocity–time graph is a horizontal line at v = 10 m/s from t = 0 to t = 4.0 s. Sketch it, find the displacement from the area.";
+const motionGraph = synthesizeFamilyScene({ question: motionGraphQuestion, families: [] });
+assert(motionGraph, "en-dash velocity-time graph must compile");
+assert(motionGraph.family === "state_plot", "motion graphs must be state plots, not empty axes");
+
+const ucmQuestion = "A particle moves in a horizontal circle of radius 2.0 m with period 2.0 s. Find the speed and the centripetal acceleration.";
+const ucm = synthesizeFamilyScene({ question: ucmQuestion });
+assert(ucm, "uniform circular motion must compile a diagram");
+assert(
+  ucm.document.entities.some((entity) => entity.kind === "circle"),
+  "UCM must draw the circular path",
+);
+
+const bankedQuestion = "A curve of radius 90 m is banked at 30° with no friction. Take g = 10 m/s². Find the design speed.";
+const banked = synthesizeFamilyScene({ question: bankedQuestion });
+assert(banked, "banked-road stem must compile");
+assert(
+  banked.document.entities.some((entity) => entity.id === "incline"),
+  "a banked road must be an incline, not a horizontal block",
+);
+
+const conicalQuestion = "A conical pendulum has string length 2.0 m and makes 30° with the vertical. Draw T, mg, and the radius of the horizontal circle.";
+const conical = synthesizeFamilyScene({ question: conicalQuestion });
+assert(conical, "conical pendulum must compile");
+assert(
+  conical.document.entities.some((entity) => entity.id === "tension"),
+  "conical pendulum must mark tension",
+);
+
+const notProjectile = "A particle’s velocity is (3.0 î + 4.0 ĵ) m/s. Find its speed. This is not a projectile: there is no gravity in the problem.";
+const notProjectileScene = synthesizeFamilyScene({ question: notProjectile });
+assert(notProjectileScene, "planar velocity components must still compile");
+assert(
+  !notProjectileScene.document.entities.some((entity) => entity.id === "tower"),
+  "a stem that says it is not a projectile must not become a trajectory",
+);
+
 const missing = synthesizeFamilyScene({
   question: "What is the capital of France?",
   families: [],
   turnPlan: plan("What is the capital of France?", []),
 });
 assert(missing === null, "unsupported questions must not invent a diagram");
+
+const gaussQuestion = "Apply Gauss's law to a uniformly charged thin spherical shell of radius 10 cm carrying 2 μC. Find the electric field outside.";
+const gaussScene = synthesizeFamilyScene({ question: gaussQuestion, families: [] });
+assert(gaussScene, "Gauss shell must compile a point-field diagram");
+assert(gaussScene.family === "point_field", "Gauss shell must use point_field");
+
+const wheatstoneQuestion = "In a Wheatstone bridge the four resistances are 10 ohm, 20 ohm, 30 ohm and 40 ohm. Find the galvanometer current.";
+const wheatstoneScene = synthesizeFamilyScene({ question: wheatstoneQuestion, families: [] });
+assert(wheatstoneScene, "Wheatstone bridge must compile a circuit");
+assert(wheatstoneScene.family === "circuit_network", "Wheatstone must use circuit_network");
+
+const depletionQuestion =
+  "With the help of a suitable diagram, explain the formation of depletion-region in a p-n junction. How does its width change when the junction is forward biased and reverse biased?";
+const depletion = synthesizeFamilyScene({ question: depletionQuestion, families: [] });
+assert(depletion, "depletion-region stem must compile as one energy-level family");
+assert(depletion.family === "energy_level", "depletion region must not fall through to a circuit");
+assert(
+  depletion.document.entities.some((entity) => entity.id === "depletion"),
+  "depletion scene must mark the depletion region",
+);
+
+const bandQuestion = "Draw energy band diagrams of n-type and p-type semiconductors at temperature T > 0 K.";
+const bands = synthesizeFamilyScene({ question: bandQuestion, families: [] });
+assert(bands, "n-type and p-type energy bands must compile");
+assert(bands.family === "energy_level", "semiconductor bands must use energy_level");
+assert(
+  bands.document.entities.some((entity) => entity.id === "n_imp")
+    && bands.document.entities.some((entity) => entity.id === "p_imp"),
+  "n-type and p-type columns must mark donor and acceptor levels",
+);
+
+const solarQuestion =
+  "With the help of a simple diagram, explain the working of a silicon solar cell, giving all three basic processes involved.";
+const solar = synthesizeFamilyScene({ question: solarQuestion, families: [] });
+assert(solar, "solar cell must compile as a junction schematic");
+assert(solar.family === "energy_level", "solar cell must not become a circuit");
+assert(solar.document.entities.some((entity) => entity.id === "photon"), "solar cell must mark the incident photon");
+
+const ledQuestion = "Explain, with the help of a schematic diagram, the principle and working of a Light Emitting Diode.";
+const led = synthesizeFamilyScene({ question: ledQuestion, families: [] });
+assert(led, "LED working diagram must compile as the energy-level family");
+assert(led.family === "energy_level", "LED must not become a generic resistor circuit");
+assert(led.document.entities.some((entity) => entity.id === "photon"), "LED must mark the emitted photon");
+
+const diodeCircuitQuestion = "Draw a p-n junction diode in forward bias with the battery and the junction.";
+const diodeCircuit = synthesizeFamilyScene({ question: diodeCircuitQuestion, families: [] });
+assert(diodeCircuit, "forward-bias diode with battery must still compile a circuit");
+assert(diodeCircuit.family === "circuit_network", "a biased diode with a battery remains circuit_network");
+
+const transferQuestion =
+  "Draw the transfer characteristic curve of a base biased transistor in CE configuration.";
+const transfer = synthesizeFamilyScene({ question: transferQuestion, families: [] });
+assert(transfer, "transistor transfer characteristic must compile");
+assert(transfer.family === "state_plot", "a device characteristic curve is a state plot");
+
+const meterBridgeQuestion = "State the principle of a meter bridge. A meter bridge balance point is found with resistances R and S.";
+const meterBridge = synthesizeFamilyScene({ question: meterBridgeQuestion, families: [] })
+  ?? synthesizeLastResortScene({ question: meterBridgeQuestion, families: [] });
+assert(meterBridge, "meter-bridge spelling must compile as the same circuit family as metre-bridge");
+assert(meterBridge.family === "circuit_network", "meter bridge must use circuit_network");
+
+const magneticNewline = "A 1 cm straight segment of a conductor carrying 1 A lies at the origin. The magnetic\nfield due to this segment at (1 m, 1 m, 0) is.";
+const magneticScene = synthesizeFamilyScene({ question: magneticNewline, families: [] })
+  ?? synthesizeLastResortScene({ question: magneticNewline, families: [] });
+assert(magneticScene, "newline-split magnetic field must still compile");
+assert(magneticScene.family === "point_field", "a current element field is point_field");
+
+const platesQuestion = "Four identical thin square metal sheets are kept parallel to each other with equal distance d between them. Find the capacitance between the outer sheets.";
+const plates = synthesizeFamilyScene({ question: platesQuestion, families: [] })
+  ?? synthesizeLastResortScene({ question: platesQuestion, families: [] });
+assert(plates, "parallel metal sheets must compile as plates, not a resistor network");
+assert(plates.family === "point_field", "parallel plates stay in point_field");
+assert(plates.document.entities.some((entity) => entity.id === "plate1"), "parallel-plate scene must mark both plates");
+
+const variationQuestion =
+  "A conductor of uniform cross-sectional area is connected across a dc source. Draw a graph showing variation of drift velocity of electrons (vd) as a function of current density (J) in it.";
+const variation = synthesizeFamilyScene({ question: variationQuestion, families: [] })
+  ?? synthesizeLastResortScene({ question: variationQuestion, families: [] });
+assert(variation, "named variation graph must compile");
+assert(variation.family === "state_plot", "vd versus J is a state plot, not empty axes");
+
+const normalAdjMicroscope =
+  "A compound microscope consists of an objective and an eyepiece. The expression for me depends on whether the final image is formed at the near point or at infinity (normal adjustment). Draw the ray diagram.";
+const microscopePaper = synthesizeFamilyScene({ question: normalAdjMicroscope, families: [] })
+  ?? synthesizeLastResortScene({ question: normalAdjMicroscope, families: [] });
+assert(microscopePaper, "a microscope stem that mentions normal adjustment must still compile through optical_train");
+assert(
+  microscopePaper.document.constructions.some((construction) => construction.operator === "optical_train"),
+  "normal-adjustment wording must not veto an optical_train instrument",
+);
+
+const keplerQuestion = "A satellite orbits Earth in a circular orbit of radius 2R. Find the orbital velocity. Take g at the surface as 10 m/s².";
+const keplerScene = synthesizeFamilyScene({ question: keplerQuestion, families: [] });
+assert(keplerScene, "satellite orbit must compile a field/orbit diagram");
 
 console.log("family synthesis verification passed");

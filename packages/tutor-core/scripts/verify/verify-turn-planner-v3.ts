@@ -241,6 +241,24 @@ try {
   if (!questionRequiresVisual("A raindrop of mass 1 g starts from rest at height 1 km and hits the ground at 5 m/s.")) {
     throw new Error("a falling-body work problem was not marked diagram-worthy");
   }
+  if (!questionRequiresVisual("Position along a line is x = t^3 metres with t in seconds. Find the instantaneous velocity at t = 2.0 s.")) {
+    throw new Error("an x(t) kinematics stem was not marked diagram-worthy");
+  }
+  if (!questionRequiresVisual("A train starting from rest first accelerates uniformly up to 80 km/h in time t, then moves at that constant speed for time 3t.")) {
+    throw new Error("a train average-speed stem was not marked diagram-worthy");
+  }
+  if (!questionRequiresVisual("Car A travels east at 20 m/s and car B travels east at 5.0 m/s on the same straight road. Find the velocity of A relative to B and of B relative to A.")) {
+    throw new Error("a 1D relative-velocity stem was not marked diagram-worthy");
+  }
+  if (!questionRequiresVisual("A ball is projected from the ground at 45° to the horizontal and reaches a maximum height of 120 m.")) {
+    throw new Error("a projectile stem was not marked diagram-worthy");
+  }
+  if (!questionRequiresVisual("A boat’s speed in still water is 5.0 m/s and the current is 3.0 m/s along the river.")) {
+    throw new Error("a river-boat stem was not marked diagram-worthy");
+  }
+  if (!questionRequiresVisual("A velocity–time graph is a horizontal line at v = 10 m/s from t = 0 to t = 4.0 s. Sketch it.")) {
+    throw new Error("a motion-graph stem was not marked diagram-worthy");
+  }
   if (questionRequiresVisual("Classify each as conservative or non-conservative, with one line of reason: gravity near the Earth, an ideal spring, kinetic friction, and air drag.")) {
     throw new Error("a definition-only conservative-force stem was force-marked as requiring a visual");
   }
