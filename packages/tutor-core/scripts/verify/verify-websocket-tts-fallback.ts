@@ -3,6 +3,11 @@ import {
   shouldCompleteTtsJobAfterSilence,
   TTS_WS_CONNECT_TIMEOUT_MS,
 } from "../../src/tts/elevenLabsWebSocketClient";
+import {
+  createLectureAudioContext,
+  getSharedAudioContext,
+  releaseLectureAudioContext,
+} from "../../src/tts/audioContext";
 
 type MessageListener = (event: { data: string }) => void;
 
@@ -109,6 +114,10 @@ class FakeAudioContext {
       gain: { value: 1 },
       connect(_destination: unknown) {},
     } as GainNode;
+  }
+
+  async close(): Promise<void> {
+    this.state = "closed";
   }
 }
 
@@ -322,5 +331,13 @@ await new Promise((resolve) => setTimeout(resolve, 20));
 assert(prefetchFetches === 1, "prefetch did not start HTTP generation early");
 await prefetchClient.speakSegment("Prefetch this sentence so the next beat is ready.");
 assert(prefetchFetches === 1, "speaking a prefetched sentence generated it a second time");
+
+const shared = getSharedAudioContext();
+const lectureA = createLectureAudioContext();
+const lectureB = createLectureAudioContext();
+assert(lectureA !== shared, "a lecture must not reuse the unlock AudioContext");
+assert(lectureB !== lectureA, "concurrent lectures must not share an AudioContext");
+releaseLectureAudioContext(lectureA);
+releaseLectureAudioContext(lectureB);
 
 console.log("verified websocket fallback and HTTP stop cancellation");

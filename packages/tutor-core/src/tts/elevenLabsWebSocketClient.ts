@@ -16,7 +16,7 @@ import {
   concatDecodedAudioBuffers,
   nextScheduleStartSec,
 } from "./playbackSchedule";
-import { getSharedAudioContext } from "./audioContext";
+import { createLectureAudioContext, releaseLectureAudioContext } from "./audioContext";
 
 interface TimestampChunkPayload {
   audio?: string;
@@ -317,7 +317,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
 
   unlockAudio(): void {
     this.paused = false;
-    this.audioContext = getSharedAudioContext();
+    this.audioContext = this.audioContext ?? createLectureAudioContext();
     if (this.audioContext.state === "suspended") {
       void this.audioContext.resume().then(() => {
         tutorDebug("tts", "audio unlocked", { state: this.audioContext?.state });
@@ -1495,7 +1495,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   }
 
   private async ensureAudioContext(): Promise<AudioContext> {
-    this.audioContext = this.audioContext ?? getSharedAudioContext();
+    this.audioContext = this.audioContext ?? createLectureAudioContext();
 
     if (this.audioContext.state === "suspended" && !this.paused) {
       try {
@@ -1573,6 +1573,9 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     this.connectedSessionId = undefined;
     this.paused = false;
     this.speechFallback.stop();
+    releaseLectureAudioContext(this.audioContext);
+    this.audioContext = null;
+    this.outputGain = null;
   }
 
   get isPlaying(): boolean {

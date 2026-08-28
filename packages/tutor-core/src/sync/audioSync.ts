@@ -931,6 +931,9 @@ export interface DrawingDurations {
   ARROW: number;
   HIGHLIGHT: number;
   FOCUS: number;
+  EMPHASIZE: number;
+  SUPERSEDE: number;
+  ANNOTATE: number;
   SCRIBBLE: number;
   DIMENSION: number;
   CLEAR: number;
@@ -957,6 +960,9 @@ const DEFAULT_DRAWING_DURATIONS: DrawingDurations = {
   ARROW: 500,
   HIGHLIGHT: 250,
   FOCUS: 900,
+  EMPHASIZE: 420,
+  SUPERSEDE: 400,
+  ANNOTATE: 700,
   SCRIBBLE: 400,
   DIMENSION: 900,
   CLEAR: 200,
@@ -996,7 +1002,12 @@ export function getDrawingDuration(
       if (pace === "scene") {
         return applySceneDuration(baseMs);
       }
-      if (command.type === "FOCUS") {
+      if (
+        command.type === "FOCUS" ||
+        command.type === "EMPHASIZE" ||
+        command.type === "SUPERSEDE" ||
+        command.type === "ANNOTATE"
+      ) {
         return Math.round(baseMs * FOLLOW_FOCUS_SCALE);
       }
       return baseMs;
@@ -1020,6 +1031,9 @@ export function getFlightDuration(
     command.type === "ARROW" ||
     command.type === "HIGHLIGHT" ||
     command.type === "FOCUS" ||
+    command.type === "EMPHASIZE" ||
+    command.type === "SUPERSEDE" ||
+    command.type === "ANNOTATE" ||
     command.type === "SCRIBBLE"
   ) {
     baseMs = 200;

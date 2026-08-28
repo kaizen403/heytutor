@@ -74,7 +74,12 @@ export function selectInkPace(
 
   // Teaching FOCUS: follow the existing geometry. Setup traces inside a busy
   // intro batch are part of the figure, not a lesson follow-along.
-  if (command.type === "FOCUS") {
+  if (
+    command.type === "FOCUS" ||
+    command.type === "EMPHASIZE" ||
+    command.type === "SUPERSEDE" ||
+    command.type === "ANNOTATE"
+  ) {
     return compoundIntro ? "scene" : "follow";
   }
 

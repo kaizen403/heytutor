@@ -213,13 +213,22 @@ export function useBoardSession({
     return ttsClientRef.current;
   }, [ttsClientRef, speedRef, muted]);
 
+  // Create the TTS client once on mount only. Re-creating it when `muted`
+  // flips (promoting a headless lecture to Watch Live) runs the cleanup's
+  // stop(), closing the WebSocket relay and silencing live playback.
   useEffect(() => {
     ensureTTSClient();
 
     return () => {
       ttsClientRef.current?.stop();
     };
-  }, [ensureTTSClient, ttsClientRef]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Apply mute changes reactively without tearing down the connection.
+  useEffect(() => {
+    ttsClientRef.current?.setMuted?.(muted);
+  }, [muted, ttsClientRef]);
 
   const registerReplayBlobUrl = useCallback((url: string) => {
     replayBlobUrlsRef.current.push(url);

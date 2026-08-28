@@ -41,6 +41,8 @@ const workWritePace = selectInkPace(formula);
 assert(workWritePace === "follow", "work-area WRITE must be follow pace");
 assert(selectInkPace(longFormula) === "follow", "formula substitutions must stay followable");
 assert(selectInkPace(focus) === "follow", "teaching FOCUS traces must be followable");
+assert(selectInkPace(command("EMPHASIZE", [], "last")) === "follow", "EMPHASIZE must stay followable");
+assert(selectInkPace(command("SUPERSEDE", [], "1")) === "follow", "SUPERSEDE must stay followable");
 
 const introContext = inkPaceContextForSegment({
   verifiedDiagramIntro: true,
