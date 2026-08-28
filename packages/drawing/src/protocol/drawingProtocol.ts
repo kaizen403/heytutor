@@ -15,6 +15,9 @@ export type DrawCommandType =
   | 'ARROW'
   | 'HIGHLIGHT'
   | 'FOCUS'
+  | 'EMPHASIZE'
+  | 'SUPERSEDE'
+  | 'ANNOTATE'
   | 'SCRIBBLE'
   | 'DIMENSION'
   | 'PAUSE'
@@ -29,6 +32,7 @@ export interface DrawCommandVisualStyle {
   dashed?: boolean;
   /** Verified closed region rendered below its boundary ink. */
   fillRole?: 'region';
+  correspondingFamily?: 1 | 2 | 3;
 }
 
 export interface DrawCommandSemanticRef {
@@ -72,6 +76,9 @@ export const DRAW_COMMAND_TYPES = [
   'ARROW',
   'HIGHLIGHT',
   'FOCUS',
+  'EMPHASIZE',
+  'SUPERSEDE',
+  'ANNOTATE',
   'SCRIBBLE',
   'DIMENSION',
   'PAUSE',
@@ -87,7 +94,7 @@ export const DRAWING_TAG_SCAN_PATTERN = /\[[^\]\n]{1,256}\]/g;
 const WRITE_LABEL_HEADER_PATTERN = /^\[(WRITE|LABEL):/i;
 const WRITE_LABEL_ENDING_PATTERN =
   /,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?\]/g;
-const WRITE_LABEL_BODY_BREAK_PATTERN = /\[(WRITE|LABEL|STEP|\/STEP|FOCUS|PAUSE)\b/i;
+const WRITE_LABEL_BODY_BREAK_PATTERN = /\[(WRITE|LABEL|STEP|\/STEP|FOCUS|EMPHASIZE|SUPERSEDE|ANNOTATE|PAUSE)\b/i;
 
 export interface ParsedDrawingTag {
   type: DrawCommandType;
@@ -183,9 +190,14 @@ export function parseDrawingTag(rawTag: string): ParsedDrawingTag | null {
     return { type: 'DRAW_ARC', rawParams };
   }
 
-  if (normalizedName === 'FOCUS') {
+  if (
+    normalizedName === 'FOCUS' ||
+    normalizedName === 'EMPHASIZE' ||
+    normalizedName === 'SUPERSEDE' ||
+    normalizedName === 'ANNOTATE'
+  ) {
     return {
-      type: 'FOCUS',
+      type: normalizedName,
       rawParams: rawParams.trim(),
     };
   }
@@ -342,8 +354,8 @@ export function parseDrawCommandFromTag(
   narrationBefore: string,
 ): DrawCommand {
   const parsed =
-    type === 'FOCUS'
-      ? { text: normalizeBoardText(rawParams), params: [] }
+    type === 'FOCUS' || type === 'EMPHASIZE' || type === 'SUPERSEDE' || type === 'ANNOTATE'
+      ? { text: rawParams.trim(), params: [] }
       : type === 'WRITE' || type === 'LABEL'
       ? parseTextCommandParams(rawParams)
       : type === 'DIMENSION'

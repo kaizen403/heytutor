@@ -15,6 +15,16 @@ export interface VerifiedDiagramAnchor {
   height: number;
 }
 
+export interface VerifiedDiagramGroup {
+  id: string;
+  entityIds: string[];
+}
+
+export interface VerifiedDeferredAnnotation {
+  entityId: string;
+  commands: VerifiedDiagramCommand[];
+}
+
 export interface VerifiedDiagramCommand {
   type: DrawCommandType;
   params: number[];
@@ -39,6 +49,9 @@ export interface VerifiedDiagram {
   anchors: VerifiedDiagramAnchor[];
   reveals: VerifiedDiagramReveal[];
   promptAddon: string;
+  groups?: VerifiedDiagramGroup[];
+  caption?: string;
+  deferredAnnotations?: VerifiedDeferredAnnotation[];
 }
 
 export interface VerifiedDiagramPresentation {

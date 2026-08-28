@@ -5,8 +5,13 @@ import {
   normalizeBoardText,
   normalizeStrokeText,
   parseDrawingCommands,
+  parseFocusSpec,
   parseStructuredLessonSteps,
+  parseWorkRowSelector,
   prepareVerifiedLessonSegments,
+  isBlockedVerifiedDiagramCommand,
+  resolveWorkAreaRow,
+  hitTestVerifiedAnchor,
   spokenFocusTarget,
   textToStrokePaths,
   type TutorSegment,
@@ -149,6 +154,8 @@ const diagram: VerifiedDiagram = {
     { id: "object_base", labels: ["object_base", "O", "object position"], x: 420, y: 300, width: 12, height: 12 },
     { id: "image_base", labels: ["image_base", "I", "image position"], x: 360, y: 300, width: 12, height: 12 },
     { id: "object", labels: ["object", "O", "object"], x: 420, y: 250, width: 12, height: 80 },
+    { id: "ab", labels: ["ab", "AB"], x: 450, y: 300, width: 200, height: 8 },
+    { id: "mirror", labels: ["mirror", "M"], x: 700, y: 200, width: 16, height: 140 },
   ],
   reveals: [],
   promptAddon: "",
@@ -167,7 +174,7 @@ const namedImage = prepareVerifiedLessonSegments([
   { narration: "this is I, the image.", command: null },
 ], diagram);
 assert(namedImage.segments[0]?.command?.type === "FOCUS", "naming I must attach a FOCUS command");
-assert(namedImage.segments[0]?.command?.text === "image_base", "FOCUS must target the verified image entity");
+assert(namedImage.segments[0]?.command?.text === "image_base|pulse", "naming a compact point must pulse the verified image entity");
 assert(
   checkSegmentAlignment({
     narration: "this is I, the image.",
@@ -180,5 +187,81 @@ const firstPerson = prepareVerifiedLessonSegments([
   { narration: "i will substitute the given distances.", command: null },
 ], diagram);
 assert(firstPerson.segments[0]?.command === null, "first-person speech must not invent a FOCUS mark");
+
+assert(spokenFocusTarget("notice AB.", diagram)?.id === "ab", "notice AB must select the labeled segment");
+assert(spokenFocusTarget("look at the mirror.", diagram)?.id === "mirror", "a spoken display label must select the figure part");
+const noticedMirror = prepareVerifiedLessonSegments([
+  { narration: "look at the mirror.", command: null },
+], diagram);
+assert(noticedMirror.segments[0]?.command?.type === "FOCUS", "naming the mirror must move the marker");
+assert(noticedMirror.segments[0]?.command?.text === "mirror", "the mirror label must trace the verified apparatus");
+assert(
+  spokenFocusTarget("the mirror equation is one over f.", diagram) === null,
+  "a formula name must not steal FOCUS from a nearby apparatus label",
+);
+assert(
+  spokenFocusTarget("the object sits in front of the mirror.", diagram)?.id === "object_base",
+  "object role still wins over a later apparatus label",
+);
+const noticedEdge = prepareVerifiedLessonSegments([
+  { narration: "notice AB.", command: null },
+], diagram);
+assert(noticedEdge.segments[0]?.command?.type === "FOCUS", "notice AB must attach FOCUS without a teaching tag");
+assert(
+  noticedEdge.segments[0]?.command?.text === "ab",
+  "a long segment is traced, not pulsed like a point",
+);
+
+const circledImage = prepareVerifiedLessonSegments([
+  { narration: "let me circle the image I.", command: null },
+], diagram);
+assert(circledImage.segments[0]?.command?.type === "FOCUS", "circle intent must become FOCUS, not CIRCLE_AROUND");
+assert(
+  circledImage.segments[0]?.command?.text === "image_base|pulse",
+  "circling a labeled point must pulse the verified image entity",
+);
+assert(
+  !/let me circle/i.test(circledImage.segments[0]?.narration ?? ""),
+  "first-person circle speech must be stripped after the semantic focus is attached",
+);
+assert(
+  /notice/i.test(circledImage.segments[0]?.narration ?? ""),
+  "a stripped circle sentence must still leave a spoken notice cue",
+);
+
+const spotlight = parseDrawingCommands("[STEP]notice AB. [FOCUS:ab|spotlight][/STEP]");
+assert(spotlight.commands[0]?.type === "FOCUS" && spotlight.commands[0].text === "ab|spotlight", "FOCUS spotlight form must parse");
+assert(parseFocusSpec(spotlight.commands[0]?.text).emphasis === "spotlight", "FOCUS|spotlight must decode as spotlight");
+assert(parseFocusSpec("ab,cd|pulse").targetIds.join(",") === "ab,cd", "multi-id FOCUS must split entity ids");
+assert(parseFocusSpec("ab,cd|pulse").emphasis === "pulse", "FOCUS|pulse must decode as pulse");
+
+const emphasize = parseDrawingCommands("[STEP]keep this line. [EMPHASIZE:last][/STEP]");
+assert(emphasize.commands[0]?.type === "EMPHASIZE" && emphasize.commands[0].text === "last", "EMPHASIZE must parse a work-row selector");
+const supersede = parseDrawingCommands("[STEP]that earlier line is replaced. [SUPERSEDE:1][/STEP]");
+assert(supersede.commands[0]?.type === "SUPERSEDE" && supersede.commands[0].text === "1", "leftover SUPERSEDE tags must still parse so they do not leak into speech");
+assert(isBlockedVerifiedDiagramCommand(supersede.commands[0]!, null), "SUPERSEDE must not execute as a strike");
+const annotate = parseDrawingCommands("[STEP]the length is 4. [ANNOTATE:u_dim][/STEP]");
+assert(annotate.commands[0]?.type === "ANNOTATE" && annotate.commands[0].text === "u_dim", "ANNOTATE must parse an entity id");
+
+const workRow = resolveWorkAreaRow(parseWorkRowSelector("w2"), [
+  { x: 90, y: 145, width: 120, height: 32, text: "a = 1", workIndex: 1, workId: "w1" },
+  { x: 90, y: 205, width: 120, height: 32, text: "b = 2", workIndex: 2, workId: "w2" },
+]);
+assert(workRow?.text === "b = 2", "work-row selectors must resolve by workId");
+
+const hitDiagram: VerifiedDiagram = {
+  id: "verified_scene",
+  name: "hit",
+  commands: [{
+    type: "DRAW_LINE",
+    params: [450, 300, 700, 300],
+    semanticRef: { entityId: "ab" },
+  }],
+  anchors: [{ id: "ab", labels: ["ab", "AB"], x: 450, y: 292, width: 250, height: 16 }],
+  reveals: [],
+  promptAddon: "",
+};
+assert(hitTestVerifiedAnchor(575, 300, hitDiagram)?.id === "ab", "path-distance hit test must select the traced segment");
+assert(hitTestVerifiedAnchor(100, 100, hitDiagram) === null, "far clicks must not select a diagram entity");
 
 console.log("verify-drawing-protocol: nested WRITE/LABEL math tags pass inline, structured, and streaming parsing");

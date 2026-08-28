@@ -14,6 +14,20 @@ export {
   type BoardTextRect,
   type PreparedVerifiedSegments,
 } from "./protocol/commandPlacement";
+export {
+  parseFocusSpec,
+  parseWorkRowSelector,
+  resolveWorkAreaRow,
+  resolveVerifiedDiagramFocusTargets,
+  focusEmphasisOf,
+  takeDeferredAnnotations,
+  remainingDeferredAnnotations,
+  hitTestVerifiedAnchor,
+  type FocusEmphasis,
+  type SemanticFocusSpec,
+  type WorkRowSelector,
+  type WorkAreaRow,
+} from "./protocol/semanticGesture";
 export { BOARD_CANVAS, DIAGRAM_ZONE, WORK_ZONE, SECOND_WORK_ZONE, clampToDiagramZone, isInDiagramZone } from "./layout/boardZones";
 export {
   createScheduledWriteClock,

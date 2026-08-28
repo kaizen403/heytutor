@@ -13,6 +13,9 @@ const ANNOTATION_TYPES: DrawCommandType[] = [
   'ARROW',
   'HIGHLIGHT',
   'FOCUS',
+  'EMPHASIZE',
+  'SUPERSEDE',
+  'ANNOTATE',
   'SCRIBBLE',
 ];
 
@@ -133,7 +136,7 @@ export function checkSegmentAlignment(segment: TutorSegment): SegmentAlignmentRe
       continue;
     }
 
-    if (cmd.type === 'FOCUS') {
+    if (cmd.type === 'FOCUS' || cmd.type === 'EMPHASIZE' || cmd.type === 'SUPERSEDE' || cmd.type === 'ANNOTATE') {
       continue;
     }
 
