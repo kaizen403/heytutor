@@ -70,8 +70,11 @@ const label = presentation.diagram.commands.find((command) => command.type === "
 if (label?.params[0] !== 460 || label.params[1] !== 274) throw new Error("compiled label offset was not preserved");
 const absoluteLabel = presentation.diagram.commands.find((command) => command.type === "LABEL" && command.text === "AB");
 if (absoluteLabel?.params[1] !== 384) throw new Error("absolute scene-engine label position was changed by the adapter");
-const relocatedLabel = presentation.diagram.commands.find((command) => command.type === "LABEL" && command.text === "R_eq = 36 Ω");
-if (!relocatedLabel || relocatedLabel.params[1] === absoluteLabel?.params[1]) throw new Error("colliding absolute labels were not separated by the adapter");
+const measurementLabel = presentation.diagram.commands.find((command) => command.type === "LABEL" && command.text === "R_eq = 36 Ω");
+if (!measurementLabel) throw new Error("measurement label is missing from the compiled command list");
+if (measurementLabel.params[1] !== absoluteLabel?.params[1]) {
+  throw new Error("adapter must not relocate absolute scene-engine labels");
+}
 if (presentation.diagram.commands.some((command) => command.text?.includes("magnified"))) throw new Error("verbose prose leaked into diagram labels");
 if (presentation.diagram.commands.some((command) => command.text === "Ray 1")) throw new Error("helper entity label leaked into the diagram");
 if (presentation.diagram.commands.filter((command) =>
@@ -97,6 +100,23 @@ if (/^Before we calculate/i.test(focusNarration)) {
 }
 if (!presentation.diagram.promptAddon.includes("Do not emit DRAW_*")) throw new Error("teaching draw guard is missing");
 if (!presentation.diagram.promptAddon.includes("[FOCUS:entity_id]")) throw new Error("semantic focus contract is missing");
+if (!presentation.diagram.promptAddon.includes("[EMPHASIZE:last]")) throw new Error("work-area emphasize contract is missing");
+if (presentation.diagram.promptAddon.includes("WRITE only for equations")) {
+  throw new Error("teaching must be allowed to write names and definitions, not only equations");
+}
+if (!presentation.diagram.promptAddon.includes("student notebook")) {
+  throw new Error("teaching must treat the work column as a notebook");
+}
+if (!presentation.diagram.deferredAnnotations?.some((entry) =>
+  entry.commands.some((command) => command.text === "R_eq = 36 Ω")
+)) {
+  throw new Error("measurement labels must be deferred for staged ANNOTATE reveal");
+}
+if (presentation.introSegments.some((segment) =>
+  (segment.commands ?? []).some((command) => command.text === "R_eq = 36 Ω")
+)) {
+  throw new Error("measurement labels must not ink during the intro reveal");
+}
 
 const nonMetricDocument: SceneDocument = {
   ...document,
@@ -112,6 +132,9 @@ if (!nonMetricPresentation.diagram.promptAddon.includes("intentionally non-metri
 }
 if (!nonMetricPresentation.diagram.promptAddon.includes("do not infer scale")) {
   throw new Error("teaching model may still infer metric claims from a fallback representation");
+}
+if (!nonMetricPresentation.diagram.caption?.includes("Do not read scale from this figure.")) {
+  throw new Error("non-metric figures must show a caption that forbids reading scale");
 }
 if (nonMetricPresentation.diagram.name !== "source-grounded conceptual representation") {
   throw new Error("fallback representation was presented as an exact semantic scene");
@@ -186,6 +209,14 @@ if (focusCommand?.type !== "FOCUS" || focusCommand.text !== "ab") {
 }
 if (isBlockedVerifiedDiagramCommand(focusCommand, presentation.diagram)) {
   throw new Error("verified semantic focus target was blocked");
+}
+const parsedSpotlight = parseDrawingCommands("[STEP]notice segment AB. [FOCUS:ab|spotlight][/STEP]").commands[0]!;
+if (isBlockedVerifiedDiagramCommand(parsedSpotlight, presentation.diagram)) {
+  throw new Error("FOCUS spotlight on a verified target was blocked");
+}
+const parsedEmphasize = parseDrawingCommands("[STEP]keep this. [EMPHASIZE:last][/STEP]").commands[0]!;
+if (isBlockedVerifiedDiagramCommand(parsedEmphasize, presentation.diagram)) {
+  throw new Error("EMPHASIZE must be allowed beside a verified diagram");
 }
 const invalidFocus = parseDrawingCommands("[STEP]notice this. [FOCUS:made_up_target][/STEP]").commands[0]!;
 if (!isBlockedVerifiedDiagramCommand(invalidFocus, presentation.diagram)) {
@@ -272,6 +303,49 @@ if (!pointFocus.commands?.some((command) =>
   command.visualStyle?.strokeRole === "trace" && command.semanticRef?.entityId === "a"
 )) {
   throw new Error("naming a labeled point must mark it on the verified diagram");
+}
+if (!pointFocus.commands?.some((command) => command.type === "CIRCLE_AROUND")) {
+  throw new Error("point focus must enclose the vertex instead of a fixed-radius circle");
+}
+
+const encloseScene: RenderScene = {
+  ...renderScene,
+  primitives: [
+    ...renderScene.primitives,
+    {
+      id: "ring_a",
+      entityId: "ring_a",
+      groupId: "setup",
+      kind: "rectangle",
+      points: [
+        { x: 440, y: 290 },
+        { x: 460, y: 290 },
+        { x: 460, y: 310 },
+        { x: 440, y: 310 },
+      ],
+      provenance: { annotation: "enclose", annotationId: "ring_a", transient: false },
+    },
+    {
+      id: "shade_ab",
+      entityId: "shade_ab",
+      groupId: "edge",
+      kind: "rectangle",
+      points: [
+        { x: 450, y: 290 },
+        { x: 700, y: 290 },
+        { x: 700, y: 310 },
+        { x: 450, y: 310 },
+      ],
+      provenance: { annotation: "highlight", annotationId: "shade_ab", fillRole: "region", transient: false },
+    },
+  ],
+};
+const enclosePresentation = buildVerifiedDiagramPresentation(document, encloseScene);
+if (!enclosePresentation.diagram.commands.some((command) => command.type === "CIRCLE_AROUND")) {
+  throw new Error("enclose annotations must become CIRCLE_AROUND from compiled bounds");
+}
+if (!enclosePresentation.diagram.commands.some((command) => command.type === "HIGHLIGHT")) {
+  throw new Error("highlight annotations must become HIGHLIGHT from compiled bounds");
 }
 
 console.log("verified scene presentation verification passed");

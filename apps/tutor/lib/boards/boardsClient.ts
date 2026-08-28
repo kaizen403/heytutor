@@ -209,15 +209,40 @@ export async function saveTurn(
     }
   }
 
-  const res = await fetch(resolveApiUrl(`/api/boards/${boardId}/turns`), {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!res.ok) {
-    return null;
+  const url = resolveApiUrl(`/api/boards/${boardId}/turns`);
+  const MAX_SAVE_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_SAVE_ATTEMPTS; attempt += 1) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { turn?: StoredTurn };
+        return data.turn ?? null;
+      }
+      const errorText = await res.text().catch(() => "");
+      console.error("saveTurn failed", {
+        boardId,
+        status: res.status,
+        attempt,
+        error: errorText.slice(0, 300),
+      });
+      if (res.status < 500 && res.status !== 429) {
+        return null;
+      }
+    } catch (error) {
+      console.error("saveTurn network error", {
+        boardId,
+        attempt,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    if (attempt < MAX_SAVE_ATTEMPTS) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 400 * attempt);
+      });
+    }
   }
-
-  const data = (await res.json()) as { turn?: StoredTurn };
-  return data.turn ?? null;
+  return null;
 }

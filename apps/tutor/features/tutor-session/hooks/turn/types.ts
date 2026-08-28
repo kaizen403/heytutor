@@ -79,6 +79,7 @@ export type UseTurnLifecycleParams = {
   fbdPhaseMarkedRef: RefObject<boolean>;
   fbdPhaseStartedRef: RefObject<boolean>;
   activeVerifiedDiagramRef: RefObject<VerifiedDiagram | null>;
+  setActiveVerifiedDiagram?: Dispatch<SetStateAction<VerifiedDiagram | null>>;
   segmentPlanStatsRef: RefObject<SegmentPlanStats>;
   stopTurnRef: RefObject<(() => void) | null>;
   speedRef: RefObject<number>;

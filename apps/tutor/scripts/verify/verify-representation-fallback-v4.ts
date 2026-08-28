@@ -500,4 +500,63 @@ const motionGraphFallback = selectVerifiedRepresentation({
 assert(motionGraphFallback.sceneDocument.visualDecision.mode === "scene", "motion-graph lecture must not stay text-only");
 assert(motionGraphFallback.renderScene.primitives.length > 0, "motion-graph lecture must put ink on the board");
 
+const riverCrossingQuestion = "A river flows west to east at 9 km/h. A boat with maximum speed 27 km/h in still water crosses in half a minute while moving at maximum speed at 150° to the direction of river flow. Find the width of the river.";
+const recycledAngleDocument: SceneDocument = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "shared-origin vector diagram" },
+  source: { question: riverCrossingQuestion, representationTier: "exact_verified", nonMetric: false },
+  quantities: [],
+  entities: [
+    { id: "origin", kind: "point", role: "origin", label: "O" },
+    { id: "a_end", kind: "point", role: "vector A tip" },
+    { id: "b_end", kind: "point", role: "vector B tip" },
+    { id: "a", kind: "vector", role: "vector", label: "A" },
+    { id: "b", kind: "vector", role: "vector", label: "B" },
+  ],
+  constructions: [
+    { id: "make_origin", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["origin"] },
+    { id: "make_a_end", operator: "point", inputs: { x: 3, y: 0, coordinateSpace: "world" }, outputs: ["a_end"] },
+    { id: "make_b_end", operator: "point", inputs: { x: 1.5, y: 2, coordinateSpace: "world" }, outputs: ["b_end"] },
+    { id: "make_a", operator: "vector", inputs: { start: "origin", end: "a_end" }, outputs: ["a"] },
+    { id: "make_b", operator: "vector", inputs: { start: "origin", end: "b_end" }, outputs: ["b"] },
+  ],
+  relations: [],
+  assertions: [
+    { id: "a_exists", predicate: "exists", entities: ["a"], expected: true, severity: "fatal" },
+    { id: "b_exists", predicate: "exists", entities: ["b"], expected: true, severity: "fatal" },
+  ],
+  annotations: [],
+  requiredEntityIds: ["origin", "a_end", "b_end", "a", "b"],
+  revealGroups: [{
+    id: "setup",
+    entityIds: ["origin", "a_end", "b_end", "a", "b"],
+    dependsOn: [],
+    narrationCue: "shared-origin vector diagram",
+  }],
+  teachingTimeline: [],
+};
+const recycledAngleValidated = validateSceneDocument(pruneDeadSceneEntities(
+  recycledAngleDocument as unknown as Record<string, unknown>,
+));
+assert(recycledAngleValidated.document, "recycled angle fixture must normalize");
+const recycledAngleCompiled = compileSceneDocument(recycledAngleValidated.document);
+assert(recycledAngleCompiled.ok && recycledAngleCompiled.renderScene, "recycled angle fixture must compile");
+const rejectedRiverAngle = selectVerifiedRepresentation({
+  question: riverCrossingQuestion,
+  families: ["vector_diagram"],
+  exact: {
+    sceneDocument: recycledAngleValidated.document,
+    renderScene: recycledAngleCompiled.renderScene,
+    validationReport: recycledAngleCompiled.report,
+  },
+});
+assert(
+  !rejectedRiverAngle.sceneDocument.entities.some((entity) => entity.id === "a" && entity.label === "A"),
+  "a recycled A/B angle on a river-boat stem must not be accepted as exact",
+);
+assert(
+  rejectedRiverAngle.sceneDocument.entities.some((entity) => /bank/i.test(`${entity.id} ${entity.role}`)),
+  "river-boat fallback must draw banks instead of the generic angle",
+);
+
 console.log("representation fallback v4 verification passed");

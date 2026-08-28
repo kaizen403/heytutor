@@ -1,5 +1,6 @@
 import {
   compileSceneDocument,
+  isRiverBoatStem,
   parseMathExpression,
   synthesizeFamilyScene,
   synthesizeLastResortScene,
@@ -226,7 +227,8 @@ function isUsableExactRepresentation(
     candidate.sceneDocument.visualDecision.mode !== "scene" ||
     candidate.renderScene.primitives.length === 0 ||
     usesMensurationSolidOnContactProblem(expectedQuestion, candidate.sceneDocument) ||
-    usesCollidingCircuitViews(expectedQuestion, candidate.sceneDocument)
+    usesCollidingCircuitViews(expectedQuestion, candidate.sceneDocument) ||
+    usesGenericVectorDiagramOnRiverBoat(expectedQuestion, candidate.sceneDocument)
   ) {
     return false;
   }
@@ -267,6 +269,19 @@ function usesCollidingCircuitViews(
     if (!prior) seen.set(key, id);
   }
   return false;
+}
+
+function usesGenericVectorDiagramOnRiverBoat(
+  question: string,
+  document: SceneDocument,
+): boolean {
+  if (!isRiverBoatStem(question)) return false;
+  const ids = new Set(document.entities.map((entity) => entity.id));
+  const recycledAB = ids.has("origin") && ids.has("a") && ids.has("b")
+    && ids.has("a_end") && ids.has("b_end");
+  const hasBanks = document.entities.some((entity) =>
+    /bank|shore/i.test(`${entity.id} ${entity.role} ${entity.label ?? ""}`));
+  return recycledAB || !hasBanks;
 }
 
 function buildFunctionRepresentation(

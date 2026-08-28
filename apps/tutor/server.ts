@@ -24,6 +24,7 @@ async function warmDevRoutes(baseUrl: string): Promise<void> {
   const routes = [
     "/api/boards",
     `/api/boards/${warmupBoardId}`,
+    `/api/boards/${warmupBoardId}/turns`,
     "/api/chat",
   ];
 

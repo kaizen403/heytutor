@@ -9,6 +9,7 @@ import {
   type TutorSegment,
 } from "@heytutor/drawing";
 import type { RenderPrimitive, RenderScene, SceneDocument } from "@heytutor/scene-engine";
+import { isMeasurementLabelText } from "@heytutor/scene-engine";
 
 /** Convert validated render primitives into the whiteboard command transport. */
 export function buildVerifiedDiagramPresentation(
@@ -32,6 +33,7 @@ export function buildVerifiedDiagramPresentation(
     groupId: string,
     phase: RevealPhase,
     command: VerifiedDiagramCommand,
+    options: { reveal?: boolean } = {},
   ): number | null => {
     const key = [
       command.type,
@@ -44,20 +46,26 @@ export function buildVerifiedDiagramPresentation(
     if (commandKeys.has(key)) return null;
     commandKeys.add(key);
     const index = commands.push(command) - 1;
+    if (options.reveal === false) return index;
     const group = indicesByGroup.get(groupId) ?? emptyPhaseIndices();
     group[phase].push(index);
     indicesByGroup.set(groupId, group);
     return index;
   };
 
+  const deferredByEntity = new Map<string, VerifiedDiagramCommand[]>();
+  const annotateTargetIds = new Set(
+    document.teachingTimeline
+      .filter((action) => action.action === "annotate")
+      .map((action) => action.targetId),
+  );
+
   for (const primitive of renderScene.primitives) {
     const helperRole = isHelperRole(rolesByEntityId.get(primitive.entityId));
     const suppressInlineLabel = helperRole && (primitive.kind !== "label" || isGenericHelperLabel(primitive.text));
     const phase = revealPhaseForPrimitive(primitive);
     for (const command of primitiveCommands(primitive, labels, suppressInlineLabel)) {
-      const commandPhase =
-        command.type === "LABEL" || command.type === "DIMENSION" ? "detail" : phase;
-      add(primitive.groupId, commandPhase, {
+      const styled: VerifiedDiagramCommand = {
         ...command,
         ...(regionEntityIds.has(primitive.entityId) && primitive.kind === "polygon"
           ? {
@@ -67,11 +75,21 @@ export function buildVerifiedDiagramPresentation(
               },
             }
           : {}),
+        ...annotationVisualStyle(primitive, command),
         semanticRef: {
           entityId: primitive.entityId,
           primitiveId: primitive.id,
         },
-      });
+      };
+      const commandPhase =
+        command.type === "LABEL" || command.type === "DIMENSION" ? "detail" : phase;
+      const defer = shouldDeferAnnotation(primitive, command, annotateTargetIds);
+      if (defer) {
+        const existing = deferredByEntity.get(primitive.entityId) ?? [];
+        existing.push(styled);
+        deferredByEntity.set(primitive.entityId, existing);
+      }
+      add(primitive.groupId, commandPhase, styled, { reveal: !defer });
     }
   }
 
@@ -149,34 +167,50 @@ export function buildVerifiedDiagramPresentation(
 
   const anchors = Object.entries(renderScene.entityBounds).map(([id, bounds]) => {
     const entity = document.entities.find((candidate) => candidate.id === id);
+    const padX = Math.max(0, (16 - bounds.width) / 2);
+    const padY = Math.max(0, (16 - bounds.height) / 2);
     return {
       id,
       labels: [id, entity?.label, entity?.role].filter((value): value is string => Boolean(value)),
-      x: bounds.x,
-      y: bounds.y,
-      width: Math.max(bounds.width, 12),
-      height: Math.max(bounds.height, 12),
+      x: bounds.x - padX,
+      y: bounds.y - padY,
+      width: Math.max(bounds.width, 16),
+      height: Math.max(bounds.height, 16),
     };
   });
 
-  const focusTargets = anchors
-    .map((anchor) => `${anchor.id}${anchor.labels[1] ? ` (${anchor.labels[1]})` : ""}`)
-    .join(", ");
+  const groups = [
+    ...renderScene.revealGroups.map((group) => ({ id: group.id, entityIds: [...group.entityIds] })),
+    ...correspondingGroupsFromDocument(document),
+  ];
+  const focusTargets = [
+    ...anchors.map((anchor) => `${anchor.id}${anchor.labels[1] ? ` (${anchor.labels[1]})` : ""}`),
+    ...groups.map((group) => group.id),
+  ].join(", ");
+  const deferredIds = [...deferredByEntity.keys()].join(", ");
   const diagram: VerifiedDiagram = {
     id: "verified_scene",
     name: nonMetric ? "source-grounded conceptual representation" : "validated semantic scene",
     commands,
     anchors,
     reveals,
+    groups,
+    caption: renderScene.caption ?? (nonMetric ? "Do not read scale from this figure." : undefined),
+    deferredAnnotations: [...deferredByEntity.entries()].map(([entityId, deferredCommands]) => ({
+      entityId,
+      commands: deferredCommands,
+    })),
     promptAddon: `${nonMetric
       ? `A source-grounded conceptual representation (${representationTier}) has already been compiled and is being explained as it is revealed. It is intentionally non-metric: do not infer scale, missing connections, intersections, regions, directions, or solved values from it.`
       : "A complete metric diagram has already been compiled, validated, and is being explained as it is revealed."}
 Do not emit DRAW_*, LABEL, DIMENSION, ARROW, SCRIBBLE, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, ERASE, or CLEAR tags.
-When a solution step genuinely needs the learner to follow an existing diagram entity, you may append one semantic [FOCUS:entity_id] tag. Never provide coordinates. Use only these verified targets: ${focusTargets || "none"}.
+When you name a listed diagram entity, append [FOCUS:entity_id] in that same step. Never provide coordinates. Use only these verified targets: ${focusTargets || "none"}.
+Optional FOCUS forms: [FOCUS:entity_id], [FOCUS:entity_id|spotlight], [FOCUS:entity_id|pulse], [FOCUS:id_a,id_b], or a reveal-group id.
 When you say what a labeled point is — for example the object O or the image I — put [FOCUS:entity_id] in that same step, immediately after the spoken name.
+To underline the current work-area equation, use [EMPHASIZE:last]. To reveal a withheld measurement, enclose, or other compiled annotation, use [ANNOTATE:entity_id] with one of: ${deferredIds || "none"}.
 Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", "look at", or "this is" the named entity when using FOCUS.
 Refer to diagram entities by their visible labels in narration.
-You may use WRITE only for equations and symbolic working in the left work area (x below 360).
+WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Short phrases are allowed. Do not save writing for the last line, and do not speak a step with the marker parked.
 The scene engine owns all diagram geometry, labels, annotations, directions, connections, and markings.`,
   };
 
@@ -222,6 +256,64 @@ const LABEL_MAX_X = DIAGRAM_ZONE.x + DIAGRAM_ZONE.width - 10;
 
 function emptyPhaseIndices(): Record<RevealPhase, number[]> {
   return { structure: [], direction: [], detail: [] };
+}
+
+function shouldDeferAnnotation(
+  primitive: RenderPrimitive,
+  command: VerifiedDiagramCommand,
+  annotateTargetIds: Set<string>,
+): boolean {
+  const annotationId = typeof primitive.provenance?.annotationId === "string"
+    ? primitive.provenance.annotationId
+    : undefined;
+  if (annotateTargetIds.has(primitive.entityId) || (annotationId && annotateTargetIds.has(annotationId))) {
+    return true;
+  }
+  if (primitive.provenance?.transient === true) return true;
+  if (command.type !== "LABEL" && command.type !== "DIMENSION") return false;
+  if (command.type === "DIMENSION") return true;
+  return Boolean(command.text && isMeasurementLabelText(command.text));
+}
+
+function annotationVisualStyle(
+  primitive: RenderPrimitive,
+  command: VerifiedDiagramCommand,
+): { visualStyle?: VerifiedDiagramCommand["visualStyle"] } {
+  const provenance = primitive.provenance ?? {};
+  const corresponding = typeof provenance.correspondingFamily === "number"
+    ? Math.min(Math.max(Number(provenance.correspondingFamily), 1), 3) as 1 | 2 | 3
+    : undefined;
+  const dashed = provenance.dashed === true || corresponding === 3;
+  const strokeRole = provenance.strokeRole === "trace" || provenance.strokeRole === "construction"
+    ? provenance.strokeRole
+    : command.visualStyle?.strokeRole;
+  const fillRole = provenance.fillRole === "region" ? "region" as const : command.visualStyle?.fillRole;
+  if (!corresponding && !dashed && !strokeRole && !fillRole) return {};
+  return {
+    visualStyle: {
+      ...command.visualStyle,
+      ...(corresponding ? { correspondingFamily: corresponding } : {}),
+      dashed,
+      strokeRole,
+      fillRole,
+      strokeWidth: corresponding === 2 ? 2.9 : command.visualStyle?.strokeWidth,
+    },
+  };
+}
+
+function correspondingGroupsFromDocument(document: SceneDocument): Array<{ id: string; entityIds: string[] }> {
+  const groups: Array<{ id: string; entityIds: string[] }> = [];
+  let index = 0;
+  for (const assertion of document.assertions) {
+    if (assertion.predicate !== "equal_length" && assertion.predicate !== "equal_angle") continue;
+    if (assertion.entities.length < 2) continue;
+    index += 1;
+    groups.push({
+      id: `corresponding_${index}`,
+      entityIds: [...assertion.entities],
+    });
+  }
+  return groups;
 }
 
 function revealPhaseForPrimitive(primitive: RenderPrimitive): RevealPhase {
@@ -429,6 +521,12 @@ function resolveActionPrimitives(
   renderScene: RenderScene,
   targetId: string,
 ): RenderPrimitive[] {
+  const owned = renderScene.primitives.filter((primitive) =>
+    primitive.entityId === targetId || primitive.provenance?.annotationId === targetId,
+  );
+  if (owned.length > 0 && document.annotations.some((annotation) => annotation.id === targetId)) {
+    return owned;
+  }
   const group = renderScene.revealGroups.find((candidate) => candidate.id === targetId);
   const annotation = document.annotations.find((candidate) => candidate.id === targetId);
   const entityIds = new Set(
@@ -446,8 +544,8 @@ function traceCommandsForPrimitive(
   const point = primitive.kind === "point" ? primitive.points[0] : undefined;
   if (point) {
     return [{
-      type: "DRAW_CIRCLE",
-      params: [point.x, point.y, 14],
+      type: "CIRCLE_AROUND",
+      params: [point.x - 10, point.y - 10, 20, 20],
       visualStyle: { strokeRole: "trace", strokeWidth: 1.25 },
       semanticRef: {
         entityId: primitive.entityId,
@@ -465,6 +563,8 @@ function traceCommandsForPrimitive(
     "DRAW_LINE",
     "DRAW_POINT",
     "ARROW",
+    "CIRCLE_AROUND",
+    "HIGHLIGHT",
   ]);
   return primitiveCommands(primitive, { keys: new Set(), rects: [] }, true)
     .filter((command) => traceableTypes.has(command.type))
@@ -486,6 +586,41 @@ function primitiveCommands(
 ): VerifiedDiagramCommand[] {
   const points = primitive.points;
   const commands: VerifiedDiagramCommand[] = [];
+  const annotationKind = primitive.provenance?.annotation;
+  if (annotationKind === "enclose") {
+    const bounds = boundsOfPoints(points);
+    if (bounds) {
+      commands.push({
+        type: "CIRCLE_AROUND",
+        params: [bounds.x, bounds.y, bounds.width, bounds.height],
+        visualStyle: { strokeRole: "trace", strokeWidth: 1.25 },
+      });
+    }
+    return commands;
+  }
+  if (annotationKind === "loop" && points.length >= 3) {
+    commands.push({
+      type: "DRAW_LINE",
+      params: flatten([...points, points[0]!]),
+      visualStyle: { strokeRole: "construction", dashed: true, strokeWidth: 1.25 },
+    });
+    return commands;
+  }
+  if (annotationKind === "highlight") {
+    const bounds = boundsOfPoints(points);
+    if (bounds) {
+      commands.push({
+        type: "HIGHLIGHT",
+        params: [bounds.x, bounds.y, bounds.width, bounds.height],
+        visualStyle: { fillRole: "region" },
+      });
+    }
+    return commands;
+  }
+  if (primitive.kind === "point" && primitive.provenance?.pointStyle === "open" && points[0]) {
+    commands.push({ type: "DRAW_CIRCLE", params: [points[0].x, points[0].y, primitive.radius ?? 5] });
+    return commands;
+  }
   switch (primitive.kind) {
     case "point": {
       const point = points[0];
@@ -596,14 +731,13 @@ function addLabel(
   labels.keys.add(key);
   const width = Math.max(measureTextWidth(text), 14);
   if (primitive.labelPlacement === "absolute") {
-    const desired = {
-      x: clamp(x - width / 2, LABEL_MIN_X, LABEL_MAX_X - width),
-      y: clamp(y - 16, 55, 580),
+    const reserved = labelBoundsFromProvenance(primitive.provenance);
+    const placed = reserved ?? {
+      x: x - width / 2,
+      y: y - 16,
       width,
       height: 32,
     };
-    const placed = absoluteLabelCandidates(desired)
-      .sort((a, b) => labelOverlapScore(a, labels.rects) - labelOverlapScore(b, labels.rects))[0]!;
     labels.rects.push(placed);
     commands.push({ type: "LABEL", params: [placed.x, placed.y, 24], text, anchorId: primitive.entityId });
     return;
@@ -621,18 +755,36 @@ function addLabel(
   commands.push({ type: "LABEL", params: [placed.x, placed.y, 24], text, anchorId: primitive.entityId });
 }
 
-function absoluteLabelCandidates(
-  desired: { x: number; y: number; width: number; height: number },
-): Array<{ x: number; y: number; width: number; height: number }> {
-  const offsets: Array<[number, number]> = [
-    [0, 0], [0, -40], [0, 40], [0, -76], [0, 76],
-    [-desired.width - 18, 0], [desired.width + 18, 0],
-  ];
-  return offsets.map(([dx, dy]) => ({
-    ...desired,
-    x: clamp(desired.x + dx, LABEL_MIN_X, LABEL_MAX_X - desired.width),
-    y: clamp(desired.y + dy, 55, 580),
-  }));
+function labelBoundsFromProvenance(
+  provenance: Record<string, unknown> | undefined,
+): { x: number; y: number; width: number; height: number } | null {
+  const bounds = provenance?.labelBounds;
+  if (!bounds || typeof bounds !== "object") return null;
+  const record = bounds as { x?: unknown; y?: unknown; width?: unknown; height?: unknown };
+  if (
+    typeof record.x !== "number" ||
+    typeof record.y !== "number" ||
+    typeof record.width !== "number" ||
+    typeof record.height !== "number"
+  ) return null;
+  return {
+    x: record.x + 4,
+    y: record.y + 4,
+    width: record.width,
+    height: record.height,
+  };
+}
+
+function boundsOfPoints(points: Array<{ x: number; y: number }>): { x: number; y: number; width: number; height: number } | null {
+  if (points.length === 0) return null;
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  return {
+    x: Math.min(...xs),
+    y: Math.min(...ys),
+    width: Math.max(8, Math.max(...xs) - Math.min(...xs)),
+    height: Math.max(8, Math.max(...ys) - Math.min(...ys)),
+  };
 }
 
 interface LabelPlacementState {

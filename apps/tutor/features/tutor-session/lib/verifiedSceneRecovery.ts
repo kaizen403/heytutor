@@ -5,8 +5,14 @@ import {
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
+import { canAdoptVerifiedScene, fingerprintTurnPlan, sceneCompileIsolationKey } from "./sceneIsolation";
 
 const MAX_MEMORY_ENTRIES = 32;
+
+export type VerifiedSceneScope = {
+  /** Isolation boundary. Concurrent lecture jobs must pass their own boardId. */
+  boardId: string;
+};
 
 export interface VerifiedSceneRecovery {
   question: string;
@@ -16,6 +22,7 @@ export interface VerifiedSceneRecovery {
 }
 
 interface MemoryEntry {
+  boardId: string;
   question: string;
   document: SceneDocument;
   turnPlan: TurnPlanV3;
@@ -30,14 +37,17 @@ const memory = new Map<string, MemoryEntry>();
 export function findVerifiedSceneRecovery(
   question: string,
   storedTurns: readonly StoredTurn[],
+  scope: VerifiedSceneScope,
 ): VerifiedSceneRecovery | null {
-  const key = recoveryKey(question);
-  if (!key) return null;
+  const boardId = scope.boardId.trim();
+  const questionKey = recoveryKey(question);
+  if (!boardId || !questionKey) return null;
 
-  const cached = memory.get(key);
-  if (cached) {
-    memory.delete(key);
-    memory.set(key, cached);
+  const memoryKey = verifiedSceneMemoryKey(boardId, questionKey);
+  const cached = memory.get(memoryKey);
+  if (cached && sceneMatchesScope(cached, question, boardId)) {
+    memory.delete(memoryKey);
+    memory.set(memoryKey, cached);
     return cloneRecovery({ ...cached, source: "memory" });
   }
 
@@ -46,7 +56,7 @@ export function findVerifiedSceneRecovery(
     if (
       turn.visualStatus !== "validated" ||
       turn.sceneEngineVersion !== SCENE_ENGINE_VERSION ||
-      recoveryKey(turn.question) !== key ||
+      recoveryKey(turn.question) !== questionKey ||
       !isRecord(turn.sceneDocument) ||
       !isRecord(turn.sceneArtifacts) ||
       turn.sceneArtifacts.schemaVersion !== "scene-artifacts/v3" ||
@@ -62,12 +72,17 @@ export function findVerifiedSceneRecovery(
     const planValidation = validateTurnPlanV3(turn.sceneArtifacts.turnPlan, question);
     if (!planValidation.plan) continue;
 
+    const document = turn.sceneDocument as unknown as SceneDocument;
     const entry: MemoryEntry = {
+      boardId,
       question,
-      document: turn.sceneDocument as unknown as SceneDocument,
+      document,
       turnPlan: planValidation.plan,
     };
-    rememberEntry(key, entry);
+    if (!sceneMatchesScope(entry, question, boardId)) {
+      continue;
+    }
+    rememberEntry(memoryKey, entry);
     return cloneRecovery({ ...entry, source: "stored_turn" });
   }
 
@@ -78,6 +93,7 @@ export function rememberVerifiedScene(
   question: string,
   document: SceneDocument,
   turnPlan: TurnPlanV3,
+  scope: VerifiedSceneScope,
 ): void {
   if (
     document.source.nonMetric === true ||
@@ -86,18 +102,30 @@ export function rememberVerifiedScene(
   ) {
     return;
   }
-  const key = recoveryKey(question);
-  if (!key) return;
-  rememberEntry(key, {
+  const boardId = scope.boardId.trim();
+  const questionKey = recoveryKey(question);
+  if (!boardId || !questionKey) return;
+  const entry: MemoryEntry = {
+    boardId,
     question,
     document: clone(document),
     turnPlan: clone(turnPlan),
-  });
+  };
+  if (!sceneMatchesScope(entry, question, boardId)) {
+    return;
+  }
+  rememberEntry(verifiedSceneMemoryKey(boardId, questionKey), entry);
 }
 
-export function forgetVerifiedScene(question: string): void {
-  const key = recoveryKey(question);
-  if (key) memory.delete(key);
+export function forgetVerifiedScene(question: string, scope: VerifiedSceneScope): void {
+  const boardId = scope.boardId.trim();
+  const questionKey = recoveryKey(question);
+  if (!boardId || !questionKey) return;
+  memory.delete(verifiedSceneMemoryKey(boardId, questionKey));
+}
+
+export function verifiedSceneMemoryKey(boardId: string, questionKey: string): string {
+  return `${boardId.trim()}::${questionKey}`;
 }
 
 export function isRecoveryEligibleQuestion(question: string): boolean {
@@ -112,6 +140,24 @@ export function isRecoveryEligibleQuestion(question: string): boolean {
 function recoveryKey(question: string): string | null {
   if (!isRecoveryEligibleQuestion(question)) return null;
   return question.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+}
+
+function sceneMatchesScope(
+  entry: Pick<MemoryEntry, "boardId" | "question" | "document" | "turnPlan">,
+  question: string,
+  boardId: string,
+): boolean {
+  const sourceQuestion =
+    typeof entry.document.source.question === "string" ? entry.document.source.question : entry.question;
+  const planFingerprint = fingerprintTurnPlan(entry.turnPlan);
+  return canAdoptVerifiedScene({
+    ownerBoardId: boardId,
+    ownerQuestion: question,
+    candidateBoardId: entry.boardId,
+    candidateQuestion: sourceQuestion,
+    ownerCompileKey: sceneCompileIsolationKey({ question, planFingerprint }),
+    candidateCompileKey: sceneCompileIsolationKey({ question: sourceQuestion, planFingerprint }),
+  });
 }
 
 function rememberEntry(key: string, entry: MemoryEntry): void {

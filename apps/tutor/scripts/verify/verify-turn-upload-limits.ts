@@ -19,7 +19,12 @@ assert(validateTurnUploadHeaders(validHeaders).ok, "bounded multipart requests s
 const missingLength = validateTurnUploadHeaders(new Headers({
   "content-type": "multipart/form-data; boundary=verify",
 }));
-assert(!missingLength.ok && missingLength.status === 411, "streamed uploads without a length must be rejected before buffering");
+assert(missingLength.ok, "browser uploads that omit content-length must still be accepted");
+const chunked = validateTurnUploadHeaders(new Headers({
+  "content-type": "multipart/form-data; boundary=verify",
+  "transfer-encoding": "chunked",
+}));
+assert(!chunked.ok && chunked.status === 411, "chunked turn uploads must be rejected before buffering");
 
 const oversized = validateTurnUploadHeaders(new Headers({
   "content-type": "multipart/form-data; boundary=verify",

@@ -24,7 +24,11 @@ import {
   measureTextWidth,
   prefetchStrokePaths,
   isBlockedVerifiedDiagramCommand,
-  resolveVerifiedDiagramFocusTarget,
+  resolveVerifiedDiagramFocusTargets,
+  focusEmphasisOf,
+  parseWorkRowSelector,
+  resolveWorkAreaRow,
+  takeDeferredAnnotations,
 } from "@heytutor/drawing";
 import {
   getDrawingDuration,
@@ -118,7 +122,7 @@ export function useCommandExecution({
   );
 
   const executeCommand = useCallback(
-    async (
+    async function executeCommand(
       rawCommand: DrawCommand,
       options: {
         durationScale?: number;
@@ -132,7 +136,7 @@ export function useCommandExecution({
         textPlacementReserved?: boolean;
         inkPace?: InkPace;
       } = {},
-    ): Promise<void> => {
+    ): Promise<void> {
       const wb = whiteboardRef.current;
       const commandCancelled = () => cancelRef.current || options.isCancelled?.() === true;
       if (!wb || commandCancelled()) return;
@@ -178,8 +182,12 @@ export function useCommandExecution({
         return wb.drawShape(path, duration, {
           ...shapeOptions,
           pace: inkPace,
-          strokeWidth: shapeOptions?.strokeWidth ?? rawCommand.visualStyle?.strokeWidth,
-          dashed: shapeOptions?.dashed ?? rawCommand.visualStyle?.dashed,
+          strokeWidth: shapeOptions?.strokeWidth
+            ?? rawCommand.visualStyle?.strokeWidth
+            ?? (rawCommand.visualStyle?.correspondingFamily === 2 ? 2.9 : undefined),
+          dashed: shapeOptions?.dashed
+            ?? rawCommand.visualStyle?.dashed
+            ?? rawCommand.visualStyle?.correspondingFamily === 3,
           shouldCancel: commandCancelled,
         });
       };
@@ -551,6 +559,29 @@ export function useCommandExecution({
                 fontSize,
               );
             }
+            if (command.type === "WRITE" && activeDiagram) {
+              const deferred = takeDeferredAnnotations(activeDiagram, { text: command.text });
+              for (const next of deferred) {
+                if (commandCancelled()) return;
+                await executeCommand(
+                  {
+                    type: next.type,
+                    params: [...next.params],
+                    text: next.text,
+                    charPosition: 0,
+                    narrationBefore: "",
+                    visualStyle: next.visualStyle,
+                    semanticRef: next.semanticRef,
+                  },
+                  {
+                    trustedDiagramGeometry: true,
+                    applyLayout: false,
+                    isCancelled: commandCancelled,
+                    inkPace: "scene",
+                  },
+                );
+              }
+            }
           }
           break;
         }
@@ -603,21 +634,67 @@ export function useCommandExecution({
           break;
         }
         case "FOCUS": {
-          const target = resolveVerifiedDiagramFocusTarget(command, activeDiagram);
-          if (!target || !activeDiagram) break;
+          const targets = resolveVerifiedDiagramFocusTargets(command, activeDiagram);
+          if (targets.length === 0 || !activeDiagram) break;
+          if (activeDiagram) {
+            const deferred = takeDeferredAnnotations(activeDiagram, {
+              entityIds: targets.map((target) => target.id),
+            });
+            for (const next of deferred) {
+              if (commandCancelled()) return;
+              await executeCommand(
+                {
+                  type: next.type,
+                  params: [...next.params],
+                  text: next.text,
+                  charPosition: 0,
+                  narrationBefore: "",
+                  visualStyle: next.visualStyle,
+                  semanticRef: next.semanticRef,
+                },
+                {
+                  trustedDiagramGeometry: true,
+                  applyLayout: false,
+                  isCancelled: commandCancelled,
+                  inkPace: "scene",
+                },
+              );
+            }
+          }
+          const emphasis = focusEmphasisOf(command);
+          const targetIds = new Set(targets.map((target) => target.id));
           const targetCommands = activeDiagram.commands.filter((candidate) =>
-            candidate.semanticRef?.entityId === target.id &&
-            !candidate.semanticRef?.actionId
+            candidate.semanticRef?.entityId &&
+            targetIds.has(candidate.semanticRef.entityId) &&
+            !candidate.semanticRef?.actionId &&
+            candidate.visualStyle?.strokeRole !== "trace" &&
+            candidate.type !== "LABEL" &&
+            candidate.type !== "WRITE" &&
+            candidate.type !== "DIMENSION",
           );
           const tracePaths = targetCommands
             .map(verifiedCommandTracePath)
             .filter((candidate): candidate is { path: string; x: number; y: number } => candidate !== null);
-          const fallback = {
-            path: emphasisEllipsePath(target.x - 5, target.y - 5, target.width + 10, target.height + 10),
+          const fallbacks = targets.map((target) => ({
+            path: emphasisEllipsePath(target.x - 4, target.y - 4, target.width + 8, target.height + 8),
             x: target.x + target.width / 2,
             y: target.y,
-          };
-          const paths = tracePaths.length > 0 ? tracePaths.slice(0, 4) : [fallback];
+          }));
+          const paths = (tracePaths.length > 0 ? tracePaths : fallbacks).slice(0, 8);
+          if (emphasis === "spotlight") {
+            const hole = targets.reduce((union, target) => {
+              const x = Math.min(union.x, target.x);
+              const y = Math.min(union.y, target.y);
+              const right = Math.max(union.x + union.width, target.x + target.width);
+              const bottom = Math.max(union.y + union.height, target.y + target.height);
+              return { x, y, width: right - x, height: bottom - y };
+            }, { x: targets[0]!.x, y: targets[0]!.y, width: targets[0]!.width, height: targets[0]!.height });
+            wb.setSpotlight?.({
+              veil: { x: DIAGRAM_ZONE.x, y: DIAGRAM_ZONE.y, width: DIAGRAM_ZONE.width, height: DIAGRAM_ZONE.height },
+              hole: { x: hole.x - 10, y: hole.y - 10, width: hole.width + 20, height: hole.height + 20 },
+              opacity: 0.36,
+            });
+          }
           const focusFloorMs = inkPace === "scene" ? 120 : 420;
           const totalMs = Math.max(speechDurationMs ?? (inkPace === "scene" ? 220 : 900), focusFloorMs);
           for (const candidate of paths) {
@@ -626,14 +703,84 @@ export function useCommandExecution({
             await drawAnnotation(
               "underline",
               candidate.path,
-              Math.max(Math.round(totalMs / paths.length) - 160, 220),
+              Math.max(Math.round(totalMs / paths.length) - 160, 180),
               { strokeWidth: 1.25, transient: true },
             );
           }
+          if (emphasis === "pulse") {
+            for (const target of targets.slice(0, 3)) {
+              if (commandCancelled()) return;
+              const pulse = compactPulseBox(target, targetCommands);
+              await drawAnnotation(
+                "circle_around",
+                emphasisEllipsePath(pulse.x, pulse.y, pulse.width, pulse.height),
+                260,
+                { strokeWidth: 1.1, transient: true },
+              );
+            }
+          }
+          if (emphasis === "spotlight") {
+            await cancellableDelay(220);
+            wb.setSpotlight?.(null);
+          }
           turnTelemetryRef.current?.mark("verified-focus-complete", {
-            target_id: target.id,
+            target_id: targets.map((target) => target.id).join(","),
             path_count: paths.length,
+            emphasis,
           });
+          break;
+        }
+        case "EMPHASIZE": {
+          const row = resolveWorkAreaRow(
+            parseWorkRowSelector(command.text),
+            boardLayoutRef.current.rects,
+          );
+          if (!row) break;
+          const { flightMs, drawMs } = speechSplit(command);
+          await wb.flyCursorTo(row.x, row.y + row.height - 4, flightMs);
+          if (commandCancelled()) return;
+          await drawAnnotation(
+            "highlight",
+            highlightRectPath(row.x - 4, row.y - 2, row.width + 8, row.height + 4),
+            Math.min(drawMs, 220),
+            { fillOpacity: 0.22 },
+          );
+          await drawAnnotation(
+            "underline",
+            underlinePath(row.x, row.y + row.height - 3, row.x + row.width, row.y + row.height - 1),
+            Math.min(drawMs, 280),
+          );
+          break;
+        }
+        case "SUPERSEDE":
+          break;
+        case "ANNOTATE": {
+          if (!activeDiagram) break;
+          const targets = resolveVerifiedDiagramFocusTargets({ ...command, type: "FOCUS" }, activeDiagram);
+          const deferred = takeDeferredAnnotations(activeDiagram, {
+            entityIds: targets.map((target) => target.id),
+            text: command.text,
+          });
+          for (const next of deferred) {
+            if (commandCancelled()) return;
+            await executeCommand(
+              {
+                type: next.type,
+                params: [...next.params],
+                text: next.text,
+                charPosition: 0,
+                narrationBefore: "",
+                visualStyle: next.visualStyle,
+                semanticRef: next.semanticRef,
+              },
+              {
+                trustedDiagramGeometry: true,
+                applyLayout: false,
+                isCancelled: commandCancelled,
+                inkPace: "scene",
+              },
+            );
+          }
           break;
         }
         case "UNDERLINE":
@@ -662,7 +809,9 @@ export function useCommandExecution({
             }
           }
 
-          const { params, snapped, rect } = resolveAnnotationTarget(
+          const { params, snapped, rect } = trustedDiagramGeometry || command.semanticRef
+            ? { params: command.params, snapped: false, rect: null }
+            : resolveAnnotationTarget(
             command,
             command.type,
             segmentNarration,
@@ -889,6 +1038,21 @@ function verifiedCommandTracePath(
     default:
       return null;
   }
+}
+
+function compactPulseBox(
+  target: { x: number; y: number; width: number; height: number },
+  commands: VerifiedDiagramCommand[],
+): { x: number; y: number; width: number; height: number } {
+  const point = commands.find((command) => command.type === "DRAW_POINT");
+  if (point && [point.params[0], point.params[1]].every(Number.isFinite)) {
+    return { x: point.params[0]! - 12, y: point.params[1]! - 12, width: 24, height: 24 };
+  }
+  const cx = target.x + target.width / 2;
+  const cy = target.y + target.height / 2;
+  const width = Math.min(Math.max(target.width + 10, 22), 56);
+  const height = Math.min(Math.max(target.height + 10, 22), 56);
+  return { x: cx - width / 2, y: cy - height / 2, width, height };
 }
 
 const UNCOMPILED_STRUCTURAL_TYPES = new Set<DrawCommand["type"]>([

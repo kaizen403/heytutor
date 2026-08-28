@@ -6,6 +6,7 @@ import {
   buildLessonSegments,
   lessonNarrationText,
   prepareVerifiedLessonSegments,
+  remainingDeferredAnnotations,
 } from "@heytutor/drawing";
 import { tutorDebug } from "@heytutor/tutor-core";
 import {
@@ -49,6 +50,7 @@ export function useTurnControl(
     activeVerifiedDiagramRef,
     fbdPhaseMarkedRef,
     fbdPhaseStartedRef,
+    setActiveVerifiedDiagram,
     segmentPlanStatsRef,
     stopTurnRef,
     replayGenerationRef,
@@ -65,6 +67,7 @@ export function useTurnControl(
     clearCancelTimers,
     pendingSegmentCountRef,
     resetBoardLayout,
+    executeCommandWithCancel,
   } = params;
   const activeIntroTransactionRef = useRef<string | null>(null);
 
@@ -230,6 +233,7 @@ export function useTurnControl(
         } catch (error) {
           wb.abortDrawTransaction(transactionId);
           activeVerifiedDiagramRef.current = null;
+          setActiveVerifiedDiagram?.(null);
           fbdPhaseMarkedRef.current = false;
           fbdPhaseStartedRef.current = false;
           resetBoardLayout(false, true);
@@ -251,6 +255,7 @@ export function useTurnControl(
     },
     [
       activeVerifiedDiagramRef,
+      setActiveVerifiedDiagram,
       cancelRef,
       collectedSegmentsRef,
       fbdPhaseMarkedRef,
@@ -335,6 +340,18 @@ export function useTurnControl(
         if (turnGeneration !== turnGenerationRef.current) {
           return;
         }
+        const leftover = activeDiagram ? remainingDeferredAnnotations(activeDiagram) : [];
+        for (const command of leftover) {
+          await executeCommandWithCancel({
+            type: command.type,
+            params: [...command.params],
+            text: command.text,
+            charPosition: 0,
+            narrationBefore: "",
+            visualStyle: command.visualStyle,
+            semanticRef: command.semanticRef,
+          }, { trustedDiagramGeometry: true, applyLayout: false, inkPace: "scene" });
+        }
         setNarrationText(
           [
             ...givenSegments.map((segment) => segment.narration).filter(Boolean),
@@ -369,6 +386,18 @@ export function useTurnControl(
       if (turnGeneration !== turnGenerationRef.current) {
         return;
       }
+      const leftover = activeDiagram ? remainingDeferredAnnotations(activeDiagram) : [];
+      for (const command of leftover) {
+        await executeCommandWithCancel({
+          type: command.type,
+          params: [...command.params],
+          text: command.text,
+          charPosition: 0,
+          narrationBefore: "",
+          visualStyle: command.visualStyle,
+          semanticRef: command.semanticRef,
+        }, { trustedDiagramGeometry: true, applyLayout: false, inkPace: "scene" });
+      }
       setNarrationText(
         [
           ...givenSegments.map((segment) => segment.narration).filter(Boolean),
@@ -381,6 +410,7 @@ export function useTurnControl(
       enqueueSegment,
       enqueueVerifiedIntro,
       activeVerifiedDiagramRef,
+      setActiveVerifiedDiagram,
       segmentPlanStatsRef,
       turnTelemetryRef,
       segmentChainRef,
@@ -389,7 +419,7 @@ export function useTurnControl(
       recordedSegmentsRef,
       turnGenerationRef,
       setNarrationText,
-      setCurrentSegmentText,
+      executeCommandWithCancel,
     ],
   );
 

@@ -20,6 +20,8 @@ export interface BoardTextRect {
   height: number;
   text?: string;
   commandIndex?: number;
+  workIndex?: number;
+  workId?: string;
 }
 
 export interface BoardLayoutState {
@@ -54,6 +56,9 @@ export const BASE_SHAPE_DRAW_MS: Partial<Record<DrawCommand["type"], number>> = 
   ARROW: 500,
   HIGHLIGHT: 250,
   FOCUS: 900,
+  EMPHASIZE: 420,
+  SUPERSEDE: 400,
+  ANNOTATE: 700,
   SCRIBBLE: 400,
 };
 

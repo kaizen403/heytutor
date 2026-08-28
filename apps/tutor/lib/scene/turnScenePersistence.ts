@@ -16,14 +16,15 @@ import {
   type ValidationReport,
 } from "@heytutor/scene-engine";
 import {
+  getSegmentCommands,
   isBlockedVerifiedDiagramCommand,
   isStoredCommandTrustedGeometry,
   fitWorkTextCommand,
   parseStoredSegmentCommands,
   serializeSegmentCommands,
   type DrawCommand,
+  type TutorSegment,
 } from "@heytutor/drawing";
-import { selectVerifiedRepresentation } from "@/features/tutor-session/lib/representationFallbackV4";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/verifiedScenePresentation";
 
 export interface SubmittedTurnSegment {
@@ -127,27 +128,38 @@ export async function canonicalizeTurnSceneMetadata(
   let report: ValidationReport;
   let renderScene: NonNullable<ReturnType<typeof compileSceneDocument>["renderScene"]>;
   if (nonMetric) {
-    let rebuilt;
-    try {
-      rebuilt = selectVerifiedRepresentation({
-        question,
-        turnPlan: turnPlan ?? undefined,
-      });
-    } catch (error) {
-      return failure(`verified representation could not be rebuilt: ${errorMessage(error)}`);
+    // Recompile the accepted document that was actually taught. Re-running
+    // selectVerifiedRepresentation here would re-infer families from the
+    // question without the live-only context (inferred families, ProblemIR),
+    // so the rebuilt document could differ from the one the student saw:
+    // replay would diverge and teaching FOCUS on the taught ids would 400 the
+    // save. Trust is re-established by validating and compiling the submitted
+    // document; intro ink below is regenerated from this server compile,
+    // never from the browser's trusted-geometry payload.
+    const structural = validateSceneDocument(metadata.sceneDocument);
+    if (!structural.document) {
+      return failure(`accepted representation is structurally invalid: ${formatIssues(structural.report.issues)}`);
     }
-    if (rebuilt.sceneDocument.visualDecision.mode !== "scene") {
-      return failure("verified representation rebuilt as text-only");
+    document = structural.document;
+    if (document.visualDecision.mode !== "scene") {
+      return failure("accepted representation persisted as text-only");
     }
-    if (rebuilt.tier !== tier || rebuilt.nonMetric !== true) {
-      return failure("submitted fallback tier does not match the current representation selector");
+    if (!sourceQuestionMatches(document, question)) {
+      return failure("scene source question does not match the submitted question");
     }
-    // The fallback document is entirely reproducible. Discard the browser's
-    // copy instead of comparing planner-normalized metadata byte-for-byte;
-    // trusted replay ink is checked below against this server reconstruction.
-    document = rebuilt.sceneDocument;
-    report = rebuilt.validationReport;
-    renderScene = rebuilt.renderScene;
+    const declaredTier = document.source.representationTier;
+    if (declaredTier !== undefined && declaredTier !== tier) {
+      return failure("submitted fallback tier does not match the accepted document");
+    }
+    if (document.source.nonMetric === false) {
+      return failure("accepted document declares metric geometry outside the exact path");
+    }
+    const compiled = compileSceneDocument(document);
+    if (!compiled.ok || !compiled.renderScene) {
+      return failure(`accepted representation does not compile: ${formatIssues(compiled.report.issues)}`);
+    }
+    report = compiled.report;
+    renderScene = compiled.renderScene;
   } else {
     const structural = validateSceneDocument(metadata.sceneDocument);
     if (!structural.document) {
@@ -181,10 +193,15 @@ export async function canonicalizeTurnSceneMetadata(
     return failure("current scene engine did not produce a valid report");
   }
   const expectedPresentation = buildVerifiedDiagramPresentation(document, renderScene);
-  const commandCheck = validateTrustedCommands(metadata.segments, expectedPresentation.introSegments);
-  if (!commandCheck.ok) return commandCheck;
-  const teachingCommands = canonicalizeTeachingCommands(
+  // Scene-engine owns diagram ink at persist time. Client intro may be missing
+  // or diverge under concurrent lecture-lab compiles; replay uses the server
+  // reconstruction, never the browser's trusted-geometry payload.
+  const persistSegments = mergeServerDiagramIntro(
     metadata.segments,
+    expectedPresentation.introSegments,
+  );
+  const teachingCommands = canonicalizeTeachingCommands(
+    persistSegments,
     expectedPresentation.diagram,
   );
   if (!teachingCommands.ok) return teachingCommands;
@@ -291,27 +308,45 @@ async function canonicalSolverArtifacts(
   };
 }
 
-function validateTrustedCommands(
-  segments: SubmittedTurnSegment[],
-  expectedSegments: Array<{ commands?: DrawCommand[]; command: DrawCommand | null }>,
-): { ok: true } | { ok: false; error: string } {
-  const submitted = segments
-    .filter((segment) => isStoredCommandTrustedGeometry(segment.command))
-    .map((segment) => parseStoredSegmentCommands(segment.command));
-  const expected = expectedSegments.map((segment) =>
-    segment.commands && segment.commands.length > 0
-      ? segment.commands
-      : segment.command ? [segment.command] : [],
+function isEpochClearSegment(segment: SubmittedTurnSegment): boolean {
+  const commands = parseStoredSegmentCommands(segment.command);
+  return (
+    commands.length === 1 &&
+    commands[0]?.type === "CLEAR" &&
+    segment.narration.trim() === "" &&
+    segment.spokenText.trim() === ""
   );
-  if (submitted.length !== expected.length) {
-    return failure(`trusted diagram segment count mismatch: expected ${expected.length}, received ${submitted.length}`);
-  }
-  for (let index = 0; index < expected.length; index += 1) {
-    if (!deepEqual(submitted[index], expected[index])) {
-      return failure(`trusted diagram commands differ from server compilation at intro segment ${index}`);
+}
+
+/** Keep teaching WRITE/FOCUS and the runtime CLEAR; replace client diagram ink. */
+function mergeServerDiagramIntro(
+  submitted: SubmittedTurnSegment[],
+  introSegments: TutorSegment[],
+): SubmittedTurnSegment[] {
+  const teaching = submitted.filter((segment) => !isStoredCommandTrustedGeometry(segment.command));
+  const leadingClears: SubmittedTurnSegment[] = [];
+  const rest: SubmittedTurnSegment[] = [];
+  let seenInk = false;
+  for (const segment of teaching) {
+    if (!seenInk && isEpochClearSegment(segment)) {
+      leadingClears.push(segment);
+      continue;
     }
+    seenInk = true;
+    rest.push(segment);
   }
-  return { ok: true };
+  const intro: SubmittedTurnSegment[] = introSegments.map((segment) => ({
+    orderIndex: 0,
+    narration: segment.narration,
+    spokenText: segment.narration,
+    command: serializeSegmentCommands(getSegmentCommands(segment), {
+      trustedDiagramGeometry: true,
+    }),
+  }));
+  return [...leadingClears, ...intro, ...rest].map((segment, orderIndex) => ({
+    ...segment,
+    orderIndex,
+  }));
 }
 
 function minimalFailureArtifacts(
@@ -410,17 +445,25 @@ function canonicalizeTeachingCommands(
 
       const checked = canonicalTeachingCommand(command);
       const safeCommands = checked?.type === "WRITE" ? fitWorkTextCommand(checked) : checked ? [checked] : [];
+      // A FOCUS that names an id absent from the committed diagram is a
+      // teaching mismatch, not untrusted ink: filter the gesture and keep the
+      // rest of the segment, mirroring the live prepareVerifiedLessonSegments
+      // filter, so one stale id cannot drop the whole recording. Genuine
+      // diagram ink (DRAW_*, LABEL, ERASE, …) and unknown ANNOTATE targets
+      // still hard-fail below.
+      const allowed = safeCommands.filter((candidate) =>
+        candidate.type !== "FOCUS" || !isBlockedVerifiedDiagramCommand(candidate, diagram));
       if (
         safeCommands.length === 0 ||
-        normalized.length + safeCommands.length > 16 ||
-        safeCommands.some((candidate) => isBlockedVerifiedDiagramCommand(candidate, diagram))
+        normalized.length + allowed.length > 16 ||
+        allowed.some((candidate) => isBlockedVerifiedDiagramCommand(candidate, diagram))
       ) {
         const type = isRecord(command) && typeof command.type === "string"
           ? command.type
           : "unknown";
         return failure(`teaching command ${type} is not allowed for persistence`);
       }
-      normalized.push(...safeCommands);
+      normalized.push(...allowed);
     }
 
     canonical.push({
@@ -483,10 +526,26 @@ function canonicalTeachingCommand(command: unknown): DrawCommand | null {
     command.params.length === 0 &&
     typeof command.text === "string" &&
     command.text.trim().length > 0 &&
-    command.text.length <= 128
+    command.text.length <= 160
   ) {
     return {
       type: "FOCUS",
+      params: [],
+      text: command.text.trim(),
+      charPosition: charPosition as number,
+      narrationBefore,
+    };
+  }
+
+  if (
+    (command.type === "EMPHASIZE" || command.type === "ANNOTATE") &&
+    command.params.length === 0 &&
+    typeof command.text === "string" &&
+    command.text.trim().length > 0 &&
+    command.text.length <= 128
+  ) {
+    return {
+      type: command.type,
       params: [],
       text: command.text.trim(),
       charPosition: charPosition as number,
@@ -566,10 +625,6 @@ function formatIssues(issues: Array<{ code?: string; path?: string; message: str
   return issues.slice(0, 4).map((issue) =>
     `${issue.code ?? issue.path ?? "invalid"}: ${issue.message}`,
   ).join("; ");
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function failure(error: string): { ok: false; error: string } {

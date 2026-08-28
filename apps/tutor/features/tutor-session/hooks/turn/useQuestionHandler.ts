@@ -165,6 +165,7 @@ export function useQuestionHandler(
     fbdPhaseMarkedRef,
     fbdPhaseStartedRef,
     activeVerifiedDiagramRef,
+    setActiveVerifiedDiagram,
     boardLayoutRef,
     turnTelemetryRef,
     speedRef,
@@ -271,6 +272,7 @@ export function useQuestionHandler(
       fbdPhaseMarkedRef.current = false;
       fbdPhaseStartedRef.current = false;
       activeVerifiedDiagramRef.current = null;
+      setActiveVerifiedDiagram?.(null);
       await beginBoardEpoch();
 
       const isCurrentTurn = () =>
@@ -360,7 +362,9 @@ export function useQuestionHandler(
           .slice(-3)
           .map((exchange) => `User: ${exchange.user}\nTutor: ${exchange.assistant}`)
           .join("\n\n");
-        let recoveredScene = findVerifiedSceneRecovery(question, storedTurnsRef.current);
+        let recoveredScene = findVerifiedSceneRecovery(question, storedTurnsRef.current, {
+          boardId: sessionId,
+        });
         let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
 
         if (recoveredScene) {
@@ -425,9 +429,15 @@ export function useQuestionHandler(
           }
         }
 
+        // Await ProblemIR before family inference so the live exact path routes
+        // circuit/river families from problem structure, not the English catalog.
+        if (problemAuthorityPromise) {
+          problemAuthority = await awaitCurrentTurn(problemAuthorityPromise, isCurrentTurn);
+        }
         const planningTurnPlan = turnPlan;
         const sceneCapabilities = inferSceneCapabilities(question, {
           lawIds: planningTurnPlan.lawIds,
+          problemIR: problemAuthority?.problemIR ?? null,
           turnPlan: planningTurnPlan,
         });
         const remainingPlannerMs = Math.max(
@@ -575,7 +585,7 @@ export function useQuestionHandler(
               source: recoveredScene.source,
               error_codes: validation.errors.map((error) => error.code),
             });
-            forgetVerifiedScene(question);
+            forgetVerifiedScene(question, { boardId: sessionId });
             recoveredScene = null;
           }
         }
@@ -603,38 +613,35 @@ export function useQuestionHandler(
           ).catch(() => null), isCurrentTurn);
         }
 
-        if (problemAuthorityPromise) {
-          problemAuthority = await awaitCurrentTurn(problemAuthorityPromise, isCurrentTurn);
-          if (problemAuthority) {
-            turnPlan = reconcileTurnPlanWithSolver(
-              turnPlan,
-              problemAuthority.problemIR,
-              problemAuthority.solverResult,
-            );
-            const authorityAudit = verifyTurnPlanAgainstSolver(
-              problemAuthority.problemIR,
-              problemAuthority.solverResult,
-              turnPlan,
-              question,
-            );
-            problemAuthority = {
-              ...problemAuthority,
-              audit: authorityAudit,
-              projection: authorityAudit.status === "verified"
-                ? buildSolverAuthorityProjection(
-                    problemAuthority.problemIR,
-                    problemAuthority.solverResult,
-                    authorityAudit,
-                  )
-                : null,
-            };
-            tutorDebug("planner", "solver authority audit", {
-              status: authorityAudit.status,
-              issue_codes: authorityAudit.issues.map((issue) => issue.code),
-              binding_count: authorityAudit.bindings.length,
-              elapsed_ms: problemAuthority.elapsedMs,
-            });
-          }
+        if (problemAuthority) {
+          turnPlan = reconcileTurnPlanWithSolver(
+            turnPlan,
+            problemAuthority.problemIR,
+            problemAuthority.solverResult,
+          );
+          const authorityAudit = verifyTurnPlanAgainstSolver(
+            problemAuthority.problemIR,
+            problemAuthority.solverResult,
+            turnPlan,
+            question,
+          );
+          problemAuthority = {
+            ...problemAuthority,
+            audit: authorityAudit,
+            projection: authorityAudit.status === "verified"
+              ? buildSolverAuthorityProjection(
+                  problemAuthority.problemIR,
+                  problemAuthority.solverResult,
+                  authorityAudit,
+                )
+              : null,
+          };
+          tutorDebug("planner", "solver authority audit", {
+            status: authorityAudit.status,
+            issue_codes: authorityAudit.issues.map((issue) => issue.code),
+            binding_count: authorityAudit.bindings.length,
+            elapsed_ms: problemAuthority.elapsedMs,
+          });
         }
 
         result = await awaitCurrentTurn(finalizeScenePlanAfterAuthority(result, {
@@ -731,7 +738,9 @@ export function useQuestionHandler(
             representationNonMetric = selected.nonMetric;
             representationReason = selected.reason;
             if (selected.tier === "exact_verified" && turnPlan) {
-              rememberVerifiedScene(question, selected.sceneDocument, turnPlan);
+              rememberVerifiedScene(question, selected.sceneDocument, turnPlan, {
+                boardId: sessionId,
+              });
             }
           } catch (error) {
             // Invalid exact and fallback scenes are both kept off the canvas.
@@ -832,11 +841,13 @@ export function useQuestionHandler(
         sceneV2IntroSegments = presentation.introSegments;
         diagramSource = "verified_scene";
         activeVerifiedDiagramRef.current = activeDiagram;
+        setActiveVerifiedDiagram?.(activeDiagram);
       } else {
         // Failed or unnecessary diagrams never expose partial geometry.
         activeDiagram = null;
         diagramSource = "none";
         activeVerifiedDiagramRef.current = null;
+        setActiveVerifiedDiagram?.(null);
       }
 
       plannerSpan.end({
@@ -903,7 +914,7 @@ export function useQuestionHandler(
       const diagramPromptAddon = activeDiagram?.promptAddon ??
         `The semantic scene engine selected text-only mode because no fully validated diagram was available.
 Do not emit any drawing, label, annotation, erase, highlight, or marker-movement tags.
-Use WRITE only for equations and symbolic work in the left work area (x below 360).`;
+WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Every step must [WRITE] a short board line. Do not speak while the marker stays parked.`;
       const turnPlanPromptAddon = turnPlan
         ? `AUTHORITATIVE TURN PLAN V3
 Use these verified quantities and qualitative claims for the explanation. Do not replace them with independently guessed values or contradict them.
@@ -1401,6 +1412,7 @@ ${JSON.stringify(problemAuthority.projection)}`
       fbdPhaseMarkedRef,
       fbdPhaseStartedRef,
       activeVerifiedDiagramRef,
+      setActiveVerifiedDiagram,
       boardLayoutRef,
       turnTelemetryRef,
       conversationHistoryRef,

@@ -164,13 +164,26 @@ assert(isRecord(firstTrusted.command) && Array.isArray(firstTrusted.command.comm
 const firstCommand = firstTrusted.command.commands[0];
 assert(isRecord(firstCommand) && Array.isArray(firstCommand.params), "fixture needs command params");
 firstCommand.params[0] = Number(firstCommand.params[0]) + 1;
+const mutatedParam = firstCommand.params[0];
 const mutatedCommandResult = await canonicalizeTurnSceneMetadata(mutatedCommands);
-assert(!mutatedCommandResult.ok && /commands differ/.test(mutatedCommandResult.error), "mutated trusted geometry must be rejected");
+assert(mutatedCommandResult.ok, `server intro must replace client trusted ink: ${mutatedCommandResult.ok ? "" : mutatedCommandResult.error}`);
+assert(
+  !mutatedCommandResult.value.segments.some((segment) => {
+    if (!isRecord(segment.command) || !Array.isArray(segment.command.commands)) return false;
+    const first = segment.command.commands[0];
+    return isRecord(first) && Array.isArray(first.params) && first.params[0] === mutatedParam;
+  }),
+  "replay ink must come from the server compile, not the mutated client payload",
+);
 
 const missingTrusted = clone(exactMetadata);
 missingTrusted.segments = [];
 const missingTrustedResult = await canonicalizeTurnSceneMetadata(missingTrusted);
-assert(!missingTrustedResult.ok && /segment count mismatch/.test(missingTrustedResult.error), "missing verified intro must be rejected");
+assert(missingTrustedResult.ok, `a validated scene with no client intro must still persist: ${missingTrustedResult.ok ? "" : missingTrustedResult.error}`);
+assert(
+  missingTrustedResult.value.segments.some((segment) => isRecord(segment.command) && segment.command.trustedDiagramGeometry === true),
+  "the server must inject verified intro segments when the client omitted them",
+);
 
 const forgedSolver = clone(exactMetadata);
 assert(isRecord(forgedSolver.sceneArtifacts) && isRecord(forgedSolver.sceneArtifacts.solverResult), "fixture needs solver result");
@@ -206,10 +219,26 @@ assert(isRecord(forgedFallback.sceneDocument) && Array.isArray(forgedFallback.sc
 assert(isRecord(forgedFallback.sceneDocument.entities[0]), "fixture needs first fallback entity");
 forgedFallback.sceneDocument.entities[0].label = "invented label";
 const forgedFallbackResult = await canonicalizeTurnSceneMetadata(forgedFallback);
-assert(forgedFallbackResult.ok, "client fallback metadata should be discarded in favor of server reconstruction");
+// P1: persist recompiles the accepted document that was taught instead of
+// re-inferring a representation from the question (the live-only family and
+// ProblemIR context is unavailable here, so re-inference could produce a
+// different document than the one the student saw). The server still
+// validates and compiles the submitted document — the persisted document and
+// its regenerated intro ink come from that server compile of the accepted
+// document, so replay matches what was taught.
+assert(forgedFallbackResult.ok, "the accepted fallback document is recompiled at persist time, not re-inferred");
 assert(
-  forgedFallbackResult.value.sceneDocument?.entities[0]?.label !== "invented label",
-  "forged fallback metadata reached canonical persistence",
+  forgedFallbackResult.value.sceneDocument?.entities[0]?.label === "invented label",
+  "the persisted document must be the accepted taught document, not a question re-inference",
+);
+
+const invalidFallback = clone(fallbackMetadata);
+assert(isRecord(invalidFallback.sceneDocument), "fixture needs a fallback document");
+invalidFallback.sceneDocument.schemaVersion = "scene-document/v99";
+const invalidFallbackResult = await canonicalizeTurnSceneMetadata(invalidFallback);
+assert(
+  !invalidFallbackResult.ok && /structurally invalid/.test(invalidFallbackResult.error),
+  "a forged non-metric document that fails server validation must still be rejected",
 );
 
 const forgedFallbackInk = clone(fallbackMetadata);
@@ -220,8 +249,17 @@ assert(isRecord(firstFallbackSegment.command) && Array.isArray(firstFallbackSegm
 const firstFallbackCommand = firstFallbackSegment.command.commands[0];
 assert(isRecord(firstFallbackCommand) && Array.isArray(firstFallbackCommand.params), "fixture needs a mutable fallback command");
 firstFallbackCommand.params[0] = Number(firstFallbackCommand.params[0]) + 2;
+const forgedParam = firstFallbackCommand.params[0];
 const forgedFallbackInkResult = await canonicalizeTurnSceneMetadata(forgedFallbackInk);
-assert(!forgedFallbackInkResult.ok && /commands differ/.test(forgedFallbackInkResult.error), "forged fallback ink must be rejected");
+assert(forgedFallbackInkResult.ok, `server reconstruction must replace forged fallback ink: ${forgedFallbackInkResult.ok ? "" : forgedFallbackInkResult.error}`);
+assert(
+  !forgedFallbackInkResult.value.segments.some((segment) => {
+    if (!isRecord(segment.command) || !Array.isArray(segment.command.commands)) return false;
+    const first = segment.command.commands[0];
+    return isRecord(first) && Array.isArray(first.params) && first.params[0] === forgedParam;
+  }),
+  "forged fallback ink must not be the persisted replay commands",
+);
 
 const unverifiedTrusted = clone(fallbackMetadata);
 unverifiedTrusted.visualStatus = "text_only";
@@ -332,16 +370,66 @@ exactWithFocus.segments.push({
 });
 const exactWithFocusResult = await canonicalizeTurnSceneMetadata(exactWithFocus);
 assert(exactWithFocusResult.ok, "semantic focus on a server-verified anchor should persist");
+assert(
+  exactWithFocusResult.ok &&
+    parseStoredSegmentCommands(exactWithFocusResult.value.segments.at(-1)?.command)
+      .some((command) => command.type === "FOCUS" && command.text === focusTarget),
+  "a FOCUS on a committed anchor must survive persistence",
+);
 
 const exactWithUnknownFocus = clone(exactWithFocus);
 const unknownFocusCommand = exactWithUnknownFocus.segments.at(-1)?.command;
 assert(isRecord(unknownFocusCommand), "fixture needs a focus command");
 unknownFocusCommand.text = "not-a-verified-anchor";
 const exactWithUnknownFocusResult = await canonicalizeTurnSceneMetadata(exactWithUnknownFocus);
+// P1: a teaching FOCUS that names an id absent from the committed diagram is
+// filtered like the live prepareVerifiedLessonSegments filter — it must not
+// 400 the save and drop the recording. The segment and its narration persist;
+// only the unresolvable gesture is removed so replay never points at nothing.
+assert(exactWithUnknownFocusResult.ok, "an unknown FOCUS id must not drop the whole recording");
+const unknownFocusSegment = exactWithUnknownFocusResult.ok
+  ? exactWithUnknownFocusResult.value.segments.at(-1)
+  : undefined;
 assert(
-  !exactWithUnknownFocusResult.ok && /teaching command FOCUS is not allowed/.test(exactWithUnknownFocusResult.error),
-  "focus commands must resolve against server-verified anchors",
+  unknownFocusSegment?.narration === "Notice the verified point.",
+  "the segment narration survives the filtered focus gesture",
 );
+assert(
+  parseStoredSegmentCommands(unknownFocusSegment?.command).every((command) => command.type !== "FOCUS"),
+  "the unresolved FOCUS gesture is filtered out of the persisted turn",
+);
+
+const exactWithEmphasize = clone(exactMetadata);
+exactWithEmphasize.segments.push({
+  orderIndex: exactWithEmphasize.segments.length,
+  narration: "Keep this formula.",
+  spokenText: "Keep this formula.",
+  command: {
+    type: "EMPHASIZE",
+    params: [],
+    text: "last",
+    charPosition: 0,
+    narrationBefore: "Keep this formula.",
+  },
+});
+const exactWithEmphasizeResult = await canonicalizeTurnSceneMetadata(exactWithEmphasize);
+assert(exactWithEmphasizeResult.ok, "semantic EMPHASIZE on a work-area row should persist");
+
+const exactWithSpotlight = clone(exactMetadata);
+exactWithSpotlight.segments.push({
+  orderIndex: exactWithSpotlight.segments.length,
+  narration: "Notice the verified point.",
+  spokenText: "Notice the verified point.",
+  command: {
+    type: "FOCUS",
+    params: [],
+    text: `${focusTarget}|spotlight`,
+    charPosition: 0,
+    narrationBefore: "Notice the verified point.",
+  },
+});
+const exactWithSpotlightResult = await canonicalizeTurnSceneMetadata(exactWithSpotlight);
+assert(exactWithSpotlightResult.ok, "FOCUS spotlight variants must persist against a verified anchor");
 
 const failedExactAttempt = await canonicalizeTurnSceneMetadata({
   question: arithmeticQuestion,

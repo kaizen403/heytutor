@@ -170,33 +170,9 @@ export function useSegmentRunner({
       const timingWaiters: Array<(timings: AudioTimings | null) => void> = [];
 
       let audioStartedFlag = false;
-      let audioStartedResolver: (() => void) | null = null;
-      const audioStartedPromise = new Promise<void>((resolve) => {
-        audioStartedResolver = resolve;
-      });
 
       const markSpeechComplete = () => {
         speechComplete = true;
-      };
-
-      const waitForAudioStart = async (timeoutMs = 1_200): Promise<boolean> => {
-        if (audioStartedFlag || !hasNarration) {
-          return true;
-        }
-
-        await Promise.race([
-          raceWithCancel(audioStartedPromise),
-          cancellableDelay(timeoutMs),
-        ]);
-
-        if (!audioStartedFlag && !isCancelled() && !speechComplete) {
-          tutorDebug("tts", "audio start still pending", {
-            index,
-            waited_ms: timeoutMs,
-          });
-        }
-
-        return audioStartedFlag;
       };
 
       let maxAudioPositionMs = Number.NEGATIVE_INFINITY;
@@ -277,17 +253,12 @@ export function useSegmentRunner({
             }
           }
 
-          // Wait once for audio — never per-command (that stacked 2.5s × N idle gaps).
-          if (hasNarration) {
-            await waitForAudioStart(2_400);
+          // Live writing uses estimated schedules immediately. Waiting here for
+          // TTS made the marker stop mid-stroke whenever speech was late.
+          if (hasNarration && audioStartedFlag) {
+            await waitForInitialTimings(40);
             if (isCancelled()) {
               return;
-            }
-            if (audioStartedFlag) {
-              await waitForInitialTimings(40);
-              if (isCancelled()) {
-                return;
-              }
             }
           }
 
@@ -577,7 +548,6 @@ export function useSegmentRunner({
                 if (isCancelled() || !turnActiveRef.current) return;
                 if (!audioStartedFlag) {
                   audioStartedFlag = true;
-                  audioStartedResolver?.();
                 }
                 tutorDebug("tts", "segment audio started", { index });
                 tel?.mark("tts-start", {

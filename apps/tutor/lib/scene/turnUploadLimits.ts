@@ -2,7 +2,7 @@ export const MAX_TURN_UPLOAD_BYTES = 32 * 1024 * 1024;
 export const MAX_TURN_METADATA_BYTES = 256 * 1024;
 export const MAX_TURN_AUDIO_BYTES = 8 * 1024 * 1024;
 export const MAX_TURN_TOTAL_AUDIO_BYTES = 24 * 1024 * 1024;
-export const MAX_TURN_SEGMENTS = 128;
+export const MAX_TURN_SEGMENTS = 256;
 
 export type TurnUploadValidation =
   | { ok: true }
@@ -19,12 +19,16 @@ export function validateTurnUploadHeaders(headers: Headers): TurnUploadValidatio
   }
 
   const rawLength = headers.get("content-length") ?? "";
-  if (!/^[1-9]\d*$/.test(rawLength)) {
-    return { ok: false, status: 411, error: "content-length is required for turn uploads" };
+  // Browsers usually send Content-Length; some Next/dev paths omit it. Size is
+  // still enforced after multipart parse. Reject only when a declared length is over cap.
+  if (rawLength && !/^[1-9]\d*$/.test(rawLength)) {
+    return { ok: false, status: 411, error: "content-length is invalid" };
   }
-  const contentLength = Number(rawLength);
-  if (!Number.isSafeInteger(contentLength) || contentLength > MAX_TURN_UPLOAD_BYTES) {
-    return { ok: false, status: 413, error: "turn upload exceeds the request size limit" };
+  if (rawLength) {
+    const contentLength = Number(rawLength);
+    if (!Number.isSafeInteger(contentLength) || contentLength > MAX_TURN_UPLOAD_BYTES) {
+      return { ok: false, status: 413, error: "turn upload exceeds the request size limit" };
+    }
   }
 
   return { ok: true };
