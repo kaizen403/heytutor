@@ -12,10 +12,22 @@ import {
   jobProgressPercent,
   lectureJobTitle,
   makeLectureJobs,
+  MAX_CONCURRENT_LECTURES,
   nextQueuedJobs,
   ongoingLectureJobs,
   shouldKeepHeadlessRuntime,
 } from "../../features/admin/lib/lectureJobs";
+import {
+  attachLectureRuntime,
+  canAdoptVerifiedScene,
+  detachLectureRuntime,
+  fingerprintTurnPlan,
+  lectureRuntimeKey,
+  lectureRuntimesAreIsolated,
+  sceneCompileIsolationKey,
+  selectLiveWatchRuntime,
+  type HeadlessRuntime,
+} from "../../features/admin/lib/lectureIsolation";
 import {
   indexPlaygroundRecordings,
   mergePlaygroundRecordings,
@@ -144,6 +156,157 @@ const queuedPlusRunning = [
 assert(nextQueuedJobs(queuedPlusRunning, 3).map((job) => job.id).join(",") === `${jobs[1]!.id},extra-queued`, "fill remaining slots from queued jobs");
 assert(nextQueuedJobs(queuedPlusRunning, 1).length === 0, "no extra slots when at concurrency cap");
 assert(nextQueuedJobs(jobs, 2).length === 2, "idle queue can start up to the cap");
+assert(MAX_CONCURRENT_LECTURES === 5, "lecture lab concurrency cap must be 5");
+assert(nextQueuedJobs(jobs, MAX_CONCURRENT_LECTURES).length === 2, "idle queue below the cap starts every queued job");
+
+const fiveQuestions = [
+  "A boat can travel at 5 m/s in still water. The river flows at 3 m/s east. Find the heading so the boat goes due north.",
+  "A boat heads perpendicular to a 2 m/s current. Its still-water speed is 8 m/s. Find the resultant velocity.",
+  "A raindrop appears to fall vertically at 4 m/s to a cyclist moving at 3 m/s. Find the true rain velocity.",
+  "Two forces of 3 N and 4 N act at right angles. Find the resultant.",
+  "A particle has velocity 6 î + 8 ĵ. Find the angle the velocity makes with the x-axis.",
+  "A sixth queued lecture must wait until a slot frees.",
+  "A seventh queued lecture must also wait.",
+];
+const overlappingJobs = makeLectureJobs(
+  fiveQuestions.map((question, index) => ({
+    id: `physics|2|vectors|q${index}`,
+    topicId: "physics|2|vectors",
+    difficulty: "medium" as const,
+    question,
+  })),
+  now,
+);
+assert(overlappingJobs.length === 7, "isolation fixture must enqueue seven lectures");
+const firstWave = nextQueuedJobs(overlappingJobs, MAX_CONCURRENT_LECTURES);
+assert(firstWave.length === 5, "the cap of 5 must start five overlapping jobs");
+const runningFive = firstWave.map((job) => ({ ...job, status: "running" as const, startedAt: now }));
+const stillQueued = overlappingJobs.filter((job) => !firstWave.some((started) => started.id === job.id));
+assert(
+  nextQueuedJobs([...runningFive, ...stillQueued], MAX_CONCURRENT_LECTURES).length === 0,
+  "no sixth lecture may start while five are running",
+);
+
+const overlappingRuntimes: HeadlessRuntime[] = runningFive.map((job, index) => ({
+  jobId: job.id,
+  boardId: `board-${index}`,
+  question: job.question,
+}));
+assert(lectureRuntimesAreIsolated(overlappingRuntimes), "five overlapping jobs must have distinct job and board ids");
+assert(
+  new Set(overlappingRuntimes.map(lectureRuntimeKey)).size === 5,
+  "five overlapping jobs must have distinct runtime keys",
+);
+assert(
+  !lectureRuntimesAreIsolated([
+    overlappingRuntimes[0]!,
+    { ...overlappingRuntimes[1]!, boardId: overlappingRuntimes[0]!.boardId },
+  ]),
+  "two jobs sharing a board must fail isolation",
+);
+
+let claimed: HeadlessRuntime[] = [];
+for (const runtime of overlappingRuntimes) {
+  claimed = attachLectureRuntime(claimed, runtime);
+}
+assert(claimed.length === 5, "each job must attach its own shell");
+assert(
+  attachLectureRuntime(claimed, {
+    jobId: stillQueued[0]!.id,
+    boardId: overlappingRuntimes[0]!.boardId,
+    question: stillQueued[0]!.question,
+  }).length === 5,
+  "a later job must not steal an in-use board",
+);
+assert(
+  selectLiveWatchRuntime(claimed, overlappingRuntimes[2]!.boardId)?.jobId === overlappingRuntimes[2]!.jobId,
+  "Watch Live must subscribe to the watched board's own shell",
+);
+const afterLeftover = detachLectureRuntime(claimed, {
+  jobId: overlappingRuntimes[0]!.jobId,
+  boardId: overlappingRuntimes[0]!.boardId,
+});
+assert(
+  lectureRuntimesAreIsolated(afterLeftover),
+  "deleting a leftover must not leave two jobs on one board",
+);
+assert(
+  !afterLeftover.some((runtime) => runtime.jobId === overlappingRuntimes[0]!.jobId),
+  "a failed leftover must drop its own shell",
+);
+assert(
+  afterLeftover.some((runtime) => runtime.jobId === overlappingRuntimes[1]!.jobId),
+  "deleting one leftover must not unmount a sibling recording",
+);
+assert(
+  selectLiveWatchRuntime(claimed, overlappingRuntimes[0]!.boardId)?.jobId !== overlappingRuntimes[1]!.jobId,
+  "Watch Live must not promote a sibling recording",
+);
+assert(
+  selectLiveWatchRuntime(
+    [
+      overlappingRuntimes[0]!,
+      { ...overlappingRuntimes[1]!, boardId: overlappingRuntimes[0]!.boardId },
+    ],
+    overlappingRuntimes[0]!.boardId,
+  ) === undefined,
+  "Watch Live must refuse to promote when two shells claim the same board",
+);
+
+const boatA = overlappingRuntimes[0]!;
+const boatB = overlappingRuntimes[1]!;
+assert(
+  !canAdoptVerifiedScene({
+    ownerBoardId: boatA.boardId,
+    ownerQuestion: boatA.question,
+    candidateBoardId: boatB.boardId,
+    candidateQuestion: boatB.question,
+  }),
+  "two river-boat lectures must not adopt each other's scene documents",
+);
+assert(
+  !canAdoptVerifiedScene({
+    ownerBoardId: boatA.boardId,
+    ownerQuestion: boatA.question,
+    candidateBoardId: boatB.boardId,
+    candidateQuestion: boatA.question,
+  }),
+  "the same question text on a different board must still not share a scene",
+);
+assert(
+  canAdoptVerifiedScene({
+    ownerBoardId: boatA.boardId,
+    ownerQuestion: boatA.question,
+    candidateBoardId: boatA.boardId,
+    candidateQuestion: boatA.question,
+  }),
+  "a job may adopt the scene compiled for its own board and question",
+);
+
+const unitKey = "physics|2";
+const keyA = sceneCompileIsolationKey({
+  question: boatA.question,
+  planFingerprint: fingerprintTurnPlan({ givens: [{ id: "v_b", symbol: "v_b", value: 5 }] }),
+  families: ["vector_diagram"],
+});
+const keyB = sceneCompileIsolationKey({
+  question: boatB.question,
+  planFingerprint: fingerprintTurnPlan({ givens: [{ id: "v_b", symbol: "v_b", value: 8 }] }),
+  families: ["vector_diagram"],
+});
+assert(keyA !== keyB, "same-unit river-boat questions must not share a compile cache key");
+assert(!keyA.includes(unitKey) && !keyB.includes(unitKey), "compile keys must not be unit-scoped");
+assert(
+  !canAdoptVerifiedScene({
+    ownerBoardId: boatA.boardId,
+    ownerQuestion: boatA.question,
+    candidateBoardId: boatA.boardId,
+    candidateQuestion: boatA.question,
+    ownerCompileKey: keyA,
+    candidateCompileKey: keyB,
+  }),
+  "a compile-key mismatch must block scene adoption even on the same board",
+);
 
 const running = { ...jobs[0]!, status: "running" as const, startedAt: now };
 assert(jobProgressPercent(running, now) === 0, "just-started job must be 0%");
@@ -493,6 +656,9 @@ assert(hidden.pointerEvents === "none", "hidden recordings must not steal clicks
 assert(hidden.zIndex < 0, "hidden recordings must sit behind the syllabus");
 assert(hidden.width === BOARD_WIDTH, "the hidden recorder must keep the live board size");
 assert(hidden.height === BOARD_HEIGHT, "the hidden recorder must keep the live board size");
+const fifthHidden = headlessLectureOffscreenStyle(4);
+assert(fifthHidden.top > hidden.top, "the fifth concurrent recorder must keep a distinct viewport slot");
+assert(fifthHidden.left >= 0 && fifthHidden.opacity === 0, "the fifth recorder must stay hidden in the viewport");
 const board = headlessLectureBoardStyle(1);
 assert(board.width === BOARD_WIDTH, "the recorder must keep the live board size");
 assert(board.height === BOARD_HEIGHT, "the recorder must keep the live board size");

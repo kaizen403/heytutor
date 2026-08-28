@@ -5,8 +5,8 @@ import type { ProbeQuestion } from "./probes";
 export const EXPECTED_LECTURE_MS = 4 * 60 * 1000;
 export const JOB_TIMEOUT_MS = 10 * 60 * 1000;
 /** Browser + TTS + LLM budget for one tab. Select many; this many actually run together. */
-export const MAX_CONCURRENT_LECTURES = 3;
-export const CONCURRENCY_OPTIONS = [1, 2, 3] as const;
+export const MAX_CONCURRENT_LECTURES = 5;
+export const CONCURRENCY_OPTIONS = [1, 2, 3, 4, 5] as const;
 
 export type LectureJobStatus = "queued" | "running" | "complete" | "failed";
 

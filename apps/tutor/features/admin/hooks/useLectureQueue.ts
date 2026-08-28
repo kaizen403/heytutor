@@ -15,17 +15,18 @@ import {
   type LectureJob,
 } from "../lib/lectureJobs";
 import {
+  attachLectureRuntime,
+  detachLectureRuntime,
+  type HeadlessRuntime,
+} from "../lib/lectureIsolation";
+import {
   forgetLectureBoard,
   parsePlaygroundBoardTitle,
   rememberLectureBoard,
 } from "../lib/playgroundBoards";
 import type { ProbeQuestion } from "../lib/probes";
 
-export type HeadlessRuntime = {
-  jobId: string;
-  boardId: string;
-  question: string;
-};
+export type { HeadlessRuntime };
 
 type JobOutcome = { status: "complete" } | { status: "failed"; error: string };
 
@@ -203,12 +204,12 @@ export function useLectureQueue() {
         return;
       }
       const runtime: HeadlessRuntime = { jobId: job.id, boardId: board.id, question: job.question };
-      setRuntimes((current) => [...current.filter((entry) => entry.jobId !== job.id), runtime]);
+      setRuntimes((current) => attachLectureRuntime(current, runtime));
 
       const outcome = await waitForOutcome(job.id, JOB_TIMEOUT_MS);
       const held = shouldKeepHeadlessRuntime(board.id, heldBoardIdRef.current);
       if (aliveRef.current && !held) {
-        setRuntimes((current) => current.filter((entry) => entry.jobId !== job.id));
+        setRuntimes((current) => detachLectureRuntime(current, { jobId: job.id, boardId: board.id }));
       }
       await delay(100);
       if (!aliveRef.current) {
@@ -285,7 +286,7 @@ export function useLectureQueue() {
       return;
     }
     if (aliveRef.current) {
-      setRuntimes((current) => current.filter((entry) => entry.boardId !== boardId));
+      setRuntimes((current) => detachLectureRuntime(current, { boardId }));
     }
   }, []);
 
@@ -383,6 +384,9 @@ export function useLectureQueue() {
       return false;
     }
     forgetLectureBoard(boardId);
+    if (aliveRef.current) {
+      setRuntimes((current) => detachLectureRuntime(current, { boardId }));
+    }
     syncJobs(
       jobsRef.current.map((job) =>
         job.boardId === boardId ? { ...job, boardId: undefined } : job,

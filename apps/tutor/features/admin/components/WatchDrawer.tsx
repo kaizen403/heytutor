@@ -64,7 +64,16 @@ function liveBadgeLabel(status?: "running" | "complete" | "failed", phase?: Tuto
   if (status === "failed") {
     return "Stopped";
   }
-  return phase ?? "Live";
+  if (phase === "planning") {
+    return "Planning";
+  }
+  if (phase === "thinking") {
+    return "Thinking";
+  }
+  if (phase === "drawing" || phase === "speaking") {
+    return "Teaching";
+  }
+  return "Live";
 }
 
 function WatchDrawerFrame({

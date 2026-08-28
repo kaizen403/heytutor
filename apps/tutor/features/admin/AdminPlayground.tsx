@@ -26,6 +26,7 @@ import {
   type ProbeQuestion,
 } from "./lib/probes";
 import { deletableJobBoardIds, deleteLecturesConfirm, isLectureLiveWatchable, lectureJobTitle } from "./lib/lectureJobs";
+import { selectLiveWatchRuntime } from "./lib/lectureIsolation";
 import {
   headlessLectureBoardStyle,
   headlessLectureOffscreenStyle,
@@ -146,6 +147,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
   );
   const isLiveWatch = watchIntent === "live" && watchBoardId !== null;
   const liveSlot = useLiveWatchSlot(isLiveWatch, watchBoardId);
+  const liveRuntime = selectLiveWatchRuntime(queue.runtimes, watchBoardId);
   const liveJob = isLiveWatch
     ? queue.jobs.find((job) => job.boardId === watchBoardId)
     : undefined;
@@ -752,12 +754,14 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
 
       {queue.runtimes.map((runtime, index) => {
         const promoted = Boolean(
-          isLiveWatch && runtime.boardId === watchBoardId && liveSlot,
+          isLiveWatch && liveRuntime?.jobId === runtime.jobId && liveSlot,
         );
         return (
           <div
             key={runtime.jobId}
             aria-hidden
+            data-lecture-job-id={runtime.jobId}
+            data-lecture-board-id={runtime.boardId}
             style={
               promoted && liveSlot
                 ? promotedLectureFrameStyle(liveSlot)
