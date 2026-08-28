@@ -54,6 +54,8 @@ the canvas and still teach. Invalid or partial candidates never render.
 
 ## Agent Guidelines
 
+- [Session handoff](docs/agent/session-handoff.md) — compact seed; Physics certified, Maths operators in (2 OCR leftovers)
+- [Diagram engine priority](docs/plans/diagram-engine-priority.md) — ranked issues; live-check patches first, then honest families, then persist
 - [Start — architecture map](start.md)
 - [Folder layout](docs/agent/layout.md)
 - [Architecture & data flow](docs/agent/architecture.md)

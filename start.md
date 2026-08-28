@@ -97,6 +97,8 @@ Done when narration starts only after a validated commit, and persisted commands
 
 ## Next
 
+- [session-handoff.md](docs/agent/session-handoff.md) — compact seed; live-test Physics, then Maths
+- [diagram-engine-priority.md](docs/plans/diagram-engine-priority.md) — ranked issues and next proceedings
 - [architecture.md](docs/agent/architecture.md) — turn + persist rules
 - [layout.md](docs/agent/layout.md) — where new files go
 - [packages.md](docs/agent/packages.md) — package maps
