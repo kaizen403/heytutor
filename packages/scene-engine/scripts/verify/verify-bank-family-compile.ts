@@ -21,6 +21,7 @@ import {
   synthesizeFamilyScene,
   synthesizeLastResortScene,
 } from "../../src/synthesize/familyScene.ts";
+import type { SceneDocument } from "../../src/types.ts";
 
 interface BankQuestion {
   question_id: string;
@@ -130,8 +131,12 @@ function isGarbledOcr(text: string): boolean {
 
 function isFigureAbsentWithoutApparatus(text: string): boolean {
   const stem = text.replace(/\s+/g, " ");
-  const absent = /\b(?:shown in the figure|as shown in the figure|the figure shows|figure shows)\b/i.test(stem)
-    || /(?:equivalent capacitance of the combination shown|effective capacitance of the network.{0,80}shown)/i.test(stem);
+  const absent = /\b(?:shown in the figure|as shown in the figure|the figure shows|figure shows|shaded region of the circle given below|circle given below)\b/i.test(stem)
+    || /(?:given below|as shown below).{0,80}(?:shaded|figure)/i.test(stem)
+    || /(?:equivalent capacitance of the combination shown|effective capacitance of the network.{0,80}shown)/i.test(stem)
+    // OCR/dropped-article and "diagram" variants of the same figure references.
+    // Keep in sync with FIGURE_ABSENT_EXTRA in src/synthesize/familyScene.ts.
+    || /(?:\bin the given figure\b|\bas shown in (?:the )?(?:figure|diagram)\b|\bshown in (?:the )?(?:figure|diagram)\b|\bsee (?:the )?figures?\b|\bin the figure\b)/i.test(stem);
   if (!absent) return false;
   return !/(?:microscope|telescope|met(?:er|re) bridge|wheatstone|metal sheets|conducting walls|horizontal metal plates|parallel[- ]plate|upper wire|lens|mirror|prism|incline|pendulum)/i.test(stem);
 }
@@ -161,6 +166,104 @@ function clusterOf(text: string, families: readonly string[]): string {
   return "unmatched:other";
 }
 
+/**
+ * Picture class of a compiled document, read off operators and entity ids/roles
+ * only — never the stem. `primitive_count > 0` says nothing about whether the
+ * picture is the one the stem demanded; this classification is what lets the
+ * sample gate below tell a two-loop network from a resistor chain, river banks
+ * from a recycled A/B angle, and a named hyperbola from a guessed circle.
+ * Discriminator style mirrors verify-family-synthesis.ts.
+ */
+type PictureClass =
+  | "circuit_two_loop"
+  | "river_banks"
+  | "space_3d"
+  | "implicit_conic"
+  | "function_region"
+  | "circle_figure"
+  | "function_curves"
+  | "vector_ab"
+  | "circuit_chain"
+  | "other"
+  | "none";
+
+function classifyPictureClass(document: SceneDocument | null): PictureClass {
+  if (!document) return "none";
+  const operators = document.constructions.map((construction) => construction.operator);
+  const entityIds = new Set(document.entities.map((entity) => entity.id));
+  if (
+    document.constructions.some((construction) =>
+      construction.operator === "symbol" && construction.inputs.symbol === "battery")
+    && operators.includes("connect")
+    && entityIds.has("v1")
+    && entityIds.has("r3")
+  ) {
+    return "circuit_two_loop";
+  }
+  if (document.entities.some((entity) => /bank/i.test(`${entity.id} ${entity.role}`))) {
+    return "river_banks";
+  }
+  if (operators.includes("space_frame")) return "space_3d";
+  if (operators.includes("implicit_curve")) return "implicit_conic";
+  if (operators.includes("function_region")) return "function_region";
+  if (operators.includes("circle")) return "circle_figure";
+  if (operators.includes("function_curve")) return "function_curves";
+  if (
+    operators.includes("vector")
+    && document.entities.some((entity) => entity.id === "a" && entity.label === "A")
+  ) {
+    return "vector_ab";
+  }
+  if (document.constructions.some((construction) =>
+    construction.operator === "symbol" && construction.inputs.symbol === "resistor")) {
+    return "circuit_chain";
+  }
+  return "other";
+}
+
+/**
+ * P0 sample gate: well-known picture-class stems from the bank and the class
+ * the stem demands. Stem matching here is an offline test oracle (same role as
+ * CLUSTER_HINTS), never runtime coverage. A sampled row that compiled into one
+ * of the named `contradictions` — the exact wrong-picture bugs from the issue
+ * log (series chain for a Kirchhoff network, generic A/B arrows for a river,
+ * a circle or an isometric 3D frame for a hyperbola) — fails the gate. A
+ * sampled row compiled into any other class is still flagged in the report and
+ * console as a picture-class miss work-list instead of passing silently on
+ * primitive_count; those become live-test family-program fixes, not regex.
+ */
+const PICTURE_CLASS_SAMPLES: ReadonlyArray<{
+  id: string;
+  expect: PictureClass;
+  contradictions: readonly PictureClass[];
+  match: (stem: string) => boolean;
+}> = [
+  {
+    id: "kirchhoff_two_loop",
+    expect: "circuit_two_loop",
+    contradictions: ["circuit_chain"],
+    // Anchored to stems whose drawable demand is the network itself; a stem
+    // that only cites Kirchhoff for a series/parallel calculation is honestly
+    // a chain and stays out of the sample.
+    match: (stem) => /kirchhoff/i.test(stem) && /(?:network|loops?|junctions?)/i.test(stem),
+  },
+  {
+    id: "river_banks",
+    expect: "river_banks",
+    contradictions: ["vector_ab"],
+    match: (stem) =>
+      !/(?:rain falls|umbrella)/i.test(stem)
+      && /(?:\bboat\b|still water)/i.test(stem)
+      && /(?:\briver\b|\bcurrent\b|downstream|upstream|still water)/i.test(stem),
+  },
+  {
+    id: "named_hyperbola",
+    expect: "implicit_conic",
+    contradictions: ["circle_figure", "space_3d"],
+    match: (stem) => /\bhyperbola\b/i.test(stem),
+  },
+];
+
 interface RowResult {
   question_id: string;
   subject: string;
@@ -172,6 +275,7 @@ interface RowResult {
   family: string | "none";
   mode: string;
   primitive_count: number;
+  picture_class: PictureClass;
   compile_path: "exact" | "last_resort" | "none";
   fatal_codes: string[];
   cluster: string;
@@ -218,6 +322,7 @@ function main(): void {
   }
 
   const rows: RowResult[] = [];
+  const sampleRows = new Map<string, Array<{ row: RowResult; compiled: boolean }>>();
   for (const line of readFileSync(questionsPath, "utf8").split("\n")) {
     if (!line.trim()) continue;
     const question = JSON.parse(line) as BankQuestion;
@@ -260,6 +365,7 @@ function main(): void {
       : [];
     const compiled = Boolean(synthesized && mode === "scene" && primitives > 0);
     const requiredMiss = !honestTextOnly && !compiled;
+    const pictureClass = classifyPictureClass(synthesized?.document ?? null);
 
     rows.push({
       question_id: question.question_id,
@@ -272,12 +378,20 @@ function main(): void {
       family: synthesized?.family ?? "none",
       mode,
       primitive_count: primitives,
+      picture_class: pictureClass,
       compile_path: exact ? "exact" : lastResort ? "last_resort" : "none",
       fatal_codes: fatalCodes,
       cluster: clusterOf(text, capabilities.families),
       required_miss: requiredMiss,
       stem_preview: preview(text),
     });
+
+    for (const sample of PICTURE_CLASS_SAMPLES) {
+      if (!sample.match(text)) continue;
+      const bucket = sampleRows.get(sample.id) ?? [];
+      bucket.push({ row: rows[rows.length - 1]!, compiled });
+      sampleRows.set(sample.id, bucket);
+    }
   }
 
   const byUnit = new Map<string, UnitStats>();
@@ -334,6 +448,27 @@ function main(): void {
       maths,
     },
     by_unit: unitReport,
+    picture_class_samples: Object.fromEntries(
+      PICTURE_CLASS_SAMPLES.map((sample) => {
+        const entries = sampleRows.get(sample.id) ?? [];
+        const compiledEntries = entries.filter((entry) => entry.compiled);
+        const wrong = compiledEntries.filter((entry) => entry.row.picture_class !== sample.expect);
+        return [sample.id, {
+          expect: sample.expect,
+          contradiction_classes: sample.contradictions,
+          sampled: entries.length,
+          compiled: compiledEntries.length,
+          correct_class: compiledEntries.length - wrong.length,
+          wrong_class: wrong.map((entry) => ({
+            question_id: entry.row.question_id,
+            unit: entry.row.unit,
+            actual_class: entry.row.picture_class,
+            contradiction: sample.contradictions.includes(entry.row.picture_class),
+            preview: entry.row.stem_preview,
+          })),
+        }];
+      }),
+    ),
     miss_clusters: Object.fromEntries(
       [...clusterCounts.entries()]
         .sort((a, b) => b[1] - a[1])
@@ -380,6 +515,35 @@ function main(): void {
     );
   }
   console.log(`  report=${reportPath}`);
+
+  console.log("verify-bank-family-compile: picture-class sample gate");
+  const pictureContradictions: string[] = [];
+  for (const sample of PICTURE_CLASS_SAMPLES) {
+    const entries = sampleRows.get(sample.id) ?? [];
+    const compiledEntries = entries.filter((entry) => entry.compiled);
+    const wrong = compiledEntries.filter((entry) => entry.row.picture_class !== sample.expect);
+    console.log(
+      `  ${sample.id}: sampled=${entries.length} compiled=${compiledEntries.length} correct-class=${compiledEntries.length - wrong.length} wrong-class=${wrong.length} (expect=${sample.expect})`,
+    );
+    for (const entry of wrong) {
+      const contradiction = sample.contradictions.includes(entry.row.picture_class);
+      if (contradiction) {
+        pictureContradictions.push(
+          `${sample.id}: ${entry.row.question_id} compiled as ${entry.row.picture_class} (expected ${sample.expect}) — ${entry.row.stem_preview}`,
+        );
+      }
+      console.log(
+        `    [${contradiction ? "CONTRADICTION" : "miss"}] ${entry.row.question_id} actual=${entry.row.picture_class} ${entry.row.stem_preview}`,
+      );
+    }
+  }
+  if (pictureContradictions.length > 0) {
+    console.log("verify-bank-family-compile: PICTURE-CLASS GATE FAILED");
+    for (const failure of pictureContradictions) console.log(`  ${failure}`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log("verify-bank-family-compile: picture-class sample gates passed");
 
   const gateFailures: string[] = [];
   for (const unit of CERTIFY_PHYSICS_UNITS) {

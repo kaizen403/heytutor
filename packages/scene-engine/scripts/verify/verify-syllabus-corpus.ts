@@ -121,8 +121,8 @@ const UNIT_DEMAND: Record<string, UnitCapabilityDemand> = {
     diagramLed: true,
   },
   "maths|11": {
-    // 3D geometry -> needs plane construction; not in manifest -> gap
-    operators: [...GEOMETRY_POINT_OPS, "vector"],
+    // 3D geometry -> isometric frame, lines, and planes
+    operators: [...GEOMETRY_POINT_OPS, "vector", "space_frame", "space_point", "space_line", "plane"],
     predicates: ["perpendicular", "parallel"],
     diagramLed: true,
   },

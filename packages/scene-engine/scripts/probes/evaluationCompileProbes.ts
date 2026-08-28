@@ -502,4 +502,41 @@ export const EVALUATION_COMPILE_PROBES: Record<string, Record<string, unknown>> 
       { id: "origin_on_circle", predicate: "on", entities: ["origin_hit", "circle"], expected: true, severity: "fatal" },
     ],
   ),
+
+  "coordinate-skew-lines": (() => {
+    const origin = pt("origin2d", 0, 0, "frame origin");
+    return scene(
+      "Find the shortest distance between two skew lines and sketch both lines.",
+      [
+        origin.entity,
+        { id: "frame", kind: "polyline", role: "space frame" },
+        { id: "A", kind: "point", role: "space point", label: "A" },
+        { id: "B", kind: "point", role: "space point", label: "B" },
+        { id: "l1", kind: "line", role: "space line" },
+        { id: "l2", kind: "line", role: "space line" },
+      ],
+      [
+        origin.construction,
+        { id: "make_frame", operator: "space_frame", inputs: { origin: "origin2d", scale: 1, axisLength: 2 }, outputs: ["frame"] },
+        { id: "make_A", operator: "space_point", inputs: { frame: "frame", x: 1, y: 2, z: 4 }, outputs: ["A"] },
+        { id: "make_B", operator: "space_point", inputs: { frame: "frame", x: 3, y: 3, z: 5 }, outputs: ["B"] },
+        {
+          id: "make_l1",
+          operator: "space_line",
+          inputs: { frame: "frame", point: "A", direction: [2, 3, 6], tMin: -1.2, tMax: 1.2 },
+          outputs: ["l1"],
+        },
+        {
+          id: "make_l2",
+          operator: "space_line",
+          inputs: { frame: "frame", point: "B", direction: [2, 3, 8], tMin: -1.2, tMax: 1.2 },
+          outputs: ["l2"],
+        },
+      ],
+      [
+        { id: "l1_exists", predicate: "exists", entities: ["l1"], expected: true, severity: "fatal" },
+        { id: "l2_exists", predicate: "exists", entities: ["l2"], expected: true, severity: "fatal" },
+      ],
+    );
+  })(),
 };
