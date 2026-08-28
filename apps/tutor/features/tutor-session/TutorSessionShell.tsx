@@ -135,6 +135,7 @@ export function TutorSessionShell({
   const fbdPhaseMarkedRef = useRef(false);
   const fbdPhaseStartedRef = useRef(false);
   const activeVerifiedDiagramRef = useRef<VerifiedDiagram | null>(null);
+  const [activeVerifiedDiagram, setActiveVerifiedDiagram] = useState<VerifiedDiagram | null>(null);
   const segmentPlanStatsRef = useRef<SegmentPlanStats>(createEmptySegmentPlanStats());
   const stopTurnRef = useRef<(() => void) | null>(null);
   const pendingSegmentCountRef = useRef(0);
@@ -280,6 +281,19 @@ export function TutorSessionShell({
     adaptiveFactorRef,
   });
 
+  const handleRetraceEntity = useCallback((entityId: string) => {
+    void executeCommand(
+      {
+        type: "FOCUS",
+        params: [],
+        text: entityId,
+        charPosition: 0,
+        narrationBefore: "",
+      },
+      { applyLayout: false, inkPace: "follow" },
+    );
+  }, [executeCommand]);
+
   const {
     boards,
     setBoards,
@@ -366,6 +380,7 @@ export function TutorSessionShell({
     fbdPhaseMarkedRef,
     fbdPhaseStartedRef,
     activeVerifiedDiagramRef,
+    setActiveVerifiedDiagram,
     segmentPlanStatsRef,
     stopTurnRef,
     speedRef,
@@ -585,6 +600,10 @@ export function TutorSessionShell({
           cursorState={cursorState}
           inkColor={getMarkerColorHex(settings.markerColor)}
         />
+        {phase === "planning" && (
+          <ThinkingOverlay message="planning the diagram…" />
+        )}
+        {phase === "thinking" && <ThinkingOverlay />}
       </div>
     );
   }
@@ -714,7 +733,7 @@ export function TutorSessionShell({
         className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col ${
           isEmbed ? "h-full" : ""
         } ${
-          isEmbed ? "" : "md:mr-[var(--tutor-notes-width)] lg:ml-[var(--tutor-sidebar-width)]"
+          isEmbed ? "" : "md:mr-[var(--tutor-notes-width)] md:ml-[var(--tutor-sidebar-width)]"
         }`}
         style={{
           ["--tutor-sidebar-width" as string]:
@@ -734,12 +753,9 @@ export function TutorSessionShell({
         {!isEmbed ? (
           <SessionHeader
             showNavButton
-            navButtonClassName={sidebarCollapsed ? undefined : "lg:hidden"}
+            navButtonClassName={sidebarCollapsed ? undefined : "md:hidden"}
             onExpandSidebar={() => {
-              if (
-                typeof window !== "undefined" &&
-                window.matchMedia("(max-width: 1023px)").matches
-              ) {
+              if (isMobile) {
                 setMobileNavOpen(true);
                 return;
               }
@@ -854,6 +870,8 @@ export function TutorSessionShell({
               isPaused={isPaused}
               replayProgressMs={replayProgressMs}
               replayTotalMs={replayTotalMs}
+              verifiedDiagram={activeVerifiedDiagram}
+              onRetraceEntity={handleRetraceEntity}
               onRetryError={(question) => {
                 setLastError(null);
                 void handleQuestion(question);

@@ -12,6 +12,7 @@ import {
   estimateBoardTextWidthAtSize,
   textRectsOverlap,
   registerBoardAnchor,
+  withWorkRowIdentity,
   getWorkAreaFlowStartY,
   findWorkTextSlot,
   overlapsWorkArea,
@@ -104,13 +105,17 @@ export function useBoardLayout({
     ): Promise<{ x: number; y: number }> => {
       if (!applyLayout || !command.text) {
         if (command.text && Number.isFinite(x) && Number.isFinite(y)) {
-          registerBoardAnchor(boardLayoutRef.current, {
+          const rect = {
             x,
             y,
             width: estimateBoardTextWidth(command.text),
             height: TEXT_LAYOUT.textHeight,
             text: command.text,
-          });
+          };
+          registerBoardAnchor(
+            boardLayoutRef.current,
+            command.type === "WRITE" ? withWorkRowIdentity(boardLayoutRef.current, rect) : rect,
+          );
         }
         return { x, y };
       }
@@ -118,7 +123,8 @@ export function useBoardLayout({
       if (command.type !== "WRITE" && isInDiagramZone(x, y)) {
         const width = estimateBoardTextWidth(command.text);
         const height = TEXT_LAYOUT.textHeight;
-        registerBoardAnchor(boardLayoutRef.current, { x, y, width, height, text: command.text });
+        const rect = { x, y, width, height, text: command.text };
+        registerBoardAnchor(boardLayoutRef.current, rect);
         return { x, y };
       }
 
@@ -205,7 +211,10 @@ export function useBoardLayout({
         height,
         text: command.text,
       };
-      registerBoardAnchor(boardLayoutRef.current, rect);
+      registerBoardAnchor(
+        boardLayoutRef.current,
+        command.type === "WRITE" ? withWorkRowIdentity(boardLayoutRef.current, rect) : rect,
+      );
       boardLayoutRef.current.nextY = Math.max(
         boardLayoutRef.current.nextY,
         slot.y + TEXT_LAYOUT.lineHeight,

@@ -13,6 +13,7 @@ import {
   estimateBoardTextWidthAtSize,
   findWorkTextSlot,
   registerBoardAnchor,
+  withWorkRowIdentity,
   textRectsOverlap,
 } from "../../features/tutor-session/lib/boardLayout";
 import { TEXT_LAYOUT } from "../../features/tutor-session/constants";
@@ -152,8 +153,32 @@ function verifyReplayEpochAndResolvedCoordinates(): void {
   assert.deepEqual((persisted[1]!.command as DrawCommand).params, [90, 250, 24]);
 }
 
+function verifyWorkRowIdentity(): void {
+  const layout: BoardLayoutState = { rects: [], nextY: TEXT_LAYOUT.topY };
+  const first = withWorkRowIdentity(layout, {
+    x: 90,
+    y: 145,
+    width: 120,
+    height: 42,
+    text: "v = 60 cm",
+  });
+  registerBoardAnchor(layout, first);
+  const second = withWorkRowIdentity(layout, {
+    x: 90,
+    y: 199,
+    width: 120,
+    height: 42,
+    text: "1/v = 1/15 - 1/20",
+  });
+  assert.equal(first.workId, "w1");
+  assert.equal(first.workIndex, 1);
+  assert.equal(second.workId, "w2");
+  assert.equal(second.workIndex, 2);
+}
+
 verifyLiveWriteRepair();
 verifySequentialRows();
 verifyFontAwareMeasurement();
 verifyReplayEpochAndResolvedCoordinates();
+verifyWorkRowIdentity();
 console.log("board layout verification passed");

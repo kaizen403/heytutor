@@ -18,12 +18,12 @@ export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
-/** Phone-only overlay chrome (notes sheet). Tablets keep the persistent notes rail. */
+/** Phone-only overlay chrome (nav drawer + notes sheet). Tablets keep persistent rails. */
 export function useIsMobile(): boolean {
   return useMediaQuery("(max-width: 767px)");
 }
 
-/** Persistent board-history sidebar only from large screens up; tablets use the drawer. */
+/** Compact header actions below large screens. Sidebar visibility is md+, independent of this. */
 export function useIsCompactNav(): boolean {
   return useMediaQuery("(max-width: 1023px)");
 }

@@ -644,6 +644,16 @@ const STYLES = `
   box-shadow: 0 0 0 1px rgba(201, 201, 210, 0.12);
 }
 
+.board-sidebar--docked {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .board-sidebar--docked {
+    display: flex;
+  }
+}
+
 .bh__resize:focus-visible {
   outline: none;
 }
@@ -816,7 +826,7 @@ export function BoardHistory({
 
   return (
     <div
-      className={`board-sidebar hidden lg:flex${resizing ? " board-sidebar--resizing" : ""}`}
+      className={`board-sidebar board-sidebar--docked${resizing ? " board-sidebar--resizing" : ""}`}
       style={{
         position: "fixed",
         left: 0,

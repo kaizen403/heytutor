@@ -116,6 +116,21 @@ export function registerBoardAnchor(layout: BoardLayoutState, rect: BoardTextRec
   layout.rects.push(rect);
 }
 
+const WORK_AREA_MAX_X = 400;
+
+export function withWorkRowIdentity(layout: BoardLayoutState, rect: BoardTextRect): BoardTextRect {
+  if (rect.x >= WORK_AREA_MAX_X || !rect.text) return rect;
+  if (rect.workIndex != null && rect.workId) return rect;
+  let maxIndex = 0;
+  for (const existing of layout.rects) {
+    if (existing.workIndex != null && existing.workIndex > maxIndex) {
+      maxIndex = existing.workIndex;
+    }
+  }
+  const workIndex = maxIndex + 1;
+  return { ...rect, workIndex, workId: `w${workIndex}` };
+}
+
 export function getWorkAreaFlowStartY(layout: BoardLayoutState): number {
   const hasHeading = layout.rects.some((rect) => rect.y < TEXT_LAYOUT.headingBottomY);
   const queuedY = Math.max(layout.nextY, TEXT_LAYOUT.topY);
