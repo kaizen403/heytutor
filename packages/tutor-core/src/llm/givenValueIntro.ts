@@ -100,7 +100,7 @@ export function buildGivenValueSegments(
 export function givenValuesPromptAddon(hasGivens: boolean): string {
   if (!hasGivens) return "";
   return `GIVEN VALUES ARE ALREADY ON THE BOARD
-The runtime already wrote the given quantities as "Given: ..." and will reveal any verified figure next. Do not rewrite those givens. Do not restate the full list. Start from the governing relationship: write each general formula in symbols before substituting the given values, write each working line as you speak it, and [FOCUS:entity_id] when you name a labeled diagram point.`;
+The runtime already wrote the given quantities as "Given: ..." and will reveal any verified figure next. Do not rewrite those givens. Do not restate the full list. Start from the governing relationship: write each general formula in symbols before substituting the given values, write each working line as you speak it, and [FOCUS:entity_id] when you name a labeled diagram point. Every step must [WRITE] or [FOCUS] so the marker moves with the voice. Use [EMPHASIZE:last] to underline the current work line when you want the student to hold it.`;
 }
 
 function givenFromPlan(raw: unknown, index: number, question: string): QuestionGiven | null {

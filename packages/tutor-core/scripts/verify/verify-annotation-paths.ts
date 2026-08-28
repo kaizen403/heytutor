@@ -26,10 +26,11 @@ assertPath("scribble bbox", scribblePath([100, 200, 180, 240]));
 assertPath("scribble polyline", scribblePath([100, 200, 140, 210, 180, 195, 220, 205]));
 
 const parsed = parseDrawingCommands(
-  "here, x is the variable [UNDERLINE:118,248,138,252] notice [CIRCLE_AROUND:88,200,52,44]",
+  "here, x is the variable [UNDERLINE:118,248,138,252] notice [CIRCLE_AROUND:88,200,52,44] keep [EMPHASIZE:last]",
 );
-assert(parsed.commands.length === 2, "parser: expected two annotation commands");
+assert(parsed.commands.length === 3, "parser: expected three annotation commands");
 assert(parsed.commands[0]?.type === "UNDERLINE", "parser: first command should be UNDERLINE");
 assert(parsed.commands[1]?.type === "CIRCLE_AROUND", "parser: second command should be CIRCLE_AROUND");
+assert(parsed.commands[2]?.type === "EMPHASIZE", "parser: EMPHASIZE must parse as a semantic annotation");
 
 console.log("verify-annotation-paths: all checks passed");

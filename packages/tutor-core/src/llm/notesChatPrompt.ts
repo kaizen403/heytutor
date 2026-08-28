@@ -12,7 +12,7 @@ rules:
 - if the board is empty, answer the question simply and invite them to start a lecture.`;
 
 const PROTOCOL_TAG =
-  /\[(?:\/?STEP|WRITE:[^\]]*|LABEL:[^\]]*|FOCUS:[^\]]*|PAUSE:[^\]]*|DRAW_[A-Z_]+:[^\]]*|UNDERLINE[^\]]*|CIRCLE_AROUND[^\]]*|ARROW[^\]]*|HIGHLIGHT[^\]]*|SCRIBBLE[^\]]*|DIMENSION[^\]]*|ERASE[^\]]*|CLEAR[^\]]*)\]/gi;
+  /\[(?:\/?STEP|WRITE:[^\]]*|LABEL:[^\]]*|FOCUS:[^\]]*|EMPHASIZE:[^\]]*|SUPERSEDE:[^\]]*|ANNOTATE:[^\]]*|PAUSE:[^\]]*|DRAW_[A-Z_]+:[^\]]*|UNDERLINE[^\]]*|CIRCLE_AROUND[^\]]*|ARROW[^\]]*|HIGHLIGHT[^\]]*|SCRIBBLE[^\]]*|DIMENSION[^\]]*|ERASE[^\]]*|CLEAR[^\]]*)\]/gi;
 
 export function stripNotesChatProtocol(text: string): string {
   return text

@@ -65,7 +65,7 @@ export const SCENE_DOCUMENT_PLANNER_PROMPT = `Plan one compact scene-document/v2
 
 REQUIRED SHAPE
 Include schemaVersion, visualDecision, source, quantities, entities, constructions, relations, assertions, annotations, requiredEntityIds, revealGroups, and teachingTimeline. Use relations:[].
-Entity: {id,kind,role?,label?}. Construction: {id,operator,inputs,outputs}. Assertion: {id,predicate,entities,expected,severity}. Annotation: {id,kind,targetIds,text?,placementIntent?}.
+Entity: {id,kind,role?,label?}. Construction: {id,operator,inputs,outputs}. Assertion: {id,predicate,entities,expected,severity}. Annotation: {id,kind,targetIds,text?,placementIntent?,quantityId?}. kind is label, callout, or caption. Captions are one honest line under the figure, not 16-character diagram labels.
 
 VISUAL DECISION
 - Use scene when geometry, topology, apparatus, graphs, regions, bodies, vectors, rays, fields, forces, or spatial relations help explain the submitted question.
@@ -96,11 +96,13 @@ STRUCTURE AND PROOFS
 ANNOTATION AND TEACHING
 - Labels are compact identifiers or values, at most 16 characters. Put explanatory properties in narration.
 - Attach annotations to the entity they describe. Do not create geometry just to position text, and do not label generated helpers, wire terminals, or unnamed junctions.
+- Annotation kinds: label, callout, narration, enclose, highlight, trace, badge, spin, equal_tick, equal_arc, parallel_mark, hatch, brace, endpoint, loop, sense, drop, ghost, extend, frame, polarity, slope_triangle. Optional style: {count:1|2|3, pointStyle:"filled"|"open"|"cross"|"square", transient:boolean}. The engine compiles paths from targetIds; never emit CIRCLE_AROUND or coordinates.
+- enclose circles a target; highlight shades a region; equal_tick/equal_arc/parallel_mark mark congruence; hatch shades a surface; brace spans a length; endpoint restyles a point; loop follows a closed route; sense marks current/path direction; drop drops an ordinate to an axis; ghost is a dashed clone; extend continues a path; frame is a local n-t or x-y pair; polarity is +/- at terminals; slope_triangle is rise/run on a graph.
 - Include only question-grounded objects. Prefer one reveal group; add another only for a genuinely separate or staged view.
 - revealGroups.entityIds contains entity IDs only. Timeline actions reveal, focus, or annotate existing IDs only.
 
 ALLOWED KINDS
-Entities: point, segment, ray, line, circle, arc, rectangle, polygon, polyline, vector, axes, object, component, connector, label, dimension, angle_mark, right_angle_mark, tick_mark, wavefront_family, aperture, screen_pattern, transverse_field, polarizer, group.
+Entities: point, segment, ray, line, circle, arc, rectangle, polygon, polyline, vector, axes, object, component, connector, label, dimension, angle_mark, right_angle_mark, tick_mark, sign_badge, wavefront_family, aperture, screen_pattern, transverse_field, polarizer, group.
 Predicates: ${DEFAULT_SCENE_PROOF_PREDICATES.join(", ")}.
 equal_angle compares two angles using four path IDs. angle_between checks two path IDs against expected:{value,unit:"degree"|"radian"}. function_value uses entities:[curve_id], expected:{x,y}. root uses entities:[curve_id], expected:x or {x}.`;
 
@@ -132,9 +134,10 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Use these exact input keys. E
 - refract_at: {point, surface, incidentAngleDeg, n1, n2, tangentSign?:-1|1, span?}. Outputs [incident_ray, normal, refracted_ray] using Snell's law. Prefer it for a stated angle; do not duplicate its rays with low-level operators.
 - parallel_through/perpendicular_through: {through: point_id, line: line_or_segment_id}.
 - angle_bisector: {vertex: point_id, a: point_id, b: point_id}.
-- angle_mark: {vertex: point_id, a: point_or_path_id, b: point_or_path_id, radius?}. Each path must meet the vertex at one endpoint. Marks the smaller angle between the two arms.
+- angle_mark: {vertex: point_id, a: point_or_path_id, b: point_or_path_id, radius?, count?:1|2|3}. Each path must meet the vertex at one endpoint. Marks the smaller angle between the two arms. count draws concentric congruence arcs. Bind a measured value with an annotation quantityId or an angle_between assertion; do not invent a degree label.
 - right_angle_mark: {vertex: point_id, a: point_or_path_id, b: point_or_path_id, size?}. Each path must meet the vertex at one endpoint.
-- tick_mark: {target: line_or_segment_id, at?:0..1, size?}.
+- tick_mark: {target: line_or_segment_id, at?:0..1, size?, count?:1|2|3, family?:string}. Matching family IDs share the same tick count. count is 1, 2, or 3 congruence marks perpendicular to the target at the parametric location.
+- sign_badge: {target: line_or_segment_or_vector_id, sense:"positive"|"clockwise"|"counterclockwise", at?:0..1}. A compact owned direction or rotation convention mark. Never a teaching-model ARROW.
 - vector_components: {origin: point_id, vector: vector_id|[dx,dy], basis?: line_or_segment_or_vector_id} and exactly two output entity IDs. Without basis, outputs are Cartesian x then y components. With basis, outputs must be [parallel_component_id, perpendicular_component_id]. For an incline or any rotated frame, always provide the physical surface/axis as basis; never label Cartesian components as parallel/perpendicular.
 - dimension: {start: point_id, end: point_id}.
 - symbol: {symbol:"resistor"|"battery"|"cell"|"capacitor"|"inductor"|"lamp"|"galvanometer"|"ammeter"|"voltmeter"|"ac_source"|"diode"|"zener"|"switch", start: point_id, end: point_id}. The symbol itself connects those terminals. Use connect only between two point IDs for an additional ordinary wire.
@@ -149,6 +152,10 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Use these exact input keys. E
 - solid_of_revolution: {profile: function_curve_id, axisY?:0, xMin?, xMax?, samples?}. Draws the profile, its mirror, and circular end caps about y=axisY. The function must stay on one side of the axis and may meet it only at domain endpoints.
 - solid_projection: {kind:"cylinder"|"cone"|"frustum"|"sphere"|"hemisphere", center:point_id, radius:positive_number, height?:positive_number, topRadius?:positive_number, axis?:"vertical"|"horizontal"}. Cylinder, cone, and frustum require height. Frustum alone requires topRadius, which must differ from radius. Sphere and hemisphere derive their axial span from radius and must omit height and topRadius. center is the base center for cylinder/cone/frustum/hemisphere and the geometric center for sphere. Output one polyline entity with role "solid projection".
 - solid_cross_section: {solid:solid_projection_id, at:number, plane?:"transverse"}. at is a normalized axial position strictly between 0 and 1. The derived section is closed, finite, and contained by the referenced solid. Output one polyline entity with role "solid cross section".
+- space_frame: {origin:point_id, scale?:positive_number, axisLength?:positive_number}. Places a shared isometric 3D frame at a 2D origin and draws the XYZ axes. Later space_point, space_line, and plane constructions must reference this frame id. Output one polyline entity.
+- space_point: {frame:space_frame_id, x, y, z}. Projects a world (x,y,z) point through the frame. Output one point. Later 2D operators may use that point id; space_line/plane may reuse it as a 3D anchor.
+- space_line: {frame:space_frame_id, point:space_point_id|[x,y,z], direction:[dx,dy,dz], tMin?:number, tMax?:number}. Draws the parametric line r = point + t direction on tMin<t<tMax (defaults -1.5 to 1.5). Direction must be nonzero. Output one line entity.
+- plane: {frame:space_frame_id, a, b, c, d?:number, span?:positive_number} or {frame, point:space_point_id|[x,y,z], u:[ux,uy,uz], v:[vx,vy,vz], uSpan?:positive_number, vSpan?:positive_number}. Renders a parallelogram patch of the plane ax+by+cz=d (or the span of u,v at point). The normal or the spanning pair must be nonzero/independent. Output one polygon entity.
 - wavefront_family: {origin:point_id, direction:path_id|[dx,dy], shape:"plane"|"circular", count:1..12, spacing:positive_number, span:positive_number}. Derives fronts perpendicular to direction; plane is parallel and circular is point-source. For Huygens, derive rays with reflect_at/refract_at and use those ray IDs for direction; never guess front segments.
 - aperture: {center:point_id, orientation:"vertical"|"horizontal", length:positive_number, slitCount:1..4, slitWidth:positive_number, slitSeparation:positive_number}. Generates an opaque finite screen with exact open slit gaps. Output one aperture or polyline entity. Use one slit for diffraction and two for Young interference.
 - screen_pattern: {start:point_id, end:point_id, pattern:"interference"|"diffraction"|"resolution", count:odd_integer_3_to_21, spacing:positive_number, centralWidth:positive_number}. Generates a compact screen pattern. Output one screen_pattern or polyline entity. Use normalized display spacing when physical scales differ greatly; keep the authoritative physical value in quantities and a dimension/label, and never create guessed fringe points on top of this derived pattern.

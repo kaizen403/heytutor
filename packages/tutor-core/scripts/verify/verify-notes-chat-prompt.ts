@@ -17,6 +17,11 @@ assert(
   "protocol tags must be stripped from notes-chat replies",
 );
 assert(
+  stripNotesChatProtocol("keep [EMPHASIZE:last] this [SUPERSEDE:1] and [ANNOTATE:u_dim]") ===
+    "keep this and",
+  "new semantic tags must be stripped from notes-chat replies",
+);
+assert(
   visibleNotesChatText("the formula is [WRI") === "the formula is",
   "an incomplete trailing tag must stay hidden while streaming",
 );

@@ -43,6 +43,10 @@ const EXPECTED_CONSTRUCTION_OPERATORS = [
   "solid_of_revolution",
   "solid_projection",
   "solid_cross_section",
+  "space_frame",
+  "space_point",
+  "space_line",
+  "plane",
   "wavefront_family",
   "aperture",
   "screen_pattern",
@@ -70,6 +74,7 @@ const EXPECTED_CONSTRUCTION_OPERATORS = [
   "angle_mark",
   "right_angle_mark",
   "tick_mark",
+  "sign_badge",
   "vector_components",
   "dimension",
   "connect",
@@ -601,9 +606,37 @@ assertCompactFamily(
   "3d-line-vector-equation",
   "Find the vector equation of the line passing through the point A(1, 2, -1) and parallel to a given line.",
   "coordinate_figure",
-  ["axes", "point", "line"],
+  ["space_frame", "space_point", "space_line"],
   ["optical_train", "symbol", "refract_at"],
 );
+assertCompactFamily(
+  "3d-skew-shortest-distance",
+  "Find the shortest distance between the lines whose vector equations are r = i + 2j + 4k + λ(2i + 3j + 6k) and r = 3i + 3j + 5k + μ(2i + 3j + 8k).",
+  "coordinate_figure",
+  ["space_frame", "space_line", "plane"],
+  ["optical_train", "symbol", "refract_at"],
+);
+assertCompactFamily(
+  "related-rate-circle",
+  "If the radius of the circle is increasing at the rate of 0.5 cm/s, then the rate of increase of its circumference is.",
+  "coordinate_figure",
+  ["circle", "point"],
+  ["optical_train", "symbol", "refract_at"],
+);
+assertCompactFamily(
+  "hyperbola-latus-rectum",
+  "Let one focus of the hyperbola H: x^2/a^2 - y^2/b^2 = 1 be (10, 0) and the corresponding directrix be x = a. If e and l respectively are the eccentricity and the length of the latus rectum of H, then 9(e^2 + 1) is equal to:",
+  "coordinate_figure",
+  ["axes", "implicit_curve"],
+  ["optical_train", "symbol", "refract_at"],
+);
+const planarAngleCaps = inferSceneCapabilities("Find the angle between the lines y = 2x + 1 and y = 3x - 4.");
+if (planarAngleCaps.families[0] === "coordinate_figure") {
+  throw new Error(`2D angle between lines was routed as 3D coordinate_figure: ${JSON.stringify(planarAngleCaps.families)}`);
+}
+if (!planarAngleCaps.families.includes("analytic_curve")) {
+  throw new Error(`2D angle between lines lost analytic_curve: ${JSON.stringify(planarAngleCaps.families)}`);
+}
 
 const HINGED_ROD =
   "A thin uniform rod of mass 2 kg and length 1.0 m is hinged at one end and held horizontal. It is released from rest. Draw the rod in the horizontal and vertical positions, mark the hinge and the weight, and find the angular speed of the rod and the magnitude of the hinge reaction when the rod is vertical. Take g = 10 m/s^2.";
@@ -647,6 +680,33 @@ const irNetwork = familiesFromProblemStructure({
 });
 if (!irNetwork.includes("circuit_network")) {
   throw new Error(`ProblemIR network intent must map to circuit_network: ${JSON.stringify(irNetwork)}`);
+}
+const irRiverBoat = familiesFromProblemStructure({
+  entities: [
+    { kind: "body", label: "boat" },
+    { kind: "region", label: "river" },
+    { kind: "field", label: "current" },
+  ],
+});
+if (irRiverBoat.join(",") !== "vector_diagram") {
+  throw new Error(`ProblemIR boat+river must map only to vector_diagram: ${JSON.stringify(irRiverBoat)}`);
+}
+const riverCaps = inferSceneCapabilities(
+  "A river flows west to east at 9 km/h. A boat with maximum speed 27 km/h in still water crosses in half a minute while moving at maximum speed at 150° to the direction of river flow.",
+  {
+    problemIR: {
+      entities: [
+        { kind: "region", label: "river" },
+        { kind: "body", label: "boat" },
+      ],
+    },
+  },
+);
+if (riverCaps.families[0] !== "vector_diagram") {
+  throw new Error(`150° river-crossing must lead with vector_diagram: ${JSON.stringify(riverCaps.families)}`);
+}
+if (riverCaps.families.includes("coordinate_figure") || riverCaps.families.includes("bounded_region")) {
+  throw new Error(`river-crossing must not inherit a coordinate/region leftover: ${JSON.stringify(riverCaps.families)}`);
 }
 const gaussLaw = inferSceneCapabilities(
   "Apply Gauss's law to a uniformly charged thin spherical shell and find the electric field outside.",

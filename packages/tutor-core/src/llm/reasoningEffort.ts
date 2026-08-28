@@ -58,13 +58,15 @@ const MEDIUM_KEYWORDS =
 
 const CONCEPTUAL_LEAD = /^\s*(?:explain|what\s+is|what\s+are|describe|why|how\s+does|walk me through|tell me about|introduce|overview of)\b/i;
 const CONCEPT_LESSON = /(?:explain|what\s+is|what\s+are|describe|walk me through|tell me about|introduce|overview of|basics of)\b/i;
+const DIAGRAM_SETUP = /^(?:draw|sketch|show|illustrate)\b/i;
 
 /** True when the user asked to learn an idea, not to solve a numbered problem. */
 export function isConceptLessonQuestion(question: string): boolean {
   const q = question.trim();
   if (q.length === 0) return false;
   if (/\b(?:find|calculate|determine|compute|evaluate)\b/i.test(q) && /\d/.test(q)) return false;
-  return CONCEPTUAL_LEAD.test(q) || CONCEPT_LESSON.test(q);
+  if (CONCEPTUAL_LEAD.test(q) || CONCEPT_LESSON.test(q)) return true;
+  return DIAGRAM_SETUP.test(q);
 }
 
 /** True for combination circuits (both series and parallel with 3+ resistors). */
