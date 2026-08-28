@@ -1,5 +1,7 @@
 "use client";
 
+import Konva from "konva";
+import { forwardRef } from "react";
 import { Group, Path, Rect, Circle } from "react-konva";
 
 export interface VirtualCursorProps {
@@ -51,22 +53,26 @@ function darken(hex: string, amount: number): string {
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 }
 
-export function VirtualCursor({
-  x,
-  y,
-  rotation = -35,
-  scale = 1,
-  visible = true,
-  color = "#1B2A4A",
-  glowRadius = 5,
-  opacity = 1,
-  shadowBlur,
-}: VirtualCursorProps) {
+export const VirtualCursor = forwardRef<Konva.Group, VirtualCursorProps>(function VirtualCursor(
+  {
+    x,
+    y,
+    rotation = -35,
+    scale = 1,
+    visible = true,
+    color = "#1B2A4A",
+    glowRadius = 5,
+    opacity = 1,
+    shadowBlur,
+  },
+  ref,
+) {
   const effectiveShadowBlur = Math.min(shadowBlur ?? glowRadius, 8);
   const nibEdge = darken(color, 0.35);
 
   return (
     <Group
+      ref={ref}
       x={x}
       y={y}
       visible={visible}
@@ -194,4 +200,4 @@ export function VirtualCursor({
       />
     </Group>
   );
-}
+});

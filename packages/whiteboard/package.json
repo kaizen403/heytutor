@@ -14,7 +14,7 @@
     "dev": "tsup src/index.ts --format esm --dts --watch --external react --external react-dom --external konva --external react-konva --external @heytutor/drawing --external @heytutor/design-tokens",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "verify": "tsx scripts/verify-draw-transactions.ts",
+    "verify": "tsx scripts/verify-draw-transactions.ts && tsx scripts/verify-pen-motion.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -33,6 +33,7 @@
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.4",
     "tsup": "^8.5.0",
+    "tsx": "^4.22.4",
     "typescript": "^5.8.3"
   }
 }

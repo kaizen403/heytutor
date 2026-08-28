@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -20,6 +21,13 @@ import { Layer, Path as KonvaPath, Rect, Stage } from "react-konva";
 import { VirtualCursor } from "./VirtualCursor";
 import { cursorOpacity, type CursorState } from "./cursorState";
 import { DrawTransactionRegistry } from "./drawTransactionRegistry";
+import {
+  audioWaitAlreadyDue,
+  handwritingProgress,
+  pointAlongSamples,
+  samplePolyline,
+  splitDrawnLength,
+} from "./penMotion";
 
 export interface WhiteboardProps {
   width?: number;
@@ -133,6 +141,13 @@ export interface WhiteboardHandle {
    * afterwards. Returns null if the stage is not mounted.
    */
   captureSnapshot: (pixelRatio?: number) => string | null;
+  setSpotlight: (
+    spotlight: {
+      veil: { x: number; y: number; width: number; height: number };
+      hole: { x: number; y: number; width: number; height: number };
+      opacity?: number;
+    } | null,
+  ) => void;
 }
 
 interface CursorView {
@@ -176,15 +191,26 @@ function smoothstep(progress: number): number {
   return progress * progress * (3 - 2 * progress);
 }
 
-/**
- * Natural pen motion: gentle ease-in, sustained middle, gentle ease-out.
- * Smooth enough for long strokes without the mechanical feel of linear time.
- */
-function easePen(progress: number): number {
-  const t = clamp(progress, 0, 1);
-  return t < 0.5
-    ? 2 * t * t * t
-    : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function inkPathConfig(pathData: string, strokeWidth: number, color: string): Konva.PathConfig {
+  return {
+    data: pathData,
+    stroke: color,
+    strokeWidth,
+    fillEnabled: false,
+    lineCap: "round",
+    lineJoin: "round",
+    listening: false,
+    perfectDrawEnabled: false,
+    shadowForStrokeEnabled: false,
+    hitStrokeWidth: 0,
+  };
+}
+
+function sampleKonvaPath(path: Konva.Path, totalLength: number): { x: number; y: number }[] {
+  return samplePolyline(totalLength, (distance) => {
+    const point = path.getPointAtLength(distance);
+    return { x: point?.x ?? 0, y: point?.y ?? 0 };
+  });
 }
 
 function distanceBetween(start: Point, end: Point): number {
@@ -211,6 +237,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
   ) {
     const drawLayerRef = useRef<Konva.Layer>(null);
     const highlightLayerRef = useRef<Konva.Layer>(null);
+    const spotlightNodesRef = useRef<Konva.Rect[]>([]);
+    const spotlightLayerRef = useRef<Konva.Layer>(null);
     const animLayerRef = useRef<Konva.Layer>(null);
     const cursorLayerRef = useRef<Konva.Layer>(null);
     const frameIdsRef = useRef<Set<number>>(new Set());
@@ -227,7 +255,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     // separate drawShape calls within a turn.
     const previousShapeBudgetMsRef = useRef<number | null>(null);
     const cursorViewRef = useRef<CursorView>({ x: width / 2, y: height / 2, rotation: 0, scale: 1 });
-    const [cursorView, setCursorView] = useState<CursorView>(cursorViewRef.current);
+    const cursorGroupRef = useRef<Konva.Group>(null);
+    const dusterRef = useRef<Konva.Rect>(null);
     const [activeCursorState, setActiveCursorState] = useState<CursorState>(cursorState);
     const activeCursorStateRef = useRef<CursorState>(cursorState);
     const inkColorRef = useRef(inkColor);
@@ -260,12 +289,24 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
     const setCursorViewSafely = useCallback(
       (x: number, y: number, rotation = cursorViewRef.current.rotation, scale = cursorViewRef.current.scale): void => {
-        const nextView = { x, y, rotation, scale };
-
-        cursorViewRef.current = nextView;
-        if (mountedRef.current) {
-          setCursorView(nextView);
+        cursorViewRef.current = { x, y, rotation, scale };
+        const group = cursorGroupRef.current;
+        if (group) {
+          group.x(x);
+          group.y(y);
+          group.rotation(rotation);
+          group.scaleX(scale);
+          group.scaleY(scale);
         }
+        const duster = dusterRef.current;
+        if (duster) {
+          duster.x(x - DUSTER_WIDTH / 2);
+          duster.y(y - DUSTER_HEIGHT / 2);
+          duster.rotation(rotation);
+          duster.scaleX(scale);
+          duster.scaleY(scale);
+        }
+        cursorLayerRef.current?.batchDraw();
       },
       [],
     );
@@ -347,7 +388,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
     const cancelAnimations = useCallback((): void => {
       Array.from(animationCleanupsRef.current).forEach((cleanup) => cleanup());
-      Array.from(frameIdsRef.current).forEach((frameId) => cancelAnimationFrame(frameId));
+      Array.from(frameIdsRef.current).forEach((frameId) => cancelFrame(frameId));
       frameIdsRef.current.clear();
     }, []);
 
@@ -451,15 +492,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           effectiveDuration = clamp(effectiveDuration, SCENE_SHAPE_MIN_MS, SCENE_SHAPE_MAX_MS);
         }
 
-        const path = new Konva.Path({
-          data: pathData,
-          stroke: inkColorRef.current,
-          strokeWidth: options?.strokeWidth ?? SHAPE_STROKE_WIDTH,
-          fillEnabled: false,
-          lineCap: "round",
-          lineJoin: "round",
-          listening: false,
-        });
+        const path = new Konva.Path(
+          inkPathConfig(pathData, options?.strokeWidth ?? SHAPE_STROKE_WIDTH, inkColorRef.current),
+        );
         const totalLength = path.getLength();
 
         // Dashed lines are construction lines — appear instantly with a
@@ -502,15 +537,14 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         trackNode(path, animNodesRef.current);
         animLayer.batchDraw();
 
+        const pathSamples = sampleKonvaPath(path, totalLength);
         await animateOver(effectiveDuration, (progress) => {
-          const eased = easePen(progress);
+          const eased = handwritingProgress(progress, effectiveDuration);
           const drawnLength = eased * totalLength;
-          const point = path.getPointAtLength(drawnLength);
+          const point = pointAlongSamples(pathSamples, totalLength, drawnLength);
 
           path.dashOffset(totalLength - drawnLength);
-          if (point) {
-            setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
-          }
+          setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
           animLayer.batchDraw();
         });
 
@@ -695,6 +729,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             opacity: 0,
             strokeEnabled: false,
             listening: false,
+            perfectDrawEnabled: false,
+            hitStrokeWidth: 0,
           });
 
           targetLayer.add(rect);
@@ -719,15 +755,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         }
 
         const strokeWidth = options.strokeWidth ?? ANNOTATION_STROKE_WIDTH;
-        const path = new Konva.Path({
-          data: pathData,
-          stroke: inkColorRef.current,
-          strokeWidth,
-          fillEnabled: false,
-          lineCap: "round",
-          lineJoin: "round",
-          listening: false,
-        });
+        const path = new Konva.Path(
+          inkPathConfig(pathData, strokeWidth, inkColorRef.current),
+        );
         const totalLength = Math.max(path.getLength(), 1);
 
         path.dash([totalLength]);
@@ -736,15 +766,14 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         trackNode(path, animNodesRef.current);
         animLayer.batchDraw();
 
+        const annotationSamples = sampleKonvaPath(path, totalLength);
         await animateOver(duration, (progress) => {
-          const eased = easePen(progress);
+          const eased = handwritingProgress(progress, duration);
           const drawnLength = eased * totalLength;
-          const point = path.getPointAtLength(drawnLength);
+          const point = pointAlongSamples(annotationSamples, totalLength, drawnLength);
 
           path.dashOffset(totalLength - drawnLength);
-          if (point) {
-            setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
-          }
+          setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
           animLayer.batchDraw();
         });
 
@@ -809,7 +838,6 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           };
 
           setCursorViewSafely(point.x, point.y, fixedRotation, 1);
-          cursorLayerRef.current?.batchDraw();
         });
 
         setCursorViewSafely(x, y, fixedRotation, 1);
@@ -825,46 +853,14 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       ): Promise<void> =>
         new Promise((resolve) => {
           let done = false;
-          let timeoutId: number | null = null;
+          let frameId: number | null = null;
           let lastRawPositionMs = -1;
           let stalledFrames = 0;
           let pausedAt: number | null = null;
           let pausedTotalMs = 0;
           let maxPositionMs = 0;
 
-          const cleanup = (): void => {
-            if (done) return;
-            done = true;
-            if (timeoutId !== null) {
-              window.clearTimeout(timeoutId);
-              timeoutId = null;
-            }
-            animationCleanupsRef.current.delete(cleanup);
-            resolve();
-          };
-
-          const step = (): void => {
-            if (done) return;
-            if (!mountedRef.current) {
-              cleanup();
-              return;
-            }
-
-            // While paused the audio clock is frozen — do not count stall frames
-            // or wall-clock budget, so resume still waits for the cue.
-            if (isPausedRef.current) {
-              if (pausedAt === null) {
-                pausedAt = performance.now();
-              }
-              stalledFrames = 0;
-              timeoutId = window.setTimeout(step, 16);
-              return;
-            }
-            if (pausedAt !== null) {
-              pausedTotalMs += performance.now() - pausedAt;
-              pausedAt = null;
-            }
-
+          const currentClockMs = (): number => {
             const rawPositionMs = getAudioPositionMs();
             if (rawPositionMs > 0 && rawPositionMs === lastRawPositionMs) {
               stalledFrames += 1;
@@ -882,8 +878,44 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               }),
             );
             maxPositionMs = positionMs;
+            return positionMs;
+          };
+
+          const cleanup = (): void => {
+            if (done) return;
+            done = true;
+            if (frameId !== null) {
+              cancelTrackedFrame(frameId);
+              frameId = null;
+            }
+            animationCleanupsRef.current.delete(cleanup);
+            resolve();
+          };
+
+          const step = (): void => {
+            if (done) return;
+            if (!mountedRef.current) {
+              cleanup();
+              return;
+            }
+
+            if (isPausedRef.current) {
+              if (pausedAt === null) {
+                pausedAt = performance.now();
+              }
+              stalledFrames = 0;
+              frameId = requestTrackedFrame(step);
+              return;
+            }
+            if (pausedAt !== null) {
+              pausedTotalMs += performance.now() - pausedAt;
+              pausedAt = null;
+            }
+
+            const positionMs = currentClockMs();
+            const elapsedMs = performance.now() - originWallMs - pausedTotalMs;
             if (
-              positionMs >= targetMs ||
+              audioWaitAlreadyDue(positionMs, targetMs) ||
               shouldReleaseAudioPositionWait({
                 positionMs,
                 targetMs,
@@ -895,13 +927,22 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               cleanup();
               return;
             }
-            timeoutId = window.setTimeout(step, 16);
+            frameId = requestTrackedFrame(step);
           };
 
           animationCleanupsRef.current.add(cleanup);
-          timeoutId = window.setTimeout(step, 0);
+          const immediate = resolveScheduledWriteClockMs({
+            rawPositionMs: getAudioPositionMs(),
+            elapsedWallMs: performance.now() - originWallMs,
+            stalledFrames: 0,
+          });
+          if (audioWaitAlreadyDue(immediate, targetMs)) {
+            cleanup();
+            return;
+          }
+          frameId = requestTrackedFrame(step);
         }),
-      [],
+      [cancelTrackedFrame, requestTrackedFrame],
     );
 
     const writeText = useCallback(
@@ -1081,6 +1122,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 fontSize: charPath.fontSize ?? 32,
                 fill: inkColorRef.current,
                 listening: false,
+                perfectDrawEnabled: false,
               });
 
               const charDuration = Math.max(charBudgetMs, 30);
@@ -1114,85 +1156,89 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               continue;
             }
 
-            for (let si = 0; si < charPath.strokes.length; si++) {
-              if (!mountedRef.current || shouldCancel?.()) return;
-
-              const stroke = charPath.strokes[si];
-              const pathLength = strokeLengths[si];
-              const strokeDuration = scheduled
-                ? Math.max((pathLength / Math.max(charInfos[ci].pathLength, 1)) * charBudgetMs, 9)
-                : Math.max(
-                    (pathLength / Math.max(totalPathLength, 1)) * drawBudgetMs,
-                    3,
-                  );
-              const flyMs = scheduled
-                ? Math.min(3, strokeDuration * 0.02)
-                : Math.min(3, strokeDuration * 0.04);
-
-              const cursorPos = cursorViewRef.current;
-              const dist = Math.hypot(
-                stroke.startX - cursorPos.x,
-                stroke.startY - cursorPos.y,
+            const firstStroke = charPath.strokes[0]!;
+            const dist = Math.hypot(
+              firstStroke.startX - cursorViewRef.current.x,
+              firstStroke.startY - cursorViewRef.current.y,
+            );
+            if (dist > 72) {
+              await flyCursorTo(
+                firstStroke.startX,
+                firstStroke.startY,
+                Math.min(140, dist * 0.35),
+                HANDWRITING_ROTATION,
               );
+            } else {
+              setCursorViewSafely(firstStroke.startX, firstStroke.startY, HANDWRITING_ROTATION);
+            }
+            if (!mountedRef.current || shouldCancel?.()) return;
 
-              if (scheduled && dist <= 36) {
-                setCursorViewSafely(stroke.startX, stroke.startY, HANDWRITING_ROTATION);
-              } else if (dist > 12) {
-                await flyCursorTo(stroke.startX, stroke.startY, flyMs, HANDWRITING_ROTATION);
-              } else {
-                setCursorViewSafely(stroke.startX, stroke.startY, HANDWRITING_ROTATION);
-              }
-              if (!mountedRef.current) return;
-
-              const pathNode = new Konva.Path({
-                data: stroke.pathData,
-                stroke: inkColorRef.current,
-                strokeWidth: stroke.width,
-                fillEnabled: false,
-                lineCap: "round",
-                lineJoin: "round",
-                listening: false,
-              });
-
-              const totalLength = pathNode.getLength();
-              if (totalLength <= 0) {
-                pathNode.destroy();
-                continue;
-              }
-
+            const strokeNodes: Array<{
+              pathNode: Konva.Path;
+              totalLength: number;
+              samples: { x: number; y: number }[];
+            }> = [];
+            for (let si = 0; si < charPath.strokes.length; si++) {
+              const stroke = charPath.strokes[si]!;
+              const pathNode = new Konva.Path(
+                inkPathConfig(stroke.pathData, stroke.width, inkColorRef.current),
+              );
+              const totalLength = Math.max(pathNode.getLength(), 1);
               pathNode.dash([totalLength]);
               pathNode.dashOffset(totalLength);
               animLayer.add(pathNode);
               trackNode(pathNode, animNodesRef.current);
-              animLayer.batchDraw();
-
-              await animateOver(strokeDuration, (progress) => {
-                const eased = easePen(progress);
-                const drawnLength = eased * totalLength;
-                const point = pathNode.getPointAtLength(drawnLength);
-
-                pathNode.dashOffset(totalLength - drawnLength);
-                if (point) {
-                  setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
-                }
-                animLayer.batchDraw();
-              }, undefined, scheduled ? { lockToWallClock: true } : undefined);
-
-              if (shouldCancel?.()) {
-                pathNode.destroy();
-                untrackNode(pathNode, animNodesRef.current);
-                animLayer.batchDraw();
-                return;
-              }
-
-              pathNode.dash([]);
-              pathNode.dashOffset(0);
-              pathNode.moveTo(drawLayer);
-              untrackNode(pathNode, animNodesRef.current);
-              trackNode(pathNode, completedNodesRef.current);
-              animLayer.batchDraw();
-              drawLayer.batchDraw();
+              strokeNodes.push({
+                pathNode,
+                totalLength,
+                samples: sampleKonvaPath(pathNode, totalLength),
+              });
             }
+            if (strokeNodes.length === 0) continue;
+            animLayer.batchDraw();
+
+            const glyphLength = strokeNodes.reduce((sum, node) => sum + node.totalLength, 0);
+            const glyphMs = Math.max(charBudgetMs, 36);
+            const lengths = strokeNodes.map((node) => node.totalLength);
+
+            await animateOver(glyphMs, (progress) => {
+              const eased = handwritingProgress(progress, glyphMs);
+              const drawn = eased * glyphLength;
+              const split = splitDrawnLength(lengths, drawn);
+              for (let si = 0; si < strokeNodes.length; si++) {
+                const node = strokeNodes[si]!;
+                if (si < split.index) {
+                  node.pathNode.dashOffset(0);
+                } else if (si === split.index) {
+                  node.pathNode.dashOffset(node.totalLength - split.inStroke);
+                } else {
+                  node.pathNode.dashOffset(node.totalLength);
+                }
+              }
+              const active = strokeNodes[split.index]!;
+              const point = pointAlongSamples(active.samples, active.totalLength, split.inStroke);
+              setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
+              animLayer.batchDraw();
+            }, undefined, scheduled ? { lockToWallClock: true } : undefined);
+
+            if (shouldCancel?.()) {
+              for (const node of strokeNodes) {
+                node.pathNode.destroy();
+                untrackNode(node.pathNode, animNodesRef.current);
+              }
+              animLayer.batchDraw();
+              return;
+            }
+
+            for (const node of strokeNodes) {
+              node.pathNode.dash([]);
+              node.pathNode.dashOffset(0);
+              node.pathNode.moveTo(drawLayer);
+              untrackNode(node.pathNode, animNodesRef.current);
+              trackNode(node.pathNode, completedNodesRef.current);
+            }
+            animLayer.batchDraw();
+            drawLayer.batchDraw();
           }
         } catch {
           const textNode = new Konva.Text({
@@ -1326,9 +1372,70 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         // Reset the reactive shape-speed damping so the next turn starts fresh.
         previousShapeBudgetMsRef.current = null;
         drawTransactionsRef.current.clear();
+        for (const node of spotlightNodesRef.current) node.destroy();
+        spotlightNodesRef.current = [];
+        highlightLayer?.batchDraw();
+        spotlightLayerRef.current?.batchDraw();
       },
       [animateOver, clearTrackedNodes, destroyNodesInRect, flyCursorTo, setCursorViewSafely, updateCursorState, height, width],
     );
+
+    const setSpotlight = useCallback((
+      spotlight: {
+        veil: { x: number; y: number; width: number; height: number };
+        hole: { x: number; y: number; width: number; height: number };
+        opacity?: number;
+      } | null,
+    ): void => {
+      const spotlightLayer = spotlightLayerRef.current;
+      for (const node of spotlightNodesRef.current) node.destroy();
+      spotlightNodesRef.current = [];
+      if (!spotlightLayer || !spotlight) {
+        spotlightLayer?.batchDraw();
+        return;
+      }
+      const opacity = spotlight.opacity ?? 0.36;
+      const veil = spotlight.veil;
+      const hole = spotlight.hole;
+      const bands = [
+        { x: veil.x, y: veil.y, width: veil.width, height: Math.max(0, hole.y - veil.y) },
+        {
+          x: veil.x,
+          y: hole.y + hole.height,
+          width: veil.width,
+          height: Math.max(0, veil.y + veil.height - (hole.y + hole.height)),
+        },
+        {
+          x: veil.x,
+          y: hole.y,
+          width: Math.max(0, hole.x - veil.x),
+          height: hole.height,
+        },
+        {
+          x: hole.x + hole.width,
+          y: hole.y,
+          width: Math.max(0, veil.x + veil.width - (hole.x + hole.width)),
+          height: hole.height,
+        },
+      ];
+      for (const band of bands) {
+        if (band.width < 1 || band.height < 1) continue;
+        const rect = new Konva.Rect({
+          ...band,
+          fill: "#1A1A1A",
+          opacity,
+          listening: false,
+        });
+        spotlightLayer.add(rect);
+        spotlightNodesRef.current.push(rect);
+      }
+      spotlightLayer.batchDraw();
+    }, []);
+
+    useLayoutEffect(() => {
+      const view = cursorViewRef.current;
+      setCursorViewSafely(view.x, view.y, view.rotation, view.scale);
+    }, [activeCursorState, setCursorViewSafely]);
 
     useEffect(() => {
       activeCursorStateRef.current = cursorState;
@@ -1347,7 +1454,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         return () => {
           mountedRef.current = false;
           Array.from(animationCleanups).forEach((cleanup) => cleanup());
-          Array.from(frameIds).forEach((frameId) => cancelAnimationFrame(frameId));
+          Array.from(frameIds).forEach((frameId) => cancelFrame(frameId));
           frameIds.clear();
           clearTrackedNodes(animNodes);
           clearTrackedNodes(completedNodes);
@@ -1364,6 +1471,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         drawAnnotation,
         writeText,
         clearBoard,
+        setSpotlight,
         eraseRegion,
         punchDiagramLineGapsInRect,
         setCursorPos: (x: number, y: number) => setCursorViewSafely(x, y),
@@ -1406,7 +1514,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           }
         },
       }),
-      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, clearBoard, commitDrawTransaction, drawAnnotation, drawShape, eraseRegion, finishAbortedDrawTransaction, flyCursorTo, punchDiagramLineGapsInRect, setCursorViewSafely, updateCursorState, writeText],
+      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, clearBoard, commitDrawTransaction, drawAnnotation, drawShape, eraseRegion, finishAbortedDrawTransaction, flyCursorTo, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, updateCursorState, writeText],
     );
 
     return (
@@ -1414,42 +1522,47 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         width={width}
         height={height}
         style={{ backgroundColor: WHITEBOARD_COLOR }}
+        perfectDrawEnabled={false}
       >
-        <Layer ref={highlightLayerRef} listening={false} />
-        <Layer ref={drawLayerRef} listening={false} />
-        <Layer ref={animLayerRef} listening={false}>
+        <Layer ref={highlightLayerRef} listening={false} perfectDrawEnabled={false} />
+        <Layer ref={drawLayerRef} listening={false} perfectDrawEnabled={false} />
+        <Layer ref={animLayerRef} listening={false} perfectDrawEnabled={false}>
           <KonvaPath data={HIDDEN_PATH_DATA} visible={false} listening={false} />
         </Layer>
-        <Layer ref={cursorLayerRef} listening={false}>
+        <Layer ref={spotlightLayerRef} listening={false} perfectDrawEnabled={false} />
+        <Layer ref={cursorLayerRef} listening={false} perfectDrawEnabled={false}>
           {activeCursorState === "erasing" ? (
             <Rect
-              x={cursorView.x - DUSTER_WIDTH / 2}
-              y={cursorView.y - DUSTER_HEIGHT / 2}
+              ref={dusterRef}
+              x={cursorViewRef.current.x - DUSTER_WIDTH / 2}
+              y={cursorViewRef.current.y - DUSTER_HEIGHT / 2}
               width={DUSTER_WIDTH}
               height={DUSTER_HEIGHT}
               fill={DUSTER_COLOR}
               stroke={DUSTER_STROKE}
               strokeWidth={1}
               cornerRadius={DUSTER_CORNER_RADIUS}
-              rotation={cursorView.rotation}
-              scaleX={cursorView.scale}
-              scaleY={cursorView.scale}
+              rotation={cursorViewRef.current.rotation}
+              scaleX={cursorViewRef.current.scale}
+              scaleY={cursorViewRef.current.scale}
               opacity={cursorOpacity(activeCursorState)}
               shadowColor="#999999"
               shadowBlur={10}
               shadowOpacity={0.4}
               listening={false}
+              perfectDrawEnabled={false}
             />
           ) : (
             <VirtualCursor
-              x={cursorView.x}
-              y={cursorView.y}
-              rotation={cursorView.rotation}
-              scale={cursorView.scale}
-              color={inkColorRef.current}
+              ref={cursorGroupRef}
+              x={cursorViewRef.current.x}
+              y={cursorViewRef.current.y}
+              rotation={cursorViewRef.current.rotation}
+              scale={cursorViewRef.current.scale}
+              color={inkColor}
               visible={cursorOpacity(activeCursorState) > 0}
               opacity={cursorOpacity(activeCursorState)}
-              glowRadius={activeCursorState === "drawing" ? 14 : 10}
+              glowRadius={activeCursorState === "drawing" ? 8 : 6}
             />
           )}
         </Layer>
