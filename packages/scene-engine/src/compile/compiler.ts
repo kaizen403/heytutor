@@ -9,16 +9,44 @@ import {
   type SceneIssue,
   type ValidationReport,
 } from "../types";
-import { obstaclesFromPrimitives, placeLabels, type LabelOwner } from "../labels/labelEngine";
+import {
+  obstaclesFromPrimitives,
+  placeLabels,
+  workColumnObstacle,
+  POINT_LABEL_TETHER_PX,
+  type LabelOwner,
+} from "../labels/labelEngine";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
+import {
+  isometricProject,
+  planeFromCartesian,
+  planePatchCorners,
+  spaceFrameAxisTips,
+  vec3Add,
+  vec3Length,
+  vec3Scale,
+  type SpaceFrame,
+  type Vec3,
+} from "../math/space";
 import {
   isExecutableSceneConstructionOperator,
   isExecutableSceneProofPredicate,
   isTopologySceneProofPredicate,
   type SupportedSceneConstructionOperator,
 } from "../capability/capabilityManifest";
+import {
+  angleMarkRadii,
+  arcLabelAnchor,
+  congruenceCount,
+  congruenceTickSegments,
+  formatAngleMeasureDegrees,
+  labelAnchorForPath,
+  sceneCaptionText,
+  signBadgeGeometry,
+} from "./annotationMarks";
+import { appendCompiledAnnotations } from "./sceneAnnotations";
 
 type Point = { x: number; y: number };
 type Viewport = { x: number; y: number; width: number; height: number; padding?: number };
@@ -38,14 +66,14 @@ type SolidProjection = {
   axis: "vertical" | "horizontal";
 };
 type Geometry =
-  | { kind: "point"; point: Point }
+  | { kind: "point"; point: Point; space?: Vec3 }
   | { kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; sampledCurve?: SampledCurve }
   | { kind: "multi_path"; paths: Point[][] }
   | { kind: "circle"; center: Point; radius: number }
-  | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number }
+  | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
   | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number }
   | { kind: "dimension"; a: Point; b: Point }
-  | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection };
+  | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; spaceFrame?: SpaceFrame };
 
 const EPSILON = 1e-6;
 
@@ -204,6 +232,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       .filter((value): value is string => typeof value === "string"),
   );
   const dimensionLanes = computeDimensionLaneOffsets(document, geometry, entityToGroup);
+  applyCorrespondingAngleCounts(document, geometry);
   const primitives: RenderPrimitive[] = [];
   const renderableIds = new Set(document.requiredEntityIds);
   for (const entity of document.entities) {
@@ -228,12 +257,15 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       ));
     }
   }
+  appendCorrespondingTickPrimitives(document, geometry, primitives, entityToGroup, transformPlan, constructionOnlyIds);
 
   const labelOwners: LabelOwner[] = [];
   const consumedAnnotationIds = new Set<string>();
   const summaryLabelIds = new Set<string>();
   for (const entity of document.entities) {
     if (!entity.label || !renderableIds.has(entity.id) || constructionOnlyIds.has(entity.id)) continue;
+    const target = geometry.get(entity.id);
+    if (!target) continue;
     const semanticDirectionMarker = entity.kind === "label" && isPageNormalMarker(entity.label);
     if (entity.kind === "label" && !semanticDirectionMarker && document.annotations.some((annotation) =>
       (annotation.kind === "label" || annotation.kind === "callout") &&
@@ -242,8 +274,6 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         ? compactCalloutLabel(annotation.text)
         : annotation.text),
     )) continue;
-    const target = geometry.get(entity.id);
-    if (!target) continue;
     const valueAnnotation = entity.kind === "component" && isComponentDesignator(entity.label)
       ? document.annotations.find((annotation) =>
           annotation.kind === "label" &&
@@ -271,12 +301,26 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     const useCombinedText = Boolean(supplementalText) && combinedText.length <= 16;
     if (valueAnnotation && useCombinedText) consumedAnnotationIds.add(valueAnnotation.id);
     if (explicitAnnotation && !useCombinedText && !semanticDirectionMarker) continue;
+    const transform = transformPlan.transformFor(entity.id);
+    const dimensionPrimitive = target.kind === "dimension"
+      ? primitives.find((primitive) => primitive.entityId === entity.id && primitive.kind === "dimension")
+      : undefined;
+    const dimensionMid = dimensionPrimitive && dimensionPrimitive.points.length >= 2
+      ? {
+          x: (dimensionPrimitive.points[0]!.x + dimensionPrimitive.points[1]!.x) / 2,
+          y: (dimensionPrimitive.points[0]!.y + dimensionPrimitive.points[1]!.y) / 2,
+        }
+      : undefined;
     labelOwners.push({
       labelId: `primitive_${entity.id}_label`,
       entityId: entity.id,
-      anchor: transformPlan.transformFor(entity.id)(centerOf(target)),
+      anchor: dimensionMid ?? transform(labelAnchor(target)),
       text: useCombinedText ? combinedText : entity.label,
       viewBounds: transformPlan.viewportFor(entity.id),
+      useOwnerBounds: target.kind === "point" || target.kind === "arc" || target.kind === "dimension" ? false : undefined,
+      incidentTangents: target.kind === "point" ? screenIncidentTangents(target.point, geometry, transform) : undefined,
+      tetherPx: target.kind === "point" ? POINT_LABEL_TETHER_PX : undefined,
+      allowLeader: true,
     });
   }
   for (const annotation of document.annotations) {
@@ -380,7 +424,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       issues.push({ code: "annotation_target_unrendered", message: `Annotation ${annotation.id} target is not rendered`, severity: annotation.kind === "callout" ? "warning" : "fatal", entityIds: [targetId] });
       continue;
     }
-    const center = transformPlan.transformFor(targetId)(centerOf(target));
+    const center = transformPlan.transformFor(targetId)(labelAnchor(target));
     if (annotation.kind === "label" || annotation.kind === "callout") {
       const rawText = annotation.text ?? document.entities.find((entity) => entity.id === targetId)?.label;
       const text = annotation.kind === "callout" ? compactCalloutLabel(rawText) : rawText;
@@ -391,9 +435,12 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         text,
         preferredSlot: placementSlot(annotation.placementIntent),
         viewBounds: transformPlan.viewportFor(targetId),
+        useOwnerBounds: target.kind === "arc" ? false : undefined,
       });
     }
   }
+
+  attachAngleMeasureLabels(document, geometry, labelOwners, transformPlan, consumedAnnotationIds);
 
   const uniqueLabelOwners = labelOwners.filter((owner, index, all) => {
     if (owner.labelId && summaryLabelIds.has(owner.labelId)) {
@@ -404,7 +451,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       (!candidate.labelId || !summaryLabelIds.has(candidate.labelId))
     ) === index;
   });
-  const labels = placeLabels(uniqueLabelOwners, obstaclesFromPrimitives(primitives));
+  const labels = placeLabels(uniqueLabelOwners, [...obstaclesFromPrimitives(primitives), workColumnObstacle()]);
   for (const issue of labels.issues) {
     issues.push({
       code: issue.code,
@@ -416,9 +463,6 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   for (const placement of labels.placements) {
     const groupId = entityToGroup.get(placement.entityId);
     if (!groupId) continue;
-    // A leader rendered with the same stroke as scene geometry is easily
-    // mistaken for a ray or wire. Labels may use a distant collision-free slot,
-    // but remain text-only until a distinct callout stroke style is available.
     primitives.push({
       id: placement.labelId,
       entityId: placement.entityId,
@@ -430,8 +474,27 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       }],
       text: placement.text,
       labelPlacement: "absolute",
+      provenance: {
+        labelBounds: placement.bounds,
+        usesLeader: placement.usesLeader,
+      },
     });
+    if (placement.usesLeader && placement.leaderFrom && placement.leaderTo) {
+      primitives.push({
+        id: `${placement.labelId}_leader`,
+        entityId: placement.entityId,
+        groupId,
+        kind: "line",
+        points: [
+          { x: round(placement.leaderFrom.x), y: round(placement.leaderFrom.y) },
+          { x: round(placement.leaderTo.x), y: round(placement.leaderTo.y) },
+        ],
+        provenance: { annotation: "callout", dashed: true, strokeRole: "construction" },
+      });
+    }
   }
+  appendCompiledAnnotations(document, primitives, entityToGroup, issues);
+  assertScreenAttachedLabels(document, geometry, primitives, transformPlan, issues);
 
   const renderedIds = new Set([
     ...primitives.map((primitive) => primitive.entityId),
@@ -461,7 +524,14 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
   return {
     ok: true,
-    renderScene: { engineVersion: SCENE_ENGINE_VERSION, primitives, revealGroups: document.revealGroups, timeline: document.teachingTimeline, entityBounds },
+    renderScene: {
+      engineVersion: SCENE_ENGINE_VERSION,
+      primitives,
+      revealGroups: document.revealGroups,
+      timeline: document.teachingTimeline,
+      entityBounds,
+      caption: compileSceneCaption(document),
+    },
     report: report(document, issues, primitives.length),
   };
 }
@@ -787,6 +857,10 @@ function evaluateConstruction(
     case "solid_of_revolution": return [solidOfRevolutionGeometry(inputs, geometry, quantities)];
     case "solid_projection": return [solidProjectionGeometry(inputs, geometry, quantities)];
     case "solid_cross_section": return [solidCrossSectionGeometry(inputs, geometry, quantities)];
+    case "space_frame": return [spaceFrameGeometry(inputs, geometry, quantities)];
+    case "space_point": return [spacePointGeometry(inputs, geometry, quantities)];
+    case "space_line": return [spaceLineGeometry(inputs, geometry, quantities)];
+    case "plane": return [planeGeometry(inputs, geometry, quantities)];
     case "wavefront_family": return [wavefrontFamilyGeometry(inputs, geometry, quantities)];
     case "aperture": return [apertureGeometry(inputs, geometry, quantities)];
     case "screen_pattern": return [screenPatternGeometry(inputs, geometry, quantities)];
@@ -883,7 +957,14 @@ function evaluateConstruction(
       let endAngle = Math.atan2(b.y - vertex.y, b.x - vertex.x);
       while (endAngle - startAngle > Math.PI) endAngle -= Math.PI * 2;
       while (endAngle - startAngle < -Math.PI) endAngle += Math.PI * 2;
-      return [{ kind: "arc", center: vertex, radius, startAngle, endAngle }];
+      return [{
+        kind: "arc",
+        center: vertex,
+        radius,
+        startAngle,
+        endAngle,
+        count: congruenceCount(inputs.count ?? inputs.marks),
+      }];
     }
     case "right_angle_mark": {
       const vertex = point(["vertex"]);
@@ -911,15 +992,20 @@ function evaluateConstruction(
       const size = inputs.size === undefined
         ? span * 0.08
         : positive(resolveNumber(inputs.size, quantities), "size");
-      const center = { x: a.x + (b.x - a.x) * at, y: a.y + (b.y - a.y) * at };
-      const normal = normalize({ x: -(b.y - a.y), y: b.x - a.x });
-      return [{
-        kind: "path",
-        points: [
-          { x: center.x - normal.x * size / 2, y: center.y - normal.y * size / 2 },
-          { x: center.x + normal.x * size / 2, y: center.y + normal.y * size / 2 },
-        ],
-      }];
+      const count = congruenceCount(inputs.count ?? inputs.marks);
+      const paths = congruenceTickSegments(a, b, count, at, size);
+      return paths.length === 1
+        ? [{ kind: "path", points: paths[0]! }]
+        : [{ kind: "multi_path", paths }];
+    }
+    case "sign_badge": {
+      const targetGeom = resolveGeometry(first(inputs, ["target", "axis", "path"]), geometry);
+      const [start, end] = asLine(targetGeom);
+      const at = inputs.at === undefined ? 0.72 : resolveNumber(inputs.at, quantities);
+      if (at < 0 || at > 1) throw new Error("sign_badge at must be between 0 and 1");
+      const sense = String(first(inputs, ["sense", "kind"]) ?? "positive");
+      const badge = signBadgeGeometry({ start, end }, sense, at);
+      return [{ kind: "compound", paths: badge.paths, terminals: [start, end] }];
     }
     case "reflect_direction": {
       const origin = point(["origin", "point"]); const incomingInput = first(inputs, ["incoming", "direction"]); assertPathMeetsOrigin(incomingInput, origin, geometry, "incoming"); const normalInput = first(inputs, ["normal"]); assertPathMeetsOrigin(normalInput, origin, geometry, "normal"); const incoming = resolveVector(incomingInput, geometry); const normal = normalize(resolveVector(normalInput, geometry)); const dot = incoming.x * normal.x + incoming.y * normal.y; const reflected = { x: incoming.x - 2 * dot * normal.x, y: incoming.y - 2 * dot * normal.y };
@@ -1371,7 +1457,23 @@ function pushDegenerateProjectedGeometryIssues(
 function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false): RenderPrimitive[] {
   if (value.kind === "point") return [{ id: `primitive_${entityId}`, entityId, groupId, kind: "point", points: [transform(value.point)], text: label, provenance }];
   if (value.kind === "circle") return [{ id: `primitive_${entityId}`, entityId, groupId, kind: "circle", points: [transform(value.center)], radius: distance(transform(value.center), transform({ x: value.center.x + value.radius, y: value.center.y })), text: label, provenance }];
-  if (value.kind === "arc") return [{ id: `primitive_${entityId}`, entityId, groupId, kind: "arc", points: [transform(value.center)], radius: distance(transform(value.center), transform({ x: value.center.x + value.radius, y: value.center.y })), startAngle: -value.endAngle, endAngle: -value.startAngle, text: label, provenance }];
+  if (value.kind === "arc") {
+    const count = congruenceCount(value.count ?? 1);
+    const center = transform(value.center);
+    const screenRadius = distance(center, transform({ x: value.center.x + value.radius, y: value.center.y }));
+    return angleMarkRadii(screenRadius, count).map((radius, index) => ({
+      id: count === 1 ? `primitive_${entityId}` : `primitive_${entityId}_${index}`,
+      entityId,
+      groupId,
+      kind: "arc" as const,
+      points: [center],
+      radius,
+      startAngle: -value.endAngle,
+      endAngle: -value.startAngle,
+      text: index === 0 ? label : undefined,
+      provenance,
+    }));
+  }
   if (value.kind === "axes") return [{ id: `primitive_${entityId}`, entityId, groupId, kind: "axes", points: [transform({ x: value.xMin, y: 0 }), transform({ x: value.xMax, y: 0 }), transform({ x: 0, y: value.yMin }), transform({ x: 0, y: value.yMax })], text: label, provenance }];
   if (value.kind === "dimension") {
     const [start, end] = offsetDimension(transform(value.a), transform(value.b), dimensionOffsetPx);
@@ -1519,7 +1621,16 @@ function clipInfinitePath(start:RenderPoint,next:RenderPoint,directed:boolean,vi
   return unique.length>=2?[unique[0]!.point,unique.at(-1)!.point]:[start,next];
 }
 
-function emptyRenderScene(document: SceneDocument) { return { engineVersion: SCENE_ENGINE_VERSION, primitives: [], revealGroups: document.revealGroups, timeline: document.teachingTimeline, entityBounds: {} }; }
+function emptyRenderScene(document: SceneDocument) {
+  return {
+    engineVersion: SCENE_ENGINE_VERSION,
+    primitives: [],
+    revealGroups: document.revealGroups,
+    timeline: document.teachingTimeline,
+    entityBounds: {},
+    caption: compileSceneCaption(document),
+  };
+}
 function report(document: SceneDocument, issues: SceneIssue[], primitiveCount: number): ValidationReport { return { engineVersion: SCENE_ENGINE_VERSION, valid: !issues.some((issue) => issue.severity === "fatal"), issues, stats: { entityCount: document.entities.length, constructionCount: document.constructions.length, primitiveCount, assertionCount: document.assertions.length } }; }
 function first(inputs: Record<string, unknown>, names: string[]): unknown { for (const name of names) if (inputs[name] !== undefined) return inputs[name]; throw new Error(`missing input ${names.join("|")}`); }
 function resolveNumber(value: unknown, quantities: Map<string, Record<string, unknown>>): number { if (typeof value === "number" && Number.isFinite(value)) return value; if (typeof value === "string") { const quantity = quantities.get(value); if (quantity) return resolveNumber(quantity.value, quantities); const parsed = Number(value); if (Number.isFinite(parsed)) return parsed; } if (typeof value === "object" && value && "value" in value) return resolveNumber((value as { value: unknown }).value, quantities); throw new Error(`non-numeric value ${String(value)}`); }
@@ -2036,6 +2147,152 @@ function solidCrossSectionGeometry(
     throw new Error("solid_cross_section must produce a closed finite contour");
   }
   return { kind: "path", points };
+}
+
+function spaceFrameGeometry(
+  inputs: Record<string, unknown>,
+  geometry: Map<string, Geometry>,
+  quantities: Map<string, Record<string, unknown>>,
+): Extract<Geometry, { kind: "compound" }> {
+  const origin = resolvePoint(first(inputs, ["origin", "center"]), geometry);
+  const scale = inputs.scale === undefined ? 1 : positive(resolveNumber(inputs.scale, quantities), "space_frame scale");
+  const axisLength = inputs.axisLength === undefined
+    ? 2
+    : positive(resolveNumber(inputs.axisLength, quantities), "space_frame axisLength");
+  const frame: SpaceFrame = { origin, scale };
+  const [iTip, jTip, kTip] = spaceFrameAxisTips(axisLength);
+  const origin2 = isometricProject({ x: 0, y: 0, z: 0 }, frame);
+  const paths = [iTip, jTip, kTip].map((tip) => {
+    const projected = isometricProject(tip, frame);
+    return [origin2, { x: projected.x, y: projected.y }];
+  });
+  return {
+    kind: "compound",
+    paths,
+    terminals: [origin2, { x: isometricProject(iTip, frame).x, y: isometricProject(iTip, frame).y }],
+    spaceFrame: frame,
+  };
+}
+
+function spacePointGeometry(
+  inputs: Record<string, unknown>,
+  geometry: Map<string, Geometry>,
+  quantities: Map<string, Record<string, unknown>>,
+): Extract<Geometry, { kind: "point" }> {
+  const frame = resolveSpaceFrame(first(inputs, ["frame"]), geometry);
+  const space = resolveVec3(inputs, quantities, ["x"], ["y"], ["z"]);
+  const projected = isometricProject(space, frame);
+  return { kind: "point", point: { x: projected.x, y: projected.y }, space };
+}
+
+function spaceLineGeometry(
+  inputs: Record<string, unknown>,
+  geometry: Map<string, Geometry>,
+  quantities: Map<string, Record<string, unknown>>,
+): Extract<Geometry, { kind: "path" }> {
+  const frame = resolveSpaceFrame(first(inputs, ["frame"]), geometry);
+  const anchor = resolveSpacePointInput(first(inputs, ["point", "origin", "through"]), geometry, quantities);
+  const direction = resolveVec3Value(first(inputs, ["direction"]), quantities, "space_line direction");
+  if (!(vec3Length(direction) > EPSILON)) throw new Error("space_line direction must be nonzero");
+  const tMin = inputs.tMin === undefined ? -1.5 : resolveNumber(inputs.tMin, quantities);
+  const tMax = inputs.tMax === undefined ? 1.5 : resolveNumber(inputs.tMax, quantities);
+  if (!(tMin < tMax) || !Number.isFinite(tMin) || !Number.isFinite(tMax)) {
+    throw new Error("space_line requires finite tMin < tMax");
+  }
+  const start = vec3Add(anchor, vec3Scale(direction, tMin));
+  const end = vec3Add(anchor, vec3Scale(direction, tMax));
+  const a = isometricProject(start, frame);
+  const b = isometricProject(end, frame);
+  return { kind: "path", infinite: true, points: distinctPathPoints({ x: a.x, y: a.y }, { x: b.x, y: b.y }, "space_line") };
+}
+
+function planeGeometry(
+  inputs: Record<string, unknown>,
+  geometry: Map<string, Geometry>,
+  quantities: Map<string, Record<string, unknown>>,
+): Extract<Geometry, { kind: "path" }> {
+  const frame = resolveSpaceFrame(first(inputs, ["frame"]), geometry);
+  const span = inputs.span === undefined ? 2.4 : positive(resolveNumber(inputs.span, quantities), "plane span");
+  const uSpan = inputs.uSpan === undefined ? span : positive(resolveNumber(inputs.uSpan, quantities), "plane uSpan");
+  const vSpan = inputs.vSpan === undefined ? span : positive(resolveNumber(inputs.vSpan, quantities), "plane vSpan");
+  let point: Vec3;
+  let u: Vec3;
+  let v: Vec3;
+  if (inputs.a !== undefined && inputs.b !== undefined && inputs.c !== undefined) {
+    const a = resolveNumber(first(inputs, ["a"]), quantities);
+    const b = resolveNumber(first(inputs, ["b"]), quantities);
+    const c = resolveNumber(first(inputs, ["c"]), quantities);
+    const d = inputs.d === undefined ? 0 : resolveNumber(inputs.d, quantities);
+    const cartesian = planeFromCartesian(a, b, c, d);
+    point = cartesian.point;
+    u = cartesian.u;
+    v = cartesian.v;
+  } else {
+    point = resolveSpacePointInput(first(inputs, ["point", "origin"]), geometry, quantities);
+    u = resolveVec3Value(first(inputs, ["u"]), quantities, "plane u");
+    v = resolveVec3Value(first(inputs, ["v"]), quantities, "plane v");
+  }
+  const corners = planePatchCorners(point, u, v, uSpan, vSpan).map((corner) => {
+    const projected = isometricProject(corner, frame);
+    return { x: projected.x, y: projected.y };
+  });
+  return { kind: "path", closed: true, points: corners };
+}
+
+function resolveSpaceFrame(value: unknown, geometry: Map<string, Geometry>): SpaceFrame {
+  if (typeof value !== "string") throw new Error("space operators require a space_frame id");
+  const resolved = geometry.get(value);
+  if (resolved?.kind === "compound" && resolved.spaceFrame) return resolved.spaceFrame;
+  throw new Error(`${value} is not a space_frame`);
+}
+
+function resolveSpacePointInput(
+  value: unknown,
+  geometry: Map<string, Geometry>,
+  quantities: Map<string, Record<string, unknown>>,
+): Vec3 {
+  if (typeof value === "string") {
+    const resolved = geometry.get(value);
+    if (resolved?.kind === "point" && resolved.space) return resolved.space;
+    throw new Error(`${value} is not a space_point`);
+  }
+  return resolveVec3Value(value, quantities, "space point");
+}
+
+function resolveVec3(
+  inputs: Record<string, unknown>,
+  quantities: Map<string, Record<string, unknown>>,
+  xNames: string[],
+  yNames: string[],
+  zNames: string[],
+): Vec3 {
+  return {
+    x: resolveNumber(first(inputs, xNames), quantities),
+    y: resolveNumber(first(inputs, yNames), quantities),
+    z: resolveNumber(first(inputs, zNames), quantities),
+  };
+}
+
+function resolveVec3Value(
+  value: unknown,
+  quantities: Map<string, Record<string, unknown>>,
+  name: string,
+): Vec3 {
+  if (Array.isArray(value) && value.length === 3) {
+    return {
+      x: resolveNumber(value[0], quantities),
+      y: resolveNumber(value[1], quantities),
+      z: resolveNumber(value[2], quantities),
+    };
+  }
+  if (isRecord(value) && value.x !== undefined && value.y !== undefined && value.z !== undefined) {
+    return {
+      x: resolveNumber(value.x, quantities),
+      y: resolveNumber(value.y, quantities),
+      z: resolveNumber(value.z, quantities),
+    };
+  }
+  throw new Error(`${name} must be a 3-vector [dx,dy,dz]`);
 }
 
 function wavefrontFamilyGeometry(
@@ -2870,10 +3127,221 @@ function routedConnectorPoints(
     end,
   ];
 }
-function centerOf(value:Geometry):Point {
+function labelAnchor(value: Geometry): Point {
+  if (value.kind === "point") return value.point;
+  if (value.kind === "path") return labelAnchorForPath(value.points, value.directed === true, value.infinite === true);
+  if (value.kind === "arc") return arcLabelAnchor(value.center, value.radius, value.startAngle, value.endAngle);
+  if (value.kind === "dimension") {
+    return { x: (value.a.x + value.b.x) / 2, y: (value.a.y + value.b.y) / 2 };
+  }
+  if (value.kind === "circle") return { x: value.center.x + value.radius, y: value.center.y };
+  if (value.kind === "axes") return { x: 0, y: 0 };
+  return centerOf(value);
+}
+
+function screenIncidentTangents(
+  point: Point,
+  geometry: Map<string, Geometry>,
+  transform: (point: Point) => RenderPoint,
+): RenderPoint[] {
+  const tangents: RenderPoint[] = [];
+  for (const value of geometry.values()) {
+    if (value.kind !== "path" || value.points.length < 2) continue;
+    const start = value.points[0]!;
+    const end = value.points.at(-1)!;
+    const atStart = distance(start, point) < 1e-4;
+    const atEnd = distance(end, point) < 1e-4;
+    if (!atStart && !atEnd) continue;
+    const from = transform(atStart ? start : end);
+    const toward = transform(atStart ? value.points[1]! : value.points.at(-2)!);
+    const dx = toward.x - from.x;
+    const dy = toward.y - from.y;
+    const length = Math.hypot(dx, dy);
+    if (length < EPSILON) continue;
+    tangents.push({ x: dx / length, y: dy / length });
+  }
+  return tangents;
+}
+
+function assertScreenAttachedLabels(
+  document: SceneDocument,
+  geometry: Map<string, Geometry>,
+  primitives: RenderPrimitive[],
+  transformPlan: EntityTransformPlan,
+  issues: SceneIssue[],
+): void {
+  for (const assertion of document.assertions) {
+    if (assertion.predicate !== "label_attached") continue;
+    const entityId = assertion.entities[0];
+    if (!entityId) continue;
+    const labels = primitives.filter((primitive) => primitive.kind === "label" && primitive.entityId === entityId);
+    if (labels.length === 0) {
+      issues.push({
+        code: "label_unattached",
+        message: `Assertion ${assertion.id} has no compiled label for ${entityId}`,
+        severity: "fatal",
+        entityIds: [entityId],
+      });
+      continue;
+    }
+    const value = geometry.get(entityId);
+    if (value?.kind !== "point") continue;
+    const screen = transformPlan.transformFor(entityId)(value.point);
+    const attached = labels.some((label) => {
+      const center = label.points[0];
+      if (!center) return false;
+      if (Math.hypot(center.x - screen.x, center.y - screen.y) <= POINT_LABEL_TETHER_PX) return true;
+      return label.provenance?.usesLeader === true;
+    });
+    if (!attached) {
+      issues.push({
+        code: "label_unattached",
+        message: `Label for ${entityId} is not tethered to its point`,
+        severity: "fatal",
+        entityIds: [entityId],
+      });
+    }
+  }
+}
+
+function compileSceneCaption(document: SceneDocument): string | undefined {
+  const parts: string[] = [];
+  if ((document.source as { nonMetric?: unknown }).nonMetric === true) {
+    parts.push("Do not read scale from this figure.");
+  }
+  for (const annotation of document.annotations) {
+    if (!annotation.text) continue;
+    if (annotation.kind === "caption") {
+      parts.push(annotation.text);
+      continue;
+    }
+    if (annotation.kind === "callout" && !compactCalloutLabel(annotation.text) && !isViewSummaryText(annotation.text)) {
+      parts.push(annotation.text);
+    }
+  }
+  return sceneCaptionText(parts);
+}
+
+function attachAngleMeasureLabels(
+  document: SceneDocument,
+  geometry: Map<string, Geometry>,
+  labelOwners: LabelOwner[],
+  transformPlan: EntityTransformPlan,
+  consumedAnnotationIds: Set<string>,
+): void {
+  for (const construction of document.constructions) {
+    if (construction.operator !== "angle_mark" || !construction.outputs[0]) continue;
+    const entityId = construction.outputs[0];
+    if (labelOwners.some((owner) => owner.entityId === entityId)) continue;
+    const value = geometry.get(entityId);
+    if (value?.kind !== "arc") continue;
+    const entity = document.entities.find((candidate) => candidate.id === entityId);
+    const annotation = document.annotations.find((candidate) =>
+      candidate.targetIds.includes(entityId) && Boolean(candidate.text || candidate.quantityId),
+    );
+    if (annotation) consumedAnnotationIds.add(annotation.id);
+    const quantityText = annotation?.quantityId
+      ? matchingQuantityText(annotation.quantityId, document.quantities)
+      : matchingQuantityText(entityId, document.quantities);
+    const assertion = document.assertions.find((candidate) =>
+      candidate.predicate === "angle_between" &&
+      candidate.entities.includes(entityId),
+    );
+    const text = entity?.label
+      ?? annotation?.text
+      ?? quantityText
+      ?? (assertion
+        ? formatAngleMeasureDegrees(
+            Math.abs(value.endAngle - value.startAngle),
+            assertion.expected,
+          )
+        : undefined);
+    if (!text || text.length > 16) continue;
+    const groupViewport = transformPlan.viewportFor(entityId);
+    labelOwners.push({
+      labelId: `primitive_${entityId}_measure`,
+      entityId,
+      anchor: transformPlan.transformFor(entityId)(arcLabelAnchor(value.center, value.radius, value.startAngle, value.endAngle)),
+      text,
+      preferredSlot: "northeast",
+      viewBounds: groupViewport,
+      useOwnerBounds: false,
+    });
+  }
+}
+
+function appendCorrespondingTickPrimitives(
+  document: SceneDocument,
+  geometry: Map<string, Geometry>,
+  primitives: RenderPrimitive[],
+  entityToGroup: Map<string, string>,
+  transformPlan: EntityTransformPlan,
+  constructionOnlyIds: Set<string>,
+): void {
+  const ticked = new Set(
+    document.constructions
+      .filter((construction) => construction.operator === "tick_mark")
+      .flatMap((construction) => {
+        const target = construction.inputs.target;
+        return typeof target === "string" ? [target] : [];
+      }),
+  );
+  let familyIndex = 0;
+  for (const assertion of document.assertions) {
+    if (assertion.predicate !== "equal_length") continue;
+    const pathIds = assertion.entities.filter((id) => geometry.get(id)?.kind === "path");
+    if (pathIds.length < 2) continue;
+    familyIndex += 1;
+    const count = congruenceCount(Math.min(familyIndex, 3));
+    for (const entityId of pathIds) {
+      if (ticked.has(entityId) || constructionOnlyIds.has(entityId)) continue;
+      const value = geometry.get(entityId);
+      if (value?.kind !== "path" || value.points.length < 2) continue;
+      const groupId = entityToGroup.get(entityId);
+      if (!groupId) continue;
+      const transform = transformPlan.transformFor(entityId);
+      const segments = congruenceTickSegments(value.points[0]!, value.points.at(-1)!, count);
+      for (const [index, segment] of segments.entries()) {
+        primitives.push({
+          id: `primitive_${entityId}_tick_${index}`,
+          entityId,
+          groupId,
+          kind: "line",
+          points: segment.map(transform),
+          provenance: { correspondingFamily: familyIndex, correspondingCount: count },
+        });
+      }
+      ticked.add(entityId);
+    }
+  }
+}
+
+function applyCorrespondingAngleCounts(
+  document: SceneDocument,
+  geometry: Map<string, Geometry>,
+): void {
+  let familyIndex = 0;
+  for (const assertion of document.assertions) {
+    if (assertion.predicate !== "equal_angle") continue;
+    const arcIds = assertion.entities.filter((id) => geometry.get(id)?.kind === "arc");
+    if (arcIds.length < 2) continue;
+    familyIndex += 1;
+    const count = congruenceCount(Math.min(familyIndex, 3));
+    for (const entityId of arcIds) {
+      const value = geometry.get(entityId);
+      if (value?.kind !== "arc") continue;
+      value.count = Math.max(value.count ?? 1, count) as 1 | 2 | 3;
+    }
+  }
+}
+
+function centerOf(value: Geometry): Point {
   if (value.kind === "path" && value.infinite === true && value.points[0]) return value.points[0];
-  const points=pointsOf(value);
-  return{x:points.reduce((sum,p)=>sum+p.x,0)/points.length,y:points.reduce((sum,p)=>sum+p.y,0)/points.length};
+  const points = pointsOf(value);
+  return {
+    x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+    y: points.reduce((sum, p) => sum + p.y, 0) / points.length,
+  };
 }
 function normalize(p:Point):Point { const magnitude=Math.hypot(p.x,p.y); if(magnitude<EPSILON)throw new Error("zero vector"); return{x:p.x/magnitude,y:p.y/magnitude}; }
 function positive(value:number,name:string):number{if(value<=0)throw new Error(`${name} must be positive`);return value;}

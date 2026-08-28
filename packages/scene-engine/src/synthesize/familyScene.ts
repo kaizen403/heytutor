@@ -8,8 +8,34 @@ import { pruneDeadSceneEntities, validateSceneDocument } from "../document/valid
 import { parseMathExpression } from "../math/expression";
 import { evaluateOpticsLaw } from "../physics/opticsLaws";
 import {
+  applyStemFamilyOverrides,
+  inferFamiliesFromQuestion,
+  isCircleLocusStem,
+  isFigureAbsentStem,
+  isCurrentSegmentFieldStem,
+  isHangingWiresLoadStem,
+  isIvCharacteristicStem,
+  isJunctionSpatialStem,
+  isNamedVariationPlotStem,
+  isParallelPlateStem,
+  isPlanarConicStem,
+  isRelatedRateCircleStem,
+  isRelatedRateSolidStem,
+  isRelatedRateTriangleStem,
+  isRiverBoatStem,
+  isSceneVisualFamily,
+  isSemiconductorBandStem,
+  isSpaceGeometryStem,
+  isTwoLoopNetworkStem,
+  normalizeStem,
+  orderFamiliesByStemPreference,
+  riverBoatVariant,
+  type SceneVisualFamily,
+} from "./familyClassification";
+import {
   SCENE_DOCUMENT_VERSION,
   type RenderScene,
+  type SceneAnnotation,
   type SceneAssertion,
   type SceneConstruction,
   type SceneDocument,
@@ -43,7 +69,7 @@ export interface SynthesizedFamilyScene {
   family: string;
 }
 
-const FAMILY_PRIORITY = [
+const FAMILY_PRIORITY: readonly SceneVisualFamily[] = [
   "instrument_chain",
   "interface",
   "axis_view",
@@ -64,7 +90,7 @@ const FAMILY_PRIORITY = [
   "point_field",
   "energy_level",
   "fluid_apparatus",
-] as const;
+];
 
 type FamilyBuilder = (
   question: string,
@@ -94,6 +120,10 @@ function synthesizeFromFamilies(
 ): SynthesizedFamilyScene | null {
   const question = input.question.trim();
   if (!question) return null;
+  // Figure-absent honesty (P0, mirrors verify-bank-family-compile): a stem that
+  // refers to a figure we do not have and names no drawable apparatus gets no
+  // fake circuit/network ink — the caller degrades to text-only.
+  if (figureAbsentWithoutNamedApparatus(normalizeStem(question))) return null;
   const quantities = collectPlanQuantities(input.turnPlan);
   const families = resolveRequestedFamilies(question, input.families);
   for (const family of families) {
@@ -102,20 +132,71 @@ function synthesizeFromFamilies(
     const document = builder(question, quantities, schematic);
     const compiled = document ? tryCompile(document) : null;
     if (!compiled) continue;
-    const nonMetric = schematic || familyUsesDisplayScale(family);
+    // Tier honesty (P0): exact_verified needs a fatal plan-backed metric
+    // assertion (a real refraction angle, a real image-distance ratio) — never
+    // `exists`/`label_attached`/topology proofs alone. Display-scale families
+    // are qualitative by construction.
+    const metricProof = !schematic
+      && !familyUsesDisplayScale(family)
+      && hasPlanMetricProof(compiled.document);
+    const nonMetric = schematic || !metricProof;
     return {
       ...compiled,
       tier: schematic
         ? "question_representation"
-        : nonMetric ? "qualitative_verified" : "exact_verified",
+        : metricProof ? "exact_verified" : "qualitative_verified",
       nonMetric,
       reason: schematic
         ? `compiled a ${family} schematic after the exact operator program was unavailable`
-        : `compiled ${family} from the turn plan and reusable operators`,
+        : metricProof
+          ? `compiled ${family} from the turn plan and reusable operators`
+          : `compiled ${family} grounded in the question wording; no plan-backed metric proof, so the geometry is qualitative`,
       family,
     };
   }
   return null;
+}
+
+/**
+ * Predicates that assert a numeric relationship derived from plan/stem
+ * quantities (Snell indices, a law-derived image-distance ratio, a sampled
+ * curve point). `exists`, `label_attached`, and topology proofs (`path`,
+ * `sameTerminalPair`) are not metric and cannot carry `exact_verified`.
+ */
+const PLAN_METRIC_PROOF_PREDICATES: ReadonlySet<string> = new Set([
+  "snells_law",
+  "equal_angle",
+  "distance_ratio",
+  "function_value",
+]);
+
+function hasPlanMetricProof(document: SceneDocument): boolean {
+  return document.assertions.some((assertion) =>
+    assertion.severity === "fatal" && PLAN_METRIC_PROOF_PREDICATES.has(assertion.predicate));
+}
+
+/**
+ * Apparatus a figure-absent stem must name before any schematic is honest.
+ * Mirrors the apparatus list in verify-bank-family-compile.ts so live matches
+ * the harness.
+ */
+const FIGURE_ABSENT_NAMED_APPARATUS =
+  /(?:microscope|telescope|met(?:er|re) bridge|wheatstone|metal sheets|conducting walls|horizontal metal plates|parallel[- ]plate|upper wire|lens|mirror|prism|incline|pendulum)/i;
+
+/**
+ * Extra figure-reference phrasings beyond isFigureAbsentStem (OCR drops "the",
+ * stems say "diagram"). Keep in sync with isFigureAbsentWithoutApparatus in
+ * verify-bank-family-compile.ts.
+ */
+const FIGURE_ABSENT_EXTRA =
+  /(?:\bin the given figure\b|\bas shown in (?:the )?(?:figure|diagram)\b|\bshown in (?:the )?(?:figure|diagram)\b|\bsee (?:the )?figures?\b|\bin the figure\b)/i;
+
+function figureAbsentWithoutNamedApparatus(stem: string): boolean {
+  const absent = isFigureAbsentStem(stem)
+    || FIGURE_ABSENT_EXTRA.test(stem)
+    || /(?:equivalent capacitance of the combination shown|effective capacitance of the network.{0,80}shown)/i.test(stem);
+  if (!absent) return false;
+  return !FIGURE_ABSENT_NAMED_APPARATUS.test(stem);
 }
 
 function familyUsesDisplayScale(family: string): boolean {
@@ -123,87 +204,21 @@ function familyUsesDisplayScale(family: string): boolean {
     || family === "energy_level" || family === "coordinate_figure";
 }
 
-function orderedFamilies(families: readonly string[]): string[] {
-  const known = new Set(families);
+function orderedFamilies(families: readonly SceneVisualFamily[]): SceneVisualFamily[] {
+  const known = new Set<SceneVisualFamily>(families);
   return FAMILY_PRIORITY.filter((family) => known.has(family));
 }
 
-function resolveRequestedFamilies(question: string, requested?: readonly string[]): string[] {
+/** Family classification lives in ./familyClassification — the one family-program seam. */
+function resolveRequestedFamilies(question: string, requested?: readonly string[]): SceneVisualFamily[] {
   const stem = normalizeStem(question);
-  const merged = new Set<string>([...(requested ?? []), ...inferFamiliesFromQuestion(question)]);
-  if ((isSemiconductorBandStem(stem) || isJunctionSpatialStem(stem)) && !isDeviceCircuitStem(stem)) {
-    merged.add("energy_level");
-    merged.delete("circuit_network");
-  }
-  if (isIvCharacteristicStem(stem) || isNamedVariationPlotStem(stem)) merged.add("state_plot");
-  if (isDeviceCircuitStem(stem)) merged.delete("energy_level");
-  if (isParallelPlateStem(stem)) merged.add("point_field");
-  if (isHangingWiresLoadStem(stem)) merged.add("contact_body");
-  if (isFigureAbsentStem(stem)) merged.delete("state_plot");
+  const merged = new Set<SceneVisualFamily>([
+    ...(requested ?? []).filter(isSceneVisualFamily),
+    ...inferFamiliesFromQuestion(question),
+  ]);
+  applyStemFamilyOverrides(stem, merged);
   const ordered = orderedFamilies([...merged]);
-  if ((isSemiconductorBandStem(stem) || isJunctionSpatialStem(stem)) && merged.has("energy_level")) {
-    return ["energy_level", ...ordered.filter((family) => family !== "energy_level")];
-  }
-  if (
-    (isIvCharacteristicStem(stem) || isNamedVariationPlotStem(stem))
-    && merged.has("state_plot")
-  ) {
-    return ["state_plot", ...ordered.filter((family) => family !== "state_plot")];
-  }
-  if (isParallelPlateStem(stem) && merged.has("point_field")) {
-    return ["point_field", ...ordered.filter((family) => family !== "point_field")];
-  }
-  return ordered;
-}
-
-function normalizeStem(question: string): string {
-  return question
-    .replace(/[–—−]/g, "-")
-    .replace(/[³]/g, "^3")
-    .replace(/[²]/g, "^2")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function isFigureAbsentStem(stem: string): boolean {
-  return /\b(?:shown in the figure|as shown in the figure|the figure shows|figure shows)\b/i.test(stem);
-}
-
-function isNamedVariationPlotStem(stem: string): boolean {
-  if (isFigureAbsentStem(stem)) return false;
-  return /(?:draw a graph showing variation|graph showing variation of|variation of .{1,120} as a function of)/i.test(stem);
-}
-
-function isParallelPlateStem(stem: string): boolean {
-  return /(?:parallel[- ]plate capacitor|metal sheets?.{0,80}parallel|kept parallel to each other|electrically conducting walls|horizontal metal plates)/i.test(stem);
-}
-
-function isHangingWiresLoadStem(stem: string): boolean {
-  return /(?:upper wire|breaking stress)/i.test(stem) && /(?:lower wire|\bpan\b)/i.test(stem);
-}
-
-function isCurrentSegmentFieldStem(stem: string): boolean {
-  return /(?:straight segment of a conductor|magnetic field due to this segment)/i.test(stem);
-}
-
-function isSemiconductorBandStem(stem: string): boolean {
-  return /(?:energy band|valence band|conduction band|(?:n-type|p-type)|intrinsic semiconductor)/i.test(stem);
-}
-
-function isIvCharacteristicStem(stem: string): boolean {
-  return /(?:transfer characteristic|i[-–]?v characteristic|characteristic curve)/i.test(stem);
-}
-
-function isDeviceCircuitStem(stem: string): boolean {
-  return /(?:rectifier|zener|(?:p-n|pn) junction diode|nand|nor gate|logic gate|with (?:a )?battery)/i.test(stem)
-    && !isSemiconductorBandStem(stem)
-    && !/(?:depletion.{0,4}region|solar cell|photodiode)/i.test(stem)
-    && !isIvCharacteristicStem(stem);
-}
-
-function isJunctionSpatialStem(stem: string): boolean {
-  if (isDeviceCircuitStem(stem)) return false;
-  return /(?:depletion.{0,4}region|solar cell|photodiode|light emitting|\bled\b|(?:p-n|pn) junction)/i.test(stem);
+  return orderFamiliesByStemPreference(stem, ordered);
 }
 
 function isDiodeDeviceCircuit(question: string): boolean {
@@ -250,6 +265,9 @@ function diodeBiasDocument(question: string): SceneDocument {
           { id: "make_device", operator: "symbol" as const, inputs: { symbol: deviceSymbol, start: "n1", end: "n2" }, outputs: ["device"] },
         ]),
     ],
+    annotations: rectifier
+      ? []
+      : [{ id: "src_polarity", kind: "polarity", targetIds: ["src"], text: "-+" }],
     assertions: zener
       ? [{
           id: "zener_load_pair",
@@ -268,64 +286,6 @@ function diodeBiasDocument(question: string): SceneDocument {
   });
 }
 
-function inferFamiliesFromQuestion(question: string): string[] {
-  const stem = normalizeStem(question);
-  const matches: string[] = [];
-  const rules: Array<readonly [RegExp, readonly string[]]> = [
-    [/(?:microscope|telescope|objective|eyepiece)/i, ["instrument_chain", "axis_view"]],
-    [/(?:refraction|refracted|critical angle|prism|brewster|optical fibr)/i, ["interface", "ray_path"]],
-    [/(?:spherical (?:air|refracting|surface|interface)|air-glass interface|paraxial image|center of curvature|surface[- ]normal)/i, ["axis_view", "interface", "ray_path"]],
-    [/(?:mirror|lens|focal point|principal axis)/i, ["axis_view", "ray_path"]],
-    [/(?:circuit|resistor|inductor|capacitor|\bLCR\b|\bemf\b|ohm['’]?s law|drift velocity|resistivity|transistor)/i, ["circuit_network"]],
-    [/(?:y\s*=|parametric|polar curve|sketch.{0,60}(?:curve|graph)|plot.{0,40}(?:curve|graph|against|versus)|F\s*=\s*5x|F_x\s*=|F versus x|U\s*=\s*\(|U\(x\)|U\(r\)\s*=|x\s*=\s*t|position along a line is x\s*=)/i, ["analytic_curve"]],
-    [/(?:p[-–—]?v|thermodynamic cycle|v-?t graph|s-?t graph|x-?t graph|velocity-?time|position-?time|displacement-?time|accelerates uniformly|train starting from rest|average speed for the whole)/i, ["state_plot"]],
-    [/(?:incline|pulley|hinged|free[- ]body|friction|hanging (?:mass|block)|raindrop|dropped from|pushes a (?:box|block)|spring of stiffness|spring of force constant|spring-block|vertical circl|collid|collision|head-on|particle of mass|body of mass|block of mass|towed at|average (?:speed|velocity)|instantaneous velocity|starts from rest|constant acceleration|round trip|circular park|straight-line trip|train starting|two cars|car [AB] travels|relative to [AB]|catches? [AB]|angular momentum|rigid body rotation)/i, ["contact_body"]],
-    [/(?:(?:(?<!not a )\bprojectile\b)|projected from|thrown horizontally|thrown vertically|from the top of a (?:tower|building)|uniform circular motion|horizontal circle|centripetal|circular turn|level circular|circular road|banked|frictionless bank|up the bank|conical pendulum|impulse|batsman|recoil|on ice|leans against|ladder of mass|hanging over|pseudo force|\blift\b|rolling friction|rests on a table|string now makes|bob has mass)/i, ["contact_body"]],
-    [/(?:resultant of|two vectors|vector components|parallelogram law|velocity vectors|velocity triangles?|river|still water|downstream|upstream|rain falls|concurrent forces|triangle of forces|[îĵ]|makes with the x-axis)/i, ["vector_diagram"]],
-    [/(?:double.?slit|single.?slit|interference|fringe|diffraction)/i, ["aperture", "screen_pattern"]],
-    [/(?:wavefront|huygens)/i, ["wavefront"]],
-    [/(?:polari[sz]er|malus)/i, ["polarizer"]],
-    [/(?:point charges?|electric[- ]field|magnetic field)/i, ["point_field"]],
-    [/(?:photo.?electric|photoelectron|threshold frequency|energy levels?|bohr|energy band|valence band|conduction band|depletion.{0,4}region|solar cell|light emitting)/i, ["energy_level"]],
-    [/(?:cylinder|hemisphere|frustum|cone of radius)/i, ["solid_figure"]],
-    [/(?:cylindrical vessels|connected at the bottom|hydraulic|piston|venturi|connected fluid|buoyancy|archimedes|thermal expansion|heat transfer|fluid column|viscosity|method of mixtures|resonance tube)/i, ["fluid_apparatus"]],
-    [/(?:moves from \()/i, ["coordinate_figure"]],
-    [/(?:gauss(?:['’]?s)? law|electric flux|equipotential|electric dipole|microcoulomb|nanocoulomb|\bμC\b|parallel[- ]plate capacitor|metal sheets?.{0,80}parallel|electrically conducting walls|horizontal metal plates|electric charges?|conservation of charge|electric potential)/i, ["point_field"]],
-    [/(?:solenoid|toroid|biot[- ]savart|ampere['’]?s law|cyclotron|bar magnet|lorentz)/i, ["point_field"]],
-    [/(?:wheatstone|met(?:er|re) bridge|potentiometer|kirchhoff|galvanometer)/i, ["circuit_network"]],
-    [/(?:faraday|lenz|motional emf|self inductance|mutual inductance|transformer)/i, ["circuit_network"]],
-    [/(?:kepler|satellite|escape velocity|orbital velocity|gravitat(?:ion|ional field)|acceleration due to gravity|weightlessness)/i, ["point_field"]],
-    [/(?:bernoulli|venturi|capillary|young['’]?s modulus|stress[- ]strain)/i, ["fluid_apparatus"]],
-    [/(?:isothermal|adiabatic|carnot|indicator diagram|first law of thermodynamics|isobaric|isochoric|zeroth law|refrigerator)/i, ["state_plot"]],
-    [/(?:organ pipe|standing waves?|transverse wave|travelling wave|traveling wave|beats|doppler effect|progressive wave)/i, ["analytic_curve"]],
-    [/(?:rutherford|bohr orbit|hydrogen spectrum)/i, ["energy_level"]],
-    [/(?:zener|(?:p-n|pn) junction diode|rectifier|logic gate|nand|nor gate)/i, ["circuit_network"]],
-    [/(?:(?:n-type|p-type) semiconductors?|photodiode|(?:p-n|pn) junction|\bled\b)/i, ["energy_level"]],
-    [/(?:transfer characteristic|i[-–]?v characteristic|characteristic curve|draw a graph showing variation|graph showing variation of|variation of .{1,120} as a function of)/i, ["state_plot"]],
-    [/(?:argand|complex plane)/i, ["coordinate_figure"]],
-    [/(?:electromagnetic wave|em wave|displacement current|electromagnetic spectrum)/i, ["transverse_field"]],
-    [/(?:simple harmonic|shm\b|vernier|screw gauge|least count|periodic motion|oscillations? of)/i, ["contact_body"]],
-    [/(?:cyclic process|p[-–]?t diagram|isobaric process|thermodynamic system)/i, ["state_plot"]],
-    [/(?:binding energy per nucleon|maxwell speed|amplitude modulat|modulating signal|carrier wave|beats|doppler effect|progressive wave)/i, ["analytic_curve"]],
-    [/(?:x-ray tube|x ray tube|de broglie|matter[- ]wave|nuclear fission|nuclear fusion|mass defect|radioactive decay|half-life|davisson|dual nature of radiation|q value)/i, ["energy_level"]],
-    [/(?:law of cooling)/i, ["analytic_curve"]],
-    [/(?:surface tension)/i, ["fluid_apparatus"]],
-    [/(?:parallel (?:wires|conductors)|wires carry (?:equal )?currents)/i, ["point_field"]],
-  ];
-  for (const [pattern, families] of rules) {
-    if (pattern.test(stem)) families.forEach((family) => {
-      if (!matches.includes(family)) matches.push(family);
-    });
-  }
-  if (isNamedVariationPlotStem(stem) && !matches.includes("state_plot")) matches.push("state_plot");
-  if (isParallelPlateStem(stem) && !matches.includes("point_field")) matches.push("point_field");
-  if (isHangingWiresLoadStem(stem) && !matches.includes("contact_body")) matches.push("contact_body");
-  if (isFigureAbsentStem(stem)) {
-    return matches.filter((family) => family !== "state_plot");
-  }
-  return matches;
-}
-
 const FAMILY_BUILDERS: Record<string, FamilyBuilder> = {
   instrument_chain: buildInstrumentChain,
   interface: buildInterfaceRays,
@@ -333,7 +293,7 @@ const FAMILY_BUILDERS: Record<string, FamilyBuilder> = {
   axis_view: buildAxisView,
   circuit_network: buildCircuit,
   analytic_curve: buildAnalyticCurve,
-  bounded_region: buildAnalyticCurve,
+  bounded_region: buildBoundedRegion,
   state_plot: buildStatePlot,
   contact_body: buildContactBody,
   vector_diagram: buildVectorDiagram,
@@ -355,18 +315,20 @@ function buildInstrumentChain(
   schematic: boolean,
 ): SceneDocument | null {
   const stem = normalizeStem(question);
-  if (!/(?:microscope|telescope|objective|eyepiece)/i.test(stem) && !schematic) return null;
+  // A schematic still requires the stem to name the instrument; never invent one.
+  if (!/(?:microscope|telescope|objective|eyepiece)/i.test(stem)) return null;
   const fo = absQuantity(quantities, ["fo", "objectivefocallength", "focalobjective"]);
   const fe = absQuantity(quantities, ["fe", "eyepiecefocallength", "focaleyepiece"]);
   const uo = absQuantity(quantities, ["uo", "objectdistance", "uobjective"]);
   const nearPoint = absQuantity(quantities, ["d", "nearpoint", "leastdistance"]);
   if (!schematic && (fo === null || uo === null)) return null;
+  // Only plan-sourced values are recorded; a schematic carries no invented numbers.
   const sceneQuantities = [
-    quantityRecord("f_o", "f_o", fo ?? 0.004, unitOf(quantities, ["fo"]) ?? "m"),
-    quantityRecord("f_e", "f_e", fe ?? 0.025, unitOf(quantities, ["fe"]) ?? "m"),
-    quantityRecord("u_o", "u_o", uo ?? 0.0045, unitOf(quantities, ["uo"]) ?? "m"),
-    quantityRecord("D", "D", nearPoint ?? 0.25, unitOf(quantities, ["d", "nearpoint"]) ?? "m"),
-  ];
+    fo !== null ? quantityRecord("f_o", "f_o", fo, unitOf(quantities, ["fo"]) ?? "m") : null,
+    fe !== null ? quantityRecord("f_e", "f_e", fe, unitOf(quantities, ["fe"]) ?? "m") : null,
+    uo !== null ? quantityRecord("u_o", "u_o", uo, unitOf(quantities, ["uo"]) ?? "m") : null,
+    nearPoint !== null ? quantityRecord("D", "D", nearPoint, unitOf(quantities, ["d", "nearpoint"]) ?? "m") : null,
+  ].filter((quantity): quantity is Record<string, unknown> & { id: string } => quantity !== null);
   return baseDocument({
     question,
     reason: "finite optical instrument chain from plan quantities",
@@ -404,6 +366,14 @@ function buildInterfaceRays(
   const n1 = firstQuantity(quantities, ["n1", "nair"]) ?? 1;
   if (!schematic && incident === null) return null;
   if (!schematic && !reflection && n2 === null) return null;
+  // A schematic still requires the stem to name the optical phenomenon.
+  if (
+    schematic
+    && !reflection
+    && !/(?:refract|snell|glass|prism|water|interface|critical angle|optical fib|incident ray|surface[- ]normal|ray of light)/i.test(question)
+  ) {
+    return null;
+  }
   const theta = incident ?? 30;
   const index2 = n2 ?? 1.5;
   if (reflection) {
@@ -588,6 +558,14 @@ function buildSphericalInterface(
       { id: "label_C", predicate: "label_attached", entities: ["C"], expected: true, severity: "fatal" },
       { id: "label_I", predicate: "label_attached", entities: ["I"], expected: true, severity: "fatal" },
       { id: "label_V", predicate: "label_attached", entities: ["V"], expected: true, severity: "fatal" },
+      {
+        id: "image_distance_ratio",
+        predicate: "distance_ratio",
+        entities: ["I", "V", "O", "V"],
+        expected: Math.abs(imageDistance / u),
+        tolerance: 0.0001,
+        severity: "fatal",
+      },
     ],
     teachingTimeline: [
       {
@@ -676,6 +654,8 @@ function buildAxisView(
   if (isSphericalInterface(question, quantities)) {
     return buildSphericalInterface(question, quantities, schematic);
   }
+  // A schematic still requires the stem to name a mirror or lens.
+  if (schematic && !/\b(?:mirror|lens)(?:es)?\b/i.test(question)) return null;
   const focalMagnitude = absQuantity(quantities, ["f", "focallength"]);
   const objectDistance = absQuantity(quantities, ["u", "objectdistance"]);
   const imageDistanceGiven = firstQuantity(quantities, ["v", "imagedistance"]);
@@ -846,6 +826,12 @@ function buildParaxialMirror(
           }]
         : []),
     ],
+    annotations: realImage
+      ? []
+      : [
+          { id: "virtual_image", kind: "endpoint", targetIds: ["image_base"], style: { pointStyle: "open" as const } },
+          { id: "virtual_ray", kind: "extend", targetIds: ["reflected_parallel"] },
+        ],
     revealGroups: [
       {
         id: "mirror_setup",
@@ -965,6 +951,14 @@ function buildThinLens(
       { id: "object_on_axis", predicate: "on", entities: ["object_base", "axis"], expected: true, severity: "fatal" },
       { id: "image_on_axis", predicate: "on", entities: ["image_base", "axis"], expected: true, severity: "fatal" },
       { id: "lens_perp", predicate: "perpendicular", entities: ["lens", "axis"], expected: true, severity: "fatal" },
+      {
+        id: "image_distance_ratio",
+        predicate: "distance_ratio",
+        entities: ["image_base", "lens_center", "object_base", "lens_center"],
+        expected: Math.abs(v / u),
+        tolerance: 0.0001,
+        severity: "fatal",
+      },
       { id: "label_O", predicate: "label_attached", entities: ["object_base"], expected: true, severity: "fatal" },
       { id: "label_I", predicate: "label_attached", entities: ["image_base"], expected: true, severity: "fatal" },
     ],
@@ -1026,12 +1020,24 @@ function buildCircuit(
   }
   const namedNetwork = /(?:wheatstone|met(?:er|re) bridge|potentiometer|kirchhoff|galvanometer|transformer|\bLCR\b|\bRLC\b)/i.test(normalizeStem(question));
   if (resistors.length < 2 && !schematic && !namedNetwork) return null;
+  // A schematic still requires the stem to name circuit apparatus; never invent a network.
+  if (
+    schematic
+    && resistors.length < 2
+    && !namedNetwork
+    && !/(?:resist|circuit|battery|\bcells?\b|\bemf\b|capacitor|inductor|diode|zener|galvanometer|ammeter|voltmeter|\bohm|series|parallel|bulb|lamp)/i.test(question)
+  ) {
+    return null;
+  }
   const count = Math.max(2, Math.min(resistors.length || (namedNetwork ? 4 : 3), 4));
   const wantsParallel = /\bparallel\b/i.test(question) && !/\bin series except\b/i.test(question);
   const wantsSeries = /\bseries\b/i.test(question) || (namedNetwork && !wantsParallel);
   if (!schematic && !wantsParallel && !wantsSeries && resistors.length < 2) return null;
   if (wantsSeries && wantsParallel) {
     return buildSeparatedCircuitViews(question, resistors, count);
+  }
+  if (isTwoLoopNetworkStem(question)) {
+    return buildTwoLoopCircuit(question, resistors);
   }
   const topology = wantsParallel || (!wantsSeries && schematic) ? "parallel" : "series";
   return buildSingleCircuitView(question, resistors, count, topology, 0, "");
@@ -1075,6 +1081,11 @@ function buildSingleCircuitView(
       })),
     ],
     constructions: [...nodePoints, ...symbols],
+    annotations: [{
+      id: `${idPrefix}current_sense`,
+      kind: "sense",
+      targetIds: [resistorIds[0]!],
+    }],
     assertions: topology === "parallel"
       ? [{
           id: "same_pair",
@@ -1095,6 +1106,73 @@ function buildSingleCircuitView(
       entityIds: [...nodes, ...resistorIds],
       dependsOn: [],
       narrationCue: `${topology} circuit`,
+    }],
+  });
+}
+
+function buildTwoLoopCircuit(
+  question: string,
+  resistors: Array<{ symbol: string; value: number; unit?: string }>,
+): SceneDocument {
+  const r1 = resistors[0]?.symbol ?? "R1";
+  const r2 = resistors[1]?.symbol ?? "R2";
+  const r3 = resistors[2]?.symbol ?? "R3";
+  return baseDocument({
+    question,
+    reason: "two-loop network from the question wording",
+    quantities: resistors.slice(0, 3).map((resistor, index) =>
+      quantityRecord(`R${index + 1}`, resistor.symbol, resistor.value, resistor.unit ?? "ohm")),
+    entities: [
+      { id: "n_tl", kind: "point", role: "node" },
+      { id: "n_tc", kind: "point", role: "node", label: "A" },
+      { id: "n_tr", kind: "point", role: "node" },
+      { id: "n_bl", kind: "point", role: "node" },
+      { id: "n_bc", kind: "point", role: "node" },
+      { id: "n_br", kind: "point", role: "node" },
+      { id: "r1", kind: "component", role: "resistor", label: compactLabel(r1) },
+      { id: "r2", kind: "component", role: "resistor", label: compactLabel(r2) },
+      { id: "r3", kind: "component", role: "resistor", label: compactLabel(r3) },
+      { id: "v1", kind: "component", role: "source", label: "V1" },
+      { id: "v2", kind: "component", role: "source", label: "V2" },
+      { id: "w_bl", kind: "connector", role: "return path" },
+      { id: "w_br", kind: "connector", role: "return path" },
+    ],
+    constructions: [
+      pointAt("n_tl", 0, 2),
+      pointAt("n_tc", 3, 2),
+      pointAt("n_tr", 6, 2),
+      pointAt("n_bl", 0, 0),
+      pointAt("n_bc", 3, 0),
+      pointAt("n_br", 6, 0),
+      { id: "make_r1", operator: "symbol", inputs: { symbol: "resistor", start: "n_tl", end: "n_tc" }, outputs: ["r1"] },
+      { id: "make_r2", operator: "symbol", inputs: { symbol: "resistor", start: "n_tc", end: "n_tr" }, outputs: ["r2"] },
+      { id: "make_r3", operator: "symbol", inputs: { symbol: "resistor", start: "n_tc", end: "n_bc" }, outputs: ["r3"] },
+      { id: "make_v1", operator: "symbol", inputs: { symbol: "battery", start: "n_bl", end: "n_tl" }, outputs: ["v1"] },
+      { id: "make_v2", operator: "symbol", inputs: { symbol: "battery", start: "n_br", end: "n_tr" }, outputs: ["v2"] },
+      { id: "make_w_bl", operator: "connect", inputs: { start: "n_bl", end: "n_bc" }, outputs: ["w_bl"] },
+      { id: "make_w_br", operator: "connect", inputs: { start: "n_bc", end: "n_br" }, outputs: ["w_br"] },
+    ],
+    assertions: [
+      {
+        id: "left_loop",
+        predicate: "path",
+        entities: ["v1", "r1", "r3", "w_bl"],
+        expected: true,
+        severity: "fatal",
+      },
+      {
+        id: "right_loop",
+        predicate: "path",
+        entities: ["v2", "r2", "r3", "w_br"],
+        expected: true,
+        severity: "fatal",
+      },
+    ],
+    revealGroups: [{
+      id: "two_loop_group",
+      entityIds: ["n_tl", "n_tc", "n_tr", "n_bl", "n_bc", "n_br", "r1", "r2", "r3", "v1", "v2", "w_bl", "w_br"],
+      dependsOn: [],
+      narrationCue: "two-loop circuit",
     }],
   });
 }
@@ -1135,13 +1213,123 @@ function buildAnalyticCurve(
     ?? (named.includes("1/x^12-1/x^6") ? [0.8, 2.5] as [number, number] : [-2, 2] as [number, number]);
   if (plots.length === 0) {
     if (isProjectileStem(question) || isMotionGraphStem(question)) return null;
-    if (/(?:U\(x\) graph|stable and unstable equilibrium|F versus x|graph of F)/i.test(question) || schematic) {
+    if (/(?:U\(x\) graph|stable and unstable equilibrium|F versus x|graph of F)/i.test(question) && !schematic) {
       const well = /U\(x\)|equilibrium/i.test(question) ? "x^4/4-x^2/2" : "x";
       return plotExpressions(question, [well], domain);
     }
-    return schematic ? axesOnly(question, "analytic display axes") : null;
+    // Last-resort draws bare axes only when the stem actually asks for a graph;
+    // it never paints a canned curve the stem did not name.
+    if (schematic) {
+      return /(?:graph|curve|plot|sketch|versus|against)/i.test(question)
+        ? axesOnly(question, "analytic display axes")
+        : null;
+    }
+    return null;
   }
   return plotExpressions(question, plots, domain);
+}
+
+function buildBoundedRegion(
+  question: string,
+  _quantities: PlanQuantity[],
+  schematic: boolean,
+): SceneDocument | null {
+  const expressions = extractExplicitFunctions(question);
+  if (expressions.length === 0) {
+    // No canned 4-x^2: with no curve named by the stem there is nothing honest
+    // to bound; the caller falls through to another family or text-only.
+    return schematic ? null : buildAnalyticCurve(question, _quantities, schematic);
+  }
+  const domain = extractBoundX(question) ?? extractXInterval(question) ?? [-2, 2] as [number, number];
+  const withAxis = /x-axis|coordinate axes|y\s*=\s*0/i.test(question);
+  const curves = expressions.slice(0, 2);
+  if (curves.length === 1 && withAxis) curves.push("0");
+  if (curves.length < 2) return plotExpressions(question, expressions, domain);
+  const ordered = orderRegionCurves(curves, domain);
+  if (!ordered) return plotExpressions(question, expressions, domain);
+  const clipped = shrinkRegionDomain(ordered.upper, ordered.lower, domain) ?? domain;
+  return regionDocument(question, ordered.upper, ordered.lower, clipped);
+}
+
+function shrinkRegionDomain(
+  upper: string,
+  lower: string,
+  domain: [number, number],
+): [number, number] | null {
+  try {
+    const u = parseMathExpression(upper);
+    const l = parseMathExpression(lower);
+    const samples = Array.from({ length: 65 }, (_, index) => domain[0] + (domain[1] - domain[0]) * index / 64);
+    const good = samples.filter((x) => u.evaluate(x) + 1e-9 >= l.evaluate(x));
+    if (good.length < 8) return null;
+    const start = good[0]!;
+    const end = good[good.length - 1]!;
+    if (!(start < end)) return null;
+    return [start, end];
+  } catch {
+    return null;
+  }
+}
+
+function orderRegionCurves(
+  expressions: string[],
+  domain: [number, number],
+): { upper: string; lower: string } | null {
+  const [first, second] = expressions;
+  if (!first || !second) return null;
+  try {
+    const a = parseMathExpression(first);
+    const b = parseMathExpression(second);
+    const samples = [0.25, 0.5, 0.75].map((t) => domain[0] + t * (domain[1] - domain[0]));
+    const aAbove = samples.filter((x) => a.evaluate(x) + 1e-9 >= b.evaluate(x)).length;
+    if (aAbove >= 2) return { upper: first, lower: second };
+    return { upper: second, lower: first };
+  } catch {
+    return null;
+  }
+}
+
+function regionDocument(
+  question: string,
+  upper: string,
+  lower: string,
+  domain: [number, number],
+): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "region bounded by function curves",
+    quantities: [],
+    entities: [
+      { id: "axes", kind: "axes", role: "display axes" },
+      { id: "upper", kind: "polyline", role: "upper boundary", label: compactLabel(`y=${upper}`) },
+      { id: "lower", kind: "polyline", role: "lower boundary", label: compactLabel(`y=${lower}`) },
+      { id: "region", kind: "polygon", role: "bounded region" },
+    ],
+    constructions: [
+      { id: "make_axes", operator: "axes", inputs: { xMin: domain[0], xMax: domain[1], yMin: -2, yMax: 4 }, outputs: ["axes"] },
+      {
+        id: "make_upper",
+        operator: "function_curve",
+        inputs: { expression: upper, variable: "x", xMin: domain[0], xMax: domain[1], samples: 65 },
+        outputs: ["upper"],
+      },
+      {
+        id: "make_lower",
+        operator: "function_curve",
+        inputs: { expression: lower, variable: "x", xMin: domain[0], xMax: domain[1], samples: 65 },
+        outputs: ["lower"],
+      },
+      {
+        id: "make_region",
+        operator: "function_region",
+        inputs: { upper: "upper", lower: "lower", xMin: domain[0], xMax: domain[1], samples: 65 },
+        outputs: ["region"],
+      },
+    ],
+    assertions: [
+      { id: "region_exists", predicate: "exists", entities: ["region"], expected: true, severity: "fatal" },
+    ],
+  });
 }
 
 function plotExpressions(
@@ -1209,6 +1397,10 @@ function buildStatePlot(
     || /^v\d*$/i.test(normalizeKey(quantity.id)));
   const closed = /(?:cycle|clockwise|rectangular)/i.test(question);
   if (!schematic && pressures.length < 2 && volumes.length < 2 && !closed) return null;
+  const namedCycle = closed
+    || /(?:cyclic|thermodynamic|isothermal|adiabatic|isobaric|isochoric|carnot|indicator diagram|p\s*[-–]?\s*[vt]\s*(?:diagram|graph)|pressure.{0,40}volume|volume.{0,40}pressure)/i.test(question);
+  if (schematic && pressures.length < 2 && volumes.length < 2 && !namedCycle) return null;
+  const axisLabel = /p\s*[-–]?\s*t\s*(?:diagram|graph)/i.test(question) ? "P-T" : "P-V";
   const corners = [
     { id: "A", x: -2, y: -1.5 },
     { id: "B", x: 2, y: -1.5 },
@@ -1220,7 +1412,7 @@ function buildStatePlot(
     reason: "display-scaled thermodynamic state plot",
     quantities: [],
     entities: [
-      { id: "axes", kind: "axes", role: "PV axes", label: "P-V" },
+      { id: "axes", kind: "axes", role: "PV axes", label: axisLabel },
       ...corners.map((corner) => ({ id: corner.id, kind: "point", role: "named state", label: corner.id })),
       { id: "cycle", kind: "polygon", role: "process cycle" },
     ],
@@ -1234,6 +1426,10 @@ function buildStatePlot(
         outputs: ["cycle"],
       },
     ],
+    annotations: [
+      { id: "cycle_fill", kind: "highlight", targetIds: ["cycle"], style: { transient: false } },
+      { id: "drop_A", kind: "drop", targetIds: ["A", "axes"] },
+    ],
     assertions: [
       { id: "A_exists", predicate: "exists", entities: ["A"], expected: true, severity: "fatal" },
       { id: "cycle_exists", predicate: "exists", entities: ["cycle"], expected: true, severity: "fatal" },
@@ -1244,7 +1440,7 @@ function buildStatePlot(
 function buildContactBody(
   question: string,
   quantities: PlanQuantity[],
-  schematic: boolean,
+  _schematic: boolean,
 ): SceneDocument | null {
   const stem = normalizeStem(question);
   if (/(?:pulley|blocks? connected|hanging (?:mass|block))/i.test(stem)
@@ -1314,12 +1510,105 @@ function buildContactBody(
     return particleMotionDocument(question);
   }
   if (
-    !schematic
-    && !/(?:free[- ]body|friction|normal reaction|pseudo force|\blift\b|rests on a table|truck that accelerates)/i.test(stem)
+    /(?:moment of inertia|rotational|rotating|rotates|rotated|rotation|angular (?:speed|velocity|momentum|acceleration)|spinning|spun|spins)/i.test(stem)
+  ) {
+    return rigidBodyAxisDocument(question);
+  }
+  if (
+    !/(?:free[- ]body|friction|normal reaction|pseudo force|\blift\b|rests on a table|truck that accelerates)/i.test(stem)
   ) {
     return null;
   }
   return blockOnSurfaceDocument(question);
+}
+
+function rigidBodyAxisDocument(question: string): SceneDocument {
+  const twoBodies = /(?:\btwo\b|\bboth\b|face to face|brought into contact|assembly)/i.test(question);
+  const rodLike = /(?:\brod\b|\bbars?\b)/i.test(question)
+    && !/(?:disc|disk|sphere|shell|ring|cylinder|roller)/i.test(question);
+  if (twoBodies) {
+    return baseDocument({
+      question,
+      reason: "two rotating rigid bodies on a shared rotation axis",
+      quantities: [],
+      entities: [
+        { id: "c1", kind: "point", role: "first body center" },
+        { id: "c2", kind: "point", role: "second body center" },
+        { id: "axis_l", kind: "point", role: "axis end" },
+        { id: "axis_r", kind: "point", role: "axis end" },
+        { id: "body1", kind: "circle", role: "rotating body", label: "1" },
+        { id: "body2", kind: "circle", role: "rotating body", label: "2" },
+        { id: "axis", kind: "segment", role: "rotation axis", label: "axis" },
+      ],
+      constructions: [
+        pointAt("c1", -1.7, 0),
+        pointAt("c2", 1.7, 0),
+        pointAt("axis_l", -3.4, 0),
+        pointAt("axis_r", 3.4, 0),
+        { id: "make_body1", operator: "circle", inputs: { center: "c1", radius: 1.1 }, outputs: ["body1"] },
+        { id: "make_body2", operator: "circle", inputs: { center: "c2", radius: 1.1 }, outputs: ["body2"] },
+        { id: "make_axis", operator: "segment", inputs: { start: "axis_l", end: "axis_r" }, outputs: ["axis"] },
+      ],
+      assertions: [
+        { id: "bodies_exist", predicate: "exists", entities: ["body1", "body2"], expected: true, severity: "fatal" },
+        { id: "c1_on_axis", predicate: "on", entities: ["c1", "axis"], expected: true, severity: "fatal" },
+        { id: "c2_on_axis", predicate: "on", entities: ["c2", "axis"], expected: true, severity: "fatal" },
+      ],
+    });
+  }
+  if (rodLike) {
+    return baseDocument({
+      question,
+      reason: "rigid rod with the rotation axis through its centre",
+      quantities: [],
+      entities: [
+        { id: "rod_l", kind: "point", role: "rod end" },
+        { id: "rod_r", kind: "point", role: "rod end" },
+        { id: "center", kind: "point", role: "rod centre", label: "C" },
+        { id: "axis_t", kind: "point", role: "axis end" },
+        { id: "axis_b", kind: "point", role: "axis end" },
+        { id: "rod", kind: "segment", role: "rigid rod", label: "rod" },
+        { id: "axis", kind: "segment", role: "rotation axis", label: "axis" },
+      ],
+      constructions: [
+        pointAt("rod_l", -2.4, 0),
+        pointAt("rod_r", 2.4, 0),
+        pointAt("center", 0, 0),
+        pointAt("axis_t", 0, 1.8),
+        pointAt("axis_b", 0, -1.8),
+        { id: "make_rod", operator: "segment", inputs: { start: "rod_l", end: "rod_r" }, outputs: ["rod"] },
+        { id: "make_axis", operator: "segment", inputs: { start: "axis_b", end: "axis_t" }, outputs: ["axis"] },
+      ],
+      assertions: [
+        { id: "rod_exists", predicate: "exists", entities: ["rod"], expected: true, severity: "fatal" },
+        { id: "center_on_rod", predicate: "on", entities: ["center", "rod"], expected: true, severity: "fatal" },
+        { id: "axis_perp_rod", predicate: "perpendicular", entities: ["axis", "rod"], expected: true, severity: "fatal" },
+      ],
+    });
+  }
+  return baseDocument({
+    question,
+    reason: "rigid body with the rotation axis through its centre",
+    quantities: [],
+    entities: [
+      { id: "center", kind: "point", role: "body centre", label: "C" },
+      { id: "axis_t", kind: "point", role: "axis end" },
+      { id: "axis_b", kind: "point", role: "axis end" },
+      { id: "body", kind: "circle", role: "rotating body", label: "m" },
+      { id: "axis", kind: "segment", role: "rotation axis", label: "axis" },
+    ],
+    constructions: [
+      pointAt("center", 0, 0),
+      pointAt("axis_t", 0, 2.2),
+      pointAt("axis_b", 0, -2.2),
+      { id: "make_body", operator: "circle", inputs: { center: "center", radius: 1.4 }, outputs: ["body"] },
+      { id: "make_axis", operator: "segment", inputs: { start: "axis_b", end: "axis_t" }, outputs: ["axis"] },
+    ],
+    assertions: [
+      { id: "body_exists", predicate: "exists", entities: ["body"], expected: true, severity: "fatal" },
+      { id: "center_on_axis", predicate: "on", entities: ["center", "axis"], expected: true, severity: "fatal" },
+    ],
+  });
 }
 
 function pulleyDocument(question: string): SceneDocument {
@@ -1437,6 +1726,10 @@ function inclineDocument(question: string, theta: number): SceneDocument {
             },
           ]
         : []),
+    ],
+    annotations: [
+      { id: "incline_hatch", kind: "hatch", targetIds: ["incline"] },
+      { id: "contact_frame", kind: "frame", targetIds: ["contact", "incline"] },
     ],
     assertions: [
       { id: "contact_on_incline", predicate: "on", entities: ["contact", "incline"], expected: true, severity: "fatal" },
@@ -2175,6 +2468,10 @@ function kinematicsVtDocument(question: string): SceneDocument {
         outputs: ["graph"],
       },
     ],
+    annotations: [
+      { id: "peak_drop", kind: "drop", targetIds: ["peak", "axes"] },
+      { id: "boost_slope", kind: "slope_triangle", targetIds: ["graph"] },
+    ],
     assertions: [
       { id: "axes_exist", predicate: "exists", entities: ["axes"], expected: true, severity: "fatal" },
       { id: "graph_exists", predicate: "exists", entities: ["graph"], expected: true, severity: "fatal" },
@@ -2210,21 +2507,180 @@ function circularParkDocument(question: string): SceneDocument {
   });
 }
 
+function riverBoatDocument(question: string, quantities: PlanQuantity[]): SceneDocument {
+  const stem = normalizeStem(question);
+  const variant = riverBoatVariant(stem);
+  const vb = firstQuantity(quantities, ["vb", "vboat", "boat", "gboatspeed", "boatspeed"]);
+  const vc = firstQuantity(quantities, ["vc", "vcurrent", "current", "vriver", "vr", "gcurrentspeed", "currentspeed"]);
+  const ratio = vb !== null && vc !== null && vb > 0 ? Math.min(0.92, Math.max(0.25, vc / vb)) : 0.45;
+  const vbLen = 2.2;
+  const vcLen = vbLen * ratio;
+  const heading = angleDegrees(quantities, question);
+  const banks: SceneEntity[] = [
+    { id: "south_w", kind: "point", role: "south bank west" },
+    { id: "south_e", kind: "point", role: "south bank east" },
+    { id: "north_w", kind: "point", role: "north bank west" },
+    { id: "north_e", kind: "point", role: "north bank east" },
+    { id: "south_bank", kind: "segment", role: "river bank" },
+    { id: "north_bank", kind: "segment", role: "river bank" },
+  ];
+  const bankConstructions: SceneConstruction[] = [
+    pointAt("south_w", -3.3, -1.8),
+    pointAt("south_e", 3.3, -1.8),
+    pointAt("north_w", -3.3, 1.8),
+    pointAt("north_e", 3.3, 1.8),
+    { id: "make_south_bank", operator: "segment", inputs: { start: "south_w", end: "south_e" }, outputs: ["south_bank"] },
+    { id: "make_north_bank", operator: "segment", inputs: { start: "north_w", end: "north_e" }, outputs: ["north_bank"] },
+  ];
+
+  if (variant === "along_stream") {
+    return baseDocument({
+      question,
+      reason: "river banks with downstream and upstream velocities along the current",
+      quantities: [],
+      entities: [
+        ...banks,
+        { id: "origin", kind: "point", role: "boat", label: "boat" },
+        { id: "vb_end", kind: "point", role: "boat-speed tip" },
+        { id: "vc_end", kind: "point", role: "current tip" },
+        { id: "vd_end", kind: "point", role: "downstream tip" },
+        { id: "vu_end", kind: "point", role: "upstream tip" },
+        { id: "vb", kind: "vector", role: "boat speed", label: "vb" },
+        { id: "vc", kind: "vector", role: "current", label: "vc" },
+        { id: "vd", kind: "vector", role: "downstream", label: "down" },
+        { id: "vu", kind: "vector", role: "upstream", label: "up" },
+      ],
+      constructions: [
+        ...bankConstructions,
+        pointAt("origin", -1.4, 0),
+        pointAt("vb_end", -1.4 + vbLen, 0.55),
+        pointAt("vc_end", -1.4 + vcLen, -0.55),
+        pointAt("vd_end", -1.4 + vbLen + vcLen, 0),
+        pointAt("vu_end", -1.4 - Math.max(0.6, vbLen - vcLen), 0),
+        { id: "make_vb", operator: "vector", inputs: { start: "origin", end: "vb_end" }, outputs: ["vb"] },
+        { id: "make_vc", operator: "vector", inputs: { start: "origin", end: "vc_end" }, outputs: ["vc"] },
+        { id: "make_vd", operator: "vector", inputs: { start: "origin", end: "vd_end" }, outputs: ["vd"] },
+        { id: "make_vu", operator: "vector", inputs: { start: "origin", end: "vu_end" }, outputs: ["vu"] },
+      ],
+      assertions: [
+        { id: "banks_exist", predicate: "exists", entities: ["south_bank", "north_bank"], expected: true, severity: "fatal" },
+        { id: "vb_exists", predicate: "exists", entities: ["vb"], expected: true, severity: "fatal" },
+        { id: "current_exists", predicate: "exists", entities: ["vc"], expected: true, severity: "fatal" },
+      ],
+    });
+  }
+
+  if (variant === "two_triangles") {
+    const acrossY = Math.sqrt(Math.max(0.2, 1 - ratio * ratio)) * vbLen;
+    return baseDocument({
+      question,
+      reason: "two river-crossing velocity triangles: straight across and shortest time",
+      quantities: [],
+      entities: [
+        ...banks,
+        { id: "across_origin", kind: "point", role: "straight-across origin", label: "across" },
+        { id: "across_vc_end", kind: "point", role: "straight-across current tip" },
+        { id: "across_vb_end", kind: "point", role: "straight-across heading tip" },
+        { id: "across_vr_end", kind: "point", role: "straight-across resultant tip" },
+        { id: "across_vc", kind: "vector", role: "current", label: "vc" },
+        { id: "across_vb", kind: "vector", role: "heading", label: "vb" },
+        { id: "across_vr", kind: "vector", role: "resultant", label: "vr" },
+        { id: "short_origin", kind: "point", role: "shortest-time origin", label: "short" },
+        { id: "short_vc_end", kind: "point", role: "shortest-time current tip" },
+        { id: "short_vb_end", kind: "point", role: "shortest-time heading tip" },
+        { id: "short_vr_end", kind: "point", role: "shortest-time resultant tip" },
+        { id: "short_vc", kind: "vector", role: "current", label: "vc" },
+        { id: "short_vb", kind: "vector", role: "heading", label: "vb" },
+        { id: "short_vr", kind: "vector", role: "resultant", label: "vr" },
+      ],
+      constructions: [
+        ...bankConstructions,
+        pointAt("across_origin", -1.7, -0.6),
+        pointAt("across_vc_end", -1.7 + vcLen, -0.6),
+        pointAt("across_vb_end", -1.7 - vcLen, -0.6 + acrossY),
+        pointAt("across_vr_end", -1.7, -0.6 + acrossY),
+        { id: "make_across_vc", operator: "vector", inputs: { start: "across_origin", end: "across_vc_end" }, outputs: ["across_vc"] },
+        { id: "make_across_vb", operator: "vector", inputs: { start: "across_origin", end: "across_vb_end" }, outputs: ["across_vb"] },
+        { id: "make_across_vr", operator: "vector", inputs: { start: "across_origin", end: "across_vr_end" }, outputs: ["across_vr"] },
+        pointAt("short_origin", 1.1, -0.6),
+        pointAt("short_vc_end", 1.1 + vcLen, -0.6),
+        pointAt("short_vb_end", 1.1, -0.6 + vbLen),
+        pointAt("short_vr_end", 1.1 + vcLen, -0.6 + vbLen),
+        { id: "make_short_vc", operator: "vector", inputs: { start: "short_origin", end: "short_vc_end" }, outputs: ["short_vc"] },
+        { id: "make_short_vb", operator: "vector", inputs: { start: "short_origin", end: "short_vb_end" }, outputs: ["short_vb"] },
+        { id: "make_short_vr", operator: "vector", inputs: { start: "short_origin", end: "short_vr_end" }, outputs: ["short_vr"] },
+      ],
+      assertions: [
+        { id: "banks_exist", predicate: "exists", entities: ["south_bank", "north_bank"], expected: true, severity: "fatal" },
+        { id: "across_exists", predicate: "exists", entities: ["across_vr"], expected: true, severity: "fatal" },
+        { id: "short_exists", predicate: "exists", entities: ["short_vr"], expected: true, severity: "fatal" },
+      ],
+    });
+  }
+
+  const headingDeg = heading ?? 90;
+  const rad = headingDeg * Math.PI / 180;
+  const originX = 0;
+  const originY = -0.5;
+  const vbEnd = { x: originX + vbLen * Math.cos(rad), y: originY + vbLen * Math.sin(rad) };
+  const vcEnd = { x: originX + vcLen, y: originY };
+  const vrEnd = { x: vbEnd.x + vcLen, y: vbEnd.y };
+  return baseDocument({
+    question,
+    reason: "river banks with a heading-and-current velocity triangle",
+    quantities: heading !== null
+      ? [{ id: "theta", symbol: "theta", value: heading, unit: "degree" }]
+      : [],
+    entities: [
+      ...banks,
+      { id: "origin", kind: "point", role: "boat", label: "boat" },
+      { id: "vb_end", kind: "point", role: "heading tip" },
+      { id: "vc_end", kind: "point", role: "current tip" },
+      { id: "vr_end", kind: "point", role: "resultant tip" },
+      { id: "vb", kind: "vector", role: "heading", label: "vb" },
+      { id: "vc", kind: "vector", role: "current", label: "vc" },
+      { id: "vr", kind: "vector", role: "resultant", label: "vr" },
+      ...(heading !== null
+        ? [{ id: "heading_mark", kind: "arc" as const, role: "heading angle" }]
+        : []),
+    ],
+    constructions: [
+      ...bankConstructions,
+      pointAt("origin", originX, originY),
+      pointAt("vb_end", vbEnd.x, vbEnd.y),
+      pointAt("vc_end", vcEnd.x, vcEnd.y),
+      pointAt("vr_end", vrEnd.x, vrEnd.y),
+      { id: "make_vb", operator: "vector", inputs: { start: "origin", end: "vb_end" }, outputs: ["vb"] },
+      { id: "make_vc", operator: "vector", inputs: { start: "origin", end: "vc_end" }, outputs: ["vc"] },
+      { id: "make_vr", operator: "vector", inputs: { start: "origin", end: "vr_end" }, outputs: ["vr"] },
+      ...(heading !== null
+        ? [{
+            id: "make_heading_mark",
+            operator: "angle_mark" as const,
+            inputs: { vertex: "origin", a: "vc", b: "vb", radius: 0.45 },
+            outputs: ["heading_mark"],
+          }]
+        : []),
+    ],
+    assertions: [
+      { id: "banks_exist", predicate: "exists", entities: ["south_bank", "north_bank"], expected: true, severity: "fatal" },
+      { id: "heading_exists", predicate: "exists", entities: ["vb"], expected: true, severity: "fatal" },
+      { id: "current_exists", predicate: "exists", entities: ["vc"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
 function buildVectorDiagram(
   question: string,
   quantities: PlanQuantity[],
-  schematic: boolean,
+  _schematic: boolean,
 ): SceneDocument | null {
   const stem = normalizeStem(question);
+  if (isRiverBoatStem(stem)) return riverBoatDocument(question, quantities);
   const magnitudes = quantities.filter((quantity) =>
     /(?:magnitude|vec|a|b)/i.test(`${quantity.id} ${quantity.symbol}`));
-  if (
-    !schematic
-    && magnitudes.length < 1
-    && !/(?:resultant|two vectors|vector|velocity vectors|velocity triangles?|river|still water|rain falls|concurrent forces|triangle of forces|[îĵ]|makes with the x-axis)/i.test(stem)
-  ) {
-    return null;
-  }
+  const vectorEvidence = /(?:resultant|two vectors|vector|velocity vectors|velocity triangles?|rain falls|concurrent forces|triangle of forces|[îĵ]|makes with the x-axis)/i.test(stem);
+  if (!vectorEvidence && magnitudes.length < 1) return null;
   const three = /(?:three concurrent|triangle of forces|two strings|held by two strings)/i.test(stem);
   const rain = /rain falls/i.test(stem);
   return baseDocument({
@@ -2271,9 +2727,9 @@ function buildVectorDiagram(
 function buildAperturePattern(
   question: string,
   _quantities: PlanQuantity[],
-  schematic: boolean,
+  _schematic: boolean,
 ): SceneDocument | null {
-  if (!schematic && !/(?:slit|interference|diffraction|aperture|fringe)/i.test(question)) return null;
+  if (!/(?:slit|interference|diffraction|aperture|fringe|central maximum|resolving power|limit of resolution|rayleigh|phase difference)/i.test(question)) return null;
   const slits = /single/i.test(question) ? 1 : 2;
   return baseDocument({
     question,
@@ -2317,8 +2773,8 @@ function buildAperturePattern(
   });
 }
 
-function buildWavefront(question: string, _quantities: PlanQuantity[], schematic: boolean): SceneDocument | null {
-  if (!schematic && !/(?:wavefront|huygens)/i.test(question)) return null;
+function buildWavefront(question: string, _quantities: PlanQuantity[], _schematic: boolean): SceneDocument | null {
+  if (!/(?:wavefront|huygens|secondary wavelet)/i.test(question)) return null;
   return baseDocument({
     question,
     reason: "plane wavefront family",
@@ -2340,8 +2796,8 @@ function buildWavefront(question: string, _quantities: PlanQuantity[], schematic
   });
 }
 
-function buildPolarizer(question: string, quantities: PlanQuantity[], schematic: boolean): SceneDocument | null {
-  if (!schematic && !/(?:polari[sz]|malus|polaroid)/i.test(question)) return null;
+function buildPolarizer(question: string, quantities: PlanQuantity[], _schematic: boolean): SceneDocument | null {
+  if (!/(?:polari[sz]|malus|polaroid|analy[sz]er|brewster)/i.test(question)) return null;
   const angle = angleDegrees(quantities, question) ?? 35;
   return baseDocument({
     question,
@@ -2364,8 +2820,8 @@ function buildPolarizer(question: string, quantities: PlanQuantity[], schematic:
   });
 }
 
-function buildTransverseField(question: string, _quantities: PlanQuantity[], schematic: boolean): SceneDocument | null {
-  if (!schematic && !/(?:unpolari[sz]|plane.?polari[sz]|electric field direction|electromagnetic wave|em wave|electromagnetic spectrum)/i.test(question)) return null;
+function buildTransverseField(question: string, _quantities: PlanQuantity[], _schematic: boolean): SceneDocument | null {
+  if (!/(?:unpolari[sz]|plane.?polari[sz]|electric field direction|electromagnetic wave|em wave|electromagnetic spectrum|displacement current)/i.test(question)) return null;
   return baseDocument({
     question,
     reason: "transverse field along a propagation axis",
@@ -2394,30 +2850,294 @@ function buildCoordinateFigure(
   quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  const stem = normalizeStem(question);
   const displacement = extractCoordinateDisplacement(question);
   if (displacement) return coordinateDisplacementDocument(question, displacement);
-  const radius = firstQuantity(quantities, ["r", "radius"]);
-  if (!schematic && radius === null && !/(?:circle|parabola|ellipse|triangle)/i.test(question)) return null;
-  const r = radius ?? 2;
+  if (isSpaceGeometryStem(stem) || isRelatedRateSolidStem(stem)) {
+    return spaceGeometryDocument(question, stem);
+  }
+  if (isRelatedRateTriangleStem(stem)) return equilateralTriangleDocument(question);
+  if (isPlanarConicStem(stem)) return coordinateConicDocument(question, stem);
+  if (
+    isRelatedRateCircleStem(stem)
+    || isCircleLocusStem(stem)
+    || /(?:circle)/i.test(stem)
+    || /(?:\btriangle [A-Z]{3}\b|equilateral triangle|right.?angled triangle)/i.test(stem)
+  ) {
+    return coordinateCircleDocument(question, quantities, stem);
+  }
+  if (!schematic) return null;
+  const expressions = extractExplicitFunctions(question);
+  if (expressions.length > 0) {
+    return plotExpressions(question, expressions, extractXInterval(question) ?? [-3, 3]);
+  }
+  return axesOnly(question, "coordinate display axes");
+}
+
+function coordinateConicDocument(question: string, stem: string): SceneDocument {
+  const kind = /\bhyperbola\b/i.test(stem) ? "hyperbola"
+    : /\bellipse\b/i.test(stem) ? "ellipse"
+      : /\bparabola\b/i.test(stem) ? "parabola"
+        : "hyperbola";
+  if (kind === "parabola") {
+    return plotExpressions(question, ["x^2/4"], [-3, 3]);
+  }
+  const expression = kind === "ellipse" ? "x^2/4 + y^2 - 1" : "x^2/4 - y^2 - 1";
+  const yBound = kind === "ellipse" ? 2 : 3;
   return baseDocument({
     question,
-    reason: "coordinate figure on display axes",
+    reason: kind === "ellipse"
+      ? "standard ellipse on display axes"
+      : "standard hyperbola on display axes",
+    quantities: [],
+    entities: [
+      { id: "axes", kind: "axes", role: "coordinate axes" },
+      { id: "conic", kind: "polyline", role: kind, label: compactLabel(kind) },
+    ],
+    constructions: [
+      { id: "make_axes", operator: "axes", inputs: { xMin: -4, xMax: 4, yMin: -yBound, yMax: yBound }, outputs: ["axes"] },
+      {
+        id: "make_conic",
+        operator: "implicit_curve",
+        inputs: {
+          expression,
+          xMin: -4,
+          xMax: 4,
+          yMin: -yBound,
+          yMax: yBound,
+          xSamples: 65,
+          ySamples: 65,
+        },
+        outputs: ["conic"],
+      },
+    ],
+    assertions: [{ id: "conic_exists", predicate: "exists", entities: ["conic"], expected: true, severity: "fatal" }],
+  });
+}
+
+function coordinateCircleDocument(
+  question: string,
+  quantities: PlanQuantity[],
+  stem: string,
+): SceneDocument {
+  const radius = firstQuantity(quantities, ["r", "radius"]) ?? 2;
+  const inscribed = /rectangles inscribed/i.test(stem);
+  return baseDocument({
+    question,
+    reason: inscribed
+      ? "circle with an inscribed rectangle on display axes"
+      : "circle on display axes for a related-rate or coordinate figure",
     quantities: [],
     entities: [
       { id: "axes", kind: "axes", role: "coordinate axes" },
       { id: "origin", kind: "point", role: "origin" },
       { id: "circle", kind: "circle", role: "named circle" },
+      ...(inscribed
+        ? [
+            { id: "r1", kind: "point" as const, role: "rectangle vertex" },
+            { id: "r2", kind: "point" as const, role: "rectangle vertex" },
+            { id: "r3", kind: "point" as const, role: "rectangle vertex" },
+            { id: "r4", kind: "point" as const, role: "rectangle vertex" },
+            { id: "rect", kind: "polygon" as const, role: "inscribed rectangle" },
+          ]
+        : []),
     ],
     constructions: [
       { id: "make_axes", operator: "axes", inputs: { xMin: -3, xMax: 3, yMin: -3, yMax: 3 }, outputs: ["axes"] },
       pointAt("origin", 0, 0),
-      { id: "make_circle", operator: "circle", inputs: { center: "origin", radius: r }, outputs: ["circle"] },
+      { id: "make_circle", operator: "circle", inputs: { center: "origin", radius }, outputs: ["circle"] },
+      ...(inscribed
+        ? [
+            pointAt("r1", radius * 0.7, radius * 0.7),
+            pointAt("r2", -radius * 0.7, radius * 0.7),
+            pointAt("r3", -radius * 0.7, -radius * 0.7),
+            pointAt("r4", radius * 0.7, -radius * 0.7),
+            {
+              id: "make_rect",
+              operator: "polygon" as const,
+              inputs: { points: ["r1", "r2", "r3", "r4"] },
+              outputs: ["rect"],
+            },
+          ]
+        : []),
     ],
     assertions: [{ id: "circle_exists", predicate: "exists", entities: ["circle"], expected: true, severity: "fatal" }],
   });
 }
 
-function buildSolidFigure(question: string, quantities: PlanQuantity[], schematic: boolean): SceneDocument | null {
+function equilateralTriangleDocument(question: string): SceneDocument {
+  const height = Math.sqrt(3);
+  return baseDocument({
+    question,
+    reason: "equilateral triangle and a median for the related-rate setup",
+    quantities: [],
+    entities: [
+      { id: "A", kind: "point", role: "vertex", label: "A" },
+      { id: "B", kind: "point", role: "vertex", label: "B" },
+      { id: "C", kind: "point", role: "vertex", label: "C" },
+      { id: "M", kind: "point", role: "median foot", label: "M" },
+      { id: "triangle", kind: "polygon", role: "equilateral triangle" },
+      { id: "median", kind: "segment", role: "median" },
+    ],
+    constructions: [
+      pointAt("A", 0, 0),
+      pointAt("B", 2, 0),
+      pointAt("C", 1, height),
+      pointAt("M", 1, 0),
+      { id: "make_triangle", operator: "polygon", inputs: { points: ["A", "B", "C"] }, outputs: ["triangle"] },
+      { id: "make_median", operator: "segment", inputs: { start: "C", end: "M" }, outputs: ["median"] },
+    ],
+    assertions: [
+      { id: "triangle_exists", predicate: "exists", entities: ["triangle"], expected: true, severity: "fatal" },
+      { id: "median_exists", predicate: "exists", entities: ["median"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function spaceGeometryDocument(question: string, stem: string): SceneDocument {
+  const cube = isRelatedRateSolidStem(stem);
+  const wantsPlane = /\bplane\b/i.test(stem) && !cube;
+  const origin2d = { x: 0, y: 0 };
+  const a = extractSpacePoint(stem, 0) ?? { x: 1, y: 2, z: 3 };
+  const b = extractSpacePoint(stem, 1) ?? { x: 5, y: 3, z: 4 };
+  const dirA = extractSpaceDirection(stem, 0) ?? { x: 2, y: 3, z: 6 };
+  const dirB = extractSpaceDirection(stem, 1) ?? { x: 2, y: 3, z: 8 };
+  const cubeCorners = cube ? cubeCornerCoords(2) : [];
+  const cubeEntities = cubeCorners.flatMap((corner) => [
+    { id: corner.id, kind: "point" as const, role: "cube vertex", label: corner.id.toUpperCase() },
+  ]);
+  const cubeEdges = cube ? cubeEdgePairs() : [];
+  return baseDocument({
+    question,
+    reason: cube
+      ? "cube in a shared isometric frame for a related-rate solid"
+      : wantsPlane
+        ? "plane patch and a line in a shared isometric frame"
+        : "two lines in a shared isometric frame",
+    quantities: [],
+    entities: [
+      { id: "origin2d", kind: "point", role: "frame origin" },
+      { id: "frame", kind: "polyline", role: "space frame" },
+      ...(cube
+        ? [
+            ...cubeEntities,
+            ...cubeEdges.map((edge) => ({ id: edge.id, kind: "segment" as const, role: "cube edge" })),
+          ]
+        : [
+            { id: "A", kind: "point", role: "space point", label: "A" },
+            { id: "B", kind: "point", role: "space point", label: "B" },
+            { id: "l1", kind: "line", role: "space line" },
+            { id: "l2", kind: "line", role: "space line" },
+            ...(wantsPlane ? [{ id: "pi", kind: "polygon" as const, role: "plane patch" }] : []),
+          ]),
+    ],
+    constructions: [
+      pointAt("origin2d", origin2d.x, origin2d.y),
+      { id: "make_frame", operator: "space_frame", inputs: { origin: "origin2d", scale: 1, axisLength: 2 }, outputs: ["frame"] },
+      ...(cube
+        ? [
+            ...cubeCorners.map((corner) => ({
+              id: `make_${corner.id}`,
+              operator: "space_point" as const,
+              inputs: { frame: "frame", x: corner.x, y: corner.y, z: corner.z },
+              outputs: [corner.id],
+            })),
+            ...cubeEdges.map((edge) => ({
+              id: `make_${edge.id}`,
+              operator: "segment" as const,
+              inputs: { start: edge.start, end: edge.end },
+              outputs: [edge.id],
+            })),
+          ]
+        : [
+            { id: "make_A", operator: "space_point" as const, inputs: { frame: "frame", x: a.x, y: a.y, z: a.z }, outputs: ["A"] },
+            { id: "make_B", operator: "space_point" as const, inputs: { frame: "frame", x: b.x, y: b.y, z: b.z }, outputs: ["B"] },
+            {
+              id: "make_l1",
+              operator: "space_line" as const,
+              inputs: { frame: "frame", point: "A", direction: [dirA.x, dirA.y, dirA.z], tMin: -1.2, tMax: 1.2 },
+              outputs: ["l1"],
+            },
+            {
+              id: "make_l2",
+              operator: "space_line" as const,
+              inputs: { frame: "frame", point: "B", direction: [dirB.x, dirB.y, dirB.z], tMin: -1.2, tMax: 1.2 },
+              outputs: ["l2"],
+            },
+            ...(wantsPlane
+              ? [{
+                  id: "make_plane",
+                  operator: "plane" as const,
+                  inputs: { frame: "frame", a: 1, b: 0, c: 1, d: 2, span: 2.2 },
+                  outputs: ["pi"],
+                }]
+              : []),
+          ]),
+    ],
+    assertions: cube
+      ? [{ id: "frame_exists", predicate: "exists", entities: ["frame"], expected: true, severity: "fatal" }]
+      : [
+          { id: "l1_exists", predicate: "exists", entities: ["l1"], expected: true, severity: "fatal" },
+          { id: "l2_exists", predicate: "exists", entities: ["l2"], expected: true, severity: "fatal" },
+        ],
+  });
+}
+
+function cubeCornerCoords(side: number): Array<{ id: string; x: number; y: number; z: number }> {
+  const bits = [0, side];
+  const corners: Array<{ id: string; x: number; y: number; z: number }> = [];
+  let index = 0;
+  for (const x of bits) {
+    for (const y of bits) {
+      for (const z of bits) {
+        corners.push({ id: `c${index}`, x, y, z });
+        index += 1;
+      }
+    }
+  }
+  return corners;
+}
+
+function cubeEdgePairs(): Array<{ id: string; start: string; end: string }> {
+  return [
+    { id: "e01", start: "c0", end: "c1" },
+    { id: "e02", start: "c0", end: "c2" },
+    { id: "e04", start: "c0", end: "c4" },
+    { id: "e13", start: "c1", end: "c3" },
+    { id: "e15", start: "c1", end: "c5" },
+    { id: "e23", start: "c2", end: "c3" },
+    { id: "e26", start: "c2", end: "c6" },
+    { id: "e37", start: "c3", end: "c7" },
+    { id: "e45", start: "c4", end: "c5" },
+    { id: "e46", start: "c4", end: "c6" },
+    { id: "e57", start: "c5", end: "c7" },
+    { id: "e67", start: "c6", end: "c7" },
+  ];
+}
+
+function extractSpacePoint(
+  stem: string,
+  index: number,
+): { x: number; y: number; z: number } | null {
+  const matches = [...stem.matchAll(/\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/g)];
+  const match = matches[index];
+  if (!match) return null;
+  return { x: Number(match[1]), y: Number(match[2]), z: Number(match[3]) };
+}
+
+function extractSpaceDirection(
+  stem: string,
+  index: number,
+): { x: number; y: number; z: number } | null {
+  const matches = [...stem.matchAll(
+    /(-?\d+(?:\.\d+)?)\s*\^?i\b[^\n]{0,12}(-?\d+(?:\.\d+)?)\s*\^?j\b[^\n]{0,12}(-?\d+(?:\.\d+)?)\s*\^?k\b/gi,
+  )];
+  const match = matches[index];
+  if (!match) return null;
+  return { x: Number(match[1]), y: Number(match[2]), z: Number(match[3]) };
+}
+
+function buildSolidFigure(question: string, quantities: PlanQuantity[], _schematic: boolean): SceneDocument | null {
   const radius = firstQuantity(quantities, ["r", "radius"]) ?? 1.2;
   const height = firstQuantity(quantities, ["h", "height"]) ?? 2.4;
   const kind = /\bcone\b/i.test(question) ? "cone"
@@ -2425,7 +3145,7 @@ function buildSolidFigure(question: string, quantities: PlanQuantity[], schemati
       : /\bhemisphere\b/i.test(question) ? "hemisphere"
         : /\bsphere\b/i.test(question) ? "sphere"
           : "cylinder";
-  if (!schematic && !/(?:cylinder|cone|frustum|hemisphere|sphere)/i.test(question)) return null;
+  if (!/(?:cylinder|cone|frustum|hemisphere|sphere)/i.test(question)) return null;
   return baseDocument({
     question,
     reason: "solid projection from named mensuration family",
@@ -2449,11 +3169,10 @@ function buildSolidFigure(question: string, quantities: PlanQuantity[], schemati
   });
 }
 
-function buildPointField(question: string, _quantities: PlanQuantity[], schematic: boolean): SceneDocument | null {
+function buildPointField(question: string, _quantities: PlanQuantity[], _schematic: boolean): SceneDocument | null {
   const stem = normalizeStem(question);
   if (
-    !schematic
-    && !/(?:point charge|electric[- ]field|magnetic field|current-carrying|gauss|dipole|coulomb|microcoulomb|\bμC\b|solenoid|toroid|kepler|satellite|equipotential|parallel (?:wires|conductors)|wires carry|electric charges?|conservation of charge|electric potential|acceleration due to gravity|weightlessness)/i.test(stem)
+    !/(?:point charge|electric[- ]field|magnetic field|current-carrying|gauss|dipole|coulomb|microcoulomb|\bμC\b|solenoid|toroid|kepler|satellite|equipotential|parallel (?:wires|conductors)|wires carry|electric charges?|conservation of charge|electric potential|acceleration due to gravity|weightlessness)/i.test(stem)
     && !isParallelPlateStem(stem)
     && !isCurrentSegmentFieldStem(stem)
   ) {
@@ -2535,7 +3254,7 @@ function currentSegmentFieldDocument(question: string): SceneDocument {
   });
 }
 
-function buildEnergyLevel(question: string, _quantities: PlanQuantity[], schematic: boolean): SceneDocument | null {
+function buildEnergyLevel(question: string, _quantities: PlanQuantity[], _schematic: boolean): SceneDocument | null {
   const stem = normalizeStem(question);
   if (isJunctionSpatialStem(stem) && !isSemiconductorBandStem(stem)) {
     return semiconductorJunctionDocument(question);
@@ -2543,7 +3262,7 @@ function buildEnergyLevel(question: string, _quantities: PlanQuantity[], schemat
   if (isSemiconductorBandStem(stem)) {
     return semiconductorBandDocument(question);
   }
-  if (!schematic && !/(?:energy level|photo.?electric|photoelectron|threshold frequency|bohr|stopping potential|rutherford|hydrogen spectrum|x-ray tube|x ray tube|de broglie|matter[- ]wave|nuclear fission|nuclear fusion|mass defect|radioactive decay|half-life|davisson|dual nature of radiation|q value)/i.test(normalizeStem(question))) {
+  if (!/(?:energy level|photo.?electric|photoelectron|threshold frequency|work function|photon energy|bohr|rydberg|stopping potential|rutherford|hydrogen (?:atom|spectrum)|x-ray tube|x ray tube|de broglie|matter[- ]wave|nuclear fission|nuclear fusion|mass defect|radioactive decay|half-life|davisson|dual nature of radiation|q value)/i.test(stem)) {
     return null;
   }
   return bohrLevelDocument(question);
@@ -2809,8 +3528,8 @@ function variationLineDocument(question: string): SceneDocument {
   });
 }
 
-function buildFluidApparatus(question: string, _quantities: PlanQuantity[], schematic: boolean): SceneDocument | null {
-  if (!schematic && !/(?:hydraulic|piston|venturi|pipe|cylindrical vessels|connected at the bottom|bernoulli|capillary|young['’]?s modulus|stress[- ]strain|surface tension|connected fluid|buoyancy|archimedes|thermal expansion|heat transfer|fluid column|viscosity|method of mixtures|resonance tube)/i.test(normalizeStem(question))) {
+function buildFluidApparatus(question: string, _quantities: PlanQuantity[], _schematic: boolean): SceneDocument | null {
+  if (!/(?:hydraulic|piston|venturi|pipe|cylindrical vessels|connected at the bottom|bernoulli|capillary|young['’]?s modulus|stress[- ]strain|surface tension|connected fluid|buoyancy|archimedes|thermal expansion|heat transfer|fluid column|viscosity|method of mixtures|resonance tube)/i.test(normalizeStem(question))) {
     return null;
   }
   return baseDocument({
@@ -2882,6 +3601,7 @@ function baseDocument(options: {
   entities: SceneEntity[];
   constructions: SceneConstruction[];
   assertions: SceneAssertion[];
+  annotations?: SceneAnnotation[];
   revealGroups?: SceneRevealGroup[];
   teachingTimeline?: SceneTeachingAction[];
 }): SceneDocument {
@@ -2904,7 +3624,7 @@ function baseDocument(options: {
     constructions: options.constructions,
     relations: [],
     assertions: options.assertions,
-    annotations: [],
+    annotations: options.annotations ?? [],
     requiredEntityIds,
     revealGroups,
     teachingTimeline: options.teachingTimeline ?? revealGroups.map((group, index) => ({
@@ -3133,12 +3853,16 @@ function evaluateInT(expression: string, t: number): number {
 
 function extractExplicitFunctions(question: string): string[] {
   const facts: string[] = [];
-  const normalized = question.replace(/[−–—]/g, "-").replace(/²/g, "^2").replace(/³/g, "^3");
+  const normalized = prepareExpressionSource(question);
   for (const match of normalized.matchAll(/\by\s*=\s*/gi)) {
     const start = (match.index ?? 0) + match[0].length;
-    const expression = readExpression(normalized.slice(start, start + 80).replace(/π/g, "pi"));
+    const expression = readExpression(repairExamExpression(normalized.slice(start, start + 80)));
     if (!expression || /\bt\b/.test(expression)) continue;
-    if (!facts.includes(expression)) facts.push(expression);
+    if (isUsablePlotExpression(expression) && !facts.includes(expression)) facts.push(expression);
+  }
+  for (const match of normalized.matchAll(/([0-9x^+\-*/().absincotq]+)\s*=\s*y\b/gi)) {
+    const expression = readExpression(repairExamExpression(match[1] ?? ""));
+    if (expression && isUsablePlotExpression(expression) && !facts.includes(expression)) facts.push(expression);
   }
   for (const match of normalized.matchAll(/\bx\s*=\s*/gi)) {
     const start = (match.index ?? 0) + match[0].length;
@@ -3146,9 +3870,51 @@ function extractExplicitFunctions(question: string): string[] {
     if (!/^t\b/i.test(rest)) continue;
     const withT = readExpression(rest);
     const expression = withT.replace(/\bt\b/g, "x");
-    if (expression && !facts.includes(expression)) facts.push(expression);
+    if (expression && isUsablePlotExpression(expression) && !facts.includes(expression)) facts.push(expression);
+  }
+  const fx = /\bf\s*\(\s*x\s*\)\s*=\s*/i.exec(normalized);
+  if (fx) {
+    const expression = readExpression(repairExamExpression(normalized.slice((fx.index ?? 0) + fx[0].length, (fx.index ?? 0) + fx[0].length + 80)));
+    if (expression && isUsablePlotExpression(expression) && !facts.includes(expression)) facts.push(expression);
   }
   return facts.slice(0, 3);
+}
+
+function prepareExpressionSource(question: string): string {
+  return question
+    .replace(/[−–—]/g, "-")
+    .replace(/²/g, "^2")
+    .replace(/³/g, "^3")
+    .replace(/π/g, "pi");
+}
+
+function repairExamExpression(raw: string): string {
+  let source = raw.trim();
+  source = source.replace(/\|([^|]+)\|/g, (_all, inner: string) => `abs(${String(inner).replace(/\s+/g, "")})`);
+  source = source.replace(/\b(sin|cos|tan|sqrt|ln|log|exp)\s+(\d+(?:\.\d+)?)\s*x\b/gi, (_, fn: string, n: string) => `${fn.toLowerCase()}(${n}*x)`);
+  source = source.replace(/\b(sin|cos|tan|sqrt|ln|log|exp)\s+x\b/gi, (_, fn: string) => `${fn.toLowerCase()}(x)`);
+  source = source.replace(/\bx(\d+)\b/g, "x^$1");
+  source = source.replace(/(\d)\s*x\b/g, "$1*x");
+  return source.replace(/\s+/g, "");
+}
+
+function isUsablePlotExpression(expression: string): boolean {
+  try {
+    parseMathExpression(expression).evaluate(0.5);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function extractBoundX(question: string): [number, number] | null {
+  const normalized = question.replace(/[−–—]/g, "-");
+  const match = normalized.match(/x\s*=\s*(-?\d+(?:\.\d+)?).{0,48}x\s*=\s*(-?\d+(?:\.\d+)?)/i);
+  if (!match) return null;
+  const start = Number(match[1]);
+  const end = Number(match[2]);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start === end) return null;
+  return start < end ? [start, end] : [end, start];
 }
 
 function extractNamedPlotExpressions(question: string): string[] {

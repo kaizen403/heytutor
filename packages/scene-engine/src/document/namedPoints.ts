@@ -3,6 +3,29 @@
  * This pass infers compact labels from roles, conventional IDs, and the
  * question, then keeps those points in the visible reveal contract.
  */
+/** Keep angle vertices visible before dead-entity pruning. */
+export function promoteAngleMarkVertices(raw: Record<string, unknown>): Record<string, unknown> {
+  if (!Array.isArray(raw.constructions) || !Array.isArray(raw.requiredEntityIds) || !Array.isArray(raw.revealGroups)) {
+    return raw;
+  }
+  const vertices = raw.constructions.flatMap((construction) => {
+    if (!isRecord(construction)) return [];
+    if (construction.operator !== "angle_mark" && construction.operator !== "right_angle_mark") return [];
+    if (!isRecord(construction.inputs) || typeof construction.inputs.vertex !== "string") return [];
+    return [construction.inputs.vertex];
+  });
+  if (vertices.length === 0) return raw;
+  const required = [...new Set([
+    ...raw.requiredEntityIds.filter((id): id is string => typeof id === "string"),
+    ...vertices,
+  ])];
+  const revealGroups = raw.revealGroups.map((group, index) => {
+    if (!isRecord(group) || !Array.isArray(group.entityIds) || index !== 0) return group;
+    return { ...group, entityIds: [...new Set([...group.entityIds.filter((id): id is string => typeof id === "string"), ...vertices])] };
+  });
+  return { ...raw, requiredEntityIds: required, revealGroups };
+}
+
 export function ensureStudentFacingPointMarks(raw: Record<string, unknown>): Record<string, unknown> {
   if (!Array.isArray(raw.entities)) return raw;
   const question = sourceQuestion(raw);
@@ -34,19 +57,26 @@ export function ensureStudentFacingPointMarks(raw: Record<string, unknown>): Rec
     constructed.has(entity.id)
       ? [entity.id]
       : []);
-  if (labeledPointIds.length === 0) {
+  const angleVertices = (Array.isArray(raw.constructions) ? raw.constructions : []).flatMap((construction) => {
+    if (!isRecord(construction)) return [];
+    if (construction.operator !== "angle_mark" && construction.operator !== "right_angle_mark") return [];
+    if (!isRecord(construction.inputs) || typeof construction.inputs.vertex !== "string") return [];
+    return constructed.has(construction.inputs.vertex) ? [construction.inputs.vertex] : [];
+  });
+  const markedPointIds = [...new Set([...labeledPointIds, ...angleVertices])];
+  if (markedPointIds.length === 0) {
     return entities === raw.entities ? raw : { ...raw, entities };
   }
   const required = new Set([
     ...(Array.isArray(raw.requiredEntityIds) ? raw.requiredEntityIds : [])
       .filter((id): id is string => typeof id === "string"),
-    ...labeledPointIds,
+    ...markedPointIds,
   ]);
   const revealGroups = Array.isArray(raw.revealGroups) && raw.revealGroups.length > 0
     ? raw.revealGroups.map((group, index) => {
         if (!isRecord(group) || !Array.isArray(group.entityIds)) return group;
         if (index !== 0) return group;
-        return { ...group, entityIds: [...new Set([...group.entityIds, ...labeledPointIds])] };
+        return { ...group, entityIds: [...new Set([...group.entityIds, ...markedPointIds])] };
       })
     : [{
         id: "setup",

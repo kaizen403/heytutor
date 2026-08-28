@@ -4502,6 +4502,53 @@ if (nondifferentiableCompiled?.ok || !nondifferentiableCompiled?.report.issues.s
   throw new Error("tangent_line accepted a nondifferentiable cusp");
 }
 
+const spaceCandidate = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "two lines in space" },
+  source: { question: "Find the shortest distance between two skew lines." },
+  quantities: [],
+  entities: [
+    { id: "origin2d", kind: "point", role: "frame origin" },
+    { id: "frame", kind: "polyline", role: "space frame" },
+    { id: "A", kind: "point", role: "space point", label: "A" },
+    { id: "l1", kind: "line", role: "space line" },
+    { id: "pi", kind: "polygon", role: "plane patch" },
+  ],
+  constructions: [
+    { id: "make_origin", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["origin2d"] },
+    { id: "make_frame", operator: "space_frame", inputs: { origin: "origin2d", scale: 1, axisLength: 2 }, outputs: ["frame"] },
+    { id: "make_A", operator: "space_point", inputs: { frame: "frame", x: 1, y: 2, z: 3 }, outputs: ["A"] },
+    { id: "make_l1", operator: "space_line", inputs: { frame: "frame", point: "A", direction: [2, 3, 6], tMin: -1, tMax: 1 }, outputs: ["l1"] },
+    { id: "make_plane", operator: "plane", inputs: { frame: "frame", a: 1, b: 0, c: 1, d: 2, span: 2 }, outputs: ["pi"] },
+  ],
+  relations: [],
+  assertions: [
+    { id: "l1_exists", predicate: "exists", entities: ["l1"], expected: true, severity: "fatal" },
+  ],
+  annotations: [],
+  requiredEntityIds: ["origin2d", "frame", "A", "l1", "pi"],
+  revealGroups: [{ id: "space", entityIds: ["origin2d", "frame", "A", "l1", "pi"], dependsOn: [], narrationCue: "show the frame" }],
+  teachingTimeline: [{ id: "show_space", action: "reveal", targetId: "space", dependsOn: [], narrationIntent: "3D setup" }],
+};
+const spaceValidation = validateSceneDocument(spaceCandidate);
+const spaceCompiled = spaceValidation.document ? compileSceneDocument(spaceValidation.document) : null;
+if (!spaceCompiled?.ok || !spaceCompiled.renderScene) {
+  throw new Error(`space operators failed to compile: ${JSON.stringify(spaceCompiled?.report.issues ?? spaceValidation.report.issues)}`);
+}
+if (!spaceCompiled.renderScene.primitives.some((primitive) => primitive.entityId === "l1")) {
+  throw new Error("space_line did not emit visible primitives");
+}
+if (!spaceCompiled.renderScene.primitives.some((primitive) => primitive.entityId === "pi")) {
+  throw new Error("plane did not emit a visible patch");
+}
+
+const zeroNormalPlane = structuredClone(spaceCandidate) as Record<string, any>;
+zeroNormalPlane.constructions[4].inputs = { frame: "frame", a: 0, b: 0, c: 0, d: 1, span: 2 };
+const zeroNormalResult = validateSceneDocument(zeroNormalPlane);
+if (zeroNormalResult.document || !zeroNormalResult.report.issues.some((issue) => issue.code === "invalid_plane_cartesian")) {
+  throw new Error("plane accepted a zero normal");
+}
+
 const reversedSlice = structuredClone(representativeSliceCandidate) as Record<string, any>;
 const reversedSliceConstruction = reversedSlice.constructions.find((construction: Record<string, any>) => construction.operator === "representative_slice");
 [reversedSliceConstruction.inputs.upper, reversedSliceConstruction.inputs.lower] = [reversedSliceConstruction.inputs.lower, reversedSliceConstruction.inputs.upper];
@@ -5062,6 +5109,87 @@ const verticalRod = hingedCompiled.renderScene.primitives.find((primitive) =>
 );
 if (!verticalRod || verticalRod.points.length < 2) {
   throw new Error("vertical rod pose was not rendered from rotate");
+}
+
+const annotationMarksScene = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "congruence ticks, sign badge, caption" },
+  source: { question: "Mark congruent sides and the positive sense." },
+  quantities: [],
+  entities: [
+    { id: "p1", kind: "point", role: "start" },
+    { id: "p2", kind: "point", role: "end" },
+    { id: "p3", kind: "point", role: "start" },
+    { id: "p4", kind: "point", role: "end" },
+    { id: "ab", kind: "segment", role: "side" },
+    { id: "cd", kind: "segment", role: "side" },
+    { id: "ticks", kind: "tick_mark", role: "congruence ticks" },
+    { id: "sense", kind: "vector", role: "positive sense" },
+  ],
+  constructions: [
+    { id: "make_p1", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["p1"] },
+    { id: "make_p2", operator: "point", inputs: { x: 2, y: 0, coordinateSpace: "world" }, outputs: ["p2"] },
+    { id: "make_p3", operator: "point", inputs: { x: 0, y: 1, coordinateSpace: "world" }, outputs: ["p3"] },
+    { id: "make_p4", operator: "point", inputs: { x: 2, y: 1, coordinateSpace: "world" }, outputs: ["p4"] },
+    { id: "make_ab", operator: "segment", inputs: { start: "p1", end: "p2" }, outputs: ["ab"] },
+    { id: "make_cd", operator: "segment", inputs: { start: "p3", end: "p4" }, outputs: ["cd"] },
+    { id: "make_ticks", operator: "tick_mark", inputs: { target: "ab", count: 2 }, outputs: ["ticks"] },
+    { id: "make_sense", operator: "sign_badge", inputs: { target: "cd", sense: "positive" }, outputs: ["sense"] },
+  ],
+  relations: [],
+  assertions: [
+    { id: "same_len", predicate: "equal_length", entities: ["ab", "cd"], expected: true, severity: "fatal" },
+  ],
+  annotations: [
+    { id: "fig_cap", kind: "caption", targetIds: ["ab"], text: "Congruent sides share tick marks." },
+  ],
+  requiredEntityIds: ["p1", "p2", "p3", "p4", "ab", "cd", "ticks", "sense"],
+  revealGroups: [{
+    id: "marks",
+    entityIds: ["p1", "p2", "p3", "p4", "ab", "cd", "ticks", "sense"],
+    dependsOn: [],
+    narrationCue: "show marks",
+  }],
+  teachingTimeline: [{
+    id: "show_marks",
+    action: "reveal",
+    targetId: "marks",
+    dependsOn: [],
+    narrationIntent: "show the congruent sides",
+  }],
+};
+const annotationMarksValidated = validateSceneDocument(annotationMarksScene);
+const annotationMarksCompiled = annotationMarksValidated.document
+  ? compileSceneDocument(annotationMarksValidated.document)
+  : null;
+if (!annotationMarksValidated.document || !annotationMarksCompiled?.ok || !annotationMarksCompiled.renderScene) {
+  throw new Error(`annotation mark scene did not compile: ${JSON.stringify({
+    validation: annotationMarksValidated.report.issues,
+    compile: annotationMarksCompiled?.report.issues,
+  })}`);
+}
+const tickPrimitives = annotationMarksCompiled.renderScene.primitives.filter((primitive) =>
+  primitive.entityId === "ticks" && primitive.kind !== "label",
+);
+if (tickPrimitives.length !== 2) {
+  throw new Error(`tick_mark count 2 must emit two tick strokes, got ${tickPrimitives.length}`);
+}
+if (!annotationMarksCompiled.renderScene.primitives.some((primitive) => primitive.entityId === "sense")) {
+  throw new Error("sign_badge did not emit owned geometry");
+}
+if (!annotationMarksCompiled.renderScene.caption?.includes("Congruent sides share tick marks.")) {
+  throw new Error("caption annotations must appear as a figure caption, not diagram ink");
+}
+if (!annotationMarksCompiled.renderScene.primitives.some((primitive) =>
+  primitive.entityId === "cd" && Number(primitive.provenance?.correspondingFamily) >= 1
+)) {
+  throw new Error("equal_length must attach corresponding-part ticks to unmarked congruent sides");
+}
+
+if (angleMarkCompiled.renderScene?.primitives.some((primitive) =>
+  primitive.entityId === "angle_a" && typeof primitive.text === "string" && primitive.text.includes("°")
+)) {
+  throw new Error("angle_mark must not invent a degree label from geometry");
 }
 
 console.log("scene-engine verification passed");

@@ -128,6 +128,16 @@
       "expected": { "quantities": [{ "id": "upper_x_magnitude", "value": 2.23606797749979, "unit": "1" }, { "id": "upper_y", "value": 5, "unit": "1" }], "claims": ["three_real_intersections", "symmetric_about_y_axis"] },
       "capabilities": { "operators": ["axes", "function_curve", "implicit_curve", "point"], "assertions": ["on", "function_value"] },
       "mutations": ["missing_origin_intersection", "wrong_circle_center", "only_one_symmetric_intersection"]
+    },
+    {
+      "id": "coordinate-skew-lines",
+      "family": "coordinate_constraints",
+      "difficulty": "medium",
+      "question": "Find the shortest distance between the lines whose vector equations are r = i + 2j + 4k + t(2i + 3j + 6k) and r = 3i + 3j + 5k + s(2i + 3j + 8k), and sketch both lines.",
+      "representations": ["space_frame", "space_line"],
+      "expected": { "quantities": [{ "id": "direction_x", "value": 2, "unit": "1" }], "claims": ["two_distinct_lines", "shared_frame"] },
+      "capabilities": { "operators": ["space_frame", "space_point", "space_line"], "assertions": ["exists"] },
+      "mutations": ["coincident_lines", "zero_direction", "missing_frame"]
     }
   ]
 }

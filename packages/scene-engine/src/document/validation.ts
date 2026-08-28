@@ -1,6 +1,8 @@
 import {
+  SCENE_ANNOTATION_KINDS,
   SCENE_DOCUMENT_VERSION,
   SCENE_ENGINE_VERSION,
+  type SceneAnnotationStyle,
   type SceneDocument,
   type SceneIssue,
   type ValidationReport,
@@ -13,7 +15,7 @@ import {
   type SupportedSceneConstructionOperator,
   type SupportedSceneComponentSymbol,
 } from "../capability/capabilityManifest";
-import { ensureStudentFacingPointMarks } from "./namedPoints";
+import { ensureStudentFacingPointMarks, promoteAngleMarkVertices } from "./namedPoints";
 
 const ARRAY_FIELDS = [
   "quantities", "entities", "constructions", "relations", "assertions",
@@ -27,11 +29,12 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   parametric_curve: "polyline", polar_curve: "polyline", implicit_curve: "polyline",
   tangent_line: "line", normal_line: "line", representative_slice: "region",
   solid_of_revolution: "solid", solid_projection: "solid", solid_cross_section: "region",
+  space_frame: "polyline", space_point: "point", space_line: "line", plane: "polygon",
   wavefront_family: "polyline", aperture: "polyline", screen_pattern: "polyline",
   transverse_field: "polyline", polarizer: "polyline",
   optical_train: "ray",
   angle_mark: "angle_mark", right_angle_mark: "right_angle_mark", tick_mark: "tick_mark",
-  dimension: "dimension", connect: "connector", symbol: "component", label: "label",
+  sign_badge: "vector", dimension: "dimension", connect: "connector", symbol: "component", label: "label",
 };
 
 const INFERRED_CONSTRUCTION_ENTITY = "__inferredConstructionEntity";
@@ -40,7 +43,7 @@ const CONSTRUCTION_ENTITY_REFERENCE_KEYS = new Set([
   "through", "parallelTo", "first", "second", "point", "line", "incoming",
   "normal", "vertex", "curve", "upper", "lower", "profile", "solid", "basis",
   "vector", "target", "points", "direction", "axis", "objective", "eyepiece", "focus",
-  "object", "finalImage", "virtualImage",
+  "object", "finalImage", "virtualImage", "frame",
 ]);
 
 /** Capability-corpus gate: fixtures may only name executable scene operators. */
@@ -56,6 +59,7 @@ const CALCULUS_OPERATORS = new Set([
   "representative_slice", "solid_of_revolution",
 ]);
 const MENSURATION_OPERATORS = new Set(["solid_projection", "solid_cross_section"]);
+const SPACE_OPERATORS = new Set(["space_frame", "space_point", "space_line", "plane"]);
 const WAVE_VISUAL_OPERATORS = new Set([
   "wavefront_family", "aperture", "screen_pattern", "transverse_field", "polarizer",
 ]);
@@ -72,6 +76,7 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
   raw = normalizeConstructedLabels(raw);
   raw = pruneSelfReferentialConstructedLabels(raw);
   raw = promoteAssertedEntityOwnership(raw);
+  raw = promoteAngleMarkVertices(raw);
   raw = pruneUnconstructedWarningAssertions(raw);
   raw = pruneQuantityNarrationAnnotations(raw);
   raw = normalizeCoincidentUnownedPointAliases(raw);
@@ -3941,9 +3946,13 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       isRecord(annotation)
         ? {
             ...annotation,
+            kind: annotation.kind === "caption" || annotation.kind === "note"
+              ? "callout"
+              : annotation.kind,
             targetIds: Array.isArray(annotation.targetIds)
               ? annotation.targetIds
               : typeof annotation.targetId === "string" ? [annotation.targetId] : [],
+            style: normalizeAnnotationStyle(annotation.style),
           }
         : annotation,
     );
@@ -4040,6 +4049,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
         : [id],
     ))];
   }
+  Object.assign(normalizedRaw, promoteAngleMarkVertices(normalizedRaw));
   reconcileConstructionOwnership(normalizedRaw);
   if (normalizedRaw.schemaVersion !== SCENE_DOCUMENT_VERSION) {
     issues.push({ code: "schema_version", message: `Expected ${SCENE_DOCUMENT_VERSION}`, severity: "fatal", path: "schemaVersion", expected: SCENE_DOCUMENT_VERSION, actual: normalizedRaw.schemaVersion });
@@ -4218,6 +4228,15 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
         issues,
       );
     }
+    if (SPACE_OPERATORS.has(construction.operator) && isRecord(construction.inputs)) {
+      validateSpaceConstruction(
+        construction,
+        index,
+        document,
+        constructionByOutput,
+        issues,
+      );
+    }
     if (WAVE_VISUAL_OPERATORS.has(construction.operator) && isRecord(construction.inputs)) {
       validateWaveVisualConstruction(construction, index, document, constructionByOutput, issues);
     }
@@ -4319,6 +4338,15 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
   validateOpticalInstrumentProofContract(document, issues);
   document.annotations.forEach((annotation, index) => {
     annotation.targetIds.forEach((id, ref) => requireEntity(id, `annotations[${index}].targetIds[${ref}]`));
+    if (!(SCENE_ANNOTATION_KINDS as readonly string[]).includes(annotation.kind)) {
+      issues.push({
+        code: "unknown_annotation_kind",
+        message: `Unsupported annotation kind ${annotation.kind}`,
+        severity: "fatal",
+        path: `annotations[${index}].kind`,
+        entityIds: [annotation.id],
+      });
+    }
     if (annotation.kind === "label" && annotation.text && !isCompactDiagramLabel(annotation.text)) {
       issues.push({
         code: "verbose_diagram_label",
@@ -4535,8 +4563,13 @@ function normalizeGenericPlannerSchema(raw: Record<string, unknown>): Record<str
                       : operator === "point" ? "point"
                             : operator === "vector" ? "vector"
                             : operator === "dimension" ? "dimension"
+                              : operator === "sign_badge" ? "vector"
                               : operator === "function_region" || operator === "solid_of_revolution" ? "polygon"
                                 : operator === "solid_projection" || operator === "solid_cross_section" ? "polyline"
+                                : operator === "space_frame" ? "polyline"
+                                : operator === "space_point" ? "point"
+                                : operator === "space_line" ? "line"
+                                : operator === "plane" ? "polygon"
                                 : operator === "tangent_line" || operator === "normal_line" ? "segment"
                                   : operator === "representative_slice"
                                     ? (isRecord(construction.inputs) && (construction.inputs.method === "disk" || construction.inputs.method === "washer") ? "polyline" : "segment")
@@ -5299,6 +5332,233 @@ function validateMensurationConstruction(
   }
 }
 
+function validationVec3(
+  value: unknown,
+  document: SceneDocument,
+): { x: number; y: number; z: number } | null {
+  if (Array.isArray(value) && value.length === 3) {
+    const coords = value.map((item) => validationNumber(item, document));
+    if (coords.every((item): item is number => item !== null)) {
+      return { x: coords[0]!, y: coords[1]!, z: coords[2]! };
+    }
+  }
+  if (isRecord(value)) {
+    const x = validationNumber(value.x, document);
+    const y = validationNumber(value.y, document);
+    const z = validationNumber(value.z, document);
+    if (x !== null && y !== null && z !== null) return { x, y, z };
+  }
+  return null;
+}
+
+function validateSpaceConstruction(
+  construction: SceneDocument["constructions"][number],
+  index: number,
+  document: SceneDocument,
+  constructionByOutput: Map<string, SceneDocument["constructions"][number]>,
+  issues: SceneIssue[],
+): void {
+  const { operator, inputs } = construction;
+  const expectedKind = operator === "space_point" ? "point"
+    : operator === "space_line" ? "line"
+      : operator === "plane" ? "polygon"
+        : "polyline";
+  if (construction.outputs.length !== 1) {
+    issues.push({
+      code: `invalid_${operator}_outputs`,
+      message: `${operator} must produce exactly one visible entity`,
+      severity: "fatal",
+      path: `constructions[${index}].outputs`,
+      actual: construction.outputs.length,
+    });
+  }
+  const output = construction.outputs[0];
+  const outputKind = document.entities.find((entity) => entity.id === output)?.kind;
+  if (output && outputKind && outputKind !== expectedKind) {
+    issues.push({
+      code: `invalid_${operator}_output_kind`,
+      message: `${operator} output must use entity kind ${expectedKind}`,
+      severity: "fatal",
+      path: `constructions[${index}].outputs[0]`,
+      entityIds: [output],
+      expected: expectedKind,
+      actual: outputKind,
+    });
+  }
+
+  if (operator === "space_frame") {
+    const originId = inputs.origin ?? inputs.center;
+    const originProducer = typeof originId === "string" ? constructionByOutput.get(originId) : undefined;
+    if (originProducer?.operator !== "point") {
+      issues.push({
+        code: "invalid_space_frame_origin",
+        message: "space_frame origin must reference a constructed 2D point",
+        severity: "fatal",
+        path: `constructions[${index}].inputs.origin`,
+        entityIds: typeof originId === "string" ? [originId] : undefined,
+        actual: originId,
+      });
+    }
+    const scale = inputs.scale === undefined ? 1 : validationNumber(inputs.scale, document);
+    if (scale === null || !(scale > 0)) {
+      issues.push({
+        code: "invalid_space_frame_scale",
+        message: "space_frame scale must be a positive finite number",
+        severity: "fatal",
+        path: `constructions[${index}].inputs.scale`,
+        actual: inputs.scale,
+      });
+    }
+    const axisLength = inputs.axisLength === undefined ? 2 : validationNumber(inputs.axisLength, document);
+    if (axisLength === null || !(axisLength > 0)) {
+      issues.push({
+        code: "invalid_space_frame_axis_length",
+        message: "space_frame axisLength must be a positive finite number",
+        severity: "fatal",
+        path: `constructions[${index}].inputs.axisLength`,
+        actual: inputs.axisLength,
+      });
+    }
+    return;
+  }
+
+  const frameId = inputs.frame;
+  const frameProducer = typeof frameId === "string" ? constructionByOutput.get(frameId) : undefined;
+  if (frameProducer?.operator !== "space_frame") {
+    issues.push({
+      code: "invalid_space_frame_reference",
+      message: `${operator} frame must reference a space_frame output`,
+      severity: "fatal",
+      path: `constructions[${index}].inputs.frame`,
+      entityIds: typeof frameId === "string" ? [frameId] : undefined,
+      actual: frameId,
+    });
+  }
+
+  if (operator === "space_point") {
+    const x = validationNumber(inputs.x, document);
+    const y = validationNumber(inputs.y, document);
+    const z = validationNumber(inputs.z, document);
+    if (x === null || y === null || z === null) {
+      issues.push({
+        code: "invalid_space_point_coordinates",
+        message: "space_point requires finite x, y, and z",
+        severity: "fatal",
+        path: `constructions[${index}].inputs`,
+        actual: { x: inputs.x, y: inputs.y, z: inputs.z },
+      });
+    }
+    return;
+  }
+
+  if (operator === "space_line") {
+    const pointInput = inputs.point ?? inputs.origin ?? inputs.through;
+    const fromSpacePoint = typeof pointInput === "string"
+      && constructionByOutput.get(pointInput)?.operator === "space_point";
+    const fromCoords = validationVec3(pointInput, document);
+    if (!fromSpacePoint && fromCoords === null) {
+      issues.push({
+        code: "invalid_space_line_point",
+        message: "space_line point must be a space_point id or a 3-vector",
+        severity: "fatal",
+        path: `constructions[${index}].inputs.point`,
+        entityIds: typeof pointInput === "string" ? [pointInput] : undefined,
+        actual: pointInput,
+      });
+    }
+    const direction = validationVec3(inputs.direction, document);
+    if (
+      direction === null
+      || !(Math.hypot(direction.x, direction.y, direction.z) > 1e-9)
+    ) {
+      issues.push({
+        code: "invalid_space_line_direction",
+        message: "space_line direction must be a nonzero 3-vector",
+        severity: "fatal",
+        path: `constructions[${index}].inputs.direction`,
+        actual: inputs.direction,
+      });
+    }
+    const tMin = inputs.tMin === undefined ? -1.5 : validationNumber(inputs.tMin, document);
+    const tMax = inputs.tMax === undefined ? 1.5 : validationNumber(inputs.tMax, document);
+    if (tMin === null || tMax === null || !(tMin < tMax)) {
+      issues.push({
+        code: "invalid_space_line_parameter",
+        message: "space_line requires finite tMin < tMax",
+        severity: "fatal",
+        path: `constructions[${index}].inputs`,
+        actual: { tMin: inputs.tMin, tMax: inputs.tMax },
+      });
+    }
+    return;
+  }
+
+  const cartesian = inputs.a !== undefined && inputs.b !== undefined && inputs.c !== undefined;
+  if (cartesian) {
+    const a = validationNumber(inputs.a, document);
+    const b = validationNumber(inputs.b, document);
+    const c = validationNumber(inputs.c, document);
+    const d = inputs.d === undefined ? 0 : validationNumber(inputs.d, document);
+    if (
+      a === null || b === null || c === null || d === null
+      || !(Math.hypot(a, b, c) > 1e-9)
+    ) {
+      issues.push({
+        code: "invalid_plane_cartesian",
+        message: "plane cartesian form requires a nonzero normal ax+by+cz=d",
+        severity: "fatal",
+        path: `constructions[${index}].inputs`,
+        actual: { a: inputs.a, b: inputs.b, c: inputs.c, d: inputs.d },
+      });
+    }
+  } else {
+    const pointInput = inputs.point ?? inputs.origin;
+    const fromSpacePoint = typeof pointInput === "string"
+      && constructionByOutput.get(pointInput)?.operator === "space_point";
+    const fromCoords = validationVec3(pointInput, document);
+    if (!fromSpacePoint && fromCoords === null) {
+      issues.push({
+        code: "invalid_plane_point",
+        message: "plane point must be a space_point id or a 3-vector",
+        severity: "fatal",
+        path: `constructions[${index}].inputs.point`,
+        entityIds: typeof pointInput === "string" ? [pointInput] : undefined,
+        actual: pointInput,
+      });
+    }
+    const u = validationVec3(inputs.u, document);
+    const v = validationVec3(inputs.v, document);
+    const crossLength = u && v
+      ? Math.hypot(
+        u.y * v.z - u.z * v.y,
+        u.z * v.x - u.x * v.z,
+        u.x * v.y - u.y * v.x,
+      )
+      : 0;
+    if (u === null || v === null || !(crossLength > 1e-9)) {
+      issues.push({
+        code: "invalid_plane_spanning",
+        message: "plane spanning vectors u and v must be linearly independent 3-vectors",
+        severity: "fatal",
+        path: `constructions[${index}].inputs`,
+        actual: { u: inputs.u, v: inputs.v },
+      });
+    }
+  }
+  const span = inputs.span === undefined ? 2.4 : validationNumber(inputs.span, document);
+  const uSpan = inputs.uSpan === undefined ? span : validationNumber(inputs.uSpan, document);
+  const vSpan = inputs.vSpan === undefined ? span : validationNumber(inputs.vSpan, document);
+  if (uSpan === null || vSpan === null || !(uSpan > 0) || !(vSpan > 0)) {
+    issues.push({
+      code: "invalid_plane_span",
+      message: "plane spans must be positive finite numbers",
+      severity: "fatal",
+      path: `constructions[${index}].inputs`,
+      actual: { span: inputs.span, uSpan: inputs.uSpan, vSpan: inputs.vSpan },
+    });
+  }
+}
+
 function validateWaveVisualConstruction(
   construction: SceneDocument["constructions"][number],
   index: number,
@@ -5823,6 +6083,18 @@ function validationNumber(value: unknown, document: SceneDocument, seen = new Se
   return validationNumber(quantity.value, document, seen);
 }
 
+function normalizeAnnotationStyle(value: unknown): SceneAnnotationStyle | undefined {
+  if (!isRecord(value)) return undefined;
+  const count = value.count === 2 || value.count === 3 || value.count === 1 ? value.count : undefined;
+  const pointStyle = value.pointStyle === "filled" || value.pointStyle === "open"
+    || value.pointStyle === "cross" || value.pointStyle === "square"
+    ? value.pointStyle
+    : undefined;
+  const transient = typeof value.transient === "boolean" ? value.transient : undefined;
+  if (count === undefined && pointStyle === undefined && transient === undefined) return undefined;
+  return { count, pointStyle, transient };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -5891,6 +6163,10 @@ function requiredOperatorForDerivedRole(entity: SceneDocument["entities"][number
   if (/\bsolid of revolution\b/.test(normalized)) return "solid_of_revolution";
   if (/\bsolid cross section\b/.test(normalized)) return "solid_cross_section";
   if (/\bsolid projection\b/.test(normalized)) return "solid_projection";
+  if (/\bspace frame\b|\b3d axes\b/.test(normalized)) return "space_frame";
+  if (/\bspace point\b/.test(normalized)) return "space_point";
+  if (/\bspace line\b/.test(normalized)) return "space_line";
+  if (/\bplane patch\b|\bcoordinate plane\b/.test(normalized)) return "plane";
   if (/\bparametric curve\b/.test(normalized)) return "parametric_curve";
   if (/\bpolar curve\b/.test(normalized)) return "polar_curve";
   return null;

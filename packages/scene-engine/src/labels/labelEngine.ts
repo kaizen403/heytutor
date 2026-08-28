@@ -27,6 +27,12 @@ export interface LabelOwner {
   viewBounds?: LabelBounds;
   /** Use the supplied anchor directly instead of the owner's ink bounds. */
   useOwnerBounds?: boolean;
+  /** Unit screen-space tangents of strokes that meet this anchor. */
+  incidentTangents?: RenderPoint[];
+  /** Max center-to-anchor distance for a tethered owner (point letters). */
+  tetherPx?: number;
+  /** Distant leader slots. Default true; point letters set false. */
+  allowLeader?: boolean;
 }
 
 export interface LabelObstacle {
@@ -82,7 +88,7 @@ export interface LabelEngineResult {
     leaderTo?: RenderPoint;
   }>;
   issues: Array<{
-    code: "label_overlap_unresolved" | "label_outside_view" | "label_too_long" | "label_duplicate";
+    code: "label_overlap_unresolved" | "label_outside_view" | "label_too_long" | "label_duplicate" | "label_unattached";
     entityId: string;
     message: string;
     overlappingIds?: string[];
@@ -97,6 +103,18 @@ const DEFAULTS = {
   minGapPx: 6,
   maxLabelChars: 16,
 };
+
+export const POINT_LABEL_TETHER_PX = 56;
+const INCIDENT_ALIGN = Math.cos((25 * Math.PI) / 180);
+
+/** Left work column is not a legal diagram-label home. */
+export function workColumnObstacle(): LabelObstacle {
+  return {
+    id: "work_column",
+    kind: "protected",
+    bounds: { x: 0, y: 0, width: 400, height: 700 },
+  };
+}
 
 const SLOT_OFFSETS: Array<{ slot: Exclude<LabelSlot, "leader">; dx: number; dy: number; preference: number }> = [
   { slot: "east", dx: 1, dy: 0, preference: 0 },
@@ -211,10 +229,12 @@ export function placeLabels(
         .map((obstacle) => obstacle.id);
       const outside = owner.viewBounds ? !boundsInside(bounds, owner.viewBounds) : false;
       if (outside) overlaps.push("view_clip");
+      if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
+      const incident = incidentAligned(slot.slot, owner.incidentTangents);
       return {
         slot: slot.slot,
         bounds,
-        score: slot.preference + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0),
+        score: slot.preference + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0) + (incident ? 40 : 0),
         overlaps,
         usesLeader: false,
       };
@@ -233,7 +253,9 @@ export function placeLabels(
         slot: undefined,
       })),
     ];
-    const leaderCandidates = leaderDistances(owner.viewBounds).flatMap((distance) =>
+    const leaderCandidates = owner.allowLeader === false
+      ? []
+      : leaderDistances(owner.viewBounds).flatMap((distance) =>
       leaderDirections.map((direction) => {
           const center = {
             x: owner.anchor.x + direction.dx * distance,
@@ -280,6 +302,16 @@ export function placeLabels(
         code: "label_outside_view",
         entityId: item.owner.entityId,
         message: `No in-view label slot for ${item.owner.entityId}`,
+      });
+      continue;
+    }
+    const tethered = best?.overlaps.includes("tether");
+    const inkOverlaps = best?.overlaps.filter((id) => id !== "view_clip" && id !== "tether") ?? [];
+    if (tethered && inkOverlaps.length === 0) {
+      issues.push({
+        code: "label_unattached",
+        entityId: item.owner.entityId,
+        message: `No nearby collision-free label slot for ${item.owner.entityId}`,
       });
       continue;
     }
@@ -390,6 +422,25 @@ function solveLabelPlacements(
   };
 
   return search() ? selected : null;
+}
+
+function incidentAligned(
+  slot: Exclude<LabelSlot, "leader">,
+  tangents: RenderPoint[] | undefined,
+): boolean {
+  if (!tangents || tangents.length === 0) return false;
+  const offset = SLOT_OFFSETS.find((entry) => entry.slot === slot);
+  if (!offset) return false;
+  const length = Math.hypot(offset.dx, offset.dy) || 1;
+  const ux = offset.dx / length;
+  const uy = offset.dy / length;
+  return tangents.some((tangent) => Math.abs(tangent.x * ux + tangent.y * uy) >= INCIDENT_ALIGN);
+}
+
+function beyondTether(bounds: LabelBounds, anchor: RenderPoint, tetherPx: number | undefined): boolean {
+  if (tetherPx === undefined) return false;
+  const center = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+  return Math.hypot(center.x - anchor.x, center.y - anchor.y) > tetherPx;
 }
 
 function centeredTextBounds(text: string, center: RenderPoint, options: LabelEngineOptions): LabelBounds {

@@ -61,6 +61,41 @@ export interface SceneAssertion {
   reason?: string;
 }
 
+export const SCENE_ANNOTATION_KINDS = [
+  "label",
+  "callout",
+  "narration",
+  "enclose",
+  "highlight",
+  "trace",
+  "badge",
+  "spin",
+  "equal_tick",
+  "equal_arc",
+  "parallel_mark",
+  "hatch",
+  "brace",
+  "endpoint",
+  "loop",
+  "sense",
+  "drop",
+  "ghost",
+  "extend",
+  "frame",
+  "polarity",
+  "slope_triangle",
+] as const;
+
+export type SceneAnnotationKind = (typeof SCENE_ANNOTATION_KINDS)[number];
+
+export type SceneAnnotationPointStyle = "filled" | "open" | "cross" | "square";
+
+export interface SceneAnnotationStyle {
+  count?: 1 | 2 | 3;
+  pointStyle?: SceneAnnotationPointStyle;
+  transient?: boolean;
+}
+
 export interface SceneAnnotation {
   id: string;
   kind: string;
@@ -68,6 +103,7 @@ export interface SceneAnnotation {
   text?: string;
   quantityId?: string;
   placementIntent?: string;
+  style?: SceneAnnotationStyle;
 }
 
 export interface SceneRevealGroup {
@@ -136,6 +172,7 @@ export interface RenderScene {
   revealGroups: SceneRevealGroup[];
   timeline: SceneTeachingAction[];
   entityBounds: Record<string, { x: number; y: number; width: number; height: number }>;
+  caption?: string;
 }
 
 export interface CompileResult {
