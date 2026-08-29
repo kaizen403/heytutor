@@ -7,14 +7,19 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./pen-spinner": {
+      "types": "./dist/pen-spinner.d.ts",
+      "import": "./dist/pen-spinner.js"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --clean --external react --external react-dom --external konva --external react-konva --external @heytutor/drawing --external @heytutor/design-tokens",
-    "dev": "tsup src/index.ts --format esm --dts --watch --external react --external react-dom --external konva --external react-konva --external @heytutor/drawing --external @heytutor/design-tokens",
+    "build": "tsup src/index.ts src/pen-spinner.ts --format esm --dts --clean --external react --external react-dom --external konva --external react-konva --external @heytutor/drawing --external @heytutor/design-tokens",
+    "dev": "tsup src/index.ts src/pen-spinner.ts --format esm --dts --watch --external react --external react-dom --external konva --external react-konva --external @heytutor/drawing --external @heytutor/design-tokens",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "verify": "tsx scripts/verify-draw-transactions.ts && tsx scripts/verify-pen-motion.ts",
+    "verify": "tsx scripts/verify-draw-transactions.ts && tsx scripts/verify-pen-motion.ts && tsx scripts/verify-pen-choreography.ts",
+    "preview": "tsx scripts/preview-instruments.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {

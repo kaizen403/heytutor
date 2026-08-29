@@ -28,12 +28,46 @@ import {
   samplePolyline,
   splitDrawnLength,
 } from "./penMotion";
+import {
+  AIR_LIFT_PX,
+  FLIGHT_LIFT_PX,
+  HOP_LIFT_PX,
+  NibTracker,
+  SWAP_DURATION_MS,
+  SWAP_HURRY_MS,
+  flourishPose,
+  hopDurationMs,
+  instrumentSwapPose,
+  lerpAngle,
+  planGlyphSegments,
+  restingTilt,
+  SPIN_GHOST_COUNT,
+  scratchStrokePath,
+  spinGhosts,
+  spinningPose,
+  thinkingPose,
+  tremor,
+  waitingPose,
+} from "./penChoreography";
+import {
+  instrumentForActivity,
+  type InstrumentKind,
+  type PenActivity,
+} from "./instruments";
 
 export interface WhiteboardProps {
   width?: number;
   height?: number;
   cursorState?: CursorState;
   inkColor?: string;
+  /**
+   * What the hand does while the tutor is thinking. `spin` lifts the pencil
+   * off the board where it last wrote and twirls it — the same gesture every
+   * pending state in the app shows. `doodle` scribbles in the bottom-left
+   * margin the way you would on rough paper; that scratch ink lives on the
+   * cursor layer, so it is never board content and never lands in a snapshot.
+   */
+  thinkingMotion?: "spin" | "doodle" | "none";
 }
 
 export interface WriteSchedule {
@@ -59,6 +93,8 @@ export type AnnotationKind =
   | "underline"
   | "circle_around"
   | "arrow"
+  /** A hand-drawn box round a work-area formula: "hold on to this". */
+  | "box"
   | "highlight"
   | "scribble";
 
@@ -124,6 +160,10 @@ export interface WhiteboardHandle {
   ) => void;
   setCursorPos: (x: number, y: number) => void;
   setCursorState: (state: CursorState) => void;
+  /** Twirl the current instrument away and pick this one up. */
+  setInstrument: (instrument: InstrumentKind, hurry?: boolean) => Promise<void>;
+  /** Spin the instrument in place — a beat of punctuation between steps. */
+  flourishPen: (turns?: number) => Promise<void>;
   flyCursorTo: (x: number, y: number, duration: number, targetRotation?: number) => Promise<void>;
   setPaused: (paused: boolean) => void;
   cancelAnimations: () => void;
@@ -153,8 +193,25 @@ export interface WhiteboardHandle {
 interface CursorView {
   x: number;
   y: number;
+  /** Barrel tilt about the nib. */
   rotation: number;
   scale: number;
+  /** Twirl about the barrel mid-point, used by swaps and flourishes. */
+  spin: number;
+  /** How far the instrument is pulled back off the board, in px. */
+  lift: number;
+  /** Extra fade multiplied into the state opacity during a swap. */
+  fade: number;
+  /** Twirl rate as a fraction of the mean; drives the motion-blur trail. */
+  spinVelocity: number;
+}
+
+interface PoseNodes {
+  group: Konva.Group | null;
+  lift: Konva.Group | null;
+  spin: Konva.Group | null;
+  /** Trailing silhouettes, nearest the barrel first. */
+  ghosts: Konva.Group[];
 }
 
 interface Point {
@@ -166,9 +223,12 @@ const DEFAULT_WIDTH = 1200;
 const DEFAULT_HEIGHT = 700;
 const WHITEBOARD_COLOR = "#F8F6F0";
 const DEFAULT_INK_COLOR = "#222222";
-const HIGHLIGHT_FILL = "#B8D4B8";
-const HIGHLIGHT_OPACITY = 0.18;
+/** Highlighter yellow, laid under the ink so the writing stays crisp. */
+const HIGHLIGHT_FILL = "#FFD84D";
+const HIGHLIGHT_OPACITY = 0.34;
 const ANNOTATION_STROKE_WIDTH = 3.25;
+/** A box is a quiet gesture — it frames the formula, it does not shout. */
+const BOX_STROKE_WIDTH = 2;
 const SHAPE_STROKE_WIDTH = 2.5;
 /** Scene setup ink: visible, not a 10s sketch. Matches tutor-core SCENE_MAX_MS. */
 const SCENE_SHAPE_MAX_MS = 320;
@@ -180,7 +240,21 @@ const DUSTER_HEIGHT = 14;
 const DUSTER_COLOR = "#D4CDBE";
 const DUSTER_STROKE = "#B8B0A0";
 const DUSTER_CORNER_RADIUS = 3;
-const HANDWRITING_ROTATION = -35;
+/** Fallback tilt for callers that do not name an activity. */
+const HANDWRITING_ROTATION = restingTilt("write");
+/** Margin the hand scribbles in while thinking, as a fraction of the board. */
+const SCRATCH_BOX_RATIO = { x: 0.052, y: 0.924, width: 0.163, height: 0.058 } as const;
+const SCRATCH_TRAVEL_MS = 420;
+const SCRATCH_HOP_MS = 190;
+const SCRATCH_STROKE_MS = 880;
+const SCRATCH_FIDGET_MS = 620;
+const SCRATCH_FLOURISH_MS = 620;
+const SCRATCH_HOLD_MS = 900;
+const SCRATCH_FADE_MS = 700;
+const SCRATCH_MAX_LIVE = 4;
+const SCRATCH_OPACITY = 0.32;
+const SCRATCH_STROKE_WIDTH = 1.5;
+const THINKING_FLOURISH_EVERY = 4;
 const HIDDEN_PATH_DATA = "M 0 0";
 
 function clamp(value: number, min: number, max: number): number {
@@ -232,6 +306,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       height = DEFAULT_HEIGHT,
       cursorState = "idle",
       inkColor = DEFAULT_INK_COLOR,
+      thinkingMotion = "spin",
     },
     ref,
   ) {
@@ -254,9 +329,22 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     // `previousScheduledBudgetMs` local in writeText, but persists across
     // separate drawShape calls within a turn.
     const previousShapeBudgetMsRef = useRef<number | null>(null);
-    const cursorViewRef = useRef<CursorView>({ x: width / 2, y: height / 2, rotation: 0, scale: 1 });
+    const cursorViewRef = useRef<CursorView>({
+      x: width / 2,
+      y: height / 2,
+      rotation: HANDWRITING_ROTATION,
+      scale: 1,
+      spin: 0,
+      lift: 0,
+      fade: 1,
+      spinVelocity: 0,
+    });
+    const [nib] = useState(() => new NibTracker(width / 2, height / 2, HANDWRITING_ROTATION));
     const cursorGroupRef = useRef<Konva.Group>(null);
+    const poseNodesRef = useRef<PoseNodes>({ group: null, lift: null, spin: null, ghosts: [] });
     const dusterRef = useRef<Konva.Rect>(null);
+    const instrumentRef = useRef<InstrumentKind>("pen");
+    const [activeInstrument, setActiveInstrument] = useState<InstrumentKind>("pen");
     const [activeCursorState, setActiveCursorState] = useState<CursorState>(cursorState);
     const activeCursorStateRef = useRef<CursorState>(cursorState);
     const inkColorRef = useRef(inkColor);
@@ -287,9 +375,44 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       frameIdsRef.current.delete(frameId);
     }, []);
 
+    /**
+     * The lift and spin groups live inside the instrument art, so they are
+     * looked up by name once per mounted cursor instead of being re-rendered
+     * through React on every animation frame.
+     */
+    const resolvePoseNodes = useCallback((group: Konva.Group): PoseNodes => {
+      const cached = poseNodesRef.current;
+      if (cached.group === group && cached.lift && cached.spin) {
+        return cached;
+      }
+      const ghosts: Konva.Group[] = [];
+      for (let index = 0; index < SPIN_GHOST_COUNT; index++) {
+        const ghost = group.findOne<Konva.Group>(`.pen-ghost-${index}`);
+        if (ghost) ghosts.push(ghost);
+      }
+      const resolved: PoseNodes = {
+        group,
+        lift: group.findOne<Konva.Group>(".pen-lift") ?? null,
+        spin: group.findOne<Konva.Group>(".pen-spin") ?? null,
+        ghosts,
+      };
+      poseNodesRef.current = resolved;
+      return resolved;
+    }, []);
+
     const setCursorViewSafely = useCallback(
-      (x: number, y: number, rotation = cursorViewRef.current.rotation, scale = cursorViewRef.current.scale): void => {
-        cursorViewRef.current = { x, y, rotation, scale };
+      (
+        x: number,
+        y: number,
+        rotation = cursorViewRef.current.rotation,
+        scale = cursorViewRef.current.scale,
+        pose?: { spin?: number; lift?: number; fade?: number; spinVelocity?: number },
+      ): void => {
+        const spin = pose?.spin ?? 0;
+        const lift = pose?.lift ?? 0;
+        const fade = pose?.fade ?? 1;
+        const spinVelocity = pose?.spinVelocity ?? 0;
+        cursorViewRef.current = { x, y, rotation, scale, spin, lift, fade, spinVelocity };
         const group = cursorGroupRef.current;
         if (group) {
           group.x(x);
@@ -297,6 +420,26 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           group.rotation(rotation);
           group.scaleX(scale);
           group.scaleY(scale);
+          group.opacity(cursorOpacity(activeCursorStateRef.current) * fade);
+          const nodes = resolvePoseNodes(group);
+          nodes.lift?.y(-lift);
+          nodes.spin?.rotation(spin);
+          // Motion blur: a trail only exists while the barrel is turning, and
+          // it widens and fades with the rate, so a flick smears and a coast
+          // tightens back to a clean silhouette.
+          if (nodes.ghosts.length > 0) {
+            const ghosts = spinVelocity > 0 ? spinGhosts(spinVelocity) : [];
+            for (let index = 0; index < nodes.ghosts.length; index++) {
+              const node = nodes.ghosts[index]!;
+              const ghost = ghosts[index];
+              if (!ghost) {
+                node.opacity(0);
+                continue;
+              }
+              node.rotation(spin - ghost.offset);
+              node.opacity(ghost.opacity);
+            }
+          }
         }
         const duster = dusterRef.current;
         if (duster) {
@@ -308,7 +451,49 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         }
         cursorLayerRef.current?.batchDraw();
       },
-      [],
+      [resolvePoseNodes],
+    );
+
+    /**
+     * The hand does not hold the barrel at a fixed angle: it rolls a few
+     * degrees into the stroke, lags behind the turn with a capped rate, and
+     * drifts. `NibTracker` owns that; these helpers just paint its answer.
+     */
+
+    /** Trace: the nib is on the ink, so its travel steers the barrel. */
+    const moveNib = useCallback(
+      (x: number, y: number, activity: PenActivity = "write"): void => {
+        const now = performance.now();
+        setCursorViewSafely(x, y, nib.move(x, y, activity, now) + tremor(now), 1);
+      },
+      [nib, setCursorViewSafely],
+    );
+
+    /** Reposition: place the nib without letting the jump rewrite the heading. */
+    const jumpNib = useCallback(
+      (x: number, y: number, activity: PenActivity = "write"): void => {
+        const now = performance.now();
+        setCursorViewSafely(x, y, nib.jump(x, y, activity, now) + tremor(now), 1);
+      },
+      [nib, setCursorViewSafely],
+    );
+
+    /** In the air: the nib is off the board, travelling between strokes. */
+    const hoverNib = useCallback(
+      (x: number, y: number, activity: PenActivity, lift: number): void => {
+        const now = performance.now();
+        setCursorViewSafely(x, y, nib.jump(x, y, activity, now) + tremor(now), 1, { lift });
+      },
+      [nib, setCursorViewSafely],
+    );
+
+    /** Land the pen at an exact pose — used at the end of a flight or sweep. */
+    const settleNib = useCallback(
+      (x: number, y: number, rotation: number): void => {
+        nib.settle(x, y, rotation, performance.now());
+        setCursorViewSafely(x, y, rotation, 1);
+      },
+      [nib, setCursorViewSafely],
     );
 
     const animateOver = useCallback(
@@ -386,6 +571,76 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       [cancelTrackedFrame, requestTrackedFrame],
     );
 
+    const applyInstrument = useCallback((kind: InstrumentKind): void => {
+      instrumentRef.current = kind;
+      if (mountedRef.current) {
+        setActiveInstrument(kind);
+      }
+    }, []);
+
+    /**
+     * Put one instrument down and pick the next one up: the barrel rises off
+     * the board, flips once between the fingers, blanks at the top of the arc,
+     * and the new instrument lands in its place. `hurry` keeps the same gesture
+     * for callers on a tight audio budget (compiler labels, catch-up writing).
+     */
+    const swapInstrument = useCallback(
+      async (kind: InstrumentKind, hurry = false): Promise<void> => {
+        if (instrumentRef.current === kind) {
+          return;
+        }
+        if (!mountedRef.current || !cursorGroupRef.current) {
+          applyInstrument(kind);
+          return;
+        }
+
+        const { x, y, rotation } = cursorViewRef.current;
+        let handedOver = false;
+
+        await animateOver(hurry ? SWAP_HURRY_MS : SWAP_DURATION_MS, (progress) => {
+          const pose = instrumentSwapPose(progress);
+          if (!handedOver && pose.showIncoming) {
+            handedOver = true;
+            applyInstrument(kind);
+          }
+          setCursorViewSafely(x, y, rotation, pose.scale, {
+            spin: pose.spin,
+            lift: pose.lift,
+            fade: pose.opacity,
+          });
+        });
+
+        if (!handedOver) {
+          applyInstrument(kind);
+        }
+        setCursorViewSafely(x, y, rotation, 1);
+      },
+      [animateOver, applyInstrument, setCursorViewSafely],
+    );
+
+    /** Reach for whatever this kind of work is done with. */
+    const equipInstrumentFor = useCallback(
+      (activity: PenActivity, hurry = false): Promise<void> =>
+        swapInstrument(instrumentForActivity(activity), hurry),
+      [swapInstrument],
+    );
+
+    /** Spin in place without changing instrument. */
+    const flourishPen = useCallback(
+      async (turns = 1): Promise<void> => {
+        const { x, y, rotation } = cursorViewRef.current;
+        await animateOver(SCRATCH_FLOURISH_MS, (progress) => {
+          const pose = flourishPose(progress, turns);
+          setCursorViewSafely(x, y, rotation, pose.scale, {
+            spin: pose.spin,
+            lift: pose.lift,
+          });
+        });
+        setCursorViewSafely(x, y, rotation, 1);
+      },
+      [animateOver, setCursorViewSafely],
+    );
+
     const cancelAnimations = useCallback((): void => {
       Array.from(animationCleanupsRef.current).forEach((cleanup) => cleanup());
       Array.from(frameIdsRef.current).forEach((frameId) => cancelFrame(frameId));
@@ -459,6 +714,14 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           return;
         }
 
+        // Diagram geometry is sketched, not inked — reach for the pencil. The
+        // twirl only plays on an actual change, so a scene of forty strokes
+        // pays for it once, at the moment the lesson turns from words to figure.
+        await equipInstrumentFor("draw");
+        if (options?.shouldCancel?.()) {
+          return;
+        }
+
         // Reactive shape speed: when an audio clock is available, dampen the
         // draw duration against the lag — the same scheme writeText uses per
         // character, applied here to the whole stroke. Positive lag (voice
@@ -510,7 +773,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             path.opacity(progress);
             const point = path.getPointAtLength(progress * totalLength);
             if (point) {
-              setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
+              moveNib(point.x, point.y, "draw");
             }
             animLayer.batchDraw();
           });
@@ -544,7 +807,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           const point = pointAlongSamples(pathSamples, totalLength, drawnLength);
 
           path.dashOffset(totalLength - drawnLength);
-          setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
+          moveNib(point.x, point.y, "draw");
           animLayer.batchDraw();
         });
 
@@ -563,7 +826,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         animLayer.batchDraw();
         drawLayer.batchDraw();
       },
-      [animateOver, setCursorViewSafely, trackNode, untrackNode],
+      [animateOver, equipInstrumentFor, moveNib, trackNode, untrackNode],
     );
 
     const punchDiagramLineGapsInRect = useCallback(
@@ -721,40 +984,84 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           return;
         }
 
+        // A highlighter is a different object and worth the swap. Underlines,
+        // arrows and circles are gestures made with whatever is already in
+        // hand, so they never interrupt a reveal to fetch another pen.
+        if (kind === "highlight") {
+          await equipInstrumentFor("highlight");
+          if (options.shouldCancel?.()) {
+            return;
+          }
+        }
+
         if (kind === "highlight") {
           const targetLayer = highlightLayer ?? drawLayer;
-          const rect = new Konva.Path({
+          const mark = new Konva.Path({
             data: pathData,
             fill: options.fillColor ?? HIGHLIGHT_FILL,
-            opacity: 0,
+            opacity: options.fillOpacity ?? HIGHLIGHT_OPACITY,
             strokeEnabled: false,
             listening: false,
             perfectDrawEnabled: false,
             hitStrokeWidth: 0,
           });
 
-          targetLayer.add(rect);
-          trackNode(rect, completedNodesRef.current);
+          // A highlighter lays colour down *behind a moving nib*. Fading the
+          // whole patch up at once is the one thing a real marker never does,
+          // so the mark is wiped in left to right and the marker rides the edge.
+          const box = mark.getClientRect();
+          // A degenerate path would leave the clip at zero width forever, i.e.
+          // a highlight that silently never appears. Commit it outright.
+          if (!(box.width > 0) || !(box.height > 0)) {
+            targetLayer.add(mark);
+            trackNode(mark, completedNodesRef.current);
+            targetLayer.batchDraw();
+            return;
+          }
+          const bleed = 1.5;
+          const clipY = box.y - bleed;
+          const clipHeight = box.height + bleed * 2;
+          const sweep = new Konva.Group({
+            listening: false,
+            clip: { x: box.x - bleed, y: clipY, width: 0, height: clipHeight },
+          });
+          sweep.add(mark);
+          targetLayer.add(sweep);
+          trackNode(sweep, completedNodesRef.current);
           targetLayer.batchDraw();
 
-          await animateOver(duration, (progress) => {
-            rect.opacity((options.fillOpacity ?? HIGHLIGHT_OPACITY) * progress);
-            targetLayer.batchDraw();
-          });
+          const sweepWidth = box.width + bleed * 2;
+          const nibY = box.y + box.height / 2;
+          await animateOver(
+            duration,
+            (progress) => {
+              const eased = smoothstep(progress);
+              sweep.clip({
+                x: box.x - bleed,
+                y: clipY,
+                width: sweepWidth * eased,
+                height: clipHeight,
+              });
+              moveNib(box.x + box.width * eased, nibY, "highlight");
+              targetLayer.batchDraw();
+            },
+            options.shouldCancel,
+          );
 
           if (options.shouldCancel?.()) {
-            rect.destroy();
-            untrackNode(rect, completedNodesRef.current);
+            sweep.destroy();
+            untrackNode(sweep, completedNodesRef.current);
             targetLayer.batchDraw();
             return;
           }
 
-          rect.opacity(options.fillOpacity ?? HIGHLIGHT_OPACITY);
+          sweep.clip({ x: box.x - bleed, y: clipY, width: sweepWidth, height: clipHeight });
           targetLayer.batchDraw();
           return;
         }
 
-        const strokeWidth = options.strokeWidth ?? ANNOTATION_STROKE_WIDTH;
+        const strokeWidth =
+          options.strokeWidth ?? (kind === "box" ? BOX_STROKE_WIDTH : ANNOTATION_STROKE_WIDTH);
         const path = new Konva.Path(
           inkPathConfig(pathData, strokeWidth, inkColorRef.current),
         );
@@ -773,7 +1080,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           const point = pointAlongSamples(annotationSamples, totalLength, drawnLength);
 
           path.dashOffset(totalLength - drawnLength);
-          setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
+          moveNib(point.x, point.y, "annotate");
           animLayer.batchDraw();
         });
 
@@ -803,7 +1110,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         animLayer.batchDraw();
         drawLayer.batchDraw();
       },
-      [animateOver, setCursorViewSafely, trackNode, untrackNode],
+      [animateOver, equipInstrumentFor, moveNib, trackNode, untrackNode],
     );
 
     const flyCursorTo = useCallback(
@@ -814,35 +1121,68 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         targetRotation?: number,
       ): Promise<void> => {
         const start = { x: cursorViewRef.current.x, y: cursorViewRef.current.y };
+        const startRotation = cursorViewRef.current.rotation;
         const end = { x, y };
         const distance = distanceBetween(start, end);
         const fixedRotation = targetRotation ?? HANDWRITING_ROTATION;
 
-        if (distance === 0) {
-          setCursorViewSafely(x, y, fixedRotation, 1);
-          return;
-        }
-
         if (distance < 15) {
-          setCursorViewSafely(x, y, fixedRotation, 1);
+          settleNib(x, y, fixedRotation);
           return;
         }
 
         const flightDuration = resolveFlightDuration(distance, duration);
 
+        // Crossing the board is a real movement: the nib leaves the surface,
+        // the barrel rolls toward its landing tilt, and it touches down again.
         await animateOver(flightDuration, (linearProgress) => {
           const easedProgress = smoothstep(linearProgress);
+          const arc = Math.sin(Math.PI * linearProgress);
           const point = {
             x: start.x + (end.x - start.x) * easedProgress,
             y: start.y + (end.y - start.y) * easedProgress,
           };
 
-          setCursorViewSafely(point.x, point.y, fixedRotation, 1);
+          setCursorViewSafely(
+            point.x,
+            point.y,
+            lerpAngle(startRotation, fixedRotation, easedProgress) - arc * 4,
+            1,
+            { lift: FLIGHT_LIFT_PX * arc },
+          );
         });
 
-        setCursorViewSafely(x, y, fixedRotation, 1);
+        settleNib(x, y, fixedRotation);
       },
-      [animateOver, setCursorViewSafely],
+      [animateOver, setCursorViewSafely, settleNib],
+    );
+
+    /**
+     * The short lift between one glyph and the next. Unlike a flight it keeps
+     * the barrel's heading and tilt, so the pen arrives already writing.
+     */
+    const hopNib = useCallback(
+      async (
+        x: number,
+        y: number,
+        durationMs: number,
+        activity: PenActivity,
+        playback?: { lockToWallClock?: boolean },
+      ): Promise<void> => {
+        const start = { x: cursorViewRef.current.x, y: cursorViewRef.current.y };
+        await animateOver(durationMs, (progress) => {
+          const eased = smoothstep(progress);
+          const arc = Math.sin(Math.PI * progress);
+          hoverNib(
+            start.x + (x - start.x) * eased,
+            start.y + (y - start.y) * eased,
+            activity,
+            HOP_LIFT_PX * arc,
+          );
+        }, undefined, playback);
+        jumpNib(x, y, activity);
+      },
+      [animateOver, hoverNib, jumpNib],
     );
 
     const waitForAudioPosition = useCallback(
@@ -859,6 +1199,12 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           let pausedAt: number | null = null;
           let pausedTotalMs = 0;
           let maxPositionMs = 0;
+          // The pen is parked here doing nothing while the voice catches up.
+          // Rather than freeze mid-sentence it breathes, and rolls between the
+          // fingers on a long hold — motion that costs the schedule nothing.
+          const anchor = { ...cursorViewRef.current };
+          const waitStartMs = performance.now();
+          let idled = false;
 
           const currentClockMs = (): number => {
             const rawPositionMs = getAudioPositionMs();
@@ -887,6 +1233,12 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             if (frameId !== null) {
               cancelTrackedFrame(frameId);
               frameId = null;
+            }
+            // Hand the exact parked pose back, so the character that was
+            // waiting starts from where it would have without the idle.
+            if (idled) {
+              settleNib(anchor.x, anchor.y, anchor.rotation);
+              idled = false;
             }
             animationCleanupsRef.current.delete(cleanup);
             resolve();
@@ -927,6 +1279,18 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               cleanup();
               return;
             }
+
+            const pose = waitingPose(performance.now() - waitStartMs - pausedTotalMs);
+            if (pose.active) {
+              idled = true;
+              setCursorViewSafely(
+                anchor.x + pose.dx,
+                anchor.y + pose.dy,
+                anchor.rotation + pose.tiltOffset,
+                pose.scale,
+                { spin: pose.spin, lift: pose.lift },
+              );
+            }
             frameId = requestTrackedFrame(step);
           };
 
@@ -942,7 +1306,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           }
           frameId = requestTrackedFrame(step);
         }),
-      [cancelTrackedFrame, requestTrackedFrame],
+      [cancelTrackedFrame, requestTrackedFrame, setCursorViewSafely, settleNib],
     );
 
     const writeText = useCallback(
@@ -960,6 +1324,17 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
         if (!drawLayer || !animLayer || shouldCancel?.()) {
           return;
+        }
+
+        // Teaching prose is written with the pen. Compiler-owned diagram labels
+        // are part of the sketch and are lettered with whatever is already in
+        // hand — otherwise every reveal group would pay for a swap each way.
+        const labelSized = !schedule && duration <= text.replace(/\s+/g, "").length * 24;
+        if (!labelSized) {
+          await equipInstrumentFor("write");
+          if (shouldCancel?.()) {
+            return;
+          }
         }
 
         const resolvedFontSize = Math.min(Math.max(fontSize, 12), 40);
@@ -1048,7 +1423,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             }
             const last = charInfos.at(-1)?.charPath;
             if (last) {
-              setCursorViewSafely(last.x + last.width, last.y, HANDWRITING_ROTATION);
+              jumpNib(last.x + last.width, last.y, "write");
             }
             drawLayer.batchDraw();
             return;
@@ -1132,11 +1507,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
               await animateOver(charDuration, (progress) => {
                 textNode.opacity(progress);
-                setCursorViewSafely(
-                  charPath.x + charPath.width * progress,
-                  charPath.y,
-                  HANDWRITING_ROTATION,
-                );
+                moveNib(charPath.x + charPath.width * progress, charPath.y, "write");
                 animLayer.batchDraw();
               }, undefined, scheduled ? { lockToWallClock: true } : undefined);
 
@@ -1161,6 +1532,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               firstStroke.startX - cursorViewRef.current.x,
               firstStroke.startY - cursorViewRef.current.y,
             );
+            const hopMs = hopDurationMs(dist);
             if (dist > 72) {
               await flyCursorTo(
                 firstStroke.startX,
@@ -1168,8 +1540,19 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 Math.min(140, dist * 0.35),
                 HANDWRITING_ROTATION,
               );
+            } else if (hopMs > 0) {
+              // The hop comes out of this character's own time so the ink
+              // never drifts behind the voice for the sake of a nicer arc.
+              await hopNib(
+                firstStroke.startX,
+                firstStroke.startY,
+                hopMs,
+                "write",
+                scheduled ? { lockToWallClock: true } : undefined,
+              );
+              charBudgetMs = Math.max(charBudgetMs - hopMs, 28);
             } else {
-              setCursorViewSafely(firstStroke.startX, firstStroke.startY, HANDWRITING_ROTATION);
+              jumpNib(firstStroke.startX, firstStroke.startY, "write");
             }
             if (!mountedRef.current || shouldCancel?.()) return;
 
@@ -1197,27 +1580,47 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             if (strokeNodes.length === 0) continue;
             animLayer.batchDraw();
 
-            const glyphLength = strokeNodes.reduce((sum, node) => sum + node.totalLength, 0);
+            // Strokes interleaved with the air between them, so the dot of an
+            // i is reached by a lifted pen instead of a teleport.
+            const segments = planGlyphSegments(
+              strokeNodes.map((node) => ({
+                length: node.totalLength,
+                start: node.samples[0] ?? { x: 0, y: 0 },
+                end: node.samples[node.samples.length - 1] ?? { x: 0, y: 0 },
+              })),
+            );
+            const segmentLengths = segments.map((segment) => segment.length);
+            const glyphLength = segmentLengths.reduce((sum, length) => sum + length, 0);
             const glyphMs = Math.max(charBudgetMs, 36);
-            const lengths = strokeNodes.map((node) => node.totalLength);
 
             await animateOver(glyphMs, (progress) => {
               const eased = handwritingProgress(progress, glyphMs);
               const drawn = eased * glyphLength;
-              const split = splitDrawnLength(lengths, drawn);
+              const split = splitDrawnLength(segmentLengths, drawn);
+              const segment = segments[split.index]!;
               for (let si = 0; si < strokeNodes.length; si++) {
                 const node = strokeNodes[si]!;
-                if (si < split.index) {
+                if (si < segment.stroke) {
                   node.pathNode.dashOffset(0);
-                } else if (si === split.index) {
+                } else if (si === segment.stroke && segment.kind === "ink") {
                   node.pathNode.dashOffset(node.totalLength - split.inStroke);
                 } else {
                   node.pathNode.dashOffset(node.totalLength);
                 }
               }
-              const active = strokeNodes[split.index]!;
-              const point = pointAlongSamples(active.samples, active.totalLength, split.inStroke);
-              setCursorViewSafely(point.x, point.y, HANDWRITING_ROTATION);
+              if (segment.kind === "air") {
+                const t = split.inStroke / Math.max(segment.length, 1e-6);
+                hoverNib(
+                  segment.from.x + (segment.to.x - segment.from.x) * t,
+                  segment.from.y + (segment.to.y - segment.from.y) * t,
+                  "write",
+                  AIR_LIFT_PX * Math.sin(Math.PI * clamp(t, 0, 1)),
+                );
+              } else {
+                const active = strokeNodes[segment.stroke]!;
+                const point = pointAlongSamples(active.samples, active.totalLength, split.inStroke);
+                moveNib(point.x, point.y, "write");
+              }
               animLayer.batchDraw();
             }, undefined, scheduled ? { lockToWallClock: true } : undefined);
 
@@ -1254,12 +1657,12 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
           animLayer.add(textNode);
           trackNode(textNode, animNodesRef.current);
-          setCursorViewSafely(x, y, HANDWRITING_ROTATION);
+          jumpNib(x, y, "write");
           animLayer.batchDraw();
 
           await animateOver(duration, (progress) => {
             textNode.opacity(progress);
-            setCursorViewSafely(x + textNode.getTextWidth() * progress, y, HANDWRITING_ROTATION);
+            moveNib(x + textNode.getTextWidth() * progress, y, "write");
             animLayer.batchDraw();
           });
 
@@ -1278,7 +1681,18 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           drawLayer.batchDraw();
         }
       },
-      [animateOver, flyCursorTo, setCursorViewSafely, trackNode, untrackNode, waitForAudioPosition],
+      [
+        animateOver,
+        equipInstrumentFor,
+        flyCursorTo,
+        hopNib,
+        hoverNib,
+        jumpNib,
+        moveNib,
+        trackNode,
+        untrackNode,
+        waitForAudioPosition,
+      ],
     );
 
     const eraseRegion = useCallback(
@@ -1432,10 +1846,294 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       spotlightLayer.batchDraw();
     }, []);
 
+    /**
+     * Rough-paper fidget. While the tutor is thinking, the hand takes the pencil
+     * down to the bottom-left margin and scribbles: a stroke, a hover with the
+     * odd tap against the board, a twirl every few cycles. The scratch ink is
+     * added to the cursor layer, which `captureSnapshot` hides and no draw
+     * transaction owns — it is a gesture, never board content, so it can never
+     * be mistaken for teaching ink.
+     */
+    useEffect(() => {
+      if (thinkingMotion !== "doodle" || activeCursorState !== "thinking") {
+        return undefined;
+      }
+      const cursorLayer = cursorLayerRef.current;
+      if (!cursorLayer) {
+        return undefined;
+      }
+
+      const box = {
+        x: width * SCRATCH_BOX_RATIO.x,
+        y: height * SCRATCH_BOX_RATIO.y,
+        width: width * SCRATCH_BOX_RATIO.width,
+        height: height * SCRATCH_BOX_RATIO.height,
+      };
+
+      let cancelled = false;
+      let frameId: number | null = null;
+      let clockMs = 0;
+      let lastFrameMs = performance.now();
+      let phase: "travel" | "trace" | "fidget" | "flourish" = "travel";
+      let phaseStartMs = 0;
+      let travelMs = SCRATCH_TRAVEL_MS;
+      let cycle = 0;
+      let origin = { ...cursorViewRef.current };
+      let anchor = { x: origin.x, y: origin.y };
+      let active: {
+        node: Konva.Path;
+        length: number;
+        samples: { x: number; y: number }[];
+      } | null = null;
+      const live: Array<{ node: Konva.Path; bornMs: number }> = [];
+
+      const strokeStart = (index: number): { x: number; y: number } => {
+        const path = new Konva.Path({ data: scratchStrokePath(index, box) });
+        const point = path.getPointAtLength(0);
+        const start = { x: point?.x ?? box.x, y: point?.y ?? box.y };
+        path.destroy();
+        return start;
+      };
+
+      let target = strokeStart(0);
+
+      const beginTrace = (): void => {
+        const node = new Konva.Path({
+          data: scratchStrokePath(cycle, box),
+          stroke: inkColorRef.current,
+          strokeWidth: SCRATCH_STROKE_WIDTH,
+          opacity: SCRATCH_OPACITY,
+          fillEnabled: false,
+          lineCap: "round",
+          lineJoin: "round",
+          listening: false,
+          perfectDrawEnabled: false,
+        });
+        const length = Math.max(node.getLength(), 1);
+        node.dash([length]);
+        node.dashOffset(length);
+        cursorLayer.add(node);
+        // Under the instrument, so the pencil is never hidden by its own ink.
+        node.moveToBottom();
+        live.push({ node, bornMs: clockMs });
+        while (live.length > SCRATCH_MAX_LIVE) {
+          live.shift()?.node.destroy();
+        }
+        active = {
+          node,
+          length,
+          samples: samplePolyline(length, (distance) => {
+            const point = node.getPointAtLength(distance);
+            return { x: point?.x ?? 0, y: point?.y ?? 0 };
+          }),
+        };
+        phase = "trace";
+        phaseStartMs = clockMs;
+      };
+
+      const fadeOldStrokes = (): void => {
+        for (let index = live.length - 1; index >= 0; index--) {
+          const entry = live[index]!;
+          if (entry.node === active?.node) continue;
+          const age = clockMs - entry.bornMs - SCRATCH_HOLD_MS;
+          if (age <= 0) continue;
+          const remaining = 1 - age / SCRATCH_FADE_MS;
+          if (remaining <= 0) {
+            entry.node.destroy();
+            live.splice(index, 1);
+            continue;
+          }
+          entry.node.opacity(SCRATCH_OPACITY * remaining);
+        }
+      };
+
+      const advance = (): void => {
+        const elapsed = clockMs - phaseStartMs;
+
+        if (phase === "travel") {
+          const progress = Math.min(elapsed / travelMs, 1);
+          const eased = smoothstep(progress);
+          const arc = Math.sin(Math.PI * progress);
+          setCursorViewSafely(
+            anchor.x + (target.x - anchor.x) * eased,
+            anchor.y + (target.y - anchor.y) * eased,
+            lerpAngle(origin.rotation, restingTilt("idle"), eased),
+            1,
+            { lift: FLIGHT_LIFT_PX * 1.5 * arc },
+          );
+          if (progress >= 1) {
+            settleNib(target.x, target.y, restingTilt("idle"));
+            beginTrace();
+          }
+          return;
+        }
+
+        if (phase === "trace") {
+          if (!active) {
+            phase = "fidget";
+            phaseStartMs = clockMs;
+            return;
+          }
+          const progress = Math.min(elapsed / SCRATCH_STROKE_MS, 1);
+          const drawn = handwritingProgress(progress, SCRATCH_STROKE_MS) * active.length;
+          active.node.dashOffset(active.length - drawn);
+          const point = pointAlongSamples(active.samples, active.length, drawn);
+          moveNib(point.x, point.y, "idle");
+          if (progress >= 1) {
+            anchor = { x: point.x, y: point.y };
+            active = null;
+            phase = "fidget";
+            phaseStartMs = clockMs;
+          }
+          return;
+        }
+
+        if (phase === "fidget") {
+          const pose = thinkingPose(clockMs);
+          setCursorViewSafely(
+            anchor.x + pose.dx,
+            anchor.y + pose.dy,
+            nib.tilt + pose.tiltOffset,
+            pose.scale,
+            { spin: pose.spin, lift: pose.lift },
+          );
+          if (elapsed >= SCRATCH_FIDGET_MS) {
+            cycle += 1;
+            if (cycle % THINKING_FLOURISH_EVERY === 0) {
+              phase = "flourish";
+            } else {
+              origin = { ...cursorViewRef.current };
+              target = strokeStart(cycle);
+              travelMs = SCRATCH_HOP_MS;
+              phase = "travel";
+            }
+            phaseStartMs = clockMs;
+          }
+          return;
+        }
+
+        const progress = Math.min(elapsed / SCRATCH_FLOURISH_MS, 1);
+        const pose = flourishPose(progress, 1);
+        setCursorViewSafely(anchor.x, anchor.y, nib.tilt, pose.scale, {
+          spin: pose.spin,
+          lift: pose.lift,
+        });
+        if (progress >= 1) {
+          origin = { ...cursorViewRef.current };
+          target = strokeStart(cycle);
+          travelMs = SCRATCH_HOP_MS;
+          phase = "travel";
+          phaseStartMs = clockMs;
+        }
+      };
+
+      const step = (now: number): void => {
+        if (cancelled) return;
+        const delta = Math.min(Math.max(now - lastFrameMs, 0), 64);
+        lastFrameMs = now;
+        // A paused board or any real drawing work outranks the fidget: the
+        // clock simply does not advance, so the loop resumes where it stopped.
+        if (!isPausedRef.current && animationCleanupsRef.current.size === 0) {
+          clockMs += delta;
+          advance();
+          fadeOldStrokes();
+          cursorLayer.batchDraw();
+        }
+        frameId = requestAnimationFrame(step);
+      };
+
+      // Rough work is pencil work.
+      void swapInstrument("pencil");
+      frameId = requestAnimationFrame(step);
+
+      return () => {
+        cancelled = true;
+        if (frameId !== null) cancelAnimationFrame(frameId);
+        for (const entry of live) entry.node.destroy();
+        live.length = 0;
+        active = null;
+        const view = cursorViewRef.current;
+        setCursorViewSafely(view.x, view.y, view.rotation, 1);
+        cursorLayer.batchDraw();
+      };
+    }, [
+      activeCursorState,
+      height,
+      moveNib,
+      nib,
+      setCursorViewSafely,
+      settleNib,
+      swapInstrument,
+      thinkingMotion,
+      width,
+    ]);
+
+    /**
+     * The twirl. While a response is pending the pencil rises off the board
+     * where it last wrote and spins about the barrel mid-point at a steady
+     * rate — the gesture the rest of the app shows for the same wait, so the
+     * board and the chrome agree on what "thinking" looks like. Driven through
+     * the cached pose nodes, never a React render per frame.
+     */
+    useEffect(() => {
+      if (thinkingMotion !== "spin" || activeCursorState !== "thinking") {
+        return undefined;
+      }
+
+      let cancelled = false;
+      let frameId: number | null = null;
+      let clockMs = 0;
+      let lastFrameMs = performance.now();
+      // The clock only starts once the pencil is in hand, so the swap's own
+      // flip lands before the twirl begins instead of fighting it.
+      let armed = false;
+      const anchor = { ...cursorViewRef.current };
+
+      const step = (now: number): void => {
+        if (cancelled) return;
+        const delta = Math.min(Math.max(now - lastFrameMs, 0), 64);
+        lastFrameMs = now;
+        // A paused board or any real drawing work outranks the twirl: the
+        // clock simply does not advance, so the spin resumes where it stopped.
+        if (armed && !isPausedRef.current && animationCleanupsRef.current.size === 0) {
+          clockMs += delta;
+          const pose = spinningPose(clockMs);
+          setCursorViewSafely(
+            anchor.x + pose.dx,
+            anchor.y + pose.dy,
+            anchor.rotation,
+            pose.scale,
+            { spin: pose.spin, lift: pose.lift, spinVelocity: pose.velocity },
+          );
+        }
+        frameId = requestAnimationFrame(step);
+      };
+
+      // Rough work is pencil work.
+      void swapInstrument("pencil").then(() => {
+        if (!cancelled) armed = true;
+      });
+      frameId = requestAnimationFrame(step);
+
+      return () => {
+        cancelled = true;
+        if (frameId !== null) cancelAnimationFrame(frameId);
+        const view = cursorViewRef.current;
+        setCursorViewSafely(view.x, view.y, view.rotation, 1);
+      };
+    }, [activeCursorState, setCursorViewSafely, swapInstrument, thinkingMotion]);
+
     useLayoutEffect(() => {
       const view = cursorViewRef.current;
-      setCursorViewSafely(view.x, view.y, view.rotation, view.scale);
-    }, [activeCursorState, setCursorViewSafely]);
+      // The instrument art was re-created, so the cached lift/spin nodes are stale.
+      poseNodesRef.current = { group: null, lift: null, spin: null, ghosts: [] };
+      setCursorViewSafely(view.x, view.y, view.rotation, view.scale, {
+        spin: view.spin,
+        lift: view.lift,
+        fade: view.fade,
+        spinVelocity: view.spinVelocity,
+      });
+    }, [activeCursorState, activeInstrument, setCursorViewSafely]);
 
     useEffect(() => {
       activeCursorStateRef.current = cursorState;
@@ -1476,6 +2174,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         punchDiagramLineGapsInRect,
         setCursorPos: (x: number, y: number) => setCursorViewSafely(x, y),
         setCursorState: updateCursorState,
+        setInstrument: swapInstrument,
+        flourishPen,
         flyCursorTo,
         setPaused: (paused: boolean) => {
           isPausedRef.current = paused;
@@ -1514,7 +2214,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           }
         },
       }),
-      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, clearBoard, commitDrawTransaction, drawAnnotation, drawShape, eraseRegion, finishAbortedDrawTransaction, flyCursorTo, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, updateCursorState, writeText],
+      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, clearBoard, commitDrawTransaction, drawAnnotation, drawShape, eraseRegion, finishAbortedDrawTransaction, flourishPen, flyCursorTo, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
     );
 
     return (
@@ -1558,10 +2258,13 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               x={cursorViewRef.current.x}
               y={cursorViewRef.current.y}
               rotation={cursorViewRef.current.rotation}
+              spin={cursorViewRef.current.spin}
+              lift={cursorViewRef.current.lift}
               scale={cursorViewRef.current.scale}
-              color={inkColor}
+              color={activeInstrument === "highlighter" ? HIGHLIGHT_FILL : inkColor}
+              instrument={activeInstrument}
               visible={cursorOpacity(activeCursorState) > 0}
-              opacity={cursorOpacity(activeCursorState)}
+              opacity={cursorOpacity(activeCursorState) * cursorViewRef.current.fade}
               glowRadius={activeCursorState === "drawing" ? 8 : 6}
             />
           )}

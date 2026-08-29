@@ -2,73 +2,123 @@
 
 import Konva from "konva";
 import { forwardRef } from "react";
-import { Group, Path, Rect, Circle } from "react-konva";
+import { Circle, Ellipse, Group, Line, Rect } from "react-konva";
+import {
+  instrumentMetrics,
+  instrumentPalette,
+  instrumentShapes,
+  instrumentSilhouette,
+  type InstrumentKind,
+  type InstrumentPalette,
+  type InstrumentShape,
+} from "./instruments";
+import { SPIN_GHOST_COUNT } from "./penChoreography";
 
 export interface VirtualCursorProps {
   x: number;
   y: number;
+  /** Barrel tilt about the nib — the writing angle. */
   rotation?: number;
+  /** Twirl about the barrel mid-point — the flourish between the fingers. */
+  spin?: number;
+  /** Pulled back along the barrel axis, in px. 0 is touching the board. */
+  lift?: number;
   scale?: number;
   visible?: boolean;
   color?: string;
+  instrument?: InstrumentKind;
   glowRadius?: number;
   opacity?: number;
   shadowBlur?: number;
+  /**
+   * Trailing barrel silhouettes behind the instrument — the vector renderer's
+   * motion blur. A fixed number of nodes is mounted once and then driven
+   * imperatively by the board, so a smear that thickens and thins with the
+   * twirl never costs a React render.
+   */
+  ghostCount?: number;
 }
 
 /**
- * Compact black/red whiteboard marker. Tip at (0,0), body in -Y.
- * Sized small so handwriting motion stays smooth on the cream board.
+ * The instrument in the tutor's hand.
+ *
+ * The art itself lives in `instruments.ts` as flat shape data — this component
+ * only maps it onto Konva nodes, so the same table can be rendered to SVG for
+ * review. Nib at (0,0) with the barrel up the local -Y axis, so the board puts
+ * the contact point exactly on the ink and rotates the barrel about it.
  */
 
-const NIB_PATH = "M 0 0 L -2.8 -5 L 2.8 -5 Z";
+function shapeNode(
+  shape: InstrumentShape,
+  index: number,
+  palette: InstrumentPalette,
+  shadowBlur: number,
+) {
+  const common = {
+    fill: shape.fill ? palette[shape.fill] : undefined,
+    stroke: shape.stroke ? palette[shape.stroke] : undefined,
+    strokeWidth: shape.strokeWidth,
+    opacity: shape.opacity,
+    perfectDrawEnabled: false,
+    ...(shape.shadow
+      ? {
+          shadowColor: "rgba(0,0,0,0.42)",
+          shadowBlur,
+          shadowOpacity: 0.5,
+          shadowOffsetX: 0.9,
+          shadowOffsetY: 1.1,
+        }
+      : {}),
+  };
 
-const FERRULE_Y = -7;
-const BAND_Y = -11;
-const BARREL_Y = -28;
-const CAP_Y = -33;
+  if (shape.kind === "rect") {
+    return (
+      <Rect
+        key={index}
+        x={shape.x}
+        y={shape.y}
+        width={shape.width}
+        height={shape.height}
+        cornerRadius={shape.radius}
+        {...common}
+      />
+    );
+  }
 
-const BODY_HALF = 3.6;
-const BARREL_HEIGHT = FERRULE_Y - BARREL_Y; // 21
-const BAND_HEIGHT = FERRULE_Y - BAND_Y; // 4
-const CAP_HEIGHT = BARREL_Y - CAP_Y; // 5
+  if (shape.kind === "circle") {
+    return <Circle key={index} x={shape.x} y={shape.y} radius={shape.radius} {...common} />;
+  }
 
-const CASING_BLACK = "#1A1A1A";
-const CASING_BLACK_DARK = "#0A0A0A";
-const CASING_SHADE = "#000000";
-const CASING_HIGHLIGHT = "#555555";
-const RED_BAND = "#C62828";
-const RED_BAND_DARK = "#8E0000";
-const RED_BAND_HIGHLIGHT = "#EF5350";
-const FERRULE = "#B8B8B8";
-const FERRULE_DARK = "#787878";
-const CAP = "#111111";
+  if (shape.kind === "stroke") {
+    return <Line key={index} points={shape.points} {...common} />;
+  }
 
-function darken(hex: string, amount: number): string {
-  const m = hex.replace("#", "");
-  if (m.length !== 6) return hex;
-  const r = Math.max(0, Math.round(parseInt(m.slice(0, 2), 16) * (1 - amount)));
-  const g = Math.max(0, Math.round(parseInt(m.slice(2, 4), 16) * (1 - amount)));
-  const b = Math.max(0, Math.round(parseInt(m.slice(4, 6), 16) * (1 - amount)));
-  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+  return <Line key={index} points={shape.points} closed {...common} />;
 }
 
 export const VirtualCursor = forwardRef<Konva.Group, VirtualCursorProps>(function VirtualCursor(
   {
     x,
     y,
-    rotation = -35,
+    rotation = -33,
+    spin = 0,
+    lift = 0,
     scale = 1,
     visible = true,
     color = "#1B2A4A",
+    instrument = "pen",
     glowRadius = 5,
     opacity = 1,
     shadowBlur,
+    ghostCount = SPIN_GHOST_COUNT,
   },
   ref,
 ) {
-  const effectiveShadowBlur = Math.min(shadowBlur ?? glowRadius, 8);
-  const nibEdge = darken(color, 0.35);
+  const palette = instrumentPalette(instrument, color);
+  const { pivotY } = instrumentMetrics(instrument);
+  const silhouette = instrumentSilhouette(instrument);
+  const contactSpread = Math.max(0, lift);
+  const effectiveShadowBlur = Math.min(shadowBlur ?? glowRadius, 10) + contactSpread * 0.35;
 
   return (
     <Group
@@ -82,122 +132,53 @@ export const VirtualCursor = forwardRef<Konva.Group, VirtualCursorProps>(functio
       opacity={opacity}
       listening={false}
     >
-      <Circle x={0} y={0} radius={4} fill={color} opacity={0.12} listening={false} />
+      {/* Board-aligned contact shadow: it spreads and pales as the pen lifts. */}
+      <Group rotation={-rotation}>
+        <Ellipse
+          x={0.8}
+          y={1.4}
+          radiusX={3.6 + contactSpread * 0.22}
+          radiusY={1.4 + contactSpread * 0.07}
+          fill="#000000"
+          opacity={Math.max(0.04, 0.17 - contactSpread * 0.007)}
+          perfectDrawEnabled={false}
+        />
+      </Group>
 
-      <Path
-        data={NIB_PATH}
-        fill={color}
-        stroke={nibEdge}
-        strokeWidth={0.4}
-        listening={false}
-      />
+      <Circle x={0} y={0} radius={3.6} fill={color} opacity={0.1} perfectDrawEnabled={false} />
 
-      <Rect
-        x={-BODY_HALF - 0.3}
-        y={FERRULE_Y}
-        width={BODY_HALF * 2 + 0.6}
-        height={2.2}
-        fill={FERRULE}
-        stroke={FERRULE_DARK}
-        strokeWidth={0.4}
-        cornerRadius={0.5}
-        listening={false}
-      />
+      {/*
+        `pen-lift` pulls the instrument back along its own axis and `pen-spin`
+        twirls it about the barrel mid-point. Both are driven imperatively by
+        the board through Konva node lookups, so a flourish never costs a React
+        render per frame.
+      */}
+      <Group name="pen-lift" y={-lift}>
+        {/*
+          Motion blur. The ghosts sit behind the instrument and share its twirl
+          pivot, each parked a few degrees back along the arc just swept. They
+          start invisible; only a spin gives them opacity.
+        */}
+        {Array.from({ length: ghostCount }, (_, index) => (
+          <Group
+            key={index}
+            name={`pen-ghost-${index}`}
+            y={pivotY}
+            offsetY={pivotY}
+            rotation={spin}
+            opacity={0}
+            listening={false}
+          >
+            <Line points={[...silhouette]} closed fill={palette.barrel} perfectDrawEnabled={false} />
+          </Group>
+        ))}
 
-      <Rect
-        x={-BODY_HALF}
-        y={BAND_Y}
-        width={BODY_HALF * 2}
-        height={BAND_HEIGHT}
-        fill={RED_BAND}
-        stroke={RED_BAND_DARK}
-        strokeWidth={0.45}
-        cornerRadius={0.6}
-        listening={false}
-      />
-      <Rect
-        x={-BODY_HALF + 0.8}
-        y={BAND_Y + 0.6}
-        width={1.4}
-        height={BAND_HEIGHT - 1.2}
-        fill={RED_BAND_HIGHLIGHT}
-        opacity={0.5}
-        cornerRadius={0.4}
-        listening={false}
-      />
-
-      <Rect
-        x={-BODY_HALF}
-        y={BARREL_Y}
-        width={BODY_HALF * 2}
-        height={BARREL_HEIGHT - BAND_HEIGHT}
-        fill={CASING_BLACK}
-        stroke={CASING_BLACK_DARK}
-        strokeWidth={0.7}
-        cornerRadius={1.2}
-        shadowColor="rgba(0,0,0,0.35)"
-        shadowBlur={effectiveShadowBlur}
-        shadowOpacity={0.55}
-        shadowOffsetX={0.8}
-        shadowOffsetY={0.8}
-        listening={false}
-      />
-
-      <Rect
-        x={1}
-        y={BARREL_Y + 1}
-        width={BODY_HALF - 1.6}
-        height={BARREL_HEIGHT - BAND_HEIGHT - 2}
-        fill={CASING_SHADE}
-        opacity={0.3}
-        cornerRadius={0.8}
-        listening={false}
-      />
-      <Rect
-        x={-BODY_HALF + 0.9}
-        y={BARREL_Y + 1}
-        width={1.5}
-        height={BARREL_HEIGHT - BAND_HEIGHT - 2}
-        fill={CASING_HIGHLIGHT}
-        opacity={0.5}
-        cornerRadius={0.6}
-        listening={false}
-      />
-
-      <Rect
-        x={-BODY_HALF + 1.2}
-        y={BARREL_Y + 6}
-        width={BODY_HALF * 2 - 2.4}
-        height={1.4}
-        fill={RED_BAND}
-        opacity={0.8}
-        cornerRadius={0.3}
-        listening={false}
-      />
-
-      <Rect
-        x={-BODY_HALF - 0.3}
-        y={CAP_Y}
-        width={BODY_HALF * 2 + 0.6}
-        height={CAP_HEIGHT}
-        fill={CAP}
-        stroke={CASING_BLACK_DARK}
-        strokeWidth={0.7}
-        cornerRadius={2}
-        listening={false}
-      />
-
-      <Rect
-        x={BODY_HALF - 0.4}
-        y={CAP_Y + 1}
-        width={1.4}
-        height={11}
-        fill={CASING_HIGHLIGHT}
-        stroke={CASING_BLACK_DARK}
-        strokeWidth={0.35}
-        cornerRadius={0.6}
-        listening={false}
-      />
+        <Group name="pen-spin" y={pivotY} offsetY={pivotY} rotation={spin}>
+          {instrumentShapes(instrument).map((shape, index) =>
+            shapeNode(shape, index, palette, effectiveShadowBlur),
+          )}
+        </Group>
+      </Group>
     </Group>
   );
 });
