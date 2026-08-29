@@ -1,11 +1,13 @@
 {
   "name": "Accelute",
   "short_name": "Accelute",
-  "description": "AI whiteboard math tutor that draws and explains in sync.",
+  "description": "An AI whiteboard tutor that draws the diagram, writes the notes, and explains each step out loud, in sync.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#F2F3F7",
-  "theme_color": "#2563EB",
+  "background_color": "#06121C",
+  "theme_color": "#06121C",
+  "categories": ["education", "productivity"],
   "icons": [
     {
       "src": "/favicon.svg",
@@ -14,9 +16,21 @@
       "purpose": "any"
     },
     {
-      "src": "/apple-touch-icon.svg",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
       "sizes": "180x180",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ]

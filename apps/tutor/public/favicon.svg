@@ -1,4 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Accelute">
-  <rect width="256" height="256" rx="52" fill="#EDF3FD"/>
-  <path fill="#2563EB" d="M144 256 27.598 256 144 139.598ZM256 207.5 200 256V56H0l48-56h208v207.5ZM0 204.402V112h92.402z"/>
+  <defs>
+    <linearGradient id="tile" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#182D47"/>
+      <stop offset="55%" stop-color="#0D2231"/>
+      <stop offset="100%" stop-color="#06121C"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#CCE6F1"/>
+      <stop offset="55%" stop-color="#7FC4E2"/>
+      <stop offset="100%" stop-color="#59AFD4"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="52" fill="url(#tile)"/>
+  <rect x="0.75" y="0.75" width="254.5" height="254.5" rx="51.25" fill="none" stroke="#59AFD4" stroke-opacity="0.35" stroke-width="1.5"/>
+  <path fill="url(#mark)" d="M144 256 28 256 144 140ZM256 200 200 256V56H0l56-56h200v200ZM0 204V112h92z"/>
 </svg>

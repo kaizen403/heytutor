@@ -5,7 +5,7 @@ export const SITE_TAGLINE = "AI whiteboard math tutor";
 export const LANDING_PROMPT = "What are you stuck on?";
 
 export const SITE_DESCRIPTION =
-  "An AI tutor that draws on a whiteboard and explains out loud — stroke by stroke, in sync. Ask a math or physics question and watch shapes, formulas, and diagrams appear as they're taught.";
+  "An AI tutor that draws on a whiteboard and explains out loud, stroke by stroke, in sync. Ask a maths or physics question and watch the shapes, formulas, and diagrams appear as they are taught.";
 
 export const SITE_KEYWORDS = [
   "AI math tutor",
