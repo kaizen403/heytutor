@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { SiteButton } from "@/components/ui/site-button";
 import {
   Dialog,
   DialogContent,
@@ -38,28 +38,27 @@ export function MessageDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="site-theme border-stroke bg-ink-900 text-frost">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           {isConfirm ? (
-            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            <SiteButton variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
               {cancelLabel}
-            </Button>
+            </SiteButton>
           ) : null}
-          <Button
-            type="button"
+          <SiteButton
+            variant={isConfirm ? "danger" : "ice"}
             size="sm"
-            className={isConfirm ? "bg-[rgba(224,104,88,0.18)] text-[#E06858] hover:bg-[rgba(224,104,88,0.28)]" : undefined}
             onClick={() => {
               onConfirm?.();
               onOpenChange(false);
             }}
           >
             {actionLabel}
-          </Button>
+          </SiteButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -41,26 +41,26 @@ export function LectureNotesPanel({ boardId }: LectureNotesPanelProps) {
   }, [boardId]);
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col bg-[#151517]">
-      <div className="shrink-0 border-b border-[#2E2E33] px-4 py-3">
-        <h2 className="text-sm font-semibold text-[#F2F2F4]">Questions</h2>
-        <p className="mt-0.5 text-[11px] text-[#A6A6AE]">
+    <aside className="flex h-full min-h-0 w-full flex-col bg-ink-850">
+      <div className="shrink-0 border-b border-stroke px-4 py-3">
+        <h2 className="text-sm font-semibold text-frost">Questions</h2>
+        <p className="mt-0.5 text-[11px] text-soft">
           Prompts from this lecture. Narration is not saved.
         </p>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        {error ? <p className="text-sm text-[#E06858]">{error}</p> : null}
+        {error ? <p className="text-sm text-danger">{error}</p> : null}
         {questions === null && !error ? (
-          <p className="text-sm text-[#A6A6AE]">Loading notes…</p>
+          <p className="text-sm text-soft">Loading notes…</p>
         ) : null}
         {questions && questions.length === 0 ? (
-          <p className="text-sm text-[#A6A6AE]">No questions on this lecture yet.</p>
+          <p className="text-sm text-soft">No questions on this lecture yet.</p>
         ) : null}
         {questions && questions.length > 0 ? (
           <ol className="flex flex-col gap-3">
             {questions.map((question, index) => (
-              <li key={`${question}-${index}`} className="text-sm leading-relaxed text-[#F2F2F4]">
-                <span className="mr-2 text-[11px] font-medium text-[#A6A6AE]">{index + 1}.</span>
+              <li key={`${question}-${index}`} className="text-sm leading-relaxed text-frost">
+                <span className="mr-2 text-[11px] font-medium text-soft">{index + 1}.</span>
                 {question}
               </li>
             ))}

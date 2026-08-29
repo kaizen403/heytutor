@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Radio, ScrollText, Trash2, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { PlainButton, SiteButton } from "@/components/ui/site-button";
 import { cn } from "@/lib/utils";
 import { TutorSessionShell, unlockTutorAudio } from "@/features/tutor-session";
 import type { TutorPhase } from "@/features/tutor-session/types";
@@ -128,27 +128,26 @@ function WatchDrawerFrame({
 
   return (
     <div
-      className="isolate fixed inset-0 z-[60] flex flex-col bg-[#0B0B0C]"
+      className="site-theme isolate fixed inset-0 z-[60] flex flex-col bg-ink-950"
       data-watch-overlay=""
       data-watch-intent={intent}
     >
-      <div className="relative z-[70] flex shrink-0 flex-col gap-2 border-b border-[#2E2E33] bg-[#0B0B0C] px-3 py-2 pointer-events-auto sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
+      <div className="relative z-[70] flex shrink-0 flex-col gap-2 border-b border-stroke bg-ink-950 px-3 py-2 pointer-events-auto sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
         <div className="flex min-w-0 items-center gap-2">
-          <Button
-            type="button"
+          <SiteButton
             variant="ghost"
             size="sm"
             onClick={() => onClose()}
             aria-label="Back to syllabus"
             data-watch-back=""
-            className="h-10 shrink-0 gap-2 px-3 text-sm font-medium text-[#F2F2F4] hover:bg-[rgba(201,201,210,0.12)] hover:text-[#F2F2F4]"
+            className="shrink-0"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4" />
             Back
-          </Button>
-          <p className="min-w-0 truncate text-sm font-medium text-[#F2F2F4]">{heading}</p>
+          </SiteButton>
+          <p className="min-w-0 truncate text-sm font-medium text-frost">{heading}</p>
           {isLive ? (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#C9C9D2] bg-[rgba(201,201,210,0.12)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#C9C9D2]">
+            <span className="type-accent-xs inline-flex shrink-0 items-center gap-1 rounded-full border border-sky-500/40 bg-sky-500/15 px-2.5 py-1 text-sky-200">
               <Radio className="h-3 w-3" />
               {liveBadgeLabel(liveStatus, livePhase)}
             </span>
@@ -158,7 +157,7 @@ function WatchDrawerFrame({
           {isLive ? null : (
             <>
               <ReplaySpeedSelect value={speed} onChange={setSpeed} />
-              <div className="flex rounded-full border border-[#2E2E33] p-0.5">
+              <div className="flex rounded-full border border-stroke p-0.5">
                 <button
                   type="button"
                   onClick={() => {
@@ -166,10 +165,10 @@ function WatchDrawerFrame({
                     onIntentChange("replay");
                   }}
                   className={cn(
-                    "rounded-full px-3 py-1 text-[11px] font-medium",
+                    "type-accent-xs rounded-full px-3 py-1.5",
                     intent === "replay"
-                      ? "bg-[rgba(201,201,210,0.12)] text-[#C9C9D2]"
-                      : "text-[#A6A6AE] hover:text-[#F2F2F4]",
+                      ? "bg-sky-500/12 text-sky-300"
+                      : "text-soft hover:text-frost",
                   )}
                 >
                   Watch
@@ -178,10 +177,10 @@ function WatchDrawerFrame({
                   type="button"
                   onClick={() => onIntentChange("notes")}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium",
+                    "type-accent-xs inline-flex items-center gap-1 rounded-full px-3 py-1.5",
                     intent === "notes"
-                      ? "bg-[rgba(201,201,210,0.12)] text-[#C9C9D2]"
-                      : "text-[#A6A6AE] hover:text-[#F2F2F4]",
+                      ? "bg-sky-500/12 text-sky-300"
+                      : "text-soft hover:text-frost",
                   )}
                 >
                   <ScrollText className="h-3 w-3" />
@@ -189,42 +188,33 @@ function WatchDrawerFrame({
                 </button>
               </div>
               {onDelete ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDelete(boardId)}
-                  className="gap-1.5 text-[#A6A6AE] hover:text-[#E06858]"
-                >
-                  <Trash2 className="h-4 w-4" />
+                <PlainButton variant="danger" className="h-8 px-2.5" onClick={() => onDelete(boardId)}>
+                  <Trash2 className="h-3.5 w-3.5" />
                   Delete
-                </Button>
+                </PlainButton>
               ) : null}
             </>
           )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
+          <PlainButton
             onClick={() => onClose()}
             aria-label="Close lecture"
-            className="h-10 w-10 shrink-0 text-[#A6A6AE] hover:text-[#F2F2F4]"
+            className="h-9 w-9 shrink-0 rounded-lg px-0"
           >
-            <X className="h-5 w-5" />
-          </Button>
+            <X className="h-4 w-4" />
+          </PlainButton>
         </div>
       </div>
       {question?.trim() ? (
-        <div className="relative z-[70] max-h-28 shrink-0 overflow-y-auto border-b border-[#2E2E33] bg-[#151517] px-4 py-2 pointer-events-auto">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#A6A6AE]">Question</p>
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-[#F2F2F4]">{question.trim()}</p>
+        <div className="relative z-[70] max-h-28 shrink-0 overflow-y-auto border-b border-stroke bg-ink-850 px-4 py-2 pointer-events-auto">
+          <p className="type-accent-xs text-faint">Question</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-frost">{question.trim()}</p>
         </div>
       ) : null}
       <div className="relative z-0 flex min-h-0 flex-1 flex-col lg:flex-row">
         {isLive ? (
           <div
             data-live-watch-slot=""
-            className="relative z-0 min-h-0 min-w-0 flex-1 bg-[#0B0B0C]"
+            className="relative z-0 min-h-0 min-w-0 flex-1 bg-ink-950"
           />
         ) : (
           <>
@@ -240,7 +230,7 @@ function WatchDrawerFrame({
               />
             </div>
             {intent === "notes" ? (
-              <div className="h-[42%] shrink-0 border-t border-[#2E2E33] lg:h-auto lg:w-[380px] lg:border-l lg:border-t-0">
+              <div className="h-[42%] shrink-0 border-t border-stroke lg:h-auto lg:w-[380px] lg:border-l lg:border-t-0">
                 <LectureNotesPanel key={boardId} boardId={boardId} />
               </div>
             ) : null}

@@ -79,13 +79,16 @@ export function useLectureQueue() {
 
   useEffect(() => {
     aliveRef.current = true;
+    // Hold the map itself: by cleanup time the ref may point elsewhere, and
+    // the pending jobs that need settling are the ones captured here.
+    const settleByJob = settleByJobRef.current;
     return () => {
       aliveRef.current = false;
       stopRef.current = true;
-      for (const finish of settleByJobRef.current.values()) {
+      for (const finish of settleByJob.values()) {
         finish({ status: "failed", error: "stopped" });
       }
-      settleByJobRef.current.clear();
+      settleByJob.clear();
     };
   }, []);
 

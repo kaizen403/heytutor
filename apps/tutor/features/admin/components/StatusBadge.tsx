@@ -3,11 +3,26 @@ import type { ItemStatus } from "../lib/progressStorage";
 
 const STATUS_CONFIG: Record<
   Exclude<ItemStatus, "pending">,
-  { label: string; bg: string; text: string }
+  { label: string; bg: string; text: string; border: string }
 > = {
-  accepted: { label: "Accepted", bg: "rgba(201, 201, 210, 0.12)", text: "#C9C9D2" },
-  rejected: { label: "Rejected", bg: "rgba(224, 104, 88, 0.15)", text: "#E06858" },
-  "needs-improvement": { label: "Needs improvement", bg: "#1E1E21", text: "#A6A6AE" },
+  accepted: {
+    label: "Accepted",
+    bg: "rgba(89, 175, 212, 0.14)",
+    text: "#A5D6EC",
+    border: "rgba(89, 175, 212, 0.32)",
+  },
+  rejected: {
+    label: "Rejected",
+    bg: "rgba(224, 104, 88, 0.15)",
+    text: "#E06858",
+    border: "rgba(224, 104, 88, 0.32)",
+  },
+  "needs-improvement": {
+    label: "Needs work",
+    bg: "rgba(202, 229, 241, 0.06)",
+    text: "rgba(240, 245, 247, 0.68)",
+    border: "rgba(202, 229, 241, 0.20)",
+  },
 };
 
 interface StatusBadgeProps {
@@ -25,10 +40,10 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+        "type-accent-xs inline-flex shrink-0 items-center rounded-full border px-2 py-1",
         className,
       )}
-      style={{ backgroundColor: config.bg, color: config.text }}
+      style={{ backgroundColor: config.bg, color: config.text, borderColor: config.border }}
     >
       {config.label}
     </span>

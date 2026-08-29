@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
+import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
+import { PlainButton, SiteButton } from "@/components/ui/site-button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -59,7 +60,7 @@ function NotesField({
       }}
       placeholder="What worked, what broke, what to fix…"
       rows={5}
-      className="w-full resize-y rounded-md border border-[#2E2E33] bg-[#0B0B0C] px-3 py-2 text-sm text-[#F2F2F4] placeholder:text-[#717177] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9C9D2] focus-visible:ring-offset-2 focus-visible:ring-offset-[#151517]"
+      className="w-full resize-y rounded-lg border border-stroke bg-ink-950 px-3 py-2 text-sm text-frost placeholder:text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
     />
   );
 }
@@ -114,25 +115,25 @@ export function TopicSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="flex w-full flex-col overflow-y-auto border-l border-[#2E2E33] sm:max-w-lg"
+        className="site-theme flex w-full flex-col overflow-y-auto border-l border-stroke bg-ink-900 sm:max-w-lg"
       >
         {item ? (
           <>
             <SheetHeader className="space-y-1 px-1 pb-2 pt-2">
-              <SheetTitle className="text-base leading-snug text-[#F2F2F4]">
+              <SheetTitle className="text-base leading-snug text-frost">
                 Unit {item.unitNumber}: {item.unitTitle}
               </SheetTitle>
-              <SheetDescription className="text-xs text-[#A6A6AE]">
+              <SheetDescription className="text-xs text-soft">
                 {item.subsection ? `${item.subsection} · ` : ""}
                 {item.subject === "physics" ? "Physics" : "Mathematics"}
               </SheetDescription>
             </SheetHeader>
 
             <div className="flex flex-col gap-4 px-1 pb-6">
-              <p className="text-sm leading-relaxed text-[#F2F2F4]">{item.text}</p>
+              <p className="text-sm leading-relaxed text-frost">{item.text}</p>
 
-              <div className="rounded-xl border border-[#2E2E33] bg-[#151517] px-4 py-3.5">
-                <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A6A6AE]">
+              <div className="glass rounded-xl px-4 py-3.5">
+                <p className="type-accent-xs mb-3 text-faint">
                   Questions
                 </p>
                 <ul className="flex flex-col gap-3">
@@ -142,22 +143,19 @@ export function TopicSheet({
                     return (
                       <li key={difficulty} data-topic-sheet-question={difficulty}>
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-[#C9C9D2]">
+                          <p className="type-accent-xs text-sky-300">
                             {difficulty}
                           </p>
                           {liveBoardId && onWatchLive ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2 text-xs"
+                            <PlainButton
+                              variant="sky"
                               onClick={() => onWatchLive(liveBoardId, difficulty)}
                             >
-                              Watch Live
-                            </Button>
+                              Watch live
+                            </PlainButton>
                           ) : null}
                         </div>
-                        <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-[#F2F2F4]">
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-frost">
                           {probe ? probe.question : "No fixture yet"}
                         </p>
                       </li>
@@ -173,13 +171,13 @@ export function TopicSheet({
                   onCheckedChange={onCheckedChange}
                   aria-label="Mark as reviewed"
                 />
-                <Label htmlFor="topic-checked" className="text-sm font-normal text-[#F2F2F4]">
+                <Label htmlFor="topic-checked" className="text-sm font-normal text-frost">
                   Mark as reviewed
                 </Label>
               </div>
 
-              <div className="rounded-xl border border-[#2E2E33] bg-[#151517] px-4 py-3.5">
-                <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A6A6AE]">
+              <div className="glass rounded-xl px-4 py-3.5">
+                <p className="type-accent-xs mb-3 text-faint">
                   Status
                 </p>
                 <RadioGroup
@@ -190,7 +188,7 @@ export function TopicSheet({
                   {STATUS_OPTIONS.map((option) => (
                     <div key={option} className="flex items-center gap-2">
                       <RadioGroupItem value={option} id={`status-${option}`} />
-                      <Label htmlFor={`status-${option}`} className="text-sm font-normal text-[#F2F2F4]">
+                      <Label htmlFor={`status-${option}`} className="text-sm font-normal text-frost">
                         {statusLabel(option)}
                       </Label>
                     </div>
@@ -198,28 +196,33 @@ export function TopicSheet({
                 </RadioGroup>
               </div>
 
-              <div className="rounded-xl border border-[#2E2E33] bg-[#151517] px-4 py-3.5">
-                <Label htmlFor="topic-notes" className="mb-2 block text-[11px] font-semibold uppercase tracking-wide text-[#A6A6AE]">
+              <div className="glass rounded-xl px-4 py-3.5">
+                <Label htmlFor="topic-notes" className="type-accent-xs mb-2 block text-faint">
                   Notes
                 </Label>
                 <NotesField key={item.id} notes={notes} onNotesChange={onNotesChange} />
               </div>
 
               <div className="flex flex-col gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full gap-2"
+                <SiteButton
+                  variant="ghost"
+                  size="md"
+                  block
                   disabled={opening}
                   onClick={() => void handleOpenLiveBoard()}
                 >
-                  {opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                  {opening ? (
+                    <PenSpinner size={16} ink="#C9C9D2" trail={false} />
+                  ) : (
+                    <ExternalLink className="h-4 w-4" />
+                  )}
                   Open live board
-                </Button>
-                <p className="text-[11px] text-[#717177]">
-                  Record lectures with Play on the list. This opens a normal tutor session.
+                </SiteButton>
+                <p className="text-[11px] text-faint">
+                  Opens a normal tutor session in a new tab. To record a lecture for this topic,
+                  use Select questions on the list.
                 </p>
-                {error ? <p className="text-xs text-[#E06858]">{error}</p> : null}
+                {error ? <p className="text-xs text-danger">{error}</p> : null}
               </div>
             </div>
           </>
