@@ -2722,6 +2722,9 @@ function main(): void {
   );
   if (adversarialTotals.not_rejected > 0) {
     console.log(`  GAPS: ${adversarialTotals.not_rejected} mutation(s) were NOT rejected — demanded predicates are not guarding geometry`);
+    // A mutation that survives is geometry the proofs do not guard; printing it
+    // and exiting 0 let the chain report success on an unguarded scene.
+    process.exitCode = 1;
   }
 
   // Optional report file.

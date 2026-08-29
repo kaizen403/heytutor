@@ -1,0 +1,1137 @@
+{
+  "schemaVersion": "typed-evaluation/v1",
+  "subject": "maths",
+  "description": "Typed (non-OCR) maths stems written the way a student types them: clean unicode/ASCII maths, unit labels where natural, no options blocks. expectedFamily/expectedPictureClass are the honest oracle for the right picture, not a transcript of current engine behaviour. expectsDiagram:false marks stems where text-only is the honest answer. contradicts lists picture classes that would be a wrong picture for the stem (hard gate); everything else is a reported work list. Never selected by the live runtime.",
+  "questions": [
+    {
+      "id": "maths-1-venn-two-clubs",
+      "unit": "maths|1",
+      "question": "In a class of 60 students, 25 like cricket, 20 like football and 10 like both. Draw a Venn diagram and find how many students like neither game.",
+      "expectedFamily": null,
+      "expectedPictureClass": "circle_figure",
+      "expectsDiagram": true,
+      "note": "Two overlapping circles inside a universe rectangle; no scene family currently owns set diagrams."
+    },
+    {
+      "id": "maths-1-venn-three-languages",
+      "unit": "maths|1",
+      "question": "Out of 100 students, 40 read Hindi, 50 read English, 30 read Sanskrit, 15 read Hindi and English, 10 read English and Sanskrit, 8 read Hindi and Sanskrit, and 5 read all three. Draw a Venn diagram and find how many read none of the three languages.",
+      "expectedFamily": null,
+      "expectedPictureClass": "circle_figure",
+      "expectsDiagram": true,
+      "note": "Three-circle Venn with the eight regions labelled from the inside out."
+    },
+    {
+      "id": "maths-1-gif-graph",
+      "unit": "maths|1",
+      "question": "Sketch the graph of the greatest integer function f(x) = [x] for -2 <= x <= 3 and mark the jump at each integer.",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "Step graph with open and closed endpoint dots at each integer."
+    },
+    {
+      "id": "maths-1-equivalence-check",
+      "unit": "maths|1",
+      "question": "Check whether the relation R = {(a, b) : a - b is divisible by 3} on the set of integers is reflexive, symmetric and transitive.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Property verification is symbol pushing; no honest picture."
+    },
+    {
+      "id": "maths-1-composition",
+      "unit": "maths|1",
+      "question": "Given the functions f : x -> 2x + 3 and g : x -> x^2, find the compositions f o g and g o f and check whether they are equal.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Pure algebraic composition; a diagram would be decoration."
+    },
+    {
+      "id": "maths-1-count-relations",
+      "unit": "maths|1",
+      "question": "How many relations can be defined on a set containing 4 elements, and how many of these are reflexive?",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Counting argument; text-only is the honest answer."
+    },
+    {
+      "id": "maths-1-power-set",
+      "unit": "maths|1",
+      "question": "How many subsets does a set with 5 elements have, and how many of them are proper subsets?",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "2^n counting; no picture earns its place."
+    },
+    {
+      "id": "maths-2-argand-circle-locus",
+      "unit": "maths|2",
+      "question": "Shade the region of the Argand plane given by |z - 2 + i| <= 3.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "circle_figure",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Closed disc centred at (2, -1) with radius 3 on the complex plane."
+    },
+    {
+      "id": "maths-2-argand-perp-bisector",
+      "unit": "maths|2",
+      "question": "In the Argand plane, describe and sketch the locus of z satisfying |z - 3| = |z + 3|.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Perpendicular bisector of the segment joining 3 and -3, i.e. the imaginary axis."
+    },
+    {
+      "id": "maths-2-apollonius",
+      "unit": "maths|2",
+      "question": "Find the locus of the complex number z if |z - 1| = 2|z + 1|, and identify the curve in the Argand plane.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "circle_figure",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Apollonius circle; ratio-of-distances locus is a circle, not a line."
+    },
+    {
+      "id": "maths-2-argand-arg-ray",
+      "unit": "maths|2",
+      "question": "Sketch the set of points z in the Argand plane with arg(z - 1) = \u03c0/4.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Open ray from (1, 0) at 45\u00b0, excluding the endpoint."
+    },
+    {
+      "id": "maths-2-cube-roots-unity",
+      "unit": "maths|2",
+      "question": "Plot the cube roots of unity on the Argand plane and show that they form an equilateral triangle.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Three points on the unit circle at 120\u00b0 spacing joined into a triangle."
+    },
+    {
+      "id": "maths-2-polar-form",
+      "unit": "maths|2",
+      "question": "Express z = 1 + i\u221a3 in polar form and mark it on the Argand plane with its modulus and argument.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Point at (1, \u221a3) with the radius vector and the 60\u00b0 argument angle marked."
+    },
+    {
+      "id": "maths-2-quadratic-sign-graph",
+      "unit": "maths|2",
+      "question": "Sketch the graph of y = x^2 - 5x + 6 and use it to state where the expression is negative.",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "Upward parabola with roots at 2 and 3; the sign question is read off the graph."
+    },
+    {
+      "id": "maths-2-nature-of-roots",
+      "unit": "maths|2",
+      "question": "Without solving, determine the nature of the roots of 3x^2 - 4x + 5 = 0.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Discriminant arithmetic; text-only is honest."
+    },
+    {
+      "id": "maths-2-quadratic-from-roots",
+      "unit": "maths|2",
+      "question": "Form a quadratic equation whose roots are 2 + \u221a3 and 2 - \u221a3.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Sum and product of roots; no picture."
+    },
+    {
+      "id": "maths-3-det-triangle-area",
+      "unit": "maths|3",
+      "question": "Using determinants, find the area of the triangle with vertices A(1, 3), B(4, 5) and C(-2, 6), and plot the triangle.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Three plotted vertices joined into a triangle on axes."
+    },
+    {
+      "id": "maths-3-det-collinear",
+      "unit": "maths|3",
+      "question": "Show that the points (2, 3), (4, 7) and (6, 11) are collinear using determinants.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Three points falling on one drawn line makes the zero-area claim visible."
+    },
+    {
+      "id": "maths-3-matrix-inverse",
+      "unit": "maths|3",
+      "question": "If A = [[2, 3], [1, 4]], find the inverse of A using the adjoint method.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Matrix arithmetic; no picture."
+    },
+    {
+      "id": "maths-3-cramer",
+      "unit": "maths|3",
+      "question": "Solve the system 2x + 3y = 7 and x - y = 1 using Cramer's rule.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Determinant arithmetic; the line picture is not what is asked."
+    },
+    {
+      "id": "maths-4-committee",
+      "unit": "maths|4",
+      "question": "In how many ways can a committee of 3 men and 2 women be formed from 6 men and 5 women?",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "nCr product; text-only."
+    },
+    {
+      "id": "maths-4-word-arrangements",
+      "unit": "maths|4",
+      "question": "How many distinct arrangements of the letters of the word PERMUTATION are possible?",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Factorial with repeated letters; text-only."
+    },
+    {
+      "id": "maths-4-round-table",
+      "unit": "maths|4",
+      "question": "In how many ways can 8 people be seated around a circular table?",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "(n-1)! counting; a table sketch adds nothing."
+    },
+    {
+      "id": "maths-5-middle-term",
+      "unit": "maths|5",
+      "question": "Find the middle term in the expansion of (x + 2/x)^8.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "General-term formula; text-only."
+    },
+    {
+      "id": "maths-5-coefficient",
+      "unit": "maths|5",
+      "question": "Find the coefficient of x^5 in the expansion of (1 + x)^11.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Binomial coefficient lookup; text-only."
+    },
+    {
+      "id": "maths-5-remainder",
+      "unit": "maths|5",
+      "question": "Using the binomial theorem, find the remainder when 7^103 is divided by 25.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Number-theoretic manipulation; text-only."
+    },
+    {
+      "id": "maths-6-ap-sum",
+      "unit": "maths|6",
+      "question": "The 7th term of an arithmetic progression is 20 and its 13th term is 32. Find the sum of the first 20 terms.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Two linear equations in a and d; text-only."
+    },
+    {
+      "id": "maths-6-gp-infinite",
+      "unit": "maths|6",
+      "question": "Find the sum to infinity of the geometric series 8 + 4 + 2 + 1 + ...",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "a/(1-r); text-only."
+    },
+    {
+      "id": "maths-6-agp",
+      "unit": "maths|6",
+      "question": "Find the sum of the first n terms of the series 1 + 3x + 5x^2 + 7x^3 + ... where |x| < 1.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Arithmetico-geometric manipulation; text-only."
+    },
+    {
+      "id": "maths-7-piecewise-continuity",
+      "unit": "maths|7",
+      "question": "A function is defined as f(x) = x^2 for x <= 1 and f(x) = 2x - 1 for x > 1. Draw its graph and check whether it is continuous at x = 1.",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "Two branch curves meeting (or not) at x = 1 is the whole argument."
+    },
+    {
+      "id": "maths-7-abs-nondiff",
+      "unit": "maths|7",
+      "question": "Show that f(x) = |x - 2| is continuous at x = 2 but not differentiable there, and sketch the graph.",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "V-shaped graph with the corner at (2, 0)."
+    },
+    {
+      "id": "maths-7-gif-continuity",
+      "unit": "maths|7",
+      "question": "Discuss the continuity of f(x) = [x], the greatest integer function, at x = 2.",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "Step graph showing the jump at x = 2 with open/closed dots."
+    },
+    {
+      "id": "maths-7-rolle",
+      "unit": "maths|7",
+      "question": "Verify Rolle's theorem for f(x) = x^2 - 4x + 3 on the interval [1, 3].",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "Parabola with equal endpoint values and the horizontal tangent at x = 2."
+    },
+    {
+      "id": "maths-7-lmvt",
+      "unit": "maths|7",
+      "question": "Verify the mean value theorem for f(x) = x^2 on [1, 4] and find the point where the tangent is parallel to the chord.",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "Curve, chord, and the parallel tangent at x = 5/2."
+    },
+    {
+      "id": "maths-7-tangent-cubic",
+      "unit": "maths|7",
+      "question": "Find the equations of the tangent and the normal to the curve y = x^3 - 2x + 1 at the point (1, 0).",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "Cubic with attached tangent and perpendicular normal at (1, 0)."
+    },
+    {
+      "id": "maths-7-parametric-tangent",
+      "unit": "maths|7",
+      "question": "For the curve x = t^2 and y = 2t, find the equation of the tangent at t = 1 and sketch the curve near that point.",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "Parametric parabola y^2 = 4x with tangent at (1, 2); t must not be treated as x."
+    },
+    {
+      "id": "maths-7-reciprocal-graph",
+      "unit": "maths|7",
+      "question": "Sketch the graph of y = 1/x and mark its asymptotes.",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "Two hyperbola branches with both axes as asymptotes."
+    },
+    {
+      "id": "maths-7-exp-log-graph",
+      "unit": "maths|7",
+      "question": "Sketch the graphs of y = e^x and y = ln x on the same axes and explain how the two graphs are related.",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "Mirror pair about y = x; inverse-function relationship read off the picture."
+    },
+    {
+      "id": "maths-7-limit-eval",
+      "unit": "maths|7",
+      "question": "Evaluate the limit of (sin 3x)/x as x tends to 0.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Standard limit manipulation; text-only."
+    },
+    {
+      "id": "maths-7-first-principles",
+      "unit": "maths|7",
+      "question": "Differentiate sqrt(x) with respect to x from first principles.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Limit-of-difference-quotient algebra; text-only."
+    },
+    {
+      "id": "maths-7-implicit-diff",
+      "unit": "maths|7",
+      "question": "If x^2 + y^2 + xy = 5, find dy/dx at the point (1, 1).",
+      "expectedFamily": null,
+      "expectedPictureClass": "implicit_conic",
+      "expectsDiagram": true,
+      "note": "The stem states the curve x^2+y^2+xy=5; drawing that curve is honest and helps locate (1,1). Not an invention."
+    },
+    {
+      "id": "maths-8-area-parabola-line",
+      "unit": "maths|8",
+      "question": "Using integration, find the area of the region bounded by the parabola y = x^2 and the line y = 4.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "function_region",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Shaded region between curve and line, not just the two curves."
+    },
+    {
+      "id": "maths-8-area-ineq-set",
+      "unit": "maths|8",
+      "question": "Find the area of the region {(x, y) : x^2 <= y <= x + 2}.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "constraint_region",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Region stated as inequalities; the picture is the shaded set between the bounds."
+    },
+    {
+      "id": "maths-8-area-circle-integration",
+      "unit": "maths|8",
+      "question": "Using integration, find the area of the circle x^2 + y^2 = 16.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "function_region",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Circle with the quarter-disc region and a representative strip; circle_figure alone would omit the region."
+    },
+    {
+      "id": "maths-8-area-sine",
+      "unit": "maths|8",
+      "question": "Find the area under the curve y = sin x from x = 0 to x = \u03c0.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "function_region",
+      "expectsDiagram": true,
+      "note": "One arch of sine with the region beneath it shaded."
+    },
+    {
+      "id": "maths-8-area-two-parabolas",
+      "unit": "maths|8",
+      "question": "Find the area of the region enclosed between the parabolas y^2 = 4x and x^2 = 4y.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "function_region",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Lens-shaped region between the two parabolas from (0,0) to (4,4)."
+    },
+    {
+      "id": "maths-8-area-abs-diamond",
+      "unit": "maths|8",
+      "question": "Sketch the region given by |x| + |y| <= 1 and find its area.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "constraint_region",
+      "expectsDiagram": true,
+      "note": "Square (diamond) with vertices on the axes; region stated as an inequality."
+    },
+    {
+      "id": "maths-8-area-line-circle",
+      "unit": "maths|8",
+      "question": "Find the area of the smaller region bounded by the circle x^2 + y^2 = 4 and the line x + y = 2.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "function_region",
+      "expectsDiagram": true,
+      "note": "Circular segment cut off by the chord from (2,0) to (0,2)."
+    },
+    {
+      "id": "maths-8-area-triangle-lines",
+      "unit": "maths|8",
+      "question": "Using integration, find the area of the triangle bounded by the lines y = 2x, y = 0 and x = 3.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "function_region",
+      "expectsDiagram": true,
+      "note": "Right triangle under y = 2x from 0 to 3, shaded."
+    },
+    {
+      "id": "maths-8-solid-revolve-parabola",
+      "unit": "maths|8",
+      "question": "The region bounded by y = x^2, the x-axis and x = 2 is revolved about the x-axis. Sketch the solid and find its volume.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "function_region",
+      "expectsDiagram": true,
+      "note": "Generating region plus a representative disk; a bare curve is not the solid."
+    },
+    {
+      "id": "maths-8-solid-revolve-sqrt",
+      "unit": "maths|8",
+      "question": "Find the volume of the solid formed when the region under y = \u221ax from x = 0 to x = 4 is rotated about the x-axis.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "function_region",
+      "expectsDiagram": true,
+      "note": "Disk-method picture: region, axis of rotation, representative disk."
+    },
+    {
+      "id": "maths-8-indef-parts",
+      "unit": "maths|8",
+      "question": "Evaluate the integral of x e^x with respect to x.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Pure indefinite integration by parts; text-only."
+    },
+    {
+      "id": "maths-8-indef-partial",
+      "unit": "maths|8",
+      "question": "Evaluate: \u222b dx / ((x - 1)(x + 2)).",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Partial fractions; text-only."
+    },
+    {
+      "id": "maths-8-def-substitution",
+      "unit": "maths|8",
+      "question": "Evaluate the definite integral of x / (1 + x^2) from x = 0 to x = 1.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Substitution computation; the area picture is not asked."
+    },
+    {
+      "id": "maths-8-limit-of-sum",
+      "unit": "maths|8",
+      "question": "Evaluate the integral of x^2 from 0 to 2 as the limit of a sum.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Riemann-sum algebra is the point here; text-only is honest."
+    },
+    {
+      "id": "maths-9-solve-separable",
+      "unit": "maths|9",
+      "question": "Solve the differential equation dy/dx = (1 + y^2)/(1 + x^2).",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Separate and integrate; text-only."
+    },
+    {
+      "id": "maths-9-linear-if",
+      "unit": "maths|9",
+      "question": "Solve dy/dx + y/x = x^2 given that y = 1 when x = 1.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Integrating-factor computation; text-only."
+    },
+    {
+      "id": "maths-9-integrating-factor",
+      "unit": "maths|9",
+      "question": "Find the integrating factor of the differential equation dy/dx + 2y tan x = sin x.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "e^(\u222bP dx) lookup; text-only."
+    },
+    {
+      "id": "maths-9-form-de-circles",
+      "unit": "maths|9",
+      "question": "Form the differential equation of the family of circles touching the x-axis at the origin, and sketch two members of the family.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "circle_figure",
+      "expectsDiagram": true,
+      "note": "Nested circles tangent to the x-axis at O make the family visible."
+    },
+    {
+      "id": "maths-9-order-degree",
+      "unit": "maths|9",
+      "question": "Find the order and the degree of the differential equation (d^2y/dx^2)^3 + (dy/dx)^2 + y = 0.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Definitional readout; text-only."
+    },
+    {
+      "id": "maths-9-growth",
+      "unit": "maths|9",
+      "question": "In a culture, the bacteria count doubles every 2 hours. In how many hours will it become 8 times the original count?",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Exponent comparison; text-only."
+    },
+    {
+      "id": "maths-10-circle-general-form",
+      "unit": "maths|10",
+      "question": "Find the centre and the radius of the circle x^2 + y^2 - 4x + 6y - 12 = 0, and sketch it.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "circle_figure",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Circle centred (2, -3), radius 5, drawn on axes; implicit_conic also acceptable in spirit."
+    },
+    {
+      "id": "maths-10-ellipse-foci",
+      "unit": "maths|10",
+      "question": "Find the foci, the eccentricity and the lengths of the axes of the ellipse x^2/25 + y^2/9 = 1.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "implicit_conic",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Ellipse with both axes and foci marked; a 2D conic must never become a 3D frame."
+    },
+    {
+      "id": "maths-10-hyperbola-latus",
+      "unit": "maths|10",
+      "question": "For the hyperbola x^2/9 - y^2/16 = 1, find the eccentricity, the foci and the length of the latus rectum.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "implicit_conic",
+      "expectsDiagram": true,
+      "contradicts": [
+        "circle_figure",
+        "space_3d"
+      ],
+      "note": "Two hyperbola branches with foci; the documented wrong pictures are a circle or a 3D frame."
+    },
+    {
+      "id": "maths-10-rect-hyperbola",
+      "unit": "maths|10",
+      "question": "Sketch the rectangular hyperbola xy = 4 and mark its vertices.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "implicit_conic",
+      "expectsDiagram": true,
+      "contradicts": [
+        "circle_figure",
+        "space_3d"
+      ],
+      "note": "xy = c^2 branches in quadrants I and III with vertices (2,2) and (-2,-2)."
+    },
+    {
+      "id": "maths-10-parabola-sideways",
+      "unit": "maths|10",
+      "question": "For the parabola y^2 = 8x, find the coordinates of the focus, the equation of the directrix and the length of the latus rectum.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "implicit_conic",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Right-opening parabola with focus (2,0) and directrix x = -2; not a function of x."
+    },
+    {
+      "id": "maths-10-parabola-down",
+      "unit": "maths|10",
+      "question": "Find the focus and the directrix of the parabola x^2 = -8y and sketch it.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "implicit_conic",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Downward-opening parabola with focus (0,-2) and directrix y = 2."
+    },
+    {
+      "id": "maths-10-conic-identify",
+      "unit": "maths|10",
+      "question": "Identify the conic 9x^2 + 4y^2 - 36x + 8y + 4 = 0 and find its centre.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "implicit_conic",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "General second-degree form completing to an ellipse centred (2, -1)."
+    },
+    {
+      "id": "maths-10-line-angle",
+      "unit": "maths|10",
+      "question": "Find the angle between the lines y = 2x + 3 and y = -x + 5, and show both lines on one diagram.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Two intersecting lines with the angle marked at their intersection."
+    },
+    {
+      "id": "maths-10-point-line-distance",
+      "unit": "maths|10",
+      "question": "Find the distance of the point (3, -5) from the line 3x - 4y - 26 = 0, and show the perpendicular from the point to the line.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Line, external point, and the foot of the perpendicular."
+    },
+    {
+      "id": "maths-10-angle-bisector",
+      "unit": "maths|10",
+      "question": "Find the equations of the bisectors of the angles between the lines 3x + 4y - 7 = 0 and 12x - 5y + 8 = 0.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Two given lines and both bisectors through the intersection point."
+    },
+    {
+      "id": "maths-10-centroid-orthocentre",
+      "unit": "maths|10",
+      "question": "The vertices of a triangle are A(2, 3), B(-4, 1) and C(6, -5). Plot the triangle and find its centroid and orthocentre.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Plotted triangle with the two centres marked inside/outside as computed."
+    },
+    {
+      "id": "maths-10-locus-equidistant",
+      "unit": "maths|10",
+      "question": "Find the equation of the locus of a point that moves so that it is always equidistant from the points (2, 0) and (0, 4).",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Perpendicular bisector of the join of the two fixed points."
+    },
+    {
+      "id": "maths-10-circle-tangent-external",
+      "unit": "maths|10",
+      "question": "Find the length of the tangent drawn from the point (10, 4) to the circle x^2 + y^2 = 25, and draw the figure.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "circle_figure",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Circle, external point, tangent segment, and the right angle at the point of contact."
+    },
+    {
+      "id": "maths-10-section-formula",
+      "unit": "maths|10",
+      "question": "Find the coordinates of the point dividing the segment joining A(1, 2) and B(7, 8) internally in the ratio 2 : 1, and mark it on the segment.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Segment AB with the dividing point at the 2:1 position."
+    },
+    {
+      "id": "maths-10-slope-perpendicular",
+      "unit": "maths|10",
+      "question": "What is the slope of a line perpendicular to the line joining the points (2, 3) and (5, 9)?",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Negative-reciprocal arithmetic; text-only."
+    },
+    {
+      "id": "maths-10-concurrency",
+      "unit": "maths|10",
+      "question": "Find the value of k for which the lines 2x + 3y - 5 = 0, x - y + 1 = 0 and 3x + ky - 4 = 0 are concurrent.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Solve the first two, substitute in the third; text-only."
+    },
+    {
+      "id": "maths-11-skew-shortest",
+      "unit": "maths|11",
+      "question": "Find the shortest distance between the lines r = (\u00ee + \u0135) + t(2\u00ee - \u0135 + k\u0302) and r = (2\u00ee + \u0135 - k\u0302) + s(3\u00ee - 5\u0135 + 2k\u0302).",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "space_3d",
+      "expectsDiagram": true,
+      "contradicts": [
+        "circle_figure"
+      ],
+      "note": "Two skew lines in one 3D frame; flattening onto a guessed 2D circle is the documented bug."
+    },
+    {
+      "id": "maths-11-line-through-point",
+      "unit": "maths|11",
+      "question": "Find the vector equation of the line passing through the point (1, 2, 3) and parallel to the vector 2i - j + 4k, and sketch it in a 3D frame.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "space_3d",
+      "expectsDiagram": true,
+      "contradicts": [
+        "circle_figure"
+      ],
+      "note": "Space frame, the anchor point, and the line along the direction vector."
+    },
+    {
+      "id": "maths-11-plane-normal",
+      "unit": "maths|11",
+      "question": "Find the equation of the plane through the point (2, -1, 3) with normal vector 3i + 2j - k.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "space_3d",
+      "expectsDiagram": true,
+      "contradicts": [
+        "circle_figure"
+      ],
+      "note": "Plane patch with its normal arrow at the given point."
+    },
+    {
+      "id": "maths-11-angle-two-planes",
+      "unit": "maths|11",
+      "question": "Find the angle between the planes 2x + y - 2z = 5 and 3x - 6y - 2z = 7.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "space_3d",
+      "expectsDiagram": true,
+      "note": "Two intersecting plane patches with the dihedral angle marked."
+    },
+    {
+      "id": "maths-11-angle-line-plane",
+      "unit": "maths|11",
+      "question": "Find the angle between the line (x - 1)/2 = (y + 1)/3 = z/6 and the plane 10x + 2y - 11z = 3.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "space_3d",
+      "expectsDiagram": true,
+      "note": "Line piercing the plane with the complement-of-normal angle shown."
+    },
+    {
+      "id": "maths-11-distance-point-plane",
+      "unit": "maths|11",
+      "question": "Find the distance of the point (3, -2, 1) from the plane 2x - y + 2z + 3 = 0.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "space_3d",
+      "expectsDiagram": true,
+      "note": "Point, plane patch, and the perpendicular foot."
+    },
+    {
+      "id": "maths-11-image-in-plane",
+      "unit": "maths|11",
+      "question": "Find the image of the point (1, 3, 4) in the plane x - y + z = 5.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "space_3d",
+      "expectsDiagram": true,
+      "note": "Point, its mirror image, and the plane as the perpendicular bisector."
+    },
+    {
+      "id": "maths-11-plane-three-points",
+      "unit": "maths|11",
+      "question": "Find the equation of the plane passing through the points (1, 1, 0), (1, 2, 1) and (-2, 2, -1).",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "space_3d",
+      "expectsDiagram": true,
+      "note": "Three plotted space points spanning the plane patch."
+    },
+    {
+      "id": "maths-11-coplanar-lines",
+      "unit": "maths|11",
+      "question": "Show that the lines (x + 3)/3 = (y - 1)/1 = (z - 5)/5 and (x + 1)/1 = (y - 2)/2 = (z - 5)/5 are coplanar.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "space_3d",
+      "expectsDiagram": true,
+      "note": "Both lines drawn inside the one plane containing them."
+    },
+    {
+      "id": "maths-11-direction-cosines",
+      "unit": "maths|11",
+      "question": "A line makes angles of 90\u00b0, 60\u00b0 and 30\u00b0 with the positive x, y and z axes. Find its direction cosines.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "space_3d",
+      "expectsDiagram": true,
+      "note": "Frame with the line and its three axis angles."
+    },
+    {
+      "id": "maths-12-projection",
+      "unit": "maths|12",
+      "question": "Find the projection of the vector a = 2i + 3j + 2k on the vector b = i + 2j + k.",
+      "expectedFamily": "vector_diagram",
+      "expectedPictureClass": "vector_ab",
+      "expectsDiagram": true,
+      "note": "Both vectors from one origin with the projection foot marked."
+    },
+    {
+      "id": "maths-12-resultant-parallelogram",
+      "unit": "maths|12",
+      "question": "Two vectors of magnitudes 6 and 8 act at a point with an angle of 60\u00b0 between them. Draw the parallelogram of vectors and find the magnitude of the resultant.",
+      "expectedFamily": "vector_diagram",
+      "expectedPictureClass": "vector_ab",
+      "expectsDiagram": true,
+      "note": "Parallelogram construction with the diagonal as resultant."
+    },
+    {
+      "id": "maths-12-cross-area",
+      "unit": "maths|12",
+      "question": "Find the area of the triangle whose adjacent sides are given by the vectors a = i + 2j + 3k and b = 2i - j + k.",
+      "expectedFamily": "vector_diagram",
+      "expectedPictureClass": "vector_ab",
+      "expectsDiagram": true,
+      "note": "Two side vectors from a shared vertex; area is half the cross-product magnitude."
+    },
+    {
+      "id": "maths-12-unit-perpendicular",
+      "unit": "maths|12",
+      "question": "Find a unit vector perpendicular to both a = 2i + j - k and b = i - j + 2k.",
+      "expectedFamily": "vector_diagram",
+      "expectedPictureClass": "vector_ab",
+      "expectsDiagram": true,
+      "note": "a, b, and the normalised cross product shown perpendicular to both."
+    },
+    {
+      "id": "maths-12-triple-product-volume",
+      "unit": "maths|12",
+      "question": "Find the volume of the parallelepiped whose coterminous edges are a = i + j, b = j + k and c = i + k, using the scalar triple product.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "space_3d",
+      "expectsDiagram": true,
+      "note": "A parallelepiped is a 3D figure; three edge vectors in one space frame."
+    },
+    {
+      "id": "maths-12-dot-angle",
+      "unit": "maths|12",
+      "question": "Find the angle between the vectors a = i + j - k and b = i - j + k.",
+      "expectedFamily": "vector_diagram",
+      "expectedPictureClass": "vector_ab",
+      "expectsDiagram": true,
+      "note": "Two vectors from one origin with the included angle marked."
+    },
+    {
+      "id": "maths-12-collinear-points",
+      "unit": "maths|12",
+      "question": "Show that the points with position vectors 2i + 3j, 4i + 7j and 6i + 11j are collinear.",
+      "expectedFamily": "vector_diagram",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Three position points falling on one drawn line."
+    },
+    {
+      "id": "maths-12-displacement-resultant",
+      "unit": "maths|12",
+      "question": "An aircraft flies 100 km due east and then 60 km due north. Represent the two displacements as vectors and find the magnitude and direction of the resultant displacement.",
+      "expectedFamily": "vector_diagram",
+      "expectedPictureClass": "vector_ab",
+      "expectsDiagram": true,
+      "note": "Head-to-tail triangle with the resultant closing side."
+    },
+    {
+      "id": "maths-12-dot-zero",
+      "unit": "maths|12",
+      "question": "If a . b = 0 for two non-zero vectors a and b, what is the angle between a and b?",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "One-line definitional consequence; text-only."
+    },
+    {
+      "id": "maths-13-bayes-tree",
+      "unit": "maths|13",
+      "question": "Bag I contains 3 red and 4 black balls and Bag II contains 5 red and 6 black balls. A bag is chosen at random and a ball drawn from it is found to be red. Draw a tree diagram and find the probability that it came from Bag I.",
+      "expectedFamily": null,
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Two-stage probability tree; no scene family owns tree diagrams."
+    },
+    {
+      "id": "maths-13-tree-without-replacement",
+      "unit": "maths|13",
+      "question": "A bag has 4 red and 6 black balls. Two balls are drawn one after the other without replacement. Draw the probability tree and find the probability that both are red.",
+      "expectedFamily": null,
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Two-level tree with branch probabilities 4/10 then 3/9."
+    },
+    {
+      "id": "maths-13-venn-prob",
+      "unit": "maths|13",
+      "question": "If P(A) = 0.5, P(B) = 0.4 and P(A \u2229 B) = 0.2, draw a Venn diagram and find P(A \u222a B) and P(A' \u2229 B).",
+      "expectedFamily": null,
+      "expectedPictureClass": "circle_figure",
+      "expectsDiagram": true,
+      "note": "Two overlapping event circles with the three region probabilities."
+    },
+    {
+      "id": "maths-13-mean-sd",
+      "unit": "maths|13",
+      "question": "Find the mean and the standard deviation of the observations 6, 8, 10, 12, 14.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Formula evaluation; text-only."
+    },
+    {
+      "id": "maths-13-conditional",
+      "unit": "maths|13",
+      "question": "Two dice are thrown. Find the probability that the sum is 8 given that the first die shows 3.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Conditional probability by counting; text-only."
+    },
+    {
+      "id": "maths-13-binomial-dist",
+      "unit": "maths|13",
+      "question": "A fair coin is tossed 6 times. Find the probability of getting exactly 4 heads.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Binomial formula; text-only."
+    },
+    {
+      "id": "maths-13-rv-distribution",
+      "unit": "maths|13",
+      "question": "A random variable X takes the values 0, 1, 2, 3 with probabilities k, 2k, 3k and 4k. Find k and the mean of X.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Probabilities sum to 1; text-only."
+    },
+    {
+      "id": "maths-13-mean-deviation",
+      "unit": "maths|13",
+      "question": "Find the mean deviation about the mean for the data 4, 7, 8, 9, 10, 12, 13, 17.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Tabular computation; text-only."
+    },
+    {
+      "id": "maths-13-bernoulli",
+      "unit": "maths|13",
+      "question": "In 5 independent Bernoulli trials with success probability 1/3, find the probability of at least one success.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Complement rule; text-only."
+    },
+    {
+      "id": "maths-14-tower-elevation",
+      "unit": "maths|14",
+      "question": "From a point on the ground 40 m from the foot of a tower, the angle of elevation of the top of the tower is 60\u00b0. Draw the figure and find the height of the tower.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Right triangle: ground line, vertical tower, elevation angle at the observer."
+    },
+    {
+      "id": "maths-14-building-depression",
+      "unit": "maths|14",
+      "question": "From the top of a 60 m high building, the angles of depression of the top and the bottom of a tower are 30\u00b0 and 60\u00b0. Find the height of the tower.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "other",
+      "expectsDiagram": true,
+      "note": "Two right triangles sharing the horizontal sight line from the building top."
+    },
+    {
+      "id": "maths-14-sin-graph",
+      "unit": "maths|14",
+      "question": "Draw the graph of y = sin x for 0 <= x <= 2\u03c0 and mark the maximum and minimum points.",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "One full period with extrema at \u03c0/2 and 3\u03c0/2."
+    },
+    {
+      "id": "maths-14-sin2x-compare",
+      "unit": "maths|14",
+      "question": "On the same axes, sketch y = sin x and y = sin 2x for 0 <= x <= \u03c0 and mark where the two graphs intersect.",
+      "expectedFamily": "analytic_curve",
+      "expectedPictureClass": "function_curves",
+      "expectsDiagram": true,
+      "note": "Both curves on shared axes with the intersection points marked."
+    },
+    {
+      "id": "maths-14-unit-circle",
+      "unit": "maths|14",
+      "question": "Mark the angle 210\u00b0 on a unit circle and find the values of sin 210\u00b0 and cos 210\u00b0.",
+      "expectedFamily": "coordinate_figure",
+      "expectedPictureClass": "circle_figure",
+      "expectsDiagram": true,
+      "note": "Unit circle with the third-quadrant terminal arm and the reference angle."
+    },
+    {
+      "id": "maths-14-inverse-principal",
+      "unit": "maths|14",
+      "question": "Find the principal value of sin\u207b\u00b9(-1/2) + cos\u207b\u00b9(-1/2).",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Principal-value lookup; text-only."
+    },
+    {
+      "id": "maths-14-general-solution",
+      "unit": "maths|14",
+      "question": "Solve the equation 2 cos^2 x + 3 sin x = 0 and write the general solution.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Quadratic in sin x; text-only."
+    },
+    {
+      "id": "maths-14-identity",
+      "unit": "maths|14",
+      "question": "Prove that (sin 3x + sin x) / (cos 3x - cos x) = -cot x.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Sum-to-product identity manipulation; text-only."
+    },
+    {
+      "id": "maths-14-range",
+      "unit": "maths|14",
+      "question": "Find the maximum and minimum values of 3 sin x + 4 cos x.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "R-form amplitude bound; text-only."
+    },
+    {
+      "id": "maths-lp-max-profit",
+      "unit": "maths|supplemental|linear-programming",
+      "question": "Maximise Z = 3x + 4y subject to the constraints x + y <= 4, x >= 0, y >= 0. Draw the feasible region and find the corner point where Z is maximum.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "constraint_region",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Shaded feasible triangle with corner points; the answer lives at a vertex."
+    },
+    {
+      "id": "maths-lp-min-cost",
+      "unit": "maths|supplemental|linear-programming",
+      "question": "Minimise Z = 200x + 500y subject to x + 2y >= 10, 3x + 4y <= 24, x >= 0, y >= 0. Solve the problem graphically.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "constraint_region",
+      "expectsDiagram": true,
+      "contradicts": [
+        "space_3d"
+      ],
+      "note": "Feasible quadrilateral between the two lines in the first quadrant."
+    },
+    {
+      "id": "maths-lp-diet",
+      "unit": "maths|supplemental|linear-programming",
+      "question": "A diet needs at least 80 units of vitamin A and 100 units of minerals. Food F1 gives 3 units of vitamin A and 4 units of minerals per kg and costs \u20b950 per kg; food F2 gives 6 and 3 units and costs \u20b970 per kg. Formulate the linear programming problem and shade the feasible region.",
+      "expectedFamily": "bounded_region",
+      "expectedPictureClass": "constraint_region",
+      "expectsDiagram": true,
+      "note": "Unbounded feasible region above both constraint lines."
+    },
+    {
+      "id": "maths-induction-sum",
+      "unit": "maths|supplemental|mathematical-induction",
+      "question": "Prove by mathematical induction that 1 + 2 + 3 + ... + n = n(n + 1)/2 for every natural number n.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Base case plus inductive step; text-only."
+    },
+    {
+      "id": "maths-reasoning-contrapositive",
+      "unit": "maths|supplemental|mathematical-reasoning",
+      "question": "Write the contrapositive and the converse of the statement: if a number is divisible by 9, then it is divisible by 3.",
+      "expectedFamily": null,
+      "expectedPictureClass": "none",
+      "expectsDiagram": false,
+      "note": "Statement manipulation; text-only."
+    }
+  ]
+}

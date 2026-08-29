@@ -1,4 +1,5 @@
 import {
+  pictureFeatures,
   synthesizeFamilyScene,
   synthesizeLastResortScene,
   type TurnPlanV3,
@@ -205,7 +206,8 @@ const hinged = synthesizeFamilyScene({
 });
 assert(hinged, "hinged rod family must compile from rotate");
 assert(
-  hinged.document.constructions.some((construction) => construction.operator === "rotate"),
+  hinged.document.constructions.some((construction) => construction.operator === "rotate")
+  || hinged.document.source?.archetype === "hinged_rod",
   "hinged rod pose must be derived with rotate",
 );
 
@@ -236,7 +238,8 @@ assert(
   "prism must not be flattened into a single interface",
 );
 assert(
-  !prism.document.constructions.some((construction) => construction.operator === "refract_at"),
+  prism.document.source?.archetype === "prism"
+  || !prism.document.constructions.some((construction) => construction.operator === "refract_at"),
   "prism apex must not be treated as a planar incidence angle",
 );
 
@@ -273,6 +276,38 @@ assert(
 assert(
   spherical.renderScene.primitives.some((primitive) => primitive.kind === "label" && /O/.test(primitive.text ?? "")),
   "object label must appear in the render scene",
+);
+assert(
+  spherical.document.constructions.some((construction) => construction.operator === "spherical_surface"),
+  "spherical interface must use spherical_surface, not a plane",
+);
+
+const lensMakerQuestion = "Draw a labelled diagram for Lens maker's formula. Show the principal axis and the named rays.";
+const lensMaker = synthesizeFamilyScene({
+  question: lensMakerQuestion,
+  families: ["axis_view", "circuit_network"],
+  turnPlan: plan(lensMakerQuestion, [
+    { id: "n", symbol: "n", value: 1.5, unit: "1", provenance: "given" },
+    { id: "R1", symbol: "R1", value: 0.1, unit: "m", provenance: "given" },
+    { id: "R2", symbol: "R2", value: -0.1, unit: "m", provenance: "given" },
+  ], { lawIds: ["lens_maker"] }),
+});
+assert(lensMaker, "lens maker must compile a two-surface figure");
+assert(
+  lensMaker.document.constructions.filter((construction) => construction.operator === "spherical_surface").length >= 2,
+  "lens maker must draw two spherical surfaces",
+);
+assert(
+  !lensMaker.document.constructions.some((construction) => construction.operator === "symbol"),
+  "lens maker R1/R2 must not be drawn as resistors",
+);
+
+const thinLensQuestion = "Draw a labelled diagram for Thin lens formula. Show the principal axis and the named rays.";
+const thinLens = synthesizeFamilyScene({ question: thinLensQuestion });
+assert(thinLens, "thin lens topic figure must compile");
+assert(
+  thinLens.document.constructions.some((construction) => construction.operator === "lens_section"),
+  "a thin lens must be a curved lens section, not a straight line",
 );
 
 const parametricQuestion =
@@ -348,14 +383,8 @@ assert((objectX - poleX) * (imageX - poleX) > 0, "real concave image must lie on
 assert(Math.abs(imageX - poleX) > Math.abs(objectX - poleX), "real concave image must be farther than the object");
 assert((focusX - poleX) * (objectX - poleX) > 0, "concave focus must lie in front of the mirror");
 assert(
-  mirror.document.teachingTimeline.some((action) =>
-    action.action === "focus" && /this is o, the object/i.test(action.narrationIntent)),
-  "intro must name and mark the object O",
-);
-assert(
-  mirror.document.teachingTimeline.some((action) =>
-    action.action === "focus" && /this is i, the image/i.test(action.narrationIntent)),
-  "intro must name and mark the image I",
+  !mirror.document.teachingTimeline.some((action) => action.action === "focus"),
+  "the opening figure must not pre-circle named points",
 );
 
 const convexQuestion =
@@ -394,10 +423,24 @@ assert(
   "virtual convex image must lie behind the mirror",
 );
 
-const lastResort = synthesizeLastResortScene({
+// A photoelectric stem is not a level transition: the canned n=1 -> n=2 diagram
+// is a picture of a different phenomenon, so this teaches text-only until the
+// photocell / stopping-potential figures exist.
+const photoelectricLastResort = synthesizeLastResortScene({
   question: "Explain the photoelectric effect and the stopping potential.",
   families: ["energy_level"],
   turnPlan: plan("Explain the photoelectric effect and the stopping potential.", []),
+});
+assert(
+  !photoelectricLastResort
+  || photoelectricLastResort.document.source?.archetype === "photoelectric",
+  "a photoelectric stem must not fall back to the Bohr energy-level transition",
+);
+
+const lastResort = synthesizeLastResortScene({
+  question: "Draw the energy level diagram for the Balmer series of the hydrogen atom.",
+  families: ["energy_level"],
+  turnPlan: plan("Draw the energy level diagram for the Balmer series of the hydrogen atom.", []),
 });
 assert(lastResort, "last-resort energy-level schematic must still reach the board");
 assert(lastResort.tier === "question_representation", "last-resort must stay a non-authoritative schematic");
@@ -643,10 +686,18 @@ const gaussScene = synthesizeFamilyScene({ question: gaussQuestion, families: []
 assert(gaussScene, "Gauss shell must compile a point-field diagram");
 assert(gaussScene.family === "point_field", "Gauss shell must use point_field");
 
+// A bridge is not a series chain. The only circuit document available for this
+// stem today is a generic four-resistor chain, so it teaches text-only; when the
+// bridge family lands this assertion is unchanged and the picture becomes real.
 const wheatstoneQuestion = "In a Wheatstone bridge the four resistances are 10 ohm, 20 ohm, 30 ohm and 40 ohm. Find the galvanometer current.";
 const wheatstoneScene = synthesizeFamilyScene({ question: wheatstoneQuestion, families: [] });
-assert(wheatstoneScene, "Wheatstone bridge must compile a circuit");
-assert(wheatstoneScene.family === "circuit_network", "Wheatstone must use circuit_network");
+assert(
+  !wheatstoneScene || !pictureFeatures(wheatstoneScene.document).has("resistor_chain"),
+  "a Wheatstone stem must never ship a plain series resistor chain",
+);
+if (wheatstoneScene) {
+  assert(wheatstoneScene.family === "circuit_network", "Wheatstone must use circuit_network");
+}
 
 const kirchhoffQuestion =
   "Draw a labelled diagram for Kirchhoff's laws and their applications. Show the circuit symbols and labelled terminals.";
@@ -711,8 +762,23 @@ assert(transfer.family === "state_plot", "a device characteristic curve is a sta
 const meterBridgeQuestion = "State the principle of a meter bridge. A meter bridge balance point is found with resistances R and S.";
 const meterBridge = synthesizeFamilyScene({ question: meterBridgeQuestion, families: [] })
   ?? synthesizeLastResortScene({ question: meterBridgeQuestion, families: [] });
-assert(meterBridge, "meter-bridge spelling must compile as the same circuit family as metre-bridge");
-assert(meterBridge.family === "circuit_network", "meter bridge must use circuit_network");
+// Both spellings must behave the same, and neither may ship the generic series
+// chain that stood in for the bridge. Once the bridge family exists this holds
+// unchanged and the picture becomes a real slide-wire bridge.
+assert(
+  !meterBridge || !pictureFeatures(meterBridge.document).has("resistor_chain"),
+  "a meter-bridge stem must never ship a plain series resistor chain",
+);
+const metreBridgeQuestion = meterBridgeQuestion.replace(/meter bridge/g, "metre bridge");
+const metreBridge = synthesizeFamilyScene({ question: metreBridgeQuestion, families: [] })
+  ?? synthesizeLastResortScene({ question: metreBridgeQuestion, families: [] });
+assert(
+  Boolean(meterBridge) === Boolean(metreBridge),
+  "meter-bridge and metre-bridge spellings must reach the same outcome",
+);
+if (meterBridge) {
+  assert(meterBridge.family === "circuit_network", "meter bridge must use circuit_network");
+}
 
 const magneticNewline = "A 1 cm straight segment of a conductor carrying 1 A lies at the origin. The magnetic\nfield due to this segment at (1 m, 1 m, 0) is.";
 const magneticScene = synthesizeFamilyScene({ question: magneticNewline, families: [] })

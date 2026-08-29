@@ -40,6 +40,33 @@ for (const testCase of operatorCases) {
   }
 }
 
+{
+  const convex = compileSceneDocument(sphericalSurfaceDocument("convex"));
+  if (!convex.ok || !convex.renderScene?.primitives.some((primitive) => primitive.kind === "arc")) {
+    throw new Error(`convex spherical_surface failed: ${JSON.stringify(convex.report.issues)}`);
+  }
+  const concave = compileSceneDocument(sphericalSurfaceDocument("concave"));
+  if (!concave.ok || !concave.renderScene?.primitives.some((primitive) => primitive.kind === "arc")) {
+    throw new Error(`concave spherical_surface failed: ${JSON.stringify(concave.report.issues)}`);
+  }
+  const convexCenter = convex.renderScene.primitives.find((primitive) => primitive.kind === "arc");
+  const concaveCenter = concave.renderScene.primitives.find((primitive) => primitive.kind === "arc");
+  if (!convexCenter || !concaveCenter || Math.abs((convexCenter.startAngle ?? 0) - (concaveCenter.startAngle ?? 0)) < 0.2) {
+    throw new Error("convex and concave spherical surfaces must face opposite ways");
+  }
+  const biconvex = compileSceneDocument(lensSectionDocument(20, -20));
+  if (!biconvex.ok || !biconvex.renderScene) {
+    throw new Error(`biconvex lens_section failed: ${JSON.stringify(biconvex.report.issues)}`);
+  }
+  if (!biconvex.renderScene.primitives.some((primitive) => primitive.kind === "polygon" || primitive.kind === "polyline")) {
+    throw new Error("lens_section must draw a closed curved outline");
+  }
+  const biconcave = compileSceneDocument(lensSectionDocument(-20, 20));
+  if (!biconcave.ok || !biconcave.renderScene) {
+    throw new Error(`biconcave lens_section failed: ${JSON.stringify(biconcave.report.issues)}`);
+  }
+}
+
 for (const mode of ["reflect_at", "refract_at"] as const) {
   const result = compileSceneDocument(surfaceRayDocument(mode));
   if (!result.ok || !result.renderScene || result.renderScene.primitives.length < 6) {
@@ -550,6 +577,83 @@ function operatorDocument(
   };
 }
 
+function sphericalSurfaceDocument(kind: "convex" | "concave"): SceneDocument {
+  const signedRadius = kind === "convex" ? 10 : -10;
+  return {
+    schemaVersion: "scene-document/v2",
+    visualDecision: { mode: "scene", reason: `verify ${kind} spherical_surface` },
+    source: { question: `Draw a ${kind} spherical surface.` },
+    quantities: [],
+    entities: [
+      { id: "axis_l", kind: "point", role: "axis end" },
+      { id: "axis_r", kind: "point", role: "axis end" },
+      { id: "V", kind: "point", role: "vertex" },
+      { id: "C", kind: "point", role: "centre of curvature" },
+      { id: "axis", kind: "line", role: "principal axis" },
+      { id: "surface", kind: "arc", role: "spherical surface" },
+    ],
+    constructions: [
+      { id: "make_axis_l", operator: "point", inputs: { x: -8, y: 0, coordinateSpace: "world" }, outputs: ["axis_l"] },
+      { id: "make_axis_r", operator: "point", inputs: { x: 8, y: 0, coordinateSpace: "world" }, outputs: ["axis_r"] },
+      { id: "make_V", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["V"] },
+      { id: "make_C", operator: "point", inputs: { x: signedRadius, y: 0, coordinateSpace: "world" }, outputs: ["C"] },
+      { id: "make_axis", operator: "line", inputs: { start: "axis_l", end: "axis_r" }, outputs: ["axis"] },
+      {
+        id: "make_surface",
+        operator: "spherical_surface",
+        inputs: { vertex: "V", center: "C", axis: "axis", halfHeight: 4, signedRadius },
+        outputs: ["surface"],
+      },
+    ],
+    relations: [],
+    assertions: [
+      { id: "exists_surface", predicate: "exists", entities: ["surface"], expected: true, severity: "fatal" },
+      { id: "v_on_surface", predicate: "on", entities: ["V", "surface"], expected: true, severity: "fatal" },
+    ],
+    annotations: [],
+    requiredEntityIds: ["surface", "axis", "V"],
+    revealGroups: [{ id: "setup", entityIds: ["axis_l", "axis_r", "axis", "V", "C", "surface"], dependsOn: [], narrationCue: "the spherical surface" }],
+    teachingTimeline: [{ id: "reveal_setup", action: "reveal", targetId: "setup", dependsOn: [], narrationIntent: "Reveal the spherical surface." }],
+  };
+}
+
+function lensSectionDocument(radius1: number, radius2: number): SceneDocument {
+  return {
+    schemaVersion: "scene-document/v2",
+    visualDecision: { mode: "scene", reason: "verify lens_section" },
+    source: { question: "Draw a thin lens." },
+    quantities: [],
+    entities: [
+      { id: "axis_l", kind: "point", role: "axis end" },
+      { id: "axis_r", kind: "point", role: "axis end" },
+      { id: "O", kind: "point", role: "optical centre" },
+      { id: "axis", kind: "line", role: "principal axis" },
+      { id: "lens", kind: "polygon", role: "thin lens" },
+    ],
+    constructions: [
+      { id: "make_axis_l", operator: "point", inputs: { x: -8, y: 0, coordinateSpace: "world" }, outputs: ["axis_l"] },
+      { id: "make_axis_r", operator: "point", inputs: { x: 8, y: 0, coordinateSpace: "world" }, outputs: ["axis_r"] },
+      { id: "make_O", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["O"] },
+      { id: "make_axis", operator: "line", inputs: { start: "axis_l", end: "axis_r" }, outputs: ["axis"] },
+      {
+        id: "make_lens",
+        operator: "lens_section",
+        inputs: { center: "O", axis: "axis", radius1, radius2, halfHeight: 3 },
+        outputs: ["lens"],
+      },
+    ],
+    relations: [],
+    assertions: [
+      { id: "exists_lens", predicate: "exists", entities: ["lens"], expected: true, severity: "fatal" },
+      { id: "o_on_axis", predicate: "on", entities: ["O", "axis"], expected: true, severity: "fatal" },
+    ],
+    annotations: [],
+    requiredEntityIds: ["lens", "axis", "O"],
+    revealGroups: [{ id: "setup", entityIds: ["axis_l", "axis_r", "axis", "O", "lens"], dependsOn: [], narrationCue: "the lens" }],
+    teachingTimeline: [{ id: "reveal_setup", action: "reveal", targetId: "setup", dependsOn: [], narrationIntent: "Reveal the lens." }],
+  };
+}
+
 function geometryProofDocument(): SceneDocument {
   const refractedAngle = Math.asin(Math.sin(Math.PI / 6) / 1.5);
   const points = [
@@ -645,4 +749,95 @@ function numericAngleAndLabelDocument(): SceneDocument {
     revealGroups: [{ id: "setup", entityIds: ["field", "analyzer", "comparison", "field_analyzer_angle", "field_comparison_angle", "analyzer_label"], dependsOn: [], narrationCue: "Compare the field and analyzer directions." }],
     teachingTimeline: [{ id: "show", action: "reveal", targetId: "setup", dependsOn: [], narrationIntent: "Draw and identify the two directions." }],
   };
+}
+
+/* -- refract_direction honours the declared media -------------------------- */
+// `refract` flips eta when the normal is co-directed with the ray, which is
+// right when eta is fixed and only geometry varies. Here n1/n2 are declared, so
+// the flip swaps the media: a ray leaving a prism through an outward-facing
+// face was computed as entering the glass. Snell must hold either way.
+{
+  const exitRay = (n1: number, n2: number, incidence: number): number => {
+    const t = (incidence * Math.PI) / 180;
+    const document = {
+      schemaVersion: "scene-document/v2",
+      visualDecision: { mode: "scene", reason: "verify refract_direction media" },
+      source: { question: "refraction at a face whose normal points outward" },
+      quantities: [], relations: [], annotations: [], teachingTimeline: [],
+      entities: [
+        { id: "src", kind: "point", role: "source" }, { id: "o", kind: "point", role: "contact point" },
+        { id: "ntip", kind: "point", role: "normal tip" }, { id: "inc", kind: "segment", role: "incoming path" },
+        { id: "nrm", kind: "segment", role: "outward normal" }, { id: "out", kind: "ray", role: "refracted ray" },
+      ],
+      constructions: [
+        { id: "a", operator: "point", inputs: { x: -Math.cos(t), y: -Math.sin(t), coordinateSpace: "world" }, outputs: ["src"] },
+        { id: "b", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["o"] },
+        { id: "c", operator: "point", inputs: { x: 1, y: 0, coordinateSpace: "world" }, outputs: ["ntip"] },
+        { id: "d", operator: "segment", inputs: { start: "src", end: "o" }, outputs: ["inc"] },
+        { id: "e", operator: "segment", inputs: { start: "o", end: "ntip" }, outputs: ["nrm"] },
+        { id: "f", operator: "refract_direction", inputs: { origin: "o", incoming: "inc", normal: "nrm", n1, n2 }, outputs: ["out"] },
+      ],
+      assertions: [{ id: "ex", predicate: "exists", entities: ["out"], expected: true, severity: "fatal" }],
+      requiredEntityIds: ["src", "o", "ntip", "inc", "nrm", "out"],
+      revealGroups: [{ id: "g", entityIds: ["src", "o", "ntip", "inc", "nrm", "out"] }],
+    } as unknown as SceneDocument;
+    const compiled = compileSceneDocument(document);
+    if (!compiled.ok || !compiled.renderScene) throw new Error("refract_direction probe did not compile");
+    const at = (id: string) => compiled.renderScene!.primitives.find((p) => p.entityId === id)!.points;
+    const angle = (pts: Array<{ x: number; y: number }>) =>
+      Math.atan2(pts[1]!.y - pts[0]!.y, pts[1]!.x - pts[0]!.x);
+    const normalAngle = angle(at("nrm"));
+    return Math.abs(Math.sin(angle(at("out")) - normalAngle))
+      / Math.abs(Math.sin(angle(at("inc")) - normalAngle));
+  };
+  // Glass -> air through an outward normal: sin(e)/sin(r) must be n1/n2 = 1.5.
+  const exiting = exitRay(1.5, 1, 31.87);
+  if (Math.abs(exiting - 1.5) > 0.01) {
+    throw new Error(`refract_direction inverted the declared media: sin ratio ${exiting.toFixed(3)}, expected 1.500`);
+  }
+  // Air -> glass, normal already against the ray: unchanged behaviour.
+  const entering = exitRay(1, 1.5, 45);
+  if (Math.abs(entering - 1 / 1.5) > 0.01) {
+    throw new Error(`refract_direction entry case drifted: sin ratio ${entering.toFixed(3)}, expected 0.667`);
+  }
+}
+
+/* -- paraxial principal rays may be drawn with segment/ray ----------------- */
+// The exact spherical law cannot pass through the paraxial image point, so a
+// principal ray computed from the mirror/lens formula declares its
+// approximation on the construction instead of dodging the role check.
+{
+  const principalRay = (approximation?: string): boolean => {
+    const document = {
+      schemaVersion: "scene-document/v2",
+      visualDecision: { mode: "scene", reason: "verify paraxial principal ray" },
+      source: { question: "principal ray after a concave mirror" },
+      quantities: [], relations: [], annotations: [], teachingTimeline: [],
+      entities: [
+        { id: "p", kind: "point", role: "pole" }, { id: "tip", kind: "point", role: "image tip" },
+        { id: "ray", kind: "segment", role: "reflected ray through the focus" },
+      ],
+      constructions: [
+        { id: "a", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["p"] },
+        { id: "b", operator: "point", inputs: { x: 3, y: 2, coordinateSpace: "world" }, outputs: ["tip"] },
+        {
+          id: "c",
+          operator: "segment",
+          inputs: approximation ? { start: "p", end: "tip", approximation } : { start: "p", end: "tip" },
+          outputs: ["ray"],
+        },
+      ],
+      assertions: [{ id: "ex", predicate: "exists", entities: ["ray"], expected: true, severity: "fatal" }],
+      requiredEntityIds: ["p", "tip", "ray"],
+      revealGroups: [{ id: "g", entityIds: ["p", "tip", "ray"] }],
+    } as unknown as SceneDocument;
+    return validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string, unknown>))
+      .report.issues.some((issue) => issue.code === "derived_role_operator_mismatch");
+  };
+  if (!principalRay(undefined)) {
+    throw new Error("an undeclared segment claiming a reflected-ray role must still be rejected");
+  }
+  if (principalRay("paraxial")) {
+    throw new Error("a segment declaring approximation: paraxial must be accepted as a principal ray");
+  }
 }

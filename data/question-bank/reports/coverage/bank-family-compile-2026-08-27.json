@@ -1,29 +1,32 @@
 {
   "schema": "bank-family-compile/v1",
-  "generated": "2026-08-28T10:33:44.249Z",
+  "generated": "2026-08-29T09:45:02.924Z",
   "note": "Does not overwrite syllabus-capability-coverage-*.json. Bank is an oracle; runtime never keys on question id.",
   "totals": {
     "visualizable": 1485,
     "physics": {
       "visualizable": 1175,
-      "honest_text_only": 232,
-      "scenes": 940,
-      "required_misses": 3
+      "honest_text_only": 239,
+      "scenes": 914,
+      "required_misses": 22,
+      "misses_with_demand": 20
     },
     "maths": {
       "visualizable": 310,
       "honest_text_only": 27,
-      "scenes": 271,
-      "required_misses": 12
+      "scenes": 278,
+      "required_misses": 5,
+      "misses_with_demand": 0
     }
   },
   "by_unit": {
     "physics|16": {
       "visualizable": 304,
-      "honest_text_only": 16,
-      "scenes": 288,
+      "honest_text_only": 21,
+      "scenes": 283,
       "required_misses": 0,
-      "required": 288,
+      "misses_with_demand": 0,
+      "required": 283,
       "miss_rate": 0
     },
     "physics|11": {
@@ -31,6 +34,7 @@
       "honest_text_only": 54,
       "scenes": 155,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 155,
       "miss_rate": 0
     },
@@ -39,38 +43,43 @@
       "honest_text_only": 22,
       "scenes": 117,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 117,
       "miss_rate": 0
     },
     "maths|10": {
       "visualizable": 125,
       "honest_text_only": 10,
-      "scenes": 114,
-      "required_misses": 1,
+      "scenes": 113,
+      "required_misses": 2,
+      "misses_with_demand": 0,
       "required": 115,
-      "miss_rate": 0.0087
+      "miss_rate": 0.0174
     },
     "physics|19": {
       "visualizable": 104,
       "honest_text_only": 11,
       "scenes": 93,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 93,
       "miss_rate": 0
     },
     "physics|13": {
       "visualizable": 89,
-      "honest_text_only": 12,
-      "scenes": 75,
-      "required_misses": 2,
-      "required": 77,
-      "miss_rate": 0.026
+      "honest_text_only": 14,
+      "scenes": 64,
+      "required_misses": 11,
+      "misses_with_demand": 10,
+      "required": 75,
+      "miss_rate": 0.1467
     },
     "physics|15": {
       "visualizable": 83,
       "honest_text_only": 12,
       "scenes": 71,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 71,
       "miss_rate": 0
     },
@@ -79,30 +88,34 @@
       "honest_text_only": 24,
       "scenes": 51,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 51,
       "miss_rate": 0
     },
     "maths|8": {
       "visualizable": 72,
       "honest_text_only": 7,
-      "scenes": 56,
-      "required_misses": 9,
+      "scenes": 64,
+      "required_misses": 1,
+      "misses_with_demand": 0,
       "required": 65,
-      "miss_rate": 0.1385
+      "miss_rate": 0.0154
     },
     "physics|17": {
       "visualizable": 65,
       "honest_text_only": 28,
-      "scenes": 37,
-      "required_misses": 0,
+      "scenes": 27,
+      "required_misses": 10,
+      "misses_with_demand": 9,
       "required": 37,
-      "miss_rate": 0
+      "miss_rate": 0.2703
     },
     "maths|11": {
       "visualizable": 45,
       "honest_text_only": 0,
       "scenes": 44,
       "required_misses": 1,
+      "misses_with_demand": 0,
       "required": 45,
       "miss_rate": 0.0222
     },
@@ -111,6 +124,7 @@
       "honest_text_only": 8,
       "scenes": 25,
       "required_misses": 1,
+      "misses_with_demand": 0,
       "required": 26,
       "miss_rate": 0.0385
     },
@@ -119,22 +133,25 @@
       "honest_text_only": 1,
       "scenes": 31,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 31,
       "miss_rate": 0
     },
     "physics|18": {
       "visualizable": 28,
       "honest_text_only": 4,
-      "scenes": 24,
-      "required_misses": 0,
+      "scenes": 23,
+      "required_misses": 1,
+      "misses_with_demand": 1,
       "required": 24,
-      "miss_rate": 0
+      "miss_rate": 0.0417
     },
     "physics|5": {
       "visualizable": 25,
       "honest_text_only": 19,
       "scenes": 6,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 6,
       "miss_rate": 0
     },
@@ -143,6 +160,7 @@
       "honest_text_only": 8,
       "scenes": 9,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 9,
       "miss_rate": 0
     },
@@ -151,6 +169,7 @@
       "honest_text_only": 10,
       "scenes": 3,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 3,
       "miss_rate": 0
     },
@@ -159,6 +178,7 @@
       "honest_text_only": 4,
       "scenes": 5,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 5,
       "miss_rate": 0
     },
@@ -167,6 +187,7 @@
       "honest_text_only": 1,
       "scenes": 3,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 3,
       "miss_rate": 0
     },
@@ -175,6 +196,7 @@
       "honest_text_only": 2,
       "scenes": 2,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 2,
       "miss_rate": 0
     },
@@ -183,22 +205,25 @@
       "honest_text_only": 3,
       "scenes": 0,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 0,
       "miss_rate": 0
     },
     "physics|6": {
       "visualizable": 2,
       "honest_text_only": 0,
-      "scenes": 1,
-      "required_misses": 1,
+      "scenes": 2,
+      "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 2,
-      "miss_rate": 0.5
+      "miss_rate": 0
     },
     "physics|20": {
       "visualizable": 2,
       "honest_text_only": 2,
       "scenes": 0,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 0,
       "miss_rate": 0
     },
@@ -207,6 +232,7 @@
       "honest_text_only": 1,
       "scenes": 0,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 0,
       "miss_rate": 0
     },
@@ -215,6 +241,7 @@
       "honest_text_only": 0,
       "scenes": 1,
       "required_misses": 0,
+      "misses_with_demand": 0,
       "required": 1,
       "miss_rate": 0
     }
@@ -225,9 +252,9 @@
       "contradiction_classes": [
         "circuit_chain"
       ],
-      "sampled": 6,
-      "compiled": 2,
-      "correct_class": 2,
+      "sampled": 9,
+      "compiled": 5,
+      "correct_class": 5,
       "wrong_class": []
     },
     "river_banks": {
@@ -235,9 +262,9 @@
       "contradiction_classes": [
         "vector_ab"
       ],
-      "sampled": 0,
-      "compiled": 0,
-      "correct_class": 0,
+      "sampled": 1,
+      "compiled": 1,
+      "correct_class": 1,
       "wrong_class": []
     },
     "named_hyperbola": {
@@ -246,51 +273,153 @@
         "circle_figure",
         "space_3d"
       ],
-      "sampled": 35,
-      "compiled": 35,
-      "correct_class": 30,
-      "wrong_class": [
-        {
-          "question_id": "q_051b40fdc7a69d3e676a07e1ece426fa23e5c128b9835dddc3b7150f4786b581",
-          "unit": "maths|10",
-          "actual_class": "function_curves",
-          "contradiction": false,
-          "preview": ". . . é. i 9 If the equation of the hyperbola with foci (4, 2) and (8, 2) is 3x7 —37>- ox + By +y=0, thena+ B+ y is equal to 3 1"
-        },
-        {
-          "question_id": "q_2b17a5cd4355db2f0b1657e0f78e15287a78f096ed9f3ac9b181c602c60a9b84",
-          "unit": "maths|10",
-          "actual_class": "function_curves",
-          "contradiction": false,
-          "preview": "Tangents are drawn to the hyperbola 7 - v7 = 1, parallel to the straight line 2x -y=1. The points of contact of the tangents on the hyperbola are 9 1 ee a (A) fara @[ 2 J2” 5 | (c) (3V3, - 22) (0) (-3V3, 2v2)"
-        },
-        {
-          "question_id": "q_87890e9ca33883284320ed8d51032142306ef53a68cd94713e6a5d8e724d53fb",
-          "unit": "maths|10",
-          "actual_class": "function_curves",
-          "contradiction": false,
-          "preview": "The line 2x + y = 1 is tangent to the hyperbola —>— = =1. If this line passes a through the point of intersection of the nearest directrix and the x-axis, then the eccentricity of the hyperbola is"
-        },
-        {
-          "question_id": "q_9010547c28b3b5a40862d8f7934a1bf249e28a4295abe2ef558dd54452b88d97",
-          "unit": "maths|10",
-          "actual_class": "function_curves",
-          "contradiction": false,
-          "preview": "Let E, and E, be two ellipses whose centers are at the origin. The major axes of E, and E, lie along the x-axis and the y-axis, respectively. Let S be the circle x? +(y-1)? =2. The straight line x+y=3 touches the curves "
-        },
-        {
-          "question_id": "q_9eef0a5927142246cdfe59b4a0424f83424bc96fc9663c7156ea8d555fa2e87c",
-          "unit": "maths|10",
-          "actual_class": "function_curves",
-          "contradiction": false,
-          "preview": "For 0 << 1/2, if the eccentricity of the hyperbola x?—1Pcosec\"=5 is V7 times eccentricity of the ellipse Vcosec2h + y= 5, then the value of 0 is: Options: T 9561772055. 4 T 9561772056. 3 T 9561772057. © Sar 9561772058, 1"
-        }
-      ]
+      "sampled": 45,
+      "compiled": 45,
+      "correct_class": 45,
+      "wrong_class": []
     }
   },
   "miss_clusters": {
+    "energy_level": {
+      "count": 11,
+      "samples": [
+        {
+          "question_id": "q_0c90ba5c5d1197d7591e0fad17827eb8d2385c0cdb7265e3d6bd7b8b10f2e7d1",
+          "unit": "physics|17",
+          "families": [
+            "energy_level"
+          ],
+          "preview": "3 Draw a graph showing the variation of de Broglie wavelength of a particle of charge q and mass m with the accelerating potential. Proton and deuteron have the same de Broglie wavelengths. Explain which has more kinetic"
+        },
+        {
+          "question_id": "q_180a01d68c08358a2c55f53ab43bdd4808f5cb1fbaa8ec78dad7affc88fd7a59",
+          "unit": "physics|18",
+          "families": [
+            "energy_level"
+          ],
+          "preview": "In an X-ray tube, electrons emitted from a filament (cathode) carrying current I hit a target (anode) at a distance 𝑑 from the cathode. The target is kept at a potential 𝑉 higher than the cathode resulting 𝐼 in emissi"
+        },
+        {
+          "question_id": "q_225827d32b95022d0727972efde6dcff49011a0ed6bbae33db2d0e33017d014d",
+          "unit": "physics|17",
+          "families": [
+            "energy_level"
+          ],
+          "preview": "A particle is associated with a de Broglie wave of wavelength 1 2 nm. The kinetic energy of the particle is made four times. Calculate the new value of the wavelength of the wave. 3"
+        },
+        {
+          "question_id": "q_2668cf9402f83134c7861d39d2caa7df17eba8062888d631b4638c5c7ecc93e7",
+          "unit": "physics|17",
+          "families": [
+            "energy_level"
+          ],
+          "preview": "3 Draw a graph showing the variation of de Broglie wavelength λ of a particle of charge q and mass m, with the accelerating potential V. An α-particle and a proton have the same de Broglie wavelength equal to 1 Å. Explai"
+        },
+        {
+          "question_id": "q_72c9c88cca3d0769ba86bf4268af785aa4a1cd909e85bd50755ef5ab1c81de3e",
+          "unit": "physics|17",
+          "families": [
+            "energy_level"
+          ],
+          "preview": "feat sdagia & dag tare ated (A) & sas wee fava (V) & ig & a Uhada, St Uh WH (STAGE) W CaeT | Zl Show on a graph the variation of the de Broglie wavelength (A) associated with an electron, with the square root of accelera"
+        },
+        {
+          "question_id": "q_8b978c894987ad59162ae51e3a3f56cb9608ed69190976af701f3baa9dbdca57",
+          "unit": "physics|17",
+          "families": [
+            "energy_level"
+          ],
+          "preview": "(a) ‘V’ ‘m’ ‘q’ “ 3 (a) Draw the graph showing the variation of de Broglie wavelength λ of a particle of charge q and mass m with the accelerating potential. (b) An electron and proton have the same de Broglie wavelength"
+        },
+        {
+          "question_id": "q_bb6c79d02ac912c1520a77230e9a5939b029204d76dd72a56471e2e99b1d1b2d",
+          "unit": "physics|17",
+          "families": [
+            "energy_level"
+          ],
+          "preview": "Photoelectric effect experiments are performed using three different metal plates p, q and r having work functions 4, =2.0 eV, ¢,=2.5 eV and 9, =3.0 eV, respectively. A light beam containing wavelengths of 550 nm, 450 nm"
+        },
+        {
+          "question_id": "q_d6775097c8b25be3553eb635d805e71c824b4c7018c56c4c61618f63e679a1f3",
+          "unit": "physics|17",
+          "families": [
+            "energy_level"
+          ],
+          "preview": "State the principle of the device that can build up high voltages of the . order of a few million volts. Draw its labelled diagram. A stage reaches in this device when the potential at the outer sphere cannot be increase"
+        }
+      ]
+    },
+    "point_field": {
+      "count": 9,
+      "samples": [
+        {
+          "question_id": "q_18f8890bb31975776d91a74f297ecce2e9ae798ce33b187937e38dc15e784df7",
+          "unit": "physics|13",
+          "families": [
+            "point_field"
+          ],
+          "preview": "State Biot-Savart law. Use this law to derive the expression for the magnetic field due to a circular current carrying coil at a point on its axis. 3"
+        },
+        {
+          "question_id": "q_6d407133d53e343aa5526db89edc69cc7dd63dd341b808ba8b4f734d2bc4901b",
+          "unit": "physics|13",
+          "families": [
+            "point_field"
+          ],
+          "preview": "WH Be ee (os) Gas H Gaeta art 0.9 J/T 2 | samt fet wae Gass aa 4 sa yan war re 2 fe saa sa Gaaia as a 30° aM TTT TIA HK 0-063 J a set arqet (ih) wa z | G@ gaat aa a ofa oftefead afar | Gi) a qaata a4 4, ae os-qere fea fa"
+        },
+        {
+          "question_id": "q_6dd6119d68f21e10cf669743a7f05fa5b18c180c34a10ea1bbc655ccd938747f",
+          "unit": "physics|13",
+          "families": [
+            "point_field"
+          ],
+          "preview": "Using Biot-Savart law, derive expression for the magnetic field (B) due to a circular current carrying loop at a point on its axis and hence at its centre. 3"
+        },
+        {
+          "question_id": "q_a51d9e379d30caa3ba9e55c9fbf3475aacfa14815fb9e480264f0dc1df65b57b",
+          "unit": "physics|13",
+          "families": [
+            "point_field"
+          ],
+          "preview": "(a) State Biot – Savart law and express it in the vector form. (b) Using Biot – Savart law, obtain the expression for the magnetic field due to a circular coil of radius r, carrying a current I at a point on its axis dis"
+        },
+        {
+          "question_id": "q_b2ca2b0ae340faaa2865005291bbcf1dedad968a8a16bd60e4c9a1558bbd33ea",
+          "unit": "physics|13",
+          "families": [
+            "point_field"
+          ],
+          "preview": "State Biot-Savart law. 2 A current I flows in a conductor placed perpendicular to the plane of the paper. Indicate the direction of the magnetic field due to a small element di at point P situated at a distance F from th"
+        },
+        {
+          "question_id": "q_bc89a657a915b7fe3258d11f0c9d6625424b62395b3c3228ae1e8f1625a51712",
+          "unit": "physics|13",
+          "families": [
+            "point_field"
+          ],
+          "preview": "(a) State Biot – Savart law and express it in the vector form. (b) Using Biot – Savart law, obtain the expression for the magnetic field due to a circular coil of radius r, carrying a current I at a point on its axis dis"
+        },
+        {
+          "question_id": "q_cf8b7c6abb880589450ce604f1d0525cada41681fc12398f228e9a5ec3de0aaf",
+          "unit": "physics|13",
+          "families": [
+            "point_field"
+          ],
+          "preview": "With the help of a suitable diagram, explain the principle of working of a cyclotron. Derive the expression for (a) the cyclotron frequency, and (b) the kinetic energy acquired by the ion accelerated in the cyclotron. 3"
+        },
+        {
+          "question_id": "q_f29de01680fc0f402ab21513737370795f2a348995b05bd1df893d5c39c17140",
+          "unit": "physics|13",
+          "families": [
+            "point_field"
+          ],
+          "preview": "The magnetic field due to a current carrying circular coil at a point far off on its axis at a d coil is proportional to : 1 1 (A) (B) r r2 1 1 (C) (D) r3/2 r3"
+        }
+      ]
+    },
     "analytic_curve": {
-      "count": 8,
+      "count": 3,
       "samples": [
         {
           "question_id": "q_13cfaec944a3d351fa8078f495ebfe5a405fbbc702c33eb97093a14ce5f7fb24",
@@ -301,58 +430,12 @@
           "preview": "Let a variable line passing through the centre of the circle x? +? - 16x — 4y =0, meet the positive co-ordinate axes at the points A and B. Then the minimum value of OA + OB, where O is the origin, is equal to Options: 4"
         },
         {
-          "question_id": "q_42df8e5cc545bb2347fee22b05f665663899847e456660ea3eb34b813c569383",
-          "unit": "maths|8",
+          "question_id": "q_674f8bc2d35d25553e28fdd35ee49c2987d5e9d54f5843cee93b6657ccc706f6",
+          "unit": "maths|10",
           "families": [
-            "analytic_curve",
-            "bounded_region"
+            "analytic_curve"
           ],
-          "preview": "Roundabouts are often made on busy roads to ease the traffic and avoid red lights. One such round-about is made such that equation representing its boundary is given by C1 ; x2 + y2 = 64. There is a circular pond with a "
-        },
-        {
-          "question_id": "q_4a3afa545283d57db0adfd43c166423aa885b726d276e712c2ec730ff8b9210b",
-          "unit": "maths|8",
-          "families": [
-            "analytic_curve",
-            "bounded_region"
-          ],
-          "preview": "¡±» –Ÿ ×•‹ … 6 Find the area of the region in the first quadrant enclosed by the y-axis, the line y = x and the circle x2 + y2 = 32, using integration. dy"
-        },
-        {
-          "question_id": "q_56f3f612c715aa7b09c6cab4d4752a145bc4f03764d8909cae66ce7059de9260",
-          "unit": "maths|8",
-          "families": [
-            "analytic_curve",
-            "bounded_region"
-          ],
-          "preview": "Using integration, find the area of the region bounded by the circle x2 + y2 = 16, line y = x and y-axis, but lying in the 1st quadrant."
-        },
-        {
-          "question_id": "q_5aaf61d10636ae732ad7246f24a1539b925d59580930ce396d42295070825f0a",
-          "unit": "maths|8",
-          "families": [
-            "analytic_curve",
-            "bounded_region"
-          ],
-          "preview": "Roundabouts are often made on busy roads to ease the traffic and avoid red lights. One such round-about is made such that equation representing its boundary is given by C1 ; x2 + y2 = 64. There is a circular pond with a "
-        },
-        {
-          "question_id": "q_c110055018047e49e79cf539db758c511567f969601dab4886c30d16f3f1b174",
-          "unit": "maths|8",
-          "families": [
-            "analytic_curve",
-            "bounded_region"
-          ],
-          "preview": "¡±» –Ÿ ×•‹ … 6 Find the area of the region in the first quadrant enclosed by the y-axis, the line y = x and the circle x2 + y2 = 32, using integration. ___________ 65/1/2 8"
-        },
-        {
-          "question_id": "q_da56543a9024c43719266567f1ffc41578ace2d91607254039c7d5e84c824af1",
-          "unit": "maths|8",
-          "families": [
-            "analytic_curve",
-            "bounded_region"
-          ],
-          "preview": "Roundabouts are often made on busy roads to ease the traffic and avoid red lights. One such round-about is made such that equation representing its boundary is given by C1 ; x2 + y2 = 64. There is a circular pond with a "
+          "preview": "Let C be a circle having centre in the first quadrant and touching the x-axis at a distance of 3 units from the origin. If the circle C has an intercept of length 6/3 on y-axis, then the length of the chord of the circle"
         },
         {
           "question_id": "q_e2e1a334dab513dd8ff9cbcf5b02e08b7f3b86663bc059189106643c08beac2a",
@@ -364,55 +447,26 @@
         }
       ]
     },
-    "point_field": {
-      "count": 3,
-      "samples": [
-        {
-          "question_id": "q_3c41b0b69b89ec1b773e60a42f42af818cbd3561c089a488c5c7859322cd928b",
-          "unit": "physics|6",
-          "families": [
-            "point_field"
-          ],
-          "preview": "A rocket is launched normal to the surface of the Earth, away from the Sun, along the line joining the Sun and the Earth. The Sun is 3×10! times heavier than the Earth and is at a distance 2.5×10! times larger than the r"
-        },
-        {
-          "question_id": "q_cf8b7c6abb880589450ce604f1d0525cada41681fc12398f228e9a5ec3de0aaf",
-          "unit": "physics|13",
-          "families": [
-            "point_field"
-          ],
-          "preview": "With the help of a suitable diagram, explain the principle of working of a cyclotron. Derive the expression for (a) the cyclotron frequency, and (b) the kinetic energy acquired by the ion accelerated in the cyclotron. 3"
-        },
-        {
-          "question_id": "q_f0f3a837842e9abe5144afebb661359a87c0bb9acc7953fbc25b9c7c90d30afe",
-          "unit": "physics|13",
-          "families": [
-            "point_field"
-          ],
-          "preview": "Derive the expression for force per unit length between two long straight parallel current carrying conductors. Hence define one ampere. 3 OR Explain the principle and working of a cyclotron with the help of a schematic "
-        }
-      ]
-    },
-    "bounded_region": {
+    "circuit_network": {
       "count": 2,
       "samples": [
         {
-          "question_id": "q_63dcb09162e616f5ca426bc7f5124e4ce5ab2825c4e42d7c78e60cc73465ab31",
-          "unit": "maths|8",
+          "question_id": "q_79435f8ab0dd29f336d3a43706514151f0527b5d177a711245721b4a2be41b95",
+          "unit": "physics|13",
           "families": [
-            "bounded_region",
-            "analytic_curve"
+            "circuit_network",
+            "point_field"
           ],
-          "preview": "Using integration, find the area of the region enclosed between the circle x2 + y2 = 16 and the lines x = – 2 and x = 2."
+          "preview": "(a) Write an expression of magnetic moment associated with a current (I) carrying circular coil of radius r having N turns. (b) Consider the above mentioned coil placed in YZ plane with its centre at the origin. Derive e"
         },
         {
-          "question_id": "q_e62db415365f9fbf82f451e7ef00eafe7302abecf2b52daea7b0bc7fcd872a2c",
-          "unit": "maths|8",
+          "question_id": "q_bfdf8eee1f0b9126fae0ae0f2c8bdd0a9e00df039f0c81dd615612f82faecf1e",
+          "unit": "physics|13",
           "families": [
-            "bounded_region",
-            "analytic_curve"
+            "circuit_network",
+            "point_field"
           ],
-          "preview": "Using integration, find the area of the region bounded between the lines x = – 2, x = 2 and the circle x2 + y2 = 16. x –1 y–2 z–3"
+          "preview": "(a) Write an expression of magnetic moment associated with a current (I) carrying circular coil of radius r having N turns. (b) Consider the above mentioned coil placed in YZ plane with its centre at the origin. Derive e"
         }
       ]
     },
@@ -441,13 +495,141 @@
   },
   "required_misses": [
     {
-      "question_id": "q_3c41b0b69b89ec1b773e60a42f42af818cbd3561c089a488c5c7859322cd928b",
-      "unit": "physics|6",
+      "question_id": "q_0c90ba5c5d1197d7591e0fad17827eb8d2385c0cdb7265e3d6bd7b8b10f2e7d1",
+      "unit": "physics|17",
+      "cluster": "energy_level",
+      "families": [
+        "energy_level"
+      ],
+      "preview": "3 Draw a graph showing the variation of de Broglie wavelength of a particle of charge q and mass m with the accelerating potential. Proton and deuteron have the same de Broglie wavelengths. Explain which has more kinetic"
+    },
+    {
+      "question_id": "q_180a01d68c08358a2c55f53ab43bdd4808f5cb1fbaa8ec78dad7affc88fd7a59",
+      "unit": "physics|18",
+      "cluster": "energy_level",
+      "families": [
+        "energy_level"
+      ],
+      "preview": "In an X-ray tube, electrons emitted from a filament (cathode) carrying current I hit a target (anode) at a distance 𝑑 from the cathode. The target is kept at a potential 𝑉 higher than the cathode resulting 𝐼 in emissi"
+    },
+    {
+      "question_id": "q_18f8890bb31975776d91a74f297ecce2e9ae798ce33b187937e38dc15e784df7",
+      "unit": "physics|13",
       "cluster": "point_field",
       "families": [
         "point_field"
       ],
-      "preview": "A rocket is launched normal to the surface of the Earth, away from the Sun, along the line joining the Sun and the Earth. The Sun is 3×10! times heavier than the Earth and is at a distance 2.5×10! times larger than the r"
+      "preview": "State Biot-Savart law. Use this law to derive the expression for the magnetic field due to a circular current carrying coil at a point on its axis. 3"
+    },
+    {
+      "question_id": "q_225827d32b95022d0727972efde6dcff49011a0ed6bbae33db2d0e33017d014d",
+      "unit": "physics|17",
+      "cluster": "energy_level",
+      "families": [
+        "energy_level"
+      ],
+      "preview": "A particle is associated with a de Broglie wave of wavelength 1 2 nm. The kinetic energy of the particle is made four times. Calculate the new value of the wavelength of the wave. 3"
+    },
+    {
+      "question_id": "q_2668cf9402f83134c7861d39d2caa7df17eba8062888d631b4638c5c7ecc93e7",
+      "unit": "physics|17",
+      "cluster": "energy_level",
+      "families": [
+        "energy_level"
+      ],
+      "preview": "3 Draw a graph showing the variation of de Broglie wavelength λ of a particle of charge q and mass m, with the accelerating potential V. An α-particle and a proton have the same de Broglie wavelength equal to 1 Å. Explai"
+    },
+    {
+      "question_id": "q_6d407133d53e343aa5526db89edc69cc7dd63dd341b808ba8b4f734d2bc4901b",
+      "unit": "physics|13",
+      "cluster": "point_field",
+      "families": [
+        "point_field"
+      ],
+      "preview": "WH Be ee (os) Gas H Gaeta art 0.9 J/T 2 | samt fet wae Gass aa 4 sa yan war re 2 fe saa sa Gaaia as a 30° aM TTT TIA HK 0-063 J a set arqet (ih) wa z | G@ gaat aa a ofa oftefead afar | Gi) a qaata a4 4, ae os-qere fea fa"
+    },
+    {
+      "question_id": "q_6dd6119d68f21e10cf669743a7f05fa5b18c180c34a10ea1bbc655ccd938747f",
+      "unit": "physics|13",
+      "cluster": "point_field",
+      "families": [
+        "point_field"
+      ],
+      "preview": "Using Biot-Savart law, derive expression for the magnetic field (B) due to a circular current carrying loop at a point on its axis and hence at its centre. 3"
+    },
+    {
+      "question_id": "q_72c9c88cca3d0769ba86bf4268af785aa4a1cd909e85bd50755ef5ab1c81de3e",
+      "unit": "physics|17",
+      "cluster": "energy_level",
+      "families": [
+        "energy_level"
+      ],
+      "preview": "feat sdagia & dag tare ated (A) & sas wee fava (V) & ig & a Uhada, St Uh WH (STAGE) W CaeT | Zl Show on a graph the variation of the de Broglie wavelength (A) associated with an electron, with the square root of accelera"
+    },
+    {
+      "question_id": "q_79435f8ab0dd29f336d3a43706514151f0527b5d177a711245721b4a2be41b95",
+      "unit": "physics|13",
+      "cluster": "circuit_network",
+      "families": [
+        "circuit_network",
+        "point_field"
+      ],
+      "preview": "(a) Write an expression of magnetic moment associated with a current (I) carrying circular coil of radius r having N turns. (b) Consider the above mentioned coil placed in YZ plane with its centre at the origin. Derive e"
+    },
+    {
+      "question_id": "q_8b978c894987ad59162ae51e3a3f56cb9608ed69190976af701f3baa9dbdca57",
+      "unit": "physics|17",
+      "cluster": "energy_level",
+      "families": [
+        "energy_level"
+      ],
+      "preview": "(a) ‘V’ ‘m’ ‘q’ “ 3 (a) Draw the graph showing the variation of de Broglie wavelength λ of a particle of charge q and mass m with the accelerating potential. (b) An electron and proton have the same de Broglie wavelength"
+    },
+    {
+      "question_id": "q_a51d9e379d30caa3ba9e55c9fbf3475aacfa14815fb9e480264f0dc1df65b57b",
+      "unit": "physics|13",
+      "cluster": "point_field",
+      "families": [
+        "point_field"
+      ],
+      "preview": "(a) State Biot – Savart law and express it in the vector form. (b) Using Biot – Savart law, obtain the expression for the magnetic field due to a circular coil of radius r, carrying a current I at a point on its axis dis"
+    },
+    {
+      "question_id": "q_b2ca2b0ae340faaa2865005291bbcf1dedad968a8a16bd60e4c9a1558bbd33ea",
+      "unit": "physics|13",
+      "cluster": "point_field",
+      "families": [
+        "point_field"
+      ],
+      "preview": "State Biot-Savart law. 2 A current I flows in a conductor placed perpendicular to the plane of the paper. Indicate the direction of the magnetic field due to a small element di at point P situated at a distance F from th"
+    },
+    {
+      "question_id": "q_bb6c79d02ac912c1520a77230e9a5939b029204d76dd72a56471e2e99b1d1b2d",
+      "unit": "physics|17",
+      "cluster": "energy_level",
+      "families": [
+        "energy_level"
+      ],
+      "preview": "Photoelectric effect experiments are performed using three different metal plates p, q and r having work functions 4, =2.0 eV, ¢,=2.5 eV and 9, =3.0 eV, respectively. A light beam containing wavelengths of 550 nm, 450 nm"
+    },
+    {
+      "question_id": "q_bc89a657a915b7fe3258d11f0c9d6625424b62395b3c3228ae1e8f1625a51712",
+      "unit": "physics|13",
+      "cluster": "point_field",
+      "families": [
+        "point_field"
+      ],
+      "preview": "(a) State Biot – Savart law and express it in the vector form. (b) Using Biot – Savart law, obtain the expression for the magnetic field due to a circular coil of radius r, carrying a current I at a point on its axis dis"
+    },
+    {
+      "question_id": "q_bfdf8eee1f0b9126fae0ae0f2c8bdd0a9e00df039f0c81dd615612f82faecf1e",
+      "unit": "physics|13",
+      "cluster": "circuit_network",
+      "families": [
+        "circuit_network",
+        "point_field"
+      ],
+      "preview": "(a) Write an expression of magnetic moment associated with a current (I) carrying circular coil of radius r having N turns. (b) Consider the above mentioned coil placed in YZ plane with its centre at the origin. Derive e"
     },
     {
       "question_id": "q_cf8b7c6abb880589450ce604f1d0525cada41681fc12398f228e9a5ec3de0aaf",
@@ -459,13 +641,58 @@
       "preview": "With the help of a suitable diagram, explain the principle of working of a cyclotron. Derive the expression for (a) the cyclotron frequency, and (b) the kinetic energy acquired by the ion accelerated in the cyclotron. 3"
     },
     {
-      "question_id": "q_f0f3a837842e9abe5144afebb661359a87c0bb9acc7953fbc25b9c7c90d30afe",
+      "question_id": "q_d6775097c8b25be3553eb635d805e71c824b4c7018c56c4c61618f63e679a1f3",
+      "unit": "physics|17",
+      "cluster": "energy_level",
+      "families": [
+        "energy_level"
+      ],
+      "preview": "State the principle of the device that can build up high voltages of the . order of a few million volts. Draw its labelled diagram. A stage reaches in this device when the potential at the outer sphere cannot be increase"
+    },
+    {
+      "question_id": "q_e4673080237d8bddfaa9823d9b936da02f9f21708c166f0dae9c9b42dd9408f2",
+      "unit": "physics|17",
+      "cluster": "energy_level",
+      "families": [
+        "energy_level"
+      ],
+      "preview": "Light of wavelength λ is incident on a metallic surface of threshold wavelength λ0 (λ < λ0) and photoelectrons are emitted. (a) Write the expression for stopping potential (Vs) for the emitted electrons. 1 (b) Draw the g"
+    },
+    {
+      "question_id": "q_ea806da52f85156236b6b8d77d9b03a6cb136ef6a2ce414f7509f5c5182d8888",
+      "unit": "physics|17",
+      "cluster": "energy_level",
+      "families": [
+        "energy_level"
+      ],
+      "preview": "The wavelength of matter wave associated with an electron of kinetic energy K is . If the kinetic energy of the electron is doubled, the associated wavelength becomes : (A) 2 (B) 2 (C) 2 (D) 2"
+    },
+    {
+      "question_id": "q_f07ca2c64cf9431658037b9e176aa0f326067fc57b2bc686d0e7e366ba28d387",
+      "unit": "physics|17",
+      "cluster": "energy_level",
+      "families": [
+        "energy_level"
+      ],
+      "preview": "(a) Briefly explain de Broglie hypothesis for wave nature of matter. (b) Find the ratio of de Broglie wavelength associated with a proton and an alpha particle when both are (i) accelerated from rest through the same pot"
+    },
+    {
+      "question_id": "q_f29de01680fc0f402ab21513737370795f2a348995b05bd1df893d5c39c17140",
       "unit": "physics|13",
       "cluster": "point_field",
       "families": [
         "point_field"
       ],
-      "preview": "Derive the expression for force per unit length between two long straight parallel current carrying conductors. Hence define one ampere. 3 OR Explain the principle and working of a cyclotron with the help of a schematic "
+      "preview": "The magnetic field due to a current carrying circular coil at a point far off on its axis at a d coil is proportional to : 1 1 (A) (B) r r2 1 1 (C) (D) r3/2 r3"
+    },
+    {
+      "question_id": "q_f39eb3ee5feaa52dc4fc830582711c1e85b549b80e4dda392a67efbd834f89d3",
+      "unit": "physics|13",
+      "cluster": "point_field",
+      "families": [
+        "point_field"
+      ],
+      "preview": "A bar magnet of magnetic moment 2·5 JT lies aligned with the direction of a uniform magnetic field of 0·32 T. (a) Find the amount of work done to turn the magnet so as to align its magnetic moment (i) normal to the field"
     }
   ]
 }

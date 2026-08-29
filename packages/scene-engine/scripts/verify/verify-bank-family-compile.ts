@@ -21,6 +21,7 @@ import {
   synthesizeFamilyScene,
   synthesizeLastResortScene,
 } from "../../src/synthesize/familyScene.ts";
+import { sceneDemand } from "../../src/synthesize/sceneDemand.ts";
 import type { SceneDocument } from "../../src/types.ts";
 
 interface BankQuestion {
@@ -74,6 +75,16 @@ const CERTIFY_PHYSICS_UNITS = [
  * stems that are not honest text-only and still produce no ink.
  * Unit 1 (dimensions) is excluded from DIAGRAM_LED on purpose.
  */
+/**
+ * Per-unit ceiling on stems that demand a figure and get none.
+ *
+ * These are a no-regression ratchet against the honest measurement, not a
+ * quality target. Four units were re-baselined upward when the picture-demand
+ * check landed: they had been under their old ceilings only because a
+ * contradicting canned picture counted as coverage (physics|12 0.10, |13 0.05,
+ * |14 0.03, |17 0.12). The `demanded=` column in the per-unit output is the
+ * work list; each family built in its unit should let these come back down.
+ */
 const PHYSICS_MISS_RATE_CEILING: Record<string, number> = {
   "physics|2": 0.12,
   "physics|3": 0.12,
@@ -85,12 +96,12 @@ const PHYSICS_MISS_RATE_CEILING: Record<string, number> = {
   "physics|9": 0.3,
   "physics|10": 0.15,
   "physics|11": 0.05,
-  "physics|12": 0.1,
-  "physics|13": 0.05,
-  "physics|14": 0.03,
+  "physics|12": 0.52,
+  "physics|13": 0.34,
+  "physics|14": 0.08,
   "physics|15": 0.08,
   "physics|16": 0.05,
-  "physics|17": 0.12,
+  "physics|17": 0.66,
   "physics|18": 0.2,
   "physics|19": 0.04,
   "physics|20": 0.35,
@@ -180,6 +191,7 @@ type PictureClass =
   | "space_3d"
   | "implicit_conic"
   | "function_region"
+  | "constraint_region"
   | "circle_figure"
   | "function_curves"
   | "vector_ab"
@@ -187,25 +199,48 @@ type PictureClass =
   | "other"
   | "none";
 
+
+/** Independent loops (cyclomatic number) over symbol+connect edges. */
+function circuitIndependentLoops(document: SceneDocument): number {
+  const nodes = new Set<string>();
+  let edges = 0;
+  for (const construction of document.constructions) {
+    if (construction.operator !== "symbol" && construction.operator !== "connect") continue;
+    const pick = (names: string[]): string | null => {
+      for (const name of names) {
+        const value = construction.inputs[name];
+        if (typeof value === "string" && value) return value;
+      }
+      return null;
+    };
+    const start = pick(["start", "from", "a"]);
+    const end = pick(["end", "to", "b"]);
+    if (!start || !end || start === end) continue;
+    nodes.add(start);
+    nodes.add(end);
+    edges += 1;
+  }
+  if (nodes.size === 0) return 0;
+  return edges - nodes.size + 1;
+}
+
 function classifyPictureClass(document: SceneDocument | null): PictureClass {
   if (!document) return "none";
   const operators = document.constructions.map((construction) => construction.operator);
   const entityIds = new Set(document.entities.map((entity) => entity.id));
-  if (
-    document.constructions.some((construction) =>
-      construction.operator === "symbol" && construction.inputs.symbol === "battery")
-    && operators.includes("connect")
-    && entityIds.has("v1")
-    && entityIds.has("r3")
-  ) {
-    return "circuit_two_loop";
-  }
+  // A multi-loop network is a topology, not a naming convention and not a
+  // source count: a Wheatstone bridge has one cell and is still two loops.
+  // Independent loops of a connected graph is edges - nodes + 1, so >= 2 is
+  // exactly "more than one current path", which is what separates this from a
+  // chain. Edges are read the way topology.ts reads them.
+  if (circuitIndependentLoops(document) >= 2) return "circuit_two_loop";
   if (document.entities.some((entity) => /bank/i.test(`${entity.id} ${entity.role}`))) {
     return "river_banks";
   }
   if (operators.includes("space_frame")) return "space_3d";
   if (operators.includes("implicit_curve")) return "implicit_conic";
   if (operators.includes("function_region")) return "function_region";
+  if (operators.includes("constraint_region")) return "constraint_region";
   if (operators.includes("circle")) return "circle_figure";
   if (operators.includes("function_curve")) return "function_curves";
   if (
@@ -280,6 +315,8 @@ interface RowResult {
   fatal_codes: string[];
   cluster: string;
   required_miss: boolean;
+  /** Missed while the stem demanded a specific picture — the Phase-2 work list. */
+  miss_with_demand: boolean;
   stem_preview: string;
 }
 
@@ -288,10 +325,11 @@ interface UnitStats {
   honest_text_only: number;
   scenes: number;
   required_misses: number;
+  misses_with_demand: number;
 }
 
 function emptyStats(): UnitStats {
-  return { visualizable: 0, honest_text_only: 0, scenes: 0, required_misses: 0 };
+  return { visualizable: 0, honest_text_only: 0, scenes: 0, required_misses: 0, misses_with_demand: 0 };
 }
 
 function preview(text: string): string {
@@ -304,7 +342,14 @@ function main(): void {
   const syllabusPath = resolve(repoRoot, "data/question-bank/build/question-syllabus.jsonl");
   const reportDir = resolve(repoRoot, "data/question-bank/reports/coverage");
   const reportDate = "2026-08-27";
-  const reportPath = resolve(reportDir, `bank-family-compile-${reportDate}.json`);
+  // Opt-in: a plain gate run must not dirty the tracked report. Pass
+  // `--report` (optionally with a path) to regenerate it deliberately.
+  const reportFlag = process.argv.indexOf("--report");
+  const reportOverride = reportFlag === -1 ? undefined : process.argv[reportFlag + 1];
+  const writeReport = reportFlag !== -1;
+  const reportPath = reportOverride && !reportOverride.startsWith("--")
+    ? resolve(reportOverride)
+    : resolve(reportDir, `bank-family-compile-${reportDate}.json`);
 
   if (!existsSync(questionsPath) || !existsSync(syllabusPath)) {
     console.log(
@@ -327,9 +372,8 @@ function main(): void {
     if (!line.trim()) continue;
     const question = JSON.parse(line) as BankQuestion;
     const assignment = assignmentById.get(question.question_id);
-    if (!assignment || assignment.status !== "classified") continue;
-    const subjectRaw = assignment.subject ?? "";
-    const unit = assignment.primary_unit_id ?? "";
+    const subjectRaw = assignment?.subject ?? "";
+    const unit = assignment?.primary_unit_id ?? "";
     const subject = unit.startsWith("physics|")
       ? "physics"
       : unit.startsWith("maths|")
@@ -339,11 +383,17 @@ function main(): void {
           : subjectRaw.toLowerCase().startsWith("math")
             ? "maths"
             : "";
-    if (subject !== "physics" && subject !== "maths") continue;
     const text = question.text ?? "";
-    if (!isEnglishEnough(text)) continue;
-    if (isGarbledOcr(text)) continue;
-    if (!isDiagramWorthy(text, unit)) continue;
+    if (!isEnglishEnough(text) || isGarbledOcr(text)) continue;
+    // Picture-class samples are the wrong-picture oracle, so they are drawn
+    // from every readable stem. Restricting them to admitted rows let a sample
+    // match nothing and still "pass" — river_banks scored 0 that way, and the
+    // one river stem in the bank is `needs_review` with no unit.
+    const sampled = PICTURE_CLASS_SAMPLES.filter((sample) => sample.match(text));
+    const admitted = assignment?.status === "classified"
+      && (subject === "physics" || subject === "maths")
+      && isDiagramWorthy(text, unit);
+    if (!admitted && sampled.length === 0) continue;
 
     const capabilities = inferSceneCapabilities(text);
     const honestTextOnly = isHonestTextOnly(text);
@@ -365,9 +415,13 @@ function main(): void {
       : [];
     const compiled = Boolean(synthesized && mode === "scene" && primitives > 0);
     const requiredMiss = !honestTextOnly && !compiled;
+    // A stem with a demand that produced nothing is usually a candidate the
+    // demand vetoed, i.e. a wrong picture we refused rather than a blind spot.
+    const demand = sceneDemand(text);
+    const hasDemand = demand.requires.length > 0 || demand.forbids.length > 0;
     const pictureClass = classifyPictureClass(synthesized?.document ?? null);
 
-    rows.push({
+    const row: RowResult = {
       question_id: question.question_id,
       subject,
       unit,
@@ -383,13 +437,14 @@ function main(): void {
       fatal_codes: fatalCodes,
       cluster: clusterOf(text, capabilities.families),
       required_miss: requiredMiss,
+      miss_with_demand: requiredMiss && hasDemand,
       stem_preview: preview(text),
-    });
+    };
+    if (admitted) rows.push(row);
 
-    for (const sample of PICTURE_CLASS_SAMPLES) {
-      if (!sample.match(text)) continue;
+    for (const sample of sampled) {
       const bucket = sampleRows.get(sample.id) ?? [];
-      bucket.push({ row: rows[rows.length - 1]!, compiled });
+      bucket.push({ row, compiled });
       sampleRows.set(sample.id, bucket);
     }
   }
@@ -403,6 +458,7 @@ function main(): void {
     if (row.honest_text_only) unitStats.honest_text_only += 1;
     if (!row.required_miss && !row.honest_text_only) unitStats.scenes += 1;
     if (row.required_miss) unitStats.required_misses += 1;
+    if (row.miss_with_demand) unitStats.misses_with_demand += 1;
     byUnit.set(row.unit, unitStats);
 
     const subjectStats = bySubject.get(row.subject) ?? emptyStats();
@@ -410,6 +466,7 @@ function main(): void {
     if (row.honest_text_only) subjectStats.honest_text_only += 1;
     if (!row.required_miss && !row.honest_text_only) subjectStats.scenes += 1;
     if (row.required_miss) subjectStats.required_misses += 1;
+    if (row.miss_with_demand) subjectStats.misses_with_demand += 1;
     bySubject.set(row.subject, subjectStats);
 
     if (row.required_miss) {
@@ -497,8 +554,10 @@ function main(): void {
       })),
   };
 
-  mkdirSync(reportDir, { recursive: true });
-  writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  if (writeReport) {
+    mkdirSync(dirname(reportPath), { recursive: true });
+    writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  }
 
   console.log("verify-bank-family-compile: live family compile");
   console.log(`  visualizable=${rows.length} physics_scenes=${physics.scenes} physics_misses=${physics.required_misses} maths_scenes=${maths.scenes} maths_misses=${maths.required_misses}`);
@@ -511,10 +570,10 @@ function main(): void {
     if (!stats) continue;
     const required = Math.max(0, stats.visualizable - stats.honest_text_only);
     console.log(
-      `  ${unit}: scenes=${stats.scenes} / visualizable=${stats.visualizable} / required-misses=${stats.required_misses} (required=${required})`,
+      `  ${unit}: scenes=${stats.scenes} / visualizable=${stats.visualizable} / required-misses=${stats.required_misses} (demanded=${stats.misses_with_demand}) (required=${required})`,
     );
   }
-  console.log(`  report=${reportPath}`);
+  console.log(`  report=${writeReport ? reportPath : "(not written; pass --report to regenerate)"}`);
 
   console.log("verify-bank-family-compile: picture-class sample gate");
   const pictureContradictions: string[] = [];
@@ -523,8 +582,18 @@ function main(): void {
     const compiledEntries = entries.filter((entry) => entry.compiled);
     const wrong = compiledEntries.filter((entry) => entry.row.picture_class !== sample.expect);
     console.log(
-      `  ${sample.id}: sampled=${entries.length} compiled=${compiledEntries.length} correct-class=${compiledEntries.length - wrong.length} wrong-class=${wrong.length} (expect=${sample.expect})`,
+      `  ${sample.id}: sampled=${entries.length} compiled=${compiledEntries.length} correct-class=${compiledEntries.length - wrong.length} wrong-class=${wrong.length} not-compiled=${entries.length - compiledEntries.length} (expect=${sample.expect})`,
     );
+    // A sample that matches nothing proves nothing; it must not read as a pass.
+    if (entries.length === 0) {
+      pictureContradictions.push(
+        `${sample.id}: matched no stem in the corpus — the sample is vacuous, fix its matcher or remove it`,
+      );
+      continue;
+    }
+    for (const entry of entries.filter((candidate) => !candidate.compiled)) {
+      console.log(`    [no-picture] ${entry.row.question_id} ${entry.row.stem_preview}`);
+    }
     for (const entry of wrong) {
       const contradiction = sample.contradictions.includes(entry.row.picture_class);
       if (contradiction) {

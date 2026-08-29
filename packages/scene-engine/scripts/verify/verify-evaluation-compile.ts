@@ -59,6 +59,10 @@ const questions = [
   ...loadQuestions("../../fixtures/evaluation/jee-physics-core-v1.json", "questions"),
 ];
 
+if (questions.length === 0) {
+  throw new Error("verify-evaluation-compile: no fixture questions loaded; the gate would pass vacuously");
+}
+
 const failures: string[] = [];
 
 for (const question of questions) {

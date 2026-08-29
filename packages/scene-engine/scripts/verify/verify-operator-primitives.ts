@@ -265,3 +265,41 @@ function operatorDocument(config: {
     }],
   };
 }
+
+/* -- tangent_line / normal_line differentiability -------------------------- */
+// The one-sided slope gap is |f''|*h while the tolerance scales with |f'|, so a
+// magnitude comparison rejects smooth points that merely have a small slope —
+// the tangent at the vertex of a parabola among them. Differentiability is
+// decided by whether the gap converges as h shrinks, so a corner still fails.
+{
+  const tangentDocument = (expression: string, at: number): SceneDocument => ({
+    schemaVersion: "scene-document/v2",
+    visualDecision: { mode: "scene", reason: "verify tangent differentiability" },
+    source: { question: `tangent to y=${expression} at x=${at}` },
+    quantities: [], relations: [], annotations: [], teachingTimeline: [],
+    entities: [
+      { id: "axes", kind: "axes", role: "display axes" },
+      { id: "curve", kind: "polyline", role: "curve" },
+      { id: "tangent", kind: "line", role: "tangent line" },
+    ],
+    constructions: [
+      { id: "make_axes", operator: "axes", inputs: { xMin: -3, xMax: 3, yMin: -6, yMax: 6 }, outputs: ["axes"] },
+      { id: "make_curve", operator: "function_curve", inputs: { expression, variable: "x", xMin: -3, xMax: 3, samples: 65 }, outputs: ["curve"] },
+      { id: "make_tangent", operator: "tangent_line", inputs: { curve: "curve", at }, outputs: ["tangent"] },
+    ],
+    assertions: [{ id: "tangent_exists", predicate: "exists", entities: ["tangent"], expected: true, severity: "fatal" }],
+    requiredEntityIds: ["axes", "curve", "tangent"],
+    revealGroups: [{ id: "reveal", entityIds: ["axes", "curve", "tangent"] }],
+  } as unknown as SceneDocument);
+
+  for (const [expression, at] of [["x^2", 0], ["x^3-2*x+1", 1], ["x^3-2*x+1", 2]] as const) {
+    if (!compileSceneDocument(tangentDocument(expression, at)).ok) {
+      throw new Error(`tangent_line must compile on the smooth curve ${expression} at x=${at}`);
+    }
+  }
+  for (const [expression, at] of [["abs(x)", 0], ["abs(x-1)+abs(x+1)", -1]] as const) {
+    if (compileSceneDocument(tangentDocument(expression, at)).ok) {
+      throw new Error(`tangent_line must refuse the corner of ${expression} at x=${at}`);
+    }
+  }
+}
