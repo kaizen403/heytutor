@@ -1,0 +1,21 @@
+# The Vercel CLI uploads the local working tree, which includes large local-only
+# artifacts and question-bank pipeline intermediates that no Vercel build reads.
+# Git-based deploys are unaffected (these paths are untracked or gitignored).
+
+# Question-bank pipeline intermediates (~2.2GB local, untracked).
+# build/, reports/, text/ and syllabus-taxonomy.json are deliberately kept:
+# the tutor verify/measure scripts resolve paths into them.
+data/question-bank/staging/
+data/question-bank/raw/
+data/question-bank/cache/
+
+# Local build artifacts - Vercel runs its own build.
+.next/
+.turbo/
+dist/
+
+# Local scratch / agent working state.
+.images/
+.omo/
+.omx/
+.devlog/
