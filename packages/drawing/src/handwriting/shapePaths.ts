@@ -209,6 +209,92 @@ export function arrowPath(
   ].join(" ");
 }
 
+/**
+ * Deterministic wobble source. Seeded from the geometry it decorates, so the
+ * same box on the same board replays stroke for stroke — a hand-drawn look
+ * must not mean a random look.
+ */
+function wobbleSource(seed: number): () => number {
+  let state = (Math.abs(Math.round(seed)) * 1664525 + 1013904223) >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+/**
+ * A box drawn round a formula the way a hand draws one: a single continuous
+ * stroke, each edge bowed a little, the corners eased, and a short overshoot
+ * past the start where the pen carries on before lifting.
+ *
+ * Prefer this to `emphasisEllipsePath` for work-area equations — a ring round a
+ * line of algebra reads as a correction, a box reads as "hold on to this".
+ */
+export function emphasisBoxPath(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  padding = 6,
+): string {
+  const left = x - padding;
+  const right = x + width + padding;
+  const top = y - padding * 0.75;
+  const bottom = y + height + padding * 0.6;
+  const boxWidth = Math.max(right - left, 1);
+  const boxHeight = Math.max(bottom - top, 1);
+
+  const random = wobbleSource(left * 31 + top * 17 + boxWidth * 7 + boxHeight * 3);
+  // Bow is a fraction of the edge it belongs to, capped so a long formula does
+  // not get a banana for a top edge.
+  const bow = (span: number): number => (random() - 0.5) * Math.min(span * 0.02, 1.8);
+  const radius = Math.max(1.5, Math.min(7, boxWidth * 0.05, boxHeight * 0.28));
+
+  const startX = left + radius;
+  const startY = top + bow(boxWidth) * 0.4;
+  const midTopX = (left + right) / 2;
+  const midBottomX = midTopX;
+  const midLeftY = (top + bottom) / 2;
+  const midRightY = midLeftY;
+  const endX = right - radius;
+
+  return [
+    `M ${coord(startX)} ${coord(startY)}`,
+    `Q ${coord(midTopX)} ${coord(top + bow(boxWidth))} ${coord(endX)} ${coord(top)}`,
+    `Q ${coord(right)} ${coord(top)} ${coord(right)} ${coord(top + radius)}`,
+    `Q ${coord(right + bow(boxHeight))} ${coord(midRightY)} ${coord(right)} ${coord(bottom - radius)}`,
+    `Q ${coord(right)} ${coord(bottom)} ${coord(right - radius)} ${coord(bottom)}`,
+    `Q ${coord(midBottomX)} ${coord(bottom + bow(boxWidth))} ${coord(left + radius)} ${coord(bottom)}`,
+    `Q ${coord(left)} ${coord(bottom)} ${coord(left)} ${coord(bottom - radius)}`,
+    `Q ${coord(left + bow(boxHeight))} ${coord(midLeftY)} ${coord(left)} ${coord(top + radius)}`,
+    `Q ${coord(left)} ${coord(top)} ${coord(startX)} ${coord(startY)}`,
+    // The pen carries past the corner it started at before lifting.
+    `L ${coord(startX + Math.min(boxWidth * 0.06, 9))} ${coord(startY - 0.6)}`,
+  ].join(" ");
+}
+
+/**
+ * The centre line a highlighter sweeps along. Rendered as one thick stroke the
+ * height of the span, so the mark is a single chisel-tip swipe rather than a
+ * rectangle that fades up.
+ */
+export function highlighterSweepPath(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): string {
+  const centerY = y + height / 2;
+  const random = wobbleSource(x * 13 + y * 29 + width * 5);
+  // A real sweep is never perfectly level and rarely perfectly straight.
+  const tilt = (random() - 0.5) * Math.min(height * 0.12, 1.6);
+  const bow = (random() - 0.5) * Math.min(height * 0.16, 2);
+  return [
+    `M ${coord(x)} ${coord(centerY - tilt)}`,
+    `Q ${coord(x + width / 2)} ${coord(centerY + bow)} ${coord(x + width)} ${coord(centerY + tilt)}`,
+  ].join(" ");
+}
+
 /** Closed rectangle for translucent highlight fill. */
 export function highlightRectPath(
   x: number,

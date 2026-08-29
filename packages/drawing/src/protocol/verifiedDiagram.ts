@@ -42,6 +42,23 @@ export interface VerifiedDiagramReveal {
 }
 
 /** Runtime envelope for geometry that has passed scene-engine validation. */
+/**
+ * What a symbol on the figure means. A diagram is labelled `R_1` rather than
+ * "Resistor 1 (12 Ω)" so the geometry stays readable — this carries the
+ * expansion the board hands back when a student asks for it.
+ */
+export interface VerifiedLabelFact {
+  /** The symbol exactly as drawn. */
+  symbol: string;
+  /** Expanded name — "Resistor 1". */
+  title: string;
+  /** Solved value with unit — "12 Ω". */
+  value?: string;
+  provenance?: "given" | "derived" | "assumed";
+  /** The planner's one-line justification, when it recorded one. */
+  detail?: string;
+}
+
 export interface VerifiedDiagram {
   id: "verified_scene";
   name: string;
@@ -52,6 +69,8 @@ export interface VerifiedDiagram {
   groups?: VerifiedDiagramGroup[];
   caption?: string;
   deferredAnnotations?: VerifiedDeferredAnnotation[];
+  /** Normalized symbol → meaning, for the label inspector. */
+  labelGlossary?: Record<string, VerifiedLabelFact>;
 }
 
 export interface VerifiedDiagramPresentation {
