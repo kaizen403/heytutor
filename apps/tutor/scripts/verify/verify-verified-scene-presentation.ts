@@ -67,7 +67,25 @@ if (presentation.introSegments.some((segment) => segment.narration.trim() === ""
 if (presentation.introSegments.some((segment) => !segment.command)) throw new Error("scene narration must remain paired with ink");
 if (presentation.diagram.commands.filter((command) => command.type === "LABEL").length !== 3) throw new Error("duplicate entity labels were emitted");
 const label = presentation.diagram.commands.find((command) => command.type === "LABEL" && command.text === "A");
-if (label?.params[0] !== 460 || label.params[1] !== 274) throw new Error("compiled label offset was not preserved");
+if (!label) throw new Error("point label A is missing");
+{
+  // Placement is asserted as a requirement, not as a remembered coordinate:
+  // the label must honour "above", stay attached to its point, and — the part
+  // the old ten-offset guess got wrong — not sit on top of the AB line at
+  // y=300 that runs right through the anchor.
+  const [lx, ly] = label.params as [number, number, number];
+  const height = 32;
+  const width = 22;
+  if (!(ly + height <= 300)) {
+    throw new Error(`label A must sit above the anchor and clear the AB line, got y=${ly}`);
+  }
+  if (!(lx + width >= 450 - 40 && lx <= 450 + 40)) {
+    throw new Error(`label A must stay attached to its point at x=450, got x=${lx}`);
+  }
+  if (!(300 - (ly + height) <= 60)) {
+    throw new Error(`label A drifted too far from its point, gap ${300 - (ly + height)}`);
+  }
+}
 const absoluteLabel = presentation.diagram.commands.find((command) => command.type === "LABEL" && command.text === "AB");
 if (absoluteLabel?.params[1] !== 384) throw new Error("absolute scene-engine label position was changed by the adapter");
 const measurementLabel = presentation.diagram.commands.find((command) => command.type === "LABEL" && command.text === "R_eq = 36 Ω");
@@ -80,23 +98,25 @@ if (presentation.diagram.commands.some((command) => command.text === "Ray 1")) t
 if (presentation.diagram.commands.filter((command) =>
   command.type === "DRAW_LINE" && command.visualStyle?.strokeRole !== "trace"
 ).length !== 1) throw new Error("duplicate primary geometry commands were emitted");
-const plannedTrace = presentation.diagram.commands.find((command) =>
-  command.visualStyle?.strokeRole === "trace"
-);
-if (plannedTrace?.semanticRef?.entityId !== "ab" || plannedTrace.semanticRef.actionId !== "focus_ab") {
-  throw new Error("timeline focus did not preserve verified semantic ownership");
+if (presentation.diagram.commands.some((command) =>
+  command.visualStyle?.strokeRole === "trace" && command.semanticRef?.actionId
+)) {
+  throw new Error("timeline focus traces must not be baked into the opening figure");
 }
-const focusNarration = presentation.introSegments
-  .map((segment) => segment.narration)
-  .find((narration) => /Segment AB is the edge/i.test(narration));
-if (!focusNarration) {
-  throw new Error("focus stages must speak the planner's narration intent");
+if (presentation.introSegments.some((segment) =>
+  (segment.commands ?? []).some((command) =>
+    command.type === "CIRCLE_AROUND" || command.type === "LABEL" || command.type === "DIMENSION"
+  )
+)) {
+  throw new Error("the opening figure must not circle, label, or dimension until the lecture names a part");
 }
-if (/will use in the reasoning/i.test(focusNarration)) {
-  throw new Error("focus stages must not inject the canned reasoning filler phrase");
+if (presentation.introSegments.some((segment) => /Segment AB is the edge/i.test(segment.narration))) {
+  throw new Error("focus narration must wait for the lecture, not the intro");
 }
-if (/^Before we calculate/i.test(focusNarration)) {
-  throw new Error("focus stages must not wrap planner prose in a stock preface");
+if (!presentation.diagram.deferredAnnotations?.some((entry) =>
+  entry.commands.some((command) => command.type === "LABEL" && command.text === "A")
+)) {
+  throw new Error("identity labels must be deferred for FOCUS during the lecture");
 }
 if (!presentation.diagram.promptAddon.includes("Do not emit DRAW_*")) throw new Error("teaching draw guard is missing");
 if (!presentation.diagram.promptAddon.includes("[FOCUS:entity_id]")) throw new Error("semantic focus contract is missing");
@@ -262,21 +282,14 @@ const labelHeavyScene: RenderScene = {
   entityBounds: {},
 };
 const labelHeavyPresentation = buildVerifiedDiagramPresentation(labelHeavyDocument, labelHeavyScene);
-const labelSegments = labelHeavyPresentation.introSegments.filter((segment) =>
-  segment.commands?.some((command) => command.type === "LABEL"),
-);
-if (labelSegments.length !== 1) {
-  throw new Error("labels in one reveal group must stay in one spoken beat");
+if (labelHeavyPresentation.introSegments.some((segment) =>
+  (segment.commands ?? []).some((command) => command.type === "LABEL")
+)) {
+  throw new Error("quantity labels must not ink during the intro reveal");
 }
-if ((labelSegments[0]?.commands?.length ?? 0) !== 5) {
-  throw new Error("the group beat must keep every verified label");
-}
-for (const segment of labelSegments) {
-  for (const command of segment.commands ?? []) {
-    if (command.text && !segment.narration.includes(command.text)) {
-      throw new Error(`label narration did not name ${command.text}`);
-    }
-  }
+if ((labelHeavyPresentation.diagram.deferredAnnotations?.flatMap((entry) => entry.commands)
+  .filter((command) => command.type === "LABEL").length ?? 0) !== 5) {
+  throw new Error("every verified label must stay available for FOCUS/ANNOTATE");
 }
 
 const pointFocusDocument: SceneDocument = {
@@ -296,16 +309,16 @@ const pointFocusPresentation = buildVerifiedDiagramPresentation(pointFocusDocume
   ...renderScene,
   timeline: pointFocusDocument.teachingTimeline,
 });
-const pointFocus = pointFocusPresentation.introSegments.find((segment) =>
-  /this is a, the starting point/i.test(segment.narration));
-if (!pointFocus) throw new Error("point identity stages must keep the spoken name");
-if (!pointFocus.commands?.some((command) =>
-  command.visualStyle?.strokeRole === "trace" && command.semanticRef?.entityId === "a"
+if (pointFocusPresentation.introSegments.some((segment) =>
+  /this is a, the starting point/i.test(segment.narration)
+  || (segment.commands ?? []).some((command) => command.type === "CIRCLE_AROUND")
 )) {
-  throw new Error("naming a labeled point must mark it on the verified diagram");
+  throw new Error("point identity circling must wait for lecture FOCUS, not the intro");
 }
-if (!pointFocus.commands?.some((command) => command.type === "CIRCLE_AROUND")) {
-  throw new Error("point focus must enclose the vertex instead of a fixed-radius circle");
+if (!pointFocusPresentation.diagram.deferredAnnotations?.some((entry) =>
+  entry.entityId === "a" && entry.commands.some((command) => command.type === "LABEL")
+)) {
+  throw new Error("point A must keep a deferred label for lecture FOCUS");
 }
 
 const encloseScene: RenderScene = {
@@ -346,6 +359,13 @@ if (!enclosePresentation.diagram.commands.some((command) => command.type === "CI
 }
 if (!enclosePresentation.diagram.commands.some((command) => command.type === "HIGHLIGHT")) {
   throw new Error("highlight annotations must become HIGHLIGHT from compiled bounds");
+}
+if (enclosePresentation.introSegments.some((segment) =>
+  (segment.commands ?? []).some((command) =>
+    command.type === "CIRCLE_AROUND" || command.type === "HIGHLIGHT"
+  )
+)) {
+  throw new Error("enclose and highlight ink must wait for lecture ANNOTATE, not the intro");
 }
 
 console.log("verified scene presentation verification passed");

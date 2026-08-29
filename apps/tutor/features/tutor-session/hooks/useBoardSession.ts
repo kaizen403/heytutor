@@ -49,6 +49,9 @@ export interface UseBoardSessionParams {
   cancelRef: RefObject<boolean>;
   notesEpochsRef: RefObject<NotesEpoch[]>;
   narrationSinceEpochRef: RefObject<string>;
+  liveQuestionRef: RefObject<string>;
+  /** Snapshot the current board as a notes page (see `useBoardLayout`). */
+  captureNotesEpoch: () => boolean;
   ttsClientRef: RefObject<TTSClient | null>;
   speedRef: RefObject<number>;
   stopTurnRef: RefObject<(() => void) | null>;
@@ -75,6 +78,8 @@ export function useBoardSession({
   cancelRef,
   notesEpochsRef,
   narrationSinceEpochRef,
+  liveQuestionRef,
+  captureNotesEpoch,
   ttsClientRef,
   speedRef,
   stopTurnRef,
@@ -141,11 +146,11 @@ export function useBoardSession({
         (b) => b.title === "new board" && !b.preview,
       );
       if (unused) {
+        // Already sitting on a blank board: ask it here rather than stacking up
+        // another empty board behind it.
         if (unused.id === sessionId && !question.trim()) return;
-        if (unused.id !== sessionId) {
-          router.push(nextQuestionBoardPath(unused.id, question));
-          return;
-        }
+        router.push(nextQuestionBoardPath(unused.id, question));
+        return;
       }
       const board = await createBoard();
       if (!board) return;
@@ -329,6 +334,7 @@ export function useBoardSession({
 
         notesEpochsRef.current = [];
         narrationSinceEpochRef.current = lastNarration;
+        liveQuestionRef.current = lastTurn?.question ?? "";
         setNarrationText(lastNarration);
         setCurrentSegmentText("");
 
@@ -345,8 +351,17 @@ export function useBoardSession({
           return;
         }
 
+        // Each stored turn is one notes page. Snapshot the previous turn's ink
+        // before this turn's CLEAR wipes it, so Download notes survives a reload.
+        let restoredInk = false;
         for (const turn of detail.turns) {
           if (isStale()) return;
+          if (restoredInk) {
+            captureNotesEpoch();
+            restoredInk = false;
+          }
+          liveQuestionRef.current = turn.question;
+          narrationSinceEpochRef.current = lessonNarrationText(turn.rawResponse);
 
           for (const segment of turn.segments) {
             if (isStale()) return;
@@ -364,6 +379,9 @@ export function useBoardSession({
                 trustedDiagramGeometry,
                 isCancelled: isStale,
               });
+              if (command.type !== "CLEAR") {
+                restoredInk = true;
+              }
             }
           }
         }
@@ -385,6 +403,8 @@ export function useBoardSession({
       conversationHistoryRef,
       notesEpochsRef,
       narrationSinceEpochRef,
+      liveQuestionRef,
+      captureNotesEpoch,
       setNarrationText,
       setCurrentSegmentText,
       setStoredTurnsCount,

@@ -58,6 +58,9 @@ export function resolvePlannedSceneVisualStatus(options: {
 }
 
 /** Failed diagrams skip the canvas. They must not stop narration or work-area writing. */
+// The status is part of the contract and deliberately ignored: nothing about a
+// diagram's outcome may block the lesson.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function shouldBlockLessonForDiagram(_status: DiagramGenerationStatus): boolean {
   return false;
 }

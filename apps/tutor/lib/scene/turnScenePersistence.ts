@@ -9,6 +9,7 @@ import {
   validateSolverResult,
   validateTurnPlanSceneProofs,
   validateTurnPlanV3,
+  archetypeProvenance,
   verifyTurnPlanAgainstSolver,
   type SceneArtifactsV3,
   type SceneDocument,
@@ -121,7 +122,21 @@ export async function canonicalizeTurnSceneMetadata(
   const planResult = validateTurnPlanV3(metadata.sceneArtifacts.turnPlan, question);
   const turnPlan = planResult.plan;
   if (tier === "exact_verified" && !turnPlan) {
-    return failure(`exact scene has an invalid TurnPlanV3: ${formatIssues(planResult.issues)}`);
+    // A plan is one source of exact numbers, not the only one. When every
+    // metric slot was read from the question itself — "Sketch y = x^2", a
+    // circle given by its own equation — the stem IS the source of truth, and
+    // demanding a plan would mean re-deriving what the question already states.
+    // Anything less than fully stem-grounded ("mixed", a display default, or a
+    // document with no archetype provenance at all) still needs the plan.
+    const submitted = validateSceneDocument(metadata.sceneDocument);
+    if (!submitted.document) {
+      // A document that does not even parse is structurally invalid; saying it
+      // has a bad plan would hide the real reason from the caller.
+      return failure(`exact scene is structurally invalid: ${formatIssues(submitted.report.issues)}`);
+    }
+    if (archetypeProvenance(submitted.document).exactGrounding !== "stem") {
+      return failure(`exact scene has an invalid TurnPlanV3: ${formatIssues(planResult.issues)}`);
+    }
   }
 
   let document: SceneDocument;
@@ -169,17 +184,25 @@ export async function canonicalizeTurnSceneMetadata(
     if (!sourceQuestionMatches(document, question)) {
       return failure("scene source question does not match the submitted question");
     }
-    const agreementIssues = validateSceneQuantityAgreement(
-      document.quantities,
-      turnPlan!,
-      displayedSceneText(document),
-    );
-    if (agreementIssues.length > 0) {
-      return failure(`scene quantities disagree with TurnPlanV3: ${formatIssues(agreementIssues)}`);
-    }
-    const proofIssues = validateTurnPlanSceneProofs(document, turnPlan!);
-    if (proofIssues.some((issue) => issue.severity === "fatal")) {
-      return failure(`scene proof obligations failed: ${formatIssues(proofIssues)}`);
+    // Both checks below reconcile the scene against the plan. A stem-grounded
+    // exact scene has no plan to reconcile with — it was computed from the
+    // question's own equation — so they are skipped rather than faked. Trust
+    // is not weakened: the document is still structurally validated, its source
+    // question still has to match, and compileSceneDocument below still fails
+    // the save on any fatal assertion, which is where the metric proof lives.
+    if (turnPlan) {
+      const agreementIssues = validateSceneQuantityAgreement(
+        document.quantities,
+        turnPlan,
+        displayedSceneText(document),
+      );
+      if (agreementIssues.length > 0) {
+        return failure(`scene quantities disagree with TurnPlanV3: ${formatIssues(agreementIssues)}`);
+      }
+      const proofIssues = validateTurnPlanSceneProofs(document, turnPlan);
+      if (proofIssues.some((issue) => issue.severity === "fatal")) {
+        return failure(`scene proof obligations failed: ${formatIssues(proofIssues)}`);
+      }
     }
     const compiled = compileSceneDocument(document);
     if (!compiled.ok || !compiled.renderScene) {

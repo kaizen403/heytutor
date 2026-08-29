@@ -13,6 +13,7 @@ import {
   pointMarkPath,
   linePath,
   underlinePath,
+  emphasisBoxPath,
   emphasisEllipsePath,
   arrowPath,
   curvedArrowPath,
@@ -45,6 +46,7 @@ import { DIAGRAM_ZONE } from "../constants";
 import type { BoardTextRect, BoardLayoutState } from "../types";
 import { isInDiagramZone, registerBoardAnchor } from "../lib/boardLayout";
 import { resolveSnappedAnnotationParams } from "../lib/annotationSnap";
+import { resultSpanOfRow } from "../lib/formulaEmphasis";
 
 export interface UseCommandExecutionParams {
   whiteboardRef: RefObject<WhiteboardHandle | null>;
@@ -737,19 +739,31 @@ export function useCommandExecution({
           );
           if (!row) break;
           const { flightMs, drawMs } = speechSplit(command);
-          await wb.flyCursorTo(row.x, row.y + row.height - 4, flightMs);
+
+          // Box the formula. A full-weight underline under a line of algebra
+          // reads as a correction; a frame reads as "hold on to this".
+          await wb.flyCursorTo(row.x - 6, row.y - 5, flightMs);
           if (commandCancelled()) return;
           await drawAnnotation(
-            "highlight",
-            highlightRectPath(row.x - 4, row.y - 2, row.width + 8, row.height + 4),
-            Math.min(drawMs, 220),
-            { fillOpacity: 0.22 },
+            "box",
+            emphasisBoxPath(row.x, row.y, row.width, row.height),
+            Math.min(drawMs, 460),
           );
-          await drawAnnotation(
-            "underline",
-            underlinePath(row.x, row.y + row.height - 3, row.x + row.width, row.y + row.height - 1),
-            Math.min(drawMs, 280),
-          );
+          if (commandCancelled()) return;
+
+          // Then run the highlighter over the part the student writes down.
+          // The span is measured from the row's own text, so it lands on the
+          // glyphs rather than near them.
+          const result = resultSpanOfRow(row);
+          if (result) {
+            await wb.flyCursorTo(result.x, result.y + result.height / 2, Math.min(flightMs, 160));
+            if (commandCancelled()) return;
+            await drawAnnotation(
+              "highlight",
+              highlightRectPath(result.x - 2, result.y, result.width + 4, result.height),
+              Math.min(drawMs, 320),
+            );
+          }
           break;
         }
         case "SUPERSEDE":
@@ -880,10 +894,15 @@ export function useCommandExecution({
             if ([x, y, w, h].every(Number.isFinite)) {
               await wb.flyCursorTo(x + w / 2, y + h / 2, flightMs);
               if (commandCancelled()) return;
+              // Shading a diagram region is geometry, not text markup: it keeps
+              // the quiet region wash so it never buries the figure under it.
+              // Highlighter yellow is reserved for marking up written work.
+              const region = command.visualStyle?.fillRole === "region";
               await drawAnnotation(
                 annotationKind,
                 highlightRectPath(x, y, w, h),
                 drawMs,
+                region ? { fillColor: "#B8D4B8", fillOpacity: 0.18 } : undefined,
               );
             }
           } else if (command.type === "SCRIBBLE" && params.length >= 4) {

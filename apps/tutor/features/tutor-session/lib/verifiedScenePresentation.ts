@@ -8,8 +8,20 @@ import {
   type VerifiedDiagramPresentation,
   type TutorSegment,
 } from "@heytutor/drawing";
-import type { RenderPrimitive, RenderScene, SceneDocument } from "@heytutor/scene-engine";
-import { isMeasurementLabelText } from "@heytutor/scene-engine";
+import type {
+  LabelBounds,
+  LabelObstacle,
+  LabelSlot,
+  RenderPrimitive,
+  RenderScene,
+  SceneDocument,
+} from "@heytutor/scene-engine";
+import {
+  obstaclesFromPrimitives,
+  placeLabels,
+  workColumnObstacle,
+} from "@heytutor/scene-engine";
+import { buildLabelGlossary } from "./labelGlossary";
 
 /** Convert validated render primitives into the whiteboard command transport. */
 export function buildVerifiedDiagramPresentation(
@@ -23,7 +35,14 @@ export function buildVerifiedDiagramPresentation(
     : "exact_verified";
   const commands: VerifiedDiagramCommand[] = [];
   const indicesByGroup = new Map<string, Record<RevealPhase, number[]>>();
-  const labels: LabelPlacementState = { keys: new Set<string>(), rects: [] };
+  // One label engine, not two. The compiler already solves entity labels
+  // against real ink; annotation labels now go through the same solver with
+  // the same obstacles instead of a private ten-offset guess.
+  const labels: LabelPlacementState = {
+    keys: new Set<string>(),
+    rects: [],
+    obstacles: [...obstaclesFromPrimitives(renderScene.primitives), workColumnObstacle()],
+  };
   const commandKeys = new Set<string>();
   const rolesByEntityId = new Map(document.entities.map((entity) => [entity.id, entity.role]));
   const regionEntityIds = new Set(document.constructions.flatMap((construction) =>
@@ -130,40 +149,9 @@ export function buildVerifiedDiagramPresentation(
     });
   });
 
-  // Focus and annotation actions remain semantic: their paths are copied from
-  // verified primitives rather than guessed coordinates. These staged actions
-  // explain important relationships before the symbolic solution begins.
-  for (const action of renderScene.timeline) {
-    if (action.action === "reveal") continue;
-    const targetPrimitives = resolveActionPrimitives(document, renderScene, action.targetId);
-    const traceIndices: number[] = [];
-    for (const primitive of targetPrimitives) {
-      for (const command of traceCommandsForPrimitive(primitive, action.id)) {
-        const index = add(`__${action.id}`, "direction", command);
-        if (index !== null) traceIndices.push(index);
-      }
-    }
-    if (traceIndices.length === 0) continue;
-    const actionChunks = chunk(traceIndices, MAX_TRACE_COMMANDS_PER_SEGMENT);
-    actionChunks.forEach((commandIndices, chunkIndex) => {
-      const narration = focusNarration(action.narrationIntent, action.targetId, chunkIndex);
-      reveals.push({
-        narration,
-        commandIndices,
-        kind: action.action,
-        targetId: action.targetId,
-      });
-      const drawCommands = commandIndices.map((index) =>
-        verifiedDiagramCommandToDrawCommand(commands[index]!),
-      );
-      introSegments.push({
-        narration,
-        command: drawCommands[0] ?? null,
-        commands: drawCommands,
-        verifiedDiagramIntro: true,
-      });
-    });
-  }
+  // Timeline focus/annotate traces stay out of the intro. Circling and labels
+  // during the opening beat bury the figure; teaching [FOCUS:id] traces the
+  // verified geometry live and reveals withheld labels as they are named.
 
   const anchors = Object.entries(renderScene.entityBounds).map(([id, bounds]) => {
     const entity = document.entities.find((candidate) => candidate.id === id);
@@ -200,16 +188,20 @@ export function buildVerifiedDiagramPresentation(
       entityId,
       commands: deferredCommands,
     })),
+    // Symbols on the figure stay short; the expansion and solved value travel
+    // alongside so the board can answer "what is R_1?" without re-deriving it.
+    labelGlossary: buildLabelGlossary(document),
     promptAddon: `${nonMetric
       ? `A source-grounded conceptual representation (${representationTier}) has already been compiled and is being explained as it is revealed. It is intentionally non-metric: do not infer scale, missing connections, intersections, regions, directions, or solved values from it.`
       : "A complete metric diagram has already been compiled, validated, and is being explained as it is revealed."}
 Do not emit DRAW_*, LABEL, DIMENSION, ARROW, SCRIBBLE, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, ERASE, or CLEAR tags.
 When you name a listed diagram entity, append [FOCUS:entity_id] in that same step. Never provide coordinates. Use only these verified targets: ${focusTargets || "none"}.
 Optional FOCUS forms: [FOCUS:entity_id], [FOCUS:entity_id|spotlight], [FOCUS:entity_id|pulse], [FOCUS:id_a,id_b], or a reveal-group id.
-When you say what a labeled point is — for example the object O or the image I — put [FOCUS:entity_id] in that same step, immediately after the spoken name.
-To underline the current work-area equation, use [EMPHASIZE:last]. To reveal a withheld measurement, enclose, or other compiled annotation, use [ANNOTATE:entity_id] with one of: ${deferredIds || "none"}.
+When you say what a labeled point is — for example the object O or the image I — put [FOCUS:entity_id] in that same step, immediately after the spoken name. FOCUS also reveals that entity's withheld label.
+To box the current work-area equation and highlight its result, use [EMPHASIZE:last]. To reveal a withheld measurement, enclose, or other compiled annotation, use [ANNOTATE:entity_id] with one of: ${deferredIds || "none"}.
 Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", "look at", or "this is" the named entity when using FOCUS.
 Refer to diagram entities by their visible labels in narration.
+Read the figure to the student before you calculate with it: name each labeled part, say what it physically represents, and say which way it points or where it acts, with [FOCUS:entity_id] on the part you just named. Never substitute into a figure the student has not been told how to read.
 WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Short phrases are allowed. Do not save writing for the last line, and do not speak a step with the marker parked.
 The scene engine owns all diagram geometry, labels, annotations, directions, connections, and markings.`,
   };
@@ -250,7 +242,6 @@ type RevealPhase = "structure" | "direction" | "detail";
 const REVEAL_PHASES: RevealPhase[] = ["structure", "direction", "detail"];
 const MAX_COMMANDS_PER_GROUP = 14;
 const MAX_DETAIL_COMMANDS_PER_SEGMENT = 8;
-const MAX_TRACE_COMMANDS_PER_SEGMENT = 4;
 const LABEL_MIN_X = DIAGRAM_ZONE.x + 10;
 const LABEL_MAX_X = DIAGRAM_ZONE.x + DIAGRAM_ZONE.width - 10;
 
@@ -270,9 +261,10 @@ function shouldDeferAnnotation(
     return true;
   }
   if (primitive.provenance?.transient === true) return true;
-  if (command.type !== "LABEL" && command.type !== "DIMENSION") return false;
-  if (command.type === "DIMENSION") return true;
-  return Boolean(command.text && isMeasurementLabelText(command.text));
+  if (command.type === "LABEL" || command.type === "DIMENSION") return true;
+  if (command.type === "CIRCLE_AROUND" || command.type === "HIGHLIGHT") return true;
+  if (command.visualStyle?.strokeRole === "trace") return true;
+  return false;
 }
 
 function annotationVisualStyle(
@@ -504,81 +496,6 @@ function pointMeaning(role: string | undefined, label: string): string | null {
   return null;
 }
 
-function focusNarration(intent: string, targetId: string, chunkIndex = 0): string {
-  if (chunkIndex > 0) {
-    return "Keep following this part of the figure.";
-  }
-  const raw = (intent || targetId).trim();
-  if (isSpokenProse(raw)) {
-    return ensureSpokenSentence(raw);
-  }
-  const subject = cueSubject(raw || targetId);
-  return `Notice ${subject}.`;
-}
-
-function resolveActionPrimitives(
-  document: SceneDocument,
-  renderScene: RenderScene,
-  targetId: string,
-): RenderPrimitive[] {
-  const owned = renderScene.primitives.filter((primitive) =>
-    primitive.entityId === targetId || primitive.provenance?.annotationId === targetId,
-  );
-  if (owned.length > 0 && document.annotations.some((annotation) => annotation.id === targetId)) {
-    return owned;
-  }
-  const group = renderScene.revealGroups.find((candidate) => candidate.id === targetId);
-  const annotation = document.annotations.find((candidate) => candidate.id === targetId);
-  const entityIds = new Set(
-    group?.entityIds ??
-    annotation?.targetIds ??
-    (document.entities.some((entity) => entity.id === targetId) ? [targetId] : []),
-  );
-  return renderScene.primitives.filter((primitive) => entityIds.has(primitive.entityId));
-}
-
-function traceCommandsForPrimitive(
-  primitive: RenderPrimitive,
-  actionId: string,
-): VerifiedDiagramCommand[] {
-  const point = primitive.kind === "point" ? primitive.points[0] : undefined;
-  if (point) {
-    return [{
-      type: "CIRCLE_AROUND",
-      params: [point.x - 10, point.y - 10, 20, 20],
-      visualStyle: { strokeRole: "trace", strokeWidth: 1.25 },
-      semanticRef: {
-        entityId: primitive.entityId,
-        primitiveId: primitive.id,
-        actionId,
-      },
-    }];
-  }
-  const traceableTypes = new Set<VerifiedDiagramCommand["type"]>([
-    "DRAW_CUBOID",
-    "DRAW_CUBE",
-    "DRAW_RECT",
-    "DRAW_CIRCLE",
-    "DRAW_ARC",
-    "DRAW_LINE",
-    "DRAW_POINT",
-    "ARROW",
-    "CIRCLE_AROUND",
-    "HIGHLIGHT",
-  ]);
-  return primitiveCommands(primitive, { keys: new Set(), rects: [] }, true)
-    .filter((command) => traceableTypes.has(command.type))
-    .map((command) => ({
-      ...command,
-      visualStyle: { strokeRole: "trace", strokeWidth: 1.25 },
-      semanticRef: {
-        entityId: primitive.entityId,
-        primitiveId: primitive.id,
-        actionId,
-      },
-    }));
-}
-
 function primitiveCommands(
   primitive: RenderPrimitive,
   labels: LabelPlacementState,
@@ -729,7 +646,7 @@ function addLabel(
   const key = `${primitive.entityId}:${text}`;
   if (labels.keys.has(key)) return;
   labels.keys.add(key);
-  const width = Math.max(measureTextWidth(text), 14);
+  const width = Math.max(measureTextWidth(text, LABEL_FONT_PX), 14);
   if (primitive.labelPlacement === "absolute") {
     const reserved = labelBoundsFromProvenance(primitive.provenance);
     const placed = reserved ?? {
@@ -739,20 +656,71 @@ function addLabel(
       height: 32,
     };
     labels.rects.push(placed);
-    commands.push({ type: "LABEL", params: [placed.x, placed.y, 24], text, anchorId: primitive.entityId });
+    labels.obstacles.push({
+      id: `label:${primitive.id}`,
+      entityId: primitive.entityId,
+      kind: "label",
+      bounds: placed,
+    });
+    commands.push({ type: "LABEL", params: [placed.x, placed.y, LABEL_FONT_PX], text, anchorId: primitive.entityId });
     return;
   }
-  const candidates = labelCandidates(primitive.labelPlacement, width);
-  const placed = candidates
-    .map(([dx, dy]) => ({
-      x: clamp(x + dx, LABEL_MIN_X, LABEL_MAX_X - width),
-      y: clamp(y + dy, 55, 580),
-      width,
-      height: 32,
-    }))
-    .sort((a, b) => labelOverlapScore(a, labels.rects) - labelOverlapScore(b, labels.rects))[0]!;
+  // Feed the solver the exact glyph width for this label rather than an
+  // average character box, so the reserved space is the space it draws in.
+  const solved = placeLabels(
+    [{
+      labelId: primitive.id,
+      entityId: primitive.entityId,
+      anchor: { x, y },
+      text,
+      preferredSlot: preferredSlotFor(primitive.labelPlacement),
+      viewBounds: LABEL_VIEW_BOUNDS,
+      useOwnerBounds: false,
+    }],
+    labels.obstacles,
+    { fontWidthPx: width / Math.max(text.length, 1), fontHeightPx: LABEL_FONT_PX },
+  );
+
+  const placement = solved.placements[0];
+  const placed = placement
+    ? placement.bounds
+    : {
+        x: clamp(x + 10, LABEL_MIN_X, LABEL_MAX_X - width),
+        y: clamp(y - 26, 55, 580),
+        width,
+        height: 32,
+      };
+
   labels.rects.push(placed);
-  commands.push({ type: "LABEL", params: [placed.x, placed.y, 24], text, anchorId: primitive.entityId });
+  labels.obstacles.push({
+    id: `label:${primitive.id}`,
+    entityId: primitive.entityId,
+    kind: "label",
+    bounds: placed,
+  });
+
+  // When the only clear home is away from the anchor, say which mark it
+  // belongs to instead of leaving the reader to guess.
+  if (placement?.usesLeader && placement.leaderFrom && placement.leaderTo) {
+    commands.push({
+      type: "DRAW_LINE",
+      params: [
+        placement.leaderFrom.x,
+        placement.leaderFrom.y,
+        placement.leaderTo.x,
+        placement.leaderTo.y,
+      ],
+      visualStyle: { strokeRole: "construction", strokeWidth: 1.1 },
+      semanticRef: { entityId: primitive.entityId, primitiveId: primitive.id },
+    });
+  }
+
+  commands.push({
+    type: "LABEL",
+    params: [placed.x, placed.y, LABEL_FONT_PX],
+    text,
+    anchorId: primitive.entityId,
+  });
 }
 
 function labelBoundsFromProvenance(
@@ -789,29 +757,33 @@ function boundsOfPoints(points: Array<{ x: number; y: number }>): { x: number; y
 
 interface LabelPlacementState {
   keys: Set<string>;
-  rects: Array<{ x: number; y: number; width: number; height: number }>;
+  rects: LabelBounds[];
+  /** Scene ink plus every label already placed this pass. */
+  obstacles: LabelObstacle[];
 }
 
-function labelCandidates(placement: string | undefined, width: number): Array<[number, number]> {
-  const automatic: Array<[number, number]> = [
-    [10, -26], [10, 10], [-width - 10, -26], [-width - 10, 10],
-    [-width / 2, -50], [-width / 2, 28], [24, -50], [-width - 24, -50],
-    [-width / 2, -76], [-width / 2, 54],
-  ];
-  const preferred = labelOffset(placement, width);
-  return [preferred, ...automatic.filter(([dx, dy]) => dx !== preferred[0] || dy !== preferred[1])];
+/** The region a diagram label is allowed to occupy. */
+const LABEL_VIEW_BOUNDS: LabelBounds = {
+  x: LABEL_MIN_X,
+  y: 55,
+  width: LABEL_MAX_X - LABEL_MIN_X,
+  height: 525,
+};
+
+/** Labels render at 24 px — measure at 24 px, not at the 32 px default. */
+const LABEL_FONT_PX = 24;
+
+function preferredSlotFor(placement: string | undefined): Exclude<LabelSlot, "leader"> | undefined {
+  switch (placement) {
+    case "above": return "north";
+    case "below": return "south";
+    case "left": return "west";
+    case "right": return "east";
+    default: return undefined;
+  }
 }
 
-function labelOverlapScore(
-  candidate: { x: number; y: number; width: number; height: number },
-  rects: Array<{ x: number; y: number; width: number; height: number }>,
-): number {
-  return rects.reduce((score, rect) => {
-    const overlapWidth = Math.max(0, Math.min(candidate.x + candidate.width + 6, rect.x + rect.width) - Math.max(candidate.x - 6, rect.x));
-    const overlapHeight = Math.max(0, Math.min(candidate.y + candidate.height + 4, rect.y + rect.height) - Math.max(candidate.y - 4, rect.y));
-    return score + overlapWidth * overlapHeight;
-  }, 0);
-}
+
 
 function compactDiagramLabel(text?: string): string | null {
   const normalized = text?.trim().replace(/\s+/g, " ") ?? "";
@@ -828,15 +800,6 @@ function orderedRevealGroupIds(scene: RenderScene): string[] {
   return result;
 }
 
-function labelOffset(placement: string | undefined, width = 24): [number, number] {
-  switch (placement) {
-    case "above": return [-width / 2, -30];
-    case "below": return [-width / 2, 12];
-    case "left": return [-width - 10, -10];
-    case "right": return [12, -10];
-    default: return [10, -26];
-  }
-}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);

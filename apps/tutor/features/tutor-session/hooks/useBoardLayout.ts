@@ -22,6 +22,8 @@ export interface UseBoardLayoutParams {
   whiteboardRef: RefObject<WhiteboardHandle | null>;
   cancelRef: RefObject<boolean>;
   fbdPhaseStartedRef: RefObject<boolean>;
+  /** Question whose ink is on the board — tags each captured notes page. */
+  liveQuestionRef: RefObject<string>;
   viewportMode?: BoardViewportMode;
 }
 
@@ -29,6 +31,7 @@ export function useBoardLayout({
   whiteboardRef,
   cancelRef,
   fbdPhaseStartedRef,
+  liveQuestionRef,
   viewportMode = "fit",
 }: UseBoardLayoutParams) {
   const boardContainerRef = useRef<HTMLDivElement>(null);
@@ -57,23 +60,37 @@ export function useBoardLayout({
     }
   }, []);
 
+  /**
+   * Snapshot the board as one notes page before it is cleared or erased. The
+   * page carries the question it belongs to and the narration spoken while it
+   * was on screen, so Download notes can pair it with the right lesson text.
+   */
+  const captureNotesEpoch = useCallback((): boolean => {
+    const wb = whiteboardRef.current;
+    const snapshotDataUrl = wb?.captureSnapshot(2);
+    if (!snapshotDataUrl) {
+      return false;
+    }
+    notesEpochsRef.current.push({
+      index: notesEpochsRef.current.length,
+      question: liveQuestionRef.current,
+      snapshotDataUrl,
+      narrationText: narrationSinceEpochRef.current,
+      timestampMs: Date.now(),
+    });
+    narrationSinceEpochRef.current = "";
+    return true;
+  }, [liveQuestionRef, whiteboardRef]);
+
   const beginBoardEpoch = useCallback(async (): Promise<void> => {
     const wb = whiteboardRef.current;
     if (wb && boardLayoutRef.current.rects.length > 0) {
-      const snapshotDataUrl = wb.captureSnapshot(2);
-      if (snapshotDataUrl) {
-        notesEpochsRef.current.push({
-          index: notesEpochsRef.current.length,
-          snapshotDataUrl,
-          narrationText: "",
-          timestampMs: Date.now(),
-        });
-      }
+      captureNotesEpoch();
     }
     narrationSinceEpochRef.current = "";
     if (wb) await wb.clearBoard();
     resetBoardLayout(false, true);
-  }, [resetBoardLayout, whiteboardRef]);
+  }, [captureNotesEpoch, resetBoardLayout, whiteboardRef]);
 
   const forgetErasedTextRects = useCallback((eraseRect: BoardTextRect): void => {
     boardLayoutRef.current.rects = boardLayoutRef.current.rects.filter(
@@ -169,16 +186,7 @@ export function useBoardLayout({
             rect_count: layout.rects.length,
             erase_width: eraseWidth,
           });
-          const preEraseSnapshot = wb.captureSnapshot(2);
-          if (preEraseSnapshot) {
-            notesEpochsRef.current.push({
-              index: notesEpochsRef.current.length,
-              snapshotDataUrl: preEraseSnapshot,
-              narrationText: "",
-              timestampMs: Date.now(),
-            });
-            narrationSinceEpochRef.current = "";
-          }
+          captureNotesEpoch();
           await wb.eraseRegion(
             TEXT_LAYOUT.eraseX,
             TEXT_LAYOUT.eraseY,
@@ -222,7 +230,7 @@ export function useBoardLayout({
 
       return { x: rect.x, y: rect.y };
     },
-    [resetBoardLayout, cancelRef, fbdPhaseStartedRef, whiteboardRef],
+    [captureNotesEpoch, resetBoardLayout, cancelRef, fbdPhaseStartedRef, whiteboardRef],
   );
 
   const reserveTextCommandPlacement = useCallback(
@@ -245,6 +253,7 @@ export function useBoardLayout({
     forceSequentialWorkLayoutRef,
     resetBoardLayout,
     beginBoardEpoch,
+    captureNotesEpoch,
     forgetErasedTextRects,
     resolveTextPlacement,
     reserveTextCommandPlacement,

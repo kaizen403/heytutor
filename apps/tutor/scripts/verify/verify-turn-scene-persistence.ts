@@ -201,7 +201,9 @@ const fallbackArtifacts: SceneArtifactsV3 = {
   schemaVersion: "scene-artifacts/v3",
   turnPlan: null,
   representationTier: fallback.tier,
-  nonMetric: true,
+  // The tier is earned by the selector (a curve computed from the stated
+  // equation with a function_value proof is exact); the flag must agree.
+  nonMetric: fallback.nonMetric,
   candidates: [],
   diagramResultStatus: "ready",
 };

@@ -238,8 +238,45 @@ const selectedExact = selectVerifiedRepresentation({
     validationReport: exactCompiled.report,
   },
 });
-assert(selectedExact.tier === "exact_verified", "a valid exact scene must always win over fallback tiers");
-assert(selectedExact.sceneDocument === exactDocument, "selector must preserve the accepted exact scene");
+assert(selectedExact.sceneDocument === exactDocument, "a valid planner scene must always win over fallback tiers");
+assert(
+  selectedExact.tier === "qualitative_verified" && selectedExact.nonMetric,
+  "a planner scene proving only existence is qualitative, never exact",
+);
+
+// The same scene with a real metric proof earns the exact tier.
+const metricExactDocument: SceneDocument = {
+  ...exactDocument,
+  entities: [
+    ...exactDocument.entities,
+    { id: "c", kind: "point", role: "endpoint", label: "C" },
+    { id: "bc", kind: "segment", role: "verified segment", label: "BC" },
+  ],
+  constructions: [
+    ...exactDocument.constructions,
+    { id: "make_c", operator: "point", inputs: { x: 4.5, y: 0 }, outputs: ["c"] },
+    { id: "make_bc", operator: "segment", inputs: { start: "b", end: "c" }, outputs: ["bc"] },
+  ],
+  assertions: [
+    ...exactDocument.assertions,
+    { id: "ab_twice_bc", predicate: "distance_ratio", entities: ["a", "b", "b", "c"], expected: 2, severity: "fatal" },
+  ],
+  requiredEntityIds: [...exactDocument.requiredEntityIds, "c", "bc"],
+  revealGroups: [{ id: "exact_setup", entityIds: ["a", "b", "c", "ab", "bc"], dependsOn: [], narrationCue: "Draw AB and BC." }],
+};
+const metricExactCompiled = compileSceneDocument(metricExactDocument);
+assert(metricExactCompiled.ok && metricExactCompiled.renderScene, "metric exact fixture must compile");
+const selectedMetricExact = selectVerifiedRepresentation({
+  question: calculusQuestion,
+  turnPlan: calculusPlan,
+  exact: {
+    sceneDocument: metricExactDocument,
+    renderScene: metricExactCompiled.renderScene,
+    validationReport: metricExactCompiled.report,
+  },
+});
+assert(selectedMetricExact.tier === "exact_verified" && !selectedMetricExact.nonMetric, "a planner scene with a metric proof is exact");
+assert(selectedMetricExact.sceneDocument === metricExactDocument, "selector must preserve the accepted metric scene");
 
 const rollingQuestion =
   "A solid cylinder of mass 2 kg and radius 10 cm rolls without slipping down an incline of height 1.5 m, starting from rest. Take g = 10 m/s^2.";

@@ -1,3 +1,4 @@
+import type { LessonDepth } from "@heytutor/tutor-core";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
@@ -52,10 +53,19 @@ export type UseTurnLifecycleParams = {
   boards: BoardEntry[];
   whiteboardRef: RefObject<WhiteboardHandle | null>;
   pendingQuestionRef: RefObject<string | null>;
-  autoSubmitDoneRef: RefObject<boolean>;
+  /**
+   * `${boardId}::${question}` already auto-submitted. A plain boolean latch
+   * never resets — the shell stays mounted across `/c/A` -> `/c/B`, so the
+   * second "Next Question" of a session would drop its `?q=` silently.
+   */
+  autoSubmitDoneRef: RefObject<string | null>;
   phaseRef: RefObject<TutorPhase>;
   isPausedRef: RefObject<boolean>;
+  /** True while the student is watching an earlier part of this same lecture. */
+  rewoundRef?: RefObject<boolean>;
   conversationHistoryRef: RefObject<ConversationExchange[]>;
+  /** Question owning the turn in flight — the context a mid-lesson doubt needs. */
+  liveQuestionRef: RefObject<string>;
   ttsClientRef: RefObject<TTSClient | null>;
   replayAudioRef: RefObject<HTMLAudioElement | null>;
   replayAudioPreloadRef: RefObject<Map<string, HTMLAudioElement>>;
@@ -85,6 +95,8 @@ export type UseTurnLifecycleParams = {
   speedRef: RefObject<number>;
   /** Prefer Fireworks Fast routers when configured. Default on. */
   fastModeRef: RefObject<boolean>;
+  /** "Lesson depth" from Settings; picks the teaching-prompt step budget. */
+  lessonDepthRef: RefObject<LessonDepth>;
   /** Live count of segments enqueued but not yet finished — drives adaptive speed. */
   pendingSegmentCountRef: RefObject<number>;
   /** Narration density (chars per ms) of the current segment — drives adaptive speed. */

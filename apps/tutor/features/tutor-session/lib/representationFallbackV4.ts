@@ -4,6 +4,10 @@ import {
   parseMathExpression,
   synthesizeFamilyScene,
   synthesizeLastResortScene,
+  demandRejection,
+  sceneDemand,
+  tierForForeignDocument,
+  type ProblemStructureView,
   type RenderScene,
   type SceneDocument,
   type TurnPlanV3,
@@ -39,6 +43,12 @@ export interface RepresentationSelectionInput {
   turnPlan?: TurnPlanV3 | unknown | null;
   exact?: ExactVerifiedRepresentation | null;
   families?: readonly string[];
+  /**
+   * Solved structure. The synthesizer orders families and sharpens its picture
+   * demand from this, so the fallback figure follows the solve rather than a
+   * second English reading of the stem.
+   */
+  problemIR?: ProblemStructureView | null;
 }
 
 interface SourceFunctionFact {
@@ -89,14 +99,21 @@ const RELATION_PREDICATES = [
 export function selectVerifiedRepresentation(
   input: RepresentationSelectionInput,
 ): SelectedRepresentation {
-  if (input.exact && isUsableExactRepresentation(input.exact, input.question)) {
+  if (input.exact && isUsableExactRepresentation(input.exact, input.question, input.problemIR)) {
+    // A validated planner scene wins over every fallback, but its tier is
+    // earned, not assumed: exact needs a fatal metric proof (an angle, a ratio,
+    // a function value, Snell's law). Existence and topology alone are
+    // qualitative — the same rule the synthesized archetypes live under.
+    const decision = tierForForeignDocument(input.exact.sceneDocument);
     return {
-      tier: "exact_verified",
-      nonMetric: false,
+      tier: decision.tier,
+      nonMetric: decision.nonMetric,
       sceneDocument: input.exact.sceneDocument,
       renderScene: input.exact.renderScene,
       validationReport: input.exact.validationReport,
-      reason: "caller supplied a fully verified exact scene",
+      reason: decision.tier === "exact_verified"
+        ? `caller supplied a verified scene with ${decision.reason}`
+        : `caller supplied a verified scene; ${decision.reason}`,
     };
   }
 
@@ -105,6 +122,7 @@ export function selectVerifiedRepresentation(
     question: input.question,
     turnPlan: input.turnPlan,
     families,
+    problemIR: input.problemIR ?? null,
   });
   if (synthesized) {
     return {
@@ -124,6 +142,7 @@ export function selectVerifiedRepresentation(
       question: input.question,
       turnPlan: input.turnPlan,
       families,
+      problemIR: input.problemIR ?? null,
     });
     if (lastResort) {
       return {
@@ -216,7 +235,15 @@ export function buildSourceGroundedRepresentation(
 function isUsableExactRepresentation(
   candidate: ExactVerifiedRepresentation,
   expectedQuestion: string,
+  problemIR?: ProblemStructureView | null,
 ): boolean {
+  // A planner scene is validated and compiled, which proves the geometry is
+  // sound — never that it is this question's geometry. It faces the same
+  // picture demand the synthesized families face, so a validated-but-wrong
+  // figure falls through to the fallback instead of being taught.
+  if (demandRejection(candidate.sceneDocument, sceneDemand(expectedQuestion, problemIR))) {
+    return false;
+  }
   const sourceQuestion = candidate.sceneDocument.source.question;
   if (
     typeof sourceQuestion !== "string" ||

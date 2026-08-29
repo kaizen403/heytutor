@@ -15,6 +15,7 @@ import {
   CONCEPT_LESSON_RUNTIME_ADDON,
   FAST_MODE_TEACHING_ADDON,
   isConceptLessonQuestion,
+  LESSON_DEPTH_ADDONS,
   buildGivenValueSegments,
   givenValuesPromptAddon,
   tutorDebug,
@@ -33,8 +34,10 @@ import {
   type ScenePlanWithRepairResult,
 } from "@heytutor/tutor-core";
 import {
+  ARCHETYPES,
   SCENE_ENGINE_VERSION,
   compileSceneDocument,
+  detectArchetype,
   normalizeClaimedClosedRouteGeometry,
   normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities,
@@ -151,6 +154,7 @@ export function useQuestionHandler(
     cancelRef,
     isPausedRef,
     conversationHistoryRef,
+    liveQuestionRef,
     turnActiveRef,
     turnGenerationRef,
     turnAbortRef,
@@ -170,6 +174,7 @@ export function useQuestionHandler(
     turnTelemetryRef,
     speedRef,
     fastModeRef,
+    lessonDepthRef,
     storedTurnsRef,
     pendingSegmentCountRef,
     setInputInteracted,
@@ -274,6 +279,9 @@ export function useQuestionHandler(
       activeVerifiedDiagramRef.current = null;
       setActiveVerifiedDiagram?.(null);
       await beginBoardEpoch();
+      // Set after the epoch: the page it captured belongs to the previous
+      // question, and a doubt raised meanwhile still names the lesson it stops.
+      liveQuestionRef.current = question;
 
       const isCurrentTurn = () =>
         canContinueTurnAfterAsync({
@@ -590,6 +598,22 @@ export function useQuestionHandler(
           }
         }
         if (!result && shouldPlanExactScene && remainingPlannerMs > 0) {
+          // The archetype detector names the figure the question calls for
+          // (its roles and required operators); the planner is told, so a
+          // projectile is planned as a trajectory with components rather than
+          // whatever the coarse family suggests.
+          const archetype = detectArchetype(question, {
+            turnPlan: planningTurnPlan,
+            problemIR: problemAuthority?.problemIR ?? null,
+          });
+          const archetypeSpec = archetype ? ARCHETYPES[archetype.id] : null;
+          const archetypeGuidance = archetypeSpec
+            ? [
+                `Figure: ${archetypeSpec.label}. It must contain entities with roles: ${archetypeSpec.contract.roles.join(", ")}` +
+                  (archetypeSpec.contract.operators?.length ? `; use ${archetypeSpec.contract.operators.join(", ")}` : "") +
+                  ".",
+              ]
+            : [];
           result = await awaitCurrentTurn(planSceneDocumentWithRepair(
             question,
             validateCandidate,
@@ -606,9 +630,11 @@ export function useQuestionHandler(
               ? {
                   constructionOperators: sceneCapabilities.constructionOperators,
                   proofPredicates: sceneCapabilities.proofPredicates,
-                  planningGuidance: sceneCapabilities.planningGuidance,
+                  planningGuidance: [...sceneCapabilities.planningGuidance, ...archetypeGuidance],
                 }
-              : {}),
+              : archetypeGuidance.length > 0
+                ? { planningGuidance: archetypeGuidance }
+                : {}),
             },
           ).catch(() => null), isCurrentTurn);
         }
@@ -717,6 +743,7 @@ export function useQuestionHandler(
             const selected = selectVerifiedRepresentation({
               question,
               turnPlan,
+              problemIR: problemAuthority?.problemIR ?? null,
               families: fallbackCapabilities.families.length > 0
                 ? fallbackCapabilities.families
                 : sceneCapabilities.families,
@@ -914,7 +941,8 @@ export function useQuestionHandler(
       const diagramPromptAddon = activeDiagram?.promptAddon ??
         `The semantic scene engine selected text-only mode because no fully validated diagram was available.
 Do not emit any drawing, label, annotation, erase, highlight, or marker-movement tags.
-WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Every step must [WRITE] a short board line. Do not speak while the marker stays parked.`;
+WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Every step must [WRITE] a short board line. Do not speak while the marker stays parked.
+With no figure available, carry the setup in words and on the board: name every object, direction, and relation the question describes and write those names down before you use them.`;
       const turnPlanPromptAddon = turnPlan
         ? `AUTHORITATIVE TURN PLAN V3
 Use these verified quantities and qualitative claims for the explanation. Do not replace them with independently guessed values or contradict them.
@@ -940,6 +968,7 @@ ${JSON.stringify(problemAuthority.projection)}`
         solverPromptAddon,
         isConceptLessonQuestion(question) ? CONCEPT_LESSON_RUNTIME_ADDON : "",
         fastModeRef.current ? FAST_MODE_TEACHING_ADDON : "",
+        LESSON_DEPTH_ADDONS[lessonDepthRef.current] ?? "",
       ]
         .filter(Boolean)
         .join("\n\n");
@@ -995,14 +1024,18 @@ ${JSON.stringify(problemAuthority.projection)}`
         });
       }
 
-      if (STREAM_SEGMENTS_LIVE) {
-        for (const segment of givenSegments) {
-          enqueueSegment(segment, turnGeneration);
-        }
-        enqueueVerifiedIntro(introSegments, turnGeneration);
-      }
-
       try {
+        // Inside the try: enqueueVerifiedIntro validates the intro commands and
+        // throws synchronously on an unexpected one. Outside, that rejection was
+        // unhandled, so finishLectureUi never ran and the turn stayed "thinking"
+        // on an empty board with later questions dropped until Escape.
+        if (STREAM_SEGMENTS_LIVE) {
+          for (const segment of givenSegments) {
+            enqueueSegment(segment, turnGeneration);
+          }
+          enqueueVerifiedIntro(introSegments, turnGeneration);
+        }
+
         // Buffer one segment so unverified marker commands are removed before
         // they enter the speech and drawing queues.
         let bufferedSegment: TutorSegment | null = null;
@@ -1389,6 +1422,7 @@ ${JSON.stringify(problemAuthority.projection)}`
       applyTurnPhase,
       whiteboardRef,
       pendingQuestionRef,
+      liveQuestionRef,
       setInputInteracted,
       setLiveQuestion,
       cancelRef,
@@ -1418,6 +1452,7 @@ ${JSON.stringify(problemAuthority.projection)}`
       conversationHistoryRef,
       speedRef,
       fastModeRef,
+      lessonDepthRef,
       storedTurnsRef,
       pendingSegmentCountRef,
       setStoredTurnsCount,
