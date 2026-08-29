@@ -1,6 +1,7 @@
 "use client";
 
 import { formatLiveSubtitle } from "@/lib/client/subtitleText";
+import { MathText } from "@/features/tutor-session/components/MathText";
 
 const LIVE_SUBTITLE_MAX_CHARS = 140;
 
@@ -37,11 +38,11 @@ export function ResponseBubble({ text, visible }: ResponseBubbleProps) {
     <div
       className="animate-wb-bubble-fade pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[calc(100%-2rem)] -translate-x-1/2 px-4 py-3 md:bottom-5 md:max-w-xl md:px-6"
       style={{
-        backgroundColor: "rgba(22, 27, 34, 0.94)",
+        backgroundColor: "rgba(21, 21, 23, 0.94)",
         color: "#F2F2F4",
-        borderRadius: "10px",
-        boxShadow: "0 8px 24px -4px rgba(0, 0, 0, 0.45)",
-        border: "1px solid rgba(240, 246, 252, 0.1)",
+        borderRadius: "12px",
+        boxShadow: "0 10px 30px -8px rgba(0, 0, 0, 0.55)",
+        border: "1px solid rgba(242, 242, 244, 0.08)",
         backdropFilter: "blur(8px)",
       }}
     >
@@ -51,7 +52,7 @@ export function ResponseBubble({ text, visible }: ResponseBubbleProps) {
           color: "#F2F2F4",
         }}
       >
-        {displayText}
+        <MathText>{displayText}</MathText>
       </p>
     </div>
   );
