@@ -1,19 +1,50 @@
-import { useRef } from 'react'
-import { ArrowUp, Download, RotateCcw, Settings, Volume2, VolumeX } from 'lucide-react'
-import Logo from './Logo'
+import { useRef, type RefObject } from 'react'
+import { Download, RotateCcw, Settings } from 'lucide-react'
+import Brand from './Brand'
 import LiveLessonBoard from './hero-lesson/LiveLessonBoard'
-import { useLessonSimulation } from './hero-lesson/useLessonSimulation'
-import { LESSON_TITLE, QUESTION_TEXT } from './hero-lesson/lessonScript'
+import { useLessonSimulation, type SoundState } from './hero-lesson/useLessonSimulation'
+import { LESSON_TITLE, QUESTION_TEXT, type LessonSnapshot } from './hero-lesson/lessonScript'
+import { PenSpinner } from '@heytutor/whiteboard/pen-spinner'
+import type { CursorState, WhiteboardHandle } from '@heytutor/whiteboard'
 
+/**
+ * Everything the chrome needs to render a frame. It is exactly what
+ * `useLessonSimulation` returns plus the question being asked, so the hero can
+ * hand its own simulation straight in and a scripted demo can pose the very
+ * same UI without the two sharing a clock.
+ */
+export interface DashboardDrive {
+  question: string
+  snapshot: LessonSnapshot
+  sound: SoundState
+  toggleSound: () => void
+  boardRef: (handle: WhiteboardHandle | null) => void
+  cursorState: CursorState
+  /** Header control to show as pressed — the demo uses this for replay/notes. */
+  pressed?: 'replay' | 'download' | null
+}
+
+/* Graphite palette — the shipping tutor's tokens (apps/tutor/app/globals.css
+   :root + the components' inline values). The mockup is a miniature of the
+   real session page, so every value below is the tutor's, not a restyle. */
 const SHELL_BG = '#0B0B0C'
 const LINE = 'rgba(242, 242, 244, 0.08)'
 const INK = '#F2F2F4'
 const INK_SOFT = '#A6A6AE'
-const INK_FAINT = '#7A7A82'
+const INK_FAINT = '#717177'
+/** Sidebar board previews use their own faint (BoardHistory's --ink-faint). */
+const PREVIEW_INK = '#7A7A82'
 const ACCENT = '#C9C9D2'
+const ACTIVE_FILL = 'rgba(201, 201, 210, 0.07)'
+const PAUSE_FILL = 'rgba(201, 201, 210, 0.15)'
+const RING = 'rgba(201, 201, 210, 0.22)'
+const ON_ACCENT = '#0B0B0C'
 const PAPER = '#151517'
 const RAISED = '#1E1E21'
 const BORDER = '#2E2E33'
+const CTA = '#6E6E76'
+const SUBMIT_INACTIVE_BG = 'rgba(240, 246, 252, 0.06)'
+const SUBMIT_INACTIVE_TEXT = 'rgba(139, 148, 158, 0.7)'
 const FONT = "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
 
 const BOARDS = [
@@ -22,12 +53,21 @@ const BOARDS = [
   { title: 'Pythagorean theorem', preview: 'a² + b² = c² …', active: false },
 ]
 
-export default function DashboardMockup({ recording = false }: { recording?: boolean }) {
-  const rootRef = useRef<HTMLDivElement>(null)
-  const { snapshot, sound, toggleSound, boardRef, cursorState } = useLessonSimulation(rootRef)
+function DashboardChrome({
+  rootRef,
+  drive,
+}: {
+  rootRef: RefObject<HTMLDivElement | null>
+  drive: DashboardDrive
+}) {
+  const { snapshot, boardRef, cursorState, question, pressed } = drive
 
-  const typed = QUESTION_TEXT.slice(0, snapshot.typedCount)
+  const typed = question.slice(0, snapshot.typedCount)
   const teaching = snapshot.teaching
+  /** Live chrome (header spinner, Stop pill) — the tutor's `phase !== idle`. */
+  const live = teaching || snapshot.phase === 'submit'
+  /** No lesson on the board yet — replay/download stay dimmed (canReplay=false). */
+  const noLesson = snapshot.phase === 'typing' || snapshot.phase === 'submit'
 
   return (
     <div
@@ -37,15 +77,12 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
         width: 1280,
         background: SHELL_BG,
         border: '1px solid rgba(0, 0, 0, 0.6)',
-        boxShadow: '0 -20px 80px rgba(0, 0, 0, 0.45)',
+        boxShadow: '0 -20px 80px rgba(3, 11, 18, 0.45)',
         fontFamily: FONT,
         WebkitFontSmoothing: 'antialiased',
       }}
     >
-      <style>{`@keyframes mockup-status-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(1.25); } }
-@keyframes hero-caret-blink { 0%, 45% { opacity: 1; } 50%, 100% { opacity: 0; } }
-@keyframes hero-sound-pulse { 0% { box-shadow: 0 0 0 0 rgba(201, 201, 210, 0.35); } 100% { box-shadow: 0 0 0 12px rgba(201, 201, 210, 0); } }
-.mockup-input::placeholder { color: #717177; font-style: italic; }`}</style>
+      <style>{`@keyframes hero-caret-blink { 0%, 45% { opacity: 1; } 50%, 100% { opacity: 0; } }`}</style>
 
       <div className="flex">
         {/* ── Left sidebar (BoardHistory) ── */}
@@ -69,22 +106,7 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
               padding: '18px 16px 14px',
             }}
           >
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 17,
-                fontWeight: 600,
-                letterSpacing: '-0.015em',
-                lineHeight: 1.2,
-                color: ACCENT,
-                userSelect: 'none',
-              }}
-            >
-              <Logo className="h-5 w-5 shrink-0" />
-              Accelute
-            </span>
+            <Brand size="sm" />
             <div style={{ display: 'flex', gap: 2.4 }}>
               <div style={{ width: 32, height: 32, borderRadius: 8.8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: INK_SOFT }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -111,7 +133,7 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
                 width: '100%',
                 padding: 8.8,
                 borderRadius: 13.6,
-                border: '1px solid rgba(201, 201, 210, 0.22)',
+                border: `1px solid ${RING}`,
                 background: 'linear-gradient(180deg, #262629 0%, #1A1A1D 100%)',
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 2px rgba(0,0,0,0.28)',
                 color: INK,
@@ -126,7 +148,7 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
                   height: 24.8,
                   borderRadius: 7.2,
                   background: '#F2F2F4',
-                  color: '#0B0B0C',
+                  color: ON_ACCENT,
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -158,61 +180,66 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
           </div>
 
           {/* Board list */}
-          <div style={{ flex: 1, padding: '0 10.4px 14px' }}>
+          <div style={{ flex: 1, padding: '0 8px 14px' }}>
             {BOARDS.map((b) => (
               <div
                 key={b.title}
                 style={{
                   position: 'relative',
-                  marginBottom: 4,
-                  borderRadius: 11.2,
-                  background: b.active ? 'rgba(201, 201, 210, 0.08)' : 'transparent',
+                  marginBottom: 2,
+                  borderRadius: 12.8,
+                  border: `1px solid ${b.active ? LINE : 'transparent'}`,
+                  background: b.active ? ACTIVE_FILL : 'transparent',
                 }}
               >
-                {b.active && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: 3,
-                      height: 18.4,
-                      borderRadius: '0 9999px 9999px 0',
-                      background: ACCENT,
-                      opacity: 0.9,
-                    }}
-                  />
-                )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2.4, padding: '11.2px 12px', borderRadius: 11.2 }}>
-                  <span
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 400,
-                      letterSpacing: 0,
-                      lineHeight: 1.35,
-                      color: b.active ? ACCENT : INK,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {b.title}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 3.2,
+                    padding: '12.8px 8.8px',
+                    borderRadius: 12.8,
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6.4, minWidth: 0 }}>
+                    <span
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 400,
+                        letterSpacing: 0,
+                        lineHeight: 1.35,
+                        color: INK,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {b.title}
+                    </span>
+                    {/* The board being taught spins a pen in the list (busyBoardId). */}
+                    {b.active && teaching && (
+                      <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', color: ACCENT }}>
+                        <PenSpinner size={15} ink={ACCENT} trail={false} />
+                      </span>
+                    )}
                   </span>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 400,
-                      letterSpacing: '-0.005em',
-                      lineHeight: 1.4,
-                      color: INK_FAINT,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {b.preview}
-                  </span>
+                  {/* The active board shows no preview line (real behavior). */}
+                  {!b.active && (
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 400,
+                        letterSpacing: '-0.005em',
+                        lineHeight: 1.4,
+                        color: PREVIEW_INK,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {b.preview}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -259,8 +286,10 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
             style={{
               borderRadius: 16,
               border: `1px solid ${LINE}`,
-              background: 'rgba(21, 21, 23, 0.9)',
-              padding: '12px 18px',
+              background: 'rgba(21, 21, 23, 0.90)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              padding: '10px 16px',
               boxShadow: '0 8px 30px -18px rgba(0, 0, 0, 0.55)',
               display: 'flex',
               alignItems: 'center',
@@ -283,92 +312,127 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
                 >
                   {LESSON_TITLE}
                 </span>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    borderRadius: 9999,
-                    background: 'rgba(201, 201, 210, 0.12)',
-                    padding: '2px 9px',
-                    fontSize: 11.5,
-                    fontWeight: 500,
-                    color: ACCENT,
-                    flexShrink: 0,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: 9999,
-                      background: ACCENT,
-                      animation: 'mockup-status-pulse 1.5s ease-in-out infinite',
-                    }}
-                  />
-                  {snapshot.chip === 'teaching' ? 'teaching…' : 'thinking…'}
-                </span>
+                {/* Live status: the tutor's PenSpinner replaces the old pulse chip. */}
+                {live && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+                    <PenSpinner
+                      size={17}
+                      ink={ACCENT}
+                      trail={false}
+                      label={snapshot.chip === 'teaching' ? 'teaching…' : 'thinking…'}
+                    />
+                  </span>
+                )}
               </div>
-              <p style={{ margin: '3px 0 0', fontSize: 12.5, color: INK_SOFT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {snapshot.chip === 'teaching' ? 'Lesson in progress on the whiteboard' : 'Working on your question'}
+              <p style={{ margin: '3px 0 0', fontSize: 12, color: INK_SOFT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {live ? 'Lesson in progress on the whiteboard' : 'Whiteboard session'}
               </p>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              <div aria-label="Replay lecture" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: ACCENT, opacity: 0.4 }}>
-                <RotateCcw size={15} aria-hidden />
+              {/* Ask pill (notes toggle) */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  height: 32,
+                  padding: '0 12px',
+                  borderRadius: 9999,
+                  border: `1px solid ${BORDER}`,
+                  background: RAISED,
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                  color: ACCENT,
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z" />
+                  <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" />
+                </svg>
+                <span style={{ fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap' }}>Ask</span>
               </div>
-              <div aria-label="Download notes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, opacity: 0.4 }}>
-                <Download size={15} aria-hidden />
+
+              {/* Replay pill (LessonActions) */}
+              <div
+                aria-label="Replay lecture"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  height: 32,
+                  padding: '0 12px',
+                  borderRadius: 9999,
+                  border: `1px solid ${pressed === 'replay' ? 'rgba(201, 201, 210, 0.45)' : BORDER}`,
+                  background: pressed === 'replay' ? BORDER : RAISED,
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                  color: ACCENT,
+                  opacity: noLesson ? 0.4 : 1,
+                  transform: pressed === 'replay' ? 'scale(0.92)' : 'scale(1)',
+                  transition: 'transform 140ms ease, opacity 200ms ease, background-color 200ms ease',
+                }}
+              >
+                <RotateCcw size={14} aria-hidden />
+                <span style={{ fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap' }}>Replay</span>
               </div>
-              <div style={{ borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, padding: '7px 14px', fontSize: 12.5, fontWeight: 500, color: INK_SOFT, whiteSpace: 'nowrap' }}>
-                Stop
+
+              {/* Download notes pill (LessonActions) */}
+              <div
+                aria-label="Download notes"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  height: 32,
+                  padding: '0 12px',
+                  borderRadius: 9999,
+                  border: `1px solid ${pressed === 'download' ? 'rgba(201, 201, 210, 0.45)' : BORDER}`,
+                  background: pressed === 'download' ? BORDER : RAISED,
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                  color: INK_SOFT,
+                  opacity: noLesson ? 0.4 : 1,
+                  transform: pressed === 'download' ? 'scale(0.92)' : 'scale(1)',
+                  transition: 'transform 140ms ease, opacity 200ms ease, background-color 200ms ease',
+                }}
+              >
+                <Download size={14} aria-hidden />
+                <span style={{ fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap' }}>Download notes</span>
               </div>
+
+              {live && (
+                <>
+                  <div style={{ width: 1, height: 24, background: BORDER }} aria-hidden />
+                  <div
+                    style={{
+                      borderRadius: 9999,
+                      border: `1px solid ${BORDER}`,
+                      background: RAISED,
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: INK_SOFT,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Stop
+                  </div>
+                </>
+              )}
             </div>
           </header>
 
-          {/* Board frame + sound toggle */}
+          {/* Board frame */}
           <div style={{ position: 'relative' }}>
             <LiveLessonBoard snapshot={snapshot} boardRef={boardRef} cursorState={cursorState} />
-            {!recording && (sound === 'off' || sound === 'on') && (
-              <button
-                type="button"
-                onClick={toggleSound}
-                aria-label={sound === 'on' ? 'Mute lesson voice' : 'Play lesson voice'}
-                title={sound === 'on' ? 'Mute' : 'Play with sound'}
-                style={{
-                  position: 'absolute',
-                  right: 28,
-                  bottom: 28,
-                  zIndex: 5,
-                  width: 40,
-                  height: 40,
-                  borderRadius: 9999,
-                  border: '1px solid rgba(240, 246, 252, 0.16)',
-                  background: 'rgba(22, 27, 34, 0.85)',
-                  color: INK,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  backdropFilter: 'blur(4px)',
-                  WebkitBackdropFilter: 'blur(4px)',
-                  animation: sound === 'off' ? 'hero-sound-pulse 1.8s ease-out infinite' : undefined,
-                }}
-              >
-                {sound === 'on' ? <Volume2 size={17} aria-hidden /> : <VolumeX size={17} aria-hidden />}
-              </button>
-            )}
           </div>
 
           {/* Input bar (InputBar) */}
-          <div style={{ width: '100%', maxWidth: 660, margin: '12px auto 0' }}>
+          <div style={{ width: '100%', maxWidth: 768, margin: '12px auto 0' }}>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                minHeight: 56,
+                minHeight: 52,
                 background: PAPER,
                 border: `1px solid ${BORDER}`,
                 borderRadius: 9999,
@@ -377,7 +441,7 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
               }}
             >
               {/* Photo */}
-              <div style={{ width: 38, height: 38, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', color: INK_SOFT, flexShrink: 0 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', color: INK_SOFT, flexShrink: 0 }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <rect x="3.5" y="6" width="17" height="13" rx="2.25" stroke="currentColor" strokeWidth="1.75" />
                   <circle cx="8.5" cy="10.25" r="1.35" fill="currentColor" />
@@ -387,7 +451,6 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
 
               {/* Text input — the question types itself live */}
               <div
-                className="mockup-input"
                 style={{
                   flex: 1,
                   minWidth: 0,
@@ -409,18 +472,20 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
                         height: 15,
                         marginLeft: 1,
                         verticalAlign: '-2px',
-                        background: ACCENT,
+                        background: INK,
                         animation: 'hero-caret-blink 1s step-end infinite',
                       }}
                     />
                   </>
                 ) : (
-                  <span style={{ color: '#717177', fontStyle: 'italic' }}>Ask a question or paste a photo</span>
+                  <span style={{ color: INK_FAINT, fontStyle: 'italic' }}>
+                    {teaching ? 'Ask a doubt about this lesson' : 'Ask a question or paste a photo'}
+                  </span>
                 )}
               </div>
 
               {/* Mic */}
-              <div style={{ width: 38, height: 38, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', color: INK_SOFT, flexShrink: 0 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', color: INK_SOFT, flexShrink: 0 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <rect x="9" y="2" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.75" />
                   <path d="M5 10a7 7 0 0 0 14 0M12 17v3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
@@ -430,47 +495,45 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
               {teaching ? (
                 <>
                   {/* Pause teaching (live control) */}
-                  <div aria-label="Pause teaching" style={{ width: 38, height: 38, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(201, 201, 210, 0.15)', color: INK, flexShrink: 0 }}>
+                  <div aria-label="Pause teaching" style={{ width: 36, height: 36, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: PAUSE_FILL, color: INK, flexShrink: 0 }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                      <rect x="6" y="4" width="4" height="16" rx="1" />
-                      <rect x="14" y="4" width="4" height="16" rx="1" />
+                      <rect x="6" y="5" width="4" height="14" rx="1" />
+                      <rect x="14" y="5" width="4" height="14" rx="1" />
                     </svg>
                   </div>
                   {/* Cancel teaching (live control) */}
-                  <div aria-label="Cancel teaching" style={{ width: 38, height: 38, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(240, 246, 252, 0.06)', color: INK_SOFT, flexShrink: 0 }}>
+                  <div aria-label="Cancel teaching" style={{ width: 36, height: 36, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: SUBMIT_INACTIVE_BG, color: INK_SOFT, flexShrink: 0 }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-                      <path d="M18 6 6 18M6 6l12 12" />
+                      <path d="M6 6l12 12M18 6L6 18" />
                     </svg>
                   </div>
-                  <div aria-label="Board settings" style={{ width: 38, height: 38, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div aria-label="Board settings" style={{ width: 36, height: 36, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Settings size={16} strokeWidth={1.75} aria-hidden />
                   </div>
-                  <div style={{ borderRadius: 9999, padding: '9px 18px', fontSize: 14, fontWeight: 500, background: '#6E6E76', color: '#FFFFFF', flexShrink: 0 }}>
+                  <div style={{ borderRadius: 9999, padding: '8px 16px', fontSize: 14, fontWeight: 500, background: CTA, color: '#FFFFFF', flexShrink: 0 }}>
                     Ask Doubt
                   </div>
                 </>
               ) : (
                 <>
-                  <div aria-label="Board settings" style={{ width: 38, height: 38, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div aria-label="Board settings" style={{ width: 36, height: 36, borderRadius: 9999, border: `1px solid ${BORDER}`, background: RAISED, color: INK_SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Settings size={16} strokeWidth={1.75} aria-hidden />
                   </div>
                   <div
                     aria-label="Send question"
                     style={{
-                      width: 40,
-                      height: 40,
                       borderRadius: 9999,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      padding: '8px 16px',
+                      fontSize: 14,
+                      fontWeight: 500,
                       flexShrink: 0,
-                      background: typed ? '#6E6E76' : 'rgba(201, 201, 210, 0.1)',
-                      color: typed ? '#FFFFFF' : INK_SOFT,
+                      background: typed ? CTA : SUBMIT_INACTIVE_BG,
+                      color: typed ? '#FFFFFF' : SUBMIT_INACTIVE_TEXT,
                       transform: snapshot.phase === 'submit' ? 'scale(0.88)' : 'scale(1)',
                       transition: 'transform 120ms ease',
                     }}
                   >
-                    <ArrowUp size={18} aria-hidden />
+                    Ask
                   </div>
                 </>
               )}
@@ -479,5 +542,31 @@ export default function DashboardMockup({ recording = false }: { recording?: boo
         </div>
       </div>
     </div>
+  )
+}
+
+/** The hero and /record.html: the mockup runs its own lesson on its own clock. */
+function SelfDrivenDashboard() {
+  const rootRef = useRef<HTMLDivElement>(null)
+  const simulation = useLessonSimulation(rootRef)
+  return (
+    <DashboardChrome
+      rootRef={rootRef}
+      drive={{ ...simulation, question: QUESTION_TEXT }}
+    />
+  )
+}
+
+/**
+ * Pass `drive` to pose the dashboard from outside; omit it and the mockup runs
+ * itself exactly as before. The two paths are separate components so neither
+ * calls a hook conditionally.
+ */
+export default function DashboardMockup({ drive }: { drive?: DashboardDrive }) {
+  const drivenRef = useRef<HTMLDivElement>(null)
+  return drive ? (
+    <DashboardChrome rootRef={drivenRef} drive={drive} />
+  ) : (
+    <SelfDrivenDashboard />
   )
 }
