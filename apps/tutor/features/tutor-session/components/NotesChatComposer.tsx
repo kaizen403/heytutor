@@ -1,82 +1,139 @@
-import { useState, type FormEvent, type KeyboardEvent } from "react";
+"use client";
 
-const SUGGESTIONS = [
-  "Why this formula?",
-  "Explain the last line",
-  "What does this symbol mean?",
-] as const;
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
+import { ArrowUp, Lightbulb, Square } from "lucide-react";
+
+const MAX_FIELD_HEIGHT = 136;
 
 interface NotesChatComposerProps {
-  disabled?: boolean;
-  showSuggestions?: boolean;
+  value: string;
+  onValueChange: (value: string) => void;
+  sending: boolean;
+  starters: string[];
   onSend: (message: string) => void;
+  onStop?: () => void;
 }
 
 export function NotesChatComposer({
-  disabled = false,
-  showSuggestions = false,
+  value,
+  onValueChange,
+  sending,
+  starters,
   onSend,
+  onStop,
 }: NotesChatComposerProps) {
-  const [value, setValue] = useState("");
-  const trimmed = value.trim();
-  const canSend = !disabled && trimmed.length > 0;
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const [showStarters, setShowStarters] = useState(false);
+  const [focused, setFocused] = useState(false);
 
-  const submit = (message: string) => {
-    const next = message.trim();
-    if (!next || disabled) return;
-    onSend(next);
-    setValue("");
+  const canSend = !sending && value.trim().length > 0;
+
+  // Grow with the draft instead of scrolling a one-line input, so a long
+  // question stays readable while it is being written.
+  useLayoutEffect(() => {
+    const field = fieldRef.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, MAX_FIELD_HEIGHT)}px`;
+  }, [value]);
+
+  const submit = () => {
+    if (!canSend) return;
+    onSend(value);
+    setShowStarters(false);
   };
 
-  const onSubmit = (event: FormEvent) => {
+  const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    submit(value);
+    submit();
   };
 
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      submit(value);
+      submit();
     }
   };
 
   return (
-    <div className="shrink-0 border-t border-[#2E2E33] px-3 py-3">
-      {showSuggestions ? (
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {SUGGESTIONS.map((suggestion) => (
+    <div className="ncs__composer">
+      {showStarters && starters.length > 0 ? (
+        <div className="ncs__chips ncs__composer-chips">
+          {starters.map((prompt) => (
             <button
-              key={suggestion}
+              key={prompt}
               type="button"
-              disabled={disabled}
-              onClick={() => submit(suggestion)}
-              className="rounded-full border border-[#2E2E33] bg-[#1E1E21] px-2.5 py-1 text-[11px] text-[#C9C9D2] transition-colors hover:border-[rgba(201,201,210,0.35)] hover:text-[#F2F2F4] disabled:opacity-40"
+              className="ncs__chip"
+              disabled={sending}
+              onClick={() => {
+                onSend(prompt);
+                setShowStarters(false);
+              }}
             >
-              {suggestion}
+              {prompt}
             </button>
           ))}
         </div>
       ) : null}
-      <form onSubmit={onSubmit} className="flex items-center gap-2">
-        <input
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          onKeyDown={onKeyDown}
-          disabled={disabled}
-          placeholder="Ask about a line on the board"
-          className="h-10 min-w-0 flex-1 rounded-full border border-[#2E2E33] bg-[#1E1E21] px-3.5 text-sm text-[#F2F2F4] outline-none placeholder:text-[#6E6E76] focus:border-[rgba(201,201,210,0.45)] disabled:opacity-60"
-        />
-        <button
-          type="submit"
-          disabled={!canSend}
-          aria-label="Send"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#6E6E76] text-white transition-colors hover:bg-[#7A7A82] disabled:opacity-40"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m5 12 14-7-7 14-2-5-5-2z" />
-          </svg>
-        </button>
+
+      <form onSubmit={handleSubmit}>
+        <div className="ncs__field">
+          <textarea
+            ref={fieldRef}
+            rows={1}
+            value={value}
+            onChange={(event) => onValueChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder="Ask me anything about this lesson"
+            aria-label="Ask me anything about this lesson"
+            className="ncs__input"
+          />
+
+          <button
+            type="button"
+            aria-label="Prompt ideas"
+            aria-pressed={showStarters}
+            title="Prompt ideas"
+            onClick={() => setShowStarters((current) => !current)}
+            className={showStarters ? "ncs__action ncs__action--on" : "ncs__action"}
+          >
+            <Lightbulb size={15} strokeWidth={1.8} />
+          </button>
+
+          {sending && onStop ? (
+            <button
+              type="button"
+              aria-label="Stop answering"
+              title="Stop answering"
+              onClick={onStop}
+              className="ncs__action ncs__action--primary"
+            >
+              <Square size={11} strokeWidth={2} fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!canSend}
+              aria-label="Send"
+              className="ncs__action ncs__action--primary"
+            >
+              <ArrowUp size={15} strokeWidth={2.2} />
+            </button>
+          )}
+        </div>
       </form>
+
+      {focused || value ? (
+        <p className="ncs__hint">Enter to send · Shift + Enter for a new line</p>
+      ) : null}
     </div>
   );
 }

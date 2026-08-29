@@ -20,13 +20,21 @@ export function useNotesChat(boardId: string, enabled = true) {
     boardIdRef.current = boardId;
   }, [boardId]);
 
+  // Changing board — or switching notes off — resets the thread. Doing that
+  // while rendering the new input is the supported pattern: an effect would
+  // paint the previous board's messages for a frame before clearing them.
+  const [threadKey, setThreadKey] = useState(`${boardId}:${enabled}`);
+  if (threadKey !== `${boardId}:${enabled}`) {
+    setThreadKey(`${boardId}:${enabled}`);
+    setSending(false);
+    setError(null);
+    setMessages([]);
+  }
+
   useEffect(() => {
     abortRef.current?.abort();
     abortRef.current = null;
-    setSending(false);
-    setError(null);
     if (!enabled) {
-      setMessages([]);
       return;
     }
 
@@ -111,5 +119,11 @@ export function useNotesChat(boardId: string, enabled = true) {
     [boardId, enabled, sending],
   );
 
-  return { messages, sending, error, send };
+  /** Abort a streaming reply and drop the partial bubble. */
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }, []);
+
+  return { messages, sending, error, send, stop };
 }
