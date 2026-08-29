@@ -1,6 +1,7 @@
 import { ensureUser, getUserId } from "@/lib/auth";
 import {
   EXTRACT_QUESTION_PROMPT,
+  MAX_QUESTION_IMAGE_DATA_URL_CHARS,
   parseExtractedQuestion,
   readExtractedContent,
 } from "@/lib/llm/extractQuestion";
@@ -8,7 +9,6 @@ import { resolveFireworksVisionModel } from "@/lib/llm/fireworksModels";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const MAX_DATA_URL_CHARS = 1_800_000;
 
 interface ExtractRequestBody {
   image?: unknown;
@@ -26,7 +26,7 @@ function readDataUrl(image: unknown): { dataUrl: string } | null {
     return null;
   }
   const mimeType = match[1].toLowerCase();
-  if (!ALLOWED_MIME.has(mimeType) || trimmed.length > MAX_DATA_URL_CHARS) {
+  if (!ALLOWED_MIME.has(mimeType) || trimmed.length > MAX_QUESTION_IMAGE_DATA_URL_CHARS) {
     return null;
   }
   return { dataUrl: `data:${mimeType};base64,${match[2].replace(/\s+/g, "")}` };

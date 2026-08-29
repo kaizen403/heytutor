@@ -1,5 +1,48 @@
+import {
+  DEFAULT_VOICE_KEY,
+  normalizeVoiceKey,
+  TTS_LANG_HEADER,
+  type TutorVoiceKey,
+} from "@heytutor/tutor-core";
+
 export const ELEVENLABS_TTS_BASE = "https://api.elevenlabs.io/v1/text-to-speech";
 export const DEFAULT_ELEVENLABS_MODEL = "eleven_multilingual_v2";
+
+/**
+ * Low-latency alternative to the default model. Settings exposes this as
+ * "Response speed"; the client sends the model id it wants per request.
+ */
+export const LOW_LATENCY_ELEVENLABS_MODEL = "eleven_flash_v2_5";
+
+/**
+ * Voice id per language/accent. `ELEVENLABS_VOICE_ID` stays the Indian-English
+ * default so an existing deployment keeps working with no new env vars; the
+ * others are optional and fall back to it rather than failing the request.
+ */
+const VOICE_ENV_KEYS: Record<TutorVoiceKey, string> = {
+  "en-IN": "ELEVENLABS_VOICE_ID",
+  "en-GB": "ELEVENLABS_VOICE_ID_EN_GB",
+  "en-US": "ELEVENLABS_VOICE_ID_EN_US",
+  "hi-IN": "ELEVENLABS_VOICE_ID_HI",
+};
+
+export function resolveVoiceId(voiceKey: TutorVoiceKey): string | undefined {
+  const configured = process.env[VOICE_ENV_KEYS[voiceKey]]?.trim();
+  if (configured) return configured;
+  // An unconfigured accent/language speaks in the default voice instead of
+  // dropping the turn's audio.
+  return process.env[VOICE_ENV_KEYS[DEFAULT_VOICE_KEY]]?.trim() || undefined;
+}
+
+/** Which languages this deployment can actually speak, for the settings UI. */
+export function configuredVoiceKeys(): TutorVoiceKey[] {
+  return (Object.keys(VOICE_ENV_KEYS) as TutorVoiceKey[])
+    .filter((key) => Boolean(process.env[VOICE_ENV_KEYS[key]]?.trim()));
+}
+
+export function voiceKeyFromRequest(request: Request): TutorVoiceKey {
+  return normalizeVoiceKey(request.headers.get(TTS_LANG_HEADER));
+}
 
 export interface ElevenLabsTtsBody {
   text?: string;

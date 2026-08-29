@@ -2,7 +2,9 @@ import { flushInBackground, recordTtsSpan } from "@/lib/obs/langfuse";
 import {
   DEFAULT_ELEVENLABS_MODEL,
   ELEVENLABS_TTS_BASE,
+  resolveVoiceId,
   upstreamErrorResponse,
+  voiceKeyFromRequest,
 } from "@/lib/tts/ttsProxy";
 import { getUserId } from "@/lib/auth";
 
@@ -38,7 +40,7 @@ async function recordTtsFromRequest(
 ): Promise<void> {
   const { traceId, sessionId } = readTraceHeaders(request);
   const { text, modelId } = parseTtsBody(body);
-  const voiceId = process.env.ELEVENLABS_VOICE_ID ?? "unknown";
+  const voiceId = resolveVoiceId(voiceKeyFromRequest(request)) ?? "unknown";
   const model = modelId ?? process.env.ELEVENLABS_MODEL ?? DEFAULT_ELEVENLABS_MODEL;
 
   recordTtsSpan({
@@ -62,7 +64,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const body = await request.text();
   const apiKey = process.env.ELEVENLABS_API_KEY;
-  const voiceId = process.env.ELEVENLABS_VOICE_ID;
+  const voiceId = resolveVoiceId(voiceKeyFromRequest(request));
   const transport = request.headers.get("x-tts-transport") === "browser-fallback"
     ? "browser-fallback"
     : "http";

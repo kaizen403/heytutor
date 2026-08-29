@@ -6,10 +6,16 @@ import { WebSocket, WebSocketServer } from "ws";
 import { HTUTOR_UID_COOKIE } from "./lib/cookies";
 import { flushInBackground, recordTtsSpan } from "./lib/obs/langfuse";
 import {
+  DEFAULT_ELEVENLABS_MODEL,
+  LOW_LATENCY_ELEVENLABS_MODEL,
+  resolveVoiceId,
+} from "./lib/tts/ttsProxy";
+import {
   buildMultiContextSegmentMessages,
   normalizeMultiContextServerPayload,
 } from "./lib/tts/ttsRelayProtocol";
 import { verifyWsTicket } from "./lib/tts/wsTicket";
+import { normalizeVoiceKey, type TutorVoiceKey } from "@heytutor/tutor-core";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "localhost";
@@ -56,12 +62,20 @@ interface TtsRelayContext {
   sessionId?: string;
   /** ElevenLabs natural voice speed, 0.7–1.2. Pitch-preserving. */
   speed?: number;
+  /** Language/accent chosen in Settings; picks the upstream voice id. */
+  voiceKey?: TutorVoiceKey;
+  /** Set when the student picked the low-latency model in Settings. */
+  lowLatency?: boolean;
 }
 
 function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void {
   const apiKey = process.env.ELEVENLABS_API_KEY;
-  const voiceId = process.env.ELEVENLABS_VOICE_ID;
-  const modelId = process.env.ELEVENLABS_MODEL ?? "eleven_multilingual_v2";
+  const voiceId = resolveVoiceId(normalizeVoiceKey(context.voiceKey));
+  // A per-request low-latency choice wins over the deployment default, which
+  // in turn wins over the built-in quality model.
+  const modelId = context.lowLatency
+    ? LOW_LATENCY_ELEVENLABS_MODEL
+    : process.env.ELEVENLABS_MODEL ?? DEFAULT_ELEVENLABS_MODEL;
 
   if (!apiKey || !voiceId) {
     clientWs.send(JSON.stringify({ type: "error", message: "TTS not configured" }));
@@ -254,9 +268,13 @@ app.prepare().then(() => {
       const speed = Number.isFinite(rawSpeed)
         ? Math.min(Math.max(rawSpeed, 0.7), 1.2)
         : undefined;
+      const voiceKey = normalizeVoiceKey(
+        typeof query.lang === "string" ? query.lang : undefined,
+      );
+      const lowLatency = query.model === "flash";
 
       wss.handleUpgrade(request, socket, head, (ws) => {
-        relayTtsWebSocket(ws, { traceId, sessionId, speed });
+        relayTtsWebSocket(ws, { traceId, sessionId, speed, voiceKey, lowLatency });
       });
       return;
     }

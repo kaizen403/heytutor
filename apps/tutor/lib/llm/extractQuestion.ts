@@ -1,5 +1,8 @@
 import { normalizeTutorQuestion } from "@heytutor/tutor-core";
 
+/** Upper bound on a question photo as a base64 data URL; the client shrinks to fit. */
+export const MAX_QUESTION_IMAGE_DATA_URL_CHARS = 1_800_000;
+
 export const EXTRACT_QUESTION_PROMPT = `This is OCR only. Transcribe the exam or textbook question in this image, then stop.
 
 Output only the question text. Do not solve, compute, hint, or teach. No preamble.

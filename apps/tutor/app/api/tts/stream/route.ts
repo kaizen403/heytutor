@@ -4,8 +4,10 @@ import {
   DEFAULT_ELEVENLABS_MODEL,
   ELEVENLABS_TTS_BASE,
   type ElevenLabsTtsBody,
+  resolveVoiceId,
   ttsNotConfiguredResponse,
   upstreamErrorResponse,
+  voiceKeyFromRequest,
 } from "@/lib/tts/ttsProxy";
 import { getUserId } from "@/lib/auth";
 
@@ -23,7 +25,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const apiKey = process.env.ELEVENLABS_API_KEY;
-  const voiceId = process.env.ELEVENLABS_VOICE_ID;
+  const voiceId = resolveVoiceId(voiceKeyFromRequest(request));
 
   if (!apiKey || !voiceId) {
     return ttsNotConfiguredResponse();
