@@ -1,11 +1,16 @@
 "use client";
 
 import { Settings } from "lucide-react";
+import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
 import { resolveApiUrl } from "@heytutor/tutor-core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { compressQuestionImage } from "@/features/tutor-session/lib/compressQuestionImage";
 import { LESSON_DONE_PROMPT } from "@/features/tutor-session/lib/lessonFollowUp";
 import { fileFromClipboardData } from "@/features/tutor-session/lib/questionImageInput";
+import {
+  DOUBT_INTERRUPT_HINT,
+  DOUBT_PLACEHOLDER,
+} from "@/features/tutor-session/lib/askDoubt";
 import { cn } from "@/lib/utils";
 
 export type InputSubmitMode = "ask" | "doubt" | "follow-up";
@@ -60,6 +65,12 @@ function getSpeechRecognitionCtor():
   return w.SpeechRecognition ?? w.webkitSpeechRecognition;
 }
 
+// Dictation is a Chromium/WebKit API; Firefox has no SpeechRecognition at all.
+// Resolved through an external-store read so SSR and hydration agree.
+const subscribeToNothing = () => () => {};
+const readSpeechSupport = () => getSpeechRecognitionCtor() !== undefined;
+const readServerSpeechSupport = () => false;
+
 function submitButtonLabel(mode: InputSubmitMode): string {
   if (mode === "doubt" || mode === "follow-up") return "Ask Doubt";
   return "Ask";
@@ -93,6 +104,12 @@ export function InputBar({
   onOpenSettings,
 }: InputBarProps) {
   const [question, setQuestion] = useState("");
+  const questionInputRef = useRef<HTMLInputElement>(null);
+  const speechSupported = useSyncExternalStore(
+    subscribeToNothing,
+    readSpeechSupport,
+    readServerSpeechSupport,
+  );
   const [isListening, setIsListening] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
@@ -111,7 +128,14 @@ export function InputBar({
   const isFollowUp = submitMode === "follow-up";
   const isDoubt = submitMode === "doubt" || isFollowUp;
   const submitLabel = submitButtonLabel(submitMode);
-  const inputLocked = disabled || isExtracting;
+  /** The tutor owns the board (teaching or replaying) and offers its own controls. */
+  const isLiveLesson = disabled && Boolean(onPauseToggle);
+  /**
+   * A live lesson keeps the composer open — the Ask Doubt button is worthless if
+   * the student cannot type the doubt while the lesson is on screen.
+   */
+  const canInterruptWithDoubt = isLiveLesson && Boolean(onAskDoubt);
+  const inputLocked = isExtracting || (disabled && !canInterruptWithDoubt);
   const buttonDisabled = inputLocked || trimmed.length === 0;
   const nextQuestionDisabled = inputLocked;
 
@@ -123,13 +147,13 @@ export function InputBar({
   }, [onUserInteractionChange]);
 
   const runSubmit = useCallback(() => {
-    if (isDoubt) {
+    if (isDoubt || canInterruptWithDoubt) {
       onAskDoubt?.(trimmed);
     } else {
       onSubmit(trimmed);
     }
     finishInput();
-  }, [finishInput, isDoubt, onAskDoubt, onSubmit, trimmed]);
+  }, [canInterruptWithDoubt, finishInput, isDoubt, onAskDoubt, onSubmit, trimmed]);
 
   const runNextQuestion = useCallback(() => {
     if (nextQuestionDisabled) return;
@@ -150,6 +174,23 @@ export function InputBar({
     [submitQuestion],
   );
 
+  /** Composing a doubt stops the voice talking over the student. */
+  const pauseForDoubt = useCallback(() => {
+    if (canInterruptWithDoubt && !isPaused) {
+      onPauseToggle?.();
+    }
+  }, [canInterruptWithDoubt, isPaused, onPauseToggle]);
+
+  const askDoubtFromButton = useCallback(() => {
+    if (inputLocked) return;
+    if (trimmed.length === 0) {
+      pauseForDoubt();
+      questionInputRef.current?.focus();
+      return;
+    }
+    runSubmit();
+  }, [inputLocked, pauseForDoubt, runSubmit, trimmed.length]);
+
   const toggleListening = useCallback(() => {
     if (inputLocked) return;
 
@@ -161,6 +202,10 @@ export function InputBar({
       setIsListening(false);
       return;
     }
+
+    // Dictating over a talking tutor feeds the lesson audio straight back into
+    // the transcript, so a live lesson pauses before the mic opens.
+    pauseForDoubt();
 
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
@@ -186,7 +231,7 @@ export function InputBar({
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
-  }, [inputLocked, isListening]);
+  }, [inputLocked, isListening, pauseForDoubt]);
 
   const handleImageClick = useCallback(() => {
     if (inputLocked) return;
@@ -295,6 +340,11 @@ export function InputBar({
           {LESSON_DONE_PROMPT}
         </p>
       )}
+      {canInterruptWithDoubt && trimmed.length > 0 && (
+        <p className="px-3 text-center text-[0.8125rem]" style={{ color: "#A6A6AE" }}>
+          {DOUBT_INTERRUPT_HINT}
+        </p>
+      )}
       <form
         onSubmit={handleSubmit}
         onDragOver={(event) => {
@@ -352,48 +402,61 @@ export function InputBar({
               e.currentTarget.style.color = isExtracting ? "#C9C9D2" : "#A6A6AE";
             }}
           >
-            <svg
-              width={prominent ? 22 : 20}
-              height={prominent ? 22 : 20}
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden
-            >
-              <rect
-                x="3.5"
-                y="6"
-                width="17"
-                height="13"
-                rx="2.25"
-                stroke="currentColor"
-                strokeWidth="1.75"
+            {isExtracting ? (
+              <PenSpinner
+                size={prominent ? 24 : 22}
+                ink="#C9C9D2"
+                label="Reading the question"
               />
-              <circle cx="8.5" cy="10.25" r="1.35" fill="currentColor" />
-              <path
-                d="M7 17.5l4.2-4.4a1.2 1.2 0 0 1 1.7 0L17.5 17.5"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            ) : (
+              <svg
+                width={prominent ? 22 : 20}
+                height={prominent ? 22 : 20}
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden
+              >
+                <rect
+                  x="3.5"
+                  y="6"
+                  width="17"
+                  height="13"
+                  rx="2.25"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                />
+                <circle cx="8.5" cy="10.25" r="1.35" fill="currentColor" />
+                <path
+                  d="M7 17.5l4.2-4.4a1.2 1.2 0 0 1 1.7 0L17.5 17.5"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
           </button>
         )}
 
         <input
+          ref={questionInputRef}
           type="text"
           value={question}
           onChange={(event) => {
             setExtractError(null);
             setExtractLatencyMs(null);
             setQuestion(event.target.value);
+            if (event.target.value.trim().length > 0) {
+              pauseForDoubt();
+            }
           }}
           disabled={inputLocked}
           autoFocus={autoFocus}
           placeholder={
             isExtracting
               ? "Reading the question…"
-              : extractError ?? placeholder
+              : extractError ??
+                (canInterruptWithDoubt ? DOUBT_PLACEHOLDER : placeholder)
           }
           className={cn(
             "min-w-0 flex-1 bg-transparent px-2 py-1.5 focus:outline-none disabled:opacity-50 placeholder:text-[#717177]",
@@ -404,6 +467,7 @@ export function InputBar({
           style={{ color: "#F2F2F4" }}
         />
 
+        {speechSupported && (
         <button
           type="button"
           onClick={toggleListening}
@@ -450,6 +514,7 @@ export function InputBar({
             />
           </svg>
         </button>
+        )}
 
         {disabled && onPauseToggle ? (
           <div className="mr-0.5 flex shrink-0 items-center gap-1.5">
@@ -501,16 +566,20 @@ export function InputBar({
             <button
               type="button"
               aria-label="Ask Doubt"
+              title={
+                trimmed.length > 0
+                  ? DOUBT_INTERRUPT_HINT
+                  : "Pause and type a doubt about this lesson"
+              }
+              disabled={inputLocked}
               className={cn(
-                "shrink-0 rounded-full font-medium transition-all",
+                "shrink-0 rounded-full font-medium transition-all disabled:opacity-40",
                 compact
                   ? "flex h-9 w-9 items-center justify-center"
                   : "px-4 py-2 text-sm",
               )}
               style={submitButtonColors("doubt", false)}
-              onClick={() => {
-                // wired up later during live lecture
-              }}
+              onClick={askDoubtFromButton}
             >
               {compact ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -550,6 +619,11 @@ export function InputBar({
                 type="button"
                 onClick={runNextQuestion}
                 disabled={nextQuestionDisabled}
+                title={
+                  trimmed.length > 0
+                    ? "Start this question on a new board"
+                    : "Open a new board for your next question"
+                }
                 className="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all disabled:opacity-40"
                 style={{
                   backgroundColor: "rgba(201, 201, 210, 0.15)",

@@ -10,23 +10,34 @@ import {
 } from "@/components/ui/sheet";
 import {
   SettingsDrawer,
+  DEFAULT_SETTINGS,
   getMarkerColorHex,
   type SettingsState,
+  SPEED_MIN,
+  SPEED_MAX,
+  isMarkerColorId,
+  isLessonDepth,
+  isTutorAccent,
+  isTutorAudioLanguage,
 } from "@/features/tutor-session/components/SettingsDrawer";
+import { toVoiceKey, type LessonDepth } from "@heytutor/tutor-core";
 import {
   CanvasLanding,
   CanvasLandingDoodles,
 } from "@/features/tutor-session/components/CanvasLanding";
 import { type ReplayCue } from "@/lib/replay/replayTimeline";
+import { resolveLecturePlayback } from "@/lib/replay/liveTimeline";
 import type { WhiteboardHandle, CursorState } from "@heytutor/whiteboard";
 import { useIsCompactNav, useIsMobile } from "@/lib/client/useMediaQuery";
 import { ThinkingOverlay } from "./components/ThinkingOverlay";
+import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
 import { SessionInputChrome } from "./components/SessionInputChrome";
 import { SessionHeader } from "./components/SessionHeader";
 import { NotesChatSidebar } from "./components/NotesChatSidebar";
 import { SessionBoardCanvas } from "./components/SessionBoardCanvas";
 import { Whiteboard } from "./components/WhiteboardLoader";
 import { useReplay } from "./hooks/useReplay";
+import { useLectureRewind } from "./hooks/useLectureRewind";
 import { useCommandExecution } from "./hooks/useCommandExecution";
 import { useCancelControl } from "./hooks/useCancelControl";
 import { useTurnLifecycle } from "./hooks/useTurnLifecycle";
@@ -63,6 +74,32 @@ import { lessonFollowUpMode } from "./lib/lessonFollowUp";
 import { buildLessonNotes } from "./lib/lessonNotes";
 import { resolveActiveStatus } from "./lib/statusConfig";
 import { canStartStoredLectureReplay } from "./lib/autoReplay";
+
+const FAST_MODE_STORAGE_KEY = "htutor_fast_mode";
+const SUBTITLES_STORAGE_KEY = "htutor_subtitles";
+const SPEED_STORAGE_KEY = "htutor_speed";
+const MARKER_COLOR_STORAGE_KEY = "htutor_marker_color";
+const LESSON_DEPTH_STORAGE_KEY = "htutor_lesson_depth";
+const AUDIO_LANGUAGE_STORAGE_KEY = "htutor_audio_language";
+const ACCENT_STORAGE_KEY = "htutor_accent";
+const NARRATION_STORAGE_KEY = "htutor_narration";
+const LOW_LATENCY_STORAGE_KEY = "htutor_low_latency_voice";
+
+function readStoredSetting(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSetting(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    /* private mode / quota */
+  }
+}
 
 export type TutorSessionVariant = "full" | "headless" | "embed";
 
@@ -105,10 +142,12 @@ export function TutorSessionShell({
   const isHeadless = variant === "headless";
   const isEmbed = variant === "embed";
   const mutePlayback = isHeadless ? (muteAudio ?? true) : (muteAudio ?? false);
+  /** Admin Watch drives the rate through props; only the student's own choice persists. */
+  const speedIsControlled = playbackRate !== undefined;
 
   const whiteboardRef = useRef<WhiteboardHandle>(null);
   const pendingQuestionRef = useRef<string | null>(null);
-  const autoSubmitDoneRef = useRef(false);
+  const autoSubmitDoneRef = useRef<string | null>(null);
   const [phase, setPhase] = useState<TutorPhase>("idle");
   const phaseRef = useRef<TutorPhase>("idle");
   const [isPaused, setIsPaused] = useState(false);
@@ -144,24 +183,20 @@ export function TutorSessionShell({
   const adaptiveFactorRef = useRef(1);
   const [settings, setSettings] = useState<SettingsState>({
     speedMultiplier: DEFAULT_REPLAY_SPEED,
-    fastMode: true,
-    audioLanguage: "english",
-    accent: "india",
-    subtitlesEnabled: true,
-    subtitleLanguage: "english",
-    markerColor: "navy",
+    ...DEFAULT_SETTINGS,
   });
   const speedRef = useRef(DEFAULT_REPLAY_SPEED);
   const fastModeRef = useRef(true);
-  const [profileOpen, setProfileOpen] = useState(false);
+  const lessonDepthRef = useRef<LessonDepth>(DEFAULT_SETTINGS.lessonDepth);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH);
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [liveQuestion, setLiveQuestion] = useState("");
-  const [notesOpen, setNotesOpen] = useState(false);
-  const notesUserToggledRef = useRef(false);
+  const liveQuestionRef = useRef("");
+  /** null = follow the automatic rule; true/false = the student decided. */
+  const [notesOpenOverride, setNotesOpenOverride] = useState<boolean | null>(null);
   const isCompactNav = useIsCompactNav();
   const isMobile = useIsMobile();
   const [isReplaying, setIsReplaying] = useState(false);
@@ -169,6 +204,8 @@ export function TutorSessionShell({
   const [replayTotalMs, setReplayTotalMs] = useState(0);
   const replayGenerationRef = useRef(0);
   const replayCueRef = useRef<ReplayCue | null>(null);
+  /** True while the student has scrolled back into a lecture still in progress. */
+  const rewoundRef = useRef(false);
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -182,22 +219,123 @@ export function TutorSessionShell({
     if (isHeadless || typeof window === "undefined") {
       return;
     }
-    const stored = window.localStorage.getItem("htutor_fast_mode");
-    if (stored === "0") {
-      // Read after mount so SSR HTML stays the production default.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSettings((current) => ({ ...current, fastMode: false }));
+    const overrides: Partial<SettingsState> = {};
+
+    if (readStoredSetting(FAST_MODE_STORAGE_KEY) === "0") {
+      overrides.fastMode = false;
       fastModeRef.current = false;
     }
-  }, [isHeadless]);
+    // Subtitles ship off; only an explicit opt-in turns them back on.
+    if (readStoredSetting(SUBTITLES_STORAGE_KEY) === "1") {
+      overrides.subtitlesEnabled = true;
+    }
+    const storedSpeed = Number(readStoredSetting(SPEED_STORAGE_KEY));
+    if (
+      !speedIsControlled &&
+      Number.isFinite(storedSpeed) &&
+      storedSpeed >= SPEED_MIN &&
+      storedSpeed <= SPEED_MAX
+    ) {
+      overrides.speedMultiplier = storedSpeed;
+    }
+    const storedMarkerColor = readStoredSetting(MARKER_COLOR_STORAGE_KEY);
+    if (isMarkerColorId(storedMarkerColor)) {
+      overrides.markerColor = storedMarkerColor;
+    }
+    const storedDepth = readStoredSetting(LESSON_DEPTH_STORAGE_KEY);
+    if (isLessonDepth(storedDepth)) {
+      overrides.lessonDepth = storedDepth;
+      lessonDepthRef.current = storedDepth;
+    }
+    const storedLanguage = readStoredSetting(AUDIO_LANGUAGE_STORAGE_KEY);
+    if (isTutorAudioLanguage(storedLanguage)) {
+      overrides.audioLanguage = storedLanguage;
+    }
+    const storedAccent = readStoredSetting(ACCENT_STORAGE_KEY);
+    if (isTutorAccent(storedAccent)) {
+      overrides.accent = storedAccent;
+    }
+    // Narration ships on; only an explicit opt-out silences it.
+    if (readStoredSetting(NARRATION_STORAGE_KEY) === "0") {
+      overrides.narrationEnabled = false;
+    }
+    if (readStoredSetting(LOW_LATENCY_STORAGE_KEY) === "1") {
+      overrides.lowLatencyVoice = true;
+    }
+
+    if (Object.keys(overrides).length === 0) {
+      return;
+    }
+    // Read after mount so SSR HTML stays the production default.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSettings((current) => ({ ...current, ...overrides }));
+  }, [isHeadless, speedIsControlled]);
 
   useEffect(() => {
     fastModeRef.current = settings.fastMode;
     if (isHeadless || typeof window === "undefined") {
       return;
     }
-    window.localStorage.setItem("htutor_fast_mode", settings.fastMode ? "1" : "0");
+    writeStoredSetting(FAST_MODE_STORAGE_KEY, settings.fastMode ? "1" : "0");
   }, [settings.fastMode, isHeadless]);
+
+  useEffect(() => {
+    if (isHeadless || typeof window === "undefined") {
+      return;
+    }
+    writeStoredSetting(SUBTITLES_STORAGE_KEY, settings.subtitlesEnabled ? "1" : "0");
+  }, [settings.subtitlesEnabled, isHeadless]);
+
+  useEffect(() => {
+    if (isHeadless || speedIsControlled || typeof window === "undefined") {
+      return;
+    }
+    writeStoredSetting(SPEED_STORAGE_KEY, String(settings.speedMultiplier));
+  }, [settings.speedMultiplier, isHeadless, speedIsControlled]);
+
+  useEffect(() => {
+    if (isHeadless || typeof window === "undefined") {
+      return;
+    }
+    writeStoredSetting(MARKER_COLOR_STORAGE_KEY, settings.markerColor);
+  }, [settings.markerColor, isHeadless]);
+
+  useEffect(() => {
+    lessonDepthRef.current = settings.lessonDepth;
+    if (isHeadless || typeof window === "undefined") {
+      return;
+    }
+    writeStoredSetting(LESSON_DEPTH_STORAGE_KEY, settings.lessonDepth);
+  }, [settings.lessonDepth, isHeadless]);
+
+  // Language/accent/latency reach the server as one voice key; the TTS client
+  // reconnects on the next segment so the new voice is used.
+  useEffect(() => {
+    ttsClientRef.current?.setVoicePreferences?.({
+      voiceKey: toVoiceKey(settings.audioLanguage, settings.accent),
+      lowLatency: settings.lowLatencyVoice,
+    });
+    if (isHeadless || typeof window === "undefined") {
+      return;
+    }
+    writeStoredSetting(AUDIO_LANGUAGE_STORAGE_KEY, settings.audioLanguage);
+    writeStoredSetting(ACCENT_STORAGE_KEY, settings.accent);
+    writeStoredSetting(LOW_LATENCY_STORAGE_KEY, settings.lowLatencyVoice ? "1" : "0");
+  }, [
+    settings.audioLanguage,
+    settings.accent,
+    settings.lowLatencyVoice,
+    isHeadless,
+  ]);
+
+  useEffect(() => {
+    // A headless/muted embed stays silent regardless of the student's choice.
+    ttsClientRef.current?.setMuted?.(mutePlayback || !settings.narrationEnabled);
+    if (isHeadless || typeof window === "undefined") {
+      return;
+    }
+    writeStoredSetting(NARRATION_STORAGE_KEY, settings.narrationEnabled ? "1" : "0");
+  }, [settings.narrationEnabled, mutePlayback, isHeadless]);
 
   // Keep AudioContext eligible for audible playback after long planning awaits.
   useEffect(() => {
@@ -216,10 +354,13 @@ export function TutorSessionShell({
   }, []);
 
   const skipInkRestoreRef = useRef(autoReplay);
-  skipInkRestoreRef.current = autoReplay;
+  // Read only by the async board-detail restore, so an effect is soon enough.
+  useEffect(() => {
+    skipInkRestoreRef.current = autoReplay;
+  }, [autoReplay]);
 
   const cursorState: CursorState =
-    phase === "thinking"
+    phase === "thinking" || phase === "planning"
       ? "thinking"
       : isReplaying || phase === "drawing" || phase === "speaking"
         ? "drawing"
@@ -236,6 +377,7 @@ export function TutorSessionShell({
     forceSequentialWorkLayoutRef,
     resetBoardLayout,
     beginBoardEpoch,
+    captureNotesEpoch,
     forgetErasedTextRects,
     resolveTextPlacement,
     reserveTextCommandPlacement,
@@ -243,6 +385,7 @@ export function TutorSessionShell({
     whiteboardRef,
     cancelRef,
     fbdPhaseStartedRef,
+    liveQuestionRef,
     viewportMode: isHeadless ? "fixed" : "fit",
   });
 
@@ -317,11 +460,13 @@ export function TutorSessionShell({
     router,
     phase,
     speedMultiplier: settings.speedMultiplier,
-    muted: mutePlayback,
+    muted: mutePlayback || !settings.narrationEnabled,
     whiteboardRef,
     cancelRef,
     notesEpochsRef,
     narrationSinceEpochRef,
+    liveQuestionRef,
+    captureNotesEpoch,
     ttsClientRef,
     speedRef,
     stopTurnRef,
@@ -358,7 +503,9 @@ export function TutorSessionShell({
     autoSubmitDoneRef,
     phaseRef,
     isPausedRef,
+    rewoundRef,
     conversationHistoryRef,
+    liveQuestionRef,
     ttsClientRef,
     replayAudioRef,
     replayAudioPreloadRef,
@@ -385,6 +532,7 @@ export function TutorSessionShell({
     stopTurnRef,
     speedRef,
     fastModeRef,
+    lessonDepthRef,
     pendingSegmentCountRef,
     narrationDensityRef,
     replayGenerationRef,
@@ -416,6 +564,19 @@ export function TutorSessionShell({
 
   const notesEnabled = !isEmbed && !isHeadless;
   const lectureInProgress = phase !== "idle" && !isReplaying;
+  /*
+   * These four refs are the live turn buffers: `useTurnControl` pushes a
+   * segment into them for every spoken beat, on the audio-synced path. They
+   * are refs precisely so that a segment arriving does not re-render the
+   * shell — making them state would put a render between the voice and the
+   * ink, which is the sync this board is built to protect.
+   *
+   * Reading them here is therefore deliberate, and safe: the dependency list
+   * below carries a state mirror of each buffer's observable size
+   * (`storedTurnsCount`, `narrationText`, `currentSegmentText`), so the notes
+   * are rebuilt exactly when their contents have changed.
+   */
+  /* eslint-disable react-hooks/refs, react-hooks/exhaustive-deps -- see the note above */
   const lessonNotes = useMemo(
     () =>
       buildLessonNotes({
@@ -445,26 +606,34 @@ export function TutorSessionShell({
       storedTurnsCount,
     ],
   );
-  const { messages: notesMessages, sending: notesSending, error: notesError, send: sendNotesChat } =
-    useNotesChat(sessionId, notesEnabled);
+  /* eslint-enable react-hooks/refs, react-hooks/exhaustive-deps */
+  const {
+    messages: notesMessages,
+    sending: notesSending,
+    error: notesError,
+    send: sendNotesChat,
+    stop: stopNotesChat,
+  } = useNotesChat(sessionId, notesEnabled);
 
-  useEffect(() => {
-    notesUserToggledRef.current = false;
+  // Switching boards is a fresh start: drop the draft question and hand the
+  // notes rail back to the automatic rule. Adjusting state while rendering on
+  // a changed input is the supported pattern; an effect here would render the
+  // previous session's state first and then correct it.
+  const [notesSessionId, setNotesSessionId] = useState(sessionId);
+  if (notesSessionId !== sessionId) {
+    setNotesSessionId(sessionId);
+    setNotesOpenOverride(null);
     setLiveQuestion("");
-  }, [sessionId]);
+  }
 
-  useEffect(() => {
-    if (!notesEnabled || isMobile) return;
-    if (notesUserToggledRef.current) return;
-    if (phase !== "idle" || storedTurnsCount > 0) {
-      setNotesOpen(true);
-    }
-  }, [isMobile, notesEnabled, phase, storedTurnsCount]);
+  const notesAutoOpen =
+    notesEnabled && !isMobile && (phase !== "idle" || storedTurnsCount > 0);
+  const notesOpen = notesOpenOverride ?? notesAutoOpen;
+  const setNotesOpen = setNotesOpenOverride;
 
-  const toggleNotes = useCallback(() => {
-    notesUserToggledRef.current = true;
-    setNotesOpen((open) => !open);
-  }, []);
+  const toggleNotes = () => {
+    setNotesOpenOverride(!notesOpen);
+  };
 
   const notesRailOpen = notesEnabled && notesOpen && !isMobile;
 
@@ -495,6 +664,7 @@ export function TutorSessionShell({
     ttsClientRef,
     notesEpochsRef,
     narrationSinceEpochRef,
+    liveQuestionRef,
     phaseRef,
     isReplaying,
     isPaused,
@@ -521,8 +691,98 @@ export function TutorSessionShell({
     resumeTurn,
   });
 
+  const {
+    rewindBoardRef,
+    rewindActive,
+    rewindPlaying,
+    rewindProgressMs,
+    rewindSegmentText,
+    rewindCursorState,
+    liveEdgeMs,
+    canRewind,
+    seekLecture,
+    toggleRewindPlayPause,
+    applyRewindSpeed,
+    goLive,
+  } = useLectureRewind({
+    sessionId,
+    boards,
+    phase,
+    phaseRef,
+    isReplaying,
+    storedTurnsRef,
+    recordedSegmentsRef,
+    liveQuestionRef,
+    speedRef,
+    livePausedRef: isPausedRef,
+    rewoundRef,
+    setSettings,
+    pauseTurn,
+    resumeTurn,
+    enableKeyboardControls: variant !== "headless",
+    enabled: !isHeadless,
+  });
+
+  // One scrub bar, two timelines behind it: a finished lecture end to end, or
+  // a running one that stops at the live edge.
+  const {
+    mode: playbackMode,
+    visible: showPlaybackControls,
+    playing: playbackPlaying,
+  } = resolveLecturePlayback({
+    isHeadless,
+    isReplaying,
+    isPaused,
+    rewindActive,
+    rewindPlaying,
+    canRewind,
+  });
+
+  const handlePlaybackSeek = useCallback(
+    (ms: number) => {
+      if (isReplaying) {
+        seekReplay(ms);
+        return;
+      }
+      seekLecture(ms);
+    },
+    [isReplaying, seekReplay, seekLecture],
+  );
+
+  const handlePlaybackPlayPause = useCallback(() => {
+    if (isReplaying) {
+      toggleReplayPlayPause();
+      return;
+    }
+    if (rewindActive) {
+      toggleRewindPlayPause();
+    }
+  }, [isReplaying, rewindActive, toggleReplayPlayPause, toggleRewindPlayPause]);
+
+  /**
+   * The lesson chrome's pause button while rewound means "take me back to the
+   * lecture" — the live turn cannot resume under a board showing the past.
+   */
+  const handleLessonPauseToggle = useCallback(() => {
+    if (rewindActive) {
+      goLive();
+      return;
+    }
+    if (isPaused) {
+      resumeTurn();
+    } else {
+      pauseTurn();
+    }
+  }, [rewindActive, goLive, isPaused, resumeTurn, pauseTurn]);
+
   const handleReplaySpeedChange = (rate: number) => {
-    applyReplaySpeed(rate);
+    // While rewound it is the overlay's audio and ink that are playing; the
+    // live elements are paused and would only be retuned on the way back.
+    if (rewindActive) {
+      applyRewindSpeed(rate);
+    } else {
+      applyReplaySpeed(rate);
+    }
     onPlaybackRateChange?.(rate);
   };
 
@@ -608,7 +868,7 @@ export function TutorSessionShell({
     );
   }
 
-  const activeStatus = resolveActiveStatus(phase, isReplaying, isPaused);
+  const activeStatus = resolveActiveStatus(phase, isReplaying, isPaused, rewindActive);
 
   const activeBoard = boards.find((b) => b.id === sessionId);
   const activeBoardTitle = activeBoard?.title ?? "";
@@ -626,7 +886,7 @@ export function TutorSessionShell({
       inputSubmitMode={inputSubmitMode}
       onSubmit={storedTurnsCount > 0 ? startNextQuestion : handleQuestion}
       onAskDoubt={handleAskDoubt}
-      onPauseToggle={() => (isPaused ? resumeTurn() : pauseTurn())}
+      onPauseToggle={handleLessonPauseToggle}
       onCancel={stopTurn}
       onUserInteractionChange={setInputInteracted}
       onOpenSettings={() => setSettingsOpen(true)}
@@ -654,6 +914,7 @@ export function TutorSessionShell({
           <BoardHistory
             boards={boards}
             activeBoardId={sessionId}
+            busyBoardId={phase !== "idle" || isReplaying ? sessionId : null}
             onSelect={switchBoard}
             onNew={createNewBoard}
             onDelete={deleteBoard}
@@ -662,11 +923,11 @@ export function TutorSessionShell({
             onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
             onWidthChange={setSidebarWidth}
             onResizingChange={setSidebarResizing}
-            profileOpen={profileOpen}
-            onProfileToggle={() => setProfileOpen(!profileOpen)}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
 
           <BoardHistory
+            busyBoardId={phase !== "idle" || isReplaying ? sessionId : null}
             variant="drawer"
             open={mobileNavOpen}
             onOpenChange={setMobileNavOpen}
@@ -676,8 +937,7 @@ export function TutorSessionShell({
             onNew={createNewBoard}
             onDelete={deleteBoard}
             disabled={phase !== "idle"}
-            profileOpen={profileOpen}
-            onProfileToggle={() => setProfileOpen(!profileOpen)}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         </>
       ) : null}
@@ -700,30 +960,29 @@ export function TutorSessionShell({
             messages={notesMessages}
             sending={notesSending}
             error={notesError}
-            live={lectureInProgress}
             onClose={toggleNotes}
             onSend={handleNotesChatSend}
+            onStop={stopNotesChat}
           />
         </div>
       ) : null}
 
       {notesEnabled ? (
         <Sheet open={isMobile && notesOpen} onOpenChange={(open) => {
-          notesUserToggledRef.current = true;
           setNotesOpen(open);
         }}>
           <SheetContent
             side="right"
             className="w-[min(100%,380px)] border-l border-[rgba(242,242,244,0.08)] p-0 sm:max-w-[380px]"
           >
-            <SheetTitle className="sr-only">Notes</SheetTitle>
+            <SheetTitle className="sr-only">Ask me anything</SheetTitle>
             <NotesChatSidebar
               notes={lessonNotes}
               messages={notesMessages}
               sending={notesSending}
               error={notesError}
-              live={lectureInProgress}
               onSend={handleNotesChatSend}
+              onStop={stopNotesChat}
             />
           </SheetContent>
         </Sheet>
@@ -831,7 +1090,10 @@ export function TutorSessionShell({
                   WebkitBackdropFilter: "blur(8px)",
                 }}
               >
-                <p className="text-sm text-[#A6A6AE]">Loading board…</p>
+                <div className="flex flex-col items-center gap-3">
+                  <PenSpinner size={44} ink="#C9C9D2" label="Loading board" />
+                  <p className="text-sm text-[#A6A6AE]">Loading board…</p>
+                </div>
               </div>
             )}
 
@@ -852,11 +1114,14 @@ export function TutorSessionShell({
               </div>
             )}
 
-            {phase === "planning" && (
+            {/* The live turn may well be thinking about its next step, but the
+                student is looking at an earlier part of the lecture — don't
+                curtain off the board they are actually watching. */}
+            {phase === "planning" && !rewindActive && (
               <ThinkingOverlay message="planning the diagram…" />
             )}
 
-            {phase === "thinking" && <ThinkingOverlay />}
+            {phase === "thinking" && !rewindActive && <ThinkingOverlay />}
 
             <SessionBoardCanvas
               boardViewport={boardViewport}
@@ -867,9 +1132,16 @@ export function TutorSessionShell({
               currentSegmentText={currentSegmentText}
               lastError={lastError}
               isReplaying={isReplaying}
-              isPaused={isPaused}
-              replayProgressMs={replayProgressMs}
+              replayProgressMs={isReplaying ? replayProgressMs : rewindProgressMs}
               replayTotalMs={replayTotalMs}
+              playbackMode={playbackMode}
+              playbackPlaying={playbackPlaying}
+              showPlaybackControls={showPlaybackControls}
+              liveEdgeMs={liveEdgeMs}
+              rewindBoardRef={rewindBoardRef}
+              rewindActive={rewindActive}
+              rewindCursorState={rewindCursorState}
+              rewindSegmentText={rewindSegmentText}
               verifiedDiagram={activeVerifiedDiagram}
               onRetraceEntity={handleRetraceEntity}
               onRetryError={(question) => {
@@ -877,9 +1149,10 @@ export function TutorSessionShell({
                 void handleQuestion(question);
               }}
               onDismissError={() => setLastError(null)}
-              onReplayPlayPause={toggleReplayPlayPause}
-              onReplaySeek={seekReplay}
+              onReplayPlayPause={handlePlaybackPlayPause}
+              onReplaySeek={handlePlaybackSeek}
               onReplaySpeedChange={handleReplaySpeedChange}
+              onGoLive={goLive}
               onStop={stopTurn}
             />
             </div>

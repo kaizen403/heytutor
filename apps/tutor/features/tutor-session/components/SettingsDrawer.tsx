@@ -8,7 +8,21 @@ import {
   Captions,
   PenLine,
   Zap,
+  BookOpen,
+  Rabbit,
 } from "lucide-react";
+
+import {
+  DEFAULT_ACCENT,
+  DEFAULT_AUDIO_LANGUAGE,
+  DEFAULT_LESSON_DEPTH,
+  isLessonDepth,
+  isTutorAccent,
+  isTutorAudioLanguage,
+  type LessonDepth,
+  type TutorAccent,
+  type TutorAudioLanguage,
+} from "@heytutor/tutor-core";
 
 import {
   Sheet,
@@ -35,12 +49,28 @@ export type MarkerColorId = (typeof MARKER_COLORS)[number]["id"];
 export interface SettingsState {
   speedMultiplier: number;
   fastMode: boolean;
-  audioLanguage: "english" | "hindi";
-  accent: "uk" | "us" | "india";
+  /** How much the tutor teaches per turn; drives the teaching-prompt budget. */
+  lessonDepth: LessonDepth;
+  audioLanguage: TutorAudioLanguage;
+  accent: TutorAccent;
+  /** Off keeps the lesson writing and stays silent. */
+  narrationEnabled: boolean;
+  /** Trade voice quality for faster first audio. */
+  lowLatencyVoice: boolean;
   subtitlesEnabled: boolean;
-  subtitleLanguage: "english" | "hindi";
   markerColor: MarkerColorId;
 }
+
+export const DEFAULT_SETTINGS: Omit<SettingsState, "speedMultiplier"> = {
+  fastMode: true,
+  lessonDepth: DEFAULT_LESSON_DEPTH,
+  audioLanguage: DEFAULT_AUDIO_LANGUAGE,
+  accent: DEFAULT_ACCENT,
+  narrationEnabled: true,
+  lowLatencyVoice: false,
+  subtitlesEnabled: false,
+  markerColor: "navy",
+};
 
 interface SettingsDrawerProps {
   open: boolean;
@@ -49,8 +79,8 @@ interface SettingsDrawerProps {
   onSettingsChange: (settings: SettingsState) => void;
 }
 
-const SPEED_MIN = 0.5;
-const SPEED_MAX = 3;
+export const SPEED_MIN = 0.5;
+export const SPEED_MAX = 3;
 const SPEED_STEP = 0.25;
 
 const theme = {
@@ -62,11 +92,7 @@ const theme = {
   borderSubtle: "rgba(48, 54, 61, 0.9)",
 } as const;
 
-function SettingsSection({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function SettingsSection({ children }: { children: React.ReactNode }) {
   return (
     <section
       className="rounded-xl border bg-[#151517] px-4 py-3.5 shadow-sm"
@@ -80,11 +106,11 @@ function SettingsSection({
 function SectionLabel({
   icon: Icon,
   children,
-  comingSoon = false,
+  note,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   children: React.ReactNode;
-  comingSoon?: boolean;
+  note?: string;
 }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-2">
@@ -99,22 +125,15 @@ function SectionLabel({
           {children}
         </span>
       </div>
-      {comingSoon && <ComingSoonBadge />}
+      {note ? (
+        <span
+          className="shrink-0 rounded-full px-2 py-0.5 text-[0.625rem] font-medium leading-none"
+          style={{ backgroundColor: theme.borderSubtle, color: theme.dark }}
+        >
+          {note}
+        </span>
+      ) : null}
     </div>
-  );
-}
-
-function ComingSoonBadge() {
-  return (
-    <span
-      className="shrink-0 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold uppercase leading-none tracking-wide"
-      style={{
-        backgroundColor: theme.borderSubtle,
-        color: theme.dark,
-      }}
-    >
-      Soon
-    </span>
   );
 }
 
@@ -134,6 +153,7 @@ function SelectPill({
       type="button"
       disabled={disabled}
       onClick={onClick}
+      aria-pressed={checked}
       className={cn(
         "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
         checked
@@ -147,9 +167,51 @@ function SelectPill({
   );
 }
 
+function ToggleRow({
+  title,
+  hint,
+  checked,
+  onCheckedChange,
+}: {
+  title: string;
+  hint: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <span className="block text-xs font-medium" style={{ color: theme.darkest }}>
+          {title}
+        </span>
+        <span className="mt-1 block text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
+          {hint}
+        </span>
+      </div>
+      <Switch
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        className="data-[state=checked]:bg-[#C9C9D2] data-[state=unchecked]:bg-[#2E2E33]"
+      />
+    </div>
+  );
+}
+
 export function getMarkerColorHex(id: MarkerColorId): string {
   return MARKER_COLORS.find((entry) => entry.id === id)?.color ?? "#1B2A4A";
 }
+
+export function isMarkerColorId(value: unknown): value is MarkerColorId {
+  return typeof value === "string" && MARKER_COLORS.some((entry) => entry.id === value);
+}
+
+export { isLessonDepth, isTutorAccent, isTutorAudioLanguage };
+
+const LESSON_DEPTHS: ReadonlyArray<[LessonDepth, string, string]> = [
+  ["concise", "Concise", "6-8 steps"],
+  ["standard", "Standard", "8-12 steps"],
+  ["thorough", "Thorough", "12-16 steps"],
+];
 
 export function SettingsDrawer({
   open,
@@ -160,6 +222,10 @@ export function SettingsDrawer({
   const update = (partial: Partial<SettingsState>) => {
     onSettingsChange({ ...settings, ...partial });
   };
+
+  // Hindi ships as a single voice, so the accent choice only applies to English.
+  const accentApplies = settings.audioLanguage === "english";
+  const depthHint = LESSON_DEPTHS.find(([id]) => id === settings.lessonDepth)?.[2];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -180,21 +246,32 @@ export function SettingsDrawer({
         <div className="flex flex-col gap-3 overflow-y-auto px-5 pb-6 pt-1">
           <SettingsSection>
             <SectionLabel icon={Zap}>Fast mode</SectionLabel>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <span className="block text-xs font-medium" style={{ color: theme.darkest }}>
-                  Prefer the faster DeepSeek path
-                </span>
-                <span className="mt-1 block text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
-                  On by default. Uses your server model. Set a Fast model in ENV only if you want a different one.
-                </span>
-              </div>
-              <Switch
-                checked={settings.fastMode}
-                onCheckedChange={(checked) => update({ fastMode: checked })}
-                className="data-[state=checked]:bg-[#C9C9D2] data-[state=unchecked]:bg-[#2E2E33]"
-              />
+            <ToggleRow
+              title="Prefer the Fast model when one is configured"
+              hint="On by default. Falls back to the standard server model when no Fast model is set in ENV."
+              checked={settings.fastMode}
+              onCheckedChange={(checked) => update({ fastMode: checked })}
+            />
+          </SettingsSection>
+
+          <SettingsSection>
+            <SectionLabel icon={BookOpen} note={depthHint}>
+              Lesson depth
+            </SectionLabel>
+            <div className="flex flex-wrap gap-2">
+              {LESSON_DEPTHS.map(([value, label]) => (
+                <SelectPill
+                  key={value}
+                  label={label}
+                  checked={settings.lessonDepth === value}
+                  onClick={() => update({ lessonDepth: value })}
+                />
+              ))}
             </div>
+            <p className="mt-2 text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
+              How much the tutor writes and works through per question. Every depth still states
+              the givens, the formula, and what the answer means.
+            </p>
           </SettingsSection>
 
           <SettingsSection>
@@ -206,9 +283,7 @@ export function SettingsDrawer({
                 max={SPEED_MAX}
                 step={SPEED_STEP}
                 value={settings.speedMultiplier}
-                onChange={(event) =>
-                  update({ speedMultiplier: Number(event.target.value) })
-                }
+                onChange={(event) => update({ speedMultiplier: Number(event.target.value) })}
                 className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-[#C9C9D2]"
                 style={{ backgroundColor: theme.borderSubtle }}
               />
@@ -235,47 +310,72 @@ export function SettingsDrawer({
                 onClick={() => update({ audioLanguage: "hindi" })}
               />
             </div>
+            <p className="mt-2 text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
+              Changes the speaking voice. Lessons are still written and taught in English.
+            </p>
           </SettingsSection>
 
           <SettingsSection>
-            <SectionLabel icon={Mic2} comingSoon>
+            <SectionLabel icon={Mic2} note={accentApplies ? undefined : "English only"}>
               Accent
             </SectionLabel>
             <div className="flex flex-wrap gap-2">
               {(
                 [
+                  ["india", "India"],
                   ["uk", "UK"],
                   ["us", "US"],
-                  ["india", "India"],
                 ] as const
               ).map(([value, label]) => (
                 <SelectPill
                   key={value}
                   label={label}
-                  checked={settings.accent === value}
-                  disabled
+                  checked={accentApplies && settings.accent === value}
+                  disabled={!accentApplies}
+                  onClick={() => update({ accent: value })}
                 />
               ))}
             </div>
           </SettingsSection>
 
           <SettingsSection>
-            <SectionLabel icon={Captions} comingSoon>
-              Subtitles
-            </SectionLabel>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-medium" style={{ color: theme.darkest }}>
-                Enable subtitles
-              </span>
-              <Switch
-                checked={settings.subtitlesEnabled}
-                disabled
-                onCheckedChange={(checked) =>
-                  update({ subtitlesEnabled: checked })
-                }
-                className="data-[state=checked]:bg-[#C9C9D2] data-[state=unchecked]:bg-[#2E2E33]"
+            <SectionLabel icon={Volume2}>Narration</SectionLabel>
+            <ToggleRow
+              title="Speak the lesson out loud"
+              hint="Off keeps the board writing in sync but stays silent — useful in a shared room."
+              checked={settings.narrationEnabled}
+              onCheckedChange={(checked) => update({ narrationEnabled: checked })}
+            />
+          </SettingsSection>
+
+          <SettingsSection>
+            <SectionLabel icon={Rabbit}>Voice quality</SectionLabel>
+            <div className="flex flex-wrap gap-2">
+              <SelectPill
+                label="Natural"
+                checked={!settings.lowLatencyVoice}
+                onClick={() => update({ lowLatencyVoice: false })}
+              />
+              <SelectPill
+                label="Low latency"
+                checked={settings.lowLatencyVoice}
+                onClick={() => update({ lowLatencyVoice: true })}
               />
             </div>
+            <p className="mt-2 text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
+              Low latency starts speaking sooner with a slightly flatter voice. Takes effect on the
+              next question.
+            </p>
+          </SettingsSection>
+
+          <SettingsSection>
+            <SectionLabel icon={Captions}>Subtitles</SectionLabel>
+            <ToggleRow
+              title="Show subtitles on the board"
+              hint="Off by default. Captions the tutor&rsquo;s narration under the board while it teaches."
+              checked={settings.subtitlesEnabled}
+              onCheckedChange={(checked) => update({ subtitlesEnabled: checked })}
+            />
           </SettingsSection>
 
           <SettingsSection>

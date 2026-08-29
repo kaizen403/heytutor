@@ -1,3 +1,5 @@
+import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
+
 import { LessonActions } from "@/features/tutor-session/components/LessonActions";
 import type { StatusDisplay, TutorPhase } from "../types";
 
@@ -87,13 +89,13 @@ export function SessionHeader({
                 {title}
               </span>
               {isLive && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(201,201,210,0.12)] px-2 py-0.5 text-[11px] font-medium text-[#C9C9D2]">
-                  <span
-                    className={`inline-block h-1.5 w-1.5 rounded-full ${activeStatus.dotClass}`}
-                    style={{ backgroundColor: activeStatus.color }}
-                  />
-                  {activeStatus.label}
-                </span>
+                <PenSpinner
+                  size={17}
+                  ink={activeStatus.color}
+                  trail={false}
+                  label={activeStatus.label}
+                  className="shrink-0"
+                />
               )}
             </div>
             {!compactActions && (
@@ -114,7 +116,7 @@ export function SessionHeader({
             <button
               type="button"
               onClick={onToggleNotes}
-              aria-label={notesOpen ? "Hide notes" : "Show notes"}
+              aria-label={notesOpen ? "Hide chat" : "Ask me anything"}
               aria-pressed={notesOpen}
               className={`flex h-10 items-center justify-center rounded-full border shadow-sm sm:h-8 ${
                 compactActions ? "w-10 px-0 sm:w-8" : "w-10 px-0 sm:w-auto sm:gap-1.5 sm:px-3"
@@ -125,9 +127,10 @@ export function SessionHeader({
               }`}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
+                <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z" />
+                <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" />
               </svg>
-              {!compactActions ? <span className="hidden sm:inline text-xs font-medium">Notes</span> : null}
+              {!compactActions ? <span className="hidden sm:inline text-xs font-medium">Ask</span> : null}
             </button>
           ) : null}
           <LessonActions

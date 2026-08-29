@@ -47,11 +47,24 @@ export const REPLAYING_STATUS: StatusDisplay = {
   labelColor: "#C9C9D2",
 };
 
+export const REWINDING_STATUS: StatusDisplay = {
+  color: "#C9C9D2",
+  label: "reviewing\u2026",
+  dotClass: "animate-wb-glow-blue",
+  labelColor: "#C9C9D2",
+};
+
 export function resolveActiveStatus(
   phase: TutorPhase,
   isReplaying: boolean,
   isPaused: boolean,
+  isRewound = false,
 ): StatusDisplay {
+  // A rewound lecture is paused under the hood, but "reviewing" is what the
+  // student is actually doing.
+  if (isRewound) {
+    return REWINDING_STATUS;
+  }
   if (isReplaying) {
     return REPLAYING_STATUS;
   }

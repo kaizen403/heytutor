@@ -1,4 +1,5 @@
 import dynamic from "next/dynamic";
+import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
 
 export const Whiteboard = dynamic(
   () => import("@heytutor/whiteboard").then((mod) => mod.Whiteboard),
@@ -14,17 +15,8 @@ export const Whiteboard = dynamic(
           height: "100%",
         }}
       >
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            border: "2px solid transparent",
-            borderTopColor: "#2563EB",
-            borderBottomColor: "#2563EB",
-            animation: "wb-spin 0.8s linear infinite",
-          }}
-        />
+        {/* The board is light, so the pencil spins in its own board ink. */}
+        <PenSpinner size={48} ink="#1B2A4A" label="Loading the board" />
       </div>
     ),
   },

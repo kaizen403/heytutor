@@ -1,3 +1,7 @@
+"use client";
+
+import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
+
 interface ThinkingOverlayProps {
   message?: string;
 }
@@ -8,7 +12,7 @@ export function ThinkingOverlay({ message = "thinking about how to teach this…
       className="absolute inset-0 z-20 pointer-events-none"
       style={{
         background:
-          "linear-gradient(180deg, rgba(13,17,23,0.72) 0%, rgba(22,27,34,0.88) 100%)",
+          "linear-gradient(180deg, rgba(11,11,12,0.72) 0%, rgba(21,21,23,0.88) 100%)",
         backdropFilter: "blur(2px)",
       }}
     >
@@ -16,14 +20,7 @@ export function ThinkingOverlay({ message = "thinking about how to teach this…
         <div className="wb-progress-bar" />
       </div>
       <div className="flex h-full flex-col items-center justify-center gap-4">
-        <div
-          className="h-10 w-10 rounded-full border-2 border-transparent"
-          style={{
-            borderTopColor: "#C9C9D2",
-            borderBottomColor: "#C9C9D2",
-            animation: "wb-spin 0.8s linear infinite",
-          }}
-        />
+        <PenSpinner size={56} ink="#C9C9D2" label={message} />
         <p style={{ fontSize: "0.9rem", color: "#C9C9D2", fontWeight: 500 }}>
           {message}
         </p>

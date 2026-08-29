@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, RotateCcw } from "lucide-react";
+import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -85,7 +86,11 @@ export function LessonActions({
             "text-xs font-medium text-[#A6A6AE] hover:text-[#C9C9D2]",
           )}
         >
-          <Download className="h-3.5 w-3.5" aria-hidden />
+          {isDownloading ? (
+            <PenSpinner size={16} ink="#C9C9D2" trail={false} />
+          ) : (
+            <Download className="h-3.5 w-3.5" aria-hidden />
+          )}
           {!compact && (
             <span className="hidden sm:inline">
               {isDownloading ? "Generating\u2026" : "Download notes"}
