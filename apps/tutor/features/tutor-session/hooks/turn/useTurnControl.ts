@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { stopReplayAudio } from "@/lib/replay/replayAudio";
 import {
+  cancelFrame,
   parseDrawingCommands,
+  scheduleFrame,
   type TutorSegment,
   buildLessonSegments,
   lessonNarrationText,
@@ -13,6 +15,15 @@ import {
   summarizeSegmentsForTrace,
   normalizeSegmentForAlignment,
 } from "../../lib/segmentPlanning";
+import {
+  autoQuestionSubmissionKey,
+  buildDoubtPrompt,
+  buildInterruptedLessonExchange,
+  doubtInterruptsLesson,
+  isRuntimeReadyForDoubt,
+  DOUBT_INTERRUPT_TIMEOUT_MESSAGE,
+  DOUBT_INTERRUPT_TIMEOUT_MS,
+} from "../../lib/askDoubt";
 import { useSegmentRunner } from "./useSegmentRunner";
 import type { TutorPhase } from "../../types";
 import type { TurnControlApi, UseTurnLifecycleParams } from "./types";
@@ -26,6 +37,7 @@ export function useTurnControl(
     autoQuestion,
     replaceAutoQuestionUrl = false,
     enableKeyboardControls = true,
+    onError,
     phase,
     isReplaying,
     boardLoaded,
@@ -34,6 +46,10 @@ export function useTurnControl(
     autoSubmitDoneRef,
     phaseRef,
     isPausedRef,
+    rewoundRef,
+    conversationHistoryRef,
+    liveQuestionRef,
+    narrationSinceEpochRef,
     ttsClientRef,
     ensureTTSClient,
     currentTraceIdRef,
@@ -61,6 +77,7 @@ export function useTurnControl(
     setNarrationText,
     setCurrentSegmentText,
     setInputInteracted,
+    setLastError,
     setIsReplaying,
     setReplayProgressMs,
     setReplayTotalMs,
@@ -181,7 +198,12 @@ export function useTurnControl(
       const unsafeCommand = normalized.flatMap((segment) => segment.commands ?? []).find((command) =>
         !(
           command.type.startsWith("DRAW_") ||
-          ["ARROW", "LABEL", "DIMENSION", "FOCUS"].includes(command.type)
+          // CIRCLE_AROUND and HIGHLIGHT are trace marks over geometry the scene
+          // has already verified, and they execute through the very same
+          // handler as ARROW, which is permitted here. Rejecting them threw out
+          // of the intro and left the turn stuck in "thinking" on a blank board
+          // for every scene with a focus-on-point or an enclose annotation.
+          ["ARROW", "CIRCLE_AROUND", "HIGHLIGHT", "LABEL", "DIMENSION", "FOCUS"].includes(command.type)
         )
       );
       if (unsafeCommand) {
@@ -287,9 +309,13 @@ export function useTurnControl(
       const parsed = parseDrawingCommands(responseText);
 
       if (parsed.commands.length === 0 && !parsed.narration.trim() && !/\[STEP\]/i.test(responseText)) {
-        const message = "no response from ai";
+        const message = "the tutor did not answer. try asking again.";
+        const question = liveQuestionRef.current;
         setNarrationText(message);
         setCurrentSegmentText(message);
+        // Subtitles are off by default, so the narration line alone is invisible.
+        setLastError({ message, question });
+        onError?.({ message, question });
         return;
       }
 
@@ -410,7 +436,6 @@ export function useTurnControl(
       enqueueSegment,
       enqueueVerifiedIntro,
       activeVerifiedDiagramRef,
-      setActiveVerifiedDiagram,
       segmentPlanStatsRef,
       turnTelemetryRef,
       segmentChainRef,
@@ -418,7 +443,11 @@ export function useTurnControl(
       collectedSegmentsRef,
       recordedSegmentsRef,
       turnGenerationRef,
+      liveQuestionRef,
+      onError,
+      setLastError,
       setNarrationText,
+      setCurrentSegmentText,
       executeCommandWithCancel,
     ],
   );
@@ -536,6 +565,11 @@ export function useTurnControl(
     if (!isPausedRef.current) {
       return;
     }
+    // A rewind owns this pause. The lecture may only restart by going live —
+    // otherwise it would teach on a board the student is not looking at.
+    if (rewoundRef?.current) {
+      return;
+    }
 
     isPausedRef.current = false;
     setIsPaused(false);
@@ -543,7 +577,7 @@ export function useTurnControl(
     void replayAudioRef.current?.play().catch(() => undefined);
     whiteboardRef.current?.setPaused(false);
     tutorDebug("turn", "resumed");
-  }, [isPausedRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef]);
+  }, [isPausedRef, rewoundRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef]);
 
   useEffect(() => {
     if (!enableKeyboardControls) {
@@ -551,21 +585,27 @@ export function useTurnControl(
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        stopTurn();
-        return;
-      }
-
-      if (event.key !== " " || phase === "idle") {
-        return;
-      }
-
+      // Typing a doubt or a notes-chat message must never stop the lesson.
       const target = event.target;
       if (
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
         (target instanceof HTMLElement && target.isContentEditable)
       ) {
+        return;
+      }
+
+      // While the student is in the past, the rewind overlay owns these keys.
+      if (rewoundRef?.current) {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        stopTurn();
+        return;
+      }
+
+      if (event.key !== " " || phase === "idle") {
         return;
       }
 
@@ -579,13 +619,17 @@ export function useTurnControl(
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [enableKeyboardControls, pauseTurn, phase, resumeTurn, stopTurn, isPausedRef]);
+  }, [enableKeyboardControls, pauseTurn, phase, resumeTurn, stopTurn, isPausedRef, rewoundRef]);
 
   useEffect(() => {
-    if (!boardLoaded || autoSubmitDoneRef.current) return;
+    if (!boardLoaded) return;
     const q = autoQuestion?.trim();
     if (!q) return;
-    autoSubmitDoneRef.current = true;
+    // Keyed per board and question: the URL is consumed once, but a later board
+    // (or a new question on this one) is a different submission, not a repeat.
+    const submissionKey = autoQuestionSubmissionKey(sessionId, q);
+    if (autoSubmitDoneRef.current === submissionKey) return;
+    autoSubmitDoneRef.current = submissionKey;
     if (replaceAutoQuestionUrl && typeof window !== "undefined") {
       window.history.replaceState(null, "", window.location.pathname);
     }
@@ -608,6 +652,7 @@ export function useTurnControl(
       cancelled = true;
     };
   }, [
+    sessionId,
     boardLoaded,
     autoQuestion,
     replaceAutoQuestionUrl,
@@ -620,11 +665,118 @@ export function useTurnControl(
     setInputInteracted,
   ]);
 
+  // A doubt raised mid-lesson has to stop that lesson, wait for it to unwind,
+  // and only then start its own turn. `handleQuestion` silently drops anything
+  // that arrives while the previous turn is still tearing down.
+  const isReplayingRef = useRef(isReplaying);
+  useEffect(() => {
+    isReplayingRef.current = isReplaying;
+  }, [isReplaying]);
+
+  const pendingDoubtRef = useRef<string | null>(null);
+  const doubtFrameRef = useRef(0);
+  const doubtDeadlineRef = useRef(0);
+
+  const cancelDoubtFlush = useCallback(() => {
+    if (doubtFrameRef.current !== 0) {
+      cancelFrame(doubtFrameRef.current);
+      doubtFrameRef.current = 0;
+    }
+  }, []);
+
+  useEffect(() => cancelDoubtFlush, [cancelDoubtFlush]);
+
   const handleAskDoubt = useCallback(
-    (question: string) => {
-      void handleQuestionRef.current(`I have a doubt about this: ${question}`);
+    (rawDoubt: string) => {
+      const doubt = rawDoubt.trim();
+      if (!doubt) {
+        return;
+      }
+
+      cancelDoubtFlush();
+      const interrupting = doubtInterruptsLesson({
+        phase: phaseRef.current,
+        turnActive: turnActiveRef.current,
+        isReplaying: isReplayingRef.current,
+        pendingSegmentCount: pendingSegmentCountRef.current,
+      });
+      const prompt = buildDoubtPrompt(
+        doubt,
+        interrupting ? liveQuestionRef.current : null,
+      );
+
+      if (!interrupting) {
+        pendingDoubtRef.current = null;
+        void handleQuestionRef.current(prompt);
+        return;
+      }
+
+      const interruptedLesson = buildInterruptedLessonExchange(
+        liveQuestionRef.current,
+        narrationSinceEpochRef.current,
+      );
+      if (interruptedLesson) {
+        conversationHistoryRef.current.push(interruptedLesson);
+        if (conversationHistoryRef.current.length > 10) {
+          conversationHistoryRef.current.shift();
+        }
+      }
+
+      tutorDebug("turn", "doubt interrupts lesson", {
+        lesson_question_preview: (liveQuestionRef.current ?? "").slice(0, 80),
+        doubt_preview: doubt.slice(0, 80),
+        narration_chars: narrationSinceEpochRef.current.length,
+      });
+
+      pendingDoubtRef.current = prompt;
+      doubtDeadlineRef.current = Date.now() + DOUBT_INTERRUPT_TIMEOUT_MS;
+      // Snapshots the board into notes and clears it on the way into the doubt
+      // turn (`beginBoardEpoch` inside handleQuestion).
+      stopTurn();
+
+      const flushDoubt = () => {
+        doubtFrameRef.current = 0;
+        const pending = pendingDoubtRef.current;
+        if (!pending) {
+          return;
+        }
+        if (
+          isRuntimeReadyForDoubt({
+            phase: phaseRef.current,
+            turnActive: turnActiveRef.current,
+            isReplaying: isReplayingRef.current,
+            pendingSegmentCount: pendingSegmentCountRef.current,
+          })
+        ) {
+          pendingDoubtRef.current = null;
+          void handleQuestionRef.current(pending);
+          return;
+        }
+        if (Date.now() >= doubtDeadlineRef.current) {
+          pendingDoubtRef.current = null;
+          setLastError({
+            message: DOUBT_INTERRUPT_TIMEOUT_MESSAGE,
+            question: pending,
+          });
+          return;
+        }
+        doubtFrameRef.current = scheduleFrame(flushDoubt);
+      };
+
+      flushDoubt();
     },
-    [handleQuestionRef],
+    [
+      cancelDoubtFlush,
+      conversationHistoryRef,
+      handleQuestionRef,
+      liveQuestionRef,
+      narrationSinceEpochRef,
+      pendingSegmentCountRef,
+      phaseRef,
+      setLastError,
+      stopTurn,
+      turnActiveRef,
+    ],
   );
 
   return {

@@ -4,10 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Pause,
   Play,
+  Radio,
   Settings2,
   X,
 } from "lucide-react";
 import { formatReplayTime } from "@/lib/replay/replayTimeline";
+import {
+  lectureScrubberModel,
+  type LecturePlaybackMode,
+} from "@/lib/replay/liveTimeline";
 import { DEFAULT_REPLAY_SPEED } from "@/lib/replay/replayAudio";
 import { cn } from "@/lib/utils";
 
@@ -53,38 +58,62 @@ export function ReplaySpeedSelect({
 
 export interface ReplayControlsProps {
   visible: boolean;
+  /**
+   * `replay` scrubs a finished lecture end to end. `live` and `rewind` scrub a
+   * lecture still being taught, whose track stops at the live edge.
+   */
+  mode: LecturePlaybackMode;
   playing: boolean;
   progressMs: number;
+  /** Whole lecture — only meaningful once it is over. */
   totalMs: number;
+  /** End of what has been taught so far. */
+  liveEdgeMs: number;
   playbackRate: number;
   onPlayPause: () => void;
   onSeek: (ms: number) => void;
   onPlaybackRateChange: (rate: number) => void;
+  onGoLive: () => void;
   onStop: () => void;
 }
 
+/** Live ink is blue; the past is a calmer slate so the two never read alike. */
+const LIVE_FILL = "#F26D6D";
+const PAST_FILL = "#5FA4F9";
+
 export function ReplayControls({
   visible,
+  mode,
   playing,
   progressMs,
   totalMs,
+  liveEdgeMs,
   playbackRate,
   onPlayPause,
   onSeek,
   onPlaybackRateChange,
+  onGoLive,
   onStop,
 }: ReplayControlsProps) {
   const [hovered, setHovered] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scrubbing, setScrubbing] = useState(false);
   const [scrubMs, setScrubMs] = useState(0);
+  const scrubStateRef = useRef({ active: false, ms: 0 });
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
-  const displayMs = scrubbing ? scrubMs : progressMs;
-  const showPlayButton = hovered || !playing || scrubbing || settingsOpen;
+  const track = lectureScrubberModel({ mode, progressMs, totalMs, liveEdgeMs });
+  const isLive = mode === "live";
+  const isRewind = mode === "rewind";
+
+  const displayMs = scrubbing ? scrubMs : track.valueMs;
+  // A live lecture is driven from the lesson chrome, not from a play button
+  // floating over the board — only a rewind or a replay owns transport here.
+  const showTransport = !isLive;
+  const showPlayButton = showTransport && (hovered || !playing || scrubbing || settingsOpen);
   const showBottomChrome =
-    hovered || !playing || scrubbing || settingsOpen || isCoarsePointer;
+    hovered || scrubbing || settingsOpen || isCoarsePointer || (showTransport && !playing);
 
   useEffect(() => {
     const media = window.matchMedia("(pointer: coarse)");
@@ -105,59 +134,99 @@ export function ReplayControls({
     return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [settingsOpen]);
 
+  const beginScrub = useCallback(() => {
+    scrubStateRef.current = { active: true, ms: track.valueMs };
+    setScrubbing(true);
+    setScrubMs(track.valueMs);
+  }, [track.valueMs]);
+
+  // Seek once on release. Seeking on every intermediate slider value restarted
+  // the replay from zero and re-rendered the whole board per pixel of drag.
+  const endScrub = useCallback(() => {
+    if (!scrubStateRef.current.active) return;
+    scrubStateRef.current.active = false;
+    setScrubbing(false);
+    onSeek(scrubStateRef.current.ms);
+  }, [onSeek]);
+
   const handleScrub = useCallback(
     (value: number) => {
-      const clamped = Math.max(0, Math.min(value, totalMs));
+      const clamped = Math.max(0, Math.min(value, track.maxMs));
+      scrubStateRef.current.ms = clamped;
       setScrubMs(clamped);
-      onSeek(clamped);
+      // Keyboard nudges arrive without a pointer drag; seek them at once.
+      if (!scrubStateRef.current.active) onSeek(clamped);
     },
-    [onSeek, totalMs],
+    [onSeek, track.maxMs],
   );
 
-  if (!visible || totalMs <= 0) {
+  if (!visible || track.maxMs <= 0) {
     return null;
   }
 
+  const fill = isLive && !scrubbing ? LIVE_FILL : PAST_FILL;
+  const filledPercent = track.maxMs > 0 ? (displayMs / track.maxMs) * 100 : 0;
+
+  const leaveChrome = () => {
+    setHovered(false);
+    if (!scrubbing) {
+      setSettingsOpen(false);
+    }
+  };
+
   return (
     <div
-      className="pointer-events-auto absolute inset-0 z-30"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => {
-        setHovered(false);
-        if (!scrubbing) {
-          setSettingsOpen(false);
-        }
-      }}
-      onPointerDown={() => setHovered(true)}
+      className={cn(
+        "absolute inset-0 z-30",
+        // A live board still takes clicks (diagram labels, retrace) — only the
+        // strip along the bottom is ours until the student steps into the past.
+        isLive ? "pointer-events-none" : "pointer-events-auto",
+      )}
+      onMouseEnter={isLive ? undefined : () => setHovered(true)}
+      onMouseLeave={isLive ? undefined : leaveChrome}
+      onPointerDown={isLive ? undefined : () => setHovered(true)}
     >
-      <div
-        className={cn(
-          "absolute inset-0 transition-colors duration-200",
-          showBottomChrome ? "bg-black/10" : "bg-transparent",
-        )}
-      />
+      {showTransport && (
+        <div
+          className={cn(
+            "absolute inset-0 transition-colors duration-200",
+            showBottomChrome ? "bg-black/10" : "bg-transparent",
+          )}
+        />
+      )}
 
-      <button
-        type="button"
-        aria-label={playing ? "Pause replay" : "Play replay"}
-        onClick={onPlayPause}
-        className={cn(
-          "absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full",
-          "bg-black/55 text-white shadow-lg backdrop-blur-sm transition-all duration-200",
-          showPlayButton ? "scale-100 opacity-100" : "scale-90 opacity-0 pointer-events-none",
-        )}
+      {showTransport && (
+        <button
+          type="button"
+          aria-label={playing ? "Pause" : "Play"}
+          onClick={onPlayPause}
+          className={cn(
+            "absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full",
+            "bg-black/55 text-white shadow-lg backdrop-blur-sm transition-all duration-200",
+            showPlayButton ? "scale-100 opacity-100" : "scale-90 opacity-0 pointer-events-none",
+          )}
+        >
+          {playing ? (
+            <Pause className="h-7 w-7 fill-current" />
+          ) : (
+            <Play className="ml-0.5 h-7 w-7 fill-current" />
+          )}
+        </button>
+      )}
+
+      {/* The strip keeps its height and stays hittable even while the chrome is
+          faded out — otherwise, on a live board, there would be nothing to
+          hover to bring the timeline back. */}
+      <div
+        className="pointer-events-auto absolute inset-x-0 bottom-0"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={leaveChrome}
+        onPointerDown={() => setHovered(true)}
       >
-        {playing ? (
-          <Pause className="h-7 w-7 fill-current" />
-        ) : (
-          <Play className="ml-0.5 h-7 w-7 fill-current" />
-        )}
-      </button>
-
       <div
         className={cn(
-          "absolute inset-x-0 bottom-0 transition-all duration-200",
-          showBottomChrome ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0 pointer-events-none",
+          "transition-all duration-200",
+          showBottomChrome ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
         )}
       >
         <div className="bg-gradient-to-t from-black/70 via-black/45 to-transparent px-4 pb-3 pt-10">
@@ -165,43 +234,73 @@ export function ReplayControls({
             <input
               type="range"
               min={0}
-              max={totalMs}
+              max={track.maxMs}
               step={250}
               value={displayMs}
-              aria-label="Replay progress"
-              onPointerDown={() => {
-                setScrubbing(true);
-                setScrubMs(progressMs);
-              }}
-              onPointerUp={() => setScrubbing(false)}
+              aria-label={
+                isLive || isRewind ? "Scrub back through the lecture" : "Replay progress"
+              }
+              aria-valuetext={`${formatReplayTime(displayMs)} of ${formatReplayTime(track.maxMs)}`}
+              onPointerDown={beginScrub}
+              onPointerUp={endScrub}
+              onPointerCancel={endScrub}
+              onLostPointerCapture={endScrub}
               onChange={(event) => handleScrub(Number(event.target.value))}
-              className="replay-slider h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/25 accent-[#5FA4F9]"
+              className="replay-slider h-1.5 w-full cursor-pointer appearance-none rounded-full"
+              style={{
+                ["--replay-progress" as string]: `${filledPercent}%`,
+                ["--replay-fill" as string]: fill,
+              }}
             />
 
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  aria-label={playing ? "Pause" : "Play"}
-                  onClick={onPlayPause}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15"
-                >
-                  {playing ? (
-                    <Pause className="h-4 w-4 fill-current" />
-                  ) : (
-                    <Play className="h-4 w-4 fill-current" />
-                  )}
-                </button>
+                {showTransport && (
+                  <button
+                    type="button"
+                    aria-label={playing ? "Pause" : "Play"}
+                    onClick={onPlayPause}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15"
+                  >
+                    {playing ? (
+                      <Pause className="h-4 w-4 fill-current" />
+                    ) : (
+                      <Play className="h-4 w-4 fill-current" />
+                    )}
+                  </button>
+                )}
                 <span className="text-xs tabular-nums text-white/90">
-                  {formatReplayTime(displayMs)} / {formatReplayTime(totalMs)}
+                  {formatReplayTime(displayMs)} / {formatReplayTime(track.maxMs)}
                 </span>
               </div>
 
               <div className="flex items-center gap-1">
+                {(isLive || isRewind) && (
+                  <button
+                    type="button"
+                    onClick={onGoLive}
+                    disabled={isLive}
+                    aria-label={isLive ? "Watching live" : "Jump back to live"}
+                    title={isLive ? "You are at the live edge" : "Jump back to live"}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide transition-colors",
+                      isLive
+                        ? "cursor-default text-white/90"
+                        : "bg-white/15 text-white hover:bg-white/25",
+                    )}
+                  >
+                    <Radio
+                      className="h-3 w-3"
+                      style={{ color: isLive ? LIVE_FILL : undefined }}
+                    />
+                    {isLive ? "Live" : "Go live"}
+                  </button>
+                )}
+
                 <div className="relative" ref={settingsRef}>
                   <button
                     type="button"
-                    aria-label="Replay settings"
+                    aria-label="Playback settings"
                     aria-expanded={settingsOpen}
                     onClick={() => setSettingsOpen((open) => !open)}
                     className="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15"
@@ -239,18 +338,21 @@ export function ReplayControls({
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  aria-label="Exit replay"
-                  onClick={onStop}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                {mode === "replay" && (
+                  <button
+                    type="button"
+                    aria-label="Exit replay"
+                    onClick={onStop}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

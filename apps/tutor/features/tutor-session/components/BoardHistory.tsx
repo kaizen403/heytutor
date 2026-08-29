@@ -1,5 +1,7 @@
 "use client";
 
+import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
+
 import {
   useCallback,
   useEffect,
@@ -15,8 +17,7 @@ import {
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Logo } from "@/components/brand/Logo";
-import { SITE_NAME } from "@/lib/site";
+import { Brand } from "@/components/brand/Brand";
 import type { BoardEntry } from "@/lib/boards/types";
 
 export type { BoardEntry };
@@ -24,6 +25,8 @@ export type { BoardEntry };
 interface BoardHistoryProps {
   boards: BoardEntry[];
   activeBoardId: string | null;
+  /** Board currently teaching or replaying; it spins a pen in the list. */
+  busyBoardId?: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete?: (id: string) => void;
@@ -33,8 +36,7 @@ interface BoardHistoryProps {
   onOpenChange?: (open: boolean) => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
-  profileOpen?: boolean;
-  onProfileToggle?: () => void;
+  onOpenSettings?: () => void;
   onCreditsClick?: () => void;
   onWidthChange?: (width: number) => void;
   onResizingChange?: (resizing: boolean) => void;
@@ -79,32 +81,66 @@ function writeStoredSidebarWidth(width: number): void {
 interface BoardHistoryContentProps {
   boards: BoardEntry[];
   activeBoardId: string | null;
+  busyBoardId?: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete?: (id: string) => void;
   disabled?: boolean;
   onToggleCollapse?: () => void;
   showCollapseButton?: boolean;
-  profileOpen?: boolean;
-  onProfileToggle?: () => void;
+  onOpenSettings?: () => void;
   onCreditsClick?: () => void;
 }
+
+const DELETE_CONFIRM_TIMEOUT_MS = 6000;
 
 function BoardHistoryContent({
   boards,
   activeBoardId,
+  busyBoardId = null,
   onSelect,
   onNew,
   onDelete,
   disabled = false,
   onToggleCollapse,
   showCollapseButton = true,
-  profileOpen = false,
-  onProfileToggle,
+  onOpenSettings,
   onCreditsClick,
 }: BoardHistoryContentProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileWrapRef = useRef<HTMLDivElement>(null);
+  // Deleting drops every turn on the board, so the trash icon only arms a
+  // confirm row; it disarms on its own if the student walks away.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!confirmDeleteId) return;
+    const timeoutId = window.setTimeout(
+      () => setConfirmDeleteId(null),
+      DELETE_CONFIRM_TIMEOUT_MS,
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [confirmDeleteId]);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!profileWrapRef.current?.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProfileOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [profileOpen]);
 
   const filtered = searchQuery.trim()
     ? boards.filter((b) =>
@@ -115,10 +151,7 @@ function BoardHistoryContent({
   return (
     <div className="bh flex h-full flex-col overflow-hidden">
       <header className="bh__header">
-        <span className="bh__brand">
-          <Logo className="bh__logo" />
-          {SITE_NAME}
-        </span>
+        <Brand size="sm" />
         <div className="bh__header-actions">
           <button
             type="button"
@@ -190,6 +223,40 @@ function BoardHistoryContent({
 
         {filtered.map((board) => {
           const isActive = board.id === activeBoardId;
+          const isBusy = board.id === busyBoardId;
+          if (confirmDeleteId === board.id) {
+            return (
+              <div
+                key={board.id}
+                className={`bh__item bh__item--confirm${isActive ? " bh__item--active" : ""}`}
+                role="group"
+                aria-label={`Delete ${board.title}?`}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setConfirmDeleteId(null);
+                }}
+              >
+                <span className="bh__confirm-text">Delete this board?</span>
+                <button
+                  type="button"
+                  className="bh__confirm-btn bh__confirm-btn--danger"
+                  onClick={() => {
+                    setConfirmDeleteId(null);
+                    onDelete?.(board.id);
+                  }}
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  className="bh__confirm-btn"
+                  onClick={() => setConfirmDeleteId(null)}
+                  autoFocus
+                >
+                  Cancel
+                </button>
+              </div>
+            );
+          }
           return (
             <div
               key={board.id}
@@ -201,7 +268,14 @@ function BoardHistoryContent({
                 onClick={() => onSelect(board.id)}
                 disabled={disabled}
               >
-                <span className="bh__item-title">{board.title}</span>
+                <span className="bh__item-title-row">
+                  <span className="bh__item-title">{board.title}</span>
+                  {isBusy ? (
+                    <span className="bh__item-spinner" aria-hidden>
+                      <PenSpinner size={15} ink="#C9C9D2" trail={false} />
+                    </span>
+                  ) : null}
+                </span>
                 {!isActive && board.preview ? (
                   <span className="bh__item-preview">{board.preview}</span>
                 ) : null}
@@ -214,7 +288,7 @@ function BoardHistoryContent({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    onDelete(board.id);
+                    setConfirmDeleteId(board.id);
                   }}
                   aria-label={`Delete ${board.title}`}
                 >
@@ -231,26 +305,38 @@ function BoardHistoryContent({
       </div>
 
       <footer className="bh__footer">
-        <button
-          type="button"
-          className="bh__credits"
-          onClick={onCreditsClick}
-          disabled={!onCreditsClick}
-        >
-          Credits
-        </button>
+        {onCreditsClick ? (
+          <button type="button" className="bh__credits" onClick={onCreditsClick}>
+            Credits
+          </button>
+        ) : null}
 
-        <div className="bh__profile-wrap">
-          {profileOpen && onProfileToggle && (
-            <div className="bh__profile-menu">Profile</div>
+        <div className="bh__profile-wrap" ref={profileWrapRef}>
+          {profileOpen && (
+            <div className="bh__profile-menu" role="menu">
+              <p className="bh__profile-note">Anonymous session on this device</p>
+              {onOpenSettings ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="bh__profile-item"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    onOpenSettings();
+                  }}
+                >
+                  Settings
+                </button>
+              ) : null}
+            </div>
           )}
           <button
             type="button"
             className={`bh__profile${profileOpen ? " bh__profile--open" : ""}`}
             aria-label="Profile"
+            aria-haspopup="menu"
             aria-expanded={profileOpen}
-            onClick={onProfileToggle}
-            disabled={!onProfileToggle}
+            onClick={() => setProfileOpen((open) => !open)}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <circle cx="12" cy="8" r="4" />
@@ -285,25 +371,6 @@ const STYLES = `
   justify-content: space-between;
   gap: 0.5rem;
   padding: 1.125rem 1rem 0.875rem;
-  flex-shrink: 0;
-}
-
-.bh__brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
-  color: var(--ink);
-  user-select: none;
-}
-
-.bh__logo {
-  width: 1.25rem;
-  height: 1.25rem;
   flex-shrink: 0;
 }
 
@@ -432,6 +499,38 @@ const STYLES = `
   flex: 1;
   overflow-y: auto;
   padding: 0 0.5rem 0.875rem;
+  /* Docked sidebar: no permanent gutter. The thumb fades in on hover and is
+     tinted to the shell, so the list never shows a stray light scrollbar. */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.25s ease;
+}
+
+.bh__list:hover {
+  scrollbar-color: var(--line) transparent;
+}
+
+.bh__list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.bh__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bh__list::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+  border: 0;
+  transition: background 0.25s ease;
+}
+
+.bh__list:hover::-webkit-scrollbar-thumb {
+  background: rgba(242, 242, 244, 0.16);
+}
+
+.bh__list::-webkit-scrollbar-thumb:hover {
+  background: rgba(242, 242, 244, 0.3);
 }
 
 .bh__empty {
@@ -493,6 +592,20 @@ const STYLES = `
   white-space: nowrap;
 }
 
+.bh__item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.bh__item-spinner {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  color: #C9C9D2;
+}
+
 .bh__item-preview {
   font-size: 0.8125rem;
   font-weight: 400;
@@ -534,6 +647,50 @@ const STYLES = `
   color: #E06858;
 }
 
+.bh__item--confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.55rem;
+  background: var(--hover);
+}
+
+.bh__confirm-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bh__confirm-btn {
+  flex-shrink: 0;
+  border: 1px solid rgba(242, 242, 244, 0.14);
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.bh__confirm-btn:hover {
+  background: rgba(242, 242, 244, 0.06);
+}
+
+.bh__confirm-btn--danger {
+  border-color: rgba(248, 81, 73, 0.4);
+  color: #E06858;
+}
+
+.bh__confirm-btn--danger:hover {
+  background: rgba(248, 81, 73, 0.15);
+}
+
 .bh__footer {
   flex-shrink: 0;
   border-top: 1px solid var(--line);
@@ -566,6 +723,32 @@ const STYLES = `
 
 .bh__profile-wrap {
   position: relative;
+  margin-left: auto;
+}
+
+.bh__profile-note {
+  margin: 0 0 0.45rem;
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.bh__profile-item {
+  display: block;
+  width: calc(100% + 1rem);
+  margin: 0 -0.5rem;
+  border: 0;
+  border-radius: 0.45rem;
+  padding: 0.35rem 0.5rem;
+  background: transparent;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.bh__profile-item:hover {
+  background: var(--hover);
 }
 
 .bh__profile-menu {
@@ -668,6 +851,7 @@ const STYLES = `
 export function BoardHistory({
   boards,
   activeBoardId,
+  busyBoardId = null,
   onSelect,
   onNew,
   onDelete,
@@ -677,17 +861,23 @@ export function BoardHistory({
   onOpenChange,
   collapsed = false,
   onToggleCollapse,
-  profileOpen = false,
-  onProfileToggle,
+  onOpenSettings,
   onCreditsClick,
   onWidthChange,
   onResizingChange,
 }: BoardHistoryProps) {
-  const [width, setWidth] = useState(SIDEBAR_WIDTH);
+  // Read the stored width up front rather than setting it from an effect:
+  // a mount-time correction is initial state, not a state change.
+  const [width, setWidth] = useState(() =>
+    variant === "sidebar" ? readStoredSidebarWidth() : SIDEBAR_WIDTH,
+  );
   const [resizing, setResizing] = useState(false);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const widthRef = useRef(width);
-  widthRef.current = width;
+  // Mirrored for the pointer handlers, which read it long after render.
+  useEffect(() => {
+    widthRef.current = width;
+  }, [width]);
 
   const applyWidth = useCallback(
     (next: number, persist: boolean) => {
@@ -699,11 +889,14 @@ export function BoardHistory({
     [onWidthChange],
   );
 
+  // The width itself is already initialised from storage above; this only
+  // tells the parent what it turned out to be.
   useLayoutEffect(() => {
     if (variant !== "sidebar") return;
-    const stored = readStoredSidebarWidth();
-    setWidth(stored);
-    onWidthChange?.(stored);
+    onWidthChange?.(width);
+    // Only on mount and when the parent's callback identity changes — width
+    // changes are reported by applyWidth as they happen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant, onWidthChange]);
 
   useEffect(() => {
@@ -735,6 +928,15 @@ export function BoardHistory({
       onOpenChange?.(false);
     }
   };
+
+  const handleOpenSettings = onOpenSettings
+    ? () => {
+        onOpenSettings();
+        if (variant === "drawer") {
+          onOpenChange?.(false);
+        }
+      }
+    : undefined;
 
   const stopDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (!dragRef.current) return;
@@ -796,14 +998,14 @@ export function BoardHistory({
   const contentProps: BoardHistoryContentProps = {
     boards,
     activeBoardId,
+    busyBoardId,
     onSelect: handleSelect,
     onNew: handleNew,
     onDelete,
     disabled,
     onToggleCollapse,
     showCollapseButton: variant === "sidebar",
-    profileOpen,
-    onProfileToggle,
+    onOpenSettings: handleOpenSettings,
     onCreditsClick,
   };
 

@@ -14,6 +14,8 @@ import {
   type ReplayCue,
 } from "@/lib/replay/replayTimeline";
 import { exportNotesPdf, type NotesEpoch } from "@/lib/client/exportNotesPdf";
+import { buildLessonNotes } from "../lib/lessonNotes";
+import { buildNotesPdfSections } from "../lib/notesPdf";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 import type { StoredSegment, StoredTurn } from "@/lib/boards/boardsClient";
@@ -77,6 +79,7 @@ export type UseReplayParams = {
   ttsClientRef: RefObject<TTSClient | null>;
   notesEpochsRef: RefObject<NotesEpoch[]>;
   narrationSinceEpochRef: RefObject<string>;
+  liveQuestionRef: RefObject<string>;
   phaseRef: RefObject<TutorPhase>;
   isReplaying: boolean;
   isPaused: boolean;
@@ -119,6 +122,7 @@ export function useReplay({
   ttsClientRef,
   notesEpochsRef,
   narrationSinceEpochRef,
+  liveQuestionRef,
   phaseRef,
   isReplaying,
   isPaused,
@@ -667,32 +671,45 @@ export function useReplay({
       return;
     }
     setIsDownloading(true);
-    try {
-      const finalSnapshot = wb.captureSnapshot(2);
-      const epochs: NotesEpoch[] = [...notesEpochsRef.current];
-      if (finalSnapshot) {
-        epochs.push({
-          index: epochs.length,
-          snapshotDataUrl: finalSnapshot,
-          narrationText: "",
-          timestampMs: Date.now(),
+    void (async () => {
+      try {
+        // Let "Generating…" paint before jsPDF blocks the main thread.
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => window.setTimeout(resolve, 0));
         });
+        const epochs: NotesEpoch[] = [...notesEpochsRef.current];
+        const finalSnapshot = wb.captureSnapshot(2);
+        if (finalSnapshot) {
+          epochs.push({
+            index: epochs.length,
+            question: liveQuestionRef.current,
+            snapshotDataUrl: finalSnapshot,
+            narrationText: narrationSinceEpochRef.current,
+            timestampMs: Date.now(),
+          });
+        }
+        const { turns } = buildLessonNotes({
+          persistedTurns: storedTurnsRef.current,
+          lectureInProgress: false,
+        });
+        const sections = buildNotesPdfSections(turns, epochs);
+        if (sections.length === 0) {
+          return;
+        }
+        const boardTitle = boards.find((b) => b.id === sessionId)?.title ?? "Lecture Notes";
+        exportNotesPdf({ title: boardTitle, sections });
+      } catch (error) {
+        console.error("Notes PDF export failed:", error);
+      } finally {
+        setIsDownloading(false);
       }
-      if (epochs.length === 0) {
-        return;
-      }
-      const boardTitle = boards.find((b) => b.id === sessionId)?.title ?? "Lecture Notes";
-      exportNotesPdf({
-        title: boardTitle,
-        epochs,
-      });
-    } finally {
-      setIsDownloading(false);
-    }
+    })();
   }, [
     whiteboardRef,
     notesEpochsRef,
     narrationSinceEpochRef,
+    liveQuestionRef,
+    storedTurnsRef,
     boards,
     sessionId,
     isDownloading,
