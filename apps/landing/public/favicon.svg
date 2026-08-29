@@ -1,4 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Accelute">
-  <rect width="256" height="256" rx="52" fill="#EDF3FD"/>
-  <path fill="#2563EB" d="M144 256 28 256 144 140ZM256 200 200 256V56H0l56-56h200v200ZM0 204V112h92z"/>
+  <!-- Same mark as the homepage lockup (Logo.tsx), inset so 16/32px
+       rounded tiles do not clip the corners. Solid frost on navy —
+       no gradient, so the shards stay readable in a browser tab. -->
+  <rect width="256" height="256" rx="44" fill="#0D2231"/>
+  <rect x="2" y="2" width="252" height="252" rx="42" fill="none" stroke="#7FC4E2" stroke-width="4"/>
+  <g transform="translate(128 128) scale(0.72) translate(-128 -128)" fill="#F0F5F7">
+    <path d="M144 256 28 256 144 140ZM256 200 200 256V56H0l56-56h200v200ZM0 204V112h92z"/>
+  </g>
 </svg>

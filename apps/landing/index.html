@@ -3,40 +3,116 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Accelute is an AI whiteboard tutor for every subject. It draws diagrams, writes notes, and explains out loud, stroke by stroke, in sync. Learn every subject the way teachers actually teach it." />
-    <meta name="keywords" content="AI tutor, whiteboard tutor, visual learning, online tutoring, study help, EdTech" />
-    <meta name="author" content="Accelute" />
+
+    <title>Accelute | AI Whiteboard Tutor for Every Subject</title>
+    <meta
+      name="description"
+      content="Accelute is an AI whiteboard tutor for every subject. Ask a question and watch it draw the diagram, write the notes, and explain each step out loud, in sync."
+    />
+    <link rel="canonical" href="https://accelute.co/" />
+
     <meta name="application-name" content="Accelute" />
-    <meta name="theme-color" content="#2563EB" />
-    <meta name="color-scheme" content="light" />
-    <meta name="robots" content="index, follow" />
+    <meta name="author" content="Accelute" />
+    <meta name="theme-color" content="#06121C" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
 
-    <title>Accelute · AI whiteboard tutor</title>
-
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
-    <link rel="canonical" href="https://accelute.com/" />
+    <!-- SVG first so Chromium picks the crisp homepage mark, not the ICO.
+         PNGs cover browsers that ignore SVG. ?v=2 busts a sticky cached tab icon. -->
+    <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" sizes="any" />
+    <link rel="icon" href="/favicon-32x32.png?v=2" type="image/png" sizes="32x32" />
+    <link rel="icon" href="/favicon-16x16.png?v=2" type="image/png" sizes="16x16" />
+    <link rel="shortcut icon" href="/favicon.ico?v=2" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" sizes="180x180" />
+    <link rel="manifest" href="/site.webmanifest" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Accelute" />
     <meta property="og:locale" content="en_US" />
-    <meta property="og:url" content="https://accelute.com/" />
-    <meta property="og:title" content="Accelute · AI whiteboard tutor" />
-    <meta property="og:description" content="Learn every subject the way teachers actually teach it. An AI tutor that draws on a whiteboard and explains out loud, in sync." />
-    <meta property="og:image" content="https://accelute.com/og-image.svg" />
-    <meta property="og:image:alt" content="Accelute · AI whiteboard tutor" />
+    <meta property="og:url" content="https://accelute.co/" />
+    <meta property="og:title" content="Accelute | AI Whiteboard Tutor for Every Subject" />
+    <meta
+      property="og:description"
+      content="Ask a question and watch an AI tutor draw the diagram, write the notes, and explain each step out loud, in sync."
+    />
+    <!-- Crawlers do not render SVG, so this has to stay a PNG. This one is a
+         frame of a real lesson: WhatsApp and iMessage never play og:video, so
+         the still is the only place they can show the board being written on.
+         /og-card.png is the plain text card if this is ever wanted back. -->
+    <meta property="og:image" content="https://accelute.co/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Accelute solving a physics question on the whiteboard, with the working written out and a velocity-time graph drawn beside it" />
+
+    <!-- Autoplaying preview. Discord, Telegram and Facebook play this inline;
+         WhatsApp, iMessage and Slack fall back to og:image above. Muted and
+         faststart so it starts on the first range request. -->
+    <meta property="og:video" content="https://accelute.co/preview.mp4" />
+    <meta property="og:video:secure_url" content="https://accelute.co/preview.mp4" />
+    <meta property="og:video:type" content="video/mp4" />
+    <meta property="og:video:width" content="1200" />
+    <meta property="og:video:height" content="630" />
+    <meta property="og:video:alt" content="An AI tutor writing the solution and drawing a velocity-time graph on a whiteboard" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Accelute · AI whiteboard tutor" />
-    <meta name="twitter:description" content="Learn every subject the way teachers actually teach it. Draws, writes, and explains on a shared whiteboard." />
-    <meta name="twitter:image" content="https://accelute.com/og-image.svg" />
-    <meta name="twitter:image:alt" content="Accelute · AI whiteboard tutor" />
+    <meta name="twitter:title" content="Accelute | AI Whiteboard Tutor for Every Subject" />
+    <meta
+      name="twitter:description"
+      content="Ask a question and watch an AI tutor draw the diagram, write the notes, and explain each step out loud, in sync."
+    />
+    <meta name="twitter:image" content="https://accelute.co/og-image.png" />
+    <meta name="twitter:image:alt" content="Accelute solving a physics question on the whiteboard, with the working written out and a velocity-time graph drawn beside it" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&display=swap" rel="stylesheet" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://accelute.co/#organization",
+            "name": "Accelute",
+            "url": "https://accelute.co/",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://accelute.co/icon-512.png",
+              "width": 512,
+              "height": 512
+            }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://accelute.co/#website",
+            "url": "https://accelute.co/",
+            "name": "Accelute",
+            "description": "An AI whiteboard tutor that draws, writes, and explains every subject out loud.",
+            "publisher": { "@id": "https://accelute.co/#organization" },
+            "inLanguage": "en"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "Accelute",
+            "applicationCategory": "EducationalApplication",
+            "operatingSystem": "Web",
+            "url": "https://accelute.co/",
+            "image": "https://accelute.co/og-image.png",
+            "description": "Accelute is an AI whiteboard tutor for every subject. Ask a question and watch it draw the diagram, write the notes, and explain each step out loud, in sync.",
+            "publisher": { "@id": "https://accelute.co/#organization" },
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            }
+          }
+        ]
+      }
+    </script>
   </head>
-  <body>
+  <body style="background:#06121C">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
