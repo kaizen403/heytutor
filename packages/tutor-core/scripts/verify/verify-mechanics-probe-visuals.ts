@@ -21,6 +21,9 @@ for (const unit of [2, 3] as const) {
   const probes = JSON.parse(readFileSync(join(probesDir, `physics-unit-${unit}.json`), "utf8")) as {
     questions: Array<{ id: string; question: string }>;
   };
+  if (probes.questions.length === 0) {
+    throw new Error(`verify-mechanics-probe-visuals: physics-unit-${unit} has no probes; the gate would pass vacuously`);
+  }
   for (const item of probes.questions) {
     const requires = questionRequiresVisual(item.question);
     const capabilities = inferSceneCapabilities(item.question);

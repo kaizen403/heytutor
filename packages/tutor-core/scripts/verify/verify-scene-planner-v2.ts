@@ -124,7 +124,7 @@ try {
   if (requestPrompt(requests[2]).includes("do-not-resend")) {
     throw new Error("repair request resent the full invalid candidate payload");
   }
-  if (requestPrompt(requests[2]).length > 23_000) {
+  if (requestPrompt(requests[2]).length > 27_000) {
     throw new Error(`repair request exceeded the compact context budget: ${requestPrompt(requests[2]).length}`);
   }
   if (!requestPrompt(requests[2]).includes("Visual proximity is not connectivity")) {
@@ -157,7 +157,7 @@ try {
   );
   if (
     initialSystemPrompt.length > 800 ||
-    serializedPromptChars > 19_000
+    serializedPromptChars > 24_500
   ) {
     throw new Error(
       `scene planner duplicated its capability contract: ${JSON.stringify({

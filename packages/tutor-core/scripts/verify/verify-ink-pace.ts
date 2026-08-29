@@ -59,8 +59,13 @@ assert(
   "busy scene bodies (train / carriage / circuit) are scene pace",
 );
 assert(
-  selectInkPace(diagramLabel, introContext) === "scene",
-  "diagram labels in setup are scene pace, not handwriting",
+  selectInkPace(diagramLabel, introContext) === "follow",
+  "diagram labels must be read at handwriting pace, even inside a compound intro",
+);
+assert(
+  selectInkPace(sceneLine, introContext) === "scene" &&
+    selectInkPace(diagramLabel, introContext) === "follow",
+  "structure and naming must be paced apart: fast geometry, readable labels",
 );
 assert(
   selectInkPace(focus, introContext) === "scene",

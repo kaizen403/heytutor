@@ -1,3 +1,10 @@
+import {
+  DEFAULT_VOICE_KEY,
+  DEFAULT_VOICE_PREFERENCES,
+  TTS_LANG_HEADER,
+  type TutorVoiceKey,
+  type TutorVoicePreferences,
+} from "./voiceLanguage";
 export interface SpeakOptions {
   text: string;
   onStart?: () => void;
@@ -81,6 +88,11 @@ export interface TTSClient {
    * 2.0 = twice as fast. Values below 0.1 are clamped.
    */
   setPlaybackRate(rate: number): void;
+  /**
+   * Apply the language/accent and latency choices from Settings. The WebSocket
+   * client drops its socket so the next connection uses the new voice.
+   */
+  setVoicePreferences?(preferences: TutorVoicePreferences): void;
 }
 
 interface ElevenLabsClientOptions {
@@ -88,6 +100,8 @@ interface ElevenLabsClientOptions {
   streamUrl?: string;
   modelId?: string;
 }
+
+const LOW_LATENCY_MODEL = "eleven_flash_v2_5";
 
 const DEFAULT_MODEL = "eleven_multilingual_v2";
 const DEFAULT_VOICE_SETTINGS = {
@@ -250,9 +264,13 @@ function concatUint8Arrays(chunks: Uint8Array[]): Uint8Array<ArrayBuffer> {
   return merged;
 }
 
-function buildTtsHeaders(options: Pick<SpeakSegmentOptions, "traceId" | "sessionId">): Record<string, string> {
+function buildTtsHeaders(
+  options: Pick<SpeakSegmentOptions, "traceId" | "sessionId">,
+  voiceKey: TutorVoiceKey = DEFAULT_VOICE_KEY,
+): Record<string, string> {
   const headers: Record<string, string> = {
     "content-type": "application/json",
+    [TTS_LANG_HEADER]: voiceKey,
   };
 
   if (options.traceId) {
@@ -430,11 +448,16 @@ export class ElevenLabsTTSClient implements TTSClient {
   private paused = false;
   private playbackRate = 1.0;
   private muted = false;
+  private voicePreferences: TutorVoicePreferences = { ...DEFAULT_VOICE_PREFERENCES };
 
   constructor(options: ElevenLabsClientOptions) {
     this.proxyUrl = options.proxyUrl;
     this.streamUrl = options.streamUrl ?? "/api/tts/stream";
     this.modelId = options.modelId ?? DEFAULT_MODEL;
+  }
+
+  setVoicePreferences(preferences: TutorVoicePreferences): void {
+    this.voicePreferences = { ...preferences };
   }
 
   async prewarm(_options?: PrewarmOptions): Promise<void> {
@@ -515,10 +538,10 @@ export class ElevenLabsTTSClient implements TTSClient {
   ): Promise<boolean> {
     const response = await fetch(this.streamUrl, {
       method: "POST",
-      headers: buildTtsHeaders(options),
+      headers: buildTtsHeaders(options, this.voicePreferences.voiceKey),
       body: JSON.stringify({
         text: spokenText,
-        model_id: this.modelId,
+        model_id: this.voicePreferences.lowLatency ? LOW_LATENCY_MODEL : this.modelId,
         voice_settings: DEFAULT_VOICE_SETTINGS,
         previous_text: options.previousText,
         next_text: options.nextText,

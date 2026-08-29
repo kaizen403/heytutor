@@ -25,6 +25,10 @@ const TEXT_ONLY_IDS = new Set([
   "physics|4|conservative-and-non-conservative-forces|hard",
 ]);
 
+if (probes.questions.length === 0) {
+  throw new Error("verify-work-energy-visuals: no probe questions loaded; the gate would pass vacuously");
+}
+
 const failures: string[] = [];
 
 for (const item of probes.questions) {

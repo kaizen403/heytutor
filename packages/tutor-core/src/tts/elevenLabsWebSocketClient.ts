@@ -1,3 +1,8 @@
+import {
+  DEFAULT_VOICE_PREFERENCES,
+  TTS_LANG_QUERY,
+  type TutorVoicePreferences,
+} from "./voiceLanguage";
 import type { AudioTimings, PrewarmOptions, SpeakSegmentOptions, TTSClient } from "./elevenLabsClient";
 import {
   SpeechSynthesisTTSClient,
@@ -171,12 +176,22 @@ function getWebSocketUrl(
   sessionId?: string,
   voiceSpeed?: number,
   ticket?: string,
+  preferences: TutorVoicePreferences = DEFAULT_VOICE_PREFERENCES,
 ): string {
   const base = resolveWebSocketUrl(path, traceId, sessionId, ticket);
-  if (!voiceSpeed || voiceSpeed === 1) {
+  const params: string[] = [];
+  if (voiceSpeed && voiceSpeed !== 1) {
+    params.push(`speed=${voiceSpeed}`);
+  }
+  // The relay resolves the voice id from this key; ids never reach the browser.
+  params.push(`${TTS_LANG_QUERY}=${encodeURIComponent(preferences.voiceKey)}`);
+  if (preferences.lowLatency) {
+    params.push("model=flash");
+  }
+  if (params.length === 0) {
     return base;
   }
-  return `${base}${base.includes("?") ? "&" : "?"}speed=${voiceSpeed}`;
+  return `${base}${base.includes("?") ? "&" : "?"}${params.join("&")}`;
 }
 
 async function fetchWsAuthTicket(): Promise<string | undefined> {
@@ -252,6 +267,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   private paused = false;
   private playbackRate = 1.0;
   private muted = false;
+  private voicePreferences: TutorVoicePreferences = { ...DEFAULT_VOICE_PREFERENCES };
 
   private jobs: SegmentJob[] = [];
   private currentJob: SegmentJob | null = null;
@@ -605,7 +621,14 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       const ticket = await fetchWsAuthTicket();
       await new Promise<void>((resolve, reject) => {
         const ws = new WebSocket(
-          getWebSocketUrl("/api/tts/ws", traceId, sessionId, voiceSpeed, ticket),
+          getWebSocketUrl(
+            "/api/tts/ws",
+            traceId,
+            sessionId,
+            voiceSpeed,
+            ticket,
+            this.voicePreferences,
+          ),
         );
         this.ws = ws;
         this.connectedTraceId = traceId;
@@ -1604,6 +1627,27 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
    * (clamped to its supported 0.7–1.2 range), never by resampling playback.
    * The new speed applies to the next unsent segment.
    */
+  /**
+   * The voice id is baked into the upstream socket, so a language or model
+   * change can only take effect on a fresh connection. Drop the idle socket
+   * here and let the next segment reconnect; a socket that is mid-sentence is
+   * left alone so the current line finishes in the old voice.
+   */
+  setVoicePreferences(preferences: TutorVoicePreferences): void {
+    const changed =
+      this.voicePreferences.voiceKey !== preferences.voiceKey ||
+      this.voicePreferences.lowLatency !== preferences.lowLatency;
+    this.voicePreferences = { ...preferences };
+    if (!changed) {
+      return;
+    }
+    if (!this.playing && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.close();
+      this.ws = null;
+      this.connectPromise = null;
+    }
+  }
+
   setPlaybackRate(rate: number): void {
     this.playbackRate = Math.max(rate, 0.1);
     this.speechFallback.setPlaybackRate(this.playbackRate);

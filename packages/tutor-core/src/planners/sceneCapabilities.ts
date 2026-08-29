@@ -46,8 +46,8 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
     "surface_contact", "normal_at", "reflect_direction", "refract_direction", "parallel_through",
     "reflect_at", "refract_at", "angle_mark", "right_angle_mark",
   ],
-  axis_view: ["line", "segment", "ray", "arc", "vector", "dimension", "reflect_point", "sign_badge"],
-  interface: ["line", "circle", "arc", "polygon", "surface_intersection", "surface_contact", "normal_at"],
+  axis_view: ["line", "segment", "ray", "arc", "vector", "dimension", "reflect_point", "sign_badge", "spherical_surface", "lens_section"],
+  interface: ["line", "circle", "arc", "polygon", "surface_intersection", "surface_contact", "normal_at", "spherical_surface"],
   instrument_chain: ["line", "segment", "ray", "arc", "vector", "dimension", "parallel_through", "perpendicular_through", "optical_train"],
   wavefront: ["wavefront_family", "line", "vector", "perpendicular_through"],
   aperture: ["aperture", "line", "segment"],
@@ -107,8 +107,8 @@ const FAMILY_PREDICATES: Record<SceneVisualFamily, readonly string[]> = {
 
 const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
   ray_path: "Derive every reflected or refracted direction with reflect_at/refract_at or the surface-contact chain; never guess ray endpoints. Prove incidence, angle, convergence, or parallelism named by the question.",
-  axis_view: "Use one shared axis, reuse point IDs for named positions on it, prove their order, and attach each dimension to its actual endpoints. Compress display scale without changing authoritative ratios.",
-  interface: "Construct one explicit interface and one shared contact point. Derive the normal and outgoing ray from that surface, and prove the contact and governing reflection/refraction law.",
+  axis_view: "Use one shared axis, reuse point IDs for named positions on it, prove their order, and attach each dimension to its actual endpoints. Draw every mirror, lens, or spherical interface with spherical_surface or lens_section so convex and concave faces are visible; never replace a curved surface with a straight line. Compress display scale without changing authoritative ratios.",
+  interface: "Construct one explicit interface and one shared contact point. A spherical interface uses spherical_surface from the signed Cartesian radius; a plane interface uses a line. Derive the normal and outgoing ray from that surface, and prove the contact and governing reflection/refraction law.",
   instrument_chain: "Build one continuous optical chain on a shared axis. Objective and eyepiece lens elements are perpendicular to that axis. Use optical_train for the six rays; never guess ray endpoints or mix millimetre and centimetre world coordinates. For an afocal normal-adjustment chain, reuse one point ID for the objective image and eyepiece focus, then use optical_train for the six rays. Prove parallel input/output bundles and intermediate convergence. For a finite microscope chain, pass the object, intermediate image, and final virtual image into optical_train.",
   wavefront: "Use wavefront_family with a verified ray/path ID as direction. Prove each front is perpendicular to propagation and use derived reflected/refracted rays when a boundary is present.",
   aperture: "Use aperture for the physical opening; do not imitate slits with boxes or loose segments. Keep slit count and ordering faithful to the question.",
@@ -147,9 +147,27 @@ export function isQualitativeConceptQuestion(question: string): boolean {
   return /\b(?:assertion|reason\s*\(?r?|which\s+of\s+the\s+following|which\s+of\s+these|correct\s+statement|statement(?:s)?\s+(?:is|are)|not\s+true|does\s+not\s+occur|true\s+about|match the motions|match list|column i\b|column ii\b)\b/i.test(question);
 }
 
-/** A concept MCQ that still names a spatial apparatus should keep a setup figure. */
+/** Phrases that are a spatial setup on their own, however the stem is phrased. */
+const QUALITATIVE_SETUP_PHRASES =
+  /(?:leans against a wall|ladder of mass|conical pendulum|banked|inclined plane|free[- ]body|ray path|rolling without slipping|met(?:er|re) bridge|wheatstone|equipotential|energy band|depletion[- ]region|p-n junction|solar cell|light emitting)/i;
+
+/**
+ * Apparatus nouns that imply a figure only when the stem sets the apparatus up.
+ * "the electromagnetic wave in a circuit" names no circuit to draw; "two cells
+ * connected across a 4 W resistor" does.
+ */
+const QUALITATIVE_APPARATUS_NOUNS =
+  /(?:pulley|lens|mirror|prism|circuit|resistor|projectile|pendulum|slit|dipole|solenoid|capacitor|incline|bar magnet|kepler|satellite|venturi|hydraulic|galvanometer|transformer|cyclotron|toroid|gauss|moment of inertia|microscope|telescope)/i;
+
+/** Evidence that the apparatus is arranged rather than mentioned in passing. */
+const QUALITATIVE_APPARATUS_SETUP_CUE =
+  /\d|\b(?:connected|placed|kept|joined|suspended|hung|hangs|immersed|across|in series|in parallel|between|as shown|shown|of radius|of length|of mass|of resistance|of capacitance)\b/i;
+
+/** A concept MCQ that still sets up a spatial apparatus should keep a setup figure. */
 export function qualitativeQuestionAllowsScene(question: string): boolean {
-  return /(?:leans against a wall|ladder of mass|conical pendulum|banked|inclined plane|free[- ]body|pulley|lens|mirror|prism|circuit|resistor|projectile|pendulum|ray path|slit|dipole|solenoid|capacitor|incline|bar magnet|kepler|satellite|venturi|hydraulic|wheatstone|met(?:er|re) bridge|galvanometer|transformer|cyclotron|toroid|gauss|equipotential|rolling without slipping|moment of inertia|energy band|depletion[- ]region|solar cell|p-n junction|light emitting|microscope|telescope)/i.test(question);
+  return QUALITATIVE_SETUP_PHRASES.test(question)
+    || (QUALITATIVE_APPARATUS_NOUNS.test(question)
+      && QUALITATIVE_APPARATUS_SETUP_CUE.test(question));
 }
 
 export function inferSceneCapabilities(

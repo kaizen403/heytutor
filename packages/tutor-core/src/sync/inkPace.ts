@@ -5,9 +5,14 @@ import type { DrawCommand } from "@heytutor/drawing";
  * from command type and whether the marks are verified scene setup vs work-area
  * teaching. Independent of Watch overlay playback rate (1.5× etc.).
  *
- * - `follow`: student must track the pen (formulas, substitutions, FOCUS traces).
+ * - `follow`: student must track the pen (formulas, substitutions, FOCUS traces,
+ *   and every diagram label — a name the student has to read is not scenery).
  * - `scene`: student should see a figure, not a stroke-by-stroke performance
  *   (verified diagram bodies, compound setup, decorative geometry).
+ *
+ * Structure and naming are paced apart on purpose: the body of a figure can
+ * appear quickly because it is one thing seen at once, while each label is read
+ * word by word alongside the explanation of what it marks.
  */
 export type InkPace = "follow" | "scene";
 
@@ -28,7 +33,7 @@ const TEXT_TYPES = new Set<DrawCommand["type"]>(["WRITE", "LABEL", "DIMENSION"])
 const COMPOUND_SCENE_BATCH = 4;
 
 /** Scene geometry is a visible reveal, not handwriting. */
-export const SCENE_DURATION_SCALE = 0.28;
+export const SCENE_DURATION_SCALE = 0.22;
 export const SCENE_MIN_MS = 70;
 export const SCENE_MAX_MS = 320;
 export const SCENE_FLIGHT_MIN_MS = 30;
@@ -39,7 +44,7 @@ export const SCENE_WRITE_MAX_MS = 280;
 /** FOCUS traces stay followable but slightly quicker than a full formula WRITE. */
 export const FOLLOW_FOCUS_SCALE = 0.78;
 /** Cap total setup ink so a train / busy body cannot stall the lecture. */
-export const MAX_SCENE_BATCH_MS = 1600;
+export const MAX_SCENE_BATCH_MS = 1300;
 
 export const FOLLOW_ADAPTIVE_MIN = 0.85;
 export const FOLLOW_ADAPTIVE_MAX = 1.2;
@@ -84,6 +89,12 @@ export function selectInkPace(
   }
 
   if (context.verifiedDiagramIntro === true) {
+    // A label or dimension is read, not watched. Even inside a compound intro
+    // it keeps handwriting pace so the naming lands with the words explaining
+    // it, while the geometry around it still reveals quickly.
+    if (TEXT_TYPES.has(command.type)) {
+      return "follow";
+    }
     if (context.explainedInSpeechWindow === true && !compoundIntro) {
       return "follow";
     }

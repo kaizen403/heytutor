@@ -34,6 +34,7 @@ const EXPECTED_CONSTRUCTION_OPERATORS = [
   "polyline",
   "function_curve",
   "function_region",
+  "constraint_region",
   "parametric_curve",
   "polar_curve",
   "implicit_curve",
@@ -53,6 +54,8 @@ const EXPECTED_CONSTRUCTION_OPERATORS = [
   "transverse_field",
   "polarizer",
   "optical_train",
+  "spherical_surface",
+  "lens_section",
   "vector",
   "axes",
   "intersection",
@@ -331,8 +334,8 @@ const corpus = JSON.parse(readFileSync(fixturePath, "utf8")) as {
 
 const operatorByFamily: Record<string, string[]> = {
   ray_path: ["ray", "surface_contact", "normal_at", "reflect_at", "refract_at"],
-  axis_view: ["line", "dimension"],
-  interface: ["line", "surface_intersection"],
+  axis_view: ["line", "dimension", "spherical_surface", "lens_section"],
+  interface: ["line", "surface_intersection", "spherical_surface"],
   instrument_chain: ["line", "ray", "optical_train"],
   wavefront: ["wavefront_family"],
   aperture: ["aperture"],
