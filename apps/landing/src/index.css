@@ -2,6 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════════════
+   ACCELUTE — "Night Blueprint"
+   Palette ported from inbuild.ai's Webflow token set, fused with
+   Accelute's own blues. Deep navy canvas, sky-blue accent light.
+
+     ink-850  #0D2231   inBuild --background-color--background-primary
+     ink-750  #182D47   inBuild --background-color--button-dark
+     sky-500  #59AFD4   inBuild --base-color-neutral--color-accent
+     sky-200  #CCE6F1   inBuild --keymetric1
+     steel    #608B9D   inBuild --keymetric3
+     mist     #ABC9D5   inBuild --feature-section-bg
+     frost    #F0F5F7   inBuild light neutral
+     blue     #5FA4F9   Accelute primary
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --ink-950: #06121c;
+  --ink-900: #0a1b27;
+  --ink-850: #0d2231;
+  --ink-800: #122a39;
+  --ink-750: #182d47;
+  --ink-700: #1b3242;
+  --ink-600: #2c3c4a;
+  --ink-500: #3b5362;
+  --ink-400: #5d6c7b;
+  --ink-300: #758696;
+
+  --sky-600: #3e8fb4;
+  --sky-500: #59afd4;
+  --sky-400: #7fc4e2;
+  --sky-300: #a5d6ec;
+  --sky-200: #cce6f1;
+
+  --steel: #608b9d;
+  --mist: #abc9d5;
+  --frost: #f0f5f7;
+  --blue: #5fa4f9;
+  --blue-deep: #2563eb;
+
+  /* Hairlines + glass, from inBuild's alpha tokens */
+  --stroke: rgba(202, 229, 241, 0.13);
+  --stroke-strong: rgba(202, 229, 241, 0.26);
+  --glass-1: rgba(255, 255, 255, 0.035);
+  --glass-2: rgba(255, 255, 255, 0.06);
+  --text-soft: rgba(240, 245, 247, 0.68);
+  --text-faint: rgba(240, 245, 247, 0.42);
+}
+
 /* Fonts: tester.army type system, local woff2 */
 @font-face {
   font-family: 'Stack Sans Notch';
@@ -39,21 +87,49 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  background: var(--ink-950);
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
-  background: #ffffff;
-  color: #111827;
+  background: var(--ink-850);
+  color: var(--frost);
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+::selection {
+  background: rgba(89, 175, 212, 0.32);
+  color: var(--frost);
+}
+
+/* Sky-tinted scrollbar so even the chrome stays on-palette */
+* {
+  scrollbar-color: var(--ink-600) transparent;
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--ink-900);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--ink-600);
+  border-radius: 999px;
+  border: 2px solid var(--ink-900);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--steel);
 }
 
 /* Type scale ported 1:1 from the TesterArmy design system */
 @layer components {
   .type-h1 {
     font-family: 'Stack Sans Notch', ui-sans-serif, system-ui, sans-serif;
-    letter-spacing: 0;
+    letter-spacing: -0.015em;
     font-size: 40px;
     font-weight: 500;
     line-height: 46px;
@@ -67,7 +143,7 @@ body {
 
   .type-h2 {
     font-family: 'Stack Sans Notch', ui-sans-serif, system-ui, sans-serif;
-    letter-spacing: 0;
+    letter-spacing: -0.015em;
     font-size: 32px;
     font-weight: 400;
     line-height: 38px;
@@ -133,20 +209,504 @@ body {
   }
 }
 
-.landing-section-inset {
-  margin-left: clamp(1rem, 4vw, 2.75rem);
-  margin-right: clamp(1rem, 4vw, 2.75rem);
-}
-
-.landing-section-rule {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-}
-
 h1,
 h2,
 h3,
 h4 {
   font-family: 'Stack Sans Notch', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PEDESTAL BUTTON
+   Two rounded rects of equal width: a cap (`::before`) resting on a slightly
+   taller base (the element itself). The strip of base still showing under the
+   cap is what reads as the shadow. Pressing drops the cap by exactly that
+   strip's height, so the outer box never moves and nothing around it reflows.
+
+   The label rides the cap via the padding split rather than a transform, so
+   plain children work — no wrapper element required.
+
+   Geometry lives in custom properties; colour comes from the palette. A size
+   is six lines, a variant is seven. Pair `.btn` with one of each:
+     <a class="btn btn-ice btn-lg">…</a>
+   ═══════════════════════════════════════════════════════════════════════ */
+@layer components {
+  .btn {
+    /* geometry — .btn-sm / .btn-md / .btn-lg override these */
+    --btn-h: 42px;      /* cap height */
+    --btn-px: 20px;     /* label inset */
+    --btn-r: 11px;
+    --btn-bw: 1.5px;
+    --btn-lift: 7px;    /* base lip left showing under the cap */
+    --btn-press: 0px;   /* how far the cap has travelled down the base */
+    --btn-fs: 14px;
+    --btn-gloss: 0.4;   /* top-edge highlight on the cap */
+
+    position: relative;
+    isolation: isolate; /* so the cap can sit above the base but under the label */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55em;
+    box-sizing: border-box;
+    height: calc(var(--btn-h) + var(--btn-lift));
+    padding-left: var(--btn-px);
+    padding-right: var(--btn-px);
+    padding-top: max(0px, var(--btn-press));
+    padding-bottom: max(0px, calc(var(--btn-lift) - var(--btn-press)));
+    border: var(--btn-bw) solid var(--btn-line);
+    border-radius: var(--btn-r);
+    background: var(--btn-base);
+    color: var(--btn-ink);
+
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-size: var(--btn-fs);
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+
+    cursor: pointer;
+    user-select: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      padding-top 220ms cubic-bezier(0.2, 0.9, 0.25, 1),
+      padding-bottom 220ms cubic-bezier(0.2, 0.9, 0.25, 1);
+  }
+
+  /* The cap. One border-width proud on three sides, so it hides the base's
+     outline everywhere except along the lip. */
+  .btn::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    top: calc(-1 * var(--btn-bw));
+    left: calc(-1 * var(--btn-bw));
+    right: calc(-1 * var(--btn-bw));
+    height: var(--btn-h);
+    border: var(--btn-bw) solid var(--btn-line);
+    border-radius: var(--btn-r);
+    background: var(--btn-cap);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--btn-gloss));
+    transform: translateY(var(--btn-press));
+    transition:
+      transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1),
+      background-color 200ms ease;
+  }
+
+  .btn:hover {
+    --btn-press: -1px;
+    --btn-cap: var(--btn-cap-hi);
+  }
+
+  /* Press: snap down hard and fast, ease back up on release. */
+  .btn:active {
+    --btn-press: var(--btn-lift);
+  }
+  .btn:active,
+  .btn:active::before {
+    transition-duration: 70ms;
+    transition-timing-function: cubic-bezier(0.3, 0, 0.2, 1);
+  }
+
+  .btn:focus-visible {
+    outline: 2px solid var(--btn-ring);
+    outline-offset: 3px;
+  }
+
+  .btn:disabled,
+  .btn[aria-disabled='true'] {
+    --btn-press: var(--btn-lift);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn,
+    .btn::before {
+      transition: none;
+    }
+  }
+
+  /* ── sizes ── */
+  .btn-sm {
+    --btn-h: 34px;
+    --btn-px: 15px;
+    --btn-r: 9px;
+    --btn-bw: 1.25px;
+    --btn-lift: 5px;
+    --btn-fs: 12px;
+  }
+  .btn-md {
+    --btn-h: 42px;
+    --btn-px: 20px;
+    --btn-r: 11px;
+    --btn-bw: 1.5px;
+    --btn-lift: 7px;
+    --btn-fs: 14px;
+  }
+  .btn-lg {
+    --btn-h: 50px;
+    --btn-px: 26px;
+    --btn-r: 13px;
+    --btn-bw: 1.5px;
+    --btn-lift: 8px;
+    --btn-fs: 15px;
+  }
+  .btn-block {
+    display: flex;
+    width: 100%;
+  }
+
+  /* Flat face for icon-only controls — same palette, no pedestal. Pair it
+     with a variant: <button class="btn-sky btn-plain rounded-full h-10 w-10">. */
+  .btn-plain {
+    background: var(--btn-cap);
+    color: var(--btn-ink);
+    border: 1px solid var(--btn-line);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--btn-gloss));
+    cursor: pointer;
+    transition:
+      background-color 200ms ease,
+      transform 160ms cubic-bezier(0.2, 0.9, 0.25, 1);
+  }
+  .btn-plain:hover {
+    background: var(--btn-cap-hi);
+  }
+  .btn-plain:active {
+    transform: scale(0.93);
+  }
+  .btn-plain:focus-visible {
+    outline: 2px solid var(--btn-ring);
+    outline-offset: 3px;
+  }
+
+  /* ── variants ── */
+
+  /* Frost keycap — the highest-contrast face on navy. Primary CTA. */
+  .btn-ice {
+    --btn-cap: var(--frost);
+    --btn-cap-hi: #ffffff;
+    --btn-base: var(--mist);
+    --btn-line: var(--steel);
+    --btn-ink: var(--ink-950);
+    --btn-ring: rgba(240, 245, 247, 0.6);
+    --btn-gloss: 0.9;
+  }
+
+  /* The sky accent — reads best against a light surface. */
+  .btn-sky {
+    --btn-cap: var(--sky-500);
+    --btn-cap-hi: var(--sky-400);
+    --btn-base: var(--sky-600);
+    --btn-line: #1d5f80;
+    --btn-ink: var(--ink-950);
+    --btn-ring: rgba(89, 175, 212, 0.6);
+    --btn-gloss: 0.5;
+  }
+
+  /* A raised slab of the navy itself. Secondary CTA. */
+  .btn-ghost {
+    --btn-cap: var(--ink-700);
+    --btn-cap-hi: var(--ink-600);
+    --btn-base: var(--ink-950);
+    --btn-line: var(--stroke-strong);
+    --btn-ink: var(--frost);
+    --btn-ring: rgba(202, 229, 241, 0.45);
+    --btn-gloss: 0.07;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FX LAYER — the atmosphere
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Aurora: layered sky-blue glows over the navy gradient. Hero / footer. */
+.fx-aurora {
+  background:
+    radial-gradient(120% 78% at 50% -8%, rgba(89, 175, 212, 0.30) 0%, rgba(89, 175, 212, 0.10) 34%, transparent 66%),
+    radial-gradient(62% 46% at 10% 6%, rgba(95, 164, 249, 0.20) 0%, transparent 62%),
+    radial-gradient(58% 44% at 92% 2%, rgba(204, 230, 241, 0.13) 0%, transparent 60%),
+    radial-gradient(90% 60% at 50% 108%, rgba(37, 99, 235, 0.16) 0%, transparent 62%),
+    linear-gradient(180deg, #0d2231 0%, #0a1b27 58%, #06121c 100%);
+}
+
+/* A quieter aurora for the mid-page sections */
+.fx-aurora-soft {
+  background:
+    radial-gradient(80% 50% at 50% 0%, rgba(89, 175, 212, 0.10) 0%, transparent 60%),
+    linear-gradient(180deg, #06121c 0%, #0a1b27 50%, #06121c 100%);
+}
+
+/* Blueprint grid — the whiteboard/graph-paper motif, faded at the edges */
+/* ── Section bands ──────────────────────────────────────────────────────
+   The page is one uninterrupted navy field; sections never carry a
+   background of their own, because a background is what gives a section
+   an edge. A band is an absolutely-positioned wash *inside* a section,
+   masked to nothing at both ends, so the colour swells up out of the navy
+   and sinks back into it. No seam exists to draw a line on.
+
+   Give the section `relative` and drop the band in as its first child. */
+
+/* The bright one. Frost and mist, the light half of the inBuild palette —
+   this is the page's high note, and the only place the ground goes pale. */
+.band-light {
+  background:
+    /* Sky laid over both fade zones, so navy → light travels through blue
+       instead of through the grey a straight dark-to-white blend gives you.
+       Painted first, so it sits on top of the white beneath it. */
+    linear-gradient(180deg, rgba(89, 175, 212, 0.5) 0%, rgba(127, 196, 226, 0.2) 7%, rgba(255, 255, 255, 0) 19%),
+    linear-gradient(0deg, rgba(89, 175, 212, 0.44) 0%, rgba(127, 196, 226, 0.17) 7%, rgba(255, 255, 255, 0) 18%),
+    radial-gradient(128% 74% at 50% 2%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 60%),
+    radial-gradient(84% 58% at 12% 26%, rgba(204, 230, 241, 0.9) 0%, rgba(204, 230, 241, 0) 66%),
+    radial-gradient(76% 54% at 90% 72%, rgba(171, 201, 213, 0.72) 0%, rgba(171, 201, 213, 0) 68%),
+    linear-gradient(180deg, #e6f0f6 0%, #f0f5f7 40%, #e9f2f7 74%, #dfebf2 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 15%, #000 85%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 15%, #000 85%, transparent 100%);
+}
+
+/* A half-step up from the page navy — enough to separate a section from
+   its neighbours without ever resolving into an edge. */
+.band-lift {
+  background:
+    radial-gradient(78% 52% at 50% 44%, rgba(89, 175, 212, 0.17) 0%, rgba(89, 175, 212, 0) 72%),
+    linear-gradient(180deg, rgba(18, 42, 57, 0) 0%, rgba(18, 42, 57, 0.62) 46%, rgba(18, 42, 57, 0) 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+}
+
+/* Cooler and heavier than `.band-lift` — the step back down after the light
+   band, so no two sections in the run land on the same tone. */
+.band-steel {
+  background:
+    radial-gradient(70% 46% at 22% 24%, rgba(96, 139, 157, 0.20) 0%, rgba(96, 139, 157, 0) 70%),
+    radial-gradient(64% 44% at 82% 78%, rgba(89, 175, 212, 0.13) 0%, rgba(89, 175, 212, 0) 72%),
+    linear-gradient(180deg, rgba(13, 34, 49, 0) 0%, rgba(13, 34, 49, 0.85) 44%, rgba(10, 27, 39, 0.4) 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 88%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 88%, transparent 100%);
+}
+
+/* Deep, with the sky sitting low in it. Closes the page under the footer. */
+.band-deep {
+  background:
+    radial-gradient(96% 62% at 50% 100%, rgba(89, 175, 212, 0.20) 0%, rgba(89, 175, 212, 0) 62%),
+    radial-gradient(70% 48% at 50% 108%, rgba(37, 99, 235, 0.22) 0%, rgba(37, 99, 235, 0) 66%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 22%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 22%);
+}
+
+/* ── On the light band ───────────────────────────────────────────────── */
+
+/* A card cut from paper. The dark product mock inside it is the subject;
+   this is only the mount. */
+.card-light {
+  background: linear-gradient(180deg, #ffffff 0%, #f3f8fa 100%);
+  border: 1px solid rgba(96, 139, 157, 0.20);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95),
+    0 24px 54px -32px rgba(6, 18, 28, 0.42);
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.45s ease,
+    box-shadow 0.45s ease;
+}
+.card-light:hover {
+  transform: translateY(-4px);
+  border-color: rgba(89, 175, 212, 0.42);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95),
+    0 34px 70px -34px rgba(6, 18, 28, 0.5);
+}
+
+/* The ice gradient inverted: deep sky on a pale ground. */
+.text-deep-sky {
+  background: linear-gradient(102deg, #1d5f80 0%, #2e7ca3 44%, #3e8fb4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Film grain — kills gradient banding on the big navy fields */
+.fx-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
+}
+
+/* Glass surfaces */
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 1px solid var(--stroke);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 26px 64px -32px rgba(3, 11, 18, 0.95);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
+.glass-deep {
+  background: linear-gradient(180deg, rgba(18, 42, 57, 0.86) 0%, rgba(10, 27, 39, 0.92) 100%);
+  border: 1px solid var(--stroke);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+    0 30px 70px -34px rgba(3, 11, 18, 0.95);
+  backdrop-filter: blur(16px) saturate(135%);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
+}
+
+/* Interactive lift for cards */
+.card-lift {
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.45s ease,
+              box-shadow 0.45s ease;
+}
+.card-lift:hover {
+  transform: translateY(-4px);
+  --glass-border: var(--stroke-strong);
+  border-color: var(--stroke-strong);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
+    0 36px 80px -34px rgba(3, 11, 18, 0.98);
+}
+
+/* A one-pixel sky rim that lights the top edge of a card */
+.rim-sky {
+  position: relative;
+}
+.rim-sky::before {
+  content: '';
+  position: absolute;
+  inset-inline: 12%;
+  top: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(89, 175, 212, 0.55), transparent);
+  pointer-events: none;
+}
+
+/* Section divider that glows in the middle */
+.rule-glow {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(90deg, transparent, rgba(202, 229, 241, 0.22), rgba(89, 175, 212, 0.42), rgba(202, 229, 241, 0.22), transparent);
+}
+
+/* Ice gradient text for the emphasised half of a headline */
+.text-ice {
+  background: linear-gradient(102deg, #f0f5f7 0%, #cce6f1 38%, #7fc4e2 68%, #59afd4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.text-sky-fade {
+  background: linear-gradient(180deg, #f0f5f7 0%, #a9bcc7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* -- Brand lockup ------------------------------------------------------
+   Mark + wordmark, one ink, no container. Mirrored verbatim in apps/tutor/app/globals.css
+   -- change both together. Size rides on --brand-size. */
+.brand {
+  --brand-size: 20px;
+  --brand-word: 17px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  min-width: 0;
+  text-decoration: none;
+  color: var(--frost);
+  user-select: none;
+}
+
+.brand--sm {
+  --brand-size: 16px;
+  --brand-word: 14px;
+}
+
+.brand--lg {
+  --brand-size: 30px;
+  --brand-word: 25px;
+}
+
+.brand__mark {
+  width: var(--brand-size);
+  height: var(--brand-size);
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.brand__word {
+  font-family: 'Stack Sans Notch', ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--brand-word);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  color: inherit;
+}
+
+/* The whole lockup shifts as one; nothing moves. */
+a.brand {
+  transition: color 0.3s ease;
+}
+
+a.brand:hover {
+  color: var(--sky-200);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  a.brand {
+    transition: none;
+  }
+}
+
+/* Footer ASCII wordmark. The art is fixed-width, so it scales as a single
+   block: font-size drives the width (66 cols x 0.6em advance in the mono
+   face), clamped so it never outgrows the page inset. */
+.ascii-mark {
+  /* Not DM Mono: its underscore stops short of the advance width, so the
+     horizontal runs come out dashed. These faces draw connected blocks. */
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+  font-size: clamp(4px, 1.8vw, 13px); /* 66 cols x 0.6em advance ~= 515px */
+  font-weight: 400;
+  line-height: 1; /* rows must touch or the block strokes break */
+  letter-spacing: 0;
+  white-space: pre;
+  background: linear-gradient(
+    180deg,
+    rgba(202, 229, 241, 0.6) 0%,
+    rgba(127, 196, 226, 0.38) 55%,
+    rgba(89, 175, 212, 0.18) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Gradient-border wrapper: put content in a child with its own bg */
+.border-gradient {
+  position: relative;
+  background: linear-gradient(160deg, rgba(89, 175, 212, 0.5), rgba(202, 229, 241, 0.10) 32%, rgba(89, 175, 212, 0.06) 60%, rgba(95, 164, 249, 0.35));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LAYOUT
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.landing-section-inset {
+  margin-left: clamp(1rem, 4vw, 2.75rem);
+  margin-right: clamp(1rem, 4vw, 2.75rem);
 }
 
 .cm-canvas {
@@ -163,6 +723,10 @@ h4 {
   will-change: transform;
   user-select: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MOTION
+   ═══════════════════════════════════════════════════════════════════════ */
 
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(24px); filter: blur(6px); }
@@ -191,20 +755,78 @@ h4 {
   animation: hero-rise 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-fade-up,
-  .animate-fade-down,
-  .animate-hero-rise {
-    animation: none;
-  }
+/* Scroll reveal — driven by the <Reveal> component's IntersectionObserver.
+   One transform composed from custom properties, so a new variant is three
+   lines and the browser still only ever animates opacity/transform/filter. */
+.reveal {
+  --reveal-x: 0px;
+  --reveal-y: 26px;
+  --reveal-s: 1;
+  --reveal-blur: 5px;
+  --reveal-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  .chat-typing-dot {
-    animation: none;
-  }
+  opacity: 0;
+  transform: translate3d(var(--reveal-x), var(--reveal-y), 0) scale(var(--reveal-s));
+  filter: blur(var(--reveal-blur));
+  transition:
+    opacity 0.85s var(--reveal-ease),
+    transform 0.85s var(--reveal-ease),
+    filter 0.85s var(--reveal-ease);
+  will-change: opacity, transform;
+}
+.reveal.is-visible {
+  opacity: 1;
+  --reveal-x: 0px;
+  --reveal-y: 0px;
+  --reveal-s: 1;
+  --reveal-blur: 0px;
+}
 
-  .marquee-track {
-    animation: none;
-  }
+.reveal--left { --reveal-x: -30px; --reveal-y: 0px; }
+.reveal--right { --reveal-x: 30px; --reveal-y: 0px; }
+/* Settles forward out of the page rather than up it — for panels and mockups. */
+.reveal--rise { --reveal-y: 34px; --reveal-s: 0.965; --reveal-blur: 6px; }
+.reveal--fade { --reveal-y: 0px; --reveal-blur: 2px; }
+
+/* A group reveals on one observer and lets its children follow in order, so a
+   row of cards costs one IntersectionObserver rather than one each. */
+.reveal-group > * {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+  filter: blur(4px);
+  transition:
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.reveal-group.is-visible > * {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+.reveal-group > *:nth-child(2) { transition-delay: 90ms; }
+.reveal-group > *:nth-child(3) { transition-delay: 180ms; }
+.reveal-group > *:nth-child(4) { transition-delay: 270ms; }
+.reveal-group > *:nth-child(5) { transition-delay: 360ms; }
+.reveal-group > *:nth-child(6) { transition-delay: 450ms; }
+
+/* Slow breathing glow for ambient orbs */
+@keyframes aurora-drift {
+  0%   { transform: translate3d(-2%, 0, 0) scale(1); opacity: 0.85; }
+  50%  { transform: translate3d(2%, -2%, 0) scale(1.06); opacity: 1; }
+  100% { transform: translate3d(-2%, 0, 0) scale(1); opacity: 0.85; }
+}
+.animate-aurora {
+  animation: aurora-drift 18s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(89, 175, 212, 0.45); }
+  100% { box-shadow: 0 0 0 12px rgba(89, 175, 212, 0); }
+}
+.animate-pulse-ring {
+  animation: pulse-ring 2s ease-out infinite;
 }
 
 @keyframes marquee-scroll {
@@ -247,30 +869,6 @@ h4 {
   animation: chat-enter-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.hero-grass-blend {
-  filter: saturate(1.18) brightness(0.9) contrast(1.06);
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 96%, rgba(0, 0, 0, 0.92) 98%, rgba(0, 0, 0, 0.45) 99.5%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 96%, rgba(0, 0, 0, 0.92) 98%, rgba(0, 0, 0, 0.45) 99.5%, transparent 100%);
-}
-
-.hero-edge-blend {
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    transparent 72%,
-    rgba(242, 243, 247, 0.12) 88%,
-    rgba(242, 243, 247, 0.38) 96%,
-    #F2F3F7 100%
-  );
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chat-enter-right,
-  .chat-enter-up {
-    animation: none;
-  }
-}
-
 @keyframes footer-wave-drift {
   from { transform: translate3d(-1.5%, 1%, 0) scale(1.02); }
   to { transform: translate3d(1.5%, -1%, 0) scale(1.05); }
@@ -280,8 +878,139 @@ h4 {
   animation: footer-wave-drift 16s ease-in-out infinite alternate;
 }
 
+/* Hero → next-section seam: navy fading into navy, no hard edge */
+.hero-edge-blend {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    transparent 62%,
+    rgba(6, 18, 28, 0.35) 82%,
+    rgba(6, 18, 28, 0.75) 93%,
+    #06121c 100%
+  );
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fade-down,
+  .animate-hero-rise,
+  .animate-aurora,
+  .animate-pulse-ring,
+  .chat-enter-right,
+  .chat-enter-up,
+  .chat-typing-dot,
+  .marquee-track,
   .footer-wave {
     animation: none;
+  }
+  .reveal,
+  .reveal-group > * {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+}
+
+/* Nav links: a sky rule wipes in from the left rather than snapping on, so the
+   chrome has the same easing as everything below it. */
+.nav-link {
+  position: relative;
+}
+.nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--sky-500), rgba(89, 175, 212, 0));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nav-link:hover::after,
+.nav-link:focus-visible::after {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-link::after {
+    transition: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   METAL FRAME
+   The bezel the tutor's whiteboard sits in, lifted out of LiveLessonBoard so
+   the use-case stage is mounted in the same hardware rather than a flat card:
+   a cool-navy brushed face, a lit top edge, a shadowed bottom one, and a
+   hairline ring. The two shadows are a contact shadow plus an ambient one,
+   which is what makes it read as a physical object on the page.
+   ═══════════════════════════════════════════════════════════════════════ */
+.metal-frame {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(202, 229, 241, 0.05) 0%,
+      transparent 22%,
+      transparent 84%,
+      rgba(3, 11, 18, 0.30) 100%
+    ),
+    linear-gradient(150deg, #16303f 0%, #142c3b 45%, #102534 100%);
+  /* One ambient shadow and a hairline, rather than the tutor's full contact
+     stack: at this size a heavy bezel buries the sparkle inside it. */
+  box-shadow:
+    0 34px 80px -34px rgba(3, 11, 18, 0.75),
+    0 0 0 1px rgba(202, 229, 241, 0.10),
+    inset 0 1px 0 rgba(202, 229, 241, 0.07);
+}
+
+/* The screw-line: a brushed highlight that travels the bezel's top edge. */
+.metal-frame::before {
+  content: '';
+  position: absolute;
+  inset-inline: 8%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(202, 229, 241, 0.55), transparent);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* A slow sheen crossing the bezel, so the metal is never completely static. */
+@keyframes metal-sheen {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(220%); }
+}
+.metal-sheen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.metal-sheen::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 14%;
+  transform: translateX(-120%);
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(202, 229, 241, 0.07) 42%,
+    rgba(127, 196, 226, 0.11) 52%,
+    transparent
+  );
+  filter: blur(6px);
+  animation: metal-sheen 13s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metal-sheen::after {
+    animation: none;
+    opacity: 0;
   }
 }

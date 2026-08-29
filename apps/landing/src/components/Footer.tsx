@@ -1,6 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowUpRight, Check } from 'lucide-react'
+import { ArrowUpRight, Check, Play } from 'lucide-react'
+import Brand from './Brand'
+import Button from './ui/Button'
+import DitherHalo from './dither/DitherHalo'
 import Logo from './Logo'
+import Reveal from './Reveal'
 import { TUTOR_APP_HREF, tutorQuestionHref } from '../lib/tutorAppHref'
 
 type FooterLink = { label: string; href: string }
@@ -25,8 +29,8 @@ const YOUTUBE_PATH =
   'M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.5A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.5 9.38.5 9.38.5s7.5 0 9.38-.5a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81zM9.55 15.57V8.43L15.82 12z'
 
 const NAVIGATION_LINKS: FooterLink[] = [
-  { label: 'How it works', href: '#how-it-works' },
-  { label: 'Features', href: '#features' },
+  { label: 'How it works', href: '#lesson' },
+  { label: 'Use cases', href: '#use-cases' },
   { label: 'Pricing', href: '#pricing' },
   { label: 'Try the app', href: TUTOR_APP_HREF },
 ]
@@ -55,56 +59,31 @@ const LUCKY_QUESTIONS = [
 
 const CONTAINER = 'mx-auto max-w-6xl px-5 sm:px-8 lg:px-10'
 
+/* ANSI Shadow wordmark. Fixed-width art, so it scales as one block via
+   `.ascii-mark`'s clamped font-size rather than by wrapping. */
+const WORDMARK = [
+  ' █████╗  ██████╗ ██████╗███████╗██╗     ██╗   ██╗████████╗███████╗',
+  '██╔══██╗██╔════╝██╔════╝██╔════╝██║     ██║   ██║╚══██╔══╝██╔════╝',
+  '███████║██║     ██║     █████╗  ██║     ██║   ██║   ██║   █████╗  ',
+  '██╔══██║██║     ██║     ██╔══╝  ██║     ██║   ██║   ██║   ██╔══╝  ',
+  '██║  ██║╚██████╗╚██████╗███████╗███████╗╚██████╔╝   ██║   ███████╗',
+  '╚═╝  ╚═╝ ╚═════╝ ╚═════╝╚══════╝╚══════╝ ╚═════╝    ╚═╝   ╚══════╝',
+].join('\n')
+
 function FooterLinkList({ links }: { links: FooterLink[] }) {
   return (
-    <ul className="mt-5 space-y-3.5">
+    <ul className="mt-5 space-y-3">
       {links.map((link) => (
         <li key={link.label}>
           <a
             href={link.href}
-            className="text-[15px] font-medium text-brand-fg-soft no-underline transition-colors hover:text-brand-primary"
+            className="text-[15px] text-[rgba(240,245,247,0.58)] no-underline transition-colors duration-300 hover:text-frost"
           >
             {link.label}
           </a>
         </li>
       ))}
     </ul>
-  )
-}
-
-function WaveArtwork() {
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="footer-wave absolute inset-0">
-        {/* Wide ambient glow rising from below the bottom edge */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(150% 110% at 60% 110%, rgba(37, 99, 235, 0.5) 0%, rgba(37, 99, 235, 0.22) 40%, transparent 70%)',
-          }}
-        />
-        {/* Hot core of the horizon arc, anchored just below the bottom-right */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(110% 75% at 60% 104%, rgba(224, 242, 255, 0.95) 0%, rgba(95, 164, 249, 0.85) 18%, rgba(37, 99, 235, 0.5) 40%, transparent 65%)',
-          }}
-        />
-        {/* Faint secondary glow toward the upper right */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(55% 40% at 90% 30%, rgba(37, 99, 235, 0.18) 0%, transparent 70%)',
-          }}
-        />
-      </div>
-      {/* Vignettes: keep top near-black for legibility, deepen the bottom */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#06061F]/90 via-[#06061F]/20 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#06061F]/35 via-transparent to-transparent" />
-    </div>
   )
 }
 
@@ -122,12 +101,12 @@ function FeelingLucky() {
         event.preventDefault()
         pickRandomQuestion()
       }}
-      className="group absolute right-6 top-6 flex flex-col items-center gap-3 no-underline sm:right-10 sm:top-10 lg:static lg:shrink-0"
+      className="group flex shrink-0 flex-col items-center gap-3 no-underline"
     >
-      <span className="flex h-14 w-14 rotate-12 items-center justify-center rounded-2xl bg-brand-primary text-white shadow-lg shadow-brand-primary/40 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-105 sm:h-16 sm:w-16">
+      <span className="flex h-14 w-14 rotate-12 items-center justify-center rounded-2xl border border-[rgba(202,229,241,0.16)] bg-[rgba(89,175,212,0.10)] text-sky-300 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-105 sm:h-16 sm:w-16">
         <Logo className="h-6 w-6 sm:h-7 sm:w-7" />
       </span>
-      <span className="hidden items-center gap-1 font-hand text-[24px] font-semibold leading-none text-[#6B7280] transition-colors group-hover:text-brand-fg-soft sm:flex">
+      <span className="hidden items-center gap-1 font-hand text-[24px] font-semibold leading-none text-[rgba(240,245,247,0.5)] transition-colors duration-300 group-hover:text-frost sm:flex">
         <ArrowUpRight className="h-4 w-4" strokeWidth={2.5} />
         Feeling lucky?
       </span>
@@ -145,11 +124,11 @@ function SubscribeForm() {
 
   if (subscribed) {
     return (
-      <p className="flex items-center gap-2 text-[15px] font-medium text-brand-fg-soft">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-primary text-white">
+      <p className="flex items-center gap-2 text-[15px] text-frost">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full border border-[rgba(202,229,241,0.20)] bg-[rgba(89,175,212,0.14)] text-sky-300">
           <Check className="h-3.5 w-3.5" strokeWidth={3} />
         </span>
-        You&rsquo;re on the list &mdash; talk soon.
+        You&rsquo;re on the list. Talk soon.
       </p>
     )
   }
@@ -157,123 +136,130 @@ function SubscribeForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-center gap-2 rounded-full bg-white py-1.5 pl-5 pr-1.5 shadow-sm ring-1 ring-black/5"
+      className="glass flex items-center gap-2 rounded-2xl py-1.5 pl-5 pr-1.5"
     >
       <input
         type="email"
         required
         placeholder="Enter email address"
-        className="min-w-0 flex-1 bg-transparent py-2 text-sm text-brand-fg-soft outline-none placeholder:text-gray-400"
+        className="min-w-0 flex-1 bg-transparent py-2 text-sm text-frost outline-none placeholder:text-[rgba(240,245,247,0.42)]"
       />
-      <button
-        type="submit"
-        className="shrink-0 rounded-full bg-[#151517] px-5 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-black sm:px-6 sm:py-3 sm:text-sm"
-      >
+      <Button type="submit" variant="sky" size="sm" className="shrink-0">
         Subscribe
-      </button>
+      </Button>
     </form>
   )
 }
 
 export default function Footer() {
   return (
-    <footer id="pricing" className="landing-section-inset bg-brand-section">
-      <div className={`${CONTAINER} pt-10 sm:pt-12 lg:pt-14`}>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5">
-          {/* Dark showcase card */}
-          <div className="relative min-h-[480px] overflow-hidden rounded-[28px] bg-brand-footer lg:col-span-5 lg:min-h-[560px]">
-            <WaveArtwork />
+    <footer id="pricing" className="relative overflow-hidden">
+      {/* The page's closing tone. `.band-deep` sits the sky low in the navy and
+          masks away at the top, so the seam with <UseCasesSection> never shows. */}
+      <div aria-hidden className="band-deep pointer-events-none absolute inset-0" />
 
-            <div className="relative z-10 flex h-full flex-col justify-between p-8 sm:p-10">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand-fg">
-                  <Logo className="h-5 w-5" />
-                </span>
-                <span className="text-lg font-semibold tracking-tight text-white">
-                  Accelute
-                </span>
-              </div>
-
-              <div>
-                <p className="font-heading text-2xl leading-[1.15] tracking-[-0.02em] sm:text-[28px]">
-                  <span className="block text-white">Every subject, explained</span>
-                  <span className="block text-white/60">
-                    out loud, stroke by stroke.
-                  </span>
-                </p>
-
-                <div className="mt-9 flex flex-col items-start gap-5 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-                  <span className="-rotate-2 whitespace-nowrap pb-1 font-hand text-[24px] font-semibold leading-none text-white/85 sm:text-[26px]">
-                    Stay in touch!
-                  </span>
-                  <div className="flex gap-2.5">
-                    {SOCIAL_LINKS.map(({ label, href, path }) => (
-                      <a
-                        key={label}
-                        href={href}
-                        aria-label={label}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white ring-1 ring-white/10 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/10 hover:ring-white/25 sm:h-11 sm:w-11"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="h-[17px] w-[17px]"
-                          fill="currentColor"
-                          aria-hidden
-                        >
-                          <path d={path} />
-                        </svg>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Light utility card */}
-          <div className="relative flex flex-col rounded-[28px] bg-white p-6 ring-1 ring-black/5 sm:p-10 lg:col-span-7">
-            <div className="flex items-start justify-between gap-8">
-              <div className="grid w-full grid-cols-1 gap-y-10 sm:grid-cols-2 sm:gap-x-20 sm:gap-y-0 lg:w-auto">
-                <div>
-                  <h3 className="font-hand text-[28px] font-semibold leading-none text-[#6B7280] sm:text-[32px]">
-                    Navigation
-                  </h3>
-                  <FooterLinkList links={NAVIGATION_LINKS} />
-                </div>
-                <div>
-                  <h3 className="font-hand text-[28px] font-semibold leading-none text-[#6B7280] sm:text-[32px]">
-                    Company
-                  </h3>
-                  <FooterLinkList links={COMPANY_LINKS} />
-                </div>
-              </div>
-              <FeelingLucky />
-            </div>
-
-            <div className="mt-auto flex flex-col gap-8 pt-14 sm:flex-row sm:items-end sm:justify-between lg:pt-16">
-              <p className="order-2 text-xs text-[#8A8A8A] sm:order-1">
-                &copy; 2026 Accelute. All rights reserved.
-              </p>
-
-              <div className="order-1 w-full max-w-md sm:order-2 sm:w-auto">
-                <p className="text-base text-[#6B7280]">Learning moves fast.</p>
-                <p className="mt-1 font-heading text-xl font-bold tracking-[-0.02em] text-brand-fg-soft sm:text-2xl">
-                  Stay ahead with Accelute.
-                </p>
-                <div className="mt-4">
-                  <SubscribeForm />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* The same halftone family as the use-case bloom, turned on its head:
+          coarser cells and a wide field rising off the bottom edge rather than
+          a tight bloom behind a heading. Same texture, different weather. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[620px] opacity-[0.28]"
+        style={{
+          WebkitMaskImage:
+            'radial-gradient(86% 96% at 50% 104%, #000 0%, rgba(0,0,0,0.5) 46%, transparent 82%)',
+          maskImage:
+            'radial-gradient(86% 96% at 50% 104%, #000 0%, rgba(0,0,0,0.5) 46%, transparent 82%)',
+        }}
+      >
+        <DitherHalo
+          tint="#59AFD4"
+          strength={0.72}
+          center={[0.5, 1.02]}
+          radius={[0.66, 0.78]}
+          cell={5}
+        />
       </div>
 
-      {/* Giant watermark */}
-      <div aria-hidden className="pointer-events-none mt-12 select-none overflow-hidden sm:mt-16">
-        <span className="block whitespace-nowrap text-center font-heading text-[clamp(5rem,17vw,15rem)] font-extrabold leading-none tracking-[-0.04em] text-[#E9EBF1]">
-          Accelute
-        </span>
+      <div className={`relative z-10 ${CONTAINER} pb-10 pt-28 sm:pt-32 lg:pt-40`}>
+        {/* ── The call to action ── */}
+        <Reveal variant="rise" className="mx-auto max-w-3xl text-center">
+          <h2 className="type-h2 text-frost">
+            Every subject, explained <span className="text-ice">out loud</span>,
+            stroke by stroke.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-[rgba(240,245,247,0.62)] sm:text-lg">
+            Ask your first question and watch the board fill in as the tutor talks
+            you through it.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Button href={TUTOR_APP_HREF} size="lg">
+              <Play className="h-4 w-4" />
+              Try it free
+            </Button>
+            <Button href="#lesson" variant="ghost" size="lg">
+              See how it works
+            </Button>
+          </div>
+        </Reveal>
+
+        <hr className="rule-glow mt-20 border-0 sm:mt-24" />
+
+        {/* ── Directory ── */}
+        <div className="mt-12 flex flex-col gap-12 lg:flex-row lg:justify-between lg:gap-16">
+          <div className="flex flex-col gap-8">
+            <Brand href="/" />
+            <div className="flex gap-2.5">
+              {SOCIAL_LINKS.map(({ label, href, path }) => (
+                <a
+                  key={label}
+                  href={href}
+                  aria-label={label}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(202,229,241,0.13)] bg-white/[0.03] text-[rgba(240,245,247,0.7)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[rgba(202,229,241,0.26)] hover:text-frost sm:h-11 sm:w-11"
+                >
+                  <svg viewBox="0 0 24 24" className="h-[17px] w-[17px]" fill="currentColor" aria-hidden>
+                    <path d={path} />
+                  </svg>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid flex-1 grid-cols-1 gap-y-10 sm:grid-cols-2 sm:gap-x-12 lg:max-w-md">
+            <div>
+              <h3 className="type-accent-s text-[rgba(202,229,241,0.5)]">Navigation</h3>
+              <FooterLinkList links={NAVIGATION_LINKS} />
+            </div>
+            <div>
+              <h3 className="type-accent-s text-[rgba(202,229,241,0.5)]">Company</h3>
+              <FooterLinkList links={COMPANY_LINKS} />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-8 lg:items-end">
+            <div className="w-full max-w-sm">
+              <p className="text-[15px] text-[rgba(240,245,247,0.58)]">Learning moves fast.</p>
+              <p className="mt-1 font-heading text-xl tracking-[-0.02em] text-frost sm:text-2xl">
+                Stay ahead with Accelute.
+              </p>
+              <div className="mt-4">
+                <SubscribeForm />
+              </div>
+            </div>
+            <FeelingLucky />
+          </div>
+        </div>
+
+        <p className="mt-16 text-xs text-[rgba(240,245,247,0.42)]">
+          &copy; 2026 Accelute. All rights reserved.
+        </p>
+      </div>
+
+      {/* Wordmark, set as ASCII */}
+      <div
+        aria-hidden
+        className="pointer-events-none relative z-10 mt-8 flex select-none justify-center overflow-hidden pb-10 sm:mt-12 sm:pb-14"
+      >
+        <pre className="ascii-mark m-0">{WORDMARK}</pre>
       </div>
     </footer>
   )
