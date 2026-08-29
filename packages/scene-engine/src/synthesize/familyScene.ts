@@ -5,7 +5,7 @@
  */
 import { compileSceneDocument } from "../compile/compiler";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
-import { parseMathExpression } from "../math/expression";
+import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import { evaluateOpticsLaw } from "../physics/opticsLaws";
 import {
   applyStemFamilyOverrides,
@@ -27,11 +27,17 @@ import {
   isSemiconductorBandStem,
   isSpaceGeometryStem,
   isTwoLoopNetworkStem,
+  familiesFromProblemStructure,
+  type ProblemStructureView,
   normalizeStem,
   orderFamiliesByStemPreference,
   riverBoatVariant,
   type SceneVisualFamily,
 } from "./familyClassification";
+import { demandRejection, sceneDemand } from "./sceneDemand";
+import { findStatedCurves, type StatedCurve } from "./statedEquations";
+import { metricAssertions } from "../archetypes/contract";
+import { synthesizeArchetypeScene } from "../archetypes";
 import {
   SCENE_DOCUMENT_VERSION,
   type RenderScene,
@@ -57,6 +63,12 @@ export interface FamilySceneInput {
   question: string;
   turnPlan?: unknown;
   families?: readonly string[];
+  /**
+   * Solved problem structure. When present it is the live catalog: it orders
+   * the families and sharpens the picture demand, so the diagram follows the
+   * solve instead of a second English reading of the stem.
+   */
+  problemIR?: ProblemStructureView | null;
 }
 
 export interface SynthesizedFamilyScene {
@@ -124,14 +136,41 @@ function synthesizeFromFamilies(
   // refers to a figure we do not have and names no drawable apparatus gets no
   // fake circuit/network ink — the caller degrades to text-only.
   if (figureAbsentWithoutNamedApparatus(normalizeStem(question))) return null;
+  // Parameterized archetypes run first: they compute geometry from typed slots
+  // and have already faced the same picture demand. They return null for
+  // anything they do not own, so the family builders below keep the rest.
+  const archetype = synthesizeArchetypeScene({
+    question,
+    turnPlan: input.turnPlan,
+    problemIR: input.problemIR ?? null,
+    schematic,
+  });
+  if (archetype) {
+    return {
+      document: archetype.document,
+      renderScene: archetype.renderScene,
+      validationReport: archetype.validationReport,
+      tier: archetype.tier,
+      nonMetric: archetype.nonMetric,
+      reason: archetype.reason,
+      family: archetype.family,
+    };
+  }
   const quantities = collectPlanQuantities(input.turnPlan);
-  const families = resolveRequestedFamilies(question, input.families);
+  const families = resolveRequestedFamilies(question, input.families, input.problemIR);
+  // What this stem's picture must (and must not) contain, whichever family
+  // ends up drawing it.
+  const demand = sceneDemand(question, input.problemIR);
   for (const family of families) {
     const builder = FAMILY_BUILDERS[family];
     if (!builder) continue;
     const document = builder(question, quantities, schematic);
     const compiled = document ? tryCompile(document) : null;
     if (!compiled) continue;
+    // Compiling proves the geometry is valid, not that it is this question's
+    // geometry. A candidate that contradicts the stem loses its turn to the
+    // next family; if none survives the caller teaches text-only.
+    if (demandRejection(compiled.document, demand)) continue;
     // Tier honesty (P0): exact_verified needs a fatal plan-backed metric
     // assertion (a real refraction angle, a real image-distance ratio) — never
     // `exists`/`label_attached`/topology proofs alone. Display-scale families
@@ -158,21 +197,20 @@ function synthesizeFromFamilies(
 }
 
 /**
- * Predicates that assert a numeric relationship derived from plan/stem
- * quantities (Snell indices, a law-derived image-distance ratio, a sampled
- * curve point). `exists`, `label_attached`, and topology proofs (`path`,
- * `sameTerminalPair`) are not metric and cannot carry `exact_verified`.
+ * `exact_verified` needs a fatal assertion that checks a NUMBER, not a
+ * relation that any plausible drawing would satisfy. One definition serves
+ * every path (archetypes, family builders, and LLM candidates through
+ * `tierForForeignDocument`) so the tiers cannot drift apart.
+ *
+ * The shared rule is stricter than the four-predicate list it replaced: the
+ * assertion must carry a non-boolean `expected`, so `exists`-style proofs and
+ * topology predicates can never earn the exact label. It is also wider —
+ * `angle_between`, `vector_sum` and `root` are genuine numeric claims, and
+ * excluding them meant a figure drawn from the question's own numbers could
+ * not be labelled exact even when it was provably right.
  */
-const PLAN_METRIC_PROOF_PREDICATES: ReadonlySet<string> = new Set([
-  "snells_law",
-  "equal_angle",
-  "distance_ratio",
-  "function_value",
-]);
-
 function hasPlanMetricProof(document: SceneDocument): boolean {
-  return document.assertions.some((assertion) =>
-    assertion.severity === "fatal" && PLAN_METRIC_PROOF_PREDICATES.has(assertion.predicate));
+  return metricAssertions(document).length > 0;
 }
 
 /**
@@ -210,13 +248,29 @@ function orderedFamilies(families: readonly SceneVisualFamily[]): SceneVisualFam
 }
 
 /** Family classification lives in ./familyClassification — the one family-program seam. */
-function resolveRequestedFamilies(question: string, requested?: readonly string[]): SceneVisualFamily[] {
+function resolveRequestedFamilies(
+  question: string,
+  requested?: readonly string[],
+  problemIR?: ProblemStructureView | null,
+): SceneVisualFamily[] {
   const stem = normalizeStem(question);
+  const structure = familiesFromProblemStructure(problemIR);
   const merged = new Set<SceneVisualFamily>([
+    ...structure,
     ...(requested ?? []).filter(isSceneVisualFamily),
     ...inferFamiliesFromQuestion(question),
   ]);
   applyStemFamilyOverrides(stem, merged);
+  // Structure is the live catalog when it exists: the English tables may add
+  // coverage but may not revoke a solved family, and solved families keep the
+  // leading positions. This mirrors inferSceneCapabilities so the planner and
+  // the fallback cannot disagree about what the question is.
+  if (structure.length > 0) {
+    for (const family of structure) merged.add(family);
+    const rest = orderFamiliesByStemPreference(stem, orderedFamilies([...merged]))
+      .filter((family) => !structure.includes(family));
+    return [...structure, ...rest];
+  }
   const ordered = orderedFamilies([...merged]);
   return orderFamiliesByStemPreference(stem, ordered);
 }
@@ -540,8 +594,13 @@ function buildSphericalInterface(
       { id: "make_axis", operator: "line", inputs: { start: "O", end: "I" }, outputs: ["axis"] },
       {
         id: "make_interface",
-        operator: "arc",
-        inputs: { center: "C", radius: radiusDisplay, startAngle: 120, endAngle: 240, angleUnit: "degrees" },
+        operator: "spherical_surface",
+        inputs: {
+          vertex: "V",
+          center: "C",
+          axis: "axis",
+          halfHeight: radiusDisplay * 0.55,
+        },
         outputs: ["interface"],
       },
       { id: "make_normal", operator: "normal_at", inputs: { point: "contact", surface: "interface" }, outputs: ["normal"] },
@@ -574,20 +633,6 @@ function buildSphericalInterface(
         targetId: "setup",
         dependsOn: [],
         narrationIntent: "Begin with the spherical surface and the points O, V, C, and I on the axis.",
-      },
-      {
-        id: "focus_object",
-        action: "focus",
-        targetId: "O",
-        dependsOn: ["reveal_setup"],
-        narrationIntent: "This is O, the object.",
-      },
-      {
-        id: "focus_image",
-        action: "focus",
-        targetId: "I",
-        dependsOn: ["focus_object"],
-        narrationIntent: "This is I, the image.",
       },
     ],
   });
@@ -877,20 +922,6 @@ function buildParaxialMirror(
         dependsOn: ["reveal_object_image"],
         narrationIntent: "Follow the principal rays from the object to the image.",
       },
-      {
-        id: "focus_object",
-        action: "focus",
-        targetId: "object_base",
-        dependsOn: ["reveal_principal_rays"],
-        narrationIntent: "This is O, the object.",
-      },
-      {
-        id: "focus_image",
-        action: "focus",
-        targetId: "image_base",
-        dependsOn: ["focus_object"],
-        narrationIntent: "This is I, the image.",
-      },
     ],
   });
 }
@@ -929,7 +960,7 @@ function buildThinLens(
       { id: "image_base", kind: "point", role: "image position", label: "I" },
       { id: "image_tip", kind: "point", role: "image tip" },
       { id: "axis", kind: "segment", role: "principal axis" },
-      { id: "lens", kind: "line", role: "thin lens", label: "L" },
+      { id: "lens", kind: "polygon", role: "thin lens", label: "L" },
       { id: "object", kind: "vector", role: "object" },
       { id: "image", kind: "vector", role: "image" },
     ],
@@ -943,14 +974,25 @@ function buildThinLens(
       pointAt("image_base", imageX, 0),
       pointAt("image_tip", imageX, imageHeight),
       { id: "make_axis", operator: "segment", inputs: { start: "left_axis", end: "right_axis" }, outputs: ["axis"] },
-      { id: "make_lens", operator: "perpendicular_through", inputs: { through: "lens_center", line: "axis" }, outputs: ["lens"] },
+      {
+        id: "make_lens",
+        operator: "lens_section",
+        inputs: {
+          center: "lens_center",
+          axis: "axis",
+          radius1: (!/\b(?:concave|diverging)\b/i.test(question) ? 1 : -1) * Math.max(Math.abs(values.f) * 0.8, 1),
+          radius2: (!/\b(?:concave|diverging)\b/i.test(question) ? -1 : 1) * Math.max(Math.abs(values.f) * 0.8, 1),
+          halfHeight: Math.max(Math.abs(objectHeight) * 2, Math.abs(values.f) * 0.16),
+        },
+        outputs: ["lens"],
+      },
       { id: "make_object", operator: "vector", inputs: { start: "object_base", end: "object_tip" }, outputs: ["object"] },
       { id: "make_image", operator: "vector", inputs: { start: "image_base", end: "image_tip" }, outputs: ["image"] },
     ],
     assertions: [
       { id: "object_on_axis", predicate: "on", entities: ["object_base", "axis"], expected: true, severity: "fatal" },
       { id: "image_on_axis", predicate: "on", entities: ["image_base", "axis"], expected: true, severity: "fatal" },
-      { id: "lens_perp", predicate: "perpendicular", entities: ["lens", "axis"], expected: true, severity: "fatal" },
+      { id: "centre_on_axis", predicate: "on", entities: ["lens_center", "axis"], expected: true, severity: "fatal" },
       {
         id: "image_distance_ratio",
         predicate: "distance_ratio",
@@ -991,20 +1033,6 @@ function buildThinLens(
         dependsOn: ["reveal_lens_setup"],
         narrationIntent: "O is the object, and I is the image.",
       },
-      {
-        id: "focus_object",
-        action: "focus",
-        targetId: "object_base",
-        dependsOn: ["reveal_object_image"],
-        narrationIntent: "This is O, the object.",
-      },
-      {
-        id: "focus_image",
-        action: "focus",
-        targetId: "image_base",
-        dependsOn: ["focus_object"],
-        narrationIntent: "This is I, the image.",
-      },
     ],
   });
 }
@@ -1014,6 +1042,12 @@ function buildCircuit(
   quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  if (
+    /(?:lens maker|spherical (?:surface|interface|mirror)|thin lens|principal axis|radius of curvature)/i.test(question)
+    && !/(?:resistor|ohm|circuit|battery|galvanometer)/i.test(question)
+  ) {
+    return null;
+  }
   const resistors = extractResistors(question, quantities);
   if (isDiodeDeviceCircuit(question) && resistors.length < 2) {
     return diodeBiasDocument(question);
@@ -1198,11 +1232,177 @@ function buildSeparatedCircuitViews(
   });
 }
 
+
+/**
+ * Draw the curves the stem actually states.
+ *
+ * The conic builders below fall back to a canonical `x^2/4 - y^2 = 1`, so a
+ * question about one hyperbola was taught with a different hyperbola. When the
+ * stem's own equation is readable it wins; when it is not, nothing here fires
+ * and the caller degrades honestly.
+ */
+const STATED_CURVE_SAMPLE_LADDER = [97, 89, 113, 129, 65] as const;
+
+function buildStatedCurveScene(question: string): SceneDocument | null {
+  const curves = findStatedCurves(question);
+  // A line on its own is not the subject of a question; it is a tangent, a
+  // chord or an axis belonging to a curve we could not read.
+  if (!curves.some((curve) => curve.kind !== "line")) return null;
+  const framed = curves.filter((curve) => curve.kind !== "line");
+  if (framed.length === 0 || framed.length > 3) return null;
+  // An explicit y = f(x) parabola belongs to function_curve: the sampled curve
+  // is what tangent_line, normal_line and function_value proofs attach to.
+  // Only a curve that cannot be written as one function needs implicit_curve.
+  if (
+    framed.every((curve) => curve.kind === "parabola")
+    && extractExplicitFunctions(question).length > 0
+  ) {
+    return null;
+  }
+
+  let xMin = Infinity; let xMax = -Infinity; let yMin = Infinity; let yMax = -Infinity;
+  for (const curve of framed) {
+    if (!curve.anchor || !curve.extent) return null;
+    xMin = Math.min(xMin, curve.anchor.x - curve.extent.x);
+    xMax = Math.max(xMax, curve.anchor.x + curve.extent.x);
+    yMin = Math.min(yMin, curve.anchor.y - curve.extent.y);
+    yMax = Math.max(yMax, curve.anchor.y + curve.extent.y);
+  }
+  // Keep the origin in frame so the axes read as axes.
+  xMin = Math.min(0, xMin); xMax = Math.max(0, xMax);
+  yMin = Math.min(0, yMin); yMax = Math.max(0, yMax);
+  if (!(xMin < xMax) || !(yMin < yMax)) return null;
+  if (!Number.isFinite(xMin + xMax + yMin + yMax)) return null;
+
+  const drawn = [...framed, ...curves.filter((curve) => curve.kind === "line")].slice(0, 4);
+  for (const samples of STATED_CURVE_SAMPLE_LADDER) {
+    const document = statedCurveDocument(question, drawn, { xMin, xMax, yMin, yMax }, samples);
+    if (document && tryCompile(document)) return document;
+  }
+  return null;
+}
+
+function statedCurveDocument(
+  question: string,
+  curves: StatedCurve[],
+  bounds: { xMin: number; xMax: number; yMin: number; yMax: number },
+  samples: number,
+): SceneDocument | null {
+  const entities: SceneEntity[] = [{ id: "axes", kind: "axes", role: "display axes" }];
+  const constructions: SceneConstruction[] = [{
+    id: "make_axes",
+    operator: "axes",
+    inputs: { ...bounds },
+    outputs: ["axes"],
+  }];
+  const assertions: SceneAssertion[] = [];
+
+  curves.forEach((curve, index) => {
+    const id = `curve_${index + 1}`;
+    entities.push({
+      id,
+      kind: curve.kind === "line" ? "line" : "polyline",
+      role: `${curve.kind} stated by the question`,
+      label: compactLabel(statedCurveLabel(curve)),
+    });
+    if (curve.kind === "circle" && curve.anchor && curve.radius) {
+      constructions.push({
+        id: `make_${id}`,
+        operator: "circle",
+        inputs: { center: [curve.anchor.x, curve.anchor.y], radius: curve.radius },
+        outputs: [id],
+      });
+    } else if (curve.kind === "line") {
+      const points = lineEndpointsInBounds(curve, bounds);
+      if (!points) return;
+      constructions.push({
+        id: `make_${id}`,
+        operator: "segment",
+        inputs: { start: points[0], end: points[1] },
+        outputs: [id],
+      });
+    } else {
+      constructions.push({
+        id: `make_${id}`,
+        operator: "implicit_curve",
+        inputs: { expression: curve.expression, ...bounds, xSamples: samples, ySamples: samples },
+        outputs: [id],
+      });
+    }
+    assertions.push({
+      id: `exists_${id}`,
+      predicate: "exists",
+      entities: [id],
+      expected: true,
+      severity: "fatal",
+    });
+  });
+
+  if (assertions.length === 0) return null;
+  return baseDocument({
+    question,
+    reason: "curves stated by the question, drawn from their own equations",
+    quantities: [],
+    entities: entities.filter((entity) =>
+      entity.id === "axes" || constructions.some((c) => c.outputs.includes(entity.id))),
+    constructions,
+    assertions,
+  });
+}
+
+/** A readable equation for the label, rebuilt from the fitted coefficients. */
+function statedCurveLabel(curve: StatedCurve): string {
+  if (curve.kind === "circle" && curve.anchor && curve.radius) {
+    const squared = Number((curve.radius * curve.radius).toFixed(2));
+    const xPart = Math.abs(curve.anchor.x) < 1e-9 ? "x^2" : `(x${curve.anchor.x > 0 ? "-" : "+"}${Math.abs(curve.anchor.x)})^2`;
+    const yPart = Math.abs(curve.anchor.y) < 1e-9 ? "y^2" : `(y${curve.anchor.y > 0 ? "-" : "+"}${Math.abs(curve.anchor.y)})^2`;
+    return `${xPart}+${yPart}=${squared}`;
+  }
+  return curve.kind;
+}
+
+/** Where a stated line crosses the framed box. */
+function lineEndpointsInBounds(
+  curve: StatedCurve,
+  bounds: { xMin: number; xMax: number; yMin: number; yMax: number },
+): [[number, number], [number, number]] | null {
+  const [, , , d, e] = curve.coefficients;
+  const f = curve.coefficients[5];
+  const hits: Array<[number, number]> = [];
+  const push = (x: number, y: number): void => {
+    if (x < bounds.xMin - 1e-6 || x > bounds.xMax + 1e-6) return;
+    if (y < bounds.yMin - 1e-6 || y > bounds.yMax + 1e-6) return;
+    if (hits.some(([hx, hy]) => Math.hypot(hx - x, hy - y) < 1e-6)) return;
+    hits.push([x, y]);
+  };
+  if (Math.abs(e) > 1e-9) {
+    push(bounds.xMin, -(d * bounds.xMin + f) / e);
+    push(bounds.xMax, -(d * bounds.xMax + f) / e);
+  }
+  if (Math.abs(d) > 1e-9) {
+    push(-(e * bounds.yMin + f) / d, bounds.yMin);
+    push(-(e * bounds.yMax + f) / d, bounds.yMax);
+  }
+  if (hits.length < 2) return null;
+  return [hits[0]!, hits[1]!];
+}
+
 function buildAnalyticCurve(
   question: string,
   _quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  // Family order puts analytic_curve ahead of bounded_region on some stems; an
+  // inequality system is still a region, not a bare curve. Two explicit curves
+  // stay with the richer function_region picture.
+  if (extractExplicitFunctions(question).length < 2) {
+    const constrained = buildConstraintRegionScene(question);
+    if (constrained) return constrained;
+  }
+  // A stated conic outranks anything read out of the prose: it is the curve the
+  // question is about, at its own scale and position.
+  const stated = buildStatedCurveScene(question);
+  if (stated) return stated;
   const parametric = extractParametric(question);
   if (parametric) return buildParametricCurve(question, parametric);
   const expressions = extractExplicitFunctions(question);
@@ -1235,6 +1435,13 @@ function buildBoundedRegion(
   schematic: boolean,
 ): SceneDocument | null {
   const expressions = extractExplicitFunctions(question);
+  // Two explicit curves already bound a region, and function_region also draws
+  // both boundaries beyond it. Only reach for the inequality system when that
+  // pair does not exist: a conic, an axis, or a quadrant clip has no y = f(x).
+  if (expressions.length < 2) {
+    const constrained = buildConstraintRegionScene(question);
+    if (constrained) return constrained;
+  }
   if (expressions.length === 0) {
     // No canned 4-x^2: with no curve named by the stem there is nothing honest
     // to bound; the caller falls through to another family or text-only.
@@ -1249,6 +1456,354 @@ function buildBoundedRegion(
   if (!ordered) return plotExpressions(question, expressions, domain);
   const clipped = shrinkRegionDomain(ordered.upper, ordered.lower, domain) ?? domain;
   return regionDocument(question, ordered.upper, ordered.lower, clipped);
+}
+
+/**
+ * Regions stated as an inequality system — the standard "Using integration,
+ * find the area of the region {(x, y) : ...}" form, and its prose twin
+ * ("bounded by the circle ... and the line ...", which the planar-conic path
+ * cannot fill). The constraints are read from the stem and handed to the
+ * `constraint_region` operator; nothing here knows which question it is.
+ */
+interface RegionInequality {
+  expression: string;
+  relation: "le" | "ge";
+}
+
+const REGION_VIEW_RADII = [4, 6, 10, 16, 26] as const;
+const REGION_SEARCH_GRID_STEPS = 48;
+const REGION_FINAL_GRID_STEPS = 96;
+const REGION_MAX_PROSE_CURVES = 3;
+
+function buildConstraintRegionScene(question: string): SceneDocument | null {
+  const stated = extractRegionConstraints(question);
+  if (stated) {
+    const bounds = feasibleRegionBounds(stated, REGION_FINAL_GRID_STEPS);
+    if (!bounds) return null;
+    const document = constraintRegionDocument(question, stated, bounds);
+    return tryCompile(document) ? document : null;
+  }
+  return buildProseRegionScene(question);
+}
+
+/**
+ * "Find the area of the region in the first quadrant enclosed by the y-axis,
+ * the line y = x and the circle x^2 + y^2 = 32."
+ *
+ * Prose names the boundaries but never says which side of each one the region
+ * lies on. Rather than guess, every side assignment is tried and kept only if
+ * the result is a single bounded region in which **every named boundary
+ * actually bounds it** — dropping that curve would change the area. Exactly one
+ * assignment must survive; a stem that stays ambiguous gets no picture.
+ */
+function buildProseRegionScene(question: string): SceneDocument | null {
+  const named = extractProseRegionCurves(question);
+  if (!named) return null;
+  const { curves, filters } = named;
+  const candidates: SceneDocument[] = [];
+  for (let mask = 0; mask < 1 << curves.length; mask += 1) {
+    const sided: RegionInequality[] = curves.map((expression, index) => ({
+      expression,
+      relation: (mask >> index) & 1 ? "ge" : "le",
+    }));
+    const constraints = [...sided, ...filters];
+    const bounds = feasibleRegionBounds(constraints, REGION_SEARCH_GRID_STEPS);
+    if (!bounds) continue;
+    if (!sided.every((_, index) => constraintIsBinding(constraints, index, bounds))) continue;
+    const finalBounds = feasibleRegionBounds(constraints, REGION_FINAL_GRID_STEPS);
+    if (!finalBounds) continue;
+    const document = constraintRegionDocument(question, constraints, finalBounds);
+    if (tryCompile(document)) candidates.push(document);
+  }
+  return candidates.length === 1 ? candidates[0]! : null;
+}
+
+/** A boundary earns its place only if removing it changes the feasible area. */
+function constraintIsBinding(
+  constraints: RegionInequality[],
+  index: number,
+  bounds: { xMin: number; xMax: number; yMin: number; yMax: number },
+): boolean {
+  const withConstraint = feasibleCellCount(constraints, bounds);
+  if (withConstraint === 0) return false;
+  const without = feasibleCellCount(constraints.filter((_, at) => at !== index), bounds);
+  return without > withConstraint * 1.05;
+}
+
+function feasibleCellCount(
+  constraints: RegionInequality[],
+  bounds: { xMin: number; xMax: number; yMin: number; yMax: number },
+): number {
+  const satisfied = regionPredicate(constraints);
+  if (!satisfied) return 0;
+  const steps = REGION_SEARCH_GRID_STEPS;
+  let count = 0;
+  for (let xIndex = 0; xIndex <= steps; xIndex += 1) {
+    const x = bounds.xMin + ((bounds.xMax - bounds.xMin) * xIndex) / steps;
+    for (let yIndex = 0; yIndex <= steps; yIndex += 1) {
+      const y = bounds.yMin + ((bounds.yMax - bounds.yMin) * yIndex) / steps;
+      if (satisfied(x, y)) count += 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * Boundary curves named in prose, plus the quadrant filter. A named axis is the
+ * quadrant's own edge, so the redundant half-plane is dropped — otherwise every
+ * axis would test as non-binding and no assignment could ever be chosen.
+ */
+function extractProseRegionCurves(
+  question: string,
+): { curves: string[]; filters: RegionInequality[] } | null {
+  const stem = question.replace(/[−–—]/g, "-");
+  if (!/area of the (?:shaded )?region/i.test(stem)) return null;
+  if (!/(?:bounded by|enclosed by|enclosed between|bounded between)/i.test(stem)) return null;
+  const curves: string[] = [];
+  const push = (expression: string | null): void => {
+    if (expression && !curves.includes(expression)) curves.push(expression);
+  };
+  const namesYAxis = /\by[-\s]?axis\b/i.test(stem);
+  const namesXAxis = /\bx[-\s]?axis\b/i.test(stem);
+  if (namesYAxis) push("x");
+  if (namesXAxis) push("y");
+  // Only expression characters, so the match cannot swallow the prose that
+  // introduces the curve ("the line y = x" must yield `y`, not `the line y`).
+  // Whitespace is part of the class because exam text wraps mid-equation.
+  for (const match of stem.matchAll(/([0-9xy^+\-*/().\s]{1,40})=([0-9xy^+\-*/().\s]{1,40}?)(?=[,;.]|\s*\band\b|$)/gi)) {
+    const left = normalizeRegionExpression(match[1] ?? "", null);
+    const right = normalizeRegionExpression(match[2] ?? "", null);
+    if (!left || !right) continue;
+    if (!/[xy]/.test(left) && !/[xy]/.test(right)) continue;
+    const expression = `(${left})-(${right})`;
+    try { parseMathExpression2D(expression); } catch { continue; }
+    push(expression);
+  }
+  if (curves.length < 2 || curves.length > REGION_MAX_PROSE_CURVES) return null;
+  const filters: RegionInequality[] = [];
+  if (/\b(?:first|1st|i)\s*quadrant\b/i.test(stem)) {
+    if (!namesYAxis) filters.push({ expression: "x", relation: "ge" });
+    if (!namesXAxis) filters.push({ expression: "y", relation: "ge" });
+  }
+  if (curves.length + filters.length > 6) return null;
+  return { curves, filters };
+}
+
+function regionPredicate(
+  constraints: RegionInequality[],
+): ((x: number, y: number) => boolean) | null {
+  const parsed: Array<{ evaluate: (x: number, y: number) => number; sign: number }> = [];
+  for (const constraint of constraints) {
+    try {
+      const expression = parseMathExpression2D(constraint.expression);
+      parsed.push({
+        evaluate: (x, y) => expression.evaluate(x, y),
+        sign: constraint.relation === "le" ? -1 : 1,
+      });
+    } catch {
+      return null;
+    }
+  }
+  return (x: number, y: number): boolean => {
+    for (const constraint of parsed) {
+      let value: number;
+      try { value = constraint.sign * constraint.evaluate(x, y); } catch { return false; }
+      if (!(value >= 0)) return false;
+    }
+    return true;
+  };
+}
+
+function constraintRegionDocument(
+  question: string,
+  constraints: RegionInequality[],
+  bounds: { xMin: number; xMax: number; yMin: number; yMax: number },
+): SceneDocument {
+  return baseDocument({
+    question,
+    reason: "region satisfying the inequalities stated in the question",
+    quantities: [],
+    entities: [
+      { id: "axes", kind: "axes", role: "display axes" },
+      {
+        id: "region",
+        kind: "polygon",
+        role: "region satisfying the stated inequalities",
+        label: compactLabel(regionLabel(constraints)),
+      },
+    ],
+    constructions: [
+      { id: "make_axes", operator: "axes", inputs: { ...bounds }, outputs: ["axes"] },
+      {
+        id: "make_region",
+        operator: "constraint_region",
+        inputs: { constraints, ...bounds, samples: 65 },
+        outputs: ["region"],
+      },
+    ],
+    assertions: [
+      { id: "region_exists", predicate: "exists", entities: ["region"], expected: true, severity: "fatal" },
+    ],
+  });
+}
+
+function regionLabel(constraints: RegionInequality[]): string {
+  const first = constraints[0];
+  if (!first) return "region";
+  const rendered = `${first.expression}${first.relation === "le" ? "<=0" : ">=0"}`;
+  return constraints.length > 1 ? `${rendered}, ...` : rendered;
+}
+
+/**
+ * Coarse feasibility grid at growing view radii. The first radius that contains
+ * the whole feasible set with clearance wins; a set still touching the widest
+ * frame is unbounded and gets no picture.
+ */
+function feasibleRegionBounds(
+  constraints: RegionInequality[],
+  steps: number,
+): { xMin: number; xMax: number; yMin: number; yMax: number } | null {
+  const satisfied = regionPredicate(constraints);
+  if (!satisfied) return null;
+  for (const radius of REGION_VIEW_RADII) {
+    let xLow = Infinity; let xHigh = -Infinity; let yLow = Infinity; let yHigh = -Infinity;
+    let hits = 0;
+    for (let xIndex = 0; xIndex <= steps; xIndex += 1) {
+      const x = -radius + (2 * radius * xIndex) / steps;
+      for (let yIndex = 0; yIndex <= steps; yIndex += 1) {
+        const y = -radius + (2 * radius * yIndex) / steps;
+        if (!satisfied(x, y)) continue;
+        hits += 1;
+        xLow = Math.min(xLow, x); xHigh = Math.max(xHigh, x);
+        yLow = Math.min(yLow, y); yHigh = Math.max(yHigh, y);
+      }
+    }
+    if (hits < 12) continue;
+    const margin = (2 * radius) / steps;
+    const clear = xLow > -radius + margin && xHigh < radius - margin
+      && yLow > -radius + margin && yHigh < radius - margin;
+    if (!clear) continue;
+    // Pad outward, and keep the origin in frame so the axes read as axes.
+    const padX = Math.max((xHigh - xLow) * 0.18, radius * 0.05);
+    const padY = Math.max((yHigh - yLow) * 0.18, radius * 0.05);
+    return {
+      xMin: Math.min(0, xLow - padX),
+      xMax: Math.max(0, xHigh + padX),
+      yMin: Math.min(0, yLow - padY),
+      yMax: Math.max(0, yHigh + padY),
+    };
+  }
+  return null;
+}
+
+/** Read an inequality system out of a stem, or null when there is not one. */
+function extractRegionConstraints(question: string): RegionInequality[] | null {
+  if (!/(?:area|region)/i.test(question)) return null;
+  const body = regionSetBuilderBody(question);
+  if (!body) return null;
+  const parameter = singleRegionParameter(question, body);
+  const constraints: RegionInequality[] = [];
+  for (const clause of body.split(",")) {
+    for (const inequality of splitChainedInequality(clause)) {
+      const parsedInequality = parseRegionInequality(inequality, parameter);
+      // A clause we cannot read (a stray OCR fragment, an unsupported symbol)
+      // could be the one that bounds the set; drawing the rest would be a
+      // different region.
+      if (parsedInequality === "unreadable") return null;
+      if (parsedInequality) constraints.push(parsedInequality);
+    }
+  }
+  if (constraints.length < 2 || constraints.length > 6) return null;
+  return constraints;
+}
+
+/** The `...` inside `{(x, y) : ...}`. */
+function regionSetBuilderBody(question: string): string | null {
+  const match = /\{\s*\(\s*x\s*,\s*y\s*\)\s*[:|]([^}]{4,240})\}/i.exec(
+    question.replace(/[−–—]/g, "-"),
+  );
+  return match?.[1] ?? null;
+}
+
+/**
+ * A single declared-positive symbolic scale (`a > 0`). Such a region is similar
+ * for every positive value, so drawing it at 1 is the honest qualitative
+ * picture rather than a guess.
+ */
+function singleRegionParameter(question: string, body: string): string | null {
+  const declared = /\b([a-z])\s*>\s*0\b/i.exec(question);
+  const letters = new Set(
+    [...body.matchAll(/[a-z]/gi)].map((match) => match[0]!.toLowerCase()),
+  );
+  letters.delete("x");
+  letters.delete("y");
+  if (letters.size !== 1) return null;
+  const [only] = [...letters];
+  if (!only || !declared || declared[1]?.toLowerCase() !== only) return null;
+  return only;
+}
+
+/** `a <= b <= c` becomes `a <= b` and `b <= c`. */
+function splitChainedInequality(clause: string): string[] {
+  const parts = clause.split(/(<=|>=|≤|≥|<|>)/).map((part) => part.trim()).filter(Boolean);
+  if (parts.length < 3 || parts.length % 2 === 0) return [clause];
+  const pieces: string[] = [];
+  for (let index = 0; index + 2 < parts.length + 1; index += 2) {
+    const left = parts[index];
+    const operator = parts[index + 1];
+    const right = parts[index + 2];
+    if (!left || !operator || !right) break;
+    pieces.push(`${left}${operator}${right}`);
+  }
+  return pieces.length > 0 ? pieces : [clause];
+}
+
+function parseRegionInequality(
+  clause: string,
+  parameter: string | null,
+): RegionInequality | null | "unreadable" {
+  const trimmed = clause.trim();
+  if (!trimmed) return null;
+  const match = /^(.+?)(<=|>=|≤|≥|<|>)(.+)$/.exec(trimmed);
+  // A clause with no comparison at all is a qualifier such as "a > 0" already
+  // consumed as the scale, or plain prose; it constrains nothing to draw.
+  if (!match) return /[<>=]/.test(trimmed) ? "unreadable" : null;
+  const [, leftRaw, operatorRaw, rightRaw] = match;
+  const left = normalizeRegionExpression(leftRaw ?? "", parameter);
+  const right = normalizeRegionExpression(rightRaw ?? "", parameter);
+  if (!left || !right) return "unreadable";
+  // The scale qualifier itself ("a > 0" -> "1 > 0") carries no geometry.
+  if (!/[xy]/.test(left) && !/[xy]/.test(right)) return null;
+  const expression = `(${left})-(${right})`;
+  try {
+    parseMathExpression2D(expression);
+  } catch {
+    return "unreadable";
+  }
+  const relation = operatorRaw === "<=" || operatorRaw === "≤" || operatorRaw === "<" ? "le" : "ge";
+  return { expression, relation };
+}
+
+/** OCR-tolerant normalisation into the bounded 2-D expression language. */
+function normalizeRegionExpression(raw: string, parameter: string | null): string | null {
+  let source = raw
+    .replace(/[−–—]/g, "-")
+    .replace(/²/g, "^2")
+    .replace(/³/g, "^3")
+    .replace(/\s+/g, "");
+  if (!source) return null;
+  if (parameter) {
+    source = source.replace(new RegExp(parameter, "gi"), "1");
+  }
+  // Exam OCR drops the caret: x2 and y2 are squares, never products.
+  source = source.replace(/([xy])(\d)\b/g, "$1^$2");
+  // Implicit multiplication: 2y, 3x, 2(x+1), )(, x y.
+  source = source.replace(/(\d)([xy(])/g, "$1*$2");
+  source = source.replace(/([xy)])(\()/g, "$1*$2");
+  source = source.replace(/([xy])([xy])/g, "$1*$2");
+  source = source.replace(/(\))(\d)/g, "$1*$2");
+  if (!/^[0-9xy+\-*/^().]+$/.test(source)) return null;
+  return source;
 }
 
 function shrinkRegionDomain(
@@ -1515,7 +2070,7 @@ function buildContactBody(
     return rigidBodyAxisDocument(question);
   }
   if (
-    !/(?:free[- ]body|friction|normal reaction|pseudo force|\blift\b|rests on a table|truck that accelerates)/i.test(stem)
+    !/(?:free[- ]body|friction|normal reaction|pseudo force|\blift\b|\belevator\b|rests on a table|truck that accelerates)/i.test(stem)
   ) {
     return null;
   }
@@ -1744,7 +2299,7 @@ function inclineDocument(question: string, theta: number): SceneDocument {
 function blockOnSurfaceDocument(question: string): SceneDocument {
   const stem = normalizeStem(question);
   const pseudo = /(?:pseudo force|truck that accelerates|floor of a truck)/i.test(stem);
-  const lift = /\blift\b/i.test(stem);
+  const lift = /\blift\b|\belevator\b/i.test(stem);
   return baseDocument({
     question,
     reason: pseudo
@@ -2850,6 +3405,9 @@ function buildCoordinateFigure(
   quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  // Before any canonical conic: if the stem states its own equation, draw that.
+  const statedFigure = buildStatedCurveScene(question);
+  if (statedFigure) return statedFigure;
   const stem = normalizeStem(question);
   const displacement = extractCoordinateDisplacement(question);
   if (displacement) return coordinateDisplacementDocument(question, displacement);
@@ -3262,7 +3820,12 @@ function buildEnergyLevel(question: string, _quantities: PlanQuantity[], _schema
   if (isSemiconductorBandStem(stem)) {
     return semiconductorBandDocument(question);
   }
-  if (!/(?:energy level|photo.?electric|photoelectron|threshold frequency|work function|photon energy|bohr|rydberg|stopping potential|rutherford|hydrogen (?:atom|spectrum)|x-ray tube|x ray tube|de broglie|matter[- ]wave|nuclear fission|nuclear fusion|mass defect|radioactive decay|half-life|davisson|dual nature of radiation|q value)/i.test(stem)) {
+  // Only a stem actually about levels gets a level diagram. The wider list this
+  // replaced sent photoelectric, de Broglie, X-ray, fission, decay and half-life
+  // stems to the same canned n=1 -> n=2 transition, which is a picture of a
+  // different phenomenon; those teach text-only until their own figures exist
+  // (photocell I-V, stopping potential vs frequency, binding-energy curve).
+  if (!/(?:energy level|\bbohr\b|rydberg|hydrogen (?:atom|spectrum)|excited state|ground state|ionisation energy|ionization energy|lyman|balmer|paschen|brackett|pfund|spectral series|\btransition\b|\borbit\b)/i.test(stem)) {
     return null;
   }
   return bohrLevelDocument(question);
@@ -3731,8 +4294,8 @@ function extractResistors(
   }
   const fromPlan = quantities.filter((quantity) => {
     if (/eq|equiv|equivalent|total/i.test(`${quantity.id} ${quantity.symbol}`)) return false;
-    return /^r\d*$/i.test(normalizeKey(quantity.symbol))
-      || /resistance|ohm/.test(`${quantity.id} ${quantity.unit ?? ""}`);
+    const blob = `${quantity.id} ${quantity.symbol} ${quantity.unit ?? ""}`;
+    return /resistance|ohm|Ω/.test(blob);
   });
   return fromPlan.map((quantity) => ({
     symbol: quantity.symbol,
@@ -3855,6 +4418,11 @@ function extractExplicitFunctions(question: string): string[] {
   const facts: string[] = [];
   const normalized = prepareExpressionSource(question);
   for (const match of normalized.matchAll(/\by\s*=\s*/gi)) {
+    // `y =` has to be the whole left side. In "2x + y = 1" it is one term of a
+    // line, and lifting the "1" plots a horizontal line the stem never names —
+    // which then beat the real conic, because it compiled first.
+    const preceding = normalized.slice(0, match.index ?? 0).replace(/\s+$/, "").slice(-1);
+    if (preceding && /[-+*/^)0-9x]/i.test(preceding)) continue;
     const start = (match.index ?? 0) + match[0].length;
     const expression = readExpression(repairExamExpression(normalized.slice(start, start + 80)));
     if (!expression || /\bt\b/.test(expression)) continue;
@@ -3877,7 +4445,21 @@ function extractExplicitFunctions(question: string): string[] {
     const expression = readExpression(repairExamExpression(normalized.slice((fx.index ?? 0) + fx[0].length, (fx.index ?? 0) + fx[0].length + 80)));
     if (expression && isUsablePlotExpression(expression) && !facts.includes(expression)) facts.push(expression);
   }
+  // A horizontal line on its own is not a picture of anything: these constants
+  // are initial conditions ("y = 0 when x = pi/2") and answer options far more
+  // often than curves. They stay only alongside a real curve, where they are a
+  // genuine boundary of a region.
+  if (!facts.some((expression) => !isConstantPlotExpression(expression))) return [];
   return facts.slice(0, 3);
+}
+
+function isConstantPlotExpression(expression: string): boolean {
+  try {
+    const parsed = parseMathExpression(expression);
+    return Math.abs(parsed.evaluate(0.5) - parsed.evaluate(1.5)) < 1e-9;
+  } catch {
+    return true;
+  }
 }
 
 function prepareExpressionSource(question: string): string {

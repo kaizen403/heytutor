@@ -33,6 +33,8 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   wavefront_family: "polyline", aperture: "polyline", screen_pattern: "polyline",
   transverse_field: "polyline", polarizer: "polyline",
   optical_train: "ray",
+  spherical_surface: "arc",
+  lens_section: "polygon",
   angle_mark: "angle_mark", right_angle_mark: "right_angle_mark", tick_mark: "tick_mark",
   sign_badge: "vector", dimension: "dimension", connect: "connector", symbol: "component", label: "label",
 };
@@ -2859,7 +2861,7 @@ function proofDerivedTangentSign(
     const a = aId ? proofDerivedPoint(aId, producers) : null;
     const b = bId ? proofDerivedPoint(bId, producers) : null;
     if (a && b) normal = { x: -(b.y - a.y), y: b.x - a.x };
-  } else if (surface.operator === "circle" || surface.operator === "arc") {
+  } else if (surface.operator === "circle" || surface.operator === "arc" || surface.operator === "spherical_surface") {
     const centerId = constructionEndpoint(surface.inputs, ["center"]);
     const center = centerId ? proofDerivedPoint(centerId, producers) : null;
     if (center) normal = { x: center.x - contact.x, y: center.y - contact.y };
@@ -4145,11 +4147,23 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
         actual: actualComponentSymbol,
       });
     }
-    const derivedOperatorAccepted = requiredOperator === "reflect_direction"
-      ? actualOperator === "reflect_direction" || actualOperator === "reflect_at"
-      : requiredOperator === "refract_direction"
-        ? actualOperator === "refract_direction" || actualOperator === "refract_at"
-        : actualOperator === requiredOperator;
+    // A principal ray in a paraxial mirror/lens construction is computed from
+    // the mirror or lens formula, not traced with the exact surface law — the
+    // exact spherical law cannot pass through the paraxial image point at all
+    // (that difference is spherical aberration). Such a ray may be drawn with
+    // segment/ray provided the construction says so, so the approximation is
+    // declared on the construction where this validator can see it rather than
+    // hidden by wording the role around the check.
+    const producer = constructionByOutput.get(entity.id);
+    const paraxialConstruction = (producer?.operator === "segment" || producer?.operator === "ray")
+      && isRecord(producer.inputs)
+      && producer.inputs.approximation === "paraxial";
+    const derivedOperatorAccepted = paraxialConstruction
+      || (requiredOperator === "reflect_direction"
+        ? actualOperator === "reflect_direction" || actualOperator === "reflect_at"
+        : requiredOperator === "refract_direction"
+          ? actualOperator === "refract_direction" || actualOperator === "refract_at"
+          : actualOperator === requiredOperator);
     if (requiredOperator && actualOperator && !derivedOperatorAccepted) {
       issues.push({
         code: "derived_role_operator_mismatch",
@@ -4245,6 +4259,12 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     }
     if (construction.operator === "optical_train" && isRecord(construction.inputs)) {
       validateOpticalTrainConstruction(construction, index, constructionByOutput, issues);
+    }
+    if (construction.operator === "spherical_surface" && isRecord(construction.inputs)) {
+      validateSphericalSurfaceConstruction(construction, index, constructionByOutput, issues);
+    }
+    if (construction.operator === "lens_section" && isRecord(construction.inputs)) {
+      validateLensSectionConstruction(construction, index, constructionByOutput, issues);
     }
     if (construction.operator === "polygon" && Array.isArray(construction.outputs)) {
       const output = construction.outputs[0];
@@ -4559,7 +4579,8 @@ function normalizeGenericPlannerSchema(raw: Record<string, unknown>): Record<str
               : operator === "polygon" ? "polygon"
                 : operator === "polyline" ? "polyline"
                   : operator === "circle" ? "circle"
-                    : operator === "arc" ? "arc"
+                    : operator === "arc" || operator === "spherical_surface" ? "arc"
+                      : operator === "lens_section" ? "polygon"
                       : operator === "point" ? "point"
                             : operator === "vector" ? "vector"
                             : operator === "dimension" ? "dimension"
@@ -5806,6 +5827,129 @@ function validateOpticalTrainConstruction(
         actual: value,
       });
     }
+  }
+}
+
+function validateSphericalSurfaceConstruction(
+  construction: SceneDocument["constructions"][number],
+  index: number,
+  constructionByOutput: ReadonlyMap<string, SceneDocument["constructions"][number]>,
+  issues: SceneIssue[],
+): void {
+  if (construction.outputs.length !== 1) {
+    issues.push({
+      code: "invalid_spherical_surface_outputs",
+      message: "spherical_surface must produce exactly one surface entity",
+      severity: "fatal",
+      path: `constructions[${index}].outputs`,
+      actual: construction.outputs,
+    });
+  }
+  const vertex = construction.inputs.vertex ?? construction.inputs.pole;
+  const axis = construction.inputs.axis;
+  const vertexProducer = typeof vertex === "string" ? constructionByOutput.get(vertex) : undefined;
+  const axisProducer = typeof axis === "string" ? constructionByOutput.get(axis) : undefined;
+  if (!vertexProducer || vertexProducer.operator !== "point") {
+    issues.push({
+      code: "invalid_spherical_surface_vertex",
+      message: "spherical_surface vertex must reference a constructed point",
+      severity: "fatal",
+      path: `constructions[${index}].inputs.vertex`,
+      entityIds: typeof vertex === "string" ? [vertex] : undefined,
+    });
+  }
+  if (!axisProducer || !["line", "segment"].includes(axisProducer.operator)) {
+    issues.push({
+      code: "invalid_spherical_surface_axis",
+      message: "spherical_surface axis must reference a constructed line",
+      severity: "fatal",
+      path: `constructions[${index}].inputs.axis`,
+      entityIds: typeof axis === "string" ? [axis] : undefined,
+    });
+  }
+  const halfHeight = construction.inputs.halfHeight ?? construction.inputs.aperture;
+  if (!(typeof halfHeight === "number" && Number.isFinite(halfHeight) && halfHeight > 0)) {
+    issues.push({
+      code: "invalid_spherical_surface_height",
+      message: "spherical_surface halfHeight must be a positive number",
+      severity: "fatal",
+      path: `constructions[${index}].inputs.halfHeight`,
+      actual: halfHeight,
+    });
+  }
+}
+
+function validateLensSectionConstruction(
+  construction: SceneDocument["constructions"][number],
+  index: number,
+  constructionByOutput: ReadonlyMap<string, SceneDocument["constructions"][number]>,
+  issues: SceneIssue[],
+): void {
+  if (construction.outputs.length !== 1) {
+    issues.push({
+      code: "invalid_lens_section_outputs",
+      message: "lens_section must produce exactly one lens entity",
+      severity: "fatal",
+      path: `constructions[${index}].outputs`,
+      actual: construction.outputs,
+    });
+  }
+  const center = construction.inputs.center ?? construction.inputs.opticalCentre ?? construction.inputs.optical_center;
+  const axis = construction.inputs.axis;
+  const centerProducer = typeof center === "string" ? constructionByOutput.get(center) : undefined;
+  const axisProducer = typeof axis === "string" ? constructionByOutput.get(axis) : undefined;
+  if (!centerProducer || centerProducer.operator !== "point") {
+    issues.push({
+      code: "invalid_lens_section_center",
+      message: "lens_section center must reference a constructed point",
+      severity: "fatal",
+      path: `constructions[${index}].inputs.center`,
+      entityIds: typeof center === "string" ? [center] : undefined,
+    });
+  }
+  if (!axisProducer || !["line", "segment"].includes(axisProducer.operator)) {
+    issues.push({
+      code: "invalid_lens_section_axis",
+      message: "lens_section axis must reference a constructed line",
+      severity: "fatal",
+      path: `constructions[${index}].inputs.axis`,
+      entityIds: typeof axis === "string" ? [axis] : undefined,
+    });
+  }
+  for (const key of ["radius1", "R1", "signedRadius1", "radius2", "R2", "signedRadius2"] as const) {
+    const value = construction.inputs[key];
+    if (value === undefined) continue;
+    if (typeof value !== "number" || !Number.isFinite(value) || value === 0) {
+      issues.push({
+        code: "invalid_lens_section_radius",
+        message: `lens_section ${key} must be a finite nonzero signed radius`,
+        severity: "fatal",
+        path: `constructions[${index}].inputs.${key}`,
+        actual: value,
+      });
+    }
+  }
+  const hasR1 = construction.inputs.radius1 !== undefined || construction.inputs.R1 !== undefined
+    || construction.inputs.signedRadius1 !== undefined;
+  const hasR2 = construction.inputs.radius2 !== undefined || construction.inputs.R2 !== undefined
+    || construction.inputs.signedRadius2 !== undefined;
+  if (!hasR1 || !hasR2) {
+    issues.push({
+      code: "invalid_lens_section_radius",
+      message: "lens_section requires signed radius1 and radius2",
+      severity: "fatal",
+      path: `constructions[${index}].inputs`,
+    });
+  }
+  const halfHeight = construction.inputs.halfHeight ?? construction.inputs.aperture;
+  if (!(typeof halfHeight === "number" && Number.isFinite(halfHeight) && halfHeight > 0)) {
+    issues.push({
+      code: "invalid_lens_section_height",
+      message: "lens_section halfHeight must be a positive number",
+      severity: "fatal",
+      path: `constructions[${index}].inputs.halfHeight`,
+      actual: halfHeight,
+    });
   }
 }
 

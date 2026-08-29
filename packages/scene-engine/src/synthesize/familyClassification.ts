@@ -188,7 +188,7 @@ export const LAW_FAMILIES: ReadonlyArray<readonly [RegExp, readonly SceneVisualF
   [/kirchhoff|ohm|wheatstone|lcr|rlc|ac.?circuit/i, ["circuit_network"]],
   [/first.?law|thermodynamic|ideal.?gas|indicator.?diagram/i, ["state_plot"]],
   [/coulomb|gauss|biot|ampere|lorentz/i, ["point_field"]],
-  [/bernoulli|continuity.?equation|pascal/i, ["fluid_apparatus"]],
+  [/bernoulli(?!\s+trials?)|continuity.?equation|pascal/i, ["fluid_apparatus"]],
   [/photoelectric|bohr|rydberg/i, ["energy_level"]],
 ];
 
@@ -196,7 +196,10 @@ export const QUESTION_FAMILIES: ReadonlyArray<readonly [RegExp, readonly SceneVi
   [/(?:mirror|lens|magnification|optical power|focal point|principal axis)/i, ["axis_view", "ray_path"]],
   [/(?:refraction|refracted|critical angle|total internal reflection|optical fibre|optical fiber|prism|brewster)/i, ["interface", "ray_path"]],
   [/(?:spherical (?:air|refracting|surface|interface)|air-glass interface|paraxial image|center of curvature|surface[- ]normal construction)/i, ["axis_view", "interface", "ray_path"]],
-  [/(?:microscope|telescope|objective|eyepiece)/i, ["instrument_chain", "axis_view"]],
+  // "objective" alone is not optics: a linear-programming stem's objective
+  // function was drawing a telescope. The optical sense always names the
+  // instrument or the other lens.
+  [/(?:microscope|telescope|objective\s+lens|eye\s*-?\s*piece)/i, ["instrument_chain", "axis_view"]],
   [/(?:wavefront|huygens|secondary wavelet|coheren(?:t|ce))/i, ["wavefront"]],
   [/(?:double.?slit|young.?s experiment|slit separation|single.?slit|aperture)/i, ["aperture"]],
   [/(?:interference|fringe|diffraction|central maximum|rayleigh|resolving|phase difference)/i, ["screen_pattern"]],
@@ -217,10 +220,14 @@ export const QUESTION_FAMILIES: ReadonlyArray<readonly [RegExp, readonly SceneVi
   [/(?:two cars|car [AB] travels|velocity of [AB] relative to [AB]|relative to [AB]|catches? [AB]|100 m ahead of [AB])/i, ["contact_body"]],
   [/(?:(?:(?<!not a )\bprojectile\b)|projected from|thrown horizontally|thrown vertically|from the top of a (?:tower|building)|maximum height of)/i, ["contact_body"]],
   [/(?:uniform circular motion|horizontal circle|centripetal|circular turn|level circular|circular road|curve on a level road|banked|frictionless bank|up the bank|conical pendulum)/i, ["contact_body"]],
-  [/(?:impulse|batsman|recoil|on ice|leans against a wall|ladder of mass|hanging over|pseudo force|\blift\b|rolling friction|spring of force constant|pendulum hangs|rests on a table|string now makes|bob has mass)/i, ["contact_body"]],
+  [/(?:impulse|batsman|recoil|on ice|leans against a wall|ladder of mass|hanging over|pseudo force|\blift\b|\belevator\b|rolling friction|spring of force constant|pendulum hangs|rests on a table|string now makes|bob has mass)/i, ["contact_body"]],
   [/(?:x\s*=\s*t|position along a line is x\s*=)/i, ["analytic_curve"]],
   [/(?:accelerates uniformly|train starting from rest|average speed for the whole|velocity-?time|position-?time|displacement-?time|v-t graph|s-t graph|x-t graph)/i, ["state_plot"]],
-  [/(?:river|still water|downstream|upstream|rain falls|concurrent forces|triangle of forces|velocity triangles?|[îĵ]|makes with the x-axis)/i, ["vector_diagram"]],
+  [/(?:river|still water|downstream|upstream|rain falls|concurrent forces|triangle of forces|velocity triangles?|makes with the x-axis)/i, ["vector_diagram"]],
+  // Unit-vector hats, case-sensitively: under /i the accented i also matches the
+  // capital the Symbol font leaves behind for the set-membership sign, which was
+  // drawing vector diagrams on relation and probability stems.
+  [/[îĵ]/, ["vector_diagram"]],
   [/(?:circuit|resistor|inductor|capacitor|\bLCR\b|\bRLC\b|wheatstone|galvanometer|phasor|ac source|series[- ]parallel|zener|internal resistance|cells? (?:are )?connected|\bemf\b|ohm['’]?s law|drift velocity|resistivity|transistor)/i, ["circuit_network"]],
   [/(?:p[-–—]?v(?:\s+cycle|\s+diagram|\s+graph)?|thermodynamic cycle|clockwise rectangular cycle)/i, ["state_plot"]],
   [/(?:y\s*=|x\s*=\s*t|sketch.{0,60}(?:curve|graph)|plot.{0,40}(?:curve|graph|against|versus)|parametric|polar curve|tangent (?:at|to)|x-intercept|implicit|trajectory|standing[- ]wave|third harmonic|node and antinode|F\s*=\s*5x|F_x\s*=|F versus x|graph of F|U\s*=\s*\(|U\(x\)|U\(r\)\s*=|potential energy of a particle is U)/i, ["analytic_curve"]],
@@ -238,7 +245,7 @@ export const QUESTION_FAMILIES: ReadonlyArray<readonly [RegExp, readonly SceneVi
   [/(?:wheatstone|met(?:er|re) bridge|potentiometer|kirchhoff|galvanometer)/i, ["circuit_network"]],
   [/(?:faraday|lenz|motional emf|self inductance|mutual inductance|transformer)/i, ["circuit_network"]],
   [/(?:kepler|satellite|escape velocity|orbital velocity|gravitat(?:ion|ional field)|acceleration due to gravity|weightlessness)/i, ["point_field"]],
-  [/(?:bernoulli|venturi|capillary|young['’]?s modulus|stress[- ]strain|stokes['’]? law)/i, ["fluid_apparatus"]],
+  [/(?:bernoulli(?!\s+trials?)|venturi|capillary|young['’]?s modulus|stress[- ]strain|stokes['’]? law)/i, ["fluid_apparatus"]],
   [/(?:isothermal|adiabatic|carnot|indicator diagram|first law of thermodynamics|isobaric|isochoric|zeroth law|refrigerator)/i, ["state_plot"]],
   [/(?:organ pipe|standing waves?|transverse wave|travelling wave|traveling wave)/i, ["analytic_curve"]],
   [/(?:rutherford|bohr orbit|hydrogen spectrum)/i, ["energy_level"]],
@@ -322,6 +329,13 @@ export function applyStemFamilyOverrides(
   }
   if (isBoundedRegionStem(stem)) families.add("bounded_region");
   if (isFigureAbsentStem(stem)) drop("state_plot");
+  if (
+    /(?:lens maker|spherical (?:surface|interface)|thin lens|refraction at a spherical|(?:convex|concave) (?:lens|mirror))/i.test(stem)
+    && !/(?:resistor|ohm|circuit)\b/i.test(stem)
+  ) {
+    drop("circuit_network");
+    families.add("axis_view");
+  }
 }
 
 /** Lead with the stem-defining family; shared by both callers. */
@@ -347,6 +361,13 @@ export function orderFamiliesByStemPreference(
   }
   if (isSpaceGeometryStem(stem) && families.includes("coordinate_figure")) {
     return ["coordinate_figure", ...families.filter((family) => family !== "coordinate_figure")];
+  }
+  // A question that asks for an AREA wants the region shaded, not its boundary
+  // curves plotted. analytic_curve sits above bounded_region in the priority
+  // list and was compiling first, so "find the area bounded by y = x^2 and
+  // y = 4" taught two curves and no region.
+  if (isBoundedRegionStem(stem) && families.includes("bounded_region")) {
+    return ["bounded_region", ...families.filter((family) => family !== "bounded_region")];
   }
   return [...families];
 }

@@ -47,6 +47,7 @@ import {
   signBadgeGeometry,
 } from "./annotationMarks";
 import { appendCompiledAnnotations } from "./sceneAnnotations";
+import { lensSectionOutline, sphericalSurfaceGeometry } from "./opticsSurfaces";
 
 type Point = { x: number; y: number };
 type Viewport = { x: number; y: number; width: number; height: number; padding?: number };
@@ -848,6 +849,7 @@ function evaluateConstruction(
     case "polyline": return [{ kind: "path", closed: operator === "polygon", points: resolvePointArray(first(inputs, ["points", "vertices"]), geometry) }];
     case "axes": return [{ kind: "axes", xMin: number(["xMin", "x_min"]), xMax: number(["xMax", "x_max"]), yMin: number(["yMin", "y_min"]), yMax: number(["yMax", "y_max"]) }];
     case "function_region": return [{ kind: "path", closed: true, points: functionRegionPoints(inputs, geometry, quantities) }];
+    case "constraint_region": return [{ kind: "path", closed: true, points: constraintRegionPoints(inputs, quantities) }];
     case "implicit_curve": return [implicitCurveGeometry(inputs, quantities)];
     case "parametric_curve": return [parametricCurveGeometry(inputs, quantities)];
     case "polar_curve": return [polarCurveGeometry(inputs, quantities)];
@@ -867,6 +869,8 @@ function evaluateConstruction(
     case "transverse_field": return [transverseFieldGeometry(inputs, geometry, quantities)];
     case "polarizer": return [polarizerGeometry(inputs, geometry, quantities)];
     case "optical_train": return opticalTrainGeometry(inputs, geometry, quantities);
+    case "spherical_surface": return [sphericalSurfaceFromInputs(inputs, geometry, quantities)];
+    case "lens_section": return [lensSectionFromInputs(inputs, geometry, quantities)];
     case "reflect_at": return surfaceRayBundleGeometry(inputs, geometry, quantities, "reflect");
     case "refract_at": return surfaceRayBundleGeometry(inputs, geometry, quantities, "refract");
     case "midpoint": {
@@ -1013,7 +1017,16 @@ function evaluateConstruction(
     }
     case "refract_direction": {
       const origin = point(["origin", "point"]); const incomingInput = first(inputs, ["incoming", "direction"]); assertPathMeetsOrigin(incomingInput, origin, geometry, "incoming"); const normalInput = first(inputs, ["normal"]); assertPathMeetsOrigin(normalInput, origin, geometry, "normal"); const incoming = normalize(resolveVector(incomingInput, geometry)); const normal = normalize(resolveVector(normalInput, geometry)); const n1 = positive(number(["n1"]), "n1"); const n2 = positive(number(["n2"]), "n2");
-      const refracted = refract(incoming, normal, n1 / n2); return [{ kind: "path", directed: true, infinite: true, points: [origin, { x: origin.x + refracted.x, y: origin.y + refracted.y }] }];
+      // Orient the normal against the incoming ray before refracting, exactly as
+      // refract_at does. `refract` flips eta for a co-directed normal, which is
+      // right when eta is fixed and only the geometry varies — but here n1 and
+      // n2 are declared, so flipping them silently swaps the media. A ray
+      // leaving a prism through an outward-facing face was computed as entering
+      // the glass (e = 20.6 degrees instead of 52.4 for A=60, i=45, n=1.5).
+      const oriented = incoming.x * normal.x + incoming.y * normal.y > 0
+        ? { x: -normal.x, y: -normal.y }
+        : normal;
+      const refracted = refract(incoming, oriented, n1 / n2); return [{ kind: "path", directed: true, infinite: true, points: [origin, { x: origin.x + refracted.x, y: origin.y + refracted.y }] }];
     }
     case "function_curve": return [functionCurveGeometry(inputs, quantities)];
     default: return assertNeverSceneCapability(operator);
@@ -2468,6 +2481,73 @@ function surfaceRayBundleGeometry(
   ];
 }
 
+function optionalInput(inputs: Record<string, unknown>, names: string[]): unknown {
+  for (const name of names) {
+    if (inputs[name] !== undefined) return inputs[name];
+  }
+  return undefined;
+}
+
+function optionalNumber(
+  inputs: Record<string, unknown>,
+  names: string[],
+  quantities: Map<string, Record<string, unknown>>,
+): number | null {
+  const value = optionalInput(inputs, names);
+  if (value === undefined) return null;
+  return resolveNumber(value, quantities);
+}
+
+function sphericalSurfaceFromInputs(
+  inputs: Record<string, unknown>,
+  geometry: Map<string, Geometry>,
+  quantities: Map<string, Record<string, unknown>>,
+): Geometry {
+  const vertex = resolvePoint(first(inputs, ["vertex", "pole"]), geometry);
+  const axis = resolveLine(first(inputs, ["axis"]), geometry);
+  const halfHeight = positive(resolveNumber(first(inputs, ["halfHeight", "aperture"]), quantities), "halfHeight");
+  const centerRef = optionalInput(inputs, ["center"]);
+  const kindRaw = optionalInput(inputs, ["kind", "facing"]);
+  const kind = typeof kindRaw === "string" && /^(?:convex|concave|plano)$/i.test(kindRaw)
+    ? kindRaw.toLowerCase() as "convex" | "concave" | "plano"
+    : undefined;
+  const result = sphericalSurfaceGeometry({
+    vertex,
+    axisFrom: axis[0],
+    axisTo: axis[1],
+    halfHeight,
+    center: typeof centerRef === "string" || Array.isArray(centerRef) ? resolvePoint(centerRef, geometry) : undefined,
+    signedRadius: optionalNumber(inputs, ["signedRadius", "radius"], quantities) ?? undefined,
+    kind,
+  });
+  if (result.kind === "arc") return result;
+  return { kind: "path", points: result.points };
+}
+
+function lensSectionFromInputs(
+  inputs: Record<string, unknown>,
+  geometry: Map<string, Geometry>,
+  quantities: Map<string, Record<string, unknown>>,
+): Geometry {
+  const center = resolvePoint(first(inputs, ["center", "opticalCentre", "optical_center"]), geometry);
+  const axis = resolveLine(first(inputs, ["axis"]), geometry);
+  const radius1 = resolveNumber(first(inputs, ["radius1", "R1", "signedRadius1"]), quantities);
+  const radius2 = resolveNumber(first(inputs, ["radius2", "R2", "signedRadius2"]), quantities);
+  const halfHeight = positive(resolveNumber(first(inputs, ["halfHeight", "aperture"]), quantities), "halfHeight");
+  const thickness = optionalNumber(inputs, ["thickness"], quantities);
+  const points = lensSectionOutline({
+    center,
+    axisFrom: axis[0],
+    axisTo: axis[1],
+    radius1,
+    radius2,
+    halfHeight,
+    thickness: thickness ?? undefined,
+  });
+  if (points.length < 4) throw new Error("lens_section produced no closed outline");
+  return { kind: "path", closed: true, points };
+}
+
 function opticalTrainGeometry(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
@@ -2817,6 +2897,7 @@ function sampledCurveDerivative(curve: SampledCurve, at: number): Point {
   }
   let previous: Point | null = null;
   let derivative: Point | null = null;
+  let previousGap: number | null = null;
   for (let iteration = 0; iteration < 5; iteration += 1) {
     const p0 = curve.evaluate(at);
     const left = curve.evaluate(at - h);
@@ -2827,10 +2908,17 @@ function sampledCurveDerivative(curve: SampledCurve, at: number): Point {
     const rightSlope = { x: (right.x - p0.x) / h, y: (right.y - p0.y) / h };
     const oneSidedGap = Math.hypot(leftSlope.x - rightSlope.x, leftSlope.y - rightSlope.y);
     const oneSidedScale = Math.max(1, Math.hypot(leftSlope.x, leftSlope.y), Math.hypot(rightSlope.x, rightSlope.y));
-    const oneSidedAgreement = oneSidedGap <= oneSidedScale * 5e-4;
+    // The gap between the one-sided slopes is |f''|*h, but the tolerance below
+    // is scaled by |f'|, so comparing them alone rejects any smooth point with
+    // a small slope and ordinary curvature — the tangent at the vertex of a
+    // parabola, for one. What actually separates smooth from kinked is that a
+    // smooth gap shrinks with h while a corner's gap stays put.
+    const shrinking = previousGap !== null && oneSidedGap <= previousGap * 0.6;
+    const oneSidedAgreement = oneSidedGap <= oneSidedScale * 5e-4 || shrinking;
     if (iteration === 4 && !oneSidedAgreement) {
       throw new Error("curve is not differentiable at the requested parameter");
     }
+    previousGap = oneSidedGap;
     derivative = {
       x: (farLeft.x - 8 * left.x + 8 * right.x - farRight.x) / (12 * h),
       y: (farLeft.y - 8 * left.y + 8 * right.y - farRight.y) / (12 * h),
@@ -2917,6 +3005,244 @@ function functionRegionPoints(
   }
   return [...lowerPoints, ...upperPoints.reverse()];
 }
+
+/**
+ * Feasible set of an inequality system, as exam stems state it directly:
+ * `{(x, y) : x^2 + y^2 <= 9, x + y >= 3}`. `function_region` can only join two
+ * explicit `y = f(x)` curves, so a region cut by a conic (circular segment,
+ * parabola-inside-circle, quadrant clip) had no operator at all and compiled to
+ * nothing. This is the general one: every constraint is an implicit F(x, y)
+ * with a side, and the region is their intersection — no per-question upper and
+ * lower branch algebra.
+ *
+ * Column-sampled rather than contoured: for each x the feasible y values are
+ * scanned, and the run's endpoints are bisected against the binding constraint.
+ * The min of several smooth constraints is only piecewise smooth, so marching
+ * squares (as `implicit_curve` uses) would alias at the corners where two
+ * constraints meet. Fails closed on anything a single lower/upper boundary pair
+ * cannot honestly describe: a column with two separate feasible runs, an x-gap
+ * that splits the set, or a degenerate area.
+ */
+const CONSTRAINT_REGION_SCAN_ROWS = 129;
+const CONSTRAINT_REGION_BISECTION_STEPS = 40;
+const CONSTRAINT_REGION_MAX_RUNS = 8;
+
+interface RegionConstraint {
+  readonly source: string;
+  /** Signed slack: >= 0 exactly where this constraint is satisfied. */
+  slack(x: number, y: number): number;
+  assertContinuousOn(xMin: number, xMax: number, yMin: number, yMax: number): void;
+}
+
+function constraintRegionPoints(
+  inputs: Record<string, unknown>,
+  quantities: Map<string, Record<string, unknown>>,
+): Point[] {
+  const constraints = parseRegionConstraints(inputs.constraints);
+  const xMin = resolveNumber(first(inputs, ["xMin"]), quantities);
+  const xMax = resolveNumber(first(inputs, ["xMax"]), quantities);
+  const yMin = resolveNumber(first(inputs, ["yMin"]), quantities);
+  const yMax = resolveNumber(first(inputs, ["yMax"]), quantities);
+  if (!(xMin < xMax) || !(yMin < yMax)) {
+    throw new Error("constraint_region requires xMin < xMax and yMin < yMax");
+  }
+  const samples = inputs.samples === undefined ? 65 : resolveNumber(inputs.samples, quantities);
+  if (!Number.isInteger(samples) || samples < 17 || samples > 161 || samples % 2 === 0) {
+    throw new Error("constraint_region samples must be an odd integer from 17 to 161");
+  }
+
+  for (const constraint of constraints) constraint.assertContinuousOn(xMin, xMax, yMin, yMax);
+
+  // Pass 1 — find the x-span the feasible set actually occupies, so a region
+  // filling part of the viewport is not stretched across all of it.
+  const scanColumns = 2 * samples;
+  const scanStep = (xMax - xMin) / scanColumns;
+  const spans: Array<{ index: number; x: number; low: number; high: number }> = [];
+  for (let index = 0; index <= scanColumns; index += 1) {
+    const x = xMin + scanStep * index;
+    const span = feasibleColumnSpan(constraints, x, yMin, yMax);
+    if (span) spans.push({ index, x, ...span });
+  }
+  if (spans.length < 3) {
+    throw new Error("constraint_region has no feasible interior in the requested domain");
+  }
+  // A hole in the middle means the system describes two disjoint pieces, and a
+  // single closed boundary path would silently bridge them.
+  for (let index = 1; index < spans.length; index += 1) {
+    if (spans[index]!.index !== spans[index - 1]!.index + 1) {
+      throw new Error("constraint_region feasible set is disconnected along x");
+    }
+  }
+  const firstSpan = spans[0]!;
+  const lastSpan = spans[spans.length - 1]!;
+  const xLow = firstSpan.x > xMin
+    ? bisectFeasibleEdge(constraints, firstSpan.x - scanStep, firstSpan.x, yMin, yMax)
+    : xMin;
+  const xHigh = lastSpan.x < xMax
+    ? bisectFeasibleEdge(constraints, lastSpan.x + scanStep, lastSpan.x, yMin, yMax)
+    : xMax;
+  if (!(xLow < xHigh)) {
+    throw new Error("constraint_region feasible set has no width");
+  }
+
+  // Pass 2 — resample the boundary evenly across the span that survived.
+  const lower: Point[] = [];
+  const upper: Point[] = [];
+  for (let index = 0; index < samples; index += 1) {
+    const x = xLow + (xHigh - xLow) * index / (samples - 1);
+    const span = feasibleColumnSpan(constraints, x, yMin, yMax);
+    if (!span) throw new Error("constraint_region boundary is not resolvable at every column");
+    lower.push({ x, y: span.low });
+    upper.push({ x, y: span.high });
+  }
+  const area = Math.abs(
+    lower.reduce((total, point, index) => total + (upper[index]!.y - point.y), 0)
+      * (xHigh - xLow) / samples,
+  );
+  if (!(area > EPSILON)) throw new Error("constraint_region encloses no area");
+  return [...lower, ...upper.reverse()];
+}
+
+function parseRegionConstraints(value: unknown): RegionConstraint[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 6) {
+    throw new Error("constraint_region requires 1 to 6 constraints");
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.expression !== "string") {
+      throw new Error("each constraint_region constraint needs an expression string");
+    }
+    const relation = entry.relation;
+    if (relation !== "le" && relation !== "ge") {
+      throw new Error("each constraint_region constraint needs relation 'le' or 'ge'");
+    }
+    const expression = parseMathExpression2D(entry.expression);
+    const sign = relation === "le" ? -1 : 1;
+    return {
+      source: `${entry.expression} ${relation === "le" ? "<=" : ">="} 0`,
+      slack: (x: number, y: number): number => sign * expression.evaluate(x, y),
+      assertContinuousOn: (xMin, xMax, yMin, yMax) =>
+        expression.assertContinuousOn(xMin, xMax, yMin, yMax),
+    };
+  });
+}
+
+/**
+ * The single feasible y-run in one column, or null when the column is empty.
+ *
+ * Each constraint's own y-set is found by bracketing its sign changes and
+ * bisecting to the roots, then the sets are intersected. Reading feasibility
+ * off sampled rows instead would drop the slivers at a region's left and right
+ * extremes, where the run is thinner than the row spacing, and the region would
+ * look disconnected.
+ */
+function feasibleColumnSpan(
+  constraints: RegionConstraint[],
+  x: number,
+  yMin: number,
+  yMax: number,
+): { low: number; high: number } | null {
+  let feasible: Array<[number, number]> = [[yMin, yMax]];
+  for (const constraint of constraints) {
+    feasible = intersectIntervals(feasible, constraintYIntervals(constraint, x, yMin, yMax));
+    if (feasible.length === 0) return null;
+  }
+  const runs = feasible.filter(([low, high]) => high - low > 0);
+  if (runs.length === 0) {
+    // A contact point, not a region: keep it as a zero-height column so the
+    // boundary closes at the extreme rather than reporting a gap.
+    const [low, high] = feasible[0]!;
+    return { low, high };
+  }
+  if (runs.length > 1) {
+    throw new Error("constraint_region column holds two separate feasible runs; the set is not a single region");
+  }
+  const [low, high] = runs[0]!;
+  return { low, high };
+}
+
+/** The y values in [yMin, yMax] where one constraint is satisfied. */
+function constraintYIntervals(
+  constraint: RegionConstraint,
+  x: number,
+  yMin: number,
+  yMax: number,
+): Array<[number, number]> {
+  const probes = CONSTRAINT_REGION_SCAN_ROWS;
+  const yAt = (index: number): number => yMin + (yMax - yMin) * index / (probes - 1);
+  const slackAt = (y: number): number => constraint.slack(x, y);
+  const intervals: Array<[number, number]> = [];
+  let runStart: number | null = slackAt(yMin) >= 0 ? yMin : null;
+  let previousY = yMin;
+  let previousSlack = slackAt(yMin);
+  for (let index = 1; index < probes; index += 1) {
+    const y = yAt(index);
+    const slack = slackAt(y);
+    if (slack >= 0 && previousSlack < 0) {
+      runStart = bisectSlackRoot(slackAt, previousY, y);
+    } else if (slack < 0 && previousSlack >= 0) {
+      const end = bisectSlackRoot(slackAt, y, previousY);
+      if (runStart !== null) intervals.push([runStart, end]);
+      runStart = null;
+    }
+    previousY = y;
+    previousSlack = slack;
+  }
+  if (runStart !== null) intervals.push([runStart, yMax]);
+  if (intervals.length > CONSTRAINT_REGION_MAX_RUNS) {
+    throw new Error(`constraint_region constraint ${constraint.source} oscillates too often to bound a region`);
+  }
+  return intervals;
+}
+
+/** Bisect between a known-unsatisfied and a known-satisfied y to the boundary. */
+function bisectSlackRoot(
+  slackAt: (y: number) => number,
+  outside: number,
+  inside: number,
+): number {
+  let low = outside;
+  let high = inside;
+  for (let step = 0; step < CONSTRAINT_REGION_BISECTION_STEPS; step += 1) {
+    const middle = (low + high) / 2;
+    if (slackAt(middle) >= 0) high = middle;
+    else low = middle;
+  }
+  return high;
+}
+
+function intersectIntervals(
+  left: Array<[number, number]>,
+  right: Array<[number, number]>,
+): Array<[number, number]> {
+  const merged: Array<[number, number]> = [];
+  for (const [leftLow, leftHigh] of left) {
+    for (const [rightLow, rightHigh] of right) {
+      const low = Math.max(leftLow, rightLow);
+      const high = Math.min(leftHigh, rightHigh);
+      if (low <= high) merged.push([low, high]);
+    }
+  }
+  return merged;
+}
+
+/** Bisect along x between a known-empty and a known-feasible column. */
+function bisectFeasibleEdge(
+  constraints: RegionConstraint[],
+  outside: number,
+  inside: number,
+  yMin: number,
+  yMax: number,
+): number {
+  let low = outside;
+  let high = inside;
+  for (let step = 0; step < CONSTRAINT_REGION_BISECTION_STEPS; step += 1) {
+    const middle = (low + high) / 2;
+    if (feasibleColumnSpan(constraints, middle, yMin, yMax)) high = middle;
+    else low = middle;
+  }
+  return high;
+}
+
 function curveExpression(entityId: string | undefined, document: SceneDocument) {
   if (!entityId) throw new Error("function assertion requires a curve entity");
   const construction = document.constructions.find((candidate) =>

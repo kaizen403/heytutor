@@ -14,5 +14,7 @@ export * from "./ir/solver";
 export * from "./ir/remoteSolver";
 export * from "./ir/solverAuthority";
 export * from "./physics/opticsLaws";
+export * from "./archetypes";
 export * from "./synthesize/familyClassification";
+export * from "./synthesize/sceneDemand";
 export * from "./synthesize/familyScene";
