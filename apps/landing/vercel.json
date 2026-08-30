@@ -4,6 +4,10 @@
   "buildCommand": "pnpm turbo run build --filter=@heytutor/landing...",
   "outputDirectory": "dist",
   "framework": "vite",
+  "rewrites": [
+    { "source": "/terms", "destination": "/index.html" },
+    { "source": "/privacy", "destination": "/index.html" }
+  ],
   "redirects": [
     {
       "source": "/app",

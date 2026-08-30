@@ -20,6 +20,12 @@ import { useUseCaseDemo, type BeatId } from './useUseCaseDemo'
 /** DashboardMockup's design size; record.tsx renders 1600×953 at 1.25×. */
 const DESIGN_W = 1280
 const DESIGN_H = 762
+/* On phones the stage frames only the main column: the 264px sidebar crops
+   away (what the product itself does on small screens) and the fit covers the
+   box, so the board fills the frame instead of leaving a sliver of clipped
+   sidebar text and dead navy under the mockup. */
+const SIDEBAR_W = 264
+const MOBILE_MQ = '(max-width: 639px)'
 
 export interface StageFocus {
   /** Zoom origin as a fraction of the dashboard, [x, y]. */
@@ -40,26 +46,44 @@ export default function DashboardStage({
   active?: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [fit, setFit] = useState(0)
+  const [view, setView] = useState({ fit: 0, cropSidebar: false })
   const drive = useUseCaseDemo(beat, RESISTORS_DEMO, paused, active)
 
   // The mockup lays out at a fixed 1280px, so it has to be scaled to whatever
-  // width the stage actually gets.
+  // width the stage actually gets. On phones the sidebar crops away and the
+  // fit covers the box height too.
   useEffect(() => {
     const node = ref.current
     if (!node) return
-    const measure = () => setFit(node.clientWidth / DESIGN_W)
+    const mobile = window.matchMedia(MOBILE_MQ)
+    const measure = () => {
+      const crop = mobile.matches
+      const fit = crop
+        ? Math.max(node.clientWidth / (DESIGN_W - SIDEBAR_W), node.clientHeight / DESIGN_H)
+        : node.clientWidth / DESIGN_W
+      setView({ fit, cropSidebar: crop })
+    }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(node)
-    return () => observer.disconnect()
+    mobile.addEventListener('change', measure)
+    return () => {
+      observer.disconnect()
+      mobile.removeEventListener('change', measure)
+    }
   }, [])
+
+  const { fit, cropSidebar } = view
 
   return (
     <div ref={ref} className="relative h-full w-full overflow-hidden rounded-[14px]">
       <div
         className="absolute left-0 top-0 origin-top-left"
-        style={{ width: DESIGN_W, height: DESIGN_H, transform: `scale(${fit})` }}
+        style={{
+          width: DESIGN_W,
+          height: DESIGN_H,
+          transform: `translateX(${cropSidebar ? -SIDEBAR_W * fit : 0}px) scale(${fit})`,
+        }}
       >
         <m.div
           style={{

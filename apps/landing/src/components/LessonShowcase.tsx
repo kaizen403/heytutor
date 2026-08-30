@@ -122,6 +122,7 @@ function SafariChrome({ sound, onToggle }: { sound: SoundState; onToggle: () => 
           {showSpeaker && (
             <button
               type="button"
+              data-sound-toggle
               onClick={onToggle}
               aria-label={muted ? 'Play lesson voice' : 'Mute lesson voice'}
               title={muted ? 'Play with sound' : 'Mute'}
@@ -154,6 +155,12 @@ function SafariChrome({ sound, onToggle }: { sound: SoundState; onToggle: () => 
    DashboardStage does for the use-cases section. */
 const DESIGN_W = 1280
 const DESIGN_H = 762
+/* The mockup's sidebar is 264px of the design width. Below the sm breakpoint
+   the window frames only the main column — the same thing the shipping product
+   does with its sidebar on a phone — so the board stays the subject instead of
+   shrinking the whole desktop UI into a thumbnail. */
+const SIDEBAR_W = 264
+const MOBILE_MQ = '(max-width: 639px)'
 
 /**
  * The live, self-driving mockup inside the Safari window — the same
@@ -165,17 +172,27 @@ const DESIGN_H = 762
 function LiveLessonWindow() {
   const bodyRef = useRef<HTMLDivElement>(null)
   const { snapshot, sound, toggleSound, boardRef, cursorState } = useLessonSimulation(bodyRef)
-  const [fit, setFit] = useState(0)
+  const [view, setView] = useState({ fit: 0, cropSidebar: false })
 
   useEffect(() => {
     const node = bodyRef.current
     if (!node) return
-    const measure = () => setFit(node.clientWidth / DESIGN_W)
+    const mobile = window.matchMedia(MOBILE_MQ)
+    const measure = () => {
+      const crop = mobile.matches
+      setView({ fit: node.clientWidth / (crop ? DESIGN_W - SIDEBAR_W : DESIGN_W), cropSidebar: crop })
+    }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(node)
-    return () => observer.disconnect()
+    mobile.addEventListener('change', measure)
+    return () => {
+      observer.disconnect()
+      mobile.removeEventListener('change', measure)
+    }
   }, [])
+
+  const { fit, cropSidebar } = view
 
   return (
     <>
@@ -183,7 +200,11 @@ function LiveLessonWindow() {
       <div ref={bodyRef} className="overflow-hidden" style={{ height: DESIGN_H * fit }}>
         <div
           className="origin-top-left"
-          style={{ width: DESIGN_W, height: DESIGN_H, transform: `scale(${fit})` }}
+          style={{
+            width: DESIGN_W,
+            height: DESIGN_H,
+            transform: `translateX(${cropSidebar ? -SIDEBAR_W * fit : 0}px) scale(${fit})`,
+          }}
         >
           <DashboardMockup
             drive={{ question: QUESTION_TEXT, snapshot, sound, toggleSound, boardRef, cursorState }}

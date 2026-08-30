@@ -5,7 +5,9 @@ import Button from './ui/Button'
 import DitherHalo from './dither/DitherHalo'
 import Logo from './Logo'
 import Reveal from './Reveal'
+import { CAL_BOOKING_HREF } from '../lib/calHref'
 import { TUTOR_APP_HREF, tutorQuestionHref } from '../lib/tutorAppHref'
+import SketchWallpaper from './sketch/SketchWallpaper'
 
 type FooterLink = { label: string; href: string }
 
@@ -29,16 +31,16 @@ const YOUTUBE_PATH =
   'M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.5A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.5 9.38.5 9.38.5s7.5 0 9.38-.5a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81zM9.55 15.57V8.43L15.82 12z'
 
 const NAVIGATION_LINKS: FooterLink[] = [
-  { label: 'How it works', href: '#lesson' },
-  { label: 'Use cases', href: '#use-cases' },
-  { label: 'Pricing', href: '#pricing' },
+  { label: 'How it works', href: '/#lesson' },
+  { label: 'Use cases', href: '/#use-cases' },
+  { label: 'Pricing', href: '/#pricing' },
   { label: 'Try the app', href: TUTOR_APP_HREF },
 ]
 
 const COMPANY_LINKS: FooterLink[] = [
   { label: 'About', href: '#' },
-  { label: 'Terms', href: '#' },
-  { label: 'Privacy Policy', href: '#' },
+  { label: 'Terms', href: '/terms' },
+  { label: 'Privacy Policy', href: '/privacy' },
 ]
 
 const SOCIAL_LINKS: SocialLink[] = [
@@ -157,6 +159,9 @@ export default function Footer() {
       {/* The page's closing tone. `.band-deep` sits the sky low in the navy and
           masks away at the top, so the seam with <UseCasesSection> never shows. */}
       <div aria-hidden className="band-deep pointer-events-none absolute inset-0" />
+      {/* Notebook margin: faint sketched formulas in the bare navy around
+          the closing CTA, above the band wash and below the content. */}
+      <SketchWallpaper variant="footer" className="z-[1]" />
 
       {/* The same halftone family as the use-case bloom, turned on its head:
           coarser cells and a wide field rising off the bottom edge rather than
@@ -180,7 +185,7 @@ export default function Footer() {
         />
       </div>
 
-      <div className={`relative z-10 ${CONTAINER} pb-10 pt-28 sm:pt-32 lg:pt-40`}>
+      <div className={`relative z-10 ${CONTAINER} pb-10 pt-20 sm:pt-32 lg:pt-40`}>
         {/* ── The call to action ── */}
         <Reveal variant="rise" className="mx-auto max-w-3xl text-center">
           <h2 className="type-h2 text-frost">
@@ -192,11 +197,16 @@ export default function Footer() {
             you through it.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Button href={TUTOR_APP_HREF} size="lg">
+            <Button
+              href={CAL_BOOKING_HREF}
+              size="lg"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <Play className="h-4 w-4" />
               Try it free
             </Button>
-            <Button href="#lesson" variant="ghost" size="lg">
+            <Button href="/#lesson" variant="ghost" size="lg">
               See how it works
             </Button>
           </div>
@@ -207,7 +217,15 @@ export default function Footer() {
         {/* ── Directory ── */}
         <div className="mt-12 flex flex-col gap-12 lg:flex-row lg:justify-between lg:gap-16">
           <div className="flex flex-col gap-8">
-            <Brand href="/" />
+            <div className="flex flex-col gap-3">
+              <Brand href="/" />
+              <a
+                href="mailto:hi@accelute.co"
+                className="text-[15px] text-[rgba(240,245,247,0.58)] no-underline transition-colors duration-300 hover:text-frost"
+              >
+                hi@accelute.co
+              </a>
+            </div>
             <div className="flex gap-2.5">
               {SOCIAL_LINKS.map(({ label, href, path }) => (
                 <a

@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react'
 import Hero from './components/Hero'
 import DitherBand from './components/dither/DitherBand'
+import DitherHalo from './components/dither/DitherHalo'
 import LessonShowcase from './components/LessonShowcase'
 import Footer from './components/Footer'
 
@@ -27,17 +28,27 @@ function App() {
         />
         <LessonShowcase />
       </div>
-      {/* Separation between the lesson and the use cases. A rule would be the
-          one hard edge on a page that otherwise dissolves everywhere, so this
-          melts a lifted navy down into the section instead — the same pixel
-          transition the hero uses into the lesson, just shorter and quieter. */}
-      <DitherBand
-        from="#1B3242"
-        to="#06121C"
-        via="#16303F"
-        heightClass="h-[clamp(3.5rem,7vh,6rem)]"
-        className="-mt-px"
-      />
+      {/* Separation between the lesson and the use cases. The band swells up
+          out of the page navy and sinks back into it — both ends are the page
+          colour, so there is no boundary left to read as an edge — and the
+          peak stays within a step of the field, so the swell never resolves
+          into a stripe. A whisper of the sections' halftone bloom bridges the
+          gap, so the pixel field never fully drops out between them. */}
+      <div className="relative">
+        <DitherBand
+          from="#06121C"
+          via="#0D2231"
+          to="#06121C"
+          heightClass="h-[clamp(4.5rem,9vh,7.5rem)]"
+          className="-mt-px"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-32 -bottom-32 z-[1] opacity-[0.13]"
+        >
+          <DitherHalo strength={0.32} center={[0.5, 0.5]} radius={[0.7, 0.5]} cell={4} />
+        </div>
+      </div>
 
       <Suspense fallback={<div className="min-h-[760px]" aria-hidden />}>
         <UseCasesSection />

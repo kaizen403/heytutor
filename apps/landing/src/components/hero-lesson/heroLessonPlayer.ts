@@ -4,7 +4,7 @@
  * the audio clock) → drawShape with audio-damped targets → drawAnnotation →
  * clearBoard. Canvas coordinates are the product's 1200×700 board space.
  */
-import { prefetchStrokePaths } from '@heytutor/drawing'
+import { measureTextWidth, prefetchStrokePaths } from '@heytutor/drawing'
 import type { CursorState, WhiteboardHandle, WriteSchedule } from '@heytutor/whiteboard'
 import {
   CLEAR_DURATION,
@@ -31,7 +31,10 @@ const LINE_A = { text: 'Given: u = 0 m/s, a = 2 m/s², t = 5 s', y: 130 }
 const LINE_B = { text: 'v = u + at', y: 210 }
 const LINE_C = { text: 'v = 0 + 2 × 5', y: 290 }
 const LINE_D = { text: 'v = 10 m/s', y: 370 }
-const UNDERLINE = 'M 68 402 L 282 402'
+/* Measured off the answer's real ink width, never hardcoded. */
+const UNDERLINE = `M ${WORK_X - 2} ${LINE_D.y + FONT_SIZE} L ${Math.round(
+  WORK_X + measureTextWidth(LINE_D.text, FONT_SIZE) + 4,
+)} ${LINE_D.y + FONT_SIZE}`
 
 const GRAPH = {
   axisX: 'M 560 470 L 934 470',

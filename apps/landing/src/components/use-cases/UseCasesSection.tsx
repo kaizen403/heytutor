@@ -13,6 +13,7 @@ import DitherHalo from '../dither/DitherHalo'
 import PixelSparkle from '../dither/PixelSparkle'
 import PixelGlyph, { type PixelGlyphName } from './PixelGlyph'
 import DashboardStage, { type StageFocus } from './DashboardStage'
+import SketchWallpaper from '../sketch/SketchWallpaper'
 import type { BeatId } from './useUseCaseDemo'
 
 interface UseCase {
@@ -142,9 +143,12 @@ export default function UseCasesSection() {
         id="use-cases"
         /* Full-bleed and background-free; the tone comes from <band-steel>,
            masked away at both ends so the section has no edge to show. */
-        className="relative overflow-hidden px-5 pb-28 pt-32 sm:px-8 sm:pb-32 sm:pt-36 lg:px-10 lg:pb-36 lg:pt-44"
+        className="relative overflow-hidden px-5 pb-16 pt-32 sm:px-8 sm:pb-32 sm:pt-36 lg:px-10 lg:pb-36 lg:pt-44"
       >
         <div aria-hidden className="band-steel pointer-events-none absolute inset-0" />
+        {/* Notebook margin: faint sketched formulas in the bare navy around
+            the rail and stage, above the band wash and below the content. */}
+        <SketchWallpaper variant="use-cases" className="z-[1]" />
         {/* Halftone bloom behind the heading, dissolving outward */}
         <div
           aria-hidden

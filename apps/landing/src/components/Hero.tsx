@@ -4,11 +4,17 @@ import PenPlotter from './pen/PenPlotter'
 import HeroPixelDecor from './pixel/HeroPixelDecor'
 import DitherWave from './dither/DitherWave'
 import Button from './ui/Button'
-import { TUTOR_APP_HREF } from '../lib/tutorAppHref'
+import BackedByYC from './BackedByYC'
+import SketchWallpaper from './sketch/SketchWallpaper'
+import { CAL_BOOKING_HREF } from '../lib/calHref'
 
 export default function Hero() {
   return (
     <div className="fx-aurora relative flex min-h-[100svh] flex-col overflow-x-clip">
+      {/* Notebook margin: faint sketched formulas in the hero's bare corners
+          and margins — above the aurora, below the pen's ink and the pixel
+          decor, and well clear of the headline and the graph lane. */}
+      <SketchWallpaper variant="hero" mode="bold" className="z-[2]" />
       {/* Ambient light, hung from the top of the page */}
       <div
         aria-hidden
@@ -36,8 +42,9 @@ export default function Hero() {
       <div className="min-h-4 flex-[0.35] shrink-0 sm:min-h-8" />
 
       <div className="relative z-20 flex flex-col items-center px-5 text-center sm:px-8 lg:px-10">
-        <h1 className="type-h1 text-frost">
-          <span className="block animate-fade-up">Learn every subject</span>
+        <BackedByYC className="animate-fade-down mb-6 sm:mb-7" />
+        <h1 className="type-h1 type-h1--hero text-frost">
+          <span className="block animate-fade-up">An AI that teaches every subject</span>
           <span className="block animate-fade-up [animation-delay:100ms]">
             the way <span className="text-ice">teachers</span> actually teach it.
           </span>
@@ -47,7 +54,12 @@ export default function Hero() {
           className="animate-fade-up mt-7 flex flex-wrap items-center justify-center gap-3 sm:mt-8"
           style={{ animationDelay: '220ms' }}
         >
-          <Button href={TUTOR_APP_HREF} size="lg">
+          <Button
+            href={CAL_BOOKING_HREF}
+            size="lg"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Play className="h-4 w-4" />
             Try it free
           </Button>
@@ -68,7 +80,7 @@ export default function Hero() {
           between the crests and the drawn x-axis, and fuses solid at the hero's
           foot; <DitherBand> in App.tsx then melts that ice into the next
           section so the two grounds don't meet on a line. */}
-      <div className="relative w-full shrink-0 basis-[150px] sm:basis-[170px] lg:basis-[190px]">
+      <div className="relative w-full shrink-0 basis-[220px] sm:basis-[240px] lg:basis-[280px]">
         {/* Light the water-line: the dots rise out of a soft sky bloom. */}
         <div
           aria-hidden

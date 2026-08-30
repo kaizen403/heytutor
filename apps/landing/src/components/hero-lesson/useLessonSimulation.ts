@@ -28,6 +28,7 @@ interface SimInternals {
   ioVisible: boolean
   docVisible: boolean
   soundOn: boolean
+  explicitlyMuted: boolean
   audio: HTMLAudioElement | null
 }
 
@@ -74,12 +75,33 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     ioVisible: true,
     docVisible: true,
     soundOn: false,
+    explicitlyMuted: false,
     audio: null,
   })
 
   const boardRef = useCallback((handle: WhiteboardHandle | null) => {
     boardHandleRef.current = handle
     setBoardReady(handle !== null)
+  }, [])
+
+  /* Sound on, with the voice joined at wherever the loop currently is. Safe to
+     call outside a gesture — a blocked play() drops back to 'off' — but inside
+     a real gesture stricter browsers let it through. */
+  const startVoice = useCallback(() => {
+    const st = stRef.current
+    const audio = st.audio
+    if (!audio) return
+    st.soundOn = true
+    setSound('on')
+    const t = (performance.now() - st.start - st.pausedAccum) / 1000
+    const lt = lessonOffsetMs(t, st.timing) / 1000
+    if (lt >= 0 && lt < st.timing.total) {
+      audio.currentTime = lt * PLAYBACK_SPEED
+      audio.play().catch(() => {
+        st.soundOn = false
+        setSound('off')
+      })
+    }
   }, [])
 
   // Optional TTS assets. Absent or malformed → silent estimated schedule.
@@ -105,20 +127,35 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
         audio.preload = 'auto'
         audio.playbackRate = PLAYBACK_SPEED
         st.audio = audio
-        // Muted-first: voice only plays after the visitor clicks the sound
-        // toggle. The animation runs on the estimated schedule regardless.
-        st.soundOn = false
-        setSound('off')
+        // Voice-first: the lesson tries to be heard as soon as it is visible.
+        // Where autoplay policy refuses, the rejection in the tick hands back
+        // the muted-first state and the tab speaker keeps pulsing.
+        st.soundOn = true
+        setSound('on')
       } catch {
         if (!cancelled) setSound('unavailable')
       } finally {
         if (!cancelled) setTimingReady(true)
       }
     })()
+
+    // Any first interaction with the page is licence for sound — except a
+    // press on the speaker itself, which is the toggle's own gesture.
+    const unlock = (event: Event) => {
+      if (cancelled) return
+      if ((event.target as HTMLElement | null)?.closest?.('[data-sound-toggle]')) return
+      const s = stRef.current
+      if (s.audio && !s.soundOn && !s.explicitlyMuted) startVoice()
+    }
+    window.addEventListener('pointerdown', unlock)
+    window.addEventListener('keydown', unlock)
+
     return () => {
       cancelled = true
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
     }
-  }, [reduced])
+  }, [reduced, startVoice])
 
   // Master clock: chrome snapshot + audio nudged onto it.
   useEffect(() => {
@@ -236,21 +273,13 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     if (!st.audio) return
     if (st.soundOn) {
       st.soundOn = false
+      st.explicitlyMuted = true
       st.audio.pause()
       setSound('off')
       return
     }
-    st.soundOn = true
-    setSound('on')
-    const t = (performance.now() - st.start - st.pausedAccum) / 1000
-    const lt = lessonOffsetMs(t, st.timing) / 1000
-    if (lt >= 0 && lt < st.timing.total) {
-      st.audio.currentTime = lt * PLAYBACK_SPEED
-      st.audio.play().catch(() => {
-        st.soundOn = false
-        setSound('off')
-      })
-    }
+    st.explicitlyMuted = false
+    startVoice()
   }
 
   return { snapshot, sound, toggleSound, boardRef, cursorState }

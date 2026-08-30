@@ -2,21 +2,25 @@ import { useEffect, useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import Brand from './Brand'
 import Button from './ui/Button'
-import { TUTOR_APP_HREF } from '../lib/tutorAppHref'
+import { CAL_BOOKING_HREF } from '../lib/calHref'
 
 const NAV_LINKS = [
-  { href: '#how-it-works', label: 'How it works' },
-  { href: '#features', label: 'Features' },
-  { href: '#pricing', label: 'Pricing' },
+  { href: '/#lesson', label: 'How it works' },
+  { href: '/#use-cases', label: 'Use cases' },
+  { href: '/#pricing', label: 'Pricing' },
 ]
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
-  // The island always has a body so it reads as a floating tile, but it starts
-  // sheer over the hero and firms up once content scrolls under it. The hero
-  // whiteboard is near-white; without that step the links drop to ~2:1.
+  // A raised glass tile: the body is a vertical light-fall (bright at the top
+  // edge, sinking into the navy at the bottom), the top inner hairline is the
+  // light catching the rim, the bottom inner shade is the tile's thickness,
+  // and two shadows — a tight contact one and a long ambient one — lift it off
+  // the page. It starts sheer over the hero and firms up once content scrolls
+  // under it; the hero whiteboard is near-white, so without that step the
+  // links drop to ~2:1.
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
     onScroll()
@@ -30,10 +34,10 @@ export default function Navbar() {
     <nav className="animate-fade-down sticky top-0 z-50 px-4 pt-3 sm:px-6 sm:pt-4">
       <div className="relative mx-auto w-full max-w-6xl">
         <div
-          className={`flex items-center justify-between rounded-[16px] border px-3.5 py-2.5 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-500 sm:px-4 ${
+          className={`flex items-center justify-between rounded-[16px] border px-3.5 py-2.5 backdrop-blur-2xl backdrop-saturate-150 transition-[background-color,border-color,box-shadow] duration-500 sm:px-4 ${
             lifted
-              ? 'border-[rgba(202,229,241,0.16)] bg-[rgba(6,18,28,0.82)] shadow-[0_18px_50px_-24px_rgba(3,11,18,0.9)] backdrop-blur-2xl backdrop-saturate-150'
-              : 'border-[rgba(202,229,241,0.10)] bg-[rgba(6,18,28,0.45)] backdrop-blur-xl'
+              ? 'border-[rgba(202,229,241,0.20)] bg-[linear-gradient(180deg,rgba(240,245,247,0.13)_0%,rgba(202,229,241,0.05)_42%,rgba(10,27,39,0.42)_100%)] bg-[rgba(6,18,28,0.72)] shadow-[inset_0_1px_0_rgba(240,245,247,0.18),inset_0_-1px_0_rgba(3,11,18,0.45),0_10px_24px_-12px_rgba(3,11,18,0.65),0_30px_70px_-28px_rgba(3,11,18,0.9)]'
+              : 'border-[rgba(202,229,241,0.15)] bg-[linear-gradient(180deg,rgba(240,245,247,0.10)_0%,rgba(202,229,241,0.04)_42%,rgba(10,27,39,0.30)_100%)] bg-[rgba(6,18,28,0.42)] shadow-[inset_0_1px_0_rgba(240,245,247,0.14),inset_0_-1px_0_rgba(3,11,18,0.35),0_8px_20px_-12px_rgba(3,11,18,0.5),0_24px_60px_-28px_rgba(3,11,18,0.75)]'
           }`}
         >
           <Brand href="/" className="pl-1" />
@@ -51,7 +55,13 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center">
-            <Button href={TUTOR_APP_HREF} size="sm" className="hidden md:inline-flex">
+            <Button
+              href={CAL_BOOKING_HREF}
+              size="sm"
+              className="hidden md:inline-flex"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Try it free
             </Button>
             <button
@@ -84,7 +94,14 @@ export default function Navbar() {
                 </a>
               ))}
             </div>
-            <Button href={TUTOR_APP_HREF} size="sm" block className="mt-3">
+            <Button
+              href={CAL_BOOKING_HREF}
+              size="sm"
+              block
+              className="mt-3"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Try it free
             </Button>
           </div>
