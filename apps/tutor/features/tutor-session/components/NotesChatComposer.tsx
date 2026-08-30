@@ -7,7 +7,9 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
-import { ArrowUp, Lightbulb, Square } from "lucide-react";
+import { ArrowUp, Lightbulb, Square, X } from "lucide-react";
+import { MathText } from "@/features/tutor-session/components/MathText";
+import type { NotesChatTag } from "../lib/notesChatTag";
 
 const MAX_FIELD_HEIGHT = 136;
 
@@ -16,6 +18,8 @@ interface NotesChatComposerProps {
   onValueChange: (value: string) => void;
   sending: boolean;
   starters: string[];
+  tag?: NotesChatTag | null;
+  onClearTag?: () => void;
   onSend: (message: string) => void;
   onStop?: () => void;
 }
@@ -25,6 +29,8 @@ export function NotesChatComposer({
   onValueChange,
   sending,
   starters,
+  tag = null,
+  onClearTag,
   onSend,
   onStop,
 }: NotesChatComposerProps) {
@@ -32,7 +38,7 @@ export function NotesChatComposer({
   const [showStarters, setShowStarters] = useState(false);
   const [focused, setFocused] = useState(false);
 
-  const canSend = !sending && value.trim().length > 0;
+  const canSend = !sending && (value.trim().length > 0 || tag !== null);
 
   // Grow with the draft instead of scrolling a one-line input, so a long
   // question stays readable while it is being written.
@@ -76,9 +82,28 @@ export function NotesChatComposer({
                 setShowStarters(false);
               }}
             >
-              {prompt}
+              <MathText handwritten={false}>{prompt}</MathText>
             </button>
           ))}
+        </div>
+      ) : null}
+
+      {tag ? (
+        <div className="ncs__tag" aria-label="Tagged board line">
+          <span className="ncs__tag-kind">{tag.kind === "work" ? "line" : tag.kind}</span>
+          <span className="ncs__tag-text">
+            <MathText>{tag.text}</MathText>
+          </span>
+          {onClearTag ? (
+            <button
+              type="button"
+              className="ncs__tag-x"
+              aria-label="Remove tagged line"
+              onClick={onClearTag}
+            >
+              <X size={11} strokeWidth={2} />
+            </button>
+          ) : null}
         </div>
       ) : null}
 

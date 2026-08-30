@@ -10,6 +10,7 @@ import {
   createTTSClient,
   type ConversationExchange,
   type TTSClient,
+  type TutorVoicePreferences,
 } from "@heytutor/tutor-core";
 import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { buildLocalStoredTurn } from "@/lib/replay/replayTurns";
@@ -53,6 +54,8 @@ export interface UseBoardSessionParams {
   /** Snapshot the current board as a notes page (see `useBoardLayout`). */
   captureNotesEpoch: () => boolean;
   ttsClientRef: RefObject<TTSClient | null>;
+  /** Language/accent/latency from Settings; applied on first client create. */
+  voicePreferencesRef: RefObject<TutorVoicePreferences>;
   speedRef: RefObject<number>;
   stopTurnRef: RefObject<(() => void) | null>;
   replayAudioRef: RefObject<HTMLAudioElement | null>;
@@ -81,6 +84,7 @@ export function useBoardSession({
   liveQuestionRef,
   captureNotesEpoch,
   ttsClientRef,
+  voicePreferencesRef,
   speedRef,
   stopTurnRef,
   replayAudioRef,
@@ -210,13 +214,16 @@ export function useBoardSession({
 
   const ensureTTSClient = useCallback((): TTSClient => {
     if (!ttsClientRef.current) {
-      ttsClientRef.current = createTTSClient({ muted });
+      ttsClientRef.current = createTTSClient({
+        muted,
+        voicePreferences: voicePreferencesRef.current,
+      });
     } else {
       ttsClientRef.current.setMuted?.(muted);
     }
     ttsClientRef.current.setPlaybackRate(speedRef.current);
     return ttsClientRef.current;
-  }, [ttsClientRef, speedRef, muted]);
+  }, [ttsClientRef, voicePreferencesRef, speedRef, muted]);
 
   // Create the TTS client once on mount only. Re-creating it when `muted`
   // flips (promoting a headless lecture to Watch Live) runs the cleanup's

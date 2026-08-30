@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { formatReplayTime } from "@/lib/replay/replayTimeline";
 import {
+  LIVE_BAR_HIT_PX,
   lectureScrubberModel,
   type LecturePlaybackMode,
 } from "@/lib/replay/liveTimeline";
@@ -214,19 +215,32 @@ export function ReplayControls({
         </button>
       )}
 
-      {/* The strip keeps its height and stays hittable even while the chrome is
-          faded out — otherwise, on a live board, there would be nothing to
-          hover to bring the timeline back. */}
+      {/* Live hover slab: a dedicated hit target that does not fade with the
+          chrome. Opacity-0 + translate descendants are not reliable once a
+          transform puts them on their own layer, and overflow-hidden on the
+          board would clip a translated strip. */}
       <div
-        className="pointer-events-auto absolute inset-x-0 bottom-0"
+        data-live-bar-hit={isLive ? "" : undefined}
+        className="pointer-events-auto absolute inset-x-0 bottom-0 bg-transparent"
+        style={isLive ? { minHeight: LIVE_BAR_HIT_PX } : undefined}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={leaveChrome}
         onPointerDown={() => setHovered(true)}
       >
+      {isLive && !showBottomChrome ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-4 bottom-3 h-1 rounded-full"
+          style={{
+            background: `linear-gradient(to right, ${LIVE_FILL} ${filledPercent}%, rgba(255,255,255,0.28) ${filledPercent}%)`,
+          }}
+        />
+      ) : null}
       <div
         className={cn(
-          "transition-all duration-200",
-          showBottomChrome ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
+          "transition-opacity duration-200",
+          isLive && "absolute inset-x-0 bottom-0",
+          showBottomChrome ? "opacity-100" : "opacity-0 pointer-events-none",
         )}
       >
         <div className="bg-gradient-to-t from-black/70 via-black/45 to-transparent px-4 pb-3 pt-10">
@@ -246,7 +260,7 @@ export function ReplayControls({
               onPointerCancel={endScrub}
               onLostPointerCapture={endScrub}
               onChange={(event) => handleScrub(Number(event.target.value))}
-              className="replay-slider h-1.5 w-full cursor-pointer appearance-none rounded-full"
+              className="replay-slider h-4 w-full cursor-pointer appearance-none rounded-full"
               style={{
                 ["--replay-progress" as string]: `${filledPercent}%`,
                 ["--replay-fill" as string]: fill,

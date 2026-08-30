@@ -14,8 +14,8 @@ import {
   type ReplayCue,
 } from "@/lib/replay/replayTimeline";
 import { exportNotesPdf, type NotesEpoch } from "@/lib/client/exportNotesPdf";
-import { buildLessonNotes } from "../lib/lessonNotes";
-import { buildNotesPdfSections } from "../lib/notesPdf";
+import { fetchBoardDetail } from "@/lib/boards/boardsClient";
+import { notesPdfSectionsFromStoredTurns } from "../lib/notesPdf";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 import type { StoredSegment, StoredTurn } from "@/lib/boards/boardsClient";
@@ -688,16 +688,16 @@ export function useReplay({
             timestampMs: Date.now(),
           });
         }
-        const { turns } = buildLessonNotes({
-          persistedTurns: storedTurnsRef.current,
-          lectureInProgress: false,
-        });
-        const sections = buildNotesPdfSections(turns, epochs);
+        // Stored turns are the authority after a reload — epochs only supply
+        // board images captured this session.
+        const detail = await fetchBoardDetail(sessionId);
+        const storedTurns = detail?.turns.length ? detail.turns : storedTurnsRef.current;
+        const sections = notesPdfSectionsFromStoredTurns(storedTurns, epochs);
         if (sections.length === 0) {
           return;
         }
         const boardTitle = boards.find((b) => b.id === sessionId)?.title ?? "Lecture Notes";
-        exportNotesPdf({ title: boardTitle, sections });
+        await exportNotesPdf({ title: boardTitle, sections });
       } catch (error) {
         console.error("Notes PDF export failed:", error);
       } finally {

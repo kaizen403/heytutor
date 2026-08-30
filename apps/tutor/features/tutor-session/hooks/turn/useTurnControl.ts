@@ -28,6 +28,19 @@ import { useSegmentRunner } from "./useSegmentRunner";
 import type { TutorPhase } from "../../types";
 import type { TurnControlApi, UseTurnLifecycleParams } from "./types";
 
+export const EMPTY_AI_RESPONSE_MESSAGE = "the tutor did not answer. try asking again.";
+
+export function isEmptyTutorResponse(
+  responseText: string,
+  parsed: { commands: readonly unknown[]; narration: string },
+): boolean {
+  return parsed.commands.length === 0 && !parsed.narration.trim() && !/\[STEP\]/i.test(responseText);
+}
+
+export function emptyAiResponseError(question: string): { message: string; question: string } {
+  return { message: EMPTY_AI_RESPONSE_MESSAGE, question };
+}
+
 export function useTurnControl(
   params: UseTurnLifecycleParams,
   handleQuestionRef: RefObject<(question: string) => Promise<void>>,
@@ -308,14 +321,11 @@ export function useTurnControl(
       }
       const parsed = parseDrawingCommands(responseText);
 
-      if (parsed.commands.length === 0 && !parsed.narration.trim() && !/\[STEP\]/i.test(responseText)) {
-        const message = "the tutor did not answer. try asking again.";
-        const question = liveQuestionRef.current;
-        setNarrationText(message);
-        setCurrentSegmentText(message);
-        // Subtitles are off by default, so the narration line alone is invisible.
-        setLastError({ message, question });
-        onError?.({ message, question });
+      if (isEmptyTutorResponse(responseText, parsed)) {
+        // Subtitles are off by default — never put this in narrationText.
+        const error = emptyAiResponseError(liveQuestionRef.current);
+        setLastError(error);
+        onError?.(error);
         return;
       }
 
@@ -447,7 +457,6 @@ export function useTurnControl(
       onError,
       setLastError,
       setNarrationText,
-      setCurrentSegmentText,
       executeCommandWithCancel,
     ],
   );

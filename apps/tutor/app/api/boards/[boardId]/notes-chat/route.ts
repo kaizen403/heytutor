@@ -15,6 +15,11 @@ import {
   parseLiveTurnNotes,
 } from "@/features/tutor-session/lib/lessonNotes";
 import {
+  formatNotesChatTagPrompt,
+  formatTaggedUserMessage,
+  parseNotesChatTag,
+} from "@/features/tutor-session/lib/notesChatTag";
+import {
   endLlmGeneration,
   flushInBackground,
   genTraceId,
@@ -37,6 +42,7 @@ interface ChatRow {
   role: string;
   content: string;
   createdAt: Date;
+  tag: unknown;
 }
 
 function serializeMessage(row: ChatRow) {
@@ -45,6 +51,7 @@ function serializeMessage(row: ChatRow) {
     role: row.role,
     content: row.content,
     createdAt: row.createdAt.getTime(),
+    tag: parseNotesChatTag(row.tag),
   };
 }
 
@@ -115,7 +122,7 @@ export async function GET(_request: Request, context: RouteContext) {
     where: { boardId, userId },
     orderBy: { createdAt: "desc" },
     take: NOTES_CHAT_UI_LIMIT,
-    select: { id: true, role: true, content: true, createdAt: true },
+    select: { id: true, role: true, content: true, createdAt: true, tag: true },
   });
 
   return NextResponse.json({
@@ -166,15 +173,30 @@ export async function POST(request: Request, context: RouteContext) {
     where: { boardId, userId },
     orderBy: { createdAt: "desc" },
     take: NOTES_CHAT_HISTORY_LIMIT,
-    select: { role: true, content: true },
+    select: { role: true, content: true, tag: true },
   });
   const history = historyRows.reverse().flatMap((row) => {
     if (row.role !== "user" && row.role !== "assistant") return [];
-    return [{ role: row.role as "user" | "assistant", content: row.content }];
+    const tag = parseNotesChatTag(row.tag);
+    return [{
+      role: row.role as "user" | "assistant",
+      content: row.role === "user" ? formatTaggedUserMessage(row.content, tag) : row.content,
+    }];
   });
 
+  const tag = parseNotesChatTag(body.tag);
+  const userContent = formatTaggedUserMessage(message, tag);
+  const taggedPrompt = tag ? `\n\n${formatNotesChatTagPrompt(tag)}` : "";
+  const systemPrompt = `${NOTES_CHAT_SYSTEM_PROMPT}\n\nlesson notes:\n${notesPrompt}${taggedPrompt}`;
+
   await prisma.boardChatMessage.create({
-    data: { boardId, userId, role: "user", content: message },
+    data: {
+      boardId,
+      userId,
+      role: "user",
+      content: message,
+      tag: tag ? { kind: tag.kind, text: tag.text, turnIndex: tag.turnIndex } : undefined,
+    },
   });
 
   const apiKey = process.env.FIREWORKS_API_KEY?.trim();
@@ -182,17 +204,15 @@ export async function POST(request: Request, context: RouteContext) {
   const traceId = genTraceId();
   const turnTrace = startTurnTrace({
     sessionId: boardId,
-    input: message,
+    input: userContent,
     traceId,
     mock,
     name: "notes-chat",
     generationName: "notes-chat-llm",
   });
 
-  const systemPrompt = `${NOTES_CHAT_SYSTEM_PROMPT}\n\nlesson notes:\n${notesPrompt}`;
-
   if (mock) {
-    const reply = stripNotesChatProtocol(getMockNotesChatResponse(message));
+    const reply = stripNotesChatProtocol(getMockNotesChatResponse(userContent));
     await prisma.boardChatMessage.create({
       data: { boardId, userId, role: "assistant", content: reply },
     });
@@ -224,7 +244,7 @@ export async function POST(request: Request, context: RouteContext) {
     messages: [
       { role: "system", content: systemPrompt },
       ...history,
-      { role: "user", content: message },
+      { role: "user", content: userContent },
     ],
   });
 

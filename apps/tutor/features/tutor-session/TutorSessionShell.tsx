@@ -20,7 +20,11 @@ import {
   isTutorAccent,
   isTutorAudioLanguage,
 } from "@/features/tutor-session/components/SettingsDrawer";
-import { toVoiceKey, type LessonDepth } from "@heytutor/tutor-core";
+import {
+  toVoiceKey,
+  type LessonDepth,
+  type TutorVoicePreferences,
+} from "@heytutor/tutor-core";
 import {
   CanvasLanding,
   CanvasLandingDoodles,
@@ -72,6 +76,7 @@ import type { TutorPhase, SegmentPlanStats } from "./types";
 import { createEmptySegmentPlanStats } from "./lib/segmentPlanning";
 import { lessonFollowUpMode } from "./lib/lessonFollowUp";
 import { buildLessonNotes } from "./lib/lessonNotes";
+import type { NotesChatTag } from "./lib/notesChatTag";
 import { resolveActiveStatus } from "./lib/statusConfig";
 import { canStartStoredLectureReplay } from "./lib/autoReplay";
 
@@ -185,6 +190,13 @@ export function TutorSessionShell({
     speedMultiplier: DEFAULT_REPLAY_SPEED,
     ...DEFAULT_SETTINGS,
   });
+  // Persist writes must wait until stored values are applied, otherwise the
+  // first paint writes defaults and clobbers language/speed/colour on reload.
+  const [settingsHydrated, setSettingsHydrated] = useState(false);
+  const voicePreferencesRef = useRef<TutorVoicePreferences>({
+    voiceKey: toVoiceKey(DEFAULT_SETTINGS.audioLanguage, DEFAULT_SETTINGS.accent),
+    lowLatency: DEFAULT_SETTINGS.lowLatencyVoice,
+  });
   const speedRef = useRef(DEFAULT_REPLAY_SPEED);
   const fastModeRef = useRef(true);
   const lessonDepthRef = useRef<LessonDepth>(DEFAULT_SETTINGS.lessonDepth);
@@ -217,6 +229,7 @@ export function TutorSessionShell({
 
   useEffect(() => {
     if (isHeadless || typeof window === "undefined") {
+      setSettingsHydrated(true);
       return;
     }
     const overrides: Partial<SettingsState> = {};
@@ -263,58 +276,70 @@ export function TutorSessionShell({
       overrides.lowLatencyVoice = true;
     }
 
-    if (Object.keys(overrides).length === 0) {
-      return;
+    if (Object.keys(overrides).length > 0) {
+      // Read after mount so SSR HTML stays the production default.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSettings((current) => ({ ...current, ...overrides }));
     }
-    // Read after mount so SSR HTML stays the production default.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSettings((current) => ({ ...current, ...overrides }));
+    const language = overrides.audioLanguage ?? DEFAULT_SETTINGS.audioLanguage;
+    const accent = overrides.accent ?? DEFAULT_SETTINGS.accent;
+    const lowLatency = overrides.lowLatencyVoice ?? DEFAULT_SETTINGS.lowLatencyVoice;
+    voicePreferencesRef.current = {
+      voiceKey: toVoiceKey(language, accent),
+      lowLatency,
+    };
+    setSettingsHydrated(true);
   }, [isHeadless, speedIsControlled]);
 
   useEffect(() => {
     fastModeRef.current = settings.fastMode;
-    if (isHeadless || typeof window === "undefined") {
+    if (!settingsHydrated || isHeadless || typeof window === "undefined") {
       return;
     }
     writeStoredSetting(FAST_MODE_STORAGE_KEY, settings.fastMode ? "1" : "0");
-  }, [settings.fastMode, isHeadless]);
+  }, [settings.fastMode, isHeadless, settingsHydrated]);
 
   useEffect(() => {
-    if (isHeadless || typeof window === "undefined") {
+    if (!settingsHydrated || isHeadless || typeof window === "undefined") {
       return;
     }
     writeStoredSetting(SUBTITLES_STORAGE_KEY, settings.subtitlesEnabled ? "1" : "0");
-  }, [settings.subtitlesEnabled, isHeadless]);
+  }, [settings.subtitlesEnabled, isHeadless, settingsHydrated]);
 
   useEffect(() => {
-    if (isHeadless || speedIsControlled || typeof window === "undefined") {
+    if (!settingsHydrated || isHeadless || speedIsControlled || typeof window === "undefined") {
       return;
     }
     writeStoredSetting(SPEED_STORAGE_KEY, String(settings.speedMultiplier));
-  }, [settings.speedMultiplier, isHeadless, speedIsControlled]);
+  }, [settings.speedMultiplier, isHeadless, speedIsControlled, settingsHydrated]);
 
   useEffect(() => {
-    if (isHeadless || typeof window === "undefined") {
+    if (!settingsHydrated || isHeadless || typeof window === "undefined") {
       return;
     }
     writeStoredSetting(MARKER_COLOR_STORAGE_KEY, settings.markerColor);
-  }, [settings.markerColor, isHeadless]);
+  }, [settings.markerColor, isHeadless, settingsHydrated]);
 
   useEffect(() => {
     lessonDepthRef.current = settings.lessonDepth;
-    if (isHeadless || typeof window === "undefined") {
+    if (!settingsHydrated || isHeadless || typeof window === "undefined") {
       return;
     }
     writeStoredSetting(LESSON_DEPTH_STORAGE_KEY, settings.lessonDepth);
-  }, [settings.lessonDepth, isHeadless]);
+  }, [settings.lessonDepth, isHeadless, settingsHydrated]);
 
   // Language/accent/latency reach the server as one voice key; the TTS client
   // reconnects on the next segment so the new voice is used.
   useEffect(() => {
-    ttsClientRef.current?.setVoicePreferences?.({
+    if (!settingsHydrated) {
+      return;
+    }
+    const voicePreferences: TutorVoicePreferences = {
       voiceKey: toVoiceKey(settings.audioLanguage, settings.accent),
       lowLatency: settings.lowLatencyVoice,
-    });
+    };
+    voicePreferencesRef.current = voicePreferences;
+    ttsClientRef.current?.setVoicePreferences?.(voicePreferences);
     if (isHeadless || typeof window === "undefined") {
       return;
     }
@@ -326,16 +351,17 @@ export function TutorSessionShell({
     settings.accent,
     settings.lowLatencyVoice,
     isHeadless,
+    settingsHydrated,
   ]);
 
   useEffect(() => {
     // A headless/muted embed stays silent regardless of the student's choice.
     ttsClientRef.current?.setMuted?.(mutePlayback || !settings.narrationEnabled);
-    if (isHeadless || typeof window === "undefined") {
+    if (!settingsHydrated || isHeadless || typeof window === "undefined") {
       return;
     }
     writeStoredSetting(NARRATION_STORAGE_KEY, settings.narrationEnabled ? "1" : "0");
-  }, [settings.narrationEnabled, mutePlayback, isHeadless]);
+  }, [settings.narrationEnabled, mutePlayback, isHeadless, settingsHydrated]);
 
   // Keep AudioContext eligible for audible playback after long planning awaits.
   useEffect(() => {
@@ -468,6 +494,7 @@ export function TutorSessionShell({
     liveQuestionRef,
     captureNotesEpoch,
     ttsClientRef,
+    voicePreferencesRef,
     speedRef,
     stopTurnRef,
     replayAudioRef,
@@ -638,9 +665,9 @@ export function TutorSessionShell({
   const notesRailOpen = notesEnabled && notesOpen && !isMobile;
 
   const handleNotesChatSend = useCallback(
-    (message: string) => {
+    (message: string, tag: NotesChatTag | null = null) => {
       const liveTurn = lessonNotes.turns[lessonNotes.turns.length - 1] ?? null;
-      void sendNotesChat(message, liveNotesPayload(liveTurn), lectureInProgress);
+      void sendNotesChat(message, liveNotesPayload(liveTurn), lectureInProgress, tag);
     },
     [lectureInProgress, lessonNotes, sendNotesChat],
   );

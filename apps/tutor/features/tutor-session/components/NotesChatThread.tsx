@@ -92,7 +92,7 @@ export function NotesChatThread({
                 className="ncs__chip"
                 onClick={() => onStarter(prompt)}
               >
-                {prompt}
+                <MathText handwritten={false}>{prompt}</MathText>
               </button>
             ))}
           </div>
@@ -112,6 +112,16 @@ export function NotesChatThread({
             if (isUser) {
               return (
                 <div key={message.id} className="ncs__msg ncs__msg--user">
+                  {message.tag ? (
+                    <span className="ncs__tag">
+                      <span className="ncs__tag-kind">
+                        {message.tag.kind === "work" ? "line" : message.tag.kind}
+                      </span>
+                      <span className="ncs__tag-text">
+                        <MathText>{message.tag.text}</MathText>
+                      </span>
+                    </span>
+                  ) : null}
                   <div className="ncs__bubble ncs__bubble--user">
                     <MathText>{message.content}</MathText>
                   </div>

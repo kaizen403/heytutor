@@ -1,11 +1,13 @@
 import { resolveApiUrl } from "@heytutor/tutor-core";
 import type { LessonPlanFact, LessonTurnNotes } from "@/features/tutor-session/lib/lessonNotes";
+import { parseNotesChatTag, type NotesChatTag } from "@/features/tutor-session/lib/notesChatTag";
 
 export interface NotesChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   createdAt: number;
+  tag: NotesChatTag | null;
 }
 
 export interface NotesChatLivePayload {
@@ -29,15 +31,22 @@ export function liveNotesPayload(turn: LessonTurnNotes | null | undefined): Note
 export async function fetchNotesChatMessages(boardId: string): Promise<NotesChatMessage[]> {
   const res = await fetch(resolveApiUrl(`/api/boards/${boardId}/notes-chat`));
   if (!res.ok) return [];
-  const data = (await res.json()) as { messages?: NotesChatMessage[] };
-  return (data.messages ?? []).filter(
-    (message) => message.role === "user" || message.role === "assistant",
-  );
+  const data = (await res.json()) as { messages?: Array<NotesChatMessage & { tag?: unknown }> };
+  return (data.messages ?? [])
+    .filter((message) => message.role === "user" || message.role === "assistant")
+    .map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      createdAt: message.createdAt,
+      tag: parseNotesChatTag(message.tag),
+    }));
 }
 
 export async function streamNotesChatMessage(input: {
   boardId: string;
   message: string;
+  tag?: NotesChatTag | null;
   liveNotes: NotesChatLivePayload | null;
   lectureInProgress: boolean;
   signal?: AbortSignal;
@@ -49,6 +58,7 @@ export async function streamNotesChatMessage(input: {
     signal: input.signal,
     body: JSON.stringify({
       message: input.message,
+      tag: input.tag ?? null,
       liveNotes: input.liveNotes,
       lectureInProgress: input.lectureInProgress,
     }),

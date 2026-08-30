@@ -1,0 +1,8 @@
+HeyTutor Notes PDF font (notes-pdf.ttf)
+
+Latin, operators, and most maths come from Anthropic Sans Roman
+(apps/tutor/public/fonts/AnthropicSans-Roman.woff2).
+
+Missing Greek and a few operators were added from STIX Two Math,
+licensed under the SIL Open Font License 1.1:
+https://github.com/stipub/stixfonts

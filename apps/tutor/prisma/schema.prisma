@@ -38,6 +38,8 @@ model BoardChatMessage {
   userId    String   @map("user_id")
   role      String
   content   String
+  /// Board line the student tagged when they sent this message (user rows only).
+  tag       Json?
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

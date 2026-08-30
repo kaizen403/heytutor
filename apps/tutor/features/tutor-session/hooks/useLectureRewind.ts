@@ -25,7 +25,10 @@ import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import {
   buildLectureTimeline,
   clampToLiveEdge,
+  rewindPausedTheLecture,
   shouldEnterRewind,
+  shouldResumeLiveAfterRewind,
+  shouldTrackLiveLectureEdge,
 } from "@/lib/replay/liveTimeline";
 import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 import type { TutorPhase } from "../types";
@@ -151,8 +154,10 @@ export function useLectureRewind({
   /** False when the student had already paused the lesson before scrubbing back. */
   const pausedByRewindRef = useRef(false);
 
-  const lectureActive = enabled && phase !== "idle" && !isReplaying;
+  const lectureActive = shouldTrackLiveLectureEdge({ enabled, phase, isReplaying });
   const lectureActiveRef = useRef(lectureActive);
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
   useEffect(() => {
     lectureActiveRef.current = lectureActive;
   }, [lectureActive]);
@@ -171,6 +176,9 @@ export function useLectureRewind({
   }, []);
 
   const liveAudioUrlFor = useCallback((segment: RecordedSegmentPayload) => {
+    if (!enabledRef.current) {
+      return null;
+    }
     if (!segment.audioBytes || segment.audioBytes.length === 0) {
       return null;
     }
@@ -184,6 +192,11 @@ export function useLectureRewind({
   }, []);
 
   const measureLiveEdge = useCallback(() => {
+    if (!enabledRef.current) {
+      liveEdgeMsRef.current = 0;
+      setLiveEdgeMs(0);
+      return;
+    }
     const { turns, timeline } = buildLectureTimeline({
       storedTurns: storedTurnsRef.current,
       liveSegments: recordedSegmentsRef.current,
@@ -352,9 +365,12 @@ export function useLectureRewind({
     // The live board never lost its ink, so the lecture simply carries on from
     // the frame the rewind froze it at — unless the student had paused it
     // themselves before scrubbing back, in which case it stays paused.
-    const shouldResume = pausedByRewindRef.current;
+    const shouldResume = shouldResumeLiveAfterRewind({
+      rewindPausedTheLecture: pausedByRewindRef.current,
+      lecturePhase: phaseRef.current,
+    });
     pausedByRewindRef.current = false;
-    if (shouldResume && phaseRef.current !== "idle") {
+    if (shouldResume) {
       resumeTurn();
     }
   }, [clearRewindCancelTimers, phaseRef, resumeTurn, rewindActiveRef]);
@@ -371,7 +387,7 @@ export function useLectureRewind({
 
       // Freeze the lecture first: nothing may be added to the past while the
       // student is inside it.
-      pausedByRewindRef.current = !livePausedRef.current;
+      pausedByRewindRef.current = rewindPausedTheLecture(livePausedRef.current);
       pauseTurn();
       rewindActiveRef.current = true;
       rewindCancelRef.current = false;

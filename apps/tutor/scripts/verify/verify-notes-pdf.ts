@@ -1,9 +1,15 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { jsPDF } from "jspdf";
 import {
   buildNotesPdfSections,
+  notesPdfSectionsFromStoredTurns,
   pdfSafeText,
 } from "../../features/tutor-session/lib/notesPdf";
 import type { LessonTurnNotes } from "../../features/tutor-session/lib/lessonNotes";
 import type { NotesEpoch } from "../../lib/client/exportNotesPdf";
+import type { StoredTurn } from "../../lib/boards/boardsClient";
+import { NOTES_PDF_FONT_FAMILY, registerNotesPdfFont } from "../../lib/client/notesPdfFont";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -57,9 +63,88 @@ assert(
   "a page with no owner is never attributed to a turn",
 );
 
-assert(pdfSafeText("∫_(-2)^(2) x² dx = θ") === "int _(-2)^(2) x² dx = theta", "board maths must spell out glyphs the PDF font lacks");
+assert(
+  pdfSafeText("∫_(-2)^(2) x² dx = θ").includes("∫") && pdfSafeText("∫_(-2)^(2) x² dx = θ").includes("θ"),
+  "embedded notes font keeps integral and theta",
+);
+assert(pdfSafeText("√2") === "√2", "sqrt stays a real glyph");
 assert(pdfSafeText("v = 60 cm") === "v = 60 cm", "plain text is untouched");
 assert(pdfSafeText("नमस्ते x") === "? x", "unsupported scripts are marked once, not as a wall of marks");
-assert(pdfSafeText("a − b → c") === "a - b -> c", "minus and arrows map to ascii");
+assert(pdfSafeText("a − b → c") === "a − b → c", "minus and arrows stay as glyphs");
+assert(pdfSafeText("R_1") === "R₁", "board markup becomes a real subscript in the PDF");
+
+const stored: StoredTurn[] = [
+  {
+    id: "t1",
+    orderIndex: 0,
+    question: "find v",
+    rawResponse: "[STEP]so v equals sixty centimeters. [WRITE:v = 60 cm,90,205][/STEP]",
+    speedMultiplier: 1,
+    traceId: null,
+    sceneDocument: null,
+    sceneEngineVersion: null,
+    validationReport: null,
+    visualStatus: "validated",
+    sceneArtifacts: null,
+    segments: [
+      {
+        id: "s1",
+        orderIndex: 0,
+        narration: "so v equals sixty centimeters.",
+        spokenText: "so v equals sixty centimeters.",
+        command: { type: "WRITE", params: [90, 205], text: "v = 60 cm", charPosition: 0, narrationBefore: "" },
+        audioUrl: null,
+        durationMs: 800,
+        timings: null,
+      },
+    ],
+  },
+  {
+    id: "t2",
+    orderIndex: 1,
+    question: "find a",
+    rawResponse: "[STEP]the block slides. [WRITE:a = g sin θ,90,205][/STEP]",
+    speedMultiplier: 1,
+    traceId: null,
+    sceneDocument: null,
+    sceneEngineVersion: null,
+    validationReport: null,
+    visualStatus: "validated",
+    sceneArtifacts: null,
+    segments: [
+      {
+        id: "s2",
+        orderIndex: 0,
+        narration: "the block slides.",
+        spokenText: "the block slides.",
+        command: { type: "WRITE", params: [90, 205], text: "a = g sin θ", charPosition: 0, narrationBefore: "" },
+        audioUrl: null,
+        durationMs: 400,
+        timings: null,
+      },
+    ],
+  },
+];
+const fromDb = notesPdfSectionsFromStoredTurns(stored, [page("find a", "img-last")]);
+assert(fromDb.length === 2, "a reloaded board builds one section per stored turn");
+assert(fromDb[0]!.workLines.includes("v = 60 cm") && fromDb[0]!.narration.includes("sixty"), "earlier turns still print work and narration");
+assert(fromDb[1]!.images[0] === "img-last" && fromDb[1]!.workLines[0] === "a = g sin θ", "the last snapshot joins its stored turn");
+
+const fontPath = resolve(import.meta.dirname, "../../public/fonts/notes-pdf.ttf");
+const fontBytes = readFileSync(fontPath);
+assert(fontBytes.length > 1000, "the notes PDF font must be on disk");
+const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+const chunk = 0x8000;
+let binary = "";
+for (let i = 0; i < fontBytes.length; i += chunk) {
+  binary += String.fromCharCode(...fontBytes.subarray(i, i + chunk));
+}
+registerNotesPdfFont(doc, binary);
+doc.setFont(NOTES_PDF_FONT_FAMILY, "normal");
+doc.setFontSize(14);
+doc.text("∫ θ √ π", 40, 60);
+const pdf = doc.output();
+assert(pdf.includes(NOTES_PDF_FONT_FAMILY) || pdf.includes("HeyTutorNotes"), "the notes font must be embedded");
+assert(!pdf.includes("int  theta sqrt"), "maths must not be ASCII-folded in the exported PDF");
 
 console.log("notes pdf verification passed");

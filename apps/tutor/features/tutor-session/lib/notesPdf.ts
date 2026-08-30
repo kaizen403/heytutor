@@ -1,5 +1,7 @@
 import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
-import { formatPlanFact, type LessonTurnNotes } from "./lessonNotes";
+import type { StoredTurn } from "@/lib/boards/boardsClient";
+import { formatPlanFact, notesFromStoredTurn, type LessonTurnNotes } from "./lessonNotes";
+import { toPlainMathText } from "./mathText";
 
 export interface NotesPdfSection {
   question: string;
@@ -82,11 +84,31 @@ export function buildNotesPdfSections(
   return sections;
 }
 
+/** PDF text comes from stored turns. Epochs only supply board images. */
+export function notesPdfSectionsFromStoredTurns(
+  storedTurns: readonly StoredTurn[],
+  epochs: readonly NotesEpoch[],
+): NotesPdfSection[] {
+  return buildNotesPdfSections(storedTurns.map(notesFromStoredTurn), epochs);
+}
+
 /**
- * jsPDF's built-in fonts only cover Latin-1, so board maths written with
- * unicode operators (∫, θ, √, →) would print as blanks. Spell the common
- * glyphs out and mark anything else so the loss is visible, not silent.
+ * The notes PDF embeds `notes-pdf.ttf`, which can draw the board's maths
+ * glyphs. Keep those. Spell out only what the font still lacks, and mark
+ * unsupported scripts so the loss is visible.
  */
+const NOTES_PDF_NATIVE = new Set([
+  "∫", "∑", "√", "∂", "∞", "π", "∆", "∏", "−", "∕", "∙", "≈", "≠", "≡", "≤", "≥",
+  "θ", "Δ", "δ", "α", "β", "γ", "ε", "ϵ", "η", "κ", "λ", "μ", "ν", "ξ", "ρ", "σ", "ς",
+  "τ", "φ", "χ", "ψ", "ω", "Ω",
+  "Α", "Β", "Γ", "Ε", "Ζ", "Η", "Θ", "Ι", "Κ", "Λ", "Μ", "Ν", "Ξ", "Ο", "Π", "Ρ",
+  "Σ", "Τ", "Υ", "Φ", "Χ", "Ψ",
+  "→", "←", "⇒", "∠", "∧", "∨", "∩", "∪", "∴", "∵", "≃", "≅", "≦", "≧",
+  "⊂", "⊃", "⊆", "⊇", "⋅",
+  "°", "±", "·", "×", "÷", "′", "″",
+  "⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹",
+  "₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉",
+]);
 const PDF_GLYPHS: Readonly<Record<string, string>> = {
   "∫": "int ",
   "∑": "sum ",
@@ -156,14 +178,19 @@ const PDF_GLYPHS: Readonly<Record<string, string>> = {
 };
 
 export function pdfSafeText(text: string): string {
+  const source = toPlainMathText(text);
   let out = "";
-  for (const char of text) {
+  for (const char of source) {
+    if (NOTES_PDF_NATIVE.has(char) || char.charCodeAt(0) <= 0xff) {
+      out += char;
+      continue;
+    }
     const mapped = PDF_GLYPHS[char];
     if (mapped !== undefined) {
       out += mapped;
       continue;
     }
-    out += char.charCodeAt(0) <= 0xff ? char : "?";
+    out += "?";
   }
   return out.replace(/\?{2,}/g, "?");
 }

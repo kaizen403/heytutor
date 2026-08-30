@@ -6,10 +6,15 @@ import {
   clampToLiveEdge,
   isAtLiveEdge,
   lectureScrubberModel,
+  LIVE_BAR_HIT_PX,
   resolveLecturePlayback,
+  rewindPausedTheLecture,
   shouldEnterRewind,
+  shouldResumeLiveAfterRewind,
+  shouldTrackLiveLectureEdge,
   LIVE_EDGE_TOLERANCE_MS,
 } from "../../lib/replay/liveTimeline";
+import { resolveCommandInkBudgetMs } from "../../features/tutor-session/types";
 import { resolveActiveStatus } from "../../features/tutor-session/lib/statusConfig";
 import type {
   RecordedSegmentPayload,
@@ -261,6 +266,61 @@ const recorder = resolveLecturePlayback({
   canRewind: true,
 });
 assert.equal(recorder.visible, false, "the headless recorder never draws playback chrome");
+
+assert.equal(
+  shouldTrackLiveLectureEdge({ enabled: false, phase: "speaking", isReplaying: false }),
+  false,
+  "headless must not measure the live edge or mint bar audio URLs",
+);
+assert.equal(
+  shouldTrackLiveLectureEdge({ enabled: true, phase: "speaking", isReplaying: false }),
+  true,
+  "a student lesson still tracks the live edge",
+);
+assert.equal(
+  shouldTrackLiveLectureEdge({ enabled: true, phase: "idle", isReplaying: false }),
+  false,
+  "an idle board has no live edge to poll",
+);
+
+assert.equal(LIVE_BAR_HIT_PX >= 48, true, "the live hover slab must be thicker than the faded slider");
+
+assert.equal(
+  rewindPausedTheLecture(true),
+  false,
+  "scrubbing back must not claim a pause the student already owned",
+);
+assert.equal(rewindPausedTheLecture(false), true, "rewind may pause a lecture that was still playing");
+assert.equal(
+  shouldResumeLiveAfterRewind({ rewindPausedTheLecture: false, lecturePhase: "speaking" }),
+  false,
+  "Go Live must not un-pause a lecture the student paused themselves",
+);
+assert.equal(
+  shouldResumeLiveAfterRewind({ rewindPausedTheLecture: true, lecturePhase: "speaking" }),
+  true,
+  "Go Live resumes only the lecture rewind itself froze",
+);
+assert.equal(
+  shouldResumeLiveAfterRewind({ rewindPausedTheLecture: true, lecturePhase: "idle" }),
+  false,
+  "Go Live must not resume a lecture that has already stopped",
+);
+
+assert.equal(
+  resolveCommandInkBudgetMs({
+    command: write("F = ma"),
+    pace: "follow",
+    verifiedDiagramIntro: false,
+    isTextCommand: true,
+    speechWindowMs: 40,
+    commandSpeechMs: 40,
+    naturalDrawMs: 420,
+    multiShapeSegment: false,
+  }) >= 420,
+  true,
+  "a short speech window must not dump a follow WRITE without pen motion",
+);
 
 // --- what the header says -------------------------------------------------
 

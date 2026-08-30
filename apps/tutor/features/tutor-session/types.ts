@@ -111,7 +111,14 @@ export function resolveCommandInkBudgetMs(input: {
     return adaptiveShapeBudget(input.command.type, input.speechWindowMs, 1, input.pace);
   }
   if (input.isTextCommand) {
-    return input.speechWindowMs ?? input.naturalDrawMs;
+    const speech = input.speechWindowMs ?? input.naturalDrawMs;
+    // Follow teaching text must stay on the handwritten path. A short speech
+    // window used to fall under the whiteboard's instant-label threshold, so
+    // the nib jumped and live pen motion never ran.
+    if (input.pace === "follow") {
+      return Math.max(speech, input.naturalDrawMs);
+    }
+    return speech;
   }
   if (input.command.type === "PAUSE") {
     return input.commandSpeechMs;

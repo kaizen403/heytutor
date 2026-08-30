@@ -182,3 +182,35 @@ export function resolveLecturePlayback(input: {
     playing: input.isReplaying ? !input.isPaused : input.rewindPlaying,
   };
 }
+
+/**
+ * Always-hittable live hover slab, in CSS pixels of the board overlay.
+ * Opacity-0 chrome is not a reliable hit target once a transform puts it
+ * on its own layer, and a 6px slider is too thin to find on a live board.
+ */
+export const LIVE_BAR_HIT_PX = 64;
+
+/** Headless recording must not poll the live edge or mint bar audio URLs. */
+export function shouldTrackLiveLectureEdge(input: {
+  enabled: boolean;
+  phase: string;
+  isReplaying: boolean;
+}): boolean {
+  return input.enabled && input.phase !== "idle" && !input.isReplaying;
+}
+
+/** Snapshot taken before rewind calls pause: did rewind freeze a playing lecture? */
+export function rewindPausedTheLecture(liveAlreadyPaused: boolean): boolean {
+  return !liveAlreadyPaused;
+}
+
+/**
+ * Go Live may only restart a lecture that rewind itself paused.
+ * A student who had already paused stays paused.
+ */
+export function shouldResumeLiveAfterRewind(input: {
+  rewindPausedTheLecture: boolean;
+  lecturePhase: string;
+}): boolean {
+  return input.rewindPausedTheLecture && input.lecturePhase !== "idle";
+}

@@ -124,6 +124,12 @@ function BoardHistoryContent({
     return () => window.clearTimeout(timeoutId);
   }, [confirmDeleteId]);
 
+  // A running lesson locks the list. Drop an armed confirm in the same
+  // render as that lock, so the student cannot confirm mid-lecture.
+  if (disabled && confirmDeleteId) {
+    setConfirmDeleteId(null);
+  }
+
   useEffect(() => {
     if (!profileOpen) return;
     const onPointerDown = (event: PointerEvent) => {
@@ -239,7 +245,9 @@ function BoardHistoryContent({
                 <button
                   type="button"
                   className="bh__confirm-btn bh__confirm-btn--danger"
+                  disabled={disabled}
                   onClick={() => {
+                    if (disabled) return;
                     setConfirmDeleteId(null);
                     onDelete?.(board.id);
                   }}
@@ -285,9 +293,11 @@ function BoardHistoryContent({
                   type="button"
                   data-delete-btn
                   className="bh__delete"
+                  disabled={disabled}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (disabled) return;
                     setConfirmDeleteId(board.id);
                   }}
                   aria-label={`Delete ${board.title}`}
@@ -642,9 +652,14 @@ const STYLES = `
   opacity: 1;
 }
 
-.bh__delete:hover {
+.bh__delete:hover:not(:disabled) {
   background: rgba(248, 81, 73, 0.15);
   color: #E06858;
+}
+
+.bh__delete:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .bh__item--confirm {

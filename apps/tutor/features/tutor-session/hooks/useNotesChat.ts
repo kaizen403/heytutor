@@ -6,6 +6,7 @@ import {
   type NotesChatLivePayload,
   type NotesChatMessage,
 } from "@/lib/boards/notesChatClient";
+import type { NotesChatTag } from "@/features/tutor-session/lib/notesChatTag";
 
 const STREAMING_ID = "notes-chat-streaming";
 
@@ -51,7 +52,12 @@ export function useNotesChat(boardId: string, enabled = true) {
   }, [boardId, enabled]);
 
   const send = useCallback(
-    async (raw: string, liveNotes: NotesChatLivePayload | null, lectureInProgress: boolean) => {
+    async (
+      raw: string,
+      liveNotes: NotesChatLivePayload | null,
+      lectureInProgress: boolean,
+      tag: NotesChatTag | null = null,
+    ) => {
       const message = raw.trim();
       if (!enabled || !message || sending) return;
 
@@ -67,12 +73,14 @@ export function useNotesChat(boardId: string, enabled = true) {
         role: "user",
         content: message,
         createdAt: Date.now(),
+        tag,
       };
       const assistantMessage: NotesChatMessage = {
         id: STREAMING_ID,
         role: "assistant",
         content: "",
         createdAt: Date.now(),
+        tag: null,
       };
       setMessages((prev) => [...prev, userMessage, assistantMessage]);
 
@@ -80,6 +88,7 @@ export function useNotesChat(boardId: string, enabled = true) {
         const rawReply = await streamNotesChatMessage({
           boardId,
           message,
+          tag,
           liveNotes,
           lectureInProgress,
           signal: controller.signal,

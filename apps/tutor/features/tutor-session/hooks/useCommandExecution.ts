@@ -552,11 +552,15 @@ export function useCommandExecution({
               const { flightMs, drawMs } = speechSplit(command);
               await wb.flyCursorTo(placement.x, placement.y, flightMs, -35);
               if (commandCancelled()) return;
+              const penDrawMs =
+                inkPace === "follow"
+                  ? Math.max(drawMs, getDrawingDuration(command, "follow"))
+                  : drawMs;
               await writeText(
                 command.text,
                 placement.x,
                 placement.y,
-                drawMs,
+                penDrawMs,
                 undefined,
                 fontSize,
               );
