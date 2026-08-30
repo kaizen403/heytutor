@@ -55,6 +55,7 @@ the canvas and still teach. Invalid or partial candidates never render.
 ## Agent Guidelines
 
 - [Session handoff](docs/agent/session-handoff.md) — compact seed; Physics certified, Maths operators in (2 OCR leftovers)
+- [Session ownership](docs/agent/session-ownership.md) — announce before editing scene-engine synthesize/document/capability/verify; do not load another session's gate
 - [Diagram engine priority](docs/plans/diagram-engine-priority.md) — ranked issues; live-check patches first, then honest families, then persist
 - [Start — architecture map](start.md)
 - [Folder layout](docs/agent/layout.md)

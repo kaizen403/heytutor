@@ -402,6 +402,7 @@ body {
    no unfilled "future" to drag into. */
 .replay-slider {
   --replay-progress: 0%;
+  touch-action: none;
   background:
     linear-gradient(
       to right,

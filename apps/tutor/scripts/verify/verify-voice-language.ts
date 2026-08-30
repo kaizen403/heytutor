@@ -4,6 +4,8 @@
  * right ElevenLabs voice id on the server — with Indian English as the
  * default and as the fallback for anything unconfigured.
  */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   DEFAULT_ACCENT,
   DEFAULT_AUDIO_LANGUAGE,
@@ -19,6 +21,8 @@ import {
   TTS_LANG_QUERY,
 } from "@heytutor/tutor-core";
 import { configuredVoiceKeys, resolveVoiceId } from "../../lib/tts/ttsProxy";
+
+const root = resolve(import.meta.dirname, "../..");
 
 function assert(condition: unknown, message: string): void {
   if (!condition) throw new Error(message);
@@ -113,5 +117,92 @@ process.env.ELEVENLABS_VOICE_ID = saved.en ?? "";
 process.env.ELEVENLABS_VOICE_ID_HI = saved.hi ?? "";
 if (saved.gb) process.env.ELEVENLABS_VOICE_ID_EN_GB = saved.gb;
 if (saved.us) process.env.ELEVENLABS_VOICE_ID_EN_US = saved.us;
+
+// --- student-usable path: pills write, persist, and reach TTS --------------
+const settingsDrawer = readFileSync(
+  resolve(root, "features/tutor-session/components/SettingsDrawer.tsx"),
+  "utf8",
+);
+assert(!settingsDrawer.includes("Soon"), "Audio Language / Accent must not ship a Soon badge");
+assert(!settingsDrawer.includes("subtitleLanguage"), "dead subtitleLanguage field came back");
+assert(
+  settingsDrawer.includes("Lessons are still written and taught in English"),
+  "language pills must not claim they translate the lesson",
+);
+assert(
+  settingsDrawer.includes('onClick={() => update({ audioLanguage: "hindi" })}'),
+  "the Hindi pill must change audioLanguage",
+);
+assert(
+  settingsDrawer.includes("disabled={!accentApplies}"),
+  "accent pills must stay enabled for English and disable only for Hindi",
+);
+
+const shell = readFileSync(
+  resolve(root, "features/tutor-session/TutorSessionShell.tsx"),
+  "utf8",
+);
+assert(!shell.includes("subtitleLanguage"), "shell must not keep a dead subtitleLanguage");
+for (const key of [
+  "htutor_audio_language",
+  "htutor_accent",
+  "htutor_speed",
+  "htutor_marker_color",
+] as const) {
+  assert(shell.includes(key), `persisted setting ${key} is missing from the shell`);
+}
+assert(shell.includes("settingsHydrated"), "persist writes must wait until stored settings load");
+assert(shell.includes("toVoiceKey(settings.audioLanguage, settings.accent)"), "shell must collapse language+accent");
+assert(shell.includes("setVoicePreferences"), "shell must push the voice key into the TTS client");
+assert(shell.includes("voicePreferencesRef"), "first TTS create must see the stored voice, not the default");
+
+const boardSession = readFileSync(
+  resolve(root, "features/tutor-session/hooks/useBoardSession.ts"),
+  "utf8",
+);
+assert(
+  boardSession.includes("voicePreferences: voicePreferencesRef.current"),
+  "createTTSClient must receive the stored voice on first create",
+);
+
+const httpClient = readFileSync(
+  resolve(root, "../../packages/tutor-core/src/tts/elevenLabsClient.ts"),
+  "utf8",
+);
+assert(
+  httpClient.includes("[TTS_LANG_HEADER]: voiceKey"),
+  "HTTP TTS must send x-tts-lang so /api/tts can pick the voice",
+);
+
+const wsClient = readFileSync(
+  resolve(root, "../../packages/tutor-core/src/tts/elevenLabsWebSocketClient.ts"),
+  "utf8",
+);
+assert(
+  wsClient.includes("${TTS_LANG_QUERY}="),
+  "WebSocket TTS must send ?lang= so the relay can pick the voice",
+);
+
+const server = readFileSync(resolve(root, "server.ts"), "utf8");
+assert(
+  server.includes("query.lang") && server.includes("normalizeVoiceKey"),
+  "the TTS WebSocket upgrade must read ?lang= and fall back instead of going silent",
+);
+
+const ttsRoute = readFileSync(resolve(root, "app/api/tts/route.ts"), "utf8");
+const ttsStream = readFileSync(resolve(root, "app/api/tts/stream/route.ts"), "utf8");
+assert(
+  ttsRoute.includes("voiceKeyFromRequest") && ttsStream.includes("voiceKeyFromRequest"),
+  "HTTP TTS routes must resolve the voice from x-tts-lang",
+);
+
+const teaching = readFileSync(
+  resolve(root, "features/tutor-session/hooks/turn/useQuestionHandler.ts"),
+  "utf8",
+);
+assert(
+  !teaching.includes("audioLanguage") && !teaching.includes("toVoiceKey"),
+  "teaching must not branch on audio language — voice/accent only, no lesson translation",
+);
 
 console.log("verify-voice-language: language/accent → voice key → voice id wiring is sound");

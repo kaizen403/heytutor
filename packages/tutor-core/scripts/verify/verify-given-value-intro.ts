@@ -66,6 +66,14 @@ assert(
   "teaching must be told to write the general formula before substitution",
 );
 assert(givenValuesPromptAddon(false) === "", "empty given addon leaked into a concept lesson");
+assert(
+  /\[EMPHASIZE:last\] to box/.test(givenValuesPromptAddon(true)),
+  "the given-values addon must say EMPHASIZE boxes a work line",
+);
+assert(
+  !/EMPHASIZE[^\n.]*underline/i.test(givenValuesPromptAddon(true)),
+  "the given-values addon must not claim EMPHASIZE underlines",
+);
 
 const derivedOnly = collectQuestionGivens(mirrorQuestion, {
   givens: [{ id: "v", symbol: "v", value: 60, unit: "cm", provenance: "derived" }],

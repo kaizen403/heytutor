@@ -1,9 +1,12 @@
 import {
   isConceptLessonQuestion,
 } from "../../src/llm/reasoningEffort";
+import { givenValuesPromptAddon } from "../../src/llm/givenValueIntro";
 import {
   CONCEPT_LESSON_RUNTIME_ADDON,
   FAST_MODE_TEACHING_ADDON,
+  LESSON_DEPTH_ADDONS,
+  TUTOR_CONTINUATION_PROMPT,
   TUTOR_SYSTEM_PROMPT,
 } from "../../src/llm/systemPrompt";
 
@@ -51,6 +54,30 @@ assert(
 assert(
   /Every step must \[WRITE\]/.test(CONCEPT_LESSON_RUNTIME_ADDON),
   "concept lessons must write a board line in every step",
+);
+
+const teachingPrompts = [
+  TUTOR_SYSTEM_PROMPT,
+  TUTOR_CONTINUATION_PROMPT,
+  CONCEPT_LESSON_RUNTIME_ADDON,
+  FAST_MODE_TEACHING_ADDON,
+  LESSON_DEPTH_ADDONS.concise,
+  LESSON_DEPTH_ADDONS.thorough,
+  givenValuesPromptAddon(true),
+];
+for (const prompt of teachingPrompts) {
+  assert(
+    !/EMPHASIZE[^\n.]*underline/i.test(prompt) && !/underline[^\n.]*EMPHASIZE/i.test(prompt),
+    "EMPHASIZE must be described as boxing a row, not underlining it",
+  );
+}
+assert(
+  /\[EMPHASIZE:last\] boxes/.test(TUTOR_SYSTEM_PROMPT),
+  "the teaching prompt must say EMPHASIZE boxes a work row",
+);
+assert(
+  /\[EMPHASIZE:last\] to box/.test(TUTOR_CONTINUATION_PROMPT),
+  "continuation must say EMPHASIZE boxes a work row",
 );
 
 console.log("verify-reasoning-effort: ok");

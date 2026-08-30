@@ -87,6 +87,15 @@ const formulaMs = getDrawingDuration(formula, "follow");
 const longFormulaMs = getDrawingDuration(longFormula, "follow");
 const sceneLineMs = getDrawingDuration(sceneLine, "scene");
 assert(formulaMs >= 420, "formula WRITE must stay at handwriting pace");
+{
+  // Whiteboard dumps ink instantly at <= 18ms/char when there is no schedule.
+  // Follow teaching text must stay above that so live pen motion actually runs.
+  const instantDumpMs = "F = ma".replace(/\s+/g, "").length * 18;
+  assert(
+    formulaMs > instantDumpMs,
+    `follow WRITE (${formulaMs}ms) must exceed the instant-label dump (${instantDumpMs}ms)`,
+  );
+}
 assert(
   formulaMs > sceneLineMs,
   `formula WRITE (${formulaMs}ms) must be slower than an equivalent-length scene line (${sceneLineMs}ms)`,

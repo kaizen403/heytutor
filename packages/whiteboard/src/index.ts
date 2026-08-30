@@ -8,6 +8,10 @@ export {
   type ShapeDrawOptions,
 } from "./Whiteboard";
 export { cursorOpacity, type CursorState } from "./cursorState";
+export {
+  INSTANT_LABEL_MS_PER_CHAR,
+  writeUsesStrokePenMotion,
+} from "./penMotion";
 export { DrawTransactionRegistry, type DrawTransactionNode } from "./drawTransactionRegistry";
 export { VirtualCursor, type VirtualCursorProps } from "./VirtualCursor";
 export {

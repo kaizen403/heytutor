@@ -85,3 +85,20 @@ export function splitDrawnLength(
   const last = lengths.length - 1;
   return { index: last, inStroke: lengths[last]! };
 }
+
+/**
+ * Compiler-owned labels under this budget skip stroke-by-stroke pen motion
+ * and appear as a batch. Teaching WRITE must stay above it, or the live
+ * lesson draws the line without the nib.
+ */
+export const INSTANT_LABEL_MS_PER_CHAR = 18;
+
+/** True when writeText will walk the nib along each glyph instead of dumping ink. */
+export function writeUsesStrokePenMotion(input: {
+  hasSchedule: boolean;
+  durationMs: number;
+  visibleCharacterCount: number;
+}): boolean {
+  if (input.hasSchedule) return true;
+  return input.durationMs > input.visibleCharacterCount * INSTANT_LABEL_MS_PER_CHAR;
+}

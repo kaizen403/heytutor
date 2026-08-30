@@ -27,6 +27,7 @@ import {
   pointAlongSamples,
   samplePolyline,
   splitDrawnLength,
+  writeUsesStrokePenMotion,
 } from "./penMotion";
 import {
   AIR_LIFT_PX,
@@ -1390,7 +1391,13 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           const visibleCharacterCount = charInfos.filter(
             (info) => info.charPath.char.trim().length > 0,
           ).length;
-          if (!schedule && duration <= visibleCharacterCount * 18) {
+          if (
+            !writeUsesStrokePenMotion({
+              hasSchedule: Boolean(schedule),
+              durationMs: duration,
+              visibleCharacterCount,
+            })
+          ) {
             for (const { charPath } of charInfos) {
               if (shouldCancel?.()) return;
               if (charPath.strokes.length === 0) {

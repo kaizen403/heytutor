@@ -1,9 +1,11 @@
 import {
   audioWaitAlreadyDue,
   handwritingProgress,
+  INSTANT_LABEL_MS_PER_CHAR,
   pointAlongSamples,
   samplePolyline,
   splitDrawnLength,
+  writeUsesStrokePenMotion,
 } from "../src/penMotion";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -33,5 +35,26 @@ assert(splitDrawnLength([10, 20, 10], 0).index === 0, "empty ink is the first st
 assert(splitDrawnLength([10, 20, 10], 11).index === 1, "drawn length must walk onto the next stroke");
 assert(splitDrawnLength([10, 20, 10], 11).inStroke === 1, "remainder stays inside the active stroke");
 assert(splitDrawnLength([10, 20, 10], 400).index === 2, "overshoot stays on the last stroke");
+
+assert(
+  writeUsesStrokePenMotion({ hasSchedule: true, durationMs: 0, visibleCharacterCount: 8 }),
+  "a live write schedule must keep the nib on the glyphs even when duration is 0",
+);
+assert(
+  writeUsesStrokePenMotion({
+    hasSchedule: false,
+    durationMs: 420,
+    visibleCharacterCount: 5,
+  }),
+  "follow-pace handwriting must stay above the instant-label dump",
+);
+assert(
+  !writeUsesStrokePenMotion({
+    hasSchedule: false,
+    durationMs: 5 * INSTANT_LABEL_MS_PER_CHAR,
+    visibleCharacterCount: 5,
+  }),
+  "a tiny compiler label may appear without walking the nib",
+);
 
 console.log("verify-pen-motion: handwriting stays linear on short strokes; path lookup is monotonic");
