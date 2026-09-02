@@ -4,7 +4,6 @@ import PenPlotter from './pen/PenPlotter'
 import HeroPixelDecor from './pixel/HeroPixelDecor'
 import DitherWave from './dither/DitherWave'
 import Button from './ui/Button'
-import BackedByYC from './BackedByYC'
 import SketchWallpaper from './sketch/SketchWallpaper'
 import { CAL_BOOKING_HREF } from '../lib/calHref'
 
@@ -42,7 +41,6 @@ export default function Hero() {
       <div className="min-h-4 flex-[0.35] shrink-0 sm:min-h-8" />
 
       <div className="relative z-20 flex flex-col items-center px-5 text-center sm:px-8 lg:px-10">
-        <BackedByYC className="animate-fade-down mb-6 sm:mb-7" />
         <h1 className="type-h1 type-h1--hero text-frost">
           <span className="block animate-fade-up">An AI that teaches every subject</span>
           <span className="block animate-fade-up [animation-delay:100ms]">
