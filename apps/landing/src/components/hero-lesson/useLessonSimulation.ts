@@ -30,6 +30,8 @@ interface SimInternals {
   soundOn: boolean
   explicitlyMuted: boolean
   audio: HTMLAudioElement | null
+  /** Set on the first `playing` event — play() being called is not the same as playback starting. */
+  audioEverPlayed: boolean
 }
 
 function teachStartMs(): number {
@@ -77,6 +79,7 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     soundOn: false,
     explicitlyMuted: false,
     audio: null,
+    audioEverPlayed: false,
   })
 
   const boardRef = useCallback((handle: WhiteboardHandle | null) => {
@@ -84,24 +87,39 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     setBoardReady(handle !== null)
   }, [])
 
-  /* Sound on, with the voice joined at wherever the loop currently is. Safe to
-     call outside a gesture — a blocked play() drops back to 'off' — but inside
-     a real gesture stricter browsers let it through. */
+  /* Sound on, joined wherever the loop currently is — and if the loop is in
+     dead air (typing / hold / clear), the clock is pulled forward to the next
+     narration start so the play() is issued inside this very gesture, in sync
+     with the ink. iOS unlocks an audio element only for a play() called
+     synchronously inside the gesture handler; a gesture that lands in dead air
+     must not be spent waiting, or every later programmatic play() (the tick's)
+     stays blocked and the lesson is silent until another tap happens to land
+     mid-narration. The ink player is waiting on a segment boundary during dead
+     air, so it fast-forwards the wait rather than skipping ink. */
   const startVoice = useCallback(() => {
     const st = stRef.current
     const audio = st.audio
     if (!audio) return
     st.soundOn = true
     setSound('on')
-    const t = (performance.now() - st.start - st.pausedAccum) / 1000
-    const lt = lessonOffsetMs(t, st.timing) / 1000
-    if (lt >= 0 && lt < st.timing.total) {
-      audio.currentTime = lt * PLAYBACK_SPEED
-      audio.play().catch(() => {
-        st.soundOn = false
-        setSound('off')
-      })
+    // Freeze the clock while paused, so the jump below lands where the lesson
+    // will actually resume, not seconds past it.
+    const nowMs = st.pausedAt ?? performance.now()
+    const t = (nowMs - st.start - st.pausedAccum) / 1000
+    let lt = lessonOffsetMs(t, st.timing) / 1000
+    if (lt < 0 || lt >= st.timing.total) {
+      const loopMs = loopDuration(st.timing) * 1000
+      const posMs = (((t * 1000) % loopMs) + loopMs) % loopMs
+      const teachMs = teachStartMs()
+      const waitMs = posMs < teachMs ? teachMs - posMs : loopMs - posMs + teachMs
+      st.start -= waitMs
+      lt = 0
     }
+    audio.currentTime = lt * PLAYBACK_SPEED
+    audio.play().catch(() => {
+      st.soundOn = false
+      setSound('off')
+    })
   }, [])
 
   // Optional TTS assets. Absent or malformed → silent estimated schedule.
@@ -126,6 +144,13 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
         const audio = new Audio(AUDIO_SRC)
         audio.preload = 'auto'
         audio.playbackRate = PLAYBACK_SPEED
+        audio.addEventListener(
+          'playing',
+          () => {
+            stRef.current.audioEverPlayed = true
+          },
+          { once: true },
+        )
         st.audio = audio
         // Voice-first: the lesson tries to be heard as soon as it is visible.
         // Where autoplay policy refuses, the rejection in the tick hands back
@@ -140,19 +165,24 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     })()
 
     // Any first interaction with the page is licence for sound — except a
-    // press on the speaker itself, which is the toggle's own gesture.
+    // press on the speaker itself, which is the toggle's own gesture. The
+    // events must be click/keydown, not pointerdown: iOS Safari grants media
+    // playback only for a play() issued inside a click, pointerup, mouseup or
+    // keydown handler, so a pointerdown-driven play() is rejected on iPhone
+    // and the lesson stays silent however often the user taps. A touch that
+    // turns into a scroll never fires click — the next real tap unlocks.
     const unlock = (event: Event) => {
       if (cancelled) return
       if ((event.target as HTMLElement | null)?.closest?.('[data-sound-toggle]')) return
       const s = stRef.current
       if (s.audio && !s.soundOn && !s.explicitlyMuted) startVoice()
     }
-    window.addEventListener('pointerdown', unlock)
+    window.addEventListener('click', unlock)
     window.addEventListener('keydown', unlock)
 
     return () => {
       cancelled = true
-      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('click', unlock)
       window.removeEventListener('keydown', unlock)
     }
   }, [reduced, startVoice])
@@ -208,7 +238,18 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
               st.soundOn = false
               setSound('off')
             })
-          } else if (Math.abs(audio.currentTime - mediaTarget) > 0.3) {
+          } else if (
+            // Mobile browsers do not preload the mp3, so currentTime sits
+            // still until the play() has actually started (audioEverPlayed)
+            // and has data ahead (HAVE_FUTURE_DATA). Re-seeking on every
+            // frame during that window aborts the pending play — the drift
+            // check must only fire on real desyncs of an already-playing
+            // element (stalls, throttling, tab sleeps).
+            st.audioEverPlayed &&
+            audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA &&
+            !audio.seeking &&
+            Math.abs(audio.currentTime - mediaTarget) > 0.3
+          ) {
             audio.currentTime = mediaTarget
           }
         } else if (!audio.paused) {
