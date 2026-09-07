@@ -196,8 +196,126 @@ function rewriteLatexScriptBraces(text: string): string {
   return out;
 }
 
-/** Extra horizontal space added after each glyph so ink never sticks together. */
-const LETTER_TRACKING_RATIO = 0.07;
+/**
+ * Minimum painted air between two letters, as a fraction of font size.
+ *
+ * Caveat's own advance is the spacing. Letters with joining sidebearings
+ * would overlap once drawn as separate strokes; pad those pairs only, to
+ * this hairline, so a word stays compact.
+ */
+const LETTER_GAP_RATIO = 0.04;
+
+interface GlyphInk {
+  advanceUnits: number;
+  inkMin: number;
+  inkMax: number;
+}
+
+const glyphInkCache = new Map<string, GlyphInk>();
+
+function glyphInk(char: string): GlyphInk {
+  const cached = glyphInkCache.get(char);
+  if (cached) return cached;
+
+  const glyph = glyphDataRecord[char];
+  if (glyph) {
+    let inkMin = Number.POSITIVE_INFINITY;
+    let inkMax = Number.NEGATIVE_INFINITY;
+    for (const stroke of glyph.s) {
+      for (const point of stroke.p) {
+        const radius = (point[2] ?? 0) / 2;
+        const left = point[0] - radius;
+        const right = point[0] + radius;
+        if (left < inkMin) inkMin = left;
+        if (right > inkMax) inkMax = right;
+      }
+    }
+    const ink: GlyphInk = {
+      advanceUnits: glyph.w,
+      inkMin: Number.isFinite(inkMin) ? inkMin : 0,
+      inkMax: Number.isFinite(inkMax) ? inkMax : glyph.w,
+    };
+    glyphInkCache.set(char, ink);
+    return ink;
+  }
+
+  const latinBase = GREEK_LATIN_FALLBACK[char];
+  if (latinBase && glyphDataRecord[latinBase] && latinBase !== char) {
+    const ink = glyphInk(latinBase);
+    glyphInkCache.set(char, ink);
+    return ink;
+  }
+
+  let advanceUnits = 350;
+  if (char === "π") advanceUnits = 460;
+  else if (char === "Θ" || char === "θ" || char === "φ" || char === "Φ") {
+    advanceUnits = glyphDataRecord.o?.w ?? 353;
+  } else if (char === "μ") {
+    advanceUnits = glyphDataRecord.u?.w ?? 370;
+  } else if (char === "Δ") {
+    advanceUnits = 420;
+  } else if (char === "Ω") {
+    advanceUnits = 470;
+  } else if (MATH_GLYPH_UNITS[char] !== undefined) {
+    advanceUnits = MATH_GLYPH_UNITS[char]!;
+  }
+
+  const ink: GlyphInk = {
+    advanceUnits,
+    inkMin: advanceUnits * 0.06,
+    inkMax: advanceUnits * 0.94,
+  };
+  glyphInkCache.set(char, ink);
+  return ink;
+}
+
+function knownStrokeChar(char: string): boolean {
+  return (
+    Boolean(glyphDataRecord[char]) ||
+    SYNTHETIC_GREEK_CHARS.has(char) ||
+    SYNTHETIC_MATH_CHARS.has(char)
+  );
+}
+
+/** How far the cursor moves after `char`, given the next body glyph (or none). */
+function pairAdvancePx(
+  char: string,
+  next: string | null,
+  scale: number,
+  fontSize: number,
+): number {
+  if (!knownStrokeChar(char)) {
+    return fontSize * 0.5;
+  }
+
+  const current = glyphInk(char);
+  const fontAdv = current.advanceUnits * scale;
+  if (!next || !knownStrokeChar(next)) {
+    // Include overhanging ink so a trailing `l` is not clipped in layout.
+    return Math.max(fontAdv, current.inkMax * scale);
+  }
+
+  const following = glyphInk(next);
+  const optical =
+    current.inkMax * scale + fontSize * LETTER_GAP_RATIO - following.inkMin * scale;
+  return Math.max(fontAdv, optical);
+}
+
+function nextPairChar(text: string, from: number): string | null {
+  if (from >= text.length) return null;
+  const ch = text[from];
+  if (ch === " " || ch === "^" || ch === "_" || ch === "{" || ch === "}") {
+    return null;
+  }
+  return ch;
+}
+
+function nextNonSpace(text: string, from: number): string | null {
+  for (let index = from; index < text.length; index++) {
+    if (text[index] !== " ") return text[index] ?? null;
+  }
+  return null;
+}
 
 function cloneGlyphStrokes(
   baseChar: string,
@@ -272,9 +390,38 @@ function syntheticGreekChar(
       }
     }
 
-    const barY = baselineY - 470 * scale;
-    const barX1 = currentX + 55 * scale;
-    const barX2 = currentX + glyphWidth - 55 * scale;
+    // The crossbar goes THROUGH the oval, which is what makes a theta a theta.
+    // It used to be pinned at -470, well above the `o` glyph's own top of -341,
+    // so every theta on the board rendered as an o wearing a macron — "ō" — and
+    // a student reading "ō_i = 45 deg" has no idea they are looking at an angle.
+    // Measure the base glyph instead of guessing: the bar sits at its vertical
+    // midpoint and spans its real width, so it stays right if the font changes.
+    let inkMinX = Number.POSITIVE_INFINITY;
+    let inkMaxX = Number.NEGATIVE_INFINITY;
+    let inkMinY = Number.POSITIVE_INFINITY;
+    let inkMaxY = Number.NEGATIVE_INFINITY;
+    if (baseGlyph) {
+      for (const s of baseGlyph.s) {
+        for (const point of s.p) {
+          if (point[0] < inkMinX) inkMinX = point[0];
+          if (point[0] > inkMaxX) inkMaxX = point[0];
+          if (point[1] < inkMinY) inkMinY = point[1];
+          if (point[1] > inkMaxY) inkMaxY = point[1];
+        }
+      }
+    }
+    const hasInk = Number.isFinite(inkMinX) && Number.isFinite(inkMinY);
+    // A handwritten theta's bar overhangs the oval very slightly on each side.
+    const overhang = 6;
+    const barY = hasInk
+      ? baselineY + ((inkMinY + inkMaxY) / 2) * scale
+      : baselineY - 190 * scale;
+    const barX1 = hasInk
+      ? currentX + (inkMinX - overhang) * scale
+      : currentX + 55 * scale;
+    const barX2 = hasInk
+      ? currentX + (inkMaxX + overhang) * scale
+      : currentX + glyphWidth - 55 * scale;
     strokes.push({
       pathData: `M ${barX1.toFixed(2)} ${barY.toFixed(2)} L ${barX2.toFixed(2)} ${barY.toFixed(2)}`,
       startX: barX1,
@@ -715,36 +862,6 @@ export interface CharacterPath {
   fontSize?: number;
 }
 
-function syntheticGlyphWidth(char: string, scale: number): number {
-  if (char === "π") {
-    return 460 * scale;
-  }
-  if (char === "Θ" || char === "θ") {
-    return (glyphDataRecord.o?.w ?? 353) * scale;
-  }
-  if (char === "μ") {
-    return (glyphDataRecord.u?.w ?? 370) * scale;
-  }
-  if (char === "φ" || char === "Φ") {
-    return (glyphDataRecord.o?.w ?? 353) * scale;
-  }
-  if (char === "Δ") {
-    return 420 * scale;
-  }
-  if (char === "Ω") {
-    return 470 * scale;
-  }
-  const mathUnits = MATH_GLYPH_UNITS[char];
-  if (mathUnits !== undefined) {
-    return mathUnits * scale;
-  }
-  const latinBase = GREEK_LATIN_FALLBACK[char];
-  if (latinBase) {
-    return (glyphDataRecord[latinBase]?.w ?? 350) * scale;
-  }
-  return 0;
-}
-
 function polylineToSVGPath(
   points: [number, number, number][],
   scaleX: number,
@@ -752,13 +869,198 @@ function polylineToSVGPath(
   offsetX: number,
   offsetY: number,
 ): string {
-  return points
-    .map(([px, py], i) => {
-      const x = offsetX + px * scaleX;
-      const y = offsetY + py * scaleY;
-      return `${i === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
-    })
-    .join(" ");
+  if (points.length === 0) return "";
+
+  const mapped = points.map(([px, py]) => ({
+    x: offsetX + px * scaleX,
+    y: offsetY + py * scaleY,
+  }));
+  const first = mapped[0]!;
+  if (mapped.length === 1) {
+    return `M ${first.x.toFixed(2)} ${first.y.toFixed(2)}`;
+  }
+  if (mapped.length === 2) {
+    const last = mapped[1]!;
+    return `M ${first.x.toFixed(2)} ${first.y.toFixed(2)} L ${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
+  }
+
+  // Midpoint quadratics — a chain of L segments reads as a faceted plot,
+  // not a pen stroke. The same smoother the idle doodle already uses.
+  let data = `M ${first.x.toFixed(2)} ${first.y.toFixed(2)}`;
+  for (let index = 1; index < mapped.length - 1; index++) {
+    const current = mapped[index]!;
+    const next = mapped[index + 1]!;
+    data += ` Q ${current.x.toFixed(2)} ${current.y.toFixed(2)} ${((current.x + next.x) / 2).toFixed(2)} ${((current.y + next.y) / 2).toFixed(2)}`;
+  }
+  const last = mapped[mapped.length - 1]!;
+  return `${data} L ${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
+}
+
+/**
+ * The hand, as opposed to the font.
+ *
+ * Every glyph here comes out of one table, so an "e" written twice in a
+ * sentence used to be the same shape to the pixel — the single loudest tell
+ * that a board is being typeset rather than written. A person cannot repeat a
+ * letter exactly: the pen sits at a slightly different angle, the letter comes
+ * out a little bigger or smaller, and it lands a hair off the line.
+ *
+ * So every rendered glyph is put through a small affine wobble about its own
+ * centre, and the line it sits on drifts gently the way a hand-ruled line does.
+ * The variation is seeded from the text and its position, so a lesson replays
+ * identically, a cached string is stable, and an exported MP4 matches the live
+ * board frame for frame.
+ */
+
+/** Barrel angle, per glyph. */
+const HAND_ROTATION_DEG = 1.6;
+/** Letters come out a little large or a little small. */
+const HAND_SCALE = 0.028;
+/** Where the letter lands, as a fraction of the em. */
+const HAND_OFFSET_X = 0.011;
+const HAND_OFFSET_Y = 0.022;
+/** How much ink the nib lays down for this letter. */
+const HAND_WIDTH = 0.06;
+/**
+ * How far the line of writing wanders off the ruled baseline. A board is not
+ * lined paper: a written row rises and falls a little across its length.
+ */
+const BASELINE_DRIFT_RATIO = 0.026;
+/** Roughly four ems per swing, so the drift reads as a wander, not a wave. */
+const BASELINE_DRIFT_WAVELENGTH_EM = 4.4;
+
+/** Stable 0..1 hash. */
+function handNoise(seed: number): number {
+  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** Stable -1..1 hash. */
+function handSigned(seed: number): number {
+  return handNoise(seed) * 2 - 1;
+}
+
+function lineSeedFor(text: string, x: number, y: number, fontSize: number): number {
+  let seed = Math.round(x) * 31 + Math.round(y) * 17 + Math.round(fontSize) * 7;
+  for (let index = 0; index < text.length; index++) {
+    seed = (seed * 33 + text.charCodeAt(index)) % 1000003;
+  }
+  return seed;
+}
+
+/** How far the baseline has wandered by the time the pen reaches `x`. */
+function baselineDrift(
+  x: number,
+  originX: number,
+  fontSize: number,
+  lineSeed: number,
+): number {
+  const u = (x - originX) / Math.max(fontSize * BASELINE_DRIFT_WAVELENGTH_EM, 1);
+  const phase = handSigned(lineSeed) * Math.PI;
+  return (
+    fontSize *
+    BASELINE_DRIFT_RATIO *
+    (0.66 * Math.sin(u * 2 * Math.PI + phase) + 0.34 * Math.sin(u * 1.13 + phase * 1.7))
+  );
+}
+
+interface HandTransform {
+  cos: number;
+  sin: number;
+  scale: number;
+  centreX: number;
+  centreY: number;
+  dx: number;
+  dy: number;
+}
+
+function transformPoint(x: number, y: number, hand: HandTransform): { x: number; y: number } {
+  const px = (x - hand.centreX) * hand.scale;
+  const py = (y - hand.centreY) * hand.scale;
+  return {
+    x: hand.centreX + px * hand.cos - py * hand.sin + hand.dx,
+    y: hand.centreY + px * hand.sin + py * hand.cos + hand.dy,
+  };
+}
+
+const PATH_TOKEN = /([A-Za-z])|(-?\d*\.?\d+(?:e[-+]?\d+)?)/gi;
+
+/**
+ * Push every coordinate in an absolute-coordinate path through the glyph's own
+ * wobble. Every path this module emits uses M / L / Q / C with absolute pairs,
+ * so walking the numbers two at a time is exact.
+ */
+function transformPathData(pathData: string, hand: HandTransform): string {
+  const tokens = pathData.match(PATH_TOKEN);
+  if (!tokens) return pathData;
+  const out: string[] = [];
+  let pendingX: number | null = null;
+  for (const token of tokens) {
+    if (/^[A-Za-z]$/.test(token)) {
+      out.push(token);
+      pendingX = null;
+      continue;
+    }
+    const value = Number(token);
+    if (!Number.isFinite(value)) {
+      out.push(token);
+      continue;
+    }
+    if (pendingX === null) {
+      pendingX = value;
+      continue;
+    }
+    const point = transformPoint(pendingX, value, hand);
+    out.push(point.x.toFixed(2), point.y.toFixed(2));
+    pendingX = null;
+  }
+  return out.join(" ");
+}
+
+/**
+ * Give one rendered glyph its own hand: a slight roll, a slight size, a slight
+ * landing offset, and a nib that laid down a little more or less ink.
+ *
+ * Layout is deliberately untouched — the advance width, the character box and
+ * the measured width all stay exactly what the typography layer planned, so
+ * this changes how the writing looks and never where anything sits.
+ */
+function applyHandVariation(
+  path: CharacterPath,
+  seed: number,
+  fontSize: number,
+  driftY: number,
+): CharacterPath {
+  if (path.strokes.length === 0) return path;
+
+  const glyphSize = path.fontSize ?? fontSize;
+  const angle = handSigned(seed) * HAND_ROTATION_DEG * (Math.PI / 180);
+  const hand: HandTransform = {
+    cos: Math.cos(angle),
+    sin: Math.sin(angle),
+    scale: 1 + handSigned(seed + 101) * HAND_SCALE,
+    centreX: path.x + path.width / 2,
+    // Roughly the middle of the x-height: rolling about the letter's own body
+    // keeps a tall glyph from swinging its ascender out of the word.
+    centreY: path.y + ASCENDER * (glyphSize / UNITS_PER_EM) - glyphSize * 0.25,
+    dx: handSigned(seed + 211) * glyphSize * HAND_OFFSET_X,
+    dy: handSigned(seed + 307) * glyphSize * HAND_OFFSET_Y + driftY,
+  };
+  const widthScale = 1 + handSigned(seed + 401) * HAND_WIDTH;
+
+  return {
+    ...path,
+    strokes: path.strokes.map((stroke) => {
+      const start = transformPoint(stroke.startX, stroke.startY, hand);
+      return {
+        ...stroke,
+        pathData: transformPathData(stroke.pathData, hand),
+        startX: start.x,
+        startY: start.y,
+        width: Math.max(stroke.width * widthScale, 1.2),
+      };
+    }),
+  };
 }
 
 /** Fraction of normal font size used for superscript / subscript characters. */
@@ -930,16 +1232,16 @@ function renderScriptRun(
   topY: number,
   scriptScale: number,
   scriptFontSize: number,
-  tracking: number,
 ): { paths: CharacterPath[]; width: number } {
   const paths: CharacterPath[] = [];
   let cursorX = startX;
-  for (const scriptChar of content) {
+  for (let index = 0; index < content.length; index++) {
+    const scriptChar = content[index]!;
     if (scriptChar === " ") {
       cursorX += scriptFontSize * 0.3;
       continue;
     }
-    const { path, advance } = renderChar(
+    const { path } = renderChar(
       scriptChar,
       cursorX,
       baselineY,
@@ -948,7 +1250,12 @@ function renderScriptRun(
       scriptFontSize,
     );
     paths.push(path);
-    cursorX += advance + tracking;
+    cursorX += pairAdvancePx(
+      scriptChar,
+      nextNonSpace(content, index + 1),
+      scriptScale,
+      scriptFontSize,
+    );
   }
   return { paths, width: Math.max(cursorX - startX, 0) };
 }
@@ -1010,7 +1317,6 @@ async function buildStrokePaths(
   fontSize: number,
 ): Promise<CharacterPath[]> {
   const text = normalizeStrokeText(rawText);
-  const tracking = fontSize * LETTER_TRACKING_RATIO;
   const scale = fontSize / UNITS_PER_EM;
   const baselineY = y + ASCENDER * scale;
 
@@ -1048,7 +1354,6 @@ async function buildStrokePaths(
         superTopY,
         scriptScale,
         scriptFontSize,
-        tracking,
       );
       results.push(...rendered.paths);
       currentX += rendered.width + fontSize * SCRIPT_KERN_AFTER_RATIO;
@@ -1069,7 +1374,6 @@ async function buildStrokePaths(
         subTopY,
         scriptScale,
         scriptFontSize,
-        tracking,
       );
       results.push(...rendered.paths);
       currentX += rendered.width + fontSize * SCRIPT_KERN_AFTER_RATIO;
@@ -1084,9 +1388,9 @@ async function buildStrokePaths(
     }
 
     // Normal character
-    const { path, advance } = renderChar(char, currentX, baselineY, y, scale, fontSize);
+    const { path } = renderChar(char, currentX, baselineY, y, scale, fontSize);
     results.push(path);
-    currentX += advance + tracking;
+    currentX += pairAdvancePx(char, nextPairChar(text, i + 1), scale, fontSize);
     i++;
 
     // Integral / sum / product limits stack beside the owner glyph instead of
@@ -1115,7 +1419,6 @@ async function buildStrokePaths(
             superTopY,
             scriptScale,
             scriptFontSize,
-            tracking,
           );
           results.push(...rendered.paths);
           limitWidth = Math.max(limitWidth, rendered.width);
@@ -1128,7 +1431,6 @@ async function buildStrokePaths(
             subTopY,
             scriptScale,
             scriptFontSize,
-            tracking,
           );
           results.push(...rendered.paths);
           limitWidth = Math.max(limitWidth, rendered.width);
@@ -1138,7 +1440,18 @@ async function buildStrokePaths(
     }
   }
 
-  return results;
+  // The font laid the row out; the hand writes it. Nothing above this line
+  // knows about the wobble, so layout, measurement and label boxes all stay
+  // exactly where the typography layer put them.
+  const lineSeed = lineSeedFor(text, x, y, fontSize);
+  return results.map((path, index) =>
+    applyHandVariation(
+      path,
+      lineSeed + index * 977 + (path.char.codePointAt(0) ?? 0) * 13,
+      fontSize,
+      baselineDrift(path.x, x, fontSize, lineSeed),
+    ),
+  );
 }
 
 /**
@@ -1152,23 +1465,21 @@ function measureScriptRunWidth(
   content: string,
   scriptFontSize: number,
   scriptScale: number,
-  tracking: number,
 ): number {
   let width = 0;
-  for (const subChar of content) {
+  for (let index = 0; index < content.length; index++) {
+    const subChar = content[index]!;
     if (subChar === " ") {
       width += scriptFontSize * 0.3;
       continue;
     }
-    const glyph = glyphDataRecord[subChar];
-    width += (glyph ? glyph.w * scriptScale : scriptFontSize * 0.5) + tracking;
+    width += pairAdvancePx(subChar, nextNonSpace(content, index + 1), scriptScale, scriptFontSize);
   }
   return width;
 }
 
 export function measureTextWidth(rawText: string, fontSize: number = 32): number {
   const text = normalizeStrokeText(rawText);
-  const tracking = fontSize * LETTER_TRACKING_RATIO;
   const scale = fontSize / UNITS_PER_EM;
   const scriptFontSize = fontSize * SCRIPT_FONT_RATIO;
   const scriptScale = scriptFontSize / UNITS_PER_EM;
@@ -1190,7 +1501,7 @@ export function measureTextWidth(rawText: string, fontSize: number = 32): number
       const { content, nextIndex } = readScriptGroup(text, i, char);
       i = nextIndex;
       currentX += fontSize * SCRIPT_KERN_BEFORE_RATIO;
-      currentX += measureScriptRunWidth(content, scriptFontSize, scriptScale, tracking);
+      currentX += measureScriptRunWidth(content, scriptFontSize, scriptScale);
       currentX += fontSize * SCRIPT_KERN_AFTER_RATIO;
       continue;
     }
@@ -1200,14 +1511,8 @@ export function measureTextWidth(rawText: string, fontSize: number = 32): number
       continue;
     }
 
-    const glyph = glyphDataRecord[char];
-    if (!glyph && (SYNTHETIC_GREEK_CHARS.has(char) || SYNTHETIC_MATH_CHARS.has(char))) {
-      currentX += syntheticGlyphWidth(char, scale) + tracking;
-      i++;
-    } else {
-      currentX += (glyph ? glyph.w * scale : fontSize * 0.5) + tracking;
-      i++;
-    }
+    currentX += pairAdvancePx(char, nextPairChar(text, i + 1), scale, fontSize);
+    i++;
 
     if (STACKED_LIMIT_OWNERS.has(char)) {
       let lower: string | null = null;
@@ -1224,8 +1529,8 @@ export function measureTextWidth(rawText: string, fontSize: number = 32): number
       if (lower !== null || upper !== null) {
         i = cursor;
         const limitWidth = Math.max(
-          lower ? measureScriptRunWidth(lower, scriptFontSize, scriptScale, tracking) : 0,
-          upper ? measureScriptRunWidth(upper, scriptFontSize, scriptScale, tracking) : 0,
+          lower ? measureScriptRunWidth(lower, scriptFontSize, scriptScale) : 0,
+          upper ? measureScriptRunWidth(upper, scriptFontSize, scriptScale) : 0,
         );
         currentX += fontSize * SCRIPT_KERN_BEFORE_RATIO + limitWidth + fontSize * SCRIPT_KERN_AFTER_RATIO;
       }

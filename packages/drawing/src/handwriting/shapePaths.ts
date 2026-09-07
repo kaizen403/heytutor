@@ -361,9 +361,55 @@ export function ellipsePath(
   ].join(" ");
 }
 
+function pointOnCircle(
+  cx: number,
+  cy: number,
+  radius: number,
+  angle: number,
+): { x: number; y: number } {
+  return {
+    x: cx + radius * Math.cos(angle),
+    y: cy + radius * Math.sin(angle),
+  };
+}
+
+/**
+ * One cubic for a circular piece of at most 90°. `kappa = 4/3 tan(α/4)` is
+ * the same handle length `circlePath` uses at 90° (0.5523).
+ */
+function appendCircularBezier(
+  parts: string[],
+  cx: number,
+  cy: number,
+  radius: number,
+  start: number,
+  sweep: number,
+): void {
+  const absSweep = Math.abs(sweep);
+  if (absSweep < 1e-6) return;
+
+  const sign = sweep < 0 ? -1 : 1;
+  const handle = ((4 / 3) * Math.tan(absSweep / 4)) * radius;
+  const end = start + sweep;
+  const p0 = pointOnCircle(cx, cy, radius, start);
+  const p3 = pointOnCircle(cx, cy, radius, end);
+  const t0x = sign * -Math.sin(start);
+  const t0y = sign * Math.cos(start);
+  const t1x = sign * -Math.sin(end);
+  const t1y = sign * Math.cos(end);
+
+  parts.push(
+    `C ${coord(p0.x + t0x * handle)} ${coord(p0.y + t0y * handle)} ${coord(p3.x - t1x * handle)} ${coord(p3.y - t1y * handle)} ${coord(p3.x)} ${coord(p3.y)}`,
+  );
+}
+
 /**
  * Circular arc from startDeg→endDeg (degrees, CCW from +x), centered at (cx,cy).
  * Params match DRAW_ARC: [cx, cy, r, startDeg, endDeg].
+ *
+ * Cubic beziers, not a polyline: a 45° angle mark used to be two `L` chords
+ * (one every 22.5°) and read as a hexagon corner. Circles already used this
+ * approximation; angle marks and mirror arcs now share it.
  */
 export function arcPath(
   cx: number,
@@ -378,13 +424,18 @@ export function arcPath(
   while (sweep <= -Math.PI * 2) sweep += Math.PI * 2;
   while (sweep > Math.PI * 2) sweep -= Math.PI * 2;
 
-  const steps = Math.max(2, Math.ceil(Math.abs(sweep) / (Math.PI / 8)));
-  const parts: string[] = [];
-  for (let i = 0; i <= steps; i++) {
-    const t = start + (sweep * i) / steps;
-    const x = cx + radius * Math.cos(t);
-    const y = cy + radius * Math.sin(t);
-    parts.push(`${i === 0 ? "M" : "L"} ${coord(x)} ${coord(y)}`);
+  const origin = pointOnCircle(cx, cy, radius, start);
+  if (Math.abs(sweep) < 1e-6) {
+    return `M ${coord(origin.x)} ${coord(origin.y)}`;
+  }
+
+  const parts = [`M ${coord(origin.x)} ${coord(origin.y)}`];
+  const pieceCount = Math.max(1, Math.ceil(Math.abs(sweep) / (Math.PI / 2)));
+  const pieceSweep = sweep / pieceCount;
+  let angle = start;
+  for (let index = 0; index < pieceCount; index++) {
+    appendCircularBezier(parts, cx, cy, radius, angle, pieceSweep);
+    angle += pieceSweep;
   }
   return parts.join(" ");
 }
