@@ -30,6 +30,7 @@ This runs (via `apps/tutor/scripts/r2-setup.ts`):
 | Enable public r2.dev URL | `wrangler r2 bucket dev-url enable heytutor-lectures` |
 | Read public URL | `wrangler r2 bucket dev-url get heytutor-lectures` |
 | Upload smoke test | `wrangler r2 object put … --remote` |
+| Apply CORS | `wrangler r2 bucket cors put` — `GET`/`HEAD` from any origin so the browser can decode lecture MP3s after reload |
 
 It writes `R2_ACCOUNT_ID`, `R2_BUCKET`, and `R2_PUBLIC_BASE_URL` into `apps/tutor/.env.local` only (never into `.env.example`).
 
@@ -74,6 +75,7 @@ wrangler r2 bucket domain --help
 - `apps/tutor/lib/r2.ts` — `uploadAudio()`, `deleteAudio()`, `lectureAudioKey()`
 - Object key pattern: `lectures/{boardId}/{turnId}/{segmentIndex}.mp3`
 - Public URL: `{R2_PUBLIC_BASE_URL}/{key}`
+- CORS: `GET`/`HEAD` from any origin (required for on-demand MP4 export to `fetch` + decode segment MP3s)
 
 ## Local values
 

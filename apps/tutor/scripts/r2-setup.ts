@@ -180,6 +180,39 @@ function main(): void {
 
   console.log(`  Public base URL: ${publicBaseUrl}`);
 
+  const corsPath = join(tmpdir(), `heytutor-r2-cors-${Date.now()}.json`);
+  const corsPolicy = {
+    rules: [
+      {
+        allowed: {
+          origins: ["*"],
+          methods: ["GET", "HEAD"],
+          headers: ["*"],
+        },
+        exposeHeaders: ["Content-Type", "Content-Length", "ETag"],
+        maxAgeSeconds: 86400,
+      },
+    ],
+  };
+  try {
+    writeFileSync(corsPath, JSON.stringify(corsPolicy));
+    if (dryRun) {
+      console.log("  CORS: dry run — would allow GET/HEAD from any origin");
+    } else {
+      runWrangler(`r2 bucket cors put ${bucket} --file ${corsPath} --remote`);
+      console.log("  CORS: GET/HEAD allowed from any origin (lecture MP4 decode)");
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.log(`  CORS: skipped — ${message.split("\n")[0]}`);
+  } finally {
+    try {
+      unlinkSync(corsPath);
+    } catch {
+      /* ignore */
+    }
+  }
+
   const vars = {
     R2_ACCOUNT_ID: accountId,
     R2_BUCKET: bucket,
