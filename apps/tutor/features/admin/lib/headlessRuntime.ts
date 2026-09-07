@@ -84,9 +84,9 @@ export function headlessLecturePreviewStyle(index: number): {
     overflow: "hidden",
     pointerEvents: "auto",
     borderRadius: 12,
-    border: "1px solid rgba(201,201,210,0.28)",
-    background: "#151517",
-    boxShadow: "0 16px 40px rgba(0,0,0,0.45)",
+    border: "1px solid rgba(89, 175, 212,0.28)",
+    background: "#0D2231",
+    boxShadow: "0 16px 40px rgba(3, 11, 18,0.45)",
   };
 }
 
@@ -156,7 +156,7 @@ export function promotedLectureFrameStyle(slot: LiveWatchSlotRect): {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: "#0B0B0C",
+    background: "#06121C",
   };
 }
 

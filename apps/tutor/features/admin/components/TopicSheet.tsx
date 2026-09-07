@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { ExternalLink } from "lucide-react";
-import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
 import { PlainButton, SiteButton } from "@/components/ui/site-button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -19,6 +18,7 @@ import type { ItemStatus } from "../lib/progressStorage";
 import { PROBE_DIFFICULTIES, type ProbeDifficulty, type ProbeQuestion } from "../lib/probes";
 import { Checkbox } from "./Checkbox";
 import { statusLabel } from "./StatusBadge";
+import { Spinner } from "@/components/ui/spinner";
 
 interface TopicSheetProps {
   item: SyllabusItem | null;
@@ -212,7 +212,7 @@ export function TopicSheet({
                   onClick={() => void handleOpenLiveBoard()}
                 >
                   {opening ? (
-                    <PenSpinner size={16} ink="#C9C9D2" trail={false} />
+                    <Spinner size={13} />
                   ) : (
                     <ExternalLink className="h-4 w-4" />
                   )}

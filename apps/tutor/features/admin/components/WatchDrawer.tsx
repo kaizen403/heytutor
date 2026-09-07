@@ -6,7 +6,7 @@ import { PlainButton, SiteButton } from "@/components/ui/site-button";
 import { cn } from "@/lib/utils";
 import { TutorSessionShell, unlockTutorAudio } from "@/features/tutor-session";
 import type { TutorPhase } from "@/features/tutor-session/types";
-import { ReplaySpeedSelect } from "@/features/tutor-session/components/ReplayControls";
+import { ReplaySpeedSelect } from "@/features/tutor-session/components/ReplaySpeedSelect";
 import { DEFAULT_REPLAY_SPEED } from "@/lib/replay/replayAudio";
 import { LectureNotesPanel } from "./LectureNotesPanel";
 
@@ -226,7 +226,6 @@ function WatchDrawerFrame({
                 autoReplay={intent === "replay"}
                 muteAudio={false}
                 playbackRate={speed}
-                onPlaybackRateChange={setSpeed}
               />
             </div>
             {intent === "notes" ? (
