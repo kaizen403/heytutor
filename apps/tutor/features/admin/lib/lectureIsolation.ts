@@ -7,7 +7,7 @@ import {
   canAdoptVerifiedScene,
   sceneCompileIsolationKey,
   fingerprintTurnPlan,
-} from "@/features/tutor-session/lib/sceneIsolation";
+} from "@/features/tutor-session/lib/scene/sceneIsolation";
 
 export { canAdoptVerifiedScene, sceneCompileIsolationKey, fingerprintTurnPlan };
 
