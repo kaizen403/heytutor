@@ -329,6 +329,36 @@ assert(
   "a stuck TTS playback position must fall through to wall time",
 );
 
+const halfSpeedLive = resolveLiveAudioPositionMs({
+  speechComplete: false,
+  capturedDurationMs: null,
+  estimateSpeechMs: 8000,
+  playbackPositionMs: 500,
+  audioStartedAtMs: 0,
+  nowMs: 1000,
+  maxAudioPositionMs: 500,
+  playbackRate: 0.5,
+});
+assert(
+  halfSpeedLive.positionMs === 500,
+  "half-speed media time must not look stuck against 1× wall time",
+);
+
+const doubleSpeedWall = resolveLiveAudioPositionMs({
+  speechComplete: false,
+  capturedDurationMs: null,
+  estimateSpeechMs: 8000,
+  playbackPositionMs: null,
+  audioStartedAtMs: 0,
+  nowMs: 1000,
+  maxAudioPositionMs: 0,
+  playbackRate: 2,
+});
+assert(
+  doubleSpeedWall.positionMs === 2000,
+  "wall-clock fallback must run in media time at the live playback rate",
+);
+
 console.log(
   `verified ${cases.length} sync schedule cases, fallback mid-speech writing, and catch-up offsets`,
 );

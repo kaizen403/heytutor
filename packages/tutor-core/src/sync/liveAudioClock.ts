@@ -14,6 +14,8 @@ export interface LiveAudioClockInput {
   audioStartedAtMs: number | null;
   nowMs: number;
   maxAudioPositionMs: number;
+  /** Live lecture rate. Wall fallback and stuck-clock detection must use media time. */
+  playbackRate?: number;
 }
 
 export interface LiveAudioClock {
@@ -35,10 +37,15 @@ export function resolveLiveAudioPositionMs(input: LiveAudioClockInput): LiveAudi
   }
 
   const playback = input.playbackPositionMs;
+  const rate =
+    typeof input.playbackRate === "number" && Number.isFinite(input.playbackRate) && input.playbackRate > 0
+      ? input.playbackRate
+      : 1;
   const wallClockMs =
     input.audioStartedAtMs !== null
       ? Math.max(input.nowMs - input.audioStartedAtMs, 0)
       : null;
+  const wallMediaMs = wallClockMs !== null ? wallClockMs * rate : null;
 
   // 0 and negative positions mean "scheduled but not audible yet". Treating
   // them as a live clock pinned the pen at t=0 while speech was already going.
@@ -48,8 +55,8 @@ export function resolveLiveAudioPositionMs(input: LiveAudioClockInput): LiveAudi
     playback > 0 &&
     playback + 50 >= input.maxAudioPositionMs
   ) {
-    if (wallClockMs !== null && playback + STUCK_PLAYBACK_BEHIND_WALL_MS < wallClockMs) {
-      const positionMs = Math.max(input.maxAudioPositionMs, wallClockMs);
+    if (wallMediaMs !== null && playback + STUCK_PLAYBACK_BEHIND_WALL_MS < wallMediaMs) {
+      const positionMs = Math.max(input.maxAudioPositionMs, wallMediaMs);
       return { positionMs, maxAudioPositionMs: positionMs };
     }
     const positionMs = playback;
@@ -57,8 +64,8 @@ export function resolveLiveAudioPositionMs(input: LiveAudioClockInput): LiveAudi
     return { positionMs, maxAudioPositionMs };
   }
 
-  if (wallClockMs !== null) {
-    const positionMs = Math.max(input.maxAudioPositionMs, wallClockMs);
+  if (wallMediaMs !== null) {
+    const positionMs = Math.max(input.maxAudioPositionMs, wallMediaMs);
     return { positionMs, maxAudioPositionMs: positionMs };
   }
 

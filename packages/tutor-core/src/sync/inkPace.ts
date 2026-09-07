@@ -3,7 +3,7 @@ import type { DrawCommand } from "@heytutor/drawing";
 /**
  * Engine-owned ink pace. The teaching LLM never chooses this — it is derived
  * from command type and whether the marks are verified scene setup vs work-area
- * teaching. Independent of Watch overlay playback rate (1.5× etc.).
+ * teaching. Independent of the user's playback-rate slider, which is applied on top.
  *
  * - `follow`: student must track the pen (formulas, substitutions, FOCUS traces,
  *   and every diagram label — a name the student has to read is not scenery).
@@ -27,6 +27,11 @@ export interface InkPaceContext {
   explainedInSpeechWindow?: boolean;
   /** Commands in this reveal batch. Large batches are compound figures. */
   batchCommandCount?: number;
+  /**
+   * The figure's text is part of the sketch rather than prose being written:
+   * cell values, index headers, node names. Lettered rather than handwritten.
+   */
+  sceneText?: boolean;
 }
 
 const TEXT_TYPES = new Set<DrawCommand["type"]>(["WRITE", "LABEL", "DIMENSION"]);
@@ -88,12 +93,23 @@ export function selectInkPace(
     return compoundIntro ? "scene" : "follow";
   }
 
+  // A frame swap redraws a whole figure at once. It is watched, not read, so
+  // it reveals at scene pace like any other geometry; paced as handwriting it
+  // ran a third slower and pushed the redraw past the sentence introducing it.
+  if (command.type === "FRAME") {
+    return "scene";
+  }
+
   if (context.verifiedDiagramIntro === true) {
     // A label or dimension is read, not watched. Even inside a compound intro
     // it keeps handwriting pace so the naming lands with the words explaining
     // it, while the geometry around it still reveals quickly.
+    //
+    // Unless the text IS the figure. A DSA figure is cells and the values in
+    // them, so its labels reveal with the boxes they sit in rather than being
+    // written out one at a time.
     if (TEXT_TYPES.has(command.type)) {
-      return "follow";
+      return context.sceneText === true ? "scene" : "follow";
     }
     if (context.explainedInSpeechWindow === true && !compoundIntro) {
       return "follow";
@@ -112,9 +128,11 @@ export function inkPaceContextForSegment(options: {
   verifiedDiagramIntro: boolean;
   commandCount: number;
   hasNarration: boolean;
+  sceneText?: boolean;
 }): InkPaceContext {
   return {
     verifiedDiagramIntro: options.verifiedDiagramIntro,
+    sceneText: options.sceneText,
     batchCommandCount: options.commandCount,
     explainedInSpeechWindow:
       options.verifiedDiagramIntro &&
@@ -169,6 +187,8 @@ export function effectiveWhiteboardInkSpeed(
   pace: InkPace,
 ): number {
   const factor = clampAdaptiveInkFactor(adaptiveFactor, pace);
-  const cap = liveInkSpeedCap(pace);
-  return clamp(userSpeed * factor, 0.4, cap);
+  const safeUser = Number.isFinite(userSpeed) && userSpeed > 0 ? userSpeed : 1;
+  // Adaptive catch-up stays inside pedagogical bounds. The user's speed
+  // setting is never clamped away — 2× means 2× for voice and ink.
+  return clamp(safeUser * factor, 0.1, 4);
 }

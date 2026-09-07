@@ -9,6 +9,11 @@ import {
   SCENE_WRITE_MIN_MS,
   SCENE_WRITE_MS_PER_CHAR,
 } from "./inkPace";
+import {
+  CODE_TYPE_MAX_BLOCK_MS,
+  CODE_TYPE_MS_PER_CHAR,
+  FRAME_SWAP_MS,
+} from "../code/codeLessonPlan";
 
 const CHARS_PER_SECOND = 15;
 const MS_PER_CHAR = 1000 / CHARS_PER_SECOND;
@@ -975,6 +980,30 @@ export function getDrawingDuration(
   pace: InkPace = "follow",
 ): number {
   switch (command.type) {
+    // A frame swap wipes the diagram zone and redraws the next figure of the
+    // worked example. The redraw's own ink is timed by the nested commands;
+    // this is the beat the narration gets to say what changed, and it is
+    // deliberately unhurried — the whole complaint about these lessons was
+    // that the picture moved faster than it could be read.
+    case "FRAME":
+      return FRAME_SWAP_MS;
+    // Moving the marker onto the figure costs the flight and nothing else:
+    // it draws no ink, so it must not take a share of the spoken window away
+    // from the words it travels with.
+    case "POINT":
+      return 0;
+    case "TYPE": {
+      // Code is read, not spoken. Do not share handwriting's 3.2s cap — that
+      // compressed whole functions into a few seconds of speech.
+      const visible = Math.max(
+        1,
+        [...(command.text ?? "")].filter((char) => !/\s/.test(char)).length,
+      );
+      return Math.min(
+        Math.max(visible * CODE_TYPE_MS_PER_CHAR, 1_200),
+        CODE_TYPE_MAX_BLOCK_MS,
+      );
+    }
     case "WRITE":
     case "LABEL":
     case "DIMENSION": {
@@ -1022,6 +1051,8 @@ export function getFlightDuration(
   let baseMs = 300;
   if (command.type === "CLEAR") baseMs = 0;
   else if (command.type === "PAUSE") baseMs = 0;
+  // TYPE has no pen: characters appear in the code panel with zero approach.
+  else if (command.type === "TYPE") baseMs = 0;
   else if (command.type === "WRITE" || command.type === "LABEL") baseMs = 50;
   else if (command.type === "DIMENSION") baseMs = 120;
   else if (command.type === "ERASE") baseMs = 500;
