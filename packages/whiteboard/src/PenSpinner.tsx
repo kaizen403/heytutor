@@ -22,7 +22,7 @@ export interface PenSpinnerProps {
   size?: number;
   /** Marker colour the instrument writes in — the lead and band follow it. */
   ink?: string;
-  /** Rough work is pencil work, so the default is the pencil the board thinks with. */
+  /** The clicker the board writes with. */
   instrument?: Exclude<InstrumentKind, "duster">;
   /** Milliseconds per full turn. */
   periodMs?: number;
@@ -40,10 +40,11 @@ const TRAIL_SWEEP_DEG = 75;
 const DEG = Math.PI / 180;
 /**
  * Keyframe stops used to approximate the cadence curve. The browser tweens
- * linearly between them, so this is a sampling rate: 36 puts each stop 10° of
- * turn apart, far below what the eye can resolve as a corner.
+ * linearly between them, so this is a sampling rate. At a 0.9 swing the flick
+ * covers ground fast enough that 36 stops start to show as facets through it,
+ * so sample at 96: each stop is under 4° of turn even at the top of the flick.
  */
-const CADENCE_STOPS = 36;
+const CADENCE_STOPS = 96;
 
 /**
  * The same flick-and-coast the board twirls with, baked into CSS keyframes.
@@ -64,7 +65,7 @@ function cadenceKeyframes(): string {
 }
 
 /**
- * The tutor's pencil, twirling while a response is pending.
+ * The tutor's clicker pen, twirling while a response is pending.
  *
  * Same art table as the pen on the board (`instruments.ts`), rendered to SVG
  * instead of Konva, so the thing spinning in the chrome is the thing the tutor
@@ -115,7 +116,7 @@ function shapeElement(shape: InstrumentShape, index: number, palette: Instrument
 export function PenSpinner({
   size = 40,
   ink = "#1B2A4A",
-  instrument = "pencil",
+  instrument = "pen",
   periodMs = SPIN_PERIOD_MS,
   label,
   trail = true,

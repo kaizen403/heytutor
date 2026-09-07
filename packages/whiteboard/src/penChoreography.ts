@@ -24,6 +24,10 @@ const DEG = Math.PI / 180;
 export const RESTING_TILT: Record<PenActivity, number> = {
   write: -33,
   draw: -25,
+  // A pencil laying in a construction line stands more upright than a pen
+  // writing a word, because the stroke comes from the wrist and the lead has
+  // to be kept off its own flank.
+  sketch: -20,
   annotate: -38,
   highlight: -47,
   erase: 0,
@@ -39,6 +43,7 @@ export const LEAN_GAIN_DEGREES = 8;
 export const LEAN_GAIN: Record<PenActivity, number> = {
   write: 5,
   draw: 8,
+  sketch: 9,
   annotate: 6,
   highlight: 4,
   erase: 0,
@@ -377,19 +382,95 @@ export function thinkingPose(elapsedMs: number): ThinkingPose {
  * The pen parked mid-sentence, waiting for the narration to reach the moment
  * this character is spoken.
  *
+ * This is what the board shows for most of a lesson, because writing is gated
+ * on the voice character by character, so it has to read as a person holding a
+ * pause rather than a widget playing an animation.
+ *
  * Short gaps stay perfectly still — a jiggle between two letters of the same
- * word reads as a glitch. Past the grace period the hand starts to breathe,
- * and a genuinely long hold earns a full roll between the fingers. This is
- * free motion: the pen is doing nothing during these frames by definition, so
- * none of it costs the audio budget.
+ * word reads as a glitch. Past the grace period the nib eases off the board and
+ * the hand breathes. Longer holds pick up the small things a hand does when it
+ * is waiting to write: a re-grip, a tap against the board, a drift and back.
+ * They are spaced irregularly on purpose; a gesture on a fixed period is the
+ * one thing that gives a loop away. This is free motion: the pen is doing
+ * nothing during these frames by definition, so none of it costs the audio
+ * budget.
  */
 export const WAIT_GRACE_MS = 170;
 export const WAIT_RAMP_MS = 320;
-/** How long the pen must be held before the first roll. */
-export const WAIT_ROLL_AFTER_MS = 2600;
-export const WAIT_ROLL_MS = 900;
-/** Gap between rolls once the pen has started them. */
-export const WAIT_ROLL_PERIOD_MS = 4200;
+/** How far the nib relaxes off the board once the pause is real. */
+export const WAIT_HOVER_PX = 1.5;
+export const WAIT_HOVER_MS = 850;
+/** Nothing happens before this: a pause has to become a pause first. */
+export const WAIT_FIRST_GESTURE_MS = 2200;
+/** Gap between gestures — a floor plus a per-gesture spread, never a period. */
+export const WAIT_GESTURE_GAP_MIN_MS = 2500;
+export const WAIT_GESTURE_GAP_SPREAD_MS = 4300;
+/** Past this the hand has settled, so the gestures get smaller and rarer. */
+export const WAIT_CALM_AFTER_MS = 14000;
+export const WAIT_CALM_RAMP_MS = 9000;
+/** The hand comes back to the board over this long before the next character. */
+export const WAIT_SETTLE_MS = 220;
+
+/** Deterministic 0..1 from an integer, so a pause replays identically. */
+function fract01(seed: number): number {
+  const x = Math.sin(seed * 78.233 + 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** Zero value and zero slope at both ends — a gesture that cannot pop. */
+function bell(t: number): number {
+  const s = Math.sin(Math.PI * clamp01(t));
+  return s * s;
+}
+
+export type WaitGestureKind = "regrip" | "tap" | "drift";
+
+export interface WaitGesture {
+  kind: WaitGestureKind;
+  /** Milliseconds after the grace period. */
+  startMs: number;
+  durationMs: number;
+  index: number;
+}
+
+const GESTURE_MS: Record<WaitGestureKind, number> = {
+  regrip: 780,
+  tap: 360,
+  drift: 1500,
+};
+
+function gestureKind(index: number): WaitGestureKind {
+  const roll = fract01(index * 7 + 3);
+  if (roll < 0.42) return "regrip";
+  if (roll < 0.72) return "tap";
+  return "drift";
+}
+
+/**
+ * The gesture covering `sinceMs`, if any. Gaps are drawn per gesture and grow
+ * once the hand has settled, so nothing here repeats on a period.
+ */
+export function waitGestureAt(sinceMs: number): { gesture: WaitGesture; t: number } | null {
+  if (!(sinceMs > WAIT_FIRST_GESTURE_MS)) return null;
+  let startMs = WAIT_FIRST_GESTURE_MS;
+  for (let index = 0; index < 512; index++) {
+    const kind = gestureKind(index);
+    const durationMs = GESTURE_MS[kind];
+    if (sinceMs < startMs) return null;
+    if (sinceMs < startMs + durationMs) {
+      return {
+        gesture: { kind, startMs, durationMs, index },
+        t: (sinceMs - startMs) / durationMs,
+      };
+    }
+    // Gaps stretch as the wait goes on: an unhurried hand fidgets less, not more.
+    const stretch = 1 + 0.9 * smoothstep((startMs - WAIT_CALM_AFTER_MS) / WAIT_CALM_RAMP_MS);
+    startMs +=
+      durationMs +
+      (WAIT_GESTURE_GAP_MIN_MS + WAIT_GESTURE_GAP_SPREAD_MS * fract01(index * 13 + 5)) * stretch;
+  }
+  return null;
+}
 
 export interface WaitingPose {
   /** False while the pen should hold perfectly still. */
@@ -420,52 +501,98 @@ export function waitingPose(waitedMs: number): WaitingPose {
   const ramp = smoothstep(since / WAIT_RAMP_MS);
   const seconds = since / 1000;
 
-  let spin = ramp * 9 * Math.sin(seconds * 0.72);
-  let lift = ramp * 1.6 * (0.5 + 0.5 * Math.sin(seconds * 1.4));
+  // Breathing. The periods run from about 5 to 14 seconds and none divides
+  // another, so the drift never returns to where it was and never reads as a
+  // loop — which is what gives an idle animation away.
+  let dx = ramp * (1.15 * Math.sin(seconds * 0.62) + 0.5 * Math.sin(seconds * 1.13 + 2.1));
+  let dy = ramp * (0.8 * Math.sin(seconds * 0.51 + 0.7) + 0.35 * Math.sin(seconds * 0.97 + 1.4));
+  let tiltOffset = ramp * 1.6 * Math.sin(seconds * 0.44 + 0.4);
+  let spin = 0;
+  let lift = WAIT_HOVER_PX * smoothstep(since / WAIT_HOVER_MS);
   let scale = 1;
 
-  if (since > WAIT_ROLL_AFTER_MS) {
-    const intoRoll = (since - WAIT_ROLL_AFTER_MS) % WAIT_ROLL_PERIOD_MS;
-    if (intoRoll < WAIT_ROLL_MS) {
-      // Deliberately not `flourishPose`: that curve is tuned for the snappy
-      // instrument swap and peaks near 28°/frame. A pen idly rolled between
-      // the fingers turns unhurriedly.
-      const rollT = intoRoll / WAIT_ROLL_MS;
-      const arc = Math.sin(Math.PI * rollT);
-      spin += 360 * smootherstep(rollT);
-      lift = Math.max(lift, FLOURISH_LIFT_PX * arc);
-      scale = 1 + 0.1 * arc;
+  const gesture = waitGestureAt(since);
+  if (gesture) {
+    const { kind, index } = gesture.gesture;
+    // Smaller once the hand has settled into the wait.
+    const calm =
+      1 - 0.4 * smoothstep((gesture.gesture.startMs - WAIT_CALM_AFTER_MS) / WAIT_CALM_RAMP_MS);
+    const swing = fract01(index * 29 + 11) < 0.5 ? -1 : 1;
+    const shape = bell(gesture.t);
+
+    if (kind === "regrip") {
+      // The barrel rolled a little between the fingers and back: a hand
+      // adjusting its hold. The pen used to turn a full 360° every four
+      // seconds here, which is a fidget spinner, not a teacher mid-sentence.
+      spin += calm * swing * (20 + 14 * fract01(index * 17 + 2)) * shape;
+      lift += calm * 4.2 * shape;
+      dx += calm * swing * 2.1 * shape;
+      dy += calm * -1.5 * shape;
+      scale = 1 + calm * 0.02 * shape;
+    } else if (kind === "tap") {
+      // The pen taken off the board and set back down on it. The exponent puts
+      // the peak late, so the lift is unhurried and the contact is quick — a
+      // tap, rather than a flinch away from the board and a slow return.
+      const tap = bell(Math.pow(clamp01(gesture.t), 1.45));
+      lift += calm * 4.2 * tap;
+      dy += calm * -1.1 * tap;
+      tiltOffset += calm * swing * 1.4 * tap;
+      scale = 1 + calm * 0.03 * tap;
+    } else {
+      dx += calm * swing * 3.4 * shape;
+      dy += calm * (fract01(index * 23 + 7) - 0.5) * 3.2 * shape;
+      tiltOffset += calm * swing * 2.2 * shape;
+      lift += calm * 1.6 * shape;
     }
   }
 
+  return { active: true, dx, dy, tiltOffset, spin, lift, scale };
+}
+
+/**
+ * Fade a waiting pose back to rest.
+ *
+ * The wait ends the instant the voice reaches the next character, and the pen
+ * has to be back on the board by then — snapping it there from mid-drift is a
+ * visible twitch on every character. The board knows how much of the wait is
+ * left, so the hand starts coming back before it is needed, the way a person
+ * does. `settle` is 1 while the wait is open and eases to 0 on approach.
+ */
+export function settleWaitingPose(pose: WaitingPose, settle: number): WaitingPose {
+  const k = clamp01(settle);
+  if (k >= 1) return pose;
   return {
-    active: true,
-    dx: ramp * 1.9 * Math.sin(seconds * 1.15),
-    dy: ramp * 1.2 * Math.sin(seconds * 1.75 + 0.7),
-    tiltOffset: ramp * 2.4 * Math.sin(seconds * 0.95 + 0.4),
-    spin,
-    lift,
-    scale,
+    active: pose.active,
+    dx: pose.dx * k,
+    dy: pose.dy * k,
+    tiltOffset: pose.tiltOffset * k,
+    spin: pose.spin * k,
+    lift: pose.lift * k,
+    scale: 1 + (pose.scale - 1) * k,
   };
 }
 
-/** One full twirl of the pencil while the tutor waits on a response. */
-export const SPIN_PERIOD_MS = 1200;
+/** One full twirl of the pen while the tutor waits on a response. */
+export const SPIN_PERIOD_MS = 1400;
 /** The wrist takes a beat to bring the twirl up to speed. */
 export const SPIN_RAMP_MS = 220;
 export const SPIN_LIFT_PX = 6;
 const SPIN_RISE_MS = 320;
 /**
  * Beats per revolution. A finger twirl is not a motor: the barrel is flicked,
- * coasts, and is flicked again — two flicks per turn, like a two-blade rotor.
+ * coasts, and is flicked again. One beat per turn, not two — with two, each
+ * coast is only half a revolution long and the eye reads the whole thing as a
+ * steady spin with a wobble. One gives a single unmistakable slow arc and a
+ * single whip round.
  */
-export const SPIN_BEATS = 2;
+export const SPIN_BEATS = 1;
 /**
  * How far the rate swings either side of the mean, as a fraction of it. The
- * angle stays monotonic for any value below 1, so 0.55 gives a pronounced
- * flick-and-coast that never stalls and never reverses.
+ * angle stays monotonic for any value below 1, so 0.9 nearly stalls the coast
+ * (0.1x mean) and nearly doubles the flick (1.9x) while never reversing and
+ * never actually stopping.
  */
-export const SPIN_SWING = 0.55;
+export const SPIN_SWING = 0.9;
 /**
  * Degrees of cadence wobble. Derived so the swing above comes out exactly:
  * differentiating `SPIN_CADENCE_DEG · sin(beats · 2π · t / T)` gives a peak
@@ -628,4 +755,106 @@ export function scratchStrokePath(seed: number, box: ScratchBox): string {
       y: Math.min(Math.max(point.y, top), bottom),
     })),
   );
+}
+
+/**
+ * Travel — how the hand gets from one place on the board to the next.
+ *
+ * A hand never slides in a straight line at a constant rate. Short carries
+ * between two strokes bow over the gap and keep their speed through it; long
+ * reaches across the board arc, accelerate quickly, and settle slowly onto the
+ * landing point. Both are described here as a curve plus a rate, so the board
+ * only has to sample them.
+ */
+
+/** How far a carry between strokes bows above the straight line. */
+export const CARRY_BOW_RATIO = 0.18;
+export const CARRY_BOW_MAX_PX = 9;
+/** How far a full flight across the board bows above the straight line. */
+export const FLIGHT_BOW_RATIO = 0.15;
+export const FLIGHT_BOW_MAX_PX = 34;
+
+export interface TravelPoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * Quadratic bow between two points. The control point is pushed perpendicular
+ * to the line of travel, always toward the top of the board, because a hand
+ * carries the nib over the gap rather than dragging it through the ink below.
+ */
+export function bowedPoint(
+  from: TravelPoint,
+  to: TravelPoint,
+  t: number,
+  bow: number,
+): TravelPoint {
+  const progress = clamp01(t);
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const distance = Math.hypot(dx, dy);
+  const midX = (from.x + to.x) / 2;
+  const midY = (from.y + to.y) / 2;
+  if (!(distance > 1e-6) || !(Math.abs(bow) > 1e-6)) {
+    return { x: from.x + dx * progress, y: from.y + dy * progress };
+  }
+  // Perpendicular, flipped so it always points up-screen.
+  let nx = -dy / distance;
+  let ny = dx / distance;
+  if (ny > 0) {
+    nx = -nx;
+    ny = -ny;
+  }
+  const cx = midX + nx * bow * 2;
+  const cy = midY + ny * bow * 2;
+  const inverse = 1 - progress;
+  return {
+    x: inverse * inverse * from.x + 2 * inverse * progress * cx + progress * progress * to.x,
+    y: inverse * inverse * from.y + 2 * inverse * progress * cy + progress * progress * to.y,
+  };
+}
+
+export function carryBow(distancePx: number): number {
+  return Math.min(distancePx * CARRY_BOW_RATIO, CARRY_BOW_MAX_PX);
+}
+
+export function flightBow(distancePx: number): number {
+  return Math.min(distancePx * FLIGHT_BOW_RATIO, FLIGHT_BOW_MAX_PX);
+}
+
+/**
+ * Rate for a carry between two strokes of the same word.
+ *
+ * Deliberately not an ease-in-out: the pen is already moving when it leaves
+ * the last stroke and is still moving when it meets the next one. A curve that
+ * parks at both ends puts a full stop between every pair of letters, which is
+ * exactly what made the writing read as stamped rather than written.
+ */
+export function carryEase(progress: number): number {
+  const t = clamp01(progress);
+  return 0.36 * t + 0.64 * smoothstep(t);
+}
+
+/**
+ * Rate for a reach across the board.
+ *
+ * Human point-to-point movement follows a minimum-jerk profile, skewed a
+ * little early: the arm commits quickly and spends the tail of the movement
+ * placing the nib. `smootherstep` is that profile; the skew moves peak speed
+ * to roughly 42% of the way through.
+ */
+export const REACH_SKEW = 0.18;
+export function reachEase(progress: number): number {
+  const t = clamp01(progress);
+  return smootherstep(clamp01(t + REACH_SKEW * t * (1 - t)));
+}
+
+/**
+ * When the barrel starts rolling toward its landing tilt. Early in a flight
+ * the pen still holds the angle it wrote at; the turn happens on approach.
+ */
+export const FLIGHT_SETTLE_FROM = 0.5;
+export function flightRotationBlend(progress: number): number {
+  return smoothstep(clamp01((clamp01(progress) - FLIGHT_SETTLE_FROM) / (1 - FLIGHT_SETTLE_FROM)));
 }

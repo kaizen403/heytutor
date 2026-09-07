@@ -28,7 +28,7 @@ export function SpeakingWaveform({
   x,
   y,
   visible = true,
-  color = "#659287",
+  color = "#59AFD4",
   audioLevel = 0,
 }: SpeakingWaveformProps) {
   const [barHeights, setBarHeights] = useState<number[]>(() => PROFILE.map(() => 3));

@@ -28,8 +28,18 @@ import {
   thinkingPose,
   tiltForHeading,
   tremor,
+  WAIT_CALM_AFTER_MS,
+  WAIT_FIRST_GESTURE_MS,
+  WAIT_GESTURE_GAP_MIN_MS,
   WAIT_GRACE_MS,
-  WAIT_ROLL_AFTER_MS,
+  bowedPoint,
+  carryBow,
+  carryEase,
+  flightBow,
+  flightRotationBlend,
+  reachEase,
+  settleWaitingPose,
+  waitGestureAt,
   waitingPose,
 } from "../src/penChoreography";
 import {
@@ -46,7 +56,7 @@ function assert(condition: unknown, message: string): asserts condition {
 
 // --- the hand picks the right tool ----------------------------------------
 assert(instrumentForActivity("write") === "pen", "words are written with a pen");
-assert(instrumentForActivity("draw") === "pencil", "construction geometry is sketched");
+assert(instrumentForActivity("draw") === "pen", "diagrams are drawn with the same pen as the words");
 assert(instrumentForActivity("highlight") === "highlighter", "emphasis uses the chisel marker");
 assert(instrumentForActivity("erase") === "duster", "erasing uses the duster");
 
@@ -232,33 +242,157 @@ assert(waitingPose(WAIT_GRACE_MS + 1).active, "past the grace period the hand ta
 {
   let previous = waitingPose(WAIT_GRACE_MS);
   let maxSpinStep = 0;
-  for (let ms = WAIT_GRACE_MS; ms < 30000; ms += 16) {
+  let maxSpin = 0;
+  for (let ms = WAIT_GRACE_MS; ms < 60000; ms += 16) {
     const pose = waitingPose(ms);
-    assert(Math.abs(pose.dx) <= 2.0, `wait drift x bounded, got ${pose.dx}`);
-    assert(Math.abs(pose.dy) <= 1.3, `wait drift y bounded, got ${pose.dy}`);
-    assert(Math.abs(pose.tiltOffset) <= 2.5, `wait tilt bounded, got ${pose.tiltOffset}`);
-    assert(pose.lift >= 0 && pose.lift <= 11, `wait lift bounded, got ${pose.lift}`);
-    assert(pose.scale >= 1 && pose.scale <= 1.12, `wait scale bounded, got ${pose.scale}`);
+    assert(Math.abs(pose.dx) <= 6, `wait drift x bounded, got ${pose.dx}`);
+    assert(Math.abs(pose.dy) <= 4, `wait drift y bounded, got ${pose.dy}`);
+    assert(Math.abs(pose.tiltOffset) <= 4.5, `wait tilt bounded, got ${pose.tiltOffset}`);
+    assert(pose.lift >= 0 && pose.lift <= 8, `wait lift bounded, got ${pose.lift}`);
+    assert(pose.scale >= 1 && pose.scale <= 1.06, `wait scale bounded, got ${pose.scale}`);
     assert(
-      Math.abs(pose.dx - previous.dx) < 0.2 && Math.abs(pose.dy - previous.dy) < 0.2,
+      Math.abs(pose.dx - previous.dx) < 0.25 && Math.abs(pose.dy - previous.dy) < 0.25,
       `wait drift must be continuous at ${ms}ms`,
     );
-    // A completed roll lands 360° on, which is the same picture — compare mod 360.
+    assert(
+      Math.abs(pose.lift - previous.lift) < 1.2,
+      `the nib must not jump off the board at ${ms}ms`,
+    );
     maxSpinStep = Math.max(maxSpinStep, Math.abs(shortestAngleDelta(previous.spin, pose.spin)));
+    maxSpin = Math.max(maxSpin, Math.abs(pose.spin));
     previous = pose;
   }
-  assert(maxSpinStep < 14, `the wait roll must never jump, worst frame ${maxSpinStep.toFixed(2)}°`);
+  assert(maxSpinStep < 3, `a waiting hand never whips the barrel, worst frame ${maxSpinStep.toFixed(2)}°`);
+  // The old wait rolled the pen a full turn every few seconds. A teacher
+  // holding a pause re-grips; they do not perform.
+  assert(maxSpin < 60, `a waiting hand re-grips, it does not twirl (peak ${maxSpin.toFixed(1)}°)`);
 }
-assert(
-  waitingPose(WAIT_GRACE_MS + WAIT_ROLL_AFTER_MS - 50).lift < 3,
-  "the pen only rolls once the hold is genuinely long",
-);
 {
-  let rolled = false;
-  for (let ms = WAIT_GRACE_MS + WAIT_ROLL_AFTER_MS; ms < WAIT_GRACE_MS + WAIT_ROLL_AFTER_MS + 700; ms += 16) {
-    if (waitingPose(ms).lift > 6) rolled = true;
+  // Nothing but breath until the pause is genuinely a pause.
+  for (let ms = WAIT_GRACE_MS; ms < WAIT_GRACE_MS + WAIT_FIRST_GESTURE_MS; ms += 16) {
+    assert(
+      waitGestureAt(ms - WAIT_GRACE_MS) === null && waitingPose(ms).lift < 2,
+      `a short hold must stay quiet at ${ms}ms`,
+    );
   }
-  assert(rolled, "a long hold earns a full roll between the fingers");
+}
+{
+  // Gestures do happen, and they are not on a metronome: a fidget that repeats
+  // on a fixed period is the tell that gives an animation away.
+  const starts: number[] = [];
+  let seen = -1;
+  for (let ms = 0; ms < 90000; ms += 8) {
+    const at = waitGestureAt(ms);
+    if (at && at.gesture.index !== seen) {
+      seen = at.gesture.index;
+      starts.push(at.gesture.startMs);
+    }
+  }
+  assert(starts.length >= 8, `a long wait shows its hand, got ${starts.length} gestures`);
+  const gaps: number[] = [];
+  for (let index = 1; index < starts.length; index++) {
+    gaps.push(starts[index]! - starts[index - 1]!);
+  }
+  const unique = new Set(gaps.map((gap) => Math.round(gap / 50)));
+  assert(unique.size >= gaps.length - 1, "wait gestures must not repeat on a period");
+  assert(
+    Math.min(...gaps) >= WAIT_GESTURE_GAP_MIN_MS,
+    `gestures must stay spaced, tightest ${Math.min(...gaps).toFixed(0)}ms`,
+  );
+  const early = gaps.filter((_, index) => starts[index]! < WAIT_CALM_AFTER_MS);
+  const late = gaps.filter((_, index) => starts[index]! > WAIT_CALM_AFTER_MS + 20000);
+  if (early.length > 0 && late.length > 0) {
+    const mean = (values: number[]): number =>
+      values.reduce((sum, value) => sum + value, 0) / values.length;
+    assert(mean(late) > mean(early), "a hand that has been waiting a while fidgets less, not more");
+  }
+}
+{
+  // The wait ends on the voice's schedule, so the hand has to be back on the
+  // board by then rather than snapping there.
+  const mid = waitingPose(WAIT_GRACE_MS + WAIT_FIRST_GESTURE_MS + 200);
+  const settled = settleWaitingPose(mid, 0);
+  assert(
+    settled.dx === 0 && settled.dy === 0 && settled.spin === 0 && settled.lift === 0 && settled.scale === 1,
+    "a fully settled wait pose is rest",
+  );
+  const held = settleWaitingPose(mid, 1);
+  assert(held.dx === mid.dx && held.lift === mid.lift, "an open wait is left alone");
+  const half = settleWaitingPose(mid, 0.5);
+  assert(
+    Math.abs(half.lift - mid.lift * 0.5) < 1e-9 && Math.abs(half.spin - mid.spin * 0.5) < 1e-9,
+    "the return to the board is proportional",
+  );
+}
+
+// --- travel: a hand arcs, and never stops between two letters -------------
+{
+  const from = { x: 100, y: 400 };
+  const to = { x: 260, y: 380 };
+  const bow = flightBow(Math.hypot(to.x - from.x, to.y - from.y));
+  assert(bow > 8, "a long reach bows well clear of the straight line");
+  const start = bowedPoint(from, to, 0, bow);
+  const finish = bowedPoint(from, to, 1, bow);
+  assert(start.x === from.x && start.y === from.y, "travel starts where the pen is");
+  assert(finish.x === to.x && finish.y === to.y, "travel lands exactly on target");
+  const mid = bowedPoint(from, to, 0.5, bow);
+  const straightY = (from.y + to.y) / 2;
+  assert(mid.y < straightY - 4, `the arc must rise over the line, got ${mid.y} vs ${straightY}`);
+  // Down-screen travel has to bow the same way: over the top, not through the
+  // ink the pen just laid down.
+  const down = bowedPoint({ x: 100, y: 200 }, { x: 300, y: 500 }, 0.5, 20);
+  assert(down.y < 350, `travel must arc over, not sag under, got ${down.y}`);
+
+  let previous = bowedPoint(from, to, 0, bow);
+  for (let t = 0.01; t <= 1.0001; t += 0.01) {
+    const point = bowedPoint(from, to, t, bow);
+    assert(
+      Math.hypot(point.x - previous.x, point.y - previous.y) < 12,
+      "the arc must be sampled continuously",
+    );
+    previous = point;
+  }
+}
+{
+  assert(carryEase(0) === 0 && Math.abs(carryEase(1) - 1) < 1e-9, "a carry covers the gap exactly");
+  const entry = (carryEase(0.02) - carryEase(0)) / 0.02;
+  const exit = (carryEase(1) - carryEase(0.98)) / 0.02;
+  assert(entry > 0.3, `the pen is still moving as it leaves a letter (${entry.toFixed(2)})`);
+  assert(exit > 0.3, `the pen is already moving as it meets the next (${exit.toFixed(2)})`);
+  let previousRate = 0;
+  for (let t = 0; t < 1; t += 0.01) {
+    const rate = (carryEase(t + 0.01) - carryEase(t)) / 0.01;
+    assert(rate > 0, "a carry never stalls or reverses");
+    previousRate = rate;
+  }
+  assert(previousRate > 0, "a carry is still running at the end");
+}
+{
+  assert(reachEase(0) === 0 && Math.abs(reachEase(1) - 1) < 1e-9, "a reach lands on its target");
+  let peakAt = 0;
+  let peak = 0;
+  for (let t = 0; t < 1; t += 0.005) {
+    const rate = (reachEase(t + 0.005) - reachEase(t)) / 0.005;
+    if (rate > peak) {
+      peak = rate;
+      peakAt = t;
+    }
+  }
+  // Minimum-jerk, skewed early: the arm commits, then spends the tail placing
+  // the nib rather than arriving at speed.
+  assert(peakAt < 0.5, `a reach commits early, peak speed at ${peakAt.toFixed(2)}`);
+  assert(peakAt > 0.3, `a reach is not a lunge, peak speed at ${peakAt.toFixed(2)}`);
+  assert(
+    (reachEase(0.02) - reachEase(0)) / 0.02 < 0.2,
+    "a reach starts from a hand at rest",
+  );
+}
+{
+  assert(flightRotationBlend(0) === 0, "the barrel holds the angle it wrote at");
+  assert(flightRotationBlend(0.4) === 0, "the roll waits for the approach");
+  assert(Math.abs(flightRotationBlend(1) - 1) < 1e-9, "the barrel is landed by touchdown");
+  assert(carryBow(4) < carryBow(40), "a longer carry bows further");
+  assert(carryBow(1000) <= 9.001, "a carry bow stays a carry");
 }
 
 // --- margin scribbles never leave the margin ------------------------------
