@@ -7,9 +7,11 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
-import { ArrowUp, Lightbulb, Square, X } from "lucide-react";
+import { ArrowUp, Lightbulb, Loader2, Mic, Square, X } from "lucide-react";
 import { MathText } from "@/features/tutor-session/components/MathText";
-import type { NotesChatTag } from "../lib/notesChatTag";
+import { useVoiceInput } from "@/features/tutor-session/hooks/useVoiceInput";
+import { VoiceLevelBars } from "@/features/tutor-session/components/VoiceLevelBars";
+import type { NotesChatTag } from "../lib/notes/notesChatTag";
 
 const MAX_FIELD_HEIGHT = 136;
 
@@ -39,6 +41,19 @@ export function NotesChatComposer({
   const [focused, setFocused] = useState(false);
 
   const canSend = !sending && (value.trim().length > 0 || tag !== null);
+
+  // Spoken words land after whatever is already drafted, so a half-typed
+  // question can be finished out loud.
+  const voice = useVoiceInput({
+    onTranscript: (text) => {
+      const base = value.trim();
+      onValueChange(base ? `${base} ${text}` : text);
+      fieldRef.current?.focus();
+    },
+    disabled: sending,
+  });
+  const listening = voice.state === "listening";
+  const transcribing = voice.state === "transcribing";
 
   // Grow with the draft instead of scrolling a one-line input, so a long
   // question stays readable while it is being written.
@@ -122,6 +137,37 @@ export function NotesChatComposer({
             className="ncs__input"
           />
 
+          {voice.supported ? (
+            <button
+              type="button"
+              aria-label={listening ? "Stop recording and transcribe" : "Ask by voice"}
+              aria-pressed={listening}
+              title={
+                listening
+                  ? "Press again when you have finished speaking"
+                  : "Ask by voice"
+              }
+              onClick={voice.toggle}
+              disabled={sending || transcribing}
+              // No fill and no ring while listening: the student's own voice
+              // moving is a better "I am recording you" than a lit box.
+              className={listening ? "ncs__action ncs__action--live" : "ncs__action"}
+            >
+              {listening ? (
+                <VoiceLevelBars
+                  analyserRef={voice.analyserRef}
+                  bars={5}
+                  barWidth={2}
+                  height={13}
+                />
+              ) : transcribing ? (
+                <Loader2 size={15} strokeWidth={1.8} className="animate-spin" />
+              ) : (
+                <Mic size={15} strokeWidth={1.8} />
+              )}
+            </button>
+          ) : null}
+
           <button
             type="button"
             aria-label="Prompt ideas"
@@ -156,7 +202,19 @@ export function NotesChatComposer({
         </div>
       </form>
 
-      {focused || value ? (
+      {voice.error ? (
+        <p className="ncs__hint ncs__hint--warn" role="status">
+          {voice.error}
+        </p>
+      ) : listening ? (
+        <p className="ncs__hint" role="status">
+          Listening… press the mic again when you are done
+        </p>
+      ) : transcribing ? (
+        <p className="ncs__hint" role="status">
+          Writing down what you said…
+        </p>
+      ) : focused || value ? (
         <p className="ncs__hint">Enter to send · Shift + Enter for a new line</p>
       ) : null}
     </div>

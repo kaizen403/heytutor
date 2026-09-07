@@ -13,12 +13,12 @@ import {
   formatLessonNotesForPrompt,
   notesFromStoredTurn,
   parseLiveTurnNotes,
-} from "@/features/tutor-session/lib/lessonNotes";
+} from "@/features/tutor-session/lib/notes/lessonNotes";
 import {
   formatNotesChatTagPrompt,
   formatTaggedUserMessage,
   parseNotesChatTag,
-} from "@/features/tutor-session/lib/notesChatTag";
+} from "@/features/tutor-session/lib/notes/notesChatTag";
 import {
   endLlmGeneration,
   flushInBackground,

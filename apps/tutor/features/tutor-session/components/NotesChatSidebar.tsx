@@ -3,12 +3,12 @@
 import { useCallback, useMemo, useState } from "react";
 import { X } from "lucide-react";
 
-import type { LessonNotesSnapshot } from "../lib/lessonNotes";
+import type { LessonNotesSnapshot } from "../lib/notes/lessonNotes";
 import {
   collectSelectableNotes,
   defaultTaggedQuestion,
   type NotesChatTag,
-} from "../lib/notesChatTag";
+} from "../lib/notes/notesChatTag";
 import type { NotesChatMessage } from "@/lib/boards/notesChatClient";
 import { NotesChatThread } from "./NotesChatThread";
 import { NotesChatComposer } from "./NotesChatComposer";
@@ -160,17 +160,17 @@ export function NotesChatSidebar({
 
 const STYLES = `
 .ncs {
-  --ink: #F2F2F4;
-  --ink-dim: #DEDEE4;
-  --ink-soft: #A6A6AE;
-  --ink-faint: #7A7A82;
-  --accent: #C9C9D2;
-  --accent-soft: rgba(201, 201, 210, 0.12);
-  --line: rgba(242, 242, 244, 0.08);
-  --line-strong: #2E2E33;
-  --paper: #151517;
-  --raised: #1E1E21;
-  --danger: #E06858;
+  /* Night Blueprint, by way of the global tokens in app/globals.css. */
+  --ink: var(--frost);
+  --ink-dim: var(--sky-200);
+  --ink-soft: var(--text-soft);
+  --ink-faint: var(--text-faint);
+  --accent: var(--sky-500);
+  --accent-soft: rgba(89, 175, 212, 0.12);
+  --line: var(--stroke);
+  --line-strong: var(--stroke-strong);
+  --paper: var(--ink-850);
+  --raised: var(--ink-700);
 
   display: flex;
   flex-direction: column;
@@ -180,7 +180,7 @@ const STYLES = `
   /* Glass: a translucent pane over the board rather than an opaque slab. */
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.018) 100%),
-    rgba(11, 11, 12, 0.72);
+    rgba(6, 18, 28, 0.72);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
@@ -270,8 +270,7 @@ const STYLES = `
   margin: 0 0 0.4rem;
   font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--ink-faint);
 }
 
@@ -300,12 +299,12 @@ const STYLES = `
 }
 
 .ncs__pick:hover {
-  border-color: rgba(201, 201, 210, 0.35);
+  border-color: rgba(89, 175, 212, 0.35);
   color: var(--ink);
 }
 
 .ncs__pick--on {
-  border-color: rgba(201, 201, 210, 0.45);
+  border-color: rgba(89, 175, 212, 0.45);
   background: var(--accent-soft);
   color: var(--ink);
 }
@@ -314,8 +313,7 @@ const STYLES = `
   flex-shrink: 0;
   font-size: 0.625rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--ink-faint);
 }
 
@@ -337,8 +335,7 @@ const STYLES = `
   flex-shrink: 0;
   font-size: 0.625rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--ink-faint);
 }
 
@@ -392,11 +389,11 @@ const STYLES = `
   border: 2px solid transparent;
   border-radius: 999px;
   background-clip: content-box;
-  background-color: rgba(242, 242, 244, 0.1);
+  background-color: rgba(202, 229, 241, 0.1);
 }
 
 .ncs__scroll::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(242, 242, 244, 0.18);
+  background-color: rgba(202, 229, 241, 0.18);
 }
 
 .ncs__error {
@@ -515,8 +512,7 @@ const STYLES = `
 .ncs__msg-label {
   font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--ink-faint);
 }
 
@@ -573,11 +569,11 @@ const STYLES = `
   font-weight: 500;
   color: var(--ink);
   cursor: pointer;
-  box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 6px 18px -6px rgba(3, 11, 18, 0.6);
 }
 
 .ncs__jump:hover {
-  border-color: rgba(201, 201, 210, 0.35);
+  border-color: rgba(89, 175, 212, 0.35);
 }
 
 /* ── Prompt chips ───────────────────────────────────────── */
@@ -602,7 +598,7 @@ const STYLES = `
 }
 
 .ncs__chip:hover:not(:disabled) {
-  border-color: rgba(201, 201, 210, 0.35);
+  border-color: rgba(89, 175, 212, 0.35);
   background: var(--raised);
   color: var(--ink);
 }
@@ -636,7 +632,7 @@ const STYLES = `
 }
 
 .ncs__field:focus-within {
-  border-color: rgba(201, 201, 210, 0.35);
+  border-color: rgba(89, 175, 212, 0.35);
 }
 
 .ncs__input {
@@ -685,12 +681,12 @@ const STYLES = `
 
 .ncs__action--primary {
   background: var(--accent);
-  color: #0B0B0C;
+  color: #06121C;
 }
 
 .ncs__action--primary:hover:not(:disabled) {
-  background: #DEDEE4;
-  color: #0B0B0C;
+  background: #CCE6F1;
+  color: #06121C;
 }
 
 .ncs__action:disabled {
@@ -708,6 +704,21 @@ const STYLES = `
   font-size: 0.6875rem;
   letter-spacing: -0.005em;
   color: var(--ink-faint);
+}
+
+.ncs__hint--warn {
+  color: var(--danger);
+}
+
+/* Recording. Colour only — the meter itself is the state indicator. */
+.ncs__action--live {
+  background: transparent;
+  color: var(--accent);
+}
+
+.ncs__action--live:hover:not(:disabled) {
+  background: transparent;
+  color: var(--accent);
 }
 
 /* Touch has no hover, so the copy affordance needs a resting state. */

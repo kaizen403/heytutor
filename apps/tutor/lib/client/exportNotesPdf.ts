@@ -1,7 +1,7 @@
 "use client";
 
 import { jsPDF } from "jspdf";
-import { pdfSafeText, type NotesPdfSection } from "@/features/tutor-session/lib/notesPdf";
+import { pdfSafeText, type NotesPdfSection } from "@/features/tutor-session/lib/notes/notesPdf";
 import {
   NOTES_PDF_FONT_FAMILY,
   loadNotesPdfFontBinary,

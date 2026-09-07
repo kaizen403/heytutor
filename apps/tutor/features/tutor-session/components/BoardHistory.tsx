@@ -1,7 +1,5 @@
 "use client";
 
-import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
-
 import {
   useCallback,
   useEffect,
@@ -19,6 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { Brand } from "@/components/brand/Brand";
 import type { BoardEntry } from "@/lib/boards/types";
+import { Spinner } from "@/components/ui/spinner";
 
 export type { BoardEntry };
 
@@ -30,6 +29,9 @@ interface BoardHistoryProps {
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete?: (id: string) => void;
+  onTogglePin?: (id: string) => void;
+  onToggleArchive?: (id: string) => void;
+  onRename?: (id: string, title: string) => void;
   disabled?: boolean;
   variant?: "sidebar" | "drawer";
   open?: boolean;
@@ -48,11 +50,53 @@ const SIDEBAR_MAX_WIDTH = 420;
 const SIDEBAR_WIDTH_KEY = "htutor_sidebar_width";
 
 const PANEL: CSSProperties = {
-  background: "#0B0B0C",
-  borderRight: "1px solid rgba(242, 242, 244, 0.08)",
+  background: "#06121C",
+  borderRight: "1px solid rgba(202, 229, 241, 0.08)",
 };
 
 export { SIDEBAR_WIDTH, SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH };
+
+function PinIcon({ filled = false }: { filled?: boolean }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"}
+      stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M14.2 3.6l6.2 6.2-2.1 2.1-1.4-.4-3.6 3.6.5 3.4-1.6 1.6-8.3-8.3 1.6-1.6 3.4.5 3.6-3.6-.4-1.4z" />
+      <path d="M6.5 17.5L3 21" fill="none" />
+    </svg>
+  );
+}
+
+function RenameIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 20h4l10-10a2.1 2.1 0 0 0-3-3L5 17z" />
+      <path d="M13.5 6.5l4 4" />
+    </svg>
+  );
+}
+
+function ArchiveIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3.5" y="4.5" width="17" height="4" rx="1.2" />
+      <path d="M5.5 8.5v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-9" />
+      <path d="M10 12.5h4" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4.5 7h15" />
+      <path d="M10 4.25h4" />
+      <path d="M6.9 7l.68 11.8a1.75 1.75 0 0 0 1.75 1.65h5.34a1.75 1.75 0 0 0 1.75-1.65L17.1 7" />
+    </svg>
+  );
+}
 
 function clampSidebarWidth(value: number): number {
   return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Math.round(value)));
@@ -85,6 +129,9 @@ interface BoardHistoryContentProps {
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete?: (id: string) => void;
+  onTogglePin?: (id: string) => void;
+  onToggleArchive?: (id: string) => void;
+  onRename?: (id: string, title: string) => void;
   disabled?: boolean;
   onToggleCollapse?: () => void;
   showCollapseButton?: boolean;
@@ -101,6 +148,9 @@ function BoardHistoryContent({
   onSelect,
   onNew,
   onDelete,
+  onTogglePin,
+  onToggleArchive,
+  onRename,
   disabled = false,
   onToggleCollapse,
   showCollapseButton = true,
@@ -114,6 +164,30 @@ function BoardHistoryContent({
   // Deleting drops every turn on the board, so the trash icon only arms a
   // confirm row; it disarms on its own if the student walks away.
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [menuBoardId, setMenuBoardId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // The menu is a hover-revealed popover, so it has to close on an outside
+  // click and on Escape or it strands itself open once the pointer leaves.
+  useEffect(() => {
+    if (!menuBoardId) return;
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuBoardId(null);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuBoardId(null);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuBoardId]);
 
   useEffect(() => {
     if (!confirmDeleteId) return;
@@ -128,6 +202,9 @@ function BoardHistoryContent({
   // render as that lock, so the student cannot confirm mid-lecture.
   if (disabled && confirmDeleteId) {
     setConfirmDeleteId(null);
+  }
+  if (disabled && menuBoardId) {
+    setMenuBoardId(null);
   }
 
   useEffect(() => {
@@ -148,11 +225,12 @@ function BoardHistoryContent({
     };
   }, [profileOpen]);
 
-  const filtered = searchQuery.trim()
-    ? boards.filter((b) =>
-        b.title.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : boards;
+  // Archived boards leave the list but stay findable: a search still reaches
+  // them, so archiving is a tidy-up rather than a place things disappear to.
+  const query = searchQuery.trim().toLowerCase();
+  const filtered = query
+    ? boards.filter((b) => b.title.toLowerCase().includes(query))
+    : boards.filter((b) => b.archivedAt == null || b.id === activeBoardId);
 
   return (
     <div className="bh flex h-full flex-col overflow-hidden">
@@ -265,6 +343,33 @@ function BoardHistoryContent({
               </div>
             );
           }
+          if (renamingId === board.id) {
+            return (
+              <form
+                key={board.id}
+                className={`bh__item bh__item--rename${isActive ? " bh__item--active" : ""}`}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const next = renameDraft.trim();
+                  setRenamingId(null);
+                  if (next && next !== board.title) onRename?.(board.id, next);
+                }}
+              >
+                <input
+                  className="bh__rename-input"
+                  value={renameDraft}
+                  autoFocus
+                  maxLength={200}
+                  aria-label={`Rename ${board.title}`}
+                  onChange={(event) => setRenameDraft(event.target.value)}
+                  onBlur={() => setRenamingId(null)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") setRenamingId(null);
+                  }}
+                />
+              </form>
+            );
+          }
           return (
             <div
               key={board.id}
@@ -280,7 +385,7 @@ function BoardHistoryContent({
                   <span className="bh__item-title">{board.title}</span>
                   {isBusy ? (
                     <span className="bh__item-spinner" aria-hidden>
-                      <PenSpinner size={15} ink="#C9C9D2" trail={false} />
+                      <Spinner size={12} />
                     </span>
                   ) : null}
                 </span>
@@ -288,27 +393,85 @@ function BoardHistoryContent({
                   <span className="bh__item-preview">{board.preview}</span>
                 ) : null}
               </button>
-              {onDelete && (
+              <div className="bh__row-actions" data-row-actions>
                 <button
                   type="button"
-                  data-delete-btn
-                  className="bh__delete"
+                  className="bh__row-btn"
                   disabled={disabled}
+                  aria-haspopup="menu"
+                  aria-expanded={menuBoardId === board.id}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     if (disabled) return;
-                    setConfirmDeleteId(board.id);
+                    setMenuBoardId((current) => (current === board.id ? null : board.id));
                   }}
-                  aria-label={`Delete ${board.title}`}
+                  aria-label={`More options for ${board.title}`}
+                  title="More"
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    <line x1="10" y1="11" x2="10" y2="17" />
-                    <line x1="14" y1="11" x2="14" y2="17" />
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <circle cx="6" cy="12" r="1.7" />
+                    <circle cx="12" cy="12" r="1.7" />
+                    <circle cx="18" cy="12" r="1.7" />
                   </svg>
                 </button>
-              )}
+                {menuBoardId === board.id ? (
+                  <div className="bh__menu" role="menu" ref={menuRef}>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="bh__menu-item"
+                      onClick={() => {
+                        setMenuBoardId(null);
+                        setRenamingId(board.id);
+                        setRenameDraft(board.title);
+                      }}
+                    >
+                      <RenameIcon />
+                      Rename
+                    </button>
+                    <div className="bh__menu-sep" role="none" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="bh__menu-item"
+                      onClick={() => {
+                        setMenuBoardId(null);
+                        onTogglePin?.(board.id);
+                      }}
+                    >
+                      <PinIcon filled={board.pinnedAt != null} />
+                      {board.pinnedAt != null ? "Unpin board" : "Pin board"}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="bh__menu-item"
+                      onClick={() => {
+                        setMenuBoardId(null);
+                        onToggleArchive?.(board.id);
+                      }}
+                    >
+                      <ArchiveIcon />
+                      {board.archivedAt != null ? "Unarchive" : "Archive"}
+                    </button>
+                    {onDelete ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="bh__menu-item"
+                        onClick={() => {
+                          setMenuBoardId(null);
+                          setConfirmDeleteId(board.id);
+                        }}
+                      >
+                        <TrashIcon />
+                        Delete
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
           );
         })}
@@ -363,13 +526,14 @@ function BoardHistoryContent({
 
 const STYLES = `
 .bh {
-  --ink: #F2F2F4;
-  --ink-soft: #A6A6AE;
-  --ink-faint: #7A7A82;
-  --accent: #C9C9D2;
-  --line: rgba(242, 242, 244, 0.08);
-  --paper: #151517;
-  --hover: #1E1E21;
+  /* Night Blueprint, by way of the global tokens in app/globals.css. */
+  --ink: var(--frost);
+  --ink-soft: var(--text-soft);
+  --ink-faint: var(--text-faint);
+  --accent: var(--sky-500);
+  --line: var(--stroke);
+  --paper: var(--ink-850);
+  --hover: var(--ink-700);
   color: var(--ink);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -438,7 +602,7 @@ const STYLES = `
 }
 
 .bh__search-input:focus {
-  border-color: rgba(201, 201, 210, 0.4);
+  border-color: rgba(89, 175, 212, 0.4);
   background: var(--hover);
 }
 
@@ -454,11 +618,11 @@ const STYLES = `
   width: 100%;
   padding: 0.55rem;
   border-radius: 0.85rem;
-  border: 1px solid rgba(201, 201, 210, 0.22);
-  background: linear-gradient(180deg, #262629 0%, #1A1A1D 100%);
+  border: 1px solid rgba(89, 175, 212, 0.22);
+  background: linear-gradient(180deg, #2C3C4A 0%, #122A39 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 1px 2px rgba(0, 0, 0, 0.28);
+    0 1px 2px rgba(3, 11, 18, 0.28);
   color: var(--ink);
   font-size: 0.875rem;
   font-weight: 400;
@@ -473,8 +637,8 @@ const STYLES = `
   width: 1.55rem;
   height: 1.55rem;
   border-radius: 0.45rem;
-  background: #F2F2F4;
-  color: #0B0B0C;
+  background: #F0F5F7;
+  color: #06121C;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -482,11 +646,11 @@ const STYLES = `
 }
 
 .bh__new:hover:not(:disabled) {
-  border-color: rgba(201, 201, 210, 0.42);
-  background: linear-gradient(180deg, #2E2E32 0%, #202024 100%);
+  border-color: rgba(89, 175, 212, 0.42);
+  background: linear-gradient(180deg, #2C3C4A 0%, #122A39 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 2px 8px rgba(0, 0, 0, 0.28);
+    0 2px 8px rgba(3, 11, 18, 0.28);
 }
 
 .bh__new:disabled {
@@ -536,11 +700,11 @@ const STYLES = `
 }
 
 .bh__list:hover::-webkit-scrollbar-thumb {
-  background: rgba(242, 242, 244, 0.16);
+  background: rgba(202, 229, 241, 0.16);
 }
 
 .bh__list::-webkit-scrollbar-thumb:hover {
-  background: rgba(242, 242, 244, 0.3);
+  background: rgba(202, 229, 241, 0.3);
 }
 
 .bh__empty {
@@ -565,19 +729,21 @@ const STYLES = `
 }
 
 .bh__item--active {
-  background: rgba(201, 201, 210, 0.07);
+  background: rgba(89, 175, 212, 0.07);
   border-color: var(--line);
 }
 
 .bh__item--active:hover {
-  background: rgba(201, 201, 210, 0.1);
+  background: rgba(89, 175, 212, 0.1);
 }
 
 .bh__item-btn {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  width: calc(100% - 2rem);
+  /* Room for the one hover action, always reserved. The title must never run
+     underneath it, and reflowing the text on hover would make it jump. */
+  width: calc(100% - 2.6rem);
   padding: 0.8rem 0.55rem;
   border: 0;
   border-radius: 0.8rem;
@@ -613,7 +779,7 @@ const STYLES = `
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  color: #C9C9D2;
+  color: #59AFD4;
 }
 
 .bh__item-preview {
@@ -627,39 +793,137 @@ const STYLES = `
   white-space: nowrap;
 }
 
-.bh__delete {
+/*
+  Arming a confirm is not destructive, so the trash does not dress as danger.
+  It is the same quiet square as the header icon buttons; the red is spent once,
+  on the Delete in the confirm row, where it actually means something.
+*/
+/* The row's hover cluster: pin, then the overflow menu. Both carry the old
+   trash button's styling, deliberately. No red lives here — arming a confirm
+   is not itself destructive, so red is spent once, on the confirm button. */
+.bh__row-actions {
   position: absolute;
   right: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 1.7rem;
-  height: 1.7rem;
-  border: 0;
-  border-radius: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  z-index: 2;
+}
+
+.bh__row-btn {
+  width: 1.65rem;
+  height: 1.65rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
   background: transparent;
   color: var(--ink-faint);
   cursor: pointer;
   opacity: 0;
-  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
-.bh__item:hover .bh__delete,
-.bh__item:focus-within .bh__delete {
+.bh__item:hover .bh__row-btn,
+.bh__item:focus-within .bh__row-btn {
   opacity: 1;
 }
 
-.bh__delete:hover:not(:disabled) {
-  background: rgba(248, 81, 73, 0.15);
-  color: #E06858;
+
+
+.bh__row-btn:hover:not(:disabled) {
+  background: rgba(202, 229, 241, 0.07);
+  border-color: var(--line);
+  color: var(--ink);
 }
 
-.bh__delete:disabled {
+.bh__row-btn:active:not(:disabled) {
+  background: rgba(202, 229, 241, 0.11);
+}
+
+/* Load-bearing: without it a keyboard user tabs to an invisible control. */
+.bh__row-btn:focus-visible {
+  opacity: 1;
+  outline: 2px solid rgba(89, 175, 212, 0.5);
+  outline-offset: 1px;
+}
+
+.bh__row-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.bh__menu {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  right: 0;
+  min-width: 10.5rem;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--ink-850, #0C1B26);
+  box-shadow: 0 12px 32px -8px rgba(3, 11, 18, 0.7);
+  display: flex;
+  flex-direction: column;
+  z-index: 30;
+}
+
+.bh__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.bh__menu-item:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.bh__menu-item:focus-visible {
+  outline: 2px solid rgba(89, 175, 212, 0.5);
+  outline-offset: -2px;
+}
+
+.bh__menu-sep {
+  height: 1px;
+  margin: 0.25rem 0.35rem;
+  background: var(--line);
+}
+
+.bh__item--rename {
+  padding: 0.3rem 0.4rem;
+}
+
+.bh__rename-input {
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: rgba(202, 229, 241, 0.05);
+  color: var(--ink);
+  font-size: 0.8125rem;
+}
+
+.bh__rename-input:focus {
+  outline: 2px solid rgba(89, 175, 212, 0.5);
+  outline-offset: 1px;
 }
 
 .bh__item--confirm {
@@ -682,7 +946,7 @@ const STYLES = `
 
 .bh__confirm-btn {
   flex-shrink: 0;
-  border: 1px solid rgba(242, 242, 244, 0.14);
+  border: 1px solid rgba(202, 229, 241, 0.14);
   border-radius: 0.5rem;
   background: transparent;
   padding: 0.25rem 0.55rem;
@@ -694,16 +958,17 @@ const STYLES = `
 }
 
 .bh__confirm-btn:hover {
-  background: rgba(242, 242, 244, 0.06);
+  background: rgba(202, 229, 241, 0.06);
 }
 
+/* The one red in the sidebar, spent on the step that actually destroys. */
 .bh__confirm-btn--danger {
-  border-color: rgba(248, 81, 73, 0.4);
-  color: #E06858;
+  border-color: rgba(224, 104, 88, 0.4);
+  color: var(--danger);
 }
 
 .bh__confirm-btn--danger:hover {
-  background: rgba(248, 81, 73, 0.15);
+  background: rgba(224, 104, 88, 0.14);
 }
 
 .bh__footer {
@@ -772,9 +1037,9 @@ const STYLES = `
   right: 0;
   padding: 0.65rem 0.9rem;
   border-radius: 0.65rem;
-  background: #151517;
-  border: 1px solid rgba(240, 246, 252, 0.1);
-  box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.55);
+  background: #0D2231;
+  border: 1px solid rgba(202, 229, 241, 0.1);
+  box-shadow: 0 12px 28px -12px rgba(3, 11, 18, 0.55);
   min-width: 8rem;
   z-index: 20;
   font-size: 0.875rem;
@@ -801,7 +1066,7 @@ const STYLES = `
 .bh__profile:hover:not(:disabled),
 .bh__profile--open {
   background: var(--hover);
-  border-color: rgba(201, 201, 210, 0.35);
+  border-color: rgba(89, 175, 212, 0.35);
   color: var(--ink);
 }
 
@@ -838,8 +1103,8 @@ const STYLES = `
 .bh__resize:focus-visible::after,
 .board-sidebar--resizing .bh__resize::after {
   width: 2px;
-  background: rgba(201, 201, 210, 0.55);
-  box-shadow: 0 0 0 1px rgba(201, 201, 210, 0.12);
+  background: rgba(89, 175, 212, 0.55);
+  box-shadow: 0 0 0 1px rgba(89, 175, 212, 0.12);
 }
 
 .board-sidebar--docked {
@@ -856,9 +1121,12 @@ const STYLES = `
   outline: none;
 }
 
+/* Touch has no hover, so a hover-only cluster would be unreachable. Reveal it
+   for the open board only: nothing shows by default, which is the rule, and
+   the actions are still one tap away once a board is selected. */
 @media (hover: none) {
-  .bh__delete {
-    opacity: 0.55;
+  .bh__item--active .bh__row-btn {
+    opacity: 1;
   }
 }
 `;
@@ -1029,7 +1297,7 @@ export function BoardHistory({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="left"
-          className="board-sidebar w-[min(100%,280px)] border-r border-[rgba(242,242,244,0.08)] p-0 sm:max-w-[280px]"
+          className="board-sidebar w-[min(100%,280px)] border-r border-stroke p-0 sm:max-w-[280px]"
           style={PANEL}
         >
           <SheetTitle className="sr-only">Board history</SheetTitle>

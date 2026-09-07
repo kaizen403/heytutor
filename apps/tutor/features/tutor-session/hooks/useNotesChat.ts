@@ -6,7 +6,7 @@ import {
   type NotesChatLivePayload,
   type NotesChatMessage,
 } from "@/lib/boards/notesChatClient";
-import type { NotesChatTag } from "@/features/tutor-session/lib/notesChatTag";
+import type { NotesChatTag } from "@/features/tutor-session/lib/notes/notesChatTag";
 
 const STREAMING_ID = "notes-chat-streaming";
 

@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, Check, Copy } from "lucide-react";
-import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
 
 import type { NotesChatMessage } from "@/lib/boards/notesChatClient";
 import { MathText } from "@/features/tutor-session/components/MathText";
+import { Spinner } from "@/components/ui/spinner";
 
 const STREAMING_ID = "notes-chat-streaming";
 const NEAR_BOTTOM_PX = 48;
@@ -139,7 +139,7 @@ export function NotesChatThread({
                       <span className="ncs__caret" />
                     ) : (
                       <span className="ncs__pending">
-                        <PenSpinner size={22} ink="#C9C9D2" label="Thinking" />
+                        <Spinner size={13} label="Thinking" className="text-sky-500" />
                         thinking
                       </span>
                     )

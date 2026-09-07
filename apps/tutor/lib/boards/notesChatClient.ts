@@ -1,6 +1,6 @@
 import { resolveApiUrl } from "@heytutor/tutor-core";
-import type { LessonPlanFact, LessonTurnNotes } from "@/features/tutor-session/lib/lessonNotes";
-import { parseNotesChatTag, type NotesChatTag } from "@/features/tutor-session/lib/notesChatTag";
+import type { LessonPlanFact, LessonTurnNotes } from "@/features/tutor-session/lib/notes/lessonNotes";
+import { parseNotesChatTag, type NotesChatTag } from "@/features/tutor-session/lib/notes/notesChatTag";
 
 export interface NotesChatMessage {
   id: string;

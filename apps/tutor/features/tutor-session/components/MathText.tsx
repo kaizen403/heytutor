@@ -1,5 +1,5 @@
 import { Fragment, type CSSProperties } from "react";
-import { parseMathText } from "@/features/tutor-session/lib/mathText";
+import { parseMathText } from "@/features/tutor-session/lib/notes/mathText";
 
 /**
  * Show the board's notation the way the board writes it.
