@@ -1,3 +1,6 @@
+import { classifyDsaQuestion } from "../code/classifyDsaQuestion";
+import { getMockCodeLessonTeaching } from "../code/mockCodeLesson";
+
 export const MOCK_RESPONSES: { keywords: string[]; response: string }[] = [
   {
     keywords: ['bead', 'hoop', 'rotating hoop', 'rotating wire', 'circular hoop', 'angular velocity', 'small oscillation', 'charged bead'],
@@ -541,6 +544,11 @@ check: four carbons both sides, twelve hydrogens both sides, fourteen oxygens bo
 ];
 
 export function getMockResponse(question: string): string {
+  // DSA questions teach through the typed code lesson, not handwriting mocks.
+  if (classifyDsaQuestion(question).isDsa) {
+    return getMockCodeLessonTeaching(question);
+  }
+
   const normalizedQuestion = question.toLowerCase();
 
   const matchedResponse = MOCK_RESPONSES.find(({ keywords }) =>

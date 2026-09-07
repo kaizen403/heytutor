@@ -16,6 +16,8 @@ export interface StreamLLMResponseParams {
   hasAuthoritativePlan?: boolean;
   /** Prefer Fireworks Fast routers when the server has them configured. Default on. */
   fastMode?: boolean;
+  /** This turn teaches a committed DSA code lesson; it needs a larger budget. */
+  codeLesson?: boolean;
   onTraceId?: (traceId: string) => void;
   signal?: AbortSignal;
 }
@@ -112,6 +114,7 @@ function buildRequestHeaders(
   sessionId?: string,
   hasAuthoritativePlan = false,
   fastMode = true,
+  codeLesson = false,
 ): Record<string, string> {
   const headers: Record<string, string> = {
     "content-type": "application/json",
@@ -120,8 +123,20 @@ function buildRequestHeaders(
   if (sessionId) {
     headers["x-session-id"] = sessionId;
   }
-  if (hasAuthoritativePlan) {
+  if (codeLesson) {
+    // A committed program is not a plan for the lesson: the tutor still has
+    // to lay out the beats and keep the figure and the code in step, and with
+    // reasoning off it was doing that with no budget at all.
+    headers["x-heytutor-teaching-pass"] = "code-lesson";
+  } else if (hasAuthoritativePlan) {
     headers["x-heytutor-teaching-pass"] = "planned";
+  }
+  // A DSA lesson narrates a worked example frame by frame and then types a
+  // whole program, so it needs a larger content budget than an ordinary
+  // teaching turn. Flagged here rather than inferred from the question, so a
+  // physics turn's reasoning/content split is never affected.
+  if (codeLesson) {
+    headers["x-heytutor-code-lesson"] = "1";
   }
 
   return withFastModeHeader(headers, fastMode);
@@ -136,6 +151,7 @@ export async function streamLLMResponse(
     sessionId,
     hasAuthoritativePlan,
     fastMode,
+    codeLesson,
     onTraceId,
     signal,
   }: StreamLLMResponseParams,
@@ -152,7 +168,7 @@ export async function streamLLMResponse(
 
   const response = await fetch(proxyUrl, {
     method: "POST",
-    headers: buildRequestHeaders(sessionId, hasAuthoritativePlan, fastMode),
+    headers: buildRequestHeaders(sessionId, hasAuthoritativePlan, fastMode, codeLesson),
     signal,
     body: JSON.stringify({
       model,
