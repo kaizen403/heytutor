@@ -18,6 +18,9 @@ import { riverBoatVariant } from "../synthesize/familyClassification";
 import { ARCHETYPES, isArchetypeId, type ArchetypeId, type Slots } from "./catalog";
 import {
   UNIT,
+  lengthAfterInCm,
+  lengthBeforeInCm,
+  symbolLengthInCm,
   allAngles,
   collectPlanQuantities,
   coordinateTuples,
@@ -41,6 +44,42 @@ import {
   type SlotBag,
   type SlotSource,
 } from "./slots";
+
+/**
+ * Where the object sits, in every phrasing a ray-optics stem uses for it.
+ *
+ * Shared by the mirror and the lens because they are the same sentence with a
+ * different noun. Missing a phrasing here is not a missing number: the
+ * generator falls back to a stock distance and draws a *different optical
+ * case* than the one asked about, which the tier only marks as qualitative.
+ * "object at 20 cm" and "placed 15 cm away" both used to land there.
+ */
+const OBJECT_PLACEMENT = /object distance(?: of| is| =)?|(?:the )?object(?: is)?(?:\s+(?:placed|kept|located|positioned))?\s+at|placed at(?: a distance of)?|distance of/;
+const AWAY_FROM = /(?:from|in front of|away(?:\s+from)?|before)/;
+const FOCAL_LENGTH = /focal length(?: of| is| =)?/;
+const RADIUS_OF_CURVATURE = /radius of curvature(?: of| is| =)?/;
+
+function objectDistanceFromStem(stem: string): number | null {
+  return lengthBeforeInCm(stem, AWAY_FROM)
+    ?? lengthAfterInCm(stem, OBJECT_PLACEMENT)
+    ?? symbolLengthInCm(stem, /u/)
+    // A stem that gives the distance with no unit at all means centimetres.
+    ?? numberAfter(stem, OBJECT_PLACEMENT, UNIT.centimetre);
+}
+
+/** Focal length, named or written as `f = 15 cm`. */
+function focalLengthFromStem(stem: string): number | null {
+  return lengthAfterInCm(stem, FOCAL_LENGTH)
+    ?? symbolLengthInCm(stem, /f/)
+    ?? numberAfter(stem, FOCAL_LENGTH, UNIT.centimetre);
+}
+
+/** Radius of curvature, named or written as `R = 30 cm`. */
+function radiusOfCurvatureFromStem(stem: string): number | null {
+  return lengthAfterInCm(stem, RADIUS_OF_CURVATURE)
+    ?? symbolLengthInCm(stem, /R/)
+    ?? numberAfter(stem, RADIUS_OF_CURVATURE, UNIT.centimetre);
+}
 
 export interface DetectionHints {
   turnPlan?: unknown;
@@ -654,10 +693,10 @@ const CUE_SETS: readonly CueSet[] = [
     extract: (stem, plan, bag) => {
       setSlot(bag, "kind", /\bconvex\b/i.test(stem) ? "convex" : "concave", "stem");
       setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");
-      setSlot(bag, "u", numberBefore(stem, /(?:cm|m)\s+(?:from|in front of|away from|before)/) ?? numberAfter(stem, /object distance(?: of| is| =)?|placed at(?: a distance of)?|distance of/, UNIT.centimetre), "stem");
+      setSlot(bag, "u", objectDistanceFromStem(stem), "stem");
       setSlot(bag, "f", planNumber(plan, ["f", "focallength"]), "plan");
-      const focal = numberAfter(stem, /focal length(?: of| is| =)?/, UNIT.centimetre);
-      const curvature = numberAfter(stem, /radius of curvature(?: of| is| =)?/, UNIT.centimetre);
+      const focal = focalLengthFromStem(stem);
+      const curvature = radiusOfCurvatureFromStem(stem);
       setSlot(bag, "f", focal ?? (curvature === null ? null : curvature / 2), "stem");
       setSlot(bag, "v", planNumber(plan, ["v", "imagedistance", "di"]), "plan");
     },
@@ -669,9 +708,9 @@ const CUE_SETS: readonly CueSet[] = [
     extract: (stem, plan, bag) => {
       setSlot(bag, "kind", /\b(?:concave|diverging)\b/i.test(stem) ? "concave" : "convex", "stem");
       setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");
-      setSlot(bag, "u", numberBefore(stem, /(?:cm|m)\s+(?:from|in front of|away from|before)/) ?? numberAfter(stem, /object distance(?: of| is| =)?|placed at(?: a distance of)?|distance of/, UNIT.centimetre), "stem");
+      setSlot(bag, "u", objectDistanceFromStem(stem), "stem");
       setSlot(bag, "f", planNumber(plan, ["f", "focallength"]), "plan");
-      setSlot(bag, "f", numberAfter(stem, /focal length(?: of| is| =)?/, UNIT.centimetre), "stem");
+      setSlot(bag, "f", focalLengthFromStem(stem), "stem");
       setSlot(bag, "v", planNumber(plan, ["v", "imagedistance", "di"]), "plan");
     },
   },

@@ -18,3 +18,14 @@ export * from "./archetypes";
 export * from "./synthesize/familyClassification";
 export * from "./synthesize/sceneDemand";
 export * from "./synthesize/familyScene";
+export * from "./synthesize/dsaFamilies";
+
+// DSA code lessons: algorithm traces are the ground truth for the figure.
+// The catalog picks a family, the simulator produces real frames, and
+// traceToScene compiles each frame with assertions that can actually fail.
+export * from "./dsa/trace/types";
+export * from "./dsa/algorithmCatalog";
+export * from "./dsa/detectAlgorithm";
+export * from "./dsa/exampleSlots";
+export * from "./dsa/traceToScene";
+export * from "./dsa/familyTeaching";

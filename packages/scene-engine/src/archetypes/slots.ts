@@ -167,6 +167,66 @@ export function numberAfter(stem: string, phrase: RegExp, unit?: RegExp): number
   return match ? parseNumber(match[1]!) : null;
 }
 
+/* ------------------------------------------------------------------------- */
+/* Lengths                                                                     */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Lengths are read in centimetres, and the unit is *required*.
+ *
+ * `numberAfter` leaves the unit optional, which suits a named phrase where the
+ * convention is unambiguous ("focal length 10"), but it silently reads "an
+ * object at 0.2 m" as 0.2 cm — the same digits, a figure two orders of
+ * magnitude out, and no signal that anything went wrong. These readers capture
+ * the unit and normalise it, so a metre stays a metre.
+ */
+const LENGTH_UNIT = String.raw`cm|mm|metres?|meters?|m`;
+
+function lengthToCm(raw: string, unit: string): number | null {
+  const value = parseNumber(raw);
+  if (value === null) return null;
+  const normalized = unit.toLowerCase();
+  if (normalized === "mm") return value / 10;
+  if (normalized === "cm") return value;
+  return value * 100;
+}
+
+/** "focal length of 15 cm", "object distance is 0.2 m". */
+export function lengthAfterInCm(stem: string, phrase: RegExp): number | null {
+  const pattern = new RegExp(
+    `(?:${phrase.source})[^0-9\\-]{0,24}${NUMBER}\\s*(${LENGTH_UNIT})\\b`,
+    "i",
+  );
+  const match = pattern.exec(stem);
+  return match ? lengthToCm(match[1]!, match[2]!) : null;
+}
+
+/** "30 cm from the mirror", "0.2 m in front of the lens". */
+export function lengthBeforeInCm(stem: string, phrase: RegExp): number | null {
+  const pattern = new RegExp(
+    `${NUMBER}\\s*(${LENGTH_UNIT})\\b\\s*(?:${phrase.source})`,
+    "i",
+  );
+  const match = pattern.exec(stem);
+  return match ? lengthToCm(match[1]!, match[2]!) : null;
+}
+
+/**
+ * A bare symbol carrying a length, e.g. "f = 15 cm".
+ *
+ * The unit is what makes a single letter safe to read: `f` is a focal length
+ * in this topic and a frequency two topics away, and only "cm" tells them
+ * apart. The leading `[^a-z]` keeps it from firing inside a word.
+ */
+export function symbolLengthInCm(stem: string, symbol: RegExp): number | null {
+  const pattern = new RegExp(
+    `(?:^|[^a-z])(?:${symbol.source})\\s*[=:]\\s*${NUMBER}\\s*(${LENGTH_UNIT})\\b`,
+    "i",
+  );
+  const match = pattern.exec(stem);
+  return match ? lengthToCm(match[1]!, match[2]!) : null;
+}
+
 /** A number followed by a phrase, e.g. "30 cm from a concave mirror". */
 export function numberBefore(stem: string, phrase: RegExp, unit?: RegExp): number | null {
   const tail = unit ? `\\s*(?:${unit.source})` : "";
