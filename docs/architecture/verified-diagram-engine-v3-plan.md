@@ -1,6 +1,7 @@
 # Verified Diagram Engine v3
 
-This document records the v3 migration. The active extension architecture is
+Historical. This document records the v3 migration. The active architecture is
+[diagram-accuracy-architecture.md](diagram-accuracy-architecture.md) and
 [Universal Verified Illustration Engine v4](universal-illustration-engine-v4.md).
 
 ## Status

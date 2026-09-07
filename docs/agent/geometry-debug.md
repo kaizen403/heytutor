@@ -33,7 +33,7 @@
 | Topology | `packages/scene-engine/src/topology/topology.ts` |
 | Labels | `packages/scene-engine/src/labels/labelEngine.ts` |
 | Planner transport | `packages/tutor-core/src/planners/scenePlannerV2.ts`, `apps/tutor/lib/llm/plannerTransport.ts` |
-| Presentation / fallback | `apps/tutor/features/tutor-session/lib/verifiedScenePresentation.ts`, `representationFallbackV4.ts` |
+| Presentation / fallback | `apps/tutor/features/tutor-session/lib/scene/verifiedScenePresentation.ts`, `representationFallback.ts` |
 | Persistence trust | `apps/tutor/lib/scene/turnScenePersistence.ts` |
 | Turn wiring | `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts` |
 | Command ownership | `packages/drawing/src/protocol/commandPlacement.ts` |

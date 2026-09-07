@@ -528,9 +528,9 @@ enforcement.
 - `packages/tutor-core/src/planners/scenePlannerV2Prompt.ts`: generated compact schemas.
 - `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts`: staged v5
   orchestration, telemetry, and degradation policy.
-- `apps/tutor/features/tutor-session/lib/representationFallbackV4.ts`: meaningful
+- `apps/tutor/features/tutor-session/lib/scene/representationFallback.ts`: meaningful
   source representations only; no token boxes.
-- `apps/tutor/features/tutor-session/lib/verifiedScenePresentation.ts`:
+- `apps/tutor/features/tutor-session/lib/scene/verifiedScenePresentation.ts`:
   TeachingScriptIR reveal mapping.
 - `apps/tutor/lib/scene/turnScenePersistence.ts`: server revalidation of new contracts.
 - `packages/scene-engine/fixtures/evaluation`: syllabus certification matrix.

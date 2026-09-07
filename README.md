@@ -100,9 +100,13 @@ pnpm dev:landing   # http://localhost:5173
 |----------|---------|----------|
 | `DATABASE_URL` | Postgres connection | Yes |
 | `FIREWORKS_API_KEY` | LLM | No (mock mode) |
-| `FIREWORKS_MODEL` | Model id | No |
+| `FIREWORKS_MODEL` | Planner model id | No |
+| `FIREWORKS_FAST_MODEL` | Planner Fast serving id | No |
+| `FIREWORKS_TEACHING_MODEL` | Spoken teaching model id | No |
+| `FIREWORKS_TEACHING_FAST_MODEL` | Teaching Fast serving id | No |
 | `ELEVENLABS_API_KEY` | TTS | No (browser voice fallback) |
 | `ELEVENLABS_VOICE_ID` | Voice selection | No |
+| `ELEVENLABS_STT_API_KEY` | Speech-to-text for the ask-bar mic. Separate from `ELEVENLABS_API_KEY` so dictation and narration can be budgeted and rotated apart | No (browser dictation fallback) |
 | `R2_ACCOUNT_ID` / `R2_BUCKET` / `R2_PUBLIC_BASE_URL` | Lecture audio storage | No |
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Observability | No |
 | `NEXT_PUBLIC_SITE_URL` | SEO / absolute URLs | No |

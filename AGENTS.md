@@ -41,8 +41,8 @@ the canvas and still teach. Invalid or partial candidates never render.
 |------|------------|
 | Live teaching loop | `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts` |
 | Scene engine authority | `packages/scene-engine/` |
-| Scene presentation / reveal | `apps/tutor/features/tutor-session/lib/verifiedScenePresentation.ts` |
-| Representation fallback | `apps/tutor/features/tutor-session/lib/representationFallbackV4.ts` |
+| Scene presentation / reveal | `apps/tutor/features/tutor-session/lib/scene/verifiedScenePresentation.ts` |
+| Representation fallback | `apps/tutor/features/tutor-session/lib/scene/representationFallback.ts` |
 | Voice + handwriting sync | [docs/architecture/tutor-sync-architecture.md](docs/architecture/tutor-sync-architecture.md) |
 | LLM / planner proxy | `apps/tutor/app/api/chat/route.ts` |
 | Drawing protocol | `packages/drawing/src/protocol/drawingProtocol.ts` |
@@ -51,14 +51,19 @@ the canvas and still teach. Invalid or partial candidates never render.
 | Syllabus capability coverage | `packages/scene-engine/scripts/verify/verify-syllabus-corpus.ts` |
 | Bank family compile (live ink) | `packages/scene-engine/scripts/verify/verify-bank-family-compile.ts` |
 | Question bank pipeline | `tools/question-bank/` + `data/question-bank/` |
+| DSA worked examples (LeetCode) | `packages/scene-engine/src/dsa/` — simulators, `traceToScene`, `familyTeaching` |
+| DSA lesson bench | `apps/tutor/scripts/lecture-lab/dsa-run.ts` + `data/leetcode-probes/` |
 
 ## Agent Guidelines
 
 - [Session handoff](docs/agent/session-handoff.md) — compact seed; Physics certified, Maths operators in (2 OCR leftovers)
 - [Session ownership](docs/agent/session-ownership.md) — announce before editing scene-engine synthesize/document/capability/verify; do not load another session's gate
 - [Diagram engine priority](docs/plans/diagram-engine-priority.md) — ranked issues; live-check patches first, then honest families, then persist
+- [DSA lessons](docs/agent/dsa-lessons.md) — the LeetCode lane: simulators, what a frame may draw, lesson shape, and the gates
+- [Lecture lab](docs/agent/lecture-lab.md) — run whole lectures offline against the dev server, grade them, and diff rounds; the DSA lane replays a LeetCode turn and renders every board frame
+- [Wrong figures: causes and ranked fixes](docs/plans/figure-relevance-fixes.md) — 87 wrong figures traced to the probe cue and the family layer, with counts per fix
 - [Start — architecture map](start.md)
-- [Folder layout](docs/agent/layout.md)
+- [Folder layout](docs/agent/layout.md) — where new files go; cleanup backlog in [folder-structure.md](docs/plans/folder-structure.md)
 - [Architecture & data flow](docs/agent/architecture.md)
 - [Backend API & lib modules](docs/agent/backend.md)
 - [Shared packages](docs/agent/packages.md)

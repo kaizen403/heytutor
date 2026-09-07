@@ -35,10 +35,11 @@ The teaching model cannot draw, label, annotate, erase, or move diagram ink.
 | Turn planning and commit | `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts` |
 | Speech/draw scheduling | `apps/tutor/features/tutor-session/hooks/turn/useSegmentRunner.ts` |
 | Command execution guard | `apps/tutor/features/tutor-session/hooks/useCommandExecution.ts` |
-| Verified presentation | `apps/tutor/features/tutor-session/lib/verifiedScenePresentation.ts` |
-| Representation fallback | `apps/tutor/features/tutor-session/lib/representationFallbackV4.ts` |
-| Scene recovery | `apps/tutor/features/tutor-session/lib/verifiedSceneRecovery.ts` |
+| Verified presentation | `apps/tutor/features/tutor-session/lib/scene/verifiedScenePresentation.ts` |
+| Representation fallback | `apps/tutor/features/tutor-session/lib/scene/representationFallback.ts` |
+| Scene recovery | `apps/tutor/features/tutor-session/lib/scene/verifiedSceneRecovery.ts` |
 | Replay | `apps/tutor/features/tutor-session/hooks/useReplay.ts` |
+| Student marking (Mark & Ask) | `apps/tutor/features/tutor-session/lib/board/boardMarking.ts` |
 | Persistence trust boundary | `apps/tutor/lib/scene/turnScenePersistence.ts` |
 | Persistence API | `apps/tutor/app/api/boards/[boardId]/turns/route.ts` |
 | Planner/chat proxy | `apps/tutor/app/api/chat/route.ts` |
@@ -52,6 +53,24 @@ tutor-core            planners, teaching stream, TTS, audio synchronization
 whiteboard            Konva renderer
 design-tokens         shared visual constants
 ```
+
+## Student marking
+
+A third substance exists on the board, owned by neither stream: the student's
+own marker. `useBoardMarking` + `BoardMarkingLayer` draw it on a plain 2D canvas
+laid over the Konva stage, so it cannot reach a draw layer, a snapshot, the
+notes PDF, the MP4 export, or a persisted turn.
+
+A stroke is grounded deterministically, not by a screenshot or a vision model.
+`collectMarkCandidates()` reads the exact text of every board row from
+`BoardLayoutState.rects` and every figure part from `VerifiedDiagram.anchors`,
+and `resolveMarkTarget()` picks the one the stroke is actually on. The doubt
+prompt then quotes that text verbatim and names the entity id.
+
+A stroke that lands on nothing resolves to a *region*, which may name only where
+it is — never what it is on. The same rule as the diagram engine: a wrong
+reading is worse than no reading. Gate:
+`apps/tutor/scripts/verify/verify-board-marking.ts`.
 
 ## Persistence
 

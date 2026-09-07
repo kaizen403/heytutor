@@ -85,8 +85,8 @@ Done when narration starts only after a validated commit, and persisted commands
 |---|---|
 | live turn | `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts` |
 | scene authority | `packages/scene-engine/` |
-| reveal | `apps/tutor/features/tutor-session/lib/verifiedScenePresentation.ts` |
-| fallback | `apps/tutor/features/tutor-session/lib/representationFallbackV4.ts` |
+| reveal | `apps/tutor/features/tutor-session/lib/scene/verifiedScenePresentation.ts` |
+| fallback | `apps/tutor/features/tutor-session/lib/scene/representationFallback.ts` |
 | ownership filter | `packages/drawing/src/protocol/commandPlacement.ts` |
 | execution guard | `apps/tutor/features/tutor-session/hooks/useCommandExecution.ts` |
 | TTS + pen | `apps/tutor/features/tutor-session/hooks/turn/useSegmentRunner.ts` |

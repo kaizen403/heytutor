@@ -20,6 +20,10 @@ The only structural diagram authority.
 | Optics / reflection laws | `src/physics/opticsLaws.ts` |
 | Label placement | `src/labels/labelEngine.ts` |
 | Capability manifest | `src/capability/capabilityManifest.ts` |
+| Family synthesis | `src/synthesize/familyScene.ts`, `src/synthesize/sceneDemand.ts` |
+| Archetypes | `src/archetypes/` (detect, slots, generators — reusable, not topic plugins) |
+| DSA traces → figures | `src/dsa/` (`algorithmCatalog`, simulators, `traceToScene`) |
+| Bank answer options | `src/bank/answerOptions.ts` |
 | Golden corpus | `scripts/verify/verify-golden-corpus.ts` |
 | Capability corpora | `scripts/verify/verify-physics-evaluation-corpus.ts`, `scripts/verify/verify-math-evaluation-corpus.ts` |
 | Compile oracles | `scripts/probes/evaluationCompileProbes.ts`, `scripts/verify/verify-evaluation-compile.ts` |
@@ -43,6 +47,8 @@ Generic whiteboard transport and animation utilities.
 | Teaching command ownership | `src/protocol/commandPlacement.ts` |
 | Shape and handwriting paths | `src/handwriting/shapePaths.ts`, `src/handwriting/handwriting.ts` |
 | Board zones | `src/layout/boardZones.ts` |
+| Board typography | `src/layout/boardTypography.ts` |
+| Pen write-clock | `src/sync/writeAudioClock.ts`, `src/sync/scheduleFrame.ts` |
 | Stroke/cursor animation | `src/animation/strokeAnimation.ts`, `src/animation/cursorAnimation.ts` |
 
 This package no longer contains topic templates, a geometry compiler, domain
@@ -62,13 +68,17 @@ Planning transport, teaching model, TTS, and audio synchronization.
 | LLM stream | `src/llm/llmAPI.ts` |
 | Audio sync | `src/sync/audioSync.ts` |
 | TTS | `src/tts/createTTSClient.ts`, `src/tts/elevenLabsClient.ts`, `src/tts/elevenLabsWebSocketClient.ts` |
+| Code-lesson plan / teach | `src/code/` (`codeLessonPlan`, `codeLessonPlanner`, `codeLessonTeaching`, gates) |
 
 The teaching prompt is domain-neutral and cannot author diagram ink.
+Code-lesson *geometry* stays in `scene-engine/src/dsa`; the live panel stays in
+the tutor app. See [layout.md](layout.md).
 
 ## `@heytutor/whiteboard`
 
 Konva rendering and imperative draw/write APIs. It renders trusted commands but
-does not decide diagram semantics.
+does not decide diagram semantics. `src/` stays flat. Chrome that must not pull
+Konva imports `@heytutor/whiteboard/pen-spinner`.
 
 ## Verification
 

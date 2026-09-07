@@ -11,10 +11,14 @@ routes are Next.js route handlers, plus a custom WebSocket relay in `server.ts`.
 | `/api/tts` | `app/api/tts/route.ts` | POST | ElevenLabs TTS proxy (audio MPEG or timestamps JSON) |
 | `/api/tts/stream` | `app/api/tts/stream/route.ts` | POST | ElevenLabs streaming TTS with character timestamps |
 | `/api/tts/ws` | `server.ts` | WebSocket | Real-time multi-context TTS relay to ElevenLabs with alignment data |
+| `/api/stt` | `app/api/stt/route.ts` | POST | ElevenLabs speech-to-text (Scribe) for the ask-bar mic. Multipart `audio` in, `{ text }` out. 503 + `unconfigured: true` without `ELEVENLABS_STT_API_KEY` |
 | `/api/boards` | `app/api/boards/route.ts` | GET, POST | List/create boards for cookie user |
 | `/api/boards/[boardId]` | `app/api/boards/[boardId]/route.ts` | GET, PATCH, DELETE | Board detail + turns/segments; update title/preview; cascade delete + R2 cleanup |
 | `/api/boards/[boardId]/turns` | `app/api/boards/[boardId]/turns/route.ts` | POST | Save turn (multipart: metadata JSON + per-segment audio blobs); revalidates scene artifacts |
+| `/api/boards/[boardId]/notes-chat` | `app/api/boards/[boardId]/notes-chat/route.ts` | POST | Notes-sidebar chat against the current board |
 | `/api/board-name` | `app/api/board-name/route.ts` | POST | LLM-generated board title from first question |
+| `/api/extract-question` | `app/api/extract-question/route.ts` | POST | Image → question text |
+| `/api/tts/ws-ticket` | `app/api/tts/ws-ticket/route.ts` | POST | Mint a short-lived ticket for `/api/tts/ws` |
 | `/api/trace/event` | `app/api/trace/event/route.ts` | POST | Client telemetry → Langfuse |
 
 ## Custom Server (`server.ts`)
@@ -41,9 +45,14 @@ Production and dev both use `tsx server.ts` (not `next start`):
 | `db/prisma.ts` | Prisma client singleton |
 | `boards/boardsClient.ts` | Frontend API client — fetch/create/update boards, `saveTurn()` |
 | `boards/boardTitle.ts` | Board title prompt + fallback heuristics |
+| `boards/notesChatClient.ts` | Notes-sidebar chat client |
 | `boards/types.ts` | Shared `BoardEntry` DTO |
 | `llm/plannerTransport.ts` | Planner model chain, retries, and completion fetch for turn/problem/scene plans |
 | `llm/teachingTransport.ts` | Teaching-model selection, reasoning effort, and connect timeout |
+| `llm/extractQuestion.ts` | Question-from-image extraction |
+| `code-lesson/persistedCodeLesson.ts` | Re-validate a stored `CodeLessonPlan` on persist/restore |
+| `code-render/` | Canvas snapshot of the code panel for notes / MP4 |
+| `lecture-export/` | Lecture MP4 timeline + audio assembly |
 | `tts/ttsRelayProtocol.ts` | Multi-context WebSocket message builders and payload normalization |
 | `tts/ttsProxy.ts` | ElevenLabs URL/payload helpers |
 | `tts/wsTicket.ts` | WebSocket TTS ticket mint/verify |
@@ -67,10 +76,15 @@ Production and dev both use `tsx server.ts` (not `next start`):
 |----------|----------|---------|
 | `DATABASE_URL` | Yes | Postgres connection string |
 | `FIREWORKS_API_KEY` | No | LLM — mock mode without it |
-| `FIREWORKS_MODEL` / `FIREWORKS_TEACHING_MODEL` | No | Override teaching model |
+| `FIREWORKS_MODEL` | No | Planner model. Default: Kimi K3 |
+| `FIREWORKS_FAST_MODEL` | No | Planner Fast serving. Default: Kimi K3 Fast |
+| `FIREWORKS_TEACHING_MODEL` | No | Spoken teaching and notes-chat. Default: GLM 5.3 Flash |
+| `FIREWORKS_TEACHING_FAST_MODEL` | No | Teaching Fast serving. Default: GLM 5.3 Fast |
 | `ELEVENLABS_API_KEY` | No | TTS — browser voice fallback |
 | `ELEVENLABS_VOICE_ID` | No | TTS voice selection |
 | `ELEVENLABS_MODEL` | No | Default: `eleven_flash_v2_5` |
+| `ELEVENLABS_STT_API_KEY` | No | Speech-to-text — its own key, not shared with TTS. Unset falls back to browser dictation |
+| `ELEVENLABS_STT_MODEL` | No | Default: `scribe_v1` |
 | `R2_ACCOUNT_ID` / `R2_BUCKET` / `R2_PUBLIC_BASE_URL` | No | Audio persistence in Cloudflare R2 |
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | No | Observability |
 | `BACKEND_ORIGIN` | Split deploy | API proxy target for Vercel frontend |
