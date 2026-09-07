@@ -138,7 +138,15 @@ const areaTurnPlan: TurnPlanV3 = {
 assert.equal(verifyTurnPlanAgainstSolver(problem, result, areaTurnPlan, question).status, "verified");
 const contradictoryPlan = structuredClone(areaTurnPlan);
 contradictoryPlan.derived[0]!.value = 999;
-assert.equal(verifyTurnPlanAgainstSolver(problem, result, contradictoryPlan, question).status, "contradiction");
+// A plan whose declared value disagrees with its own arithmetic is a real
+// contradiction and must stop the lesson, even though it is the plan VALIDATOR
+// that catches it rather than the solver comparison further down.
+const mismatchAudit = verifyTurnPlanAgainstSolver(problem, result, contradictoryPlan, question);
+assert.equal(mismatchAudit.status, "contradiction");
+assert.ok(
+  mismatchAudit.issues.some((issue) => issue.code === "authority_input_contradiction"),
+  "a numeric disagreement must be reported as a contradiction, not as unusable input",
+);
 const wrongUnitPlan = structuredClone(areaTurnPlan);
 wrongUnitPlan.unknowns[0]!.unit = "cm";
 wrongUnitPlan.derived[0]!.unit = "cm";
@@ -534,5 +542,96 @@ const hangingProvider: SolverProvider = {
 const timedOut = await solveWithDeadline(hangingProvider, problem, 5);
 assert.equal(timedOut.status, "failed");
 assert.ok(timedOut.issues.some((issue) => issue.code === "deadline_exceeded"));
+
+// ---------------------------------------------------------------------------
+// Grounding is "the quote is in the question", not "the offsets are exact".
+//
+// From a live turn on 4 Sep 2026: a concave-mirror formulation quoted the
+// question perfectly in all ten facts but addressed every quote with the same
+// wrong span (start 0, end 30). Every fact failed `ungrounded_fact`, the whole
+// formulation was rejected, and the student was told "the independent solution
+// checks disagreed" and given no lesson — over bookkeeping.
+
+const groundingQuestion = "Concave mirror, f = 15 cm, object at 20 cm. Locate the image.";
+
+function irWithEvidence(evidence: QuestionSourceEvidence): unknown {
+  return {
+    schemaVersion: PROBLEM_IR_VERSION,
+    id: "grounding_probe",
+    question: groundingQuestion,
+    facts: [{ id: "f1", kind: "given", statement: "f = 15 cm", evidence }],
+    entities: [],
+    expressions: [],
+    constraints: [],
+    representationIntents: [],
+    solveRequests: [],
+  };
+}
+
+// A correct quote with wrong offsets is still grounded.
+const wrongOffsets = validateProblemIR(
+  irWithEvidence({ source: "question", start: 0, end: 30, quote: "f = 15 cm" }),
+  groundingQuestion,
+);
+assert.ok(
+  wrongOffsets.valid,
+  `a quote present in the question must be grounded whatever the span says: ${wrongOffsets.issues
+    .map((i) => i.code)
+    .join(",")}`,
+);
+
+// Re-wrapped whitespace is the same quote.
+const rewrapped = validateProblemIR(
+  irWithEvidence({ source: "question", start: 0, end: 9, quote: "f  =  15   cm" }),
+  groundingQuestion,
+);
+assert.ok(rewrapped.valid, "a re-wrapped quote is still the question's own words");
+
+// But inventing a quote is still ungrounded — the guarantee that matters.
+const invented = validateProblemIR(
+  irWithEvidence({ source: "question", start: 0, end: 9, quote: "mu = 0.2" }),
+  groundingQuestion,
+);
+assert.ok(!invented.valid, "a quote absent from the question must stay ungrounded");
+assert.ok(
+  invented.issues.some((issue) => issue.code === "ungrounded_fact"),
+  "an invented quote must be reported as ungrounded",
+);
+
+// An empty quote grounds nothing.
+const empty = validateProblemIR(
+  irWithEvidence({ source: "question", start: 0, end: 0, quote: "   " }),
+  groundingQuestion,
+);
+assert.ok(!empty.valid, "an empty quote must not count as evidence");
+
+// ---------------------------------------------------------------------------
+// "Cannot verify" must never be reported as "disagrees".
+//
+// Only a genuine numeric mismatch may stop a lesson. A formulation that fails
+// to validate, or a solver that did not finish, means the second opinion is
+// missing — the turn teaches without it, exactly as when no solver ran at all.
+
+const unverifiable = verifyTurnPlanAgainstSolver({ not: "an ir" }, null, null, groundingQuestion);
+assert.equal(
+  unverifiable.status,
+  "incomplete",
+  "an unusable formulation is an absent check, not a contradicted one",
+);
+assert.ok(
+  unverifiable.issues.some((issue) => issue.code === "invalid_authority_input"),
+  "the reason the check could not run must still be recorded",
+);
+
+// The live failure, reduced: a formulation grounded in the question but
+// structurally imperfect must withdraw the second opinion, never stop teaching.
+const sloppyButGrounded = validateProblemIR(
+  irWithEvidence({ source: "question", start: 999, end: 1200, quote: "f = 15 cm" }),
+  groundingQuestion,
+);
+assert.ok(
+  sloppyButGrounded.valid,
+  "out-of-range offsets around a real quote must not invalidate a formulation",
+);
 
 console.log("problem-ir and local deterministic solver verification passed");

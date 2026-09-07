@@ -490,7 +490,7 @@ function parseQuantity(rawText: string): { value: number | null; unit: string | 
   let text = normalizeQuantityText(rawText);
   text = text.replace(/[.,;:!?'"”’]+$/g, "").trim();
   // A standalone power of ten ("10^4", "10^-3 m") has no leading mantissa.
-  const standalone = /^[~≈]?\s*10\^([+-]?\d{1,3})(?:\s+([%°]|[A-Za-zµΩ°%][A-Za-z0-9µΩ°%^\/\-]{0,11}))?\s*$/.exec(text);
+  const standalone = /^[~≈]?\s*10\^([+-]?\d{1,3})(?:\s+([%°]|[A-Za-zµΩ°%][A-Za-z0-9µΩ°%^/-]{0,11}))?\s*$/.exec(text);
   if (standalone) {
     const exponent = Number.parseInt(standalone[1] ?? "", 10);
     if (!Number.isFinite(exponent)) return { value: null, unit: null };
@@ -542,7 +542,7 @@ function parseLeadingQuantity(rawText: string): { value: number | null; unit: st
   let rest = text.slice(m[0].length);
   let unit: string | null = null;
 
-  const attached = /^([A-Za-zµΩ°%][A-Za-z0-9µΩ°%^\/\-]{0,11})/.exec(rest);
+  const attached = /^([A-Za-zµΩ°%][A-Za-z0-9µΩ°%^/-]{0,11})/.exec(rest);
   if (attached) {
     const token = attached[1] ?? "";
     // Letters glued to the number must BE a unit ("0.45N"), else the number
@@ -551,7 +551,7 @@ function parseLeadingQuantity(rawText: string): { value: number | null; unit: st
     unit = token;
     rest = rest.slice(token.length);
   } else {
-    const spaced = /^\s+([A-Za-zµΩ°%][A-Za-z0-9µΩ°%^\/\-]{0,11})/.exec(rest);
+    const spaced = /^\s+([A-Za-zµΩ°%][A-Za-z0-9µΩ°%^/-]{0,11})/.exec(rest);
     if (spaced) {
       const token = spaced[1] ?? "";
       if (isRecognisedUnit(token)) {

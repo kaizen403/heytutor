@@ -77,6 +77,13 @@ for (const probe of ARCHETYPE_PROBES) {
   for (const id of probe.entities ?? []) {
     if (!scene.document.entities.some((entity) => entity.id === id)) failures.push(`${probe.id}: figure must declare entity "${id}"`);
   }
+  for (const [symbol, expected] of Object.entries(probe.quantities ?? {})) {
+    const carried = scene.document.quantities.find((quantity) => quantity.symbol === symbol);
+    const value = carried ? Math.abs(Number(carried.value)) : null;
+    if (value === null || !Number.isFinite(value) || Math.abs(value - Math.abs(expected)) > 0.01) {
+      failures.push(`${probe.id}: expected |${symbol}| = ${Math.abs(expected)}, figure carries ${carried ? carried.value : "no such quantity"}`);
+    }
+  }
   for (const kind of probe.annotations ?? []) {
     const declared = scene.document.annotations.some((annotation) => annotation.kind === kind);
     const rendered = scene.renderScene.primitives.some((primitive) => primitive.provenance?.annotation === kind);

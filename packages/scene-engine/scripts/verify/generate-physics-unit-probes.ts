@@ -52,8 +52,26 @@ function isEnglishEnough(text: string): boolean {
   return nonAscii / text.length < 0.2;
 }
 
+/**
+ * The drawing cue appended to an authored stem.
+ *
+ * This is a first-match cascade, so order is the whole design. It used to run
+ * broad branches early, and the cue it produced then became the only apparatus
+ * wording in the stem, which is what the scene engine's family regexes read. A
+ * 342-probe sweep traced wrong figures straight back to here: "Draw Mean free
+ * path ... Draw the named process on a P-V diagram", "Draw AC generator ... Draw
+ * the circuit with named resistors and the source", and "Draw Nuclear fission
+ * ... Show the n = 1 and n = 2 energy levels".
+ *
+ * Two rules now hold. Specific branches come before broad ones, so an AC
+ * generator reaches the coils branch rather than the resistor branch. And a
+ * topic no branch actually describes gets no cue at all: an invented apparatus
+ * sentence is worse than a bare "Draw <topic>", because the engine believes it.
+ */
 function topicCue(label: string): string {
   const topic = label.toLowerCase();
+
+  // -- Optics ---------------------------------------------------------------
   if (/(?:lens|mirror|focal|magnification|optical power)/.test(topic)) {
     return " Show the principal axis and the named rays.";
   }
@@ -69,51 +87,114 @@ function topicCue(label: string): string {
   if (/(?:polari|brewster|malus)/.test(topic)) {
     return " Show the polarizer and the transmission axis.";
   }
-  if (/(?:beats|doppler|progressive wave|travelling wave|traveling wave|superposition of waves|reflection of waves|intensity and amplitude)/.test(topic)) {
+
+  // -- Waves and oscillation ------------------------------------------------
+  if (/(?:beats|doppler|progressive wave|travelling wave|traveling wave|standing wave|superposition of waves|reflection of waves|intensity and amplitude|organ pipe|resonance)/.test(topic)) {
     return " Sketch the travelling wave named by the topic.";
   }
-  if (/(?:periodic motion|oscillation|spring)/.test(topic)) {
+  // An LC oscillation is electrical. Sending it to the spring-block cue is what
+  // made a lesson teach the whole circuit off the mechanical analogy, with the
+  // marker on a block and a wall.
+  if (/(?:\blc\b|electrical|circuit|damped current)/.test(topic)) {
+    return "";
+  }
+  if (/(?:periodic motion|oscillation|spring|pendulum)/.test(topic)) {
     return " Draw a spring-block oscillator and mark the amplitude.";
   }
-  if (/(?:wheatstone|metre|meter bridge|kirchhoff|galvanometer|potentiometer)/.test(topic)) {
+
+  // -- Electromagnetism -----------------------------------------------------
+  // Before the circuit branch: an AC generator is a coil turning in a field,
+  // and it used to be asked for as a resistor network because "ac generator"
+  // sat inside the circuit alternation.
+  if (/(?:transformer|motional emf|faraday|electromagnetic induction|lenz|self.?induct|mutual induct|eddy current|ac generator|dynamo)/.test(topic)) {
+    return " Show the coils or the rod-and-rails setup named by the topic.";
+  }
+  // Semiconductor devices get their own stems in `authoredStem`, so a cue here
+  // would only fight them.
+  if (/(?:transistor|diode|zener|rectifier|logic gate|integrated circuit|\bic\b|amplifier|oscillator circuit)/.test(topic)) {
+    return "";
+  }
+  if (/(?:wheatstone|met(?:er|re)\s*bridge|kirchhoff|galvanometer|potentiometer|post office)/.test(topic)) {
     return " Show the circuit symbols and labelled terminals.";
   }
-  if (/(?:ohm|drift velocity|resistivity|electrical resistance|electrical energy|joule|combination of cells|current density|mobility|alternating current|ac generator|eddy current|\blc oscillation|reactance|transistor|temperature dependence of resistance)/.test(topic)) {
+  if (/(?:ohm|drift velocity|resistivity|electrical resistance|resistance from|electrical energy|joule|combination of cells|current density|mobility|temperature dependence of resistance|electric current|series and parallel)/.test(topic)) {
     return " Draw the circuit with named resistors and the source.";
   }
-  if (/(?:gauss|electric dipole|electric field|equipotential|electric flux|coulomb|electric charge|conservation of charge|multiple charges|electric potential|potential energy of a system of charges|conductors and insulators|sharing of charge)/.test(topic)) {
+  if (/(?:electric charge|conservation of charge|coulomb|electric dipole|electric field|equipotential|electric flux|gauss|electric potential|potential energy of a system of charges|conductors and insulators|sharing of charge|capacitor|capacitance|dielectric|multiple charges|superposition principle|continuous charge distribution)/.test(topic)) {
     return " Show the named charges and the electric field.";
   }
-  if (/(?:solenoid|toroid|biot|ampere|lorentz|magnetic dipole|current loop|ferromagnetic|paramagnetic|diamagnetic|magnetic moment|revolving charge)/.test(topic)) {
+  if (/(?:solenoid|toroid|biot|amp[eè]re|lorentz|magnetic dipole|current loop|ferromagnetic|paramagnetic|diamagnetic|magnetic moment|revolving charge|magnetic field|bar magnet|cyclotron|helical|magnetic element|earth'?s magnetic)/.test(topic)) {
     return " Show the current-carrying wire and the magnetic field.";
   }
+  if (/(?:electromagnetic wave|displacement current|electromagnetic spectrum)/.test(topic)) {
+    return " Show the E and B vectors and the propagation direction.";
+  }
+
+  // -- Mechanics ------------------------------------------------------------
+  // "rolling friction" is a friction topic, not a hinged rod, and it used to
+  // match this branch through the bare word "rolling".
+  if (/rolling friction/.test(topic)) return "";
   if (/(?:angular momentum|rigid body|rotational motion|moment of a force|axes theorem|instantaneous axis|combined translational|equilibrium of rigid|moments? of inertia|hinge|torque|rolling)/.test(topic)) {
     return " A uniform rod is hinged at one end. Draw the rod, the hinge, and the named forces.";
   }
-  if (/(?:satellite|kepler|gravitat|acceleration due to gravity|weightlessness)/.test(topic)) {
+  if (/(?:satellite|kepler|gravitat|acceleration due to gravity|weightlessness|orbital velocity|escape velocity)/.test(topic)) {
     return " Show the orbit and the gravitational field.";
   }
-  if (/(?:hydraulic|venturi|bernoulli|piston|buoyancy|archimedes|viscosity|thermal expansion|heat transfer|fluid column|continuity|latent heat|calorimetry|method of mixtures|resonance tube|terminal velocity|surface tension|capillary|drops and bubbles|reynolds|stefan|bulk modulus|modulus of rigidity|poisson|critical velocity|excess pressure|fluid pressure)/.test(topic)) {
+
+  // -- Fluids, surfaces, elasticity and heat --------------------------------
+  // Each of these used to land on one canned tanks-and-pipe document.
+  if (/(?:surface tension|surface energy|angle of contact|capillary|excess pressure|drops and bubbles|meniscus)/.test(topic)) {
+    return " Show the liquid surface, the contact angle, and the named height or radius.";
+  }
+  if (/(?:young'?s modulus|bulk modulus|modulus of rigidity|poisson|elastic behaviour|stress.?strain|hooke)/.test(topic)) {
+    return " Sketch the stress-strain graph and mark the named limits.";
+  }
+  if (/(?:thermal expansion|calorimetry|specific heat capacity|latent heat|change of state|heat transfer|conduction|convection|radiation|stefan|newton'?s law of cooling|thermometry)/.test(topic)) {
+    return " Sketch the temperature graph named by the topic and label both axes.";
+  }
+  if (/(?:hydraulic|venturi|bernoulli|piston|buoyancy|archimedes|viscosity|fluid column|equation of continuity|continuity of (?:the )?(?:fluid|flow)|terminal velocity|critical velocity|reynolds|streamline|turbulent|fluid pressure|pascal|stokes)/.test(topic)) {
     return " Draw the connected fluid and the named free surface or pipe.";
   }
-  if (/(?:p-v|isothermal|adiabatic|carnot|thermodynamic|isobaric|isochoric|zeroth law|refrigerator|heat pump|internal energy|perfect gas|kinetic theory|rms speed|equipartition|maxwell|mayer|reversible|avogadro|mean free path|ideal gases|specific heat capacities of gases|compressing a gas)/.test(topic)) {
-    return " Draw the named process on a P-V diagram or sketch the Maxwell speed curve.";
+
+  // -- Thermodynamics and kinetic theory ------------------------------------
+  // Only a genuine process gets a P-V diagram, and only a genuine distribution
+  // gets the Maxwell curve. Offering both to every topic is what displaced the
+  // named subject in eleven lectures of one sweep.
+  if (/(?:isothermal|adiabatic|isobaric|isochoric|p-v diagram|carnot|refrigerator|heat pump|first law of thermodynamics|thermodynamic process|reversible|work done in process|compressing a gas|internal energy|mayer|\bcp, cv\b)/.test(topic)) {
+    return " Draw the named process on a P-V diagram.";
   }
-  if (/(?:photoelectric|de broglie|matter[- ]wave|photon|davisson|dual nature)/.test(topic)) {
-    return " Show the energy levels or the matter-wave along a line.";
+  if (/(?:maxwell|rms speed|most probable speed|speed distribution|distribution of speeds)/.test(topic)) {
+    return " Sketch the Maxwell speed curve and mark the named speeds.";
   }
-  if (/(?:bohr|rutherford|hydrogen spectrum|nucleus|q value|nuclear)/.test(topic)) {
-    return " Show the n = 1 and n = 2 energy levels, or the scattering path if named.";
+
+  // -- Modern physics -------------------------------------------------------
+  if (/(?:photoelectric|stopping potential|work function)/.test(topic)) {
+    return " Sketch the photoelectric graph named by the topic and label both axes.";
   }
+  if (/(?:de broglie|matter.?wave|davisson|dual nature)/.test(topic)) {
+    return " Show the matter-wave along a line.";
+  }
+  if (/(?:bohr|hydrogen spectrum|spectral series|energy level)/.test(topic)) {
+    return " Show the n = 1 and n = 2 energy levels.";
+  }
+  if (/(?:rutherford|alpha.?particle scattering)/.test(topic)) {
+    return " Show the incident path, the nucleus, and the scattering angle.";
+  }
+  if (/(?:binding energy)/.test(topic)) {
+    return " Sketch the binding energy per nucleon curve against mass number.";
+  }
+  // Fission, fusion, Q value and nuclear composition have no honest figure in
+  // the engine today, and the level diagram they used to be offered is a
+  // hydrogen picture.
+  if (/(?:nuclear fission|nuclear fusion|q value|composition|radioactiv|half.?life|decay)/.test(topic)) {
+    return "";
+  }
+
+  // -- Practical physics ----------------------------------------------------
   if (/(?:vernier|screw gauge|least count|measured)/.test(topic)) {
     return " Mark the named measured length.";
   }
-  if (/(?:transformer|motional emf|faraday)/.test(topic)) {
-    return " Show the coils or the rod-and-rails setup named by the topic.";
-  }
-  if (/(?:electromagnetic wave|displacement current)/.test(topic)) {
-    return " Show the E and B vectors and the propagation direction.";
-  }
+
   return "";
 }
 

@@ -42,7 +42,15 @@ function arcPath(cx: number, cy: number, r: number, a0: number, a1: number): str
 
 export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: string, labelColor: string): string {
   const points = primitive.points;
-  const stroke = `fill="none" stroke="${ink}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
+  // Honour the marks the DSA builder sets, or a rejected edge and a live
+  // window review as ordinary ink and the gate images say less than the board.
+  const provenance = primitive.provenance as
+    | { dashed?: unknown; fillRole?: unknown; strokeWidth?: unknown }
+    | undefined;
+  const dashes = provenance?.dashed === true ? ` stroke-dasharray="6 4"` : "";
+  const fill = provenance?.fillRole === "region" ? `rgba(165,214,236,0.28)` : "none";
+  const width = typeof provenance?.strokeWidth === "number" ? provenance.strokeWidth : 2;
+  const stroke = `fill="${fill}" stroke="${ink}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"${dashes}`;
   const poly = (list: RenderPrimitive["points"]): string => list.map((point) => `${point.x},${point.y}`).join(" ");
   const anchor = points[0];
   const inlineLabel = primitive.text && primitive.kind !== "label" && primitive.kind !== "dimension" && anchor
@@ -50,7 +58,7 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
     : "";
   switch (primitive.kind) {
     case "point":
-      return anchor ? `<circle cx="${anchor.x}" cy="${anchor.y}" r="4" fill="${ink}"/>${inlineLabel}` : "";
+      return anchor ? `<circle cx="${anchor.x}" cy="${anchor.y}" r="2" fill="${ink}"/>${inlineLabel}` : "";
     case "line":
     case "polyline":
       return points.length >= 2 ? `<polyline points="${poly(points)}" ${stroke}/>${inlineLabel}` : "";
@@ -108,7 +116,11 @@ export function renderSceneSvg(scene: RenderScene, options: RenderSvgOptions = {
   const ink = options.ink ?? "#141821";
   const labelColor = options.labelColor ?? "#B93A2C";
   const guides = options.guides ?? true;
-  const body = scene.primitives.map((primitive) => primitiveToSvg(primitive, "arrowhead", ink, labelColor)).join("\n");
+  const body = scene.primitives
+    // The DSA extent box is a fit aid, dropped before the board draws it.
+    .filter((primitive) => (primitive.provenance as { dsaExtent?: unknown } | undefined)?.dsaExtent === undefined)
+    .map((primitive) => primitiveToSvg(primitive, "arrowhead", ink, labelColor))
+    .join("\n");
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${BOARD_WIDTH}" height="${BOARD_HEIGHT}" viewBox="0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}" font-family="ui-sans-serif, system-ui, sans-serif">`,
     `<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${ink}"/></marker></defs>`,

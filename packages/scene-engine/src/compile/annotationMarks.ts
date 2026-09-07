@@ -353,7 +353,7 @@ export function inflateClosedPath(points: MarkPoint[], amount = 12): MarkPoint[]
 export function endpointMark(
   point: MarkPoint,
   style: "filled" | "open" | "cross" | "square",
-  radius = 5,
+  radius = 2,
 ): { kind: "point" | "circle" | "line" | "rectangle"; points: MarkPoint[]; radius?: number }[] {
   if (style === "filled") return [{ kind: "point", points: [point] }];
   if (style === "open") return [{ kind: "circle", points: [point], radius }];

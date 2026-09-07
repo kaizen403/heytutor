@@ -16,6 +16,9 @@ import {
   POINT_LABEL_TETHER_PX,
   type LabelOwner,
 } from "../labels/labelEngine";
+// The engine reserves the room the board will letter into, so it measures with
+// the board's own glyph metrics rather than an average character box.
+import { measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
@@ -452,7 +455,32 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       (!candidate.labelId || !summaryLabelIds.has(candidate.labelId))
     ) === index;
   });
-  const labels = placeLabels(uniqueLabelOwners, [...obstaclesFromPrimitives(primitives), workColumnObstacle()]);
+  const pinDsaLabels = document.source.synthesizedDsa === true;
+  const labels = placeLabels(
+    pinDsaLabels
+      ? uniqueLabelOwners.map((owner) => {
+          const target = geometry.get(owner.entityId);
+          const transform = transformPlan.transformFor(owner.entityId);
+          return {
+            ...owner,
+            // Rectangles compile as closed paths; the path label-anchor sits
+            // on the perimeter. Cell values belong at the geometric center.
+            anchor: target ? transform(centerOf(target)) : owner.anchor,
+            pinToAnchor: true,
+            allowLeader: false,
+            useOwnerBounds: false,
+            tetherPx: undefined,
+            incidentTangents: undefined,
+          };
+        })
+      : uniqueLabelOwners,
+    [...obstaclesFromPrimitives(primitives), workColumnObstacle()],
+    pinDsaLabels
+      // 16 is the validator's own compact-label ceiling; a lower cap here
+      // rejected labels the document had already accepted.
+      ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth }
+      : { measureTextPx: measureTextWidth },
+  );
   for (const issue of labels.issues) {
     issues.push({
       code: issue.code,
@@ -478,9 +506,10 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       provenance: {
         labelBounds: placement.bounds,
         usesLeader: placement.usesLeader,
+        ...(pinDsaLabels ? { fontPx: DSA_LABEL_FONT_PX, labelPad: 3 } : {}),
       },
     });
-    if (placement.usesLeader && placement.leaderFrom && placement.leaderTo) {
+    if (!pinDsaLabels && placement.usesLeader && placement.leaderFrom && placement.leaderTo) {
       primitives.push({
         id: `${placement.labelId}_leader`,
         entityId: placement.entityId,
@@ -644,7 +673,7 @@ function createEntityTransformPlan(
   hasLabels: boolean,
 ): EntityTransformPlan | null {
   const renderGeometry = [...geometry.entries()].filter(([id]) => !constructionOnlyIds.has(id));
-  const fallbackViewport = withLabelPadding(viewport, hasLabels);
+  const fallbackViewport = withLabelPadding(viewport, hasLabels, document.source.dsaFitBox === true);
   const fitEntries = renderGeometry.filter(([id]) =>
     document.entities.find((entity) => entity.id === id)?.kind !== "label",
   );
@@ -664,7 +693,11 @@ function createEntityTransformPlan(
     [...new Set(component.renderIds.map((id) => entityToGroup.get(id)!).filter(Boolean))],
   );
   const distinctGroups = new Set(componentGroups.flat());
-  const canPack = components.length > 1 &&
+  // DSA example frames must keep the full diagram-zone width. Packing them
+  // into a 2-column grid shrinks each cell until the handwritten value
+  // fills the box and sits on the stroke.
+  const canPack = document.source.synthesizedDsa !== true &&
+    components.length > 1 &&
     componentGroups.every((groups) => groups.length === 1) &&
     distinctGroups.size === components.length;
   if (!canPack) {
@@ -741,10 +774,15 @@ function viewSlots(viewport: Viewport, count: number): Viewport[] {
   }));
 }
 
-function withLabelPadding(viewport: Viewport, hasLabels: boolean): Viewport {
-  return hasLabels
-    ? { ...viewport, padding: Math.min(64, Math.max(viewport.padding ?? 24, Math.min(viewport.width, viewport.height) * 0.18)) }
-    : viewport;
+function withLabelPadding(viewport: Viewport, hasLabels: boolean, hasOwnFitBox = false): Viewport {
+  if (!hasLabels) return viewport;
+  // Labels are excluded from the fit, so a figure whose labels sit outside its
+  // geometry needs slack or they clip. A trace frame carries an extent box
+  // that already includes every label anchor, so the generous 18% reserve just
+  // shrinks the figure: a six-cell array used 76% of the zone's width and 15%
+  // of its height. A document without that box keeps the reserve.
+  if (hasOwnFitBox) return { ...viewport, padding: Math.max(viewport.padding ?? 0, 18) };
+  return { ...viewport, padding: Math.min(64, Math.max(viewport.padding ?? 24, Math.min(viewport.width, viewport.height) * 0.18)) };
 }
 
 function orderConstructionsByDependency(document: SceneDocument): Array<{
@@ -1343,6 +1381,14 @@ function approximateRelationIssue(assertion: SceneAssertion, residual: number, m
 
 const MIN_PLANAR_SCREEN_PX = 12;
 
+/**
+ * The size a DSA figure label is reserved, measured and drawn at. The board
+ * snaps anything under 19 up to 19 (`snapToBoardTypeScale`), so reserving at
+ * 16 measured a run the renderer never draws: every value sat in a box 19%
+ * too small and the spill guard was checking the wrong box.
+ */
+const DSA_LABEL_FONT_PX = 19;
+
 function createTransform(values: Geometry[], viewport: { x: number; y: number; width: number; height: number; padding?: number }): ((point: Point) => RenderPoint) | null {
   const points = fitGeometryPoints(values);
   if (points.length === 0) return null;
@@ -1453,6 +1499,14 @@ function pushDegenerateProjectedGeometryIssues(
   geometry.forEach((value, id) => {
     if (constructionOnlyIds.has(id) || planarRings([value]).length === 0) return;
     const rendered = byEntity.get(id) ?? [];
+    // Deliberately small glyphs: a tick in a cell corner, a magnitude bar for
+    // the smallest value in the row, the invisible box that keeps every frame
+    // of a walk-through at one scale. Each is a few pixels tall by design, and
+    // failing the frame for it means the whole lesson draws nothing.
+    if (rendered.some((primitive) => {
+      const provenance = primitive.provenance as { dsaMark?: unknown; dsaBar?: unknown; dsaExtent?: unknown } | undefined;
+      return provenance?.dsaMark !== undefined || provenance?.dsaBar !== undefined || provenance?.dsaExtent !== undefined;
+    })) return;
     const points = rendered.flatMap((primitive) => primitive.points);
     if (points.length < 3) return;
     const width = Math.max(...points.map((point) => point.x)) - Math.min(...points.map((point) => point.x));
@@ -3532,16 +3586,24 @@ function assertScreenAttachedLabels(
 
 function compileSceneCaption(document: SceneDocument): string | undefined {
   const parts: string[] = [];
-  if ((document.source as { nonMetric?: unknown }).nonMetric === true) {
-    parts.push("Do not read scale from this figure.");
-  }
   for (const annotation of document.annotations) {
     if (!annotation.text) continue;
     if (annotation.kind === "caption") {
       parts.push(annotation.text);
       continue;
     }
-    if (annotation.kind === "callout" && !compactCalloutLabel(annotation.text) && !isViewSummaryText(annotation.text)) {
+    if (annotation.kind !== "callout") continue;
+    // A callout with no target has nothing to sit beside, so it is a caption
+    // however short it is. Length alone used to decide: the validator folds
+    // `caption` into `callout`, and any caption of sixteen characters or fewer
+    // then looked like a compact label for some entity and was dropped. That
+    // silently deleted the most important line of a worked example — the frame
+    // that reads "11 + 15 = 26" showed no caption at all.
+    if (annotation.targetIds.length === 0) {
+      parts.push(annotation.text);
+      continue;
+    }
+    if (!compactCalloutLabel(annotation.text) && !isViewSummaryText(annotation.text)) {
       parts.push(annotation.text);
     }
   }

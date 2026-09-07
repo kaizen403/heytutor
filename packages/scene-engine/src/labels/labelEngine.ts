@@ -33,6 +33,11 @@ export interface LabelOwner {
   tetherPx?: number;
   /** Distant leader slots. Default true; point letters set false. */
   allowLeader?: boolean;
+  /**
+   * Sit on the anchor instead of offsetting to a compass slot. Used for
+   * values that belong inside a cell, node, or edge — not beside it.
+   */
+  pinToAnchor?: boolean;
 }
 
 export interface LabelObstacle {
@@ -73,6 +78,14 @@ export interface LabelEngineOptions {
   paddingPx?: number;
   minGapPx?: number;
   maxLabelChars?: number;
+  /**
+   * The renderer's own advance width for this run, at the height it will be
+   * drawn. Without it the engine falls back to `length * fontWidthPx`, which
+   * is an average character box: it reserves 15-35% more room than the glyphs
+   * occupy, and — because the run is drawn from the box's left edge, not its
+   * centre — leaves the ink sitting off-centre inside what was reserved.
+   */
+  measureTextPx?: (text: string, fontHeightPx: number) => number;
 }
 
 export interface LabelEngineResult {
@@ -106,6 +119,18 @@ const DEFAULTS = {
 
 export const POINT_LABEL_TETHER_PX = 56;
 const INCIDENT_ALIGN = Math.cos((25 * Math.PI) / 180);
+
+/**
+ * Clear air between a leader's tip and the label it points at.
+ *
+ * A leader used to run to the label's centre, so every leader-placed label was
+ * drawn with a line through its glyphs — the single largest source of ink and
+ * handwriting sitting on top of each other on the board.
+ */
+const LEADER_STANDOFF_PX = 5;
+
+/** Under this the label already sits on its anchor and a line adds nothing. */
+const MIN_LEADER_PX = 12;
 
 /** Left work column is not a legal diagram-label home. */
 export function workColumnObstacle(): LabelObstacle {
@@ -152,11 +177,9 @@ export function estimateTextBounds(
   slot: Exclude<LabelSlot, "leader">,
   options: LabelEngineOptions = {},
 ): LabelBounds {
-  const fontWidthPx = options.fontWidthPx ?? DEFAULTS.fontWidthPx;
-  const fontHeightPx = options.fontHeightPx ?? DEFAULTS.fontHeightPx;
   const paddingPx = options.paddingPx ?? DEFAULTS.paddingPx;
-  const width = Math.max(8, text.length * fontWidthPx) + paddingPx * 2;
-  const height = fontHeightPx + paddingPx * 2;
+  const width = textInkWidth(text, options) + paddingPx * 2;
+  const height = textInkHeight(options) + paddingPx * 2;
   const offset = SLOT_OFFSETS.find((entry) => entry.slot === slot) ?? SLOT_OFFSETS[0]!;
   const gap = (options.minGapPx ?? DEFAULTS.minGapPx) + 8;
   const x = anchor.x + offset.dx * (gap + width / 2) - width / 2;
@@ -216,6 +239,31 @@ export function placeLabels(
   }
 
   const prepared = owners.map((owner, originalIndex): PreparedLabelOwner => {
+    if (owner.pinToAnchor) {
+      const bounds = centeredTextBounds(owner.text, owner.anchor, options);
+      const outside = owner.viewBounds ? !boundsInside(bounds, owner.viewBounds) : false;
+      const protectedHit = obstacles.some((obstacle) =>
+        obstacle.kind === "protected" && labelOverlapsObstacle(bounds, obstacle, minGapPx),
+      );
+      const overlaps = [
+        ...(outside ? ["view_clip"] : []),
+        ...(protectedHit ? [obstacles.find((obstacle) => obstacle.kind === "protected")?.id ?? "protected"] : []),
+      ];
+      const candidate: LabelPlacementCandidate = {
+        slot: "east",
+        bounds,
+        score: 0,
+        overlaps,
+        usesLeader: false,
+      };
+      return {
+        owner,
+        originalIndex,
+        candidates: [candidate],
+        validCandidates: overlaps.length === 0 ? [candidate] : [],
+        area: bounds.width * bounds.height,
+      };
+    }
     const ownerBounds = owner.useOwnerBounds === false
       ? null
       : unionBounds(
@@ -267,6 +315,9 @@ export function placeLabels(
             .map((obstacle) => obstacle.id);
           const outside = owner.viewBounds ? !boundsInside(bounds, owner.viewBounds) : false;
           if (outside) overlaps.push("view_clip");
+          // The line stops outside the text. Running it to `center` — which is
+          // what the board drew for years — strikes the label through.
+          const leaderTo = leaderEndpoint(owner.anchor, center, bounds);
           return {
             slot: "leader" as const,
             bounds,
@@ -275,8 +326,7 @@ export function placeLabels(
               overlaps.length * 10 + (outside ? 50 : 0),
             overlaps,
             usesLeader: true,
-            leaderFrom: owner.anchor,
-            leaderTo: center,
+            ...(leaderTo ? { leaderFrom: owner.anchor, leaderTo } : {}),
           };
         }),
     );
@@ -295,7 +345,23 @@ export function placeLabels(
     };
   });
 
-  for (const item of prepared.filter((candidate) => candidate.validCandidates.length === 0)) {
+  // Pinned labels stay on their anchors. They do not enter the compass-slot
+  // solver — that solver's leader fallback is what drew dashed scribbles
+  // across DSA cells when grid ink blocked every offset.
+  const pinned = prepared.filter((item) => item.owner.pinToAnchor);
+  const unpinned = prepared.filter((item) => !item.owner.pinToAnchor);
+
+  for (const item of pinned) {
+    if (item.candidates[0]?.overlaps.includes("view_clip")) {
+      issues.push({
+        code: "label_outside_view",
+        entityId: item.owner.entityId,
+        message: `No in-view label slot for ${item.owner.entityId}`,
+      });
+    }
+  }
+
+  for (const item of unpinned.filter((candidate) => candidate.validCandidates.length === 0)) {
     const best = item.candidates[0];
     if (best?.overlaps.includes("view_clip")) {
       issues.push({
@@ -323,8 +389,15 @@ export function placeLabels(
     });
   }
 
-  const candidatesToSolve = prepared.filter((item) => item.validCandidates.length > 0);
-  const selected = solveLabelPlacements(candidatesToSolve, minGapPx);
+  const candidatesToSolve = unpinned.filter((item) => item.validCandidates.length > 0);
+  // Keeping leaders off neighbouring text is a preference, not a requirement.
+  // In a corridor with room for the labels but not for the lines between them
+  // it is the only arrangement there is, and a figure with a leader grazing a
+  // label still beats the rejected scene that no figure at all would mean.
+  const selected = candidatesToSolve.length > 0
+    ? solveLabelPlacements(candidatesToSolve, minGapPx, "leaders_clear")
+      ?? solveLabelPlacements(candidatesToSolve, minGapPx, "boxes_only")
+    : new Map<number, LabelPlacementCandidate>();
   if (!selected && candidatesToSolve.length > 0) {
     const mostConstrained = [...candidatesToSolve].sort(comparePreparedOwners)[0]!;
     issues.push({
@@ -334,22 +407,36 @@ export function placeLabels(
     });
   }
 
-  const placements: LabelEngineResult["placements"] = selected
-    ? prepared.flatMap((item) => {
-        const chosen = selected.get(item.originalIndex);
-        if (!chosen) return [];
-        return [{
-          labelId: item.owner.labelId ?? `label:${item.owner.entityId}`,
-          entityId: item.owner.entityId,
-          text: item.owner.text,
-          bounds: chosen.bounds,
-          slot: chosen.slot,
-          usesLeader: chosen.usesLeader,
-          leaderFrom: chosen.leaderFrom,
-          leaderTo: chosen.leaderTo,
-        }];
-      })
-    : [];
+  const placements: LabelEngineResult["placements"] = [
+    ...pinned.flatMap((item) => {
+      const chosen = item.validCandidates[0] ?? item.candidates[0];
+      if (!chosen || chosen.overlaps.includes("view_clip")) return [];
+      return [{
+        labelId: item.owner.labelId ?? `label:${item.owner.entityId}`,
+        entityId: item.owner.entityId,
+        text: item.owner.text,
+        bounds: chosen.bounds,
+        slot: chosen.slot,
+        usesLeader: false,
+      }];
+    }),
+    ...(selected
+      ? unpinned.flatMap((item) => {
+          const chosen = selected.get(item.originalIndex);
+          if (!chosen) return [];
+          return [{
+            labelId: item.owner.labelId ?? `label:${item.owner.entityId}`,
+            entityId: item.owner.entityId,
+            text: item.owner.text,
+            bounds: chosen.bounds,
+            slot: chosen.slot,
+            usesLeader: chosen.usesLeader,
+            leaderFrom: chosen.leaderFrom,
+            leaderTo: chosen.leaderTo,
+          }];
+        })
+      : []),
+  ];
 
   return {
     ok: issues.length === 0,
@@ -383,9 +470,12 @@ function comparePreparedOwners(a: PreparedLabelOwner, b: PreparedLabelOwner): nu
     a.originalIndex - b.originalIndex;
 }
 
+type SeparationRule = "leaders_clear" | "boxes_only";
+
 function solveLabelPlacements(
   owners: PreparedLabelOwner[],
   minGapPx: number,
+  rule: SeparationRule,
 ): Map<number, LabelPlacementCandidate> | null {
   const selected = new Map<number, LabelPlacementCandidate>();
   const remaining = new Set(owners.map((owner) => owner.originalIndex));
@@ -394,7 +484,7 @@ function solveLabelPlacements(
   const maxVisited = Math.max(20_000, owners.length * 20_000);
 
   const compatibleCandidates = (owner: PreparedLabelOwner) => owner.validCandidates.filter((candidate) =>
-    [...selected.values()].every((placed) => !boundsOverlap(candidate.bounds, placed.bounds, minGapPx)),
+    [...selected.values()].every((placed) => compatible(candidate, placed, minGapPx, rule)),
   );
 
   const search = (): boolean => {
@@ -424,6 +514,40 @@ function solveLabelPlacements(
   return search() ? selected : null;
 }
 
+/**
+ * Two placements can stand together.
+ *
+ * Boxes must not overlap, and neither leader may cross the other's text: a
+ * leader is drawn after every label is solved, so nothing else in the pass
+ * would ever notice it landing on a neighbour's glyphs.
+ */
+function compatible(
+  candidate: LabelPlacementCandidate,
+  placed: LabelPlacementCandidate,
+  minGapPx: number,
+  rule: SeparationRule,
+): boolean {
+  if (boundsOverlap(candidate.bounds, placed.bounds, minGapPx)) return false;
+  if (rule === "boxes_only") return true;
+  return !leaderCrosses(candidate, placed.bounds, minGapPx) &&
+    !leaderCrosses(placed, candidate.bounds, minGapPx);
+}
+
+/**
+ * A leader must keep the same clear air from a neighbour's text that two labels
+ * keep from each other — the reserved box is the em box, so a descender reaches
+ * a little past it and a line grazing the edge still crosses ink.
+ */
+function leaderCrosses(candidate: LabelPlacementCandidate, bounds: LabelBounds, gap: number): boolean {
+  if (!candidate.leaderFrom || !candidate.leaderTo) return false;
+  return segmentIntersectsBounds(candidate.leaderFrom, candidate.leaderTo, {
+    x: bounds.x - gap,
+    y: bounds.y - gap,
+    width: bounds.width + gap * 2,
+    height: bounds.height + gap * 2,
+  });
+}
+
 function incidentAligned(
   slot: Exclude<LabelSlot, "leader">,
   tangents: RenderPoint[] | undefined,
@@ -437,6 +561,43 @@ function incidentAligned(
   return tangents.some((tangent) => Math.abs(tangent.x * ux + tangent.y * uy) >= INCIDENT_ALIGN);
 }
 
+/**
+ * Where a leader from `from` towards the label should stop: at the first point
+ * it meets the label's box, backed off by `LEADER_STANDOFF_PX`.
+ *
+ * Returns null when there is no line worth drawing — the anchor already sits
+ * inside (or all but inside) the label, so the label reads as attached without
+ * one, and a stub of a line would only look like a stray mark.
+ */
+function leaderEndpoint(from: RenderPoint, center: RenderPoint, bounds: LabelBounds): RenderPoint | null {
+  const box = {
+    x: bounds.x - LEADER_STANDOFF_PX,
+    y: bounds.y - LEADER_STANDOFF_PX,
+    width: bounds.width + LEADER_STANDOFF_PX * 2,
+    height: bounds.height + LEADER_STANDOFF_PX * 2,
+  };
+  const dx = center.x - from.x;
+  const dy = center.y - from.y;
+  let enter = 0;
+  let exit = 1;
+  for (const axis of [
+    { origin: from.x, delta: dx, min: box.x, max: box.x + box.width },
+    { origin: from.y, delta: dy, min: box.y, max: box.y + box.height },
+  ]) {
+    if (Math.abs(axis.delta) < 1e-9) {
+      if (axis.origin < axis.min || axis.origin > axis.max) return null;
+      continue;
+    }
+    const first = (axis.min - axis.origin) / axis.delta;
+    const second = (axis.max - axis.origin) / axis.delta;
+    enter = Math.max(enter, Math.min(first, second));
+    exit = Math.min(exit, Math.max(first, second));
+  }
+  if (enter > exit) return null;
+  const tip = { x: from.x + dx * enter, y: from.y + dy * enter };
+  return Math.hypot(tip.x - from.x, tip.y - from.y) >= MIN_LEADER_PX ? tip : null;
+}
+
 function beyondTether(bounds: LabelBounds, anchor: RenderPoint, tetherPx: number | undefined): boolean {
   if (tetherPx === undefined) return false;
   const center = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
@@ -444,12 +605,31 @@ function beyondTether(bounds: LabelBounds, anchor: RenderPoint, tetherPx: number
 }
 
 function centeredTextBounds(text: string, center: RenderPoint, options: LabelEngineOptions): LabelBounds {
-  const fontWidthPx = options.fontWidthPx ?? DEFAULTS.fontWidthPx;
-  const fontHeightPx = options.fontHeightPx ?? DEFAULTS.fontHeightPx;
   const paddingPx = options.paddingPx ?? DEFAULTS.paddingPx;
-  const width = Math.max(8, text.length * fontWidthPx) + paddingPx * 2;
-  const height = fontHeightPx + paddingPx * 2;
+  const width = textInkWidth(text, options) + paddingPx * 2;
+  const height = textInkHeight(options) + paddingPx * 2;
   return { x: center.x - width / 2, y: center.y - height / 2, width, height };
+}
+
+/** Width of the glyph run itself, before padding. */
+function textInkWidth(text: string, options: LabelEngineOptions): number {
+  const fontHeightPx = options.fontHeightPx ?? DEFAULTS.fontHeightPx;
+  const measured = options.measureTextPx
+    ? options.measureTextPx(text, fontHeightPx)
+    : text.length * (options.fontWidthPx ?? DEFAULTS.fontWidthPx);
+  return Math.max(8, measured);
+}
+
+/**
+ * Height of the glyph run, before padding.
+ *
+ * The em box, not the ascender-to-descender span: a descender reaches a few
+ * pixels into the padding rather than into a neighbour, and reserving the full
+ * span instead measurably bought nothing across the corpus while costing every
+ * label vertical room in a tight figure.
+ */
+function textInkHeight(options: LabelEngineOptions): number {
+  return options.fontHeightPx ?? DEFAULTS.fontHeightPx;
 }
 
 /** Build coarse axis-aligned obstacles from compiled primitives. */

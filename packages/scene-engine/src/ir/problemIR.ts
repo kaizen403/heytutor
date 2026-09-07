@@ -178,6 +178,12 @@ export function expressionToSafeSource(root: ExpressionNodeIR, variable?: string
   return source;
 }
 
+/** Whitespace-insensitive containment: a re-wrapped quote is still the question's. */
+function containsQuote(question: string, quote: string): boolean {
+  const flatten = (value: string) => value.replace(/\s+/g, " ").trim().toLowerCase();
+  return flatten(question).includes(flatten(quote));
+}
+
 function validateFact(raw: unknown, question: string, path: string, issues: ProblemIRIssue[]): void {
   if (!isRecord(raw)) return add(issues, "invalid_fact", path, "fact must be an object");
   if (!["given", "requested", "assumption"].includes(String(raw.kind))) add(issues, "invalid_fact_kind", `${path}.kind`, "invalid fact kind");
@@ -187,10 +193,16 @@ function validateFact(raw: unknown, question: string, path: string, issues: Prob
   if (evidence.source !== "question" || !Number.isInteger(evidence.start) || !Number.isInteger(evidence.end) || typeof evidence.quote !== "string") {
     return add(issues, "invalid_evidence", `${path}.evidence`, "evidence must contain a question span and quote");
   }
-  const start = evidence.start as number;
-  const end = evidence.end as number;
-  if (start < 0 || end <= start || end > question.length || question.slice(start, end) !== evidence.quote) {
-    add(issues, "ungrounded_fact", `${path}.evidence`, "evidence quote must exactly match the submitted question span");
+  // Grounding means the quote really is in the question. It used to also demand
+  // that `start`/`end` addressed it exactly, and models routinely get those
+  // offsets wrong while quoting perfectly — one live turn produced ten
+  // `ungrounded_fact` issues whose quotes were all present verbatim. That
+  // failed the whole formulation and cost the student the lesson, over
+  // bookkeeping. The span stays advisory; the quote is the guarantee.
+  const quote = String(evidence.quote);
+  const grounded = quote.trim().length > 0 && containsQuote(question, quote);
+  if (!grounded) {
+    add(issues, "ungrounded_fact", `${path}.evidence`, "evidence quote must appear in the submitted question");
   }
 }
 

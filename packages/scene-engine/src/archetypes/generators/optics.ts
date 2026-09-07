@@ -11,6 +11,24 @@ import { grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTab
 
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
 
+/** Walk from `from` away from `through` so a virtual ray can be drawn on the real side. */
+function extendAway(from: Vec2, through: Vec2, length: number): Vec2 {
+  const dx = from.x - through.x;
+  const dy = from.y - through.y;
+  const norm = Math.hypot(dx, dy) || 1;
+  return { x: from.x + (dx / norm) * length, y: from.y + (dy / norm) * length };
+}
+
+/**
+ * Keep measurement bars out of the principal-ray corridor. A bar between F
+ * and P at a fraction of the object height is slashed by the through-F ray,
+ * and stacking both bars under the figure then parks `u=…` on top of `f=…`.
+ */
+function dimClearance(envelope: number, h: number): number {
+  // Compiler lane offset + DIMENSION ink offset eat ~44px (~6 world units).
+  return Math.max(1.4 * h, 0.4 * envelope, 9.5);
+}
+
 function sphericalMirror(context: GeneratorContext) {
   const kind = text(context, "kind", "concave");
   const uMag = Math.abs(num(context, "u", 30));
@@ -23,8 +41,10 @@ function sphericalMirror(context: GeneratorContext) {
   if (!Number.isFinite(v) || Math.abs(v) > 12 * uMag) return null;
   const m = -v / u;
   const h = 0.28 * Math.max(fMag, uMag / 3);
+  const imageHeight = m * h;
   const R = 2 * fMag;
   const centreX = kind === "concave" ? -R : R;
+  const focusX = centreX / 2;
   const scene = new SceneBuilder(context.question, `${kind} mirror ray diagram from the mirror formula (u=${fmt(uMag)}, f=${fmt(fMag)})`, "spherical_mirror");
   scene.quantity("u", "u", u, "cm");
   scene.quantity("f", "f", f, "cm");
@@ -32,71 +52,66 @@ function sphericalMirror(context: GeneratorContext) {
 
   const leftmost = Math.min(u, v, centreX, -fMag) - 0.2 * uMag;
   const rightmost = Math.max(v, centreX, 0) + 0.15 * uMag + 0.5;
-  scene.point("axis_l", { x: leftmost, y: 0 }, "principal axis end");
-  scene.point("axis_r", { x: rightmost, y: 0 }, "principal axis end");
+  scene.helper("axis_l", { x: leftmost, y: 0 }, "axis end");
+  scene.helper("axis_r", { x: rightmost, y: 0 }, "axis end");
   scene.line("axis", "axis_l", "axis_r", "principal axis");
   scene.point("P", { x: 0, y: 0 }, "pole", "P");
   scene.point("C", { x: centreX, y: 0 }, "centre of curvature", "C");
-  scene.point("F", { x: centreX / 2, y: 0 }, "focus", "F");
-  const arcHalfAngle = clamp((Math.asin(Math.min(0.95, (h * 2.2) / R)) / DEG), 18, 40);
+  scene.point("F", { x: focusX, y: 0 }, "focus", "F");
+  // Textbook paraxial hits live on the pole plane x=0, so the mirror symbol
+  // must be tall enough for both the object and the magnified image.
+  const aperture = Math.max(h, Math.abs(imageHeight)) * 1.12;
+  const arcHalfAngle = clamp((Math.asin(Math.min(0.92, aperture / R)) / DEG), 16, 65);
   const facing = kind === "concave" ? 0 : 180;
   scene.arc("mirror", "C", R, facing - arcHalfAngle, facing + arcHalfAngle, `${kind} mirror`, "M");
 
   scene.point("O_base", { x: u, y: 0 }, "object foot", "O");
-  scene.point("O_tip", { x: u, y: h }, "object tip");
-  scene.vector("object", "O_base", { end: "O_tip" }, "object", "object");
-  const imageHeight = m * h;
+  scene.helper("O_tip", { x: u, y: h }, "arrow tip");
+  scene.vector("object", "O_base", { end: "O_tip" }, "object");
   scene.point("I_base", { x: v, y: 0 }, "image foot", "I");
-  scene.point("I_tip", { x: v, y: imageHeight }, "image tip");
-  scene.vector("image", "I_base", { end: "I_tip" }, `${v < 0 ? "real" : "virtual"} image`, "image");
+  scene.helper("I_tip", { x: v, y: imageHeight }, "arrow tip");
+  scene.vector("image", "I_base", { end: "I_tip" }, `${v < 0 ? "real" : "virtual"} image`);
 
-  const mirrorXAt = (y: number): number => centreX + (kind === "concave" ? 1 : -1) * Math.sqrt(Math.max(R * R - y * y, 0));
-  // Ray 1: parallel to the axis, reflects through (or away from) F.
-  scene.point("M1", { x: mirrorXAt(h), y: h }, "incidence point on the mirror");
+  // Principal-ray pair on the pole plane: parallel ↔ through F, through F ↔ parallel.
+  scene.helper("M1", { x: 0, y: h }, "ray hit");
+  scene.helper("M2", { x: 0, y: imageHeight }, "ray hit");
   scene.segment("ray1_in", "O_tip", "M1", "incident ray parallel to the axis");
-  // Ray 2: aimed at (or through) F, reflects parallel.
-  const focusX = centreX / 2;
-  const slope2 = (0 - h) / (focusX - u);
-  const y2 = h + slope2 * (mirrorXAt(0) - u);
-  const yHit2 = clamp(y2, -0.9 * h, 0.9 * h);
-  scene.point("M2", { x: mirrorXAt(yHit2), y: yHit2 }, "incidence point on the mirror");
   scene.segment("ray2_in", "O_tip", "M2", "incident ray through the focus");
+  const ray1Far = v < 0 ? null : extendAway({ x: 0, y: h }, { x: v, y: imageHeight }, uMag * 0.8);
+  const ray2Far = v < 0 ? null : extendAway({ x: 0, y: imageHeight }, { x: v, y: imageHeight }, uMag * 0.8);
   if (v < 0) {
     scene.paraxialRay("ray1_out", "M1", "I_tip", "reflected ray through F (paraxial)");
     scene.paraxialRay("ray2_out", "M2", "I_tip", "reflected ray parallel to the axis (paraxial)");
-    scene.assert("rays_converge", "converges", ["ray1_out", "ray2_out", "I_tip"], true);
+    scene.assert("rays_converge", "converges", ["ray1_out", "ray2_out"], true);
   } else {
-    const away = (from: Vec2, through: Vec2, length: number): Vec2 => {
-      const dx = from.x - through.x;
-      const dy = from.y - through.y;
-      const norm = Math.hypot(dx, dy) || 1;
-      return { x: from.x + (dx / norm) * length, y: from.y + (dy / norm) * length };
-    };
-    scene.point("ray1_far", away({ x: mirrorXAt(h), y: h }, { x: v, y: imageHeight }, uMag * 0.8), "reflected ray end");
-    scene.point("ray2_far", away({ x: mirrorXAt(yHit2), y: yHit2 }, { x: v, y: imageHeight }, uMag * 0.8), "reflected ray end");
+    scene.helper("ray1_far", ray1Far!, "ray end");
+    scene.helper("ray2_far", ray2Far!, "ray end");
     scene.paraxialRay("ray1_out", "M1", "ray1_far", "reflected ray, diverging (paraxial)");
     scene.paraxialRay("ray2_out", "M2", "ray2_far", "reflected ray, diverging (paraxial)");
     scene.segment("ray1_ext", "M1", "I_tip", "virtual extension behind the mirror");
     scene.segment("ray2_ext", "M2", "I_tip", "virtual extension behind the mirror");
-    scene.assert("extensions_meet", "converges", ["ray1_ext", "ray2_ext", "I_tip"], true);
+    scene.assert("extensions_meet", "converges", ["ray1_ext", "ray2_ext"], true);
   }
-  scene.point("dim_u_a", { x: u, y: -0.35 * h }, "object distance start");
-  scene.point("dim_u_b", { x: 0, y: -0.35 * h }, "object distance end");
+  const rayTop = Math.max(h, imageHeight, ray1Far?.y ?? h, ray2Far?.y ?? h);
+  const rayBottom = Math.min(0, h, imageHeight, ray1Far?.y ?? 0, ray2Far?.y ?? 0);
+  scene.helper("dim_u_a", { x: u, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
+  scene.helper("dim_u_b", { x: 0, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
   scene.dimension("dim_u", "dim_u_a", "dim_u_b", "object distance", grounded(context, "u") ? `u=${withUnit(uMag, "cm")}` : "u");
-  scene.point("dim_f_a", { x: focusX, y: -0.7 * h }, "focal length start");
-  scene.point("dim_f_b", { x: 0, y: -0.7 * h }, "focal length end");
+  scene.helper("dim_f_a", { x: focusX, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
+  scene.helper("dim_f_b", { x: 0, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
   scene.dimension("dim_f", "dim_f_a", "dim_f_b", "focal length", grounded(context, "f") ? `f=${withUnit(fMag, "cm")}` : "f");
   scene.assert("object_on_axis", "on", ["O_base", "axis"]);
   scene.assert("image_on_axis", "on", ["I_base", "axis"]);
-  scene.assert("m1_on_mirror", "on", ["M1", "mirror"]);
+  scene.assert("ray1_in_parallel", "parallel", ["ray1_in", "axis"]);
+  scene.assert("ray2_out_parallel", "parallel", ["ray2_out", "axis"]);
   scene.assert("f_is_half_r", "distance_ratio", ["P", "F", "P", "C"], 0.5);
   if (grounded(context, "u") && grounded(context, "f")) {
     scene.assert("image_distance", "distance_ratio", ["P", "I_base", "P", "O_base"], Number((Math.abs(v) / uMag).toFixed(6)));
   }
   scene.labelled("P", "F", "C", "O_base", "I_base");
-  scene.group("setup", ["axis_l", "axis_r", "axis", "P", "C", "F", "mirror", "O_base", "O_tip", "object", "dim_u_a", "dim_u_b", "dim_u", "dim_f_a", "dim_f_b", "dim_f"], "the mirror, its pole, focus and centre, and the object");
-  scene.group("rays", ["M1", "M2", "ray1_in", "ray2_in", "ray1_out", "ray2_out", ...(v < 0 ? [] : ["ray1_far", "ray2_far", "ray1_ext", "ray2_ext"])], "two principal rays locate the image", ["setup"]);
-  scene.group("image_group", ["I_base", "I_tip", "image"], `the ${v < 0 ? "real, inverted" : "virtual, erect"} image`, ["rays"]);
+  scene.group("setup", ["axis", "P", "C", "F", "mirror", "O_base", "object", "dim_u", "dim_f"], "the mirror, its pole, focus and centre, and the object");
+  scene.group("rays", ["ray1_in", "ray2_in", "ray1_out", "ray2_out", ...(v < 0 ? [] : ["ray1_ext", "ray2_ext"])], "two principal rays locate the image", ["setup"]);
+  scene.group("image_group", ["I_base", "image"], `the ${v < 0 ? "real, inverted" : "virtual, erect"} image`, ["rays"]);
   return scene.build();
 }
 
@@ -115,13 +130,14 @@ function thinLens(context: GeneratorContext) {
   scene.quantity("u", "u", u, "cm");
   scene.quantity("f", "f", f, "cm");
   scene.quantity("v", "v", v, "cm");
+  const imageHeight = m * h;
   const leftmost = Math.min(u, v, -2 * fMag) - 0.15 * uMag;
   const rightmost = Math.max(v, 2 * fMag) + 0.15 * uMag;
-  scene.point("axis_l", { x: leftmost, y: 0 }, "principal axis end");
-  scene.point("axis_r", { x: rightmost, y: 0 }, "principal axis end");
+  scene.helper("axis_l", { x: leftmost, y: 0 }, "axis end");
+  scene.helper("axis_r", { x: rightmost, y: 0 }, "axis end");
   scene.line("axis", "axis_l", "axis_r", "principal axis");
   scene.point("O", { x: 0, y: 0 }, "optical centre", "O");
-  const aperture = 1.6 * h;
+  const aperture = Math.max(1.6 * h, Math.abs(imageHeight) * 1.12);
   const rMag = Math.max(aperture * 2.4, fMag * 0.35);
   const r1 = kind === "convex" ? rMag : -rMag;
   const r2 = kind === "convex" ? -rMag : rMag;
@@ -129,53 +145,56 @@ function thinLens(context: GeneratorContext) {
   scene.point("F1", { x: -fMag, y: 0 }, "first focus", "F");
   scene.point("F2", { x: fMag, y: 0 }, "second focus", "F'");
   scene.point("O_base", { x: u, y: 0 }, "object foot", "A");
-  scene.point("O_tip", { x: u, y: h }, "object tip", "B");
-  scene.vector("object", "O_base", { end: "O_tip" }, "object", "object");
-  const imageHeight = m * h;
+  scene.helper("O_tip", { x: u, y: h }, "arrow tip");
+  scene.vector("object", "O_base", { end: "O_tip" }, "object");
   scene.point("I_base", { x: v, y: 0 }, "image foot", "A'");
-  scene.point("I_tip", { x: v, y: imageHeight }, "image tip", "B'");
-  scene.vector("image", "I_base", { end: "I_tip" }, `${v > 0 ? "real" : "virtual"} image`, "image");
-  scene.point("L1", { x: 0, y: h }, "ray 1 crossing the lens");
+  scene.helper("I_tip", { x: v, y: imageHeight }, "arrow tip");
+  scene.vector("image", "I_base", { end: "I_tip" }, `${v > 0 ? "real" : "virtual"} image`);
+  scene.helper("L1", { x: 0, y: h }, "ray hit");
   scene.segment("ray1_in", "O_tip", "L1", "ray parallel to the axis");
   scene.segment("ray2_in", "O_tip", "O", "ray through the optical centre");
+  const extend = (from: Vec2, through: Vec2, length: number): Vec2 => {
+    const dx = through.x - from.x;
+    const dy = through.y - from.y;
+    const norm = Math.hypot(dx, dy) || 1;
+    return { x: through.x + (dx / norm) * length, y: through.y + (dy / norm) * length };
+  };
+  const f2: Vec2 = { x: fMag, y: 0 };
+  const ray1Far = v > 0 ? null : (kind === "convex" ? extend({ x: 0, y: h }, f2, uMag) : extend({ x: -fMag, y: 0 }, { x: 0, y: h }, uMag));
+  const ray2Far = v > 0 ? null : extend({ x: u, y: h }, { x: 0, y: 0 }, uMag);
   if (v > 0) {
     scene.paraxialRay("ray1_out", "L1", "I_tip", "refracted ray through F' (paraxial)");
     scene.segment("ray2_out", "O", "I_tip", "undeviated ray through the optical centre");
-    scene.assert("rays_converge", "converges", ["ray1_out", "ray2_out", "I_tip"], true);
+    scene.assert("rays_converge", "converges", ["ray1_out", "ray2_out"], true);
   } else {
-    const extend = (from: Vec2, through: Vec2, length: number): Vec2 => {
-      const dx = through.x - from.x;
-      const dy = through.y - from.y;
-      const norm = Math.hypot(dx, dy) || 1;
-      return { x: through.x + (dx / norm) * length, y: through.y + (dy / norm) * length };
-    };
-    const f2: Vec2 = { x: fMag, y: 0 };
-    const out1 = kind === "convex" ? extend({ x: 0, y: h }, f2, uMag) : extend({ x: -fMag, y: 0 }, { x: 0, y: h }, uMag);
-    scene.point("ray1_far", out1, "refracted ray end");
-    scene.point("ray2_far", extend({ x: u, y: h }, { x: 0, y: 0 }, uMag), "undeviated ray end");
+    scene.helper("ray1_far", ray1Far!, "ray end");
+    scene.helper("ray2_far", ray2Far!, "ray end");
     scene.paraxialRay("ray1_out", "L1", "ray1_far", "refracted ray, diverging (paraxial)");
     scene.segment("ray2_out", "O", "ray2_far", "undeviated ray through the optical centre");
     scene.segment("ray1_ext", "L1", "I_tip", "virtual extension");
     scene.segment("ray2_ext", "O", "I_tip", "virtual extension");
-    scene.assert("extensions_meet", "converges", ["ray1_ext", "ray2_ext", "I_tip"], true);
+    scene.assert("extensions_meet", "converges", ["ray1_ext", "ray2_ext"], true);
   }
-  scene.point("dim_u_a", { x: u, y: -0.45 * h }, "object distance start");
-  scene.point("dim_u_b", { x: 0, y: -0.45 * h }, "object distance end");
+  const rayTop = Math.max(h, imageHeight, ray1Far?.y ?? h, ray2Far?.y ?? h);
+  const rayBottom = Math.min(0, h, imageHeight, ray1Far?.y ?? 0, ray2Far?.y ?? 0);
+  scene.helper("dim_u_a", { x: u, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
+  scene.helper("dim_u_b", { x: 0, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
   scene.dimension("dim_u", "dim_u_a", "dim_u_b", "object distance", grounded(context, "u") ? `u=${withUnit(uMag, "cm")}` : "u");
-  scene.point("dim_v_a", { x: 0, y: -0.85 * h }, "image distance start");
-  scene.point("dim_v_b", { x: v, y: -0.85 * h }, "image distance end");
+  scene.helper("dim_v_a", { x: 0, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
+  scene.helper("dim_v_b", { x: v, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
   scene.dimension("dim_v", "dim_v_a", "dim_v_b", "image distance", grounded(context, "u") && grounded(context, "f") ? `v=${withUnit(Math.abs(v), "cm")}` : "v");
   scene.assert("centre_on_axis", "on", ["O", "axis"]);
   scene.assert("object_on_axis", "on", ["O_base", "axis"]);
   scene.assert("image_on_axis", "on", ["I_base", "axis"]);
+  scene.assert("ray1_in_parallel", "parallel", ["ray1_in", "axis"]);
   if (grounded(context, "u") && grounded(context, "f")) {
     scene.assert("image_distance", "distance_ratio", ["O", "I_base", "O", "O_base"], Number((Math.abs(v) / uMag).toFixed(6)));
     scene.assert("focal_ratio", "distance_ratio", ["O", "F2", "O", "O_base"], Number((fMag / uMag).toFixed(6)));
   }
   scene.labelled("O", "F1", "F2", "O_base", "I_base");
-  scene.group("setup", ["axis_l", "axis_r", "axis", "O", "lens", "F1", "F2", "O_base", "O_tip", "object", "dim_u_a", "dim_u_b", "dim_u"], "the lens, its foci and the object");
-  scene.group("rays", ["L1", "ray1_in", "ray2_in", "ray1_out", "ray2_out", ...(v > 0 ? [] : ["ray1_far", "ray2_far", "ray1_ext", "ray2_ext"])], "two principal rays locate the image", ["setup"]);
-  scene.group("image_group", ["I_base", "I_tip", "image", "dim_v_a", "dim_v_b", "dim_v"], `the ${v > 0 ? "real, inverted" : "virtual, erect"} image`, ["rays"]);
+  scene.group("setup", ["axis", "O", "lens", "F1", "F2", "O_base", "object", "dim_u"], "the lens, its foci and the object");
+  scene.group("rays", ["ray1_in", "ray2_in", "ray1_out", "ray2_out", ...(v > 0 ? [] : ["ray1_ext", "ray2_ext"])], "two principal rays locate the image", ["setup"]);
+  scene.group("image_group", ["I_base", "image", "dim_v"], `the ${v > 0 ? "real, inverted" : "virtual, erect"} image`, ["rays"]);
   return scene.build();
 }
 

@@ -33,6 +33,16 @@ export interface ArchetypeProbe {
   annotations?: readonly string[];
   /** Entity ids the figure must declare (shared contracts with the family gate, e.g. `weight`, `force`). */
   entities?: readonly string[];
+  /**
+   * Quantity magnitudes the figure must carry, by symbol, in the archetype's
+   * own unit.
+   *
+   * The tier floor proves a slot was *read*; this proves it was read
+   * *correctly*. A stem in metres used to ground cleanly and compile exact
+   * while being a hundred times out, which no tier check can see. Magnitudes,
+   * because sign conventions differ between the mirror and the lens.
+   */
+  quantities?: Readonly<Record<string, number>>;
 }
 
 export const ARCHETYPE_PROBES: readonly ArchetypeProbe[] = [
@@ -122,8 +132,22 @@ export const ARCHETYPE_PROBES: readonly ArchetypeProbe[] = [
   { id: "meter-bridge", archetype: "meter_bridge", tier: "exact_verified", question: "In a meter bridge the balance point is at 40 cm with a known resistance of 10 ohm in the right gap. Find the unknown resistance." },
   { id: "capacitors-series", archetype: "capacitor_network", tier: "qualitative_verified", question: "Three capacitors of 2 uF, 3 uF and 6 uF are connected in series to a 12 V battery. Find the charge on each capacitor." },
   // Optics and modern physics
-  { id: "concave-mirror", archetype: "spherical_mirror", tier: "exact_verified", question: "An object is placed 30 cm from a concave mirror of focal length 10 cm. Draw the ray diagram and find the position and nature of the image." },
-  { id: "convex-lens", archetype: "thin_lens", tier: "exact_verified", question: "An object is placed 20 cm in front of a convex lens of focal length 15 cm. Draw the ray diagram and find the image distance and magnification.", operators: ["lens_section"] },
+  { id: "concave-mirror", group: "mirror-ray", archetype: "spherical_mirror", tier: "exact_verified", question: "An object is placed 30 cm from a concave mirror of focal length 10 cm. Draw the ray diagram and find the position and nature of the image." },
+  // The distances a stem states have to reach the generator, or it falls back
+  // to stock ones and draws a different optical case than the one asked about
+  // — a magnified image where the answer is a diminished one. The tier floor is
+  // what catches that: an ungrounded slot cannot compile above qualitative.
+  // These three phrasings all used to miss, and the first two are the app's own
+  // landing suggestions.
+  { id: "concave-mirror-symbolic-f", group: "mirror-ray", archetype: "spherical_mirror", tier: "exact_verified", quantities: { u: 20, f: 15 }, question: "Concave mirror, f = 15 cm, object at 20 cm. Locate the image and draw the ray diagram." },
+  { id: "concave-mirror-object-is-at", group: "mirror-ray", archetype: "spherical_mirror", tier: "exact_verified", quantities: { u: 18, f: 12 }, question: "A concave mirror has focal length 12 cm and the object is at 18 cm. Draw the ray diagram." },
+  // A stem in metres grounds just as cleanly as one in centimetres, so only a
+  // value check can tell that the unit was honoured rather than dropped.
+  { id: "concave-mirror-metres", group: "mirror-ray", archetype: "spherical_mirror", tier: "exact_verified", quantities: { u: 20, f: 10 }, question: "An object is placed 0.2 m from a concave mirror of focal length 10 cm. Draw the ray diagram." },
+  { id: "concave-mirror-radius", group: "mirror-ray", archetype: "spherical_mirror", tier: "exact_verified", quantities: { u: 30, f: 20 }, question: "A concave mirror with R = 40 cm has an object at 30 cm. Draw the ray diagram." },
+  { id: "convex-lens", group: "lens-ray", archetype: "thin_lens", tier: "exact_verified", question: "An object is placed 20 cm in front of a convex lens of focal length 15 cm. Draw the ray diagram and find the image distance and magnification.", operators: ["lens_section"] },
+  { id: "convex-lens-placed-away", group: "lens-ray", archetype: "thin_lens", tier: "exact_verified", quantities: { u: 15, f: 10 }, question: "A convex lens of focal length 10 cm forms an image of an object placed 15 cm away. Draw the ray diagram.", operators: ["lens_section"] },
+  { id: "convex-lens-millimetres", group: "lens-ray", archetype: "thin_lens", tier: "exact_verified", quantities: { u: 30, f: 10 }, question: "An object is placed 300 mm from a convex lens of focal length 10 cm. Draw the ray diagram.", operators: ["lens_section"] },
   { id: "concave-lens", archetype: "thin_lens", tier: "exact_verified", question: "An object is placed 20 cm in front of a concave lens of focal length 15 cm. Draw the ray diagram and find the image distance.", operators: ["lens_section"] },
   { id: "lens-maker-topic", group: "lens-maker", archetype: "lens_maker", tier: "qualitative_verified", question: "Draw a labelled diagram for Lens maker's formula. Show the principal axis and the named rays.", operators: ["spherical_surface"] },
   { id: "lens-maker-setup", group: "lens-maker", archetype: "lens_maker", tier: "qualitative_verified", question: "Draw the standard setup for Lens maker's formula and label the named quantities.", operators: ["spherical_surface"] },

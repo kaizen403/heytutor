@@ -36,6 +36,20 @@ export interface SolverAuthorityAudit {
  * Authority is established only through explicit result bindings; request ids,
  * labels, and natural-language similarity are never used as joins.
  */
+/**
+ * Validator codes that mean the inputs state numbers which disagree with each
+ * other, rather than merely failing to parse. These stop a lesson; everything
+ * else only withdraws the second opinion.
+ */
+const NUMERIC_CONTRADICTION_CODES = new Set<string>([
+  "source_text_value_mismatch",
+  "source_text_arithmetic_conflict",
+  "sign_mismatch",
+  "claim_quantity_mismatch",
+  "scene_quantity_mismatch",
+  "scene_unit_mismatch",
+]);
+
 export function verifyTurnPlanAgainstSolver(
   problem: unknown,
   result: unknown,
@@ -45,22 +59,37 @@ export function verifyTurnPlanAgainstSolver(
   const problemValidation = validateProblemIR(problem, expectedQuestion);
   const planValidation = validateTurnPlanV3(plan, expectedQuestion);
   if (!problemValidation.problem || !planValidation.plan) {
+    const inputIssues = [...problemValidation.issues, ...planValidation.issues];
+    const message = inputIssues.map((issue) => `${issue.path}: ${issue.message}`).join("; ");
+    // Two very different failures used to share one verdict.
+    //
+    // A plan whose own numbers disagree — a derived value contradicting the
+    // arithmetic in its own sourceText — is a real contradiction and must stop
+    // the lesson; teaching a wrong scalar is the one thing this pipeline exists
+    // to prevent.
+    //
+    // A formulation that merely failed to parse is an ABSENT second opinion,
+    // not a conflicting one. Reporting that as a disagreement cost whole
+    // lessons: one live turn was rejected over ten `ungrounded_fact` issues
+    // whose quotes all appeared in the question verbatim, at sloppy offsets.
+    const contradicted = inputIssues.some((issue) =>
+      NUMERIC_CONTRADICTION_CODES.has(issue.code),
+    );
     return {
-      status: "contradiction",
+      status: contradicted ? "contradiction" : "incomplete",
       issues: [{
-        code: "invalid_authority_input",
-        message: [
-          ...problemValidation.issues.map((issue) => `${issue.path}: ${issue.message}`),
-          ...planValidation.issues.map((issue) => `${issue.path}: ${issue.message}`),
-        ].join("; "),
+        code: contradicted ? "authority_input_contradiction" : "invalid_authority_input",
+        message,
       }],
       bindings: [],
     };
   }
   const solverValidation = validateSolverResult(result, problemValidation.problem);
   if (!solverValidation.result || solverValidation.result.status !== "solved") {
+    // A missing or partial solver result is an absent second opinion, not a
+    // conflicting one. Nothing has been contradicted.
     return {
-      status: "contradiction",
+      status: "incomplete",
       issues: [{ code: "invalid_solver_result", message: "solver result is not a complete validated solution" }],
       bindings: [],
     };
