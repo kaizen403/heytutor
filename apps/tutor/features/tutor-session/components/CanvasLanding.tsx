@@ -2,7 +2,9 @@
 
 import { Brand } from "@/components/brand/Brand";
 import { LANDING_PROMPT } from "@/lib/site";
+import type { SubjectFamiliarity } from "@heytutor/tutor-core";
 import { InputBar } from "@/features/tutor-session/components/InputBar";
+import { LandingDoodles } from "@/features/tutor-session/components/LandingDoodles";
 
 export interface CanvasLandingSuggestion {
   question: string;
@@ -13,12 +15,17 @@ export interface CanvasLandingProps {
   suggestions: CanvasLandingSuggestion[];
   onSubmit: (question: string) => void;
   onOpenSettings?: () => void;
+  /** How well the student knows this topic; chosen per question in the bar. */
+  familiarity?: SubjectFamiliarity;
+  onFamiliarityChange?: (level: SubjectFamiliarity) => void;
 }
 
 export function CanvasLanding({
   suggestions,
   onSubmit,
   onOpenSettings,
+  familiarity,
+  onFamiliarityChange,
 }: CanvasLandingProps) {
   return (
     <section className="ac-landing animate-wb-fade-in">
@@ -36,6 +43,8 @@ export function CanvasLanding({
           prominent
           placeholder="Ask a question or paste a photo"
           onOpenSettings={onOpenSettings}
+          familiarity={familiarity}
+          onFamiliarityChange={onFamiliarityChange}
         />
       </div>
 
@@ -87,6 +96,7 @@ export function CanvasLandingDoodles() {
         <span className="ac-landing__formula ac-landing__formula--2">∫(x²) dx</span>
         <span className="ac-landing__formula ac-landing__formula--3">a² + b² = c²</span>
       </div>
+      <LandingDoodles />
     </>
   );
 }
@@ -121,24 +131,55 @@ function BooksDoodle() {
 
 const STYLES = `
 .ac-landing {
-  --ink: #F2F2F4;
-  --ink-soft: #A6A6AE;
-  --ink-faint: #717177;
-  --line: rgba(240, 246, 252, 0.1);
-  --paper: #151517;
-  --accent: #C9C9D2;
-  --cta: #6E6E76;
+  /* Night Blueprint, by way of the global tokens in app/globals.css. */
+  --ink: var(--frost);
+  --ink-soft: var(--text-soft);
+  --ink-faint: var(--text-faint);
+  --line: var(--stroke);
+  --paper: var(--ink-850);
+  --accent: var(--sky-500);
+  --cta: var(--sky-600);
 
   width: 100%;
   max-width: 40rem;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0.7rem;
 }
 
+/*
+  The composer reaches past the column when it is being used, so a long
+  question has somewhere to go. Negative inline margins rather than a width
+  change: the element stays in normal flow, so nothing below it reflows and
+  only this row moves.
+
+  Off below the md breakpoint, where the column is already the full width of
+  the screen and there is no margin to grow into.
+*/
 .ac-landing__ask {
   margin-top: 0.15rem;
+  margin-inline: 0;
+  transition: margin-inline 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 768px) {
+  .ac-landing__ask:hover,
+  .ac-landing__ask:focus-within {
+    margin-inline: -3rem;
+  }
+
+  /* A stacked paste grows the box downward. Keep the column width. */
+  .ac-landing__ask:has(.wb-input-wrap--multiline):hover,
+  .ac-landing__ask:has(.wb-input-wrap--multiline):focus-within {
+    margin-inline: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ac-landing__ask {
+    transition: none;
+  }
 }
 
 .ac-landing__hero {
@@ -149,29 +190,38 @@ const STYLES = `
 }
 
 .ac-landing__brand {
-  margin: 0 0 0.85rem;
+  margin: 0 0 0.45rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .ac-landing__prompt {
-  margin: 0.7rem 0 0;
-  font-family: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
-  font-size: clamp(1.625rem, 4.2vw, 2.375rem);
+  margin: 0.4rem 0 0;
+  font-family: "Stack Sans Notch", ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(1.5rem, 3.8vw, 2.125rem);
   font-weight: 500;
-  letter-spacing: -0.035em;
-  line-height: 1.2;
-  color: var(--ink);
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  /* The landing's ice gradient: frost falling into the sky accent. */
+  background: linear-gradient(102deg, #f0f5f7 0%, #cce6f1 38%, #7fc4e2 68%, #59afd4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
+/*
+  The tutor talking, not a system label — so it is set in the same hand as the
+  formulas doodled beside the column, rather than the mono label face the rest
+  of the chrome uses. Caveat runs small for its point size, hence the step up.
+*/
 .ac-landing__suggestions-label {
-  margin: 0 0 0.85rem;
-  font-family: var(--font-caveat), "Apple Chancery", "Segoe Script", cursive;
-  font-size: 1.375rem;
+  margin: 0 0 0.65rem;
+  font-family: var(--font-hand);
+  font-size: 1.3125rem;
   font-weight: 500;
   letter-spacing: 0.01em;
-  line-height: 1;
+  line-height: 1.1;
   color: var(--ink-soft);
   text-align: center;
 }
@@ -183,11 +233,10 @@ const STYLES = `
   display: flex;
   flex-direction: column;
   /*
-    The cards are a stack, so they share one column and one left edge. The gap
-    leaves exactly the base lip of the card above showing, which is what makes
-    the run read as four slabs racked up rather than four loose boxes.
+    One stacked column. A second column clips on the empty-board panel — the
+    cards share one left edge and stay fully readable.
   */
-  gap: 0.7rem;
+  gap: 0.55rem;
 }
 
 .ac-landing__question-item {
@@ -201,13 +250,13 @@ const STYLES = `
   the stack never reflows.
 */
 .ac-landing__question {
-  --card-lift: 6px;
+  --card-lift: 5px;
   --card-press: 0px;
   --card-radius: 1rem;
-  --card-cap: linear-gradient(180deg, #1C1C20 0%, #151517 100%);
-  --card-cap-hi: linear-gradient(180deg, #26262B 0%, #1C1C20 100%);
-  --card-base: #08080A;
-  --card-line: rgba(240, 246, 252, 0.1);
+  --card-cap: linear-gradient(180deg, var(--ink-800) 0%, var(--ink-850) 100%);
+  --card-cap-hi: linear-gradient(180deg, var(--ink-700) 0%, var(--ink-800) 100%);
+  --card-base: var(--ink-950);
+  --card-line: var(--stroke);
 
   position: relative;
   isolation: isolate;
@@ -219,10 +268,10 @@ const STYLES = `
   gap: 0.5rem 0.875rem;
   align-items: center;
 
-  padding-left: 1.375rem;
-  padding-right: 1.25rem;
-  padding-top: calc(1.05rem + var(--card-press));
-  padding-bottom: calc(1.05rem + var(--card-lift) - var(--card-press));
+  padding-left: 1.2rem;
+  padding-right: 1.1rem;
+  padding-top: calc(0.7rem + var(--card-press));
+  padding-bottom: calc(0.7rem + var(--card-lift) - var(--card-press));
 
   border: 1px solid var(--card-line);
   border-radius: var(--card-radius);
@@ -248,7 +297,7 @@ const STYLES = `
   background: var(--card-cap);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 1px 2px rgba(0, 0, 0, 0.4);
+    0 1px 2px rgba(3, 11, 18, 0.4);
   transform: translateY(var(--card-press));
   transition:
     transform 260ms cubic-bezier(0.2, 0.9, 0.25, 1),
@@ -266,10 +315,10 @@ const STYLES = `
 .ac-landing__question:hover::before,
 .ac-landing__question:focus-visible::before {
   background: var(--card-cap-hi);
-  border-color: rgba(201, 201, 210, 0.35);
+  border-color: var(--stroke-strong);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 8px 18px -8px rgba(0, 0, 0, 0.75);
+    0 8px 18px -8px rgba(3, 11, 18, 0.75);
 }
 
 /* Pressing lands the cap flat on its base. */
@@ -288,20 +337,18 @@ const STYLES = `
   justify-self: start;
   display: inline-flex;
   align-items: center;
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   line-height: 1;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--ink-faint);
   transition: color 260ms ease;
 }
 
 .ac-landing__question-text {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 450;
-  line-height: 1.45;
+  line-height: 1.4;
   letter-spacing: -0.01em;
   color: var(--ink);
 }
