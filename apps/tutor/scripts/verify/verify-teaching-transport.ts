@@ -1,6 +1,11 @@
 import {
+  CODE_LESSON_TEACHING_MAX_TOKENS,
+  DEFAULT_TEACHING_FAST_MODEL,
+  DEFAULT_TEACHING_MAX_TOKENS,
   DEFAULT_TEACHING_MODEL,
+  TEACHING_TOKEN_CEILING,
   fetchTeachingCompletion,
+  resolveTeachingContentBudget,
   resolveTeachingModel,
   resolveTeachingReasoningEffort,
 } from "../../lib/llm/teachingTransport";
@@ -11,25 +16,59 @@ function assert(condition: unknown, message: string): asserts condition {
 
 assert(
   resolveTeachingModel({}) === DEFAULT_TEACHING_MODEL,
-  "teaching should default to standard DeepSeek V4 Flash",
+  "teaching should default to GLM 5.3 Flash",
 );
 assert(
-  resolveTeachingModel({ FIREWORKS_MODEL: "only-this-model" }) === "only-this-model",
-  "FIREWORKS_MODEL must be the only teaching model",
+  DEFAULT_TEACHING_MODEL === "accounts/fireworks/models/glm-5p3-flash",
+  "the spoken teaching default must stay on GLM 5.3 Flash",
+);
+assert(
+  resolveTeachingModel({ FIREWORKS_MODEL: "planner-only-model" }) ===
+    DEFAULT_TEACHING_MODEL,
+  "FIREWORKS_MODEL must not steal the teaching lane",
+);
+assert(
+  resolveTeachingModel({ FIREWORKS_TEACHING_MODEL: "only-this-model" }) ===
+    "only-this-model",
+  "FIREWORKS_TEACHING_MODEL must be the only teaching override",
+);
+assert(
+  resolveTeachingModel({}, { fastMode: true }) === DEFAULT_TEACHING_FAST_MODEL,
+  "fast mode teaching must default to GLM 5.3 Fast",
+);
+assert(
+  DEFAULT_TEACHING_FAST_MODEL === "accounts/fireworks/routers/glm-5p3-fast",
+  "the teaching Fast SKU must stay on GLM 5.3 Fast",
 );
 assert(
   resolveTeachingModel(
-    { FIREWORKS_MODEL: "standard-model", FIREWORKS_FAST_MODEL: "fast-model" },
+    {
+      FIREWORKS_TEACHING_MODEL: "standard-model",
+      FIREWORKS_FAST_MODEL: "planner-fast-model",
+    },
     { fastMode: true },
-  ) === "fast-model",
-  "fast mode teaching must use FIREWORKS_FAST_MODEL when set",
+  ) === DEFAULT_TEACHING_FAST_MODEL,
+  "planner Fast ENV must not steal the teaching lane",
 );
 assert(
   resolveTeachingModel(
-    { FIREWORKS_MODEL: "standard-model", FIREWORKS_FAST_MODEL: "fast-model" },
+    {
+      FIREWORKS_TEACHING_MODEL: "standard-model",
+      FIREWORKS_TEACHING_FAST_MODEL: "teaching-fast-model",
+    },
+    { fastMode: true },
+  ) === "teaching-fast-model",
+  "fast mode teaching must use FIREWORKS_TEACHING_FAST_MODEL when set",
+);
+assert(
+  resolveTeachingModel(
+    {
+      FIREWORKS_TEACHING_MODEL: "standard-model",
+      FIREWORKS_TEACHING_FAST_MODEL: "teaching-fast-model",
+    },
     { fastMode: false },
   ) === "standard-model",
-  "turning fast mode off must keep teaching on FIREWORKS_MODEL",
+  "turning fast mode off must keep teaching on FIREWORKS_TEACHING_MODEL",
 );
 assert(
   resolveTeachingReasoningEffort({
@@ -54,6 +93,31 @@ assert(
     mode: "auto",
   }) === "none",
   "a polite explain-the-basics request must start speaking without a solve budget",
+);
+assert(
+  resolveTeachingContentBudget() === DEFAULT_TEACHING_MAX_TOKENS,
+  "ordinary teaching must keep the 3600 default",
+);
+assert(
+  resolveTeachingContentBudget({ env: { FIREWORKS_MAX_TOKENS: "3600" } }) ===
+    DEFAULT_TEACHING_MAX_TOKENS,
+  "FIREWORKS_MAX_TOKENS=3600 must not raise the ordinary ceiling",
+);
+assert(
+  resolveTeachingContentBudget({ env: { FIREWORKS_MAX_TOKENS: "9000" } }) ===
+    TEACHING_TOKEN_CEILING,
+  "ordinary teaching must stay under the 6000 ceiling",
+);
+assert(
+  resolveTeachingContentBudget({
+    codeLesson: true,
+    env: { FIREWORKS_MAX_TOKENS: "3600" },
+  }) === CODE_LESSON_TEACHING_MAX_TOKENS,
+  "a code lesson must not inherit the 3600 FIREWORKS_MAX_TOKENS cap",
+);
+assert(
+  resolveTeachingContentBudget({ codeLesson: true }) === CODE_LESSON_TEACHING_MAX_TOKENS,
+  "a code lesson must get the 12k teaching budget",
 );
 
 async function verifyTimeout(): Promise<void> {

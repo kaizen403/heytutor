@@ -2,7 +2,7 @@ import {
   parseExtractedQuestion,
   readExtractedContent,
 } from "../../lib/llm/extractQuestion";
-import { pickClipboardImage } from "../../features/tutor-session/lib/questionImageInput";
+import { pickClipboardImage } from "../../features/tutor-session/lib/input/questionImageInput";
 import {
   DEFAULT_FIREWORKS_MODEL,
   DEFAULT_FIREWORKS_VISION_MODEL,

@@ -1,3 +1,4 @@
+import { DEFAULT_FIREWORKS_FAST_MODEL } from "../../lib/llm/fireworksModels";
 import {
   fetchPlannerCompletion,
   resolvePlannerMaxTokens,
@@ -16,8 +17,8 @@ async function main(): Promise<void> {
     env: {},
   });
   assert(
-    defaultSceneModels[0] === "accounts/fireworks/models/deepseek-v4-flash-0731",
-    "the default ENV model must be DeepSeek V4 Flash",
+    defaultSceneModels[0] === "accounts/fireworks/models/kimi-k3",
+    "the default ENV model must be Kimi K3",
   );
 
   const envOnly = resolvePlannerModels({
@@ -49,7 +50,7 @@ async function main(): Promise<void> {
     env: {},
   });
   assert(
-    problemIRModels[0] === "accounts/fireworks/models/deepseek-v4-flash-0731",
+    problemIRModels[0] === "accounts/fireworks/models/kimi-k3",
     "ProblemIR must use the same ENV model",
   );
   assert(
@@ -73,6 +74,16 @@ async function main(): Promise<void> {
   assert(
     JSON.stringify(configuredModel) === JSON.stringify(["only-this-model"]),
     "lane-specific ENV must not override FIREWORKS_MODEL",
+  );
+  const teachingEnvMustNotLeak = resolvePlannerModels({
+    semanticSceneV2: true,
+    turnPlanV3: false,
+    plannerPhase: "plan",
+    env: { FIREWORKS_TEACHING_MODEL: "teaching-only-model" },
+  });
+  assert(
+    teachingEnvMustNotLeak[0] === "accounts/fireworks/models/kimi-k3",
+    "FIREWORKS_TEACHING_MODEL must not leak into planners",
   );
   assert(
     resolvePlannerMaxTokens({
@@ -105,6 +116,21 @@ async function main(): Promise<void> {
     "alternate scene token configuration must remain bounded",
   );
 
+  const defaultFastModels = resolvePlannerModels({
+    semanticSceneV2: true,
+    turnPlanV3: false,
+    plannerPhase: "plan",
+    fastMode: true,
+    env: {},
+  });
+  assert(
+    JSON.stringify(defaultFastModels) === JSON.stringify([DEFAULT_FIREWORKS_FAST_MODEL]),
+    "fast mode must default to Kimi K3 Fast",
+  );
+  assert(
+    DEFAULT_FIREWORKS_FAST_MODEL === "accounts/fireworks/routers/kimi-k3-fast",
+    "the planner Fast SKU must stay on Kimi K3 Fast",
+  );
   const fastModels = resolvePlannerModels({
     semanticSceneV2: true,
     turnPlanV3: false,

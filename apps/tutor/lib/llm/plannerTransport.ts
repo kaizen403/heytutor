@@ -9,6 +9,7 @@ const DEFAULT_TURN_PLAN_MAX_TOKENS = 2800;
 const DEFAULT_PROBLEM_IR_MAX_TOKENS = 3600;
 const DEFAULT_SCENE_PLANNER_MAX_TOKENS = 4800;
 const DEFAULT_ALTERNATE_SCENE_MAX_TOKENS = 5200;
+const DEFAULT_CODE_LESSON_MAX_TOKENS = 4200;
 
 type PlannerPhase = "plan" | "repair";
 type PlannerLane = "primary" | "alternate";
@@ -17,6 +18,7 @@ export interface PlannerModelOptions {
   semanticSceneV2: boolean;
   turnPlanV3: boolean;
   problemIRV1?: boolean;
+  codeLessonV1?: boolean;
   plannerPhase: PlannerPhase;
   plannerLane?: PlannerLane;
   fastMode?: boolean;
@@ -55,6 +57,15 @@ export interface PlannerTransportResult {
 
 export function resolvePlannerMaxTokens(options: PlannerModelOptions): number {
   const env = options.env ?? process.env;
+  if (options.codeLessonV1) {
+    const parsed = Number.parseInt(
+      env.FIREWORKS_CODE_LESSON_MAX_TOKENS ?? `${DEFAULT_CODE_LESSON_MAX_TOKENS}`,
+      10,
+    );
+    return Number.isFinite(parsed)
+      ? Math.min(Math.max(parsed, 2400), 6000)
+      : DEFAULT_CODE_LESSON_MAX_TOKENS;
+  }
   if (options.problemIRV1) {
     const parsed = Number.parseInt(
       env.FIREWORKS_PROBLEM_IR_MAX_TOKENS ?? `${DEFAULT_PROBLEM_IR_MAX_TOKENS}`,

@@ -9,12 +9,12 @@ import { resolve } from "node:path";
 import {
   DEFAULT_ACCENT,
   DEFAULT_AUDIO_LANGUAGE,
-  DEFAULT_LESSON_DEPTH,
+  DEFAULT_FAMILIARITY,
   DEFAULT_VOICE_KEY,
-  isLessonDepth,
+  isSubjectFamiliarity,
   isTutorAccent,
   isTutorAudioLanguage,
-  LESSON_DEPTH_ADDONS,
+  FAMILIARITY_ADDONS,
   normalizeVoiceKey,
   toVoiceKey,
   TTS_LANG_HEADER,
@@ -58,24 +58,30 @@ assert(normalizeVoiceKey("hi-IN") === "hi-IN", "a valid voice key was rewritten"
 // --- settings type guards reject junk from localStorage --------------------
 assert(isTutorAudioLanguage("hindi") && !isTutorAudioLanguage("marathi"), "language guard is wrong");
 assert(isTutorAccent("uk") && !isTutorAccent("aus"), "accent guard is wrong");
-assert(isLessonDepth("thorough") && !isLessonDepth("epic"), "lesson depth guard is wrong");
+assert(isSubjectFamiliarity("new") && !isSubjectFamiliarity("epic"), "familiarity guard is wrong");
 
-// --- lesson depth actually changes the teaching prompt ---------------------
-assert(DEFAULT_LESSON_DEPTH === "standard", "default lesson depth changed");
-assert(LESSON_DEPTH_ADDONS.standard === "", "standard depth must add no prompt text");
-for (const depth of ["concise", "thorough"] as const) {
-  const addon = LESSON_DEPTH_ADDONS[depth];
-  assert(addon.length > 0, `${depth} depth has no prompt addon`);
+// --- familiarity actually changes the teaching prompt ----------------------
+assert(DEFAULT_FAMILIARITY === "normal", "default familiarity changed");
+assert(FAMILIARITY_ADDONS.normal === "", "the middle familiarity must add no prompt text");
+for (const familiarity of ["revision", "new"] as const) {
+  const addon = FAMILIARITY_ADDONS[familiarity];
+  assert(addon.length > 0, `${familiarity} has no prompt addon`);
+  // The count itself belongs to the LESSON LENGTH block (lessonScope.ts), which
+  // already folds this setting in. A second number here would argue with it.
   assert(
-    /overrides any earlier step count/i.test(addon),
-    `${depth} depth does not override the earlier step budget, so fast mode would win`,
+    /LESSON LENGTH block/.test(addon),
+    `${familiarity} must defer the step count to the lesson budget`,
+  );
+  assert(
+    !/\d+\s*-\s*\d+\s+steps/i.test(addon),
+    `${familiarity} hard-codes a step range instead of using the lesson budget`,
   );
 }
 // The ladder from the teaching prompt must survive the shortest setting.
 assert(
-  /symbols mean/i.test(LESSON_DEPTH_ADDONS.concise) &&
-    /substitution/i.test(LESSON_DEPTH_ADDONS.concise),
-  "concise depth drops the meaning/substitution rungs instead of only trimming rows",
+  /every line of algebra/i.test(FAMILIARITY_ADDONS.revision) &&
+    /substitution/i.test(FAMILIARITY_ADDONS.revision),
+  "Revision drops the derivation instead of only trimming beginner scaffolding",
 );
 
 // --- wire constants are stable --------------------------------------------
