@@ -12,21 +12,48 @@ export type InstrumentKind = "pen" | "pencil" | "highlighter" | "duster";
 
 /** What the hand is doing right now — picks both the instrument and the tilt. */
 export type PenActivity =
+  /** Words: headings, work rows, results, names on the figure. */
   | "write"
+  /** The figure itself — the mirror, the circuit, the triangle. */
   | "draw"
+  /** Scaffolding around the figure: guides, ticks, hatching, dropped lines. */
+  | "sketch"
+  /** A gesture over ink that is already there. */
   | "annotate"
   | "highlight"
   | "erase"
   | "idle";
 
 /**
- * Writing is inked, construction geometry is sketched, emphasis is a chisel
- * highlighter. Erasing is the duster the board already renders.
+ * Which instrument the hand reaches for, and why.
+ *
+ * The rule is what the mark *commits to*, not where it lands:
+ *
+ *   pen         everything the student is meant to copy down — every word, the
+ *               working, the result, the names on the figure, and the figure's
+ *               own geometry. This is the default; a gesture over existing ink
+ *               (`annotate`) is made with whatever is already in hand, so a
+ *               circle or an arrow never interrupts a reveal to fetch a tool.
+ *   pencil      construction only: the light scaffolding a teacher draws to get
+ *               the figure right and would rub out afterwards — guides, equal
+ *               ticks, hatching, dropped and extended lines, ghosts, the slope
+ *               triangle. It is a different kind of statement, so it deserves a
+ *               different mark, and its lead reads lighter than ink.
+ *   highlighter emphasis laid over finished work.
+ *   duster      erasing.
+ *
+ * An earlier version drew *all* diagram geometry with the pencil and swapped
+ * back to the pen for every written line. A lesson that alternates writing and
+ * drawing then spends its time swapping, and the two instruments moving in turn
+ * read as two cursors. Splitting on construction instead of on geometry keeps
+ * the swap where it means something: the compiler emits construction ink in the
+ * detail phase of a reveal, after the structure it hangs off, so a figure picks
+ * the pencil up once and puts it down once.
  */
 export function instrumentForActivity(activity: PenActivity): InstrumentKind {
-  if (activity === "draw") return "pencil";
   if (activity === "highlight") return "highlighter";
   if (activity === "erase") return "duster";
+  if (activity === "sketch") return "pencil";
   return "pen";
 }
 
@@ -259,7 +286,10 @@ export type InstrumentShape =
     })
   | (ShapeBase & { kind: "circle"; x: number; y: number; radius: number });
 
-/** Slim rollerball: steel cone, rubber grip in the ink colour, graphite barrel. */
+/**
+ * Retractable clicker: steel cone, rubber grip in the ink colour, graphite
+ * barrel, sprung clip, and a plunger you could actually press.
+ */
 const PEN_SHAPES: InstrumentShape[] = [
   // Nib — the ink colour shows at the point that touches the board.
   { kind: "poly", points: [0, 0, -1.35, -5.2, 1.35, -5.2], fill: "nib", stroke: "nibShade", strokeWidth: 0.32 },
@@ -280,11 +310,18 @@ const PEN_SHAPES: InstrumentShape[] = [
   { kind: "rect", x: -3.5, y: -37.6, width: 7, height: 14.5, radius: 1.5, fill: "barrel", stroke: "outline", strokeWidth: 0.45, shadow: true },
   { kind: "rect", x: -2.6, y: -36.7, width: 1.5, height: 12.7, radius: 0.7, fill: "barrelLight", opacity: 0.5 },
   { kind: "rect", x: 1.4, y: -36.7, width: 1.7, height: 12.7, radius: 0.7, fill: "barrelShade", opacity: 0.55 },
-  // Pocket clip.
-  { kind: "rect", x: 2.9, y: -36.4, width: 1.5, height: 9.2, radius: 0.7, fill: "ferrule", stroke: "ferruleShade", strokeWidth: 0.27 },
-  // Crown with an ink-colour dot, the way a pen tells you what it writes in.
-  { kind: "rect", x: -3.5, y: -41, width: 7, height: 4, radius: 1.8, fill: "cap", stroke: "outline", strokeWidth: 0.45 },
-  { kind: "circle", x: 0, y: -39.2, radius: 1.1, fill: "accent" },
+  // Pocket clip, sprung off the end cap the way a clicker's is.
+  { kind: "rect", x: 2.9, y: -37.4, width: 1.5, height: 10.2, radius: 0.7, fill: "ferrule", stroke: "ferruleShade", strokeWidth: 0.27 },
+  { kind: "rect", x: 2.75, y: -38.6, width: 1.8, height: 1.6, radius: 0.7, fill: "ferruleShade" },
+  // End cap: the stepped shoulder the plunger sits in.
+  { kind: "rect", x: -3.5, y: -40.6, width: 7, height: 3.4, radius: 1.2, fill: "cap", stroke: "outline", strokeWidth: 0.45 },
+  { kind: "rect", x: -2.7, y: -40, width: 1.4, height: 2.4, radius: 0.6, fill: "barrelLight", opacity: 0.4 },
+  // The plunger — the shaft it rides on, then the button you press.
+  { kind: "rect", x: -1.85, y: -43.4, width: 3.7, height: 3.2, radius: 0.5, fill: "ferrule", stroke: "ferruleShade", strokeWidth: 0.3 },
+  { kind: "rect", x: -1.45, y: -43, width: 0.9, height: 2.4, radius: 0.4, fill: "collarLight", opacity: 0.6 },
+  // Ink-coloured button, the way a clicker tells you what it writes in.
+  { kind: "rect", x: -2.35, y: -45, width: 4.7, height: 2, radius: 0.9, fill: "accent", stroke: "accentShade", strokeWidth: 0.35 },
+  { kind: "rect", x: -1.7, y: -44.6, width: 1.6, height: 0.8, radius: 0.4, fill: "accentLight", opacity: 0.6 },
 ];
 
 /** Hex HB: sharpened wood cone, faceted barrel, brass ferrule, eraser. */
@@ -354,8 +391,10 @@ export function instrumentShapes(kind: InstrumentKind): readonly InstrumentShape
  */
 const SILHOUETTES: Record<InstrumentKind, number[]> = {
   pen: [
-    0, 0, -1.35, -5.2, -3, -11, -3.3, -21.5, -3.6, -23.3, -3.5, -37.6, -3.5, -41,
-    3.5, -41, 3.5, -37.6, 3.6, -23.3, 3.3, -21.5, 3, -11, 1.35, -5.2,
+    0, 0, -1.35, -5.2, -3, -11, -3.3, -21.5, -3.6, -23.3, -3.5, -37.6,
+    -3.5, -40.6, -1.85, -40.6, -1.85, -43.4, -2.35, -43.4, -2.35, -45,
+    2.35, -45, 2.35, -43.4, 1.85, -43.4, 1.85, -40.6, 3.5, -40.6,
+    3.5, -37.6, 3.6, -23.3, 3.3, -21.5, 3, -11, 1.35, -5.2,
   ],
   pencil: [
     0, 0, -1.9, -5.4, -3.9, -13.6, -3.9, -37, -4.05, -42.6, -3.6, -46.6,
@@ -380,7 +419,7 @@ export interface InstrumentMetrics {
 }
 
 const METRICS: Record<InstrumentKind, InstrumentMetrics> = {
-  pen: { height: 41, pivotY: -21 },
+  pen: { height: 45, pivotY: -22.5 },
   pencil: { height: 46.5, pivotY: -23 },
   highlighter: { height: 38.4, pivotY: -20 },
   duster: { height: 14, pivotY: -7 },

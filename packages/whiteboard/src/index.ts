@@ -1,5 +1,6 @@
 export {
   Whiteboard,
+  LETTERED_IN_HAND_MS_PER_CHAR,
   type WhiteboardHandle,
   type WhiteboardProps,
   type WriteSchedule,
@@ -7,9 +8,19 @@ export {
   type AnnotationOptions,
   type ShapeDrawOptions,
 } from "./Whiteboard";
+export {
+  createVirtualWhiteboardClock,
+  DEFAULT_WHITEBOARD_TIME_SOURCE,
+  shouldHideCursorForCapture,
+  type BoardCaptureKind,
+  type CaptureFrameOptions,
+  type VirtualWhiteboardClock,
+  type WhiteboardTimeSource,
+} from "./whiteboardClock";
 export { cursorOpacity, type CursorState } from "./cursorState";
 export {
   INSTANT_LABEL_MS_PER_CHAR,
+  advanceSpeedAwareProgress,
   writeUsesStrokePenMotion,
 } from "./penMotion";
 export { DrawTransactionRegistry, type DrawTransactionNode } from "./drawTransactionRegistry";
