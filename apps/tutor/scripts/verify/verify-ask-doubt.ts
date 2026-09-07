@@ -10,7 +10,7 @@ import {
   isRuntimeReadyForDoubt,
   DOUBT_INTERRUPT_HINT,
   DOUBT_PLACEHOLDER,
-} from "../../features/tutor-session/lib/askDoubt";
+} from "../../features/tutor-session/lib/input/askDoubt";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -186,7 +186,17 @@ assert(
   turnControl.includes("autoQuestionSubmissionKey(sessionId"),
   "auto-submit must key on the board it is submitting for",
 );
-const handleAskDoubt = turnControl.slice(turnControl.indexOf("const handleAskDoubt"));
+// Check the anchor before slicing from it. `indexOf` returns -1 when the
+// declaration is renamed, `slice(-1)` then hands back the file's last
+// character, and all four assertions below fail describing doubt plumbing that
+// is working perfectly. A stale anchor must report itself as a stale anchor.
+const HANDLE_ASK_DOUBT_ANCHOR = "const handleAskDoubt";
+const handleAskDoubtAt = turnControl.indexOf(HANDLE_ASK_DOUBT_ANCHOR);
+assert(
+  handleAskDoubtAt >= 0,
+  `this gate reads useTurnControl.ts by slicing from "${HANDLE_ASK_DOUBT_ANCHOR}", which is gone — repoint it at whatever now owns the doubt handler, do not relax the assertions below`,
+);
+const handleAskDoubt = turnControl.slice(handleAskDoubtAt);
 assert(
   handleAskDoubt.includes("stopTurn()"),
   "a mid-lesson doubt must stop the running turn",

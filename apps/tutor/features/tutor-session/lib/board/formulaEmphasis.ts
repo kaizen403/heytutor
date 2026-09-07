@@ -1,5 +1,5 @@
 import { measureTextWidth } from "@heytutor/drawing";
-import type { BoardTextRect } from "../types";
+import type { BoardTextRect } from "../../types";
 
 /**
  * Runtime-owned emphasis geometry for work-area formulas.

@@ -4,8 +4,8 @@ import {
   formatNotesChatTagPrompt,
   formatTaggedUserMessage,
   parseNotesChatTag,
-} from "../../features/tutor-session/lib/notesChatTag";
-import type { LessonNotesSnapshot } from "../../features/tutor-session/lib/lessonNotes";
+} from "../../features/tutor-session/lib/notes/notesChatTag";
+import type { LessonNotesSnapshot } from "../../features/tutor-session/lib/notes/lessonNotes";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

@@ -7,7 +7,7 @@ import {
   notesFromStoredTurn,
   planFactsFromSceneArtifacts,
   workLinesFromCommands,
-} from "../../features/tutor-session/lib/lessonNotes";
+} from "../../features/tutor-session/lib/notes/lessonNotes";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import type { DrawCommand, TutorSegment } from "@heytutor/drawing";
 

@@ -1,5 +1,6 @@
 import {
   compileSceneDocument,
+  detectArchetype,
   isRiverBoatStem,
   parseMathExpression,
   synthesizeFamilyScene,
@@ -36,6 +37,16 @@ export interface SelectedRepresentation {
   renderScene: RenderScene;
   validationReport: ValidationReport;
   reason: string;
+  /**
+   * What kind of picture this is, when a family or archetype built it.
+   *
+   * The tutor is handed a list of entity ids and labels and nothing else, so
+   * when the family layer picked the wrong construction the lesson simply
+   * renamed the parts: a `double_slit` figure was taught as a capillary tube
+   * ("S is the capillary tube"), and two point charges as Earth's magnetic
+   * field. The model cannot refuse a figure it has not been told the name of.
+   */
+  family?: string;
 }
 
 export interface RepresentationSelectionInput {
@@ -132,6 +143,7 @@ export function selectVerifiedRepresentation(
       renderScene: synthesized.renderScene,
       validationReport: synthesized.validationReport,
       reason: synthesized.reason,
+      family: synthesized.family,
     };
   }
 
@@ -255,7 +267,8 @@ function isUsableExactRepresentation(
     candidate.renderScene.primitives.length === 0 ||
     usesMensurationSolidOnContactProblem(expectedQuestion, candidate.sceneDocument) ||
     usesCollidingCircuitViews(expectedQuestion, candidate.sceneDocument) ||
-    usesGenericVectorDiagramOnRiverBoat(expectedQuestion, candidate.sceneDocument)
+    usesGenericVectorDiagramOnRiverBoat(expectedQuestion, candidate.sceneDocument) ||
+    usesPlannerOpticsOnArchetypeStem(expectedQuestion, candidate.sceneDocument)
   ) {
     return false;
   }
@@ -296,6 +309,16 @@ function usesCollidingCircuitViews(
     if (!prior) seen.set(key, id);
   }
   return false;
+}
+
+function usesPlannerOpticsOnArchetypeStem(
+  question: string,
+  document: SceneDocument,
+): boolean {
+  const match = detectArchetype(question);
+  if (match?.id !== "spherical_mirror" && match?.id !== "thin_lens") return false;
+  const source = document.source as { archetype?: unknown } | undefined;
+  return source?.archetype !== match.id;
 }
 
 function usesGenericVectorDiagramOnRiverBoat(

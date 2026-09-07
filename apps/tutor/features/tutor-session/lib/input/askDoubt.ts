@@ -1,5 +1,5 @@
 import type { ConversationExchange } from "@heytutor/tutor-core";
-import type { TutorPhase } from "../types";
+import type { TutorPhase } from "../../types";
 
 /** Runtime snapshot the doubt flow reads before it interrupts a lesson. */
 export interface DoubtRuntimeState {

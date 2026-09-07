@@ -5,8 +5,8 @@ import {
   buildNotesPdfSections,
   notesPdfSectionsFromStoredTurns,
   pdfSafeText,
-} from "../../features/tutor-session/lib/notesPdf";
-import type { LessonTurnNotes } from "../../features/tutor-session/lib/lessonNotes";
+} from "../../features/tutor-session/lib/notes/notesPdf";
+import type { LessonTurnNotes } from "../../features/tutor-session/lib/notes/lessonNotes";
 import type { NotesEpoch } from "../../lib/client/exportNotesPdf";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { NOTES_PDF_FONT_FAMILY, registerNotesPdfFont } from "../../lib/client/notesPdfFont";

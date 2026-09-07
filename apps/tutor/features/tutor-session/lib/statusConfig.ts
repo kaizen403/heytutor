@@ -2,56 +2,56 @@ import type { TutorPhase, StatusDisplay } from "../types";
 
 export const STATUS_CONFIG: Record<TutorPhase, StatusDisplay> = {
   idle: {
-    color: "rgba(113, 113, 119, 0.7)",
+    color: "rgba(93, 108, 123, 0.7)",
     label: "ready",
     dotClass: "",
-    labelColor: "rgba(113, 113, 119, 0.7)",
+    labelColor: "rgba(93, 108, 123, 0.7)",
   },
   planning: {
-    color: "#C9C9D2",
+    color: "#59AFD4",
     label: "planning\u2026",
-    dotClass: "animate-wb-pulse-amber",
-    labelColor: "#C9C9D2",
+    dotClass: "animate-wb-pulse",
+    labelColor: "#59AFD4",
   },
   thinking: {
-    color: "#C9C9D2",
+    color: "#59AFD4",
     label: "thinking\u2026",
-    dotClass: "animate-wb-pulse-amber",
-    labelColor: "#C9C9D2",
+    dotClass: "animate-wb-pulse",
+    labelColor: "#59AFD4",
   },
   drawing: {
-    color: "#C9C9D2",
+    color: "#59AFD4",
     label: "teaching\u2026",
-    dotClass: "animate-wb-glow-blue",
-    labelColor: "#C9C9D2",
+    dotClass: "animate-wb-glow",
+    labelColor: "#59AFD4",
   },
   speaking: {
-    color: "#C9C9D2",
+    color: "#59AFD4",
     label: "teaching\u2026",
-    dotClass: "animate-wb-glow-blue",
-    labelColor: "#C9C9D2",
+    dotClass: "animate-wb-glow",
+    labelColor: "#59AFD4",
   },
 };
 
 export const PAUSED_STATUS: StatusDisplay = {
-  color: "#717177",
+  color: "#5D6C7B",
   label: "paused",
   dotClass: "",
-  labelColor: "#717177",
+  labelColor: "#5D6C7B",
 };
 
 export const REPLAYING_STATUS: StatusDisplay = {
-  color: "#C9C9D2",
+  color: "#59AFD4",
   label: "replaying\u2026",
-  dotClass: "animate-wb-glow-blue",
-  labelColor: "#C9C9D2",
+  dotClass: "animate-wb-glow",
+  labelColor: "#59AFD4",
 };
 
 export const REWINDING_STATUS: StatusDisplay = {
-  color: "#C9C9D2",
+  color: "#59AFD4",
   label: "reviewing\u2026",
-  dotClass: "animate-wb-glow-blue",
-  labelColor: "#C9C9D2",
+  dotClass: "animate-wb-glow",
+  labelColor: "#59AFD4",
 };
 
 export function resolveActiveStatus(

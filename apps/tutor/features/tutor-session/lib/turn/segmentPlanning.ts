@@ -5,7 +5,7 @@ import {
   type TutorSegment,
 } from "@heytutor/drawing";
 import { tutorDebug } from "@heytutor/tutor-core";
-import type { SegmentPlanStats } from "../types";
+import type { SegmentPlanStats } from "../../types";
 
 export function createEmptySegmentPlanStats(): SegmentPlanStats {
   return {

@@ -1,11 +1,11 @@
-import { measureTextWidth } from "@heytutor/drawing";
+import { measureTextWidth, WORK_CONTINUATION_INDENT } from "@heytutor/drawing";
 import {
   ANNOTATION_SNAP_DISTANCE,
   BOARD_WIDTH,
   DIAGRAM_ZONE,
   TEXT_LAYOUT,
-} from "../constants";
-import type { BoardLayoutState, BoardTextRect } from "../types";
+} from "../../constants";
+import type { BoardLayoutState, BoardTextRect } from "../../types";
 
 export function isInDiagramZone(x: number, y: number): boolean {
   return (
@@ -152,6 +152,45 @@ export interface WorkTextSlotOptions {
 }
 
 /** Pure slot selection used by live drawing and deterministic layout tests. */
+/**
+ * How wide the solution column is right now.
+ *
+ * A committed figure holds the right of the board, so the column stops short of
+ * its left edge; with no figure the column is the whole board less both
+ * margins. Exported because the row's *size* is chosen from this width before
+ * a slot is ever asked for — one steady size per column, wrapped to fit.
+ */
+export function workColumnMaxWidth(
+  layout: BoardLayoutState,
+  diagramActive: boolean,
+): number {
+  const diagramRects = diagramActive
+    ? layout.rects.filter((rect) => rect.x >= DIAGRAM_ZONE.x)
+    : [];
+  const diagramLeftEdge =
+    diagramRects.length > 0
+      ? Math.min(...diagramRects.map((rect) => rect.x))
+      : DIAGRAM_ZONE.x;
+  const columnRight = diagramActive
+    ? Math.max(TEXT_LAYOUT.marginX + 160, diagramLeftEdge - 28)
+    : BOARD_WIDTH - TEXT_LAYOUT.marginX;
+  return Math.max(columnRight - TEXT_LAYOUT.marginX, 40);
+}
+
+/**
+ * The one x offset a runtime-owned row may keep: the wrapped-continuation
+ * indent. Everything else snaps to the margin, so a model that asks for its own
+ * x still cannot shift the column, but a continuation stays set in under the
+ * line it belongs to.
+ */
+export function workRowIndentOf(requestedX: number): number {
+  if (!Number.isFinite(requestedX)) return 0;
+  const offset = requestedX - TEXT_LAYOUT.marginX;
+  return Math.abs(offset - WORK_CONTINUATION_INDENT) <= WORK_CONTINUATION_INDENT / 2
+    ? WORK_CONTINUATION_INDENT
+    : 0;
+}
+
 export function findWorkTextSlot({
   layout,
   requestedX,
@@ -163,19 +202,12 @@ export function findWorkTextSlot({
   runtimeOwnsX,
 }: WorkTextSlotOptions): { x: number; y: number; maxWidth: number } | null {
   const isDiagramRect = (rect: BoardTextRect) => rect.x >= DIAGRAM_ZONE.x;
-  const diagramRects = diagramActive ? layout.rects.filter(isDiagramRect) : [];
-  const diagramLeftEdge =
-    diagramRects.length > 0
-      ? Math.min(...diagramRects.map((rect) => rect.x))
-      : DIAGRAM_ZONE.x;
-  const columnRight = diagramActive
-    ? Math.max(TEXT_LAYOUT.marginX + 160, diagramLeftEdge - 28)
-    : BOARD_WIDTH - TEXT_LAYOUT.marginX;
-  const maxWidth = Math.max(columnRight - TEXT_LAYOUT.marginX, 40);
+  const maxWidth = workColumnMaxWidth(layout, diagramActive);
+  const columnRight = TEXT_LAYOUT.marginX + maxWidth;
   const occupiedWidth = Math.min(width, maxWidth);
   const maxX = columnRight - occupiedWidth;
   const candidateX = runtimeOwnsX
-    ? TEXT_LAYOUT.marginX
+    ? TEXT_LAYOUT.marginX + workRowIndentOf(requestedX)
     : clampNumber(requestedX, TEXT_LAYOUT.marginX, Math.max(TEXT_LAYOUT.marginX, maxX));
   const flowStart = Math.max(
     getWorkAreaFlowStartY(layout),
@@ -185,8 +217,20 @@ export function findWorkTextSlot({
     ? flowStart
     : clampNumber(requestedY, TEXT_LAYOUT.topY, TEXT_LAYOUT.bottomY - height);
 
+  // A sequential row that has flowed past the bottom must roll the page, not be
+  // clamped back up. Clamping squeezed one extra row in off-grid, tight under
+  // the last one, and only an overlap test happened to stop it — so the real
+  // capacity depended on whether the squeezed row collided, which drifted from
+  // the row count the teaching prompt is told whenever the pitch changed.
+  const scanStart = sequential
+    ? startY
+    : clampNumber(startY, TEXT_LAYOUT.topY, TEXT_LAYOUT.bottomY - height);
+  // An indented continuation still has to stop at the same right edge, so it
+  // has that much less room than a row starting at the margin.
+  const usableWidth = Math.max(columnRight - candidateX, 40);
+
   for (
-    let tryY = clampNumber(startY, TEXT_LAYOUT.topY, TEXT_LAYOUT.bottomY - height);
+    let tryY = scanStart;
     tryY <= TEXT_LAYOUT.bottomY - height;
     tryY += TEXT_LAYOUT.lineHeight
   ) {
@@ -198,7 +242,7 @@ export function findWorkTextSlot({
           textRectsOverlap(rect, occupied),
       )
     ) {
-      return { x: candidateX, y: tryY, maxWidth };
+      return { x: candidateX, y: tryY, maxWidth: usableWidth };
     }
   }
 

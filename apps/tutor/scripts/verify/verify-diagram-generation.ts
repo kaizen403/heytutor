@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   finalizeScenePlanAfterAuthority,
   REQUIRED_DIAGRAM_RETRY_ENABLED,
@@ -9,7 +11,7 @@ import {
   selectBestAvailableTurnPlan,
   shouldBlockLessonForDiagram,
   shouldRevalidateSceneCandidatesAfterAuthority,
-} from "../../features/tutor-session/lib/diagramGenerationV3";
+} from "../../features/tutor-session/lib/scene/diagramGeneration";
 import { isTurnMetadataPersistable } from "../../lib/scene/turnPersistencePolicy";
 import {
   prepareVerifiedLessonSegments,
@@ -33,6 +35,35 @@ assert(
   "the initial turn plan must tolerate observed latency while reserving a bounded audit window",
 );
 assert(PROBLEM_AUTHORITY_DEADLINE_MS <= 18_000, "solver authority must preserve at least twenty-two seconds for scene synthesis");
+
+// The turn-plan audit is deliberately NOT on the live path.
+//
+// It was a second LLM opinion on the turn plan, awaited before the scene
+// planner could start. Measured on "Concave mirror, f = 15 cm, object at 20 cm"
+// it cost 8.9s of a 37s planning phase, on every question, while
+// `selectBestAvailableTurnPlan` already fell back to the primary plan whenever
+// it timed out — so the lesson had to be correct without it anyway. Removed on
+// the owner's call, 4 Sep 2026, to cut time-to-first-word.
+//
+// `auditTurnPlanV3` still exists in tutor-core and keeps `verify-turn-planner-v3`,
+// so this is about where it runs, not whether it works. Putting it back on the
+// critical path is a product decision about latency, not a refactor — hence
+// this gate.
+{
+  const turnHandler = readFileSync(
+    resolve(process.cwd(), "features/tutor-session/hooks/turn/useQuestionHandler.ts"),
+    "utf8",
+  );
+  const LIVE_PLANNER_ANCHOR = "const plannedTurn = await awaitCurrentTurn(planTurnV3(";
+  assert(
+    turnHandler.includes(LIVE_PLANNER_ANCHOR),
+    `this gate reads useQuestionHandler.ts by looking for "${LIVE_PLANNER_ANCHOR}", which is gone — repoint it at whatever now plans the turn, do not relax the assertion below`,
+  );
+  assert(
+    !turnHandler.includes("auditTurnPlanV3("),
+    "the turn-plan audit is back on the live path; it costs ~9s before the scene planner can start, so restore it only as a deliberate latency decision",
+  );
+}
 const plannedTurn = { source: "planned" };
 const auditedTurn = { source: "audited" };
 const fallbackTurn = { source: "fallback" };

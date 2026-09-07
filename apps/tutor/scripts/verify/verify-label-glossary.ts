@@ -4,7 +4,7 @@ import {
   expandSymbol,
   lookupLabel,
   normalizeSymbol,
-} from "@/features/tutor-session/lib/labelGlossary";
+} from "@/features/tutor-session/lib/scene/labelGlossary";
 
 /**
  * The label inspector may only repeat what the verified document established.

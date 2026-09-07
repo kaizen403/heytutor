@@ -5,6 +5,7 @@ import {
   type DrawCommand,
   type VerifiedDiagram,
   type VerifiedDiagramCommand,
+  verifiedDiagramHasDrawableInk,
   type VerifiedDiagramPresentation,
   type TutorSegment,
 } from "@heytutor/drawing";
@@ -21,13 +22,37 @@ import {
   placeLabels,
   workColumnObstacle,
 } from "@heytutor/scene-engine";
+import { DSA_CODE_PANEL_RECT, DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildLabelGlossary } from "./labelGlossary";
+
+/** Named axis marks stay small so they read as dots, not hollow letters. */
+const DIAGRAM_POINT_RADIUS = 2;
+
+export interface VerifiedScenePresentationOptions {
+  /**
+   * "code_lesson" turns show the IDE panel on the left, so diagram labels
+   * clamp to the narrower DSA zone and the protected column widens to cover
+   * the panel instead of the handwriting work area.
+   */
+  layout?: "standard" | "code_lesson";
+  /**
+   * The construction the family or archetype layer chose, e.g. `double_slit`.
+   *
+   * The tutor used to receive a bare list of entity ids and had no way to tell
+   * that the picture in front of it was for another question, so it renamed the
+   * parts and taught them: "S is the capillary tube" over a double slit rig.
+   * Naming the figure is what lets the lesson refuse it.
+   */
+  figureFamily?: string;
+}
 
 /** Convert validated render primitives into the whiteboard command transport. */
 export function buildVerifiedDiagramPresentation(
   document: SceneDocument,
   renderScene: RenderScene,
+  options: VerifiedScenePresentationOptions = {},
 ): VerifiedDiagramPresentation {
+  const layout = labelLayoutFor(options.layout ?? "standard");
   const source = document.source as Record<string, unknown> | undefined;
   const nonMetric = source?.nonMetric === true;
   const representationTier = typeof source?.representationTier === "string"
@@ -41,12 +66,21 @@ export function buildVerifiedDiagramPresentation(
   const labels: LabelPlacementState = {
     keys: new Set<string>(),
     rects: [],
-    obstacles: [...obstaclesFromPrimitives(renderScene.primitives), workColumnObstacle()],
+    obstacles: [...obstaclesFromPrimitives(renderScene.primitives), layout.protectedColumn],
+    layout,
   };
   const commandKeys = new Set<string>();
   const rolesByEntityId = new Map(document.entities.map((entity) => [entity.id, entity.role]));
   const regionEntityIds = new Set(document.constructions.flatMap((construction) =>
     construction.operator === "function_region" ? construction.outputs : []));
+  const orderedGroupIds = orderedRevealGroupIds(renderScene);
+  // Default DSA grouping is structure + markers. Hold later groups only when
+  // the hint compiled into real worked-example frames (input, split, …).
+  const dsaExampleFrames = orderedGroupIds.filter(
+    (id) => id !== "structure" && id !== "markers",
+  );
+  const holdLaterDsaFrames = options.layout === "code_lesson" && dsaExampleFrames.length > 1;
+  const introGroupId = holdLaterDsaFrames ? orderedGroupIds[0]! : null;
 
   const add = (
     groupId: string,
@@ -100,9 +134,17 @@ export function buildVerifiedDiagramPresentation(
           primitiveId: primitive.id,
         },
       };
+      if (options.layout === "code_lesson" && isDsaMarkerScribble(styled)) {
+        continue;
+      }
       const commandPhase =
         command.type === "LABEL" || command.type === "DIMENSION" ? "detail" : phase;
-      const defer = shouldDeferAnnotation(primitive, command, annotateTargetIds);
+      const defer = shouldDeferAnnotation(
+        primitive,
+        command,
+        annotateTargetIds,
+        options.layout === "code_lesson",
+      ) || Boolean(holdLaterDsaFrames && primitive.groupId !== introGroupId);
       if (defer) {
         const existing = deferredByEntity.get(primitive.entityId) ?? [];
         existing.push(styled);
@@ -112,7 +154,6 @@ export function buildVerifiedDiagramPresentation(
     }
   }
 
-  const orderedGroupIds = orderedRevealGroupIds(renderScene);
   const introSegments: TutorSegment[] = [];
   const reveals: VerifiedDiagram["reveals"] = [];
   orderedGroupIds.forEach((groupId, groupIndex) => {
@@ -153,7 +194,14 @@ export function buildVerifiedDiagramPresentation(
   // during the opening beat bury the figure; teaching [FOCUS:id] traces the
   // verified geometry live and reveals withheld labels as they are named.
 
-  const anchors = Object.entries(renderScene.entityBounds).map(([id, bounds]) => {
+  const anchors = Object.entries(renderScene.entityBounds)
+    // A DSA frame carries an invisible box the size of the whole walk-through
+    // so every frame fits at one scale. It draws nothing, so it must not be
+    // something the marker or a spotlight can be sent to.
+    .filter(([id]) => !document.entities.some(
+      (entity) => entity.id === id && entity.provenance?.dsaExtent === true,
+    ))
+    .map(([id, bounds]) => {
     const entity = document.entities.find((candidate) => candidate.id === id);
     const padX = Math.max(0, (16 - bounds.width) / 2);
     const padY = Math.max(0, (16 - bounds.height) / 2);
@@ -171,11 +219,31 @@ export function buildVerifiedDiagramPresentation(
     ...renderScene.revealGroups.map((group) => ({ id: group.id, entityIds: [...group.entityIds] })),
     ...correspondingGroupsFromDocument(document),
   ];
-  const focusTargets = [
-    ...anchors.map((anchor) => `${anchor.id}${anchor.labels[1] ? ` (${anchor.labels[1]})` : ""}`),
-    ...groups.map((group) => group.id),
-  ].join(", ");
+  // What the student can actually read on the board, per entity. The prompt
+  // used to advertise `entityId (label)`, and lessons then spoke the id:
+  // "this is body1", "q1 is the total field vector". Worse, reveal-group ids
+  // were listed alongside real parts, so `setup` and `current_sense` were
+  // taught as apparatus ("the current sense block measures the current
+  // flowing through the whole network"). Say the label, tag the id, and keep
+  // the groups in their own list where they cannot be mistaken for objects.
+  const drawnTextByEntity = new Map<string, string>();
+  for (const primitive of renderScene.primitives) {
+    if (primitive.kind !== "label" && primitive.kind !== "dimension") continue;
+    const text = primitive.text?.trim();
+    if (!text || drawnTextByEntity.has(primitive.entityId)) continue;
+    drawnTextByEntity.set(primitive.entityId, text);
+  }
+  const namedTargets = anchors
+    .filter((anchor) => drawnTextByEntity.has(anchor.id))
+    .map((anchor) => `"${drawnTextByEntity.get(anchor.id)}" = [FOCUS:${anchor.id}]`)
+    .join(", ");
+  const unnamedTargets = anchors
+    .filter((anchor) => !drawnTextByEntity.has(anchor.id))
+    .map((anchor) => anchor.id)
+    .join(", ");
+  const groupTargets = groups.map((group) => group.id).join(", ");
   const deferredIds = [...deferredByEntity.keys()].join(", ");
+  const hasDrawableInk = verifiedDiagramHasDrawableInk({ commands });
   const diagram: VerifiedDiagram = {
     id: "verified_scene",
     name: nonMetric ? "source-grounded conceptual representation" : "validated semantic scene",
@@ -183,7 +251,12 @@ export function buildVerifiedDiagramPresentation(
     anchors,
     reveals,
     groups,
-    caption: renderScene.caption ?? (nonMetric ? "Do not read scale from this figure." : undefined),
+    // A caption describes ink. With no drawable command there is no figure to
+    // caption. Non-metric scenes used to stamp "Do not read scale from this
+    // figure." under every DSA walk; the teaching prompt already forbids
+    // reading scale, so the student does not need that line on the board.
+    caption: hasDrawableInk ? visibleFigureCaption(renderScene.caption) : undefined,
+    layout: options.layout === "code_lesson" ? "code_lesson" : undefined,
     deferredAnnotations: [...deferredByEntity.entries()].map(([entityId, deferredCommands]) => ({
       entityId,
       commands: deferredCommands,
@@ -195,29 +268,87 @@ export function buildVerifiedDiagramPresentation(
       ? `A source-grounded conceptual representation (${representationTier}) has already been compiled and is being explained as it is revealed. It is intentionally non-metric: do not infer scale, missing connections, intersections, regions, directions, or solved values from it.`
       : "A complete metric diagram has already been compiled, validated, and is being explained as it is revealed."}
 Do not emit DRAW_*, LABEL, DIMENSION, ARROW, SCRIBBLE, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, ERASE, or CLEAR tags.
-When you name a listed diagram entity, append [FOCUS:entity_id] in that same step. Never provide coordinates. Use only these verified targets: ${focusTargets || "none"}.
+When you name a listed diagram entity, append [FOCUS:entity_id] in that same step. Never provide coordinates.
+Parts the student can read, written as the drawn label then its tag: ${namedTargets || "none"}. Speak the label, never the id; the id belongs inside the tag only. The quotation marks are there to delimit the label and are not spoken.
+Parts with no label on the board: ${unnamedTargets || "none"}. You may FOCUS these, but do not give them a name aloud and do not claim the figure marks them.
+Reveal groups, which are sets of the parts above and not objects in their own right: ${groupTargets || "none"}. Never describe a group as a component, a block, an instrument, or a piece of apparatus.
 Optional FOCUS forms: [FOCUS:entity_id], [FOCUS:entity_id|spotlight], [FOCUS:entity_id|pulse], [FOCUS:id_a,id_b], or a reveal-group id.
 When you say what a labeled point is — for example the object O or the image I — put [FOCUS:entity_id] in that same step, immediately after the spoken name. FOCUS also reveals that entity's withheld label.
 To box the current work-area equation and highlight its result, use [EMPHASIZE:last]. To reveal a withheld measurement, enclose, or other compiled annotation, use [ANNOTATE:entity_id] with one of: ${deferredIds || "none"}.
 Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", "look at", or "this is" the named entity when using FOCUS.
 Refer to diagram entities by their visible labels in narration.
 Read the figure to the student before you calculate with it: name each labeled part, say what it physically represents, and say which way it points or where it acts, with [FOCUS:entity_id] on the part you just named. Never substitute into a figure the student has not been told how to read.
-WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Short phrases are allowed. Do not save writing for the last line, and do not speak a step with the marker parked.
+${options.figureFamily ? `The construction on the board is a ${options.figureFamily.replace(/_/g, " ")} figure. ` : ""}This figure is what it is. If it is not the setup this question is about, or the labelled parts are not the objects the question names, say in one plain sentence that the picture on the board does not show this setup, then teach the question in words and in the work column. Do not rename a part to make it fit and do not describe apparatus that is not in the list.
+${options.layout === "code_lesson"
+  ? `The left side of the board is the code editor. Never use [WRITE]; code is revealed only with [TYPE:blockId] tags, one block per step.
+This turn overrides the FOCUS instructions above. A [FOCUS] here names a FRAME from the FIGURE BEATS list, not an entity: the runtime advances the worked example to that frame and puts the spotlight on the part of it that changed. Only the first frame is on the board to begin with. Do not focus entity ids, and do not focus anything on a step that reveals code. If FIGURE BEATS says there are none, the figure does not move and you must not use [FOCUS] at all.
+Always write it as [FOCUS:frame_id|spotlight], at most one per step. Never a bare [FOCUS:id], never |pulse, and never traces, underlines, or circles.`
+  : "WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Short phrases are allowed. Do not save writing for the last line, and do not speak a step with the marker parked."}
 The scene engine owns all diagram geometry, labels, annotations, directions, connections, and markings.`,
   };
 
-  const spokenIntro = collapseIntroSpeech(introSegments);
+  const spokenIntro = collapseIntroSpeech(introSegments, {
+    codeLesson: options.layout === "code_lesson",
+    caption: visibleFigureCaption(renderScene.caption ?? captionAnnotationOf(document)),
+  }).map((segment) => (options.layout === "code_lesson"
+    ? { ...segment, sceneText: true }
+    : segment));
 
   return { diagram, introSegments: spokenIntro };
 }
 
-function collapseIntroSpeech(segments: TutorSegment[]): TutorSegment[] {
-  if (segments.length <= 1) {
-    return segments;
-  }
+const SCALE_DISCLAIMER = /Do not read scale from this figure\.?/gi;
+
+/** Drop the scale disclaimer. Real frame captions stay. */
+function visibleFigureCaption(caption: string | undefined): string | undefined {
+  if (!caption) return undefined;
+  const cleaned = caption
+    .replace(SCALE_DISCLAIMER, "")
+    .replace(/\s*·\s*·\s*/g, " · ")
+    .replace(/^\s*·\s*|\s*·\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || undefined;
+}
+
+/** The caption the scene document draws under the figure, if it has one. */
+function captionAnnotationOf(document: SceneDocument): string | undefined {
+  const caption = document.annotations?.find((annotation) => annotation.kind === "caption");
+  const text = caption?.text?.trim();
+  return text ? text : undefined;
+}
+
+function collapseIntroSpeech(
+  segments: TutorSegment[],
+  options: { codeLesson?: boolean; caption?: string } = {},
+): TutorSegment[] {
   const commands = segments.flatMap((segment) =>
     segment.commands ?? (segment.command ? [segment.command] : []),
   );
+
+  // A code lesson opens on frame 1 of a walk-through, and the tutor's own
+  // first beat then describes it. Reading the label list out first
+  // ("the labels 0, 1, 2, 3, a[i], and seen identify these parts of the
+  // figure") says nothing and says it immediately before the beat that does,
+  // so the turn opens by repeating itself.
+  //
+  // Only when there is ink to introduce: a spoken opening for a figure that
+  // was never drawn would announce something the student cannot see.
+  if (options.codeLesson && commands.length > 0) {
+    const caption = options.caption?.trim();
+    return [{
+      narration: caption
+        ? `Here is the example we will work through: ${caption.charAt(0).toLowerCase()}${caption.slice(1)}.`
+        : "Here is the example we will work through.",
+      command: commands[0] ?? null,
+      commands,
+      verifiedDiagramIntro: true,
+    }];
+  }
+
+  if (segments.length <= 1) {
+    return segments;
+  }
   const usable = segments
     .map((segment) => segment.narration.trim())
     .filter((text) =>
@@ -237,23 +368,88 @@ function collapseIntroSpeech(segments: TutorSegment[]): TutorSegment[] {
   }];
 }
 
-type RevealPhase = "structure" | "direction" | "detail";
+/**
+ * The order a figure appears in, and it is the order a teacher draws in.
+ *
+ * `point` used to sit in `structure` alongside lines and curves, so whichever
+ * the scene document happened to list first went down first — and a scene that
+ * declares its points before its geometry drew a scatter of dots into empty
+ * space and then threaded the lines through them. That reads as a mistake being
+ * corrected rather than a figure being built.
+ *
+ * A skeleton first, then the points marked on it, then the arrows that say
+ * which way things go, then the labels and dimensions that name them.
+ */
+type RevealPhase = "structure" | "marker" | "direction" | "detail";
 
-const REVEAL_PHASES: RevealPhase[] = ["structure", "direction", "detail"];
+const REVEAL_PHASES: RevealPhase[] = ["structure", "marker", "direction", "detail"];
 const MAX_COMMANDS_PER_GROUP = 14;
 const MAX_DETAIL_COMMANDS_PER_SEGMENT = 8;
-const LABEL_MIN_X = DIAGRAM_ZONE.x + 10;
-const LABEL_MAX_X = DIAGRAM_ZONE.x + DIAGRAM_ZONE.width - 10;
+
+interface LabelLayout {
+  minX: number;
+  maxX: number;
+  viewBounds: LabelBounds;
+  protectedColumn: LabelObstacle;
+}
+
+function labelLayoutFor(mode: "standard" | "code_lesson"): LabelLayout {
+  if (mode === "code_lesson") {
+    const minX = DSA_DIAGRAM_ZONE.x + 10;
+    const maxX = DSA_DIAGRAM_ZONE.x + DSA_DIAGRAM_ZONE.width - 10;
+    return {
+      minX,
+      maxX,
+      viewBounds: { x: minX, y: 55, width: maxX - minX, height: 525 },
+      protectedColumn: {
+        id: "code_panel",
+        kind: "protected",
+        bounds: {
+          x: 0,
+          y: 0,
+          width: DSA_CODE_PANEL_RECT.x + DSA_CODE_PANEL_RECT.width + 8,
+          height: 700,
+        },
+      },
+    };
+  }
+  const minX = DIAGRAM_ZONE.x + 10;
+  const maxX = DIAGRAM_ZONE.x + DIAGRAM_ZONE.width - 10;
+  return {
+    minX,
+    maxX,
+    viewBounds: { x: minX, y: 55, width: maxX - minX, height: 525 },
+    protectedColumn: workColumnObstacle(),
+  };
+}
 
 function emptyPhaseIndices(): Record<RevealPhase, number[]> {
-  return { structure: [], direction: [], detail: [] };
+  return { structure: [], marker: [], direction: [], detail: [] };
+}
+
+function isDsaMarkerScribble(command: VerifiedDiagramCommand): boolean {
+  if (command.type === "CIRCLE_AROUND" || command.type === "HIGHLIGHT" || command.type === "UNDERLINE") {
+    return true;
+  }
+  if (command.visualStyle?.strokeRole === "trace") return true;
+  return command.type === "DRAW_LINE"
+    && command.visualStyle?.dashed === true
+    && command.visualStyle?.strokeRole === "construction";
 }
 
 function shouldDeferAnnotation(
   primitive: RenderPrimitive,
   command: VerifiedDiagramCommand,
   annotateTargetIds: Set<string>,
+  codeLesson = false,
 ): boolean {
+  // DSA figures are a worked example, not a physics apparatus. Values and
+  // indices belong on the boxes as they appear — holding them for FOCUS
+  // made later rows look empty while FOCUS traces struck through the first.
+  if (codeLesson) {
+    return primitive.provenance?.transient === true
+      || command.visualStyle?.strokeRole === "trace";
+  }
   const annotationId = typeof primitive.provenance?.annotationId === "string"
     ? primitive.provenance.annotationId
     : undefined;
@@ -311,6 +507,8 @@ function correspondingGroupsFromDocument(document: SceneDocument): Array<{ id: s
 function revealPhaseForPrimitive(primitive: RenderPrimitive): RevealPhase {
   if (primitive.kind === "label" || primitive.kind === "dimension") return "detail";
   if (primitive.kind === "ray" || primitive.kind === "vector") return "direction";
+  // A point marks a position on geometry that must already exist.
+  if (primitive.kind === "point") return "marker";
   return "structure";
 }
 
@@ -503,6 +701,10 @@ function primitiveCommands(
 ): VerifiedDiagramCommand[] {
   const points = primitive.points;
   const commands: VerifiedDiagramCommand[] = [];
+  // The extent box exists so every frame of a walk-through fits at the same
+  // scale. It is geometry for the compiler, never ink for the student.
+  if (primitive.provenance?.dsaExtent === true) return commands;
+  const dsaStyle = dsaMarkStyle(primitive.provenance);
   const annotationKind = primitive.provenance?.annotation;
   if (annotationKind === "enclose") {
     const bounds = boundsOfPoints(points);
@@ -535,29 +737,29 @@ function primitiveCommands(
     return commands;
   }
   if (primitive.kind === "point" && primitive.provenance?.pointStyle === "open" && points[0]) {
-    commands.push({ type: "DRAW_CIRCLE", params: [points[0].x, points[0].y, primitive.radius ?? 5] });
+    commands.push({ type: "DRAW_CIRCLE", params: [points[0].x, points[0].y, primitive.radius ?? DIAGRAM_POINT_RADIUS] });
     return commands;
   }
   switch (primitive.kind) {
     case "point": {
       const point = points[0];
-      if (point) commands.push({ type: "DRAW_POINT", params: [point.x, point.y, 5] });
+      if (point) commands.push({ type: "DRAW_POINT", params: [point.x, point.y, primitive.radius ?? DIAGRAM_POINT_RADIUS] });
       break;
     }
     case "line":
     case "polyline": {
-      if (points.length >= 2) commands.push({ type: "DRAW_LINE", params: flatten(points) });
+      if (points.length >= 2) commands.push({ type: "DRAW_LINE", params: flatten(points), ...dsaStyle });
       break;
     }
     case "ray":
     case "vector": {
       const start = points[0]; const end = points.at(-1);
-      if (start && end) commands.push({ type: "ARROW", params: [start.x, start.y, end.x, end.y] });
+      if (start && end) commands.push({ type: "ARROW", params: [start.x, start.y, end.x, end.y], ...dsaStyle });
       break;
     }
     case "circle": {
       const center = points[0];
-      if (center && primitive.radius) commands.push({ type: "DRAW_CIRCLE", params: [center.x, center.y, primitive.radius] });
+      if (center && primitive.radius) commands.push({ type: "DRAW_CIRCLE", params: [center.x, center.y, primitive.radius], ...dsaStyle });
       break;
     }
     case "arc": {
@@ -570,12 +772,12 @@ function primitiveCommands(
     case "rectangle": {
       if (points.length >= 4) {
         const xs = points.map((point) => point.x); const ys = points.map((point) => point.y);
-        commands.push({ type: "DRAW_RECT", params: [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)] });
+        commands.push({ type: "DRAW_RECT", params: [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)], ...dsaStyle });
       }
       break;
     }
     case "polygon": {
-      if (points.length >= 3) commands.push({ type: "DRAW_LINE", params: flatten([...points, points[0]!]) });
+      if (points.length >= 3) commands.push({ type: "DRAW_LINE", params: flatten([...points, points[0]!]), ...dsaStyle });
       break;
     }
     case "axes": {
@@ -588,7 +790,7 @@ function primitiveCommands(
     case "dimension": {
       const start = points[0]; const end = points[1];
       if (start && end) {
-        commands.push({ type: "DIMENSION", params: [start.x, start.y, end.x, end.y, 16] });
+        commands.push({ type: "DIMENSION", params: [start.x, start.y, end.x, end.y, 0] });
         if (primitive.text) {
           addLabel(
             commands,
@@ -611,6 +813,29 @@ function primitiveCommands(
   const labelPoint = primitiveLabelPoint(primitive);
   if (labelPoint && primitive.text && !suppressInlineLabel) addLabel(commands, labels, primitive, labelPoint.x, labelPoint.y);
   return commands;
+}
+
+/**
+ * What a DSA mark looks like on the board.
+ *
+ * The compiled figure says what the algorithm is doing to each element:
+ * `active` is a filled wash, a magnitude bar is filled, `candidate` and
+ * `window` are dashed outlines. A plain rectangle primitive carries no style,
+ * so without this every one of those drew as an ordinary box and the
+ * distinction the mark exists to make was lost.
+ *
+ * `strokeRole` is deliberately not set to "construction": on a code lesson a
+ * dashed construction line is filtered out as marker scribble.
+ */
+function dsaMarkStyle(
+  provenance: Record<string, unknown> | undefined,
+): { visualStyle?: VerifiedDiagramCommand["visualStyle"] } {
+  if (!provenance) return {};
+  const fillRole = provenance.fillRole === "region" ? ("region" as const) : undefined;
+  const dashed = provenance.dashed === true;
+  const strokeWidth = typeof provenance.strokeWidth === "number" ? provenance.strokeWidth : undefined;
+  if (!fillRole && !dashed && strokeWidth === undefined) return {};
+  return { visualStyle: { ...(fillRole ? { fillRole } : {}), ...(dashed ? { dashed } : {}), ...(strokeWidth !== undefined ? { strokeWidth } : {}) } };
 }
 
 function isHelperRole(role: string | undefined): boolean {
@@ -646,14 +871,15 @@ function addLabel(
   const key = `${primitive.entityId}:${text}`;
   if (labels.keys.has(key)) return;
   labels.keys.add(key);
-  const width = Math.max(measureTextWidth(text, LABEL_FONT_PX), 14);
+  const fontPx = labelFontPx(primitive.provenance);
+  const width = Math.max(measureTextWidth(text, fontPx), 14);
   if (primitive.labelPlacement === "absolute") {
     const reserved = labelBoundsFromProvenance(primitive.provenance);
     const placed = reserved ?? {
       x: x - width / 2,
-      y: y - 16,
+      y: y - Math.round(fontPx * 0.65),
       width,
-      height: 32,
+      height: fontPx + 8,
     };
     labels.rects.push(placed);
     labels.obstacles.push({
@@ -662,34 +888,39 @@ function addLabel(
       kind: "label",
       bounds: placed,
     });
-    commands.push({ type: "LABEL", params: [placed.x, placed.y, LABEL_FONT_PX], text, anchorId: primitive.entityId });
+    commands.push({ type: "LABEL", params: [placed.x, placed.y, fontPx], text, anchorId: primitive.entityId });
     return;
   }
-  // Feed the solver the exact glyph width for this label rather than an
-  // average character box, so the reserved space is the space it draws in.
-  const solved = placeLabels(
+  // Feed the solver the renderer's own glyph metrics rather than an average
+  // character box, so the reserved space is the space it draws in.
+  const solve = (obstacles: LabelObstacle[]) => placeLabels(
     [{
       labelId: primitive.id,
       entityId: primitive.entityId,
       anchor: { x, y },
       text,
       preferredSlot: preferredSlotFor(primitive.labelPlacement),
-      viewBounds: LABEL_VIEW_BOUNDS,
+      viewBounds: labels.layout.viewBounds,
       useOwnerBounds: false,
     }],
-    labels.obstacles,
-    { fontWidthPx: width / Math.max(text.length, 1), fontHeightPx: LABEL_FONT_PX },
+    obstacles,
+    // `fontPx`, not the 24px default: the reserved box has to be the size this
+    // label is actually lettered at, and a compiled label may carry its own.
+    { fontHeightPx: fontPx, measureTextPx: measureTextWidth },
   );
 
-  const placement = solved.placements[0];
-  const placed = placement
-    ? placement.bounds
-    : {
-        x: clamp(x + 10, LABEL_MIN_X, LABEL_MAX_X - width),
-        y: clamp(y - 26, 55, 580),
-        width,
-        height: 32,
-      };
+  // With every stroke blocking, the label still has to land somewhere. Solving
+  // again against the protected column alone keeps the same one engine — and
+  // the same in-view, out-of-the-work-column guarantees — instead of the fixed
+  // offset this used to fall back to, which ignored the figure entirely.
+  const placement = solve(labels.obstacles).placements[0]
+    ?? solve(labels.obstacles.filter((obstacle) => obstacle.kind === "protected")).placements[0];
+  const placed = placement?.bounds ?? {
+    x: clamp(x + 10, labels.layout.minX, labels.layout.maxX - width),
+    y: clamp(y - 26, 55, 580),
+    width,
+    height: 32,
+  };
 
   labels.rects.push(placed);
   labels.obstacles.push({
@@ -715,12 +946,23 @@ function addLabel(
     });
   }
 
+  // Centre the run in the box the solver reserved, the way the compiled path
+  // already does. `placed` carries the solver's padding on both sides, so
+  // lettering from its corner leaves all the slack on one side and puts the
+  // ink closer to the neighbour on the other. Horizontally only: the reserved
+  // height is the em box, and the run's descender already uses the space below.
+  const inset = Math.max(0, (placed.width - width) / 2);
   commands.push({
     type: "LABEL",
-    params: [placed.x, placed.y, LABEL_FONT_PX],
+    params: [placed.x + inset, placed.y, labelFontPx(primitive.provenance)],
     text,
     anchorId: primitive.entityId,
   });
+}
+
+function labelFontPx(provenance: Record<string, unknown> | undefined): number {
+  const value = provenance?.fontPx;
+  return typeof value === "number" && value >= 12 && value <= 40 ? value : LABEL_FONT_PX;
 }
 
 function labelBoundsFromProvenance(
@@ -735,9 +977,10 @@ function labelBoundsFromProvenance(
     typeof record.width !== "number" ||
     typeof record.height !== "number"
   ) return null;
+  const pad = typeof provenance?.labelPad === "number" ? provenance.labelPad : 4;
   return {
-    x: record.x + 4,
-    y: record.y + 4,
+    x: record.x + pad,
+    y: record.y + pad,
     width: record.width,
     height: record.height,
   };
@@ -760,15 +1003,9 @@ interface LabelPlacementState {
   rects: LabelBounds[];
   /** Scene ink plus every label already placed this pass. */
   obstacles: LabelObstacle[];
+  /** Mode-aware clamp region for this turn's board split. */
+  layout: LabelLayout;
 }
-
-/** The region a diagram label is allowed to occupy. */
-const LABEL_VIEW_BOUNDS: LabelBounds = {
-  x: LABEL_MIN_X,
-  y: 55,
-  width: LABEL_MAX_X - LABEL_MIN_X,
-  height: 525,
-};
 
 /** Labels render at 24 px — measure at 24 px, not at the 32 px default. */
 const LABEL_FONT_PX = 24;

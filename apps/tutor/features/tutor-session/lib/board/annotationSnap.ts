@@ -1,6 +1,6 @@
 import type { DrawCommand } from "@heytutor/drawing";
-import { ANNOTATION_SNAP_DISTANCE } from "../constants";
-import type { BoardTextRect } from "../types";
+import { ANNOTATION_SNAP_DISTANCE } from "../../constants";
+import type { BoardTextRect } from "../../types";
 import {
   bboxNearRect,
   bboxParamsForRect,

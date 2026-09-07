@@ -8,7 +8,7 @@ import {
 import {
   buildSourceGroundedRepresentation,
   selectVerifiedRepresentation,
-} from "../../features/tutor-session/lib/representationFallbackV4";
+} from "../../features/tutor-session/lib/scene/representationFallback";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -445,6 +445,34 @@ assert(
   selectedMirror.renderScene.primitives.some((primitive) => primitive.kind === "arc"),
   "compiled mirror ink must be an arc",
 );
+const mirrorHit = selectedMirror.sceneDocument.constructions.find((construction) =>
+  construction.operator === "point" && construction.outputs.includes("M1"));
+assert(
+  typeof mirrorHit?.inputs.x === "number" && Math.abs(mirrorHit.inputs.x) < 1e-6,
+  "the live mirror figure must use the pole-plane principal-ray hit",
+);
+assert(
+  (selectedMirror.sceneDocument.source as { archetype?: string }).archetype === "spherical_mirror",
+  "a concave-mirror stem must keep the spherical_mirror archetype",
+);
+{
+  const plannerDisguised = structuredClone(selectedMirror.sceneDocument);
+  if (plannerDisguised.source && typeof plannerDisguised.source === "object") {
+    delete (plannerDisguised.source as { archetype?: string }).archetype;
+  }
+  const rejectedPlannerOptics = selectVerifiedRepresentation({
+    question: mirrorQuestion,
+    exact: {
+      sceneDocument: plannerDisguised,
+      renderScene: selectedMirror.renderScene,
+      validationReport: selectedMirror.validationReport,
+    },
+  });
+  assert(
+    (rejectedPlannerOptics.sceneDocument.source as { archetype?: string }).archetype === "spherical_mirror",
+    "a planner optics scene must lose to the spherical_mirror archetype",
+  );
+}
 
 const seriesParallelQuestion =
   "Three 12 ohm resistors in series and in parallel. Find both equivalent resistances and draw each circuit.";

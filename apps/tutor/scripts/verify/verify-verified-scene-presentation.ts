@@ -1,9 +1,12 @@
 import type { RenderScene, SceneDocument } from "@heytutor/scene-engine";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   isBlockedVerifiedDiagramCommand,
   parseDrawingCommands,
+  verifiedDiagramHasDrawableInk,
 } from "@heytutor/drawing";
-import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/verifiedScenePresentation";
+import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 
 const document: SceneDocument = {
   schemaVersion: "scene-document/v2",
@@ -66,6 +69,11 @@ if (presentation.introSegments.length !== 1) {
 if (presentation.introSegments.some((segment) => segment.narration.trim() === "")) throw new Error("scene stages must be narrated while drawing");
 if (presentation.introSegments.some((segment) => !segment.command)) throw new Error("scene narration must remain paired with ink");
 if (presentation.diagram.commands.filter((command) => command.type === "LABEL").length !== 3) throw new Error("duplicate entity labels were emitted");
+const pointMark = presentation.diagram.commands.find((command) => command.type === "DRAW_POINT");
+if (!pointMark) throw new Error("point A must be drawn");
+if (pointMark.params[2] !== 2) {
+  throw new Error(`named point marks must stay small, got radius ${String(pointMark.params[2])}`);
+}
 const label = presentation.diagram.commands.find((command) => command.type === "LABEL" && command.text === "A");
 if (!label) throw new Error("point label A is missing");
 {
@@ -153,11 +161,39 @@ if (!nonMetricPresentation.diagram.promptAddon.includes("intentionally non-metri
 if (!nonMetricPresentation.diagram.promptAddon.includes("do not infer scale")) {
   throw new Error("teaching model may still infer metric claims from a fallback representation");
 }
-if (!nonMetricPresentation.diagram.caption?.includes("Do not read scale from this figure.")) {
-  throw new Error("non-metric figures must show a caption that forbids reading scale");
+if (nonMetricPresentation.diagram.caption?.includes("Do not read scale from this figure.")) {
+  throw new Error("the scale disclaimer must not appear under the figure");
+}
+{
+  const withDisclaimer = buildVerifiedDiagramPresentation(nonMetricDocument, {
+    ...renderScene,
+    caption: "Do not read scale from this figure. · 11 + 15 = 26",
+  });
+  if (withDisclaimer.diagram.caption !== "11 + 15 = 26") {
+    throw new Error(
+      `the scale disclaimer must be stripped from a stored caption, got ${JSON.stringify(withDisclaimer.diagram.caption)}`,
+    );
+  }
 }
 if (nonMetricPresentation.diagram.name !== "source-grounded conceptual representation") {
   throw new Error("fallback representation was presented as an exact semantic scene");
+}
+
+// A caption describes ink. A concept turn ("Explain Newton's first law") can
+// commit a qualitative scene that compiles to nothing drawable; captioning that
+// puts a disclaimer under an empty board, telling the student about a figure
+// they cannot see. Observed live on 4 Sep 2026.
+const inklessPresentation = buildVerifiedDiagramPresentation(nonMetricDocument, {
+  ...renderScene,
+  primitives: [],
+});
+if (inklessPresentation.diagram.commands.length !== 0) {
+  throw new Error("test setup: the inkless scene should compile to no commands");
+}
+if (inklessPresentation.diagram.caption) {
+  throw new Error(
+    `a figure with no ink must carry no caption, got: ${inklessPresentation.diagram.caption}`,
+  );
 }
 
 const regionDocument: SceneDocument = {
@@ -366,6 +402,261 @@ if (enclosePresentation.introSegments.some((segment) =>
   )
 )) {
   throw new Error("enclose and highlight ink must wait for lecture ANNOTATE, not the intro");
+}
+
+const dsaWalk = buildVerifiedDiagramPresentation(document, renderScene, { layout: "code_lesson" });
+if (dsaWalk.introSegments.length !== 1) {
+  throw new Error(`DSA intro must stay one spoken beat, got ${dsaWalk.introSegments.length}`);
+}
+const dsaIntroEntities = new Set(
+  (dsaWalk.introSegments[0]?.commands ?? [])
+    .map((command) => command.semanticRef?.entityId)
+    .filter((id): id is string => Boolean(id)),
+);
+if (dsaIntroEntities.has("ab")) {
+  throw new Error("later DSA worked-example frames must not dump into the opening beat");
+}
+if (!dsaWalk.diagram.deferredAnnotations?.some((entry) =>
+  entry.entityId === "ab" || entry.commands.some((command) => command.semanticRef?.entityId === "ab")
+)) {
+  throw new Error("later DSA frames must wait for FOCUS to reveal them");
+}
+// A code-lesson FOCUS names a frame of the walk-through, and the runtime
+// advances the figure to it. The addon has to say so and has to say it only
+// once: an earlier version also told the model to focus reveal-group ids,
+// which contradicted the beat list it was given in the same prompt.
+if (!/FOCUS:frame_id\|spotlight/.test(dsaWalk.diagram.promptAddon)) {
+  throw new Error("DSA presentation prompt must spotlight frames by frame id");
+}
+if (!/names a FRAME/.test(dsaWalk.diagram.promptAddon)) {
+  throw new Error("DSA presentation prompt must say a FOCUS names a frame, not an entity");
+}
+if (/reveal-group ids in order/i.test(dsaWalk.diagram.promptAddon)) {
+  throw new Error("reveal-group ids are not frames: offering them contradicts the beat list");
+}
+
+// The opening beat of a code lesson must say something about the example, not
+// read out the label list. The tutor's own first beat describes frame 1 a
+// moment later, so a generated "the labels a, b, and c identify these parts of
+// the figure" makes the turn open by repeating itself.
+{
+  const opening = dsaWalk.introSegments[0]?.narration ?? "";
+  if (dsaWalk.introSegments.length !== 1) {
+    throw new Error(`a code lesson opens on one spoken beat, got ${dsaWalk.introSegments.length}`);
+  }
+  if (/identif(?:y|ies) th(?:ese|is) part/i.test(opening)) {
+    throw new Error(`the code-lesson opening must not read the label list: "${opening}"`);
+  }
+  if (!/example we will work through/i.test(opening)) {
+    throw new Error(`the code-lesson opening must introduce the worked example, got "${opening}"`);
+  }
+  if ((dsaWalk.introSegments[0]?.commands ?? []).length === 0) {
+    throw new Error("the opening beat must still carry the ink that draws frame 1");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// A figure is built skeleton-first.
+//
+// Points used to share the `structure` phase with lines, so a scene that listed
+// its points before its geometry drew a scatter of dots into empty space and
+// then threaded the lines through them. The owner's words, 4 Sep 2026: "it is
+// first marking the points and then drawing the lines around it, which is
+// bullshit. The diagram should be ready and then the annotation should go on."
+{
+  const orderDocument: SceneDocument = {
+    ...document,
+    entities: [
+      { id: "pt", kind: "point", role: "start", label: "P" },
+      { id: "ln", kind: "segment", role: "edge" },
+      { id: "vec", kind: "vector", role: "incident ray" },
+    ],
+    requiredEntityIds: ["pt", "ln"],
+    // One group, so phase ordering is the only thing that can sequence them.
+    revealGroups: [{ id: "g", entityIds: ["pt", "ln", "vec"], dependsOn: [], narrationCue: "build it" }],
+    teachingTimeline: [
+      { id: "reveal_g", action: "reveal", targetId: "g", dependsOn: [], narrationIntent: "build it" },
+    ],
+  };
+  // Deliberately adversarial: the point is listed FIRST, the label before the
+  // geometry, and the arrow before the line it springs from.
+  const orderScene: RenderScene = {
+    engineVersion: "scene-engine/2.0.0",
+    primitives: [
+      { id: "q_pt", entityId: "pt", groupId: "g", kind: "point", points: [{ x: 450, y: 300 }], text: "P" },
+      { id: "q_label", entityId: "pt", groupId: "g", kind: "label", points: [{ x: 450, y: 290 }], text: "P", labelPlacement: "above" },
+      { id: "q_vec", entityId: "vec", groupId: "g", kind: "vector", points: [{ x: 450, y: 300 }, { x: 700, y: 250 }] },
+      { id: "q_line", entityId: "ln", groupId: "g", kind: "line", points: [{ x: 450, y: 300 }, { x: 700, y: 300 }] },
+    ],
+    revealGroups: orderDocument.revealGroups,
+    timeline: orderDocument.teachingTimeline,
+    entityBounds: {
+      pt: { x: 445, y: 295, width: 10, height: 10 },
+      ln: { x: 450, y: 300, width: 250, height: 0 },
+    },
+  };
+
+  const ordered = buildVerifiedDiagramPresentation(orderDocument, orderScene);
+  const reveal = ordered.diagram.reveals.find((r) => r.targetId === "g");
+  if (!reveal) throw new Error("the single reveal group produced no reveal");
+
+  const positionOf = (primitiveId: string): number => {
+    const commandIndex = ordered.diagram.commands.findIndex(
+      (command) => command.semanticRef?.primitiveId === primitiveId,
+    );
+    if (commandIndex < 0) throw new Error(`no command compiled for ${primitiveId}`);
+    const at = reveal.commandIndices.indexOf(commandIndex);
+    if (at < 0) throw new Error(`${primitiveId} never reaches the reveal`);
+    return at;
+  };
+
+  const line = positionOf("q_line");
+  const point = positionOf("q_pt");
+  const vector = positionOf("q_vec");
+
+  if (!(line < point)) {
+    throw new Error(
+      `the line must be drawn before the point marked on it (line at ${line}, point at ${point})`,
+    );
+  }
+  if (!(point < vector)) {
+    throw new Error(`points must be marked before direction arrows (point ${point}, vector ${vector})`);
+  }
+
+  // Naming comes last. Labels and dimensions already had their own `detail`
+  // phase before this change, so this only guards that the new `marker` phase
+  // was inserted ahead of it rather than after.
+  for (const [at, commandIndex] of reveal.commandIndices.entries()) {
+    const type = ordered.diagram.commands[commandIndex]?.type;
+    if ((type === "LABEL" || type === "DIMENSION") && at < vector) {
+      throw new Error(`a ${type} was drawn at ${at}, before the geometry it names (vector at ${vector})`);
+    }
+  }
+}
+
+// A representation can compile to no ink at all. The turn must then teach as
+// text only: a committed empty figure told the teaching model a diagram was
+// being revealed, listed "none" as its focus targets, and left the tutor
+// describing a picture the student could not see.
+{
+  const emptyRenderScene: RenderScene = {
+    engineVersion: "test",
+    primitives: [],
+    revealGroups: [],
+    timeline: [],
+    entityBounds: {},
+    caption: "Do not read scale from this figure.",
+  };
+  const empty = buildVerifiedDiagramPresentation(
+    { ...document, entities: [] },
+    emptyRenderScene,
+  );
+  // A figure of pure geometry with no text is the shape the guard has to catch:
+  // it has ink, so an ink test passes it, and it cannot be walked part by part.
+  const unlabelledScene: RenderScene = {
+    ...emptyRenderScene,
+    primitives: [
+      { id: "p1", entityId: "axes", groupId: "g", kind: "axes", points: [{ x: 0, y: 0 }] },
+    ],
+  };
+  const unlabelled = buildVerifiedDiagramPresentation(
+    { ...document, entities: [] },
+    unlabelledScene,
+  );
+  const readableLabels = unlabelled.diagram.commands.filter(
+    (command) => command.type === "LABEL" || command.type === "DIMENSION",
+  );
+  if (readableLabels.length > 0) {
+    throw new Error("a scene with no label primitives must not compile label ink");
+  }
+  if (verifiedDiagramHasDrawableInk(empty.diagram)) {
+    throw new Error("a render scene with no primitives must not report drawable ink");
+  }
+  if (empty.diagram.caption) {
+    throw new Error("a figure with no ink must not carry a caption describing it");
+  }
+  if (!verifiedDiagramHasDrawableInk(presentation.diagram)) {
+    throw new Error("a compiled figure with geometry must report drawable ink");
+  }
+
+  // The live turn has to act on that: `useQuestionHandler` drops a
+  // representation whose render scene has no primitives before it writes the
+  // scene artifacts, and gates the presentation on drawable ink after.
+  const handlerSource = readFileSync(
+    resolve(import.meta.dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"),
+    "utf8",
+  );
+  // Start of the whole representation-selection region, so the block covers the
+  // guards that run before `selectVerifiedRepresentation` as well as after it.
+  const selectionAnchor = handlerSource.indexOf("selectRepresentation: {");
+  const commitAnchor = handlerSource.indexOf("let activeDiagram:");
+  if (selectionAnchor < 0) {
+    throw new Error(
+      "this gate cannot find the `selectRepresentation:` block in useQuestionHandler; repoint it at the code that replaced it",
+    );
+  }
+  if (commitAnchor <= selectionAnchor) {
+    throw new Error(
+      "this gate cannot find the diagram commit in useQuestionHandler; repoint it at the code that replaced it",
+    );
+  }
+  const selectionBlock = handlerSource.slice(selectionAnchor, commitAnchor);
+  // The test is drawn text, not primitive count: a bare pair of axes has ink
+  // and still cannot be read, and nineteen lectures in one sweep narrated one
+  // as though it showed the question.
+  if (
+    !/const selectedHasInk = selected\.renderScene\.primitives\.some\(/.test(selectionBlock) ||
+    !selectionBlock.includes('primitive.kind === "label" || primitive.kind === "dimension"')
+  ) {
+    throw new Error(
+      "useQuestionHandler must drop a selected representation that drew no readable label, so the turn is text-only in the artifacts too",
+    );
+  }
+  // A plan that asks for no figure must not get a fallback one. Without this
+  // a units-conversion question was handed a P-V rectangle and an error-types
+  // question a Wheatstone bridge, both with visualRequirement "none".
+  if (
+    !selectionBlock.includes('turnPlan.visualRequirement === "none" && !questionRequiresVisual(question)')
+  ) {
+    throw new Error(
+      "useQuestionHandler must skip the representation fallback when the plan and the stem filter agree no figure is needed",
+    );
+  }
+
+  const commitBlock = handlerSource.slice(commitAnchor);
+  if (!commitBlock.includes("verifiedDiagramHasDrawableInk(presentation.diagram)")) {
+    throw new Error(
+      "useQuestionHandler must gate the committed figure on drawable ink",
+    );
+  }
+  // The figure's construction has to reach the prompt from the live turn too.
+  // It was wired into the lab and silently missed here, so the browser lesson
+  // was never told what kind of picture it had been handed.
+  if (!commitBlock.includes("figureFamily: representationFamily")) {
+    throw new Error(
+      "useQuestionHandler must pass the selected representation's family to the presentation, so the tutor is told what the figure is",
+    );
+  }
+}
+
+// The tutor cannot refuse a figure it has not been told the name of. A
+// `double_slit` construction reached a capillary-rise lesson and was taught as
+// a tube ("S is the capillary tube"), because the prompt listed ids and labels
+// and never said what kind of picture it was.
+{
+  const named = buildVerifiedDiagramPresentation(document, renderScene, {
+    figureFamily: "double_slit",
+  });
+  if (!named.diagram.promptAddon.includes("a double slit figure")) {
+    throw new Error("the figure's construction must be named to the tutor, with underscores read as spaces");
+  }
+  if (!named.diagram.promptAddon.includes("say in one plain sentence that the picture on the board does not show this setup")) {
+    throw new Error("the tutor must be told how to refuse a figure that is not this question's setup");
+  }
+  const unnamed = buildVerifiedDiagramPresentation(document, renderScene);
+  if (unnamed.diagram.promptAddon.includes("The construction on the board is")) {
+    throw new Error("a figure with no known construction must not claim one");
+  }
 }
 
 console.log("verified scene presentation verification passed");

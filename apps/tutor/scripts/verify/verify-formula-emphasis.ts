@@ -3,7 +3,7 @@ import {
   resultCharRange,
   resultSpanOfRow,
   spanRectInRow,
-} from "@/features/tutor-session/lib/formulaEmphasis";
+} from "@/features/tutor-session/lib/board/formulaEmphasis";
 import type { BoardTextRect } from "@/features/tutor-session/types";
 
 function assert(condition: unknown, message: string): asserts condition {

@@ -2,7 +2,7 @@ import {
   hasMathNotation,
   parseMathText,
   toPlainMathText,
-} from "@/features/tutor-session/lib/mathText";
+} from "@/features/tutor-session/lib/notes/mathText";
 
 /**
  * The chat must show notation, never markup — and must not mangle prose while
