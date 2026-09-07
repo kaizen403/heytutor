@@ -1,46 +1,82 @@
+/**
+ * ACCELUTE — "Night Blueprint"
+ *
+ * The palette as TypeScript, for the places that cannot read a CSS variable:
+ * canvas and Konva fills, SVG props, Satori/OG images, PDF export.
+ *
+ * The CSS side of the same theme is `apps/tutor/app/globals.css` (Tailwind v4
+ * `@theme`) and `apps/landing/src/index.css` + `tailwind.config.js` (v3). A
+ * colour must exist in all three or in none — see the layer comment at the top
+ * of globals.css for what each group is for.
+ */
 export const DS = {
   Colors: {
-    // Palette: #659287 #88BDA4 #B1D3B9 #E6F2DD #FFFFFF
-    // Sage green — darkest sage as primary accent, pale sage as background
+    /* ── Ink: the deep navy canvas ─────────────────────────────────── */
+    ink950: '#06121C',
+    ink900: '#0A1B27',
+    ink850: '#0D2231',
+    ink800: '#122A39',
+    ink750: '#182D47',
+    ink700: '#1B3242',
+    ink600: '#2C3C4A',
+    ink500: '#3B5362',
+    ink400: '#5D6C7B',
+    ink300: '#758696',
 
-    // Light background — app shell, surfaces
-    background: '#E6F2DD',
-    surface1: '#FFFFFF',
-    surface2: '#F0F7E8',
-    surface3: '#E6F2DD',
-    surface4: '#B1D3B9',
-    borderSubtle: 'rgba(101,146,135,0.2)',
-    borderStrong: '#659287',
+    /* ── Sky: the accent light ─────────────────────────────────────── */
+    sky700: '#2E7CA3',
+    sky600: '#3E8FB4',
+    sky500: '#59AFD4',
+    sky400: '#7FC4E2',
+    sky300: '#A5D6EC',
+    sky200: '#CCE6F1',
 
-    // Text — dark text on light background
-    textPrimary: '#333333',
-    textSecondary: '#5A6B62',
-    textTertiary: 'rgba(51,51,51,0.5)',
+    steel: '#608B9D',
+    mist: '#ABC9D5',
+    frost: '#F0F5F7',
+    blue: '#5FA4F9',
+    blueDeep: '#2563EB',
 
-    // Accent — sage for interactive elements
-    accentAmber: '#659287',
-    accentAmberLight: '#88BDA4',
-    accentAmberDark: '#4F7468',
+    /* ── Semantics: what a colour is for ───────────────────────────── */
+    background: '#06121C',
+    surface1: '#0D2231',
+    surface2: '#122A39',
+    surface3: '#1B3242',
+    surface4: '#2C3C4A',
+    borderSubtle: 'rgba(202,229,241,0.13)',
+    borderStrong: 'rgba(202,229,241,0.26)',
 
-    // Paper tones — white for input and bubble
+    textPrimary: '#F0F5F7',
+    textSecondary: 'rgba(240,245,247,0.68)',
+    textTertiary: 'rgba(240,245,247,0.42)',
+
+    accent: '#59AFD4',
+    accentLight: '#7FC4E2',
+    accentDark: '#3E8FB4',
+
+    /* ── Status: the only hues off the blue axis ───────────────────── */
+    danger: '#E06858',
+    warning: '#E8913A',
+    success: '#4CAF7D',
+
+    statusIdle: 'rgba(93,108,123,0.7)',
+    statusThinking: '#59AFD4',
+    statusTeaching: '#59AFD4',
+
+    /* ── Whiteboard: paper stays white so marker ink has its contrast ─ */
+    whiteboard: '#FFFFFF',
     paper: '#FFFFFF',
-    paperInk: '#333333',
-    paperBorder: 'rgba(101,146,135,0.3)',
-    paperMuted: '#E6F2DD',
-    paperPlaceholder: 'rgba(51,51,51,0.5)',
+    paperInk: '#06121C',
+    paperBorder: 'rgba(202,229,241,0.13)',
+    paperMuted: '#F4F7FA',
+    paperPlaceholder: 'rgba(6,18,28,0.45)',
 
-    // Status colors
-    statusIdle: '#659287',
-    statusThinking: '#88BDA4',
-    statusTeaching: '#659287',
+    /** Default marker ink — dark navy, legible on the white surface. */
+    ink: '#1B2A4A',
+    whiteboardInk: '#1B2A4A',
 
-    // Whiteboard — cream surface with dark ink (physical board metaphor)
-    whiteboard: '#F8F6F0',
-    ink: '#333333',
-    whiteboardInk: '#333333',
-
-    // Cursor — sage chalk
-    overlayCursorBlue: '#659287',
+    /** The tutor's cursor, drawn over the board. */
+    overlayCursorBlue: '#59AFD4',
   },
   CornerRadius: {
     small: 4,
