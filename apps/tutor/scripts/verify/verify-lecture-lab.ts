@@ -58,8 +58,8 @@ import {
   promotedLectureFrameStyle,
   promotedLectureScale,
 } from "../../features/admin/lib/headlessRuntime";
-import { canStartStoredLectureReplay } from "../../features/tutor-session/lib/autoReplay";
-import { isWhiteboardReadyToDraw } from "../../features/tutor-session/lib/whiteboardReady";
+import { canStartStoredLectureReplay } from "../../features/tutor-session/lib/replay/autoReplay";
+import { isWhiteboardReadyToDraw } from "../../features/tutor-session/lib/board/whiteboardReady";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "../../features/tutor-session/constants";
 
 function assert(condition: unknown, message: string): asserts condition {
