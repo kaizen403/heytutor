@@ -1,0 +1,241 @@
+{
+  "lane": "e-dynamic-programming",
+  "questions": [
+    {
+      "id": "lc|70|climbing-stairs|easy",
+      "number": 70,
+      "title": "Climbing Stairs",
+      "difficulty": "easy",
+      "pattern": "dp_fibonacci",
+      "inCatalog": false,
+      "tags": [
+        "math",
+        "dynamic-programming",
+        "memoization"
+      ],
+      "example": "n = 2",
+      "expectedOutput": "2",
+      "question": "You are climbing a staircase. It takes n steps to reach the top.\n\nEach time you can either climb 1 or 2 steps. In how many distinct ways can you climb to the top?\n\nExample 1:\nInput: n = 2\nOutput: 2\nExplanation: There are two ways to climb to the top.\n1. 1 step + 1 step\n2. 2 steps\n\nExample 2:\nInput: n = 3\nOutput: 3\nExplanation: There are three ways to climb to the top.\n1. 1 step + 1 step + 1 step\n2. 1 step + 2 steps\n3. 2 steps + 1 step\n\nConstraints:\n1 <= n <= 45"
+    },
+    {
+      "id": "lc|121|best-time-to-buy-and-sell-stock|easy",
+      "number": 121,
+      "title": "Best Time to Buy and Sell Stock",
+      "difficulty": "easy",
+      "pattern": "single_pass_min_tracking",
+      "inCatalog": false,
+      "tags": [
+        "array",
+        "dynamic-programming"
+      ],
+      "example": "prices = [7,1,5,3,6,4]",
+      "expectedOutput": "5",
+      "question": "You are given an array prices where prices[i] is the price of a given stock on the ith day.\n\nYou want to maximize your profit by choosing a single day to buy one stock and choosing a different day in the future to sell that stock.\n\nReturn the maximum profit you can achieve from this transaction. If you cannot achieve any profit, return 0.\n\nExample 1:\nInput: prices = [7,1,5,3,6,4]\nOutput: 5\nExplanation: Buy on day 2 (price = 1) and sell on day 5 (price = 6), profit = 6-1 = 5.\nNote that buying on day 2 and selling on day 1 is not allowed because you must buy before you sell.\n\nExample 2:\nInput: prices = [7,6,4,3,1]\nOutput: 0\nExplanation: In this case, no transactions are done and the max profit = 0.\n\nConstraints:\n1 <= prices.length <= 10^5\n0 <= prices[i] <= 10^4"
+    },
+    {
+      "id": "lc|746|min-cost-climbing-stairs|easy",
+      "number": 746,
+      "title": "Min Cost Climbing Stairs",
+      "difficulty": "easy",
+      "pattern": "dp_min_cost_stairs",
+      "inCatalog": false,
+      "tags": [
+        "array",
+        "dynamic-programming"
+      ],
+      "example": "cost = [10,15,20]",
+      "expectedOutput": "15",
+      "question": "You are given an integer array cost where cost[i] is the cost of ith step on a staircase. Once you pay the cost, you can either climb one or two steps.\n\nYou can either start from the step with index 0, or the step with index 1.\n\nReturn the minimum cost to reach the top of the floor.\n\nExample 1:\nInput: cost = [10,15,20]\nOutput: 15\nExplanation: You will start at index 1.\n- Pay 15 and climb two steps to reach the top.\nThe total cost is 15.\n\nExample 2:\nInput: cost = [1,100,1,1,1,100]\nOutput: 3\nExplanation: You will start at index 0.\n- Pay 1 and climb two steps to reach index 2.\n- Pay 1 and climb two steps to reach index 4.\n- Pay 1 and climb two steps to reach the top.\nThe total cost is 3.\n\nConstraints:\n2 <= cost.length <= 1000\n0 <= cost[i] <= 999"
+    },
+    {
+      "id": "lc|53|maximum-subarray|medium",
+      "number": 53,
+      "title": "Maximum Subarray",
+      "difficulty": "medium",
+      "pattern": "kadane",
+      "inCatalog": false,
+      "tags": [
+        "array",
+        "divide-and-conquer",
+        "dynamic-programming"
+      ],
+      "example": "nums = [-2,1,-3,4,-1,2,1]",
+      "expectedOutput": "6",
+      "question": "Given an integer array nums, find the subarray with the largest sum, and return its sum.\n\nExample 1:\nInput: nums = [-2,1,-3,4,-1,2,1]\nOutput: 6\nExplanation: The subarray [4,-1,2,1] has the largest sum 6.\n\nExample 2:\nInput: nums = [5,4,-1,7,8]\nOutput: 23\nExplanation: The subarray [5,4,-1,7,8] has the largest sum 23.\n\nConstraints:\n1 <= nums.length <= 10^5\n-10^4 <= nums[i] <= 10^4\n\nFollow up: If you have figured out the O(n) solution, try coding another solution using the divide and conquer approach, which is more subtle."
+    },
+    {
+      "id": "lc|198|house-robber|medium",
+      "number": 198,
+      "title": "House Robber",
+      "difficulty": "medium",
+      "pattern": "dp_house_robber",
+      "inCatalog": false,
+      "tags": [
+        "array",
+        "dynamic-programming"
+      ],
+      "example": "nums = [1,2,3,1]",
+      "expectedOutput": "4",
+      "question": "You are a professional robber planning to rob houses along a street. Each house has a certain amount of money stashed, the only constraint stopping you from robbing each of them is that adjacent houses have security systems connected and it will automatically contact the police if two adjacent houses were broken into on the same night.\n\nGiven an integer array nums representing the amount of money of each house, return the maximum amount of money you can rob tonight without alerting the police.\n\nExample 1:\nInput: nums = [1,2,3,1]\nOutput: 4\nExplanation: Rob house 1 (money = 1) and then rob house 3 (money = 3).\nTotal amount you can rob = 1 + 3 = 4.\n\nExample 2:\nInput: nums = [2,7,9,3,1]\nOutput: 12\nExplanation: Rob house 1 (money = 2), rob house 3 (money = 9) and rob house 5 (money = 1).\nTotal amount you can rob = 2 + 9 + 1 = 12.\n\nConstraints:\n1 <= nums.length <= 100\n0 <= nums[i] <= 400"
+    },
+    {
+      "id": "lc|322|coin-change|medium",
+      "number": 322,
+      "title": "Coin Change",
+      "difficulty": "medium",
+      "pattern": "dp_coin_change",
+      "inCatalog": false,
+      "tags": [
+        "array",
+        "dynamic-programming",
+        "breadth-first-search"
+      ],
+      "example": "coins = [1,2,5], amount = 11",
+      "expectedOutput": "3",
+      "question": "You are given an integer array coins representing coins of different denominations and an integer amount representing a total amount of money.\n\nReturn the fewest number of coins that you need to make up that amount. If that amount of money cannot be made up by any combination of the coins, return -1.\n\nYou may assume that you have an infinite number of each kind of coin.\n\nExample 1:\nInput: coins = [1,2,5], amount = 11\nOutput: 3\nExplanation: 11 = 5 + 5 + 1\n\nExample 2:\nInput: coins = [2], amount = 3\nOutput: -1\n\nExample 3:\nInput: coins = [1], amount = 0\nOutput: 0\n\nConstraints:\n1 <= coins.length <= 12\n1 <= coins[i] <= 2^31 - 1\n0 <= amount <= 10^4"
+    },
+    {
+      "id": "lc|300|longest-increasing-subsequence|medium",
+      "number": 300,
+      "title": "Longest Increasing Subsequence",
+      "difficulty": "medium",
+      "pattern": "dp_lis",
+      "inCatalog": false,
+      "tags": [
+        "array",
+        "binary-search",
+        "dynamic-programming"
+      ],
+      "example": "nums = [10,9,2,5,3,7,101,18]",
+      "expectedOutput": "4",
+      "question": "Given an integer array nums, return the length of the longest strictly increasing subsequence.\n\nExample 1:\nInput: nums = [10,9,2,5,3,7,101,18]\nOutput: 4\nExplanation: The longest increasing subsequence is [2,3,7,101], therefore the length is 4.\n\nExample 2:\nInput: nums = [0,1,0,3,2,3]\nOutput: 4\n\nExample 3:\nInput: nums = [7,7,7,7,7,7,7]\nOutput: 1\n\nConstraints:\n1 <= nums.length <= 2500\n-10^4 <= nums[i] <= 10^4\n\nFollow up: Can you come up with an algorithm that runs in O(n log(n)) time complexity?"
+    },
+    {
+      "id": "lc|62|unique-paths|medium",
+      "number": 62,
+      "title": "Unique Paths",
+      "difficulty": "medium",
+      "pattern": "dp_grid_paths",
+      "inCatalog": false,
+      "tags": [
+        "math",
+        "dynamic-programming",
+        "combinatorics"
+      ],
+      "example": "m = 3, n = 2",
+      "expectedOutput": "3",
+      "question": "There is a robot on an m x n grid. The robot is initially located at the top-left corner (i.e., grid[0][0]). The robot tries to move to the bottom-right corner (i.e., grid[m - 1][n - 1]). The robot can only move either down or right at any point in time.\n\nGiven the two integers m and n, return the number of possible unique paths that the robot can take to reach the bottom-right corner.\n\nThe test cases are generated so that the answer will be less than or equal to 2 * 10^9.\n\nExample 1:\nInput: m = 3, n = 2\nOutput: 3\nExplanation: From the top-left corner, there are a total of 3 ways to reach the bottom-right corner:\n1. Right -> Down -> Down\n2. Down -> Down -> Right\n3. Down -> Right -> Down\n\nExample 2:\nInput: m = 3, n = 4\nOutput: 10\n\nConstraints:\n1 <= m, n <= 100"
+    },
+    {
+      "id": "lc|1143|longest-common-subsequence|medium",
+      "number": 1143,
+      "title": "Longest Common Subsequence",
+      "difficulty": "medium",
+      "pattern": "lcs",
+      "inCatalog": true,
+      "tags": [
+        "string",
+        "dynamic-programming"
+      ],
+      "example": "text1 = \"abcde\", text2 = \"ace\"",
+      "expectedOutput": "3",
+      "question": "Given two strings text1 and text2, return the length of their longest common subsequence. If there is no common subsequence, return 0.\n\nA subsequence of a string is a new string generated from the original string with some characters (can be none) deleted without changing the relative order of the remaining characters.\n\nFor example, \"ace\" is a subsequence of \"abcde\".\nA common subsequence of two strings is a subsequence that is common to both strings.\n\nExample 1:\nInput: text1 = \"abcde\", text2 = \"ace\"\nOutput: 3\nExplanation: The longest common subsequence is \"ace\" and its length is 3.\n\nExample 2:\nInput: text1 = \"abc\", text2 = \"abc\"\nOutput: 3\nExplanation: The longest common subsequence is \"abc\" and its length is 3.\n\nExample 3:\nInput: text1 = \"abc\", text2 = \"def\"\nOutput: 0\nExplanation: There is no such common subsequence, so the result is 0.\n\nConstraints:\n1 <= text1.length, text2.length <= 1000\ntext1 and text2 consist of only lowercase English characters."
+    },
+    {
+      "id": "lc|139|word-break|medium",
+      "number": 139,
+      "title": "Word Break",
+      "difficulty": "medium",
+      "pattern": "dp_1d_word_break",
+      "inCatalog": false,
+      "tags": [
+        "array",
+        "hash-table",
+        "string",
+        "dynamic-programming",
+        "trie",
+        "memoization"
+      ],
+      "example": "s = \"catsand\", wordDict = [\"cats\",\"and\"]",
+      "expectedOutput": "true",
+      "question": "Given a string s and a dictionary of strings wordDict, return true if s can be segmented into a space-separated sequence of one or more dictionary words.\n\nNote that the same word in the dictionary may be reused multiple times in the segmentation.\n\nExample 1:\nInput: s = \"catsand\", wordDict = [\"cats\",\"and\"]\nOutput: true\nExplanation: Return true because \"catsand\" can be segmented as \"cats and\".\n\nExample 2:\nInput: s = \"catcat\", wordDict = [\"cat\"]\nOutput: true\nExplanation: Return true because \"catcat\" can be segmented as \"cat cat\".\nNote that you are allowed to reuse a dictionary word.\n\nExample 3:\nInput: s = \"catsog\", wordDict = [\"cats\",\"dog\",\"sand\",\"and\",\"cat\"]\nOutput: false\n\nConstraints:\n1 <= s.length <= 300\n1 <= wordDict.length <= 1000\n1 <= wordDict[i].length <= 20\ns and wordDict[i] consist of only lowercase English letters.\nAll the strings of wordDict are unique."
+    },
+    {
+      "id": "lc|5|longest-palindromic-substring|medium",
+      "number": 5,
+      "title": "Longest Palindromic Substring",
+      "difficulty": "medium",
+      "pattern": "expand_around_center",
+      "inCatalog": false,
+      "tags": [
+        "two-pointers",
+        "string",
+        "dynamic-programming"
+      ],
+      "example": "s = \"babad\"",
+      "expectedOutput": "\"bab\"",
+      "question": "Given a string s, return the longest palindromic substring in s.\n\nExample 1:\nInput: s = \"babad\"\nOutput: \"bab\"\nExplanation: \"aba\" is also a valid answer.\n\nExample 2:\nInput: s = \"cbbd\"\nOutput: \"bb\"\n\nConstraints:\n1 <= s.length <= 1000\ns consist of only digits and English letters."
+    },
+    {
+      "id": "lc|416|partition-equal-subset-sum|medium",
+      "number": 416,
+      "title": "Partition Equal Subset Sum",
+      "difficulty": "medium",
+      "pattern": "subset_sum",
+      "inCatalog": false,
+      "catalogNote": "A boolean subset-sum table is not the 0/1 knapsack figure: the knapsack simulator draws weights, values and a capacity it maximises, and this question asks only whether half the total is reachable. Declining is correct until a subset-sum family exists.",
+      "tags": [
+        "array",
+        "dynamic-programming"
+      ],
+      "example": "nums = [1,5,11,5]",
+      "expectedOutput": "true",
+      "question": "Given an integer array nums, return true if you can partition the array into two subsets such that the sum of the elements in both subsets is equal or false otherwise.\n\nExample 1:\nInput: nums = [1,5,11,5]\nOutput: true\nExplanation: The array can be partitioned as [1, 5, 5] and [11].\n\nExample 2:\nInput: nums = [1,2,3,5]\nOutput: false\nExplanation: The array cannot be partitioned into equal sum subsets.\n\nConstraints:\n1 <= nums.length <= 200\n1 <= nums[i] <= 100"
+    },
+    {
+      "id": "lc|72|edit-distance|hard",
+      "number": 72,
+      "title": "Edit Distance",
+      "difficulty": "hard",
+      "pattern": "edit_distance",
+      "inCatalog": true,
+      "tags": [
+        "string",
+        "dynamic-programming"
+      ],
+      "example": "word1 = \"horse\", word2 = \"ros\"",
+      "expectedOutput": "3",
+      "question": "Given two strings word1 and word2, return the minimum number of operations required to convert word1 to word2.\n\nYou have the following three operations permitted on a word:\n\nInsert a character\nDelete a character\nReplace a character\n\nExample 1:\nInput: word1 = \"horse\", word2 = \"ros\"\nOutput: 3\nExplanation:\nhorse -> rorse (replace 'h' with 'r')\nrorse -> rose (remove 'r')\nrose -> ros (remove 'e')\n\nExample 2:\nInput: word1 = \"sea\", word2 = \"eat\"\nOutput: 2\nExplanation:\nsea -> ea (remove 's')\nea -> eat (insert 't')\n\nConstraints:\n0 <= word1.length, word2.length <= 500\nword1 and word2 consist of lowercase English letters."
+    },
+    {
+      "id": "lc|312|burst-balloons|hard",
+      "number": 312,
+      "title": "Burst Balloons",
+      "difficulty": "hard",
+      "pattern": "interval_dp",
+      "inCatalog": false,
+      "tags": [
+        "array",
+        "dynamic-programming"
+      ],
+      "example": "nums = [3,1,5,8]",
+      "expectedOutput": "167",
+      "question": "You are given n balloons, indexed from 0 to n - 1. Each balloon is painted with a number on it represented by an array nums. You are asked to burst all the balloons.\n\nIf you burst the ith balloon, you will get nums[i - 1] * nums[i] * nums[i + 1] coins. If i - 1 or i + 1 goes out of bounds of the array, then treat it as if there is a balloon with a 1 painted on it.\n\nReturn the maximum coins you can collect by bursting the balloons wisely.\n\nExample 1:\nInput: nums = [3,1,5,8]\nOutput: 167\nExplanation:\nnums = [3,1,5,8] --> [3,5,8] --> [3,8] --> [8] --> []\ncoins =  3*1*5    +   3*5*8   +  1*3*8  + 1*8*1 = 167\n\nExample 2:\nInput: nums = [1,5]\nOutput: 10\n\nConstraints:\nn == nums.length\n1 <= n <= 300\n0 <= nums[i] <= 100"
+    },
+    {
+      "id": "lc|115|distinct-subsequences|hard",
+      "number": 115,
+      "title": "Distinct Subsequences",
+      "difficulty": "hard",
+      "pattern": "distinct_subsequences_dp",
+      "inCatalog": false,
+      "tags": [
+        "string",
+        "dynamic-programming"
+      ],
+      "example": "s = \"rabbbit\", t = \"rabbit\"",
+      "expectedOutput": "3",
+      "question": "Given two strings s and t, return the number of distinct subsequences of s which equals t. The test cases are generated so that the answer fits on a 32-bit signed integer.\n\nExample 1:\nInput: s = \"rabbbit\", t = \"rabbit\"\nOutput: 3\nExplanation: As shown below, there are 3 ways you can generate \"rabbit\" from s.\n\nExample 2:\nInput: s = \"babgbag\", t = \"bag\"\nOutput: 5\n\nConstraints:\n1 <= s.length, t.length <= 1000\ns and t consist of English letters."
+    }
+  ]
+}

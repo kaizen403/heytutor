@@ -1,0 +1,234 @@
+{
+  "lane": "c-linked-lists-trees",
+  "questions": [
+    {
+      "id": "lc|206|reverse-linked-list|easy",
+      "number": 206,
+      "title": "Reverse Linked List",
+      "difficulty": "easy",
+      "pattern": "reverse_linked_list",
+      "inCatalog": true,
+      "tags": [
+        "linked-list",
+        "recursion"
+      ],
+      "example": "head = [1,2,3,4,5]",
+      "expectedOutput": "[5,4,3,2,1]",
+      "question": "Given the head of a singly linked list, reverse the list, and return the reversed list.\n\nExample 1:\nInput: head = [1,2,3,4,5]\nOutput: [5,4,3,2,1]\n\nExample 2:\nInput: head = [1,2]\nOutput: [2,1]\n\nExample 3:\nInput: head = []\nOutput: []\n\nConstraints:\nThe number of nodes in the list is the range [0, 5000].\n-5000 <= Node.val <= 5000\n\nFollow up: A linked list can be reversed either iteratively or recursively. Could you implement both?"
+    },
+    {
+      "id": "lc|141|linked-list-cycle|easy",
+      "number": 141,
+      "title": "Linked List Cycle",
+      "difficulty": "easy",
+      "pattern": "linked_list_cycle",
+      "inCatalog": true,
+      "tags": [
+        "linked-list",
+        "two-pointers",
+        "hash-table"
+      ],
+      "example": "head = [3,2,0,-4], pos = 1",
+      "expectedOutput": "true",
+      "question": "Given head, the head of a linked list, determine if the linked list has a cycle in it.\n\nThere is a cycle in a linked list if there is some node in the list that can be reached again by continuously following the next pointer. Internally, pos is used to denote the index of the node that tail's next pointer is connected to. Note that pos is not passed as a parameter.\n\nReturn true if there is a cycle in the linked list. Otherwise, return false.\n\nExample 1:\nInput: head = [3,2,0,-4], pos = 1\nOutput: true\nExplanation: There is a cycle in the linked list, where the tail connects to the 1st node (0-indexed).\n\nExample 2:\nInput: head = [1,2], pos = 0\nOutput: true\nExplanation: There is a cycle in the linked list, where the tail connects to the 0th node.\n\nExample 3:\nInput: head = [1], pos = -1\nOutput: false\nExplanation: There is no cycle in the linked list.\n\nConstraints:\nThe number of the nodes in the list is in the range [0, 10^4].\n-10^5 <= Node.val <= 10^5\npos is -1 or a valid index in the linked-list.\n\nFollow up: Can you solve it using O(1) (i.e. constant) memory?"
+    },
+    {
+      "id": "lc|21|merge-two-sorted-lists|easy",
+      "number": 21,
+      "title": "Merge Two Sorted Lists",
+      "difficulty": "easy",
+      "pattern": "merge_two_lists",
+      "inCatalog": false,
+      "tags": [
+        "linked-list",
+        "recursion"
+      ],
+      "example": "list1 = [1,2,4], list2 = [1,3,4]",
+      "expectedOutput": "[1,1,2,3,4,4]",
+      "question": "You are given the heads of two sorted linked lists list1 and list2.\n\nMerge the two lists into one sorted list. The list should be made by splicing together the nodes of the first two lists.\n\nReturn the head of the merged linked list.\n\nExample 1:\nInput: list1 = [1,2,4], list2 = [1,3,4]\nOutput: [1,1,2,3,4,4]\n\nExample 2:\nInput: list1 = [], list2 = []\nOutput: []\n\nExample 3:\nInput: list1 = [], list2 = [0]\nOutput: [0]\n\nConstraints:\nThe number of nodes in both lists is in the range [0, 50].\n-100 <= Node.val <= 100\nBoth list1 and list2 are sorted in non-decreasing order."
+    },
+    {
+      "id": "lc|94|binary-tree-inorder-traversal|easy",
+      "number": 94,
+      "title": "Binary Tree Inorder Traversal",
+      "difficulty": "easy",
+      "pattern": "tree_traversal",
+      "inCatalog": true,
+      "tags": [
+        "tree",
+        "binary-tree",
+        "depth-first-search",
+        "stack"
+      ],
+      "example": "root = [1,null,2,3]",
+      "expectedOutput": "[1,3,2]",
+      "question": "Given the root of a binary tree, return the inorder traversal of its nodes' values.\n\nExample 1:\nInput: root = [1,null,2,3]\nOutput: [1,3,2]\n\nExample 2:\nInput: root = []\nOutput: []\n\nExample 3:\nInput: root = [1]\nOutput: [1]\n\nConstraints:\nThe number of nodes in the tree is in the range [0, 100].\n-100 <= Node.val <= 100\n\nFollow up: Recursive solution is trivial, could you do it iteratively?"
+    },
+    {
+      "id": "lc|226|invert-binary-tree|easy",
+      "number": 226,
+      "title": "Invert Binary Tree",
+      "difficulty": "easy",
+      "pattern": "tree_invert_recursion",
+      "inCatalog": false,
+      "tags": [
+        "tree",
+        "binary-tree",
+        "depth-first-search",
+        "breadth-first-search"
+      ],
+      "example": "root = [4,2,7,1,3,6,9]",
+      "expectedOutput": "[4,7,2,9,6,3,1]",
+      "question": "Given the root of a binary tree, invert the tree, and return its root.\n\nExample 1:\nInput: root = [4,2,7,1,3,6,9]\nOutput: [4,7,2,9,6,3,1]\n\nExample 2:\nInput: root = [2,1,3]\nOutput: [2,3,1]\n\nExample 3:\nInput: root = []\nOutput: []\n\nConstraints:\nThe number of nodes in the tree is in the range [0, 100].\n-100 <= Node.val <= 100"
+    },
+    {
+      "id": "lc|19|remove-nth-node-from-end-of-list|medium",
+      "number": 19,
+      "title": "Remove Nth Node From End of List",
+      "difficulty": "medium",
+      "pattern": "two_pass_or_gap_pointers",
+      "inCatalog": false,
+      "tags": [
+        "linked-list",
+        "two-pointers"
+      ],
+      "example": "head = [1,2,3,4,5], n = 2",
+      "expectedOutput": "[1,2,3,5]",
+      "question": "Given the head of a linked list, remove the nth node from the end of the list and return its head.\n\nExample 1:\nInput: head = [1,2,3,4,5], n = 2\nOutput: [1,2,3,5]\n\nExample 2:\nInput: head = [1], n = 1\nOutput: []\n\nExample 3:\nInput: head = [1,2], n = 1\nOutput: [1]\n\nConstraints:\nThe number of nodes in the list is sz.\n1 <= sz <= 30\n0 <= Node.val <= 100\n1 <= n <= sz\n\nFollow up: Could you do this in one pass?"
+    },
+    {
+      "id": "lc|2|add-two-numbers|medium",
+      "number": 2,
+      "title": "Add Two Numbers",
+      "difficulty": "medium",
+      "pattern": "digit_carry_list",
+      "inCatalog": false,
+      "tags": [
+        "linked-list",
+        "math",
+        "recursion"
+      ],
+      "example": "l1 = [2,4,3], l2 = [5,6,4]",
+      "expectedOutput": "[7,0,8]",
+      "question": "You are given two non-empty linked lists representing two non-negative integers. The digits are stored in reverse order, and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list.\n\nYou may assume the two numbers do not contain any leading zero, except the number 0 itself.\n\nExample 1:\nInput: l1 = [2,4,3], l2 = [5,6,4]\nOutput: [7,0,8]\nExplanation: 342 + 465 = 807.\n\nExample 2:\nInput: l1 = [0], l2 = [0]\nOutput: [0]\n\nExample 3:\nInput: l1 = [9,9,9], l2 = [9,9]\nOutput: [8,9,0,1]\nExplanation: 999 + 99 = 1098.\n\nConstraints:\nThe number of nodes in each linked list is in the range [1, 100].\n0 <= Node.val <= 9\nIt is guaranteed that the list represents a number that does not have leading zeros."
+    },
+    {
+      "id": "lc|146|lru-cache|medium",
+      "number": 146,
+      "title": "LRU Cache",
+      "difficulty": "medium",
+      "pattern": "lru_cache_map_list",
+      "inCatalog": false,
+      "tags": [
+        "design",
+        "hash-table",
+        "linked-list",
+        "doubly-linked-list"
+      ],
+      "example": "[\"LRUCache\", \"put\", \"put\", \"get\", \"put\", \"get\", \"put\", \"get\", \"get\", \"get\"]\n[[2], [1, 1], [2, 2], [1], [3, 3], [2], [4, 4], [1], [3], [4]]",
+      "expectedOutput": "[null, null, null, 1, null, -1, null, -1, 3, 4]",
+      "question": "Design a data structure that follows the constraints of a Least Recently Used (LRU) cache.\n\nImplement the LRUCache class:\n\nLRUCache(int capacity) Initialize the LRU cache with positive size capacity.\nint get(int key) Return the value of the key if the key exists, otherwise return -1.\nvoid put(int key, int value) Update the value of the key if the key exists. Otherwise, add the key-value pair to the cache. If the number of keys exceeds the capacity from this operation, evict the least recently used key.\n\nThe functions get and put must each run in O(1) average time complexity.\n\nExample 1:\nInput\n[\"LRUCache\", \"put\", \"put\", \"get\", \"put\", \"get\", \"put\", \"get\", \"get\", \"get\"]\n[[2], [1, 1], [2, 2], [1], [3, 3], [2], [4, 4], [1], [3], [4]]\nOutput\n[null, null, null, 1, null, -1, null, -1, 3, 4]\n\nExplanation\nLRUCache lRUCache = new LRUCache(2);\nlRUCache.put(1, 1); // cache is {1=1}\nlRUCache.put(2, 2); // cache is {1=1, 2=2}\nlRUCache.get(1);    // return 1\nlRUCache.put(3, 3); // LRU key was 2, evicts key 2, cache is {1=1, 3=3}\nlRUCache.get(2);    // returns -1 (not found)\nlRUCache.put(4, 4); // LRU key was 1, evicts key 1, cache is {4=4, 3=3}\nlRUCache.get(1);    // return -1 (not found)\nlRUCache.get(3);    // return 3\nlRUCache.get(4);    // return 4\n\nConstraints:\n1 <= capacity <= 3000\n0 <= key <= 10^4\n0 <= value <= 10^5\nAt most 2 * 10^5 calls will be made to get and put."
+    },
+    {
+      "id": "lc|102|binary-tree-level-order-traversal|medium",
+      "number": 102,
+      "title": "Binary Tree Level Order Traversal",
+      "difficulty": "medium",
+      "pattern": "tree_traversal",
+      "inCatalog": true,
+      "tags": [
+        "tree",
+        "binary-tree",
+        "breadth-first-search"
+      ],
+      "example": "root = [3,9,20,null,null,15,7]",
+      "expectedOutput": "[[3],[9,20],[15,7]]",
+      "question": "Given the root of a binary tree, return the level order traversal of its nodes' values. (i.e., from left to right, level by level).\n\nExample 1:\nInput: root = [3,9,20,null,null,15,7]\nOutput: [[3],[9,20],[15,7]]\n\nExample 2:\nInput: root = [1]\nOutput: [[1]]\n\nExample 3:\nInput: root = []\nOutput: []\n\nConstraints:\nThe number of nodes in the tree is in the range [0, 2000].\n-1000 <= Node.val <= 1000"
+    },
+    {
+      "id": "lc|98|validate-binary-search-tree|medium",
+      "number": 98,
+      "title": "Validate Binary Search Tree",
+      "difficulty": "medium",
+      "pattern": "bst_validate_bounds",
+      "inCatalog": false,
+      "tags": [
+        "tree",
+        "binary-tree",
+        "binary-search-tree",
+        "depth-first-search"
+      ],
+      "example": "root = [5,1,4,null,null,3,6]",
+      "expectedOutput": "false",
+      "question": "Given the root of a binary tree, determine if it is a valid binary search tree (BST).\n\nA valid BST is defined as follows:\n\nThe left subtree of a node contains only nodes with keys less than the node's key.\nThe right subtree of a node contains only nodes with keys greater than the node's key.\nBoth the left and right subtrees must also be binary search trees.\n\nExample 1:\nInput: root = [2,1,3]\nOutput: true\n\nExample 2:\nInput: root = [5,1,4,null,null,3,6]\nOutput: false\nExplanation: The root node's value is 5 but its right child's value is 4.\n\nConstraints:\nThe number of nodes in the tree is in the range [1, 10^4].\n-2^31 <= Node.val <= 2^31 - 1"
+    },
+    {
+      "id": "lc|235|lowest-common-ancestor-of-a-binary-search-tree|medium",
+      "number": 235,
+      "title": "Lowest Common Ancestor of a Binary Search Tree",
+      "difficulty": "medium",
+      "pattern": "bst_lca",
+      "inCatalog": false,
+      "tags": [
+        "tree",
+        "binary-tree",
+        "binary-search-tree",
+        "depth-first-search"
+      ],
+      "example": "root = [6,2,8,0,4,7,9], p = 2, q = 8",
+      "expectedOutput": "6",
+      "question": "Given a binary search tree (BST), find the lowest common ancestor (LCA) node of two given nodes in the BST.\n\nAccording to the definition of LCA on Wikipedia: \"The lowest common ancestor is defined between two nodes p and q as the lowest node in T that has both p and q as descendants (where we allow a node to be a descendant of itself).\"\n\nExample 1:\nInput: root = [6,2,8,0,4,7,9], p = 2, q = 8\nOutput: 6\nExplanation: The LCA of nodes 2 and 8 is 6.\n\nExample 2:\nInput: root = [6,2,8,0,4,7,9], p = 2, q = 4\nOutput: 2\nExplanation: The LCA of nodes 2 and 4 is 2, since a node can be a descendant of itself according to the LCA definition.\n\nExample 3:\nInput: root = [2,1], p = 2, q = 1\nOutput: 2\n\nConstraints:\nThe number of nodes in the tree is in the range [2, 10^5].\n-10^9 <= Node.val <= 10^9\nAll Node.val are unique.\np != q\np and q will exist in the BST."
+    },
+    {
+      "id": "lc|297|serialize-and-deserialize-binary-tree|hard",
+      "number": 297,
+      "title": "Serialize and Deserialize Binary Tree",
+      "difficulty": "hard",
+      "pattern": "tree_serialize_preorder",
+      "inCatalog": false,
+      "tags": [
+        "tree",
+        "binary-tree",
+        "design",
+        "string",
+        "depth-first-search",
+        "breadth-first-search"
+      ],
+      "example": "root = [1,2,3,null,null,4,5]",
+      "expectedOutput": "[1,2,3,null,null,4,5]",
+      "question": "Serialization is the process of converting a data structure or object into a sequence of bits so that it can be stored in a file or memory buffer, or transmitted across a network connection link to be reconstructed later in the same or another computer environment.\n\nDesign an algorithm to serialize and deserialize a binary tree. There is no restriction on how your serialization/deserialization algorithm should work. You just need to ensure that a binary tree can be serialized to a string and this string can be deserialized to the original tree structure.\n\nClarification: The input/output format is the same as how LeetCode serializes a binary tree. You do not necessarily need to follow this format, so please be creative and come up with different approaches yourself.\n\nExample 1:\nInput: root = [1,2,3,null,null,4,5]\nOutput: [1,2,3,null,null,4,5]\n\nExample 2:\nInput: root = []\nOutput: []\n\nConstraints:\nThe number of nodes in the tree is in the range [0, 10^4].\n-1000 <= Node.val <= 1000"
+    },
+    {
+      "id": "lc|124|binary-tree-maximum-path-sum|hard",
+      "number": 124,
+      "title": "Binary Tree Maximum Path Sum",
+      "difficulty": "hard",
+      "pattern": "tree_max_path_sum",
+      "inCatalog": false,
+      "tags": [
+        "tree",
+        "binary-tree",
+        "dynamic-programming",
+        "depth-first-search"
+      ],
+      "example": "root = [-10,9,20,null,null,15,7]",
+      "expectedOutput": "42",
+      "question": "A path in a binary tree is a sequence of nodes where each pair of adjacent nodes in the sequence has an edge connecting them. A node can only appear in the sequence at most once. Note that the path does not need to pass through the root.\n\nThe path sum of a path is the sum of the node's values in the path.\n\nGiven the root of a binary tree, return the maximum path sum of any non-empty path.\n\nExample 1:\nInput: root = [1,2,3]\nOutput: 6\nExplanation: The optimal path is 2 -> 1 -> 3 with a path sum of 2 + 1 + 3 = 6.\n\nExample 2:\nInput: root = [-10,9,20,null,null,15,7]\nOutput: 42\nExplanation: The optimal path is 15 -> 20 -> 7 with a path sum of 15 + 20 + 7 = 42.\n\nConstraints:\nThe number of nodes in the tree is in the range [1, 3 * 10^4].\n-1000 <= Node.val <= 1000"
+    },
+    {
+      "id": "lc|25|reverse-nodes-in-k-group|hard",
+      "number": 25,
+      "title": "Reverse Nodes in k-Group",
+      "difficulty": "hard",
+      "pattern": "reverse_k_group",
+      "inCatalog": false,
+      "tags": [
+        "linked-list",
+        "recursion"
+      ],
+      "example": "head = [1,2,3,4,5], k = 2",
+      "expectedOutput": "[2,1,4,3,5]",
+      "question": "Given the head of a linked list, reverse the nodes of the list k at a time, and return the modified list.\n\nk is a positive integer and is less than or equal to the length of the linked list. If the number of nodes is not a multiple of k then left-out nodes, in the end, should remain as it is.\n\nYou may not alter the values in the list's nodes, only nodes themselves may be changed.\n\nExample 1:\nInput: head = [1,2,3,4,5], k = 2\nOutput: [2,1,4,3,5]\n\nExample 2:\nInput: head = [1,2,3,4,5], k = 3\nOutput: [3,2,1,4,5]\n\nConstraints:\nThe number of nodes in the list is n.\n1 <= k <= n <= 5000\n0 <= Node.val <= 1000\n\nFollow-up: Can you solve the problem in O(1) extra memory space?"
+    }
+  ]
+}

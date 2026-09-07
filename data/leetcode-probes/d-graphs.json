@@ -1,0 +1,230 @@
+{
+  "lane": "d-graphs",
+  "questions": [
+    {
+      "id": "lc|200|number-of-islands|medium",
+      "number": 200,
+      "title": "Number of Islands",
+      "difficulty": "medium",
+      "pattern": "grid_islands",
+      "inCatalog": false,
+      "tags": [
+        "graph",
+        "bfs",
+        "dfs",
+        "grid"
+      ],
+      "example": "grid = [[\"1\",\"1\",\"0\"],[\"0\",\"1\",\"0\"],[\"1\",\"0\",\"1\"]]",
+      "expectedOutput": "3",
+      "question": "Given an m x n 2D binary grid grid which represents a map of '1's (land) and '0's (water), return the number of islands.\n\nAn island is surrounded by water and is formed by connecting adjacent lands horizontally or vertically. You may assume all four edges of the grid are all surrounded by water.\n\nExample 1:\nInput: grid = [[\"1\",\"1\",\"0\"],[\"0\",\"1\",\"0\"],[\"1\",\"0\",\"1\"]]\nOutput: 3\n\nExample 2:\nInput: grid = [[\"1\",\"1\",\"1\"],[\"0\",\"1\",\"0\"],[\"1\",\"1\",\"1\"]]\nOutput: 1\n\nConstraints:\nm == grid.length\nn == grid[i].length\n1 <= m, n <= 300\ngrid[i][j] is '0' or '1'."
+    },
+    {
+      "id": "lc|733|flood-fill|easy",
+      "number": 733,
+      "title": "Flood Fill",
+      "difficulty": "easy",
+      "pattern": "grid_dfs_fill",
+      "inCatalog": false,
+      "tags": [
+        "graph",
+        "dfs",
+        "bfs",
+        "grid"
+      ],
+      "example": "image = [[1,1,1],[1,1,0],[1,0,1]], sr = 1, sc = 1, color = 2",
+      "expectedOutput": "[[2,2,2],[2,2,0],[2,0,1]]",
+      "question": "You are given an image represented by an m x n grid of integers image, where image[i][j] represents the pixel value of the image. You are also given three integers sr, sc, and color. Your task is to perform a flood fill on the image starting from the pixel image[sr][sc].\n\nTo perform a flood fill:\n\n1. Begin with the starting pixel and change its color to color.\n2. Perform the same process for each pixel that is directly adjacent (pixels that share a side with the original pixel, either horizontally or vertically) and shares the same color as the starting pixel.\n3. Keep repeating this process by checking neighboring pixels of the updated pixels and modifying their color if it matches the original color of the starting pixel.\n4. The process stops when there are no more adjacent pixels of the original color to update.\n\nReturn the modified image after performing the flood fill.\n\nExample 1:\nInput: image = [[1,1,1],[1,1,0],[1,0,1]], sr = 1, sc = 1, color = 2\nOutput: [[2,2,2],[2,2,0],[2,0,1]]\nExplanation: From the center of the image with position (sr, sc) = (1, 1) (i.e., the red pixel), all pixels connected by a path of the same color as the starting pixel (i.e., the blue pixels) are colored with the new color. Note the bottom corner is not colored 2, because it is not horizontally or vertically connected to the starting pixel.\n\nExample 2:\nInput: image = [[0,0,0],[0,0,0]], sr = 0, sc = 0, color = 0\nOutput: [[0,0,0],[0,0,0]]\nExplanation: The starting pixel is already colored with 0, which is the same as the target color. Therefore, no changes are made to the image.\n\nConstraints:\nm == image.length\nn == image[i].length\n1 <= m, n <= 50\n0 <= image[i][j], color < 2^16\n0 <= sr < m\n0 <= sc < n"
+    },
+    {
+      "id": "lc|133|clone-graph|medium",
+      "number": 133,
+      "title": "Clone Graph",
+      "difficulty": "medium",
+      "pattern": "graph_clone_bfs",
+      "inCatalog": false,
+      "tags": [
+        "graph",
+        "bfs",
+        "dfs",
+        "hash_map"
+      ],
+      "example": "adjList = [[2,4],[1,3],[2,4],[1,3]]",
+      "expectedOutput": "[[2,4],[1,3],[2,4],[1,3]]",
+      "question": "Given a reference of a node in a connected undirected graph.\n\nReturn a deep copy (clone) of the graph.\n\nEach node in the graph contains a value (int) and a list (List[Node]) of its neighbors.\n\nclass Node {\n    public int val;\n    public List<Node> neighbors;\n}\n\nTest case format:\n\nFor simplicity, each node's value is the same as the node's index (1-indexed). For example, the first node with val == 1, the second node with val == 2, and so on. The graph is represented in the test case using an adjacency list.\n\nAn adjacency list is a collection of unordered lists used to represent a finite graph. Each list describes the set of neighbors of a node in the graph.\n\nThe given node will always be the first node with val = 1. You must return the copy of the given node as a reference to the cloned graph.\n\nExample 1:\nInput: adjList = [[2,4],[1,3],[2,4],[1,3]]\nOutput: [[2,4],[1,3],[2,4],[1,3]]\nExplanation: There are 4 nodes in the graph.\n1st node (val = 1)'s neighbors are 2nd node (val = 2) and 4th node (val = 4).\n2nd node (val = 2)'s neighbors are 1st node (val = 1) and 3rd node (val = 3).\n3rd node (val = 3)'s neighbors are 2nd node (val = 2) and 4th node (val = 4).\n4th node (val = 4)'s neighbors are 1st node (val = 1) and 3rd node (val = 3).\n\nExample 2:\nInput: adjList = [[]]\nOutput: [[]]\nExplanation: Note that the input contains one empty list. The graph consists of only one node with val = 1 and it does not have any neighbors.\n\nExample 3:\nInput: adjList = []\nOutput: []\nExplanation: This an empty graph, it does not have any nodes.\n\nConstraints:\nThe number of nodes in the graph is in the range [0, 100].\n1 <= Node.val <= 100\nNode.val is unique for each node.\nThere are no repeated edges and no self-loops in the graph.\nThe Graph is connected and all nodes can be visited starting from the given node."
+    },
+    {
+      "id": "lc|207|course-schedule|medium",
+      "number": 207,
+      "title": "Course Schedule",
+      "difficulty": "medium",
+      "pattern": "topological_sort",
+      "inCatalog": true,
+      "tags": [
+        "graph",
+        "topological_sort",
+        "dfs",
+        "bfs",
+        "cycle_detection"
+      ],
+      "example": "numCourses = 2, prerequisites = [[1,0]]",
+      "expectedOutput": "true",
+      "question": "There are a total of numCourses courses you have to take, labeled from 0 to numCourses - 1. You are given an array prerequisites where prerequisites[i] = [ai, bi] indicates that you must take course bi first if you want to take course ai.\n\nFor example, the pair [0, 1], indicates that to take course 0 you have to first take course 1.\n\nReturn true if you can finish all courses. Otherwise, return false.\n\nExample 1:\nInput: numCourses = 2, prerequisites = [[1,0]]\nOutput: true\nExplanation: There are a total of 2 courses to take. \nTo take course 1 you should have finished course 0. So it is possible.\n\nExample 2:\nInput: numCourses = 2, prerequisites = [[1,0],[0,1]]\nOutput: false\nExplanation: There are a total of 2 courses to take. \nTo take course 1 you should have finished course 0, and to take course 0 you should also have finished course 1. So it is impossible.\n\nConstraints:\n1 <= numCourses <= 2000\n0 <= prerequisites.length <= 5000\nprerequisites[i].length == 2\n0 <= ai, bi < numCourses\nAll the pairs prerequisites[i] are unique."
+    },
+    {
+      "id": "lc|210|course-schedule-ii|medium",
+      "number": 210,
+      "title": "Course Schedule II",
+      "difficulty": "medium",
+      "pattern": "topological_sort",
+      "inCatalog": true,
+      "tags": [
+        "graph",
+        "topological_sort",
+        "dfs",
+        "bfs"
+      ],
+      "example": "numCourses = 4, prerequisites = [[1,0],[2,0],[3,1],[3,2]]",
+      "expectedOutput": "[0,2,1,3]",
+      "question": "There are a total of numCourses courses you have to take, labeled from 0 to numCourses - 1. You are given an array prerequisites where prerequisites[i] = [ai, bi] indicates that you must take course bi first if you want to take course ai.\n\nFor example, the pair [0, 1], indicates that to take course 0 you have to first take course 1.\n\nReturn the ordering of courses you should take to finish all courses. If there are many valid answers, return any of them. If it is impossible to finish all courses, return an empty array.\n\nExample 1:\nInput: numCourses = 4, prerequisites = [[1,0],[2,0],[3,1],[3,2]]\nOutput: [0,2,1,3]\nExplanation: There are a total of 4 courses to take. To take course 3 you should have finished both courses 1 and 2. Both courses 1 and 2 should be taken after you finished course 0.\nSo one correct course order is [0,1,2,3]. Another correct ordering is [0,2,1,3].\n\nExample 2:\nInput: numCourses = 2, prerequisites = [[1,0]]\nOutput: [0,1]\nExplanation: There are a total of 2 courses to take. To take course 1 you should have finished course 0. So the correct course order is [0,1].\n\nExample 3:\nInput: numCourses = 1, prerequisites = []\nOutput: [0]\n\nConstraints:\n1 <= numCourses <= 2000\n0 <= prerequisites.length <= numCourses * (numCourses - 1)\nprerequisites[i].length == 2\n0 <= ai, bi < numCourses\nai != bi\nAll the pairs [ai, bi] are distinct."
+    },
+    {
+      "id": "lc|547|number-of-provinces|medium",
+      "number": 547,
+      "title": "Number of Provinces",
+      "difficulty": "medium",
+      "pattern": "union_find",
+      "inCatalog": true,
+      "tags": [
+        "graph",
+        "union_find",
+        "dfs",
+        "connected_components"
+      ],
+      "example": "isConnected = [[1,1,0],[1,1,0],[0,0,1]]",
+      "expectedOutput": "2",
+      "question": "There are n cities. Some of them are connected, while some are not. If city a is connected directly with city b, and city b is connected directly with city c, then city a is connected indirectly with city c.\n\nA province is a group of directly or indirectly connected cities and no other cities outside of the group.\n\nYou are given an n x n matrix isConnected where isConnected[i][j] = 1 if the ith city and the jth city are directly connected, and isConnected[i][j] = 0 otherwise.\n\nReturn the total number of provinces.\n\nExample 1:\nInput: isConnected = [[1,1,0],[1,1,0],[0,0,1]]\nOutput: 2\n\nExample 2:\nInput: isConnected = [[1,0,0],[0,1,0],[0,0,1]]\nOutput: 3\n\nConstraints:\n1 <= n <= 200\nn == isConnected.length\nn == isConnected[i].length\nisConnected[i][j] is 1 or 0.\nisConnected[i][i] == 1\nisConnected[i][j] == isConnected[j][i]"
+    },
+    {
+      "id": "lc|994|rotting-oranges|medium",
+      "number": 994,
+      "title": "Rotting Oranges",
+      "difficulty": "medium",
+      "pattern": "grid_bfs_multi_source",
+      "inCatalog": false,
+      "tags": [
+        "graph",
+        "bfs",
+        "grid",
+        "multi_source"
+      ],
+      "example": "grid = [[2,1,1],[1,1,0],[0,1,1]]",
+      "expectedOutput": "4",
+      "question": "You are given an m x n grid where each cell can have one of three values:\n\n0 representing an empty cell,\n1 representing a fresh orange, or\n2 representing a rotten orange.\n\nEvery minute, any fresh orange that is 4-directionally adjacent to a rotten orange becomes rotten.\n\nReturn the minimum number of minutes that must elapse until no cell has a fresh orange. If this is impossible, return -1.\n\nExample 1:\nInput: grid = [[2,1,1],[1,1,0],[0,1,1]]\nOutput: 4\n\nExample 2:\nInput: grid = [[2,1,1],[0,1,1],[1,0,1]]\nOutput: -1\nExplanation: The orange in the bottom left corner (row 2, column 0) is never rotten, because rotting only happens 4-directionally.\n\nExample 3:\nInput: grid = [[0,2]]\nOutput: 0\nExplanation: Since there are already no fresh oranges at minute 0, the answer is just 0.\n\nConstraints:\nm == grid.length\nn == grid[i].length\n1 <= m, n <= 10\ngrid[i][j] is 0, 1, or 2."
+    },
+    {
+      "id": "lc|743|network-delay-time|medium",
+      "number": 743,
+      "title": "Network Delay Time",
+      "difficulty": "medium",
+      "pattern": "dijkstra",
+      "inCatalog": true,
+      "tags": [
+        "graph",
+        "dijkstra",
+        "shortest_path",
+        "heap"
+      ],
+      "example": "times = [[2,1,1],[2,3,1],[3,4,1]], n = 4, k = 2",
+      "expectedOutput": "2",
+      "question": "You are given a network of n nodes, labeled from 1 to n. You are also given times, a list of travel times as directed edges times[i] = (ui, vi, wi), where ui is the source node, vi is the target node, and wi is the time it takes for a signal to travel from source to target.\n\nWe will send a signal from a given node k. Return the minimum time it takes for all the n nodes to receive the signal. If it is impossible for all the n nodes to receive the signal, return -1.\n\nExample 1:\nInput: times = [[2,1,1],[2,3,1],[3,4,1]], n = 4, k = 2\nOutput: 2\n\nExample 2:\nInput: times = [[1,2,1]], n = 2, k = 1\nOutput: 1\n\nExample 3:\nInput: times = [[1,2,1]], n = 2, k = 2\nOutput: -1\n\nConstraints:\n1 <= k <= n <= 100\n1 <= times.length <= 6000\ntimes[i].length == 3\n1 <= ui, vi <= n\nui != vi\n0 <= wi <= 100\nAll the pairs (ui, vi) are unique. (i.e., no multiple edges.)"
+    },
+    {
+      "id": "lc|1584|min-cost-to-connect-all-points|medium",
+      "number": 1584,
+      "title": "Min Cost to Connect All Points",
+      "difficulty": "medium",
+      "pattern": "kruskal",
+      "inCatalog": true,
+      "tags": [
+        "graph",
+        "mst",
+        "kruskal",
+        "prim",
+        "union_find"
+      ],
+      "example": "points = [[0,0],[2,2],[3,10],[5,2],[7,0]]",
+      "expectedOutput": "20",
+      "question": "You are given an array points representing integer coordinates of some points on a 2D-plane, where points[i] = [xi, yi].\n\nThe cost of connecting two points [xi, yi] and [xj, yj] is the manhattan distance between them: |xi - xj| + |yi - yj|, where |val| denotes the absolute value of val.\n\nReturn the minimum cost to make all points connected. All points are connected if there is exactly one simple path between any two points.\n\nExample 1:\nInput: points = [[0,0],[2,2],[3,10],[5,2],[7,0]]\nOutput: 20\nExplanation: We can connect the points as shown above to get the minimum cost of 20.\nNotice that there is a unique path between every pair of points.\n\nExample 2:\nInput: points = [[3,12],[-2,5],[-4,1]]\nOutput: 18\n\nConstraints:\n1 <= points.length <= 1000\n-10^6 <= xi, yi <= 10^6\nAll pairs (xi, yi) are distinct."
+    },
+    {
+      "id": "lc|785|is-graph-bipartite|medium",
+      "number": 785,
+      "title": "Is Graph Bipartite?",
+      "difficulty": "medium",
+      "pattern": "grid_bipartite",
+      "inCatalog": false,
+      "tags": [
+        "graph",
+        "bfs",
+        "dfs",
+        "bipartite",
+        "two_coloring"
+      ],
+      "example": "graph = [[1,2,3],[0,2],[0,1,3],[0,2]]",
+      "expectedOutput": "false",
+      "question": "There is an undirected graph with n nodes, where each node is numbered between 0 and n - 1. You are given a 2D array graph, where graph[u] is an array of nodes that node u is adjacent to. More formally, for each v in graph[u], there is an undirected edge between node u and node v. The graph has the following properties:\n\nThere are no self-edges (graph[u] does not contain u).\nThere are no parallel edges (graph[u] does not contain duplicate values).\nIf v is in graph[u], then u is in graph[v] (the graph is undirected).\nThe graph may not be connected, meaning there may be two nodes u and v such that there is no path between them.\n\nA graph is bipartite if the nodes can be partitioned into two independent sets A and B such that every edge in the graph connects a node in set A and a node in set B.\n\nReturn true if and only if it is bipartite.\n\nExample 1:\nInput: graph = [[1,2,3],[0,2],[0,1,3],[0,2]]\nOutput: false\nExplanation: There is no way to partition the nodes into two independent sets such that every edge connects a node in one and a node in the other.\n\nExample 2:\nInput: graph = [[1,3],[0,2],[1,3],[0,2]]\nOutput: true\nExplanation: We can partition the nodes into two sets: {0, 2} and {1, 3}.\n\nConstraints:\ngraph.length == n\n1 <= n <= 100\n0 <= graph[u].length < n\n0 <= graph[u][i] <= n - 1\ngraph[u] does not contain u.\nAll the values of graph[u] are unique.\nIf graph[u] contains v, then graph[v] contains u."
+    },
+    {
+      "id": "lc|127|word-ladder|hard",
+      "number": 127,
+      "title": "Word Ladder",
+      "difficulty": "hard",
+      "pattern": "bfs_word_ladder",
+      "inCatalog": false,
+      "tags": [
+        "graph",
+        "bfs",
+        "string",
+        "shortest_path",
+        "implicit_graph"
+      ],
+      "example": "beginWord = \"hit\", endWord = \"cog\", wordList = [\"hot\",\"dot\",\"dog\",\"lot\",\"cog\"]",
+      "expectedOutput": "5",
+      "question": "A transformation sequence from word beginWord to word endWord using a dictionary wordList is a sequence of words beginWord -> s1 -> s2 -> ... -> sk such that:\n\nEvery adjacent pair of words differs by a single letter.\nEvery si for 1 <= i <= k is in wordList. Note that beginWord does not need to be in wordList.\nsk == endWord\n\nGiven two words, beginWord and endWord, and a dictionary wordList, return the number of words in the shortest transformation sequence from beginWord to endWord, or 0 if no such sequence exists.\n\nExample 1:\nInput: beginWord = \"hit\", endWord = \"cog\", wordList = [\"hot\",\"dot\",\"dog\",\"lot\",\"cog\"]\nOutput: 5\nExplanation: One shortest transformation sequence is \"hit\" -> \"hot\" -> \"dot\" -> \"dog\" -> \"cog\", which is 5 words long.\n\nExample 2:\nInput: beginWord = \"hit\", endWord = \"cog\", wordList = [\"hot\",\"dot\",\"dog\",\"lot\",\"log\"]\nOutput: 0\nExplanation: The endWord \"cog\" is not in wordList, therefore there is no valid transformation sequence.\n\nConstraints:\n1 <= beginWord.length <= 10\nendWord.length == beginWord.length\n1 <= wordList.length <= 5000\nwordList[i].length == beginWord.length\nbeginWord, endWord, and wordList[i] consist of lowercase English letters.\nbeginWord != endWord\nAll the words in wordList are unique."
+    },
+    {
+      "id": "lc|269|alien-dictionary|hard",
+      "number": 269,
+      "title": "Alien Dictionary",
+      "difficulty": "hard",
+      "pattern": "topological_sort",
+      "inCatalog": true,
+      "tags": [
+        "graph",
+        "topological_sort",
+        "string",
+        "bfs",
+        "dfs"
+      ],
+      "example": "words = [\"wrt\",\"wrf\",\"er\",\"ett\",\"rftt\"]",
+      "expectedOutput": "\"wertf\"",
+      "question": "There is a new alien language that uses the English alphabet. However, the order of the letters is unknown to you.\n\nYou are given a list of strings words from the alien language's dictionary. Now it is claimed that the strings in words are sorted lexicographically by the rules of this new language.\n\nIf this claim is incorrect, and the given arrangement of string in words cannot correspond to any order of letters, return \"\".\n\nOtherwise, return a string of the unique letters in the new alien language sorted in lexicographically increasing order by the new language's rules. If there are multiple solutions, return any of them.\n\nExample 1:\nInput: words = [\"wrt\",\"wrf\",\"er\",\"ett\",\"rftt\"]\nOutput: \"wertf\"\n\nExample 2:\nInput: words = [\"z\",\"x\"]\nOutput: \"zx\"\n\nExample 3:\nInput: words = [\"z\",\"x\",\"z\"]\nOutput: \"\"\nExplanation: The order is invalid, so return \"\".\n\nConstraints:\n1 <= words.length <= 100\n1 <= words[i].length <= 100\nwords[i] consists of only lowercase English letters."
+    },
+    {
+      "id": "lc|684|redundant-connection|medium",
+      "number": 684,
+      "title": "Redundant Connection",
+      "difficulty": "medium",
+      "pattern": "union_find",
+      "inCatalog": true,
+      "tags": [
+        "graph",
+        "union_find",
+        "cycle_detection"
+      ],
+      "example": "edges = [[1,2],[1,3],[2,3]]",
+      "expectedOutput": "[2,3]",
+      "question": "In this problem, a tree is an undirected graph that is connected and has no cycles.\n\nYou are given a graph that started as a tree with n nodes labeled from 1 to n, with one additional edge added. The added edge has two different vertices chosen from 1 to n, and was not an edge that already existed. The graph is represented as an array edges of length n where edges[i] = [ai, bi] indicates that there is an edge between nodes ai and bi in the graph.\n\nReturn an edge that can be removed so that the resulting graph is a tree of n nodes. If there are multiple answers, return the answer that occurs last in the input.\n\nExample 1:\nInput: edges = [[1,2],[1,3],[2,3]]\nOutput: [2,3]\n\nExample 2:\nInput: edges = [[1,2],[2,3],[3,4],[1,4],[1,5]]\nOutput: [1,4]\n\nConstraints:\nn == edges.length\n3 <= n <= 1000\nedges[i].length == 2\n1 <= ai < bi <= edges.length\nai != bi\nThere are no repeated edges.\nThe given graph is connected."
+    }
+  ]
+}
