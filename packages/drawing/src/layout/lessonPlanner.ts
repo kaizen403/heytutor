@@ -11,17 +11,23 @@ import {
   type DrawCommandType,
   type TutorSegment,
 } from '../protocol/drawingProtocol';
-import { BOARD_CANVAS, DIAGRAM_ZONE, WORK_ZONE } from './boardZones';
-import { measureTextWidth } from '../handwriting/handwriting';
+import { BOARD_CANVAS, WORK_ZONE } from './boardZones';
+import { fitBoardText, WORK_CONTINUATION_INDENT } from './boardTypography';
 
 const STEP_BLOCK_PATTERN = /\[STEP\]\s*([\s\S]*?)\s*\[\/STEP\]/gi;
 
 const RUNTIME_MANAGED_COMMAND_TYPES = new Set<DrawCommandType>(['CLEAR', 'ERASE']);
 const WORK_TEXT_BOTTOM_Y = WORK_ZONE.topY + WORK_ZONE.lineHeight * 9;
-const WORK_TEXT_RIGHT_GAP = 28;
-const WORK_TEXT_MAX_WIDTH = DIAGRAM_ZONE.x - WORK_TEXT_RIGHT_GAP - WORK_ZONE.marginX;
-const DEFAULT_WORK_FONT_SIZE = 32;
-const MIN_WORK_FONT_SIZE = 12;
+/**
+ * Width this layer fits against: the whole board, less both margins.
+ *
+ * It used to be the narrow column beside a figure (282px) even for turns with
+ * no figure at all, which is how an ordinary sentence ended up shrunk to 17px
+ * on an empty board. This layer runs before anything knows whether a figure
+ * exists, so it only breaks lines that no column could hold; the app re-fits
+ * every row against the column it actually lands in.
+ */
+const WORK_TEXT_MAX_WIDTH = WORK_ZONE.fullWidthTextWidth;
 
 interface StructuredBoardAction {
   command: DrawCommand;
@@ -82,7 +88,12 @@ function withSyncMetadata(narration: string, command: DrawCommand | null): DrawC
     return null;
   }
 
-  if (command.type !== 'WRITE' && command.type !== 'LABEL' && command.type !== 'DIMENSION') {
+  if (
+    command.type !== 'WRITE' &&
+    command.type !== 'TYPE' &&
+    command.type !== 'LABEL' &&
+    command.type !== 'DIMENSION'
+  ) {
     return command;
   }
 
@@ -192,65 +203,35 @@ function clampCommandParams(command: DrawCommand): DrawCommand {
   return command;
 }
 
-function fittedWorkFontSize(text: string, preferred: number): number {
-  for (let fontSize = preferred; fontSize >= MIN_WORK_FONT_SIZE; fontSize -= 1) {
-    if (measureTextWidth(text, fontSize) <= WORK_TEXT_MAX_WIDTH) {
-      return fontSize;
-    }
-  }
-  return MIN_WORK_FONT_SIZE;
-}
-
-function splitWorkText(text: string, fontSize: number): string[] {
-  if (measureTextWidth(text, fontSize) <= WORK_TEXT_MAX_WIDTH) return [text];
-  const lines: string[] = [];
-  let remaining = text.trim();
-  while (remaining && measureTextWidth(remaining, fontSize) > WORK_TEXT_MAX_WIDTH) {
-    let fit = 1;
-    for (let index = 2; index <= remaining.length; index += 1) {
-      if (measureTextWidth(remaining.slice(0, index), fontSize) > WORK_TEXT_MAX_WIDTH) break;
-      fit = index;
-    }
-
-    // Prefer a semantic boundary near the available edge. The hard split is a
-    // last resort for a single long symbolic token or chemical formula.
-    let splitAt = fit;
-    const searchFloor = Math.max(1, Math.floor(fit * 0.55));
-    for (let index = fit; index >= searchFloor; index -= 1) {
-      if (/\s|[=+−\-×÷→≈≤≥,;]/u.test(remaining[index - 1] ?? "")) {
-        splitAt = index;
-        break;
-      }
-    }
-    lines.push(remaining.slice(0, splitAt).trim());
-    remaining = remaining.slice(splitAt).trim();
-  }
-  if (remaining) lines.push(remaining);
-  return lines;
-}
-
+/**
+ * Fit one work-column line to the board's writing style.
+ *
+ * One size for the whole command, wrapped rather than shrunk, with each
+ * continuation set in from the margin so it reads as the line above carrying
+ * on instead of as a new step. The teaching model's requested size is ignored:
+ * it may say what to write, never how large — a model that emitted
+ * `[WRITE:...,90,205,18]` used to be able to shrink the board.
+ */
 export function fitWorkTextCommand(command: DrawCommand): DrawCommand[] {
   if (command.type !== 'WRITE' || command.params.length < 2) {
     return [command];
   }
 
-  const [, y, requestedFontSize] = command.params;
-  const text = command.text ?? '';
-  const preferredFontSize =
-    Number.isFinite(requestedFontSize) && requestedFontSize >= MIN_WORK_FONT_SIZE
-      ? Math.min(requestedFontSize, DEFAULT_WORK_FONT_SIZE)
-      : DEFAULT_WORK_FONT_SIZE;
-  const fittedFontSize = fittedWorkFontSize(text, preferredFontSize);
-  const lines = splitWorkText(text, fittedFontSize);
+  const [, y] = command.params;
+  const { fontSize, lines } = fitBoardText(command.text ?? '', {
+    role: 'work',
+    maxWidth: WORK_TEXT_MAX_WIDTH,
+  });
+  if (lines.length === 0) return [];
   const startY = Math.min(Math.max(y, WORK_ZONE.topY), WORK_TEXT_BOTTOM_Y);
 
   return lines.map((line, index) => ({
     ...command,
     text: line,
     params: [
-      WORK_ZONE.marginX,
+      WORK_ZONE.marginX + (index === 0 ? 0 : WORK_CONTINUATION_INDENT),
       Math.min(startY + index * WORK_ZONE.lineHeight, WORK_TEXT_BOTTOM_Y),
-      fittedWorkFontSize(line, preferredFontSize),
+      fontSize,
     ],
   }));
 }
@@ -267,10 +248,9 @@ function sanitizeCommand(command: DrawCommand | null): DrawCommand | DrawCommand
   const clamped = clampCommandParams(command);
 
   if (clamped.type === 'WRITE' || clamped.type === 'LABEL') {
-    return fitWorkTextCommand(clamped).map((cmd) => ({
-      ...cmd,
-      text: normalizeBoardText(cmd.text ?? ""),
-    }));
+    // Normalise first: the fit wraps on measured width, and "x squared" is
+    // wider than the "x^2" the pen actually draws.
+    return fitWorkTextCommand({ ...clamped, text: normalizeBoardText(clamped.text ?? "") });
   }
 
   if (clamped.type === "DIMENSION") {

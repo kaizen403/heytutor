@@ -71,11 +71,35 @@ export interface VerifiedDiagram {
   deferredAnnotations?: VerifiedDeferredAnnotation[];
   /** Normalized symbol → meaning, for the label inspector. */
   labelGlossary?: Record<string, VerifiedLabelFact>;
+  /** DSA code-lesson board split: FOCUS is spotlight-only, no marker traces. */
+  layout?: "standard" | "code_lesson";
 }
 
 export interface VerifiedDiagramPresentation {
   diagram: VerifiedDiagram;
   introSegments: TutorSegment[];
+}
+
+/**
+ * Does this diagram put anything on the board?
+ *
+ * A representation can compile to nothing at all: a plasma-frequency question
+ * once reached the board as a `question_representation` with zero primitives,
+ * and a reversibility question as a bare pair of axes with no curve. The
+ * teaching prompt still announced "a diagram has been compiled and is being
+ * explained as it is revealed" and offered "none" as the focus targets, so the
+ * tutor talked about a figure the student could not see. An empty figure is
+ * not a figure; a turn holding one must teach as text only.
+ *
+ * Trace strokes are transient review gestures, not the figure itself, so they
+ * do not count as ink.
+ */
+export function verifiedDiagramHasDrawableInk(
+  diagram: Pick<VerifiedDiagram, "commands"> | null | undefined,
+): boolean {
+  return Boolean(
+    diagram?.commands.some((command) => command.visualStyle?.strokeRole !== "trace"),
+  );
 }
 
 export function verifiedDiagramCommandToDrawCommand(

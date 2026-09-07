@@ -14,8 +14,9 @@
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "verify": "tsx scripts/verify-drawing-protocol.ts && tsx scripts/verify-write-audio-clock.ts",
-    "clean": "rm -rf dist"
+    "verify": "tsx scripts/verify-drawing-protocol.ts && tsx scripts/verify-write-audio-clock.ts && tsx scripts/verify-handwriting-glyphs.ts && tsx scripts/verify-board-typography.ts && tsx scripts/verify-shape-paths.ts",
+    "clean": "rm -rf dist",
+    "preview:typography": "tsx scripts/preview-board-typography.ts"
   },
   "dependencies": {
     "roughjs": "^4.6.6",

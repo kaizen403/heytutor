@@ -58,6 +58,16 @@ export function isBlockedVerifiedDiagramCommand(
   if (command.type === "SUPERSEDE") return true;
   if (command.type === "EMPHASIZE") return false;
   if (command.type === "FOCUS") {
+    // On a code lesson a FOCUS names a frame of the worked example, not an
+    // entity of the figure currently drawn. The conductor advances the
+    // walk-through to that frame and retargets the spotlight onto whatever the
+    // new frame actually contains, so there is nothing to validate here.
+    //
+    // Validating it anyway is what froze the board: every figure beat the
+    // model narrated was dropped as an unverified marker before the conductor
+    // ever saw it, so the figure never advanced and the tutor talked over a
+    // still picture for the rest of the lesson.
+    if (diagram?.layout === "code_lesson") return false;
     return resolveVerifiedDiagramFocusTargets(command, diagram).length === 0;
   }
   if (command.type === "ANNOTATE") {
@@ -69,6 +79,12 @@ export function isBlockedVerifiedDiagramCommand(
   // WRITE coordinates are only suggestions. The runtime fits and allocates
   // symbolic work in the left column before execution.
   if (command.type === "WRITE") return false;
+  // TYPE reveals one pre-committed code-lesson block; the code panel resolves
+  // the id against the committed plan and ignores unknown blocks.
+  if (command.type === "TYPE") return false;
+  // FRAME advances the worked example to its next pre-compiled figure. The
+  // runtime inserts it, not the model, so there is nothing here to validate.
+  if (command.type === "FRAME") return false;
   return true;
 }
 
@@ -164,6 +180,11 @@ function attachSpokenFocusCommand(
   diagram: VerifiedDiagram | null,
 ): DrawCommand[] {
   if (commands.some((command) => command.type === "FOCUS")) return commands;
+  // Never on a code lesson. There a FOCUS is a beat in the worked example, not
+  // a gesture, so one inferred from a number in the narration would advance
+  // the figure behind the tutor's back — and a step about a line of code would
+  // move the picture the previous step was still explaining.
+  if (diagram?.layout === "code_lesson") return commands;
   const anchor = spokenFocusTarget(narration, diagram);
   if (!anchor) return commands;
   const emphasis = spokenFocusEmphasis(narration, anchor);

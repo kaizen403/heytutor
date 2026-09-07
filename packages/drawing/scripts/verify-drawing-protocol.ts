@@ -262,6 +262,115 @@ const hitDiagram: VerifiedDiagram = {
   promptAddon: "",
 };
 assert(hitTestVerifiedAnchor(575, 300, hitDiagram)?.id === "ab", "path-distance hit test must select the traced segment");
+
+// A code lesson's [FOCUS] names a frame of the worked example, not an entity of
+// the figure that happens to be drawn right now. Blocking it as an unverified
+// marker is what froze the board: every figure beat the tutor narrated was
+// dropped before the conductor could advance the walk-through, so the figure
+// stood still for the whole lesson while the voice carried on.
+{
+  const frameBeat = parseDrawingCommands("[STEP]look at the next frame. [FOCUS:store2|spotlight][/STEP]").commands[0]!;
+  assert(
+    isBlockedVerifiedDiagramCommand(frameBeat, hitDiagram),
+    "outside a code lesson an unknown focus target is still an unverified marker",
+  );
+  const codeLessonDiagram: VerifiedDiagram = { ...hitDiagram, layout: "code_lesson" };
+  assert(
+    !isBlockedVerifiedDiagramCommand(frameBeat, codeLessonDiagram),
+    "a code lesson's figure beat must reach the conductor, which resolves the frame",
+  );
+  const prepared = prepareVerifiedLessonSegments(
+    [{ narration: "look at the next frame.", command: frameBeat, commands: [frameBeat] } as unknown as TutorSegment],
+    codeLessonDiagram,
+  );
+  assert(
+    prepared.blockedCommandCount === 0 &&
+      (prepared.segments[0]?.commands ?? []).some((command) => command.type === "FOCUS"),
+    "the mini-buffer must pass a code-lesson figure beat through untouched",
+  );
+}
 assert(hitTestVerifiedAnchor(100, 100, hitDiagram) === null, "far clicks must not select a diagram entity");
 
-console.log("verify-drawing-protocol: nested WRITE/LABEL math tags pass inline, structured, and streaming parsing");
+// `[WRITE]text,x,y` instead of `[WRITE:text,x,y]`. Seen live: every row of a
+// dimensional-analysis lesson closed after the name, so the board stayed blank
+// and the coordinates were read out loud. Both parsers must recover the row.
+const headerOnlySource =
+  "First, name each quantity. [WRITE]N: [L^-3],90,211\nNext the charge. [WRITE]e: [I T],90,277\n";
+const headerOnlyBatch = parseDrawingCommands(headerOnlySource);
+assert(
+  headerOnlyBatch.commands.length === 2,
+  "a header-only [WRITE] row must be repaired into a board command, not dropped",
+);
+assert(
+  headerOnlyBatch.commands[0]?.text === "N: [L^-3]" &&
+    headerOnlyBatch.commands[0].params[0] === 90 &&
+    headerOnlyBatch.commands[0].params[1] === 211,
+  "the repaired row must keep its text and its coordinates",
+);
+assert(
+  !headerOnlyBatch.narration.includes("90,211") && !headerOnlyBatch.narration.includes("L^-3"),
+  "a repaired row must not leave its text or coordinates in the spoken narration",
+);
+const headerOnlyStreamed: TutorSegment[] = [];
+const headerOnlyParser = new IncrementalTagParser({
+  onSegmentReady: (segment) => headerOnlyStreamed.push(segment),
+});
+for (const char of headerOnlySource) headerOnlyParser.push(char);
+headerOnlyParser.flush();
+assert(
+  headerOnlyStreamed.filter((segment) => segment.command?.type === "WRITE").length === 2,
+  "the streaming parser must repair header-only rows too, since it is the live path",
+);
+assert(
+  headerOnlyStreamed.every((segment) => !segment.narration.includes(",90,")),
+  "streamed narration must never carry board coordinates",
+);
+// A bare header with no row behind it writes nothing, and the tag name itself
+// is protocol, not speech: carrying it into the narration read "[WRITE]" out
+// loud and put it into the continuation history.
+const bareHeader = parseDrawingCommands("[STEP]a header with nothing after it. [WRITE] and prose.[/STEP]");
+assert(
+  bareHeader.commands.length === 0,
+  "a bare [WRITE] carries no row, so it must not compile to an empty board write",
+);
+assert(
+  !bareHeader.narration.includes("[WRITE]"),
+  "a bare [WRITE] must not survive into the spoken narration",
+);
+
+// A header that turns out not to be a row must not swallow a real tag sitting
+// on the same line. Handing the whole buffer back to the narration lost the
+// FOCUS and spoke the tag names instead.
+const salvageSource = "Look here. [WRITE] [FOCUS:crest]\nDone.\n";
+const salvageBatch = parseDrawingCommands(salvageSource);
+assert(
+  salvageBatch.commands.length === 1 && salvageBatch.commands[0]?.type === "FOCUS",
+  "a tag following an unrepairable [WRITE] header must still parse",
+);
+assert(
+  !salvageBatch.narration.includes("[FOCUS") && !salvageBatch.narration.includes("[WRITE]"),
+  "no protocol tag may reach the narration when a header repair fails",
+);
+const salvageStreamed: TutorSegment[] = [];
+const salvageParser = new IncrementalTagParser({
+  onSegmentReady: (segment) => salvageStreamed.push(segment),
+});
+for (const char of salvageSource) salvageParser.push(char);
+salvageParser.flush();
+assert(
+  salvageStreamed.some((segment) => segment.command?.type === "FOCUS"),
+  "the streaming parser must recover a tag that follows an unrepairable header",
+);
+assert(
+  salvageStreamed.every((segment) => !segment.narration.includes("[")),
+  "streamed narration must never carry a protocol tag after a failed repair",
+);
+
+// The repair must not touch a well-formed tag whose body contains brackets.
+const mathRow = parseDrawingCommands("Bar. [WRITE:[4x - x^3/3]_(-2)^(2),90,325]\n");
+assert(
+  mathRow.commands[0]?.text === "[4x - x^3/3]_(-2)^(2)",
+  "the header repair must leave a correct WRITE with bracketed math alone",
+);
+
+console.log("verify-drawing-protocol: nested WRITE/LABEL math tags pass inline, structured, and streaming parsing; header-only text tags are repaired");

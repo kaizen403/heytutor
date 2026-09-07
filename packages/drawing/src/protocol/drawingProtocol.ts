@@ -9,6 +9,12 @@ export type DrawCommandType =
   | 'DRAW_POINT'
   | 'DRAW_LINE'
   | 'WRITE'
+  | 'TYPE'
+  | 'FRAME'
+  // Runtime-only: move the marker to part of the figure without drawing.
+  // The conductor emits it on a spoken step that carries no tag of its own,
+  // so the pen goes to what is being talked about instead of standing still.
+  | 'POINT'
   | 'LABEL'
   | 'UNDERLINE'
   | 'CIRCLE_AROUND'
@@ -70,6 +76,8 @@ export const DRAW_COMMAND_TYPES = [
   'DRAW_POINT',
   'DRAW_LINE',
   'WRITE',
+  'TYPE',
+  'FRAME',
   'LABEL',
   'UNDERLINE',
   'CIRCLE_AROUND',
@@ -95,6 +103,33 @@ const WRITE_LABEL_HEADER_PATTERN = /^\[(WRITE|LABEL):/i;
 const WRITE_LABEL_ENDING_PATTERN =
   /,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?\]/g;
 const WRITE_LABEL_BODY_BREAK_PATTERN = /\[(WRITE|LABEL|STEP|\/STEP|FOCUS|EMPHASIZE|SUPERSEDE|ANNOTATE|PAUSE)\b/i;
+
+/**
+ * `[WRITE]text,x,y` instead of `[WRITE:text,x,y]`.
+ *
+ * Observed live on a dimensional-analysis lesson: the teaching model closed
+ * every text tag after the name, so all 22 rows parsed as an empty WRITE and
+ * the row text *and its coordinates* fell through into the narration. The
+ * student would have heard "N colon L caret minus three, comma ninety, comma
+ * two one one" and watched a blank column. The intent is unambiguous, so the
+ * body is repaired back into the tag rather than spoken.
+ *
+ * Deliberately conservative: the coordinates must close the line, so a line
+ * that carries another tag after the body is left alone.
+ */
+const HEADER_ONLY_TEXT_TAG_PATTERN =
+  /\[(WRITE|LABEL|DIMENSION)\]\s*([^\r\n]*?,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)?)\s*(?=\r?\n|$)/gi;
+
+/** The same shape with nothing after the name yet, for the streaming parser. */
+export const HEADER_ONLY_TEXT_TAG_EXACT = /^\[(WRITE|LABEL|DIMENSION)\]$/i;
+
+export function repairHeaderOnlyTextTags(responseText: string): string {
+  HEADER_ONLY_TEXT_TAG_PATTERN.lastIndex = 0;
+  return responseText.replace(
+    HEADER_ONLY_TEXT_TAG_PATTERN,
+    (_match, name: string, body: string) => `[${name.toUpperCase()}:${body.trim()}]`,
+  );
+}
 
 export interface ParsedDrawingTag {
   type: DrawCommandType;
@@ -155,6 +190,13 @@ export function parseDrawingTag(rawTag: string): ParsedDrawingTag | null {
     return null;
   }
 
+  // A bare `[WRITE]` carries no row and no coordinates. It used to compile to
+  // an empty write, so a lesson that closed every tag after the name reported
+  // dozens of board rows while the column stayed blank.
+  if (HEADER_ONLY_TEXT_TAG_EXACT.test(rawTag)) {
+    return null;
+  }
+
   const inner = rawTag.slice(1, -1).trim();
   if (!inner || inner.startsWith('/')) {
     return null;
@@ -194,7 +236,9 @@ export function parseDrawingTag(rawTag: string): ParsedDrawingTag | null {
     normalizedName === 'FOCUS' ||
     normalizedName === 'EMPHASIZE' ||
     normalizedName === 'SUPERSEDE' ||
-    normalizedName === 'ANNOTATE'
+    normalizedName === 'ANNOTATE' ||
+    // [TYPE:blockId] reveals one pre-committed code-lesson block.
+    normalizedName === 'TYPE'
   ) {
     return {
       type: normalizedName,
@@ -354,7 +398,7 @@ export function parseDrawCommandFromTag(
   narrationBefore: string,
 ): DrawCommand {
   const parsed =
-    type === 'FOCUS' || type === 'EMPHASIZE' || type === 'SUPERSEDE' || type === 'ANNOTATE'
+    type === 'FOCUS' || type === 'EMPHASIZE' || type === 'SUPERSEDE' || type === 'ANNOTATE' || type === 'TYPE'
       ? { text: rawParams.trim(), params: [] }
       : type === 'WRITE' || type === 'LABEL'
       ? parseTextCommandParams(rawParams)
@@ -377,6 +421,13 @@ export interface TutorSegment {
   commands?: DrawCommand[];
   /** Commands emitted by the verified scene compiler before teaching starts. */
   verifiedDiagramIntro?: boolean;
+  /**
+   * The figure is a diagram whose text is part of the sketch, not prose the
+   * student watches being written. A DSA figure is cells and their values:
+   * lettering them at handwriting pace makes the opening figure take three
+   * times its own sentence to appear, and the voice waits for the ink.
+   */
+  sceneText?: boolean;
 }
 
 export function getSegmentCommands(segment: TutorSegment): DrawCommand[] {
@@ -528,7 +579,8 @@ export function scanDrawingTags(responseText: string): DrawingTagMatch[] {
   return matches;
 }
 
-export function parseDrawingCommands(responseText: string): ParsedResponse {
+export function parseDrawingCommands(rawResponseText: string): ParsedResponse {
+  const responseText = repairHeaderOnlyTextTags(rawResponseText);
   const commands: DrawCommand[] = [];
   const segments: { text: string; commandIndex: number }[] = [];
   let narration = '';
@@ -540,7 +592,11 @@ export function parseDrawingCommands(responseText: string): ParsedResponse {
   for (const { index, fullTag } of scanDrawingTags(responseText)) {
     const parsedTag = parseDrawingTag(fullTag);
     if (!parsedTag) {
-      const chunk = responseText.slice(lastIndex, index + fullTag.length);
+      // A bare `[WRITE]` carries no row, but it is still protocol, not speech.
+      // Carrying it into the narration like ordinary bracketed prose put the
+      // tag name into the spoken lesson and into the continuation history.
+      const headerOnly = HEADER_ONLY_TEXT_TAG_EXACT.test(fullTag);
+      const chunk = responseText.slice(lastIndex, headerOnly ? index : index + fullTag.length);
       narration += chunk;
       carryText += chunk;
       lastIndex = index + fullTag.length;

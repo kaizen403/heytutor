@@ -29,6 +29,7 @@ export {
   type WorkAreaRow,
 } from "./protocol/semanticGesture";
 export { BOARD_CANVAS, DIAGRAM_ZONE, WORK_ZONE, SECOND_WORK_ZONE, clampToDiagramZone, isInDiagramZone } from "./layout/boardZones";
+export * from "./layout/boardTypography";
 export {
   createScheduledWriteClock,
   resolveScheduledWriteClockMs,

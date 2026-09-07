@@ -41,7 +41,10 @@ function animationProgress(startTime: number, duration: number, now: number): nu
     return 1;
   }
 
-  return clampProgress((now - startTime) / duration);
+  const linear = clampProgress((now - startTime) / duration);
+  // Same mix as the live nib: never park, never hold one speed.
+  const ease = linear * linear * (3 - 2 * linear);
+  return 0.62 * linear + 0.38 * ease;
 }
 
 function lastPointForOp(op: Op, fallback: Point): Point {
