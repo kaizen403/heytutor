@@ -10,25 +10,19 @@ import {
 } from "@heytutor/drawing";
 import {
   streamLLMResponse,
-  TUTOR_SYSTEM_PROMPT,
-  TUTOR_CONTINUATION_PROMPT,
-  CONCEPT_LESSON_RUNTIME_ADDON,
-  FAST_MODE_TEACHING_ADDON,
-  isConceptLessonQuestion,
-  LESSON_DEPTH_ADDONS,
-  buildGivenValueSegments,
-  givenValuesPromptAddon,
   tutorDebug,
   resolveApiUrl,
   planSceneDocumentWithRepair,
   revalidateScenePlanWithRepairResult,
   planTurnV3,
-  auditTurnPlanV3,
   planAndSolveProblemV1,
   createFallbackTurnPlanV3,
   inferSceneCapabilities,
   normalizeTutorQuestion,
   questionRequiresVisual,
+  classifyDsaQuestion,
+  planCodeLessonV1,
+  type CodeLessonPlan,
   type ProblemAuthorityV1Response,
   type SceneCandidateValidation,
   type ScenePlanWithRepairResult,
@@ -36,7 +30,9 @@ import {
 import {
   ARCHETYPES,
   SCENE_ENGINE_VERSION,
+  type SceneAssertion,
   compileSceneDocument,
+  synthesizeDsaScene,
   detectArchetype,
   normalizeClaimedClosedRouteGeometry,
   normalizeClaimedParaxialReflectionGeometry,
@@ -63,32 +59,53 @@ import {
   withBoardEpochSegment,
   type StoredTurn,
 } from "@/lib/boards/boardsClient";
-import { MAX_LLM_CONTINUATIONS, STREAM_SEGMENTS_LIVE } from "../../constants";
-import { registerBoardAnchor } from "../../lib/boardLayout";
-import { buildVerifiedDiagramPresentation } from "../../lib/verifiedScenePresentation";
+import { DSA_DIAGRAM_ZONE, MAX_LLM_CONTINUATIONS, STREAM_SEGMENTS_LIVE } from "../../constants";
+import { registerBoardAnchor } from "../../lib/board/boardLayout";
+import {
+  codeLessonResumeNote,
+  createCodeLessonConductor,
+} from "../../lib/code-lesson/codeLessonSegments";
+import {
+  resolveCodeLessonBoardContext,
+  resolveDsaFrames,
+  type CodeLessonBoardContext,
+  type DsaFrameSet,
+} from "../../lib/code-lesson/dsaFrames";
+import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
+import { buildVerifiedDiagramPresentation } from "../../lib/scene/verifiedScenePresentation";
+import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
+import { buildTurnTeachingPrompt } from "../../lib/turn/turnTeachingPrompt";
 import {
   selectVerifiedRepresentation,
   type RepresentationTier,
-} from "../../lib/representationFallbackV4";
+} from "../../lib/scene/representationFallback";
 import {
   finalizeScenePlanAfterAuthority,
   SCENE_PLANNER_DEADLINE_MS,
   PROBLEM_AUTHORITY_DEADLINE_MS,
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
-} from "../../lib/diagramGenerationV3";
+} from "../../lib/scene/diagramGeneration";
 import {
   findVerifiedSceneRecovery,
   forgetVerifiedScene,
   rememberVerifiedScene,
-} from "../../lib/verifiedSceneRecovery";
+} from "../../lib/scene/verifiedSceneRecovery";
 import {
   createEmptySegmentPlanStats,
   isTeachingResponseIncomplete,
-} from "../../lib/segmentPlanning";
+} from "../../lib/turn/segmentPlanning";
 import type { TutorPhase } from "../../types";
-import { isWhiteboardReadyToDraw } from "../../lib/whiteboardReady";
+import { isWhiteboardReadyToDraw } from "../../lib/board/whiteboardReady";
 import type { TurnControlApi, UseTurnLifecycleParams } from "./types";
+
+/** The plan and the stem filter agree this question needs no picture. */
+class NoFigureNeeded extends Error {
+  constructor() {
+    super("no figure needed");
+    this.name = "NoFigureNeeded";
+  }
+}
 
 type PendingQuestionFlushState = {
   pendingQuestion: string | null;
@@ -145,6 +162,8 @@ export function useQuestionHandler(
 ) {
   const {
     sessionId,
+    isDraft = false,
+    commitDraftBoard,
     boards,
     narrationText,
     boardLoaded,
@@ -170,11 +189,12 @@ export function useQuestionHandler(
     fbdPhaseStartedRef,
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
+    codeLessonControllerRef,
     boardLayoutRef,
     turnTelemetryRef,
     speedRef,
     fastModeRef,
-    lessonDepthRef,
+    familiarityRef,
     storedTurnsRef,
     pendingSegmentCountRef,
     setInputInteracted,
@@ -239,14 +259,22 @@ export function useQuestionHandler(
       phaseRef.current = "thinking";
       const abortController = new AbortController();
 
+      // The home board becomes real here: this question writes its row and
+      // takes over the URL. Kicked off now, awaited before the board epoch, so
+      // the thinking overlay is not waiting on a round trip.
+      const boardCommitted = commitDraftBoard
+        ? commitDraftBoard()
+        : Promise.resolve(false);
+
       const boardIdForName = sessionId;
       if (boardIdForName) {
-        const needsName = boards.find(
-          (b) => b.id === boardIdForName,
-        )?.title === "new board";
+        const needsName =
+          isDraft ||
+          boards.find((b) => b.id === boardIdForName)?.title === "new board";
         if (needsName) {
-          void requestBoardTitle(question)
-            .then((title) => {
+          // Naming waits on the commit: the row has to exist before it is named.
+          void Promise.all([requestBoardTitle(question), boardCommitted])
+            .then(([title]) => {
               if (!title) return;
               void updateBoard(boardIdForName, { title }).then((board) => {
                 if (!board) return;
@@ -278,6 +306,9 @@ export function useQuestionHandler(
       fbdPhaseStartedRef.current = false;
       activeVerifiedDiagramRef.current = null;
       setActiveVerifiedDiagram?.(null);
+      codeLessonControllerRef?.current?.reset();
+      // Every later save (turns, notes) addresses a board that now exists.
+      await boardCommitted;
       await beginBoardEpoch();
       // Set after the epoch: the page it captured belongs to the previous
       // question, and a doubt raised meanwhile still names the lesson it stops.
@@ -360,12 +391,144 @@ export function useQuestionHandler(
       let representationTier: RepresentationTier | null = null;
       let representationNonMetric = false;
       let representationReason: string | null = null;
+      let representationFamily: string | null = null;
       let exactDegradation: NonNullable<SceneArtifactsV3["degradation"]> | undefined;
       let turnPlan: TurnPlanV3 | null = null;
       let problemAuthority: ProblemAuthorityV1Response | null = null;
       let turnPlanMs = 0;
 
       const plannerUrl = resolveApiUrl("/api/chat");
+
+      // DSA questions take the code-lesson lane: a pre-validated CodeLessonPlan
+      // plus a deterministic structure diagram replace the numeric TurnPlanV3 /
+      // solver pipeline. If the code planner fails (including its one repair
+      // attempt), the question falls through to the standard lesson unchanged.
+      let codeLesson: CodeLessonPlan | null = null;
+      let dsaFrameSet: DsaFrameSet | null = null;
+      let dsaProofAssertions: SceneAssertion[] = [];
+      const dsaClassification = classifyDsaQuestion(question);
+      // Resolve the walk-through first, so the program can be planned against
+      // the algorithm the board will actually draw.
+      let boardContext: CodeLessonBoardContext | null = null;
+      if (dsaClassification.isDsa) {
+        boardContext = resolveCodeLessonBoardContext(question);
+        const codeLessonResponse = await awaitCurrentTurn(
+          planCodeLessonV1(question, {
+            proxyUrl: plannerUrl,
+            sessionId: sessionId ?? undefined,
+            signal: abortController.signal,
+            timeoutMs: SCENE_PLANNER_DEADLINE_MS,
+            fastMode: fastModeRef.current,
+            syntaxCheck: prettierSyntaxCheck,
+            ...(boardContext ? { context: boardContext.context } : {}),
+          }).catch(() => null),
+          isCurrentTurn,
+        );
+        codeLesson = codeLessonResponse?.plan ?? null;
+        tutorDebug("planner", "code lesson lane", {
+          classified: dsaClassification.confidence,
+          language: dsaClassification.language,
+          board_family: boardContext?.context.familyId ?? null,
+          plan_accepted: codeLesson !== null,
+          section_count: codeLesson?.sections.length ?? 0,
+          elapsed_ms: codeLessonResponse?.elapsedMs ?? null,
+        });
+      }
+
+      if (codeLesson) {
+        turnPlan = createFallbackTurnPlanV3(question);
+        // Prefer a real execution trace: when the algorithm catalog knows this
+        // family we can run it on a concrete example and draw what it actually
+        // did, frame by frame. Otherwise the planner's own hint steps are
+        // compiled one figure per frame, which still keeps the board moving.
+        // Only a hint that will not compile leaves a single static figure.
+        dsaFrameSet = resolveDsaFrames(question, codeLesson.diagramHint, codeLesson);
+        const firstTraceFrame = dsaFrameSet?.scenes.frames[0] ?? null;
+        const dsaScene = firstTraceFrame
+          ? null
+          : synthesizeDsaScene(codeLesson.diagramHint, {
+              question,
+              compile: { viewport: DSA_DIAGRAM_ZONE },
+            });
+
+        if (dsaFrameSet && firstTraceFrame) {
+          sceneV2Document = {
+            ...firstTraceFrame.document,
+            source: {
+              ...firstTraceFrame.document.source,
+              nonMetric: dsaFrameSet.nonMetric,
+              representationTier: dsaFrameSet.tier,
+            },
+          };
+          sceneV2RenderScene = firstTraceFrame.renderScene;
+          sceneV2Report = firstTraceFrame.validationReport;
+          sceneVisualStatus = "validated";
+          representationTier = dsaFrameSet.tier;
+          representationNonMetric = dsaFrameSet.nonMetric;
+          representationReason = dsaFrameSet.reason;
+          dsaProofAssertions = firstTraceFrame.document.assertions;
+          tutorDebug("planner", "dsa walk-through frames", {
+            algorithm_id: dsaFrameSet.algorithmId,
+            frame_source: dsaFrameSet.frameSource,
+            frame_count: dsaFrameSet.frames.length,
+            example_source: dsaFrameSet.exampleSource,
+            structure: dsaFrameSet.structure,
+          });
+        } else if (dsaScene) {
+          // Stamp the tier onto the source so the shared presentation names
+          // and captions the figure like other qualitative representations.
+          sceneV2Document = {
+            ...dsaScene.document,
+            source: {
+              ...dsaScene.document.source,
+              nonMetric: true,
+              representationTier: dsaScene.tier,
+            },
+          };
+          sceneV2RenderScene = dsaScene.renderScene;
+          sceneV2Report = dsaScene.validationReport;
+          sceneVisualStatus = "validated";
+          representationTier = dsaScene.tier;
+          representationNonMetric = true;
+          representationReason = dsaScene.reason;
+          dsaProofAssertions = dsaScene.document.assertions;
+        } else {
+          // An unsupported hint never blocks the lesson: the code panel and
+          // narration still teach, the canvas just stays empty.
+          sceneVisualStatus = "text_only";
+          representationReason = "dsa_hint_unsupported";
+        }
+        sceneArtifacts = {
+          schemaVersion: "scene-artifacts/v3",
+          turnPlan,
+          problemIR: null,
+          solverResult: null,
+          solverAuthority: null,
+          representationTier: representationTier ?? undefined,
+          nonMetric: representationTier ? representationNonMetric : undefined,
+          candidates: [],
+          selectedCandidateId: null,
+          selectionReason: representationReason ?? "code_lesson",
+          diagramResultStatus: sceneVisualStatus === "validated" ? "ready" : "text_only",
+          proofObligations: dsaProofAssertions.map((assertion) => ({
+            id: assertion.id,
+            predicate: assertion.predicate,
+            inputs: [...assertion.entities],
+            expected: assertion.expected,
+            severity: assertion.severity === "warning" ? "warning" as const : "fatal" as const,
+          })),
+          budgets: {
+            deadlineMs: SCENE_PLANNER_DEADLINE_MS,
+            planMs: Date.now() - plannerStartedAt,
+            candidatesMs: 0,
+          },
+        };
+        tutorDebug("planner", "dsa scene synthesis", {
+          structure: dsaScene?.structure ?? codeLesson.diagramHint.structure ?? null,
+          compiled: dsaScene !== null,
+          primitive_count: dsaScene?.renderScene.primitives.length ?? 0,
+        });
+      } else {
         const recentConversation = conversationHistoryRef.current
           .slice(-3)
           .map((exchange) => `User: ${exchange.user}\nTutor: ${exchange.assistant}`)
@@ -410,31 +573,28 @@ export function useQuestionHandler(
               fastMode: fastModeRef.current,
             });
           }
-          const remainingAuditMs = Math.max(
-            0,
-            TURN_PLAN_DEADLINE_MS - (Date.now() - turnPlanStartedAt),
-          );
-          const auditedTurn = plannedTurn && remainingAuditMs > 0
-            ? await awaitCurrentTurn(auditTurnPlanV3(question, plannedTurn.turnPlan, {
-                proxyUrl: plannerUrl,
-                sessionId: sessionId ?? undefined,
-                signal: abortController.signal,
-                timeoutMs: remainingAuditMs,
-                fastMode: fastModeRef.current,
-              }), isCurrentTurn)
-            : null;
+          // The turn-plan audit used to run here: a second LLM opinion on the
+          // plan, awaited before the scene planner could start. Measured on
+          // "Concave mirror, f = 15 cm, object at 20 cm" it cost 8.9s of a 37s
+          // planning phase, on the critical path of every question, and
+          // `selectBestAvailableTurnPlan` already fell back to the primary plan
+          // whenever it timed out — so the lesson had to be correct without it
+          // regardless. Taken off the live path on the owner's call (4 Sep
+          // 2026) to cut time-to-first-word.
+          //
+          // This trades away one verification pass. What still guards the
+          // numbers: `validateTurnPlanV3` (which catches a derived value
+          // disagreeing with its own arithmetic), the independent
+          // ProblemIR/solver authority below, and `verifyTurnPlanAgainstSolver`.
+          // `auditTurnPlanV3` itself is untouched in tutor-core and keeps its
+          // gate, so restoring it here is a one-line change.
           turnPlanMs = Date.now() - turnPlanStartedAt;
           turnPlan = selectBestAvailableTurnPlan(
-            auditedTurn?.turnPlan,
+            undefined,
             plannedTurn?.turnPlan,
             createFallbackTurnPlanV3(question),
             plannedTurn?.peerTurnPlans,
           );
-          if (plannedTurn && !auditedTurn) {
-            tutorDebug("planner", "turn plan audit unavailable; using validated primary plan", {
-              elapsed_ms: turnPlanMs,
-            });
-          }
         }
 
         // Await ProblemIR before family inference so the live exact path routes
@@ -670,13 +830,14 @@ export function useQuestionHandler(
           });
         }
 
+        const authoritativeTurnPlan = turnPlan;
         result = await awaitCurrentTurn(finalizeScenePlanAfterAuthority(result, {
           problemAuthorityAvailable: problemAuthority !== null,
           planningTurnPlan,
-          authoritativeTurnPlan: turnPlan,
+          authoritativeTurnPlan,
           revalidate: (sceneResult) => revalidateScenePlanWithRepairResult(
             sceneResult,
-            (candidate) => validateCandidateAgainstPlan(candidate, turnPlan),
+            (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
           ),
         }), isCurrentTurn);
         const solverAuthorityBlocked = problemAuthority?.audit.status === "contradiction";
@@ -733,13 +894,24 @@ export function useQuestionHandler(
             candidateCount: result?.candidates.length ?? 0,
           };
         }
-        {
+        selectRepresentation: {
           try {
             const fallbackCapabilities = inferSceneCapabilities(question, {
               lawIds: turnPlan?.lawIds ?? planningTurnPlan.lawIds,
               problemIR: problemAuthority?.problemIR ?? null,
               turnPlan,
             });
+            // The plan already decided this question needs no picture. The
+            // fallback used to run anyway, so a units-conversion question was
+            // handed a P-V rectangle and an error-types question a Wheatstone
+            // bridge. Only skip when the deterministic stem filter agrees, so a
+            // planner that under-called the requirement is still covered.
+            if (turnPlan.visualRequirement === "none" && !questionRequiresVisual(question)) {
+              tutorDebug("planner", "no figure asked for, skipping the fallback", {
+                law_ids: turnPlan.lawIds,
+              });
+              throw new NoFigureNeeded();
+            }
             const selected = selectVerifiedRepresentation({
               question,
               turnPlan,
@@ -756,15 +928,48 @@ export function useQuestionHandler(
                 : null,
             });
             sceneV2Document = selected.sceneDocument;
-            sceneV2RenderScene = selected.renderScene;
+            // A figure the student cannot read is not a figure.
+            //
+            // Two things were reaching the board and being narrated as though
+            // they showed the question: a representation with no primitives at
+            // all, and one whose only entity was a pair of axes. Nineteen
+            // lectures in a 342-question sweep were handed that bare `axes`,
+            // and every one of them described a picture that was not there
+            // ("on the figure, the hot reservoir sits at the top").
+            //
+            // The test is drawn text, not primitive count, and the corpus makes
+            // it safe: of 329 committed figures, every one with eight or more
+            // primitives carried a label, and every unlabelled one had seven or
+            // fewer. The contract already forbids naming a part that has no
+            // label, so an unlabelled figure can only produce invention. Drop it
+            // here, before the artifacts record is written, so the turn is
+            // text-only everywhere and the lesson teaches in words instead.
+            const selectedHasInk = selected.renderScene.primitives.some(
+              (primitive) =>
+                (primitive.kind === "label" || primitive.kind === "dimension") &&
+                typeof primitive.text === "string" &&
+                primitive.text.trim().length > 0,
+            );
+            if (!selectedHasInk) {
+              tutorDebug("planner", "representation carries no readable label, teaching text only", {
+                representation_tier: selected.tier,
+                reason: selected.reason,
+                primitive_count: selected.renderScene.primitives.length,
+              });
+            }
+            sceneV2RenderScene = selectedHasInk ? selected.renderScene : null;
             sceneV2Report = selected.validationReport;
-            sceneVisualStatus = selected.sceneDocument.visualDecision.mode === "scene"
+            sceneVisualStatus = selectedHasInk &&
+              selected.sceneDocument.visualDecision.mode === "scene"
               ? "validated"
               : "text_only";
             representationTier = selected.tier;
             representationNonMetric = selected.nonMetric;
             representationReason = selected.reason;
-            if (selected.tier === "exact_verified" && turnPlan) {
+            representationFamily = selected.family ?? null;
+            // Never cache a scene that drew nothing: recovery would replay it
+            // on a later turn only for the same guard to drop it again.
+            if (selectedHasInk && selected.tier === "exact_verified" && turnPlan) {
               rememberVerifiedScene(question, selected.sceneDocument, turnPlan, {
                 boardId: sessionId,
               });
@@ -772,6 +977,11 @@ export function useQuestionHandler(
           } catch (error) {
             // Invalid exact and fallback scenes are both kept off the canvas.
             sceneV2RenderScene = null;
+            if (error instanceof NoFigureNeeded) {
+              sceneVisualStatus = "text_only";
+              representationReason = "the question asks for no figure";
+              break selectRepresentation;
+            }
             // Escalate to retry_required when the deterministic pre-filter flags the
             // stem as diagram-worthy but the planner under-called visualRequirement.
             // This only changes the retry decision, never the geometry.
@@ -853,17 +1063,26 @@ export function useQuestionHandler(
             candidatesMs: Math.max(0, Date.now() - plannerStartedAt - turnPlanMs),
           },
         };
+      }
       throwIfTurnCancelled();
       const plannerLatencyMs = Date.now() - plannerStartedAt;
 
       let activeDiagram: import("@heytutor/drawing").VerifiedDiagram | null;
       let diagramSource: "verified_scene" | "none";
 
-      if (sceneV2RenderScene && sceneV2Document && "visualDecision" in sceneV2Document) {
-        const presentation = buildVerifiedDiagramPresentation(
-          sceneV2Document as SceneDocument,
-          sceneV2RenderScene,
-        );
+      const presentation = sceneV2RenderScene && sceneV2Document && "visualDecision" in sceneV2Document
+        ? buildVerifiedDiagramPresentation(
+            sceneV2Document as SceneDocument,
+            sceneV2RenderScene,
+            {
+              ...(codeLesson ? { layout: "code_lesson" as const } : {}),
+              ...(representationFamily ? { figureFamily: representationFamily } : {}),
+            },
+          )
+        : null;
+      // Second line of defence: primitives that compile to no command leave the
+      // same empty board as no primitives at all.
+      if (presentation && verifiedDiagramHasDrawableInk(presentation.diagram)) {
         activeDiagram = presentation.diagram;
         sceneV2IntroSegments = presentation.introSegments;
         diagramSource = "verified_scene";
@@ -938,50 +1157,46 @@ export function useQuestionHandler(
         });
       }
 
-      const diagramPromptAddon = activeDiagram?.promptAddon ??
-        `The semantic scene engine selected text-only mode because no fully validated diagram was available.
-Do not emit any drawing, label, annotation, erase, highlight, or marker-movement tags.
-WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Every step must [WRITE] a short board line. Do not speak while the marker stays parked.
-With no figure available, carry the setup in words and on the board: name every object, direction, and relation the question describes and write those names down before you use them.`;
-      const turnPlanPromptAddon = turnPlan
-        ? `AUTHORITATIVE TURN PLAN V3
-Use these verified quantities and qualitative claims for the explanation. Do not replace them with independently guessed values or contradict them.
-${JSON.stringify({
-  givens: turnPlan.givens,
-  unknowns: turnPlan.unknowns,
-  derived: turnPlan.derived,
-  qualitativeClaims: turnPlan.qualitativeClaims,
-  lawIds: turnPlan.lawIds,
-  assumptions: turnPlan.assumptions,
-})}`
-        : "";
-      const solverPromptAddon = problemAuthority?.projection
-        ? `INDEPENDENT SOLVER AUTHORITY V1
-Use exactly these solver-verified values and formulation inputs. Do not independently replace or contradict them.
-${JSON.stringify(problemAuthority.projection)}`
-        : "";
-      const givenSegments = buildGivenValueSegments(question, turnPlan);
-      const runtimePromptAddon = [
-        givenValuesPromptAddon(givenSegments.length > 0),
-        diagramPromptAddon,
-        turnPlanPromptAddon,
-        solverPromptAddon,
-        isConceptLessonQuestion(question) ? CONCEPT_LESSON_RUNTIME_ADDON : "",
-        fastModeRef.current ? FAST_MODE_TEACHING_ADDON : "",
-        LESSON_DEPTH_ADDONS[lessonDepthRef.current] ?? "",
-      ]
-        .filter(Boolean)
-        .join("\n\n");
-      const turnSystemPrompt = runtimePromptAddon
-        ? `${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n${runtimePromptAddon}`
-        : TUTOR_SYSTEM_PROMPT;
-      const turnContinuationPrompt = runtimePromptAddon
-        ? `${TUTOR_CONTINUATION_PROMPT}\n\n--- diagram reminder ---\n${runtimePromptAddon}`
-        : TUTOR_CONTINUATION_PROMPT;
+      const teachingPrompt = buildTurnTeachingPrompt({
+        question,
+        diagramPromptAddon: activeDiagram?.promptAddon ?? null,
+        turnPlan,
+        solverProjection: problemAuthority?.projection ?? null,
+        codeLesson,
+        // The frames the board will actually show, so the narration is about
+        // the figure in front of the student rather than the planner's hint.
+        codeLessonFrames: dsaFrameSet?.frames.map((frame) => ({
+          id: frame.id,
+          caption: frame.caption,
+          narrationIntent: frame.narrationIntent,
+        })),
+        ...(boardContext ? { codeLessonFacts: boardContext.facts } : {}),
+        isDsa: dsaClassification.isDsa,
+        familiarity: familiarityRef.current,
+        fastMode: fastModeRef.current,
+      });
+      const { givenSegments, lessonBudget } = teachingPrompt;
+      tutorDebug("turn", "lesson budget", {
+        scope: lessonBudget.scope,
+        min_steps: lessonBudget.minSteps,
+        max_steps: lessonBudget.maxSteps,
+        board_pages: lessonBudget.boardPages,
+        level: familiarityRef.current,
+      });
+      const turnSystemPrompt = teachingPrompt.systemPrompt;
+      const turnContinuationPrompt = teachingPrompt.continuationPrompt;
 
       // Transition from planning back to thinking before the LLM stream starts.
       throwIfTurnCancelled();
       setPhaseIfCurrent("thinking");
+
+      // Commit the code lesson before any narration: the IDE panel mounts
+      // empty and every later [TYPE] tag reveals only pre-validated blocks.
+      if (codeLesson) {
+        codeLessonControllerRef?.current?.commit(codeLesson);
+        // Commit after the plan: reset() clears the frames with the lesson.
+        codeLessonControllerRef?.current?.frames.commit(dsaFrameSet);
+      }
 
       const introSegments = activeDiagram && sceneV2IntroSegments
         ? sceneV2IntroSegments
@@ -1029,27 +1244,74 @@ ${JSON.stringify(problemAuthority.projection)}`
         // throws synchronously on an unexpected one. Outside, that rejection was
         // unhandled, so finishLectureUi never ran and the turn stayed "thinking"
         // on an empty board with later questions dropped until Escape.
-        if (STREAM_SEGMENTS_LIVE) {
+        // The opening — "Given: ..." then the figure reveal — is held until the
+        // teaching model has actually produced its first step.
+        //
+        // It used to be enqueued here, the moment planning finished. On a
+        // measured turn that meant the board spoke its four-second intro at
+        // T+7s and then sat in silence until T+22s, because the teaching call
+        // took 14.4s to return a first token. A finished-looking board with a
+        // finished-looking timeline reads as "the lesson ended", and the
+        // student stops watching. Waiting is fine before a lesson starts and
+        // unacceptable once it has: the thinking overlay stays up for the whole
+        // wait instead, and from the first spoken word the lesson runs straight
+        // through.
+        let introEnqueued = false;
+        const enqueueLessonOpening = () => {
+          if (introEnqueued || !STREAM_SEGMENTS_LIVE) return;
+          introEnqueued = true;
           for (const segment of givenSegments) {
             enqueueSegment(segment, turnGeneration);
           }
           enqueueVerifiedIntro(introSegments, turnGeneration);
-        }
+        };
 
         // Buffer one segment so unverified marker commands are removed before
         // they enter the speech and drawing queues.
         let bufferedSegment: TutorSegment | null = null;
+        // One conductor for the whole turn: block order and the placement of
+        // frame advances have to carry across streamed segments, so this
+        // cannot be recreated per flush.
+        // With no walk-through there are no frames to point at, and a spoken
+        // step then had nothing for the board to do at all: on an uncovered
+        // pattern that was half the lesson with the pen standing still. A
+        // single static figure is still a figure, so its own anchors are the
+        // fallback the marker walks.
+        const staticPointIds = dsaFrameSet
+          ? []
+          : (activeDiagram?.anchors ?? []).slice(0, 6).map((anchor) => anchor.id);
+        const conductor = codeLesson
+          ? createCodeLessonConductor(codeLesson, {
+              frameCount: dsaFrameSet?.frames.length ?? 0,
+              frameIds: dsaFrameSet?.frames.map((frame) => frame.id) ?? [],
+              frameFocusIds: dsaFrameSet?.frames.map((frame) => frame.focusEntityIds) ?? [],
+              framePointIds: dsaFrameSet?.frames.map((frame) => frame.pointEntityIds) ?? [],
+              ...(staticPointIds.length > 0 ? { fallbackPointIds: staticPointIds } : {}),
+            })
+          : null;
 
         const flushBufferedSegment = () => {
           if (!bufferedSegment) return;
+          // First teaching segment in hand: open the lesson, then let it run.
+          enqueueLessonOpening();
           const prepared = prepareVerifiedLessonSegments([bufferedSegment], activeDiagram);
-          for (const seg of prepared.segments) {
+          // DSA turns own no handwriting: [TYPE] resolves to its committed
+          // block in plan order, frame advances are inserted between blocks,
+          // and everything except FOCUS/PAUSE narration ink is dropped.
+          const resolved = conductor ? conductor.resolve(prepared.segments) : null;
+          for (const seg of resolved?.segments ?? prepared.segments) {
             enqueueSegment(seg, turnGeneration);
           }
-          if (prepared.blockedCommandCount > 0 || prepared.droppedSegmentCount > 0) {
+          if (
+            prepared.blockedCommandCount > 0 ||
+            prepared.droppedSegmentCount > 0 ||
+            (resolved && (resolved.blockedCommandCount > 0 || resolved.unknownBlockIds.length > 0))
+          ) {
             tutorDebug("draw", "live segment filtered by mini-buffer", {
               blocked_commands: prepared.blockedCommandCount,
               dropped_segments: prepared.droppedSegmentCount,
+              code_lesson_blocked: resolved?.blockedCommandCount ?? 0,
+              unknown_block_ids: resolved?.unknownBlockIds ?? [],
             });
           }
           bufferedSegment = null;
@@ -1079,6 +1341,8 @@ ${JSON.stringify(problemAuthority.projection)}`
         let continueCount = 0;
         let previousChunk = "";
         let reasoningOnlyRetry = false;
+        // Beats the lesson still owed when the previous chunk ended.
+        let beatsLeftBefore = Number.POSITIVE_INFINITY;
 
         while (continueCount <= MAX_LLM_CONTINUATIONS) {
           const isContinuation = continueCount > 0 && !reasoningOnlyRetry;
@@ -1087,7 +1351,20 @@ ${JSON.stringify(problemAuthority.projection)}`
               systemPrompt: isContinuation
                 ? turnContinuationPrompt
                 : turnSystemPrompt,
-              userPrompt: isContinuation ? "continue" : question,
+              userPrompt: isContinuation
+                ? [
+                    "continue",
+                    // A code lesson that stopped early left the panel
+                    // half-written and the walk-through mid-example. Name what
+                    // is still owed so the continuation finishes the lesson
+                    // instead of recapping it.
+                    conductor && codeLesson
+                      ? codeLessonResumeNote(conductor.status(), codeLesson)
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join("\n\n")
+                : question,
               conversationHistory: isContinuation
                 ? [
                     ...conversationHistoryRef.current,
@@ -1099,7 +1376,7 @@ ${JSON.stringify(problemAuthority.projection)}`
                 : conversationHistoryRef.current,
               proxyUrl: resolveApiUrl("/api/chat"),
               sessionId: sessionId ?? undefined,
-              hasAuthoritativePlan: Boolean(
+              hasAuthoritativePlan: Boolean(codeLesson) || Boolean(
                 turnPlan &&
                 (
                   turnPlan.givens.length > 0 ||
@@ -1109,6 +1386,7 @@ ${JSON.stringify(problemAuthority.projection)}`
                 )
               ),
               fastMode: fastModeRef.current,
+              codeLesson: Boolean(codeLesson),
               signal: abortController.signal,
               onTraceId: (id) => {
                 currentTraceIdRef.current = id;
@@ -1159,7 +1437,29 @@ ${JSON.stringify(problemAuthority.projection)}`
           }
           reasoningOnlyRetry = false;
 
+          // A code lesson is finished when its beats are, not when the text
+          // happens to end on a full stop. The buffered segment has not been
+          // conducted yet, so flush it before asking what is left.
+          flushBufferedSegment();
+          const codeLessonProgress = conductor?.status() ?? null;
+          const beatsLeft = codeLessonProgress
+            ? codeLessonProgress.missingBlockIds.length + codeLessonProgress.unshownFrameCount
+            : 0;
+          // Only continue while continuing is still achieving something. A
+          // model that returns the same stuck chunk would otherwise burn every
+          // continuation on it and delay the end of the turn.
+          const codeLessonUnfinished = beatsLeft > 0 && beatsLeft < beatsLeftBefore;
+          beatsLeftBefore = beatsLeft;
+          if (codeLessonUnfinished) {
+            tutorDebug("turn", "code lesson stopped early, continuing", {
+              missing_blocks: codeLessonProgress?.missingBlockIds.length ?? 0,
+              unshown_frames: codeLessonProgress?.unshownFrameCount ?? 0,
+              continuation: continueCount + 1,
+            });
+          }
+
           if (
+            !codeLessonUnfinished &&
             !isTeachingResponseIncomplete(
               streamResult.text,
               fullResponse,
@@ -1209,6 +1509,13 @@ ${JSON.stringify(problemAuthority.projection)}`
         parser.flush();
         // Flush the final segment through verified-scene ownership filtering.
         flushBufferedSegment();
+        // A tag the model wrote on its own line waits for the words it belongs
+        // to; if the response ended on one, it still has to reach the board.
+        if (conductor) {
+          for (const seg of conductor.finish().segments) {
+            enqueueSegment(seg, turnGeneration);
+          }
+        }
         throwIfTurnCancelled();
 
         const responseText = rawResponse.trim();
@@ -1234,6 +1541,11 @@ ${JSON.stringify(problemAuthority.projection)}`
 
         tutorDebug("turn", "planning lesson from full response");
         throwIfTurnCancelled();
+        // A stream that produced no parseable step never reached
+        // `flushBufferedSegment`, so the opening would otherwise be dropped
+        // along with it. The givens and the verified figure are the runtime's
+        // own and are owed to the student either way.
+        enqueueLessonOpening();
         applyTurnPhase("speaking");
 
         await awaitCurrentTurn(processResponseText(
@@ -1261,10 +1573,22 @@ ${JSON.stringify(problemAuthority.projection)}`
           if (currentId && rawResponseRef.current) {
             const responseForPersistence = rawResponseRef.current;
             const recordedForPersistence = withBoardEpochSegment(recordedSegmentsRef.current);
+            // The committed CodeLessonPlan rides the artifacts JSON so replay
+            // and restored boards can rebuild the code panel and type-along.
+            const artifactsForPersistence = codeLesson && sceneArtifacts
+              ? { ...sceneArtifacts, codeLesson }
+              : sceneArtifacts;
             const localTurn = persistTurnForReplay(
               question,
               responseForPersistence,
               recordedForPersistence,
+              {
+                sceneDocument: sceneV2Document,
+                sceneEngineVersion: SCENE_ENGINE_VERSION,
+                validationReport: sceneV2Report,
+                visualStatus: sceneVisualStatus,
+                sceneArtifacts: artifactsForPersistence,
+              },
             );
             storedTurnsRef.current = [...storedTurnsRef.current, localTurn];
             setStoredTurnsCount(storedTurnsRef.current.length);
@@ -1283,7 +1607,7 @@ ${JSON.stringify(problemAuthority.projection)}`
               sceneEngineVersion: SCENE_ENGINE_VERSION,
               validationReport: sceneV2Report,
               visualStatus: sceneVisualStatus,
-              sceneArtifacts,
+              sceneArtifacts: artifactsForPersistence,
               segments: recordedForPersistence,
             }).then((savedTurn) => {
               if (!savedTurn) return false;
@@ -1396,6 +1720,11 @@ ${JSON.stringify(problemAuthority.projection)}`
           total_tts_chars: turnStatsRef.current.ttsChars,
         });
 
+        // A finished DSA lesson keeps its panel up and unlocks type-along.
+        if (!turnCancelled && !cancelRef.current) {
+          codeLessonControllerRef?.current?.markLessonComplete();
+        }
+
         finishLectureUi(turnGeneration);
 
         if (turnGeneration === turnGenerationRef.current) {
@@ -1406,6 +1735,8 @@ ${JSON.stringify(problemAuthority.projection)}`
     },
     [
       sessionId,
+      isDraft,
+      commitDraftBoard,
       boards,
       narrationText,
       phaseRef,
@@ -1447,12 +1778,13 @@ ${JSON.stringify(problemAuthority.projection)}`
       fbdPhaseStartedRef,
       activeVerifiedDiagramRef,
       setActiveVerifiedDiagram,
+      codeLessonControllerRef,
       boardLayoutRef,
       turnTelemetryRef,
       conversationHistoryRef,
       speedRef,
       fastModeRef,
-      lessonDepthRef,
+      familiarityRef,
       storedTurnsRef,
       pendingSegmentCountRef,
       setStoredTurnsCount,

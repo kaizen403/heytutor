@@ -14,7 +14,10 @@ import { tutorDebug } from "@heytutor/tutor-core";
 import {
   summarizeSegmentsForTrace,
   normalizeSegmentForAlignment,
-} from "../../lib/segmentPlanning";
+} from "../../lib/turn/segmentPlanning";
+import { resolveCodeLessonSegments } from "../../lib/code-lesson/codeLessonSegments";
+import { shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
+import { clearSpotlight } from "../../lib/board/spotlight";
 import {
   autoQuestionSubmissionKey,
   buildDoubtPrompt,
@@ -23,7 +26,7 @@ import {
   isRuntimeReadyForDoubt,
   DOUBT_INTERRUPT_TIMEOUT_MESSAGE,
   DOUBT_INTERRUPT_TIMEOUT_MS,
-} from "../../lib/askDoubt";
+} from "../../lib/input/askDoubt";
 import { useSegmentRunner } from "./useSegmentRunner";
 import type { TutorPhase } from "../../types";
 import type { TurnControlApi, UseTurnLifecycleParams } from "./types";
@@ -77,6 +80,7 @@ export function useTurnControl(
     collectedSegmentsRef,
     recordedSegmentsRef,
     activeVerifiedDiagramRef,
+    codeLessonControllerRef,
     fbdPhaseMarkedRef,
     fbdPhaseStartedRef,
     setActiveVerifiedDiagram,
@@ -100,6 +104,8 @@ export function useTurnControl(
     executeCommandWithCancel,
   } = params;
   const activeIntroTransactionRef = useRef<string | null>(null);
+  /** Resets on any segment that completes; see turnFailurePolicy. */
+  const consecutiveSegmentFailuresRef = useRef(0);
 
   const finishLectureUi = useCallback((turnGeneration?: number) => {
     if (
@@ -112,6 +118,8 @@ export function useTurnControl(
     isPausedRef.current = false;
     setIsPaused(false);
     whiteboardRef.current?.setPaused(false);
+    // Whatever happened during the turn, the board must not be left dimmed.
+    clearSpotlight(whiteboardRef.current);
     ttsClientRef.current?.stop();
     phaseRef.current = "idle";
     setPhase("idle");
@@ -180,12 +188,34 @@ export function useTurnControl(
             collectedSegmentsRef.current,
             turnGeneration,
           );
+          consecutiveSegmentFailuresRef.current = 0;
         } catch (error) {
+          consecutiveSegmentFailuresRef.current += 1;
           console.error(`Segment ${index} failed:`, error);
           tutorDebug("segment", "segment failed", {
             index,
             error: error instanceof Error ? error.message : String(error),
+            consecutive_failures: consecutiveSegmentFailuresRef.current,
           });
+          // console.error only reaches the browser. A segment dying is the
+          // failure that looks like the board froze, so send it where it can
+          // actually be read back after the fact.
+          turnTelemetryRef.current?.mark("segment-failed", {
+            segment_index: index,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? (error.stack ?? "").slice(0, 600) : "",
+            consecutive_failures: consecutiveSegmentFailuresRef.current,
+          });
+          // Two in a row means the drawing pipeline is gone, not that one
+          // command was unlucky. Stop the turn rather than narrate the rest of
+          // the lesson to a board that has stopped moving.
+          if (shouldAbandonTurn(consecutiveSegmentFailuresRef.current)) {
+            tutorDebug("segment", "abandoning turn after repeated draw failures", {
+              index,
+              consecutive_failures: consecutiveSegmentFailuresRef.current,
+            });
+            cancelRef.current = true;
+          }
         } finally {
           pendingSegmentCountRef.current = Math.max(pendingSegmentCountRef.current - 1, 0);
         }
@@ -201,6 +231,7 @@ export function useTurnControl(
       ensureTTSClient,
       currentTraceIdRef,
       sessionId,
+      turnTelemetryRef,
     ],
   );
 
@@ -332,7 +363,21 @@ export function useTurnControl(
       const activeDiagram = activeVerifiedDiagramRef.current;
       const rawLlmSegments = buildLessonSegments(responseText);
       const preparedLlmSegments = prepareVerifiedLessonSegments(rawLlmSegments, activeDiagram);
-      const llmSegments = preparedLlmSegments.segments;
+      // During a code lesson the teaching stream may only narrate, gesture,
+      // and reveal committed blocks; [TYPE] tags resolve to their exact code.
+      const codeLessonState = codeLessonControllerRef?.current?.getState();
+      const activeCodeLesson = codeLessonState?.mode === "lesson" ? codeLessonState.plan : null;
+      const llmSegments = activeCodeLesson
+        ? resolveCodeLessonSegments(preparedLlmSegments.segments, activeCodeLesson, {
+            // The batch path sees the whole response at once, so one conductor
+            // call covers the turn and frame advances land between blocks.
+            frameCount: codeLessonControllerRef?.current?.frames.total() ?? 0,
+            frameFocusIds:
+              codeLessonControllerRef?.current?.frames
+                .getSet()
+                ?.frames.map((frame) => frame.focusEntityIds) ?? [],
+          }).segments
+        : preparedLlmSegments.segments;
       const segments = [...givenSegments, ...introSegments, ...llmSegments];
 
       segmentPlanStatsRef.current = {
@@ -446,6 +491,7 @@ export function useTurnControl(
       enqueueSegment,
       enqueueVerifiedIntro,
       activeVerifiedDiagramRef,
+      codeLessonControllerRef,
       segmentPlanStatsRef,
       turnTelemetryRef,
       segmentChainRef,
@@ -462,6 +508,14 @@ export function useTurnControl(
   );
 
   const stopTurn = useCallback(() => {
+    // Always kill speech first. The UI can already look idle while a leftover
+    // TTS buffer or speechSynthesis utterance is still talking — especially
+    // after a raced stop. Returning before this left the lecture audible.
+    ttsClientRef.current?.stop();
+    if (typeof window !== "undefined") {
+      window.speechSynthesis?.cancel();
+    }
+
     if (phase === "idle" && !isReplaying) {
       return;
     }
@@ -696,9 +750,15 @@ export function useTurnControl(
   useEffect(() => cancelDoubtFlush, [cancelDoubtFlush]);
 
   const handleAskDoubt = useCallback(
-    (rawDoubt: string) => {
+    /**
+     * `options.prompt` lets a caller that has already composed a grounded
+     * question — a marked doubt naming the exact board lines it is about —
+     * hand it over whole, instead of having it wrapped a second time.
+     */
+    (rawDoubt: string, options?: { prompt?: string }) => {
       const doubt = rawDoubt.trim();
-      if (!doubt) {
+      const composed = options?.prompt?.trim() ?? "";
+      if (!doubt && !composed) {
         return;
       }
 
@@ -709,10 +769,9 @@ export function useTurnControl(
         isReplaying: isReplayingRef.current,
         pendingSegmentCount: pendingSegmentCountRef.current,
       });
-      const prompt = buildDoubtPrompt(
-        doubt,
-        interrupting ? liveQuestionRef.current : null,
-      );
+      const prompt =
+        composed ||
+        buildDoubtPrompt(doubt, interrupting ? liveQuestionRef.current : null);
 
       if (!interrupting) {
         pendingDoubtRef.current = null;
@@ -733,7 +792,7 @@ export function useTurnControl(
 
       tutorDebug("turn", "doubt interrupts lesson", {
         lesson_question_preview: (liveQuestionRef.current ?? "").slice(0, 80),
-        doubt_preview: doubt.slice(0, 80),
+        doubt_preview: (doubt || composed).slice(0, 80),
         narration_chars: narrationSinceEpochRef.current.length,
       });
 

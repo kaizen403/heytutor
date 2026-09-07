@@ -22,6 +22,9 @@ import {
   type AudioTimings,
   type TTSClient,
 } from "@heytutor/tutor-core";
+import { waitUntilDrawClock } from "@/lib/replay/replayAudio";
+import { guardDrawWithSpeech } from "../../lib/turn/turnFailurePolicy";
+import { speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
 import { resolveCommandInkBudgetMs } from "../../types";
 import type { UseSegmentRunnerParams } from "./types";
 
@@ -44,7 +47,7 @@ export function useSegmentRunner({
   setCurrentSegmentText,
   narrationDensityRef,
   drawChainRef,
-  reserveTextCommandPlacement,
+  reserveTextCommandPlacements,
 }: UseSegmentRunnerParams) {
   const waitWhilePaused = useCallback(async (): Promise<boolean> => {
     while (isPausedRef.current) {
@@ -112,9 +115,13 @@ export function useSegmentRunner({
       if (segment.verifiedDiagramIntro !== true) {
         const prepared: DrawCommand[] = [];
         for (const command of segmentCommands) {
-          const resolved = await reserveTextCommandPlacement(command);
-          prepared.push(resolved);
-          if (resolved !== command) reservedTextCommands.add(resolved);
+          // One work row can come back as several: a line too long for the
+          // column is wrapped there rather than shrunk to fit.
+          const resolved = await reserveTextCommandPlacements(command);
+          for (const row of resolved) {
+            prepared.push(row);
+            if (row !== command) reservedTextCommands.add(row);
+          }
         }
         segmentCommands = prepared;
       }
@@ -126,6 +133,7 @@ export function useSegmentRunner({
         verifiedDiagramIntro: segment.verifiedDiagramIntro === true,
         commandCount: segmentCommands.length,
         hasNarration,
+        sceneText: segment.sceneText === true,
       });
       const commandPaces = segmentCommands.map((cmd) => selectInkPace(cmd, paceContext));
       const pacedDurations = segmentCommands.map((cmd, commandIndex) =>
@@ -165,6 +173,7 @@ export function useSegmentRunner({
       );
       let audioStartedAtMs: number | null = null;
       let speechComplete = false;
+      let actualDrawMs = 0;
       let timingTelemetryCount = 0;
       let lastTimingTelemetryChars = -1;
       const timingWaiters: Array<(timings: AudioTimings | null) => void> = [];
@@ -189,6 +198,7 @@ export function useSegmentRunner({
           audioStartedAtMs,
           nowMs: performance.now(),
           maxAudioPositionMs,
+          playbackRate: tts.getPlaybackRate?.() ?? 1,
         });
         maxAudioPositionMs = resolved.maxAudioPositionMs;
         return resolved.positionMs;
@@ -273,12 +283,27 @@ export function useSegmentRunner({
               return;
             }
 
-            const isTextCommand = command.type === "WRITE" || command.type === "LABEL";
-            const elapsedAtCommandStart =
-              audioStartedAtMs === null ? 0 : performance.now() - audioStartedAtMs;
+            const isTextCommand =
+              command.type === "WRITE" ||
+              command.type === "LABEL" ||
+              // TYPE is text for pacing: it earns the same spoken window a
+              // written line would.
+              command.type === "TYPE";
+            // Handwriting aligns each character to the word being spoken. Code
+            // is not read aloud, so there is nothing to align to — a matched
+            // schedule would stretch past the segment and strand the tail. The
+            // code panel paces itself inside the window instead.
+            //
+            // Nor is figure text: a cell value or an index header is part of
+            // the sketch, and it has no spoken token to track. Scheduling them
+            // as handwriting cost half a second each, so a fourteen-label
+            // figure took ten seconds to appear under a four second sentence.
+            const needsCharSchedule =
+              isTextCommand && command.type !== "TYPE" && pace !== "scene";
+            const elapsedAtCommandStart = liveAudioPositionMs();
 
             const timingValidation =
-              isTextCommand && hasNarration && capturedTimings
+              needsCharSchedule && hasNarration && capturedTimings
                 ? validateAudioTimingsForNarration(narration, capturedTimings)
                 : null;
             const segmentDurationMs =
@@ -287,7 +312,7 @@ export function useSegmentRunner({
                 ? Math.round(capturedTimings.totalDuration * 1000)
                 : totalSpeechMs);
             const writeSchedule =
-              isTextCommand && hasNarration
+              needsCharSchedule && hasNarration
                 ? getBestWriteCharScheduleMs(
                     narration,
                     command,
@@ -380,8 +405,11 @@ export function useSegmentRunner({
                 )
               : 0;
 
-            if (startDelayMs > 0) {
-              await cancellableDelay(startDelayMs);
+            if (startDelayMs > 0 && speechWindow) {
+              await waitUntilDrawClock(liveAudioPositionMs, speechWindow.startMs, {
+                shouldCancel: isCancelled,
+                getPlaybackRate: () => tts.getPlaybackRate?.() ?? 1,
+              });
               if (isCancelled()) {
                 return;
               }
@@ -402,6 +430,11 @@ export function useSegmentRunner({
             await executeCommandWithCancel(command, {
               segmentNarration: narration,
               speechDurationMs: commandBudgetMs,
+              // What this command may spend of the segment's spoken time.
+              // Anything that fills time rather than drawing ink is capped by
+              // it, so two commands in one beat cannot each take the whole
+              // beat and leave the board running behind its own narration.
+              speechShareMs: speechWindow?.durationMs || commandSpeechMs,
               ...diagramDrawOptions,
               textPlacementReserved: reservedTextCommands.has(command),
               inkPace: pace,
@@ -411,19 +444,19 @@ export function useSegmentRunner({
             }
           }
         } finally {
-          const drawMs = Math.round(performance.now() - drawStart);
-          turnStatsRef.current.drawMs += drawMs;
+          actualDrawMs = Math.round(performance.now() - drawStart);
+          turnStatsRef.current.drawMs += actualDrawMs;
           const audioElapsedMs =
             audioStartedAtMs === null ? null : Math.round(performance.now() - audioStartedAtMs);
           tel?.mark("draw-complete", {
             segment_index: index,
             command_count: segmentCommands.length,
-            duration_ms: drawMs,
+            duration_ms: actualDrawMs,
             audio_elapsed_ms: audioElapsedMs,
           });
           drawSpan?.end({
             command_count: segmentCommands.length,
-            duration_ms: drawMs,
+            duration_ms: actualDrawMs,
           });
         }
       };
@@ -477,9 +510,9 @@ export function useSegmentRunner({
         text: string,
         options: Parameters<TTSClient["speakSegment"]>[1] = {},
       ): Promise<void> => {
-        // Fail fast vs the old 45s hangs, but leave room after WS watchdog (5s)
-        // for HTTP / browser fallback to finish speaking.
-        const timeoutMs = Math.min(Math.max(text.length * 140, 12_000), 18_000);
+        // First-chunk latency plus the whole playback. An 18s hard cap was
+        // shorter than a normal DSA paragraph on HTTP TTS and killed the pen.
+        const timeoutMs = speakSegmentTimeoutMs(text);
         let timedOut = false;
         let timeoutId: number | null = null;
 
@@ -540,6 +573,20 @@ export function useSegmentRunner({
 
           const drawPromise = runDraw(estimateSpeechMs, null);
           drawChainRef.current = drawPromise.catch(() => undefined);
+          // If the ink stops, the voice stops with it. Without this the two
+          // promises are independent: Promise.all rejects on the draw side
+          // while the speech carries on narrating a board that has frozen.
+          const guardedDraw = guardDrawWithSpeech(drawPromise, (error) => {
+            tutorDebug("segment", "draw failed; silencing narration", {
+              index,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            tel?.mark("segment-draw-failed", {
+              segment_index: index,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            tts.abandonSpeaking?.();
+          });
 
           await Promise.all([
             speakSegmentWithTimeout(narration, {
@@ -570,7 +617,7 @@ export function useSegmentRunner({
                 }
               },
             }),
-            drawPromise,
+            guardedDraw,
           ]);
 
           if (isCancelled()) return;
@@ -586,7 +633,17 @@ export function useSegmentRunner({
               trustedDiagramGeometry: segment.verifiedDiagramIntro === true,
             }),
             audioBytes: capturedAudio,
-            durationMs: capturedDurationMs,
+            durationMs: (() => {
+              const spoken = capturedDurationMs;
+              const typed = segmentCommands.some((command) => command.type === "TYPE");
+              if (!typed) return spoken;
+              const elapsed = audioStartedAtMs != null
+                ? Math.round(performance.now() - audioStartedAtMs)
+                : actualDrawMs > 0 ? actualDrawMs : null;
+              if (spoken == null) return elapsed;
+              if (elapsed == null) return spoken;
+              return Math.max(spoken, elapsed);
+            })(),
             timings: capturedTimings,
           });
           if (segment.narration.trim()) {
@@ -617,7 +674,7 @@ export function useSegmentRunner({
       setCurrentSegmentText,
       narrationDensityRef,
       drawChainRef,
-      reserveTextCommandPlacement,
+      reserveTextCommandPlacements,
     ],
   );
 

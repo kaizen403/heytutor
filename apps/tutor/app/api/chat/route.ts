@@ -1,4 +1,4 @@
-import { getMockResponse } from "@heytutor/tutor-core";
+import { getMockCodeLessonPlan, getMockResponse } from "@heytutor/tutor-core";
 import { tutorDebug } from "@heytutor/tutor-core";
 import {
   parseFastModeHeader,
@@ -20,12 +20,12 @@ import {
 } from "@/lib/llm/plannerTransport";
 import {
   fetchTeachingCompletion,
+  resolveTeachingContentBudget,
   resolveTeachingModel,
   resolveTeachingReasoningEffort,
 } from "@/lib/llm/teachingTransport";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
-const DEFAULT_MAX_TOKENS = 3600;
 
 // Hard reasoning-token caps per tier. kimi-k2p6's `reasoning_effort` levels are
 // NOT hard budgets (low can out-reason medium and run until max_tokens), so we
@@ -192,6 +192,25 @@ function finalizeMockPlannerTrace(
   );
 }
 
+function finalizeMockCodeLessonTrace(
+  turnTrace: TurnTrace | null,
+  question: string,
+  traceId: string,
+): Response {
+  const content = JSON.stringify(getMockCodeLessonPlan(question));
+  endLlmGeneration(turnTrace, {
+    output: content,
+    usageDetails: { input: 0, output: 0, total: 0 },
+    metadata: { mock: true, planner: true, code_lesson_version: 1 },
+    mock: true,
+  });
+  flushInBackground();
+  return Response.json(
+    { choices: [{ message: { content } }] },
+    { headers: { "x-heytutor-trace-id": traceId } },
+  );
+}
+
 function finalizeMockTurnPlannerTrace(
   turnTrace: TurnTrace | null,
   question: string,
@@ -257,17 +276,14 @@ function injectStreamOptions(
   bodyText: string,
   serverModel: string,
   reasoningEffort: ReasoningEffort,
+  codeLesson = false,
 ): string {
   try {
     const parsed = JSON.parse(bodyText) as ChatRequestBody & Record<string, unknown>;
-    const configuredMaxTokens = Number.parseInt(
-      process.env.FIREWORKS_MAX_TOKENS ?? `${DEFAULT_MAX_TOKENS}`,
-      10,
-    );
-    // Token budget reserved for the spoken lesson itself.
-    const contentBudget = Number.isFinite(configuredMaxTokens)
-      ? Math.min(Math.max(configuredMaxTokens, 1200), 6000)
-      : DEFAULT_MAX_TOKENS;
+    const contentBudget = resolveTeachingContentBudget({
+      codeLesson,
+      env: process.env,
+    });
 
     parsed.model = serverModel;
     parsed.stream_options = { include_usage: true };
@@ -431,6 +447,7 @@ interface PlannerRequestArgs {
   semanticSceneV2: boolean;
   turnPlanV3: boolean;
   problemIRV1: boolean;
+  codeLessonV1: boolean;
   plannerPhase: "plan" | "repair";
   plannerLane: "primary" | "alternate";
   fastMode: boolean;
@@ -447,6 +464,7 @@ async function handlePlannerRequest({
   semanticSceneV2,
   turnPlanV3,
   problemIRV1,
+  codeLessonV1,
   plannerPhase,
   plannerLane,
   fastMode,
@@ -471,7 +489,7 @@ async function handlePlannerRequest({
   try {
     const parsed = JSON.parse(rawBody) as Record<string, unknown>;
     delete parsed.reasoning_effort;
-    if (semanticSceneV2 || turnPlanV3 || problemIRV1) {
+    if (semanticSceneV2 || turnPlanV3 || problemIRV1 || codeLessonV1) {
       // Hidden reasoning adds latency without improving the audited document.
       // Complex scenes routinely exceed 1,400 output tokens; truncating JSON
       // makes an otherwise usable scene indistinguishable from no scene.
@@ -480,6 +498,7 @@ async function handlePlannerRequest({
         semanticSceneV2,
         turnPlanV3,
         problemIRV1,
+        codeLessonV1,
         plannerPhase,
         plannerLane,
         fastMode,
@@ -658,6 +677,9 @@ export async function POST(request: Request): Promise<Response> {
   if (mock) {
     tutorDebug("chat", "using mock response (no FIREWORKS_API_KEY)");
     if (request.headers.get("x-planner") === "1") {
+      if (request.headers.get("x-code-lesson-version") === "1") {
+        return finalizeMockCodeLessonTrace(turnTrace, userInput, traceId);
+      }
       if (request.headers.get("x-problem-ir-version") === "1") {
         return finalizeMockProblemIRTrace(turnTrace, userInput, traceId);
       }
@@ -676,15 +698,17 @@ export async function POST(request: Request): Promise<Response> {
   if (request.headers.get("x-planner") === "1") {
     const turnPlanV3 = request.headers.get("x-turn-planner-version") === "3";
     const problemIRV1 = request.headers.get("x-problem-ir-version") === "1";
+    const codeLessonV1 = request.headers.get("x-code-lesson-version") === "1";
     return handlePlannerRequest({
       rawBody,
       apiKey,
       traceId,
       turnTrace,
       requestStartedAt,
-      semanticSceneV2: !turnPlanV3 && !problemIRV1 && request.headers.get("x-scene-planner-version") === "2",
+      semanticSceneV2: !turnPlanV3 && !problemIRV1 && !codeLessonV1 && request.headers.get("x-scene-planner-version") === "2",
       turnPlanV3,
       problemIRV1,
+      codeLessonV1,
       plannerPhase: request.headers.get("x-scene-planner-phase") === "repair" ? "repair" : "plan",
       plannerLane: (
         turnPlanV3
@@ -706,18 +730,22 @@ export async function POST(request: Request): Promise<Response> {
   const fastMode = parseFastModeHeader(request.headers.get("x-heytutor-fast-mode"));
   const serverModel = resolveTeachingModel(process.env, { fastMode });
   const reasoningMode = parseReasoningMode(process.env.TUTOR_REASONING_MODE);
-  const hasAuthoritativePlan =
-    request.headers.get("x-heytutor-teaching-pass") === "planned";
+  const teachingPass = request.headers.get("x-heytutor-teaching-pass");
+  const hasAuthoritativePlan = teachingPass === "planned";
+  const isCodeLessonTurn =
+    request.headers.get("x-heytutor-code-lesson") === "1" || teachingPass === "code-lesson";
   const reasoningEffort = resolveTeachingReasoningEffort({
     question: userInput,
     hasAuthoritativePlan,
     mode: reasoningMode,
+    codeLesson: teachingPass === "code-lesson",
   });
-  const bodyToSend = injectStreamOptions(rawBody, serverModel, reasoningEffort);
+  const bodyToSend = injectStreamOptions(rawBody, serverModel, reasoningEffort, isCodeLessonTurn);
 
   tutorDebug("chat", "forwarding to Fireworks", {
     model: serverModel,
     authoritative_plan: hasAuthoritativePlan,
+    code_lesson: isCodeLessonTurn,
     reasoning_mode: reasoningMode,
     reasoning_effort: reasoningEffort,
   });

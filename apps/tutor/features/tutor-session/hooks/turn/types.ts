@@ -1,4 +1,4 @@
-import type { LessonDepth } from "@heytutor/tutor-core";
+import type { SubjectFamiliarity } from "@heytutor/tutor-core";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
@@ -9,10 +9,13 @@ import type { RecordedSegmentPayload, StoredTurn } from "@/lib/boards/boardsClie
 import type { BoardEntry } from "@/lib/boards/types";
 import type { TutorSegment } from "@heytutor/drawing";
 import type { TutorPhase, BoardLayoutState, SegmentPlanStats } from "../../types";
+import type { CodeLessonController } from "../../lib/code-lesson/codeLessonController";
 
 export type ExecuteCommandOptions = {
   durationScale?: number;
   speechDurationMs?: number;
+  /** This command's slice of the segment's spoken time. */
+  speechShareMs?: number;
   writeSchedule?: {
     charStartOffsetsMs: number[];
     charDurationsMs: number[];
@@ -38,6 +41,14 @@ export type ExecuteCommandOptions = {
 
 export type UseTurnLifecycleParams = {
   sessionId: string;
+  /** Home board: no database row and no `/c/` URL until this first question. */
+  isDraft?: boolean;
+  /**
+   * Writes the home board's row and hands it the `/c/{id}` URL. Resolves true
+   * when this call is the one that created it, so the naming pass knows the
+   * board is brand new even though `boards` has not caught up yet.
+   */
+  commitDraftBoard?: () => Promise<boolean>;
   /** Submit this question once the board and whiteboard are ready. */
   autoQuestion?: string | null;
   /** Strip `?q=` from the URL after consuming autoQuestion (student `/c/` path). */
@@ -90,13 +101,19 @@ export type UseTurnLifecycleParams = {
   fbdPhaseStartedRef: RefObject<boolean>;
   activeVerifiedDiagramRef: RefObject<VerifiedDiagram | null>;
   setActiveVerifiedDiagram?: Dispatch<SetStateAction<VerifiedDiagram | null>>;
+  /** Owns the DSA code panel; DSA turns commit their CodeLessonPlan here. */
+  codeLessonControllerRef?: RefObject<CodeLessonController | null>;
   segmentPlanStatsRef: RefObject<SegmentPlanStats>;
   stopTurnRef: RefObject<(() => void) | null>;
   speedRef: RefObject<number>;
   /** Prefer Fireworks Fast routers when configured. Default on. */
   fastModeRef: RefObject<boolean>;
-  /** "Lesson depth" from Settings; picks the teaching-prompt step budget. */
-  lessonDepthRef: RefObject<LessonDepth>;
+  /**
+   * Familiarity of the subject, chosen per question in the chat bar (Settings
+   * only supplies the default). Shifts the teaching-prompt step budget and
+   * selects the scaffolding addon.
+   */
+  familiarityRef: RefObject<SubjectFamiliarity>;
   /** Live count of segments enqueued but not yet finished — drives adaptive speed. */
   pendingSegmentCountRef: RefObject<number>;
   /** Narration density (chars per ms) of the current segment — drives adaptive speed. */
@@ -125,11 +142,18 @@ export type UseTurnLifecycleParams = {
   clearCancelTimers: () => void;
   resetBoardLayout: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
   beginBoardEpoch: () => Promise<void>;
-  reserveTextCommandPlacement: (command: DrawCommand) => Promise<DrawCommand>;
+  reserveTextCommandPlacements: (command: DrawCommand) => Promise<DrawCommand[]>;
   persistTurnForReplay: (
     question: string,
     rawResponse: string,
     recordedSegments: RecordedSegmentPayload[],
+    scene?: {
+      sceneDocument?: unknown | null;
+      sceneEngineVersion?: string | null;
+      validationReport?: unknown | null;
+      visualStatus?: import("@/lib/boards/boardsClient").SceneVisualStatus | null;
+      sceneArtifacts?: unknown | null;
+    },
   ) => StoredTurn;
   registerReplayBlobUrl: (url: string) => void;
   revokeUnreferencedReplayBlobUrls: () => void;
@@ -154,7 +178,7 @@ export type UseSegmentRunnerParams = Pick<
   | "setCurrentSegmentText"
   | "narrationDensityRef"
   | "drawChainRef"
-  | "reserveTextCommandPlacement"
+  | "reserveTextCommandPlacements"
 > & {
   applyTurnPhase: (next: TutorPhase) => void;
 };
@@ -174,5 +198,6 @@ export type TurnControlApi = {
   stopTurn: () => void;
   pauseTurn: () => void;
   resumeTurn: () => void;
-  handleAskDoubt: (question: string) => void;
+  /** `options.prompt` carries an already-composed, board-grounded doubt. */
+  handleAskDoubt: (question: string, options?: { prompt?: string }) => void;
 };
