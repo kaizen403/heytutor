@@ -30,18 +30,33 @@ export function useBoardViewport(
     if (!container) return;
 
     let rafId = 0;
+    let timeoutId = 0;
     let retries = 0;
 
     const updateScale = () => {
-      const { width, height } = container.getBoundingClientRect();
+      const box = container.getBoundingClientRect();
+      let width = box.width;
+      let height = box.height;
+      let windowFallback = false;
+      // An empty landing parks the board as `absolute` with no inset, so the
+      // first measure is often 0×0. rAF retries also never fire in some
+      // background webviews. A stuck 0.1 scale shrinks the figure; using the
+      // raw window overshoots (sidebar) and clips the same figure.
       if (width <= 0 || height <= 0) {
         if (retries < 30) {
           retries += 1;
+          cancelAnimationFrame(rafId);
+          window.clearTimeout(timeoutId);
           rafId = requestAnimationFrame(updateScale);
+          timeoutId = window.setTimeout(updateScale, 50);
+          return;
         }
-        return;
+        windowFallback = true;
+        width = Math.max(window.innerWidth - 360, 720);
+        height = Math.max(window.innerHeight - 200, 420);
+      } else {
+        retries = 0;
       }
-      retries = 0;
 
       const framePadding = window.matchMedia(MOBILE_MQ).matches
         ? FRAME_PADDING_MOBILE
@@ -54,7 +69,7 @@ export function useBoardViewport(
       const heightScale = availHeight / BOARD_HEIGHT;
 
       // Fit the board inside the container without cropping.
-      const nextScale = Math.min(widthScale, heightScale);
+      const nextScale = Math.min(widthScale, heightScale, windowFallback ? 1 : Number.POSITIVE_INFINITY);
       // Avoid sub-pixel thrash from ResizeObserver feedback.
       setViewport((prev) => {
         if (prev.measured && Math.abs(prev.scale - nextScale) < 0.001) return prev;
@@ -71,6 +86,7 @@ export function useBoardViewport(
 
     return () => {
       cancelAnimationFrame(rafId);
+      window.clearTimeout(timeoutId);
       observer.disconnect();
       media.removeEventListener("change", updateScale);
     };

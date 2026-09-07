@@ -8,7 +8,7 @@ import {
   type RenderScene,
   type SceneDocument,
 } from "@heytutor/scene-engine";
-import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/verifiedScenePresentation";
+import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 
 /**
  * Labels must never be painted onto ink.
@@ -158,6 +158,85 @@ for (const command of labelCommands) {
 // --- every label still names its owner ------------------------------------
 for (const command of labelCommands) {
   assert(command.anchorId, `label "${command.text}" lost its anchor entity`);
+}
+
+// --- a leader points at its label; it never writes through it ------------
+//
+// A leader used to run to the centre of the box it pointed at, so every
+// leader-placed label on the board was drawn with a line through its glyphs.
+// That was the single largest source of figure ink and handwriting sitting on
+// top of each other, so it is asserted here on a figure that forces leaders:
+// eight strokes through one point block every compass slot around it.
+{
+  const spokes: RenderPrimitive[] = Array.from({ length: 8 }, (_, index) => {
+    const angle = (index * Math.PI) / 4;
+    return {
+      id: `p_spoke_${index}`,
+      entityId: `spoke_${index}`,
+      groupId: "g",
+      kind: "line" as const,
+      points: [
+        { x: 780, y: 300 },
+        { x: 780 + Math.cos(angle) * 220, y: 300 + Math.sin(angle) * 220 },
+      ],
+    };
+  });
+  const hubPrimitives: RenderPrimitive[] = [
+    ...spokes,
+    { id: "p_hub", entityId: "hub", groupId: "g", kind: "point", points: [{ x: 780, y: 300 }] },
+    { id: "p_hub_label", entityId: "hub", groupId: "g", kind: "label", points: [{ x: 780, y: 300 }], text: "hub" },
+    { id: "p_rim", entityId: "rim", groupId: "g", kind: "point", points: [{ x: 780, y: 380 }] },
+    { id: "p_rim_label", entityId: "rim", groupId: "g", kind: "label", points: [{ x: 780, y: 380 }], text: "rim" },
+  ];
+  const hubDocument = {
+    ...document,
+    id: "leader_accuracy",
+    entities: [
+      ...spokes.map((spoke) => ({ id: spoke.entityId, kind: "line", role: "edge" })),
+      { id: "hub", kind: "point", role: "vertex" },
+      { id: "rim", kind: "point", role: "vertex" },
+    ],
+    revealGroups: [{
+      id: "g",
+      label: "figure",
+      narrationCue: "here is the figure",
+      entityIds: [...spokes.map((spoke) => spoke.entityId), "hub", "rim"],
+    }],
+  } as unknown as SceneDocument;
+  const hubPresentation = buildVerifiedDiagramPresentation(hubDocument, {
+    ...renderScene,
+    primitives: hubPrimitives,
+    revealGroups: hubDocument.revealGroups,
+    timeline: hubDocument.teachingTimeline,
+  });
+
+  const leaders = hubPresentation.diagram.commands.filter(
+    (command) => command.type === "DRAW_LINE" && command.visualStyle?.strokeRole === "construction",
+  );
+  assert(leaders.length >= 1, "the blocked figure must force at least one leader, or this proves nothing");
+
+  const hubLabels = hubPresentation.diagram.commands.filter((command) => command.type === "LABEL");
+  for (const leader of leaders) {
+    const [x1, y1, x2, y2] = leader.params;
+    for (const label of hubLabels) {
+      const box = labelBoundsOf(label);
+      const grazes = (() => {
+        for (let t = 0; t <= 1; t += 0.005) {
+          const px = x1! + (x2! - x1!) * t;
+          const py = y1! + (y2! - y1!) * t;
+          if (px >= box.x && px <= box.x + box.width && py >= box.y && py <= box.y + box.height) {
+            return true;
+          }
+        }
+        return false;
+      })();
+      assert(!grazes, `a leader is drawn through the label "${label.text}"`);
+    }
+  }
+
+  console.log(
+    `verify-label-accuracy: ${leaders.length} leaders stop clear of all ${hubLabels.length} labels`,
+  );
 }
 
 console.log(

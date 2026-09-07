@@ -1,5 +1,5 @@
 import dynamic from "next/dynamic";
-import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
+import { BoardBootSpinner } from "./BoardBootSpinner";
 
 export const Whiteboard = dynamic(
   () => import("@heytutor/whiteboard").then((mod) => mod.Whiteboard),
@@ -15,8 +15,9 @@ export const Whiteboard = dynamic(
           height: "100%",
         }}
       >
-        {/* The board is light, so the pencil spins in its own board ink. */}
-        <PenSpinner size={48} ink="#1B2A4A" label="Loading the board" />
+        {/* The board is off while its chunk loads: the sky boot arc, not the
+            pen — the tutor is not about to write yet. */}
+        <BoardBootSpinner label="Loading the board" />
       </div>
     ),
   },

@@ -26,7 +26,10 @@ import {
   type DrawCommand,
   type TutorSegment,
 } from "@heytutor/drawing";
-import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/verifiedScenePresentation";
+import { codeLessonBlockById, type CodeLessonPlan } from "@heytutor/tutor-core";
+import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
+import { DSA_DIAGRAM_ZONE } from "@/features/tutor-session/constants";
+import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 
 export interface SubmittedTurnSegment {
   orderIndex: number;
@@ -47,12 +50,19 @@ export interface SubmittedTurnSceneMetadata {
   segments: SubmittedTurnSegment[];
 }
 
+/**
+ * Scene artifacts as persisted for a turn. DSA turns additionally carry the
+ * validated CodeLessonPlan so restored boards can rebuild the code panel and
+ * type-along practice; it rides the same JSON column as the scene artifacts.
+ */
+export type PersistedSceneArtifacts = SceneArtifactsV3 & { codeLesson?: CodeLessonPlan };
+
 export interface CanonicalTurnSceneMetadata {
   sceneDocument: SceneDocument | null;
   sceneEngineVersion: string | null;
   validationReport: ValidationReport | null;
   visualStatus: "validated" | "text_only" | "retry_required";
-  sceneArtifacts: SceneArtifactsV3 | null;
+  sceneArtifacts: PersistedSceneArtifacts | null;
   segments: SubmittedTurnSegment[];
 }
 
@@ -75,15 +85,31 @@ export async function canonicalizeTurnSceneMetadata(
     return failure("segment orderIndex values must be unique non-negative integers");
   }
 
+  // A submitted plan that fails validation is rejected outright rather than
+  // silently dropped: its TYPE segments would otherwise fail with a confusing
+  // "command not allowed" error, and invalid code must never be persisted.
+  const codeLessonParse = parseStoredCodeLesson(metadata.sceneArtifacts, question);
+  if (codeLessonParse.status === "invalid") {
+    return failure(`persisted code lesson plan is invalid: ${codeLessonParse.reason}`);
+  }
+  const codeLesson = codeLessonParse.status === "valid" ? codeLessonParse.plan : null;
+
   if (metadata.visualStatus !== "validated") {
     if (metadata.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command))) {
       return failure("trusted diagram commands require a server-validated scene");
     }
-    const teachingCommands = canonicalizeTeachingCommands(metadata.segments, null);
+    const teachingCommands = canonicalizeTeachingCommands(metadata.segments, null, codeLesson);
     if (!teachingCommands.ok) return teachingCommands;
     const retryRequired = metadata.visualStatus === "retry_required";
     const plan = validatedOptionalTurnPlan(metadata.sceneArtifacts, question);
     const degradation = validatedDegradation(metadata.sceneArtifacts);
+    const baseArtifacts = retryRequired || degradation || codeLesson
+      ? minimalFailureArtifacts(
+          plan,
+          retryRequired ? "retry_required" : "text_only",
+          degradation,
+        )
+      : null;
     return {
       ok: true,
       value: {
@@ -91,12 +117,8 @@ export async function canonicalizeTurnSceneMetadata(
         sceneEngineVersion: null,
         validationReport: null,
         visualStatus: retryRequired ? "retry_required" : "text_only",
-        sceneArtifacts: retryRequired || degradation
-          ? minimalFailureArtifacts(
-              plan,
-              retryRequired ? "retry_required" : "text_only",
-              degradation,
-            )
+        sceneArtifacts: baseArtifacts
+          ? { ...baseArtifacts, ...(codeLesson ? { codeLesson } : {}) }
           : null,
         segments: teachingCommands.segments,
       },
@@ -169,7 +191,13 @@ export async function canonicalizeTurnSceneMetadata(
     if (document.source.nonMetric === false) {
       return failure("accepted document declares metric geometry outside the exact path");
     }
-    const compiled = compileSceneDocument(document);
+    // DSA structure diagrams were compiled into the code-lesson split live;
+    // recompiling into the default viewport would move every primitive under
+    // the code panel and diverge replay from the taught scene.
+    const compiled = compileSceneDocument(
+      document,
+      isDsaSceneDocument(document) ? { viewport: DSA_DIAGRAM_ZONE } : {},
+    );
     if (!compiled.ok || !compiled.renderScene) {
       return failure(`accepted representation does not compile: ${formatIssues(compiled.report.issues)}`);
     }
@@ -215,7 +243,11 @@ export async function canonicalizeTurnSceneMetadata(
   if (!report.valid || report.issues.some((issue) => issue.severity === "fatal")) {
     return failure("current scene engine did not produce a valid report");
   }
-  const expectedPresentation = buildVerifiedDiagramPresentation(document, renderScene);
+  const expectedPresentation = buildVerifiedDiagramPresentation(
+    document,
+    renderScene,
+    isDsaSceneDocument(document) ? { layout: "code_lesson" } : {},
+  );
   // Scene-engine owns diagram ink at persist time. Client intro may be missing
   // or diverge under concurrent lecture-lab compiles; replay uses the server
   // reconstruction, never the browser's trusted-geometry payload.
@@ -226,6 +258,7 @@ export async function canonicalizeTurnSceneMetadata(
   const teachingCommands = canonicalizeTeachingCommands(
     persistSegments,
     expectedPresentation.diagram,
+    codeLesson,
   );
   if (!teachingCommands.ok) return teachingCommands;
 
@@ -272,10 +305,14 @@ export async function canonicalizeTurnSceneMetadata(
       sceneEngineVersion: SCENE_ENGINE_VERSION,
       validationReport: report,
       visualStatus: "validated",
-      sceneArtifacts: canonicalArtifacts,
+      sceneArtifacts: codeLesson ? { ...canonicalArtifacts, codeLesson } : canonicalArtifacts,
       segments: teachingCommands.segments,
     },
   };
+}
+
+function isDsaSceneDocument(document: SceneDocument): boolean {
+  return (document.source as Record<string, unknown>).synthesizedDsa === true;
 }
 
 async function canonicalSolverArtifacts(
@@ -431,6 +468,7 @@ function validatedOptionalTurnPlan(artifacts: unknown, question: string): TurnPl
 function canonicalizeTeachingCommands(
   segments: SubmittedTurnSegment[],
   diagram: Parameters<typeof isBlockedVerifiedDiagramCommand>[1],
+  codeLesson: CodeLessonPlan | null = null,
 ): { ok: true; segments: SubmittedTurnSegment[] } | { ok: false; error: string } {
   const canonical: SubmittedTurnSegment[] = [];
 
@@ -447,6 +485,18 @@ function canonicalizeTeachingCommands(
 
     const normalized: DrawCommand[] = [];
     for (const command of commands) {
+      // TYPE reveals pre-committed code, so it is only trustworthy alongside a
+      // validated plan; its text is rebuilt from that plan, never taken from
+      // the submission. A blockId the plan does not know is filtered like a
+      // stale FOCUS target — the narration survives, nothing untrusted renders.
+      if (isRecord(command) && command.type === "TYPE") {
+        if (!codeLesson) {
+          return failure("TYPE commands require a persisted code lesson plan");
+        }
+        const rebuilt = canonicalTypeCommand(command, codeLesson);
+        if (rebuilt) normalized.push(rebuilt);
+        continue;
+      }
       const runtimeClear =
         command?.type === "CLEAR" &&
         commands.length === 1 &&
@@ -498,6 +548,39 @@ function canonicalizeTeachingCommands(
   return { ok: true, segments: canonical };
 }
 
+function canonicalTypeCommand(
+  command: Record<string, unknown>,
+  codeLesson: CodeLessonPlan,
+): DrawCommand | null {
+  if (!Array.isArray(command.params) || command.params.length !== 0) return null;
+  const charPosition = command.charPosition;
+  const narrationBefore = command.narrationBefore;
+  if (
+    !Number.isInteger(charPosition) ||
+    (charPosition as number) < 0 ||
+    (charPosition as number) > 10_000_000 ||
+    typeof narrationBefore !== "string" ||
+    narrationBefore.length > 8_000
+  ) return null;
+
+  // Resolved TYPE commands always carry the block id on semanticRef.entityId
+  // (see resolveCodeLessonSegments); the text field holds code, never an id.
+  const ref = isRecord(command.semanticRef) ? command.semanticRef : null;
+  const blockId = typeof ref?.entityId === "string" ? ref.entityId.trim() : "";
+  if (!blockId || blockId.length > 128) return null;
+
+  const located = codeLessonBlockById(codeLesson, blockId);
+  if (!located) return null;
+  return {
+    type: "TYPE",
+    params: [],
+    text: located.block.code,
+    charPosition: charPosition as number,
+    narrationBefore,
+    semanticRef: { entityId: blockId },
+  };
+}
+
 function canonicalTeachingCommand(command: unknown): DrawCommand | null {
   if (!isRecord(command) || !Array.isArray(command.params)) return null;
   if (!command.params.every((value) => typeof value === "number" && Number.isFinite(value))) {
@@ -539,6 +622,41 @@ function canonicalTeachingCommand(command: unknown): DrawCommand | null {
     return {
       type: "PAUSE",
       params: [...command.params] as number[],
+      charPosition: charPosition as number,
+      narrationBefore,
+    };
+  }
+
+  // A frame advance is entirely runtime-owned: no coordinates, no text, no id.
+  // It tells the replay to step the pre-compiled walk-through, which is only
+  // ever rebuilt from the persisted scene, so there is nothing here that could
+  // carry untrusted ink. Leaving it off this list rejected the whole turn with
+  // "teaching command FRAME is not allowed for persistence", so every DSA
+  // lesson that walked an example failed to save at all: no replay, no notes,
+  // no board history, and no export.
+  if (command.type === "FRAME" && command.params.length === 0) {
+    return {
+      type: "FRAME",
+      params: [],
+      charPosition: charPosition as number,
+      narrationBefore,
+    };
+  }
+
+  // A pointing move carries no coordinates and no ink: it names entities the
+  // persisted scene already owns, and the replay resolves them the same way
+  // the live board does. Leaving it off this list would reject the whole turn.
+  if (
+    command.type === "POINT" &&
+    command.params.length === 0 &&
+    typeof command.text === "string" &&
+    command.text.trim().length > 0 &&
+    command.text.length <= 160
+  ) {
+    return {
+      type: "POINT",
+      params: [],
+      text: command.text.trim(),
       charPosition: charPosition as number,
       narrationBefore,
     };

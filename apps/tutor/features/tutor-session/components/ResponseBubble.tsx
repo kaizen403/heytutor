@@ -38,18 +38,18 @@ export function ResponseBubble({ text, visible }: ResponseBubbleProps) {
     <div
       className="animate-wb-bubble-fade pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[calc(100%-2rem)] -translate-x-1/2 px-4 py-3 md:bottom-5 md:max-w-xl md:px-6"
       style={{
-        backgroundColor: "rgba(21, 21, 23, 0.94)",
-        color: "#F2F2F4",
+        backgroundColor: "rgba(13, 34, 49, 0.94)",
+        color: "var(--frost)",
         borderRadius: "12px",
-        boxShadow: "0 10px 30px -8px rgba(0, 0, 0, 0.55)",
-        border: "1px solid rgba(242, 242, 244, 0.08)",
+        boxShadow: "0 10px 30px -8px rgba(3, 11, 18, 0.55)",
+        border: "1px solid rgba(202, 229, 241, 0.08)",
         backdropFilter: "blur(8px)",
       }}
     >
       <p
         className="text-center text-sm font-medium leading-relaxed md:text-base"
         style={{
-          color: "#F2F2F4",
+          color: "var(--frost)",
         }}
       >
         <MathText>{displayText}</MathText>

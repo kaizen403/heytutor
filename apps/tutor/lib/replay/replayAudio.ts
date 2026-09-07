@@ -1,3 +1,5 @@
+import { applyHtmlAudioPlaybackRate } from "@heytutor/tutor-core";
+
 export const DEFAULT_REPLAY_SPEED = 1.5;
 
 export interface PlayReplayAudioOptions {
@@ -16,17 +18,13 @@ export function applyReplayPlaybackRate(
   audio: HTMLAudioElement,
   rate: number,
 ): void {
-  const safeRate = Math.max(rate, 0.1);
-  audio.playbackRate = safeRate;
-  // Keep pitch natural while speeding/slowing mid-lecture.
-  if ("preservesPitch" in audio) {
-    (audio as HTMLAudioElement & { preservesPitch: boolean }).preservesPitch = true;
-  }
+  applyHtmlAudioPlaybackRate(audio, rate);
 }
 
 /**
  * Apply an in-flight replay speed to HTML audio, live TTS, and ink together.
- * Student ReplayControls and the admin Watch overlay share this path.
+ * The admin Watch overlay drives this. The student transport that also used
+ * it has been removed from the tutor.
  */
 export function applyReplaySpeed(options: {
   rate: number;
@@ -51,7 +49,7 @@ export function applyReplaySpeed(options: {
 
 /**
  * Sync a controlled `playbackRate` prop onto `applySpeed` without render-phase setState.
- * Overlay dropdowns should pass the same apply helper student ReplayControls use.
+ * Overlay dropdowns should pass the same apply helper the session hooks use.
  */
 export function syncControlledPlaybackRate(
   playbackRate: number | undefined,
@@ -294,6 +292,24 @@ export function waitForReplayMediaTime(
     targetMs,
     options,
   );
+}
+
+/** Media-time clock that accumulates wall delta × live rate (no jump on change). */
+export function createAccumulatingMediaClock(options: {
+  getPlaybackRate: () => number;
+  nowMs?: () => number;
+}): { positionMs: () => number } {
+  const nowMs = options.nowMs ?? (() => performance.now());
+  let mediaMs = 0;
+  let lastWall = nowMs();
+  return {
+    positionMs: () => {
+      const now = nowMs();
+      mediaMs += (now - lastWall) * Math.max(options.getPlaybackRate(), 0.1);
+      lastWall = now;
+      return mediaMs;
+    },
+  };
 }
 
 /** Wall-clock delay that shortens/lengthens when speed changes mid-wait. */

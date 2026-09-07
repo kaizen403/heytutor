@@ -12,8 +12,8 @@ import {
   serializeSegmentCommands,
   type TutorSegment,
 } from "@heytutor/drawing";
-import { selectVerifiedRepresentation } from "../../features/tutor-session/lib/representationFallbackV4";
-import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/verifiedScenePresentation";
+import { selectVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
+import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
   canonicalizeTurnSceneMetadata,
   type SubmittedTurnSceneMetadata,

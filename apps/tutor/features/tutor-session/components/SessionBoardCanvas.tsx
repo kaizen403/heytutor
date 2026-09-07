@@ -1,17 +1,17 @@
 "use client";
 
-import { useCallback, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { useCallback, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { ResponseBubble } from "@/features/tutor-session/components/ResponseBubble";
-import { ReplayControls } from "@/features/tutor-session/components/ReplayControls";
 import { getMarkerColorHex, type SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
-import type { LecturePlaybackMode } from "@/lib/replay/liveTimeline";
 import type { WhiteboardHandle, CursorState } from "@heytutor/whiteboard";
 import { hitTestVerifiedAnchor, type VerifiedDiagram } from "@heytutor/drawing";
 import { BOARD_WIDTH, BOARD_HEIGHT, DIAGRAM_ZONE } from "../constants";
 import type { BoardViewport, TutorPhase } from "../types";
 import { DiagramLabelInspector } from "./DiagramLabelInspector";
+import { BoardMarkingLayer } from "./BoardMarkingLayer";
 import { Whiteboard } from "./WhiteboardLoader";
 import { BoardErrorBanner } from "./BoardErrorBanner";
+import type { BoardMarkingApi } from "../hooks/useBoardMarking";
 
 export interface SessionBoardCanvasProps {
   boardViewport: BoardViewport;
@@ -22,30 +22,22 @@ export interface SessionBoardCanvasProps {
   currentSegmentText: string;
   lastError: { message: string; question: string } | null;
   isReplaying: boolean;
-  replayProgressMs: number;
-  replayTotalMs: number;
-  /** Which timeline the scrub bar is showing: a finished lecture or a live one. */
-  playbackMode: LecturePlaybackMode;
-  /** Transport state of whichever playback owns the board right now. */
-  playbackPlaying: boolean;
-  /** Scrub bar is offered whenever there is a past worth revisiting. */
-  showPlaybackControls: boolean;
-  /** End of what has been taught — the live track's max. */
-  liveEdgeMs: number;
   /** Overlay board the past is drawn on while the live lecture stays frozen. */
   rewindBoardRef: RefObject<WhiteboardHandle | null>;
+  /** Off-screen board used to re-render a finished question for MP4 export. */
+  exportBoardRef: RefObject<WhiteboardHandle | null>;
+  exportBoardMounted: boolean;
   rewindActive: boolean;
   rewindCursorState: CursorState;
   rewindSegmentText: string;
   verifiedDiagram?: VerifiedDiagram | null;
+  /** DSA code-lesson overlay, rendered inside the scaled board box. */
+  codeLessonPanel?: ReactNode;
+  /** The student's marker. While armed it owns the board's pointer. */
+  marking?: BoardMarkingApi | null;
   onRetraceEntity?: (entityId: string) => void;
   onRetryError: (question: string) => void;
   onDismissError: () => void;
-  onReplayPlayPause: () => void;
-  onReplaySeek: (ms: number) => void;
-  onReplaySpeedChange: (rate: number) => void;
-  onGoLive: () => void;
-  onStop: () => void;
 }
 
 function canvasPointFromPointer(
@@ -69,30 +61,26 @@ export function SessionBoardCanvas({
   currentSegmentText,
   lastError,
   isReplaying,
-  replayProgressMs,
-  replayTotalMs,
-  playbackMode,
-  playbackPlaying,
-  showPlaybackControls,
-  liveEdgeMs,
   rewindBoardRef,
+  exportBoardRef,
+  exportBoardMounted,
   rewindActive,
   rewindCursorState,
   rewindSegmentText,
   verifiedDiagram,
+  codeLessonPanel,
+  marking,
   onRetraceEntity,
   onRetryError,
   onDismissError,
-  onReplayPlayPause,
-  onReplaySeek,
-  onReplaySpeedChange,
-  onGoLive,
-  onStop,
 }: SessionBoardCanvasProps) {
   const retraceBusyRef = useRef(false);
   const [hoveringAnchor, setHoveringAnchor] = useState(false);
   const idle = phase === "idle" && !isReplaying && !rewindActive;
-  const canRetrace = idle && Boolean(verifiedDiagram && onRetraceEntity);
+  const markingArmed = Boolean(marking?.armed);
+  // The marker owns every pointer while it is out: a stroke must never also
+  // fire a retrace or open a label popover.
+  const canRetrace = idle && !markingArmed && Boolean(verifiedDiagram && onRetraceEntity);
 
   const handlePointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
     if (!canRetrace || !verifiedDiagram) {
@@ -128,7 +116,7 @@ export function SessionBoardCanvas({
   const caption = verifiedDiagram?.caption?.trim();
 
   // Symbols become answerable once the figure has settled.
-  const labelsSettled = phase === "idle" || phase === "speaking";
+  const labelsSettled = (phase === "idle" || phase === "speaking") && !markingArmed;
 
   return (
     <div
@@ -161,6 +149,18 @@ export function SessionBoardCanvas({
             cursorState={cursorState}
             inkColor={getMarkerColorHex(settings.markerColor)}
           />
+          {codeLessonPanel}
+          {marking ? (
+            <BoardMarkingLayer
+              armed={marking.armed}
+              marks={marking.marks}
+              draftPoints={marking.draftPoints}
+              atMarkLimit={marking.atMarkLimit}
+              onPointerDown={marking.onPointerDown}
+              onPointerMove={marking.onPointerMove}
+              onPointerUp={marking.onPointerUp}
+            />
+          ) : null}
           {verifiedDiagram?.labelGlossary ? (
             <DiagramLabelInspector
               diagram={verifiedDiagram}
@@ -181,7 +181,7 @@ export function SessionBoardCanvas({
                 textAlign: "center",
                 fontSize: 13,
                 lineHeight: 1.35,
-                color: "#5A5A62",
+                color: "var(--ink-500)",
                 fontFamily: "ui-sans-serif, system-ui, sans-serif",
               }}
             >
@@ -213,7 +213,7 @@ export function SessionBoardCanvas({
                   aria-label={`Trace ${
                     anchor.labels.length > 0 ? anchor.labels.join(", ") : anchor.id
                   } on the diagram`}
-                  className="absolute rounded-md border-0 bg-transparent p-0 opacity-0 outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[#5FA4F9]"
+                  className="absolute rounded-md border-0 bg-transparent p-0 opacity-0 outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-sky-500"
                   style={{
                     left: anchor.x - 4,
                     top: anchor.y - 4,
@@ -264,21 +264,30 @@ export function SessionBoardCanvas({
           />
         )}
 
-        <ReplayControls
-          visible={showPlaybackControls}
-          mode={playbackMode}
-          playing={playbackPlaying}
-          progressMs={replayProgressMs}
-          totalMs={replayTotalMs}
-          liveEdgeMs={liveEdgeMs}
-          playbackRate={settings.speedMultiplier}
-          onPlayPause={onReplayPlayPause}
-          onSeek={onReplaySeek}
-          onPlaybackRateChange={onReplaySpeedChange}
-          onGoLive={onGoLive}
-          onStop={onStop}
-        />
       </div>
+      {exportBoardMounted ? (
+        <div
+          aria-hidden
+          style={{
+            position: "fixed",
+            left: -10000,
+            top: 0,
+            width: BOARD_WIDTH,
+            height: BOARD_HEIGHT,
+            overflow: "hidden",
+            pointerEvents: "none",
+          }}
+        >
+          <Whiteboard
+            ref={exportBoardRef}
+            width={BOARD_WIDTH}
+            height={BOARD_HEIGHT}
+            cursorState="drawing"
+            inkColor={getMarkerColorHex(settings.markerColor)}
+            thinkingMotion="none"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

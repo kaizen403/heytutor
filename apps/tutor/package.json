@@ -17,14 +17,22 @@
     "db:migrate:dev": "dotenv -e .env.local -- prisma migrate dev",
     "postinstall": "prisma generate",
     "r2:setup": "tsx scripts/r2-setup.ts",
-    "verify": "tsx scripts/verify/verify-board-title.ts && tsx scripts/verify/verify-replay.ts && tsx scripts/verify/verify-lecture-dvr.ts && tsx scripts/verify/verify-turn-async-guards.ts && tsx scripts/verify/verify-board-layout.ts && tsx scripts/verify/verify-verified-scene-presentation.ts && tsx scripts/verify/verify-diagram-generation-v3.ts && tsx scripts/verify/verify-no-legacy-diagram-path.ts && tsx scripts/verify/verify-planner-transport.ts && tsx scripts/verify/verify-teaching-transport.ts && tsx scripts/verify/verify-extract-question.ts && tsx scripts/verify/verify-tts-relay-protocol.ts && tsx scripts/verify/verify-ws-ticket.ts && tsx scripts/verify/verify-segment-planning.ts && tsx scripts/verify/verify-verified-scene-recovery.ts && tsx scripts/verify/verify-media-query-hydration.ts && tsx scripts/verify/verify-representation-fallback-v4.ts && tsx scripts/verify/verify-turn-scene-persistence.ts && tsx scripts/verify/verify-turn-upload-limits.ts && tsx scripts/verify/verify-representation-corpus-v4.ts && tsx scripts/verify/verify-lesson-follow-up.ts && tsx scripts/verify/verify-ask-doubt.ts && tsx scripts/verify/verify-notes-pdf.ts && tsx scripts/verify/verify-notes-chat-tag.ts && tsx scripts/verify/verify-board-history.ts && tsx scripts/verify/verify-syllabus-probes.ts && tsx scripts/verify/verify-lecture-lab.ts && tsx scripts/verify/verify-admin-playground.ts && tsx scripts/verify/verify-formula-emphasis.ts && tsx scripts/verify/verify-label-accuracy.ts && tsx scripts/verify/verify-label-glossary.ts && tsx scripts/verify/verify-math-text.ts && tsx scripts/verify/verify-lesson-notes.ts && tsx scripts/verify/verify-voice-language.ts"
+    "verify": "tsx scripts/verify/verify-board-title.ts && tsx scripts/verify/verify-replay.ts && tsx scripts/verify/verify-lecture-dvr.ts && tsx scripts/verify/verify-turn-async-guards.ts && tsx scripts/verify/verify-board-layout.ts && tsx scripts/verify/verify-landing-suggestions.ts && tsx scripts/verify/verify-verified-scene-presentation.ts && tsx scripts/verify/verify-turn-teaching-prompt.ts && tsx scripts/verify/verify-board-arithmetic.ts && tsx scripts/verify/verify-diagram-generation.ts && tsx scripts/verify/verify-no-legacy-diagram-path.ts && tsx scripts/verify/verify-planner-transport.ts && tsx scripts/verify/verify-teaching-transport.ts && tsx scripts/verify/verify-extract-question.ts && tsx scripts/verify/verify-tts-relay-protocol.ts && tsx scripts/verify/verify-ws-ticket.ts && tsx scripts/verify/verify-segment-planning.ts && tsx scripts/verify/verify-verified-scene-recovery.ts && tsx scripts/verify/verify-media-query-hydration.ts && tsx scripts/verify/verify-representation-fallback.ts && tsx scripts/verify/verify-turn-scene-persistence.ts && tsx scripts/verify/verify-turn-upload-limits.ts && tsx scripts/verify/verify-representation-corpus.ts && tsx scripts/verify/verify-lesson-follow-up.ts && tsx scripts/verify/verify-draft-board-url.ts && tsx scripts/verify/verify-ask-doubt.ts && tsx scripts/verify/verify-notes-pdf.ts && tsx scripts/verify/verify-notes-chat-tag.ts && tsx scripts/verify/verify-board-history.ts && tsx scripts/verify/verify-syllabus-probes.ts && tsx scripts/verify/verify-lecture-lab.ts && tsx scripts/verify/verify-admin-playground.ts && tsx scripts/verify/verify-formula-emphasis.ts && tsx scripts/verify/verify-label-accuracy.ts && tsx scripts/verify/verify-label-glossary.ts && tsx scripts/verify/verify-math-text.ts && tsx scripts/verify/verify-lesson-notes.ts && tsx scripts/verify/verify-voice-language.ts && tsx scripts/verify/verify-lecture-mp4.ts && tsx scripts/verify/verify-type-along.ts && tsx scripts/verify/verify-code-lesson-persistence.ts && tsx scripts/verify/verify-code-render.ts && tsx scripts/verify/verify-board-marking.ts && tsx scripts/verify/verify-code-lesson-conductor.ts && tsx scripts/verify/verify-code-lesson-pace.ts && tsx scripts/verify/verify-board-row-actions.ts && tsx scripts/verify/verify-turn-failure-policy.ts && tsx scripts/verify/verify-spotlight-lifecycle.ts && tsx scripts/verify/verify-marker-tour.ts && tsx scripts/verify/verify-lecture-page-halt.ts"
   },
   "dependencies": {
+    "@codemirror/lang-cpp": "^6.0.3",
+    "@codemirror/lang-java": "^6.0.2",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-python": "^6.2.1",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.9",
     "@heytutor/design-tokens": "workspace:*",
     "@heytutor/drawing": "workspace:*",
     "@heytutor/scene-engine": "workspace:*",
     "@heytutor/tutor-core": "workspace:*",
     "@heytutor/whiteboard": "workspace:*",
+    "@lezer/highlight": "^1.2.3",
     "@prisma/client": "^6.19.0",
     "@radix-ui/react-dialog": "^1.1.17",
     "@radix-ui/react-label": "^2.1.10",
@@ -40,7 +48,9 @@
     "konva": "^10.3.0",
     "langfuse": "^3.38.20",
     "lucide-react": "^1.21.0",
+    "mediabunny": "^1.55.4",
     "next": "15.5.23",
+    "prettier": "^3.9.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-konva": "^19.2.5",
@@ -53,6 +63,7 @@
     "@eslint/eslintrc": "^3.3.1",
     "@heytutor/eslint-config": "workspace:*",
     "@heytutor/typescript-config": "workspace:*",
+    "@next/eslint-plugin-next": "15.5.23",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -64,7 +75,6 @@
     "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
-    "typescript": "^5.8.3",
-    "@next/eslint-plugin-next": "15.5.23"
+    "typescript": "^5.8.3"
   }
 }

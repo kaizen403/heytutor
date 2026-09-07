@@ -15,15 +15,14 @@ export function enrichStoredSegmentsWithReplayAudio(
   registerBlobUrl: (url: string) => void,
 ): StoredSegment[] {
   return segments.map((segment) => {
-    if (segment.audioUrl) {
-      return segment;
-    }
-
     const captured = recorded.find((entry) => entry.orderIndex === segment.orderIndex);
     if (!captured?.audioBytes?.length) {
       return segment;
     }
 
+    // Prefer the bytes captured in this tab. After saveTurn the API row may
+    // already carry a public R2 URL, and that URL is not always fetchable
+    // from the browser (missing CORS, r2.dev blocked). The blob is.
     const audioUrl = createReplayAudioBlobUrl(captured.audioBytes);
     registerBlobUrl(audioUrl);
     return { ...segment, audioUrl };

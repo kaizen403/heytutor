@@ -1,5 +1,6 @@
 import type { DrawCommand } from "@heytutor/drawing";
 import { SCENE_DURATION_SCALE, type InkPace } from "@heytutor/tutor-core";
+import { LETTERED_IN_HAND_MS_PER_CHAR } from "@heytutor/whiteboard";
 
 export type TutorPhase = "idle" | "planning" | "thinking" | "drawing" | "speaking";
 
@@ -81,7 +82,13 @@ export function adaptiveShapeBudget(
   const pacedBase =
     pace === "scene" ? Math.max(Math.round(baseMs * SCENE_DURATION_SCALE), 70) : baseMs;
   const effectiveSpeed = Math.max(speedFactor, 0.4);
-  if (speechWindowMs && speechWindowMs > 100) {
+  // Any positive window is a real budget. The guard here used to be
+  // `> 100`, which silently discarded exactly the windows that matter: a
+  // 29-command figure capped to MAX_SCENE_BATCH_MS works out at about 45ms a
+  // command, that fell through to the natural scene pace, and the figure took
+  // 11 seconds to draw under 4 seconds of narration. The floors below are what
+  // keep a shape visible, not this guard.
+  if (speechWindowMs && speechWindowMs > 0) {
     if (pace === "scene") {
       return clampBudget(speechWindowMs / effectiveSpeed, 70, pacedBase);
     }
@@ -104,6 +111,17 @@ export function resolveCommandInkBudgetMs(input: {
   multiShapeSegment: boolean;
   sceneBatchDurationMs?: number;
 }): number {
+  if (input.isTextCommand && input.pace === "scene") {
+    // Figure text is lettered with whatever instrument is in hand. A budget
+    // above the swap threshold buys a pen swap each way for a two-character
+    // cell value, which is most of what a figure redraw used to cost.
+    const characters = Math.max(
+      (input.command.text ?? "").replace(/\s+/g, "").length,
+      1,
+    );
+    const natural = input.sceneBatchDurationMs ?? input.naturalDrawMs;
+    return Math.min(natural, characters * LETTERED_IN_HAND_MS_PER_CHAR);
+  }
   if (input.verifiedDiagramIntro && input.pace === "scene") {
     return input.sceneBatchDurationMs ?? input.naturalDrawMs;
   }
@@ -111,17 +129,30 @@ export function resolveCommandInkBudgetMs(input: {
     return adaptiveShapeBudget(input.command.type, input.speechWindowMs, 1, input.pace);
   }
   if (input.isTextCommand) {
+    // Scene text is already handled above, so this is handwriting: teaching
+    // text must stay on the handwritten path. A short speech window used to
+    // fall under the whiteboard's instant-label threshold, so the nib jumped
+    // and live pen motion never ran.
     const speech = input.speechWindowMs ?? input.naturalDrawMs;
-    // Follow teaching text must stay on the handwritten path. A short speech
-    // window used to fall under the whiteboard's instant-label threshold, so
-    // the nib jumped and live pen motion never ran.
-    if (input.pace === "follow") {
-      return Math.max(speech, input.naturalDrawMs);
-    }
-    return speech;
+    return Math.max(speech, input.naturalDrawMs);
   }
   if (input.command.type === "PAUSE") {
     return input.commandSpeechMs;
+  }
+  // A frame swap redraws a whole figure, so its budget is the spoken window it
+  // sits inside, not a per-shape base. Sized as one shape it ran three seconds
+  // past its sentence, and the next sentence waited for the ink: that pause
+  // after every beat is what the lesson sounded like.
+  // The marker walks the figure for as long as the step's words run. Sized as
+  // one shape it flew once in half a second and then stood on one cell for the
+  // rest of a sixty-word beat, which is the stalled board this was meant to fix.
+  if (input.command.type === "POINT") {
+    // `||`, not `??`: a POINT costs no ink, so its matched window is zero and
+    // `??` would hand the walk a zero-length budget.
+    return input.speechWindowMs || input.commandSpeechMs;
+  }
+  if (input.command.type === "FRAME") {
+    return input.speechWindowMs ?? input.commandSpeechMs;
   }
   if (input.speechWindowMs) {
     return adaptiveShapeBudget(input.command.type, input.speechWindowMs, 1, input.pace);

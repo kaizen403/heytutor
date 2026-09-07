@@ -14,18 +14,28 @@ import {
 } from "@heytutor/tutor-core";
 import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { buildLocalStoredTurn } from "@/lib/replay/replayTurns";
-import { nextQuestionBoardPath } from "@/features/tutor-session/lib/lessonFollowUp";
-import type { BoardEntry } from "@/lib/boards/types";
+import { boardPath, draftBoardPath } from "@/features/tutor-session/lib/board/boardRoute";
+import {
+  sortBoards,
+  withArchived,
+  withPinned,
+  type BoardEntry,
+} from "@/lib/boards/types";
 import {
   createBoard,
   deleteBoardApi,
+  updateBoard,
   fetchBoardDetail,
   fetchBoards,
   type RecordedSegmentPayload,
+  type SceneVisualStatus,
   type StoredTurn,
 } from "@/lib/boards/boardsClient";
+import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
+import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
+import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import type { TutorPhase } from "../types";
-import { waitForWhiteboard } from "../lib/whiteboardReady";
+import { waitForWhiteboard } from "../lib/board/whiteboardReady";
 
 type ExecuteCommandOptions = {
   durationScale?: number;
@@ -41,6 +51,10 @@ type ExecuteCommand = (
 
 export interface UseBoardSessionParams {
   sessionId: string;
+  /** Home board: a real board with no database row and no `/c/` URL yet. */
+  isDraft?: boolean;
+  /** Mint a fresh home board and route to it, optionally carrying a question. */
+  startDraftBoard?: (question?: string) => void;
   router: AppRouterInstance;
   phase: TutorPhase;
   speedMultiplier: number;
@@ -69,10 +83,14 @@ export interface UseBoardSessionParams {
    * dump the finished board (no pen) and then fight the replay clock.
    */
   skipInkRestoreRef?: RefObject<boolean>;
+  /** Restored DSA turns re-commit their persisted CodeLessonPlan here. */
+  codeLessonControllerRef?: RefObject<CodeLessonController | null>;
 }
 
 export function useBoardSession({
   sessionId,
+  isDraft = false,
+  startDraftBoard,
   router,
   phase,
   speedMultiplier,
@@ -94,6 +112,7 @@ export function useBoardSession({
   resetBoardLayout,
   executeCommand,
   skipInkRestoreRef,
+  codeLessonControllerRef,
 }: UseBoardSessionParams) {
   const [boards, setBoards] = useState<BoardEntry[]>([]);
   const [boardLoaded, setBoardLoaded] = useState(false);
@@ -104,10 +123,15 @@ export function useBoardSession({
   const replayBlobUrlsRef = useRef<string[]>([]);
   const restoreGenerationRef = useRef(0);
   const activeSessionIdRef = useRef(sessionId);
+  const isDraftRef = useRef(isDraft);
 
   useEffect(() => {
     activeSessionIdRef.current = sessionId;
   }, [sessionId]);
+
+  useEffect(() => {
+    isDraftRef.current = isDraft;
+  }, [isDraft]);
 
   useEffect(() => {
     const rate = Math.max(speedMultiplier, 0.1);
@@ -145,40 +169,52 @@ export function useBoardSession({
   }, []);
 
   const openBoard = useCallback(
-    async (question = "") => {
-      const unused = boards.find(
-        (b) => b.title === "new board" && !b.preview,
-      );
-      if (unused) {
-        // Already sitting on a blank board: ask it here rather than stacking up
-        // another empty board behind it.
-        if (unused.id === sessionId && !question.trim()) return;
-        router.push(nextQuestionBoardPath(unused.id, question));
+    (question = "") => {
+      // Already sitting on the unsaved home board: ask it here rather than
+      // throwing away a blank board to mint another blank board.
+      if (isDraft && storedTurnsCount === 0 && !question.trim()) return;
+      if (startDraftBoard) {
+        startDraftBoard(question);
         return;
       }
-      const board = await createBoard();
-      if (!board) return;
-      setBoards((prev) => [board, ...prev.filter((b) => b.id !== board.id)]);
-      router.push(nextQuestionBoardPath(board.id, question));
+      router.push(draftBoardPath(question));
     },
-    [boards, sessionId, router],
+    [isDraft, storedTurnsCount, startDraftBoard, router],
   );
 
   const createNewBoard = useCallback(() => {
-    void openBoard();
+    openBoard();
   }, [openBoard]);
 
   const startNextQuestion = useCallback(
     (question: string) => {
-      void openBoard(question);
+      openBoard(question);
     },
     [openBoard],
   );
 
+  /**
+   * The home board becomes real: its row is written and it takes over the URL.
+   * `replaceState` rather than a route push — a navigation here would remount
+   * the shell and kill the turn that just started.
+   */
+  const committedDraftRef = useRef<string | null>(null);
+  const commitDraftBoard = useCallback(async (): Promise<boolean> => {
+    if (!isDraft || committedDraftRef.current === sessionId) return false;
+
+    const board = await createBoard(sessionId);
+    if (!board) return false;
+
+    committedDraftRef.current = sessionId;
+    setBoards((prev) => [board, ...prev.filter((b) => b.id !== board.id)]);
+    window.history.replaceState(null, "", boardPath(board.id));
+    return true;
+  }, [isDraft, sessionId]);
+
   const switchBoard = useCallback(
     (id: string) => {
       if (id === sessionId) return;
-      router.push(`/c/${id}`);
+      router.push(boardPath(id));
     },
     [sessionId, router],
   );
@@ -202,14 +238,70 @@ export function useBoardSession({
 
         if (id === sessionId) {
           if (remaining.length > 0) {
-            router.push(`/c/${remaining[0]!.id}`);
+            router.push(boardPath(remaining[0]!.id));
           } else {
-            createNewBoard();
+            openBoard();
           }
         }
       })();
     },
-    [sessionId, router, createNewBoard, phase, stopTurnRef, boards],
+    [sessionId, router, openBoard, phase, stopTurnRef, boards],
+  );
+
+  /**
+   * Pin, archive and rename all follow the same shape: update the list right
+   * away so the row moves under the click, then roll back if the write fails.
+   * Waiting on the round trip made the sidebar feel broken on a slow network.
+   */
+  const applyBoardPatch = useCallback(
+    (
+      id: string,
+      optimistic: (board: BoardEntry) => BoardEntry,
+      patch: { title?: string; pinned?: boolean; archived?: boolean },
+    ) => {
+      void (async () => {
+        const previous = boards;
+        setBoards(sortBoards(boards.map((b) => (b.id === id ? optimistic(b) : b))));
+        const updated = await updateBoard(id, patch);
+        if (!updated) {
+          setBoards(previous);
+          return;
+        }
+        setBoards((current) =>
+          sortBoards(current.map((b) => (b.id === id ? { ...b, ...updated } : b))),
+        );
+      })();
+    },
+    [boards, setBoards],
+  );
+
+  const togglePinBoard = useCallback(
+    (id: string) => {
+      const board = boards.find((b) => b.id === id);
+      if (!board) return;
+      const pinned = board.pinnedAt == null;
+      applyBoardPatch(id, (b) => withPinned(b, pinned), { pinned });
+    },
+    [boards, applyBoardPatch],
+  );
+
+  const toggleArchiveBoard = useCallback(
+    (id: string) => {
+      const board = boards.find((b) => b.id === id);
+      if (!board) return;
+      const archived = board.archivedAt == null;
+      applyBoardPatch(id, (b) => withArchived(b, archived), { archived });
+    },
+    [boards, applyBoardPatch],
+  );
+
+  const renameBoard = useCallback(
+    (id: string, title: string) => {
+      const next = title.trim().slice(0, 200);
+      if (!next) return;
+      applyBoardPatch(id, (b) => ({ ...b, title: next }), { title: next });
+    },
+    [applyBoardPatch],
   );
 
   const ensureTTSClient = useCallback((): TTSClient => {
@@ -280,6 +372,13 @@ export function useBoardSession({
       question: string,
       rawResponse: string,
       recordedSegments: RecordedSegmentPayload[],
+      scene?: {
+        sceneDocument?: unknown | null;
+        sceneEngineVersion?: string | null;
+        validationReport?: unknown | null;
+        visualStatus?: SceneVisualStatus | null;
+        sceneArtifacts?: unknown | null;
+      },
     ): StoredTurn => {
       const orderIndex = storedTurnsRef.current.length;
       return buildLocalStoredTurn(
@@ -288,6 +387,7 @@ export function useBoardSession({
           rawResponse,
           speedMultiplier: speedRef.current,
           segments: recordedSegments,
+          ...scene,
         },
         orderIndex,
         registerReplayBlobUrl,
@@ -302,16 +402,18 @@ export function useBoardSession({
   }, [executeCommand]);
 
   const restoreBoardFromApi = useCallback(
-    async (boardId: string, generation: number) => {
+    async (boardId: string, generation: number, draft: boolean) => {
       const isStale = () =>
         generation !== restoreGenerationRef.current ||
         boardId !== activeSessionIdRef.current;
 
       try {
-        let detail = await fetchBoardDetail(boardId);
+        // An unsaved home board has nothing to fetch and must not be written:
+        // it starts empty, and only a question puts it in the database.
+        let detail = draft ? null : await fetchBoardDetail(boardId);
         if (isStale()) return;
 
-        if (!detail) {
+        if (!detail && !draft) {
           await createBoard(boardId);
           if (isStale()) return;
           detail = await fetchBoardDetail(boardId);
@@ -319,22 +421,24 @@ export function useBoardSession({
 
         if (isStale()) return;
 
-        if (!detail) {
+        if (!detail && !draft) {
           return;
         }
 
-        storedTurnsRef.current = detail.turns;
-        setStoredTurnsCount(detail.turns.length);
+        const turns = detail?.turns ?? [];
+
+        storedTurnsRef.current = turns;
+        setStoredTurnsCount(turns.length);
         // Reset the input overlay state for the restored board: a board with no
         // turns shows the Accelute landing (inputInteracted=false), while a board
         // with prior turns shows the doubt InputBar (inputInteracted=true).
-        setInputInteracted(detail.turns.length > 0);
-        conversationHistoryRef.current = detail.turns.map((turn) => ({
+        setInputInteracted(turns.length > 0);
+        conversationHistoryRef.current = turns.map((turn) => ({
           user: turn.question,
           assistant: lessonNarrationText(turn.rawResponse),
         }));
 
-        const lastTurn = detail.turns[detail.turns.length - 1];
+        const lastTurn = turns[turns.length - 1];
         const lastNarration = lastTurn
           ? lessonNarrationText(lastTurn.rawResponse)
           : "";
@@ -353,15 +457,16 @@ export function useBoardSession({
 
         await whiteboardRef.current?.clearBoard();
         resetBoardLayout(false, false);
+        codeLessonControllerRef?.current?.reset();
 
-        if (detail.turns.length === 0 || skipInkRestoreRef?.current) {
+        if (turns.length === 0 || skipInkRestoreRef?.current) {
           return;
         }
 
         // Each stored turn is one notes page. Snapshot the previous turn's ink
         // before this turn's CLEAR wipes it, so Download notes survives a reload.
         let restoredInk = false;
-        for (const turn of detail.turns) {
+        for (const turn of turns) {
           if (isStale()) return;
           if (restoredInk) {
             captureNotesEpoch();
@@ -369,6 +474,19 @@ export function useBoardSession({
           }
           liveQuestionRef.current = turn.question;
           narrationSinceEpochRef.current = lessonNarrationText(turn.rawResponse);
+
+          // A DSA turn's TYPE commands reveal blocks of this plan; committing
+          // it first also brings the code panel back for the restored board.
+          const codeLesson = storedCodeLessonPlan(turn.sceneArtifacts);
+          const controller = codeLessonControllerRef?.current;
+          if (codeLesson) {
+            controller?.commit(codeLesson);
+          } else {
+            controller?.reset();
+          }
+          // The restored board replays this turn's FRAME cues, so it needs the
+          // same walk-through the live turn compiled.
+          if (controller) restoreDsaFrames(controller, turn, codeLesson);
 
           for (const segment of turn.segments) {
             if (isStale()) return;
@@ -390,6 +508,12 @@ export function useBoardSession({
                 restoredInk = true;
               }
             }
+          }
+
+          // The lesson already finished when it was recorded: restored panels
+          // open in "complete" mode so type-along is immediately available.
+          if (codeLesson) {
+            codeLessonControllerRef?.current?.markLessonComplete();
           }
         }
 
@@ -417,6 +541,7 @@ export function useBoardSession({
       setStoredTurnsCount,
       setInputInteracted,
       skipInkRestoreRef,
+      codeLessonControllerRef,
     ],
   );
 
@@ -450,8 +575,12 @@ export function useBoardSession({
     revokeReplayBlobUrls();
     cancelRef.current = false;
 
+    // Read through a ref, and never depend on it: claiming the URL flips
+    // `isDraft` mid-lesson, and re-running this would stop the turn that just
+    // claimed it and wipe the board out from under the student.
+    const draft = isDraftRef.current && committedDraftRef.current !== sessionId;
     queueMicrotask(() => {
-      void restoreBoardFromApiRef.current(sessionId, generation);
+      void restoreBoardFromApiRef.current(sessionId, generation, draft);
     });
   }, [sessionId, cancelRef, stopTurnRef, revokeReplayBlobUrls]);
 
@@ -469,6 +598,10 @@ export function useBoardSession({
     startNextQuestion,
     switchBoard,
     deleteBoard,
+    togglePinBoard,
+    toggleArchiveBoard,
+    renameBoard,
+    commitDraftBoard,
     ensureTTSClient,
     registerReplayBlobUrl,
     revokeReplayBlobUrls,

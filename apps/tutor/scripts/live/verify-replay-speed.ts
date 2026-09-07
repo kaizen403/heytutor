@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   applyReplayPlaybackRate,
   applyReplaySpeed,
+  createAccumulatingMediaClock,
   DEFAULT_REPLAY_SPEED,
   speedAwareDelay,
   syncControlledPlaybackRate,
@@ -38,7 +39,7 @@ async function main(): Promise<void> {
     applyOverlaySpeed(rate);
   };
 
-  // Overlay dropdown: same helper as student ReplayControls (TTS + ink + audio).
+  // Overlay dropdown: the shared apply helper (TTS + ink + audio).
   syncControlledPlaybackRate(2.5, DEFAULT_REPLAY_SPEED, trackedApply);
   assert.equal(overlayCalls, 1);
   assert.equal(audio.playbackRate, 2.5);
@@ -66,6 +67,16 @@ async function main(): Promise<void> {
   });
   const fastElapsed = performance.now() - fastStarted;
   assert.ok(fastElapsed < 180, `speedAwareDelay did not respect 2x: ${fastElapsed}ms`);
+
+  let clockRate = 1;
+  const clock = createAccumulatingMediaClock({ getPlaybackRate: () => clockRate });
+  const origin = clock.positionMs();
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  const first = clock.positionMs() - origin;
+  clockRate = 3;
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  const second = clock.positionMs() - origin;
+  assert.ok(second > first * 1.5, "accumulating clock must speed up remaining time after a mid-cue change");
 
   console.log("replay speed helpers verification passed");
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, type Dispatch, type RefObject, type SetStateAct
 import {
   applyReplayPlaybackRate,
   applyReplaySpeed,
+  createAccumulatingMediaClock,
   playReplayAudio,
   speedAwareDelay,
   stopReplayAudio,
@@ -15,7 +16,7 @@ import {
 } from "@/lib/replay/replayTimeline";
 import { exportNotesPdf, type NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { fetchBoardDetail } from "@/lib/boards/boardsClient";
-import { notesPdfSectionsFromStoredTurns } from "../lib/notesPdf";
+import { notesPdfSectionsFromStoredTurns } from "../lib/notes/notesPdf";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 import type { StoredSegment, StoredTurn } from "@/lib/boards/boardsClient";
@@ -42,8 +43,12 @@ import {
   type InkPace,
   type TTSClient,
 } from "@heytutor/tutor-core";
+import { appendCodeLessonNotesImages } from "@/lib/code-render/codeLessonNotesImages";
+import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
+import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
+import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import type { TutorPhase } from "../types";
-import { isWhiteboardReadyToDraw } from "../lib/whiteboardReady";
+import { isWhiteboardReadyToDraw } from "../lib/board/whiteboardReady";
 
 type ExecuteCommandOptions = {
   durationScale?: number;
@@ -74,6 +79,8 @@ export type UseReplayParams = {
   replayAudioRef: RefObject<HTMLAudioElement | null>;
   replayAudioPreloadRef: RefObject<Map<string, HTMLAudioElement>>;
   storedTurnsRef: RefObject<StoredTurn[]>;
+  /** Replayed DSA turns re-commit their persisted CodeLessonPlan here. */
+  codeLessonControllerRef?: RefObject<CodeLessonController | null>;
   replayGenerationRef: RefObject<number>;
   replayCueRef: RefObject<ReplayCue | null>;
   ttsClientRef: RefObject<TTSClient | null>;
@@ -117,6 +124,7 @@ export function useReplay({
   replayAudioRef,
   replayAudioPreloadRef,
   storedTurnsRef,
+  codeLessonControllerRef,
   replayGenerationRef,
   replayCueRef,
   ttsClientRef,
@@ -147,6 +155,26 @@ export function useReplay({
   pauseTurn,
   resumeTurn,
 }: UseReplayParams) {
+  /**
+   * Point the code panel at the turn whose cues are about to play: commit its
+   * persisted plan (fresh, nothing revealed) or clear the panel for turns
+   * without one. Replayed TYPE commands then reveal blocks of that plan.
+   */
+  const syncCodeLessonForTurn = useCallback(
+    (turnIndex: number) => {
+      const controller = codeLessonControllerRef?.current;
+      if (!controller) return;
+      const turn = storedTurnsRef.current[turnIndex];
+      const plan = turn ? storedCodeLessonPlan(turn.sceneArtifacts) : null;
+      if (plan) controller.commit(plan);
+      else controller.reset();
+      // Rebuild the walk-through too, or the replayed FRAME cues have no
+      // frames to advance and the figure freezes on the first one.
+      restoreDsaFrames(controller, turn, plan);
+    },
+    [codeLessonControllerRef, storedTurnsRef],
+  );
+
   const runReplaySegmentDraw = useCallback(
     async (
       segment: StoredSegment,
@@ -190,11 +218,12 @@ export function useReplay({
       const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
       const getRate = () => Math.max(speedRef.current, 0.1);
       const shouldCancel = () => !isCurrentReplay();
-      const wallOriginMs = performance.now();
+      const wallClock = createAccumulatingMediaClock({ getPlaybackRate: getRate });
       const getDrawClockMs = createScheduledWriteClock({
         getRawPositionMs: () =>
-          audio && Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0,
-        nowMs: () => wallOriginMs + (performance.now() - wallOriginMs) * getRate(),
+          audio && Number.isFinite(audio.currentTime) && audio.currentTime > 0
+            ? audio.currentTime * 1000
+            : wallClock.positionMs(),
       });
 
       let textCommandIndex = initialTextCommandIndex;
@@ -207,7 +236,8 @@ export function useReplay({
 
         whiteboardRef.current?.setAnimationSpeed(getRate());
 
-        const isTextCommand = command.type === "WRITE" || command.type === "LABEL";
+        const isTextCommand =
+          command.type === "WRITE" || command.type === "LABEL" || command.type === "TYPE";
         const scheduleWorkWrite =
           isTextCommand &&
           Boolean(narration) &&
@@ -322,11 +352,23 @@ export function useReplay({
       await wb.clearBoard();
       resetBoardLayout(false, false);
 
+      // Track turn crossings so the code panel always holds the plan of the
+      // turn being rendered; TYPE below then reveals its blocks instantly.
+      let syncedTurnIndex = cues.length > 0 ? cues[0]!.turnIndex : -1;
+      if (syncedTurnIndex >= 0) {
+        syncCodeLessonForTurn(syncedTurnIndex);
+      }
+
       // Render all completed commands instantly — no animation during seek.
       // durationScale 0 makes the whiteboard jump to the final state.
       for (const cue of cues) {
         if (cue.startMs >= timeMs) {
           break;
+        }
+
+        if (cue.turnIndex !== syncedTurnIndex) {
+          syncedTurnIndex = cue.turnIndex;
+          syncCodeLessonForTurn(syncedTurnIndex);
         }
 
         const partialCount =
@@ -338,7 +380,14 @@ export function useReplay({
           if (!isCurrentReplay()) {
             return;
           }
-          await executeCommand(cue.commands[i]!, {
+          const command = cue.commands[i]!;
+          // PAUSE is pure dwell, and FOCUS only paints transient emphasis that
+          // it clears again — neither leaves a mark. Replaying them during a
+          // catch-up buys nothing and costs their full duration each.
+          if (command.type === "PAUSE" || command.type === "FOCUS") {
+            continue;
+          }
+          await executeCommand(command, {
             durationScale: 0,
             applyLayout: false,
             isCancelled: () => !isCurrentReplay(),
@@ -347,7 +396,7 @@ export function useReplay({
         }
       }
     },
-    [whiteboardRef, replayGenerationRef, cancelRef, executeCommand, resetBoardLayout],
+    [whiteboardRef, replayGenerationRef, cancelRef, executeCommand, resetBoardLayout, syncCodeLessonForTurn],
   );
 
   const playReplayCue = useCallback(
@@ -404,7 +453,8 @@ export function useReplay({
       const remainingCommands = cue.commands.slice(startIdx);
       const initialTextCommandIndex = cue.commands
         .slice(0, startIdx)
-        .filter((command) => command.type === "WRITE" || command.type === "LABEL")
+        .filter((command) =>
+          command.type === "WRITE" || command.type === "LABEL" || command.type === "TYPE")
         .length;
 
       const spokenText = (cue.segment.spokenText || cue.narration).trim();
@@ -577,6 +627,16 @@ export function useReplay({
         return;
       }
 
+      // renderBoardAtTime left the code panel on the turn of the last cue it
+      // rendered (or the first turn when starting from zero). Re-committing
+      // that same turn here would wipe the blocks it revealed, so only turn
+      // crossings from this point on re-sync the panel.
+      let syncedTurnIndex = timeline.cues[0]!.turnIndex;
+      for (const cue of timeline.cues) {
+        if (cue.startMs >= startMs) break;
+        syncedTurnIndex = cue.turnIndex;
+      }
+
       try {
         for (let i = found.index; i < timeline.cues.length; i++) {
           if (cancelRef.current || generation !== replayGenerationRef.current) {
@@ -584,6 +644,10 @@ export function useReplay({
           }
 
           const cue = timeline.cues[i]!;
+          if (cue.turnIndex !== syncedTurnIndex) {
+            syncedTurnIndex = cue.turnIndex;
+            syncCodeLessonForTurn(syncedTurnIndex);
+          }
           const nextCue = timeline.cues[i + 1];
           const offsetMs = i === found.index ? found.offsetMs : 0;
           // Don't skip draw on mid-segment seek — renderBoardAtTime already
@@ -620,6 +684,12 @@ export function useReplay({
           stopReplayAudio(preloaded);
         }
         replayAudioPreloadRef.current.clear();
+        // A replayed DSA lesson ends like a live one: panel stays up in
+        // "complete" mode with type-along available. A user stop mid-lesson
+        // stays in lesson mode, mirroring the live cancel path.
+        if (!cancelRef.current) {
+          codeLessonControllerRef?.current?.markLessonComplete();
+        }
         setIsReplaying(false);
         setReplayProgressMs(timeline.totalMs);
         finishLectureUi();
@@ -645,6 +715,8 @@ export function useReplay({
       renderBoardAtTime,
       playReplayCue,
       finishLectureUi,
+      syncCodeLessonForTurn,
+      codeLessonControllerRef,
     ],
   );
 
@@ -693,6 +765,9 @@ export function useReplay({
         const detail = await fetchBoardDetail(sessionId);
         const storedTurns = detail?.turns.length ? detail.turns : storedTurnsRef.current;
         const sections = notesPdfSectionsFromStoredTurns(storedTurns, epochs);
+        // DSA turns keep their code in a DOM panel the board snapshot cannot
+        // see; render each section's code as its own notes page.
+        appendCodeLessonNotesImages(sections, storedTurns);
         if (sections.length === 0) {
           return;
         }

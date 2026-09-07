@@ -15,11 +15,11 @@ import {
 import {
   DEFAULT_ACCENT,
   DEFAULT_AUDIO_LANGUAGE,
-  DEFAULT_LESSON_DEPTH,
-  isLessonDepth,
+  DEFAULT_FAMILIARITY,
+  isSubjectFamiliarity,
   isTutorAccent,
   isTutorAudioLanguage,
-  type LessonDepth,
+  type SubjectFamiliarity,
   type TutorAccent,
   type TutorAudioLanguage,
 } from "@heytutor/tutor-core";
@@ -34,10 +34,16 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
+/**
+ * Marker ink, not UI chrome. These are painted onto the white writing surface,
+ * so they are chosen for contrast against paper rather than against the navy —
+ * the one place in the app that is deliberately off the Night Blueprint ramp.
+ * Navy and blue are the palette's own inks; the rest are the physical set.
+ */
 export const MARKER_COLORS = [
   { id: "navy", color: "#1B2A4A", label: "Navy" },
   { id: "black", color: "#222222", label: "Black" },
-  { id: "blue", color: "#81A6C6", label: "Blue" },
+  { id: "blue", color: "#3E8FB4", label: "Blue" },
   { id: "red", color: "#D64545", label: "Red" },
   { id: "green", color: "#4CAF7D", label: "Green" },
   { id: "purple", color: "#9B7ED9", label: "Purple" },
@@ -49,8 +55,11 @@ export type MarkerColorId = (typeof MARKER_COLORS)[number]["id"];
 export interface SettingsState {
   speedMultiplier: number;
   fastMode: boolean;
-  /** How much the tutor teaches per turn; drives the teaching-prompt budget. */
-  lessonDepth: LessonDepth;
+  /**
+   * Default familiarity for a new question. The chat-bar picker overrides it
+   * per question; this is only where each question starts.
+   */
+  familiarity: SubjectFamiliarity;
   audioLanguage: TutorAudioLanguage;
   accent: TutorAccent;
   /** Off keeps the lesson writing and stays silent. */
@@ -63,7 +72,7 @@ export interface SettingsState {
 
 export const DEFAULT_SETTINGS: Omit<SettingsState, "speedMultiplier"> = {
   fastMode: true,
-  lessonDepth: DEFAULT_LESSON_DEPTH,
+  familiarity: DEFAULT_FAMILIARITY,
   audioLanguage: DEFAULT_AUDIO_LANGUAGE,
   accent: DEFAULT_ACCENT,
   narrationEnabled: true,
@@ -83,19 +92,21 @@ export const SPEED_MIN = 0.5;
 export const SPEED_MAX = 3;
 const SPEED_STEP = 0.25;
 
+/* The drawer's slice of Night Blueprint (app/globals.css). Named by role so a
+   palette change lands in the tokens, not here. */
 const theme = {
-  darkest: "#F2F2F4",
-  dark: "#A6A6AE",
-  sage: "#C9C9D2",
-  mint: "#151517",
-  border: "#2E2E33",
-  borderSubtle: "rgba(48, 54, 61, 0.9)",
+  darkest: "var(--frost)",
+  dark: "var(--text-soft)",
+  sage: "var(--sky-500)",
+  mint: "var(--ink-850)",
+  border: "var(--stroke)",
+  borderSubtle: "var(--ink-700)",
 } as const;
 
 function SettingsSection({ children }: { children: React.ReactNode }) {
   return (
     <section
-      className="rounded-xl border bg-[#151517] px-4 py-3.5 shadow-sm"
+      className="rounded-xl border bg-ink-850 px-4 py-3.5 shadow-sm"
       style={{ borderColor: theme.border }}
     >
       {children}
@@ -119,7 +130,7 @@ function SectionLabel({
           <Icon className="h-3.5 w-3.5" />
         </span>
         <span
-          className="text-[0.6875rem] font-semibold uppercase tracking-wider"
+          className="text-[0.6875rem] font-semibold tracking-[0.01em]"
           style={{ color: theme.darkest }}
         >
           {children}
@@ -157,8 +168,8 @@ function SelectPill({
       className={cn(
         "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
         checked
-          ? "border-[#C9C9D2] bg-[rgba(201,201,210,0.12)] text-[#C9C9D2] shadow-sm"
-          : "border-[#2E2E33] text-[#F2F2F4] hover:border-[#C9C9D2] hover:shadow-sm",
+          ? "border-sky-500 bg-sky-500/12 text-sky-200 shadow-sm"
+          : "border-stroke text-frost hover:border-sky-500 hover:shadow-sm",
         disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
       )}
     >
@@ -191,7 +202,7 @@ function ToggleRow({
       <Switch
         checked={checked}
         onCheckedChange={onCheckedChange}
-        className="data-[state=checked]:bg-[#C9C9D2] data-[state=unchecked]:bg-[#2E2E33]"
+        className="data-[state=checked]:bg-sky-500 data-[state=unchecked]:bg-ink-600"
       />
     </div>
   );
@@ -205,12 +216,16 @@ export function isMarkerColorId(value: unknown): value is MarkerColorId {
   return typeof value === "string" && MARKER_COLORS.some((entry) => entry.id === value);
 }
 
-export { isLessonDepth, isTutorAccent, isTutorAudioLanguage };
+export { isSubjectFamiliarity, isTutorAccent, isTutorAudioLanguage };
 
-const LESSON_DEPTHS: ReadonlyArray<[LessonDepth, string, string]> = [
-  ["concise", "Concise", "6-8 steps"],
-  ["standard", "Standard", "8-12 steps"],
-  ["thorough", "Thorough", "12-16 steps"],
+// One axis, shared with the chat-bar picker: how familiar the student is with
+// the subject. The step count itself comes from the question (see
+// `lessonScope.ts`) and this shifts that band one tier, so the hints describe
+// the shift rather than an absolute number a proof would blow past anyway.
+const FAMILIARITY_OPTIONS: ReadonlyArray<[SubjectFamiliarity, string, string]> = [
+  ["new", "New", "Not learned yet, so teach it fully"],
+  ["normal", "Normal", "Rusty, so give the usual lesson"],
+  ["revision", "Revision", "Known already, so refresh only"],
 ];
 
 export function SettingsDrawer({
@@ -225,7 +240,7 @@ export function SettingsDrawer({
 
   // Hindi ships as a single voice, so the accent choice only applies to English.
   const accentApplies = settings.audioLanguage === "english";
-  const depthHint = LESSON_DEPTHS.find(([id]) => id === settings.lessonDepth)?.[2];
+  const familiarityHint = FAMILIARITY_OPTIONS.find(([id]) => id === settings.familiarity)?.[2];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -247,30 +262,33 @@ export function SettingsDrawer({
           <SettingsSection>
             <SectionLabel icon={Zap}>Fast mode</SectionLabel>
             <ToggleRow
-              title="Prefer the Fast model when one is configured"
-              hint="On by default. Falls back to the standard server model when no Fast model is set in ENV."
+              title="Use Fireworks Fast serving"
+              hint="On by default. Planners use Kimi K3 Fast; teaching uses GLM 5.3 Fast. Turn off to stay on standard Kimi K3 and GLM 5.3 Flash."
               checked={settings.fastMode}
               onCheckedChange={(checked) => update({ fastMode: checked })}
             />
           </SettingsSection>
 
           <SettingsSection>
-            <SectionLabel icon={BookOpen} note={depthHint}>
-              Lesson depth
+            <SectionLabel icon={BookOpen} note={familiarityHint}>
+              Default familiarity
             </SectionLabel>
             <div className="flex flex-wrap gap-2">
-              {LESSON_DEPTHS.map(([value, label]) => (
+              {FAMILIARITY_OPTIONS.map(([value, label]) => (
                 <SelectPill
                   key={value}
                   label={label}
-                  checked={settings.lessonDepth === value}
-                  onClick={() => update({ lessonDepth: value })}
+                  checked={settings.familiarity === value}
+                  onClick={() => update({ familiarity: value })}
                 />
               ))}
             </div>
             <p className="mt-2 text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
-              How much the tutor writes and works through per question. Every depth still states
-              the givens, the formula, and what the answer means.
+              Familiarity: where every new question starts. Change it per question
+              with Select Familiarity in the chat bar. It says how well you know the topic, not how
+              hard the problem is, so New means the subject is new to you and the tutor assumes
+              less and works through more. Every setting still states the givens, the formula, and
+              what the answer means.
             </p>
           </SettingsSection>
 
@@ -284,7 +302,7 @@ export function SettingsDrawer({
                 step={SPEED_STEP}
                 value={settings.speedMultiplier}
                 onChange={(event) => update({ speedMultiplier: Number(event.target.value) })}
-                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-[#C9C9D2]"
+                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-sky-500"
                 style={{ backgroundColor: theme.borderSubtle }}
               />
               <span
@@ -342,7 +360,7 @@ export function SettingsDrawer({
             <SectionLabel icon={Volume2}>Narration</SectionLabel>
             <ToggleRow
               title="Speak the lesson out loud"
-              hint="Off keeps the board writing in sync but stays silent — useful in a shared room."
+              hint="Off keeps the board writing in sync but stays silent, useful in a shared room."
               checked={settings.narrationEnabled}
               onCheckedChange={(checked) => update({ narrationEnabled: checked })}
             />
@@ -393,8 +411,8 @@ export function SettingsDrawer({
                     className={[
                       "h-8 w-8 rounded-full transition-all",
                       selected
-                        ? "scale-105 ring-2 ring-[#C9C9D2] ring-offset-2 ring-offset-[#151517]"
-                        : "ring-1 ring-[#2E2E33] hover:scale-105",
+                        ? "scale-105 ring-2 ring-sky-500 ring-offset-2 ring-offset-ink-850"
+                        : "ring-1 ring-stroke hover:scale-105",
                     ].join(" ")}
                     style={{ backgroundColor: color }}
                   />

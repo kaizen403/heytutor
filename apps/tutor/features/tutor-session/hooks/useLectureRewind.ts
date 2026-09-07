@@ -32,7 +32,7 @@ import {
 } from "@/lib/replay/liveTimeline";
 import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 import type { TutorPhase } from "../types";
-import { waitForWhiteboard } from "../lib/whiteboardReady";
+import { waitForWhiteboard } from "../lib/board/whiteboardReady";
 import { useBoardLayout } from "./useBoardLayout";
 import { useCancelControl } from "./useCancelControl";
 import { useCommandExecution } from "./useCommandExecution";
@@ -77,6 +77,8 @@ export interface LectureRewindApi {
   rewindProgressMs: number;
   rewindSegmentText: string;
   rewindCursorState: CursorState;
+  /** Kill rewind audio immediately — used when the tab is closing. */
+  haltRewind: () => void;
   /** End of everything taught so far — the live edge, and the scrub track's max. */
   liveEdgeMs: number;
   /** A live lecture with a past worth scrubbing back into. */
@@ -157,7 +159,9 @@ export function useLectureRewind({
   const lectureActive = shouldTrackLiveLectureEdge({ enabled, phase, isReplaying });
   const lectureActiveRef = useRef(lectureActive);
   const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
   useEffect(() => {
     lectureActiveRef.current = lectureActive;
   }, [lectureActive]);
@@ -501,19 +505,26 @@ export function useLectureRewind({
     }
   }, [rewindActive, lectureActive, goLive]);
 
+  const haltRewind = useCallback(() => {
+    rewindGenerationRef.current += 1;
+    rewindCancelRef.current = true;
+    rewindTtsClientRef.current?.stop();
+    stopReplayAudio(rewindAudioRef.current);
+    rewindAudioRef.current = null;
+    for (const preloaded of rewindAudioPreloadRef.current.values()) {
+      stopReplayAudio(preloaded);
+    }
+    rewindAudioPreloadRef.current.clear();
+  }, []);
+
   useEffect(() => {
     const preloadedAudio = rewindAudioPreloadRef.current;
     return () => {
-      rewindGenerationRef.current += 1;
-      rewindCancelRef.current = true;
-      stopReplayAudio(rewindAudioRef.current);
-      for (const preloaded of preloadedAudio.values()) {
-        stopReplayAudio(preloaded);
-      }
+      haltRewind();
       preloadedAudio.clear();
       releaseLiveAudioUrls();
     };
-  }, [releaseLiveAudioUrls]);
+  }, [haltRewind, releaseLiveAudioUrls]);
 
   // --- keyboard -----------------------------------------------------------
   useEffect(() => {
@@ -568,5 +579,6 @@ export function useLectureRewind({
     toggleRewindPlayPause,
     applyRewindSpeed,
     goLive,
+    haltRewind,
   };
 }

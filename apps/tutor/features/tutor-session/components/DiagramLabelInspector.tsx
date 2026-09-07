@@ -1,8 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DIAGRAM_ZONE, measureTextWidth, type VerifiedDiagram } from "@heytutor/drawing";
-import { lookupLabel, type LabelFact, type LabelGlossary } from "@/features/tutor-session/lib/labelGlossary";
+import {
+  BOARD_TYPE_SCALE,
+  DIAGRAM_ZONE,
+  MAX_BOARD_FONT_SIZE,
+  MIN_BOARD_FONT_SIZE,
+  measureTextWidth,
+  type VerifiedDiagram,
+} from "@heytutor/drawing";
+import { lookupLabel, type LabelFact, type LabelGlossary } from "@/features/tutor-session/lib/scene/labelGlossary";
 
 /**
  * Makes the symbols on a finished figure answerable.
@@ -43,7 +50,8 @@ interface Hotspot {
   fact: LabelFact;
 }
 
-const DEFAULT_LABEL_FONT_PX = 24;
+/** What a figure label is lettered at when it does not ask for a size. */
+const DEFAULT_LABEL_FONT_PX = BOARD_TYPE_SCALE.label;
 
 const PAD_X = 4;
 const PAD_Y = 3;
@@ -73,9 +81,12 @@ export function DiagramLabelInspector({
       const key = `${command.text}:${Math.round(x!)}:${Math.round(y!)}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const fontSize = typeof maybeFont === "number" && maybeFont >= 12 && maybeFont <= 40
-        ? maybeFont
-        : DEFAULT_LABEL_FONT_PX;
+      const fontSize =
+        typeof maybeFont === "number" &&
+        maybeFont >= MIN_BOARD_FONT_SIZE &&
+        maybeFont <= MAX_BOARD_FONT_SIZE
+          ? maybeFont
+          : DEFAULT_LABEL_FONT_PX;
       found.push({
         key,
         fact,
@@ -142,8 +153,8 @@ export function DiagramLabelInspector({
               top: (spot.rect.y - PAD_Y) * scale,
               width: (spot.rect.width + PAD_X * 2) * scale,
               height: (spot.rect.height + PAD_Y * 2) * scale,
-              backgroundColor: isActive ? "rgba(255, 216, 77, 0.28)" : "transparent",
-              boxShadow: isActive ? "inset 0 0 0 1px rgba(180, 140, 20, 0.45)" : "none",
+              backgroundColor: isActive ? "rgba(232, 145, 58, 0.32)" : "transparent",
+              boxShadow: isActive ? "inset 0 0 0 1px rgba(232, 145, 58, 0.45)" : "none",
             }}
             onMouseEnter={() => !pinned && activate(spot.key)}
             onMouseLeave={() => !pinned && setActiveKey(null)}
@@ -189,30 +200,30 @@ function LabelCard({ spot, scale, pinned }: { spot: Hotspot; scale: number; pinn
       <div
         className="max-w-[260px] rounded-xl px-3 py-2 shadow-lg backdrop-blur-sm"
         style={{
-          background: "rgba(24, 24, 27, 0.94)",
+          background: "rgba(18, 42, 57, 0.94)",
           border: "1px solid rgba(255,255,255,0.10)",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+          boxShadow: "0 10px 30px rgba(3, 11, 18,0.35)",
         }}
       >
         <div className="flex items-baseline gap-2">
           <span
             className="font-mono text-[13px] leading-none"
-            style={{ color: "#FFD84D" }}
+            style={{ color: "var(--warning)" }}
           >
             {fact.symbol}
           </span>
-          <span className="text-[13px] leading-tight" style={{ color: "#F2F2F4" }}>
+          <span className="text-[13px] leading-tight" style={{ color: "var(--frost)" }}>
             {fact.title}
           </span>
         </div>
 
         {fact.value ? (
-          <div className="mt-1.5 text-[15px] font-medium leading-none" style={{ color: "#FFFFFF" }}>
+          <div className="mt-1.5 text-[15px] font-medium leading-none" style={{ color: "var(--frost)" }}>
             {fact.value}
             {fact.provenance ? (
               <span
-                className="ml-2 align-middle text-[10px] uppercase tracking-wide"
-                style={{ color: fact.provenance === "given" ? "#88BDA4" : "#A6A6AE" }}
+                className="ml-2 align-middle text-[11px] tracking-normal"
+                style={{ color: fact.provenance === "given" ? "var(--success)" : "var(--text-soft)" }}
               >
                 {fact.provenance}
               </span>
@@ -221,13 +232,13 @@ function LabelCard({ spot, scale, pinned }: { spot: Hotspot; scale: number; pinn
         ) : null}
 
         {fact.detail ? (
-          <div className="mt-1.5 text-[11px] leading-snug" style={{ color: "#A6A6AE" }}>
+          <div className="mt-1.5 text-[11px] leading-snug" style={{ color: "var(--text-soft)" }}>
             {fact.detail}
           </div>
         ) : null}
 
         {!pinned ? (
-          <div className="mt-1.5 text-[10px] leading-none" style={{ color: "#6B6B73" }}>
+          <div className="mt-1.5 text-[10px] leading-none" style={{ color: "var(--ink-400)" }}>
             click to keep open
           </div>
         ) : null}

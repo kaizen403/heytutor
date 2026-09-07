@@ -6,7 +6,19 @@ type CancelWait = {
 };
 
 export function useCancelControl(cancelRef: React.RefObject<boolean>) {
-  const delayTimersRef = useRef<number[]>([]);
+  /**
+   * Pending delays, each with the resolver of the promise a caller is
+   * awaiting.
+   *
+   * Clearing a timeout does not settle its promise. Holding only the ids meant
+   * that cancelling a turn mid-delay left every awaiting caller pending for
+   * ever: the command executor never returned, the segment runner's draw
+   * promise never settled, and the next turn's `await drawChainRef.current`
+   * waited on a lesson that had already been cancelled. Nothing on the board
+   * moved again. Resolving on clear ends the wait the same way the timer
+   * firing would, and every caller re-checks cancellation straight after.
+   */
+  const delayTimersRef = useRef<Array<{ id: number; resolve: () => void }>>([]);
   const cancelWaitDisposersRef = useRef<Set<() => void>>(new Set());
 
   const waitForCancel = useCallback((): CancelWait => {
@@ -55,10 +67,10 @@ export function useCancelControl(cancelRef: React.RefObject<boolean>) {
 
       return new Promise((resolve) => {
         const timeoutId = window.setTimeout(() => {
-          delayTimersRef.current = delayTimersRef.current.filter((id) => id !== timeoutId);
+          delayTimersRef.current = delayTimersRef.current.filter((entry) => entry.id !== timeoutId);
           resolve();
         }, duration);
-        delayTimersRef.current.push(timeoutId);
+        delayTimersRef.current.push({ id: timeoutId, resolve });
       });
     },
     [cancelRef],
@@ -99,10 +111,13 @@ export function useCancelControl(cancelRef: React.RefObject<boolean>) {
     }
     cancelWaitDisposersRef.current.clear();
 
-    for (const timerId of delayTimersRef.current) {
-      window.clearTimeout(timerId);
-    }
+    const pending = delayTimersRef.current;
     delayTimersRef.current = [];
+    for (const entry of pending) {
+      window.clearTimeout(entry.id);
+      // Resolve, do not leave hanging: an unsettled delay strands its caller.
+      entry.resolve();
+    }
   }, []);
 
   return {

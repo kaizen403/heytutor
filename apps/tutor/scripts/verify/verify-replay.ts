@@ -67,6 +67,16 @@ const enriched = enrichStoredSegmentsWithReplayAudio(savedSegments, recorded, re
 assert.equal(enriched.length, 1);
 assert.ok(enriched[0]?.audioUrl?.startsWith("blob:"));
 
+const remoteSaved = enrichStoredSegmentsWithReplayAudio(
+  [{ ...savedSegments[0]!, audioUrl: "https://pub.example/lectures/a.mp3" }],
+  recorded,
+  register,
+);
+assert.ok(
+  remoteSaved[0]?.audioUrl?.startsWith("blob:"),
+  "captured bytes win over a public URL the browser may not be able to fetch",
+);
+
 const localTurn = buildLocalStoredTurn(
   {
     question: "What is x?",

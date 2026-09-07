@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { BoardHistory, SIDEBAR_WIDTH } from "@/features/tutor-session/components/BoardHistory";
 import {
@@ -16,32 +16,37 @@ import {
   SPEED_MIN,
   SPEED_MAX,
   isMarkerColorId,
-  isLessonDepth,
   isTutorAccent,
   isTutorAudioLanguage,
 } from "@/features/tutor-session/components/SettingsDrawer";
 import {
+  familiarityFromStoredValue,
   toVoiceKey,
-  type LessonDepth,
+  type SubjectFamiliarity,
   type TutorVoicePreferences,
 } from "@heytutor/tutor-core";
 import {
   CanvasLanding,
   CanvasLandingDoodles,
 } from "@/features/tutor-session/components/CanvasLanding";
+import { LandingPixelField } from "@/features/tutor-session/components/LandingPixelField";
 import { type ReplayCue } from "@/lib/replay/replayTimeline";
-import { resolveLecturePlayback } from "@/lib/replay/liveTimeline";
 import type { WhiteboardHandle, CursorState } from "@heytutor/whiteboard";
 import { useIsCompactNav, useIsMobile } from "@/lib/client/useMediaQuery";
 import { ThinkingOverlay } from "./components/ThinkingOverlay";
-import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
+import { BoardBootSpinner } from "./components/BoardBootSpinner";
 import { SessionInputChrome } from "./components/SessionInputChrome";
 import { SessionHeader } from "./components/SessionHeader";
 import { NotesChatSidebar } from "./components/NotesChatSidebar";
 import { SessionBoardCanvas } from "./components/SessionBoardCanvas";
 import { Whiteboard } from "./components/WhiteboardLoader";
+import { CodeLessonPanel } from "./components/CodeLessonPanel";
+import { CodeLessonController } from "./lib/code-lesson/codeLessonController";
 import { useReplay } from "./hooks/useReplay";
 import { useLectureRewind } from "./hooks/useLectureRewind";
+import { useLecturePageHalt } from "./hooks/useLecturePageHalt";
+import { useLectureExport } from "./hooks/useLectureExport";
+import { useBoardMarking } from "./hooks/useBoardMarking";
 import { useCommandExecution } from "./hooks/useCommandExecution";
 import { useCancelControl } from "./hooks/useCancelControl";
 import { useTurnLifecycle } from "./hooks/useTurnLifecycle";
@@ -73,18 +78,19 @@ import {
   BOARD_HEIGHT,
 } from "./constants";
 import type { TutorPhase, SegmentPlanStats } from "./types";
-import { createEmptySegmentPlanStats } from "./lib/segmentPlanning";
-import { lessonFollowUpMode } from "./lib/lessonFollowUp";
-import { buildLessonNotes } from "./lib/lessonNotes";
-import type { NotesChatTag } from "./lib/notesChatTag";
-import { resolveActiveStatus } from "./lib/statusConfig";
-import { canStartStoredLectureReplay } from "./lib/autoReplay";
+import { createEmptySegmentPlanStats } from "./lib/turn/segmentPlanning";
+import { lessonFollowUpMode } from "./lib/turn/lessonFollowUp";
+import { buildLessonNotes } from "./lib/notes/lessonNotes";
+import { buildMarkedDoubtPrompt } from "./lib/board/boardMarking";
+import type { NotesChatTag } from "./lib/notes/notesChatTag";
+import { canStartStoredLectureReplay } from "./lib/replay/autoReplay";
 
 const FAST_MODE_STORAGE_KEY = "htutor_fast_mode";
 const SUBTITLES_STORAGE_KEY = "htutor_subtitles";
 const SPEED_STORAGE_KEY = "htutor_speed";
 const MARKER_COLOR_STORAGE_KEY = "htutor_marker_color";
-const LESSON_DEPTH_STORAGE_KEY = "htutor_lesson_depth";
+/** Held its old name so a returning student keeps the level they chose. */
+const FAMILIARITY_STORAGE_KEY = "htutor_lesson_depth";
 const AUDIO_LANGUAGE_STORAGE_KEY = "htutor_audio_language";
 const ACCENT_STORAGE_KEY = "htutor_accent";
 const NARRATION_STORAGE_KEY = "htutor_narration";
@@ -115,6 +121,10 @@ export type TutorSessionError = {
 
 export type TutorSessionShellProps = {
   sessionId: string;
+  /** Home board: a real board with no database row and no `/c/` URL until the first question. */
+  isDraft?: boolean;
+  /** Mint a fresh home board and route to it, optionally carrying a question to auto-submit. */
+  onStartDraftBoard?: (question?: string) => void;
   variant?: TutorSessionVariant;
   /** Submitted once the board and whiteboard are ready. */
   autoQuestion?: string;
@@ -124,24 +134,38 @@ export type TutorSessionShellProps = {
   muteAudio?: boolean;
   /** Controlled playback rate (admin Watch). Same model as student replay; default 1.5×. */
   playbackRate?: number;
-  onPlaybackRateChange?: (rate: number) => void;
   onPhase?: (phase: TutorPhase) => void;
   /** Fired after the turn is persisted (and saved when `onComplete` is set). */
   onComplete?: () => void;
   onError?: (error: TutorSessionError) => void;
+  /**
+   * Slot on the deck between the board and the transport bar, full width of the
+   * board column. Outside `.wb-frame`, so its contents render at natural scale
+   * rather than inside the board's transform — which is what a surface needs
+   * when the board is scaled down too far to read (the DSA code panel on
+   * mobile). Pass `null` to collapse the slot to nothing.
+   *
+   * Anything mounted here shares height with the board: `boardContainerRef` is
+   * on the parent, so a node that grows shrinks `boardViewport.scale`, which
+   * resizes the frame, which changes the space left for the node. Give it a
+   * height that does not derive from its own content.
+   */
+  belowBoardPanel?: ReactNode;
 };
 
 export function TutorSessionShell({
   sessionId,
+  isDraft = false,
+  onStartDraftBoard,
   variant = "full",
   autoQuestion,
   autoReplay = false,
   muteAudio,
   playbackRate,
-  onPlaybackRateChange,
   onPhase,
   onComplete,
   onError,
+  belowBoardPanel,
 }: TutorSessionShellProps) {
   const router = useRouter();
   const isHeadless = variant === "headless";
@@ -192,14 +216,15 @@ export function TutorSessionShell({
   });
   // Persist writes must wait until stored values are applied, otherwise the
   // first paint writes defaults and clobbers language/speed/colour on reload.
-  const [settingsHydrated, setSettingsHydrated] = useState(false);
+  // Headless boards have no stored settings to hydrate, so they start hydrated.
+  const [settingsHydrated, setSettingsHydrated] = useState(isHeadless);
   const voicePreferencesRef = useRef<TutorVoicePreferences>({
     voiceKey: toVoiceKey(DEFAULT_SETTINGS.audioLanguage, DEFAULT_SETTINGS.accent),
     lowLatency: DEFAULT_SETTINGS.lowLatencyVoice,
   });
   const speedRef = useRef(DEFAULT_REPLAY_SPEED);
   const fastModeRef = useRef(true);
-  const lessonDepthRef = useRef<LessonDepth>(DEFAULT_SETTINGS.lessonDepth);
+  const familiarityRef = useRef<SubjectFamiliarity>(DEFAULT_SETTINGS.familiarity);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH);
@@ -213,7 +238,8 @@ export function TutorSessionShell({
   const isMobile = useIsMobile();
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayProgressMs, setReplayProgressMs] = useState(0);
-  const [replayTotalMs, setReplayTotalMs] = useState(0);
+  // Written by the session hooks; nothing reads it since the transport went.
+  const [, setReplayTotalMs] = useState(0);
   const replayGenerationRef = useRef(0);
   const replayCueRef = useRef<ReplayCue | null>(null);
   /** True while the student has scrolled back into a lecture still in progress. */
@@ -229,7 +255,6 @@ export function TutorSessionShell({
 
   useEffect(() => {
     if (isHeadless || typeof window === "undefined") {
-      setSettingsHydrated(true);
       return;
     }
     const overrides: Partial<SettingsState> = {};
@@ -255,10 +280,11 @@ export function TutorSessionShell({
     if (isMarkerColorId(storedMarkerColor)) {
       overrides.markerColor = storedMarkerColor;
     }
-    const storedDepth = readStoredSetting(LESSON_DEPTH_STORAGE_KEY);
-    if (isLessonDepth(storedDepth)) {
-      overrides.lessonDepth = storedDepth;
-      lessonDepthRef.current = storedDepth;
+    // Reads back a pre-rename "concise|standard|thorough" as its level.
+    const storedLevel = familiarityFromStoredValue(readStoredSetting(FAMILIARITY_STORAGE_KEY));
+    if (storedLevel) {
+      overrides.familiarity = storedLevel;
+      familiarityRef.current = storedLevel;
     }
     const storedLanguage = readStoredSetting(AUDIO_LANGUAGE_STORAGE_KEY);
     if (isTutorAudioLanguage(storedLanguage)) {
@@ -321,12 +347,12 @@ export function TutorSessionShell({
   }, [settings.markerColor, isHeadless, settingsHydrated]);
 
   useEffect(() => {
-    lessonDepthRef.current = settings.lessonDepth;
+    familiarityRef.current = settings.familiarity;
     if (!settingsHydrated || isHeadless || typeof window === "undefined") {
       return;
     }
-    writeStoredSetting(LESSON_DEPTH_STORAGE_KEY, settings.lessonDepth);
-  }, [settings.lessonDepth, isHeadless, settingsHydrated]);
+    writeStoredSetting(FAMILIARITY_STORAGE_KEY, settings.familiarity);
+  }, [settings.familiarity, isHeadless, settingsHydrated]);
 
   // Language/accent/latency reach the server as one voice key; the TTS client
   // reconnects on the next segment so the new voice is used.
@@ -385,12 +411,21 @@ export function TutorSessionShell({
     skipInkRestoreRef.current = autoReplay;
   }, [autoReplay]);
 
+  /*
+    A live turn keeps the marker on `thinking` so it stays visible and runs
+    the spin that is already on the whiteboard. `idle` is opacity 0 — that
+    is only for after a turn finishes.
+
+    Speaking and drawing used to map to `drawing` here. The React prop then
+    overwrote every imperative walk the moment TTS started, so the close of
+    a code lesson left a still (or invisible) pen while the tutor kept talking.
+  */
   const cursorState: CursorState =
-    phase === "thinking" || phase === "planning"
-      ? "thinking"
-      : isReplaying || phase === "drawing" || phase === "speaking"
+    phase === "idle" && !isReplaying
+      ? "idle"
+      : isReplaying
         ? "drawing"
-        : "idle";
+        : "thinking";
 
   const { cancellableDelay, raceWithCancel, clearCancelTimers } = useCancelControl(cancelRef);
 
@@ -406,7 +441,7 @@ export function TutorSessionShell({
     captureNotesEpoch,
     forgetErasedTextRects,
     resolveTextPlacement,
-    reserveTextCommandPlacement,
+    reserveTextCommandPlacements,
   } = useBoardLayout({
     whiteboardRef,
     cancelRef,
@@ -429,6 +464,11 @@ export function TutorSessionShell({
     adaptiveFactorRef,
   });
 
+  // The code-lesson controller lives outside React state (like the whiteboard
+  // handle) so tutor typing never re-renders the shell per character.
+  const [codeLessonController] = useState(() => new CodeLessonController());
+  const codeLessonControllerRef = useRef<CodeLessonController | null>(codeLessonController);
+
   const { executeCommand, executeCommandWithCancel } = useCommandExecution({
     whiteboardRef,
     cancelRef,
@@ -448,6 +488,8 @@ export function TutorSessionShell({
     raceWithCancel,
     inkPaceRef,
     adaptiveFactorRef,
+    codeLessonControllerRef,
+    setActiveVerifiedDiagram,
   });
 
   const handleRetraceEntity = useCallback((entityId: string) => {
@@ -477,12 +519,18 @@ export function TutorSessionShell({
     startNextQuestion,
     switchBoard,
     deleteBoard,
+    togglePinBoard,
+    toggleArchiveBoard,
+    renameBoard,
+    commitDraftBoard,
     ensureTTSClient,
     registerReplayBlobUrl,
     revokeUnreferencedReplayBlobUrls,
     persistTurnForReplay,
   } = useBoardSession({
     sessionId,
+    isDraft,
+    startDraftBoard: onStartDraftBoard,
     router,
     phase,
     speedMultiplier: settings.speedMultiplier,
@@ -504,6 +552,7 @@ export function TutorSessionShell({
     resetBoardLayout,
     executeCommand,
     skipInkRestoreRef,
+    codeLessonControllerRef,
   });
 
   const {
@@ -515,6 +564,8 @@ export function TutorSessionShell({
     handleAskDoubt,
   } = useTurnLifecycle({
     sessionId,
+    isDraft,
+    commitDraftBoard,
     autoQuestion,
     replaceAutoQuestionUrl: variant === "full",
     enableKeyboardControls: variant !== "headless",
@@ -555,11 +606,12 @@ export function TutorSessionShell({
     fbdPhaseStartedRef,
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
+    codeLessonControllerRef,
     segmentPlanStatsRef,
     stopTurnRef,
     speedRef,
     fastModeRef,
-    lessonDepthRef,
+    familiarityRef,
     pendingSegmentCountRef,
     narrationDensityRef,
     replayGenerationRef,
@@ -583,7 +635,7 @@ export function TutorSessionShell({
     clearCancelTimers,
     resetBoardLayout,
     beginBoardEpoch,
-    reserveTextCommandPlacement,
+    reserveTextCommandPlacements,
     persistTurnForReplay,
     registerReplayBlobUrl,
     revokeUnreferencedReplayBlobUrls,
@@ -653,9 +705,14 @@ export function TutorSessionShell({
     setLiveQuestion("");
   }
 
-  const notesAutoOpen =
-    notesEnabled && !isMobile && (phase !== "idle" || storedTurnsCount > 0);
-  const notesOpen = notesOpenOverride ?? notesAutoOpen;
+  /*
+    The Ask panel stays tucked until it is asked for. It used to open itself as
+    soon as a lesson started, which took a third of the screen away from the
+    board at exactly the moment the board mattered most, and did it as a slide
+    from the right that the student had not triggered. The pull tab on the
+    right edge is now the only way in on desktop.
+  */
+  const notesOpen = notesOpenOverride ?? false;
   const setNotesOpen = setNotesOpenOverride;
 
   const toggleNotes = () => {
@@ -675,8 +732,6 @@ export function TutorSessionShell({
   const {
     replayLecture,
     downloadNotesPdf,
-    seekReplay,
-    toggleReplayPlayPause,
     handleReplaySpeedChange: applyReplaySpeed,
   } = useReplay({
     whiteboardRef,
@@ -686,6 +741,7 @@ export function TutorSessionShell({
     replayAudioRef,
     replayAudioPreloadRef,
     storedTurnsRef,
+    codeLessonControllerRef,
     replayGenerationRef,
     replayCueRef,
     ttsClientRef,
@@ -721,16 +777,10 @@ export function TutorSessionShell({
   const {
     rewindBoardRef,
     rewindActive,
-    rewindPlaying,
-    rewindProgressMs,
     rewindSegmentText,
     rewindCursorState,
-    liveEdgeMs,
-    canRewind,
-    seekLecture,
-    toggleRewindPlayPause,
-    applyRewindSpeed,
     goLive,
+    haltRewind,
   } = useLectureRewind({
     sessionId,
     boards,
@@ -750,41 +800,25 @@ export function TutorSessionShell({
     enabled: !isHeadless,
   });
 
-  // One scrub bar, two timelines behind it: a finished lecture end to end, or
-  // a running one that stops at the live edge.
   const {
-    mode: playbackMode,
-    visible: showPlaybackControls,
-    playing: playbackPlaying,
-  } = resolveLecturePlayback({
-    isHeadless,
+    exportBoardRef,
+    exportBoardMounted,
+    isExportingLecture,
+    lectureExportProgress,
+    lectureExportError,
+    canDownloadLecture,
+    downloadLectureMp4,
+    cancelLectureExport,
+  } = useLectureExport({
+    storedTurnsRef,
+    storedTurnsCount,
+    phase,
     isReplaying,
-    isPaused,
-    rewindActive,
-    rewindPlaying,
-    canRewind,
+    sessionId,
+    enabled: !isHeadless,
   });
 
-  const handlePlaybackSeek = useCallback(
-    (ms: number) => {
-      if (isReplaying) {
-        seekReplay(ms);
-        return;
-      }
-      seekLecture(ms);
-    },
-    [isReplaying, seekReplay, seekLecture],
-  );
 
-  const handlePlaybackPlayPause = useCallback(() => {
-    if (isReplaying) {
-      toggleReplayPlayPause();
-      return;
-    }
-    if (rewindActive) {
-      toggleRewindPlayPause();
-    }
-  }, [isReplaying, rewindActive, toggleReplayPlayPause, toggleRewindPlayPause]);
 
   /**
    * The lesson chrome's pause button while rewound means "take me back to the
@@ -802,16 +836,70 @@ export function TutorSessionShell({
     }
   }, [rewindActive, goLive, isPaused, resumeTurn, pauseTurn]);
 
-  const handleReplaySpeedChange = (rate: number) => {
-    // While rewound it is the overlay's audio and ink that are playing; the
-    // live elements are paused and would only be retuned on the way back.
-    if (rewindActive) {
-      applyRewindSpeed(rate);
-    } else {
-      applyReplaySpeed(rate);
+  /**
+   * Mark & Ask.
+   *
+   * A student who did not follow a step points at it. The marker is offered
+   * once there is something on the board to point at, and picking it up quiets
+   * the tutor — a doubt is composed in silence, not over the voice.
+   *
+   * The marks resolve to exact board lines and figure entities, so the doubt
+   * turn is asked about content the board really holds. See `lib/board/boardMarking`.
+   */
+  const boardHasContent =
+    // "planning" and "thinking" are a blank or clearing board: offering the
+    // marker there lets a student ring empty paper and get a region back.
+    phase === "drawing" ||
+    phase === "speaking" ||
+    storedTurnsCount > 0 ||
+    narrationText.trim().length > 0;
+  const canMark = !isEmbed && boardLoaded && !rewindActive && boardHasContent;
+
+  const quietTutorForMarking = useCallback(() => {
+    if (!rewindActive && !isPausedRef.current && phaseRef.current !== "idle") {
+      pauseTurn();
     }
-    onPlaybackRateChange?.(rate);
-  };
+  }, [pauseTurn, rewindActive]);
+
+  const marking = useBoardMarking({
+    boardLayoutRef,
+    verifiedDiagram: activeVerifiedDiagram,
+    enabled: canMark,
+    onArm: quietTutorForMarking,
+  });
+
+  /**
+   * A marked doubt is already a complete, board-grounded question, so it is
+   * handed to the turn whole rather than being wrapped a second time. With no
+   * marks this is the plain doubt path, unchanged.
+   */
+  const submitDoubt = useCallback(
+    (doubt: string) => {
+      const marks = marking.marks;
+      if (marks.length === 0) {
+        marking.disarm();
+        handleAskDoubt(doubt);
+        return;
+      }
+      const prompt = buildMarkedDoubtPrompt(marks, doubt, liveQuestionRef.current);
+      marking.disarm();
+      handleAskDoubt(doubt, { prompt });
+    },
+    [handleAskDoubt, marking],
+  );
+
+  /** A new question replaces the board the marks were about. */
+  const submitQuestionAndDropMarks = useCallback(
+    (question: string) => {
+      marking.disarm();
+      if (storedTurnsCount > 0) {
+        startNextQuestion(question);
+        return;
+      }
+      void handleQuestion(question);
+    },
+    [handleQuestion, marking, startNextQuestion, storedTurnsCount],
+  );
 
   useEffect(() => {
     syncControlledPlaybackRate(playbackRate, speedRef.current, applyReplaySpeed);
@@ -868,6 +956,12 @@ export function TutorSessionShell({
     };
   }, []);
 
+  useLecturePageHalt(() => {
+    stopTurnOnUnmountRef.current();
+    ttsClientRef.current?.stop();
+    haltRewind();
+  });
+
   if (isHeadless) {
     return (
       <div
@@ -895,15 +989,12 @@ export function TutorSessionShell({
     );
   }
 
-  const activeStatus = resolveActiveStatus(phase, isReplaying, isPaused, rewindActive);
-
   const activeBoard = boards.find((b) => b.id === sessionId);
   const activeBoardTitle = activeBoard?.title ?? "";
-  const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying;
-  const canDownload = phase === "idle" && storedTurnsCount > 0 && !isReplaying;
+  const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
+  const canDownload = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
   const isInputOverlay = !isEmbed && phase === "idle" && boardLoaded && !inputInteracted;
   const inputSubmitMode = lessonFollowUpMode(storedTurnsCount > 0);
-  const showBoardLoading = !boardLoaded;
 
   const inputChrome = (
     <SessionInputChrome
@@ -911,17 +1002,45 @@ export function TutorSessionShell({
       phase={phase}
       isPaused={isPaused}
       inputSubmitMode={inputSubmitMode}
-      onSubmit={storedTurnsCount > 0 ? startNextQuestion : handleQuestion}
-      onAskDoubt={handleAskDoubt}
+      onSubmit={submitQuestionAndDropMarks}
+      onAskDoubt={submitDoubt}
       onPauseToggle={handleLessonPauseToggle}
       onCancel={stopTurn}
       onUserInteractionChange={setInputInteracted}
       onOpenSettings={() => setSettingsOpen(true)}
+      familiarity={settings.familiarity}
+      onFamiliarityChange={(familiarity) => setSettings((c) => ({ ...c, familiarity }))}
+      canMark={canMark}
+      markingArmed={marking.armed}
+      marks={marking.marks}
+      atMarkLimit={marking.atMarkLimit}
+      onToggleMarking={marking.toggle}
+      onRemoveMark={marking.remove}
+      onClearMarks={marking.clear}
+      onDisarmMarking={marking.disarm}
     />
   );
 
   const showEmptyLanding = isInputOverlay && storedTurnsCount === 0;
   const fullBleedLanding = showEmptyLanding;
+
+  /*
+    What sits on the deck between the board and the transport.
+
+    Below `md` the board scales under ~0.6 and code inside the frame stops
+    being readable, so a DSA lesson moves its panel out of the board and onto
+    the deck, where it renders at natural scale. Desktop resolves to null and
+    the slot collapses, so it costs nothing there.
+
+    An explicit `belowBoardPanel` wins: the prop is the caller's override, and
+    this is only the default for the one surface that cannot be passed in from
+    outside because `codeLessonController` lives in here.
+  */
+  const deckPanel =
+    belowBoardPanel ??
+    (isMobile && codeLessonController.getActivePlan() ? (
+      <CodeLessonPanel controller={codeLessonController} variant="below" />
+    ) : null);
   const framePad = isCompactNav ? 20 : 32;
 
   return (
@@ -929,12 +1048,10 @@ export function TutorSessionShell({
       className={
         isEmbed
           ? "relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
-          : "relative flex h-dvh max-h-dvh min-w-0 overflow-hidden"
+          : "fx-aurora-soft relative flex h-dvh max-h-dvh min-w-0 overflow-hidden"
       }
       data-tutor-session={isEmbed ? "embed" : "full"}
-      style={{
-        background: "var(--wb-bg)",
-      }}
+      style={isEmbed ? { background: "var(--wb-bg)" } : undefined}
     >
       {!isEmbed ? (
         <>
@@ -945,6 +1062,9 @@ export function TutorSessionShell({
             onSelect={switchBoard}
             onNew={createNewBoard}
             onDelete={deleteBoard}
+            onTogglePin={togglePinBoard}
+            onToggleArchive={toggleArchiveBoard}
+            onRename={renameBoard}
             disabled={phase !== "idle"}
             collapsed={sidebarCollapsed}
             onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -963,6 +1083,9 @@ export function TutorSessionShell({
             onSelect={switchBoard}
             onNew={createNewBoard}
             onDelete={deleteBoard}
+            onTogglePin={togglePinBoard}
+            onToggleArchive={toggleArchiveBoard}
+            onRename={renameBoard}
             disabled={phase !== "idle"}
             onOpenSettings={() => setSettingsOpen(true)}
           />
@@ -979,7 +1102,7 @@ export function TutorSessionShell({
             zIndex: 40,
             width: NOTES_CHAT_RAIL_WIDTH,
             height: "100dvh",
-            borderLeft: "1px solid rgba(242, 242, 244, 0.08)",
+            borderLeft: "1px solid rgba(202, 229, 241, 0.08)",
           }}
         >
           <NotesChatSidebar
@@ -994,13 +1117,26 @@ export function TutorSessionShell({
         </div>
       ) : null}
 
+      {notesEnabled && !isMobile && !notesRailOpen ? (
+        <button
+          type="button"
+          onClick={toggleNotes}
+          className="wb-notes-pull"
+          aria-label="Open the Ask panel"
+          aria-expanded={false}
+          title="Ask me anything about this lesson"
+        >
+          <span className="wb-notes-pull__grip" aria-hidden />
+        </button>
+      ) : null}
+
       {notesEnabled ? (
         <Sheet open={isMobile && notesOpen} onOpenChange={(open) => {
           setNotesOpen(open);
         }}>
           <SheetContent
             side="right"
-            className="w-[min(100%,380px)] border-l border-[rgba(242,242,244,0.08)] p-0 sm:max-w-[380px]"
+            className="w-[min(100%,380px)] border-l border-stroke p-0 sm:max-w-[380px]"
           >
             <SheetTitle className="sr-only">Ask me anything</SheetTitle>
             <NotesChatSidebar
@@ -1050,16 +1186,21 @@ export function TutorSessionShell({
             boardTitle={activeBoardTitle}
             canReplay={canReplay}
             canDownload={canDownload}
+            canDownloadLecture={canDownloadLecture}
             isReplaying={isReplaying}
             isDownloading={isDownloading}
+            isExportingLecture={isExportingLecture}
+            lectureExportProgress={lectureExportProgress}
+            lectureExportError={lectureExportError}
             phase={phase}
-            activeStatus={activeStatus}
             compactActions={isCompactNav}
             notesOpen={notesOpen}
             showNotesToggle={notesEnabled}
             onToggleNotes={toggleNotes}
             onReplay={replayLecture}
             onDownload={downloadNotesPdf}
+            onDownloadLecture={downloadLectureMp4}
+            onCancelLectureExport={cancelLectureExport}
             onStop={stopTurn}
           />
         ) : null}
@@ -1073,12 +1214,17 @@ export function TutorSessionShell({
             }}
           >
             {fullBleedLanding && (
-              <div className="absolute inset-0 z-20 flex flex-col overflow-y-auto overscroll-contain rounded-2xl border border-[rgba(242,242,244,0.08)] bg-[#0B0B0C]">
-                <div className="flex min-h-full w-full flex-col [justify-content:safe_center] px-4 py-6 sm:px-8 sm:py-10">
+              <div className="glass-deep absolute inset-0 z-20 flex flex-col overflow-hidden rounded-2xl">
+                <LandingPixelField />
+                <div className="relative z-10 flex min-h-full w-full flex-col [justify-content:safe_center] px-4 py-4 sm:px-8 sm:py-5">
                   <CanvasLanding
                     suggestions={LANDING_SUGGESTIONS}
                     onSubmit={(question) => void handleQuestion(question)}
                     onOpenSettings={() => setSettingsOpen(true)}
+                    familiarity={settings.familiarity}
+                    onFamiliarityChange={(familiarity) =>
+                      setSettings((c) => ({ ...c, familiarity }))
+                    }
                   />
                 </div>
                 <CanvasLandingDoodles />
@@ -1086,47 +1232,47 @@ export function TutorSessionShell({
             )}
 
             <div
-              className={`wb-frame relative max-w-full ${
+              className={`flex min-h-0 max-w-full flex-col items-center ${
                 fullBleedLanding ? "pointer-events-none invisible absolute" : ""
               }`}
+              aria-hidden={fullBleedLanding || undefined}
+            >
+            <div
+              className="wb-frame relative max-w-full"
               style={{
                 width: BOARD_WIDTH * boardViewport.scale + framePad,
                 height: BOARD_HEIGHT * boardViewport.scale + framePad,
                 maxWidth: "100%",
               }}
-              aria-hidden={fullBleedLanding || undefined}
             >
             <div className="wb-surface absolute overflow-hidden">
             {isInputOverlay && !fullBleedLanding && (
-              <div
-                className="pointer-events-none absolute inset-0 z-10"
-                style={{
-                  backgroundColor: "rgba(13, 17, 23, 0.55)",
-                  backdropFilter: "blur(8px)",
-                  WebkitBackdropFilter: "blur(8px)",
-                }}
-              />
+              <div className="wb-scrim-strong pointer-events-none absolute inset-0 z-10" />
             )}
 
-            {showBoardLoading && (
-              <div
-                className="absolute inset-0 z-30 flex items-center justify-center"
-                style={{
-                  backgroundColor: "rgba(13, 17, 23, 0.55)",
-                  backdropFilter: "blur(8px)",
-                  WebkitBackdropFilter: "blur(8px)",
-                }}
-              >
-                <div className="flex flex-col items-center gap-3">
-                  <PenSpinner size={44} ink="#C9C9D2" label="Loading board" />
-                  <p className="text-sm text-[#A6A6AE]">Loading board…</p>
-                </div>
+            {/* The board's off-state: while the Konva chunk loads, the paper
+                must not show. The face is opaque navy (the bezel's own
+                language) with the sky boot arc — the same 252° sweep the
+                on-canvas ThinkingSpinner draws, so boot → thinking reads as
+                one pending family. It stays mounted and fades out when the
+                board reports ready: no hard cut, no white flash. */}
+            <div
+              className="wb-boot-face absolute inset-0 z-30 flex items-center justify-center"
+              data-hidden={boardLoaded || undefined}
+              aria-hidden={boardLoaded || undefined}
+            >
+              <div className="fx-grid-fine absolute inset-0" />
+              <div className="relative flex flex-col items-center gap-3">
+                <BoardBootSpinner label="Loading the board" />
+                <p className="type-accent-xs wb-boot-label animate-wb-breathe">
+                  loading the board
+                </p>
               </div>
-            )}
+            </div>
 
             {isEmbed && boardLoaded && storedTurnsCount === 0 ? (
               <div className="absolute inset-0 z-20 flex items-center justify-center">
-                <p className="text-sm text-[#A6A6AE]">No saved lecture on this board.</p>
+                <p className="wb-scrim-ink-soft text-sm font-medium">No saved lecture on this board.</p>
               </div>
             ) : null}
 
@@ -1159,30 +1305,31 @@ export function TutorSessionShell({
               currentSegmentText={currentSegmentText}
               lastError={lastError}
               isReplaying={isReplaying}
-              replayProgressMs={isReplaying ? replayProgressMs : rewindProgressMs}
-              replayTotalMs={replayTotalMs}
-              playbackMode={playbackMode}
-              playbackPlaying={playbackPlaying}
-              showPlaybackControls={showPlaybackControls}
-              liveEdgeMs={liveEdgeMs}
+              exportBoardRef={exportBoardRef}
+              exportBoardMounted={exportBoardMounted}
               rewindBoardRef={rewindBoardRef}
               rewindActive={rewindActive}
               rewindCursorState={rewindCursorState}
               rewindSegmentText={rewindSegmentText}
               verifiedDiagram={activeVerifiedDiagram}
+              codeLessonPanel={<CodeLessonPanel controller={codeLessonController} />}
+              marking={marking}
               onRetraceEntity={handleRetraceEntity}
               onRetryError={(question) => {
                 setLastError(null);
                 void handleQuestion(question);
               }}
               onDismissError={() => setLastError(null)}
-              onReplayPlayPause={handlePlaybackPlayPause}
-              onReplaySeek={handlePlaybackSeek}
-              onReplaySpeedChange={handleReplaySpeedChange}
-              onGoLive={goLive}
-              onStop={stopTurn}
             />
             </div>
+            </div>
+
+            {deckPanel ? (
+              <div className="w-full" style={{ width: BOARD_WIDTH * boardViewport.scale + framePad, maxWidth: "100%" }}>
+                {deckPanel}
+              </div>
+            ) : null}
+
             </div>
           </div>
         </main>

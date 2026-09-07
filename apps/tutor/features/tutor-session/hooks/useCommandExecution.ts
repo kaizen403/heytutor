@@ -1,5 +1,10 @@
-import { useCallback, type RefObject } from "react";
-import type { WhiteboardHandle, WriteSchedule, AnnotationKind } from "@heytutor/whiteboard";
+import { useCallback, useRef, type RefObject } from "react";
+import {
+  LETTERED_IN_HAND_MS_PER_CHAR,
+  type WhiteboardHandle,
+  type WriteSchedule,
+  type AnnotationKind,
+} from "@heytutor/whiteboard";
 import {
   type DrawCommand,
   type VerifiedDiagram,
@@ -27,26 +32,36 @@ import {
   isBlockedVerifiedDiagramCommand,
   resolveVerifiedDiagramFocusTargets,
   focusEmphasisOf,
+  parseFocusSpec,
   parseWorkRowSelector,
   resolveWorkAreaRow,
   takeDeferredAnnotations,
+  verifiedDiagramCommandToDrawCommand,
+  BOARD_TYPE_SCALE,
+  snapToBoardTypeScale,
 } from "@heytutor/drawing";
 import {
   getDrawingDuration,
   getFlightDuration,
   selectInkPace,
   effectiveWhiteboardInkSpeed,
-  liveInkSpeedCap,
+  SCENE_MIN_MS,
   tutorDebug,
   type InkPace,
 } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
-import { DIAGRAM_ZONE } from "../constants";
+import { CODE_CARET_FOLLOW_MS, CODE_FOCUS_SPOTLIGHT_MS, DIAGRAM_ZONE, DSA_DIAGRAM_ZONE, codeLessonCaretBoardPoint } from "../constants";
+import {
+  revealedSectionText,
+  type CodeLessonController,
+} from "../lib/code-lesson/codeLessonController";
 import type { BoardTextRect, BoardLayoutState } from "../types";
-import { isInDiagramZone, registerBoardAnchor } from "../lib/boardLayout";
-import { resolveSnappedAnnotationParams } from "../lib/annotationSnap";
-import { resultSpanOfRow } from "../lib/formulaEmphasis";
+import { isInDiagramZone, registerBoardAnchor } from "../lib/board/boardLayout";
+import { resolveSnappedAnnotationParams } from "../lib/board/annotationSnap";
+import { withSpotlight } from "../lib/board/spotlight";
+import { markerTourStops, narrationTourMs, tourMarker } from "../lib/board/markerTour";
+import { resultSpanOfRow } from "../lib/board/formulaEmphasis";
 
 export interface UseCommandExecutionParams {
   whiteboardRef: RefObject<WhiteboardHandle | null>;
@@ -72,6 +87,15 @@ export interface UseCommandExecutionParams {
   raceWithCancel: <T>(promise: Promise<T>) => Promise<T | undefined>;
   inkPaceRef: RefObject<InkPace>;
   adaptiveFactorRef: RefObject<number>;
+  /** Set for DSA turns; TYPE commands reveal blocks through it. */
+  codeLessonControllerRef?: RefObject<CodeLessonController | null>;
+  /**
+   * Publishes the diagram currently on the board to React. A worked-example
+   * frame swap changes the figure, and the caption under it is rendered from
+   * this state — without the setter the board kept frame 1's caption under
+   * every later frame.
+   */
+  setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
 }
 
 export async function eraseWhiteboardRegionIfCurrent(
@@ -107,7 +131,12 @@ export function useCommandExecution({
   raceWithCancel,
   inkPaceRef,
   adaptiveFactorRef,
+  codeLessonControllerRef,
+  setActiveVerifiedDiagram,
 }: UseCommandExecutionParams) {
+  // How many marker walks this board has run. It rotates the route so two
+  // steps about the same frame do not repeat the same two moves.
+  const pointBeatsRef = useRef(0);
   const resolveAnnotationTarget = useCallback(
     (
       command: DrawCommand,
@@ -132,6 +161,12 @@ export function useCommandExecution({
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
         segmentNarration?: string;
+        /**
+         * This command's slice of the segment's spoken time. A ceiling for
+         * anything that fills time rather than drawing ink, so two commands in
+         * one segment cannot each claim the whole beat.
+         */
+        speechShareMs?: number;
         trustedDiagramGeometry?: boolean;
         segmentIndex?: number;
         isCancelled?: () => boolean;
@@ -143,38 +178,52 @@ export function useCommandExecution({
       const commandCancelled = () => cancelRef.current || options.isCancelled?.() === true;
       if (!wb || commandCancelled()) return;
       const trustedDiagramGeometryEarly = options.trustedDiagramGeometry === true;
+      // durationScale 0 is a seek catching the board up to a timestamp. Nothing
+      // in that pass is being watched, so every pacing rule below is off.
+      const isSeekCatchUp = options.durationScale === 0;
       const inkPace =
         options.inkPace ??
         selectInkPace(rawCommand, { verifiedDiagramIntro: trustedDiagramGeometryEarly });
       inkPaceRef.current = inkPace;
-      if (inkPace === "follow") {
-        // Drop inherited scene catch-up so formula strokes stay readable.
+      if (!isSeekCatchUp) {
+        // The board draws at the pace of the command in hand, in both
+        // directions. Only the follow case was set, so a scene batch nested
+        // inside a follow command — every shape of a worked-example frame
+        // swap — kept drawing at handwriting speed and the figure landed
+        // seconds after the sentence that introduced it.
         wb.setAnimationSpeed(
           effectiveWhiteboardInkSpeed(
             speedRef.current,
             adaptiveFactorRef.current,
-            "follow",
+            inkPace,
           ),
         );
       }
       const drawShape: WhiteboardHandle["drawShape"] = (path, duration, shapeOptions) => {
+        const dsaInk = Boolean(codeLessonControllerRef?.current?.getActivePlan())
+          || activeVerifiedDiagramRef.current?.layout === "code_lesson";
         if (rawCommand.visualStyle?.strokeRole === "trace") {
+          if (dsaInk) return Promise.resolve();
           return wb.drawAnnotation("underline", path, duration, {
             strokeWidth: rawCommand.visualStyle.strokeWidth ?? 1.25,
             transient: true,
             shouldCancel: commandCancelled,
           });
         }
+        if (dsaInk && rawCommand.visualStyle?.dashed && rawCommand.visualStyle?.strokeRole === "construction") {
+          return Promise.resolve();
+        }
         if (rawCommand.visualStyle?.fillRole === "region") {
           return Promise.all([
             wb.drawAnnotation("highlight", path, duration, {
-              fillColor: "#B8D4B8",
+              fillColor: "#A5D6EC",
               fillOpacity: 0.18,
               shouldCancel: commandCancelled,
             }),
             wb.drawShape(path, duration, {
               ...shapeOptions,
               pace: inkPace,
+              strokeRole: shapeOptions?.strokeRole ?? rawCommand.visualStyle?.strokeRole,
               strokeWidth: shapeOptions?.strokeWidth ?? rawCommand.visualStyle?.strokeWidth,
               dashed: shapeOptions?.dashed ?? rawCommand.visualStyle?.dashed,
               shouldCancel: commandCancelled,
@@ -184,6 +233,9 @@ export function useCommandExecution({
         return wb.drawShape(path, duration, {
           ...shapeOptions,
           pace: inkPace,
+          // Construction scaffolding is drawn in pencil, the figure itself in
+          // pen. The compiler already tags which is which.
+          strokeRole: shapeOptions?.strokeRole ?? rawCommand.visualStyle?.strokeRole,
           strokeWidth: shapeOptions?.strokeWidth
             ?? rawCommand.visualStyle?.strokeWidth
             ?? (rawCommand.visualStyle?.correspondingFamily === 2 ? 2.9 : undefined),
@@ -265,12 +317,18 @@ export function useCommandExecution({
         turnTelemetryRef.current?.mark("fbd-phase-start", { x: Math.round(x), y: Math.round(y) });
       };
 
-      // Follow ink stays with live voice (ElevenLabs 1.2×). Scene setup may run
-      // faster — catch-up still applies on top via useAdaptiveDrawSpeed.
-      const effectiveSpeed = () =>
-        Math.min(Math.max(speedRef.current, 0.7), liveInkSpeedCap(inkPace));
+      // Durations are 1× media time. Whiteboard animationSpeed (user rate ×
+      // adaptive catch-up) converts them to wall time, so a mid-lecture speed
+      // change retimes the stroke in flight instead of being baked in twice.
+      // A seek passes durationScale 0: it wants the finished mark, not a fast
+      // animation of it. The 50ms floor below is there so a live command never
+      // flashes past the eye — applied during a catch-up it would instead
+      // replay every command as a visible 50ms tween, so scrubbing back one
+      // step redraws the whole lecture from the beginning. Zero means zero.
       const scaledDuration = (duration: number) =>
-        Math.max(Math.round((duration / effectiveSpeed()) * durationScale), 50);
+        durationScale === 0
+          ? 0
+          : Math.max(Math.round(duration * durationScale), 50);
 
       const speechSplit = (command: DrawCommand) => {
         if (speechDurationMs === undefined) {
@@ -362,7 +420,7 @@ export function useCommandExecution({
           break;
         }
         case "DRAW_POINT": {
-          const [x, y, radius = 5] = command.params;
+          const [x, y, radius = 2] = command.params;
           if ([x, y].every(Number.isFinite)) {
             markFbdDiagramStart(x, y);
             const { flightMs, drawMs } = speechSplit(command);
@@ -479,15 +537,19 @@ export function useCommandExecution({
             await drawShape(path, drawMs, { dashed: true, strokeWidth: 1.4 });
             if (command.text) {
               const labelDrawMs = scaledDuration(getDrawingDuration(command, inkPace));
-              const labelX = labelCenterX - measureTextWidth(command.text) / 2;
+              // A measurement is the quietest ink on the board: smaller than the
+              // names on the figure, which are themselves smaller than the work.
+              const dimensionSize = BOARD_TYPE_SCALE.annotation;
+              const dimensionWidth = measureTextWidth(command.text, dimensionSize);
+              const labelX = labelCenterX - dimensionWidth / 2;
               await wb.flyCursorTo(labelX, labelY, 80, -35);
               if (commandCancelled()) return;
-              await writeText(command.text, labelX, labelY, labelDrawMs);
+              await writeText(command.text, labelX, labelY, labelDrawMs, undefined, dimensionSize);
               if (isInDiagramZone(labelX, labelY)) {
                 registerBoardAnchor(boardLayoutRef.current, {
                   x: labelX,
                   y: labelY,
-                  width: Math.max(measureTextWidth(command.text), 24),
+                  width: Math.max(dimensionWidth, 24),
                   height: 28,
                   text: command.text,
                 });
@@ -500,13 +562,14 @@ export function useCommandExecution({
         case "LABEL": {
           const [x, y, maybeFontSize] = command.params;
           if (command.text && Number.isFinite(x) && Number.isFinite(y)) {
+            // Every size that reaches the pen is a step on the board's scale.
+            // A work row arrives with the size its wrap settled on; a figure
+            // label without one letters at the label size, which reads clearly
+            // under the working rather than competing with it.
             const fontSize =
-              typeof maybeFontSize === "number" &&
-              Number.isFinite(maybeFontSize) &&
-              maybeFontSize >= 12 &&
-              maybeFontSize <= 40
-                ? maybeFontSize
-                : 32;
+              typeof maybeFontSize === "number" && Number.isFinite(maybeFontSize) && maybeFontSize > 0
+                ? snapToBoardTypeScale(maybeFontSize)
+                : BOARD_TYPE_SCALE.label;
             const placement = options.textPlacementReserved
               ? { x, y }
               : await resolveTextPlacement(
@@ -553,7 +616,7 @@ export function useCommandExecution({
               await wb.flyCursorTo(placement.x, placement.y, flightMs, -35);
               if (commandCancelled()) return;
               const penDrawMs =
-                inkPace === "follow"
+                inkPace === "follow" && !isSeekCatchUp
                   ? Math.max(drawMs, getDrawingDuration(command, "follow"))
                   : drawMs;
               await writeText(
@@ -589,6 +652,187 @@ export function useCommandExecution({
               }
             }
           }
+          break;
+        }
+        case "TYPE": {
+          const controller = codeLessonControllerRef?.current;
+          const blockId = command.semanticRef?.entityId?.trim() || command.text?.trim();
+          if (!controller || !blockId) {
+            tutorDebug("draw", "TYPE dropped", {
+              block_id: blockId ?? null,
+              has_controller: Boolean(controller),
+            });
+            break;
+          }
+          // Board restore (0.05) and replay seeks (0) want the finished block,
+          // not a typing animation racing a clock that no longer exists.
+          if (durationScale <= 0.05) {
+            controller.revealBlockInstant(blockId);
+            break;
+          }
+          // The marker writes the code: it flies to the caret and then follows
+          // it, line by line, for as long as the block is typing.
+          //
+          // It used to fly once and then `setCursorState("idle")`, which is
+          // opacity 0 — so for the whole code half of a DSA lesson the pen
+          // vanished and the board stopped moving while the tutor talked. A
+          // student watching that sees a lesson that has stalled.
+          const caretNow = () => codeLessonCaretBoardPoint(
+            revealedSectionText(controller.getState(), controller.getState().activeSectionIndex),
+          );
+          const start = caretNow();
+          await wb.flyCursorTo(start.x, start.y, Math.min(240, speechDurationMs ?? 240));
+          if (commandCancelled()) return;
+          wb.setCursorState("drawing");
+          let typing = true;
+          const followCaret = (async () => {
+            let last = start;
+            while (typing && !commandCancelled()) {
+              const next = caretNow();
+              // Only fly when the caret has actually moved; a still pen is
+              // correct while a character is being drawn, a jittering one is not.
+              if (Math.abs(next.x - last.x) > 1 || Math.abs(next.y - last.y) > 1) {
+                last = next;
+                await wb.flyCursorTo(next.x, next.y, CODE_CARET_FOLLOW_MS);
+              } else {
+                await cancellableDelay(CODE_CARET_FOLLOW_MS);
+              }
+            }
+          })();
+          try {
+            await controller.typeBlock(blockId, {
+              durationMs: speechDurationMs,
+              shouldCancel: commandCancelled,
+            });
+          } finally {
+            typing = false;
+            await followCaret;
+            // Remaining speech is a wait. `speaking` is a still pen; `idle`
+            // is opacity 0. The spin already lives on `thinking`.
+            wb.setCursorState("thinking");
+          }
+          break;
+        }
+        case "POINT": {
+          // Move the marker to the figure without drawing anything. This is
+          // what the pen does while the tutor is talking rather than writing:
+          // before, a spoken step with no tag left it wherever it happened to
+          // be, for as long as the step ran.
+          const targets = resolveVerifiedDiagramFocusTargets(
+            { ...command, type: "FOCUS" },
+            activeVerifiedDiagramRef.current,
+          );
+          if (targets.length === 0) break;
+          // A replay seek is catching the board up to a timestamp, and nothing
+          // in that pass is being watched. Walking a whole spoken step per
+          // pointing command would make scrubbing take as long as the lesson.
+          if (isSeekCatchUp || durationScale <= 0.05) break;
+          const cancelledTour = await tourMarker(
+            wb,
+            markerTourStops(targets, pointBeatsRef.current),
+            {
+              totalMs: narrationTourMs(
+                options.segmentNarration,
+                Math.max(speechDurationMs ?? 900, 700),
+                options.speechShareMs,
+              ),
+              isCancelled: commandCancelled,
+              delay: cancellableDelay,
+              now: () => performance.now(),
+            },
+          );
+          pointBeatsRef.current += 1;
+          if (cancelledTour) return;
+          wb.setCursorState("thinking");
+          break;
+        }
+        case "FRAME": {
+          // Advance the worked example. Each frame is its own compiled figure
+          // fitted to the whole diagram zone, so the board wipes the zone and
+          // redraws rather than accumulating frames on top of each other.
+          const frames = codeLessonControllerRef?.current?.frames;
+          if (!frames || !frames.hasNext()) break;
+
+          // A replay seek wants the finished state, not a redraw per frame.
+          if (durationScale <= 0.05) {
+            const last = frames.jumpToEnd();
+            if (last) {
+              await eraseWhiteboardRegionIfCurrent(
+                wb,
+                { ...DSA_DIAGRAM_ZONE, duration: 0 },
+                commandCancelled,
+              );
+              activeVerifiedDiagramRef.current = last.presentation.diagram;
+              setActiveVerifiedDiagram?.(last.presentation.diagram);
+              for (const next of last.presentation.diagram.commands) {
+                if (commandCancelled()) return;
+                await executeCommand(verifiedDiagramCommandToDrawCommand(next), {
+                  trustedDiagramGeometry: true,
+                  applyLayout: false,
+                  isCancelled: commandCancelled,
+                  inkPace: "scene",
+                  durationScale,
+                });
+              }
+            }
+            break;
+          }
+
+          const next = frames.advance();
+          if (!next) break;
+          // The redraw has to land with the sentence that introduces it. Split
+          // the spoken window across the figure's commands: each one can only
+          // be made quicker than its natural scene pace, never slower, so a
+          // long sentence still draws at a readable speed while a short one
+          // stops the board running three seconds past the voice.
+          const wipeMs = 420;
+          const frameCommandCount = Math.max(next.presentation.diagram.commands.length, 1);
+          const drawWindowMs = Math.max((speechDurationMs ?? 0) - wipeMs, 0);
+          const evenShareMs = drawWindowMs > 0
+            ? Math.max(Math.floor(drawWindowMs / frameCommandCount), SCENE_MIN_MS)
+            : undefined;
+          // A figure label is part of the sketch, so it is lettered with the
+          // instrument already in hand. Handing it a generous share of the
+          // sentence pushes it over the prose threshold and buys an instrument
+          // swap on every label: fourteen labels spent six seconds swapping
+          // pens while the sentence that introduced the frame ran out. Same
+          // rule as the scene-text branch of `resolveCommandInkBudgetMs`,
+          // applied here because a frame redraw budgets its own commands.
+          const frameCommandBudgetMs = (command: { text?: string }): number | undefined => {
+            if (evenShareMs === undefined) return undefined;
+            const text = command.text?.replace(/\s+/g, "") ?? "";
+            if (text.length === 0) return evenShareMs;
+            return Math.min(evenShareMs, text.length * LETTERED_IN_HAND_MS_PER_CHAR);
+          };
+          const wiped = await eraseWhiteboardRegionIfCurrent(
+            wb,
+            { ...DSA_DIAGRAM_ZONE, duration: wipeMs },
+            commandCancelled,
+          );
+          if (!wiped) return;
+          // Point FOCUS at the new figure before drawing it, so a spotlight
+          // in the same segment resolves against what is actually on screen.
+          // The caption under the board reads from React state, so publish the
+          // frame too: without this the board kept frame 1's caption while the
+          // figure moved on, and the tutor described a line nobody could see.
+          activeVerifiedDiagramRef.current = next.presentation.diagram;
+          setActiveVerifiedDiagram?.(next.presentation.diagram);
+          for (const drawCommand of next.presentation.diagram.commands) {
+            if (commandCancelled()) return;
+            const budgetMs = frameCommandBudgetMs(drawCommand);
+            await executeCommand(verifiedDiagramCommandToDrawCommand(drawCommand), {
+              trustedDiagramGeometry: true,
+              applyLayout: false,
+              isCancelled: commandCancelled,
+              inkPace: "scene",
+              ...(budgetMs === undefined ? {} : { speechDurationMs: budgetMs }),
+            });
+          }
+          turnTelemetryRef.current?.mark("dsa-frame-advance", {
+            frame_id: next.id,
+            frame_index: frames.currentIndex(),
+            frame_total: frames.total(),
+          });
           break;
         }
         case "PAUSE": {
@@ -642,30 +886,79 @@ export function useCommandExecution({
         case "FOCUS": {
           const targets = resolveVerifiedDiagramFocusTargets(command, activeDiagram);
           if (targets.length === 0 || !activeDiagram) break;
-          if (activeDiagram) {
-            const deferred = takeDeferredAnnotations(activeDiagram, {
-              entityIds: targets.map((target) => target.id),
-            });
-            for (const next of deferred) {
-              if (commandCancelled()) return;
-              await executeCommand(
-                {
-                  type: next.type,
-                  params: [...next.params],
-                  text: next.text,
-                  charPosition: 0,
-                  narrationBefore: "",
-                  visualStyle: next.visualStyle,
-                  semanticRef: next.semanticRef,
+          const codeLessonActive = Boolean(codeLessonControllerRef?.current?.getActivePlan())
+            || activeDiagram?.layout === "code_lesson";
+          const spec = parseFocusSpec(command.semanticRef?.entityId ?? command.text);
+          const deferred = takeDeferredAnnotations(activeDiagram, {
+            entityIds: [...spec.targetIds, ...targets.map((target) => target.id)],
+          });
+          for (const next of deferred) {
+            if (commandCancelled()) return;
+            await executeCommand(
+              {
+                type: next.type,
+                params: [...next.params],
+                text: next.text,
+                charPosition: 0,
+                narrationBefore: "",
+                visualStyle: next.visualStyle,
+                semanticRef: next.semanticRef,
+              },
+              {
+                trustedDiagramGeometry: true,
+                applyLayout: false,
+                isCancelled: commandCancelled,
+                inkPace: "scene",
+              },
+            );
+          }
+          // Tracing rectangle outlines with the marker looks like scribbling
+          // on a DSA figure. Code lessons only dim everything except the named
+          // cells — the figure itself stays the explanation.
+          if (codeLessonActive) {
+            const hole = targets.reduce((union, target) => {
+              const x = Math.min(union.x, target.x);
+              const y = Math.min(union.y, target.y);
+              const right = Math.max(union.x + union.width, target.x + target.width);
+              const bottom = Math.max(union.y + union.height, target.y + target.height);
+              return { x, y, width: right - x, height: bottom - y };
+            }, { x: targets[0]!.x, y: targets[0]!.y, width: targets[0]!.width, height: targets[0]!.height });
+            // Through withSpotlight so the veil comes off even when the turn
+            // is cancelled mid-focus. Returning early between setting and
+            // clearing it left the whole figure greyed out for the rest of
+            // the lesson.
+            const focusCancelled = await withSpotlight(
+              wb,
+              {
+                veil: {
+                  x: DSA_DIAGRAM_ZONE.x,
+                  y: DSA_DIAGRAM_ZONE.y,
+                  width: DSA_DIAGRAM_ZONE.width,
+                  height: DSA_DIAGRAM_ZONE.height,
                 },
-                {
-                  trustedDiagramGeometry: true,
-                  applyLayout: false,
+                hole: { x: hole.x - 10, y: hole.y - 10, width: hole.width + 20, height: hole.height + 20 },
+                opacity: 0.32,
+              },
+              async () => {
+                // The pen walks the lit entities while the tutor names them.
+                // It used to go `idle` here, which is opacity 0: the figure
+                // was spotlit and the pen was nowhere on the board.
+                return await tourMarker(wb, markerTourStops(targets, pointBeatsRef.current), {
+                  totalMs: Math.min(Math.max(speechDurationMs ?? 600, 600), 1600),
                   isCancelled: commandCancelled,
-                  inkPace: "scene",
-                },
-              );
-            }
+                  delay: cancellableDelay,
+                  now: () => performance.now(),
+                });
+              },
+            );
+            if (focusCancelled) return;
+            wb.setCursorState("thinking");
+            turnTelemetryRef.current?.mark("verified-focus-complete", {
+              target_id: targets.map((target) => target.id).join(","),
+              path_count: 0,
+              emphasis: "spotlight",
+            });
+            break;
           }
           const emphasis = focusEmphasisOf(command);
           const targetIds = new Set(targets.map((target) => target.id));
@@ -678,60 +971,112 @@ export function useCommandExecution({
             candidate.type !== "WRITE" &&
             candidate.type !== "DIMENSION",
           );
-          const tracePaths = targetCommands
-            .map(verifiedCommandTracePath)
-            .filter((candidate): candidate is { path: string; x: number; y: number } => candidate !== null);
-          const fallbacks = targets.map((target) => ({
-            path: emphasisEllipsePath(target.x - 4, target.y - 4, target.width + 8, target.height + 8),
-            x: target.x + target.width / 2,
-            y: target.y,
-          }));
-          const paths = (tracePaths.length > 0 ? tracePaths : fallbacks).slice(0, 8);
-          if (emphasis === "spotlight") {
-            const hole = targets.reduce((union, target) => {
-              const x = Math.min(union.x, target.x);
-              const y = Math.min(union.y, target.y);
-              const right = Math.max(union.x + union.width, target.x + target.width);
-              const bottom = Math.max(union.y + union.height, target.y + target.height);
-              return { x, y, width: right - x, height: bottom - y };
-            }, { x: targets[0]!.x, y: targets[0]!.y, width: targets[0]!.width, height: targets[0]!.height });
-            wb.setSpotlight?.({
-              veil: { x: DIAGRAM_ZONE.x, y: DIAGRAM_ZONE.y, width: DIAGRAM_ZONE.width, height: DIAGRAM_ZONE.height },
-              hole: { x: hole.x - 10, y: hole.y - 10, width: hole.width + 20, height: hole.height + 20 },
-              opacity: 0.36,
-            });
-          }
-          const focusFloorMs = inkPace === "scene" ? 120 : 420;
-          const totalMs = Math.max(speechDurationMs ?? (inkPace === "scene" ? 220 : 900), focusFloorMs);
-          for (const candidate of paths) {
-            await wb.flyCursorTo(candidate.x, candidate.y, Math.min(160, totalMs / paths.length));
-            if (commandCancelled()) return;
-            await drawAnnotation(
-              "underline",
-              candidate.path,
-              Math.max(Math.round(totalMs / paths.length) - 160, 180),
-              { strokeWidth: 1.25, transient: true },
-            );
-          }
-          if (emphasis === "pulse") {
-            for (const target of targets.slice(0, 3)) {
-              if (commandCancelled()) return;
-              const pulse = compactPulseBox(target, targetCommands);
-              await drawAnnotation(
-                "circle_around",
-                emphasisEllipsePath(pulse.x, pulse.y, pulse.width, pulse.height),
-                260,
-                { strokeWidth: 1.1, transient: true },
+          const hole = targets.reduce((union, target) => {
+            const x = Math.min(union.x, target.x);
+            const y = Math.min(union.y, target.y);
+            const right = Math.max(union.x + union.width, target.x + target.width);
+            const bottom = Math.max(union.y + union.height, target.y + target.height);
+            return { x, y, width: right - x, height: bottom - y };
+          }, { x: targets[0]!.x, y: targets[0]!.y, width: targets[0]!.width, height: targets[0]!.height });
+          const veil = codeLessonActive ? DSA_DIAGRAM_ZONE : DIAGRAM_ZONE;
+          // Every focus path raises its veil through withSpotlight, so a cancel
+          // or a throw between raising and lowering it cannot strand the veil and
+          // leave the whole figure greyed out for the rest of the lesson.
+          const focusCancelled = await withSpotlight(
+            wb,
+            emphasis === "spotlight"
+              ? {
+                  veil: { x: veil.x, y: veil.y, width: veil.width, height: veil.height },
+                  hole: { x: hole.x - 10, y: hole.y - 10, width: hole.width + 20, height: hole.height + 20 },
+                  opacity: 0.36,
+                }
+              : null,
+            async () => {
+            const focusFloorMs = inkPace === "scene" ? 120 : 420;
+            const totalMs = Math.max(speechDurationMs ?? (inkPace === "scene" ? 220 : 900), focusFloorMs);
+            if (!codeLessonActive) {
+              const tracePaths = targetCommands
+                .map(verifiedCommandTracePath)
+                .filter((candidate): candidate is { path: string; x: number; y: number } => candidate !== null);
+              const fallbacks = targets.map((target) => ({
+                path: emphasisEllipsePath(target.x - 4, target.y - 4, target.width + 8, target.height + 8),
+                x: target.x + target.width / 2,
+                y: target.y,
+              }));
+              const paths = (tracePaths.length > 0 ? tracePaths : fallbacks).slice(0, 8);
+              for (const candidate of paths) {
+                await wb.flyCursorTo(candidate.x, candidate.y, Math.min(160, totalMs / paths.length));
+                if (commandCancelled()) return true;
+                await drawAnnotation(
+                  "underline",
+                  candidate.path,
+                  Math.max(Math.round(totalMs / paths.length) - 160, 180),
+                  { strokeWidth: 1.25, transient: true },
+                );
+              }
+            } else {
+              // Same rule as the branch above: the pen stays visible and
+              // walks the lit entity instead of vanishing at opacity 0. Only
+              // for as long as the veil is up, though — the rest of the step
+              // is walked below, over an undimmed figure.
+              const litTourCancelled = await tourMarker(
+                wb,
+                markerTourStops(targets, pointBeatsRef.current),
+                {
+                  totalMs: Math.min(Math.max(totalMs, 600), CODE_FOCUS_SPOTLIGHT_MS),
+                  isCancelled: commandCancelled,
+                  delay: cancellableDelay,
+                  now: () => performance.now(),
+                },
               );
+              if (litTourCancelled) return true;
             }
+            if (emphasis === "pulse") {
+              for (const target of targets.slice(0, 3)) {
+                if (commandCancelled()) return true;
+                const pulse = compactPulseBox(target, targetCommands);
+                await drawAnnotation(
+                  "circle_around",
+                  emphasisEllipsePath(pulse.x, pulse.y, pulse.width, pulse.height),
+                  260,
+                  { strokeWidth: 1.1, transient: true },
+                );
+              }
+            }
+            if (emphasis === "spotlight") {
+              await cancellableDelay(220);
+            }
+            return false;
+            },
+          );
+          if (focusCancelled) return;
+          if (codeLessonActive && !isSeekCatchUp && durationScale > 0.05) {
+            // The veil is down. A tagged step still runs a minute of speech
+            // about the figure, and the pen used to spend all of it parked
+            // where the spotlight left it, which is the stalled board the
+            // owner reported. It keeps walking the same entities instead.
+            const walkMs =
+              narrationTourMs(options.segmentNarration, 0, options.speechShareMs) -
+              CODE_FOCUS_SPOTLIGHT_MS;
+            if (walkMs > 400) {
+              const walkCancelled = await tourMarker(
+                wb,
+                markerTourStops(targets, pointBeatsRef.current + 1),
+                {
+                  totalMs: walkMs,
+                  isCancelled: commandCancelled,
+                  delay: cancellableDelay,
+                  now: () => performance.now(),
+                },
+              );
+              if (walkCancelled) return;
+            }
+            pointBeatsRef.current += 1;
           }
-          if (emphasis === "spotlight") {
-            await cancellableDelay(220);
-            wb.setSpotlight?.(null);
-          }
+          wb.setCursorState("thinking");
           turnTelemetryRef.current?.mark("verified-focus-complete", {
             target_id: targets.map((target) => target.id).join(","),
-            path_count: paths.length,
+            path_count: targets.length,
             emphasis,
           });
           break;
@@ -806,6 +1151,11 @@ export function useCommandExecution({
         case "ARROW":
         case "HIGHLIGHT":
         case "SCRIBBLE": {
+          const dsaFigure = Boolean(codeLessonControllerRef?.current?.getActivePlan())
+            || activeVerifiedDiagramRef.current?.layout === "code_lesson";
+          if (dsaFigure && command.type !== "ARROW") {
+            break;
+          }
           const tel = turnTelemetryRef.current;
           tel?.mark("annotate-start", {
             type: command.type,
@@ -906,7 +1256,7 @@ export function useCommandExecution({
                 annotationKind,
                 highlightRectPath(x, y, w, h),
                 drawMs,
-                region ? { fillColor: "#B8D4B8", fillOpacity: 0.18 } : undefined,
+                region ? { fillColor: "#A5D6EC", fillOpacity: 0.18 } : undefined,
               );
             }
           } else if (command.type === "SCRIBBLE" && params.length >= 4) {
@@ -947,6 +1297,7 @@ export function useCommandExecution({
       adaptiveFactorRef,
       turnTelemetryRef,
       whiteboardRef,
+      codeLessonControllerRef,
     ],
   );
 
@@ -959,6 +1310,7 @@ export function useCommandExecution({
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
         segmentNarration?: string;
+        speechShareMs?: number;
         trustedDiagramGeometry?: boolean;
         segmentIndex?: number;
         isCancelled?: () => boolean;
@@ -1019,7 +1371,7 @@ function verifiedCommandTracePath(
       };
     }
     case "DRAW_POINT": {
-      const [x, y, radius = 5] = params;
+      const [x, y, radius = 2] = params;
       if (![x, y].every(Number.isFinite)) return null;
       const mark = Math.max(radius, 10);
       return {

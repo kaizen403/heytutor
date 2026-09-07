@@ -1,19 +1,38 @@
 "use client";
 
-import { Settings } from "lucide-react";
-import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
-import { resolveApiUrl } from "@heytutor/tutor-core";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { compressQuestionImage } from "@/features/tutor-session/lib/compressQuestionImage";
-import { LESSON_DONE_PROMPT } from "@/features/tutor-session/lib/lessonFollowUp";
-import { fileFromClipboardData } from "@/features/tutor-session/lib/questionImageInput";
+import { Highlighter, Settings } from "lucide-react";
+import { resolveApiUrl, type SubjectFamiliarity } from "@heytutor/tutor-core";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { compressQuestionImage } from "@/features/tutor-session/lib/input/compressQuestionImage";
+import { LESSON_DONE_PROMPT } from "@/features/tutor-session/lib/turn/lessonFollowUp";
+import { fileFromClipboardData } from "@/features/tutor-session/lib/input/questionImageInput";
 import {
   DOUBT_INTERRUPT_HINT,
   DOUBT_PLACEHOLDER,
-} from "@/features/tutor-session/lib/askDoubt";
+} from "@/features/tutor-session/lib/input/askDoubt";
+import {
+  MARK_MODE_PLACEHOLDER,
+  MARK_SUBMIT_LABEL,
+} from "@/features/tutor-session/lib/board/boardMarking";
+import { FamiliarityPicker } from "@/features/tutor-session/components/FamiliarityPicker";
+import { useVoiceInput } from "@/features/tutor-session/hooks/useVoiceInput";
+import { VoiceLevelBars } from "@/features/tutor-session/components/VoiceLevelBars";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 export type InputSubmitMode = "ask" | "doubt" | "follow-up";
+
+/** One-line composer height. A pasted problem grows from here, not sideways. */
+const QUESTION_LINE_HEIGHT_PX = 28;
+/** Tall enough for a typical LeetCode paste; longer problems scroll inside. */
+const QUESTION_FIELD_MAX_HEIGHT_PX = 480;
 
 export interface InputBarProps {
   onSubmit: (question: string) => void;
@@ -30,6 +49,21 @@ export interface InputBarProps {
   compact?: boolean;
   prominent?: boolean;
   onOpenSettings?: () => void;
+  /** There is board content worth marking, so offer the marker. */
+  canMark?: boolean;
+  /** The marker is out and the board is taking strokes. */
+  markingArmed?: boolean;
+  /** How many marks are held. A marked doubt may be sent with no typed text. */
+  markCount?: number;
+  onToggleMarking?: () => void;
+  /**
+   * How well the student says they know this topic, chosen per question.
+   * Settings only supplies the default. Omitting both props hides the picker,
+   * which is what the doubt and follow-up bars want — a doubt continues the
+   * lesson already running at its level.
+   */
+  familiarity?: SubjectFamiliarity;
+  onFamiliarityChange?: (level: SubjectFamiliarity) => void;
 }
 
 type SpeechRecognitionResultList = {
@@ -76,17 +110,6 @@ function submitButtonLabel(mode: InputSubmitMode): string {
   return "Ask";
 }
 
-function submitButtonColors(_mode: InputSubmitMode, inactive: boolean) {
-  if (inactive) {
-    return {
-      backgroundColor: "rgba(240, 246, 252, 0.06)",
-      color: "rgba(139, 148, 158, 0.7)",
-    };
-  }
-
-  return { backgroundColor: "#6E6E76", color: "#FFFFFF" };
-}
-
 export function InputBar({
   onSubmit,
   onAskDoubt,
@@ -102,9 +125,16 @@ export function InputBar({
   compact = false,
   prominent = false,
   onOpenSettings,
+  canMark = false,
+  markingArmed = false,
+  markCount = 0,
+  onToggleMarking,
+  familiarity,
+  onFamiliarityChange,
 }: InputBarProps) {
   const [question, setQuestion] = useState("");
-  const questionInputRef = useRef<HTMLInputElement>(null);
+  const questionInputRef = useRef<HTMLTextAreaElement>(null);
+  const isMultiline = question.includes("\n");
   const speechSupported = useSyncExternalStore(
     subscribeToNothing,
     readSpeechSupport,
@@ -136,7 +166,13 @@ export function InputBar({
    */
   const canInterruptWithDoubt = isLiveLesson && Boolean(onAskDoubt);
   const inputLocked = isExtracting || (disabled && !canInterruptWithDoubt);
-  const buttonDisabled = inputLocked || trimmed.length === 0;
+  /**
+   * A mark is a question on its own — "explain this again" is the commonest
+   * doubt a student has and the one they are least able to word. So the submit
+   * stays live with an empty box as long as something is marked.
+   */
+  const marksCarryTheQuestion = markingArmed && markCount > 0;
+  const buttonDisabled = inputLocked || (trimmed.length === 0 && !marksCarryTheQuestion);
   const nextQuestionDisabled = inputLocked;
 
   const finishInput = useCallback(() => {
@@ -174,6 +210,39 @@ export function InputBar({
     [submitQuestion],
   );
 
+  const handleQuestionKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+      // A stacked paste is edited as a box: Enter inserts a line. A one-line
+      // question still sends on Enter. ⌘/Ctrl+Enter always sends.
+      if (event.metaKey || event.ctrlKey) {
+        event.preventDefault();
+        submitQuestion();
+        return;
+      }
+      if (event.shiftKey) return;
+      if (!question.includes("\n")) {
+        event.preventDefault();
+        submitQuestion();
+      }
+    },
+    [question, submitQuestion],
+  );
+
+  useLayoutEffect(() => {
+    const field = questionInputRef.current;
+    if (!field) return;
+    if (!question.includes("\n")) {
+      field.style.height = `${QUESTION_LINE_HEIGHT_PX}px`;
+      field.style.overflowY = "hidden";
+      return;
+    }
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, QUESTION_FIELD_MAX_HEIGHT_PX)}px`;
+    field.style.overflowY =
+      field.scrollHeight > QUESTION_FIELD_MAX_HEIGHT_PX ? "auto" : "hidden";
+  }, [question]);
+
   /** Composing a doubt stops the voice talking over the student. */
   const pauseForDoubt = useCallback(() => {
     if (canInterruptWithDoubt && !isPaused) {
@@ -183,13 +252,22 @@ export function InputBar({
 
   const askDoubtFromButton = useCallback(() => {
     if (inputLocked) return;
-    if (trimmed.length === 0) {
+    if (trimmed.length === 0 && !marksCarryTheQuestion) {
       pauseForDoubt();
+      // Nothing typed and nothing marked: hand the student both ways in.
+      onToggleMarking?.();
       questionInputRef.current?.focus();
       return;
     }
     runSubmit();
-  }, [inputLocked, pauseForDoubt, runSubmit, trimmed.length]);
+  }, [
+    inputLocked,
+    marksCarryTheQuestion,
+    onToggleMarking,
+    pauseForDoubt,
+    runSubmit,
+    trimmed.length,
+  ]);
 
   const toggleListening = useCallback(() => {
     if (inputLocked) return;
@@ -232,6 +310,57 @@ export function InputBar({
     recognition.start();
     setIsListening(true);
   }, [inputLocked, isListening, pauseForDoubt]);
+
+  /**
+   * Dictation lands after whatever is already typed rather than replacing it,
+   * so a student can type half a question, speak the rest, and keep both.
+   */
+  const appendTranscript = useCallback(
+    (text: string) => {
+      setExtractError(null);
+      setQuestion((current) => {
+        const base = current.trim();
+        return base ? `${base} ${text}` : text;
+      });
+      onUserInteractionChange?.(true);
+      questionInputRef.current?.focus();
+    },
+    [onUserInteractionChange],
+  );
+
+  const voice = useVoiceInput({
+    onTranscript: appendTranscript,
+    // Same reason the browser path pauses: a talking tutor is the loudest thing
+    // in the room and would be transcribed instead of the student.
+    onStart: pauseForDoubt,
+    disabled: inputLocked,
+  });
+  const {
+    toggle: toggleVoice,
+    clearError: clearVoiceError,
+    unavailable: voiceUnavailable,
+  } = voice;
+
+  // No STT key on the server is a deployment fact, not something to put in
+  // front of a student. Swallow it; the next press uses browser dictation.
+  useEffect(() => {
+    if (voiceUnavailable && speechSupported) clearVoiceError();
+  }, [clearVoiceError, speechSupported, voiceUnavailable]);
+
+  /** ElevenLabs is the mic; the browser's own dictation is the safety net. */
+  const useBrowserDictation = !voice.supported || voiceUnavailable;
+  const micAvailable = voice.supported || speechSupported;
+  const micListening = useBrowserDictation ? isListening : voice.state === "listening";
+  const micTranscribing = voice.state === "transcribing";
+
+  const toggleMic = useCallback(() => {
+    if (inputLocked) return;
+    if (useBrowserDictation) {
+      toggleListening();
+      return;
+    }
+    toggleVoice();
+  }, [inputLocked, toggleListening, toggleVoice, useBrowserDictation]);
 
   const handleImageClick = useCallback(() => {
     if (inputLocked) return;
@@ -321,7 +450,9 @@ export function InputBar({
       const target = event.target;
       if (
         target instanceof HTMLElement &&
-        target.closest('[role="dialog"], textarea, input[type="search"]')
+        target.closest(
+          '[role="dialog"], input[type="search"], textarea:not([data-question-field])',
+        )
       ) {
         return;
       }
@@ -331,17 +462,15 @@ export function InputBar({
     return () => window.removeEventListener("paste", onWindowPaste);
   }, [inputLocked, submitPastedImage]);
 
-  const submitColors = submitButtonColors(submitMode, buttonDisabled);
-
   return (
     <div className="flex w-full flex-col items-stretch gap-1.5">
       {isFollowUp && !disabled && (
-        <p className="px-3 text-center text-[0.8125rem]" style={{ color: "#A6A6AE" }}>
+        <p className="px-3 text-center text-[0.8125rem]" style={{ color: "var(--text-soft)" }}>
           {LESSON_DONE_PROMPT}
         </p>
       )}
       {canInterruptWithDoubt && trimmed.length > 0 && (
-        <p className="px-3 text-center text-[0.8125rem]" style={{ color: "#A6A6AE" }}>
+        <p className="px-3 text-center text-[0.8125rem]" style={{ color: "var(--text-soft)" }}>
           {DOUBT_INTERRUPT_HINT}
         </p>
       )}
@@ -361,15 +490,24 @@ export function InputBar({
           void extractQuestionFromImage(file);
         }}
         className={cn(
-          "wb-input-wrap flex min-w-0 flex-1 items-center gap-1.5 py-2",
-          prominent ? "px-3" : "px-2.5",
+          // Below sm the composer is a two-row card: photo/input/marker/mic on
+          // the first line, the control cluster wrapping full-width beneath.
+          // At sm+ a one-line question stays the pill row. A stacked paste
+          // opens into a rounded box and grows down, not sideways.
+          "wb-input-wrap flex min-w-0 flex-1 flex-wrap gap-1.5",
+          isMultiline
+            ? "wb-input-wrap--multiline items-end rounded-[1.5rem] px-3 pb-2.5 pt-3"
+            : cn(
+                "items-center rounded-[1.75rem] py-2 sm:rounded-[9999px]",
+                prominent ? "px-3" : "px-2.5",
+              ),
         )}
         style={{
           minHeight: prominent ? "64px" : "52px",
-          backgroundColor: "#151517",
-          border: "1px solid #2E2E33",
-          borderRadius: "9999px",
-          boxShadow: "0 8px 24px -4px rgba(0, 0, 0, 0.45)",
+          backgroundColor: "var(--ink-850)",
+          border: "1px solid var(--stroke)",
+          boxShadow:
+            "inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 24px -4px rgba(3, 11, 18, 0.45)",
         }}
       >
         <input
@@ -394,20 +532,16 @@ export function InputBar({
               "flex shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40",
               prominent ? "h-10 w-10" : "h-9 w-9",
             )}
-            style={{ color: isExtracting ? "#C9C9D2" : "#A6A6AE" }}
+            style={{ color: isExtracting ? "var(--sky-500)" : "var(--text-soft)" }}
             onMouseEnter={(e) => {
-              if (!inputLocked) e.currentTarget.style.color = "#F2F2F4";
+              if (!inputLocked) e.currentTarget.style.color = "var(--frost)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = isExtracting ? "#C9C9D2" : "#A6A6AE";
+              e.currentTarget.style.color = isExtracting ? "var(--sky-500)" : "var(--text-soft)";
             }}
           >
             {isExtracting ? (
-              <PenSpinner
-                size={prominent ? 24 : 22}
-                ink="#C9C9D2"
-                label="Reading the question"
-              />
+              <Spinner size={prominent ? 18 : 16} label="Reading the question" />
             ) : (
               <svg
                 width={prominent ? 22 : 20}
@@ -438,9 +572,10 @@ export function InputBar({
           </button>
         )}
 
-        <input
+        <textarea
           ref={questionInputRef}
-          type="text"
+          data-question-field
+          rows={1}
           value={question}
           onChange={(event) => {
             setExtractError(null);
@@ -450,82 +585,176 @@ export function InputBar({
               pauseForDoubt();
             }
           }}
+          onKeyDown={handleQuestionKeyDown}
           disabled={inputLocked}
           autoFocus={autoFocus}
+          aria-label="Question"
           placeholder={
             isExtracting
               ? "Reading the question…"
-              : extractError ??
-                (canInterruptWithDoubt ? DOUBT_PLACEHOLDER : placeholder)
+              : micListening
+                ? "Listening… press the mic again when you are done"
+                : micTranscribing
+                  ? "Writing down what you said…"
+                  : extractError ??
+                    voice.error ??
+                    (markingArmed
+                      ? MARK_MODE_PLACEHOLDER
+                      : canInterruptWithDoubt
+                        ? DOUBT_PLACEHOLDER
+                        : placeholder)
           }
           className={cn(
-            "min-w-0 flex-1 bg-transparent px-2 py-1.5 focus:outline-none disabled:opacity-50 placeholder:text-[#717177]",
-            prominent ? "text-base" : "text-[15px]",
+            "min-w-0 resize-none bg-transparent px-2 py-1.5 focus:outline-none disabled:opacity-50 placeholder:text-faint",
+            // 16px below sm so iOS Safari does not zoom the field on focus.
+            prominent ? "text-base" : "text-base sm:text-[15px]",
+            isMultiline
+              ? "order-first w-full basis-full leading-relaxed"
+              : "flex-1 overflow-x-auto whitespace-nowrap",
           )}
           autoComplete="off"
           spellCheck={false}
-          style={{ color: "#F2F2F4" }}
+          style={{
+            color: "var(--frost)",
+            minHeight: QUESTION_LINE_HEIGHT_PX,
+            whiteSpace: isMultiline ? "pre-wrap" : "nowrap",
+          }}
         />
 
-        {speechSupported && (
-        <button
-          type="button"
-          onClick={toggleListening}
-          disabled={inputLocked}
-          aria-label={isListening ? "Stop dictation" : "Dictate question"}
-          className={cn(
-            "flex shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40",
-            prominent ? "h-10 w-10" : "h-9 w-9",
-          )}
-          style={{
-            color: isListening ? "#C9C9D2" : "#A6A6AE",
-          }}
-          onMouseEnter={(e) => {
-            if (!inputLocked && !isListening) {
-              e.currentTarget.style.color = "#F2F2F4";
+        {canMark && onToggleMarking && (
+          <button
+            type="button"
+            onClick={() => {
+              if (inputLocked) return;
+              pauseForDoubt();
+              onToggleMarking();
+            }}
+            disabled={inputLocked}
+            aria-pressed={markingArmed}
+            aria-label={markingArmed ? "Put the marker away" : "Mark the board"}
+            title={
+              markingArmed
+                ? "Put the marker away (Esc)"
+                : "Mark what you did not follow, then ask (M)"
             }
-          }}
-          onMouseLeave={(e) => {
-            if (!isListening) {
-              e.currentTarget.style.color = "#A6A6AE";
-            }
-          }}
-        >
-          <svg
-            width={prominent ? 20 : 18}
-            height={prominent ? 20 : 18}
-            viewBox="0 0 24 24"
-            fill="none"
+            className={cn(
+              "flex shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40",
+              prominent ? "h-10 w-10" : "h-9 w-9",
+            )}
+            style={{
+              color: markingArmed ? "var(--ink-950)" : "var(--text-soft)",
+              backgroundColor: markingArmed ? "var(--sky-500)" : "transparent",
+            }}
+            onMouseEnter={(event) => {
+              if (!inputLocked && !markingArmed) {
+                event.currentTarget.style.color = "var(--frost)";
+              }
+            }}
+            onMouseLeave={(event) => {
+              if (!markingArmed) {
+                event.currentTarget.style.color = "var(--text-soft)";
+              }
+            }}
           >
-            <rect
-              x="9"
-              y="2"
-              width="6"
-              height="11"
-              rx="3"
-              stroke="currentColor"
-              strokeWidth="1.75"
+            <Highlighter
+              className={prominent ? "h-[18px] w-[18px]" : "h-4 w-4"}
+              strokeWidth={1.9}
+              aria-hidden
             />
-            <path
-              d="M5 10a7 7 0 0 0 14 0M12 17v3"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
+          </button>
+        )}
+
+        {micAvailable && (
+          <button
+            type="button"
+            onClick={toggleMic}
+            disabled={inputLocked || micTranscribing}
+            aria-pressed={micListening}
+            aria-label={
+              micListening
+                ? "Stop recording and transcribe"
+                : micTranscribing
+                  ? "Transcribing what you said"
+                  : "Ask by voice"
+            }
+            title={
+              micListening
+                ? "Press again when you have finished speaking"
+                : "Ask by voice"
+            }
+            className={cn(
+              "relative flex shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40",
+              prominent ? "h-10 w-10" : "h-9 w-9",
+            )}
+            style={{
+              color:
+                micListening || micTranscribing ? "var(--sky-500)" : "var(--text-soft)",
+            }}
+            onMouseEnter={(e) => {
+              if (!inputLocked && !micListening && !micTranscribing) {
+                e.currentTarget.style.color = "var(--frost)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!micListening && !micTranscribing) {
+                e.currentTarget.style.color = "var(--text-soft)";
+              }
+            }}
+          >
+            {/* Recording shows the student's own voice moving. A lit box would
+                only say "this button is on", which they can already see. */}
+            {micListening ? (
+              <VoiceLevelBars
+                analyserRef={voice.analyserRef}
+                bars={5}
+                barWidth={2}
+                height={prominent ? 18 : 16}
+              />
+            ) : micTranscribing ? (
+              <Spinner size={prominent ? 17 : 15} label="Writing down what you said" />
+            ) : (
+              <svg
+                width={prominent ? 20 : 18}
+                height={prominent ? 20 : 18}
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden
+              >
+                <rect
+                  x="9"
+                  y="2"
+                  width="6"
+                  height="11"
+                  rx="3"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                />
+                <path
+                  d="M5 10a7 7 0 0 0 14 0M12 17v3"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                />
+              </svg>
+            )}
+          </button>
         )}
 
         {disabled && onPauseToggle ? (
-          <div className="mr-0.5 flex shrink-0 items-center gap-1.5">
+          <div
+            className={cn(
+              "mr-0 flex w-full shrink-0 items-center justify-between gap-1.5 sm:mr-0.5 sm:w-auto",
+              isMultiline && "sm:ml-auto",
+            )}
+          >
             <button
               type="button"
               onClick={onPauseToggle}
               aria-label={isPaused ? "Resume teaching" : "Pause teaching"}
               className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
               style={{
-                backgroundColor: "rgba(201, 201, 210, 0.15)",
-                color: "#F2F2F4",
+                backgroundColor: "var(--wb-accent-soft)",
+                color: "var(--frost)",
               }}
             >
               {isPaused ? (
@@ -546,8 +775,8 @@ export function InputBar({
                 aria-label="Cancel teaching"
                 className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
                 style={{
-                  backgroundColor: "rgba(240, 246, 252, 0.06)",
-                  color: "#A6A6AE",
+                  backgroundColor: "var(--stroke)",
+                  color: "var(--text-soft)",
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -565,20 +794,19 @@ export function InputBar({
             ) : null}
             <button
               type="button"
-              aria-label="Ask Doubt"
+              aria-label={marksCarryTheQuestion ? MARK_SUBMIT_LABEL : "Ask Doubt"}
               title={
-                trimmed.length > 0
-                  ? DOUBT_INTERRUPT_HINT
-                  : "Pause and type a doubt about this lesson"
+                marksCarryTheQuestion
+                  ? "Teach the part you marked again, from there"
+                  : trimmed.length > 0
+                    ? DOUBT_INTERRUPT_HINT
+                    : "Pause, then mark or type a doubt about this lesson"
               }
               disabled={inputLocked}
               className={cn(
-                "shrink-0 rounded-full font-medium transition-all disabled:opacity-40",
-                compact
-                  ? "flex h-9 w-9 items-center justify-center"
-                  : "px-4 py-2 text-sm",
+                "btn btn-sky btn-sm shrink-0",
+                compact && "w-[38px] px-0",
               )}
-              style={submitButtonColors("doubt", false)}
               onClick={askDoubtFromButton}
             >
               {compact ? (
@@ -590,29 +818,41 @@ export function InputBar({
                     strokeLinecap="round"
                   />
                 </svg>
+              ) : marksCarryTheQuestion ? (
+                MARK_SUBMIT_LABEL
               ) : (
                 "Ask Doubt"
               )}
             </button>
           </div>
         ) : (
-          <div className="mr-0.5 flex shrink-0 items-center gap-1.5">
+          <div
+            className={cn(
+              "mr-0 flex w-full shrink-0 items-center justify-between gap-1.5 sm:mr-0.5 sm:w-auto",
+              isMultiline && "sm:ml-auto",
+            )}
+          >
+            {familiarity && onFamiliarityChange ? (
+              <FamiliarityPicker
+                value={familiarity}
+                onChange={onFamiliarityChange}
+                disabled={inputLocked}
+                prominent={prominent}
+                compact={compact}
+              />
+            ) : null}
             {onOpenSettings ? (
               <InputSettingsButton onOpen={onOpenSettings} prominent={prominent} />
             ) : null}
+            {/* The landing's pedestal button, not a flat pill: a cap resting on
+                a taller base, so pressing drops the cap and the row never
+                reflows. Face and geometry both come from `.btn`. */}
             <button
               type="submit"
               disabled={buttonDisabled}
-              className={cn(
-                "shrink-0 rounded-full font-medium transition-all",
-                prominent ? "px-5 py-2.5 text-[15px]" : "px-4 py-2 text-sm",
-              )}
-              style={{
-                ...submitColors,
-                cursor: buttonDisabled ? "not-allowed" : "pointer",
-              }}
+              className={cn("btn btn-sky shrink-0", prominent ? "btn-md" : "btn-sm")}
             >
-              {submitLabel}
+              {marksCarryTheQuestion ? MARK_SUBMIT_LABEL : submitLabel}
             </button>
             {isFollowUp && (
               <button
@@ -624,21 +864,16 @@ export function InputBar({
                     ? "Start this question on a new board"
                     : "Open a new board for your next question"
                 }
-                className="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all disabled:opacity-40"
-                style={{
-                  backgroundColor: "rgba(201, 201, 210, 0.15)",
-                  color: "#F2F2F4",
-                  cursor: nextQuestionDisabled ? "not-allowed" : "pointer",
-                }}
+                className={cn("btn btn-ghost shrink-0", prominent ? "btn-md" : "btn-sm")}
               >
-                Next Question
+                Next question
               </button>
             )}
           </div>
         )}
       </form>
       {extractLatencyMs != null && !extractError && (
-        <p className="px-3 text-center text-[0.6875rem]" style={{ color: "#A6A6AE" }}>
+        <p className="px-3 text-center text-[0.6875rem]" style={{ color: "var(--text-soft)" }}>
           Read in {(extractLatencyMs / 1000).toFixed(1)}s. Press Ask to start teaching.
         </p>
       )}
@@ -659,7 +894,7 @@ function InputSettingsButton({
       onClick={onOpen}
       aria-label="Board settings"
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-full border border-[#2E2E33] bg-[#1E1E21] text-[#A6A6AE] transition-colors hover:border-[rgba(201,201,210,0.35)] hover:bg-[#2E2E33] hover:text-[#C9C9D2]",
+        "flex shrink-0 items-center justify-center rounded-full border border-stroke bg-ink-700 text-soft transition-colors hover:border-sky-500/35 hover:bg-ink-600 hover:text-sky-200",
         prominent ? "h-10 w-10" : "h-9 w-9",
       )}
     >
