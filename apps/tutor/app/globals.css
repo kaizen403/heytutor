@@ -1,455 +1,39 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0B0B0C;
-  --foreground: #F2F2F4;
-
-  --wb-bg: #0B0B0C;
-  --wb-surface: #151517;
-  --wb-accent: #C9C9D2;
-  --wb-accent-light: #DEDEE4;
-  --wb-accent-soft: rgba(201, 201, 210, 0.12);
-  --wb-cta: #6E6E76;
-  --wb-paper: #FFFFFF;
-  --wb-paper-ink: #111827;
-  --wb-paper-border: #2E2E33;
-  --wb-text-primary: #F2F2F4;
-  --wb-text-secondary: #A6A6AE;
-  --wb-text-tertiary: #717177;
-  --wb-border: #2E2E33;
-  --wb-cursor-blue: #C9C9D2;
-  --wb-success: #C9C9D2;
-  --wb-danger: #E06858;
-  --wb-hover: #1E1E21;
-  --wb-raised: #1E1E21;
-
-  /* Legacy aliases used in a few components */
-  --wb-accent-amber: var(--wb-accent);
-  --wb-accent-amber-light: var(--wb-accent-light);
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-accent: var(--wb-accent);
-  --color-border: var(--wb-border);
-  --color-surface: var(--wb-surface);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
-
-  /* Night Blueprint palette, shared with apps/landing. Defined near the bottom
-     of this file; surfaced here so utilities like `bg-ink-850` exist. */
-  --color-ink-950: var(--ink-950);
-  --color-ink-900: var(--ink-900);
-  --color-ink-850: var(--ink-850);
-  --color-ink-800: var(--ink-800);
-  --color-ink-750: var(--ink-750);
-  --color-ink-700: var(--ink-700);
-  --color-ink-600: var(--ink-600);
-  --color-ink-500: var(--ink-500);
-  --color-ink-400: var(--ink-400);
-  --color-ink-300: var(--ink-300);
-  --color-sky-600: var(--sky-600);
-  --color-sky-500: var(--sky-500);
-  --color-sky-400: var(--sky-400);
-  --color-sky-300: var(--sky-300);
-  --color-sky-200: var(--sky-200);
-  --color-steel: var(--steel);
-  --color-mist: var(--mist);
-  --color-frost: var(--frost);
-  --color-stroke: var(--stroke);
-  --color-stroke-strong: var(--stroke-strong);
-  --color-soft: var(--text-soft);
-  --color-faint: var(--text-faint);
-  --color-danger: var(--danger);
-  --font-mono-accent: "DM Mono", ui-monospace, monospace;
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* ── Entrance animations (ease-out-expo) ── */
-
-@keyframes wb-fade-in {
-  from {
-    opacity: 0;
-    transform: scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes wb-slide-down {
-  from {
-    opacity: 0;
-    transform: translateY(-1.25rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes wb-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(1.25rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes wb-bubble-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* ── State animations ── */
-
-@keyframes wb-pulse-amber {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.45;
-    transform: scale(1.25);
-  }
-}
-
-@keyframes wb-glow-blue {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(201, 201, 210, 0.45);
-  }
-  50% {
-    box-shadow: 0 0 0 5px rgba(201, 201, 210, 0);
-  }
-}
-
-@keyframes wb-breathe {
-  0%, 100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
-/* ── Animation utilities ── */
-
-.animate-wb-fade-in {
-  animation: wb-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.animate-wb-slide-down {
-  animation: wb-slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.animate-wb-slide-up {
-  animation: wb-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.animate-wb-bubble-fade {
-  animation: wb-bubble-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.animate-wb-pulse-amber {
-  animation: wb-pulse-amber 1.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
-
-.animate-wb-glow-blue {
-  animation: wb-glow-blue 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
-
-.animate-wb-breathe {
-  animation: wb-breathe 4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
-
-/* ══════════════════════════════════════════════════════════════════════
-   WHITEBOARD FRAME — a machined bezel resting on the deck
-
-   Same language as the pedestal buttons: a lit cap with a darker base
-   showing beneath it, so the whole board reads as an object sitting on a
-   surface rather than an image pasted onto one. The base is a hard stop in
-   the bezel gradient (no extra box, so the measured frame size that drives
-   `useBoardViewport` is untouched) and the contact shadow is pure
-   `box-shadow`, which never affects layout either.
-   ══════════════════════════════════════════════════════════════════════ */
-
-.wb-frame {
-  --bezel: 16px;
-  --bezel-lip: 9px;
-  --bezel-radius: 14px;
-
-  border-radius: var(--bezel-radius);
-  background:
-    /* Bevelled side walls: light catches the left edge, the right falls away. */
-    linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.07) 0,
-      transparent 18px,
-      transparent calc(100% - 18px),
-      rgba(0, 0, 0, 0.3) 100%
-    ),
-    /* Brushed face, with the base ledge cut in as a hard stop near the foot. */
-    linear-gradient(
-      180deg,
-      #43434C 0,
-      #33333A 5px,
-      #26262C 38%,
-      #1C1C21 calc(100% - var(--bezel-lip)),
-      #0D0D10 calc(100% - var(--bezel-lip)),
-      #08080A 100%
-    );
-  box-shadow:
-    /* Cut from a block: dark rim, lit top arris, shaded bottom arris. */
-    0 0 0 1px #050506,
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 1px 0 0 rgba(255, 255, 255, 0.05),
-    inset -1px 0 0 rgba(0, 0, 0, 0.5),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.7),
-    /* One soft, wide drop — the landing page's shadow language. No tight
-       contact line, so the board floats instead of being stamped onto the deck. */
-    0 28px 64px -32px rgba(3, 11, 18, 0.62);
-}
-
-/* The recess the writing surface drops into. */
-.wb-frame::before {
-  content: "";
-  position: absolute;
-  inset: calc(var(--bezel) - 5px);
-  border-radius: 7px;
-  pointer-events: none;
-  z-index: 0;
-  box-shadow:
-    inset 0 3px 7px rgba(0, 0, 0, 0.55),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.55);
-}
-
-/* Specular sweep across the top of the bezel, plus the inner hairline. */
-.wb-frame::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: 1;
-  background: linear-gradient(
-    104deg,
-    transparent 12%,
-    rgba(255, 255, 255, 0.05) 28%,
-    rgba(255, 255, 255, 0.09) 34%,
-    transparent 48%
-  );
-  box-shadow: inset 0 0 0 1px rgba(240, 246, 252, 0.045);
-}
-
-/* Writing surface stays light for marker contrast */
-.wb-surface {
-  top: var(--bezel);
-  left: var(--bezel);
-  right: var(--bezel);
-  bottom: var(--bezel);
-  border-radius: 5px;
-  background: linear-gradient(180deg, #FFFFFF 0%, #F4F7FA 100%);
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.07),
-    inset 0 2px 3px rgba(0, 0, 0, 0.07),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.9);
-}
-
-@media (max-width: 640px) {
-  .wb-frame {
-    --bezel: 10px;
-    --bezel-lip: 6px;
-    --bezel-radius: 11px;
-
-    background:
-      linear-gradient(
-        90deg,
-        rgba(255, 255, 255, 0.06) 0,
-        transparent 12px,
-        transparent calc(100% - 12px),
-        rgba(0, 0, 0, 0.28) 100%
-      ),
-      linear-gradient(
-        180deg,
-        #43434C 0,
-        #33333A 3px,
-        #26262C 38%,
-        #1C1C21 calc(100% - var(--bezel-lip)),
-        #0D0D10 calc(100% - var(--bezel-lip)),
-        #08080A 100%
-      );
-    box-shadow:
-      0 0 0 1px #050506,
-      inset 0 1px 0 rgba(255, 255, 255, 0.14),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.65),
-      0 18px 40px -22px rgba(3, 11, 18, 0.58);
-  }
-  .wb-frame::before {
-    inset: calc(var(--bezel) - 3px);
-    border-radius: 6px;
-  }
-}
-
-@media (max-width: 380px) {
-  .wb-frame {
-    --bezel-radius: 9px;
-  }
-}
-
-/* ── Paper input focus state ── */
-
-.wb-input-wrap {
-  transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.wb-input-wrap:focus-within {
-  border-color: rgba(201, 201, 210, 0.45) !important;
-  box-shadow: 0 4px 24px -2px rgba(201, 201, 210, 0.12) !important;
-}
-
-/* ── Paper input placeholder ── */
-
-.wb-paper-input {
-  color: var(--wb-text-primary);
-}
-
-.wb-paper-input::placeholder {
-  color: var(--wb-text-tertiary);
-  font-style: italic;
-}
-
-.board-sidebar [data-delete-btn] {
-  pointer-events: auto;
-}
-
-@media (hover: none) {
-  .board-sidebar [data-delete-btn] {
-    opacity: 0.55 !important;
-  }
-}
-
-/* ── Reduced motion ── */
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-wb-fade-in,
-  .animate-wb-slide-down,
-  .animate-wb-slide-up,
-  .animate-wb-bubble-fade {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-
-  .animate-wb-pulse-amber,
-  .animate-wb-glow-blue,
-  .animate-wb-breathe {
-    animation: none !important;
-  }
-}
-
-/* ── Thinking progress bar ── */
-
-@keyframes wb-progress-sweep {
-  0% {
-    left: -40%;
-  }
-  100% {
-    left: 100%;
-  }
-}
-
-.wb-progress-bar {
-  position: absolute;
-  top: 0;
-  left: -40%;
-  height: 100%;
-  width: 40%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(201, 201, 210, 0.55) 50%,
-    transparent 100%
-  );
-  animation: wb-progress-sweep 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wb-progress-bar {
-    animation: none !important;
-  }
-}
-
-/* Lecture scrub bar. The filled part is what has been taught and can be
-   revisited; during a live lecture the track ends at the live edge, so there is
-   no unfilled "future" to drag into. */
-.replay-slider {
-  --replay-progress: 0%;
-  touch-action: none;
-  background:
-    linear-gradient(
-      to right,
-      var(--replay-fill, #5FA4F9) 0%,
-      var(--replay-fill, #5FA4F9) var(--replay-progress),
-      rgba(255, 255, 255, 0.25) var(--replay-progress),
-      rgba(255, 255, 255, 0.25) 100%
-    );
-}
-
-.replay-slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 13px;
-  height: 13px;
-  border-radius: 9999px;
-  background: var(--replay-fill, #5FA4F9);
-  border: 2px solid rgba(255, 255, 255, 0.92);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-  cursor: pointer;
-}
-
-.replay-slider::-moz-range-thumb {
-  width: 13px;
-  height: 13px;
-  border-radius: 9999px;
-  background: var(--replay-fill, #5FA4F9);
-  border: 2px solid rgba(255, 255, 255, 0.92);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-  cursor: pointer;
-}
-
-.replay-slider:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.75);
-  outline-offset: 3px;
-}
-
 /* ═══════════════════════════════════════════════════════════════════════
-   ACCELUTE — "Night Blueprint" (shared with apps/landing)
+   ACCELUTE — "Night Blueprint"
 
-   Ported from apps/landing/src/index.css so admin surfaces read as the same
-   product as the marketing site. Kept deliberately additive: the `--wb-*`
-   whiteboard tokens above are untouched, and page-level styling (background,
-   headings, scrollbar) only applies inside `.site-theme`. A component opts in
-   by using these classes; nothing else in the tutor app changes.
+   The single palette for the whole product. This file and
+   `apps/landing/src/index.css` describe the same theme in the two Tailwind
+   dialects (v4 `@theme` here, v3 config there) — a colour, a type step, a
+   surface, or a button variant must exist in both or in neither.
+
+     ink-850  #0D2231   background / primary surface
+     ink-750  #182D47   dark button base
+     sky-500  #59AFD4   the accent light
+     sky-200  #CCE6F1   pale accent / key metric
+     steel    #608B9D   cool mid grey-blue
+     mist     #ABC9D5   light neutral
+     frost    #F0F5F7   primary text on navy
+     blue     #5FA4F9   Accelute primary
+
+   ── LAYERS ────────────────────────────────────────────────────────────
+     1. Primitives      raw palette, mirrored from the landing
+     2. Semantics       what a colour is *for* (surface, text, border, …)
+     3. @theme          the same set handed to Tailwind as utilities
+     4. Base            html / body / scrollbars / selection
+     5. Type scale      .type-*
+     6. Surfaces        .glass, .card-*, .rim-sky, .rule-glow
+     7. Buttons         the pedestal system, .btn / .btn-plain
+     8. Atmosphere      .fx-*, .text-ice, .metal-frame
+     9. Whiteboard      .wb-* — tutor-only hardware, on the same palette
+    10. Motion          keyframes + reveal
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* ── 1. PRIMITIVES ─────────────────────────────────────────────────── */
+
 :root {
+  /* Ink — the deep navy canvas */
   --ink-950: #06121c;
   --ink-900: #0a1b27;
   --ink-850: #0d2231;
@@ -460,12 +44,16 @@ body {
   --ink-500: #3b5362;
   --ink-400: #5d6c7b;
   --ink-300: #758696;
+  --ink-200: #8797a0;
 
+  /* Sky — the accent light */
+  --sky-700: #2e7ca3;
   --sky-600: #3e8fb4;
   --sky-500: #59afd4;
   --sky-400: #7fc4e2;
   --sky-300: #a5d6ec;
   --sky-200: #cce6f1;
+  --sky-100: #e4f2f9;
 
   --steel: #608b9d;
   --mist: #abc9d5;
@@ -473,14 +61,130 @@ body {
   --blue: #5fa4f9;
   --blue-deep: #2563eb;
 
+  /* Hairlines, glass and text alphas */
   --stroke: rgba(202, 229, 241, 0.13);
   --stroke-strong: rgba(202, 229, 241, 0.26);
   --glass-1: rgba(255, 255, 255, 0.035);
   --glass-2: rgba(255, 255, 255, 0.06);
   --text-soft: rgba(240, 245, 247, 0.68);
   --text-faint: rgba(240, 245, 247, 0.42);
+
+  /* Status — the only hues allowed off the blue axis */
   --danger: #e06858;
+  --warning: #e8913a;
+  --success: #4caf7d;
 }
+
+/* ── 2. SEMANTICS ──────────────────────────────────────────────────────
+   What a colour is *for*. Components reference these, never a raw hex, so
+   a palette change is a change to this block alone.
+
+   The `--wb-*` names predate the palette and are kept as the whiteboard
+   app's vocabulary; they now resolve to Night Blueprint, so any component
+   still reading one is already on-theme.
+   ───────────────────────────────────────────────────────────────────── */
+
+:root {
+  --background: var(--ink-950);
+  --foreground: var(--frost);
+
+  /* Surfaces, darkest to lightest */
+  --wb-bg: var(--ink-950); /* the page itself */
+  --wb-surface: var(--ink-850); /* panels, headers, cards */
+  --wb-raised: var(--ink-700); /* controls sitting on a panel */
+  --wb-hover: var(--ink-600); /* a raised control under the cursor */
+
+  /* Lines */
+  --wb-border: var(--stroke);
+  --wb-border-strong: var(--stroke-strong);
+
+  /* Text, brightest to faintest */
+  --wb-text-primary: var(--frost);
+  --wb-text-secondary: var(--text-soft);
+  --wb-text-tertiary: var(--text-faint);
+
+  /* Accent */
+  --wb-accent: var(--sky-500);
+  --wb-accent-light: var(--sky-400);
+  --wb-accent-soft: rgba(89, 175, 212, 0.12);
+  --wb-cta: var(--sky-500);
+  --wb-cursor-blue: var(--sky-500);
+
+  /* Status */
+  --wb-success: var(--success);
+  --wb-danger: var(--danger);
+
+  /* The writing surface stays paper-white — marker ink needs the contrast. */
+  --wb-paper: #ffffff;
+  --wb-paper-ink: var(--ink-950);
+  --wb-paper-border: var(--stroke);
+  /* The pen's own ink. Chosen against paper, so it is also what any chrome
+     laid over the board has to be drawn in. */
+  --board-ink: #1b2a4a;
+  --board-ink-soft: rgba(27, 42, 74, 0.62);
+
+  /* Legacy aliases kept for a few components still naming the old accent. */
+  --wb-accent-amber: var(--wb-accent);
+  --wb-accent-amber-light: var(--wb-accent-light);
+}
+
+/* ── 3. @theme — the palette as Tailwind utilities ─────────────────── */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--wb-surface);
+  --color-raised: var(--wb-raised);
+  --color-accent: var(--wb-accent);
+  --color-border: var(--wb-border);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
+  --font-heading: "Stack Sans Notch", ui-sans-serif, system-ui, sans-serif;
+  --font-hand: var(--font-caveat), "Apple Chancery", "Segoe Script", cursive;
+  --font-mono-accent: "DM Mono", ui-monospace, monospace;
+
+  --color-ink-950: var(--ink-950);
+  --color-ink-900: var(--ink-900);
+  --color-ink-850: var(--ink-850);
+  --color-ink-800: var(--ink-800);
+  --color-ink-750: var(--ink-750);
+  --color-ink-700: var(--ink-700);
+  --color-ink-600: var(--ink-600);
+  --color-ink-500: var(--ink-500);
+  --color-ink-400: var(--ink-400);
+  --color-ink-300: var(--ink-300);
+  --color-ink-200: var(--ink-200);
+
+  --color-sky-700: var(--sky-700);
+  --color-sky-600: var(--sky-600);
+  --color-sky-500: var(--sky-500);
+  --color-sky-400: var(--sky-400);
+  --color-sky-300: var(--sky-300);
+  --color-sky-200: var(--sky-200);
+  --color-sky-100: var(--sky-100);
+
+  --color-steel: var(--steel);
+  --color-mist: var(--mist);
+  --color-frost: var(--frost);
+  --color-brand: var(--blue);
+
+  --color-stroke: var(--stroke);
+  --color-stroke-strong: var(--stroke-strong);
+  --color-soft: var(--text-soft);
+  --color-faint: var(--text-faint);
+
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+
+  --shadow-glow: 0 0 0 1px rgba(89, 175, 212, 0.3), 0 18px 50px -18px rgba(89, 175, 212, 0.55);
+  --shadow-lift: 0 28px 70px -34px rgba(3, 11, 18, 0.95);
+}
+
+/* ── Fonts ─────────────────────────────────────────────────────────────
+   Inter / Fraunces / Caveat arrive through next/font in app/layout.tsx.
+   These two are local, and are the same files the landing serves. */
 
 @font-face {
   font-family: "Stack Sans Notch";
@@ -506,44 +210,195 @@ body {
   font-display: swap;
 }
 
+/* ── 4. BASE ───────────────────────────────────────────────────────────
+   Identical to the landing's base layer, applied to the document rather
+   than to an opt-in wrapper — the tutor is the same product, so the page
+   ground, the scrollbars and the selection colour are not a per-screen
+   decision. `.site-theme` is kept as a no-op marker for the surfaces that
+   already opt in (admin drawers and dialogs mounted in portals).
+   ───────────────────────────────────────────────────────────────────── */
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background: var(--ink-950);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: "Stack Sans Notch", ui-sans-serif, system-ui, sans-serif;
+}
+
+::selection {
+  background: rgba(89, 175, 212, 0.32);
+  color: var(--frost);
+}
+
+* {
+  scrollbar-color: var(--ink-600) transparent;
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--ink-900);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--ink-600);
+  border-radius: 999px;
+  border: 2px solid var(--ink-900);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--steel);
+}
+
 @layer components {
-  /* ── The opt-in page shell ── */
+  /* A portalled surface that needs the page ground restated (dialogs,
+     sheets and drawers render outside the app's own background). */
   .site-theme {
     background: var(--ink-950);
     color: var(--frost);
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    scrollbar-color: var(--ink-600) transparent;
-    scrollbar-width: thin;
-  }
-  .site-theme ::selection {
-    background: rgba(89, 175, 212, 0.32);
-    color: var(--frost);
-  }
-  .site-theme *::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-  .site-theme *::-webkit-scrollbar-track {
-    background: var(--ink-900);
-  }
-  .site-theme *::-webkit-scrollbar-thumb {
-    background: var(--ink-600);
-    border-radius: 999px;
-    border: 2px solid var(--ink-900);
-  }
-  .site-theme *::-webkit-scrollbar-thumb:hover {
-    background: var(--steel);
-  }
-  .site-theme h1,
-  .site-theme h2,
-  .site-theme h3,
-  .site-theme h4 {
-    font-family: "Stack Sans Notch", ui-sans-serif, system-ui, sans-serif;
   }
 
-  /* -- Brand lockup ------------------------------------------------------
-     Mark + wordmark, one ink, no container. Mirrored verbatim in apps/landing/src/index.css
-     -- change both together. Size rides on --brand-size. */
+  /* ── 5. TYPE SCALE ─────────────────────────────────────────────────
+     Ported 1:1 from the landing. Headlines and the mono accent are the
+     brand's voice; body text is Inter at four steps.
+     ───────────────────────────────────────────────────────────────── */
+
+  .type-h1 {
+    font-family: "Stack Sans Notch", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.015em;
+    font-size: 40px;
+    font-weight: 500;
+    line-height: 46px;
+  }
+  @media (min-width: 640px) {
+    .type-h1 {
+      font-size: 48px;
+      line-height: 56px;
+    }
+  }
+  @media (min-width: 1024px) {
+    .type-h1 {
+      font-size: 60px;
+      line-height: 68px;
+    }
+  }
+
+  .type-h2 {
+    font-family: "Stack Sans Notch", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.015em;
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 38px;
+  }
+  @media (min-width: 640px) {
+    .type-h2 {
+      font-size: 38px;
+      line-height: 46px;
+    }
+  }
+  @media (min-width: 1024px) {
+    .type-h2 {
+      font-size: 44px;
+      line-height: 52px;
+    }
+  }
+
+  .type-h3 {
+    font-family: "Stack Sans Notch", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.015em;
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 28px;
+  }
+
+  .type-body-l {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 26px;
+  }
+  @media (min-width: 1024px) {
+    .type-body-l {
+      font-size: 20px;
+      line-height: 28px;
+    }
+  }
+
+  .type-body-m {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 24px;
+  }
+
+  .type-body-s {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 14px;
+  }
+
+  /*
+     Labels are set in the mono face but NOT in caps. All-caps is reserved for
+     the button and brand scale below, where it is the landing's signature; a
+     UI where every eyebrow, chip and section header also shouts just reads as
+     noise. Tracking is tight to match, since lowercase does not need the
+     optical air that uppercase does.
+  */
+  .type-accent-m {
+    font-family: "DM Mono", ui-monospace, monospace;
+    letter-spacing: 0.01em;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 20px;
+  }
+
+  .type-accent-s {
+    font-family: "DM Mono", ui-monospace, monospace;
+    letter-spacing: 0.01em;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 15px;
+  }
+
+  .type-accent-xs {
+    font-family: "DM Mono", ui-monospace, monospace;
+    letter-spacing: 0.015em;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 13px;
+  }
+
+  .type-button {
+    font-family: "DM Mono", ui-monospace, monospace;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 16px;
+  }
+
+  /* -- Brand lockup ----------------------------------------------------
+     Mark + wordmark, one ink, no container. Mirrored verbatim in
+     apps/landing/src/index.css -- change both together. Size rides on
+     --brand-size. */
   .brand {
     --brand-size: 20px;
     --brand-word: 17px;
@@ -593,52 +448,11 @@ body {
     color: var(--sky-200);
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    a.brand {
-      transition: none;
-    }
-  }
+  /* ── 6. SURFACES ───────────────────────────────────────────────────
+     Three ways to sit something on the navy: sheer glass, a deep pane, or
+     glass with the accent lighting its rim.
+     ───────────────────────────────────────────────────────────────── */
 
-  /* ── Type scale ── */
-  .type-h2 {
-    font-family: "Stack Sans Notch", ui-sans-serif, system-ui, sans-serif;
-    letter-spacing: -0.015em;
-    font-size: 32px;
-    font-weight: 400;
-    line-height: 38px;
-  }
-  .type-body-s {
-    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 14px;
-  }
-  .type-accent-s {
-    font-family: "DM Mono", ui-monospace, monospace;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 14px;
-  }
-  .type-accent-xs {
-    font-family: "DM Mono", ui-monospace, monospace;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    font-size: 10px;
-    font-weight: 500;
-    line-height: 12px;
-  }
-  .type-button {
-    font-family: "DM Mono", ui-monospace, monospace;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 16px;
-  }
-
-  /* ── Glass surfaces ── */
   .glass {
     --glass-border: var(--stroke);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
@@ -649,6 +463,7 @@ body {
     backdrop-filter: blur(14px) saturate(140%);
     -webkit-backdrop-filter: blur(14px) saturate(140%);
   }
+
   .glass-deep {
     --glass-border: var(--stroke);
     background: linear-gradient(180deg, rgba(18, 42, 57, 0.86) 0%, rgba(10, 27, 39, 0.92) 100%);
@@ -659,6 +474,7 @@ body {
     backdrop-filter: blur(16px) saturate(135%);
     -webkit-backdrop-filter: blur(16px) saturate(135%);
   }
+
   .glass-sky {
     --glass-border: rgba(89, 175, 212, 0.34);
     box-shadow:
@@ -667,6 +483,24 @@ body {
       0 26px 64px -30px rgba(3, 11, 18, 0.95),
       0 0 60px -24px rgba(89, 175, 212, 0.45);
   }
+
+  /* Interactive lift for cards */
+  .card-lift {
+    transition:
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.45s ease,
+      box-shadow 0.45s ease;
+  }
+  .card-lift:hover {
+    transform: translateY(-4px);
+    --glass-border: var(--stroke-strong);
+    border-color: var(--stroke-strong);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
+      0 36px 80px -34px rgba(3, 11, 18, 0.98);
+  }
+
+  /* A one-pixel sky rim that lights the top edge of a card */
   .rim-sky {
     position: relative;
   }
@@ -679,6 +513,8 @@ body {
     background: linear-gradient(90deg, transparent, rgba(89, 175, 212, 0.55), transparent);
     pointer-events: none;
   }
+
+  /* Section divider that glows in the middle */
   .rule-glow {
     height: 1px;
     border: 0;
@@ -691,34 +527,14 @@ body {
       transparent
     );
   }
-  .text-ice {
-    background: linear-gradient(102deg, #f0f5f7 0%, #cce6f1 38%, #7fc4e2 68%, #59afd4 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
 
-  /* ── Atmosphere ── */
-  .fx-aurora-soft {
-    background:
-      radial-gradient(80% 50% at 50% 0%, rgba(89, 175, 212, 0.1) 0%, transparent 60%),
-      linear-gradient(180deg, #06121c 0%, #0a1b27 50%, #06121c 100%);
-  }
-  .fx-grid-fine {
-    background-image:
-      linear-gradient(to right, rgba(202, 229, 241, 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(202, 229, 241, 0.04) 1px, transparent 1px);
-    background-size: 32px 32px;
-    -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
-    mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
-  }
+  /* ── 7. PEDESTAL BUTTON ────────────────────────────────────────────
+     A cap resting on a slightly taller base. The strip of base still
+     showing under the cap reads as the shadow; pressing drops the cap by
+     exactly that strip, so the outer box never moves and nothing reflows.
+     Pair `.btn` with a variant and a size.
+     ───────────────────────────────────────────────────────────────── */
 
-  /* ═════════════════════════════════════════════════════════════════════
-     PEDESTAL BUTTON — a cap resting on a slightly taller base. The strip of
-     base still showing under the cap reads as the shadow; pressing drops the
-     cap by exactly that strip, so the outer box never moves and nothing
-     reflows. Pair `.btn` with a variant and a size.
-     ═════════════════════════════════════════════════════════════════════ */
   .btn {
     --btn-h: 42px;
     --btn-px: 20px;
@@ -764,6 +580,8 @@ body {
       padding-bottom 220ms cubic-bezier(0.2, 0.9, 0.25, 1);
   }
 
+  /* The cap. One border-width proud on three sides, so it hides the base's
+     outline everywhere except along the lip. */
   .btn::before {
     content: "";
     position: absolute;
@@ -786,6 +604,7 @@ body {
     --btn-press: -1px;
     --btn-cap: var(--btn-cap-hi);
   }
+  /* Press: snap down hard and fast, ease back up on release. */
   .btn:active {
     --btn-press: var(--btn-lift);
   }
@@ -805,6 +624,7 @@ body {
     pointer-events: none;
   }
 
+  /* ── sizes ── */
   .btn-xs {
     --btn-h: 26px;
     --btn-px: 10px;
@@ -829,12 +649,21 @@ body {
     --btn-lift: 7px;
     --btn-fs: 14px;
   }
+  .btn-lg {
+    --btn-h: 50px;
+    --btn-px: 26px;
+    --btn-r: 13px;
+    --btn-bw: 1.5px;
+    --btn-lift: 8px;
+    --btn-fs: 15px;
+  }
   .btn-block {
     display: flex;
     width: 100%;
   }
 
-  /* Flat face for dense inline controls — same palette, no pedestal. */
+  /* Flat face for dense inline and icon-only controls — same palette, no
+     pedestal. Pair it with a variant and size it with utilities. */
   .btn-plain {
     display: inline-flex;
     align-items: center;
@@ -865,12 +694,15 @@ body {
     outline: 2px solid var(--btn-ring);
     outline-offset: 2px;
   }
-  .btn-plain:disabled {
+  .btn-plain:disabled,
+  .btn-plain[aria-disabled="true"] {
     opacity: 0.45;
     pointer-events: none;
   }
 
   /* ── variants ── */
+
+  /* Frost keycap — the highest-contrast face on navy. Primary CTA. */
   .btn-ice {
     --btn-cap: var(--frost);
     --btn-cap-hi: #ffffff;
@@ -880,6 +712,8 @@ body {
     --btn-ring: rgba(240, 245, 247, 0.6);
     --btn-gloss: 0.9;
   }
+
+  /* The sky accent. */
   .btn-sky {
     --btn-cap: var(--sky-500);
     --btn-cap-hi: var(--sky-400);
@@ -889,6 +723,8 @@ body {
     --btn-ring: rgba(89, 175, 212, 0.6);
     --btn-gloss: 0.5;
   }
+
+  /* A raised slab of the navy itself. Secondary CTA and most tutor chrome. */
   .btn-ghost {
     --btn-cap: var(--ink-700);
     --btn-cap-hi: var(--ink-600);
@@ -898,6 +734,7 @@ body {
     --btn-ring: rgba(202, 229, 241, 0.45);
     --btn-gloss: 0.07;
   }
+
   /* Quiet face for destructive inline actions. */
   .btn-danger {
     --btn-cap: rgba(224, 104, 88, 0.16);
@@ -912,8 +749,790 @@ body {
   @media (prefers-reduced-motion: reduce) {
     .btn,
     .btn::before,
-    .btn-plain {
+    .btn-plain,
+    a.brand {
       transition: none;
     }
+  }
+
+  /* ── 8. ATMOSPHERE ─────────────────────────────────────────────────
+     The navy is never flat: a wash of sky over it, a fine blueprint grid,
+     grain to kill the banding.
+     ───────────────────────────────────────────────────────────────── */
+
+  /* Aurora: layered sky-blue glows over the navy gradient. */
+  .fx-aurora {
+    background:
+      radial-gradient(120% 78% at 50% -8%, rgba(89, 175, 212, 0.3) 0%, rgba(89, 175, 212, 0.1) 34%, transparent 66%),
+      radial-gradient(62% 46% at 10% 6%, rgba(95, 164, 249, 0.2) 0%, transparent 62%),
+      radial-gradient(58% 44% at 92% 2%, rgba(204, 230, 241, 0.13) 0%, transparent 60%),
+      radial-gradient(90% 60% at 50% 108%, rgba(37, 99, 235, 0.16) 0%, transparent 62%),
+      linear-gradient(180deg, #0d2231 0%, #0a1b27 58%, #06121c 100%);
+  }
+
+  /* A quieter aurora for full-height app shells. */
+  .fx-aurora-soft {
+    background:
+      radial-gradient(80% 50% at 50% 0%, rgba(89, 175, 212, 0.1) 0%, transparent 60%),
+      linear-gradient(180deg, #06121c 0%, #0a1b27 50%, #06121c 100%);
+  }
+
+  /* Blueprint grid, faded out downward. */
+  .fx-grid-fine {
+    background-image:
+      linear-gradient(to right, rgba(202, 229, 241, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(202, 229, 241, 0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
+    mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
+  }
+
+  /* The landing's dot pitch, for surfaces that want the graph-paper read. */
+  .fx-grid-dots {
+    background-image: radial-gradient(rgba(202, 229, 241, 0.14) 1px, transparent 1px);
+    background-size: 8px 8px;
+  }
+
+  /* Film grain — kills gradient banding on the big navy fields. */
+  .fx-grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.4;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
+  }
+
+  /* Ice gradient text for the emphasised half of a headline. */
+  .text-ice {
+    background: linear-gradient(102deg, #f0f5f7 0%, #cce6f1 38%, #7fc4e2 68%, #59afd4 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-sky-fade {
+    background: linear-gradient(180deg, #f0f5f7 0%, #a9bcc7 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Nav / tab links: a sky rule wipes in from the left rather than
+     snapping on, so the chrome eases like everything else. */
+  .nav-link {
+    position: relative;
+  }
+  .nav-link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -5px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--sky-500), rgba(89, 175, 212, 0));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .nav-link:hover::after,
+  .nav-link:focus-visible::after {
+    transform: scaleX(1);
+  }
+
+  /* The bezel language, shared with the landing's use-case stage: a cool
+     navy brushed face, a lit top edge, a hairline ring. */
+  .metal-frame {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(202, 229, 241, 0.05) 0%,
+        transparent 22%,
+        transparent 84%,
+        rgba(3, 11, 18, 0.3) 100%
+      ),
+      linear-gradient(150deg, #16303f 0%, #142c3b 45%, #102534 100%);
+    box-shadow:
+      0 34px 80px -34px rgba(3, 11, 18, 0.75),
+      0 0 0 1px rgba(202, 229, 241, 0.1),
+      inset 0 1px 0 rgba(202, 229, 241, 0.07);
+  }
+  .metal-frame::before {
+    content: "";
+    position: absolute;
+    inset-inline: 8%;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(202, 229, 241, 0.55), transparent);
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nav-link::after {
+      transition: none;
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   9. WHITEBOARD — the tutor's own hardware
+
+   The board is the one physical object in the product. It is machined out
+   of the same navy the page is: a lit cap over a darker base, exactly the
+   pedestal button's language at furniture scale, so the board reads as
+   sitting on the deck rather than pasted onto it.
+
+   The base is a hard stop in the bezel gradient (no extra box, so the
+   measured frame size that drives `useBoardViewport` is untouched) and the
+   contact shadow is pure `box-shadow`, which never affects layout either.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.wb-frame {
+  --bezel: 16px;
+  --bezel-lip: 9px;
+  --bezel-radius: 14px;
+
+  border-radius: var(--bezel-radius);
+  background:
+    /* Bevelled side walls: light catches the left edge, the right falls away. */
+    linear-gradient(
+      90deg,
+      rgba(202, 229, 241, 0.07) 0,
+      transparent 18px,
+      transparent calc(100% - 18px),
+      rgba(3, 11, 18, 0.34) 100%
+    ),
+    /* Brushed navy face, with the base ledge cut in as a hard stop near the foot. */
+    linear-gradient(
+      180deg,
+      #2c4a5e 0,
+      #223b4d 5px,
+      #16303f 38%,
+      #102534 calc(100% - var(--bezel-lip)),
+      #081722 calc(100% - var(--bezel-lip)),
+      #050f18 100%
+    );
+  box-shadow:
+    /* Cut from a block: dark rim, lit top arris, shaded bottom arris. */
+    0 0 0 1px #030b12,
+    inset 0 1px 0 rgba(202, 229, 241, 0.18),
+    inset 1px 0 0 rgba(202, 229, 241, 0.06),
+    inset -1px 0 0 rgba(3, 11, 18, 0.55),
+    inset 0 -1px 0 rgba(3, 11, 18, 0.75),
+    /* One soft, wide drop — the landing page's shadow language. No tight
+       contact line, so the board floats instead of being stamped onto the deck. */
+    0 28px 64px -32px rgba(3, 11, 18, 0.75);
+}
+
+/* The recess the writing surface drops into. */
+.wb-frame::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--bezel) - 5px);
+  border-radius: 7px;
+  pointer-events: none;
+  z-index: 0;
+  box-shadow:
+    inset 0 3px 7px rgba(3, 11, 18, 0.6),
+    inset 0 -1px 0 rgba(202, 229, 241, 0.05),
+    inset 0 0 0 1px rgba(3, 11, 18, 0.6);
+}
+
+/* Specular sweep across the top of the bezel, plus the inner hairline. */
+.wb-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    104deg,
+    transparent 12%,
+    rgba(202, 229, 241, 0.05) 28%,
+    rgba(202, 229, 241, 0.1) 34%,
+    transparent 48%
+  );
+  box-shadow: inset 0 0 0 1px rgba(202, 229, 241, 0.06);
+}
+
+/* Writing surface stays light for marker contrast */
+.wb-surface {
+  top: var(--bezel);
+  left: var(--bezel);
+  right: var(--bezel);
+  bottom: var(--bezel);
+  border-radius: 5px;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f7fa 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(3, 11, 18, 0.08),
+    inset 0 2px 3px rgba(3, 11, 18, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.9);
+}
+
+@media (max-width: 640px) {
+  .wb-frame {
+    --bezel: 10px;
+    --bezel-lip: 6px;
+    --bezel-radius: 11px;
+
+    background:
+      linear-gradient(
+        90deg,
+        rgba(202, 229, 241, 0.06) 0,
+        transparent 12px,
+        transparent calc(100% - 12px),
+        rgba(3, 11, 18, 0.3) 100%
+      ),
+      linear-gradient(
+        180deg,
+        #2c4a5e 0,
+        #223b4d 3px,
+        #16303f 38%,
+        #102534 calc(100% - var(--bezel-lip)),
+        #081722 calc(100% - var(--bezel-lip)),
+        #050f18 100%
+      );
+    box-shadow:
+      0 0 0 1px #030b12,
+      inset 0 1px 0 rgba(202, 229, 241, 0.16),
+      inset 0 -1px 0 rgba(3, 11, 18, 0.7),
+      0 18px 40px -22px rgba(3, 11, 18, 0.7);
+  }
+  .wb-frame::before {
+    inset: calc(var(--bezel) - 3px);
+    border-radius: 6px;
+  }
+}
+
+@media (max-width: 380px) {
+  .wb-frame {
+    --bezel-radius: 9px;
+  }
+}
+
+/* A slow sheen crossing a bezel, so the metal is never completely static. */
+.metal-sheen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.metal-sheen::after {
+  content: "";
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 14%;
+  transform: translateX(-120%);
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(202, 229, 241, 0.07) 42%,
+    rgba(127, 196, 226, 0.11) 52%,
+    transparent
+  );
+  filter: blur(6px);
+  animation: metal-sheen 13s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* ── Board scrims ──────────────────────────────────────────────────────
+   The board is a whiteboard. A curtain over it frosts the paper rather than
+   blacking it out: the surface stays legible as paper underneath, and the
+   chrome on top switches to the pen's own ink. This is the landing's light
+   band (`.band-light` carrying `.card-light`) at board scale — a pale ground
+   holding dark content — instead of the screen appearing to switch off.
+   ───────────────────────────────────────────────────────────────────── */
+
+.wb-scrim,
+.wb-scrim-strong {
+  /* Anything inside a scrim is over paper, so it inherits paper's ink. */
+  --progress-ink: rgba(46, 124, 163, 0.85);
+  color: var(--board-ink);
+}
+
+/* Thinking: the board is being planned on, so barely veil it. */
+.wb-scrim {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(226, 236, 243, 0.74) 100%);
+  backdrop-filter: blur(3px) saturate(115%);
+  -webkit-backdrop-filter: blur(3px) saturate(115%);
+}
+
+/* Loading, or written work being pushed back far enough that dark chrome can
+   sit on top of it and still be the subject. */
+.wb-scrim-strong {
+  background: linear-gradient(180deg, rgba(244, 247, 250, 0.88) 0%, rgba(219, 231, 240, 0.93) 100%);
+  backdrop-filter: blur(8px) saturate(115%);
+  -webkit-backdrop-filter: blur(8px) saturate(115%);
+}
+
+.wb-scrim-ink {
+  color: var(--board-ink);
+}
+
+.wb-scrim-ink-soft {
+  color: var(--board-ink-soft);
+}
+
+/* ── Board boot face ───────────────────────────────────────────────────
+   While the Konva chunk loads, the paper must not show. The board reads as
+   switched off: an opaque face in the bezel's own machined navy, a whisper
+   of the blueprint grid, and the sky arc that the on-canvas ThinkingSpinner
+   keeps drawing once the board is live — boot → thinking is one pending
+   family. The face stays mounted and fades out when the board reports
+   ready, so the paper is revealed with no hard cut and no white flash.
+   ───────────────────────────────────────────────────────────────────── */
+
+.wb-boot-face {
+  background:
+    linear-gradient(180deg, rgba(202, 229, 241, 0.045) 0%, transparent 22%),
+    linear-gradient(180deg, #0d2231 0%, #0a1b27 58%, #06121c 100%);
+  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wb-boot-face[data-hidden="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The boot label sits in the mono accent voice, faint like the rest of the
+   chrome's tertiary text. */
+.wb-boot-label {
+  color: var(--text-faint);
+}
+
+/* The arc: 252° sky sweep, round caps, soft glow. The glow is a static
+   drop-shadow on the wrapper; only the inner svg rotates, on its own
+   compositor layer. */
+.wb-boot-arc {
+  display: inline-block;
+  flex-shrink: 0;
+  line-height: 0;
+  vertical-align: middle;
+  filter: drop-shadow(0 0 4px rgba(89, 175, 212, 0.55));
+}
+
+.wb-boot-arc svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform-origin: 50% 50%;
+  animation: wb-boot-spin 1.3s linear infinite;
+  will-change: transform;
+}
+
+@keyframes wb-boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-boot-face {
+    transition: none;
+  }
+  /* The arc stops and breathes instead of spinning — the pen spinner's own
+     degrade, so the static state still reads as alive. */
+  .wb-boot-arc svg {
+    animation: wb-boot-rest 2400ms ease-in-out infinite;
+  }
+}
+
+@keyframes wb-boot-rest {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ── Paper input focus state ── */
+
+/*
+  The Ask panel's handle: a slim tab on the right edge, centred, with a grip so
+  it reads as something to pull rather than a stray sliver of chrome. It widens
+  on hover, which is the whole affordance — a tab that grows toward the cursor
+  says "drag me out" without any copy.
+*/
+.wb-notes-pull {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 39;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 78px;
+  padding: 0;
+  border: 1px solid var(--stroke);
+  border-right: 0;
+  border-radius: 10px 0 0 10px;
+  background: var(--ink-800);
+  cursor: pointer;
+  transition:
+    width 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 180ms ease,
+    border-color 180ms ease;
+}
+
+.wb-notes-pull__grip {
+  width: 2px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--text-faint);
+  transition: background 180ms ease, height 180ms ease;
+}
+
+.wb-notes-pull:hover {
+  width: 24px;
+  background: var(--ink-700);
+  border-color: var(--stroke-strong);
+}
+
+.wb-notes-pull:hover .wb-notes-pull__grip {
+  height: 34px;
+  background: var(--sky-300);
+}
+
+.wb-notes-pull:focus-visible {
+  outline: 2px solid rgba(89, 175, 212, 0.55);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-notes-pull,
+  .wb-notes-pull__grip {
+    transition: none;
+  }
+}
+
+.wb-input-wrap {
+  transition:
+    box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*
+  Focus lights the rim and nothing else. The composer autofocuses on the empty
+  board, so a glow here is not an occasional highlight — it is the permanent
+  state of the first screen, and it hangs a halo behind the bar.
+*/
+.wb-input-wrap:focus-within {
+  border-color: rgba(89, 175, 212, 0.45) !important;
+}
+
+/* ── Paper input placeholder ── */
+
+.wb-paper-input {
+  color: var(--wb-text-primary);
+}
+
+.wb-paper-input::placeholder {
+  color: var(--wb-text-tertiary);
+  font-style: italic;
+}
+
+.board-sidebar [data-delete-btn] {
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .board-sidebar [data-delete-btn] {
+    opacity: 0.55 !important;
+  }
+}
+
+/* ── Thinking progress bar ── */
+
+.wb-progress-bar {
+  position: absolute;
+  top: 0;
+  left: -40%;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--progress-ink, rgba(89, 175, 212, 0.55)) 50%,
+    transparent 100%
+  );
+  animation: wb-progress-sweep 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Lecture scrub bar. The filled part is what has been taught and can be
+   revisited; during a live lecture the track ends at the live edge, so there is
+   no unfilled "future" to drag into. */
+/*
+  A scrub bar sitting at the live edge is a 100%-filled slab, so anything bright
+  here is the loudest thing on the screen for the whole lecture. The fill is a
+  deep sky, the rail recedes into the glass bar it sits in, and the thumb is
+  ringed in the bar's own ground rather than in white. Hover and focus step
+  both up so the control still answers.
+*/
+.replay-slider {
+  --replay-progress: 0%;
+  --replay-rail: rgba(202, 229, 241, 0.1);
+  --replay-thumb: var(--sky-600);
+  touch-action: none;
+  background: linear-gradient(
+    to right,
+    var(--replay-fill, #2e7ca3) 0%,
+    var(--replay-fill, #2e7ca3) var(--replay-progress),
+    var(--replay-rail) var(--replay-progress),
+    var(--replay-rail) 100%
+  );
+}
+
+.replay-slider:hover,
+.replay-slider:focus-visible {
+  --replay-fill: var(--sky-600);
+  --replay-thumb: var(--sky-500);
+}
+
+.replay-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: var(--replay-thumb);
+  border: 2px solid var(--ink-850);
+  cursor: pointer;
+}
+
+.replay-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: var(--replay-thumb);
+  border: 2px solid var(--ink-850);
+  cursor: pointer;
+}
+
+.replay-slider:focus-visible {
+  outline: 2px solid rgba(89, 175, 212, 0.55);
+  outline-offset: 3px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   10. MOTION
+
+   Two families, both easing on the same curves as the landing:
+   `wb-*` are the app's entrance and state animations; the rest are the
+   marketing page's reveal vocabulary, available here so a shared surface
+   animates identically in both apps.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Entrance (ease-out-expo) ── */
+
+@keyframes wb-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes wb-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wb-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wb-bubble-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── State ── */
+
+@keyframes wb-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.25);
+  }
+}
+
+@keyframes wb-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(89, 175, 212, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(89, 175, 212, 0);
+  }
+}
+
+@keyframes wb-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes wb-progress-sweep {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* ── Shared with the landing ── */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes fade-down {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(89, 175, 212, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 12px rgba(89, 175, 212, 0);
+  }
+}
+
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(-2%, 0, 0) scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate3d(2%, -2%, 0) scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(-2%, 0, 0) scale(1);
+    opacity: 0.85;
+  }
+}
+
+@keyframes metal-sheen {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+/* ── Animation utilities ── */
+
+.animate-wb-fade-in {
+  animation: wb-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-wb-slide-down {
+  animation: wb-slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-wb-slide-up {
+  animation: wb-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-wb-bubble-fade {
+  animation: wb-bubble-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-wb-pulse {
+  animation: wb-pulse 1.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+.animate-wb-glow {
+  animation: wb-glow 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+.animate-wb-breathe {
+  animation: wb-breathe 4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+.animate-fade-up {
+  animation: fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-fade-down {
+  animation: fade-down 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-pulse-ring {
+  animation: pulse-ring 2s ease-out infinite;
+}
+.animate-aurora {
+  animation: aurora-drift 18s ease-in-out infinite;
+}
+
+/* ── Reduced motion ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-wb-fade-in,
+  .animate-wb-slide-down,
+  .animate-wb-slide-up,
+  .animate-wb-bubble-fade,
+  .animate-fade-up,
+  .animate-fade-down {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .animate-wb-pulse,
+  .animate-wb-glow,
+  .animate-wb-breathe,
+  .animate-pulse-ring,
+  .animate-aurora,
+  .wb-progress-bar,
+  .metal-sheen::after {
+    animation: none !important;
   }
 }

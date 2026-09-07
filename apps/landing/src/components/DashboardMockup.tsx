@@ -297,33 +297,21 @@ function DashboardChrome({
             }}
           >
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 600,
-                    letterSpacing: '-0.02em',
-                    color: INK,
-                    textTransform: 'capitalize',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {LESSON_TITLE}
-                </span>
-                {/* Live status: the tutor's PenSpinner replaces the old pulse chip. */}
-                {live && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
-                    <PenSpinner
-                      size={17}
-                      ink={ACCENT}
-                      trail={false}
-                      label={snapshot.chip === 'teaching' ? 'teaching…' : 'thinking…'}
-                    />
-                  </span>
-                )}
-              </div>
+              <span
+                style={{
+                  display: 'block',
+                  fontSize: 16,
+                  fontWeight: 600,
+                  letterSpacing: '-0.02em',
+                  color: INK,
+                  textTransform: 'capitalize',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {LESSON_TITLE}
+              </span>
               <p style={{ margin: '3px 0 0', fontSize: 12, color: INK_SOFT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {live ? 'Lesson in progress on the whiteboard' : 'Whiteboard session'}
               </p>
