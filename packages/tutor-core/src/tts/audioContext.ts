@@ -41,6 +41,31 @@ export function releaseLectureAudioContext(ctx: AudioContext | null | undefined)
 }
 
 /**
+ * Hard silence for tab close / pagehide. Firefox often skips React unmount
+ * (bfcache), so AudioContext and speechSynthesis keep talking after the
+ * window is gone. Safe to call more than once.
+ *
+ * Do not use this to stop a single lecture while others are still teaching
+ * on the same page — it closes every lecture graph.
+ */
+export function haltAllLectureAudio(): void {
+  if (typeof window !== "undefined") {
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {
+      // speechSynthesis is best-effort on teardown
+    }
+  }
+  for (const ctx of [...lectureAudioContexts]) {
+    releaseLectureAudioContext(ctx);
+  }
+  if (sharedAudioContext && sharedAudioContext.state !== "closed") {
+    void sharedAudioContext.close().catch(() => undefined);
+  }
+  sharedAudioContext = null;
+}
+
+/**
  * Resume every lecture AudioContext inside a user gesture so a later
  * `TutorSessionShell` mount can decode/schedule TTS without a new suspended context.
  * Also primes HTMLAudio so stored MP3 replay is not autoplay-blocked after board restore.

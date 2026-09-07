@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { TUTOR_VOICE_SETTINGS, TUTOR_VOICE_STYLE_RANGE } from "../../src/tts/voiceSettings";
 import {
   ElevenLabsWebSocketTTSClient,
   shouldCompleteTtsJobAfterSilence,
@@ -57,6 +60,7 @@ class FakeWebSocket {
 class FakeAudioBufferSource {
   buffer: { duration: number } | null = null;
   onended: (() => void) | null = null;
+  playbackRate = { value: 1 };
 
   connect(_destination: unknown): void {}
 
@@ -339,5 +343,49 @@ assert(lectureA !== shared, "a lecture must not reuse the unlock AudioContext");
 assert(lectureB !== lectureA, "concurrent lectures must not share an AudioContext");
 releaseLectureAudioContext(lectureA);
 releaseLectureAudioContext(lectureB);
+
+// --- Both paths to the voice must sound like the same teacher. ---
+{
+  // The WebSocket stream and the HTTP fallback each held their own copy of the
+  // voice settings, so a lesson could change character mid-sentence the moment
+  // the socket dropped. One constant now, and it has to be the one both files
+  // read: a literal reintroduced in either file is the drift this catches.
+  const sources = [
+    readFileSync(resolve(import.meta.dirname, "../../src/tts/elevenLabsClient.ts"), "utf8"),
+    readFileSync(resolve(import.meta.dirname, "../../src/tts/elevenLabsWebSocketClient.ts"), "utf8"),
+  ];
+  assert(
+    sources[1]!.includes("from \"./httpTtsPolicy\"") && !sources[1]!.includes("MAX_HTTP_PREFETCH = 6"),
+    "HTTP prefetch must come from the shared policy, not a local storm of 6",
+  );
+  for (const source of sources) {
+    assert(
+      source.includes("TUTOR_VOICE_SETTINGS"),
+      "both TTS clients must read the shared voice settings",
+    );
+    assert(
+      !/stability:\s*[\d.]+/.test(source),
+      "a TTS client redeclared the voice settings instead of sharing them",
+    );
+  }
+
+  // Expression has to stay inside its working range. Flat delivery over a
+  // minutes-long lesson is what the owner heard as a full stop after every
+  // small thing; over-performing wanders off the cloned voice.
+  assert(
+    TUTOR_VOICE_SETTINGS.style >= TUTOR_VOICE_STYLE_RANGE.min &&
+      TUTOR_VOICE_SETTINGS.style <= TUTOR_VOICE_STYLE_RANGE.max,
+    `voice style ${TUTOR_VOICE_SETTINGS.style} is outside ${TUTOR_VOICE_STYLE_RANGE.min}-${TUTOR_VOICE_STYLE_RANGE.max}`,
+  );
+  assert(
+    TUTOR_VOICE_SETTINGS.similarity_boost >= 0.7,
+    "raising style without similarity_boost lets the timbre drift",
+  );
+  // Generation speed, not playback rate: playback rate shifts pitch.
+  assert(
+    TUTOR_VOICE_SETTINGS.speed > 0.7 && TUTOR_VOICE_SETTINGS.speed <= 1,
+    `voice speed ${TUTOR_VOICE_SETTINGS.speed} is not a teachable pace`,
+  );
+}
 
 console.log("verified websocket fallback and HTTP stop cancellation");

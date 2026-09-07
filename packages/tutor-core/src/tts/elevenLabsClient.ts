@@ -5,6 +5,12 @@ import {
   type TutorVoiceKey,
   type TutorVoicePreferences,
 } from "./voiceLanguage";
+import { TUTOR_VOICE_SETTINGS } from "./voiceSettings";
+import {
+  applyHtmlAudioMute,
+  applyHtmlAudioPlaybackRate,
+  clampPlaybackRate,
+} from "./playbackRate";
 export interface SpeakOptions {
   text: string;
   onStart?: () => void;
@@ -88,6 +94,8 @@ export interface TTSClient {
    * 2.0 = twice as fast. Values below 0.1 are clamped.
    */
   setPlaybackRate(rate: number): void;
+  /** Live playback rate. Writing clocks use this so wall fallback stays in media time. */
+  getPlaybackRate?(): number;
   /**
    * Apply the language/accent and latency choices from Settings. The WebSocket
    * client drops its socket so the next connection uses the new voice.
@@ -104,13 +112,7 @@ interface ElevenLabsClientOptions {
 const LOW_LATENCY_MODEL = "eleven_flash_v2_5";
 
 const DEFAULT_MODEL = "eleven_multilingual_v2";
-const DEFAULT_VOICE_SETTINGS = {
-  stability: 0.4,
-  similarity_boost: 0.75,
-  style: 0.22,
-  use_speaker_boost: true,
-  speed: 0.88,
-};
+const DEFAULT_VOICE_SETTINGS = TUTOR_VOICE_SETTINGS;
 
 /** Insert spaces so `cosθ` and `2θ` tokenize like spoken math. */
 function spaceGreekMathSymbols(text: string): string {
@@ -434,11 +436,6 @@ export function toSegmentRelativeAudioTimings(raw: AudioTimings): AudioTimings {
   };
 }
 
-function applyHtmlAudioMute(audio: HTMLAudioElement, muted: boolean): void {
-  audio.muted = muted;
-  audio.volume = muted ? 0 : 1;
-}
-
 export class ElevenLabsTTSClient implements TTSClient {
   private proxyUrl: string;
   private streamUrl: string;
@@ -630,8 +627,7 @@ export class ElevenLabsTTSClient implements TTSClient {
     const blob = new Blob([merged], { type: "audio/mpeg" });
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
-    audio.preservesPitch = true;
-    audio.playbackRate = this.playbackRate;
+    applyHtmlAudioPlaybackRate(audio, this.playbackRate);
     applyHtmlAudioMute(audio, this.muted);
     this.currentAudioEl = audio;
 
@@ -662,8 +658,7 @@ export class ElevenLabsTTSClient implements TTSClient {
     const blob = new Blob([buffer], { type: "audio/mpeg" });
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
-    audio.preservesPitch = true;
-    audio.playbackRate = this.playbackRate;
+    applyHtmlAudioPlaybackRate(audio, this.playbackRate);
     applyHtmlAudioMute(audio, this.muted);
     this.currentAudioEl = audio;
 
@@ -685,10 +680,14 @@ export class ElevenLabsTTSClient implements TTSClient {
   }
 
   setPlaybackRate(rate: number): void {
-    this.playbackRate = Math.max(rate, 0.1);
+    this.playbackRate = clampPlaybackRate(rate);
     if (this.currentAudioEl) {
-      this.currentAudioEl.playbackRate = this.playbackRate;
+      applyHtmlAudioPlaybackRate(this.currentAudioEl, this.playbackRate);
     }
+  }
+
+  getPlaybackRate(): number {
+    return this.playbackRate;
   }
 
   pause(): void {
@@ -829,7 +828,11 @@ export class SpeechSynthesisTTSClient implements TTSClient {
   }
 
   setPlaybackRate(rate: number): void {
-    this.playbackRate = Math.max(rate, 0.1);
+    this.playbackRate = clampPlaybackRate(rate);
+  }
+
+  getPlaybackRate(): number {
+    return this.playbackRate;
   }
 
   pause(): void {
