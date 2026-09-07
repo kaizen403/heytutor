@@ -27,21 +27,21 @@
       "id": "physics|14|induced-emf-current-and-lenz-law|easy",
       "topicId": "physics|14|induced-emf-current-and-lenz-law",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Induced EMF and current and Lenz's law.",
+      "question": "Draw a labelled diagram for Induced EMF and current and Lenz's law. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|induced-emf-current-and-lenz-law|medium",
       "topicId": "physics|14|induced-emf-current-and-lenz-law",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Induced EMF and current and Lenz's law and label the named quantities.",
+      "question": "Draw the standard setup for Induced EMF and current and Lenz's law and label the named quantities. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|induced-emf-current-and-lenz-law|hard",
       "topicId": "physics|14|induced-emf-current-and-lenz-law",
       "difficulty": "hard",
-      "question": "Draw Induced EMF and current and Lenz's law and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Induced EMF and current and Lenz's law and mark any named directions, levels, or components on the figure. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
@@ -69,126 +69,126 @@
       "id": "physics|14|eddy-currents-and-inductance|easy",
       "topicId": "physics|14|eddy-currents-and-inductance",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Eddy currents. Draw the circuit with named resistors and the source.",
+      "question": "Draw a labelled diagram for Eddy currents. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|eddy-currents-and-inductance|medium",
       "topicId": "physics|14|eddy-currents-and-inductance",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Eddy currents and label the named quantities. Draw the circuit with named resistors and the source.",
+      "question": "Draw the standard setup for Eddy currents and label the named quantities. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|eddy-currents-and-inductance|hard",
       "topicId": "physics|14|eddy-currents-and-inductance",
       "difficulty": "hard",
-      "question": "Draw Eddy currents and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "question": "Draw Eddy currents and mark any named directions, levels, or components on the figure. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|self-inductance|easy",
       "topicId": "physics|14|self-inductance",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Self inductance.",
+      "question": "Draw a labelled diagram for Self inductance. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|self-inductance|medium",
       "topicId": "physics|14|self-inductance",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Self inductance and label the named quantities.",
+      "question": "Draw the standard setup for Self inductance and label the named quantities. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|self-inductance|hard",
       "topicId": "physics|14|self-inductance",
       "difficulty": "hard",
-      "question": "Draw Self inductance and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Self inductance and mark any named directions, levels, or components on the figure. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|mutual-inductance|easy",
       "topicId": "physics|14|mutual-inductance",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Mutual inductance.",
+      "question": "Draw a labelled diagram for Mutual inductance. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|mutual-inductance|medium",
       "topicId": "physics|14|mutual-inductance",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Mutual inductance and label the named quantities.",
+      "question": "Draw the standard setup for Mutual inductance and label the named quantities. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|mutual-inductance|hard",
       "topicId": "physics|14|mutual-inductance",
       "difficulty": "hard",
-      "question": "Draw Mutual inductance and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Mutual inductance and mark any named directions, levels, or components on the figure. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|lc-oscillations|easy",
       "topicId": "physics|14|lc-oscillations",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for LC oscillations. Draw a spring-block oscillator and mark the amplitude.",
+      "question": "Draw a labelled diagram for LC oscillations.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|lc-oscillations|medium",
       "topicId": "physics|14|lc-oscillations",
       "difficulty": "medium",
-      "question": "Draw the standard setup for LC oscillations and label the named quantities. Draw a spring-block oscillator and mark the amplitude.",
+      "question": "Draw the standard setup for LC oscillations and label the named quantities.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|lc-oscillations|hard",
       "topicId": "physics|14|lc-oscillations",
       "difficulty": "hard",
-      "question": "Draw LC oscillations and mark any named directions, levels, or components on the figure. Draw a spring-block oscillator and mark the amplitude.",
+      "question": "Draw LC oscillations and mark any named directions, levels, or components on the figure.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|alternating-current-basics|easy",
       "topicId": "physics|14|alternating-current-basics",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Alternating currents and peak and RMS values of alternating current and voltage. Draw the circuit with named resistors and the source.",
+      "question": "Draw a labelled diagram for Alternating currents and peak and RMS values of alternating current and voltage.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|alternating-current-basics|medium",
       "topicId": "physics|14|alternating-current-basics",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Alternating currents and peak and RMS values of alternating current and voltage and label the named quantities. Draw the circuit with named resistors and the source.",
+      "question": "Draw the standard setup for Alternating currents and peak and RMS values of alternating current and voltage and label the named quantities.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|alternating-current-basics|hard",
       "topicId": "physics|14|alternating-current-basics",
       "difficulty": "hard",
-      "question": "Draw Alternating currents and peak and RMS values of alternating current and voltage and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "question": "Draw Alternating currents and peak and RMS values of alternating current and voltage and mark any named directions, levels, or components on the figure.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|inductive-and-capacitive-reactance|easy",
       "topicId": "physics|14|inductive-and-capacitive-reactance",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Inductive and capacitive reactance. Draw the circuit with named resistors and the source.",
+      "question": "Draw a labelled diagram for Inductive and capacitive reactance.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|inductive-and-capacitive-reactance|medium",
       "topicId": "physics|14|inductive-and-capacitive-reactance",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Inductive and capacitive reactance and label the named quantities. Draw the circuit with named resistors and the source.",
+      "question": "Draw the standard setup for Inductive and capacitive reactance and label the named quantities.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|inductive-and-capacitive-reactance|hard",
       "topicId": "physics|14|inductive-and-capacitive-reactance",
       "difficulty": "hard",
-      "question": "Draw Inductive and capacitive reactance and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "question": "Draw Inductive and capacitive reactance and mark any named directions, levels, or components on the figure.",
       "notes": "authored canonical stem from the topic label"
     },
     {
@@ -216,21 +216,21 @@
       "id": "physics|14|resonance-power-and-wattless-current|easy",
       "topicId": "physics|14|resonance-power-and-wattless-current",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Resonance in an LCR circuit.",
+      "question": "Draw a labelled diagram for Resonance in an LCR circuit. Sketch the travelling wave named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|resonance-power-and-wattless-current|medium",
       "topicId": "physics|14|resonance-power-and-wattless-current",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Resonance in an LCR circuit and label the named quantities.",
+      "question": "Draw the standard setup for Resonance in an LCR circuit and label the named quantities. Sketch the travelling wave named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|resonance-power-and-wattless-current|hard",
       "topicId": "physics|14|resonance-power-and-wattless-current",
       "difficulty": "hard",
-      "question": "Draw Resonance in an LCR circuit and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Resonance in an LCR circuit and mark any named directions, levels, or components on the figure. Sketch the travelling wave named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
@@ -258,21 +258,21 @@
       "id": "physics|14|ac-generator-and-transformer|easy",
       "topicId": "physics|14|ac-generator-and-transformer",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for AC generator. Draw the circuit with named resistors and the source.",
+      "question": "Draw a labelled diagram for AC generator. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|ac-generator-and-transformer|medium",
       "topicId": "physics|14|ac-generator-and-transformer",
       "difficulty": "medium",
-      "question": "Draw the standard setup for AC generator and label the named quantities. Draw the circuit with named resistors and the source.",
+      "question": "Draw the standard setup for AC generator and label the named quantities. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|14|ac-generator-and-transformer|hard",
       "topicId": "physics|14|ac-generator-and-transformer",
       "difficulty": "hard",
-      "question": "Draw AC generator and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "question": "Draw AC generator and mark any named directions, levels, or components on the figure. Show the coils or the rod-and-rails setup named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {

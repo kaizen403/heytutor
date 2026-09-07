@@ -237,21 +237,21 @@
       "id": "physics|19|transistor-as-switch-or-amplifier|easy",
       "topicId": "physics|19|transistor-as-switch-or-amplifier",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Transistor as a switch and as an amplifier. Draw the circuit with named resistors and the source.",
+      "question": "Draw a labelled diagram for Transistor as a switch and as an amplifier.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|19|transistor-as-switch-or-amplifier|medium",
       "topicId": "physics|19|transistor-as-switch-or-amplifier",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Transistor as a switch and as an amplifier and label the named quantities. Draw the circuit with named resistors and the source.",
+      "question": "Draw the standard setup for Transistor as a switch and as an amplifier and label the named quantities.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|19|transistor-as-switch-or-amplifier|hard",
       "topicId": "physics|19|transistor-as-switch-or-amplifier",
       "difficulty": "hard",
-      "question": "Draw Transistor as a switch and as an amplifier and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "question": "Draw Transistor as a switch and as an amplifier and mark any named directions, levels, or components on the figure.",
       "notes": "authored canonical stem from the topic label"
     },
     {

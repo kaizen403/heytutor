@@ -48,21 +48,21 @@
       "id": "physics|12|ohms-law-and-resistance|easy",
       "topicId": "physics|12|ohms-law-and-resistance",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Ohm's law and electrical resistance. Draw the circuit with named resistors and the source.",
+      "question": "Draw a labelled diagram for Ohm's law and electrical resistance.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|12|ohms-law-and-resistance|medium",
       "topicId": "physics|12|ohms-law-and-resistance",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Ohm's law and electrical resistance and label the named quantities. Draw the circuit with named resistors and the source.",
+      "question": "Draw the standard setup for Ohm's law and electrical resistance and label the named quantities.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|12|ohms-law-and-resistance|hard",
       "topicId": "physics|12|ohms-law-and-resistance",
       "difficulty": "hard",
-      "question": "Draw Ohm's law and electrical resistance and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "question": "Draw Ohm's law and electrical resistance and mark any named directions, levels, or components on the figure.",
       "notes": "authored canonical stem from the topic label"
     },
     {
@@ -90,21 +90,21 @@
       "id": "physics|12|electrical-energy-and-power|easy",
       "topicId": "physics|12|electrical-energy-and-power",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Electrical energy and power. Draw the circuit with named resistors and the source.",
+      "question": "Draw a labelled diagram for Electrical energy and power.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|12|electrical-energy-and-power|medium",
       "topicId": "physics|12|electrical-energy-and-power",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Electrical energy and power and label the named quantities. Draw the circuit with named resistors and the source.",
+      "question": "Draw the standard setup for Electrical energy and power and label the named quantities.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|12|electrical-energy-and-power|hard",
       "topicId": "physics|12|electrical-energy-and-power",
       "difficulty": "hard",
-      "question": "Draw Electrical energy and power and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "question": "Draw Electrical energy and power and mark any named directions, levels, or components on the figure.",
       "notes": "authored canonical stem from the topic label"
     },
     {
@@ -132,21 +132,21 @@
       "id": "physics|12|resistivity-and-conductivity|easy",
       "topicId": "physics|12|resistivity-and-conductivity",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Electrical resistivity and conductivity. Draw the circuit with named resistors and the source.",
+      "question": "Draw a labelled diagram for Electrical resistivity and conductivity.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|12|resistivity-and-conductivity|medium",
       "topicId": "physics|12|resistivity-and-conductivity",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Electrical resistivity and conductivity and label the named quantities. Draw the circuit with named resistors and the source.",
+      "question": "Draw the standard setup for Electrical resistivity and conductivity and label the named quantities.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|12|resistivity-and-conductivity|hard",
       "topicId": "physics|12|resistivity-and-conductivity",
       "difficulty": "hard",
-      "question": "Draw Electrical resistivity and conductivity and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "question": "Draw Electrical resistivity and conductivity and mark any named directions, levels, or components on the figure.",
       "notes": "authored canonical stem from the topic label"
     },
     {
@@ -174,21 +174,21 @@
       "id": "physics|12|resistor-combinations|easy",
       "topicId": "physics|12|resistor-combinations",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Series and parallel combinations of resistors.",
+      "question": "Draw a labelled diagram for Series and parallel combinations of resistors. Draw the circuit with named resistors and the source.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|12|resistor-combinations|medium",
       "topicId": "physics|12|resistor-combinations",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Series and parallel combinations of resistors and label the named quantities.",
+      "question": "Draw the standard setup for Series and parallel combinations of resistors and label the named quantities. Draw the circuit with named resistors and the source.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|12|resistor-combinations|hard",
       "topicId": "physics|12|resistor-combinations",
       "difficulty": "hard",
-      "question": "Draw Series and parallel combinations of resistors and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Series and parallel combinations of resistors and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
       "notes": "authored canonical stem from the topic label"
     },
     {

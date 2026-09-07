@@ -90,126 +90,126 @@
       "id": "physics|20|simple-pendulum-amplitude-squared-vs-time|easy",
       "topicId": "physics|20|simple-pendulum-amplitude-squared-vs-time",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Simple pendulum dissipation of energy by plotting square of amplitude versus time.",
+      "question": "Draw a labelled diagram for Simple pendulum dissipation of energy by plotting square of amplitude versus time. Draw a spring-block oscillator and mark the amplitude.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|simple-pendulum-amplitude-squared-vs-time|medium",
       "topicId": "physics|20|simple-pendulum-amplitude-squared-vs-time",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Simple pendulum dissipation of energy by plotting square of amplitude versus time and label the named quantities.",
+      "question": "Draw the standard setup for Simple pendulum dissipation of energy by plotting square of amplitude versus time and label the named quantities. Draw a spring-block oscillator and mark the amplitude.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|simple-pendulum-amplitude-squared-vs-time|hard",
       "topicId": "physics|20|simple-pendulum-amplitude-squared-vs-time",
       "difficulty": "hard",
-      "question": "Draw Simple pendulum dissipation of energy by plotting square of amplitude versus time and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Simple pendulum dissipation of energy by plotting square of amplitude versus time and mark any named directions, levels, or components on the figure. Draw a spring-block oscillator and mark the amplitude.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|simple-pendulum-l-t-squared-graph|easy",
       "topicId": "physics|20|simple-pendulum-l-t-squared-graph",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Simple pendulum dissipation of energy by plotting the L-T^2 graph.",
+      "question": "Draw a labelled diagram for Simple pendulum dissipation of energy by plotting the L-T^2 graph. Draw a spring-block oscillator and mark the amplitude.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|simple-pendulum-l-t-squared-graph|medium",
       "topicId": "physics|20|simple-pendulum-l-t-squared-graph",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Simple pendulum dissipation of energy by plotting the L-T^2 graph and label the named quantities.",
+      "question": "Draw the standard setup for Simple pendulum dissipation of energy by plotting the L-T^2 graph and label the named quantities. Draw a spring-block oscillator and mark the amplitude.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|simple-pendulum-l-t-squared-graph|hard",
       "topicId": "physics|20|simple-pendulum-l-t-squared-graph",
       "difficulty": "hard",
-      "question": "Draw Simple pendulum dissipation of energy by plotting the L-T^2 graph and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Simple pendulum dissipation of energy by plotting the L-T^2 graph and mark any named directions, levels, or components on the figure. Draw a spring-block oscillator and mark the amplitude.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|metre-scale-principle-of-moments|easy",
       "topicId": "physics|20|metre-scale-principle-of-moments",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Using a metre scale to find the mass of a given object by the principle of moments. Show the circuit symbols and labelled terminals.",
+      "question": "Draw a labelled diagram for Using a metre scale to find the mass of a given object by the principle of moments.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|metre-scale-principle-of-moments|medium",
       "topicId": "physics|20|metre-scale-principle-of-moments",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Using a metre scale to find the mass of a given object by the principle of moments and label the named quantities. Show the circuit symbols and labelled terminals.",
+      "question": "Draw the standard setup for Using a metre scale to find the mass of a given object by the principle of moments and label the named quantities.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|metre-scale-principle-of-moments|hard",
       "topicId": "physics|20|metre-scale-principle-of-moments",
       "difficulty": "hard",
-      "question": "Draw Using a metre scale to find the mass of a given object by the principle of moments and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+      "question": "Draw Using a metre scale to find the mass of a given object by the principle of moments and mark any named directions, levels, or components on the figure.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|youngs-modulus-of-wire|easy",
       "topicId": "physics|20|youngs-modulus-of-wire",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Young's modulus of elasticity of the material of a metallic wire.",
+      "question": "Draw a labelled diagram for Young's modulus of elasticity of the material of a metallic wire. Sketch the stress-strain graph and mark the named limits.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|youngs-modulus-of-wire|medium",
       "topicId": "physics|20|youngs-modulus-of-wire",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Young's modulus of elasticity of the material of a metallic wire and label the named quantities.",
+      "question": "Draw the standard setup for Young's modulus of elasticity of the material of a metallic wire and label the named quantities. Sketch the stress-strain graph and mark the named limits.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|youngs-modulus-of-wire|hard",
       "topicId": "physics|20|youngs-modulus-of-wire",
       "difficulty": "hard",
-      "question": "Draw Young's modulus of elasticity of the material of a metallic wire and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Young's modulus of elasticity of the material of a metallic wire and mark any named directions, levels, or components on the figure. Sketch the stress-strain graph and mark the named limits.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|surface-tension-by-capillary-rise|easy",
       "topicId": "physics|20|surface-tension-by-capillary-rise",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Surface tension of water by capillary rise. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw a labelled diagram for Surface tension of water by capillary rise. Show the liquid surface, the contact angle, and the named height or radius.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|surface-tension-by-capillary-rise|medium",
       "topicId": "physics|20|surface-tension-by-capillary-rise",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Surface tension of water by capillary rise and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw the standard setup for Surface tension of water by capillary rise and label the named quantities. Show the liquid surface, the contact angle, and the named height or radius.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|surface-tension-by-capillary-rise|hard",
       "topicId": "physics|20|surface-tension-by-capillary-rise",
       "difficulty": "hard",
-      "question": "Draw Surface tension of water by capillary rise and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw Surface tension of water by capillary rise and mark any named directions, levels, or components on the figure. Show the liquid surface, the contact angle, and the named height or radius.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|effect-of-detergents-on-surface-tension|easy",
       "topicId": "physics|20|effect-of-detergents-on-surface-tension",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Surface tension of water by capillary rise and effect of detergents. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw a labelled diagram for Surface tension of water by capillary rise and effect of detergents. Show the liquid surface, the contact angle, and the named height or radius.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|effect-of-detergents-on-surface-tension|medium",
       "topicId": "physics|20|effect-of-detergents-on-surface-tension",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Surface tension of water by capillary rise and effect of detergents and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw the standard setup for Surface tension of water by capillary rise and effect of detergents and label the named quantities. Show the liquid surface, the contact angle, and the named height or radius.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|effect-of-detergents-on-surface-tension|hard",
       "topicId": "physics|20|effect-of-detergents-on-surface-tension",
       "difficulty": "hard",
-      "question": "Draw Surface tension of water by capillary rise and effect of detergents and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw Surface tension of water by capillary rise and effect of detergents and mark any named directions, levels, or components on the figure. Show the liquid surface, the contact angle, and the named height or radius.",
       "notes": "authored canonical stem from the topic label"
     },
     {
@@ -258,63 +258,63 @@
       "id": "physics|20|speed-of-sound-resonance-tube|easy",
       "topicId": "physics|20|speed-of-sound-resonance-tube",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Speed of sound in air at room temperature using a resonance tube. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw a labelled diagram for Speed of sound in air at room temperature using a resonance tube. Sketch the travelling wave named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|speed-of-sound-resonance-tube|medium",
       "topicId": "physics|20|speed-of-sound-resonance-tube",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Speed of sound in air at room temperature using a resonance tube and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw the standard setup for Speed of sound in air at room temperature using a resonance tube and label the named quantities. Sketch the travelling wave named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|speed-of-sound-resonance-tube|hard",
       "topicId": "physics|20|speed-of-sound-resonance-tube",
       "difficulty": "hard",
-      "question": "Draw Speed of sound in air at room temperature using a resonance tube and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw Speed of sound in air at room temperature using a resonance tube and mark any named directions, levels, or components on the figure. Sketch the travelling wave named by the topic.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|specific-heat-capacity-by-mixtures|easy",
       "topicId": "physics|20|specific-heat-capacity-by-mixtures",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Specific heat capacity of a given solid by the method of mixtures. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw a labelled diagram for Specific heat capacity of a given solid by the method of mixtures. Sketch the temperature graph named by the topic and label both axes.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|specific-heat-capacity-by-mixtures|medium",
       "topicId": "physics|20|specific-heat-capacity-by-mixtures",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Specific heat capacity of a given solid by the method of mixtures and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw the standard setup for Specific heat capacity of a given solid by the method of mixtures and label the named quantities. Sketch the temperature graph named by the topic and label both axes.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|specific-heat-capacity-by-mixtures|hard",
       "topicId": "physics|20|specific-heat-capacity-by-mixtures",
       "difficulty": "hard",
-      "question": "Draw Specific heat capacity of a given solid by the method of mixtures and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw Specific heat capacity of a given solid by the method of mixtures and mark any named directions, levels, or components on the figure. Sketch the temperature graph named by the topic and label both axes.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|specific-heat-capacity-of-a-liquid|easy",
       "topicId": "physics|20|specific-heat-capacity-of-a-liquid",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Specific heat capacity of a given liquid by the method of mixtures. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw a labelled diagram for Specific heat capacity of a given liquid by the method of mixtures. Sketch the temperature graph named by the topic and label both axes.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|specific-heat-capacity-of-a-liquid|medium",
       "topicId": "physics|20|specific-heat-capacity-of-a-liquid",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Specific heat capacity of a given liquid by the method of mixtures and label the named quantities. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw the standard setup for Specific heat capacity of a given liquid by the method of mixtures and label the named quantities. Sketch the temperature graph named by the topic and label both axes.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|specific-heat-capacity-of-a-liquid|hard",
       "topicId": "physics|20|specific-heat-capacity-of-a-liquid",
       "difficulty": "hard",
-      "question": "Draw Specific heat capacity of a given liquid by the method of mixtures and mark any named directions, levels, or components on the figure. Draw the connected fluid and the named free surface or pipe.",
+      "question": "Draw Specific heat capacity of a given liquid by the method of mixtures and mark any named directions, levels, or components on the figure. Sketch the temperature graph named by the topic and label both axes.",
       "notes": "authored canonical stem from the topic label"
     },
     {
@@ -636,21 +636,21 @@
       "id": "physics|20|identify-transistor-and-ic|easy",
       "topicId": "physics|20|identify-transistor-and-ic",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Identification of a transistor and an IC from a mixed collection. Draw the circuit with named resistors and the source.",
+      "question": "Draw a labelled diagram for Identification of a transistor and an IC from a mixed collection.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|identify-transistor-and-ic|medium",
       "topicId": "physics|20|identify-transistor-and-ic",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Identification of a transistor and an IC from a mixed collection and label the named quantities. Draw the circuit with named resistors and the source.",
+      "question": "Draw the standard setup for Identification of a transistor and an IC from a mixed collection and label the named quantities.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|20|identify-transistor-and-ic|hard",
       "topicId": "physics|20|identify-transistor-and-ic",
       "difficulty": "hard",
-      "question": "Draw Identification of a transistor and an IC from a mixed collection and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
+      "question": "Draw Identification of a transistor and an IC from a mixed collection and mark any named directions, levels, or components on the figure.",
       "notes": "authored canonical stem from the topic label"
     },
     {

@@ -111,21 +111,21 @@
       "id": "physics|15|electromagnetic-spectrum|easy",
       "topicId": "physics|15|electromagnetic-spectrum",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Electromagnetic spectrum.",
+      "question": "Draw a labelled diagram for Electromagnetic spectrum. Show the E and B vectors and the propagation direction.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|15|electromagnetic-spectrum|medium",
       "topicId": "physics|15|electromagnetic-spectrum",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Electromagnetic spectrum and label the named quantities.",
+      "question": "Draw the standard setup for Electromagnetic spectrum and label the named quantities. Show the E and B vectors and the propagation direction.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|15|electromagnetic-spectrum|hard",
       "topicId": "physics|15|electromagnetic-spectrum",
       "difficulty": "hard",
-      "question": "Draw Electromagnetic spectrum and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Electromagnetic spectrum and mark any named directions, levels, or components on the figure. Show the E and B vectors and the propagation direction.",
       "notes": "authored canonical stem from the topic label"
     },
     {

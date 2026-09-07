@@ -321,42 +321,42 @@
       "id": "physics|11|electrostatic-potential-energy-of-charge-systems|easy",
       "topicId": "physics|11|electrostatic-potential-energy-of-charge-systems",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Electrical potential energy of a system of charges. Show the named charges and the electric field.",
+      "question": "Draw a labelled diagram for Electrical potential energy of a system of charges.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|electrostatic-potential-energy-of-charge-systems|medium",
       "topicId": "physics|11|electrostatic-potential-energy-of-charge-systems",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Electrical potential energy of a system of charges and label the named quantities. Show the named charges and the electric field.",
+      "question": "Draw the standard setup for Electrical potential energy of a system of charges and label the named quantities.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|electrostatic-potential-energy-of-charge-systems|hard",
       "topicId": "physics|11|electrostatic-potential-energy-of-charge-systems",
       "difficulty": "hard",
-      "question": "Draw Electrical potential energy of a system of charges and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "question": "Draw Electrical potential energy of a system of charges and mark any named directions, levels, or components on the figure.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|dipole-potential-energy-in-field|easy",
       "topicId": "physics|11|dipole-potential-energy-in-field",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Electrical potential energy of an electric dipole in an electrostatic field. Show the named charges and the electric field.",
+      "question": "Draw a labelled diagram for Electrical potential energy of an electric dipole in an electrostatic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|dipole-potential-energy-in-field|medium",
       "topicId": "physics|11|dipole-potential-energy-in-field",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Electrical potential energy of an electric dipole in an electrostatic field and label the named quantities. Show the named charges and the electric field.",
+      "question": "Draw the standard setup for Electrical potential energy of an electric dipole in an electrostatic field and label the named quantities.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|dipole-potential-energy-in-field|hard",
       "topicId": "physics|11|dipole-potential-energy-in-field",
       "difficulty": "hard",
-      "question": "Draw Electrical potential energy of an electric dipole in an electrostatic field and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
+      "question": "Draw Electrical potential energy of an electric dipole in an electrostatic field and mark any named directions, levels, or components on the figure.",
       "notes": "authored canonical stem from the topic label"
     },
     {
@@ -426,84 +426,84 @@
       "id": "physics|11|capacitors-and-combinations|easy",
       "topicId": "physics|11|capacitors-and-combinations",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Capacitors, capacitance, and combinations of capacitors in series and parallel.",
+      "question": "Draw a labelled diagram for Capacitors, capacitance, and combinations of capacitors in series and parallel. Draw the circuit with named resistors and the source.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|capacitors-and-combinations|medium",
       "topicId": "physics|11|capacitors-and-combinations",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Capacitors, capacitance, and combinations of capacitors in series and parallel and label the named quantities.",
+      "question": "Draw the standard setup for Capacitors, capacitance, and combinations of capacitors in series and parallel and label the named quantities. Draw the circuit with named resistors and the source.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|capacitors-and-combinations|hard",
       "topicId": "physics|11|capacitors-and-combinations",
       "difficulty": "hard",
-      "question": "Draw Capacitors, capacitance, and combinations of capacitors in series and parallel and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Capacitors, capacitance, and combinations of capacitors in series and parallel and mark any named directions, levels, or components on the figure. Draw the circuit with named resistors and the source.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|parallel-plate-capacitor-with-dielectric|easy",
       "topicId": "physics|11|parallel-plate-capacitor-with-dielectric",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Capacitance of a parallel plate capacitor with and without dielectric medium.",
+      "question": "Draw a labelled diagram for Capacitance of a parallel plate capacitor with and without dielectric medium. Show the named charges and the electric field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|parallel-plate-capacitor-with-dielectric|medium",
       "topicId": "physics|11|parallel-plate-capacitor-with-dielectric",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Capacitance of a parallel plate capacitor with and without dielectric medium and label the named quantities.",
+      "question": "Draw the standard setup for Capacitance of a parallel plate capacitor with and without dielectric medium and label the named quantities. Show the named charges and the electric field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|parallel-plate-capacitor-with-dielectric|hard",
       "topicId": "physics|11|parallel-plate-capacitor-with-dielectric",
       "difficulty": "hard",
-      "question": "Draw Capacitance of a parallel plate capacitor with and without dielectric medium and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Capacitance of a parallel plate capacitor with and without dielectric medium and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|capacitor-with-conducting-slab|easy",
       "topicId": "physics|11|capacitor-with-conducting-slab",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Parallel plate capacitor with a conducting slab.",
+      "question": "Draw a labelled diagram for Parallel plate capacitor with a conducting slab. Show the named charges and the electric field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|capacitor-with-conducting-slab|medium",
       "topicId": "physics|11|capacitor-with-conducting-slab",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Parallel plate capacitor with a conducting slab and label the named quantities.",
+      "question": "Draw the standard setup for Parallel plate capacitor with a conducting slab and label the named quantities. Show the named charges and the electric field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|capacitor-with-conducting-slab|hard",
       "topicId": "physics|11|capacitor-with-conducting-slab",
       "difficulty": "hard",
-      "question": "Draw Parallel plate capacitor with a conducting slab and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Parallel plate capacitor with a conducting slab and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|energy-stored-in-capacitor|easy",
       "topicId": "physics|11|energy-stored-in-capacitor",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Energy stored in a capacitor.",
+      "question": "Draw a labelled diagram for Energy stored in a capacitor. Show the named charges and the electric field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|energy-stored-in-capacitor|medium",
       "topicId": "physics|11|energy-stored-in-capacitor",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Energy stored in a capacitor and label the named quantities.",
+      "question": "Draw the standard setup for Energy stored in a capacitor and label the named quantities. Show the named charges and the electric field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|11|energy-stored-in-capacitor|hard",
       "topicId": "physics|11|energy-stored-in-capacitor",
       "difficulty": "hard",
-      "question": "Draw Energy stored in a capacitor and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Energy stored in a capacitor and mark any named directions, levels, or components on the figure. Show the named charges and the electric field.",
       "notes": "authored canonical stem from the topic label"
     }
   ]

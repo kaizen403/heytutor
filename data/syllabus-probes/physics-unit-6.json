@@ -153,21 +153,21 @@
       "id": "physics|6|escape-velocity|easy",
       "topicId": "physics|6|escape-velocity",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Escape velocity.",
+      "question": "Draw a labelled diagram for Escape velocity. Show the orbit and the gravitational field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|6|escape-velocity|medium",
       "topicId": "physics|6|escape-velocity",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Escape velocity and label the named quantities.",
+      "question": "Draw the standard setup for Escape velocity and label the named quantities. Show the orbit and the gravitational field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|6|escape-velocity|hard",
       "topicId": "physics|6|escape-velocity",
       "difficulty": "hard",
-      "question": "Draw Escape velocity and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Escape velocity and mark any named directions, levels, or components on the figure. Show the orbit and the gravitational field.",
       "notes": "authored canonical stem from the topic label"
     },
     {

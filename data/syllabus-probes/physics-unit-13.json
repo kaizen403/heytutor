@@ -27,42 +27,42 @@
       "id": "physics|13|field-at-the-centre-of-an-arc|easy",
       "topicId": "physics|13|field-at-the-centre-of-an-arc",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Magnetic field at the centre of a current-carrying arc.",
+      "question": "Draw a labelled diagram for Magnetic field at the centre of a current-carrying arc. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|field-at-the-centre-of-an-arc|medium",
       "topicId": "physics|13|field-at-the-centre-of-an-arc",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Magnetic field at the centre of a current-carrying arc and label the named quantities.",
+      "question": "Draw the standard setup for Magnetic field at the centre of a current-carrying arc and label the named quantities. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|field-at-the-centre-of-an-arc|hard",
       "topicId": "physics|13|field-at-the-centre-of-an-arc",
       "difficulty": "hard",
-      "question": "Draw Magnetic field at the centre of a current-carrying arc and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Magnetic field at the centre of a current-carrying arc and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|field-due-to-a-straight-wire|easy",
       "topicId": "physics|13|field-due-to-a-straight-wire",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Magnetic field due to a long straight current-carrying wire.",
+      "question": "Draw a labelled diagram for Magnetic field due to a long straight current-carrying wire. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|field-due-to-a-straight-wire|medium",
       "topicId": "physics|13|field-due-to-a-straight-wire",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Magnetic field due to a long straight current-carrying wire and label the named quantities.",
+      "question": "Draw the standard setup for Magnetic field due to a long straight current-carrying wire and label the named quantities. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|field-due-to-a-straight-wire|hard",
       "topicId": "physics|13|field-due-to-a-straight-wire",
       "difficulty": "hard",
-      "question": "Draw Magnetic field due to a long straight current-carrying wire and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Magnetic field due to a long straight current-carrying wire and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
@@ -153,63 +153,63 @@
       "id": "physics|13|cyclotron-and-circular-motion-in-b|easy",
       "topicId": "physics|13|cyclotron-and-circular-motion-in-b",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Circular motion in a magnetic field and the cyclotron.",
+      "question": "Draw a labelled diagram for Circular motion in a magnetic field and the cyclotron. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|cyclotron-and-circular-motion-in-b|medium",
       "topicId": "physics|13|cyclotron-and-circular-motion-in-b",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Circular motion in a magnetic field and the cyclotron and label the named quantities.",
+      "question": "Draw the standard setup for Circular motion in a magnetic field and the cyclotron and label the named quantities. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|cyclotron-and-circular-motion-in-b|hard",
       "topicId": "physics|13|cyclotron-and-circular-motion-in-b",
       "difficulty": "hard",
-      "question": "Draw Circular motion in a magnetic field and the cyclotron and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Circular motion in a magnetic field and the cyclotron and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|helical-path-in-magnetic-field|easy",
       "topicId": "physics|13|helical-path-in-magnetic-field",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Helical path of a charge in a magnetic field.",
+      "question": "Draw a labelled diagram for Helical path of a charge in a magnetic field. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|helical-path-in-magnetic-field|medium",
       "topicId": "physics|13|helical-path-in-magnetic-field",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Helical path of a charge in a magnetic field and label the named quantities.",
+      "question": "Draw the standard setup for Helical path of a charge in a magnetic field and label the named quantities. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|helical-path-in-magnetic-field|hard",
       "topicId": "physics|13|helical-path-in-magnetic-field",
       "difficulty": "hard",
-      "question": "Draw Helical path of a charge in a magnetic field and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Helical path of a charge in a magnetic field and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|force-on-current-carrying-conductor|easy",
       "topicId": "physics|13|force-on-current-carrying-conductor",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Force on a current-carrying conductor in a uniform magnetic field.",
+      "question": "Draw a labelled diagram for Force on a current-carrying conductor in a uniform magnetic field. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|force-on-current-carrying-conductor|medium",
       "topicId": "physics|13|force-on-current-carrying-conductor",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Force on a current-carrying conductor in a uniform magnetic field and label the named quantities.",
+      "question": "Draw the standard setup for Force on a current-carrying conductor in a uniform magnetic field and label the named quantities. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|force-on-current-carrying-conductor|hard",
       "topicId": "physics|13|force-on-current-carrying-conductor",
       "difficulty": "hard",
-      "question": "Draw Force on a current-carrying conductor in a uniform magnetic field and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Force on a current-carrying conductor in a uniform magnetic field and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
@@ -363,21 +363,21 @@
       "id": "physics|13|bar-magnet-and-magnetic-field-lines|easy",
       "topicId": "physics|13|bar-magnet-and-magnetic-field-lines",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Bar magnet and magnetic field lines.",
+      "question": "Draw a labelled diagram for Bar magnet and magnetic field lines. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|bar-magnet-and-magnetic-field-lines|medium",
       "topicId": "physics|13|bar-magnet-and-magnetic-field-lines",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Bar magnet and magnetic field lines and label the named quantities.",
+      "question": "Draw the standard setup for Bar magnet and magnetic field lines and label the named quantities. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|bar-magnet-and-magnetic-field-lines|hard",
       "topicId": "physics|13|bar-magnet-and-magnetic-field-lines",
       "difficulty": "hard",
-      "question": "Draw Bar magnet and magnetic field lines and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Bar magnet and magnetic field lines and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
@@ -426,21 +426,21 @@
       "id": "physics|13|earths-magnetic-field-and-elements|easy",
       "topicId": "physics|13|earths-magnetic-field-and-elements",
       "difficulty": "easy",
-      "question": "Draw a labelled diagram for Earth's magnetic field and magnetic elements.",
+      "question": "Draw a labelled diagram for Earth's magnetic field and magnetic elements. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|earths-magnetic-field-and-elements|medium",
       "topicId": "physics|13|earths-magnetic-field-and-elements",
       "difficulty": "medium",
-      "question": "Draw the standard setup for Earth's magnetic field and magnetic elements and label the named quantities.",
+      "question": "Draw the standard setup for Earth's magnetic field and magnetic elements and label the named quantities. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
       "id": "physics|13|earths-magnetic-field-and-elements|hard",
       "topicId": "physics|13|earths-magnetic-field-and-elements",
       "difficulty": "hard",
-      "question": "Draw Earth's magnetic field and magnetic elements and mark any named directions, levels, or components on the figure.",
+      "question": "Draw Earth's magnetic field and magnetic elements and mark any named directions, levels, or components on the figure. Show the current-carrying wire and the magnetic field.",
       "notes": "authored canonical stem from the topic label"
     },
     {
