@@ -96,23 +96,45 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
-  let body: { title?: string; preview?: string } = {};
+  let body: {
+    title?: string;
+    preview?: string;
+    pinned?: boolean;
+    archived?: boolean;
+  } = {};
   try {
-    body = (await request.json()) as { title?: string; preview?: string };
+    body = (await request.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  const data: { title?: string; preview?: string; updatedAt: Date } = {
+  const data: {
+    title?: string;
+    preview?: string;
+    pinnedAt?: Date | null;
+    archivedAt?: Date | null;
+    updatedAt: Date;
+  } = {
     updatedAt: new Date(),
   };
 
   if (typeof body.title === "string" && body.title.trim()) {
-    data.title = body.title.trim();
+    data.title = body.title.trim().slice(0, 200);
   }
 
   if (typeof body.preview === "string") {
     data.preview = body.preview;
+  }
+
+  // Stamped rather than flagged: the pin order is "most recently pinned first",
+  // which a boolean cannot express. Re-pinning an already-pinned board keeps
+  // its original stamp so the list does not reshuffle under the student.
+  if (typeof body.pinned === "boolean") {
+    data.pinnedAt = body.pinned ? (board.pinnedAt ?? new Date()) : null;
+  }
+
+  if (typeof body.archived === "boolean") {
+    data.archivedAt = body.archived ? (board.archivedAt ?? new Date()) : null;
   }
 
   const updated = await prisma.board.update({
@@ -126,6 +148,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       title: updated.title,
       preview: updated.preview,
       createdAt: updated.createdAt.getTime(),
+      pinnedAt: updated.pinnedAt?.getTime() ?? null,
+      archivedAt: updated.archivedAt?.getTime() ?? null,
     },
   });
 }

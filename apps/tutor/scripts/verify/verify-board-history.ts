@@ -15,11 +15,51 @@ const boardHistory = readFileSync(
   resolve(root, "features/tutor-session/components/BoardHistory.tsx"),
   "utf8",
 );
-const deleteButton = boardHistory.slice(
-  boardHistory.indexOf("data-delete-btn"),
-  boardHistory.indexOf("data-delete-btn") + 420,
+// Anchor first. This block used to slice from the old trash button's marker,
+// and when that control was replaced by the hover cluster `indexOf` returned
+// -1, the slice went garbage, and the gate failed pointing at a lock that was
+// working fine. A missing anchor must say so, not masquerade as a broken
+// invariant.
+const actionsStart = boardHistory.indexOf("data-row-actions");
+assert(
+  actionsStart > 0,
+  "row-action anchor is gone; repoint this gate at the control that replaced it",
 );
-assert(deleteButton.includes("disabled={disabled}"), "delete must respect the lesson lock");
+// Both ends, not just the start. An unguarded END anchor is the worse of the
+// two: `indexOf(needle, -1)` does not throw, it searches from 0, so a renamed
+// end marker silently yields a slice that starts before `actionsStart` or runs
+// most of the file. The first fails with a lie; the second can fail OPEN, by
+// matching the thing being asserted somewhere else entirely.
+const menuAt = boardHistory.indexOf("bh__menu");
+assert(
+  menuAt > actionsStart,
+  "row menu anchor is gone; repoint this gate at the markup that replaced it",
+);
+const actionsEnd = boardHistory.indexOf("</div>", menuAt);
+assert(
+  actionsEnd > actionsStart,
+  "row-action block has no closing tag after the menu; repoint this gate",
+);
+const rowActions = boardHistory.slice(actionsStart, actionsEnd);
+
+// Reaching Delete during a lesson takes two hops, so gate both. Every control
+// outside the menu refuses while locked (there is one, the three dots, since
+// the pin moved inside)...
+const outside = (rowActions.match(/disabled=\{disabled\}/g) ?? []).length;
+assert(
+  outside >= 1,
+  "every row action must respect the lesson lock",
+);
+assert(
+  outside === (rowActions.match(/className="bh__row-btn"/g) ?? []).length,
+  "a row action was added without the lesson lock",
+);
+// ...and a menu already open when the lesson starts is force-closed, so a
+// student cannot reach Delete through a popover that outlived the lock.
+assert(
+  boardHistory.includes("if (disabled && menuBoardId)"),
+  "a running lesson must close an open row menu",
+);
 assert(boardHistory.includes("Delete this board?"), "deleting a board must ask first");
 assert(
   boardHistory.includes("if (disabled && confirmDeleteId)"),

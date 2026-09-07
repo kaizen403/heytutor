@@ -22,6 +22,10 @@ model Board {
   userId       String             @map("user_id")
   title        String             @default("new board")
   preview      String             @default("")
+  /// Pinned boards sort above the rest, newest pin first.
+  pinnedAt     DateTime?          @map("pinned_at") @db.Timestamptz(6)
+  /// Archived boards leave the list without being deleted.
+  archivedAt   DateTime?          @map("archived_at") @db.Timestamptz(6)
   createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -29,6 +33,7 @@ model Board {
   chatMessages BoardChatMessage[]
 
   @@index([userId], map: "boards_user_id_idx")
+  @@index([userId, archivedAt, pinnedAt], map: "boards_user_id_archived_at_pinned_at_idx")
   @@map("boards")
 }
 

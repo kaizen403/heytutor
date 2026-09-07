@@ -106,7 +106,7 @@ export async function fetchBoardDetail(boardId: string): Promise<BoardDetail | n
 
 export async function updateBoard(
   boardId: string,
-  patch: { title?: string; preview?: string },
+  patch: { title?: string; preview?: string; pinned?: boolean; archived?: boolean },
 ): Promise<BoardEntry | null> {
   const res = await fetch(resolveApiUrl(`/api/boards/${boardId}`), {
     method: "PATCH",

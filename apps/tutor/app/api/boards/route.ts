@@ -11,9 +11,12 @@ export async function GET() {
 
   await ensureUser(userId);
 
+  // Pinned first, newest pin on top, then the rest by recency. Archived rows
+  // are returned too and filtered client-side, so the archive view costs no
+  // extra round trip.
   const rows = await prisma.board.findMany({
     where: { userId },
-    orderBy: { updatedAt: "desc" },
+    orderBy: [{ pinnedAt: "desc" }, { updatedAt: "desc" }],
   });
 
   return NextResponse.json({
@@ -22,6 +25,8 @@ export async function GET() {
       title: row.title,
       preview: row.preview,
       createdAt: row.createdAt.getTime(),
+      pinnedAt: row.pinnedAt?.getTime() ?? null,
+      archivedAt: row.archivedAt?.getTime() ?? null,
     })),
   });
 }
@@ -78,6 +83,8 @@ export async function POST(request: Request) {
         title: existing.title,
         preview: existing.preview,
         createdAt: existing.createdAt.getTime(),
+        pinnedAt: existing.pinnedAt?.getTime() ?? null,
+        archivedAt: existing.archivedAt?.getTime() ?? null,
       },
     });
   }
@@ -88,6 +95,8 @@ export async function POST(request: Request) {
       title: row.title,
       preview: row.preview,
       createdAt: row.createdAt.getTime(),
+      pinnedAt: row.pinnedAt?.getTime() ?? null,
+      archivedAt: row.archivedAt?.getTime() ?? null,
     },
   });
 }
