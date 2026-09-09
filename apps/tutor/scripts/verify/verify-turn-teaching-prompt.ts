@@ -170,6 +170,26 @@ const CONTRACT_RULES: [needle: string, why: string][] = [
     "a work row holds about",
     "the prompt said only \"keep each line short enough\", and a hundred rows overflowed a column it never named a size for",
   ],
+  [
+    "never send two write-less steps in a row",
+    "a [FOCUS]-only step writes nothing: sixteen numerical asks spent 41 of 228 steps with the pen down, one of them narrating a figure for nine steps running",
+  ],
+  [
+    "[FOCUS] rides with the work",
+    "telling the tutor to write during the figure tour only moved the failure: it wrote a legend (\"M mirror, P pole\", \"O object, I image\") instead of working. the tour is not a beat of its own",
+  ],
+  [
+    "the row is the sentence you just spoke",
+    "the voice said \"each resistor takes half the supply\" and the board took the row with \"V_mid relative to ground end\"; the two streams have to carry the same statement",
+  ],
+  [
+    "for a numbered problem every row is mathematics",
+    "the row order used to open on \"what the symbols mean and what is asked\", which bought a prose row on every numerical lesson",
+  ],
+  [
+    "in its general symbolic form before any special case",
+    "equal resistors let one lesson skip the divider rule entirely and write \"equal R -> V_R1 = V_R2\", so the student got the arithmetic of this question and not the relation",
+  ],
 ];
 // That budget has to be the measured one, not a number typed into the prompt.
 const budgetMatch = /a work row holds about (\d+) characters while a figure is on the board, and about (\d+)/.exec(
