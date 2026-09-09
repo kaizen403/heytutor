@@ -1,13 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Download } from "lucide-react";
+import { PlainButton } from "@/components/ui/site-button";
 import { fetchBoardDetail } from "@/lib/boards/boardsClient";
 
 interface LectureNotesPanelProps {
   boardId: string;
+  onDownloadPdf?: () => void;
+  canDownloadPdf?: boolean;
+  isDownloadingPdf?: boolean;
 }
 
-export function LectureNotesPanel({ boardId }: LectureNotesPanelProps) {
+export function LectureNotesPanel({
+  boardId,
+  onDownloadPdf,
+  canDownloadPdf = false,
+  isDownloadingPdf = false,
+}: LectureNotesPanelProps) {
   const [questions, setQuestions] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,10 +53,25 @@ export function LectureNotesPanel({ boardId }: LectureNotesPanelProps) {
   return (
     <aside className="flex h-full min-h-0 w-full flex-col bg-ink-850">
       <div className="shrink-0 border-b border-stroke px-4 py-3">
-        <h2 className="text-sm font-semibold text-frost">Questions</h2>
-        <p className="mt-0.5 text-[11px] text-soft">
-          Prompts from this lecture. Narration is not saved.
-        </p>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-frost">Questions</h2>
+            <p className="mt-0.5 text-[11px] text-soft">
+              Prompts from this lecture. Download the notes PDF for the board, work, and narration.
+            </p>
+          </div>
+          {onDownloadPdf ? (
+            <PlainButton
+              className="h-8 shrink-0 px-2.5"
+              disabled={!canDownloadPdf || isDownloadingPdf}
+              onClick={onDownloadPdf}
+              aria-label="Download notes PDF"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {isDownloadingPdf ? "Generating…" : "PDF"}
+            </PlainButton>
+          ) : null}
+        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {error ? <p className="text-sm text-danger">{error}</p> : null}

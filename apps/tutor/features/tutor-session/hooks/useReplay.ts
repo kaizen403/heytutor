@@ -735,7 +735,7 @@ export function useReplay({
   }, [storedTurnsRef, isReplaying, playReplayFrom, ttsClientRef, whiteboardRef]);
 
   const downloadNotesPdf = useCallback(() => {
-    if (isDownloading || isReplaying) {
+    if (isDownloading) {
       return;
     }
     const wb = whiteboardRef.current;

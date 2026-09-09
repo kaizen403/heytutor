@@ -160,7 +160,7 @@ export function LessonActions({
           {menuVisible ? (
             <div
               role="menu"
-              className="glass-deep animate-fade-up absolute right-0 z-50 mt-1 min-w-[11.5rem] rounded-xl p-1"
+              className="glass-deep animate-fade-up absolute right-0 z-[80] mt-1 min-w-[11.5rem] rounded-xl p-1"
             >
               {onDownload ? (
                 <button
