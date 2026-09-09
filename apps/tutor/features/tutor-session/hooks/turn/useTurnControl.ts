@@ -33,6 +33,13 @@ import type { TurnControlApi, UseTurnLifecycleParams } from "./types";
 
 export const EMPTY_AI_RESPONSE_MESSAGE = "the tutor did not answer. try asking again.";
 
+/**
+ * How far down the segment queue a sentence may still be sent for early
+ * generation. The opening pair covers the wait before the first word; every
+ * sentence after that is asked for in speaking order as the lecture runs.
+ */
+const TTS_LOOKAHEAD_QUEUE_DEPTH = 2;
+
 export function isEmptyTutorResponse(
   responseText: string,
   parsed: { commands: readonly unknown[]; narration: string },
@@ -166,7 +173,14 @@ export function useTurnControl(
         command_type: segmentToRun.command?.type ?? null,
       });
 
-      if (segmentToRun.narration.trim()) {
+      // Only the front of the queue may generate ahead. The whole lesson is
+      // usually enqueued while the first sentence is still being spoken, so
+      // asking for all of it here handed the one lookahead slot to whichever
+      // segment happened to arrive — the tenth, say — and the sentence
+      // actually coming next then had to be generated from scratch. Past the
+      // opening, `useSegmentRunner` asks for the next one in speaking order.
+      const queuePosition = pendingSegmentCountRef.current - 1;
+      if (segmentToRun.narration.trim() && queuePosition < TTS_LOOKAHEAD_QUEUE_DEPTH) {
         ensureTTSClient().prefetchSegment?.(segmentToRun.narration, {
           previousText: collectedSegmentsRef.current[index - 1]?.narration,
           nextText: undefined,
@@ -257,8 +271,11 @@ export function useTurnControl(
       collectedSegmentsRef.current.push(...normalized);
       pendingSegmentCountRef.current += normalized.length;
       const tts = ensureTTSClient();
+      const pendingBeforeIntro = pendingSegmentCountRef.current - normalized.length;
       normalized.forEach((segment, offset) => {
         if (!segment.narration.trim()) return;
+        // Same rule as enqueueSegment: only the opening generates ahead here.
+        if (pendingBeforeIntro + offset >= TTS_LOOKAHEAD_QUEUE_DEPTH) return;
         tts.prefetchSegment?.(segment.narration, {
           previousText: normalized[offset - 1]?.narration ?? collectedSegmentsRef.current[startIndex - 1]?.narration,
           nextText: normalized[offset + 1]?.narration,

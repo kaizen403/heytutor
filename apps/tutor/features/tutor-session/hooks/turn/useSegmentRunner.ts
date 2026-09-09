@@ -28,6 +28,12 @@ import { speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
 import { resolveCommandInkBudgetMs } from "../../types";
 import type { UseSegmentRunnerParams } from "./types";
 
+/**
+ * Sentences asked for ahead of the one being spoken. The TTS client caps how
+ * many it will actually hold open; this is the order they are asked for in.
+ */
+const TTS_LOOKAHEAD_SEGMENTS = 2;
+
 export function useSegmentRunner({
   sessionId,
   cancellableDelay,
@@ -95,10 +101,16 @@ export function useSegmentRunner({
       const previousText = allSegments[index - 1]?.narration;
       const nextText = allSegments[index + 1]?.narration;
       const narration = segment.narration.trim();
-      if (nextText?.trim()) {
-        tts.prefetchSegment?.(nextText, {
-          previousText: narration,
-          nextText: allSegments[index + 2]?.narration,
+      // Two sentences ahead, in speaking order. One is enough while a beat
+      // runs for seconds, but a short beat — a one-line emphasis, a five-word
+      // aside — does not cover a sentence's generation on its own, and that
+      // was the last place the lecture could still be heard to stop.
+      for (let ahead = 1; ahead <= TTS_LOOKAHEAD_SEGMENTS; ahead++) {
+        const upcoming = allSegments[index + ahead]?.narration;
+        if (!upcoming?.trim()) continue;
+        tts.prefetchSegment?.(upcoming, {
+          previousText: allSegments[index + ahead - 1]?.narration ?? narration,
+          nextText: allSegments[index + ahead + 1]?.narration,
           traceId: currentTraceIdRef.current ?? undefined,
           sessionId: sessionId ?? undefined,
         });
