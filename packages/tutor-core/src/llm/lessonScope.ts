@@ -228,7 +228,7 @@ export function resolveLessonBudget(
  */
 export function lessonScopePromptAddon(budget: LessonBudget): string {
   return `LESSON LENGTH FOR THIS QUESTION
-This overrides every earlier step count. Teach this question in ${budget.minSteps}-${budget.maxSteps} steps and [WRITE] a board line in almost every one of them.
+This overrides every earlier step count. Teach this question in ${budget.minSteps}-${budget.maxSteps} steps, and [WRITE] a board line in each of them. A step that only moves the marker over the figure writes nothing and does not count toward that range, so spend the range on the working and not on a figure tour.
 This question needs about ${budget.boardPages} board ${budget.boardPages === 1 ? "page" : "pages"} of work (${BOARD_ROWS_PER_PAGE} rows fit on a page). Keep writing past the bottom of the first page. The board turns to a fresh page by itself and the finished page is saved to the student's notes. Never compress a derivation, drop a rung of the ladder, or skip the interpretation so the work fits on one page.
 One tag is not optional: the row that carries the answer to this question ends with [EMPHASIZE:last] in that same step, so the student can find it on a full page.
 ${scopeGuidance(budget.scope)}`;
