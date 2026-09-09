@@ -5,7 +5,7 @@
  *   pnpm --filter @heytutor/tutor exec tsx scripts/lecture-lab/run.ts \
  *     --difficulty hard --per-unit 1 --concurrency 3 --out .lecture-lab/run-01
  */
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseProbeFile, type ProbeQuestion } from "@/features/admin/lib/probes";
 import { unitIdFromTopicId } from "@/features/admin/lib/probes";
@@ -26,6 +26,13 @@ interface Options {
   familiarity: SubjectFamiliarity;
   only: string[] | null;
   seed: number;
+  /**
+   * A file of ad-hoc questions, one per line, replayed instead of the probe
+   * bank. The bank is written by us; the lessons that go wrong are the ones a
+   * student typed, and until this existed there was no way to put one of those
+   * through the lab.
+   */
+  ask: string | null;
 }
 
 function parseOptions(argv: string[]): Options {
@@ -63,6 +70,7 @@ function parseOptions(argv: string[]): Options {
     familiarity: (flags.get("familiarity") as SubjectFamiliarity) ?? "normal",
     only: list("only"),
     seed: number("seed", 1) ?? 1,
+    ask: flags.get("ask") ?? null,
   };
 }
 
@@ -77,6 +85,21 @@ function pick<T>(items: T[], count: number, seed: number): T[] {
     [ordered[index], ordered[swap]] = [ordered[swap], ordered[index]];
   }
   return ordered.slice(0, count);
+}
+
+/** Ad-hoc questions from `--ask`: one per line, `#` comments and blanks skipped. */
+function loadAskFile(path: string): ProbeQuestion[] {
+  if (!existsSync(path)) throw new Error(`--ask file not found: ${path}`);
+  return readFileSync(path, "utf8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+    .map((question, index) => ({
+      id: `ask|${index + 1}|${question.slice(0, 40).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`,
+      topicId: "ask|0|ad-hoc",
+      difficulty: "medium" as const,
+      question,
+    }));
 }
 
 function loadProbes(repoRoot: string, options: Options): ProbeQuestion[] {
@@ -203,7 +226,7 @@ async function main(): Promise<void> {
     return nativeFetch(input, init);
   }) as typeof fetch;
 
-  const probes = loadProbes(repoRoot, options);
+  const probes = options.ask ? loadAskFile(resolve(options.ask)) : loadProbes(repoRoot, options);
   console.log(
     `lecture lab: ${probes.length} ${options.difficulty} probes, concurrency ${options.concurrency}, familiarity ${options.familiarity} -> ${options.out}`,
   );

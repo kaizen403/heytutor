@@ -35,6 +35,8 @@ pnpm exec tsx scripts/lecture-lab/run.ts --difficulty hard --per-unit 1 --concur
 pnpm exec tsx scripts/lecture-lab/run.ts --difficulty hard --units 16,11 --out .lecture-lab/optics
 # one named probe
 pnpm exec tsx scripts/lecture-lab/run.ts --only "physics|3|impulse|hard" --out .lecture-lab/one
+# questions a student actually typed, one per line, instead of the probe bank
+pnpm exec tsx scripts/lecture-lab/run.ts --ask questions.txt --out .lecture-lab/ask-01
 # re-score a finished round after a rubric change, no LLM calls
 pnpm exec tsx scripts/lecture-lab/regrade.ts .lecture-lab/round-01
 # did the last change help? regrade both rounds first, or the diff measures the rubric
