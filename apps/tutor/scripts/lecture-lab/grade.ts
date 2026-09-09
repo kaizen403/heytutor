@@ -50,7 +50,11 @@ export interface LectureGrade {
 
 /** The turn died in transport, so there is no lesson to judge. */
 const TRANSPORT_FAILURE =
-  /timed out|timeout|ECONNRESET|ECONNREFUSED|socket hang up|fetch failed|\b(?:429|500|502|503|504)\b/i;
+  // `TypeError: terminated` is undici's wording when the response stream is cut
+  // mid-turn. It was scoring as a fatal `turn_error`, which is the exact
+  // mistake this classification exists to prevent: a dead socket read as a
+  // lesson that taught nothing.
+  /timed out|timeout|ECONNRESET|ECONNREFUSED|socket hang up|fetch failed|terminated|\b(?:429|500|502|503|504)\b/i;
 
 const SEVERITY_WEIGHT: Record<FindingSeverity, number> = {
   fatal: 40,
@@ -73,6 +77,31 @@ const RECAP_LEAD =
 /** The stem asks for a number, so the lesson owes a substitution and a result. */
 const NUMERIC_ASK =
   /\b(?:find|calculate|compute|determine|evaluate|how (?:much|many|far|fast|long))\b/i;
+
+/** Tokens that make a row mathematics rather than a sentence about one. */
+const MATH_TOKEN =
+  /[\d+\-*/^_√∫∑()·×÷%°]|[\u0391-\u03c9\u2113\u221e]|\b(?:sin|cos|tan|sec|csc|cot|log|ln|exp|sqrt|arcsin|arccos|arctan|sinh|cosh|tanh|abs|det|lim)\b/i;
+
+/** Words of two letters or more, which is what makes a side read as English. */
+function longWords(text: string): string[] {
+  return text.replace(/[^A-Za-z ]/g, " ").split(/\s+/).filter((word) => word.length >= 2);
+}
+
+/**
+ * A row that states no mathematics: no relation at all, or a relation whose
+ * right-hand side is a description ("want R = horizontal range").
+ */
+function isDescriptionRow(text: string): boolean {
+  const row = text.trim();
+  if (!/[=<>\u2264\u2265\u2248\u2192]|->/.test(row)) {
+    return !MATH_TOKEN.test(row) && longWords(row).length >= 2;
+  }
+  const sides = row.split("=");
+  if (sides.length < 2) return false;
+  const right = sides[sides.length - 1].trim();
+  if (MATH_TOKEN.test(right)) return false;
+  return longWords(right).length >= 2;
+}
 
 export function gradeLecture(run: LectureRun): LectureGrade {
   const findings: Finding[] = [];
@@ -295,6 +324,60 @@ export function gradeLecture(run: LectureRun): LectureGrade {
       `${inkedWrites.length} work rows written, ${expectedRows} is the floor for this kind of question`,
     );
   }
+  // The pen parked while the voice teaches.
+  //
+  // A [FOCUS]-only step moves the marker over the figure and writes nothing, so
+  // the rubric's `speech_only_steps` (no tags at all) never saw it. Measured
+  // over sixteen numerical asks: 41 of 228 steps wrote nothing and one lesson
+  // ran nine of them back to back, narrating a whole figure while the notebook
+  // stayed empty. One is a legitimate "look at this" beat; a run of them is the
+  // tutor talking with the chalk down.
+  const wrote = (step: (typeof steps)[number]) =>
+    step.tags.some((tag) => tag.type === "WRITE" && (tag.text ?? "").trim().length > 0);
+  let silentSteps = 0;
+  let longestSilentRun = 0;
+  let silentRun = 0;
+  for (const step of steps) {
+    if (wrote(step)) {
+      silentRun = 0;
+      continue;
+    }
+    silentSteps += 1;
+    silentRun += 1;
+    longestSilentRun = Math.max(longestSilentRun, silentRun);
+  }
+  if (longestSilentRun >= 3) {
+    add(
+      "silent_pen_run",
+      "major",
+      `${longestSilentRun} steps in a row write nothing (${silentSteps} of ${steps.length} steps write nothing at all)`,
+    );
+  } else if (steps.length >= 6 && silentSteps * 3 > steps.length) {
+    add("silent_pen", "minor", `${silentSteps} of ${steps.length} steps write nothing`);
+  }
+
+  // A numerical ask wants working, not a commentary on it.
+  //
+  // The owner's complaint in one sentence: "when I ask for numerical, I don't
+  // want a lot of words". A description row states no mathematics: either it
+  // carries no relation at all ("use quadratic formula", "T same both sides"),
+  // or its right-hand side is English ("want R = horizontal range"). The
+  // second shape was the contract's own doing, since the row order opened on
+  // "what the symbols mean and what is asked", and it appeared in 32 of 46
+  // numeric lessons in one sweep. A row with a symbolic right-hand side is
+  // mathematics however few digits it has, so `a = g sin θ` and `V = I R` are
+  // left alone.
+  if (numericAsk && inkedWrites.length >= 4) {
+    const described = inkedWrites.filter((write) => isDescriptionRow(write.text));
+    if (described.length >= 2) {
+      add(
+        "prose_rows_on_numeric",
+        described.length >= 3 ? "major" : "minor",
+        `${described.length} of ${inkedWrites.length} rows state no mathematics on a numerical ask (e.g. "${described[0].text.slice(0, 48)}")`,
+      );
+    }
+  }
+
   // The runtime lays work rows out sequentially (`findWorkTextSlot`), so the y
   // the model sends is advisory and a "wrong" ladder value costs nothing. What
   // does cost the student: a row the parser dropped, a row wide enough to eat
