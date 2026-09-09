@@ -3,7 +3,7 @@ import {
   normalizeMultiContextServerPayload,
 } from "../../lib/tts/ttsRelayProtocol";
 
-const [initializeMessage, flushMessage] = buildMultiContextSegmentMessages(
+const [initializeMessage, flushMessage, closeMessage] = buildMultiContextSegmentMessages(
   "segment_12",
   "  Explain this region.  ",
   { stability: 0.5, similarity_boost: 0.75, speed: 1.1 },
@@ -20,6 +20,14 @@ if (
   flushMessage.text !== "Explain this region. "
 ) {
   throw new Error("context flush message is invalid");
+}
+
+// ElevenLabs answers a flush with audio and nothing else; the `isFinal` the
+// browser waits on before it plays a word arrives only when the context is
+// closed. Leaving it open cost twelve seconds of silence on the first line and
+// then dropped the whole lecture onto the slower HTTP path.
+if (closeMessage?.context_id !== "segment_12" || closeMessage.close_context !== true) {
+  throw new Error("segment context was left open, so its audio can never be spoken");
 }
 
 const audio = normalizeMultiContextServerPayload(JSON.stringify({

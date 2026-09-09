@@ -5,11 +5,22 @@ export interface RelayVoiceSettings {
   speed?: number;
 }
 
+/**
+ * One sentence, one context, closed in the same breath.
+ *
+ * ElevenLabs emits `isFinal` for a context only when that context closes — a
+ * `flush` produces the audio and nothing else. The browser gates playback on
+ * that final, so a context left open is a sentence that gets generated and
+ * never spoken: measured as twelve seconds of silence on the first line, then
+ * the socket disabled for two minutes and the whole lecture on the slower HTTP
+ * fallback. Closing here is what lets the socket speak at all, and it is also
+ * what makes several sentences generate at once: each is its own context.
+ */
 export function buildMultiContextSegmentMessages(
   contextId: string,
   text: string,
   voiceSettings: RelayVoiceSettings,
-): [Record<string, unknown>, Record<string, unknown>] {
+): [Record<string, unknown>, Record<string, unknown>, Record<string, unknown>] {
   if (!/^segment_[1-9]\d*$/.test(contextId)) throw new Error("invalid relay context id");
   const normalizedText = text.trim();
   if (!normalizedText) throw new Error("relay segment text must be non-empty");
@@ -23,6 +34,10 @@ export function buildMultiContextSegmentMessages(
       context_id: contextId,
       text: `${normalizedText} `,
       flush: true,
+    },
+    {
+      context_id: contextId,
+      close_context: true,
     },
   ];
 }

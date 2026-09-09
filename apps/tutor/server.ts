@@ -46,6 +46,12 @@ async function warmDevRoutes(baseUrl: string): Promise<void> {
 interface ElevenLabsWsMessage {
   text?: string;
   flush?: boolean;
+  /**
+   * Which context the browser expects this sentence's audio to come back on.
+   * Several sentences generate at once and a short one finishes first, so the
+   * client cannot read the pairing off the order replies arrive in.
+   */
+  segment_index?: number;
   voice_settings?: {
     stability: number;
     similarity_boost: number;
@@ -96,6 +102,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
   let upstreamReady = false;
   let pendingSegmentText = "";
   let pendingVoiceSettings: ElevenLabsWsMessage["voice_settings"] | undefined;
+  let pendingSegmentIndex: number | undefined;
   let segmentSequence = 0;
   const segmentStartedAt = { value: 0 };
 
@@ -117,11 +124,9 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
     const payload = data.toString();
 
     try {
-      const normalized = normalizeMultiContextServerPayload(payload);
-      clientWs.send(normalized.forwardPayload);
-      if (normalized.finalContextId) {
-        upstream.send(JSON.stringify({ context_id: normalized.finalContextId, close_context: true }));
-      }
+      // The context was already closed when its text was flushed, so this only
+      // normalizes `is_final` to the `isFinal` the browser reads.
+      clientWs.send(normalizeMultiContextServerPayload(payload).forwardPayload);
     } catch {
       clientWs.send(payload);
     }
@@ -162,6 +167,14 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
         }
       }
 
+      if (
+        typeof message.segment_index === "number" &&
+        Number.isSafeInteger(message.segment_index) &&
+        message.segment_index > 0
+      ) {
+        pendingSegmentIndex = message.segment_index;
+      }
+
       if (message.voice_settings && typeof message.voice_settings === "object") {
         const filtered: ElevenLabsWsMessage["voice_settings"] = {
           stability: typeof message.voice_settings.stability === "number"
@@ -199,7 +212,9 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
 
         if (characters > 0) {
           segmentSequence += 1;
-          const contextId = `segment_${segmentSequence}`;
+          // The client's own numbering when it sent one, so it can pair audio
+          // with the sentence that asked for it.
+          const contextId = `segment_${pendingSegmentIndex ?? segmentSequence}`;
           const messages = buildMultiContextSegmentMessages(
             contextId,
             segmentText,
@@ -213,6 +228,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
         }
         pendingSegmentText = "";
         pendingVoiceSettings = undefined;
+        pendingSegmentIndex = undefined;
         segmentStartedAt.value = 0;
       }
     } catch {
