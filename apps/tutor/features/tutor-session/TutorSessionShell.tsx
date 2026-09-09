@@ -77,6 +77,7 @@ import {
   BOARD_WIDTH,
   BOARD_HEIGHT,
 } from "./constants";
+import type { LectureExportProgress } from "@/lib/lecture-export/exportLectureMp4";
 import type { TutorPhase, SegmentPlanStats } from "./types";
 import { createEmptySegmentPlanStats } from "./lib/turn/segmentPlanning";
 import { lessonFollowUpMode } from "./lib/turn/lessonFollowUp";
@@ -119,6 +120,22 @@ export type TutorSessionError = {
   question: string;
 };
 
+/** The student Download / Replay actions, published so admin Watch can offer them. */
+export type TutorSessionExportApi = {
+  canReplay: boolean;
+  canDownload: boolean;
+  canDownloadLecture: boolean;
+  isReplaying: boolean;
+  isDownloading: boolean;
+  isExportingLecture: boolean;
+  lectureExportProgress: LectureExportProgress | null;
+  lectureExportError: string | null;
+  replayLecture: () => boolean;
+  downloadNotesPdf: () => void;
+  downloadLectureMp4: () => void;
+  cancelLectureExport: () => void;
+};
+
 export type TutorSessionShellProps = {
   sessionId: string;
   /** Home board: a real board with no database row and no `/c/` URL until the first question. */
@@ -138,6 +155,8 @@ export type TutorSessionShellProps = {
   /** Fired after the turn is persisted (and saved when `onComplete` is set). */
   onComplete?: () => void;
   onError?: (error: TutorSessionError) => void;
+  /** Admin Watch (and other embeds) mount the same Replay / Notes PDF / MP4 actions. */
+  onExportApi?: (api: TutorSessionExportApi | null) => void;
   /**
    * Slot on the deck between the board and the transport bar, full width of the
    * board column. Outside `.wb-frame`, so its contents render at natural scale
@@ -165,6 +184,7 @@ export function TutorSessionShell({
   onPhase,
   onComplete,
   onError,
+  onExportApi,
   belowBoardPanel,
 }: TutorSessionShellProps) {
   const router = useRouter();
@@ -993,6 +1013,47 @@ export function TutorSessionShell({
   const activeBoardTitle = activeBoard?.title ?? "";
   const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
   const canDownload = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
+  /** Admin Watch auto-replays; Notes PDF can still export from stored turns. */
+  const canDownloadNotes =
+    boardLoaded && storedTurnsCount > 0 && !isDownloading && !isExportingLecture;
+  useEffect(() => {
+    if (!onExportApi) {
+      return;
+    }
+    onExportApi({
+      canReplay,
+      canDownload: isEmbed ? canDownloadNotes : canDownload,
+      canDownloadLecture,
+      isReplaying,
+      isDownloading,
+      isExportingLecture,
+      lectureExportProgress,
+      lectureExportError,
+      replayLecture,
+      downloadNotesPdf,
+      downloadLectureMp4,
+      cancelLectureExport,
+    });
+  }, [
+    onExportApi,
+    isEmbed,
+    canReplay,
+    canDownload,
+    canDownloadNotes,
+    canDownloadLecture,
+    isReplaying,
+    isDownloading,
+    isExportingLecture,
+    lectureExportProgress,
+    lectureExportError,
+    replayLecture,
+    downloadNotesPdf,
+    downloadLectureMp4,
+    cancelLectureExport,
+  ]);
+  useEffect(() => {
+    return () => onExportApi?.(null);
+  }, [onExportApi]);
   const isInputOverlay = !isEmbed && phase === "idle" && boardLoaded && !inputInteracted;
   const inputSubmitMode = lessonFollowUpMode(storedTurnsCount > 0);
 

@@ -4,6 +4,7 @@ export type {
   TutorSessionShellProps,
   TutorSessionVariant,
   TutorSessionError,
+  TutorSessionExportApi,
 } from "./TutorSessionShell";
 export { BOARD_WIDTH, BOARD_HEIGHT } from "./constants";
 export type { TutorPhase } from "./types";
