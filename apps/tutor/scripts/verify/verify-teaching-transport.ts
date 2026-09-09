@@ -16,11 +16,11 @@ function assert(condition: unknown, message: string): asserts condition {
 
 assert(
   resolveTeachingModel({}) === DEFAULT_TEACHING_MODEL,
-  "teaching should default to GLM 5.3 Flash",
+  "teaching should default to Kimi K3",
 );
 assert(
-  DEFAULT_TEACHING_MODEL === "accounts/fireworks/models/glm-5p3-flash",
-  "the spoken teaching default must stay on GLM 5.3 Flash",
+  DEFAULT_TEACHING_MODEL === "accounts/fireworks/models/kimi-k3",
+  "the spoken teaching default must accept thinking: disabled",
 );
 assert(
   resolveTeachingModel({ FIREWORKS_MODEL: "planner-only-model" }) ===
@@ -34,11 +34,11 @@ assert(
 );
 assert(
   resolveTeachingModel({}, { fastMode: true }) === DEFAULT_TEACHING_FAST_MODEL,
-  "fast mode teaching must default to GLM 5.3 Fast",
+  "fast mode teaching must default to Kimi K3 Fast",
 );
 assert(
-  DEFAULT_TEACHING_FAST_MODEL === "accounts/fireworks/routers/glm-5p3-fast",
-  "the teaching Fast SKU must stay on GLM 5.3 Fast",
+  DEFAULT_TEACHING_FAST_MODEL === "accounts/fireworks/routers/kimi-k3-fast",
+  "the teaching Fast SKU must accept thinking: disabled",
 );
 assert(
   resolveTeachingModel(

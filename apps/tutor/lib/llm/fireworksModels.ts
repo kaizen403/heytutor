@@ -7,18 +7,20 @@ export const DEFAULT_FIREWORKS_FAST_MODEL =
   "accounts/fireworks/routers/kimi-k3-fast";
 
 /**
- * Spoken teaching and notes-chat. GLM 5.3 Flash is the standard teaching lane.
- * Planners stay on `DEFAULT_FIREWORKS_MODEL` (Kimi K3).
+ * Spoken teaching and notes-chat. Kimi K3, the same weights the planners use.
+ *
+ * The lane stays split so teaching can move to a cheaper model on its own, but
+ * the replacement must accept `thinking: { type: "disabled" }`: a planned turn
+ * always asks for no reasoning (see `resolveTeachingReasoningEffort`). The GLM
+ * 5.3 family is thinking-only and answers that request with a 400, which kills
+ * the lesson before the tutor speaks.
  */
 export const DEFAULT_TEACHING_MODEL =
-  "accounts/fireworks/models/glm-5p3-flash";
+  "accounts/fireworks/models/kimi-k3";
 
-/**
- * Fireworks Fast serving path for teaching. Flash has no Fast SKU, so Fast
- * mode moves teaching onto GLM 5.3 Fast.
- */
+/** Fireworks Fast serving path for teaching. Same Kimi K3 weights. */
 export const DEFAULT_TEACHING_FAST_MODEL =
-  "accounts/fireworks/routers/glm-5p3-fast";
+  "accounts/fireworks/routers/kimi-k3-fast";
 
 /**
  * Cheapest Fireworks model that accepts images. Teaching stays on
