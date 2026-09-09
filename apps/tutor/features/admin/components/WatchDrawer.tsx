@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Radio, ScrollText, Trash2, X } from "lucide-react";
 import { PlainButton, SiteButton } from "@/components/ui/site-button";
 import { cn } from "@/lib/utils";
-import { TutorSessionShell, unlockTutorAudio } from "@/features/tutor-session";
+import { TutorSessionShell, unlockTutorAudio, type TutorSessionExportApi } from "@/features/tutor-session";
 import type { TutorPhase } from "@/features/tutor-session/types";
+import { LessonActions } from "@/features/tutor-session/components/LessonActions";
 import { ReplaySpeedSelect } from "@/features/tutor-session/components/ReplaySpeedSelect";
 import { DEFAULT_REPLAY_SPEED } from "@/lib/replay/replayAudio";
 import { LectureNotesPanel } from "./LectureNotesPanel";
@@ -89,6 +90,7 @@ function WatchDrawerFrame({
 }: WatchDrawerProps & { boardId: string }) {
   const isLive = intent === "live";
   const [speed, setSpeed] = useState(DEFAULT_REPLAY_SPEED);
+  const [exportApi, setExportApi] = useState<TutorSessionExportApi | null>(null);
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -132,7 +134,7 @@ function WatchDrawerFrame({
       data-watch-overlay=""
       data-watch-intent={intent}
     >
-      <div className="relative z-[70] flex shrink-0 flex-col gap-2 border-b border-stroke bg-ink-950 px-3 py-2 pointer-events-auto sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
+      <div className="relative z-[80] flex shrink-0 flex-col gap-2 border-b border-stroke bg-ink-950 px-3 py-2 pointer-events-auto sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
         <div className="flex min-w-0 items-center gap-2">
           <SiteButton
             variant="ghost"
@@ -157,6 +159,25 @@ function WatchDrawerFrame({
           {isLive ? null : (
             <>
               <ReplaySpeedSelect value={speed} onChange={setSpeed} />
+              <LessonActions
+                canReplay={exportApi?.canReplay ?? false}
+                canDownload={exportApi?.canDownload ?? false}
+                canDownloadLecture={exportApi?.canDownloadLecture ?? false}
+                isReplaying={exportApi?.isReplaying ?? false}
+                isDownloading={exportApi?.isDownloading ?? false}
+                isExportingLecture={exportApi?.isExportingLecture ?? false}
+                lectureExportProgress={exportApi?.lectureExportProgress ?? null}
+                lectureExportError={exportApi?.lectureExportError ?? null}
+                onReplay={() => {
+                  unlockTutorAudio();
+                  exportApi?.replayLecture();
+                }}
+                onDownload={() => exportApi?.downloadNotesPdf()}
+                onDownloadLecture={() => exportApi?.downloadLectureMp4()}
+                onCancelLectureExport={() => exportApi?.cancelLectureExport()}
+                compact
+                alwaysVisible
+              />
               <div className="flex rounded-full border border-stroke p-0.5">
                 <button
                   type="button"
@@ -226,11 +247,18 @@ function WatchDrawerFrame({
                 autoReplay={intent === "replay"}
                 muteAudio={false}
                 playbackRate={speed}
+                onExportApi={setExportApi}
               />
             </div>
             {intent === "notes" ? (
               <div className="h-[42%] shrink-0 border-t border-stroke lg:h-auto lg:w-[380px] lg:border-l lg:border-t-0">
-                <LectureNotesPanel key={boardId} boardId={boardId} />
+                <LectureNotesPanel
+                  key={boardId}
+                  boardId={boardId}
+                  onDownloadPdf={() => exportApi?.downloadNotesPdf()}
+                  canDownloadPdf={exportApi?.canDownload ?? false}
+                  isDownloadingPdf={exportApi?.isDownloading ?? false}
+                />
               </div>
             ) : null}
           </>

@@ -105,6 +105,14 @@ assert(!filtersAreActive(DEFAULT_TOPIC_FILTERS), "defaults must not read as acti
 assert(filtersAreActive({ ...DEFAULT_TOPIC_FILTERS, query: " x " }), "query must read as active");
 console.log("✓ filtersAreActive");
 
+const watchDrawer = readFileSync(join(__dirname, "../../features/admin/components/WatchDrawer.tsx"), "utf8");
+assert(watchDrawer.includes("LessonActions"), "admin Watch must mount the same Replay / Download actions as the tutor");
+assert(watchDrawer.includes("onExportApi"), "admin Watch must take Replay / Notes PDF / MP4 from the embed shell");
+assert(watchDrawer.includes("downloadNotesPdf"), "admin Watch must offer Notes (PDF)");
+assert(watchDrawer.includes("downloadLectureMp4"), "admin Watch must offer Lecture (MP4)");
+assert(watchDrawer.includes("onDownloadPdf"), "admin Notes must offer the same PDF download");
+console.log("✓ admin Watch reuses the tutor drawing export actions");
+
 // 10. Maths really has no fixtures (the empty state is truthful).
 const mathsWithProbes = tree.subjects.maths.filter(u => probesForUnit(index, `maths|${u.number}`).length > 0);
 console.log(`✓ maths units with fixtures: ${mathsWithProbes.length} (empty state is accurate)`);
