@@ -14,11 +14,21 @@ export const TUTOR_APP_ORIGIN =
 
 export const TUTOR_APP_HREF = new URL('/', `${TUTOR_APP_ORIGIN}/`).toString()
 
-export function tutorQuestionHref(question: string): string {
-  const url = new URL(TUTOR_APP_HREF)
-  const normalizedQuestion = question.trim()
-  if (normalizedQuestion) {
-    url.searchParams.set('q', normalizedQuestion)
+export const TUTOR_LOGIN_HREF = new URL('/login', `${TUTOR_APP_ORIGIN}/`).toString()
+
+export function tutorLoginHref(next?: string): string {
+  const url = new URL('/login', `${TUTOR_APP_ORIGIN}/`)
+  if (next && next !== '/') {
+    url.searchParams.set('next', next)
   }
   return url.toString()
+}
+
+export function tutorQuestionHref(question: string): string {
+  const destination = new URL('/', `${TUTOR_APP_ORIGIN}/`)
+  const normalizedQuestion = question.trim()
+  if (normalizedQuestion) {
+    destination.searchParams.set('q', normalizedQuestion)
+  }
+  return tutorLoginHref(`${destination.pathname}${destination.search}`)
 }

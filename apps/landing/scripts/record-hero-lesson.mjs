@@ -26,7 +26,7 @@
  *
  * Then encode (fps and the audio offset both come from the constants below):
  *   ffmpeg -framerate 25 -i frame-%05d.png -i public/hero/lesson.mp3 \
- *     -filter_complex "[1:a]atempo=1.25,adelay=2708:all=1,apad[a]" -map 0:v -map "[a]" \
+ *     -filter_complex "[1:a]adelay=2708:all=1,apad[a]" -map 0:v -map "[a]" \
  *     -c:v libx264 -pix_fmt yuv420p -crf 23 -shortest -movflags +faststart lesson-loop.mp4
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -50,7 +50,7 @@ const TYPING_CHARS_PER_SECOND = 38
 const SUBMIT_PAUSE = 0.55
 const HOLD_DURATION = 3.0
 const CLEAR_DURATION = 1.2
-const PLAYBACK_SPEED = 1.25
+const PLAYBACK_SPEED = 1
 /** Seconds of loop before the voice becomes audible — the audio's mux offset. */
 const TEACH_START = QUESTION_CHARS / TYPING_CHARS_PER_SECOND + SUBMIT_PAUSE
 

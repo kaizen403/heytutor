@@ -5,7 +5,7 @@ import HeroPixelDecor from './pixel/HeroPixelDecor'
 import DitherWave from './dither/DitherWave'
 import Button from './ui/Button'
 import SketchWallpaper from './sketch/SketchWallpaper'
-import { CAL_BOOKING_HREF } from '../lib/calHref'
+import { TUTOR_LOGIN_HREF } from '../lib/tutorAppHref'
 
 export default function Hero() {
   return (
@@ -52,12 +52,7 @@ export default function Hero() {
           className="animate-fade-up mt-7 flex flex-wrap items-center justify-center gap-3 sm:mt-8"
           style={{ animationDelay: '220ms' }}
         >
-          <Button
-            href={CAL_BOOKING_HREF}
-            size="lg"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <Button href={TUTOR_LOGIN_HREF} size="lg">
             <Play className="h-4 w-4" />
             Try it free
           </Button>

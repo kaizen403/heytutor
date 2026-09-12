@@ -59,9 +59,9 @@ function LiveLessonBoard({
           right: 16,
           bottom: 16,
           borderRadius: 5,
-          background: 'linear-gradient(180deg, #FFFFFF 0%, #F4F7FA 100%)',
+          background: 'linear-gradient(180deg, #F6E4C4 0%, #EDD6AA 100%)',
           boxShadow:
-            'inset 0 0 0 1px rgba(0, 0, 0, 0.07), inset 0 2px 3px rgba(0, 0, 0, 0.07), inset 0 -1px 0 rgba(255, 255, 255, 0.9)',
+            'inset 0 0 0 1px rgba(0, 0, 0, 0.07), inset 0 2px 3px rgba(0, 0, 0, 0.07), inset 0 -1px 0 rgba(255, 244, 220, 0.55)',
           overflow: 'hidden',
         }}
       >
@@ -88,27 +88,29 @@ function LiveLessonBoard({
               ref={boardRef}
               width={CANVAS_W}
               height={CANVAS_H}
-              cursorState={cursorState}
+              cursorState={snapshot.phase === 'submit' ? 'idle' : cursorState}
               inkColor="#1B2A4A"
             />
           </div>
         </div>
 
-        {/* Thinking overlay (ThinkingOverlay) — only while the turn is submitting */}
+        {/* Pending overlay — same treatment as the tutor board: paper, the
+            clicker, no copy, no Konva shadows. */}
         {snapshot.phase === 'submit' && (
           <div
+            role="status"
+            aria-label="Preparing the lesson"
             style={{
               position: 'absolute',
               inset: 0,
               zIndex: 3,
-              background:
-                'linear-gradient(180deg, rgba(11,11,12,0.72) 0%, rgba(21,21,23,0.88) 100%)',
-              backdropFilter: 'blur(2px)',
-              WebkitBackdropFilter: 'blur(2px)',
+              background: 'linear-gradient(180deg, #F6E4C4 0%, #EDD6AA 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            {/* progress strip across the top (.wb-progress-bar) */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, overflow: 'hidden' }}>
               <div
                 style={{
                   position: 'absolute',
@@ -117,26 +119,12 @@ function LiveLessonBoard({
                   height: '100%',
                   width: '40%',
                   background:
-                    'linear-gradient(90deg, transparent 0%, rgba(201, 201, 210, 0.55) 50%, transparent 100%)',
+                    'linear-gradient(90deg, transparent 0%, rgba(6, 18, 28, 0.22) 50%, transparent 100%)',
                   animation: 'wb-progress-sweep 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                 }}
               />
             </div>
-            <div
-              style={{
-                display: 'flex',
-                height: '100%',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 16,
-              }}
-            >
-              <PenSpinner size={56} ink="#C9C9D2" label="thinking about how to teach this…" />
-              <p style={{ margin: 0, fontSize: 14.4, color: '#C9C9D2', fontWeight: 500 }}>
-                thinking about how to teach this…
-              </p>
-            </div>
+            <PenSpinner size={56} ink="#1B2A4A" trail={false} />
           </div>
         )}
 
@@ -198,7 +186,7 @@ function LiveLessonBoard({
 
 /* The board holds a live Konva stage. Its driver re-renders on a clock — the
    hero's lesson snapshot, or a use-case demo's typing caret — and none of that
-   concerns the renderer, which only cares about the bubble, the thinking
+   concerns the renderer, which only cares about the bubble, the pending
    overlay, and the cursor. Left unmemoised the stage re-renders with every
    tick and the ink stops advancing. */
 export default memo(LiveLessonBoard, (prev, next) =>

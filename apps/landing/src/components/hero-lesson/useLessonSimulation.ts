@@ -14,9 +14,21 @@ import {
   type LessonTiming,
 } from './lessonScript'
 import { drawStaticLesson, runHeroLessonLoop, type HeroPlayerControls } from './heroLessonPlayer'
+import {
+  heroSoundAfterAssetsLoad,
+  initialHeroSectionVisible,
+  shouldAttemptHeroPlayback,
+} from './heroVoicePolicy'
 
 const AUDIO_SRC = '/hero/lesson.mp3'
 const TIMINGS_SRC = '/hero/lesson-timings.json'
+
+function releaseHeroAudio(audio: HTMLAudioElement | null): void {
+  if (!audio) return
+  audio.pause()
+  audio.removeAttribute('src')
+  audio.load()
+}
 
 export type SoundState = 'loading' | 'unavailable' | 'off' | 'on'
 
@@ -74,7 +86,7 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     start: 0,
     pausedAccum: 0,
     pausedAt: null,
-    ioVisible: true,
+    ioVisible: initialHeroSectionVisible(),
     docVisible: true,
     soundOn: false,
     explicitlyMuted: false,
@@ -115,6 +127,8 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
       st.start -= waitMs
       lt = 0
     }
+    audio.muted = false
+    audio.volume = 1
     audio.currentTime = lt * PLAYBACK_SPEED
     audio.play().catch(() => {
       st.soundOn = false
@@ -143,7 +157,9 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
         st.timing = toPlaybackTiming(data)
         const audio = new Audio(AUDIO_SRC)
         audio.preload = 'auto'
+        audio.setAttribute('playsinline', '')
         audio.playbackRate = PLAYBACK_SPEED
+        if ('preservesPitch' in audio) audio.preservesPitch = true
         audio.addEventListener(
           'playing',
           () => {
@@ -152,40 +168,26 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
           { once: true },
         )
         st.audio = audio
-        // Voice-first: the lesson tries to be heard as soon as it is visible.
-        // Where autoplay policy refuses, the rejection in the tick hands back
-        // the muted-first state and the tab speaker keeps pulsing.
-        st.soundOn = true
-        setSound('on')
+        // Mute-first. Localhost will honour a play() with no gesture, so
+        // enabling sound here talks through the speakers on every dev-server
+        // reload. The tab speaker is the only unlock.
+        setSound(heroSoundAfterAssetsLoad({ reducedMotion: false, timingsOk: true }))
       } catch {
-        if (!cancelled) setSound('unavailable')
+        if (!cancelled) {
+          setSound(heroSoundAfterAssetsLoad({ reducedMotion: false, timingsOk: false }))
+        }
       } finally {
         if (!cancelled) setTimingReady(true)
       }
     })()
 
-    // Any first interaction with the page is licence for sound — except a
-    // press on the speaker itself, which is the toggle's own gesture. The
-    // events must be click/keydown, not pointerdown: iOS Safari grants media
-    // playback only for a play() issued inside a click, pointerup, mouseup or
-    // keydown handler, so a pointerdown-driven play() is rejected on iPhone
-    // and the lesson stays silent however often the user taps. A touch that
-    // turns into a scroll never fires click — the next real tap unlocks.
-    const unlock = (event: Event) => {
-      if (cancelled) return
-      if ((event.target as HTMLElement | null)?.closest?.('[data-sound-toggle]')) return
-      const s = stRef.current
-      if (s.audio && !s.soundOn && !s.explicitlyMuted) startVoice()
-    }
-    window.addEventListener('click', unlock)
-    window.addEventListener('keydown', unlock)
-
     return () => {
       cancelled = true
-      window.removeEventListener('click', unlock)
-      window.removeEventListener('keydown', unlock)
+      releaseHeroAudio(st.audio)
+      st.audio = null
+      st.soundOn = false
     }
-  }, [reduced, startVoice])
+  }, [reduced])
 
   // Master clock: chrome snapshot + audio nudged onto it.
   useEffect(() => {
@@ -228,7 +230,14 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
       setSnapshot(deriveSnapshot(t, st.timing))
 
       const audio = st.audio
-      if (audio && st.soundOn) {
+      if (
+        audio &&
+        shouldAttemptHeroPlayback({
+          soundOn: st.soundOn,
+          sectionVisible: st.ioVisible,
+          documentVisible: st.docVisible,
+        })
+      ) {
         const lt = lessonOffsetMs(t, st.timing) / 1000
         if (lt >= 0 && lt < st.timing.total) {
           const mediaTarget = lt * PLAYBACK_SPEED

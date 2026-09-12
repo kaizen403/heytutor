@@ -69,7 +69,14 @@ function SafariChrome({ sound, onToggle }: { sound: SoundState; onToggle: () => 
       <style>{`
         @keyframes lsn-audio-hint { 0%,100% { opacity: 0.55 } 50% { opacity: 1 } }
         .lsn-audio-hint { animation: lsn-audio-hint 2.4s ease-in-out infinite }
-        @media (prefers-reduced-motion: reduce) { .lsn-audio-hint { animation: none } }
+        @keyframes lsn-listen-pulse {
+          0%,100% { box-shadow: 0 10px 30px -8px rgba(0,0,0,0.55), 0 0 0 0 rgba(89,175,212,0.35); }
+          50% { box-shadow: 0 10px 30px -8px rgba(0,0,0,0.55), 0 0 0 6px rgba(89,175,212,0.0); }
+        }
+        .lsn-listen { animation: lsn-listen-pulse 2.4s ease-in-out infinite }
+        @media (prefers-reduced-motion: reduce) {
+          .lsn-audio-hint, .lsn-listen { animation: none }
+        }
       `}</style>
 
       {/* Unified toolbar: window controls inline, address field centred. */}
@@ -126,11 +133,11 @@ function SafariChrome({ sound, onToggle }: { sound: SoundState; onToggle: () => 
               onClick={onToggle}
               aria-label={muted ? 'Play lesson voice' : 'Mute lesson voice'}
               title={muted ? 'Play with sound' : 'Mute'}
-              className={`ml-auto flex h-[13px] w-[13px] shrink-0 cursor-pointer items-center justify-center rounded-[3px] transition-colors hover:bg-white/10 sm:h-[17px] sm:w-[17px] sm:rounded-[4px] ${
+              className={`ml-auto flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[4px] transition-colors hover:bg-white/10 sm:h-6 sm:w-6 sm:rounded-[5px] ${
                 muted ? 'text-sky-400 lsn-audio-hint' : 'text-[#C9C9CE]'
               }`}
             >
-              {muted ? <VolumeX size={11} aria-hidden /> : <Volume2 size={11} aria-hidden />}
+              {muted ? <VolumeX size={13} aria-hidden /> : <Volume2 size={13} aria-hidden />}
             </button>
           )}
           <span aria-hidden className="flex h-[13px] w-[13px] shrink-0 items-center justify-center rounded-[3px] text-[#9C9C9E] sm:h-[17px] sm:w-[17px] sm:rounded-[4px]">
@@ -211,6 +218,24 @@ function LiveLessonWindow() {
           />
         </div>
       </div>
+      {sound === 'off' && (
+        <button
+          type="button"
+          data-sound-toggle
+          onClick={toggleSound}
+          aria-label="Play lesson voice"
+          className="lsn-listen absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 cursor-pointer items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-medium text-[#F2F2F4] sm:bottom-7 sm:px-5 sm:text-[14px]"
+          style={{
+            background: 'rgba(21, 21, 23, 0.94)',
+            border: '1px solid rgba(242, 242, 244, 0.12)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+          }}
+        >
+          <Volume2 size={16} aria-hidden />
+          Hear this lesson
+        </button>
+      )}
     </>
   )
 }
@@ -371,8 +396,8 @@ export default function LessonShowcase() {
             Watch it happen <span className="text-ice">on the whiteboard</span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base font-normal leading-relaxed text-brand-muted-dark sm:text-lg">
-            Diagrams drawn stroke by stroke, notes written as the tutor talks it through. Hit the
-            speaker on the tab to hear the lesson.
+            Diagrams drawn stroke by stroke, notes written as the tutor talks it through. Unmute to
+            hear the lesson in time with the ink.
           </p>
         </Reveal>
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import Brand from './Brand'
 import Button from './ui/Button'
-import { CAL_BOOKING_HREF } from '../lib/calHref'
+import { TUTOR_LOGIN_HREF } from '../lib/tutorAppHref'
 
 const NAV_LINKS = [
   { href: '/#lesson', label: 'How it works' },
@@ -55,13 +55,7 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center">
-            <Button
-              href={CAL_BOOKING_HREF}
-              size="sm"
-              className="hidden md:inline-flex"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <Button href={TUTOR_LOGIN_HREF} size="sm" className="hidden md:inline-flex">
               Try it free
             </Button>
             <button
@@ -94,14 +88,7 @@ export default function Navbar() {
                 </a>
               ))}
             </div>
-            <Button
-              href={CAL_BOOKING_HREF}
-              size="sm"
-              block
-              className="mt-3"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <Button href={TUTOR_LOGIN_HREF} size="sm" block className="mt-3">
               Try it free
             </Button>
           </div>

@@ -84,8 +84,13 @@ export const SUBMIT_PAUSE = 0.55
 export const HOLD_DURATION = 3.0
 export const CLEAR_DURATION = 1.2
 
-/** The whole lesson (voice included) plays at this multiple of real time. */
-export const PLAYBACK_SPEED = 1.25
+/**
+ * The hero lesson plays at the tutor's natural pace. Keep this at 1 — HTML
+ * `playbackRate` above 1 shifts pitch (chipmunk) even when the ink stays in
+ * sync. Compress the loop by regenerating TTS at a higher `speed` dial, never
+ * by stretching the MP3.
+ */
+export const PLAYBACK_SPEED = 1
 
 /** Convert raw TTS seconds into wall-clock seconds at playback speed. */
 export function toPlaybackTiming(raw: LessonTiming): LessonTiming {

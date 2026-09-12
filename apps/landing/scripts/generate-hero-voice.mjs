@@ -27,9 +27,12 @@ const SEGMENTS = [
   'So the final velocity is ten metres per second.',
 ]
 
-// Same voice + settings as the live tutor (packages/tutor-core/src/tts/elevenLabsClient.ts)
+// Same voice + settings as the live tutor (packages/tutor-core/src/tts/voiceSettings.ts).
+// `speed` is generation pace, not HTML playbackRate — speeding the MP3 up later
+// shifts pitch and is what made the old hero clip sound like a chipmunk.
 const MODEL_ID = 'eleven_multilingual_v2'
-const VOICE_SETTINGS = { stability: 0.4, similarity_boost: 0.75, style: 0.22, use_speaker_boost: true, speed: 0.88 }
+const VOICE_SETTINGS = { stability: 0.4, similarity_boost: 0.75, style: 0.35, use_speaker_boost: true, speed: 0.88 }
+const OUTPUT_FORMAT = 'mp3_44100_128'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 
@@ -56,7 +59,10 @@ if (!apiKey) {
   process.exit(1)
 }
 
-const text = SEGMENTS.join(' ')
+// One take, sentences separated by a newline so the model breathes between
+// teaching steps without a concat click. Offsets stay character-indexed
+// against that joined string (the runtime validates starts.length).
+const text = SEGMENTS.join('\n')
 const offsets = []
 let acc = 0
 for (const s of SEGMENTS) {
@@ -66,7 +72,7 @@ for (const s of SEGMENTS) {
 
 console.log(`Requesting TTS (${text.length} chars, voice ${voiceId})…`)
 const res = await fetch(
-  `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps?output_format=mp3_44100_96`,
+  `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps?output_format=${OUTPUT_FORMAT}`,
   {
     method: 'POST',
     headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },

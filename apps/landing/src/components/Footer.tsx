@@ -5,8 +5,7 @@ import Button from './ui/Button'
 import DitherHalo from './dither/DitherHalo'
 import Logo from './Logo'
 import Reveal from './Reveal'
-import { CAL_BOOKING_HREF } from '../lib/calHref'
-import { TUTOR_APP_HREF, tutorQuestionHref } from '../lib/tutorAppHref'
+import { TUTOR_APP_HREF, TUTOR_LOGIN_HREF, tutorQuestionHref } from '../lib/tutorAppHref'
 import SketchWallpaper from './sketch/SketchWallpaper'
 
 type FooterLink = { label: string; href: string }
@@ -34,7 +33,7 @@ const NAVIGATION_LINKS: FooterLink[] = [
   { label: 'How it works', href: '/#lesson' },
   { label: 'Use cases', href: '/#use-cases' },
   { label: 'Pricing', href: '/#pricing' },
-  { label: 'Try the app', href: TUTOR_APP_HREF },
+  { label: 'Try the app', href: TUTOR_LOGIN_HREF },
 ]
 
 const COMPANY_LINKS: FooterLink[] = [
@@ -197,12 +196,7 @@ export default function Footer() {
             you through it.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Button
-              href={CAL_BOOKING_HREF}
-              size="lg"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <Button href={TUTOR_LOGIN_HREF} size="lg">
               <Play className="h-4 w-4" />
               Try it free
             </Button>

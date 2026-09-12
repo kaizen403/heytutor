@@ -2,7 +2,7 @@ import LegalDocument, { LegalSection } from './LegalDocument'
 
 export default function PrivacyPage() {
   return (
-    <LegalDocument title="Privacy Policy" updated="31 August 2026">
+    <LegalDocument title="Privacy Policy" updated="10 September 2026">
       <LegalSection title="1. Who we are">
         <p>
           This Privacy Policy explains how Accelute (“we”, “us”) collects and
@@ -20,10 +20,16 @@ export default function PrivacyPage() {
         <p>Depending on how you use the Service, we may process:</p>
         <ul>
           <li>
-            <strong className="font-medium text-frost">Anonymous session id.</strong>{' '}
-            A browser cookie (for example <code className="text-ice">htutor_uid</code>)
-            maps you to a user row so boards and notes can persist. There is no
-            required login or password.
+            <strong className="font-medium text-frost">Account data.</strong>{' '}
+            When you sign in with Google or an email magic link we store your
+            email, name, and photo (if the provider sends them), exam goal,
+            class, subjects, age band, and optional guardian email.
+          </li>
+          <li>
+            <strong className="font-medium text-frost">Device cookie.</strong>{' '}
+            <code className="text-ice">htutor_uid</code> is used only to merge
+            boards from a previous anonymous visit onto your first login, or
+            for a public embed/demo board. It is not the signed-in identity.
           </li>
           <li>
             <strong className="font-medium text-frost">Lesson content.</strong>{' '}
@@ -42,8 +48,8 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
-          We do not ask for your real name, school, or payment card on the
-          free tutor today. If that changes, we will update this policy.
+          We do not ask for a password or a payment card in this version.
+          Credits and plans are not live yet.
         </p>
       </LegalSection>
 
@@ -77,10 +83,9 @@ export default function PrivacyPage() {
 
       <LegalSection title="5. Cookies">
         <p>
-          We use a small essential cookie so the tutor can recognise the same
-          browser across visits. The marketing site may use similar technical
-          cookies to load the page. We do not run third-party advertising
-          cookies on Accelute.
+          The tutor uses an Auth.js session cookie after you sign in. The
+          marketing site may use similar technical cookies to load the page.
+          We do not run third-party advertising cookies on Accelute.
         </p>
       </LegalSection>
 
@@ -95,9 +100,10 @@ export default function PrivacyPage() {
 
       <LegalSection title="7. Children">
         <p>
-          Accelute is a learning tool. It is not directed at children under 13,
-          and we do not knowingly collect personal information from them. If
-          you believe a child under 13 has used the Service, email{' '}
+          Accelute does not offer accounts to children under 13. Ages 13–17
+          must provide a guardian email; we send a one-time notice that the
+          account was created. We do not build a parent product. If you believe
+          a child under 13 has an account, email{' '}
           <a href="mailto:hi@accelute.co">hi@accelute.co</a> and we will delete
           the associated data we can identify.
         </p>
@@ -106,8 +112,8 @@ export default function PrivacyPage() {
       <LegalSection title="8. Your choices">
         <p>You can:</p>
         <ul>
-          <li>clear site cookies in your browser to drop the anonymous id</li>
-          <li>delete boards from the tutor when that control is available</li>
+          <li>export your boards, notes, and profile from Settings or Profile</li>
+          <li>delete boards, or delete the account (this cascades boards)</li>
           <li>
             email <a href="mailto:hi@accelute.co">hi@accelute.co</a> to ask
             what we hold, to correct it, or to delete it

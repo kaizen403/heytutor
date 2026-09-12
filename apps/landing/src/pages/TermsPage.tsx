@@ -2,7 +2,7 @@ import LegalDocument, { LegalSection } from './LegalDocument'
 
 export default function TermsPage() {
   return (
-    <LegalDocument title="Terms of Service" updated="31 August 2026">
+    <LegalDocument title="Terms of Service" updated="10 September 2026">
       <LegalSection title="1. Agreement">
         <p>
           These Terms of Service (“Terms”) govern your use of Accelute, the
@@ -32,11 +32,25 @@ export default function TermsPage() {
 
       <LegalSection title="3. Who may use it">
         <p>
-          You must be able to form a binding contract in your country. If you
-          are under 18, you may use the Service only with a parent or
-          guardian’s permission. We do not knowingly offer accounts aimed at
-          children under 13. See the{' '}
+          The tutor app is a student product. You must be 13 or older to create
+          an account. We refuse sign-up under 13. If you are 13–17, a parent or
+          guardian must give permission, and we collect a guardian email to send
+          a one-time notice that the account was created. If you are 18 or
+          older, you may continue. See the{' '}
           <a href="/privacy">Privacy Policy</a> for how we handle data.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="3a. Accounts">
+        <p>
+          Using the tutor requires an Accelute student account (Google or email
+          magic link). The marketing site stays public. A landing lesson demo
+          or <code className="text-ice">?embed=1</code> board can be watched
+          without signing in; that path cannot save work to a student account.
+        </p>
+        <p>
+          You can export your boards, notes, and profile, and you can delete
+          your account. Deletion removes the account and boards we hold for you.
         </p>
       </LegalSection>
 
