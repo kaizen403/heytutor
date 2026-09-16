@@ -1,0 +1,30 @@
+/** Kit smoke: every ChemScene primitive on one board. `tsx scripts/chemistry-lab/kit-smoke.ts <outdir>` */
+import { ChemScene } from "../../src/chemistry/sceneKit";
+import { rasterize, renderDocument } from "./lab";
+
+const outDir = process.argv[2] ?? ".chemistry-lab/kit";
+const c = new ChemScene("Draw the structure of water", "water molecule, bent, two lone pairs", "chem_smoke");
+c.atom("O", "O", { x: 0, y: 0 });
+c.atom("H1", "H", { x: -0.8, y: -0.6 });
+c.atom("H2", "H", { x: 0.8, y: -0.6 });
+c.bond("b1", "O", "H1");
+c.bond("b2", "O", "H2");
+c.lonePair("lp1", "O", 60);
+c.lonePair("lp2", "O", 120);
+c.atom("C", "C", { x: 3, y: 0 }, { radius: 0.3 });
+c.atom("O2", "O", { x: 4.2, y: 0 }, { radius: 0.3 });
+c.atom("O3", "O", { x: 1.8, y: 0 }, { radius: 0.3 });
+c.bond("d1", "C", "O2", { order: 2 });
+c.bond("d2", "C", "O3", { order: 2 });
+c.atom("X", "Cl", { x: 3, y: 1.4 });
+c.bond("w", "C", "X", { style: "wedge" });
+c.atom("Y", "Br", { x: 3, y: -1.4 });
+c.bond("dsh", "C", "Y", { style: "dash" });
+c.angle("ang", "O", "H1", "H2", "104.5°");
+c.electron("e1", { x: 5.5, y: 0.5 }, "up");
+c.electron("e2", { x: 5.7, y: 0.5 }, "down");
+c.level("lv", { x: 5.6, y: 0.2 }, 0.6, "energy level", "σ2p");
+c.link("ln", { x: 5.0, y: 1 }, { x: 6.2, y: 1 });
+c.text("t", { x: 3, y: -2.2 }, "CO_2 carbon");
+renderDocument(c.build({ caption: "figure test" }), `${outDir}/kit-smoke.svg`, "kit smoke");
+rasterize(outDir);

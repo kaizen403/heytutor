@@ -10,13 +10,16 @@ import type { VerifiedDiagram } from "@heytutor/drawing";
 import type { InkPace } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
+import { storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
 import {
-  latestCompletedTurn,
+  latestLecturePage,
   lectureDownloadFilename,
+  lecturePageCacheKey,
+  pageHasExportableAudio,
   shouldCancelLectureExport,
-  turnHasExportableAudio,
 } from "@/lib/lecture-export/canExportLectureMp4";
 import { downloadBlob } from "@/lib/lecture-export/downloadBlob";
+import { getCachedLectureExport, rememberLectureExport } from "@/lib/lecture-export/lectureExportCache";
 import {
   exportLectureMp4,
   supportsLectureMp4Encode,
@@ -29,7 +32,7 @@ import { useCancelControl } from "./useCancelControl";
 import { useCommandExecution } from "./useCommandExecution";
 
 const UNSUPPORTED_BROWSER =
-  "Lecture download needs Chrome, Edge, or Safari.";
+  "This browser cannot encode lecture video.";
 const NO_AUDIO = "This lecture has no recorded audio to export.";
 const BOARD_NOT_READY = "The lecture board is not ready to export yet.";
 
@@ -168,24 +171,39 @@ export function useLectureExport({
     if (!enabled || isExportingLecture) {
       return;
     }
-    const turn = latestCompletedTurn(storedTurnsRef.current);
-    if (!turn || !turnHasExportableAudio(turn)) {
+    // The latest page, not the latest turn: a doubt answered under the lesson
+    // is recorded on the lesson's page, with its figure and rows above it.
+    const pageTurns = latestLecturePage(storedTurnsRef.current);
+    const turn = pageTurns[pageTurns.length - 1];
+    if (!turn || !pageHasExportableAudio(pageTurns)) {
       setLectureExportError(NO_AUDIO);
       return;
     }
+    const pageQuestion = storedTurnPageQuestion(turn);
 
     const generation = exportGenerationRef.current + 1;
     exportGenerationRef.current = generation;
     exportCancelRef.current = false;
-    exportQuestionRef.current = turn.question;
+    exportQuestionRef.current = pageQuestion;
+    const cacheKey = lecturePageCacheKey(pageTurns);
     resetBoardLayout(false, false);
     setLectureExportError(null);
     setLectureExportProgress({ currentMs: 0, totalMs: 0, phase: "audio" });
     setIsExportingLecture(true);
-    setExportBoardMounted(true);
 
     void (async () => {
       try {
+        const cached = await getCachedLectureExport(cacheKey);
+        if (cached) {
+          if (generation !== exportGenerationRef.current) {
+            return;
+          }
+          downloadBlob(cached.blob, lectureDownloadFilename(pageQuestion, cached.extension));
+          return;
+        }
+
+        setExportBoardMounted(true);
+
         if (!(await supportsLectureMp4Encode())) {
           setLectureExportError(UNSUPPORTED_BROWSER);
           return;
@@ -209,6 +227,7 @@ export function useLectureExport({
 
         const result = await exportLectureMp4({
           turn,
+          pageTurns,
           whiteboard: exportBoardRef.current!,
           executeCommand: executeCommandWithCancel,
           clock,
@@ -220,7 +239,12 @@ export function useLectureExport({
           return;
         }
 
-        downloadBlob(result.blob, lectureDownloadFilename(turn.question));
+        rememberLectureExport(cacheKey, {
+          blob: result.blob,
+          mimeType: result.mimeType,
+          extension: result.extension,
+        });
+        downloadBlob(result.blob, lectureDownloadFilename(pageQuestion, result.extension));
         if (result.missingAudioCues > 0) {
           setLectureExportError("Some audio was missing and was exported as silence.");
         }

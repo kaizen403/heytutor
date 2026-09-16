@@ -3,6 +3,7 @@ import path from "path";
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
+  serverExternalPackages: ["@aws-sdk/client-s3"],
   transpilePackages: [
     "@heytutor/design-tokens",
     "@heytutor/drawing",

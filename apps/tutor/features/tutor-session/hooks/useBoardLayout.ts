@@ -23,6 +23,7 @@ import {
   getWorkAreaFlowStartY,
   findWorkTextSlot,
   overlapsWorkArea,
+  recordedWorkWriteNeedsPageTurn,
   workColumnMaxWidth,
 } from "../lib/board/boardLayout";
 
@@ -178,6 +179,25 @@ export function useBoardLayout({
     return command.type === "WRITE" ? WORK_ROW_FONT_SIZE : BOARD_TYPE_SCALE.label;
   }, []);
 
+  const eraseWorkColumnForNewPage = useCallback(async (text?: string): Promise<void> => {
+    const wb = whiteboardRef.current;
+    if (wb && !cancelRef.current) {
+      tutorDebug("draw", "layout erasing work area", {
+        text: text?.slice(0, 60),
+        rect_count: boardLayoutRef.current.rects.length,
+      });
+      captureNotesEpoch();
+      await wb.eraseWorkInk(700, () => cancelRef.current);
+    }
+    const survivingDiagramRects = fbdPhaseStartedRef.current
+      ? boardLayoutRef.current.rects.filter(
+          (r) => r.x >= DIAGRAM_ZONE.x && r.y >= TEXT_LAYOUT.headingBottomY,
+        )
+      : [];
+    resetBoardLayout(true, true);
+    boardLayoutRef.current.rects.push(...survivingDiagramRects);
+  }, [captureNotesEpoch, cancelRef, fbdPhaseStartedRef, resetBoardLayout, whiteboardRef]);
+
   const resolveTextPlacement = useCallback(
     async (
       command: DrawCommand,
@@ -195,6 +215,18 @@ export function useBoardLayout({
             height: TEXT_LAYOUT.textHeight,
             text: command.text,
           };
+          // Restore/replay keep the stored x,y, but a long lesson reuses those
+          // y values after a live page-turn whose erase was never recorded.
+          if (
+            command.type === "WRITE" &&
+            recordedWorkWriteNeedsPageTurn(
+              boardLayoutRef.current,
+              rect,
+              fbdPhaseStartedRef.current,
+            )
+          ) {
+            await eraseWorkColumnForNewPage(command.text);
+          }
           registerBoardAnchor(
             boardLayoutRef.current,
             command.type === "WRITE" ? withWorkRowIdentity(boardLayoutRef.current, rect) : rect,
@@ -239,36 +271,7 @@ export function useBoardLayout({
       let slot = findSlot();
 
       if (slot === null) {
-        const wb = whiteboardRef.current;
-        if (wb && !cancelRef.current) {
-          // Keep an in-progress diagram: when one exists, only clear the left
-          // work column instead of the full board width.
-          const eraseWidth = fbdPhaseStartedRef.current
-            ? Math.max(DIAGRAM_ZONE.x - TEXT_LAYOUT.eraseX - 10, 40)
-            : TEXT_LAYOUT.eraseWidth;
-          tutorDebug("draw", "layout erasing work area", {
-            text: command.text.slice(0, 60),
-            rect_count: layout.rects.length,
-            erase_width: eraseWidth,
-          });
-          captureNotesEpoch();
-          await wb.eraseRegion(
-            TEXT_LAYOUT.eraseX,
-            TEXT_LAYOUT.eraseY,
-            eraseWidth,
-            TEXT_LAYOUT.eraseHeight,
-            700,
-          );
-        }
-        // Diagram-zone labels survive a work-column erase, so keep their
-        // rects registered for later annotation snapping.
-        const survivingDiagramRects = fbdPhaseStartedRef.current
-          ? boardLayoutRef.current.rects.filter(
-              (r) => r.x >= DIAGRAM_ZONE.x && r.y >= TEXT_LAYOUT.headingBottomY,
-            )
-          : [];
-        resetBoardLayout(true, true);
-        boardLayoutRef.current.rects.push(...survivingDiagramRects);
+        await eraseWorkColumnForNewPage(command.text);
         layout = boardLayoutRef.current;
         slot = findSlot() ?? {
           x: TEXT_LAYOUT.marginX,
@@ -295,7 +298,7 @@ export function useBoardLayout({
 
       return { x: rect.x, y: rect.y, maxWidth: slot.maxWidth };
     },
-    [captureNotesEpoch, resetBoardLayout, textCommandFontSize, cancelRef, fbdPhaseStartedRef, whiteboardRef],
+    [eraseWorkColumnForNewPage, fbdPhaseStartedRef, textCommandFontSize],
   );
 
   /**

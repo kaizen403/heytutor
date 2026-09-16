@@ -13,6 +13,8 @@ data/question-bank/cache/
 .next/
 .turbo/
 dist/
+node_modules/
+**/node_modules/
 
 # Local scratch / agent working state.
 .images/

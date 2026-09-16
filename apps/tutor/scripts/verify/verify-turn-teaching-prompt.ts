@@ -8,7 +8,12 @@
  * assembly is pure, so those rules can be asserted directly rather than waited
  * for in a live run.
  */
-import { CONCEPT_LESSON_RUNTIME_ADDON, TUTOR_SYSTEM_PROMPT } from "@heytutor/tutor-core";
+import {
+  CONCEPT_LESSON_RUNTIME_ADDON,
+  LESSON_OPENING_PROMPT_ADDON,
+  TUTOR_SYSTEM_PROMPT,
+  getMockCodeLessonPlan,
+} from "@heytutor/tutor-core";
 import { WORK_ZONE, fitBoardText } from "@heytutor/drawing";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { buildTurnTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
@@ -190,6 +195,53 @@ const CONTRACT_RULES: [needle: string, why: string][] = [
     "in its general symbolic form before any special case",
     "equal resistors let one lesson skip the divider rule entirely and write \"equal R -> V_R1 = V_R2\", so the student got the arithmetic of this question and not the relation",
   ],
+  // The pen follows the voice only when the row's tokens are in the voice.
+  // Measured over 364 lessons: 6301 rows, every token spoken in 13.9% of them,
+  // "=" unmatched in 2822 of 4267 rows because the step said "is".
+  [
+    "the row is spoken token for token",
+    "a row whose tokens are not in the sentence has no word to sync to, so the pen fell back to a spread across the sentence and finished a second before the voice",
+  ],
+  [
+    "say every = as equals, never is",
+    "the matcher accepts equals; 45% of rows with = were spoken as \"is\" and the pen never found the relation",
+  ],
+  [
+    "say a subscript by its letter alone",
+    "\"v sub s\" never matches the row V_s, so a subscripted symbol was the token most often left unmatched",
+  ],
+  [
+    "the words that name the row come last in the step",
+    "29% of rows had their first matched token past 35% of the sentence because the reason came after the row; the runtime then dragged the cue to the sentence start",
+  ],
+  // FOCUS placement: 1277 tags, 26% carried several ids, 98.7% sat at the end of
+  // the step, and the label was inside the runtime's clause anchor in 28%.
+  [
+    "one [FOCUS:one_id] per named part, placed inside the sentence directly after the label",
+    "an end-of-step tag fires after the whole sentence, a median 3.3 s after the name was spoken",
+  ],
+  [
+    "never two ids in one tag",
+    "a combined tag is one gesture for several parts, so every label released at once and the marker traced them all inside one 900 ms budget",
+  ],
+  [
+    "each part gets its own tag right after its name",
+    "\"several at once with [FOCUS:id_a,id_b]\" told the model to do the thing the previous rule forbids",
+  ],
+  [
+    "a tag never directly follows another tag",
+    "11% of FOCUS tags were glued behind a WRITE with an empty window, and the runtime had no words to place them on",
+  ],
+];
+
+// Wording that taught the failure. Each of these was the sentence the model
+// obeyed, so its return is a regression whatever else the prompt says.
+const RETIRED_WORDING: [needle: string, why: string][] = [
+  ["[FOCUS:id_a,id_b]", "the combined tag form was offered as an optional form and used in 26% of tags"],
+  ["several at once", "the tour rule told the model to combine ids that the placement rule tells it to separate"],
+  ["immediately after the spoken name", "said the placement without forbidding the end of the step, and 98.7% of tags landed there"],
+  ["in the same breath as [WRITE]", "described the cue without saying the row is spoken token for token"],
+  ["in that same step", "the same-step wording let the tag drift to the end of the step"],
 ];
 // That budget has to be the measured one, not a number typed into the prompt.
 const budgetMatch = /a work row holds about (\d+) characters while a figure is on the board, and about (\d+)/.exec(
@@ -213,6 +265,94 @@ assert(
 for (const [needle, why] of CONTRACT_RULES) {
   assert(TUTOR_SYSTEM_PROMPT.includes(needle), `the teaching contract lost the rule "${needle}": ${why}`);
 }
+for (const [needle, why] of RETIRED_WORDING) {
+  assert(!TUTOR_SYSTEM_PROMPT.includes(needle), `the teaching contract says "${needle}" again: ${why}`);
+}
+
+// The example is the rule the model actually copies. Its own steps once
+// carried a combined end-of-step FOCUS and a FOCUS glued behind a WRITE, and
+// the lessons reproduced both shapes at 26% and 11%. So the example is held to
+// the placement rules by structure, not by wording.
+const exampleStart = TUTOR_SYSTEM_PROMPT.indexOf("example structure:");
+assert(exampleStart > 0, "the teaching contract must end with an example");
+const exampleSteps = [...TUTOR_SYSTEM_PROMPT.slice(exampleStart).matchAll(/\[STEP\]([\s\S]*?)\[\/STEP\]/g)]
+  .map((match) => match[1].trim());
+assert(exampleSteps.length >= 8, `the example must be a whole lesson, got ${exampleSteps.length} steps`);
+const TAG = /\[(WRITE|FOCUS|EMPHASIZE|ANNOTATE|PAUSE):([^\]]*)\]/g;
+let exampleFocusTags = 0;
+for (const step of exampleSteps) {
+  assert(
+    !/\]\s*\[(?:WRITE|FOCUS|EMPHASIZE|ANNOTATE|PAUSE):/.test(step),
+    `two tags sit side by side in the example step "${step.slice(0, 60)}": a tag needs the words it belongs to in front of it`,
+  );
+  const tags = [...step.matchAll(TAG)];
+  for (const tag of tags) {
+    const [, type, body] = tag;
+    const after = step.slice((tag.index ?? 0) + tag[0].length).replace(TAG, "").trim();
+    if (type === "FOCUS") {
+      exampleFocusTags += 1;
+      assert(
+        !body.split("|")[0].includes(","),
+        `the example carries a combined FOCUS "${body}": one tag per named part`,
+      );
+      assert(
+        after.length > 0,
+        `the example puts [FOCUS:${body}] at the end of its step; it belongs inside the sentence right after the label`,
+      );
+      // Inside the sentence means the tag closes on the name, not on the full
+      // stop: the word before it is the last spoken word of the label phrase.
+      const before = step.slice(0, tag.index).replace(TAG, "").trim();
+      assert(
+        /[A-Za-z]$/.test(before),
+        `the example puts [FOCUS:${body}] after "${before.slice(-20)}", which is not a spoken name`,
+      );
+    }
+    if (type === "WRITE") {
+      assert(
+        after.length === 0,
+        `the example keeps talking after [WRITE:${body.split(",")[0]}]: the row's words come last and the step ends on the tag`,
+      );
+      const spoken = step.replace(TAG, "").toLowerCase();
+      // The unknown row "v = ?" is the one = with no spoken form: the sentence
+      // says what we want, and "?" is never read aloud.
+      const row = body.split(",")[0];
+      if (row.includes("=") && !/=\s*\?\s*$/.test(row)) {
+        assert(
+          /\bequals\b/.test(spoken),
+          `the example row "${body.split(",")[0]}" carries = and its step never says equals`,
+        );
+      }
+    }
+  }
+}
+assert(exampleFocusTags >= 3, `the example must show FOCUS placement more than once, got ${exampleFocusTags}`);
+
+// A DSA lesson's frame tag moves the figure. Measured over the code rounds the
+// tag sat at the start of the step in 51% of lessons and at the end in most of
+// the rest, so the picture changed a whole step away from the sentence that
+// named it. The rule now names the sentence the tag follows.
+const codeLesson = buildTurnTeachingPrompt({
+  question: "Two sum: given nums and target, return the indices of the two numbers that add to target.",
+  diagramPromptAddon: "FIGURE ADDON MARKER",
+  turnPlan: null,
+  solverProjection: null,
+  codeLesson: getMockCodeLessonPlan("two sum"),
+  codeLessonFrames: [
+    { id: "frame_1", caption: "start with both pointers at the ends", narrationIntent: "set up" },
+    { id: "frame_2", caption: "the sum is too small, so move the left pointer", narrationIntent: "first move" },
+  ],
+  isDsa: true,
+  familiarity: "normal",
+  fastMode: true,
+});
+assert(
+  codeLesson.systemPrompt.includes("after the first sentence that names the frame"),
+  "the code lesson contract must place the frame tag after the first sentence that names the frame",
+);
+assert(
+  !codeLesson.systemPrompt.includes("at the end of the step"),
+  "the code lesson contract must not send the frame tag to the end of the step",
+);
 
 // A concept lesson whose subject is a relation has to derive it. Mayer's
 // relation, Carnot efficiency and equipartition were each stated and then
@@ -222,6 +362,38 @@ assert(
   "the concept lesson addon must require the named relation to be derived, not just quoted",
 );
 
+// The turn's first spoken beat leads everything the runtime writes. Ordering
+// is the whole point of it: a lesson whose opening line arrives after the
+// "Given: ..." rows has still started in the middle of itself.
+for (const built of [unchecked, verified]) {
+  const opening = built.openingSegment;
+  assert(opening !== null, "a numbered turn must carry an opening beat");
+  assert(opening.delivery === "opening", "the opening beat must ask for the opening voice");
+  assert(opening.command === null && opening.commands === undefined, "the opening beat writes nothing");
+  assert(
+    !built.givenSegments.some((segment) => segment.delivery === "opening"),
+    "the opening beat must stay out of the numbered work rows",
+  );
+  assert(
+    built.runtimeAddon.startsWith(LESSON_OPENING_PROMPT_ADDON),
+    "the model must be told first that the lesson has already been opened",
+  );
+  assert(
+    built.systemPrompt.includes(LESSON_OPENING_PROMPT_ADDON),
+    "the opening addon must reach the model",
+  );
+}
+
+// Nothing in the assembled prompt may tell the model to do the opening the
+// runtime has already done. Two instructions in one prompt saying opposite
+// things is how the answer ended up greeting twice.
+for (const built of [unchecked, verified]) {
+  assert(
+    !/what the question asks you to find/i.test(built.systemPrompt),
+    "the assembled prompt still asks the model to restate the ask the opening line spoke",
+  );
+}
+
 console.log(
-  `verify-turn-teaching-prompt: assumed givens are labelled, unchecked plans lose their authority, and ${CONTRACT_RULES.length} contract rules hold`,
+  `verify-turn-teaching-prompt: the lesson opens once, assumed givens are labelled, unchecked plans lose their authority, ${CONTRACT_RULES.length} contract rules hold, ${RETIRED_WORDING.length} retired sentences stay out, and the example places every tag on its words`,
 );

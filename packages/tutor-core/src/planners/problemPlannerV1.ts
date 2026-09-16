@@ -14,6 +14,7 @@ import {
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
+import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 
 const PROBLEM_PLANNER_MODEL = "server";
@@ -21,6 +22,8 @@ const PROBLEM_PLANNER_MODEL = "server";
 export interface ProblemPlannerV1Options {
   proxyUrl: string;
   sessionId?: string;
+  /** Client-generated Langfuse turn id shared with teaching and TTS. */
+  traceId?: string;
   signal?: AbortSignal;
   timeoutMs: number;
   fetchImpl?: typeof fetch;
@@ -55,14 +58,18 @@ export async function planAndSolveProblemV1(
   try {
     const response = await (options.fetchImpl ?? fetch)(options.proxyUrl, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-planner": "1",
-        "x-problem-ir-version": "1",
-        "x-planner-deadline-ms": String(options.timeoutMs),
-        ...(options.sessionId ? { "x-session-id": options.sessionId } : {}),
-        ...withFastModeHeader({}, options.fastMode),
-      },
+      headers: withFastModeHeader(
+        withTurnTraceHeaders(
+          {
+            "content-type": "application/json",
+            "x-planner": "1",
+            "x-problem-ir-version": "1",
+            "x-planner-deadline-ms": String(options.timeoutMs),
+          },
+          { sessionId: options.sessionId, traceId: options.traceId, question },
+        ),
+        options.fastMode,
+      ),
       signal,
       body: JSON.stringify({
         model: PROBLEM_PLANNER_MODEL,

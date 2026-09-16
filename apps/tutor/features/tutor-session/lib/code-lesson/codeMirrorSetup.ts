@@ -3,7 +3,7 @@ import { java } from "@codemirror/lang-java";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { HighlightStyle, bracketMatching, syntaxHighlighting } from "@codemirror/language";
-import { StateEffect, StateField, type Extension } from "@codemirror/state";
+import { StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
@@ -92,6 +92,13 @@ export const codeLessonTheme: Extension = [
         minWidth: `${DSA_EDITOR_METRICS.gutterWidth - 10}px`,
       },
       ".cm-activeLine": { backgroundColor: SOLARIZED_EDITOR.activeLine },
+      // The line the voice is on, once its block is typed. A left rule in the
+      // Solarized accent rather than a fill, so it reads as a pointer and not
+      // as a selection.
+      ".cm-spoken-line": {
+        backgroundColor: SOLARIZED_EDITOR.activeLine,
+        boxShadow: `inset 3px 0 0 ${SOLARIZED.yellow}`,
+      },
       ".cm-activeLineGutter": {
         backgroundColor: SOLARIZED_EDITOR.activeLine,
         color: SOLARIZED_EDITOR.bright,
@@ -169,21 +176,54 @@ const typingCaretField = StateField.define<TypingCaretMode>({
 const typingCaret = new TypingCaretWidget(false);
 const idleCaret = new TypingCaretWidget(true);
 
-/** IDE caret pinned to the end of the revealed code. */
+/** The 1-based doc line the voice is explaining, or null. */
+export const setSpokenLine = StateEffect.define<number | null>();
+
+const spokenLineField = StateField.define<number | null>({
+  create: () => null,
+  update(line, transaction) {
+    for (const effect of transaction.effects) {
+      if (effect.is(setSpokenLine)) return effect.value;
+    }
+    return line;
+  },
+});
+
+function spokenDocLine(state: EditorState): { from: number; to: number } | null {
+  const line = state.field(spokenLineField);
+  if (line === null || line < 1 || line > state.doc.lines) return null;
+  const docLine = state.doc.line(line);
+  return { from: docLine.from, to: docLine.to };
+}
+
+const spokenLineDecorations = EditorView.decorations.compute(
+  [spokenLineField, "doc"],
+  (state): DecorationSet => {
+    const line = spokenDocLine(state);
+    if (!line) return Decoration.none;
+    return Decoration.set([Decoration.line({ class: "cm-spoken-line" }).range(line.from)]);
+  },
+);
+
+/**
+ * IDE caret pinned to the end of the revealed code while typing, and parked
+ * at the end of the spoken line while the voice explains the block.
+ */
 const typingCaretDecorations = EditorView.decorations.compute(
-  [typingCaretField, "doc"],
+  [typingCaretField, spokenLineField, "doc"],
   (state): DecorationSet => {
     const mode = state.field(typingCaretField);
     if (mode === "hidden") return Decoration.none;
     const widget = mode === "typing" ? typingCaret : idleCaret;
+    const spoken = mode === "typing" ? null : spokenDocLine(state);
     return Decoration.set([
-      Decoration.widget({ widget, side: 1 }).range(state.doc.length),
+      Decoration.widget({ widget, side: 1 }).range(spoken ? spoken.to : state.doc.length),
     ]);
   },
 );
 
 export function typingCaretExtensions(): Extension {
-  return [typingCaretField, typingCaretDecorations];
+  return [typingCaretField, spokenLineField, spokenLineDecorations, typingCaretDecorations];
 }
 
 export function baseCodeLessonExtensions(language: CodeLessonLanguage): Extension[] {

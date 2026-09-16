@@ -117,6 +117,20 @@ export function tiltForHeading(
 }
 
 /**
+ * How much of the remaining gap a frame of `dtMs` closes, for a first-order
+ * approach with the given time constant. Frame-rate independent: the same
+ * wall-clock elapsed time lands in the same place whether it arrived as one
+ * frame or four.
+ */
+export function approachFraction(dtMs: number, timeConstantMs: number): number {
+  if (!(dtMs > 0)) return 0;
+  return 1 - Math.exp(-dtMs / Math.max(timeConstantMs, 1));
+}
+
+/** How long the instrument takes to fade in or out when the state changes. */
+export const CURSOR_FADE_TIME_CONSTANT_MS = 90;
+
+/**
  * Frame-rate independent approach: the same wall-clock elapsed time lands in
  * the same place whether it arrived as one frame or four.
  */
@@ -127,8 +141,7 @@ export function followAngle(
   timeConstantMs = TILT_TIME_CONSTANT_MS,
 ): number {
   if (!(dtMs > 0)) return current;
-  const k = 1 - Math.exp(-dtMs / Math.max(timeConstantMs, 1));
-  return current + shortestAngleDelta(current, target) * k;
+  return current + shortestAngleDelta(current, target) * approachFraction(dtMs, timeConstantMs);
 }
 
 /**
@@ -283,6 +296,143 @@ export function hopDurationMs(distancePx: number): number {
   return Math.min(Math.max(distancePx * 0.9, HOP_MIN_MS), HOP_MAX_MS);
 }
 
+/**
+ * Above this the reach is an arm movement, not a carry: the nib leaves the
+ * board, bows over, and lands. Below it a bowed hop keeps the heading.
+ */
+export const FLY_MIN_PX = 72;
+
+export type NibTravel = "settle" | "hop" | "fly";
+
+/**
+ * How the nib gets from where it is to where the next mark starts.
+ *
+ * Every reposition on the board goes through this, so there is exactly one
+ * answer to "may the nib simply appear over there?" — and the answer is only
+ * yes inside `HOP_MIN_PX`, which is a nib width or two. A stroke that begins
+ * by snapping the nib across the board is the single thing that reads as the
+ * pen teleporting, and it used to happen at the start of every drawn shape.
+ */
+/**
+ * Ceiling on how fast the nib may travel in the air, in px per ms.
+ *
+ * A reach used to be given a flat 180ms whatever the distance, so crossing the
+ * board ran at about 9000 px/s — a whip, which is the "suddenly speeding up"
+ * that a reach is supposed to avoid. Budgeting a *speed* instead means a short
+ * reach is quick and a long one takes longer, which is what an arm does.
+ */
+export const MAX_AIR_SPEED_PX_PER_MS = 2.6;
+/** A reach is never briefer than a carry, and never long enough to be late. */
+export const SHAPE_REACH_MIN_MS = HOP_MAX_MS;
+export const SHAPE_REACH_MAX_MS = 300;
+
+/**
+ * How long the nib spends getting to the start of the next shape. One source of
+ * truth, so the board and the motion gate cannot disagree about what a reach
+ * costs — the reach is charged to the shape's own budget, and a gate that
+ * guessed a different number would be measuring a timeline nobody draws.
+ */
+export function shapeReachMs(distancePx: number): number {
+  const distance = Number.isFinite(distancePx) ? Math.abs(distancePx) : 0;
+  const travel = nibTravelFor(distance);
+  if (travel === "settle") return 0;
+  if (travel === "hop") return hopDurationMs(distance);
+  return Math.min(
+    Math.max(distance / MAX_AIR_SPEED_PX_PER_MS, SHAPE_REACH_MIN_MS),
+    SHAPE_REACH_MAX_MS,
+  );
+}
+
+export function nibTravelFor(distancePx: number): NibTravel {
+  const distance = Number.isFinite(distancePx) ? Math.abs(distancePx) : 0;
+  if (distance > FLY_MIN_PX) return "fly";
+  if (hopDurationMs(distance) > 0) return "hop";
+  return "settle";
+}
+
+/**
+ * When the hand is allowed to start fidgeting — and, just as important, where.
+ *
+ * The board sits in `thinking` for the whole of a live turn, not just the wait
+ * before it. So the fidget and the twirl cannot simply run whenever the state
+ * says `thinking`: between two commands there is a frame or two with no work in
+ * flight, and a fidget that engages there yanks the instrument back to wherever
+ * it was when the turn began and spins it, then the next stroke snatches it
+ * away again. That is the pen "vanishing from here and going somewhere else".
+ *
+ * Two rules fix it. The hand must be still for a real beat before it starts
+ * playing with the pen, and when it does, it plays with the pen *where the pen
+ * is now* — not where it was at the top of the turn.
+ */
+export const IDLE_HOLD_DWELL_MS = 700;
+
+export interface IdleHoldState {
+  engaged: boolean;
+  engagedAtMs: number;
+  quietSinceMs: number | null;
+}
+
+export function idleHoldStart(): IdleHoldState {
+  return { engaged: false, engagedAtMs: 0, quietSinceMs: null };
+}
+
+export interface IdleHoldStep {
+  state: IdleHoldState;
+  engaged: boolean;
+  /** The frame the hand takes the instrument — anchor the fidget here. */
+  justEngaged: boolean;
+  /** The frame work resumes — put the instrument back down and stand off. */
+  justReleased: boolean;
+  /** How long the hand has been fidgeting, for the pose clock. */
+  heldMs: number;
+}
+
+export function advanceIdleHold(
+  state: IdleHoldState,
+  input: { workInFlight: boolean; nowMs: number },
+): IdleHoldStep {
+  const { workInFlight, nowMs } = input;
+
+  if (workInFlight) {
+    return {
+      state: { engaged: false, engagedAtMs: 0, quietSinceMs: null },
+      engaged: false,
+      justEngaged: false,
+      justReleased: state.engaged,
+      heldMs: 0,
+    };
+  }
+
+  const quietSinceMs = state.quietSinceMs ?? nowMs;
+
+  if (!state.engaged) {
+    if (nowMs - quietSinceMs < IDLE_HOLD_DWELL_MS) {
+      return {
+        state: { engaged: false, engagedAtMs: 0, quietSinceMs },
+        engaged: false,
+        justEngaged: false,
+        justReleased: false,
+        heldMs: 0,
+      };
+    }
+    return {
+      state: { engaged: true, engagedAtMs: nowMs, quietSinceMs },
+      engaged: true,
+      justEngaged: true,
+      justReleased: false,
+      heldMs: 0,
+    };
+  }
+
+  return {
+    state: { ...state, quietSinceMs },
+    engaged: true,
+    justEngaged: false,
+    justReleased: false,
+    heldMs: Math.max(nowMs - state.engagedAtMs, 0),
+  };
+}
+
 export function easeInOutCubic(progress: number): number {
   const t = clamp01(progress);
   return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
@@ -310,26 +460,46 @@ export interface InstrumentPose {
   lift: number;
   scale: number;
   opacity: number;
+  /**
+   * Squash across the barrel only (1 = face on, 0 = edge on). A instrument
+   * turned in the fingers goes thin before it goes away; this is what carries
+   * the hand-over, so the swap never has to fade the barrel out.
+   */
+  flatten: number;
   /** Once true, the incoming instrument is the one being rendered. */
   showIncoming: boolean;
 }
 
 /**
- * One full flip between the fingers: the instrument rises off the board,
- * spins, blanks out at the top of the arc, and the next one lands in its place.
+ * The hand-over floor: however fast the barrel is turned, it never fades below
+ * this. The swap used to run the instrument down to opacity 0 for the middle
+ * 40% of its 340ms — which, once every write/draw boundary swaps, is a pen
+ * that blinks out of existence several times a minute.
+ */
+export const SWAP_MIN_OPACITY = 0.62;
+/** How thin the barrel gets at the turn — the moment the instruments change. */
+export const SWAP_MIN_FLATTEN = 0.08;
+
+/**
+ * One flip between the fingers: the instrument rises off the board, turns
+ * edge-on, and comes back round as the next one. The hand-over happens at the
+ * edge — the frame where the barrel has no width to show — so the eye reads a
+ * pen being turned into a pencil rather than one object fading into another.
+ * Nothing here ever leaves the board: the barrel stays visible, stays put, and
+ * only its width and its lean change.
  */
 export function instrumentSwapPose(progress: number): InstrumentPose {
   const t = clamp01(progress);
   const arc = Math.sin(Math.PI * t);
-  const opacity =
-    t < 0.5
-      ? 1 - smoothstep((t - 0.3) / 0.2)
-      : smoothstep((t - 0.5) / 0.2);
+  // |cos| of a half turn: 1 face-on, 0 edge-on at the mid-point, 1 again.
+  const face = Math.abs(Math.cos(Math.PI * smootherstep(t)));
   return {
     spin: 360 * easeInOutCubic(t),
     lift: SWAP_LIFT_PX * arc,
     scale: 1 + 0.18 * arc,
-    opacity,
+    // Only a touch of shading through the turn; the flatten carries the read.
+    opacity: SWAP_MIN_OPACITY + (1 - SWAP_MIN_OPACITY) * face,
+    flatten: SWAP_MIN_FLATTEN + (1 - SWAP_MIN_FLATTEN) * face,
     showIncoming: t >= 0.5,
   };
 }
@@ -343,6 +513,7 @@ export function flourishPose(progress: number, turns = 1): InstrumentPose {
     lift: FLOURISH_LIFT_PX * arc,
     scale: 1 + 0.1 * arc,
     opacity: 1,
+    flatten: 1,
     showIncoming: false,
   };
 }

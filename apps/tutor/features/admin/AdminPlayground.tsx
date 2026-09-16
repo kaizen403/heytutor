@@ -24,7 +24,13 @@ import {
 import { selectLiveWatchRuntime } from "./lib/lectureIsolation";
 import { deletableJobBoardIds, deleteLecturesConfirm, isLectureLiveWatchable, lectureJobTitle } from "./lib/lectureJobs";
 import { buildLectureStates, cellStateFor, type DifficultyState } from "./lib/lectureState";
-import { countItems, type SyllabusItem, type SyllabusSubject, type SyllabusTree } from "./lib/parseSyllabus";
+import {
+  SYLLABUS_SUBJECT_LABEL,
+  countItems,
+  type SyllabusItem,
+  type SyllabusSubject,
+  type SyllabusTree,
+} from "./lib/parseSyllabus";
 import { mergePlaygroundRecordings, recordingKey } from "./lib/playgroundBoards";
 import { buildProbeIndex, probesByIds, probesForTopic } from "./lib/probeIndex";
 import { PROBE_DIFFICULTIES, unitIdFor, type ProbeDifficulty, type ProbeQuestion } from "./lib/probes";
@@ -241,13 +247,18 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
   }, [progress, tree]);
 
   const unitCounts = useMemo(
-    () => ({ physics: tree.subjects.physics.length, maths: tree.subjects.maths.length }),
+    () => ({
+      physics: tree.subjects.physics.length,
+      maths: tree.subjects.maths.length,
+      chemistry: tree.subjects.chemistry.length,
+    }),
     [tree],
   );
   const topicCounts = useMemo(
     () => ({
       physics: tree.subjects.physics.reduce((sum, unit) => sum + unit.items.length, 0),
       maths: tree.subjects.maths.reduce((sum, unit) => sum + unit.items.length, 0),
+      chemistry: tree.subjects.chemistry.reduce((sum, unit) => sum + unit.items.length, 0),
     }),
     [tree],
   );
@@ -418,8 +429,9 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
   const selectedEntry = selectedItem ? get(selectedItem.id) : null;
 
   return (
+    // No blueprint grid behind the tool: the theme's ground is an even field,
+    // and a texture under a dense table is the first thing to make it busy.
     <div className="site-theme fx-aurora-soft relative flex h-screen flex-col overflow-hidden">
-      <div className="fx-grid-fine pointer-events-none absolute inset-0" aria-hidden />
       <div className="relative z-10 shrink-0 space-y-3 px-4 pb-3 pt-4">
         <div className="mx-auto w-full max-w-5xl space-y-3">
           <AdminToolbar
@@ -520,7 +532,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
             <div className="glass flex flex-col items-center gap-2 rounded-xl border-dashed px-6 py-10 text-center">
               <Info className="h-5 w-5 text-sky-400" aria-hidden />
               <p className="text-sm font-medium text-frost">
-                No question fixtures for {subject === "maths" ? "Mathematics" : "Physics"} yet
+                No question fixtures for {SYLLABUS_SUBJECT_LABEL[subject]} yet
               </p>
               <p className="max-w-md text-xs leading-relaxed text-soft">
                 The {topicCounts[subject]} topics below are listed from the syllabus taxonomy, but no

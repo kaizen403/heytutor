@@ -13,6 +13,15 @@ import {
   hopDurationMs,
   instrumentSwapPose,
   lerpAngle,
+  advanceIdleHold,
+  approachFraction,
+  idleHoldStart,
+  nibTravelFor,
+  CURSOR_FADE_TIME_CONSTANT_MS,
+  FLY_MIN_PX,
+  HOP_MIN_PX,
+  IDLE_HOLD_DWELL_MS,
+  SWAP_MIN_OPACITY,
   planGlyphSegments,
   restingTilt,
   scratchStrokePath,
@@ -56,7 +65,8 @@ function assert(condition: unknown, message: string): asserts condition {
 
 // --- the hand picks the right tool ----------------------------------------
 assert(instrumentForActivity("write") === "pen", "words are written with a pen");
-assert(instrumentForActivity("draw") === "pen", "diagrams are drawn with the same pen as the words");
+assert(instrumentForActivity("draw") === "pencil", "the figure is drawn in pencil, not in ink");
+assert(instrumentForActivity("sketch") === "pencil", "its scaffolding is drawn in the same lead");
 assert(instrumentForActivity("highlight") === "highlighter", "emphasis uses the chisel marker");
 assert(instrumentForActivity("erase") === "duster", "erasing uses the duster");
 
@@ -200,16 +210,45 @@ const end = instrumentSwapPose(1);
 assert(start.lift < 1e-9 && end.lift < 1e-9, "the pen starts and ends on the board");
 assert(mid.lift > 0, "the pen must leave the board to be swapped");
 assert(Math.abs(end.spin - 360) < 1e-9, "the swap completes exactly one turn");
-assert(mid.opacity === 0, "the handover happens while the instrument is invisible");
+// The hand-over is carried by the barrel turning edge-on, not by fading out.
+// It used to run the instrument to opacity 0 for the middle 40% of the flip,
+// which, now that every write/draw boundary swaps, is a pen that blinks out of
+// existence several times a minute.
+assert(
+  SWAP_MIN_OPACITY >= 0.5,
+  `the swap's own floor must keep the instrument legible, got ${SWAP_MIN_OPACITY}`,
+);
+assert(mid.flatten < 0.2, "the handover happens while the barrel is edge-on");
+assert(start.flatten === 1 && end.flatten === 1, "both instruments end up face-on");
 assert(start.opacity === 1 && end.opacity === 1, "both instruments are fully drawn at rest");
 assert(!start.showIncoming && end.showIncoming, "the new instrument arrives at the halfway mark");
 let previousSpin = -1;
 for (let step = 0; step <= 100; step++) {
   const pose = instrumentSwapPose(step / 100);
   assert(pose.spin >= previousSpin, "the swap spin must never reverse");
-  assert(pose.opacity >= 0 && pose.opacity <= 1, "swap opacity stays in range");
+  // An absolute floor, not `>= SWAP_MIN_OPACITY` — comparing the curve against
+  // the very constant that shapes it asserts nothing, and lets someone set the
+  // floor back to zero with the gate still green.
+  assert(
+    pose.opacity >= 0.5,
+    `the instrument must stay on screen through the swap, got ${pose.opacity.toFixed(3)} at ${step}%`,
+  );
+  assert(pose.opacity <= 1, "swap opacity stays in range");
+  assert(pose.flatten >= 0 && pose.flatten <= 1, "flatten stays in range");
   assert(pose.scale >= 1 && pose.scale <= 1.2, "swap scale stays in range");
   previousSpin = pose.spin;
+}
+// The flip reads as one object turning: the barrel goes thin exactly once,
+// at the hand-over, rather than pulsing.
+{
+  let edgeCrossings = 0;
+  let wasThin = instrumentSwapPose(0).flatten < 0.35;
+  for (let step = 1; step <= 200; step++) {
+    const thin = instrumentSwapPose(step / 200).flatten < 0.35;
+    if (thin && !wasThin) edgeCrossings += 1;
+    wasThin = thin;
+  }
+  assert(edgeCrossings === 1, `the barrel turns edge-on once, got ${edgeCrossings} times`);
 }
 assert(Math.abs(flourishPose(1, 2).spin - 720) < 1e-9, "a two-turn flourish spins twice");
 assert(flourishPose(0.5, 1).opacity === 1, "a flourish never blinks the instrument out");
@@ -495,6 +534,115 @@ assert(spinGhosts(0).length === 0, "a still barrel casts no smear");
   }
 }
 
+// --- the fidget may not steal the pen mid-lesson ---------------------------
+/*
+  The board sits in `thinking` for the whole of a live turn, not just the wait
+  before it, so "thinking" alone is not permission to fidget. Between two
+  commands there are a handful of frames with nothing in flight; a fidget that
+  engages there used to yank the instrument back to wherever it stood when the
+  turn began and spin it, then the next stroke snatched it away again. That is
+  the pen vanishing from one place and reappearing in another.
+*/
+{
+  let hold = idleHoldStart();
+  const feed = (workInFlight: boolean, nowMs: number) => {
+    const step = advanceIdleHold(hold, { workInFlight, nowMs });
+    hold = step.state;
+    return step;
+  };
+
+  // A short gap between two commands must never engage the hold.
+  feed(true, 0);
+  let engagedInGap = false;
+  for (let ms = 16; ms < IDLE_HOLD_DWELL_MS; ms += 16) {
+    if (feed(false, ms).engaged) engagedInGap = true;
+  }
+  assert(!engagedInGap, "a gap between commands must not hand the pen to the fidget");
+
+  // Work resumes: the hold is not owed anything for the quiet it just had.
+  feed(true, IDLE_HOLD_DWELL_MS + 16);
+  assert(
+    !feed(false, IDLE_HOLD_DWELL_MS + 32).engaged,
+    "the dwell must be re-earned after every stroke, not banked",
+  );
+
+  // A real wait does engage — once, and it reports the frame it did so on.
+  let engagements = 0;
+  let engagedAt = -1;
+  for (let ms = IDLE_HOLD_DWELL_MS + 48; ms <= IDLE_HOLD_DWELL_MS * 4; ms += 16) {
+    const step = feed(false, ms);
+    if (step.justEngaged) {
+      engagements += 1;
+      engagedAt = ms;
+    }
+  }
+  assert(engagements === 1, `a single wait engages the hold once, got ${engagements}`);
+  assert(engagedAt > 0, "the hold reports the frame it took the pen, so the fidget can anchor there");
+
+  // The pose clock starts at the engage, not at the top of the turn: the twirl
+  // begins from rest instead of jumping into the middle of a revolution.
+  const first = advanceIdleHold(hold, { workInFlight: false, nowMs: engagedAt });
+  assert(first.heldMs < 200, `the fidget clock starts fresh, got ${first.heldMs}ms`);
+
+  // And it lets go the instant there is work again, reporting that frame so
+  // the instrument can be put back exactly where the fidget picked it up.
+  const released = advanceIdleHold(hold, { workInFlight: true, nowMs: engagedAt + 5000 });
+  assert(released.justReleased, "work resuming must hand the instrument straight back");
+  assert(!released.engaged, "the fidget does not keep hold while the pen is writing");
+  assert(
+    !advanceIdleHold(released.state, { workInFlight: true, nowMs: engagedAt + 5016 }).justReleased,
+    "the release fires once, not on every working frame",
+  );
+}
+
+// --- the nib is never simply somewhere else -------------------------------
+/*
+  Every reposition goes through one policy, so there is a single answer to "may
+  the nib just appear over there?" — and it is only yes inside a nib width or
+  two. A drawn shape used to start its reveal by placing the nib on the first
+  point of the path, wherever that was.
+*/
+assert(nibTravelFor(0) === "settle", "a nib already there just settles");
+assert(nibTravelFor(HOP_MIN_PX - 1) === "settle", "a hair's breadth is not worth a hop");
+assert(nibTravelFor(HOP_MIN_PX + 1) === "hop", "a short carry is a hop");
+assert(nibTravelFor(FLY_MIN_PX - 1) === "hop", "the carry holds up to the fly threshold");
+assert(nibTravelFor(FLY_MIN_PX + 1) === "fly", "crossing the board is an arm movement");
+assert(nibTravelFor(900) === "fly", "a long reach is still a flight, not a teleport");
+assert(nibTravelFor(Number.NaN) === "settle", "a broken distance must not fly the pen away");
+for (let distance = 0; distance <= 400; distance += 3) {
+  const travel = nibTravelFor(distance);
+  assert(
+    distance <= HOP_MIN_PX || travel !== "settle",
+    `${distance}px must be bridged, not stepped over`,
+  );
+}
+
+// --- the instrument fades, it never blinks --------------------------------
+/*
+  `cursorOpacity` is a step function and `idle` is 0. A lecture is a run of
+  turns, so the board drops back to `idle` between them; read straight into the
+  node, that is a pen that disappears mid-lesson. Only the approach is smoothed.
+*/
+{
+  assert(approachFraction(0, CURSOR_FADE_TIME_CONSTANT_MS) === 0, "no time, no movement");
+  assert(approachFraction(-5, CURSOR_FADE_TIME_CONSTANT_MS) === 0, "time does not run backwards");
+  let opacity = 1;
+  let frames = 0;
+  const dt = 16;
+  while (opacity > 0.02 && frames < 600) {
+    opacity += (0 - opacity) * approachFraction(dt, CURSOR_FADE_TIME_CONSTANT_MS);
+    frames += 1;
+    assert(opacity >= 0 && opacity <= 1, "the fade stays in range");
+  }
+  assert(frames > 6, `the pen must be set down, not deleted: took ${frames} frames`);
+  assert(frames < 45, `the fade must not outlast the pause: took ${frames} frames`);
+  // Frame rate must not change where it lands: one 32ms frame equals two 16ms.
+  const oneStep = approachFraction(32, CURSOR_FADE_TIME_CONSTANT_MS);
+  const a = approachFraction(16, CURSOR_FADE_TIME_CONSTANT_MS);
+  const twoSteps = a + (1 - a) * a;
+  assert(Math.abs(oneStep - twoSteps) < 1e-9, "the fade must not depend on frame rate");
+}
+
 console.log(
-  "verify-pen-choreography: cursive does not wobble the barrel, hops and air keep the nib continuous, the parked pen breathes without jerking, swaps are one bounded flip, the pending twirl ramps in, flicks and coasts without ever stalling, and smears with its rate, idle scribbles stay in the margin",
+  "verify-pen-choreography: cursive does not wobble the barrel, hops and air keep the nib continuous, the parked pen breathes without jerking, swaps turn edge-on without ever blinking out, the fidget only takes the pen after a real dwell and hands it straight back, every reposition is bridged rather than stepped over, the instrument fades instead of disappearing, the pending twirl ramps in, flicks and coasts without ever stalling, and smears with its rate, idle scribbles stay in the margin",
 );

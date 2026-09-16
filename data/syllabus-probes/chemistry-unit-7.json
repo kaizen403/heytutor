@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|7",
+  "questions": [
+    {
+      "id": "chemistry|7|oxidation-number-and-redox-reactions|medium",
+      "topicId": "chemistry|7|oxidation-number-and-redox-reactions",
+      "difficulty": "medium",
+      "question": "At room temperature, disproportionation of an aqueous solution of in situ generated nitrous acid (HNO2) gives the species (A) H3O+, NO3- and NO (B) H3O+, NO3- and NO2 (C) H3O+, NO- and NO2 (D) H3O+, NO3- and N2O",
+      "source": {
+        "questionId": "q_ea05d834de4eeb742abacb4f993e24855d544d9dcdd37aa9110a60f7b4940450",
+        "exam": "JEE Advanced",
+        "year": 2024,
+        "documentId": "jee-advanced-2024-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|7|oxidation-number-and-redox-reactions|hard",
+      "topicId": "chemistry|7|oxidation-number-and-redox-reactions",
+      "difficulty": "hard",
+      "question": "The correct statement(s) related to oxoacids of phosphorus is(are) (A) Upon heating, H3PO3 undergoes a disproportionation reaction to produce H3PO4 and PH3. (B) While H3PO3 can act as a reducing agent, H3PO4 cannot. (C) H3PO3 is a monobasic acid. (D) The H atom of the P-H bond in H3PO3 is not ionizable in water.",
+      "source": {
+        "questionId": "q_2ca729e339ad6ab34ad91221955f1895a02650edbc36a744c68df285fa032dde",
+        "exam": "JEE Advanced",
+        "year": 2021,
+        "documentId": "jee-advanced-2021-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|7|balancing-redox-reactions|medium",
+      "topicId": "chemistry|7|balancing-redox-reactions",
+      "difficulty": "medium",
+      "question": "Balance the redox reaction MnO4^- + Fe^2+ → Mn^2+ + Fe^3+ in acidic medium by the ion electron method. How many moles of Fe^2+ are oxidised by one mole of MnO4^-?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|7|conductance-and-kohlrauschs-law|medium",
+      "topicId": "chemistry|7|conductance-and-kohlrauschs-law",
+      "difficulty": "medium",
+      "question": "The limiting molar conductivities of NaCl, HCl and CH3COONa are 126.4, 425.9 and 91.0 S cm^2 mol^-1 respectively. Using Kohlrausch's law, calculate the limiting molar conductivity of acetic acid.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|7|conductance-and-kohlrauschs-law|hard",
+      "topicId": "chemistry|7|conductance-and-kohlrauschs-law",
+      "difficulty": "hard",
+      "question": "The conductance of a 0.0015 M aqueous solution of a weak monobasic acid was measured with a conductivity cell of platinized Pt electrodes. The distance between the electrodes is 120 cm and the area of cross section is 1 cm^2. The conductance of the solution was found to be 5 × 10^-7 S, and the pH of the solution is 4. The limiting molar conductivity of this weak monobasic acid in aqueous solution is Z × 10^2 S cm^-1 mol^-1. What is the value of Z?",
+      "source": {
+        "questionId": "q_b13f9481152b7818c44e0ef50181d6b3c6490693dd71b8d53a9b0ed6adfe6541",
+        "exam": "JEE Advanced",
+        "year": 2017,
+        "documentId": "jee-advanced-2017-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|7|electrochemical-cells-and-electrode-potential|easy",
+      "topicId": "chemistry|7|electrochemical-cells-and-electrode-potential",
+      "difficulty": "easy",
+      "question": "In a galvanic cell, the salt bridge (A) does not participate chemically in the cell reaction. (B) stops the diffusion of ions from one electrode to another. (C) is necessary for the occurrence of the cell reaction. (D) ensures mixing of the two electrolytic solutions.",
+      "source": {
+        "questionId": "q_bbefa8d687d5dfb830a7a44906db4e4e41c8670d26c9ffff37c0a7ad0eb779a4",
+        "exam": "JEE Advanced",
+        "year": 2014,
+        "documentId": "jee-advanced-2014-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|7|nernst-equation|medium",
+      "topicId": "chemistry|7|nernst-equation",
+      "difficulty": "medium",
+      "question": "Calculate the emf of the cell Zn | Zn^2+ (0.1 M) || Cu^2+ (1.0 M) | Cu at 298 K. (E° Zn^2+/Zn = -0.76 V, E° Cu^2+/Cu = +0.34 V, 2.303RT/F = 0.059 V)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|7|cell-potential-and-gibbs-energy|medium",
+      "topicId": "chemistry|7|cell-potential-and-gibbs-energy",
+      "difficulty": "medium",
+      "question": "The standard emf of the Daniell cell is 1.1 V. Calculate the standard Gibbs energy change and the equilibrium constant at 298 K for the cell reaction Zn(s) + Cu^2+(aq) → Zn^2+(aq) + Cu(s). (F = 96500 C mol^-1, R = 8.314 J K^-1 mol^-1)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|7|electrolysis-and-faradays-laws|easy",
+      "topicId": "chemistry|7|electrolysis-and-faradays-laws",
+      "difficulty": "easy",
+      "question": "A current of 2.0 A is passed through an aqueous solution of CuSO4 for 30 minutes using inert electrodes. What mass of copper is deposited at the cathode? (Molar mass of Cu = 63.5 g mol^-1, F = 96500 C mol^-1)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|7|commercial-cells-and-batteries|easy",
+      "topicId": "chemistry|7|commercial-cells-and-batteries",
+      "difficulty": "easy",
+      "question": "Write the reactions at the anode and at the cathode of a lead storage battery during discharge, and explain why the density of the sulphuric acid falls as the battery discharges.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

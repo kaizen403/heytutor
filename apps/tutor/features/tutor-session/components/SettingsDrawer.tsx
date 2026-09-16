@@ -12,17 +12,8 @@ import {
   Rabbit,
 } from "lucide-react";
 
-import {
-  DEFAULT_ACCENT,
-  DEFAULT_AUDIO_LANGUAGE,
-  DEFAULT_FAMILIARITY,
-  isSubjectFamiliarity,
-  isTutorAccent,
-  isTutorAudioLanguage,
-  type SubjectFamiliarity,
-  type TutorAccent,
-  type TutorAudioLanguage,
-} from "@heytutor/tutor-core";
+import Link from "next/link";
+import { isSubjectFamiliarity, isTutorAccent, isTutorAudioLanguage, type SubjectFamiliarity } from "@heytutor/tutor-core";
 
 import {
   Sheet,
@@ -32,54 +23,24 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
+import {
+  MARKER_COLORS,
+  SPEED_MAX,
+  SPEED_MIN,
+  type SettingsState,
+} from "@/lib/account/lessonSettings";
 import { cn } from "@/lib/utils";
 
-/**
- * Marker ink, not UI chrome. These are painted onto the white writing surface,
- * so they are chosen for contrast against paper rather than against the navy —
- * the one place in the app that is deliberately off the Night Blueprint ramp.
- * Navy and blue are the palette's own inks; the rest are the physical set.
- */
-export const MARKER_COLORS = [
-  { id: "navy", color: "#1B2A4A", label: "Navy" },
-  { id: "black", color: "#222222", label: "Black" },
-  { id: "blue", color: "#3E8FB4", label: "Blue" },
-  { id: "red", color: "#D64545", label: "Red" },
-  { id: "green", color: "#4CAF7D", label: "Green" },
-  { id: "purple", color: "#9B7ED9", label: "Purple" },
-  { id: "orange", color: "#E8913A", label: "Orange" },
-] as const;
-
-export type MarkerColorId = (typeof MARKER_COLORS)[number]["id"];
-
-export interface SettingsState {
-  speedMultiplier: number;
-  fastMode: boolean;
-  /**
-   * Default familiarity for a new question. The chat-bar picker overrides it
-   * per question; this is only where each question starts.
-   */
-  familiarity: SubjectFamiliarity;
-  audioLanguage: TutorAudioLanguage;
-  accent: TutorAccent;
-  /** Off keeps the lesson writing and stays silent. */
-  narrationEnabled: boolean;
-  /** Trade voice quality for faster first audio. */
-  lowLatencyVoice: boolean;
-  subtitlesEnabled: boolean;
-  markerColor: MarkerColorId;
-}
-
-export const DEFAULT_SETTINGS: Omit<SettingsState, "speedMultiplier"> = {
-  fastMode: true,
-  familiarity: DEFAULT_FAMILIARITY,
-  audioLanguage: DEFAULT_AUDIO_LANGUAGE,
-  accent: DEFAULT_ACCENT,
-  narrationEnabled: true,
-  lowLatencyVoice: false,
-  subtitlesEnabled: false,
-  markerColor: "navy",
-};
+export {
+  DEFAULT_SETTINGS,
+  MARKER_COLORS,
+  SPEED_MAX,
+  SPEED_MIN,
+  getMarkerColorHex,
+  isMarkerColorId,
+  type MarkerColorId,
+  type SettingsState,
+} from "@/lib/account/lessonSettings";
 
 interface SettingsDrawerProps {
   open: boolean;
@@ -88,11 +49,9 @@ interface SettingsDrawerProps {
   onSettingsChange: (settings: SettingsState) => void;
 }
 
-export const SPEED_MIN = 0.5;
-export const SPEED_MAX = 3;
 const SPEED_STEP = 0.25;
 
-/* The drawer's slice of Night Blueprint (app/globals.css). Named by role so a
+/* The drawer's slice of the palette (app/globals.css). Named by role so a
    palette change lands in the tokens, not here. */
 const theme = {
   darkest: "var(--frost)",
@@ -166,7 +125,7 @@ function SelectPill({
       onClick={onClick}
       aria-pressed={checked}
       className={cn(
-        "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
+        "rounded-lg border px-3 py-2 text-xs font-medium transition-all",
         checked
           ? "border-sky-500 bg-sky-500/12 text-sky-200 shadow-sm"
           : "border-stroke text-frost hover:border-sky-500 hover:shadow-sm",
@@ -208,14 +167,6 @@ function ToggleRow({
   );
 }
 
-export function getMarkerColorHex(id: MarkerColorId): string {
-  return MARKER_COLORS.find((entry) => entry.id === id)?.color ?? "#1B2A4A";
-}
-
-export function isMarkerColorId(value: unknown): value is MarkerColorId {
-  return typeof value === "string" && MARKER_COLORS.some((entry) => entry.id === value);
-}
-
 export { isSubjectFamiliarity, isTutorAccent, isTutorAudioLanguage };
 
 // One axis, shared with the chat-bar picker: how familiar the student is with
@@ -244,8 +195,12 @@ export function SettingsDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="border-l" style={{ borderColor: theme.border }}>
-        <SheetHeader className="space-y-1 px-5 pb-2 pt-5">
+      <SheetContent
+        side="right"
+        className="flex w-[min(100%,24rem)] flex-col overflow-y-auto border-l sm:max-w-sm"
+        style={{ borderColor: theme.border }}
+      >
+        <SheetHeader className="shrink-0 space-y-1 px-5 pb-2 pr-12 pt-5">
           <SheetTitle
             className="flex items-center gap-2 text-base"
             style={{ color: theme.darkest }}
@@ -254,11 +209,15 @@ export function SettingsDrawer({
             Settings
           </SheetTitle>
           <SheetDescription className="text-xs" style={{ color: theme.sage }}>
-            Playback, model, audio, and board preferences
+            Quick lesson sheet. Full account settings live at{" "}
+            <Link href="/settings" className="text-sky-300 underline-offset-2 hover:underline">
+              /settings
+            </Link>
+            .
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-col gap-3 overflow-y-auto px-5 pb-6 pt-1">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 pb-6 pt-1">
           <SettingsSection>
             <SectionLabel icon={Zap}>Fast mode</SectionLabel>
             <ToggleRow
@@ -409,7 +368,7 @@ export function SettingsDrawer({
                     title={label}
                     onClick={() => update({ markerColor: id })}
                     className={[
-                      "h-8 w-8 rounded-full transition-all",
+                      "h-10 w-10 rounded-full transition-all",
                       selected
                         ? "scale-105 ring-2 ring-sky-500 ring-offset-2 ring-offset-ink-850"
                         : "ring-1 ring-stroke hover:scale-105",

@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|6",
+  "questions": [
+    {
+      "id": "chemistry|6|dynamic-equilibrium-and-physical-equilibria|easy",
+      "topicId": "chemistry|6|dynamic-equilibrium-and-physical-equilibria",
+      "difficulty": "easy",
+      "question": "Water and water vapour are in equilibrium in a closed vessel at 373 K. Why is this called a dynamic equilibrium, and what happens to the vapour pressure if some of the vapour is removed while the temperature is kept constant?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|6|law-of-chemical-equilibrium-kp-and-kc|easy",
+      "topicId": "chemistry|6|law-of-chemical-equilibrium-kp-and-kc",
+      "difficulty": "easy",
+      "question": "For the equilibrium N2O4(g) ⇌ 2NO2(g) at 298 K, Kc = 4.6 × 10^-3. Calculate Kp at this temperature and state the relation between Kp and Kc that you used. (R = 0.0831 L bar K^-1 mol^-1)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|6|law-of-chemical-equilibrium-kp-and-kc|medium",
+      "topicId": "chemistry|6|law-of-chemical-equilibrium-kp-and-kc",
+      "difficulty": "medium",
+      "question": "For 2NOCl(g) ⇌ 2NO(g) + Cl2(g), 2.0 mol of NOCl was placed in a one-litre flask, and the concentration of NO after equilibrium was established was found to be 0.4 mol L^-1. The equilibrium constant at 90 °C is x × 10^-4. Find x.",
+      "source": {
+        "questionId": "q_a24c2d8b44c64299e3106d3c374c56992f5dbff67ab4a3e4f151fddebf5033a1",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-27-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|6|gibbs-energy-and-equilibrium|medium",
+      "topicId": "chemistry|6|gibbs-energy-and-equilibrium",
+      "difficulty": "medium",
+      "question": "The equilibrium constant of a reaction at 300 K is 10. Calculate ΔG° for the reaction, and state the sign of ΔG° for a reaction whose equilibrium constant is less than 1. (R = 8.314 J K^-1 mol^-1)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|6|le-chateliers-principle|easy",
+      "topicId": "chemistry|6|le-chateliers-principle",
+      "difficulty": "easy",
+      "question": "For the exothermic reaction N2(g) + 3H2(g) ⇌ 2NH3(g), predict with reasons the effect on the equilibrium yield of NH3 of (a) increasing the pressure, (b) increasing the temperature, (c) adding a catalyst, and (d) adding argon at constant volume.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|6|acids-bases-and-ionisation-constants|medium",
+      "topicId": "chemistry|6|acids-bases-and-ionisation-constants",
+      "difficulty": "medium",
+      "question": "The ionisation constant of acetic acid is 1.8 × 10^-5. Calculate the degree of ionisation of acetic acid in its 0.05 M solution and the pH of the solution.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|6|ph-scale-and-ionisation-of-water|hard",
+      "topicId": "chemistry|6|ph-scale-and-ionisation-of-water",
+      "difficulty": "hard",
+      "question": "A solution is prepared by mixing 0.01 mol each of H2CO3, NaHCO3, Na2CO3 and NaOH in 100 mL of water. What is the pH of the resulting solution? (Given: pKa1 and pKa2 of H2CO3 are 6.37 and 10.32 respectively; log 2 = 0.30)",
+      "source": {
+        "questionId": "q_8b798e319751f4fc9934bc95e9281b013f33f39fa1f7b89872cc7cea3c834c05",
+        "exam": "JEE Advanced",
+        "year": 2022,
+        "documentId": "jee-advanced-2022-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|6|common-ion-effect-buffers-and-salt-hydrolysis|medium",
+      "topicId": "chemistry|6|common-ion-effect-buffers-and-salt-hydrolysis",
+      "difficulty": "medium",
+      "question": "The pH of an aqueous solution containing 1 M benzoic acid (pKa = 4.20) and 1 M sodium benzoate is 4.5. What volume of the benzoic acid solution, in mL, is present in 300 mL of this buffer solution? (Given: log 2 = 0.3)",
+      "source": {
+        "questionId": "q_935f5c42d422698c484bdc086fd61a331ab675713bfa265607a953eb8a2da4d2",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-30-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|6|solubility-product|easy",
+      "topicId": "chemistry|6|solubility-product",
+      "difficulty": "easy",
+      "question": "Equal volumes of 0.002 M BaCl2 and 0.0004 M Na2SO4 are mixed. Will BaSO4 precipitate? Compare the ionic product with the solubility product. (Ksp of BaSO4 = 1.1 × 10^-10)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|6|solubility-product|medium",
+      "topicId": "chemistry|6|solubility-product",
+      "difficulty": "medium",
+      "question": "The solubility product of AgCl is 1.8 × 10^-10 at 298 K. Calculate its molar solubility in pure water and in 0.1 M NaCl solution, and explain why the two values differ.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

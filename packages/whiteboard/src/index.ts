@@ -1,5 +1,6 @@
 export {
   Whiteboard,
+  WHITEBOARD_COLOR,
   LETTERED_IN_HAND_MS_PER_CHAR,
   type WhiteboardHandle,
   type WhiteboardProps,
@@ -8,6 +9,7 @@ export {
   type AnnotationOptions,
   type ShapeDrawOptions,
 } from "./Whiteboard";
+export { BOARD_INK_ATTR, boardInkKindAt, type BoardInkKind } from "./inkKind";
 export {
   createVirtualWhiteboardClock,
   DEFAULT_WHITEBOARD_TIME_SOURCE,
@@ -46,6 +48,19 @@ export {
   type SpinningPose,
   type ThinkingPose,
 } from "./penChoreography";
+export {
+  IDLE_GESTURE_KINDS,
+  IDLE_RELEASE_MS,
+  idleGestureAt,
+  idleGestureSequence,
+  idleMood,
+  idlePose,
+  releaseIdlePose,
+  type IdleGesture,
+  type IdleGestureKind,
+  type IdleMood,
+  type IdlePose,
+} from "./penIdle";
 export { PenSpinner, type PenSpinnerProps } from "./PenSpinner";
 export { SpeakingWaveform } from "./SpeakingWaveform";
 export { ThinkingSpinner } from "./ThinkingSpinner";

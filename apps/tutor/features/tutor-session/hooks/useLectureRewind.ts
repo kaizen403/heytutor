@@ -33,6 +33,7 @@ import {
 import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 import type { TutorPhase } from "../types";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
+import type { BoardPageRecord } from "../lib/turn/doubtTurn";
 import { useBoardLayout } from "./useBoardLayout";
 import { useCancelControl } from "./useCancelControl";
 import { useCommandExecution } from "./useCommandExecution";
@@ -52,6 +53,11 @@ export interface UseLectureRewindParams {
   /** Segments the in-progress turn has already taught. */
   recordedSegmentsRef: RefObject<RecordedSegmentPayload[]>;
   liveQuestionRef: RefObject<string>;
+  /**
+   * The page on the live board. A doubt answering on the lesson's page is
+   * rewound on that page, not on a blank one.
+   */
+  boardPageRef?: RefObject<BoardPageRecord | null>;
   speedRef: RefObject<number>;
   /** The live lesson's own pause flag — a rewind must not clear a pause it did not set. */
   livePausedRef: RefObject<boolean>;
@@ -113,6 +119,7 @@ export function useLectureRewind({
   storedTurnsRef,
   recordedSegmentsRef,
   liveQuestionRef,
+  boardPageRef,
   speedRef,
   livePausedRef,
   rewoundRef,
@@ -201,16 +208,25 @@ export function useLectureRewind({
       setLiveEdgeMs(0);
       return;
     }
+    const page = boardPageRef?.current ?? null;
     const { turns, timeline } = buildLectureTimeline({
       storedTurns: storedTurnsRef.current,
       liveSegments: recordedSegmentsRef.current,
       liveQuestion: liveQuestionRef.current,
       audioUrlFor: liveAudioUrlFor,
+      liveContinuesBoard: page !== null && page.boardId === sessionId && page.turn.continuesBoard,
     });
     rewindTurnsRef.current = turns;
     liveEdgeMsRef.current = timeline.totalMs;
     setLiveEdgeMs(timeline.totalMs);
-  }, [storedTurnsRef, recordedSegmentsRef, liveQuestionRef, liveAudioUrlFor]);
+  }, [
+    storedTurnsRef,
+    recordedSegmentsRef,
+    liveQuestionRef,
+    boardPageRef,
+    sessionId,
+    liveAudioUrlFor,
+  ]);
 
   // --- rewind runtime -----------------------------------------------------
   const {
@@ -292,6 +308,8 @@ export function useLectureRewind({
     replayAudioRef: rewindAudioRef,
     replayAudioPreloadRef: rewindAudioPreloadRef,
     storedTurnsRef: rewindTurnsRef,
+    activeVerifiedDiagramRef: rewindDiagramRef,
+    fbdPhaseStartedRef: rewindFbdStartedRef,
     replayGenerationRef: rewindGenerationRef,
     replayCueRef: rewindCueRef,
     ttsClientRef: rewindTtsClientRef,

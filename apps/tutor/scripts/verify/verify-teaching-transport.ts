@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import {
   CODE_LESSON_TEACHING_MAX_TOKENS,
   DEFAULT_TEACHING_FAST_MODEL,
@@ -139,6 +140,32 @@ async function verifyTimeout(): Promise<void> {
     timeoutRejected = true;
   }
   assert(timeoutObserved && timeoutRejected, "a stalled teaching connection must respect its deadline");
+}
+
+
+// A reasoning-only response is retried once, and the retry must speak: it
+// runs with thinking off whatever the classifier would pick. Two chemistry
+// lessons came back empty because the retry reasoned again.
+assert(
+  resolveTeachingReasoningEffort({
+    question: "Use molecular orbital theory to find the bond order of O2- and state whether it is paramagnetic.",
+    hasAuthoritativePlan: false,
+    mode: "medium",
+    afterReasoningOnly: true,
+  }) === "none",
+  "the retry after a reasoning-only response must run with thinking off",
+);
+{
+  const read = (relative: string): string => readFileSync(new URL(relative, import.meta.url), "utf8");
+  const anchors: Array<[string, string, string]> = [
+    ["../../features/tutor-session/hooks/turn/useQuestionHandler.ts", "noReasoning: reasoningOnlyRetry", "the live hook must ask for no thinking on the reasoning-only retry"],
+    ["../lecture-lab/lecturePipeline.ts", "noReasoning: reasoningOnlyRetry", "the lecture lab must mirror the live retry"],
+    ["../../app/api/chat/route.ts", 'afterReasoningOnly: request.headers.get("x-heytutor-reasoning-retry") === "1"', "the chat route must honour the retry header"],
+    ["../../../../packages/tutor-core/src/llm/llmAPI.ts", 'headers["x-heytutor-reasoning-retry"] = "1"', "the stream client must send the retry header"],
+  ];
+  for (const [file, anchor, message] of anchors) {
+    assert(read(file).includes(anchor), `${message}; repoint this gate at the control that replaced it`);
+  }
 }
 
 void verifyTimeout().then(() => {

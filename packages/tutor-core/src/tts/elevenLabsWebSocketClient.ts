@@ -22,7 +22,7 @@ import {
   nextScheduleStartSec,
 } from "./playbackSchedule";
 import { createLectureAudioContext, releaseLectureAudioContext } from "./audioContext";
-import { TUTOR_VOICE_SETTINGS } from "./voiceSettings";
+import { TUTOR_VOICE_SETTINGS, voiceSettingsKey } from "./voiceSettings";
 import {
   applyBufferSourcePlaybackRate,
   applyHtmlAudioMute,
@@ -96,6 +96,31 @@ interface SegmentJob {
   startedAt: number;
 }
 
+/**
+ * Cache identity for one generated sentence.
+ *
+ * Both caches used to be keyed on the spoken text alone, which was true while
+ * every sentence in a lesson was generated with the same dials. An opening
+ * line is not: it asks for its own expression, and the lookahead reaches it
+ * one or two sentences before the runner does. Keyed on text alone, the
+ * lookahead's flat copy is the one that gets played and the opening sounds
+ * exactly like the body it was supposed to differ from.
+ */
+function prefetchKey(spokenText: string, options: SpeakSegmentOptions): string {
+  return `${voiceSettingsKey(options.voiceSettings)}\u0000${spokenText}`;
+}
+
+function jobMatches(
+  job: SegmentJob,
+  spokenText: string,
+  options: SpeakSegmentOptions,
+): boolean {
+  return (
+    job.spokenText === spokenText &&
+    voiceSettingsKey(job.options.voiceSettings) === voiceSettingsKey(options.voiceSettings)
+  );
+}
+
 const HTTP_STREAM_URL = "/api/tts/stream";
 const DEFAULT_MODEL = "eleven_multilingual_v2";
 const DEFAULT_VOICE_SETTINGS = TUTOR_VOICE_SETTINGS;
@@ -113,6 +138,8 @@ export const TTS_WS_DISABLE_AFTER_FAIL_MS = 120_000;
  * throwing away work for no gain the student can hear.
  */
 export const TTS_WS_LOOKAHEAD_SEGMENTS = 2;
+/** Finished context ids kept so their late chunks are dropped, not rerouted. */
+const FINISHED_CONTEXTS_REMEMBERED = 64;
 
 interface HttpPrefetch {
   spokenText: string;
@@ -316,6 +343,14 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   private jobsByContext = new Map<string, SegmentJob>();
   /** Fallback binding for a relay that numbers contexts itself, oldest first. */
   private unboundJobs: SegmentJob[] = [];
+  /**
+   * Contexts whose job is done with them, so a chunk that arrives late is
+   * dropped instead of falling into the send-order fallback. A prefetch
+   * dropped for an opening line kept generating: its half alignment and its
+   * final landed on the opening, which then started with 25 of 49
+   * characters aligned. Bounded, and cleared with the maps on reconnect.
+   */
+  private finishedContexts = new Set<string>();
   /** Context numbering for this socket; the relay echoes it back. */
   private sentSegmentSequence = 0;
   private streamHandler: ((event: MessageEvent) => void) | null = null;
@@ -344,7 +379,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     const connectStart = performance.now();
 
     try {
-      await this.ensureConnected(undefined, undefined, (info) => {
+      await this.ensureConnected(options.traceId, options.sessionId, (info) => {
         options.onConnect?.(info);
       });
     } catch {
@@ -361,7 +396,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
 
   prefetchSegment(text: string, options: SpeakSegmentOptions = {}): void {
     const spokenText = mathToSpeech(text.trim());
-    if (!spokenText || this.paused || this.prefetches.has(spokenText)) {
+    if (!spokenText || this.paused || this.prefetches.has(prefetchKey(spokenText, options))) {
       return;
     }
     // On the socket the next sentence gets a context of its own and starts
@@ -392,7 +427,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       done: Promise.resolve(),
       generating: true,
     };
-    this.prefetches.set(spokenText, entry);
+    this.prefetches.set(prefetchKey(spokenText, options), entry);
     entry.done = this.fillHttpPrefetch(entry, options).finally(() => {
       entry.generating = false;
       this.httpControllers.delete(controller);
@@ -405,7 +440,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
    * the runner gets there, and playback starts with no round trip at all.
    */
   private prefetchOverWebSocket(spokenText: string, options: SpeakSegmentOptions): void {
-    if (this.jobs.some((job) => job.spokenText === spokenText && !job.settled)) {
+    if (this.jobs.some((job) => !job.settled && jobMatches(job, spokenText, options))) {
       return;
     }
     // The head of the queue is the sentence being spoken, or the one the
@@ -427,10 +462,53 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       sessionId: options.sessionId,
       previousText: options.previousText,
       nextText: options.nextText,
+      // Without this the sentence is generated in the teaching voice and then
+      // claimed by an opening that asked for an expressive one.
+      voiceSettings: options.voiceSettings,
     });
     job.claimed = false;
     this.jobs.push(job);
     void this.pumpJobQueue();
+  }
+
+  /**
+   * Complete alignment for a sentence the lookahead already generated, so
+   * the runner can schedule on it before the claim replays `onTimings`.
+   *
+   * Only a closed context counts. ElevenLabs sends alignment chunk by chunk,
+   * and a schedule built on a partial one ends mid-sentence; the final is
+   * the one signal that the whole sentence is in hand. A finished HTTP
+   * prefetch is the same case on the other transport. Live, 19 of 20 claims
+   * found the context already final (10 Sep 2026); the one that did not was
+   * the opening line, which the gate in the runner waits for instead.
+   */
+  peekSegmentTimings(text: string, options: SpeakSegmentOptions = {}): AudioTimings | null {
+    const spokenText = mathToSpeech(text.trim());
+    if (!spokenText) {
+      return null;
+    }
+    const job = this.jobs.find(
+      (candidate) =>
+        !candidate.settled &&
+        candidate.contextFinal &&
+        candidate.timings.totalDuration > 0 &&
+        candidate.timings.charStartTimes.length > 0 &&
+        jobMatches(candidate, spokenText, options),
+    );
+    if (job) {
+      return toSegmentRelativeAudioTimings(job.timings);
+    }
+    const prefetch = this.prefetches.get(prefetchKey(spokenText, options));
+    if (
+      prefetch &&
+      !prefetch.generating &&
+      !prefetch.error &&
+      prefetch.timings.totalDuration > 0 &&
+      prefetch.timings.charStartTimes.length > 0
+    ) {
+      return toSegmentRelativeAudioTimings(prefetch.timings);
+    }
+    return null;
   }
 
   /**
@@ -562,14 +640,14 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     // pay, so it takes precedence over every other way of producing audio.
     const lookaheadJob = allowWebSocket
       ? this.jobs.find(
-          (job) => !job.claimed && !job.settled && job.spokenText === spokenText,
+          (job) => !job.claimed && !job.settled && jobMatches(job, spokenText, options),
         ) ?? null
       : null;
 
     if (!lookaheadJob) {
-      const prefetch = this.prefetches.get(spokenText);
+      const prefetch = this.prefetches.get(prefetchKey(spokenText, options));
       if (prefetch) {
-        this.prefetches.delete(spokenText);
+        this.prefetches.delete(prefetchKey(spokenText, options));
         try {
           await prefetch.done;
           if (!prefetch.error && (prefetch.buffers.length > 0 || prefetch.chunks.length > 0)) {
@@ -706,13 +784,18 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     tutorDebug("tts", "abandonSpeaking");
   }
 
-  private shouldReconnect(_traceId?: string, _sessionId?: string): boolean {
+  private shouldReconnect(traceId?: string, _sessionId?: string): boolean {
     // Reuse an in-flight CONNECTING socket / connectPromise instead of
     // orphaning it with resetConnection (which only closes OPEN sockets).
     if (this.connectPromise || this.ws?.readyState === WebSocket.CONNECTING) {
       return false;
     }
-    return this.ws === null || this.ws.readyState !== WebSocket.OPEN;
+    if (this.ws === null || this.ws.readyState !== WebSocket.OPEN) {
+      return true;
+    }
+    // A leftover socket from the previous question would stamp this lesson's
+    // TTS onto the wrong Langfuse turn.
+    return Boolean(traceId && this.connectedTraceId !== traceId);
   }
 
   private resetConnection(): void {
@@ -736,6 +819,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     this.connectedTraceId = undefined;
     this.connectedSessionId = undefined;
     this.sentSegmentSequence = 0;
+    this.finishedContexts.clear();
   }
 
   private async ensureConnected(
@@ -744,8 +828,11 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     onConnect?: (info: { ms: number; ok: boolean }) => void,
   ): Promise<void> {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      onConnect?.({ ms: 0, ok: true });
-      return;
+      if (!traceId || this.connectedTraceId === traceId) {
+        onConnect?.({ ms: 0, ok: true });
+        return;
+      }
+      this.resetConnection();
     }
 
     if (this.connectPromise) {
@@ -787,8 +874,10 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
         this.ws = ws;
         this.connectedTraceId = traceId;
         this.connectedSessionId = sessionId;
-        // The relay counts contexts per connection, so this must too.
+        // The relay counts contexts per connection, so this must too, and
+        // the ids a dead socket finished with are this socket's fresh ones.
         this.sentSegmentSequence = 0;
+        this.finishedContexts.clear();
 
         const timeout = window.setTimeout(() => {
           notifyConnect(false);
@@ -948,6 +1037,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       this.chunkTargetJob = null;
       this.jobsByContext.clear();
       this.unboundJobs = [];
+      this.finishedContexts.clear();
       return;
     }
 
@@ -1031,7 +1121,13 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   /** Stop routing upstream chunks to a job that is done with them. */
   private releaseJobContext(job: SegmentJob): void {
     for (const [contextId, bound] of this.jobsByContext) {
-      if (bound === job) this.jobsByContext.delete(contextId);
+      if (bound !== job) continue;
+      this.jobsByContext.delete(contextId);
+      this.finishedContexts.add(contextId);
+      if (this.finishedContexts.size > FINISHED_CONTEXTS_REMEMBERED) {
+        const oldest = this.finishedContexts.values().next().value;
+        if (oldest !== undefined) this.finishedContexts.delete(oldest);
+      }
     }
     const waiting = this.unboundJobs.indexOf(job);
     if (waiting >= 0) {
@@ -1052,6 +1148,9 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     if (bound) {
       return bound;
     }
+    if (this.finishedContexts.has(contextId)) {
+      return null;
+    }
     // A relay that numbers contexts itself instead of echoing ours: fall back
     // to send order and remember what it actually called this one.
     const job = this.unboundJobs.shift();
@@ -1065,7 +1164,8 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   private sendSegmentText(ws: WebSocket, job: SegmentJob): void {
     // Generation stays at the tutor's natural pace. Lecture speed is playback
     // rate on the already-produced audio so a mid-sentence change takes effect now.
-    const speed = clampVoiceSpeed(DEFAULT_VOICE_SETTINGS.speed ?? 1);
+    const settings = job.options.voiceSettings ?? DEFAULT_VOICE_SETTINGS;
+    const speed = clampVoiceSpeed(settings.speed ?? 1);
     // Name the context here rather than inferring it from the order replies
     // come back in. Sentences generate concurrently and a short one finishes
     // first, so arrival order is not send order — reading it as such handed a
@@ -1080,7 +1180,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
         segment_index: this.sentSegmentSequence,
         previous_text: job.options.previousText,
         next_text: job.options.nextText,
-        voice_settings: { ...DEFAULT_VOICE_SETTINGS, speed },
+        voice_settings: { ...settings, speed },
       }),
     );
     ws.send(JSON.stringify({ text: "", flush: true }));
@@ -1444,6 +1544,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
   private rejectAllJobs(error: unknown): void {
     this.jobsByContext.clear();
     this.unboundJobs = [];
+    this.finishedContexts.clear();
     for (const job of this.jobs) {
       if (!job.settled) {
         job.settled = true;
@@ -1505,6 +1606,12 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     }
     this.playing = true;
     this.lastSuccessfulTransport = "http";
+    // The alignment is complete before a prefetch plays, so it goes out
+    // before `onStart`, the same order the socket keeps. The runner's first
+    // schedule is gated on whichever arrives first.
+    if (entry.timings.totalDuration > 0) {
+      options.onTimings?.(toSegmentRelativeAudioTimings(entry.timings));
+    }
     options.onStart?.();
     const htmlDone = this.tryPlayHtmlMpeg(entry.chunks);
     if (htmlDone) {
@@ -1516,9 +1623,6 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
         }
         sourceDonePromises.push(this.scheduleDecodedBuffer(ctx, audioBuffer));
       }
-    }
-    if (entry.timings.totalDuration > 0) {
-      options.onTimings?.(toSegmentRelativeAudioTimings(entry.timings));
     }
     if (entry.chunks.length > 0) {
       options.onAudioCaptured?.({
@@ -1573,8 +1677,10 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
         text: spokenText,
         model_id: DEFAULT_MODEL,
         voice_settings: {
-          ...DEFAULT_VOICE_SETTINGS,
-          speed: clampVoiceSpeed(DEFAULT_VOICE_SETTINGS.speed ?? 1),
+          ...(options.voiceSettings ?? DEFAULT_VOICE_SETTINGS),
+          speed: clampVoiceSpeed(
+            (options.voiceSettings ?? DEFAULT_VOICE_SETTINGS).speed ?? 1,
+          ),
         },
         previous_text: options.previousText,
         next_text: options.nextText,
@@ -1979,6 +2085,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     this.connectedTraceId = undefined;
     this.connectedSessionId = undefined;
     this.sentSegmentSequence = 0;
+    this.finishedContexts.clear();
     this.paused = false;
     this.speechFallback.stop();
     releaseLectureAudioContext(this.audioContext);

@@ -1,5 +1,12 @@
 import type { DrawCommand } from "@heytutor/drawing";
-import { SCENE_DURATION_SCALE, type InkPace } from "@heytutor/tutor-core";
+import {
+  cuedInkBudgetMs,
+  cuedInkCapMs,
+  cuedInkFloorMs,
+  SCENE_DURATION_SCALE,
+  type CueWindowSharers,
+  type InkPace,
+} from "@heytutor/tutor-core";
 import { LETTERED_IN_HAND_MS_PER_CHAR } from "@heytutor/whiteboard";
 
 export type TutorPhase = "idle" | "planning" | "thinking" | "drawing" | "speaking";
@@ -99,7 +106,10 @@ export function adaptiveShapeBudget(
   return Math.max(Math.round(pacedBase / effectiveSpeed), pace === "scene" ? 70 : 150);
 }
 
-/** Live ink budget for one command. Scene batches stay capped; follow fits speech. */
+/**
+ * Live ink budget for one command. Scene batches stay capped; follow fits
+ * speech; a cued figure part fills what is left of its word's window.
+ */
 export function resolveCommandInkBudgetMs(input: {
   command: DrawCommand;
   pace: InkPace;
@@ -110,7 +120,27 @@ export function resolveCommandInkBudgetMs(input: {
   naturalDrawMs: number;
   multiShapeSegment: boolean;
   sceneBatchDurationMs?: number;
+  /**
+   * Present for a command of a cued figure intro (it carries a `spokenCue`):
+   * what is left of its word's window once the pen has waited for the word,
+   * and the later commands drawn under the same word. The batch cap and the
+   * scene share do not apply; the part is drawn under its word, floored at
+   * hand speed and capped at a teacher's unhurried pace (`cuedInkCapMs`).
+   */
+  cueWindow?: {
+    remainingMs: number;
+    sharers?: CueWindowSharers;
+  };
 }): number {
+  if (input.cueWindow) {
+    const floorMs = cuedInkFloorMs(input.command);
+    return cuedInkBudgetMs({
+      remainingMs: input.cueWindow.remainingMs,
+      floorMs,
+      capMs: cuedInkCapMs(input.command, floorMs),
+      sharers: input.cueWindow.sharers,
+    });
+  }
   if (input.isTextCommand && input.pace === "scene") {
     // Figure text is lettered with whatever instrument is in hand. A budget
     // above the swap threshold buys a pen swap each way for a two-character

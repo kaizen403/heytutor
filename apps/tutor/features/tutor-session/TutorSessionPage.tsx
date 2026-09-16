@@ -17,6 +17,11 @@ export function TutorSessionPage() {
   // `/` is a working board with no database row and no URL of its own. It gets
   // its id up front so a lesson can start on it instantly; the row and the
   // `/c/{id}` address are claimed by the first question (see `commitDraftBoard`).
+  //
+  // This component lives in the shared session layout, not the page, so the
+  // `/` → `/c/{id}` claim must not remount it. Do not key this tree on
+  // pathname: a remount would mint a new draft id, restore an empty board, and
+  // look like the lecture refreshed.
   const [draftBoardId, setDraftBoardId] = useState(createDraftBoardId);
   const routeBoardId = boardIdFromPathname(pathname);
   const sessionId = routeBoardId ?? draftBoardId;

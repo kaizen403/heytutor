@@ -1,12 +1,14 @@
 import { useEffect, useRef } from "react";
 import { useTurnControl } from "./turn/useTurnControl";
 import { useQuestionHandler } from "./turn/useQuestionHandler";
-import type { UseTurnLifecycleParams } from "./turn/types";
+import type { HandleQuestionOptions, UseTurnLifecycleParams } from "./turn/types";
 
 export type { UseTurnLifecycleParams } from "./turn/types";
 
 export function useTurnLifecycle(params: UseTurnLifecycleParams) {
-  const handleQuestionRef = useRef<(question: string) => Promise<void>>(async () => {});
+  const handleQuestionRef = useRef<
+    (question: string, options?: HandleQuestionOptions) => Promise<void>
+  >(async () => {});
   const turnControl = useTurnControl(params, handleQuestionRef);
   const { handleQuestion } = useQuestionHandler(params, turnControl);
 

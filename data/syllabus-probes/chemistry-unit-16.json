@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|16",
+  "questions": [
+    {
+      "id": "chemistry|16|preparation-and-nature-of-c-x-bond|easy",
+      "topicId": "chemistry|16|preparation-and-nature-of-c-x-bond",
+      "difficulty": "easy",
+      "question": "Write the products of the Finkelstein reaction of CH3CH2Br with NaI in dry acetone and of the Swarts reaction of CH3CH2Br with AgF. Why is dry acetone used in the Finkelstein reaction?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|16|preparation-and-nature-of-c-x-bond|medium",
+      "topicId": "chemistry|16|preparation-and-nature-of-c-x-bond",
+      "difficulty": "medium",
+      "question": "Arrange CH3F, CH3Cl, CH3Br and CH3I in increasing order of C-X bond length and in increasing order of C-X bond enthalpy. Why does chloromethane have a slightly larger dipole moment than fluoromethane?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|16|nucleophilic-substitution-sn1-and-sn2|easy",
+      "topicId": "chemistry|16|nucleophilic-substitution-sn1-and-sn2",
+      "difficulty": "easy",
+      "question": "The correct statement regarding nucleophilic substitution in a chiral alkyl halide is (A) Racemisation occurs in both SN1 and SN2 reactions. (B) Retention occurs in the SN1 reaction and inversion occurs in the SN2 reaction. (C) Racemisation occurs in the SN1 reaction and retention occurs in the SN2 reaction. (D) Racemisation occurs in the SN1 reaction and inversion occurs in the SN2 reaction.",
+      "source": {
+        "questionId": "q_c107c3cfd7d36a5b139c8c1a2ebaadfd1fd5a3ba7500b6945b8b1459e1f7d53c",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-27-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|16|nucleophilic-substitution-sn1-and-sn2|medium",
+      "topicId": "chemistry|16|nucleophilic-substitution-sn1-and-sn2",
+      "difficulty": "medium",
+      "question": "Arrange 1-bromopentane, 2-bromopentane and 2-bromo-2-methylbutane in increasing order of reactivity towards the SN2 reaction and towards the SN1 reaction, giving the reason for each order.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|16|nucleophilic-substitution-sn1-and-sn2|hard",
+      "topicId": "chemistry|16|nucleophilic-substitution-sn1-and-sn2",
+      "difficulty": "hard",
+      "question": "(R)-2-Bromobutane is treated separately with (a) a high concentration of hydroxide ion in aqueous acetone and (b) water alone at room temperature. Predict the configuration of the butan-2-ol formed in each case and name the mechanism that operates.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|16|elimination-and-reactions-with-metals|easy",
+      "topicId": "chemistry|16|elimination-and-reactions-with-metals",
+      "difficulty": "easy",
+      "question": "What is the major product when 2-bromobutane is heated with alcoholic KOH? Name the rule that decides the major product, and name the minor product.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|16|elimination-and-reactions-with-metals|medium",
+      "topicId": "chemistry|16|elimination-and-reactions-with-metals",
+      "difficulty": "medium",
+      "question": "What happens when a mixture of bromobenzene and CH3Br is treated with sodium in dry ether, and when CH3Br alone is treated with sodium in dry ether? Name each reaction and write the equations.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|16|reactions-of-haloarenes|medium",
+      "topicId": "chemistry|16|reactions-of-haloarenes",
+      "difficulty": "medium",
+      "question": "Chlorobenzene is much less reactive than chloromethane towards nucleophilic substitution. Give two reasons, and explain why 2,4-dinitrochlorobenzene reacts with aqueous NaOH at a much lower temperature than chlorobenzene.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|16|polyhalogen-compounds-and-environmental-effects|easy",
+      "topicId": "chemistry|16|polyhalogen-compounds-and-environmental-effects",
+      "difficulty": "easy",
+      "question": "Match each compound in List I with its use in List II. List I: (A) carbon tetrachloride (B) methylene chloride (C) DDT (D) freons. List II: (I) paint remover (II) refrigerators and air conditioners (III) fire extinguisher (IV) non-biodegradable insecticide.",
+      "source": {
+        "questionId": "q_10b91107ebee7224b538131bdff26945dbacb67f355267429891a8dc9dd5d3a9",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-02-01-shift-2"
+      }
+    }
+  ]
+}

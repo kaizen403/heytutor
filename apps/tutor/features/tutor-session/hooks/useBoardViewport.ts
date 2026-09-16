@@ -8,6 +8,8 @@ const FRAME_PADDING_DESKTOP = 32;
 /** Mobile frame padding (10px surface inset on each side). */
 const FRAME_PADDING_MOBILE = 20;
 const MOBILE_MQ = "(max-width: 640px)";
+/** Width change below this is measurement noise, not a rotation or sidebar. */
+const WIDTH_LOCK_PX = 8;
 
 export type BoardViewportMode = "fit" | "fixed";
 
@@ -32,6 +34,7 @@ export function useBoardViewport(
     let rafId = 0;
     let timeoutId = 0;
     let retries = 0;
+    const lastBox = { width: 0, height: 0 };
 
     const updateScale = () => {
       const box = container.getBoundingClientRect();
@@ -73,6 +76,19 @@ export function useBoardViewport(
       // Avoid sub-pixel thrash from ResizeObserver feedback.
       setViewport((prev) => {
         if (prev.measured && Math.abs(prev.scale - nextScale) < 0.001) return prev;
+        // The URL bar and the on-screen keyboard shrink height without
+        // changing width. Rescaling Konva for that looks like a reload.
+        // Height growth (keyboard closing, landing overlay gone) may refit.
+        if (
+          prev.measured &&
+          lastBox.width > 0 &&
+          Math.abs(width - lastBox.width) < WIDTH_LOCK_PX &&
+          height <= lastBox.height + 8
+        ) {
+          return prev;
+        }
+        lastBox.width = width;
+        lastBox.height = height;
         return { scale: nextScale, offsetX: 0, offsetY: 0, measured: true };
       });
     };

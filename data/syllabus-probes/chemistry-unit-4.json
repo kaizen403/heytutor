@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|4",
+  "questions": [
+    {
+      "id": "chemistry|4|systems-state-functions-and-processes|easy",
+      "topicId": "chemistry|4|systems-state-functions-and-processes",
+      "difficulty": "easy",
+      "question": "Which of the following are state functions: internal energy, work, heat, enthalpy, entropy and Gibbs energy? Also classify volume, temperature, density and molar heat capacity as extensive or intensive properties.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|4|first-law-work-heat-and-internal-energy|easy",
+      "topicId": "chemistry|4|first-law-work-heat-and-internal-energy",
+      "difficulty": "easy",
+      "question": "ΔvapH° for water is +40.79 kJ mol^-1 at 1 bar and 100 °C. What is the change in internal energy, in kJ mol^-1, for this vapourisation under the same conditions? (Given: R = 8.3 J K^-1 mol^-1)",
+      "source": {
+        "questionId": "q_78f66fceb638db27a85e4c5e3cedb5b5f6a75858fda6e5d385c2a157929c279f",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-04-08-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|4|first-law-work-heat-and-internal-energy|medium",
+      "topicId": "chemistry|4|first-law-work-heat-and-internal-energy",
+      "difficulty": "medium",
+      "question": "For the complete combustion of methanol, the heat produced as measured in a bomb calorimeter is 726 kJ mol^-1 at 27 °C. The enthalpy of combustion for the reaction is -x kJ mol^-1. Find x (nearest integer). (Given: R = 8.3 J K^-1 mol^-1)",
+      "source": {
+        "questionId": "q_a3abb473a402bb009f22c0386cf432b6b1fbe4b2205d993d45c858e06f2a3a35",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-26-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|4|first-law-work-heat-and-internal-energy|hard",
+      "topicId": "chemistry|4|first-law-work-heat-and-internal-energy",
+      "difficulty": "hard",
+      "question": "An ideal gas is expanded from (p1, V1, T1) to (p2, V2, T2) under different conditions. The correct statement(s) among the following is(are) (A) The work done on the gas is maximum when it is compressed irreversibly from (p2, V2) to (p1, V1) against constant pressure p1 (B) If the expansion is carried out freely, it is simultaneously both isothermal as well as adiabatic (C) The work done by the gas is less when it is expanded reversibly from V1 to V2 under adiabatic conditions than when it is expanded reversibly from V1 to V2 under isothermal conditions (D) The change in internal energy of the gas is (i) zero, if it is expanded reversibly with T1 = T2, and (ii) positive, if it is expanded reversibly under adiabatic conditions with T1 ≠ T2",
+      "source": {
+        "questionId": "q_91e36816816b4cd8fbc642a372bd5717fdcb55b5c4f3315427a7d4a18bbd5bff",
+        "exam": "JEE Advanced",
+        "year": 2017,
+        "documentId": "jee-advanced-2017-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|4|heat-capacity|medium",
+      "topicId": "chemistry|4|heat-capacity",
+      "difficulty": "medium",
+      "question": "The molar heat capacity of an ideal gas at constant pressure is 29.1 J K^-1 mol^-1. Find its molar heat capacity at constant volume, and the heat needed to raise the temperature of 2 mol of the gas from 300 K to 350 K at constant volume. (R = 8.314 J K^-1 mol^-1)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|4|hesss-law-and-enthalpies-of-reaction|easy",
+      "topicId": "chemistry|4|hesss-law-and-enthalpies-of-reaction",
+      "difficulty": "easy",
+      "question": "At 25 °C and 1 atm pressure, the enthalpies of combustion of benzene(l) and acetylene(g) are -3268 kJ mol^-1 and -1300 kJ mol^-1 respectively. The enthalpy change for the reaction 3C2H2(g) → C6H6(l) is (A) +324 kJ mol^-1 (B) +632 kJ mol^-1 (C) -632 kJ mol^-1 (D) -732 kJ mol^-1",
+      "source": {
+        "questionId": "q_73a300a21fc86834fcb02d7ed7a1bf6f7e1e745b528b54ddf562a04c2dcce12d",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-25-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|4|hesss-law-and-enthalpies-of-reaction|medium",
+      "topicId": "chemistry|4|hesss-law-and-enthalpies-of-reaction",
+      "difficulty": "medium",
+      "question": "Heat of combustion of H2(g) = -241.8 kJ mol^-1, heat of combustion of C(s) = -393.5 kJ mol^-1 and heat of combustion of C2H5OH(l) = -1234.7 kJ mol^-1. Using Hess's law, find the heat of formation of C2H5OH(l) in kJ mol^-1 (nearest integer).",
+      "source": {
+        "questionId": "q_fdf1214ba47125eb3afb9f0e3823a8fadba156f1ec0546a895c9eab2b96da57e",
+        "exam": "JEE Main",
+        "year": 2023,
+        "documentId": "jee-main-2023-04-06-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|4|hesss-law-and-enthalpies-of-reaction|hard",
+      "topicId": "chemistry|4|hesss-law-and-enthalpies-of-reaction",
+      "difficulty": "hard",
+      "question": "2 mol of Hg(g) is combusted in a fixed volume bomb calorimeter with excess O2 at 298 K and 1 atm into HgO(s). During the reaction the temperature rises from 298.0 K to 312.8 K. The heat capacity of the bomb calorimeter is 20.00 kJ K^-1 and the enthalpy of formation of Hg(g) is 61.32 kJ mol^-1 at 298 K. The calculated standard molar enthalpy of formation of HgO(s) at 298 K is X kJ mol^-1. What is the value of |X|? (Given: R = 8.3 J K^-1 mol^-1)",
+      "source": {
+        "questionId": "q_8bf059b9573a842cfa7a5fb9384d2bbc89dcf653cff781f44991a1440a5b84d3",
+        "exam": "JEE Advanced",
+        "year": 2022,
+        "documentId": "jee-advanced-2022-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|4|entropy-and-spontaneity|medium",
+      "topicId": "chemistry|4|entropy-and-spontaneity",
+      "difficulty": "medium",
+      "question": "The enthalpy of vaporisation of water at 373 K is 40.7 kJ mol^-1. Calculate the entropy change of the system and of the surroundings when 1 mol of water vaporises reversibly at 373 K, and the total entropy change of the universe.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|4|gibbs-energy-and-equilibrium-constant|medium",
+      "topicId": "chemistry|4|gibbs-energy-and-equilibrium-constant",
+      "difficulty": "medium",
+      "question": "The standard entropy change for the reaction 4Fe(s) + 3O2(g) → 2Fe2O3(s) is -550 J K^-1 at 298 K, and the standard enthalpy change for the reaction is -165 kJ mol^-1. At what temperature, in K, does the reaction attain equilibrium (nearest integer)?",
+      "source": {
+        "questionId": "q_b506a300a884ab94a757840b51daf713e3799e6cbcdbddd928943027148dee20",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-25-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|4|gibbs-energy-and-equilibrium-constant|hard",
+      "topicId": "chemistry|4|gibbs-energy-and-equilibrium-constant",
+      "difficulty": "hard",
+      "question": "For the reaction N2(g) + 3H2(g) ⇌ 2NH3(g) at 298 K, ΔG° = -32.8 kJ mol^-1. Calculate the equilibrium constant Kp at 298 K. (R = 8.314 J K^-1 mol^-1)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

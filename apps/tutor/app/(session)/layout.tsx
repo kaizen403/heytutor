@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { TutorSessionPage } from "@/features/tutor-session";
+import { assertOnboardedStudent } from "@/lib/auth/requireOnboarded";
 
 /**
  * Shared by `/` and `/c/{id}`. Holding the session here is what lets the home
@@ -9,11 +10,12 @@ import { TutorSessionPage } from "@/features/tutor-session";
  * The boundary is for `useSearchParams` (`?q=`, `?replay=1`, `?embed=1`); both
  * routes render dynamically, so it never actually falls back.
  */
-export default function SessionLayout({
+export default async function SessionLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await assertOnboardedStudent();
   return (
     <>
       <Suspense fallback={null}>

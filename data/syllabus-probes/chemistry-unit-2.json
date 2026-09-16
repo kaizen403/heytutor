@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|2",
+  "questions": [
+    {
+      "id": "chemistry|2|electromagnetic-radiation-and-photoelectric-effect|easy",
+      "topicId": "chemistry|2|electromagnetic-radiation-and-photoelectric-effect",
+      "difficulty": "easy",
+      "question": "The threshold frequency of a metal is 7.0 × 10^14 s^-1. Calculate the kinetic energy of an electron emitted when radiation of frequency 1.0 × 10^15 s^-1 falls on the metal. (h = 6.626 × 10^-34 J s)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|2|hydrogen-spectrum-and-bohr-model|easy",
+      "topicId": "chemistry|2|hydrogen-spectrum-and-bohr-model",
+      "difficulty": "easy",
+      "question": "According to Bohr's model, the highest kinetic energy is associated with the electron in the (A) first orbit of H atom (B) first orbit of He+ (C) second orbit of He+ (D) second orbit of Li2+",
+      "source": {
+        "questionId": "q_d429da0777c3eabc84f57cc33e7b3b0bfd9d831befd46255e37e00ef00ec21fe",
+        "exam": "JEE Advanced",
+        "year": 2024,
+        "documentId": "jee-advanced-2024-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|2|hydrogen-spectrum-and-bohr-model|medium",
+      "topicId": "chemistry|2|hydrogen-spectrum-and-bohr-model",
+      "difficulty": "medium",
+      "question": "X^a+ and Y^b+ are hydrogen-like species. The wavelength of light absorbed in the transition between the states with principal quantum numbers n = 1 and n = 2 of X^a+ is λ. The wavelength of light absorbed in the transition between the states n = 2 and n = 4 of Y^b+ is 9λ. What is the lowest possible value of (a + b)?",
+      "source": {
+        "questionId": "q_00549cc7634d512a5970d6f70031bc2e429e3da02acc375644c3e49abf02bc4e",
+        "exam": "JEE Advanced",
+        "year": 2026,
+        "documentId": "jee-advanced-2026-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|2|hydrogen-spectrum-and-bohr-model|hard",
+      "topicId": "chemistry|2|hydrogen-spectrum-and-bohr-model",
+      "difficulty": "hard",
+      "question": "For He+, a transition takes place from the orbit of radius 105.8 pm to the orbit of radius 26.45 pm. What is the wavelength, in nm, of the photon emitted in this transition? (Use: Bohr radius a0 = 52.9 pm, Rydberg constant RH = 2.2 × 10^-18 J, Planck's constant h = 6.6 × 10^-34 J s, speed of light c = 3 × 10^8 m s^-1)",
+      "source": {
+        "questionId": "q_392eed1236f15f645842641b4f09b243a5e853941e91a902e6e48ba09313e2a4",
+        "exam": "JEE Advanced",
+        "year": 2023,
+        "documentId": "jee-advanced-2023-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|2|de-broglie-and-heisenberg|easy",
+      "topicId": "chemistry|2|de-broglie-and-heisenberg",
+      "difficulty": "easy",
+      "question": "The uncertainty in the position of an electron (mass 9.1 × 10^-31 kg) is 1.0 × 10^-10 m. Using the Heisenberg uncertainty principle, calculate the minimum uncertainty in its velocity. (h = 6.6 × 10^-34 J s)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|2|de-broglie-and-heisenberg|medium",
+      "topicId": "chemistry|2|de-broglie-and-heisenberg",
+      "difficulty": "medium",
+      "question": "The atomic masses of He and Ne are 4 and 20 amu respectively. The de Broglie wavelength of He gas at -73 °C is M times the de Broglie wavelength of Ne at 727 °C. What is the value of M?",
+      "source": {
+        "questionId": "q_dec687003ec7116190a5e74f45b8e5299855f132150620120cbdaf87e36aea0e",
+        "exam": "JEE Advanced",
+        "year": 2013,
+        "documentId": "jee-advanced-2013-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|2|de-broglie-and-heisenberg|hard",
+      "topicId": "chemistry|2|de-broglie-and-heisenberg",
+      "difficulty": "hard",
+      "question": "Among the following, the correct statement(s) for electrons in an atom is(are) (A) The uncertainty principle rules out the existence of definite paths for electrons. (B) The energy of an electron in a 2s orbital of an atom is lower than the energy of an electron that is infinitely far away from the nucleus. (C) According to Bohr's model, the most negative energy value for an electron is given by n = 1, which corresponds to the most stable orbit. (D) According to Bohr's model, the magnitude of the velocity of electrons increases with increase in the value of n.",
+      "source": {
+        "questionId": "q_2d17d420a713f9d08a59b188cc543e7a78779d5520bedb173923fc7a18385bee",
+        "exam": "JEE Advanced",
+        "year": 2024,
+        "documentId": "jee-advanced-2024-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|2|quantum-mechanical-model-and-orbitals|medium",
+      "topicId": "chemistry|2|quantum-mechanical-model-and-orbitals",
+      "difficulty": "medium",
+      "question": "How many radial nodes and how many angular nodes are present in a 3p orbital and in a 4d orbital? For each orbital, state the total number of nodes.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|2|quantum-numbers-and-orbital-shapes|hard",
+      "topicId": "chemistry|2|quantum-numbers-and-orbital-shapes",
+      "difficulty": "hard",
+      "question": "The ground state energy of the hydrogen atom is -13.6 eV. Consider an electronic state Ψ of He+ whose energy, azimuthal quantum number and magnetic quantum number are -3.4 eV, 2 and 0 respectively. Which of the following statement(s) is(are) true for the state Ψ? (A) It is a 4d state (B) It has 2 angular nodes (C) It has 3 radial nodes (D) The nuclear charge experienced by the electron in this state is less than 2e, where e is the magnitude of the electronic charge",
+      "source": {
+        "questionId": "q_928296c06b1656cb9bb386b72cc02b7d838ee62cae1d9ba22f07eba8a97cda8f",
+        "exam": "JEE Advanced",
+        "year": 2019,
+        "documentId": "jee-advanced-2019-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|2|electronic-configuration-and-filling-rules|easy",
+      "topicId": "chemistry|2|electronic-configuration-and-filling-rules",
+      "difficulty": "easy",
+      "question": "Write the ground state electronic configurations of Cr (Z = 24) and Cu (Z = 29). Why do both depart from the order predicted by the Aufbau principle, and how many unpaired electrons does each atom have?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

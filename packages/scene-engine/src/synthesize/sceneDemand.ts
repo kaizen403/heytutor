@@ -19,6 +19,7 @@
  * `problemIR` is threaded through so structure can supersede them.
  */
 import type { SceneDocument } from "../types";
+import { isAtomicTransitionStem, isChemistryQuestion } from "../chemistry";
 import {
   circuitTopologyFromProblemStructure,
   isPlanarConicStem,
@@ -40,13 +41,22 @@ export type PictureFeature =
   | "curved_surface"
   | "connected_fluid"
   | "suspended_body"
-  | "spring_block";
+  | "spring_block"
+  | "chemistry_figure";
 
 export interface SceneDemand {
   /** Every one of these must be present or the picture is not about the stem. */
   readonly requires: readonly PictureFeature[];
   /** Any one of these contradicts the stem outright. */
   readonly forbids: readonly PictureFeature[];
+  /**
+   * A chemistry stem may only receive a chemistry figure. The physics families
+   * were drawn for "emf of the cell", "hydrogen atom" and "isothermal" in
+   * chemistry stems, and each was a wrong picture taught as right. The one
+   * exception is a Bohr transition, which the physics level ladder draws
+   * correctly for both subjects.
+   */
+  readonly subject?: "chemistry";
 }
 
 const EMPTY_DEMAND: SceneDemand = { requires: [], forbids: [] };
@@ -258,7 +268,11 @@ export function sceneDemand(
   if (isRiverBoatProblemIR(problemIR) && !requires.includes("river_banks")) {
     requires.push("river_banks");
   }
-  return { requires, forbids };
+  // The router's cues count as subject evidence: "shape of the d_z2 orbital"
+  // carries no chemistry word the classifier knows, but the orbital family
+  // claims it, and the archetype layer runs before any family does.
+  const chemistry = isChemistryQuestion(stem) && !isAtomicTransitionStem(stem);
+  return chemistry ? { requires, forbids, subject: "chemistry" } : { requires, forbids };
 }
 
 /**
@@ -312,6 +326,7 @@ export function pictureFeatures(document: SceneDocument): Set<PictureFeature> {
   }
   if (operators.has("aperture") || operators.has("screen_pattern")) features.add("slit_pattern");
   if (operators.has("optical_train")) features.add("instrument_train");
+  if (typeof document.source.chemistryFamily === "string") features.add("chemistry_figure");
   if (
     operators.has("spherical_surface")
     || operators.has("lens_section")
@@ -359,8 +374,11 @@ export function demandRejection(
   document: SceneDocument,
   demand: SceneDemand,
 ): string | null {
-  if (demand.requires.length === 0 && demand.forbids.length === 0) return null;
+  if (demand.requires.length === 0 && demand.forbids.length === 0 && !demand.subject) return null;
   const features = pictureFeatures(document);
+  if (demand.subject === "chemistry" && !features.has("chemistry_figure")) {
+    return "a chemistry stem was handed a physics figure";
+  }
   const missing = demand.requires.filter((feature) => !features.has(feature));
   if (missing.length > 0) return `missing ${missing.join(", ")}`;
   const contradicted = demand.forbids.filter((feature) => features.has(feature));

@@ -1,7 +1,7 @@
 /**
- * Lecture MP3s live on the public R2 host after persist. The browser cannot
- * always `fetch` that host (CORS, r2.dev blocked), so export goes through a
- * same-origin proxy. Blob and same-origin URLs stay direct.
+ * Lecture MP3s are stored privately on S3. Persist writes a same-origin
+ * `/api/media?key=` URL. Legacy public hosts still go through `/api/lecture-audio?src=`.
+ * Blob and same-origin URLs stay direct.
  */
 
 export function lectureAudioFetchUrl(

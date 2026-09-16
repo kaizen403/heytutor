@@ -1,4 +1,5 @@
 import {
+  boardNeedsGeneratedTitle,
   deriveBoardTitleFromQuestion,
   finalizeBoardTitle,
   isMetaOrInvalidBoardTitle,
@@ -47,6 +48,31 @@ const refractionTitle = deriveBoardTitleFromQuestion(refractionQuestion);
 assert(
   refractionTitle !== "Fractions" && /light enters glass/i.test(refractionTitle),
   `refraction must not match the fractions title rule: ${refractionTitle}`,
+);
+
+assert(
+  boardNeedsGeneratedTitle({ isDraft: true, title: "new board", persistedTurnCount: 0 }),
+  "a draft board must be named from the first question",
+);
+assert(
+  boardNeedsGeneratedTitle({
+    isDraft: false,
+    title: "Voltage divider midpoint voltage",
+    persistedTurnCount: 0,
+  }),
+  "an empty board still carrying an abandoned title must be renamed from the question that actually runs",
+);
+assert(
+  !boardNeedsGeneratedTitle({
+    isDraft: false,
+    title: "Voltage divider midpoint voltage",
+    persistedTurnCount: 1,
+  }),
+  "a later doubt on a saved lesson must not rename the board",
+);
+assert(
+  boardNeedsGeneratedTitle({ isDraft: false, title: "new board", persistedTurnCount: 1 }),
+  "a saved lesson still titled new board must be named",
 );
 
 console.log("verify-board-title: all checks passed");

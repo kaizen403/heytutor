@@ -89,8 +89,8 @@ legacy source is found.
 ## Full-syllabus sidecar
 
 `build_syllabus_index.py` reads the validated manifest, the generated
-`build/questions.all.jsonl`, the versioned taxonomy, and both subject rule
-files. Its defaults write `build/question-syllabus.jsonl` and
+`build/questions.all.jsonl`, the versioned taxonomy, and the three subject
+rule files (Mathematics, Physics, Chemistry). Its defaults write `build/question-syllabus.jsonl` and
 `build/question-bank-full.sqlite`; pass `--no-database` for an assignments-only
 audit. Every input and output path can be overridden.
 

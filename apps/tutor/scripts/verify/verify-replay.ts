@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { synthesizeDsaScene } from "@heytutor/scene-engine";
+import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
 import {
   isStoredCommandTrustedGeometry,
   parseStoredSegmentCommands,
+  resolveVerifiedDiagramFocusTargets,
   serializeSegmentCommands,
   type DrawCommand,
 } from "@heytutor/drawing";
+import { DSA_DIAGRAM_ZONE } from "../../features/tutor-session/constants";
+import { restoreVerifiedDiagramFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import {
   createScheduledWriteClock,
   simulateScheduledWriteWait,
@@ -117,5 +124,62 @@ const deadAudioClock = createScheduledWriteClock({
 assert.equal(deadAudioClock(), 0);
 fakeNow = 180;
 assert.equal(deadAudioClock(), 180, "a missing MP3 clock must write against wall time");
+
+{
+  // Replay draws intro ink from stored commands, then teaching FOCUS looks up
+  // the verified diagram. If that diagram is never rebuilt, the pen stops
+  // after the figure is on the board — the admin Watch symptom.
+  const question = "Explain binary search on a sorted array.";
+  const plan = getMockCodeLessonPlan(question);
+  const dsaScene = synthesizeDsaScene(plan.diagramHint, {
+    question,
+    compile: { viewport: DSA_DIAGRAM_ZONE },
+  });
+  assert.ok(dsaScene, "the mock plan must synthesize a scene for this check");
+  const stamped = {
+    ...dsaScene.document,
+    source: {
+      ...dsaScene.document.source,
+      nonMetric: true,
+      representationTier: dsaScene.tier,
+    },
+  };
+  const diagram = restoreVerifiedDiagramFromTurn({ sceneDocument: stamped });
+  assert.ok(diagram, "a stored scene document must rebuild a verified diagram");
+  const anchorId = diagram!.anchors[0]?.id;
+  assert.ok(anchorId, "the rebuilt diagram must expose focus anchors");
+  const focus = {
+    type: "FOCUS",
+    params: [],
+    text: `${anchorId}|spotlight`,
+    charPosition: 0,
+    narrationBefore: "",
+    semanticRef: { entityId: `${anchorId}|spotlight` },
+  } as unknown as DrawCommand;
+  assert.equal(
+    resolveVerifiedDiagramFocusTargets(focus, null).length,
+    0,
+    "FOCUS against a missing diagram is a silent no-op: that is the bug",
+  );
+  assert.ok(
+    resolveVerifiedDiagramFocusTargets(focus, diagram).length > 0,
+    "FOCUS against the restored diagram must resolve the intro's own anchors",
+  );
+
+  const replaySource = readFileSync(
+    resolve(import.meta.dirname, "../../features/tutor-session/hooks/useReplay.ts"),
+    "utf8",
+  );
+  assert.match(
+    replaySource,
+    /restoreVerifiedDiagramFromTurn/,
+    "replay must rebuild the verified diagram before teaching FOCUS runs",
+  );
+  assert.match(
+    replaySource,
+    /activeVerifiedDiagramRef\.current = diagram/,
+    "replay must publish the restored diagram onto the FOCUS resolver",
+  );
+}
 
 console.log("verify-replay: ok");

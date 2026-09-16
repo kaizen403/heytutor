@@ -1,10 +1,11 @@
 /**
  * Solarized Dark for the DSA code panel.
  *
- * The panel is a Sublime-like editor sitting on the whiteboard, not another
- * Night Blueprint card. Ethan Schoonover's palette is the one Sublime shipped
- * with for years; live CodeMirror, notes PDFs, and lecture MP4s all read
- * these values so the three surfaces cannot drift.
+ * The panel is a Solarized Dark editor sitting on the whiteboard, not a
+ * fake OS window and not another Night Blueprint card. Ethan Schoonover's
+ * palette is the one Sublime shipped with for years; live CodeMirror, notes
+ * PDFs, and lecture MP4s all read these values so the three surfaces cannot
+ * drift.
  *
  * https://ethanschoonover.com/solarized/
  */
@@ -43,9 +44,6 @@ export const SOLARIZED_EDITOR = {
   matchingBracket: "rgba(42, 161, 152, 0.35)",
   border: "#00141c",
   tab: SOLARIZED.base03,
-  trafficClose: "#ff5f56",
-  trafficMin: "#ffbd2e",
-  trafficMax: "#27c93f",
 } as const;
 
 /** Lezer token classes shared by CodeMirror HighlightStyle and the canvas renderer. */
@@ -69,10 +67,8 @@ export const SOLARIZED_FONT =
   "'Menlo', 'Consolas', 'Source Code Pro', 'SF Mono', ui-monospace, monospace";
 
 export const SOLARIZED_CHROME = {
-  titleBarHeight: 32,
+  titleBarHeight: 28,
   statusBarHeight: 22,
-  trafficLightSize: 10,
-  trafficLightGap: 7,
 } as const;
 
 const LANGUAGE_META: Record<

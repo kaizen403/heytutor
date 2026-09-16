@@ -18,7 +18,7 @@ import {
 } from "../src/instruments";
 import { RESTING_TILT, instrumentSwapPose, tiltForHeading } from "../src/penChoreography";
 
-const BOARD = "#F8F6F0";
+const BOARD = "#F6E4C4";
 const LABEL = "#7A7468";
 const HEADING = "#3A342A";
 /** The board's highlighter colour — a highlighter is yellow whatever the pen is. */

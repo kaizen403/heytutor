@@ -8,6 +8,7 @@ import {
 import {
   type DrawCommand,
   type VerifiedDiagram,
+  type VerifiedDiagramAnchor,
   type VerifiedDiagramCommand,
   cuboidPath,
   cubePath,
@@ -39,6 +40,7 @@ import {
   verifiedDiagramCommandToDrawCommand,
   BOARD_TYPE_SCALE,
   snapToBoardTypeScale,
+  WORK_CONTINUATION_INDENT,
 } from "@heytutor/drawing";
 import {
   getDrawingDuration,
@@ -51,15 +53,23 @@ import {
 } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
-import { CODE_CARET_FOLLOW_MS, CODE_FOCUS_SPOTLIGHT_MS, DIAGRAM_ZONE, DSA_DIAGRAM_ZONE, codeLessonCaretBoardPoint } from "../constants";
-import {
-  revealedSectionText,
-  type CodeLessonController,
-} from "../lib/code-lesson/codeLessonController";
+import { waitUntilDrawClock } from "@/lib/replay/replayAudio";
+import { CODE_FOCUS_SPOTLIGHT_MS, DIAGRAM_ZONE, DSA_DIAGRAM_ZONE, TEXT_LAYOUT } from "../constants";
+import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
+import { frameAdvanceRole } from "../lib/code-lesson/codeLessonSegments";
+import type { SpokenSegmentClock } from "../lib/code-lesson/codeSpokenSync";
+import { runFrameWalkBeat, runTypedBlockBeat, walkSpokenStops, frameWalkPlan } from "../lib/code-lesson/spokenWalk";
 import type { BoardTextRect, BoardLayoutState } from "../types";
-import { isInDiagramZone, registerBoardAnchor } from "../lib/board/boardLayout";
+import { isInDiagramZone, registerBoardAnchor, workColumnMaxWidth } from "../lib/board/boardLayout";
+import { wrapWorkRow } from "./useBoardLayout";
 import { resolveSnappedAnnotationParams } from "../lib/board/annotationSnap";
 import { withSpotlight } from "../lib/board/spotlight";
+import {
+  runScheduledFocus,
+  type FocusTargetSchedule,
+  type FocusTracePath,
+  type ScheduledFocusTarget,
+} from "../lib/board/scheduledFocus";
 import { markerTourStops, narrationTourMs, tourMarker } from "../lib/board/markerTour";
 import { resultSpanOfRow } from "../lib/board/formulaEmphasis";
 
@@ -96,6 +106,32 @@ export interface UseCommandExecutionParams {
    * every later frame.
    */
   setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
+}
+
+/** POINT at opening notes: work-row ids like `w1`, resolved from board layout. */
+function pointWorkRowTargets(
+  command: DrawCommand,
+  rects: readonly BoardTextRect[],
+): Array<{ id: string; x: number; y: number; width: number; height: number }> {
+  const spec = parseFocusSpec(command.semanticRef?.entityId ?? command.text);
+  const wanted = spec.targetIds.length > 0
+    ? spec.targetIds
+    : [(command.semanticRef?.entityId ?? command.text ?? "").trim()].filter(Boolean);
+  const targets: Array<{ id: string; x: number; y: number; width: number; height: number }> = [];
+  for (const raw of wanted) {
+    const id = raw.trim();
+    if (!id) continue;
+    const row = resolveWorkAreaRow(parseWorkRowSelector(id), rects);
+    if (!row) continue;
+    targets.push({
+      id: row.workId ?? id,
+      x: row.x,
+      y: row.y,
+      width: row.width,
+      height: row.height,
+    });
+  }
+  return targets;
 }
 
 export async function eraseWhiteboardRegionIfCurrent(
@@ -172,6 +208,29 @@ export function useCommandExecution({
         isCancelled?: () => boolean;
         textPlacementReserved?: boolean;
         inkPace?: InkPace;
+        /**
+         * One spoken window per FOCUS target, in media ms from the segment's
+         * audio start. With it the FOCUS runs its targets one at a time, each
+         * lettered and traced when its name is spoken. Needs the audio clock.
+         */
+        focusSchedule?: FocusTargetSchedule;
+        /** The segment's audio clock, media ms from its start. */
+        getAudioPositionMs?: () => number;
+        /** Media ms per wall ms; default 1. Only the waits need it. */
+        getPlaybackRate?: () => number;
+        /**
+         * The sentence this command sits under, with its alignment and audio
+         * clock. The code-lesson branches (TYPE, FRAME, FOCUS) follow its
+         * words: measured 10 Sep 2026, the pen was parked 82% of spoken time
+         * on a DSA lesson because none of them knew where the voice was.
+         */
+        spokenClock?: SpokenSegmentClock;
+        /**
+         * The command was placed on its spoken cue and given that window as
+         * its time. A cued shape keeps the whole window instead of the scene
+         * ceiling, so a figure is drawn at the pace of the words naming it.
+         */
+        cued?: boolean;
       } = {},
     ): Promise<void> {
       const wb = whiteboardRef.current;
@@ -216,13 +275,14 @@ export function useCommandExecution({
         if (rawCommand.visualStyle?.fillRole === "region") {
           return Promise.all([
             wb.drawAnnotation("highlight", path, duration, {
-              fillColor: "#A5D6EC",
+              fillColor: "#9CCBFF",
               fillOpacity: 0.18,
               shouldCancel: commandCancelled,
             }),
             wb.drawShape(path, duration, {
               ...shapeOptions,
               pace: inkPace,
+              cued: options.cued === true,
               strokeRole: shapeOptions?.strokeRole ?? rawCommand.visualStyle?.strokeRole,
               strokeWidth: shapeOptions?.strokeWidth ?? rawCommand.visualStyle?.strokeWidth,
               dashed: shapeOptions?.dashed ?? rawCommand.visualStyle?.dashed,
@@ -233,6 +293,7 @@ export function useCommandExecution({
         return wb.drawShape(path, duration, {
           ...shapeOptions,
           pace: inkPace,
+          cued: options.cued === true,
           // Construction scaffolding is drawn in pencil, the figure itself in
           // pen. The compiler already tags which is which.
           strokeRole: shapeOptions?.strokeRole ?? rawCommand.visualStyle?.strokeRole,
@@ -561,6 +622,34 @@ export function useCommandExecution({
         case "WRITE":
         case "LABEL": {
           const [x, y, maybeFontSize] = command.params;
+          if (
+            command.type === "WRITE" &&
+            !options.textPlacementReserved &&
+            command.text &&
+            Number.isFinite(x) &&
+            Number.isFinite(y)
+          ) {
+            const columnWidth = workColumnMaxWidth(
+              boardLayoutRef.current,
+              fbdPhaseStartedRef.current,
+            );
+            const { fontSize: wrappedSize, lines } = wrapWorkRow(command.text, columnWidth);
+            if (lines.length > 1) {
+              for (const [index, line] of lines.entries()) {
+                if (commandCancelled()) return;
+                const indent = index === 0 ? 0 : WORK_CONTINUATION_INDENT;
+                await executeCommand(
+                  {
+                    ...command,
+                    text: line,
+                    params: [TEXT_LAYOUT.marginX + indent, y, wrappedSize],
+                  },
+                  { ...options, applyLayout: true, textPlacementReserved: false },
+                );
+              }
+              break;
+            }
+          }
           if (command.text && Number.isFinite(x) && Number.isFinite(y)) {
             // Every size that reaches the pen is a step on the board's scale.
             // A work row arrives with the size its wrap settled on; a figure
@@ -576,7 +665,7 @@ export function useCommandExecution({
                   command,
                   x,
                   y,
-                  options.applyLayout !== false,
+                  command.type === "WRITE" || options.applyLayout !== false,
                 );
             if (isInDiagramZone(placement.x, placement.y)) {
               const diagramLabels = boardLayoutRef.current.rects.filter(
@@ -628,29 +717,11 @@ export function useCommandExecution({
                 fontSize,
               );
             }
-            if (command.type === "WRITE" && activeDiagram) {
-              const deferred = takeDeferredAnnotations(activeDiagram, { text: command.text });
-              for (const next of deferred) {
-                if (commandCancelled()) return;
-                await executeCommand(
-                  {
-                    type: next.type,
-                    params: [...next.params],
-                    text: next.text,
-                    charPosition: 0,
-                    narrationBefore: "",
-                    visualStyle: next.visualStyle,
-                    semanticRef: next.semanticRef,
-                  },
-                  {
-                    trustedDiagramGeometry: true,
-                    applyLayout: false,
-                    isCancelled: commandCancelled,
-                    inkPace: "scene",
-                  },
-                );
-              }
-            }
+            // A WRITE row used to release withheld figure labels whose text it
+            // contained. Single letters match any row: "Given: f = 15 cm"
+            // lettered C, F, M and I silently under the row, before the
+            // geometry they name existed. A label now waits for its spoken
+            // name, through the FOCUS that carries its id.
           }
           break;
         }
@@ -664,53 +735,55 @@ export function useCommandExecution({
             });
             break;
           }
+          // The opening wrote the problem in the left column. The editor sits
+          // on top of that column, so wipe the notes before the panel mounts.
+          if (controller.getState().mode === "hidden") {
+            const eraseWidth = Math.max(DIAGRAM_ZONE.x - TEXT_LAYOUT.eraseX - 10, 40);
+            const eraseRect = {
+              x: TEXT_LAYOUT.eraseX,
+              y: TEXT_LAYOUT.eraseY,
+              width: eraseWidth,
+              height: TEXT_LAYOUT.eraseHeight,
+            };
+            if (durationScale > 0.05) {
+              const wiped = await eraseWhiteboardRegionIfCurrent(
+                wb,
+                { ...eraseRect, duration: 420 },
+                commandCancelled,
+              );
+              if (!wiped) return;
+            }
+            forgetErasedTextRects(eraseRect);
+          }
           // Board restore (0.05) and replay seeks (0) want the finished block,
           // not a typing animation racing a clock that no longer exists.
           if (durationScale <= 0.05) {
             controller.revealBlockInstant(blockId);
             break;
           }
-          // The marker writes the code: it flies to the caret and then follows
-          // it, line by line, for as long as the block is typing.
-          //
-          // It used to fly once and then `setCursorState("idle")`, which is
-          // opacity 0 — so for the whole code half of a DSA lesson the pen
-          // vanished and the board stopped moving while the tutor talked. A
-          // student watching that sees a lesson that has stalled.
-          const caretNow = () => codeLessonCaretBoardPoint(
-            revealedSectionText(controller.getState(), controller.getState().activeSectionIndex),
-          );
-          const start = caretNow();
-          await wb.flyCursorTo(start.x, start.y, Math.min(240, speechDurationMs ?? 240));
-          if (commandCancelled()) return;
-          wb.setCursorState("drawing");
-          let typing = true;
-          const followCaret = (async () => {
-            let last = start;
-            while (typing && !commandCancelled()) {
-              const next = caretNow();
-              // Only fly when the caret has actually moved; a still pen is
-              // correct while a character is being drawn, a jittering one is not.
-              if (Math.abs(next.x - last.x) > 1 || Math.abs(next.y - last.y) > 1) {
-                last = next;
-                await wb.flyCursorTo(next.x, next.y, CODE_CARET_FOLLOW_MS);
-              } else {
-                await cancellableDelay(CODE_CARET_FOLLOW_MS);
-              }
-            }
-          })();
-          try {
-            await controller.typeBlock(blockId, {
-              durationMs: speechDurationMs,
-              shouldCancel: commandCancelled,
-            });
-          } finally {
-            typing = false;
-            await followCaret;
-            // Remaining speech is a wait. `speaking` is a still pen; `idle`
-            // is opacity 0. The spin already lives on `thinking`.
-            wb.setCursorState("thinking");
-          }
+          // The block is typed at its natural pace on the sentence's audio
+          // clock while the pen follows the caret; then, for the rest of the
+          // sentence, the highlighted line and the pen move to whichever line
+          // the voice is explaining. Measured before this: each block was
+          // typed in the first 22 to 29% of a 20 s sentence and nothing on
+          // the board moved for the remaining 15 s.
+          const typed = await runTypedBlockBeat({
+            host: wb,
+            controller,
+            blockId,
+            clock: options.spokenClock ?? null,
+            isCancelled: commandCancelled,
+            delay: cancellableDelay,
+          });
+          if (typed.cancelled) return;
+          tutorDebug("draw", "typed block beat", {
+            block_id: blockId,
+            typed_ms: Math.round(typed.typedMs),
+            lines_visited: typed.linesVisited.join(","),
+            anchor_count: typed.schedule?.anchors.length ?? 0,
+            unspoken_lines: typed.schedule?.unspokenLines.join(",") ?? "",
+            source: typed.schedule?.source ?? "none",
+          });
           break;
         }
         case "POINT": {
@@ -718,10 +791,13 @@ export function useCommandExecution({
           // what the pen does while the tutor is talking rather than writing:
           // before, a spoken step with no tag left it wherever it happened to
           // be, for as long as the step ran.
-          const targets = resolveVerifiedDiagramFocusTargets(
+          const diagramTargets = resolveVerifiedDiagramFocusTargets(
             { ...command, type: "FOCUS" },
             activeVerifiedDiagramRef.current,
           );
+          const targets = diagramTargets.length > 0
+            ? diagramTargets
+            : pointWorkRowTargets(command, boardLayoutRef.current.rects);
           if (targets.length === 0) break;
           // A replay seek is catching the board up to a timestamp, and nothing
           // in that pass is being watched. Walking a whole spoken step per
@@ -833,6 +909,40 @@ export function useCommandExecution({
             frame_index: frames.currentIndex(),
             frame_total: frames.total(),
           });
+          // A figure beat owns its sentence: after the redraw the pen walks
+          // the cells the voice names, in the order it names them, and halts
+          // on the word that names the spotlight's target so the FOCUS after
+          // it fires there. A catch-up frame beside a code block hands the
+          // sentence straight back to the TYPE; a bare FRAME does nothing more.
+          // Measured before this: 6 s of redraw, then 10 s parked.
+          if (frameAdvanceRole(command) === "figure_beat" && options.spokenClock && !isSeekCatchUp) {
+            const focusIds = (command.semanticRef?.entityId ?? "")
+              .split(",")
+              .map((id) => id.trim())
+              .filter(Boolean);
+            const idleTargets = resolveVerifiedDiagramFocusTargets(
+              { ...command, type: "FOCUS", text: next.pointEntityIds.join(","), semanticRef: { entityId: next.pointEntityIds.join(",") } },
+              next.presentation.diagram,
+            );
+            const walked = await runFrameWalkBeat({
+              host: wb,
+              anchors: next.presentation.diagram.anchors,
+              clock: options.spokenClock,
+              isCancelled: commandCancelled,
+              delay: cancellableDelay,
+              idleStops: markerTourStops(idleTargets, pointBeatsRef.current),
+              stopBeforeIds: focusIds,
+            });
+            if (walked.cancelled) return;
+            tutorDebug("draw", "frame walk", {
+              frame_id: next.id,
+              stops: walked.stops,
+              visited: walked.visited.join(","),
+              halted_at: walked.haltedAt?.id ?? null,
+              audio_pos_ms: Math.round(options.spokenClock.getAudioPositionMs()),
+            });
+            pointBeatsRef.current += 1;
+          }
           break;
         }
         case "PAUSE": {
@@ -889,6 +999,106 @@ export function useCommandExecution({
           const codeLessonActive = Boolean(codeLessonControllerRef?.current?.getActivePlan())
             || activeDiagram?.layout === "code_lesson";
           const spec = parseFocusSpec(command.semanticRef?.entityId ?? command.text);
+          const focusSchedule = options.focusSchedule;
+          const focusAudioClock = options.getAudioPositionMs;
+          // With a schedule the pen follows the voice: each target is lettered
+          // and traced inside its own spoken window, in spoken order. A code
+          // lesson keeps its spotlight-only beat below, and a seek has no
+          // audio clock to follow.
+          if (
+            !codeLessonActive &&
+            !isSeekCatchUp &&
+            focusSchedule &&
+            focusSchedule.targets.length > 0 &&
+            focusAudioClock
+          ) {
+            const emphasis = focusEmphasisOf(command);
+            const focusFloorMs = inkPace === "scene" ? 120 : 420;
+            const letterWithheld = async (
+              entityIds: readonly string[],
+            ): Promise<{ cancelled: boolean; penAt: { x: number; y: number } | null }> => {
+              let penAt: { x: number; y: number } | null = null;
+              for (const next of takeDeferredAnnotations(activeDiagram, { entityIds })) {
+                if (commandCancelled()) return { cancelled: true, penAt };
+                await executeCommand(
+                  {
+                    type: next.type,
+                    params: [...next.params],
+                    text: next.text,
+                    charPosition: 0,
+                    narrationBefore: "",
+                    visualStyle: next.visualStyle,
+                    semanticRef: next.semanticRef,
+                  },
+                  {
+                    trustedDiagramGeometry: true,
+                    applyLayout: false,
+                    isCancelled: commandCancelled,
+                    inkPace: "scene",
+                  },
+                );
+                const [x, y, size] = next.params;
+                if (Number.isFinite(x) && Number.isFinite(y)) {
+                  // A label is written rightwards from its origin, so the pen
+                  // ends past its last glyph.
+                  const width = next.type === "LABEL" && next.text
+                    ? measureTextWidth(next.text, typeof size === "number" && size > 0 ? size : BOARD_TYPE_SCALE.label)
+                    : 0;
+                  penAt = { x: x! + width, y: y! };
+                }
+              }
+              return { cancelled: commandCancelled(), penAt };
+            };
+            const scheduled = scheduledFocusTargets(activeDiagram, targets, focusSchedule, focusFloorMs, (id, ids, window) => async () => {
+              tutorDebug("draw", "focus target", {
+                target_id: id,
+                start_ms: Math.round(window.startMs),
+                end_ms: Math.round(window.endMs),
+                audio_pos_ms: Math.round(focusAudioClock()),
+                anchor: window.anchor,
+              });
+              return letterWithheld(ids);
+            });
+            tutorDebug("draw", "focus schedule", {
+              target_id: targets.map((target) => target.id).join(","),
+              target_count: scheduled.length,
+              matched_count: focusSchedule.matchedCount,
+              source: focusSchedule.source,
+              emphasis,
+              audio_pos_ms: Math.round(focusAudioClock()),
+              first_start_ms: Math.round(scheduled[0]?.startMs ?? 0),
+            });
+            const scheduleCancelled = await runScheduledFocus(
+              {
+                setSpotlight: (spotlight) => wb.setSpotlight(spotlight),
+                flyCursorTo: (x, y, durationMs) => wb.flyCursorTo(x, y, durationMs),
+                drawAnnotation: (kind, path, durationMs, annotationOptions) =>
+                  drawAnnotation(kind, path, durationMs, annotationOptions),
+              },
+              scheduled,
+              {
+                emphasis,
+                veil: DIAGRAM_ZONE,
+                getAudioPositionMs: focusAudioClock,
+                waitUntilAudioMs: (targetMs) =>
+                  waitUntilDrawClock(focusAudioClock, targetMs, {
+                    shouldCancel: commandCancelled,
+                    getPlaybackRate: options.getPlaybackRate,
+                  }),
+                isCancelled: commandCancelled,
+                floorMs: focusFloorMs,
+              },
+            );
+            if (scheduleCancelled) return;
+            wb.setCursorState("thinking");
+            turnTelemetryRef.current?.mark("verified-focus-complete", {
+              target_id: targets.map((target) => target.id).join(","),
+              path_count: scheduled.length,
+              emphasis,
+              scheduled: true,
+            });
+            break;
+          }
           const deferred = takeDeferredAnnotations(activeDiagram, {
             entityIds: [...spec.targetIds, ...targets.map((target) => target.id)],
           });
@@ -916,6 +1126,24 @@ export function useCommandExecution({
           // on a DSA figure. Code lessons only dim everything except the named
           // cells — the figure itself stays the explanation.
           if (codeLessonActive) {
+            // The sentence's named cells, from here to its end. The frame
+            // walk before this FOCUS halted on the target's word; if the
+            // FOCUS stands alone (a step holding the frame), the pen walks
+            // to that word first, and the spotlight fires as it is said.
+            const spokenClock = !isSeekCatchUp && durationScale > 0.05 ? options.spokenClock : undefined;
+            const focusIds = new Set(targets.map((target) => target.id));
+            if (spokenClock) {
+              const plan = frameWalkPlan(activeDiagram.anchors, spokenClock);
+              if (plan.stops.some((stop) => focusIds.has(stop.id))) {
+                const approach = await walkSpokenStops(wb, plan.stops, spokenClock, {
+                  untilMs: plan.totalMs,
+                  isCancelled: commandCancelled,
+                  delay: cancellableDelay,
+                  stopBeforeIds: focusIds,
+                });
+                if (approach.cancelled) return;
+              }
+            }
             const hole = targets.reduce((union, target) => {
               const x = Math.min(union.x, target.x);
               const y = Math.min(union.y, target.y);
@@ -952,6 +1180,19 @@ export function useCommandExecution({
               },
             );
             if (focusCancelled) return;
+            if (spokenClock) {
+              // The veil is up for a glance; the rest of the sentence still
+              // names cells, and the pen keeps walking them.
+              const rest = frameWalkPlan(activeDiagram.anchors, spokenClock);
+              const walked = await walkSpokenStops(wb, rest.stops, spokenClock, {
+                untilMs: rest.totalMs,
+                isCancelled: commandCancelled,
+                delay: cancellableDelay,
+                idleStops: markerTourStops(targets, pointBeatsRef.current + 1),
+              });
+              if (walked.cancelled) return;
+              pointBeatsRef.current += 1;
+            }
             wb.setCursorState("thinking");
             turnTelemetryRef.current?.mark("verified-focus-complete", {
               target_id: targets.map((target) => target.id).join(","),
@@ -1120,9 +1361,14 @@ export function useCommandExecution({
         case "ANNOTATE": {
           if (!activeDiagram) break;
           const targets = resolveVerifiedDiagramFocusTargets({ ...command, type: "FOCUS" }, activeDiagram);
+          // The requested id itself as well as the anchors it resolves to: a
+          // withheld dimension can be named by its own id without being an
+          // anchor of the figure.
           const deferred = takeDeferredAnnotations(activeDiagram, {
-            entityIds: targets.map((target) => target.id),
-            text: command.text,
+            entityIds: [
+              ...parseFocusSpec(command.semanticRef?.entityId ?? command.text).targetIds,
+              ...targets.map((target) => target.id),
+            ],
           });
           for (const next of deferred) {
             if (commandCancelled()) return;
@@ -1256,7 +1502,7 @@ export function useCommandExecution({
                 annotationKind,
                 highlightRectPath(x, y, w, h),
                 drawMs,
-                region ? { fillColor: "#A5D6EC", fillOpacity: 0.18 } : undefined,
+                region ? { fillColor: "#9CCBFF", fillOpacity: 0.18 } : undefined,
               );
             }
           } else if (command.type === "SCRIBBLE" && params.length >= 4) {
@@ -1413,6 +1659,103 @@ function verifiedCommandTracePath(
     default:
       return null;
   }
+}
+
+/** Ink the pen may trace for a focus: the entity's own strokes, never its text or scaffolding. */
+function focusTraceCommands(diagram: VerifiedDiagram, entityIds: ReadonlySet<string>): VerifiedDiagramCommand[] {
+  return diagram.commands.filter((candidate) =>
+    candidate.semanticRef?.entityId &&
+    entityIds.has(candidate.semanticRef.entityId) &&
+    !candidate.semanticRef?.actionId &&
+    candidate.visualStyle?.strokeRole !== "trace" &&
+    candidate.type !== "LABEL" &&
+    candidate.type !== "WRITE" &&
+    candidate.type !== "DIMENSION",
+  );
+}
+
+function anchorRingPath(anchor: VerifiedDiagramAnchor): FocusTracePath {
+  return {
+    path: emphasisEllipsePath(anchor.x - 4, anchor.y - 4, anchor.width + 8, anchor.height + 8),
+    x: anchor.x + anchor.width / 2,
+    y: anchor.y,
+  };
+}
+
+/**
+ * One scheduled target per spoken window, in the schedule's order. Every
+ * anchor a window names gets its own trace: the strokes it owns, or a ring
+ * round it when it owns none, which is how a withheld dimension or a bare
+ * point still gets a gesture instead of nothing. Anchors the tag asked for
+ * that the schedule never placed run last, after the final window, so
+ * nothing the tag named is left unlettered.
+ */
+function scheduledFocusTargets(
+  diagram: VerifiedDiagram,
+  requested: readonly VerifiedDiagramAnchor[],
+  schedule: FocusTargetSchedule,
+  floorMs: number,
+  letterFor: (
+    id: string,
+    entityIds: readonly string[],
+    window: FocusTargetSchedule["targets"][number],
+  ) => ScheduledFocusTarget["letter"],
+): ScheduledFocusTarget[] {
+  const covered = new Set<string>();
+  const build = (
+    window: FocusTargetSchedule["targets"][number],
+    anchors: readonly VerifiedDiagramAnchor[],
+  ): ScheduledFocusTarget => {
+    const ids = new Set(anchors.map((anchor) => anchor.id));
+    const ink = focusTraceCommands(diagram, ids);
+    const paths = anchors
+      .flatMap((anchor) => {
+        const own = ink
+          .filter((candidate) => candidate.semanticRef?.entityId === anchor.id)
+          .map(verifiedCommandTracePath)
+          .filter((candidate): candidate is FocusTracePath => candidate !== null);
+        return own.length > 0 ? own : [anchorRingPath(anchor)];
+      })
+      .slice(0, 8);
+    const pulse = compactPulseBox(anchors[0]!, ink);
+    return {
+      id: window.id,
+      startMs: window.startMs,
+      endMs: window.endMs,
+      rects: anchors.map(({ x, y, width, height }) => ({ x, y, width, height })),
+      paths,
+      pulse: {
+        path: emphasisEllipsePath(pulse.x, pulse.y, pulse.width, pulse.height),
+        x: pulse.x + pulse.width / 2,
+        y: pulse.y,
+      },
+      letter: letterFor(window.id, [window.id, ...anchors.map((anchor) => anchor.id)], window),
+    };
+  };
+  const targets: ScheduledFocusTarget[] = [];
+  for (const window of schedule.targets) {
+    const anchors = resolveVerifiedDiagramFocusTargets(
+      { type: "FOCUS", params: [], text: window.id, charPosition: 0, narrationBefore: "", semanticRef: { entityId: window.id } },
+      diagram,
+    );
+    if (anchors.length === 0) continue;
+    for (const anchor of anchors) covered.add(anchor.id);
+    targets.push(build(window, anchors));
+  }
+  const uncovered = requested.filter((anchor) => !covered.has(anchor.id));
+  if (uncovered.length > 0) {
+    const lastEndMs = targets.at(-1)?.endMs ?? 0;
+    targets.push(build(
+      {
+        id: uncovered.map((anchor) => anchor.id).join(","),
+        startMs: lastEndMs,
+        endMs: lastEndMs + floorMs,
+        anchor: "proportional",
+      },
+      uncovered,
+    ));
+  }
+  return targets;
 }
 
 function compactPulseBox(

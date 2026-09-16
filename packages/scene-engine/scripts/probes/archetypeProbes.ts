@@ -137,8 +137,8 @@ export const ARCHETYPE_PROBES: readonly ArchetypeProbe[] = [
   // to stock ones and draws a different optical case than the one asked about
   // — a magnified image where the answer is a diminished one. The tier floor is
   // what catches that: an ungrounded slot cannot compile above qualitative.
-  // These three phrasings all used to miss, and the first two are the app's own
-  // landing suggestions.
+  // These three phrasings all used to miss. The symbolic-f stem is still an
+  // empty-board landing suggestion.
   { id: "concave-mirror-symbolic-f", group: "mirror-ray", archetype: "spherical_mirror", tier: "exact_verified", quantities: { u: 20, f: 15 }, question: "Concave mirror, f = 15 cm, object at 20 cm. Locate the image and draw the ray diagram." },
   { id: "concave-mirror-object-is-at", group: "mirror-ray", archetype: "spherical_mirror", tier: "exact_verified", quantities: { u: 18, f: 12 }, question: "A concave mirror has focal length 12 cm and the object is at 18 cm. Draw the ray diagram." },
   // A stem in metres grounds just as cleanly as one in centimetres, so only a

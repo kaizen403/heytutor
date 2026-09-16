@@ -9,7 +9,6 @@ import type { TutorPhase } from "@/features/tutor-session/types";
 import { LessonActions } from "@/features/tutor-session/components/LessonActions";
 import { ReplaySpeedSelect } from "@/features/tutor-session/components/ReplaySpeedSelect";
 import { DEFAULT_REPLAY_SPEED } from "@/lib/replay/replayAudio";
-import { LectureNotesPanel } from "./LectureNotesPanel";
 
 export type WatchIntent = "replay" | "notes" | "live";
 
@@ -44,7 +43,10 @@ export function WatchDrawer({
 
   return (
     <WatchDrawerFrame
-      key={`${intent}:${boardId}`}
+      // Keyed on the board alone. It used to carry the intent as well, so
+      // switching to Notes tore the lesson down and built it again; the Ask
+      // panel is now part of the same session rather than a separate surface.
+      key={boardId}
       boardId={boardId}
       intent={intent}
       title={title}
@@ -184,6 +186,12 @@ function WatchDrawerFrame({
                   onClick={() => {
                     unlockTutorAudio();
                     onIntentChange("replay");
+                    // Switching back from Notes no longer remounts the shell,
+                    // so the replay has to be asked for rather than falling
+                    // out of `autoReplay` on a fresh mount.
+                    if (!exportApi?.isReplaying) {
+                      exportApi?.replayLecture();
+                    }
                   }}
                   className={cn(
                     "type-accent-xs rounded-full px-3 py-1.5",
@@ -240,27 +248,25 @@ function WatchDrawerFrame({
         ) : (
           <>
             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+              {/*
+                `panel`: the whole lesson with the app frame taken off, because
+                this drawer brings its own. Watching a lecture here can do
+                everything the main page can — ask a follow-up, open the Ask
+                panel, mark the board, change the lesson settings — rather than
+                being a viewer with a separate, poorer notes list beside it.
+              */}
               <TutorSessionShell
                 key={boardId}
                 sessionId={boardId}
-                variant="embed"
+                variant="panel"
                 autoReplay={intent === "replay"}
                 muteAudio={false}
                 playbackRate={speed}
                 onExportApi={setExportApi}
+                notesOpen={intent === "notes"}
+                onNotesOpenChange={(open) => onIntentChange(open ? "notes" : "replay")}
               />
             </div>
-            {intent === "notes" ? (
-              <div className="h-[42%] shrink-0 border-t border-stroke lg:h-auto lg:w-[380px] lg:border-l lg:border-t-0">
-                <LectureNotesPanel
-                  key={boardId}
-                  boardId={boardId}
-                  onDownloadPdf={() => exportApi?.downloadNotesPdf()}
-                  canDownloadPdf={exportApi?.canDownload ?? false}
-                  isDownloadingPdf={exportApi?.isDownloading ?? false}
-                />
-              </div>
-            ) : null}
           </>
         )}
       </div>

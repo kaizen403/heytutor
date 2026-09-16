@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|9",
+  "questions": [
+    {
+      "id": "chemistry|9|modern-periodic-law-and-periodic-table|easy",
+      "topicId": "chemistry|9|modern-periodic-law-and-periodic-table",
+      "difficulty": "easy",
+      "question": "Using the IUPAC numerical roots, write the temporary name and symbol of the element with atomic number 114, and state the period and group in which it is placed in the modern periodic table.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|9|s-p-d-and-f-block-elements|easy",
+      "topicId": "chemistry|9|s-p-d-and-f-block-elements",
+      "difficulty": "easy",
+      "question": "An element has the electronic configuration [Ar] 3d^10 4s^2 4p^3. To which block, period and group of the periodic table does it belong, and is it a metal, a non-metal or a metalloid?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|9|atomic-and-ionic-radii|medium",
+      "topicId": "chemistry|9|atomic-and-ionic-radii",
+      "difficulty": "medium",
+      "question": "Assertion A: There is a considerable increase in covalent radius from N to P, but from As to Bi only a small increase in covalent radius is observed. Reason R: Covalent and ionic radii in a particular oxidation state increase down the group. Choose the most appropriate answer: (A) Both A and R are true and R is the correct explanation of A (B) Both A and R are true but R is not the correct explanation of A (C) A is true but R is false (D) A is false but R is true",
+      "source": {
+        "questionId": "q_492cbc1193c5a1d88b326505364c48bf27e9ed7db5202e4e9f046534e90465ad",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-30-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|9|atomic-and-ionic-radii|hard",
+      "topicId": "chemistry|9|atomic-and-ionic-radii",
+      "difficulty": "hard",
+      "question": "The correct statement(s) regarding the periodic properties of elements is(are) (A) The second ionization enthalpy of the carbon atom is less than that of the boron atom. (B) Increasing order of ionic radii: Al3+ < Mg2+ < Na+ (C) Under identical conditions, in the solid state, the density of potassium metal is more than the density of sodium metal. (D) The H-H bond is weaker than the F-F bond.",
+      "source": {
+        "questionId": "q_438fc4b36b81e6947a276a4f93cb5c6b9e86f8eed4c366fce53d225cd23fdbe1",
+        "exam": "JEE Advanced",
+        "year": 2026,
+        "documentId": "jee-advanced-2026-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|9|ionisation-enthalpy|easy",
+      "topicId": "chemistry|9|ionisation-enthalpy",
+      "difficulty": "easy",
+      "question": "Electromagnetic radiation of wavelength 242 nm is just sufficient to ionise a sodium atom. What is the ionisation energy of sodium in kJ mol^-1?",
+      "source": {
+        "questionId": "q_ad1191fc866a3e90b0a8103ec8f24efb2e29f4dd73f444ef0bf14d9368410ea6",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-31-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|9|ionisation-enthalpy|medium",
+      "topicId": "chemistry|9|ionisation-enthalpy",
+      "difficulty": "medium",
+      "question": "Assertion A: The first ionisation enthalpy of oxygen is lower than that of nitrogen. Reason R: The four electrons in the 2p orbitals of oxygen experience more electron-electron repulsion. Choose the most appropriate answer: (A) Both A and R are true and R is the correct explanation of A (B) Both A and R are true but R is not the correct explanation of A (C) A is true but R is false (D) A is false but R is true",
+      "source": {
+        "questionId": "q_db685c492b831b9ef110f36a8845005301106dec267d2c8466cdb00da2589b6e",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-29-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|9|electron-gain-enthalpy-and-electronegativity|easy",
+      "topicId": "chemistry|9|electron-gain-enthalpy-and-electronegativity",
+      "difficulty": "easy",
+      "question": "The correct order of electron gain enthalpy (negative value) is (A) O > S > Se > Te (B) O < S < Se < Te (C) O < S > Se > Te (D) O < S > Se < Te",
+      "source": {
+        "questionId": "q_73a971284b829391bfec4a74b9f15890547837f797f591bace6e0399d98f5f7c",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-30-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|9|electron-gain-enthalpy-and-electronegativity|medium",
+      "topicId": "chemistry|9|electron-gain-enthalpy-and-electronegativity",
+      "difficulty": "medium",
+      "question": "Why is the electron gain enthalpy of chlorine more negative than that of fluorine, although fluorine is the more electronegative element? Arrange F, Cl, Br and I in order of increasingly negative electron gain enthalpy.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|9|valence-oxidation-states-and-chemical-reactivity|medium",
+      "topicId": "chemistry|9|valence-oxidation-states-and-chemical-reactivity",
+      "difficulty": "medium",
+      "question": "Arrange Na2O, MgO, Al2O3, SiO2, P4O10 and Cl2O7 in order of increasing acidic character, identify the amphoteric oxide, and explain the trend across the third period.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

@@ -58,5 +58,11 @@ assert(
     LANDING_SUGGESTIONS.length,
   "landing suggestion prompts must be unique",
 );
+assert(
+  new Set(
+    LANDING_SUGGESTIONS.map((suggestion) => suggestion.topic.trim().toLowerCase()),
+  ).size === LANDING_SUGGESTIONS.length,
+  "landing suggestion topics must each be a different chapter — the empty board must not stack two cards from the same unit",
+);
 
 console.log("verify-landing-suggestions: ok");

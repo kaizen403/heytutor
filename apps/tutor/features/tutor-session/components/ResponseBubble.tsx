@@ -41,8 +41,8 @@ export function ResponseBubble({ text, visible }: ResponseBubbleProps) {
         backgroundColor: "rgba(13, 34, 49, 0.94)",
         color: "var(--frost)",
         borderRadius: "12px",
-        boxShadow: "0 10px 30px -8px rgba(3, 11, 18, 0.55)",
-        border: "1px solid rgba(202, 229, 241, 0.08)",
+        boxShadow: "0 10px 30px -8px rgba(0, 0, 0, 0.55)",
+        border: "1px solid rgba(255, 255, 255, 0.08)",
         backdropFilter: "blur(8px)",
       }}
     >

@@ -1,7 +1,10 @@
 # Deploy
 
-HeyTutor has **no CI**: the GitHub Actions workflows were removed and `main`
-has no required status checks. Validate locally before pushing:
+Landing stays on Vercel. The tutor (Next.js UI + API + WebSocket TTS relay)
+runs as one long-lived Node process on AWS EC2. There is no split
+`BACKEND_ORIGIN` proxy.
+
+Validate locally before pushing:
 
 ```bash
 pnpm install --frozen-lockfile
@@ -12,51 +15,92 @@ pnpm check    # typecheck + lint + build
 
 | Target | Platform | Trigger |
 |--------|----------|---------|
-| Tutor frontend (Next.js) | [Vercel](https://vercel.com) | Push to `main` / PR previews (Vercel Git integration) |
-| Tutor API + WebSocket + TTS relay | Azure VM | Manual deploy (below) |
-| Landing site | Vercel | Same as tutor (separate Vercel project, root `apps/landing`) |
+| Landing site | [Vercel](https://vercel.com), domain `accelute.co` | Push to `main` (Vercel Git integration) |
+| Tutor UI + API + WebSocket | EC2 (`tsx server.ts`) | Push to `main` via `.github/workflows/deploy-tutor.yml`, or `./deploy/aws/deploy.sh` on the box |
+| Postgres | Hosted (RDS or other). `DATABASE_URL` in `.env.production` | Not on the app box |
+| Lecture audio + question photos | Private S3 bucket | See [s3-setup.md](s3-setup.md) |
 
-## Backend deploy (manual, on VM)
+Do not put Cloudflare’s orange-cloud proxy in front of the tutor: planner SSE
+can outlive the ~100s timeout. Grey-cloud DNS (`app.accelute.co` A record to
+the Elastic IP) and Caddy on the box for TLS.
+
+## Backend deploy (on the EC2 box)
 
 ```bash
 cd /opt/heytutor
 git pull origin main
-./deploy/azure/deploy.sh
+./deploy/aws/deploy.sh
 ```
 
 `deploy.sh`:
 
-- Starts Postgres via Docker Compose on `127.0.0.1:5433`, with container credentials loaded from `apps/tutor/.env.production` (or derived from its `DATABASE_URL`)
-- Installs deps, builds the tutor monorepo slice
-- Runs `prisma migrate deploy`
+- Installs deps and builds the tutor monorepo slice
+- Runs `prisma migrate deploy` against `DATABASE_URL`
 - Restarts `heytutor.service`
+
+Postgres is not started on this machine.
 
 ## One-time setup
 
-### 1. Azure VM (first time)
+### 1. EC2 (first time)
+
+Ubuntu 24.04, `t3.medium` (2 vCPU / 4 GB) in `ap-south-2` (Hyderabad), 40 GB disk, Elastic
+IP, security group: `22` from your IP, `80`/`443` from the world. Attach an
+instance role with the S3 policy in [s3-setup.md](s3-setup.md). Point the RDS
+security group at this instance, not at `0.0.0.0/0`.
+
+Copy `apps/tutor/.env.example` → `apps/tutor/.env.production` on the box and
+fill in production keys **before** the first start. Required:
+
+- `DATABASE_URL` (hosted Postgres)
+- `S3_BUCKET` / `AWS_REGION`
+- `FIREWORKS_API_KEY`, `ELEVENLABS_API_KEY`
+- `AUTH_SECRET`
+- Google OAuth: follow [google-oauth.md](google-oauth.md), then set
+  `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`. Keep `AUTH_REQUIRED` off until
+  those are on the box.
+- `NEXT_PUBLIC_SITE_URL=https://app.accelute.co`
+- `NEXT_PUBLIC_LANDING_URL=https://accelute.co`
+- `AUTH_URL=https://app.accelute.co`
+- `WS_TICKET_SECRET`
+
+Leave `BACKEND_ORIGIN`, `NEXT_PUBLIC_API_ORIGIN`, and `NEXT_PUBLIC_WS_ORIGIN`
+unset. Do not set `AUTH_DEV_LOGIN`.
+
+Because `setup-vm.sh` and `deploy.sh` `source` `.env.production`, keep it
+shell-compatible: quote values that contain `#`, spaces, or other
+shell-significant characters.
 
 ```bash
-sudo ./deploy/azure/setup-vm.sh <PUBLIC_IP> https://github.com/kaizen403/heytutor.git
+sudo ./deploy/aws/setup-vm.sh app.accelute.co https://github.com/kaizen403/heytutor.git
 ```
 
-Copy `apps/tutor/.env.example` → `apps/tutor/.env.production` on the VM and fill in production keys before the first successful backend deploy. `setup-vm.sh` and `deploy.sh` now require that file so they can inject the Postgres container credentials instead of falling back to repository-known defaults.
+`setup-vm.sh` installs Node 20, pnpm, Caddy, AWS CLI, and `postgresql-client`
+(for nightly dumps). It does not install Docker and does not start Postgres.
 
-Because both scripts `source` `.env.production`, keep it shell-compatible: quote values that contain `#`, spaces, or other shell-significant characters. A quoted `DATABASE_URL` is supported and its username/password/database pieces are decoded before being passed into Docker Compose.
+DNS: Cloudflare A record for `app.accelute.co`, **DNS only** (grey cloud), to
+the Elastic IP. Caddy then issues Let’s Encrypt.
 
-Ensure the VM can `git pull` from GitHub (deploy key or public clone).
+Health: `https://app.accelute.co/api/health` must return `{ "ok": true, "db": true }`.
 
-### 2. Vercel (frontend)
+### 2. Vercel (landing only)
 
-Connect the GitHub repo in Vercel with:
+The landing project root is `apps/landing`. After the tutor hostname resolves,
+set `VITE_TUTOR_ORIGIN=https://app.accelute.co` on that Vercel project (the
+repo default is already `https://app.accelute.co`). `/app` redirects go to the
+same origin.
 
-| Project | Root Directory | Build Command |
-|---------|----------------|---------------|
-| tutor | `apps/tutor` | (uses `vercel.json`) |
-| landing | `apps/landing` | default Vite build |
+The Vercel tutor project at `heytutor.vercel.app` is not the production app.
+Pause it or redirect it once `app.accelute.co` is live.
 
-Set production env vars in Vercel:
+### 3. GitHub deploy
 
-- Tutor project: see `apps/tutor/.env.example`. Point `BACKEND_ORIGIN` / `NEXT_PUBLIC_*` at your Azure API URL.
-- Landing project: set `VITE_TUTOR_ORIGIN` to the public tutor deployment URL if you are not using the default `https://heytutor.vercel.app` domain.
+Repo secrets for `.github/workflows/deploy-tutor.yml`:
 
-Vercel deploys automatically on push; no GitHub deploy workflow required for the frontend.
+| Secret | Value |
+|--------|--------|
+| `TUTOR_DEPLOY_HOST` | Elastic IP or `app.accelute.co` |
+| `TUTOR_DEPLOY_USER` | SSH user (`ubuntu` or `root`) |
+| `TUTOR_DEPLOY_SSH_KEY` | Private key that can `git reset` and run `deploy.sh` in `/opt/heytutor` |
+
+The workflow is a no-op until `TUTOR_DEPLOY_HOST` is set.

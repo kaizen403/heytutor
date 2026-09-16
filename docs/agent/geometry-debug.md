@@ -2,9 +2,11 @@
 
 ## Trace Order
 
-1. Open the Langfuse turn by `traceId`.
-2. Inspect `TurnPlanV3`: exact quantities, claims, laws, assumptions, and
-   `visualRequirement`.
+1. Open the Langfuse turn by `traceId`. Planner, teaching, TTS, and client
+   spans share that id on one `tutor-turn`.
+2. Inspect the `turn-plan-v3` generation (and `problem-ir-v1` /
+   `scene-planner-v2` when present): exact quantities, claims, laws,
+   assumptions, and `visualRequirement`.
 3. Inspect candidate spans and structured validation issue codes.
 4. Inspect the accepted scene artifact, compiler counts, and render primitives.
 5. Inspect `verified-scene-intro-queued` and `unverified-draw-blocked` events.

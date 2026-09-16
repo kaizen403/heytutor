@@ -21,8 +21,9 @@ import { DSA_EDITOR_METRICS } from "@/features/tutor-session/constants";
  * Deterministic canvas renderer for lesson code. The live panel is DOM
  * CodeMirror, which Konva capture cannot see — notes snapshots and MP4
  * lecture frames composite this renderer instead. It mirrors the panel's
- * Sublime / Solarized Dark chrome and the same Lezer token stream CodeMirror
- * highlights with (see solarizedEditor.ts).
+ * Solarized Dark tab chrome and the same Lezer token stream CodeMirror
+ * highlights with (see solarizedEditor.ts). It is an editor pane, not a
+ * Mac window — no traffic lights.
  */
 
 export interface CodeTokenSpan {
@@ -160,26 +161,6 @@ function drawRoundedRect(
   ctx.closePath();
 }
 
-function drawTrafficLights(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-): void {
-  const size = SOLARIZED_CHROME.trafficLightSize;
-  const gap = SOLARIZED_CHROME.trafficLightGap;
-  const colors = [
-    SOLARIZED_EDITOR.trafficClose,
-    SOLARIZED_EDITOR.trafficMin,
-    SOLARIZED_EDITOR.trafficMax,
-  ];
-  colors.forEach((color, index) => {
-    ctx.beginPath();
-    ctx.fillStyle = color;
-    ctx.arc(x + index * (size + gap) + size / 2, y, size / 2, 0, Math.PI * 2);
-    ctx.fill();
-  });
-}
-
 function drawChrome(
   ctx: CanvasRenderingContext2D,
   rect: { x: number; y: number; width: number; height: number },
@@ -189,27 +170,27 @@ function drawChrome(
   const { sectionBarHeight, statusBarHeight } = CODE_RENDER_METRICS;
   const uiFont = "ui-sans-serif, system-ui, sans-serif";
   const barCenterY = rect.y + sectionBarHeight / 2;
-  const lightX = rect.x + 12;
-  const lightSpan =
-    3 * SOLARIZED_CHROME.trafficLightSize + 2 * SOLARIZED_CHROME.trafficLightGap;
 
   ctx.fillStyle = SOLARIZED_EDITOR.titleBar;
   ctx.fillRect(rect.x, rect.y, rect.width, sectionBarHeight);
-  drawTrafficLights(ctx, lightX, barCenterY);
 
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
   ctx.font = `500 11px ${SOLARIZED_FONT}`;
-  ctx.fillStyle = SOLARIZED_EDITOR.bright;
   const tab = codeLessonTabLabel(chrome.sectionTitle, chrome.language);
-  ctx.fillText(tab, lightX + lightSpan + 12, barCenterY, rect.width - lightSpan - 72);
+  const tabWidth = Math.min(ctx.measureText(tab).width + 24, rect.width * 0.7);
+  ctx.fillStyle = SOLARIZED_EDITOR.tab;
+  ctx.fillRect(rect.x, rect.y, tabWidth, sectionBarHeight);
+  ctx.fillStyle = SOLARIZED.base02;
+  ctx.fillRect(rect.x + tabWidth, rect.y, 1, sectionBarHeight);
+  ctx.fillStyle = SOLARIZED_EDITOR.bright;
+  ctx.fillText(tab, rect.x + 12, barCenterY, tabWidth - 16);
 
   ctx.font = `500 10px ${uiFont}`;
   ctx.fillStyle = SOLARIZED_EDITOR.muted;
-  ctx.textAlign = "right";
   ctx.fillText(
     `${chrome.sectionIndex + 1}/${chrome.sectionCount}`,
-    rect.x + rect.width - 12,
+    rect.x + tabWidth + 10,
     barCenterY,
   );
 
@@ -254,7 +235,7 @@ export function renderCodePanelFrame(
 ): void {
   const metrics = CODE_RENDER_METRICS;
   ctx.save();
-  drawRoundedRect(ctx, rect.x, rect.y, rect.width, rect.height, 8);
+  drawRoundedRect(ctx, rect.x, rect.y, rect.width, rect.height, 4);
   ctx.fillStyle = SOLARIZED_EDITOR.background;
   ctx.fill();
   ctx.strokeStyle = SOLARIZED_EDITOR.border;

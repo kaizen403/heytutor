@@ -51,8 +51,10 @@ assert(
 
 const boardSession = read("features/tutor-session/hooks/useBoardSession.ts");
 assert(
-  /window\.history\.replaceState\(null, "", boardPath\(board\.id\)\)/.test(boardSession),
-  "claiming the URL must be a replaceState — a route push would remount the lesson",
+  /window\.history\.replaceState\(window\.history\.state \?\? \{\}, "", boardPath\(board\.id\)\)/.test(
+    boardSession,
+  ),
+  "claiming the URL must be a replaceState that keeps Next's history state — a route push or a null state remounts the lesson",
 );
 assert(
   /if \(!isDraft \|\| committedDraftRef\.current === sessionId\) return false/.test(boardSession),
@@ -77,13 +79,34 @@ assert(
 );
 
 const questionHandler = read("features/tutor-session/hooks/turn/useQuestionHandler.ts");
+// Ordering, not adjacency: a doubt saves the part of the turn it stopped and
+// skips the epoch, and both of those sit between the commit and a lesson's
+// epoch. Every one of them must still come after the row exists.
+const HANDLER_ANCHOR = "const handleQuestion = useCallback(";
+const handlerAt = questionHandler.indexOf(HANDLER_ANCHOR);
 assert(
-  /await boardCommitted;\s*\n\s*await beginBoardEpoch\(\)/.test(questionHandler),
+  handlerAt >= 0,
+  `this gate reads useQuestionHandler.ts from "${HANDLER_ANCHOR}", which is gone. Repoint it; do not relax it.`,
+);
+const handlerBody = questionHandler.slice(handlerAt);
+const committedAt = handlerBody.indexOf("await boardCommitted;");
+const epochAt = handlerBody.indexOf("await beginBoardEpoch()");
+const partialSaveAt = handlerBody.indexOf("saveTurnToBoard(partialTurnSave)");
+assert(
+  committedAt >= 0 &&
+    epochAt > committedAt &&
+    (partialSaveAt < 0 || partialSaveAt > committedAt),
   "the board row must exist before the turn starts saving to it",
 );
 assert(
-  /Promise\.all\(\[requestBoardTitle\(question\), boardCommitted\]\)/.test(questionHandler),
+  // A doubt names the board from the lesson it is about, so the title source
+  // may be an expression; the commit must still be awaited beside it.
+  /Promise\.all\(\[\s*requestBoardTitle\([^\n]*\),\s*boardCommitted,?\s*\]\)/.test(questionHandler),
   "naming must wait for the row it renames",
+);
+assert(
+  /boardNeedsGeneratedTitle/.test(questionHandler),
+  "an empty board that still carries an abandoned title must be renamed from the question that actually runs",
 );
 
 const layout = read("app/(session)/layout.tsx");

@@ -1,5 +1,6 @@
 import { tutorDebug } from "../tutorDebug";
 import { withFastModeHeader } from "../llm/fastMode";
+import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import {
   CODE_LESSON_V1_VERSION,
   MAX_CODE_LINE_CHARS,
@@ -23,6 +24,8 @@ export interface CodeLessonPlannerOptions {
    */
   context?: CodeLessonPlanContext;
   sessionId?: string;
+  /** Client-generated Langfuse turn id shared with teaching and TTS. */
+  traceId?: string;
   signal?: AbortSignal;
   timeoutMs: number;
   fastMode?: boolean;
@@ -160,14 +163,18 @@ async function requestCodeLessonPlan(
   try {
     const response = await fetch(options.proxyUrl, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-planner": "1",
-        "x-code-lesson-version": "1",
-        "x-planner-deadline-ms": String(options.timeoutMs),
-        ...(options.sessionId ? { "x-session-id": options.sessionId } : {}),
-        ...withFastModeHeader({}, options.fastMode),
-      },
+      headers: withFastModeHeader(
+        withTurnTraceHeaders(
+          {
+            "content-type": "application/json",
+            "x-planner": "1",
+            "x-code-lesson-version": "1",
+            "x-planner-deadline-ms": String(options.timeoutMs),
+          },
+          { sessionId: options.sessionId, traceId: options.traceId, question },
+        ),
+        options.fastMode,
+      ),
       signal,
       body: JSON.stringify({
         model: "server",

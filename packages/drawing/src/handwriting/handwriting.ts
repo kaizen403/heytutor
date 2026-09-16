@@ -1,4 +1,5 @@
 import glyphData from "./caveat-glyphData.json";
+import { scriptChemicalFormulas } from "./chemistryNotation";
 
 interface TegakiGlyphData {
   w: number;
@@ -85,7 +86,7 @@ const SUBSCRIPT_MAP: Record<string, string> = {
  */
 export function normalizeStrokeText(text: string): string {
   // Do not use \b after the command name: LaTeX often continues with "_" / "^".
-  let source = text
+  let source = scriptChemicalFormulas(text)
     .replace(/\\int(?![A-Za-z])/g, "∫")
     .replace(/\\sum(?![A-Za-z])/g, "∑")
     .replace(/\\prod(?![A-Za-z])/g, "∏")
@@ -197,18 +198,128 @@ function rewriteLatexScriptBraces(text: string): string {
 }
 
 /**
- * Minimum painted air between two letters, as a fraction of font size.
+ * The hand's nib.
  *
- * Caveat's own advance is the spacing. Letters with joining sidebearings
- * would overlap once drawn as separate strokes; pad those pairs only, to
- * this hairline, so a word stays compact.
+ * Every stroke width used to be read straight off the glyph data, where the
+ * third number of each point is the local thickness of the outline the stroke
+ * was skeletonised from. That is not a pen: it made an `M` (72 units) a third
+ * heavier than an `e` (54), always, so one word could carry three visibly
+ * different ink weights and every instance of a letter carried the same one.
+ * Worse, the synthetic Greek and maths glyphs never went through it at all —
+ * `strokeWidthPx(fontNibUnits() * 1.08, fontSize)` is 1.5px at every font size the board uses — so
+ * a formula mixed 2.2px letters with 1.5px operators.
+ *
+ * A hand holds one pen. The nib below is the weight of the whole board; the
+ * font's own modelling survives only as a fraction of its deviation from it,
+ * which keeps a downstroke heavier than a hairline without letting any letter
+ * look like it was written with a different marker.
  */
-const LETTER_GAP_RATIO = 0.04;
+const NIB_EM = 0.0625;
+/** How much of the font's own stroke modelling survives, 0 = a plotter pen. */
+const NIB_MODELLING = 0.35;
+/** Nothing is thinner than this, whatever the maths says. */
+const NIB_MIN_PX = 1.4;
+
+/** Mean stroke thickness across the whole font, in glyph units. */
+let nibUnitsCache: number | null = null;
+function fontNibUnits(): number {
+  if (nibUnitsCache !== null) return nibUnitsCache;
+  let total = 0;
+  let count = 0;
+  for (const glyph of Object.values(glyphDataRecord)) {
+    for (const stroke of glyph.s) {
+      for (const point of stroke.p) {
+        total += point[2];
+        count += 1;
+      }
+    }
+  }
+  nibUnitsCache = count > 0 ? total / count : 61;
+  return nibUnitsCache;
+}
+
+/**
+ * The width one stroke is laid down at: the board's nib, leaning `NIB_MODELLING`
+ * of the way toward whatever the glyph data asked for.
+ */
+function strokeWidthPx(pressureUnits: number, fontSize: number): number {
+  const nib = fontSize * NIB_EM;
+  const modelled = pressureUnits / fontNibUnits();
+  const weight = 1 - NIB_MODELLING + NIB_MODELLING * (Number.isFinite(modelled) ? modelled : 1);
+  return Math.max(nib * weight, NIB_MIN_PX);
+}
+
+/**
+ * The painted air a letter leaves before the next one, as a fraction of font
+ * size — and how far the advance may move off the font's own to hold it.
+ *
+ * Caveat's advances are drawn for filled outlines. The board writes the
+ * skeletons of those outlines with a ~0.06em nib, so the same advances leave a
+ * lot more air than the font ever meant to, and Caveat's own side bearings vary
+ * enormously (left 0.25em to -0.07em), so the air between letters inside one
+ * word ranged from 0.06em to 0.15em. Uneven air inside a word is what stops it
+ * reading as a word: the eye groups by spacing, so letters that are almost as
+ * far apart as the space between words dissolve the word into letters.
+ *
+ * The old rule padded to a minimum and never tightened (`max(fontAdv, …)`),
+ * which could only ever make that worse. This one targets one gap and holds the
+ * advance inside a band around the font's own, so the rhythm stays Caveat's
+ * while the air between letters is even.
+ */
+const LETTER_GAP_RATIO = 0.055;
+const TRACK_MIN = 0.6;
+const TRACK_MAX = 1.6;
+/**
+ * Painted air across a word space. The eye groups by spacing, so this only has
+ * to be a clear multiple of the air inside a word; measuring it as painted air
+ * rather than as a flat advance is what keeps that multiple constant, whatever
+ * the bearings of the letters either side happen to be.
+ */
+const WORD_GAP_RATIO = 0.23;
+/** However the arithmetic works out, a space is still a space. */
+const WORD_GAP_MIN_RATIO = 0.02;
+
+interface InkPoint {
+  x: number;
+  y: number;
+  /** Half the painted width at this point. */
+  r: number;
+}
 
 interface GlyphInk {
   advanceUnits: number;
   inkMin: number;
   inkMax: number;
+  /**
+   * The letter's painted ink, as points along its own strokes with the nib
+   * radius at each. Spacing two letters is then the question a writer actually
+   * answers — how close do these two shapes come, in any direction — instead of
+   * how far apart their bounding boxes are.
+   *
+   * Boxes cannot answer it. A `y` sweeps its tail left under its own origin, so
+   * its box starts 0.03em before its body does and the letter before it gets
+   * pushed clear: that is the "energ y" and "man y" hole in the middle of a
+   * word. A Caveat `l` is one slanted stroke whose box is half again wider than
+   * its own advance, because the font means the next letter to nest under its
+   * lean, which a box forbids.
+   */
+  points: InkPoint[];
+}
+
+/** Glyph units between samples along a stroke. */
+const PROFILE_STEP_UNITS = 8;
+/**
+ * Ascenders and descenders may run closer than bodies do: a hand writes the
+ * tail of a `g` under the letter that follows it. Ink this far outside the body
+ * band asks for `TAIL_AIR_SHARE` of the gap the body asks for.
+ */
+const TAIL_AIR_SHARE = 0.45;
+const BODY_TOP_UNITS = -540;
+const BODY_BOTTOM_UNITS = 40;
+
+/** How much air this bit of ink wants, as a share of the letter gap. */
+function airShareAt(y: number): number {
+  return y >= BODY_TOP_UNITS && y <= BODY_BOTTOM_UNITS ? 1 : TAIL_AIR_SHARE;
 }
 
 const glyphInkCache = new Map<string, GlyphInk>();
@@ -221,19 +332,42 @@ function glyphInk(char: string): GlyphInk {
   if (glyph) {
     let inkMin = Number.POSITIVE_INFINITY;
     let inkMax = Number.NEGATIVE_INFINITY;
+    const points: InkPoint[] = [];
+
+    const mark = (x: number, y: number, radius: number): void => {
+      if (x - radius < inkMin) inkMin = x - radius;
+      if (x + radius > inkMax) inkMax = x + radius;
+      points.push({ x, y, r: radius });
+    };
+
     for (const stroke of glyph.s) {
-      for (const point of stroke.p) {
-        const radius = (point[2] ?? 0) / 2;
-        const left = point[0] - radius;
-        const right = point[0] + radius;
-        if (left < inkMin) inkMin = left;
-        if (right > inkMax) inkMax = right;
+      const points = stroke.p;
+      for (let index = 0; index < points.length; index++) {
+        const point = points[index]!;
+        mark(point[0], point[1], (point[2] ?? 0) / 2);
+        // Walk the segment as well: a long straight stem is two points, and a
+        // silhouette sampled only at the ends would leave every band between
+        // them empty.
+        const next = points[index + 1];
+        if (!next) continue;
+        const span = Math.hypot(next[0] - point[0], next[1] - point[1]);
+        const steps = Math.ceil(span / PROFILE_STEP_UNITS);
+        for (let step = 1; step < steps; step++) {
+          const t = step / steps;
+          mark(
+            point[0] + (next[0] - point[0]) * t,
+            point[1] + (next[1] - point[1]) * t,
+            ((point[2] ?? 0) + ((next[2] ?? 0) - (point[2] ?? 0)) * t) / 2,
+          );
+        }
       }
     }
+
     const ink: GlyphInk = {
       advanceUnits: glyph.w,
       inkMin: Number.isFinite(inkMin) ? inkMin : 0,
       inkMax: Number.isFinite(inkMax) ? inkMax : glyph.w,
+      points,
     };
     glyphInkCache.set(char, ink);
     return ink;
@@ -260,13 +394,88 @@ function glyphInk(char: string): GlyphInk {
     advanceUnits = MATH_GLYPH_UNITS[char]!;
   }
 
+  // A synthesised glyph has no stroke table to sample, so it stands in as the
+  // outline of its own box across the body: the spacing it gets is its box.
+  const boxLeft = advanceUnits * 0.06;
+  const boxRight = advanceUnits * 0.94;
+  const boxPoints: InkPoint[] = [];
+  for (let step = 0; step <= 8; step++) {
+    const y = BODY_TOP_UNITS + ((BODY_BOTTOM_UNITS - BODY_TOP_UNITS) * step) / 8;
+    boxPoints.push({ x: boxLeft, y, r: 0 }, { x: boxRight, y, r: 0 });
+  }
   const ink: GlyphInk = {
     advanceUnits,
-    inkMin: advanceUnits * 0.06,
-    inkMax: advanceUnits * 0.94,
+    inkMin: boxLeft,
+    inkMax: boxRight,
+    points: boxPoints,
   };
   glyphInkCache.set(char, ink);
   return ink;
+}
+
+const pairAdvanceCache = new Map<string, number>();
+
+/**
+ * How far the pen travels from one letter's origin to the next so that the
+ * closest the two shapes ever come is `gapUnits` of painted air.
+ *
+ * For every pair of ink points that could touch, the horizontal offset has to
+ * clear a circle of the combined radii plus the air: `dx² + dy² ≥ R²`. The
+ * binding pair decides the advance, which is what lets a round letter nest
+ * under the lean of an `l` while two straight stems stay apart.
+ */
+function pairAdvanceUnits(char: string, next: string, gapUnits: number): number {
+  const key = `${char}\u0000${next}\u0000${gapUnits}`;
+  const cached = pairAdvanceCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const current = glyphInk(char);
+  const following = glyphInk(next);
+  let wanted = Number.NEGATIVE_INFINITY;
+  for (const a of current.points) {
+    for (const b of following.points) {
+      const dy = b.y - a.y;
+      // The air each pair wants is set by whichever of the two is body ink.
+      const air = gapUnits * Math.max(airShareAt(a.y), airShareAt(b.y));
+      const reach = a.r + b.r + air;
+      if (Math.abs(dy) >= reach) continue;
+      const clear = Math.sqrt(reach * reach - dy * dy);
+      const needed = a.x - b.x + clear;
+      if (needed > wanted) wanted = needed;
+    }
+  }
+
+  const advance = Number.isFinite(wanted) ? wanted : current.inkMax + gapUnits;
+  pairAdvanceCache.set(key, advance);
+  return advance;
+}
+
+/**
+ * The edges of a letter's body, for measuring a word space between two of them.
+ *
+ * Bodies rather than boxes, on both sides: a Caveat `l` carries its box a
+ * quarter of an em to the right of where the letter reads as ending, and
+ * measuring the space from there put a visibly wider gap after every word that
+ * happened to end in one.
+ */
+function bodyLeftUnits(ink: GlyphInk): number {
+  let leftmost = Number.POSITIVE_INFINITY;
+  for (const point of ink.points) {
+    if (airShareAt(point.y) < 1) continue;
+    const left = point.x - point.r;
+    if (left < leftmost) leftmost = left;
+  }
+  return Number.isFinite(leftmost) ? leftmost : ink.inkMin;
+}
+
+function bodyRightUnits(ink: GlyphInk): number {
+  let rightmost = Number.NEGATIVE_INFINITY;
+  for (const point of ink.points) {
+    if (airShareAt(point.y) < 1) continue;
+    const right = point.x + point.r;
+    if (right > rightmost) rightmost = right;
+  }
+  return Number.isFinite(rightmost) ? rightmost : ink.inkMax;
 }
 
 function knownStrokeChar(char: string): boolean {
@@ -290,15 +499,42 @@ function pairAdvancePx(
 
   const current = glyphInk(char);
   const fontAdv = current.advanceUnits * scale;
-  if (!next || !knownStrokeChar(next)) {
-    // Include overhanging ink so a trailing `l` is not clipped in layout.
-    return Math.max(fontAdv, current.inkMax * scale);
-  }
+  const gapUnits = LETTER_GAP_RATIO * UNITS_PER_EM;
 
-  const following = glyphInk(next);
-  const optical =
-    current.inkMax * scale + fontSize * LETTER_GAP_RATIO - following.inkMin * scale;
-  return Math.max(fontAdv, optical);
+  // With no next letter — end of a word or of the line — the pen still leaves
+  // one letter's worth of air, so the word space below can be measured from a
+  // known point rather than from whatever bearing this glyph happens to have.
+  const wanted =
+    next && knownStrokeChar(next)
+      ? pairAdvanceUnits(char, next, gapUnits) * scale
+      : (current.inkMax + gapUnits) * scale;
+
+  return Math.min(Math.max(wanted, fontAdv * TRACK_MIN), fontAdv * TRACK_MAX);
+}
+
+/**
+ * How far the cursor moves across a space, so that the painted air between the
+ * two words comes out at `WORD_GAP_RATIO` whatever letters meet across it.
+ *
+ * It has to be measured from the ink either side, not added as a flat advance:
+ * the letter before the space has already left some air of its own, and the
+ * letter after it starts at its own bearing, so a flat space put anything from
+ * 9px to 16px between two words at the same size. The eye reads word breaks by
+ * comparing that air with the air inside a word, so it has to be one number.
+ */
+function spaceAdvancePx(
+  previous: string | null,
+  next: string | null,
+  scale: number,
+  fontSize: number,
+): number {
+  const trailing =
+    previous && knownStrokeChar(previous)
+      ? pairAdvancePx(previous, null, scale, fontSize) - bodyRightUnits(glyphInk(previous)) * scale
+      : 0;
+  const leading = next && knownStrokeChar(next) ? bodyLeftUnits(glyphInk(next)) * scale : 0;
+  const wanted = fontSize * WORD_GAP_RATIO - trailing - leading;
+  return Math.max(wanted, fontSize * WORD_GAP_MIN_RATIO);
 }
 
 function nextPairChar(text: string, from: number): string | null {
@@ -308,6 +544,17 @@ function nextPairChar(text: string, from: number): string | null {
     return null;
   }
   return ch;
+}
+
+/** The last letter written before `from`, skipping spaces and markers. */
+function previousBodyChar(text: string, from: number): string | null {
+  for (let index = from; index >= 0; index--) {
+    const char = text[index];
+    if (char === undefined) continue;
+    if (char === " " || char === "^" || char === "_" || char === "{" || char === "}") continue;
+    return char;
+  }
+  return null;
 }
 
 function nextNonSpace(text: string, from: number): string | null {
@@ -335,15 +582,15 @@ function cloneGlyphStrokes(
   const glyphWidth = baseGlyph.w * scale;
   const strokes: StrokePath[] = baseGlyph.s.map((s) => {
     const points = s.p;
-    const widths = points.map((p) => p[2] * scale);
-    const avgWidth = widths.reduce((a, b) => a + b, 0) / Math.max(widths.length, 1);
+    const pressures = points.map((p) => p[2]);
+    const avgPressure = pressures.reduce((a, b) => a + b, 0) / Math.max(pressures.length, 1);
     const pathData = polylineToSVGPath(points, scale, scale, currentX, baselineY);
     const firstPoint = points[0];
     return {
       pathData,
       startX: currentX + firstPoint[0] * scale,
       startY: baselineY + firstPoint[1] * scale,
-      width: Math.max(avgWidth, 1.5),
+      width: strokeWidthPx(avgPressure, fontSize),
       delay: s.d,
       duration: s.a,
       priority: s.r ?? 0,
@@ -374,15 +621,15 @@ function syntheticGreekChar(
     if (baseGlyph) {
       for (const s of baseGlyph.s) {
         const points = s.p;
-        const widths = points.map((p) => p[2] * scale);
-        const avgWidth = widths.reduce((a, b) => a + b, 0) / Math.max(widths.length, 1);
+        const pressures = points.map((p) => p[2]);
+        const avgPressure = pressures.reduce((a, b) => a + b, 0) / Math.max(pressures.length, 1);
         const pathData = polylineToSVGPath(points, scale, scale, currentX, baselineY);
         const firstPoint = points[0];
         strokes.push({
           pathData,
           startX: currentX + firstPoint[0] * scale,
           startY: baselineY + firstPoint[1] * scale,
-          width: Math.max(avgWidth, 1.5),
+          width: strokeWidthPx(avgPressure, fontSize),
           delay: s.d,
           duration: s.a,
           priority: s.r ?? 0,
@@ -426,7 +673,7 @@ function syntheticGreekChar(
       pathData: `M ${barX1.toFixed(2)} ${barY.toFixed(2)} L ${barX2.toFixed(2)} ${barY.toFixed(2)}`,
       startX: barX1,
       startY: barY,
-      width: Math.max(2.2 * scale, 1.5),
+      width: strokeWidthPx(fontNibUnits(), fontSize),
       delay: strokes.length > 0 ? 0.12 : 0,
       duration: 0.1,
       priority: 0,
@@ -446,15 +693,15 @@ function syntheticGreekChar(
     if (uGlyph) {
       for (const s of uGlyph.s) {
         const points = s.p;
-        const widths = points.map((p) => p[2] * scale);
-        const avgWidth = widths.reduce((a, b) => a + b, 0) / Math.max(widths.length, 1);
+        const pressures = points.map((p) => p[2]);
+        const avgPressure = pressures.reduce((a, b) => a + b, 0) / Math.max(pressures.length, 1);
         const pathData = polylineToSVGPath(points, scale, scale, currentX, baselineY);
         const firstPoint = points[0];
         strokes.push({
           pathData,
           startX: currentX + firstPoint[0] * scale,
           startY: baselineY + firstPoint[1] * scale,
-          width: Math.max(avgWidth, 1.5),
+          width: strokeWidthPx(avgPressure, fontSize),
           delay: s.d,
           duration: s.a,
           priority: s.r ?? 0,
@@ -480,7 +727,7 @@ function syntheticGreekChar(
         pathData,
         startX: nums ? Number(nums[0]) : currentX,
         startY: nums ? Number(nums[1]) : baselineY,
-        width: Math.max(2.4 * scale, 1.5),
+        width: strokeWidthPx(fontNibUnits() * 1.08, fontSize),
         delay,
         duration,
         priority: 0,
@@ -505,7 +752,7 @@ function syntheticGreekChar(
       pathData: `M ${stemX.toFixed(2)} ${stemTop.toFixed(2)} L ${stemX.toFixed(2)} ${stemBottom.toFixed(2)}`,
       startX: stemX,
       startY: stemTop,
-      width: Math.max(2.2 * scale, 1.5),
+      width: strokeWidthPx(fontNibUnits(), fontSize),
       delay: 0.12,
       duration: 0.1,
       priority: 0,
@@ -525,7 +772,7 @@ function syntheticGreekChar(
         pathData: `M ${apexX.toFixed(2)} ${apexY.toFixed(2)} L ${leftX.toFixed(2)} ${baseY.toFixed(2)} L ${rightX.toFixed(2)} ${baseY.toFixed(2)} Z`,
         startX: apexX,
         startY: apexY,
-        width: Math.max(2.4 * scale, 1.5),
+        width: strokeWidthPx(fontNibUnits() * 1.08, fontSize),
         delay: 0,
         duration: 0.14,
         priority: 0,
@@ -564,7 +811,7 @@ function syntheticGreekChar(
             pathData,
             startX: outerL,
             startY: footY,
-            width: Math.max(2.4 * scale, 1.6),
+            width: strokeWidthPx(fontNibUnits() * 1.08, fontSize),
             delay: 0,
             duration: 0.18,
             priority: 0,
@@ -635,7 +882,7 @@ function syntheticMathChar(
       pathData,
       startX: sx,
       startY: sy,
-      width: Math.max((opts.width ?? 2.4) * scale, 1.5),
+      width: strokeWidthPx(fontNibUnits() * (opts.width ?? 1.08), fontSize),
       delay: opts.delay ?? (strokes.length > 0 ? 0.06 : 0),
       duration: opts.duration ?? 0.12,
       priority: 0,
@@ -683,13 +930,13 @@ function syntheticMathChar(
       break;
     case "÷":
       push(`M ${P(cx - 150, -260)} L ${P(cx + 150, -260)}`);
-      push(cir(cx, -410, 26), { width: 3 });
-      push(cir(cx, -110, 26), { width: 3 });
+      push(cir(cx, -410, 26), { width: 1.3 });
+      push(cir(cx, -110, 26), { width: 1.3 });
       break;
     case "·":
     case "∙":
     case "⋅":
-      push(cir(cx, -260, 30), { width: 3 });
+      push(cir(cx, -260, 30), { width: 1.3 });
       break;
     case "≤":
       push(`M ${P(u - 120, -430)} L ${P(120, -280)} L ${P(u - 120, -130)}`);
@@ -763,14 +1010,14 @@ function syntheticMathChar(
       push(`M ${P(50, -680)} L ${P(u - 50, -680)} L ${P(cx, 20)} Z`, { duration: 0.18 });
       break;
     case "∴":
-      push(cir(140, -470, 30), { width: 3 });
-      push(cir(u - 140, -470, 30), { width: 3 });
-      push(cir(cx, -120, 30), { width: 3 });
+      push(cir(140, -470, 30), { width: 1.3 });
+      push(cir(u - 140, -470, 30), { width: 1.3 });
+      push(cir(cx, -120, 30), { width: 1.3 });
       break;
     case "∵":
-      push(cir(cx, -470, 30), { width: 3 });
-      push(cir(140, -120, 30), { width: 3 });
-      push(cir(u - 140, -120, 30), { width: 3 });
+      push(cir(cx, -470, 30), { width: 1.3 });
+      push(cir(140, -120, 30), { width: 1.3 });
+      push(cir(u - 140, -120, 30), { width: 1.3 });
       break;
     case "°":
       push(cir(cx, -560, 90));
@@ -912,22 +1159,56 @@ function polylineToSVGPath(
  * board frame for frame.
  */
 
-/** Barrel angle, per glyph. */
-const HAND_ROTATION_DEG = 1.6;
-/** Letters come out a little large or a little small. */
-const HAND_SCALE = 0.028;
+/**
+ * One hand, not a die per letter.
+ *
+ * The wobble used to be an independent draw per glyph: every letter rolled its
+ * own angle, its own size and its own landing spot out of white noise. White
+ * noise is the wrong model. A person's writing is strongly correlated — the
+ * slant they are holding now is the slant of the letter before, the size drifts
+ * over a word rather than between two letters — and independent draws are read
+ * by the eye as exactly what they are, randomness, which is what makes writing
+ * look untidy rather than human. Two neighbouring letters could differ by twice
+ * the amplitude of everything below (3.2° of relative lean, 5.6% of size),
+ * which is a ransom note, not a hand.
+ *
+ * So each quantity is now three layers:
+ *
+ *   line   what this row of writing settled at, one draw for the whole line
+ *   drift  a smooth wander along the row, so neighbours share almost all of it
+ *   glyph  a small residual, the only part that is per letter
+ *
+ * The residual is the only thing two adjacent letters can disagree about by
+ * much, and it is a third of what the old amplitude was. The result is a hand
+ * that is clearly not a font, and clearly one person.
+ */
+
+/** Lean: what this line settled at, how it wanders, and per letter. */
+const SLANT_LINE_DEG = 0.34;
+const SLANT_DRIFT_DEG = 0.5;
+const SLANT_GLYPH_DEG = 0.3;
+/** Size, as a fraction. */
+const SIZE_LINE = 0.012;
+const SIZE_DRIFT = 0.01;
+const SIZE_GLYPH = 0.009;
 /** Where the letter lands, as a fraction of the em. */
-const HAND_OFFSET_X = 0.011;
-const HAND_OFFSET_Y = 0.022;
-/** How much ink the nib lays down for this letter. */
-const HAND_WIDTH = 0.06;
+const OFFSET_X_GLYPH = 0.0035;
+const OFFSET_Y_GLYPH = 0.007;
+/** How much ink the nib lays down: pressure over the row, and per letter. */
+const WEIGHT_LINE = 0.02;
+const WEIGHT_DRIFT = 0.045;
+const WEIGHT_GLYPH = 0.03;
 /**
  * How far the line of writing wanders off the ruled baseline. A board is not
  * lined paper: a written row rises and falls a little across its length.
  */
-const BASELINE_DRIFT_RATIO = 0.026;
+const BASELINE_DRIFT_RATIO = 0.02;
 /** Roughly four ems per swing, so the drift reads as a wander, not a wave. */
 const BASELINE_DRIFT_WAVELENGTH_EM = 4.4;
+/** Wavelengths of the slow wanders, in ems of writing. */
+const SLANT_WAVELENGTH_EM = 7.5;
+const SIZE_WAVELENGTH_EM = 5.5;
+const WEIGHT_WAVELENGTH_EM = 3.5;
 
 /** Stable 0..1 hash. */
 function handNoise(seed: number): number {
@@ -948,6 +1229,19 @@ function lineSeedFor(text: string, x: number, y: number, fontSize: number): numb
   return seed;
 }
 
+/**
+ * A smooth wander along the row, in -1..1.
+ *
+ * Two sines whose periods do not divide each other, so the wander never repeats
+ * across a line, and both are slow against a letter: neighbours a third of an em
+ * apart share nearly all of their value, which is the whole point.
+ */
+function handWander(emAlongLine: number, seed: number, wavelengthEm: number): number {
+  const u = emAlongLine / Math.max(wavelengthEm, 0.5);
+  const phase = handSigned(seed) * Math.PI;
+  return 0.64 * Math.sin(u * 2 * Math.PI + phase) + 0.36 * Math.sin(u * 1.13 + phase * 1.7);
+}
+
 /** How far the baseline has wandered by the time the pen reaches `x`. */
 function baselineDrift(
   x: number,
@@ -955,13 +1249,42 @@ function baselineDrift(
   fontSize: number,
   lineSeed: number,
 ): number {
-  const u = (x - originX) / Math.max(fontSize * BASELINE_DRIFT_WAVELENGTH_EM, 1);
-  const phase = handSigned(lineSeed) * Math.PI;
-  return (
-    fontSize *
-    BASELINE_DRIFT_RATIO *
-    (0.66 * Math.sin(u * 2 * Math.PI + phase) + 0.34 * Math.sin(u * 1.13 + phase * 1.7))
-  );
+  const em = (x - originX) / Math.max(fontSize, 1);
+  return fontSize * BASELINE_DRIFT_RATIO * handWander(em, lineSeed, BASELINE_DRIFT_WAVELENGTH_EM);
+}
+
+/** What the hand is doing at this point of this line. */
+interface HandStyle {
+  /** Lean off the font's own slant, in degrees. */
+  slantDeg: number;
+  /** Size against the font's own, 1 = as drawn. */
+  size: number;
+  /** Ink weight against the nib, 1 = the nib. */
+  weight: number;
+}
+
+/**
+ * The style at `emAlongLine` ems into a line written with `lineSeed`, for the
+ * glyph seeded `glyphSeed`. Line and drift are shared with the neighbours;
+ * only the third term is this letter's own.
+ */
+function handStyleAt(emAlongLine: number, lineSeed: number, glyphSeed: number): HandStyle {
+  return {
+    slantDeg:
+      handSigned(lineSeed + 61) * SLANT_LINE_DEG +
+      handWander(emAlongLine, lineSeed + 137, SLANT_WAVELENGTH_EM) * SLANT_DRIFT_DEG +
+      handSigned(glyphSeed) * SLANT_GLYPH_DEG,
+    size:
+      1 +
+      handSigned(lineSeed + 71) * SIZE_LINE +
+      handWander(emAlongLine, lineSeed + 149, SIZE_WAVELENGTH_EM) * SIZE_DRIFT +
+      handSigned(glyphSeed + 101) * SIZE_GLYPH,
+    weight:
+      1 +
+      handSigned(lineSeed + 83) * WEIGHT_LINE +
+      handWander(emAlongLine, lineSeed + 163, WEIGHT_WAVELENGTH_EM) * WEIGHT_DRIFT +
+      handSigned(glyphSeed + 401) * WEIGHT_GLYPH,
+  };
 }
 
 interface HandTransform {
@@ -1030,23 +1353,24 @@ function applyHandVariation(
   seed: number,
   fontSize: number,
   driftY: number,
+  style: HandStyle,
 ): CharacterPath {
   if (path.strokes.length === 0) return path;
 
   const glyphSize = path.fontSize ?? fontSize;
-  const angle = handSigned(seed) * HAND_ROTATION_DEG * (Math.PI / 180);
+  const angle = style.slantDeg * (Math.PI / 180);
   const hand: HandTransform = {
     cos: Math.cos(angle),
     sin: Math.sin(angle),
-    scale: 1 + handSigned(seed + 101) * HAND_SCALE,
+    scale: style.size,
     centreX: path.x + path.width / 2,
     // Roughly the middle of the x-height: rolling about the letter's own body
     // keeps a tall glyph from swinging its ascender out of the word.
     centreY: path.y + ASCENDER * (glyphSize / UNITS_PER_EM) - glyphSize * 0.25,
-    dx: handSigned(seed + 211) * glyphSize * HAND_OFFSET_X,
-    dy: handSigned(seed + 307) * glyphSize * HAND_OFFSET_Y + driftY,
+    dx: handSigned(seed + 211) * glyphSize * OFFSET_X_GLYPH,
+    dy: handSigned(seed + 307) * glyphSize * OFFSET_Y_GLYPH + driftY,
   };
-  const widthScale = 1 + handSigned(seed + 401) * HAND_WIDTH;
+  const widthScale = style.weight;
 
   return {
     ...path,
@@ -1057,7 +1381,7 @@ function applyHandVariation(
         pathData: transformPathData(stroke.pathData, hand),
         startX: start.x,
         startY: start.y,
-        width: Math.max(stroke.width * widthScale, 1.2),
+        width: Math.max(stroke.width * widthScale, NIB_MIN_PX),
       };
     }),
   };
@@ -1117,8 +1441,8 @@ function renderChar(
 
   const strokes: StrokePath[] = glyph.s.map((s) => {
     const points = s.p;
-    const widths = points.map((p) => p[2] * fontScale);
-    const avgWidth = widths.reduce((a, b) => a + b, 0) / Math.max(widths.length, 1);
+    const pressures = points.map((p) => p[2]);
+    const avgPressure = pressures.reduce((a, b) => a + b, 0) / Math.max(pressures.length, 1);
 
     const pathData = polylineToSVGPath(
       points,
@@ -1136,7 +1460,7 @@ function renderChar(
       pathData,
       startX,
       startY,
-      width: Math.max(avgWidth, 1.5),
+      width: strokeWidthPx(avgPressure, fontSize),
       delay: s.d,
       duration: s.a,
       priority: s.r ?? 0,
@@ -1238,7 +1562,12 @@ function renderScriptRun(
   for (let index = 0; index < content.length; index++) {
     const scriptChar = content[index]!;
     if (scriptChar === " ") {
-      cursorX += scriptFontSize * 0.3;
+      cursorX += spaceAdvancePx(
+        previousBodyChar(content, index - 1),
+        nextNonSpace(content, index + 1),
+        scriptScale,
+        scriptFontSize,
+      );
       continue;
     }
     const { path } = renderChar(
@@ -1335,7 +1664,12 @@ async function buildStrokePaths(
     const char = text[i];
 
     if (char === " ") {
-      currentX += fontSize * 0.3;
+      currentX += spaceAdvancePx(
+        previousBodyChar(text, i - 1),
+        nextNonSpace(text, i + 1),
+        scale,
+        fontSize,
+      );
       i++;
       continue;
     }
@@ -1444,14 +1778,17 @@ async function buildStrokePaths(
   // knows about the wobble, so layout, measurement and label boxes all stay
   // exactly where the typography layer put them.
   const lineSeed = lineSeedFor(text, x, y, fontSize);
-  return results.map((path, index) =>
-    applyHandVariation(
+  return results.map((path, index) => {
+    const glyphSeed = lineSeed + index * 977 + (path.char.codePointAt(0) ?? 0) * 13;
+    const emAlongLine = (path.x - x) / Math.max(fontSize, 1);
+    return applyHandVariation(
       path,
-      lineSeed + index * 977 + (path.char.codePointAt(0) ?? 0) * 13,
+      glyphSeed,
       fontSize,
       baselineDrift(path.x, x, fontSize, lineSeed),
-    ),
-  );
+      handStyleAt(emAlongLine, lineSeed, glyphSeed),
+    );
+  });
 }
 
 /**
@@ -1470,7 +1807,12 @@ function measureScriptRunWidth(
   for (let index = 0; index < content.length; index++) {
     const subChar = content[index]!;
     if (subChar === " ") {
-      width += scriptFontSize * 0.3;
+      width += spaceAdvancePx(
+        previousBodyChar(content, index - 1),
+        nextNonSpace(content, index + 1),
+        scriptScale,
+        scriptFontSize,
+      );
       continue;
     }
     width += pairAdvancePx(subChar, nextNonSpace(content, index + 1), scriptScale, scriptFontSize);
@@ -1491,7 +1833,12 @@ export function measureTextWidth(rawText: string, fontSize: number = 32): number
     const char = text[i];
 
     if (char === " ") {
-      currentX += fontSize * 0.3;
+      currentX += spaceAdvancePx(
+        previousBodyChar(text, i - 1),
+        nextNonSpace(text, i + 1),
+        scale,
+        fontSize,
+      );
       i++;
       continue;
     }

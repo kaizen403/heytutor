@@ -10,7 +10,6 @@
     "dev:landing": "turbo run dev --filter=@heytutor/landing",
     "db:up": "POSTGRES_USER=heytutor POSTGRES_PASSWORD=heytutor POSTGRES_DB=heytutor docker compose up -d postgres",
     "db:down": "POSTGRES_USER=heytutor POSTGRES_PASSWORD=heytutor POSTGRES_DB=heytutor docker compose down",
-    "r2:setup": "pnpm --filter @heytutor/tutor r2:setup",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

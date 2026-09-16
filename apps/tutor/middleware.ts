@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { HTUTOR_UID_COOKIE } from "@/lib/cookies";
+import { isAuthDisabled } from "@/lib/authDisabled";
+import { isAuthPublicPath, isEmbedDemoRequest, loginRedirectPath } from "@/lib/auth/publicPaths";
+import { hasAuthSessionCookie } from "@/lib/auth/sessionCookie";
 
 const BACKEND_ORIGIN = process.env.BACKEND_ORIGIN?.replace(/\/$/, "");
 
@@ -34,14 +37,8 @@ async function proxyApiToBackend(request: NextRequest): Promise<NextResponse> {
   });
 }
 
-export async function middleware(request: NextRequest) {
-  if (BACKEND_ORIGIN && request.nextUrl.pathname.startsWith("/api/")) {
-    return proxyApiToBackend(request);
-  }
-
-  const response = NextResponse.next();
+function withIdentityCookie(request: NextRequest, response: NextResponse): NextResponse {
   const existing = request.cookies.get(HTUTOR_UID_COOKIE)?.value;
-
   if (!existing) {
     response.cookies.set(HTUTOR_UID_COOKIE, crypto.randomUUID(), {
       httpOnly: true,
@@ -51,8 +48,43 @@ export async function middleware(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 365 * 10,
     });
   }
-
   return response;
+}
+
+function withOptionalDemoCookie(request: NextRequest, response: NextResponse): NextResponse {
+  const pathname = request.nextUrl.pathname;
+  const search = request.nextUrl.search;
+  if (!isEmbedDemoRequest(pathname, search)) {
+    return response;
+  }
+  return withIdentityCookie(request, response);
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+
+  if (BACKEND_ORIGIN && pathname.startsWith("/api/") && !pathname.startsWith("/api/auth")) {
+    return proxyApiToBackend(request);
+  }
+
+  if (isAuthDisabled()) {
+    return withIdentityCookie(request, NextResponse.next());
+  }
+
+  if (isAuthPublicPath(pathname) || pathname.startsWith("/api/")) {
+    return withOptionalDemoCookie(request, NextResponse.next());
+  }
+
+  if (isEmbedDemoRequest(pathname, search)) {
+    return withOptionalDemoCookie(request, NextResponse.next());
+  }
+
+  if (!hasAuthSessionCookie(request)) {
+    const url = new URL(loginRedirectPath(pathname, search), request.url);
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {

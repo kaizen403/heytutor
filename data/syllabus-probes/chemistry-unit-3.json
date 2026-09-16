@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|3",
+  "questions": [
+    {
+      "id": "chemistry|3|kossel-lewis-and-ionic-bonding|medium",
+      "topicId": "chemistry|3|kossel-lewis-and-ionic-bonding",
+      "difficulty": "medium",
+      "question": "The option(s) in which at least three molecules follow the octet rule is(are) (A) CO2, C2H4, NO and HCl (B) NO2, O3, HCl and H2SO4 (C) BCl3, NO, NO2 and H2SO4 (D) CO2, BCl3, O3 and C2H4",
+      "source": {
+        "questionId": "q_08c46bdac36a44ebed016c7525f9397d160364c1270fe9520bbf6a159a082f6f",
+        "exam": "JEE Advanced",
+        "year": 2024,
+        "documentId": "jee-advanced-2024-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|3|electronegativity-fajans-rule-and-dipole-moment|easy",
+      "topicId": "chemistry|3|electronegativity-fajans-rule-and-dipole-moment",
+      "difficulty": "easy",
+      "question": "How many of the following factors affect the percent covalent character of an ionic bond? (A) Polarising power of the cation (B) Extent of distortion of the anion (C) Polarisability of the anion (D) Polarising power of the anion",
+      "source": {
+        "questionId": "q_3c68a9db758b04d0e7a348444a41c9d61e008b9423cc8dd2c7c5f8e17c959f6e",
+        "exam": "JEE Main",
+        "year": 2023,
+        "documentId": "jee-main-2023-04-08-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|3|electronegativity-fajans-rule-and-dipole-moment|medium",
+      "topicId": "chemistry|3|electronegativity-fajans-rule-and-dipole-moment",
+      "difficulty": "medium",
+      "question": "Arrange NH3, NF3, H2O and CH4 in increasing order of dipole moment. Why does NF3 have a much smaller dipole moment than NH3 although both molecules are pyramidal?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|3|vsepr-and-shapes|easy",
+      "topicId": "chemistry|3|vsepr-and-shapes",
+      "difficulty": "easy",
+      "question": "Using VSEPR theory, predict the shape and the approximate bond angles of SF4, ClF3 and XeF2.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|3|vsepr-and-shapes|hard",
+      "topicId": "chemistry|3|vsepr-and-shapes",
+      "difficulty": "hard",
+      "question": "What is the sum of the number of lone pairs of electrons on each central atom in the following species: [TeBr6]^2-, [BrF2]+, SNF3 and [XeF3]-? (Atomic numbers: N = 7, F = 9, S = 16, Br = 35, Te = 52, Xe = 54)",
+      "source": {
+        "questionId": "q_d266065f2e54c27a8731a5a20638ce26e874b128141ab75870fe64da4aec777c",
+        "exam": "JEE Advanced",
+        "year": 2017,
+        "documentId": "jee-advanced-2017-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|3|valence-bond-theory-and-hybridisation|medium",
+      "topicId": "chemistry|3|valence-bond-theory-and-hybridisation",
+      "difficulty": "medium",
+      "question": "Give the hybridisation of the central atom in PCl5, SF6, BrF5 and XeO3, and state which of these molecules carry a lone pair on the central atom.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|3|molecular-orbital-theory-and-bond-order|medium",
+      "topicId": "chemistry|3|molecular-orbital-theory-and-bond-order",
+      "difficulty": "medium",
+      "question": "Using molecular orbital theory, arrange O2, O2+, O2- and O2^2- in increasing order of bond order, and identify which of these species are paramagnetic.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|3|molecular-orbital-theory-and-bond-order|hard",
+      "topicId": "chemistry|3|molecular-orbital-theory-and-bond-order",
+      "difficulty": "hard",
+      "question": "Regarding the molecular orbital energy levels of homonuclear diatomic molecules, the INCORRECT statement(s) is(are) (A) Bond order of Ne2 is zero. (B) The highest occupied molecular orbital (HOMO) of F2 is σ-type. (C) Bond energy of O2+ is smaller than the bond energy of O2. (D) Bond length of Li2 is larger than the bond length of B2.",
+      "source": {
+        "questionId": "q_92bd397ff6f4e0dcffcc941b61c7c72f26a996f199f586fcb3da9c0be2a9029a",
+        "exam": "JEE Advanced",
+        "year": 2025,
+        "documentId": "jee-advanced-2025-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|3|bond-parameters-sigma-and-pi-bonds|easy",
+      "topicId": "chemistry|3|bond-parameters-sigma-and-pi-bonds",
+      "difficulty": "easy",
+      "question": "How many sigma bonds and how many pi bonds are present in acrylonitrile, CH2=CH-C≡N? Which carbon-carbon bond in it is the shortest?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|3|metallic-and-hydrogen-bonding|easy",
+      "topicId": "chemistry|3|metallic-and-hydrogen-bonding",
+      "difficulty": "easy",
+      "question": "o-Nitrophenol is steam volatile but p-nitrophenol is not. Explain this difference in terms of intramolecular and intermolecular hydrogen bonding.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

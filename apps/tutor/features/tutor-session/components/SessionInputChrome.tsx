@@ -27,6 +27,8 @@ interface SessionInputChromeProps {
   /** How well the student knows this topic; chosen per question in the bar. */
   familiarity?: SubjectFamiliarity;
   onFamiliarityChange?: (familiarity: SubjectFamiliarity) => void;
+  /** Icon-only controls so the composer fits a phone. */
+  compact?: boolean;
 }
 
 export function SessionInputChrome({
@@ -50,6 +52,7 @@ export function SessionInputChrome({
   onDisarmMarking,
   familiarity,
   onFamiliarityChange,
+  compact = false,
 }: SessionInputChromeProps) {
   return (
     <div
@@ -94,6 +97,7 @@ export function SessionInputChrome({
             onToggleMarking={onToggleMarking}
             familiarity={familiarity}
             onFamiliarityChange={onFamiliarityChange}
+            compact={compact}
           />
         </div>
       </div>

@@ -15,6 +15,8 @@ import type { CodeLessonPlan } from "@heytutor/tutor-core";
 import {
   codeLessonResumeNote,
   createCodeLessonConductor,
+  frameAdvanceRole,
+  placeDsaFigureIntro,
   resolveCodeLessonSegments,
 } from "../../features/tutor-session/lib/code-lesson/codeLessonSegments";
 
@@ -164,7 +166,7 @@ function frameCount(segments: TutorSegment[]): number {
 {
   const stream = ORDER.map((id) => typeSegment(id));
   const result = resolveCodeLessonSegments(stream, PLAN, { frameCount: 4 });
-  // Frame 1 is already on the board as the turn's intro, so three advances remain.
+  // Frame 1 is delayed intro, not a FRAME command, so three advances remain.
   assert(result.insertedFrameCount === 3, `expected 3 advances, got ${result.insertedFrameCount}`);
   assert(frameCount(result.segments) === 3, "advances must actually be emitted into the stream");
 
@@ -209,8 +211,8 @@ function frameCount(segments: TutorSegment[]): number {
 
 // --- A figure beat walks the example forward, one frame per step. ---
 {
-  // Five frames, and the model narrates each in turn. The first step is about
-  // the frame already drawn as the turn's intro, so only four advances follow.
+  // Five frames, and the model narrates each in turn. The first FOCUS draws
+  // frame 1 as delayed intro (no FRAME command), so only four advances follow.
   const focusIds = [["c0"], ["c1"], ["c2"], ["c3"], ["c4"]];
   const stream = focusIds.map((_, index) => focusSegment(`frame${index}`));
   const result = resolveCodeLessonSegments(stream, PLAN, {
@@ -234,7 +236,71 @@ function frameCount(segments: TutorSegment[]): number {
     .map((command) => command.type);
   assert(
     JSON.stringify(firstStepCommands) === JSON.stringify(["FOCUS"]),
-    `the first beat describes the frame already on the board, got ${firstStepCommands.join(",")}`,
+    `the first beat draws frame 1 as intro, not as a FRAME command, got ${firstStepCommands.join(",")}`,
+  );
+}
+
+// --- A frame advance says how it may spend its sentence. ---
+{
+  // Measured 10 Sep 2026: a figure beat drew its frame for 6 s of a 20 s
+  // sentence and the pen parked for the rest, while the spotlight fired at
+  // +15 s. The executor now walks the named cells after the redraw and halts
+  // for the spotlight on its word, but only on a frame the step is about: a
+  // frame inserted beside a code block hands the sentence straight back to
+  // the TYPE. The conductor is the only place that knows which is which.
+  const focusIds = [["c0"], ["c1", "c1b"], ["c2"]];
+  const figure = resolveCodeLessonSegments(
+    [focusSegment("frame0"), focusSegment("frame1")],
+    PLAN,
+    { frameCount: 3, frameFocusIds: focusIds },
+  );
+  const beat = (figure.segments[1] as { commands?: Array<{ type: string; semanticRef?: { entityId?: string; actionId?: string } }> }).commands ?? [];
+  const frame = beat.find((command) => command.type === "FRAME");
+  assert(frame, "the second figure beat must advance to frame 2");
+  assert(
+    frameAdvanceRole(frame as never) === "figure_beat",
+    `a frame the step is about is a figure beat, got ${frame.semanticRef?.actionId ?? "no role"}`,
+  );
+  assert(
+    frame.semanticRef?.entityId === "c1,c1b",
+    `the figure beat must carry the spotlight's ids so the walk can halt on their word, got ${frame.semanticRef?.entityId ?? "nothing"}`,
+  );
+  assert(beat.findIndex((command) => command.type === "FRAME") < beat.findIndex((command) => command.type === "FOCUS"), "the advance still precedes the spotlight");
+
+  // A skipped frame on the way is a catch-up; only the landing frame walks.
+  const skipped = resolveCodeLessonSegments(
+    [focusSegment("frame0"), focusSegment("frame2")],
+    PLAN,
+    { frameCount: 3, frameIds: ["frame0", "frame1", "frame2"], frameFocusIds: focusIds },
+  );
+  const jump = ((skipped.segments[1] as { commands?: Array<{ type: string; semanticRef?: { actionId?: string } }> }).commands ?? [])
+    .filter((command) => command.type === "FRAME")
+    .map((command) => frameAdvanceRole(command as never));
+  assert(
+    JSON.stringify(jump) === JSON.stringify(["catch_up", "figure_beat"]),
+    `naming frame 3 from frame 1 passes frame 2 as a catch-up and lands as the figure beat, got ${jump.join(",")}`,
+  );
+
+  // A frame inserted beside code never claims the sentence.
+  const code = resolveCodeLessonSegments(
+    [typeSegment("s1b1"), typeSegment("s1b2"), typeSegment("s1b3"), typeSegment("s1b4")],
+    PLAN,
+    { frameCount: 3, frameFocusIds: focusIds },
+  );
+  const inserted = code.segments
+    .flatMap((segment) => getSegmentCommands(segment))
+    .filter((command) => command.type === "FRAME")
+    .map((command) => frameAdvanceRole(command));
+  assert(inserted.length > 0, "the code beats must have caught the figure up");
+  assert(
+    inserted.every((role) => role === "catch_up"),
+    `a frame beside a code block is a catch-up, got ${inserted.join(",")}`,
+  );
+
+  // A bare FRAME from an older recording has no role and is left alone.
+  assert(
+    frameAdvanceRole({ type: "FRAME", params: [], charPosition: 0, narrationBefore: "" }) === null,
+    "a FRAME without a role must not be mistaken for a figure beat",
   );
 }
 
@@ -341,6 +407,29 @@ function frameCount(segments: TutorSegment[]): number {
   );
 }
 
+// --- A resume after a doubt starts at the blocks and frames already shown. ---
+{
+  const conductor = createCodeLessonConductor(PLAN, {
+    frameCount: 4,
+    alreadyRevealedBlockIds: ["s1b1", "s1b2", "s1b3"],
+    framesAlreadyShown: 2,
+  });
+  const progress = conductor.status();
+  assert(
+    JSON.stringify(progress.missingBlockIds) === JSON.stringify(ORDER.slice(3)),
+    `a resume must skip already-typed blocks, got ${progress.missingBlockIds.join(",")}`,
+  );
+  assert(
+    progress.unshownFrameCount === 2,
+    `a resume must skip already-shown frames, got ${progress.unshownFrameCount}`,
+  );
+  const next = conductor.resolve([typeSegment("s1b4")]);
+  assert(
+    JSON.stringify(revealedOrder(next.segments)) === JSON.stringify(["s1b4"]),
+    "the first TYPE after a resume is the next unrevealed block",
+  );
+}
+
 // --- Two beats on one frame stay on that frame. ---
 {
   // Measured on a live lesson: the model narrated a frame over two steps, and
@@ -442,6 +531,7 @@ function frameCount(segments: TutorSegment[]): number {
     frameCount: 3,
     frameIds: ["input", "store0", "hit1"],
     frameFocusIds: [["cell0"], ["cell1"], ["cell2"]],
+    fallbackPointIds: ["w1", "w2"],
   });
   const resolved = conductor.resolve([spoken]);
   assert(resolved.segments.length === 1, "the spoken step still reaches the board");
@@ -451,8 +541,24 @@ function frameCount(segments: TutorSegment[]): number {
     `a spoken step must carry a pointing move, got ${commands.map((command) => command.type).join(",") || "nothing"}`,
   );
   assert(
-    commands[0]!.text === "cell0",
-    `the marker must point at the frame on the board, got ${commands[0]!.text}`,
+    commands[0]!.text === "w1,w2",
+    `before the figure is up the marker must point at the opening notes, got ${commands[0]!.text}`,
+  );
+
+  // After a figure beat the marker walks the frame, not the notes.
+  conductor.resolve([focusSegment("input")]);
+  const afterFigure = conductor.resolve([{
+    narration: "now look at what that first move did",
+    command: null,
+  }]);
+  const afterCommands = getSegmentCommands(afterFigure.segments[0]!);
+  assert(
+    afterCommands.length === 1 && afterCommands[0]!.type === "POINT",
+    "a spoken step after the figure is up must still point",
+  );
+  assert(
+    afterCommands[0]!.text === "cell0",
+    `once the figure is up the marker walks the frame, got ${afterCommands[0]!.text}`,
   );
 
   // A step that already has work keeps it: pointing is a filler, never a
@@ -513,19 +619,37 @@ function frameCount(segments: TutorSegment[]): number {
     "with no figure at all there is nothing to point at, and the marker must not invent a target",
   );
 
-  // A real walk still wins: the fallback is for when there are no frames.
-  const walked = resolveCodeLessonSegments(stream, PLAN, {
+  // Before any FOCUS the opening notes are the only ink, so the fallback wins.
+  const beforeFigure = resolveCodeLessonSegments(stream, PLAN, {
     frameCount: 2,
     frameIds: ["f1", "f2"],
     framePointIds: [["barA"], ["barB"]],
     fallbackPointIds: ["cell0_0"],
   });
-  const walkedPoints = walked.segments.flatMap((segment) =>
+  const beforePoints = beforeFigure.segments.flatMap((segment) =>
     getSegmentCommands(segment).filter((command) => command.type === "POINT"),
   );
   assert(
-    walkedPoints.every((command) => !(command.text ?? "").includes("cell0_0")),
-    "with frames on the board the marker walks the frame, not the fallback",
+    beforePoints.some((command) => (command.text ?? "").includes("cell0_0")),
+    "before the figure is up the marker walks the opening notes",
+  );
+}
+
+// --- Delayed intro sits after the opening and before the first figure beat. ---
+{
+  const given = [{ narration: "the question wants two indices.", command: { type: "WRITE", params: [90, 145], text: "Two Sum", charPosition: 0, narrationBefore: "" } }] as unknown as TutorSegment[];
+  const intro = [{ narration: "here is the example.", command: { type: "DRAW_RECT", params: [0, 0, 10, 10], charPosition: 0, narrationBefore: "" }, verifiedDiagramIntro: true }] as unknown as TutorSegment[];
+  const opening = { narration: "so we need a pair that adds to the target.", command: null };
+  const focus = focusSegment("input");
+  const placed = placeDsaFigureIntro(given, intro, [opening, focus]);
+  assert(placed[0] === given[0], "opening notes stay first");
+  assert(placed[1] === opening, "spoken opening stays before the figure");
+  assert(placed[2] === intro[0], "frame 1 intro lands on the first FOCUS");
+  assert(placed[3] === focus, "the FOCUS that asked for the figure follows it");
+  const leftover = placeDsaFigureIntro(given, intro, [opening]);
+  assert(
+    leftover[leftover.length - 1] === intro[0],
+    "if the stream never names a frame the intro still appends",
   );
 }
 

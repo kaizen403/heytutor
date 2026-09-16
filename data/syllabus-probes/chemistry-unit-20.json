@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|20",
+  "questions": [
+    {
+      "id": "chemistry|20|detection-of-extra-elements-and-functional-groups|easy",
+      "topicId": "chemistry|20|detection-of-extra-elements-and-functional-groups",
+      "difficulty": "easy",
+      "question": "Give one chemical test each to detect an alcoholic hydroxyl group, a phenolic hydroxyl group, an aldehyde group and a carboxyl group in an organic compound, with the observation expected.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|20|detection-of-extra-elements-and-functional-groups|medium",
+      "topicId": "chemistry|20|detection-of-extra-elements-and-functional-groups",
+      "difficulty": "medium",
+      "question": "An organic compound gives a violet colour with neutral FeCl3 solution and brisk effervescence with NaHCO3 solution. Which functional groups are present? Name one compound that fits both tests.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|20|preparation-of-inorganic-and-organic-compounds|easy",
+      "topicId": "chemistry|20|preparation-of-inorganic-and-organic-compounds",
+      "difficulty": "easy",
+      "question": "Prolonged heating is avoided during the preparation of ferrous ammonium sulphate in order to (A) prevent hydrolysis (B) prevent breaking (C) prevent reduction (D) prevent oxidation",
+      "source": {
+        "questionId": "q_873d22f6e4c7401ce6796abbd7ae6a7899fc679ab3ee83a2852352f8a62db810",
+        "exam": "JEE Main",
+        "year": 2023,
+        "documentId": "jee-main-2023-04-10-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|20|preparation-of-inorganic-and-organic-compounds|medium",
+      "topicId": "chemistry|20|preparation-of-inorganic-and-organic-compounds",
+      "difficulty": "medium",
+      "question": "Statement I: Mohr's salt is composed of only three types of ions: ferrous, ammonium and sulfate. Statement II: If the molar conductances at infinite dilution of the ferrous, ammonium and sulfate ions are x1, x2 and x3 S cm^2 mol^-1 respectively, then the molar conductance of Mohr's salt at infinite dilution is x1 + x2 + 2x3. Choose the correct answer: (A) Both Statement I and Statement II are correct (B) Both Statement I and Statement II are incorrect (C) Statement I is correct but Statement II is incorrect (D) Statement I is incorrect but Statement II is correct",
+      "source": {
+        "questionId": "q_379ad0102547f7fe1f59a42a5a9af399d0018a5e7e87b013abd864fdb8c56f57",
+        "exam": "JEE Main",
+        "year": 2025,
+        "documentId": "jee-main-2025-04-07-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|20|titrimetric-analysis|easy",
+      "topicId": "chemistry|20|titrimetric-analysis",
+      "difficulty": "easy",
+      "question": "What is the difference in the spin-only magnetic moment values, in BM (nearest integer), of KMnO4 and of the manganese product formed during the titration of KMnO4 against oxalic acid in acidic medium?",
+      "source": {
+        "questionId": "q_e2dcc57618e675b2e3cd788241fd8befd36f0860dc3ea6cc87effba8758e1136",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-04-06-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|20|titrimetric-analysis|medium",
+      "topicId": "chemistry|20|titrimetric-analysis",
+      "difficulty": "medium",
+      "question": "5.00 mL of 0.10 M oxalic acid solution in a conical flask is titrated against NaOH from a burette using phenolphthalein indicator. The volumes of NaOH required for the appearance of a permanent faint pink colour in five experiments are 12.5 mL, 10.5 mL, 9.0 mL, 9.0 mL and 9.0 mL. What is the molarity of the NaOH solution?",
+      "source": {
+        "questionId": "q_d8ece3f65e5e9893c28acf475cbfb3637b12945518999868dee076a6c0415968",
+        "exam": "JEE Advanced",
+        "year": 2020,
+        "documentId": "jee-advanced-2020-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|20|titrimetric-analysis|hard",
+      "topicId": "chemistry|20|titrimetric-analysis",
+      "difficulty": "hard",
+      "question": "0.01 M KMnO4 solution was added to 20.0 mL of 0.05 M Mohr's salt solution through a burette. The initial reading of the 50 mL burette is zero. What volume of KMnO4 solution, in mL, is left in the burette after the end point (nearest integer)?",
+      "source": {
+        "questionId": "q_71a234f66ee754eef31282de80002982e18a89e316baddf9eb30bff9ceff8379",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-28-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|20|qualitative-analysis-of-cations|easy",
+      "topicId": "chemistry|20|qualitative-analysis-of-cations",
+      "difficulty": "easy",
+      "question": "During the qualitative analysis of a salt with cation Y^2+, addition of a reagent X to an alkaline solution of the salt gives a bright red precipitate. The reagent X and the cation Y^2+ are respectively (A) dimethylglyoxime and Ni^2+ (B) dimethylglyoxime and Co^2+ (C) Nessler's reagent and Hg^2+ (D) Nessler's reagent and Ni^2+",
+      "source": {
+        "questionId": "q_ea2d5bd797d56bffd97b4ec687b071b53e958b5303c1331807fa6a8a653e60a8",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-24-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|20|qualitative-analysis-of-cations|medium",
+      "topicId": "chemistry|20|qualitative-analysis-of-cations",
+      "difficulty": "medium",
+      "question": "In the flame test of a mixture of salts, a green flame with a blue centre was observed. Which one of the following cations may be present? (A) Cu (B) Sr (C) Ba (D) Ca",
+      "source": {
+        "questionId": "q_076b0d81f31f3c2474094a9e812a6e05db707c5cf70aaa8bf65b905a12ce381a",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-24-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|20|qualitative-analysis-of-cations|hard",
+      "topicId": "chemistry|20|qualitative-analysis-of-cations",
+      "difficulty": "hard",
+      "question": "A mixture of two salts is used to prepare an aqueous solution S. With dilute NaOH(aq) at room temperature, S gives white precipitate(s) only; with dilute HCl(aq) at room temperature, S also gives white precipitate(s) only. The correct option(s) for the salt mixture is(are) (A) Pb(NO3)2 and Zn(NO3)2 (B) Pb(NO3)2 and Bi(NO3)3 (C) AgNO3 and Bi(NO3)3 (D) Pb(NO3)2 and Hg(NO3)2",
+      "source": {
+        "questionId": "q_85e5c6a1a29daab5dc758ada7862711b2bebe5b42144a9cebb67d5c3f77d25e9",
+        "exam": "JEE Advanced",
+        "year": 2021,
+        "documentId": "jee-advanced-2021-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|20|qualitative-analysis-of-anions|easy",
+      "topicId": "chemistry|20|qualitative-analysis-of-anions",
+      "difficulty": "easy",
+      "question": "In the brown ring test for nitrate ions, which reagents are used, where does the brown ring form, and what is the formula of the brown complex?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|20|physical-chemistry-experiments|medium",
+      "topicId": "chemistry|20|physical-chemistry-experiments",
+      "difficulty": "medium",
+      "question": "In the kinetic study of the reaction between iodide ions and hydrogen peroxide at room temperature, sodium thiosulphate and starch are added to the reaction mixture. Explain the role of each, and how the time taken for the blue colour to appear is used to follow the rate.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

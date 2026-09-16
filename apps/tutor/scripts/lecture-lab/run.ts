@@ -255,7 +255,11 @@ async function main(): Promise<void> {
       grades.push(grade);
       runs.push(run);
       const slug = probe.id.replace(/[^a-z0-9]+/gi, "_");
-      writeFileSync(`${outDir}/runs/${slug}.json`, `${JSON.stringify(run, null, 1)}\n`);
+      if (run.diagram.svg) {
+        mkdirSync(`${outDir}/frames`, { recursive: true });
+        writeFileSync(`${outDir}/frames/${slug}.svg`, run.diagram.svg);
+      }
+      writeFileSync(`${outDir}/runs/${slug}.json`, `${JSON.stringify({ ...run, diagram: { ...run.diagram, svg: run.diagram.svg ? `frames/${slug}.svg` : null } }, null, 1)}\n`);
       writeFileSync(`${outDir}/transcripts/${slug}.md`, `${transcript(run, grade)}\n`);
       done += 1;
       console.log(

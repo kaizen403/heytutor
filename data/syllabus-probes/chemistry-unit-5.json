@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|5",
+  "questions": [
+    {
+      "id": "chemistry|5|concentration-terms|easy",
+      "topicId": "chemistry|5|concentration-terms",
+      "difficulty": "easy",
+      "question": "The molality of an aqueous solution of urea is 4.44 m. The mole fraction of urea in the solution is x × 10^-3. Find the value of x (integer answer).",
+      "source": {
+        "questionId": "q_1b598475cd90976ef1ad33d239e9599767c93b5812cfc5ee8612402b5a912c18",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-04-08-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|5|solubility-and-henrys-law|medium",
+      "topicId": "chemistry|5|solubility-and-henrys-law",
+      "difficulty": "medium",
+      "question": "The Henry's law constant for CO2 in water is 1.67 × 10^8 Pa at 298 K. Calculate the mass of CO2 dissolved in 500 mL of soda water bottled under a CO2 partial pressure of 2.5 atm at 298 K. (1 atm = 1.013 × 10^5 Pa)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|5|raoults-law-and-vapour-pressure|medium",
+      "topicId": "chemistry|5|raoults-law-and-vapour-pressure",
+      "difficulty": "medium",
+      "question": "Liquids A and B form an ideal solution for all compositions at 25 °C. Two such solutions with 0.25 and 0.50 mole fractions of A have total vapour pressures of 0.3 bar and 0.4 bar respectively. What is the vapour pressure of pure liquid B in bar?",
+      "source": {
+        "questionId": "q_4e317115cfe94e80d661ebdef31ee562c43a18e682fb8640ca87f391455fa3be",
+        "exam": "JEE Advanced",
+        "year": 2020,
+        "documentId": "jee-advanced-2020-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|5|raoults-law-and-vapour-pressure|hard",
+      "topicId": "chemistry|5|raoults-law-and-vapour-pressure",
+      "difficulty": "hard",
+      "question": "Two volatile liquids A and B form an ideal solution. A 5 molal solution of B in A in a closed container has a total vapour pressure of 100 mm Hg at 300 K, and the vapour pressure of pure A at 300 K is 105 mm Hg. Assume A and B behave as ideal gases in the vapour phase. At 300 K, what is the ratio of the molar volume of pure B in the vapour phase to its molar volume in the liquid phase? (Given: R = 0.08 L atm K^-1 mol^-1, molar mass of A = 50 g mol^-1, molar mass of B = 57 g mol^-1, density of liquid B at 300 K = 0.5 g mL^-1, 1 atm = 760 mm Hg)",
+      "source": {
+        "questionId": "q_52d3f5329914eb587df03cd62080b3a488051058d6f2d5f8e1f230e2408657db",
+        "exam": "JEE Advanced",
+        "year": 2026,
+        "documentId": "jee-advanced-2026-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|5|ideal-and-non-ideal-solutions|easy",
+      "topicId": "chemistry|5|ideal-and-non-ideal-solutions",
+      "difficulty": "easy",
+      "question": "A mixture of chloroform and acetone shows negative deviation from Raoult's law. What are the signs of ΔmixH and ΔmixV for this mixture, and which type of azeotrope does it form?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|5|colligative-properties|easy",
+      "topicId": "chemistry|5|colligative-properties",
+      "difficulty": "easy",
+      "question": "18 g of glucose (C6H12O6) is dissolved in 1 kg of water. Calculate the elevation in boiling point of the solution. (Kb for water = 0.52 K kg mol^-1)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|5|colligative-properties|hard",
+      "topicId": "chemistry|5|colligative-properties",
+      "difficulty": "hard",
+      "question": "A dilute solution contains 2.5 g of a non-volatile non-electrolyte solute in 100 g of water, and its elevation in boiling point at 1 atm pressure is 2 °C. Assuming the concentration of solute is much lower than that of the solvent, the vapour pressure (mm of Hg) of the solution is (take Kb = 0.76 K kg mol^-1) (A) 724 (B) 740 (C) 736 (D) 718",
+      "source": {
+        "questionId": "q_86bbe30f9e681fce50052400e3fdaf0ec9638b60c6fefc764baec9ab0fe7f8f2",
+        "exam": "JEE Advanced",
+        "year": 2012,
+        "documentId": "jee-advanced-2012-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|5|molar-mass-and-vant-hoff-factor|medium",
+      "topicId": "chemistry|5|molar-mass-and-vant-hoff-factor",
+      "difficulty": "medium",
+      "question": "A 0.5 percent solution of potassium chloride was found to freeze at -0.24 °C. What is the percentage dissociation of potassium chloride (nearest integer)? (Molal depression constant for water is 1.80 K kg mol^-1 and molar mass of KCl is 74.6 g mol^-1)",
+      "source": {
+        "questionId": "q_49fc3de36e267d9f16c75b2725d7c810ffdf09715e5a8c1c8de8ebb50a8b050a",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-26-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|5|molar-mass-and-vant-hoff-factor|hard",
+      "topicId": "chemistry|5|molar-mass-and-vant-hoff-factor",
+      "difficulty": "hard",
+      "question": "Vessel 1 contains w2 g of a non-volatile solute X dissolved in w1 g of water. Vessel 2 contains w2 g of another non-volatile solute Y dissolved in w1 g of water, at the same temperature and pressure. The molar mass of X is 80% of that of Y, and the van't Hoff factor for X is 1.2 times that of Y at these concentrations. The elevation of boiling point for the solution in Vessel 1 is what percentage of that of the solution in Vessel 2?",
+      "source": {
+        "questionId": "q_216557d9b4c14a0069009592c4f826d9c809de83922a4ba7976b51c7c47e19a8",
+        "exam": "JEE Advanced",
+        "year": 2024,
+        "documentId": "jee-advanced-2024-paper-2-english"
+      }
+    }
+  ]
+}

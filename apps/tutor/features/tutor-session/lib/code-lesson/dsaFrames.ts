@@ -163,7 +163,12 @@ function toFrames(
 export interface CodeLessonBoardContext {
   context: CodeLessonPlanContext;
   /** Facts the teaching prompt needs: terms to define, the answer, early exit. */
-  facts: { terms: readonly string[]; resultText?: string; earlyExit?: boolean };
+  facts: {
+    terms: readonly string[];
+    resultText?: string;
+    earlyExit?: boolean;
+    example?: Record<string, unknown> | null;
+  };
 }
 
 /**
@@ -227,6 +232,7 @@ export function resolveCodeLessonBoardContext(question: string): CodeLessonBoard
       terms: facts.terms,
       resultText: trace.resultText,
       earlyExit: trace.earlyExit,
+      example: trace.input,
     },
   };
 }

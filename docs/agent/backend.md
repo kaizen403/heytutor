@@ -7,7 +7,7 @@ routes are Next.js route handlers, plus a custom WebSocket relay in `server.ts`.
 
 | Route | File | Methods | Purpose |
 |-------|------|---------|---------|
-| `/api/chat` | `app/api/chat/route.ts` | POST | LLM proxy → Fireworks AI (SSE). Planner and teaching transport. Mock mode without `FIREWORKS_API_KEY`. Langfuse tracing. |
+| `/api/chat` | `app/api/chat/route.ts` | POST | LLM proxy → Fireworks AI (SSE). Planner and teaching transport. Mock mode without `FIREWORKS_API_KEY`. Langfuse: one `tutor-turn` per question; planner/teaching are nested generations. |
 | `/api/tts` | `app/api/tts/route.ts` | POST | ElevenLabs TTS proxy (audio MPEG or timestamps JSON) |
 | `/api/tts/stream` | `app/api/tts/stream/route.ts` | POST | ElevenLabs streaming TTS with character timestamps |
 | `/api/tts/ws` | `server.ts` | WebSocket | Real-time multi-context TTS relay to ElevenLabs with alignment data |
@@ -17,7 +17,10 @@ routes are Next.js route handlers, plus a custom WebSocket relay in `server.ts`.
 | `/api/boards/[boardId]/turns` | `app/api/boards/[boardId]/turns/route.ts` | POST | Save turn (multipart: metadata JSON + per-segment audio blobs); revalidates scene artifacts |
 | `/api/boards/[boardId]/notes-chat` | `app/api/boards/[boardId]/notes-chat/route.ts` | POST | Notes-sidebar chat against the current board |
 | `/api/board-name` | `app/api/board-name/route.ts` | POST | LLM-generated board title from first question |
-| `/api/extract-question` | `app/api/extract-question/route.ts` | POST | Image → question text |
+| `/api/extract-question` | `app/api/extract-question/route.ts` | POST | Image → question text; stores the photo on S3 |
+| `/api/lecture-audio` | `app/api/lecture-audio/route.ts` | GET | Same-origin MP3 proxy (`key=` for S3, `src=` for legacy public hosts) |
+| `/api/media` | `app/api/media/route.ts` | GET | Auth-gated S3 read for lecture MP3s and question photos |
+| `/api/health` | `app/api/health/route.ts` | GET | Process + Postgres ping |
 | `/api/tts/ws-ticket` | `app/api/tts/ws-ticket/route.ts` | POST | Mint a short-lived ticket for `/api/tts/ws` |
 | `/api/trace/event` | `app/api/trace/event/route.ts` | POST | Client telemetry → Langfuse |
 
@@ -34,8 +37,8 @@ Production and dev both use `tsx server.ts` (not `next start`):
 
 ## Middleware (`middleware.ts`)
 
-1. If `BACKEND_ORIGIN` is set → proxy all `/api/*` requests to Azure backend
-2. Otherwise → set `htutor_uid` cookie if missing
+1. If `BACKEND_ORIGIN` is set → proxy `/api/*` (except `/api/auth`) to that origin. Production on EC2 leaves it unset.
+2. Otherwise → cookie / Auth.js gates as configured
 
 ## Lib Modules (`lib/`)
 
@@ -62,7 +65,8 @@ Production and dev both use `tsx server.ts` (not `next start`):
 | `obs/langfuse.ts` | Observability — traces, spans, LLM/TTS cost tracking |
 | `obs/usageCost.ts` | Cost enrichment for Langfuse metadata |
 | `obs/turnTelemetry.ts` | Client-side turn span instrumentation |
-| `r2/r2.ts` / `r2/r2Keys.ts` | Cloudflare R2 audio upload/delete |
+| `object-store/` | Private S3 put/get/delete for lecture MP3s and question photos |
+| `r2/r2.ts` / `r2/r2Keys.ts` | Re-exports of `object-store` |
 | `replay/replayTurns.ts` / `replay/replayAudio.ts` / `replay/replayTimeline.ts` | Replay orchestration |
 | `client/exportNotesPdf.ts` | PDF export of board notes |
 | `client/subtitleText.ts` | Subtitle rendering helpers |
@@ -85,11 +89,11 @@ Production and dev both use `tsx server.ts` (not `next start`):
 | `ELEVENLABS_MODEL` | No | Default: `eleven_flash_v2_5` |
 | `ELEVENLABS_STT_API_KEY` | No | Speech-to-text — its own key, not shared with TTS. Unset falls back to browser dictation |
 | `ELEVENLABS_STT_MODEL` | No | Default: `scribe_v1` |
-| `R2_ACCOUNT_ID` / `R2_BUCKET` / `R2_PUBLIC_BASE_URL` | No | Audio persistence in Cloudflare R2 |
+| `S3_BUCKET` / `AWS_REGION` | No | Lecture audio + question photos. Instance role preferred |
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | No | Observability |
-| `BACKEND_ORIGIN` | Split deploy | API proxy target for Vercel frontend |
-| `NEXT_PUBLIC_API_ORIGIN` | Split deploy | Client-side API base URL |
-| `NEXT_PUBLIC_WS_ORIGIN` | Split deploy | Client-side WebSocket base URL |
+| `BACKEND_ORIGIN` | Split deploy only | Leave unset on the EC2 tutor |
+| `NEXT_PUBLIC_API_ORIGIN` | Split deploy only | Leave unset on the EC2 tutor |
+| `NEXT_PUBLIC_WS_ORIGIN` | Split deploy only | Leave unset on the EC2 tutor |
 
 ## Database Commands
 
@@ -103,9 +107,10 @@ pnpm --filter @heytutor/tutor db:generate           # regenerate Prisma client
 
 ## Deploy
 
-- **Frontend:** Vercel (root `apps/tutor`)
-- **Backend API + WS:** Azure VM via `deploy/azure/` (Docker + systemd)
-- **CI:** `.github/workflows/ci.yml`
-- **Backend deploy:** `.github/workflows/deploy-backend.yml`
+- **Landing:** Vercel (root `apps/landing`, `accelute.co`)
+- **Tutor UI + API + WS:** EC2 via `deploy/aws/` (Caddy + systemd, `tsx server.ts`)
+- **Postgres:** hosted; `DATABASE_URL` in `.env.production`
+- **Objects:** private S3 — [s3-setup.md](../ops/s3-setup.md)
+- **Tutor deploy:** `.github/workflows/deploy-tutor.yml`
 
-See [ci-cd.md](../ops/ci-cd.md) and [r2-setup.md](../ops/r2-setup.md).
+See [ci-cd.md](../ops/ci-cd.md).

@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Download, RotateCcw } from "lucide-react";
-import { formatReplayTime } from "@/lib/replay/replayTimeline";
+import { Download, RotateCcw, X } from "lucide-react";
 import type { LectureExportProgress } from "@/lib/lecture-export/exportLectureMp4";
+import {
+  lectureExportCancelPressAction,
+  lectureExportCancelRevealedOnEnter,
+} from "@/lib/lecture-export/lectureExportCancel";
+import { lectureExportProgressLabel } from "@/lib/lecture-export/lectureExportFrames";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -42,6 +46,7 @@ export function LessonActions({
   alwaysVisible = false,
 }: LessonActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [cancelRevealed, setCancelRevealed] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,7 +71,14 @@ export function LessonActions({
     };
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!isExportingLecture) {
+      setCancelRevealed(false);
+    }
+  }, [isExportingLecture]);
+
   const menuVisible = menuOpen && !isExportingLecture;
+  const showCancel = isExportingLecture && cancelRevealed;
 
   if (!alwaysVisible && !canReplay && !canDownload && !canDownloadLecture) {
     return null;
@@ -87,8 +99,8 @@ export function LessonActions({
     ? false
     : busy || (!canDownload && !canDownloadLecture);
   const progressLabel = lectureExportProgress
-    ? `${formatReplayTime(lectureExportProgress.currentMs)} / ${formatReplayTime(lectureExportProgress.totalMs)}`
-    : "Generating…";
+    ? lectureExportProgressLabel(lectureExportProgress)
+    : "Preparing…";
 
   if (!showReplay && !showDownload) {
     return null;
@@ -122,9 +134,27 @@ export function LessonActions({
         <div className="relative" ref={menuRef}>
           <button
             type="button"
+            onPointerEnter={(event) => {
+              if (
+                isExportingLecture &&
+                lectureExportCancelRevealedOnEnter(event.pointerType)
+              ) {
+                setCancelRevealed(true);
+              }
+            }}
+            onPointerLeave={(event) => {
+              if (event.pointerType === "mouse") {
+                setCancelRevealed(false);
+              }
+            }}
             onClick={() => {
               if (isExportingLecture) {
-                onCancelLectureExport?.();
+                if (lectureExportCancelPressAction(cancelRevealed) === "cancel") {
+                  onCancelLectureExport?.();
+                  setCancelRevealed(false);
+                } else {
+                  setCancelRevealed(true);
+                }
                 return;
               }
               setMenuOpen((open) => !open);
@@ -132,7 +162,9 @@ export function LessonActions({
             disabled={downloadDisabled}
             aria-label={
               isExportingLecture
-                ? "Cancel lecture download"
+                ? showCancel
+                  ? "Cancel lecture download"
+                  : `Preparing lecture video ${progressLabel}. Hover or tap again to cancel.`
                 : "Download notes or lecture"
             }
             aria-expanded={menuOpen}
@@ -140,20 +172,25 @@ export function LessonActions({
             className={cn(
               buttonClass,
               "text-[11px]",
+              showCancel && "w-auto gap-1.5 px-3 text-danger",
             )}
           >
-            {isDownloading || isExportingLecture ? (
+            {showCancel ? (
+              <X className="h-3.5 w-3.5" aria-hidden />
+            ) : isDownloading || isExportingLecture ? (
               <Spinner size={13} className="text-sky-500" />
             ) : (
               <Download className="h-3.5 w-3.5" aria-hidden />
             )}
-            {!compact && (
-              <span className="hidden sm:inline">
-                {isExportingLecture
-                  ? progressLabel
-                  : isDownloading
-                    ? "Generating…"
-                    : "Download"}
+            {(showCancel || !compact) && (
+              <span className={cn(showCancel ? "inline" : "hidden sm:inline")}>
+                {showCancel
+                  ? "Cancel"
+                  : isExportingLecture
+                    ? progressLabel
+                    : isDownloading
+                      ? "Generating…"
+                      : "Download"}
               </span>
             )}
           </button>

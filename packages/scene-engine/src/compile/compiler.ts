@@ -456,24 +456,35 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     ) === index;
   });
   const pinDsaLabels = document.source.synthesizedDsa === true;
+  // A chemistry figure pins its atom symbols on the atom itself (an element
+  // symbol beside a bond junction reads as a substituent) while its bond
+  // angles, orbital names and energy gaps still go through the placement
+  // solver. `provenance.pinLabel` on the entity selects that per label; the
+  // DSA flag keeps pinning the whole document as before.
+  const pinnedEntityIds = new Set(
+    document.entities
+      .filter((entity) => entity.provenance?.pinLabel === true)
+      .map((entity) => entity.id),
+  );
+  const pinOwner = (owner: LabelOwner): LabelOwner => {
+    const target = geometry.get(owner.entityId);
+    const transform = transformPlan.transformFor(owner.entityId);
+    return {
+      ...owner,
+      // Rectangles compile as closed paths; the path label-anchor sits
+      // on the perimeter. Cell values belong at the geometric center.
+      anchor: target ? transform(centerOf(target)) : owner.anchor,
+      pinToAnchor: true,
+      allowLeader: false,
+      useOwnerBounds: false,
+      tetherPx: undefined,
+      incidentTangents: undefined,
+    };
+  };
   const labels = placeLabels(
     pinDsaLabels
-      ? uniqueLabelOwners.map((owner) => {
-          const target = geometry.get(owner.entityId);
-          const transform = transformPlan.transformFor(owner.entityId);
-          return {
-            ...owner,
-            // Rectangles compile as closed paths; the path label-anchor sits
-            // on the perimeter. Cell values belong at the geometric center.
-            anchor: target ? transform(centerOf(target)) : owner.anchor,
-            pinToAnchor: true,
-            allowLeader: false,
-            useOwnerBounds: false,
-            tetherPx: undefined,
-            incidentTangents: undefined,
-          };
-        })
-      : uniqueLabelOwners,
+      ? uniqueLabelOwners.map(pinOwner)
+      : uniqueLabelOwners.map((owner) => (pinnedEntityIds.has(owner.entityId) ? pinOwner(owner) : owner)),
     [...obstaclesFromPrimitives(primitives), workColumnObstacle()],
     pinDsaLabels
       // 16 is the validator's own compact-label ceiling; a lower cap here

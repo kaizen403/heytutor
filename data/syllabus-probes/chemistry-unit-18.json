@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|18",
+  "questions": [
+    {
+      "id": "chemistry|18|amines-classification-nomenclature-and-structure|easy",
+      "topicId": "chemistry|18|amines-classification-nomenclature-and-structure",
+      "difficulty": "easy",
+      "question": "Classify each amine as primary, secondary or tertiary and write its IUPAC name: CH3NHCH2CH3, (CH3)3N, (CH3)3CNH2 and C6H5NHCH3.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|18|preparation-of-amines|medium",
+      "topicId": "chemistry|18|preparation-of-amines",
+      "difficulty": "medium",
+      "question": "Why can the Gabriel phthalimide synthesis not be used to prepare aniline? Name the product when benzamide is treated with Br2 and aqueous NaOH, and state how its number of carbon atoms compares with the amide.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|18|basic-character-of-amines|medium",
+      "topicId": "chemistry|18|basic-character-of-amines",
+      "difficulty": "medium",
+      "question": "Arrange NH3, CH3NH2, (CH3)2NH and (CH3)3N in increasing order of basic strength in aqueous solution, and explain why this order differs from the order in the gas phase.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|18|basic-character-of-amines|hard",
+      "topicId": "chemistry|18|basic-character-of-amines",
+      "difficulty": "hard",
+      "question": "Arrange aniline, p-toluidine, p-nitroaniline, p-anisidine and benzylamine in increasing order of basic strength, and explain the effect of each substituent on the availability of the nitrogen lone pair.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|18|identification-of-amines|easy",
+      "topicId": "chemistry|18|identification-of-amines",
+      "difficulty": "easy",
+      "question": "A primary aliphatic amine on reaction with nitrous acid in the cold (273 K), followed by raising the temperature of the reaction mixture to room temperature (298 K), gives (A) a nitrile (B) an alcohol (C) a diazonium salt (D) a secondary amine",
+      "source": {
+        "questionId": "q_13a15c036d579d38cfaf3153ce961280a7f5dc0f0177c1c9dfaa2444f4077406",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-28-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|18|identification-of-amines|medium",
+      "topicId": "chemistry|18|identification-of-amines",
+      "difficulty": "medium",
+      "question": "How does Hinsberg's reagent distinguish between ethylamine, diethylamine and triethylamine? State what is observed with each and the role of the alkali.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|18|reactions-of-aniline|easy",
+      "topicId": "chemistry|18|reactions-of-aniline",
+      "difficulty": "easy",
+      "question": "In the Friedel-Crafts alkylation of aniline, one gets (A) an alkylated product with ortho and para substitution (B) a secondary amine after acidic treatment (C) an amide product (D) a positively charged nitrogen attached to the benzene ring",
+      "source": {
+        "questionId": "q_57e8c294b383ab7daf66e30e7417f5673e51b9867d35c3b6d43c843e7fd6c5c4",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-29-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|18|reactions-of-aniline|medium",
+      "topicId": "chemistry|18|reactions-of-aniline",
+      "difficulty": "medium",
+      "question": "Direct nitration of aniline gives a substantial amount of m-nitroaniline. Explain why, and describe how the amino group is protected so that p-nitroaniline is obtained as the major product.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|18|diazonium-salts|easy",
+      "topicId": "chemistry|18|diazonium-salts",
+      "difficulty": "easy",
+      "question": "Benzenediazonium chloride is treated separately with (a) CuCl/HCl, (b) KI, (c) H3PO2 and water, and (d) warm water. Name the product in each case, and name the reaction in (a).",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|18|diazonium-salts|medium",
+      "topicId": "chemistry|18|diazonium-salts",
+      "difficulty": "medium",
+      "question": "9.3 g of pure aniline on diazotisation followed by coupling with phenol gives an orange dye. Assuming 100% yield at each step, what mass of orange dye, in g, is produced (nearest integer)?",
+      "source": {
+        "questionId": "q_7389aaab53b187ad9651bcbed8763912a271e53b06642c70ccfd1cfe32c9849f",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-04-06-shift-1"
+      }
+    }
+  ]
+}

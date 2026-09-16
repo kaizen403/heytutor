@@ -75,3 +75,119 @@ export function resolveLiveAudioPositionMs(input: LiveAudioClockInput): LiveAudi
 }
 
 export { shouldReleaseAudioPositionWait };
+
+/**
+ * How long the pen waits for an alignment once the voice has started.
+ *
+ * Measured 10 Sep 2026 over 20 sentences: a prefetched sentence hands its
+ * alignment over 1 to 3 ms before `onStart`, a sentence generated on demand
+ * 1 ms before, and HTTP transports before `onStart` as well. The browser
+ * voice never sends one. 120 ms covers every transport that will deliver at
+ * all, and when nothing is coming it holds the pen for less than the audible
+ * onset (20 to 73 ms after `onStart`) plus one frame.
+ */
+export const INITIAL_TIMING_GRACE_AFTER_START_MS = 120;
+
+export interface InitialTimingWaitState {
+  hasNarration: boolean;
+  /** Characters in the alignment captured so far; 0 while none has arrived. */
+  timingChars: number;
+  /** Wall ms when the voice's `onStart` fired, null until it has. */
+  audioStartedAtMs: number | null;
+  nowMs: number;
+  speechComplete: boolean;
+  cancelled: boolean;
+}
+
+export type InitialTimingWaitRelease =
+  /** The exact alignment is in hand: the schedule is built on it. */
+  | "tts"
+  /** The voice is speaking and nothing arrived in the grace window. */
+  | "estimated"
+  /** Speech ended, or failed, before any alignment arrived. */
+  | "complete"
+  | "cancelled"
+  /** Nothing is spoken, so there is nothing to wait for. */
+  | "silent";
+
+export type InitialTimingWaitDecision =
+  | { release: true; source: InitialTimingWaitRelease }
+  | {
+      release: false;
+      /** Wall ms at which the grace window closes; null while the voice has not started. */
+      releaseAtMs: number | null;
+    };
+
+/**
+ * Whether the runner may build its first schedule yet.
+ *
+ * The old gate waited only when audio had already started, and in the paired
+ * path it never had: the schedule was built 1 to 3 ms before the prefetched
+ * alignment was replayed, so every WRITE row of a lesson ran on the estimate
+ * with the exact timings sitting unread (15 of 15 rows, 10 Sep 2026). This
+ * decides on the four things that can end the wait, and nothing else.
+ */
+export function resolveInitialTimingWait(state: InitialTimingWaitState): InitialTimingWaitDecision {
+  if (state.cancelled) {
+    return { release: true, source: "cancelled" };
+  }
+  if (!state.hasNarration) {
+    return { release: true, source: "silent" };
+  }
+  if (state.timingChars > 0) {
+    return { release: true, source: "tts" };
+  }
+  if (state.speechComplete) {
+    return { release: true, source: "complete" };
+  }
+  if (state.audioStartedAtMs === null) {
+    return { release: false, releaseAtMs: null };
+  }
+  const releaseAtMs = state.audioStartedAtMs + INITIAL_TIMING_GRACE_AFTER_START_MS;
+  if (state.nowMs >= releaseAtMs) {
+    return { release: true, source: "estimated" };
+  }
+  return { release: false, releaseAtMs };
+}
+
+/** What became of the exact alignment when a handwriting schedule was built. */
+export type TtsScheduleUse =
+  /** The schedule is the alignment. */
+  | "used"
+  /** No alignment had arrived. */
+  | "missing"
+  /** An alignment arrived and failed validation against the narration. */
+  | "invalid"
+  /** A valid alignment, but no board token was found in the spoken text. */
+  | "unmatched"
+  /** A matched schedule that the usability rule rejected. */
+  | "unusable";
+
+export interface TtsScheduleUseInput {
+  scheduleSource: "tts" | "estimated";
+  scheduleReason?: string | null;
+  timingChars: number;
+  timingValid: boolean;
+}
+
+/**
+ * Names why a row is not on the exact clock, so a log line answers it
+ * without a second probe. `schedule_source: estimated` alone could not tell a
+ * sentence whose alignment never came from one whose alignment was thrown
+ * away.
+ */
+export function classifyTtsScheduleUse(input: TtsScheduleUseInput): TtsScheduleUse {
+  if (input.scheduleSource === "tts") {
+    return "used";
+  }
+  if (input.timingChars <= 0) {
+    return "missing";
+  }
+  if (!input.timingValid) {
+    return "invalid";
+  }
+  if (input.scheduleReason === "tts-schedule-unusable") {
+    return "unusable";
+  }
+  return "unmatched";
+}

@@ -37,7 +37,7 @@ Langfuse does not expose a public API for creating dashboards. Build this once i
 | Data source | Observations |
 | Metric | Avg latency (or p95) |
 | Dimension | Observation name |
-| Filter | name in `thinking`, `websocket-connect`, `fireworks-llm`, `segment-0`, `draw-0`, `tts-segment` |
+| Filter | name in `thinking`, `websocket-connect`, `turn-plan-v3`, `problem-ir-v1`, `scene-planner-v2`, `fireworks-llm`, `segment-0`, `draw-0`, `tts-segment` |
 
 Compares time spent in each pipeline step.
 
@@ -48,7 +48,9 @@ Compares time spent in each pipeline step.
 | Data source | Observations |
 | Metric | Sum input + output usage |
 | Dimension | Time |
-| Filter | name = `fireworks-llm` |
+| Filter | name in `fireworks-llm`, `turn-plan-v3`, `problem-ir-v1`, `scene-planner-v2`, `code-lesson-v1` |
+
+`fireworks-llm` is the spoken teaching pass. The other names are the planner generations on the same `tutor-turn`.
 
 ### 4. TTS characters
 
@@ -74,16 +76,17 @@ Shows ws vs http vs browser-fallback.
 This is not a dashboard widget — use **Tracing → Traces**:
 
 1. Filter by name `tutor-turn`
-2. Open any trace
+2. Open any trace — one student question is one trace. Planner calls, teaching, TTS, and client spans share the client-generated turn id.
 3. Timeline shows (in order):
    - `thinking` — submit → first LLM token
    - `websocket-connect` — TTS prewarm
-   - `fireworks-llm` — tokens + TTFT
+   - `turn-plan-v3` / `problem-ir-v1` / `scene-planner-v2` / `code-lesson-v1` — planner generations (lanes in metadata)
+   - `fireworks-llm` — spoken teaching tokens + TTFT
    - `segment-N` — each teaching segment
    - `draw-N` — nested under segment when drawing runs
    - `tts-segment` — ElevenLabs character usage (server-side)
 
-Trace metadata includes `total_duration_ms`, `segment_count`, `total_draw_ms`, `total_tts_chars`.
+Trace input is the student question. Planner prompts live on their generations, not the parent. Trace metadata includes `total_duration_ms`, `segment_count`, `total_draw_ms`, `total_tts_chars`.
 
 ## Curated dashboards
 

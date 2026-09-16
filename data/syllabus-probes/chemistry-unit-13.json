@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|13",
+  "questions": [
+    {
+      "id": "chemistry|13|purification-methods|easy",
+      "topicId": "chemistry|13|purification-methods",
+      "difficulty": "easy",
+      "question": "Phenol on reaction with dilute nitric acid gives two products. Which method is most efficient for their large scale separation? (A) Chromatographic separation (B) Fractional crystallisation (C) Steam distillation (D) Sublimation",
+      "source": {
+        "questionId": "q_fd7c1e4f54e0d5396ea4064f73f9d4207c9a726c47d9d95ed8c12afcca7d290b",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-25-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|13|purification-methods|medium",
+      "topicId": "chemistry|13|purification-methods",
+      "difficulty": "medium",
+      "question": "Suggest a suitable method, with its principle, to purify each of the following: (a) aniline, which decomposes below its boiling point, (b) a mixture of camphor and sodium chloride, (c) glycerol from the spent lye of the soap industry, and (d) a mixture of two liquids boiling at 353 K and 383 K.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|13|chromatography|easy",
+      "topicId": "chemistry|13|chromatography",
+      "difficulty": "easy",
+      "question": "In a thin layer chromatography experiment, a compound travels 3.6 cm while the solvent front travels 12.0 cm from the base line. Calculate its Rf value, and state which of two compounds with Rf values 0.3 and 0.7 is more strongly adsorbed on the stationary phase.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|13|detection-of-elements|easy",
+      "topicId": "chemistry|13|detection-of-elements",
+      "difficulty": "easy",
+      "question": "In Lassaigne's test, the sodium fusion extract of an organic compound gives a blood red colour with FeCl3. Which elements are present in the compound, and which species causes the colour?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|13|detection-of-elements|medium",
+      "topicId": "chemistry|13|detection-of-elements",
+      "difficulty": "medium",
+      "question": "Why is the sodium fusion extract boiled with dilute HNO3 before it is tested for halogens with AgNO3? Why does hydrazine (NH2NH2) not give a positive Lassaigne's test for nitrogen?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|13|quantitative-estimation-of-elements|easy",
+      "topicId": "chemistry|13|quantitative-estimation-of-elements",
+      "difficulty": "easy",
+      "question": "0.5 g of an organic compound on combustion gave 1.46 g of CO2 and 0.9 g of H2O. What is the percentage of carbon in the compound (nearest integer)? (Given molar mass in g mol^-1: C = 12, H = 1, O = 16)",
+      "source": {
+        "questionId": "q_467b83369c19ea77e508e1f89fb6cdef5bb42a62aa53072dca949dc5fe216ea7",
+        "exam": "JEE Main",
+        "year": 2025,
+        "documentId": "jee-main-2025-04-03-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|13|quantitative-estimation-of-elements|medium",
+      "topicId": "chemistry|13|quantitative-estimation-of-elements",
+      "difficulty": "medium",
+      "question": "Kjeldahl's method was used for the estimation of nitrogen in an organic compound. The ammonia evolved from 0.55 g of the compound neutralised 12.5 mL of 1 M H2SO4 solution. What is the percentage of nitrogen in the compound (nearest integer)?",
+      "source": {
+        "questionId": "q_cd8daee30b24d4086bd081f1532e27ef9cdb2938b9244bddeea4544439a0cf5d",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-29-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|13|quantitative-estimation-of-elements|hard",
+      "topicId": "chemistry|13|quantitative-estimation-of-elements",
+      "difficulty": "hard",
+      "question": "In Dumas' method, 292 mg of an organic compound released 50 mL of nitrogen gas (N2) at 300 K and 715 mm Hg pressure. What is the percentage of nitrogen in the organic compound (nearest integer)? (Aqueous tension at 300 K = 15 mm Hg)",
+      "source": {
+        "questionId": "q_86c05e102d8ca0238ab47d191add4477a8bd532a11d3d7d4024a0428b4095b01",
+        "exam": "JEE Main",
+        "year": 2025,
+        "documentId": "jee-main-2025-04-07-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|13|empirical-and-molecular-formula-from-analysis|medium",
+      "topicId": "chemistry|13|empirical-and-molecular-formula-from-analysis",
+      "difficulty": "medium",
+      "question": "An organic compound contains 69% carbon and 4.8% hydrogen, the remainder being oxygen. Calculate the masses of CO2 and H2O produced on complete combustion of 0.20 g of this compound.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|13|empirical-and-molecular-formula-from-analysis|hard",
+      "topicId": "chemistry|13|empirical-and-molecular-formula-from-analysis",
+      "difficulty": "hard",
+      "question": "2.0 g of a bromo hydrocarbon X gave 3.36 g of AgBr in Carius analysis. The percentage of carbon in X is 26.7%. What is the total number of carbon atoms in the empirical formula of X? (Given molar mass in g mol^-1: H = 1, C = 12, Br = 80, Ag = 108)",
+      "source": {
+        "questionId": "q_a7e53869e55b735f369a5848d816ecf8b41827d79848fd467f12481d2c00d4ef",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-04-shift-1"
+      }
+    }
+  ]
+}

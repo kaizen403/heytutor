@@ -18,8 +18,11 @@
 import {
   CODE_LESSON_STEP_WORDS,
   CODE_LESSON_SYSTEM_PROMPT,
+  buildDsaOpeningSegments,
   codeLessonBeatPlan,
   codeLessonPromptAddon,
+  dsaOpeningPointIds,
+  dsaOpeningPromptAddon,
   getMockCodeLessonPlan,
   type CodeLessonFigureFrame,
   type SubjectFamiliarity,
@@ -149,6 +152,15 @@ const FRAMES: CodeLessonFigureFrame[] = [
     assert(kinds[kinds.length - 1] === "close", "every lesson closes on the complexity");
     assert(kinds.includes("trace_through"), "every lesson runs the finished code on the example");
   }
+  const openingBrief = codeLessonBeatPlan({
+    frames: FRAMES.map((frame) => ({ id: frame.id, caption: frame.caption })),
+    blockIds: BLOCK_IDS,
+    familiarity: "normal",
+  })[0]!.brief;
+  assert(
+    /not on the board yet/i.test(openingBrief),
+    "the opening brief must not talk about a figure that is not there yet",
+  );
 
   const beats = codeLessonBeatPlan({
     frames: FRAMES.map((frame) => ({ id: frame.id, caption: frame.caption })),
@@ -194,6 +206,10 @@ const FRAMES: CodeLessonFigureFrame[] = [
     "handwriting must stay banned",
   );
   assert(
+    /not on the board yet|neither is the code editor/i.test(CODE_LESSON_SYSTEM_PROMPT),
+    "the opening must not assume the figure and editor are already up",
+  );
+  assert(
     /never mention a planner|never mention a runtime|planner, a runtime/i.test(CODE_LESSON_SYSTEM_PROMPT),
     "the machinery words that leaked into speech must be banned by name",
   );
@@ -201,6 +217,47 @@ const FRAMES: CodeLessonFigureFrame[] = [
     !/23-37 steps|23 to 37/.test(prompt),
     "the fixed step budget is gone: padding to a step count is what caused the repetition",
   );
+}
+
+{
+  const addon = codeLessonPromptAddon(PLAN, { frames: FRAMES, familiarity: "normal" });
+  assert(
+    /not on the board yet/i.test(addon),
+    "frame 1 must not be described as already drawn when the lesson starts",
+  );
+  assert(
+    /already holds the problem in ink/i.test(addon),
+    "the addon must say the problem is already written",
+  );
+}
+
+{
+  const opening = buildDsaOpeningSegments({
+    title: "Two Sum",
+    question:
+      "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nExample 1:\nInput: nums = [2,7,11,15], target = 9",
+    example: { nums: [2, 7, 11, 15], target: 9 },
+  });
+  assert(opening.length >= 2, "the opening writes the title and the example");
+  assert(
+    opening.every((segment) => segment.command?.type === "WRITE"),
+    "the opening is handwritten notes, not a dumped figure",
+  );
+  assert(
+    /two numbers|indices/i.test(opening[0]!.narration),
+    `the first spoken line must say what the question wants, got "${opening[0]!.narration}"`,
+  );
+  assert(
+    opening.some((segment) => /2,\s*7,\s*11,\s*15/.test(segment.command?.text ?? "")),
+    "the example array must be on the board",
+  );
+  assert(
+    !/example 1|output/i.test(opening.map((segment) => segment.command?.text ?? "").join(" ")),
+    "the opening must not copy the Example/Output block onto the board",
+  );
+  const ids = dsaOpeningPointIds(opening.length);
+  assert(ids[0] === "w1" && ids.length === opening.length, "opening POINT ids match the written rows");
+  assert(/not on the board yet/i.test(dsaOpeningPromptAddon(true)), "the addon tells the tutor the figure is delayed");
 }
 
 console.log(

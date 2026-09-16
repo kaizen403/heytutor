@@ -5,7 +5,7 @@ import { SOLARIZED_CHROME } from "./lib/code-lesson/solarizedEditor";
 
 export const BOARD_WIDTH = DS.Canvas.width;
 export const BOARD_HEIGHT = DS.Canvas.height;
-export const WHITEBOARD_COLOR = "#FFFFFF";
+export const WHITEBOARD_COLOR = DS.Colors.whiteboard;
 export const PAGE_GUTTER_X = 10;
 export const PAGE_GUTTER_Y = 6;
 export const NOTES_CHAT_RAIL_WIDTH = 380;
@@ -15,7 +15,11 @@ export const NOTES_CHAT_RAIL_WIDTH = 380;
 export const MAX_LLM_CONTINUATIONS = 2;
 export const STREAM_SEGMENTS_LIVE = true;
 
-/** Empty-board prompts. Cap is 5: a sixth card forces a scroll, and a second column clips. */
+/**
+ * Empty-board prompts. Cap is 5: a sixth card forces a scroll, and a second
+ * column clips. Each card is a different JEE chapter — two from the same
+ * unit made the stack look like a resistors-and-mirrors demo.
+ */
 export const LANDING_SUGGESTIONS: CanvasLandingSuggestion[] = [
   {
     topic: "Projectiles",
@@ -23,24 +27,24 @@ export const LANDING_SUGGESTIONS: CanvasLandingSuggestion[] = [
       "A ball is thrown at 20 m/s at 30° above the horizontal. Find the maximum height and the range.",
   },
   {
+    topic: "Inclined planes",
+    question:
+      "A 5 kg block rests on a rough 37° incline with μ = 0.4. Draw the free-body diagram and explain how friction sets the acceleration.",
+  },
+  {
     topic: "Resistors",
     question:
       "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint.",
   },
   {
+    topic: "Electric charges",
+    question:
+      "Two point charges +4 μC and −1 μC are 30 cm apart. Find where on the line joining them the electric field is zero.",
+  },
+  {
     topic: "Ray optics",
     question:
       "Concave mirror, f = 15 cm, object at 20 cm. Locate the image and draw the ray diagram.",
-  },
-  {
-    topic: "Resistors",
-    question:
-      "Explain why three equal resistors have a larger equivalent resistance in series than in parallel.",
-  },
-  {
-    topic: "Ray optics",
-    question:
-      "Derive the mirror formula 1/v + 1/u = 1/f and explain what each term means.",
   },
 ];
 
@@ -112,17 +116,17 @@ export const DSA_DIAGRAM_ZONE = {
 /**
  * Live CodeMirror, the typing caret, and the canvas export renderer share
  * these numbers so the pen can fly to the same glyph the editor is about to
- * type. Title-bar height is the Solarized Sublime chrome.
+ * type. Title-bar height is the Solarized tab strip, not a Mac window chrome.
  */
 export const DSA_EDITOR_METRICS = {
   tabHeight: SOLARIZED_CHROME.titleBarHeight,
-  gutterWidth: 40,
+  gutterWidth: 36,
   codeLeftPadding: 12,
   codeTopPadding: 6,
-  fontSize: 13,
-  lineHeight: 20,
-  /** Approximate advance of Menlo / Consolas at 13px. */
-  charWidth: 7.8,
+  fontSize: 12,
+  lineHeight: 18,
+  /** Approximate advance of Menlo / Consolas at 12px. */
+  charWidth: 7.2,
 } as const;
 
 /** Board-space point of the editor caret after `revealedText` has been typed. */

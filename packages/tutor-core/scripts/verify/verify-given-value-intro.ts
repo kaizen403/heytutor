@@ -66,7 +66,7 @@ const conceptual = collectQuestionGivens("Explain the photoelectric effect.");
 assert(conceptual.length === 0, "a concept question with no values must not invent givens");
 assert(buildGivenValueSegments("Explain the photoelectric effect.").length === 0, "concept questions must skip the given opener");
 
-assert(givenValuesPromptAddon(true).includes("already wrote the given"), "teaching must be told not to rewrite givens");
+assert(givenValuesPromptAddon(true).includes("wrote the given quantities"), "teaching must be told not to rewrite givens");
 assert(
   givenValuesPromptAddon(true).includes("general formula"),
   "teaching must be told to write the general formula before substitution",

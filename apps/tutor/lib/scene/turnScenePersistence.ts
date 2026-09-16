@@ -30,6 +30,7 @@ import { codeLessonBlockById, type CodeLessonPlan } from "@heytutor/tutor-core";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import { DSA_DIAGRAM_ZONE } from "@/features/tutor-session/constants";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
+import { boardContinuationOf, type BoardContinuation } from "@/lib/boards/boardContinuation";
 
 export interface SubmittedTurnSegment {
   orderIndex: number;
@@ -54,8 +55,13 @@ export interface SubmittedTurnSceneMetadata {
  * Scene artifacts as persisted for a turn. DSA turns additionally carry the
  * validated CodeLessonPlan so restored boards can rebuild the code panel and
  * type-along practice; it rides the same JSON column as the scene artifacts.
+ * A doubt answered on the lesson's page carries the board continuation marker
+ * there too, so replay and restore keep that page through it.
  */
-export type PersistedSceneArtifacts = SceneArtifactsV3 & { codeLesson?: CodeLessonPlan };
+export type PersistedSceneArtifacts = SceneArtifactsV3 & {
+  codeLesson?: CodeLessonPlan;
+  boardContinuation?: BoardContinuation;
+};
 
 export interface CanonicalTurnSceneMetadata {
   sceneDocument: SceneDocument | null;
@@ -103,7 +109,11 @@ export async function canonicalizeTurnSceneMetadata(
     const retryRequired = metadata.visualStatus === "retry_required";
     const plan = validatedOptionalTurnPlan(metadata.sceneArtifacts, question);
     const degradation = validatedDegradation(metadata.sceneArtifacts);
-    const baseArtifacts = retryRequired || degradation || codeLesson
+    // A doubt is saved text-only, and without this its marker went with the
+    // rest of the artifacts: replay and restore then treated it as a page of
+    // its own and dropped the lesson's figure under it.
+    const continuation = boardContinuationOf(metadata.sceneArtifacts);
+    const baseArtifacts = retryRequired || degradation || codeLesson || continuation
       ? minimalFailureArtifacts(
           plan,
           retryRequired ? "retry_required" : "text_only",
@@ -118,7 +128,11 @@ export async function canonicalizeTurnSceneMetadata(
         validationReport: null,
         visualStatus: retryRequired ? "retry_required" : "text_only",
         sceneArtifacts: baseArtifacts
-          ? { ...baseArtifacts, ...(codeLesson ? { codeLesson } : {}) }
+          ? {
+              ...baseArtifacts,
+              ...(codeLesson ? { codeLesson } : {}),
+              ...(continuation ? { boardContinuation: continuation } : {}),
+            }
           : null,
         segments: teachingCommands.segments,
       },

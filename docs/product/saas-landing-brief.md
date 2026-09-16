@@ -260,18 +260,19 @@ ELEVENLABS_VOICE_ID=...    # ElevenLabs voice selection
 - TTS integration with ElevenLabs + browser fallback
 - Audio ↔ drawing synchronization
 - Conversation history (10 turns)
+- Student Auth.js accounts (Google / magic link), onboarding, library, progress
 - Mock/demo mode without API keys
 - Response bubble showing current narration segment
 - Warm design system with entrance animations
 
 ### 🚧 Not yet built (SaaS gaps)
 
-- User accounts / authentication
+- Credits / billing / Stripe checkout
 - Billing / subscriptions (Stripe, etc.)
 - Usage limits / quotas per plan
 - Landing page (separate from app)
 - Pricing page
-- Onboarding flow
+- Parent / school dashboards
 - Analytics / conversion tracking
 - Team / classroom features
 - Subject expansion beyond math MVP

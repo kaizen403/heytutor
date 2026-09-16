@@ -15,16 +15,16 @@ flowchart TB
   admin --> session
 
   subgraph deploy
-    ui[Vercel UI]
-    api[Azure API + WS]
-    ui -->|"/api"| api
-    api --- pg[(PG)]
-    api --- r2[(R2)]
-    api --- fw[Fireworks]
-    api --- el[ElevenLabs]
-    api --- lf[Langfuse]
+    landing[Vercel landing]
+    ec2[EC2 tutor + WS]
+    landing --> ec2
+    ec2 --- pg[(hosted PG)]
+    ec2 --- s3[(S3)]
+    ec2 --- fw[Fireworks]
+    ec2 --- el[ElevenLabs]
+    ec2 --- lf[Langfuse]
   end
-  session --> ui
+  session --> ec2
 
   subgraph turn
     Q[question] --> Plan[TurnPlanV3]

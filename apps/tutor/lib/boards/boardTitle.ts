@@ -178,6 +178,23 @@ export function finalizeBoardTitle(question: string, llmRaw?: string): string {
   return deriveBoardTitleFromQuestion(question);
 }
 
+/**
+ * Whether this ask should name the board. An abandoned first question can
+ * leave a title on a board that still has no persisted turns; the next ask
+ * on that empty board must rename it, or the chrome keeps naming a lesson
+ * that never saved.
+ */
+export function boardNeedsGeneratedTitle(input: {
+  isDraft: boolean;
+  title: string | undefined;
+  persistedTurnCount: number;
+}): boolean {
+  if (input.isDraft) return true;
+  if (input.persistedTurnCount === 0) return true;
+  const title = input.title?.trim().toLowerCase() ?? "";
+  return title.length === 0 || title === "new board";
+}
+
 export const BOARD_TITLE_SYSTEM_PROMPT = [
   "You name tutoring whiteboard sessions.",
   "Output a short board title (3-7 words) that says what this lesson is about — the problem type or topic in the student's question.",

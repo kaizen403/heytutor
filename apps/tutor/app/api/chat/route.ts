@@ -12,7 +12,15 @@ import {
   startTurnTrace,
   type TurnTrace,
 } from "@/lib/obs/langfuse";
+import {
+  chatGenerationName,
+  readChatTraceHeaders,
+  resolveChatGenerationKind,
+  resolveTurnTraceInput,
+  shouldUpdateParentTraceOutput,
+} from "@/lib/obs/chatTrace";
 import { ensureUser, getUserId } from "@/lib/auth";
+import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
 import {
   fetchPlannerCompletion,
   resolvePlannerMaxTokens,
@@ -138,6 +146,7 @@ async function finalizeMockTrace(
     usageDetails: { input: 0, output: 0, total: 0 },
     metadata: { mock: true },
     mock: true,
+    updateTrace: true,
   });
 
   flushInBackground();
@@ -184,6 +193,7 @@ function finalizeMockPlannerTrace(
     usageDetails: { input: 0, output: 0, total: 0 },
     metadata: { mock: true, planner: true, scene_planner_version: 2 },
     mock: true,
+    updateTrace: false,
   });
   flushInBackground();
   return Response.json(
@@ -203,6 +213,7 @@ function finalizeMockCodeLessonTrace(
     usageDetails: { input: 0, output: 0, total: 0 },
     metadata: { mock: true, planner: true, code_lesson_version: 1 },
     mock: true,
+    updateTrace: false,
   });
   flushInBackground();
   return Response.json(
@@ -234,6 +245,7 @@ function finalizeMockTurnPlannerTrace(
     usageDetails: { input: 0, output: 0, total: 0 },
     metadata: { mock: true, planner: true, turn_planner_version: 3 },
     mock: true,
+    updateTrace: false,
   });
   flushInBackground();
   return Response.json(
@@ -264,6 +276,7 @@ function finalizeMockProblemIRTrace(
     usageDetails: { input: 0, output: 0, total: 0 },
     metadata: { mock: true, planner: true, problem_ir_version: 1 },
     mock: true,
+    updateTrace: false,
   });
   flushInBackground();
   return Response.json(
@@ -317,6 +330,7 @@ function createTracingTransformStream(
   turnTrace: TurnTrace | null,
   mock: boolean,
   requestStartedAt: number,
+  updateTrace: boolean,
 ): TransformStream<Uint8Array, Uint8Array> {
   const decoder = new TextDecoder();
   let bufferedText = "";
@@ -431,6 +445,7 @@ function createTracingTransformStream(
           content_chars: accumulatedOutput.length,
         },
         mock,
+        updateTrace,
       });
 
       flushInBackground();
@@ -549,6 +564,9 @@ async function handlePlannerRequest({
           planner_lane: plannerLane,
           planner_attempts: transport.attemptCount,
         },
+        model: transport.model,
+        updateTrace: false,
+        level: "ERROR",
       });
       flushInBackground();
       return new Response(errorBody, {
@@ -567,33 +585,6 @@ async function handlePlannerRequest({
       };
       const content = parsedResponse.choices?.[0]?.message?.content ?? "";
       const reasoning = parsedResponse.choices?.[0]?.message?.reasoning_content ?? "";
-      // #region agent log
-      if (semanticSceneV2 && !turnPlanV3 && !problemIRV1) {
-        try {
-          const parsedScene = JSON.parse(content) as {
-            constructions?: Array<{ operator?: string; inputs?: Record<string, unknown> }>;
-            assertions?: Array<{ id?: string; predicate?: string; severity?: string; entities?: string[] }>;
-          };
-          const { appendFileSync } = await import("node:fs");
-          appendFileSync("/Users/kaizen/heytutor/.cursor/debug-e9a5f5.log", `${JSON.stringify({
-            sessionId: "e9a5f5",
-            runId: "post-fix",
-            hypothesisId: "H1",
-            location: "chat/route.ts:planner",
-            message: "scene planner output",
-            data: {
-              plannerLane,
-              operators: (parsedScene.constructions ?? []).map((c) => c.operator ?? ""),
-              assertionSeverities: parsedScene.assertions ?? [],
-              hasSolidProjection: (parsedScene.constructions ?? []).some((c) => c.operator === "solid_projection"),
-            },
-            timestamp: Date.now(),
-          })}\n`);
-        } catch {
-          // ignore malformed planner JSON in debug capture
-        }
-      }
-      // #endregion
       endLlmGeneration(turnTrace, {
         output: content,
         usageDetails: buildUsageDetails(parsedResponse.usage as FireworksUsage | undefined),
@@ -609,9 +600,16 @@ async function handlePlannerRequest({
           planner_lane: plannerLane,
           planner_attempts: transport.attemptCount,
         },
+        model: transport.model,
+        updateTrace: false,
       });
     } catch {
-      // Still return the body even if tracing fails.
+      endLlmGeneration(turnTrace, {
+        output: jsonBody.slice(0, 2_000),
+        metadata: { error: true, planner: true, reason: "unparseable_response" },
+        updateTrace: false,
+        level: "WARNING",
+      });
     }
     flushInBackground();
 
@@ -626,8 +624,17 @@ async function handlePlannerRequest({
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "planner proxy error";
+    const aborted =
+      (error instanceof DOMException && error.name === "AbortError") ||
+      signal.aborted ||
+      (error instanceof Error && /abort|deadline|timeout/i.test(error.message));
     tutorDebug("planner", "proxy error", { message, elapsed_ms: Date.now() - requestStartedAt });
-    endLlmGeneration(turnTrace, { output: message, metadata: { error: true, planner: true } });
+    endLlmGeneration(turnTrace, {
+      output: message,
+      metadata: { error: true, planner: true, aborted },
+      updateTrace: false,
+      level: aborted ? "WARNING" : "ERROR",
+    });
     flushInBackground();
     return Response.json(
       { error: message },
@@ -661,17 +668,34 @@ export async function POST(request: Request): Promise<Response> {
   const rawBody = await request.text();
   const sessionId = request.headers.get("x-session-id") ?? undefined;
   const userInput = readPromptFromBody(rawBody);
-  const traceId = genTraceId();
+  const { traceId: incomingTraceId, question } = readChatTraceHeaders(request.headers);
+  const traceId = incomingTraceId ?? genTraceId();
+  const attach = Boolean(incomingTraceId);
+  const kind = resolveChatGenerationKind(request.headers);
+  const fastMode = parseFastModeHeader(request.headers.get("x-heytutor-fast-mode"));
   const apiKey = process.env.FIREWORKS_API_KEY;
   const mock = !apiKey;
-  const turnTrace = startTurnTrace({ sessionId, input: userInput, traceId, mock });
+  const serverModel = kind === "teaching"
+    ? resolveTeachingModel(process.env, { fastMode })
+    : resolveFireworksModel({ fastMode });
+  const turnTrace = startTurnTrace({
+    sessionId,
+    input: resolveTurnTraceInput({ kind, attach, question, userInput }),
+    generationInput: userInput,
+    traceId,
+    mock,
+    model: serverModel,
+    generationName: chatGenerationName(kind),
+  });
 
   tutorDebug("chat", "POST /api/chat", {
     trace_id: traceId,
     session_id: sessionId ?? null,
     mock,
-    question_preview: userInput.slice(0, 120),
-    question_chars: userInput.length,
+    generation: chatGenerationName(kind),
+    attach,
+    question_preview: (question ?? userInput).slice(0, 120),
+    question_chars: (question ?? userInput).length,
   });
 
   if (mock) {
@@ -715,7 +739,7 @@ export async function POST(request: Request): Promise<Response> {
           ? request.headers.get("x-turn-planner-lane")
           : request.headers.get("x-scene-planner-lane")
       ) === "alternate" ? "alternate" : "primary",
-      fastMode: parseFastModeHeader(request.headers.get("x-heytutor-fast-mode")),
+      fastMode,
       deadlineMs: Math.min(
         60_000,
         Math.max(
@@ -727,8 +751,6 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  const fastMode = parseFastModeHeader(request.headers.get("x-heytutor-fast-mode"));
-  const serverModel = resolveTeachingModel(process.env, { fastMode });
   const reasoningMode = parseReasoningMode(process.env.TUTOR_REASONING_MODE);
   const teachingPass = request.headers.get("x-heytutor-teaching-pass");
   const hasAuthoritativePlan = teachingPass === "planned";
@@ -739,6 +761,7 @@ export async function POST(request: Request): Promise<Response> {
     hasAuthoritativePlan,
     mode: reasoningMode,
     codeLesson: teachingPass === "code-lesson",
+    afterReasoningOnly: request.headers.get("x-heytutor-reasoning-retry") === "1",
   });
   const bodyToSend = injectStreamOptions(rawBody, serverModel, reasoningEffort, isCodeLessonTurn);
 
@@ -803,6 +826,8 @@ export async function POST(request: Request): Promise<Response> {
       endLlmGeneration(turnTrace, {
         output: errorBody,
         metadata: { error: true, status: response.status },
+        updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
+        level: "ERROR",
       });
       flushInBackground();
 
@@ -819,6 +844,8 @@ export async function POST(request: Request): Promise<Response> {
       endLlmGeneration(turnTrace, {
         output: "",
         metadata: { error: true, reason: "empty_body" },
+        updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
+        level: "ERROR",
       });
       flushInBackground();
 
@@ -829,7 +856,12 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const tracedBody = response.body.pipeThrough(
-      createTracingTransformStream(turnTrace, false, upstreamStartedAt),
+      createTracingTransformStream(
+        turnTrace,
+        false,
+        upstreamStartedAt,
+        shouldUpdateParentTraceOutput(kind, userInput),
+      ),
     );
 
     tutorDebug("chat", "streaming response to client", {
@@ -856,6 +888,8 @@ export async function POST(request: Request): Promise<Response> {
     endLlmGeneration(turnTrace, {
       output: message,
       metadata: { error: true },
+      updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
+      level: "ERROR",
     });
     flushInBackground();
 

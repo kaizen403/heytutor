@@ -1,6 +1,7 @@
 import type { DrawCommand } from "@heytutor/drawing";
 import {
   capSceneBatchDurations,
+  isCuedSceneBatch,
   catchUpWriteScheduleOffsets,
   createScheduledWriteClock,
   getBestWriteCharScheduleMs,
@@ -95,7 +96,9 @@ async function drawExportCue(options: {
     getCommandDrawDurationMs(command, commandPaces[index]),
   );
   const sceneBatch = commandPaces.filter((pace) => pace === "scene").length >= 4;
-  const sceneDurations = sceneBatch ? capSceneBatchDurations(pacedDurations) : null;
+  const sceneDurations = sceneBatch
+    ? capSceneBatchDurations(pacedDurations, undefined, { cued: isCuedSceneBatch(segmentCommands) })
+    : null;
   const totalDrawWeight = pacedDurations.reduce((sum, ms) => sum + ms, 0);
   const durationMs = cue.durationMs;
   const trustedDiagramGeometry =
@@ -131,7 +134,7 @@ async function drawExportCue(options: {
     if (writePlan && writePlan.offsetsMs.length > 0) {
       const audioPosAtScheduleMs = Math.round(getDrawClockMs());
       const effectiveOffsets = catchUpWriteScheduleOffsets(
-        leadWriteScheduleToSpeech(writePlan.offsetsMs, audioPosAtScheduleMs),
+        leadWriteScheduleToSpeech(writePlan.offsetsMs, audioPosAtScheduleMs, writePlan.maxInitialWaitMs),
         audioPosAtScheduleMs,
       );
       await executeCommand(command, {

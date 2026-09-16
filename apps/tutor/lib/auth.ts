@@ -1,14 +1,64 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { auth } from "@/auth";
+import { isAuthDisabled } from "@/lib/authDisabled";
 import { HTUTOR_UID_COOKIE } from "@/lib/cookies";
 import { prisma } from "@/lib/db/prisma";
 
 const pendingUserEnsures = new Map<string, Promise<void>>();
 
-export async function getUserId(): Promise<string | null> {
+export async function getSessionUserId(): Promise<string | null> {
+  const session = await auth();
+  return session?.user?.id ?? null;
+}
+
+export async function getAnonymousCookieId(): Promise<string | null> {
   const cookieStore = await cookies();
-  return cookieStore.get(HTUTOR_UID_COOKIE)?.value ?? null;
+  const existing = cookieStore.get(HTUTOR_UID_COOKIE)?.value;
+  if (existing) return existing;
+  if (!isAuthDisabled()) return null;
+  const minted = crypto.randomUUID();
+  try {
+    cookieStore.set(HTUTOR_UID_COOKIE, minted, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365 * 10,
+    });
+  } catch {
+    // Server Components cannot set cookies; middleware already minted on the response.
+  }
+  return minted;
+}
+
+/**
+ * Signed-in student id, or the embed/demo cookie identity when there is no
+ * Auth.js session. While auth is off for testing, skip Auth.js entirely so a
+ * leftover session cookie cannot crash the request.
+ */
+export async function getUserId(): Promise<string | null> {
+  if (isAuthDisabled()) {
+    return getAnonymousCookieId();
+  }
+  return (await getSessionUserId()) ?? (await getAnonymousCookieId());
+}
+
+export async function requireSessionUserId(): Promise<string | NextResponse> {
+  if (isAuthDisabled()) {
+    const userId = await getUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+    await ensureUser(userId);
+    return userId;
+  }
+  const userId = await getSessionUserId();
+  if (!userId) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  return userId;
 }
 
 export async function ensureUser(userId: string): Promise<void> {
@@ -28,6 +78,11 @@ async function ensureUserOnce(userId: string): Promise<void> {
       create: { id: userId },
       update: {},
     });
+    await prisma.userSettings.upsert({
+      where: { userId },
+      create: { userId },
+      update: {},
+    });
   } catch (error) {
     if (
       !(error instanceof Prisma.PrismaClientKnownRequestError) ||
@@ -35,9 +90,6 @@ async function ensureUserOnce(userId: string): Promise<void> {
     ) {
       throw error;
     }
-    // Concurrent first requests can both observe a missing anonymous user.
-    // The winning insert is sufficient; verify it before treating the unique
-    // conflict as the successful idempotent outcome.
     const existing = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true },

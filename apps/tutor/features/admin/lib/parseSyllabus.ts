@@ -1,4 +1,13 @@
-export type SyllabusSubject = "physics" | "maths";
+export type SyllabusSubject = "physics" | "maths" | "chemistry";
+
+/** Every subject the admin tree carries, in toggle order. */
+export const SYLLABUS_SUBJECTS: readonly SyllabusSubject[] = ["physics", "maths", "chemistry"];
+
+export const SYLLABUS_SUBJECT_LABEL: Record<SyllabusSubject, string> = {
+  physics: "Physics",
+  maths: "Mathematics",
+  chemistry: "Chemistry",
+};
 
 export interface SyllabusItem {
   id: string;
@@ -22,6 +31,7 @@ export interface SyllabusTree {
   subjects: {
     physics: SyllabusUnit[];
     maths: SyllabusUnit[];
+    chemistry: SyllabusUnit[];
   };
 }
 
@@ -60,7 +70,7 @@ const UNIT_TAGS: Record<string, string[]> = {
 };
 
 function isSyllabusSubject(value: string): value is SyllabusSubject {
-  return value === "physics" || value === "maths";
+  return value === "physics" || value === "maths" || value === "chemistry";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -119,7 +129,7 @@ function readTaxonomy(value: unknown): SyllabusTaxonomy {
 export function syllabusTreeFromTaxonomy(raw: unknown): SyllabusTree {
   const taxonomy = readTaxonomy(raw);
   const tree: SyllabusTree = {
-    subjects: { physics: [], maths: [] },
+    subjects: { physics: [], maths: [], chemistry: [] },
   };
 
   for (const subject of taxonomy.subjects) {
@@ -154,15 +164,16 @@ export function syllabusTreeFromTaxonomy(raw: unknown): SyllabusTree {
     }
   }
 
-  if (tree.subjects.physics.length === 0 || tree.subjects.maths.length === 0) {
-    throw new Error("syllabus taxonomy is missing physics or maths units");
+  const missing = SYLLABUS_SUBJECTS.filter((subject) => tree.subjects[subject].length === 0);
+  if (missing.length > 0) {
+    throw new Error(`syllabus taxonomy is missing ${missing.join(", ")} units`);
   }
 
   return tree;
 }
 
 export function flattenItems(tree: SyllabusTree): SyllabusItem[] {
-  return [...tree.subjects.physics, ...tree.subjects.maths].flatMap((unit) => unit.items);
+  return SYLLABUS_SUBJECTS.flatMap((subject) => tree.subjects[subject]).flatMap((unit) => unit.items);
 }
 
 export function countItems(tree: SyllabusTree): number {

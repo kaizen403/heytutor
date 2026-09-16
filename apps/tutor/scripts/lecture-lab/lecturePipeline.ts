@@ -10,6 +10,7 @@
  * module the live hook uses. What it drops is presentation only: Konva, TTS,
  * persistence, and cancellation.
  */
+import { renderSceneSvg } from "../../../../packages/scene-engine/scripts/lib/renderSceneSvg";
 import {
   parseDrawingCommands,
   resolveVerifiedDiagramFocusTargets,
@@ -128,6 +129,8 @@ export interface LectureRun {
     assertionCount: number;
     candidateErrorCodes: string[];
     degradationReason: string | null;
+    /** The committed board figure as SVG, so a reviewer sees what the student saw. */
+    svg: string | null;
   };
   lessonBudget: { scope: string; minSteps: number; maxSteps: number; boardPages: number };
   givenRows: string[];
@@ -217,6 +220,7 @@ export async function runLecture(
   const familiarity = options.familiarity ?? "normal";
   const fastMode = options.fastMode ?? true;
   const plannerUrl = `${options.origin}/api/chat`;
+  const traceId = crypto.randomUUID();
   const startedAt = Date.now();
   const dsaClassification = classifyDsaQuestion(question);
 
@@ -251,6 +255,7 @@ export async function runLecture(
       assertionCount: 0,
       candidateErrorCodes: [],
       degradationReason: null,
+      svg: null,
     },
     lessonBudget: { scope: "", minSteps: 0, maxSteps: 0, boardPages: 0 },
     givenRows: [],
@@ -282,6 +287,7 @@ export async function runLecture(
       proxyUrl: plannerUrl,
       timeoutMs: TURN_PLAN_DEADLINE_MS,
       fastMode,
+      traceId,
     });
     let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
     if (plannedTurn) {
@@ -293,6 +299,7 @@ export async function runLecture(
         proxyUrl: plannerUrl,
         timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, remainingAuthorityMs),
         fastMode,
+        traceId,
       });
     }
     turnPlan = selectBestAvailableTurnPlan(
@@ -437,6 +444,7 @@ export async function runLecture(
           timeoutMs: remainingPlannerMs,
           conversationContext: planContext,
           fastMode,
+          traceId,
           ...(sceneCapabilities.families.length > 0
             ? {
                 constructionOperators: sceneCapabilities.constructionOperators,
@@ -623,6 +631,10 @@ export async function runLecture(
       }
       run.diagram.primitiveCount = renderScene.primitives.length;
       run.diagram.assertionCount = sceneDocument.assertions.length;
+      run.diagram.svg = renderSceneSvg(renderScene, {
+        title: question.slice(0, 110),
+        subtitle: `family=${run.diagram.family ?? "?"} tier=${run.diagram.tier ?? "?"} labels=${run.diagram.renderedLabels.join(" | ")}`,
+      });
     }
 
     const teachingPrompt = buildTurnTeachingPrompt({
@@ -672,6 +684,9 @@ export async function runLecture(
             turnPlan.lawIds.length > 0,
         ),
         fastMode,
+        noReasoning: reasoningOnlyRetry,
+        traceId,
+        question,
       });
       fullResponse += streamResult.text;
       run.teaching.contentChars += streamResult.streamStats?.contentChars ?? 0;

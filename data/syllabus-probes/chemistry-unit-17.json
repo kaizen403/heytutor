@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|17",
+  "questions": [
+    {
+      "id": "chemistry|17|alcohols-identification-and-dehydration|easy",
+      "topicId": "chemistry|17|alcohols-identification-and-dehydration",
+      "difficulty": "easy",
+      "question": "How does the Lucas test distinguish between propan-1-ol, propan-2-ol and 2-methylpropan-2-ol? State what is observed with each and why.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|17|alcohols-identification-and-dehydration|medium",
+      "topicId": "chemistry|17|alcohols-identification-and-dehydration",
+      "difficulty": "medium",
+      "question": "Write the mechanism of the acid catalysed dehydration of ethanol to ethene with conc. H2SO4 at 443 K. Why does 2-methylpropan-2-ol dehydrate much more easily than ethanol?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|17|phenols-acidity-and-reactions|easy",
+      "topicId": "chemistry|17|phenols-acidity-and-reactions",
+      "difficulty": "easy",
+      "question": "Arrange phenol, o-nitrophenol, p-nitrophenol, p-cresol and ethanol in increasing order of acidic strength, and explain the effect of the nitro group on the acidity of phenol.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|17|phenols-acidity-and-reactions|medium",
+      "topicId": "chemistry|17|phenols-acidity-and-reactions",
+      "difficulty": "medium",
+      "question": "Match each set of reactants in List I with the product in List II. List I: (A) phenol, Zn dust, heat (B) phenol, CHCl3, NaOH, then HCl (C) phenol, CO2, NaOH, then HCl (D) phenol, conc. HNO3. List II: (I) salicylaldehyde (II) salicylic acid (III) benzene (IV) picric acid.",
+      "source": {
+        "questionId": "q_dce65f70a048681095993b2dd9f1892d7550112040521fb9cf72f2899dadc49d",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-02-01-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|17|ethers-structure-and-reactions|easy",
+      "topicId": "chemistry|17|ethers-structure-and-reactions",
+      "difficulty": "easy",
+      "question": "What are the products when anisole (methoxybenzene) is heated with HI? Explain why phenol and methyl iodide are formed rather than iodobenzene and methanol.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|17|carbonyl-group-and-nucleophilic-addition|medium",
+      "topicId": "chemistry|17|carbonyl-group-and-nucleophilic-addition",
+      "difficulty": "medium",
+      "question": "Arrange HCHO, CH3CHO, CH3COCH3 and C6H5COCH3 in decreasing order of reactivity towards nucleophilic addition of HCN, and explain the order using electronic and steric effects.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|17|preparation-of-aldehydes-and-ketones|easy",
+      "topicId": "chemistry|17|preparation-of-aldehydes-and-ketones",
+      "difficulty": "easy",
+      "question": "Name the reaction and give the reagents used to convert (a) benzoyl chloride to benzaldehyde, (b) toluene to benzaldehyde through a chromium complex, and (c) benzene to benzaldehyde with CO and HCl.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|17|oxidation-reduction-and-tests-for-carbonyls|easy",
+      "topicId": "chemistry|17|oxidation-reduction-and-tests-for-carbonyls",
+      "difficulty": "easy",
+      "question": "How many of the following compounds give a positive Fehling's test? Benzaldehyde, acetaldehyde, acetone, acetophenone, methanal, 4-nitrobenzaldehyde and cyclohexanecarbaldehyde.",
+      "source": {
+        "questionId": "q_14fb5b3013af87c8d8a682bd54b67e64feef77c19a51617bc524271a50d92835",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-29-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|17|alpha-hydrogen-aldol-cannizzaro-and-haloform|medium",
+      "topicId": "chemistry|17|alpha-hydrogen-aldol-cannizzaro-and-haloform",
+      "difficulty": "medium",
+      "question": "How many of the following compounds give a positive iodoform reaction? (a) 1-phenylbutan-2-one (b) 2-methylbutan-2-ol (c) 3-methylbutan-2-ol (d) 1-phenylethanol (e) 3,3-dimethylbutan-2-one (f) 1-phenylpropan-2-ol",
+      "source": {
+        "questionId": "q_2e4e2ac5f9fdee625e115fd7a030cec7bb8761acf6a64f74d128c231da822562",
+        "exam": "JEE Main",
+        "year": 2023,
+        "documentId": "jee-main-2023-04-06-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|17|alpha-hydrogen-aldol-cannizzaro-and-haloform|hard",
+      "topicId": "chemistry|17|alpha-hydrogen-aldol-cannizzaro-and-haloform",
+      "difficulty": "hard",
+      "question": "Complete reaction of acetaldehyde with excess formaldehyde, on heating with conc. NaOH solution, gives P and Q. Compound P does not give Tollens' test, whereas Q on acidification gives a positive Tollens' test. Treatment of P with excess cyclohexanone in the presence of a catalytic amount of p-toluenesulfonic acid gives product R. What is the sum of the number of methylene groups (-CH2-) and oxygen atoms in R?",
+      "source": {
+        "questionId": "q_eda3ae0a20a2230788a1a52768eb33687d100aadef5f870f26f74a33bcabb9ff",
+        "exam": "JEE Advanced",
+        "year": 2024,
+        "documentId": "jee-advanced-2024-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|17|carboxylic-acids-acidic-strength|easy",
+      "topicId": "chemistry|17|carboxylic-acids-acidic-strength",
+      "difficulty": "easy",
+      "question": "The carboxyl functional group (-COOH) is present in (A) picric acid (B) barbituric acid (C) ascorbic acid (D) aspirin",
+      "source": {
+        "questionId": "q_2cd921f1068269f3cf3c74a0ee9e6f0c8a8bb2e2d346176a0a6a381c7d5c3204",
+        "exam": "JEE Advanced",
+        "year": 2012,
+        "documentId": "jee-advanced-2012-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|17|carboxylic-acids-acidic-strength|medium",
+      "topicId": "chemistry|17|carboxylic-acids-acidic-strength",
+      "difficulty": "medium",
+      "question": "Statement I: The esterification of a carboxylic acid with an alcohol is a nucleophilic acyl substitution. Statement II: Electron withdrawing groups in the carboxylic acid increase the rate of the esterification reaction. Choose the correct answer: (A) Both Statement I and Statement II are correct (B) Both Statement I and Statement II are incorrect (C) Statement I is correct but Statement II is incorrect (D) Statement I is incorrect but Statement II is correct",
+      "source": {
+        "questionId": "q_41c7d7b8e4e5c48d918ef866d4c8fbab94627c94c89beadaf656a6117414c3c9",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-29-shift-1"
+      }
+    }
+  ]
+}

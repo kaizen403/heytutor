@@ -26,7 +26,7 @@ export type LectureJob = {
   error?: string;
 };
 
-const SYLLABUS_SLUG_TITLE = /^(?:\[Playground\]\s*)?(physics|maths)\|\d+\|/;
+const SYLLABUS_SLUG_TITLE = /^(?:\[Playground\]\s*)?(physics|maths|chemistry)\|\d+\|/;
 
 export function isSyllabusSlugTitle(title: string): boolean {
   return SYLLABUS_SLUG_TITLE.test(title.trim());

@@ -227,6 +227,20 @@ check("x'' → x double prime", () => {
   assertContains(out, "double prime", "f''(x)");
 });
 
+check("a possessive or a contraction keeps its apostrophe", () => {
+  for (const input of ["Coulomb's law", "Snell's law", "let's start", "the object's distance", "we'll use it"]) {
+    const out = mathToSpeech(input);
+    assertNotContains(out, "prime", input);
+    assert(out.includes("'"), `Expected mathToSpeech("${input}") to keep its apostrophe, got "${out}"`);
+  }
+});
+
+check("a prime on a lone symbol is still a prime", () => {
+  for (const input of ["y' = 2x", "A' is the image", "x'' + x = 0", "θ' = 0"]) {
+    assertContains(mathToSpeech(input), "prime", input);
+  }
+});
+
 check("∇ → del", () => {
   const out = mathToSpeech("∇f");
   assertContains(out, "del", "∇f");

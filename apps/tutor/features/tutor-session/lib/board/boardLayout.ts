@@ -116,6 +116,26 @@ export function registerBoardAnchor(layout: BoardLayoutState, rect: BoardTextRec
   layout.rects.push(rect);
 }
 
+/**
+ * Restore, replay, and lecture export replay stored WRITE coordinates with
+ * `applyLayout: false`. Live paging erases the work column and then reuses the
+ * same y values for the next page; those erases are not in the recording. If
+ * this row would land on ink that is still registered, the caller must wipe
+ * the column first — otherwise every page of a long lesson stacks on the first.
+ */
+export function recordedWorkWriteNeedsPageTurn(
+  layout: BoardLayoutState,
+  rect: BoardTextRect,
+  diagramActive: boolean,
+): boolean {
+  if (rect.x >= DIAGRAM_ZONE.x) return false;
+  return layout.rects.some(
+    (occupied) =>
+      !(diagramActive && occupied.x >= DIAGRAM_ZONE.x) &&
+      textRectsOverlap(rect, occupied),
+  );
+}
+
 const WORK_AREA_MAX_X = 400;
 
 export function withWorkRowIdentity(layout: BoardLayoutState, rect: BoardTextRect): BoardTextRect {
@@ -247,6 +267,70 @@ export function findWorkTextSlot({
   }
 
   return null;
+}
+
+/**
+ * Room left in the work column on this page, counted by asking the slot finder
+ * itself, so the number a doubt is told is the number the board will honour.
+ * `nextRowY` is where the next sequential row lands, or null when the page is
+ * full and the next row turns it.
+ */
+export function workColumnRoom(
+  layout: BoardLayoutState,
+  diagramActive: boolean,
+): { rowsLeft: number; nextRowY: number | null } {
+  const probe: BoardLayoutState = { rects: [...layout.rects], nextY: layout.nextY };
+  const width = workColumnMaxWidth(layout, diagramActive);
+  let rowsLeft = 0;
+  let nextRowY: number | null = null;
+  // A page holds single digits of rows; the cap only guards a malformed layout.
+  while (rowsLeft < 64) {
+    const slot = findWorkTextSlot({
+      layout: probe,
+      requestedX: TEXT_LAYOUT.marginX,
+      requestedY: probe.nextY,
+      width,
+      height: TEXT_LAYOUT.textHeight,
+      diagramActive,
+      sequential: true,
+      runtimeOwnsX: true,
+    });
+    if (!slot) break;
+    if (nextRowY === null) nextRowY = slot.y;
+    rowsLeft += 1;
+    probe.rects.push({ x: slot.x, y: slot.y, width, height: TEXT_LAYOUT.textHeight });
+    probe.nextY = Math.max(probe.nextY, slot.y + TEXT_LAYOUT.lineHeight);
+  }
+  return { rowsLeft, nextRowY };
+}
+
+/** A line written down the left of the page, in the board's own words. */
+export interface WorkColumnRow {
+  /** `w3` for a numbered work row; a heading has none. */
+  workId?: string;
+  text: string;
+  y: number;
+}
+
+/** Everything written down the left of the page, top to bottom. */
+export function workColumnRows(layout: BoardLayoutState): WorkColumnRow[] {
+  return layout.rects
+    .filter((rect) => rect.x < WORK_AREA_MAX_X && (rect.text ?? "").trim().length > 0)
+    .slice()
+    .sort((a, b) => a.y - b.y || a.x - b.x)
+    .map((rect) => {
+      const text = (rect.text ?? "").replace(/\s+/g, " ").trim();
+      return rect.workId ? { workId: rect.workId, text, y: rect.y } : { text, y: rect.y };
+    });
+}
+
+/**
+ * Forget a figure's anchors and keep the rows. An aborted intro takes its
+ * partial figure off the board, but the rows written before it are still
+ * there, and a doubt asked now continues under them.
+ */
+export function dropDiagramRects(layout: BoardLayoutState): void {
+  layout.rects = layout.rects.filter((rect) => rect.x < DIAGRAM_ZONE.x);
 }
 
 export function overlapsWorkArea(rect: BoardTextRect): boolean {

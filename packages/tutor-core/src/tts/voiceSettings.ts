@@ -38,3 +38,54 @@ export const TUTOR_VOICE_SETTINGS = {
  * over-perform and wander off the cloned timbre.
  */
 export const TUTOR_VOICE_STYLE_RANGE = { min: 0.3, max: 0.6 } as const;
+
+export type TutorVoiceSettings = {
+  stability: number;
+  similarity_boost: number;
+  style?: number;
+  use_speaker_boost?: boolean;
+  speed?: number;
+};
+
+/**
+ * How the one opening line of a turn is spoken.
+ *
+ * The body of a lesson is minutes of steady explanation and the dials above
+ * are tuned for exactly that: a voice a student can follow while copying
+ * algebra off a board. An opening is the opposite job. It is one sentence, the
+ * student is not writing anything down yet, and it has to sound like a person
+ * starting rather than a lesson already in progress.
+ *
+ * So it sits at the top of the documented expression range and at a pace close
+ * to the voice's own: `style` at the ceiling of `TUTOR_VOICE_STYLE_RANGE`,
+ * `stability` at its floor (stability is variability inverted, so lower is
+ * more alive), and `speed` back near 1 because nobody is transcribing a
+ * greeting. Everything else is held to the teaching voice so the timbre does
+ * not change between the opening and the first step.
+ */
+export const TUTOR_OPENING_VOICE_SETTINGS = {
+  stability: TUTOR_VOICE_STYLE_RANGE.min,
+  similarity_boost: TUTOR_VOICE_SETTINGS.similarity_boost,
+  style: TUTOR_VOICE_STYLE_RANGE.max,
+  use_speaker_boost: TUTOR_VOICE_SETTINGS.use_speaker_boost,
+  speed: 0.97,
+} as const;
+
+/** The dials for a segment's delivery. Anything unnamed teaches. */
+export function voiceSettingsForDelivery(delivery?: string | null): TutorVoiceSettings {
+  return delivery === "opening" ? TUTOR_OPENING_VOICE_SETTINGS : TUTOR_VOICE_SETTINGS;
+}
+
+/**
+ * Cache identity for a set of dials.
+ *
+ * Generated audio is cached and matched by its spoken text alone, on both the
+ * socket and the HTTP path. Two requests for the same sentence at two
+ * different deliveries are not the same audio, so the delivery has to be part
+ * of what a lookup matches, or an opening line prefetched by the lookahead
+ * comes back in the flat teaching voice.
+ */
+export function voiceSettingsKey(settings?: TutorVoiceSettings | null): string {
+  if (!settings) return "";
+  return `${settings.stability}:${settings.similarity_boost}:${settings.style ?? ""}:${settings.speed ?? ""}`;
+}

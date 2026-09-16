@@ -4,6 +4,7 @@ import type {
   StoredSegment,
   StoredTurn,
 } from "@/lib/boards/boardsClient";
+import { boardContinuationArtifacts } from "@/lib/boards/boardContinuation";
 import { buildReplayTimeline, type ReplayTimeline } from "./replayTimeline";
 
 /**
@@ -37,10 +38,15 @@ const BOARD_EPOCH_CLEAR: DrawCommand = {
  * Segments the in-progress turn has already taught, in replay form. Audio is
  * captured live as raw bytes; `audioUrlFor` hands back a stable object URL per
  * segment so rebuilding the timeline does not mint a new one every tick.
+ *
+ * A doubt answers on the page it was asked on and never drew the CLEAR, so a
+ * turn that continues the board is rebuilt without one: a rewind into it keeps
+ * the lesson's page instead of wiping it.
  */
 export function buildLiveTurnSegments(
   recorded: RecordedSegmentPayload[],
   audioUrlFor: (segment: RecordedSegmentPayload) => string | null,
+  options: { continuesBoard?: boolean } = {},
 ): StoredSegment[] {
   const epoch: StoredSegment = {
     id: "live-epoch",
@@ -52,12 +58,13 @@ export function buildLiveTurnSegments(
     durationMs: 50,
     timings: null,
   };
+  const lead: StoredSegment[] = options.continuesBoard ? [] : [epoch];
 
   return [
-    epoch,
+    ...lead,
     ...recorded.map((segment, index) => ({
       id: `live-seg-${segment.orderIndex}`,
-      orderIndex: index + 1,
+      orderIndex: lead.length + index,
       narration: segment.narration,
       spokenText: segment.spokenText,
       command: segment.command,
@@ -78,6 +85,8 @@ export function buildLectureTimeline(input: {
   liveSegments: RecordedSegmentPayload[];
   liveQuestion: string;
   audioUrlFor: (segment: RecordedSegmentPayload) => string | null;
+  /** The live turn is a doubt answering on the page `liveQuestion` opened. */
+  liveContinuesBoard?: boolean;
 }): { turns: StoredTurn[]; timeline: ReplayTimeline } {
   const turns = [...input.storedTurns];
 
@@ -93,8 +102,14 @@ export function buildLectureTimeline(input: {
       sceneEngineVersion: null,
       validationReport: null,
       visualStatus: null,
-      sceneArtifacts: null,
-      segments: buildLiveTurnSegments(input.liveSegments, input.audioUrlFor),
+      // The marker is what tells the replay engine to keep the page's figure
+      // and code panel through this turn, the same as a saved doubt.
+      sceneArtifacts: input.liveContinuesBoard
+        ? boardContinuationArtifacts(input.liveQuestion)
+        : null,
+      segments: buildLiveTurnSegments(input.liveSegments, input.audioUrlFor, {
+        continuesBoard: input.liveContinuesBoard,
+      }),
     });
   }
 

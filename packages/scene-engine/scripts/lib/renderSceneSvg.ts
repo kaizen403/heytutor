@@ -152,5 +152,5 @@ export function contactSheetSvg(
   }).join("\n");
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${cellWidth * columns}" height="${cellHeight * rows}" viewBox="0 0 ${cellWidth * columns} ${cellHeight * rows}" font-family="ui-sans-serif, system-ui, sans-serif">`
     + `<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>`
-    + `<rect width="100%" height="100%" fill="#FFFFFF"/>${inner}</svg>`;
+    + `<rect width="100%" height="100%" fill="#F6E4C4"/>${inner}</svg>`;
 }

@@ -58,6 +58,9 @@ import {
   promotedLectureFrameStyle,
   promotedLectureScale,
 } from "../../features/admin/lib/headlessRuntime";
+import { parseDrawingCommands } from "@heytutor/drawing";
+import { gradeLecture } from "../lecture-lab/grade";
+import type { LectureRun } from "../lecture-lab/lecturePipeline";
 import { canStartStoredLectureReplay } from "../../features/tutor-session/lib/replay/autoReplay";
 import { isWhiteboardReadyToDraw } from "../../features/tutor-session/lib/board/whiteboardReady";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "../../features/tutor-session/constants";
@@ -687,4 +690,205 @@ const promotedBoard = promotedLectureBoardStyle(liveSlot);
 assert(promotedBoard.width === BOARD_WIDTH, "the promoted recorder must keep the live board size");
 assert(promotedBoard.transform.includes(String(liveScale)), "the promoted scale must match the slot fit");
 
-console.log("verify-lecture-lab: all checks passed");
+// The rubric over the model's own output. A stored run is graded from its raw
+// text, so a fixture is a raw response plus the labels the figure drew; the
+// steps are parsed exactly as `runLecture` parses them.
+function lectureRun(rawText: string, labelByEntity: Record<string, string>): LectureRun {
+  const blocks = [...rawText.matchAll(/\[STEP\]([\s\S]*?)(?:\[\/STEP\]|$)/g)].map((match) => match[1]);
+  const parsedAll = parseDrawingCommands(rawText);
+  return {
+    probeId: "fixture",
+    topicId: "fixture|1|newton",
+    unitId: "fixture|1",
+    difficulty: "easy",
+    question: "A 2 kg block is pushed by 10 N. Find the acceleration.",
+    familiarity: "normal",
+    startedAt: "",
+    timings: { planMs: 0, teachMs: 0, totalMs: 0 },
+    error: null,
+    isDsa: false,
+    plan: null,
+    solver: null,
+    diagram: {
+      committed: true,
+      declinedUnreadable: false,
+      tier: "exact_verified",
+      nonMetric: false,
+      reason: null,
+      archetypeId: null,
+      family: null,
+      entityIds: Object.keys(labelByEntity),
+      focusableIds: Object.keys(labelByEntity),
+      labels: [],
+      annotations: [],
+      renderedLabels: Object.values(labelByEntity),
+      labelByEntity,
+      primitiveCount: 10,
+      assertionCount: 0,
+      candidateErrorCodes: [],
+      degradationReason: null,
+      svg: null,
+    },
+    lessonBudget: { scope: "short", minSteps: 1, maxSteps: 40, boardPages: 1 },
+    givenRows: [],
+    teaching: {
+      rawText,
+      usedStepMarkers: true,
+      unresolvedFocusIds: [],
+      steps: blocks.map((block, index) => {
+        const parsed = parseDrawingCommands(block);
+        return {
+          index: index + 1,
+          speech: parsed.narration.trim(),
+          tags: parsed.commands.map((command) =>
+            command.text === undefined
+              ? { type: command.type, params: command.params }
+              : { type: command.type, params: command.params, text: command.text },
+          ),
+        };
+      }),
+      writes: parsedAll.commands
+        .filter((command) => command.type === "WRITE")
+        .map((command) => ({
+          text: command.text ?? "",
+          x: command.params[0] ?? null,
+          y: command.params[1] ?? null,
+        })),
+      focusIds: parsedAll.commands
+        .filter((command) => command.type === "FOCUS")
+        .flatMap((command) => (command.text ?? "").split("|")[0].split(",").map((id) => id.trim())),
+      emphasizeTargets: [],
+      annotateTargets: [],
+      forbiddenTags: [],
+      continuations: 0,
+      incomplete: false,
+      contentChars: rawText.length,
+      reasoningChars: 0,
+      ttftMs: null,
+    },
+    promptChars: 0,
+  };
+}
+
+const codesOf = (run: LectureRun) => new Set(gradeLecture(run).findings.map((finding) => finding.code));
+const blockLabels = { block: "m", force_arrow: "F" };
+
+// The contract's shape: every row spoken token for token with "=" said as
+// equals, one FOCUS per part right after its name, words in front of every tag.
+const cuedLesson = codesOf(
+  lectureRun(
+    `[STEP]
+F is the push and m is the mass, and we want a, the acceleration. [WRITE:a = ?,90,211]
+[/STEP]
+[STEP]
+on the figure, the block [FOCUS:block] carries the mass m, and the arrow F [FOCUS:force_arrow] is the push.
+[/STEP]
+[STEP]
+F equals m a. [WRITE:F = m a,90,277]
+[/STEP]
+[STEP]
+a equals F divided by m. [WRITE:a = F / m,90,343]
+[/STEP]
+[STEP]
+a equals ten divided by two. [WRITE:a = 10 / 2,90,409]
+[/STEP]
+[STEP]
+so a equals five. [WRITE:a = 5,90,475]
+[/STEP]`,
+    blockLabels,
+  ),
+);
+for (const code of ["row_unspoken_cue", "late_row_cue", "focus_after_name"]) {
+  assert(!cuedLesson.has(code), `a lesson that speaks every row and tags every name on the name must not raise ${code}`);
+}
+
+// The shape 364 measured lessons actually took: rows described instead of
+// spoken ("the force is the mass times the acceleration"), a combined FOCUS at
+// the end of the step, and a FOCUS glued behind a WRITE with no words of its
+// own.
+const describedLesson = codesOf(
+  lectureRun(
+    `[STEP]
+F is the push and m is the mass, and we want a. [WRITE:a = ?,90,211]
+[/STEP]
+[STEP]
+on the figure, the block carries the mass m and the arrow F is the push. [FOCUS:block,force_arrow]
+[/STEP]
+[STEP]
+newton's second law says the force is the mass times the acceleration. [WRITE:F = m a,90,277]
+[/STEP]
+[STEP]
+divide both sides by the mass, so the acceleration is the force over the mass. [WRITE:a = F / m,90,343]
+[/STEP]
+[STEP]
+put the numbers in, ten over two. [WRITE:a = 10 / 2,90,409] [FOCUS:force_arrow]
+[/STEP]
+[STEP]
+that gives five meters per second squared. [WRITE:a = 5,90,475]
+[/STEP]`,
+    blockLabels,
+  ),
+);
+for (const code of ["row_unspoken_cue", "late_row_cue", "focus_after_name"]) {
+  assert(describedLesson.has(code), `the old lesson shape must raise ${code}`);
+}
+
+// A single tag placed after the whole sentence rather than after the name is
+// the placement failure on its own, without a combined or a glued tag.
+const lateFocusLesson = codesOf(
+  lectureRun(
+    `[STEP]
+F is the push and m is the mass, and we want a. [WRITE:a = ?,90,211]
+[/STEP]
+[STEP]
+the block carries the mass m, and it sits on a smooth floor with nothing else touching it. [FOCUS:block]
+[/STEP]
+[STEP]
+the arrow F is the push, and it acts along the floor to the right. [FOCUS:force_arrow]
+[/STEP]
+[STEP]
+F equals m a. [WRITE:F = m a,90,277]
+[/STEP]`,
+    blockLabels,
+  ),
+);
+assert(lateFocusLesson.has("focus_after_name"), "a FOCUS after the sentence, not after the name, must raise focus_after_name");
+
+// The label check reads speech the way the matcher does. "θ" is heard as
+// theta and "V_s" as v s, so those are spoken; "O" is not heard inside
+// "object", which the old substring test believed it was.
+const spokenLabels = codesOf(
+  lectureRun(
+    `[STEP]
+the small arc marks theta [FOCUS:angle], the launch angle. [WRITE:θ = 45°,90,211]
+[/STEP]
+[STEP]
+the supply is v s [FOCUS:supply], twelve volts across the whole chain. [WRITE:V_s = 12 V,90,277]
+[/STEP]
+[STEP]
+this is the curve y equals x cubed sine x [FOCUS:curve], the one we differentiate. [WRITE:y = x^3 sin x,90,343]
+[/STEP]
+[STEP]
+the tangent at x equals zero [FOCUS:tan0] is the line whose slope we want. [WRITE:slope = ?,90,409]
+[/STEP]`,
+    { angle: "θ = 45°", supply: "V_s = 12 V", curve: "y = x^3 sin x", tan0: "tangent at x = 0" },
+  ),
+);
+assert(!spokenLabels.has("focus_label_unspoken"), "labels spoken in their speech form must count as spoken");
+const unspokenLabels = codesOf(
+  lectureRun(
+    `[STEP]
+the object sits on the axis [FOCUS:object_base], to the left of the mirror. [WRITE:u = 20 cm,90,211]
+[/STEP]
+[STEP]
+the focus is halfway to the centre [FOCUS:focus_point], on the same axis. [WRITE:f = 15 cm,90,277]
+[/STEP]
+[STEP]
+the pole is where the axis meets the mirror [FOCUS:pole], and distances are measured from it. [WRITE:v = ?,90,343]
+[/STEP]`,
+    { object_base: "O", focus_point: "F", pole: "P" },
+  ),
+);
+assert(unspokenLabels.has("focus_label_unspoken"), "a letter label never said as a word is unspoken, even when the word that contains the letter is");
+
+console.log("verify-lecture-lab: all checks passed, and the rubric hears the row, the name and the label");

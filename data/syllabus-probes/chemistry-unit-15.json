@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|15",
+  "questions": [
+    {
+      "id": "chemistry|15|classification-nomenclature-and-preparation-of-hydrocarbons|easy",
+      "topicId": "chemistry|15|classification-nomenclature-and-preparation-of-hydrocarbons",
+      "difficulty": "easy",
+      "question": "One mole of an alkane X requires 8 mol of oxygen for complete combustion. What is the sum of the number of carbon and hydrogen atoms in X?",
+      "source": {
+        "questionId": "q_e9ee812230735cc155e5a7f239fc5619b87110f957b677f2e2185c52f5be3bbd",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-02-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|15|classification-nomenclature-and-preparation-of-hydrocarbons|hard",
+      "topicId": "chemistry|15|classification-nomenclature-and-preparation-of-hydrocarbons",
+      "difficulty": "hard",
+      "question": "What is the total number of alkenes possible by dehydrobromination of 3-bromo-3-cyclopentylhexane using alcoholic KOH?",
+      "source": {
+        "questionId": "q_0afca3cb93b77d9867ddf1472a8fd57971bf4b6f8f2f5535fa6d938801b75632",
+        "exam": "JEE Advanced",
+        "year": 2011,
+        "documentId": "jee-advanced-2011-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|15|alkanes-conformations-and-halogenation|easy",
+      "topicId": "chemistry|15|alkanes-conformations-and-halogenation",
+      "difficulty": "easy",
+      "question": "In the Newman projection of ethane, what is the dihedral angle in the staggered conformation and in the eclipsed conformation, and which is more stable? Why is rotation about the C-C bond still essentially free at room temperature?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|15|alkanes-conformations-and-halogenation|medium",
+      "topicId": "chemistry|15|alkanes-conformations-and-halogenation",
+      "difficulty": "medium",
+      "question": "An alkane Y requires 8 mol of oxygen for complete combustion, and on chlorination with Cl2 in light Y gives only one monochlorinated product Z. What is the total number of primary carbon atoms in Y?",
+      "source": {
+        "questionId": "q_6fe9f818180533859674378dc9e7e70d0fe00486b0b72b2404426460ab5acdd4",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-06-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|15|alkenes-electrophilic-addition|easy",
+      "topicId": "chemistry|15|alkenes-electrophilic-addition",
+      "difficulty": "easy",
+      "question": "Give the major product when propene reacts with HBr (a) in the absence of peroxide and (b) in the presence of benzoyl peroxide. Name the rule or effect that decides the product in each case.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|15|ozonolysis-and-polymerisation-of-alkenes|medium",
+      "topicId": "chemistry|15|ozonolysis-and-polymerisation-of-alkenes",
+      "difficulty": "medium",
+      "question": "A hydrocarbon X on ozonolysis consumes one mole of O3 per mole of X and gives one mole each of ethanal and propanone. What is the molar mass of X in g mol^-1? (Molar mass of C = 12 g mol^-1, H = 1 g mol^-1)",
+      "source": {
+        "questionId": "q_f67723dd041c0bd51e10a4ad8a2c22d56fba28ec8acec605491614df840b20a0",
+        "exam": "JEE Main",
+        "year": 2023,
+        "documentId": "jee-main-2023-04-08-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|15|alkynes|easy",
+      "topicId": "chemistry|15|alkynes",
+      "difficulty": "easy",
+      "question": "How would you distinguish between but-1-yne and but-2-yne by a chemical test? Write the equation for the reaction that gives a precipitate.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|15|alkynes|medium",
+      "topicId": "chemistry|15|alkynes",
+      "difficulty": "medium",
+      "question": "What is the product when but-2-yne is reduced with H2 over Lindlar's catalyst, and when it is reduced with sodium in liquid ammonia? Give the stereochemistry of each product.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|15|benzene-structure-and-aromaticity|medium",
+      "topicId": "chemistry|15|benzene-structure-and-aromaticity",
+      "difficulty": "medium",
+      "question": "Using Huckel's rule, classify each species as aromatic, antiaromatic or non-aromatic: the cyclopentadienyl anion, the cyclopentadienyl cation, the tropylium (cycloheptatrienyl) cation, cyclooctatetraene and benzene.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|15|electrophilic-substitution-in-benzene|easy",
+      "topicId": "chemistry|15|electrophilic-substitution-in-benzene",
+      "difficulty": "easy",
+      "question": "Write the mechanism of the nitration of benzene with a mixture of conc. HNO3 and conc. H2SO4, including how the nitronium ion is generated.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|15|electrophilic-substitution-in-benzene|medium",
+      "topicId": "chemistry|15|electrophilic-substitution-in-benzene",
+      "difficulty": "medium",
+      "question": "Among the following, what is the total number of meta directing functional groups? -OCH3, -NO2, -CN, -CH3, -NHCOCH3, -COR, -OH, -COOH, -Cl",
+      "source": {
+        "questionId": "q_422401c5e647a58063205935f95b0f03f202f1b8ee9b04c9e5b62952dac977f8",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-27-shift-1"
+      }
+    }
+  ]
+}

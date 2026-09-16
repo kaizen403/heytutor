@@ -30,6 +30,7 @@ import {
   codeLessonSectionCode,
   codeLessonStepCount,
   createFallbackTurnPlanV3,
+  dsaOpeningPointIds,
   normalizeTutorQuestion,
   planCodeLessonV1,
   streamLLMResponse,
@@ -97,6 +98,7 @@ export type DsaBeatAction =
   /** The marker moved onto the figure for a spoken step that draws nothing. */
   | { kind: "point"; targets: string[] }
   | { kind: "pause" }
+  | { kind: "write"; text: string }
   | { kind: "blocked"; tag: string };
 
 export interface DsaLectureRun {
@@ -242,6 +244,7 @@ export async function runDsaLecture(
   const familiarity = options.familiarity ?? "normal";
   const fastMode = options.fastMode ?? true;
   const plannerUrl = `${options.origin}/api/chat`;
+  const traceId = crypto.randomUUID();
   const startedAt = Date.now();
 
   const classification = classifyDsaQuestion(question);
@@ -331,6 +334,7 @@ export async function runDsaLecture(
         proxyUrl: plannerUrl,
         timeoutMs: SCENE_PLANNER_DEADLINE_MS,
         fastMode,
+        traceId,
         syntaxCheck: prettierSyntaxCheck,
         ...(boardContext ? { context: boardContext.context } : {}),
         onRejected: (phase, issues) => {
@@ -500,18 +504,22 @@ export async function runDsaLecture(
       ? codeLessonStepCount(frameSet?.frames.length ?? 0, run.codeLesson.blockCount)
       : 0;
 
-    // Mirrors the app: with no walk-through, the static figure's own anchors
-    // are what the marker walks, so a spoken step is never a still board.
+    // Mirrors the app: opening notes first, then the figure. With no
+    // walk-through the static figure's own anchors are the fallback.
+    const openingPointIds = dsaOpeningPointIds(teachingPrompt.givenSegments.length);
     const staticPointIds = frameSet
       ? []
       : (activeDiagram?.anchors ?? []).slice(0, 6).map((anchor) => anchor.id);
+    const fallbackPointIds = frameSet
+      ? openingPointIds
+      : (openingPointIds.length > 0 ? openingPointIds : staticPointIds);
     const conductor = codeLesson
       ? createCodeLessonConductor(codeLesson, {
           frameCount: frameSet?.frames.length ?? 0,
           frameIds: frameSet?.frames.map((frame) => frame.id) ?? [],
           frameFocusIds: frameSet?.frames.map((frame) => frame.focusEntityIds) ?? [],
           framePointIds: frameSet?.frames.map((frame) => frame.pointEntityIds) ?? [],
-          ...(staticPointIds.length > 0 ? { fallbackPointIds: staticPointIds } : {}),
+          ...(fallbackPointIds.length > 0 ? { fallbackPointIds } : {}),
         })
       : null;
 
@@ -530,6 +538,15 @@ export async function runDsaLecture(
     const duplicateBlockIds: string[] = [];
     let insertedFrameCount = 0;
     let framesShown = frameSet && frameSet.frames.length > 0 ? 1 : 0;
+    for (const segment of teachingPrompt.givenSegments) {
+      const text = segment.command?.text ?? "";
+      beats.push({
+        index: beats.length + 1,
+        speech: segment.narration.trim(),
+        actions: text ? [{ kind: "write", text }] : [],
+        estimatedMs: speechMs(segment.narration),
+      });
+    }
 
     const consumeChunk = (chunk: string) => {
       const segments = segmentsOf(chunk);
@@ -602,6 +619,8 @@ export async function runDsaLecture(
         hasAuthoritativePlan: Boolean(codeLesson),
         fastMode,
         codeLesson: Boolean(codeLesson),
+        traceId,
+        question,
       });
       fullResponse += streamResult.text;
       run.teaching.contentChars += streamResult.streamStats?.contentChars ?? 0;

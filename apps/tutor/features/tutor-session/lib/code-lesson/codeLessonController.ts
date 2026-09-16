@@ -8,6 +8,7 @@ import {
   tutorDebug,
   type CodeLessonPlan,
 } from "@heytutor/tutor-core";
+import { DSA_CODE_PANEL_RECT, DSA_EDITOR_METRICS } from "../../constants";
 import { DsaFrameController } from "./dsaFrames";
 import {
   createTypeAlongSection,
@@ -29,12 +30,29 @@ export interface CodeLessonState {
   typingBlockId: string | null;
   /** Practice machine for the active section while mode is "type_along". */
   typeAlong: TypeAlongState | null;
+  /**
+   * The line the voice is explaining, once its block is typed. The panel
+   * highlights it and parks the caret at its end; the pen stands on it.
+   * Measured before this existed: a block typed in the first quarter of its
+   * sentence and nothing on the board moved for the remaining fifteen seconds.
+   */
+  spokenLine: { blockId: string; lineIndex: number } | null;
 }
 
 export interface TypeBlockOptions {
   /** Spoken window for this block. Typing stays readable even if speech is short. */
   durationMs?: number;
   shouldCancel?: () => boolean;
+  /**
+   * Media clock to pace the characters on, the segment's audio position.
+   * Without it the wall clock is used, which at playback 1.5 typed a block
+   * half again slower than everything else on the board.
+   */
+  clock?: () => number;
+  /** Media ms per wall ms, for the sleeps between characters. */
+  getPlaybackRate?: () => number;
+  /** Wall ms sleep between characters; gates inject a virtual clock. */
+  delay?: (wallMs: number) => Promise<void>;
 }
 
 const EMPTY_STATE: CodeLessonState = {
@@ -44,6 +62,7 @@ const EMPTY_STATE: CodeLessonState = {
   revealedChars: {},
   typingBlockId: null,
   typeAlong: null,
+  spokenLine: null,
 };
 
 const TYPE_POLL_MS = 12;
@@ -133,17 +152,24 @@ export class CodeLessonController {
     for (const listener of this.listeners) listener();
   }
 
-  /** Commit a validated plan before narration starts. */
+  /** Commit a validated plan before narration starts. The panel stays hidden until the first typed block. */
   commit(plan: CodeLessonPlan): void {
     this.generation += 1;
     this.setState({
       plan,
-      mode: "lesson",
+      mode: "hidden",
       activeSectionIndex: 0,
       revealedChars: {},
       typingBlockId: null,
       typeAlong: null,
+      spokenLine: null,
     });
+  }
+
+  /** Mount the editor. Hidden through the opening so the left column is a notebook. */
+  revealPanel(): void {
+    if (!this.state.plan || this.state.mode !== "hidden") return;
+    this.setState({ mode: "lesson" });
   }
 
   reset(): void {
@@ -156,7 +182,7 @@ export class CodeLessonController {
   /** The turn finished; the panel stays up and type-along becomes available. */
   markLessonComplete(): void {
     if (!this.state.plan || this.state.mode !== "lesson") return;
-    this.setState({ mode: "complete", typingBlockId: null });
+    this.setState({ mode: "complete", typingBlockId: null, spokenLine: null });
     // An unrevealed block used to be typed here, after the turn's telemetry
     // had flushed and the narration had stopped — several seconds of code
     // appearing in silence, which reads as a bug rather than as teaching.
@@ -243,7 +269,22 @@ export class CodeLessonController {
       revealedChars,
       typingBlockId: null,
       typeAlong: null,
+      spokenLine: null,
     });
+  }
+
+  /** The voice is on this line of a typed block; the panel and the pen follow. */
+  setSpokenLine(blockId: string, lineIndex: number): void {
+    const plan = this.state.plan;
+    if (!plan || !codeLessonBlockById(plan, blockId)) return;
+    const current = this.state.spokenLine;
+    if (current && current.blockId === blockId && current.lineIndex === lineIndex) return;
+    this.setState({ spokenLine: { blockId, lineIndex } });
+  }
+
+  clearSpokenLine(): void {
+    if (this.state.spokenLine === null) return;
+    this.setState({ spokenLine: null });
   }
 
   revealBlockInstant(blockId: string): void {
@@ -251,6 +292,7 @@ export class CodeLessonController {
     if (!plan) return;
     const located = codeLessonBlockById(plan, blockId);
     if (!located) return;
+    this.revealPanel();
     this.setState({
       activeSectionIndex: plan.sections.indexOf(located.section),
       revealedChars: {
@@ -277,10 +319,12 @@ export class CodeLessonController {
     const { section, block } = located;
     const code = block.code;
     const sectionIndex = plan.sections.indexOf(section);
+    this.revealPanel();
     this.setState({
       activeSectionIndex: sectionIndex,
       typingBlockId: blockId,
       revealedChars: { ...this.state.revealedChars, [blockId]: 0 },
+      spokenLine: null,
     });
 
     // Speech may be shorter than a readable type-along, so readability is the
@@ -292,12 +336,20 @@ export class CodeLessonController {
     const readableMs = code.length * CODE_TYPE_MIN_VISIBLE_CHAR_MS;
     const windowMs = Math.min(Math.max(requestedMs, readableMs), CODE_TYPE_MAX_BLOCK_MS);
     const charOffsetsMs = codeTypingCharOffsetsMs(code, windowMs);
-    const startedAt = performance.now();
+    // Offsets are media ms. On the audio clock a character lands at its
+    // offset in the sentence whatever the playback rate; on the wall clock
+    // (no segment audio, or a headless run) media and wall coincide.
+    const clock = options.clock ?? (() => performance.now());
+    const rate = () => {
+      const value = options.getPlaybackRate?.() ?? 1;
+      return Number.isFinite(value) && value > 0 ? value : 1;
+    };
+    const startedAt = clock();
 
     let revealed = 0;
     while (revealed < code.length) {
       if (isStale()) break;
-      const elapsedMs = performance.now() - startedAt;
+      const elapsedMs = clock() - startedAt;
       // Catch up in one tick if the frame budget slipped, so typing stays on
       // pace without ever jumping straight to the end of the block.
       let next = revealed;
@@ -305,8 +357,8 @@ export class CodeLessonController {
         next += 1;
       }
       if (next === revealed) {
-        const waitMs = (charOffsetsMs[revealed] ?? 0) - elapsedMs;
-        await sleep(Math.min(Math.max(waitMs, TYPE_POLL_MS), 120));
+        const waitMs = ((charOffsetsMs[revealed] ?? 0) - elapsedMs) / rate();
+        await (options.delay ?? sleep)(Math.min(Math.max(waitMs, TYPE_POLL_MS), 120));
         continue;
       }
       revealed = next;
@@ -325,6 +377,55 @@ export class CodeLessonController {
       });
     }
   }
+}
+
+/** Lines of the blocks before `blockId` in its section, as the section doc counts them. */
+export function sectionLineOffset(state: CodeLessonState, blockId: string): number | null {
+  const plan = state.plan;
+  if (!plan) return null;
+  const located = codeLessonBlockById(plan, blockId);
+  if (!located) return null;
+  let offset = 0;
+  for (const block of located.section.blocks) {
+    if (block.id === blockId) return offset;
+    offset += block.code.split("\n").length;
+  }
+  return null;
+}
+
+/**
+ * Where one line of a typed block sits on the board: the span its text
+ * covers, so the pen can read along it. Same arithmetic as the caret point
+ * in constants.ts, which is what the live editor, the export renderer and the
+ * pen already share.
+ */
+export function codeLessonLineBoardSpan(
+  state: CodeLessonState,
+  blockId: string,
+  lineIndex: number,
+): { x0: number; x1: number; y: number } | null {
+  const plan = state.plan;
+  if (!plan) return null;
+  const located = codeLessonBlockById(plan, blockId);
+  const offset = sectionLineOffset(state, blockId);
+  if (!located || offset === null) return null;
+  const lines = located.block.code.split("\n");
+  const text = lines[lineIndex];
+  if (text === undefined) return null;
+  const indent = text.length - text.trimStart().length;
+  const left =
+    DSA_CODE_PANEL_RECT.x + DSA_EDITOR_METRICS.gutterWidth + DSA_EDITOR_METRICS.codeLeftPadding + 1;
+  const line = offset + lineIndex;
+  return {
+    x0: left + indent * DSA_EDITOR_METRICS.charWidth,
+    x1: left + Math.max(text.trimEnd().length, indent + 1) * DSA_EDITOR_METRICS.charWidth,
+    y:
+      DSA_CODE_PANEL_RECT.y +
+      DSA_EDITOR_METRICS.tabHeight +
+      DSA_EDITOR_METRICS.codeTopPadding +
+      line * DSA_EDITOR_METRICS.lineHeight +
+      DSA_EDITOR_METRICS.lineHeight * 0.45,
+  };
 }
 
 /** Revealed text of one section, in block order. */

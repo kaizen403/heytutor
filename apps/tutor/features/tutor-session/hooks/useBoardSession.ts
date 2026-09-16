@@ -5,6 +5,7 @@ import {
   isStoredCommandTrustedGeometry,
   lessonNarrationText,
   parseStoredSegmentCommands,
+  type VerifiedDiagram,
 } from "@heytutor/drawing";
 import {
   createTTSClient,
@@ -31,9 +32,15 @@ import {
   type SceneVisualStatus,
   type StoredTurn,
 } from "@/lib/boards/boardsClient";
+import {
+  pageTurnsEndingAt,
+  storedTurnContinuesBoard,
+  storedTurnPageQuestion,
+} from "@/lib/boards/boardContinuation";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
+import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
 import type { TutorPhase } from "../types";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
 
@@ -85,6 +92,9 @@ export interface UseBoardSessionParams {
   skipInkRestoreRef?: RefObject<boolean>;
   /** Restored DSA turns re-commit their persisted CodeLessonPlan here. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
+  activeVerifiedDiagramRef?: RefObject<VerifiedDiagram | null>;
+  setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
+  fbdPhaseStartedRef?: RefObject<boolean>;
 }
 
 export function useBoardSession({
@@ -113,6 +123,9 @@ export function useBoardSession({
   executeCommand,
   skipInkRestoreRef,
   codeLessonControllerRef,
+  activeVerifiedDiagramRef,
+  setActiveVerifiedDiagram,
+  fbdPhaseStartedRef,
 }: UseBoardSessionParams) {
   const [boards, setBoards] = useState<BoardEntry[]>([]);
   const [boardLoaded, setBoardLoaded] = useState(false);
@@ -207,7 +220,9 @@ export function useBoardSession({
 
     committedDraftRef.current = sessionId;
     setBoards((prev) => [board, ...prev.filter((b) => b.id !== board.id)]);
-    window.history.replaceState(null, "", boardPath(board.id));
+    // Keep Next's history state. A null state desyncs the App Router and can
+    // remount the session layout, which kills the turn that just claimed the URL.
+    window.history.replaceState(window.history.state ?? {}, "", boardPath(board.id));
     return true;
   }, [isDraft, sessionId]);
 
@@ -442,10 +457,16 @@ export function useBoardSession({
         const lastNarration = lastTurn
           ? lessonNarrationText(lastTurn.rawResponse)
           : "";
+        // The page on screen is the last turn's page, which may be a lesson
+        // and the doubts answered under it.
+        const lastPageNarration = pageTurnsEndingAt(turns)
+          .map((turn) => lessonNarrationText(turn.rawResponse).trim())
+          .filter(Boolean)
+          .join(" ");
 
         notesEpochsRef.current = [];
-        narrationSinceEpochRef.current = lastNarration;
-        liveQuestionRef.current = lastTurn?.question ?? "";
+        narrationSinceEpochRef.current = lastPageNarration || lastNarration;
+        liveQuestionRef.current = lastTurn ? storedTurnPageQuestion(lastTurn) : "";
         setNarrationText(lastNarration);
         setCurrentSegmentText("");
 
@@ -463,30 +484,51 @@ export function useBoardSession({
           return;
         }
 
-        // Each stored turn is one notes page. Snapshot the previous turn's ink
-        // before this turn's CLEAR wipes it, so Download notes survives a reload.
+        // Each page is one notes page. Snapshot the previous page's ink before
+        // this turn's CLEAR wipes it, so Download notes survives a reload. A
+        // doubt answered on the lesson's page is part of that page: same notes
+        // page, same question, same figure and code panel.
         let restoredInk = false;
         for (const turn of turns) {
           if (isStale()) return;
-          if (restoredInk) {
+          const continuesPage = storedTurnContinuesBoard(turn);
+          if (restoredInk && !continuesPage) {
             captureNotesEpoch();
             restoredInk = false;
           }
-          liveQuestionRef.current = turn.question;
-          narrationSinceEpochRef.current = lessonNarrationText(turn.rawResponse);
+          liveQuestionRef.current = storedTurnPageQuestion(turn);
+          const turnNarration = lessonNarrationText(turn.rawResponse);
+          narrationSinceEpochRef.current = continuesPage
+            ? [narrationSinceEpochRef.current, turnNarration]
+                .map((part) => part.trim())
+                .filter(Boolean)
+                .join(" ")
+            : turnNarration;
 
           // A DSA turn's TYPE commands reveal blocks of this plan; committing
           // it first also brings the code panel back for the restored board.
-          const codeLesson = storedCodeLessonPlan(turn.sceneArtifacts);
-          const controller = codeLessonControllerRef?.current;
-          if (codeLesson) {
-            controller?.commit(codeLesson);
-          } else {
-            controller?.reset();
+          const codeLesson = continuesPage ? null : storedCodeLessonPlan(turn.sceneArtifacts);
+          if (!continuesPage) {
+            const controller = codeLessonControllerRef?.current;
+            if (codeLesson) {
+              controller?.commit(codeLesson);
+            } else {
+              controller?.reset();
+            }
+            // The restored board replays this turn's FRAME cues, so it needs the
+            // same walk-through the live turn compiled.
+            if (controller) restoreDsaFrames(controller, turn, codeLesson);
+            const diagram =
+              controller?.frames.current()?.presentation.diagram
+              ?? restoreVerifiedDiagramFromTurn(turn);
+            if (activeVerifiedDiagramRef) {
+              activeVerifiedDiagramRef.current = diagram;
+            }
+            setActiveVerifiedDiagram?.(diagram);
+            if (fbdPhaseStartedRef) {
+              fbdPhaseStartedRef.current = Boolean(diagram);
+            }
           }
-          // The restored board replays this turn's FRAME cues, so it needs the
-          // same walk-through the live turn compiled.
-          if (controller) restoreDsaFrames(controller, turn, codeLesson);
 
           for (const segment of turn.segments) {
             if (isStale()) return;
@@ -542,6 +584,9 @@ export function useBoardSession({
       setInputInteracted,
       skipInkRestoreRef,
       codeLessonControllerRef,
+      activeVerifiedDiagramRef,
+      setActiveVerifiedDiagram,
+      fbdPhaseStartedRef,
     ],
   );
 

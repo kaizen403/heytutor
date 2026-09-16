@@ -17,6 +17,7 @@ DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
 TAXONOMY_PATH = DATA_ROOT / "syllabus-taxonomy.json"
 MATHEMATICS_RULES_PATH = DATA_ROOT / "syllabus-rules-mathematics.json"
 PHYSICS_RULES_PATH = DATA_ROOT / "syllabus-rules-physics.json"
+CHEMISTRY_RULES_PATH = DATA_ROOT / "syllabus-rules-chemistry.json"
 
 PHYSICS_19_BAND_PATTERN = (
     r"\b(?:energy bands?(?: diagrams?)?|conduction band|valence band|[pn][ -]?type "
@@ -107,7 +108,7 @@ class PhysicsSemiconductorRuleTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.taxonomy, cls.rules_by_subject = load_syllabus_inputs(
             TAXONOMY_PATH,
-            [MATHEMATICS_RULES_PATH, PHYSICS_RULES_PATH],
+            [MATHEMATICS_RULES_PATH, PHYSICS_RULES_PATH, CHEMISTRY_RULES_PATH],
         )
 
     def assignment_for(self, text: str) -> dict[str, object]:

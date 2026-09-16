@@ -63,12 +63,12 @@ export const DS = {
     statusThinking: '#59AFD4',
     statusTeaching: '#59AFD4',
 
-    /* ── Whiteboard: paper stays white so marker ink has its contrast ─ */
-    whiteboard: '#FFFFFF',
-    paper: '#FFFFFF',
+    /* ── Whiteboard: night-light paper — warm, still light, marker contrast ─ */
+    whiteboard: '#F6E4C4',
+    paper: '#F6E4C4',
     paperInk: '#06121C',
     paperBorder: 'rgba(202,229,241,0.13)',
-    paperMuted: '#F4F7FA',
+    paperMuted: '#EDD6AA',
     paperPlaceholder: 'rgba(6,18,28,0.45)',
 
     /** Default marker ink — dark navy, legible on the white surface. */

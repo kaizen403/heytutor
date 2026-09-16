@@ -5,15 +5,16 @@ import {
   Mp4OutputFormat,
   Output,
   Quality,
-  canEncodeAudio,
-  canEncodeVideo,
+  WebMOutputFormat,
+  getFirstEncodableAudioCodec,
+  getFirstEncodableVideoCodec,
 } from "mediabunny";
 import type { VirtualWhiteboardClock } from "@heytutor/whiteboard";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { buildReplayTimeline } from "@/lib/replay/replayTimeline";
 import { renderCodePanelFrame } from "@/lib/code-render/renderCodeToCanvas";
-import { DSA_CODE_PANEL_RECT } from "@/features/tutor-session/constants";
+import { DSA_CODE_PANEL_RECT, WHITEBOARD_COLOR } from "@/features/tutor-session/constants";
 import { canEncodeLectureMp4 } from "./canExportLectureMp4";
 import {
   buildCodeLessonExportTrack,
@@ -25,6 +26,17 @@ import {
   buildLectureAudioTrack,
   type PcmTrack,
 } from "./lectureAudioTrack";
+import {
+  LECTURE_VIDEO_CODECS,
+  pickLectureExportProfile,
+  type LectureAudioCodec,
+  type LectureExportProfile,
+  type LectureVideoCodec,
+} from "./lectureExportProfile";
+import {
+  lectureFramesLookSame,
+  sampleLectureFrame,
+} from "./lectureExportFrames";
 
 export const LECTURE_EXPORT_FPS = 24;
 export const LECTURE_EXPORT_FRAME_MS = 1000 / LECTURE_EXPORT_FPS;
@@ -41,17 +53,48 @@ export type LectureExportResult = {
   blob: Blob;
   missingAudioCues: number;
   totalMs: number;
+  mimeType: LectureExportProfile["mimeType"];
+  extension: LectureExportProfile["extension"];
 };
 
-export async function supportsLectureMp4Encode(): Promise<boolean> {
+export async function probeLectureExportProfile(): Promise<LectureExportProfile | null> {
   if (!canEncodeLectureMp4()) {
-    return false;
+    return null;
   }
-  const [video, audio] = await Promise.all([
-    canEncodeVideo("avc", { width: LECTURE_EXPORT_WIDTH, height: LECTURE_EXPORT_HEIGHT }),
-    canEncodeAudio("aac"),
-  ]);
-  return video && audio;
+  let video: LectureVideoCodec = "vp8";
+  try {
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+    const firefox = /firefox/i.test(ua);
+    const probed = await getFirstEncodableVideoCodec(
+      firefox ? ["vp9", "vp8", "av1", "avc"] : [...LECTURE_VIDEO_CODECS],
+      { width: LECTURE_EXPORT_WIDTH, height: LECTURE_EXPORT_HEIGHT },
+    );
+    if (probed === "avc" || probed === "vp9" || probed === "av1" || probed === "vp8") {
+      video = probed;
+    }
+  } catch {
+    video = "vp8";
+  }
+  let audio: LectureAudioCodec = "pcm-s16";
+  try {
+    const compressed = await getFirstEncodableAudioCodec(["aac", "opus"], {
+      numberOfChannels: 1,
+      sampleRate: LECTURE_EXPORT_SAMPLE_RATE,
+    });
+    if (compressed === "aac" || compressed === "opus") {
+      audio = compressed;
+    }
+  } catch {
+    audio = "pcm-s16";
+  }
+  return pickLectureExportProfile({
+    videoCodecs: [video],
+    audioCodecs: [audio],
+  });
+}
+
+export async function supportsLectureMp4Encode(): Promise<boolean> {
+  return (await probeLectureExportProfile()) != null;
 }
 
 async function decodeMpegBytes(data: ArrayBuffer): Promise<PcmTrack | null> {
@@ -94,6 +137,8 @@ function copyFrameToCanvas(
   if (!ctx) {
     throw new Error("Lecture export could not create a 2D canvas.");
   }
+  ctx.fillStyle = WHITEBOARD_COLOR;
+  ctx.fillRect(0, 0, dest.width, dest.height);
   ctx.drawImage(source, 0, 0, LECTURE_EXPORT_WIDTH, LECTURE_EXPORT_HEIGHT);
 }
 
@@ -111,20 +156,41 @@ async function pumpExportFrame(clock: VirtualWhiteboardClock): Promise<void> {
 
 export async function exportLectureMp4(options: {
   turn: StoredTurn;
+  /**
+   * Every turn that drew the page `turn` ends on, oldest first. A doubt answers
+   * on the lesson's page, so the export records the lesson and its doubts as
+   * the one page the student watched. Defaults to `[turn]`.
+   */
+  pageTurns?: StoredTurn[];
   whiteboard: WhiteboardHandle;
   executeCommand: ExportExecuteCommand;
   clock: VirtualWhiteboardClock;
   shouldCancel: () => boolean;
   onProgress?: (progress: LectureExportProgress) => void;
+  profile?: LectureExportProfile;
 }): Promise<LectureExportResult> {
-  const timeline = buildReplayTimeline([options.turn]);
+  const pageTurns = options.pageTurns && options.pageTurns.length > 0
+    ? options.pageTurns
+    : [options.turn];
+  const timeline = buildReplayTimeline(pageTurns);
   if (timeline.cues.length === 0 || timeline.totalMs <= 0) {
     throw new Error("This lecture has nothing to export.");
   }
 
   // DSA turns type code into a DOM panel the board capture cannot see; the
   // export composites a deterministic canvas rendering per frame instead.
-  const codeTrack = buildCodeLessonExportTrack(options.turn, timeline.cues);
+  // The page's code lesson is the one its opening turn committed; a doubt on
+  // it carries no plan of its own.
+  let codeTrack: ReturnType<typeof buildCodeLessonExportTrack> = null;
+  for (const pageTurn of pageTurns) {
+    codeTrack = buildCodeLessonExportTrack(pageTurn, timeline.cues);
+    if (codeTrack) break;
+  }
+
+  const profile = options.profile ?? (await probeLectureExportProfile());
+  if (!profile) {
+    throw new Error("This browser cannot encode lecture video.");
+  }
 
   options.onProgress?.({ currentMs: 0, totalMs: timeline.totalMs, phase: "audio" });
   const audioTrack = await buildLectureAudioTrack({
@@ -142,17 +208,21 @@ export async function exportLectureMp4(options: {
 
   const target = new BufferTarget();
   const output = new Output({
-    format: new Mp4OutputFormat({ fastStart: "in-memory" }),
+    format:
+      profile.container === "webm"
+        ? new WebMOutputFormat()
+        : new Mp4OutputFormat({ fastStart: "in-memory" }),
     target,
   });
   const videoSource = new CanvasSource(composeCanvas, {
-    codec: "avc",
+    codec: profile.videoCodec,
     quality: new Quality({ bitrate: 2_500_000 }),
   });
-  const audioSource = new AudioBufferSource({
-    codec: "aac",
-    quality: new Quality({ bitrate: 128_000 }),
-  });
+  const audioSource = new AudioBufferSource(
+    profile.audioCodec === "pcm-s16"
+      ? { codec: "pcm-s16" }
+      : { codec: profile.audioCodec, quality: new Quality({ bitrate: 128_000 }) },
+  );
   output.addVideoTrack(videoSource, { frameRate: LECTURE_EXPORT_FPS });
   output.addAudioTrack(audioSource);
 
@@ -178,6 +248,27 @@ export async function exportLectureMp4(options: {
 
     const totalFrames = Math.max(1, Math.ceil(timeline.totalMs / LECTURE_EXPORT_FRAME_MS));
     options.onProgress?.({ currentMs: 0, totalMs: timeline.totalMs, phase: "video" });
+
+    const holdCanvas = document.createElement("canvas");
+    holdCanvas.width = LECTURE_EXPORT_WIDTH;
+    holdCanvas.height = LECTURE_EXPORT_HEIGHT;
+    const nextCanvas = document.createElement("canvas");
+    nextCanvas.width = LECTURE_EXPORT_WIDTH;
+    nextCanvas.height = LECTURE_EXPORT_HEIGHT;
+    const sampleCanvas = document.createElement("canvas");
+    let holdStartFrame = 0;
+    let holdSample: Uint8ClampedArray | null = null;
+
+    const flushHold = async (endFrame: number) => {
+      if (!holdSample || endFrame <= holdStartFrame) {
+        return;
+      }
+      copyFrameToCanvas(holdCanvas, composeCanvas);
+      await videoSource.add(
+        holdStartFrame / LECTURE_EXPORT_FPS,
+        (endFrame - holdStartFrame) / LECTURE_EXPORT_FPS,
+      );
+    };
 
     for (let frame = 0; frame < totalFrames; frame++) {
       if (options.shouldCancel()) {
@@ -205,13 +296,27 @@ export async function exportLectureMp4(options: {
           );
         }
       }
-      await videoSource.add(frame / LECTURE_EXPORT_FPS, 1 / LECTURE_EXPORT_FPS);
+      const sample = sampleLectureFrame(composeCanvas, sampleCanvas);
+      if (holdSample && lectureFramesLookSame(holdSample, sample)) {
+        options.onProgress?.({
+          currentMs: Math.min((frame + 1) * LECTURE_EXPORT_FRAME_MS, timeline.totalMs),
+          totalMs: timeline.totalMs,
+          phase: "video",
+        });
+        continue;
+      }
+      copyFrameToCanvas(composeCanvas, nextCanvas);
+      await flushHold(frame);
+      copyFrameToCanvas(nextCanvas, holdCanvas);
+      holdSample = sample;
+      holdStartFrame = frame;
       options.onProgress?.({
         currentMs: Math.min((frame + 1) * LECTURE_EXPORT_FRAME_MS, timeline.totalMs),
         totalMs: timeline.totalMs,
         phase: "video",
       });
     }
+    await flushHold(totalFrames);
 
     options.clock.setNow(timeline.totalMs);
     await pumpExportFrame(options.clock);
@@ -239,8 +344,10 @@ export async function exportLectureMp4(options: {
   }
 
   return {
-    blob: new Blob([buffer], { type: "video/mp4" }),
+    blob: new Blob([buffer], { type: profile.mimeType }),
     missingAudioCues: audioTrack.missingAudioCues,
     totalMs: timeline.totalMs,
+    mimeType: profile.mimeType,
+    extension: profile.extension,
   };
 }

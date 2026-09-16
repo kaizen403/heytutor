@@ -52,9 +52,9 @@ packages/
 | LLM | Fireworks AI |
 | TTS | ElevenLabs (WebSocket streaming) |
 | Data | Prisma + Postgres |
-| Audio objects | Cloudflare R2 |
+| Audio + question photos | Private S3 |
 | Monorepo | pnpm workspaces + Turborepo |
-| Deploy | Vercel (frontend) + Azure VM (API / WebSocket) |
+| Deploy | Vercel (landing) + AWS EC2 (tutor UI / API / WebSocket) |
 
 ## Prerequisites
 
@@ -81,12 +81,9 @@ Tutor: [http://localhost:3000](http://localhost:3000)
 
 `pnpm dev:tutor` starts the tutor app; if `DATABASE_URL` points at localhost, the dev script can bring up Postgres and apply migrations. Compose binds Postgres to `127.0.0.1:5433` only.
 
-Optional lecture audio persistence:
-
-```bash
-wrangler login
-pnpm r2:setup
-```
+Optional lecture audio persistence (local): set `S3_BUCKET` and AWS credentials
+in `apps/tutor/.env.local`. Production uses an EC2 instance role. See
+[docs/ops/s3-setup.md](docs/ops/s3-setup.md).
 
 Landing site:
 
@@ -107,10 +104,10 @@ pnpm dev:landing   # http://localhost:5173
 | `ELEVENLABS_API_KEY` | TTS | No (browser voice fallback) |
 | `ELEVENLABS_VOICE_ID` | Voice selection | No |
 | `ELEVENLABS_STT_API_KEY` | Speech-to-text for the ask-bar mic. Separate from `ELEVENLABS_API_KEY` so dictation and narration can be budgeted and rotated apart | No (browser dictation fallback) |
-| `R2_ACCOUNT_ID` / `R2_BUCKET` / `R2_PUBLIC_BASE_URL` | Lecture audio storage | No |
+| `S3_BUCKET` / `AWS_REGION` | Lecture audio + question photos | No |
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Observability | No |
 | `NEXT_PUBLIC_SITE_URL` | SEO / absolute URLs | No |
-| `BACKEND_ORIGIN` | Production: Vercel proxies `/api/*` to Azure | Production only |
+| `BACKEND_ORIGIN` | Leave unset on the collocated EC2 tutor | Split-deploy only |
 
 See `apps/tutor/.env.example` for the canonical list.
 
@@ -146,11 +143,12 @@ There is no CI — run these checks locally before pushing.
 
 | Surface | Platform | Notes |
 |---------|----------|--------|
-| Tutor UI | Vercel | Root directory `apps/tutor` |
-| Landing | Vercel | Root directory `apps/landing` |
-| API + WebSocket TTS relay | Azure VM | `server.ts`; manual deploy via `deploy/azure/deploy.sh` |
+| Landing | Vercel | Root directory `apps/landing`; domain `accelute.co` |
+| Tutor UI + API + WebSocket | AWS EC2 | `tsx server.ts`; `deploy/aws/deploy.sh` |
+| Postgres | Hosted | `DATABASE_URL` — not Docker on the app box |
+| Objects | Private S3 | Lecture MP3s and question photos |
 
-Split deploy: set `BACKEND_ORIGIN` on Vercel so `/api/*` proxies to Azure. Full runbook: [docs/ops/ci-cd.md](docs/ops/ci-cd.md). R2: [docs/ops/r2-setup.md](docs/ops/r2-setup.md).
+Full runbook: [docs/ops/ci-cd.md](docs/ops/ci-cd.md). S3: [docs/ops/s3-setup.md](docs/ops/s3-setup.md).
 
 ## Documentation
 

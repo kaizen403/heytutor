@@ -3,7 +3,7 @@
 import { ChevronsDownUp, ChevronsUpDown, Download, FlaskConical, RotateCcw, Search, X } from "lucide-react";
 import { SiteButton } from "@/components/ui/site-button";
 import { cn } from "@/lib/utils";
-import type { SyllabusSubject } from "../lib/parseSyllabus";
+import { SYLLABUS_SUBJECTS, SYLLABUS_SUBJECT_LABEL, type SyllabusSubject } from "../lib/parseSyllabus";
 import {
   LECTURE_FILTER_OPTIONS,
   STATUS_FILTER_OPTIONS,
@@ -12,11 +12,6 @@ import {
   type StatusFilter,
   type TopicFilters,
 } from "../lib/topicFilters";
-
-const SUBJECT_LABEL: Record<SyllabusSubject, string> = {
-  physics: "Physics",
-  maths: "Mathematics",
-};
 
 const selectClass =
   "h-9 rounded-lg border border-stroke bg-ink-900 px-2.5 text-xs text-frost outline-none transition-colors hover:border-sky-500/50 focus-visible:ring-2 focus-visible:ring-sky-500";
@@ -105,7 +100,7 @@ export function AdminToolbar({
 
       <div className="flex flex-wrap items-center gap-2 border-t border-stroke px-4 py-3">
         <div className="flex rounded-lg border border-stroke bg-ink-900 p-0.5">
-          {(["physics", "maths"] as const).map((value) => (
+          {SYLLABUS_SUBJECTS.map((value) => (
             <button
               key={value}
               type="button"
@@ -118,7 +113,7 @@ export function AdminToolbar({
                   : "text-faint hover:text-frost",
               )}
             >
-              {SUBJECT_LABEL[value]}
+              {SYLLABUS_SUBJECT_LABEL[value]}
               <span className="ml-1.5 opacity-60">
                 {unitCounts[value]}u·{topicCounts[value]}t
               </span>

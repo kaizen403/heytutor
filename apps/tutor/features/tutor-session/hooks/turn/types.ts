@@ -8,8 +8,19 @@ import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { RecordedSegmentPayload, StoredTurn } from "@/lib/boards/boardsClient";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { TutorSegment } from "@heytutor/drawing";
+import type { FocusTargetSchedule } from "@heytutor/tutor-core";
 import type { TutorPhase, BoardLayoutState, SegmentPlanStats } from "../../types";
 import type { CodeLessonController } from "../../lib/code-lesson/codeLessonController";
+import type { SpokenSegmentClock } from "../../lib/code-lesson/codeSpokenSync";
+import type { DoubtTurnRequest } from "../../lib/input/askDoubt";
+import type { BoardPageRecord, PageTurnKind, PausedLessonRequest } from "../../lib/turn/doubtTurn";
+
+/** A question opens a fresh page unless it carries a doubt or resumes this one. */
+export type HandleQuestionOptions = {
+  doubt?: DoubtTurnRequest;
+  /** The rest of a lesson a mid-lesson doubt just paused. */
+  resume?: PausedLessonRequest;
+};
 
 export type ExecuteCommandOptions = {
   durationScale?: number;
@@ -20,6 +31,8 @@ export type ExecuteCommandOptions = {
     charStartOffsetsMs: number[];
     charDurationsMs: number[];
     getAudioPositionMs: () => number;
+    /** Media ms per wall ms, so a glyph's spoken slot is drawn in wall time. */
+    getPlaybackRate?: () => number;
     onCharacterStart?: (info: {
       char: string;
       index: number;
@@ -37,6 +50,16 @@ export type ExecuteCommandOptions = {
   textPlacementReserved?: boolean;
   /** Engine-selected pedagogical pace. Runtime-owned — never LLM. */
   inkPace?: InkPace;
+  /** One trace per named part, each on its spoken word (see focusSchedule.ts). */
+  focusSchedule?: FocusTargetSchedule;
+  /** Media ms from the segment's audio start; the FOCUS and cue waits read it. */
+  getAudioPositionMs?: () => number;
+  /** Media ms per wall ms; default 1. */
+  getPlaybackRate?: () => number;
+  /** The sentence's narration, alignment and audio clock; the code-lesson branches follow its words. */
+  spokenClock?: SpokenSegmentClock;
+  /** Placed on its spoken cue and given that window; keeps it instead of the scene ceiling. */
+  cued?: boolean;
 };
 
 export type UseTurnLifecycleParams = {
@@ -77,6 +100,18 @@ export type UseTurnLifecycleParams = {
   conversationHistoryRef: RefObject<ConversationExchange[]>;
   /** Question owning the turn in flight — the context a mid-lesson doubt needs. */
   liveQuestionRef: RefObject<string>;
+  /**
+   * The page on the board and the turn teaching on it. A doubt reads it to
+   * answer on this page instead of clearing it; see `lib/turn/doubtTurn`.
+   */
+  boardPageRef: RefObject<BoardPageRecord | null>;
+  /**
+   * The board shows the page a stopped replay reached, not the last saved one.
+   * A doubt asked over it cannot claim to continue the saved lecture.
+   */
+  boardShowsStoppedReplayRef: RefObject<boolean>;
+  /** A lesson on a fresh page, or a doubt on this one: decides how the wait looks. */
+  setLiveTurnKind?: Dispatch<SetStateAction<PageTurnKind>>;
   ttsClientRef: RefObject<TTSClient | null>;
   replayAudioRef: RefObject<HTMLAudioElement | null>;
   replayAudioPreloadRef: RefObject<Map<string, HTMLAudioElement>>;
@@ -114,6 +149,12 @@ export type UseTurnLifecycleParams = {
    * selects the scaffolding addon.
    */
   familiarityRef: RefObject<SubjectFamiliarity>;
+  /** Teaching-note and tutor toggles. Injected into the teaching prompt only. */
+  teachingPrefsRef?: RefObject<{
+    teachingNote: string;
+    alwaysShowUnits: boolean;
+    alwaysStateLawFirst: boolean;
+  }>;
   /** Live count of segments enqueued but not yet finished — drives adaptive speed. */
   pendingSegmentCountRef: RefObject<number>;
   /** Narration density (chars per ms) of the current segment — drives adaptive speed. */
@@ -162,6 +203,7 @@ export type UseTurnLifecycleParams = {
 export type UseSegmentRunnerParams = Pick<
   UseTurnLifecycleParams,
   | "sessionId"
+  | "activeVerifiedDiagramRef"
   | "cancellableDelay"
   | "ensureTTSClient"
   | "executeCommandWithCancel"
@@ -194,10 +236,28 @@ export type TurnControlApi = {
     liveEnqueued?: boolean,
     turnGeneration?: number,
     givenSegments?: TutorSegment[],
+    options?: {
+      /**
+       * Draw the figure's withheld labels once the turn's own ink is done. A
+       * doubt that stopped a lesson halfway must not reveal what the lesson had
+       * not reached yet.
+       */
+      revealDeferredAnnotations?: boolean;
+      /** What an empty-response error names, so a retry asks this same turn again. */
+      errorQuestion?: string;
+    },
   ) => Promise<void>;
-  stopTurn: () => void;
+  stopTurn: (options?: { keepVisibleBoard?: boolean }) => void;
   pauseTurn: () => void;
   resumeTurn: () => void;
-  /** `options.prompt` carries an already-composed, board-grounded doubt. */
-  handleAskDoubt: (question: string, options?: { prompt?: string }) => void;
+  /**
+   * After a mid-lesson doubt finishes, continue the paused lecture on this
+   * board. No-op when nothing was paused.
+   */
+  flushPausedLesson: () => void;
+  /**
+   * `options.prompt` carries an already-composed, board-grounded doubt and
+   * `options.title` what it is saved under.
+   */
+  handleAskDoubt: (question: string, options?: { prompt?: string; title?: string }) => void;
 };

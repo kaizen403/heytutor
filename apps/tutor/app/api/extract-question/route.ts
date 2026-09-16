@@ -1,35 +1,18 @@
 import { ensureUser, getUserId } from "@/lib/auth";
 import {
   EXTRACT_QUESTION_PROMPT,
-  MAX_QUESTION_IMAGE_DATA_URL_CHARS,
   parseExtractedQuestion,
   readExtractedContent,
 } from "@/lib/llm/extractQuestion";
 import { resolveFireworksVisionModel } from "@/lib/llm/fireworksModels";
+import { questionImageKey } from "@/lib/object-store/keys";
+import { readQuestionImage } from "@/lib/object-store/questionImage";
+import { uploadImage } from "@/lib/object-store/s3";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
-const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 interface ExtractRequestBody {
   image?: unknown;
-}
-
-function readDataUrl(image: unknown): { dataUrl: string } | null {
-  if (typeof image !== "string") {
-    return null;
-  }
-  const trimmed = image.trim();
-  const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/.exec(
-    trimmed,
-  );
-  if (!match) {
-    return null;
-  }
-  const mimeType = match[1].toLowerCase();
-  if (!ALLOWED_MIME.has(mimeType) || trimmed.length > MAX_QUESTION_IMAGE_DATA_URL_CHARS) {
-    return null;
-  }
-  return { dataUrl: `data:${mimeType};base64,${match[2].replace(/\s+/g, "")}` };
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -40,7 +23,7 @@ export async function POST(request: Request): Promise<Response> {
   await ensureUser(userId);
 
   const body = (await request.json().catch(() => ({}))) as ExtractRequestBody;
-  const image = readDataUrl(body.image);
+  const image = readQuestionImage(body.image);
   if (!image) {
     return Response.json(
       { error: "Send a JPEG, PNG, or WebP photo of the question." },
@@ -110,8 +93,15 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  const imageUrl = await uploadImage(
+    questionImageKey(userId, crypto.randomUUID(), image.ext),
+    image.bytes,
+    image.mimeType,
+  );
+
   return Response.json({
     question,
+    imageUrl,
     latencyMs: Date.now() - startedAt,
   });
 }

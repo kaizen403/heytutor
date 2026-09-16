@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|10",
+  "questions": [
+    {
+      "id": "chemistry|10|general-trends-in-p-block-elements|easy",
+      "topicId": "chemistry|10|general-trends-in-p-block-elements",
+      "difficulty": "easy",
+      "question": "Choose the correct stability order of group 13 elements in their +1 oxidation state. (A) Al < Ga < In < Tl (B) Tl < In < Ga < Al (C) Al < Ga < Tl < In (D) Al < Tl < Ga < In",
+      "source": {
+        "questionId": "q_742bf3127049a22f888c03102811a034ac8b0c4bd67f2c19da23ee20efecbdee",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-26-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|10|general-trends-in-p-block-elements|hard",
+      "topicId": "chemistry|10|general-trends-in-p-block-elements",
+      "difficulty": "hard",
+      "question": "Among [I3]+, [SiO4]^4-, SO2Cl2, XeF2, SF4, ClF3, Ni(CO)4, XeO2F2, [PtCl4]^2-, XeF4 and SOCl2, what is the total number of species having an sp3 hybridised central atom?",
+      "source": {
+        "questionId": "q_8ca8e7df1a710e97b40ccfeeab18936ae690c20dc5b1083fa17ff69567ecbb6e",
+        "exam": "JEE Advanced",
+        "year": 2023,
+        "documentId": "jee-advanced-2023-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|10|group-13-boron-family|easy",
+      "topicId": "chemistry|10|group-13-boron-family",
+      "difficulty": "easy",
+      "question": "Assertion A: The melting point of boron (2453 K) is unusually high among the group 13 elements. Reason R: Solid boron has a very strong crystalline lattice. Choose the most appropriate answer: (A) Both A and R are true and R is the correct explanation of A (B) Both A and R are true but R is not the correct explanation of A (C) A is true but R is false (D) A is false but R is true",
+      "source": {
+        "questionId": "q_ffd4b9d1ce1f5c128356dbbcab57b2abc48a478d4ffaf2a24879a48b313b07a3",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-27-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|10|group-13-boron-family|medium",
+      "topicId": "chemistry|10|group-13-boron-family",
+      "difficulty": "medium",
+      "question": "The compound(s) which react(s) with NH3 to give boron nitride (BN) is(are) (A) B (B) B2H6 (C) B2O3 (D) HBF4",
+      "source": {
+        "questionId": "q_d1c102f9238efa810070388ad70a9411049d8e07f009a031fa3efa77aba6bfdf",
+        "exam": "JEE Advanced",
+        "year": 2022,
+        "documentId": "jee-advanced-2022-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|10|group-14-carbon-family|easy",
+      "topicId": "chemistry|10|group-14-carbon-family",
+      "difficulty": "easy",
+      "question": "Why does carbon show a much greater tendency for catenation than silicon? Name the three crystalline allotropes of carbon and give the hybridisation of carbon in each.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|10|group-15-nitrogen-family|medium",
+      "topicId": "chemistry|10|group-15-nitrogen-family",
+      "difficulty": "medium",
+      "question": "Based on the compounds of group 15 elements, the correct statement(s) is(are) (A) Bi2O5 is more basic than N2O5 (B) NF3 is more covalent than BiF3 (C) PH3 boils at a lower temperature than NH3 (D) The N-N single bond is stronger than the P-P single bond",
+      "source": {
+        "questionId": "q_59941390f26b111303dcbb0cb59db9ab7ef25511e5a0d0617a6483f19fafe9b2",
+        "exam": "JEE Advanced",
+        "year": 2018,
+        "documentId": "jee-advanced-2018-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|10|group-15-nitrogen-family|hard",
+      "topicId": "chemistry|10|group-15-nitrogen-family",
+      "difficulty": "hard",
+      "question": "The species formed on fluorination of phosphorus pentachloride in a polar organic solvent are (A) [PF4]+[PF6]- and [PCl4]+[PF6]- (B) [PCl4]+[PCl4F2]- and [PCl4]+[PF6]- (C) PF3 and PCl3 (D) PF5 and PCl3",
+      "source": {
+        "questionId": "q_bb261de155b863e8a3137359aba8cd0fca9de5de3772eec17242125d95d37c08",
+        "exam": "JEE Advanced",
+        "year": 2024,
+        "documentId": "jee-advanced-2024-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|10|group-16-oxygen-family|medium",
+      "topicId": "chemistry|10|group-16-oxygen-family",
+      "difficulty": "medium",
+      "question": "Give the structure of peroxodisulphuric acid, H2S2O8, and the oxidation state of sulphur in it. How many S=O bonds and how many peroxide O-O bonds does the molecule contain?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|10|group-17-halogens|medium",
+      "topicId": "chemistry|10|group-17-halogens",
+      "difficulty": "medium",
+      "question": "What happens when chlorine gas reacts with cold dilute NaOH and with hot concentrated NaOH? Write the balanced equations and name the sodium salts of the oxoacids formed in each case.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|10|group-18-noble-gases|medium",
+      "topicId": "chemistry|10|group-18-noble-gases",
+      "difficulty": "medium",
+      "question": "Write the balanced equation for the complete hydrolysis of XeF6. Give the shape of XeF6 and of the xenon-containing product, and the number of lone pairs on xenon in each.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

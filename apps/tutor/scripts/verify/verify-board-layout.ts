@@ -8,10 +8,14 @@ import {
   type TutorSegment,
   type VerifiedDiagram,
 } from "@heytutor/drawing";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { withBoardEpochSegment, type RecordedSegmentPayload } from "../../lib/boards/boardsClient";
 import {
   estimateBoardTextWidthAtSize,
   findWorkTextSlot,
+  recordedWorkWriteNeedsPageTurn,
   registerBoardAnchor,
   withWorkRowIdentity,
   textRectsOverlap,
@@ -19,6 +23,7 @@ import {
 import { BOARD_ROWS_PER_PAGE } from "@heytutor/tutor-core";
 import {
   BOARD_WORK_ROWS_PER_PAGE,
+  DIAGRAM_ZONE,
   TEXT_LAYOUT,
   WORK_ROW_FONT_SIZE,
 } from "../../features/tutor-session/constants";
@@ -221,11 +226,87 @@ function verifyWorkRowIdentity(): void {
   assert.equal(second.workIndex, 2);
 }
 
+/**
+ * A long lesson pages live by erasing the work column, then writes the next
+ * page at the same y values. Those erases are not in the recording. Restore
+ * and replay must still wipe before a stored row would land on existing ink.
+ *
+ * Fixture ys are the work-row ladder from a persisted mirror-formula derivation
+ * that stacked five pages onto seven rows after a server restart.
+ */
+function verifyRecordedMultiPageWritesDoNotOverlap(): void {
+  const pageYs = Array.from(
+    { length: BOARD_WORK_ROWS_PER_PAGE },
+    (_, index) => TEXT_LAYOUT.workTopY + index * TEXT_LAYOUT.lineHeight,
+  );
+  // Same y values come back after the live page-turn — the stored bug.
+  const recordedYs = [...pageYs, ...pageYs, pageYs[0]!, pageYs[1]!];
+
+  const layout: BoardLayoutState = { rects: [], nextY: TEXT_LAYOUT.topY };
+  const visible: Array<{ x: number; y: number; width: number; height: number }> = [];
+  let pageTurns = 0;
+
+  for (const y of recordedYs) {
+    const rect = {
+      x: TEXT_LAYOUT.marginX,
+      y,
+      width: 210,
+      height: TEXT_LAYOUT.textHeight,
+      text: `row@${y}`,
+    };
+    if (recordedWorkWriteNeedsPageTurn(layout, rect, true)) {
+      pageTurns += 1;
+      layout.rects = layout.rects.filter((occupied) => occupied.x >= DIAGRAM_ZONE.x);
+      visible.length = 0;
+    }
+    assert.ok(
+      visible.every((prior) => !textRectsOverlap(prior, rect)),
+      `recorded restore stacked ink at y=${y}`,
+    );
+    visible.push(rect);
+    registerBoardAnchor(layout, withWorkRowIdentity(layout, rect));
+  }
+
+  assert.equal(pageTurns, 2, "wrapping back to the first row must turn the page, not overwrite");
+  assert.equal(
+    recordedWorkWriteNeedsPageTurn(
+      { rects: [{ x: DIAGRAM_ZONE.x, y: 160, width: 300, height: 260, text: "diagram" }], nextY: TEXT_LAYOUT.topY },
+      {
+        x: TEXT_LAYOUT.marginX,
+        y: TEXT_LAYOUT.workTopY,
+        width: 210,
+        height: TEXT_LAYOUT.textHeight,
+        text: "Given: u = -20 cm",
+      },
+      true,
+    ),
+    false,
+    "a figure on the right must not count as work-column occupancy",
+  );
+
+  const here = dirname(fileURLToPath(import.meta.url));
+  const layoutHook = readFileSync(
+    join(here, "../../features/tutor-session/hooks/useBoardLayout.ts"),
+    "utf8",
+  );
+  assert.match(
+    layoutHook,
+    /recordedWorkWriteNeedsPageTurn/,
+    "restore/replay (applyLayout false) must page the work column instead of stacking rows",
+  );
+  assert.match(
+    layoutHook,
+    /eraseWorkInk/,
+    "a page turn must wipe work ink including glyphs that spilled past the column",
+  );
+}
+
 verifyLiveWriteRepair();
 verifySequentialRows();
 verifyFontAwareMeasurement();
 verifyReplayEpochAndResolvedCoordinates();
 verifyWorkRowIdentity();
+verifyRecordedMultiPageWritesDoNotOverlap();
 // --- no work row may reach the diagram --------------------------------------
 //
 // The layout clamps the RECT it registers to the column, but `writeText` draws

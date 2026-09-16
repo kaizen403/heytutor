@@ -548,14 +548,16 @@ export function markTargets(mark: BoardMark): MarkTarget[] {
 
 function formatTargetForPrompt(verb: string, target: MarkTarget): string {
   if (target.kind === "region") {
-    return `- ${verb} an empty part of ${target.text} — nothing written is under that mark`;
+    return `- ${verb} an empty part of ${target.text}, and nothing written is under that mark`;
   }
   if (target.kind === "diagram") {
     const meaning = target.meaning ? ` (${target.meaning})` : "";
     return `- ${verb} the figure part labelled "${target.text}"${meaning} [entity ${target.entityId}]`;
   }
   if (target.kind === "work") {
-    return `- ${verb} the board line "${target.text}"`;
+    // The row id lets the answer box this very row again with [EMPHASIZE:w3].
+    const row = target.workId ? ` (row ${target.workId})` : "";
+    return `- ${verb} the board line "${target.text}"${row}`;
   }
   return `- ${verb} the board text "${target.text}"`;
 }
@@ -572,6 +574,13 @@ export function describeMark(mark: BoardMark): string {
     return `${verb} "${target.text}"`;
   }
   return `${verb} ${targets.length} board lines`;
+}
+
+/** What a marked doubt is saved under: the marks, in the board's own words. */
+export function summarizeMarks(marks: readonly BoardMark[]): string {
+  if (marks.length === 0) return "";
+  const first = describeMark(marks[0]!);
+  return marks.length === 1 ? first : `${first} and ${marks.length - 1} more`;
 }
 
 /** Prompt lines for one stroke. A multi-line ring lists every enclosed line. */
@@ -620,7 +629,11 @@ export function buildMarkedDoubtPrompt(
   lessonQuestion?: string | null,
 ): string {
   const typed = doubt.trim();
-  const context = (lessonQuestion ?? "").trim().slice(0, MAX_LESSON_CONTEXT_CHARS);
+  // Quoted, then followed by a full stop: a stem that ends on one would read `."`.
+  const context = (lessonQuestion ?? "")
+    .trim()
+    .slice(0, MAX_LESSON_CONTEXT_CHARS)
+    .replace(/[.\s]+$/, "");
   const lines: string[] = [];
 
   lines.push(
@@ -639,11 +652,11 @@ export function buildMarkedDoubtPrompt(
   if (typed) {
     lines.push(`my doubt: ${typed}`);
   } else {
-    lines.push("i did not type a doubt — i did not follow the part i marked.");
+    lines.push("i did not type a doubt. i did not follow the part i marked.");
   }
 
   lines.push(
-    "teach that marked part again from there, in a different and simpler way, with a small concrete example. do not re-teach the whole lesson and do not just repeat the same words.",
+    "teach that marked part again from there, in a different and simpler way. use the problem's own numbers, or new numbers said with \"for example\" and never written as givens. do not re-teach the whole lesson unless my doubt asks for it, and do not just repeat the same words.",
   );
 
   if (!hasGroundedMark(marks) && marks.length > 0 && !typed) {

@@ -9,7 +9,13 @@
  * clear) is left to the reviewer lane; these are the failures that can be
  * proved from the transcript alone.
  */
-import { WORK_ZONE, fitBoardText } from "@heytutor/drawing";
+import { WORK_ZONE, fitBoardText, parseDrawingCommands, type DrawCommand } from "@heytutor/drawing";
+import {
+  getBestWriteCharScheduleMs,
+  lastMeaningfulClause,
+  mathToSpeech,
+  normalizeForSpeechMatch,
+} from "@heytutor/tutor-core";
 import { checkBoardArithmetic } from "./boardArithmetic";
 import type { LectureRun } from "./lecturePipeline";
 
@@ -101,6 +107,120 @@ function isDescriptionRow(text: string): boolean {
   const right = sides[sides.length - 1].trim();
   if (MATH_TOKEN.test(right)) return false;
   return longWords(right).length >= 2;
+}
+
+/**
+ * One tag as the runtime will sync it.
+ *
+ * The board does not see steps; it sees the narration since the previous tag
+ * and the tag that follows it (`parseStructuredLessonSteps`). A tag with no
+ * words of its own merges into the segment before it and is scheduled against
+ * that segment's narration. Measured over 364 lessons, 11% of FOCUS tags and
+ * 24% of WRITE tags in multi-tag steps had an empty window, and the runtime
+ * had no word to place them on.
+ */
+interface TagWindow {
+  command: DrawCommand;
+  /** Narration since the previous tag in the step, tags stripped. */
+  window: string;
+  /** What the runtime schedules against: the window, or the segment a glued tag merged into. */
+  narration: string;
+  /** Text commands already scheduled against that same narration. */
+  textCommandIndex: number;
+  /** Whole spoken text of the step. */
+  stepSpeech: string;
+}
+
+const STEP_BLOCK = /\[STEP\]([\s\S]*?)(?:\[\/STEP\]|$)/g;
+
+function tagWindows(rawText: string, usedStepMarkers: boolean): TagWindow[] {
+  const blocks = usedStepMarkers
+    ? [...rawText.matchAll(STEP_BLOCK)].map((match) => match[1])
+    : [rawText];
+  const out: TagWindow[] = [];
+  for (const block of blocks) {
+    const parsed = parseDrawingCommands(block);
+    let narration = "";
+    let textCommandIndex = 0;
+    parsed.commands.forEach((command, index) => {
+      const window = (
+        parsed.segments.find((segment) => segment.commandIndex === index)?.text ?? ""
+      ).trim();
+      if (window.length > 0) {
+        narration = window;
+        textCommandIndex = 0;
+      }
+      out.push({ command, window, narration, textCommandIndex, stepSpeech: parsed.narration });
+      if (command.type === "WRITE") textCommandIndex += 1;
+    });
+  }
+  return out;
+}
+
+function focusIds(text: string | undefined): string[] {
+  return (text ?? "")
+    .split("|")[0]
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Whether the student heard this part named in `text`.
+ *
+ * Compared through the speech normaliser the matcher uses, so "θ" meets
+ * "theta" and "V_s" meets "v s". A label of one to three letters is matched
+ * whole word and case sensitive against the spoken form instead: "I" the
+ * image is not "i" the pronoun, and "a" the point is not the article. Before
+ * this the check was a raw substring test, and "O" matched inside "object".
+ */
+function partSpokenIn(text: string, id: string, label: string | undefined): boolean {
+  const spoken = mathToSpeech(text);
+  const normalized = ` ${normalizeForSpeechMatch(spoken)} `;
+  const names = new Set<string>();
+  if (label) {
+    names.add(label.trim());
+    // "u=20 m/s" and "H=10.2 m" are named by the symbol in front of the value.
+    const head = label.split(/[=:]/)[0]?.trim() ?? "";
+    if (head) names.add(head);
+  }
+  names.add(id.replace(/_/g, " "));
+  for (const name of names) {
+    if (/^[A-Za-z]{1,3}$/.test(name)) {
+      if (new RegExp(`(?<![A-Za-z0-9])${name}(?![A-Za-z0-9])`).test(spoken)) return true;
+      continue;
+    }
+    const key = normalizeForSpeechMatch(name);
+    if (key.length >= 2 && normalized.includes(` ${key} `)) return true;
+  }
+  return false;
+}
+
+/**
+ * Where in its window the row's first spoken token lands, as a fraction of
+ * the normalised window. Mirrors the cursor matcher in `getWriteCharScheduleMs`
+ * (each board token searched forward from the last match, through the same
+ * normaliser); that matcher interpolates an unmatched leading token from the
+ * window start, so its schedule cannot say which token was the first to be
+ * found, and this one can. Measured over 6301 rows the first found token sat
+ * past 35% of the window in 29%, always a two-sentence step with the row said
+ * second, and the runtime then dragged the cue to the sentence start.
+ */
+function firstCueFraction(window: TagWindow): number | null {
+  const narration = normalizeForSpeechMatch(mathToSpeech(window.narration.trim()));
+  if (narration.length === 0) return null;
+  const tokens = (window.command.text ?? "").split(/\s+/).filter(Boolean);
+  let cursor = 0;
+  let first: number | null = null;
+  for (const token of tokens) {
+    const phrase = normalizeForSpeechMatch(token);
+    if (phrase.length === 0) continue;
+    const index = narration.indexOf(phrase, cursor);
+    if (index < 0) continue;
+    if (first === null) first = index;
+    cursor = index + phrase.length;
+  }
+  return first === null ? null : first / narration.length;
 }
 
 export function gradeLecture(run: LectureRun): LectureGrade {
@@ -279,15 +399,12 @@ export function gradeLecture(run: LectureRun): LectureGrade {
     ? steps.filter((step) => step.tags.some((tag) => tag.type === "FOCUS"))
     : [];
   const unspoken = focusSteps.filter((step) => {
-    const spoken = step.speech.toLowerCase();
     const ids = step.tags
       .filter((tag) => tag.type === "FOCUS")
-      .flatMap((tag) => (tag.text ?? "").split("|")[0].split(","))
-      .map((id) => id.trim())
-      .filter(Boolean);
+      .flatMap((tag) => focusIds(tag.text));
     return ids.every((id) => {
       const label = labelByEntity?.[id];
-      return !label || !spoken.includes(label.toLowerCase());
+      return !label || !partSpokenIn(step.speech, id, label);
     });
   });
   if (focusSteps.length >= 3 && unspoken.length * 2 > focusSteps.length) {
@@ -296,6 +413,51 @@ export function gradeLecture(run: LectureRun): LectureGrade {
       "major",
       `${unspoken.length} of ${focusSteps.length} marker moves never say the label written on the part they point at`,
     );
+  }
+
+  // The marker reaches the part when its name is spoken, or it does not reach
+  // it at all. The runtime anchors a FOCUS on the clause in front of the tag,
+  // and one tag is one gesture: a combined tag releases every label at once
+  // and traces all of them inside one budget, and a tag glued behind another
+  // has no clause of its own. Measured over 1277 tags: 26% combined, 98.7% at
+  // the end of the step, the label inside the anchored clause in 28%, and the
+  // name spoken a median 3.3 s before the marker moved.
+  const windows = tagWindows(run.teaching.rawText, run.teaching.usedStepMarkers !== false);
+  const focusWindows = windows.filter((window) => window.command.type === "FOCUS");
+  if (focusWindows.length > 0) {
+    let combined = 0;
+    let glued = 0;
+    let single = 0;
+    let afterName = 0;
+    for (const window of focusWindows) {
+      const ids = focusIds(window.command.text);
+      if (ids.length > 1) {
+        combined += 1;
+        continue;
+      }
+      if (window.window.length === 0) {
+        glued += 1;
+        continue;
+      }
+      single += 1;
+      const id = ids[0] ?? "";
+      if (partSpokenIn(lastMeaningfulClause(window.window), id, labelByEntity?.[id])) {
+        afterName += 1;
+      }
+    }
+    const placed = single >= 2 ? afterName / single : 1;
+    if (combined > 0 || glued > 0 || placed < 0.9) {
+      const reasons = [
+        combined > 0 ? `${combined} tag(s) carry several ids` : "",
+        glued > 0 ? `${glued} tag(s) follow another tag with no words of their own` : "",
+        placed < 0.9 ? `${single - afterName} of ${single} single tags do not follow the spoken name` : "",
+      ].filter(Boolean);
+      add(
+        "focus_after_name",
+        "major",
+        `${reasons.join("; ")}, so the marker moves after the sentence instead of on the name`,
+      );
+    }
   }
 
   // Only a figure with text on it can be walked part by part. The contract now
@@ -374,6 +536,66 @@ export function gradeLecture(run: LectureRun): LectureGrade {
         "prose_rows_on_numeric",
         described.length >= 3 ? "major" : "minor",
         `${described.length} of ${inkedWrites.length} rows state no mathematics on a numerical ask (e.g. "${described[0].text.slice(0, 48)}")`,
+      );
+    }
+  }
+
+  // The pen can only follow the voice through the row's own tokens. The
+  // runtime matches each board token against the narration in front of the
+  // tag; a row it cannot place falls back to a spread across the sentence and
+  // finishes a second before the voice does. Measured over 6301 rows: every
+  // token spoken in 13.9%, the estimated schedule usable in 80.9%, and "=" the
+  // largest miss (unmatched in 2822 of 4267 rows) because the step said "is".
+  // The rate is taken from the real schedule builder with no TTS timings,
+  // which is the path every first sentence of a segment runs live.
+  const rowWindows = windows.filter(
+    (window) => window.command.type === "WRITE" && (window.command.text ?? "").trim().length > 0,
+  );
+  if (rowWindows.length >= 4) {
+    const usable = rowWindows.filter((window) => {
+      if (window.narration.length === 0) return false;
+      const schedule = getBestWriteCharScheduleMs(
+        window.narration,
+        window.command,
+        null,
+        undefined,
+        window.textCommandIndex,
+      );
+      return Boolean(schedule?.matched);
+    });
+    // The unknown row "v = ?" is the one = with no spoken form: the sentence
+    // says what we want, and "?" is never read aloud.
+    const relationRows = rowWindows.filter((window) => {
+      const text = window.command.text ?? "";
+      return text.includes("=") && !/=\s*\?\s*$/.test(text.trim());
+    });
+    const saidEquals = relationRows.filter((window) =>
+      /\bequals\b|\bequal to\b/i.test(window.stepSpeech),
+    );
+    const usableFraction = usable.length / rowWindows.length;
+    const equalsFraction = relationRows.length >= 3 ? saidEquals.length / relationRows.length : 1;
+    if (usableFraction < 0.85 || equalsFraction < 0.9) {
+      add(
+        "row_unspoken_cue",
+        "major",
+        `${usable.length} of ${rowWindows.length} rows have a spoken cue the pen can be scheduled on` +
+          (relationRows.length >= 3
+            ? `, and ${saidEquals.length} of ${relationRows.length} rows with = are spoken as equals`
+            : ""),
+      );
+    }
+    // A row said second in a two-sentence step has its first token late in the
+    // window, and the runtime used to drag that cue to the sentence start, so
+    // the pen wrote the row while the voice was still on the reason.
+    const cued = rowWindows
+      .map((window) => firstCueFraction(window))
+      .filter((fraction): fraction is number => fraction !== null);
+    const late = cued.filter((fraction) => fraction > 0.35);
+    if (cued.length >= 4 && late.length / cued.length > 0.15) {
+      add(
+        "late_row_cue",
+        "minor",
+        `${late.length} of ${cued.length} rows are first spoken past 35% of their sentence, so the words that name the row are not last`,
       );
     }
   }

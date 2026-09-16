@@ -238,6 +238,19 @@ export function placeLabels(
     seenOwnerText.add(ownerTextKey);
   }
 
+  // A pinned label is ink the other labels must clear. A bond-angle label was
+  // free to land on a pinned atom symbol because the symbol never entered the
+  // obstacle list; a skeletal structure has no circle around its heteroatoms.
+  const pinnedObstacles: LabelObstacle[] = owners
+    .filter((owner) => owner.pinToAnchor)
+    .map((owner) => ({
+      id: owner.labelId ?? `pinned_${owner.entityId}`,
+      entityId: owner.entityId,
+      bounds: centeredTextBounds(owner.text, owner.anchor, options),
+      kind: "label" as const,
+    }));
+  const solverObstacles = pinnedObstacles.length > 0 ? [...obstacles, ...pinnedObstacles] : obstacles;
+
   const prepared = owners.map((owner, originalIndex): PreparedLabelOwner => {
     if (owner.pinToAnchor) {
       const bounds = centeredTextBounds(owner.text, owner.anchor, options);
@@ -272,7 +285,7 @@ export function placeLabels(
     const candidates: LabelPlacementCandidate[] = SLOT_OFFSETS.map((slot) => {
       const anchor = ownerBounds ? anchorOnBounds(ownerBounds, slot.slot) : owner.anchor;
       const bounds = estimateTextBounds(owner.text, anchor, slot.slot, options);
-      const overlaps = obstacles
+      const overlaps = solverObstacles
         .filter((obstacle) => labelOverlapsObstacle(bounds, obstacle, minGapPx))
         .map((obstacle) => obstacle.id);
       const outside = owner.viewBounds ? !boundsInside(bounds, owner.viewBounds) : false;
@@ -310,7 +323,7 @@ export function placeLabels(
             y: owner.anchor.y + direction.dy * distance,
           };
           const bounds = centeredTextBounds(owner.text, center, options);
-          const overlaps = obstacles
+          const overlaps = solverObstacles
             .filter((obstacle) => labelOverlapsObstacle(bounds, obstacle, minGapPx))
             .map((obstacle) => obstacle.id);
           const outside = owner.viewBounds ? !boundsInside(bounds, owner.viewBounds) : false;

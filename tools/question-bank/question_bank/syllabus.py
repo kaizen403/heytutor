@@ -38,8 +38,10 @@ REPORT_SCHEMA_VERSION = "question-bank-syllabus-report/v1"
 DATABASE_SCHEMA_VERSION = "question-bank-full-sqlite/v1"
 ASSIGNMENT_METHOD = "deterministic-lexical/v1"
 
-SUPPORTED_SUBJECTS = ("Mathematics", "Physics")
-ASSIGNMENT_SUBJECTS = (*SUPPORTED_SUBJECTS, "Chemistry")
+SUPPORTED_SUBJECTS = ("Mathematics", "Physics", "Chemistry")
+# Every subject an assignment may carry. Unsupported provenance subjects
+# resolve to null, so this is the supported set itself.
+ASSIGNMENT_SUBJECTS = SUPPORTED_SUBJECTS
 SUBJECT_STATUSES = ("resolved", "missing_context", "conflict", "out_of_scope")
 ASSIGNMENT_STATUSES = ("classified", "needs_review", "out_of_scope")
 CONFIDENCES = ("high", "medium")
@@ -481,10 +483,7 @@ def resolve_question_subject(
     if len(resolved) > 1:
         return None, "conflict", ["conflicting_subject_context"]
     if resolved:
-        subject = next(iter(resolved))
-        if subject == "Chemistry":
-            return subject, "out_of_scope", []
-        return subject, "resolved", []
+        return next(iter(resolved)), "resolved", []
     if missing_combined_context:
         return None, "missing_context", ["missing_subject_context"]
     if unsupported_context:
@@ -1127,7 +1126,7 @@ def validate_assignment(
         )
         _require(expected_reason in review_reasons, f"{path}.review_reasons", f"requires {expected_reason}")
     else:
-        _require(assignment["subject"] in {None, "Chemistry"}, f"{path}.subject", "out-of-scope assignments cannot use a supported subject")
+        _require(assignment["subject"] is None, f"{path}.subject", "out-of-scope assignments cannot use a supported subject")
         _require(assignment["status"] == "out_of_scope", f"{path}.status", "out-of-scope subject requires out_of_scope status")
         _require(assignment["syllabus_scope"] == "out_of_scope", f"{path}.syllabus_scope", "out-of-scope subject requires out_of_scope scope")
 

@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|12",
+  "questions": [
+    {
+      "id": "chemistry|12|werners-theory-ligands-and-coordination-number|easy",
+      "topicId": "chemistry|12|werners-theory-ligands-and-coordination-number",
+      "difficulty": "easy",
+      "question": "When excess AgNO3 is added to a solution containing one mole of CoCl3·5NH3, two moles of AgCl precipitate. Using Werner's theory, write the formula of the complex and give the primary and secondary valencies of cobalt.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|12|werners-theory-ligands-and-coordination-number|medium",
+      "topicId": "chemistry|12|werners-theory-ligands-and-coordination-number",
+      "difficulty": "medium",
+      "question": "Give the coordination number and the oxidation state of the metal in [Fe(C2O4)3]^3-, [Co(en)2Cl2]+ and [Ni(CO)4]. Which of the ligands NO2-, SCN-, en and C2O4^2- are ambidentate?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|12|iupac-nomenclature-of-coordination-compounds|easy",
+      "topicId": "chemistry|12|iupac-nomenclature-of-coordination-compounds",
+      "difficulty": "easy",
+      "question": "Write the IUPAC names of K3[Fe(CN)6], [Co(NH3)5Cl]Cl2 and [Pt(NH3)2Cl2].",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|12|isomerism-in-coordination-compounds|medium",
+      "topicId": "chemistry|12|isomerism-in-coordination-compounds",
+      "difficulty": "medium",
+      "question": "The complex(es) which can exhibit the type of isomerism shown by [Pt(NH3)2Br2] is(are) [en = H2NCH2CH2NH2] (A) [Pt(en)(SCN)2] (B) [Zn(NH3)2Cl2] (C) [Pt(NH3)2Cl4] (D) [Cr(en)2(H2O)(SO4)]+",
+      "source": {
+        "questionId": "q_70568f93b3fc35eda1a67784aa541982f8b9975f3a6d44916e7fd76f43295dfc",
+        "exam": "JEE Advanced",
+        "year": 2023,
+        "documentId": "jee-advanced-2023-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|12|isomerism-in-coordination-compounds|hard",
+      "topicId": "chemistry|12|isomerism-in-coordination-compounds",
+      "difficulty": "hard",
+      "question": "The correct option(s) regarding the complex [Co(en)(NH3)3(H2O)]^3+ (en = H2NCH2CH2NH2) is(are) (A) It has two geometrical isomers (B) It will have three geometrical isomers if bidentate en is replaced by two cyanide ligands (C) It is paramagnetic (D) It absorbs light at longer wavelength as compared to [Co(en)(NH3)4]^3+",
+      "source": {
+        "questionId": "q_26174873b463d617f3fafc5096339d8016a9b266750562dfe245986392975898",
+        "exam": "JEE Advanced",
+        "year": 2018,
+        "documentId": "jee-advanced-2018-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|12|valence-bond-theory-of-complexes|easy",
+      "topicId": "chemistry|12|valence-bond-theory-of-complexes",
+      "difficulty": "easy",
+      "question": "Using valence bond theory, give the hybridisation, the geometry and the magnetic behaviour of [Ni(CN)4]^2- and of [NiCl4]^2-.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|12|valence-bond-theory-of-complexes|hard",
+      "topicId": "chemistry|12|valence-bond-theory-of-complexes",
+      "difficulty": "hard",
+      "question": "Addition of excess aqueous ammonia to a pink coloured aqueous solution of MCl2·6H2O (X) and NH4Cl gives an octahedral complex Y in the presence of air. In aqueous solution, complex Y behaves as a 1:3 electrolyte. The reaction of X with excess HCl at room temperature forms a blue coloured complex Z. The calculated spin only magnetic moment of X and Z is 3.87 B.M., whereas it is zero for complex Y. Which statement(s) is(are) correct? (A) Addition of silver nitrate to Y gives only two equivalents of silver chloride (B) The hybridization of the central metal ion in Y is d2sp3 (C) Z is a tetrahedral complex (D) When X and Z are in equilibrium at 0 °C, the colour of the solution is pink",
+      "source": {
+        "questionId": "q_91ae7d80df2f9218886c08007e1cf36334ac0b84abf622b79e645acad78975c7",
+        "exam": "JEE Advanced",
+        "year": 2017,
+        "documentId": "jee-advanced-2017-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|12|crystal-field-theory|medium",
+      "topicId": "chemistry|12|crystal-field-theory",
+      "difficulty": "medium",
+      "question": "Among the following complexes, what is the total number of diamagnetic species? [Mn(NH3)6]^3+, [MnCl6]^3-, [FeF6]^3-, [CoF6]^3-, [Fe(NH3)6]^3+ and [Co(en)3]^3+ (Given atomic numbers: Mn = 25, Fe = 26, Co = 27; en = H2NCH2CH2NH2)",
+      "source": {
+        "questionId": "q_2fb0e59b99b5c9735a98eb0983fd40500d57373f3a3142fffca191c404a8effa",
+        "exam": "JEE Advanced",
+        "year": 2024,
+        "documentId": "jee-advanced-2024-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|12|crystal-field-theory|hard",
+      "topicId": "chemistry|12|crystal-field-theory",
+      "difficulty": "hard",
+      "question": "The correct order of the wavelength maxima of the absorption band in the ultraviolet-visible region for the given complexes is (A) [Co(CN)6]^3- < [Co(NH3)6]^3+ < [Co(NH3)5(H2O)]^3+ < [Co(NH3)5(Cl)]^2+ (B) [Co(NH3)5(Cl)]^2+ < [Co(NH3)5(H2O)]^3+ < [Co(NH3)6]^3+ < [Co(CN)6]^3- (C) [Co(CN)6]^3- < [Co(NH3)5(Cl)]^2+ < [Co(NH3)5(H2O)]^3+ < [Co(NH3)6]^3+ (D) [Co(NH3)6]^3+ < [Co(CN)6]^3- < [Co(NH3)5(Cl)]^2+ < [Co(NH3)5(H2O)]^3+",
+      "source": {
+        "questionId": "q_bc8b7fd199977c1a147656a06851eca4a1c0a76d3dbcafd4911eead794d04037",
+        "exam": "JEE Advanced",
+        "year": 2025,
+        "documentId": "jee-advanced-2025-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|12|importance-and-applications-of-coordination-compounds|easy",
+      "topicId": "chemistry|12|importance-and-applications-of-coordination-compounds",
+      "difficulty": "easy",
+      "question": "Name the complex involved, with its formula, in each of the following: the estimation of hardness of water with EDTA, the extraction of gold by the cyanide process, the test for Ni^2+ with dimethylglyoxime, and the anticancer drug cisplatin.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

@@ -243,6 +243,50 @@ narration into one segment with `commands[]`. Persistence stores
 `parseStoredSegmentCommands()`. Work-area coordinates are runtime-allocated;
 model-supplied text coordinates cannot enter the diagram viewport.
 
+## The pen follows the voice (10 Sep 2026)
+
+Measured in headless Chrome (`apps/tutor/scripts/live/sync/lesson-probe.mjs`, then
+`sync-analyser.mjs` over the run's `console.jsonl`, `ab-table.py` for the lesson by
+metric table). Before: the pen was parked while the voice spoke 38 to 82% of the
+time, every row ran on an estimated schedule at 15 chars/s against a voice at 11 to
+13, the figure was drawn in 1.3 s of ink under a 10 s sentence, FOCUS fired once at
+the top of its sentence, and labels leaked on any row containing their letter. After:
+parked 11 to 26%, every prefetched row on exact alignment, rows finishing within a few
+hundred ms of their sentence.
+
+The rules now in force, each with an offline gate:
+
+- **Exact timings live.** Every sentence but the first is prefetched, so the runner
+  asks the TTS client for the alignment (`peekSegmentTimings`) before it builds any
+  schedule, and otherwise waits for the first alignment, 120 ms after audio start, or
+  speech complete (`resolveInitialTimingWait`, gated in verify-tts-lookahead).
+- **One speech rate.** `speechRate.ts` seeds 86 ms per spoken character and learns
+  the session's voice from every aligned sentence; every estimate reads it.
+- **Tokens match the words the voice says.** "=" matches equals, is, gives; "/" over
+  or divided by; whole words only; unmatched tokens attach to their neighbour instead
+  of being spread to the sentence end (`matchedCharFraction`, verify-sync-schedules).
+- **A glyph fills its spoken slot.** `scheduledGlyphBudgetMs`: 90 to 350 media ms per
+  character, run in wall time through the playback rate (live default 1.5x), a slow
+  finishing stroke instead of a park on a long word (verify-pen-motion).
+- **One trace per named part, on its word.** `getFocusTargetSchedule` anchors each
+  target on its drawn label, entity label or role word (case-sensitive for short
+  names) and `runScheduledFocus` waits, letters the withheld label, and traces for the
+  clause (verify-focus-schedule, verify-focus-execution). Labels are never released
+  by WRITE text.
+- **The figure is drawn one part per word.** One intro segment per reveal group in draw
+  order, every command carrying `spokenCue`, `getCueSpeechWindow` per command, no batch
+  cap, and a walked sentence ("first the ceiling, then the pulley...") when the hand
+  needs longer than the cue (verify-intro-pacing, verify-verified-scene-presentation).
+- **A sentence's commands run in spoken order** (`orderCommandsBySpokenAnchor`), a tag
+  glued after a tag folds into the sentence before it (`foldGluedSegment`), and a
+  DSA POINT walk lasts the sentence (verify-segment-planning, verify-marker-tour).
+- **DSA beats follow the words**: a typed block, then the caret on each line as it is
+  explained; a frame walk over the cells the voice names (verify-code-lesson-pace).
+- **The prompt places tags where the runtime can sync them**: one `[FOCUS:id]` per named
+  part directly after its name, never two ids in one tag, "=" spoken as equals, the
+  row's words last in the step (verify-turn-teaching-prompt; lecture-lab findings
+  `row_unspoken_cue`, `focus_after_name`, `late_row_cue`).
+
 ## Current Root-Cause Notes
 
 The most important recent finding: waiting for near-complete ElevenLabs timing alignment before drawing causes the exact user-visible bug: speech happens first, writing appears late.

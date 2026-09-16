@@ -169,42 +169,18 @@ export async function DELETE(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
 
-    // Collect R2 audio keys before the cascade removes the segments.
-    const turns = await prisma.turn.findMany({
-      where: { boardId },
-      select: {
-        id: true,
-        segments: {
-          select: { orderIndex: true, audioUrl: true },
-        },
-      },
-    });
-
-    // DB cascade removes turns/segments.
     await prisma.board.delete({
       where: { id: boardId },
     });
 
-    // Best-effort R2 audio cleanup in the background. Dynamic import keeps
-    // child_process out of the route's webpack bundle at build time.
-    const { lectureAudioKey } = await import("@/lib/r2/r2Keys");
-    const audioKeys = turns
-      .flatMap((turn) =>
-        turn.segments
-          .filter((segment) => Boolean(segment.audioUrl))
-          .map((segment) => lectureAudioKey(boardId, turn.id, segment.orderIndex)),
-      );
-
-    if (audioKeys.length > 0) {
-      void (async () => {
-        try {
-          const { deleteAudioBulk } = await import("@/lib/r2/r2");
-          await deleteAudioBulk(audioKeys);
-        } catch {
-          // best-effort — R2 may not be configured or wrangler unavailable
-        }
-      })();
-    }
+    void (async () => {
+      try {
+        const { boardAudioPrefix, deletePrefix } = await import("@/lib/object-store/s3");
+        await deletePrefix(boardAudioPrefix(boardId));
+      } catch {
+        // best-effort — S3 may not be configured
+      }
+    })();
 
     return NextResponse.json({ ok: true });
   } catch (error) {

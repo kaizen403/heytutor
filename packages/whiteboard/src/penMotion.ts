@@ -33,6 +33,291 @@ export function advanceSpeedAwareProgress(input: {
   };
 }
 
+/**
+ * How fast the nib lays ink, in px per ms.
+ *
+ * A hand draws at roughly one speed and lets the length of the line decide how
+ * long the line takes. The board used to do the opposite: every shape in a
+ * reveal got the same millisecond budget, so a 30px tick crawled and a 600px
+ * box was whipped out, and one figure visibly changed speed several times
+ * while being drawn. Budgeting the speed instead is what makes a figure read
+ * as one hand drawing it.
+ */
+export const INK_SPEED_PX_PER_MS = 2;
+/** How far a narrated stroke may be stretched to stay under that speed. */
+export const INK_STRETCH_MAX = 1.5;
+
+/**
+ * How far the hand may lean off its natural speed to track the voice.
+ *
+ * The adaptation is a *speed*, not a millisecond budget, and it is applied to
+ * the whole figure. Damping an absolute budget conflated two things — how long
+ * a line is, and how far behind the narration the ink has fallen — so a run of
+ * short shapes taught the damper that this figure was a fast one, and the next
+ * long shape was whipped out to match.
+ */
+export const PACE_SCALE_MIN = 0.55;
+export const PACE_SCALE_MAX = 1.6;
+
+export function clampPaceScale(scale: number): number {
+  if (!Number.isFinite(scale)) return 1;
+  return Math.min(Math.max(scale, PACE_SCALE_MIN), PACE_SCALE_MAX);
+}
+
+/**
+ * Where the hand should be leaning, given how far the voice is ahead of the
+ * ink. Positive lag is the voice talking about something not yet drawn.
+ */
+export function paceScaleForLagMs(lagMs: number): number {
+  if (!Number.isFinite(lagMs)) return 1;
+  if (lagMs > 220) return PACE_SCALE_MIN;
+  if (lagMs > 100) return 0.8;
+  if (lagMs < -220) return 1.45;
+  return 1.02;
+}
+
+/**
+ * Ease toward that lean instead of snapping to it, and cap how much one shape
+ * may change it, so a figure accelerates and decelerates rather than switching
+ * between two speeds.
+ */
+export const PACE_SCALE_STEP_MAX = 1.22;
+
+export function dampPaceScale(previous: number | null, target: number): number {
+  const wanted = clampPaceScale(target);
+  if (previous === null) return wanted;
+  const prev = clampPaceScale(previous);
+  const blended = prev * 0.65 + wanted * 0.35;
+  return clampPaceScale(
+    Math.min(Math.max(blended, prev / PACE_SCALE_STEP_MAX), prev * PACE_SCALE_STEP_MAX),
+  );
+}
+
+/**
+ * The time this stroke should take.
+ *
+ * With a ceiling (a reveal, which owns its own envelope) the length decides,
+ * inside that envelope — so no shape ever takes longer than it could before,
+ * and the short ones stop over-spending. Without one (narrated ink, whose
+ * budget is tied to what the voice is saying) the requested time stands unless
+ * it would draw faster than a hand can, and even then it is stretched only so
+ * far, because ink that lags the sentence describing it is the worse fault.
+ */
+export function paceShapeDurationMs(input: {
+  lengthPx: number;
+  requestedMs: number;
+  minMs: number;
+  maxMs?: number;
+  /** >1 lingers, <1 hurries — how hard the hand is leaning to track the voice. */
+  paceScale?: number;
+}): number {
+  const length = Math.max(input.lengthPx, 1);
+  const requested = Math.max(input.requestedMs, 0);
+  const scale = clampPaceScale(input.paceScale ?? 1);
+  const bySpeed = (length / INK_SPEED_PX_PER_MS) * scale;
+
+  if (typeof input.maxMs === "number") {
+    return Math.min(Math.max(bySpeed, input.minMs), input.maxMs);
+  }
+  const stretched = Math.min(Math.max(requested, bySpeed), requested * INK_STRETCH_MAX);
+  return Math.max(stretched, input.minMs);
+}
+
+/**
+ * The time a shape on the board takes, once the caller has said what kind of
+ * shape it is.
+ *
+ * A `scene` shape is one stroke of a reveal and keeps the reveal's ceiling.
+ * A `cued` shape is a stroke the voice is describing right now: the intro
+ * used to hand the whiteboard a 10 s narration window and the whiteboard
+ * clipped every stroke to 320 ms (measured: 14 mirror strokes in 3.5 s under
+ * a 10.26 s sentence, then a parked pen for 3.3 s). When the caller says the
+ * stroke is cued, the requested time stands, stretched at most
+ * `INK_STRETCH_MAX` over the hand-speed floor, and the reveal ceiling is not
+ * applied.
+ */
+export function resolveShapeDurationMs(input: {
+  lengthPx: number;
+  requestedMs: number;
+  minMs: number;
+  sceneMaxMs: number;
+  pace?: "follow" | "scene";
+  cued?: boolean;
+  paceScale?: number;
+}): number {
+  return paceShapeDurationMs({
+    lengthPx: input.lengthPx,
+    requestedMs: input.requestedMs,
+    minMs: input.minMs,
+    maxMs: !input.cued && input.pace === "scene" ? input.sceneMaxMs : undefined,
+    paceScale: input.paceScale,
+  });
+}
+
+/**
+ * The ink of a character fills its spoken slot.
+ *
+ * Before this the budget for a scheduled glyph was clamp(slot x 0.78, 42, 128)
+ * media ms, run at the board's animation speed (1.5 user x 1.2 adaptive) with
+ * the first frame credited, so anything under about 90 media ms was stamped on
+ * frame one and a 600 ms word drew a 70 ms glyph and parked for the rest.
+ * Measured on the mirror lesson: 27 of 33 rows finished early, median 1.4 s,
+ * with per-character wall gaps of one to six frames however long the word was.
+ *
+ * The slot is the spoken window of the character. The ink takes the slot,
+ * floored at `GLYPH_SLOT_MIN_MS` so a fast syllable is still written rather
+ * than stamped, and capped at `GLYPH_SLOT_MAX_MS` so a long word does not turn
+ * one letter into slow motion; what is left of a long slot is a linger, a slow
+ * finishing stroke on the glyph rather than a park. When the pen is behind
+ * (the voice has passed the character's start by more than
+ * `GLYPH_LAG_TOLERANCE_MS`) the ink shortens toward the floor by the excess
+ * and the linger is given up first, so a late row catches its sentence.
+ *
+ * Smoothing: two consecutive glyphs never differ by more than
+ * `GLYPH_BUDGET_STEP_MAX` in ink time when the pen is on time. Catching up is
+ * deliberately not smoothed; a hand that is behind does not ease into hurrying.
+ */
+export const GLYPH_SLOT_MIN_MS = 90;
+export const GLYPH_SLOT_MAX_MS = 350;
+export const GLYPH_LAG_TOLERANCE_MS = 120;
+export const GLYPH_BUDGET_STEP_MAX = 1.5;
+/** A slot no schedule can name (the last character of a text with no duration list). */
+export const GLYPH_SLOT_FALLBACK_MS = 160;
+
+export interface ScheduledGlyphBudget {
+  /** Media ms the glyph's ink takes. */
+  inkMs: number;
+  /** Media ms the hand stays on the last stroke after the ink, filling the slot. */
+  lingerMs: number;
+}
+
+export function scheduledGlyphBudgetMs(input: {
+  slotMs: number;
+  lagMs: number;
+  previousMs?: number | null;
+}): ScheduledGlyphBudget {
+  const slot = Number.isFinite(input.slotMs) ? Math.max(input.slotMs, 0) : GLYPH_SLOT_FALLBACK_MS;
+  const lag = Number.isFinite(input.lagMs) ? Math.max(input.lagMs, 0) : 0;
+  const clampSlot = (value: number): number =>
+    Math.min(Math.max(value, GLYPH_SLOT_MIN_MS), GLYPH_SLOT_MAX_MS);
+
+  const base = clampSlot(slot);
+  const previous =
+    typeof input.previousMs === "number" && Number.isFinite(input.previousMs) && input.previousMs > 0
+      ? clampSlot(input.previousMs)
+      : null;
+  const smoothed =
+    previous === null
+      ? base
+      : clampSlot(
+          Math.min(
+            Math.max(base, previous / GLYPH_BUDGET_STEP_MAX),
+            previous * GLYPH_BUDGET_STEP_MAX,
+          ),
+        );
+
+  const behindMs = Math.max(lag - GLYPH_LAG_TOLERANCE_MS, 0);
+  const inkMs = clampSlot(smoothed - behindMs);
+  const lingerMs = Math.max(slot - lag - inkMs, 0);
+  return { inkMs, lingerMs };
+}
+
+/**
+ * How much of a glyph's time map is left for the finishing stroke when the
+ * hand lingers. Half the linger's share of the whole, so a 550 ms linger after
+ * a 350 ms glyph draws the last third of the letter at about a third of the
+ * speed: a hand slowing to finish the letter while the voice finishes the
+ * word. `maxFraction` is the share of the glyph its last stroke actually owns,
+ * so the linger never reaches back into an earlier stroke or the air before it.
+ */
+export const LINGER_TAIL_MAX = 0.35;
+
+export function lingerTailFraction(
+  inkMs: number,
+  lingerMs: number,
+  maxFraction = LINGER_TAIL_MAX,
+): number {
+  if (!(lingerMs > 0) || !(inkMs > 0)) return 0;
+  const share = (lingerMs / (inkMs + lingerMs)) * 0.5;
+  return Math.min(Math.max(share, 0), Math.max(Math.min(maxFraction, LINGER_TAIL_MAX), 0));
+}
+
+/**
+ * Progress through a glyph's time map at `elapsedMs` of an ink phase followed
+ * by a linger. The ink phase keeps the handwriting cadence over the body of
+ * the letter; the linger eases the tail out over the rest of the slot, ending
+ * at 1 so no sliver is left unpainted and never running backwards.
+ */
+export function lingeringGlyphProgress(
+  elapsedMs: number,
+  inkMs: number,
+  lingerMs: number,
+  variation = 0,
+  maxTailFraction = LINGER_TAIL_MAX,
+): number {
+  const tail = lingerTailFraction(inkMs, lingerMs, maxTailFraction);
+  if (elapsedMs <= inkMs || tail === 0) {
+    const t = inkMs > 0 ? clamp01(elapsedMs / inkMs) : 1;
+    return handwritingProgress(t, inkMs, variation) * (1 - tail);
+  }
+  const u = clamp01((elapsedMs - inkMs) / Math.max(lingerMs, 1e-6));
+  return 1 - tail + tail * (1 - (1 - u) * (1 - u));
+}
+
+export interface SimulatedGlyph {
+  /** Media ms the pen began this glyph (after any wait on the voice). */
+  startMs: number;
+  /** Media ms the ink was complete. */
+  inkEndMs: number;
+  /** Media ms the hand left the glyph, linger included. */
+  endMs: number;
+  /** Media ms the pen stood idle between the previous glyph and this one. */
+  pauseMs: number;
+  /** How far the voice was past this character's cue when the pen reached it. */
+  lagMs: number;
+}
+
+export interface SimulatedScheduledLine {
+  glyphs: SimulatedGlyph[];
+  lastEndMs: number;
+  maxPauseMs: number;
+}
+
+/**
+ * Walk a scheduled row through the slot rule on an ideal media clock: every
+ * character waits for its cue, is written for its budget, lingers if the slot
+ * is longer than the cap, and hands whatever it overran to the next character
+ * as lag. This is the offline model of writeText's scheduled loop, so a budget
+ * rule can be judged against a real sentence before it meets the board.
+ */
+export function simulateScheduledGlyphs(input: {
+  offsetsMs: readonly number[];
+  slotsMs: readonly number[];
+  budget?: (slotMs: number, lagMs: number, previousMs: number | null) => ScheduledGlyphBudget;
+}): SimulatedScheduledLine {
+  const budget = input.budget ?? ((slotMs, lagMs, previousMs) =>
+    scheduledGlyphBudgetMs({ slotMs, lagMs, previousMs }));
+  const glyphs: SimulatedGlyph[] = [];
+  let previousMs: number | null = null;
+  let penFreeMs = 0;
+  let maxPauseMs = 0;
+  for (let index = 0; index < input.offsetsMs.length; index++) {
+    const cueMs = input.offsetsMs[index] ?? 0;
+    const slotMs = input.slotsMs[index] ?? GLYPH_SLOT_FALLBACK_MS;
+    const startMs = Math.max(cueMs, penFreeMs);
+    const lagMs = Math.max(startMs - cueMs, 0);
+    const pauseMs = index === 0 ? 0 : Math.max(startMs - penFreeMs, 0);
+    const { inkMs, lingerMs } = budget(slotMs, lagMs, previousMs);
+    const inkEndMs = startMs + inkMs;
+    const endMs = inkEndMs + lingerMs;
+    glyphs.push({ startMs, inkEndMs, endMs, pauseMs, lagMs });
+    maxPauseMs = Math.max(maxPauseMs, pauseMs);
+    penFreeMs = endMs;
+    previousMs = inkMs;
+  }
+  return { glyphs, lastEndMs: penFreeMs, maxPauseMs };
+}
+
 /** Natural pen motion for long scene strokes. */
 export function easePen(progress: number): number {
   const t = clamp01(progress);

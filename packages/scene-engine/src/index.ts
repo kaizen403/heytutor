@@ -19,6 +19,7 @@ export * from "./synthesize/familyClassification";
 export * from "./synthesize/sceneDemand";
 export * from "./synthesize/familyScene";
 export * from "./synthesize/dsaFamilies";
+export * from "./chemistry";
 
 // DSA code lessons: algorithm traces are the ground truth for the figure.
 // The catalog picks a family, the simulator produces real frames, and

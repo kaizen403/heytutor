@@ -5,6 +5,7 @@ import {
 } from "@heytutor/scene-engine";
 import { evaluateMathExpression } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
+import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 import { inferSceneCapabilities, isQualitativeConceptQuestion, qualitativeQuestionAllowsScene, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
 import { reconcileTurnPlanWithOpticsLaws } from "./opticsPlanAudit";
@@ -12,6 +13,8 @@ import { reconcileTurnPlanWithOpticsLaws } from "./opticsPlanAudit";
 export interface TurnPlannerV3Options {
   proxyUrl: string;
   sessionId?: string;
+  /** Client-generated Langfuse turn id shared with teaching and TTS. */
+  traceId?: string;
   signal?: AbortSignal;
   timeoutMs: number;
   conversationContext?: string;
@@ -157,16 +160,20 @@ async function requestTurnPlanV3(
   try {
     const response = await fetch(options.proxyUrl, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-planner": "1",
-        "x-turn-planner-version": "3",
-        "x-turn-plan-phase": phase,
-        "x-turn-planner-lane": lane,
-        "x-planner-deadline-ms": String(options.timeoutMs),
-        ...(options.sessionId ? { "x-session-id": options.sessionId } : {}),
-        ...withFastModeHeader({}, options.fastMode),
-      },
+      headers: withFastModeHeader(
+        withTurnTraceHeaders(
+          {
+            "content-type": "application/json",
+            "x-planner": "1",
+            "x-turn-planner-version": "3",
+            "x-turn-plan-phase": phase,
+            "x-turn-planner-lane": lane,
+            "x-planner-deadline-ms": String(options.timeoutMs),
+          },
+          { sessionId: options.sessionId, traceId: options.traceId, question },
+        ),
+        options.fastMode,
+      ),
       signal,
       body: JSON.stringify({
         model: TURN_PLAN_MODEL,

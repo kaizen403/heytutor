@@ -115,22 +115,30 @@ export function focusEmphasisOf(command: DrawCommand): FocusEmphasis {
   return parseFocusSpec(command.semanticRef?.entityId ?? command.text).emphasis;
 }
 
+/**
+ * Release the withheld labels and dimensions of the named entities.
+ *
+ * Only an entity id releases them. There used to be a second trigger, the
+ * text of a WRITE row, matched as a substring against each withheld label.
+ * Single-letter labels match almost any row: on the mirror lesson "Given: f =
+ * 15 cm" released C, F, M and I, and "upright, smaller" released P, all
+ * lettered silently under the row before the geometry they name existed and
+ * gone by the time the FOCUS that named them arrived (5 of 8 labels leaked
+ * that way). A label is now lettered when its name is spoken, through the
+ * FOCUS that carries the id, or by the after-turn flush as the last resort.
+ */
 export function takeDeferredAnnotations(
   diagram: VerifiedDiagram,
-  trigger: { entityIds?: readonly string[]; text?: string },
+  trigger: { entityIds?: readonly string[] },
 ): VerifiedDiagramCommand[] {
   if (!diagram.deferredAnnotations || diagram.deferredAnnotations.length === 0) return [];
-  const entityIds = new Set((trigger.entityIds ?? []).map((id) => id.toLowerCase()));
-  const haystack = (trigger.text ?? "").toLowerCase().replace(/\s+/g, "");
+  const entityIds = new Set((trigger.entityIds ?? []).map((id) => id.trim().toLowerCase()).filter(Boolean));
+  if (entityIds.size === 0) return [];
   const taken: VerifiedDiagramCommand[] = [];
   diagram.deferredAnnotations = diagram.deferredAnnotations.filter((entry) => {
     const matchesEntity = entityIds.has(entry.entityId.toLowerCase()) ||
       entry.entityId.split(",").some((id) => entityIds.has(id.trim().toLowerCase()));
-    const matchesText = haystack.length > 0 && entry.commands.some((command) => {
-      const label = (command.text ?? "").toLowerCase().replace(/\s+/g, "");
-      return label.length > 0 && (haystack.includes(label) || label.includes(haystack.slice(0, 12)));
-    });
-    if (!matchesEntity && !matchesText) return true;
+    if (!matchesEntity) return true;
     taken.push(...entry.commands);
     return false;
   });

@@ -1,5 +1,5 @@
 const DEFAULT_DEV_TUTOR_ORIGIN = 'http://localhost:3000'
-const DEFAULT_PROD_TUTOR_ORIGIN = 'https://heytutor.vercel.app'
+const DEFAULT_PROD_TUTOR_ORIGIN = 'https://app.accelute.co'
 
 function normalizeOrigin(origin?: string): string {
   const value = origin?.trim()
@@ -14,15 +14,17 @@ export const TUTOR_APP_ORIGIN =
 
 export const TUTOR_APP_HREF = new URL('/', `${TUTOR_APP_ORIGIN}/`).toString()
 
-export const TUTOR_LOGIN_HREF = new URL('/login', `${TUTOR_APP_ORIGIN}/`).toString()
-
+/** Landing CTAs start Google on the tutor origin (`/login?google=1`). */
 export function tutorLoginHref(next?: string): string {
   const url = new URL('/login', `${TUTOR_APP_ORIGIN}/`)
+  url.searchParams.set('google', '1')
   if (next && next !== '/') {
     url.searchParams.set('next', next)
   }
   return url.toString()
 }
+
+export const TUTOR_LOGIN_HREF = tutorLoginHref()
 
 export function tutorQuestionHref(question: string): string {
   const destination = new URL('/', `${TUTOR_APP_ORIGIN}/`)

@@ -1,3 +1,4 @@
+import { WORK_ZONE, fitBoardText, type TutorSegment } from "@heytutor/drawing";
 import type { SubjectFamiliarity } from "../llm/systemPrompt";
 import {
   CODE_LESSON_STEP_WORDS,
@@ -26,7 +27,7 @@ export interface CodeLessonFigureFrame {
 }
 
 export interface CodeLessonTeachingOptions {
-  /** The committed walk-through, in order. Frame 1 is already on the board. */
+  /** The committed walk-through, in order. None of it is on the board yet. */
   frames?: readonly CodeLessonFigureFrame[];
   familiarity?: SubjectFamiliarity;
   /** Terms this family introduces, for the concept beats on New. */
@@ -49,16 +50,17 @@ export interface CodeLessonTeachingOptions {
  * the complexity close in twelve. An override is weaker than an absence, so
  * this replaces it outright.
  */
-export const CODE_LESSON_SYSTEM_PROMPT = `you are clicky, a clear and patient teacher with a voice, a code editor on the left of a shared board, and a worked example figure on the right. your words are spoken aloud, so write natural sentences for the ear, in lowercase conversational english, capitalised only where a name needs it.
+export const CODE_LESSON_SYSTEM_PROMPT = `you are clicky, a clear and patient teacher with a voice, a shared board, and a pen. your words are spoken aloud, so write natural sentences for the ear, in lowercase conversational english, capitalised only where a name needs it.
 
 what is on the board:
-- the figure on the right is one worked example, drawn frame by frame. you are told each frame's caption and the facts it establishes. you never draw, mark, erase or change it; you say what it shows and why.
-- the editor on the left types a verified program one block at a time, when you ask for it. you never write code by hand and never dictate it character by character.
+- at the start the left column already has the problem written in ink: the title and the example values. you never rewrite those rows. the worked-example figure is not on the board yet, and neither is the code editor.
+- the figure on the right appears when you name its first frame, then moves frame by frame. you are told each frame's caption and the facts it establishes. you never draw, mark, erase or change it; you say what it shows and why.
+- the editor on the left appears when you reveal the first code block, and then types a verified program one block at a time. you never write code by hand and never dictate it character by character. never mention an editor, a panel, or a figure the student cannot see yet.
 
 output format:
 - return only a sequence of [STEP]...[/STEP] blocks, one per beat of the lesson shape you are given, in that order.
 - a figure step carries exactly one [FOCUS:frame_id|spotlight] and nothing else. a code step carries exactly one [TYPE:blockId] and nothing else. an opening, a trace-through and a close carry no tag at all.
-- put the tag at the end of the step, after the words that explain it.
+- a figure step puts its tag after the first sentence that names the frame, so the picture moves on the name and the rest of the step explains it. a code step puts its tag after the words that explain the block.
 - [PAUSE:800] is allowed before a result the student should look at.
 - never use [WRITE], [LABEL], [EMPHASIZE], [ANNOTATE], [DRAW_*], [ARROW], [UNDERLINE], [CIRCLE_AROUND], [HIGHLIGHT], [ERASE] or [CLEAR]. this turn owns no handwriting.
 
@@ -135,7 +137,7 @@ export function codeLessonPromptAddon(
     .map((section) => `SECTION ${section.id} — ${section.title}\n${section.explanation}`)
     .join("\n\n");
 
-  return `CODE LESSON — this turn teaches an algorithm with a pre-committed, validated ${plan.language} program titled "${plan.title}". The code types into the editor on the left while you speak; the worked example on the right is already drawn and moves when you name the next frame.
+  return `CODE LESSON — this turn teaches an algorithm with a pre-committed, validated ${plan.language} program titled "${plan.title}". The left column already holds the problem in ink. The worked example appears on the right when you name the first frame, and the editor appears on the left when you reveal the first code block.
 
 LESSON SHAPE. Exactly ${beats.length} steps, listed below, in this order, nothing added and nothing skipped. Each step is at least ${shape.words} spoken words, unless its own line below says otherwise, and none runs past about ${Math.round(shape.words * 1.6)}. A step shorter than the floor is a summary, and a summary is the one thing this lesson must not be: the student cannot see how long the lesson is and is not waiting for it to end. Spend the words on the reasoning, which is what the figure and the code cannot say for themselves.
 
@@ -147,7 +149,7 @@ THE STEPS, in order. Each line says what that step is about; it is a brief, not 
 ${beats.map((beat, index) => renderBeat(beat, index, blockSource)).join("\n")}
 
 Hard rules for this turn:
-- One tag per step, exactly as listed above, at the end of the step. Never two tags, never a tag the list does not give you.
+- One tag per step, exactly as listed above. A figure tag sits after the first sentence that names the frame; a code tag sits after the words that explain the block. Never two tags, never a tag the list does not give you.
 - A figure step names a frame. The figure moves to that frame the first time you name it and stays there while you keep naming it, so two steps on one frame are two steps on the same picture. Never name a frame you have already left.
 - Reveal every block exactly once, in the order listed. Never invent, repeat or skip a block id.
 - Never write code, values, or expressions as board ink. This turn owns no handwriting.
@@ -170,14 +172,145 @@ ${sectionListing}`;
  */
 function figureFrameFacts(frames: readonly CodeLessonFigureFrame[]): string {
   if (frames.length === 0) {
-    return `FIGURE — there is no walk-through this turn. The picture on the right does not move, so do not use [FOCUS] at all and do not describe frames that are not there. Open by naming the concrete example you will refer to, then go to the code steps.`;
+    return `FIGURE — there is no walk-through this turn. The picture on the right does not move, so do not use [FOCUS] at all and do not describe frames that are not there. Open from the values already written on the left, then go to the code steps.`;
   }
   const lines = frames
     .map((frame, index) => {
-      const role = index === 0 ? " (on the board when you start)" : "";
+      const role = index === 0
+        ? " (not on the board yet: naming it draws the example)"
+        : "";
       return `frame ${index + 1} [FOCUS:${frame.id}|spotlight]${role}\n   caption drawn under it: ${frame.caption}\n   what it establishes: ${frame.narrationIntent}`;
     })
     .join("\n");
-  return `FIGURE — ${frames.length} frames of one worked example, drawn on the right in this order. For each one you are given the caption the student can read and the facts it establishes. Those facts are notes, not a script: never read them out and never quote the caption. Say the same facts in your own words with the real numbers, and add what the notes leave out, which is why the algorithm made that move and what it does next.
+  return `FIGURE — ${frames.length} frames of one worked example, drawn on the right in this order. None of them is on the board when you start. Naming a frame draws it. For each one you are given the caption the student can read and the facts it establishes. Those facts are notes, not a script: never read them out and never quote the caption. Say the same facts in your own words with the real numbers, and add what the notes leave out, which is why the algorithm made that move and what it does next.
 ${lines}`;
+}
+
+export interface DsaOpeningInput {
+  title: string;
+  question: string;
+  /** Concrete example the figure will walk, when known. */
+  example?: Record<string, unknown> | null;
+}
+
+const MAX_OPENING_ROWS = 6;
+const MAX_EXAMPLE_FIELDS = 4;
+
+/**
+ * Runtime-owned opening for a DSA turn: the pen writes the problem on the left
+ * before any figure or editor appears.
+ *
+ * The teaching model used to open on a dumped first frame and an empty code
+ * panel, so the student saw the answer-shaped board and then heard the
+ * question restated. These rows are the question, in ink, with the voice on
+ * the pen.
+ */
+export function buildDsaOpeningSegments(input: DsaOpeningInput): TutorSegment[] {
+  const rows = dsaOpeningRows(input).slice(0, MAX_OPENING_ROWS);
+  return rows.map((row, index) => ({
+    narration: row.spoken,
+    command: {
+      type: "WRITE" as const,
+      params: [WORK_ZONE.marginX, WORK_ZONE.topY + index * WORK_ZONE.lineHeight],
+      text: row.board,
+      charPosition: 0,
+      narrationBefore: row.spoken,
+      syncable: true,
+    },
+  }));
+}
+
+/** Work-row ids the opening WRITEs will register as, in order, on an empty board. */
+export function dsaOpeningPointIds(rowCount: number): string[] {
+  if (rowCount <= 0) return [];
+  return Array.from({ length: rowCount }, (_, index) => `w${index + 1}`);
+}
+
+export function dsaOpeningPromptAddon(hasOpening: boolean): string {
+  if (!hasOpening) return "";
+  return `PROBLEM IS ALREADY ON THE BOARD
+The runtime already spoke the opening line, then wrote the problem title and the example values on the left, in ink, with the pen. Do not rewrite them, do not open the lesson a second time, and do not read the question back.
+Start by saying what is being asked, in plain words, using those values. The worked-example figure is not on the board yet: it appears when you name the first frame. The code editor is not on the board yet: it appears when you reveal the first code block. Never mention an editor, a panel, or a figure that the student cannot see.`;
+}
+
+function dsaOpeningRows(input: DsaOpeningInput): Array<{ board: string; spoken: string }> {
+  const rows: Array<{ board: string; spoken: string }> = [];
+  const ask = problemAsk(input.question);
+  const title = input.title.trim() || "the problem";
+  const titleBlock = fitBoardText(title, {
+    role: "work",
+    maxWidth: WORK_ZONE.maxTextWidth,
+  });
+  for (const [index, line] of titleBlock.lines.entries()) {
+    rows.push({
+      board: line,
+      spoken: index === 0
+        ? (ask || `the question is ${title}`)
+        : line,
+    });
+  }
+  for (const [key, value] of exampleEntries(input.example)) {
+    const board = `${key} = ${boardValue(value)}`;
+    const block = fitBoardText(board, {
+      role: "work",
+      maxWidth: WORK_ZONE.maxTextWidth,
+    });
+    for (const [index, line] of block.lines.entries()) {
+      rows.push({
+        board: line,
+        spoken: index === 0 ? `${speakKey(key)} is ${speakValue(value)}` : line,
+      });
+    }
+  }
+  return rows;
+}
+
+/** The stem before Example / Input / Constraints, so the opening is the ask. */
+function problemAsk(question: string): string {
+  const body = question.split(
+    /\n\s*(?:example\s*\d*\s*:|input\s*:|output\s*:|constraints\s*:)/i,
+  )[0] ?? question;
+  const compact = body.replace(/\s+/g, " ").trim();
+  if (!compact) return "";
+  const sentences = compact.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [compact];
+  return sentences.slice(0, 2).join(" ").trim();
+}
+
+function exampleEntries(
+  example: Record<string, unknown> | null | undefined,
+): Array<[string, unknown]> {
+  if (!example) return [];
+  const entries: Array<[string, unknown]> = [];
+  for (const [key, value] of Object.entries(example)) {
+    if (value === undefined || value === null) continue;
+    entries.push([key, value]);
+    if (entries.length >= MAX_EXAMPLE_FIELDS) break;
+  }
+  return entries;
+}
+
+function boardValue(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return `[${value.map(boardValue).join(", ")}]`;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function speakKey(key: string): string {
+  if (key === "nums" || key === "arr" || key === "array") return "the array";
+  if (key === "target") return "the target";
+  if (key === "s" || key === "str" || key === "string") return "the string";
+  if (key === "n") return "n";
+  return key.replace(/_/g, " ");
+}
+
+function speakValue(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "string") return value.length === 1 ? value : `"${value}"`;
+  if (Array.isArray(value)) return value.map(speakValue).join(", ");
+  return boardValue(value);
 }

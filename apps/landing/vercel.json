@@ -11,12 +11,12 @@
   "redirects": [
     {
       "source": "/app",
-      "destination": "https://heytutor.vercel.app",
+      "destination": "https://app.accelute.co/login?google=1",
       "permanent": false
     },
     {
       "source": "/app/:path*",
-      "destination": "https://heytutor.vercel.app/:path*",
+      "destination": "https://app.accelute.co/:path*",
       "permanent": false
     }
   ],

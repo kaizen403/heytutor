@@ -13,15 +13,18 @@ interface BoardBootSpinnerProps {
 /**
  * The board's boot arc — the pending mark shown while the Konva chunk loads.
  *
- * It is the same 252° sky sweep the on-canvas `ThinkingSpinner` draws
- * (sky-500, round caps, soft glow), rendered in SVG so it can spin before
- * Konva exists. Boot → thinking is one continuous visual family: the arc that
- * waits for the board is the arc that waits for the diagram.
+ * It is the same 252° sweep the on-canvas `ThinkingSpinner` draws, rendered in
+ * SVG so it can spin before Konva exists. Boot → thinking is one continuous
+ * visual family: the arc that waits for the board is the arc that waits for
+ * the diagram.
  *
- * The rotation is a CSS transform on its own compositor layer; the glow is a
- * static drop-shadow on the wrapper, so the spin never repaints. Under
- * `prefers-reduced-motion` the arc stops and breathes instead, the same
- * degrade the pen spinner uses.
+ * It is drawn in a quiet grey, not the accent, and carries no glow. Waiting is
+ * not an event worth the one saturated colour in the palette, and a halo is a
+ * light source on a theme that has none.
+ *
+ * The rotation is a CSS transform on its own compositor layer, so the spin
+ * never repaints. Under `prefers-reduced-motion` the arc stops and breathes
+ * instead, the same degrade the pen spinner uses.
  */
 export function BoardBootSpinner({ size = 30, label, className }: BoardBootSpinnerProps) {
   return (
@@ -43,7 +46,7 @@ export function BoardBootSpinner({ size = 30, label, className }: BoardBootSpinn
             pathLength={100}
             strokeDasharray="70 30"
             fill="none"
-            stroke="var(--sky-500)"
+            stroke="var(--ink-300)"
             strokeWidth={2.5}
             strokeLinecap="round"
           />

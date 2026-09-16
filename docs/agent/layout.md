@@ -34,8 +34,9 @@ this file and strike it from that plan.
 - App helper → `apps/tutor/lib/<domain>/`, not `features/` and not a new file
   at `lib/` root unless it is a tiny cross-cutting util (`auth.ts`, `utils.ts`,
   `site.ts`, `cookies.ts`). Domains already in use:
-  `boards/`, `scene/`, `replay/`, `tts/`, `llm/`, `obs/`, `r2/`, `client/`,
-  `db/`, `code-lesson/` (persist parse), `code-render/`, `lecture-export/`.
+  `boards/`, `scene/`, `replay/`, `tts/`, `llm/`, `obs/`, `object-store/`,
+  `r2/` (re-exports), `client/`, `db/`, `code-lesson/` (persist parse),
+  `code-render/`, `lecture-export/`.
 - Check → `scripts/verify/verify-<kebab-name>.ts` next to the package that
   owns the code; wire it into that package’s `verify` script. Live/manual
   probes go in `scripts/live/` or `scripts/measure/` and stay out of
@@ -109,10 +110,10 @@ apps/tutor/
       statusConfig.ts
   features/admin/              syllabus playground
   lib/                         app-wide helpers grouped by domain
-    boards/  scene/  replay/  tts/  llm/  obs/  r2/  client/  db/
+    boards/  scene/  replay/  tts/  llm/  obs/  object-store/  r2/  client/  db/
     code-lesson/  code-render/  lecture-export/
   scripts/
-    dev.ts, r2-setup.ts
+    dev.ts
     verify/                    wired into pnpm verify
     live/                      optional / not in the default verify chain
     lecture-lab/               offline whole-lecture runs

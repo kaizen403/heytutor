@@ -70,6 +70,16 @@ export function isBlockedVerifiedDiagramCommand(
     if (diagram?.layout === "code_lesson") return false;
     return resolveVerifiedDiagramFocusTargets(command, diagram).length === 0;
   }
+  if (command.type === "POINT") {
+    // A POINT is a FOCUS that draws nothing: the marker stands at the named
+    // entities while the step is spoken. It had no case here and fell through
+    // to "blocked", so every pointing beat the code-lesson conductor issued
+    // was dropped before the pen saw it: 81.8 s of DSA speech with no ink,
+    // measured on the coupling audit. Same rule as FOCUS: a code lesson's
+    // beats pass, elsewhere it must name something on the figure.
+    if (diagram?.layout === "code_lesson") return false;
+    return resolveVerifiedDiagramFocusTargets({ ...command, type: "FOCUS" }, diagram).length === 0;
+  }
   if (command.type === "ANNOTATE") {
     const requested = (command.text ?? command.semanticRef?.entityId ?? "").trim().toLowerCase();
     if (!requested || !diagram) return true;
@@ -97,31 +107,62 @@ export function spokenFocusTarget(
   narration: string,
   diagram: VerifiedDiagram | null,
 ): VerifiedDiagramAnchor | null {
-  if (!diagram || diagram.anchors.length === 0) return null;
+  return spokenFocusTargets(narration, diagram)[0] ?? null;
+}
+
+/**
+ * Every figure part the narration names explicitly, in the order it names
+ * them. One sentence often introduces several: "M is the mirror, C is the
+ * centre" names two, and each gets its own gesture when its name is spoken.
+ * The first name found wins ties for an anchor named twice.
+ */
+export function spokenFocusTargets(
+  narration: string,
+  diagram: VerifiedDiagram | null,
+): VerifiedDiagramAnchor[] {
+  if (!diagram || diagram.anchors.length === 0) return [];
   const text = narration.trim();
-  if (!text) return null;
+  if (!text) return [];
+
+  const found = new Map<string, { anchor: VerifiedDiagramAnchor; at: number }>();
+  const note = (anchor: VerifiedDiagramAnchor, at: number) => {
+    const existing = found.get(anchor.id);
+    if (!existing || at < existing.at) found.set(anchor.id, { anchor, at });
+  };
 
   for (const anchor of diagram.anchors) {
     const names = uniqueNames([anchor.id, ...anchor.labels]).filter((name) => name.length <= 3);
     for (const name of names) {
-      if (!isExplicitSpokenName(text, name)) continue;
-      return anchor;
+      const at = spokenNameIndex(text, name);
+      if (at >= 0) note(anchor, at);
     }
   }
 
   for (const rule of SPOKEN_ROLE_CUES) {
-    if (!rule.cue.test(text)) continue;
+    const cue = rule.cue.exec(text);
+    if (!cue) continue;
     const matches = diagram.anchors.filter((anchor) =>
       uniqueNames([anchor.id, ...anchor.labels]).some((name) => rule.name.test(name)));
     matches.sort((first, second) => anchorArea(first) - anchorArea(second));
-    if (matches[0]) return matches[0];
+    if (matches[0]) note(matches[0], cue.index);
   }
 
-  const labeled = diagram.anchors.filter((anchor) =>
-    spokenDisplayLabels(anchor).some((name) => isExplicitSpokenName(text, name)),
-  );
-  labeled.sort((first, second) => anchorArea(first) - anchorArea(second));
-  return labeled[0] ?? null;
+  const labeled = diagram.anchors
+    .map((anchor) => {
+      const positions = spokenDisplayLabels(anchor)
+        .map((name) => spokenNameIndex(text, name))
+        .filter((at) => at >= 0);
+      return positions.length > 0 ? { anchor, at: Math.min(...positions) } : null;
+    })
+    .filter((entry): entry is { anchor: VerifiedDiagramAnchor; at: number } => entry !== null);
+  // A display label can name a whole apparatus and one of its parts alike;
+  // the smaller part is the one a teacher points at.
+  labeled.sort((first, second) => anchorArea(first.anchor) - anchorArea(second.anchor));
+  for (const entry of labeled) note(entry.anchor, entry.at);
+
+  return [...found.values()]
+    .sort((first, second) => first.at - second.at)
+    .map((entry) => entry.anchor);
 }
 
 export function prepareVerifiedLessonSegments(
@@ -174,29 +215,40 @@ export function prepareVerifiedLessonSegments(
   return { segments: prepared, blockedCommandCount, droppedSegmentCount };
 }
 
+/**
+ * Infer a FOCUS for each figure part the step names aloud when the model
+ * tagged none. The inference only fills a gap: a step that carries its own
+ * FOCUS, or still has one in its narration text, is the model's call and
+ * gets nothing added. Before that rule 4 of the 7 gestures on the mirror
+ * lesson were inferred, two of them wrong, and the point I was traced three
+ * times because the tag and the inference both fired.
+ */
 function attachSpokenFocusCommand(
   commands: DrawCommand[],
   narration: string,
   diagram: VerifiedDiagram | null,
 ): DrawCommand[] {
   if (commands.some((command) => command.type === "FOCUS")) return commands;
+  if (/\[FOCUS\b/i.test(narration)) return commands;
   // Never on a code lesson. There a FOCUS is a beat in the worked example, not
   // a gesture, so one inferred from a number in the narration would advance
-  // the figure behind the tutor's back — and a step about a line of code would
+  // the figure behind the tutor's back, and a step about a line of code would
   // move the picture the previous step was still explaining.
   if (diagram?.layout === "code_lesson") return commands;
-  const anchor = spokenFocusTarget(narration, diagram);
-  if (!anchor) return commands;
-  const emphasis = spokenFocusEmphasis(narration, anchor);
-  const focusCommand: DrawCommand = {
-    type: "FOCUS",
-    params: [],
-    text: emphasis === "trace" ? anchor.id : `${anchor.id}|${emphasis}`,
-    charPosition: 0,
-    narrationBefore: narration,
-    semanticRef: { entityId: anchor.id },
-  };
-  return [...commands, focusCommand];
+  const anchors = spokenFocusTargets(narration, diagram);
+  if (anchors.length === 0) return commands;
+  const inferred = anchors.map((anchor): DrawCommand => {
+    const emphasis = spokenFocusEmphasis(narration, anchor);
+    return {
+      type: "FOCUS",
+      params: [],
+      text: emphasis === "trace" ? anchor.id : `${anchor.id}|${emphasis}`,
+      charPosition: 0,
+      narrationBefore: narration,
+      semanticRef: { entityId: anchor.id },
+    };
+  });
+  return [...commands, ...inferred];
 }
 
 function spokenFocusEmphasis(
@@ -233,26 +285,34 @@ const SPOKEN_ROLE_CUES: ReadonlyArray<{ cue: RegExp; name: RegExp }> = [
   { cue: /\b(?:the )?(?:pole|vertex)\b/i, name: /^(?:P|V|pole|vertex)$/i },
 ];
 
-function isExplicitSpokenName(narration: string, name: string): boolean {
+/**
+ * Where the narration names a figure part explicitly, or -1.
+ *
+ * Names of three characters or fewer must match the drawn case. The cue words
+ * around them stay case-blind, but "f is the focal length" is the quantity f,
+ * not the point F, and "m is positive" is the magnification, not the mirror M:
+ * both were traced on the mirror lesson when the letter alone decided.
+ */
+function spokenNameIndex(narration: string, name: string): number {
   const trimmed = name.trim();
-  if (!trimmed) return false;
+  if (!trimmed) return -1;
   const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  if (trimmed.length === 1) {
-    return new RegExp(
-      `(?:\\b(?:point|label|called)\\s+${escaped}\\b|\\bthis is\\s+${escaped}\\b|\\b${escaped}\\s+is\\b)`,
-      "i",
-    ).test(narration);
+  const short = trimmed.length <= 3;
+  const cues = trimmed.length === 1
+    ? "point|label|called"
+    : short
+      ? "point|label|called|notice|follow|look at"
+      : "called|notice|follow|look at";
+  const pattern = short
+    ? `(?:\\b(?:${cues})\\s+(${escaped})\\b|\\bthis is\\s+(${escaped})\\b|\\b(${escaped})\\s+is\\b)`
+    : `(?:\\b(?:${cues})\\s+(?:the\\s+)?(${escaped})\\b|\\b(?:the|this|that)\\s+(${escaped})\\b(?!\\s+[A-Za-z]{3,})|\\b(${escaped})\\s+is\\b)`;
+  const matcher = new RegExp(pattern, "gi");
+  for (let match = matcher.exec(narration); match; match = matcher.exec(narration)) {
+    const spoken = match[1] ?? match[2] ?? match[3] ?? "";
+    if (short && spoken !== trimmed) continue;
+    return match.index + match[0].indexOf(spoken);
   }
-  if (trimmed.length <= 3) {
-    return new RegExp(
-      `(?:\\b(?:point|label|called|notice|follow|look at)\\s+${escaped}\\b|\\bthis is\\s+${escaped}\\b|\\b${escaped}\\s+is\\b)`,
-      "i",
-    ).test(narration);
-  }
-  return new RegExp(
-    `(?:\\b(?:called|notice|follow|look at)\\s+(?:the\\s+)?${escaped}\\b|\\b(?:the|this|that)\\s+${escaped}\\b(?!\\s+[A-Za-z]{3,})|\\b${escaped}\\s+is\\b)`,
-    "i",
-  ).test(narration);
+  return -1;
 }
 
 function uniqueNames(values: readonly (string | undefined)[]): string[] {

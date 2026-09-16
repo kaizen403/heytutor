@@ -13,7 +13,16 @@
  * the two paths can never drift apart.
  */
 
+import {
+  CHEMISTRY_SCENE_FAMILIES,
+  inferChemistryFamilies,
+  isChemistrySceneFamily,
+  isChemistryQuestion,
+} from "../chemistry";
+import { isAtomicTransitionStem, isGasProcessStem } from "../chemistry/classify";
+
 export const SCENE_VISUAL_FAMILIES = [
+  ...CHEMISTRY_SCENE_FAMILIES,
   "ray_path",
   "axis_view",
   "interface",
@@ -248,7 +257,7 @@ export const QUESTION_FAMILIES: ReadonlyArray<readonly [RegExp, readonly SceneVi
   [/(?:bernoulli(?!\s+trials?)|venturi|capillary|young['’]?s modulus|stress[- ]strain|stokes['’]? law)/i, ["fluid_apparatus"]],
   [/(?:isothermal|adiabatic|carnot|indicator diagram|first law of thermodynamics|isobaric|isochoric|zeroth law|refrigerator)/i, ["state_plot"]],
   [/(?:organ pipe|standing waves?|transverse wave|travelling wave|traveling wave)/i, ["analytic_curve"]],
-  [/(?:rutherford|bohr orbit|hydrogen spectrum)/i, ["energy_level"]],
+  [/(?:rutherford|bohr orbit|hydrogen spectrum|hydrogen[- ]like (?:species|atom|ion)|transition (?:between|from) .{0,40}\bn\s*=\s*\d)/i, ["energy_level"]],
   [/(?:zener|(?:p-n|pn) junction diode|rectifier|logic gate|nand|nor gate)/i, ["circuit_network"]],
   [/(?:(?:n-type|p-type) semiconductors?|photodiode|(?:p-n|pn) junction|\bled\b)/i, ["energy_level"]],
   [/(?:transfer characteristic|i[-–]?v characteristic|characteristic curve|draw a graph showing variation|graph showing variation of|variation of .{1,120} as a function of)/i, ["state_plot"]],
@@ -299,6 +308,7 @@ export function applyStemFamilyOverrides(
   const drop = (family: SceneVisualFamily): void => {
     if (!preserve.has(family)) families.delete(family);
   };
+  for (const family of inferChemistryFamilies(stem)) families.add(family);
   if ((isSemiconductorBandStem(stem) || isJunctionSpatialStem(stem)) && !isDeviceCircuitStem(stem)) {
     families.add("energy_level");
     drop("circuit_network");
@@ -336,6 +346,27 @@ export function applyStemFamilyOverrides(
     drop("circuit_network");
     families.add("axis_view");
   }
+}
+
+/**
+ * A chemistry stem gets chemistry families or nothing. Both callers run this
+ * last, after structure and English tables have had their say, because the
+ * physics tables misread chemistry words ("emf of the cell" is a resistor
+ * chain to them, "hydrogen atom" a Bohr ladder, "isothermal" a P-V loop).
+ * The Bohr ladder is the one physics figure a chemistry stem keeps: an atomic
+ * transition is the same picture in both subjects.
+ */
+export function restrictFamiliesToChemistry(
+  stem: string,
+  families: readonly SceneVisualFamily[],
+): SceneVisualFamily[] {
+  const chemistry = families.filter(isChemistrySceneFamily);
+  if (chemistry.length > 0) return chemistry;
+  if (!isChemistryQuestion(stem)) return [...families];
+  const shared = new Set<SceneVisualFamily>();
+  if (isAtomicTransitionStem(stem)) shared.add("energy_level");
+  if (isGasProcessStem(stem)) shared.add("state_plot");
+  return families.filter((family) => shared.has(family));
 }
 
 /** Lead with the stem-defining family; shared by both callers. */

@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|19",
+  "questions": [
+    {
+      "id": "chemistry|19|carbohydrates-and-monosaccharides|easy",
+      "topicId": "chemistry|19|carbohydrates-and-monosaccharides",
+      "difficulty": "easy",
+      "question": "Glucose reacts with hydroxylamine to form an oxime and gives n-hexane on prolonged heating with HI. What do these two reactions tell us about the structure of glucose?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|19|carbohydrates-and-monosaccharides|medium",
+      "topicId": "chemistry|19|carbohydrates-and-monosaccharides",
+      "difficulty": "medium",
+      "question": "Which reactions of glucose cannot be explained by its open chain structure? Explain how the cyclic structure accounts for them, including the existence of the alpha and beta anomers.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|19|oligosaccharides-and-polysaccharides|easy",
+      "topicId": "chemistry|19|oligosaccharides-and-polysaccharides",
+      "difficulty": "easy",
+      "question": "Name the monosaccharide units and the type of glycosidic linkage present in maltose, lactose and cellulose.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|19|oligosaccharides-and-polysaccharides|medium",
+      "topicId": "chemistry|19|oligosaccharides-and-polysaccharides",
+      "difficulty": "medium",
+      "question": "Sucrose is dextrorotatory, but after hydrolysis the solution becomes laevorotatory. Explain this inversion, name the monosaccharides formed, and state why sucrose is a non-reducing sugar.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|19|amino-acids-and-peptides|easy",
+      "topicId": "chemistry|19|amino-acids-and-peptides",
+      "difficulty": "easy",
+      "question": "What is a zwitterion? Write the zwitterionic form of glycine and explain why amino acids have high melting points and are soluble in water.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|19|amino-acids-and-peptides|medium",
+      "topicId": "chemistry|19|amino-acids-and-peptides",
+      "difficulty": "medium",
+      "question": "How many peptide bonds are present in a tripeptide made from glycine, alanine and valine, and how many different tripeptides can be formed if each of these amino acids is used exactly once?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|19|proteins-structure-denaturation-and-enzymes|easy",
+      "topicId": "chemistry|19|proteins-structure-denaturation-and-enzymes",
+      "difficulty": "easy",
+      "question": "What happens to the primary, secondary and tertiary structures of a protein when it is denatured? Give one example of denaturation from daily life.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|19|vitamins|easy",
+      "topicId": "chemistry|19|vitamins",
+      "difficulty": "easy",
+      "question": "Classify vitamins A, B1, C, D, E and K as fat soluble or water soluble, and name the deficiency disease caused by the lack of vitamin C and of vitamin D.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|19|nucleic-acids|medium",
+      "topicId": "chemistry|19|nucleic-acids",
+      "difficulty": "medium",
+      "question": "How many of the following statements about nucleic acids are correct? A. RNA is regarded as the reserve of genetic information. B. The DNA molecule self-duplicates during cell division. C. DNA synthesizes proteins in the cell. D. The message for the synthesis of particular proteins is present in DNA. E. Identical DNA strands are transferred to daughter cells.",
+      "source": {
+        "questionId": "q_ce4cd258b36dff08c34a59c1d3c51a4b7594f8f655906edc559885d63f2115ef",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-30-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|19|hormones|medium",
+      "topicId": "chemistry|19|hormones",
+      "difficulty": "medium",
+      "question": "Thyroxine, the thyroid hormone, has the molecular formula C15H11I4NO4. What is the percentage of iodine in thyroxine (nearest integer)? (Given molar mass in g mol^-1: C = 12, H = 1, O = 16, N = 14, I = 127)",
+      "source": {
+        "questionId": "q_190045f765c00534c5577ca5dacd1e87ec8fa0ee27dd6a774a27b6408ee06371",
+        "exam": "JEE Main",
+        "year": 2025,
+        "documentId": "jee-main-2025-04-07-shift-1"
+      }
+    }
+  ]
+}

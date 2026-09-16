@@ -2,6 +2,7 @@ import {
   parseExtractedQuestion,
   readExtractedContent,
 } from "../../lib/llm/extractQuestion";
+import { readQuestionImage } from "../../lib/object-store/questionImage";
 import { pickClipboardImage } from "../../features/tutor-session/lib/input/questionImageInput";
 import {
   DEFAULT_FIREWORKS_MODEL,
@@ -79,5 +80,14 @@ assert(
   }) === null,
   "plain text paste must not start OCR",
 );
+
+const pngBytes = Uint8Array.from([1, 2, 3, 4]);
+const pngDataUrl = `data:image/png;base64,${Buffer.from(pngBytes).toString("base64")}`;
+const parsedPng = readQuestionImage(pngDataUrl);
+assert(parsedPng?.mimeType === "image/png", "png data URLs keep their mime");
+assert(parsedPng?.ext === "png", "png data URLs map to .png");
+assert(parsedPng != null && Buffer.from(parsedPng.bytes).equals(Buffer.from(pngBytes)), "png bytes round-trip");
+assert(readQuestionImage("data:image/svg+xml;base64,YQ==") === null, "svg photos are rejected");
+assert(readQuestionImage("not-a-data-url") === null, "plain text is not a photo");
 
 console.log("extract question verification passed");

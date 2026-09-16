@@ -7,6 +7,7 @@ import {
   SITE_TAGLINE,
   siteMetadataBase,
 } from "@/lib/site";
+import { AuthSessionProvider } from "@/components/auth/AuthSessionProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,13 +32,16 @@ const fraunces = Fraunces({
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#06121C" },
-    { media: "(prefers-color-scheme: dark)", color: "#06121C" },
+    { media: "(prefers-color-scheme: light)", color: "#131312" },
+    { media: "(prefers-color-scheme: dark)", color: "#131312" },
   ],
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Keyboard covers the visual viewport only. Resizing layout mid-lecture
+  // rescales the board and reads as a reload.
+  interactiveWidget: "resizes-visual",
 };
 
 export const metadata: Metadata = {
@@ -133,7 +137,9 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AuthSessionProvider>{children}</AuthSessionProvider>
+      </body>
     </html>
   );
 }

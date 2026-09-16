@@ -16,11 +16,12 @@ import {
 } from "@/lib/replay/replayTimeline";
 import { exportNotesPdf, type NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { fetchBoardDetail } from "@/lib/boards/boardsClient";
+import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
 import { notesPdfSectionsFromStoredTurns } from "../lib/notes/notesPdf";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 import type { StoredSegment, StoredTurn } from "@/lib/boards/boardsClient";
-import type { DrawCommand } from "@heytutor/drawing";
+import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
 import {
   isStoredCommandTrustedGeometry,
   lessonNarrationText,
@@ -29,7 +30,10 @@ import {
 } from "@heytutor/drawing";
 import type { WriteSchedule, WhiteboardHandle } from "@heytutor/whiteboard";
 import {
+  estimateSpeechDurationMs,
+  mathToSpeech,
   capSceneBatchDurations,
+  isCuedSceneBatch,
   catchUpWriteScheduleOffsets,
   createScheduledWriteClock,
   getBestWriteCharScheduleMs,
@@ -47,6 +51,7 @@ import { appendCodeLessonNotesImages } from "@/lib/code-render/codeLessonNotesIm
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
+import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
 import type { TutorPhase } from "../types";
 import { isWhiteboardReadyToDraw } from "../lib/board/whiteboardReady";
 
@@ -81,6 +86,13 @@ export type UseReplayParams = {
   storedTurnsRef: RefObject<StoredTurn[]>;
   /** Replayed DSA turns re-commit their persisted CodeLessonPlan here. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
+  /**
+   * FOCUS / ANNOTATE resolve against this. Replay must rebuild it from the
+   * stored scene or the intro draws and the pen never traces afterwards.
+   */
+  activeVerifiedDiagramRef?: RefObject<VerifiedDiagram | null>;
+  setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
+  fbdPhaseStartedRef?: RefObject<boolean>;
   replayGenerationRef: RefObject<number>;
   replayCueRef: RefObject<ReplayCue | null>;
   ttsClientRef: RefObject<TTSClient | null>;
@@ -125,6 +137,9 @@ export function useReplay({
   replayAudioPreloadRef,
   storedTurnsRef,
   codeLessonControllerRef,
+  activeVerifiedDiagramRef,
+  setActiveVerifiedDiagram,
+  fbdPhaseStartedRef,
   replayGenerationRef,
   replayCueRef,
   ttsClientRef,
@@ -147,6 +162,7 @@ export function useReplay({
   setReplayTotalMs,
   setSettings,
   setIsDownloading,
+  cancellableDelay,
   raceWithCancel,
   executeCommandWithCancel,
   executeCommand,
@@ -156,23 +172,46 @@ export function useReplay({
   resumeTurn,
 }: UseReplayParams) {
   /**
-   * Point the code panel at the turn whose cues are about to play: commit its
-   * persisted plan (fresh, nothing revealed) or clear the panel for turns
-   * without one. Replayed TYPE commands then reveal blocks of that plan.
+   * Point the code panel and the verified diagram at the turn whose cues are
+   * about to play. FOCUS / ANNOTATE resolve against that diagram: without it
+   * the intro still draws from stored ink and the pen never traces after.
    */
-  const syncCodeLessonForTurn = useCallback(
+  const syncReplayTurn = useCallback(
     (turnIndex: number) => {
-      const controller = codeLessonControllerRef?.current;
-      if (!controller) return;
       const turn = storedTurnsRef.current[turnIndex];
+      // A doubt answered on the lesson's page keeps that page's figure, code
+      // panel and walk-through. Rebuilding them here would drop the figure
+      // its FOCUS points at, or send the frames back to the first one.
+      if (turn && storedTurnContinuesBoard(turn)) {
+        return;
+      }
+      const controller = codeLessonControllerRef?.current;
       const plan = turn ? storedCodeLessonPlan(turn.sceneArtifacts) : null;
-      if (plan) controller.commit(plan);
-      else controller.reset();
-      // Rebuild the walk-through too, or the replayed FRAME cues have no
-      // frames to advance and the figure freezes on the first one.
-      restoreDsaFrames(controller, turn, plan);
+      if (controller) {
+        if (plan) controller.commit(plan);
+        else controller.reset();
+        // Rebuild the walk-through too, or the replayed FRAME cues have no
+        // frames to advance and the figure freezes on the first one.
+        restoreDsaFrames(controller, turn, plan);
+      }
+      const diagram =
+        controller?.frames.current()?.presentation.diagram
+        ?? restoreVerifiedDiagramFromTurn(turn);
+      if (activeVerifiedDiagramRef) {
+        activeVerifiedDiagramRef.current = diagram;
+      }
+      setActiveVerifiedDiagram?.(diagram);
+      if (fbdPhaseStartedRef) {
+        fbdPhaseStartedRef.current = Boolean(diagram);
+      }
     },
-    [codeLessonControllerRef, storedTurnsRef],
+    [
+      codeLessonControllerRef,
+      storedTurnsRef,
+      activeVerifiedDiagramRef,
+      setActiveVerifiedDiagram,
+      fbdPhaseStartedRef,
+    ],
   );
 
   const runReplaySegmentDraw = useCallback(
@@ -209,12 +248,17 @@ export function useReplay({
         getCommandDrawDurationMs(cmd, commandPaces[commandIndex]),
       );
       const sceneBatch = commandPaces.filter((pace) => pace === "scene").length >= 4;
-      const sceneDurations = sceneBatch ? capSceneBatchDurations(pacedDurations) : null;
+      // A cued intro (every command names the word it was drawn under) was
+      // paced by the voice when it was taught; the batch cap would squeeze it
+      // back into 1.3 s on replay.
+      const sceneDurations = sceneBatch
+        ? capSceneBatchDurations(pacedDurations, undefined, { cued: isCuedSceneBatch(segmentCommands) })
+        : null;
       const totalDrawWeight = pacedDurations.reduce((sum, ms) => sum + ms, 0);
       const durationMs =
         fallbackDurationMs ??
         segment.durationMs ??
-        Math.max(narration.length * 85, 700);
+        estimateSpeechDurationMs(mathToSpeech(narration).length);
       const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
       const getRate = () => Math.max(speedRef.current, 0.1);
       const shouldCancel = () => !isCurrentReplay();
@@ -255,7 +299,7 @@ export function useReplay({
         if (writePlan && writePlan.offsetsMs.length > 0) {
           const audioPosAtScheduleMs = Math.round(getDrawClockMs());
           const effectiveOffsets = catchUpWriteScheduleOffsets(
-            leadWriteScheduleToSpeech(writePlan.offsetsMs, audioPosAtScheduleMs),
+            leadWriteScheduleToSpeech(writePlan.offsetsMs, audioPosAtScheduleMs, writePlan.maxInitialWaitMs),
             audioPosAtScheduleMs,
           );
           await executeCommandWithCancel(command, {
@@ -356,7 +400,7 @@ export function useReplay({
       // turn being rendered; TYPE below then reveals its blocks instantly.
       let syncedTurnIndex = cues.length > 0 ? cues[0]!.turnIndex : -1;
       if (syncedTurnIndex >= 0) {
-        syncCodeLessonForTurn(syncedTurnIndex);
+        syncReplayTurn(syncedTurnIndex);
       }
 
       // Render all completed commands instantly — no animation during seek.
@@ -368,7 +412,7 @@ export function useReplay({
 
         if (cue.turnIndex !== syncedTurnIndex) {
           syncedTurnIndex = cue.turnIndex;
-          syncCodeLessonForTurn(syncedTurnIndex);
+          syncReplayTurn(syncedTurnIndex);
         }
 
         const partialCount =
@@ -396,7 +440,7 @@ export function useReplay({
         }
       }
     },
-    [whiteboardRef, replayGenerationRef, cancelRef, executeCommand, resetBoardLayout, syncCodeLessonForTurn],
+    [whiteboardRef, replayGenerationRef, cancelRef, executeCommand, resetBoardLayout, syncReplayTurn],
   );
 
   const playReplayCue = useCallback(
@@ -444,7 +488,7 @@ export function useReplay({
       }
 
       const fallbackDurationMs =
-        cue.durationMsStored ?? Math.max(cue.narration.length * 85, 700);
+        cue.durationMsStored ?? estimateSpeechDurationMs(mathToSpeech(cue.narration).length);
       const remainingMs = Math.max(cue.durationMs - offsetMs, 0);
       const getRate = () => Math.max(speedRef.current, 0.1);
       const shouldCancel = () =>
@@ -646,7 +690,7 @@ export function useReplay({
           const cue = timeline.cues[i]!;
           if (cue.turnIndex !== syncedTurnIndex) {
             syncedTurnIndex = cue.turnIndex;
-            syncCodeLessonForTurn(syncedTurnIndex);
+            syncReplayTurn(syncedTurnIndex);
           }
           const nextCue = timeline.cues[i + 1];
           const offsetMs = i === found.index ? found.offsetMs : 0;
@@ -715,7 +759,7 @@ export function useReplay({
       renderBoardAtTime,
       playReplayCue,
       finishLectureUi,
-      syncCodeLessonForTurn,
+      syncReplayTurn,
       codeLessonControllerRef,
     ],
   );

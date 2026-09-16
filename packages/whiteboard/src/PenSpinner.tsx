@@ -30,6 +30,11 @@ export interface PenSpinnerProps {
   label?: string;
   /** Faint trail behind the nib, drawn in `currentColor`. */
   trail?: boolean;
+  /**
+   * Motion-blur silhouettes trailing the barrel. Off for a still pending mark
+   * on paper — the ghosts read as a second shadow behind the instrument.
+   */
+  smear?: boolean;
   className?: string;
   style?: CSSProperties;
 }
@@ -120,6 +125,7 @@ export function PenSpinner({
   periodMs = SPIN_PERIOD_MS,
   label,
   trail = true,
+  smear = true,
   className,
   style,
 }: PenSpinnerProps) {
@@ -128,11 +134,12 @@ export function PenSpinner({
   const blurId = `wb-pen-blur-${uid}`;
   const palette = instrumentPalette(instrument, ink);
   const { height, pivotY } = instrumentMetrics(instrument);
-  const silhouette = instrumentSilhouette(instrument).join(" ");
   // CSS cannot re-cut the smear each frame the way the board does, so the
   // ghosts are placed for the average rate and blurred; the flick reads as a
   // slight thickening rather than a trail that grows and shrinks.
-  const ghosts = spinGhosts(1);
+  const ghosts = smear
+    ? { silhouette: instrumentSilhouette(instrument).join(" "), offsets: spinGhosts(1) }
+    : null;
 
   // Local space has the nib at (0,0) and the barrel up -Y. Shift it so the
   // twirl pivot sits on the origin; the viewBox is then square about it and
@@ -190,24 +197,26 @@ export function PenSpinner({
                 />
               </>
             ) : null}
-            <defs>
-              <filter id={blurId} x="-40%" y="-40%" width="180%" height="180%">
-                <feGaussianBlur stdDeviation="0.9" />
-              </filter>
-            </defs>
-
-            {/* Motion blur: barrel silhouettes trailing the arc just swept. */}
-            <g filter={`url(#${blurId})`}>
-              {ghosts.map((ghost) => (
-                <polygon
-                  key={ghost.offset}
-                  points={silhouette}
-                  fill={palette.barrel}
-                  opacity={ghost.opacity}
-                  transform={`rotate(${-ghost.offset}) translate(0 ${orbit})`}
-                />
-              ))}
-            </g>
+            {ghosts ? (
+              <>
+                <defs>
+                  <filter id={blurId} x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur stdDeviation="0.9" />
+                  </filter>
+                </defs>
+                <g filter={`url(#${blurId})`}>
+                  {ghosts.offsets.map((ghost) => (
+                    <polygon
+                      key={ghost.offset}
+                      points={ghosts.silhouette}
+                      fill={palette.barrel}
+                      opacity={ghost.opacity}
+                      transform={`rotate(${-ghost.offset}) translate(0 ${orbit})`}
+                    />
+                  ))}
+                </g>
+              </>
+            ) : null}
 
             <g transform={`translate(0 ${orbit})`}>
               {instrumentShapes(instrument).map((shape, index) =>

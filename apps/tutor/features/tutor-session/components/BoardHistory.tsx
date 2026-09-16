@@ -10,6 +10,8 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Sheet,
   SheetContent,
@@ -18,6 +20,12 @@ import {
 import { Brand } from "@/components/brand/Brand";
 import type { BoardEntry } from "@/lib/boards/types";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  firstName,
+  profileSubtitle,
+  type AccountProfile,
+} from "@/lib/account/types";
+import { getLegalHref } from "@/lib/site";
 
 export type { BoardEntry };
 
@@ -40,6 +48,8 @@ interface BoardHistoryProps {
   onToggleCollapse?: () => void;
   onOpenSettings?: () => void;
   onCreditsClick?: () => void;
+  onSignOut?: () => void;
+  profile?: Pick<AccountProfile, "name" | "image" | "email" | "examGoal" | "classYear"> | null;
   onWidthChange?: (width: number) => void;
   onResizingChange?: (resizing: boolean) => void;
 }
@@ -50,8 +60,8 @@ const SIDEBAR_MAX_WIDTH = 420;
 const SIDEBAR_WIDTH_KEY = "htutor_sidebar_width";
 
 const PANEL: CSSProperties = {
-  background: "#06121C",
-  borderRight: "1px solid rgba(202, 229, 241, 0.08)",
+  background: "var(--ink-850)",
+  borderRight: "1px solid var(--stroke)",
 };
 
 export { SIDEBAR_WIDTH, SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH };
@@ -137,9 +147,35 @@ interface BoardHistoryContentProps {
   showCollapseButton?: boolean;
   onOpenSettings?: () => void;
   onCreditsClick?: () => void;
+  onSignOut?: () => void;
+  profile?: Pick<AccountProfile, "name" | "image" | "email" | "examGoal" | "classYear"> | null;
+  onDismiss?: () => void;
+  isDrawer?: boolean;
 }
 
 const DELETE_CONFIRM_TIMEOUT_MS = 6000;
+
+function AccountNavLink({
+  href,
+  label,
+  onNavigate,
+}: {
+  href: string;
+  label: string;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  const active = pathname === href || pathname.startsWith(`${href}/`);
+  return (
+    <Link
+      href={href}
+      className={`bh__nav-link${active ? " bh__nav-link--active" : ""}`}
+      onClick={onNavigate}
+    >
+      {label}
+    </Link>
+  );
+}
 
 function BoardHistoryContent({
   boards,
@@ -156,6 +192,10 @@ function BoardHistoryContent({
   showCollapseButton = true,
   onOpenSettings,
   onCreditsClick,
+  onSignOut,
+  profile,
+  onDismiss,
+  isDrawer = false,
 }: BoardHistoryContentProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -233,7 +273,7 @@ function BoardHistoryContent({
     : boards.filter((b) => b.archivedAt == null || b.id === activeBoardId);
 
   return (
-    <div className="bh flex h-full flex-col overflow-hidden">
+    <div className={`bh flex h-full min-h-0 flex-col overflow-visible${isDrawer ? " bh--drawer" : ""}`}>
       <header className="bh__header">
         <Brand size="sm" />
         <div className="bh__header-actions">
@@ -293,6 +333,11 @@ function BoardHistoryContent({
           New board
         </button>
       </div>
+
+      <nav className="bh__account-nav" aria-label="Account">
+        <AccountNavLink href="/library" label="Library" onNavigate={onDismiss} />
+        <AccountNavLink href="/progress" label="Progress" onNavigate={onDismiss} />
+      </nav>
 
       <div className="bh__section-label">Recent boards</div>
 
@@ -478,16 +523,50 @@ function BoardHistoryContent({
       </div>
 
       <footer className="bh__footer">
-        {onCreditsClick ? (
-          <button type="button" className="bh__credits" onClick={onCreditsClick}>
-            Credits
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className="bh__credits"
+          onClick={() => {
+            onDismiss?.();
+            onCreditsClick?.();
+          }}
+          disabled={!onCreditsClick}
+        >
+          Credits
+        </button>
 
         <div className="bh__profile-wrap" ref={profileWrapRef}>
           {profileOpen && (
             <div className="bh__profile-menu" role="menu">
-              <p className="bh__profile-note">Anonymous session on this device</p>
+              <div className="bh__profile-head">
+                <p className="bh__profile-name">{firstName(profile?.name, profile?.email)}</p>
+                <p className="bh__profile-note">
+                  {profileSubtitle(profile ?? {}) ?? "Student on Accelute"}
+                </p>
+              </div>
+              <Link href="/profile" role="menuitem" className="bh__profile-item" onClick={() => { setProfileOpen(false); onDismiss?.(); }}>
+                Profile
+              </Link>
+              <Link href="/settings" role="menuitem" className="bh__profile-item" onClick={() => { setProfileOpen(false); onDismiss?.(); }}>
+                Settings
+              </Link>
+              <Link href="/progress" role="menuitem" className="bh__profile-item" onClick={() => { setProfileOpen(false); onDismiss?.(); }}>
+                Progress
+              </Link>
+              <Link href="/library" role="menuitem" className="bh__profile-item" onClick={() => { setProfileOpen(false); onDismiss?.(); }}>
+                Library
+              </Link>
+              <Link href="/usage" role="menuitem" className="bh__profile-item" onClick={() => { setProfileOpen(false); onDismiss?.(); }}>
+                Usage
+              </Link>
+              <Link href="/settings/help" role="menuitem" className="bh__profile-item" onClick={() => { setProfileOpen(false); onDismiss?.(); }}>
+                Help / What’s new
+              </Link>
+              <div className="bh__profile-legal">
+                <a href={getLegalHref("/terms")} target="_blank" rel="noreferrer">Terms</a>
+                <span aria-hidden>·</span>
+                <a href={getLegalHref("/privacy")} target="_blank" rel="noreferrer">Privacy</a>
+              </div>
               {onOpenSettings ? (
                 <button
                   type="button"
@@ -495,10 +574,25 @@ function BoardHistoryContent({
                   className="bh__profile-item"
                   onClick={() => {
                     setProfileOpen(false);
+                    onDismiss?.();
                     onOpenSettings();
                   }}
                 >
-                  Settings
+                  Lesson settings
+                </button>
+              ) : null}
+              {onSignOut ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="bh__profile-item"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    onDismiss?.();
+                    onSignOut();
+                  }}
+                >
+                  Log out
                 </button>
               ) : null}
             </div>
@@ -511,10 +605,15 @@ function BoardHistoryContent({
             aria-expanded={profileOpen}
             onClick={() => setProfileOpen((open) => !open)}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
-            </svg>
+            {profile?.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={profile.image} alt="" className="bh__avatar" />
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+              </svg>
+            )}
           </button>
         </div>
       </footer>
@@ -526,14 +625,15 @@ function BoardHistoryContent({
 
 const STYLES = `
 .bh {
-  /* Night Blueprint, by way of the global tokens in app/globals.css. */
+  /* Graphite, by way of the global tokens in app/globals.css. The rail is
+     --ink-850, so its own surfaces step up from there rather than down. */
   --ink: var(--frost);
   --ink-soft: var(--text-soft);
   --ink-faint: var(--text-faint);
   --accent: var(--sky-500);
   --line: var(--stroke);
-  --paper: var(--ink-850);
-  --hover: var(--ink-700);
+  --paper: var(--ink-800);
+  --hover: var(--ink-600);
   color: var(--ink);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -554,8 +654,8 @@ const STYLES = `
 }
 
 .bh__icon-btn {
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border: 0;
   border-radius: 0.55rem;
   background: transparent;
@@ -602,7 +702,7 @@ const STYLES = `
 }
 
 .bh__search-input:focus {
-  border-color: rgba(89, 175, 212, 0.4);
+  border-color: var(--stroke-strong);
   background: var(--hover);
 }
 
@@ -618,11 +718,8 @@ const STYLES = `
   width: 100%;
   padding: 0.55rem;
   border-radius: 0.85rem;
-  border: 1px solid rgba(89, 175, 212, 0.22);
-  background: linear-gradient(180deg, #2C3C4A 0%, #122A39 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 1px 2px rgba(3, 11, 18, 0.28);
+  border: 1px solid var(--line);
+  background: var(--paper);
   color: var(--ink);
   font-size: 0.875rem;
   font-weight: 400;
@@ -630,15 +727,15 @@ const STYLES = `
   letter-spacing: 0;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .bh__new-icon {
   width: 1.55rem;
   height: 1.55rem;
   border-radius: 0.45rem;
-  background: #F0F5F7;
-  color: #06121C;
+  background: #EDEDEB;
+  color: #131312;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -646,16 +743,41 @@ const STYLES = `
 }
 
 .bh__new:hover:not(:disabled) {
-  border-color: rgba(89, 175, 212, 0.42);
-  background: linear-gradient(180deg, #2C3C4A 0%, #122A39 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 2px 8px rgba(3, 11, 18, 0.28);
+  border-color: var(--stroke-strong);
+  background: var(--hover);
 }
 
 .bh__new:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.bh__account-nav {
+  padding: 0 0.5rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex-shrink: 0;
+}
+
+.bh__nav-link {
+  display: block;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.65rem;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.bh__nav-link:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.bh__nav-link--active {
+  background: rgba(74, 158, 255, 0.07);
+  color: var(--ink);
 }
 
 .bh__section-label {
@@ -671,6 +793,7 @@ const STYLES = `
 
 .bh__list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 0 0.5rem 0.875rem;
   /* Docked sidebar: no permanent gutter. The thumb fades in on hover and is
@@ -700,11 +823,11 @@ const STYLES = `
 }
 
 .bh__list:hover::-webkit-scrollbar-thumb {
-  background: rgba(202, 229, 241, 0.16);
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .bh__list::-webkit-scrollbar-thumb:hover {
-  background: rgba(202, 229, 241, 0.3);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .bh__empty {
@@ -729,12 +852,12 @@ const STYLES = `
 }
 
 .bh__item--active {
-  background: rgba(89, 175, 212, 0.07);
+  background: rgba(74, 158, 255, 0.07);
   border-color: var(--line);
 }
 
 .bh__item--active:hover {
-  background: rgba(89, 175, 212, 0.1);
+  background: rgba(74, 158, 255, 0.1);
 }
 
 .bh__item-btn {
@@ -779,7 +902,7 @@ const STYLES = `
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  color: #59AFD4;
+  color: #4A9EFF;
 }
 
 .bh__item-preview {
@@ -839,19 +962,19 @@ const STYLES = `
 
 
 .bh__row-btn:hover:not(:disabled) {
-  background: rgba(202, 229, 241, 0.07);
+  background: rgba(255, 255, 255, 0.07);
   border-color: var(--line);
   color: var(--ink);
 }
 
 .bh__row-btn:active:not(:disabled) {
-  background: rgba(202, 229, 241, 0.11);
+  background: rgba(255, 255, 255, 0.11);
 }
 
 /* Load-bearing: without it a keyboard user tabs to an invisible control. */
 .bh__row-btn:focus-visible {
   opacity: 1;
-  outline: 2px solid rgba(89, 175, 212, 0.5);
+  outline: 2px solid rgba(74, 158, 255, 0.5);
   outline-offset: 1px;
 }
 
@@ -868,8 +991,8 @@ const STYLES = `
   padding: 0.25rem;
   border: 1px solid var(--line);
   border-radius: 0.75rem;
-  background: var(--ink-850, #0C1B26);
-  box-shadow: 0 12px 32px -8px rgba(3, 11, 18, 0.7);
+  background: var(--ink-850, #151514);
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.7);
   display: flex;
   flex-direction: column;
   z-index: 30;
@@ -897,7 +1020,7 @@ const STYLES = `
 }
 
 .bh__menu-item:focus-visible {
-  outline: 2px solid rgba(89, 175, 212, 0.5);
+  outline: 2px solid rgba(74, 158, 255, 0.5);
   outline-offset: -2px;
 }
 
@@ -916,13 +1039,13 @@ const STYLES = `
   padding: 0.3rem 0.4rem;
   border: 1px solid var(--line);
   border-radius: 0.45rem;
-  background: rgba(202, 229, 241, 0.05);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--ink);
   font-size: 0.8125rem;
 }
 
 .bh__rename-input:focus {
-  outline: 2px solid rgba(89, 175, 212, 0.5);
+  outline: 2px solid rgba(74, 158, 255, 0.5);
   outline-offset: 1px;
 }
 
@@ -946,7 +1069,7 @@ const STYLES = `
 
 .bh__confirm-btn {
   flex-shrink: 0;
-  border: 1px solid rgba(202, 229, 241, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 0.5rem;
   background: transparent;
   padding: 0.25rem 0.55rem;
@@ -958,7 +1081,7 @@ const STYLES = `
 }
 
 .bh__confirm-btn:hover {
-  background: rgba(202, 229, 241, 0.06);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* The one red in the sidebar, spent on the step that actually destroys. */
@@ -973,6 +1096,7 @@ const STYLES = `
 
 .bh__footer {
   flex-shrink: 0;
+  overflow: visible;
   border-top: 1px solid var(--line);
   padding: 0.875rem 1rem 1rem;
   display: flex;
@@ -1003,14 +1127,50 @@ const STYLES = `
 
 .bh__profile-wrap {
   position: relative;
+  overflow: visible;
   margin-left: auto;
 }
 
-.bh__profile-note {
+.bh__profile-head {
   margin: 0 0 0.45rem;
+}
+
+.bh__profile-name {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.bh__profile-note {
+  margin: 0.15rem 0 0;
   font-size: 0.75rem;
   color: var(--ink-faint);
   white-space: nowrap;
+}
+
+.bh__profile-legal {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem 0.15rem;
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+}
+
+.bh__profile-legal a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.bh__profile-legal a:hover {
+  color: var(--ink);
+}
+
+.bh__avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  object-fit: cover;
 }
 
 .bh__profile-item {
@@ -1025,6 +1185,7 @@ const STYLES = `
   font-size: 0.875rem;
   color: var(--ink);
   cursor: pointer;
+  text-decoration: none;
 }
 
 .bh__profile-item:hover {
@@ -1037,10 +1198,10 @@ const STYLES = `
   right: 0;
   padding: 0.65rem 0.9rem;
   border-radius: 0.65rem;
-  background: #0D2231;
-  border: 1px solid rgba(202, 229, 241, 0.1);
-  box-shadow: 0 12px 28px -12px rgba(3, 11, 18, 0.55);
-  min-width: 8rem;
+  background: #171716;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.55);
+  min-width: 12.5rem;
   z-index: 20;
   font-size: 0.875rem;
   font-weight: 400;
@@ -1049,8 +1210,8 @@ const STYLES = `
 }
 
 .bh__profile {
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 9999px;
   border: 1px solid var(--line);
   background: var(--paper);
@@ -1066,7 +1227,7 @@ const STYLES = `
 .bh__profile:hover:not(:disabled),
 .bh__profile--open {
   background: var(--hover);
-  border-color: rgba(89, 175, 212, 0.35);
+  border-color: rgba(74, 158, 255, 0.35);
   color: var(--ink);
 }
 
@@ -1103,8 +1264,8 @@ const STYLES = `
 .bh__resize:focus-visible::after,
 .board-sidebar--resizing .bh__resize::after {
   width: 2px;
-  background: rgba(89, 175, 212, 0.55);
-  box-shadow: 0 0 0 1px rgba(89, 175, 212, 0.12);
+  background: rgba(74, 158, 255, 0.55);
+  box-shadow: 0 0 0 1px rgba(74, 158, 255, 0.12);
 }
 
 .board-sidebar--docked {
@@ -1128,6 +1289,61 @@ const STYLES = `
   .bh__item--active .bh__row-btn {
     opacity: 1;
   }
+
+  .bh__item {
+    min-height: 2.75rem;
+  }
+
+  .bh__row-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .bh__item-btn {
+    width: calc(100% - 3.2rem);
+  }
+
+  .bh__nav-link {
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .bh__new {
+    min-height: 2.75rem;
+  }
+
+  .bh__confirm-btn {
+    min-height: 2.5rem;
+    padding: 0.4rem 0.7rem;
+  }
+
+  .bh__credits {
+    min-height: 2.5rem;
+    padding: 0.4rem 0.25rem;
+  }
+
+  .bh__profile-item {
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+  }
+}
+
+@media (pointer: coarse) {
+  .bh__item--active .bh__row-btn {
+    opacity: 1;
+  }
+}
+
+.bh--drawer .bh__header {
+  padding-top: 2.75rem;
+  padding-right: 3rem;
+}
+
+.bh--drawer .bh__footer {
+  overflow: visible;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 `;
 
@@ -1138,6 +1354,9 @@ export function BoardHistory({
   onSelect,
   onNew,
   onDelete,
+  onTogglePin,
+  onToggleArchive,
+  onRename,
   disabled = false,
   variant = "sidebar",
   open = false,
@@ -1146,6 +1365,8 @@ export function BoardHistory({
   onToggleCollapse,
   onOpenSettings,
   onCreditsClick,
+  onSignOut,
+  profile,
   onWidthChange,
   onResizingChange,
 }: BoardHistoryProps) {
@@ -1285,11 +1506,18 @@ export function BoardHistory({
     onSelect: handleSelect,
     onNew: handleNew,
     onDelete,
+    onTogglePin,
+    onToggleArchive,
+    onRename,
     disabled,
     onToggleCollapse,
     showCollapseButton: variant === "sidebar",
     onOpenSettings: handleOpenSettings,
     onCreditsClick,
+    onSignOut,
+    profile,
+    onDismiss: variant === "drawer" ? () => onOpenChange?.(false) : undefined,
+    isDrawer: variant === "drawer",
   };
 
   if (variant === "drawer") {
@@ -1297,7 +1525,7 @@ export function BoardHistory({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="left"
-          className="board-sidebar w-[min(100%,280px)] border-r border-stroke p-0 sm:max-w-[280px]"
+          className="board-sidebar w-[min(100%,min(20rem,100vw-2.5rem))] overflow-visible border-r border-stroke p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:max-w-[20rem] [&>button]:right-3 [&>button]:top-[max(0.75rem,env(safe-area-inset-top))]"
           style={PANEL}
         >
           <SheetTitle className="sr-only">Board history</SheetTitle>

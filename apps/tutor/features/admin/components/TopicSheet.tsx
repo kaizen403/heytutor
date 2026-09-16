@@ -13,7 +13,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { createBoard } from "@/lib/boards/boardsClient";
-import type { SyllabusItem } from "../lib/parseSyllabus";
+import { SYLLABUS_SUBJECT_LABEL, type SyllabusItem } from "../lib/parseSyllabus";
 import type { ItemStatus } from "../lib/progressStorage";
 import { PROBE_DIFFICULTIES, type ProbeDifficulty, type ProbeQuestion } from "../lib/probes";
 import { Checkbox } from "./Checkbox";
@@ -125,7 +125,7 @@ export function TopicSheet({
               </SheetTitle>
               <SheetDescription className="text-xs text-soft">
                 {item.subsection ? `${item.subsection} · ` : ""}
-                {item.subject === "physics" ? "Physics" : "Mathematics"}
+                {SYLLABUS_SUBJECT_LABEL[item.subject]}
               </SheetDescription>
             </SheetHeader>
 

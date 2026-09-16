@@ -2,6 +2,7 @@
 
 import { Brand } from "@/components/brand/Brand";
 import { LANDING_PROMPT } from "@/lib/site";
+import { useIsMobile } from "@/lib/client/useMediaQuery";
 import type { SubjectFamiliarity } from "@heytutor/tutor-core";
 import { InputBar } from "@/features/tutor-session/components/InputBar";
 import { LandingDoodles } from "@/features/tutor-session/components/LandingDoodles";
@@ -18,6 +19,8 @@ export interface CanvasLandingProps {
   /** How well the student knows this topic; chosen per question in the bar. */
   familiarity?: SubjectFamiliarity;
   onFamiliarityChange?: (level: SubjectFamiliarity) => void;
+  greeting?: string;
+  goalLabel?: string | null;
 }
 
 export function CanvasLanding({
@@ -26,20 +29,26 @@ export function CanvasLanding({
   onOpenSettings,
   familiarity,
   onFamiliarityChange,
+  greeting,
+  goalLabel,
 }: CanvasLandingProps) {
+  const isMobile = useIsMobile();
+
   return (
     <section className="ac-landing animate-wb-fade-in">
       <header className="ac-landing__hero">
         <h1 className="ac-landing__brand">
           <Brand size="lg" />
         </h1>
-        <p className="ac-landing__prompt">{LANDING_PROMPT}</p>
+        <p className="ac-landing__prompt">{greeting || LANDING_PROMPT}</p>
+        {goalLabel ? <p className="ac-landing__goal">{goalLabel}</p> : null}
       </header>
 
       <div className="ac-landing__ask">
         <InputBar
           onSubmit={onSubmit}
           autoFocus
+          compact={isMobile}
           prominent
           placeholder="Ask a question or paste a photo"
           onOpenSettings={onOpenSettings}
@@ -131,7 +140,7 @@ function BooksDoodle() {
 
 const STYLES = `
 .ac-landing {
-  /* Night Blueprint, by way of the global tokens in app/globals.css. */
+  /* Graphite, by way of the global tokens in app/globals.css. */
   --ink: var(--frost);
   --ink-soft: var(--text-soft);
   --ink-faint: var(--text-faint);
@@ -196,6 +205,12 @@ const STYLES = `
   justify-content: center;
 }
 
+.ac-landing__goal {
+  margin: 0.45rem 0 0;
+  font-size: 0.875rem;
+  color: var(--text-soft);
+}
+
 .ac-landing__prompt {
   margin: 0.4rem 0 0;
   font-family: "Stack Sans Notch", ui-sans-serif, system-ui, sans-serif;
@@ -203,11 +218,10 @@ const STYLES = `
   font-weight: 500;
   letter-spacing: -0.015em;
   line-height: 1.15;
-  /* The landing's ice gradient: frost falling into the sky accent. */
-  background: linear-gradient(102deg, #f0f5f7 0%, #cce6f1 38%, #7fc4e2 68%, #59afd4 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  /* One bright line, plain. A gradient across the headline was the last
+     ornament on the empty board, and on a flat ground it reads as a sticker
+     rather than as the thing being asked. */
+  color: #ffffff;
 }
 
 /*
@@ -244,18 +258,16 @@ const STYLES = `
 }
 
 /*
-  A card is the pedestal button at document scale: a cap resting on a slightly
-  taller base. The strip of base still showing under the cap is the shadow, so
-  pressing simply drops the cap by that strip — the outer box never moves and
-  the stack never reflows.
+  A card is the button at document scale, and like the button it is now flat:
+  a filled rectangle that answers by changing its fill. The pedestal it used
+  to be — a cap resting on a taller base, dropping onto it when pressed — is
+  gone with the rest of the light modelling.
+
 */
 .ac-landing__question {
-  --card-lift: 5px;
-  --card-press: 0px;
-  --card-radius: 1rem;
-  --card-cap: linear-gradient(180deg, var(--ink-800) 0%, var(--ink-850) 100%);
-  --card-cap-hi: linear-gradient(180deg, var(--ink-700) 0%, var(--ink-800) 100%);
-  --card-base: var(--ink-950);
+  --card-radius: 0.875rem;
+  --card-cap: var(--ink-850);
+  --card-cap-hi: var(--ink-800);
   --card-line: var(--stroke);
 
   position: relative;
@@ -270,66 +282,28 @@ const STYLES = `
 
   padding-left: 1.2rem;
   padding-right: 1.1rem;
-  padding-top: calc(0.7rem + var(--card-press));
-  padding-bottom: calc(0.7rem + var(--card-lift) - var(--card-press));
+  padding-block: 0.7rem;
 
-  border: 1px solid var(--card-line);
-  border-radius: var(--card-radius);
-  background: var(--card-base);
-  text-align: left;
-  cursor: pointer;
-  transition:
-    padding-top 260ms cubic-bezier(0.2, 0.9, 0.25, 1),
-    padding-bottom 260ms cubic-bezier(0.2, 0.9, 0.25, 1);
-}
-
-/* The cap. It carries the face; the element behind it is the base. */
-.ac-landing__question::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: -1px -1px auto;
-  /* Padding box + both borders, less the lift, so exactly one --card-lift of
-     base stays showing under the cap: the same 6px as the gap between cards. */
-  height: calc(100% + 2px - var(--card-lift));
   border: 1px solid var(--card-line);
   border-radius: var(--card-radius);
   background: var(--card-cap);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 1px 2px rgba(3, 11, 18, 0.4);
-  transform: translateY(var(--card-press));
+  text-align: left;
+  cursor: pointer;
   transition:
-    transform 260ms cubic-bezier(0.2, 0.9, 0.25, 1),
-    background 260ms ease,
-    border-color 260ms ease,
-    box-shadow 260ms ease;
+    background-color 180ms ease,
+    border-color 180ms ease;
 }
 
 .ac-landing__question:hover,
 .ac-landing__question:focus-visible {
-  --card-press: -2px;
+  background: var(--card-cap-hi);
+  border-color: var(--stroke-strong);
   outline: none;
 }
 
-.ac-landing__question:hover::before,
-.ac-landing__question:focus-visible::before {
-  background: var(--card-cap-hi);
-  border-color: var(--stroke-strong);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 8px 18px -8px rgba(3, 11, 18, 0.75);
-}
-
-/* Pressing lands the cap flat on its base. */
 .ac-landing__question:active {
-  --card-press: var(--card-lift);
-}
-
-.ac-landing__question:active,
-.ac-landing__question:active::before {
-  transition-duration: 80ms;
-  transition-timing-function: cubic-bezier(0.3, 0, 0.2, 1);
+  transform: scale(0.995);
+  transition-duration: 70ms;
 }
 
 .ac-landing__question-topic {
@@ -383,6 +357,51 @@ const STYLES = `
   color: var(--accent);
 }
 
+@media (hover: none) {
+  .ac-landing__question-go {
+    opacity: 1;
+    transform: none;
+    color: var(--accent);
+  }
+}
+
+@media (max-width: 767px) {
+  .ac-landing {
+    gap: 0.45rem;
+  }
+
+  .ac-landing__hero {
+    margin-bottom: 0;
+  }
+
+  .ac-landing__brand {
+    margin-bottom: 0.3rem;
+  }
+
+  .ac-landing__prompt {
+    margin-top: 0.25rem;
+  }
+
+  .ac-landing__ask {
+    margin-top: 0;
+  }
+
+  .ac-landing__suggestions-label {
+    margin-bottom: 0.45rem;
+    font-size: 1.125rem;
+  }
+
+  .ac-landing__question-list {
+    gap: 0.4rem;
+  }
+
+  .ac-landing__question {
+    padding-left: 1rem;
+    padding-right: 0.9rem;
+    padding-block: 0.6rem;
+  }
+}
+
 .ac-landing__question:hover .ac-landing__question-topic,
 .ac-landing__question:focus-visible .ac-landing__question-topic {
   color: var(--accent);
@@ -390,9 +409,11 @@ const STYLES = `
 
 @media (prefers-reduced-motion: reduce) {
   .ac-landing__question,
-  .ac-landing__question::before,
   .ac-landing__question-go {
     transition: none;
+  }
+  .ac-landing__question:active {
+    transform: none;
   }
 }
 

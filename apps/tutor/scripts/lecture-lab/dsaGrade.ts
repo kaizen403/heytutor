@@ -10,6 +10,11 @@
  * explained *well* is a reviewer's job.
  */
 import { CODE_LESSON_STEP_WORDS, CODE_LESSON_TARGET_BY_FAMILIARITY } from "@heytutor/tutor-core";
+import {
+  codeLineAnchors,
+  namedFrameLabels,
+  spokenTimeline,
+} from "@/features/tutor-session/lib/code-lesson/codeSpokenSync";
 import type { DsaLectureRun } from "./dsaPipeline";
 
 export type FindingSeverity = "fatal" | "major" | "minor";
@@ -276,6 +281,39 @@ export function gradeDsaLecture(run: DsaLectureRun): DsaLectureGrade {
     // Beats that are only a tag, no words: the board moves in silence.
     const silent = run.teaching.beats.filter((beat) => beat.actions.length > 0 && beat.speech.length < 20).length;
     if (silent > 0) add("silent_beats", "minor", `${silent} beat(s) with a tag and almost no speech`);
+    // The board follows the voice only where the voice names something on
+    // it. A code beat whose words name none of its block's lines leaves the
+    // caret with nowhere to go after typing (measured: 15 s of a still board);
+    // a figure beat that names no value, index or pointer of its frame leaves
+    // the pen with no cell to walk to.
+    const blockCode = new Map<string, string>();
+    for (const section of run.codeLesson.sections) {
+      for (const block of section.blocks) blockCode.set(block.id, block.code);
+    }
+    const unanchoredCode: string[] = [];
+    const unanchoredFigure: string[] = [];
+    for (const beat of run.teaching.beats) {
+      if (beat.speech.length < 20) continue;
+      for (const action of beat.actions) {
+        if (action.kind === "type") {
+          const code = blockCode.get(action.blockId);
+          if (code && codeLineAnchors(code, spokenTimeline(beat.speech, null)).length === 0) {
+            unanchoredCode.push(action.blockId);
+          }
+        } else if (action.kind === "frame" && run.figure.source === "trace") {
+          const frame = run.figure.frames[action.frameIndex];
+          if (frame && frame.renderedLabels.length > 0 && namedFrameLabels(frame.renderedLabels, beat.speech).length === 0) {
+            unanchoredFigure.push(frame.id);
+          }
+        }
+      }
+    }
+    if (unanchoredCode.length > 0) {
+      add("code_beat_unanchored", "minor", `${unanchoredCode.length} code beat(s) name no line of their block: ${unanchoredCode.slice(0, 4).join(", ")}`);
+    }
+    if (unanchoredFigure.length > 0) {
+      add("figure_beat_unanchored", "minor", `${unanchoredFigure.length} figure beat(s) name no cell of their frame: ${unanchoredFigure.slice(0, 4).join(", ")}`);
+    }
     // Pace: spoken words per beat against the floor the prompt states. Words
     // are the unit the prompt uses, because sentences varied from ten to
     // fourteen words and a sentence count bought half the intended time.

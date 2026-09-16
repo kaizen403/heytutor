@@ -19,6 +19,58 @@ export function createEmptySegmentPlanStats(): SegmentPlanStats {
   };
 }
 
+/**
+ * A tag glued straight after another tag has no words of its own. The offline
+ * planner folds it into the segment before it; the live stream used to run it
+ * as a segment with no narration, which is ink in silence after the sentence
+ * (26 s of it across six measured lessons, mostly [EMPHASIZE:last] and a
+ * [FOCUS] sent after the row). Folded, it runs inside that sentence instead.
+ *
+ * Returns true when `incoming` was folded into `buffered` (which is mutated,
+ * since the stream holds the same object). Code lessons keep one tag per
+ * segment because the conductor places frames between blocks.
+ */
+export function foldGluedSegment(
+  buffered: TutorSegment | null,
+  incoming: TutorSegment,
+  options: { codeLesson: boolean },
+): boolean {
+  if (options.codeLesson || !buffered) return false;
+  if (incoming.narration.trim()) return false;
+  if (buffered.verifiedDiagramIntro === true) return false;
+  const glued = getSegmentCommands(incoming);
+  const held = getSegmentCommands(buffered);
+  if (glued.length === 0 || held.length === 0) return false;
+  const merged = [...held, ...glued];
+  buffered.commands = merged;
+  buffered.command = merged[0] ?? buffered.command;
+  return true;
+}
+
+/**
+ * The order a sentence's commands run in: by the moment their words are
+ * spoken, not the order their tags were written. A step that says "f is the
+ * focal length, u the object distance, and we want v" carries pointing
+ * gestures for f and u and a row for v; run in tag order the row waited for
+ * "v" at 7.5 s and the gestures then fired after the voice had finished.
+ *
+ * `anchorsMs[i]` is when command i's first word is spoken, or null when it
+ * has no word of its own (an [EMPHASIZE:last] boxes the row before it): such
+ * a command keeps its place after the command it followed. The sort is
+ * stable, so ties keep tag order.
+ */
+export function orderCommandsBySpokenAnchor(anchorsMs: ReadonlyArray<number | null>): number[] {
+  const resolved: number[] = [];
+  let carried = 0;
+  for (const anchor of anchorsMs) {
+    if (typeof anchor === "number" && Number.isFinite(anchor)) carried = anchor;
+    resolved.push(carried);
+  }
+  return anchorsMs
+    .map((_, index) => index)
+    .sort((left, right) => resolved[left]! - resolved[right]! || left - right);
+}
+
 export function summarizeSegmentsForTrace(segments: TutorSegment[]): Array<{
   index: number;
   verifiedDiagramIntro: boolean;

@@ -86,7 +86,7 @@ export function FamiliarityPicker({
         className={cn(
           "flex items-center gap-1 rounded-full border border-stroke bg-ink-700 font-medium transition-colors",
           "hover:border-sky-500/35 hover:bg-ink-600 hover:text-sky-200 disabled:opacity-40",
-          compact ? "h-9 px-2.5 text-xs" : prominent ? "h-10 px-3 text-[13px]" : "h-9 px-3 text-xs",
+          compact ? "h-10 min-h-10 px-2.5 text-xs" : prominent ? "h-10 px-3 text-[13px]" : "h-9 px-3 text-xs",
         )}
         style={{ color: "var(--text-soft)" }}
       >
@@ -102,7 +102,10 @@ export function FamiliarityPicker({
         <div
           role="listbox"
           aria-label="Select Familiarity"
-          className="absolute bottom-full left-0 z-50 mb-2 w-[16.5rem] overflow-hidden rounded-2xl border border-stroke p-1 shadow-xl"
+          className={cn(
+            "absolute left-0 z-50 mb-2 w-[16.5rem] overflow-hidden rounded-2xl border border-stroke p-1 shadow-xl",
+            compact ? "bottom-full top-auto" : "bottom-full",
+          )}
           style={{ backgroundColor: "var(--ink-850)" }}
         >
           <p

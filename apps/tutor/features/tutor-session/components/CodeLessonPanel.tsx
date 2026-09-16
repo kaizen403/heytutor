@@ -9,10 +9,12 @@ import {
   fullSectionText,
   revealedSectionText,
   sectionFullyRevealed,
+  sectionLineOffset,
   type CodeLessonController,
 } from "../lib/code-lesson/codeLessonController";
 import {
   baseCodeLessonExtensions,
+  setSpokenLine,
   setTypingCaretMode,
   typingCaretExtensions,
   type TypingCaretMode,
@@ -37,10 +39,11 @@ export interface CodeLessonPanelProps {
 }
 
 /**
- * Sublime-like Solarized Dark editor for DSA turns: a DOM overlay in board
- * coordinates over the left column. The controller owns all lesson state;
- * this component only paints it — the CodeMirror doc mirrors the revealed
- * characters and scrolls to follow the caret while the tutor types.
+ * Solarized Dark editor for DSA turns: a DOM overlay in board coordinates
+ * over the left column. It is a tabbed editor pane, not a Mac window. The
+ * controller owns all lesson state; this component only paints it — the
+ * CodeMirror doc mirrors the revealed characters and scrolls to follow the
+ * caret while the tutor types.
  */
 /**
  * Where the panel is mounted.
@@ -71,7 +74,7 @@ export function CodeLessonPanel({
   const viewRef = useRef<EditorView | null>(null);
   const lastDocRef = useRef("");
 
-  const { plan, mode, activeSectionIndex, typingBlockId, typeAlong } = state;
+  const { plan, mode, activeSectionIndex, typingBlockId, typeAlong, spokenLine } = state;
   const visible = Boolean(plan) && mode !== "hidden";
   const section = plan?.sections[activeSectionIndex] ?? null;
   const sectionCount = plan?.sections.length ?? 0;
@@ -122,6 +125,16 @@ export function CodeLessonPanel({
         ? "typing"
         : "idle";
 
+  // The line the voice is on, as a 1-based line of the section doc. Only a
+  // block of the section on screen can be spoken about; anything else is null.
+  const spokenDocLine = useMemo(() => {
+    if (!plan || !spokenLine || mode === "type_along") return null;
+    const located = plan.sections[activeSectionIndex]?.blocks.some((block) => block.id === spokenLine.blockId);
+    if (!located) return null;
+    const offset = sectionLineOffset(state, spokenLine.blockId);
+    return offset === null ? null : offset + spokenLine.lineIndex + 1;
+  }, [plan, spokenLine, mode, activeSectionIndex, state]);
+
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
@@ -134,14 +147,15 @@ export function CodeLessonPanel({
         changes,
         effects: [
           setTypingCaretMode.of(caretMode),
+          setSpokenLine.of(spokenDocLine),
           EditorView.scrollIntoView(displayText.length, { y: "end" }),
         ],
       });
       lastDocRef.current = displayText;
     } else {
-      view.dispatch({ effects: setTypingCaretMode.of(caretMode) });
+      view.dispatch({ effects: [setTypingCaretMode.of(caretMode), setSpokenLine.of(spokenDocLine)] });
     }
-  }, [displayText, caretMode]);
+  }, [displayText, caretMode, spokenDocLine]);
 
   // Mirror the practice machine into ghost/caret/locked decorations, and
   // keep the caret in view as it advances.
@@ -171,18 +185,15 @@ export function CodeLessonPanel({
   }, [mode, activeSectionIndex]);
 
   // Wrong keys flash the panel border briefly. The flash is pure DOM styling
-  // (no React state): setting the properties overrides the inline shorthand,
-  // and clearing them falls back to it.
+  // (no React state): setting the property overrides the inline border color,
+  // and clearing it falls back to it.
   const rejectFlash = typeAlong?.rejectFlash ?? 0;
   useEffect(() => {
     const panel = panelRef.current;
     if (rejectFlash === 0 || !panel) return;
     panel.style.borderColor = SOLARIZED.red;
-    panel.style.boxShadow =
-      `0 0 0 2px rgba(220, 50, 47, 0.35), 0 18px 40px -12px rgba(0, 20, 28, 0.65)`;
     const timeout = setTimeout(() => {
       panel.style.borderColor = "";
-      panel.style.boxShadow = "";
     }, 220);
     return () => clearTimeout(timeout);
   }, [rejectFlash]);
@@ -249,9 +260,8 @@ export function CodeLessonPanel({
           flexDirection: "column",
           backgroundColor: SOLARIZED_EDITOR.background,
           border: `1px solid ${SOLARIZED_EDITOR.border}`,
-          borderRadius: 8,
-          boxShadow: "0 18px 44px -14px rgba(0, 20, 28, 0.72)",
-          transition: "border-color 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1)",
+          borderRadius: 4,
+          transition: "border-color 200ms cubic-bezier(0.16, 1, 0.3, 1)",
           overflow: "hidden",
           zIndex: 4,
           fontFamily: "var(--font-sans, Inter, system-ui, sans-serif)",
@@ -260,20 +270,23 @@ export function CodeLessonPanel({
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            gap: 10,
+            alignItems: "stretch",
             height: SOLARIZED_CHROME.titleBarHeight,
-            padding: "0 12px",
             borderBottom: `1px solid ${SOLARIZED.base02}`,
             flexShrink: 0,
             backgroundColor: SOLARIZED_EDITOR.titleBar,
             userSelect: "none",
           }}
         >
-          <TrafficLights />
           <span
             title={tabLabel}
             style={{
+              display: "flex",
+              alignItems: "center",
+              maxWidth: "70%",
+              padding: "0 12px",
+              backgroundColor: SOLARIZED_EDITOR.tab,
+              borderRight: `1px solid ${SOLARIZED.base02}`,
               color: SOLARIZED_EDITOR.bright,
               fontFamily: SOLARIZED_FONT,
               fontSize: 11,
@@ -287,7 +300,16 @@ export function CodeLessonPanel({
           >
             {tabLabel}
           </span>
-          <span style={{ color: SOLARIZED_EDITOR.muted, fontSize: 10, flexShrink: 0 }}>
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "0 10px",
+              color: SOLARIZED_EDITOR.muted,
+              fontSize: 10,
+              flexShrink: 0,
+            }}
+          >
             {activeSectionIndex + 1}/{sectionCount}
           </span>
           <span
@@ -297,6 +319,7 @@ export function CodeLessonPanel({
               alignItems: "center",
               gap: 6,
               flexShrink: 0,
+              paddingRight: 10,
             }}
           >
           {practicing ? (
@@ -387,7 +410,7 @@ export function CodeLessonPanel({
                 fontWeight: 600,
                 padding: "8px 16px",
                 cursor: "pointer",
-                boxShadow: "0 8px 22px -6px rgba(3, 11, 18, 0.6)",
+                boxShadow: "0 8px 22px -6px rgba(0, 0, 0, 0.6)",
               }}
             >
               <Keyboard size={14} aria-hidden="true" />
@@ -412,7 +435,7 @@ export function CodeLessonPanel({
                 fontSize: 12,
                 fontWeight: 600,
                 padding: "8px 16px",
-                boxShadow: "0 8px 22px -6px rgba(3, 11, 18, 0.6)",
+                boxShadow: "0 8px 22px -6px rgba(0, 0, 0, 0.6)",
                 pointerEvents: "none",
               }}
             >
@@ -445,40 +468,6 @@ export function CodeLessonPanel({
         </div>
 
     </div>
-  );
-}
-
-function TrafficLights() {
-  const size = SOLARIZED_CHROME.trafficLightSize;
-  const gap = SOLARIZED_CHROME.trafficLightGap;
-  const colors = [
-    SOLARIZED_EDITOR.trafficClose,
-    SOLARIZED_EDITOR.trafficMin,
-    SOLARIZED_EDITOR.trafficMax,
-  ] as const;
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap,
-        flexShrink: 0,
-      }}
-    >
-      {colors.map((color) => (
-        <span
-          key={color}
-          style={{
-            width: size,
-            height: size,
-            borderRadius: 999,
-            backgroundColor: color,
-            boxShadow: "inset 0 0 0 0.5px rgba(0, 0, 0, 0.18)",
-          }}
-        />
-      ))}
-    </span>
   );
 }
 

@@ -1,4 +1,5 @@
 import { withFastModeHeader } from "../llm/fastMode";
+import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 import {
   buildSceneDocumentPlannerPrompt,
@@ -42,6 +43,8 @@ export interface ScenePlannerResponse {
 export interface ScenePlannerOptions extends ScenePlannerPromptContext {
   proxyUrl: string;
   sessionId?: string;
+  /** Client-generated Langfuse turn id shared with teaching and TTS. */
+  traceId?: string;
   signal?: AbortSignal;
   /** Total plan/repair hard deadline. Defaults to sixty seconds. */
   timeoutMs?: number;
@@ -88,6 +91,7 @@ export async function planSceneDocument(
     strategy ? `${prompt}\n\nSYNTHESIS STRATEGY\n${strategy}` : prompt,
     options,
     lane,
+    question,
   );
   return response
     ? {
@@ -152,7 +156,7 @@ Resolve every fatal error. Preserve correct stable IDs when useful, but delete i
 
   const diversifiedPrompt = `${prompt}${connectivityGuidance}${closedRouteGuidance}${bypassGuidance}${orderedRouteGuidance}${pageNormalGuidance}${waveOpticsGuidance}${opticalInstrumentGuidance}\n\nREPAIR STRATEGY\n${strategy}`;
 
-  const response = await requestSceneDocument("repair", diversifiedPrompt, options, lane);
+  const response = await requestSceneDocument("repair", diversifiedPrompt, options, lane, question);
   return response
     ? {
         ...response,
@@ -481,8 +485,9 @@ async function requestSceneDocument(
   prompt: string,
   options: ScenePlannerOptions,
   lane: ScenePlannerLane,
+  question: string,
 ): Promise<ScenePlannerResponse | null> {
-  const { proxyUrl, sessionId, signal, timeoutMs = SCENE_PLANNER_TIMEOUT_MS } = options;
+  const { proxyUrl, sessionId, traceId, signal, timeoutMs = SCENE_PLANNER_TIMEOUT_MS } = options;
   const startedAt = Date.now();
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), Math.max(1, timeoutMs));
@@ -500,16 +505,20 @@ async function requestSceneDocument(
   try {
     const response = await fetch(proxyUrl, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-planner": "1",
-        "x-scene-planner-version": "2",
-        "x-scene-planner-phase": phase,
-        "x-scene-planner-lane": lane,
-        "x-planner-deadline-ms": String(timeoutMs),
-        ...(sessionId ? { "x-session-id": sessionId } : {}),
-        ...withFastModeHeader({}, options.fastMode),
-      },
+      headers: withFastModeHeader(
+        withTurnTraceHeaders(
+          {
+            "content-type": "application/json",
+            "x-planner": "1",
+            "x-scene-planner-version": "2",
+            "x-scene-planner-phase": phase,
+            "x-scene-planner-lane": lane,
+            "x-planner-deadline-ms": String(timeoutMs),
+          },
+          { sessionId, traceId, question },
+        ),
+        options.fastMode,
+      ),
       signal: combinedSignal,
       body: JSON.stringify({
         model: PLANNER_MODEL,

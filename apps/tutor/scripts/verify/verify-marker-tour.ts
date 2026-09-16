@@ -252,7 +252,7 @@ async function main(): Promise<void> {
       "the command executor must never set the cursor to idle: opacity 0 is a pen that has left the board",
     );
     assert(
-      /case "TYPE":[\s\S]{0,2500}?setCursorState\("thinking"\)/.test(source),
+      /case "TYPE":[\s\S]{0,4500}?setCursorState\("thinking"\)/.test(source),
       "after typing, the pen must spin (thinking). speaking is a still pen; idle is gone",
     );
     const thinkingHolds = source.match(/setCursorState\("thinking"\)/g) ?? [];
@@ -266,7 +266,7 @@ async function main(): Promise<void> {
       `expected the POINT case and both focus paths to walk the marker, found ${walks.length} call(s)`,
     );
     assert(
-      /case "POINT":[\s\S]{0,900}?tourMarker\(/.test(source),
+      /case "POINT":[\s\S]{0,1400}?tourMarker\(/.test(source),
       "a POINT must walk the marker",
     );
     // Both halves of the focus split matter: a spotlight capped but no walk
@@ -299,9 +299,17 @@ async function main(): Promise<void> {
       new URL("../../features/tutor-session/hooks/turn/useSegmentRunner.ts", import.meta.url),
       "utf8",
     ).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+    // A cued figure part's share is its cue window; every other command keeps
+    // its matched window or its weighted slice of the beat.
     assert(
-      /speechShareMs:\s*speechWindow\?\.durationMs \|\| commandSpeechMs/.test(runner),
+      /speechShareMs:\s*cueWindow\s*\?[\s\S]{0,900}?:\s*speechWindow\?\.durationMs \|\| commandSpeechMs/.test(runner),
       "the runner must pass each command its own share of the segment's spoken time",
+    );
+    // A pointing walk gets what is left of the sentence, never the fallback
+    // window's 300 ms (measured: the pen stood still for the other 19.7 s).
+    assert(
+      /command\.type === "POINT"[\s\S]{0,600}?totalSpeechMs\) - Math\.round\(liveAudioPositionMs\(\)\)/.test(runner),
+      "a POINT walk must be sized to the rest of the sentence",
     );
 
     const shell = readFileSync(

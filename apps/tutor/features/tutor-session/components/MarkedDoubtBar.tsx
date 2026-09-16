@@ -57,8 +57,8 @@ export function MarkedDoubtBar({
       className="flex w-full flex-col gap-2 rounded-2xl px-3 py-2.5"
       style={{
         backgroundColor: "var(--ink-850)",
-        border: "1px solid rgba(89, 175, 212, 0.28)",
-        boxShadow: "0 10px 30px -12px rgba(3, 11, 18, 0.6)",
+        border: "1px solid rgba(74, 158, 255, 0.28)",
+        boxShadow: "0 10px 30px -12px rgba(0, 0, 0, 0.6)",
       }}
     >
       <div className="flex items-center justify-between gap-3">
@@ -117,10 +117,10 @@ export function MarkedDoubtBar({
                     className="flex max-w-[22rem] items-center gap-1.5 rounded-full py-1 pl-2.5 pr-1"
                     style={{
                       backgroundColor: grounded
-                        ? "rgba(89, 175, 212, 0.14)"
+                        ? "rgba(74, 158, 255, 0.14)"
                         : "rgba(232, 145, 58, 0.13)",
                       border: `1px solid ${
-                        grounded ? "rgba(89, 175, 212, 0.32)" : "rgba(232, 145, 58, 0.3)"
+                        grounded ? "rgba(74, 158, 255, 0.32)" : "rgba(232, 145, 58, 0.3)"
                       }`,
                     }}
                   >

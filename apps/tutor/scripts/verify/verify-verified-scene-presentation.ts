@@ -63,9 +63,29 @@ const renderScene: RenderScene = {
 
 const presentation = buildVerifiedDiagramPresentation(document, renderScene);
 if (presentation.diagram.id !== "verified_scene") throw new Error("wrong verified diagram id");
-if (presentation.introSegments.length !== 1) {
-  throw new Error(`the verified intro must be one spoken beat, got ${presentation.introSegments.length}`);
+// One spoken beat per reveal group, in the order the groups are drawn. The
+// intro used to be collapsed into one sentence with the longest cue first,
+// which spoke four of nine archetypes out of draw order and gave the pen one
+// ten second window with no word in it to wait for.
+if (presentation.introSegments.length !== 2) {
+  throw new Error(`the verified intro must be one spoken beat per reveal group, got ${presentation.introSegments.length}`);
 }
+if (presentation.diagram.reveals.map((reveal) => reveal.targetId).join(",") !== "setup,edge") {
+  throw new Error(`reveal groups must be spoken in draw order, got ${presentation.diagram.reveals.map((reveal) => reveal.targetId).join(",")}`);
+}
+presentation.introSegments.forEach((segment, index) => {
+  if (segment.narration !== presentation.diagram.reveals[index]?.narration) {
+    throw new Error(`beat ${index} is not the sentence of the group drawn ${index === 0 ? "first" : "second"}`);
+  }
+  for (const command of segment.commands ?? []) {
+    if (!command.spokenCue?.token || !command.spokenCue.entityId) {
+      throw new Error(`every intro command carries the word it is drawn under; ${command.type} in beat ${index} has none`);
+    }
+    if (!segment.narration.includes(command.spokenCue.token)) {
+      throw new Error(`cue word "${command.spokenCue.token}" is not in "${segment.narration}"`);
+    }
+  }
+});
 if (presentation.introSegments.some((segment) => segment.narration.trim() === "")) throw new Error("scene stages must be narrated while drawing");
 if (presentation.introSegments.some((segment) => !segment.command)) throw new Error("scene narration must remain paired with ink");
 if (presentation.diagram.commands.filter((command) => command.type === "LABEL").length !== 3) throw new Error("duplicate entity labels were emitted");
@@ -112,19 +132,36 @@ if (presentation.diagram.commands.some((command) =>
   throw new Error("timeline focus traces must not be baked into the opening figure");
 }
 if (presentation.introSegments.some((segment) =>
-  (segment.commands ?? []).some((command) =>
-    command.type === "CIRCLE_AROUND" || command.type === "LABEL" || command.type === "DIMENSION"
-  )
+  (segment.commands ?? []).some((command) => command.type === "CIRCLE_AROUND")
 )) {
-  throw new Error("the opening figure must not circle, label, or dimension until the lecture names a part");
+  throw new Error("the opening figure must not circle a part until the lecture names it");
 }
 if (presentation.introSegments.some((segment) => /Segment AB is the edge/i.test(segment.narration))) {
   throw new Error("focus narration must wait for the lecture, not the intro");
 }
-if (!presentation.diagram.deferredAnnotations?.some((entry) =>
-  entry.commands.some((command) => command.type === "LABEL" && command.text === "A")
-)) {
-  throw new Error("identity labels must be deferred for FOCUS during the lecture");
+{
+  // A label the beat's sentence names is lettered in that beat, right after
+  // its part's ink and under the same word: the setup beat says "A", so A is
+  // lettered as the point is marked. Labels no sentence names stay deferred
+  // for FOCUS.
+  const setup = presentation.introSegments[0]!;
+  const setupCommands = setup.commands ?? [];
+  const point = setupCommands.findIndex((command) => command.type === "DRAW_POINT");
+  const labelA = setupCommands.findIndex((command) => command.type === "LABEL" && command.text === "A");
+  if (!/\bA\b/.test(setup.narration)) {
+    throw new Error(`test setup: the first beat should name A, got "${setup.narration}"`);
+  }
+  if (point < 0 || labelA !== point + 1) {
+    throw new Error(`label A must be lettered right after point A's ink in the beat that says "A" (point at ${point}, label at ${labelA})`);
+  }
+  if (setupCommands[labelA]?.spokenCue?.token !== "A" || setupCommands[point]?.spokenCue?.token !== "A") {
+    throw new Error("point A and its label must both be drawn under the word \"A\"");
+  }
+  if (presentation.diagram.deferredAnnotations?.some((entry) =>
+    entry.commands.some((command) => command.type === "LABEL" && command.text === "A")
+  )) {
+    throw new Error("a label lettered on its word in the intro must not also wait for FOCUS");
+  }
 }
 if (!presentation.diagram.promptAddon.includes("Do not emit DRAW_*")) throw new Error("teaching draw guard is missing");
 if (!presentation.diagram.promptAddon.includes("[FOCUS:entity_id]")) throw new Error("semantic focus contract is missing");
@@ -351,10 +388,12 @@ if (pointFocusPresentation.introSegments.some((segment) =>
 )) {
   throw new Error("point identity circling must wait for lecture FOCUS, not the intro");
 }
-if (!pointFocusPresentation.diagram.deferredAnnotations?.some((entry) =>
-  entry.entityId === "a" && entry.commands.some((command) => command.type === "LABEL")
+// A lecture FOCUS on A does not hold A's label back from the beat that says
+// "A": the letter lands with its word, and FOCUS later traces the point.
+if (!pointFocusPresentation.introSegments.some((segment) =>
+  (segment.commands ?? []).some((command) => command.type === "LABEL" && command.text === "A")
 )) {
-  throw new Error("point A must keep a deferred label for lecture FOCUS");
+  throw new Error("point A is named by its beat and must be lettered there, whatever the lecture focuses later");
 }
 
 const encloseScene: RenderScene = {

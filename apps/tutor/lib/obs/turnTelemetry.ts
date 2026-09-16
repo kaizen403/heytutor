@@ -24,7 +24,7 @@ export interface TurnTelemetry {
 }
 
 /** Verified scene decisions need headroom; keep them over per-character noise. */
-const MAX_EVENTS = 400;
+export const MAX_TURN_TELEMETRY_EVENTS = 400;
 
 /** Prefer keeping named decision events when the budget is tight. */
 const DECISION_EVENT_PREFIXES = [
@@ -57,7 +57,7 @@ export function createTurnTelemetry(): TurnTelemetry {
   const traceMetadata: Record<string, unknown> = {};
 
   const pushEvent = (event: TurnTelemetryEvent): void => {
-    if (events.length < MAX_EVENTS) {
+    if (events.length < MAX_TURN_TELEMETRY_EVENTS) {
       events.push(event);
       return;
     }
@@ -131,15 +131,22 @@ export function createTurnTelemetry(): TurnTelemetry {
         return;
       }
 
-      if (events.length === 0 && Object.keys(traceMetadata).length === 0) {
+      // Drain so a cancel flush plus the turn's `finally` flush cannot
+      // duplicate every span. Metadata is resent so later fields still land.
+      const pendingEvents = events.splice(0, events.length);
+      const pendingMetadata = Object.keys(traceMetadata).length > 0
+        ? { ...traceMetadata }
+        : undefined;
+
+      if (pendingEvents.length === 0 && !pendingMetadata) {
         return;
       }
 
       const payload: TurnTelemetryPayload = {
         traceId,
         sessionId,
-        events,
-        traceMetadata: Object.keys(traceMetadata).length > 0 ? traceMetadata : undefined,
+        events: pendingEvents,
+        traceMetadata: pendingMetadata,
       };
 
       const body = JSON.stringify(payload);

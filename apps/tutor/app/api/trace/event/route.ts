@@ -4,6 +4,7 @@ import {
   updateTurnTrace,
   type TurnTelemetryEvent,
 } from "@/lib/obs/langfuse";
+import { MAX_TURN_TELEMETRY_EVENTS } from "@/lib/obs/turnTelemetry";
 import { enrichTraceMetadataWithCosts } from "@/lib/obs/usageCost";
 import { ensureUser, getUserId } from "@/lib/auth";
 
@@ -39,7 +40,9 @@ function parseBody(rawBody: string): TraceEventRequestBody | null {
     }
 
     const events = parsed.events;
-    const validEvents = Array.isArray(events) ? events.filter(isValidEvent).slice(0, 200) : [];
+    const validEvents = Array.isArray(events)
+      ? events.filter(isValidEvent).slice(0, MAX_TURN_TELEMETRY_EVENTS)
+      : [];
     const traceMetadata = isRecord(parsed.traceMetadata) ? parsed.traceMetadata : undefined;
 
     if (validEvents.length === 0 && !traceMetadata) {

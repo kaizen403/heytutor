@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|1",
+  "questions": [
+    {
+      "id": "chemistry|1|measurement-and-significant-figures|medium",
+      "topicId": "chemistry|1|measurement-and-significant-figures",
+      "difficulty": "medium",
+      "question": "If the value of the Avogadro number is 6.023 × 10^23 mol^-1 and the value of the Boltzmann constant is 1.380 × 10^-23 J K^-1, then what is the number of significant digits in the calculated value of the universal gas constant?",
+      "source": {
+        "questionId": "q_f5e72bbe468f68e94494b04ec081477300a649dc5360a1da699ffc8842d22b3c",
+        "exam": "JEE Advanced",
+        "year": 2014,
+        "documentId": "jee-advanced-2014-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|1|laws-of-chemical-combination|easy",
+      "topicId": "chemistry|1|laws-of-chemical-combination",
+      "difficulty": "easy",
+      "question": "Carbon forms two oxides. In the first, 3.0 g of carbon combines with 4.0 g of oxygen; in the second, 3.0 g of carbon combines with 8.0 g of oxygen. Which law of chemical combination do these data illustrate, and what is the simple whole-number ratio of the masses of oxygen that combine with a fixed mass of carbon?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|1|mole-concept-and-molar-mass|easy",
+      "topicId": "chemistry|1|mole-concept-and-molar-mass",
+      "difficulty": "easy",
+      "question": "At 300 K, a sample of 3.0 g of gas A occupies the same volume as 0.2 g of hydrogen at 200 K at the same pressure. Assuming both gases behave ideally, find the molar mass of gas A in g mol^-1 (nearest integer). (Given: molar mass of H2 = 2.0 g mol^-1)",
+      "source": {
+        "questionId": "q_cb6909368da40cd1050a4ef3e19f7f9d521e91e724b7fa5f507f848edccf7898",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-24-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|1|mole-concept-and-molar-mass|medium",
+      "topicId": "chemistry|1|mole-concept-and-molar-mass",
+      "difficulty": "medium",
+      "question": "100 g of an ideal gas is kept in a cylinder of 416 L volume at 27 °C under 1.5 bar pressure. Find the molar mass of the gas in g mol^-1 (nearest integer). (Given: R = 0.083 L bar K^-1 mol^-1)",
+      "source": {
+        "questionId": "q_0090d3cc513793da722b58437fc80858959a1338d2eba233eb1734ccac168b1c",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-28-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|1|percentage-composition-and-empirical-formula|medium",
+      "topicId": "chemistry|1|percentage-composition-and-empirical-formula",
+      "difficulty": "medium",
+      "question": "A compound contains 4.07% hydrogen, 24.27% carbon and 71.65% chlorine by mass, and its molar mass is 98.96 g mol^-1. Find its empirical formula and its molecular formula. (Given molar mass in g mol^-1: H = 1, C = 12, Cl = 35.5)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|1|stoichiometry-and-limiting-reagent|easy",
+      "topicId": "chemistry|1|stoichiometry-and-limiting-reagent",
+      "difficulty": "easy",
+      "question": "What mass of methane is required to produce 22 g of CO2 on complete combustion? (Given molar mass in g mol^-1: C = 12.0, H = 1.0, O = 16.0)",
+      "source": {
+        "questionId": "q_6a0015e23103ed79f19727202d81e6c9ff00405f09bff778da0d5be6428b59b8",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-27-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|1|stoichiometry-and-limiting-reagent|medium",
+      "topicId": "chemistry|1|stoichiometry-and-limiting-reagent",
+      "difficulty": "medium",
+      "question": "When 10 g of H2 reacts with 64 g of O2 to form water, which is the limiting reagent, and what mass of water is formed? What mass of the excess reagent is left over?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|1|stoichiometry-and-limiting-reagent|hard",
+      "topicId": "chemistry|1|stoichiometry-and-limiting-reagent",
+      "difficulty": "hard",
+      "question": "The stoichiometric reaction of 516 g of dimethyldichlorosilane with water gives a tetrameric cyclic product X in 75% yield. What is the mass of X obtained, in g? (Given molar mass in g mol^-1: H = 1, C = 12, O = 16, Si = 28, Cl = 35.5)",
+      "source": {
+        "questionId": "q_074aab5280c1787c84e6bc8cfa712c405ba8c23fa14b43dcd61f35f448b16e2c",
+        "exam": "JEE Advanced",
+        "year": 2023,
+        "documentId": "jee-advanced-2023-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|1|molarity-and-solution-stoichiometry|medium",
+      "topicId": "chemistry|1|molarity-and-solution-stoichiometry",
+      "difficulty": "medium",
+      "question": "What volume of 0.1 M H2SO4 is required to completely neutralise 30 mL of 0.2 M NaOH? What is the molarity of Na+ ions in the final solution, assuming the volumes are additive?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

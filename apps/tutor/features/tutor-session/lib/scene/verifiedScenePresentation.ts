@@ -18,10 +18,12 @@ import type {
   SceneDocument,
 } from "@heytutor/scene-engine";
 import {
+  describeSceneFamily,
   obstaclesFromPrimitives,
   placeLabels,
   workColumnObstacle,
 } from "@heytutor/scene-engine";
+import { CUE_DEFAULT_MS_PER_CHAR, cuedInkFloorMs, findSpokenToken } from "@heytutor/tutor-core";
 import { DSA_CODE_PANEL_RECT, DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildLabelGlossary } from "./labelGlossary";
 
@@ -106,7 +108,10 @@ export function buildVerifiedDiagramPresentation(
     return index;
   };
 
-  const deferredByEntity = new Map<string, VerifiedDiagramCommand[]>();
+  // Every command held back from the intro, with why. Only a label or a
+  // dimension that is waiting for its name (`named`) may be pulled forward
+  // into the beat whose sentence says that name.
+  const deferred: DeferredCommand[] = [];
   const annotateTargetIds = new Set(
     document.teachingTimeline
       .filter((action) => action.action === "annotate")
@@ -139,23 +144,28 @@ export function buildVerifiedDiagramPresentation(
       }
       const commandPhase =
         command.type === "LABEL" || command.type === "DIMENSION" ? "detail" : phase;
-      const defer = shouldDeferAnnotation(
+      const deferReason = deferralReason(
         primitive,
         command,
         annotateTargetIds,
         options.layout === "code_lesson",
-      ) || Boolean(holdLaterDsaFrames && primitive.groupId !== introGroupId);
-      if (defer) {
-        const existing = deferredByEntity.get(primitive.entityId) ?? [];
-        existing.push(styled);
-        deferredByEntity.set(primitive.entityId, existing);
+      ) ?? (holdLaterDsaFrames && primitive.groupId !== introGroupId ? "frame" : null);
+      const index = add(primitive.groupId, commandPhase, styled, { reveal: deferReason === null });
+      if (deferReason !== null && index !== null) {
+        deferred.push({
+          index,
+          entityId: primitive.entityId,
+          groupId: primitive.groupId,
+          pullable: deferReason === "named",
+        });
       }
-      add(primitive.groupId, commandPhase, styled, { reveal: !defer });
     }
   }
 
   const introSegments: TutorSegment[] = [];
   const reveals: VerifiedDiagram["reveals"] = [];
+  const entitiesById = new Map(document.entities.map((entity) => [entity.id, entity]));
+  const pulled = new Set<number>();
   orderedGroupIds.forEach((groupId, groupIndex) => {
     const phaseIndices = indicesByGroup.get(groupId) ?? emptyPhaseIndices();
     const group = renderScene.revealGroups.find((candidate) => candidate.id === groupId);
@@ -167,6 +177,36 @@ export function buildVerifiedDiagramPresentation(
       || groupId;
     const commandIndices = REVEAL_PHASES.flatMap((phase) => phaseIndices[phase]);
     if (commandIndices.length === 0) return;
+
+    if (options.layout !== "code_lesson") {
+      // One spoken beat per reveal group, in draw order, every command under
+      // the word that names it. Chunking would cut a sentence away from the
+      // parts it names, so a cued beat is never split.
+      const beat = cueRevealBeat({
+        cue,
+        groupIndex,
+        commandIndices,
+        commands,
+        entitiesById,
+        deferred: deferred.filter((entry) =>
+          entry.groupId === groupId && entry.pullable && !pulled.has(entry.index),
+        ),
+      });
+      for (const index of beat.pulledIndices) pulled.add(index);
+      reveals.push({
+        narration: beat.narration,
+        commandIndices: beat.indices,
+        kind: "reveal",
+        targetId: groupId,
+      });
+      introSegments.push({
+        narration: beat.narration,
+        command: beat.drawCommands[0] ?? null,
+        commands: beat.drawCommands,
+        verifiedDiagramIntro: true,
+      });
+      return;
+    }
 
     chunk(commandIndices, MAX_COMMANDS_PER_GROUP).forEach((indices, chunkIndex) => {
       const drawCommands = indices.map((index) =>
@@ -242,6 +282,13 @@ export function buildVerifiedDiagramPresentation(
     .map((anchor) => anchor.id)
     .join(", ");
   const groupTargets = groups.map((group) => group.id).join(", ");
+  const deferredByEntity = new Map<string, VerifiedDiagramCommand[]>();
+  for (const entry of deferred) {
+    if (pulled.has(entry.index)) continue;
+    const existing = deferredByEntity.get(entry.entityId) ?? [];
+    existing.push(commands[entry.index]!);
+    deferredByEntity.set(entry.entityId, existing);
+  }
   const deferredIds = [...deferredByEntity.keys()].join(", ");
   const hasDrawableInk = verifiedDiagramHasDrawableInk({ commands });
   const diagram: VerifiedDiagram = {
@@ -268,20 +315,20 @@ export function buildVerifiedDiagramPresentation(
       ? `A source-grounded conceptual representation (${representationTier}) has already been compiled and is being explained as it is revealed. It is intentionally non-metric: do not infer scale, missing connections, intersections, regions, directions, or solved values from it.`
       : "A complete metric diagram has already been compiled, validated, and is being explained as it is revealed."}
 Do not emit DRAW_*, LABEL, DIMENSION, ARROW, SCRIBBLE, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, ERASE, or CLEAR tags.
-When you name a listed diagram entity, append [FOCUS:entity_id] in that same step. Never provide coordinates.
+When you name a listed diagram part, put one [FOCUS:entity_id] for that part inside the sentence, directly after the spoken name (for example "its pole [FOCUS:P] is on the axis"). One id per tag: a sentence that names three parts carries three tags, each right after its own name. Never place the tag at the end of the step after a WRITE row, and never write two ids in one tag. Never provide coordinates.
 Parts the student can read, written as the drawn label then its tag: ${namedTargets || "none"}. Speak the label, never the id; the id belongs inside the tag only. The quotation marks are there to delimit the label and are not spoken.
 Parts with no label on the board: ${unnamedTargets || "none"}. You may FOCUS these, but do not give them a name aloud and do not claim the figure marks them.
 Reveal groups, which are sets of the parts above and not objects in their own right: ${groupTargets || "none"}. Never describe a group as a component, a block, an instrument, or a piece of apparatus.
-Optional FOCUS forms: [FOCUS:entity_id], [FOCUS:entity_id|spotlight], [FOCUS:entity_id|pulse], [FOCUS:id_a,id_b], or a reveal-group id.
-When you say what a labeled point is — for example the object O or the image I — put [FOCUS:entity_id] in that same step, immediately after the spoken name. FOCUS also reveals that entity's withheld label.
+Optional FOCUS forms: [FOCUS:entity_id], [FOCUS:entity_id|spotlight], [FOCUS:entity_id|pulse], or a reveal-group id.
+When you say what a labeled point is, for example the object O or the image I, the tag follows the name inside the sentence. FOCUS also reveals that entity's withheld label.
 To box the current work-area equation and highlight its result, use [EMPHASIZE:last]. To reveal a withheld measurement, enclose, or other compiled annotation, use [ANNOTATE:entity_id] with one of: ${deferredIds || "none"}.
 Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", "look at", or "this is" the named entity when using FOCUS.
 Refer to diagram entities by their visible labels in narration.
 Read the figure to the student before you calculate with it: name each labeled part, say what it physically represents, and say which way it points or where it acts, with [FOCUS:entity_id] on the part you just named. Never substitute into a figure the student has not been told how to read.
-${options.figureFamily ? `The construction on the board is a ${options.figureFamily.replace(/_/g, " ")} figure. ` : ""}This figure is what it is. If it is not the setup this question is about, or the labelled parts are not the objects the question names, say in one plain sentence that the picture on the board does not show this setup, then teach the question in words and in the work column. Do not rename a part to make it fit and do not describe apparatus that is not in the list.
+${options.figureFamily ? `The construction on the board is a ${describeSceneFamily(options.figureFamily)} figure. ` : ""}This figure is what it is. If it is not the setup this question is about, or the labelled parts are not the objects the question names, say in one plain sentence that the picture on the board does not show this setup, then teach the question in words and in the work column. Do not rename a part to make it fit and do not describe apparatus that is not in the list.
 ${options.layout === "code_lesson"
   ? `The left side of the board is the code editor. Never use [WRITE]; code is revealed only with [TYPE:blockId] tags, one block per step.
-This turn overrides the FOCUS instructions above. A [FOCUS] here names a FRAME from the FIGURE BEATS list, not an entity: the runtime advances the worked example to that frame and puts the spotlight on the part of it that changed. Only the first frame is on the board to begin with. Do not focus entity ids, and do not focus anything on a step that reveals code. If FIGURE BEATS says there are none, the figure does not move and you must not use [FOCUS] at all.
+This turn overrides the FOCUS instructions above. A [FOCUS] here names a FRAME from the FIGURE BEATS list, not an entity: the runtime advances the worked example to that frame and puts the spotlight on the part of it that changed. No frame is on the board to begin with: the first [FOCUS] draws the first frame. Do not focus entity ids, and do not focus anything on a step that reveals code. If FIGURE BEATS says there are none, the figure does not move and you must not use [FOCUS] at all.
 Always write it as [FOCUS:frame_id|spotlight], at most one per step. Never a bare [FOCUS:id], never |pulse, and never traces, underlines, or circles.`
   : "WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Short phrases are allowed. Do not save writing for the last line, and do not speak a step with the marker parked."}
 The scene engine owns all diagram geometry, labels, annotations, directions, connections, and markings.`,
@@ -346,26 +393,12 @@ function collapseIntroSpeech(
     }];
   }
 
-  if (segments.length <= 1) {
-    return segments;
-  }
-  const usable = segments
-    .map((segment) => segment.narration.trim())
-    .filter((text) =>
-      text.length > 0 &&
-      !/^the rest of this setup completes the figure\.?$/i.test(text) &&
-      !/^next comes scene\.?$/i.test(text),
-    );
-  const primary = [...usable].sort((left, right) => right.length - left.length)[0]
-    ?? "Here is the setup from the question.";
-  const extras = usable.filter((text) => text !== primary && !primary.includes(text));
-  const narration = [primary, ...extras].join(" ");
-  return [{
-    narration,
-    command: commands[0] ?? null,
-    commands,
-    verifiedDiagramIntro: true,
-  }];
+  // A physics or maths figure keeps one beat per reveal group, in draw order.
+  // These used to be merged into one sentence with the longest cue spoken
+  // first: four of nine archetypes then narrated their parts out of the order
+  // they were drawn in, and the pen had one 10 s window with no word in it to
+  // wait for. The order the groups are drawn in is the order they are spoken.
+  return segments;
 }
 
 /**
@@ -437,30 +470,49 @@ function isDsaMarkerScribble(command: VerifiedDiagramCommand): boolean {
     && command.visualStyle?.strokeRole === "construction";
 }
 
-function shouldDeferAnnotation(
+interface DeferredCommand {
+  /** Position in the diagram's command list. */
+  index: number;
+  entityId: string;
+  groupId: string;
+  /** A label or dimension waiting for its name, which the intro may speak. */
+  pullable: boolean;
+}
+
+/**
+ * Why a command stays out of the opening figure, or null when it is drawn.
+ *
+ * `annotation`: a staged ANNOTATE or focus trace; the lecture asks for it.
+ * `named`: a label or dimension, lettered when its part is first named,
+ * which may be in the intro beat itself when the group's sentence says the
+ * name, and otherwise by FOCUS during teaching.
+ */
+function deferralReason(
   primitive: RenderPrimitive,
   command: VerifiedDiagramCommand,
   annotateTargetIds: Set<string>,
   codeLesson = false,
-): boolean {
+): "annotation" | "named" | null {
   // DSA figures are a worked example, not a physics apparatus. Values and
   // indices belong on the boxes as they appear — holding them for FOCUS
   // made later rows look empty while FOCUS traces struck through the first.
   if (codeLesson) {
     return primitive.provenance?.transient === true
-      || command.visualStyle?.strokeRole === "trace";
+      || command.visualStyle?.strokeRole === "trace"
+      ? "annotation"
+      : null;
   }
   const annotationId = typeof primitive.provenance?.annotationId === "string"
     ? primitive.provenance.annotationId
     : undefined;
   if (annotateTargetIds.has(primitive.entityId) || (annotationId && annotateTargetIds.has(annotationId))) {
-    return true;
+    return "annotation";
   }
-  if (primitive.provenance?.transient === true) return true;
-  if (command.type === "LABEL" || command.type === "DIMENSION") return true;
-  if (command.type === "CIRCLE_AROUND" || command.type === "HIGHLIGHT") return true;
-  if (command.visualStyle?.strokeRole === "trace") return true;
-  return false;
+  if (primitive.provenance?.transient === true) return "annotation";
+  if (command.type === "CIRCLE_AROUND" || command.type === "HIGHLIGHT") return "annotation";
+  if (command.visualStyle?.strokeRole === "trace") return "annotation";
+  if (command.type === "LABEL" || command.type === "DIMENSION") return "named";
+  return null;
 }
 
 function annotationVisualStyle(
@@ -564,6 +616,507 @@ function ensureSpokenSentence(text: string): string {
   const cleaned = text.trim().replace(/\s+/g, " ");
   if (!cleaned) return "Notice this part of the figure.";
   return /[.!?]$/.test(cleaned) ? cleaned : `${cleaned}.`;
+}
+
+// ---------------------------------------------------------------------------
+// The figure is drawn the way a teacher draws it: one part as its name is
+// spoken. Each reveal group becomes one sentence, and each command in the
+// group is tagged with the word of that sentence which names the part it
+// draws, so the runner can wait for the word and draw the part under it.
+
+type SceneEntity = SceneDocument["entities"][number];
+
+interface CuedMatch {
+  /** The word as it appears in the sentence, for the runner to find again. */
+  token: string;
+  /** Character offset of that word in the sentence: the order it is said in. */
+  index: number;
+  /**
+   * The name was the label, the whole role, or the role's head word. A weak
+   * match is some other role word ("object" in "object distance"), enough to
+   * time the part's ink but not to pull a measurement into the intro.
+   */
+  strong: boolean;
+}
+
+interface CuedRevealBeat {
+  narration: string;
+  indices: number[];
+  drawCommands: DrawCommand[];
+  pulledIndices: number[];
+}
+
+/** Words a role is made of that never name a part on their own. */
+const ROLE_STOP_WORDS = new Set([
+  "the", "a", "an", "of", "to", "at", "on", "in", "and", "or", "its", "with", "from",
+  "into", "through", "along", "between", "parallel", "relative", "paraxial", "by",
+  "for", "under", "over", "per", "first", "second", "third", "upper", "lower", "near",
+  "far", "left", "right", "this", "that", "is", "as",
+]);
+const ROLE_GENERIC_WORDS = new Set([
+  "point", "points", "line", "lines", "mark", "marks", "end", "ends", "corner",
+  "corners", "tip", "tail", "top", "bottom", "reference", "direction", "label",
+  "side", "edge", "arrow", "segment", "vector", "foot", "start", "hatch",
+]);
+/** Endpoint and scaffold roles: drawn with their parent, never named aloud. */
+const UNSPEAKABLE_ROLE = /\b(?:end|corner|tip|tail|top|start|hatch|reference end)$/i;
+const ROLE_SYNONYMS: Record<string, string[]> = {
+  body: ["mass", "block"],
+  mass: ["body", "block"],
+  block: ["body", "mass"],
+  velocity: ["speed"],
+  speed: ["velocity"],
+  centre: ["center"],
+  center: ["centre"],
+  trajectory: ["path"],
+  path: ["trajectory"],
+};
+const IRREGULAR_PLURALS: Record<string, string> = {
+  focus: "foci",
+  axis: "axes",
+  radius: "radii",
+  vertex: "vertices",
+  index: "indices",
+  medium: "media",
+};
+const IRREGULAR_SINGULARS: Record<string, string> = Object.fromEntries(
+  Object.entries(IRREGULAR_PLURALS).map(([singular, plural]) => [plural, singular]),
+);
+/** A label short enough to say after its role: "its pole P", "the weight mg". */
+const SPEAKABLE_LABEL = /^[A-Za-z]{1,2}[′']?$/;
+
+function cleanRole(role: string | undefined): string {
+  return (role ?? "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[:;]/g, ",")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function roleWords(role: string): string[] {
+  return role.toLowerCase().split(/[^\p{L}\p{N}'′]+/u).filter(Boolean);
+}
+
+function distinctiveRoleWords(role: string): string[] {
+  return roleWords(role).filter((word) => !ROLE_STOP_WORDS.has(word) && !ROLE_GENERIC_WORDS.has(word));
+}
+
+/** Stems a role word shares with its spoken forms: "inclined" says "incline". */
+function wordStems(word: string): string[] {
+  const stems = [word];
+  if (word.length > 4 && word.endsWith("ing")) stems.push(word.slice(0, -3), `${word.slice(0, -3)}e`);
+  if (word.length > 4 && word.endsWith("ed")) stems.push(word.slice(0, -1), word.slice(0, -2));
+  if (word.length > 3 && word.endsWith("es")) stems.push(word.slice(0, -2));
+  if (word.length > 3 && word.endsWith("s")) stems.push(word.slice(0, -1));
+  if (word.length > 4 && word.endsWith("ies")) stems.push(`${word.slice(0, -3)}y`);
+  const singular = IRREGULAR_SINGULARS[word];
+  if (singular) stems.push(singular);
+  return [...new Set(stems)];
+}
+
+function wordVariants(word: string): string[] {
+  const variants: string[] = [];
+  for (const stem of wordStems(word)) {
+    variants.push(stem);
+    const plural = IRREGULAR_PLURALS[stem];
+    if (plural) variants.push(plural);
+    variants.push(`${stem}s`, `${stem}es`);
+    if (stem.endsWith("y")) variants.push(`${stem.slice(0, -1)}ies`);
+    for (const synonym of ROLE_SYNONYMS[stem] ?? []) {
+      variants.push(synonym, `${synonym}s`, `${synonym}es`);
+    }
+  }
+  return [...new Set(variants)];
+}
+
+interface NameCandidate {
+  text: string;
+  strong: boolean;
+  /**
+   * `lettered`: the text on the board or the entity label. `phrase`: the
+   * whole role, which claims its span when spoken. `word`: one role word.
+   */
+  kind: "lettered" | "phrase" | "word";
+}
+
+/**
+ * The words that can name this entity, most specific first: what is lettered
+ * on the board, the entity's label, its whole role, the role's head word and
+ * only then any other role word. Never its id.
+ */
+function entityNameCandidates(
+  entity: SceneEntity | undefined,
+  drawnTexts: string[],
+): NameCandidate[] {
+  const candidates: NameCandidate[] = [];
+  const push = (text: string | undefined, strong: boolean, kind: NameCandidate["kind"] = "word") => {
+    const cleaned = text?.trim();
+    if (!cleaned || candidates.some((candidate) => candidate.text === cleaned)) return;
+    candidates.push({ text: cleaned, strong, kind });
+  };
+  const role = cleanRole(entity?.role);
+  if (role && /\s/.test(role)) push(role, true, "phrase");
+  for (const text of drawnTexts) push(text, true, "lettered");
+  push(entity?.label, true, "lettered");
+  if (role) {
+    push(role, true);
+    // The head noun names the part: "centre" in "centre of curvature", "ray"
+    // in "reflected ray through F". When the head is generic ("object foot",
+    // "launch point", "angle mark") the words left over name the parent or
+    // the kind of mark: they time this part's ink under that word, but they
+    // do not letter its label, because "the object" is not "O".
+    const head = roleHeadWord(role);
+    if (head) for (const variant of wordVariants(head)) push(variant, true);
+    for (const word of distinctiveRoleWords(role)) {
+      if (word === head) continue;
+      for (const variant of wordVariants(word)) push(variant, false);
+    }
+  }
+  return candidates;
+}
+
+const ROLE_PREPOSITIONS = new Set([
+  "of", "to", "at", "on", "in", "through", "along", "into", "between", "from",
+  "relative", "parallel", "under", "over", "with", "by", "for", "per",
+]);
+
+/** The last word of the role's head phrase, when it is a name in its own right. */
+function roleHeadWord(role: string): string | null {
+  const words = roleWords(role);
+  const cut = words.findIndex((word) => ROLE_PREPOSITIONS.has(word));
+  const headPhrase = cut > 0 ? words.slice(0, cut) : words;
+  const head = headPhrase.at(-1);
+  if (!head || ROLE_STOP_WORDS.has(head) || ROLE_GENERIC_WORDS.has(head)) return null;
+  return head;
+}
+
+interface ClaimedSpan {
+  start: number;
+  end: number;
+  text: string;
+}
+
+/**
+ * Whole-word search that steps over the spans other parts' role phrases
+ * have claimed. Without this the resultant's head word "velocity" landed
+ * inside "the boat velocity relative to water" and the resultant arrow was
+ * drawn under the boat's words.
+ */
+function findUnclaimedToken(sentence: string, text: string, claimed: ClaimedSpan[]): number {
+  let from = 0;
+  while (from <= sentence.length) {
+    const index = findSpokenToken(sentence, text, from);
+    if (index < 0) return -1;
+    const end = index + text.length;
+    const inside = claimed.some((span) =>
+      index >= span.start && end <= span.end && span.text.toLowerCase() !== text.toLowerCase(),
+    );
+    if (!inside) return index;
+    from = index + 1;
+  }
+  return -1;
+}
+
+/**
+ * Where the sentence names each part. Whole role phrases are placed first
+ * and claim their words; then each part takes its most specific spoken name
+ * that occurs outside another part's phrase: the lettered text, the label,
+ * the role's head word, and only then any other role word. The current arrow
+ * is drawn under "current" (its label), not under "river" (a role word that
+ * happens to come first).
+ */
+function matchEntitiesInSentence(
+  sentence: string,
+  candidatesByEntity: ReadonlyMap<string, NameCandidate[]>,
+): Map<string, CuedMatch> {
+  const matches = new Map<string, CuedMatch>();
+  const claimed: ClaimedSpan[] = [];
+  for (const [entityId, candidates] of candidatesByEntity) {
+    // What is lettered on the board beats the role phrase: "i=40°" is the
+    // angle of incidence's own name, "angle mark" is one it shares.
+    const lettered = candidates.some((candidate) =>
+      candidate.kind === "lettered" && findSpokenToken(sentence, candidate.text, 0) >= 0,
+    );
+    if (lettered) continue;
+    for (const candidate of candidates) {
+      if (candidate.kind !== "phrase") continue;
+      const index = findSpokenToken(sentence, candidate.text, 0);
+      if (index < 0) continue;
+      claimed.push({ start: index, end: index + candidate.text.length, text: candidate.text });
+      matches.set(entityId, {
+        token: sentence.slice(index, index + candidate.text.length),
+        index,
+        strong: true,
+      });
+    }
+  }
+  for (const [entityId, candidates] of candidatesByEntity) {
+    if (matches.has(entityId)) continue;
+    for (const candidate of candidates) {
+      if (candidate.kind === "phrase") continue;
+      const index = findUnclaimedToken(sentence, candidate.text, claimed);
+      if (index < 0) continue;
+      matches.set(entityId, {
+        token: sentence.slice(index, index + candidate.text.length),
+        index,
+        strong: candidate.strong,
+      });
+      break;
+    }
+  }
+  return matches;
+}
+
+function firstSpokenWord(sentence: string): string {
+  return /^[\p{L}\p{N}]+/u.exec(sentence)?.[0] ?? sentence.trim().split(/\s+/)[0] ?? "";
+}
+
+function capitaliseSentence(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** The group's cue as the sentence a teacher says while drawing the group. */
+function spokenCueSentence(cue: string, groupIndex: number): string {
+  if (isSpokenProse(cue)) return capitaliseSentence(ensureSpokenSentence(cue));
+  const subject = cueSubject(cue);
+  return groupIndex === 0 ? `Let’s begin with ${subject}.` : `Next comes ${subject}.`;
+}
+
+/**
+ * "the weight mg", "the normal reaction N", "the weight component".
+ *
+ * The role's head phrase, not the whole role: "the weight component along
+ * the incline, and the weight component into the incline" made a four-arrow
+ * beat twelve seconds long with the pen idle for two thirds of it. Two parts
+ * with the same head phrase share the words, and the window.
+ */
+function entityPhrase(entity: SceneEntity): string | null {
+  const role = cleanRole(entity.role).replace(/\s+label$/i, "");
+  const label = entity.label?.trim();
+  if (!role) {
+    return label && SPEAKABLE_LABEL.test(label) ? label : null;
+  }
+  if (UNSPEAKABLE_ROLE.test(role)) return null;
+  const words = roleWords(role);
+  const cut = words.findIndex((word) => ROLE_PREPOSITIONS.has(word));
+  const headPhrase = cut > 0 && roleHeadWord(role) ? words.slice(0, cut).join(" ") : role;
+  const spokenLabel = label && SPEAKABLE_LABEL.test(label) && !words.includes(label.toLowerCase())
+    ? ` ${label}`
+    : "";
+  const article = /^(?:the|a|an|its)\s/i.test(headPhrase) ? "" : "the ";
+  return `${article}${headPhrase}${spokenLabel}`;
+}
+
+/**
+ * One phrase per part, in draw order, with the connectives a teacher uses
+ * while the hand is busy. Sized to be spoken for about as long as the parts
+ * take to draw; the first beat also says what is happening.
+ */
+/** Ink may trail the last word of an intro beat by this much before the beat says more. */
+const CUE_OVERRUN_TOLERANCE_MS = 400;
+
+function walkedSetupSentence(phrases: string[], groupIndex: number): string {
+  const opening = groupIndex === 0 ? "Here is the setup. " : "Next, ";
+  const parts = phrases.map((phrase, index) => {
+    if (index === 0) return `first ${phrase}`;
+    if (index === phrases.length - 1) return `and finally ${phrase}`;
+    return index % 2 === 1 ? `then ${phrase}` : phrase;
+  });
+  const body = parts.join(", ");
+  const closing = groupIndex === 0 ? " That is the setup." : " All in place.";
+  const sentence = groupIndex === 0 ? `${body.charAt(0).toUpperCase()}${body.slice(1)}` : body;
+  return `${opening}${sentence}.${closing}`;
+}
+
+function joinSpokenList(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items.at(-1)}`;
+}
+
+/**
+ * Give every drawn thing a word.
+ *
+ * When the cue names fewer than half of the group's parts ("every force on
+ * the body" names none of the four arrows), the sentence goes on to name the
+ * rest from their roles and labels, so each arrow has a word to be drawn
+ * under and each label a moment to be lettered in.
+ */
+function extendCueSentence(base: string, phrases: string[], nothingNamed: boolean): string {
+  const trimmed = base.trim().replace(/[.!?]+$/, "");
+  const list = joinSpokenList(phrases);
+  return nothingNamed ? `${trimmed}: ${list}.` : `${trimmed}, with ${list}.`;
+}
+
+function cueRevealBeat(input: {
+  cue: string;
+  groupIndex: number;
+  commandIndices: number[];
+  commands: VerifiedDiagramCommand[];
+  entitiesById: ReadonlyMap<string, SceneEntity>;
+  deferred: DeferredCommand[];
+}): CuedRevealBeat {
+  const { commands, entitiesById } = input;
+  const entityIds: string[] = [];
+  for (const index of input.commandIndices) {
+    const entityId = commands[index]?.semanticRef?.entityId;
+    if (entityId && !entityIds.includes(entityId)) entityIds.push(entityId);
+  }
+  const drawnTextsByEntity = new Map<string, string[]>();
+  for (const entry of input.deferred) {
+    const text = commands[entry.index]?.text?.trim();
+    if (!text) continue;
+    const texts = drawnTextsByEntity.get(entry.entityId) ?? [];
+    if (!texts.includes(text)) texts.push(text);
+    drawnTextsByEntity.set(entry.entityId, texts);
+  }
+  // A measurement has no ink of its own in the beat, only its withheld
+  // dimension and label; it is still matched so "and range" can pull R in.
+  const matchedIds = [...entityIds];
+  for (const entry of input.deferred) {
+    if (!matchedIds.includes(entry.entityId)) matchedIds.push(entry.entityId);
+  }
+  const candidatesByEntity = new Map(matchedIds.map((entityId) => [
+    entityId,
+    entityNameCandidates(entitiesById.get(entityId), drawnTextsByEntity.get(entityId) ?? []),
+  ]));
+  const matchAll = (sentence: string): Map<string, CuedMatch> => {
+    const matches = matchEntitiesInSentence(sentence, candidatesByEntity);
+    // Compiler helpers are named after their parent: `incline_hatch`,
+    // `body_c0`, `ceiling_l`. They are drawn under the parent's word. Left
+    // to inherit from whatever was drawn before them, the incline's hatching
+    // inherited "angle" from the angle mark and ran 570 ms past the sentence.
+    for (const entityId of matchedIds) {
+      if (matches.has(entityId)) continue;
+      const parent = [...matches.keys()]
+        .filter((candidate) => entityId.startsWith(`${candidate}_`))
+        .sort((left, right) => right.length - left.length)[0];
+      if (parent) matches.set(entityId, { ...matches.get(parent)!, strong: false });
+    }
+    return matches;
+  };
+
+  let narration = spokenCueSentence(input.cue, input.groupIndex);
+  let matches = matchAll(narration);
+  const nameable = entityIds.filter((entityId) => {
+    const entity = entitiesById.get(entityId);
+    return Boolean(entity && (entity.label || entity.role));
+  });
+  const named = nameable.filter((entityId) => matches.has(entityId));
+  // The hand needs at least this long for the group's ink (labels the
+  // sentence names included). A sentence shorter than that leaves the pen
+  // running past the voice, so it too earns the rest of the names.
+  const floorMs = (currentMatches: Map<string, CuedMatch>): number =>
+    input.commandIndices.reduce((sum, index) => sum + cuedInkFloorMs(verifiedDiagramCommandToDrawCommand(commands[index]!)), 0)
+    + input.deferred.reduce((sum, entry) =>
+      currentMatches.get(entry.entityId)?.strong
+        ? sum + cuedInkFloorMs(verifiedDiagramCommandToDrawCommand(commands[entry.index]!))
+        : sum, 0);
+  const spokenMs = (sentence: string): number => sentence.length * CUE_DEFAULT_MS_PER_CHAR;
+  const tooShort = floorMs(matches) > spokenMs(narration);
+  if (named.length * 2 < nameable.length || tooShort) {
+    const phrases: string[] = [];
+    for (const entityId of nameable) {
+      if (matches.has(entityId)) continue;
+      const phrase = entityPhrase(entitiesById.get(entityId)!);
+      if (phrase && !phrases.includes(phrase)) phrases.push(phrase);
+    }
+    if (phrases.length > 0) {
+      narration = extendCueSentence(narration, phrases, named.length === 0);
+      matches = matchAll(narration);
+    }
+  }
+  // Every command gets a word: its own part's when the sentence names it,
+  // otherwise the word of the command before it, so scaffolding is drawn
+  // with the part it belongs to. Then the beat is put in spoken order, stable,
+  // so parts the sentence does not name keep the skeleton-first phase order.
+  //
+  // A label the sentence names is lettered right after its part's ink, in
+  // the same word's window: "pole" letters P as it is said. Only a strong
+  // match letters: "the object" times the foot O under the object's word but
+  // does not pull `u = 20 cm` forward or letter O itself. Those wait for the
+  // lecture to name them and FOCUS releases them.
+  interface BeatItem { index: number; entityId: string; token: string; position: number }
+  const layout = (sentence: string, sentenceMatches: Map<string, CuedMatch>) => {
+    const items: BeatItem[] = [];
+    let previous = { token: firstSpokenWord(sentence), position: 0 };
+    for (const index of input.commandIndices) {
+      const entityId = commands[index]?.semanticRef?.entityId ?? "";
+      const match = sentenceMatches.get(entityId);
+      if (match) previous = { token: match.token, position: match.index };
+      items.push({ index, entityId, ...previous });
+    }
+    const pulled: number[] = [];
+    for (const entry of input.deferred) {
+      const match = sentenceMatches.get(entry.entityId);
+      if (!match?.strong) continue;
+      const item: BeatItem = { index: entry.index, entityId: entry.entityId, token: match.token, position: match.index };
+      let at = -1;
+      for (let cursor = items.length - 1; cursor >= 0; cursor--) {
+        if (items[cursor]!.entityId === entry.entityId) { at = cursor; break; }
+      }
+      items.splice(at >= 0 ? at + 1 : items.length, 0, item);
+      pulled.push(entry.index);
+    }
+    const ordered = items
+      .map((item, order) => ({ item, order }))
+      .sort((left, right) => left.item.position - right.item.position || left.order - right.order)
+      .map(({ item }) => item);
+    return { ordered, pulled };
+  };
+  // How far the hand runs past the sentence when every part waits for its
+  // word and then takes its floor: the parts under the last word start late
+  // by construction, so a sentence can be long enough in total and still end
+  // a second before the ink does.
+  const overrunMs = (sentence: string, ordered: BeatItem[]): number => {
+    let clockMs = 0;
+    for (const item of ordered) {
+      clockMs = Math.max(clockMs, item.position * CUE_DEFAULT_MS_PER_CHAR)
+        + cuedInkFloorMs(verifiedDiagramCommandToDrawCommand(commands[item.index]!));
+    }
+    return clockMs - spokenMs(sentence);
+  };
+
+  // Every part may already be named and the sentence still be shorter than
+  // the hand: a circuit of 26 strokes needs eleven seconds and its cue
+  // ("the battery, R1 and R2") is under five, so the pen ran six seconds past
+  // the voice. A teacher who has that much to draw says more while drawing
+  // it, so the beat becomes a walk through the parts, one phrase each, in the
+  // order they go down, closing on a short clause so the last part has its
+  // time too.
+  let placed = layout(narration, matches);
+  if (overrunMs(narration, placed.ordered) > CUE_OVERRUN_TOLERANCE_MS) {
+    const phrases: string[] = [];
+    for (const entityId of nameable) {
+      const phrase = entityPhrase(entitiesById.get(entityId)!);
+      if (phrase && !phrases.includes(phrase)) phrases.push(phrase);
+    }
+    if (phrases.length >= 2) {
+      const walked = walkedSetupSentence(phrases, input.groupIndex);
+      const walkedMatches = matchAll(walked);
+      const walkedPlaced = layout(walked, walkedMatches);
+      if (
+        walkedMatches.size >= matches.size &&
+        overrunMs(walked, walkedPlaced.ordered) < overrunMs(narration, placed.ordered)
+      ) {
+        narration = walked;
+        matches = walkedMatches;
+        placed = walkedPlaced;
+      }
+    }
+  }
+  const ordered = placed.ordered;
+  const pulledIndices = placed.pulled;
+
+  return {
+    narration,
+    indices: ordered.map((item) => item.index),
+    drawCommands: ordered.map((item) => ({
+      ...verifiedDiagramCommandToDrawCommand(commands[item.index]!),
+      spokenCue: { token: item.token, entityId: item.entityId },
+    })),
+    pulledIndices,
+  };
 }
 
 function groupRevealNarration({

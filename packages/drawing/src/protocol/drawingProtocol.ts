@@ -59,6 +59,19 @@ export interface DrawCommand {
   visualStyle?: DrawCommandVisualStyle;
   /** Stable semantic ownership for compiled ink and later replay/debugging. */
   semanticRef?: DrawCommandSemanticRef;
+  /**
+   * The word in the segment's sentence that names this mark, so the pen can
+   * wait for it and draw the part while it is being said. Set by the verified
+   * scene presentation on figure intro commands; `entityId` is the part the
+   * word names, which for a command with no word of its own is still its own
+   * entity while `token` is inherited from the command before it.
+   */
+  spokenCue?: DrawCommandSpokenCue;
+}
+
+export interface DrawCommandSpokenCue {
+  token: string;
+  entityId: string;
 }
 
 export interface ParsedResponse {
@@ -415,8 +428,20 @@ export function parseDrawCommandFromTag(
   };
 }
 
+/**
+ * How a segment is spoken.
+ *
+ * `opening` is the one runtime beat that leads a turn: it is delivered with
+ * more expression than the body of a lesson, because a teacher starting a
+ * question and a teacher reading the fourth line of algebra do not sound the
+ * same. Everything without a delivery uses the steady teaching voice.
+ */
+export type SegmentDelivery = "opening";
+
 export interface TutorSegment {
   narration: string;
+  /** Spoken character of this segment. Omitted means the teaching voice. */
+  delivery?: SegmentDelivery;
   command: DrawCommand | null;
   commands?: DrawCommand[];
   /** Commands emitted by the verified scene compiler before teaching starts. */

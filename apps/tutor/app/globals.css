@@ -1,73 +1,96 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════════════
-   ACCELUTE — "Night Blueprint"
+   ACCELUTE — "Graphite"
 
-   The single palette for the whole product. This file and
-   `apps/landing/src/index.css` describe the same theme in the two Tailwind
-   dialects (v4 `@theme` here, v3 config there) — a colour, a type step, a
-   surface, or a button variant must exist in both or in neither.
+   The tutor's own theme. It used to be "Night Blueprint", the navy palette
+   shared line-for-line with `apps/landing/src/index.css`; the tutor has now
+   been pulled off that shared palette onto a warm near-black one, so the two
+   apps no longer mirror each other. The landing is unchanged and stays on
+   Night Blueprint. Anything edited here is tutor-only.
 
-     ink-850  #0D2231   background / primary surface
-     ink-750  #182D47   dark button base
-     sky-500  #59AFD4   the accent light
-     sky-200  #CCE6F1   pale accent / key metric
-     steel    #608B9D   cool mid grey-blue
-     mist     #ABC9D5   light neutral
-     frost    #F0F5F7   primary text on navy
-     blue     #5FA4F9   Accelute primary
+   The ground is a warm neutral, never a pure grey: red and green are equal
+   and blue sits a point or two under them. That one-point warmth is what
+   keeps a near-black field from reading as cold plastic, and it is the whole
+   trick of the palette — every surface below carries it.
+
+     ink-950  #131312   the canvas, the page itself
+     ink-850  #171716   panels, sidebars, headers
+     ink-750  #1D1D1B   the composer
+     ink-600  #252524   a control hovered, a row selected
+     sky-500  #4A9EFF   the accent, and the only saturated colour in the UI
+     frost    #EDEDEB   primary text
+     ink-200  #A7A7A7   secondary text
+     ink-400  #767676   tertiary text
+
+   Surfaces separate by one or two points of lightness and a hairline at 7%
+   white. There is no gradient, no glass, no glow and no grain: depth comes
+   from the step alone, which is why the steps are so tight and why nothing
+   in section 6 has a background-image.
+
+   The one exception is the empty board's first screen, which carries a
+   dithered pixel field (`LandingPixelField`) behind the greeting. It is a
+   canvas, not a surface, and it is the page with the least on it, so the
+   texture is the content there rather than noise over content. Warm neutral
+   blooms with sky-accent glints, which is this palette and not the navy one
+   the field came from.
 
    ── LAYERS ────────────────────────────────────────────────────────────
-     1. Primitives      raw palette, mirrored from the landing
+     1. Primitives      raw palette
      2. Semantics       what a colour is *for* (surface, text, border, …)
      3. @theme          the same set handed to Tailwind as utilities
      4. Base            html / body / scrollbars / selection
      5. Type scale      .type-*
      6. Surfaces        .glass, .card-*, .rim-sky, .rule-glow
-     7. Buttons         the pedestal system, .btn / .btn-plain
+     7. Buttons         .btn / .btn-plain
      8. Atmosphere      .fx-*, .text-ice, .metal-frame
-     9. Whiteboard      .wb-* — tutor-only hardware, on the same palette
+     9. Whiteboard      .wb-* — the board's own hardware
     10. Motion          keyframes + reveal
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── 1. PRIMITIVES ─────────────────────────────────────────────────── */
 
 :root {
-  /* Ink — the deep navy canvas */
-  --ink-950: #06121c;
-  --ink-900: #0a1b27;
-  --ink-850: #0d2231;
-  --ink-800: #122a39;
-  --ink-750: #182d47;
-  --ink-700: #1b3242;
-  --ink-600: #2c3c4a;
-  --ink-500: #3b5362;
-  --ink-400: #5d6c7b;
-  --ink-300: #758696;
-  --ink-200: #8797a0;
+  /* Ink. 950–500 are surfaces, one or two points apart; 400–200 are the
+     text greys. The gap between 500 and 400 is deliberate — nothing is
+     ever both a surface and a label. */
+  --ink-950: #131312; /* the canvas */
+  --ink-900: #151514;
+  --ink-850: #171716; /* panels, sidebars, headers */
+  --ink-800: #1a1a19;
+  --ink-750: #1d1d1b; /* the composer */
+  --ink-700: #212120; /* a control on a panel */
+  --ink-600: #252524; /* that control hovered, or a selected row */
+  --ink-500: #2e2e2c; /* the highest step: chips, thumbs, scrollbars */
+  --ink-400: #767676; /* tertiary text */
+  --ink-300: #8a8a88;
+  --ink-200: #a7a7a7; /* secondary text */
 
-  /* Sky — the accent light */
-  --sky-700: #2e7ca3;
-  --sky-600: #3e8fb4;
-  --sky-500: #59afd4;
-  --sky-400: #7fc4e2;
-  --sky-300: #a5d6ec;
-  --sky-200: #cce6f1;
-  --sky-100: #e4f2f9;
+  /* Sky — the accent. The one saturated colour, so it is spent only on
+     what is live, selected, or the single next action. */
+  --sky-700: #1c4f9c;
+  --sky-600: #2f6fd0;
+  --sky-500: #4a9eff;
+  --sky-400: #74b4ff;
+  --sky-300: #9ccbff;
+  --sky-200: #c6e0ff;
+  --sky-100: #e6f1ff;
 
-  --steel: #608b9d;
-  --mist: #abc9d5;
-  --frost: #f0f5f7;
-  --blue: #5fa4f9;
-  --blue-deep: #2563eb;
+  --steel: #5c5c59; /* mid grey — scrollbar thumb, quiet rules */
+  --mist: #d4d4d1; /* light neutral */
+  --frost: #ededeb; /* primary text */
+  --blue: #4a9eff;
+  --blue-deep: #2f6fd0;
 
-  /* Hairlines, glass and text alphas */
-  --stroke: rgba(202, 229, 241, 0.13);
-  --stroke-strong: rgba(202, 229, 241, 0.26);
-  --glass-1: rgba(255, 255, 255, 0.035);
-  --glass-2: rgba(255, 255, 255, 0.06);
-  --text-soft: rgba(240, 245, 247, 0.68);
-  --text-faint: rgba(240, 245, 247, 0.42);
+  /* Hairlines and text alphas. The alphas are picked against the canvas:
+     soft lands on #A7A7A7 and faint on #767676, the two greys measured off
+     the reference. */
+  --stroke: rgba(255, 255, 255, 0.07);
+  --stroke-strong: rgba(255, 255, 255, 0.14);
+  --glass-1: rgba(255, 255, 255, 0.03);
+  --glass-2: rgba(255, 255, 255, 0.05);
+  --text-soft: rgba(237, 237, 235, 0.68);
+  --text-faint: rgba(237, 237, 235, 0.45);
 
   /* Status — the only hues allowed off the blue axis */
   --danger: #e06858;
@@ -80,8 +103,8 @@
    a palette change is a change to this block alone.
 
    The `--wb-*` names predate the palette and are kept as the whiteboard
-   app's vocabulary; they now resolve to Night Blueprint, so any component
-   still reading one is already on-theme.
+   app's vocabulary; they resolve to Graphite, so any component still
+   reading one is already on-theme.
    ───────────────────────────────────────────────────────────────────── */
 
 :root {
@@ -106,7 +129,7 @@
   /* Accent */
   --wb-accent: var(--sky-500);
   --wb-accent-light: var(--sky-400);
-  --wb-accent-soft: rgba(89, 175, 212, 0.12);
+  --wb-accent-soft: rgba(74, 158, 255, 0.12);
   --wb-cta: var(--sky-500);
   --wb-cursor-blue: var(--sky-500);
 
@@ -114,8 +137,12 @@
   --wb-success: var(--success);
   --wb-danger: var(--danger);
 
-  /* The writing surface stays paper-white — marker ink needs the contrast. */
-  --wb-paper: #ffffff;
+  /* Night-light paper: still a light writing surface, but the blue is
+     pulled down the way a phone night light warms the screen, so the
+     board does not glare against the dark chrome. Marker ink keeps its
+     contrast. */
+  --wb-paper: #f6e4c4;
+  --wb-paper-muted: #edd6aa;
   --wb-paper-ink: var(--ink-950);
   --wb-paper-border: var(--stroke);
   /* The pen's own ink. Chosen against paper, so it is also what any chrome
@@ -142,7 +169,6 @@
   --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
   --font-heading: "Stack Sans Notch", ui-sans-serif, system-ui, sans-serif;
   --font-hand: var(--font-caveat), "Apple Chancery", "Segoe Script", cursive;
-  --font-mono-accent: "DM Mono", ui-monospace, monospace;
 
   --color-ink-950: var(--ink-950);
   --color-ink-900: var(--ink-900);
@@ -178,13 +204,19 @@
   --color-warning: var(--warning);
   --color-success: var(--success);
 
-  --shadow-glow: 0 0 0 1px rgba(89, 175, 212, 0.3), 0 18px 50px -18px rgba(89, 175, 212, 0.55);
-  --shadow-lift: 0 28px 70px -34px rgba(3, 11, 18, 0.95);
+  /* An accent ring, not a halo: the 50px bloom this used to hang behind an
+     element was a light source. */
+  --shadow-glow: 0 0 0 1px rgba(74, 158, 255, 0.45);
+  --shadow-lift: 0 28px 70px -34px rgba(0, 0, 0, 0.95);
 }
 
 /* ── Fonts ─────────────────────────────────────────────────────────────
    Inter / Fraunces / Caveat arrive through next/font in app/layout.tsx.
-   These two are local, and are the same files the landing serves. */
+   Stack Sans Notch is local, and is the same file the landing serves.
+
+   DM Mono used to be loaded here in two weights for the label scale. The
+   labels are Inter now and nothing else in the tutor asked for a mono face,
+   so both woff2 files stopped being fetched with the rest of this change. */
 
 @font-face {
   font-family: "Stack Sans Notch";
@@ -194,25 +226,8 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: "DM Mono";
-  src: url("/fonts/dm-mono-400.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "DM Mono";
-  src: url("/fonts/dm-mono-500.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
 /* ── 4. BASE ───────────────────────────────────────────────────────────
-   Identical to the landing's base layer, applied to the document rather
-   than to an opt-in wrapper — the tutor is the same product, so the page
+   Applied to the document rather than to an opt-in wrapper: the page
    ground, the scrollbars and the selection colour are not a per-screen
    decision. `.site-theme` is kept as a no-op marker for the surfaces that
    already opt in (admin drawers and dialogs mounted in portals).
@@ -224,6 +239,11 @@ html {
   text-rendering: optimizeLegibility;
   background: var(--ink-950);
   color-scheme: dark;
+  /* Pull-to-refresh on a phone reloads the lecture. The session is a
+     full-viewport app, so overscroll has nothing to reveal. */
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
 }
 
 body {
@@ -231,6 +251,13 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  overscroll-behavior: none;
+}
+
+/* The session/account shells own scrolling. Rubber-banding the document is
+   what arms pull-to-refresh mid-lecture. */
+[data-app-shell] {
+  overscroll-behavior: none;
 }
 
 h1,
@@ -241,12 +268,14 @@ h4 {
 }
 
 ::selection {
-  background: rgba(89, 175, 212, 0.32);
-  color: var(--frost);
+  background: rgba(74, 158, 255, 0.3);
+  color: #ffffff;
 }
 
+/* The bar is a thumb and nothing else: no track fill, so a scrollable panel
+   does not get a permanent light stripe down its edge. */
 * {
-  scrollbar-color: var(--ink-600) transparent;
+  scrollbar-color: var(--ink-500) transparent;
   scrollbar-width: thin;
 }
 *::-webkit-scrollbar {
@@ -254,15 +283,17 @@ h4 {
   height: 10px;
 }
 *::-webkit-scrollbar-track {
-  background: var(--ink-900);
+  background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: var(--ink-600);
+  background: var(--ink-500);
   border-radius: 999px;
-  border: 2px solid var(--ink-900);
+  border: 3px solid transparent;
+  background-clip: padding-box;
 }
 *::-webkit-scrollbar-thumb:hover {
   background: var(--steel);
+  background-clip: padding-box;
 }
 
 @layer components {
@@ -356,40 +387,40 @@ h4 {
   }
 
   /*
-     Labels are set in the mono face but NOT in caps. All-caps is reserved for
-     the button and brand scale below, where it is the landing's signature; a
-     UI where every eyebrow, chip and section header also shouts just reads as
-     noise. Tracking is tight to match, since lowercase does not need the
-     optical air that uppercase does.
+     Labels used to be set in DM Mono. A mono eyebrow next to sans body copy is
+     a second design language on the same screen — it reads as a terminal
+     pasted into an app — and this theme is one sans throughout. They are Inter
+     now, separated from body copy by weight and colour rather than by face,
+     which is how the reference does it. The sizes are unchanged, so nothing
+     reflows; sans is narrower than mono, so every label got shorter.
   */
   .type-accent-m {
-    font-family: "DM Mono", ui-monospace, monospace;
-    letter-spacing: 0.01em;
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.005em;
     font-size: 15px;
-    font-weight: 400;
+    font-weight: 450;
     line-height: 20px;
   }
 
   .type-accent-s {
-    font-family: "DM Mono", ui-monospace, monospace;
-    letter-spacing: 0.01em;
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.003em;
     font-size: 12px;
     font-weight: 500;
     line-height: 15px;
   }
 
   .type-accent-xs {
-    font-family: "DM Mono", ui-monospace, monospace;
-    letter-spacing: 0.015em;
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0;
     font-size: 11px;
     font-weight: 500;
     line-height: 13px;
   }
 
   .type-button {
-    font-family: "DM Mono", ui-monospace, monospace;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.006em;
     font-size: 14px;
     font-weight: 500;
     line-height: 16px;
@@ -449,58 +480,60 @@ h4 {
   }
 
   /* ── 6. SURFACES ───────────────────────────────────────────────────
-     Three ways to sit something on the navy: sheer glass, a deep pane, or
-     glass with the accent lighting its rim.
+     A panel is the canvas plus one or two points of lightness and a
+     hairline. That is the entire vocabulary — the class names are kept
+     because the whole app already calls them, but there is no glass left
+     in `.glass`: no gradient, no backdrop blur, no inset gloss, no wide
+     drop shadow. Those all read as a pane of something floating over a
+     scene, and this theme has no scene to float over.
+
+     A shadow survives only where an element genuinely leaves the page —
+     a menu, a popover, a dialog — and there it is flat black, never a
+     tinted one.
      ───────────────────────────────────────────────────────────────── */
 
   .glass {
     --glass-border: var(--stroke);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
+    background: var(--ink-850);
     border: 1px solid var(--glass-border);
-    box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
-      0 26px 64px -32px rgba(3, 11, 18, 0.95);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
   }
 
+  /* One step down: a panel that has to sit over the board and still read
+     as opaque. */
   .glass-deep {
     --glass-border: var(--stroke);
-    background: linear-gradient(180deg, rgba(18, 42, 57, 0.86) 0%, rgba(10, 27, 39, 0.92) 100%);
+    background: var(--ink-900);
     border: 1px solid var(--glass-border);
-    box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
-      0 30px 70px -34px rgba(3, 11, 18, 0.95);
-    backdrop-filter: blur(16px) saturate(135%);
-    -webkit-backdrop-filter: blur(16px) saturate(135%);
   }
 
+  /* The accent-lit variant. It is a border colour and nothing else — the
+     old version hung a 60px blue halo behind the card. */
   .glass-sky {
-    --glass-border: rgba(89, 175, 212, 0.34);
-    box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
-      0 0 0 1px rgba(89, 175, 212, 0.1),
-      0 26px 64px -30px rgba(3, 11, 18, 0.95),
-      0 0 60px -24px rgba(89, 175, 212, 0.45);
+    --glass-border: rgba(74, 158, 255, 0.4);
   }
 
-  /* Interactive lift for cards */
+  /* A panel that lifts off the page: the only place a shadow is spent. */
+  .surface-float {
+    background: var(--ink-850);
+    border: 1px solid var(--stroke);
+    box-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Interactive response for cards. It steps the ground rather than
+     translating the card: a hover that moves furniture is the loudest
+     thing on a quiet page. */
   .card-lift {
     transition:
-      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 0.45s ease,
-      box-shadow 0.45s ease;
+      background-color 0.2s ease,
+      border-color 0.2s ease;
   }
   .card-lift:hover {
-    transform: translateY(-4px);
+    background: var(--ink-800);
     --glass-border: var(--stroke-strong);
     border-color: var(--stroke-strong);
-    box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
-      0 36px 80px -34px rgba(3, 11, 18, 0.98);
   }
 
-  /* A one-pixel sky rim that lights the top edge of a card */
+  /* A one-pixel accent rim along the top edge of a card. */
   .rim-sky {
     position: relative;
   }
@@ -510,64 +543,66 @@ h4 {
     inset-inline: 12%;
     top: -1px;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(89, 175, 212, 0.55), transparent);
+    background: linear-gradient(90deg, transparent, rgba(74, 158, 255, 0.45), transparent);
     pointer-events: none;
   }
 
-  /* Section divider that glows in the middle */
+  /* Section divider. A flat hairline — the gradient that used to brighten
+     toward the middle was a light source, and there are none here. */
   .rule-glow {
     height: 1px;
     border: 0;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(202, 229, 241, 0.22),
-      rgba(89, 175, 212, 0.42),
-      rgba(202, 229, 241, 0.22),
-      transparent
-    );
+    background: var(--stroke);
   }
 
-  /* ── 7. PEDESTAL BUTTON ────────────────────────────────────────────
-     A cap resting on a slightly taller base. The strip of base still
-     showing under the cap reads as the shadow; pressing drops the cap by
-     exactly that strip, so the outer box never moves and nothing reflows.
+  /* ── 7. BUTTON ─────────────────────────────────────────────────────
+     This was a pedestal: a lit cap resting on a taller base, dropping onto
+     it when pressed. That is a light source and a moving part, and this
+     theme has neither, so the button is now a flat filled rectangle that
+     answers by changing its fill.
+
+     The geometry is kept intact rather than rewritten. `--btn-lift` is the
+     strip of base that used to show under the cap; it is now 0, so
+     `height: calc(--btn-h + --btn-lift)` collapses to the plain height and
+     every existing size, padding and alignment lands where it did before.
+     The `::before` cap is gone — the fill sits on the element itself.
+
+     Type is Inter in sentence case. Uppercase mono is the landing's
+     signature, and a screen where every control shouts is the opposite of
+     what this palette is for; the labels are already authored in sentence
+     case, so dropping `text-transform` is all it takes.
+
      Pair `.btn` with a variant and a size.
      ───────────────────────────────────────────────────────────────── */
 
   .btn {
     --btn-h: 42px;
-    --btn-px: 20px;
-    --btn-r: 11px;
-    --btn-bw: 1.5px;
-    --btn-lift: 7px;
-    --btn-press: 0px;
+    --btn-px: 18px;
+    --btn-r: 12px;
+    --btn-bw: 1px;
+    --btn-lift: 0px;
     --btn-fs: 14px;
-    --btn-gloss: 0.4;
 
     position: relative;
     isolation: isolate;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.55em;
+    gap: 0.5em;
     box-sizing: border-box;
     height: calc(var(--btn-h) + var(--btn-lift));
     padding-left: var(--btn-px);
     padding-right: var(--btn-px);
-    padding-top: max(0px, var(--btn-press));
-    padding-bottom: max(0px, calc(var(--btn-lift) - var(--btn-press)));
     border: var(--btn-bw) solid var(--btn-line);
     border-radius: var(--btn-r);
-    background: var(--btn-base);
+    background: var(--btn-cap);
     color: var(--btn-ink);
 
-    font-family: "DM Mono", ui-monospace, monospace;
+    font-family: var(--font-sans);
     font-size: var(--btn-fs);
     font-weight: 500;
     line-height: 1;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
+    letter-spacing: -0.006em;
     text-decoration: none;
     white-space: nowrap;
 
@@ -576,51 +611,27 @@ h4 {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     transition:
-      padding-top 220ms cubic-bezier(0.2, 0.9, 0.25, 1),
-      padding-bottom 220ms cubic-bezier(0.2, 0.9, 0.25, 1);
-  }
-
-  /* The cap. One border-width proud on three sides, so it hides the base's
-     outline everywhere except along the lip. */
-  .btn::before {
-    content: "";
-    position: absolute;
-    z-index: -1;
-    top: calc(-1 * var(--btn-bw));
-    left: calc(-1 * var(--btn-bw));
-    right: calc(-1 * var(--btn-bw));
-    height: var(--btn-h);
-    border: var(--btn-bw) solid var(--btn-line);
-    border-radius: var(--btn-r);
-    background: var(--btn-cap);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--btn-gloss));
-    transform: translateY(var(--btn-press));
-    transition:
-      transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1),
-      background-color 200ms ease;
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease;
   }
 
   .btn:hover {
-    --btn-press: -1px;
-    --btn-cap: var(--btn-cap-hi);
+    background: var(--btn-cap-hi);
   }
-  /* Press: snap down hard and fast, ease back up on release. */
+  /* The press is a tiny scale, the one motion left: it reads on a flat
+     face, where a colour change alone can be missed under the cursor. */
   .btn:active {
-    --btn-press: var(--btn-lift);
-  }
-  .btn:active,
-  .btn:active::before {
-    transition-duration: 70ms;
-    transition-timing-function: cubic-bezier(0.3, 0, 0.2, 1);
+    transform: scale(0.985);
+    transition-duration: 60ms;
   }
   .btn:focus-visible {
     outline: 2px solid var(--btn-ring);
-    outline-offset: 3px;
+    outline-offset: 2px;
   }
   .btn:disabled,
   .btn[aria-disabled="true"] {
-    --btn-press: var(--btn-lift);
-    opacity: 0.5;
+    opacity: 0.45;
     pointer-events: none;
   }
 
@@ -628,33 +639,25 @@ h4 {
   .btn-xs {
     --btn-h: 26px;
     --btn-px: 10px;
-    --btn-r: 7px;
-    --btn-bw: 1px;
-    --btn-lift: 3px;
-    --btn-fs: 10px;
+    --btn-r: 8px;
+    --btn-fs: 11px;
   }
   .btn-sm {
     --btn-h: 34px;
-    --btn-px: 15px;
-    --btn-r: 9px;
-    --btn-bw: 1.25px;
-    --btn-lift: 5px;
-    --btn-fs: 12px;
+    --btn-px: 14px;
+    --btn-r: 10px;
+    --btn-fs: 13px;
   }
   .btn-md {
     --btn-h: 42px;
-    --btn-px: 20px;
-    --btn-r: 11px;
-    --btn-bw: 1.5px;
-    --btn-lift: 7px;
+    --btn-px: 18px;
+    --btn-r: 12px;
     --btn-fs: 14px;
   }
   .btn-lg {
     --btn-h: 50px;
-    --btn-px: 26px;
-    --btn-r: 13px;
-    --btn-bw: 1.5px;
-    --btn-lift: 8px;
+    --btn-px: 24px;
+    --btn-r: 14px;
     --btn-fs: 15px;
   }
   .btn-block {
@@ -662,8 +665,8 @@ h4 {
     width: 100%;
   }
 
-  /* Flat face for dense inline and icon-only controls — same palette, no
-     pedestal. Pair it with a variant and size it with utilities. */
+  /* Same face, for dense inline and icon-only controls. Size it with
+     utilities. */
   .btn-plain {
     display: inline-flex;
     align-items: center;
@@ -672,17 +675,14 @@ h4 {
     background: var(--btn-cap);
     color: var(--btn-ink);
     border: 1px solid var(--btn-line);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--btn-gloss));
-    font-family: "DM Mono", ui-monospace, monospace;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-family: var(--font-sans);
     font-weight: 500;
+    letter-spacing: -0.006em;
     cursor: pointer;
     transition:
-      background-color 200ms ease,
-      border-color 200ms ease,
-      color 200ms ease,
-      transform 160ms cubic-bezier(0.2, 0.9, 0.25, 1);
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease;
   }
   .btn-plain:hover {
     background: var(--btn-cap-hi);
@@ -702,125 +702,116 @@ h4 {
 
   /* ── variants ── */
 
-  /* Frost keycap — the highest-contrast face on navy. Primary CTA. */
+  /* The white key. Highest contrast on the near-black, so it is the primary
+     action and there is only ever one on screen. */
   .btn-ice {
     --btn-cap: var(--frost);
     --btn-cap-hi: #ffffff;
-    --btn-base: var(--mist);
-    --btn-line: var(--steel);
+    --btn-line: transparent;
     --btn-ink: var(--ink-950);
-    --btn-ring: rgba(240, 245, 247, 0.6);
-    --btn-gloss: 0.9;
+    --btn-ring: rgba(237, 237, 235, 0.55);
   }
 
-  /* The sky accent. */
+  /* The accent. */
   .btn-sky {
     --btn-cap: var(--sky-500);
     --btn-cap-hi: var(--sky-400);
-    --btn-base: var(--sky-600);
-    --btn-line: #1d5f80;
-    --btn-ink: var(--ink-950);
-    --btn-ring: rgba(89, 175, 212, 0.6);
-    --btn-gloss: 0.5;
+    --btn-line: transparent;
+    --btn-ink: #ffffff;
+    --btn-ring: rgba(74, 158, 255, 0.6);
   }
 
-  /* A raised slab of the navy itself. Secondary CTA and most tutor chrome. */
+  /* A raised step of the ground itself. Secondary, and most tutor chrome. */
   .btn-ghost {
     --btn-cap: var(--ink-700);
     --btn-cap-hi: var(--ink-600);
-    --btn-base: var(--ink-950);
-    --btn-line: var(--stroke-strong);
+    --btn-line: var(--stroke);
     --btn-ink: var(--frost);
-    --btn-ring: rgba(202, 229, 241, 0.45);
-    --btn-gloss: 0.07;
+    --btn-ring: rgba(255, 255, 255, 0.3);
   }
 
   /* Quiet face for destructive inline actions. */
   .btn-danger {
-    --btn-cap: rgba(224, 104, 88, 0.16);
-    --btn-cap-hi: rgba(224, 104, 88, 0.28);
-    --btn-base: rgba(224, 104, 88, 0.1);
-    --btn-line: rgba(224, 104, 88, 0.4);
+    --btn-cap: rgba(224, 104, 88, 0.14);
+    --btn-cap-hi: rgba(224, 104, 88, 0.24);
+    --btn-line: rgba(224, 104, 88, 0.32);
     --btn-ink: var(--danger);
     --btn-ring: rgba(224, 104, 88, 0.6);
-    --btn-gloss: 0.06;
   }
 
   @media (prefers-reduced-motion: reduce) {
     .btn,
-    .btn::before,
     .btn-plain,
     a.brand {
       transition: none;
     }
+    .btn:active,
+    .btn-plain:active {
+      transform: none;
+    }
   }
 
   /* ── 8. ATMOSPHERE ─────────────────────────────────────────────────
-     The navy is never flat: a wash of sky over it, a fine blueprint grid,
-     grain to kill the banding.
+     There is none. The navy had a wash of sky over it, a blueprint grid and
+     a layer of grain; a warm near-black wants the opposite — an even field
+     with nothing on it, so that the one bright thing on the screen is the
+     content.
+
+     The classes are kept and emptied rather than deleted, because the app
+     still names them on its shells and a missing class would silently fall
+     through to a transparent page. Each now resolves to the flat ground.
      ───────────────────────────────────────────────────────────────── */
 
-  /* Aurora: layered sky-blue glows over the navy gradient. */
+  /* The page ground. Flat — the old radial sky glows are gone. */
   .fx-aurora {
-    background:
-      radial-gradient(120% 78% at 50% -8%, rgba(89, 175, 212, 0.3) 0%, rgba(89, 175, 212, 0.1) 34%, transparent 66%),
-      radial-gradient(62% 46% at 10% 6%, rgba(95, 164, 249, 0.2) 0%, transparent 62%),
-      radial-gradient(58% 44% at 92% 2%, rgba(204, 230, 241, 0.13) 0%, transparent 60%),
-      radial-gradient(90% 60% at 50% 108%, rgba(37, 99, 235, 0.16) 0%, transparent 62%),
-      linear-gradient(180deg, #0d2231 0%, #0a1b27 58%, #06121c 100%);
+    background: var(--ink-950);
   }
 
-  /* A quieter aurora for full-height app shells. */
   .fx-aurora-soft {
-    background:
-      radial-gradient(80% 50% at 50% 0%, rgba(89, 175, 212, 0.1) 0%, transparent 60%),
-      linear-gradient(180deg, #06121c 0%, #0a1b27 50%, #06121c 100%);
+    background: var(--ink-950);
   }
 
-  /* Blueprint grid, faded out downward. */
+  /* The blueprint grid and dot pitch, kept for the surfaces that opt in,
+     dropped to the faintest texture that still registers. */
   .fx-grid-fine {
     background-image:
-      linear-gradient(to right, rgba(202, 229, 241, 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(202, 229, 241, 0.04) 1px, transparent 1px);
+      linear-gradient(to right, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
     background-size: 32px 32px;
     -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
     mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
   }
 
-  /* The landing's dot pitch, for surfaces that want the graph-paper read. */
   .fx-grid-dots {
-    background-image: radial-gradient(rgba(202, 229, 241, 0.14) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
     background-size: 8px 8px;
   }
 
-  /* Film grain — kills gradient banding on the big navy fields. */
+  /* Grain existed to kill banding in the big navy gradients. There are no
+     gradients left to band, and grain over a flat near-black just reads as
+     a dirty screen. Kept as a no-op so the shells can keep naming it. */
   .fx-grain::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.4;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
+    content: none;
   }
 
-  /* Ice gradient text for the emphasised half of a headline. */
+  /* Gradient text for the emphasised half of a headline. On this ground the
+     accent carries it alone — the old version ran frost → sky across four
+     stops, which on a flat field looks like a sticker. */
   .text-ice {
-    background: linear-gradient(102deg, #f0f5f7 0%, #cce6f1 38%, #7fc4e2 68%, #59afd4 100%);
+    background: linear-gradient(100deg, #ffffff 0%, var(--sky-300) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
   .text-sky-fade {
-    background: linear-gradient(180deg, #f0f5f7 0%, #a9bcc7 100%);
+    background: linear-gradient(180deg, #ffffff 0%, var(--ink-200) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
-  /* Nav / tab links: a sky rule wipes in from the left rather than
-     snapping on, so the chrome eases like everything else. */
+  /* Nav / tab links: an accent rule wipes in from the left. */
   .nav-link {
     position: relative;
   }
@@ -831,7 +822,7 @@ h4 {
     right: 0;
     bottom: -5px;
     height: 1px;
-    background: linear-gradient(90deg, var(--sky-500), rgba(89, 175, 212, 0));
+    background: linear-gradient(90deg, var(--sky-500), rgba(74, 158, 255, 0));
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
@@ -841,32 +832,16 @@ h4 {
     transform: scaleX(1);
   }
 
-  /* The bezel language, shared with the landing's use-case stage: a cool
-     navy brushed face, a lit top edge, a hairline ring. */
+  /* A framed stage. Brushed metal became one flat step above the ground
+     with a hairline — the lit top edge was the last light source left. */
   .metal-frame {
-    background:
-      linear-gradient(
-        180deg,
-        rgba(202, 229, 241, 0.05) 0%,
-        transparent 22%,
-        transparent 84%,
-        rgba(3, 11, 18, 0.3) 100%
-      ),
-      linear-gradient(150deg, #16303f 0%, #142c3b 45%, #102534 100%);
+    background: var(--ink-850);
     box-shadow:
-      0 34px 80px -34px rgba(3, 11, 18, 0.75),
-      0 0 0 1px rgba(202, 229, 241, 0.1),
-      inset 0 1px 0 rgba(202, 229, 241, 0.07);
+      0 24px 60px -30px rgba(0, 0, 0, 0.7),
+      0 0 0 1px var(--stroke);
   }
   .metal-frame::before {
-    content: "";
-    position: absolute;
-    inset-inline: 8%;
-    top: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(202, 229, 241, 0.55), transparent);
-    opacity: 0.7;
-    pointer-events: none;
+    content: none;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -879,14 +854,19 @@ h4 {
 /* ═══════════════════════════════════════════════════════════════════════
    9. WHITEBOARD — the tutor's own hardware
 
-   The board is the one physical object in the product. It is machined out
-   of the same navy the page is: a lit cap over a darker base, exactly the
-   pedestal button's language at furniture scale, so the board reads as
-   sitting on the deck rather than pasted onto it.
+   The board is the one physical object in the product, and the only thing
+   on screen allowed to read as an object at all. It used to be machined:
+   a brushed navy face, a lit top arris, a specular sweep crossing it. All
+   of that is light modelling, and this theme has no light.
 
-   The base is a hard stop in the bezel gradient (no extra box, so the
-   measured frame size that drives `useBoardViewport` is untouched) and the
-   contact shadow is pure `box-shadow`, which never affects layout either.
+   What is left is a matte frame — one flat step above the page, a hairline
+   ring, a soft drop so it sits on the deck rather than in it — with the
+   recess kept, because the paper genuinely is inset and the shadow along
+   its top edge is what says so.
+
+   The geometry is untouched: `--bezel`, `--bezel-lip` and `--bezel-radius`
+   keep their values, so the measured frame size that drives
+   `useBoardViewport` is exactly what it was. Only the paint changed.
    ═══════════════════════════════════════════════════════════════════════ */
 
 .wb-frame {
@@ -895,35 +875,19 @@ h4 {
   --bezel-radius: 14px;
 
   border-radius: var(--bezel-radius);
-  background:
-    /* Bevelled side walls: light catches the left edge, the right falls away. */
-    linear-gradient(
-      90deg,
-      rgba(202, 229, 241, 0.07) 0,
-      transparent 18px,
-      transparent calc(100% - 18px),
-      rgba(3, 11, 18, 0.34) 100%
-    ),
-    /* Brushed navy face, with the base ledge cut in as a hard stop near the foot. */
-    linear-gradient(
-      180deg,
-      #2c4a5e 0,
-      #223b4d 5px,
-      #16303f 38%,
-      #102534 calc(100% - var(--bezel-lip)),
-      #081722 calc(100% - var(--bezel-lip)),
-      #050f18 100%
-    );
+  /* Matte face, with the base ledge still cut in as a hard stop near the
+     foot — the one piece of modelling kept, because it is what gives the
+     frame a thickness rather than an outline. */
+  background: linear-gradient(
+    180deg,
+    #242422 0,
+    #212120 calc(100% - var(--bezel-lip)),
+    #171716 calc(100% - var(--bezel-lip)),
+    #171716 100%
+  );
   box-shadow:
-    /* Cut from a block: dark rim, lit top arris, shaded bottom arris. */
-    0 0 0 1px #030b12,
-    inset 0 1px 0 rgba(202, 229, 241, 0.18),
-    inset 1px 0 0 rgba(202, 229, 241, 0.06),
-    inset -1px 0 0 rgba(3, 11, 18, 0.55),
-    inset 0 -1px 0 rgba(3, 11, 18, 0.75),
-    /* One soft, wide drop — the landing page's shadow language. No tight
-       contact line, so the board floats instead of being stamped onto the deck. */
-    0 28px 64px -32px rgba(3, 11, 18, 0.75);
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 24px 56px -32px rgba(0, 0, 0, 0.7);
 }
 
 /* The recess the writing surface drops into. */
@@ -935,12 +899,12 @@ h4 {
   pointer-events: none;
   z-index: 0;
   box-shadow:
-    inset 0 3px 7px rgba(3, 11, 18, 0.6),
-    inset 0 -1px 0 rgba(202, 229, 241, 0.05),
-    inset 0 0 0 1px rgba(3, 11, 18, 0.6);
+    inset 0 2px 6px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.45);
 }
 
-/* Specular sweep across the top of the bezel, plus the inner hairline. */
+/* The inner hairline. The specular sweep that used to cross the bezel here
+   is gone — it was a moving highlight on a matte frame. */
 .wb-frame::after {
   content: "";
   position: absolute;
@@ -948,28 +912,21 @@ h4 {
   border-radius: inherit;
   pointer-events: none;
   z-index: 1;
-  background: linear-gradient(
-    104deg,
-    transparent 12%,
-    rgba(202, 229, 241, 0.05) 28%,
-    rgba(202, 229, 241, 0.1) 34%,
-    transparent 48%
-  );
-  box-shadow: inset 0 0 0 1px rgba(202, 229, 241, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
-/* Writing surface stays light for marker contrast */
+/* Writing surface stays light for marker contrast, warmed like night light. */
 .wb-surface {
   top: var(--bezel);
   left: var(--bezel);
   right: var(--bezel);
   bottom: var(--bezel);
   border-radius: 5px;
-  background: linear-gradient(180deg, #ffffff 0%, #f4f7fa 100%);
+  background: linear-gradient(180deg, var(--wb-paper) 0%, var(--wb-paper-muted) 100%);
   box-shadow:
-    inset 0 0 0 1px rgba(3, 11, 18, 0.08),
-    inset 0 2px 3px rgba(3, 11, 18, 0.08),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.9);
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08),
+    inset 0 2px 3px rgba(0, 0, 0, 0.08),
+    inset 0 -1px 0 rgba(255, 244, 220, 0.55);
 }
 
 @media (max-width: 640px) {
@@ -978,28 +935,16 @@ h4 {
     --bezel-lip: 6px;
     --bezel-radius: 11px;
 
-    background:
-      linear-gradient(
-        90deg,
-        rgba(202, 229, 241, 0.06) 0,
-        transparent 12px,
-        transparent calc(100% - 12px),
-        rgba(3, 11, 18, 0.3) 100%
-      ),
-      linear-gradient(
-        180deg,
-        #2c4a5e 0,
-        #223b4d 3px,
-        #16303f 38%,
-        #102534 calc(100% - var(--bezel-lip)),
-        #081722 calc(100% - var(--bezel-lip)),
-        #050f18 100%
-      );
+    background: linear-gradient(
+      180deg,
+      #242422 0,
+      #212120 calc(100% - var(--bezel-lip)),
+      #171716 calc(100% - var(--bezel-lip)),
+      #171716 100%
+    );
     box-shadow:
-      0 0 0 1px #030b12,
-      inset 0 1px 0 rgba(202, 229, 241, 0.16),
-      inset 0 -1px 0 rgba(3, 11, 18, 0.7),
-      0 18px 40px -22px rgba(3, 11, 18, 0.7);
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 16px 36px -22px rgba(0, 0, 0, 0.7);
   }
   .wb-frame::before {
     inset: calc(var(--bezel) - 3px);
@@ -1013,30 +958,11 @@ h4 {
   }
 }
 
-/* A slow sheen crossing a bezel, so the metal is never completely static. */
+/* The bezel sheen — a highlight travelling across the frame — is retired
+   with the rest of the light modelling. The class is kept as an inert box
+   because the board still mounts it. */
 .metal-sheen {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  border-radius: inherit;
-}
-.metal-sheen::after {
-  content: "";
-  position: absolute;
-  top: -20%;
-  bottom: -20%;
-  width: 14%;
-  transform: translateX(-120%);
-  background: linear-gradient(
-    100deg,
-    transparent,
-    rgba(202, 229, 241, 0.07) 42%,
-    rgba(127, 196, 226, 0.11) 52%,
-    transparent
-  );
-  filter: blur(6px);
-  animation: metal-sheen 13s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  display: none;
 }
 
 /* ── Board scrims ──────────────────────────────────────────────────────
@@ -1050,13 +976,17 @@ h4 {
 .wb-scrim,
 .wb-scrim-strong {
   /* Anything inside a scrim is over paper, so it inherits paper's ink. */
-  --progress-ink: rgba(46, 124, 163, 0.85);
+  --progress-ink: rgba(28, 79, 156, 0.85);
   color: var(--board-ink);
 }
 
 /* Thinking: the board is being planned on, so barely veil it. */
 .wb-scrim {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(226, 236, 243, 0.74) 100%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--wb-paper) 58%, transparent) 0%,
+    color-mix(in srgb, var(--wb-paper-muted) 74%, transparent) 100%
+  );
   backdrop-filter: blur(3px) saturate(115%);
   -webkit-backdrop-filter: blur(3px) saturate(115%);
 }
@@ -1064,7 +994,11 @@ h4 {
 /* Loading, or written work being pushed back far enough that dark chrome can
    sit on top of it and still be the subject. */
 .wb-scrim-strong {
-  background: linear-gradient(180deg, rgba(244, 247, 250, 0.88) 0%, rgba(219, 231, 240, 0.93) 100%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--wb-paper) 88%, transparent) 0%,
+    color-mix(in srgb, var(--wb-paper-muted) 93%, transparent) 100%
+  );
   backdrop-filter: blur(8px) saturate(115%);
   -webkit-backdrop-filter: blur(8px) saturate(115%);
 }
@@ -1079,18 +1013,25 @@ h4 {
 
 /* ── Board boot face ───────────────────────────────────────────────────
    While the Konva chunk loads, the paper must not show. The board reads as
-   switched off: an opaque face in the bezel's own machined navy, a whisper
-   of the blueprint grid, and the sky arc that the on-canvas ThinkingSpinner
-   keeps drawing once the board is live — boot → thinking is one pending
-   family. The face stays mounted and fades out when the board reports
-   ready, so the paper is revealed with no hard cut and no white flash.
+   switched off: an opaque face in the bezel's own matte grey, unmarked,
+   carrying only the accent arc that the on-canvas ThinkingSpinner keeps
+   drawing once the board is live — boot → thinking is one pending family.
+
+   The face is deliberately empty. A grid was drawn here once and it read as
+   graph paper switched on rather than a board switched off, loud enough to
+   be the first thing seen on every hop between saved boards. The sheen and
+   the wide accent halo that replaced it are gone too: both were light
+   modelling, and they needed `fx-grain` alongside them to stop the radial
+   banding into rings — a texture propping up a texture. A flat face is what
+   a switched-off screen actually looks like.
+
+   The face stays mounted and fades out when the board reports ready, so the
+   paper is revealed with no hard cut and no white flash.
    ───────────────────────────────────────────────────────────────────── */
 
 .wb-boot-face {
-  background:
-    linear-gradient(180deg, rgba(202, 229, 241, 0.045) 0%, transparent 22%),
-    linear-gradient(180deg, #0d2231 0%, #0a1b27 58%, #06121c 100%);
-  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  background: var(--ink-800);
+  transition: opacity 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .wb-boot-face[data-hidden="true"] {
@@ -1104,15 +1045,15 @@ h4 {
   color: var(--text-faint);
 }
 
-/* The arc: 252° sky sweep, round caps, soft glow. The glow is a static
-   drop-shadow on the wrapper; only the inner svg rotates, on its own
-   compositor layer. */
+/* The arc: a 252° sweep with round caps, and nothing else. It used to be the
+   accent with a drop-shadow halo behind it, which on a near-black field made
+   the loudest thing on screen a progress indicator. Only the inner svg
+   rotates, on its own compositor layer. */
 .wb-boot-arc {
   display: inline-block;
   flex-shrink: 0;
   line-height: 0;
   vertical-align: middle;
-  filter: drop-shadow(0 0 4px rgba(89, 175, 212, 0.55));
 }
 
 .wb-boot-arc svg {
@@ -1203,7 +1144,7 @@ h4 {
 }
 
 .wb-notes-pull:focus-visible {
-  outline: 2px solid rgba(89, 175, 212, 0.55);
+  outline: 2px solid rgba(74, 158, 255, 0.55);
   outline-offset: 2px;
 }
 
@@ -1221,12 +1162,13 @@ h4 {
 }
 
 /*
-  Focus lights the rim and nothing else. The composer autofocuses on the empty
-  board, so a glow here is not an occasional highlight — it is the permanent
-  state of the first screen, and it hangs a halo behind the bar.
+  Focus brightens the hairline and nothing else. The composer autofocuses on
+  the empty board, so whatever is set here is not an occasional highlight — it
+  is the permanent state of the first screen. That is why it is not the accent:
+  a blue rim on every load makes the accent mean nothing anywhere else.
 */
 .wb-input-wrap:focus-within {
-  border-color: rgba(89, 175, 212, 0.45) !important;
+  border-color: var(--stroke-strong) !important;
 }
 
 /* ── Paper input placeholder ── */
@@ -1250,6 +1192,21 @@ h4 {
   }
 }
 
+/* ── Pending lesson ────────────────────────────────────────────────────
+   The wait before the first mark. Frost the paper so the clicker sits on
+   a blurred board rather than a second opaque sheet — on a phone an 88px
+   pen on solid paper ate the whole surface. The clicker itself is the
+   pending mark; there is no status sentence. The sweep at the top is the
+   only "this is working" besides the spin, and it is the paper's own ink.
+   ──────────────────────────────────────────────────────────────────── */
+
+.wb-pending {
+  --progress-ink: color-mix(in srgb, var(--wb-paper-ink) 28%, transparent);
+  background: color-mix(in srgb, var(--wb-paper) 46%, transparent);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
 /* ── Thinking progress bar ── */
 
 .wb-progress-bar {
@@ -1261,7 +1218,7 @@ h4 {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--progress-ink, rgba(89, 175, 212, 0.55)) 50%,
+    var(--progress-ink, rgba(74, 158, 255, 0.55)) 50%,
     transparent 100%
   );
   animation: wb-progress-sweep 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -1279,13 +1236,13 @@ h4 {
 */
 .replay-slider {
   --replay-progress: 0%;
-  --replay-rail: rgba(202, 229, 241, 0.1);
+  --replay-rail: rgba(255, 255, 255, 0.1);
   --replay-thumb: var(--sky-600);
   touch-action: none;
   background: linear-gradient(
     to right,
-    var(--replay-fill, #2e7ca3) 0%,
-    var(--replay-fill, #2e7ca3) var(--replay-progress),
+    var(--replay-fill, #1c4f9c) 0%,
+    var(--replay-fill, #1c4f9c) var(--replay-progress),
     var(--replay-rail) var(--replay-progress),
     var(--replay-rail) 100%
   );
@@ -1317,7 +1274,7 @@ h4 {
 }
 
 .replay-slider:focus-visible {
-  outline: 2px solid rgba(89, 175, 212, 0.55);
+  outline: 2px solid rgba(74, 158, 255, 0.55);
   outline-offset: 3px;
 }
 
@@ -1391,10 +1348,10 @@ h4 {
 @keyframes wb-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(89, 175, 212, 0.45);
+    box-shadow: 0 0 0 0 rgba(74, 158, 255, 0.45);
   }
   50% {
-    box-shadow: 0 0 0 5px rgba(89, 175, 212, 0);
+    box-shadow: 0 0 0 5px rgba(74, 158, 255, 0);
   }
 }
 
@@ -1445,10 +1402,10 @@ h4 {
 
 @keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(89, 175, 212, 0.45);
+    box-shadow: 0 0 0 0 rgba(74, 158, 255, 0.45);
   }
   100% {
-    box-shadow: 0 0 0 12px rgba(89, 175, 212, 0);
+    box-shadow: 0 0 0 12px rgba(74, 158, 255, 0);
   }
 }
 

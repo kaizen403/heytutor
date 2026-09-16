@@ -1,8 +1,11 @@
 export * from "./publicOrigins";
 export * from "./tutorDebug";
 export * from "./sync/audioSync";
+export * from "./sync/speechRate";
+export * from "./sync/focusSchedule";
 export * from "./sync/inkPace";
 export * from "./sync/liveAudioClock";
+export * from "./sync/cueWindow";
 export {
   createScheduledWriteClock,
   resolveScheduledWriteClockMs,
@@ -25,14 +28,17 @@ export * from "./tts/playbackRate";
 export * from "./tts/voiceLanguage";
 export * from "./tts/voiceSettings";
 export * from "./llm/fastMode";
+export * from "./llm/traceHeaders";
 export * from "./llm/llmAPI";
 export * from "./llm/mockResponses";
 export * from "./llm/reasoningEffort";
 export * from "./sync/sentenceChunker";
 export * from "./llm/systemPrompt";
+export * from "./llm/chemistryPrompt";
 export * from "./llm/lessonScope";
 export * from "./llm/notesChatPrompt";
 export * from "./llm/givenValueIntro";
+export * from "./llm/lessonOpening";
 export * from "./code/codeLessonPlan";
 export * from "./code/codeFormatGate";
 export * from "./code/codeTraceGate";

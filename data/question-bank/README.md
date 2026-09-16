@@ -19,7 +19,7 @@ are local artifacts and are ignored by the adjacent `.gitignore`.
   for the two initial chapter scopes. Difficulty remains `null` unless an
   authoritative source supplies it.
 - `syllabus-taxonomy.json` is the versioned framework/unit/topic taxonomy for
-  the full Mathematics and Physics syllabus. `syllabus-rules-*.json` contain
+  the full Mathematics, Physics, and Chemistry syllabus. `syllabus-rules-*.json` contain
   subject-gated lexical evidence for regular units; historical supplemental
   units use only their complete topic labels and aliases.
 - `schemas/` documents the versioned record contracts. The stdlib CLI performs

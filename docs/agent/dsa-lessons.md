@@ -15,6 +15,7 @@ question
   -> simulator -> AlgorithmTrace    a real run, frame by frame
   -> compileTraceScenes             one SceneDocument per frame
   -> codeLessonBeatPlan             the running order of the lesson
+  -> opening notes                  the pen writes the problem on the left
   -> teaching stream                [FOCUS:frame] figure beats, [TYPE:block] code beats
   -> conductor                      enforces the order, holds early tags
 ```
@@ -63,6 +64,11 @@ beat, one beat per code block, a trace-through, and a close on complexity. New
 adds a concept beat per term; Revision replaces the motivation with the
 invariant, the edge cases and the real bugs. `CODE_LESSON_STEP_WORDS` states
 the floor per step, and `CODE_LESSON_TARGET_BY_FAMILIARITY` the band.
+
+The board does not start on the first frame with an empty editor. The runtime
+writes the problem title and example on the left with the pen, the tutor
+explains what is being asked, and only then does the first `[FOCUS]` draw the
+worked example. The code panel stays hidden until the first `[TYPE]`.
 
 A step count alone did not work: the model hits whatever count it is given, so
 the count has to come from the material and every beat has to say what it is
@@ -168,9 +174,10 @@ simply not drawn.
 
 ## The marker
 
-Most of a DSA lesson is speech, not ink: the figure is up, the code is typed,
-and the tutor explains. Three paths used to leave the pen dead through exactly
-those minutes, and a still pen reads as a lesson that has stalled.
+Most of a DSA lesson is speech, not ink: after the opening the figure is up,
+the code is typed, and the tutor explains. Three paths used to leave the pen
+dead through exactly those minutes, and a still pen reads as a lesson that has
+stalled.
 
 `features/tutor-session/lib/board/markerTour.ts` is the shared answer.
 `markerTourStops` builds a route across the entities under discussion (one stop
@@ -178,9 +185,9 @@ each, or three across a single wide one) and `tourMarker` walks it for as long
 as the words last, drawing nothing. Three callers use it:
 
 - **A spoken step with no board tag.** The conductor emits a runtime-only
-  `POINT` carrying the frame's stops, and the executor walks them. The tag
-  cannot come from the model: the parser maps a `[POINT]` tag to something
-  else, so only the conductor can produce one.
+  `POINT`. Before the figure is up that is the opening notes; afterwards it is
+  the frame's stops. The tag cannot come from the model: the parser maps a
+  `[POINT]` tag to something else, so only the conductor can produce one.
 - **A code-lesson focus.** The veil holds for `CODE_FOCUS_SPOTLIGHT_MS`, then
   lifts, and the pen keeps walking over the undimmed figure for the rest of the
   step. A spotlight is a glance, not a state: held for a whole beat it greys

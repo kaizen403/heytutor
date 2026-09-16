@@ -1,8 +1,12 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { AdminPlayground, syllabusTreeFromTaxonomy } from "@/features/admin";
 import { parseProbeFile, type ProbeQuestion } from "@/features/admin/lib/probes";
+import { auth } from "@/auth";
+import { isAuthDisabled } from "@/lib/authDisabled";
+import { isStaffEmail } from "@/lib/auth/staff";
 
 export const metadata: Metadata = {
   title: "Syllabus Playground",
@@ -29,7 +33,14 @@ function loadProbeQuestions(): ProbeQuestion[] {
   return questions;
 }
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  if (!isAuthDisabled()) {
+    const session = await auth();
+    if (!isStaffEmail(session?.user?.email)) {
+      redirect("/login?next=/admin");
+    }
+  }
+
   const tree = syllabusTreeFromTaxonomy(loadSyllabusTaxonomy());
   const probes = loadProbeQuestions();
 

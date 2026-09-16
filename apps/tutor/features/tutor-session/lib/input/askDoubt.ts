@@ -12,7 +12,7 @@ export interface DoubtRuntimeState {
 export const DOUBT_PLACEHOLDER = "Ask a doubt about this lesson";
 
 export const DOUBT_INTERRUPT_HINT =
-  "Asking a doubt stops this lesson and clears the board to answer it.";
+  "Asking a doubt pauses the lesson and answers it right here, under what is on the board.";
 
 /** The interrupted question is context, not the new question — keep it short. */
 export const MAX_DOUBT_CONTEXT_CHARS = 400;
@@ -43,16 +43,52 @@ export function isRuntimeReadyForDoubt(state: DoubtRuntimeState): boolean {
 }
 
 /**
- * The doubt runs as a full turn, so the planner sees only this string. Carry the
- * interrupted question with it or a doubt like "why is it negative" plans nothing.
+ * The teaching model reads only this string as the student's words. Carry the
+ * lesson question with it or a doubt like "why is it negative" is about nothing.
  */
 export function buildDoubtPrompt(doubt: string, lessonQuestion?: string | null): string {
   const question = doubt.trim();
-  const context = (lessonQuestion ?? "").trim().slice(0, MAX_DOUBT_CONTEXT_CHARS);
+  const context = (lessonQuestion ?? "")
+    .trim()
+    .slice(0, MAX_DOUBT_CONTEXT_CHARS)
+    .replace(/[.\s]+$/, "");
   if (!context) {
     return `i have a doubt about this: ${question}`;
   }
-  return `i have a doubt about the question "${context}". my doubt: ${question}. answer just this doubt, do not re-teach the whole lesson.`;
+  // "why is it negative?" keeps its own mark rather than gaining a second one.
+  const said = /[.?!]$/.test(question) ? question : `${question}.`;
+  return `i have a doubt about the question "${context}". my doubt: ${said} answer this doubt from the board as it stands.`;
+}
+
+/**
+ * Everything a doubt turn needs besides its prompt. A doubt is answered on the
+ * page it was asked about, so it carries that page's question, and whether the
+ * page in front of the student was being redrawn by a replay.
+ */
+export interface DoubtTurnRequest {
+  /** What the teaching model is asked: the composed, board-grounded doubt. */
+  prompt: string;
+  /** What the turn is saved and listed as. */
+  title: string;
+  /** The lesson question the page belongs to. Stays the board's question. */
+  lessonQuestion: string;
+  /** Asked over a replay, not over the live page. */
+  afterReplay: boolean;
+}
+
+export const DOUBT_TITLE_PREFIX = "Doubt: ";
+const MAX_DOUBT_TITLE_CHARS = 160;
+
+/** "Doubt: why is it negative", or what was marked when nothing was typed. */
+export function doubtTurnTitle(typed: string, markSummary?: string | null): string {
+  const text =
+    typed.trim() || (markSummary ?? "").trim() || "explain this part again";
+  return `${DOUBT_TITLE_PREFIX}${text.replace(/\s+/g, " ")}`.slice(0, MAX_DOUBT_TITLE_CHARS);
+}
+
+/** Both doubt prompt builders open this way; a retry has to know it is retrying a doubt. */
+export function isDoubtPrompt(text: string): boolean {
+  return /^i have a doubt about\b/i.test(text.trim());
 }
 
 /**

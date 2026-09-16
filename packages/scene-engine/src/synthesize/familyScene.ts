@@ -31,10 +31,12 @@ import {
   type ProblemStructureView,
   normalizeStem,
   orderFamiliesByStemPreference,
+  restrictFamiliesToChemistry,
   riverBoatVariant,
   type SceneVisualFamily,
 } from "./familyClassification";
 import { demandRejection, sceneDemand } from "./sceneDemand";
+import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
 import { findStatedCurves, type StatedCurve } from "./statedEquations";
 import { metricAssertions } from "../archetypes/contract";
 import { synthesizeArchetypeScene } from "../archetypes";
@@ -82,6 +84,7 @@ export interface SynthesizedFamilyScene {
 }
 
 const FAMILY_PRIORITY: readonly SceneVisualFamily[] = [
+  ...CHEMISTRY_SCENE_FAMILIES,
   "instrument_chain",
   "interface",
   "axis_view",
@@ -162,7 +165,7 @@ function synthesizeFromFamilies(
   // ends up drawing it.
   const demand = sceneDemand(question, input.problemIR);
   for (const family of families) {
-    const builder = FAMILY_BUILDERS[family];
+    const builder = FAMILY_BUILDERS[family] ?? chemistryFamilyBuilder(family);
     if (!builder) continue;
     const document = builder(question, quantities, schematic);
     const compiled = document ? tryCompile(document) : null;
@@ -269,10 +272,10 @@ function resolveRequestedFamilies(
     for (const family of structure) merged.add(family);
     const rest = orderFamiliesByStemPreference(stem, orderedFamilies([...merged]))
       .filter((family) => !structure.includes(family));
-    return [...structure, ...rest];
+    return restrictFamiliesToChemistry(stem, [...structure, ...rest]);
   }
   const ordered = orderedFamilies([...merged]);
-  return orderFamiliesByStemPreference(stem, ordered);
+  return restrictFamiliesToChemistry(stem, orderFamiliesByStemPreference(stem, ordered));
 }
 
 function isDiodeDeviceCircuit(question: string): boolean {

@@ -115,14 +115,17 @@ for (const char of ["μ", "λ", "ρ", "Δ", "π", "α", "β"]) {
 // --- letter spacing: Caveat's own advance, padded only where ink would overlap -----
 
 const helloWidth = measureTextWidth("hello", FONT_SIZE);
-// Font advances alone are ~55px and `ll` overlaps. A hairline pad on colliding
-// pairs lands near 62px; 0.11em of even air was ~72px and read as tracked.
+// Spacing is now set by how close the two letters' painted shapes come, not by
+// their boxes, so a Caveat `l` — one slanted stroke whose box is half again
+// wider than its own advance — lets its neighbour nest under the lean the way
+// the font intends. That is worth about 10px across this word. How even the
+// air is, and that no two letters touch, is measured in verify-handwriting-hand.
 assert(
-  helloWidth < 68,
+  helloWidth < 60,
   `"hello" is tracked out like print: ${helloWidth.toFixed(1)}px`,
 );
 assert(
-  helloWidth > 56,
+  helloWidth > 46,
   `"hello" collapsed into itself: ${helloWidth.toFixed(1)}px`,
 );
 
@@ -151,14 +154,17 @@ function inkExtent(path: { strokes: { pathData: string }[] }): Extent {
 for (let index = 1; index < hello.length; index++) {
   const previous = inkExtent(hello[index - 1]!);
   const current = inkExtent(hello[index]!);
-  const gap = current.minX - previous.maxX;
+  // Boxes may overlap — a letter nesting under an `l` is the point — but the
+  // pen must always move forward, and no letter may be written on top of the
+  // one before it. The air between the shapes themselves is measured in
+  // verify-handwriting-hand, which is the only place it can honestly be.
   assert(
-    gap > 1.2,
-    `"hello"[${index}] sits too close to the previous letter (${gap.toFixed(1)}px of air)`,
+    current.minX > previous.minX,
+    `"hello"[${index}] does not advance past the letter before it`,
   );
   assert(
-    gap < 7,
-    `"hello"[${index}] leaves ${gap.toFixed(1)}px of air — tracked print`,
+    current.maxX > previous.maxX + 1,
+    `"hello"[${index}] is written on top of the letter before it`,
   );
 }
 
@@ -178,9 +184,9 @@ for (let index = 1; index < hello.length; index++) {
   const extents = repeated.map((path) => inkExtent(path));
   const tops = extents.map((extent) => extent.minY);
   const spread = Math.max(...tops) - Math.min(...tops);
-  assert(spread > 0.15, `the letters must actually vary, spread ${spread.toFixed(2)}px`);
+  assert(spread > 0.1, `the letters must actually vary, spread ${spread.toFixed(2)}px`);
   assert(
-    spread < FONT_SIZE * 0.12,
+    spread < FONT_SIZE * 0.08,
     `handwriting wobble, not a ransom note: spread ${spread.toFixed(2)}px at ${FONT_SIZE}px type`,
   );
 }
@@ -226,9 +232,9 @@ for (let index = 1; index < hello.length; index++) {
     .map((path) => inkExtent(path).maxY);
   assert(feet.length >= 10, `expected a long row of the same letter, got ${feet.length}`);
   const drift = Math.max(...feet) - Math.min(...feet);
-  assert(drift > 0.4, `a written row must not sit on a ruled line, drift ${drift.toFixed(2)}px`);
+  assert(drift > 0.3, `a written row must not sit on a ruled line, drift ${drift.toFixed(2)}px`);
   assert(
-    drift < FONT_SIZE * 0.2,
+    drift < FONT_SIZE * 0.13,
     `the row must still read as one line, drift ${drift.toFixed(2)}px`,
   );
 }

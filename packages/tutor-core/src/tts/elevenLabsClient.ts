@@ -5,7 +5,7 @@ import {
   type TutorVoiceKey,
   type TutorVoicePreferences,
 } from "./voiceLanguage";
-import { TUTOR_VOICE_SETTINGS } from "./voiceSettings";
+import { TUTOR_VOICE_SETTINGS, type TutorVoiceSettings } from "./voiceSettings";
 import {
   applyHtmlAudioMute,
   applyHtmlAudioPlaybackRate,
@@ -22,6 +22,12 @@ export interface SpeakOptions {
 export interface SpeakSegmentOptions {
   previousText?: string;
   nextText?: string;
+  /**
+   * Dials for this one sentence, when it is not spoken in the teaching voice.
+   * Set from the segment's `delivery`, so an opening line is generated with
+   * its own expression rather than the lesson's steady one.
+   */
+  voiceSettings?: TutorVoiceSettings;
   traceId?: string;
   sessionId?: string;
   onStart?: () => void;
@@ -46,6 +52,9 @@ export interface TimingChunkInput {
 
 export interface PrewarmOptions {
   onConnect?: (info: { ms: number; ok: boolean }) => void;
+  /** Stamp the TTS websocket with this turn so `tts-segment` gens land on it. */
+  traceId?: string;
+  sessionId?: string;
 }
 
 export interface TTSClient {
@@ -56,6 +65,16 @@ export interface TTSClient {
    * playing so the voice does not stall between sentences.
    */
   prefetchSegment?(text: string, options?: SpeakSegmentOptions): void;
+  /**
+   * The complete alignment already held for a sentence generated ahead of
+   * the lesson, before `speakSegment` claims it. The segment runner builds
+   * its handwriting schedule a few milliseconds before the claim replays
+   * `onTimings`; without this every prefetched sentence scheduled on the
+   * estimate while its exact alignment sat in the queue (15 of 15 WRITE
+   * rows on 10 Sep 2026). Null when nothing complete is held for that text
+   * with those dials. Segment-relative, like `onTimings`.
+   */
+  peekSegmentTimings?(text: string, options?: SpeakSegmentOptions): AudioTimings | null;
   playAudio(bytes: Uint8Array, options?: { onStart?: () => void }): Promise<void>;
   prewarm(options?: PrewarmOptions): Promise<void>;
   /**
@@ -157,8 +176,12 @@ export function mathToSpeech(text: string): string {
     .replace(/\bcsc\b/g, " cosecant ")
     .replace(/\bsec\b/g, " secant ")
     .replace(/\bcot\b/g, " cotangent ")
-    .replace(/(\w)''/g, "$1 double prime ")
-    .replace(/(\w)'/g, "$1 prime ")
+    // A prime is a mark on a symbol: f', y'', A'. It used to be read off any
+    // apostrophe, so "Coulomb's law" was voiced "Coulomb prime s law" and
+    // "let's" as "let prime s" (five possessives in thirty stored lessons).
+    // Only a lone letter or a digit followed by nothing word-like is a prime.
+    .replace(/(?<![A-Za-z])([A-Za-z\u0370-\u03ff]|\d)''(?![a-z])/g, "$1 double prime ")
+    .replace(/(?<![A-Za-z])([A-Za-z\u0370-\u03ff]|\d)'(?![a-z])/g, "$1 prime ")
     .replace(/∇/g, " del ")
     .replace(/\u221a\(([^)]+)\)/g, " square root of ($1) ")
     .replace(/\u222e/g, " contour integral of ")
@@ -539,7 +562,7 @@ export class ElevenLabsTTSClient implements TTSClient {
       body: JSON.stringify({
         text: spokenText,
         model_id: this.voicePreferences.lowLatency ? LOW_LATENCY_MODEL : this.modelId,
-        voice_settings: DEFAULT_VOICE_SETTINGS,
+        voice_settings: options.voiceSettings ?? DEFAULT_VOICE_SETTINGS,
         previous_text: options.previousText,
         next_text: options.nextText,
       }),

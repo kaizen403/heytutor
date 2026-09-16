@@ -161,7 +161,11 @@ assert(
 );
 assert(
   inputBar.includes("DOUBT_INTERRUPT_HINT"),
-  "the student must be told the lesson stops and the board clears",
+  "the student must be told the lesson pauses and the doubt is answered on this board",
+);
+assert(
+  !/clear/i.test(DOUBT_INTERRUPT_HINT),
+  "a doubt keeps the board, so the hint must not promise to clear it",
 );
 assert(DOUBT_INTERRUPT_HINT.length > 0, "the doubt hint must say something");
 
@@ -198,8 +202,12 @@ assert(
 );
 const handleAskDoubt = turnControl.slice(handleAskDoubtAt);
 assert(
-  handleAskDoubt.includes("stopTurn()"),
-  "a mid-lesson doubt must stop the running turn",
+  handleAskDoubt.includes("stopTurn({ keepVisibleBoard: true })"),
+  "a mid-lesson doubt must stop the running turn without wiping the board",
+);
+assert(
+  handleAskDoubt.includes("pausedLessonFromPage"),
+  "a mid-lesson doubt must snapshot the paused lecture so it can continue",
 );
 assert(
   handleAskDoubt.includes("isRuntimeReadyForDoubt"),

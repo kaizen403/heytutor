@@ -21,6 +21,7 @@ DEFAULT_QUESTIONS = DATA_ROOT / "build" / "questions.all.jsonl"
 DEFAULT_TAXONOMY = DATA_ROOT / "syllabus-taxonomy.json"
 DEFAULT_MATHEMATICS_RULES = DATA_ROOT / "syllabus-rules-mathematics.json"
 DEFAULT_PHYSICS_RULES = DATA_ROOT / "syllabus-rules-physics.json"
+DEFAULT_CHEMISTRY_RULES = DATA_ROOT / "syllabus-rules-chemistry.json"
 DEFAULT_ASSIGNMENTS = DATA_ROOT / "build" / "question-syllabus.jsonl"
 DEFAULT_DATABASE = DATA_ROOT / "build" / "question-bank-full.sqlite"
 
@@ -45,6 +46,13 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         default=DEFAULT_PHYSICS_RULES,
     )
+    parser.add_argument(
+        "--chemistry-rules",
+        "--rules-chemistry",
+        dest="chemistry_rules",
+        type=Path,
+        default=DEFAULT_CHEMISTRY_RULES,
+    )
     parser.add_argument("--assignments", type=Path, default=DEFAULT_ASSIGNMENTS)
     parser.add_argument("--database", type=Path, default=DEFAULT_DATABASE)
     parser.add_argument(
@@ -67,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
             args.manifest,
             args.questions,
             args.taxonomy,
-            [args.mathematics_rules, args.physics_rules],
+            [args.mathematics_rules, args.physics_rules, args.chemistry_rules],
             args.assignments,
             args.database,
             report_path=args.report,

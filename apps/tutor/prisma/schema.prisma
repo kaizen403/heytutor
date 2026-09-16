@@ -8,13 +8,53 @@ datasource db {
 }
 
 model User {
-  id           String             @id
-  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  boards       Board[]
-  turns        Turn[]
-  chatMessages BoardChatMessage[]
+  id                    String             @id
+  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  email                 String?            @unique
+  name                  String?
+  image                 String?
+  emailVerified         DateTime?          @map("email_verified") @db.Timestamptz(6)
+  onboardingCompletedAt DateTime?          @map("onboarding_completed_at") @db.Timestamptz(6)
+  examGoal              String?            @map("exam_goal")
+  classYear             String?            @map("class_year")
+  subjects              String[]           @default([])
+  locale                String             @default("en")
+  ageBand               String?            @map("age_band")
+  guardianEmail         String?            @map("guardian_email")
+  guardianNotifiedAt    DateTime?          @map("guardian_notified_at") @db.Timestamptz(6)
+  learningNote          String?            @map("learning_note")
+  boards                Board[]
+  turns                 Turn[]
+  chatMessages          BoardChatMessage[]
+  settings              UserSettings?
 
   @@map("users")
+}
+
+model UserSettings {
+  userId               String   @id @map("user_id")
+  fastMode             Boolean  @default(true) @map("fast_mode")
+  familiarity          String   @default("normal")
+  audioLanguage        String   @default("english") @map("audio_language")
+  accent               String   @default("india")
+  narrationEnabled     Boolean  @default(true) @map("narration_enabled")
+  lowLatencyVoice      Boolean  @default(false) @map("low_latency_voice")
+  subtitlesEnabled     Boolean  @default(false) @map("subtitles_enabled")
+  markerColor          String   @default("navy") @map("marker_color")
+  speedMultiplier      Float    @default(1.5) @map("speed_multiplier")
+  uiLanguage           String   @default("en") @map("ui_language")
+  showHomeSuggestions  Boolean  @default(true) @map("show_home_suggestions")
+  reducedMotion        Boolean  @default(false) @map("reduced_motion")
+  teachingNote         String   @default("") @map("teaching_note")
+  alwaysShowUnits      Boolean  @default(false) @map("always_show_units")
+  alwaysStateLawFirst  Boolean  @default(false) @map("always_state_law_first")
+  rememberWeakTopics   Boolean  @default(true) @map("remember_weak_topics")
+  emailWeeklyRecap     Boolean  @default(false) @map("email_weekly_recap")
+  emailGuardianNotice  Boolean  @default(true) @map("email_guardian_notice")
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
 }
 
 model Board {

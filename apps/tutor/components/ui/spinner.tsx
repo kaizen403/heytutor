@@ -16,11 +16,11 @@ interface SpinnerProps {
 /**
  * The plain loading ring, drawn in `currentColor`.
  *
- * The twirling clicker pen (`PenSpinner`) is the board's own pending mark,
- * kept in `@heytutor/whiteboard` for the landing's board mockups; the tutor
- * board's boot and thinking states draw the sky arc instead. Everywhere else
- * — the top bar, the sidebar, menus, side panels — waiting is just waiting,
- * and gets this.
+ * The twirling clicker pen (`PenSpinner`) is the board's own pending mark —
+ * the overlay while a lesson is planned. The boot face still draws the sky
+ * arc, because the board is off until Konva exists. Everywhere else — the
+ * top bar, the sidebar, menus, side panels — waiting is just waiting, and
+ * gets this.
  */
 export function Spinner({ size = 16, thickness, label, className, style }: SpinnerProps) {
   return (

@@ -7,9 +7,9 @@ const STATUS_CONFIG: Record<
 > = {
   accepted: {
     label: "Accepted",
-    bg: "rgba(89, 175, 212, 0.14)",
-    text: "#A5D6EC",
-    border: "rgba(89, 175, 212, 0.32)",
+    bg: "rgba(74, 158, 255, 0.14)",
+    text: "#9CCBFF",
+    border: "rgba(74, 158, 255, 0.32)",
   },
   rejected: {
     label: "Rejected",
@@ -19,9 +19,9 @@ const STATUS_CONFIG: Record<
   },
   "needs-improvement": {
     label: "Needs work",
-    bg: "rgba(202, 229, 241, 0.06)",
-    text: "rgba(240, 245, 247, 0.68)",
-    border: "rgba(202, 229, 241, 0.20)",
+    bg: "rgba(255, 255, 255, 0.06)",
+    text: "rgba(237, 237, 235, 0.68)",
+    border: "rgba(255, 255, 255, 0.20)",
   },
 };
 

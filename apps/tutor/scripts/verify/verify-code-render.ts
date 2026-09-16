@@ -27,6 +27,8 @@ import {
   codeLessonTabLabel,
 } from "../../features/tutor-session/lib/code-lesson/solarizedEditor";
 import { DSA_EDITOR_METRICS } from "../../features/tutor-session/constants";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -72,6 +74,28 @@ function main(): void {
   assert(
     CODE_RENDER_METRICS.gutterWidth === DSA_EDITOR_METRICS.gutterWidth,
     "canvas gutter and live editor gutter must share a width",
+  );
+
+  const tutorRoot = resolve(import.meta.dirname, "../..");
+  const livePanel = readFileSync(
+    resolve(tutorRoot, "features/tutor-session/components/CodeLessonPanel.tsx"),
+    "utf8",
+  );
+  const canvasRender = readFileSync(
+    resolve(tutorRoot, "lib/code-render/renderCodeToCanvas.ts"),
+    "utf8",
+  );
+  assert(
+    !livePanel.includes("TrafficLights"),
+    "the live editor is a pane, not a Mac window — no traffic lights",
+  );
+  assert(
+    !canvasRender.includes("drawTrafficLights") && !canvasRender.includes("trafficClose"),
+    "exported frames must not paint Mac traffic lights",
+  );
+  assert(
+    !livePanel.includes("0 18px 44px") && !livePanel.includes("0 18px 40px"),
+    "the editor pane must not glow — a drop shadow reads as a floating OS window",
   );
   const again = tokenizeCodeLines(pythonCode, "python");
   assert(

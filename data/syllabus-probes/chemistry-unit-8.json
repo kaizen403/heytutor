@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|8",
+  "questions": [
+    {
+      "id": "chemistry|8|rate-of-reaction-and-factors|easy",
+      "topicId": "chemistry|8|rate-of-reaction-and-factors",
+      "difficulty": "easy",
+      "question": "For the reaction 2N2O5(g) → 4NO2(g) + O2(g), the rate of disappearance of N2O5 at an instant is 0.02 mol L^-1 s^-1. Find the rates of formation of NO2 and of O2 at that instant.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|8|rate-law-order-and-molecularity|medium",
+      "topicId": "chemistry|8|rate-law-order-and-molecularity",
+      "difficulty": "medium",
+      "question": "For a reaction A + B → products, doubling [A] at constant [B] doubles the initial rate, while doubling [B] at constant [A] makes the initial rate four times larger. Write the rate law, give the overall order, and state the units of the rate constant.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|8|rate-law-order-and-molecularity|hard",
+      "topicId": "chemistry|8|rate-law-order-and-molecularity",
+      "difficulty": "hard",
+      "question": "The reaction 2H2(g) + 2NO(g) → N2(g) + 2H2O(g) follows this mechanism: 2NO(g) ⇌ N2O2(g) (fast equilibrium, k1 and k-1); N2O2(g) + H2(g) → N2O(g) + H2O(g) (slow, k2); N2O(g) + H2(g) → N2(g) + H2O(g) (fast, k3). What is the order of the reaction?",
+      "source": {
+        "questionId": "q_f60a36a30ca86f24ff93e835adbd08306daabc6e0b369e9cb205febe5797db53",
+        "exam": "JEE Advanced",
+        "year": 2024,
+        "documentId": "jee-advanced-2024-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|8|zero-and-first-order-reactions|easy",
+      "topicId": "chemistry|8|zero-and-first-order-reactions",
+      "difficulty": "easy",
+      "question": "A first order reaction is 40% complete in 50 minutes. Calculate its rate constant and the time it takes to be 80% complete. (log 2 = 0.301, log 3 = 0.477, log 5 = 0.699)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|8|zero-and-first-order-reactions|medium",
+      "topicId": "chemistry|8|zero-and-first-order-reactions",
+      "difficulty": "medium",
+      "question": "For the first order reaction 2N2O5(g) → 4NO2(g) + O2(g) (A) the concentration of the reactant decreases exponentially with time. (B) the half-life of the reaction decreases with increasing temperature. (C) the half-life of the reaction depends on the initial concentration of the reactant. (D) the reaction proceeds to 99.6% completion in eight half-life durations.",
+      "source": {
+        "questionId": "q_08717d38f6470957e01bc635e4f09edf0f5d47d08677290c04d478966c0ed87b",
+        "exam": "JEE Advanced",
+        "year": 2011,
+        "documentId": "jee-advanced-2011-paper-2-english"
+      }
+    },
+    {
+      "id": "chemistry|8|half-life|easy",
+      "topicId": "chemistry|8|half-life",
+      "difficulty": "easy",
+      "question": "If the half-life of a first order reaction is 6.93 minutes, how many minutes are required for 99% of the reaction to be completed? (Given: log 2 = 0.3010)",
+      "source": {
+        "questionId": "q_39c564bd66f1a7d4ab847e48e89d29ffec49cbddbf5edb6dafdc80554b38595a",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-05-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|8|half-life|medium",
+      "topicId": "chemistry|8|half-life",
+      "difficulty": "medium",
+      "question": "The rate of a first order reaction is 0.04 mol L^-1 s^-1 at 10 minutes and 0.03 mol L^-1 s^-1 at 20 minutes after initiation. What is the half-life of the reaction in minutes? (Given: log 2 = 0.3010, log 3 = 0.4771)",
+      "source": {
+        "questionId": "q_d95dd5a9967db2bce2f3a8b2fd9e70bf59d9313e99cf0c3e162357c5314117dd",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-30-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|8|arrhenius-equation-and-activation-energy|medium",
+      "topicId": "chemistry|8|arrhenius-equation-and-activation-energy",
+      "difficulty": "medium",
+      "question": "The rate constant of a reaction is 2.0 × 10^-2 s^-1 at 300 K and 8.0 × 10^-2 s^-1 at 320 K. Calculate the activation energy of the reaction. (R = 8.314 J K^-1 mol^-1, log 4 = 0.602)",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|8|arrhenius-equation-and-activation-energy|hard",
+      "topicId": "chemistry|8|arrhenius-equation-and-activation-energy",
+      "difficulty": "hard",
+      "question": "For a reversible reaction A ⇌ B, ΔH of the forward reaction is 20 kJ mol^-1 and the activation energy of the uncatalysed forward reaction is 300 kJ mol^-1. When the reaction is catalysed, keeping the reactant concentration the same, the rate of the catalysed forward reaction at 27 °C equals that of the uncatalysed reaction at 327 °C. What is the activation energy, in kJ mol^-1, of the catalysed backward reaction?",
+      "source": {
+        "questionId": "q_f8c98a50851fc49ee29846d36cd6f729f9e45635a8279ce1f755b6bdac54d0b1",
+        "exam": "JEE Main",
+        "year": 2023,
+        "documentId": "jee-main-2023-04-15-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|8|collision-theory|easy",
+      "topicId": "chemistry|8|collision-theory",
+      "difficulty": "easy",
+      "question": "According to the collision theory of bimolecular gaseous reactions, why does only a small fraction of collisions between reactant molecules lead to products? Explain the roles of the threshold energy, proper orientation and the steric factor P in the rate expression.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

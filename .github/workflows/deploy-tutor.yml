@@ -1,0 +1,45 @@
+name: Deploy tutor
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/tutor/**"
+      - "packages/**"
+      - "deploy/aws/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/deploy-tutor.yml"
+
+concurrency:
+  group: deploy-tutor
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deploy secrets
+        id: check
+        env:
+          HOST: ${{ secrets.TUTOR_DEPLOY_HOST }}
+        run: |
+          if [ -z "$HOST" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "TUTOR_DEPLOY_HOST is not set; skipping tutor deploy."
+          fi
+
+      - name: Deploy over SSH
+        if: steps.check.outputs.skip != 'true'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.TUTOR_DEPLOY_HOST }}
+          username: ${{ secrets.TUTOR_DEPLOY_USER }}
+          key: ${{ secrets.TUTOR_DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /opt/heytutor
+            git fetch origin main
+            git reset --hard origin/main
+            ./deploy/aws/deploy.sh

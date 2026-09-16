@@ -20,6 +20,7 @@ class PhysicsPhraseRecoveryTests(unittest.TestCase):
             [
                 DATA_ROOT / "syllabus-rules-mathematics.json",
                 DATA_ROOT / "syllabus-rules-physics.json",
+                DATA_ROOT / "syllabus-rules-chemistry.json",
             ],
         )
 

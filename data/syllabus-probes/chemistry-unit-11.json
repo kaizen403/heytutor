@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|11",
+  "questions": [
+    {
+      "id": "chemistry|11|transition-elements-configuration-and-occurrence|easy",
+      "topicId": "chemistry|11|transition-elements-configuration-and-occurrence",
+      "difficulty": "easy",
+      "question": "Zinc, cadmium and mercury are not regarded as transition elements although they belong to the d-block. Explain why, and state whether copper, whose atom has a completely filled 3d subshell, is a transition element.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|11|trends-in-transition-elements|medium",
+      "topicId": "chemistry|11|trends-in-transition-elements",
+      "difficulty": "medium",
+      "question": "The E° values of the M^2+/M couple for Mn, Fe, Co and Ni are -1.18 V, -0.44 V, -0.28 V and -0.25 V respectively, while E° for Cu^2+/Cu is +0.34 V. Why is E° for Cu^2+/Cu positive, and why is the E° value for Mn^2+/Mn more negative than expected from the trend?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|11|colour-magnetism-and-catalysis-of-transition-elements|easy",
+      "topicId": "chemistry|11|colour-magnetism-and-catalysis-of-transition-elements",
+      "difficulty": "easy",
+      "question": "Calculate the spin only magnetic moment of Fe^2+ (Z = 26) and of Cu^+ (Z = 29). Which of these ions is coloured in aqueous solution, and why?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|11|colour-magnetism-and-catalysis-of-transition-elements|medium",
+      "topicId": "chemistry|11|colour-magnetism-and-catalysis-of-transition-elements",
+      "difficulty": "medium",
+      "question": "Acidified potassium permanganate solution oxidises oxalic acid. What is the spin-only magnetic moment, in B.M. (nearest integer), of the manganese product formed in this reaction?",
+      "source": {
+        "questionId": "q_01c553226a058cee6787f40d421db16df1731dd7683b2ea8860a5095925cb381",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-27-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|11|colour-magnetism-and-catalysis-of-transition-elements|hard",
+      "topicId": "chemistry|11|colour-magnetism-and-catalysis-of-transition-elements",
+      "difficulty": "hard",
+      "question": "Statement I: First row transition metals which act as catalysts use their 3d electrons only to form bonds between reactant molecules and atoms on the surface of the catalyst. Statement II: The concentration of reactants increases on the surface of the catalyst, which strengthens the bonds in the reacting molecules. Choose the correct answer: (A) Both Statement I and Statement II are correct (B) Both Statement I and Statement II are incorrect (C) Statement I is correct but Statement II is incorrect (D) Statement I is incorrect but Statement II is correct",
+      "source": {
+        "questionId": "q_cd5e411404246220c3e50fcedf4a2893c89ad8be54e39fe1de7f2536af598979",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-08-shift-2"
+      }
+    },
+    {
+      "id": "chemistry|11|complexes-interstitial-compounds-and-alloys|easy",
+      "topicId": "chemistry|11|complexes-interstitial-compounds-and-alloys",
+      "difficulty": "easy",
+      "question": "Which of the following is NOT a physical or chemical characteristic of interstitial compounds? (A) They have high melting points, higher than those of the pure metals. (B) They are very soft and ionic in nature. (C) They retain metallic conductivity. (D) They are chemically inert and usually non-stoichiometric.",
+      "source": {
+        "questionId": "q_9d6b322f650074188f18b98bedb9d1fc0d6ca79a9895fc54f6d373cb40db2ea7",
+        "exam": "JEE Main",
+        "year": 2026,
+        "documentId": "jee-main-2026-04-05-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|11|potassium-dichromate-and-potassium-permanganate|medium",
+      "topicId": "chemistry|11|potassium-dichromate-and-potassium-permanganate",
+      "difficulty": "medium",
+      "question": "Describe the preparation of potassium permanganate from pyrolusite ore with balanced equations, and write the ionic equation for its reaction with iron(II) ions in acidic solution.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|11|potassium-dichromate-and-potassium-permanganate|hard",
+      "topicId": "chemistry|11|potassium-dichromate-and-potassium-permanganate",
+      "difficulty": "hard",
+      "question": "Consider the following reagents: acidified K2Cr2O7, alkaline KMnO4, CuSO4, H2O2, Cl2, O3, FeCl3, HNO3 and Na2S2O3. What is the total number of these reagents that can oxidise aqueous iodide to iodine?",
+      "source": {
+        "questionId": "q_db3011501f3dc3eb45d68443a5ab7842a87ead6b8a67c4a673854fd0fc9b279b",
+        "exam": "JEE Advanced",
+        "year": 2014,
+        "documentId": "jee-advanced-2014-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|11|lanthanoids|easy",
+      "topicId": "chemistry|11|lanthanoids",
+      "difficulty": "easy",
+      "question": "What is lanthanoid contraction? Explain why zirconium and hafnium have almost identical atomic radii.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|11|lanthanoids|medium",
+      "topicId": "chemistry|11|lanthanoids",
+      "difficulty": "medium",
+      "question": "Which one of the lanthanoids given below is the most stable in the divalent form? (A) Ce (atomic number 58) (B) Sm (atomic number 62) (C) Eu (atomic number 63) (D) Yb (atomic number 70)",
+      "source": {
+        "questionId": "q_a6ccb485bc0eea7831df813cb5592dc3037e2f6ffc1f35cc7724b77215951574",
+        "exam": "JEE Main",
+        "year": 2022,
+        "documentId": "jee-main-2022-06-28-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|11|actinoids|medium",
+      "topicId": "chemistry|11|actinoids",
+      "difficulty": "medium",
+      "question": "Why do actinoids show a wider range of oxidation states than lanthanoids? Also explain why the contraction from element to element is greater among the actinoids than among the lanthanoids.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

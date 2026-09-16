@@ -7,6 +7,7 @@ import {
   normalizeStem,
   orderFamiliesByStemPreference,
   QUESTION_FAMILIES,
+  restrictFamiliesToChemistry,
   riverBoatVariantFromProblemStructure,
   familiesFromProblemStructure,
 } from "@heytutor/scene-engine";
@@ -40,7 +41,30 @@ const BASE_OPERATORS = [
   "tick_mark", "sign_badge",
 ];
 
+/**
+ * Chemistry figures are computed by the engine's chemistry families from the
+ * formula or the named process; the planner never authors one. The operator
+ * lists still describe what those figures contain so the exact planner's
+ * prompt stays truthful when it is consulted.
+ */
+const CHEMISTRY_STRUCTURE_OPERATORS = ["point", "segment", "polygon", "circle", "arc", "label", "vector"] as const;
+const CHEMISTRY_LEVEL_OPERATORS = ["point", "segment", "vector", "dimension", "label", "rectangle"] as const;
+const CHEMISTRY_GRAPH_OPERATORS = ["axes", "function_curve", "polyline", "point", "dimension", "label", "vector"] as const;
+
 const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
+  chem_coordination: CHEMISTRY_STRUCTURE_OPERATORS,
+  chem_cft: CHEMISTRY_LEVEL_OPERATORS,
+  chem_organic: CHEMISTRY_STRUCTURE_OPERATORS,
+  chem_vsepr: CHEMISTRY_STRUCTURE_OPERATORS,
+  chem_lewis: CHEMISTRY_STRUCTURE_OPERATORS,
+  chem_mo: CHEMISTRY_LEVEL_OPERATORS,
+  chem_orbital: CHEMISTRY_LEVEL_OPERATORS,
+  chem_electrochem: ["point", "segment", "polyline", "polygon", "rectangle", "circle", "vector", "label"],
+  chem_unit_cell: ["point", "segment", "circle", "dimension", "label"],
+  chem_kinetics: CHEMISTRY_GRAPH_OPERATORS,
+  chem_thermo: CHEMISTRY_GRAPH_OPERATORS,
+  chem_solutions: CHEMISTRY_GRAPH_OPERATORS,
+  chem_periodic: ["axes", "polyline", "point", "rectangle", "label"],
   ray_path: [
     "ray", "line", "segment", "vector", "arc", "intersection", "surface_intersection",
     "surface_contact", "normal_at", "reflect_direction", "refract_direction", "parallel_through",
@@ -82,7 +106,23 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
   vector_diagram: ["axes", "vector", "vector_components", "angle_mark", "label", "sign_badge", "tick_mark"],
 };
 
+const CHEMISTRY_PREDICATES = ["exists", "label_attached"] as const;
+const CHEMISTRY_GRAPH_PREDICATES = ["exists", "label_attached", "function_value", "on"] as const;
+
 const FAMILY_PREDICATES: Record<SceneVisualFamily, readonly string[]> = {
+  chem_coordination: CHEMISTRY_PREDICATES,
+  chem_cft: CHEMISTRY_PREDICATES,
+  chem_organic: CHEMISTRY_PREDICATES,
+  chem_vsepr: CHEMISTRY_PREDICATES,
+  chem_lewis: CHEMISTRY_PREDICATES,
+  chem_mo: CHEMISTRY_PREDICATES,
+  chem_orbital: CHEMISTRY_PREDICATES,
+  chem_electrochem: CHEMISTRY_PREDICATES,
+  chem_unit_cell: CHEMISTRY_PREDICATES,
+  chem_kinetics: CHEMISTRY_GRAPH_PREDICATES,
+  chem_thermo: CHEMISTRY_GRAPH_PREDICATES,
+  chem_solutions: CHEMISTRY_GRAPH_PREDICATES,
+  chem_periodic: CHEMISTRY_PREDICATES,
   ray_path: ["incident", "on", "parallel", "converges", "equal_angle", "snells_law"],
   axis_view: ["between", "ordered_along", "distance_ratio", "equal_spacing"],
   interface: ["incident", "on", "inside", "snells_law"],
@@ -105,7 +145,23 @@ const FAMILY_PREDICATES: Record<SceneVisualFamily, readonly string[]> = {
   vector_diagram: ["perpendicular", "parallel", "equal_length", "angle_between"],
 };
 
+const CHEMISTRY_GUIDANCE =
+  "This is a chemistry question. The engine draws the chemistry figure itself from the formula, the named process or the stated numbers; do not author molecules, cells, orbitals or unit cells. Return visualDecision text_only unless the question is a plotted graph whose curve you can state as an expression.";
+
 const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
+  chem_coordination: CHEMISTRY_GUIDANCE,
+  chem_cft: CHEMISTRY_GUIDANCE,
+  chem_organic: CHEMISTRY_GUIDANCE,
+  chem_vsepr: CHEMISTRY_GUIDANCE,
+  chem_lewis: CHEMISTRY_GUIDANCE,
+  chem_mo: CHEMISTRY_GUIDANCE,
+  chem_orbital: CHEMISTRY_GUIDANCE,
+  chem_electrochem: CHEMISTRY_GUIDANCE,
+  chem_unit_cell: CHEMISTRY_GUIDANCE,
+  chem_kinetics: CHEMISTRY_GUIDANCE,
+  chem_thermo: CHEMISTRY_GUIDANCE,
+  chem_solutions: CHEMISTRY_GUIDANCE,
+  chem_periodic: CHEMISTRY_GUIDANCE,
   ray_path: "Derive every reflected or refracted direction with reflect_at/refract_at or the surface-contact chain; never guess ray endpoints. Prove incidence, angle, convergence, or parallelism named by the question.",
   axis_view: "Use one shared axis, reuse point IDs for named positions on it, prove their order, and attach each dimension to its actual endpoints. Draw every mirror, lens, or spherical interface with spherical_surface or lens_section so convex and concave faces are visible; never replace a curved surface with a straight line. Compress display scale without changing authoritative ratios.",
   interface: "Construct one explicit interface and one shared contact point. A spherical interface uses spherical_surface from the signed Cartesian radius; a plane interface uses a line. Derive the normal and outgoing ray from that surface, and prove the contact and governing reflection/refraction law.",
@@ -258,9 +314,10 @@ export function inferSceneCapabilities(
   }
   const remaining = [...families].filter((family) => !structureFamilies.includes(family));
   const ordered = [...structureFamilies, ...remaining];
-  const orderedFamilies = structureDecisive
-    ? ordered
-    : orderFamiliesByStemPreference(stem, ordered);
+  const orderedFamilies = restrictFamiliesToChemistry(
+    stem,
+    structureDecisive ? ordered : orderFamiliesByStemPreference(stem, ordered),
+  );
   return {
     visualRequired: orderedFamilies.length > 0
       || explicitVisual

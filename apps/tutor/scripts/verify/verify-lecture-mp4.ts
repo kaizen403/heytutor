@@ -15,6 +15,17 @@ import {
   speakingLectureSegments,
   turnHasExportableAudio,
 } from "../../lib/lecture-export/canExportLectureMp4";
+import {
+  lectureExportCancelPressAction,
+  lectureExportCancelRevealedOnEnter,
+} from "../../lib/lecture-export/lectureExportCancel";
+import { pickLectureExportProfile } from "../../lib/lecture-export/lectureExportProfile";
+import {
+  lectureExportCacheKey,
+  lectureExportProgressLabel,
+  lectureFramesLookSame,
+  planLectureEncodeSpans,
+} from "../../lib/lecture-export/lectureExportFrames";
 import { waitUntilExportClock } from "../../lib/lecture-export/drawLectureTimeline";
 import {
   isAllowedLectureAudioSource,
@@ -107,12 +118,43 @@ assert.equal(canEncodeLectureMp4({}), false, "Node has no WebCodecs encoder");
 assert.equal(
   canEncodeLectureMp4({
     VideoEncoder: function VideoEncoder() {},
+    VideoFrame: function VideoFrame() {},
+  }),
+  true,
+  "Firefox encodes video without AudioEncoder",
+);
+assert.equal(
+  canEncodeLectureMp4({
+    VideoEncoder: function VideoEncoder() {},
     AudioEncoder: function AudioEncoder() {},
     VideoFrame: function VideoFrame() {},
     AudioData: function AudioData() {},
   }),
   true,
-  "all four WebCodecs constructors are required",
+  "Chrome still encodes with the full WebCodecs set",
+);
+
+const firefoxProfile = pickLectureExportProfile({
+  videoCodecs: ["vp8"],
+  audioCodecs: ["pcm-s16"],
+});
+assert.equal(firefoxProfile?.container, "mp4", "Firefox VP8 + PCM still muxes as MP4");
+assert.equal(firefoxProfile?.videoCodec, "vp8");
+assert.equal(firefoxProfile?.audioCodec, "pcm-s16");
+assert.equal(
+  pickLectureExportProfile({ videoCodecs: ["avc"], audioCodecs: ["aac"] })?.videoCodec,
+  "avc",
+  "Chrome keeps AVC + AAC",
+);
+assert.equal(
+  pickLectureExportProfile({ videoCodecs: ["vp9"], audioCodecs: ["opus"] })?.videoCodec,
+  "vp9",
+  "VP9 + Opus is a valid Firefox profile",
+);
+assert.equal(
+  pickLectureExportProfile({ videoCodecs: [], audioCodecs: ["opus"] }),
+  null,
+  "audio alone cannot export",
 );
 
 assert.equal(
@@ -135,8 +177,66 @@ assert.equal(
   true,
   "an explicit cancel stops export",
 );
+assert.equal(
+  lectureExportCancelRevealedOnEnter("mouse"),
+  true,
+  "hovering the download control must show Cancel",
+);
+assert.equal(
+  lectureExportCancelRevealedOnEnter("touch"),
+  false,
+  "a touch must not cancel until the control is tapped again",
+);
+assert.equal(
+  lectureExportCancelPressAction(false),
+  "reveal",
+  "the first tap while exporting reveals Cancel",
+);
+assert.equal(
+  lectureExportCancelPressAction(true),
+  "cancel",
+  "the second tap, or a click after hover, cancels the download",
+);
+
+assert.deepEqual(
+  planLectureEncodeSpans([true, false, false, true, false]),
+  [
+    { start: 0, count: 3 },
+    { start: 3, count: 2 },
+  ],
+  "still board time collapses to one encoded sample",
+);
+assert.deepEqual(
+  planLectureEncodeSpans([true, true, true]),
+  [
+    { start: 0, count: 1 },
+    { start: 1, count: 1 },
+    { start: 2, count: 1 },
+  ],
+  "moving ink keeps a sample per changed frame",
+);
+assert.equal(lectureFramesLookSame(null, new Uint8ClampedArray([1, 2, 3])), false);
+assert.equal(
+  lectureFramesLookSame(new Uint8ClampedArray([1, 2, 3]), new Uint8ClampedArray([1, 2, 3])),
+  true,
+);
+assert.equal(
+  lectureFramesLookSame(new Uint8ClampedArray([1, 2, 3]), new Uint8ClampedArray([1, 2, 9])),
+  false,
+);
+assert.equal(lectureExportProgressLabel({ currentMs: 0, totalMs: 273000, phase: "audio" }), "Preparing…");
+assert.equal(lectureExportProgressLabel({ currentMs: 54600, totalMs: 273000, phase: "video" }), "20%");
+assert.equal(lectureExportProgressLabel({ currentMs: 273000, totalMs: 273000, phase: "mux" }), "Saving…");
+assert.equal(
+  lectureExportCacheKey({
+    id: "turn-1",
+    segments: [{ audioUrl: "blob:a" }, { audioUrl: null }],
+  }),
+  "turn-1:2:blob:a|",
+);
 
 assert.equal(lectureDownloadFilename("Find v for the lens"), "lecture-find-v-for-the-lens.mp4");
+assert.equal(lectureDownloadFilename("Find v for the lens", "webm"), "lecture-find-v-for-the-lens.webm");
 assert.equal(lectureDownloadFilename("   "), "lecture-question.mp4");
 
 const short = new Float32Array([0.1, 0.2, 0.3]);
@@ -247,7 +347,7 @@ assert.equal(shouldHideCursorForCapture("frame"), false, "lecture frames keep th
 
 void main()
   .then(() => {
-    console.log("verify-lecture-mp4: single-turn timeline, audio pad/trim, cancel guards");
+    console.log("verify-lecture-mp4: still-frame collapse, progress copy, Firefox profile, audio pad/trim");
   })
   .catch((error: unknown) => {
     console.error(error);

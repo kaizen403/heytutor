@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { BoardHistory, SIDEBAR_WIDTH } from "@/features/tutor-session/components/BoardHistory";
+import { AppShell } from "@/features/app-shell/AppShell";
+import { toShellProfile, useAccountMe } from "@/features/app-shell/useAccountMe";
+import {
+  lessonSettingsFromAccount,
+  readSettingsCache,
+  writeSettingsCache,
+} from "@/lib/account/userSettings";
+import { firstName, parseSubjects, profileSubtitle } from "@/lib/account/types";
+import { suggestionsForSubjects } from "@/lib/account/homeSuggestions";
 import {
   Sheet,
   SheetContent,
@@ -13,14 +21,8 @@ import {
   DEFAULT_SETTINGS,
   getMarkerColorHex,
   type SettingsState,
-  SPEED_MIN,
-  SPEED_MAX,
-  isMarkerColorId,
-  isTutorAccent,
-  isTutorAudioLanguage,
 } from "@/features/tutor-session/components/SettingsDrawer";
 import {
-  familiarityFromStoredValue,
   toVoiceKey,
   type SubjectFamiliarity,
   type TutorVoicePreferences,
@@ -33,6 +35,8 @@ import { LandingPixelField } from "@/features/tutor-session/components/LandingPi
 import { type ReplayCue } from "@/lib/replay/replayTimeline";
 import type { WhiteboardHandle, CursorState } from "@heytutor/whiteboard";
 import { useIsCompactNav, useIsMobile } from "@/lib/client/useMediaQuery";
+import { useVisualViewportInset } from "@/lib/client/useVisualViewportInset";
+import { useLockWindowScrollOnFocus } from "@/lib/client/useLockWindowScrollOnFocus";
 import { ThinkingOverlay } from "./components/ThinkingOverlay";
 import { BoardBootSpinner } from "./components/BoardBootSpinner";
 import { SessionInputChrome } from "./components/SessionInputChrome";
@@ -73,7 +77,6 @@ import {
   PAGE_GUTTER_X,
   PAGE_GUTTER_Y,
   NOTES_CHAT_RAIL_WIDTH,
-  LANDING_SUGGESTIONS,
   BOARD_WIDTH,
   BOARD_HEIGHT,
 } from "./constants";
@@ -82,7 +85,11 @@ import type { TutorPhase, SegmentPlanStats } from "./types";
 import { createEmptySegmentPlanStats } from "./lib/turn/segmentPlanning";
 import { lessonFollowUpMode } from "./lib/turn/lessonFollowUp";
 import { buildLessonNotes } from "./lib/notes/lessonNotes";
-import { buildMarkedDoubtPrompt } from "./lib/board/boardMarking";
+import { sessionCapabilities, type TutorSessionVariant } from "./lib/sessionCapabilities";
+import { buildMarkedDoubtPrompt, summarizeMarks, type BoardMark } from "./lib/board/boardMarking";
+import { DOUBT_THINKING_FALLBACK, doubtThinkingAnchor } from "./lib/board/doubtAnchor";
+import { doubtTurnTitle, isDoubtPrompt } from "./lib/input/askDoubt";
+import type { BoardPageRecord, PageTurnKind } from "./lib/turn/doubtTurn";
 import type { NotesChatTag } from "./lib/notes/notesChatTag";
 import { canStartStoredLectureReplay } from "./lib/replay/autoReplay";
 
@@ -97,14 +104,6 @@ const ACCENT_STORAGE_KEY = "htutor_accent";
 const NARRATION_STORAGE_KEY = "htutor_narration";
 const LOW_LATENCY_STORAGE_KEY = "htutor_low_latency_voice";
 
-function readStoredSetting(key: string): string | null {
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
 function writeStoredSetting(key: string, value: string): void {
   try {
     window.localStorage.setItem(key, value);
@@ -113,7 +112,7 @@ function writeStoredSetting(key: string, value: string): void {
   }
 }
 
-export type TutorSessionVariant = "full" | "headless" | "embed";
+export type { TutorSessionVariant } from "./lib/sessionCapabilities";
 
 export type TutorSessionError = {
   message: string;
@@ -158,6 +157,13 @@ export type TutorSessionShellProps = {
   /** Admin Watch (and other embeds) mount the same Replay / Notes PDF / MP4 actions. */
   onExportApi?: (api: TutorSessionExportApi | null) => void;
   /**
+   * Controlled Ask panel. A host that carries its own Notes control — admin
+   * Watch has one in the drawer header — drives the same panel the pull tab on
+   * the board's edge opens, rather than mounting a second, poorer one.
+   */
+  notesOpen?: boolean;
+  onNotesOpenChange?: (open: boolean) => void;
+  /**
    * Slot on the deck between the board and the transport bar, full width of the
    * board column. Outside `.wb-frame`, so its contents render at natural scale
    * rather than inside the board's transform — which is what a surface needs
@@ -185,11 +191,22 @@ export function TutorSessionShell({
   onComplete,
   onError,
   onExportApi,
+  notesOpen: notesOpenProp,
+  onNotesOpenChange,
   belowBoardPanel,
 }: TutorSessionShellProps) {
   const router = useRouter();
+  const accountMe = useAccountMe();
   const isHeadless = variant === "headless";
-  const isEmbed = variant === "embed";
+  /**
+   * What this surface may do, and — separately — whether it draws the app
+   * frame. Admin Watch is a `panel`: the whole lesson, inside a drawer that
+   * brings its own header, so everything below keys off the capability rather
+   * than off "is this the main page".
+   */
+  const can = sessionCapabilities(variant);
+  /** No sidebar, no session header: the surface brings its own frame. */
+  const frameless = !can.appChrome && !isHeadless;
   const mutePlayback = isHeadless ? (muteAudio ?? true) : (muteAudio ?? false);
   /** Admin Watch drives the rate through props; only the student's own choice persists. */
   const speedIsControlled = playbackRate !== undefined;
@@ -245,17 +262,33 @@ export function TutorSessionShell({
   const speedRef = useRef(DEFAULT_REPLAY_SPEED);
   const fastModeRef = useRef(true);
   const familiarityRef = useRef<SubjectFamiliarity>(DEFAULT_SETTINGS.familiarity);
+  const teachingPrefsRef = useRef({
+    teachingNote: "",
+    alwaysShowUnits: false,
+    alwaysStateLawFirst: false,
+  });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH);
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [liveQuestion, setLiveQuestion] = useState("");
   const liveQuestionRef = useRef("");
+  /** The page on the board and the turn teaching on it; see `lib/turn/doubtTurn`. */
+  const boardPageRef = useRef<BoardPageRecord | null>(null);
+  /** A stopped replay left the board on one of its pages; see the turn types. */
+  const boardShowsStoppedReplayRef = useRef(false);
+  /** A doubt is thought about over its own page; a lesson over clean paper. */
+  const [liveTurnKind, setLiveTurnKind] = useState<PageTurnKind>("lesson");
+  /** The student's rings, kept on the page while the tutor thinks about them. */
+  const [heldDoubtMarks, setHeldDoubtMarks] = useState<BoardMark[]>([]);
+  /** Where the clicker sits while a doubt is thought about. Board units. */
+  const [doubtThinkingAt, setDoubtThinkingAt] = useState<{ x: number; y: number } | null>(null);
   /** null = follow the automatic rule; true/false = the student decided. */
   const [notesOpenOverride, setNotesOpenOverride] = useState<boolean | null>(null);
   const isCompactNav = useIsCompactNav();
   const isMobile = useIsMobile();
+  const keyboardInset = useVisualViewportInset();
+  useLockWindowScrollOnFocus(!isHeadless);
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayProgressMs, setReplayProgressMs] = useState(0);
   // Written by the session hooks; nothing reads it since the transport went.
@@ -273,68 +306,75 @@ export function TutorSessionShell({
     onPhase?.(phase);
   }, [phase, onPhase]);
 
+  // A page record describes the page the live turns drew. Another board, or a
+  // replay redrawing this one from saved turns, is a different page: a doubt
+  // asked over it reads the saved turns instead.
+  useEffect(() => {
+    boardPageRef.current = null;
+    boardShowsStoppedReplayRef.current = false;
+  }, [sessionId]);
+  useEffect(() => {
+    if (!isReplaying) return;
+    boardPageRef.current = null;
+    // A replay that runs to the end leaves the last saved page up; only one
+    // stopped part way through sets this again (in `stopTurn`).
+    boardShowsStoppedReplayRef.current = false;
+  }, [isReplaying]);
+
   useEffect(() => {
     if (isHeadless || typeof window === "undefined") {
       return;
     }
-    const overrides: Partial<SettingsState> = {};
-
-    if (readStoredSetting(FAST_MODE_STORAGE_KEY) === "0") {
-      overrides.fastMode = false;
-      fastModeRef.current = false;
+    const cache = readSettingsCache();
+    if (speedIsControlled) {
+      delete cache.speedMultiplier;
     }
-    // Subtitles ship off; only an explicit opt-in turns them back on.
-    if (readStoredSetting(SUBTITLES_STORAGE_KEY) === "1") {
-      overrides.subtitlesEnabled = true;
-    }
-    const storedSpeed = Number(readStoredSetting(SPEED_STORAGE_KEY));
-    if (
-      !speedIsControlled &&
-      Number.isFinite(storedSpeed) &&
-      storedSpeed >= SPEED_MIN &&
-      storedSpeed <= SPEED_MAX
-    ) {
-      overrides.speedMultiplier = storedSpeed;
-    }
-    const storedMarkerColor = readStoredSetting(MARKER_COLOR_STORAGE_KEY);
-    if (isMarkerColorId(storedMarkerColor)) {
-      overrides.markerColor = storedMarkerColor;
-    }
-    // Reads back a pre-rename "concise|standard|thorough" as its level.
-    const storedLevel = familiarityFromStoredValue(readStoredSetting(FAMILIARITY_STORAGE_KEY));
-    if (storedLevel) {
-      overrides.familiarity = storedLevel;
-      familiarityRef.current = storedLevel;
-    }
-    const storedLanguage = readStoredSetting(AUDIO_LANGUAGE_STORAGE_KEY);
-    if (isTutorAudioLanguage(storedLanguage)) {
-      overrides.audioLanguage = storedLanguage;
-    }
-    const storedAccent = readStoredSetting(ACCENT_STORAGE_KEY);
-    if (isTutorAccent(storedAccent)) {
-      overrides.accent = storedAccent;
-    }
-    // Narration ships on; only an explicit opt-out silences it.
-    if (readStoredSetting(NARRATION_STORAGE_KEY) === "0") {
-      overrides.narrationEnabled = false;
-    }
-    if (readStoredSetting(LOW_LATENCY_STORAGE_KEY) === "1") {
-      overrides.lowLatencyVoice = true;
-    }
-
-    if (Object.keys(overrides).length > 0) {
+    if (Object.keys(cache).length > 0) {
+      if (cache.fastMode === false) fastModeRef.current = false;
+      if (cache.familiarity) familiarityRef.current = cache.familiarity;
       // Read after mount so SSR HTML stays the production default.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSettings((current) => ({ ...current, ...overrides }));
+      setSettings((current) => ({ ...current, ...cache }));
     }
-    const language = overrides.audioLanguage ?? DEFAULT_SETTINGS.audioLanguage;
-    const accent = overrides.accent ?? DEFAULT_SETTINGS.accent;
-    const lowLatency = overrides.lowLatencyVoice ?? DEFAULT_SETTINGS.lowLatencyVoice;
+    const language = cache.audioLanguage ?? DEFAULT_SETTINGS.audioLanguage;
+    const accent = cache.accent ?? DEFAULT_SETTINGS.accent;
+    const lowLatency = cache.lowLatencyVoice ?? DEFAULT_SETTINGS.lowLatencyVoice;
     voicePreferencesRef.current = {
       voiceKey: toVoiceKey(language, accent),
       lowLatency,
     };
-    setSettingsHydrated(true);
+
+    let cancelled = false;
+    void fetch("/api/account/settings")
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return (await response.json()) as { settings?: Parameters<typeof lessonSettingsFromAccount>[0] };
+      })
+      .then((data) => {
+        if (cancelled || !data?.settings) return;
+        const next = lessonSettingsFromAccount(data.settings);
+        teachingPrefsRef.current = {
+          teachingNote: data.settings.teachingNote,
+          alwaysShowUnits: data.settings.alwaysShowUnits,
+          alwaysStateLawFirst: data.settings.alwaysStateLawFirst,
+        };
+        if (speedIsControlled) {
+          next.speedMultiplier = speedRef.current;
+        }
+        setSettings(next);
+        writeSettingsCache(next);
+        fastModeRef.current = next.fastMode;
+        familiarityRef.current = next.familiarity;
+      })
+      .catch(() => {
+        /* cache remains the lesson sheet until the server answers */
+      })
+      .finally(() => {
+        if (!cancelled) setSettingsHydrated(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [isHeadless, speedIsControlled]);
 
   useEffect(() => {
@@ -401,6 +441,30 @@ export function TutorSessionShell({
   ]);
 
   useEffect(() => {
+    if (!settingsHydrated || !can.persistSettings) return;
+    writeSettingsCache(settings);
+    const timer = window.setTimeout(() => {
+      void fetch("/api/account/settings", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(settings),
+      }).catch(() => {
+        /* local cache still holds the last choice */
+      });
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [settings, settingsHydrated, can.persistSettings]);
+
+  useEffect(() => {
+    if (!accountMe?.settings) return;
+    teachingPrefsRef.current = {
+      teachingNote: accountMe.settings.teachingNote,
+      alwaysShowUnits: accountMe.settings.alwaysShowUnits,
+      alwaysStateLawFirst: accountMe.settings.alwaysStateLawFirst,
+    };
+  }, [accountMe]);
+
+  useEffect(() => {
     // A headless/muted embed stays silent regardless of the student's choice.
     ttsClientRef.current?.setMuted?.(mutePlayback || !settings.narrationEnabled);
     if (!settingsHydrated || isHeadless || typeof window === "undefined") {
@@ -432,20 +496,25 @@ export function TutorSessionShell({
   }, [autoReplay]);
 
   /*
-    A live turn keeps the marker on `thinking` so it stays visible and runs
-    the spin that is already on the whiteboard. `idle` is opacity 0 — that
-    is only for after a turn finishes.
+    Planning and the wait for the first teaching token cover the board with
+    the pending clicker. The Konva marker stays down (`idle`) so its contact
+    shadow and idle fidget cannot sit on empty paper under that overlay.
 
-    Speaking and drawing used to map to `drawing` here. The React prop then
-    overwrote every imperative walk the moment TTS started, so the close of
-    a code lesson left a still (or invisible) pen while the tutor kept talking.
+    Once the lesson is speaking or drawing, the React prop stays on
+    `thinking` so it cannot overwrite an imperative walk — mapping those
+    phases to `drawing` used to freeze the pen the moment TTS started.
+    `idle` is opacity 0, and is only for after a turn finishes.
   */
+  const waitingToTeach = phase === "planning" || phase === "thinking";
   const cursorState: CursorState =
     phase === "idle" && !isReplaying
       ? "idle"
       : isReplaying
         ? "drawing"
-        : "thinking";
+        : waitingToTeach
+          ? "idle"
+          : "thinking";
+  const pendingInk = getMarkerColorHex(settings.markerColor);
 
   const { cancellableDelay, raceWithCancel, clearCancelTimers } = useCancelControl(cancelRef);
 
@@ -573,6 +642,9 @@ export function TutorSessionShell({
     executeCommand,
     skipInkRestoreRef,
     codeLessonControllerRef,
+    activeVerifiedDiagramRef,
+    setActiveVerifiedDiagram,
+    fbdPhaseStartedRef,
   });
 
   const {
@@ -604,6 +676,9 @@ export function TutorSessionShell({
     rewoundRef,
     conversationHistoryRef,
     liveQuestionRef,
+    boardPageRef,
+    boardShowsStoppedReplayRef,
+    setLiveTurnKind,
     ttsClientRef,
     replayAudioRef,
     replayAudioPreloadRef,
@@ -632,6 +707,7 @@ export function TutorSessionShell({
     speedRef,
     fastModeRef,
     familiarityRef,
+    teachingPrefsRef,
     pendingSegmentCountRef,
     narrationDensityRef,
     replayGenerationRef,
@@ -661,7 +737,7 @@ export function TutorSessionShell({
     revokeUnreferencedReplayBlobUrls,
   });
 
-  const notesEnabled = !isEmbed && !isHeadless;
+  const notesEnabled = can.notes;
   const lectureInProgress = phase !== "idle" && !isReplaying;
   /*
    * These four refs are the live turn buffers: `useTurnControl` pushes a
@@ -723,6 +799,9 @@ export function TutorSessionShell({
     setNotesSessionId(sessionId);
     setNotesOpenOverride(null);
     setLiveQuestion("");
+    setLiveTurnKind("lesson");
+    setHeldDoubtMarks([]);
+    setDoubtThinkingAt(null);
   }
 
   /*
@@ -732,11 +811,16 @@ export function TutorSessionShell({
     from the right that the student had not triggered. The pull tab on the
     right edge is now the only way in on desktop.
   */
-  const notesOpen = notesOpenOverride ?? false;
-  const setNotesOpen = setNotesOpenOverride;
+  const notesOpen = notesOpenProp ?? notesOpenOverride ?? false;
+  const setNotesOpen = (open: boolean): void => {
+    onNotesOpenChange?.(open);
+    if (notesOpenProp === undefined) {
+      setNotesOpenOverride(open);
+    }
+  };
 
   const toggleNotes = () => {
-    setNotesOpenOverride(!notesOpen);
+    setNotesOpen(!notesOpen);
   };
 
   const notesRailOpen = notesEnabled && notesOpen && !isMobile;
@@ -762,6 +846,9 @@ export function TutorSessionShell({
     replayAudioPreloadRef,
     storedTurnsRef,
     codeLessonControllerRef,
+    activeVerifiedDiagramRef,
+    setActiveVerifiedDiagram,
+    fbdPhaseStartedRef,
     replayGenerationRef,
     replayCueRef,
     ttsClientRef,
@@ -810,6 +897,7 @@ export function TutorSessionShell({
     storedTurnsRef,
     recordedSegmentsRef,
     liveQuestionRef,
+    boardPageRef,
     speedRef,
     livePausedRef: isPausedRef,
     rewoundRef,
@@ -873,7 +961,7 @@ export function TutorSessionShell({
     phase === "speaking" ||
     storedTurnsCount > 0 ||
     narrationText.trim().length > 0;
-  const canMark = !isEmbed && boardLoaded && !rewindActive && boardHasContent;
+  const canMark = can.marking && boardLoaded && !rewindActive && boardHasContent;
 
   const quietTutorForMarking = useCallback(() => {
     if (!rewindActive && !isPausedRef.current && phaseRef.current !== "idle") {
@@ -893,19 +981,59 @@ export function TutorSessionShell({
    * handed to the turn whole rather than being wrapped a second time. With no
    * marks this is the plain doubt path, unchanged.
    */
+  /** The doubt last asked: a retry asks it again, under its title, from its place. */
+  const lastDoubtRef = useRef<{ typed: string; title: string; at: { x: number; y: number } } | null>(
+    null,
+  );
   const submitDoubt = useCallback(
     (doubt: string) => {
       const marks = marking.marks;
+      // The page stays up while the tutor thinks, so the wait is shown on it:
+      // the student's rings stay where they drew them and a small clicker sits
+      // beside them, or at the row the answer starts on when nothing was marked.
+      const at = doubtThinkingAnchor(marks, boardLayoutRef.current, fbdPhaseStartedRef.current);
+      const title = doubtTurnTitle(doubt, summarizeMarks(marks));
+      lastDoubtRef.current = { typed: doubt, title, at };
+      setHeldDoubtMarks(marks);
+      setDoubtThinkingAt(at);
       if (marks.length === 0) {
         marking.disarm();
-        handleAskDoubt(doubt);
+        handleAskDoubt(doubt, { title });
         return;
       }
       const prompt = buildMarkedDoubtPrompt(marks, doubt, liveQuestionRef.current);
       marking.disarm();
-      handleAskDoubt(doubt, { prompt });
+      handleAskDoubt(doubt, { prompt, title });
     },
-    [handleAskDoubt, marking],
+    [boardLayoutRef, handleAskDoubt, marking],
+  );
+
+  // The rings are what the tutor is thinking about. They go when the answer
+  // starts, the tutor's own ink taking over from them, or when the doubt ends
+  // without one.
+  const doubtWaitSeenRef = useRef(false);
+  useEffect(() => {
+    if (heldDoubtMarks.length === 0 && doubtThinkingAt === null) return;
+    if (phase === "planning" || phase === "thinking") {
+      doubtWaitSeenRef.current = true;
+      return;
+    }
+    const answerStarted = phase === "speaking" || phase === "drawing";
+    const doubtEnded = phase === "idle" && (doubtWaitSeenRef.current || lastError !== null);
+    if (answerStarted || doubtEnded) {
+      doubtWaitSeenRef.current = false;
+      setHeldDoubtMarks([]);
+      setDoubtThinkingAt(null);
+    }
+  }, [doubtThinkingAt, heldDoubtMarks.length, lastError, phase]);
+
+  /** While the tutor thinks, the board keeps showing the rings the doubt was asked with. */
+  const boardMarking = useMemo(
+    () =>
+      marking.armed || heldDoubtMarks.length === 0
+        ? marking
+        : { ...marking, marks: heldDoubtMarks },
+    [heldDoubtMarks, marking],
   );
 
   /** A new question replaces the board the marks were about. */
@@ -982,6 +1110,49 @@ export function TutorSessionShell({
     haltRewind();
   });
 
+  const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
+  const canDownload = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
+  const canDownloadNotes =
+    boardLoaded && storedTurnsCount > 0 && !isDownloading && !isExportingLecture;
+  useEffect(() => {
+    if (!onExportApi) {
+      return;
+    }
+    onExportApi({
+      canReplay,
+      canDownload: frameless ? canDownloadNotes : canDownload,
+      canDownloadLecture,
+      isReplaying,
+      isDownloading,
+      isExportingLecture,
+      lectureExportProgress,
+      lectureExportError,
+      replayLecture,
+      downloadNotesPdf,
+      downloadLectureMp4,
+      cancelLectureExport,
+    });
+  }, [
+    onExportApi,
+    frameless,
+    canReplay,
+    canDownload,
+    canDownloadNotes,
+    canDownloadLecture,
+    isReplaying,
+    isDownloading,
+    isExportingLecture,
+    lectureExportProgress,
+    lectureExportError,
+    replayLecture,
+    downloadNotesPdf,
+    downloadLectureMp4,
+    cancelLectureExport,
+  ]);
+  useEffect(() => {
+    return () => onExportApi?.(null);
+  }, [onExportApi]);
+
   if (isHeadless) {
     return (
       <div
@@ -1001,60 +1172,21 @@ export function TutorSessionShell({
           cursorState={cursorState}
           inkColor={getMarkerColorHex(settings.markerColor)}
         />
-        {phase === "planning" && (
-          <ThinkingOverlay message="planning the diagram…" />
+        {waitingToTeach && (
+          <ThinkingOverlay
+            ink={pendingInk}
+            onBoardAt={
+              liveTurnKind === "lesson" ? null : (doubtThinkingAt ?? DOUBT_THINKING_FALLBACK)
+            }
+          />
         )}
-        {phase === "thinking" && <ThinkingOverlay />}
       </div>
     );
   }
 
   const activeBoard = boards.find((b) => b.id === sessionId);
   const activeBoardTitle = activeBoard?.title ?? "";
-  const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
-  const canDownload = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
-  /** Admin Watch auto-replays; Notes PDF can still export from stored turns. */
-  const canDownloadNotes =
-    boardLoaded && storedTurnsCount > 0 && !isDownloading && !isExportingLecture;
-  useEffect(() => {
-    if (!onExportApi) {
-      return;
-    }
-    onExportApi({
-      canReplay,
-      canDownload: isEmbed ? canDownloadNotes : canDownload,
-      canDownloadLecture,
-      isReplaying,
-      isDownloading,
-      isExportingLecture,
-      lectureExportProgress,
-      lectureExportError,
-      replayLecture,
-      downloadNotesPdf,
-      downloadLectureMp4,
-      cancelLectureExport,
-    });
-  }, [
-    onExportApi,
-    isEmbed,
-    canReplay,
-    canDownload,
-    canDownloadNotes,
-    canDownloadLecture,
-    isReplaying,
-    isDownloading,
-    isExportingLecture,
-    lectureExportProgress,
-    lectureExportError,
-    replayLecture,
-    downloadNotesPdf,
-    downloadLectureMp4,
-    cancelLectureExport,
-  ]);
-  useEffect(() => {
-    return () => onExportApi?.(null);
-  }, [onExportApi]);
-  const isInputOverlay = !isEmbed && phase === "idle" && boardLoaded && !inputInteracted;
+  const isInputOverlay = can.appChrome && phase === "idle" && boardLoaded && !inputInteracted;
   const inputSubmitMode = lessonFollowUpMode(storedTurnsCount > 0);
 
   const inputChrome = (
@@ -1069,6 +1201,7 @@ export function TutorSessionShell({
       onCancel={stopTurn}
       onUserInteractionChange={setInputInteracted}
       onOpenSettings={() => setSettingsOpen(true)}
+      compact={isMobile}
       familiarity={settings.familiarity}
       onFamiliarityChange={(familiarity) => setSettings((c) => ({ ...c, familiarity }))}
       canMark={canMark}
@@ -1104,55 +1237,8 @@ export function TutorSessionShell({
     ) : null);
   const framePad = isCompactNav ? 20 : 32;
 
-  return (
-    <div
-      className={
-        isEmbed
-          ? "relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
-          : "fx-aurora-soft relative flex h-dvh max-h-dvh min-w-0 overflow-hidden"
-      }
-      data-tutor-session={isEmbed ? "embed" : "full"}
-      style={isEmbed ? { background: "var(--wb-bg)" } : undefined}
-    >
-      {!isEmbed ? (
-        <>
-          <BoardHistory
-            boards={boards}
-            activeBoardId={sessionId}
-            busyBoardId={phase !== "idle" || isReplaying ? sessionId : null}
-            onSelect={switchBoard}
-            onNew={createNewBoard}
-            onDelete={deleteBoard}
-            onTogglePin={togglePinBoard}
-            onToggleArchive={toggleArchiveBoard}
-            onRename={renameBoard}
-            disabled={phase !== "idle"}
-            collapsed={sidebarCollapsed}
-            onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-            onWidthChange={setSidebarWidth}
-            onResizingChange={setSidebarResizing}
-            onOpenSettings={() => setSettingsOpen(true)}
-          />
-
-          <BoardHistory
-            busyBoardId={phase !== "idle" || isReplaying ? sessionId : null}
-            variant="drawer"
-            open={mobileNavOpen}
-            onOpenChange={setMobileNavOpen}
-            boards={boards}
-            activeBoardId={sessionId}
-            onSelect={switchBoard}
-            onNew={createNewBoard}
-            onDelete={deleteBoard}
-            onTogglePin={togglePinBoard}
-            onToggleArchive={toggleArchiveBoard}
-            onRename={renameBoard}
-            disabled={phase !== "idle"}
-            onOpenSettings={() => setSettingsOpen(true)}
-          />
-        </>
-      ) : null}
-
+  const sessionBody = (
+    <>
       {notesRailOpen ? (
         <div
           className="flex"
@@ -1160,10 +1246,12 @@ export function TutorSessionShell({
             position: "fixed",
             right: 0,
             top: 0,
-            zIndex: 40,
+            // Above a host overlay when there is one: admin Watch is a fixed
+            // drawer of its own, and a rail below it would open behind it.
+            zIndex: frameless ? 70 : 40,
             width: NOTES_CHAT_RAIL_WIDTH,
             height: "100dvh",
-            borderLeft: "1px solid rgba(202, 229, 241, 0.08)",
+            borderLeft: "1px solid rgba(255, 255, 255, 0.08)",
           }}
         >
           <NotesChatSidebar
@@ -1183,6 +1271,7 @@ export function TutorSessionShell({
           type="button"
           onClick={toggleNotes}
           className="wb-notes-pull"
+          style={frameless ? { zIndex: 69 } : undefined}
           aria-label="Open the Ask panel"
           aria-expanded={false}
           title="Ask me anything about this lesson"
@@ -1214,26 +1303,24 @@ export function TutorSessionShell({
 
       <div
         className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col ${
-          isEmbed ? "h-full" : ""
-        } ${
-          isEmbed ? "" : "md:mr-[var(--tutor-notes-width)] md:ml-[var(--tutor-sidebar-width)]"
+          frameless ? "h-full md:mr-[var(--tutor-notes-width)]" : "md:mr-[var(--tutor-notes-width)]"
         }`}
         style={{
-          ["--tutor-sidebar-width" as string]:
-            isEmbed || sidebarCollapsed ? "0px" : `${sidebarWidth}px`,
           ["--tutor-notes-width" as string]: notesRailOpen
             ? `${NOTES_CHAT_RAIL_WIDTH}px`
             : "0px",
-          paddingLeft: `max(${PAGE_GUTTER_X}px, env(safe-area-inset-left))`,
-          paddingRight: `max(${PAGE_GUTTER_X}px, env(safe-area-inset-right))`,
-          paddingTop: `max(12px, env(safe-area-inset-top))`,
-          paddingBottom: `max(12px, env(safe-area-inset-bottom))`,
+          paddingLeft: `max(${isMobile ? 6 : PAGE_GUTTER_X}px, env(safe-area-inset-left))`,
+          paddingRight: `max(${isMobile ? 6 : PAGE_GUTTER_X}px, env(safe-area-inset-right))`,
+          paddingTop: `max(${isMobile ? 6 : 12}px, env(safe-area-inset-top))`,
+          paddingBottom: keyboardInset > 0
+            ? `${keyboardInset}px`
+            : `max(${isMobile ? 8 : 12}px, env(safe-area-inset-bottom))`,
           transition: sidebarResizing
             ? "none"
             : "margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1), margin-right 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
-        {!isEmbed ? (
+        {can.appChrome ? (
           <SessionHeader
             showNavButton
             navButtonClassName={sidebarCollapsed ? undefined : "md:hidden"}
@@ -1277,15 +1364,21 @@ export function TutorSessionShell({
             {fullBleedLanding && (
               <div className="glass-deep absolute inset-0 z-20 flex flex-col overflow-hidden rounded-2xl">
                 <LandingPixelField />
-                <div className="relative z-10 flex min-h-full w-full flex-col [justify-content:safe_center] px-4 py-4 sm:px-8 sm:py-5">
+                <div className="relative z-10 flex min-h-full w-full flex-col [justify-content:safe_center] px-3 py-3 sm:px-8 sm:py-5">
                   <CanvasLanding
-                    suggestions={LANDING_SUGGESTIONS}
+                    suggestions={suggestionsForSubjects(parseSubjects(accountMe?.profile?.subjects))}
                     onSubmit={(question) => void handleQuestion(question)}
                     onOpenSettings={() => setSettingsOpen(true)}
                     familiarity={settings.familiarity}
                     onFamiliarityChange={(familiarity) =>
                       setSettings((c) => ({ ...c, familiarity }))
                     }
+                    greeting={
+                      accountMe?.profile
+                        ? `What are you stuck on, ${firstName(accountMe.profile.name, accountMe.profile.email)}?`
+                        : undefined
+                    }
+                    goalLabel={accountMe?.profile ? profileSubtitle(accountMe.profile) : null}
                   />
                 </div>
                 <CanvasLandingDoodles />
@@ -1312,17 +1405,16 @@ export function TutorSessionShell({
             )}
 
             {/* The board's off-state: while the Konva chunk loads, the paper
-                must not show. The face is opaque navy (the bezel's own
-                language) with the sky boot arc — the same 252° sweep the
+                must not show. The face is the bezel's own matte grey,
+                unmarked, with the boot arc on it: the same 252° sweep the
                 on-canvas ThinkingSpinner draws, so boot → thinking reads as
                 one pending family. It stays mounted and fades out when the
                 board reports ready: no hard cut, no white flash. */}
             <div
-              className="wb-boot-face absolute inset-0 z-30 flex items-center justify-center"
+              className="wb-boot-face fx-grain absolute inset-0 z-30 flex items-center justify-center"
               data-hidden={boardLoaded || undefined}
               aria-hidden={boardLoaded || undefined}
             >
-              <div className="fx-grid-fine absolute inset-0" />
               <div className="relative flex flex-col items-center gap-3">
                 <BoardBootSpinner label="Loading the board" />
                 <p className="type-accent-xs wb-boot-label animate-wb-breathe">
@@ -1331,7 +1423,7 @@ export function TutorSessionShell({
               </div>
             </div>
 
-            {isEmbed && boardLoaded && storedTurnsCount === 0 ? (
+            {!can.appChrome && boardLoaded && storedTurnsCount === 0 && !can.askQuestions ? (
               <div className="absolute inset-0 z-20 flex items-center justify-center">
                 <p className="wb-scrim-ink-soft text-sm font-medium">No saved lecture on this board.</p>
               </div>
@@ -1348,14 +1440,17 @@ export function TutorSessionShell({
               </div>
             )}
 
-            {/* The live turn may well be thinking about its next step, but the
-                student is looking at an earlier part of the lecture — don't
-                curtain off the board they are actually watching. */}
-            {phase === "planning" && !rewindActive && (
-              <ThinkingOverlay message="planning the diagram…" />
+            {/* A rewound lecture is the past: don't cover the board they
+                are actually watching with the pending clicker. */}
+            {waitingToTeach && !rewindActive && (
+              <ThinkingOverlay
+                ink={pendingInk}
+                onBoardAt={
+                  liveTurnKind === "lesson" ? null : (doubtThinkingAt ?? DOUBT_THINKING_FALLBACK)
+                }
+                scale={boardViewport.scale}
+              />
             )}
-
-            {phase === "thinking" && !rewindActive && <ThinkingOverlay />}
 
             <SessionBoardCanvas
               boardViewport={boardViewport}
@@ -1374,10 +1469,18 @@ export function TutorSessionShell({
               rewindSegmentText={rewindSegmentText}
               verifiedDiagram={activeVerifiedDiagram}
               codeLessonPanel={<CodeLessonPanel controller={codeLessonController} />}
-              marking={marking}
+              marking={boardMarking}
               onRetraceEntity={handleRetraceEntity}
               onRetryError={(question) => {
                 setLastError(null);
+                // A failed doubt is asked again as a doubt, on the same page,
+                // under the same title and from the same place.
+                if (isDoubtPrompt(question)) {
+                  const last = lastDoubtRef.current;
+                  if (last) setDoubtThinkingAt(last.at);
+                  handleAskDoubt(last?.typed ?? "", { prompt: question, title: last?.title });
+                  return;
+                }
                 void handleQuestion(question);
               }}
               onDismissError={() => setLastError(null)}
@@ -1395,16 +1498,16 @@ export function TutorSessionShell({
           </div>
         </main>
 
-        {!isEmbed && !isInputOverlay && (
+        {can.askQuestions && !isInputOverlay && (
           <footer
             className="relative shrink-0"
-            style={{ paddingTop: PAGE_GUTTER_Y }}
+            style={{ paddingTop: isMobile ? 4 : PAGE_GUTTER_Y }}
           >
             {inputChrome}
           </footer>
         )}
 
-        {!isEmbed ? (
+        {can.settings ? (
           <SettingsDrawer
             open={settingsOpen}
             onOpenChange={setSettingsOpen}
@@ -1413,6 +1516,43 @@ export function TutorSessionShell({
           />
         ) : null}
       </div>
-    </div>
+    </>
+  );
+
+  if (frameless) {
+    return (
+      <div
+        className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+        data-tutor-session={variant}
+        style={{ background: "var(--wb-bg)" }}
+      >
+        {sessionBody}
+      </div>
+    );
+  }
+
+  return (
+    <AppShell
+      variant="session"
+      boards={boards}
+      activeBoardId={sessionId}
+      busyBoardId={phase !== "idle" || isReplaying ? sessionId : null}
+      onSelect={switchBoard}
+      onNew={createNewBoard}
+      onDelete={deleteBoard}
+      onTogglePin={togglePinBoard}
+      onToggleArchive={toggleArchiveBoard}
+      onRename={renameBoard}
+      disabled={phase !== "idle"}
+      profile={toShellProfile(accountMe?.profile)}
+      onOpenLessonSettings={() => setSettingsOpen(true)}
+      sidebarCollapsed={sidebarCollapsed}
+      onSidebarCollapsedChange={setSidebarCollapsed}
+      mobileNavOpen={mobileNavOpen}
+      onMobileNavOpenChange={setMobileNavOpen}
+      onSidebarResizingChange={setSidebarResizing}
+    >
+      {sessionBody}
+    </AppShell>
   );
 }

@@ -16,8 +16,19 @@ export interface ResolvedCodeLessonSegments {
 }
 
 export interface ConductorOptions {
-  /** Total worked-example frames; frame 1 is already on the board. */
+  /** Total worked-example frames; none are on the board until the first FOCUS. */
   frameCount?: number;
+  /**
+   * Blocks already typed on the panel, so a resume after a doubt does not
+   * reveal them again. The conductor starts at the first block that is not
+   * in this list.
+   */
+  alreadyRevealedBlockIds?: readonly string[];
+  /**
+   * Walk-through frames already on the board. A resume after a doubt must not
+   * rewind the figure to frame 1.
+   */
+  framesAlreadyShown?: number;
   /**
    * Frame ids in order, so a [FOCUS] naming the frame already on the board
    * holds it there. Without them every focus advanced the walk by one, and a
@@ -104,19 +115,28 @@ export function createCodeLessonConductor(
 ): CodeLessonConductor {
   // The canonical order. Anything the model asks for is matched against this.
   const order = plan.sections.flatMap((section) => section.blocks.map((block) => block.id));
-  const revealed = new Set<string>();
+  const revealed = new Set(options.alreadyRevealedBlockIds ?? []);
+  let nextBlock = 0;
+  while (nextBlock < order.length && revealed.has(order[nextBlock]!)) {
+    nextBlock += 1;
+  }
   const frameCount = Math.max(options.frameCount ?? 0, 0);
   const frameFocusIds = options.frameFocusIds ?? [];
   const frameIds = options.frameIds ?? [];
   const framePointIds = options.framePointIds ?? options.frameFocusIds ?? [];
   const fallbackPointIds = options.fallbackPointIds ?? [];
+  const framesAlreadyShown = Math.min(
+    Math.max(options.framesAlreadyShown ?? 0, 0),
+    frameCount,
+  );
 
-  // Frame 1 is drawn as the turn's intro, so the walk starts one frame in.
+  // The first frame is not dumped at the start of the turn: the opening
+  // writes the problem, then the first FOCUS draws frame 1 as intro ink.
   const state: ConductorState = {
     order,
     revealed,
-    nextBlock: 0,
-    framesShown: frameCount > 0 ? 1 : 0,
+    nextBlock,
+    framesShown: framesAlreadyShown,
     frameCount,
     frameFocusIds,
     framePointIds,
@@ -167,6 +187,18 @@ export function createCodeLessonConductor(
  * left, and forbidding a recap, is what makes the continuation finish the
  * lesson rather than start it again.
  */
+/** Block ids whose full source is already on the panel. */
+export function fullyRevealedBlockIds(
+  plan: CodeLessonPlan,
+  revealedChars: Readonly<Record<string, number>>,
+): string[] {
+  return plan.sections.flatMap((section) =>
+    section.blocks
+      .filter((block) => (revealedChars[block.id] ?? 0) >= block.code.length)
+      .map((block) => block.id),
+  );
+}
+
 export function codeLessonResumeNote(
   progress: CodeLessonProgress,
   plan: CodeLessonPlan,
@@ -203,7 +235,7 @@ interface ConductorState {
   order: string[];
   revealed: Set<string>;
   nextBlock: number;
-  /** Frames of the walk-through already on the board, including frame 1. */
+  /** Frames of the walk-through already on the board. 0 until the first FOCUS. */
   framesShown: number;
   frameCount: number;
   frameFocusIds: string[][];
@@ -222,8 +254,72 @@ interface ConductorState {
   pending: DrawCommand[];
 }
 
-function frameCommand(): DrawCommand {
-  return { type: "FRAME", params: [], charPosition: 0, narrationBefore: "" };
+/**
+ * How a frame advance should spend the sentence it sits under.
+ *
+ * `figure_beat`: the step is about this frame. The board redraws at hand
+ * speed and then the pen walks the cells the voice names for the rest of the
+ * sentence, halting when it names the spotlight's target so the FOCUS after
+ * it fires on that word rather than at the end. `catch_up`: the frame was
+ * inserted beside a code block; it redraws and hands the sentence straight
+ * back to the TYPE that owns it. A FRAME with neither (a persisted recording
+ * from before this existed) redraws and does nothing more.
+ */
+export type FrameAdvanceRole = "figure_beat" | "catch_up";
+
+function frameCommand(role: FrameAdvanceRole, focusIds: readonly string[] = []): DrawCommand {
+  return {
+    type: "FRAME",
+    params: [],
+    charPosition: 0,
+    narrationBefore: "",
+    semanticRef: { entityId: focusIds.join(","), actionId: role },
+  };
+}
+
+/** The role the conductor gave a frame advance, or null for a bare FRAME. */
+export function frameAdvanceRole(command: DrawCommand): FrameAdvanceRole | null {
+  const role = command.semanticRef?.actionId;
+  return role === "figure_beat" || role === "catch_up" ? role : null;
+}
+
+/**
+ * Where the marker stands on a spoken-only beat.
+ *
+ * Before any frame is on the board the opening notes are the only ink, so
+ * those ids win. After a frame is up, the frame's own stops win and the
+ * opening notes are not a fallback: pointing at the title while walking the
+ * example reads as a stalled figure.
+ */
+function spokenPointStops(state: ConductorState): readonly string[] {
+  if (state.frameCount === 0 || state.framesShown <= 0) {
+    return state.fallbackPointIds;
+  }
+  const at = state.framesShown - 1;
+  return [state.framePointIds[at], state.frameFocusIds[at]]
+    .find((ids) => (ids?.length ?? 0) > 0) ?? [];
+}
+
+const FIGURE_INTRO_TRIGGERS = new Set(["FOCUS", "FRAME", "TYPE"]);
+
+/**
+ * Place the delayed frame-1 intro just before the first figure or code beat.
+ *
+ * Opening WRITE rows stay first. If the teaching stream never names a frame
+ * or a block, the intro still appends so the student is not left with notes
+ * and no example.
+ */
+export function placeDsaFigureIntro(
+  given: TutorSegment[],
+  intro: TutorSegment[],
+  teaching: TutorSegment[],
+): TutorSegment[] {
+  if (intro.length === 0) return [...given, ...teaching];
+  const index = teaching.findIndex((segment) =>
+    getSegmentCommands(segment).some((command) => FIGURE_INTRO_TRIGGERS.has(command.type)),
+  );
+  if (index < 0) return [...given, ...teaching, ...intro];
+  return [...given, ...teaching.slice(0, index), ...intro, ...teaching.slice(index)];
 }
 
 /**
@@ -325,11 +421,16 @@ function runConductor(
 
         // Has the figure fallen behind the even spread? Only true when the
         // model went straight to code without narrating the walk-through.
+        // Frame 1 is the delayed intro, not a FRAME command, so count it
+        // shown before spreading the remaining advances.
+        if (state.framesShown === 0 && state.frameCount > 0) {
+          state.framesShown = 1;
+        }
         if (
           state.framesShown < state.frameCount &&
           state.nextBlock >= Math.round(state.framesShown * state.blocksPerAdvance)
         ) {
-          commands.push(frameCommand());
+          commands.push(frameCommand("catch_up"));
           state.framesShown += 1;
           state.insertedFrames += 1;
         }
@@ -361,19 +462,28 @@ function runConductor(
         // one advances to it. Counting focus tags instead meant a second step
         // about the same frame silently moved the picture on.
         state.figureBeats += 1;
+        // The runtime draws frame 1 as delayed intro ink on this first FOCUS.
+        // Counting it shown here, without a FRAME, keeps later advances on
+        // frames 2..n the way persisted recordings already expect.
+        if (state.framesShown === 0 && state.frameCount > 0) {
+          state.framesShown = 1;
+        }
         const named = frameIndexFromFocus(command, state.frameIds);
         const wantFrame = named !== null
           ? Math.max(named, state.framesShown - 1)
           : state.figureBeats - 1;
+        const advances: DrawCommand[] = [];
         while (state.framesShown - 1 < wantFrame && state.framesShown < state.frameCount) {
-          commands.push(frameCommand());
+          advances.push(frameCommand("catch_up"));
           state.framesShown += 1;
           state.insertedFrames += 1;
         }
-        const retargeted = focusOnFrame(
-          command,
-          state.frameFocusIds[state.framesShown - 1] ?? [],
-        );
+        const focusIds = state.frameFocusIds[state.framesShown - 1] ?? [];
+        // Only the frame the step lands on is the figure beat; frames skipped
+        // over on the way are redrawn and left behind.
+        if (advances.length > 0) advances[advances.length - 1] = frameCommand("figure_beat", focusIds);
+        commands.push(...advances);
+        const retargeted = focusOnFrame(command, focusIds);
         if (retargeted) commands.push(retargeted);
         continue;
       }
@@ -397,14 +507,10 @@ function runConductor(
       continue;
     }
     if (commands.length === 0 && !narrated) continue;
-    // A spoken step with nothing to do leaves the board still. Point the
-    // marker at whatever the frame currently on the board is about.
+    // A spoken step with nothing to do leaves the board still. Before the
+    // figure is up, that is the opening notes; afterwards it is the frame.
     if (narrated && commands.length === 0 && state.pending.length === 0) {
-      const at = Math.max(state.framesShown - 1, 0);
-      // First non-empty wins: an opening frame can have no focus targets, and
-      // `??` would stop at the empty array rather than reaching the fallback.
-      const stops = [state.framePointIds[at], state.frameFocusIds[at], state.fallbackPointIds]
-        .find((ids) => (ids?.length ?? 0) > 0) ?? [];
+      const stops = spokenPointStops(state);
       const point = pointCommand(stops);
       if (point) commands.push(point);
     }

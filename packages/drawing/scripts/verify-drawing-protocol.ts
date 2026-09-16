@@ -13,7 +13,10 @@ import {
   resolveWorkAreaRow,
   hitTestVerifiedAnchor,
   spokenFocusTarget,
+  takeDeferredAnnotations,
+  getSegmentCommands,
   textToStrokePaths,
+  type DrawCommand,
   type TutorSegment,
   type VerifiedDiagram,
 } from "../src/index";
@@ -228,6 +231,125 @@ assert(
   /notice/i.test(circledImage.segments[0]?.narration ?? ""),
   "a stripped circle sentence must still leave a spoken notice cue",
 );
+
+// A withheld label is lettered when its name is spoken, never when a WRITE
+// row happens to contain its letter. On the mirror lesson "Given: f = 15 cm"
+// released C, F, M and I under the row (single letters match any row) and
+// they were gone before the FOCUS that named them. Only an entity id releases.
+{
+  const withheld = (): VerifiedDiagram => ({
+    id: "verified_scene",
+    name: "mirror",
+    commands: [],
+    anchors: [],
+    reveals: [],
+    promptAddon: "",
+    deferredAnnotations: [
+      { entityId: "C", commands: [{ type: "LABEL", params: [500, 300, 20], text: "C" }] },
+      { entityId: "F", commands: [{ type: "LABEL", params: [560, 300, 20], text: "F" }] },
+      { entityId: "M", commands: [{ type: "LABEL", params: [640, 200, 20], text: "M" }] },
+      { entityId: "I", commands: [{ type: "LABEL", params: [540, 320, 20], text: "I" }] },
+    ],
+  });
+  const byRow = withheld();
+  const leaked = takeDeferredAnnotations(
+    byRow,
+    // The text trigger is gone from the type; a caller that still passes one
+    // must release nothing.
+    { text: "Given: f = 15 cm" } as unknown as { entityIds?: readonly string[] },
+  );
+  assert(
+    leaked.length === 0,
+    `a WRITE row must release no withheld label, released ${leaked.map((command) => command.text).join(",")}`,
+  );
+  assert(byRow.deferredAnnotations?.length === 4, "a WRITE row must leave every withheld label in place");
+  const byName = withheld();
+  const released = takeDeferredAnnotations(byName, { entityIds: ["C"] });
+  assert(
+    released.length === 1 && released[0]?.text === "C",
+    `naming C must release C alone, released ${released.map((command) => command.text).join(",")}`,
+  );
+  assert(
+    byName.deferredAnnotations?.map((entry) => entry.entityId).join(",") === "F,M,I",
+    "naming C must leave F, M and I withheld",
+  );
+  assert(takeDeferredAnnotations(withheld(), {}).length === 0, "no id releases nothing");
+}
+
+// Spoken-name inference: one FOCUS per figure part the step names, in spoken
+// order, case-sensitive for short names, and none when the model tagged the
+// step itself. "f is the focal length" traced the point F and "m is positive"
+// traced the mirror on the mirror lesson; the letter's case is the difference.
+{
+  const mirrorScene: VerifiedDiagram = {
+    id: "verified_scene",
+    name: "concave mirror",
+    commands: [],
+    reveals: [],
+    promptAddon: "",
+    anchors: [
+      { id: "F", labels: ["F", "focus"], x: 560, y: 296, width: 12, height: 12 },
+      { id: "M", labels: ["M", "mirror"], x: 700, y: 200, width: 16, height: 200 },
+      { id: "C", labels: ["C", "centre of curvature"], x: 500, y: 296, width: 12, height: 12 },
+    ],
+  };
+  const inferredIds = (narration: string, command: DrawCommand | null = null): string[] => {
+    const prepared = prepareVerifiedLessonSegments([{ narration, command }], mirrorScene);
+    return getSegmentCommands(prepared.segments[0] ?? { narration, command: null })
+      .filter((candidate) => candidate.type === "FOCUS")
+      .map((candidate) => parseFocusSpec(candidate.text).targetIds.join(","));
+  };
+  assert(
+    inferredIds("f is the focal length of the concave mirror.").length === 0,
+    `lowercase f is the quantity, not the point F: inferred ${inferredIds("f is the focal length of the concave mirror.").join(" ")}`,
+  );
+  assert(inferredIds("the focus F sits halfway to C.").join(",") === "F", "the focus F must attach one FOCUS on F");
+  assert(
+    inferredIds("M is the mirror, C is the centre.").join(",") === "M,C",
+    `two spoken names must give two FOCUS in spoken order, got ${inferredIds("M is the mirror, C is the centre.").join(",")}`,
+  );
+  assert(
+    inferredIds("C is the centre, and M is the mirror.").join(",") === "C,M",
+    "spoken order, not anchor order, decides the sequence",
+  );
+  const tagged: DrawCommand = { type: "FOCUS", params: [], text: "F", charPosition: 0, narrationBefore: "" };
+  assert(
+    inferredIds("M is the mirror, C is the centre.", tagged).join(",") === "F",
+    "a step with its own FOCUS gets no inferred one, even for names the tag does not cover",
+  );
+  assert(inferredIds("m is positive, so the image is upright.").length === 0, "lowercase m is the magnification, not the mirror");
+}
+
+// A POINT is a FOCUS that draws nothing. It had no case in the verified-scene
+// guard and fell through to "blocked", so every pointing beat the code-lesson
+// conductor issued was dropped: 81.8 s of DSA speech with no ink.
+{
+  const pointAt = (text: string): DrawCommand => ({
+    type: "POINT",
+    params: [],
+    text,
+    charPosition: 0,
+    narrationBefore: "",
+    semanticRef: { entityId: text },
+  });
+  const pointScene: VerifiedDiagram = {
+    id: "verified_scene",
+    name: "point",
+    commands: [],
+    reveals: [],
+    promptAddon: "",
+    anchors: [
+      { id: "F", labels: ["F", "focus"], x: 560, y: 296, width: 12, height: 12 },
+      { id: "C", labels: ["C", "centre"], x: 500, y: 296, width: 12, height: 12 },
+    ],
+  };
+  assert(!isBlockedVerifiedDiagramCommand(pointAt("F,C"), pointScene), "a POINT naming figure parts must reach the marker");
+  assert(isBlockedVerifiedDiagramCommand(pointAt("cell9"), pointScene), "a POINT with a made-up id is still an unverified marker");
+  assert(
+    !isBlockedVerifiedDiagramCommand(pointAt("cell0,cell3"), { ...pointScene, layout: "code_lesson" }),
+    "a code lesson's pointing beats must pass to the conductor",
+  );
+}
 
 const spotlight = parseDrawingCommands("[STEP]notice AB. [FOCUS:ab|spotlight][/STEP]");
 assert(spotlight.commands[0]?.type === "FOCUS" && spotlight.commands[0].text === "ab|spotlight", "FOCUS spotlight form must parse");

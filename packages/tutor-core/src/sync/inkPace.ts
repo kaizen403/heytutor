@@ -48,7 +48,14 @@ export const SCENE_WRITE_MIN_MS = 70;
 export const SCENE_WRITE_MAX_MS = 280;
 /** FOCUS traces stay followable but slightly quicker than a full formula WRITE. */
 export const FOLLOW_FOCUS_SCALE = 0.78;
-/** Cap total setup ink so a train / busy body cannot stall the lecture. */
+/**
+ * Cap total setup ink so a train / busy body cannot stall the lecture.
+ *
+ * Uncued batches only. A cued figure intro (every command carrying a
+ * `spokenCue`) is paced by the voice, one part per word, and the cap is what
+ * used to squeeze a 10 s mirror intro into 1.3 s of ink and a 3.3 s parked
+ * pen. See `isCuedSceneBatch`.
+ */
 export const MAX_SCENE_BATCH_MS = 1300;
 
 export const FOLLOW_ADAPTIVE_MIN = 0.85;
@@ -149,10 +156,25 @@ export function applySceneFlight(baseMs: number): number {
   return clamp(Math.round(baseMs * SCENE_DURATION_SCALE), SCENE_FLIGHT_MIN_MS, SCENE_FLIGHT_MAX_MS);
 }
 
+/**
+ * A batch whose every command names the word it is drawn under. Such a batch
+ * is scheduled against the sentence, so the batch cap must not touch it; a
+ * DSA frame (no cues) keeps the cap.
+ */
+export function isCuedSceneBatch(
+  commands: ReadonlyArray<{ spokenCue?: { token: string } }>,
+): boolean {
+  return commands.length > 0 && commands.every((command) => Boolean(command.spokenCue?.token));
+}
+
 export function capSceneBatchDurations(
   durationsMs: number[],
   maxMs: number = MAX_SCENE_BATCH_MS,
+  options: { cued?: boolean } = {},
 ): number[] {
+  if (options.cued) {
+    return durationsMs;
+  }
   const total = durationsMs.reduce((sum, value) => sum + value, 0);
   if (total <= maxMs) {
     return durationsMs;

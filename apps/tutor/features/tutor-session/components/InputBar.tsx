@@ -11,7 +11,6 @@ import {
   useSyncExternalStore,
 } from "react";
 import { compressQuestionImage } from "@/features/tutor-session/lib/input/compressQuestionImage";
-import { LESSON_DONE_PROMPT } from "@/features/tutor-session/lib/turn/lessonFollowUp";
 import { fileFromClipboardData } from "@/features/tutor-session/lib/input/questionImageInput";
 import {
   DOUBT_INTERRUPT_HINT,
@@ -243,6 +242,15 @@ export function InputBar({
       field.scrollHeight > QUESTION_FIELD_MAX_HEIGHT_PX ? "auto" : "hidden";
   }, [question]);
 
+  // Native `autoFocus` ships in the SSR HTML, so a phone would open the
+  // keyboard before React can read the viewport. Focus only after mount, and
+  // only when the layout is desktop-wide.
+  useLayoutEffect(() => {
+    if (!autoFocus) return;
+    if (window.matchMedia("(max-width: 767px)").matches) return;
+    questionInputRef.current?.focus();
+  }, [autoFocus]);
+
   /** Composing a doubt stops the voice talking over the student. */
   const pauseForDoubt = useCallback(() => {
     if (canInterruptWithDoubt && !isPaused) {
@@ -464,11 +472,6 @@ export function InputBar({
 
   return (
     <div className="flex w-full flex-col items-stretch gap-1.5">
-      {isFollowUp && !disabled && (
-        <p className="px-3 text-center text-[0.8125rem]" style={{ color: "var(--text-soft)" }}>
-          {LESSON_DONE_PROMPT}
-        </p>
-      )}
       {canInterruptWithDoubt && trimmed.length > 0 && (
         <p className="px-3 text-center text-[0.8125rem]" style={{ color: "var(--text-soft)" }}>
           {DOUBT_INTERRUPT_HINT}
@@ -502,12 +505,15 @@ export function InputBar({
                 prominent ? "px-3" : "px-2.5",
               ),
         )}
+        // The composer is the one surface that has to be found instantly on an
+        // otherwise empty board, so it is a step lighter than the panels around
+        // it and nothing else: no inset gloss, no drop shadow. The lift used to
+        // do that job and it made the bar look like it was hovering over the
+        // page rather than being part of it.
         style={{
           minHeight: prominent ? "64px" : "52px",
-          backgroundColor: "var(--ink-850)",
+          backgroundColor: "var(--ink-750)",
           border: "1px solid var(--stroke)",
-          boxShadow:
-            "inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 24px -4px rgba(3, 11, 18, 0.45)",
         }}
       >
         <input
@@ -587,7 +593,6 @@ export function InputBar({
           }}
           onKeyDown={handleQuestionKeyDown}
           disabled={inputLocked}
-          autoFocus={autoFocus}
           aria-label="Question"
           placeholder={
             isExtracting
@@ -844,9 +849,7 @@ export function InputBar({
             {onOpenSettings ? (
               <InputSettingsButton onOpen={onOpenSettings} prominent={prominent} />
             ) : null}
-            {/* The landing's pedestal button, not a flat pill: a cap resting on
-                a taller base, so pressing drops the cap and the row never
-                reflows. Face and geometry both come from `.btn`. */}
+            {/* Face and geometry both come from `.btn`. */}
             <button
               type="submit"
               disabled={buttonDisabled}

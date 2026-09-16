@@ -543,7 +543,31 @@ check: four carbons both sides, twelve hydrogens both sides, fourteen oxygens bo
   },
 ];
 
+const MOCK_DOUBT_RESPONSE = `[STEP]
+you marked this part of the board. let's look at it again. [EMPHASIZE:last]
+[/STEP]
+[STEP]
+it is the origin every distance on this figure is measured from. for example, u and f are both from here.
+[/STEP]`;
+
+const MOCK_CONTINUE_RESPONSE = `[STEP]
+back to the original problem from the next unwritten step.
+[/STEP]
+[STEP]
+carry the last relation forward and finish the derivation.
+[/STEP]`;
+
 export function getMockResponse(question: string): string {
+  const trimmed = question.trim();
+  // A mid-lesson doubt used to match the lesson's keywords and restart the
+  // whole canned lecture on the same board.
+  if (/^i have a doubt about\b/i.test(trimmed)) {
+    return MOCK_DOUBT_RESPONSE;
+  }
+  if (/^continue\b/i.test(trimmed)) {
+    return MOCK_CONTINUE_RESPONSE;
+  }
+
   // DSA questions teach through the typed code lesson, not handwriting mocks.
   if (classifyDsaQuestion(question).isDsa) {
     return getMockCodeLessonTeaching(question);

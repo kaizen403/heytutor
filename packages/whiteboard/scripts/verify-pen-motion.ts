@@ -1,4 +1,13 @@
 import {
+  bowedPoint,
+  carryBow,
+  carryEase,
+  flightBow,
+  nibTravelFor,
+  reachEase,
+  shapeReachMs,
+} from "../src/penChoreography";
+import {
   advanceSpeedAwareProgress,
   pacedGlyphPosition,
   planGlyphPacing,
@@ -12,6 +21,22 @@ import {
   splitDrawnLength,
   tweenStartDeltaMs,
   writeUsesStrokePenMotion,
+  dampPaceScale,
+  paceScaleForLagMs,
+  paceShapeDurationMs,
+  INK_SPEED_PX_PER_MS,
+  PACE_SCALE_MAX,
+  PACE_SCALE_MIN,
+  PACE_SCALE_STEP_MAX,
+  GLYPH_BUDGET_STEP_MAX,
+  GLYPH_LAG_TOLERANCE_MS,
+  GLYPH_SLOT_MAX_MS,
+  GLYPH_SLOT_MIN_MS,
+  INK_STRETCH_MAX,
+  lingeringGlyphProgress,
+  resolveShapeDurationMs,
+  scheduledGlyphBudgetMs,
+  simulateScheduledGlyphs,
 } from "../src/penMotion";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -214,4 +239,500 @@ assert(
   );
 }
 
-console.log("verify-pen-motion: handwriting cadence varies; path lookup is monotonic");
+// --- one figure is drawn by one hand ---------------------------------------
+/*
+  Every shape in a reveal used to get the same millisecond budget, so how fast
+  the nib moved was decided by how long the line happened to be: on a mirror
+  figure the ticks crawled at 0.04 px/ms while the axis was whipped out at 1.94,
+  a 44x spread inside one drawing. Length decides the time now, so the hand
+  holds one speed.
+*/
+{
+  const SCENE_MIN = 70;
+  const SCENE_MAX = 320;
+  const figure = [
+    { name: "mirror arc", lengthPx: 470 },
+    { name: "principal axis", lengthPx: 620 },
+    { name: "object arrow", lengthPx: 96 },
+    { name: "incident ray", lengthPx: 210 },
+    { name: "reflected ray", lengthPx: 240 },
+    { name: "image arrow", lengthPx: 58 },
+    { name: "focus tick", lengthPx: 14 },
+    { name: "normal (dropped)", lengthPx: 130 },
+  ];
+
+  const durations = figure.map((shape) =>
+    paceShapeDurationMs({
+      lengthPx: shape.lengthPx,
+      requestedMs: SCENE_MAX,
+      minMs: SCENE_MIN,
+      maxMs: SCENE_MAX,
+    }),
+  );
+  const speeds = figure.map((shape, index) => shape.lengthPx / durations[index]!);
+
+  for (let index = 0; index < figure.length; index++) {
+    const shape = figure[index]!;
+    const duration = durations[index]!;
+    assert(
+      duration >= SCENE_MIN && duration <= SCENE_MAX,
+      `${shape.name} must stay inside the reveal envelope, got ${duration.toFixed(0)}ms`,
+    );
+    assert(
+      speeds[index]! <= INK_SPEED_PX_PER_MS + 1e-9,
+      `${shape.name} must not be drawn faster than a hand can, got ${speeds[index]!.toFixed(2)} px/ms`,
+    );
+  }
+
+  // The remaining spread is only the shapes too short to fill the floor — a
+  // tick is a deliberate little mark, not a line drawn at speed.
+  const longEnough = figure
+    .map((shape, index) => ({ shape, speed: speeds[index]! }))
+    .filter((entry) => entry.shape.lengthPx >= SCENE_MIN * INK_SPEED_PX_PER_MS);
+  const fastest = Math.max(...longEnough.map((entry) => entry.speed));
+  const slowest = Math.min(...longEnough.map((entry) => entry.speed));
+  assert(
+    fastest / slowest < 1.2,
+    `a figure must be drawn at one speed, got a ${(fastest / slowest).toFixed(1)}x spread`,
+  );
+
+  // And it can only have got quicker: nothing takes longer than it used to.
+  const before = figure.length * SCENE_MAX;
+  const after = durations.reduce((sum, duration) => sum + duration, 0);
+  assert(
+    after < before,
+    `pacing by length must not make a figure slower: ${after.toFixed(0)}ms vs ${before}ms`,
+  );
+}
+
+// --- the whole figure leans on the voice, not each shape separately --------
+{
+  assert(paceScaleForLagMs(0) > 1, "with the voice level, the hand takes its time");
+  assert(paceScaleForLagMs(400) < paceScaleForLagMs(150), "further behind means hurry more");
+  assert(paceScaleForLagMs(150) < paceScaleForLagMs(0), "behind the voice means hurry");
+  assert(paceScaleForLagMs(-400) > paceScaleForLagMs(0), "ink ahead of the voice may linger");
+  assert(paceScaleForLagMs(Number.NaN) === 1, "a broken clock must not change the hand's speed");
+  for (const lag of [-2000, -300, -100, 0, 100, 300, 2000]) {
+    const scale = paceScaleForLagMs(lag);
+    assert(
+      scale >= PACE_SCALE_MIN && scale <= PACE_SCALE_MAX,
+      `lag ${lag}ms asked for an impossible speed (${scale})`,
+    );
+  }
+
+  // Nothing snaps: one shape may only move the hand's speed so far.
+  let scale: number | null = null;
+  const path: number[] = [];
+  for (let shape = 0; shape < 24; shape++) {
+    // The voice runs away halfway through the figure.
+    scale = dampPaceScale(scale, paceScaleForLagMs(shape < 12 ? -400 : 400));
+    path.push(scale);
+  }
+  for (let index = 1; index < path.length; index++) {
+    const ratio = path[index]! / path[index - 1]!;
+    assert(
+      ratio <= PACE_SCALE_STEP_MAX + 1e-9 && ratio >= 1 / PACE_SCALE_STEP_MAX - 1e-9,
+      `the hand must accelerate, not switch speed: ${ratio.toFixed(3)}x at shape ${index}`,
+    );
+  }
+  assert(path[11]! > 1.3, "a long lead should have let the hand slow right down");
+  assert(path[23]! < 0.75, "and it must have caught back up by the end of the figure");
+  assert(dampPaceScale(null, 5) === PACE_SCALE_MAX, "an absurd target is still clamped");
+
+  // The step clamp is not the only thing holding this together: a change small
+  // enough to fit inside the clamp must still be eased into, or the hand
+  // switches speed on every shape and simply never trips the clamp.
+  const nudged = dampPaceScale(1, 1.02);
+  assert(
+    nudged > 1 && nudged < 1.02,
+    `a small change must be approached, not taken in one step, got ${nudged}`,
+  );
+  assert(
+    Math.abs(nudged - 1) < Math.abs(nudged - 1.02),
+    "the first shape of a change moves less than half way",
+  );
+}
+
+// --- a reach and the stroke after it are one continuous motion -------------
+/*
+  A drawn shape used to place the nib on the first point of its path, so every
+  stroke of a figure began with the instrument appearing somewhere else. It now
+  reaches; and the reach is budgeted by speed, because a flat 180ms for any
+  distance meant crossing the board ran at about 9000 px/s — a whip.
+*/
+{
+  type Point = { x: number; y: number };
+  const FRAME_MS = 16.67;
+  // Measured maxima with the constants as they stand are 82px and 27px/frame²;
+  // these leave headroom without leaving room for a teleport.
+  const MAX_STEP_PX = 100;
+  const MAX_ACCEL_PX = 40;
+
+  const polyLength = (points: readonly Point[]): number => {
+    let total = 0;
+    for (let index = 1; index < points.length; index++) {
+      total += Math.hypot(
+        points[index]!.x - points[index - 1]!.x,
+        points[index]!.y - points[index - 1]!.y,
+      );
+    }
+    return total;
+  };
+
+  const timeline = (from: Point, samples: Point[], strokeMs: number): Point[] => {
+    const start = samples[0]!;
+    const reachPx = Math.hypot(start.x - from.x, start.y - from.y);
+    const travel = nibTravelFor(reachPx);
+    const reachMs = shapeReachMs(reachPx);
+    const total = polyLength(samples);
+    const frames: Point[] = [];
+    for (let ms = 0; ms < reachMs; ms += FRAME_MS) {
+      const progress = ms / reachMs;
+      frames.push(
+        travel === "fly"
+          ? bowedPoint(from, start, reachEase(progress), flightBow(reachPx))
+          : bowedPoint(from, start, carryEase(progress), carryBow(reachPx)),
+      );
+    }
+    for (let ms = 0; ms <= strokeMs; ms += FRAME_MS) {
+      const drawn = pacedStrokeDistance(
+        samples,
+        total,
+        Math.min(ms / strokeMs, 1),
+        strokeMs,
+        0.3,
+      );
+      frames.push(pointAlongSamples(samples, total, drawn));
+    }
+    return frames;
+  };
+
+  const arc = samplePolyline(280, (distance) => {
+    const angle = Math.PI * 0.15 + (distance / 280) * Math.PI * 0.95;
+    return { x: 400 + 120 * Math.cos(angle), y: 300 + 120 * Math.sin(angle) };
+  });
+  const box: Point[] = [];
+  const corners: Array<[Point, Point]> = [
+    [{ x: 0, y: 0 }, { x: 200, y: 0 }],
+    [{ x: 200, y: 0 }, { x: 200, y: 120 }],
+    [{ x: 200, y: 120 }, { x: 0, y: 120 }],
+    [{ x: 0, y: 120 }, { x: 0, y: 0 }],
+  ];
+  for (const [from, to] of corners) {
+    for (let step = 0; step <= 20; step++) {
+      box.push({
+        x: from.x + (to.x - from.x) * (step / 20),
+        y: from.y + (to.y - from.y) * (step / 20),
+      });
+    }
+  }
+
+  const cases: Array<{ name: string; from: Point; samples: Point[]; strokeMs: number }> = [
+    { name: "across the board into a long arc", from: { x: 60, y: 520 }, samples: arc, strokeMs: 235 },
+    { name: "a carry into the same arc", from: { x: arc[0]!.x - 20, y: arc[0]!.y - 8 }, samples: arc, strokeMs: 235 },
+    { name: "already there", from: { ...arc[0]! }, samples: arc, strokeMs: 235 },
+    { name: "across the board into a box", from: { x: 700, y: 500 }, samples: box, strokeMs: 320 },
+    { name: "a hop onto a tick", from: { x: 288, y: 196 }, samples: [{ x: 300, y: 200 }, { x: 306, y: 208 }], strokeMs: 70 },
+  ];
+
+  for (const scenario of cases) {
+    const frames = timeline(scenario.from, scenario.samples, scenario.strokeMs);
+    const steps: number[] = [];
+    for (let index = 1; index < frames.length; index++) {
+      steps.push(
+        Math.hypot(
+          frames[index]!.x - frames[index - 1]!.x,
+          frames[index]!.y - frames[index - 1]!.y,
+        ),
+      );
+    }
+    let stall = 0;
+    let longestStall = 0;
+    for (let index = 0; index < steps.length; index++) {
+      const step = steps[index]!;
+      assert(
+        Number.isFinite(step) && step <= MAX_STEP_PX,
+        `${scenario.name}: the nib covered ${step.toFixed(1)}px in one frame — that reads as a jump`,
+      );
+      if (index > 0) {
+        const accel = Math.abs(step - steps[index - 1]!);
+        assert(
+          accel <= MAX_ACCEL_PX,
+          `${scenario.name}: speed changed by ${accel.toFixed(1)}px in one frame — that reads as a lurch`,
+        );
+      }
+      if (step < 0.05) {
+        stall += 1;
+        longestStall = Math.max(longestStall, stall);
+      } else {
+        stall = 0;
+      }
+    }
+    assert(
+      longestStall * FRAME_MS <= 60,
+      `${scenario.name}: the nib parked for ${(longestStall * FRAME_MS).toFixed(0)}ms mid-motion`,
+    );
+  }
+}
+
+// --- the ink of a character fills its spoken slot ---------------------------
+/*
+  Measured on the mirror lesson (10 Sep 2026): the scheduled glyph budget was
+  clamp(slot x 0.78, 42, 128) media ms run at 1.8x with the first frame
+  credited, so a glyph took one to six frames whatever its word took, and
+  "1/f = 1/u + 1/v" was inked in 2.6 s of a 4.1 s sentence with the pen parked
+  for the last 1.5 s. The slot rule below is what replaces it.
+*/
+{
+  const budget = (slotMs: number, lagMs: number, previousMs?: number | null) =>
+    scheduledGlyphBudgetMs({ slotMs, lagMs, previousMs });
+
+  const onTime = budget(300, 0);
+  assert(onTime.inkMs === 300, `a 300 ms slot is a 300 ms glyph, got ${onTime.inkMs}`);
+  assert(onTime.lingerMs === 0, "a slot inside the cap has nothing left to linger on");
+
+  const quick = budget(60, 0);
+  assert(
+    quick.inkMs === GLYPH_SLOT_MIN_MS && GLYPH_SLOT_MIN_MS === 90,
+    `a 60 ms syllable is still written over the 90 ms floor, got ${quick.inkMs}`,
+  );
+  assert(quick.lingerMs === 0, "a slot under the floor leaves no linger");
+
+  const long = budget(900, 0);
+  assert(
+    long.inkMs === GLYPH_SLOT_MAX_MS && GLYPH_SLOT_MAX_MS === 350,
+    `a 900 ms word caps the glyph at 350, got ${long.inkMs}`,
+  );
+  assert(
+    long.lingerMs === 550,
+    `the rest of a 900 ms word is a 550 ms linger on the last stroke, got ${long.lingerMs}`,
+  );
+
+  const behind = budget(300, 400);
+  assert(
+    behind.inkMs <= 120,
+    `400 ms behind on a 300 ms slot must hurry toward the floor, got ${behind.inkMs}`,
+  );
+  assert(behind.lingerMs === 0, "a pen that is behind gives up its linger first");
+  const behindAfterLong = budget(300, 400, 350);
+  assert(
+    behindAfterLong.inkMs <= 120,
+    `catching up is not smoothed away: after a 350 ms glyph, 400 ms behind still hurries (${behindAfterLong.inkMs})`,
+  );
+  const tolerated = budget(300, GLYPH_LAG_TOLERANCE_MS);
+  assert(
+    tolerated.inkMs === 300,
+    `inside the ${GLYPH_LAG_TOLERANCE_MS} ms tolerance the glyph keeps its slot, got ${tolerated.inkMs}`,
+  );
+
+  // Consecutive budgets never change by more than 1.5x while the pen is on
+  // time, whatever the slots do.
+  const slots = [90, 900, 60, 350, 40, 700, 120, 300, 900, 90];
+  let previous: number | null = null;
+  for (const slot of slots) {
+    const next = budget(slot, 0, previous).inkMs;
+    if (previous !== null) {
+      const ratio = next / previous;
+      assert(
+        ratio <= GLYPH_BUDGET_STEP_MAX + 1e-9 && ratio >= 1 / GLYPH_BUDGET_STEP_MAX - 1e-9,
+        `glyph budgets must change by at most ${GLYPH_BUDGET_STEP_MAX}x, got ${ratio.toFixed(2)}x at slot ${slot}`,
+      );
+    }
+    assert(
+      next >= GLYPH_SLOT_MIN_MS && next <= GLYPH_SLOT_MAX_MS,
+      `a smoothed budget stays inside the floor and the cap, got ${next}`,
+    );
+    previous = next;
+  }
+  assert(budget(Number.NaN, Number.NaN).inkMs >= GLYPH_SLOT_MIN_MS, "a broken slot is still written");
+
+  // The linger is a slow finishing stroke, not a park: progress keeps moving,
+  // ends on the last point, and the tail runs slower than the body.
+  for (const [inkMs, lingerMs] of [
+    [350, 550],
+    [350, 80],
+    [300, 0],
+    [90, 0],
+  ] as const) {
+    const total = inkMs + lingerMs;
+    let last = -1;
+    for (let ms = 0; ms <= total + 1e-6; ms += total / 200) {
+      const value = lingeringGlyphProgress(ms, inkMs, lingerMs, 0.3);
+      assert(value >= last - 1e-9, `a lingering glyph never runs backwards (${inkMs}+${lingerMs})`);
+      last = value;
+    }
+    assert(
+      Math.abs(lingeringGlyphProgress(total, inkMs, lingerMs, 0.3) - 1) < 1e-9,
+      `a lingering glyph finishes its ink (${inkMs}+${lingerMs})`,
+    );
+    if (lingerMs > 0) {
+      const atInkEnd = lingeringGlyphProgress(inkMs, inkMs, lingerMs, 0.3);
+      assert(atInkEnd < 1 && atInkEnd > 0.6, `the body leaves a tail for the linger, got ${atInkEnd}`);
+      const bodyRate = atInkEnd / inkMs;
+      const tailRate = (1 - atInkEnd) / lingerMs;
+      assert(tailRate > 0, "the tail still moves");
+      assert(tailRate < bodyRate, `the finishing stroke is slower than the body (${tailRate} vs ${bodyRate})`);
+      for (let ms = inkMs; ms < total; ms += lingerMs / 50) {
+        const step =
+          lingeringGlyphProgress(ms + lingerMs / 50, inkMs, lingerMs, 0.3) -
+          lingeringGlyphProgress(ms, inkMs, lingerMs, 0.3);
+        assert(step > 0, `the pen never stops dead inside a linger (${inkMs}+${lingerMs} at ${ms.toFixed(0)})`);
+      }
+    }
+  }
+  assert(
+    lingeringGlyphProgress(200, 350, 550, 0.3, 0) === handwritingProgress(200 / 350, 350, 0.3),
+    "a glyph whose last stroke owns none of the map lingers nowhere and keeps its cadence",
+  );
+}
+
+// --- "1/f = 1/u + 1/v" is written under its sentence, not before it ---------
+/*
+  The mirror run's line, with the real slots reconstructed at the measured
+  86 ms per spoken character: "the mirror equation is one over f equals one
+  over u plus one over v." Each board character is cued at its spoken word.
+*/
+{
+  const spoken = ["one ", "over ", "f ", "equals ", "one ", "over ", "u ", "plus ", "one ", "over ", "v."];
+  const MS_PER_SPOKEN_CHAR = 86;
+  const slots = spoken.map((word) => word.length * MS_PER_SPOKEN_CHAR);
+  const offsets: number[] = [];
+  let cue = "the mirror equation is ".length * MS_PER_SPOKEN_CHAR;
+  for (const slot of slots) {
+    offsets.push(cue);
+    cue += slot;
+  }
+  const lastWordEndMs = cue;
+
+  const line = simulateScheduledGlyphs({ offsetsMs: offsets, slotsMs: slots });
+  assert(line.glyphs.length === 11, "every character of the row is written");
+  assert(
+    line.maxPauseMs <= 300,
+    `the pen must not park inside the row, longest pause ${line.maxPauseMs.toFixed(0)} ms`,
+  );
+  assert(
+    Math.abs(line.lastEndMs - lastWordEndMs) <= 250,
+    `the last glyph ends with the last word: ink ${line.lastEndMs.toFixed(0)} vs voice ${lastWordEndMs} ms`,
+  );
+  for (let index = 0; index < line.glyphs.length; index++) {
+    const glyph = line.glyphs[index]!;
+    assert(
+      glyph.lagMs <= GLYPH_LAG_TOLERANCE_MS,
+      `character ${index} fell ${glyph.lagMs.toFixed(0)} ms behind its word`,
+    );
+    const wordEndMs = offsets[index]! + slots[index]!;
+    assert(
+      Math.abs(glyph.endMs - wordEndMs) <= 150,
+      `character ${index} leaves its word ${(glyph.endMs - wordEndMs).toFixed(0)} ms off the word end`,
+    );
+    // It is the ink that fills the slot, not a linger after a stamped glyph:
+    // a capped budget with the rest spent lingering would pass the pause and
+    // end checks above and still write every letter in a few frames. The cap
+    // and the step are pinned as numbers here on purpose, so lowering the
+    // constant back toward the old 128 fails this line and not only the
+    // unit checks above.
+    const inkMs = glyph.inkEndMs - glyph.startMs;
+    const slotInk = Math.min(slots[index]!, 350);
+    assert(
+      inkMs >= slotInk / 1.5 - 1e-9,
+      `character ${index} inked in ${inkMs.toFixed(0)} ms of a ${slots[index]} ms word`,
+    );
+    const lingerMs = glyph.endMs - glyph.inkEndMs;
+    assert(
+      lingerMs <= Math.max(slots[index]! - 350, 0) + 1e-9,
+      `character ${index} lingered ${lingerMs.toFixed(0)} ms on a ${slots[index]} ms word`,
+    );
+  }
+  for (let index = 1; index < line.glyphs.length; index++) {
+    const ratio =
+      (line.glyphs[index]!.inkEndMs - line.glyphs[index]!.startMs) /
+      (line.glyphs[index - 1]!.inkEndMs - line.glyphs[index - 1]!.startMs);
+    assert(
+      ratio <= GLYPH_BUDGET_STEP_MAX + 1e-9 && ratio >= 1 / GLYPH_BUDGET_STEP_MAX - 1e-9,
+      `the hand changed speed ${ratio.toFixed(2)}x between characters ${index - 1} and ${index}`,
+    );
+  }
+
+  // The old rule on the same line, kept here as the shape of the failure:
+  // every glyph capped at 128 ms and the pen parked for the rest of each word.
+  const oldRule = (slotMs: number, lagMs: number, previousMs: number | null) => {
+    const target =
+      lagMs > 220
+        ? Math.min(Math.max(slotMs * 0.45, 28), 76)
+        : lagMs > 100
+          ? Math.min(Math.max(slotMs * 0.62, 34), 98)
+          : Math.min(Math.max(slotMs * 0.78, 42), 128);
+    const prev = previousMs ?? 72;
+    const inkMs = Math.min(Math.max(prev * 0.65 + target * 0.35, prev * 0.72), prev * 1.28);
+    return { inkMs, lingerMs: 0 };
+  };
+  const before = simulateScheduledGlyphs({ offsetsMs: offsets, slotsMs: slots, budget: oldRule });
+  assert(
+    before.maxPauseMs > 300,
+    `the 128 ms cap is the rule being replaced and it parked the pen (${before.maxPauseMs.toFixed(0)} ms)`,
+  );
+}
+
+// --- a cued stroke takes its spoken window ----------------------------------
+/*
+  The intro handed drawShape a 10 s window and drawShape clipped every stroke
+  to the 320 ms scene ceiling: 14 mirror strokes in 3.5 s, pen parked 3.3 s.
+  A cued stroke honours the request; an uncued scene stroke keeps its ceiling.
+*/
+{
+  const SCENE_MIN = 70;
+  const SCENE_MAX = 320;
+  const cued = resolveShapeDurationMs({
+    lengthPx: 600,
+    requestedMs: 2000,
+    minMs: SCENE_MIN,
+    sceneMaxMs: SCENE_MAX,
+    pace: "scene",
+    cued: true,
+  });
+  assert(cued === 2000, `a cued 600 px line asked for 2000 ms must take 2000, got ${cued}`);
+  const uncued = resolveShapeDurationMs({
+    lengthPx: 600,
+    requestedMs: 2000,
+    minMs: SCENE_MIN,
+    sceneMaxMs: SCENE_MAX,
+    pace: "scene",
+  });
+  assert(uncued <= SCENE_MAX, `an uncued scene stroke keeps the ${SCENE_MAX} ms ceiling, got ${uncued}`);
+  const uncuedLong = resolveShapeDurationMs({
+    lengthPx: 900,
+    requestedMs: 2000,
+    minMs: SCENE_MIN,
+    sceneMaxMs: SCENE_MAX,
+    pace: "scene",
+  });
+  assert(uncuedLong === SCENE_MAX, `a long uncued scene stroke is clamped to ${SCENE_MAX}, got ${uncuedLong}`);
+  // Cued still floors at hand speed, and stretches only so far past the request.
+  const cuedTooFast = resolveShapeDurationMs({
+    lengthPx: 5000,
+    requestedMs: 2000,
+    minMs: SCENE_MIN,
+    sceneMaxMs: SCENE_MAX,
+    pace: "scene",
+    cued: true,
+  });
+  assert(
+    cuedTooFast === Math.min(5000 / INK_SPEED_PX_PER_MS, 2000 * INK_STRETCH_MAX),
+    `a cued stroke stretches to hand speed at most ${INK_STRETCH_MAX}x, got ${cuedTooFast}`,
+  );
+  const follow = resolveShapeDurationMs({
+    lengthPx: 600,
+    requestedMs: 2000,
+    minMs: SCENE_MIN,
+    sceneMaxMs: SCENE_MAX,
+    pace: "follow",
+  });
+  assert(follow === 2000, `follow pace is untouched by the cue flag, got ${follow}`);
+}
+
+console.log(
+  "verify-pen-motion: handwriting cadence varies; path lookup is monotonic; one figure is " +
+    "drawn at one hand speed that leans on the voice without ever switching gear; a reach " +
+    "into a stroke is one continuous motion with no jump, no lurch and no parked nib; the ink " +
+    "of a character fills its spoken slot and a cued stroke takes its spoken window",
+);

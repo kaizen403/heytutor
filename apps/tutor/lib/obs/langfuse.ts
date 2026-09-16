@@ -87,7 +87,10 @@ export interface TurnTrace {
 
 export interface StartTurnTraceParams {
   sessionId?: string;
-  input: string;
+  /** Parent-trace input: the student question. Omit when attaching so a planner prompt cannot replace it. */
+  input?: string;
+  /** Observation input: the prompt this generation actually sent. */
+  generationInput?: string;
   traceId?: string;
   mock?: boolean;
   model?: string;
@@ -98,6 +101,7 @@ export interface StartTurnTraceParams {
 export function startTurnTrace({
   sessionId,
   input,
+  generationInput,
   traceId = genTraceId(),
   mock = false,
   model,
@@ -117,14 +121,14 @@ export function startTurnTrace({
     id: traceId,
     name,
     sessionId,
-    input,
+    ...(input ? { input } : {}),
     tags: buildTraceTags(mock ? ["mock"] : undefined),
   });
 
   const generation = trace.generation({
     name: generationName,
     model: serverModel,
-    input,
+    input: generationInput ?? input,
   });
 
   return { traceId, trace, generation, model: serverModel };
@@ -139,6 +143,14 @@ export interface EndLlmGenerationParams {
   };
   metadata?: Record<string, unknown>;
   mock?: boolean;
+  /** Actual upstream model when it differs from the generation's start model. */
+  model?: string;
+  /**
+   * Planner/continuation generations must not replace the parent lesson text
+   * or overwrite `llm_cost_usd` with a single-call slice.
+   */
+  updateTrace?: boolean;
+  level?: TurnEventLevel;
 }
 
 function zeroCostDetails(): CostDetails {
@@ -147,10 +159,23 @@ function zeroCostDetails(): CostDetails {
 
 export function endLlmGeneration(
   turn: TurnTrace | null,
-  { output, usageDetails, metadata, mock = false }: EndLlmGenerationParams,
+  {
+    output,
+    usageDetails,
+    metadata,
+    mock = false,
+    model,
+    updateTrace = true,
+    level,
+  }: EndLlmGenerationParams,
 ): void {
   if (!turn?.generation) {
     return;
+  }
+
+  if (model && model !== turn.model) {
+    turn.generation.update({ model });
+    turn.model = model;
   }
 
   const costDetails = mock
@@ -169,7 +194,12 @@ export function endLlmGeneration(
     usageDetails,
     metadata: generationMetadata,
     costDetails,
+    ...(level ? { level } : {}),
   });
+
+  if (!updateTrace) {
+    return;
+  }
 
   turn.trace?.update({
     output,

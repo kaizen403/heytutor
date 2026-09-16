@@ -175,8 +175,8 @@ export function buildGivenValueSegments(
 export function givenValuesPromptAddon(hasGivens: boolean): string {
   if (!hasGivens) return "";
   return `GIVEN VALUES ARE ALREADY ON THE BOARD
-The runtime already wrote the given quantities as "Given: ..." and will reveal any verified figure next. Do not rewrite those givens as a second list and do not read the question back.
-Open by saying what each of those symbols physically is and what the question asks you to find, and [WRITE] that meaning line first. If a figure is visible, read it next: name each labeled part, say what it represents and which way it points or where it acts, and [FOCUS:entity_id] on the part you just named.
+The runtime already spoke the opening line, wrote the given quantities as "Given: ..." and will reveal any verified figure next. Do not rewrite those givens as a second list, do not say what the question asks for again, and do not read the question back.
+Start by saying what each of those symbols physically is, and [WRITE] that meaning line first. If a figure is visible, read it next: name each labeled part, say what it represents and which way it points or where it acts, and [FOCUS:entity_id] on the part you just named.
 Then write each general formula in symbols before substituting the given values, write the rearranged form, write the substitution with its units, write the result, and close with one line reading what the result means. Write each working line as you speak it. Every step must [WRITE] or [FOCUS] so the marker moves with the voice. Use [EMPHASIZE:last] to box the current work line when you want the student to hold it.`;
 }
 

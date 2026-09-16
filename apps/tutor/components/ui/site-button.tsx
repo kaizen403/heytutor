@@ -21,15 +21,17 @@ const SIZE_CLASS: Record<SiteButtonSize, string> = {
 };
 
 export interface SiteButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  /** ice = frost keycap (primary), sky = accent, ghost = raised navy, danger = destructive. */
+  /** ice = white key (primary), sky = accent, ghost = a step of the ground, danger = destructive. */
   variant?: SiteButtonVariant;
   size?: SiteButtonSize;
   block?: boolean;
 }
 
 /**
- * Pedestal button, shared with the landing site (`.btn` in globals.css).
- * The cap drops onto its base when pressed without moving the outer box.
+ * The app's button (`.btn` in globals.css): a flat filled rectangle that
+ * answers by changing its fill. It used to be a pedestal shared with the
+ * landing site; the tutor's own theme has no light to model, so the cap and
+ * its base are gone. The landing still has them.
  */
 export const SiteButton = React.forwardRef<HTMLButtonElement, SiteButtonProps>(
   ({ variant = "ghost", size = "sm", block = false, className, type, ...props }, ref) => (
@@ -48,8 +50,8 @@ export interface PlainButtonProps extends React.ButtonHTMLAttributes<HTMLButtonE
 }
 
 /**
- * Flat sibling of the pedestal, for dense inline actions where a raised cap
- * would be too heavy. Same palette and type; size it with utility classes.
+ * The same face, for dense inline and icon-only actions. Same palette and
+ * type; size it with utility classes.
  */
 export const PlainButton = React.forwardRef<HTMLButtonElement, PlainButtonProps>(
   ({ variant = "ghost", className, type, ...props }, ref) => (

@@ -200,9 +200,9 @@ function LabelCard({ spot, scale, pinned }: { spot: Hotspot; scale: number; pinn
       <div
         className="max-w-[260px] rounded-xl px-3 py-2 shadow-lg backdrop-blur-sm"
         style={{
-          background: "rgba(18, 42, 57, 0.94)",
+          background: "rgba(26, 26, 25, 0.94)",
           border: "1px solid rgba(255,255,255,0.10)",
-          boxShadow: "0 10px 30px rgba(3, 11, 18,0.35)",
+          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
         }}
       >
         <div className="flex items-baseline gap-2">

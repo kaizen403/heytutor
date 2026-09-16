@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth";
 import { isAllowedLectureAudioSource } from "@/lib/lecture-export/lectureAudioUrl";
+import { getObjectStoreConfig } from "@/lib/object-store/config";
+import { parseStoredObjectKey } from "@/lib/object-store/keys";
+import { mediaKeyFromUrl } from "@/lib/object-store/mediaUrl";
+import { serveUserObject } from "@/lib/object-store/serveMedia";
 
 const UPSTREAM_MS = 8_000;
 
@@ -10,8 +14,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const src = new URL(request.url).searchParams.get("src")?.trim() ?? "";
-  const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL?.trim() ?? null;
+  const params = new URL(request.url).searchParams;
+  const keyParam = params.get("key")?.trim() ?? "";
+  const src = params.get("src")?.trim() ?? "";
+  const key = parseStoredObjectKey(keyParam) ? keyParam : mediaKeyFromUrl(src);
+
+  if (key) {
+    return serveUserObject(userId, key);
+  }
+
+  const publicBaseUrl = getObjectStoreConfig()?.publicBaseUrl ?? null;
   if (!isAllowedLectureAudioSource(src, publicBaseUrl)) {
     return NextResponse.json({ error: "invalid audio source" }, { status: 400 });
   }

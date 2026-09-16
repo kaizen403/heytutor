@@ -27,34 +27,71 @@ export type PenActivity =
 /**
  * Which instrument the hand reaches for, and why.
  *
- * The rule is what the mark *commits to*, not where it lands:
+ * The rule splits on what the mark *is*, not on where it lands:
  *
- *   pen         everything the student is meant to copy down — every word, the
- *               working, the result, the names on the figure, and the figure's
- *               own geometry. This is the default; a gesture over existing ink
- *               (`annotate`) is made with whatever is already in hand, so a
- *               circle or an arrow never interrupts a reveal to fetch a tool.
- *   pencil      construction only: the light scaffolding a teacher draws to get
- *               the figure right and would rub out afterwards — guides, equal
- *               ticks, hatching, dropped and extended lines, ghosts, the slope
- *               triangle. It is a different kind of statement, so it deserves a
- *               different mark, and its lead reads lighter than ink.
+ *   pen         everything the student copies down as words: the headings, the
+ *               working, the result, teaching prose. Full-weight, opaque ink.
+ *   pencil      the figure itself and the scaffolding it hangs off — the arc,
+ *               the ray, the circuit, plus the guides, ticks, hatching and
+ *               dropped lines around it. A drawn figure is a different kind of
+ *               statement from a written line, and it deserves a different
+ *               mark: lead reads lighter and thinner than ink.
  *   highlighter emphasis laid over finished work.
  *   duster      erasing.
  *
- * An earlier version drew *all* diagram geometry with the pencil and swapped
- * back to the pen for every written line. A lesson that alternates writing and
- * drawing then spends its time swapping, and the two instruments moving in turn
- * read as two cursors. Splitting on construction instead of on geometry keeps
- * the swap where it means something: the compiler emits construction ink in the
- * detail phase of a reveal, after the structure it hangs off, so a figure picks
- * the pencil up once and puts it down once.
+ * Two activities deliberately do *not* trigger a swap, and callers never equip
+ * for them: `annotate` (a circle or an arrow over ink that is already there)
+ * and the compiler's own figure labels are made with whatever is in hand, so
+ * naming a point on a figure never interrupts the reveal to fetch a pen. That
+ * is what keeps the swap count at one per write/draw boundary instead of one
+ * per command.
  */
 export function instrumentForActivity(activity: PenActivity): InstrumentKind {
   if (activity === "highlight") return "highlighter";
   if (activity === "erase") return "duster";
-  if (activity === "sketch") return "pencil";
+  if (activity === "draw" || activity === "sketch") return "pencil";
   return "pen";
+}
+
+/**
+ * What the mark looks like once it is on the board.
+ *
+ * The instrument is only half the story: a hand that visibly swaps to a pencil
+ * and then lays down the same opaque ink has not swapped anything the student
+ * can see. Lead is greyer, thinner and lets the board show through; ink is
+ * full weight and opaque. Every ink path on the board is styled through this,
+ * so the mark and the barrel holding it can never disagree.
+ */
+export interface InstrumentInkStyle {
+  /** Colour actually laid on the board. */
+  color: string;
+  /** Multiplier applied to whatever stroke width the caller asked for. */
+  widthScale: number;
+  /** Opacity of the finished mark — also the ceiling on any reveal fade. */
+  opacity: number;
+}
+
+/**
+ * Graphite is not "the ink colour, but faint". It is a grey that keeps a hint
+ * of the board's ink so a red board sketches in red lead rather than in pencil
+ * grey, mixed far enough toward neutral that the eye reads lead, not a
+ * washed-out pen.
+ */
+const GRAPHITE = "#51555F";
+export const PENCIL_INK_MIX = 0.55;
+export const PENCIL_WIDTH_SCALE = 0.82;
+export const PENCIL_INK_OPACITY = 0.78;
+
+export function instrumentInkStyle(kind: InstrumentKind, inkColor: string): InstrumentInkStyle {
+  const ink = channels(inkColor) ? inkColor : "#1B2A4A";
+  if (kind === "pencil") {
+    return {
+      color: mix(ink, GRAPHITE, PENCIL_INK_MIX),
+      widthScale: PENCIL_WIDTH_SCALE,
+      opacity: PENCIL_INK_OPACITY,
+    };
+  }
+  return { color: ink, widthScale: 1, opacity: 1 };
 }
 
 export interface InstrumentPalette {

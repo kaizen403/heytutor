@@ -182,7 +182,7 @@ export function transcript(run: DsaLectureRun, grade: DsaLectureGrade): string {
 
   lines.push("## Lesson as the student experiences it");
   if (run.figure.frames.length > 0) {
-    lines.push(`_[board shows frame 1: "${run.figure.frames[0]!.caption}"]_`);
+    lines.push(`_[figure is held until the first FOCUS: "${run.figure.frames[0]!.caption}"]_`);
   }
   for (const beat of run.teaching.beats) {
     const actions = beat.actions
@@ -198,6 +198,8 @@ export function transcript(run: DsaLectureRun, grade: DsaLectureGrade): string {
             return `[marker moves to ${action.targets.join(",")}]`;
           case "pause":
             return "[pause]";
+          case "write":
+            return `[pen writes "${action.text}"]`;
           case "blocked":
             return `[blocked ${action.tag}]`;
         }

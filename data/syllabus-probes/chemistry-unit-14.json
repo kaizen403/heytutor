@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "syllabus-probes/v1",
+  "unitId": "chemistry|14",
+  "questions": [
+    {
+      "id": "chemistry|14|tetravalency-and-hybridisation-of-carbon|easy",
+      "topicId": "chemistry|14|tetravalency-and-hybridisation-of-carbon",
+      "difficulty": "easy",
+      "question": "State the hybridisation of each carbon atom in CH3-CH=CH-C≡N and in CH2=C=O, and give the percentage s character of each hybrid type.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|14|functional-groups-and-homologous-series|easy",
+      "topicId": "chemistry|14|functional-groups-and-homologous-series",
+      "difficulty": "easy",
+      "question": "Identify the functional groups present in CH3COCH2CH2COOC2H5 and in HOCH2CH(NH2)COOH, and write the next higher homologue of CH3CH2CHO.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|14|structural-and-stereoisomerism|medium",
+      "topicId": "chemistry|14|structural-and-stereoisomerism",
+      "difficulty": "medium",
+      "question": "3-Methylhex-2-ene reacts with HBr in the presence of peroxide to form an addition product A. What is the number of possible stereoisomers of A?",
+      "source": {
+        "questionId": "q_17cd1e90ac51cf8c975547ff030b1d205ef090bd8f5385a9f753fa440309f4e2",
+        "exam": "JEE Main",
+        "year": 2024,
+        "documentId": "jee-main-2024-01-27-shift-1"
+      }
+    },
+    {
+      "id": "chemistry|14|structural-and-stereoisomerism|hard",
+      "topicId": "chemistry|14|structural-and-stereoisomerism",
+      "difficulty": "hard",
+      "question": "What is the maximum number of possible isomers (including stereoisomers) which may be formed on mono-bromination of 1-methylcyclohex-1-ene using Br2 and UV light?",
+      "source": {
+        "questionId": "q_fbc2cc9d8cf0d4081737e28786169f0520ad4ea21af57f46938f4044e809cd81",
+        "exam": "JEE Advanced",
+        "year": 2021,
+        "documentId": "jee-advanced-2021-paper-1-english"
+      }
+    },
+    {
+      "id": "chemistry|14|iupac-nomenclature|easy",
+      "topicId": "chemistry|14|iupac-nomenclature",
+      "difficulty": "easy",
+      "question": "Write the IUPAC names of (CH3)2CHCH2CH(CH3)CH2OH, CH3CH=CHCOOH and CH3COCH2CH(CH3)2.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|14|bond-fission-and-reaction-intermediates|medium",
+      "topicId": "chemistry|14|bond-fission-and-reaction-intermediates",
+      "difficulty": "medium",
+      "question": "Arrange the following carbocations in increasing order of stability and justify the order: CH3+, (CH3)2CH+, (CH3)3C+, C6H5CH2+ and CH2=CH-CH2+.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|14|electrophiles-and-nucleophiles|easy",
+      "topicId": "chemistry|14|electrophiles-and-nucleophiles",
+      "difficulty": "easy",
+      "question": "Classify each of the following as an electrophile or a nucleophile: OH-, NO2+, CN-, BF3, NH3, CH3+, H2O and AlCl3.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|14|electronic-displacement-effects|medium",
+      "topicId": "chemistry|14|electronic-displacement-effects",
+      "difficulty": "medium",
+      "question": "Using the inductive effect, arrange CH3COOH, ClCH2COOH, Cl2CHCOOH, FCH2COOH and CH3CH2COOH in increasing order of acidic strength.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|14|electronic-displacement-effects|hard",
+      "topicId": "chemistry|14|electronic-displacement-effects",
+      "difficulty": "hard",
+      "question": "How many hyperconjugation structures involving C-H bonds can be written for the tert-butyl carbocation, (CH3)3C+, and for propene, CH3-CH=CH2? Which of the two is stabilised more by hyperconjugation?",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    },
+    {
+      "id": "chemistry|14|types-of-organic-reactions|easy",
+      "topicId": "chemistry|14|types-of-organic-reactions",
+      "difficulty": "easy",
+      "question": "Classify each reaction as substitution, addition, elimination or rearrangement: (a) CH3CH2Br + OH- → CH3CH2OH + Br-, (b) CH2=CH2 + Br2 → BrCH2CH2Br, (c) CH3CH2CH2OH → CH3CH=CH2 + H2O with conc. H2SO4, and (d) NH4CNO → NH2CONH2 on heating.",
+      "source": {
+        "questionId": null,
+        "exam": "authored",
+        "year": 2026,
+        "documentId": "chemistry-probe-authoring"
+      }
+    }
+  ]
+}

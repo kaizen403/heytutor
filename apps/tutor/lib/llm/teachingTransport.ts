@@ -84,7 +84,15 @@ export function resolveTeachingReasoningEffort(options: {
   mode: ReasoningMode;
   /** A DSA turn: the program is committed and the lesson shape is given. */
   codeLesson?: boolean;
+  /**
+   * The previous attempt spent its whole allowance reasoning and spoke
+   * nothing. The retry must speak: 2 of 33 chemistry lessons came back
+   * empty because the retry reasoned again, while the student watched a
+   * blank board for 70 to 110 seconds.
+   */
+  afterReasoningOnly?: boolean;
 }): ReasoningEffort {
+  if (options.afterReasoningOnly) return "none";
   // Measured 5 Sep 2026: a thinking budget on the teaching pass moved the
   // first spoken word from 1.1s to 9.0s, and the student watches a thinking
   // overlay for all of it. The lesson's structure now comes from the beat

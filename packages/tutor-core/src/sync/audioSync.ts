@@ -14,10 +14,27 @@ import {
   CODE_TYPE_MS_PER_CHAR,
   FRAME_SWAP_MS,
 } from "../code/codeLessonPlan";
+import { clampSpeechMsPerChar, defaultSpeechMsPerChar } from "./speechRate";
 
-const CHARS_PER_SECOND = 15;
-const MS_PER_CHAR = 1000 / CHARS_PER_SECOND;
 const INTER_COMMAND_GAP_MS = 300;
+
+/**
+ * Slowest the pen may letter one character while it tracks the voice, in
+ * media ms. A token the voice never says (or says with no room) is written at
+ * this pace right after its neighbour instead of being smeared to the end of
+ * the sentence, and the whiteboard clamps every spoken slot to
+ * [floor, ceiling] before it inks it.
+ */
+export const WRITE_INK_FLOOR_MS_PER_CHAR = 90;
+export const WRITE_INK_CEILING_MS_PER_CHAR = 350;
+
+/**
+ * An estimated schedule is a guess at where the words fall; if it puts the
+ * first cue past this share of the sentence the pen starts there instead,
+ * so a wrong guess never leaves the row unwritten until the voice is done.
+ * An exact schedule is the truth and is never shifted.
+ */
+export const ESTIMATED_FIRST_CUE_MAX_FRACTION = 0.6;
 
 export interface SegmentTiming {
   narrationText: string;
@@ -45,14 +62,18 @@ export interface AudioTimingValidation {
   expectedMaxMs: number;
 }
 
-export function buildSyncPlan(parsed: ParsedResponse): SyncPlan {
+export function buildSyncPlan(
+  parsed: ParsedResponse,
+  msPerChar = defaultSpeechMsPerChar,
+): SyncPlan {
   const segments: SegmentTiming[] = [];
   let elapsedMs = 0;
+  const rate = clampSpeechMsPerChar(msPerChar);
 
   for (let i = 0; i < parsed.segments.length; i++) {
     const seg = parsed.segments[i];
     const narrationText = seg.text.trim();
-    const estimatedDurationMs = Math.max(narrationText.length * MS_PER_CHAR, 500);
+    const estimatedDurationMs = Math.max(narrationText.length * rate, 500);
     const command = seg.commandIndex < parsed.commands.length ? parsed.commands[seg.commandIndex] : null;
 
     segments.push({
@@ -83,10 +104,12 @@ export function buildSyncPlan(parsed: ParsedResponse): SyncPlan {
 export function buildSyncPlanFromTimings(
   parsed: ParsedResponse,
   timings: AudioTimings,
+  msPerChar = defaultSpeechMsPerChar,
 ): SyncPlan {
   const segments: SegmentTiming[] = [];
   let charOffset = 0;
   let elapsedMs = 0;
+  const rate = clampSpeechMsPerChar(msPerChar);
 
   for (let i = 0; i < parsed.segments.length; i++) {
     const seg = parsed.segments[i];
@@ -103,7 +126,7 @@ export function buildSyncPlanFromTimings(
       segmentEndSec = (timings.charStartTimes[endIdx] ?? segmentStartSec) + (timings.charDurations[endIdx] ?? 0.06);
     } else {
       segmentStartSec = elapsedMs / 1000;
-      segmentEndSec = segmentStartSec + Math.max(narrationCharCount * MS_PER_CHAR / 1000, 0.5);
+      segmentEndSec = segmentStartSec + Math.max(narrationCharCount * rate / 1000, 0.5);
     }
 
     const segmentDurationMs = Math.max((segmentEndSec - segmentStartSec) * 1000, 300);
@@ -134,40 +157,68 @@ export function buildSyncPlanFromTimings(
   };
 }
 
-const DIGIT_WORDS: Record<string, string> = {
-  "0": "zero",
-  "1": "one",
-  "2": "two",
-  "3": "three",
-  "4": "four",
-  "5": "five",
-  "6": "six",
-  "7": "seven",
-  "8": "eight",
-  "9": "nine",
-  "10": "ten",
-  "11": "eleven",
-  "12": "twelve",
-  "13": "thirteen",
-  "14": "fourteen",
-  "15": "fifteen",
-  "16": "sixteen",
-  "17": "seventeen",
-  "18": "eighteen",
-  "19": "nineteen",
-  "20": "twenty",
-  "30": "thirty",
-  "40": "forty",
-  "50": "fifty",
-  "60": "sixty",
-  "70": "seventy",
-  "80": "eighty",
-  "90": "ninety",
-  "100": "one hundred",
-  "200": "two hundred",
-  "500": "five hundred",
-  "1000": "one thousand",
-};
+/* ------------------------------------------------------------------------ */
+/* Spoken forms                                                              */
+/* ------------------------------------------------------------------------ */
+
+const ONES_WORDS = [
+  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+  "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+  "seventeen", "eighteen", "nineteen",
+];
+const TENS_WORDS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+
+function integerToWords(n: number): string {
+  if (n < 20) {
+    return ONES_WORDS[n]!;
+  }
+  if (n < 100) {
+    const rest = n % 10;
+    return `${TENS_WORDS[Math.floor(n / 10)]}${rest ? ` ${ONES_WORDS[rest]}` : ""}`;
+  }
+  if (n < 1000) {
+    const rest = n % 100;
+    return `${ONES_WORDS[Math.floor(n / 100)]} hundred${rest ? ` ${integerToWords(rest)}` : ""}`;
+  }
+  if (n < 1_000_000) {
+    const rest = n % 1000;
+    return `${integerToWords(Math.floor(n / 1000))} thousand${rest ? ` ${integerToWords(rest)}` : ""}`;
+  }
+  if (n < 1_000_000_000) {
+    const rest = n % 1_000_000;
+    return `${integerToWords(Math.floor(n / 1_000_000))} million${rest ? ` ${integerToWords(rest)}` : ""}`;
+  }
+  return String(n)
+    .split("")
+    .map((digit) => ONES_WORDS[Number(digit)] ?? digit)
+    .join(" ");
+}
+
+/**
+ * "0.43" -> "zero point four three", "1,000" -> "one thousand". Both the board
+ * token and the narration go through this, so a digit string on the board
+ * finds the same words whether the model wrote the number in digits or spelt
+ * it out for the voice.
+ */
+export function numberToSpokenWords(raw: string): string {
+  const cleaned = raw.replace(/,/g, "");
+  const [intPart = "", decimalPart] = cleaned.split(".");
+  const digitsOnly = intPart.replace(/\D/g, "");
+  const intWords =
+    digitsOnly.length === 0
+      ? ""
+      : digitsOnly.length > 9
+        ? digitsOnly.split("").map((digit) => ONES_WORDS[Number(digit)]).join(" ")
+        : integerToWords(Number(digitsOnly));
+  if (decimalPart === undefined || decimalPart.length === 0) {
+    return intWords;
+  }
+  const decimalWords = decimalPart
+    .split("")
+    .map((digit) => ONES_WORDS[Number(digit)] ?? digit)
+    .join(" ");
+  return `${intWords.length > 0 ? `${intWords} ` : ""}point ${decimalWords}`;
+}
 
 const GREEK_SYMBOLS: Record<string, string> = {
   "θ": "theta",
@@ -191,6 +242,7 @@ const GREEK_SYMBOLS: Record<string, string> = {
   "κ": "kappa",
   "χ": "chi",
   "ζ": "zeta",
+  "δ": "delta",
   "Θ": "capital theta",
   "Ω": "omega",
   "Σ": "sigma",
@@ -200,25 +252,12 @@ const GREEK_SYMBOLS: Record<string, string> = {
 };
 
 function expandGreekSymbols(text: string): string {
-  return text.replace(/[θμωπλΔαβγφψρστξηνκχζΘΩΣΦΨΛ]/g, (match) => GREEK_SYMBOLS[match] ?? match);
-}
-
-function expandDecimalNumber(numStr: string): string {
-  const parts = numStr.split(".");
-  const intPart = DIGIT_WORDS[parts[0]!] ?? parts[0]!;
-  if (parts.length === 1) {
-    return intPart;
-  }
-  const decimalPart = parts[1]!
-    .split("")
-    .map((digit) => DIGIT_WORDS[digit] ?? digit)
-    .join(" ");
-  return `${intPart} point ${decimalPart}`;
+  return text.replace(/[θμωπλΔαβγφψρστξηνκχζδΘΩΣΦΨΛ]/g, (match) => ` ${GREEK_SYMBOLS[match] ?? match} `);
 }
 
 function expandPowersOfTen(text: string): string {
   return text.replace(/(\d+)\s*\^\s*(\d+)/g, (_match, base, exp) => {
-    const baseWord = DIGIT_WORDS[base!] ?? base;
+    const baseWord = numberToSpokenWords(base!);
     const expNum = Number(exp);
     if (expNum === 2) return `${baseWord} squared`;
     if (expNum === 3) return `${baseWord} cubed`;
@@ -226,21 +265,18 @@ function expandPowersOfTen(text: string): string {
   });
 }
 
-function expandSmallIntegers(text: string): string {
-  const withPowers = expandPowersOfTen(text);
-  return withPowers.replace(/\b\d+(?:\.\d+)?\b/g, (match) => {
-    if (DIGIT_WORDS[match]) {
-      return DIGIT_WORDS[match];
-    }
-    if (match.includes(".")) {
-      return expandDecimalNumber(match);
-    }
-    return match;
-  });
+function expandNumbers(text: string): string {
+  return expandPowersOfTen(text).replace(/\b\d+(?:\.\d+)?\b/g, (match) => numberToSpokenWords(match));
 }
 
-function normalizeForSpeechMatch(text: string): string {
-  return expandSmallIntegers(
+/**
+ * One string of lowercase words, the way the voice would say the text. Used
+ * for whole-phrase candidates (a FOCUS anchor clause, a narration clause) and
+ * by the focus scheduler; the board token matcher builds its candidates per
+ * symbol instead, because a symbol has more than one spoken form.
+ */
+export function normalizeForSpeechMatch(text: string): string {
+  return expandNumbers(
     expandGreekSymbols(
       mathToSpeech(text)
         .replace(/([0-9])([a-z])/gi, "$1 $2")
@@ -249,6 +285,8 @@ function normalizeForSpeechMatch(text: string): string {
         .replace(/\bequal\s+to\b/gi, " equals ")
         .replace(/=/g, " equals ")
         .replace(/\+/g, " plus ")
+        // A hyphen inside a word ("forty-five", "re-arrange") is not a minus.
+        .replace(/(\p{L})-(?=\p{L})/gu, "$1 ")
         .replace(/-/g, " minus ")
         .replace(/\*/g, " times ")
         .replace(/\//g, " divided by ")
@@ -257,10 +295,645 @@ function normalizeForSpeechMatch(text: string): string {
     ),
   )
     .toLowerCase()
+    .replace(/'/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/**
+ * How the voice says a symbol. Measured over 364 lessons (6301 WRITE rows):
+ * "=" was said as "is" 45% of the time, "equals" 33%; "/" was "over" far more
+ * often than "divided by"; "->" and "≈" had no spoken form at all and dropped
+ * out of every schedule. The first form is the one the narration side uses
+ * when the sentence itself carries the symbol; every form is a board
+ * candidate. Order matters only as a tie break.
+ */
+const SYMBOL_SPOKEN_FORMS: Record<string, readonly string[]> = {
+  "=": [
+    "equals", "is", "gives", "comes to", "equal to", "is equal to", "becomes",
+    "comes out to", "works out to", "we get", "which is", "will be", "that is",
+    "equal",
+  ],
+  "==": ["equals", "is", "is equal to", "equal to"],
+  "≈": [
+    "approximately", "about", "roughly", "around", "is about", "is approximately",
+    "is roughly", "is around", "approximately equal to", "nearly", "close to",
+    "almost",
+  ],
+  "~": ["approximately", "about", "roughly", "around"],
+  "->": [
+    "so", "gives", "means", "therefore", "implies", "hence", "then", "which gives",
+    "which means", "leads to", "we get", "so that", "giving", "meaning",
+  ],
+  ">": [
+    "greater than", "more than", "positive", "exceeds", "bigger than", "larger than",
+    "above", "is positive", "is greater than", "is more than", "came out positive",
+  ],
+  "<": [
+    "less than", "negative", "below", "smaller than", "under", "is negative",
+    "is less than", "came out negative",
+  ],
+  ">=": ["greater than or equal to", "at least", "greater than or equal"],
+  "<=": ["less than or equal to", "at most", "less than or equal"],
+  "≠": ["not equal to", "does not equal", "not equal", "is not"],
+  "!=": ["not equal to", "does not equal", "not equal", "is not"],
+  "+": ["plus", "and", "added to", "add", "positive"],
+  "-": ["minus", "negative", "less", "take away", "subtract", "subtracting"],
+  "±": ["plus or minus", "plus minus"],
+  "*": ["times", "multiplied by", "by", "into", "cross"],
+  "/": ["over", "divided by", "by", "per", "upon", "divided"],
+  "_": ["", "sub"],
+  "√": ["square root of", "root", "square root", "the square root of", "root of"],
+  "∞": ["infinity"],
+  "°": ["degrees", "degree"],
+  "%": ["percent", "per cent"],
+  "|": ["", "absolute value of", "magnitude of", "mod", "the absolute value of", "the magnitude of"],
+  "'": ["prime", "dash"],
+  "!": ["", "factorial"],
+  "∑": ["sum of", "sum", "sigma", "the sum of"],
+  "∫": ["integral of", "integral", "the integral of"],
+  "∂": ["partial", "del"],
+  "∇": ["del", "nabla", "gradient"],
+  "∈": ["in", "belongs to", "is in", "element of"],
+  "∝": ["proportional to", "is proportional to", "varies as"],
+  "⊥": ["perpendicular to", "perpendicular"],
+  "∥": ["parallel to", "parallel"],
+  "∠": ["angle"],
+  "&": ["and"],
+  "@": ["at"],
+  "#": ["number", "hash"],
+  // Inside a token ("(2,3)") a comma is often read out; at the end of one it is silence.
+  ",": ["", "comma", "and"],
+};
+
+const SYMBOL_ALIASES: Record<string, string> = {
+  "=>": "->",
+  "→": "->",
+  "⇒": "->",
+  "⟹": "->",
+  "∴": "->",
+  "≥": ">=",
+  "≤": "<=",
+  "×": "*",
+  "·": "*",
+  "⋅": "*",
+  "∗": "*",
+  "÷": "/",
+  "∕": "/",
+  "−": "-",
+  "–": "-",
+  "—": "-",
+  "Σ": "∑",
+  "²": "^2",
+  "³": "^3",
+};
+
+/** Punctuation that carries no spoken word: dropped from candidates, never matched. */
+const SILENT_SYMBOLS = new Set([
+  "(", ")", "[", "]", "{", "}", ".", ":", ";", "?", "✓", "✔", "✗", "✘", "…",
+  "\"", "“", "”", "‘", "’", "`", "•", "$", "\\", "^", "⋯",
+]);
+
+const STOPWORDS = new Set([
+  "is", "so", "by", "be", "per", "about", "around", "means", "gives", "then", "and",
+  "less", "more", "to", "a", "an", "the", "of", "in", "on", "at", "we", "it", "as",
+  "or", "if", "into", "add", "sub", "mod", "will", "that", "which", "get",
+]);
+
+/**
+ * Units by their board symbol. Single letters (m, s, N, J, V, A, ...) are
+ * only read as units when a number precedes them, because "m" is also the
+ * magnification and "V" a voltage variable. Multi letter symbols are units
+ * wherever they stand.
+ */
+const UNIT_SPOKEN_FORMS: Record<string, readonly string[]> = {
+  cm: ["centimeters", "centimeter", "centimetres", "centimetre", "cm"],
+  mm: ["millimeters", "millimeter", "millimetres", "millimetre", "mm"],
+  km: ["kilometers", "kilometer", "kilometres", "kilometre", "km"],
+  m: ["meters", "meter", "metres", "metre", "m"],
+  s: ["seconds", "second", "s", "sec"],
+  sec: ["seconds", "second", "sec"],
+  ms: ["milliseconds", "millisecond", "ms"],
+  min: ["minutes", "minute", "min"],
+  h: ["hours", "hour", "h"],
+  hr: ["hours", "hour"],
+  hrs: ["hours", "hour"],
+  kg: ["kilograms", "kilogram", "kilos", "kilo", "kg"],
+  g: ["grams", "gram", "g"],
+  mg: ["milligrams", "milligram", "mg"],
+  n: ["newtons", "newton", "n"],
+  j: ["joules", "joule", "j"],
+  kj: ["kilojoules", "kilojoule"],
+  w: ["watts", "watt", "w"],
+  kw: ["kilowatts", "kilowatt"],
+  v: ["volts", "volt", "v"],
+  kv: ["kilovolts", "kilovolt"],
+  mv: ["millivolts", "millivolt"],
+  a: ["amperes", "ampere", "amps", "amp", "a"],
+  ma: ["milliamperes", "milliampere", "milliamps", "milliamp"],
+  ohm: ["ohms", "ohm"],
+  ohms: ["ohms", "ohm"],
+  hz: ["hertz", "hz"],
+  khz: ["kilohertz"],
+  mhz: ["megahertz"],
+  ghz: ["gigahertz"],
+  k: ["kelvin", "k"],
+  c: ["coulombs", "coulomb", "celsius", "c"],
+  t: ["tesla", "t"],
+  pa: ["pascals", "pascal"],
+  kpa: ["kilopascals", "kilopascal"],
+  mol: ["moles", "mole", "mol"],
+  ev: ["electron volts", "electron volt", "ev"],
+  rad: ["radians", "radian", "rad"],
+  deg: ["degrees", "degree"],
+  db: ["decibels", "decibel"],
+  l: ["liters", "liter", "litres", "litre", "l"],
+  ml: ["milliliters", "milliliter", "millilitres", "millilitre", "ml"],
+  f: ["farads", "farad", "f"],
+  uf: ["microfarads", "microfarad"],
+  nf: ["nanofarads", "nanofarad"],
+  pf: ["picofarads", "picofarad"],
+  h_: ["henries", "henry"],
+  wb: ["webers", "weber"],
+  au: ["astronomical units", "astronomical unit"],
+  ly: ["light years", "light year"],
+  atm: ["atmospheres", "atmosphere"],
+  cal: ["calories", "calorie"],
+  kcal: ["kilocalories", "kilocalorie"],
+  rpm: ["rpm", "revolutions per minute"],
+  kmh: ["kilometers per hour", "kilometres per hour"],
+  mph: ["miles per hour"],
+  yr: ["years", "year"],
+  yrs: ["years", "year"],
+};
+
+/** Units that need no number beside them to read as a unit. */
+const UNAMBIGUOUS_UNITS = new Set([
+  "cm", "mm", "km", "ms", "kg", "mg", "kj", "kw", "kv", "mv", "ma", "ohm", "ohms",
+  "hz", "khz", "mhz", "ghz", "pa", "kpa", "mol", "ev", "rad", "deg", "db", "ml",
+  "uf", "nf", "pf", "wb", "atm", "cal", "kcal", "rpm", "kmh", "mph", "hrs", "yrs",
+]);
+
+const FUNCTION_SPOKEN_FORMS: Record<string, readonly string[]> = {
+  sin: ["sine", "sin"],
+  cos: ["cosine", "cos"],
+  tan: ["tangent", "tan"],
+  cot: ["cotangent", "cot"],
+  sec: ["secant", "sec"],
+  csc: ["cosecant", "cosec", "csc"],
+  cosec: ["cosecant", "cosec"],
+  sinh: ["sinh", "hyperbolic sine"],
+  cosh: ["cosh", "hyperbolic cosine"],
+  tanh: ["tanh", "hyperbolic tangent"],
+  arcsin: ["arc sine", "inverse sine", "arcsine", "sine inverse"],
+  arccos: ["arc cosine", "inverse cosine", "arccosine", "cosine inverse"],
+  arctan: ["arc tangent", "inverse tangent", "arctangent", "tangent inverse"],
+  log: ["log", "logarithm", "log of"],
+  ln: ["natural log", "ln", "l n", "log", "natural log of"],
+  lg: ["log", "lg"],
+  sqrt: ["square root of", "root", "square root", "the square root of"],
+  lim: ["limit", "lim", "the limit"],
+  int: ["integral of", "integral", "the integral of", "int"],
+  exp: ["e to the", "exp", "exponential", "e to the power"],
+  max: ["max", "maximum", "the maximum"],
+  min: ["min", "minimum", "the minimum"],
+  det: ["determinant", "det", "the determinant"],
+  mod: ["mod", "modulo", "modulus"],
+  abs: ["absolute value of", "abs", "the absolute value of"],
+  avg: ["average", "avg"],
+  dx: ["d x", "dx"],
+  dy: ["d y", "dy"],
+  dt: ["d t", "dt"],
+  dv: ["d v", "dv"],
+  var: ["variance", "var"],
+  len: ["length", "len"],
+  len_: ["length"],
+  null: ["null", "none", "nothing"],
+  nil: ["nil", "null"],
+  arr: ["array", "arr"],
+  idx: ["index", "idx"],
+  ptr: ["pointer", "ptr"],
+  cnt: ["count", "cnt"],
+  num: ["number", "num"],
+  str: ["string", "str"],
+  fn: ["function", "fn"],
+  func: ["function", "func"],
+  pe: ["potential energy", "p e"],
+  ke: ["kinetic energy", "k e"],
+  emf: ["e m f", "emf", "electromotive force"],
+};
+
+// Common English words of two to three letters. A word on the board that is
+// one of these is said as the word, never letter by letter ("the" is not
+// "t h e"); anything else that short inside a formula may be a product of
+// variables, so both readings are offered.
+const COMMON_SHORT_WORDS = new Set([
+  "the", "and", "for", "but", "not", "you", "all", "any", "can", "had", "her",
+  "was", "one", "our", "out", "day", "get", "has", "him", "his", "how", "man",
+  "new", "now", "old", "see", "two", "way", "who", "boy", "did", "its", "let",
+  "put", "say", "she", "too", "use", "an", "as", "at", "be", "by", "do", "go",
+  "he", "if", "in", "is", "it", "me", "my", "no", "of", "on", "or", "so", "to",
+  "up", "us", "we", "am", "yes", "per", "sum", "net", "top", "end", "set", "run",
+  "add", "ask", "big", "cut", "far", "few", "fix", "key", "law", "low", "map",
+  "max", "min", "mid", "odd", "off", "own", "red", "row", "try", "via", "yet",
+  "area", "base", "case", "goal", "rule", "real", "side", "step", "true", "left",
+  "down", "next", "last", "more", "less", "than", "with", "from", "into", "over",
+  "when", "then", "both", "each", "same", "work", "find", "want", "need", "show",
+  "here", "hint", "note", "sign", "zero", "half", "unit", "mass", "time", "path",
+  "flow", "heat", "loop", "node", "root", "tree", "list", "head", "tail", "peak",
+  "ex", "eg", "ie", "vs", "ok", "ans", "sol", "def", "dim", "avg", "std", "err",
+]);
+
+/* ------------------------------------------------------------------------ */
+/* Narration words                                                           */
+/* ------------------------------------------------------------------------ */
+
+/** One spoken word with its span in the spoken narration string (end exclusive). */
+export interface SpokenWord {
+  text: string;
+  startIndex: number;
+  endIndex: number;
+}
+
+// A comma joins digits only as a thousands separator ("1,000"); "(2,3)" is two numbers.
+const NARRATION_RUN = /\d+(?:,\d{3})*(?:\.\d+)?|\p{L}+(?:'\p{L}+)*|->|=>|<=|>=|!=|==|[^\s\p{L}\p{N}]/gu;
+
+function isLetter(char: string | undefined): boolean {
+  return char !== undefined && /\p{L}/u.test(char);
+}
+
+function letterRunWords(run: string): string[] {
+  const lowered = run.replace(/'/g, "").toLowerCase();
+  const expanded = lowered.replace(/[θμωπλΔαβγφψρστξηνκχζδΘΩΣΦΨΛ]/g, (match) => ` ${GREEK_SYMBOLS[match] ?? match} `);
+  return expanded
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter(Boolean);
+}
+
+function symbolKey(symbol: string): string {
+  return SYMBOL_ALIASES[symbol] ?? symbol;
+}
+
+/**
+ * The spoken narration as whole words, each tied to the characters the
+ * alignment timed. Whole words are the unit of matching: a substring search
+ * put "v" inside "concave" and "|m|" inside "image" (measured, 10 Sep 2026),
+ * and a proportional character map drifted once numbers were spelt out.
+ */
+export function tokenizeSpokenNarration(spoken: string): SpokenWord[] {
+  const words: SpokenWord[] = [];
+  for (const match of spoken.matchAll(NARRATION_RUN)) {
+    const run = match[0];
+    const startIndex = match.index ?? 0;
+    const endIndex = startIndex + run.length;
+    let parts: string[];
+    if (/^\d/.test(run)) {
+      parts = numberToSpokenWords(run).split(" ").filter(Boolean);
+    } else if (/^\p{L}/u.test(run)) {
+      parts = letterRunWords(run);
+    } else if (run === "-" && isLetter(spoken[startIndex - 1]) && isLetter(spoken[endIndex])) {
+      // A hyphen joining two words ("forty-five") is not a minus sign.
+      parts = [];
+    } else {
+      const key = symbolKey(run);
+      const forms = key.startsWith("^") ? [] : SYMBOL_SPOKEN_FORMS[key];
+      parts = forms && forms.length > 0 && forms[0]!.length > 0 ? forms[0]!.split(" ") : [];
+    }
+    if (parts.length === 0) {
+      continue;
+    }
+    if (parts.length === 1) {
+      words.push({ text: parts[0]!, startIndex, endIndex });
+      continue;
+    }
+    // "45" -> "forty five": split the two timed characters between the words
+    // by their length so each word still owns a real slice of the alignment.
+    const totalLetters = parts.reduce((sum, part) => sum + part.length, 0);
+    let cursor = startIndex;
+    parts.forEach((part, partIndex) => {
+      const isLast = partIndex === parts.length - 1;
+      const share = Math.max(Math.round((run.length * part.length) / Math.max(totalLetters, 1)), 0);
+      const partEnd = isLast ? endIndex : Math.min(cursor + share, endIndex);
+      words.push({ text: part, startIndex: cursor, endIndex: Math.max(partEnd, cursor) });
+      cursor = partEnd;
+    });
+  }
+  return words;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Board token candidates                                                    */
+/* ------------------------------------------------------------------------ */
+
+interface TokenUnit {
+  /** Every spoken reading of this piece, as normalized words; "" means silent. */
+  forms: string[];
+}
+
+const BOARD_UNIT = /\d+(?:,\d{3})*(?:\.\d+)?|\p{L}+|->|=>|<=|>=|!=|==|\^\d+|\^|[^\s\p{L}\p{N}]/gu;
+
+function isSilentSymbol(symbol: string): boolean {
+  return SILENT_SYMBOLS.has(symbol);
+}
+
+function numberForms(raw: string, subscript: boolean): string[] {
+  const words = numberToSpokenWords(raw);
+  const forms = [words];
+  if (subscript) {
+    forms.push(`sub ${words}`);
+  }
+  if (/^0\./.test(raw)) {
+    forms.push(words.replace(/^zero /, ""));
+    forms.push(words.replace(/^zero /, "oh "));
+  } else if (/\.\d\d$/.test(raw)) {
+    // "8.57" is also said "eight point fifty seven".
+    const [intPart, decimalPart] = raw.replace(/,/g, "").split(".");
+    forms.push(`${numberToSpokenWords(intPart!)} point ${integerToWords(Number(decimalPart))}`);
+  }
+  if (/^(100|1000|1000000)$/.test(raw.replace(/,/g, ""))) {
+    forms.push(words.replace(/^one /, "a "));
+    forms.push(words.replace(/^one /, ""));
+  }
+  return forms;
+}
+
+function letterForms(
+  run: string,
+  options: { numericContext: boolean; formulaToken: boolean; standaloneOperand: boolean },
+): string[] {
+  const lower = run.toLowerCase();
+  const plain = letterRunWords(run).join(" ");
+  const forms: string[] = [];
+  const unitForms = UNIT_SPOKEN_FORMS[lower];
+  const isUnit = unitForms && (options.numericContext || UNAMBIGUOUS_UNITS.has(lower));
+  if (isUnit) {
+    forms.push(...unitForms);
+  }
+  const functionForms = FUNCTION_SPOKEN_FORMS[lower];
+  if (functionForms && !isUnit) {
+    forms.push(...functionForms);
+  }
+  if (plain.length > 0) {
+    forms.push(plain);
+  }
+  // "mgh" or "ma" inside a formula is a product of variables as often as a
+  // word; offer the letters too. A single letter is already itself.
+  const isLatin = /^[a-z]+$/i.test(run);
+  if (
+    isLatin &&
+    run.length >= 2 &&
+    run.length <= 4 &&
+    !COMMON_SHORT_WORDS.has(lower) &&
+    !functionForms &&
+    !isUnit &&
+    (options.formulaToken || run.length <= 3)
+  ) {
+    forms.push(run.toLowerCase().split("").join(" "));
+    if (run.length === 2) {
+      forms.push(run.toLowerCase().split("").join(" times "));
+    }
+  }
+  // A lone "x" token between two operands is the multiplication sign as often
+  // as the variable ("V_s x R2"); glued to a number ("2x") it is the variable.
+  if (lower === "x" && options.standaloneOperand) {
+    forms.push("times", "multiplied by", "cross");
+  }
+  return forms;
+}
+
+function powerForms(exponent: string): string[] {
+  const trimmed = exponent.replace(/^\^/, "");
+  if (trimmed.length === 0) {
+    return ["to the power of", "to the power", "to the", "raised to"];
+  }
+  if (trimmed === "2") return ["squared", "square", "to the power two"];
+  if (trimmed === "3") return ["cubed", "cube", "to the power three"];
+  const spoken = /^\d/.test(trimmed) ? numberToSpokenWords(trimmed) : letterRunWords(trimmed).join(" ");
+  return [
+    `to the power ${spoken}`,
+    `to the ${spoken}`,
+    `to the power of ${spoken}`,
+    `power ${spoken}`,
+    `raised to ${spoken}`,
+  ];
+}
+
+/**
+ * Break one board token into pieces and list how each may be said. "1/v"
+ * becomes [one] [over | divided by | by | per] [v]; "V_s" becomes
+ * [v] [ | sub] [s]; "60cm" becomes [sixty] [centimeters | centimeter | ...].
+ */
+function boardTokenUnits(token: string, previousToken: string | undefined): TokenUnit[] {
+  const pieces = [...token.matchAll(BOARD_UNIT)].map((match) => match[0]);
+  const formulaToken = /[=+\-*/^_()|<>≈→⇒×·÷√]|\d/.test(token) || /[A-Z].*[A-Z]/.test(token);
+  const previousNumeric = previousToken !== undefined && /\d$/.test(previousToken);
+  const units: TokenUnit[] = [];
+
+  for (let i = 0; i < pieces.length; i++) {
+    const piece = pieces[i]!;
+    const previous = pieces[i - 1];
+    const next = pieces[i + 1];
+
+    if (/^\d/.test(piece)) {
+      const subscript = previous !== undefined && /^\p{L}+$/u.test(previous);
+      units.push({ forms: numberForms(piece, subscript) });
+      // "2x", "2(4)", "2πr": a number written against a letter or bracket is
+      // multiplied, and the voice may or may not say "times".
+      if (next !== undefined && (/^\p{L}/u.test(next) || next === "(" || next === "√")) {
+        units.push({ forms: ["", "times"] });
+      }
+      continue;
+    }
+
+    if (/^\p{L}/u.test(piece)) {
+      const numericContext =
+        (previous !== undefined && /^\d/.test(previous)) ||
+        (i === 0 && previousNumeric);
+      units.push({
+        forms: letterForms(piece, {
+          numericContext,
+          formulaToken,
+          standaloneOperand: pieces.length === 1 && previousToken !== undefined,
+        }),
+      });
+      if (next === "(" && !FUNCTION_SPOKEN_FORMS[piece.toLowerCase()]) {
+        units.push({ forms: ["", "times"] });
+      }
+      continue;
+    }
+
+    if (piece.startsWith("^")) {
+      if (piece === "^" && next !== undefined && /^[\p{L}\d]/u.test(next)) {
+        units.push({ forms: powerForms(next) });
+        i += 1;
+      } else {
+        units.push({ forms: powerForms(piece) });
+      }
+      continue;
+    }
+
+    const key = symbolKey(piece);
+    if (key.startsWith("^")) {
+      units.push({ forms: powerForms(key) });
+      continue;
+    }
+    if (isSilentSymbol(key)) {
+      if ((key === ")" || key === "]") && (next === "(" || next === "[")) {
+        units.push({ forms: ["", "times"] });
+      }
+      continue;
+    }
+    const forms = SYMBOL_SPOKEN_FORMS[key];
+    if (forms) {
+      // A leading minus is a sign more than a subtraction.
+      if (key === "-" && i === 0 && next !== undefined && /^\d/.test(next)) {
+        units.push({ forms: ["negative", "minus"] });
+      } else {
+        units.push({ forms: [...forms] });
+      }
+      continue;
+    }
+    // Anything else (≤ from the older mapping, a chemistry arrow) keeps the
+    // single reading the voice gets.
+    const fallback = normalizeForSpeechMatch(piece);
+    if (fallback.length > 0) {
+      units.push({ forms: [fallback] });
+    }
+  }
+
+  return units;
+}
+
+const MAX_TOKEN_CANDIDATES = 64;
+
+/**
+ * Every way this board token may be spoken, most likely first, as word
+ * arrays. Empty when the token is pure punctuation ("?", "✓", ":"), which
+ * the pen letters beside its neighbour without looking for a word.
+ */
+export function boardTokenSpokenCandidates(token: string, previousToken?: string): string[][] {
+  const units = boardTokenUnits(token, previousToken);
+  if (units.length === 0) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const results: string[][] = [];
+  const walk = (index: number, acc: string[]): void => {
+    if (results.length >= MAX_TOKEN_CANDIDATES) {
+      return;
+    }
+    if (index === units.length) {
+      const phrase = acc.join(" ").replace(/\s+/g, " ").trim();
+      if (phrase.length === 0 || seen.has(phrase)) {
+        return;
+      }
+      seen.add(phrase);
+      results.push(phrase.split(" "));
+      return;
+    }
+    for (const form of units[index]!.forms) {
+      walk(index + 1, form.length > 0 ? [...acc, form] : acc);
+      if (results.length >= MAX_TOKEN_CANDIDATES) {
+        return;
+      }
+    }
+  };
+  walk(0, []);
+  return results;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Whole-word search                                                         */
+/* ------------------------------------------------------------------------ */
+
+function phraseAt(words: readonly string[], phrase: readonly string[], at: number): boolean {
+  if (at < 0 || at + phrase.length > words.length) {
+    return false;
+  }
+  for (let k = 0; k < phrase.length; k++) {
+    if (words[at + k] !== phrase[k]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** First index in [from, before) where the phrase starts, or -1. */
+function findPhrase(
+  words: readonly string[],
+  phrase: readonly string[],
+  from: number,
+  before = words.length,
+): number {
+  if (phrase.length === 0) {
+    return -1;
+  }
+  const last = Math.min(before, words.length - phrase.length + 1);
+  for (let i = Math.max(from, 0); i < last; i++) {
+    if (phraseAt(words, phrase, i)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function findNthPhrase(words: readonly string[], phrase: readonly string[], n: number): number {
+  let from = 0;
+  let found = -1;
+  for (let i = 0; i <= n; i++) {
+    found = findPhrase(words, phrase, from);
+    if (found < 0) {
+      return -1;
+    }
+    from = found + 1;
+  }
+  return found;
+}
+
+interface PhraseMatch {
+  start: number;
+  /** Exclusive. */
+  end: number;
+  candidate: string[];
+}
+
+/**
+ * Earliest whole-word match of any candidate inside [from, before). Ties on
+ * position go to the longer phrase ("is about" over "about"), then to the
+ * likelier form.
+ */
+function earliestCandidateMatch(
+  words: readonly string[],
+  candidates: readonly string[][],
+  from: number,
+  before = words.length,
+  taken?: readonly boolean[],
+): PhraseMatch | null {
+  let best: PhraseMatch | null = null;
+  for (const candidate of candidates) {
+    let at = findPhrase(words, candidate, from, before);
+    while (at >= 0 && taken && taken.slice(at, at + candidate.length).some(Boolean)) {
+      at = findPhrase(words, candidate, at + 1, before);
+    }
+    if (at < 0) {
+      continue;
+    }
+    if (!best || at < best.start || (at === best.start && candidate.length > best.candidate.length)) {
+      best = { start: at, end: at + candidate.length, candidate };
+    }
+  }
+  return best;
+}
+
+function phraseStrength(candidate: readonly string[]): number {
+  return candidate.reduce((sum, word) => sum + (STOPWORDS.has(word) ? 0 : word.length), 0);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Timings                                                                   */
+/* ------------------------------------------------------------------------ */
 
 function normalizeSegmentTimings(narration: string, timings: AudioTimings): AudioTimings {
   const spokenNarration = mathToSpeech(narration.trim());
@@ -344,7 +1017,7 @@ export function validateAudioTimingsForNarration(
   };
 }
 
-function timingIndexForNormalizedOffset(
+export function timingIndexForNormalizedOffset(
   normalizedOffset: number,
   normalizedLength: number,
   spokenLength: number,
@@ -361,14 +1034,14 @@ function hasTimingAt(timings: AudioTimings, index: number): boolean {
   return Number.isFinite(timings.charStartTimes[index]);
 }
 
-function timingStartMs(timings: AudioTimings, index: number): number | null {
+export function timingStartMs(timings: AudioTimings, index: number): number | null {
   if (!hasTimingAt(timings, index)) {
     return null;
   }
   return Math.max(Math.round((timings.charStartTimes[index] ?? 0) * 1000), 0);
 }
 
-function timingEndMs(timings: AudioTimings, index: number): number | null {
+export function timingEndMs(timings: AudioTimings, index: number): number | null {
   if (!hasTimingAt(timings, index)) {
     return null;
   }
@@ -378,19 +1051,39 @@ function timingEndMs(timings: AudioTimings, index: number): number | null {
   return Math.max(Math.round(sec * 1000), 0);
 }
 
+/** Spoken span of words [start, end) of the narration, in media ms. */
+function wordSpanMs(
+  words: readonly SpokenWord[],
+  timings: AudioTimings,
+  start: number,
+  end: number,
+): { startMs: number; endMs: number } | null {
+  const first = words[start];
+  const last = words[end - 1];
+  if (!first || !last) {
+    return null;
+  }
+  const startMs = timingStartMs(timings, first.startIndex);
+  const endMs = timingEndMs(timings, Math.max(last.endIndex - 1, last.startIndex));
+  if (startMs === null || endMs === null) {
+    return null;
+  }
+  return { startMs, endMs: Math.max(endMs, startMs) };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Command speech windows                                                    */
+/* ------------------------------------------------------------------------ */
+
 type SpeechCandidateKind = "text" | "anchor";
 
 interface SpeechCandidate {
-  text: string;
+  words: string[];
   kind: SpeechCandidateKind;
 }
 
-function nthIndexOf(str: string, substr: string, n: number): number {
-  let idx = str.indexOf(substr);
-  for (let i = 0; i < n && idx >= 0; i++) {
-    idx = str.indexOf(substr, idx + 1);
-  }
-  return idx;
+function spokenWordsOf(text: string): string[] {
+  return normalizeForSpeechMatch(text).split(" ").filter(Boolean);
 }
 
 function uniqueCandidates(candidates: Array<{ text?: string; kind: SpeechCandidateKind }>): SpeechCandidate[] {
@@ -398,18 +1091,19 @@ function uniqueCandidates(candidates: Array<{ text?: string; kind: SpeechCandida
   const result: SpeechCandidate[] = [];
 
   for (const candidate of candidates) {
-    const normalized = normalizeForSpeechMatch(candidate.text ?? "");
-    if (normalized.length < 2 || seen.has(normalized)) {
+    const words = spokenWordsOf(candidate.text ?? "");
+    const key = words.join(" ");
+    if (words.length === 0 || seen.has(key)) {
       continue;
     }
-    seen.add(normalized);
-    result.push({ text: normalized, kind: candidate.kind });
+    seen.add(key);
+    result.push({ words, kind: candidate.kind });
   }
 
   return result;
 }
 
-function lastMeaningfulClause(text: string): string {
+export function lastMeaningfulClause(text: string): string {
   const clauses = text
     .split(/(?<=[.!?,;:])\s+/)
     .map((clause) => clause.trim())
@@ -423,20 +1117,9 @@ function expandCompactFormulaTokens(text: string): string {
     return text;
   }
 
-  // Common English words that happen to be 2-3 letters. Expanding them
-  // ("the" → "t h e") breaks TTS-to-writing sync matching on natural speech.
-  const COMMON_WORDS = new Set([
-    "the", "and", "for", "but", "not", "you", "all", "any", "can", "had",
-    "her", "was", "one", "our", "out", "day", "get", "has", "him", "his",
-    "how", "man", "new", "now", "old", "see", "two", "way", "who", "boy",
-    "did", "its", "let", "put", "say", "she", "too", "use", "an", "as",
-    "at", "be", "by", "do", "go", "he", "if", "in", "is", "it", "me",
-    "my", "no", "of", "on", "or", "so", "to", "up", "us", "we", "am",
-  ]);
-
   return text.replace(/\b[a-z]{2,3}\b/gi, (token) => {
     const lower = token.toLowerCase();
-    if (COMMON_WORDS.has(lower)) {
+    if (COMMON_SHORT_WORDS.has(lower)) {
       return token;
     }
     if (['int', 'sin', 'cos', 'tan', 'log', 'sqrt', 'pi', 'sum', 'vec', 'det', 'lim', 'exp', 'max', 'min'].includes(lower)) {
@@ -446,8 +1129,13 @@ function expandCompactFormulaTokens(text: string): string {
   });
 }
 
-function fallbackSpeechWindow(narration: string, command: DrawCommand): CommandSpeechWindow {
-  const estimatedTotalMs = Math.max(narration.length * MS_PER_CHAR, 500);
+function fallbackSpeechWindow(
+  narration: string,
+  command: DrawCommand,
+  msPerChar = defaultSpeechMsPerChar,
+): CommandSpeechWindow {
+  const spokenLength = mathToSpeech(narration.trim()).length;
+  const estimatedTotalMs = Math.max(spokenLength * clampSpeechMsPerChar(msPerChar), 500);
   const naturalDrawMs = getCommandDrawDurationMs(command);
   const isTextCommand = command.type === "WRITE" || command.type === "LABEL";
   const startMs = isTextCommand ? Math.round(estimatedTotalMs * 0.45) : 0;
@@ -462,23 +1150,35 @@ function fallbackSpeechWindow(narration: string, command: DrawCommand): CommandS
   };
 }
 
+/**
+ * When the voice reaches this command's words. Text commands after another
+ * text command in the same segment look for the next occurrence of their
+ * phrase; a FOCUS or a shape after a WRITE looks for the first, because the
+ * old rule (the second occurrence for everything) missed every such gesture
+ * measured on 10 Sep 2026.
+ */
 export function getCommandSpeechWindow(
   narration: string,
   command: DrawCommand,
   timings?: AudioTimings | null,
   textCommandIndex = 0,
+  msPerChar = defaultSpeechMsPerChar,
 ): CommandSpeechWindow {
   if (!timings || timings.charStartTimes.length === 0 || timings.totalDuration <= 0) {
-    return fallbackSpeechWindow(narration, command);
+    return fallbackSpeechWindow(narration, command, msPerChar);
   }
 
   const spokenNarration = mathToSpeech(narration.trim());
-  const normalizedNarration = normalizeForSpeechMatch(spokenNarration);
+  const spokenWords = tokenizeSpokenNarration(spokenNarration);
+  const wordTexts = spokenWords.map((word) => word.text);
   const totalMs = Math.round(timings.totalDuration * 1000);
 
-  if (normalizedNarration.length === 0) {
-    return fallbackSpeechWindow(narration, command);
+  if (wordTexts.length === 0) {
+    return fallbackSpeechWindow(narration, command, msPerChar);
   }
+
+  const isTextCommand = command.type === "WRITE" || command.type === "LABEL";
+  const occurrence = isTextCommand ? textCommandIndex : 0;
 
   const candidates = uniqueCandidates([
     { text: command.text, kind: "text" },
@@ -493,66 +1193,76 @@ export function getCommandSpeechWindow(
   ]);
 
   for (const candidate of candidates) {
-    const matchIndex = nthIndexOf(normalizedNarration, candidate.text, textCommandIndex);
-    if (matchIndex < 0) {
+    const at = findNthPhrase(wordTexts, candidate.words, occurrence);
+    if (at < 0) {
+      continue;
+    }
+    const span = wordSpanMs(spokenWords, timings, at, at + candidate.words.length);
+    if (!span) {
       continue;
     }
 
-    const startTimingIndex = timingIndexForNormalizedOffset(
-      matchIndex,
-      normalizedNarration.length,
-      spokenNarration.length,
-    );
-    const endTimingIndex = timingIndexForNormalizedOffset(
-      matchIndex + candidate.text.length,
-      normalizedNarration.length,
-      spokenNarration.length,
-    );
-
-    const startMs = timingStartMs(timings, startTimingIndex);
-    const endMs = timingEndMs(timings, endTimingIndex);
-    if (startMs === null || endMs === null) {
-      continue;
-    }
-
-    const phraseDurationMs = Math.max(endMs - startMs, 250);
+    const phraseDurationMs = Math.max(span.endMs - span.startMs, 250);
     const naturalDrawMs = getCommandDrawDurationMs(command);
     const durationMs =
-      command.type === "WRITE" || command.type === "LABEL"
+      isTextCommand
         ? candidate.kind === "text"
           ? Math.max(phraseDurationMs, naturalDrawMs)
           : naturalDrawMs
-        : Math.min(Math.max(phraseDurationMs, naturalDrawMs), Math.max(totalMs - startMs, 250));
+        : Math.min(Math.max(phraseDurationMs, naturalDrawMs), Math.max(totalMs - span.startMs, 250));
 
     return {
-      startMs,
+      startMs: span.startMs,
       durationMs,
       matched: true,
     };
   }
 
-  return fallbackSpeechWindow(narration, command);
+  return fallbackSpeechWindow(narration, command, msPerChar);
 }
+
+/* ------------------------------------------------------------------------ */
+/* Per-character write schedules                                             */
+/* ------------------------------------------------------------------------ */
 
 export interface WriteCharSchedule {
   /** Start time (ms from audio start) for each non-space character of command.text, in order. */
   offsetsMs: number[];
-  /** Spoken duration budget (ms) for each character — drives elastic pen speed. */
+  /**
+   * The spoken slot of each character: its token's spoken span divided across
+   * the token's characters, in media ms. Zero when the voice left no room. The
+   * whiteboard clamps it to [WRITE_INK_FLOOR_MS_PER_CHAR, WRITE_INK_CEILING_MS_PER_CHAR]
+   * so ink fills the slot and ends when the word ends.
+   */
   charDurationsMs: number[];
+  /** True when any token was found in the narration (matchedCharFraction > 0). */
   matched: boolean;
+  /**
+   * Share of the row's letterable characters whose token the voice says, 0..1.
+   * Punctuation with no spoken form ("?", "✓") is outside the denominator.
+   */
+  matchedCharFraction: number;
   source: "tts" | "estimated";
   validTiming: boolean;
   reason?: string;
+  /**
+   * How long the pen may wait for the first cue before it starts anyway.
+   * Infinite for an exact schedule (the alignment is the truth); a share of
+   * the estimated duration for an estimate.
+   */
+  maxInitialWaitMs: number;
 }
 
 /**
- * Rejects TTS-derived schedules that pass validation but map board text to the
- * wrong part of the narration (e.g. first char at 10s in an 11s segment).
+ * A schedule is unusable when its last cue lands after the sentence, which is
+ * what a misaligned stream looks like. A late first cue is not a fault any
+ * more: a formula spoken at 70% of the sentence is written at 70%.
  */
 export function isWriteScheduleUsable(
   schedule: WriteCharSchedule,
   narration: string,
   segmentDurationMs?: number,
+  msPerChar = defaultSpeechMsPerChar,
 ): boolean {
   if (!schedule.matched || schedule.offsetsMs.length === 0) {
     return false;
@@ -562,48 +1272,215 @@ export function isWriteScheduleUsable(
   const durationMs = Math.max(
     segmentDurationMs && segmentDurationMs > 0
       ? segmentDurationMs
-      : spoken.length * MS_PER_CHAR,
+      : spoken.length * clampSpeechMsPerChar(msPerChar),
     700,
   );
 
-  const firstOffsetMs = schedule.offsetsMs[0] ?? 0;
-  const lastOffsetMs = schedule.offsetsMs[schedule.offsetsMs.length - 1] ?? firstOffsetMs;
-  const maxFirstOffsetMs = Math.max(Math.round(durationMs * 0.35), 800);
+  const lastOffsetMs = schedule.offsetsMs[schedule.offsetsMs.length - 1] ?? 0;
 
-  if (firstOffsetMs > maxFirstOffsetMs) {
-    return false;
-  }
-
-  if (lastOffsetMs > durationMs * 1.12) {
-    return false;
-  }
-
-  return true;
+  return lastOffsetMs <= durationMs * 1.12;
 }
 
-function uniqueNormalized(values: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const value of values) {
-    if (value.length === 0 || seen.has(value)) {
+interface TokenPlan {
+  token: string;
+  /** Letterable characters (the pen skips whitespace). */
+  count: number;
+  /** Pure punctuation: no spoken form, rides with a neighbour, outside the fraction. */
+  silent: boolean;
+  candidates: string[][];
+  /** Where the voice says it, as narration word indices; null when it never does. */
+  match: PhraseMatch | null;
+  /** Found, but said out of board order; timed beside its neighbours instead. */
+  outOfOrder: boolean;
+  /** Timed by the alignment (in the monotonic chain). */
+  anchored: boolean;
+  startMs: number;
+  endMs: number;
+}
+
+const LOOKBACK_TOKENS = 3;
+
+/**
+ * Locate every board token in the narration words, in order. On a miss the
+ * search retries from where the cursor stood up to three located tokens
+ * earlier, for rows the voice says out of order ("solution: x = 4" said as
+ * "x equals four. that is the solution").
+ */
+function locateTokens(plans: TokenPlan[], wordTexts: readonly string[], initialCursor: number): void {
+  let cursor = initialCursor;
+  const cursorHistory: number[] = [];
+  let lookbackFloor = 0;
+  // Words a token already owns; a look-back never hands the same word to a
+  // second token ("11 = 11" must not put both elevens on one "eleven").
+  const taken: boolean[] = new Array<boolean>(wordTexts.length).fill(false);
+  const take = (match: PhraseMatch): void => {
+    for (let k = match.start; k < match.end; k++) {
+      taken[k] = true;
+    }
+  };
+
+  for (const plan of plans) {
+    if (plan.silent || plan.candidates.length === 0) {
       continue;
     }
-    seen.add(value);
-    out.push(value);
+    const forward = earliestCandidateMatch(wordTexts, plan.candidates, cursor);
+    if (forward) {
+      plan.match = forward;
+      take(forward);
+      cursorHistory.push(cursor);
+      if (cursorHistory.length > LOOKBACK_TOKENS) {
+        cursorHistory.shift();
+      }
+      cursor = forward.end;
+      continue;
+    }
+    const lookbackFrom = Math.max(cursorHistory[0] ?? initialCursor, lookbackFloor);
+    if (lookbackFrom < cursor) {
+      const behind = earliestCandidateMatch(wordTexts, plan.candidates, lookbackFrom, cursor, taken);
+      if (behind) {
+        plan.match = behind;
+        plan.outOfOrder = true;
+        take(behind);
+        lookbackFloor = behind.end;
+      }
+    }
   }
-  return out;
+}
+
+/**
+ * Keep the longest board-ordered chain of located tokens (most tokens, then
+ * the most letters outside stop words) as the timed ones. A single label
+ * said out of order loses to the three tokens of maths said in order; a
+ * lone "is" found behind the cursor loses to the letter the voice named.
+ */
+function anchorMonotonicChain(plans: TokenPlan[]): void {
+  const located = plans.filter((plan) => plan.match !== null);
+  const n = located.length;
+  if (n === 0) {
+    return;
+  }
+  const bestCount = new Array<number>(n).fill(1);
+  const bestStrength = located.map((plan) => phraseStrength(plan.match!.candidate));
+  const previous = new Array<number>(n).fill(-1);
+
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < i; j++) {
+      if (located[j]!.match!.end > located[i]!.match!.start) {
+        continue;
+      }
+      const count = bestCount[j]! + 1;
+      const strength = bestStrength[j]! + phraseStrength(located[i]!.match!.candidate);
+      if (count > bestCount[i]! || (count === bestCount[i]! && strength > bestStrength[i]!)) {
+        bestCount[i] = count;
+        bestStrength[i] = strength;
+        previous[i] = j;
+      }
+    }
+  }
+
+  let bestIndex = 0;
+  for (let i = 1; i < n; i++) {
+    if (
+      bestCount[i]! > bestCount[bestIndex]! ||
+      (bestCount[i] === bestCount[bestIndex] && bestStrength[i]! > bestStrength[bestIndex]!)
+    ) {
+      bestIndex = i;
+    }
+  }
+
+  for (let i = bestIndex; i >= 0; i = previous[i]!) {
+    located[i]!.anchored = true;
+  }
+  for (const plan of located) {
+    if (!plan.anchored) {
+      plan.outOfOrder = true;
+    }
+  }
+}
+
+/**
+ * Give every token that has no spoken span a window beside its neighbours at
+ * floor pace: the first after the previous anchored token, the rest ahead of
+ * the next one. Nothing is smeared to the end of the sentence any more; that
+ * left one glyph then an 800 ms park on every unmatched row measured.
+ */
+function attachUnanchoredTokens(plans: TokenPlan[]): void {
+  const floor = WRITE_INK_FLOOR_MS_PER_CHAR;
+  let i = 0;
+  while (i < plans.length) {
+    if (plans[i]!.anchored) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < plans.length && !plans[j]!.anchored) {
+      j++;
+    }
+    const previous = i > 0 ? plans[i - 1]! : null;
+    const next = j < plans.length ? plans[j]! : null;
+    const run = plans.slice(i, j);
+
+    let forwardCount = 0;
+    if (previous) {
+      forwardCount = next ? 1 : run.length;
+    }
+    let cursor = previous ? previous.endMs : 0;
+    for (let k = 0; k < forwardCount; k++) {
+      const plan = run[k]!;
+      plan.startMs = cursor;
+      // Fill the room before the next spoken word, at no more than the
+      // ceiling pace; with nothing after it, floor pace.
+      const room = next ? Math.max(next.startMs - cursor, 0) : plan.count * floor;
+      plan.endMs = cursor + Math.min(room, plan.count * WRITE_INK_CEILING_MS_PER_CHAR);
+      cursor = plan.endMs;
+    }
+    if (next) {
+      let end = next.startMs;
+      for (let k = run.length - 1; k >= forwardCount; k--) {
+        const plan = run[k]!;
+        plan.endMs = Math.max(end, cursor);
+        plan.startMs = Math.max(plan.endMs - plan.count * floor, cursor);
+        end = plan.startMs;
+      }
+    }
+    i = j;
+  }
+}
+
+function scheduleFromPlans(plans: TokenPlan[]): { offsetsMs: number[]; charDurationsMs: number[] } {
+  const offsetsMs: number[] = [];
+  const charDurationsMs: number[] = [];
+  let last = 0;
+  for (const plan of plans) {
+    const start = Math.max(plan.startMs, 0);
+    const end = Math.max(plan.endMs, start);
+    const count = Math.max(plan.count, 1);
+    const slot = (end - start) / count;
+    for (let c = 0; c < plan.count; c++) {
+      let offset = Math.round(start + slot * c);
+      if (offset < last) {
+        offset = last;
+      }
+      offsetsMs.push(offset);
+      charDurationsMs.push(Math.max(Math.round(slot), 0));
+      last = offset;
+    }
+  }
+  return { offsetsMs, charDurationsMs };
 }
 
 /**
  * Builds a per-character writing schedule so each token of a WRITE/LABEL command
- * is drawn exactly when the narrator speaks it. Returns one start offset (ms from
- * audio start) per non-space character of `command.text`, in document order — which
- * matches the order `textToStrokePaths` emits characters (it skips spaces).
+ * is drawn while the narrator speaks it. Returns one start offset (ms from
+ * audio start) per non-space character of `command.text`, in document order,
+ * which matches the order `textToStrokePaths` emits characters (it skips spaces).
  *
- * Each board token (whitespace-separated) is matched against the spoken narration so
- * "5x" is written while "five x" is said, "+" while "plus" is said, and so on. Tokens
- * that cannot be located are interpolated between their matched neighbours so the pen
- * never dumps the whole expression at once.
+ * Each board token (whitespace-separated) is matched against the spoken words
+ * as a whole phrase, in any of its spoken forms: "5x" while "five x" or "five
+ * times x" is said, "=" while "equals" or "is" is said, "/" while "over" is
+ * said. A token the voice never says is lettered beside its neighbour at
+ * floor pace. Null when no token is spoken at all, so the caller can fall
+ * back to a spread.
  */
 export function getWriteCharScheduleMs(
   narration: string,
@@ -628,166 +1505,122 @@ export function getWriteCharScheduleMs(
   }
 
   const spokenNarration = mathToSpeech(narration.trim());
-  const normalizedNarration = normalizeForSpeechMatch(spokenNarration);
-  if (normalizedNarration.length === 0) {
+  const spokenWords = tokenizeSpokenNarration(spokenNarration);
+  const wordTexts = spokenWords.map((word) => word.text);
+  if (wordTexts.length === 0) {
     return null;
   }
-
-  const totalMs = timingValidation.totalDurationMs;
-
-  const startMsForOffset = (offset: number): number | null => {
-    const idx = timingIndexForNormalizedOffset(offset, normalizedNarration.length, spokenNarration.length);
-    return timingStartMs(normalizedTimings, idx);
-  };
-  const endMsForOffset = (offset: number): number | null => {
-    const idx = timingIndexForNormalizedOffset(offset, normalizedNarration.length, spokenNarration.length);
-    return timingEndMs(normalizedTimings, idx);
-  };
 
   const tokens = text.split(/\s+/).filter((token) => token.length > 0);
+  const plans: TokenPlan[] = tokens.map((token, index) => {
+    const candidates = boardTokenSpokenCandidates(token, tokens[index - 1]);
+    return {
+      token,
+      count: token.length,
+      silent: candidates.length === 0,
+      candidates,
+      match: null,
+      outOfOrder: false,
+      anchored: false,
+      startMs: 0,
+      endMs: 0,
+    };
+  });
 
   let cursor = 0;
-  if (textCommandIndex > 0 && tokens.length > 0) {
-    const firstTokenPhrases = uniqueNormalized([
-      normalizeForSpeechMatch(tokens[0]),
-      normalizeForSpeechMatch(expandCompactFormulaTokens(tokens[0])),
-    ]);
-    for (const phrase of firstTokenPhrases) {
-      const idx = nthIndexOf(normalizedNarration, phrase, textCommandIndex);
-      if (idx >= 0) {
-        cursor = idx;
-        break;
+  if (textCommandIndex > 0) {
+    const first = plans.find((plan) => !plan.silent);
+    if (first) {
+      let nth = -1;
+      for (const candidate of first.candidates) {
+        const at = findNthPhrase(wordTexts, candidate, textCommandIndex);
+        if (at >= 0 && (nth < 0 || at < nth)) {
+          nth = at;
+        }
+      }
+      if (nth >= 0) {
+        cursor = nth;
       }
     }
   }
-  let matchedCount = 0;
-  const windows: Array<{ startMs: number | null; endMs: number | null; count: number }> = [];
 
-  for (const token of tokens) {
-    const count = token.replace(/\s/g, "").length;
-    const phrases = uniqueNormalized([
-      normalizeForSpeechMatch(token),
-      normalizeForSpeechMatch(expandCompactFormulaTokens(token)),
-    ]);
+  locateTokens(plans, wordTexts, cursor);
+  anchorMonotonicChain(plans);
 
-    let foundIdx = -1;
-    let foundLen = 0;
-    for (const phrase of phrases) {
-      const idx = normalizedNarration.indexOf(phrase, cursor);
-      if (idx >= 0) {
-        foundIdx = idx;
-        foundLen = phrase.length;
-        break;
-      }
+  for (const plan of plans) {
+    if (!plan.anchored || !plan.match) {
+      continue;
     }
-
-    if (foundIdx >= 0) {
-      const startMs = startMsForOffset(foundIdx);
-      const endMs = endMsForOffset(foundIdx + foundLen);
-      if (startMs === null || endMs === null) {
-        return null;
-      }
-      matchedCount++;
-      windows.push({
-        startMs,
-        endMs,
-        count,
-      });
-      cursor = foundIdx + foundLen;
-    } else {
-      windows.push({ startMs: null, endMs: null, count });
+    const span = wordSpanMs(spokenWords, normalizedTimings, plan.match.start, plan.match.end);
+    if (!span) {
+      return null;
     }
+    plan.startMs = span.startMs;
+    plan.endMs = span.endMs;
   }
 
-  if (matchedCount === 0) {
+  const letterable = plans.filter((plan) => !plan.silent);
+  const letterableChars = letterable.reduce((sum, plan) => sum + plan.count, 0);
+  // A token counts as spoken when it is timed by the voice, or when it was
+  // found out of order on a real word ("solution", "image"). A stop word
+  // found behind the cursor ("=" latching onto the "is" of "f is the focal
+  // length") is not the row being said.
+  const locatedChars = letterable.reduce(
+    (sum, plan) =>
+      sum +
+      (plan.match && (plan.anchored || phraseStrength(plan.match.candidate) > 0) ? plan.count : 0),
+    0,
+  );
+  const matchedCharFraction = letterableChars > 0 ? locatedChars / letterableChars : 0;
+  if (!plans.some((plan) => plan.anchored)) {
     return null;
   }
 
-  {
-    let prevEnd = 0;
-    let i = 0;
-    while (i < windows.length) {
-      if (windows[i].startMs !== null) {
-        prevEnd = windows[i].endMs ?? windows[i].startMs ?? prevEnd;
-        i++;
-        continue;
-      }
-
-      let j = i;
-      while (j < windows.length && windows[j].startMs === null) {
-        j++;
-      }
-
-      const nextStart = j < windows.length ? (windows[j].startMs as number) : totalMs;
-      const gapCount = j - i;
-      const span = Math.max(nextStart - prevEnd, gapCount * 140);
-      for (let k = 0; k < gapCount; k++) {
-        windows[i + k].startMs = Math.round(prevEnd + (span * k) / gapCount);
-        windows[i + k].endMs = Math.round(prevEnd + (span * (k + 1)) / gapCount);
-      }
-      prevEnd = windows[j - 1].endMs as number;
-      i = j;
-    }
-  }
-
-  const offsetsMs: number[] = [];
-  const charDurationsMs: number[] = [];
-  let last = 0;
-  for (const window of windows) {
-    const start = Math.max(window.startMs ?? 0, 0);
-    const end = Math.max(window.endMs ?? start, start);
-    const count = Math.max(window.count, 1);
-    for (let c = 0; c < window.count; c++) {
-      let offset = Math.round(start + ((end - start) * c) / count);
-      if (offset < last) {
-        offset = last;
-      }
-      const nextOffset =
-        c + 1 < window.count
-          ? Math.round(start + ((end - start) * (c + 1)) / count)
-          : end;
-      offsetsMs.push(offset);
-      charDurationsMs.push(Math.max(nextOffset - offset, 24));
-      last = offset;
-    }
-  }
+  attachUnanchoredTokens(plans);
+  const { offsetsMs, charDurationsMs } = scheduleFromPlans(plans);
 
   return {
     offsetsMs,
     charDurationsMs,
-    matched: true,
+    matched: matchedCharFraction > 0,
+    matchedCharFraction,
     source: "tts",
     validTiming: true,
+    maxInitialWaitMs: Number.POSITIVE_INFINITY,
   };
 }
 
+/**
+ * The same matcher against a script clock: every spoken character takes
+ * `msPerChar` (the session's measured rate, or the 86 ms default). No
+ * velocity hump: the old sinusoid made the nominal rate and the effective
+ * one differ by 19%, so no two estimates in the runner agreed.
+ */
 export function getEstimatedWriteCharScheduleMs(
   narration: string,
   command: DrawCommand,
   textCommandIndex = 0,
+  msPerChar = defaultSpeechMsPerChar,
 ): WriteCharSchedule | null {
   const spokenNarration = mathToSpeech(narration.trim());
   if (spokenNarration.length === 0) {
     return null;
   }
 
+  const rate = clampSpeechMsPerChar(msPerChar);
   const n = spokenNarration.length;
   const charStartTimes: number[] = [];
   const charDurations: number[] = [];
-  let cumulativeMs = 0;
   for (let i = 0; i < n; i++) {
-    const t = n > 1 ? i / (n - 1) : 0;
-    const velocityFactor = 1 + 0.3 * Math.sin(Math.PI * t);
-    const durationMs = MS_PER_CHAR / velocityFactor;
-    charStartTimes.push(cumulativeMs / 1000);
-    charDurations.push(durationMs / 1000);
-    cumulativeMs += durationMs;
+    charStartTimes.push((i * rate) / 1000);
+    charDurations.push(rate / 1000);
   }
+  const totalMs = n * rate;
 
   const schedule = getWriteCharScheduleMs(narration, command, {
     charStartTimes,
     charDurations,
-    totalDuration: cumulativeMs / 1000,
+    totalDuration: totalMs / 1000,
   }, textCommandIndex);
 
   if (!schedule?.matched) {
@@ -799,17 +1632,19 @@ export function getEstimatedWriteCharScheduleMs(
     source: "estimated",
     validTiming: false,
     reason: "estimated-from-script",
+    maxInitialWaitMs: Math.round(totalMs * ESTIMATED_FIRST_CUE_MAX_FRACTION),
   };
 }
 
 /**
- * When board text is not spoken token-for-token, still write during speech —
+ * When board text is not spoken token-for-token, still write during speech:
  * never dump the whole line before the voice starts or after it finishes.
  * Spreads characters across the latter half of the estimated narration window.
  */
 export function getFallbackWriteCharScheduleMs(
   narration: string,
   command: DrawCommand,
+  msPerChar = defaultSpeechMsPerChar,
 ): WriteCharSchedule | null {
   const text = command.text ?? "";
   const nonSpaceCount = text.replace(/\s/g, "").length;
@@ -817,9 +1652,10 @@ export function getFallbackWriteCharScheduleMs(
     return null;
   }
 
+  const rate = clampSpeechMsPerChar(msPerChar);
   const spokenNarration = mathToSpeech(narration.trim());
   const estimatedTotalMs = Math.max(
-    spokenNarration.length > 0 ? spokenNarration.length * MS_PER_CHAR : narration.length * MS_PER_CHAR,
+    spokenNarration.length > 0 ? spokenNarration.length * rate : narration.length * rate,
     700,
   );
   const startMs = Math.round(estimatedTotalMs * 0.40);
@@ -832,16 +1668,18 @@ export function getFallbackWriteCharScheduleMs(
     const offset = Math.round(startMs + (span * i) / nonSpaceCount);
     const next = Math.round(startMs + (span * (i + 1)) / nonSpaceCount);
     offsetsMs.push(offset);
-    charDurationsMs.push(Math.max(next - offset, 28));
+    charDurationsMs.push(Math.max(next - offset, 0));
   }
 
   return {
     offsetsMs,
     charDurationsMs,
     matched: false,
+    matchedCharFraction: 0,
     source: "estimated",
     validTiming: false,
     reason: "fallback-spread-during-speech",
+    maxInitialWaitMs: Number.POSITIVE_INFINITY,
   };
 }
 
@@ -856,6 +1694,7 @@ export function getBestWriteCharScheduleMs(
   timings?: AudioTimings | null,
   segmentDurationMs?: number,
   textCommandIndex = 0,
+  msPerChar = defaultSpeechMsPerChar,
 ): WriteCharSchedule | null {
   const timed = getWriteCharScheduleMs(
     narration,
@@ -863,7 +1702,7 @@ export function getBestWriteCharScheduleMs(
     timings,
     textCommandIndex,
   );
-  if (timed && isWriteScheduleUsable(timed, narration, segmentDurationMs)) {
+  if (timed && isWriteScheduleUsable(timed, narration, segmentDurationMs, msPerChar)) {
     return timed;
   }
 
@@ -871,26 +1710,32 @@ export function getBestWriteCharScheduleMs(
     narration,
     command,
     textCommandIndex,
+    msPerChar,
   );
-  if (estimated && isWriteScheduleUsable(estimated, narration, segmentDurationMs)) {
+  if (estimated && isWriteScheduleUsable(estimated, narration, segmentDurationMs, msPerChar)) {
     return timed
       ? { ...estimated, reason: "tts-schedule-unusable" }
       : estimated;
   }
 
-  return getFallbackWriteCharScheduleMs(narration, command);
+  return getFallbackWriteCharScheduleMs(narration, command, msPerChar);
 }
 
 /**
- * Never sit idle for seconds waiting for a late spoken cue. Shift the whole
- * schedule forward so writing starts with speech and still finishes in-voice.
+ * Pull a schedule forward when its first cue is further away than the pen
+ * may wait. Pass the schedule's own `maxInitialWaitMs`: an exact schedule
+ * never moves (the alignment says when the word is spoken, and the pen goes
+ * to the row and waits for it), an estimated one may wait for
+ * ESTIMATED_FIRST_CUE_MAX_FRACTION of the sentence. The old 250 ms cap
+ * dragged "v = ?" from 2055 ms to 250 ms and the row was done 5 s before the
+ * voice reached it.
  */
 export function leadWriteScheduleToSpeech(
   offsetsMs: number[],
   audioPositionMs: number,
-  maxInitialWaitMs = 250,
+  maxInitialWaitMs = Number.POSITIVE_INFINITY,
 ): number[] {
-  if (offsetsMs.length === 0) {
+  if (offsetsMs.length === 0 || !Number.isFinite(maxInitialWaitMs)) {
     return offsetsMs;
   }
   const firstOffsetMs = offsetsMs[0] ?? 0;

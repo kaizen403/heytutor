@@ -28,7 +28,7 @@ for (const item of items) {
 }
 console.log(`✓ probeIndex.byTopic matches questionsForTopic across ${checkedTopics} topics`);
 
-for (const subject of ["physics", "maths"] as const) {
+for (const subject of ["physics", "maths", "chemistry"] as const) {
   for (const unit of tree.subjects[subject]) {
     const unitId = `${subject}|${unit.number}`;
     const fast = probesForUnit(index, unitId);
@@ -36,7 +36,7 @@ for (const subject of ["physics", "maths"] as const) {
     assert(fast.length === slow.length, `unit ${unitId}: ${fast.length} vs ${slow.length}`);
   }
 }
-console.log("✓ probeIndex.byUnit matches questionsForUnit across all 34 units");
+console.log("✓ probeIndex.byUnit matches questionsForUnit across all 54 units");
 
 // 2. Ordering must be easy -> medium -> hard so rows read consistently.
 const sample = probesForTopic(index, items.find(i => probesForTopic(index, i.id).length === 3)!.id);
@@ -110,10 +110,25 @@ assert(watchDrawer.includes("LessonActions"), "admin Watch must mount the same R
 assert(watchDrawer.includes("onExportApi"), "admin Watch must take Replay / Notes PDF / MP4 from the embed shell");
 assert(watchDrawer.includes("downloadNotesPdf"), "admin Watch must offer Notes (PDF)");
 assert(watchDrawer.includes("downloadLectureMp4"), "admin Watch must offer Lecture (MP4)");
-assert(watchDrawer.includes("onDownloadPdf"), "admin Notes must offer the same PDF download");
+// Notes is no longer a second surface beside the lesson with its own PDF
+// button: it is the session's own Ask panel, and the PDF is the same action
+// the tutor's header offers (asserted above through `downloadNotesPdf`).
+assert(
+  watchDrawer.includes("onNotesOpenChange"),
+  "admin Notes must open the session's own Ask panel",
+);
+assert(
+  !watchDrawer.includes("LectureNotesPanel"),
+  "admin Watch must not mount a second, poorer notes surface",
+);
 console.log("✓ admin Watch reuses the tutor drawing export actions");
 
 // 10. Maths really has no fixtures (the empty state is truthful).
 const mathsWithProbes = tree.subjects.maths.filter(u => probesForUnit(index, `maths|${u.number}`).length > 0);
 console.log(`✓ maths units with fixtures: ${mathsWithProbes.length} (empty state is accurate)`);
+// 11. Every chemistry unit has fixtures, so its rows can queue lectures.
+const chemistryWithProbes = tree.subjects.chemistry.filter(u => probesForUnit(index, `chemistry|${u.number}`).length > 0);
+assert(chemistryWithProbes.length === tree.subjects.chemistry.length,
+  `chemistry units without fixtures: ${tree.subjects.chemistry.length - chemistryWithProbes.length}`);
+console.log(`✓ chemistry units with fixtures: ${chemistryWithProbes.length} of ${tree.subjects.chemistry.length}`);
 console.log("\nverify-admin-playground: all checks passed");

@@ -38,12 +38,12 @@ const NIB_EDGE = {
   y: Math.sin(NIB_ANGLE_RAD),
 };
 
-const HIGHLIGHT_FILL = "rgba(89, 175, 212, 0.42)";
-const HIGHLIGHT_DRAFT_FILL = "rgba(89, 175, 212, 0.32)";
+const HIGHLIGHT_FILL = "rgba(74, 158, 255, 0.42)";
+const HIGHLIGHT_DRAFT_FILL = "rgba(74, 158, 255, 0.32)";
 /** The darker rim a wet highlighter leaves at the edge of a pass. */
-const HIGHLIGHT_EDGE = "rgba(46, 124, 163, 0.30)";
-const HALO_FILL = "rgba(89, 175, 212, 0.10)";
-const HALO_EDGE = "rgba(62, 143, 180, 0.55)";
+const HIGHLIGHT_EDGE = "rgba(28, 79, 156, 0.30)";
+const HALO_FILL = "rgba(74, 158, 255, 0.10)";
+const HALO_EDGE = "rgba(47, 111, 208, 0.55)";
 const HALO_PAD = 7;
 
 /**
@@ -52,10 +52,10 @@ const HALO_PAD = 7;
  */
 const MARKER_CURSOR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
   <g transform="rotate(32 16 16)">
-    <rect x="10.5" y="3" width="11" height="19" rx="2.6" fill="#59AFD4" stroke="#06121C" stroke-width="1.4"/>
-    <rect x="10.5" y="8" width="11" height="2.4" fill="#2E7CA3" opacity="0.85"/>
-    <path d="M10.5 22h11l-2 5.4h-7z" fill="#E4F2F9" stroke="#06121C" stroke-width="1.4" stroke-linejoin="round"/>
-    <path d="M12.6 27.4h6.8" stroke="#2E7CA3" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="10.5" y="3" width="11" height="19" rx="2.6" fill="#4A9EFF" stroke="#131312" stroke-width="1.4"/>
+    <rect x="10.5" y="8" width="11" height="2.4" fill="#1C4F9C" opacity="0.85"/>
+    <path d="M10.5 22h11l-2 5.4h-7z" fill="#E6F1FF" stroke="#131312" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M12.6 27.4h6.8" stroke="#1C4F9C" stroke-width="1.6" stroke-linecap="round"/>
   </g>
 </svg>`;
 
@@ -235,8 +235,8 @@ export function BoardMarkingLayer({
             // A whisper of the accent, so it is unmistakable that the board is
             // listening — without dimming the work the student is reading.
             background:
-              "radial-gradient(120% 90% at 50% 40%, rgba(89,175,212,0) 55%, rgba(89,175,212,0.09) 100%)",
-            boxShadow: "inset 0 0 0 2px rgba(89,175,212,0.42)",
+              "radial-gradient(120% 90% at 50% 40%, rgba(74, 158, 255, 0) 55%, rgba(74, 158, 255, 0.09) 100%)",
+            boxShadow: "inset 0 0 0 2px rgba(74, 158, 255, 0.42)",
           }}
         />
       ) : null}

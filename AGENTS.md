@@ -53,6 +53,7 @@ the canvas and still teach. Invalid or partial candidates never render.
 | Question bank pipeline | `tools/question-bank/` + `data/question-bank/` |
 | DSA worked examples (LeetCode) | `packages/scene-engine/src/dsa/` — simulators, `traceToScene`, `familyTeaching` |
 | DSA lesson bench | `apps/tutor/scripts/lecture-lab/dsa-run.ts` + `data/leetcode-probes/` |
+| Chemistry figures (formula to figure) | `packages/scene-engine/src/chemistry/` — families, `classify.ts`, `router.ts`; bench in `scripts/chemistry-lab/` |
 
 ## Agent Guidelines
 
@@ -60,6 +61,7 @@ the canvas and still teach. Invalid or partial candidates never render.
 - [Session ownership](docs/agent/session-ownership.md) — announce before editing scene-engine synthesize/document/capability/verify; do not load another session's gate
 - [Diagram engine priority](docs/plans/diagram-engine-priority.md) — ranked issues; live-check patches first, then honest families, then persist
 - [DSA lessons](docs/agent/dsa-lessons.md) — the LeetCode lane: simulators, what a frame may draw, lesson shape, and the gates
+- [Chemistry lessons](docs/agent/chemistry-lessons.md) — the chemistry lane: 13 figure families computed from the formula, the subject test, the board notation, and the gates
 - [Lecture lab](docs/agent/lecture-lab.md) — run whole lectures offline against the dev server, grade them, and diff rounds; the DSA lane replays a LeetCode turn and renders every board frame
 - [Wrong figures: causes and ranked fixes](docs/plans/figure-relevance-fixes.md) — 87 wrong figures traced to the probe cue and the family layer, with counts per fix
 - [Start — architecture map](start.md)
@@ -99,7 +101,12 @@ Never add Cursor / `cursoragent` as a commit co-author. Never commit `.cursor/` 
    timings. See sync doc.
 8. **Packages must be built** before the tutor app picks up changes
    (`turbo run dev` handles this).
-9. **No user login** — anonymous `htutor_uid` cookie maps to a `User` row in
-   Postgres.
-10. **Split deploy:** `BACKEND_ORIGIN` proxies `/api/*` from Vercel to Azure;
-    WebSocket TTS relay lives in `server.ts`.
+9. **Tutor accounts are Auth.js** — Google or email magic link when the gate
+   is on. Landing stays public. `?embed=1` / the landing lesson showcase is
+   the anonymous exception. **Auth is off for testing** unless
+   `AUTH_REQUIRED=1` and `NEXT_PUBLIC_AUTH_REQUIRED=1` (`htutor_uid` is the
+   device identity again).
+10. **Production tutor is one EC2 process** (`tsx server.ts`: UI + API +
+    WebSocket TTS). Landing stays on Vercel (`accelute.co`). Leave
+    `BACKEND_ORIGIN` unset. Postgres is hosted (`DATABASE_URL`); lecture
+    MP3s and question photos are private S3. Runbook: [docs/ops/ci-cd.md](docs/ops/ci-cd.md).

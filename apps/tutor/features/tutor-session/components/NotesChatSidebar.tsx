@@ -85,7 +85,7 @@ export function NotesChatSidebar({
 
   return (
     <aside className="ncs">
-      <header className="ncs__header">
+      <header className={onClose ? "ncs__header" : "ncs__header ncs__header--sheet"}>
         <div className="ncs__heading">
           <div className="ncs__title-row">
             <h2 className="ncs__title">Ask me anything</h2>
@@ -160,16 +160,16 @@ export function NotesChatSidebar({
 
 const STYLES = `
 .ncs {
-  /* Night Blueprint, by way of the global tokens in app/globals.css. */
+  /* Graphite, by way of the global tokens in app/globals.css. */
   --ink: var(--frost);
   --ink-dim: var(--sky-200);
   --ink-soft: var(--text-soft);
   --ink-faint: var(--text-faint);
   --accent: var(--sky-500);
-  --accent-soft: rgba(89, 175, 212, 0.12);
+  --accent-soft: rgba(74, 158, 255, 0.12);
   --line: var(--stroke);
   --line-strong: var(--stroke-strong);
-  --paper: var(--ink-850);
+  --paper: var(--ink-800);
   --raised: var(--ink-700);
 
   display: flex;
@@ -177,26 +177,13 @@ const STYLES = `
   min-height: 0;
   height: 100%;
   width: 100%;
-  /* Glass: a translucent pane over the board rather than an opaque slab. */
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.018) 100%),
-    rgba(6, 18, 28, 0.72);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  /* An opaque panel, not a pane of glass. Blurring the board through it was
+     the old theme's way of saying "this floats"; here the panel says it by
+     being a step lighter than the page and edged with a hairline. */
+  background: var(--ink-850);
   color: var(--ink);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-}
-
-/* Panels inside the glass float on it, so they stay translucent too. */
-.ncs__bubble--assistant,
-.ncs__chip,
-.ncs__composer-wrap,
-.ncs__pick,
-.ncs__tag {
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
 }
 
 /* ── Header ─────────────────────────────────────────────── */
@@ -208,6 +195,11 @@ const STYLES = `
   justify-content: space-between;
   gap: 0.75rem;
   padding: 1.125rem 1rem 0.875rem;
+  padding-top: max(1.125rem, env(safe-area-inset-top));
+}
+
+.ncs__header--sheet {
+  padding-right: 3.25rem;
 }
 
 .ncs__heading {
@@ -243,8 +235,8 @@ const STYLES = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border: 0;
   border-radius: 0.55rem;
   background: transparent;
@@ -299,12 +291,12 @@ const STYLES = `
 }
 
 .ncs__pick:hover {
-  border-color: rgba(89, 175, 212, 0.35);
+  border-color: rgba(74, 158, 255, 0.35);
   color: var(--ink);
 }
 
 .ncs__pick--on {
-  border-color: rgba(89, 175, 212, 0.45);
+  border-color: rgba(74, 158, 255, 0.45);
   background: var(--accent-soft);
   color: var(--ink);
 }
@@ -389,11 +381,11 @@ const STYLES = `
   border: 2px solid transparent;
   border-radius: 999px;
   background-clip: content-box;
-  background-color: rgba(202, 229, 241, 0.1);
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .ncs__scroll::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(202, 229, 241, 0.18);
+  background-color: rgba(255, 255, 255, 0.18);
 }
 
 .ncs__error {
@@ -569,11 +561,11 @@ const STYLES = `
   font-weight: 500;
   color: var(--ink);
   cursor: pointer;
-  box-shadow: 0 6px 18px -6px rgba(3, 11, 18, 0.6);
+  box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.6);
 }
 
 .ncs__jump:hover {
-  border-color: rgba(89, 175, 212, 0.35);
+  border-color: rgba(74, 158, 255, 0.35);
 }
 
 /* ── Prompt chips ───────────────────────────────────────── */
@@ -598,7 +590,7 @@ const STYLES = `
 }
 
 .ncs__chip:hover:not(:disabled) {
-  border-color: rgba(89, 175, 212, 0.35);
+  border-color: rgba(74, 158, 255, 0.35);
   background: var(--raised);
   color: var(--ink);
 }
@@ -614,6 +606,7 @@ const STYLES = `
   flex-shrink: 0;
   border-top: 1px solid var(--line);
   padding: 0.75rem;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 
 .ncs__composer-chips {
@@ -632,7 +625,7 @@ const STYLES = `
 }
 
 .ncs__field:focus-within {
-  border-color: rgba(89, 175, 212, 0.35);
+  border-color: rgba(74, 158, 255, 0.35);
 }
 
 .ncs__input {
@@ -643,12 +636,17 @@ const STYLES = `
   background: transparent;
   padding: 0.4rem 0;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 1rem;
   line-height: 1.5;
   letter-spacing: -0.005em;
   color: var(--ink);
   resize: none;
   outline: none;
+}
+@media (min-width: 768px) {
+  .ncs__input {
+    font-size: 0.8125rem;
+  }
 }
 
 .ncs__input::placeholder {
@@ -681,12 +679,12 @@ const STYLES = `
 
 .ncs__action--primary {
   background: var(--accent);
-  color: #06121C;
+  color: #131312;
 }
 
 .ncs__action--primary:hover:not(:disabled) {
-  background: #CCE6F1;
-  color: #06121C;
+  background: #C6E0FF;
+  color: #131312;
 }
 
 .ncs__action:disabled {

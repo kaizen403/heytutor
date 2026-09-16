@@ -1,8 +1,9 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   lessonNarrationText,
   IncrementalTagParser,
   anchorToTextRect,
+  getSegmentCommands,
   prepareVerifiedLessonSegments,
   type TutorSegment,
   cancelFrame,
@@ -21,6 +22,7 @@ import {
   normalizeTutorQuestion,
   questionRequiresVisual,
   classifyDsaQuestion,
+  dsaOpeningPointIds,
   planCodeLessonV1,
   type CodeLessonPlan,
   type ProblemAuthorityV1Response,
@@ -34,6 +36,8 @@ import {
   compileSceneDocument,
   synthesizeDsaScene,
   detectArchetype,
+  isChemistryQuestion,
+  isChemistrySceneFamily,
   normalizeClaimedClosedRouteGeometry,
   normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities,
@@ -52,18 +56,42 @@ import {
 } from "@heytutor/scene-engine";
 import { createTurnTelemetry } from "@/lib/obs/turnTelemetry";
 import { enrichStoredSegmentsWithReplayAudio } from "@/lib/replay/replayTurns";
+import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
   saveTurn,
   requestBoardTitle,
   updateBoard,
   withBoardEpochSegment,
+  type RecordedSegmentPayload,
   type StoredTurn,
 } from "@/lib/boards/boardsClient";
 import { DSA_DIAGRAM_ZONE, MAX_LLM_CONTINUATIONS, STREAM_SEGMENTS_LIVE } from "../../constants";
-import { registerBoardAnchor } from "../../lib/board/boardLayout";
+import {
+  dropDiagramRects,
+  registerBoardAnchor,
+  workColumnRoom,
+  workColumnRows,
+} from "../../lib/board/boardLayout";
+import {
+  doubtPageRecord,
+  doubtSegment,
+  doubtTurnScene,
+  inheritedTeachingContext,
+  lessonPageRecord,
+  partialTurnRawResponse,
+  partialTurnScene,
+  partialTurnSegments,
+  planDoubtPage,
+  reindexRecordedSegments,
+  resumePageRecord,
+  revealedCodeText,
+  textOnlyTurnScene,
+  type PersistedTurnScene,
+} from "../../lib/turn/doubtTurn";
 import {
   codeLessonResumeNote,
   createCodeLessonConductor,
+  fullyRevealedBlockIds,
 } from "../../lib/code-lesson/codeLessonSegments";
 import {
   resolveCodeLessonBoardContext,
@@ -74,7 +102,13 @@ import {
 import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
 import { buildVerifiedDiagramPresentation } from "../../lib/scene/verifiedScenePresentation";
 import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
-import { buildTurnTeachingPrompt } from "../../lib/turn/turnTeachingPrompt";
+import {
+  buildDoubtTeachingPrompt,
+  buildResumeTeachingPrompt,
+  buildTurnTeachingPrompt,
+  resumeLessonUserPrompt,
+} from "../../lib/turn/turnTeachingPrompt";
+import { restoreVerifiedPresentationFromTurn } from "../../lib/scene/restoreVerifiedDiagram";
 import {
   selectVerifiedRepresentation,
   type RepresentationTier,
@@ -93,11 +127,12 @@ import {
 } from "../../lib/scene/verifiedSceneRecovery";
 import {
   createEmptySegmentPlanStats,
+  foldGluedSegment,
   isTeachingResponseIncomplete,
 } from "../../lib/turn/segmentPlanning";
 import type { TutorPhase } from "../../types";
 import { isWhiteboardReadyToDraw } from "../../lib/board/whiteboardReady";
-import type { TurnControlApi, UseTurnLifecycleParams } from "./types";
+import type { HandleQuestionOptions, TurnControlApi, UseTurnLifecycleParams } from "./types";
 
 /** The plan and the stem filter agree this question needs no picture. */
 class NoFigureNeeded extends Error {
@@ -157,7 +192,12 @@ export function useQuestionHandler(
   params: UseTurnLifecycleParams,
   turnControl: Pick<
     TurnControlApi,
-    "finishLectureUi" | "applyTurnPhase" | "enqueueSegment" | "enqueueVerifiedIntro" | "processResponseText"
+    | "finishLectureUi"
+    | "applyTurnPhase"
+    | "enqueueSegment"
+    | "enqueueVerifiedIntro"
+    | "processResponseText"
+    | "flushPausedLesson"
   >,
 ) {
   const {
@@ -174,6 +214,9 @@ export function useQuestionHandler(
     isPausedRef,
     conversationHistoryRef,
     liveQuestionRef,
+    boardPageRef,
+    boardShowsStoppedReplayRef,
+    setLiveTurnKind,
     turnActiveRef,
     turnGenerationRef,
     turnAbortRef,
@@ -195,6 +238,7 @@ export function useQuestionHandler(
     speedRef,
     fastModeRef,
     familiarityRef,
+    teachingPrefsRef,
     storedTurnsRef,
     pendingSegmentCountRef,
     setInputInteracted,
@@ -221,14 +265,102 @@ export function useQuestionHandler(
     onError?.(error);
   }, [setLastError, onError]);
 
-  const { finishLectureUi, applyTurnPhase, enqueueSegment, enqueueVerifiedIntro, processResponseText } = turnControl;
+  const {
+    finishLectureUi,
+    applyTurnPhase,
+    enqueueSegment,
+    enqueueVerifiedIntro,
+    processResponseText,
+    flushPausedLesson,
+  } = turnControl;
+
+  /**
+   * Put one turn on the board's saved turns: locally at once, so replay, notes
+   * and the next doubt see it, then on the server. Resolves true once saved.
+   */
+  const saveTurnToBoard = useCallback(
+    (input: {
+      boardId: string;
+      question: string;
+      /** What the board list shows for this board: the page's question. */
+      preview: string;
+      rawResponse: string;
+      segments: RecordedSegmentPayload[];
+      scene: PersistedTurnScene;
+      traceId: string | null;
+    }): Promise<boolean> => {
+      const localTurn = persistTurnForReplay(
+        input.question,
+        input.rawResponse,
+        input.segments,
+        input.scene,
+      );
+      storedTurnsRef.current = [...storedTurnsRef.current, localTurn];
+      setStoredTurnsCount(storedTurnsRef.current.length);
+      setBoards((prev) =>
+        prev.map((b) =>
+          b.id === input.boardId ? { ...b, preview: input.preview.slice(0, 60) } : b,
+        ),
+      );
+
+      return saveTurn(input.boardId, {
+        question: input.question,
+        rawResponse: input.rawResponse,
+        speedMultiplier: speedRef.current,
+        traceId: input.traceId,
+        ...input.scene,
+        segments: input.segments,
+      }).then((savedTurn) => {
+        if (!savedTurn) return false;
+        const turnForReplay: StoredTurn = {
+          ...savedTurn,
+          segments: enrichStoredSegmentsWithReplayAudio(
+            savedTurn.segments,
+            input.segments,
+            registerReplayBlobUrl,
+          ),
+        };
+        storedTurnsRef.current = storedTurnsRef.current.map((turn) =>
+          turn.id === localTurn.id ? turnForReplay : turn,
+        );
+        setStoredTurnsCount(storedTurnsRef.current.length);
+        return true;
+      }).catch(() => false);
+    },
+    [
+      persistTurnForReplay,
+      registerReplayBlobUrl,
+      setBoards,
+      setStoredTurnsCount,
+      speedRef,
+      storedTurnsRef,
+    ],
+  );
+
+  /**
+   * The options a question was queued with while the board loaded, keyed to
+   * that question: a doubt queued there must still run as a doubt, and a
+   * question queued later (an auto-submit) must not inherit them.
+   */
+  const pendingQuestionOptionsRef = useRef<{
+    question: string;
+    options: HandleQuestionOptions;
+  } | null>(null);
 
   const handleQuestion = useCallback(
-    async (rawQuestion: string) => {
+    async (rawQuestion: string, options?: HandleQuestionOptions) => {
       const question = normalizeTutorQuestion(rawQuestion);
-      setLiveQuestion?.(question);
+      // A doubt answers on the page it was asked about; see `lib/turn/doubtTurn`.
+      const doubt = options?.doubt ?? null;
+      // The rest of a lesson a mid-lesson doubt just paused. Mutually exclusive
+      // with a doubt: the doubt answers first, then this turn continues.
+      const resume = doubt ? null : (options?.resume ?? null);
+      // The notes list a doubt under its own title. Under the lesson's question
+      // it would stand in for the lesson's notes while it is being taught.
+      setLiveQuestion?.(doubt ? doubt.title : question);
       if (!boardLoaded || !isWhiteboardReadyToDraw(whiteboardRef.current)) {
         pendingQuestionRef.current = question;
+        pendingQuestionOptionsRef.current = options ? { question, options } : null;
         setInputInteracted(true);
         return;
       }
@@ -246,7 +378,54 @@ export function useQuestionHandler(
       tutorDebug("turn", "question submitted", {
         question_preview: question.slice(0, 120),
         board_id: sessionId,
+        turn_kind: doubt ? "doubt" : resume ? "resume" : "lesson",
       });
+
+      // Read before anything below resets the turn buffers: which page the
+      // doubt answers on, and whether the turn it stopped left ink nobody saved.
+      const pageRecord = boardPageRef.current;
+      // What of the stopped turn a save can keep. Saved as text only, its
+      // figure's ink and every pointing at it go: the server refuses them, and
+      // a refused save put the doubt onto the page before.
+      const partialScene = doubt && pageRecord ? partialTurnScene(pageRecord) : null;
+      const partialSegments = partialScene
+        ? partialTurnSegments(recordedSegmentsRef.current, partialScene)
+        : [];
+      const doubtPage = doubt
+        ? planDoubtPage({
+            record: pageRecord,
+            boardId: sessionId,
+            recordedSegmentCount: recordedSegmentsRef.current.length,
+            storedTurnCount: storedTurnsRef.current.length,
+            afterReplay: doubt.afterReplay,
+            hasActiveFigure: Boolean(activeVerifiedDiagramRef.current),
+          })
+        : null;
+      const inherited = doubt
+        ? inheritedTeachingContext({
+            record: pageRecord,
+            boardId: sessionId,
+            lessonQuestion: doubt.lessonQuestion,
+            storedTurns: storedTurnsRef.current,
+          })
+        : null;
+      // The student saw this part of the stopped turn, and the doubt is about
+      // it. Saved ahead of the doubt, replay and a reload put the doubt on the
+      // page it was asked on rather than on the page before.
+      const partialTurnSave =
+        doubt && doubtPage?.savePartialTurn && pageRecord && partialScene && sessionId
+          ? {
+              boardId: sessionId,
+              question: pageRecord.turn.question,
+              preview: pageRecord.lessonQuestion,
+              rawResponse: partialTurnRawResponse(partialSegments),
+              segments: pageRecord.turn.continuesBoard
+                ? reindexRecordedSegments(partialSegments)
+                : withBoardEpochSegment(partialSegments),
+              scene: partialScene,
+              traceId: currentTraceIdRef.current,
+            }
+          : null;
 
       const turnGeneration = turnGenerationRef.current + 1;
       turnGenerationRef.current = turnGeneration;
@@ -268,12 +447,17 @@ export function useQuestionHandler(
 
       const boardIdForName = sessionId;
       if (boardIdForName) {
-        const needsName =
-          isDraft ||
-          boards.find((b) => b.id === boardIdForName)?.title === "new board";
+        const needsName = boardNeedsGeneratedTitle({
+          isDraft,
+          title: boards.find((b) => b.id === boardIdForName)?.title,
+          persistedTurnCount: storedTurnsRef.current.length,
+        });
         if (needsName) {
           // Naming waits on the commit: the row has to exist before it is named.
-          void Promise.all([requestBoardTitle(question), boardCommitted])
+          void Promise.all([
+            requestBoardTitle(doubt ? doubt.lessonQuestion : question),
+            boardCommitted,
+          ])
             .then(([title]) => {
               if (!title) return;
               void updateBoard(boardIdForName, { title }).then((board) => {
@@ -290,29 +474,84 @@ export function useQuestionHandler(
       }
       turnAbortRef.current = abortController;
       let turnCancelled = false;
+      let doubtAnswered = false;
+      // Same tick as the phase, so a doubt never shows a frame of blank paper.
+      setLiveTurnKind?.(doubt ? "doubt" : resume ? "resume" : "lesson");
       setPhase("thinking");
       setNarrationText("");
       setCurrentSegmentText("");
       collectedSegmentsRef.current = [];
       recordedSegmentsRef.current = [];
       rawResponseRef.current = "";
-      currentTraceIdRef.current = null;
+      currentTraceIdRef.current = crypto.randomUUID();
       segmentChainRef.current = Promise.resolve();
       drawChainRef.current = Promise.resolve();
       turnStatsRef.current = { drawMs: 0, ttsChars: 0 };
       segmentPlanStatsRef.current = createEmptySegmentPlanStats();
       revokeUnreferencedReplayBlobUrls();
-      fbdPhaseMarkedRef.current = false;
-      fbdPhaseStartedRef.current = false;
-      activeVerifiedDiagramRef.current = null;
-      setActiveVerifiedDiagram?.(null);
-      codeLessonControllerRef?.current?.reset();
+      if (!doubt && !resume) {
+        fbdPhaseMarkedRef.current = false;
+        fbdPhaseStartedRef.current = false;
+        activeVerifiedDiagramRef.current = null;
+        setActiveVerifiedDiagram?.(null);
+        codeLessonControllerRef?.current?.reset();
+      } else if (doubt && !doubtPage?.figureOnPage && activeVerifiedDiagramRef.current) {
+        // Planned but never drawn: the stopped lesson's figure intro had not
+        // committed. A doubt pointing at it would trace parts the board lacks.
+        activeVerifiedDiagramRef.current = null;
+        setActiveVerifiedDiagram?.(null);
+        dropDiagramRects(boardLayoutRef.current);
+        fbdPhaseMarkedRef.current = false;
+        fbdPhaseStartedRef.current = false;
+      }
       // Every later save (turns, notes) addresses a board that now exists.
       await boardCommitted;
-      await beginBoardEpoch();
+      // Replaced while the row was being written: the turn that superseded this
+      // one owns the board, the page record and the live question now.
+      if (turnGeneration !== turnGenerationRef.current) {
+        return;
+      }
+      // Awaited before the doubt itself is saved, so the server keeps the two
+      // in order; if it fails, the doubt opens a page of its own instead.
+      const partialTurnSaved = partialTurnSave ? saveTurnToBoard(partialTurnSave) : null;
+      // A doubt and a resume keep the page. Only a fresh lesson snapshots it
+      // into the notes and clears it.
+      if (!doubt && !resume) {
+        await beginBoardEpoch();
+        if (turnGeneration !== turnGenerationRef.current) {
+          return;
+        }
+        // A fresh page: nothing a stopped replay left is on the board now.
+        boardShowsStoppedReplayRef.current = false;
+      }
       // Set after the epoch: the page it captured belongs to the previous
       // question, and a doubt raised meanwhile still names the lesson it stops.
-      liveQuestionRef.current = question;
+      liveQuestionRef.current = doubt
+        ? doubt.lessonQuestion
+        : resume
+          ? resume.lessonQuestion
+          : question;
+      const page = doubt
+        ? doubtPageRecord({
+            boardId: sessionId,
+            lessonQuestion: doubt.lessonQuestion,
+            title: doubt.title,
+            continuesBoard: doubtPage?.continuesBoard ?? false,
+            figureDrawn: doubtPage?.figureOnPage ?? false,
+            turnPlan: inherited?.turnPlan ?? null,
+            solverProjection: inherited?.solverProjection ?? null,
+          })
+        : resume
+          ? resumePageRecord({
+              boardId: sessionId,
+              lessonQuestion: resume.lessonQuestion,
+              figureDrawn: resume.figureDrawn || Boolean(activeVerifiedDiagramRef.current),
+              turnPlan: resume.turnPlan,
+              solverProjection: resume.solverProjection,
+              scene: resume.scene,
+            })
+        : lessonPageRecord(sessionId, question);
+      boardPageRef.current = page;
 
       const isCurrentTurn = () =>
         canContinueTurnAfterAsync({
@@ -338,6 +577,10 @@ export function useQuestionHandler(
 
       const tel = createTurnTelemetry();
       turnTelemetryRef.current = tel;
+      const turnTraceId = currentTraceIdRef.current;
+      if (turnTraceId) {
+        tel.setTrace(turnTraceId, sessionId ?? undefined);
+      }
       const thinkingSpan = tel.span("thinking");
       let thinkingEnded = false;
 
@@ -373,6 +616,8 @@ export function useQuestionHandler(
       const plannerStartedAt = Date.now();
 
       void tts.prewarm({
+        traceId: turnTraceId ?? undefined,
+        sessionId: sessionId ?? undefined,
         onConnect: ({ ms, ok }) => {
           endWsConnect({
             latency_ms: Math.round(ms),
@@ -406,16 +651,31 @@ export function useQuestionHandler(
       let codeLesson: CodeLessonPlan | null = null;
       let dsaFrameSet: DsaFrameSet | null = null;
       let dsaProofAssertions: SceneAssertion[] = [];
-      const dsaClassification = classifyDsaQuestion(question);
+      const dsaClassification = classifyDsaQuestion(resume?.lessonQuestion ?? question);
       // Resolve the walk-through first, so the program can be planned against
       // the algorithm the board will actually draw.
       let boardContext: CodeLessonBoardContext | null = null;
-      if (dsaClassification.isDsa) {
+      if (resume) {
+        turnPlan = resume.turnPlan;
+        if (resume.codeLesson) {
+          codeLesson = codeLessonControllerRef?.current?.getActivePlan() ?? null;
+          dsaFrameSet = codeLessonControllerRef?.current?.frames.getSet() ?? null;
+        }
+        if (resume.scene) {
+          sceneV2Document = (resume.scene.sceneDocument as SceneDocument | Record<string, unknown> | null) ?? null;
+          sceneVisualStatus =
+            resume.scene.visualStatus === "validated" || resume.scene.visualStatus === "retry_required"
+              ? resume.scene.visualStatus
+              : "text_only";
+          sceneArtifacts = (resume.scene.sceneArtifacts as SceneArtifactsV3 | null) ?? null;
+        }
+      } else if (!doubt && dsaClassification.isDsa) {
         boardContext = resolveCodeLessonBoardContext(question);
         const codeLessonResponse = await awaitCurrentTurn(
           planCodeLessonV1(question, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
+            traceId: turnTraceId ?? undefined,
             signal: abortController.signal,
             timeoutMs: SCENE_PLANNER_DEADLINE_MS,
             fastMode: fastModeRef.current,
@@ -435,7 +695,7 @@ export function useQuestionHandler(
         });
       }
 
-      if (codeLesson) {
+      if (codeLesson && !resume) {
         turnPlan = createFallbackTurnPlanV3(question);
         // Prefer a real execution trace: when the algorithm catalog knows this
         // family we can run it on a concrete example and draw what it actually
@@ -528,7 +788,10 @@ export function useQuestionHandler(
           compiled: dsaScene !== null,
           primitive_count: dsaScene?.renderScene.primitives.length ?? 0,
         });
-      } else {
+      } else if (!doubt && !resume) {
+        // A doubt or a resume plans nothing: the page already carries the
+        // lesson's figure and rows, and the plan its numbers came from is
+        // inherited below.
         const recentConversation = conversationHistoryRef.current
           .slice(-3)
           .map((exchange) => `User: ${exchange.user}\nTutor: ${exchange.assistant}`)
@@ -543,6 +806,7 @@ export function useQuestionHandler(
           problemAuthorityPromise = planAndSolveProblemV1(question, turnPlan, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
+            traceId: turnTraceId ?? undefined,
             signal: abortController.signal,
             timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, SCENE_PLANNER_DEADLINE_MS),
             fastMode: fastModeRef.current,
@@ -555,6 +819,7 @@ export function useQuestionHandler(
           const plannedTurn = await awaitCurrentTurn(planTurnV3(question, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
+            traceId: turnTraceId ?? undefined,
             signal: abortController.signal,
             timeoutMs: TURN_PLAN_DEADLINE_MS,
             conversationContext: recentConversation,
@@ -568,6 +833,7 @@ export function useQuestionHandler(
             problemAuthorityPromise = planAndSolveProblemV1(question, plannedTurn.turnPlan, {
               proxyUrl: plannerUrl,
               sessionId: sessionId ?? undefined,
+              traceId: turnTraceId ?? undefined,
               signal: abortController.signal,
               timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, remainingAuthorityMs),
               fastMode: fastModeRef.current,
@@ -612,7 +878,14 @@ export function useQuestionHandler(
           0,
           SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
         );
-        const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none";
+        // A chemistry question never goes to the LLM scene planner: its
+        // figure is computed from the formula or the named process by the
+        // engine's chemistry families, and a model-authored molecule or cell
+        // was the wrong picture every time it compiled. The deterministic
+        // fallback below draws it.
+        const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily)
+          || isChemistryQuestion(question);
+        const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
         const planContext = [
           recentConversation,
           `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\nDo not contradict, replace, or independently recalculate these quantities and claims.`,
@@ -780,6 +1053,7 @@ export function useQuestionHandler(
             {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
+            traceId: turnTraceId ?? undefined,
             signal: abortController.signal,
             timeoutMs: remainingPlannerMs,
             conversationContext: planContext,
@@ -1064,6 +1338,9 @@ export function useQuestionHandler(
           },
         };
       }
+      if (doubt) {
+        turnPlan = inherited?.turnPlan ?? null;
+      }
       throwIfTurnCancelled();
       const plannerLatencyMs = Date.now() - plannerStartedAt;
 
@@ -1080,20 +1357,68 @@ export function useQuestionHandler(
             },
           )
         : null;
-      // Second line of defence: primitives that compile to no command leave the
-      // same empty board as no primitives at all.
-      if (presentation && verifiedDiagramHasDrawableInk(presentation.diagram)) {
+      // A code lesson's editor over the left of the board leaves a doubt no
+      // notebook to write in, and its frames are conducted by a plan this turn
+      // does not run: a doubt there teaches in speech and points at nothing.
+      const codeLessonBoard = Boolean(doubt && codeLessonControllerRef?.current?.getActivePlan());
+      const codePanelShowing =
+        Boolean((doubt || resume) && codeLessonControllerRef?.current?.getActivePlan()) &&
+        codeLessonControllerRef?.current?.getState().mode !== "hidden";
+      if (doubt) {
+        // The doubt answers on the figure already drawn on this page.
+        activeDiagram = codeLessonBoard ? null : activeVerifiedDiagramRef.current;
+        diagramSource = activeDiagram ? "verified_scene" : "none";
+      } else if (resume) {
+        // Keep the figure the lesson already committed. If the intro never
+        // landed, rebuild it from the paused scene so the rest of the lecture
+        // still has something to point at.
+        activeDiagram = activeVerifiedDiagramRef.current;
+        if (!activeDiagram && resume.scene?.sceneDocument) {
+          const restored = restoreVerifiedPresentationFromTurn({
+            sceneDocument: resume.scene.sceneDocument,
+          });
+          if (restored) {
+            activeDiagram = restored.diagram;
+            sceneV2IntroSegments = restored.introSegments;
+            activeVerifiedDiagramRef.current = activeDiagram;
+            setActiveVerifiedDiagram?.(activeDiagram);
+          }
+        }
+        diagramSource = activeDiagram ? "verified_scene" : "none";
+      } else if (
+        // Second line of defence: primitives that compile to no command leave
+        // the same empty board as no primitives at all.
+        presentation && verifiedDiagramHasDrawableInk(presentation.diagram)
+      ) {
         activeDiagram = presentation.diagram;
         sceneV2IntroSegments = presentation.introSegments;
         diagramSource = "verified_scene";
         activeVerifiedDiagramRef.current = activeDiagram;
-        setActiveVerifiedDiagram?.(activeDiagram);
+        // A code lesson writes the problem first. Holding the figure out of
+        // React state keeps its caption off the board until the delayed intro.
+        if (!codeLesson) {
+          setActiveVerifiedDiagram?.(activeDiagram);
+        }
       } else {
         // Failed or unnecessary diagrams never expose partial geometry.
         activeDiagram = null;
         diagramSource = "none";
         activeVerifiedDiagramRef.current = null;
         setActiveVerifiedDiagram?.(null);
+      }
+
+      if (!doubt && !resume) {
+        // A doubt asked on this page reuses what the lesson was planned from,
+        // and saves the lesson's part with this scene if it stops it.
+        page.turnPlan = turnPlan;
+        page.solverProjection = problemAuthority?.projection ?? null;
+        page.turn.scene = {
+          sceneDocument: sceneV2Document,
+          sceneEngineVersion: SCENE_ENGINE_VERSION,
+          validationReport: sceneV2Report,
+          visualStatus: sceneVisualStatus,
+          sceneArtifacts: codeLesson && sceneArtifacts ? { ...sceneArtifacts, codeLesson } : sceneArtifacts,
+        };
       }
 
       plannerSpan.end({
@@ -1157,25 +1482,93 @@ export function useQuestionHandler(
         });
       }
 
-      const teachingPrompt = buildTurnTeachingPrompt({
-        question,
+      // The room a doubt or a resume is told about is counted by the same slot
+      // finder that will place its rows, so it never promises a row the page
+      // cannot hold.
+      const pageRoom = doubt || resume
+        ? workColumnRoom(boardLayoutRef.current, fbdPhaseStartedRef.current)
+        : null;
+      const revealedChars = codeLessonControllerRef?.current?.getState().revealedChars ?? {};
+      const revealedBlockIds = codeLesson ? fullyRevealedBlockIds(codeLesson, revealedChars) : [];
+      const missingBlockIds = codeLesson
+        ? codeLesson.sections
+            .flatMap((section) => section.blocks.map((block) => block.id))
+            .filter((id) => !revealedBlockIds.includes(id))
+        : [];
+      const framesAlreadyShown = resume
+        ? Math.min(
+            (codeLessonControllerRef?.current?.frames.currentIndex() ?? 0) +
+              (resume.figureDrawn ? 1 : 0),
+            dsaFrameSet?.frames.length ?? 0,
+          )
+        : 0;
+      const pagePromptInput = {
+        boardRows: workColumnRows(boardLayoutRef.current),
+        rowsLeftOnPage: pageRoom?.rowsLeft ?? 0,
+        nextRowY: pageRoom?.nextRowY ?? null,
         diagramPromptAddon: activeDiagram?.promptAddon ?? null,
+        codePanelShowing,
+        codePanelText: codePanelShowing
+          ? revealedCodeText(
+              codeLessonControllerRef?.current?.getActivePlan() ?? null,
+              revealedChars,
+            )
+          : null,
         turnPlan,
-        solverProjection: problemAuthority?.projection ?? null,
-        codeLesson,
-        // The frames the board will actually show, so the narration is about
-        // the figure in front of the student rather than the planner's hint.
-        codeLessonFrames: dsaFrameSet?.frames.map((frame) => ({
-          id: frame.id,
-          caption: frame.caption,
-          narrationIntent: frame.narrationIntent,
-        })),
-        ...(boardContext ? { codeLessonFacts: boardContext.facts } : {}),
-        isDsa: dsaClassification.isDsa,
         familiarity: familiarityRef.current,
         fastMode: fastModeRef.current,
-      });
-      const { givenSegments, lessonBudget } = teachingPrompt;
+        teachingNote: teachingPrefsRef?.current.teachingNote ?? "",
+        alwaysShowUnits: teachingPrefsRef?.current.alwaysShowUnits ?? false,
+        alwaysStateLawFirst: teachingPrefsRef?.current.alwaysStateLawFirst ?? false,
+      };
+      const teachingPrompt = doubt
+        ? buildDoubtTeachingPrompt({
+            ...pagePromptInput,
+            lessonQuestion: doubt.lessonQuestion,
+            codeLessonBoard,
+            solverProjection: inherited?.solverProjection ?? null,
+          })
+        : resume
+          ? buildResumeTeachingPrompt({
+              ...pagePromptInput,
+              lessonQuestion: resume.lessonQuestion,
+              codeLessonBoard: Boolean(codeLesson),
+              solverProjection: resume.solverProjection,
+              codeLessonResumeNote: codeLesson
+                ? codeLessonResumeNote(
+                    {
+                      missingBlockIds,
+                      unshownFrameCount: Math.max(
+                        (dsaFrameSet?.frames.length ?? 0) - framesAlreadyShown,
+                        0,
+                      ),
+                    },
+                    codeLesson,
+                  )
+                : null,
+            })
+        : buildTurnTeachingPrompt({
+            question,
+            diagramPromptAddon: activeDiagram?.promptAddon ?? null,
+            turnPlan,
+            solverProjection: problemAuthority?.projection ?? null,
+            codeLesson,
+            // The frames the board will actually show, so the narration is about
+            // the figure in front of the student rather than the planner's hint.
+            codeLessonFrames: dsaFrameSet?.frames.map((frame) => ({
+              id: frame.id,
+              caption: frame.caption,
+              narrationIntent: frame.narrationIntent,
+            })),
+            ...(boardContext ? { codeLessonFacts: boardContext.facts } : {}),
+            isDsa: dsaClassification.isDsa,
+            familiarity: familiarityRef.current,
+            fastMode: fastModeRef.current,
+            teachingNote: teachingPrefsRef?.current.teachingNote ?? "",
+            alwaysShowUnits: teachingPrefsRef?.current.alwaysShowUnits ?? false,
+            alwaysStateLawFirst: teachingPrefsRef?.current.alwaysStateLawFirst ?? false,
+          });
+      const { givenSegments, lessonBudget, openingSegment } = teachingPrompt;
       tutorDebug("turn", "lesson budget", {
         scope: lessonBudget.scope,
         min_steps: lessonBudget.minSteps,
@@ -1190,9 +1583,11 @@ export function useQuestionHandler(
       throwIfTurnCancelled();
       setPhaseIfCurrent("thinking");
 
-      // Commit the code lesson before any narration: the IDE panel mounts
-      // empty and every later [TYPE] tag reveals only pre-validated blocks.
-      if (codeLesson) {
+      // Commit the plan before narration so every later [TYPE] reveals a
+      // pre-validated block. The panel stays hidden until the first TYPE.
+      // A resume already committed this lesson; committing again would hide
+      // the panel and rewind the walk-through.
+      if (codeLesson && !resume) {
         codeLessonControllerRef?.current?.commit(codeLesson);
         // Commit after the plan: reset() clears the frames with the lesson.
         codeLessonControllerRef?.current?.frames.commit(dsaFrameSet);
@@ -1201,8 +1596,14 @@ export function useQuestionHandler(
       const introSegments = activeDiagram && sceneV2IntroSegments
         ? sceneV2IntroSegments
         : [];
-      if (activeDiagram) {
+      if (activeDiagram || codeLesson) {
+        // Code lessons write opening notes in the left column even before the
+        // figure is on the board, so layout treats the right as reserved.
         fbdPhaseStartedRef.current = true;
+      }
+      // A doubt's figure has been on the page since the lesson registered it.
+      // A resume that kept a drawn figure must not register those anchors again.
+      if (activeDiagram && !codeLesson && !doubt && !(resume && resume.figureDrawn)) {
         for (const anchor of activeDiagram.anchors) {
           registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
         }
@@ -1244,8 +1645,8 @@ export function useQuestionHandler(
         // throws synchronously on an unexpected one. Outside, that rejection was
         // unhandled, so finishLectureUi never ran and the turn stayed "thinking"
         // on an empty board with later questions dropped until Escape.
-        // The opening — "Given: ..." then the figure reveal — is held until the
-        // teaching model has actually produced its first step.
+        // The opening — problem notes, then (for physics) the figure reveal —
+        // is held until the teaching model has actually produced its first step.
         //
         // It used to be enqueued here, the moment planning finished. On a
         // measured turn that meant the board spoke its four-second intro at
@@ -1256,15 +1657,60 @@ export function useQuestionHandler(
         // unacceptable once it has: the thinking overlay stays up for the whole
         // wait instead, and from the first spoken word the lesson runs straight
         // through.
-        let introEnqueued = false;
-        const enqueueLessonOpening = () => {
-          if (introEnqueued || !STREAM_SEGMENTS_LIVE) return;
-          introEnqueued = true;
+        let notesEnqueued = false;
+        let figureIntroEnqueued = false;
+        const enqueueOpeningNotes = () => {
+          if (notesEnqueued || !STREAM_SEGMENTS_LIVE) return;
+          notesEnqueued = true;
+          // First, before any row and before the figure: what this question is
+          // and what we are about to do with it. A lesson that opens on
+          // "Given... u equals twenty" has started in the middle of itself.
+          if (openingSegment) {
+            enqueueSegment(openingSegment, turnGeneration);
+          }
           for (const segment of givenSegments) {
             enqueueSegment(segment, turnGeneration);
           }
+        };
+        const ensureFigureIntro = () => {
+          if (figureIntroEnqueued || !STREAM_SEGMENTS_LIVE || !codeLesson) return;
+          figureIntroEnqueued = true;
+          if (!activeDiagram) return;
+          activeVerifiedDiagramRef.current = activeDiagram;
+          setActiveVerifiedDiagram?.(activeDiagram);
+          for (const anchor of activeDiagram.anchors) {
+            registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
+          }
+          turnTelemetryRef.current?.mark("verified-scene-intro-queued", {
+            diagram_id: activeDiagram.id,
+            diagram_name: activeDiagram.name,
+            diagram_source: diagramSource,
+            planner_latency_ms: plannerLatencyMs,
+            intro_segment_count: introSegments.length,
+            command_count: activeDiagram.commands.length,
+            commands: activeDiagram.commands.map((command) => ({
+              type: command.type,
+              params: command.params,
+              ...(command.text ? { text: command.text } : {}),
+            })),
+          });
           enqueueVerifiedIntro(introSegments, turnGeneration);
         };
+        const enqueueLessonOpening = () => {
+          enqueueOpeningNotes();
+          if (!codeLesson) {
+            if (figureIntroEnqueued || !STREAM_SEGMENTS_LIVE) return;
+            figureIntroEnqueued = true;
+            enqueueVerifiedIntro(introSegments, turnGeneration);
+          }
+        };
+        const segmentNeedsFigure = (segment: TutorSegment): boolean =>
+          getSegmentCommands(segment).some(
+            (command) =>
+              command.type === "FOCUS" ||
+              command.type === "FRAME" ||
+              command.type === "TYPE",
+          );
 
         // Buffer one segment so unverified marker commands are removed before
         // they enter the speech and drawing queues.
@@ -1280,26 +1726,50 @@ export function useQuestionHandler(
         const staticPointIds = dsaFrameSet
           ? []
           : (activeDiagram?.anchors ?? []).slice(0, 6).map((anchor) => anchor.id);
+        const openingPointIds = dsaOpeningPointIds(givenSegments.length);
+        const fallbackPointIds = dsaFrameSet
+          ? openingPointIds
+          : (openingPointIds.length > 0 ? openingPointIds : staticPointIds);
         const conductor = codeLesson
           ? createCodeLessonConductor(codeLesson, {
               frameCount: dsaFrameSet?.frames.length ?? 0,
               frameIds: dsaFrameSet?.frames.map((frame) => frame.id) ?? [],
               frameFocusIds: dsaFrameSet?.frames.map((frame) => frame.focusEntityIds) ?? [],
               framePointIds: dsaFrameSet?.frames.map((frame) => frame.pointEntityIds) ?? [],
-              ...(staticPointIds.length > 0 ? { fallbackPointIds: staticPointIds } : {}),
+              ...(fallbackPointIds.length > 0 ? { fallbackPointIds } : {}),
+              ...(resume
+                ? {
+                    alreadyRevealedBlockIds: revealedBlockIds,
+                    framesAlreadyShown,
+                  }
+                : {}),
             })
           : null;
 
         const flushBufferedSegment = () => {
           if (!bufferedSegment) return;
-          // First teaching segment in hand: open the lesson, then let it run.
-          enqueueLessonOpening();
+          // Notes first. A physics figure still opens with the first teaching
+          // segment; a code-lesson figure waits until a FOCUS/TYPE needs it.
+          enqueueOpeningNotes();
+          if (!codeLesson) enqueueLessonOpening();
           const prepared = prepareVerifiedLessonSegments([bufferedSegment], activeDiagram);
           // DSA turns own no handwriting: [TYPE] resolves to its committed
           // block in plan order, frame advances are inserted between blocks,
           // and everything except FOCUS/PAUSE narration ink is dropped.
           const resolved = conductor ? conductor.resolve(prepared.segments) : null;
-          for (const seg of resolved?.segments ?? prepared.segments) {
+          // A doubt conducts no code lesson, and beside the code panel it has
+          // no notebook: `doubtSegment` keeps its words and only the ink it can
+          // put on this page.
+          const outgoing = doubt
+            ? prepared.segments.flatMap((segment) => {
+                const kept = doubtSegment(segment, { codePanelShowing });
+                return kept ? [kept] : [];
+              })
+            : (resolved?.segments ?? prepared.segments);
+          if (codeLesson && outgoing.some(segmentNeedsFigure)) {
+            ensureFigureIntro();
+          }
+          for (const seg of outgoing) {
             enqueueSegment(seg, turnGeneration);
           }
           if (
@@ -1320,6 +1790,11 @@ export function useQuestionHandler(
         const parser = new IncrementalTagParser({
           onSegmentReady: (segment) => {
             if (STREAM_SEGMENTS_LIVE) {
+              // A tag glued straight after another tag joins the sentence
+              // before it instead of running in silence after it.
+              if (foldGluedSegment(bufferedSegment, segment, { codeLesson: Boolean(codeLesson) })) {
+                return;
+              }
               // Flush the previously buffered segment, then buffer this one.
               flushBufferedSegment();
               bufferedSegment = segment;
@@ -1364,6 +1839,12 @@ export function useQuestionHandler(
                   ]
                     .filter(Boolean)
                     .join("\n\n")
+                : resume
+                  ? resumeLessonUserPrompt(
+                      conductor && codeLesson
+                        ? codeLessonResumeNote(conductor.status(), codeLesson)
+                        : null,
+                    )
                 : question,
               conversationHistory: isContinuation
                 ? [
@@ -1376,6 +1857,8 @@ export function useQuestionHandler(
                 : conversationHistoryRef.current,
               proxyUrl: resolveApiUrl("/api/chat"),
               sessionId: sessionId ?? undefined,
+              traceId: turnTraceId ?? undefined,
+              question,
               hasAuthoritativePlan: Boolean(codeLesson) || Boolean(
                 turnPlan &&
                 (
@@ -1387,6 +1870,8 @@ export function useQuestionHandler(
               ),
               fastMode: fastModeRef.current,
               codeLesson: Boolean(codeLesson),
+              // The retry after a reasoning-only response must speak.
+              noReasoning: reasoningOnlyRetry,
               signal: abortController.signal,
               onTraceId: (id) => {
                 currentTraceIdRef.current = id;
@@ -1512,7 +1997,11 @@ export function useQuestionHandler(
         // A tag the model wrote on its own line waits for the words it belongs
         // to; if the response ended on one, it still has to reach the board.
         if (conductor) {
-          for (const seg of conductor.finish().segments) {
+          const leftover = conductor.finish();
+          if (codeLesson && leftover.segments.some(segmentNeedsFigure)) {
+            ensureFigureIntro();
+          }
+          for (const seg of leftover.segments) {
             enqueueSegment(seg, turnGeneration);
           }
         }
@@ -1543,9 +2032,11 @@ export function useQuestionHandler(
         throwIfTurnCancelled();
         // A stream that produced no parseable step never reached
         // `flushBufferedSegment`, so the opening would otherwise be dropped
-        // along with it. The givens and the verified figure are the runtime's
-        // own and are owed to the student either way.
+        // along with it. The givens are owed either way; a code-lesson figure
+        // waits until a FOCUS/TYPE, then still lands if the stream never sent
+        // one so the student is not left with notes and no example.
         enqueueLessonOpening();
+        if (codeLesson && !(resume && resume.figureDrawn)) ensureFigureIntro();
         applyTurnPhase("speaking");
 
         await awaitCurrentTurn(processResponseText(
@@ -1554,10 +2045,16 @@ export function useQuestionHandler(
           STREAM_SEGMENTS_LIVE,
           turnGeneration,
           givenSegments,
+          // The stopped lesson's withheld labels belong to the part of it the
+          // student has not reached yet; a doubt must not reveal them.
+          { revealDeferredAnnotations: !doubt, errorQuestion: question },
         ), isCurrentTurn);
 
         const finalNarration =
           responseText.length > 0 ? lessonNarrationText(responseText) : narrationText;
+        if (doubt && !turnCancelled && !cancelRef.current && responseText.length > 0) {
+          doubtAnswered = true;
+        }
 
         if (finalNarration.trim() && !turnCancelled && !cancelRef.current) {
           conversationHistoryRef.current.push({
@@ -1571,60 +2068,28 @@ export function useQuestionHandler(
 
           const currentId = sessionId;
           if (currentId && rawResponseRef.current) {
-            const responseForPersistence = rawResponseRef.current;
-            const recordedForPersistence = withBoardEpochSegment(recordedSegmentsRef.current);
-            // The committed CodeLessonPlan rides the artifacts JSON so replay
-            // and restored boards can rebuild the code panel and type-along.
-            const artifactsForPersistence = codeLesson && sceneArtifacts
-              ? { ...sceneArtifacts, codeLesson }
-              : sceneArtifacts;
-            const localTurn = persistTurnForReplay(
-              question,
-              responseForPersistence,
-              recordedForPersistence,
-              {
-                sceneDocument: sceneV2Document,
-                sceneEngineVersion: SCENE_ENGINE_VERSION,
-                validationReport: sceneV2Report,
-                visualStatus: sceneVisualStatus,
-                sceneArtifacts: artifactsForPersistence,
-              },
-            );
-            storedTurnsRef.current = [...storedTurnsRef.current, localTurn];
-            setStoredTurnsCount(storedTurnsRef.current.length);
-            setBoards((prev) =>
-              prev.map((b) =>
-                b.id === currentId ? { ...b, preview: question.slice(0, 60) } : b,
-              ),
-            );
-
-            const savePromise = saveTurn(currentId, {
-              question,
-              rawResponse: responseForPersistence,
-              speedMultiplier: speedRef.current,
+            // The stopped turn's part goes first. If the server refused it, the
+            // page this doubt continues does not exist there, so the doubt opens
+            // its own page rather than landing on the page before.
+            const continues =
+              page.turn.continuesBoard && (partialTurnSaved ? await partialTurnSaved : true);
+            // A lesson opens its page with the runtime CLEAR. A doubt is saved
+            // under its own title onto the page it answered on, with no CLEAR,
+            // so replay and a reload keep that page and its figure under it.
+            const savePromise = saveTurnToBoard({
+              boardId: currentId,
+              question: doubt ? doubt.title : question,
+              preview: page.lessonQuestion,
+              rawResponse: rawResponseRef.current,
+              segments: continues
+                ? reindexRecordedSegments(recordedSegmentsRef.current)
+                : withBoardEpochSegment(recordedSegmentsRef.current),
+              scene: doubt
+                ? doubtTurnScene(page.lessonQuestion, continues)
+                : (page.turn.scene ?? textOnlyTurnScene()),
               traceId: currentTraceIdRef.current,
-              sceneDocument: sceneV2Document,
-              sceneEngineVersion: SCENE_ENGINE_VERSION,
-              validationReport: sceneV2Report,
-              visualStatus: sceneVisualStatus,
-              sceneArtifacts: artifactsForPersistence,
-              segments: recordedForPersistence,
-            }).then((savedTurn) => {
-              if (!savedTurn) return false;
-              const turnForReplay: StoredTurn = {
-                ...savedTurn,
-                segments: enrichStoredSegmentsWithReplayAudio(
-                  savedTurn.segments,
-                  recordedForPersistence,
-                  registerReplayBlobUrl,
-                ),
-              };
-              storedTurnsRef.current = storedTurnsRef.current.map((turn) =>
-                turn.id === localTurn.id ? turnForReplay : turn,
-              );
-              setStoredTurnsCount(storedTurnsRef.current.length);
-              return true;
-            }).catch(() => false);
+            });
+            page.turn.saved = true;
 
             if (onComplete) {
               const saved = await savePromise;
@@ -1711,6 +2176,7 @@ export function useQuestionHandler(
             segmentPlanStatsRef.current.droppedMarkerOnlySegments,
           question_preview: question.slice(0, 120),
           cancelled: turnCancelled,
+          turn_kind: doubt ? "doubt" : resume ? "resume" : "lesson",
         });
 
         tutorDebug("turn", "turn complete", {
@@ -1720,12 +2186,16 @@ export function useQuestionHandler(
           total_tts_chars: turnStatsRef.current.ttsChars,
         });
 
-        // A finished DSA lesson keeps its panel up and unlocks type-along.
-        if (!turnCancelled && !cancelRef.current) {
+        // A finished DSA lesson keeps its panel up and unlocks type-along. A
+        // doubt finishes nothing: the lesson it paused continues after this.
+        if (!turnCancelled && !cancelRef.current && !doubt) {
           codeLessonControllerRef?.current?.markLessonComplete();
         }
 
         finishLectureUi(turnGeneration);
+        if (doubtAnswered) {
+          flushPausedLesson();
+        }
 
         if (turnGeneration === turnGenerationRef.current) {
           turnTelemetryRef.current = null;
@@ -1736,6 +2206,10 @@ export function useQuestionHandler(
     [
       sessionId,
       isDraft,
+      boardPageRef,
+      boardShowsStoppedReplayRef,
+      setLiveTurnKind,
+      saveTurnToBoard,
       commitDraftBoard,
       boards,
       narrationText,
@@ -1745,10 +2219,9 @@ export function useQuestionHandler(
       enqueueVerifiedIntro,
       beginBoardEpoch,
       boardLoaded,
-      persistTurnForReplay,
-      registerReplayBlobUrl,
       revokeUnreferencedReplayBlobUrls,
       finishLectureUi,
+      flushPausedLesson,
       ensureTTSClient,
       applyTurnPhase,
       whiteboardRef,
@@ -1782,12 +2255,11 @@ export function useQuestionHandler(
       boardLayoutRef,
       turnTelemetryRef,
       conversationHistoryRef,
-      speedRef,
       fastModeRef,
       familiarityRef,
+      teachingPrefsRef,
       storedTurnsRef,
       pendingSegmentCountRef,
-      setStoredTurnsCount,
       setBoards,
       setPhase,
       setNarrationText,
@@ -1826,7 +2298,12 @@ export function useQuestionHandler(
       }
 
       pendingQuestionRef.current = null;
-      void handleQuestion(pendingQuestion);
+      const queued = pendingQuestionOptionsRef.current;
+      pendingQuestionOptionsRef.current = null;
+      void handleQuestion(
+        pendingQuestion,
+        queued && queued.question === pendingQuestion ? queued.options : undefined,
+      );
     };
 
     flushPendingQuestion();

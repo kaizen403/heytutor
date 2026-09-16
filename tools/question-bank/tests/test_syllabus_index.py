@@ -38,6 +38,7 @@ DATA_ROOT = REPOSITORY_ROOT / "data" / "question-bank"
 TAXONOMY_PATH = DATA_ROOT / "syllabus-taxonomy.json"
 MATHEMATICS_RULES_PATH = DATA_ROOT / "syllabus-rules-mathematics.json"
 PHYSICS_RULES_PATH = DATA_ROOT / "syllabus-rules-physics.json"
+CHEMISTRY_RULES_PATH = DATA_ROOT / "syllabus-rules-chemistry.json"
 
 
 def document_record(
@@ -127,7 +128,7 @@ class SyllabusIndexTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.taxonomy, cls.rules_by_subject = load_syllabus_inputs(
             TAXONOMY_PATH,
-            [MATHEMATICS_RULES_PATH, PHYSICS_RULES_PATH],
+            [MATHEMATICS_RULES_PATH, PHYSICS_RULES_PATH, CHEMISTRY_RULES_PATH],
         )
 
     def assignment_for(
@@ -256,9 +257,31 @@ class SyllabusIndexTests(unittest.TestCase):
             self.rules_by_subject,
         )
         self.assertEqual(chemistry_assignment["subject"], "Chemistry")
-        self.assertEqual(chemistry_assignment["subject_status"], "out_of_scope")
-        self.assertEqual(chemistry_assignment["status"], "out_of_scope")
-        self.assertEqual(chemistry_assignment["syllabus_scope"], "out_of_scope")
+        self.assertEqual(chemistry_assignment["subject_status"], "resolved")
+        self.assertNotEqual(chemistry_assignment["status"], "out_of_scope")
+        self.assertTrue(
+            all(
+                candidate["unit_id"].startswith("chemistry|")
+                for candidate in chemistry_assignment["candidate_units"]
+            )
+        )
+
+        biology_document = document_record("biology-paper", "Biology", "e")
+        biology = question_record(
+            "Describe the structure of a plant cell wall.",
+            [source_ref(biology_document, subject_context=None)],
+        )
+        biology_assignment = assign_question(
+            biology,
+            {biology_document["document_id"]: biology_document},
+            self.taxonomy,
+            self.rules_by_subject,
+        )
+        self.assertIsNone(biology_assignment["subject"])
+        self.assertEqual(biology_assignment["subject_status"], "out_of_scope")
+        self.assertEqual(biology_assignment["status"], "out_of_scope")
+        self.assertEqual(biology_assignment["syllabus_scope"], "out_of_scope")
+        self.assertEqual(biology_assignment["review_reasons"], ["unsupported_subject"])
 
     def test_scoring_thresholds_ties_and_exclusions(self) -> None:
         high = self.assignment_for(
@@ -1151,7 +1174,7 @@ class SyllabusIndexTests(unittest.TestCase):
                     manifest,
                     questions_path,
                     TAXONOMY_PATH,
-                    [MATHEMATICS_RULES_PATH, PHYSICS_RULES_PATH],
+                    [MATHEMATICS_RULES_PATH, PHYSICS_RULES_PATH, CHEMISTRY_RULES_PATH],
                     assignments_path,
                     database_path,
                     build_database=False,
@@ -1177,7 +1200,7 @@ class SyllabusIndexTests(unittest.TestCase):
                     manifest,
                     questions_path,
                     TAXONOMY_PATH,
-                    [MATHEMATICS_RULES_PATH, PHYSICS_RULES_PATH],
+                    [MATHEMATICS_RULES_PATH, PHYSICS_RULES_PATH, CHEMISTRY_RULES_PATH],
                     questions_path,
                     database_path,
                     build_database=False,
@@ -1285,11 +1308,11 @@ class SyllabusIndexTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     connection.execute("SELECT COUNT(*) FROM syllabus_units").fetchone(),
-                    (38,),
+                    (67,),
                 )
                 self.assertEqual(
                     connection.execute("SELECT COUNT(*) FROM syllabus_topics").fetchone(),
-                    (525,),
+                    (666,),
                 )
                 self.assertEqual(connection.execute("PRAGMA foreign_key_check").fetchall(), [])
                 self.assertEqual(connection.execute("PRAGMA integrity_check").fetchone(), ("ok",))

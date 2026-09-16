@@ -141,7 +141,7 @@ export function codeLessonBeatPlan(input: CodeLessonBeatPlanInput): CodeLessonBe
 
   beats.push({
     kind: "opening",
-    brief: "the problem in plain words, the concrete values on the board, and exactly what is being asked for",
+    brief: "what the question is asking, in plain words, using the title and example values already written on the left. the figure is not on the board yet, so do not describe it",
   });
 
   if (familiarity === "new") {

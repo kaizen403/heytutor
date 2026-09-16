@@ -1,4 +1,5 @@
 import { withFastModeHeader } from "./fastMode";
+import { withTurnTraceHeaders } from "./traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 
 export interface ConversationExchange {
@@ -18,8 +19,14 @@ export interface StreamLLMResponseParams {
   fastMode?: boolean;
   /** This turn teaches a committed DSA code lesson; it needs a larger budget. */
   codeLesson?: boolean;
+  /** Retry after a reasoning-only response: ask the server for no thinking budget. */
+  noReasoning?: boolean;
   onTraceId?: (traceId: string) => void;
   signal?: AbortSignal;
+  /** Client-generated Langfuse turn id. Every planner and teaching call on this question shares it. */
+  traceId?: string;
+  /** Student question for the parent Langfuse trace. Not the "continue" prompt. */
+  question?: string;
 }
 
 export interface StreamLLMResult {
@@ -115,14 +122,14 @@ function buildRequestHeaders(
   hasAuthoritativePlan = false,
   fastMode = true,
   codeLesson = false,
+  noReasoning = false,
+  traceId?: string,
+  question?: string,
 ): Record<string, string> {
   const headers: Record<string, string> = {
     "content-type": "application/json",
   };
 
-  if (sessionId) {
-    headers["x-session-id"] = sessionId;
-  }
   if (codeLesson) {
     // A committed program is not a plan for the lesson: the tutor still has
     // to lay out the beats and keep the figure and the code in step, and with
@@ -138,8 +145,14 @@ function buildRequestHeaders(
   if (codeLesson) {
     headers["x-heytutor-code-lesson"] = "1";
   }
+  if (noReasoning) {
+    headers["x-heytutor-reasoning-retry"] = "1";
+  }
 
-  return withFastModeHeader(headers, fastMode);
+  return withFastModeHeader(
+    withTurnTraceHeaders(headers, { sessionId, traceId, question }),
+    fastMode,
+  );
 }
 
 export async function streamLLMResponse(
@@ -152,8 +165,11 @@ export async function streamLLMResponse(
     hasAuthoritativePlan,
     fastMode,
     codeLesson,
+    noReasoning,
     onTraceId,
     signal,
+    traceId: requestTraceId,
+    question,
   }: StreamLLMResponseParams,
   onDelta?: (chunk: string) => void,
 ): Promise<StreamLLMResult> {
@@ -168,7 +184,15 @@ export async function streamLLMResponse(
 
   const response = await fetch(proxyUrl, {
     method: "POST",
-    headers: buildRequestHeaders(sessionId, hasAuthoritativePlan, fastMode, codeLesson),
+    headers: buildRequestHeaders(
+      sessionId,
+      hasAuthoritativePlan,
+      fastMode,
+      codeLesson,
+      noReasoning,
+      requestTraceId,
+      question,
+    ),
     signal,
     body: JSON.stringify({
       model,

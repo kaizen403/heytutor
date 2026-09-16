@@ -1,13 +1,16 @@
 {
   "extends": "@heytutor/typescript-config/nextjs.json",
   "compilerOptions": {
+    "declaration": false,
+    "declarationMap": false,
     "paths": {
       "@/*": ["./*"],
       "@heytutor/design-tokens": ["../../packages/design-tokens/src/index.ts"],
       "@heytutor/drawing": ["../../packages/drawing/src/index.ts"],
       "@heytutor/scene-engine": ["../../packages/scene-engine/src/index.ts"],
       "@heytutor/tutor-core": ["../../packages/tutor-core/src/index.ts"],
-      "@heytutor/whiteboard": ["../../packages/whiteboard/src/index.ts"]
+      "@heytutor/whiteboard": ["../../packages/whiteboard/src/index.ts"],
+      "@heytutor/whiteboard/pen-spinner": ["../../packages/whiteboard/src/pen-spinner.ts"]
     }
   },
   "include": [
