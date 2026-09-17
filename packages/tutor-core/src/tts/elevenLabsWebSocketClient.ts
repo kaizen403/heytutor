@@ -12,7 +12,6 @@ import {
 } from "./elevenLabsClient";
 import { tutorDebug } from "../tutorDebug";
 import {
-  isCrossOriginWebSocket,
   resolveApiUrl,
   resolveWebSocketUrl,
 } from "../publicOrigins";
@@ -260,10 +259,8 @@ function getWebSocketUrl(
 }
 
 async function fetchWsAuthTicket(): Promise<string | undefined> {
-  if (!isCrossOriginWebSocket()) {
-    return undefined;
-  }
-
+  // Same-origin production still needs a ticket: when AUTH_REQUIRED=1 the
+  // relay refuses htutor_uid and destroys the socket, which aborts the lecture.
   try {
     const response = await fetch(resolveApiUrl("/api/tts/ws-ticket"), {
       credentials: "include",

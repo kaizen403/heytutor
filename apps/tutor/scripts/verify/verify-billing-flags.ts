@@ -14,16 +14,30 @@ function env(values: Record<string, string>): NodeJS.ProcessEnv {
 }
 
 assert(
-  isAutumnEnabled(env({ AUTUMN_ENABLED: "1", NODE_ENV: "development" }), "development"),
-  "AUTUMN_ENABLED=1 turns Autumn on locally",
+  isAutumnEnabled(
+    env({ AUTUMN_ENABLED: "1", AUTUMN_SECRET_KEY: "am_sk_test", NODE_ENV: "development" }),
+    "development",
+  ),
+  "AUTUMN_ENABLED=1 turns Autumn on locally when the secret is set",
 );
 assert(
-  !isAutumnEnabled(env({ AUTUMN_ENABLED: "0", NODE_ENV: "production" }), "production"),
+  !isAutumnEnabled(env({ AUTUMN_ENABLED: "1", NODE_ENV: "development" }), "development"),
+  "AUTUMN_ENABLED=1 without AUTUMN_SECRET_KEY must not fail-close teaching",
+);
+assert(
+  !isAutumnEnabled(
+    env({ AUTUMN_ENABLED: "0", AUTUMN_SECRET_KEY: "am_sk_test", NODE_ENV: "production" }),
+    "production",
+  ),
   "AUTUMN_ENABLED=0 is the kill switch even in production",
 );
 assert(
-  isAutumnEnabled(env({ NODE_ENV: "production" }), "production"),
-  "production enables Autumn when the flag is unset",
+  !isAutumnEnabled(env({ NODE_ENV: "production" }), "production"),
+  "production without AUTUMN_SECRET_KEY uses the local ledger instead of 503ing every lesson",
+);
+assert(
+  isAutumnEnabled(env({ AUTUMN_SECRET_KEY: "am_sk_test", NODE_ENV: "production" }), "production"),
+  "production enables Autumn when the secret is set and the flag is unset",
 );
 assert(
   !isAutumnEnabled(env({ NODE_ENV: "development" }), "development"),
@@ -38,7 +52,10 @@ assert(
   "lecture-lab header bypasses only when Autumn is off",
 );
 assert(
-  !isLectureLabRequest(lab, env({ AUTUMN_ENABLED: "1", NODE_ENV: "production" })),
+  !isLectureLabRequest(
+    lab,
+    env({ AUTUMN_ENABLED: "1", AUTUMN_SECRET_KEY: "am_sk_test", NODE_ENV: "production" }),
+  ),
   "production must not honor the lecture-lab header",
 );
 

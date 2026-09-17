@@ -34,6 +34,18 @@ const ws = read("server.ts");
 assert(ws.includes("readWsTicket"), "WS TTS must auth from the session ticket");
 assert(ws.includes("isAuthDisabled"), "WS must not take htutor_uid when auth is on");
 assert(ws.includes("tts_budget"), "WS TTS must skip when the grant budget is gone");
+const ttsClient = readFileSync(
+  resolve(root, "../../packages/tutor-core/src/tts/elevenLabsWebSocketClient.ts"),
+  "utf8",
+);
+assert(
+  ttsClient.includes('fetch(resolveApiUrl("/api/tts/ws-ticket")'),
+  "the TTS client must mint a WS ticket",
+);
+assert(
+  !ttsClient.includes("if (!isCrossOriginWebSocket())"),
+  "same-origin AUTH_REQUIRED production must still send the TTS ticket or the relay destroys the lecture socket",
+);
 
 const beginTurn = read("app/api/billing/begin-turn/route.ts");
 assert(beginTurn.includes("beginTurnFromRequest"), "begin-turn must run the grant + Autumn gate");
