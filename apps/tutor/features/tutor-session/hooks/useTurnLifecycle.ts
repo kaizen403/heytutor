@@ -24,5 +24,7 @@ export function useTurnLifecycle(params: UseTurnLifecycleParams) {
     resumeTurn: turnControl.resumeTurn,
     handleQuestion,
     handleAskDoubt: turnControl.handleAskDoubt,
+    flushPausedLesson: turnControl.flushPausedLesson,
+    pausedLessonOffer: turnControl.pausedLessonOffer,
   };
 }

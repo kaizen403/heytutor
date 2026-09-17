@@ -262,7 +262,10 @@ for (const [label, prompt] of Object.entries(variants)) {
 for (const [label, prompt] of Object.entries(variants)) {
   const block = doubtBlockOf(prompt, label);
   assert(block.includes("Never use [ANNOTATE] in this turn"), `${label}: a doubt is saved text only, and ANNOTATE fails that save`);
-  assert(block.includes("The lesson continues by itself after you stop"), `${label}: a doubt must not end the lecture`);
+  assert(
+    block.includes("the student chooses to pick the lecture back up or ask another doubt"),
+    `${label}: a doubt must not end the lecture; the student chooses to continue`,
+  );
   assert(!/[—–]| - /.test(block), `${label}: the doubt block carries dash punctuation`);
 }
 

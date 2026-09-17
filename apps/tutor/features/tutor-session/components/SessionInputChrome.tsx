@@ -1,8 +1,11 @@
+import type { BillingFailure } from "@/lib/billing/billingClient";
 import { InputBar } from "@/features/tutor-session/components/InputBar";
 import { MarkedDoubtBar } from "@/features/tutor-session/components/MarkedDoubtBar";
+import { PausedLectureBar } from "@/features/tutor-session/components/PausedLectureBar";
 import type { SubjectFamiliarity } from "@heytutor/tutor-core";
 import type { BoardMark } from "../lib/board/boardMarking";
 import type { TutorPhase } from "../types";
+import { PAUSED_LECTURE_PLACEHOLDER } from "../lib/turn/lessonFollowUp";
 
 interface SessionInputChromeProps {
   isInputOverlay: boolean;
@@ -29,6 +32,12 @@ interface SessionInputChromeProps {
   onFamiliarityChange?: (familiarity: SubjectFamiliarity) => void;
   /** Icon-only controls so the composer fits a phone. */
   compact?: boolean;
+  /** A mid-lecture doubt was answered; the original lesson can continue. */
+  pausedLessonOffer?: boolean;
+  onContinueLecture?: () => void;
+  billingNotice?: BillingFailure | null;
+  onUpgrade?: () => void;
+  onBillingFailure?: (failure: BillingFailure) => void;
 }
 
 export function SessionInputChrome({
@@ -53,6 +62,11 @@ export function SessionInputChrome({
   familiarity,
   onFamiliarityChange,
   compact = false,
+  pausedLessonOffer = false,
+  onContinueLecture,
+  billingNotice = null,
+  onUpgrade,
+  onBillingFailure,
 }: SessionInputChromeProps) {
   return (
     <div
@@ -64,6 +78,10 @@ export function SessionInputChrome({
         margin: "0 auto",
       }}
     >
+      <PausedLectureBar
+        visible={pausedLessonOffer && phase === "idle"}
+        onContinue={() => onContinueLecture?.()}
+      />
       {/* What the board understood, directly above where the doubt is typed —
           so the student reads the resolved line before pressing Ask. */}
       <MarkedDoubtBar
@@ -81,9 +99,11 @@ export function SessionInputChrome({
             onAskDoubt={onAskDoubt}
             disabled={phase !== "idle"}
             placeholder={
-              inputSubmitMode === "follow-up"
-                ? "Ask a doubt or the next question"
-                : "Ask a question or paste a photo"
+              pausedLessonOffer
+                ? PAUSED_LECTURE_PLACEHOLDER
+                : inputSubmitMode === "follow-up"
+                  ? "Ask a doubt or the next question"
+                  : "Ask a question or paste a photo"
             }
             submitMode={inputSubmitMode}
             isPaused={isPaused}
@@ -98,6 +118,9 @@ export function SessionInputChrome({
             familiarity={familiarity}
             onFamiliarityChange={onFamiliarityChange}
             compact={compact}
+            billingNotice={billingNotice}
+            onUpgrade={onUpgrade}
+            onBillingFailure={onBillingFailure}
           />
         </div>
       </div>

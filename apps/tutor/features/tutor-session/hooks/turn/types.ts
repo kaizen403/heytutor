@@ -14,6 +14,7 @@ import type { CodeLessonController } from "../../lib/code-lesson/codeLessonContr
 import type { SpokenSegmentClock } from "../../lib/code-lesson/codeSpokenSync";
 import type { DoubtTurnRequest } from "../../lib/input/askDoubt";
 import type { BoardPageRecord, PageTurnKind, PausedLessonRequest } from "../../lib/turn/doubtTurn";
+import type { BillingFailure } from "@/lib/billing/billingClient";
 
 /** A question opens a fresh page unless it carries a doubt or resumes this one. */
 export type HandleQuestionOptions = {
@@ -79,7 +80,7 @@ export type UseTurnLifecycleParams = {
   /** Space-to-pause / Escape-to-stop. Off for the headless admin runner. */
   enableKeyboardControls?: boolean;
   onComplete?: () => void;
-  onError?: (error: { message: string; question: string }) => void;
+  onError?: (error: { message: string; question: string; billing?: BillingFailure }) => void;
   phase: TutorPhase;
   isReplaying: boolean;
   boardLoaded: boolean;
@@ -165,7 +166,7 @@ export type UseTurnLifecycleParams = {
   setIsPaused: Dispatch<SetStateAction<boolean>>;
   setNarrationText: Dispatch<SetStateAction<string>>;
   setCurrentSegmentText: Dispatch<SetStateAction<string>>;
-  setLastError: Dispatch<SetStateAction<{ message: string; question: string } | null>>;
+  setLastError: Dispatch<SetStateAction<{ message: string; question: string; billing?: BillingFailure } | null>>;
   setInputInteracted: Dispatch<SetStateAction<boolean>>;
   setLiveQuestion?: Dispatch<SetStateAction<string>>;
   setIsReplaying: Dispatch<SetStateAction<boolean>>;
@@ -255,6 +256,15 @@ export type TurnControlApi = {
    * board. No-op when nothing was paused.
    */
   flushPausedLesson: () => void;
+  /**
+   * After a doubt turn ends, offer Continue lecture / Ask another doubt rather
+   * than picking the lesson back up on its own.
+   */
+  offerPausedLessonResume: () => void;
+  /** Drop a paused lecture: a fresh question, or a board change. */
+  clearPausedLesson: () => void;
+  /** True while a mid-lecture doubt has been answered and the lesson can continue. */
+  pausedLessonOffer: boolean;
   /**
    * `options.prompt` carries an already-composed, board-grounded doubt and
    * `options.title` what it is saved under.

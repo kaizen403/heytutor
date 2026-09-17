@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { stopReplayAudio } from "@/lib/replay/replayAudio";
 import {
   cancelFrame,
@@ -30,7 +30,7 @@ import {
   DOUBT_INTERRUPT_TIMEOUT_MS,
   type DoubtTurnRequest,
 } from "../../lib/input/askDoubt";
-import { pausedLessonFromPage, type PausedLessonRequest } from "../../lib/turn/doubtTurn";
+import { pausedLessonFromLive, type PausedLessonRequest } from "../../lib/turn/doubtTurn";
 import { useSegmentRunner } from "./useSegmentRunner";
 import type { TutorPhase } from "../../types";
 import type { HandleQuestionOptions, TurnControlApi, UseTurnLifecycleParams } from "./types";
@@ -613,6 +613,8 @@ export function useTurnControl(
   );
 
   const pausedLessonRef = useRef<PausedLessonRequest | null>(null);
+  /** Board id the offer belongs to, or null. Another board must not resume it. */
+  const [pausedLessonOfferBoardId, setPausedLessonOfferBoardId] = useState<string | null>(null);
 
   const stopTurn = useCallback((options?: { keepVisibleBoard?: boolean }) => {
     // Always kill speech first. The UI can already look idle while a leftover
@@ -683,9 +685,6 @@ export function useTurnControl(
         whiteboardRef.current?.abortDrawTransaction(activeIntroTransaction);
       }
       activeIntroTransactionRef.current = null;
-    }
-    if (!options?.keepVisibleBoard) {
-      pausedLessonRef.current = null;
     }
     whiteboardRef.current?.setPaused(false);
 
@@ -951,10 +950,13 @@ export function useTurnControl(
       // doubt turn skips `beginBoardEpoch` and writes under what the lesson wrote.
       // Keep the visible figure — aborting an in-flight intro used to wipe it.
       stopTurn({ keepVisibleBoard: true });
-      const snapshot = pausedLessonFromPage(
-        boardPageRef.current,
-        Boolean(codeLessonControllerRef?.current?.getActivePlan()),
-      );
+      const snapshot = pausedLessonFromLive({
+        record: boardPageRef.current,
+        boardId: sessionId,
+        lessonQuestion: liveQuestionRef.current,
+        codeLesson: Boolean(codeLessonControllerRef?.current?.getActivePlan()),
+        figureDrawn: Boolean(activeVerifiedDiagramRef.current),
+      });
       if (snapshot) {
         const existing = pausedLessonRef.current;
         // A nested doubt must not replace the original lesson snapshot with the
@@ -1001,26 +1003,44 @@ export function useTurnControl(
       cancelDoubtFlush,
       codeLessonControllerRef,
       conversationHistoryRef,
+      activeVerifiedDiagramRef,
       handleQuestionRef,
       liveQuestionRef,
       narrationSinceEpochRef,
       pendingSegmentCountRef,
       phaseRef,
+      sessionId,
       setLastError,
       stopTurn,
       turnActiveRef,
     ],
   );
 
-  const flushPausedLesson = useCallback(() => {
+  const clearPausedLesson = useCallback(() => {
+    pausedLessonRef.current = null;
+    setPausedLessonOfferBoardId(null);
+  }, []);
+
+  const offerPausedLessonResume = useCallback(() => {
     const pending = pausedLessonRef.current;
-    if (!pending) {
+    if (!pending || pending.boardId !== sessionId) {
       return;
     }
+    setPausedLessonOfferBoardId(pending.boardId);
+  }, [sessionId]);
+
+  const flushPausedLesson = useCallback(() => {
+    const pending = pausedLessonRef.current;
+    if (!pending || pending.boardId !== sessionId) {
+      pausedLessonRef.current = null;
+      setPausedLessonOfferBoardId(null);
+      return;
+    }
+    setPausedLessonOfferBoardId(null);
     const deadline = Date.now() + DOUBT_INTERRUPT_TIMEOUT_MS;
     const tick = () => {
       const resume = pausedLessonRef.current;
-      if (!resume) {
+      if (!resume || resume.boardId !== sessionId) {
         return;
       }
       if (
@@ -1031,26 +1051,31 @@ export function useTurnControl(
           pendingSegmentCount: pendingSegmentCountRef.current,
         })
       ) {
-        pausedLessonRef.current = null;
         tutorDebug("turn", "resuming paused lesson after doubt", {
           lesson_question_preview: resume.lessonQuestion.slice(0, 80),
           figure_drawn: resume.figureDrawn,
           code_lesson: resume.codeLesson,
         });
         void handleQuestionRef.current(resume.lessonQuestion, { resume });
-        return;
+        // The idle check and turnActive latch are synchronous. Only drop the
+        // snapshot once this resume owns the board; a silent drop used to
+        // lose the lecture.
+        if (turnActiveRef.current) {
+          pausedLessonRef.current = null;
+          return;
+        }
       }
       if (Date.now() >= deadline) {
-        pausedLessonRef.current = null;
         tutorDebug("turn", "paused lesson did not resume in time", {
           lesson_question_preview: resume.lessonQuestion.slice(0, 80),
         });
+        setPausedLessonOfferBoardId(resume.boardId);
         return;
       }
       scheduleFrame(tick);
     };
     tick();
-  }, [handleQuestionRef, pendingSegmentCountRef, phaseRef, turnActiveRef]);
+  }, [handleQuestionRef, pendingSegmentCountRef, phaseRef, sessionId, turnActiveRef]);
 
   return {
     finishLectureUi,
@@ -1062,6 +1087,9 @@ export function useTurnControl(
     pauseTurn,
     resumeTurn,
     flushPausedLesson,
+    offerPausedLessonResume,
+    clearPausedLesson,
+    pausedLessonOffer: pausedLessonOfferBoardId === sessionId,
     handleAskDoubt,
   };
 }

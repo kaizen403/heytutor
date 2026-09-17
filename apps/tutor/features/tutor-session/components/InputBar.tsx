@@ -25,6 +25,14 @@ import { useVoiceInput } from "@/features/tutor-session/hooks/useVoiceInput";
 import { VoiceLevelBars } from "@/features/tutor-session/components/VoiceLevelBars";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import type { BillingFailure } from "@/lib/billing/billingClient";
+import { parseBillingFailureFromBody } from "@/lib/billing/billingClient";
+import {
+  OUT_OF_USAGE_TITLE,
+  UPGRADE_LABEL,
+  isOutOfCreditsCode,
+  studentBillingMessage,
+} from "@/lib/billing/studentCopy";
 
 export type InputSubmitMode = "ask" | "doubt" | "follow-up";
 
@@ -63,6 +71,9 @@ export interface InputBarProps {
    */
   familiarity?: SubjectFamiliarity;
   onFamiliarityChange?: (level: SubjectFamiliarity) => void;
+  billingNotice?: BillingFailure | null;
+  onUpgrade?: () => void;
+  onBillingFailure?: (failure: BillingFailure) => void;
 }
 
 type SpeechRecognitionResultList = {
@@ -130,6 +141,9 @@ export function InputBar({
   onToggleMarking,
   familiarity,
   onFamiliarityChange,
+  billingNotice = null,
+  onUpgrade,
+  onBillingFailure,
 }: InputBarProps) {
   const [question, setQuestion] = useState("");
   const questionInputRef = useRef<HTMLTextAreaElement>(null);
@@ -157,6 +171,12 @@ export function InputBar({
   const isFollowUp = submitMode === "follow-up";
   const isDoubt = submitMode === "doubt" || isFollowUp;
   const submitLabel = submitButtonLabel(submitMode);
+  const outOfCredits = Boolean(billingNotice && isOutOfCreditsCode(billingNotice.code));
+  const billingPlaceholder = billingNotice
+    ? isOutOfCreditsCode(billingNotice.code)
+      ? OUT_OF_USAGE_TITLE
+      : studentBillingMessage(billingNotice.code)
+    : null;
   /** The tutor owns the board (teaching or replaying) and offers its own controls. */
   const isLiveLesson = disabled && Boolean(onPauseToggle);
   /**
@@ -204,9 +224,13 @@ export function InputBar({
   const handleSubmit = useCallback(
     (event: React.FormEvent) => {
       event.preventDefault();
+      if (outOfCredits) {
+        onUpgrade?.();
+        return;
+      }
       submitQuestion();
     },
-    [submitQuestion],
+    [onUpgrade, outOfCredits, submitQuestion],
   );
 
   const handleQuestionKeyDown = useCallback(
@@ -394,9 +418,18 @@ export function InputBar({
           question?: unknown;
           error?: unknown;
           latencyMs?: unknown;
+          code?: unknown;
+          remaining?: unknown;
         };
         if (extractGenerationRef.current !== generation) {
           return;
+        }
+        if (!response.ok) {
+          const billing = parseBillingFailureFromBody(response.status, data);
+          if (billing) {
+            onBillingFailure?.(billing);
+            throw new Error(studentBillingMessage(billing.code));
+          }
         }
         if (!response.ok || typeof data.question !== "string") {
           throw new Error(
@@ -427,7 +460,7 @@ export function InputBar({
         }
       }
     },
-    [onImageSelect],
+    [onBillingFailure, onImageSelect],
   );
 
   const handleFileChange = useCallback(
@@ -603,6 +636,7 @@ export function InputBar({
                   ? "Writing down what you said…"
                   : extractError ??
                     voice.error ??
+                    billingPlaceholder ??
                     (markingArmed
                       ? MARK_MODE_PLACEHOLDER
                       : canInterruptWithDoubt
@@ -850,14 +884,24 @@ export function InputBar({
               <InputSettingsButton onOpen={onOpenSettings} prominent={prominent} />
             ) : null}
             {/* Face and geometry both come from `.btn`. */}
-            <button
-              type="submit"
-              disabled={buttonDisabled}
-              className={cn("btn btn-sky shrink-0", prominent ? "btn-md" : "btn-sm")}
-            >
-              {marksCarryTheQuestion ? MARK_SUBMIT_LABEL : submitLabel}
-            </button>
-            {isFollowUp && (
+            {outOfCredits ? (
+              <button
+                type="button"
+                className={cn("btn btn-sky shrink-0", prominent ? "btn-md" : "btn-sm")}
+                onClick={() => onUpgrade?.()}
+              >
+                {UPGRADE_LABEL}
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={buttonDisabled}
+                className={cn("btn btn-sky shrink-0", prominent ? "btn-md" : "btn-sm")}
+              >
+                {marksCarryTheQuestion ? MARK_SUBMIT_LABEL : submitLabel}
+              </button>
+            )}
+            {isFollowUp && !outOfCredits && (
               <button
                 type="button"
                 onClick={runNextQuestion}

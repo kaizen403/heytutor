@@ -140,6 +140,8 @@ export function doubtPageRecord(input: {
  * on the same page after the doubt is answered.
  */
 export interface PausedLessonRequest {
+  /** The board this lecture was paused on. A later board must not resume it. */
+  boardId: string;
   lessonQuestion: string;
   turnPlan: TurnPlanV3 | null;
   solverProjection: unknown;
@@ -190,12 +192,47 @@ export function pausedLessonFromPage(
   const lessonQuestion = record.lessonQuestion.trim();
   if (!lessonQuestion) return null;
   return {
+    boardId: record.boardId,
     lessonQuestion,
     turnPlan: record.turnPlan,
     solverProjection: record.solverProjection,
     scene: record.turn.kind === "lesson" ? record.turn.scene : null,
     figureDrawn: record.figureDrawn,
     codeLesson,
+  };
+}
+
+/**
+ * Snapshot a lesson a doubt is about to stop, even when the page record is not
+ * ready yet (a doubt asked during planning). Without this the lecture cannot
+ * continue after the doubt, because there is nothing to hand back.
+ */
+export function pausedLessonFromLive(input: {
+  record: BoardPageRecord | null;
+  boardId: string;
+  lessonQuestion: string;
+  codeLesson: boolean;
+  figureDrawn: boolean;
+}): PausedLessonRequest | null {
+  const fromPage = pausedLessonFromPage(input.record, input.codeLesson);
+  if (fromPage) {
+    return {
+      ...fromPage,
+      boardId: fromPage.boardId || input.boardId,
+      figureDrawn: fromPage.figureDrawn || input.figureDrawn,
+      codeLesson: fromPage.codeLesson || input.codeLesson,
+    };
+  }
+  const lessonQuestion = input.lessonQuestion.trim();
+  if (!lessonQuestion || !input.boardId) return null;
+  return {
+    boardId: input.boardId,
+    lessonQuestion,
+    turnPlan: null,
+    solverProjection: null,
+    scene: null,
+    figureDrawn: input.figureDrawn,
+    codeLesson: input.codeLesson,
   };
 }
 

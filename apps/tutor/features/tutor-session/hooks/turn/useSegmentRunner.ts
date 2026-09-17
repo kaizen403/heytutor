@@ -274,10 +274,11 @@ export function useSegmentRunner({
       };
 
       /**
-       * Hold the first schedule until the voice is audible and either the
-       * exact alignment is in hand, 120 ms have passed since `onStart`,
-       * speech has ended, or the turn is cancelled. Peeked timings alone
-       * used to release the pen onto a silent wall clock.
+       * Hold the first schedule until the voice is actually audible
+       * (playback > 0, not merely `onStart`) and either the exact alignment
+       * is in hand, 120 ms have passed since `onStart`, speech has ended, or
+       * the turn is cancelled. Peeked timings and onStart used to release the
+       * pen onto a silent 1.5× wall clock.
        */
       const waitForInitialTimings = (): Promise<void> =>
         new Promise((resolve) => {
@@ -295,6 +296,7 @@ export function useSegmentRunner({
               nowMs: performance.now(),
               speechComplete,
               cancelled: isCancelled(),
+              playbackPositionMs: tts.getPlaybackPositionMs(),
             });
             if (decision.release) {
               settled = true;
@@ -312,16 +314,20 @@ export function useSegmentRunner({
               resolve();
               return;
             }
-            if (decision.releaseAtMs !== null && timerId === null) {
-              // One extra millisecond so the timer lands past the window
-              // rather than a rounding error before it.
+            if (!timingWaiters.includes(evaluate)) {
+              timingWaiters.push(evaluate);
+            }
+            if (timerId === null) {
+              // Playback becoming audible is not an event — poll. Cap the
+              // deadline timer at one frame so we notice the first sample.
+              const delay =
+                decision.releaseAtMs !== null
+                  ? Math.max(decision.releaseAtMs - performance.now(), 0) + 1
+                  : 16;
               timerId = window.setTimeout(() => {
                 timerId = null;
                 evaluate();
-              }, Math.max(decision.releaseAtMs - performance.now(), 0) + 1);
-            }
-            if (!timingWaiters.includes(evaluate)) {
-              timingWaiters.push(evaluate);
+              }, Math.min(delay, 16));
             }
           };
           evaluate();
@@ -391,6 +397,7 @@ export function useSegmentRunner({
               tutorDebug("draw", "skipped silent dump; voice never started", { index });
               return;
             }
+            applyTurnPhase("drawing");
             tutorDebug("draw", "initial timing wait", {
               index,
               release: initialTimingWait?.release ?? null,
@@ -856,7 +863,12 @@ export function useSegmentRunner({
         if (audioStartedAtMs === null) {
           audioStartedAtMs = performance.now();
         }
-        applyTurnPhase(hasCommand ? "drawing" : "speaking");
+        // Narration-only: drop the overlay as soon as onStart fires.
+        // Paired speech+ink waits until playback is audible so a long
+        // decode cannot uncover a silent 1.5× dump.
+        if (!hasCommand) {
+          applyTurnPhase("speaking");
+        }
         notifyTimingWaiters();
       };
 

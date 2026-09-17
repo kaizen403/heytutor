@@ -12,7 +12,7 @@ export interface DoubtRuntimeState {
 export const DOUBT_PLACEHOLDER = "Ask a doubt about this lesson";
 
 export const DOUBT_INTERRUPT_HINT =
-  "Asking a doubt pauses the lesson and answers it right here, under what is on the board.";
+  "Asking a doubt pauses the lesson and answers it right here, under what is on the board. You can continue the lecture afterwards, or ask another doubt.";
 
 /** The interrupted question is context, not the new question — keep it short. */
 export const MAX_DOUBT_CONTEXT_CHARS = 400;

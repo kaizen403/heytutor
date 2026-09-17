@@ -231,6 +231,41 @@ export function codeLessonBeatPlan(input: CodeLessonBeatPlanInput): CodeLessonBe
   return beats;
 }
 
+/**
+ * The beats still owed after a mid-lesson doubt. Opening and already-shown
+ * figure/code beats are dropped so a resume cannot restart the walk; the close
+ * always survives, because that is how a DSA lecture actually ends.
+ */
+export function remainingCodeLessonBeats(
+  beats: readonly CodeLessonBeat[],
+  progress: {
+    alreadyRevealedBlockIds?: readonly string[];
+    framesAlreadyShown?: number;
+  },
+): CodeLessonBeat[] {
+  const revealed = new Set(progress.alreadyRevealedBlockIds ?? []);
+  const framesShown = Math.max(0, progress.framesAlreadyShown ?? 0);
+  const started = framesShown > 0 || revealed.size > 0;
+  const remaining: CodeLessonBeat[] = [];
+  let framesSeen = 0;
+  for (const beat of beats) {
+    if (beat.kind === "opening") continue;
+    if (
+      started &&
+      (beat.kind === "concept" || beat.kind === "brute_force" || beat.kind === "idea")
+    ) {
+      continue;
+    }
+    if (beat.kind === "frame_show" || beat.kind === "frame_why") {
+      if (beat.kind === "frame_show") framesSeen += 1;
+      if (framesSeen <= framesShown) continue;
+    }
+    if (beat.kind === "block" && beat.blockId && revealed.has(beat.blockId)) continue;
+    remaining.push(beat);
+  }
+  return remaining;
+}
+
 /** Steps a lesson takes. Kept for callers that only need the count. */
 export function codeLessonStepCount(frameCount: number, blockCount: number): number {
   return Math.max(frameCount, 1) + blockCount + 2;

@@ -43,6 +43,10 @@ import { SessionInputChrome } from "./components/SessionInputChrome";
 import { SessionHeader } from "./components/SessionHeader";
 import { NotesChatSidebar } from "./components/NotesChatSidebar";
 import { SessionBoardCanvas } from "./components/SessionBoardCanvas";
+import { OutOfCreditsDialog } from "@/features/account/OutOfCreditsDialog";
+import type { BillingFailure } from "@/lib/billing/billingClient";
+import { rememberBillingFailure } from "@/lib/billing/billingClient";
+import { isOutOfCreditsCode, studentBillingMessage } from "@/lib/billing/studentCopy";
 import { Whiteboard } from "./components/WhiteboardLoader";
 import { CodeLessonPanel } from "./components/CodeLessonPanel";
 import { CodeLessonController } from "./lib/code-lesson/codeLessonController";
@@ -117,6 +121,7 @@ export type { TutorSessionVariant } from "./lib/sessionCapabilities";
 export type TutorSessionError = {
   message: string;
   question: string;
+  billing?: BillingFailure;
 };
 
 /** The student Download / Replay actions, published so admin Watch can offer them. */
@@ -220,7 +225,8 @@ export function TutorSessionShell({
   const isPausedRef = useRef(false);
   const [narrationText, setNarrationText] = useState("");
   const [currentSegmentText, setCurrentSegmentText] = useState("");
-  const [lastError, setLastError] = useState<{ message: string; question: string } | null>(null);
+  const [lastError, setLastError] = useState<TutorSessionError | null>(null);
+  const [creditsOpen, setCreditsOpen] = useState(false);
   const ttsClientRef = useRef<TTSClient | null>(null);
   const replayAudioRef = useRef<HTMLAudioElement | null>(null);
   const replayAudioPreloadRef = useRef<Map<string, HTMLAudioElement>>(new Map());
@@ -465,6 +471,26 @@ export function TutorSessionShell({
   }, [accountMe]);
 
   useEffect(() => {
+    if (lastError?.billing && isOutOfCreditsCode(lastError.billing.code)) {
+      setCreditsOpen(true);
+    } else if (!lastError) {
+      setCreditsOpen(false);
+    }
+  }, [lastError]);
+
+  const handleBillingFailure = useCallback((failure: BillingFailure) => {
+    rememberBillingFailure(failure);
+    setLastError({
+      message: studentBillingMessage(failure.code),
+      question: "",
+      billing: failure,
+    });
+  }, []);
+  const goUsage = useCallback(() => {
+    router.push("/usage");
+  }, [router]);
+
+  useEffect(() => {
     // A headless/muted embed stays silent regardless of the student's choice.
     ttsClientRef.current?.setMuted?.(mutePlayback || !settings.narrationEnabled);
     if (!settingsHydrated || isHeadless || typeof window === "undefined") {
@@ -654,6 +680,8 @@ export function TutorSessionShell({
     resumeTurn,
     handleQuestion,
     handleAskDoubt,
+    flushPausedLesson,
+    pausedLessonOffer,
   } = useTurnLifecycle({
     sessionId,
     isDraft,
@@ -1187,7 +1215,11 @@ export function TutorSessionShell({
   const activeBoard = boards.find((b) => b.id === sessionId);
   const activeBoardTitle = activeBoard?.title ?? "";
   const isInputOverlay = can.appChrome && phase === "idle" && boardLoaded && !inputInteracted;
-  const inputSubmitMode = lessonFollowUpMode(storedTurnsCount > 0);
+  const inputSubmitMode = pausedLessonOffer
+    ? "follow-up"
+    : lessonFollowUpMode(storedTurnsCount > 0);
+
+  const billingNotice = lastError?.billing ?? null;
 
   const inputChrome = (
     <SessionInputChrome
@@ -1212,6 +1244,11 @@ export function TutorSessionShell({
       onRemoveMark={marking.remove}
       onClearMarks={marking.clear}
       onDisarmMarking={marking.disarm}
+      pausedLessonOffer={pausedLessonOffer}
+      onContinueLecture={flushPausedLesson}
+      billingNotice={billingNotice}
+      onUpgrade={goUsage}
+      onBillingFailure={handleBillingFailure}
     />
   );
 
@@ -1379,6 +1416,9 @@ export function TutorSessionShell({
                         : undefined
                     }
                     goalLabel={accountMe?.profile ? profileSubtitle(accountMe.profile) : null}
+                    billingNotice={billingNotice}
+                    onUpgrade={goUsage}
+                    onBillingFailure={handleBillingFailure}
                   />
                 </div>
                 <CanvasLandingDoodles />
@@ -1515,6 +1555,11 @@ export function TutorSessionShell({
             onSettingsChange={setSettings}
           />
         ) : null}
+        <OutOfCreditsDialog
+          open={creditsOpen}
+          onOpenChange={setCreditsOpen}
+          ageBand={accountMe?.profile?.ageBand}
+        />
       </div>
     </>
   );

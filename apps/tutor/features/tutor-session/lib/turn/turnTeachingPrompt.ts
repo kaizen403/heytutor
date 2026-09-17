@@ -20,6 +20,7 @@ import {
   buildGivenValueSegments,
   buildDsaOpeningSegments,
   buildLessonOpeningSegment,
+  codeLessonBeatPlan,
   codeLessonPromptAddon,
   dsaOpeningPromptAddon,
   givenValuesPromptAddon,
@@ -27,6 +28,7 @@ import {
   isQuotedPhysicalConstant,
   lessonScopePromptAddon,
   questionStatesValue,
+  remainingCodeLessonBeats,
   LESSON_OPENING_PROMPT_ADDON,
   resolveLessonBudget,
   type CodeLessonFigureFrame,
@@ -368,7 +370,7 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
   const emptyMark =
     "- If the mark landed on an empty area and nothing was typed, ask one short question about what they meant, write nothing, and stop. That question is the one exception to the last rule.";
   const closing =
-    "- End with one sentence that ties the answer back to the line they asked about, and stop. No recap, and no question back to the student. The lesson continues by itself after you stop.";
+    "- End with one sentence that ties the answer back to the line they asked about, and stop. No recap, and no question back to the student. Do not continue the original lesson and do not ask whether to continue: the student chooses to pick the lecture back up or ask another doubt.";
 
   const rules = panelShowing
     ? [
@@ -453,6 +455,16 @@ export interface ResumeTeachingPromptInput {
   codePanelText?: string | null;
   /** Remaining code-lesson beats, when this is a paused DSA lecture. */
   codeLessonResumeNote?: string | null;
+  /** The paused code lesson, so the resume can list every remaining beat. */
+  codeLesson?: CodeLessonPlan | null;
+  codeLessonFrames?: readonly CodeLessonFigureFrame[];
+  alreadyRevealedBlockIds?: readonly string[];
+  framesAlreadyShown?: number;
+  codeLessonFacts?: {
+    terms?: readonly string[];
+    resultText?: string;
+    earlyExit?: boolean;
+  };
   turnPlan: TurnPlanV3 | null;
   solverProjection: unknown;
   familiarity: SubjectFamiliarity;
@@ -469,7 +481,7 @@ export interface ResumeTeachingPromptInput {
 export const RESUME_LESSON_USER_PROMPT = "continue";
 
 const RESUME_AFTER_DOUBT_NOTE =
-  "A doubt on this board has been answered. Pick up the original lesson from the next unwritten step. Do not restart, do not recap, and do not repeat the doubt.";
+  "A doubt on this board has been answered. Pick up the original lesson from the next unwritten step and teach it to the end. Do not restart, do not recap, and do not repeat the doubt.";
 
 /** The full user prompt for the first resume chunk, including any DSA leftover. */
 export function resumeLessonUserPrompt(codeLessonNote?: string | null): string {
@@ -479,9 +491,33 @@ export function resumeLessonUserPrompt(codeLessonNote?: string | null): string {
 }
 
 const RESUME_LENGTH_ADDON = `LESSON LENGTH FOR THIS CONTINUATION
-This overrides every earlier step count, including the floors for a numbered problem or an explain request. Finish only what is left of the original question. Do not restart, and do not add a new example.`;
+This overrides every earlier step count, including the floors for a numbered problem or an explain request. Finish the original question completely: every remaining step, the result, and the closing check. Do not stop after two or three steps if work remains. Do not restart, and do not add a new example.`;
 
 const RESUME_CONTINUATION_PROMPT = `Continue the original lesson exactly where it stopped before the doubt. Return only [STEP]...[/STEP] blocks. Do not restate anything already said, do not recap the doubt, and do not start again from the givens.`;
+
+function remainingCodeLessonStepsBlock(input: ResumeTeachingPromptInput): string {
+  const plan = input.codeLesson;
+  if (!plan) return "";
+  const frames = input.codeLessonFrames ?? [];
+  const blockIds = plan.sections.flatMap((section) => section.blocks.map((block) => block.id));
+  const remaining = remainingCodeLessonBeats(
+    codeLessonBeatPlan({
+      frames: frames.map((frame) => ({ id: frame.id, caption: frame.caption })),
+      blockIds,
+      familiarity: input.familiarity,
+      earlyExit: input.codeLessonFacts?.earlyExit,
+      terms: input.codeLessonFacts?.terms,
+      resultText: input.codeLessonFacts?.resultText,
+    }),
+    {
+      alreadyRevealedBlockIds: input.alreadyRevealedBlockIds,
+      framesAlreadyShown: input.framesAlreadyShown,
+    },
+  );
+  if (remaining.length === 0) return "";
+  const lines = remaining.map((beat, index) => `${index + 1}. ${beat.tag ?? "(no tag)"}: ${beat.brief}`);
+  return `REMAINING STEPS of the original lesson, in this order. Teach every one, then stop. Nothing added, nothing skipped.\n${lines.join("\n")}`;
+}
 
 /**
  * The teaching prompt for the rest of a lesson after a mid-lesson doubt.
@@ -492,23 +528,26 @@ const RESUME_CONTINUATION_PROMPT = `Continue the original lesson exactly where i
 export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): TurnTeachingPrompt {
   const lessonQuestion = input.lessonQuestion.trim();
   const panelShowing = input.codePanelShowing;
-  const codeBoard = panelShowing || Boolean(input.codeLessonBoard);
+  const codeBoard = panelShowing || Boolean(input.codeLessonBoard) || Boolean(input.codeLesson);
   const figureOnBoard = !codeBoard && Boolean(input.diagramPromptAddon);
+  const remainingSteps = remainingCodeLessonStepsBlock(input);
   const { turnPlanPromptAddon, solverPromptAddon } = turnPlanPromptAddons(
     lessonQuestion,
     codeBoard ? null : input.turnPlan,
     codeBoard ? null : input.solverProjection,
   );
 
-  const rules = panelShowing
+  const rules = panelShowing || input.codeLesson
     ? [
         "- Continue the original lesson from the next unwritten step. Do not greet, do not recap, do not repeat the doubt, and do not start the lesson again.",
+        "- The original question is still the question of this lesson. Teach it to the end, including the complexity close.",
         "- The left of the board is the code editor and the right is the worked example, and both stay as they are. Never [WRITE]. Reveal remaining code with [TYPE:blockId] and remaining frames with [FOCUS:frame_id].",
         input.codeLessonResumeNote?.trim() ? `- ${input.codeLessonResumeNote.trim()}` : "",
         "- End after the last remaining beat of the original lesson. No recap, and no question back to the student.",
       ]
     : [
         "- Continue the original lesson from the next unwritten step. Do not greet, do not recap, do not repeat the doubt, and do not start from the givens.",
+        "- The original question is still the question of this lesson. Teach it to the end: every remaining derivation step, the result, and the closing check.",
         figureOnBoard
           ? "- The figure on the right is already drawn and stays. [FOCUS:entity_id] when you name a part of it. [ANNOTATE:entity_id] may reveal a withheld measurement the lesson had not reached yet."
           : "- No figure is on this board. Do not use [FOCUS] or [ANNOTATE].",
@@ -520,9 +559,10 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
   const resumeBlock = [
     "THIS TURN CONTINUES THE PAUSED LESSON",
     lessonQuestion
-      ? `The student stopped the lesson on "${lessonQuestion}" to ask a doubt. The doubt has been answered. The board is exactly as they left it after that answer, and everything on it stays where it is.`
+      ? `The student stopped the lesson on "${lessonQuestion}" to ask a doubt. The doubt has been answered. The board is exactly as they left it after that answer, and everything on it stays where it is. The original question is still the question of this lesson.`
       : "The student asked a doubt. It has been answered. Continue the lesson on this board as it stands.",
     panelShowing ? doubtCodeBlock(input.codePanelText) : doubtBoardBlock(input.boardRows),
+    remainingSteps,
     "This turn continues the original lesson, not a new one. It replaces every rule above about opening the lesson, the \"Given\" rows, and restarting from the beginning. Those rules describe a fresh page; this page is already written.",
     ...rules,
   ]
@@ -550,7 +590,9 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
     runtimeAddon,
     openingSegment: null,
     givenSegments: [],
-    lessonBudget: DOUBT_LESSON_BUDGET,
+    lessonBudget: lessonQuestion
+      ? resolveLessonBudget(lessonQuestion, input.familiarity)
+      : DOUBT_LESSON_BUDGET,
     systemPrompt: `${basePrompt}\n\n--- current lesson (runtime) ---\n${runtimeAddon}`,
     continuationPrompt: `${RESUME_CONTINUATION_PROMPT}\n\n--- this lesson ---\n${runtimeAddon}`,
   };

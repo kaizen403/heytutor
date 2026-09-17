@@ -554,7 +554,28 @@ const MOCK_CONTINUE_RESPONSE = `[STEP]
 back to the original problem from the next unwritten step.
 [/STEP]
 [STEP]
-carry the last relation forward and finish the derivation.
+carry the last relation forward.
+[/STEP]
+[STEP]
+substitute and solve for the unknown.
+[/STEP]
+[STEP]
+that is the result, and it matches the units of the question.
+[/STEP]`;
+
+const MOCK_CODE_CONTINUE_RESPONSE = `[STEP]
+we pick up the worked example from the next unshown frame, with the values already on the board.
+[FOCUS:frame_next|spotlight]
+[/STEP]
+[STEP]
+the next block is the move that frame just did.
+[TYPE:next]
+[/STEP]
+[STEP]
+run the rest of the example in words until the answer is in hand.
+[/STEP]
+[STEP]
+time is linear in the input, space is the extra structure we built.
 [/STEP]`;
 
 export function getMockResponse(question: string): string {
@@ -565,6 +586,9 @@ export function getMockResponse(question: string): string {
     return MOCK_DOUBT_RESPONSE;
   }
   if (/^continue\b/i.test(trimmed)) {
+    if (/code block|figure frame|\[TYPE:|\[FOCUS:frame/i.test(trimmed)) {
+      return MOCK_CODE_CONTINUE_RESPONSE;
+    }
     return MOCK_CONTINUE_RESPONSE;
   }
 

@@ -21,6 +21,7 @@ import {
   buildDsaOpeningSegments,
   codeLessonBeatPlan,
   codeLessonPromptAddon,
+  remainingCodeLessonBeats,
   dsaOpeningPointIds,
   dsaOpeningPromptAddon,
   getMockCodeLessonPlan,
@@ -258,6 +259,34 @@ const FRAMES: CodeLessonFigureFrame[] = [
   const ids = dsaOpeningPointIds(opening.length);
   assert(ids[0] === "w1" && ids.length === opening.length, "opening POINT ids match the written rows");
   assert(/not on the board yet/i.test(dsaOpeningPromptAddon(true)), "the addon tells the tutor the figure is delayed");
+}
+
+{
+  const beats = codeLessonBeatPlan({
+    frames: FRAMES.map((frame) => ({ id: frame.id, caption: frame.caption })),
+    blockIds: BLOCK_IDS,
+    familiarity: "normal",
+  });
+  const leftover = remainingCodeLessonBeats(beats, {
+    alreadyRevealedBlockIds: BLOCK_IDS.slice(0, 1),
+    framesAlreadyShown: 1,
+  });
+  assert(
+    leftover.every((beat) => beat.kind !== "opening" && beat.kind !== "brute_force"),
+    "a resume after the first frame must not restart the opening",
+  );
+  assert(
+    leftover.some((beat) => beat.kind === "frame_show" && beat.frameId === FRAMES[1]?.id),
+    "unshown frames stay on the remaining list",
+  );
+  assert(
+    leftover.every((beat) => beat.blockId !== BLOCK_IDS[0]),
+    "already typed blocks must not be taught again",
+  );
+  assert(
+    leftover.some((beat) => beat.kind === "close"),
+    "the complexity close is how the lecture ends, so a resume keeps it",
+  );
 }
 
 console.log(

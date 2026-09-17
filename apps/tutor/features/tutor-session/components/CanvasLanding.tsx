@@ -6,6 +6,7 @@ import { useIsMobile } from "@/lib/client/useMediaQuery";
 import type { SubjectFamiliarity } from "@heytutor/tutor-core";
 import { InputBar } from "@/features/tutor-session/components/InputBar";
 import { LandingDoodles } from "@/features/tutor-session/components/LandingDoodles";
+import type { BillingFailure } from "@/lib/billing/billingClient";
 
 export interface CanvasLandingSuggestion {
   question: string;
@@ -21,6 +22,9 @@ export interface CanvasLandingProps {
   onFamiliarityChange?: (level: SubjectFamiliarity) => void;
   greeting?: string;
   goalLabel?: string | null;
+  billingNotice?: BillingFailure | null;
+  onUpgrade?: () => void;
+  onBillingFailure?: (failure: BillingFailure) => void;
 }
 
 export function CanvasLanding({
@@ -31,6 +35,9 @@ export function CanvasLanding({
   onFamiliarityChange,
   greeting,
   goalLabel,
+  billingNotice = null,
+  onUpgrade,
+  onBillingFailure,
 }: CanvasLandingProps) {
   const isMobile = useIsMobile();
 
@@ -54,6 +61,9 @@ export function CanvasLanding({
           onOpenSettings={onOpenSettings}
           familiarity={familiarity}
           onFamiliarityChange={onFamiliarityChange}
+          billingNotice={billingNotice}
+          onUpgrade={onUpgrade}
+          onBillingFailure={onBillingFailure}
         />
       </div>
 

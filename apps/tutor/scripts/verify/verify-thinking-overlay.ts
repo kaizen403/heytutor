@@ -71,6 +71,10 @@ assert(
   "spoken ink must wait until the voice is audible",
 );
 assert(
+  runner.includes("playbackPositionMs: tts.getPlaybackPositionMs()"),
+  "the first schedule must wait for actual playback, not merely onStart",
+);
+assert(
   !/if \(isCancelled\(\) return;\s*applyTurnPhase\("speaking"\)/.test(runner),
   "queuing a segment must not drop the preparing overlay before the voice starts",
 );

@@ -100,6 +100,8 @@ import {
   type DsaFrameSet,
 } from "../../lib/code-lesson/dsaFrames";
 import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
+import { beginTurn, parseBillingFailureFromUnknown, rememberBillingFailure, type BillingFailure } from "@/lib/billing/billingClient";
+import { studentBillingMessage } from "@/lib/billing/studentCopy";
 import { buildVerifiedDiagramPresentation } from "../../lib/scene/verifiedScenePresentation";
 import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
 import {
@@ -196,7 +198,8 @@ export function useQuestionHandler(
     | "enqueueSegment"
     | "enqueueVerifiedIntro"
     | "processResponseText"
-    | "flushPausedLesson"
+    | "offerPausedLessonResume"
+    | "clearPausedLesson"
   >,
 ) {
   const {
@@ -259,7 +262,8 @@ export function useQuestionHandler(
     onError,
   } = params;
 
-  const emitError = useCallback((error: { message: string; question: string }) => {
+  const emitError = useCallback((error: { message: string; question: string; billing?: BillingFailure }) => {
+    if (error.billing) rememberBillingFailure(error.billing);
     setLastError(error);
     onError?.(error);
   }, [setLastError, onError]);
@@ -269,7 +273,8 @@ export function useQuestionHandler(
     enqueueSegment,
     enqueueVerifiedIntro,
     processResponseText,
-    flushPausedLesson,
+    offerPausedLessonResume,
+    clearPausedLesson,
   } = turnControl;
 
   /**
@@ -372,6 +377,9 @@ export function useQuestionHandler(
       }
 
       pendingQuestionRef.current = null;
+      if (!doubt && !resume) {
+        clearPausedLesson();
+      }
 
       tutorDebug("turn", "question submitted", {
         question_preview: question.slice(0, 120),
@@ -472,7 +480,6 @@ export function useQuestionHandler(
       }
       turnAbortRef.current = abortController;
       let turnCancelled = false;
-      let doubtAnswered = false;
       // Same tick as the phase, so a doubt never shows a frame of blank paper.
       setLiveTurnKind?.(doubt ? "doubt" : resume ? "resume" : "lesson");
       setPhase("thinking");
@@ -507,6 +514,21 @@ export function useQuestionHandler(
       // Replaced while the row was being written: the turn that superseded this
       // one owns the board, the page record and the live question now.
       if (turnGeneration !== turnGenerationRef.current) {
+        return;
+      }
+      const billed = await beginTurn({
+        traceId: currentTraceIdRef.current!,
+        kind: doubt ? "doubt" : resume ? "resume" : "lesson",
+        signal: abortController.signal,
+      });
+      if (!billed.ok) {
+        const billing = {
+          status: billed.status,
+          code: billed.code,
+          remaining: billed.remaining,
+        };
+        emitError({ message: studentBillingMessage(billed.code), question, billing });
+        setPhase("idle");
         return;
       }
       // Awaited before the doubt itself is saved, so the server keeps the two
@@ -1544,6 +1566,14 @@ export function useQuestionHandler(
                     codeLesson,
                   )
                 : null,
+              codeLesson,
+              codeLessonFrames: dsaFrameSet?.frames.map((frame) => ({
+                id: frame.id,
+                caption: frame.caption,
+                narrationIntent: frame.narrationIntent,
+              })),
+              alreadyRevealedBlockIds: revealedBlockIds,
+              framesAlreadyShown,
             })
         : buildTurnTeachingPrompt({
             question,
@@ -2054,9 +2084,6 @@ export function useQuestionHandler(
 
         const finalNarration =
           responseText.length > 0 ? lessonNarrationText(responseText) : narrationText;
-        if (doubt && !turnCancelled && !cancelRef.current && responseText.length > 0) {
-          doubtAnswered = true;
-        }
 
         if (finalNarration.trim() && !turnCancelled && !cancelRef.current) {
           conversationHistoryRef.current.push({
@@ -2127,8 +2154,11 @@ export function useQuestionHandler(
         }
 
         console.error("Tutor error:", error);
+        const billing = parseBillingFailureFromUnknown(error);
         let message = "something went wrong. try asking again.";
-        if (error instanceof TypeError && /fetch|network|failed to fetch/i.test(error.message)) {
+        if (billing) {
+          message = studentBillingMessage(billing.code);
+        } else if (error instanceof TypeError && /fetch|network|failed to fetch/i.test(error.message)) {
           message = "network error — check your connection";
         } else if (error instanceof Error && /tts|audio|elevenlabs|speech/i.test(error.message)) {
           message = "audio generation failed — the lesson continues without voice";
@@ -2137,7 +2167,7 @@ export function useQuestionHandler(
         }
         setNarrationText(message);
         setCurrentSegmentText(message);
-        emitError({ message, question });
+        emitError({ message, question, billing: billing ?? undefined });
         endThinking({ phase: "error" });
       } finally {
         if (
@@ -2195,8 +2225,10 @@ export function useQuestionHandler(
         }
 
         finishLectureUi(turnGeneration);
-        if (doubtAnswered) {
-          flushPausedLesson();
+        if (doubt) {
+          // Offer even when the doubt was cancelled or empty: the original
+          // lecture is still paused and the student can pick it up.
+          offerPausedLessonResume();
         }
 
         if (turnGeneration === turnGenerationRef.current) {
@@ -2223,7 +2255,8 @@ export function useQuestionHandler(
       boardLoaded,
       revokeUnreferencedReplayBlobUrls,
       finishLectureUi,
-      flushPausedLesson,
+      offerPausedLessonResume,
+      clearPausedLesson,
       ensureTTSClient,
       whiteboardRef,
       pendingQuestionRef,

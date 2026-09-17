@@ -688,10 +688,9 @@ export function useCommandExecution({
             prefetchStrokePaths(command.text, placement.x, placement.y, fontSize);
             if (writeSchedule && writeSchedule.charStartOffsetsMs.length > 0) {
               // Scheduled writing: each character is held against the true audio clock so
-              // the pen tracks the narration token by token. Keep the approach flight short
-              // because the first character's offset already holds the pen until its cue.
-              await wb.flyCursorTo(placement.x, placement.y, 60, -35);
-              if (commandCancelled()) return;
+              // the pen tracks the narration token by token. writeText flies to the first
+              // glyph while waiting for that cue — a serial 60 ms hop here used to start
+              // every row late.
               await writeText(
                 command.text,
                 placement.x,

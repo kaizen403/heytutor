@@ -24,7 +24,7 @@ import {
   type TutorSegment,
 } from "@heytutor/drawing";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
-import type { CodeLessonPlan } from "@heytutor/tutor-core";
+import { getMockCodeLessonPlan, type CodeLessonPlan } from "@heytutor/tutor-core";
 import type { RecordedSegmentPayload } from "../../lib/boards/boardsClient";
 import {
   BOARD_WORK_ROWS_PER_PAGE,
@@ -57,6 +57,7 @@ import {
   doubtPageRecord,
   doubtSegment,
   lessonPageRecord,
+  pausedLessonFromLive,
   pausedLessonFromPage,
   partialTurnRawResponse,
   partialTurnScene,
@@ -234,7 +235,7 @@ function doubtInput(overrides: Partial<DoubtTeachingPromptInput> = {}): DoubtTea
     "a doubt that runs onto a fresh page must bring the line in question with it",
   );
   assert(
-    prompt.runtimeAddon.trimEnd().endsWith("The lesson continues by itself after you stop."),
+    prompt.runtimeAddon.trimEnd().endsWith("the student chooses to pick the lecture back up or ask another doubt."),
     "the doubt block is the last word of the prompt",
   );
   assert(
@@ -361,10 +362,38 @@ function doubtInput(overrides: Partial<DoubtTeachingPromptInput> = {}): DoubtTea
   lesson.turn.scene = textOnlyTurnScene();
   const paused = pausedLessonFromPage(lesson, false);
   assert(
-    paused?.lessonQuestion === LESSON && paused.figureDrawn && paused.scene === lesson.turn.scene,
+    paused?.lessonQuestion === LESSON &&
+      paused.boardId === "b1" &&
+      paused.figureDrawn &&
+      paused.scene === lesson.turn.scene,
     "a lesson page snapshots the figure and scene the resume will keep",
   );
   assert(pausedLessonFromPage(null, false) === null, "no page, nothing to resume");
+  const early = pausedLessonFromLive({
+    record: null,
+    boardId: "b1",
+    lessonQuestion: LESSON,
+    codeLesson: true,
+    figureDrawn: true,
+  });
+  assert(
+    early?.lessonQuestion === LESSON &&
+      early.boardId === "b1" &&
+      early.codeLesson &&
+      early.figureDrawn &&
+      early.scene === null,
+    "a doubt asked before the page record lands still snapshots the live lesson",
+  );
+  assert(
+    pausedLessonFromLive({
+      record: null,
+      boardId: "b1",
+      lessonQuestion: "  ",
+      codeLesson: false,
+      figureDrawn: false,
+    }) === null,
+    "no live question, nothing to resume",
+  );
 
   const doubtPage = doubtPageRecord({
     boardId: "b1",
@@ -411,8 +440,44 @@ function doubtInput(overrides: Partial<DoubtTeachingPromptInput> = {}): DoubtTea
   );
   assert(
     resumeLessonUserPrompt().includes("continue") &&
-      resumeLessonUserPrompt().includes("Pick up the original lesson"),
+      resumeLessonUserPrompt().includes("Pick up the original lesson") &&
+      resumeLessonUserPrompt().includes("teach it to the end"),
     "the resume user prompt must not be the original question",
+  );
+  assert(
+    resumePrompt.systemPrompt.includes("The original question is still the question of this lesson"),
+    "a resume must keep teaching the question that started the lecture",
+  );
+  assert(
+    resumePrompt.systemPrompt.includes("Finish the original question completely"),
+    "a resume must not be a two-step coda; it finishes the lecture",
+  );
+
+  const codePlan = getMockCodeLessonPlan("two sum with a hash map");
+  const codeResume = buildResumeTeachingPrompt({
+    ...doubtInput(),
+    lessonQuestion: "Given nums and target, return the two indices that add to target.",
+    codePanelShowing: true,
+    codeLessonBoard: true,
+    codeLesson: codePlan,
+    codeLessonFrames: [
+      { id: "f1", caption: "start", narrationIntent: "the input" },
+      { id: "f2", caption: "next", narrationIntent: "the next move" },
+    ],
+    alreadyRevealedBlockIds: codePlan.sections[0] ? [codePlan.sections[0].blocks[0]!.id] : [],
+    framesAlreadyShown: 1,
+  });
+  assert(
+    codeResume.systemPrompt.includes("REMAINING STEPS of the original lesson"),
+    "a DSA resume lists every leftover beat so the lecture can finish",
+  );
+  assert(
+    !codeResume.systemPrompt.includes("what the question is asking, in plain words"),
+    "a DSA resume must not restart from the opening",
+  );
+  assert(
+    codeResume.systemPrompt.includes("complexity close"),
+    "a DSA resume is told to finish on complexity, the way the lecture ends",
   );
 }
 
@@ -561,7 +626,8 @@ function between(source: string, file: string, start: string, end: string): stri
   );
   assert(handler.includes("buildDoubtTeachingPrompt("), "a doubt is taught under the doubt prompt");
   assert(handler.includes("buildResumeTeachingPrompt("), "the rest of the lesson continues under the resume prompt");
-  assert(handler.includes("flushPausedLesson("), "a finished doubt continues the paused lesson");
+  assert(handler.includes("offerPausedLessonResume("), "a finished doubt offers to continue the paused lesson");
+  assert(handler.includes("clearPausedLesson("), "a fresh question drops the paused lecture");
   assert(handler.includes("revealDeferredAnnotations: !doubt"), "a doubt does not reveal what the stopped lesson had not reached");
   assert(handler.includes("partialTurnScene(") && handler.includes("savePartialTurn"), "a stopped turn's ink is saved before the doubt that continues it");
 }
@@ -572,7 +638,11 @@ function between(source: string, file: string, start: string, end: string): stri
   const ask = between(source, file, "const handleAskDoubt", "return {\n    finishLectureUi");
   assert(/handleQuestionRef\.current\(\s*[\w.]+,\s*\{ doubt: /.test(ask), "Ask Doubt hands the turn a doubt, not a question");
   assert(ask.includes("keepVisibleBoard: true"), "Ask Doubt keeps the visible board when it stops the lesson");
-  assert(ask.includes("pausedLessonFromPage("), "Ask Doubt snapshots the paused lesson so it can continue after the doubt");
+  assert(ask.includes("pausedLessonFromLive("), "Ask Doubt snapshots the paused lesson so it can continue after the doubt");
+  assert(
+    ask.includes("setPausedLessonOfferBoardId") && ask.includes("offerPausedLessonResume"),
+    "a finished doubt waits for Continue instead of restarting on its own",
+  );
   assert(
     ask.includes("handleQuestionRef.current(resume.lessonQuestion, { resume })") ||
       /handleQuestionRef\.current\(\s*resume\.lessonQuestion,\s*\{\s*resume/.test(ask),

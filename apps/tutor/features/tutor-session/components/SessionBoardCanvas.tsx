@@ -12,6 +12,8 @@ import { BoardMarkingLayer } from "./BoardMarkingLayer";
 import { Whiteboard } from "./WhiteboardLoader";
 import { BoardErrorBanner } from "./BoardErrorBanner";
 import type { BoardMarkingApi } from "../hooks/useBoardMarking";
+import type { BillingFailure } from "@/lib/billing/billingClient";
+import { isOutOfCreditsCode } from "@/lib/billing/studentCopy";
 
 export interface SessionBoardCanvasProps {
   boardViewport: BoardViewport;
@@ -20,7 +22,7 @@ export interface SessionBoardCanvasProps {
   settings: SettingsState;
   phase: TutorPhase;
   currentSegmentText: string;
-  lastError: { message: string; question: string } | null;
+  lastError: { message: string; question: string; billing?: BillingFailure } | null;
   isReplaying: boolean;
   /** Overlay board the past is drawn on while the live lecture stays frozen. */
   rewindBoardRef: RefObject<WhiteboardHandle | null>;
@@ -256,7 +258,7 @@ export function SessionBoardCanvas({
           }
         />
 
-        {phase === "idle" && lastError && (
+        {phase === "idle" && lastError && !(lastError.billing && isOutOfCreditsCode(lastError.billing.code)) && (
           <BoardErrorBanner
             message={lastError.message}
             onRetry={() => onRetryError(lastError.question)}

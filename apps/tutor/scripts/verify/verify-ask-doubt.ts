@@ -206,7 +206,7 @@ assert(
   "a mid-lesson doubt must stop the running turn without wiping the board",
 );
 assert(
-  handleAskDoubt.includes("pausedLessonFromPage"),
+  handleAskDoubt.includes("pausedLessonFromLive"),
   "a mid-lesson doubt must snapshot the paused lecture so it can continue",
 );
 assert(
