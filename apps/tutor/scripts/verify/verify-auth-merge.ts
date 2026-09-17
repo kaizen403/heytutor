@@ -1,9 +1,11 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { decideAgeGate } from "../../lib/auth/ageGate";
 import { isAuthDisabled } from "../../lib/authDisabled";
 import { shouldAttemptCookieMerge } from "../../lib/auth/mergeAnonymousUser";
 import { isAuthPublicPath, isEmbedDemoRequest, loginRedirectPath, safeNextPath } from "../../lib/auth/publicPaths";
 import { isAllowedLoginEmail, isStudentEmail } from "../../lib/auth/studentEmail";
-import { isStaffEmail, staffEmailsFromEnv } from "../../lib/auth/staff";
+import { isAdminAllowlisted, isStaffEmail, staffEmailsFromEnv } from "../../lib/auth/staff";
 import { hasAuthSessionCookie } from "../../lib/auth/sessionCookie";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -45,6 +47,28 @@ assert(safeNextPath("//evil.example") === "/", "protocol-relative next is reject
 assert(staffEmailsFromEnv("Ada@Accelute.co, bob@x.com").includes("ada@accelute.co"), "staff list is case-insensitive");
 assert(isStaffEmail("ada@accelute.co", ["ada@accelute.co"]), "allowlisted staff passes");
 assert(!isStaffEmail("student@school.edu", ["ada@accelute.co"]), "students are not staff");
+assert(
+  isAdminAllowlisted("RishiVhavle21@gmail.com", ["rishivhavle21@gmail.com"], []),
+  "admins table email is case-insensitive",
+);
+assert(
+  !isAdminAllowlisted("student@school.edu", ["rishivhavle21@gmail.com"], []),
+  "a syllabus student is not an admin",
+);
+assert(
+  isAdminAllowlisted("ops@accelute.co", [], ["ops@accelute.co"]),
+  "STAFF_EMAILS still counts as admin",
+);
+
+const adminMigration = readFileSync(resolve(import.meta.dirname, "../../prisma/migrations/12_admins/migration.sql"), "utf8");
+assert(adminMigration.includes('CREATE TABLE IF NOT EXISTS "admins"'), "admins table is created");
+assert(adminMigration.includes("rishivhavle21@gmail.com"), "founding admin is seeded");
+
+const adminPage = readFileSync(resolve(import.meta.dirname, "../../app/admin/page.tsx"), "utf8");
+assert(adminPage.includes("isAdminEmail"), "the admin page must gate on the admins table");
+
+const authSource = readFileSync(resolve(import.meta.dirname, "../../auth.ts"), "utf8");
+assert(authSource.includes("isAdminEmail"), "Google sign-in must allow admins table emails");
 
 assert(isStudentEmail("ada@mit.edu"), "bare .edu is a student");
 assert(isStudentEmail("ada@student.ox.ac.uk"), ".ac.uk is a student");

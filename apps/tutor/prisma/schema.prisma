@@ -31,6 +31,14 @@ model User {
   @@map("users")
 }
 
+/// Staff who can open /admin and sign in with a personal Google account.
+model Admin {
+  email     String   @id
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("admins")
+}
+
 model UserSettings {
   userId               String   @id @map("user_id")
   fastMode             Boolean  @default(true) @map("fast_mode")

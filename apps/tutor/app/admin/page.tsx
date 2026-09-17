@@ -6,7 +6,7 @@ import { AdminPlayground, syllabusTreeFromTaxonomy } from "@/features/admin";
 import { parseProbeFile, type ProbeQuestion } from "@/features/admin/lib/probes";
 import { auth } from "@/auth";
 import { isAuthDisabled } from "@/lib/authDisabled";
-import { isStaffEmail } from "@/lib/auth/staff";
+import { isAdminEmail } from "@/lib/auth/admins";
 
 export const metadata: Metadata = {
   title: "Syllabus Playground",
@@ -36,7 +36,7 @@ function loadProbeQuestions(): ProbeQuestion[] {
 export default async function AdminPage() {
   if (!isAuthDisabled()) {
     const session = await auth();
-    if (!isStaffEmail(session?.user?.email)) {
+    if (!(await isAdminEmail(session?.user?.email))) {
       redirect("/login?next=/admin");
     }
   }

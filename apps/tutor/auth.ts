@@ -8,6 +8,7 @@ import Google from "next-auth/providers/google";
 import Resend from "next-auth/providers/resend";
 import { cookies } from "next/headers";
 import { HTUTOR_UID_COOKIE } from "@/lib/cookies";
+import { isAdminEmail } from "@/lib/auth/admins";
 import { isAllowedLoginEmail } from "@/lib/auth/studentEmail";
 import { findOrCreateSignedInUser } from "@/lib/auth/signedInUser";
 
@@ -100,7 +101,12 @@ const authConfig = {
     async signIn({ user }) {
       if (!user.email && user.id) return true;
       if (!user.email && !isDevLoginEnabled()) return false;
-      if (user.email && !isAllowedLoginEmail(user.email) && !(isDevLoginEnabled() && user.email === "dev@localhost")) {
+      if (
+        user.email &&
+        !(await isAdminEmail(user.email)) &&
+        !isAllowedLoginEmail(user.email) &&
+        !(isDevLoginEnabled() && user.email === "dev@localhost")
+      ) {
         return false;
       }
       const signedIn = await findOrCreateSignedInUser(
