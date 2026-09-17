@@ -1,0 +1,59 @@
+import {
+  LLM_RATE_DEFAULTS,
+  calculateLlmCostDetails,
+  calculateTtsCostDetails,
+  resolveLlmRateLane,
+  resolveLlmRates,
+} from "../../lib/obs/usageCost";
+import {
+  DEFAULT_FIREWORKS_FAST_MODEL,
+  DEFAULT_FIREWORKS_MODEL,
+  DEFAULT_FIREWORKS_VISION_MODEL,
+  DEFAULT_PROBLEM_IR_MODEL,
+} from "../../lib/llm/fireworksModels";
+
+function assert(condition: unknown, message: string): asserts condition {
+  if (!condition) throw new Error(message);
+}
+
+assert(resolveLlmRateLane(DEFAULT_FIREWORKS_FAST_MODEL) === "kimi-k3-fast", "Kimi Fast must not share the DeepSeek table");
+assert(resolveLlmRateLane(DEFAULT_FIREWORKS_MODEL) === "kimi-k3", "standard Kimi K3 is its own lane");
+assert(resolveLlmRateLane(DEFAULT_PROBLEM_IR_MODEL) === "deepseek-flash", "Problem IR is DeepSeek Flash");
+assert(resolveLlmRateLane(DEFAULT_FIREWORKS_VISION_MODEL) === "qwen-vision", "OCR is Qwen vision");
+assert(resolveLlmRateLane("accounts/fireworks/routers/kimi-k3-fast") === "kimi-k3-fast", "router ids must match Fast");
+
+const fast = resolveLlmRates(DEFAULT_FIREWORKS_FAST_MODEL);
+assert(fast.inputUsdPer1M === 4.5 && fast.outputUsdPer1M === 22.5, "Kimi Fast defaults are $4.50 / $22.50");
+assert(
+  LLM_RATE_DEFAULTS["deepseek-flash"].inputUsdPer1M === 0.22 &&
+    LLM_RATE_DEFAULTS["deepseek-flash"].outputUsdPer1M === 0.66,
+  "DeepSeek Flash defaults are $0.22 / $0.66",
+);
+assert(
+  LLM_RATE_DEFAULTS["qwen-vision"].inputUsdPer1M === 0.5 &&
+    LLM_RATE_DEFAULTS["qwen-vision"].outputUsdPer1M === 3,
+  "Qwen vision defaults are Fireworks serverless $0.50 / $3.00",
+);
+
+const oneMFast = calculateLlmCostDetails(
+  { input: 1_000_000, output: 1_000_000 },
+  { model: DEFAULT_FIREWORKS_FAST_MODEL },
+);
+assert(oneMFast.input === 4.5 && oneMFast.output === 22.5 && oneMFast.total === 27, "1M Fast tokens must cost $27 blended");
+
+const oneMFlash = calculateLlmCostDetails(
+  { input: 1_000_000, output: 1_000_000 },
+  { model: DEFAULT_PROBLEM_IR_MODEL },
+);
+assert(oneMFlash.total === 0.88, "1M DeepSeek tokens must not be billed as Kimi Fast");
+
+const unknown = calculateLlmCostDetails(
+  { input: 1_000_000, output: 0 },
+  { model: "accounts/fireworks/models/mystery" },
+);
+assert(unknown.input === 4.5, "unknown models must overestimate using Kimi Fast, not the old $0.22 table");
+
+const tts = calculateTtsCostDetails(1000);
+assert(tts.total === 0.05, "ElevenLabs default remains $0.05 / 1k chars");
+
+console.log("✓ per-model usageCost rates (Kimi Fast, Kimi K3, DeepSeek Flash, Qwen vision, TTS)");

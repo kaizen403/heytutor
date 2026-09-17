@@ -1,4 +1,4 @@
-import { resolveFireworksModels } from "./fireworksModels";
+import { resolveFireworksModels, resolveProblemIRFireworksModel } from "./fireworksModels";
 
 const TRANSIENT_PLANNER_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 /** Retired or undeployed model IDs. Skip to the next model; do not retry the same one. */
@@ -98,8 +98,11 @@ function uniqueModels(models: readonly string[]): string[] {
   return [...new Set(models)];
 }
 
-/** One ENV-owned model for every planner lane. */
+/** One ENV-owned model for every planner lane. Problem IR is its own SKU. */
 export function resolvePlannerModels(options: PlannerModelOptions): string[] {
+  if (options.problemIRV1) {
+    return [resolveProblemIRFireworksModel({ env: options.env })];
+  }
   return resolveFireworksModels({
     fastMode: options.fastMode,
     env: options.env,

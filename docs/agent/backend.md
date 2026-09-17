@@ -82,6 +82,7 @@ Production and dev both use `tsx server.ts` (not `next start`):
 | `FIREWORKS_API_KEY` | No | LLM — mock mode without it |
 | `FIREWORKS_MODEL` | No | Planner model. Default: Kimi K3 |
 | `FIREWORKS_FAST_MODEL` | No | Planner Fast serving. Default: Kimi K3 Fast |
+| `FIREWORKS_PROBLEM_IR_MODEL` | No | Problem IR only. Default: DeepSeek V4.1 Flash |
 | `FIREWORKS_TEACHING_MODEL` | No | Spoken teaching and notes-chat. Default: GLM 5.3 Flash |
 | `FIREWORKS_TEACHING_FAST_MODEL` | No | Teaching Fast serving. Default: GLM 5.3 Fast |
 | `ELEVENLABS_API_KEY` | No | TTS — browser voice fallback |

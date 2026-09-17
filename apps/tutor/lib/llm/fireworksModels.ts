@@ -23,6 +23,13 @@ export const DEFAULT_TEACHING_FAST_MODEL =
   "accounts/fireworks/routers/kimi-k3-fast";
 
 /**
+ * Problem IR only. Independent of Fast mode, FIREWORKS_MODEL, and teaching.
+ * Compact JSON formulation — not spoken teaching.
+ */
+export const DEFAULT_PROBLEM_IR_MODEL =
+  "accounts/fireworks/models/deepseek-v4p1-flash";
+
+/**
  * Cheapest Fireworks model that accepts images. Teaching stays on
  * `FIREWORKS_TEACHING_MODEL`; OCR has its own lane.
  */
@@ -116,4 +123,17 @@ export function resolveFireworksVisionModel(
   env: Record<string, string | undefined> = process.env,
 ): string {
   return trimModel(env.FIREWORKS_VISION_MODEL) || DEFAULT_FIREWORKS_VISION_MODEL;
+}
+
+/**
+ * Problem IR (`x-problem-ir-version: 1`) only.
+ *
+ * - `FIREWORKS_PROBLEM_IR_MODEL` or DeepSeek V4.1 Flash.
+ * - Ignores Fast mode, `FIREWORKS_MODEL`, `FIREWORKS_FAST_MODEL`, and teaching env.
+ */
+export function resolveProblemIRFireworksModel(options: {
+  env?: Record<string, string | undefined>;
+} = {}): string {
+  const env = options.env ?? process.env;
+  return trimModel(env.FIREWORKS_PROBLEM_IR_MODEL) || DEFAULT_PROBLEM_IR_MODEL;
 }

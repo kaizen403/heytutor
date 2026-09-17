@@ -1,4 +1,7 @@
-import { DEFAULT_FIREWORKS_FAST_MODEL } from "../../lib/llm/fireworksModels";
+import {
+  DEFAULT_FIREWORKS_FAST_MODEL,
+  DEFAULT_PROBLEM_IR_MODEL,
+} from "../../lib/llm/fireworksModels";
 import {
   fetchPlannerCompletion,
   resolvePlannerMaxTokens,
@@ -50,8 +53,57 @@ async function main(): Promise<void> {
     env: {},
   });
   assert(
-    problemIRModels[0] === "accounts/fireworks/models/kimi-k3",
-    "ProblemIR must use the same ENV model",
+    problemIRModels[0] === DEFAULT_PROBLEM_IR_MODEL,
+    "Problem IR must default to DeepSeek V4.1 Flash",
+  );
+  assert(
+    DEFAULT_PROBLEM_IR_MODEL === "accounts/fireworks/models/deepseek-v4p1-flash",
+    "the Problem IR default must stay on deepseek-v4p1-flash",
+  );
+  const problemIRFast = resolvePlannerModels({
+    semanticSceneV2: false,
+    turnPlanV3: false,
+    problemIRV1: true,
+    plannerPhase: "plan",
+    fastMode: true,
+    env: {},
+  });
+  assert(
+    JSON.stringify(problemIRFast) === JSON.stringify([DEFAULT_PROBLEM_IR_MODEL]),
+    "fast mode must not send Problem IR to Kimi K3 Fast",
+  );
+  const problemIRIgnoresPlannerEnv = resolvePlannerModels({
+    semanticSceneV2: false,
+    turnPlanV3: false,
+    problemIRV1: true,
+    plannerPhase: "plan",
+    fastMode: true,
+    env: {
+      FIREWORKS_MODEL: "planner-standard",
+      FIREWORKS_FAST_MODEL: "planner-fast",
+      FIREWORKS_TEACHING_MODEL: "teaching-only",
+      FIREWORKS_TEACHING_FAST_MODEL: "teaching-fast",
+    },
+  });
+  assert(
+    JSON.stringify(problemIRIgnoresPlannerEnv) === JSON.stringify([DEFAULT_PROBLEM_IR_MODEL]),
+    "FIREWORKS_MODEL / FIREWORKS_FAST_MODEL must not leak into Problem IR",
+  );
+  const problemIROverride = resolvePlannerModels({
+    semanticSceneV2: false,
+    turnPlanV3: false,
+    problemIRV1: true,
+    plannerPhase: "plan",
+    fastMode: true,
+    env: {
+      FIREWORKS_PROBLEM_IR_MODEL: "problem-ir-only",
+      FIREWORKS_MODEL: "planner-standard",
+      FIREWORKS_FAST_MODEL: "planner-fast",
+    },
+  });
+  assert(
+    JSON.stringify(problemIROverride) === JSON.stringify(["problem-ir-only"]),
+    "FIREWORKS_PROBLEM_IR_MODEL must be the only Problem IR override",
   );
   assert(
     resolvePlannerMaxTokens({
@@ -130,6 +182,29 @@ async function main(): Promise<void> {
   assert(
     DEFAULT_FIREWORKS_FAST_MODEL === "accounts/fireworks/routers/kimi-k3-fast",
     "the planner Fast SKU must stay on Kimi K3 Fast",
+  );
+  const turnPlanFast = resolvePlannerModels({
+    semanticSceneV2: false,
+    turnPlanV3: true,
+    plannerPhase: "plan",
+    fastMode: true,
+    env: {},
+  });
+  assert(
+    JSON.stringify(turnPlanFast) === JSON.stringify([DEFAULT_FIREWORKS_FAST_MODEL]),
+    "turn-plan-v3 fast mode must stay on Kimi K3 Fast",
+  );
+  const codeLessonFast = resolvePlannerModels({
+    semanticSceneV2: false,
+    turnPlanV3: false,
+    codeLessonV1: true,
+    plannerPhase: "plan",
+    fastMode: true,
+    env: {},
+  });
+  assert(
+    JSON.stringify(codeLessonFast) === JSON.stringify([DEFAULT_FIREWORKS_FAST_MODEL]),
+    "code-lesson-v1 fast mode must stay on Kimi K3 Fast",
   );
   const fastModels = resolvePlannerModels({
     semanticSceneV2: true,

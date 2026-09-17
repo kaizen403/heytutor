@@ -181,7 +181,7 @@ export function endLlmGeneration(
   const costDetails = mock
     ? zeroCostDetails()
     : usageDetails
-      ? calculateLlmCostDetails(usageDetails)
+      ? calculateLlmCostDetails(usageDetails, { model: model ?? turn.model })
       : undefined;
 
   const generationMetadata = {
