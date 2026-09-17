@@ -8,6 +8,10 @@ import {
   type Entitlement,
 } from "./entitlementState";
 
+async function loadEntitlement(): Promise<void> {
+  await fetchEntitlement().catch(() => undefined);
+}
+
 export function useEntitlement(): {
   entitlement: Entitlement | null;
   loading: boolean;
@@ -22,13 +26,19 @@ export function useEntitlement(): {
 
   const refresh = useCallback(async () => {
     setLoading(getEntitlementSnapshot() == null);
-    await fetchEntitlement().catch(() => undefined);
+    await loadEntitlement();
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let cancelled = false;
+    void loadEntitlement().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return { entitlement, loading, refresh };
 }
