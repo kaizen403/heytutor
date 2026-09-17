@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isAuthFailure, requireSessionUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { emptySnapshot, mapAccountProfile, mapAccountSettings } from "@/lib/account/mapUser";
-import { parseSubjects, type SubjectId } from "@/lib/account/types";
+import { AVAILABLE_SUBJECTS, parseSubjects, type SubjectId } from "@/lib/account/types";
 import { loadProgressV1 } from "@/lib/account/progress";
 import { sanitizeTeachingNote } from "@/lib/account/userSettings";
 
@@ -60,7 +60,11 @@ export async function PATCH(request: Request) {
   if ("learningNote" in body) data.learningNote = sanitizeTeachingNote(body.learningNote);
   if (typeof body.examGoal === "string") data.examGoal = body.examGoal;
   if (typeof body.classYear === "string") data.classYear = body.classYear;
-  if (Array.isArray(body.subjects)) data.subjects = parseSubjects(body.subjects);
+  if (Array.isArray(body.subjects)) {
+    data.subjects = parseSubjects(body.subjects).filter((subject) =>
+      AVAILABLE_SUBJECTS.includes(subject),
+    );
+  }
 
   const user = await prisma.user.update({
     where: { id: userId },

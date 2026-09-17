@@ -1,6 +1,6 @@
 import type { CanvasLandingSuggestion } from "@/features/tutor-session/components/CanvasLanding";
 import { LANDING_SUGGESTIONS } from "@/features/tutor-session/constants";
-import type { SubjectId } from "./types";
+import { AVAILABLE_SUBJECTS, type SubjectId } from "./types";
 
 const SUBJECT_SUGGESTIONS: Record<SubjectId, CanvasLandingSuggestion[]> = {
   physics: LANDING_SUGGESTIONS,
@@ -69,6 +69,7 @@ export function suggestionsForSubjects(subjects: SubjectId[]): CanvasLandingSugg
   const seen = new Set<string>();
   const order: SubjectId[] = subjects.length > 0 ? subjects : ["physics"];
   for (const subject of order) {
+    if (!AVAILABLE_SUBJECTS.includes(subject)) continue;
     for (const suggestion of SUBJECT_SUGGESTIONS[subject] ?? []) {
       if (seen.has(suggestion.question)) continue;
       seen.add(suggestion.question);

@@ -4,8 +4,11 @@ import { prisma } from "@/lib/db/prisma";
 import { decideAgeGate } from "@/lib/auth/ageGate";
 import {
   AVAILABLE_SUBJECTS,
+  classYearFitsRole,
+  examGoalFitsRole,
   isClassYear,
   isExamGoal,
+  isLearnerRole,
   parseSubjects,
 } from "@/lib/account/types";
 import { mapAccountProfile, mapAccountSettings } from "@/lib/account/mapUser";
@@ -64,7 +67,16 @@ export async function POST(request: Request) {
   if (!name) {
     return NextResponse.json({ error: "name_required" }, { status: 400 });
   }
+  if (!isLearnerRole(body.learnerRole)) {
+    return NextResponse.json({ error: "role_required" }, { status: 400 });
+  }
   if (!isExamGoal(body.examGoal) || !isClassYear(body.classYear)) {
+    return NextResponse.json({ error: "goal_required" }, { status: 400 });
+  }
+  if (
+    !classYearFitsRole(body.learnerRole, body.classYear) ||
+    !examGoalFitsRole(body.learnerRole, body.examGoal)
+  ) {
     return NextResponse.json({ error: "goal_required" }, { status: 400 });
   }
   const subjects = parseSubjects(body.subjects).filter((subject) =>
@@ -86,6 +98,7 @@ export async function POST(request: Request) {
       name,
       examGoal: body.examGoal,
       classYear: body.classYear,
+      learnerRole: body.learnerRole,
       subjects,
       ageBand: age.band,
       guardianEmail: age.band === "13_17" ? age.guardianEmail : null,

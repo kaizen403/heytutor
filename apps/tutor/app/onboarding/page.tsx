@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import { OnboardingScreen } from "@/features/account/OnboardingScreen";
 import { isAuthDisabled } from "@/lib/authDisabled";
 import { safeNextPath } from "@/lib/auth/publicPaths";
+import { HTUTOR_LOGIN_ROLE_COOKIE, isLoginRole } from "@/lib/auth/loginRole";
 
 type OnboardingPageProps = {
   searchParams: Promise<{ next?: string }>;
@@ -24,10 +26,14 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
     redirect(next);
   }
 
+  const loginRoleValue = (await cookies()).get(HTUTOR_LOGIN_ROLE_COOKIE)?.value;
+  const initialLoginRole = isLoginRole(loginRoleValue) ? loginRoleValue : null;
+
   return (
     <OnboardingScreen
       initialName={user?.name ?? session.user.name ?? ""}
       nextPath={next}
+      initialLoginRole={initialLoginRole}
     />
   );
 }
