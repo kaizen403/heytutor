@@ -3,8 +3,17 @@
  * unlock() inside the tap, then BufferSource.start() for every loop wrap
  * without a new gesture. HTMLAudioElement is the fallback when decode fails;
  * it still refuses overlapping play() and never seeks from rAF.
+ *
+ * iOS will not speak if we BufferSource.start() on a context that is still
+ * `suspended` or WebKit-`interrupted`. Unlock creates/resumes the live
+ * context inside the tap, plays a silent HTML sound so the phone uses the
+ * media route, and start() waits until state === 'running'.
  */
-import { isUnlockBlockingError } from './heroAudioClock'
+import {
+  audioContextNeedsResume,
+  HERO_SILENT_UNLOCK_SRC,
+  isUnlockBlockingError,
+} from './heroAudioClock'
 
 export interface HeroAudioEngine {
   loadFromArrayBuffer(data: ArrayBuffer): Promise<void>
@@ -31,7 +40,16 @@ function audioContextCtor(): typeof AudioContext | null {
   return w.AudioContext ?? w.webkitAudioContext ?? null
 }
 
-function decodeAudio(ctx: AudioContext, data: ArrayBuffer): Promise<AudioBuffer> {
+function offlineContextCtor(): (typeof OfflineAudioContext) | null {
+  if (typeof window === 'undefined') return null
+  const w = window as unknown as {
+    OfflineAudioContext?: typeof OfflineAudioContext
+    webkitOfflineAudioContext?: typeof OfflineAudioContext
+  }
+  return w.OfflineAudioContext ?? w.webkitOfflineAudioContext ?? null
+}
+
+function decodeAudio(ctx: BaseAudioContext, data: ArrayBuffer): Promise<AudioBuffer> {
   const copy = data.slice(0)
   try {
     const result = ctx.decodeAudioData(copy)
@@ -46,6 +64,16 @@ function decodeAudio(ctx: AudioContext, data: ArrayBuffer): Promise<AudioBuffer>
   })
 }
 
+function unlockHtmlMedia(): void {
+  if (typeof Audio === 'undefined') return
+  const el = new Audio(HERO_SILENT_UNLOCK_SRC)
+  el.setAttribute('playsinline', '')
+  el.setAttribute('webkit-playsinline', '')
+  el.preload = 'auto'
+  el.volume = 1
+  void el.play().catch(() => undefined)
+}
+
 export function createHeroAudioEngine(options: { onBlocked: () => void }): HeroAudioEngine {
   const onBlocked = options.onBlocked
   let mode: Mode = 'webaudio'
@@ -53,15 +81,24 @@ export function createHeroAudioEngine(options: { onBlocked: () => void }): HeroA
   let unlocked = false
   let playing = false
   let startInFlight = false
+  let pendingOffset: number | null = null
   let ctx: AudioContext | null = null
   let gain: GainNode | null = null
   let buffer: AudioBuffer | null = null
+  let raw: ArrayBuffer | null = null
   let source: AudioBufferSourceNode | null = null
   let sourceGen = 0
   let startedAt = 0
   let offsetAtStart = 0
   let html: HTMLAudioElement | null = null
   let objectUrl: string | null = null
+
+  const wireStateChange = (context: AudioContext): void => {
+    context.onstatechange = () => {
+      if (!unlocked || context.state === 'closed') return
+      if (audioContextNeedsResume(context.state)) void context.resume()
+    }
+  }
 
   const ensureContext = (): AudioContext | null => {
     const Ctor = audioContextCtor()
@@ -71,11 +108,29 @@ export function createHeroAudioEngine(options: { onBlocked: () => void }): HeroA
     gain = ctx.createGain()
     gain.gain.value = 1
     gain.connect(ctx.destination)
+    wireStateChange(ctx)
+    return ctx
+  }
+
+  const recreateContextInsideGesture = (): AudioContext | null => {
+    const Ctor = audioContextCtor()
+    if (!Ctor) return null
+    if (ctx && ctx.state !== 'closed' && ctx.state !== 'interrupted') return ctx
+    if (ctx && ctx.state !== 'closed') {
+      ctx.onstatechange = null
+      void ctx.close().catch(() => undefined)
+    }
+    ctx = new Ctor()
+    gain = ctx.createGain()
+    gain.gain.value = 1
+    gain.connect(ctx.destination)
+    wireStateChange(ctx)
     return ctx
   }
 
   const stopSource = (): void => {
     sourceGen += 1
+    pendingOffset = null
     if (source) {
       try {
         source.onended = null
@@ -118,7 +173,10 @@ export function createHeroAudioEngine(options: { onBlocked: () => void }): HeroA
   }
 
   const startWebAudio = (offsetSec: number): void => {
-    if (!ctx || !buffer || !gain) return
+    if (!ctx || !buffer || !gain || ctx.state !== 'running') {
+      startInFlight = false
+      return
+    }
     const remaining = buffer.duration - offsetSec
     if (remaining <= 0.05) return
     const gen = ++sourceGen
@@ -165,12 +223,36 @@ export function createHeroAudioEngine(options: { onBlocked: () => void }): HeroA
       })
   }
 
+  const runPendingStart = (): void => {
+    const off = pendingOffset
+    pendingOffset = null
+    if (off == null || !unlocked || !ready) {
+      startInFlight = false
+      return
+    }
+    if (mode === 'webaudio') startWebAudio(off)
+    else startHtml(off)
+  }
+
   return {
     async loadFromArrayBuffer(data: ArrayBuffer) {
+      raw = data.slice(0)
+      const Offline = offlineContextCtor()
+      if (Offline) {
+        try {
+          const offline = new Offline(1, 1, 44100)
+          buffer = await decodeAudio(offline, data.slice(0))
+          mode = 'webaudio'
+          ready = true
+          return
+        } catch {
+          buffer = null
+        }
+      }
       const context = ensureContext()
       if (context) {
         try {
-          buffer = await decodeAudio(context, data)
+          buffer = await decodeAudio(context, data.slice(0))
           mode = 'webaudio'
           ready = true
           return
@@ -184,26 +266,54 @@ export function createHeroAudioEngine(options: { onBlocked: () => void }): HeroA
 
     unlock() {
       unlocked = true
-      const context = ensureContext()
-      if (context) {
-        if (context.state === 'suspended') void context.resume()
-        try {
-          const blip = context.createBuffer(1, 1, context.sampleRate)
-          const src = context.createBufferSource()
-          src.buffer = blip
-          src.connect(context.destination)
-          src.start(0)
-        } catch {
-          /* resume() is the unlock; the blip is best-effort */
-        }
+      unlockHtmlMedia()
+      const context = recreateContextInsideGesture() ?? ensureContext()
+      if (!context) {
+        if (raw && !html) setupHtml(raw)
+        if (html) void html.play().then(() => html?.pause()).catch(() => undefined)
+        return
+      }
+      if (audioContextNeedsResume(context.state)) void context.resume()
+      try {
+        const blip = context.createBuffer(1, 1, context.sampleRate)
+        const src = context.createBufferSource()
+        src.buffer = blip
+        src.connect(context.destination)
+        src.start(0)
+      } catch {
+        /* resume() is the unlock; the blip is best-effort */
       }
     },
 
     start(offsetSec: number) {
       if (!ready || !unlocked) return
       stopSource()
-      if (mode === 'webaudio') startWebAudio(offsetSec)
-      else startHtml(offsetSec)
+      pendingOffset = offsetSec
+      if (mode === 'webaudio') {
+        const context = ensureContext()
+        if (!context) {
+          if (raw) setupHtml(raw)
+          startHtml(offsetSec)
+          return
+        }
+        if (context.state !== 'running') {
+          startInFlight = true
+          void context.resume().then(runPendingStart).catch(() => {
+            startInFlight = false
+            playing = false
+            if (raw) {
+              setupHtml(raw)
+              startHtml(offsetSec)
+            } else {
+              onBlocked()
+            }
+          })
+          return
+        }
+        runPendingStart()
+        return
+      }
+      startHtml(offsetSec)
     },
 
     stop() {
@@ -229,7 +339,9 @@ export function createHeroAudioEngine(options: { onBlocked: () => void }): HeroA
       unlocked = false
       ready = false
       buffer = null
+      raw = null
       if (ctx && ctx.state !== 'closed') {
+        ctx.onstatechange = null
         void ctx.close().catch(() => undefined)
       }
       ctx = null

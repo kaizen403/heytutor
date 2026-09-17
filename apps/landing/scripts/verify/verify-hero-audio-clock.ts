@@ -9,7 +9,9 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  audioContextNeedsResume,
   decideHeroAudioTick,
+  HERO_SILENT_UNLOCK_SRC,
   HERO_VISIBILITY_PAUSE_MS,
   isUnlockBlockingError,
   lessonOffsetSec,
@@ -202,5 +204,29 @@ const engine = read("src/components/hero-lesson/heroAudioEngine.ts");
 assert.match(engine, /decodeAudioData/, "the voiceover must be decoded into an AudioBuffer");
 assert.match(engine, /AudioContext/, "playback is Web Audio so a later loop wrap does not need a new gesture");
 assert.match(engine, /isUnlockBlockingError/, "AbortError from a raced play() must not mute the lesson");
+assert.match(engine, /audioContextNeedsResume/, "iOS interrupted contexts must resume, not only suspended");
+assert.match(engine, /HERO_SILENT_UNLOCK_SRC/, "the tap must unlock HTMLMediaElement so iOS uses the media route");
+assert.match(
+  engine,
+  /state !== ['"]running['"]/,
+  "BufferSource.start must wait until the context is running",
+);
+
+assert.equal(audioContextNeedsResume("suspended"), true);
+assert.equal(
+  audioContextNeedsResume("interrupted"),
+  true,
+  "WebKit interrupted is why a Hear-this-lesson tap is silent on iPhone",
+);
+assert.equal(audioContextNeedsResume("running"), false);
+assert.equal(audioContextNeedsResume("closed"), false);
+assert.ok(HERO_SILENT_UNLOCK_SRC.startsWith("data:audio/wav"));
+
+const hookAfter = read("src/components/hero-lesson/useLessonSimulation.ts");
+assert.match(
+  hookAfter,
+  /ioVisible = true/,
+  "the Hear-this-lesson tap must mark the mockup on-screen so rAF does not stop() the voice",
+);
 
 console.log("verify-hero-audio-clock: no overlapping start, no seek, audio is master, flicker does not pause");

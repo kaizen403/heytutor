@@ -61,6 +61,20 @@ export function isUnlockBlockingError(error: unknown): boolean {
   return (error as { name?: string }).name === 'NotAllowedError'
 }
 
+/**
+ * WebKit reports `interrupted` when the phone's audio session is taken
+ * away (silent switch, background, Control Center). resume() must run for
+ * that state too — gating only on `suspended` leaves iOS silent after the
+ * Hear-this-lesson tap.
+ */
+export function audioContextNeedsResume(state: string): boolean {
+  return state === 'suspended' || state === 'interrupted'
+}
+
+/** 1-sample WAV. Played inside the tap so iOS routes later Web Audio through media playback. */
+export const HERO_SILENT_UNLOCK_SRC =
+  'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA'
+
 /** Re-anchor the wall clock so lessonOffsetSec(t) == audioPositionSec. */
 export function startTimeMsToMatchAudio(input: {
   nowMs: number

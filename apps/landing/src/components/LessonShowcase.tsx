@@ -133,7 +133,7 @@ function SafariChrome({ sound, onToggle }: { sound: SoundState; onToggle: () => 
               onClick={onToggle}
               aria-label={muted ? 'Play lesson voice' : 'Mute lesson voice'}
               title={muted ? 'Play with sound' : 'Mute'}
-              className={`ml-auto flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[4px] transition-colors hover:bg-white/10 sm:h-6 sm:w-6 sm:rounded-[5px] ${
+              className={`ml-auto flex h-8 w-8 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-[4px] transition-colors hover:bg-white/10 sm:h-6 sm:w-6 sm:rounded-[5px] ${
                 muted ? 'text-sky-400 lsn-audio-hint' : 'text-[#C9C9CE]'
               }`}
             >
@@ -168,6 +168,7 @@ const DESIGN_H = 762
    shrinking the whole desktop UI into a thumbnail. */
 const SIDEBAR_W = 264
 const MOBILE_MQ = '(max-width: 639px)'
+const TILT_MQ = '(min-width: 640px) and (hover: hover) and (pointer: fine)'
 
 /**
  * The live, self-driving mockup inside the Safari window — the same
@@ -228,7 +229,7 @@ function LiveLessonWindow({
           data-sound-toggle
           onClick={toggleSound}
           aria-label="Play lesson voice"
-          className="lsn-listen absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 cursor-pointer items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-medium text-[#F2F2F4] sm:bottom-7 sm:px-5 sm:text-[14px]"
+          className="lsn-listen absolute bottom-5 left-1/2 z-20 flex min-h-11 -translate-x-1/2 cursor-pointer touch-manipulation items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-medium text-[#F2F2F4] sm:bottom-7 sm:min-h-0 sm:px-5 sm:text-[14px]"
           style={{
             background: 'rgba(21, 21, 23, 0.94)',
             border: '1px solid rgba(242, 242, 244, 0.12)',
@@ -278,7 +279,16 @@ function SafariWindow({ children }: { children: React.ReactNode }) {
 function LiftedBoard() {
   const ref = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState(false)
+  const [tiltOk, setTiltOk] = useState(false)
   const p = useScrollProgress(ref)
+
+  useEffect(() => {
+    const mq = window.matchMedia(TILT_MQ)
+    const apply = () => setTiltOk(mq.matches)
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
 
   /* Unfold values traced from the canonical implementation of this effect:
      · LINEAR, not eased — the measured rotateX deltas across the window are
@@ -287,12 +297,14 @@ function LiftedBoard() {
        start oversized to hold a constant apparent size; growing while it
        flattens is what makes an unfold lurch.
      · Origin is the card's centre, not its top edge.
-     · The card itself does not travel — translateY belongs to the copy above. */
+     · The card itself does not travel — translateY belongs to the copy above.
+     Phones skip the 3D tilt: rotateX breaks tap hit-testing and
+     IntersectionObserver, which is what silenced the lesson voice. */
   const rise = slice(p, 0.1, 0.42) // ≈ one viewport-third of scroll
   const settle = slice(p, 0.68, 0.99)
 
-  const tilt = 18 * (1 - rise) - 3 * settle
-  const scale = 1.045 - 0.045 * rise - 0.02 * settle
+  const tilt = tiltOk ? 18 * (1 - rise) - 3 * settle : 0
+  const scale = tiltOk ? 1.045 - 0.045 * rise - 0.02 * settle : 1
   const lift = Math.max(0, rise - 0.55 * settle)
 
   /* Observe this wrapper, not the board body: the child is rotateX'd, and

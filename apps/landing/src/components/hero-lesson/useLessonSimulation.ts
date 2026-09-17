@@ -93,6 +93,18 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     const st = stRef.current
     const engine = engineRef.current
     if (!engine?.isReady()) return
+    /* A tap on the mockup is proof it is on-screen. Without this, a 3D
+       IntersectionObserver miss on iOS treats the section as hidden and the
+       next rAF stop()s the voice we just unlocked. */
+    st.ioVisible = true
+    st.docVisible = typeof document === 'undefined' || document.visibilityState !== 'hidden'
+    st.hiddenSince = null
+    if (st.pausedAt !== null) {
+      const now = performance.now()
+      st.pausedAccum += now - st.pausedAt
+      st.pausedAt = null
+      boardHandleRef.current?.setPaused(false)
+    }
     engine.unlock()
     st.soundOn = true
     setSound('on')
@@ -168,6 +180,7 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     if (rootRef.current) io.observe(rootRef.current)
     const onVis = () => {
       st.docVisible = document.visibilityState === 'visible'
+      if (st.docVisible && st.soundOn) engineRef.current?.unlock()
     }
     document.addEventListener('visibilitychange', onVis)
 
