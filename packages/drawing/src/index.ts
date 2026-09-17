@@ -33,8 +33,10 @@ export * from "./layout/boardTypography";
 export {
   createScheduledWriteClock,
   resolveScheduledWriteClockMs,
+  resolveWriteWaitClockMs,
   shouldReleaseAudioPositionWait,
   simulateScheduledWriteWait,
+  WRITE_CLOCK_STALL_FRAMES,
   type ScheduledWriteClockInput,
   type SimulatedWriteWaitResult,
 } from "./sync/writeAudioClock";

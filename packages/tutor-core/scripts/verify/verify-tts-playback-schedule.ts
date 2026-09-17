@@ -4,6 +4,7 @@ import {
   concatDecodedAudioBuffers,
   decodedDurationSec,
   nextScheduleStartSec,
+  playbackAudibleOriginSec,
   scheduleGapSec,
   shouldHoldForPreroll,
 } from "../../src/tts/playbackSchedule";
@@ -96,5 +97,30 @@ const merged = concatDecodedAudioBuffers(new FakeAudioContext(), [left, right]);
 assert(merged.length === 16, "concat must keep every sample");
 assert(merged.getChannelData(0)[0] === 0.25, "first buffer samples must lead");
 assert(merged.getChannelData(0)[8] === 0.75, "second buffer samples must follow");
+
+assert(
+  playbackAudibleOriginSec({
+    hasCurrentJob: true,
+    jobAudibleStartCtxTime: undefined,
+    httpPlaybackOriginCtxTime: 12.4,
+  }) === null,
+  "a new sentence must not inherit the previous HTTP origin as its playback clock",
+);
+assert(
+  playbackAudibleOriginSec({
+    hasCurrentJob: true,
+    jobAudibleStartCtxTime: 40.2,
+    httpPlaybackOriginCtxTime: 12.4,
+  }) === 40.2,
+  "once this sentence is scheduled, its own audible start is the clock",
+);
+assert(
+  playbackAudibleOriginSec({
+    hasCurrentJob: false,
+    jobAudibleStartCtxTime: undefined,
+    httpPlaybackOriginCtxTime: 3.1,
+  }) === 3.1,
+  "HTTP-only playback may use the HTTP origin when no job is current",
+);
 
 console.log("verified tts preroll holds short chunks and closes the first-slice gap");

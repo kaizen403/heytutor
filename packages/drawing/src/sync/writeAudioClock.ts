@@ -21,6 +21,36 @@ export function resolveScheduledWriteClockMs(input: ScheduledWriteClockInput): n
   return raw;
 }
 
+export const WRITE_CLOCK_STALL_FRAMES = 30;
+
+/**
+ * Clock the pen uses while waiting for a spoken cue.
+ *
+ * An advancing playback position is the voice, even when a wall fallback ran
+ * ahead of it (onStart firing before the first sample is audible). Holding
+ * `max(wall, playback)` forever was the "pen dumps the row, then the lecture
+ * starts" failure. A stalled or missing clock still falls through to wall so
+ * a dead TTS position cannot park the nib.
+ */
+export function resolveWriteWaitClockMs(input: {
+  rawPositionMs: number;
+  elapsedMediaMs: number;
+  stalledFrames: number;
+  maxPositionMs: number;
+}): { positionMs: number; maxPositionMs: number } {
+  const raw = input.rawPositionMs;
+  if (Number.isFinite(raw) && raw > 0 && input.stalledFrames < WRITE_CLOCK_STALL_FRAMES) {
+    return { positionMs: raw, maxPositionMs: raw };
+  }
+  const fallback = resolveScheduledWriteClockMs({
+    rawPositionMs: raw,
+    elapsedWallMs: input.elapsedMediaMs,
+    stalledFrames: input.stalledFrames,
+  });
+  const positionMs = Math.max(input.maxPositionMs, fallback);
+  return { positionMs, maxPositionMs: positionMs };
+}
+
 export function shouldReleaseAudioPositionWait(input: {
   positionMs: number;
   targetMs: number;
@@ -34,12 +64,11 @@ export function shouldReleaseAudioPositionWait(input: {
   if (!input.clockEverStarted && input.elapsedMs >= 400) {
     return true;
   }
-  if (input.clockEverStarted && input.stalledFrames >= 30) {
+  if (input.clockEverStarted && input.stalledFrames >= WRITE_CLOCK_STALL_FRAMES) {
     return true;
   }
-  if (input.clockEverStarted && input.elapsedMs > Math.min(input.targetMs + 2000, 8000)) {
-    return true;
-  }
+  // An advancing clock must wait for a late cue. Capping at 8 s started a
+  // row spoken at 9 s two seconds early (live: "quotient = ?" at 9265 ms).
   return false;
 }
 

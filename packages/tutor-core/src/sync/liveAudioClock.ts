@@ -24,7 +24,6 @@ export interface LiveAudioClock {
 }
 
 const END_PADDING_MS = 40;
-const STUCK_PLAYBACK_BEHIND_WALL_MS = 250;
 
 export function resolveLiveAudioPositionMs(input: LiveAudioClockInput): LiveAudioClock {
   if (input.speechComplete) {
@@ -49,19 +48,14 @@ export function resolveLiveAudioPositionMs(input: LiveAudioClockInput): LiveAudi
 
   // 0 and negative positions mean "scheduled but not audible yet". Treating
   // them as a live clock pinned the pen at t=0 while speech was already going.
-  if (
-    playback !== null &&
-    Number.isFinite(playback) &&
-    playback > 0 &&
-    playback + 50 >= input.maxAudioPositionMs
-  ) {
-    if (wallMediaMs !== null && playback + STUCK_PLAYBACK_BEHIND_WALL_MS < wallMediaMs) {
-      const positionMs = Math.max(input.maxAudioPositionMs, wallMediaMs);
-      return { positionMs, maxAudioPositionMs: positionMs };
-    }
-    const positionMs = playback;
-    const maxAudioPositionMs = Math.max(input.maxAudioPositionMs, positionMs);
-    return { positionMs, maxAudioPositionMs };
+  //
+  // Once a positive playback position exists it is the voice, even if a wall
+  // fallback ran ahead of it. Requiring `playback + 50 >= maxAudioPositionMs`
+  // locked the pen onto that raced wall clock for the rest of the sentence.
+  // A frozen playback is reported honestly; `resolveWriteWaitClockMs` unsticks
+  // the pen after stalled frames rather than this clock inventing a lead.
+  if (playback !== null && Number.isFinite(playback) && playback > 0) {
+    return { positionMs: playback, maxAudioPositionMs: playback };
   }
 
   if (wallMediaMs !== null) {
@@ -87,6 +81,20 @@ export { shouldReleaseAudioPositionWait };
  * onset (20 to 73 ms after `onStart`) plus one frame.
  */
 export const INITIAL_TIMING_GRACE_AFTER_START_MS = 120;
+/**
+ * `onStart` fires when playback is *about to be scheduled*, not when the first
+ * sample is audible. Measured gap: tens to a few hundred ms of decode / HTML
+ * audio spin-up. The pen must not run a 1.5× wall clock across that gap.
+ */
+export const AUDIBLE_GRACE_AFTER_START_MS = 280;
+
+export function isPlaybackAudible(playbackPositionMs: number | null | undefined): boolean {
+  return (
+    playbackPositionMs != null &&
+    Number.isFinite(playbackPositionMs) &&
+    playbackPositionMs > 0
+  );
+}
 
 export interface InitialTimingWaitState {
   hasNarration: boolean;
@@ -97,6 +105,12 @@ export interface InitialTimingWaitState {
   nowMs: number;
   speechComplete: boolean;
   cancelled: boolean;
+  /**
+   * Live TTS media position. `onStart` is not audibility: wait until this is
+   * positive (or the audible grace expires) before building a handwriting
+   * schedule.
+   */
+  playbackPositionMs?: number | null;
 }
 
 export type InitialTimingWaitRelease =
@@ -124,7 +138,8 @@ export type InitialTimingWaitDecision =
  * A peeked alignment is not permission to draw. Releasing on timings alone
  * let the pen run the whole figure on the wall clock at playback speed while
  * TTS was still connecting — a silent 1.5–2× dump, then the lecture "started".
- * Wait for `onStart` (the voice is actually audible), then use the alignment
+ * `onStart` is also not permission: it fires before the first sample is
+ * audible. Wait until playback is actually advancing, then use the alignment
  * that is already in hand.
  */
 export function resolveInitialTimingWait(state: InitialTimingWaitState): InitialTimingWaitDecision {
@@ -139,6 +154,16 @@ export function resolveInitialTimingWait(state: InitialTimingWaitState): Initial
       return { release: true, source: "complete" };
     }
     return { release: false, releaseAtMs: null };
+  }
+  const audible = isPlaybackAudible(state.playbackPositionMs);
+  if (!audible) {
+    if (state.speechComplete) {
+      return { release: true, source: "complete" };
+    }
+    const audibleAtMs = state.audioStartedAtMs + AUDIBLE_GRACE_AFTER_START_MS;
+    if (state.nowMs < audibleAtMs) {
+      return { release: false, releaseAtMs: audibleAtMs };
+    }
   }
   if (state.timingChars > 0) {
     return { release: true, source: "tts" };

@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 import {
-  resolveScheduledWriteClockMs,
+  resolveWriteWaitClockMs,
   shouldReleaseAudioPositionWait,
   textToStrokePaths,
   snapToBoardTypeScale,
@@ -1456,6 +1456,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         targetMs: number,
         getAudioPositionMs: () => number,
         originWallMs: number,
+        getPlaybackRate?: () => number,
       ): Promise<void> =>
         new Promise((resolve) => {
           let done = false;
@@ -1472,6 +1473,15 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           const waitStartMs = nowMs();
           let idled = false;
 
+          const mediaRate = (): number => {
+            const fromSchedule = getPlaybackRate?.();
+            const rate =
+              typeof fromSchedule === "number" && Number.isFinite(fromSchedule) && fromSchedule > 0
+                ? fromSchedule
+                : animationSpeedRef.current;
+            return Math.max(rate, 0.1);
+          };
+
           const currentClockMs = (): number => {
             const rawPositionMs = getAudioPositionMs();
             if (rawPositionMs > 0 && rawPositionMs === lastRawPositionMs) {
@@ -1480,18 +1490,15 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               stalledFrames = 0;
               lastRawPositionMs = rawPositionMs;
             }
-            const elapsedMs =
-              (nowMs() - originWallMs - pausedTotalMs) * Math.max(animationSpeedRef.current, 0.1);
-            const positionMs = Math.max(
+            const elapsedMs = (nowMs() - originWallMs - pausedTotalMs) * mediaRate();
+            const resolved = resolveWriteWaitClockMs({
+              rawPositionMs,
+              elapsedMediaMs: elapsedMs,
+              stalledFrames,
               maxPositionMs,
-              resolveScheduledWriteClockMs({
-                rawPositionMs,
-                elapsedWallMs: elapsedMs,
-                stalledFrames,
-              }),
-            );
-            maxPositionMs = positionMs;
-            return positionMs;
+            });
+            maxPositionMs = resolved.maxPositionMs;
+            return resolved.positionMs;
           };
 
           const cleanup = (): void => {
@@ -1532,8 +1539,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             }
 
             const positionMs = currentClockMs();
-            const elapsedMs =
-              (nowMs() - originWallMs - pausedTotalMs) * Math.max(animationSpeedRef.current, 0.1);
+            const elapsedMs = (nowMs() - originWallMs - pausedTotalMs) * mediaRate();
             if (
               audioWaitAlreadyDue(positionMs, targetMs) ||
               shouldReleaseAudioPositionWait({
@@ -1569,11 +1575,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           };
 
           animationCleanupsRef.current.add(cleanup);
-          const immediate = resolveScheduledWriteClockMs({
-            rawPositionMs: getAudioPositionMs(),
-            elapsedWallMs: nowMs() - originWallMs,
-            stalledFrames: 0,
-          });
+          const immediate = currentClockMs();
           if (audioWaitAlreadyDue(immediate, targetMs)) {
             cleanup();
             return;
@@ -1607,12 +1609,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         // hand — otherwise every reveal group would pay for a swap each way.
         const labelSized =
           !schedule && duration <= text.replace(/\s+/g, "").length * LETTERED_IN_HAND_MS_PER_CHAR;
-        if (!labelSized) {
-          await equipInstrumentFor("write");
-          if (shouldCancel?.()) {
-            return;
-          }
-        }
+        const scheduledWrite = Boolean(schedule?.charStartOffsetsMs && schedule.charStartOffsetsMs.length > 0);
 
         // Whatever a caller hands down, the pen only ever writes at a step on
         // the board's type scale. That is what keeps one board to a handful of
@@ -1621,13 +1618,26 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           Math.min(Math.max(fontSize, MIN_BOARD_FONT_SIZE), MAX_BOARD_FONT_SIZE),
         );
 
-        // Read after the equip: teaching prose is always in pen, but a
-        // compiler-owned label is lettered with whatever the hand is already
-        // holding, so a name on a pencilled figure is written in the same lead.
-        const inkStyle = instrumentInkStyle(instrumentRef.current, inkColorRef.current);
-
         try {
-          const characterPaths = await textToStrokePaths(text, x, y, resolvedFontSize);
+          // Paths and the instrument swap overlap so a 340 ms pen-from-pencil
+          // flourish cannot eat the first spoken syllable. Scheduled rows hurry
+          // the swap: the voice is already on the word.
+          const pathsPromise = textToStrokePaths(text, x, y, resolvedFontSize);
+          if (!labelSized) {
+            await Promise.all([
+              equipInstrumentFor("write", scheduledWrite),
+              pathsPromise,
+            ]);
+            if (shouldCancel?.()) {
+              return;
+            }
+          }
+
+          // Read after the equip: teaching prose is always in pen, but a
+          // compiler-owned label is lettered with whatever the hand is already
+          // holding, so a name on a pencilled figure is written in the same lead.
+          const inkStyle = instrumentInkStyle(instrumentRef.current, inkColorRef.current);
+          const characterPaths = await pathsPromise;
 
           if (characterPaths.length === 0) {
             return;
@@ -1738,6 +1748,51 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           };
           const scheduledPlayback = { lockToWallClock: true } as const;
 
+          if (scheduled && offsets && audioPositionMs) {
+            const firstCue = offsets[0] ?? 0;
+            const firstStroke = charInfos[0]?.charPath.strokes[0];
+            const approachFirstGlyph = async (): Promise<void> => {
+              if (!firstStroke) {
+                return;
+              }
+              const dist = Math.hypot(
+                firstStroke.startX - cursorViewRef.current.x,
+                firstStroke.startY - cursorViewRef.current.y,
+              );
+              const travel = nibTravelFor(dist);
+              if (travel === "settle") {
+                jumpNib(firstStroke.startX, firstStroke.startY, "write");
+                return;
+              }
+              // If the word is already being said, still fly/hop — a jump
+              // across the board is the "not smooth" teleport. Cap the fly so
+              // a late cue cannot spend 300 ms of spoken time in the air.
+              const due = audioWaitAlreadyDue(audioPositionMs(), firstCue);
+              if (travel === "fly") {
+                const reachMs = shapeReachMs(dist);
+                await flyCursorTo(
+                  firstStroke.startX,
+                  firstStroke.startY,
+                  due ? Math.min(reachMs, 140) : reachMs,
+                  HANDWRITING_ROTATION,
+                );
+                return;
+              }
+              await hopNib(
+                firstStroke.startX,
+                firstStroke.startY,
+                hopDurationMs(dist) / playbackRate(),
+                "write",
+                scheduledPlayback,
+              );
+            };
+            await Promise.all([
+              approachFirstGlyph(),
+              waitForAudioPosition(firstCue, audioPositionMs, scheduleOriginMs, playbackRate),
+            ]);
+            if (!mountedRef.current || shouldCancel?.()) return;
+          }
+
           const flyBudgetMs = Math.min(totalStrokes * 2, duration * 0.06);
           const drawBudgetMs = Math.max(duration - flyBudgetMs, totalStrokes * 3);
           const totalPathLength = charInfos.reduce((sum, info) => sum + info.pathLength, 0);
@@ -1758,7 +1813,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               const start = offsets[Math.min(ci, offsets.length - 1)] ?? 0;
               // Hold this character until the voice reaches its spoken moment.
               // Missing/stuck clocks fall through to wall time from this WRITE start.
-              await waitForAudioPosition(start, audioPositionMs, scheduleOriginMs);
+              await waitForAudioPosition(start, audioPositionMs, scheduleOriginMs, playbackRate);
               if (!mountedRef.current || shouldCancel?.()) return;
               schedule?.onCharacterStart?.({
                 char: charPath.char,
@@ -2027,6 +2082,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             drawLayer.batchDraw();
           }
         } catch {
+          const inkStyle = instrumentInkStyle(instrumentRef.current, inkColorRef.current);
           const textNode = new Konva.Text({
             text,
             x,

@@ -258,8 +258,10 @@ The rules now in force, each with an offline gate:
 
 - **Exact timings live.** Every sentence but the first is prefetched, so the runner
   asks the TTS client for the alignment (`peekSegmentTimings`) before it builds any
-  schedule, and otherwise waits for the first alignment, 120 ms after audio start, or
-  speech complete (`resolveInitialTimingWait`, gated in verify-tts-lookahead).
+  schedule, and otherwise waits until playback is actually audible (`getPlaybackPositionMs() > 0`),
+  then the first alignment, 120 ms after audio start, or speech complete
+  (`resolveInitialTimingWait`, gated in verify-tts-lookahead and verify-live-write-sync).
+  `onStart` is not audibility — it fires when playback is about to be scheduled.
 - **One speech rate.** `speechRate.ts` seeds 86 ms per spoken character and learns
   the session's voice from every aligned sentence; every estimate reads it.
 - **Tokens match the words the voice says.** "=" matches equals, is, gives; "/" over
@@ -289,12 +291,25 @@ The rules now in force, each with an offline gate:
 
 ## Current Root-Cause Notes
 
-The most important recent finding: waiting for near-complete ElevenLabs timing alignment before drawing causes the exact user-visible bug: speech happens first, writing appears late.
+The most important recent findings:
+
+1. Waiting for near-complete ElevenLabs timing alignment before drawing causes
+   speech-first, writing-late.
+2. Treating TTS `onStart` as "the voice is audible" causes the opposite: a 1.5×
+   wall clock races through the row while audio is still being scheduled, then
+   refuses to adopt the real playback position because it looks behind the raced
+   max. The voice is the conductor: `getPlaybackPositionMs() > 0` is audibility,
+   and an advancing playback position always wins over a wall fallback.
+3. `getPlaybackPositionMs` must be *this sentence*. Falling back to the previous
+   job's HTTP origin reported 8–40 s of leftover media, catch-up dumped the next
+   row, and the first letter of "quotient" started two seconds early. Gated in
+   `playbackAudibleOriginSec` and verify-live-write-sync.
 
 The current live design should therefore be:
 
 - **Estimated schedule first for live drawing.**
 - **Real TTS timings opportunistically when already available.**
+- **Do not ink until playback is audible**, then follow that clock.
 - **Persist real timings for replay.**
 - **Prompt commands immediately after spoken cue phrases.**
 

@@ -510,8 +510,12 @@ assert(
 
   const behind = budget(300, 400);
   assert(
-    behind.inkMs <= 120,
-    `400 ms behind on a 300 ms slot must hurry toward the floor, got ${behind.inkMs}`,
+    behind.inkMs === GLYPH_SLOT_MIN_MS,
+    `400 ms behind on a 300 ms slot must hurry to the 90 ms floor, not stamp, got ${behind.inkMs}`,
+  );
+  assert(
+    behind.inkMs >= GLYPH_SLOT_MIN_MS,
+    "catch-up must still write the letter — a 48 ms stamp is the unsmooth failure",
   );
   assert(behind.lingerMs === 0, "a pen that is behind gives up its linger first");
   const behindAfterLong = budget(300, 400, 350);
@@ -545,6 +549,27 @@ assert(
     previous = next;
   }
   assert(budget(Number.NaN, Number.NaN).inkMs >= GLYPH_SLOT_MIN_MS, "a broken slot is still written");
+
+  // A spoken word with many letters (e.g. "quotient") must stay one continuous
+  // hand: each glyph still takes the 90 ms floor, and the pen does not park
+  // between letters. Catch-up that stamped at 48 ms and jumped the carry
+  // was the "not at all smooth" failure.
+  {
+    const packed = simulateScheduledGlyphs({
+      offsetsMs: [0, 70, 140, 210, 280, 350, 420, 490],
+      slotsMs: [70, 70, 70, 70, 70, 70, 70, 70],
+    });
+    for (const glyph of packed.glyphs) {
+      assert(
+        glyph.inkEndMs - glyph.startMs >= GLYPH_SLOT_MIN_MS - 1e-9,
+        `packed-word ink stamped at ${glyph.inkEndMs - glyph.startMs} ms`,
+      );
+    }
+    assert(
+      packed.glyphs.slice(1).every((glyph) => glyph.pauseMs < 1),
+      "a packed word must not start-stop between letters",
+    );
+  }
 
   // The linger is a slow finishing stroke, not a park: progress keeps moving,
   // ends on the last point, and the tail runs slower than the body.

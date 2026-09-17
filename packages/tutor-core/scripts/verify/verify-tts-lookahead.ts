@@ -34,6 +34,7 @@ import {
   TUTOR_VOICE_SETTINGS,
 } from "../../src/tts/voiceSettings";
 import {
+  AUDIBLE_GRACE_AFTER_START_MS,
   INITIAL_TIMING_GRACE_AFTER_START_MS,
   classifyTtsScheduleUse,
   resolveInitialTimingWait,
@@ -496,7 +497,7 @@ client.stop();
 // so it released at +0 and every row was built on the estimate 1 to 3 ms
 // before the exact alignment arrived. These timelines are the ones measured
 // live on 10 Sep 2026, in ms from the moment the runner asked to schedule.
-type TimelineEvent = { atMs: number; kind: "timings" | "start" | "complete" | "cancel" };
+type TimelineEvent = { atMs: number; kind: "timings" | "start" | "audible" | "complete" | "cancel" };
 
 interface SimulatedRelease {
   releasedAtMs: number;
@@ -510,6 +511,7 @@ function simulateInitialTimingWait(
   const sorted = [...events].sort((a, b) => a.atMs - b.atMs);
   let timingChars = 0;
   let audioStartedAtMs: number | null = null;
+  let playbackPositionMs: number | null = null;
   let speechComplete = false;
   let cancelled = false;
   const decide = (nowMs: number) =>
@@ -520,6 +522,7 @@ function simulateInitialTimingWait(
       nowMs,
       speechComplete,
       cancelled,
+      playbackPositionMs,
     });
   // The waiter arms a timer for `releaseAtMs`; it fires unless an event
   // lands first. Both paths go through the same decision, as they do live.
@@ -537,6 +540,7 @@ function simulateInitialTimingWait(
     }
     if (event.kind === "timings") timingChars = 29;
     if (event.kind === "start") audioStartedAtMs = event.atMs;
+    if (event.kind === "audible") playbackPositionMs = 1;
     if (event.kind === "complete") speechComplete = true;
     if (event.kind === "cancel") cancelled = true;
     decision = decide(event.atMs);
@@ -581,20 +585,31 @@ assert(
 );
 
 assertRelease(
-  "prefetched sentence (alignment +3, start +13)",
+  "prefetched sentence (alignment +3, start +13, audible with start)",
   simulateInitialTimingWait([
     { atMs: 3, kind: "timings" },
     { atMs: 13, kind: "start" },
+    { atMs: 13, kind: "audible" },
   ]),
   { releasedAtMs: 13, source: "tts" },
 );
 assertRelease(
-  "opening sentence generated on demand (alignment +838, start +839)",
+  "opening sentence generated on demand (alignment +838, start +839, audible with start)",
   simulateInitialTimingWait([
     { atMs: 838, kind: "timings" },
     { atMs: 839, kind: "start" },
+    { atMs: 839, kind: "audible" },
   ]),
   { releasedAtMs: 839, source: "tts" },
+);
+assertRelease(
+  "onStart before audible (alignment +3, start +13, first sample +180)",
+  simulateInitialTimingWait([
+    { atMs: 3, kind: "timings" },
+    { atMs: 13, kind: "start" },
+    { atMs: 180, kind: "audible" },
+  ]),
+  { releasedAtMs: 180, source: "tts" },
 );
 assert(
   INITIAL_TIMING_GRACE_AFTER_START_MS === 120,
@@ -602,17 +617,25 @@ assert(
     "transport that aligns at all and stays under the audible onset plus a frame",
 );
 assertRelease(
-  "browser voice (start +800, never aligns)",
-  simulateInitialTimingWait([{ atMs: 800, kind: "start" }]),
+  "browser voice (start +800, audible with start, never aligns)",
+  simulateInitialTimingWait([
+    { atMs: 800, kind: "start" },
+    { atMs: 800, kind: "audible" },
+  ]),
   { releasedAtMs: 920, source: "estimated" },
 );
 assertRelease(
-  "alignment late but inside the grace (start +800, alignment +850)",
+  "alignment late but inside the grace (start +800, audible with start, alignment +850)",
   simulateInitialTimingWait([
     { atMs: 800, kind: "start" },
+    { atMs: 800, kind: "audible" },
     { atMs: 850, kind: "timings" },
   ]),
   { releasedAtMs: 850, source: "tts" },
+);
+assert(
+  AUDIBLE_GRACE_AFTER_START_MS === 280,
+  `the audible grace is ${AUDIBLE_GRACE_AFTER_START_MS}ms; onStart-to-first-sample must not run a wall clock`,
 );
 assertRelease(
   "failed transport (speech complete +400, nothing else)",

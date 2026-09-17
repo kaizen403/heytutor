@@ -20,6 +20,7 @@ import {
   canConcatAudioBuffers,
   concatDecodedAudioBuffers,
   nextScheduleStartSec,
+  playbackAudibleOriginSec,
 } from "./playbackSchedule";
 import { createLectureAudioContext, releaseLectureAudioContext, unlockTutorAudio } from "./audioContext";
 import { TUTOR_VOICE_SETTINGS, voiceSettingsKey } from "./voiceSettings";
@@ -1104,6 +1105,11 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     this.scheduledEnd = Math.max(this.scheduledEnd, ctx.currentTime);
     this.totalScheduledMediaSec = 0;
     this.mediaClock = createRateMediaClock(this.playbackRate);
+    // The previous sentence's HTML clip / HTTP origin must not answer
+    // getPlaybackPositionMs for this job. That leftover 8–40 s is what
+    // made catch-up dump the next row before its words.
+    this.stopHtmlAudio();
+    this.httpPlaybackOriginCtxTime = null;
 
     // A sentence generated ahead already holds its audio, so this is where it
     // starts speaking — with no round trip between it and the last one. Its
@@ -1952,6 +1958,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     }
     applyHtmlAudioPlaybackRate(audio, this.playbackRate);
     applyHtmlAudioMute(audio, this.muted);
+    this.stopHtmlAudio();
     this.currentHtmlAudio = audio;
     const ctx = this.audioContext;
     if (job && job.audibleStartCtxTime === undefined && ctx) {
@@ -2108,7 +2115,11 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       return null;
     }
     const job = this.currentJob;
-    const audibleAt = job?.audibleStartCtxTime ?? this.httpPlaybackOriginCtxTime;
+    const audibleAt = playbackAudibleOriginSec({
+      hasCurrentJob: Boolean(job),
+      jobAudibleStartCtxTime: job?.audibleStartCtxTime,
+      httpPlaybackOriginCtxTime: this.httpPlaybackOriginCtxTime,
+    });
     if (audibleAt == null) {
       return null;
     }

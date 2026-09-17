@@ -1,6 +1,7 @@
 import {
   cancelFrame,
   createScheduledWriteClock,
+  resolveWriteWaitClockMs,
   scheduleFrame,
   simulateScheduledWriteWait,
 } from "../src/index";
@@ -56,6 +57,28 @@ const wrapped = createScheduledWriteClock({
 assert(wrapped() === 0, "write clock starts at t=0");
 fakeNow = 240;
 assert(wrapped() === 240, "a missing TTS position must follow wall time so ink tracks speech");
+
+const raced = resolveWriteWaitClockMs({
+  rawPositionMs: 80,
+  elapsedMediaMs: 1_500,
+  stalledFrames: 0,
+  maxPositionMs: 1_500,
+});
+assert(
+  raced.positionMs === 80,
+  `an advancing voice must pull the wait clock back off a raced wall (got ${raced.positionMs})`,
+);
+
+const stalled = resolveWriteWaitClockMs({
+  rawPositionMs: 16,
+  elapsedMediaMs: 1_800,
+  stalledFrames: 30,
+  maxPositionMs: 16,
+});
+assert(
+  stalled.positionMs >= 1_700,
+  `a frozen playback position must still fall through to wall (got ${stalled.positionMs})`,
+);
 
 console.log("verify-write-audio-clock: null/zero/stuck WRITE clocks finish during speech");
 

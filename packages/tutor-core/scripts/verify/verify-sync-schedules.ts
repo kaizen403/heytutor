@@ -105,6 +105,12 @@ const cases: Case[] = [
     text: "2x + 3 = 11",
     opensSentence: true,
   },
+  {
+    name: "slash said as divided by",
+    narration: "so x divided by y is the ratio we need.",
+    text: "x / y",
+    opensSentence: false,
+  },
 ];
 
 function command(text: string): DrawCommand {
@@ -550,6 +556,16 @@ assert(
   }),
   "an advancing clock must still wait for its spoken cue",
 );
+assert(
+  !shouldReleaseAudioPositionWait({
+    positionMs: 5_000,
+    targetMs: 9_265,
+    elapsedMs: 8_100,
+    clockEverStarted: true,
+    stalledFrames: 0,
+  }),
+  "an advancing clock must wait for a cue past 8 s, not start the row early",
+);
 
 const parkedPenOffsets = [80, 160, 240, 320, 400];
 const nullClockWrite = simulateScheduledWriteWait({
@@ -582,8 +598,23 @@ const stuckPlayback = resolveLiveAudioPositionMs({
   maxAudioPositionMs: 16,
 });
 assert(
-  stuckPlayback.positionMs >= 1700,
-  "a stuck TTS playback position must fall through to wall time",
+  stuckPlayback.positionMs === 16,
+  `a frozen playback position is reported honestly (got ${stuckPlayback.positionMs}); the write wait unsticks the pen`,
+);
+
+const racedThenAudible = resolveLiveAudioPositionMs({
+  speechComplete: false,
+  capturedDurationMs: null,
+  estimateSpeechMs: 8000,
+  playbackPositionMs: 80,
+  audioStartedAtMs: 0,
+  nowMs: 1000,
+  maxAudioPositionMs: 1500,
+  playbackRate: 1.5,
+});
+assert(
+  Math.abs(racedThenAudible.positionMs - 80) <= 1,
+  `real playback must replace a raced wall max (got ${racedThenAudible.positionMs})`,
 );
 
 const halfSpeedLive = resolveLiveAudioPositionMs({

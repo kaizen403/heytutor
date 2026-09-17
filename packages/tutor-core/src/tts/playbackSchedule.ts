@@ -43,6 +43,30 @@ export function scheduleGapSec(options: {
   return Math.max(0, nextScheduleStartSec(options) - options.scheduledEnd);
 }
 
+/**
+ * ctx time when the *current sentence* becomes audible.
+ *
+ * A new job that has not scheduled audio yet must not inherit the previous
+ * sentence's HTTP origin or the live clock reports 8–40 s of leftover media
+ * and the pen dumps the next row in one burst. While a job is current, only
+ * that job's own audible start counts. HTTP origin is the fallback only when
+ * there is no job (HTTP-only playback).
+ */
+export function playbackAudibleOriginSec(input: {
+  hasCurrentJob: boolean;
+  jobAudibleStartCtxTime: number | undefined;
+  httpPlaybackOriginCtxTime: number | null;
+}): number | null {
+  if (input.hasCurrentJob) {
+    return typeof input.jobAudibleStartCtxTime === "number" &&
+      Number.isFinite(input.jobAudibleStartCtxTime)
+      ? input.jobAudibleStartCtxTime
+      : null;
+  }
+  const http = input.httpPlaybackOriginCtxTime;
+  return typeof http === "number" && Number.isFinite(http) ? http : null;
+}
+
 export interface ConcatableAudioBuffer {
   duration: number;
   length: number;
