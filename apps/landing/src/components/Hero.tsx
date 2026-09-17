@@ -12,7 +12,7 @@ export default function Hero() {
     <div className="fx-aurora relative flex min-h-[100svh] flex-col overflow-x-clip">
       {/* Notebook margin: faint sketched formulas in the hero's bare corners
           and margins — above the aurora, below the pen's ink and the pixel
-          decor, and well clear of the headline and the graph lane. */}
+          decor, and well clear of the headline and the pen lane. */}
       <SketchWallpaper variant="hero" mode="bold" className="z-[2]" />
       {/* Ambient light, hung from the top of the page */}
       <div
@@ -30,9 +30,10 @@ export default function Hero() {
 
       <Navbar />
 
-      {/* A pen flies in from off-screen left, draws the axes, labels them,
-          writes v = u + at and the acceleration curve, then leaves frame to
-          the right — all one continuous stroke path. */}
+      {/* A pen flies in from off-screen left, draws a unit circle, unrolls it
+          into a sine wave along the shared axis, writes y = sin θ, then leaves
+          frame to the right. The whole performance is one continuous stroke
+          path. */}
       <PenPlotter className="absolute inset-0 z-[5] pointer-events-none overflow-hidden" />
 
       {/* A student's desk, scattered through the empty outer thirds. */}
@@ -63,14 +64,14 @@ export default function Hero() {
       </div>
 
       {/* PenPlotter measures this box and lays the whole scene out inside it.
-          It grows on tall viewports; the graph anchors to its bottom edge. */}
+          It grows on tall viewports; the figure anchors to its bottom edge. */}
       <div
         data-pen-stage
         className="w-full flex-1 shrink-0 basis-[150px] sm:basis-[170px] lg:basis-[190px]"
       />
 
-      {/* The pixel sea. It sits below the graph lane with a little clear water
-          between the crests and the drawn x-axis, and fuses solid at the hero's
+      {/* The pixel sea. It sits below the pen lane with a little clear water
+          between the crests and the lowest ink, and fuses solid at the hero's
           foot; <DitherBand> in App.tsx then melts that ice into the next
           section so the two grounds don't meet on a line. */}
       <div className="relative w-full shrink-0 basis-[220px] sm:basis-[240px] lg:basis-[280px]">

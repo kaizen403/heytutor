@@ -86,13 +86,20 @@ assert.match(
 );
 assert.match(
   hook,
-  /shouldAttemptHeroPlayback/,
-  "the simulation must gate play() on the policy, not a bare soundOn flag",
+  /initialHeroSectionVisible/,
+  "the simulation must not assume the mockup is on-screen before observe()",
 );
 assert.match(
   hook,
-  /initialHeroSectionVisible/,
-  "the simulation must not assume the mockup is on-screen before observe()",
+  /decideHeroAudioTick/,
+  "the simulation must take start/stop from the clock policy",
+);
+
+const clock = read("src/components/hero-lesson/heroAudioClock.ts");
+assert.match(
+  clock,
+  /shouldAttemptHeroPlayback/,
+  "the clock policy must gate start() on the voice policy, not a bare soundOn flag",
 );
 assert.doesNotMatch(
   hook,
@@ -111,9 +118,10 @@ assert.doesNotMatch(
 );
 
 const loadPath = hook.slice(
-  hook.indexOf("st.audio = audio"),
+  hook.indexOf("loadFromArrayBuffer"),
   hook.indexOf("} catch"),
 );
+assert.ok(loadPath.length > 0, "the load path must decode the voiceover before offering the speaker");
 assert.doesNotMatch(
   loadPath,
   /soundOn\s*=\s*true/,

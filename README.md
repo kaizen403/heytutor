@@ -137,14 +137,15 @@ pnpm --filter @heytutor/tutor-core verify
 pnpm --filter @heytutor/tutor verify
 ```
 
-There is no CI — run these checks locally before pushing.
+GitHub only deploys the tutor on push to `main`. Run these checks locally
+before pushing; they are not CI gates.
 
 ## Deployment
 
 | Surface | Platform | Notes |
 |---------|----------|--------|
 | Landing | Vercel | Root directory `apps/landing`; domain `accelute.co` |
-| Tutor UI + API + WebSocket | AWS EC2 | `tsx server.ts`; `deploy/aws/deploy.sh` |
+| Tutor UI + API + WebSocket | AWS EC2 | Push to `main` runs `.github/workflows/deploy-tutor.yml` (`deploy/aws/deploy.sh` on the box) |
 | Postgres | Hosted | `DATABASE_URL` — not Docker on the app box |
 | Objects | Private S3 | Lecture MP3s and question photos |
 

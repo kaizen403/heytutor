@@ -21,7 +21,9 @@ export function isGoogleAuthConfigured(): boolean {
 }
 
 export function isEmailAuthConfigured(): boolean {
-  return Boolean(resendKey);
+  // Resend/magic-link needs an Auth.js database adapter. Production login is
+  // Google-only until that adapter exists. Set AUTH_EMAIL_LOGIN=1 to opt in.
+  return Boolean(resendKey) && process.env.AUTH_EMAIL_LOGIN === "1";
 }
 
 export function isDevLoginEnabled(): boolean {
@@ -92,7 +94,7 @@ if (isDevLoginEnabled()) {
 const authConfig = {
   trustHost: true,
   session: { strategy: "jwt" },
-  pages: { signIn: "/login" },
+  pages: { signIn: "/login", error: "/login" },
   providers,
   callbacks: {
     async signIn({ user }) {

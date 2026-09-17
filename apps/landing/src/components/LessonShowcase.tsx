@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import {
   ChevronLeft, ChevronRight, Copy, Lock, PanelLeft, Plus, RotateCw, Share, Volume2, VolumeX, X,
 } from 'lucide-react'
@@ -176,9 +176,13 @@ const MOBILE_MQ = '(max-width: 639px)'
  * when the window scrolls offscreen (and reduced-motion users get the
  * completed board with sound 'unavailable' — no poster branch needed).
  */
-function LiveLessonWindow() {
+function LiveLessonWindow({
+  visibilityRootRef,
+}: {
+  visibilityRootRef: RefObject<HTMLElement | null>
+}) {
   const bodyRef = useRef<HTMLDivElement>(null)
-  const { snapshot, sound, toggleSound, boardRef, cursorState } = useLessonSimulation(bodyRef)
+  const { snapshot, sound, toggleSound, boardRef, cursorState } = useLessonSimulation(visibilityRootRef)
   const [view, setView] = useState({ fit: 0, cropSidebar: false })
 
   useEffect(() => {
@@ -291,6 +295,8 @@ function LiftedBoard() {
   const scale = 1.045 - 0.045 * rise - 0.02 * settle
   const lift = Math.max(0, rise - 0.55 * settle)
 
+  /* Observe this wrapper, not the board body: the child is rotateX'd, and
+     IntersectionObserver + CSS 3D flickers on phones and was cutting the voice. */
   return (
     <div ref={ref} style={{ perspective: '1000px', perspectiveOrigin: '50% 50%' }}>
       <div
@@ -312,7 +318,7 @@ function LiftedBoard() {
           style={{ opacity: lift * (hover ? 1 : 0.82), transition: 'opacity 320ms ease' }}
         />
         <SafariWindow>
-          <LiveLessonWindow />
+          <LiveLessonWindow visibilityRootRef={ref} />
         </SafariWindow>
         {/* Floor: a reflected sheen under the laptop, not a mirrored video. */}
         <div

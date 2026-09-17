@@ -58,8 +58,13 @@ for (const segment of SEGMENTS) {
 }
 
 const hook = read("src/components/hero-lesson/useLessonSimulation.ts");
-assert.match(hook, /preservesPitch/, "HTML playback must not shift pitch if rate ever changes");
-assert.match(hook, /playsinline/, "iOS must be allowed to play the voiceover inline");
+assert.match(hook, /createHeroAudioEngine/, "hero voiceover plays through the audio engine, not a raw HTMLAudioElement");
+assert.match(hook, /decideHeroAudioTick/, "rAF must not seek or re-play(); start/stop come from the clock policy");
+
+const engine = read("src/components/hero-lesson/heroAudioEngine.ts");
+assert.match(engine, /preservesPitch|decodeAudioData/, "playback must not shift pitch — decode the take, don't speed the element");
+assert.match(engine, /playsinline/, "HTML fallback must play the voiceover inline on iOS");
+assert.match(engine, /AudioContext/, "Web Audio keeps the unlock so a loop wrap does not need a new tap");
 
 console.log(
   `verify-hero-voice: ${SEGMENTS.length} segments, ${timings.total.toFixed(1)}s natural-pace voiceover`,

@@ -725,8 +725,8 @@ interface Cluster {
 
 const SCATTERS: Record<NonNullable<SketchWallpaperProps['variant']>, Cluster[]> = {
   hero: [
-    /* The first screen, worked cover-to-cover. The pen's graph lane owns
-        the middle (x 370–916, y 350–584 at 1280, plus a 24px clear margin)
+    /* The first screen, worked cover-to-cover. The pen's figure owns the
+        middle (x 330–928, y 309–484 at 1280×800, plus a 14px clear margin)
         and the pixel decor props sit in the outer thirds — everything else
         is notebook. Ink runs bold (0.24–0.32 after the multiplier); the
         headline zone carries only faint marks (0.10–0.12). */
@@ -737,7 +737,7 @@ const SCATTERS: Record<NonNullable<SketchWallpaperProps['variant']>, Cluster[]> 
     { doodle: DoodleNewton, left: 18, top: 33, width: 110, rotate: 2, opacity: 0.20, ink: 'mist' },
     { doodle: DoodleKinematic, left: 13, top: 30, width: 90, rotate: 3, opacity: 0.20, ink: 'sky-200' },
     /* ── top-right corner ── */
-    { doodle: DoodleSineCurve, right: 1.5, top: 11, width: 170, rotate: 3, opacity: 0.21, ink: 'mist', wideOnly: true },
+    { doodle: DoodleProjectile, right: 1.5, top: 11, width: 170, rotate: 3, opacity: 0.21, ink: 'mist', wideOnly: true },
     { doodle: DoodleTrigId, right: 1, top: 25, width: 120, rotate: 4, opacity: 0.19, ink: 'sky-200', wideOnly: true },
     { doodle: DoodleTriPythag, right: 3, top: 31, width: 150, rotate: -2, opacity: 0.21, ink: 'steel' },
     { doodle: DoodleDeltaT, right: 20, top: 28, width: 90, rotate: -3, opacity: 0.20, ink: 'sky-200' },
@@ -790,7 +790,7 @@ const SCATTERS: Record<NonNullable<SketchWallpaperProps['variant']>, Cluster[]> 
         so the bare navy is the buttons→pen strip, the top corners below
         the navbar, the bottom strip above the sea, and the headline itself. */
     { doodle: DoodleEmc2, left: 2, top: 49, width: 100, rotate: -4, opacity: 0.22, ink: 'sky-200', mobile: true },
-    { doodle: DoodleSineCurve, right: 2, top: 49, width: 90, rotate: 3, opacity: 0.21, ink: 'mist', mobile: true },
+    { doodle: DoodlePvnrt, right: 2, top: 49, width: 90, rotate: 3, opacity: 0.21, ink: 'mist', mobile: true },
     { doodle: DoodleH2O, left: 30, top: 49, width: 70, rotate: 3, opacity: 0.20, ink: 'mist', mobile: true },
     { doodle: DoodleMole, right: 30, top: 50, width: 70, rotate: -2, opacity: 0.19, ink: 'sky-200', mobile: true },
     { doodle: DoodleDots, left: 0, top: 8, width: 70, rotate: -3, opacity: 0.08, ink: 'steel', mobile: true },

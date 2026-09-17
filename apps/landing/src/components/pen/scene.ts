@@ -1,4 +1,4 @@
-import { layoutText, smoothStroke, type Pt } from './strokeFont'
+import { layoutText, type Pt } from './strokeFont'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Scene builder — the whole performance as ONE continuous path.
@@ -120,21 +120,19 @@ const circleAt = (c: Pt, r: number, startDeg: number): Pt[] => {
   return out
 }
 
-/** Point at arc-length fraction `f` along a polyline. */
-const alongPolyline = (pts: Pt[], f: number): Pt => {
-  let total = 0
-  for (let i = 1; i < pts.length; i++) total += dist(pts[i - 1], pts[i])
-  const want = total * clamp(f, 0, 1)
-  let run = 0
-  for (let i = 1; i < pts.length; i++) {
-    const d = dist(pts[i - 1], pts[i])
-    if (run + d >= want) {
-      const k = d > 0 ? (want - run) / d : 0
-      return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * k, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * k }
-    }
-    run += d
+/**
+ * Arc about `c` in canvas angles (0 = +x, positive turns clockwise on screen),
+ * from `fromDeg` through `sweepDeg`. circleAt's 28 sides are fine for a dot but
+ * facet visibly at the size of the unit circle.
+ */
+const arc = (c: Pt, r: number, fromDeg: number, sweepDeg: number): Pt[] => {
+  const n = Math.max(24, Math.ceil((Math.abs(sweepDeg) / 360) * r * 1.2))
+  const out: Pt[] = []
+  for (let i = 0; i <= n; i++) {
+    const a = ((fromDeg + (i / n) * sweepDeg) * Math.PI) / 180
+    out.push({ x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r })
   }
-  return pts[pts.length - 1]
+  return out
 }
 
 /**
@@ -222,8 +220,86 @@ const boxBlur = (src: Float32Array, radius: number, passes: number): Float32Arra
   return a
 }
 
+/* ── Where the figure may go ──────────────────────────────────────────────
+   The lane spans the hero, but the rows it covers are shared with the pixel
+   book and bulb (HeroPixelDecor, lg and up) and with the wallpaper doodles that
+   flank it (SketchWallpaper's hero scatter). These limits mirror those
+   percentages, measured off the rendered page at 1024 to 1920 wide. If either
+   layout moves, move these with it. */
+
+interface Band {
+  left: number
+  right: number
+}
+
+/** lg and up: between the pixel props and the flanking doodle columns. */
+const wideBand = (w: number): Band => ({
+  // the book's right edge; the Newton and circle doodles 18 to 19.5% in
+  left: Math.max(w * 0.06 + 240, w * 0.195 + 62),
+  // the bulb's left edge; the pH scale 20% in; the 22.5% column (xl only)
+  right: Math.min(w * 0.94 - 205, w * 0.8 - 80, w >= 1250 ? w * 0.775 - 50 : Infinity),
+})
+
+/** md: no pixel props. Below the upper doodles only the edge columns remain. */
+const tabletBand = (w: number, belowUpperDoodles: boolean): Band =>
+  belowUpperDoodles
+    ? { left: w * 0.003 + 72, right: w * 0.997 - 72 }
+    : {
+        left: Math.max(w * 0.195 + 62, w * 0.18 + 86),
+        right: Math.min(w * 0.8 - 80, w * 0.86 - 45, w * 0.97 - 113),
+      }
+
+/** Lowest ink of md's upper doodles (the Pythagoras triangle, pH scale, circle). */
+const upperDoodlesBottom = (h: number) => Math.max(h * 0.38 + 60, h * 0.31 + 95, h * 0.35 + 55)
+
+/** Lowest ink of the mobile doodles parked between the buttons and the lane. */
+const mobileDoodlesBottom = (h: number) => h * 0.49 + 60
+
+const R_MAX = 125
+/** Wave period as a multiple of R when width is what binds. The true unroll is
+    2πR; at that scale a period and a half would not fit beside the circle. */
+const PERIOD_R = 3.8
+/** The radius is drawn at this angle, and read off the wave at the same θ. */
+const ANGLE_DEG = 60
+
+/** Everything in the figure scales off the circle's radius. */
+const proportions = (R: number) => {
+  const em = clamp(R * 0.31, 15, 30)
+  // How far each axis runs past the circle. Never less than the y label needs
+  // to clear the top of the circle with its tail.
+  const ov = Math.max(R * 0.2, em * 0.78)
+  // Axis run past the end of the wave, room for its θ.
+  const tail = em * 1.15
+  return {
+    em,
+    ov,
+    tail,
+    height: 2 * R + 2 * ov + em * 0.28,
+    width: ov + 2 * R + 1.5 * PERIOD_R * R + tail,
+  }
+}
+
+/** Largest radius whose figure fits `maxW` by `maxH`. */
+const fitRadius = (maxW: number, maxH: number) => {
+  let lo = 0
+  let hi = R_MAX
+  for (let k = 0; k < 24; k++) {
+    const mid = (lo + hi) / 2
+    const f = proportions(mid)
+    if (f.width <= maxW && f.height <= maxH) lo = mid
+    else hi = mid
+  }
+  return lo
+}
+
+/** Centre and usable width of a band, holding the figure near the hero's centre line. */
+const across = (band: Band, w: number) => {
+  const mid = clamp((band.left + band.right) / 2, w * 0.475, w * 0.525)
+  return { mid, width: 2 * (Math.min(mid - band.left, band.right - mid) - 14) }
+}
+
 export function buildScene(g: StageGeom): Scene | null {
-  const { heroW, laneTop, laneBottom } = g
+  const { heroW, heroH, laneTop, laneBottom } = g
   const laneH = laneBottom - laneTop
   if (heroW < 360 || laneH < 90) return null
 
@@ -232,111 +308,180 @@ export function buildScene(g: StageGeom): Scene | null {
   const padBottom = clamp(laneH * 0.16, 22, 40) // clearance over the pixel sea
   const usableTop = laneTop + padTop
   const usableBottom = laneBottom - padBottom
-  const graphH = Math.min(Math.max(90, usableBottom - usableTop), clamp(heroW * 0.185, 120, 250))
-  // Width follows height: on a short viewport the stage is only ~190px tall, and
-  // a full-width graph there reads as a squashed 3.4:1 letterbox rather than a
-  // plotted axis pair. Capping the aspect keeps it looking deliberate.
-  const graphW = Math.min(clamp(heroW * 0.4, 300, 560), graphH * 2.6)
-  const cx = heroW / 2
-  const ox = cx - graphW * 0.46
-  const oy = usableBottom
-  const yTop = oy - graphH
-  const xRight = ox + graphW
-  const origin = { x: ox, y: oy }
+  const usableH = usableBottom - usableTop
 
-  const S = { draw: 410, write: 300, flick: 460, travel: 1000, hop: 900 }
-  const em = clamp(Math.min(graphH * 0.19, graphW * 0.062), 16, 30)
+  // A circle unrolling into a wave wants to travel, so the figure takes the
+  // whole clear middle of the hero. On a short lane the radius shrinks; the
+  // figure never grows past the lane.
+  let maxH = usableH
+  let band: Band
+  if (heroW >= 1000) {
+    band = wideBand(heroW)
+  } else if (heroW >= 768) {
+    const open = tabletBand(heroW, true)
+    const R = fitRadius(across(open, heroW).width, maxH)
+    band = usableBottom - proportions(R).height >= upperDoodlesBottom(heroH) ? open : tabletBand(heroW, false)
+  } else {
+    // Just under md a desktop scrollbar can leave the md doodles showing, so
+    // keep clear of their edge columns too.
+    band = heroW >= 740 ? tabletBand(heroW, true) : { left: 6, right: heroW - 6 }
+    // Stay under the doodles parked above the lane. On a short phone they sit
+    // inside it, and a figure squeezed below them is too small to read, so it
+    // takes the whole lane instead.
+    const clear = usableBottom - Math.max(usableTop, mobileDoodlesBottom(heroH))
+    if (clear >= 96) maxH = clear
+  }
+  const { mid, width: maxW } = across(band, heroW)
+  const R = fitRadius(maxW, maxH)
+  const { em, ov, tail } = proportions(R)
+
+  // Whatever width the circle leaves goes to the wave: two periods if they
+  // stay readable, otherwise a period and a half.
+  const waveRoom = maxW - (ov + 2 * R + tail)
+  let periods = 1.5
+  let P = waveRoom / 1.5
+  if (waveRoom / 2 >= R * 3.4) {
+    periods = 2
+    P = Math.min(waveRoom / 2, R * 4.4)
+  }
+
+  const figW = ov + 2 * R + periods * P + tail
+  const cx = mid - figW / 2 + ov + R
+  const cy = usableBottom - R - ov
+  const centre = { x: cx, y: cy }
+  const x0 = cx + R // the unroll origin: the circle's rightmost point, θ = 0
+  const waveEnd = x0 + periods * P
+  const tip = cy - R - ov // top of the vertical axis
+
+  // A bigger figure is drawn by a quicker hand, so a wide screen does not
+  // stretch the loop into a lecture. Straight construction lines (`rule`) go
+  // down faster than the curves.
+  const pace = clamp(Math.pow(R / 70, 0.6), 1, 1.45)
+  const S = {
+    draw: 410 * pace,
+    rule: 540 * pace,
+    write: 300 * pace,
+    flick: 460 * pace,
+    travel: 1000 * pace,
+    hop: 900 * pace,
+  }
+  const angle = (ANGLE_DEG * Math.PI) / 180
+  const rim = { x: cx + R * Math.cos(angle), y: cy - R * Math.sin(angle) }
+  const dot = clamp(em * 0.22, 3.5, 6)
 
   const b = new Builder()
 
-  /* 1 ── in from off-screen left, ARRIVING STRAIGHT DOWN onto the s-axis.
-         The last control point sits directly above the landing, so the entry
-         tangent and the first stroke's tangent are identical — the pen flows
-         into the downstroke with no turn and no pause at the hand-off. The
-         approach is long and its peak speed modest, so the slow-down has room
-         to happen instead of being crushed into the last few pixels. */
+  /* 1 ── in from off-screen left, ARRIVING STRAIGHT DOWN onto the circle's
+         leftmost point. The last control point sits directly above the
+         landing, so the entry tangent and the circle's first tangent are the
+         same and the pen flows into the stroke with no turn. */
+  const land = { x: cx - R, y: cy }
   b.travel(
     cubic(
-      { x: -heroW * 0.2 - 150, y: yTop - graphH * 0.85 },
-      { x: heroW * 0.14, y: yTop - graphH * 1.05 },
-      { x: ox, y: yTop - graphH * 0.66 },
-      { x: ox, y: yTop },
+      { x: -heroW * 0.2 - 150, y: tip - R * 1.3 },
+      { x: Math.min(heroW * 0.14, land.x - R), y: tip - R * 1.5 },
+      { x: land.x, y: cy - R * 1.6 },
+      land,
       72,
     ),
-    1250,
+    1250 * pace,
   )
 
-  /* 2 ── both axes as one L. The fillet keeps the corner's curvature finite so
-         the speed dips through it rather than stopping dead. */
-  const r = 9
-  const axes: Pt[] = [
-    { x: ox, y: yTop },
-    { x: ox, y: oy - r },
-    ...cubic({ x: ox, y: oy - r }, { x: ox, y: oy }, { x: ox, y: oy }, { x: ox + r, y: oy }, 10),
-    { x: xRight, y: oy },
-  ]
-  b.stroke(axes, S.draw)
+  /* 2 ── the unit circle, counterclockwise as seen (canvas angles run the
+         other way), and a little past closed so the join never shows a gap.
+         Its target speed cancels the curvature damping, which would otherwise
+         hold a small circle to two thirds of drawing pace all the way round. */
+  b.stroke(arc(centre, R, 180, -372), S.draw * (1 + CURV_K / R))
 
-  /* 3 ── label the t-axis where the pen already is, then tick back along it */
-  for (const st of layoutText('t', xRight - em * 0.62, oy - em * 0.38, em).strokes) b.stroke(st, S.write, S.hop)
+  /* 3 ── the shared axis: the circle's horizontal diameter, carried on under
+         the wave. θ at its end, ticks at 2π and π on the way back, then the
+         short vertical axis drawn upward so y is written where the pen stops. */
+  b.stroke([{ x: cx - R - ov, y: cy }, { x: waveEnd + tail, y: cy }], S.rule, S.hop)
 
-  const tk = clamp(graphH * 0.032, 3.5, 6)
-  for (const f of [0.66, 0.33]) {
-    b.stroke(tickMark({ x: ox + graphW * f, y: oy }, true, tk, tk * 0.7), S.flick, S.hop)
+  // The last half period decides which side of the axis is empty at its end.
+  const lastLobeAbove = periods % 1 !== 0
+  const thetaY = lastLobeAbove ? cy + em * 1.22 : cy - em * 0.28
+  for (const st of layoutText('θ', waveEnd + em * 0.3, thetaY, em).strokes) b.stroke(st, S.write, S.hop)
+
+  const tk = clamp(R * 0.075, 3.5, 6)
+  for (const f of [1, 0.5]) b.stroke(tickMark({ x: x0 + P * f, y: cy }, true, tk, tk), S.flick, S.hop)
+
+  b.stroke([{ x: cx, y: cy + R + ov }, { x: cx, y: tip }], S.rule, S.hop)
+  for (const st of layoutText('y', cx - em * 0.84, tip + em * 0.42, em).strokes) b.stroke(st, S.write, S.hop)
+
+  /* 4 ── the radius out to a point on the rim, stopping short of the ring
+         drawn round that point. The ring starts where its tangent carries on
+         along the radius. */
+  const ux = Math.cos(angle)
+  const uy = -Math.sin(angle)
+  b.stroke([centre, { x: rim.x - ux * (dot + 2), y: rim.y - uy * (dot + 2) }], S.rule, S.hop)
+  b.stroke(circleAt(rim, dot, 270 - ANGLE_DEG), S.write, S.hop)
+
+  /* 5 ── e^{iθ} names the point, then the equation goes in the open space
+         over the first trough, underlined. On a small circle (1024 wide,
+         phones) the label's superscripts shrink to specks and it crowds the
+         y label and the projection, so it is left off. */
+  const eulerY = rim.y - dot - 4
+  if (R >= 56 && eulerY - em * 1.01 >= usableTop - 2) {
+    for (const st of layoutText('e^i^θ', rim.x + dot * 0.4 + 3, eulerY, em).strokes) b.stroke(st, S.write, S.hop)
   }
-  for (const f of [0.36, 0.72]) {
-    b.stroke(tickMark({ x: ox, y: oy - graphH * f }, false, tk, tk * 0.7), S.flick, S.hop)
-  }
 
-  /* 4 ── the s-axis label, then the equation and a quick underline */
-  for (const st of layoutText('s', ox - em * 1.2, yTop + em * 1.1, em).strokes) b.stroke(st, S.write, S.hop)
-
-  const eqX = ox + graphW * 0.17
-  const eqY = yTop + graphH * 0.34
-  const eq = layoutText('s = ½at^2', eqX, eqY, em)
-  for (const st of eq.strokes) b.stroke(st, S.write, S.hop)
+  // Centred on the trough and half way up it. On a small circle the text is
+  // set smaller so the underline clears the ticks and both ends clear the
+  // wave where it crosses the axis.
+  const eqText = 'y = sin θ'
+  const eqEm = Math.max(9, Math.min(em, (R / 2 - tk - 3) / 0.73, (P * 0.56) / layoutText(eqText, 0, 0, 1).width))
+  const eqW = layoutText(eqText, 0, 0, eqEm).width
+  const eqX = x0 + P * 0.75 - eqW / 2
+  const eqY = cy - R / 2 + eqEm * 0.27
+  for (const st of layoutText(eqText, eqX, eqY, eqEm).strokes) b.stroke(st, S.write, S.hop)
   b.stroke(
-    [
-      { x: eqX - em * 0.06, y: eqY + em * 0.26 },
-      { x: eqX + eq.width * 0.5, y: eqY + em * 0.3 },
-      { x: eqX + eq.width + em * 0.04, y: eqY + em * 0.24 },
-    ],
+    quad(
+      { x: eqX - eqEm * 0.06, y: eqY + eqEm * 0.44 },
+      { x: eqX + eqW * 0.5, y: eqY + eqEm * 0.52 },
+      { x: eqX + eqW - eqEm * 0.05, y: eqY + eqEm * 0.42 },
+      16,
+    ),
     S.flick,
     S.hop,
   )
 
-  /* 5 ── the curve itself: s = ½at², flat off the origin and steepening away.
-         A quadratic whose control point is level with the origin is exactly
-         that shape. */
-  const curve = smoothStroke(
-    quad(origin, { x: ox + graphW * 0.66, y: oy }, { x: ox + graphW * 0.93, y: yTop + graphH * 0.06 }, 48),
-    1,
-  )
-  b.stroke(curve, S.draw, S.travel)
-
-  /* 6 ── read a value off the curve: dashed projections up from t and across
-         from s, meeting at a circled point */
-  const mark = alongPolyline(curve, 0.72)
-  const dot = clamp(em * 0.22, 3.5, 6)
-  const dLen = clamp(graphH * 0.13, 13, 24)
-  for (const d of dashLine({ x: mark.x, y: oy }, { x: mark.x, y: mark.y + dot + 2 }, dLen, dLen * 0.6)) {
-    b.stroke(d, S.flick, S.hop)
+  /* 6 ── the unroll: y = sin θ peeled off the circle's rightmost point in one
+         stroke, at drawing pace. y = cy - R sin θ because the canvas is y-down. */
+  const steps = Math.ceil((periods * P) / 2)
+  const wave: Pt[] = []
+  for (let i = 0; i <= steps; i++) {
+    const th = (i / steps) * periods * Math.PI * 2
+    wave.push({ x: x0 + (th / (Math.PI * 2)) * P, y: cy - R * Math.sin(th) })
   }
-  for (const d of dashLine({ x: ox, y: mark.y }, { x: mark.x - dot - 2, y: mark.y }, dLen, dLen * 0.6)) {
-    b.stroke(d, S.flick, S.hop)
-  }
-  b.stroke(circleAt(mark, dot, 150), S.write, S.hop)
+  b.stroke(wave, S.draw, S.travel)
 
-  /* 7 ── away through the top-right, gathering speed off the mark */
+  /* 7 ── read the height across: dashed from the rim point to the same θ on
+         the wave, then ring it. The dashes are sized to land exactly on both
+         rings rather than stopping a gap short. */
+  const hit = { x: x0 + P * (ANGLE_DEG / 360), y: rim.y }
+  const from = { x: rim.x + dot + 2, y: rim.y }
+  const to = { x: hit.x - dot - 2, y: rim.y }
+  const span = to.x - from.x
+  const dash0 = clamp(R * 0.15, 7, 16)
+  const count = Math.max(2, Math.round((span + dash0 * 0.6) / (dash0 * 1.6)))
+  const dash = span / (count + 0.6 * (count - 1))
+  for (const d of dashLine(from, to, dash, dash * 0.6 - 0.01)) b.stroke(d, S.flick, S.hop)
+  const ring = circleAt(hit, dot, 270)
+  b.stroke(ring, S.write, S.hop)
+
+  /* 8 ── away through the top-right, leaving the ring along its own tangent
+         and gathering speed */
+  const last = ring[ring.length - 1]
   b.travel(
     cubic(
-      mark,
-      { x: mark.x + graphW * 0.22, y: mark.y - graphH * 0.3 },
-      { x: heroW * 0.9, y: yTop - graphH * 0.55 },
-      { x: heroW * 1.28 + 190, y: yTop - graphH * 1.3 },
+      last,
+      { x: last.x + P * 0.45, y: last.y },
+      { x: heroW * 0.9, y: tip - R * 1.1 },
+      { x: heroW * 1.28 + 190, y: tip - R * 2.6 },
       58,
     ),
-    1550,
+    1550 * pace,
   )
 
   /* ── Flatten every move into one evenly-sampled polyline ───────────────── */
@@ -453,7 +598,7 @@ export function buildScene(g: StageGeom): Scene | null {
     speed: finalSpeed,
     duration: time[n - 1],
     maxSpeed,
-    origin,
+    origin: centre,
   }
 }
 

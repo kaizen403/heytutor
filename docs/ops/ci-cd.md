@@ -4,7 +4,8 @@ Landing stays on Vercel. The tutor (Next.js UI + API + WebSocket TTS relay)
 runs as one long-lived Node process on AWS EC2. There is no split
 `BACKEND_ORIGIN` proxy.
 
-Validate locally before pushing:
+GitHub does not run typecheck, lint, or tests. Validate locally if you want
+those checks before pushing:
 
 ```bash
 pnpm install --frozen-lockfile
@@ -16,7 +17,7 @@ pnpm check    # typecheck + lint + build
 | Target | Platform | Trigger |
 |--------|----------|---------|
 | Landing site | [Vercel](https://vercel.com), domain `accelute.co` | Push to `main` (Vercel Git integration) |
-| Tutor UI + API + WebSocket | EC2 (`tsx server.ts`) | Push to `main` via `.github/workflows/deploy-tutor.yml`, or `./deploy/aws/deploy.sh` on the box |
+| Tutor UI + API + WebSocket | EC2 (`tsx server.ts`) | Every push to `main` (and manual `workflow_dispatch`) via `.github/workflows/deploy-tutor.yml`. Fallback: `./deploy/aws/deploy.sh` on the box |
 | Postgres | Hosted (RDS or other). `DATABASE_URL` in `.env.production` | Not on the app box |
 | Lecture audio + question photos | Private S3 bucket | See [s3-setup.md](s3-setup.md) |
 
@@ -45,7 +46,8 @@ Postgres is not started on this machine.
 ### 1. EC2 (first time)
 
 Ubuntu 24.04, `t3.medium` (2 vCPU / 4 GB) in `ap-south-2` (Hyderabad), 40 GB disk, Elastic
-IP, security group: `22` from your IP, `80`/`443` from the world. Attach an
+IP, security group: `22` key-only (GitHub-hosted runners must be able to connect;
+`0.0.0.0/0` is the simple option), `80`/`443` from the world. Attach an
 instance role with the S3 policy in [s3-setup.md](s3-setup.md). Point the RDS
 security group at this instance, not at `0.0.0.0/0`.
 
@@ -95,12 +97,20 @@ Pause it or redirect it once `app.accelute.co` is live.
 
 ### 3. GitHub deploy
 
-Repo secrets for `.github/workflows/deploy-tutor.yml`:
+Every push to `main` SSHs into the box, resets `/opt/heytutor` to `origin/main`,
+and runs `deploy.sh`. There are no lint, typecheck, or test jobs, and no
+required checks on `main`. Deploys queue (`cancel-in-progress: false`) so two
+pushes cannot stomp a live build. Use **Actions → Deploy tutor → Run workflow**
+to deploy without a new commit.
+
+Repo secrets (the job **fails** if any are missing):
 
 | Secret | Value |
 |--------|--------|
 | `TUTOR_DEPLOY_HOST` | Elastic IP or `app.accelute.co` |
 | `TUTOR_DEPLOY_USER` | SSH user (`ubuntu` or `root`) |
-| `TUTOR_DEPLOY_SSH_KEY` | Private key that can `git reset` and run `deploy.sh` in `/opt/heytutor` |
+| `TUTOR_DEPLOY_SSH_KEY` | Dedicated passphrase-less private key that can `git reset` and run `deploy.sh` in `/opt/heytutor` |
 
-The workflow is a no-op until `TUTOR_DEPLOY_HOST` is set.
+The box must already be able to `git fetch origin main` (deploy key or HTTPS
+token if the repo is private). `.env.production` stays on disk; do not put it
+in GitHub secrets. Emergency fallback: SSH in and run `./deploy/aws/deploy.sh`.

@@ -94,7 +94,9 @@ export function LoginScreen({
           <p className="mt-4 rounded-xl border border-[rgba(224,104,88,0.35)] bg-[rgba(224,104,88,0.1)] px-3 py-2 text-sm text-[#f0b4ac]">
             {localError === "AccessDenied"
               ? "Accelute is for students. Use a school email (.edu or .ac)."
-              : localError}
+              : localError === "Configuration"
+                ? "Google sign-in hit a server configuration error. Try again in a moment."
+                : localError}
           </p>
         ) : null}
 

@@ -3,40 +3,40 @@ name: Deploy tutor
 on:
   push:
     branches: [main]
-    paths:
-      - "apps/tutor/**"
-      - "packages/**"
-      - "deploy/aws/**"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "turbo.json"
-      - ".github/workflows/deploy-tutor.yml"
+  workflow_dispatch:
 
 concurrency:
   group: deploy-tutor
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 50
     steps:
-      - name: Check deploy secrets
-        id: check
+      - name: Require deploy secrets
         env:
           HOST: ${{ secrets.TUTOR_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.TUTOR_DEPLOY_USER }}
+          KEY: ${{ secrets.TUTOR_DEPLOY_SSH_KEY }}
         run: |
-          if [ -z "$HOST" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "TUTOR_DEPLOY_HOST is not set; skipping tutor deploy."
+          missing=0
+          if [ -z "$HOST" ]; then echo "TUTOR_DEPLOY_HOST is not set"; missing=1; fi
+          if [ -z "$DEPLOY_USER" ]; then echo "TUTOR_DEPLOY_USER is not set"; missing=1; fi
+          if [ -z "$KEY" ]; then echo "TUTOR_DEPLOY_SSH_KEY is not set"; missing=1; fi
+          if [ "$missing" -ne 0 ]; then
+            echo "Set the three TUTOR_DEPLOY_* repo secrets, then re-run."
+            exit 1
           fi
 
       - name: Deploy over SSH
-        if: steps.check.outputs.skip != 'true'
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.TUTOR_DEPLOY_HOST }}
           username: ${{ secrets.TUTOR_DEPLOY_USER }}
           key: ${{ secrets.TUTOR_DEPLOY_SSH_KEY }}
+          command_timeout: 40m
+          request_pty: true
           script: |
             set -euo pipefail
             cd /opt/heytutor

@@ -60,8 +60,8 @@ function makeSchedule(
   segDurMs: number,
   c: HeroPlayerControls,
 ): WriteSchedule {
-  const lead = Math.min(500, segDurMs * 0.12)
-  const write = segDurMs * 0.68
+  const lead = Math.min(160, segDurMs * 0.05)
+  const write = segDurMs * 0.82
   const chars = [...text].filter((ch) => ch !== ' ')
   const per = write / Math.max(chars.length, 1)
   return {

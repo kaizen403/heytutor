@@ -27,7 +27,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       devLoginEnabled={isDevLoginEnabled()}
       refused={params.refused === "1"}
       error={params.error ?? null}
-      autoGoogle={params.google === "1" && params.error !== "AccessDenied"}
+      autoGoogle={
+        params.google === "1" && params.error !== "AccessDenied" && params.error !== "Configuration"
+      }
     />
   );
 }

@@ -3,12 +3,9 @@ import type { CursorState, WhiteboardHandle } from '@heytutor/whiteboard'
 import {
   PLAYBACK_SPEED,
   SEGMENTS,
-  SUBMIT_PAUSE,
-  TYPING_DURATION,
   completedSnapshot,
   deriveSnapshot,
   fallbackTiming,
-  loopDuration,
   toPlaybackTiming,
   type LessonSnapshot,
   type LessonTiming,
@@ -17,18 +14,18 @@ import { drawStaticLesson, runHeroLessonLoop, type HeroPlayerControls } from './
 import {
   heroSoundAfterAssetsLoad,
   initialHeroSectionVisible,
-  shouldAttemptHeroPlayback,
 } from './heroVoicePolicy'
+import {
+  decideHeroAudioTick,
+  lessonOffsetSec,
+  shouldPauseHeroLesson,
+  snapToNarrationIfDeadAir,
+  startTimeMsToMatchAudio,
+} from './heroAudioClock'
+import { createHeroAudioEngine, type HeroAudioEngine } from './heroAudioEngine'
 
 const AUDIO_SRC = '/hero/lesson.mp3'
 const TIMINGS_SRC = '/hero/lesson-timings.json'
-
-function releaseHeroAudio(audio: HTMLAudioElement | null): void {
-  if (!audio) return
-  audio.pause()
-  audio.removeAttribute('src')
-  audio.load()
-}
 
 export type SoundState = 'loading' | 'unavailable' | 'off' | 'on'
 
@@ -39,29 +36,16 @@ interface SimInternals {
   pausedAt: number | null
   ioVisible: boolean
   docVisible: boolean
+  hiddenSince: number | null
   soundOn: boolean
-  explicitlyMuted: boolean
-  audio: HTMLAudioElement | null
-  /** Set on the first `playing` event — play() being called is not the same as playback starting. */
-  audioEverPlayed: boolean
-}
-
-function teachStartMs(): number {
-  return (TYPING_DURATION + SUBMIT_PAUSE) * 1000
-}
-
-function lessonOffsetMs(tSeconds: number, timing: LessonTiming): number {
-  const loopMs = loopDuration(timing) * 1000
-  const t = tSeconds * 1000
-  return (((t % loopMs) + loopMs) % loopMs) - teachStartMs()
 }
 
 /**
  * Drives the hero's self-playing lesson: the surrounding chrome (typing, chip,
  * bubble) runs on one pause-aware wall clock, and the real whiteboard renderer
- * is driven by heroLessonPlayer against the same clock. When TTS timings +
- * audio exist, the audio is nudged onto the clock and the pen tracks the audio
- * position — the board never blocks on TTS.
+ * is driven by heroLessonPlayer against the same clock. While the voice is
+ * speaking, that clock is slaved to the audio engine — the board never seeks
+ * the voice onto a wall clock, which is what cut the sentence off on phones.
  */
 export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
   snapshot: LessonSnapshot
@@ -81,6 +65,7 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
   const [boardReady, setBoardReady] = useState(false)
   const [timingReady, setTimingReady] = useState(false)
   const boardHandleRef = useRef<WhiteboardHandle | null>(null)
+  const engineRef = useRef<HeroAudioEngine | null>(null)
   const stRef = useRef<SimInternals>({
     timing: toPlaybackTiming(fallbackTiming()),
     start: 0,
@@ -88,10 +73,8 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     pausedAt: null,
     ioVisible: initialHeroSectionVisible(),
     docVisible: true,
+    hiddenSince: initialHeroSectionVisible() ? null : 0,
     soundOn: false,
-    explicitlyMuted: false,
-    audio: null,
-    audioEverPlayed: false,
   })
 
   const boardRef = useCallback((handle: WhiteboardHandle | null) => {
@@ -101,51 +84,45 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
 
   /* Sound on, joined wherever the loop currently is — and if the loop is in
      dead air (typing / hold / clear), the clock is pulled forward to the next
-     narration start so the play() is issued inside this very gesture, in sync
-     with the ink. iOS unlocks an audio element only for a play() called
+     narration start so the start() is issued inside this very gesture, in sync
+     with the ink. iOS unlocks Web Audio only for a resume() called
      synchronously inside the gesture handler; a gesture that lands in dead air
-     must not be spent waiting, or every later programmatic play() (the tick's)
-     stays blocked and the lesson is silent until another tap happens to land
-     mid-narration. The ink player is waiting on a segment boundary during dead
-     air, so it fast-forwards the wait rather than skipping ink. */
+     must not be spent waiting. The ink player is waiting on a segment boundary
+     during dead air, so it fast-forwards the wait rather than skipping ink. */
   const startVoice = useCallback(() => {
     const st = stRef.current
-    const audio = st.audio
-    if (!audio) return
+    const engine = engineRef.current
+    if (!engine?.isReady()) return
+    engine.unlock()
     st.soundOn = true
     setSound('on')
-    // Freeze the clock while paused, so the jump below lands where the lesson
-    // will actually resume, not seconds past it.
     const nowMs = st.pausedAt ?? performance.now()
     const t = (nowMs - st.start - st.pausedAccum) / 1000
-    let lt = lessonOffsetMs(t, st.timing) / 1000
-    if (lt < 0 || lt >= st.timing.total) {
-      const loopMs = loopDuration(st.timing) * 1000
-      const posMs = (((t * 1000) % loopMs) + loopMs) % loopMs
-      const teachMs = teachStartMs()
-      const waitMs = posMs < teachMs ? teachMs - posMs : loopMs - posMs + teachMs
-      st.start -= waitMs
-      lt = 0
+    const snapped = snapToNarrationIfDeadAir(t, st.timing)
+    if (snapped.tSeconds !== t) {
+      st.start -= (snapped.tSeconds - t) * 1000
     }
-    audio.muted = false
-    audio.volume = 1
-    audio.currentTime = lt * PLAYBACK_SPEED
-    audio.play().catch(() => {
-      st.soundOn = false
-      setSound('off')
-    })
+    engine.start(snapped.lessonOffsetSec * PLAYBACK_SPEED)
   }, [])
 
-  // Optional TTS assets. Absent or malformed → silent estimated schedule.
   useEffect(() => {
     if (reduced) return
     const st = stRef.current
+    const engine = createHeroAudioEngine({
+      onBlocked: () => {
+        stRef.current.soundOn = false
+        setSound('off')
+      },
+    })
+    engineRef.current = engine
     let cancelled = false
+
     void (async () => {
       try {
-        const res = await fetch(TIMINGS_SRC)
-        if (!res.ok) throw new Error(`timings ${res.status}`)
-        const data = (await res.json()) as LessonTiming
+        const [timingRes, audioRes] = await Promise.all([fetch(TIMINGS_SRC), fetch(AUDIO_SRC)])
+        if (!timingRes.ok) throw new Error(`timings ${timingRes.status}`)
+        if (!audioRes.ok) throw new Error(`audio ${audioRes.status}`)
+        const data = (await timingRes.json()) as LessonTiming
         if (
           !Array.isArray(data?.starts) ||
           data.starts.length !== SEGMENTS.length ||
@@ -153,24 +130,12 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
         ) {
           throw new Error('malformed timings')
         }
+        const buf = await audioRes.arrayBuffer()
         if (cancelled) return
         st.timing = toPlaybackTiming(data)
-        const audio = new Audio(AUDIO_SRC)
-        audio.preload = 'auto'
-        audio.setAttribute('playsinline', '')
-        audio.playbackRate = PLAYBACK_SPEED
-        if ('preservesPitch' in audio) audio.preservesPitch = true
-        audio.addEventListener(
-          'playing',
-          () => {
-            stRef.current.audioEverPlayed = true
-          },
-          { once: true },
-        )
-        st.audio = audio
-        // Mute-first. Localhost will honour a play() with no gesture, so
-        // enabling sound here talks through the speakers on every dev-server
-        // reload. The tab speaker is the only unlock.
+        await engine.loadFromArrayBuffer(buf)
+        if (cancelled) return
+        if (!engine.isReady()) throw new Error('audio decode failed')
         setSound(heroSoundAfterAssetsLoad({ reducedMotion: false, timingsOk: true }))
       } catch {
         if (!cancelled) {
@@ -183,13 +148,12 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
 
     return () => {
       cancelled = true
-      releaseHeroAudio(st.audio)
-      st.audio = null
+      engine.release()
+      engineRef.current = null
       st.soundOn = false
     }
   }, [reduced])
 
-  // Master clock: chrome snapshot + audio nudged onto it.
   useEffect(() => {
     if (reduced) return
     const st = stRef.current
@@ -199,7 +163,7 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
       ([entry]) => {
         st.ioVisible = entry.isIntersecting
       },
-      { threshold: 0.1 },
+      { threshold: 0, rootMargin: '30% 0px 30% 0px' },
     )
     if (rootRef.current) io.observe(rootRef.current)
     const onVis = () => {
@@ -211,11 +175,18 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick)
       const visible = st.ioVisible && st.docVisible
+      if (visible) {
+        st.hiddenSince = null
+      } else if (st.hiddenSince === null) {
+        st.hiddenSince = now
+      }
+      const hiddenForMs = st.hiddenSince === null ? 0 : now - st.hiddenSince
+      const engine = engineRef.current
 
-      if (!visible) {
+      if (shouldPauseHeroLesson({ ioVisible: st.ioVisible, docVisible: st.docVisible, hiddenForMs })) {
         if (st.pausedAt === null) {
           st.pausedAt = now
-          st.audio?.pause()
+          engine?.stop()
           boardHandleRef.current?.setPaused(true)
         }
         return
@@ -226,45 +197,36 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
         boardHandleRef.current?.setPaused(false)
       }
 
-      const t = (now - st.start - st.pausedAccum) / 1000
-      setSnapshot(deriveSnapshot(t, st.timing))
-
-      const audio = st.audio
-      if (
-        audio &&
-        shouldAttemptHeroPlayback({
-          soundOn: st.soundOn,
-          sectionVisible: st.ioVisible,
-          documentVisible: st.docVisible,
-        })
-      ) {
-        const lt = lessonOffsetMs(t, st.timing) / 1000
-        if (lt >= 0 && lt < st.timing.total) {
-          const mediaTarget = lt * PLAYBACK_SPEED
-          if (audio.paused) {
-            audio.currentTime = mediaTarget
-            audio.play().catch(() => {
-              st.soundOn = false
-              setSound('off')
-            })
-          } else if (
-            // Mobile browsers do not preload the mp3, so currentTime sits
-            // still until the play() has actually started (audioEverPlayed)
-            // and has data ahead (HAVE_FUTURE_DATA). Re-seeking on every
-            // frame during that window aborts the pending play — the drift
-            // check must only fire on real desyncs of an already-playing
-            // element (stalls, throttling, tab sleeps).
-            st.audioEverPlayed &&
-            audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA &&
-            !audio.seeking &&
-            Math.abs(audio.currentTime - mediaTarget) > 0.3
-          ) {
-            audio.currentTime = mediaTarget
-          }
-        } else if (!audio.paused) {
-          audio.pause()
+      let t = (now - st.start - st.pausedAccum) / 1000
+      const decision = decideHeroAudioTick({
+        soundOn: st.soundOn,
+        lessonOffsetSec: lessonOffsetSec(t, st.timing),
+        totalSec: st.timing.total,
+        playing: engine?.isPlaying() ?? false,
+        startInFlight: engine?.isStartInFlight() ?? false,
+        unlocked: engine?.isUnlocked() ?? false,
+        ready: engine?.isReady() ?? false,
+        ioVisible: st.ioVisible,
+        docVisible: st.docVisible,
+        hiddenForMs,
+      })
+      if (decision.stop) engine?.stop()
+      if (decision.startOffsetSec != null) {
+        engine?.start(decision.startOffsetSec * PLAYBACK_SPEED)
+      }
+      if (decision.slaveClock) {
+        const audioPos = engine?.getPositionSec()
+        if (audioPos != null) {
+          st.start = startTimeMsToMatchAudio({
+            nowMs: now,
+            pausedAccumMs: st.pausedAccum,
+            audioPositionSec: audioPos / PLAYBACK_SPEED,
+          })
+          t = (now - st.start - st.pausedAccum) / 1000
         }
       }
+
+      setSnapshot(deriveSnapshot(t, st.timing))
     }
     raf = requestAnimationFrame(tick)
 
@@ -272,17 +234,15 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
       cancelAnimationFrame(raf)
       io.disconnect()
       document.removeEventListener('visibilitychange', onVis)
-      st.audio?.pause()
+      engineRef.current?.stop()
     }
   }, [rootRef, reduced])
 
-  // The whiteboard player: real renderer, real call sequence, looped.
   useEffect(() => {
     if (reduced || !boardReady || !timingReady) return
     const board = boardHandleRef.current
     if (!board) return
 
-    // Re-anchor the wall clock so chrome and ink share the same t=0.
     const st = stRef.current
     st.start = performance.now()
     st.pausedAccum = 0
@@ -290,11 +250,14 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     let cancelled = false
     const controls: HeroPlayerControls = {
       getAudioPositionMs: () => {
-        const { audio, soundOn } = st
-        if (audio && soundOn && !audio.paused) return (audio.currentTime * 1000) / PLAYBACK_SPEED
+        const engine = engineRef.current
+        if (st.soundOn && engine) {
+          const pos = engine.getPositionSec()
+          if (pos != null) return (pos * 1000) / PLAYBACK_SPEED
+        }
         const s = stRef.current
         const t = performance.now() - s.start - s.pausedAccum
-        return lessonOffsetMs(t / 1000, s.timing)
+        return lessonOffsetSec(t / 1000, s.timing) * 1000
       },
       getMonotonicMs: () => {
         const s = stRef.current
@@ -312,7 +275,6 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     }
   }, [reduced, boardReady, timingReady])
 
-  // Reduced motion: draw the finished board once, no animation, no audio.
   useEffect(() => {
     if (!reduced || !boardReady || !boardHandleRef.current) return
     void drawStaticLesson(boardHandleRef.current)
@@ -320,15 +282,14 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
 
   const toggleSound = () => {
     const st = stRef.current
-    if (!st.audio) return
+    const engine = engineRef.current
+    if (!engine?.isReady()) return
     if (st.soundOn) {
       st.soundOn = false
-      st.explicitlyMuted = true
-      st.audio.pause()
+      engine.stop()
       setSound('off')
       return
     }
-    st.explicitlyMuted = false
     startVoice()
   }
 

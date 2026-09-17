@@ -74,7 +74,7 @@ the canvas and still teach. Invalid or partial candidates never render.
 - [Universal illustration engine v4](docs/architecture/universal-illustration-engine-v4.md)
 - [Verified diagram architecture](docs/architecture/diagram-accuracy-architecture.md)
 - [Syllabus capability plan v5](docs/architecture/universal-syllabus-capability-plan-v5.md)
-- [Deploy runbook](docs/ops/ci-cd.md) (no CI — workflows removed, no required checks on `main`)
+- [Deploy runbook](docs/ops/ci-cd.md) (push to `main` deploys the tutor; no required checks)
 
 ## Git authorship
 

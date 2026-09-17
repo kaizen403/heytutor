@@ -92,6 +92,53 @@ export const GLYPHS: Record<string, Glyph> = {
       ],
     ],
   },
+  // y as a v with a long right arm: the short left arm, then the right arm in
+  // one pull from the top down through the vertex into the tail.
+  y: {
+    adv: 0.6,
+    strokes: [
+      [p(0.07, 0.3), p(0.19, 0.6), p(0.32, 0.88)],
+      [p(0.55, 0.3), p(0.43, 0.62), p(0.3, 0.96), p(0.21, 1.17), p(0.12, 1.29), p(0.03, 1.27)],
+    ],
+  },
+  // Stem, then the dot as a flick too short to read as anything but a dot.
+  i: {
+    adv: 0.3,
+    strokes: [
+      [p(0.13, 0.34), p(0.13, 0.86), p(0.2, 0.99)],
+      [p(0.12, 0.13), p(0.16, 0.16)],
+    ],
+  },
+  // Stem, then the arch branching off it: going back up the stem would be a
+  // retrace.
+  n: {
+    adv: 0.66,
+    strokes: [
+      [p(0.09, 0.31), p(0.09, 0.99)],
+      [p(0.09, 0.56), p(0.17, 0.39), p(0.32, 0.3), p(0.47, 0.33), p(0.55, 0.48), p(0.55, 0.86), p(0.61, 0.99)],
+    ],
+  },
+  e: {
+    adv: 0.58,
+    strokes: [
+      [
+        p(0.1, 0.63), p(0.3, 0.63), p(0.5, 0.6), p(0.49, 0.43), p(0.36, 0.31), p(0.2, 0.32),
+        p(0.1, 0.46), p(0.08, 0.68), p(0.15, 0.89), p(0.31, 0.99), p(0.46, 0.94), p(0.53, 0.86),
+      ],
+    ],
+  },
+  // θ: one loop from the top, round to the left and a little past where it
+  // started so it closes, then the bar.
+  'θ': {
+    adv: 0.6,
+    strokes: [
+      [
+        p(0.36, 0.03), p(0.2, 0.1), p(0.1, 0.34), p(0.08, 0.62), p(0.14, 0.88), p(0.28, 0.99),
+        p(0.43, 0.9), p(0.5, 0.64), p(0.51, 0.36), p(0.46, 0.12), p(0.36, 0.03), p(0.26, 0.06),
+      ],
+      [p(0.1, 0.52), p(0.5, 0.5)],
+    ],
+  },
   ' ': { adv: 0.3, strokes: [] },
 }
 
