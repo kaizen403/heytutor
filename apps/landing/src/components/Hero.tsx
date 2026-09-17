@@ -41,17 +41,30 @@ export default function Hero() {
 
       <div className="min-h-4 flex-[0.35] shrink-0 sm:min-h-8" />
 
-      <div className="relative z-20 flex flex-col items-center px-5 text-center sm:px-8 lg:px-10">
-        <h1 className="type-h1 type-h1--hero text-frost">
-          <span className="block animate-fade-up">An AI that teaches every subject</span>
+      <div className="relative z-20 flex w-full min-w-0 flex-col items-center px-5 text-center sm:px-8 lg:px-10">
+        <h1 className="type-h1 type-h1--hero w-full min-w-0 max-w-4xl text-frost">
+          <span className="block animate-fade-up">Accelute, the AI tutor</span>
           <span className="block animate-fade-up [animation-delay:100ms]">
-            the way <span className="text-ice">teachers</span> actually teach it.
+            on a live <span className="text-ice">whiteboard</span>.
           </span>
         </h1>
+        <p
+          className="animate-fade-up mx-auto mt-5 w-full min-w-0 max-w-xl text-base leading-relaxed text-[rgba(240,245,247,0.62)] sm:mt-6 sm:text-lg"
+          style={{ animationDelay: '160ms' }}
+        >
+          Ask a question. Watch it draw, write, and explain each step out loud
+          — an AI whiteboard tutor for how you actually study.
+        </p>
+        <p
+          className="animate-fade-up mt-3 hidden text-[13px] tracking-[-0.01em] text-[rgba(240,245,247,0.42)] sm:block"
+          style={{ animationDelay: '200ms' }}
+        >
+          Physics · Maths · Chemistry · Coding · and the rest of the syllabus
+        </p>
 
         <div
-          className="animate-fade-up mt-7 flex flex-wrap items-center justify-center gap-3 sm:mt-8"
-          style={{ animationDelay: '220ms' }}
+          className="animate-fade-up mt-7 flex w-full min-w-0 flex-col items-center gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:justify-center"
+          style={{ animationDelay: '280ms' }}
         >
           <Button href={TUTOR_LOGIN_HREF} size="lg">
             <Play className="h-4 w-4" />

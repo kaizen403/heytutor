@@ -1,6 +1,7 @@
-import { useEffect, type ReactNode } from 'react'
-import Navbar from '../components/Navbar'
+import type { ReactNode } from 'react'
 import Footer from '../components/Footer'
+import Navbar from '../components/Navbar'
+import SeoHead from '../components/SeoHead'
 
 export function LegalSection({
   title,
@@ -22,19 +23,17 @@ export function LegalSection({
 export default function LegalDocument({
   title,
   updated,
+  path,
   children,
 }: {
   title: string
   updated: string
+  path: string
   children: ReactNode
 }) {
-  useEffect(() => {
-    window.scrollTo(0, 0)
-    document.title = `${title} · Accelute`
-  }, [title])
-
   return (
     <div className="relative min-h-screen bg-ink-950 text-frost">
+      <SeoHead path={path} />
       <Navbar />
       <main className="relative z-10 mx-auto max-w-2xl px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
         <p className="type-accent-s text-[rgba(202,229,241,0.5)]">Legal</p>

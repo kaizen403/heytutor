@@ -2,7 +2,7 @@ import LegalDocument, { LegalSection } from './LegalDocument'
 
 export default function TermsPage() {
   return (
-    <LegalDocument title="Terms of Service" updated="10 September 2026">
+    <LegalDocument title="Terms of Service" updated="17 September 2026" path="/terms">
       <LegalSection title="1. Agreement">
         <p>
           These Terms of Service (“Terms”) govern your use of Accelute, the
@@ -116,7 +116,34 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="8. Disclaimer">
+      <LegalSection title="8. Plans and payment">
+        <p>
+          Students buy monthly usage on a plan, not model tokens or speech
+          minutes. Teaching, diagrams, voice, and follow-up doubts on a
+          question are included in that usage.
+        </p>
+        <p>Individual plans, billed in US dollars:</p>
+        <ul>
+          <li>Free — US$0, monthly included usage</li>
+          <li>Plus — US$19 per month</li>
+          <li>Pro — US$39 per month</li>
+        </ul>
+        <p>
+          You may buy a usage top-up for US$10. Top-up usage stacks on any plan
+          for the current calendar month. Included plan usage resets at the
+          start of each calendar month and does not roll over.
+        </p>
+        <p>
+          Coaching centres and other teams are not self-serve. Contact us to
+          arrange pooled usage and invoicing.
+        </p>
+        <p>
+          Paid checkout is handled by our payment processor. If you are 13–17,
+          a parent or guardian must complete any paid purchase.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="9. Disclaimer">
         <p>
           The Service is provided “as is” and “as available.” To the fullest
           extent allowed by law, we disclaim warranties of merchantability,
@@ -126,7 +153,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="9. Liability">
+      <LegalSection title="10. Liability">
         <p>
           To the fullest extent allowed by law, Accelute and its operators
           will not be liable for indirect, incidental, special, consequential,
@@ -141,7 +168,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="10. Changes and contact">
+      <LegalSection title="11. Changes and contact">
         <p>
           We may update these Terms. The “Last updated” date at the top will
           change when we do. Continued use after an update means you accept

@@ -33,11 +33,18 @@ const NAVIGATION_LINKS: FooterLink[] = [
   { label: 'How it works', href: '/#lesson' },
   { label: 'Use cases', href: '/#use-cases' },
   { label: 'Pricing', href: '/#pricing' },
+  { label: 'Questions', href: '/#faq' },
   { label: 'Try the app', href: TUTOR_LOGIN_HREF },
 ]
 
+const PRODUCT_LINKS: FooterLink[] = [
+  { label: 'AI whiteboard', href: '/ai-whiteboard' },
+  { label: 'AI tutor', href: '/ai-tutor' },
+  { label: 'AI study', href: '/ai-study' },
+]
+
 const COMPANY_LINKS: FooterLink[] = [
-  { label: 'About', href: '#' },
+  { label: 'About Accelute', href: '/about' },
   { label: 'Terms', href: '/terms' },
   { label: 'Privacy Policy', href: '/privacy' },
 ]
@@ -154,7 +161,7 @@ function SubscribeForm() {
 
 export default function Footer() {
   return (
-    <footer id="pricing" className="relative overflow-hidden">
+    <footer className="relative overflow-hidden">
       {/* The page's closing tone. `.band-deep` sits the sky low in the navy and
           masks away at the top, so the seam with <UseCasesSection> never shows. */}
       <div aria-hidden className="band-deep pointer-events-none absolute inset-0" />
@@ -236,10 +243,14 @@ export default function Footer() {
             </div>
           </div>
 
-          <div className="grid flex-1 grid-cols-1 gap-y-10 sm:grid-cols-2 sm:gap-x-12 lg:max-w-md">
+          <div className="grid flex-1 grid-cols-1 gap-y-10 sm:grid-cols-3 sm:gap-x-10 lg:max-w-xl">
             <div>
               <h3 className="type-accent-s text-[rgba(202,229,241,0.5)]">Navigation</h3>
               <FooterLinkList links={NAVIGATION_LINKS} />
+            </div>
+            <div>
+              <h3 className="type-accent-s text-[rgba(202,229,241,0.5)]">Product</h3>
+              <FooterLinkList links={PRODUCT_LINKS} />
             </div>
             <div>
               <h3 className="type-accent-s text-[rgba(202,229,241,0.5)]">Company</h3>

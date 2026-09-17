@@ -245,7 +245,7 @@ function DashboardChrome({
             ))}
           </div>
 
-          {/* Footer: credits + profile */}
+          {/* Footer: usage + profile */}
           <div
             style={{
               flexShrink: 0,
@@ -257,7 +257,7 @@ function DashboardChrome({
               gap: 12,
             }}
           >
-            <span style={{ color: INK_SOFT, fontSize: 13, letterSpacing: '-0.005em' }}>Credits</span>
+            <span style={{ color: INK_SOFT, fontSize: 13, letterSpacing: '-0.005em' }}>Usage</span>
             <div
               style={{
                 width: 32,

@@ -1,0 +1,23 @@
+# Accelute
+
+> Accelute is an AI whiteboard tutor. Students ask a question and watch it draw the diagram, write the notes, and explain each step out loud, in sync.
+
+Accelute is the product name. The marketing site is https://accelute.co/. The tutor app is https://app.accelute.co/. Contact: hi@accelute.co.
+
+It is a student product (age 13+) for 1:1 lessons on a live whiteboard — not a team canvas like Miro, not a chatbot like ChatGPT, and not a classroom management tool.
+
+## Pages
+
+- [Home](https://accelute.co/): Accelute, the AI whiteboard tutor
+- [AI whiteboard](https://accelute.co/ai-whiteboard): how the live board works
+- [AI tutor](https://accelute.co/ai-tutor): tutoring model vs chat and photo solvers
+- [AI study](https://accelute.co/ai-study): study sessions, replay, and notes
+- [About Accelute](https://accelute.co/about): brand, product, contact
+- [Pricing](https://accelute.co/#pricing): Free, Plus, Pro, and Team
+- [Terms](https://accelute.co/terms)
+- [Privacy](https://accelute.co/privacy)
+
+## Optional
+
+- App: https://app.accelute.co/
+- Email: hi@accelute.co

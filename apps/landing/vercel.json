@@ -5,8 +5,18 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/terms", "destination": "/index.html" },
-    { "source": "/privacy", "destination": "/index.html" }
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/terms/", "destination": "/terms.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/privacy/", "destination": "/privacy.html" },
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/about/", "destination": "/about.html" },
+    { "source": "/ai-whiteboard", "destination": "/ai-whiteboard.html" },
+    { "source": "/ai-whiteboard/", "destination": "/ai-whiteboard.html" },
+    { "source": "/ai-tutor", "destination": "/ai-tutor.html" },
+    { "source": "/ai-tutor/", "destination": "/ai-tutor.html" },
+    { "source": "/ai-study", "destination": "/ai-study.html" },
+    { "source": "/ai-study/", "destination": "/ai-study.html" }
   ],
   "redirects": [
     {

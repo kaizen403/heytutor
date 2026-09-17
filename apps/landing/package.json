@@ -10,7 +10,7 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
     "clean": "rm -rf dist",
-    "verify": "node scripts/verify/verify-hero-voice-policy.ts && node scripts/verify/verify-hero-voice.ts && node scripts/verify/verify-hero-audio-clock.ts",
+    "verify": "node scripts/verify/verify-hero-voice-policy.ts && node scripts/verify/verify-hero-voice.ts && node scripts/verify/verify-hero-audio-clock.ts && node scripts/verify/verify-seo.ts",
     "gen:hero-voice": "node scripts/generate-hero-voice.mjs"
   },
   "dependencies": {

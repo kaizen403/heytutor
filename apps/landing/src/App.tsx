@@ -2,8 +2,11 @@ import { Suspense, lazy } from 'react'
 import Hero from './components/Hero'
 import DitherBand from './components/dither/DitherBand'
 import DitherHalo from './components/dither/DitherHalo'
+import FaqSection from './components/FaqSection'
 import LessonShowcase from './components/LessonShowcase'
+import PricingSection from './components/PricingSection'
 import Footer from './components/Footer'
+import SeoHead from './components/SeoHead'
 
 /* Split at the section boundary: this keeps Motion and the whole 1280px
    DashboardMockup (Konva included) out of the entry chunk, and the section
@@ -14,6 +17,7 @@ const UseCasesSection = lazy(() => import('./components/use-cases/UseCasesSectio
 function App() {
   return (
     <div className="relative min-h-screen bg-ink-950 text-frost">
+      <SeoHead path="/" />
       {/* Hero, the dither melt and the lesson section share one navy field.
           Nothing draws its own background across the seam, so there is no
           element boundary left for a hairline to show up on. */}
@@ -53,6 +57,8 @@ function App() {
       <Suspense fallback={<div className="min-h-[760px]" aria-hidden />}>
         <UseCasesSection />
       </Suspense>
+      <PricingSection />
+      <FaqSection />
       <Footer />
     </div>
   )

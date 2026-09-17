@@ -402,8 +402,8 @@ export default function LessonShowcase() {
             Watch it happen <span className="text-ice">on the whiteboard</span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base font-normal leading-relaxed text-brand-muted-dark sm:text-lg">
-            Diagrams drawn stroke by stroke, notes written as the tutor talks it through. Unmute to
-            hear the lesson in time with the ink.
+            Diagrams drawn stroke by stroke, notes written as the AI tutor talks it through. Unmute
+            to hear the lesson in time with the ink.
           </p>
         </Reveal>
 

@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { href: '/#lesson', label: 'How it works' },
   { href: '/#use-cases', label: 'Use cases' },
   { href: '/#pricing', label: 'Pricing' },
+  { href: '/#faq', label: 'Questions' },
 ]
 
 export default function Navbar() {
@@ -42,7 +43,7 @@ export default function Navbar() {
         >
           <Brand href="/" className="pl-1" />
 
-          <div className="hidden items-center gap-9 md:flex">
+          <div className="hidden items-center gap-6 lg:gap-9 md:flex">
             {NAV_LINKS.map((link) => (
               <a
                 key={link.href}

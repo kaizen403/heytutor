@@ -2,7 +2,7 @@ import LegalDocument, { LegalSection } from './LegalDocument'
 
 export default function PrivacyPage() {
   return (
-    <LegalDocument title="Privacy Policy" updated="10 September 2026">
+    <LegalDocument title="Privacy Policy" updated="17 September 2026" path="/privacy">
       <LegalSection title="1. Who we are">
         <p>
           This Privacy Policy explains how Accelute (“we”, “us”) collects and
@@ -46,10 +46,15 @@ export default function PrivacyPage() {
             you subscribe in the footer or write to us. We use it to reply or
             send the updates you asked for.
           </li>
+          <li>
+            <strong className="font-medium text-frost">Billing data.</strong>{' '}
+            Plan name, usage, top-ups, and checkout records. Card numbers are
+            collected by our payment processor; we do not store the full card.
+          </li>
         </ul>
         <p>
-          We do not ask for a password or a payment card in this version.
-          Credits and plans are not live yet.
+          We do not ask for a password. Paid plans and usage top-ups are billed
+          in US dollars through our payment processor.
         </p>
       </LegalSection>
 
@@ -58,6 +63,9 @@ export default function PrivacyPage() {
         <ul>
           <li>run lessons — plan a scene, draw on the board, and speak</li>
           <li>save and restore your boards, notes, and replays</li>
+          <li>
+            bill plans, show remaining usage, and handle upgrades and top-ups
+          </li>
           <li>keep the Service reliable, debug failures, and prevent abuse</li>
           <li>answer you if you email us or subscribe</li>
         </ul>
@@ -70,10 +78,10 @@ export default function PrivacyPage() {
       <LegalSection title="4. Models and other processors">
         <p>
           To teach and speak, questions and related lesson text are sent to
-          language-model and text-to-speech providers we contract with. Hosting
-          and storage may sit with our cloud providers. Those parties process
-          data only to provide their service to us, under their terms and
-          ours.
+          language-model and text-to-speech providers we contract with. Paid
+          checkout is handled by our payment processor. Hosting and storage may
+          sit with our cloud providers. Those parties process data only to
+          provide their service to us, under their terms and ours.
         </p>
         <p>
           If you do not want a question processed by those systems, do not
@@ -83,18 +91,20 @@ export default function PrivacyPage() {
 
       <LegalSection title="5. Cookies">
         <p>
-          The tutor uses an Auth.js session cookie after you sign in. The
-          marketing site may use similar technical cookies to load the page.
-          We do not run third-party advertising cookies on Accelute.
+          The tutor uses an Auth.js session cookie after you sign in. Checkout
+          may set cookies from our payment processor. The marketing site may
+          use similar technical cookies to load the page. We do not run
+          third-party advertising cookies on Accelute.
         </p>
       </LegalSection>
 
       <LegalSection title="6. How long we keep it">
         <p>
           Boards and notes stay until you delete them or we remove inactive
-          data as part of ordinary operations. Server logs are kept only as
-          long as needed for security and debugging. Email from a subscribe
-          form is kept until you ask us to remove it.
+          data as part of ordinary operations. Billing records are kept as
+          long as needed to run the account, tax, and support. Server logs
+          are kept only as long as needed for security and debugging. Email
+          from a subscribe form is kept until you ask us to remove it.
         </p>
       </LegalSection>
 
@@ -102,8 +112,9 @@ export default function PrivacyPage() {
         <p>
           Accelute does not offer accounts to children under 13. Ages 13–17
           must provide a guardian email; we send a one-time notice that the
-          account was created. We do not build a parent product. If you believe
-          a child under 13 has an account, email{' '}
+          account was created. If you are 13–17, a parent or guardian must
+          complete any paid checkout. We do not build a parent product. If you
+          believe a child under 13 has an account, email{' '}
           <a href="mailto:hi@accelute.co">hi@accelute.co</a> and we will delete
           the associated data we can identify.
         </p>
