@@ -111,6 +111,8 @@ Repo secrets (the job **fails** if any are missing):
 | `TUTOR_DEPLOY_USER` | SSH user (`ubuntu` or `root`) |
 | `TUTOR_DEPLOY_SSH_KEY` | Dedicated passphrase-less private key that can `git reset` and run `deploy.sh` in `/opt/heytutor` |
 
+If `TUTOR_DEPLOY_*` are unset, the workflow falls back to the older `AZURE_DEPLOY_*` names still on the repo.
+
 The box must already be able to `git fetch origin main` (deploy key or HTTPS
 token if the repo is private). `.env.production` stays on disk; do not put it
 in GitHub secrets. Emergency fallback: SSH in and run `./deploy/aws/deploy.sh`.

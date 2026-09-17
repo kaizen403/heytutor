@@ -16,25 +16,25 @@ jobs:
     steps:
       - name: Require deploy secrets
         env:
-          HOST: ${{ secrets.TUTOR_DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.TUTOR_DEPLOY_USER }}
-          KEY: ${{ secrets.TUTOR_DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.TUTOR_DEPLOY_HOST || secrets.AZURE_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.TUTOR_DEPLOY_USER || secrets.AZURE_DEPLOY_USER }}
+          KEY: ${{ secrets.TUTOR_DEPLOY_SSH_KEY || secrets.AZURE_DEPLOY_SSH_KEY }}
         run: |
           missing=0
-          if [ -z "$HOST" ]; then echo "TUTOR_DEPLOY_HOST is not set"; missing=1; fi
-          if [ -z "$DEPLOY_USER" ]; then echo "TUTOR_DEPLOY_USER is not set"; missing=1; fi
-          if [ -z "$KEY" ]; then echo "TUTOR_DEPLOY_SSH_KEY is not set"; missing=1; fi
+          if [ -z "$HOST" ]; then echo "TUTOR_DEPLOY_HOST (or AZURE_DEPLOY_HOST) is not set"; missing=1; fi
+          if [ -z "$DEPLOY_USER" ]; then echo "TUTOR_DEPLOY_USER (or AZURE_DEPLOY_USER) is not set"; missing=1; fi
+          if [ -z "$KEY" ]; then echo "TUTOR_DEPLOY_SSH_KEY (or AZURE_DEPLOY_SSH_KEY) is not set"; missing=1; fi
           if [ "$missing" -ne 0 ]; then
-            echo "Set the three TUTOR_DEPLOY_* repo secrets, then re-run."
+            echo "Set TUTOR_DEPLOY_* (or the older AZURE_DEPLOY_*) repo secrets, then re-run."
             exit 1
           fi
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.TUTOR_DEPLOY_HOST }}
-          username: ${{ secrets.TUTOR_DEPLOY_USER }}
-          key: ${{ secrets.TUTOR_DEPLOY_SSH_KEY }}
+          host: ${{ secrets.TUTOR_DEPLOY_HOST || secrets.AZURE_DEPLOY_HOST }}
+          username: ${{ secrets.TUTOR_DEPLOY_USER || secrets.AZURE_DEPLOY_USER }}
+          key: ${{ secrets.TUTOR_DEPLOY_SSH_KEY || secrets.AZURE_DEPLOY_SSH_KEY }}
           command_timeout: 40m
           request_pty: true
           script: |
