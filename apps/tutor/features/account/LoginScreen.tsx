@@ -2,11 +2,14 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { signIn } from "next-auth/react";
+import { GraduationCap, User } from "lucide-react";
 import { Brand } from "@/components/brand/Brand";
+import { GoogleMark } from "@/components/brand/GoogleMark";
 import { SiteButton } from "@/components/ui/site-button";
 import { getLegalHref } from "@/lib/site";
 import { safeNextPath } from "@/lib/auth/publicPaths";
 import { isStudentEmail } from "@/lib/auth/studentEmail";
+import { loginRoleCookie, type LoginRole } from "@/lib/auth/loginRole";
 
 export function LoginScreen({
   nextPath,
@@ -32,19 +35,29 @@ export function LoginScreen({
   const [localError, setLocalError] = useState<string | null>(error ?? null);
 
   const callbackUrl = next;
+  const canSignIn = googleEnabled || devLoginEnabled;
 
-  const startGoogle = () => {
-    void signIn("google", { callbackUrl });
+  const persistRole = (role: LoginRole) => {
+    document.cookie = loginRoleCookie(role);
+  };
+
+  const start = (role: LoginRole) => {
+    persistRole(role);
+    if (googleEnabled) {
+      void signIn("google", { callbackUrl });
+      return;
+    }
+    void signIn("dev-login", {
+      callbackUrl,
+      name: role === "student" ? "Local student" : "Local individual",
+    });
   };
 
   useEffect(() => {
     if (!autoGoogle || !googleEnabled) return;
+    document.cookie = loginRoleCookie("student");
     void signIn("google", { callbackUrl });
   }, [autoGoogle, googleEnabled, callbackUrl]);
-
-  const startDev = () => {
-    void signIn("dev-login", { callbackUrl, name: "Local student" });
-  };
 
   const sendMagicLink = async (event: FormEvent) => {
     event.preventDefault();
@@ -54,6 +67,7 @@ export function LoginScreen({
       setLocalError("AccessDenied");
       return;
     }
+    persistRole("student");
     setSending(true);
     setLocalError(null);
     try {
@@ -80,8 +94,8 @@ export function LoginScreen({
           Sign in to Accelute
         </h1>
         <p className="mt-2 text-sm leading-6 text-[rgba(237,237,235,0.62)]">
-          Student accounts only — sign in with a school Google account (.edu or .ac). The landing
-          site stays public; this is the tutor.
+          Sign in with Google as a student or as an individual. Students use a school account
+          (.edu or .ac). The landing site stays public; this is the tutor.
         </p>
 
         {refused ? (
@@ -93,7 +107,7 @@ export function LoginScreen({
         {localError ? (
           <p className="mt-4 rounded-xl border border-[rgba(224,104,88,0.35)] bg-[rgba(224,104,88,0.1)] px-3 py-2 text-sm text-[#f0b4ac]">
             {localError === "AccessDenied"
-              ? "Accelute is for students. Use a school email (.edu or .ac)."
+              ? "Students use a school email (.edu or .ac). Continue as an Individual if you are signing in with a personal Google account."
               : localError === "Configuration"
                 ? "Google sign-in hit a server configuration error. Try again in a moment."
                 : localError}
@@ -101,10 +115,29 @@ export function LoginScreen({
         ) : null}
 
         <div className="mt-6 flex flex-col gap-3">
-          {googleEnabled ? (
-            <SiteButton variant="ice" size="md" block onClick={startGoogle} disabled={autoGoogle}>
-              {autoGoogle ? "Opening Google…" : "Continue with Google"}
-            </SiteButton>
+          {canSignIn ? (
+            <>
+              <SiteButton
+                variant="ice"
+                size="md"
+                block
+                onClick={() => start("student")}
+                disabled={autoGoogle}
+              >
+                {googleEnabled ? <GoogleMark /> : <GraduationCap className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />}
+                {autoGoogle ? "Opening Google…" : "Continue as a student"}
+              </SiteButton>
+              <SiteButton
+                variant="ghost"
+                size="md"
+                block
+                onClick={() => start("individual")}
+                disabled={autoGoogle}
+              >
+                {googleEnabled ? <GoogleMark /> : <User className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />}
+                Continue as an Individual
+              </SiteButton>
+            </>
           ) : (
             <p className="rounded-xl border border-[rgba(255,255,255,0.08)] px-3 py-2 text-sm text-[rgba(237,237,235,0.62)]">
               Google sign-in is not configured. Set <code className="text-ice">AUTH_GOOGLE_ID</code> and{" "}
@@ -135,12 +168,6 @@ export function LoginScreen({
               </form>
             )
           ) : null}
-
-          {devLoginEnabled ? (
-            <SiteButton variant="ghost" size="md" block onClick={startDev}>
-              Continue as local student
-            </SiteButton>
-          ) : null}
         </div>
 
         <p className="mt-6 text-xs leading-5 text-[rgba(237,237,235,0.45)]">
@@ -152,7 +179,7 @@ export function LoginScreen({
           <a className="text-sky-300 underline-offset-2 hover:underline" href={getLegalHref("/privacy")}>
             Privacy Policy
           </a>
-          . Under 13 is not allowed. Ages 13–17 need a guardian email.
+          . Under 13 is not allowed. Ages 13 to 17 need a guardian email.
         </p>
       </div>
     </main>

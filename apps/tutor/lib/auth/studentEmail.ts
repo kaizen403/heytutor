@@ -21,7 +21,9 @@ export function isStudentEmail(email: string | null | undefined): boolean {
 export function isAllowedLoginEmail(
   email: string | null | undefined,
   staffAllowlist = staffEmailsFromEnv(),
+  loginRole?: "student" | "individual" | null,
 ): boolean {
   if (isStaffEmail(email, staffAllowlist)) return true;
+  if (loginRole === "individual") return Boolean(email?.includes("@"));
   return isStudentEmail(email);
 }

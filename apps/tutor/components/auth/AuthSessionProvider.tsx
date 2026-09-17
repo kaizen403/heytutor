@@ -1,12 +1,17 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { SessionProvider } from "next-auth/react";
+import { isAuthDisabled } from "@/lib/authDisabled";
 
 /**
- * Auth.js session wrapper. Login is off for testing, so this is a passthrough
- * — mounting `next-auth/react` on every page was crashing localhost after a
- * leftover session cookie. Put `<SessionProvider>` back when AUTH_REQUIRED=1.
+ * Auth.js session wrapper. Off while login is disabled so a leftover session
+ * cookie cannot crash localhost. On when AUTH_REQUIRED / NEXT_PUBLIC_AUTH_REQUIRED
+ * is set, so `signIn` and the session cookie stay in sync.
  */
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
-  return children;
+  if (isAuthDisabled()) {
+    return children;
+  }
+  return <SessionProvider>{children}</SessionProvider>;
 }

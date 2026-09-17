@@ -28,7 +28,18 @@ assert(!teenMissing.ok && teenMissing.reason === "guardian_required", "13–17 n
 const teenOk = decideAgeGate({ ageBand: "13_17", guardianEmail: "parent@example.com" });
 assert(teenOk.ok && teenOk.band === "13_17" && teenOk.guardianEmail === "parent@example.com", "valid guardian email continues");
 
+const savedAuthRequired = process.env.AUTH_REQUIRED;
+const savedPublicAuthRequired = process.env.NEXT_PUBLIC_AUTH_REQUIRED;
+delete process.env.AUTH_REQUIRED;
+delete process.env.NEXT_PUBLIC_AUTH_REQUIRED;
 assert(isAuthDisabled(), "login gate stays off until AUTH_REQUIRED=1");
+process.env.AUTH_REQUIRED = "1";
+process.env.NEXT_PUBLIC_AUTH_REQUIRED = "1";
+assert(!isAuthDisabled(), "login gate is on when both AUTH_REQUIRED flags are 1");
+if (savedAuthRequired === undefined) delete process.env.AUTH_REQUIRED;
+else process.env.AUTH_REQUIRED = savedAuthRequired;
+if (savedPublicAuthRequired === undefined) delete process.env.NEXT_PUBLIC_AUTH_REQUIRED;
+else process.env.NEXT_PUBLIC_AUTH_REQUIRED = savedPublicAuthRequired;
 
 assert(isAuthPublicPath("/login"), "login is public");
 assert(isAuthPublicPath("/api/auth/callback/google"), "auth callbacks are public");
@@ -80,6 +91,14 @@ assert(!isStudentEmail("ada@mac.com"), "mac.com is not .ac");
 assert(!isStudentEmail("not-an-email"), "junk is not a student");
 assert(isAllowedLoginEmail("ada@accelute.co", ["ada@accelute.co"]), "staff bypass the school-email rule");
 assert(!isAllowedLoginEmail("ada@gmail.com", ["ada@accelute.co"]), "non-staff gmail is refused");
+assert(
+  isAllowedLoginEmail("ada@gmail.com", ["ada@accelute.co"], "individual"),
+  "an individual may sign in with a personal Google account",
+);
+assert(
+  !isAllowedLoginEmail("ada@gmail.com", ["ada@accelute.co"], "student"),
+  "a student still needs a school email",
+);
 assert(
   hasAuthSessionCookie({ cookies: { get: (name) => (name === "authjs.session-token" ? { value: "x" } : undefined) } }),
   "authjs session cookie counts as signed in",
