@@ -23,20 +23,20 @@ export function mintWsTicket(userId: string, nowMs = Date.now()): string {
   return `${payload}.${sign(payload)}`;
 }
 
-export function verifyWsTicket(ticket: string, nowMs = Date.now()): boolean {
+export function readWsTicket(ticket: string, nowMs = Date.now()): { userId: string } | null {
   const parts = ticket.split(".");
   if (parts.length !== 4) {
-    return false;
+    return null;
   }
 
   const [version, userId, expiresAt, signature] = parts;
   if (version !== TICKET_VERSION || !userId || !expiresAt || !signature) {
-    return false;
+    return null;
   }
 
   const expiresMs = Number(expiresAt);
   if (!Number.isFinite(expiresMs) || expiresMs < nowMs) {
-    return false;
+    return null;
   }
 
   const payload = `${version}.${userId}.${expiresAt}`;
@@ -45,8 +45,15 @@ export function verifyWsTicket(ticket: string, nowMs = Date.now()): boolean {
   try {
     const left = Buffer.from(signature);
     const right = Buffer.from(expected);
-    return left.length === right.length && timingSafeEqual(left, right);
+    if (left.length !== right.length || !timingSafeEqual(left, right)) {
+      return null;
+    }
+    return { userId };
   } catch {
-    return false;
+    return null;
   }
+}
+
+export function verifyWsTicket(ticket: string, nowMs = Date.now()): boolean {
+  return readWsTicket(ticket, nowMs) !== null;
 }

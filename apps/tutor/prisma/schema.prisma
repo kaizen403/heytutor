@@ -17,16 +17,22 @@ model User {
   onboardingCompletedAt DateTime?          @map("onboarding_completed_at") @db.Timestamptz(6)
   examGoal              String?            @map("exam_goal")
   classYear             String?            @map("class_year")
+  /// Set at onboarding: college student, or not.
+  learnerRole           String?            @map("learner_role")
   subjects              String[]           @default([])
   locale                String             @default("en")
   ageBand               String?            @map("age_band")
   guardianEmail         String?            @map("guardian_email")
   guardianNotifiedAt    DateTime?          @map("guardian_notified_at") @db.Timestamptz(6)
   learningNote          String?            @map("learning_note")
+  /// Fast UI cache only. Monthly millicents ledger is usage authority.
+  planId                String?              @map("plan_id")
+  remainingPct          Int?                 @map("remaining_pct")
   boards                Board[]
   turns                 Turn[]
   chatMessages          BoardChatMessage[]
   settings              UserSettings?
+  periodSpend           BillingPeriodSpend[]
 
   @@map("users")
 }
@@ -37,6 +43,19 @@ model Admin {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("admins")
+}
+
+/// Calendar-month USD spend (millicents) plus top-up allowance for that period.
+model BillingPeriodSpend {
+  userId           String   @map("user_id")
+  period           String
+  spentMillicents  Int      @default(0) @map("spent_millicents")
+  bonusMillicents  Int      @default(0) @map("bonus_millicents")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, period])
+  @@map("billing_period_spend")
 }
 
 model UserSettings {

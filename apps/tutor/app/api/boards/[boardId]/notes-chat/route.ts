@@ -5,7 +5,8 @@ import {
   stripNotesChatProtocol,
   tutorDebug,
 } from "@heytutor/tutor-core";
-import { ensureUser, getUserId } from "@/lib/auth";
+import { requireNotesAccess, isSpendActor, requireSpendActor } from "@/lib/billing/gate";
+import { recordLlmSpend, recordNotesMessage } from "@/lib/billing/track";
 import { prisma } from "@/lib/db/prisma";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import {
@@ -104,14 +105,12 @@ async function loadPersistedTurns(boardId: string) {
   );
 }
 
-export async function GET(_request: Request, context: RouteContext) {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+export async function GET(request: Request, context: RouteContext) {
+  const actor = await requireSpendActor(request);
+  if (!isSpendActor(actor)) return actor;
+  const userId = actor.userId;
 
   const { boardId } = await context.params;
-  await ensureUser(userId);
 
   const board = await getOwnedBoard(boardId, userId);
   if (!board) {
@@ -131,13 +130,12 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const gated = await requireNotesAccess(request);
+  if (gated instanceof Response) return gated;
+  const { actor } = gated;
+  const userId = actor.userId;
 
   const { boardId } = await context.params;
-  await ensureUser(userId);
 
   const board = await getOwnedBoard(boardId, userId);
   if (!board) {
@@ -317,6 +315,10 @@ export async function POST(request: Request, context: RouteContext) {
         output: reply,
         metadata: { content_chars: reply.length },
       });
+      if (reply) {
+        recordNotesMessage(actor);
+        recordLlmSpend({ actor, model });
+      }
       flushInBackground();
       controller.enqueue(encodeSse({ done: true }));
     },

@@ -1,3 +1,4 @@
+import { attachFreePlan } from "@/lib/billing/attachFree";
 import { prisma } from "@/lib/db/prisma";
 import { mergeAnonymousUser } from "./mergeAnonymousUser";
 
@@ -28,6 +29,13 @@ export async function findOrCreateSignedInUser(
         anonymousUserId,
         signedInUserId: existing.id,
       });
+      void attachFreePlan({
+        userId: existing.id,
+        email: existing.email ?? email,
+        name: profile.name ?? existing.name,
+      }).catch((error) => {
+        console.error("[billing] free attach on login failed", error);
+      });
       return existing;
     }
   }
@@ -49,6 +57,13 @@ export async function findOrCreateSignedInUser(
   await mergeAnonymousUser(prisma, {
     anonymousUserId,
     signedInUserId: created.id,
+  });
+  void attachFreePlan({
+    userId: created.id,
+    email: created.email,
+    name: created.name,
+  }).catch((error) => {
+    console.error("[billing] free attach on signup failed", error);
   });
   return created;
 }

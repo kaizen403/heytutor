@@ -14,7 +14,11 @@ import {
   buildMultiContextSegmentMessages,
   normalizeMultiContextServerPayload,
 } from "./lib/tts/ttsRelayProtocol";
-import { verifyWsTicket } from "./lib/tts/wsTicket";
+import { readWsTicket } from "./lib/tts/wsTicket";
+import { isAuthDisabled } from "./lib/authDisabled";
+import { isAutumnEnabled } from "./lib/billing/flags";
+import { consumeTtsChars, getTurnGrant, shouldSkipTtsForUsage, type TurnGrant } from "./lib/billing/grant";
+import { recordTtsSpend } from "./lib/billing/track";
 import { normalizeVoiceKey, type TutorVoiceKey } from "@heytutor/tutor-core";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -64,6 +68,8 @@ interface ElevenLabsWsMessage {
 }
 
 interface TtsRelayContext {
+  userId: string;
+  grant: TurnGrant | null;
   traceId?: string;
   sessionId?: string;
   /** ElevenLabs natural voice speed, 0.7–1.2. Pitch-preserving. */
@@ -197,15 +203,39 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
         const segmentText = pendingSegmentText.trim();
         const characters = segmentText.length;
 
-        if (characters > 0 && context.traceId) {
-          recordTtsSpan({
-            traceId: context.traceId,
-            sessionId: context.sessionId,
+        if (characters > 0) {
+          const liveGrant = getTurnGrant(context.userId) ?? context.grant;
+          const budget = liveGrant
+            ? shouldSkipTtsForUsage(liveGrant)
+              ? { allowed: false, remaining: 0 }
+              : consumeTtsChars(liveGrant, characters)
+            : { allowed: false, remaining: 0 };
+          if (!budget.allowed) {
+            if (clientWs.readyState === WebSocket.OPEN) {
+              clientWs.send(JSON.stringify({ type: "skip", reason: "tts_budget" }));
+            }
+            pendingSegmentText = "";
+            pendingVoiceSettings = undefined;
+            pendingSegmentIndex = undefined;
+            segmentStartedAt.value = 0;
+            return;
+          }
+          if (context.traceId) {
+            recordTtsSpan({
+              traceId: context.traceId,
+              sessionId: context.sessionId,
+              characters,
+              model: modelId,
+              voiceId,
+              transport: "ws",
+              latencyMs: segmentStartedAt.value > 0 ? Date.now() - segmentStartedAt.value : undefined,
+            });
+          }
+          recordTtsSpend({
+            userId: context.userId,
             characters,
-            model: modelId,
-            voiceId,
-            transport: "ws",
-            latencyMs: segmentStartedAt.value > 0 ? Date.now() - segmentStartedAt.value : undefined,
+            skipAutumn: liveGrant?.skipAutumn ?? !isAutumnEnabled(),
+            skipGates: liveGrant?.skipGates ?? false,
           });
           flushInBackground();
         }
@@ -263,17 +293,26 @@ app.prepare().then(() => {
 
     if (pathname === "/api/tts/ws") {
       const cookieHeader = request.headers.cookie ?? "";
-      const hasUidCookie = cookieHeader
+      const cookieUserId = cookieHeader
         .split(";")
         .map((c) => c.trim())
-        .some((c) => c.startsWith(`${HTUTOR_UID_COOKIE}=`));
+        .find((c) => c.startsWith(`${HTUTOR_UID_COOKIE}=`))
+        ?.slice(`${HTUTOR_UID_COOKIE}=`.length);
 
       const ticket = typeof query.ticket === "string" ? query.ticket : "";
-      const hasValidTicket = ticket.length > 0 && verifyWsTicket(ticket);
+      const ticketUser = ticket.length > 0 ? readWsTicket(ticket) : null;
 
-      // Split deploy: host-only htutor_uid on Vercel is not sent to Azure WS.
-      // Accept either the cookie (same-origin) or a short-lived ticket query param.
-      if (!hasUidCookie && !hasValidTicket) {
+      // Auth-on: session-minted ticket only. Cookie identity must not spend.
+      const userId = isAuthDisabled()
+        ? (ticketUser?.userId ?? cookieUserId)
+        : ticketUser?.userId;
+      if (!userId) {
+        socket.destroy();
+        return;
+      }
+
+      const grant = getTurnGrant(userId);
+      if (!grant && isAutumnEnabled()) {
         socket.destroy();
         return;
       }
@@ -290,7 +329,7 @@ app.prepare().then(() => {
       const lowLatency = query.model === "flash";
 
       wss.handleUpgrade(request, socket, head, (ws) => {
-        relayTtsWebSocket(ws, { traceId, sessionId, speed, voiceKey, lowLatency });
+        relayTtsWebSocket(ws, { userId, grant, traceId, sessionId, speed, voiceKey, lowLatency });
       });
       return;
     }

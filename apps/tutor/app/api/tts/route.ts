@@ -6,7 +6,11 @@ import {
   upstreamErrorResponse,
   voiceKeyFromRequest,
 } from "@/lib/tts/ttsProxy";
-import { getUserId } from "@/lib/auth";
+import { requireLessonGrant } from "@/lib/billing/gate";
+import { recordTtsSpend } from "@/lib/billing/track";
+import { consumeTtsChars, markGrantInUse, shouldSkipTtsForUsage } from "@/lib/billing/grant";
+import { ttsSkippedResponse } from "@/lib/billing/ttsSkip";
+import type { SpendActor } from "@/lib/billing/actor";
 
 interface TtsRequestBody {
   text?: string;
@@ -37,6 +41,7 @@ async function recordTtsFromRequest(
   transport: "http" | "browser-fallback",
   latencyMs: number,
   body: string,
+  actor?: SpendActor,
 ): Promise<void> {
   const { traceId, sessionId } = readTraceHeaders(request);
   const { text, modelId } = parseTtsBody(body);
@@ -53,16 +58,25 @@ async function recordTtsFromRequest(
     latencyMs,
   });
 
+  if (actor && transport !== "browser-fallback") {
+    recordTtsSpend({
+      userId: actor.userId,
+      characters: text.length,
+      skipAutumn: actor.skipAutumn,
+      skipGates: actor.skipGates,
+    });
+  }
+
   flushInBackground();
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const userId = await getUserId();
-  if (!userId) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const gated = await requireLessonGrant(request);
+  if (gated instanceof Response) return gated;
+  const { actor, grant } = gated;
 
   const body = await request.text();
+  const { text } = parseTtsBody(body);
   const apiKey = process.env.ELEVENLABS_API_KEY;
   const voiceId = resolveVoiceId(voiceKeyFromRequest(request));
   const transport = request.headers.get("x-tts-transport") === "browser-fallback"
@@ -70,25 +84,34 @@ export async function POST(request: Request): Promise<Response> {
     : "http";
 
   if (transport === "browser-fallback") {
-    await recordTtsFromRequest(request, "browser-fallback", 0, body);
+    await recordTtsFromRequest(request, "browser-fallback", 0, body, actor);
 
     return new Response(null, { status: 204 });
   }
 
   if (!apiKey || !voiceId) {
-    return new Response(new Uint8Array(), {
-      status: 200,
-      headers: { "content-type": "audio/mpeg" },
-    });
+    return ttsSkippedResponse("unconfigured");
+  }
+
+  if (shouldSkipTtsForUsage(grant)) {
+    return ttsSkippedResponse("budget");
+  }
+  const budget = consumeTtsChars(grant, text.length);
+  if (!budget.allowed) {
+    return ttsSkippedResponse("budget");
   }
 
   const url = new URL(request.url);
+  markGrantInUse(grant, 1);
+  try {
+    if (url.searchParams.get("timestamps") === "true") {
+      return await handleTTSWithTimestamps(request, body, apiKey, voiceId, actor);
+    }
 
-  if (url.searchParams.get("timestamps") === "true") {
-    return handleTTSWithTimestamps(request, body, apiKey, voiceId);
+    return await handleTTS(request, body, apiKey, voiceId, actor);
+  } finally {
+    markGrantInUse(grant, -1);
   }
-
-  return handleTTS(request, body, apiKey, voiceId);
 }
 
 async function handleTTS(
@@ -96,6 +119,7 @@ async function handleTTS(
   body: string,
   apiKey: string,
   voiceId: string,
+  actor: SpendActor,
 ): Promise<Response> {
   const startedAt = Date.now();
 
@@ -115,7 +139,7 @@ async function handleTTS(
       return upstreamErrorResponse(response.status, errorBody);
     }
 
-    await recordTtsFromRequest(request, "http", Date.now() - startedAt, body);
+    await recordTtsFromRequest(request, "http", Date.now() - startedAt, body, actor);
 
     return new Response(response.body, {
       status: response.status,
@@ -132,6 +156,7 @@ async function handleTTSWithTimestamps(
   body: string,
   apiKey: string,
   voiceId: string,
+  actor: SpendActor,
 ): Promise<Response> {
   const startedAt = Date.now();
 
@@ -151,7 +176,7 @@ async function handleTTSWithTimestamps(
       return upstreamErrorResponse(response.status, errorBody);
     }
 
-    await recordTtsFromRequest(request, "http", Date.now() - startedAt, body);
+    await recordTtsFromRequest(request, "http", Date.now() - startedAt, body, actor);
 
     return new Response(response.body, {
       status: response.status,

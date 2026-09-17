@@ -1,4 +1,4 @@
-import { getUserId } from "@/lib/auth";
+import { requireLessonCredits } from "@/lib/billing/gate";
 
 const ELEVENLABS_STT_URL = "https://api.elevenlabs.io/v1/speech-to-text";
 const DEFAULT_STT_MODEL = "scribe_v1";
@@ -27,10 +27,8 @@ function filenameForAudio(mimeType: string): string {
  * running dry or being rotated must not silence the other.
  */
 export async function POST(request: Request): Promise<Response> {
-  const userId = await getUserId();
-  if (!userId) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const gated = await requireLessonCredits(request);
+  if (gated instanceof Response) return gated;
 
   const apiKey = process.env.ELEVENLABS_STT_API_KEY;
   if (!apiKey) {

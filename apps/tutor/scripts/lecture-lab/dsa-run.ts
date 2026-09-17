@@ -305,6 +305,7 @@ async function main(): Promise<void> {
       if (url.startsWith(options.origin)) {
         const headers = new Headers(init?.headers ?? {});
         headers.set("cookie", cookie);
+        headers.set("x-heytutor-lecture-lab", "1");
         return nativeFetch(input, { ...init, headers });
       }
       return nativeFetch(input, init);

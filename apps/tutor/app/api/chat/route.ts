@@ -19,7 +19,10 @@ import {
   resolveTurnTraceInput,
   shouldUpdateParentTraceOutput,
 } from "@/lib/obs/chatTrace";
-import { ensureUser, getUserId } from "@/lib/auth";
+import { requireLessonGrant } from "@/lib/billing/gate";
+import { recordLlmSpend } from "@/lib/billing/track";
+import { markGrantInUse } from "@/lib/billing/grant";
+import type { SpendActor } from "@/lib/billing/actor";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
 import {
   fetchPlannerCompletion,
@@ -331,6 +334,7 @@ function createTracingTransformStream(
   mock: boolean,
   requestStartedAt: number,
   updateTrace: boolean,
+  spend?: { actor: SpendActor; model: string },
 ): TransformStream<Uint8Array, Uint8Array> {
   const decoder = new TextDecoder();
   let bufferedText = "";
@@ -447,6 +451,13 @@ function createTracingTransformStream(
         mock,
         updateTrace,
       });
+      if (spend && !mock) {
+        recordLlmSpend({
+          actor: spend.actor,
+          model: spend.model,
+          usage: buildUsageDetails(latestUsage),
+        });
+      }
 
       flushInBackground();
     },
@@ -468,6 +479,7 @@ interface PlannerRequestArgs {
   fastMode: boolean;
   deadlineMs: number;
   signal: AbortSignal;
+  actor: SpendActor;
 }
 
 async function handlePlannerRequest({
@@ -485,6 +497,7 @@ async function handlePlannerRequest({
   fastMode,
   deadlineMs,
   signal,
+  actor,
 }: PlannerRequestArgs): Promise<Response> {
   const plannerModels = resolvePlannerModels({
     semanticSceneV2,
@@ -603,6 +616,11 @@ async function handlePlannerRequest({
         model: transport.model,
         updateTrace: false,
       });
+      recordLlmSpend({
+        actor,
+        model: transport.model,
+        usage: buildUsageDetails(parsedResponse.usage as FireworksUsage | undefined),
+      });
     } catch {
       endLlmGeneration(turnTrace, {
         output: jsonBody.slice(0, 2_000),
@@ -659,12 +677,11 @@ function mergePlannerSignals(first: AbortSignal, second: AbortSignal): AbortSign
 
 export async function POST(request: Request): Promise<Response> {
   const requestStartedAt = Date.now();
-  const userId = await getUserId();
-  if (!userId) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
-  }
-  await ensureUser(userId);
-
+  const gated = await requireLessonGrant(request);
+  if (gated instanceof Response) return gated;
+  const { actor, grant } = gated;
+  markGrantInUse(grant, 1);
+  try {
   const rawBody = await request.text();
   const sessionId = request.headers.get("x-session-id") ?? undefined;
   const userInput = readPromptFromBody(rawBody);
@@ -748,6 +765,7 @@ export async function POST(request: Request): Promise<Response> {
         ),
       ),
       signal: request.signal,
+      actor,
     });
   }
 
@@ -861,6 +879,7 @@ export async function POST(request: Request): Promise<Response> {
         false,
         upstreamStartedAt,
         shouldUpdateParentTraceOutput(kind, userInput),
+        { actor, model: serverModel },
       ),
     );
 
@@ -900,5 +919,8 @@ export async function POST(request: Request): Promise<Response> {
         headers: { "x-heytutor-trace-id": traceId },
       },
     );
+  }
+  } finally {
+    markGrantInUse(grant, -1);
   }
 }

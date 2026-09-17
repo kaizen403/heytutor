@@ -1,4 +1,5 @@
-import { ensureUser, getUserId } from "@/lib/auth";
+import { requireLessonCredits } from "@/lib/billing/gate";
+import { recordLlmSpend } from "@/lib/billing/track";
 import {
   EXTRACT_QUESTION_PROMPT,
   parseExtractedQuestion,
@@ -16,11 +17,9 @@ interface ExtractRequestBody {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const userId = await getUserId();
-  if (!userId) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
-  }
-  await ensureUser(userId);
+  const gated = await requireLessonCredits(request);
+  if (gated instanceof Response) return gated;
+  const { actor } = gated;
 
   const body = (await request.json().catch(() => ({}))) as ExtractRequestBody;
   const image = readQuestionImage(body.image);
@@ -82,6 +81,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const data = (await response.json()) as {
     choices?: { message?: { content?: unknown } }[];
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   };
   const question = parseExtractedQuestion(
     readExtractedContent(data.choices?.[0]?.message?.content),
@@ -93,8 +93,18 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  recordLlmSpend({
+    actor,
+    model,
+    usage: {
+      input: data.usage?.prompt_tokens,
+      output: data.usage?.completion_tokens,
+      total: data.usage?.total_tokens,
+    },
+  });
+
   const imageUrl = await uploadImage(
-    questionImageKey(userId, crypto.randomUUID(), image.ext),
+    questionImageKey(actor.userId, crypto.randomUUID(), image.ext),
     image.bytes,
     image.mimeType,
   );
