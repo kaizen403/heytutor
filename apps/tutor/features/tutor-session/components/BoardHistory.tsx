@@ -11,6 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import {
   Sheet,
@@ -26,6 +27,8 @@ import {
   type AccountProfile,
 } from "@/lib/account/types";
 import { getLegalHref } from "@/lib/site";
+import { useEntitlement } from "@/lib/billing/useEntitlement";
+import { remainingPctBarWidth, remainingPctLabel } from "@/lib/billing/studentCopy";
 
 export type { BoardEntry };
 
@@ -154,6 +157,42 @@ interface BoardHistoryContentProps {
 }
 
 const DELETE_CONFIRM_TIMEOUT_MS = 6000;
+
+function CreditsFooterButton({
+  onClick,
+  disabled,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  const { entitlement } = useEntitlement();
+  const remainingPct = entitlement?.remainingPct ?? null;
+  const tooltip = entitlement
+    ? remainingPctLabel(remainingPct, { staff: entitlement.staff })
+    : "Usage";
+  const width = remainingPctBarWidth(remainingPct, { staff: entitlement?.staff });
+  const pctText =
+    entitlement && !entitlement.staff && remainingPct != null ? `${width}%` : null;
+
+  return (
+    <button
+      type="button"
+      className="bh__credits"
+      title={tooltip}
+      aria-label={tooltip}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <span className="bh__credits-row">
+        <span className="bh__credits-label">Usage</span>
+        {pctText ? <span className="bh__credits-pct">{pctText}</span> : null}
+      </span>
+      <span className="bh__credits-track" aria-hidden>
+        <span className="bh__credits-fill" style={{ width: `${width}%` }} />
+      </span>
+    </button>
+  );
+}
 
 function AccountNavLink({
   href,
@@ -523,17 +562,13 @@ function BoardHistoryContent({
       </div>
 
       <footer className="bh__footer">
-        <button
-          type="button"
-          className="bh__credits"
+        <CreditsFooterButton
           onClick={() => {
             onDismiss?.();
             onCreditsClick?.();
           }}
           disabled={!onCreditsClick}
-        >
-          Credits
-        </button>
+        />
 
         <div className="bh__profile-wrap" ref={profileWrapRef}>
           {profileOpen && (
@@ -550,18 +585,28 @@ function BoardHistoryContent({
               <Link href="/settings" role="menuitem" className="bh__profile-item" onClick={() => { setProfileOpen(false); onDismiss?.(); }}>
                 Settings
               </Link>
-              <Link href="/progress" role="menuitem" className="bh__profile-item" onClick={() => { setProfileOpen(false); onDismiss?.(); }}>
-                Progress
-              </Link>
-              <Link href="/library" role="menuitem" className="bh__profile-item" onClick={() => { setProfileOpen(false); onDismiss?.(); }}>
-                Library
-              </Link>
               <Link href="/usage" role="menuitem" className="bh__profile-item" onClick={() => { setProfileOpen(false); onDismiss?.(); }}>
-                Usage
+                Upgrade plan
               </Link>
               <Link href="/settings/help" role="menuitem" className="bh__profile-item" onClick={() => { setProfileOpen(false); onDismiss?.(); }}>
                 Help / What’s new
               </Link>
+              <button
+                type="button"
+                role="menuitem"
+                className="bh__profile-item"
+                onClick={() => {
+                  setProfileOpen(false);
+                  onDismiss?.();
+                  if (onSignOut) {
+                    onSignOut();
+                    return;
+                  }
+                  void signOut({ callbackUrl: "/login" });
+                }}
+              >
+                Log out
+              </button>
               <div className="bh__profile-legal">
                 <a href={getLegalHref("/terms")} target="_blank" rel="noreferrer">Terms</a>
                 <span aria-hidden>·</span>
@@ -579,20 +624,6 @@ function BoardHistoryContent({
                   }}
                 >
                   Lesson settings
-                </button>
-              ) : null}
-              {onSignOut ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="bh__profile-item"
-                  onClick={() => {
-                    setProfileOpen(false);
-                    onDismiss?.();
-                    onSignOut();
-                  }}
-                >
-                  Log out
                 </button>
               ) : null}
             </div>
@@ -1108,13 +1139,57 @@ const STYLES = `
 .bh__credits {
   border: 0;
   background: transparent;
-  padding: 0.25rem 0;
+  padding: 0.15rem 0;
   color: var(--ink-soft);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+  width: 8.75rem;
+  min-width: 8.75rem;
+  text-align: left;
+}
+
+.bh__credits-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.bh__credits-label {
   font-size: 0.8125rem;
   font-weight: 400;
   letter-spacing: -0.005em;
-  cursor: pointer;
-  transition: color 0.15s ease;
+  line-height: 1;
+}
+
+.bh__credits-pct {
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.bh__credits-track {
+  display: block;
+  width: 100%;
+  height: 3px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.bh__credits-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sky-500);
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bh__credits:hover:not(:disabled) {
@@ -1321,6 +1396,7 @@ const STYLES = `
   .bh__credits {
     min-height: 2.5rem;
     padding: 0.4rem 0.25rem;
+    justify-content: center;
   }
 
   .bh__profile-item {

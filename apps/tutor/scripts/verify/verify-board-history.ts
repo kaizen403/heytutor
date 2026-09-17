@@ -61,6 +61,39 @@ assert(
   "a running lesson must close an open row menu",
 );
 assert(boardHistory.includes("Delete this board?"), "deleting a board must ask first");
+assert(boardHistory.includes("Log out"), "the profile menu must offer Log out");
+assert(boardHistory.includes('signOut({ callbackUrl: "/login" })'), "Log out ends the Auth.js session");
+
+const profileMenuStart = boardHistory.indexOf('className="bh__profile-menu"');
+assert(profileMenuStart > 0, "profile menu markup is gone; repoint this gate");
+const profileMenuEnd = boardHistory.indexOf("className={`bh__profile${profileOpen", profileMenuStart);
+assert(profileMenuEnd > profileMenuStart, "profile menu has no closing avatar button");
+const profileMenu = boardHistory.slice(profileMenuStart, profileMenuEnd);
+assert(profileMenu.includes(">Profile<") || profileMenu.includes("\n                Profile\n"), "the profile menu must offer Profile");
+assert(profileMenu.includes("Settings"), "the profile menu must offer Settings");
+assert(profileMenu.includes("Upgrade plan"), "the profile menu must offer Upgrade plan");
+{
+  const upgradeAt = profileMenu.indexOf("Upgrade plan");
+  const hrefs = [...profileMenu.slice(0, upgradeAt).matchAll(/href="([^"]+)"/g)];
+  const upgradeHref = hrefs.at(-1)?.[1] ?? "";
+  assert(
+    upgradeHref === "/usage" || upgradeHref === "/usage#plans",
+    "Upgrade plan must go to /usage, not a dead link",
+  );
+}
+assert(profileMenu.includes("Help /"), "the profile menu must offer Help");
+assert(!/href="\/progress"/.test(profileMenu), "Progress is not in the profile menu");
+assert(!/href="\/library"/.test(profileMenu), "Library is not in the profile menu");
+assert(!/>\s*Progress\s*</.test(profileMenu), "the profile menu must not list Progress");
+assert(!/>\s*Library\s*</.test(profileMenu), "the profile menu must not list Library");
+assert(
+  boardHistory.includes('href="/progress" label="Progress"'),
+  "/progress stays reachable from the sidebar, just not the avatar menu",
+);
+assert(
+  boardHistory.includes('href="/library" label="Library"'),
+  "/library stays reachable from the sidebar, just not the avatar menu",
+);
 assert(
   boardHistory.includes("if (disabled && confirmDeleteId)"),
   "a running lesson must disarm an armed delete",

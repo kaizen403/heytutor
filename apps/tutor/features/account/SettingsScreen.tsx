@@ -20,6 +20,7 @@ import {
 import { MARKER_COLORS } from "@/features/tutor-session/components/SettingsDrawer";
 import { getLegalHref } from "@/lib/site";
 import type { AccountProfile } from "@/lib/account/types";
+import { PlanUsageCard } from "./PlanUsageCard";
 
 export function SettingsScreen({ section }: { section: string }) {
   const router = useRouter();
@@ -301,14 +302,11 @@ export function SettingsScreen({ section }: { section: string }) {
           ) : null}
 
           {active === "usage" ? (
-            <AccountCard title="Plan and usage">
-              <p className="text-sm text-[rgba(237,237,235,0.62)]">
-                Credits and plans will live here. There are no prices and no checkout.
-              </p>
-              <SiteButton className="mt-3" size="sm" onClick={() => router.push("/usage")}>
-                Open usage
-              </SiteButton>
-            </AccountCard>
+            <PlanUsageCard
+              compact
+              ageBand={profile?.ageBand}
+              onOpenUsage={() => router.push("/usage")}
+            />
           ) : null}
 
           {active === "help" ? (
