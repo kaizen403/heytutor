@@ -35,6 +35,7 @@ import {
   inkPaceContextForSegment,
   selectInkPace,
   voiceSettingsForDelivery,
+  shouldStartLiveDraw,
   type AudioTimings,
   type InitialTimingWaitRelease,
   type TTSClient,
@@ -166,7 +167,9 @@ export function useSegmentRunner({
         segmentCommands = prepared;
       }
       if (isCancelled()) return;
-      applyTurnPhase("speaking");
+      // Stay in thinking until the voice is audible. Applying "speaking" here
+      // dropped the preparing overlay the moment a segment was queued, so the
+      // student watched a silent 1.5–2× dump while TTS was still connecting.
       const hasNarration = narration.length > 0;
       const hasCommand = segmentCommands.length > 0;
       const paceContext = inkPaceContextForSegment({
@@ -271,10 +274,10 @@ export function useSegmentRunner({
       };
 
       /**
-       * Hold the first schedule until the exact alignment is in hand, or
-       * until it is clear none is coming: 120 ms after the voice starts, or
-       * speech ending, or a cancel. The wait re-evaluates on every event and
-       * arms its own timer for the grace window once `onStart` has fired.
+       * Hold the first schedule until the voice is audible and either the
+       * exact alignment is in hand, 120 ms have passed since `onStart`,
+       * speech has ended, or the turn is cancelled. Peeked timings alone
+       * used to release the pen onto a silent wall clock.
        */
       const waitForInitialTimings = (): Promise<void> =>
         new Promise((resolve) => {
@@ -371,13 +374,21 @@ export function useSegmentRunner({
               });
             }
           }
-          // Nothing in hand yet: an opening line still generating, a browser
-          // voice, or a failed transport. Wait for the first alignment, or
-          // 120 ms past `onStart`, or the end of speech, or a cancel. The old
-          // gate ran only after audio had started and so never ran at all.
+          // Spoken ink waits until the voice is audible. Peeked alignment is
+          // used once `onStart` has fired — not before, or the pen dumps the
+          // figure on the wall clock while TTS is still connecting.
           if (hasNarration) {
             await raceWithCancel(waitForInitialTimings());
             if (isCancelled()) {
+              return;
+            }
+            if (
+              !shouldStartLiveDraw({
+                hasNarration: true,
+                audioStarted: audioStartedAtMs !== null,
+              })
+            ) {
+              tutorDebug("draw", "skipped silent dump; voice never started", { index });
               return;
             }
             tutorDebug("draw", "initial timing wait", {
@@ -840,12 +851,22 @@ export function useSegmentRunner({
         }
       };
 
+      const markVoiceStarted = () => {
+        if (isCancelled() || !turnActiveRef.current) return;
+        if (audioStartedAtMs === null) {
+          audioStartedAtMs = performance.now();
+        }
+        applyTurnPhase(hasCommand ? "drawing" : "speaking");
+        notifyTimingWaiters();
+      };
+
       const speakOptions = {
         previousText,
         nextText,
         traceId: currentTraceIdRef.current ?? undefined,
         sessionId: sessionId ?? undefined,
         voiceSettings,
+        onStart: markVoiceStarted,
         onAudioCaptured: (audio: { bytes: Uint8Array }) => {
           capturedAudio = audio.bytes;
         },
@@ -909,6 +930,7 @@ export function useSegmentRunner({
           tutorDebug("segment", "narration-only complete", { index });
         } else if (!hasNarration && hasCommand) {
           tutorDebug("segment", "draw-only", { index });
+          applyTurnPhase("drawing");
           await runDraw(naturalDrawMs);
           if (isCancelled()) return;
           tutorDebug("segment", "draw-only complete", { index });
@@ -942,20 +964,13 @@ export function useSegmentRunner({
             speakSegmentWithTimeout(narration, {
               ...speakOptions,
               onStart: () => {
-                if (isCancelled() || !turnActiveRef.current) return;
+                markVoiceStarted();
                 tutorDebug("tts", "segment audio started", { index });
                 tel?.mark("tts-start", {
                   segment_index: index,
                   chars: narration.length,
                   command_count: segmentCommands.length,
                 });
-                applyTurnPhase("drawing");
-                if (audioStartedAtMs === null) {
-                  audioStartedAtMs = performance.now();
-                }
-                // Starts the 120 ms grace window on the initial-timing wait:
-                // the waiter reads the new start time and arms its timer.
-                notifyTimingWaiters();
               },
               onTimings: (timings) => {
                 captureTimings(timings);

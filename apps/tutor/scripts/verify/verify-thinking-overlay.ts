@@ -1,6 +1,6 @@
 /**
- * The wait before the first mark is the clicker on paper — not the Konva
- * marker's shadows, not a "planning the diagram…" sentence.
+ * The wait before the first mark is the clicker on paper, named as
+ * preparing the lecture — not a leftover Konva marker, not a silent dump.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -18,14 +18,24 @@ const shell = readFileSync(
   resolve(tutorRoot, "features/tutor-session/TutorSessionShell.tsx"),
   "utf8",
 );
+const runner = readFileSync(
+  resolve(tutorRoot, "features/tutor-session/hooks/turn/useSegmentRunner.ts"),
+  "utf8",
+);
+const handler = readFileSync(
+  resolve(tutorRoot, "features/tutor-session/hooks/turn/useQuestionHandler.ts"),
+  "utf8",
+);
 
 assert(overlay.includes("PenSpinner"), "the pending overlay must be the clicker pen");
 assert(overlay.includes("trail={false}"), "the pending clicker must not trail ink");
 assert(overlay.includes("smear={false}"), "the pending clicker must not smear a second shadow");
-assert(!overlay.includes("<p"), "the pending overlay must not paint a status sentence");
-assert(!/\bmessage\s*[:=]/.test(overlay), "the pending overlay has no status-copy prop");
 assert(
-  overlay.includes('aria-label="Preparing the lesson"'),
+  overlay.includes("preparing the lecture"),
+  "the spinning pen must say the tutor is preparing the lecture",
+);
+assert(
+  overlay.includes('aria-label="Preparing the lecture"'),
   "the pending overlay must name the wait for assistive tech",
 );
 assert(
@@ -56,5 +66,19 @@ assert(
   !shell.includes("planning the diagram"),
   "the shell must not put 'planning the diagram' on the board",
 );
+assert(
+  runner.includes("shouldStartLiveDraw"),
+  "spoken ink must wait until the voice is audible",
+);
+assert(
+  !/if \(isCancelled\(\) return;\s*applyTurnPhase\("speaking"\)/.test(runner),
+  "queuing a segment must not drop the preparing overlay before the voice starts",
+);
+assert(
+  !handler.includes('applyTurnPhase("speaking")'),
+  "finishing the teaching stream must not drop the overlay before the voice starts",
+);
 
-console.log("verify-thinking-overlay: pending overlay is the clicker, with no copy and no Konva marker");
+console.log(
+  "verify-thinking-overlay: pending overlay names the wait, and the board stays covered until the voice starts",
+);

@@ -3,6 +3,7 @@ import {
   createLectureAudioContext,
   getSharedAudioContext,
   haltAllLectureAudio,
+  unlockTutorAudio,
 } from "../../src/tts/audioContext";
 import { ElevenLabsWebSocketTTSClient } from "../../src/tts/elevenLabsWebSocketClient";
 
@@ -23,6 +24,7 @@ const resumeStarted = new Promise<void>((resolve) => {
 class FakeAudioContext {
   state: AudioContextState = "suspended";
   currentTime = 0;
+  sampleRate = 44_100;
   readonly destination = {};
 
   constructor() {
@@ -130,6 +132,9 @@ const lecture = createLectureAudioContext();
 const shared = getSharedAudioContext();
 assert.notEqual(lecture.state, "closed", "fixture lecture context should start open");
 assert.notEqual(shared.state, "closed", "fixture shared context should start open");
+
+unlockTutorAudio();
+assert.notEqual(lecture.state, "closed", "unlock must not close the lecture graph");
 
 haltAllLectureAudio();
 

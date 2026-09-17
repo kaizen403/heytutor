@@ -193,7 +193,6 @@ export function useQuestionHandler(
   turnControl: Pick<
     TurnControlApi,
     | "finishLectureUi"
-    | "applyTurnPhase"
     | "enqueueSegment"
     | "enqueueVerifiedIntro"
     | "processResponseText"
@@ -267,7 +266,6 @@ export function useQuestionHandler(
 
   const {
     finishLectureUi,
-    applyTurnPhase,
     enqueueSegment,
     enqueueVerifiedIntro,
     processResponseText,
@@ -1582,6 +1580,7 @@ export function useQuestionHandler(
       // Transition from planning back to thinking before the LLM stream starts.
       throwIfTurnCancelled();
       setPhaseIfCurrent("thinking");
+      tts.unlockAudio?.();
 
       // Commit the plan before narration so every later [TYPE] reveals a
       // pre-validated block. The panel stays hidden until the first TYPE.
@@ -1697,6 +1696,10 @@ export function useQuestionHandler(
           enqueueVerifiedIntro(introSegments, turnGeneration);
         };
         const enqueueLessonOpening = () => {
+          // Same-gesture resume can expire during a long plan. Re-arm WebAudio
+          // before the first spoken beat so the overlay is not replaced by a
+          // silent dump.
+          tts.unlockAudio?.();
           enqueueOpeningNotes();
           if (!codeLesson) {
             if (figureIntroEnqueued || !STREAM_SEGMENTS_LIVE) return;
@@ -2037,7 +2040,6 @@ export function useQuestionHandler(
         // one so the student is not left with notes and no example.
         enqueueLessonOpening();
         if (codeLesson && !(resume && resume.figureDrawn)) ensureFigureIntro();
-        applyTurnPhase("speaking");
 
         await awaitCurrentTurn(processResponseText(
           responseText,
@@ -2223,7 +2225,6 @@ export function useQuestionHandler(
       finishLectureUi,
       flushPausedLesson,
       ensureTTSClient,
-      applyTurnPhase,
       whiteboardRef,
       pendingQuestionRef,
       liveQuestionRef,

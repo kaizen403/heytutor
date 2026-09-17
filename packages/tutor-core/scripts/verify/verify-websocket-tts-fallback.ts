@@ -76,6 +76,7 @@ class FakeAudioBufferSource {
 class FakeAudioContext {
   state: AudioContextState = "running";
   currentTime = 0;
+  sampleRate = 44_100;
   readonly destination = {};
 
   async resume(): Promise<void> {

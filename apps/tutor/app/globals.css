@@ -1195,9 +1195,9 @@ h4 {
 /* ── Pending lesson ────────────────────────────────────────────────────
    The wait before the first mark. Frost the paper so the clicker sits on
    a blurred board rather than a second opaque sheet — on a phone an 88px
-   pen on solid paper ate the whole surface. The clicker itself is the
-   pending mark; there is no status sentence. The sweep at the top is the
-   only "this is working" besides the spin, and it is the paper's own ink.
+   pen on solid paper ate the whole surface. The clicker is the pending
+   mark; the line under it names the wait as preparing the lecture. The
+   sweep at the top is the paper's own ink.
    ──────────────────────────────────────────────────────────────────── */
 
 .wb-pending {

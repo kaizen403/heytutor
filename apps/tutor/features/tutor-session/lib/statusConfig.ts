@@ -15,7 +15,7 @@ export const STATUS_CONFIG: Record<TutorPhase, StatusDisplay> = {
   },
   thinking: {
     color: "#4A9EFF",
-    label: "thinking\u2026",
+    label: "preparing\u2026",
     dotClass: "animate-wb-pulse",
     labelColor: "#4A9EFF",
   },

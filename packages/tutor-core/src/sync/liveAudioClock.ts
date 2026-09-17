@@ -119,13 +119,13 @@ export type InitialTimingWaitDecision =
     };
 
 /**
- * Whether the runner may build its first schedule yet.
+ * Whether the runner may start inking this spoken segment.
  *
- * The old gate waited only when audio had already started, and in the paired
- * path it never had: the schedule was built 1 to 3 ms before the prefetched
- * alignment was replayed, so every WRITE row of a lesson ran on the estimate
- * with the exact timings sitting unread (15 of 15 rows, 10 Sep 2026). This
- * decides on the four things that can end the wait, and nothing else.
+ * A peeked alignment is not permission to draw. Releasing on timings alone
+ * let the pen run the whole figure on the wall clock at playback speed while
+ * TTS was still connecting — a silent 1.5–2× dump, then the lecture "started".
+ * Wait for `onStart` (the voice is actually audible), then use the alignment
+ * that is already in hand.
  */
 export function resolveInitialTimingWait(state: InitialTimingWaitState): InitialTimingWaitDecision {
   if (state.cancelled) {
@@ -134,20 +134,35 @@ export function resolveInitialTimingWait(state: InitialTimingWaitState): Initial
   if (!state.hasNarration) {
     return { release: true, source: "silent" };
   }
+  if (state.audioStartedAtMs === null) {
+    if (state.speechComplete) {
+      return { release: true, source: "complete" };
+    }
+    return { release: false, releaseAtMs: null };
+  }
   if (state.timingChars > 0) {
     return { release: true, source: "tts" };
   }
   if (state.speechComplete) {
     return { release: true, source: "complete" };
   }
-  if (state.audioStartedAtMs === null) {
-    return { release: false, releaseAtMs: null };
-  }
   const releaseAtMs = state.audioStartedAtMs + INITIAL_TIMING_GRACE_AFTER_START_MS;
   if (state.nowMs >= releaseAtMs) {
     return { release: true, source: "estimated" };
   }
   return { release: false, releaseAtMs };
+}
+
+/**
+ * Spoken ink stays off the board until the voice is audible. A segment whose
+ * speech finished without `onStart` must not dump its commands in silence.
+ * Draw-only segments (no narration) may ink immediately.
+ */
+export function shouldStartLiveDraw(input: {
+  hasNarration: boolean;
+  audioStarted: boolean;
+}): boolean {
+  return !input.hasNarration || input.audioStarted;
 }
 
 /** What became of the exact alignment when a handwriting schedule was built. */

@@ -17,8 +17,9 @@
  * the estimate because it asked 1 to 3 ms before the claim replayed
  * `onTimings`. The client now answers `peekSegmentTimings` before the claim,
  * a full alignment precedes `onStart` on every path, and the runner's first
- * schedule waits on `resolveInitialTimingWait`, whose measured timelines are
- * replayed at the end of this file.
+ * schedule waits on `resolveInitialTimingWait` until that start — peeked
+ * timings alone used to release the pen onto a silent wall clock. Measured
+ * timelines are replayed at the end of this file.
  *
  * The fake socket below is the relay's half of the contract: a context that is
  * closed answers with audio and a final, and one that is not answers nothing.
@@ -36,6 +37,7 @@ import {
   INITIAL_TIMING_GRACE_AFTER_START_MS,
   classifyTtsScheduleUse,
   resolveInitialTimingWait,
+  shouldStartLiveDraw,
   type InitialTimingWaitRelease,
 } from "../../src/sync/liveAudioClock";
 
@@ -190,6 +192,7 @@ class FakeAudioBufferSource {
 class FakeAudioContext {
   state: AudioContextState = "running";
   currentTime = 0;
+  sampleRate = 44_100;
   readonly destination = {};
   async resume(): Promise<void> {
     this.state = "running";
@@ -206,6 +209,16 @@ class FakeAudioContext {
       sampleRate: 44_100,
       numberOfChannels: 1,
       getChannelData: () => data[0]!,
+    } as unknown as AudioBuffer;
+  }
+  createBuffer(channels: number, length: number, sampleRate: number): AudioBuffer {
+    const data = Array.from({ length: channels }, () => new Float32Array(length));
+    return {
+      duration: length / sampleRate,
+      length,
+      sampleRate,
+      numberOfChannels: channels,
+      getChannelData: (channel: number) => data[channel] ?? data[0]!,
     } as unknown as AudioBuffer;
   }
   createBufferSource(): AudioBufferSourceNode {
@@ -562,13 +575,18 @@ assert(
   "the first schedule was released before the voice had started or aligned",
 );
 
+assert(
+  simulateInitialTimingWait([{ atMs: 3, kind: "timings" }]) === null,
+  "a peeked alignment must not release the pen before the voice is audible",
+);
+
 assertRelease(
   "prefetched sentence (alignment +3, start +13)",
   simulateInitialTimingWait([
     { atMs: 3, kind: "timings" },
     { atMs: 13, kind: "start" },
   ]),
-  { releasedAtMs: 3, source: "tts" },
+  { releasedAtMs: 13, source: "tts" },
 );
 assertRelease(
   "opening sentence generated on demand (alignment +838, start +839)",
@@ -576,7 +594,7 @@ assertRelease(
     { atMs: 838, kind: "timings" },
     { atMs: 839, kind: "start" },
   ]),
-  { releasedAtMs: 838, source: "tts" },
+  { releasedAtMs: 839, source: "tts" },
 );
 assert(
   INITIAL_TIMING_GRACE_AFTER_START_MS === 120,
@@ -610,6 +628,19 @@ assertRelease(
   "draw-only segment",
   simulateInitialTimingWait([], false),
   { releasedAtMs: 0, source: "silent" },
+);
+
+assert(
+  !shouldStartLiveDraw({ hasNarration: true, audioStarted: false }),
+  "a spoken segment must not dump ink before the voice is audible",
+);
+assert(
+  shouldStartLiveDraw({ hasNarration: true, audioStarted: true }),
+  "once the voice has started, the pen may follow it",
+);
+assert(
+  shouldStartLiveDraw({ hasNarration: false, audioStarted: false }),
+  "a draw-only segment has no voice to wait for",
 );
 
 // The schedule log names what became of the alignment. `schedule_source`

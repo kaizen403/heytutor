@@ -21,7 +21,7 @@ import {
   concatDecodedAudioBuffers,
   nextScheduleStartSec,
 } from "./playbackSchedule";
-import { createLectureAudioContext, releaseLectureAudioContext } from "./audioContext";
+import { createLectureAudioContext, releaseLectureAudioContext, unlockTutorAudio } from "./audioContext";
 import { TUTOR_VOICE_SETTINGS, voiceSettingsKey } from "./voiceSettings";
 import {
   applyBufferSourcePlaybackRate,
@@ -537,6 +537,7 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     this.halted = false;
     this.paused = false;
     this.audioContext = this.audioContext ?? createLectureAudioContext();
+    unlockTutorAudio();
     if (this.audioContext.state === "suspended") {
       void this.audioContext.resume().then(() => {
         tutorDebug("tts", "audio unlocked", { state: this.audioContext?.state });
