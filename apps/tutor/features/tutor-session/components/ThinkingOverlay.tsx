@@ -14,8 +14,7 @@ interface ThinkingOverlayProps {
   onBoardAt?: { x: number; y: number } | null;
   /**
    * CSS px per board unit. The board is drawn at this scale from the surface's
-   * top left; a percentage of the surface drifts wherever the frame padding
-   * and the bezel disagree, which they do at compact widths.
+   * top left so a doubt clicker lands on the same point as the figure.
    */
   scale?: number;
 }

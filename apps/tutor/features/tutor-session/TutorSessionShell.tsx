@@ -1272,7 +1272,6 @@ export function TutorSessionShell({
     (isMobile && codeLessonController.getActivePlan() ? (
       <CodeLessonPanel controller={codeLessonController} variant="below" />
     ) : null);
-  const framePad = isCompactNav ? 20 : 32;
 
   const sessionBody = (
     <>
@@ -1393,7 +1392,7 @@ export function TutorSessionShell({
         <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           <div
             ref={boardContainerRef}
-            className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden"
+            className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden [isolation:isolate]"
             style={{
               marginTop: PAGE_GUTTER_Y,
             }}
@@ -1426,19 +1425,16 @@ export function TutorSessionShell({
             )}
 
             <div
-              className={`flex min-h-0 max-w-full flex-col items-center ${
+              className={`wb-stage flex min-h-0 flex-col items-center ${
                 fullBleedLanding ? "pointer-events-none invisible absolute" : ""
               }`}
               aria-hidden={fullBleedLanding || undefined}
-            >
-            <div
-              className="wb-frame relative max-w-full"
               style={{
-                width: BOARD_WIDTH * boardViewport.scale + framePad,
-                height: BOARD_HEIGHT * boardViewport.scale + framePad,
-                maxWidth: "100%",
+                ["--board-w" as string]: `${BOARD_WIDTH * boardViewport.scale}px`,
+                ["--board-h" as string]: `${BOARD_HEIGHT * boardViewport.scale}px`,
               }}
             >
+            <div className="wb-frame relative">
             <div className="wb-surface absolute overflow-hidden">
             {isInputOverlay && !fullBleedLanding && (
               <div className="wb-scrim-strong pointer-events-none absolute inset-0 z-10" />
@@ -1529,7 +1525,7 @@ export function TutorSessionShell({
             </div>
 
             {deckPanel ? (
-              <div className="w-full" style={{ width: BOARD_WIDTH * boardViewport.scale + framePad, maxWidth: "100%" }}>
+              <div className="wb-deck">
                 {deckPanel}
               </div>
             ) : null}

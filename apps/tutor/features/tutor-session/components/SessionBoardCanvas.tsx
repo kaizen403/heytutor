@@ -122,15 +122,19 @@ export function SessionBoardCanvas({
 
   return (
     <div
-      className="absolute inset-0 z-[1] overflow-hidden"
+      className="absolute inset-0 z-[1] overflow-hidden [isolation:isolate]"
     >
       <div
         style={{
           position: "absolute",
           top: 0,
           left: 0,
-          width: BOARD_WIDTH * boardViewport.scale,
-          height: BOARD_HEIGHT * boardViewport.scale,
+          width: "100%",
+          height: "100%",
+          overflow: "hidden",
+          isolation: "isolate",
+          transform: "translateZ(0)",
+          borderRadius: 5,
         }}
       >
         <div

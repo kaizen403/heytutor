@@ -2865,7 +2865,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         width={width}
         height={height}
         pixelRatio={pixelRatioRef.current}
-        style={{ backgroundColor: WHITEBOARD_COLOR }}
+        style={{ backgroundColor: WHITEBOARD_COLOR, display: "block" }}
         perfectDrawEnabled={false}
       >
         <Layer listening={false} perfectDrawEnabled={false}>

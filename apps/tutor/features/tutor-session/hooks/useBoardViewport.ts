@@ -1,15 +1,12 @@
 import type { RefObject } from "react";
 import { useEffect, useState } from "react";
+import {
+  BOARD_FRAME_MOBILE_MQ,
+  boardFramePaddingPx,
+  shouldLockBoardScale,
+} from "../lib/board/boardFrame";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "../constants";
 import type { BoardViewport } from "../types";
-
-/** Desktop frame padding (16px surface inset on each side). */
-const FRAME_PADDING_DESKTOP = 32;
-/** Mobile frame padding (10px surface inset on each side). */
-const FRAME_PADDING_MOBILE = 20;
-const MOBILE_MQ = "(max-width: 640px)";
-/** Width change below this is measurement noise, not a rotation or sidebar. */
-const WIDTH_LOCK_PX = 8;
 
 export type BoardViewportMode = "fit" | "fixed";
 
@@ -61,9 +58,9 @@ export function useBoardViewport(
         retries = 0;
       }
 
-      const framePadding = window.matchMedia(MOBILE_MQ).matches
-        ? FRAME_PADDING_MOBILE
-        : FRAME_PADDING_DESKTOP;
+      const framePadding = boardFramePaddingPx(
+        window.matchMedia(BOARD_FRAME_MOBILE_MQ).matches,
+      );
 
       const availWidth = Math.max(width - framePadding, 1);
       const availHeight = Math.max(height - framePadding, 1);
@@ -73,17 +70,24 @@ export function useBoardViewport(
 
       // Fit the board inside the container without cropping.
       const nextScale = Math.min(widthScale, heightScale, windowFallback ? 1 : Number.POSITIVE_INFINITY);
+      const visual = window.visualViewport;
+      const keyboardInset = visual
+        ? Math.max(0, Math.round(window.innerHeight - (visual.offsetTop + visual.height)))
+        : 0;
       // Avoid sub-pixel thrash from ResizeObserver feedback.
       setViewport((prev) => {
         if (prev.measured && Math.abs(prev.scale - nextScale) < 0.001) return prev;
-        // The URL bar and the on-screen keyboard shrink height without
-        // changing width. Rescaling Konva for that looks like a reload.
-        // Height growth (keyboard closing, landing overlay gone) may refit.
+        // Keyboard and tiny height wobble must not rescale a live lecture.
+        // The composer docking under the board is a real layout shrink and
+        // must refit, or the paper keeps the empty-landing size.
         if (
           prev.measured &&
           lastBox.width > 0 &&
-          Math.abs(width - lastBox.width) < WIDTH_LOCK_PX &&
-          height <= lastBox.height + 8
+          shouldLockBoardScale({
+            widthDelta: width - lastBox.width,
+            heightDelta: height - lastBox.height,
+            keyboardInset,
+          })
         ) {
           return prev;
         }
@@ -97,7 +101,7 @@ export function useBoardViewport(
     const observer = new ResizeObserver(updateScale);
     observer.observe(container);
 
-    const media = window.matchMedia(MOBILE_MQ);
+    const media = window.matchMedia(BOARD_FRAME_MOBILE_MQ);
     media.addEventListener("change", updateScale);
 
     return () => {
