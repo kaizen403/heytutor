@@ -70,12 +70,15 @@ jobs:
           retention-days: 1
 
       - name: Deploy landing to Cloudflare Pages (dev)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/landing/dist --project-name=accelute --branch=dev --commit-dirty=true --commit-hash=${{ github.sha }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: >
+          npx --yes wrangler@4 pages deploy apps/landing/dist
+          --project-name=accelute
+          --branch=dev
+          --commit-dirty=true
+          --commit-hash=${{ github.sha }}
 
   sync-branches:
     name: Keep dev and main in sync
@@ -113,12 +116,15 @@ jobs:
           path: apps/landing/dist
 
       - name: Deploy landing to Cloudflare Pages (production)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/landing/dist --project-name=accelute --branch=main --commit-dirty=true --commit-hash=${{ github.sha }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: >
+          npx --yes wrangler@4 pages deploy apps/landing/dist
+          --project-name=accelute
+          --branch=main
+          --commit-dirty=true
+          --commit-hash=${{ github.sha }}
 
       - name: Require tutor deploy secrets
         env:
