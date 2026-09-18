@@ -35,7 +35,7 @@ import { STUNT_KINDS } from "../src/penStunts";
  * tricks are the part of the repertoire where that question is live, so the
  * page shows the whole thing rather than the half that was here before.
  */
-const STUNTS = { stunts: true } as const;
+const STUNTS = { stunts: STUNT_KINDS } as const;
 /** The whole repertoire, plain gestures then tricks. */
 const ALL_KINDS: readonly IdlePerformanceKind[] = [...IDLE_GESTURE_KINDS, ...STUNT_KINDS];
 

@@ -17,7 +17,17 @@ import {
   TEACHING_NOTE_MAX,
   type AccountSettings,
 } from "@/lib/account/userSettings";
-import { MARKER_COLORS } from "@/features/tutor-session/components/SettingsDrawer";
+import {
+  MARKER_COLORS,
+  getMarkerColorHex,
+  toggleMarkerStunt,
+} from "@/features/tutor-session/components/SettingsDrawer";
+import {
+  MarkerStuntPreview,
+  STUNT_COPY,
+  STUNT_KINDS,
+  type StuntKind,
+} from "@heytutor/whiteboard";
 import { getLegalHref } from "@/lib/site";
 import type { AccountProfile } from "@/lib/account/types";
 import { PlanUsageCard } from "./PlanUsageCard";
@@ -187,16 +197,21 @@ export function SettingsScreen({ section }: { section: string }) {
                 checked={settings.subtitlesEnabled}
                 onChange={(checked) => patch({ subtitlesEnabled: checked })}
               />
-              <Toggle
-                title="Marker stunts"
-                checked={settings.markerStunts}
-                onChange={(checked) => patch({ markerStunts: checked })}
-              />
-              <p className="mt-3 text-xs text-[rgba(237,237,235,0.45)]">
-                Marker stunts: in the gaps between strokes the hand spins the marker around its
-                thumb, walks it across the knuckles, gives it a flat double turn, or tosses and
-                catches it. The marker stays where it is standing.
-              </p>
+              <div className="mt-5">
+                <h3 className="text-sm text-frost">Marker stunts</h3>
+                <p className="mt-1 mb-3 text-xs text-[rgba(237,237,235,0.45)]">
+                  Tricks the hand plays in the gaps between strokes, while the tutor is talking.
+                  Pick the ones you want and the board plays only those. The marker stays where it
+                  is standing and never leaves the board.
+                </p>
+                <MarkerStuntChooser
+                  selected={settings.markerStunts}
+                  ink={getMarkerColorHex(settings.markerColor)}
+                  onToggle={(kind) =>
+                    patch({ markerStunts: toggleMarkerStunt(settings.markerStunts, kind) })
+                  }
+                />
+              </div>
               <p className="mt-3 text-xs text-[rgba(237,237,235,0.45)]">
                 The writing surface stays paper. We are not theming the board.
               </p>
@@ -338,6 +353,82 @@ export function SettingsScreen({ section }: { section: string }) {
         </div>
       </div>
     </AccountPageFrame>
+  );
+}
+
+/**
+ * The same choice as the lesson drawer, laid out for a page rather than a
+ * sheet: the showcase is big enough to actually read the trick, and every
+ * option carries its own caption instead of only the one being shown.
+ */
+function MarkerStuntChooser({
+  selected,
+  ink,
+  onToggle,
+}: {
+  selected: readonly StuntKind[];
+  ink: string;
+  onToggle: (kind: StuntKind) => void;
+}) {
+  const [showing, setShowing] = useState<StuntKind>(selected[0] ?? STUNT_KINDS[0]!);
+
+  return (
+    <div className="flex flex-col gap-4 sm:flex-row">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        {STUNT_KINDS.map((kind) => {
+          const checked = selected.includes(kind);
+          return (
+            <button
+              key={kind}
+              type="button"
+              role="switch"
+              aria-checked={checked}
+              onClick={() => {
+                setShowing(kind);
+                onToggle(kind);
+              }}
+              onMouseEnter={() => setShowing(kind)}
+              onFocus={() => setShowing(kind)}
+              className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-all ${
+                checked
+                  ? "border-sky-500 bg-sky-500/12"
+                  : "border-[rgba(255,255,255,0.1)] hover:border-sky-500"
+              } ${showing === kind ? "ring-1 ring-sky-500/40" : ""}`}
+            >
+              <span
+                aria-hidden="true"
+                className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border text-[10px] leading-none ${
+                  checked ? "border-sky-400 bg-sky-500 text-[#171716]" : "border-[rgba(255,255,255,0.2)]"
+                }`}
+              >
+                {checked ? "✓" : ""}
+              </span>
+              <span className="min-w-0">
+                <span className={`block text-sm ${checked ? "text-sky-200" : "text-frost"}`}>
+                  {STUNT_COPY[kind].label}
+                </span>
+                <span className="mt-0.5 block text-xs text-[rgba(237,237,235,0.45)]">
+                  {STUNT_COPY[kind].caption}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="shrink-0 sm:w-[184px]">
+        <MarkerStuntPreview
+          kind={showing}
+          size={184}
+          ink={ink}
+          label={`${STUNT_COPY[showing].label}: ${STUNT_COPY[showing].caption}`}
+        />
+        <p className="mt-2 text-xs text-[rgba(237,237,235,0.45)]">
+          {selected.includes(showing)
+            ? `${STUNT_COPY[showing].label} is on.`
+            : `${STUNT_COPY[showing].label} is off. Tap it to turn it on.`}
+        </p>
+      </div>
+    </div>
   );
 }
 

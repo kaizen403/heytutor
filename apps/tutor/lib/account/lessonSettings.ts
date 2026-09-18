@@ -1,3 +1,4 @@
+import { STUNT_KINDS, type StuntKind } from "@heytutor/whiteboard";
 import {
   DEFAULT_ACCENT,
   DEFAULT_AUDIO_LANGUAGE,
@@ -34,11 +35,12 @@ export interface SettingsState {
   subtitlesEnabled: boolean;
   markerColor: MarkerColorId;
   /**
-   * Marker stunts: whether the hand is allowed its loud repertoire while the
-   * tutor talks — a thumb-around, a knuckle roll, a flat double turn, a toss
-   * and catch — on top of the small fidgets it always plays.
+   * Marker stunts: which tricks the hand may play while the tutor talks, on
+   * top of the small fidgets it always plays. A selection rather than a
+   * switch, so a student can keep the knuckle roll and drop the toss. An empty
+   * list is the hand with no tricks at all.
    */
-  markerStunts: boolean;
+  markerStunts: StuntKind[];
 }
 
 export const DEFAULT_SETTINGS: Omit<SettingsState, "speedMultiplier"> = {
@@ -50,7 +52,8 @@ export const DEFAULT_SETTINGS: Omit<SettingsState, "speedMultiplier"> = {
   lowLatencyVoice: false,
   subtitlesEnabled: false,
   markerColor: "navy",
-  markerStunts: true,
+  // Everything the hand can do, until the student narrows it.
+  markerStunts: [...STUNT_KINDS],
 };
 
 export const SPEED_MIN = 0.5;
@@ -62,4 +65,21 @@ export function getMarkerColorHex(id: MarkerColorId): string {
 
 export function isMarkerColorId(value: unknown): value is MarkerColorId {
   return typeof value === "string" && MARKER_COLORS.some((entry) => entry.id === value);
+}
+
+/**
+ * Add or remove one trick from the selection.
+ *
+ * The result is re-ordered through `STUNT_KINDS`, so the stored list only ever
+ * has one shape for a given selection and two people who picked the same two
+ * tricks in a different order have the same setting.
+ */
+export function toggleMarkerStunt(
+  selected: readonly StuntKind[],
+  kind: StuntKind,
+): StuntKind[] {
+  const next = selected.includes(kind)
+    ? selected.filter((entry) => entry !== kind)
+    : [...selected, kind];
+  return STUNT_KINDS.filter((entry) => next.includes(entry));
 }

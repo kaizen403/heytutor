@@ -14,7 +14,14 @@ import {
 } from "lucide-react";
 
 import Link from "next/link";
+import { useState } from "react";
 import { isSubjectFamiliarity, isTutorAccent, isTutorAudioLanguage, type SubjectFamiliarity } from "@heytutor/tutor-core";
+import {
+  MarkerStuntPreview,
+  STUNT_COPY,
+  STUNT_KINDS,
+  type StuntKind,
+} from "@heytutor/whiteboard";
 
 import {
   Sheet,
@@ -25,9 +32,11 @@ import {
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import {
+  getMarkerColorHex,
   MARKER_COLORS,
   SPEED_MAX,
   SPEED_MIN,
+  toggleMarkerStunt,
   type SettingsState,
 } from "@/lib/account/lessonSettings";
 import { cn } from "@/lib/utils";
@@ -39,6 +48,7 @@ export {
   SPEED_MIN,
   getMarkerColorHex,
   isMarkerColorId,
+  toggleMarkerStunt,
   type MarkerColorId,
   type SettingsState,
 } from "@/lib/account/lessonSettings";
@@ -179,6 +189,81 @@ const FAMILIARITY_OPTIONS: ReadonlyArray<[SubjectFamiliarity, string, string]> =
   ["normal", "Normal", "Rusty, so give the usual lesson"],
   ["revision", "Revision", "Known already, so refresh only"],
 ];
+
+/**
+ * Pick the tricks, and watch the one you are picking.
+ *
+ * A list of four with a showcase beside it, rather than a switch, because the
+ * names alone do not tell a student what a knuckle roll looks like on their
+ * board. Touching a row shows it; the checkbox is what turns it on. The
+ * showcase follows hover and keyboard focus too, so it can be browsed without
+ * changing the selection.
+ */
+function MarkerStuntPicker({
+  selected,
+  ink,
+  onToggle,
+}: {
+  selected: readonly StuntKind[];
+  ink: string;
+  onToggle: (kind: StuntKind) => void;
+}) {
+  const [showing, setShowing] = useState<StuntKind>(selected[0] ?? STUNT_KINDS[0]!);
+  const copy = STUNT_COPY[showing];
+
+  return (
+    <div className="flex gap-3">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        {STUNT_KINDS.map((kind) => {
+          const checked = selected.includes(kind);
+          return (
+            <button
+              key={kind}
+              type="button"
+              role="switch"
+              aria-checked={checked}
+              onClick={() => {
+                setShowing(kind);
+                onToggle(kind);
+              }}
+              onMouseEnter={() => setShowing(kind)}
+              onFocus={() => setShowing(kind)}
+              className={cn(
+                "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs font-medium transition-all",
+                checked
+                  ? "border-sky-500 bg-sky-500/12 text-sky-200"
+                  : "border-stroke text-frost hover:border-sky-500",
+                showing === kind ? "ring-1 ring-sky-500/40" : "",
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[4px] border text-[9px] leading-none",
+                  checked ? "border-sky-400 bg-sky-500 text-ink-850" : "border-stroke",
+                )}
+              >
+                {checked ? "✓" : ""}
+              </span>
+              <span className="truncate">{STUNT_COPY[kind].label}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex w-[124px] shrink-0 flex-col gap-1.5">
+        <MarkerStuntPreview
+          kind={showing}
+          size={124}
+          ink={ink}
+          label={`${copy.label}: ${copy.caption}`}
+        />
+        <p className="text-[0.625rem] leading-3.5" style={{ color: theme.dark }}>
+          {copy.caption}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export function SettingsDrawer({
   open,
@@ -357,13 +442,28 @@ export function SettingsDrawer({
           </SettingsSection>
 
           <SettingsSection>
-            <SectionLabel icon={Sparkles}>Marker Stunts</SectionLabel>
-            <ToggleRow
-              title="Let the marker play tricks while it talks"
-              hint="On by default. In the gaps between strokes the hand spins the marker around its thumb, walks it across the knuckles, gives it a flat double turn, or tosses and catches it. It stays where it is standing and never leaves the board."
-              checked={settings.markerStunts}
-              onCheckedChange={(checked) => update({ markerStunts: checked })}
+            <SectionLabel
+              icon={Sparkles}
+              note={
+                settings.markerStunts.length === 0
+                  ? "None"
+                  : `${settings.markerStunts.length} of ${STUNT_KINDS.length}`
+              }
+            >
+              Marker Stunts
+            </SectionLabel>
+            <MarkerStuntPicker
+              selected={settings.markerStunts}
+              ink={getMarkerColorHex(settings.markerColor)}
+              onToggle={(kind) =>
+                update({ markerStunts: toggleMarkerStunt(settings.markerStunts, kind) })
+              }
             />
+            <p className="mt-2 text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
+              Tricks the hand plays in the gaps between strokes, while the tutor is talking. Pick
+              the ones you want and the board plays only those. The marker stays where it is
+              standing and never leaves the board.
+            </p>
           </SettingsSection>
 
           <SettingsSection>

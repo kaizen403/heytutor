@@ -5,9 +5,14 @@
  * `penIdle` is the quiet half of a pause: rolls, taps, a bob, a drift out and
  * back. Deliberately small, because those run constantly and anything larger
  * would read as the pen being taken somewhere. This module is the loud half,
- * and it is opt-in: four tricks a person actually does with a pen, each big
- * enough to be worth watching once, each rare enough that seeing one is a
- * small event rather than wallpaper.
+ * and the student picks it: four tricks a person actually does with a pen,
+ * each big enough to be worth watching once, each rare enough that seeing one
+ * is a small event rather than wallpaper.
+ *
+ * The selection is a *list*, not a switch. Whichever tricks the student has
+ * chosen are the only ones drawn; an empty list is the hand with no tricks at
+ * all. That is the shape the setting is stored in and the shape the board is
+ * handed, so "the ones I picked" and "the ones it plays" cannot drift apart.
  *
  *   thumbAround  the barrel swung a full turn around the thumb, the hand
  *                orbiting a small circle under it
@@ -44,6 +49,63 @@ export const STUNT_KINDS: readonly StuntKind[] = [
   "helicopter",
   "tossCatch",
 ];
+
+/**
+ * Display copy for the four tricks.
+ *
+ * It lives beside the motion rather than in the settings screen so a stunt
+ * cannot exist in the engine without a name a student would recognise, and so
+ * the same words appear in the drawer, the account page and the preview page.
+ * `verify-pen-stunts` holds every kind to having both.
+ */
+export interface StuntCopy {
+  /** Two or three words, as a student would say it. */
+  label: string;
+  /** One sentence describing what the hand does. No trailing full stop. */
+  caption: string;
+}
+
+export const STUNT_COPY: Record<StuntKind, StuntCopy> = {
+  thumbAround: {
+    label: "Thumb spin",
+    caption: "A full turn around the thumb, the hand circling under it",
+  },
+  knuckleRoll: {
+    label: "Knuckle roll",
+    caption: "Walked out across the knuckles and back, four beats",
+  },
+  helicopter: {
+    label: "Helicopter",
+    caption: "Two fast flat turns, dipping toward the board",
+  },
+  tossCatch: {
+    label: "Toss and catch",
+    caption: "Flicked up off the board, one turn in the air, caught",
+  },
+};
+
+/** Narrow an unknown value to a stunt the engine actually has. */
+export function parseStuntKinds(value: unknown): StuntKind[] {
+  const raw =
+    typeof value === "string"
+      ? value.split(",")
+      : Array.isArray(value)
+        ? value
+        : [];
+  const picked: StuntKind[] = [];
+  for (const entry of raw) {
+    const trimmed = typeof entry === "string" ? entry.trim() : "";
+    // Order follows STUNT_KINDS rather than the input, and duplicates collapse,
+    // so two stored orderings of the same selection are the same selection.
+    if (isStuntKind(trimmed) && !picked.includes(trimmed)) picked.push(trimmed);
+  }
+  return STUNT_KINDS.filter((kind) => picked.includes(kind));
+}
+
+/** The stored form: a stable, comma-separated list. */
+export function serializeStuntKinds(kinds: readonly StuntKind[]): string {
+  return parseStuntKinds(kinds).join(",");
+}
 
 const STUNT_KIND_SET = new Set<string>(STUNT_KINDS);
 

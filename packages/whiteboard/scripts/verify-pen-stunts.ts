@@ -22,6 +22,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import {
+  IDLE_GESTURE_KINDS,
   IDLE_LIFT_MAX_PX,
   IDLE_RELEASE_MAX_MS,
   IDLE_RELEASE_MS,
@@ -36,6 +37,7 @@ import {
   type IdlePose,
 } from "../src/penIdle";
 import {
+  STUNT_COPY,
   STUNT_EARLIEST_INDEX,
   STUNT_KINDS,
   STUNT_LIFT_MAX_PX,
@@ -43,6 +45,8 @@ import {
   STUNT_SEPARATION,
   STUNT_TRAVEL_MAX_PX,
   isStuntKind,
+  parseStuntKinds,
+  serializeStuntKinds,
   stuntFrame,
   type StuntKind,
 } from "../src/penStunts";
@@ -55,7 +59,8 @@ function assert(condition: unknown, message: string): asserts condition {
 const DT = 8;
 const SPAN_MS = 120000;
 const SEEDS = Array.from({ length: 40 }, (_, index) => index + 1);
-const ON = { stunts: true } as const;
+/** The whole repertoire chosen, which is the default a student starts on. */
+const ON = { stunts: STUNT_KINDS } as const;
 
 function sample(seed: number, spanMs = SPAN_MS, options = ON): IdlePose[] {
   const poses: IdlePose[] = [];
@@ -101,8 +106,30 @@ function sample(seed: number, spanMs = SPAN_MS, options = ON): IdlePose[] {
       assert(!slot.stunt, `seed ${seed} played ${slot.kind} with stunts off`);
       assert(!isStuntKind(slot.kind), `seed ${seed} played ${slot.kind} with stunts off`);
     }
-    for (const slot of idleGestureSequence(80, seed, { stunts: false })) {
-      assert(!slot.stunt, `seed ${seed} played ${slot.kind} with stunts explicitly off`);
+    /*
+      An empty selection is a real state, not an absent one: it is the student
+      having deselected every trick. The pool must stay shut, and the sequencer
+      must still produce a whole schedule — asked to draw from an empty pool it
+      returned `undefined` as the kind, which made the duration `undefined` and
+      every `startMs` after it NaN, so the hand stopped moving at all.
+    */
+    for (const slot of idleGestureSequence(80, seed, { stunts: [] })) {
+      assert(!slot.stunt, `seed ${seed} played ${slot.kind} with nothing selected`);
+      assert(
+        typeof slot.kind === "string" && IDLE_GESTURE_KINDS.includes(slot.kind as never),
+        `seed ${seed} produced "${slot.kind}" as a gesture with nothing selected`,
+      );
+      assert(
+        Number.isFinite(slot.startMs) && Number.isFinite(slot.durationMs),
+        `seed ${seed} produced a non-finite schedule with nothing selected`,
+      );
+    }
+    for (let ms = 0; ms <= 40000; ms += 137) {
+      const pose = idlePose(ms, seed, { stunts: [] });
+      assert(
+        Number.isFinite(pose.dx) && Number.isFinite(pose.spin) && Number.isFinite(pose.lift),
+        `seed ${seed} froze the hand at ${ms}ms with nothing selected`,
+      );
     }
   }
 
@@ -110,7 +137,7 @@ function sample(seed: number, spanMs = SPAN_MS, options = ON): IdlePose[] {
   for (const seed of [1, 7, 23]) {
     for (let ms = 0; ms <= 40000; ms += 97) {
       const bare = idlePose(ms, seed);
-      const off = idlePose(ms, seed, { stunts: false });
+      const off = idlePose(ms, seed, { stunts: [] });
       assert(
         bare.dx === off.dx &&
           bare.dy === off.dy &&
@@ -118,10 +145,141 @@ function sample(seed: number, spanMs = SPAN_MS, options = ON): IdlePose[] {
           bare.lift === off.lift &&
           bare.scale === off.scale &&
           bare.gesture === off.gesture,
-        `the default and an explicit off disagree at ${ms}ms on seed ${seed}`,
+        `the default and an empty selection disagree at ${ms}ms on seed ${seed}`,
       );
-      assert(bare.stunt === false, "a pose with stunts off is never flagged as one");
+      assert(bare.stunt === false, "a pose with nothing selected is never flagged as one");
     }
+  }
+}
+
+// --- the board plays what the student picked, and nothing else -------------
+/*
+  This is the whole point of the setting being a list. A student who keeps the
+  knuckle roll and drops the toss must never see the toss again, and one who
+  keeps a single trick must still see it about as often as four students each
+  seeing one of four — the pool weight is how often *a* trick happens, not how
+  many are in it.
+*/
+{
+  const SELECTIONS: readonly (readonly StuntKind[])[] = [
+    ["thumbAround"],
+    ["tossCatch"],
+    ["knuckleRoll", "helicopter"],
+    ["thumbAround", "helicopter", "tossCatch"],
+    STUNT_KINDS,
+  ];
+
+  const shareOf = (selection: readonly StuntKind[]): number => {
+    let slots = 0;
+    let stunts = 0;
+    for (const seed of SEEDS) {
+      for (const slot of idleGestureSequence(60, seed, { stunts: selection })) {
+        slots += 1;
+        if (!slot.stunt) continue;
+        stunts += 1;
+        assert(
+          selection.includes(slot.kind as StuntKind),
+          `${slot.kind} played although the student picked ${selection.join(", ") || "nothing"}`,
+        );
+      }
+    }
+    return stunts / slots;
+  };
+
+  const shares = SELECTIONS.map(shareOf);
+  for (let index = 0; index < SELECTIONS.length; index += 1) {
+    const selection = SELECTIONS[index]!;
+    const share = shares[index]!;
+    assert(
+      share > 0.05 && share < 0.14,
+      `picking ${selection.join(", ")} changed how often a trick happens: ${(share * 100).toFixed(1)}%`,
+    );
+  }
+  // One trick chosen comes up roughly as often as four do between them.
+  const single = shares[0]!;
+  const all = shares[shares.length - 1]!;
+  assert(
+    Math.abs(single - all) < 0.02,
+    `one trick fires at ${(single * 100).toFixed(1)}% against ${(all * 100).toFixed(1)}% for four`,
+  );
+
+  // And a single-trick selection must not run the picker out of candidates:
+  // the pool filters out the last two kinds, and with one chosen that would
+  // leave nothing to draw.
+  for (const seed of SEEDS) {
+    let seen = 0;
+    for (const slot of idleGestureSequence(80, seed, { stunts: ["helicopter"] })) {
+      if (!slot.stunt) continue;
+      seen += 1;
+      assert(slot.kind === "helicopter", `a one-trick selection drew ${slot.kind}`);
+    }
+    assert(seen > 0, `seed ${seed} never played the one trick that was chosen`);
+  }
+
+  // The poses agree with the sequence: it is not enough for the *list* to be
+  // filtered if the frame the board paints comes from somewhere else.
+  for (const seed of SEEDS.slice(0, 12)) {
+    for (let ms = 0; ms <= 60000; ms += 40) {
+      const pose = idlePose(ms, seed, { stunts: ["knuckleRoll"] });
+      if (!pose.stunt) continue;
+      assert(pose.gesture === "knuckleRoll", `the board painted ${pose.gesture} instead`);
+    }
+  }
+}
+
+// --- every trick has a name and a sentence a student would recognise -------
+/*
+  Copy lives with the motion so a stunt cannot reach the settings screen as a
+  camelCase identifier, and so the drawer, the account page and the preview all
+  say the same thing about it.
+*/
+{
+  for (const kind of STUNT_KINDS) {
+    const copy = STUNT_COPY[kind];
+    assert(copy !== undefined, `${kind} has no display copy`);
+    assert(
+      copy.label.length > 2 && copy.label.length <= 24,
+      `${kind}'s label is not a name a student would say: "${copy.label}"`,
+    );
+    assert(copy.label !== kind, `${kind} is showing its identifier as its label`);
+    assert(
+      copy.caption.length > 12 && copy.caption.length <= 110,
+      `${kind}'s caption does not describe it: "${copy.caption}"`,
+    );
+    assert(!copy.caption.endsWith("."), `${kind}'s caption must not carry its own full stop`);
+    for (const dash of ["\u2014", "\u2013"]) {
+      assert(
+        !copy.label.includes(dash) && !copy.caption.includes(dash),
+        `${kind}'s copy uses a dash as punctuation, which this product's voice does not`,
+      );
+    }
+  }
+  const labels = STUNT_KINDS.map((kind) => STUNT_COPY[kind].label);
+  assert(new Set(labels).size === labels.length, "two tricks share a label");
+}
+
+// --- the selection has exactly one stored shape ----------------------------
+{
+  assert(serializeStuntKinds(STUNT_KINDS) === STUNT_KINDS.join(","), "all four store in order");
+  assert(serializeStuntKinds([]) === "", "and nothing stores as nothing");
+  assert(
+    serializeStuntKinds(["tossCatch", "thumbAround"]) ===
+      serializeStuntKinds(["thumbAround", "tossCatch"]),
+    "the order a student clicked in must not reach the store",
+  );
+  assert(
+    parseStuntKinds("tossCatch, knuckleRoll").join(",") === "knuckleRoll,tossCatch",
+    "whitespace and order are both normalised on the way back",
+  );
+  assert(parseStuntKinds("cartwheel,helicopter").join(",") === "helicopter", "unknown ids drop");
+  assert(parseStuntKinds(undefined).length === 0, "and nothing at all is the empty selection");
+  assert(parseStuntKinds(["helicopter", "helicopter"]).join(",") === "helicopter", "and dedupes");
+  for (const selection of [[], ["helicopter"], ["knuckleRoll", "tossCatch"], STUNT_KINDS]) {
+    const stored = serializeStuntKinds(selection as readonly StuntKind[]);
+    assert(
+      parseStuntKinds(stored).join(",") === (selection as readonly string[]).join(","),
+      `${JSON.stringify(selection)} did not round-trip, got "${stored}"`,
+    );
   }
 }
 
@@ -448,5 +606,5 @@ function sample(seed: number, spanMs = SPAN_MS, options = ON): IdlePose[] {
 }
 
 console.log(
-  "verify-pen-stunts: four distinct tricks, each entering and leaving at exactly rest with the barrel on a whole turn, drawn about one slot in eight and never on a pause's opening beat or within two slots of another, performed inside a bounded box the plain repertoire never borrows, never touching the marker's opacity, caught rather than dropped when work arrives, and bit-for-bit absent when the setting is off",
+  "verify-pen-stunts: four distinct tricks, each with a name and a sentence a student would recognise, each entering and leaving at exactly rest with the barrel on a whole turn, only the ones the student picked ever played and at the same rate whether one is chosen or four, drawn about one slot in eight and never on a pause's opening beat or within two slots of another, performed inside a bounded box the plain repertoire never borrows, never touching the marker's opacity, caught rather than dropped when work arrives, and bit-for-bit absent when nothing is selected",
 );

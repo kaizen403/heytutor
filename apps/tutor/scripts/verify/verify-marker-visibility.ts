@@ -20,8 +20,16 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
-import { cursorOpacity, type CursorState } from "@heytutor/whiteboard";
+import {
+  MarkerStuntPreview,
+  STUNT_COPY,
+  STUNT_KINDS,
+  cursorOpacity,
+  type CursorState,
+} from "@heytutor/whiteboard";
 import {
   CURSOR_ALPHA_EPSILON,
   CURSOR_FADE_TIME_CONSTANT_MS,
@@ -259,6 +267,111 @@ const ALL_PHASES: readonly TutorPhase[] = ["idle", "planning", "thinking", "draw
   );
 }
 
+// --- the settings let a student pick tricks, and show them what they picked --
+/*
+  The setting is a selection, so the screens have to offer every trick the
+  engine has and show what each one does. A stunt that reaches `STUNT_KINDS`
+  without a row in the settings is a trick nobody can turn on; a row without a
+  showcase is a name with no meaning, which is what a toggle was.
+
+  Both screens are checked against `STUNT_KINDS` itself rather than a copy of
+  the list, so adding a fifth trick fails here until the settings know about it.
+*/
+{
+  const tutorRoot = resolve(import.meta.dirname, "../..");
+  const drawer = readFileSync(
+    resolve(tutorRoot, "features/tutor-session/components/SettingsDrawer.tsx"),
+    "utf8",
+  );
+  const account = readFileSync(resolve(tutorRoot, "features/account/SettingsScreen.tsx"), "utf8");
+
+  for (const [name, source] of [
+    ["the lesson drawer", drawer],
+    ["the account settings page", account],
+  ] as const) {
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    // Driven off the repertoire, never a hand-written list that can fall behind.
+    assert(
+      /STUNT_KINDS\.map\(/.test(code),
+      `${name} must offer every trick in the repertoire, not a list of its own`,
+    );
+    assert(
+      /STUNT_COPY\[/.test(code),
+      `${name} must name the tricks with the copy that ships beside the motion`,
+    );
+    assert(
+      /<MarkerStuntPreview/.test(code),
+      `${name} must show the trick, not just name it`,
+    );
+    // The showcase follows the row being picked, and hover and focus too, so a
+    // student can look through them without changing the selection.
+    assert(
+      /setShowing\(kind\)/.test(code) && /onMouseEnter=/.test(code) && /onFocus=/.test(code),
+      `${name} must showcase whichever trick is being picked, hovered or focused`,
+    );
+    assert(
+      /kind=\{showing\}/.test(code),
+      `${name}'s showcase must play the trick it is pointing at`,
+    );
+    // Selecting is a toggle on a list, not a boolean on the whole feature.
+    assert(
+      /toggleMarkerStunt\(settings\.markerStunts, kind\)/.test(code),
+      `${name} must add and remove one trick at a time`,
+    );
+    assert(
+      !/markerStunts: checked/.test(code),
+      `${name} still writes the selection as a boolean`,
+    );
+    assert(
+      /aria-checked=\{checked\}/.test(code),
+      `${name} must say which tricks are on to assistive tech`,
+    );
+    // The showcase is drawn in the marker's own colour, so what is previewed is
+    // the marker the student is actually going to watch.
+    assert(
+      /ink=\{getMarkerColorHex\(settings\.markerColor\)\}/.test(code),
+      `${name}'s showcase must use the student's own marker colour`,
+    );
+  }
+
+  assert(STUNT_KINDS.length >= 3, "the student needs a few tricks to choose between");
+  for (const kind of STUNT_KINDS) {
+    assert(STUNT_COPY[kind] !== undefined, `${kind} has no copy for the settings to show`);
+  }
+}
+
+// --- the showcase shows a marker on its very first paint --------------------
+/*
+  The loop is imperative, so the first paint is whatever the JSX says, and that
+  is also exactly what the server sends. With no transform declared the
+  instrument is drawn at the SVG origin, off the corner of the tile, and the
+  showcase renders as an empty patch of paper until the first frame lands.
+  Which is the same complaint as the vanishing marker, in a smaller box.
+*/
+{
+  for (const kind of [...STUNT_KINDS, null]) {
+    const markup = renderToStaticMarkup(
+      createElement(MarkerStuntPreview, { kind, size: 132, ink: "#1B2A4A" }),
+    );
+    assert(
+      /<(polygon|rect|circle|polyline)/.test(markup),
+      `the showcase for ${kind ?? "rest"} drew no instrument at all`,
+    );
+    const placed = /transform="translate\(([-\d.]+) ([-\d.]+)\)/.exec(markup);
+    assert(placed !== null, `the showcase for ${kind ?? "rest"} declares no resting pose`);
+    const [x, y] = [Number(placed[1]), Number(placed[2])];
+    const box = /viewBox="0 0 (\d+) (\d+)"/.exec(markup);
+    assert(box !== null, "the showcase must declare a view box");
+    const [width, height] = [Number(box[1]), Number(box[2])];
+    assert(
+      x > width * 0.1 && x < width * 0.9 && y > height * 0.1 && y < height * 0.9,
+      `the showcase for ${kind ?? "rest"} parks the marker at ${x},${y}, outside its own tile`,
+    );
+    // The paper is behind it, so the tile is never a blank rectangle.
+    assert(/background/.test(markup), "the showcase must draw the paper the trick happens on");
+  }
+}
+
 console.log(
-  "✓ marker visibility: the marker is on the board through every speaking and drawing beat of a lecture and through every frame of a rewind, it may only be down before and after a turn, it fades to and from that rather than switching, and the stunt setting reaches every board the student sees",
+  "✓ marker visibility: the marker is on the board through every speaking and drawing beat of a lecture and through every frame of a rewind, it may only be down before and after a turn, it fades to and from that rather than switching, and the stunt selection reaches every board the student sees while both settings screens offer every trick with a showcase that has the marker on its paper from the first paint",
 );

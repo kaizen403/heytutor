@@ -1,4 +1,10 @@
 import {
+  STUNT_KINDS,
+  parseStuntKinds,
+  serializeStuntKinds,
+  type StuntKind,
+} from "@heytutor/whiteboard";
+import {
   DEFAULT_ACCENT,
   DEFAULT_AUDIO_LANGUAGE,
   DEFAULT_FAMILIARITY,
@@ -56,6 +62,25 @@ export const DEFAULT_ACCOUNT_SETTINGS: AccountSettings = {
   emailGuardianNotice: true,
 };
 
+/**
+ * Read the stored selection of marker stunts.
+ *
+ * The column started life as a boolean, so a row written before the setting
+ * became a selection still says `true` or `false`. `true` means the student
+ * never narrowed it, which is everything; `false` means they switched the
+ * tricks off, which is nothing. A row that has never been written at all is
+ * `undefined`, and that is everything too.
+ */
+export function parseMarkerStunts(value: unknown): StuntKind[] {
+  if (value === undefined || value === null) return [...STUNT_KINDS];
+  // Both the column and the local cache began as a boolean, before the setting
+  // became a selection. `true` is a student who never narrowed it, which is
+  // every trick; `false` is one who switched them off, which is none.
+  if (value === true || value === "1" || value === "true") return [...STUNT_KINDS];
+  if (value === false || value === "0" || value === "false") return [];
+  return parseStuntKinds(value);
+}
+
 export function clampSpeed(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_ACCOUNT_SETTINGS.speedMultiplier;
   return Math.min(SPEED_MAX, Math.max(SPEED_MIN, value));
@@ -81,6 +106,11 @@ export function lessonSettingsFromAccount(settings: AccountSettings): SettingsSt
   };
 }
 
+/** The stored form of the selection, for the row and the local cache. */
+export function markerStuntsColumn(kinds: readonly StuntKind[]): string {
+  return serializeStuntKinds(kinds);
+}
+
 export function parseAccountSettings(value: unknown): AccountSettings {
   const row = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
   const familiarity = isSubjectFamiliarity(row.familiarity)
@@ -104,8 +134,7 @@ export function parseAccountSettings(value: unknown): AccountSettings {
     lowLatencyVoice: row.lowLatencyVoice === true,
     subtitlesEnabled: row.subtitlesEnabled === true,
     markerColor,
-    // On unless it was turned off: the tricks are part of the board's character.
-    markerStunts: row.markerStunts !== false,
+    markerStunts: parseMarkerStunts(row.markerStunts),
     uiLanguage: "en",
     showHomeSuggestions: row.showHomeSuggestions !== false,
     reducedMotion: row.reducedMotion === true,
@@ -132,7 +161,7 @@ export function accountSettingsPatch(value: unknown): Partial<AccountSettings> {
   if ("lowLatencyVoice" in row) next.lowLatencyVoice = row.lowLatencyVoice === true;
   if ("subtitlesEnabled" in row) next.subtitlesEnabled = row.subtitlesEnabled === true;
   if (isMarkerColorId(row.markerColor)) next.markerColor = row.markerColor;
-  if ("markerStunts" in row) next.markerStunts = row.markerStunts === true;
+  if ("markerStunts" in row) next.markerStunts = parseStuntKinds(row.markerStunts);
   if ("showHomeSuggestions" in row) next.showHomeSuggestions = row.showHomeSuggestions === true;
   if ("reducedMotion" in row) next.reducedMotion = row.reducedMotion === true;
   if ("teachingNote" in row) next.teachingNote = sanitizeTeachingNote(row.teachingNote);
@@ -173,9 +202,10 @@ export function readSettingsCache(): Partial<SettingsState> {
     if (window.localStorage.getItem(SETTINGS_CACHE_KEYS.lowLatency) === "1") {
       overrides.lowLatencyVoice = true;
     }
-    if (window.localStorage.getItem(SETTINGS_CACHE_KEYS.markerStunts) === "0") {
-      overrides.markerStunts = false;
-    }
+    const storedStunts = window.localStorage.getItem(SETTINGS_CACHE_KEYS.markerStunts);
+    // "" is a real answer here: it is the student having deselected every
+    // trick, which `parseStuntKinds` reads as the empty list.
+    if (storedStunts !== null) overrides.markerStunts = parseMarkerStunts(storedStunts);
   } catch {
     return overrides;
   }
@@ -194,7 +224,10 @@ export function writeSettingsCache(settings: SettingsState): void {
     window.localStorage.setItem(SETTINGS_CACHE_KEYS.accent, settings.accent);
     window.localStorage.setItem(SETTINGS_CACHE_KEYS.narration, settings.narrationEnabled ? "1" : "0");
     window.localStorage.setItem(SETTINGS_CACHE_KEYS.lowLatency, settings.lowLatencyVoice ? "1" : "0");
-    window.localStorage.setItem(SETTINGS_CACHE_KEYS.markerStunts, settings.markerStunts ? "1" : "0");
+    window.localStorage.setItem(
+      SETTINGS_CACHE_KEYS.markerStunts,
+      serializeStuntKinds(settings.markerStunts),
+    );
   } catch {
     /* private mode / quota */
   }

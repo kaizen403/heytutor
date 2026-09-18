@@ -31,9 +31,11 @@ export {
   instrumentForActivity,
   instrumentMetrics,
   instrumentPalette,
+  instrumentShapes,
   type InstrumentKind,
   type InstrumentMetrics,
   type InstrumentPalette,
+  type InstrumentShape,
   type PenActivity,
 } from "./instruments";
 export {
@@ -71,15 +73,20 @@ export {
   type IdlePose,
 } from "./penIdle";
 export {
+  STUNT_COPY,
   STUNT_KINDS,
   STUNT_LIFT_MAX_PX,
   STUNT_MS,
   STUNT_TRAVEL_MAX_PX,
   isStuntKind,
+  parseStuntKinds,
+  serializeStuntKinds,
   stuntFrame,
+  type StuntCopy,
   type StuntFrame,
   type StuntKind,
 } from "./penStunts";
+export { MarkerStuntPreview, type MarkerStuntPreviewProps } from "./MarkerStuntPreview";
 export { PenSpinner, type PenSpinnerProps } from "./PenSpinner";
 export { SpeakingWaveform } from "./SpeakingWaveform";
 export { ThinkingSpinner } from "./ThinkingSpinner";

@@ -95,6 +95,7 @@ import {
   releaseIdlePose,
   type IdlePose,
 } from "./penIdle";
+import type { StuntKind } from "./penStunts";
 import {
   instrumentForActivity,
   instrumentInkStyle,
@@ -120,13 +121,13 @@ export interface WhiteboardProps {
    */
   thinkingMotion?: "spin" | "doodle" | "none";
   /**
-   * Marker stunts: whether the idle hand is allowed its loud repertoire — a
-   * thumb-around, a knuckle roll, a flat double turn, a toss and catch — on
-   * top of the small fidgets it always plays. Student-facing setting, read
-   * live through a ref so toggling it mid-lesson lands on the next pause
-   * rather than restarting the one in flight.
+   * Marker stunts: which tricks the idle hand may play on top of the small
+   * fidgets it always plays. The student picks them, so this is a list and not
+   * a switch; an empty list is the hand with no tricks at all. Read live
+   * through a ref, so changing the selection mid-lesson lands on the next
+   * pause rather than restarting the one in flight.
    */
-  markerStunts?: boolean;
+  markerStunts?: readonly StuntKind[];
 }
 
 export interface WriteSchedule {
@@ -346,6 +347,9 @@ const DIAGRAM_LINE_PATH_RE =
  */
 const IDLE_ELIGIBLE_STATES: readonly CursorState[] = ["thinking", "speaking"];
 
+/** A stable empty selection, so the default prop is not a new array per render. */
+const NO_STUNTS: readonly StuntKind[] = [];
+
 const DUSTER_WIDTH = 28;
 const DUSTER_HEIGHT = 14;
 const DUSTER_COLOR = "#D4CDBE";
@@ -440,7 +444,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       cursorState = "idle",
       inkColor = DEFAULT_INK_COLOR,
       thinkingMotion = "spin",
-      markerStunts = false,
+      markerStunts = NO_STUNTS,
     },
     ref,
   ) {

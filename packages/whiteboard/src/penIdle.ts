@@ -195,14 +195,27 @@ export function idleMood(seed: number): IdleMood {
 export type IdlePerformanceKind = IdleGestureKind | StuntKind;
 
 /**
- * Whether the stunt repertoire is in play for this pause.
+ * Which stunts are in play for this pause.
  *
- * Off is the default everywhere, including in the pure functions, so a caller
+ * A list, not a switch: the student picks the tricks they want and those are
+ * the only ones drawn. Omitted or empty is the hand with no tricks at all,
+ * which is the default everywhere including in the pure functions, so a caller
  * that knows nothing about the setting gets exactly the hand it got before.
  */
 export interface IdleOptions {
-  stunts?: boolean;
+  stunts?: readonly StuntKind[];
 }
+
+/** The chosen tricks, narrowed and de-duplicated. */
+function allowedStunts(options: IdleOptions): readonly StuntKind[] {
+  const chosen = options.stunts;
+  if (!chosen || chosen.length === 0) return EMPTY_STUNTS;
+  // Filtered through STUNT_KINDS so the order the caller stored them in cannot
+  // change which trick a seed draws.
+  return STUNT_KINDS.filter((kind) => chosen.includes(kind));
+}
+
+const EMPTY_STUNTS: readonly StuntKind[] = [];
 
 export function performanceDurationMs(kind: IdlePerformanceKind): number {
   return isStuntKind(kind) ? STUNT_MS[kind] : IDLE_GESTURE_MS[kind];
@@ -236,12 +249,16 @@ function pickKind(
   seed: number,
   previous: IdlePerformanceKind | null,
   twoBack: IdlePerformanceKind | null,
-  stunts: boolean,
+  stunts: readonly StuntKind[],
   sinceStunt: number,
 ): IdlePerformanceKind {
   const allowed = IDLE_GESTURE_KINDS.filter((kind) => kind !== previous && kind !== twoBack);
   const gestureTotal = allowed.reduce((sum, kind) => sum + IDLE_GESTURE_WEIGHT[kind], 0);
-  const stuntsOpen = stunts && index >= STUNT_EARLIEST_INDEX && sinceStunt > STUNT_SEPARATION;
+  // The pool weight does not scale with how many tricks are chosen. Picking one
+  // stunt means that stunt comes up as often as four would between them, which
+  // is what a student who deliberately picked one expects to see.
+  const stuntsOpen =
+    stunts.length > 0 && index >= STUNT_EARLIEST_INDEX && sinceStunt > STUNT_SEPARATION;
   const total = gestureTotal + (stuntsOpen ? STUNT_POOL_WEIGHT : 0);
   let roll = fract01(index * 7 + 3 + seed * 101) * total;
   for (const kind of allowed) {
@@ -249,7 +266,7 @@ function pickKind(
     if (roll <= 0) return kind;
   }
   if (!stuntsOpen) return allowed[allowed.length - 1]!;
-  return pickStunt(index, seed, previous, twoBack);
+  return pickStunt(index, seed, previous, twoBack, stunts);
 }
 
 /** Which trick, once the draw has landed in the stunt pool. */
@@ -258,8 +275,15 @@ function pickStunt(
   seed: number,
   previous: IdlePerformanceKind | null,
   twoBack: IdlePerformanceKind | null,
+  stunts: readonly StuntKind[],
 ): StuntKind {
-  const allowed = STUNT_KINDS.filter((kind) => kind !== previous && kind !== twoBack);
+  // `STUNT_SEPARATION` already guarantees neither of the last two slots was a
+  // trick, so this filter normally removes nothing. It is kept for the case
+  // where the separation is ever loosened, and it falls back rather than
+  // emptying the pool — with one trick chosen, filtering it out would leave
+  // nothing to draw.
+  const fresh = stunts.filter((kind) => kind !== previous && kind !== twoBack);
+  const allowed = fresh.length > 0 ? fresh : stunts;
   const total = allowed.reduce((sum, kind) => sum + STUNT_WEIGHT[kind], 0);
   let roll = fract01(index * 31 + 19 + seed * 577) * total;
   for (const kind of allowed) {
@@ -300,7 +324,7 @@ export function idleGestureSequence(
   seed = 0,
   options: IdleOptions = {},
 ): IdleGesture[] {
-  const stunts = options.stunts === true;
+  const stunts = allowedStunts(options);
   const mood = idleMood(seed);
   const gestures: IdleGesture[] = [];
   let startMs = IDLE_FIRST_GESTURE_MS;
@@ -330,7 +354,7 @@ export function idleGestureAt(
   options: IdleOptions = {},
 ): { gesture: IdleGesture; t: number } | null {
   if (!(sinceMs > IDLE_FIRST_GESTURE_MS)) return null;
-  const stunts = options.stunts === true;
+  const stunts = allowedStunts(options);
   const mood = idleMood(seed);
   let startMs = IDLE_FIRST_GESTURE_MS;
   let previous: IdlePerformanceKind | null = null;
