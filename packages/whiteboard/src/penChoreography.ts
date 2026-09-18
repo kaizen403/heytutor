@@ -129,6 +129,19 @@ export function approachFraction(dtMs: number, timeConstantMs: number): number {
 
 /** How long the instrument takes to fade in or out when the state changes. */
 export const CURSOR_FADE_TIME_CONSTANT_MS = 90;
+/**
+ * Below this alpha the instrument really is gone, so its node may stop
+ * drawing. Above it the instrument is still fading and has to stay on screen:
+ * hiding a node outright is the one operation a fade cannot survive, and it is
+ * what used to make the marker blink out between two turns of a lecture.
+ */
+export const CURSOR_ALPHA_EPSILON = 0.004;
+/**
+ * Time constant for the hand-over between the marker and the eraser. Slower
+ * than the state fade, because putting one thing down and picking another up
+ * is a movement rather than a cut.
+ */
+export const ERASER_BLEND_TIME_CONSTANT_MS = 130;
 
 /**
  * Frame-rate independent approach: the same wall-clock elapsed time lands in
@@ -453,6 +466,45 @@ export function smootherstep(progress: number): number {
   return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
+/*
+ * Envelopes for a gesture that has to enter and leave at exactly rest.
+ *
+ * These live here rather than in `penIdle` because the idle repertoire and the
+ * stunt repertoire both shape themselves with them, and a second copy is a
+ * second set of end conditions to keep honest. Everything below is zero at
+ * t = 0 and t = 1, with zero slope at both ends, so nothing built out of them
+ * can pop into or out of existence.
+ */
+
+/** One hump: zero value and zero slope at both ends. */
+export function bell(t: number): number {
+  const s = Math.sin(Math.PI * clamp01(t));
+  return s * s;
+}
+
+/** `count` bells back to back, each starting and ending at rest. */
+export function pulseTrain(t: number, count: number): number {
+  const scaled = clamp01(t) * count;
+  return bell(scaled % 1);
+}
+
+/** Rise, hold, fall — for a gesture that goes somewhere and stays a moment. */
+export function holdEnvelope(t: number, riseFraction: number, fallFraction: number): number {
+  const u = clamp01(t);
+  if (u < riseFraction) return smootherstep(u / riseFraction);
+  if (u > 1 - fallFraction) return smootherstep((1 - u) / fallFraction);
+  return 1;
+}
+
+/**
+ * Squash a value into a band without a corner at the boundary. A hard clamp
+ * would put a kink in the velocity exactly where the biggest gestures live.
+ */
+export function softCap(value: number, cap: number): number {
+  if (cap <= 0) return 0;
+  return cap * Math.tanh(value / cap);
+}
+
 export interface InstrumentPose {
   /** Rotation about the barrel mid-point — the twirl between the fingers. */
   spin: number;
@@ -586,12 +638,6 @@ export const WAIT_SETTLE_MS = 220;
 function fract01(seed: number): number {
   const x = Math.sin(seed * 78.233 + 12.9898) * 43758.5453;
   return x - Math.floor(x);
-}
-
-/** Zero value and zero slope at both ends — a gesture that cannot pop. */
-function bell(t: number): number {
-  const s = Math.sin(Math.PI * clamp01(t));
-  return s * s;
 }
 
 export type WaitGestureKind = "regrip" | "tap" | "drift";

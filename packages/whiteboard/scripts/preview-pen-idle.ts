@@ -22,12 +22,22 @@ import {
 import { RESTING_TILT } from "../src/penChoreography";
 import {
   IDLE_GESTURE_KINDS,
-  IDLE_GESTURE_MS,
   idleBreath,
   idleGestureSequence,
   idlePose,
-  type IdleGestureKind,
+  performanceDurationMs,
+  type IdlePerformanceKind,
 } from "../src/penIdle";
+import { STUNT_KINDS } from "../src/penStunts";
+
+/**
+ * Stunts on. The preview exists to answer "does this read as a hand", and the
+ * tricks are the part of the repertoire where that question is live, so the
+ * page shows the whole thing rather than the half that was here before.
+ */
+const STUNTS = { stunts: true } as const;
+/** The whole repertoire, plain gestures then tricks. */
+const ALL_KINDS: readonly IdlePerformanceKind[] = [...IDLE_GESTURE_KINDS, ...STUNT_KINDS];
 
 const BOARD = "#F6E4C4";
 const INK = "#1B2A4A";
@@ -74,9 +84,9 @@ function round(value: number): number {
 }
 
 function frameAt(heldMs: number, seed: number, subtractBreath: boolean): Frame {
-  const pose = idlePose(heldMs, seed);
+  const pose = idlePose(heldMs, seed, STUNTS);
   const breath = idleBreath(heldMs);
-  const gesture = pose.gesture ? IDLE_GESTURE_KINDS.indexOf(pose.gesture) : -1;
+  const gesture = pose.gesture ? ALL_KINDS.indexOf(pose.gesture) : -1;
   return [
     round(subtractBreath ? pose.dx - breath.dx : pose.dx),
     round(subtractBreath ? pose.dy - breath.dy : pose.dy),
@@ -96,9 +106,9 @@ const pauses = PAUSE_SEEDS.map((seed) => {
   return {
     seed,
     frames,
-    sequence: idleGestureSequence(60, seed)
+    sequence: idleGestureSequence(60, seed, STUNTS)
       .filter((gesture) => gesture.startMs < PAUSE_MS)
-      .map((gesture) => [IDLE_GESTURE_KINDS.indexOf(gesture.kind), gesture.startMs, gesture.durationMs]),
+      .map((gesture) => [ALL_KINDS.indexOf(gesture.kind), gesture.startMs, gesture.durationMs]),
   };
 });
 
@@ -106,21 +116,26 @@ const pauses = PAUSE_SEEDS.map((seed) => {
  * And each gesture on its own, breathing subtracted, so a tile loops on exactly
  * the gesture and you can see one thing at a time.
  */
-const gallery = IDLE_GESTURE_KINDS.map((kind: IdleGestureKind) => {
+const gallery = ALL_KINDS.map((kind) => {
   let found: { startMs: number; seed: number } | null = null;
-  for (let seed = 0; seed < 80 && !found; seed++) {
-    const hit = idleGestureSequence(30, seed).find((gesture) => gesture.kind === kind);
+  for (let seed = 0; seed < 200 && !found; seed++) {
+    const hit = idleGestureSequence(40, seed, STUNTS).find((gesture) => gesture.kind === kind);
     if (hit) found = { startMs: hit.startMs, seed };
   }
   if (!found) throw new Error(`no seed produced a ${kind}`);
+  const durationMs = performanceDurationMs(kind);
   const frames: Frame[] = [];
   const from = found.startMs - LEAD_MS;
-  const to = found.startMs + IDLE_GESTURE_MS[kind] + LEAD_MS;
+  const to = found.startMs + durationMs + LEAD_MS;
   for (let ms = from; ms <= to; ms += FRAME_MS) frames.push(frameAt(ms, found.seed, true));
-  return { kind, durationMs: IDLE_GESTURE_MS[kind], frames };
+  return { kind, durationMs, frames, stunt: STUNT_KINDS.includes(kind as never) };
 });
 
-const CAPTIONS: Record<IdleGestureKind, string> = {
+const CAPTIONS: Record<IdlePerformanceKind, string> = {
+  thumbAround: "STUNT: a full turn around the thumb, the hand orbiting under it",
+  knuckleRoll: "STUNT: walked out across the knuckles and back, four beats",
+  helicopter: "STUNT: two fast flat turns, dipping toward the board",
+  tossCatch: "STUNT: flicked up, one turn in the air, caught",
   twirl: "one full turn between the fingers, ending where it began",
   roll: "the barrel rolled a little and rolled back: adjusting the hold",
   tap: "three taps of the nib against the board",
@@ -135,7 +150,7 @@ const CAPTIONS: Record<IdleGestureKind, string> = {
 
 const data = {
   frameMs: FRAME_MS,
-  kinds: IDLE_GESTURE_KINDS,
+  kinds: ALL_KINDS,
   captions: CAPTIONS,
   restingTilt: RESTING_TILT.idle,
   pivotY: instrumentMetrics("pen").pivotY,
@@ -205,6 +220,9 @@ const html = `<!doctype html>
   two pauses in a lesson play the same performance.</p>
 
   <h2>The repertoire, one gesture at a time</h2>
+  <p class="legend" style="margin: 0 0 12px">The last four tiles are the marker stunts, the
+  opt-in half of the repertoire. They are bigger and rarer than the fidgets, they never travel
+  and they never change how visible the marker is.</p>
   <div class="grid" id="grid"></div>
   <p class="legend">Breathing subtracted in these tiles, so each shows only its own gesture.
   Every one starts and ends at exactly rest — that is what lets them be sequenced without the
@@ -299,6 +317,7 @@ const grid = document.getElementById("grid");
 const tiles = DATA.gallery.map((entry) => {
   const tile = document.createElement("div");
   tile.className = "tile";
+  if (entry.stunt) tile.style.outline = "2px solid #6C86B8";
   tile.innerHTML =
     '<svg viewBox="0 0 120 120"><g class="pen"><g>' + PEN_BODY + "</g></g></svg>" +
     "<h3>" + entry.kind + " · " + (entry.durationMs / 1000).toFixed(2) + "s</h3>" +
@@ -324,5 +343,5 @@ requestAnimationFrame(tickGallery);
 const target = process.argv[2] ?? "pen-idle-preview.html";
 writeFileSync(target, html);
 console.log(
-  `preview-pen-idle: wrote ${target} — ${pauses.length} pauses, ${gallery.length} gestures, ${(html.length / 1024).toFixed(0)}KB`,
+  `preview-pen-idle: wrote ${target} — ${pauses.length} pauses, ${gallery.length} gestures (${STUNT_KINDS.length} stunts), ${(html.length / 1024).toFixed(0)}KB`,
 );

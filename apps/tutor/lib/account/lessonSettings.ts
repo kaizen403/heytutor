@@ -33,6 +33,12 @@ export interface SettingsState {
   lowLatencyVoice: boolean;
   subtitlesEnabled: boolean;
   markerColor: MarkerColorId;
+  /**
+   * Marker stunts: whether the hand is allowed its loud repertoire while the
+   * tutor talks — a thumb-around, a knuckle roll, a flat double turn, a toss
+   * and catch — on top of the small fidgets it always plays.
+   */
+  markerStunts: boolean;
 }
 
 export const DEFAULT_SETTINGS: Omit<SettingsState, "speedMultiplier"> = {
@@ -44,6 +50,7 @@ export const DEFAULT_SETTINGS: Omit<SettingsState, "speedMultiplier"> = {
   lowLatencyVoice: false,
   subtitlesEnabled: false,
   markerColor: "navy",
+  markerStunts: true,
 };
 
 export const SPEED_MIN = 0.5;

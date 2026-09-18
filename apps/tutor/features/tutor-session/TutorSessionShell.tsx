@@ -91,6 +91,7 @@ import { lessonFollowUpMode } from "./lib/turn/lessonFollowUp";
 import { buildLessonNotes } from "./lib/notes/lessonNotes";
 import { sessionCapabilities, type TutorSessionVariant } from "./lib/sessionCapabilities";
 import { buildMarkedDoubtPrompt, summarizeMarks, type BoardMark } from "./lib/board/boardMarking";
+import { isWaitingToTeach, markerCursorState } from "./lib/board/markerVisibility";
 import { DOUBT_THINKING_FALLBACK, doubtThinkingAnchor } from "./lib/board/doubtAnchor";
 import { doubtTurnTitle, isDoubtPrompt } from "./lib/input/askDoubt";
 import type { BoardPageRecord, PageTurnKind } from "./lib/turn/doubtTurn";
@@ -522,24 +523,13 @@ export function TutorSessionShell({
   }, [autoReplay]);
 
   /*
-    Planning and the wait for the first teaching token cover the board with
-    the pending clicker. The Konva marker stays down (`idle`) so its contact
-    shadow and idle fidget cannot sit on empty paper under that overlay.
-
-    Once the lesson is speaking or drawing, the React prop stays on
-    `thinking` so it cannot overwrite an imperative walk — mapping those
-    phases to `drawing` used to freeze the pen the moment TTS started.
-    `idle` is opacity 0, and is only for after a turn finishes.
+    One rule, one place: `markerVisibility.ts` owns the phase-to-cursor-state
+    map and `verify-marker-visibility` holds it to "while the tutor is speaking
+    or drawing, the marker is on the board". It used to be a ternary here, and
+    a ternary is where a branch gets added that hides the pen mid-lesson.
   */
-  const waitingToTeach = phase === "planning" || phase === "thinking";
-  const cursorState: CursorState =
-    phase === "idle" && !isReplaying
-      ? "idle"
-      : isReplaying
-        ? "drawing"
-        : waitingToTeach
-          ? "idle"
-          : "thinking";
+  const waitingToTeach = isWaitingToTeach(phase);
+  const cursorState: CursorState = markerCursorState({ phase, isReplaying });
   const pendingInk = getMarkerColorHex(settings.markerColor);
 
   const { cancellableDelay, raceWithCancel, clearCancelTimers } = useCancelControl(cancelRef);
@@ -1199,6 +1189,7 @@ export function TutorSessionShell({
           height={BOARD_HEIGHT}
           cursorState={cursorState}
           inkColor={getMarkerColorHex(settings.markerColor)}
+          markerStunts={settings.markerStunts}
         />
         {waitingToTeach && (
           <ThinkingOverlay

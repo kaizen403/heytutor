@@ -7,6 +7,7 @@ import {
   Mic2,
   Captions,
   PenLine,
+  Sparkles,
   Zap,
   BookOpen,
   Rabbit,
@@ -352,6 +353,16 @@ export function SettingsDrawer({
               hint="Off by default. Captions the tutor&rsquo;s narration under the board while it teaches."
               checked={settings.subtitlesEnabled}
               onCheckedChange={(checked) => update({ subtitlesEnabled: checked })}
+            />
+          </SettingsSection>
+
+          <SettingsSection>
+            <SectionLabel icon={Sparkles}>Marker Stunts</SectionLabel>
+            <ToggleRow
+              title="Let the marker play tricks while it talks"
+              hint="On by default. In the gaps between strokes the hand spins the marker around its thumb, walks it across the knuckles, gives it a flat double turn, or tosses and catches it. It stays where it is standing and never leaves the board."
+              checked={settings.markerStunts}
+              onCheckedChange={(checked) => update({ markerStunts: checked })}
             />
           </SettingsSection>
 

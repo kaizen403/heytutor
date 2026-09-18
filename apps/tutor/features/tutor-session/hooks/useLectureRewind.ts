@@ -33,6 +33,7 @@ import {
 import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 import type { TutorPhase } from "../types";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
+import { rewindMarkerCursorState } from "../lib/board/markerVisibility";
 import type { BoardPageRecord } from "../lib/turn/doubtTurn";
 import { useBoardLayout } from "./useBoardLayout";
 import { useCancelControl } from "./useCancelControl";
@@ -579,10 +580,10 @@ export function useLectureRewind({
       ? rewindTotalMs
       : liveEdgeMs;
 
-  const rewindCursorState: CursorState = useMemo(() => {
-    if (!rewindActive || rewindPaused) return "idle";
-    return rewindPhase === "drawing" || rewindPhase === "speaking" ? "drawing" : "idle";
-  }, [rewindActive, rewindPaused, rewindPhase]);
+  const rewindCursorState: CursorState = useMemo(
+    () => rewindMarkerCursorState({ active: rewindActive, paused: rewindPaused }),
+    [rewindActive, rewindPaused],
+  );
 
   return {
     rewindBoardRef,

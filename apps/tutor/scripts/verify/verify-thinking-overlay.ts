@@ -54,12 +54,32 @@ assert(
   /className="wb-pending\b/.test(overlay),
   "the centered overlay must keep the wb-pending class for the frosted board",
 );
+/*
+  The rule is unchanged, only its address: the phase-to-marker map moved out of
+  the shell into `markerVisibility.ts` so it could be gated on its own. Both
+  ends are asserted, because the shell calling *a* helper proves nothing if the
+  helper answers a different question.
+*/
 assert(
-  /waitingToTeach\s*=\s*phase === "planning" \|\| phase === "thinking"/.test(shell),
+  /waitingToTeach\s*=\s*isWaitingToTeach\(phase\)/.test(shell),
   "planning and the pre-lesson think share one pending overlay",
 );
 assert(
-  /waitingToTeach\s*\?\s*"idle"/.test(shell),
+  /isWaitingToTeach\(phase: TutorPhase\): boolean \{\s*\n\s*return phase === "planning" \|\| phase === "thinking";/.test(
+    readFileSync(
+      resolve(tutorRoot, "features/tutor-session/lib/board/markerVisibility.ts"),
+      "utf8",
+    ),
+  ),
+  "and the helper the shell calls must still mean planning and the pre-lesson think",
+);
+assert(
+  /if \(isWaitingToTeach\(phase\)\) return "idle";/.test(
+    readFileSync(
+      resolve(tutorRoot, "features/tutor-session/lib/board/markerVisibility.ts"),
+      "utf8",
+    ),
+  ),
   "the Konva marker must stay down while the pending overlay is up",
 );
 assert(

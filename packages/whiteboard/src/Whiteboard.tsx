@@ -53,7 +53,9 @@ import {
 } from "./penMotion";
 import {
   AIR_LIFT_PX,
+  CURSOR_ALPHA_EPSILON,
   CURSOR_FADE_TIME_CONSTANT_MS,
+  ERASER_BLEND_TIME_CONSTANT_MS,
   FLIGHT_LIFT_PX,
   HOP_LIFT_PX,
   MAX_FRAME_DT_MS,
@@ -89,6 +91,7 @@ import {
 import {
   IDLE_RELEASE_MS,
   idlePose,
+  idleReleaseMs,
   releaseIdlePose,
   type IdlePose,
 } from "./penIdle";
@@ -116,6 +119,14 @@ export interface WhiteboardProps {
    * never lands in a snapshot.
    */
   thinkingMotion?: "spin" | "doodle" | "none";
+  /**
+   * Marker stunts: whether the idle hand is allowed its loud repertoire — a
+   * thumb-around, a knuckle roll, a flat double turn, a toss and catch — on
+   * top of the small fidgets it always plays. Student-facing setting, read
+   * live through a ref so toggling it mid-lesson lands on the next pause
+   * rather than restarting the one in flight.
+   */
+  markerStunts?: boolean;
 }
 
 export interface WriteSchedule {
@@ -325,6 +336,16 @@ const SCENE_SHAPE_MAX_MS = 320;
 const SCENE_SHAPE_MIN_MS = 70;
 const DIAGRAM_LINE_PATH_RE =
   /^M\s*([-\d.]+)\s+([-\d.]+)\s+L\s*([-\d.]+)\s+([-\d.]+)\s*$/;
+/**
+ * The states in which the hand is allowed to play with the instrument.
+ *
+ * `speaking` belongs here and used not to. The marker tour holds `speaking`
+ * while it walks a figure, and a walk is a hop and then a dwell: for the whole
+ * of every dwell nothing was running at all, so the marker stood dead still on
+ * a cell while the tutor talked over it.
+ */
+const IDLE_ELIGIBLE_STATES: readonly CursorState[] = ["thinking", "speaking"];
+
 const DUSTER_WIDTH = 28;
 const DUSTER_HEIGHT = 14;
 const DUSTER_COLOR = "#D4CDBE";
@@ -419,6 +440,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       cursorState = "idle",
       inkColor = DEFAULT_INK_COLOR,
       thinkingMotion = "spin",
+      markerStunts = false,
     },
     ref,
   ) {
@@ -492,11 +514,40 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
      * deleted and re-created.
      */
     const stateOpacityRef = useRef(cursorOpacity(cursorState));
+    /**
+     * How far the hand-over to the eraser has run, 0 (pen) to 1 (duster).
+     *
+     * The two used to be a React branch: `erasing` unmounted the instrument and
+     * mounted a block in its place, so a wipe began by deleting the marker off
+     * the board and ended by deleting the block. Both nodes are mounted all the
+     * time now and this crossfades between them, which is a hand putting one
+     * thing down and picking another up.
+     */
+    const eraserBlendRef = useRef(cursorState === "erasing" ? 1 : 0);
+    /**
+     * The alphas last painted on the two nodes. React renders read this rather
+     * than recomputing from `cursorOpacity`, so a re-render lands on exactly
+     * the frame the imperative fade is on instead of snapping back to the step.
+     */
+    const cursorAlphaRef = useRef({
+      pen: cursorState === "erasing" ? 0 : cursorOpacity(cursorState),
+      duster: cursorState === "erasing" ? cursorOpacity(cursorState) : 0,
+    });
     const inkColorRef = useRef(inkColor);
+    /**
+     * The stunt setting, read on the frame the pose is computed. A prop in the
+     * idle effect's dependency list would tear the effect down and rebuild it,
+     * which restarts the pause the student is in the middle of watching.
+     */
+    const markerStuntsRef = useRef(markerStunts);
 
     useEffect(() => {
       inkColorRef.current = inkColor;
     }, [inkColor]);
+
+    useEffect(() => {
+      markerStuntsRef.current = markerStunts;
+    }, [markerStunts]);
 
     const updateCursorState = useCallback((state: CursorState): void => {
       activeCursorStateRef.current = state;
@@ -548,6 +599,38 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       return resolved;
     }, []);
 
+    /**
+     * Paint the instrument's visibility.
+     *
+     * One place decides how visible the marker is, and it is the *eased* state
+     * opacity, never the step function. `cursorOpacity` is a step — `idle` is
+     * 0 — and the render used to read it straight into the node's `visible` and
+     * `opacity` props. That meant every React render during the fade snapped
+     * the marker back to the step and, at `idle`, hid the node outright: the
+     * ease was still running, on a node nobody could see. That is the pen
+     * disappearing mid-lesson, and no amount of smoothing upstream survives it.
+     *
+     * The node is left mounted and `visible` only drops once the fade has
+     * actually reached zero, so there is nothing left to see when it does.
+     */
+    const paintCursorAlpha = useCallback((): void => {
+      const alpha = stateOpacityRef.current * cursorViewRef.current.fade;
+      const blend = eraserBlendRef.current;
+      const penAlpha = alpha * (1 - blend);
+      const dusterAlpha = alpha * blend;
+      cursorAlphaRef.current = { pen: penAlpha, duster: dusterAlpha };
+      const group = cursorGroupRef.current;
+      if (group) {
+        group.opacity(penAlpha);
+        group.visible(penAlpha > CURSOR_ALPHA_EPSILON);
+      }
+      const duster = dusterRef.current;
+      if (duster) {
+        duster.opacity(dusterAlpha);
+        duster.visible(dusterAlpha > CURSOR_ALPHA_EPSILON);
+      }
+    }, []);
+
     const setCursorViewSafely = useCallback(
       (
         x: number,
@@ -577,7 +660,6 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           // thin rather than transparent.
           group.scaleX(scale * flatten);
           group.scaleY(scale);
-          group.opacity(stateOpacityRef.current * fade);
           const nodes = resolvePoseNodes(group);
           nodes.lift?.y(-lift);
           nodes.spin?.rotation(spin);
@@ -606,9 +688,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           duster.scaleX(scale);
           duster.scaleY(scale);
         }
+        paintCursorAlpha();
         cursorLayerRef.current?.batchDraw();
       },
-      [resolvePoseNodes],
+      [paintCursorAlpha, resolvePoseNodes],
     );
 
     /**
@@ -891,6 +974,52 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           hoverNib(point.x, point.y, activity, HOP_LIFT_PX * arc);
         }, undefined, playback);
         jumpNib(x, y, activity);
+      },
+      [animateOver, hoverNib, jumpNib],
+    );
+
+    /**
+     * Carry the nib somewhere without making the caller wait for it.
+     *
+     * There is one place on the board where the nib genuinely has nowhere to
+     * be: a label that is stamped down whole rather than written. The ink is
+     * already there, so a reach charged against the caller's budget would cost
+     * spoken time for nothing — a fourteen-label figure would spend four
+     * seconds of narration watching the pen catch up. But leaving it as a
+     * `jumpNib` meant the marker blinked to the end of every label it did not
+     * write, which is the teleport the student actually sees.
+     *
+     * So the hand goes there on its own time. The glide yields the frame
+     * anything else writes the cursor, which is what stops it fighting the
+     * next stroke for the pen.
+     */
+    const glideNibTo = useCallback(
+      (x: number, y: number, activity: PenActivity): void => {
+        const start = { x: cursorViewRef.current.x, y: cursorViewRef.current.y };
+        const distance = distanceBetween(start, { x, y });
+        if (nibTravelFor(distance) === "settle") {
+          jumpNib(x, y, activity);
+          return;
+        }
+        const end = { x, y };
+        const bow = carryBow(distance);
+        let written: Point | null = null;
+        const ours = (): boolean =>
+          written === null ||
+          (cursorViewRef.current.x === written.x && cursorViewRef.current.y === written.y);
+
+        void animateOver(
+          shapeReachMs(distance),
+          (progress) => {
+            if (!ours()) return;
+            const eased = reachEase(progress);
+            const arc = Math.sin(Math.PI * progress);
+            const point = bowedPoint(start, end, eased, bow);
+            hoverNib(point.x, point.y, activity, HOP_LIFT_PX * arc);
+            written = { x: cursorViewRef.current.x, y: cursorViewRef.current.y };
+          },
+          () => !ours(),
+        );
       },
       [animateOver, hoverNib, jumpNib],
     );
@@ -1723,7 +1852,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             }
             const last = charInfos.at(-1)?.charPath;
             if (last) {
-              jumpNib(last.x + last.width, last.y, "write");
+              // The label is already on the board; the hand catches up to it on
+              // its own time rather than appearing at the end of it.
+              glideNibTo(last.x + last.width, last.y, "write");
             }
             drawLayer.batchDraw();
             return;
@@ -2097,7 +2228,15 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
           animLayer.add(textNode);
           trackNode(textNode, animNodesRef.current);
-          jumpNib(x, y, "write");
+          // The glyph path lookup failed and this line is being faded in
+          // instead of written, but the hand still has to get to the start of
+          // it. Bridged like any other reposition: a fallback is still watched.
+          const fallbackReach = distanceBetween(cursorViewRef.current, { x, y });
+          if (nibTravelFor(fallbackReach) === "settle") {
+            jumpNib(x, y, "write");
+          } else {
+            await flyCursorTo(x, y, shapeReachMs(fallbackReach), HANDWRITING_ROTATION);
+          }
           animLayer.batchDraw();
 
           await animateOver(duration, (progress) => {
@@ -2125,6 +2264,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         animateOver,
         equipInstrumentFor,
         flyCursorTo,
+        glideNibTo,
         hopNib,
         hoverNib,
         jumpNib,
@@ -2590,7 +2730,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
      * cached pose nodes, never a React render per frame.
      */
     useEffect(() => {
-      if (thinkingMotion !== "spin" || activeCursorState !== "thinking") {
+      if (thinkingMotion !== "spin") {
         return undefined;
       }
 
@@ -2600,6 +2740,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       let anchor = { ...cursorViewRef.current };
       let pose: IdlePose | null = null;
       let releasedAtMs: number | null = null;
+      let releaseWindowMs = IDLE_RELEASE_MS;
       let written: CursorView | null = null;
 
       const paint = (next: IdlePose): void => {
@@ -2636,7 +2777,18 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         // A paused board or any real drawing work outranks the fidget, and both
         // count as work in flight, so the hold has to be re-earned afterwards
         // rather than resuming the instant a tween ends.
-        const workInFlight = isPausedRef.current || animationCleanupsRef.current.size > 0;
+        //
+        // So does a state the hand has no business playing in. That is read
+        // here rather than gating the effect, because tearing the effect down
+        // mid-gesture ran its cleanup, and the cleanup wrote the instrument
+        // back to rest on that single frame: a twirl caught at 180° snapped,
+        // and a lifted nib dropped. Handled as work in flight instead, the
+        // same release ease that covers a stroke arriving covers this too.
+        const state = activeCursorStateRef.current;
+        const workInFlight =
+          !IDLE_ELIGIBLE_STATES.includes(state) ||
+          isPausedRef.current ||
+          animationCleanupsRef.current.size > 0;
         const advanced = advanceIdleHold(hold, { workInFlight, nowMs: now });
         hold = advanced.state;
 
@@ -2655,23 +2807,28 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           // Work arrives mid-gesture, which is the normal case. Rather than
           // snap the pose away on that frame, the hand puts the instrument down
           // over the next few — finishing a turn instead of unwinding it — and
-          // yields the moment the stroke itself writes the cursor.
+          // yields the moment the stroke itself writes the cursor. A stunt can
+          // be caught with the pen well off the board, so the window it is
+          // given opens with how far it has to come back.
           if (pose) {
             releasedAtMs = now;
+            releaseWindowMs = idleReleaseMs(pose);
           } else {
             releasedAtMs = null;
             settleNib(anchor.x, anchor.y, anchor.rotation);
           }
         }
         if (advanced.engaged) {
-          pose = idlePose(advanced.heldMs, idlePauseRef.current);
+          pose = idlePose(advanced.heldMs, idlePauseRef.current, {
+            stunts: markerStuntsRef.current,
+          });
           paint(pose);
         } else if (releasedAtMs !== null && pose) {
           if (!stillOurs()) {
             releasedAtMs = null;
             pose = null;
           } else {
-            const k = 1 - clamp((now - releasedAtMs) / IDLE_RELEASE_MS, 0, 1);
+            const k = 1 - clamp((now - releasedAtMs) / releaseWindowMs, 0, 1);
             paint(releaseIdlePose(pose, k));
             if (k <= 0) {
               releasedAtMs = null;
@@ -2691,10 +2848,19 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       return () => {
         cancelled = true;
         if (frameId !== null) cancelTrackedFrame(frameId);
+        // The instrument is left exactly where it stands. This used to write
+        // `scale 1` with no pose, which is a hard reset of spin, lift, scale
+        // and fade on the unmount frame.
         const view = cursorViewRef.current;
-        setCursorViewSafely(view.x, view.y, view.rotation, 1);
+        setCursorViewSafely(view.x, view.y, view.rotation, view.scale, {
+          spin: view.spin,
+          lift: view.lift,
+          fade: view.fade,
+          flatten: view.flatten,
+          spinVelocity: view.spinVelocity,
+        });
       };
-    }, [activeCursorState, cancelTrackedFrame, nowMs, requestTrackedFrame, setCursorViewSafely, settleNib, thinkingMotion]);
+    }, [cancelTrackedFrame, nowMs, requestTrackedFrame, setCursorViewSafely, settleNib, thinkingMotion]);
 
     useLayoutEffect(() => {
       const view = cursorViewRef.current;
@@ -2715,14 +2881,27 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     }, [cursorState]);
 
     /**
-     * Ease the instrument's opacity toward whatever the new state asks for.
-     * Nothing else about the pose moves: it fades where it stands, so a state
-     * change never relocates the pen.
+     * Ease the instrument toward whatever the new state asks for: how visible
+     * it is, and which of the two things in the hand is showing.
+     *
+     * Nothing else about the pose moves — it fades where it stands, so a state
+     * change never relocates the marker — and nothing here ever writes a
+     * visibility straight from the step function. Both targets are approached
+     * at a frame-rate-independent rate, so a wipe that starts and a state that
+     * changes on the same frame still read as one hand.
      */
     useEffect(() => {
-      const target = cursorOpacity(cursorState);
-      if (Math.abs(stateOpacityRef.current - target) < 1e-3) {
-        stateOpacityRef.current = target;
+      const alphaTarget = cursorOpacity(activeCursorState);
+      const blendTarget = activeCursorState === "erasing" ? 1 : 0;
+      const settled = (): boolean =>
+        Math.abs(stateOpacityRef.current - alphaTarget) < 1e-3 &&
+        Math.abs(eraserBlendRef.current - blendTarget) < 1e-3;
+
+      if (settled()) {
+        stateOpacityRef.current = alphaTarget;
+        eraserBlendRef.current = blendTarget;
+        paintCursorAlpha();
+        cursorLayerRef.current?.batchDraw();
         return undefined;
       }
 
@@ -2734,15 +2913,20 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         if (cancelled) return;
         const delta = Math.min(Math.max(now - lastMs, 0), MAX_FRAME_DT_MS);
         lastMs = now;
-        const k = approachFraction(delta, CURSOR_FADE_TIME_CONSTANT_MS);
-        const next = stateOpacityRef.current + (target - stateOpacityRef.current) * k;
-        stateOpacityRef.current = Math.abs(next - target) < 1e-3 ? target : next;
-        const group = cursorGroupRef.current;
-        if (group) {
-          group.opacity(stateOpacityRef.current * cursorViewRef.current.fade);
-          cursorLayerRef.current?.batchDraw();
-        }
-        if (stateOpacityRef.current !== target) {
+
+        const alphaK = approachFraction(delta, CURSOR_FADE_TIME_CONSTANT_MS);
+        const nextAlpha =
+          stateOpacityRef.current + (alphaTarget - stateOpacityRef.current) * alphaK;
+        stateOpacityRef.current = Math.abs(nextAlpha - alphaTarget) < 1e-3 ? alphaTarget : nextAlpha;
+
+        const blendK = approachFraction(delta, ERASER_BLEND_TIME_CONSTANT_MS);
+        const nextBlend = eraserBlendRef.current + (blendTarget - eraserBlendRef.current) * blendK;
+        eraserBlendRef.current = Math.abs(nextBlend - blendTarget) < 1e-3 ? blendTarget : nextBlend;
+
+        paintCursorAlpha();
+        cursorLayerRef.current?.batchDraw();
+
+        if (!settled()) {
           frameId = requestTrackedFrame(step);
         }
       };
@@ -2752,7 +2936,13 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         cancelled = true;
         if (frameId !== null) cancelTrackedFrame(frameId);
       };
-    }, [cancelTrackedFrame, cursorState, nowMs, requestTrackedFrame]);
+    }, [
+      activeCursorState,
+      cancelTrackedFrame,
+      nowMs,
+      paintCursorAlpha,
+      requestTrackedFrame,
+    ]);
 
     useEffect(
       () => {
@@ -2885,44 +3075,53 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           <KonvaPath data={HIDDEN_PATH_DATA} visible={false} listening={false} />
         </Layer>
         <Layer ref={spotlightLayerRef} listening={false} perfectDrawEnabled={false} />
+        {/*
+          Both the marker and the eraser are mounted for the whole life of the
+          board, and `paintCursorAlpha` crossfades between them. They used to be
+          a React branch on `erasing`: the marker was destroyed and a block
+          created in its place, then the reverse when the wipe finished — two
+          hard pops per erase, and the imperative fade had nothing to fade.
+
+          Neither node reads `cursorOpacity` here. That is a step function whose
+          `idle` is 0, so a render mid-fade snapped the marker to the step and,
+          at `idle`, hid it outright. Visibility is the eased value or nothing.
+        */}
         <Layer ref={cursorLayerRef} listening={false} perfectDrawEnabled={false}>
-          {activeCursorState === "erasing" ? (
-            <Rect
-              ref={dusterRef}
-              x={cursorViewRef.current.x - DUSTER_WIDTH / 2}
-              y={cursorViewRef.current.y - DUSTER_HEIGHT / 2}
-              width={DUSTER_WIDTH}
-              height={DUSTER_HEIGHT}
-              fill={DUSTER_COLOR}
-              stroke={DUSTER_STROKE}
-              strokeWidth={1}
-              cornerRadius={DUSTER_CORNER_RADIUS}
-              rotation={cursorViewRef.current.rotation}
-              scaleX={cursorViewRef.current.scale}
-              scaleY={cursorViewRef.current.scale}
-              opacity={cursorOpacity(activeCursorState)}
-              shadowColor="#999999"
-              shadowBlur={10}
-              shadowOpacity={0.4}
-              listening={false}
-              perfectDrawEnabled={false}
-            />
-          ) : (
-            <VirtualCursor
-              ref={cursorGroupRef}
-              x={cursorViewRef.current.x}
-              y={cursorViewRef.current.y}
-              rotation={cursorViewRef.current.rotation}
-              spin={cursorViewRef.current.spin}
-              lift={cursorViewRef.current.lift}
-              scale={cursorViewRef.current.scale}
-              color={activeInstrument === "highlighter" ? HIGHLIGHT_FILL : inkColor}
-              instrument={activeInstrument}
-              visible={cursorOpacity(activeCursorState) > 0}
-              opacity={cursorOpacity(activeCursorState) * cursorViewRef.current.fade}
-              glowRadius={activeCursorState === "drawing" ? 8 : 6}
-            />
-          )}
+          <VirtualCursor
+            ref={cursorGroupRef}
+            x={cursorViewRef.current.x}
+            y={cursorViewRef.current.y}
+            rotation={cursorViewRef.current.rotation}
+            spin={cursorViewRef.current.spin}
+            lift={cursorViewRef.current.lift}
+            scale={cursorViewRef.current.scale}
+            color={activeInstrument === "highlighter" ? HIGHLIGHT_FILL : inkColor}
+            instrument={activeInstrument}
+            visible={cursorAlphaRef.current.pen > CURSOR_ALPHA_EPSILON}
+            opacity={cursorAlphaRef.current.pen}
+            glowRadius={activeCursorState === "drawing" ? 8 : 6}
+          />
+          <Rect
+            ref={dusterRef}
+            x={cursorViewRef.current.x - DUSTER_WIDTH / 2}
+            y={cursorViewRef.current.y - DUSTER_HEIGHT / 2}
+            width={DUSTER_WIDTH}
+            height={DUSTER_HEIGHT}
+            fill={DUSTER_COLOR}
+            stroke={DUSTER_STROKE}
+            strokeWidth={1}
+            cornerRadius={DUSTER_CORNER_RADIUS}
+            rotation={cursorViewRef.current.rotation}
+            scaleX={cursorViewRef.current.scale}
+            scaleY={cursorViewRef.current.scale}
+            visible={cursorAlphaRef.current.duster > CURSOR_ALPHA_EPSILON}
+            opacity={cursorAlphaRef.current.duster}
+            shadowColor="#999999"
+            shadowBlur={10}
+            shadowOpacity={0.4}
+            listening={false}
+            perfectDrawEnabled={false}
+          />
         </Layer>
       </Stage>
     );

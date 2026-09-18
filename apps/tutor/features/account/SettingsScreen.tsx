@@ -187,6 +187,16 @@ export function SettingsScreen({ section }: { section: string }) {
                 checked={settings.subtitlesEnabled}
                 onChange={(checked) => patch({ subtitlesEnabled: checked })}
               />
+              <Toggle
+                title="Marker stunts"
+                checked={settings.markerStunts}
+                onChange={(checked) => patch({ markerStunts: checked })}
+              />
+              <p className="mt-3 text-xs text-[rgba(237,237,235,0.45)]">
+                Marker stunts: in the gaps between strokes the hand spins the marker around its
+                thumb, walks it across the knuckles, gives it a flat double turn, or tosses and
+                catches it. The marker stays where it is standing.
+              </p>
               <p className="mt-3 text-xs text-[rgba(237,237,235,0.45)]">
                 The writing surface stays paper. We are not theming the board.
               </p>

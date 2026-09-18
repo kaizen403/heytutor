@@ -25,6 +25,7 @@ export const SETTINGS_CACHE_KEYS = {
   accent: "htutor_accent",
   narration: "htutor_narration",
   lowLatency: "htutor_low_latency_voice",
+  markerStunts: "htutor_marker_stunts",
 } as const;
 
 export const TEACHING_NOTE_MAX = 400;
@@ -76,6 +77,7 @@ export function lessonSettingsFromAccount(settings: AccountSettings): SettingsSt
     lowLatencyVoice: settings.lowLatencyVoice,
     subtitlesEnabled: settings.subtitlesEnabled,
     markerColor: settings.markerColor,
+    markerStunts: settings.markerStunts,
   };
 }
 
@@ -102,6 +104,8 @@ export function parseAccountSettings(value: unknown): AccountSettings {
     lowLatencyVoice: row.lowLatencyVoice === true,
     subtitlesEnabled: row.subtitlesEnabled === true,
     markerColor,
+    // On unless it was turned off: the tricks are part of the board's character.
+    markerStunts: row.markerStunts !== false,
     uiLanguage: "en",
     showHomeSuggestions: row.showHomeSuggestions !== false,
     reducedMotion: row.reducedMotion === true,
@@ -128,6 +132,7 @@ export function accountSettingsPatch(value: unknown): Partial<AccountSettings> {
   if ("lowLatencyVoice" in row) next.lowLatencyVoice = row.lowLatencyVoice === true;
   if ("subtitlesEnabled" in row) next.subtitlesEnabled = row.subtitlesEnabled === true;
   if (isMarkerColorId(row.markerColor)) next.markerColor = row.markerColor;
+  if ("markerStunts" in row) next.markerStunts = row.markerStunts === true;
   if ("showHomeSuggestions" in row) next.showHomeSuggestions = row.showHomeSuggestions === true;
   if ("reducedMotion" in row) next.reducedMotion = row.reducedMotion === true;
   if ("teachingNote" in row) next.teachingNote = sanitizeTeachingNote(row.teachingNote);
@@ -168,6 +173,9 @@ export function readSettingsCache(): Partial<SettingsState> {
     if (window.localStorage.getItem(SETTINGS_CACHE_KEYS.lowLatency) === "1") {
       overrides.lowLatencyVoice = true;
     }
+    if (window.localStorage.getItem(SETTINGS_CACHE_KEYS.markerStunts) === "0") {
+      overrides.markerStunts = false;
+    }
   } catch {
     return overrides;
   }
@@ -186,6 +194,7 @@ export function writeSettingsCache(settings: SettingsState): void {
     window.localStorage.setItem(SETTINGS_CACHE_KEYS.accent, settings.accent);
     window.localStorage.setItem(SETTINGS_CACHE_KEYS.narration, settings.narrationEnabled ? "1" : "0");
     window.localStorage.setItem(SETTINGS_CACHE_KEYS.lowLatency, settings.lowLatencyVoice ? "1" : "0");
+    window.localStorage.setItem(SETTINGS_CACHE_KEYS.markerStunts, settings.markerStunts ? "1" : "0");
   } catch {
     /* private mode / quota */
   }

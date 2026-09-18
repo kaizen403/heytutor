@@ -29,19 +29,45 @@
  *    anywhere, so it can never be mistaken for the pen being taken somewhere.
  *  - Amplitude and frequency both decay as the pause lengthens. An unhurried
  *    hand fidgets less, not more.
+ *  - Nothing here touches opacity. The hand plays with the pen; it never makes
+ *    it disappear.
  *
- * Everything here is a pure function of (elapsed, seed) so
- * `verify-pen-idle` can measure the motion without a canvas.
+ * Marker stunts (`penStunts.ts`) are the opt-in loud half of the same
+ * repertoire: four proper tricks, drawn from one pooled weight so switching
+ * them on adds a flourish every few pauses rather than turning the board into
+ * a circus. They are off unless the caller asks for them, so every pure
+ * function below behaves exactly as it did before when the setting is off.
+ *
+ * Everything here is a pure function of (elapsed, seed, options) so
+ * `verify-pen-idle` and `verify-pen-stunts` can measure the motion without a
+ * canvas.
  */
 
 import { clamp01 } from "./penMotion";
 import {
   SPIN_PERIOD_MS,
   SPIN_SWING,
+  bell,
+  holdEnvelope,
+  pulseTrain,
   shortestAngleDelta,
   smoothstep,
   smootherstep,
+  softCap,
 } from "./penChoreography";
+import {
+  STUNT_EARLIEST_INDEX,
+  STUNT_KINDS,
+  STUNT_LIFT_MAX_PX,
+  STUNT_MS,
+  STUNT_POOL_WEIGHT,
+  STUNT_SEPARATION,
+  STUNT_TRAVEL_MAX_PX,
+  STUNT_WEIGHT,
+  isStuntKind,
+  stuntFrame,
+  type StuntKind,
+} from "./penStunts";
 
 /** Ease out of stillness rather than starting mid-gesture. */
 export const IDLE_RAMP_MS = 320;
@@ -147,35 +173,6 @@ function fract01(seed: number): number {
   return x - Math.floor(x);
 }
 
-/** Zero value and zero slope at both ends — a gesture that cannot pop. */
-function bell(t: number): number {
-  const s = Math.sin(Math.PI * clamp01(t));
-  return s * s;
-}
-
-/** `count` bells back to back, each starting and ending at rest. */
-function pulseTrain(t: number, count: number): number {
-  const scaled = clamp01(t) * count;
-  return bell(scaled % 1);
-}
-
-/** Rise, hold, fall — for a gesture that goes somewhere and stays a moment. */
-function holdEnvelope(t: number, riseFraction: number, fallFraction: number): number {
-  const u = clamp01(t);
-  if (u < riseFraction) return smootherstep(u / riseFraction);
-  if (u > 1 - fallFraction) return smootherstep((1 - u) / fallFraction);
-  return 1;
-}
-
-/**
- * Squash a value into a band without a corner at the boundary. A hard clamp
- * would put a kink in the velocity exactly where the biggest gestures live.
- */
-function softCap(value: number, cap: number): number {
-  if (cap <= 0) return 0;
-  return cap * Math.tanh(value / cap);
-}
-
 /** The mood of one pause: how big the gestures are and how close together. */
 export interface IdleMood {
   /** Amplitude scale, around 1. */
@@ -191,62 +188,137 @@ export function idleMood(seed: number): IdleMood {
   };
 }
 
+/**
+ * Everything the idle hand can be doing: the ten plain gestures, plus the
+ * stunts when the student has them switched on.
+ */
+export type IdlePerformanceKind = IdleGestureKind | StuntKind;
+
+/**
+ * Whether the stunt repertoire is in play for this pause.
+ *
+ * Off is the default everywhere, including in the pure functions, so a caller
+ * that knows nothing about the setting gets exactly the hand it got before.
+ */
+export interface IdleOptions {
+  stunts?: boolean;
+}
+
+export function performanceDurationMs(kind: IdlePerformanceKind): number {
+  return isStuntKind(kind) ? STUNT_MS[kind] : IDLE_GESTURE_MS[kind];
+}
+
 export interface IdleGesture {
-  kind: IdleGestureKind;
+  kind: IdlePerformanceKind;
   /** Milliseconds since the hand took the instrument. */
   startMs: number;
   durationMs: number;
   index: number;
+  /** True when this slot is a stunt rather than one of the plain gestures. */
+  stunt: boolean;
 }
 
 /**
- * Pick a gesture, excluding whatever the last two were.
+ * Pick what the hand does next, excluding whatever the last two things were.
  *
  * Excluding two is what stops the eye finding a pattern: with ten kinds and a
  * weighted draw, "not the same as last time" still lets tap/roll/tap/roll
  * happen, and two of those in a row is a tic.
+ *
+ * `sinceStunt` is how many slots ago the last trick was. Stunts join the draw
+ * as one pooled weight rather than four separate ones, so switching them on
+ * cannot quietly turn the repertoire into a circus: the pool is about one slot
+ * in eight, it is barred from the opening slot of a pause, and two tricks
+ * cannot land within `STUNT_SEPARATION` of each other.
  */
 function pickKind(
   index: number,
   seed: number,
-  previous: IdleGestureKind | null,
-  twoBack: IdleGestureKind | null,
-): IdleGestureKind {
+  previous: IdlePerformanceKind | null,
+  twoBack: IdlePerformanceKind | null,
+  stunts: boolean,
+  sinceStunt: number,
+): IdlePerformanceKind {
   const allowed = IDLE_GESTURE_KINDS.filter((kind) => kind !== previous && kind !== twoBack);
-  const total = allowed.reduce((sum, kind) => sum + IDLE_GESTURE_WEIGHT[kind], 0);
+  const gestureTotal = allowed.reduce((sum, kind) => sum + IDLE_GESTURE_WEIGHT[kind], 0);
+  const stuntsOpen = stunts && index >= STUNT_EARLIEST_INDEX && sinceStunt > STUNT_SEPARATION;
+  const total = gestureTotal + (stuntsOpen ? STUNT_POOL_WEIGHT : 0);
   let roll = fract01(index * 7 + 3 + seed * 101) * total;
   for (const kind of allowed) {
     roll -= IDLE_GESTURE_WEIGHT[kind];
     if (roll <= 0) return kind;
   }
+  if (!stuntsOpen) return allowed[allowed.length - 1]!;
+  return pickStunt(index, seed, previous, twoBack);
+}
+
+/** Which trick, once the draw has landed in the stunt pool. */
+function pickStunt(
+  index: number,
+  seed: number,
+  previous: IdlePerformanceKind | null,
+  twoBack: IdlePerformanceKind | null,
+): StuntKind {
+  const allowed = STUNT_KINDS.filter((kind) => kind !== previous && kind !== twoBack);
+  const total = allowed.reduce((sum, kind) => sum + STUNT_WEIGHT[kind], 0);
+  let roll = fract01(index * 31 + 19 + seed * 577) * total;
+  for (const kind of allowed) {
+    roll -= STUNT_WEIGHT[kind];
+    if (roll <= 0) return kind;
+  }
   return allowed[allowed.length - 1]!;
 }
 
-/** Rest after the gesture that ended at `startMs` + its duration. */
-function gapAfter(index: number, endedAtMs: number, seed: number, mood: IdleMood): number {
+/**
+ * Rest after the slot that ended at `endedAtMs`.
+ *
+ * A trick earns a longer rest than a fidget: the hand that just spun the pen
+ * round its thumb goes back to holding it still for a moment, which is what
+ * makes the trick read as a flourish rather than as a nervous habit.
+ */
+export const STUNT_REST_GAIN = 1.6;
+
+function gapAfter(
+  index: number,
+  endedAtMs: number,
+  seed: number,
+  mood: IdleMood,
+  afterStunt = false,
+): number {
   const stretch =
     1 + IDLE_CALM_GAP_GAIN * smoothstep((endedAtMs - IDLE_CALM_AFTER_MS) / IDLE_CALM_RAMP_MS);
   const drawn = IDLE_GAP_MIN_MS + IDLE_GAP_SPREAD_MS * fract01(index * 13 + 5 + seed * 197);
-  return (drawn * stretch) / Math.max(mood.restless, 0.1);
+  const rest = (drawn * stretch) / Math.max(mood.restless, 0.1);
+  return afterStunt ? rest * STUNT_REST_GAIN : rest;
 }
 
 const MAX_GESTURES = 512;
 
 /** The performance for one pause, as a list — the shape verify asserts on. */
-export function idleGestureSequence(count: number, seed = 0): IdleGesture[] {
+export function idleGestureSequence(
+  count: number,
+  seed = 0,
+  options: IdleOptions = {},
+): IdleGesture[] {
+  const stunts = options.stunts === true;
   const mood = idleMood(seed);
   const gestures: IdleGesture[] = [];
   let startMs = IDLE_FIRST_GESTURE_MS;
+  let sinceStunt = Number.POSITIVE_INFINITY;
   for (let index = 0; index < Math.min(count, MAX_GESTURES); index++) {
     const kind = pickKind(
       index,
       seed,
       gestures[index - 1]?.kind ?? null,
       gestures[index - 2]?.kind ?? null,
+      stunts,
+      sinceStunt,
     );
-    const durationMs = IDLE_GESTURE_MS[kind];
-    gestures.push({ kind, startMs, durationMs, index });
-    startMs += durationMs + gapAfter(index, startMs + durationMs, seed, mood);
+    const stunt = isStuntKind(kind);
+    const durationMs = performanceDurationMs(kind);
+    gestures.push({ kind, startMs, durationMs, index, stunt });
+    startMs += durationMs + gapAfter(index, startMs + durationMs, seed, mood, stunt);
+    sinceStunt = stunt ? 0 : sinceStunt + 1;
   }
   return gestures;
 }
@@ -255,25 +327,30 @@ export function idleGestureSequence(count: number, seed = 0): IdleGesture[] {
 export function idleGestureAt(
   sinceMs: number,
   seed = 0,
+  options: IdleOptions = {},
 ): { gesture: IdleGesture; t: number } | null {
   if (!(sinceMs > IDLE_FIRST_GESTURE_MS)) return null;
+  const stunts = options.stunts === true;
   const mood = idleMood(seed);
   let startMs = IDLE_FIRST_GESTURE_MS;
-  let previous: IdleGestureKind | null = null;
-  let twoBack: IdleGestureKind | null = null;
+  let previous: IdlePerformanceKind | null = null;
+  let twoBack: IdlePerformanceKind | null = null;
+  let sinceStunt = Number.POSITIVE_INFINITY;
   for (let index = 0; index < MAX_GESTURES; index++) {
-    const kind = pickKind(index, seed, previous, twoBack);
-    const durationMs = IDLE_GESTURE_MS[kind];
+    const kind = pickKind(index, seed, previous, twoBack, stunts, sinceStunt);
+    const stunt = isStuntKind(kind);
+    const durationMs = performanceDurationMs(kind);
     if (sinceMs < startMs) return null;
     if (sinceMs < startMs + durationMs) {
       return {
-        gesture: { kind, startMs, durationMs, index },
+        gesture: { kind, startMs, durationMs, index, stunt },
         t: (sinceMs - startMs) / durationMs,
       };
     }
-    startMs += durationMs + gapAfter(index, startMs + durationMs, seed, mood);
+    startMs += durationMs + gapAfter(index, startMs + durationMs, seed, mood, stunt);
     twoBack = previous;
     previous = kind;
+    sinceStunt = stunt ? 0 : sinceStunt + 1;
   }
   return null;
 }
@@ -450,8 +527,10 @@ function gestureFrame(
 }
 
 export interface IdlePose {
-  /** Which gesture is running, or null while the hand is only breathing. */
-  gesture: IdleGestureKind | null;
+  /** What is running, or null while the hand is only breathing. */
+  gesture: IdlePerformanceKind | null;
+  /** True while that thing is a stunt rather than one of the plain gestures. */
+  stunt: boolean;
   dx: number;
   dy: number;
   tiltOffset: number;
@@ -512,7 +591,11 @@ export function idleCalm(startMs: number): number {
   );
 }
 
-function poseAt(heldMs: number, seed: number): Omit<IdlePose, "spinVelocity"> {
+function poseAt(
+  heldMs: number,
+  seed: number,
+  options: IdleOptions,
+): Omit<IdlePose, "spinVelocity"> {
   const held = Math.max(heldMs, 0);
   const ramp = smoothstep(held / IDLE_RAMP_MS);
   const breath = idleBreath(held);
@@ -525,22 +608,23 @@ function poseAt(heldMs: number, seed: number): Omit<IdlePose, "spinVelocity"> {
   let spin = 0;
   let lift = hover;
   let scaleUp = 0;
-  let gesture: IdleGestureKind | null = null;
+  let gesture: IdlePerformanceKind | null = null;
+  let stunt = false;
 
-  const current = idleGestureAt(held, seed);
+  const current = idleGestureAt(held, seed, options);
   if (current) {
     const { kind, index, startMs } = current.gesture;
     const amplitude = ramp * idleCalm(startMs) * mood.energy;
     const swing = fract01(index * 29 + 11 + seed * 271) < 0.5 ? -1 : 1;
-    const frame = gestureFrame(
-      kind,
-      current.t,
-      swing,
-      hover,
-      fract01(index * 17 + 2 + seed * 313),
-      fract01(index * 23 + 7 + seed * 419),
-    );
+    const roll1 = fract01(index * 17 + 2 + seed * 313);
+    const roll2 = fract01(index * 23 + 7 + seed * 419);
+    // A stunt is shaped by the same rules and applied through the same path,
+    // so there is one set of end conditions for the whole repertoire.
+    const frame = current.gesture.stunt
+      ? stuntFrame(kind as StuntKind, current.t, swing, hover, roll1, roll2)
+      : gestureFrame(kind as IdleGestureKind, current.t, swing, hover, roll1, roll2);
     gesture = kind;
+    stunt = current.gesture.stunt;
     dx += amplitude * frame.dx;
     dy += amplitude * frame.dy;
     tiltOffset += amplitude * frame.tiltOffset;
@@ -549,22 +633,28 @@ function poseAt(heldMs: number, seed: number): Omit<IdlePose, "spinVelocity"> {
     scaleUp += amplitude * frame.scaleUp;
   }
 
-  // The pen fidgets where it stands. Softly capped rather than clamped, so the
-  // biggest gestures compress instead of hitting a wall mid-motion.
+  // The pen performs where it stands. A stunt is allowed a wider box than a
+  // fidget — a knuckle roll that could not leave a nib's width would not read
+  // as anything — but it is still a box, so no trick can ever be mistaken for
+  // the pen being carried somewhere. Softly capped rather than clamped, so the
+  // biggest motions compress instead of hitting a wall mid-flight.
+  const travelCap = stunt ? STUNT_TRAVEL_MAX_PX : IDLE_TRAVEL_MAX_PX;
+  const liftCap = stunt ? STUNT_LIFT_MAX_PX : IDLE_LIFT_MAX_PX;
   const travel = Math.hypot(dx, dy);
   if (travel > 0) {
-    const scaled = softCap(travel, IDLE_TRAVEL_MAX_PX) / travel;
+    const scaled = softCap(travel, travelCap) / travel;
     dx *= scaled;
     dy *= scaled;
   }
 
   return {
     gesture,
+    stunt,
     dx,
     dy,
     tiltOffset,
     spin,
-    lift: lift > 0 ? softCap(lift, IDLE_LIFT_MAX_PX) : 0,
+    lift: lift > 0 ? softCap(lift, liftCap) : 0,
     scale: 1 + scaleUp,
   };
 }
@@ -577,9 +667,9 @@ const VELOCITY_PROBE_MS = 1;
  * The whole idle hand at `heldMs` into one pause. `seed` should change with
  * every pause, so a lesson never plays the same performance twice.
  */
-export function idlePose(heldMs: number, seed = 0): IdlePose {
-  const pose = poseAt(heldMs, seed);
-  const ahead = poseAt(heldMs + VELOCITY_PROBE_MS, seed);
+export function idlePose(heldMs: number, seed = 0, options: IdleOptions = {}): IdlePose {
+  const pose = poseAt(heldMs, seed, options);
+  const ahead = poseAt(heldMs + VELOCITY_PROBE_MS, seed, options);
   // Shortest delta, so the frame where a twirl closes on 360° — the same pose
   // it opened from — reads as the end of a turn and not as a 360°/ms flick.
   const rate = Math.abs(shortestAngleDelta(pose.spin, ahead.spin)) / VELOCITY_PROBE_MS;
@@ -608,6 +698,7 @@ export function releaseIdlePose(pose: IdlePose, k: number): IdlePose {
   const turn = nearestTurn(pose.spin);
   return {
     gesture: pose.gesture,
+    stunt: pose.stunt,
     dx: pose.dx * f,
     dy: pose.dy * f,
     tiltOffset: pose.tiltOffset * f,
@@ -616,4 +707,21 @@ export function releaseIdlePose(pose: IdlePose, k: number): IdlePose {
     scale: 1 + (pose.scale - 1) * f,
     spinVelocity: pose.spinVelocity * f,
   };
+}
+
+/**
+ * How long the hand should take to put the instrument back down.
+ *
+ * A fidget is caught in 140ms, which is quick enough to be invisible and slow
+ * enough not to be a twitch. A stunt can be caught with the pen 30px off the
+ * board and a turn in progress; setting *that* down in 140ms is a snatch. The
+ * window opens with the lift, capped, so a toss is caught rather than yanked.
+ */
+export const IDLE_RELEASE_MAX_MS = 280;
+
+export function idleReleaseMs(pose: IdlePose | null): number {
+  if (!pose) return IDLE_RELEASE_MS;
+  const reach = Math.max(pose.lift, Math.hypot(pose.dx, pose.dy));
+  const scale = 1 + reach / IDLE_LIFT_MAX_PX;
+  return Math.min(IDLE_RELEASE_MS * scale, IDLE_RELEASE_MAX_MS);
 }

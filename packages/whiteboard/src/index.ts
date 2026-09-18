@@ -37,6 +37,10 @@ export {
   type PenActivity,
 } from "./instruments";
 export {
+  CURSOR_ALPHA_EPSILON,
+  CURSOR_FADE_TIME_CONSTANT_MS,
+  ERASER_BLEND_TIME_CONSTANT_MS,
+  approachFraction,
   RESTING_TILT,
   SPIN_PERIOD_MS,
   flourishPose,
@@ -50,17 +54,32 @@ export {
 } from "./penChoreography";
 export {
   IDLE_GESTURE_KINDS,
+  IDLE_RELEASE_MAX_MS,
   IDLE_RELEASE_MS,
   idleGestureAt,
   idleGestureSequence,
   idleMood,
   idlePose,
+  idleReleaseMs,
+  performanceDurationMs,
   releaseIdlePose,
   type IdleGesture,
   type IdleGestureKind,
   type IdleMood,
+  type IdleOptions,
+  type IdlePerformanceKind,
   type IdlePose,
 } from "./penIdle";
+export {
+  STUNT_KINDS,
+  STUNT_LIFT_MAX_PX,
+  STUNT_MS,
+  STUNT_TRAVEL_MAX_PX,
+  isStuntKind,
+  stuntFrame,
+  type StuntFrame,
+  type StuntKind,
+} from "./penStunts";
 export { PenSpinner, type PenSpinnerProps } from "./PenSpinner";
 export { SpeakingWaveform } from "./SpeakingWaveform";
 export { ThinkingSpinner } from "./ThinkingSpinner";

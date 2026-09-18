@@ -68,6 +68,7 @@ model UserSettings {
   lowLatencyVoice      Boolean  @default(false) @map("low_latency_voice")
   subtitlesEnabled     Boolean  @default(false) @map("subtitles_enabled")
   markerColor          String   @default("navy") @map("marker_color")
+  markerStunts         Boolean  @default(true) @map("marker_stunts")
   speedMultiplier      Float    @default(1.5) @map("speed_multiplier")
   uiLanguage           String   @default("en") @map("ui_language")
   showHomeSuggestions  Boolean  @default(true) @map("show_home_suggestions")

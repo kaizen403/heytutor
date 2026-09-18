@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import {
   AIR_TRAVEL_WEIGHT,
   HOP_MAX_MS,
@@ -17,7 +20,9 @@ import {
   approachFraction,
   idleHoldStart,
   nibTravelFor,
+  CURSOR_ALPHA_EPSILON,
   CURSOR_FADE_TIME_CONSTANT_MS,
+  ERASER_BLEND_TIME_CONSTANT_MS,
   FLY_MIN_PX,
   HOP_MIN_PX,
   IDLE_HOLD_DWELL_MS,
@@ -643,6 +648,137 @@ for (let distance = 0; distance <= 400; distance += 3) {
   assert(Math.abs(oneStep - twoSteps) < 1e-9, "the fade must not depend on frame rate");
 }
 
+// --- and nothing on the board is allowed to hard-hide it -------------------
+/*
+  The fade above is correct arithmetic that the render used to throw away.
+
+  `cursorOpacity` is a step function whose `idle` is 0, and the cursor layer
+  read it straight into the Konva node's `visible` and `opacity` props. So every
+  React render during a fade snapped the marker back onto the step, and at
+  `idle` it set `visible(false)` outright — the ease carried on running, on a
+  node nobody could see. On top of that the eraser was a React branch: `erasing`
+  destroyed the marker and created a block in its place, and the end of the wipe
+  did the reverse. Two hard pops per erase, and a marker that blinked out
+  between every pair of turns in a lecture.
+
+  None of that is visible to a pure function, so it is asserted against the
+  source. The rule is: exactly one place decides how visible the instrument is,
+  it reads the eased value, and both nodes stay mounted.
+*/
+{
+  const boardPath = fileURLToPath(new URL("../src/Whiteboard.tsx", import.meta.url));
+  const board = readFileSync(boardPath, "utf8");
+  // Comments quote the old code, so they are stripped before matching.
+  const code = board
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+
+  assert(
+    !/visible=\{[^}]*cursorOpacity/.test(code),
+    "the cursor layer must not compute visibility from the opacity step function",
+  );
+  assert(
+    !/opacity=\{[^}]*cursorOpacity/.test(code),
+    "nor its opacity: a render mid-fade would snap the marker back onto the step",
+  );
+  assert(
+    /visible=\{cursorAlphaRef\.current\.pen > CURSOR_ALPHA_EPSILON\}/.test(code),
+    "the marker is visible exactly while its eased alpha is above the epsilon",
+  );
+  assert(
+    /opacity=\{cursorAlphaRef\.current\.pen\}/.test(code),
+    "and its opacity is that eased alpha, nothing else",
+  );
+  assert(
+    !/activeCursorState === "erasing" \? \(/.test(code),
+    "the marker and the eraser must both stay mounted; a branch here is two pops per wipe",
+  );
+  // One painter. A second `group.opacity(...)` anywhere is a second opinion
+  // about how visible the marker is, and the two will disagree on some frame.
+  const painters = code.match(/(?:group|duster)\.opacity\(/g) ?? [];
+  assert(
+    painters.length === 2,
+    `exactly one place may set the instrument's opacity, found ${painters.length} writes`,
+  );
+  const hides = code.match(/(?:group|duster)\.visible\(/g) ?? [];
+  assert(
+    hides.length === 2,
+    `and one place may hide it, found ${hides.length} writes`,
+  );
+  assert(
+    /group\.visible\(penAlpha > CURSOR_ALPHA_EPSILON\)/.test(code),
+    "and it may only hide the marker once the fade has actually reached zero",
+  );
+  // The epsilon has to be under the eye, not a convenient early exit. At 0.02
+  // of full opacity the marker is already invisible; anything above that and
+  // "hide it once the fade is done" is just the old blink with a threshold.
+  assert(
+    CURSOR_ALPHA_EPSILON > 0 && CURSOR_ALPHA_EPSILON < 0.02,
+    `the hide threshold must be below the eye, got ${CURSOR_ALPHA_EPSILON}`,
+  );
+
+  // The idle hand runs while the tutor is speaking, not only while it thinks.
+  // The marker tour holds `speaking` through a hop-and-dwell walk, and for the
+  // whole of every dwell the pen used to stand perfectly dead.
+  assert(
+    /IDLE_ELIGIBLE_STATES: readonly CursorState\[\] = \["thinking", "speaking"\]/.test(code),
+    "the idle hand must stay alive through `speaking`, or the tour's dwells are frozen",
+  );
+  /*
+    And the eligibility is read per frame, not made a dependency of the effect.
+    As a dependency, a tour flipping the state to `speaking` unmounted the idle
+    effect mid-gesture and ran its cleanup, and the cleanup wrote the
+    instrument back to rest on that one frame: a twirl caught at 180° snapped
+    and a lifted nib dropped. Every state change during a lecture did it.
+  */
+  assert(
+    /!IDLE_ELIGIBLE_STATES\.includes\(state\)/.test(code),
+    "eligibility must be read on the frame, so a state change cannot snap a gesture",
+  );
+  const idleDeps = code.match(
+    /\}, \[cancelTrackedFrame, nowMs, requestTrackedFrame, setCursorViewSafely, settleNib, thinkingMotion\]\);/,
+  );
+  assert(
+    idleDeps !== null,
+    "the idle effect must not depend on the cursor state; that is what remounts it mid-gesture",
+  );
+  // Nor may the cleanup reset the pose, whatever remounts it.
+  assert(
+    !/if \(frameId !== null\) cancelTrackedFrame\(frameId\);\s*\n\s*const view = cursorViewRef\.current;\s*\n\s*setCursorViewSafely\(view\.x, view\.y, view\.rotation, 1\);/.test(
+      code,
+    ),
+    "an effect cleanup may not write the instrument back to rest on its unmount frame",
+  );
+
+  // Stunts are a setting, read live, and they never reach the board as a value
+  // that could make the marker fainter.
+  assert(
+    /idlePose\([^)]*\{\s*\n?\s*stunts: markerStuntsRef\.current,?\s*\n?\s*\}\)/.test(code) ||
+      /stunts: markerStuntsRef\.current/.test(code),
+    "the idle pose must be given the live stunt setting",
+  );
+}
+
+// --- a wipe is a hand-over, and it is slower than a state fade -------------
+{
+  assert(
+    ERASER_BLEND_TIME_CONSTANT_MS > CURSOR_FADE_TIME_CONSTANT_MS,
+    "putting the marker down and picking the eraser up is a movement, not a cut",
+  );
+  // Crossfading two nodes must never leave a hole: at every point of the
+  // hand-over something is on the board, and the two never sum above one.
+  let thinnest = 1;
+  let blend = 0;
+  for (let frame = 0; frame < 120; frame += 1) {
+    blend += (1 - blend) * approachFraction(16, ERASER_BLEND_TIME_CONSTANT_MS);
+    const total = (1 - blend) + blend;
+    assert(Math.abs(total - 1) < 1e-9, "the hand-over must not dim the board on its way across");
+    thinnest = Math.min(thinnest, Math.max(1 - blend, blend));
+  }
+  assert(thinnest >= 0.5 - 1e-9, "at the midpoint both are at half, which is a hand-over");
+}
+
 console.log(
-  "verify-pen-choreography: cursive does not wobble the barrel, hops and air keep the nib continuous, the parked pen breathes without jerking, swaps turn edge-on without ever blinking out, the fidget only takes the pen after a real dwell and hands it straight back, every reposition is bridged rather than stepped over, the instrument fades instead of disappearing, the pending twirl ramps in, flicks and coasts without ever stalling, and smears with its rate, idle scribbles stay in the margin",
+  "verify-pen-choreography: cursive does not wobble the barrel, hops and air keep the nib continuous, the parked pen breathes without jerking, swaps turn edge-on without ever blinking out, the fidget only takes the pen after a real dwell and hands it straight back, every reposition is bridged rather than stepped over, the instrument fades instead of disappearing, the pending twirl ramps in, flicks and coasts without ever stalling, and smears with its rate, idle scribbles stay in the margin, and nothing in the board hard-hides the instrument or unmounts it for a wipe",
 );

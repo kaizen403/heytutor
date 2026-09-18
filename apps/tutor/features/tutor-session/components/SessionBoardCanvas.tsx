@@ -154,6 +154,7 @@ export function SessionBoardCanvas({
             height={BOARD_HEIGHT}
             cursorState={cursorState}
             inkColor={getMarkerColorHex(settings.markerColor)}
+            markerStunts={settings.markerStunts}
           />
           {codeLessonPanel}
           {marking ? (
@@ -247,6 +248,7 @@ export function SessionBoardCanvas({
                 height={BOARD_HEIGHT}
                 cursorState={rewindCursorState}
                 inkColor={getMarkerColorHex(settings.markerColor)}
+                markerStunts={settings.markerStunts}
               />
             </div>
           ) : null}
