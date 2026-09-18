@@ -17,6 +17,8 @@ const read = (relative: string) => readFileSync(resolve(root, relative), "utf8")
 const ADMIN_API_ROUTES = [
   "app/api/admin/run-cost/route.ts",
   "app/api/admin/overview/route.ts",
+  "app/api/admin/users/route.ts",
+  "app/api/admin/turns/route.ts",
 ];
 
 for (const route of ADMIN_API_ROUTES) {
@@ -75,6 +77,8 @@ const adminQuerySources = [
   "lib/admin/overviewQueries.ts",
   "lib/admin/overviewDistributions.ts",
   "lib/admin/overviewLists.ts",
+  "lib/admin/usersQueries.ts",
+  "lib/admin/turnsQueries.ts",
 ];
 for (const source of adminQuerySources) {
   const text = read(source);
