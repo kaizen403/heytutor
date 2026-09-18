@@ -11,6 +11,7 @@ import {
   Zap,
   BookOpen,
   Rabbit,
+  FileDown,
 } from "lucide-react";
 
 import Link from "next/link";
@@ -33,6 +34,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import {
   getMarkerColorHex,
+  LECTURE_FILE_TYPES,
+  LECTURE_FILE_TYPE_LABELS,
   MARKER_COLORS,
   SPEED_MAX,
   SPEED_MIN,
@@ -489,6 +492,24 @@ export function SettingsDrawer({
                 );
               })}
             </div>
+          </SettingsSection>
+
+          <SettingsSection>
+            <SectionLabel icon={FileDown}>Lecture file type</SectionLabel>
+            <div className="flex flex-wrap gap-2">
+              {LECTURE_FILE_TYPES.map((value) => (
+                <SelectPill
+                  key={value}
+                  label={LECTURE_FILE_TYPE_LABELS[value]}
+                  checked={settings.lectureFileType === value}
+                  onClick={() => update({ lectureFileType: value })}
+                />
+              ))}
+            </div>
+            <p className="mt-2 text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
+              The format of Lecture download. MP4 is the default. Switch to WebM if a player will
+              not open the file.
+            </p>
           </SettingsSection>
         </div>
       </SheetContent>

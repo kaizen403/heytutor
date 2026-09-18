@@ -1,4 +1,5 @@
 import { STUNT_KINDS } from "@heytutor/whiteboard";
+import { readFileSync } from "node:fs";
 import {
   accountSettingsPatch,
   lessonSettingsFromAccount,
@@ -137,6 +138,50 @@ assert(addon.includes("Always name the unit"), "units toggle reaches teaching");
 assert(addon.includes("State the governing law"), "law-first toggle reaches teaching");
 assert(teachingPromptAddon({}) === "", "empty prefs add nothing");
 
+assert(
+  parseAccountSettings({}).lectureFileType === "mp4",
+  "lecture downloads stay MP4 until the student picks another type",
+);
+assert(
+  parseAccountSettings({ lectureFileType: "webm" }).lectureFileType === "webm",
+  "WebM survives the row",
+);
+assert(
+  parseAccountSettings({ lectureFileType: "mov" }).lectureFileType === "mp4",
+  "an unknown type falls back to MP4 rather than being stored",
+);
+assert(
+  lessonSettingsFromAccount(parseAccountSettings({ lectureFileType: "webm" })).lectureFileType ===
+    "webm",
+  "the lesson sheet carries the lecture file type",
+);
+assert(
+  accountSettingsPatch({ lectureFileType: "webm" }).lectureFileType === "webm",
+  "switching to WebM is a patch the API will write",
+);
+assert(
+  !("lectureFileType" in accountSettingsPatch({ speedMultiplier: 2 })),
+  "a patch that says nothing about the lecture file type must not reset it",
+);
+
+const settingsScreen = readFileSync(
+  new URL("../../features/account/SettingsScreen.tsx", import.meta.url),
+  "utf8",
+);
+const settingsDrawer = readFileSync(
+  new URL("../../features/tutor-session/components/SettingsDrawer.tsx", import.meta.url),
+  "utf8",
+);
+assert(
+  settingsScreen.includes("Lecture file type") && settingsDrawer.includes("Lecture file type"),
+  "both settings surfaces must offer the lecture file type",
+);
+assert(
+  settingsScreen.includes('patch({ lectureFileType: value })') &&
+    settingsDrawer.includes("update({ lectureFileType: value })"),
+  "picking MP4 or WebM must write lectureFileType",
+);
+
 console.log(
-  "✓ settings persist, the marker stunt selection survives the row to board hop in one canonical order, legacy booleans land somewhere a student would recognise, teaching-note cap, and teaching-prompt injection",
+  "✓ settings persist, the marker stunt selection survives the row to board hop in one canonical order, legacy booleans land somewhere a student would recognise, teaching-note cap, teaching-prompt injection, and lecture file type",
 );

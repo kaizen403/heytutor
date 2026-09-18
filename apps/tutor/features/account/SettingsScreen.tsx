@@ -23,6 +23,10 @@ import {
   toggleMarkerStunt,
 } from "@/features/tutor-session/components/SettingsDrawer";
 import {
+  LECTURE_FILE_TYPES,
+  LECTURE_FILE_TYPE_LABELS,
+} from "@/lib/account/lessonSettings";
+import {
   MarkerStuntPreview,
   STUNT_COPY,
   STUNT_KINDS,
@@ -267,6 +271,23 @@ export function SettingsScreen({ section }: { section: string }) {
               <p className="text-sm text-[rgba(237,237,235,0.62)]">
                 We do not train foundation models on student questions unless a future toggle says so. The default is off, and there is no opt-in here yet.
               </p>
+              <div className="mt-4">
+                <h3 className="text-sm text-frost">Lecture file type</h3>
+                <p className="mt-1 mb-3 text-xs text-[rgba(237,237,235,0.45)]">
+                  The format of Lecture download. MP4 is the default. Switch to WebM if a player will
+                  not open the file.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {LECTURE_FILE_TYPES.map((value) => (
+                    <Choice
+                      key={value}
+                      label={LECTURE_FILE_TYPE_LABELS[value]}
+                      checked={settings.lectureFileType === value}
+                      onClick={() => patch({ lectureFileType: value })}
+                    />
+                  ))}
+                </div>
+              </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <SiteButton size="sm" onClick={() => void downloadExport()}>
                   Export all boards

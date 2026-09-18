@@ -2,6 +2,7 @@
 import { Maximize, Minimize } from "lucide-react";
 import { LessonActions } from "@/features/tutor-session/components/LessonActions";
 import type { LectureExportProgress } from "@/lib/lecture-export/exportLectureMp4";
+import type { LectureFileType } from "@/lib/account/lessonSettings";
 import type { TutorPhase } from "../types";
 
 interface SessionHeaderProps {
@@ -14,6 +15,7 @@ interface SessionHeaderProps {
   canReplay: boolean;
   canDownload: boolean;
   canDownloadLecture: boolean;
+  lectureFileType?: LectureFileType;
   isReplaying: boolean;
   isDownloading: boolean;
   isExportingLecture: boolean;
@@ -58,6 +60,7 @@ export function SessionHeader({
   canReplay,
   canDownload,
   canDownloadLecture,
+  lectureFileType,
   isReplaying,
   isDownloading,
   isExportingLecture,
@@ -164,6 +167,7 @@ export function SessionHeader({
             canReplay={canReplay}
             canDownload={canDownload}
             canDownloadLecture={canDownloadLecture}
+            lectureFileType={lectureFileType}
             isReplaying={isReplaying}
             isDownloading={isDownloading}
             isExportingLecture={isExportingLecture}

@@ -31,6 +31,7 @@ import {
   LECTURE_VIDEO_CODECS,
   pickLectureExportProfile,
   type LectureAudioCodec,
+  type LectureContainer,
   type LectureExportProfile,
   type LectureVideoCodec,
 } from "./lectureExportProfile";
@@ -63,39 +64,51 @@ export type LectureExportResult = {
   extension: LectureExportProfile["extension"];
 };
 
-export async function probeLectureExportProfile(): Promise<LectureExportProfile | null> {
+export async function probeLectureExportProfile(
+  preferredContainer: LectureContainer = "mp4",
+): Promise<LectureExportProfile | null> {
   if (!canEncodeLectureMp4()) {
     return null;
   }
-  let video: LectureVideoCodec = "vp8";
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const firefox = /firefox/i.test(ua);
+  const videoOrder: readonly LectureVideoCodec[] =
+    preferredContainer === "webm"
+      ? ["vp9", "vp8", "av1"]
+      : firefox
+        ? ["vp9", "vp8", "av1", "avc"]
+        : [...LECTURE_VIDEO_CODECS];
+  let video: LectureVideoCodec = videoOrder[0] ?? "vp8";
   try {
-    const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
-    const firefox = /firefox/i.test(ua);
-    const probed = await getFirstEncodableVideoCodec(
-      firefox ? ["vp9", "vp8", "av1", "avc"] : [...LECTURE_VIDEO_CODECS],
-      { width: LECTURE_EXPORT_WIDTH, height: LECTURE_EXPORT_HEIGHT },
-    );
+    const probed = await getFirstEncodableVideoCodec([...videoOrder], {
+      width: LECTURE_EXPORT_WIDTH,
+      height: LECTURE_EXPORT_HEIGHT,
+    });
     if (probed === "avc" || probed === "vp9" || probed === "av1" || probed === "vp8") {
       video = probed;
     }
   } catch {
-    video = "vp8";
+    video = videoOrder[0] ?? "vp8";
   }
-  let audio: LectureAudioCodec = "pcm-s16";
+  let audio: LectureAudioCodec = preferredContainer === "webm" ? "opus" : "pcm-s16";
   try {
-    const compressed = await getFirstEncodableAudioCodec(["aac", "opus"], {
-      numberOfChannels: 1,
-      sampleRate: LECTURE_EXPORT_SAMPLE_RATE,
-    });
+    const compressed = await getFirstEncodableAudioCodec(
+      preferredContainer === "webm" ? ["opus"] : ["aac", "opus"],
+      {
+        numberOfChannels: 1,
+        sampleRate: LECTURE_EXPORT_SAMPLE_RATE,
+      },
+    );
     if (compressed === "aac" || compressed === "opus") {
       audio = compressed;
     }
   } catch {
-    audio = "pcm-s16";
+    audio = preferredContainer === "webm" ? "opus" : "pcm-s16";
   }
   return pickLectureExportProfile({
     videoCodecs: [video],
     audioCodecs: [audio],
+    preferredContainer,
   });
 }
 
@@ -174,6 +187,7 @@ export async function exportLectureMp4(options: {
   shouldCancel: () => boolean;
   onProgress?: (progress: LectureExportProgress) => void;
   profile?: LectureExportProfile;
+  preferredContainer?: LectureContainer;
 }): Promise<LectureExportResult> {
   const pageTurns = options.pageTurns && options.pageTurns.length > 0
     ? options.pageTurns
@@ -193,7 +207,8 @@ export async function exportLectureMp4(options: {
     if (codeTrack) break;
   }
 
-  const profile = options.profile ?? (await probeLectureExportProfile());
+  const profile =
+    options.profile ?? (await probeLectureExportProfile(options.preferredContainer ?? "mp4"));
   if (!profile) {
     throw new Error("This browser cannot encode lecture video.");
   }

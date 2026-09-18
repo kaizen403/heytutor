@@ -13,7 +13,9 @@ import {
   isTutorAudioLanguage,
 } from "@heytutor/tutor-core";
 import {
+  DEFAULT_LECTURE_FILE_TYPE,
   DEFAULT_SETTINGS,
+  isLectureFileType,
   isMarkerColorId,
   SPEED_MAX,
   SPEED_MIN,
@@ -32,6 +34,7 @@ export const SETTINGS_CACHE_KEYS = {
   narration: "htutor_narration",
   lowLatency: "htutor_low_latency_voice",
   markerStunts: "htutor_marker_stunts",
+  lectureFileType: "htutor_lecture_file_type",
 } as const;
 
 export const TEACHING_NOTE_MAX = 400;
@@ -103,6 +106,7 @@ export function lessonSettingsFromAccount(settings: AccountSettings): SettingsSt
     subtitlesEnabled: settings.subtitlesEnabled,
     markerColor: settings.markerColor,
     markerStunts: settings.markerStunts,
+    lectureFileType: settings.lectureFileType,
   };
 }
 
@@ -135,6 +139,9 @@ export function parseAccountSettings(value: unknown): AccountSettings {
     subtitlesEnabled: row.subtitlesEnabled === true,
     markerColor,
     markerStunts: parseMarkerStunts(row.markerStunts),
+    lectureFileType: isLectureFileType(row.lectureFileType)
+      ? row.lectureFileType
+      : DEFAULT_LECTURE_FILE_TYPE,
     uiLanguage: "en",
     showHomeSuggestions: row.showHomeSuggestions !== false,
     reducedMotion: row.reducedMotion === true,
@@ -162,6 +169,7 @@ export function accountSettingsPatch(value: unknown): Partial<AccountSettings> {
   if ("subtitlesEnabled" in row) next.subtitlesEnabled = row.subtitlesEnabled === true;
   if (isMarkerColorId(row.markerColor)) next.markerColor = row.markerColor;
   if ("markerStunts" in row) next.markerStunts = parseStuntKinds(row.markerStunts);
+  if (isLectureFileType(row.lectureFileType)) next.lectureFileType = row.lectureFileType;
   if ("showHomeSuggestions" in row) next.showHomeSuggestions = row.showHomeSuggestions === true;
   if ("reducedMotion" in row) next.reducedMotion = row.reducedMotion === true;
   if ("teachingNote" in row) next.teachingNote = sanitizeTeachingNote(row.teachingNote);
@@ -206,6 +214,8 @@ export function readSettingsCache(): Partial<SettingsState> {
     // "" is a real answer here: it is the student having deselected every
     // trick, which `parseStuntKinds` reads as the empty list.
     if (storedStunts !== null) overrides.markerStunts = parseMarkerStunts(storedStunts);
+    const storedFileType = window.localStorage.getItem(SETTINGS_CACHE_KEYS.lectureFileType);
+    if (isLectureFileType(storedFileType)) overrides.lectureFileType = storedFileType;
   } catch {
     return overrides;
   }
@@ -228,6 +238,7 @@ export function writeSettingsCache(settings: SettingsState): void {
       SETTINGS_CACHE_KEYS.markerStunts,
       serializeStuntKinds(settings.markerStunts),
     );
+    window.localStorage.setItem(SETTINGS_CACHE_KEYS.lectureFileType, settings.lectureFileType);
   } catch {
     /* private mode / quota */
   }

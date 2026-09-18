@@ -24,6 +24,22 @@ export const MARKER_COLORS = [
 
 export type MarkerColorId = (typeof MARKER_COLORS)[number]["id"];
 
+/** Containers the lecture download can actually encode. MP4 is the default. */
+export const LECTURE_FILE_TYPES = ["mp4", "webm"] as const;
+
+export type LectureFileType = (typeof LECTURE_FILE_TYPES)[number];
+
+export const DEFAULT_LECTURE_FILE_TYPE: LectureFileType = "mp4";
+
+export const LECTURE_FILE_TYPE_LABELS: Record<LectureFileType, string> = {
+  mp4: "MP4",
+  webm: "WebM",
+};
+
+export function isLectureFileType(value: unknown): value is LectureFileType {
+  return typeof value === "string" && (LECTURE_FILE_TYPES as readonly string[]).includes(value);
+}
+
 export interface SettingsState {
   speedMultiplier: number;
   fastMode: boolean;
@@ -41,6 +57,8 @@ export interface SettingsState {
    * list is the hand with no tricks at all.
    */
   markerStunts: StuntKind[];
+  /** Lecture download container. MP4 unless the student picked WebM. */
+  lectureFileType: LectureFileType;
 }
 
 export const DEFAULT_SETTINGS: Omit<SettingsState, "speedMultiplier"> = {
@@ -54,6 +72,7 @@ export const DEFAULT_SETTINGS: Omit<SettingsState, "speedMultiplier"> = {
   markerColor: "navy",
   // Everything the hand can do, until the student narrows it.
   markerStunts: [...STUNT_KINDS],
+  lectureFileType: DEFAULT_LECTURE_FILE_TYPE,
 };
 
 export const SPEED_MIN = 0.5;

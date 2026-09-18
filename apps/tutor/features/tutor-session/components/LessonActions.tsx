@@ -8,6 +8,11 @@ import {
   lectureExportCancelRevealedOnEnter,
 } from "@/lib/lecture-export/lectureExportCancel";
 import { lectureExportProgressLabel } from "@/lib/lecture-export/lectureExportFrames";
+import {
+  DEFAULT_LECTURE_FILE_TYPE,
+  LECTURE_FILE_TYPE_LABELS,
+  type LectureFileType,
+} from "@/lib/account/lessonSettings";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -15,6 +20,7 @@ export interface LessonActionsProps {
   canReplay: boolean;
   canDownload?: boolean;
   canDownloadLecture?: boolean;
+  lectureFileType?: LectureFileType;
   isReplaying?: boolean;
   isDownloading?: boolean;
   isExportingLecture?: boolean;
@@ -33,6 +39,7 @@ export function LessonActions({
   canReplay,
   canDownload = false,
   canDownloadLecture = false,
+  lectureFileType = DEFAULT_LECTURE_FILE_TYPE,
   isReplaying = false,
   isDownloading = false,
   isExportingLecture = false,
@@ -224,7 +231,7 @@ export function LessonActions({
                   }}
                   className="type-accent-xs flex w-full items-center rounded-lg px-2.5 py-2 text-left text-soft transition-colors hover:bg-white/5 hover:text-frost disabled:opacity-40"
                 >
-                  Lecture (MP4)
+                  Lecture ({LECTURE_FILE_TYPE_LABELS[lectureFileType]})
                 </button>
               ) : null}
             </div>

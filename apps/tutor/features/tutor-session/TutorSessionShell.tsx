@@ -9,6 +9,7 @@ import {
   readSettingsCache,
   writeSettingsCache,
 } from "@/lib/account/userSettings";
+import type { LectureFileType } from "@/lib/account/lessonSettings";
 import { firstName, parseSubjects, profileSubtitle } from "@/lib/account/types";
 import { suggestionsForSubjects } from "@/lib/account/homeSuggestions";
 import {
@@ -132,6 +133,7 @@ export type TutorSessionExportApi = {
   canReplay: boolean;
   canDownload: boolean;
   canDownloadLecture: boolean;
+  lectureFileType: LectureFileType;
   isReplaying: boolean;
   isDownloading: boolean;
   isExportingLecture: boolean;
@@ -942,6 +944,7 @@ export function TutorSessionShell({
     lectureExportProgress,
     lectureExportError,
     canDownloadLecture,
+    lectureFileType,
     downloadLectureMp4,
     cancelLectureExport,
   } = useLectureExport({
@@ -951,6 +954,7 @@ export function TutorSessionShell({
     isReplaying,
     sessionId,
     enabled: !isHeadless,
+    lectureFileType: settings.lectureFileType,
   });
 
 
@@ -1202,6 +1206,7 @@ export function TutorSessionShell({
       canReplay,
       canDownload: frameless ? canDownloadNotes : canDownload,
       canDownloadLecture,
+      lectureFileType,
       isReplaying,
       isDownloading,
       isExportingLecture,
@@ -1219,6 +1224,7 @@ export function TutorSessionShell({
     canDownload,
     canDownloadNotes,
     canDownloadLecture,
+    lectureFileType,
     isReplaying,
     isDownloading,
     isExportingLecture,
@@ -1442,6 +1448,7 @@ export function TutorSessionShell({
             canReplay={canReplay}
             canDownload={canDownload}
             canDownloadLecture={canDownloadLecture}
+            lectureFileType={lectureFileType}
             isReplaying={isReplaying}
             isDownloading={isDownloading}
             isExportingLecture={isExportingLecture}

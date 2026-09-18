@@ -8,9 +8,13 @@ import { InputBar } from "@/features/tutor-session/components/InputBar";
 import { LandingDoodles } from "@/features/tutor-session/components/LandingDoodles";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 
+export type HomeSuggestionKind = "lecture" | "problem";
+
 export interface CanvasLandingSuggestion {
   question: string;
   topic: string;
+  /** A topic lecture, or a numbered problem. The empty board must offer both. */
+  kind: HomeSuggestionKind;
 }
 
 export interface CanvasLandingProps {
@@ -69,7 +73,7 @@ export function CanvasLanding({
 
       {suggestions.length > 0 && (
         <div className="ac-landing__suggestions">
-          <p className="ac-landing__suggestions-label">or try one of these</p>
+          <p className="ac-landing__suggestions-label">a lesson or a problem</p>
           <ul className="ac-landing__question-list">
             {suggestions.map((suggestion) => (
               <li key={suggestion.question} className="ac-landing__question-item">

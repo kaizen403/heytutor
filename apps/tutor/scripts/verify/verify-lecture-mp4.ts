@@ -156,9 +156,27 @@ assert.equal(
   "Chrome keeps AVC + AAC",
 );
 assert.equal(
-  pickLectureExportProfile({ videoCodecs: ["vp9"], audioCodecs: ["opus"] })?.videoCodec,
-  "vp9",
-  "VP9 + Opus is a valid Firefox profile",
+  pickLectureExportProfile({ videoCodecs: ["vp9"], audioCodecs: ["opus"] })?.container,
+  "mp4",
+  "VP9 + Opus still muxes as MP4 by default",
+);
+assert.equal(
+  pickLectureExportProfile({
+    videoCodecs: ["vp9"],
+    audioCodecs: ["opus"],
+    preferredContainer: "webm",
+  })?.container,
+  "webm",
+  "WebM is used when the student picks that file type",
+);
+assert.equal(
+  pickLectureExportProfile({
+    videoCodecs: ["avc"],
+    audioCodecs: ["aac"],
+    preferredContainer: "webm",
+  })?.container,
+  "mp4",
+  "AVC + AAC cannot mux as WebM, so the download stays MP4",
 );
 assert.equal(
   pickLectureExportProfile({ videoCodecs: [], audioCodecs: ["opus"] }),
@@ -259,6 +277,11 @@ assert.equal(
   `${lectureExportCacheKey(first)}@${LECTURE_EXPORT_PLAYBACK_RATE}`,
   "cache key includes 1.25× so a previously downloaded 1× file is not reused",
 );
+assert.equal(
+  lecturePageCacheKey([first], "webm"),
+  `${lectureExportCacheKey(first)}@${LECTURE_EXPORT_PLAYBACK_RATE}.webm`,
+  "a WebM download must not reuse the cached MP4",
+);
 {
   const exportSource = readFileSync(
     resolve(import.meta.dirname, "../../lib/lecture-export/exportLectureMp4.ts"),
@@ -278,6 +301,11 @@ assert.equal(
     exportSource.includes("lectureExportMediaMs"),
     true,
     "each encoded frame must sample the board at 1.25× media time",
+  );
+  assert.equal(
+    exportSource.includes("preferredContainer"),
+    true,
+    "encode must honour the student's lecture file type",
   );
 }
 

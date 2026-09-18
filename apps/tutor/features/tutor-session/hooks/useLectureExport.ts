@@ -25,6 +25,10 @@ import {
   supportsLectureMp4Encode,
   type LectureExportProgress,
 } from "@/lib/lecture-export/exportLectureMp4";
+import {
+  DEFAULT_LECTURE_FILE_TYPE,
+  type LectureFileType,
+} from "@/lib/account/lessonSettings";
 import type { TutorPhase } from "../types";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
 import { useBoardLayout } from "./useBoardLayout";
@@ -43,6 +47,7 @@ export type LectureExportApi = {
   lectureExportProgress: LectureExportProgress | null;
   lectureExportError: string | null;
   canDownloadLecture: boolean;
+  lectureFileType: LectureFileType;
   downloadLectureMp4: () => void;
   cancelLectureExport: () => void;
 };
@@ -54,6 +59,7 @@ export function useLectureExport({
   isReplaying,
   sessionId,
   enabled = true,
+  lectureFileType = DEFAULT_LECTURE_FILE_TYPE,
 }: {
   storedTurnsRef: RefObject<StoredTurn[]>;
   storedTurnsCount: number;
@@ -61,6 +67,7 @@ export function useLectureExport({
   isReplaying: boolean;
   sessionId: string;
   enabled?: boolean;
+  lectureFileType?: LectureFileType;
 }): LectureExportApi {
   const exportBoardRef = useRef<WhiteboardHandle | null>(null);
   const exportCancelRef = useRef(false);
@@ -185,7 +192,7 @@ export function useLectureExport({
     exportGenerationRef.current = generation;
     exportCancelRef.current = false;
     exportQuestionRef.current = pageQuestion;
-    const cacheKey = lecturePageCacheKey(pageTurns);
+    const cacheKey = lecturePageCacheKey(pageTurns, lectureFileType);
     resetBoardLayout(false, false);
     setLectureExportError(null);
     setLectureExportProgress({ currentMs: 0, totalMs: 0, phase: "audio" });
@@ -233,6 +240,7 @@ export function useLectureExport({
           clock,
           shouldCancel,
           onProgress: setLectureExportProgress,
+          preferredContainer: lectureFileType,
         });
 
         if (shouldCancel()) {
@@ -267,7 +275,7 @@ export function useLectureExport({
         }
       }
     })();
-  }, [enabled, executeCommandWithCancel, isExportingLecture, resetBoardLayout, storedTurnsRef]);
+  }, [enabled, executeCommandWithCancel, isExportingLecture, lectureFileType, resetBoardLayout, storedTurnsRef]);
 
   return {
     exportBoardRef,
@@ -276,6 +284,7 @@ export function useLectureExport({
     lectureExportProgress,
     lectureExportError,
     canDownloadLecture,
+    lectureFileType,
     downloadLectureMp4,
     cancelLectureExport,
   };

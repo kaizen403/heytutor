@@ -3,6 +3,7 @@ import { pageTurnsEndingAt } from "@/lib/boards/boardContinuation";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import { lectureExportCacheKey } from "./lectureExportFrames";
 import { LECTURE_EXPORT_PLAYBACK_RATE } from "./lectureExportSpeed";
+import type { LectureContainer } from "./lectureExportProfile";
 import type { TutorPhase } from "@/features/tutor-session/types";
 
 export type LectureEncoderGlobals = {
@@ -65,9 +66,13 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
  * Cache identity of a page export. It changes whenever a doubt adds a turn to
  * the page, and a page of one turn keys exactly as that turn always has.
  */
-export function lecturePageCacheKey(turns: readonly StoredTurn[]): string {
+export function lecturePageCacheKey(
+  turns: readonly StoredTurn[],
+  fileType: LectureContainer = "mp4",
+): string {
   const turnsKey = turns.map((turn) => lectureExportCacheKey(turn)).join("+");
-  return `${turnsKey}@${LECTURE_EXPORT_PLAYBACK_RATE}`;
+  const base = `${turnsKey}@${LECTURE_EXPORT_PLAYBACK_RATE}`;
+  return fileType === "mp4" ? base : `${base}.${fileType}`;
 }
 
 export function shouldCancelLectureExport(state: {
@@ -85,7 +90,7 @@ export function cueHasSpokenAudio(cue: ReplayCue): boolean {
 
 export function lectureDownloadFilename(
   question: string,
-  extension: "mp4" | "webm" = "mp4",
+  extension: LectureContainer = "mp4",
 ): string {
   const slug = question
     .toLowerCase()

@@ -165,6 +165,7 @@ function WatchDrawerFrame({
                 canReplay={exportApi?.canReplay ?? false}
                 canDownload={exportApi?.canDownload ?? false}
                 canDownloadLecture={exportApi?.canDownloadLecture ?? false}
+                lectureFileType={exportApi?.lectureFileType}
                 isReplaying={exportApi?.isReplaying ?? false}
                 isDownloading={exportApi?.isDownloading ?? false}
                 isExportingLecture={exportApi?.isExportingLecture ?? false}

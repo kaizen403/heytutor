@@ -19,30 +19,38 @@ export const STREAM_SEGMENTS_LIVE = true;
  * Empty-board prompts. Cap is 5: a sixth card forces a scroll, and a second
  * column clips. Each card is a different JEE chapter — two from the same
  * unit made the stack look like a resistors-and-mirrors demo.
+ *
+ * Mix topic lectures (derive / explain / show how) with numbered problems.
+ * A stack of only exam questions made the empty board feel like a problem set.
  */
 export const LANDING_SUGGESTIONS: CanvasLandingSuggestion[] = [
   {
     topic: "Projectiles",
+    kind: "lecture",
     question:
-      "A ball is thrown at 20 m/s at 30° above the horizontal. Find the maximum height and the range.",
+      "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range.",
   },
   {
     topic: "Inclined planes",
+    kind: "lecture",
     question:
-      "A 5 kg block rests on a rough 37° incline with μ = 0.4. Draw the free-body diagram and explain how friction sets the acceleration.",
+      "Explain how to draw a free-body diagram for a block on a rough incline, and show how friction enters Newton's second law.",
   },
   {
     topic: "Resistors",
+    kind: "problem",
     question:
       "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint.",
   },
   {
     topic: "Electric charges",
+    kind: "lecture",
     question:
-      "Two point charges +4 μC and −1 μC are 30 cm apart. Find where on the line joining them the electric field is zero.",
+      "Show how two point charges produce an electric field on the line joining them, and explain where that field can be zero.",
   },
   {
     topic: "Ray optics",
+    kind: "problem",
     question:
       "Concave mirror, f = 15 cm, object at 20 cm. Locate the image and draw the ray diagram.",
   },
