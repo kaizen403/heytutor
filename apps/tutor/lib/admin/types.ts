@@ -6,10 +6,13 @@
  */
 import type {
   DegradationReason,
+  OutcomeCounts,
   RepresentationTier,
   TurnOutcome,
 } from "./outcome";
 import type { DayCount } from "./timeBuckets";
+
+export type { OutcomeCounts };
 
 // --- overview ---------------------------------------------------------------
 
@@ -26,13 +29,6 @@ export interface OverviewKpis {
   turns30d: number;
   /** Share of 7d turns that taught without a verified diagram (0–1), or null when there were no turns to measure. */
   failRate7d: number | null;
-}
-
-export interface OutcomeCounts {
-  validated: number;
-  textOnly: number;
-  retryRequired: number;
-  unverified: number;
 }
 
 export interface TierCounts {

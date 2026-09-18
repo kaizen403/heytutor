@@ -157,4 +157,25 @@ export function outcomeLabel(outcome: TurnOutcome): string {
   }
 }
 
+export interface OutcomeCounts {
+  validated: number;
+  textOnly: number;
+  retryRequired: number;
+  unverified: number;
+}
+
+export function foldOutcomeCounts(
+  rows: ReadonlyArray<{ visualStatus: string | null; count: number }>,
+): OutcomeCounts {
+  const counts: OutcomeCounts = { validated: 0, textOnly: 0, retryRequired: 0, unverified: 0 };
+  for (const row of rows) {
+    const outcome = classifyOutcome(row.visualStatus);
+    if (outcome === "validated") counts.validated += row.count;
+    else if (outcome === "text_only") counts.textOnly += row.count;
+    else if (outcome === "retry_required") counts.retryRequired += row.count;
+    else counts.unverified += row.count;
+  }
+  return counts;
+}
+
 export type { SceneArtifactsV3 };

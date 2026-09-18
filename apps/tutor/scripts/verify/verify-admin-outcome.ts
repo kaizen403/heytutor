@@ -6,6 +6,7 @@
 import {
   classifyOutcome,
   extractArtifactSummary,
+  foldOutcomeCounts,
   outcomeLabel,
   FAILED_VISUAL_STATUSES,
 } from "../../lib/admin/outcome";
@@ -118,6 +119,30 @@ function assert(condition: unknown, message: string): asserts condition {
       tiers.representationTier === "question_representation" &&
       tiers.diagramResultStatus === "text_only",
     "fallback tiers survive with their own diagram status",
+  );
+}
+
+// --- foldOutcomeCounts --------------------------------------------------------
+{
+  const folded = foldOutcomeCounts([
+    { visualStatus: "validated", count: 36 },
+    { visualStatus: "text_only", count: 12 },
+    { visualStatus: "retry_required", count: 2 },
+    { visualStatus: "legacy", count: 3 },
+    { visualStatus: null, count: 1 },
+    { visualStatus: "surprise", count: 5 },
+  ]);
+  assert(
+    folded.validated === 36 && folded.textOnly === 12 && folded.retryRequired === 2,
+    "named statuses fold into their own buckets",
+  );
+  assert(
+    folded.unverified === 9,
+    "legacy, null, and unknown statuses all fold into unverified",
+  );
+  assert(
+    foldOutcomeCounts([]).validated === 0 && foldOutcomeCounts([]).unverified === 0,
+    "an empty groupBy folds to zeros",
   );
 }
 
