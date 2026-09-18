@@ -75,8 +75,17 @@ const adminMigration = readFileSync(resolve(import.meta.dirname, "../../prisma/m
 assert(adminMigration.includes('CREATE TABLE IF NOT EXISTS "admins"'), "admins table is created");
 assert(adminMigration.includes("rishivhavle21@gmail.com"), "founding admin is seeded");
 
-const adminPage = readFileSync(resolve(import.meta.dirname, "../../app/admin/page.tsx"), "utf8");
-assert(adminPage.includes("isAdminEmail"), "the admin page must gate on the admins table");
+const adminPlaygroundPage = readFileSync(
+  resolve(import.meta.dirname, "../../app/admin/playground/page.tsx"),
+  "utf8",
+);
+assert(adminPlaygroundPage.includes("isAdminEmail"), "the playground page must gate on the admins table");
+
+const adminPanelLayout = readFileSync(
+  resolve(import.meta.dirname, "../../app/admin/(panel)/layout.tsx"),
+  "utf8",
+);
+assert(adminPanelLayout.includes("isAdminEmail"), "the admin panel must gate on the admins table");
 
 const authSource = readFileSync(resolve(import.meta.dirname, "../../auth.ts"), "utf8");
 assert(authSource.includes("isAdminEmail"), "Google sign-in must allow admins table emails");

@@ -121,10 +121,10 @@ const CAPABILITY_KEYS = [
   );
 
   // Admin is staff-only, which is what makes a full-capability panel safe there.
-  const adminPage = read("app/admin/page.tsx");
+  const adminPage = read("app/admin/playground/page.tsx");
   assert(
     adminPage.includes("isAdminEmail"),
-    "the admin page must stay staff-gated while it mounts a full lesson",
+    "the admin playground page must stay staff-gated while it mounts a full lesson",
   );
 }
 
