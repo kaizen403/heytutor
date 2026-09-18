@@ -13,7 +13,7 @@ import { Whiteboard } from "./WhiteboardLoader";
 import { BoardErrorBanner } from "./BoardErrorBanner";
 import type { BoardMarkingApi } from "../hooks/useBoardMarking";
 import type { BillingFailure } from "@/lib/billing/billingClient";
-import { isOutOfCreditsCode } from "@/lib/billing/studentCopy";
+import { isOutOfUsageLock } from "@/lib/billing/studentCopy";
 
 export interface SessionBoardCanvasProps {
   boardViewport: BoardViewport;
@@ -264,7 +264,7 @@ export function SessionBoardCanvas({
           }
         />
 
-        {phase === "idle" && lastError && !(lastError.billing && isOutOfCreditsCode(lastError.billing.code)) && (
+        {phase === "idle" && lastError && !(lastError.billing && isOutOfUsageLock(lastError.billing)) && (
           <BoardErrorBanner
             message={lastError.message}
             onRetry={() => onRetryError(lastError.question)}

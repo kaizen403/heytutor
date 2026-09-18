@@ -6,6 +6,7 @@ import {
   TOP_UP_CTA,
   UPGRADE_LABEL,
   isOutOfCreditsCode,
+  isOutOfUsageLock,
   isTeenAgeBand,
   remainingPctBarWidth,
   remainingPctLabel,
@@ -32,10 +33,25 @@ assert(remainingPctBarWidth(0) === 0, "zero remaining empties the bar");
 assert(remainingPctBarWidth(null, { staff: true }) === 100, "staff bar stays full");
 assert(isTeenAgeBand("13_17"), "13–17 is the teen band");
 assert(!isTeenAgeBand("18_plus"), "18+ is not teen copy");
-assert(isOutOfCreditsCode("out_of_credits") && isOutOfCreditsCode("no_grant"), "402 codes are out of usage");
+assert(isOutOfCreditsCode("out_of_credits"), "empty envelope is out of usage");
 assert(isOutOfCreditsCode("daily_usd_limit"), "legacy daily fuse code still maps to out of usage");
+assert(!isOutOfCreditsCode("no_grant"), "a lost grant is not an empty envelope");
 assert(!isOutOfCreditsCode("unauthorized"), "401 is not out of usage");
+assert(
+  isOutOfUsageLock({ code: "out_of_credits", remaining: 80 }),
+  "an empty-envelope 402 still locks Ask even if a stale percent is attached",
+);
+assert(
+  !isOutOfUsageLock({ code: "no_grant", remaining: 80 }),
+  "Explain this / Ask a doubt must not lock as Out of usage while leftover usage remains",
+);
+assert(
+  isOutOfUsageLock({ code: "no_grant", remaining: 0 }),
+  "no_grant with a zero bar still locks",
+);
 assert(studentBillingMessage("out_of_credits") === OUT_OF_USAGE_TITLE, "402 title");
+assert(studentBillingMessage("no_grant") !== OUT_OF_USAGE_TITLE, "lost grant copy is not Out of usage");
+assert(studentBillingMessage("no_grant").toLowerCase().includes("start"), "lost grant is retryable");
 assert(studentBillingMessage("unauthorized") === "Sign in to continue", "401 is sign-in, not usage");
 assert(studentBillingMessage("timeout").toLowerCase().includes("too long"), "begin-turn timeout is not a silent cancel");
 assert(studentBillingMessage("rate_limited").toLowerCase().includes("too many"), "429 is rate limit copy");
@@ -55,6 +71,13 @@ const chat402legacy = parseBillingFailureFromMessage(
   'LLM proxy error (402): {"code":"out_of_credits","remaining":0}',
 );
 assert(chat402legacy?.code === "out_of_credits" && chat402legacy.remaining === 0, "parse chat 402 JSON remaining");
+const lostGrant = parseBillingFailureFromMessage(
+  'LLM proxy error (402): {"code":"no_grant","remainingPct":80}',
+);
+assert(
+  lostGrant?.code === "no_grant" && lostGrant.remaining === 80,
+  "a lost grant with leftover usage must not be rewritten as out_of_credits",
+);
 const chat429 = parseBillingFailureFromMessage(
   'LLM proxy error (429): {"code":"rate_limited","remaining":3}',
 );
@@ -132,10 +155,12 @@ assert(handler.includes("billing:"), "errors carry the billing payload");
 const input = read("features/tutor-session/components/InputBar.tsx");
 assert(input.includes("OUT_OF_USAGE_TITLE"), "input bar says Out of usage");
 assert(input.includes("UPGRADE_LABEL"), "input bar offers Upgrade");
+assert(input.includes("isOutOfUsageLock"), "Ask / Explain this lock on leftover usage, not a lost grant");
 assert(input.includes("parseBillingFailureFromBody"), "photo OCR 402 is parsed");
 
 const shell = read("features/tutor-session/TutorSessionShell.tsx");
 assert(shell.includes("OutOfCreditsDialog"), "session shows the 402 modal");
+assert(shell.includes("isOutOfUsageLock"), "402 modal does not treat a lost grant as empty usage");
 assert(shell.includes("billingNotice"), "session wires billing into the composer");
 
 const entitlement = read("app/api/billing/entitlement/route.ts");

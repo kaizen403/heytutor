@@ -46,7 +46,7 @@ import { SessionBoardCanvas } from "./components/SessionBoardCanvas";
 import { OutOfCreditsDialog } from "@/features/account/OutOfCreditsDialog";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 import { rememberBillingFailure } from "@/lib/billing/billingClient";
-import { isOutOfCreditsCode, studentBillingMessage } from "@/lib/billing/studentCopy";
+import { isOutOfUsageLock, studentBillingMessage } from "@/lib/billing/studentCopy";
 import { Whiteboard } from "./components/WhiteboardLoader";
 import { CodeLessonPanel } from "./components/CodeLessonPanel";
 import { CodeLessonController } from "./lib/code-lesson/codeLessonController";
@@ -472,7 +472,7 @@ export function TutorSessionShell({
   }, [accountMe]);
 
   useEffect(() => {
-    if (lastError?.billing && isOutOfCreditsCode(lastError.billing.code)) {
+    if (lastError?.billing && isOutOfUsageLock(lastError.billing)) {
       setCreditsOpen(true);
     } else if (!lastError) {
       setCreditsOpen(false);

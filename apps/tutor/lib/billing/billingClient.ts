@@ -99,8 +99,11 @@ export function parseBillingFailureFromMessage(message: string): BillingFailure 
     const parsed = parseBillingFailureFromBody(status || guessStatusFromCode(json.code), json);
     if (parsed) return parsed;
   }
-  if (/out_of_credits|no_grant/.test(message)) {
+  if (/out_of_credits/.test(message)) {
     return { status: status || 402, code: "out_of_credits", remaining: null };
+  }
+  if (/no_grant/.test(message)) {
+    return { status: status || 402, code: "no_grant", remaining: null };
   }
   if (status === 402 || status === 429 || status === 503) {
     return parseBillingFailureFromBody(status, {});

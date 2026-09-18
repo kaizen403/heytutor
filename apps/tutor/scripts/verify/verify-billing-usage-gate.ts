@@ -5,6 +5,7 @@ import {
   consumeUsdMillicents,
   createLessonGrant,
   getTurnGrant,
+  grantForFollowOnTurn,
   recoverGrantForPaidCall,
   releaseTurnGrant,
   requireGrantForTrace,
@@ -97,6 +98,57 @@ assert(
   "do not remint a new question once remaining is already 0",
 );
 
+resetTurnGrantsForTests();
+assert(
+  beginTurnAccess({
+    remainingMillicents: unusedFree,
+    grant: null,
+    kind: "doubt",
+    traceId: "explain-this",
+  }) === "allow",
+  "Ask a doubt / Explain this with leftover usage is not an empty envelope",
+);
+const explainThis = grantForFollowOnTurn({
+  userId: "idle-after-lecture",
+  traceId: "explain-this",
+  remainingMillicents: unusedFree,
+  planId: "free",
+});
+assert(
+  explainThis.ok,
+  "Explain this must mint a grant when the lecture grant is gone but monthly USD remains",
+);
+assert(getTurnGrant("idle-after-lecture") !== null, "the minted doubt grant is in memory for /api/chat");
+
+resetTurnGrantsForTests();
+const emptyFollowOn = grantForFollowOnTurn({
+  userId: "spent-idle",
+  traceId: "explain-this",
+  remainingMillicents: 0,
+  planId: "free",
+});
+assert(
+  !emptyFollowOn.ok && emptyFollowOn.reason === "out_of_credits",
+  "Explain this with a truly empty envelope still 402s",
+);
+
+resetTurnGrantsForTests();
+assert(
+  createLessonGrant({ userId: "mid-lesson", traceId: "lesson-1", usdMillicents: unusedFree }).ok,
+  "mid-lesson grant exists",
+);
+const attachedDoubt = grantForFollowOnTurn({
+  userId: "mid-lesson",
+  traceId: "explain-this",
+  remainingMillicents: unusedFree,
+  planId: "free",
+});
+assert(attachedDoubt.ok, "a mid-lesson Explain this reuses the lesson grant");
+assert(
+  getTurnGrant("mid-lesson")?.allowedTraceIds.has("explain-this") === true,
+  "the doubt trace is on the same grant",
+);
+
 const typicalFast = calculateLlmCostDetails(
   { input: 20_000, output: 8_000 },
   { model: DEFAULT_FIREWORKS_FAST_MODEL },
@@ -117,6 +169,10 @@ assert(
 const gateSource = readFileSync(resolve(import.meta.dirname, "../../lib/billing/gate.ts"), "utf8");
 assert(gateSource.includes("recoverGrantForPaidCall"), "chat grant lookup must remint a lost grant");
 assert(gateSource.includes("beginTurnAccess"), "begin-turn must reuse the in-flight grant at $0");
+assert(
+  gateSource.includes("grantForFollowOnTurn"),
+  "Ask a doubt / Explain this must remint when the lecture grant is gone",
+);
 
 resetTurnGrantsForTests();
 console.log("✓ first Free question is not out of usage; lost grants remint while USD remains");

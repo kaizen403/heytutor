@@ -30,7 +30,7 @@ import { parseBillingFailureFromBody } from "@/lib/billing/billingClient";
 import {
   OUT_OF_USAGE_TITLE,
   UPGRADE_LABEL,
-  isOutOfCreditsCode,
+  isOutOfUsageLock,
   studentBillingMessage,
 } from "@/lib/billing/studentCopy";
 
@@ -171,9 +171,9 @@ export function InputBar({
   const isFollowUp = submitMode === "follow-up";
   const isDoubt = submitMode === "doubt" || isFollowUp;
   const submitLabel = submitButtonLabel(submitMode);
-  const outOfCredits = Boolean(billingNotice && isOutOfCreditsCode(billingNotice.code));
+  const outOfCredits = Boolean(billingNotice && isOutOfUsageLock(billingNotice));
   const billingPlaceholder = billingNotice
-    ? isOutOfCreditsCode(billingNotice.code)
+    ? isOutOfUsageLock(billingNotice)
       ? OUT_OF_USAGE_TITLE
       : studentBillingMessage(billingNotice.code)
     : null;

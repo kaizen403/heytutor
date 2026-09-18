@@ -158,6 +158,51 @@ export function attachTraceToGrant(
   return { ok: true, grant };
 }
 
+/**
+ * A doubt or resume (`Explain this`, Ask a doubt, continue lecture) attaches
+ * to the in-flight lesson grant. After the lecture ends, the process restarts,
+ * or the 20-minute TTL expires, that Map is empty — leftover monthly USD is
+ * still usage. Mint in that case instead of mapping `no_grant` to Out of usage.
+ */
+export function grantForFollowOnTurn(input: {
+  userId: string;
+  traceId: string;
+  remainingMillicents: number;
+  planId: string;
+  skipAutumn?: boolean;
+  skipGates?: boolean;
+}):
+  | { ok: true; grant: TurnGrant }
+  | { ok: false; reason: "out_of_credits" | "doubt_limit" | "concurrent_limit" } {
+  const existing = prune(input.userId);
+  if (existing) {
+    const attached = attachTraceToGrant(input.userId, input.traceId);
+    if (attached.ok) {
+      attached.grant.planId = input.planId;
+      attached.grant.skipAutumn = input.skipAutumn === true;
+      attached.grant.skipGates = input.skipGates === true;
+      if (input.remainingMillicents > 0) {
+        attached.grant.usdMillicentsRemaining = input.remainingMillicents;
+      }
+      return attached;
+    }
+    if (attached.reason === "doubt_limit") return attached;
+  }
+  if (input.remainingMillicents <= 0) {
+    return { ok: false, reason: "out_of_credits" };
+  }
+  const minted = createLessonGrant({
+    userId: input.userId,
+    traceId: input.traceId,
+    planId: input.planId,
+    usdMillicents: input.remainingMillicents,
+    skipAutumn: input.skipAutumn,
+    skipGates: input.skipGates,
+  });
+  if (!minted.ok) return { ok: false, reason: "concurrent_limit" };
+  return { ok: true, grant: minted.grant };
+}
+
 export function requireGrantForTrace(
   userId: string,
   traceId: string | undefined,

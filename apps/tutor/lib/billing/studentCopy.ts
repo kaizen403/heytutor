@@ -33,15 +33,27 @@ export function formatResetLabel(nextResetAt: number | null): string {
 }
 
 export function isOutOfCreditsCode(code: string): boolean {
-  return code === "out_of_credits" || code === "no_grant" || code === "daily_usd_limit";
+  return code === "out_of_credits" || code === "daily_usd_limit";
+}
+
+/**
+ * A lost in-memory grant (`no_grant`) is not an empty envelope. Mapping it to
+ * Out of usage locked Ask / Explain this while the usage bar still had leftover.
+ */
+export function isOutOfUsageLock(failure: { code: string; remaining?: number | null }): boolean {
+  if (failure.code === "no_grant") {
+    return failure.remaining == null || failure.remaining <= 0;
+  }
+  return isOutOfCreditsCode(failure.code);
 }
 
 export function studentBillingMessage(code: string): string {
   switch (code) {
     case "out_of_credits":
-    case "no_grant":
     case "daily_usd_limit":
       return OUT_OF_USAGE_TITLE;
+    case "no_grant":
+      return "Could not start the lesson";
     case "notes_limit":
       return "Out of notes messages this month";
     case "rate_limited":

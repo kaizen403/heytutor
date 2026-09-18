@@ -14,6 +14,7 @@ import {
   createLessonGrant,
   ensureBypassGrant,
   getTurnGrant,
+  grantForFollowOnTurn,
   markGrantInUse,
   recoverGrantForPaidCall,
   releaseTurnGrant,
@@ -132,18 +133,19 @@ async function beginTurnLocked(
   }
 
   if (input.kind !== "lesson") {
-    const attached = attachTraceToGrant(actor.userId, input.traceId);
-    if (!attached.ok) {
-      return billingResponse(attached.reason, remainingPct);
-    }
-    attached.grant.skipAutumn = actor.skipAutumn;
-    attached.grant.skipGates = actor.skipGates;
-    attached.grant.planId = planId;
-    if (balance.remainingMillicents > 0) {
-      attached.grant.usdMillicentsRemaining = balance.remainingMillicents;
+    const followOn = grantForFollowOnTurn({
+      userId: actor.userId,
+      traceId: input.traceId,
+      remainingMillicents: balance.remainingMillicents,
+      planId,
+      skipAutumn: actor.skipAutumn,
+      skipGates: actor.skipGates,
+    });
+    if (!followOn.ok) {
+      return billingResponse(followOn.reason, followOn.reason === "out_of_credits" ? 0 : remainingPct);
     }
     return {
-      grant: attached.grant,
+      grant: followOn.grant,
       remainingPct,
       planId,
       nextResetAt: balance.nextResetAt,
