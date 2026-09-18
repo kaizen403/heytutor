@@ -18,6 +18,7 @@ const ADMIN_API_ROUTES = [
   "app/api/admin/run-cost/route.ts",
   "app/api/admin/overview/route.ts",
   "app/api/admin/users/route.ts",
+  "app/api/admin/users/[userId]/route.ts",
   "app/api/admin/turns/route.ts",
 ];
 
@@ -78,6 +79,7 @@ const adminQuerySources = [
   "lib/admin/overviewDistributions.ts",
   "lib/admin/overviewLists.ts",
   "lib/admin/usersQueries.ts",
+  "lib/admin/userDetailQueries.ts",
   "lib/admin/turnsQueries.ts",
 ];
 for (const source of adminQuerySources) {
