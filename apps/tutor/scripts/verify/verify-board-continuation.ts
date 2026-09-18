@@ -36,6 +36,7 @@ import {
   pageHasExportableAudio,
 } from "../../lib/lecture-export/canExportLectureMp4";
 import { lectureExportCacheKey } from "../../lib/lecture-export/lectureExportFrames";
+import { LECTURE_EXPORT_PLAYBACK_RATE } from "../../lib/lecture-export/lectureExportSpeed";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -222,8 +223,9 @@ async function main(): Promise<void> {
       "a page with any recorded audio is exportable; a silent one is not",
     );
     assert(
-      lecturePageCacheKey([secondLesson]) === lectureExportCacheKey(secondLesson),
-      "a page of one turn must keep that turn's cache key, or every cached lesson video is lost",
+      lecturePageCacheKey([secondLesson]) ===
+        `${lectureExportCacheKey(secondLesson)}@${LECTURE_EXPORT_PLAYBACK_RATE}`,
+      "a page of one turn keeps that turn's cache key plus the 1.25× export rate",
     );
     assert(
       lecturePageCacheKey([secondLesson, secondDoubt]) !==

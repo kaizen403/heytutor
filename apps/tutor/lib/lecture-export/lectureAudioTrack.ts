@@ -80,6 +80,24 @@ export function resampleTrack(track: PcmTrack, toRate: number): PcmTrack {
   };
 }
 
+/**
+ * Time-compress PCM so a 1× recording plays at `playbackRate` in any player.
+ * Same pitch shift as HTML `playbackRate` — the file is shorter, not stretched.
+ */
+export function speedPcmTrack(track: PcmTrack, playbackRate: number): PcmTrack {
+  const rate =
+    Number.isFinite(playbackRate) && playbackRate > 0 ? playbackRate : 1;
+  if (Math.abs(rate - 1) < 1e-9) {
+    return track;
+  }
+  return {
+    sampleRate: track.sampleRate,
+    channels: track.channels.map((channel) =>
+      resampleChannel(channel, track.sampleRate * rate, track.sampleRate),
+    ),
+  };
+}
+
 export function concatPcm(parts: Float32Array[][], channelCount: number): Float32Array[] {
   const channels = Math.max(1, channelCount);
   const total = parts.reduce((sum, part) => sum + (part[0]?.length ?? 0), 0);

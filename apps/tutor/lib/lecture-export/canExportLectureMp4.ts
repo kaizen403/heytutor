@@ -2,6 +2,7 @@ import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { pageTurnsEndingAt } from "@/lib/boards/boardContinuation";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import { lectureExportCacheKey } from "./lectureExportFrames";
+import { LECTURE_EXPORT_PLAYBACK_RATE } from "./lectureExportSpeed";
 import type { TutorPhase } from "@/features/tutor-session/types";
 
 export type LectureEncoderGlobals = {
@@ -65,7 +66,8 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
  * the page, and a page of one turn keys exactly as that turn always has.
  */
 export function lecturePageCacheKey(turns: readonly StoredTurn[]): string {
-  return turns.map((turn) => lectureExportCacheKey(turn)).join("+");
+  const turnsKey = turns.map((turn) => lectureExportCacheKey(turn)).join("+");
+  return `${turnsKey}@${LECTURE_EXPORT_PLAYBACK_RATE}`;
 }
 
 export function shouldCancelLectureExport(state: {

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { serializeSegmentCommands, type DrawCommand } from "@heytutor/drawing";
 import { shouldHideCursorForCapture } from "@heytutor/whiteboard";
 import {
@@ -11,6 +13,7 @@ import {
   canExportLectureTurn,
   latestCompletedTurn,
   lectureDownloadFilename,
+  lecturePageCacheKey,
   shouldCancelLectureExport,
   speakingLectureSegments,
   turnHasExportableAudio,
@@ -38,7 +41,13 @@ import {
   mixCueAudio,
   resolveLectureAudioUrl,
   silencePcm,
+  speedPcmTrack,
 } from "../../lib/lecture-export/lectureAudioTrack";
+import {
+  LECTURE_EXPORT_PLAYBACK_RATE,
+  lectureExportFileMs,
+  lectureExportMediaMs,
+} from "../../lib/lecture-export/lectureExportSpeed";
 import { buildReplayTimeline, type ReplayCue } from "../../lib/replay/replayTimeline";
 
 const write = (text: string): DrawCommand => ({
@@ -234,6 +243,43 @@ assert.equal(
   }),
   "turn-1:2:blob:a|",
 );
+assert.equal(LECTURE_EXPORT_PLAYBACK_RATE, 1.25, "downloaded lectures are 1.25× so any player plays them fast");
+assert.equal(lectureExportFileMs(1000), 800, "a 1s lesson becomes 0.8s in the file");
+assert.equal(lectureExportMediaMs(800), 1000, "file time 0.8s is lesson time 1s");
+{
+  const ones = new Float32Array(1000).fill(1);
+  const sped = speedPcmTrack({ channels: [ones], sampleRate: 1000 }, LECTURE_EXPORT_PLAYBACK_RATE);
+  assert.equal(sped.sampleRate, 1000, "sped audio stays at the export sample rate");
+  assert.equal(sped.channels[0]?.length, 800, "1.25× shortens PCM to 80% so the file is not 1×");
+  const unchanged = speedPcmTrack({ channels: [ones], sampleRate: 1000 }, 1);
+  assert.equal(unchanged.channels[0]?.length, 1000, "1× export must not resample");
+}
+assert.equal(
+  lecturePageCacheKey([first]),
+  `${lectureExportCacheKey(first)}@${LECTURE_EXPORT_PLAYBACK_RATE}`,
+  "cache key includes 1.25× so a previously downloaded 1× file is not reused",
+);
+{
+  const exportSource = readFileSync(
+    resolve(import.meta.dirname, "../../lib/lecture-export/exportLectureMp4.ts"),
+    "utf8",
+  );
+  assert.equal(
+    exportSource.includes("LECTURE_EXPORT_PLAYBACK_RATE"),
+    true,
+    "MP4 encode must run the virtual clock in 1.25× file time",
+  );
+  assert.equal(
+    exportSource.includes("speedPcmTrack"),
+    true,
+    "MP4 audio must be time-compressed to 1.25×, not left at recorded 1×",
+  );
+  assert.equal(
+    exportSource.includes("lectureExportMediaMs"),
+    true,
+    "each encoded frame must sample the board at 1.25× media time",
+  );
+}
 
 assert.equal(lectureDownloadFilename("Find v for the lens"), "lecture-find-v-for-the-lens.mp4");
 assert.equal(lectureDownloadFilename("Find v for the lens", "webm"), "lecture-find-v-for-the-lens.webm");

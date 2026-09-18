@@ -24,6 +24,7 @@ import { drawLectureTimeline, type ExportExecuteCommand } from "./drawLectureTim
 import {
   LECTURE_EXPORT_SAMPLE_RATE,
   buildLectureAudioTrack,
+  speedPcmTrack,
   type PcmTrack,
 } from "./lectureAudioTrack";
 import {
@@ -37,6 +38,11 @@ import {
   lectureFramesLookSame,
   sampleLectureFrame,
 } from "./lectureExportFrames";
+import {
+  LECTURE_EXPORT_PLAYBACK_RATE,
+  lectureExportFileMs,
+  lectureExportMediaMs,
+} from "./lectureExportSpeed";
 
 export const LECTURE_EXPORT_FPS = 24;
 export const LECTURE_EXPORT_FRAME_MS = 1000 / LECTURE_EXPORT_FPS;
@@ -193,11 +199,13 @@ export async function exportLectureMp4(options: {
   }
 
   options.onProgress?.({ currentMs: 0, totalMs: timeline.totalMs, phase: "audio" });
-  const audioTrack = await buildLectureAudioTrack({
+  const naturalAudio = await buildLectureAudioTrack({
     cues: timeline.cues,
     sampleRate: LECTURE_EXPORT_SAMPLE_RATE,
     decodeBytes: decodeMpegBytes,
   });
+  const audioTrack = speedPcmTrack(naturalAudio, LECTURE_EXPORT_PLAYBACK_RATE);
+  const fileTotalMs = lectureExportFileMs(timeline.totalMs);
   if (options.shouldCancel()) {
     throw new DOMException("Lecture export cancelled", "AbortError");
   }
@@ -246,8 +254,8 @@ export async function exportLectureMp4(options: {
       setAnimationSpeed: (rate) => options.whiteboard.setAnimationSpeed(rate),
     });
 
-    const totalFrames = Math.max(1, Math.ceil(timeline.totalMs / LECTURE_EXPORT_FRAME_MS));
-    options.onProgress?.({ currentMs: 0, totalMs: timeline.totalMs, phase: "video" });
+    const totalFrames = Math.max(1, Math.ceil(fileTotalMs / LECTURE_EXPORT_FRAME_MS));
+    options.onProgress?.({ currentMs: 0, totalMs: fileTotalMs, phase: "video" });
 
     const holdCanvas = document.createElement("canvas");
     holdCanvas.width = LECTURE_EXPORT_WIDTH;
@@ -277,8 +285,9 @@ export async function exportLectureMp4(options: {
         throw new DOMException("Lecture export cancelled", "AbortError");
       }
 
-      const frameMs = frame * LECTURE_EXPORT_FRAME_MS;
-      options.clock.setNow(frameMs);
+      const fileMs = frame * LECTURE_EXPORT_FRAME_MS;
+      const mediaMs = lectureExportMediaMs(fileMs);
+      options.clock.setNow(mediaMs);
       await pumpExportFrame(options.clock);
 
       const captured = options.whiteboard.captureFrame({ pixelRatio: 1, hideCursor: false });
@@ -291,7 +300,7 @@ export async function exportLectureMp4(options: {
         if (composeCtx) {
           renderCodePanelFrame(
             composeCtx,
-            codeLessonFrameSpec(codeTrack, frameMs),
+            codeLessonFrameSpec(codeTrack, mediaMs),
             DSA_CODE_PANEL_RECT,
           );
         }
@@ -299,8 +308,8 @@ export async function exportLectureMp4(options: {
       const sample = sampleLectureFrame(composeCanvas, sampleCanvas);
       if (holdSample && lectureFramesLookSame(holdSample, sample)) {
         options.onProgress?.({
-          currentMs: Math.min((frame + 1) * LECTURE_EXPORT_FRAME_MS, timeline.totalMs),
-          totalMs: timeline.totalMs,
+          currentMs: Math.min((frame + 1) * LECTURE_EXPORT_FRAME_MS, fileTotalMs),
+          totalMs: fileTotalMs,
           phase: "video",
         });
         continue;
@@ -311,8 +320,8 @@ export async function exportLectureMp4(options: {
       holdSample = sample;
       holdStartFrame = frame;
       options.onProgress?.({
-        currentMs: Math.min((frame + 1) * LECTURE_EXPORT_FRAME_MS, timeline.totalMs),
-        totalMs: timeline.totalMs,
+        currentMs: Math.min((frame + 1) * LECTURE_EXPORT_FRAME_MS, fileTotalMs),
+        totalMs: fileTotalMs,
         phase: "video",
       });
     }
@@ -323,8 +332,8 @@ export async function exportLectureMp4(options: {
     await drawPromise;
 
     options.onProgress?.({
-      currentMs: timeline.totalMs,
-      totalMs: timeline.totalMs,
+      currentMs: fileTotalMs,
+      totalMs: fileTotalMs,
       phase: "mux",
     });
     await output.finalize();
@@ -345,8 +354,8 @@ export async function exportLectureMp4(options: {
 
   return {
     blob: new Blob([buffer], { type: profile.mimeType }),
-    missingAudioCues: audioTrack.missingAudioCues,
-    totalMs: timeline.totalMs,
+    missingAudioCues: naturalAudio.missingAudioCues,
+    totalMs: fileTotalMs,
     mimeType: profile.mimeType,
     extension: profile.extension,
   };
