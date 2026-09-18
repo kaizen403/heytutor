@@ -57,6 +57,15 @@ export interface BoardFullscreenApi {
   toggle: () => void;
 }
 
+export interface UseBoardFullscreenOptions {
+  /**
+   * When false this mount never takes full screen and never writes the
+   * document attribute. Headless lecture recorders share the page with admin
+   * Watch; they must not steal Watch's full screen or exit it on unmount.
+   */
+  enabled?: boolean;
+}
+
 /** The Fullscreen API is a fixed browser fact, so there is nothing to watch. */
 const subscribeToNothing = () => () => {};
 
@@ -133,7 +142,10 @@ function releaseOrientation(): void {
   }
 }
 
-export function useBoardFullscreen(): BoardFullscreenApi {
+export function useBoardFullscreen(
+  options?: UseBoardFullscreenOptions,
+): BoardFullscreenApi {
+  const enabled = options?.enabled !== false;
   const [active, setActive] = useState(false);
   const [mode, setMode] = useState<FullscreenMode | null>(null);
   const [rotateHint, setRotateHint] = useState(false);
@@ -181,6 +193,7 @@ export function useBoardFullscreen(): BoardFullscreenApi {
   );
 
   const enter = useCallback(() => {
+    if (!enabled) return;
     const doc = fullscreenDocument();
     if (!doc) return;
     // The fallback is claimed first and synchronously: it is what makes the
@@ -208,9 +221,10 @@ export function useBoardFullscreen(): BoardFullscreenApi {
     }
 
     void requestLandscape().then(offerRotateHint);
-  }, [offerRotateHint]);
+  }, [enabled, offerRotateHint]);
 
   const exit = useCallback(() => {
+    if (!enabled) return;
     const doc = fullscreenDocument();
     clearHint();
     releaseOrientation();
@@ -230,7 +244,7 @@ export function useBoardFullscreen(): BoardFullscreenApi {
         /* already out */
       }
     }
-  }, [clearHint]);
+  }, [clearHint, enabled]);
 
   const toggle = useCallback(() => {
     if (active) {
@@ -243,6 +257,7 @@ export function useBoardFullscreen(): BoardFullscreenApi {
   // The browser is the other author of this state: Escape, F11, the Android
   // back gesture and a tab switch all end a native full screen without asking.
   useEffect(() => {
+    if (!enabled) return undefined;
     const doc = fullscreenDocument();
     if (!doc) return undefined;
 
@@ -269,7 +284,7 @@ export function useBoardFullscreen(): BoardFullscreenApi {
       doc.removeEventListener("fullscreenchange", onChange);
       doc.removeEventListener("webkitfullscreenchange", onChange);
     };
-  }, [clearHint, offerRotateHint]);
+  }, [clearHint, enabled, offerRotateHint]);
 
   // The nudge is answered by turning the phone, so stop nudging once it turns.
   useEffect(() => {
@@ -287,20 +302,20 @@ export function useBoardFullscreen(): BoardFullscreenApi {
 
   // One attribute on the document is what the immersive CSS keys off, so the
   // page can stop scrolling and the full screen backdrop can take the board's
-  // own background instead of the UA's black.
+  // own background instead of the UA's black. Only the instance that is
+  // actually full screen writes it: an idle headless recorder on the same
+  // page must not clear Watch's attribute on mount.
   useEffect(() => {
+    if (!enabled || !active) return undefined;
     const root = document.documentElement;
-    if (!active) {
-      root.removeAttribute(FULLSCREEN_DOC_ATTRIBUTE);
-      return undefined;
-    }
     root.setAttribute(FULLSCREEN_DOC_ATTRIBUTE, mode ?? "fallback");
     return () => root.removeAttribute(FULLSCREEN_DOC_ATTRIBUTE);
-  }, [active, mode]);
+  }, [active, enabled, mode]);
 
   // Leaving the page mid lesson must not strand the browser in full screen or
   // the phone in a locked orientation.
   useEffect(() => {
+    if (!enabled) return undefined;
     return () => {
       window.clearTimeout(hintTimerRef.current);
       releaseOrientation();
@@ -311,7 +326,7 @@ export function useBoardFullscreen(): BoardFullscreenApi {
         });
       }
     };
-  }, []);
+  }, [enabled]);
 
   // Stable while nothing changes: the session hangs a window keydown listener
   // off this object, and a fresh identity every render would re-bind it.

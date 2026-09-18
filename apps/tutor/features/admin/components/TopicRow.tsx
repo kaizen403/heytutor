@@ -2,12 +2,14 @@
 
 import { ChevronRight, ScrollText, Trash2 } from "lucide-react";
 import { PlainButton } from "@/components/ui/site-button";
+import { sumSessionCosts, type RunCostSessionRow } from "@/lib/obs/runCost";
 import { cn } from "@/lib/utils";
 import type { DifficultyState } from "../lib/lectureState";
 import type { SyllabusItem } from "../lib/parseSyllabus";
 import { PROBE_DIFFICULTIES, type ProbeDifficulty, type ProbeQuestion } from "../lib/probes";
 import type { ItemStatus } from "../lib/progressStorage";
 import { Checkbox } from "./Checkbox";
+import { CostChip } from "./CostChip";
 import { DifficultyCell } from "./DifficultyCell";
 import { StatusBadge } from "./StatusBadge";
 
@@ -17,6 +19,7 @@ export interface TopicRowProps {
   states: Record<ProbeDifficulty, DifficultyState>;
   /** Board to act on per difficulty - the live board while running, else the recording. */
   boardIds: Partial<Record<ProbeDifficulty, string>>;
+  costsByBoardId: Partial<Record<string, Pick<RunCostSessionRow, "llmUsd" | "ttsUsd" | "totalUsd">>>;
   checked: boolean;
   status: ItemStatus;
   selecting: boolean;
@@ -35,6 +38,7 @@ export function TopicRow({
   probes,
   states,
   boardIds,
+  costsByBoardId,
   checked,
   status,
   selecting,
@@ -52,6 +56,14 @@ export function TopicRow({
   const allSelected = probeIds.length > 0 && selectedCount === probeIds.length;
   const someSelected = selectedCount > 0 && !allSelected;
   const hasFixtures = probes.length > 0;
+  const topicCost = sumSessionCosts(
+    PROBE_DIFFICULTIES.flatMap((difficulty) => {
+      const boardId = boardIds[difficulty];
+      if (!boardId) return [];
+      const row = costsByBoardId[boardId];
+      return row ? [row] : [];
+    }),
+  );
 
   return (
     <li className="border-b border-stroke/60 last:border-b-0">
@@ -83,6 +95,8 @@ export function TopicRow({
             {item.text}
           </span>
         </button>
+
+        <CostChip cost={topicCost} />
 
         <div className="flex shrink-0 items-center gap-1">
           {PROBE_DIFFICULTIES.map((difficulty) => (
@@ -152,6 +166,7 @@ export function TopicRow({
                 </p>
 
                 <div className="flex shrink-0 items-center gap-1">
+                  {isRecorded || isRunning ? <CostChip cost={boardId ? costsByBoardId[boardId] : undefined} /> : null}
                   {isRunning && boardId ? (
                     <PlainButton variant="sky" onClick={() => onActivate(difficulty)}>
                       Watch live

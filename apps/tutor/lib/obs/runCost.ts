@@ -163,7 +163,7 @@ function emptyKind(name: string, stream: "llm" | "tts"): RunCostKindRow {
   };
 }
 
-function emptySession(sessionId: string): RunCostSessionRow {
+export function emptyRunCostSession(sessionId: string): RunCostSessionRow {
   return {
     sessionId,
     traces: 0,
@@ -174,6 +174,22 @@ function emptySession(sessionId: string): RunCostSessionRow {
     llmUsd: 0,
     ttsUsd: 0,
     totalUsd: 0,
+  };
+}
+
+export function sumSessionCosts(
+  rows: ReadonlyArray<Pick<RunCostSessionRow, "llmUsd" | "ttsUsd">>,
+): Pick<RunCostSessionRow, "llmUsd" | "ttsUsd" | "totalUsd"> {
+  let llmUsd = 0;
+  let ttsUsd = 0;
+  for (const row of rows) {
+    llmUsd += row.llmUsd;
+    ttsUsd += row.ttsUsd;
+  }
+  return {
+    llmUsd: roundUsd(llmUsd),
+    ttsUsd: roundUsd(ttsUsd),
+    totalUsd: roundUsd(llmUsd + ttsUsd),
   };
 }
 
@@ -214,7 +230,7 @@ export function aggregateRunCost(observations: CostObservation[]): RunCostReport
 
     let session = sessions.get(sessionId);
     if (!session) {
-      session = emptySession(sessionId);
+      session = emptyRunCostSession(sessionId);
       sessions.set(sessionId, session);
     }
     session.observations += 1;

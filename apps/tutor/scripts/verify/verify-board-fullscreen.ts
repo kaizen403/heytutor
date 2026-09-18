@@ -193,6 +193,18 @@ assert(
   hook.includes("useSyncExternalStore"),
   "whether the browser has the API must hydrate as false, or the first paint disagrees with the server",
 );
+assert(
+  hook.includes("enabled?: boolean") && /options\?\.enabled !== false/.test(hook),
+  "a mount can refuse to take full screen, so a headless recorder cannot steal Watch's",
+);
+assert(
+  /if\s*\(!enabled\)\s*return/.test(hook),
+  "a disabled hook must not call requestFullscreen",
+);
+assert(
+  /if\s*\(!enabled \|\| !active\)\s*return undefined/.test(hook),
+  "an idle instance must not clear the document attribute another mount just set",
+);
 
 // ── The layout ──────────────────────────────────────────────────────────────
 
@@ -228,6 +240,40 @@ assert(
 assert(
   shell.includes("fullscreen.rotateHint"),
   "the phone that could not be turned automatically must be asked",
+);
+assert(
+  /useBoardFullscreen\(\{\s*enabled:\s*!isHeadless && !boardFullscreenApi/.test(shell),
+  "headless recording must not take full screen — Watch hosts it on the overlay instead",
+);
+assert(
+  shell.includes("boardFullscreenApi"),
+  "a host can own full screen so admin Watch immerses the panel without drawing the app header",
+);
+assert(
+  /can\.appChrome \|\| Boolean\(boardFullscreenApi\)/.test(shell),
+  "a panel with a host full screen still floats the composer instead of rescaling the paper",
+);
+
+const watch = read("features/admin/components/WatchDrawer.tsx");
+assert(
+  watch.includes("useBoardFullscreen") && watch.includes("useSessionChromeHidden"),
+  "admin Watch must reuse the tutor full screen hook rather than fork a second one",
+);
+assert(
+  watch.includes("Full screen board") && watch.includes("Leave full screen"),
+  "admin Watch must offer the same toggle the student header does",
+);
+assert(
+  watch.includes("boardFullscreenApi={fullscreen}"),
+  "admin Watch must hand the hook to the panel so the composer floats",
+);
+assert(
+  watch.includes("fullscreenKeyAction"),
+  "admin Watch must bind f the way the student session does",
+);
+assert(
+  !watch.includes('variant="headless"'),
+  "Watch must not mount the recording runtime — live still promotes the playground's headless shell",
 );
 
 const header = read("features/tutor-session/components/SessionHeader.tsx");

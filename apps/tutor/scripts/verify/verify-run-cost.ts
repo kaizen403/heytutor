@@ -4,6 +4,7 @@ import {
   aggregateRunCost,
   formatUsd,
   isTtsObservation,
+  sumSessionCosts,
   type CostObservation,
 } from "../../lib/obs/runCost";
 import { calculateLlmCostDetails, calculateTtsCostDetails } from "../../lib/obs/usageCost";
@@ -105,6 +106,12 @@ assert(report.byKind.some((row) => row.name === "tts-segment" && row.stream === 
 assert(formatUsd(0) === "$0", "zero formats");
 assert(formatUsd(1.234) === "$1.23", "dollars use two places");
 
+const summed = sumSessionCosts(report.bySession);
+assert(summed.llmUsd === report.totals.llmUsd, "topic chips sum AI cost across boards");
+assert(summed.ttsUsd === report.totals.ttsUsd, "topic chips sum voice cost across boards");
+assert(summed.totalUsd === report.totals.totalUsd, "topic chips sum AI + voice");
+assert(sumSessionCosts([]).totalUsd === 0, "empty board list sums to zero");
+
 const root = resolve(import.meta.dirname, "../..");
 const read = (relative: string) => readFileSync(resolve(root, relative), "utf8");
 
@@ -139,6 +146,36 @@ assert(
 assert(
   read("app/api/extract-question/route.ts").includes('generationName: "qwen-vision"'),
   "photo OCR must land on a Langfuse generation",
+);
+
+const costChip = read("features/admin/components/CostChip.tsx");
+assert(costChip.includes("cost.totalUsd <= 0"), "cost chips must hide $0 and unloaded totals");
+assert(costChip.includes("group-hover/cost:visible"), "cost chips must show the AI/voice tooltip on hover");
+assert(costChip.includes("group-focus-within/cost:visible"), "cost chips must show the AI/voice tooltip on focus");
+assert(costChip.includes("AI") && costChip.includes("formatUsd(cost.llmUsd)"), "tooltip must show AI inference cost");
+assert(costChip.includes("Voice") && costChip.includes("formatUsd(cost.ttsUsd)"), "tooltip must show voice inference cost");
+
+const lectureCosts = read("features/admin/hooks/useLectureCosts.ts");
+assert(lectureCosts.includes("BATCH_SIZE = 20"), "lecture costs must batch session ids");
+assert(lectureCosts.includes("hot || missing"), "completed cached lectures must not refetch every poll");
+assert(lectureCosts.includes("session.hot || settling"), "only running (and settling) boards stay hot");
+
+const topicRow = read("features/admin/components/TopicRow.tsx");
+assert(topicRow.includes("<CostChip cost={topicCost}"), "each topic must show a summed cost chip");
+assert(topicRow.includes("<CostChip cost={boardId ? costsByBoardId[boardId]"), "each recorded question must show a cost chip");
+assert(topicRow.includes("isRecorded || isRunning"), "question cost chips sit with Watch/Notes");
+
+assert(
+  read("features/admin/AdminPlayground.tsx").includes("costsByBoardId={costsByBoardId}"),
+  "playground must pass Langfuse costs into topic rows",
+);
+assert(
+  read("features/admin/AdminPlayground.tsx").includes("useLectureCosts"),
+  "recorded lecture costs must not depend only on the current run job list",
+);
+assert(
+  read("features/admin/components/UnitSection.tsx").includes('expanded ? "overflow-visible"'),
+  "expanded units must not clip cost tooltips",
 );
 
 console.log("✓ admin run-cost aggregates Langfuse LLM tokens and ElevenLabs characters");

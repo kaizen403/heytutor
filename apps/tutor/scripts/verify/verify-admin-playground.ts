@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildProbeIndex, probesForTopic, probesForUnit, probesByIds } from "../../features/admin/lib/probeIndex";
-import { parseProbeFile, questionsForTopic, questionsForUnit } from "../../features/admin/lib/probes";
+import { PROBE_DIFFICULTIES, parseProbeFile, questionsForTopic, questionsForUnit } from "../../features/admin/lib/probes";
 import { buildLectureStates, cellStateFor } from "../../features/admin/lib/lectureState";
 import { collapseLectureState, topicMatchesFilters, normalizeQuery, filtersAreActive, DEFAULT_TOPIC_FILTERS } from "../../features/admin/lib/topicFilters";
 import { syllabusTreeFromTaxonomy, flattenItems } from "../../features/admin/lib/parseSyllabus";
@@ -119,9 +119,31 @@ assert(
 );
 const playground = readFileSync(join(__dirname, "../../features/admin/AdminPlayground.tsx"), "utf8");
 assert(playground.includes("RunCostBox"), "admin runs must show Langfuse cost next to the queue");
+assert(playground.includes("costsByBoardId={costsByBoardId}"), "recorded lecture rows must receive Langfuse costs");
+assert(playground.includes("useLectureCosts"), "playground must fetch costs for visible recorded boards");
+const topicRow = readFileSync(join(__dirname, "../../features/admin/components/TopicRow.tsx"), "utf8");
+assert(topicRow.includes("CostChip"), "topic and question rows must show a cost chip");
+assert(topicRow.includes("sumSessionCosts"), "the topic chip must sum easy/medium/hard board costs");
+assert(topicRow.includes("costsByBoardId[boardId]"), "each Watch/Notes row must look up its board cost");
+const costChip = readFileSync(join(__dirname, "../../features/admin/components/CostChip.tsx"), "utf8");
+assert(costChip.includes("group-hover/cost:visible"), "cost chip hover must reveal AI vs voice");
+assert(costChip.includes("formatUsd(cost.llmUsd)"), "cost tooltip must show AI inference");
+assert(costChip.includes("formatUsd(cost.ttsUsd)"), "cost tooltip must show voice inference");
 assert(
   !watchDrawer.includes("LectureNotesPanel"),
   "admin Watch must not mount a second, poorer notes surface",
+);
+assert(
+  watchDrawer.includes("useBoardFullscreen") && watchDrawer.includes("boardFullscreenApi={fullscreen}"),
+  "admin Watch must reuse the tutor full screen hook and hand it to the panel",
+);
+assert(
+  watchDrawer.includes("Full screen board"),
+  "admin Watch must expose the same full screen control as the student header",
+);
+assert(
+  !playground.includes("boardFullscreenApi"),
+  "headless lecture runtimes must not receive the Watch full screen hook",
 );
 console.log("✓ admin Watch reuses the tutor drawing export actions");
 
@@ -133,4 +155,50 @@ const chemistryWithProbes = tree.subjects.chemistry.filter(u => probesForUnit(in
 assert(chemistryWithProbes.length === tree.subjects.chemistry.length,
   `chemistry units without fixtures: ${tree.subjects.chemistry.length - chemistryWithProbes.length}`);
 console.log(`✓ chemistry units with fixtures: ${chemistryWithProbes.length} of ${tree.subjects.chemistry.length}`);
+
+// 12. Unit rows show a fixture-aware completion bar beside the concept name.
+const unitSection = readFileSync(join(__dirname, "../../features/admin/components/UnitSection.tsx"), "utf8");
+assert(unitSection.includes('role="progressbar"'), "unit rows must show a completion progress bar");
+assert(unitSection.includes("UnitCompletionBar"), "completion bar must sit on every unit row, including collapsed");
+assert(unitSection.includes("possible <= 0"), "completion bar must hide when a unit has no fixtures");
+assert(unitSection.includes("bg-ink-700"), "completion rail must match admin ink-700 language");
+assert(unitSection.includes("bg-sky-500/80"), "recorded fill must use sky");
+assert(unitSection.includes("of ${possible} lectures recorded"), "completion bar must expose recorded-of-possible");
+assert(!unitSection.includes("total * 3"), "completion must not treat every topic as three lecture slots");
+assert(unitSection.includes('expanded ? "overflow-visible"'), "expanded units must not clip cost tooltips");
+assert(playground.includes("possible,"), "AdminPlayground must pass fixture-aware possible slots");
+assert(/if \(hasFixture\) \{\s*possible \+= 1;/.test(playground), "possible must count fixture-backed easy/medium/hard slots");
+console.log("✓ unit rows show a fixture-aware completion bar beside the name");
+
+function fixtureSlotsForUnit(unit: (typeof tree.subjects.physics)[number]): number {
+  let possible = 0;
+  for (const item of unit.items) {
+    const topicProbes = probesForTopic(index, item.id);
+    for (const difficulty of PROBE_DIFFICULTIES) {
+      if (topicProbes.some((probe) => probe.difficulty === difficulty)) {
+        possible += 1;
+      }
+    }
+  }
+  return possible;
+}
+
+const kinematics = tree.subjects.physics.find((unit) => unit.title === "Kinematics");
+assert(kinematics, "physics unit 2 Kinematics must exist");
+const kinematicsPossible = fixtureSlotsForUnit(kinematics);
+assert(kinematicsPossible > 0, "Kinematics must have fixture-backed lecture slots");
+assert(kinematicsPossible <= kinematics.items.length * 3, "possible must not exceed total*3");
+const mathsEmpty = tree.subjects.maths.filter((unit) => fixtureSlotsForUnit(unit) === 0);
+assert(mathsEmpty.length > 0, "empty maths units must have possible === 0 so the bar can hide");
+const chemistryConcepts = tree.subjects.chemistry[0];
+assert(chemistryConcepts, "chemistry unit 1 must exist");
+const chemistryPossible = fixtureSlotsForUnit(chemistryConcepts);
+assert(
+  chemistryPossible > 0 && chemistryPossible < chemistryConcepts.items.length * 3,
+  "chemistry completion must count fixture slots, not blindly total*3",
+);
+console.log(
+  `✓ unit completion slots: Kinematics ${kinematicsPossible}/${kinematics.items.length * 3}, chemistry 1 ${chemistryPossible}/${chemistryConcepts.items.length * 3}, ${mathsEmpty.length} maths units with no fixtures`,
+);
+
 console.log("\nverify-admin-playground: all checks passed");

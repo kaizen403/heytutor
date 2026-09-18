@@ -11,6 +11,8 @@ export interface UnitSummary {
   shown: number;
   /** Topics in the unit before filtering. */
   total: number;
+  /** Easy/medium/hard slots that actually have a probe fixture. */
+  possible: number;
   recorded: number;
   running: number;
   accepted: number;
@@ -33,6 +35,52 @@ interface UnitSectionProps {
   children: ReactNode;
 }
 
+function completionWidth(part: number, total: number): string {
+  if (total <= 0 || part <= 0) return "0%";
+  return `${Math.min(100, (part / total) * 100)}%`;
+}
+
+function UnitCompletionBar({
+  recorded,
+  running,
+  possible,
+}: {
+  recorded: number;
+  running: number;
+  possible: number;
+}) {
+  if (possible <= 0) return null;
+
+  const recordedWidth = completionWidth(recorded, possible);
+  const remaining = Math.max(0, possible - recorded);
+  const runningWidth = completionWidth(Math.min(running, remaining), possible);
+  const label = `${recorded} of ${possible} lectures recorded`;
+
+  return (
+    <span
+      className="flex shrink-0 items-center gap-1.5"
+      title={running > 0 ? `${label}, ${running} recording` : label}
+      aria-label={label}
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={possible}
+      aria-valuenow={recorded}
+    >
+      <span className="flex h-1 w-16 overflow-hidden rounded-full bg-ink-700" aria-hidden>
+        {recorded > 0 ? (
+          <span className="h-full shrink-0 bg-sky-500/80" style={{ width: recordedWidth }} />
+        ) : null}
+        {running > 0 && runningWidth !== "0%" ? (
+          <span className="h-full shrink-0 bg-sky-500/35" style={{ width: runningWidth }} />
+        ) : null}
+      </span>
+      <span className="type-accent-xs tabular-nums text-faint">
+        {recorded}/{possible}
+      </span>
+    </span>
+  );
+}
+
 export function UnitSection({
   number,
   title,
@@ -52,7 +100,7 @@ export function UnitSection({
   const filtered = summary.shown !== summary.total;
 
   return (
-    <section className="glass card-lift overflow-hidden rounded-xl">
+    <section className={cn("glass card-lift rounded-xl", expanded ? "overflow-visible" : "overflow-hidden")}>
       <div
         className={cn(
           "flex items-center gap-3 px-3 py-2.5 transition-colors",
@@ -91,6 +139,11 @@ export function UnitSection({
             {number}
           </span>
           <span className="min-w-0 truncate text-sm font-medium text-frost">{title}</span>
+          <UnitCompletionBar
+            recorded={summary.recorded}
+            running={summary.running}
+            possible={summary.possible}
+          />
           {tags.map((tag) => (
             <span
               key={tag}
@@ -110,7 +163,7 @@ export function UnitSection({
               {summary.running} recording
             </span>
           ) : null}
-          <span title={`${summary.recorded} of ${summary.total * 3} lectures recorded`}>
+          <span title={`${summary.recorded} of ${summary.possible} lectures recorded`}>
             {summary.recorded} rec
           </span>
           <span title={`${summary.accepted} of ${summary.total} topics accepted`}>

@@ -56,7 +56,11 @@ import { useLectureRewind } from "./hooks/useLectureRewind";
 import { useLecturePageHalt } from "./hooks/useLecturePageHalt";
 import { useLectureExport } from "./hooks/useLectureExport";
 import { useBoardMarking } from "./hooks/useBoardMarking";
-import { useBoardFullscreen, useSessionChromeHidden } from "./hooks/useBoardFullscreen";
+import {
+  useBoardFullscreen,
+  useSessionChromeHidden,
+  type BoardFullscreenApi,
+} from "./hooks/useBoardFullscreen";
 import { useCommandExecution } from "./hooks/useCommandExecution";
 import { useCancelControl } from "./hooks/useCancelControl";
 import { useTurnLifecycle } from "./hooks/useTurnLifecycle";
@@ -174,6 +178,13 @@ export type TutorSessionShellProps = {
   notesOpen?: boolean;
   onNotesOpenChange?: (open: boolean) => void;
   /**
+   * Host-owned full screen. Admin Watch's drawer brings the toggle and the
+   * native request; the panel still applies the immersive layout so the
+   * composer floats instead of rescaling the paper. Headless recording never
+   * receives this.
+   */
+  boardFullscreenApi?: BoardFullscreenApi;
+  /**
    * Slot on the deck between the board and the transport bar, full width of the
    * board column. Outside `.wb-frame`, so its contents render at natural scale
    * rather than inside the board's transform — which is what a surface needs
@@ -203,6 +214,7 @@ export function TutorSessionShell({
   onExportApi,
   notesOpen: notesOpenProp,
   onNotesOpenChange,
+  boardFullscreenApi,
   belowBoardPanel,
 }: TutorSessionShellProps) {
   const router = useRouter();
@@ -303,10 +315,16 @@ export function TutorSessionShell({
   /**
    * The board taking the whole screen. Available on every device: where the
    * browser has no Fullscreen API the app's own chrome comes off instead, and
-   * the paper still fills the viewport.
+   * the paper still fills the viewport. Headless recorders and a panel whose
+   * host already owns full screen must not instantiate a second author of the
+   * document attribute.
    */
-  const fullscreen = useBoardFullscreen();
-  const boardFullscreen = can.appChrome && fullscreen.active;
+  const localFullscreen = useBoardFullscreen({
+    enabled: !isHeadless && !boardFullscreenApi,
+  });
+  const fullscreen = boardFullscreenApi ?? localFullscreen;
+  const boardFullscreen =
+    !isHeadless && (can.appChrome || Boolean(boardFullscreenApi)) && fullscreen.active;
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayProgressMs, setReplayProgressMs] = useState(0);
   // Written by the session hooks; nothing reads it since the transport went.
@@ -1171,7 +1189,7 @@ export function TutorSessionShell({
   // `f` takes the board full screen and gives it back, the way a player binds
   // it. Escape is left to whoever already owns it here, which is the lesson.
   useEffect(() => {
-    if (!can.appChrome || isHeadless) return undefined;
+    if (isHeadless || boardFullscreenApi || !can.appChrome) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       const action = fullscreenKeyAction({
         key: event.key,
@@ -1192,7 +1210,7 @@ export function TutorSessionShell({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [can.appChrome, fullscreen, isHeadless, isReplaying, rewindActive]);
+  }, [boardFullscreenApi, can.appChrome, fullscreen, isHeadless, isReplaying, rewindActive]);
 
   const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
   const canDownload = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;

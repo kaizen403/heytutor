@@ -12,6 +12,7 @@ import { TopicRow } from "./components/TopicRow";
 import { TopicSheet } from "./components/TopicSheet";
 import { UnitSection, type UnitSummary } from "./components/UnitSection";
 import { WatchDrawer, type WatchIntent } from "./components/WatchDrawer";
+import { useLectureCosts } from "./hooks/useLectureCosts";
 import { useLectureQueue } from "./hooks/useLectureQueue";
 import { useLiveWatchSlot } from "./hooks/useLiveWatchSlot";
 import { useRunCost } from "./hooks/useRunCost";
@@ -159,6 +160,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
       let recorded = 0;
       let running = 0;
       let accepted = 0;
+      let possible = 0;
 
       for (const item of unit.items) {
         const topicProbes = probesForTopic(probeIndex, item.id);
@@ -168,6 +170,9 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
 
         for (const difficulty of PROBE_DIFFICULTIES) {
           const hasFixture = topicProbes.some((probe) => probe.difficulty === difficulty);
+          if (hasFixture) {
+            possible += 1;
+          }
           const cell = cellStateFor(lectureStates, item.id, difficulty, hasFixture);
           states[difficulty] = cell.state;
           if (cell.boardId) {
@@ -218,6 +223,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         summary: {
           shown: topics.length,
           total: unit.items.length,
+          possible,
           recorded,
           running,
           accepted,
@@ -229,6 +235,25 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
 
     return built;
   }, [units, probeIndex, progress, lectureStates, recordingBoardIds, filters]);
+
+  const lectureCostSessions = useMemo(() => {
+    const sessions: Array<{ sessionId: string; hot: boolean }> = [];
+    const seen = new Set<string>();
+    for (const unit of visibleUnits) {
+      for (const topic of unit.topics) {
+        for (const difficulty of PROBE_DIFFICULTIES) {
+          const boardId = topic.boardIds[difficulty];
+          const state = topic.states[difficulty];
+          if (!boardId || (state !== "recorded" && state !== "running")) continue;
+          if (seen.has(boardId)) continue;
+          seen.add(boardId);
+          sessions.push({ sessionId: boardId, hot: state === "running" });
+        }
+      }
+    }
+    return sessions;
+  }, [visibleUnits]);
+  const costsByBoardId = useLectureCosts(lectureCostSessions);
 
   const active = filtersAreActive(filters);
   const shownUnits = useMemo(
@@ -619,6 +644,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                     probes={topic.probes}
                     states={topic.states}
                     boardIds={topic.boardIds}
+                    costsByBoardId={costsByBoardId}
                     checked={topic.checked}
                     status={topic.status}
                     selecting={selecting}
