@@ -186,7 +186,9 @@ export function grantForFollowOnTurn(input: {
       }
       return attached;
     }
-    if (attached.reason === "doubt_limit") return attached;
+    if (attached.reason === "doubt_limit") {
+      return { ok: false, reason: "doubt_limit" };
+    }
   }
   if (input.remainingMillicents <= 0) {
     return { ok: false, reason: "out_of_credits" };
