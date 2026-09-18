@@ -37,6 +37,7 @@ assert(isOutOfCreditsCode("daily_usd_limit"), "legacy daily fuse code still maps
 assert(!isOutOfCreditsCode("unauthorized"), "401 is not out of usage");
 assert(studentBillingMessage("out_of_credits") === OUT_OF_USAGE_TITLE, "402 title");
 assert(studentBillingMessage("unauthorized") === "Sign in to continue", "401 is sign-in, not usage");
+assert(studentBillingMessage("timeout").toLowerCase().includes("too long"), "begin-turn timeout is not a silent cancel");
 assert(studentBillingMessage("rate_limited").toLowerCase().includes("too many"), "429 is rate limit copy");
 assert(studentBillingMessage("autumn_unavailable").toLowerCase().includes("unavailable"), "503 copy");
 assert(OUT_OF_USAGE_TITLE === "Out of usage", "402 title is Out of usage");

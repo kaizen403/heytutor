@@ -3,8 +3,12 @@ import { billingResponse } from "@/lib/billing/errors";
 import { cacheUsageOnUser } from "@/lib/billing/ledger";
 
 export async function POST(request: Request): Promise<Response> {
+  const startedAt = Date.now();
   const result = await beginTurnFromRequest(request);
-  if (result instanceof Response) return result;
+  if (result instanceof Response) {
+    console.error(`[billing] begin-turn denied ${result.status} ${Date.now() - startedAt}ms`);
+    return result;
+  }
   if (!result.grant) {
     return billingResponse("no_grant", result.remainingPct);
   }

@@ -205,12 +205,21 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
 
         if (characters > 0) {
           const liveGrant = getTurnGrant(context.userId) ?? context.grant;
-          const budget = liveGrant
-            ? shouldSkipTtsForUsage(liveGrant)
-              ? { allowed: false, remaining: 0 }
-              : consumeTtsChars(liveGrant, characters)
-            : { allowed: false, remaining: 0 };
-          if (!budget.allowed) {
+          if (liveGrant) {
+            const budget = shouldSkipTtsForUsage(liveGrant)
+              ? { allowed: false as const, remaining: 0 }
+              : consumeTtsChars(liveGrant, characters);
+            if (!budget.allowed) {
+              if (clientWs.readyState === WebSocket.OPEN) {
+                clientWs.send(JSON.stringify({ type: "skip", reason: "tts_budget" }));
+              }
+              pendingSegmentText = "";
+              pendingVoiceSettings = undefined;
+              pendingSegmentIndex = undefined;
+              segmentStartedAt.value = 0;
+              return;
+            }
+          } else if (isAutumnEnabled()) {
             if (clientWs.readyState === WebSocket.OPEN) {
               clientWs.send(JSON.stringify({ type: "skip", reason: "tts_budget" }));
             }
@@ -219,6 +228,8 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
             pendingSegmentIndex = undefined;
             segmentStartedAt.value = 0;
             return;
+          } else {
+            console.warn("[tts] ws speak without in-memory grant; autumn is off, continuing");
           }
           if (context.traceId) {
             recordTtsSpan({
@@ -283,6 +294,18 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
     const parsedUrl = parseUrl(req.url ?? "", true);
+    const startedAt = Date.now();
+    res.on("finish", () => {
+      const path = parsedUrl.pathname ?? "";
+      if (
+        path.startsWith("/api/chat") ||
+        path.startsWith("/api/billing") ||
+        path.startsWith("/api/tts") ||
+        path.startsWith("/api/boards")
+      ) {
+        console.log(`[http] ${req.method ?? "GET"} ${path} ${res.statusCode} ${Date.now() - startedAt}ms`);
+      }
+    });
     void handle(req, res, parsedUrl);
   });
 

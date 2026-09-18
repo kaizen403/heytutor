@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { withPrismaPoolLimits } from "../../lib/db/databaseUrl";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -34,9 +35,21 @@ const ws = read("server.ts");
 assert(ws.includes("readWsTicket"), "WS TTS must auth from the session ticket");
 assert(ws.includes("isAuthDisabled"), "WS must not take htutor_uid when auth is on");
 assert(ws.includes("tts_budget"), "WS TTS must skip when the grant budget is gone");
+assert(
+  ws.includes("ws speak without in-memory grant"),
+  "auth-on production must not silence TTS when Autumn is off and the grant Map missed the socket",
+);
 const ttsClient = readFileSync(
   resolve(root, "../../packages/tutor-core/src/tts/elevenLabsWebSocketClient.ts"),
   "utf8",
+);
+assert(
+  ttsClient.includes('payload.type === "skip"'),
+  "a relay skip must fail the WS job so HTTP/speech can start the lecture",
+);
+assert(
+  ttsClient.includes("websocket ticket unavailable"),
+  "AUTH_REQUIRED production must not open a doomed TTS socket without a ticket",
 );
 assert(
   ttsClient.includes('fetch(resolveApiUrl("/api/tts/ws-ticket")'),
@@ -45,6 +58,14 @@ assert(
 assert(
   !ttsClient.includes("if (!isCrossOriginWebSocket())"),
   "same-origin AUTH_REQUIRED production must still send the TTS ticket or the relay destroys the lecture socket",
+);
+assert(
+  read("lib/db/prisma.ts").includes("globalForPrisma.prisma = prisma"),
+  "prisma must stay on globalThis in production so Neon is not opened per chunk",
+);
+assert(
+  read("lib/db/prisma.ts").includes("withPrismaPoolLimits"),
+  "Neon URLs must get connection_limit/pool_timeout so hung queries fail closed",
 );
 
 const beginTurn = read("app/api/billing/begin-turn/route.ts");
@@ -76,6 +97,14 @@ const langfuse = read("lib/obs/langfuse.ts");
 assert(
   langfuse.includes("calculateLlmCostDetails(usageDetails, { model: model ?? turn.model })"),
   "Langfuse must cost generations with the actual model, not a flat Fireworks table",
+);
+
+const pooled = withPrismaPoolLimits("postgresql://u:p@host/db?sslmode=require");
+assert(pooled.includes("connection_limit=5"), "pooled URL sets connection_limit");
+assert(pooled.includes("pool_timeout=10"), "pooled URL sets pool_timeout");
+assert(
+  withPrismaPoolLimits("postgresql://u:p@host/db?connection_limit=3").includes("connection_limit=3"),
+  "an existing connection_limit must not be overwritten",
 );
 
 console.log("✓ paid routes require session grants; Autumn checkout/webhook/begin-turn are wired");

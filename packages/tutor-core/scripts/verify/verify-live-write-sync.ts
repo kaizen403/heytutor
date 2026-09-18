@@ -11,6 +11,7 @@
 import type { DrawCommand } from "@heytutor/drawing";
 import {
   AUDIBLE_GRACE_AFTER_START_MS,
+  INITIAL_AUDIO_GIVE_UP_MS,
   catchUpWriteScheduleOffsets,
   getBestWriteCharScheduleMs,
   isPlaybackAudible,
@@ -267,6 +268,32 @@ assert(isPlaybackAudible(1), "a positive playback position is audible");
   assert(
     slash.voiceMs >= slash.cueMs - SYNC_SLACK_MS,
     `the slash must be inked while "divided by" is spoken (voice ${slash.voiceMs}, cue ${slash.cueMs})`,
+  );
+}
+
+{
+  const stillWaiting = resolveInitialTimingWait({
+    hasNarration: true,
+    timingChars: 0,
+    audioStartedAtMs: null,
+    nowMs: 1_000,
+    speechComplete: false,
+    cancelled: false,
+    waitedMs: 1_000,
+  });
+  assert(!stillWaiting.release, "one second of silence is not permission to dump the figure");
+  const giveUp = resolveInitialTimingWait({
+    hasNarration: true,
+    timingChars: 0,
+    audioStartedAtMs: null,
+    nowMs: INITIAL_AUDIO_GIVE_UP_MS,
+    speechComplete: false,
+    cancelled: false,
+    waitedMs: INITIAL_AUDIO_GIVE_UP_MS,
+  });
+  assert(
+    giveUp.release && giveUp.source === "give_up",
+    "the pen must give up if the voice never starts",
   );
 }
 

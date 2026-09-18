@@ -297,6 +297,7 @@ export function useSegmentRunner({
               speechComplete,
               cancelled: isCancelled(),
               playbackPositionMs: tts.getPlaybackPositionMs(),
+              waitedMs: performance.now() - waitStartedAt,
             });
             if (decision.release) {
               settled = true;
@@ -395,6 +396,9 @@ export function useSegmentRunner({
               })
             ) {
               tutorDebug("draw", "skipped silent dump; voice never started", { index });
+              // Voice never came: uncover the board so the lecture is not stuck
+              // behind "preparing" for the rest of the turn.
+              applyTurnPhase("speaking");
               return;
             }
             applyTurnPhase("drawing");

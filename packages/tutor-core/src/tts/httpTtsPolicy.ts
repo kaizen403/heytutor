@@ -35,10 +35,23 @@ export function createHttpTtsGate(limit = MAX_CONCURRENT_HTTP_TTS) {
     get inFlight() {
       return inFlight;
     },
-    async acquire(): Promise<void> {
+    async acquire(signal?: AbortSignal): Promise<void> {
+      if (signal?.aborted) {
+        throw new DOMException("tts http gate aborted", "AbortError");
+      }
       if (inFlight >= limit) {
-        await new Promise<void>((resolve) => {
-          waiters.push(resolve);
+        await new Promise<void>((resolve, reject) => {
+          const wake = () => {
+            signal?.removeEventListener("abort", onAbort);
+            resolve();
+          };
+          const onAbort = () => {
+            const index = waiters.indexOf(wake);
+            if (index >= 0) waiters.splice(index, 1);
+            reject(new DOMException("tts http gate aborted", "AbortError"));
+          };
+          waiters.push(wake);
+          signal?.addEventListener("abort", onAbort, { once: true });
         });
       }
       inFlight += 1;

@@ -56,6 +56,8 @@ export function studentBillingMessage(code: string): string {
       return "Sign in to continue";
     case "tts_budget":
       return "Voice paused for this lesson";
+    case "timeout":
+      return "the request took too long. try asking again.";
     default:
       return "Could not start the lesson";
   }

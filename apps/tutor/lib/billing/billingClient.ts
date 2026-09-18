@@ -146,18 +146,49 @@ function extractJsonObject(message: string): Record<string, unknown> | null {
   return isRecord(parsed) ? parsed : null;
 }
 
+const BEGIN_TURN_TIMEOUT_MS = 15_000;
+
+function mergeAbortSignals(first?: AbortSignal, second?: AbortSignal): AbortSignal | undefined {
+  if (!first) return second;
+  if (!second) return first;
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any([first, second]);
+  }
+  const controller = new AbortController();
+  const abort = (signal: AbortSignal) => {
+    if (!controller.signal.aborted) controller.abort(signal.reason);
+  };
+  if (first.aborted) abort(first);
+  else first.addEventListener("abort", () => abort(first), { once: true });
+  if (second.aborted) abort(second);
+  else second.addEventListener("abort", () => abort(second), { once: true });
+  return controller.signal;
+}
+
 export async function beginTurn(input: {
   traceId: string;
   kind: BillingTurnKind;
   signal?: AbortSignal;
 }): Promise<BeginTurnOk | BeginTurnErr> {
-  const response = await fetch(resolveApiUrl("/api/billing/begin-turn"), {
-    method: "POST",
-    credentials: "include",
-    headers: { "content-type": "application/json" },
-    signal: input.signal,
-    body: JSON.stringify({ traceId: input.traceId, kind: input.kind }),
-  });
+  const timeout =
+    typeof AbortSignal.timeout === "function"
+      ? AbortSignal.timeout(BEGIN_TURN_TIMEOUT_MS)
+      : undefined;
+  let response: Response;
+  try {
+    response = await fetch(resolveApiUrl("/api/billing/begin-turn"), {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      signal: mergeAbortSignals(input.signal, timeout),
+      body: JSON.stringify({ traceId: input.traceId, kind: input.kind }),
+    });
+  } catch (error) {
+    if (timeout?.aborted && !input.signal?.aborted) {
+      return { ok: false, status: 504, code: "timeout", remaining: null };
+    }
+    throw error;
+  }
   const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   const remainingPct = remainingPctFromPayload(payload);
   if (!response.ok) {

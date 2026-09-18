@@ -196,6 +196,75 @@ assert(
 
 client.stop();
 
+class SkipWebSocket {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  readyState = SkipWebSocket.CONNECTING;
+  onerror: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  private readonly messageListeners = new Set<MessageListener>();
+
+  constructor(_url: string) {
+    setTimeout(() => {
+      this.readyState = SkipWebSocket.OPEN;
+      this.emit({ type: "ready" });
+    }, 0);
+  }
+
+  addEventListener(type: string, listener: MessageListener): void {
+    if (type === "message") this.messageListeners.add(listener);
+  }
+
+  removeEventListener(type: string, listener: MessageListener): void {
+    if (type === "message") this.messageListeners.delete(listener);
+  }
+
+  send(data: string): void {
+    const payload = JSON.parse(data) as { flush?: boolean };
+    if (payload.flush) {
+      setTimeout(() => this.emit({ type: "skip", reason: "tts_budget" }), 0);
+    }
+  }
+
+  close(): void {
+    this.readyState = SkipWebSocket.CONNECTING;
+  }
+
+  private emit(payload: object): void {
+    const event = { data: JSON.stringify(payload) };
+    for (const listener of this.messageListeners) listener(event);
+  }
+}
+
+Object.defineProperty(globalThis, "WebSocket", {
+  configurable: true,
+  value: SkipWebSocket,
+});
+
+let skipHttpCalls = 0;
+Object.defineProperty(globalThis, "fetch", {
+  configurable: true,
+  value: async (input: unknown) => {
+    if (!String(input).includes("/api/tts/stream")) {
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }
+    skipHttpCalls++;
+    return new Response(`data: ${JSON.stringify(httpPayload)}\n\n`, {
+      status: 200,
+      headers: { "content-type": "text/event-stream" },
+    });
+  },
+});
+
+const skipClient = new ElevenLabsWebSocketTTSClient();
+let skipStarts = 0;
+await skipClient.speakSegment("Relay skip must not leave the lecture waiting for audio.", {
+  onStart: () => skipStarts++,
+});
+assert(skipHttpCalls === 1, "a relay skip must fall back to HTTP instead of hanging");
+assert(skipStarts === 1, "HTTP fallback after a relay skip must start playback");
+skipClient.stop();
+
 let pendingHttpSignal: AbortSignal | null = null;
 let notifyHttpStarted: (() => void) | null = null;
 const httpStarted = new Promise<void>((resolve) => {

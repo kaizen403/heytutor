@@ -40,4 +40,20 @@ await second;
 gate.release();
 assert(gate.inFlight === 0, "releasing the last slot must clear the gate");
 
+{
+  const abortable = createHttpTtsGate(1);
+  await abortable.acquire();
+  const controller = new AbortController();
+  const waiting = abortable.acquire(controller.signal);
+  controller.abort();
+  let aborted = false;
+  try {
+    await waiting;
+  } catch (error) {
+    aborted = error instanceof DOMException && error.name === "AbortError";
+  }
+  assert(aborted, "a waiting HTTP TTS slot must abort instead of hanging the lecture");
+  abortable.release();
+}
+
 console.log("http tts policy verification passed");

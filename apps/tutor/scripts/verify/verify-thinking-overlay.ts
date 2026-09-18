@@ -67,8 +67,12 @@ assert(
   "the shell must not put 'planning the diagram' on the board",
 );
 assert(
-  runner.includes("shouldStartLiveDraw"),
-  "spoken ink must wait until the voice is audible",
+  runner.includes('applyTurnPhase("speaking")'),
+  "voice never starting must still drop the preparing overlay",
+);
+assert(
+  runner.includes("waitedMs: performance.now() - waitStartedAt"),
+  "the first schedule must give up if the voice never starts",
 );
 assert(
   runner.includes("playbackPositionMs: tts.getPlaybackPositionMs()"),

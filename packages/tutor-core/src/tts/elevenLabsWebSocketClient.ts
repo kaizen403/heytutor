@@ -264,6 +264,7 @@ async function fetchWsAuthTicket(): Promise<string | undefined> {
   try {
     const response = await fetch(resolveApiUrl("/api/tts/ws-ticket"), {
       credentials: "include",
+      signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(4_000) : undefined,
     });
     if (!response.ok) {
       return undefined;
@@ -275,6 +276,12 @@ async function fetchWsAuthTicket(): Promise<string | undefined> {
   } catch {
     return undefined;
   }
+}
+
+function wsTicketRequired(): boolean {
+  const flag =
+    typeof process !== "undefined" ? process.env.NEXT_PUBLIC_AUTH_REQUIRED : undefined;
+  return flag === "1" || flag === "true";
 }
 
 /**
@@ -306,12 +313,22 @@ export function shouldCompleteTtsJobAfterSilence(options: {
   return options.contextFinal && options.scheduledEnd <= options.currentTime + 0.1;
 }
 
-function parseWsPayload(data: string): TimestampChunkPayload | { type?: string; message?: string } | null {
+function parseWsPayload(data: string): TimestampChunkPayload | { type?: string; message?: string; reason?: string } | null {
   try {
-    return JSON.parse(data) as TimestampChunkPayload | { type?: string; message?: string };
+    return JSON.parse(data) as TimestampChunkPayload | { type?: string; message?: string; reason?: string };
   } catch {
     return null;
   }
+}
+
+function isTtsRelayControlPayload(
+  payload: TimestampChunkPayload | { type?: string; message?: string; reason?: string },
+): payload is { type: string; message?: string; reason?: string } {
+  return (
+    "type" in payload &&
+    typeof payload.type === "string" &&
+    payload.type.length > 0
+  );
 }
 
 export class ElevenLabsWebSocketTTSClient implements TTSClient {
@@ -859,6 +876,10 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     const voiceSpeed = clampVoiceSpeed(DEFAULT_VOICE_SETTINGS.speed ?? 1);
     this.connectPromise = (async () => {
       const ticket = await fetchWsAuthTicket();
+      if (wsTicketRequired() && !ticket) {
+        notifyConnect(false);
+        throw new Error("websocket ticket unavailable");
+      }
       await new Promise<void>((resolve, reject) => {
         const ws = new globalThis.WebSocket(
           getWebSocketUrl(
@@ -1219,7 +1240,25 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
         }
 
         const payload = parseWsPayload(event.data);
-        if (!payload || ("type" in payload && payload.type)) {
+        if (payload && isTtsRelayControlPayload(payload)) {
+          if (payload.type === "skip" || payload.type === "error") {
+            const error = new Error(
+              payload.type === "skip"
+                ? `tts skipped${payload.reason ? ` (${payload.reason})` : ""}`
+                : payload.message ?? "websocket tts error",
+            );
+            this.wsDisabledUntil = Date.now() + TTS_WS_DISABLE_AFTER_FAIL_MS;
+            if (this.currentJob && !this.currentJob.settled) {
+              this.currentJob.settled = true;
+              this.currentJob.reject(error);
+            }
+            this.rejectAllJobs(error);
+            this.currentJob = null;
+            this.chunkTargetJob = null;
+          }
+          return;
+        }
+        if (!payload) {
           return;
         }
 
@@ -1710,11 +1749,14 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
     options: SpeakSegmentOptions,
     controller: AbortController,
   ): Promise<{ buffers: AudioBuffer[]; chunks: Uint8Array[]; timings: AudioTimings }> {
-    await this.httpGate.acquire();
+    await this.httpGate.acquire(controller.signal);
     try {
       const response = await this.fetchHttpTtsStream(spokenText, options, controller.signal);
       if (!response.ok) {
         throw new Error(`TTS stream error ${response.status}`);
+      }
+      if (response.headers.get("x-heytutor-tts-skipped")) {
+        throw new Error("TTS skipped");
       }
       if (!response.body) {
         throw new Error("TTS stream returned no body");
@@ -1786,11 +1828,14 @@ export class ElevenLabsWebSocketTTSClient implements TTSClient {
       this.scheduledEnd = Math.max(this.scheduledEnd, ctx.currentTime);
       this.httpPlaybackOriginCtxTime = null;
 
-      await this.httpGate.acquire();
+      await this.httpGate.acquire(controller.signal);
       httpSlotHeld = true;
       const response = await this.fetchHttpTtsStream(spokenText, options, controller.signal);
       throwIfStopped();
       if (!response.ok) throw new Error(`TTS stream error ${response.status}`);
+      if (response.headers.get("x-heytutor-tts-skipped")) {
+        throw new Error("TTS skipped");
+      }
       if (!response.body) throw new Error("TTS stream returned no body");
 
       const reader = response.body.getReader();

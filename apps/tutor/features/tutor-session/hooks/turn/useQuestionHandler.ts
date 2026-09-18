@@ -2179,9 +2179,19 @@ export function useQuestionHandler(
           // an idle UI until that exact turn's ink has settled; otherwise the next
           // question resets scene ownership underneath commands still in flight.
           const segmentQueue = segmentChainRef.current;
-          await segmentQueue.catch(() => undefined);
+          await Promise.race([
+            segmentQueue.catch(() => undefined),
+            new Promise<void>((resolve) => {
+              window.setTimeout(resolve, 20_000);
+            }),
+          ]);
           const drawQueue = drawChainRef.current;
-          await drawQueue.catch(() => undefined);
+          await Promise.race([
+            drawQueue.catch(() => undefined),
+            new Promise<void>((resolve) => {
+              window.setTimeout(resolve, 20_000);
+            }),
+          ]);
         }
 
         if (turnAbortRef.current === abortController) {

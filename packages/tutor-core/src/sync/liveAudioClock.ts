@@ -87,6 +87,12 @@ export const INITIAL_TIMING_GRACE_AFTER_START_MS = 120;
  * audio spin-up. The pen must not run a 1.5× wall clock across that gap.
  */
 export const AUDIBLE_GRACE_AFTER_START_MS = 280;
+/**
+ * If TTS never starts (relay skip, HTTP hang, autoplay), the preparing overlay
+ * must not sit on the board forever. Eight seconds is longer than a healthy
+ * first-chunk and shorter than a student waiting out a dead lecture.
+ */
+export const INITIAL_AUDIO_GIVE_UP_MS = 8_000;
 
 export function isPlaybackAudible(playbackPositionMs: number | null | undefined): boolean {
   return (
@@ -111,6 +117,8 @@ export interface InitialTimingWaitState {
    * schedule.
    */
   playbackPositionMs?: number | null;
+  /** Ms since this waiter armed. Used only to give up when the voice never starts. */
+  waitedMs?: number;
 }
 
 export type InitialTimingWaitRelease =
@@ -122,7 +130,9 @@ export type InitialTimingWaitRelease =
   | "complete"
   | "cancelled"
   /** Nothing is spoken, so there is nothing to wait for. */
-  | "silent";
+  | "silent"
+  /** The voice never started; drop the overlay rather than spin forever. */
+  | "give_up";
 
 export type InitialTimingWaitDecision =
   | { release: true; source: InitialTimingWaitRelease }
@@ -152,6 +162,9 @@ export function resolveInitialTimingWait(state: InitialTimingWaitState): Initial
   if (state.audioStartedAtMs === null) {
     if (state.speechComplete) {
       return { release: true, source: "complete" };
+    }
+    if ((state.waitedMs ?? 0) >= INITIAL_AUDIO_GIVE_UP_MS) {
+      return { release: true, source: "give_up" };
     }
     return { release: false, releaseAtMs: null };
   }

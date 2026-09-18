@@ -47,11 +47,17 @@ export async function fetchBoards(): Promise<BoardEntry[]> {
 }
 
 export async function createBoard(id?: string): Promise<BoardEntry | null> {
-  const res = await fetch(resolveApiUrl("/api/boards"), {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(id ? { id } : {}),
-  });
+  let res: Response;
+  try {
+    res = await fetch(resolveApiUrl("/api/boards"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(id ? { id } : {}),
+      signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(12_000) : undefined,
+    });
+  } catch {
+    return null;
+  }
 
   if (!res.ok) {
     return null;
