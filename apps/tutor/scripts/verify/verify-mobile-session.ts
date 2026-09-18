@@ -77,7 +77,7 @@ assert(
 
 const viewportHook = read("features/tutor-session/hooks/useBoardViewport.ts");
 assert(
-  /prev\.measured/.test(viewportHook),
+  /\bmeasured\s*&&[\s\S]{0,160}shouldLockBoardScale/.test(viewportHook),
   "once the board has a scale, chrome/keyboard height wobble must not rescale it",
 );
 

@@ -55,6 +55,7 @@ import { useLectureRewind } from "./hooks/useLectureRewind";
 import { useLecturePageHalt } from "./hooks/useLecturePageHalt";
 import { useLectureExport } from "./hooks/useLectureExport";
 import { useBoardMarking } from "./hooks/useBoardMarking";
+import { useBoardFullscreen, useSessionChromeHidden } from "./hooks/useBoardFullscreen";
 import { useCommandExecution } from "./hooks/useCommandExecution";
 import { useCancelControl } from "./hooks/useCancelControl";
 import { useTurnLifecycle } from "./hooks/useTurnLifecycle";
@@ -91,6 +92,7 @@ import { lessonFollowUpMode } from "./lib/turn/lessonFollowUp";
 import { buildLessonNotes } from "./lib/notes/lessonNotes";
 import { sessionCapabilities, type TutorSessionVariant } from "./lib/sessionCapabilities";
 import { buildMarkedDoubtPrompt, summarizeMarks, type BoardMark } from "./lib/board/boardMarking";
+import { fullscreenKeyAction, isTypingElement } from "./lib/board/boardFullscreen";
 import { isWaitingToTeach, markerCursorState } from "./lib/board/markerVisibility";
 import { DOUBT_THINKING_FALLBACK, doubtThinkingAnchor } from "./lib/board/doubtAnchor";
 import { doubtTurnTitle, isDoubtPrompt } from "./lib/input/askDoubt";
@@ -296,6 +298,13 @@ export function TutorSessionShell({
   const isMobile = useIsMobile();
   const keyboardInset = useVisualViewportInset();
   useLockWindowScrollOnFocus(!isHeadless);
+  /**
+   * The board taking the whole screen. Available on every device: where the
+   * browser has no Fullscreen API the app's own chrome comes off instead, and
+   * the paper still fills the viewport.
+   */
+  const fullscreen = useBoardFullscreen();
+  const boardFullscreen = can.appChrome && fullscreen.active;
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayProgressMs, setReplayProgressMs] = useState(0);
   // Written by the session hooks; nothing reads it since the transport went.
@@ -1128,6 +1137,59 @@ export function TutorSessionShell({
     haltRewind();
   });
 
+  /**
+   * The chrome over a full screen board.
+   *
+   * It withdraws only while something is actually running and the student has
+   * been still, the way a player's controls do. Anything the student is part
+   * way through pins it: a paused lecture, an armed marker, an error to answer,
+   * an open panel. An idle board never hides it at all, because an idle board
+   * is one waiting to be asked the next question and the composer is the
+   * answer to that.
+   */
+  const chromePinned =
+    isPaused ||
+    rewindActive ||
+    marking.armed ||
+    marking.marks.length > 0 ||
+    pausedLessonOffer ||
+    Boolean(lastError) ||
+    settingsOpen ||
+    creditsOpen ||
+    mobileNavOpen ||
+    notesOpen;
+  const chromeHidden = useSessionChromeHidden({
+    fullscreen: boardFullscreen,
+    live: phase !== "idle" || isReplaying,
+    pinned: chromePinned,
+  });
+
+  // `f` takes the board full screen and gives it back, the way a player binds
+  // it. Escape is left to whoever already owns it here, which is the lesson.
+  useEffect(() => {
+    if (!can.appChrome || isHeadless) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      const action = fullscreenKeyAction({
+        key: event.key,
+        withModifier: event.ctrlKey || event.metaKey || event.altKey,
+        typing: isTypingElement(document.activeElement),
+        fullscreen: fullscreen.active,
+        mode: fullscreen.mode,
+        dialogOpen: Boolean(document.querySelector('[role="dialog"][data-state="open"]')),
+        lessonOwnsEscape: phaseRef.current !== "idle" || isReplaying || rewindActive,
+      });
+      if (!action) return;
+      event.preventDefault();
+      if (action === "exit") {
+        fullscreen.exit();
+        return;
+      }
+      fullscreen.toggle();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [can.appChrome, fullscreen, isHeadless, isReplaying, rewindActive]);
+
   const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
   const canDownload = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
   const canDownloadNotes =
@@ -1293,7 +1355,10 @@ export function TutorSessionShell({
         </div>
       ) : null}
 
-      {notesEnabled && !isMobile && !notesRailOpen ? (
+      {/* The Ask panel's edge tab is page chrome. Over a full screen board the
+          header's own Ask button is the way in, so the tab stays off the
+          paper's right edge. */}
+      {notesEnabled && !isMobile && !notesRailOpen && !boardFullscreen ? (
         <button
           type="button"
           onClick={toggleNotes}
@@ -1330,18 +1395,31 @@ export function TutorSessionShell({
 
       <div
         className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col ${
+          boardFullscreen ? "wb-board-immersive " : ""
+        }${
           frameless ? "h-full md:mr-[var(--tutor-notes-width)]" : "md:mr-[var(--tutor-notes-width)]"
         }`}
+        data-chrome-hidden={boardFullscreen && chromeHidden ? "true" : undefined}
         style={{
           ["--tutor-notes-width" as string]: notesRailOpen
             ? `${NOTES_CHAT_RAIL_WIDTH}px`
             : "0px",
-          paddingLeft: `max(${isMobile ? 6 : PAGE_GUTTER_X}px, env(safe-area-inset-left))`,
-          paddingRight: `max(${isMobile ? 6 : PAGE_GUTTER_X}px, env(safe-area-inset-right))`,
-          paddingTop: `max(${isMobile ? 6 : 12}px, env(safe-area-inset-top))`,
+          // Full screen gives the page gutters back to the paper. The safe
+          // areas stay: a phone held sideways puts the notch on one of them.
+          paddingLeft: boardFullscreen
+            ? "env(safe-area-inset-left)"
+            : `max(${isMobile ? 6 : PAGE_GUTTER_X}px, env(safe-area-inset-left))`,
+          paddingRight: boardFullscreen
+            ? "env(safe-area-inset-right)"
+            : `max(${isMobile ? 6 : PAGE_GUTTER_X}px, env(safe-area-inset-right))`,
+          paddingTop: boardFullscreen
+            ? "env(safe-area-inset-top)"
+            : `max(${isMobile ? 6 : 12}px, env(safe-area-inset-top))`,
           paddingBottom: keyboardInset > 0
             ? `${keyboardInset}px`
-            : `max(${isMobile ? 8 : 12}px, env(safe-area-inset-bottom))`,
+            : boardFullscreen
+              ? "env(safe-area-inset-bottom)"
+              : `max(${isMobile ? 8 : 12}px, env(safe-area-inset-bottom))`,
           transition: sidebarResizing
             ? "none"
             : "margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1), margin-right 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
@@ -1349,7 +1427,9 @@ export function TutorSessionShell({
       >
         {can.appChrome ? (
           <SessionHeader
-            showNavButton
+            // Full screen is a board, not a page: the boards rail is gone and
+            // the way back to it is the way out of full screen.
+            showNavButton={!boardFullscreen}
             navButtonClassName={sidebarCollapsed ? undefined : "md:hidden"}
             onExpandSidebar={() => {
               if (isMobile) {
@@ -1372,6 +1452,10 @@ export function TutorSessionShell({
             notesOpen={notesOpen}
             showNotesToggle={notesEnabled}
             onToggleNotes={toggleNotes}
+            overlay={boardFullscreen}
+            chromeHidden={chromeHidden}
+            isFullscreen={boardFullscreen}
+            onToggleFullscreen={fullscreen.toggle}
             onReplay={replayLecture}
             onDownload={downloadNotesPdf}
             onDownloadLecture={downloadLectureMp4}
@@ -1385,7 +1469,7 @@ export function TutorSessionShell({
             ref={boardContainerRef}
             className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden [isolation:isolate]"
             style={{
-              marginTop: PAGE_GUTTER_Y,
+              marginTop: boardFullscreen ? 0 : PAGE_GUTTER_Y,
             }}
           >
             {fullBleedLanding && (
@@ -1522,13 +1606,59 @@ export function TutorSessionShell({
             ) : null}
 
             </div>
+
+            {/* An iPhone has no orientation lock to grant, so the board asks
+                for the turn by hand. Everywhere the lock worked the phone is
+                already sideways and this never appears. */}
+            {boardFullscreen && fullscreen.rotateHint ? (
+              <div className="wb-rotate-hint glass text-frost" role="status">
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <rect x="7" y="2" width="10" height="20" rx="2.5" />
+                  <path d="M11 18.6h2" />
+                </svg>
+                <span>Turn your phone for a bigger board</span>
+              </div>
+            ) : null}
           </div>
         </main>
 
         {can.askQuestions && !isInputOverlay && (
           <footer
-            className="relative shrink-0"
-            style={{ paddingTop: isMobile ? 4 : PAGE_GUTTER_Y }}
+            // Full screen floats the composer over the paper's bottom margin
+            // instead of taking layout from it. It is the same element either
+            // way, so entering full screen mid-sentence keeps what was typed.
+            className={
+              boardFullscreen
+                ? "wb-session-chrome wb-session-chrome--bottom absolute"
+                : "relative shrink-0"
+            }
+            data-hidden={boardFullscreen && chromeHidden ? "true" : undefined}
+            style={
+              boardFullscreen
+                ? {
+                    left: "max(6px, env(safe-area-inset-left))",
+                    right: "max(6px, env(safe-area-inset-right))",
+                    // The keyboard raises the composer; the board stays put.
+                    // An absolute box sits against the padding box, so the
+                    // column's keyboard padding has to be added back by hand.
+                    bottom:
+                      keyboardInset > 0
+                        ? keyboardInset + 6
+                        : "max(8px, env(safe-area-inset-bottom))",
+                    zIndex: 45,
+                  }
+                : { paddingTop: isMobile ? 4 : PAGE_GUTTER_Y }
+            }
           >
             {inputChrome}
           </footer>
@@ -1578,7 +1708,10 @@ export function TutorSessionShell({
       disabled={phase !== "idle"}
       profile={toShellProfile(accountMe?.profile)}
       onOpenLessonSettings={() => setSettingsOpen(true)}
-      sidebarCollapsed={sidebarCollapsed}
+      // Full screen folds the boards rail away and gives its width to the
+      // paper. The student's own choice is kept underneath and comes back
+      // with the windowed board.
+      sidebarCollapsed={boardFullscreen || sidebarCollapsed}
       onSidebarCollapsedChange={setSidebarCollapsed}
       mobileNavOpen={mobileNavOpen}
       onMobileNavOpenChange={setMobileNavOpen}

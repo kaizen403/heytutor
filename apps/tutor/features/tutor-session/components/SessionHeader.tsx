@@ -1,4 +1,5 @@
 
+import { Maximize, Minimize } from "lucide-react";
 import { LessonActions } from "@/features/tutor-session/components/LessonActions";
 import type { LectureExportProgress } from "@/lib/lecture-export/exportLectureMp4";
 import type { TutorPhase } from "../types";
@@ -23,6 +24,16 @@ interface SessionHeaderProps {
   notesOpen?: boolean;
   showNotesToggle?: boolean;
   onToggleNotes?: () => void;
+  /**
+   * The board owns the screen, so this bar floats over the paper's top margin
+   * instead of taking layout from it. Nothing about the board resizes when it
+   * comes and goes.
+   */
+  overlay?: boolean;
+  /** The student has been still through a running lesson: withdraw. */
+  chromeHidden?: boolean;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
   onReplay: () => void;
   onDownload: () => void;
   onDownloadLecture: () => void;
@@ -57,6 +68,10 @@ export function SessionHeader({
   notesOpen = false,
   showNotesToggle = false,
   onToggleNotes,
+  overlay = false,
+  chromeHidden = false,
+  isFullscreen = false,
+  onToggleFullscreen,
   onReplay,
   onDownload,
   onDownloadLecture,
@@ -67,11 +82,28 @@ export function SessionHeader({
   const title = displayBoardTitle(boardTitle);
   const isFreshBoard = !boardTitle.trim() || boardTitle.trim().toLowerCase() === "new board";
   const showNav = showNavButton || sidebarCollapsed;
+  // Over the paper the bar is a control strip, not a page header: the standing
+  // line about what the board is doing belongs to the windowed layout.
+  const showSubtitle = !compactActions && !overlay;
 
   return (
     <header
-      className="glass relative z-40 mb-1.5 shrink-0 rounded-2xl px-3 py-2 sm:mb-3 sm:px-4 sm:py-2.5"
-      style={{ flexShrink: 0 }}
+      className={
+        overlay
+          ? "glass wb-session-chrome wb-session-chrome--top absolute rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5"
+          : "glass relative z-40 mb-1.5 shrink-0 rounded-2xl px-3 py-2 sm:mb-3 sm:px-4 sm:py-2.5"
+      }
+      data-hidden={overlay && chromeHidden ? "true" : undefined}
+      style={
+        overlay
+          ? {
+              top: "max(6px, env(safe-area-inset-top))",
+              left: "max(6px, env(safe-area-inset-left))",
+              right: "max(6px, env(safe-area-inset-right))",
+              zIndex: 45,
+            }
+          : { flexShrink: 0 }
+      }
     >
       <div className="flex flex-nowrap items-center gap-2 sm:gap-3">
         {/* Left: navigation + board identity */}
@@ -97,7 +129,7 @@ export function SessionHeader({
             >
               {title}
             </span>
-            {!compactActions && (
+            {showSubtitle && (
               <p className="mt-0.5 truncate text-[11px] text-soft sm:text-xs">
                 {isFreshBoard
                   ? "Ask a question below to start this board"
@@ -144,6 +176,23 @@ export function SessionHeader({
             compact={compactActions}
             alwaysVisible
           />
+
+          {onToggleFullscreen ? (
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              aria-label={isFullscreen ? "Leave full screen" : "Full screen board"}
+              aria-pressed={isFullscreen}
+              title={isFullscreen ? "Leave full screen (f)" : "Full screen board (f)"}
+              className="btn-plain btn-ghost h-10 w-10 shrink-0 rounded-full px-0 sm:h-8 sm:w-8"
+            >
+              {isFullscreen ? (
+                <Minimize size={15} strokeWidth={2} aria-hidden />
+              ) : (
+                <Maximize size={15} strokeWidth={2} aria-hidden />
+              )}
+            </button>
+          ) : null}
 
           {isLive && (
             <>

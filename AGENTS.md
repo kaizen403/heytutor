@@ -47,6 +47,7 @@ the canvas and still teach. Invalid or partial candidates never render.
 | LLM / planner proxy | `apps/tutor/app/api/chat/route.ts` |
 | Drawing protocol | `packages/drawing/src/protocol/drawingProtocol.ts` |
 | Canvas rendering | `packages/whiteboard/src/Whiteboard.tsx` |
+| Full screen board | `apps/tutor/features/tutor-session/lib/board/boardFullscreen.ts` + `hooks/useBoardFullscreen.ts` |
 | Turn persistence trust | `apps/tutor/lib/scene/turnScenePersistence.ts` |
 | Syllabus capability coverage | `packages/scene-engine/scripts/verify/verify-syllabus-corpus.ts` |
 | Bank family compile (live ink) | `packages/scene-engine/scripts/verify/verify-bank-family-compile.ts` |

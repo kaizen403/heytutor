@@ -31,7 +31,22 @@ export function useBoardViewport(
     let rafId = 0;
     let timeoutId = 0;
     let retries = 0;
+    /**
+     * The box and the scale the last accepted fit was made from.
+     *
+     * These live beside the state rather than inside the `setViewport`
+     * updater. React may run an updater more than once for a single dispatch
+     * (it computes the next state eagerly to decide whether to schedule a
+     * render at all, then computes it again while rendering), so an updater
+     * that writes its own bookkeeping reads that bookkeeping back on the
+     * second run: the box it just recorded, a zero delta, and a lock. Whether
+     * the second run happened depended on what else was pending, so the board
+     * refit worked through a sidebar animation, which fires a stream of resize
+     * events, and silently failed on a phone rotation, which fires one.
+     */
     const lastBox = { width: 0, height: 0 };
+    let lastScale = 0;
+    let measured = false;
 
     const updateScale = () => {
       const box = container.getBoundingClientRect();
@@ -75,26 +90,27 @@ export function useBoardViewport(
         ? Math.max(0, Math.round(window.innerHeight - (visual.offsetTop + visual.height)))
         : 0;
       // Avoid sub-pixel thrash from ResizeObserver feedback.
-      setViewport((prev) => {
-        if (prev.measured && Math.abs(prev.scale - nextScale) < 0.001) return prev;
-        // Keyboard and tiny height wobble must not rescale a live lecture.
-        // The composer docking under the board is a real layout shrink and
-        // must refit, or the paper keeps the empty-landing size.
-        if (
-          prev.measured &&
-          lastBox.width > 0 &&
-          shouldLockBoardScale({
-            widthDelta: width - lastBox.width,
-            heightDelta: height - lastBox.height,
-            keyboardInset,
-          })
-        ) {
-          return prev;
-        }
-        lastBox.width = width;
-        lastBox.height = height;
-        return { scale: nextScale, offsetX: 0, offsetY: 0, measured: true };
-      });
+      if (measured && Math.abs(lastScale - nextScale) < 0.001) return;
+      // Keyboard and tiny height wobble must not rescale a live lecture.
+      // The composer docking under the board is a real layout shrink and
+      // must refit, or the paper keeps the empty-landing size.
+      if (
+        measured &&
+        lastBox.width > 0 &&
+        shouldLockBoardScale({
+          widthDelta: width - lastBox.width,
+          heightDelta: height - lastBox.height,
+          keyboardInset,
+        })
+      ) {
+        return;
+      }
+
+      lastBox.width = width;
+      lastBox.height = height;
+      lastScale = nextScale;
+      measured = true;
+      setViewport({ scale: nextScale, offsetX: 0, offsetY: 0, measured: true });
     };
 
     updateScale();

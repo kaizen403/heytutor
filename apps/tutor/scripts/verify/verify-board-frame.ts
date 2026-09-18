@@ -87,6 +87,14 @@ assert(
   viewport.includes("shouldLockBoardScale"),
   "height lock must distinguish the keyboard from the composer taking layout space",
 );
+assert(
+  !/setViewport\(\([\s\S]{0,40}\) => \{[\s\S]*?lastBox\.width\s*=/.test(viewport),
+  "the lock's own bookkeeping must not be written inside the state updater: React runs an updater more than once per dispatch, and the second run reads back the box the first run recorded, sees a zero delta and locks the refit it was in the middle of applying",
+);
+assert(
+  /let\s+lastScale\b/.test(viewport) && /let\s+measured\b/.test(viewport),
+  "the previous box and scale must be plain effect state the fit reads before dispatching",
+);
 
 const canvas = read("features/tutor-session/components/SessionBoardCanvas.tsx");
 assert(

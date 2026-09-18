@@ -985,6 +985,136 @@ h4 {
   }
 }
 
+/* ── Full screen board ─────────────────────────────────────────────────
+   The board taking the whole screen, on every device.
+
+   Where the browser has the Fullscreen API the request is made on the
+   document, not on the board box: every drawer, sheet and dialog in the
+   session portals to `document.body`, and a full screen taken on an inner
+   element renders that element's subtree alone, so settings and the boards
+   drawer would open invisibly. An iPhone has no Fullscreen API outside
+   `<video>`, so it gets the same layout with the browser's own toolbar still
+   up. Both states carry `data-board-fullscreen` on the document, and the
+   layout below is the same for either.
+
+   The header and the composer float over the paper's own top and bottom
+   margins rather than taking layout from it. That is what stops the board
+   rescaling every time they withdraw: a Konva stage that re-fits on a timer
+   reads as a reload, and the margins are wide enough at full screen scale
+   that a floating bar sits in them without covering ink.
+   ───────────────────────────────────────────────────────────────────── */
+
+html[data-board-fullscreen] {
+  overflow: hidden;
+}
+
+html[data-board-fullscreen] body {
+  overflow: hidden;
+}
+
+/* The UA paints a fullscreen root black behind the page. The board's own
+   ground is the deck it already sits on, so an exit does not flash. */
+html:fullscreen,
+html:-webkit-full-screen {
+  width: 100%;
+  height: 100%;
+  background: var(--ink-950);
+}
+
+html:fullscreen::backdrop {
+  background: var(--ink-950);
+}
+
+/* The floating header and composer. `data-hidden` is the only state: opacity
+   and a short slide, never `display`, so nothing in them unmounts and the
+   composer keeps whatever was typed into it. */
+.wb-session-chrome {
+  transition:
+    opacity 200ms ease,
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wb-session-chrome[data-hidden="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.wb-session-chrome--top[data-hidden="true"] {
+  transform: translateY(-14px);
+}
+
+.wb-session-chrome--bottom[data-hidden="true"] {
+  transform: translateY(18px);
+}
+
+/* With the controls gone the pointer is the last piece of chrome left on the
+   paper. It comes back on the movement that brings the controls back. */
+.wb-board-immersive[data-chrome-hidden="true"] {
+  cursor: none;
+}
+
+/* The nudge an iPhone gets instead of an orientation lock. */
+.wb-rotate-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 14%;
+  z-index: 46;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 15px;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+  animation: wb-rotate-hint-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.wb-rotate-hint svg {
+  animation: wb-rotate-hint-turn 2200ms ease-in-out infinite;
+}
+
+@keyframes wb-rotate-hint-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes wb-rotate-hint-turn {
+  0%,
+  45% {
+    transform: rotate(0deg);
+  }
+  70%,
+  100% {
+    transform: rotate(-90deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-session-chrome {
+    transition: opacity 120ms linear;
+  }
+  .wb-session-chrome--top[data-hidden="true"],
+  .wb-session-chrome--bottom[data-hidden="true"] {
+    transform: none;
+  }
+  .wb-rotate-hint {
+    animation: none;
+  }
+  .wb-rotate-hint svg {
+    animation: none;
+  }
+}
+
 /* The bezel sheen — a highlight travelling across the frame — is retired
    with the rest of the light modelling. The class is kept as an inert box
    because the board still mounts it. */
