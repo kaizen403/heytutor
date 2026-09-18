@@ -147,6 +147,7 @@ model Turn {
   @@unique([boardId, orderIndex], map: "turns_board_id_order_index_key")
   @@index([boardId], map: "turns_board_id_idx")
   @@index([userId], map: "turns_user_id_idx")
+  @@index([createdAt], map: "turns_created_at_idx")
   @@map("turns")
 }
 
