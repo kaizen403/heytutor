@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { GraduationCap, User } from "lucide-react";
 import { Brand } from "@/components/brand/Brand";
 import { SiteButton } from "@/components/ui/site-button";
 import {
@@ -168,12 +169,14 @@ export function OnboardingScreen({
         {step === "role" ? (
           <div className="mt-6 flex flex-col gap-3">
             <RoleCard
+              icon={<GraduationCap className="h-5 w-5" strokeWidth={2} aria-hidden />}
               label={copy.role.college.label}
               hint={copy.role.college.hint}
               checked={learnerRole === "college"}
               onClick={() => pickRole("college")}
             />
             <RoleCard
+              icon={<User className="h-5 w-5" strokeWidth={2} aria-hidden />}
               label={copy.role.other.label}
               hint={copy.role.other.hint}
               checked={learnerRole === "other"}
@@ -346,11 +349,13 @@ export function OnboardingScreen({
 }
 
 function RoleCard({
+  icon,
   label,
   hint,
   checked,
   onClick,
 }: {
+  icon: ReactNode;
   label: string;
   hint: string;
   checked: boolean;
@@ -360,14 +365,19 @@ function RoleCard({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl border px-4 py-4 text-left ${
+      className={`flex items-start gap-3 rounded-2xl border px-4 py-4 text-left ${
         checked
           ? "border-sky-500 bg-sky-500/12"
           : "border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.18)]"
       }`}
     >
-      <span className="block text-sm font-medium text-frost">{label}</span>
-      <span className="mt-1 block text-xs leading-5 text-[rgba(237,237,235,0.55)]">{hint}</span>
+      <span className={`mt-0.5 ${checked ? "text-sky-300" : "text-[rgba(237,237,235,0.55)]"}`}>
+        {icon}
+      </span>
+      <span>
+        <span className="block text-sm font-medium text-frost">{label}</span>
+        <span className="mt-1 block text-xs leading-5 text-[rgba(237,237,235,0.55)]">{hint}</span>
+      </span>
     </button>
   );
 }

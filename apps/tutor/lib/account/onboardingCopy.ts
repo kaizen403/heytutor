@@ -1,32 +1,31 @@
 /**
- * Onboarding copy. The first question splits the rest of the flow:
- * college students get one setup page, everyone else gets another.
+ * Onboarding copy. Same split as login: college student or individual.
  */
 export const ONBOARDING_COPY = {
   role: {
     kicker: "Step 1 of 2",
-    title: "Are you a college student?",
+    title: "College student or individual?",
     body: "We'll ask different questions next, so the home board fits how you study.",
     college: {
-      label: "Yes, I am in college",
+      label: "College student",
       hint: "Undergraduate or a similar degree",
     },
     other: {
-      label: "No, not in college",
+      label: "Individual",
       hint: "School, an entrance exam, or learning on your own",
     },
     continue: "Continue",
     missing: "Choose one to continue.",
   },
   college: {
-    kicker: "Step 2 of 2 · College",
+    kicker: "Step 2 of 2 · College student",
     title: "Set up your college classroom",
     body: "This shapes the home board. It never reaches the diagram engine.",
     goalLegend: "Why are you here?",
     yearLegend: "Year",
   },
   other: {
-    kicker: "Step 2 of 2 · School and exams",
+    kicker: "Step 2 of 2 · Individual",
     title: "Set up your classroom",
     body: "This shapes the home board. It never reaches the diagram engine.",
     goalLegend: "Why are you here?",

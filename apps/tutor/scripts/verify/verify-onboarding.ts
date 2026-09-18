@@ -1,5 +1,5 @@
 /**
- * Onboarding splits on "Are you a college student?" into two setup pages.
+ * Onboarding splits on college student vs individual into two setup pages.
  * Age still gates under-13. DSA stays a coming-soon chip.
  */
 import { readFileSync } from "node:fs";
@@ -57,7 +57,9 @@ assert(
   "a college profile names the role, the goal, and the year",
 );
 
-assert(ONBOARDING_COPY.role.title === "Are you a college student?", "the first question is the college split");
+assert(ONBOARDING_COPY.role.title === "College student or individual?", "the first question is college student or individual");
+assert(ONBOARDING_COPY.role.college.label === "College student", "college card is College student");
+assert(ONBOARDING_COPY.role.other.label === "Individual", "the other card is Individual, not not-in-college");
 assert(
   ONBOARDING_COPY.college.title.includes("college") && ONBOARDING_COPY.other.title.includes("classroom"),
   "the two setup pages must not share a title",
@@ -68,6 +70,7 @@ const root = resolve(import.meta.dirname, "../..");
 const screen = readFileSync(resolve(root, "features/account/OnboardingScreen.tsx"), "utf8");
 assert(screen.includes('"role" | "setup"') || screen.includes("type Step = \"role\" | \"setup\""), "onboarding is role then a setup page");
 assert(screen.includes("pickRole(\"college\")") && screen.includes("pickRole(\"other\")"), "both answers on the first page");
+assert(screen.includes("GraduationCap") && screen.includes("User"), "role cards carry college and individual logos");
 assert(screen.includes("examGoalsForRole") && screen.includes("classYearsForRole"), "the setup page is chosen from the role");
 assert(screen.includes("learnerRole"), "the chosen role is sent with the rest of onboarding");
 

@@ -11,7 +11,7 @@ export function isLoginRole(value: unknown): value is LoginRole {
   return value === "student" || value === "individual";
 }
 
-/** Individuals skip the college question and land on the non-college setup. */
+/** Individuals skip the college question and land on the individual setup. */
 export function learnerRoleForLogin(role: LoginRole | null | undefined): LearnerRole | null {
   if (role === "individual") return "other";
   return null;

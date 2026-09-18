@@ -13,7 +13,7 @@ export const CLASS_YEARS = ["11", "12", "dropper", "ug1", "ug2", "ug3", "ug4", "
 
 export type ClassYear = (typeof CLASS_YEARS)[number];
 
-/** First onboarding question: college student, or not. */
+/** First onboarding question: college student, or individual. */
 export const LEARNER_ROLES = ["college", "other"] as const;
 
 export type LearnerRole = (typeof LEARNER_ROLES)[number];
@@ -65,7 +65,7 @@ export const CLASS_YEAR_LABELS: Record<ClassYear, string> = {
 
 export const LEARNER_ROLE_LABELS: Record<LearnerRole, string> = {
   college: "College student",
-  other: "Not in college",
+  other: "Individual",
 };
 
 export const SUBJECT_LABELS: Record<SubjectId, string> = {
