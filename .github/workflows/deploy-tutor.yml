@@ -1,45 +1,169 @@
-name: Deploy tutor
+name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [dev, main]
   workflow_dispatch:
 
 concurrency:
-  group: deploy-tutor
+  group: deploy
   cancel-in-progress: false
 
+permissions:
+  contents: write
+  deployments: write
+
+env:
+  PNPM_VERSION: "10.32.0"
+  CLOUDFLARE_PAGES_PROJECT: accelute
+  VITE_TUTOR_ORIGIN: https://app.accelute.co
+
 jobs:
-  deploy:
+  deploy-dev:
+    name: Cloudflare Pages (dev)
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 20
+    environment:
+      name: dev
+      url: https://dev.accelute.pages.dev
     steps:
-      - name: Require deploy secrets
+      - name: Require Cloudflare credentials
         env:
-          HOST: ${{ secrets.TUTOR_DEPLOY_HOST || secrets.AZURE_DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.TUTOR_DEPLOY_USER || secrets.AZURE_DEPLOY_USER }}
-          KEY: ${{ secrets.TUTOR_DEPLOY_SSH_KEY || secrets.AZURE_DEPLOY_SSH_KEY }}
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           missing=0
-          if [ -z "$HOST" ]; then echo "TUTOR_DEPLOY_HOST (or AZURE_DEPLOY_HOST) is not set"; missing=1; fi
-          if [ -z "$DEPLOY_USER" ]; then echo "TUTOR_DEPLOY_USER (or AZURE_DEPLOY_USER) is not set"; missing=1; fi
-          if [ -z "$KEY" ]; then echo "TUTOR_DEPLOY_SSH_KEY (or AZURE_DEPLOY_SSH_KEY) is not set"; missing=1; fi
+          if [ -z "$TOKEN" ]; then echo "CLOUDFLARE_API_TOKEN is not set"; missing=1; fi
+          if [ -z "$ACCOUNT" ]; then echo "CLOUDFLARE_ACCOUNT_ID repo variable is not set"; missing=1; fi
           if [ "$missing" -ne 0 ]; then
-            echo "Set TUTOR_DEPLOY_* (or the older AZURE_DEPLOY_*) repo secrets, then re-run."
+            echo "Set the CLOUDFLARE_API_TOKEN secret (Account / Cloudflare Pages / Edit) and the CLOUDFLARE_ACCOUNT_ID variable, then re-run."
             exit 1
           fi
 
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          host: ${{ secrets.TUTOR_DEPLOY_HOST || secrets.AZURE_DEPLOY_HOST }}
-          username: ${{ secrets.TUTOR_DEPLOY_USER || secrets.AZURE_DEPLOY_USER }}
-          key: ${{ secrets.TUTOR_DEPLOY_SSH_KEY || secrets.AZURE_DEPLOY_SSH_KEY }}
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build landing
+        run: pnpm turbo run build --filter=@heytutor/landing...
+        env:
+          VITE_TUTOR_ORIGIN: ${{ env.VITE_TUTOR_ORIGIN }}
+
+      - name: Upload landing dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: landing-dist
+          path: apps/landing/dist
+          retention-days: 1
+
+      - name: Deploy landing to Cloudflare Pages (dev)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/landing/dist --project-name=accelute --branch=dev --commit-dirty=true --commit-hash=${{ github.sha }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  sync-branches:
+    name: Keep dev and main in sync
+    needs: deploy-dev
+    if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Point both long-lived branches at this commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git push origin "${GITHUB_SHA}:refs/heads/dev"
+          git push origin "${GITHUB_SHA}:refs/heads/main"
+
+  deploy-production:
+    name: Production (Cloudflare + tutor)
+    needs: [deploy-dev, sync-branches]
+    if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    environment:
+      name: production
+      url: https://app.accelute.co
+    steps:
+      - name: Download landing dist
+        uses: actions/download-artifact@v4
+        with:
+          name: landing-dist
+          path: apps/landing/dist
+
+      - name: Deploy landing to Cloudflare Pages (production)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/landing/dist --project-name=accelute --branch=main --commit-dirty=true --commit-hash=${{ github.sha }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Require tutor deploy secrets
+        env:
+          HOST: ${{ secrets.TUTOR_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.TUTOR_DEPLOY_USER }}
+          KEY: ${{ secrets.TUTOR_DEPLOY_SSH_KEY }}
+        run: |
+          missing=0
+          if [ -z "$HOST" ]; then echo "TUTOR_DEPLOY_HOST is not set"; missing=1; fi
+          if [ -z "$DEPLOY_USER" ]; then echo "TUTOR_DEPLOY_USER is not set"; missing=1; fi
+          if [ -z "$KEY" ]; then echo "TUTOR_DEPLOY_SSH_KEY is not set"; missing=1; fi
+          if [ "$missing" -ne 0 ]; then
+            echo "Set the three TUTOR_DEPLOY_* repo secrets, then re-run."
+            exit 1
+          fi
+
+      - name: Deploy tutor over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        with:
+          host: ${{ secrets.TUTOR_DEPLOY_HOST }}
+          username: ${{ secrets.TUTOR_DEPLOY_USER }}
+          key: ${{ secrets.TUTOR_DEPLOY_SSH_KEY }}
           command_timeout: 40m
+          timeout: 60s
           request_pty: true
+          envs: GITHUB_SHA
           script: |
             set -euo pipefail
             cd /opt/heytutor
+            git fetch origin
             git fetch origin main
-            git reset --hard origin/main
+            git fetch origin dev || true
+            if ! git cat-file -e "${GITHUB_SHA}^{commit}" 2>/dev/null; then
+              git fetch origin "${GITHUB_SHA}"
+            fi
+            git reset --hard "${GITHUB_SHA}"
             ./deploy/aws/deploy.sh
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              if curl -fsS http://127.0.0.1:3000/api/health | grep -q '"ok":true'; then
+                echo "health ok"
+                exit 0
+              fi
+              sleep 5
+            done
+            echo "tutor health check failed after deploy"
+            exit 1

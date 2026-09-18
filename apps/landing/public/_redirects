@@ -1,0 +1,2 @@
+/app https://app.accelute.co/login?google=1 302
+/app/* https://app.accelute.co/:splat 302

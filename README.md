@@ -137,15 +137,16 @@ pnpm --filter @heytutor/tutor-core verify
 pnpm --filter @heytutor/tutor verify
 ```
 
-GitHub only deploys the tutor on push to `main`. Run these checks locally
+GitHub deploys Cloudflare Pages `dev` first, then promotes the same commit
+to `main` (tutor EC2 + landing production). Run these checks locally
 before pushing; they are not CI gates.
 
 ## Deployment
 
 | Surface | Platform | Notes |
 |---------|----------|--------|
-| Landing | Vercel | Root directory `apps/landing`; domain `accelute.co` |
-| Tutor UI + API + WebSocket | AWS EC2 | Push to `main` runs `.github/workflows/deploy-tutor.yml` (`deploy/aws/deploy.sh` on the box) |
+| Landing | Vercel production (`accelute.co`); Cloudflare Pages `dev` first (`dev.accelute.pages.dev`) | Push to `dev` or `main` runs `.github/workflows/deploy-tutor.yml` |
+| Tutor UI + API + WebSocket | AWS EC2 | Same workflow, after the Cloudflare `dev` stage (`deploy/aws/deploy.sh` on the box) |
 | Postgres | Hosted | `DATABASE_URL` — not Docker on the app box |
 | Objects | Private S3 | Lecture MP3s and question photos |
 

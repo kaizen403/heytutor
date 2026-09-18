@@ -107,6 +107,8 @@ Never add Cursor / `cursoragent` as a commit co-author. Never commit `.cursor/` 
    `AUTH_REQUIRED=1` and `NEXT_PUBLIC_AUTH_REQUIRED=1` (`htutor_uid` is the
    device identity again).
 10. **Production tutor is one EC2 process** (`tsx server.ts`: UI + API +
-    WebSocket TTS). Landing stays on Vercel (`accelute.co`). Leave
-    `BACKEND_ORIGIN` unset. Postgres is hosted (`DATABASE_URL`); lecture
-    MP3s and question photos are private S3. Runbook: [docs/ops/ci-cd.md](docs/ops/ci-cd.md).
+    WebSocket TTS). Landing production stays on Vercel (`accelute.co`).
+    GitHub deploys to Cloudflare Pages **dev** (`dev.accelute.co`) first,
+    then promotes the same commit to `main`. Leave `BACKEND_ORIGIN` unset.
+    Postgres is hosted (`DATABASE_URL`); lecture MP3s and question photos
+    are private S3. Runbook: [docs/ops/ci-cd.md](docs/ops/ci-cd.md).
