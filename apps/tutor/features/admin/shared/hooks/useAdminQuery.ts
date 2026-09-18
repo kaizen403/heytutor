@@ -9,16 +9,28 @@ interface AdminQueryState<T> {
   refresh: () => void;
 }
 
+interface FetchState<T> {
+  url: string;
+  data: T | null;
+  error: string | null;
+}
+
+function errorForStatus(status: number): string {
+  if (status === 401) return "unauthorized";
+  if (status === 404) return "not_found";
+  return "request_failed";
+}
+
 /**
  * Fetch an admin API on mount (and on every `url` change), with an optional
- * poll interval. Same shape as `useRunCost`: plain fetch, error strings the
- * panel renders directly, and an in-flight abort so a slow earlier request
- * cannot overwrite a newer one.
+ * poll interval. Same shape as `useRunCost`: plain fetch and error strings the
+ * panel renders directly. Results are keyed by url and compared at read time,
+ * so a url change never shows the previous url's payload; an in-flight abort
+ * means a slow earlier request cannot overwrite a newer one either.
  */
 export function useAdminQuery<T>(url: string | null, pollMs?: number): AdminQueryState<T> {
-  const [data, setData] = useState<T | null>(null);
+  const [state, setState] = useState<FetchState<T> | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -26,11 +38,13 @@ export function useAdminQuery<T>(url: string | null, pollMs?: number): AdminQuer
     setNonce((current) => current + 1);
   }, []);
 
+  const current = state != null && state.url === (url ?? "") ? state : null;
+  const data = url != null ? (current?.data ?? null) : null;
+  const error = url != null ? (current?.error ?? null) : null;
+
   useEffect(() => {
     if (!url) {
       abortRef.current?.abort();
-      setData(null);
-      setError(null);
       return;
     }
     const controller = new AbortController();
@@ -43,22 +57,17 @@ export function useAdminQuery<T>(url: string | null, pollMs?: number): AdminQuer
         const response = await fetch(url, { signal: controller.signal });
         if (!response.ok) {
           if (!controller.signal.aborted) {
-            setError(
-              response.status === 401
-                ? "unauthorized"
-                : response.status === 404
-                  ? "not_found"
-                  : "request_failed",
-            );
+            setState({ url, data: null, error: errorForStatus(response.status) });
           }
           return;
         }
         const payload = (await response.json()) as T;
         if (controller.signal.aborted) return;
-        setData(payload);
-        setError(null);
+        setState({ url, data: payload, error: null });
       } catch {
-        if (!controller.signal.aborted) setError("request_failed");
+        if (!controller.signal.aborted) {
+          setState({ url, data: null, error: "request_failed" });
+        }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
