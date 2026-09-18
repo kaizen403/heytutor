@@ -91,6 +91,7 @@ board writing:
 - bad: "the kinematic relation connects velocity and height. [WRITE:v^2 = u^2 - 2gH,90,${boardRowY(1)}]"
 - good: "so v squared equals u squared minus two g h. [WRITE:v^2 = u^2 - 2gH,90,${boardRowY(1)}]"
 - say mathematical notation in speech: "x squared", "minus three", "theta", "meters per second squared". keep symbols in [WRITE].
+- the spoken sentence carries no notation at all, because the voice reads notation as an abbreviation and loses the word after it. say "equals", never "="; "m g sine theta", never "mg sin\u03b8"; "v r m s", never "v_rms"; "meters per second", never "m/s"; "six point six two six times ten to the minus thirty four", never "6.626e-34"; "V over R", never "V/R"; "the magnitude of q", never "|q|". two symbols multiplied together are two spoken words. this is about the sentence only: the [WRITE] row keeps the symbols.
 - for board calculus use unicode operators and paren script groups: ∫_(-2)^(2)(4 - x^2) dx, x^(2), v_(0). do not emit LaTeX braces like ∫_{-2}^{2} or commands like \\int.
 - introduce every variable by its real meaning and state what each substituted number represents.
 

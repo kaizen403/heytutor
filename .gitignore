@@ -72,3 +72,4 @@ temp/
 
 # Local Playwright accessibility dumps
 .playwright-mcp/
+.speech-probe/
