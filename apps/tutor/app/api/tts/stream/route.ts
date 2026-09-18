@@ -94,6 +94,7 @@ export async function POST(request: Request): Promise<Response> {
     recordTtsSpend({
       userId: actor.userId,
       characters: spokenText.length,
+      model,
       skipAutumn: actor.skipAutumn,
       skipGates: actor.skipGates,
     });

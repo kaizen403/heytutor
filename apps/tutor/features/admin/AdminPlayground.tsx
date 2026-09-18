@@ -7,12 +7,14 @@ import { TutorSessionShell, unlockTutorAudio } from "@/features/tutor-session";
 import { AdminToolbar } from "./components/AdminToolbar";
 import { MessageDialog } from "./components/MessageDialog";
 import { RunBar } from "./components/RunBar";
+import { RunCostBox } from "./components/RunCostBox";
 import { TopicRow } from "./components/TopicRow";
 import { TopicSheet } from "./components/TopicSheet";
 import { UnitSection, type UnitSummary } from "./components/UnitSection";
 import { WatchDrawer, type WatchIntent } from "./components/WatchDrawer";
 import { useLectureQueue } from "./hooks/useLectureQueue";
 import { useLiveWatchSlot } from "./hooks/useLiveWatchSlot";
+import { useRunCost } from "./hooks/useRunCost";
 import { useSyllabusProgress } from "./hooks/useSyllabusProgress";
 import {
   headlessLectureBoardStyle,
@@ -114,6 +116,24 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     () => buildLectureStates(queue.jobs, recordings, recordingBoardIds),
     [queue.jobs, recordings, recordingBoardIds],
   );
+  const costSessionIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const job of queue.jobs) {
+      if (job.boardId) ids.add(job.boardId);
+    }
+    for (const runtime of queue.runtimes) {
+      ids.add(runtime.boardId);
+    }
+    return [...ids];
+  }, [queue.jobs, queue.runtimes]);
+  const costTitlesBySession = useMemo(() => {
+    const titles: Record<string, string> = {};
+    for (const job of queue.jobs) {
+      if (job.boardId) titles[job.boardId] = lectureJobTitle(job);
+    }
+    return titles;
+  }, [queue.jobs]);
+  const runCost = useRunCost(costSessionIds, queue.isBusy);
 
   const units = tree.subjects[subject];
   const subjectHasFixtures = useMemo(
@@ -523,6 +543,17 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
             }
             completedDeleteCount={completedJobRecordingIds.length}
           />
+
+          {queue.jobs.length > 0 ? (
+            <RunCostBox
+              busy={queue.isBusy}
+              lectureCount={queue.jobs.length}
+              titlesBySession={costTitlesBySession}
+              data={runCost.data}
+              loading={runCost.loading}
+              error={runCost.error}
+            />
+          ) : null}
         </div>
       </div>
 

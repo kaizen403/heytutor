@@ -98,8 +98,36 @@ export function resolveLlmRates(model?: string | null): {
   };
 }
 
-function elevenLabsUsdPer1kChars(): number {
-  return readEnvNumber("ELEVENLABS_USD_PER_1K_CHARS", 0.05);
+export type TtsRateLane = "flash" | "multilingual" | "unknown";
+
+/** ElevenLabs published API rates (USD per 1k characters). */
+export const TTS_RATE_DEFAULTS: Record<TtsRateLane, number> = {
+  flash: 0.05,
+  multilingual: 0.1,
+  unknown: 0.1,
+};
+
+export function resolveTtsRateLane(model?: string | null): TtsRateLane {
+  const id = (model ?? "").toLowerCase();
+  if (!id) return "unknown";
+  if (id.includes("flash") || id.includes("turbo")) return "flash";
+  if (id.includes("multilingual") || id.includes("eleven_v3") || id.includes("eleven-v3")) {
+    return "multilingual";
+  }
+  return "unknown";
+}
+
+function elevenLabsUsdPer1kChars(model?: string | null): number {
+  const global = process.env.ELEVENLABS_USD_PER_1K_CHARS;
+  if (global) {
+    const parsed = Number.parseFloat(global);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  const lane = resolveTtsRateLane(model);
+  if (lane === "flash") {
+    return readEnvNumber("ELEVENLABS_FLASH_USD_PER_1K_CHARS", TTS_RATE_DEFAULTS.flash);
+  }
+  return readEnvNumber("ELEVENLABS_MULTILINGUAL_USD_PER_1K_CHARS", TTS_RATE_DEFAULTS[lane]);
 }
 
 export function calculateLlmCostDetails(
@@ -116,8 +144,11 @@ export function calculateLlmCostDetails(
   return { input, output, total };
 }
 
-export function calculateTtsCostDetails(characters: number): CostDetails {
-  const charactersCost = roundUsd((characters / 1000) * elevenLabsUsdPer1kChars());
+export function calculateTtsCostDetails(
+  characters: number,
+  options: { model?: string | null } = {},
+): CostDetails {
+  const charactersCost = roundUsd((characters / 1000) * elevenLabsUsdPer1kChars(options.model));
   return { characters: charactersCost, total: charactersCost };
 }
 
@@ -128,8 +159,11 @@ export function llmUsageUsd(
   return calculateLlmCostDetails(usage, options).total ?? 0;
 }
 
-export function ttsUsageUsd(characters: number): number {
-  return calculateTtsCostDetails(characters).total ?? 0;
+export function ttsUsageUsd(
+  characters: number,
+  options: { model?: string | null } = {},
+): number {
+  return calculateTtsCostDetails(characters, options).total ?? 0;
 }
 
 export function enrichTraceMetadataWithCosts(

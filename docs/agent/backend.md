@@ -23,6 +23,7 @@ routes are Next.js route handlers, plus a custom WebSocket relay in `server.ts`.
 | `/api/health` | `app/api/health/route.ts` | GET | Process + Postgres ping |
 | `/api/tts/ws-ticket` | `app/api/tts/ws-ticket/route.ts` | POST | Mint a short-lived ticket for `/api/tts/ws` |
 | `/api/trace/event` | `app/api/trace/event/route.ts` | POST | Client telemetry → Langfuse |
+| `/api/admin/run-cost` | `app/api/admin/run-cost/route.ts` | POST | Admin playground: Langfuse tokens + ElevenLabs/Fireworks USD for a run |
 
 ## Custom Server (`server.ts`)
 

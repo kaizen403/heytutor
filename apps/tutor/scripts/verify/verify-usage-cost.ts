@@ -1,9 +1,11 @@
 import {
   LLM_RATE_DEFAULTS,
+  TTS_RATE_DEFAULTS,
   calculateLlmCostDetails,
   calculateTtsCostDetails,
   resolveLlmRateLane,
   resolveLlmRates,
+  resolveTtsRateLane,
 } from "../../lib/obs/usageCost";
 import {
   DEFAULT_FIREWORKS_FAST_MODEL,
@@ -53,7 +55,14 @@ const unknown = calculateLlmCostDetails(
 );
 assert(unknown.input === 4.5, "unknown models must overestimate using Kimi Fast, not the old $0.22 table");
 
-const tts = calculateTtsCostDetails(1000);
-assert(tts.total === 0.05, "ElevenLabs default remains $0.05 / 1k chars");
+const ttsUnknown = calculateTtsCostDetails(1000);
+assert(ttsUnknown.total === TTS_RATE_DEFAULTS.unknown, "unknown TTS overestimates on Multilingual, not Flash");
+assert(resolveTtsRateLane("eleven_flash_v2_5") === "flash", "Flash v2.5 is the $0.05 lane");
+assert(resolveTtsRateLane("eleven_multilingual_v2") === "multilingual", "Multilingual v2 is the $0.10 lane");
+assert(calculateTtsCostDetails(1000, { model: "eleven_flash_v2_5" }).total === 0.05, "Flash is $0.05 / 1k");
+assert(
+  calculateTtsCostDetails(1000, { model: "eleven_multilingual_v2" }).total === 0.1,
+  "Multilingual is $0.10 / 1k",
+);
 
 console.log("✓ per-model usageCost rates (Kimi Fast, Kimi K3, DeepSeek Flash, Qwen vision, TTS)");

@@ -62,6 +62,7 @@ async function recordTtsFromRequest(
     recordTtsSpend({
       userId: actor.userId,
       characters: text.length,
+      model,
       skipAutumn: actor.skipAutumn,
       skipGates: actor.skipGates,
     });

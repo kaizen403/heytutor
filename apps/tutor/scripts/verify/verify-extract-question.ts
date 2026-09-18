@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import {
   parseExtractedQuestion,
   readExtractedContent,
@@ -89,5 +90,9 @@ assert(parsedPng?.ext === "png", "png data URLs map to .png");
 assert(parsedPng != null && Buffer.from(parsedPng.bytes).equals(Buffer.from(pngBytes)), "png bytes round-trip");
 assert(readQuestionImage("data:image/svg+xml;base64,YQ==") === null, "svg photos are rejected");
 assert(readQuestionImage("not-a-data-url") === null, "plain text is not a photo");
+
+const extractRoute = readFileSync(new URL("../../app/api/extract-question/route.ts", import.meta.url), "utf8");
+assert(extractRoute.includes("startTurnTrace"), "OCR must open a Langfuse generation");
+assert(extractRoute.includes('generationName: "qwen-vision"'), "OCR observations must be named for the vision lane");
 
 console.log("extract question verification passed");

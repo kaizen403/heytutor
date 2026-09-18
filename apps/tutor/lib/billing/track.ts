@@ -75,13 +75,14 @@ export function recordLlmSpend(input: {
 export function recordTtsSpend(input: {
   userId: string;
   characters: number;
+  model?: string | null;
   skipAutumn?: boolean;
   skipGates?: boolean;
 }): void {
   if (input.characters <= 0 || !isTtsConfigured()) {
     return;
   }
-  const usd = calculateTtsCostDetails(input.characters).total ?? 0;
+  const usd = calculateTtsCostDetails(input.characters, { model: input.model }).total ?? 0;
   if (shouldCountUsd(input) && usd > 0) {
     rememberSpend({
       userId: input.userId,

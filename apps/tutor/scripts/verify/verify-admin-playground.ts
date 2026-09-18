@@ -117,6 +117,8 @@ assert(
   watchDrawer.includes("onNotesOpenChange"),
   "admin Notes must open the session's own Ask panel",
 );
+const playground = readFileSync(join(__dirname, "../../features/admin/AdminPlayground.tsx"), "utf8");
+assert(playground.includes("RunCostBox"), "admin runs must show Langfuse cost next to the queue");
 assert(
   !watchDrawer.includes("LectureNotesPanel"),
   "admin Watch must not mount a second, poorer notes surface",

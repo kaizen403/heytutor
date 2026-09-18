@@ -6,6 +6,12 @@ import {
   readExtractedContent,
 } from "@/lib/llm/extractQuestion";
 import { resolveFireworksVisionModel } from "@/lib/llm/fireworksModels";
+import {
+  endLlmGeneration,
+  flushInBackground,
+  genTraceId,
+  startTurnTrace,
+} from "@/lib/obs/langfuse";
 import { questionImageKey } from "@/lib/object-store/keys";
 import { readQuestionImage } from "@/lib/object-store/questionImage";
 import { uploadImage } from "@/lib/object-store/s3";
@@ -40,6 +46,15 @@ export async function POST(request: Request): Promise<Response> {
 
   const model = resolveFireworksVisionModel();
   const startedAt = Date.now();
+  const sessionId = request.headers.get("x-session-id") ?? undefined;
+  const turnTrace = startTurnTrace({
+    sessionId,
+    input: "extract-question",
+    traceId: genTraceId(),
+    model,
+    name: "extract-question",
+    generationName: "qwen-vision",
+  });
   let response: Response;
   try {
     response = await fetch(FIREWORKS_CHAT_URL, {
@@ -66,6 +81,14 @@ export async function POST(request: Request): Promise<Response> {
       }),
     });
   } catch {
+    endLlmGeneration(turnTrace, {
+      output: "extract-question fetch failed",
+      metadata: { error: true },
+      model,
+      updateTrace: false,
+      level: "ERROR",
+    });
+    flushInBackground();
     return Response.json(
       { error: "Could not read that image. Try a clearer photo." },
       { status: 502 },
@@ -73,6 +96,14 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (!response.ok) {
+    endLlmGeneration(turnTrace, {
+      output: `extract-question upstream ${response.status}`,
+      metadata: { error: true, status: response.status },
+      model,
+      updateTrace: false,
+      level: "ERROR",
+    });
+    flushInBackground();
     return Response.json(
       { error: "Could not read that image. Try a clearer photo." },
       { status: 502 },
@@ -87,21 +118,42 @@ export async function POST(request: Request): Promise<Response> {
     readExtractedContent(data.choices?.[0]?.message?.content),
   );
   if (!question) {
+    endLlmGeneration(turnTrace, {
+      output: "",
+      usageDetails: {
+        input: data.usage?.prompt_tokens,
+        output: data.usage?.completion_tokens,
+        total: data.usage?.total_tokens,
+      },
+      metadata: { error: true, reason: "no_question" },
+      model,
+      updateTrace: false,
+      level: "WARNING",
+    });
+    flushInBackground();
     return Response.json(
       { error: "No question found in that image. Try a closer, sharper photo." },
       { status: 422 },
     );
   }
 
+  const usage = {
+    input: data.usage?.prompt_tokens,
+    output: data.usage?.completion_tokens,
+    total: data.usage?.total_tokens,
+  };
+  endLlmGeneration(turnTrace, {
+    output: question,
+    usageDetails: usage,
+    metadata: { latency_ms: Date.now() - startedAt },
+    model,
+  });
   recordLlmSpend({
     actor,
     model,
-    usage: {
-      input: data.usage?.prompt_tokens,
-      output: data.usage?.completion_tokens,
-      total: data.usage?.total_tokens,
-    },
+    usage,
   });
+  flushInBackground();
 
   const imageUrl = await uploadImage(
     questionImageKey(actor.userId, crypto.randomUUID(), image.ext),

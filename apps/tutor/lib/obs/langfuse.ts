@@ -13,13 +13,8 @@ import {
 } from "./usageCost";
 
 let client: Langfuse | null | undefined;
-let tracingDisabled = false;
 
-function isLangfuseEnabled(): boolean {
-  if (tracingDisabled) {
-    return false;
-  }
-
+export function isLangfuseConfigured(): boolean {
   const flag = process.env.LANGFUSE_ENABLED;
   if (flag === "false" || flag === "0") {
     return false;
@@ -32,16 +27,8 @@ function isLangfuseEnabled(): boolean {
   return Boolean(publicKey && secretKey && baseUrl);
 }
 
-function disableTracing(): void {
-  if (tracingDisabled) {
-    return;
-  }
-
-  tracingDisabled = true;
-  const activeClient = client;
-  client = null;
-
-  void activeClient?.shutdownAsync().catch(() => undefined);
+function isLangfuseEnabled(): boolean {
+  return isLangfuseConfigured();
 }
 
 function getClient(): Langfuse | null {
@@ -254,7 +241,7 @@ export function recordTtsSpan({
   const costDetails =
     transport === "browser-fallback"
       ? { characters: 0, total: 0 }
-      : calculateTtsCostDetails(characters);
+      : calculateTtsCostDetails(characters, { model });
 
   generation.end({
     usageDetails: { characters },
@@ -378,8 +365,9 @@ export async function flushSafely(): Promise<void> {
         setTimeout(() => reject(new Error("langfuse flush timeout")), FLUSH_TIMEOUT_MS);
       }),
     ]);
-  } catch {
-    disableTracing();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "langfuse flush failed";
+    console.warn("[langfuse]", message);
   }
 }
 

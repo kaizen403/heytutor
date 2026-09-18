@@ -238,6 +238,7 @@ export async function POST(request: Request, context: RouteContext) {
     max_tokens: NOTES_CHAT_MAX_TOKENS,
     temperature: 0.3,
     stream: true,
+    stream_options: { include_usage: true },
     reasoning_effort: "none",
     messages: [
       { role: "system", content: systemPrompt },
@@ -283,6 +284,7 @@ export async function POST(request: Request, context: RouteContext) {
   const decoder = new TextDecoder();
   let buffered = "";
   let accumulated = "";
+  let latestUsage: { input?: number; output?: number; total?: number } | undefined;
 
   const transform = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
@@ -290,6 +292,8 @@ export async function POST(request: Request, context: RouteContext) {
       const lines = buffered.split(/\r?\n/);
       buffered = lines.pop() ?? "";
       for (const line of lines) {
+        const usage = readNotesChatUsage(line);
+        if (usage) latestUsage = usage;
         const encoded = encodeNotesChatDelta(line);
         if (encoded.delta) {
           accumulated += encoded.delta;
@@ -299,6 +303,8 @@ export async function POST(request: Request, context: RouteContext) {
     },
     async flush(controller) {
       if (buffered.length > 0) {
+        const usage = readNotesChatUsage(buffered);
+        if (usage) latestUsage = usage;
         const encoded = encodeNotesChatDelta(buffered);
         if (encoded.delta) {
           accumulated += encoded.delta;
@@ -313,11 +319,13 @@ export async function POST(request: Request, context: RouteContext) {
       }
       endLlmGeneration(turnTrace, {
         output: reply,
+        usageDetails: latestUsage,
         metadata: { content_chars: reply.length },
+        model,
       });
       if (reply) {
         recordNotesMessage(actor);
-        recordLlmSpend({ actor, model });
+        recordLlmSpend({ actor, model, usage: latestUsage });
       }
       flushInBackground();
       controller.enqueue(encodeSse({ done: true }));
@@ -353,5 +361,25 @@ function encodeNotesChatDelta(line: string): { delta: string } {
     return { delta: typeof delta === "string" ? delta : "" };
   } catch {
     return { delta: "" };
+  }
+}
+
+function readNotesChatUsage(line: string): { input?: number; output?: number; total?: number } | undefined {
+  if (!line.startsWith("data: ")) return undefined;
+  const jsonString = line.slice(6).trim();
+  if (!jsonString || jsonString === "[DONE]") return undefined;
+  try {
+    const parsed: unknown = JSON.parse(jsonString);
+    if (!isRecord(parsed) || !isRecord(parsed.usage)) return undefined;
+    const input = parsed.usage.prompt_tokens;
+    const output = parsed.usage.completion_tokens;
+    const total = parsed.usage.total_tokens;
+    return {
+      input: typeof input === "number" ? input : undefined,
+      output: typeof output === "number" ? output : undefined,
+      total: typeof total === "number" ? total : undefined,
+    };
+  } catch {
+    return undefined;
   }
 }

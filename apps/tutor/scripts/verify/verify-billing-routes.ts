@@ -98,6 +98,18 @@ assert(
   langfuse.includes("calculateLlmCostDetails(usageDetails, { model: model ?? turn.model })"),
   "Langfuse must cost generations with the actual model, not a flat Fireworks table",
 );
+assert(
+  langfuse.includes("calculateTtsCostDetails(characters, { model })"),
+  "Langfuse TTS cost must follow the ElevenLabs model, not a flat Flash rate",
+);
+assert(
+  read("app/api/admin/run-cost/route.ts").includes("fetchRunCostForSessions"),
+  "admin run-cost must query Langfuse observations",
+);
+assert(
+  read("app/api/boards/[boardId]/notes-chat/route.ts").includes("include_usage: true"),
+  "notes-chat must send Fireworks usage to Langfuse",
+);
 
 const pooled = withPrismaPoolLimits("postgresql://u:p@host/db?sslmode=require");
 assert(pooled.includes("connection_limit=5"), "pooled URL sets connection_limit");

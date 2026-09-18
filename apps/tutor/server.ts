@@ -245,6 +245,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
           recordTtsSpend({
             userId: context.userId,
             characters,
+            model: modelId,
             skipAutumn: liveGrant?.skipAutumn ?? !isAutumnEnabled(),
             skipGates: liveGrant?.skipGates ?? false,
           });
