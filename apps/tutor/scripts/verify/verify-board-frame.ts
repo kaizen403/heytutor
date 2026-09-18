@@ -13,16 +13,16 @@ import {
   shouldLockBoardScale,
 } from "../../features/tutor-session/lib/board/boardFrame";
 
-function assert(condition: unknown, message: string): asserts condition {
+function assert(condition: unknown, message = "assertion failed"): asserts condition {
   if (!condition) throw new Error(message);
 }
 
 const tutorRoot = resolve(import.meta.dirname, "../..");
 const read = (relative: string) => readFileSync(resolve(tutorRoot, relative), "utf8");
 
-assert(boardFramePaddingPx(false) === BOARD_BEZEL_DESKTOP_PX * 2);
-assert(boardFramePaddingPx(true) === BOARD_BEZEL_MOBILE_PX * 2);
-assert(BOARD_FRAME_MOBILE_MQ === "(max-width: 640px)");
+assert(boardFramePaddingPx(false) === BOARD_BEZEL_DESKTOP_PX * 2, "desktop pad is 2× the desktop bezel");
+assert(boardFramePaddingPx(true) === BOARD_BEZEL_MOBILE_PX * 2, "mobile pad is 2× the mobile bezel");
+assert(BOARD_FRAME_MOBILE_MQ === "(max-width: 640px)", "bezel breakpoint is 640px");
 
 assert(
   shouldLockBoardScale({ widthDelta: 0, heightDelta: 2, keyboardInset: 0 }),
