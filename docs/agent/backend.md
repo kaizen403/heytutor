@@ -24,6 +24,15 @@ routes are Next.js route handlers, plus a custom WebSocket relay in `server.ts`.
 | `/api/tts/ws-ticket` | `app/api/tts/ws-ticket/route.ts` | POST | Mint a short-lived ticket for `/api/tts/ws` |
 | `/api/trace/event` | `app/api/trace/event/route.ts` | POST | Client telemetry → Langfuse |
 | `/api/admin/run-cost` | `app/api/admin/run-cost/route.ts` | POST | Admin playground: Langfuse tokens + ElevenLabs/Fireworks USD for a run |
+| `/api/admin/overview` | `app/api/admin/overview/route.ts` | GET | Admin panel KPIs, 14-day UTC series, outcome/tier/degradation distributions, top lists |
+| `/api/admin/users` | `app/api/admin/users/route.ts` | GET | Admin panel user list with activity aggregates (`query`, `sort`, `page`, `pageSize`) |
+| `/api/admin/users/[userId]` | `app/api/admin/users/[userId]/route.ts` | GET | Admin panel user drill-down: profile, settings, boards, turns, chat, spend |
+| `/api/admin/turns` | `app/api/admin/turns/route.ts` | GET | Admin panel turn log (`outcome`, `userId`, `boardId`, `query`, `days`, pagination) |
+
+All `/api/admin/*` routes gate on `requireAdminRequest()` (staff/admins only
+once auth is on; open while `AUTH_REQUIRED` is unset for testing) and never
+return `rawResponse`, scene documents, or segment audio URLs — the admin
+payloads are slim summaries computed in `apps/tutor/lib/admin/`.
 
 ## Custom Server (`server.ts`)
 

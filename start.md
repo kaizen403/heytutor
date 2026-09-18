@@ -93,6 +93,7 @@ Done when narration starts only after a validated commit, and persisted commands
 | persist trust | `apps/tutor/lib/scene/turnScenePersistence.ts` |
 | LLM proxy | `apps/tutor/app/api/chat/route.ts` |
 | Konva | `packages/whiteboard/src/Whiteboard.tsx` |
+| admin panel (overview, users, logs, fails) | `apps/tutor/features/admin/` + `apps/tutor/lib/admin/` |
 | admin lectures | `apps/tutor/features/admin/` |
 
 ## Next

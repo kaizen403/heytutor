@@ -54,6 +54,8 @@ the canvas and still teach. Invalid or partial candidates never render.
 | Question bank pipeline | `tools/question-bank/` + `data/question-bank/` |
 | DSA worked examples (LeetCode) | `packages/scene-engine/src/dsa/` — simulators, `traceToScene`, `familyTeaching` |
 | DSA lesson bench | `apps/tutor/scripts/lecture-lab/dsa-run.ts` + `data/leetcode-probes/` |
+| Admin panel (overview / users / logs / fails) | `apps/tutor/app/admin/(panel)/` + `features/admin/{nav,analytics,users,turns,shared}/` + `lib/admin/` |
+| Test playground (syllabus lectures) | `apps/tutor/app/admin/playground/page.tsx` + `features/admin/AdminPlayground.tsx` |
 | Chemistry figures (formula to figure) | `packages/scene-engine/src/chemistry/` — families, `classify.ts`, `router.ts`; bench in `scripts/chemistry-lab/` |
 
 ## Agent Guidelines

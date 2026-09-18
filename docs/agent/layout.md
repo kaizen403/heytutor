@@ -30,7 +30,11 @@ this file and strike it from that plan.
 - Session UI (home board, `/c/[id]`, landing overlay, notes, marking, code
   panel) → `apps/tutor/features/tutor-session/`. Shared primitives only in
   `apps/tutor/components/ui/`. Brand marks in `apps/tutor/components/brand/`.
-  Admin playground → `apps/tutor/features/admin/`.
+  Admin panel → `apps/tutor/features/admin/` (`nav/` shell nav, `analytics/`
+  overview, `users/` manage-users + drill-down, `turns/` logs + fails,
+  `shared/` kit; `AdminPlayground.tsx` is the full-bleed test playground at
+  `/admin/playground`, outside the `(panel)` route group). Admin server
+  queries and wire payloads → `apps/tutor/lib/admin/`.
 - App helper → `apps/tutor/lib/<domain>/`, not `features/` and not a new file
   at `lib/` root unless it is a tiny cross-cutting util (`auth.ts`, `utils.ts`,
   `site.ts`, `cookies.ts`). Domains already in use:
@@ -108,10 +112,13 @@ apps/tutor/
     lib/
       scene/  board/  turn/  notes/  input/  replay/  code-lesson/
       statusConfig.ts
-  features/admin/              syllabus playground
+  features/admin/              admin panel + syllabus playground
+    nav/  analytics/  users/  turns/  shared/
+    AdminPlayground.tsx        full-bleed playground (/admin/playground)
+    components/  hooks/  lib/  playground internals
   lib/                         app-wide helpers grouped by domain
     boards/  scene/  replay/  tts/  llm/  obs/  object-store/  r2/  client/  db/
-    code-lesson/  code-render/  lecture-export/
+    code-lesson/  code-render/  lecture-export/  admin/
   scripts/
     dev.ts
     verify/                    wired into pnpm verify
