@@ -1,8 +1,17 @@
 import type { NextConfig } from "next";
 import path from "path";
+import { securityHeaderEntries } from "./lib/http/securityHeaders";
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaderEntries(),
+      },
+    ];
+  },
   // Deploy CI already built this commit. Do not let Next's extra lint pass
   // fail the EC2 restart the way `react-hooks/set-state-in-effect` did.
   eslint: { ignoreDuringBuilds: true },

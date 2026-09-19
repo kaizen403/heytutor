@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * The panel shares one gate with the playground page: open while auth is off
- * for testing, staff/admins only once it is on. The playground lives outside
+ * The panel shares one gate with the playground page: open only for AUTH_DISABLED
+ * local testing, staff/admins only once the login gate is on. The playground lives outside
  * this route group on purpose — it is full-bleed and owns its own h-screen
  * layout, so it must not inherit this nav.
  */

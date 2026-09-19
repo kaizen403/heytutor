@@ -1,7 +1,8 @@
 /**
  * Lecture lab batch runner.
  *
- * Usage (dev server must be up):
+ * Usage (dev server must be up, AUTH_DISABLED=1, LECTURE_LAB_TOKEN set on
+ * both the server and this process):
  *   pnpm --filter @heytutor/tutor exec tsx scripts/lecture-lab/run.ts \
  *     --difficulty hard --per-unit 1 --concurrency 3 --out .lecture-lab/run-01
  */
@@ -12,6 +13,7 @@ import { unitIdFromTopicId } from "@/features/admin/lib/probes";
 import { gradeLecture, type LectureGrade } from "./grade";
 import { printSummary, summarize } from "./summarize";
 import { runLecture, type LectureRun } from "./lecturePipeline";
+import { applyLectureLabHeaders } from "./labAuth";
 import type { SubjectFamiliarity } from "@heytutor/tutor-core";
 
 interface Options {
@@ -221,7 +223,7 @@ async function main(): Promise<void> {
     if (url.startsWith(options.origin)) {
       const headers = new Headers(init?.headers ?? {});
       headers.set("cookie", cookie);
-      headers.set("x-heytutor-lecture-lab", "1");
+      applyLectureLabHeaders(headers);
       return nativeFetch(input, { ...init, headers });
     }
     return nativeFetch(input, init);

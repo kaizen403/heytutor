@@ -14,10 +14,10 @@ export async function getSessionUserId(): Promise<string | null> {
 }
 
 export async function getAnonymousCookieId(): Promise<string | null> {
+  if (!isAuthDisabled()) return null;
   const cookieStore = await cookies();
   const existing = cookieStore.get(HTUTOR_UID_COOKIE)?.value;
   if (existing) return existing;
-  if (!isAuthDisabled()) return null;
   const minted = crypto.randomUUID();
   try {
     cookieStore.set(HTUTOR_UID_COOKIE, minted, {
@@ -34,15 +34,14 @@ export async function getAnonymousCookieId(): Promise<string | null> {
 }
 
 /**
- * Signed-in student id, or the embed/demo cookie identity when there is no
- * Auth.js session. While auth is off for testing, skip Auth.js entirely so a
- * leftover session cookie cannot crash the request.
+ * Signed-in student id, or the device cookie only while AUTH_DISABLED=1.
+ * When the login gate is on, a raw htutor_uid must not become a user id.
  */
 export async function getUserId(): Promise<string | null> {
   if (isAuthDisabled()) {
     return getAnonymousCookieId();
   }
-  return (await getSessionUserId()) ?? (await getAnonymousCookieId());
+  return getSessionUserId();
 }
 
 export async function requireSessionUserId(): Promise<string | NextResponse> {

@@ -16,6 +16,7 @@ import { familyById } from "@heytutor/scene-engine";
 import type { SubjectFamiliarity } from "@heytutor/tutor-core";
 import { gradeDsaLecture, type DsaLectureGrade } from "./dsaGrade";
 import { runDsaLecture, type DsaLectureRun } from "./dsaPipeline";
+import { applyLectureLabHeaders } from "./labAuth";
 
 interface LeetCodeProbe {
   id: string;
@@ -305,7 +306,7 @@ async function main(): Promise<void> {
       if (url.startsWith(options.origin)) {
         const headers = new Headers(init?.headers ?? {});
         headers.set("cookie", cookie);
-        headers.set("x-heytutor-lecture-lab", "1");
+        applyLectureLabHeaders(headers);
         return nativeFetch(input, { ...init, headers });
       }
       return nativeFetch(input, init);

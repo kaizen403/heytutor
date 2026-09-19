@@ -28,18 +28,20 @@ assert(!teenMissing.ok && teenMissing.reason === "guardian_required", "13–17 n
 const teenOk = decideAgeGate({ ageBand: "13_17", guardianEmail: "parent@example.com" });
 assert(teenOk.ok && teenOk.band === "13_17" && teenOk.guardianEmail === "parent@example.com", "valid guardian email continues");
 
-const savedAuthRequired = process.env.AUTH_REQUIRED;
-const savedPublicAuthRequired = process.env.NEXT_PUBLIC_AUTH_REQUIRED;
-delete process.env.AUTH_REQUIRED;
-delete process.env.NEXT_PUBLIC_AUTH_REQUIRED;
-assert(isAuthDisabled(), "login gate stays off until AUTH_REQUIRED=1");
-process.env.AUTH_REQUIRED = "1";
-process.env.NEXT_PUBLIC_AUTH_REQUIRED = "1";
-assert(!isAuthDisabled(), "login gate is on when both AUTH_REQUIRED flags are 1");
-if (savedAuthRequired === undefined) delete process.env.AUTH_REQUIRED;
-else process.env.AUTH_REQUIRED = savedAuthRequired;
-if (savedPublicAuthRequired === undefined) delete process.env.NEXT_PUBLIC_AUTH_REQUIRED;
-else process.env.NEXT_PUBLIC_AUTH_REQUIRED = savedPublicAuthRequired;
+function env(values: Record<string, string>): NodeJS.ProcessEnv {
+  return values as unknown as NodeJS.ProcessEnv;
+}
+
+assert(!isAuthDisabled(env({}), "development"), "login gate is on when AUTH_DISABLED is unset");
+assert(!isAuthDisabled(env({ AUTH_DISABLED: "1" }), "production"), "AUTH_DISABLED is ignored in production");
+assert(
+  isAuthDisabled(env({ AUTH_DISABLED: "1" }), "development"),
+  "AUTH_DISABLED=1 is the local testing hatch",
+);
+assert(
+  isAuthDisabled(env({ NEXT_PUBLIC_AUTH_DISABLED: "1" }), "development"),
+  "NEXT_PUBLIC_AUTH_DISABLED=1 matches the client hatch",
+);
 
 assert(isAuthPublicPath("/login"), "login is public");
 assert(isAuthPublicPath("/api/auth/callback/google"), "auth callbacks are public");

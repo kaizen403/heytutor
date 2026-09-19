@@ -19,6 +19,13 @@ import { isAuthDisabled } from "./lib/authDisabled";
 import { isAutumnEnabled } from "./lib/billing/flags";
 import { consumeTtsChars, getTurnGrant, shouldSkipTtsForUsage, type TurnGrant } from "./lib/billing/grant";
 import { recordTtsSpend } from "./lib/billing/track";
+import {
+  releaseTtsWsConnection,
+  tryAcquireTtsWsConnection,
+  TTS_WS_IDLE_MS,
+  TTS_WS_MAX_MESSAGE_CHARS,
+  ttsWsCharsWithinCeiling,
+} from "./lib/tts/wsRelayLimits";
 import { normalizeVoiceKey, type TutorVoiceKey } from "@heytutor/tutor-core";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -92,6 +99,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
   if (!apiKey || !voiceId) {
     clientWs.send(JSON.stringify({ type: "error", message: "TTS not configured" }));
     clientWs.close(1011, "TTS not configured");
+    releaseTtsWsConnection(context.userId);
     return;
   }
 
@@ -110,7 +118,28 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
   let pendingVoiceSettings: ElevenLabsWsMessage["voice_settings"] | undefined;
   let pendingSegmentIndex: number | undefined;
   let segmentSequence = 0;
+  let charsUsed = 0;
   const segmentStartedAt = { value: 0 };
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const closeForPolicy = (reason: string): void => {
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.send(JSON.stringify({ type: "skip", reason }));
+      clientWs.close(1008, reason);
+    }
+    if (upstream.readyState === WebSocket.OPEN) {
+      upstream.close();
+    }
+  };
+
+  const bumpIdle = (): void => {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      closeForPolicy("idle");
+    }, TTS_WS_IDLE_MS);
+  };
+
+  bumpIdle();
 
   upstream.on("open", () => {
     upstreamReady = true;
@@ -156,11 +185,16 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
   });
 
   clientWs.on("message", (data) => {
+    bumpIdle();
     if (!upstreamReady || upstream.readyState !== WebSocket.OPEN) {
       return;
     }
 
     const raw = data.toString();
+    if (raw.length > TTS_WS_MAX_MESSAGE_CHARS) {
+      closeForPolicy("tts_budget");
+      return;
+    }
     try {
       const message = JSON.parse(raw) as ElevenLabsWsMessage;
 
@@ -170,6 +204,10 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
             segmentStartedAt.value = Date.now();
           }
           pendingSegmentText += message.text;
+          if (pendingSegmentText.length > TTS_WS_MAX_MESSAGE_CHARS) {
+            closeForPolicy("tts_budget");
+            return;
+          }
         }
       }
 
@@ -205,32 +243,22 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
 
         if (characters > 0) {
           const liveGrant = getTurnGrant(context.userId) ?? context.grant;
-          if (liveGrant) {
-            const budget = shouldSkipTtsForUsage(liveGrant)
-              ? { allowed: false as const, remaining: 0 }
-              : consumeTtsChars(liveGrant, characters);
-            if (!budget.allowed) {
-              if (clientWs.readyState === WebSocket.OPEN) {
-                clientWs.send(JSON.stringify({ type: "skip", reason: "tts_budget" }));
-              }
-              pendingSegmentText = "";
-              pendingVoiceSettings = undefined;
-              pendingSegmentIndex = undefined;
-              segmentStartedAt.value = 0;
-              return;
-            }
-          } else if (isAutumnEnabled()) {
-            if (clientWs.readyState === WebSocket.OPEN) {
-              clientWs.send(JSON.stringify({ type: "skip", reason: "tts_budget" }));
-            }
-            pendingSegmentText = "";
-            pendingVoiceSettings = undefined;
-            pendingSegmentIndex = undefined;
-            segmentStartedAt.value = 0;
+          if (!liveGrant) {
+            closeForPolicy("tts_budget");
             return;
-          } else {
-            console.warn("[tts] ws speak without in-memory grant; autumn is off, continuing");
           }
+          if (!ttsWsCharsWithinCeiling(charsUsed, characters)) {
+            closeForPolicy("tts_budget");
+            return;
+          }
+          const budget = shouldSkipTtsForUsage(liveGrant)
+            ? { allowed: false as const, remaining: 0 }
+            : consumeTtsChars(liveGrant, characters);
+          if (!budget.allowed) {
+            closeForPolicy("tts_budget");
+            return;
+          }
+          charsUsed += characters;
           if (context.traceId) {
             recordTtsSpan({
               traceId: context.traceId,
@@ -278,17 +306,24 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
     }
   });
 
-  clientWs.on("close", () => {
+  let released = false;
+  const teardown = (): void => {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = undefined;
+    if (!released) {
+      released = true;
+      releaseTtsWsConnection(context.userId);
+    }
     if (upstream.readyState === WebSocket.OPEN) {
       upstream.send(JSON.stringify({ close_socket: true }));
       upstream.close();
     }
-  });
+  };
+
+  clientWs.on("close", teardown);
 
   clientWs.on("error", () => {
-    if (upstream.readyState === WebSocket.OPEN) {
-      upstream.close();
-    }
+    teardown();
   });
 }
 
@@ -336,7 +371,11 @@ app.prepare().then(() => {
       }
 
       const grant = getTurnGrant(userId);
-      if (!grant && isAutumnEnabled()) {
+      if (!grant) {
+        socket.destroy();
+        return;
+      }
+      if (!tryAcquireTtsWsConnection(userId)) {
         socket.destroy();
         return;
       }

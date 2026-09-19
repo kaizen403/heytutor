@@ -4,6 +4,8 @@ import { HTUTOR_UID_COOKIE } from "@/lib/cookies";
 import { isAuthDisabled } from "@/lib/authDisabled";
 import { isAuthPublicPath, isEmbedDemoRequest, loginRedirectPath } from "@/lib/auth/publicPaths";
 import { hasAuthSessionCookie } from "@/lib/auth/sessionCookie";
+import { applySecurityHeaders } from "@/lib/http/securityHeaders";
+import { clientIpFromForwarded, consumeIpRateLimit, rateLimitBucketForPath } from "@/lib/http/ipRateLimit";
 
 const BACKEND_ORIGIN = process.env.BACKEND_ORIGIN?.replace(/\/$/, "");
 
@@ -37,6 +39,25 @@ async function proxyApiToBackend(request: NextRequest): Promise<NextResponse> {
   });
 }
 
+function withSecurityHeaders(response: NextResponse): NextResponse {
+  applySecurityHeaders(response.headers);
+  return response;
+}
+
+function rateLimitResponse(request: NextRequest): NextResponse | null {
+  const bucket = rateLimitBucketForPath(request.nextUrl.pathname);
+  if (!bucket) return null;
+  const ip = clientIpFromForwarded(
+    request.headers.get("x-forwarded-for") ?? undefined,
+    request.headers.get("x-real-ip") ?? undefined,
+  );
+  const consumed = consumeIpRateLimit({ ip, bucket });
+  if (consumed.ok) return null;
+  const response = NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  response.headers.set("retry-after", String(consumed.retryAfterSec));
+  return withSecurityHeaders(response);
+}
+
 function withIdentityCookie(request: NextRequest, response: NextResponse): NextResponse {
   const existing = request.cookies.get(HTUTOR_UID_COOKIE)?.value;
   if (!existing) {
@@ -63,28 +84,31 @@ function withOptionalDemoCookie(request: NextRequest, response: NextResponse): N
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
+  const limited = rateLimitResponse(request);
+  if (limited) return limited;
+
   if (BACKEND_ORIGIN && pathname.startsWith("/api/") && !pathname.startsWith("/api/auth")) {
-    return proxyApiToBackend(request);
+    return withSecurityHeaders(await proxyApiToBackend(request));
   }
 
   if (isAuthDisabled()) {
-    return withIdentityCookie(request, NextResponse.next());
+    return withIdentityCookie(request, withSecurityHeaders(NextResponse.next()));
   }
 
   if (isAuthPublicPath(pathname) || pathname.startsWith("/api/")) {
-    return withOptionalDemoCookie(request, NextResponse.next());
+    return withOptionalDemoCookie(request, withSecurityHeaders(NextResponse.next()));
   }
 
   if (isEmbedDemoRequest(pathname, search)) {
-    return withOptionalDemoCookie(request, NextResponse.next());
+    return withOptionalDemoCookie(request, withSecurityHeaders(NextResponse.next()));
   }
 
   if (!hasAuthSessionCookie(request)) {
     const url = new URL(loginRedirectPath(pathname, search), request.url);
-    return NextResponse.redirect(url);
+    return withSecurityHeaders(NextResponse.redirect(url));
   }
 
-  return NextResponse.next();
+  return withSecurityHeaders(NextResponse.next());
 }
 
 export const config = {

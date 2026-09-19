@@ -95,8 +95,8 @@ fill in production keys **before** the first start. Required:
 - `FIREWORKS_API_KEY`, `ELEVENLABS_API_KEY`
 - `AUTH_SECRET`
 - Google OAuth: follow [google-oauth.md](google-oauth.md), then set
-  `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`. Keep `AUTH_REQUIRED` off until
-  those are on the box.
+  `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`. Login is on in production even
+  if `AUTH_REQUIRED` is unset; do not set `AUTH_DISABLED`.
 - `NEXT_PUBLIC_SITE_URL=https://app.accelute.co`
 - `NEXT_PUBLIC_LANDING_URL=https://accelute.co`
 - `AUTH_URL=https://app.accelute.co`

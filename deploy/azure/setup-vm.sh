@@ -80,8 +80,25 @@ git pull --ff-only
 load_postgres_env
 docker compose up -d postgres
 
+if ! id heytutor >/dev/null 2>&1; then
+  useradd --system --home-dir /var/lib/heytutor --create-home --shell /usr/sbin/nologin heytutor
+fi
+mkdir -p /var/lib/heytutor
+chown heytutor:heytutor /var/lib/heytutor
+if [ -f "$ENV_FILE" ]; then
+  chgrp heytutor "$ENV_FILE"
+  chmod 640 "$ENV_FILE"
+fi
+
 cat > /etc/caddy/Caddyfile <<EOF
 ${SSLIP_HOST} {
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    Permissions-Policy "camera=(), geolocation=(), microphone=(self), payment=(), usb=()"
+    Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+  }
   reverse_proxy 127.0.0.1:3000
 }
 EOF
@@ -97,8 +114,11 @@ Requires=docker.service
 
 [Service]
 Type=simple
-User=root
+User=heytutor
+Group=heytutor
+NoNewPrivileges=true
 WorkingDirectory=${APP_DIR}
+Environment=HOME=/var/lib/heytutor
 EnvironmentFile=${APP_DIR}/apps/tutor/.env.production
 ExecStart=/usr/bin/bash -lc 'cd apps/tutor && pnpm exec prisma migrate deploy && NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000 pnpm exec tsx server.ts'
 Restart=always
@@ -110,6 +130,9 @@ EOF
 
 pnpm install --frozen-lockfile
 pnpm turbo run build --filter=@heytutor/tutor...
+mkdir -p "${APP_DIR}/apps/tutor/.next/cache"
+chgrp -R heytutor "${APP_DIR}/apps/tutor/.next"
+chmod -R g+rwX "${APP_DIR}/apps/tutor/.next"
 
 systemctl daemon-reload
 systemctl enable heytutor

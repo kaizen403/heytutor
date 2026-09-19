@@ -8,6 +8,11 @@ import {
 } from "../../lib/object-store/keys";
 import { mediaKeyFromUrl, mediaProxyUrl } from "../../lib/object-store/mediaUrl";
 import { isAllowedLectureAudioSource, lectureAudioFetchUrl } from "../../lib/lecture-export/lectureAudioUrl";
+import {
+  contentDispositionForKey,
+  contentTypeForStoredKey,
+  isAllowedMediaContentType,
+} from "../../lib/object-store/safeContentType";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -62,5 +67,13 @@ assert(
   isAllowedLectureAudioSource("https://evil.example/lectures/a.mp3", "https://pub.example") === false,
   "legacy public host allowlist rejects other origins",
 );
+
+assert(contentTypeForStoredKey(audioKey) === "audio/mpeg", "lecture objects serve as audio/mpeg");
+assert(contentTypeForStoredKey(imageKey) === "image/jpeg", "jpg objects serve as image/jpeg");
+assert(contentTypeForStoredKey("notes/x") === "application/octet-stream", "unknown keys do not inherit a stored type");
+assert(isAllowedMediaContentType("audio/mpeg"), "mp3 is an allowed media type");
+assert(!isAllowedMediaContentType("text/html"), "HTML must not be served as a media type");
+assert(contentDispositionForKey(audioKey).includes("lecture.mp3"), "audio gets a filename");
+assert(contentDispositionForKey(imageKey).includes("inline"), "images may render inline");
 
 console.log("verify-object-store: key parse, proxy URLs, and audio fetch routing passed");

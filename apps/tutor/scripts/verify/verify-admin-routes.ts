@@ -41,7 +41,7 @@ assert(
 );
 assert(
   panelLayout.includes('export const dynamic = "force-dynamic"'),
-  "the panel layout must stay force-dynamic while auth is off for testing",
+  "the panel layout must stay force-dynamic so a missing env cannot bake an open admin page",
 );
 assert(
   panelLayout.includes("AdminNav"),

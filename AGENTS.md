@@ -106,9 +106,9 @@ Never add Cursor / `cursoragent` as a commit co-author. Never commit `.cursor/` 
    (`turbo run dev` handles this).
 9. **Tutor accounts are Auth.js** — Google or email magic link when the gate
    is on. Landing stays public. `?embed=1` / the landing lesson showcase is
-   the anonymous exception. **Auth is off for testing** unless
-   `AUTH_REQUIRED=1` and `NEXT_PUBLIC_AUTH_REQUIRED=1` (`htutor_uid` is the
-   device identity again).
+   the anonymous exception. **Auth is on** unless `AUTH_DISABLED=1` and
+   `NEXT_PUBLIC_AUTH_DISABLED=1` (`htutor_uid` is the device identity again).
+   The hatch is ignored when `NODE_ENV=production`.
 10. **Production tutor is one EC2 process** (`tsx server.ts`: UI + API +
     WebSocket TTS). Landing production stays on Vercel (`accelute.co`).
     GitHub deploys to Cloudflare Pages **dev** (`dev.accelute.co`) first,

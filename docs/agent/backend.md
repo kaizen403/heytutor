@@ -30,7 +30,8 @@ routes are Next.js route handlers, plus a custom WebSocket relay in `server.ts`.
 | `/api/admin/turns` | `app/api/admin/turns/route.ts` | GET | Admin panel turn log (`outcome`, `userId`, `boardId`, `query`, `days`, pagination) |
 
 All `/api/admin/*` routes gate on `requireAdminRequest()` (staff/admins only
-once auth is on; open while `AUTH_REQUIRED` is unset for testing) and never
+once the login gate is on; open only while `AUTH_DISABLED=1` for local testing)
+and never
 return `rawResponse`, scene documents, or segment audio URLs — the admin
 payloads are slim summaries computed in `apps/tutor/lib/admin/`.
 
@@ -54,7 +55,7 @@ Production and dev both use `tsx server.ts` (not `next start`):
 
 | File | Purpose |
 |------|---------|
-| `auth.ts` | `getUserId()`, `ensureUser()` — cookie → Postgres user |
+| `auth.ts` | `getUserId()`, `ensureUser()` — Auth.js session, or cookie only while `AUTH_DISABLED=1` |
 | `db/prisma.ts` | Prisma client singleton |
 | `boards/boardsClient.ts` | Frontend API client — fetch/create/update boards, `saveTurn()` |
 | `boards/boardTitle.ts` | Board title prompt + fallback heuristics |

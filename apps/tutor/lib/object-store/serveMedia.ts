@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { parseStoredObjectKey } from "./keys";
+import { contentDispositionForKey, contentTypeForStoredKey } from "./safeContentType";
 import { getObject } from "./s3";
 
 export async function userCanReadObject(userId: string, key: string): Promise<boolean> {
@@ -28,7 +29,9 @@ export async function serveUserObject(userId: string, key: string): Promise<Resp
 
   return new NextResponse(object.body, {
     headers: {
-      "content-type": object.contentType,
+      "content-type": contentTypeForStoredKey(key),
+      "content-disposition": contentDispositionForKey(key),
+      "x-content-type-options": "nosniff",
       "cache-control": "private, max-age=3600",
     },
   });

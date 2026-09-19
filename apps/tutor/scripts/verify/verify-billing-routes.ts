@@ -35,10 +35,11 @@ const ws = read("server.ts");
 assert(ws.includes("readWsTicket"), "WS TTS must auth from the session ticket");
 assert(ws.includes("isAuthDisabled"), "WS must not take htutor_uid when auth is on");
 assert(ws.includes("tts_budget"), "WS TTS must skip when the grant budget is gone");
-assert(
-  ws.includes("ws speak without in-memory grant"),
-  "auth-on production must not silence TTS when Autumn is off and the grant Map missed the socket",
-);
+assert(ws.includes("if (!grant)"), "WS TTS must destroy the socket when the grant is missing");
+assert(!ws.includes("autumn is off, continuing"), "WS TTS must not synthesize without a grant");
+assert(ws.includes("TTS_WS_IDLE_MS"), "WS TTS must idle-timeout the relay");
+assert(ws.includes("ttsWsCharsWithinCeiling"), "WS TTS must cap characters per connection");
+assert(ws.includes("tryAcquireTtsWsConnection"), "WS TTS must cap concurrent sockets per user");
 const ttsClient = readFileSync(
   resolve(root, "../../packages/tutor-core/src/tts/elevenLabsWebSocketClient.ts"),
   "utf8",
@@ -49,7 +50,11 @@ assert(
 );
 assert(
   ttsClient.includes("websocket ticket unavailable"),
-  "AUTH_REQUIRED production must not open a doomed TTS socket without a ticket",
+  "auth-on production must not open a doomed TTS socket without a ticket",
+);
+assert(
+  ttsClient.includes("NEXT_PUBLIC_AUTH_DISABLED"),
+  "the TTS client must treat tickets as required unless AUTH_DISABLED is explicit",
 );
 assert(
   ttsClient.includes('fetch(resolveApiUrl("/api/tts/ws-ticket")'),
@@ -86,7 +91,11 @@ const handler = read("features/tutor-session/hooks/turn/useQuestionHandler.ts");
 assert(handler.includes("beginTurn("), "the live turn must request a grant before planners");
 
 const lab = read("scripts/lecture-lab/run.ts");
-assert(lab.includes("x-heytutor-lecture-lab"), "lecture-lab must send the bypass header");
+assert(lab.includes("applyLectureLabHeaders"), "lecture-lab must send the shared-secret header");
+assert(
+  read("scripts/lecture-lab/labAuth.ts").includes("LECTURE_LAB_TOKEN"),
+  "lecture-lab must read LECTURE_LAB_TOKEN instead of a literal 1",
+);
 
 const signedIn = read("lib/auth/signedInUser.ts");
 assert(signedIn.includes("attachFreePlan"), "first login attaches Free");

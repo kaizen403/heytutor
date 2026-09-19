@@ -76,9 +76,9 @@ AUTH_GOOGLE_ID=....apps.googleusercontent.com
 AUTH_GOOGLE_SECRET=...
 ```
 
-After they are on the box we turn on `AUTH_REQUIRED=1` and
-`NEXT_PUBLIC_AUTH_REQUIRED=1`. Until then the tutor still uses the device
-cookie.
+Login is on unless `AUTH_DISABLED=1` (ignored in production). After Google
+is on the box, do not set `AUTH_DISABLED`. The device cookie is not a user
+id while the login gate is on.
 
 ## 5. After `app.accelute.co` DNS
 

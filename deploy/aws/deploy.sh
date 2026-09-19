@@ -38,6 +38,43 @@ cd apps/tutor
 pnpm exec prisma migrate deploy
 cd "$ROOT"
 
+if ! sudo id heytutor >/dev/null 2>&1 && ! id heytutor >/dev/null 2>&1; then
+  echo "==> create system user heytutor"
+  sudo useradd --system --home-dir /var/lib/heytutor --create-home --shell /usr/sbin/nologin heytutor
+fi
+sudo mkdir -p /var/lib/heytutor
+sudo chown heytutor:heytutor /var/lib/heytutor
+sudo chgrp heytutor "$ENV_FILE"
+sudo chmod 640 "$ENV_FILE"
+sudo mkdir -p "$ROOT/apps/tutor/.next/cache"
+sudo chgrp -R heytutor "$ROOT/apps/tutor/.next"
+sudo chmod -R g+rwX "$ROOT/apps/tutor/.next"
+
+if [ -f /etc/systemd/system/heytutor.service ]; then
+  echo "==> run heytutor.service as heytutor"
+  sudo tee /etc/systemd/system/heytutor.service >/dev/null <<EOF
+[Unit]
+Description=HeyTutor API server
+After=network.target
+
+[Service]
+Type=simple
+User=heytutor
+Group=heytutor
+NoNewPrivileges=true
+WorkingDirectory=${ROOT}
+Environment=HOME=/var/lib/heytutor
+EnvironmentFile=${ENV_FILE}
+ExecStart=/usr/bin/bash -lc 'cd apps/tutor && pnpm exec prisma migrate deploy && NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000 pnpm exec tsx server.ts'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  sudo systemctl daemon-reload
+fi
+
 if sudo systemctl is-active --quiet heytutor 2>/dev/null; then
   echo "==> restart heytutor.service"
   sudo systemctl restart heytutor

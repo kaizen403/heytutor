@@ -46,17 +46,32 @@ assert(
 assert(isProviderMockMode(env({})), "missing FIREWORKS_API_KEY is mock mode");
 assert(!isProviderMockMode(env({ FIREWORKS_API_KEY: "fw" })), "a Fireworks key is live");
 
-const lab = new Request("http://localhost/api/chat", { headers: { [LECTURE_LAB_HEADER]: "1" } });
+const labBare = new Request("http://localhost/api/chat", { headers: { [LECTURE_LAB_HEADER]: "1" } });
 assert(
-  isLectureLabRequest(lab, env({ AUTUMN_ENABLED: "0", NODE_ENV: "development" })),
-  "lecture-lab header bypasses only when Autumn is off",
+  !isLectureLabRequest(labBare, env({ AUTUMN_ENABLED: "0", NODE_ENV: "development" })),
+  "lecture-lab header 1 without LECTURE_LAB_TOKEN never bypasses",
+);
+assert(
+  !isLectureLabRequest(labBare, env({ NODE_ENV: "production" })),
+  "production must not honor the lecture-lab header without a token",
+);
+const labToken = new Request("http://localhost/api/chat", {
+  headers: { [LECTURE_LAB_HEADER]: "lab-secret" },
+});
+assert(
+  isLectureLabRequest(labToken, env({ LECTURE_LAB_TOKEN: "lab-secret", NODE_ENV: "production" })),
+  "a matching LECTURE_LAB_TOKEN opens the lab gate even in production",
+);
+assert(
+  !isLectureLabRequest(labToken, env({ LECTURE_LAB_TOKEN: "other-secret", NODE_ENV: "production" })),
+  "a mismatched lecture-lab token is rejected",
 );
 assert(
   !isLectureLabRequest(
-    lab,
-    env({ AUTUMN_ENABLED: "1", AUTUMN_SECRET_KEY: "am_sk_test", NODE_ENV: "production" }),
+    new Request("http://localhost/api/chat"),
+    env({ LECTURE_LAB_TOKEN: "lab-secret", NODE_ENV: "development" }),
   ),
-  "production must not honor the lecture-lab header",
+  "a missing lecture-lab header is rejected even when the token is set",
 );
 
 resetAutumnClientForTests();
@@ -71,4 +86,4 @@ try {
 }
 resetAutumnClientForTests();
 
-console.log("✓ Autumn enablement, mock mode, and lecture-lab bypass");
+console.log("✓ Autumn enablement, mock mode, and token-gated lecture-lab bypass");

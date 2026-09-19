@@ -1,3 +1,5 @@
+import { timingSafeEqualText } from "@/lib/crypto/timingSafeEqualText";
+
 const TRUTHY = new Set(["1", "true", "yes", "on"]);
 const FALSY = new Set(["0", "false", "no", "off"]);
 
@@ -33,7 +35,14 @@ export function isTtsConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
 
 export const LECTURE_LAB_HEADER = "x-heytutor-lecture-lab";
 
+/**
+ * Lecture-lab spend bypass. The header value must match LECTURE_LAB_TOKEN
+ * (timing-safe). A missing token never opens the gate — including when
+ * Autumn is off and including NODE_ENV=production.
+ */
 export function isLectureLabRequest(request: Request, env: NodeJS.ProcessEnv = process.env): boolean {
-  if (isAutumnEnabled(env)) return false;
-  return request.headers.get(LECTURE_LAB_HEADER)?.trim() === "1";
+  const expected = env.LECTURE_LAB_TOKEN?.trim() ?? "";
+  const presented = request.headers.get(LECTURE_LAB_HEADER)?.trim() ?? "";
+  if (!expected || !presented) return false;
+  return timingSafeEqualText(presented, expected);
 }

@@ -38,7 +38,9 @@ export async function GET(request: Request) {
     }
     return new NextResponse(upstream.body, {
       headers: {
-        "content-type": upstream.headers.get("content-type") || "audio/mpeg",
+        "content-type": "audio/mpeg",
+        "content-disposition": 'inline; filename="lecture.mp3"',
+        "x-content-type-options": "nosniff",
         "cache-control": "private, max-age=3600",
       },
     });

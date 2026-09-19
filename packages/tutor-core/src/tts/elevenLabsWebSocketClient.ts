@@ -259,7 +259,7 @@ function getWebSocketUrl(
 }
 
 async function fetchWsAuthTicket(): Promise<string | undefined> {
-  // Same-origin production still needs a ticket: when AUTH_REQUIRED=1 the
+  // Same-origin production still needs a ticket: when the login gate is on the
   // relay refuses htutor_uid and destroys the socket, which aborts the lecture.
   try {
     const response = await fetch(resolveApiUrl("/api/tts/ws-ticket"), {
@@ -279,9 +279,9 @@ async function fetchWsAuthTicket(): Promise<string | undefined> {
 }
 
 function wsTicketRequired(): boolean {
-  const flag =
-    typeof process !== "undefined" ? process.env.NEXT_PUBLIC_AUTH_REQUIRED : undefined;
-  return flag === "1" || flag === "true";
+  const disabled =
+    typeof process !== "undefined" ? process.env.NEXT_PUBLIC_AUTH_DISABLED : undefined;
+  return disabled !== "1" && disabled !== "true";
 }
 
 /**

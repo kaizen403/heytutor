@@ -2,28 +2,33 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 const TICKET_TTL_MS = 5 * 60 * 1000;
 const TICKET_VERSION = "v1";
+const DEV_TICKET_SECRET = "heytutor-dev-ws-ticket";
 
-function ticketSecret(): string {
-  return (
-    process.env.WS_TICKET_SECRET?.trim() ||
-    process.env.ELEVENLABS_API_KEY?.trim() ||
-    process.env.DATABASE_URL?.trim() ||
-    "heytutor-dev-ws-ticket"
-  );
+export function ticketSecret(env: NodeJS.ProcessEnv = process.env, nodeEnv = env.NODE_ENV): string {
+  const dedicated = env.WS_TICKET_SECRET?.trim();
+  if (dedicated) return dedicated;
+  if (nodeEnv === "production") {
+    throw new Error("WS_TICKET_SECRET is required in production");
+  }
+  return DEV_TICKET_SECRET;
 }
 
-function sign(payload: string): string {
-  return createHmac("sha256", ticketSecret()).update(payload).digest("base64url");
+function sign(payload: string, env?: NodeJS.ProcessEnv): string {
+  return createHmac("sha256", ticketSecret(env)).update(payload).digest("base64url");
 }
 
 /** Short-lived ticket so cross-origin WS upgrades can auth without the host-only cookie. */
-export function mintWsTicket(userId: string, nowMs = Date.now()): string {
+export function mintWsTicket(userId: string, nowMs = Date.now(), env?: NodeJS.ProcessEnv): string {
   const expiresAt = String(nowMs + TICKET_TTL_MS);
   const payload = `${TICKET_VERSION}.${userId}.${expiresAt}`;
-  return `${payload}.${sign(payload)}`;
+  return `${payload}.${sign(payload, env)}`;
 }
 
-export function readWsTicket(ticket: string, nowMs = Date.now()): { userId: string } | null {
+export function readWsTicket(
+  ticket: string,
+  nowMs = Date.now(),
+  env?: NodeJS.ProcessEnv,
+): { userId: string } | null {
   const parts = ticket.split(".");
   if (parts.length !== 4) {
     return null;
@@ -40,7 +45,7 @@ export function readWsTicket(ticket: string, nowMs = Date.now()): { userId: stri
   }
 
   const payload = `${version}.${userId}.${expiresAt}`;
-  const expected = sign(payload);
+  const expected = sign(payload, env);
 
   try {
     const left = Buffer.from(signature);
@@ -54,6 +59,6 @@ export function readWsTicket(ticket: string, nowMs = Date.now()): { userId: stri
   }
 }
 
-export function verifyWsTicket(ticket: string, nowMs = Date.now()): boolean {
-  return readWsTicket(ticket, nowMs) !== null;
+export function verifyWsTicket(ticket: string, nowMs = Date.now(), env?: NodeJS.ProcessEnv): boolean {
+  return readWsTicket(ticket, nowMs, env) !== null;
 }

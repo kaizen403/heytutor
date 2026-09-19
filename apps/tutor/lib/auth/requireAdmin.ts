@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { isAuthDisabled } from "@/lib/authDisabled";
 import { isAdminEmail } from "./admins";
 
-/** Same gate as `/admin`: open when auth is off, otherwise staff/admins only. */
+/** Same gate as `/admin`: open only for AUTH_DISABLED local testing, otherwise staff/admins only. */
 export async function requireAdminRequest(): Promise<Response | null> {
   if (isAuthDisabled()) {
     return null;
