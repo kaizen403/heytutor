@@ -1,6 +1,7 @@
 "use client";
 
 import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
+import { usePendingBeat } from "../hooks/usePendingBeat";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "../constants";
 
 interface ThinkingOverlayProps {
@@ -25,7 +26,7 @@ interface ThinkingOverlayProps {
  * Empty paper used to keep the Konva marker on it — contact shadow, barrel
  * drop-shadow, idle fidget, and a leftover "planning the diagram…" caption.
  * The board stays paper; the clicker is the wait. The short line under it
- * names that wait as preparing the lecture, so a long plan is not a dead board.
+ * names that wait, so a long plan is not a dead board.
  */
 export function ThinkingOverlay({ ink = "#1B2A4A", onBoardAt = null, scale }: ThinkingOverlayProps) {
   if (onBoardAt) {
@@ -60,9 +61,22 @@ export function ThinkingOverlay({ ink = "#1B2A4A", onBoardAt = null, scale }: Th
       <div className="absolute left-0 right-0 top-0 h-0.5 overflow-hidden">
         <div className="wb-progress-bar" />
       </div>
-      <div className="wb-pending__pen flex h-full w-full flex-col items-center justify-center gap-3">
-        <PenSpinner size={48} ink={ink} trail={false} smear={false} />
-        <p className="type-accent-xs wb-boot-label animate-wb-breathe">preparing the lecture</p>
+      <LessonPending ink={ink} />
+    </div>
+  );
+}
+
+function LessonPending({ ink }: { ink: string }) {
+  const label = usePendingBeat();
+
+  return (
+    <div className="wb-pending__pen flex h-full w-full flex-col items-center justify-center gap-3.5">
+      <PenSpinner size={48} ink={ink} trail={false} smear={false} />
+      <p key={label} className="wb-pending__label type-accent-s">
+        {label}
+      </p>
+      <div className="wb-pending__rail" aria-hidden>
+        <div className="wb-pending__rail-fill" />
       </div>
     </div>
   );

@@ -44,7 +44,7 @@ export const SEGMENTS: LessonSegment[] = [
   },
   {
     speech: "On a velocity time graph, that's a straight line rising from the origin.",
-    bubble: 'on a v-t graph, velocity rises in a straight line',
+    bubble: 'on a v–t graph, velocity rises in a straight line',
     fallbackDuration: 5.8,
   },
   {
@@ -80,7 +80,7 @@ export function fallbackTiming(): LessonTiming {
 
 export const TYPING_CHARS_PER_SECOND = 38
 export const TYPING_DURATION = QUESTION_TEXT.length / TYPING_CHARS_PER_SECOND
-export const SUBMIT_PAUSE = 0.55
+export const SUBMIT_PAUSE = 5.6
 export const HOLD_DURATION = 3.0
 export const CLEAR_DURATION = 1.2
 

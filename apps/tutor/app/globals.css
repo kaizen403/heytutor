@@ -1353,15 +1353,51 @@ html:fullscreen::backdrop {
    The wait before the first mark. Frost the paper so the clicker sits on
    a blurred board rather than a second opaque sheet — on a phone an 88px
    pen on solid paper ate the whole surface. The clicker is the pending
-   mark; the line under it names the wait as preparing the lecture. The
-   sweep at the top is the paper's own ink.
+   mark; the line under it names the wait; the rail under that is progress.
+   The sweep at the top is the paper's own ink.
    ──────────────────────────────────────────────────────────────────── */
 
 .wb-pending {
-  --progress-ink: color-mix(in srgb, var(--wb-paper-ink) 28%, transparent);
+  --progress-ink: color-mix(in srgb, var(--wb-paper-ink) 40%, transparent);
   background: color-mix(in srgb, var(--wb-paper) 46%, transparent);
   backdrop-filter: blur(14px) saturate(120%);
   -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+.wb-pending__label {
+  margin: 0;
+  color: color-mix(in srgb, var(--board-ink) 82%, transparent);
+  letter-spacing: 0.014em;
+  animation: wb-pending-line 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.wb-pending__rail {
+  width: 128px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--wb-paper-ink) 14%, transparent);
+}
+
+.wb-pending__rail-fill {
+  position: relative;
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--wb-paper-ink) 55%, transparent);
+  animation: wb-pending-fill 14s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.wb-pending__rail-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 244, 220, 0.5) 50%,
+    transparent 100%
+  );
+  animation: wb-pending-sheen 1.8s ease-in-out infinite;
 }
 
 /* ── Thinking progress bar ── */
@@ -1531,6 +1567,35 @@ html:fullscreen::backdrop {
   }
 }
 
+@keyframes wb-pending-line {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wb-pending-fill {
+  from {
+    width: 12%;
+  }
+  to {
+    width: 92%;
+  }
+}
+
+@keyframes wb-pending-sheen {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(120%);
+  }
+}
+
 /* ── Shared with the landing ── */
 
 @keyframes fade-up {
@@ -1646,7 +1711,14 @@ html:fullscreen::backdrop {
   .animate-pulse-ring,
   .animate-aurora,
   .wb-progress-bar,
+  .wb-pending__label,
+  .wb-pending__rail-fill,
+  .wb-pending__rail-fill::after,
   .metal-sheen::after {
     animation: none !important;
+  }
+
+  .wb-pending__rail-fill {
+    width: 50%;
   }
 }

@@ -47,7 +47,7 @@ const FRAME_MS = 1000 / FPS
 /* ── The loop period, mirrored from lessonScript.ts ─────────────────────── */
 const QUESTION_CHARS = 82 // [...QUESTION_TEXT].length
 const TYPING_CHARS_PER_SECOND = 38
-const SUBMIT_PAUSE = 0.55
+const SUBMIT_PAUSE = 5.6
 const HOLD_DURATION = 3.0
 const CLEAR_DURATION = 1.2
 const PLAYBACK_SPEED = 1
