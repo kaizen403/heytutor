@@ -292,10 +292,11 @@ export function placeLabels(
       if (outside) overlaps.push("view_clip");
       if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
       const incident = incidentAligned(slot.slot, owner.incidentTangents);
+      const drift = Math.hypot(anchor.x - owner.anchor.x, anchor.y - owner.anchor.y);
       return {
         slot: slot.slot,
         bounds,
-        score: slot.preference + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0) + (incident ? 40 : 0),
+        score: slot.preference + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0) + (incident ? 40 : 0) + drift * 0.08,
         overlaps,
         usesLeader: false,
       };

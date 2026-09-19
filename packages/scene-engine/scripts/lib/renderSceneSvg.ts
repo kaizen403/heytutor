@@ -49,7 +49,7 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
     | undefined;
   const dashes = provenance?.dashed === true ? ` stroke-dasharray="6 4"` : "";
   const fill = provenance?.fillRole === "region" ? `rgba(165,214,236,0.28)` : "none";
-  const width = typeof provenance?.strokeWidth === "number" ? provenance.strokeWidth : 2;
+  const width = typeof provenance?.strokeWidth === "number" ? provenance.strokeWidth : 1.55;
   const stroke = `fill="${fill}" stroke="${ink}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"${dashes}`;
   const poly = (list: RenderPrimitive["points"]): string => list.map((point) => `${point.x},${point.y}`).join(" ");
   const anchor = points[0];
@@ -64,7 +64,7 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
       return points.length >= 2 ? `<polyline points="${poly(points)}" ${stroke}/>${inlineLabel}` : "";
     case "polygon":
       return points.length >= 3
-        ? `<polygon points="${poly(points)}" fill="rgba(31,111,139,.12)" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>${inlineLabel}`
+        ? `<polygon points="${poly(points)}" fill="rgba(31,111,139,.12)" stroke="${ink}" stroke-width="1.55" stroke-linejoin="round"/>${inlineLabel}`
         : "";
     case "rectangle": {
       if (points.length < 2) return "";

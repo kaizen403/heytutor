@@ -331,7 +331,8 @@ const HIGHLIGHT_OPACITY = 0.34;
 const ANNOTATION_STROKE_WIDTH = 3.25;
 /** A box is a quiet gesture — it frames the formula, it does not shout. */
 const BOX_STROKE_WIDTH = 2;
-const SHAPE_STROKE_WIDTH = 2.5;
+/** Scene-engine figure ink. Pencil-thin; focus traces stay on their own width. */
+const SHAPE_STROKE_WIDTH = 1.55;
 /** Scene setup ink: visible, not a 10s sketch. Matches tutor-core SCENE_MAX_MS. */
 const SCENE_SHAPE_MAX_MS = 320;
 const SCENE_SHAPE_MIN_MS = 70;

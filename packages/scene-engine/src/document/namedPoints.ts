@@ -121,14 +121,13 @@ function inferPointLabel(
   question: string,
   used: ReadonlySet<string>,
 ): string | null {
-  const fromId = conventionalLabel(id);
-  if (fromId && !used.has(normalizeLabel(fromId))) return fromId;
   const semantic = `${id} ${role}`.toLowerCase().replace(/[_-]+/g, " ");
   for (const [pattern, label] of ROLE_LABELS) {
     if (pattern.test(semantic) && !used.has(normalizeLabel(label))) return label;
   }
+  const fromId = conventionalLabel(id);
   const asked = askedPointLabels(question);
-  if (asked.includes(fromId ?? "") && fromId && !used.has(normalizeLabel(fromId))) return fromId;
+  if (fromId && asked.includes(fromId) && !used.has(normalizeLabel(fromId))) return fromId;
   return null;
 }
 
@@ -139,7 +138,7 @@ const ROLE_LABELS: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bimage position\b|\bparaxial image\b/, "I"],
   [/\bfocal point\b|\bfocus\b/, "F"],
   [/\bcenter of curvature\b|\bcentre of curvature\b/, "C"],
-  [/\b(?:lens |mirror |surface )?vertex\b|\bpole\b/, "V"],
+  [/\b(?:lens|mirror|surface) vertex\b|\bpole\b/, "V"],
   [/\bobjective lens center\b/, "L_o"],
   [/\beyepiece lens center\b/, "L_e"],
   [/\bhinge\b/, "H"],
@@ -163,14 +162,21 @@ function conventionalLabel(id: string): string | null {
 
 function askedPointLabels(question: string): string[] {
   const names: string[] = [];
+  const add = (name: string): void => {
+    if (name && !names.includes(name)) names.push(name);
+  };
   for (const match of question.matchAll(/\bpoints?\s+([A-Z])(?:\s*(?:,|and|&)\s*([A-Z]))+/g)) {
     for (const part of match.slice(1)) {
-      if (part && !names.includes(part)) names.push(part);
+      if (part) add(part);
     }
   }
   for (const match of question.matchAll(/\b(?:mark|label|locate)\b[^.]{0,40}\b([A-Z])\b/g)) {
-    const name = match[1];
-    if (name && !names.includes(name)) names.push(name);
+    if (match[1]) add(match[1]);
+  }
+  for (const match of question.matchAll(
+    /\b(?:triangle|quadrilateral|parallelogram|rhombus|square|rectangle|polygon|angle)\s+([A-Z](?:'?[A-Z]){1,3})\b/gi,
+  )) {
+    for (const letter of (match[1] ?? "").replace(/'/g, "")) add(letter);
   }
   return names;
 }
