@@ -37,7 +37,7 @@ export function Brand({ href, size = "md", className }: BrandProps) {
 
   if (href) {
     return (
-      <a className={classes} href={href} aria-label={`${SITE_NAME} — home`}>
+      <a className={classes} href={href} aria-label={`${SITE_NAME} home`}>
         {lockup}
       </a>
     );

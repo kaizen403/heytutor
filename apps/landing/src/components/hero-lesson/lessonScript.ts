@@ -44,7 +44,7 @@ export const SEGMENTS: LessonSegment[] = [
   },
   {
     speech: "On a velocity time graph, that's a straight line rising from the origin.",
-    bubble: 'on a v–t graph, velocity rises in a straight line',
+    bubble: 'on a v-t graph, velocity rises in a straight line',
     fallbackDuration: 5.8,
   },
   {

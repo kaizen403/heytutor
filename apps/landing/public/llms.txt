@@ -4,7 +4,7 @@
 
 Accelute is the product name. The marketing site is https://accelute.co/. The tutor app is https://app.accelute.co/. Contact: hi@accelute.co.
 
-It is a student product (age 13+) for 1:1 lessons on a live whiteboard — not a team canvas like Miro, not a chatbot like ChatGPT, and not a classroom management tool.
+It is a student product (age 13+) for 1:1 lessons on a live whiteboard. Not a team canvas like Miro, not a chatbot like ChatGPT, and not a classroom management tool.
 
 ## Pages
 

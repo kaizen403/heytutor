@@ -36,7 +36,7 @@ const USE_CASES: UseCase[] = [
   {
     id: 'draw',
     title: 'Ask, And Watch It Drawn',
-    body: 'Type the question and the tutor takes it from there — planning the scene, laying down the axes, then drawing the circuits stroke by stroke while it talks you through each one.',
+    body: 'Type the question and the tutor takes it from there. It plans the scene, lays down the axes, then draws the circuits stroke by stroke while it talks you through each one.',
     glyph: 'burst',
     beat: 'ask',
     focus: { origin: [0.56, 0.62], scale: 1.08 },
@@ -44,7 +44,7 @@ const USE_CASES: UseCase[] = [
   {
     id: 'annotate',
     title: 'Marked Up Like A Teacher',
-    body: 'The diagram does not arrive finished. Values, congruence ticks, braces and the boxed answer go on the way a teacher marks a board — each one drawn from the figure’s own geometry.',
+    body: 'The diagram does not arrive finished. Values, congruence ticks, braces and the boxed answer go on the way a teacher marks a board. Each one is drawn from the figure’s own geometry.',
     glyph: 'frame',
     beat: 'annotate',
     focus: { origin: [0.62, 0.42], scale: 1.7 },
@@ -68,7 +68,7 @@ const USE_CASES: UseCase[] = [
   {
     id: 'notes',
     title: 'Take The Notes With You',
-    body: 'The working on the board is the notes. Download the whole lesson as a PDF — diagrams, steps and answers — and revise from it later without the tutor.',
+    body: 'The working on the board is the notes. Download the whole lesson as a PDF of diagrams, steps and answers, and revise from it later without the tutor.',
     glyph: 'notes',
     beat: 'notes',
     focus: { origin: [0.94, 0.055], scale: 2.1 },
@@ -171,7 +171,7 @@ export default function UseCasesSection() {
               <span className="font-hand text-ice">Lesson</span>
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-base font-normal leading-relaxed text-brand-muted-dark sm:text-lg">
-              From the first question to the last revision — Accelute draws it, marks it up,
+              From the first question to the last revision, Accelute draws it, marks it up,
               answers the doubt, and hands you the notes.
             </p>
           </Reveal>

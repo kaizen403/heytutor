@@ -75,7 +75,7 @@ const HOME_FAQS: readonly Faq[] = [
   {
     question: 'What subjects can I study with Accelute?',
     answer:
-      'Accelute teaches every subject you can put on a board — physics, maths, chemistry, coding, and the rest of a school or exam syllabus. Ask in plain language. You do not need a perfect prompt.',
+      'Accelute teaches every subject you can put on a board: physics, maths, chemistry, coding, and the rest of a school or exam syllabus. Ask in plain language. You do not need a perfect prompt.',
   },
   {
     question: 'How is an AI tutor different from ChatGPT?',
@@ -96,9 +96,9 @@ export const PAGES: readonly SeoPage[] = [
     slug: 'index',
     title: 'Accelute | AI Whiteboard Tutor for Every Subject',
     description:
-      'Accelute is an AI whiteboard tutor. Ask a question and watch it draw, write, and explain each step out loud — built for how you actually study.',
+      'Accelute is an AI whiteboard tutor. Ask a question and watch it draw, write, and explain each step out loud, built for how you actually study.',
     headline: 'Accelute, the AI tutor on a live whiteboard.',
-    lead: 'Ask a question. Watch the diagram drawn, the working written, and each step explained out loud — an AI tutor for how you actually study.',
+    lead: 'Ask a question. Watch the diagram drawn, the working written, and each step explained out loud. An AI tutor for how you actually study.',
     kicker: 'Accelute',
     breadcrumb: 'Home',
     changefreq: 'weekly',
@@ -122,7 +122,7 @@ export const PAGES: readonly SeoPage[] = [
       {
         question: 'What is an AI whiteboard?',
         answer:
-          'An AI whiteboard is a board an AI can write and draw on while it explains. Accelute uses that board as the lesson — diagrams, working, and voice together — rather than as a shared brainstorming canvas.',
+          'An AI whiteboard is a board an AI can write and draw on while it explains. Accelute uses that board as the lesson (diagrams, working, and voice together) rather than as a shared brainstorming canvas.',
       },
       {
         question: 'How is Accelute different from Miro or Explain Everything?',
@@ -145,14 +145,14 @@ export const PAGES: readonly SeoPage[] = [
         heading: 'A board, not a chat box',
         paragraphs: [
           'When people search for an AI whiteboard, they usually mean one of two things: a team canvas with an assistant bolted on, or a tutor that can actually teach at the board. Accelute is the second.',
-          'You ask a question — type it, or photograph a problem. Accelute plans the lesson, then teaches it the way a teacher would: diagram on one side, working on the other, voice in time with the pen.',
+          'You ask a question: type it, or photograph a problem. Accelute plans the lesson, then teaches it the way a teacher would: diagram on one side, working on the other, voice in time with the pen.',
           'A chatbot can dump an answer. An AI whiteboard has to show its work.',
         ],
       },
       {
         heading: 'What Accelute draws',
         paragraphs: [
-          'The board is the lesson. Accelute draws diagrams stroke by stroke — axes, circuits, shapes, graphs — and writes the notes as it talks. The ink is not a decoration pasted on after the fact. It is the explanation, laid down in order.',
+          'The board is the lesson. Accelute draws diagrams stroke by stroke (axes, circuits, shapes, graphs) and writes the notes as it talks. The ink is not a decoration pasted on after the fact. It is the explanation, laid down in order.',
           'If a figure is part of understanding the question, it belongs on the board. If it is not, Accelute still teaches in writing and in voice. You are not staring at a picture while the real answer hides in a paragraph underneath.',
         ],
       },
@@ -169,17 +169,17 @@ export const PAGES: readonly SeoPage[] = [
           'A session is one question, taught through. You do not need a lesson plan. You need the thing you are stuck on.',
         ],
         bullets: [
-          'Ask — a sentence is enough; a photo of the question works too.',
-          'Watch the board — the figure and the working, in the order a teacher would use.',
-          'Unmute — the voice sits on the same clock as the pen.',
-          'Cut in — a doubt is answered on the same board, with the original question still in context.',
-          'Keep it — replay the lesson or take the notes with you.',
+          'Ask. A sentence is enough; a photo of the question works too.',
+          'Watch the board. The figure and the working, in the order a teacher would use.',
+          'Unmute. The voice sits on the same clock as the pen.',
+          'Cut in. A doubt is answered on the same board, with the original question still in context.',
+          'Keep it. Replay the lesson or take the notes with you.',
         ],
       },
       {
         heading: 'Who an AI whiteboard is for',
         paragraphs: [
-          'Students who learn by watching a figure appear, not by reading a wall of text. Physics, maths, chemistry, and coding all live on a board. Accelute is built for that kind of study — and for every other subject you can explain with a pen.',
+          'Students who learn by watching a figure appear, not by reading a wall of text. Physics, maths, chemistry, and coding all live on a board. Accelute is built for that kind of study, and for every other subject you can explain with a pen.',
         ],
       },
     ],
@@ -201,7 +201,7 @@ export const PAGES: readonly SeoPage[] = [
       {
         question: 'What is an AI tutor?',
         answer:
-          'An AI tutor is software that teaches a student 1:1 — not just answers a prompt. Accelute talks, writes the working, and draws on a whiteboard so you can follow the method, not only the final line.',
+          'An AI tutor is software that teaches a student 1:1, not just answers a prompt. Accelute talks, writes the working, and draws on a whiteboard so you can follow the method, not only the final line.',
       },
       {
         question: 'Can an AI tutor replace a teacher?',
@@ -211,7 +211,7 @@ export const PAGES: readonly SeoPage[] = [
       {
         question: 'Does Accelute help with homework?',
         answer:
-          'It will teach the question you bring — including a photo of a problem — on a board, out loud. Use it to understand the method. Do not submit the board as your own work or use it to break a school’s academic rules.',
+          'It will teach the question you bring, including a photo of a problem, on a board, out loud. Use it to understand the method. Do not submit the board as your own work or use it to break a school’s academic rules.',
       },
       {
         question: 'Is Accelute free to try?',
@@ -309,7 +309,7 @@ export const PAGES: readonly SeoPage[] = [
       {
         heading: 'Replay and notes',
         paragraphs: [
-          'Every lesson stays on its own board. Replay the strokes — slower if you need the hand to land, faster if you already have the idea. The working on the board is the notes. Take them with you and revise without the tutor talking.',
+          'Every lesson stays on its own board. Replay the strokes slower if you need the hand to land, faster if you already have the idea. The working on the board is the notes. Take them with you and revise without the tutor talking.',
           'That is the study loop: learn it once on the board, then use the same board as a revision sheet.',
         ],
       },
@@ -350,7 +350,7 @@ export const PAGES: readonly SeoPage[] = [
       {
         question: 'How do you spell Accelute?',
         answer:
-          'Accelute — A-c-c-e-l-u-t-e. If you searched for Accelute, Accelute AI, or Accelute tutor, this is the product.',
+          'Accelute: A-c-c-e-l-u-t-e. If you searched for Accelute, Accelute AI, or Accelute tutor, this is the product.',
       },
       {
         question: 'How do I contact Accelute?',
@@ -386,7 +386,7 @@ export const PAGES: readonly SeoPage[] = [
       {
         heading: 'Contact',
         paragraphs: [
-          'Email hi@accelute.co. Terms and privacy live on this site. The app is on the web — there is nothing to install.',
+          'Email hi@accelute.co. Terms and privacy live on this site. The app is on the web. There is nothing to install.',
         ],
       },
     ],
@@ -397,7 +397,7 @@ export const PAGES: readonly SeoPage[] = [
     slug: 'terms',
     title: 'Terms of Service | Accelute',
     description:
-      'Terms of Service for Accelute — the AI whiteboard tutor at accelute.co. Who may use it, accounts, acceptable use, and billing.',
+      'Terms of Service for Accelute, the AI whiteboard tutor at accelute.co. Who may use it, accounts, acceptable use, and billing.',
     headline: 'Terms of Service',
     lead: 'The agreement for using Accelute, accelute.co, and the AI whiteboard tutor.',
     kicker: 'Legal',

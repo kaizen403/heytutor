@@ -2049,7 +2049,7 @@ export function useQuestionHandler(
           }
           const reasoningOnly = (streamStats?.reasoningChars ?? 0) > 0;
           const message = reasoningOnly
-            ? "the ai couldn't generate a response — try rephrasing"
+            ? "the ai couldn't generate a response. try rephrasing"
             : "the ai returned an empty response. try asking again.";
           tutorDebug("turn", "empty response", {
             reasoning_chars: streamStats?.reasoningChars ?? 0,
@@ -2159,9 +2159,9 @@ export function useQuestionHandler(
         if (billing) {
           message = studentBillingMessage(billing.code);
         } else if (error instanceof TypeError && /fetch|network|failed to fetch/i.test(error.message)) {
-          message = "network error — check your connection";
+          message = "network error. check your connection";
         } else if (error instanceof Error && /tts|audio|elevenlabs|speech/i.test(error.message)) {
-          message = "audio generation failed — the lesson continues without voice";
+          message = "audio generation failed. the lesson continues without voice";
         } else if (error instanceof Error && /timeout|aborted|abort/i.test(error.message)) {
           message = "the request took too long. try asking again.";
         }

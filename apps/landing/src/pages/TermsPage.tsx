@@ -82,7 +82,7 @@ export default function TermsPage() {
         <p>
           You keep whatever rights you already have in questions, photos, and
           notes you submit. You grant Accelute a licence to use that material
-          solely to run the Service for you — for example to plan a lesson,
+          solely to run the Service for you, for example to plan a lesson,
           draw on the board, speak the explanation, and store a board you can
           reopen.
         </p>
@@ -124,9 +124,9 @@ export default function TermsPage() {
         </p>
         <p>Individual plans, billed in US dollars:</p>
         <ul>
-          <li>Free — US$0, monthly included usage</li>
-          <li>Plus — US$19 per month</li>
-          <li>Pro — US$39 per month</li>
+          <li>Free: US$0, monthly included usage</li>
+          <li>Plus: US$19 per month</li>
+          <li>Pro: US$39 per month</li>
         </ul>
         <p>
           You may buy a usage top-up for US$10. Top-up usage stacks on any plan

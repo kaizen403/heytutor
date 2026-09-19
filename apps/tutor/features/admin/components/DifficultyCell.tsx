@@ -27,7 +27,7 @@ function describe(difficulty: ProbeDifficulty, state: DifficultyState): string {
     case "queued":
       return `${name}: queued to record`;
     case "running":
-      return `${name}: recording now - watch live`;
+      return `${name}: recording now. Watch live`;
     case "recorded":
       return `${name}: watch the recorded lecture`;
   }

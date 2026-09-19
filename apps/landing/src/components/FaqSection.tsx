@@ -26,7 +26,7 @@ export default function FaqSection() {
             What people ask about <span className="text-ice">Accelute</span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-brand-muted-dark sm:text-lg">
-            Accelute is an AI whiteboard tutor — a live board, a voice, and a
+            Accelute is an AI whiteboard tutor: a live board, a voice, and a
             lesson you can interrupt. Here is the short version.
           </p>
         </Reveal>
