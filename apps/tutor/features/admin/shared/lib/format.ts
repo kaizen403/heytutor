@@ -31,12 +31,13 @@ export function formatUtcDate(day: string): string {
   });
 }
 
-/** Billing keeps USD as millicents (1/1000 of a cent). */
+/** Billing stores USD as millicents (thousandths of a dollar). */
 export function formatMillicentsUsd(millicents: number): string {
-  const usd = millicents / 100_000;
-  if (usd === 0) return "$0";
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
-  return `$${usd.toFixed(2)}`;
+  if (!Number.isFinite(millicents) || millicents === 0) return "$0";
+  const usd = millicents / 1000;
+  if (usd >= 1) return `$${usd.toFixed(2)}`;
+  if (usd >= 0.01) return `$${usd.toFixed(3)}`;
+  return `$${usd.toFixed(4)}`;
 }
 
 export function formatPercent(value: number): string {

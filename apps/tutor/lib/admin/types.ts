@@ -74,9 +74,49 @@ export interface OverviewLatestTurn {
   createdAt: string;
 }
 
+export interface OverviewCostPeriod {
+  period: string;
+  spentMillicents: number;
+  bonusMillicents: number;
+  users: number;
+}
+
+export interface OverviewTopSpender {
+  userId: string;
+  label: string;
+  spentMillicents: number;
+}
+
+/** Langfuse-priced Fireworks + ElevenLabs usage for a bounded window. */
+export interface OverviewInference {
+  configured: boolean;
+  /** 0 when the window is "this user's recorded boards", not a day range. */
+  windowDays: number;
+  llmUsd: number;
+  ttsUsd: number;
+  totalUsd: number;
+  observations: number;
+  truncated: boolean;
+  error?: string;
+}
+
+export interface OverviewCost {
+  period: string;
+  spentMillicents: number;
+  bonusMillicents: number;
+  spendUsers: number;
+  previousPeriod: string;
+  previousSpentMillicents: number;
+  turnsThisPeriod: number;
+  series: OverviewCostPeriod[];
+  topSpenders: OverviewTopSpender[];
+  inference7d: OverviewInference;
+}
+
 export interface OverviewPayload {
   generatedAt: string;
   kpis: OverviewKpis;
+  cost: OverviewCost;
   /** UTC day buckets, oldest first, 14 days. */
   turnsPerDay: DayCount[];
   newUsersPerDay: DayCount[];
@@ -114,7 +154,14 @@ export interface AdminUserRow {
   spendMillicents: number | null;
 }
 
-export type UserSort = "recentActivity" | "turns" | "boards" | "messages" | "newest" | "oldest";
+export type UserSort =
+  | "recentActivity"
+  | "turns"
+  | "boards"
+  | "messages"
+  | "spend"
+  | "newest"
+  | "oldest";
 
 export interface UsersPagePayload {
   users: AdminUserRow[];
@@ -184,6 +231,7 @@ export interface UserDetailPayload {
   turns: AdminUserTurn[];
   chatMessages: AdminUserChatMessage[];
   spend: AdminUserSpendPeriod[];
+  inference: OverviewInference;
 }
 
 // --- turns feed -------------------------------------------------------------
@@ -207,6 +255,9 @@ export interface AdminTurnRow {
   boardId: string;
   boardTitle: string;
   createdAt: string;
+  llmUsd: number | null;
+  ttsUsd: number | null;
+  totalUsd: number | null;
 }
 
 export interface TurnsPagePayload {

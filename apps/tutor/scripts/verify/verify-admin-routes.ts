@@ -81,6 +81,7 @@ const adminQuerySources = [
   "lib/admin/usersQueries.ts",
   "lib/admin/userDetailQueries.ts",
   "lib/admin/turnsQueries.ts",
+  "lib/admin/costQueries.ts",
 ];
 for (const source of adminQuerySources) {
   const text = read(source);
@@ -93,5 +94,18 @@ for (const source of adminQuerySources) {
     `${source} must never read segment audio URLs — lecture audio lives in private S3`,
   );
 }
+
+assert(
+  read("features/admin/analytics/OverviewView.tsx").includes("OverviewCost"),
+  "overview must show cost analytics",
+);
+assert(
+  read("lib/admin/overviewQueries.ts").includes("fetchOverviewCost"),
+  "overview query must load ledger + Langfuse cost",
+);
+assert(
+  read("features/admin/turns/TurnsTable.tsx").includes("CostChip"),
+  "the turn log must show estimated AI + voice cost",
+);
 
 console.log("✓ admin routes: gated, dynamic, blob-free, playground intact");

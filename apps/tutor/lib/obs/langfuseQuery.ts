@@ -130,6 +130,115 @@ async function fetchTraceObservations(
   }));
 }
 
+function readTotalPages(payload: unknown): number {
+  if (!isRecord(payload) || !isRecord(payload.meta)) return 1;
+  const totalPages = asPositiveInt(payload.meta.totalPages) ?? asPositiveInt(payload.meta.pageCount);
+  return totalPages ?? 1;
+}
+
+function asPositiveInt(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) return Math.floor(value);
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return undefined;
+}
+
+export async function fetchRunCostForTraces(traceIds: string[]): Promise<{
+  configured: boolean;
+  byTraceId: Record<string, { llmUsd: number; ttsUsd: number; totalUsd: number }>;
+  error?: string;
+}> {
+  const unique = [...new Set(traceIds.map((id) => id.trim()).filter(Boolean))].slice(0, MAX_SESSIONS);
+  const credentials = readLangfuseQueryCredentials();
+  if (!credentials) {
+    return { configured: false, byTraceId: {} };
+  }
+  if (unique.length === 0) {
+    return { configured: true, byTraceId: {} };
+  }
+
+  try {
+    const batches = await mapPool(unique, TRACE_FETCH_CONCURRENCY, async (traceId) => {
+      const observations = await fetchTraceObservations(credentials, traceId, traceId);
+      return observations.map((observation) => ({
+        ...observation,
+        sessionId: traceId,
+        traceId,
+      }));
+    });
+    const report = aggregateRunCost(batches.flat());
+    const byTraceId: Record<string, { llmUsd: number; ttsUsd: number; totalUsd: number }> = {};
+    for (const row of report.bySession) {
+      byTraceId[row.sessionId] = {
+        llmUsd: row.llmUsd,
+        ttsUsd: row.ttsUsd,
+        totalUsd: row.totalUsd,
+      };
+    }
+    return { configured: true, byTraceId };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "langfuse_unavailable";
+    console.warn("[langfuse] trace-cost query failed", message);
+    return { configured: true, byTraceId: {}, error: "langfuse_unavailable" };
+  }
+}
+
+const WINDOW_PAGE_SIZE = 100;
+const WINDOW_MAX_PAGES = 3;
+
+export async function fetchRunCostForWindow(input: {
+  from: Date;
+  to: Date;
+  maxPages?: number;
+}): Promise<{
+  configured: boolean;
+  report: RunCostReport;
+  truncated: boolean;
+  error?: string;
+}> {
+  const credentials = readLangfuseQueryCredentials();
+  if (!credentials) {
+    return { configured: false, report: aggregateRunCost([]), truncated: false };
+  }
+
+  const maxPages = Math.max(1, Math.min(input.maxPages ?? WINDOW_MAX_PAGES, 8));
+  try {
+    const observations: CostObservation[] = [];
+    let truncated = false;
+    for (let page = 1; page <= maxPages; page += 1) {
+      const params = new URLSearchParams({
+        type: "GENERATION",
+        limit: String(WINDOW_PAGE_SIZE),
+        page: String(page),
+        fromStartTime: input.from.toISOString(),
+        toStartTime: input.to.toISOString(),
+      });
+      const payload = await langfuseGet(credentials, `/api/public/observations?${params.toString()}`);
+      observations.push(...readObservations(payload, "window"));
+      const totalPages = readTotalPages(payload);
+      if (page >= totalPages) {
+        truncated = false;
+        break;
+      }
+      if (page === maxPages) {
+        truncated = true;
+      }
+    }
+    return { configured: true, report: aggregateRunCost(observations), truncated };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "langfuse_unavailable";
+    console.warn("[langfuse] window-cost query failed", message);
+    return {
+      configured: true,
+      report: aggregateRunCost([]),
+      truncated: false,
+      error: "langfuse_unavailable",
+    };
+  }
+}
+
 export async function fetchRunCostForSessions(sessionIds: string[]): Promise<{
   configured: boolean;
   report: RunCostReport;

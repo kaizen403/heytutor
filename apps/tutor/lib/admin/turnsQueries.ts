@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { readLangfuseQueryCredentials } from "@/lib/obs/langfuseQuery";
+import { fetchRunCostForTraces, readLangfuseQueryCredentials } from "@/lib/obs/langfuseQuery";
 import { classifyOutcome, extractArtifactSummary } from "./outcome";
 import { userLabel } from "./labels";
 import { failedTurnWhere } from "./turnFilters";
@@ -73,8 +73,11 @@ export async function listTurns(input: ListTurnsInput): Promise<TurnsPagePayload
   ]);
 
   const traceBase = langfuseTraceBase();
+  const traceIds = rows.flatMap((row) => (row.traceId ? [row.traceId] : []));
+  const costs = await fetchRunCostForTraces(traceIds);
   const turns: AdminTurnRow[] = rows.map((row) => {
     const summary = extractArtifactSummary(row.sceneArtifacts);
+    const cost = row.traceId ? costs.byTraceId[row.traceId] : undefined;
     return {
       turnId: row.id,
       question: row.question,
@@ -95,6 +98,9 @@ export async function listTurns(input: ListTurnsInput): Promise<TurnsPagePayload
       boardId: row.boardId,
       boardTitle: row.board?.title ?? "—",
       createdAt: row.createdAt.toISOString(),
+      llmUsd: cost?.llmUsd ?? null,
+      ttsUsd: cost?.ttsUsd ?? null,
+      totalUsd: cost?.totalUsd ?? null,
     };
   });
 

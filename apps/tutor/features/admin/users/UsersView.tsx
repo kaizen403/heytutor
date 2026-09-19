@@ -21,6 +21,7 @@ const SORT_OPTIONS: Array<{ value: UserSort; label: string }> = [
   { value: "turns", label: "Most turns" },
   { value: "boards", label: "Most boards" },
   { value: "messages", label: "Most messages" },
+  { value: "spend", label: "Highest spend" },
   { value: "newest", label: "Newest first" },
   { value: "oldest", label: "Oldest first" },
 ];

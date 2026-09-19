@@ -8,6 +8,7 @@ import { EmptyState } from "../shared/components/EmptyState";
 import { useAdminQuery } from "../shared/hooks/useAdminQuery";
 import { formatRelativeTime } from "../shared/lib/format";
 import { OverviewBreakdown } from "./OverviewBreakdown";
+import { OverviewCost } from "./OverviewCost";
 import { OverviewKpis } from "./OverviewKpis";
 import { OverviewLatest } from "./OverviewLatest";
 
@@ -35,7 +36,7 @@ export function OverviewView() {
     <div className="space-y-4">
       <AdminPageHeader
         title="Overview"
-        description="Usage, verified-scene outcomes, and activity across the app."
+        description="Usage, inference cost, verified-scene outcomes, and activity across the app."
         icon={<LayoutDashboard className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
         actions={
           <>
@@ -54,6 +55,7 @@ export function OverviewView() {
       {data ? (
         <>
           <OverviewKpis kpis={data.kpis} validatedTurns7d={data.outcomes7d.validated} />
+          <OverviewCost cost={data.cost} />
           <OverviewBreakdown payload={data} />
           <OverviewLatest payload={data} />
         </>

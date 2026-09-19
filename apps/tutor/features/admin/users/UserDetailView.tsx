@@ -7,6 +7,7 @@ import { AdminPageHeader } from "../shared/components/AdminPageHeader";
 import { EmptyState } from "../shared/components/EmptyState";
 import { KpiCard } from "../shared/components/KpiCard";
 import { useAdminQuery } from "../shared/hooks/useAdminQuery";
+import { formatUsd } from "@/lib/obs/runCost";
 import { formatCount, formatMillicentsUsd, formatRelativeTime } from "../shared/lib/format";
 import { UserBoards } from "./UserBoards";
 import { UserMessages } from "./UserMessages";
@@ -44,13 +45,26 @@ export function UserDetailView({ userId }: { userId: string }) {
               : `anonymous ${user.userId.slice(0, 8)} · joined ${user.createdAt.slice(0, 10)}`
           }
         />
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           <KpiCard label="Turns" value={formatCount(user.turns)} />
           <KpiCard label="Boards" value={formatCount(user.boards)} />
           <KpiCard label="Messages" value={formatCount(user.chatMessages)} />
           <KpiCard
             label="Spend this period"
             value={user.spendMillicents == null ? "—" : formatMillicentsUsd(user.spendMillicents)}
+            hint="billed Fireworks + ElevenLabs"
+            tone="sky"
+          />
+          <KpiCard
+            label="AI / voice"
+            value={data.inference.totalUsd > 0 ? formatUsd(data.inference.totalUsd) : "—"}
+            hint={
+              data.inference.totalUsd > 0
+                ? `${formatUsd(data.inference.llmUsd)} AI · ${formatUsd(data.inference.ttsUsd)} voice`
+                : data.inference.configured
+                  ? "from this user's boards"
+                  : "Langfuse not configured"
+            }
           />
           <KpiCard
             label="Last turn"
