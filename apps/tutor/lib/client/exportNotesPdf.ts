@@ -1,12 +1,7 @@
 "use client";
 
 import { jsPDF } from "jspdf";
-import { pdfSafeText, type NotesPdfSection } from "@/features/tutor-session/lib/notes/notesPdf";
-import {
-  NOTES_PDF_FONT_FAMILY,
-  loadNotesPdfFontBinary,
-  registerNotesPdfFont,
-} from "./notesPdfFont";
+import { notesPdfSlideImages, type NotesPdfSection } from "@/features/tutor-session/lib/notes/notesPdf";
 
 export interface NotesEpoch {
   index: number;
@@ -23,134 +18,83 @@ export interface ExportNotesParams {
   sections: NotesPdfSection[];
 }
 
-type TextStyle = {
-  font: typeof NOTES_PDF_FONT_FAMILY | "helvetica" | "courier";
-  weight: "normal" | "bold" | "italic";
-  size: number;
-  gray: number;
-  indent?: number;
-};
-
-const PAGE_MARGIN_PT = 40;
-const SECTION_GAP_PT = 22;
-const IMAGE_GAP_PT = 12;
-const BOARD_ASPECT = 1200 / 700;
-const LINE_HEIGHT_FACTOR = 1.4;
-
-const EYEBROW: TextStyle = { font: NOTES_PDF_FONT_FAMILY, weight: "bold", size: 9.5, gray: 120 };
-const QUESTION: TextStyle = { font: NOTES_PDF_FONT_FAMILY, weight: "bold", size: 13, gray: 20 };
-const FACTS: TextStyle = { font: NOTES_PDF_FONT_FAMILY, weight: "normal", size: 9.5, gray: 110 };
-const WORK_LINE: TextStyle = { font: NOTES_PDF_FONT_FAMILY, weight: "normal", size: 10.5, gray: 30, indent: 10 };
-const NARRATION: TextStyle = { font: NOTES_PDF_FONT_FAMILY, weight: "normal", size: 10.5, gray: 50 };
-const PLACEHOLDER: TextStyle = { font: NOTES_PDF_FONT_FAMILY, weight: "italic", size: 10, gray: 150 };
+/** Board canvas in PDF points — one notes page is one slide. */
+const SLIDE_WIDTH_PT = 1200;
+const DEFAULT_SLIDE_HEIGHT_PT = 700;
 
 function sanitizeFilename(title: string): string {
   const base = title.trim() || "lecture-notes";
   return base.replace(/[^a-z0-9-_ ]/gi, "").replace(/\s+/g, "-").toLowerCase();
 }
 
-function formatDate(): string {
-  return new Date().toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
+function slidePageSize(
+  doc: jsPDF,
+  image: string,
+): { width: number; height: number } {
+  try {
+    const props = doc.getImageProperties(image);
+    if (props.width > 0 && props.height > 0) {
+      return {
+        width: SLIDE_WIDTH_PT,
+        height: SLIDE_WIDTH_PT * (props.height / props.width),
+      };
+    }
+  } catch {
+    // Unreadable snapshots fall back to the board frame.
+  }
+  return { width: SLIDE_WIDTH_PT, height: DEFAULT_SLIDE_HEIGHT_PT };
+}
+
+function pageOrientation(width: number, height: number): "landscape" | "portrait" {
+  return width >= height ? "landscape" : "portrait";
+}
+
+/**
+ * One PDF page per board (or code-panel) snapshot, edge to edge. No titles,
+ * subtitles, work transcripts, or spoken explanation.
+ */
+export function renderNotesPdf(images: readonly string[]): jsPDF | null {
+  const slides = images.filter((image) => image.length > 0);
+  if (slides.length === 0) {
+    return null;
+  }
+
+  const probe = new jsPDF({
+    orientation: "landscape",
+    unit: "pt",
+    format: [SLIDE_WIDTH_PT, DEFAULT_SLIDE_HEIGHT_PT],
   });
+  const first = slidePageSize(probe, slides[0]!);
+  const doc = new jsPDF({
+    orientation: pageOrientation(first.width, first.height),
+    unit: "pt",
+    format: [first.width, first.height],
+    compress: true,
+  });
+
+  for (let index = 0; index < slides.length; index += 1) {
+    const image = slides[index]!;
+    const size = index === 0 ? first : slidePageSize(doc, image);
+    if (index > 0) {
+      doc.addPage(
+        [size.width, size.height],
+        pageOrientation(size.width, size.height) === "landscape" ? "l" : "p",
+      );
+    }
+    try {
+      doc.addImage(image, "PNG", 0, 0, size.width, size.height, undefined, "FAST");
+    } catch {
+      // Leave the page blank rather than injecting error copy.
+    }
+  }
+
+  return doc;
 }
 
 export async function exportNotesPdf({ title, sections }: ExportNotesParams): Promise<void> {
-  const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-  registerNotesPdfFont(doc, await loadNotesPdfFontBinary());
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const contentWidth = pageWidth - PAGE_MARGIN_PT * 2;
-  const bottomY = pageHeight - PAGE_MARGIN_PT;
-  const maxImageHeight = pageHeight * 0.45;
-  let cursorY = PAGE_MARGIN_PT;
-
-  const ensureSpace = (height: number) => {
-    if (cursorY + height > bottomY) {
-      doc.addPage();
-      cursorY = PAGE_MARGIN_PT;
-    }
-  };
-
-  const writeText = (text: string, style: TextStyle) => {
-    const safe = pdfSafeText(text).replace(/\s+/g, " ").trim();
-    if (!safe) return;
-    doc.setFont(style.font, style.weight);
-    doc.setFontSize(style.size);
-    doc.setTextColor(style.gray);
-    const indent = style.indent ?? 0;
-    const lines = doc.splitTextToSize(safe, contentWidth - indent) as string[];
-    const lineHeight = style.size * LINE_HEIGHT_FACTOR;
-    for (const line of lines) {
-      ensureSpace(lineHeight);
-      doc.text(line, PAGE_MARGIN_PT + indent, cursorY + style.size);
-      cursorY += lineHeight;
-    }
-  };
-
-  const writeImage = (dataUrl: string) => {
-    const naturalHeight = contentWidth / BOARD_ASPECT;
-    const fittedHeight = Math.min(naturalHeight, maxImageHeight);
-    const fittedWidth = fittedHeight * BOARD_ASPECT;
-    const imageX = PAGE_MARGIN_PT + (contentWidth - fittedWidth) / 2;
-    cursorY += IMAGE_GAP_PT;
-    ensureSpace(fittedHeight + IMAGE_GAP_PT);
-    try {
-      doc.addImage(dataUrl, "PNG", imageX, cursorY, fittedWidth, fittedHeight, undefined, "FAST");
-      cursorY += fittedHeight + IMAGE_GAP_PT;
-    } catch {
-      writeText("[board image unavailable]", PLACEHOLDER);
-    }
-  };
-
-  writeText(title || "Lecture Notes", { font: NOTES_PDF_FONT_FAMILY, weight: "bold", size: 22, gray: 0 });
-  cursorY += 4;
-  const count = sections.length;
-  writeText(
-    `${formatDate()}  ·  Generated by HeyTutor  ·  ${count} question${count === 1 ? "" : "s"}`,
-    { font: NOTES_PDF_FONT_FAMILY, weight: "normal", size: 10.5, gray: 110 },
-  );
-  cursorY += 18;
-
-  sections.forEach((section, index) => {
-    if (index > 0) cursorY += SECTION_GAP_PT;
-    // Keep a heading with at least a line of its body on the same page.
-    ensureSpace(64);
-
-    writeText(
-      section.interrupted
-        ? `Question ${index + 1}  (lesson stopped early)`
-        : `Question ${index + 1}`,
-      EYEBROW,
-    );
-    writeText(section.question || "Untitled question", QUESTION);
-    if (section.planFacts.length > 0) {
-      cursorY += 2;
-      writeText(`Values: ${section.planFacts.join("   ")}`, FACTS);
-    }
-
-    for (const image of section.images) {
-      writeImage(image);
-    }
-
-    if (section.workLines.length > 0) {
-      cursorY += 6;
-      writeText("Board work", EYEBROW);
-      cursorY += 2;
-      for (const line of section.workLines) {
-        writeText(line, WORK_LINE);
-      }
-    }
-
-    if (section.narration) {
-      cursorY += 8;
-      writeText("Explanation", EYEBROW);
-      cursorY += 2;
-      writeText(section.narration, NARRATION);
-    }
-  });
-
+  const doc = renderNotesPdf(notesPdfSlideImages(sections));
+  if (!doc) {
+    return;
+  }
   doc.save(`${sanitizeFilename(title)}.pdf`);
 }

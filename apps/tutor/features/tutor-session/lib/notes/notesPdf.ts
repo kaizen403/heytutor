@@ -38,10 +38,9 @@ function joinNarration(parts: readonly string[]): string {
 /**
  * Pair board pages with the lesson that drew them, in teaching order.
  *
- * A page tags the question whose ink it shows. A saved turn supplies the full
- * work lines and narration for its pages; pages from a lesson that was stopped
- * before it was saved keep only what the student actually heard. A saved turn
- * with no page at all (a board restored after a reload) still gets its text.
+ * A page tags the question whose ink it shows. The PDF prints those pages
+ * only — work lines and narration stay on the section for pairing, not for
+ * export. A saved turn with no page at all contributes no slide.
  */
 export function buildNotesPdfSections(
   turns: readonly LessonTurnNotes[],
@@ -84,7 +83,7 @@ export function buildNotesPdfSections(
   return sections;
 }
 
-/** PDF text comes from stored turns. Epochs only supply board images. */
+/** Epochs supply board images; stored turns keep teaching order. */
 export function notesPdfSectionsFromStoredTurns(
   storedTurns: readonly StoredTurn[],
   epochs: readonly NotesEpoch[],
@@ -92,10 +91,15 @@ export function notesPdfSectionsFromStoredTurns(
   return buildNotesPdfSections(storedTurns.map(notesFromStoredTurn), epochs);
 }
 
+/** Board (and code-panel) snapshots in teaching order. Text-only turns omit. */
+export function notesPdfSlideImages(sections: readonly NotesPdfSection[]): string[] {
+  return sections.flatMap((section) => section.images).filter((image) => image.length > 0);
+}
+
 /**
- * The notes PDF embeds `notes-pdf.ttf`, which can draw the board's maths
- * glyphs. Keep those. Spell out only what the font still lacks, and mark
- * unsupported scripts so the loss is visible.
+ * Map board maths onto glyphs `notes-pdf.ttf` can draw. Keep those. Spell
+ * out only what the font still lacks, and mark unsupported scripts so the
+ * loss is visible.
  */
 const NOTES_PDF_NATIVE = new Set([
   "∫", "∑", "√", "∂", "∞", "π", "∆", "∏", "−", "∕", "∙", "≈", "≠", "≡", "≤", "≥",

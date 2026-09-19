@@ -17,7 +17,7 @@ import {
 import { exportNotesPdf, type NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { fetchBoardDetail } from "@/lib/boards/boardsClient";
 import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
-import { notesPdfSectionsFromStoredTurns } from "../lib/notes/notesPdf";
+import { notesPdfSectionsFromStoredTurns, notesPdfSlideImages } from "../lib/notes/notesPdf";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 import type { StoredSegment, StoredTurn } from "@/lib/boards/boardsClient";
@@ -812,7 +812,7 @@ export function useReplay({
         // DSA turns keep their code in a DOM panel the board snapshot cannot
         // see; render each section's code as its own notes page.
         appendCodeLessonNotesImages(sections, storedTurns);
-        if (sections.length === 0) {
+        if (notesPdfSlideImages(sections).length === 0) {
           return;
         }
         const boardTitle = boards.find((b) => b.id === sessionId)?.title ?? "Lecture Notes";
