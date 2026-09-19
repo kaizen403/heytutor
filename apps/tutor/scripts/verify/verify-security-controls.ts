@@ -46,6 +46,10 @@ assert(names.has("Referrer-Policy"), "Referrer-Policy is set");
 assert(names.has("Permissions-Policy"), "Permissions-Policy is set");
 assert(contentSecurityPolicy().includes("frame-ancestors"), "CSP limits who may frame the tutor");
 assert(contentSecurityPolicy().includes("https://accelute.co"), "the landing origin may frame the embed");
+assert(
+  contentSecurityPolicy().includes("https://*.googleusercontent.com"),
+  "CSP must allow Google profile photos",
+);
 
 assert(read("next.config.ts").includes("securityHeaderEntries"), "next.config applies security headers");
 assert(read("middleware.ts").includes("applySecurityHeaders"), "middleware applies security headers");

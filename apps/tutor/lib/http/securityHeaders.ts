@@ -26,7 +26,9 @@ export function contentSecurityPolicy(env: NodeJS.ProcessEnv = process.env): str
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    // Google sign-in stores the avatar on *.googleusercontent.com. Without
+    // that host the sidebar/profile <img> is blocked and renders as an empty ring.
+    "img-src 'self' data: blob: https://*.googleusercontent.com https://*.ggpht.com",
     "font-src 'self'",
     "connect-src 'self'",
     "media-src 'self' blob:",

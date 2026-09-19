@@ -146,6 +146,8 @@ assert(profileMenu.includes("Upgrade plan"), "avatar menu offers Upgrade plan");
 assert(!/href="\/progress"/.test(profileMenu) && !/>\s*Progress\s*</.test(profileMenu), "avatar menu dropped Progress");
 assert(!/href="\/library"/.test(profileMenu) && !/>\s*Library\s*</.test(profileMenu), "avatar menu dropped Library");
 assert(!profileMenu.includes("\n                Usage\n"), "avatar menu does not duplicate Usage next to Upgrade plan");
+assert(history.includes("function ProfileAvatar"), "sidebar avatar is a dedicated control");
+assert(history.includes('referrerPolicy="no-referrer"'), "Google avatars must not send a Referer");
 
 const handler = read("features/tutor-session/hooks/turn/useQuestionHandler.ts");
 assert(handler.includes("studentBillingMessage"), "begin-turn failures use student billing copy");

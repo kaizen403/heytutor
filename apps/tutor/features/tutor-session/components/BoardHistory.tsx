@@ -194,6 +194,31 @@ function CreditsFooterButton({
   );
 }
 
+function ProfileAvatar({ src }: { src?: string | null }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+  if (src && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        className="bh__avatar"
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+    </svg>
+  );
+}
+
 function AccountNavLink({
   href,
   label,
@@ -636,15 +661,7 @@ function BoardHistoryContent({
             aria-expanded={profileOpen}
             onClick={() => setProfileOpen((open) => !open)}
           >
-            {profile?.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.image} alt="" className="bh__avatar" />
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
-              </svg>
-            )}
+            <ProfileAvatar src={profile?.image} />
           </button>
         </div>
       </footer>
@@ -1296,6 +1313,7 @@ const STYLES = `
   align-items: center;
   justify-content: center;
   padding: 0;
+  overflow: hidden;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 

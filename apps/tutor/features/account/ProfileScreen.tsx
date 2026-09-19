@@ -22,6 +22,7 @@ export function ProfileScreen() {
   const [name, setName] = useState("");
   const [learningNote, setLearningNote] = useState("");
   const [saved, setSaved] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     void fetch("/api/account/me")
@@ -31,6 +32,7 @@ export function ProfileScreen() {
           setProfile(data.profile);
           setName(data.profile.name ?? "");
           setLearningNote(data.profile.learningNote ?? "");
+          setImageFailed(false);
         }
         if (data.snapshot) setSnapshot(data.snapshot);
       });
@@ -60,9 +62,15 @@ export function ProfileScreen() {
     >
       <AccountCard title="Identity">
         <div className="flex items-center gap-4">
-          {profile?.image ? (
+          {profile?.image && !imageFailed ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={profile.image} alt="" className="h-14 w-14 rounded-full object-cover" />
+            <img
+              src={profile.image}
+              alt=""
+              className="h-14 w-14 rounded-full object-cover"
+              referrerPolicy="no-referrer"
+              onError={() => setImageFailed(true)}
+            />
           ) : (
             <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[rgba(255,255,255,0.1)] text-sm text-frost">
               {firstName(profile?.name, profile?.email).slice(0, 1)}
