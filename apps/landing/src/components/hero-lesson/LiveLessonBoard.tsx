@@ -1,7 +1,15 @@
-import { memo } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { Whiteboard, type CursorState, type WhiteboardHandle } from '@heytutor/whiteboard'
 import { PenSpinner } from '@heytutor/whiteboard/pen-spinner'
 import type { LessonSnapshot } from './lessonScript'
+
+const PENDING_BEATS = [
+  'thinking',
+  'planning the lecture',
+  'planning the diagram',
+  'planning the scene',
+  'preparing the lecture',
+] as const
 
 const INK = '#F2F2F4'
 
@@ -35,7 +43,10 @@ function LiveLessonBoard({
   return (
     <div style={{ position: 'relative', width: 988, height: 588, margin: '10px auto 0', borderRadius: 14, ...FRAME_STYLE }}>
       <style>{`@keyframes wb-bubble-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes wb-progress-sweep { 0% { left: -40%; } 100% { left: 100%; } }`}</style>
+@keyframes wb-progress-sweep { 0% { left: -40%; } 100% { left: 100%; } }
+@keyframes wb-pending-line { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes wb-pending-fill { from { width: 12% } to { width: 92% } }
+@keyframes wb-pending-sheen { from { transform: translateX(-120%) } to { transform: translateX(120%) } }`}</style>
 
       {/* recess the writing surface drops into (.wb-frame ::before) */}
       <div
@@ -94,8 +105,8 @@ function LiveLessonBoard({
           </div>
         </div>
 
-        {/* Pending overlay — same treatment as the tutor board: paper, the
-            clicker, no copy, no Konva shadows. */}
+        {/* Pending overlay — same as the tutor: paper, the clicker, and a
+            short line that names the wait. */}
         {snapshot.phase === 'submit' && (
           <div
             role="status"
@@ -124,7 +135,7 @@ function LiveLessonBoard({
                 }}
               />
             </div>
-            <PenSpinner size={56} ink="#1B2A4A" trail={false} />
+            <PendingClicker />
           </div>
         )}
 
@@ -180,6 +191,67 @@ function LiveLessonBoard({
           boxShadow: 'inset 0 0 0 1px rgba(240, 246, 252, 0.045)',
         }}
       />
+    </div>
+  )
+}
+
+function PendingClicker() {
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setIndex((current) => (current + 1) % PENDING_BEATS.length)
+    }, 2800)
+    return () => window.clearInterval(id)
+  }, [])
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+      <PenSpinner size={56} ink="#1B2A4A" trail={false} />
+      <p
+        key={PENDING_BEATS[index]}
+        style={{
+          margin: 0,
+          fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+          fontSize: 12,
+          fontWeight: 500,
+          letterSpacing: '0.014em',
+          color: 'rgba(27, 42, 74, 0.82)',
+          animation: 'wb-pending-line 380ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        }}
+      >
+        {PENDING_BEATS[index]}
+      </p>
+      <div
+        aria-hidden
+        style={{
+          width: 128,
+          height: 2,
+          overflow: 'hidden',
+          borderRadius: 999,
+          background: 'rgba(19, 19, 18, 0.14)',
+        }}
+      >
+        <div
+          style={{
+            position: 'relative',
+            height: '100%',
+            borderRadius: 999,
+            background: 'rgba(19, 19, 18, 0.55)',
+            animation: 'wb-pending-fill 14s cubic-bezier(0.16, 1, 0.3, 1) both',
+          }}
+        >
+          <span
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background:
+                'linear-gradient(90deg, transparent, rgba(255, 244, 220, 0.5), transparent)',
+              animation: 'wb-pending-sheen 1.8s ease-in-out infinite',
+            }}
+          />
+        </div>
+      </div>
     </div>
   )
 }

@@ -14,6 +14,10 @@ const overlay = readFileSync(
   resolve(tutorRoot, "features/tutor-session/components/ThinkingOverlay.tsx"),
   "utf8",
 );
+const beats = readFileSync(
+  resolve(tutorRoot, "features/tutor-session/lib/board/pendingBeats.ts"),
+  "utf8",
+);
 const shell = readFileSync(
   resolve(tutorRoot, "features/tutor-session/TutorSessionShell.tsx"),
   "utf8",
@@ -31,8 +35,17 @@ assert(overlay.includes("PenSpinner"), "the pending overlay must be the clicker 
 assert(overlay.includes("trail={false}"), "the pending clicker must not trail ink");
 assert(overlay.includes("smear={false}"), "the pending clicker must not smear a second shadow");
 assert(
-  overlay.includes("preparing the lecture"),
+  overlay.includes("preparing the lecture") || beats.includes("preparing the lecture"),
   "the spinning pen must say the tutor is preparing the lecture",
+);
+assert(beats.includes("thinking"), "the wait must name thinking");
+assert(beats.includes("planning the diagram"), "the wait must name planning the diagram");
+assert(beats.includes("planning the scene"), "the wait must name planning the scene");
+assert(overlay.includes("usePendingBeat"), "the line under the pen must cycle");
+assert(overlay.includes("wb-pending__rail"), "the wait must keep an ink rail under the words");
+assert(
+  !overlay.includes("wb-pending__compass"),
+  "the wait must not draw construction rings around the pen",
 );
 assert(
   overlay.includes('aria-label="Preparing the lecture"'),
