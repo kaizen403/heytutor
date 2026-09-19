@@ -72,6 +72,8 @@ if ! id heytutor >/dev/null 2>&1; then
 fi
 mkdir -p /var/lib/heytutor
 chown heytutor:heytutor /var/lib/heytutor
+# ubuntu's umask 077 leaves /opt/heytutor at 700; the service user must enter it.
+chmod -R a+rX "$APP_DIR"
 if [ -f "$ENV_FILE" ]; then
   chgrp heytutor "$ENV_FILE"
   chmod 640 "$ENV_FILE"
@@ -105,6 +107,7 @@ Group=heytutor
 NoNewPrivileges=true
 WorkingDirectory=${APP_DIR}
 Environment=HOME=/var/lib/heytutor
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=${APP_DIR}/apps/tutor/.env.production
 ExecStart=/usr/bin/bash -lc 'cd apps/tutor && pnpm exec prisma migrate deploy && NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000 pnpm exec tsx server.ts'
 Restart=always

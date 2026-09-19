@@ -164,7 +164,7 @@ jobs:
             fi
             git reset --hard "${GITHUB_SHA}"
             ./deploy/aws/deploy.sh
-            for i in 1 2 3 4 5 6 7 8 9 10; do
+            for i in $(seq 1 24); do
               if curl -fsS http://127.0.0.1:3000/api/health | grep -q '"ok":true'; then
                 echo "health ok"
                 exit 0
@@ -172,4 +172,5 @@ jobs:
               sleep 5
             done
             echo "tutor health check failed after deploy"
+            sudo journalctl -u heytutor -n 80 --no-pager || true
             exit 1

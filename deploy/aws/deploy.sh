@@ -44,6 +44,8 @@ if ! sudo id heytutor >/dev/null 2>&1 && ! id heytutor >/dev/null 2>&1; then
 fi
 sudo mkdir -p /var/lib/heytutor
 sudo chown heytutor:heytutor /var/lib/heytutor
+# ubuntu's umask 077 leaves /opt/heytutor at 700; the service user must enter it.
+sudo chmod -R a+rX "$ROOT"
 sudo chgrp heytutor "$ENV_FILE"
 sudo chmod 640 "$ENV_FILE"
 sudo mkdir -p "$ROOT/apps/tutor/.next/cache"
@@ -64,6 +66,7 @@ Group=heytutor
 NoNewPrivileges=true
 WorkingDirectory=${ROOT}
 Environment=HOME=/var/lib/heytutor
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=${ENV_FILE}
 ExecStart=/usr/bin/bash -lc 'cd apps/tutor && pnpm exec prisma migrate deploy && NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000 pnpm exec tsx server.ts'
 Restart=always
@@ -75,8 +78,9 @@ EOF
   sudo systemctl daemon-reload
 fi
 
-if sudo systemctl is-active --quiet heytutor 2>/dev/null; then
+if [ -f /etc/systemd/system/heytutor.service ]; then
   echo "==> restart heytutor.service"
+  sudo systemctl reset-failed heytutor || true
   sudo systemctl restart heytutor
 else
   echo "==> heytutor.service not installed — start manually or run setup-vm.sh"
