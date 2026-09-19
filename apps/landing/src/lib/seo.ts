@@ -97,7 +97,7 @@ export const PAGES: readonly SeoPage[] = [
     title: 'Accelute | AI Whiteboard Tutor for Every Subject',
     description:
       'Accelute is an AI whiteboard tutor. Ask a question and watch it draw, write, and explain each step out loud, built for how you actually study.',
-    headline: 'Accelute, the AI tutor on a live whiteboard.',
+    headline: 'AI that teaches you on a whiteboard.',
     lead: 'Ask a question. Watch the diagram drawn, the working written, and each step explained out loud. An AI tutor for how you actually study.',
     kicker: 'Accelute',
     breadcrumb: 'Home',
