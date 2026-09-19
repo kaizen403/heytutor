@@ -4636,7 +4636,12 @@ export function implicitSolverEntityIds(document: SceneDocument): Set<string> {
       const hitPointId = construction.outputs[0];
       return hitPointId && !required.has(hitPointId) ? [hitPointId] : [];
     }
-    if (construction.operator === "point") {
+    if (
+      construction.operator === "point" ||
+      construction.operator === "midpoint" ||
+      construction.operator === "rotate" ||
+      construction.operator === "project"
+    ) {
       const output = construction.outputs[0];
       return output && isImplicitConstructionPoint(output, document) ? [output] : [];
     }
@@ -6252,34 +6257,49 @@ function isInlineCoordinatePoint(value: unknown): value is Record<string, unknow
     (value.coordinateSpace === "layout" || value.coordinateSpace === "world");
 }
 
+function isAngleMarkVertex(entityId: string, document: SceneDocument): boolean {
+  return document.constructions.some((construction) => {
+    if (construction.operator !== "angle_mark" && construction.operator !== "right_angle_mark") return false;
+    return isRecord(construction.inputs) && construction.inputs.vertex === entityId;
+  });
+}
+
 function isImplicitConstructionPoint(entityId: string, document: SceneDocument): boolean {
   const entity = document.entities.find((candidate) => candidate.id === entityId);
+  if (isAngleMarkVertex(entityId, document)) return false;
+  if (entity?.label) return false;
   const annotationAnchor = Boolean(
     entity &&
-    !entity.label &&
     isGenericHelperPointRole(entity.role) &&
     document.annotations.some((annotation) => annotation.targetIds.includes(entityId)),
   );
-  if (document.requiredEntityIds.includes(entityId) && !annotationAnchor) return false;
-  if (document.annotations.some((annotation) => annotation.targetIds.includes(entityId)) && !annotationAnchor) return false;
+  if (annotationAnchor) return true;
+  if (document.annotations.some((annotation) => annotation.targetIds.includes(entityId))) return false;
   if (document.relations.some((relation) => relation.entities.includes(entityId))) return false;
-  if (entity?.label) return false;
   if (entity && !isGenericHelperPointRole(entity.role)) {
     return false;
   }
-  if (annotationAnchor) return true;
   const consumers = document.constructions.flatMap((construction) =>
     referencesEntityId(construction.inputs, entityId) ? [construction.operator] : [],
   );
-  return consumers.length > 0;
+  if (consumers.length === 0) return false;
+  // Required terminals stay ink: topology gates read their marks. Unnamed
+  // coil, node, and centre locators still drop even when SceneBuilder required them.
+  if (
+    document.requiredEntityIds.includes(entityId) &&
+    /\bterminal\b/i.test(entity?.role.replace(/[_-]+/g, " ") ?? "")
+  ) {
+    return false;
+  }
+  return true;
 }
 
 function isGenericHelperPointRole(role: string): boolean {
   const normalized = role.replace(/[_-]+/g, " ");
-  if (/\b(?:observation|target|charge|object|image|focus|focal|pole|vertex|midpoint|intersection|incidence|source)\b/i.test(normalized)) {
+  if (/\b(?:observation|target|charge|object|image|focus|focal|pole|vertex|midpoint|intersection|incidence|source|curvature|mass)\b/i.test(normalized)) {
     return false;
   }
-  return /\b(?:point|node|terminal|junction|endpoint|end|hit|contact|origin|reference|helper|layout|wire|anchor|marker|mark|base|tip|tail|head|position|pos)\b|\bfield symbol\b/i.test(normalized);
+  return /\b(?:point|node|terminal|junction|endpoint|end|hit|contact|origin|reference|helper|layout|wire|anchor|marker|mark|base|tip|tail|head|position|pos|coil|support|cent(?:er|re))\b|\bfield symbol\b/i.test(normalized);
 }
 
 function isCompactDiagramLabel(text: string): boolean {
