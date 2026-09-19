@@ -41,6 +41,7 @@ const SORTERS: Record<UserSort, (a: UserRow, b: UserRow) => number> = {
   messages: (a, b) => b.aggregates.chatMessages - a.aggregates.chatMessages,
   newest: (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
   oldest: (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+  spend: (a, b) => (b.spendMillicents ?? -1) - (a.spendMillicents ?? -1),
 };
 
 interface UserRow {

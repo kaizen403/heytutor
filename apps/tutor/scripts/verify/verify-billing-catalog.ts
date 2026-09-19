@@ -9,6 +9,7 @@ import {
   PLAN_CATALOG,
   TOP_UP_USD,
   TTS_CHARS_PER_LESSON,
+  millicentsToUsd,
   usdToMillicents,
 } from "../../lib/billing/catalog";
 
@@ -24,6 +25,7 @@ assert(PLAN_CATALOG.plus.notesMessagesPerMonth === 200, "Plus notes 200");
 assert(PLAN_CATALOG.pro.notesMessagesPerMonth === 500, "Pro notes 500");
 assert(TOP_UP_USD === 10, "top-up is $10");
 assert(usdToMillicents(3.5) === 3500, "Free envelope is 3500 millicents");
+assert(millicentsToUsd(3500) === 3.5, "3500 millicents is $3.50");
 assert(TTS_CHARS_PER_LESSON === 12_000, "TTS fuse is 12000 chars");
 assert(GRANT_TTL_MS === 20 * 60 * 1000, "grant TTL is 20 minutes");
 assert(MAX_DOUBTS_PER_CREDIT === 8, "8 doubts per grant");

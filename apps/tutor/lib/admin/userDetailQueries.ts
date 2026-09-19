@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { billingPeriodKey } from "@/lib/billing/ledgerMath";
+import { fetchUserInferenceCost } from "./costQueries";
 import { classifyOutcome, extractArtifactSummary } from "./outcome";
 import type {
   AdminUserRow,
@@ -173,5 +174,6 @@ export async function userDetail(userId: string): Promise<UserDetailPayload | nu
       spentMillicents: entry.spentMillicents,
       bonusMillicents: entry.bonusMillicents,
     })),
+    inference: await fetchUserInferenceCost(boards.map((board) => board.id)),
   };
 }

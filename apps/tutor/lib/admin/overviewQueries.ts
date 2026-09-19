@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { fetchOverviewCost } from "./costQueries";
 import { fetchOverviewDistributions } from "./overviewDistributions";
 import { fetchOverviewLists } from "./overviewLists";
 import { bucketCountsByDay, recentDayRange } from "./timeBuckets";
@@ -33,6 +34,7 @@ export async function fetchOverview(): Promise<OverviewPayload> {
     turnsProjection,
     distributions,
     lists,
+    cost,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
@@ -63,6 +65,7 @@ export async function fetchOverview(): Promise<OverviewPayload> {
     }),
     fetchOverviewDistributions({ weekAgo, monthAgo }),
     fetchOverviewLists({ weekAgo }),
+    fetchOverviewCost(now),
   ]);
 
   return {
@@ -80,6 +83,7 @@ export async function fetchOverview(): Promise<OverviewPayload> {
       turns30d,
       failRate7d: turns7d > 0 ? failedTurns7d / turns7d : null,
     },
+    cost,
     turnsPerDay: bucketCountsByDay(
       turnsProjection.map((turn) => turn.createdAt),
       SERIES_DAYS,

@@ -76,6 +76,12 @@ export function usdToMillicents(usd: number): number {
   return Math.round(usd * MILLICENTS_PER_USD);
 }
 
+/** Inverse of `usdToMillicents`. The ledger stores thousandths of a dollar. */
+export function millicentsToUsd(millicents: number): number {
+  if (!Number.isFinite(millicents) || millicents === 0) return 0;
+  return millicents / MILLICENTS_PER_USD;
+}
+
 export const CHECKOUT_PLAN_IDS = [BILLING_PLANS.plus, BILLING_PLANS.pro] as const;
 export type CheckoutPlanId = (typeof CHECKOUT_PLAN_IDS)[number];
 

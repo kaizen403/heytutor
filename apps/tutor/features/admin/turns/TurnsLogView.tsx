@@ -47,7 +47,7 @@ export function TurnsLogView() {
     if (!data) return;
     downloadCsv(
       `heytutor-turns-page${data.page}.csv`,
-      ["turn id", "question", "outcome", "tier", "user", "board", "engine", "created", "trace"],
+      ["turn id", "question", "outcome", "tier", "user", "board", "engine", "created", "ai usd", "voice usd", "total usd", "trace"],
       data.turns.map((turn) => [
         turn.turnId,
         turn.question,
@@ -57,6 +57,9 @@ export function TurnsLogView() {
         turn.boardTitle,
         turn.sceneEngineVersion ?? "",
         turn.createdAt,
+        turn.llmUsd ?? "",
+        turn.ttsUsd ?? "",
+        turn.totalUsd ?? "",
         turn.traceUrl ?? "",
       ]),
     );

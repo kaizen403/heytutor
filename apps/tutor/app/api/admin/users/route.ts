@@ -9,6 +9,7 @@ const SORTS: readonly UserSort[] = [
   "turns",
   "boards",
   "messages",
+  "spend",
   "newest",
   "oldest",
 ];
