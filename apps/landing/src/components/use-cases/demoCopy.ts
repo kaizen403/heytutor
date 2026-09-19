@@ -8,6 +8,6 @@ import type { DemoCopy } from './useUseCaseDemo'
  */
 export const RESISTORS_DEMO: DemoCopy = {
   question: RESISTORS_QUESTION,
-  doubt: 'wait — why does parallel come out smaller than one resistor?',
+  doubt: 'wait, why does parallel come out smaller than one resistor?',
   bubbles: RESISTORS_SEGMENTS.map((segment) => segment.bubble),
 }

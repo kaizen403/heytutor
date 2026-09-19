@@ -57,7 +57,7 @@ export function studentBillingMessage(code: string): string {
     case "notes_limit":
       return "Out of notes messages this month";
     case "rate_limited":
-      return "Too many questions — try again in a bit";
+      return "Too many questions. Try again in a bit";
     case "concurrent_limit":
       return "A lesson is already in progress";
     case "doubt_limit":

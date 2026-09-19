@@ -35,7 +35,7 @@ export default function Brand({ href, size = 'md', className }: BrandProps) {
 
   if (href) {
     return (
-      <a className={classes} href={href} aria-label="Accelute — home">
+      <a className={classes} href={href} aria-label="Accelute home">
         {lockup}
       </a>
     )

@@ -440,8 +440,8 @@ export function CodeLessonPanel({
               }}
             >
               {practiceHasTargets
-                ? hasNext ? "Section practiced — ↓ for the next one" : "All sections practiced"
-                : "Nothing to practice here — use ↓ / ↑"}
+                ? hasNext ? "Section practiced. ↓ for the next one" : "All sections practiced"
+                : "Nothing to practice here. Use ↓ / ↑"}
             </div>
           ) : null}
         </div>

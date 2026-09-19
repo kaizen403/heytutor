@@ -124,7 +124,7 @@ function SafariChrome({ sound, onToggle }: { sound: SoundState; onToggle: () => 
         >
           {/* The product's real brand mark, not a letter tile. */}
           <Logo className="h-[13px] w-[13px] shrink-0 text-[#F0F5F7]" />
-          <span className="truncate">Accelute — {LESSON_TITLE}</span>
+          <span className="truncate">Accelute: {LESSON_TITLE}</span>
           {/* Safari puts the audio control on the tab itself. */}
           {showSpeaker && (
             <button

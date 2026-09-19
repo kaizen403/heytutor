@@ -61,7 +61,7 @@ export default function PrivacyPage() {
       <LegalSection title="3. How we use it">
         <p>We use this information to:</p>
         <ul>
-          <li>run lessons — plan a scene, draw on the board, and speak</li>
+          <li>run lessons: plan a scene, draw on the board, and speak</li>
           <li>save and restore your boards, notes, and replays</li>
           <li>
             bill plans, show remaining usage, and handle upgrades and top-ups

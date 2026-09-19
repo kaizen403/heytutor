@@ -27,7 +27,7 @@ export const RESISTORS_SEGMENTS: LessonSegment[] = [
     fallbackDuration: 8.6,
   },
   {
-    speech: 'Twelve plus twelve plus twelve is thirty six ohms — larger than any single resistor on its own.',
+    speech: 'Twelve plus twelve plus twelve is thirty six ohms, larger than any single resistor on its own.',
     bubble: 'series total = 36 Ω',
     fallbackDuration: 6.2,
   },
@@ -43,7 +43,7 @@ export const RESISTORS_SEGMENTS: LessonSegment[] = [
   },
   {
     speech: 'Same three resistors, and the series value is nine times the parallel one. Giving the current more paths always lowers the resistance.',
-    bubble: '36 Ω vs 4 Ω — more paths, less resistance',
+    bubble: '36 Ω vs 4 Ω: more paths, less resistance',
     fallbackDuration: 7.6,
   },
 ]

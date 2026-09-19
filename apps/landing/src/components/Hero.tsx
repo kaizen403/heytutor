@@ -52,8 +52,8 @@ export default function Hero() {
           className="animate-fade-up mx-auto mt-5 w-full min-w-0 max-w-xl text-base leading-relaxed text-[rgba(240,245,247,0.62)] sm:mt-6 sm:text-lg"
           style={{ animationDelay: '160ms' }}
         >
-          Ask a question. Watch it draw, write, and explain each step out loud
-          — an AI whiteboard tutor for how you actually study.
+          Ask a question. Watch it draw, write, and explain each step out loud.
+          An AI whiteboard tutor for how you actually study.
         </p>
         <p
           className="animate-fade-up mt-3 hidden text-[13px] tracking-[-0.01em] text-[rgba(240,245,247,0.42)] sm:block"

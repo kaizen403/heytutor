@@ -222,7 +222,7 @@ export function BoardMarkingLayer({
       {armed ? (
         <div
           role="application"
-          aria-label="Marking layer — circle or underline anything you did not follow"
+          aria-label="Marking layer. Circle or underline anything you did not follow"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}

@@ -36,7 +36,7 @@ function chipLabel(
   if (target.kind === "region") {
     return { verb, body: target.text, grounded: false };
   }
-  const meaning = target.meaning ? ` — ${target.meaning}` : "";
+  const meaning = target.meaning ? `: ${target.meaning}` : "";
   return { verb, body: `${target.text}${meaning}`, grounded: true };
 }
 
@@ -71,7 +71,7 @@ export function MarkedDoubtBar({
             {marks.length === 0
               ? MARK_MODE_HINT
               : atMarkLimit
-                ? "That is plenty to go on — ask away."
+                ? "That is plenty to go on. Ask away."
                 : MARK_MODE_EMPTY_HINT}
           </span>
         </span>
@@ -135,7 +135,7 @@ export function MarkedDoubtBar({
                       style={{ color: "var(--frost)" }}
                       title={body}
                     >
-                      {grounded ? body : `${body} — nothing there`}
+                      {grounded ? body : `${body}, nothing there`}
                     </span>
                     <button
                       type="button"

@@ -191,7 +191,7 @@ export function RunCostBox({
             <p className="type-accent-xs leading-relaxed text-faint">
               AI is Fireworks serverless. Voice is ElevenLabs API
               {flashRate != null && multiRate != null
-                ? ` — Flash ${formatUsd(flashRate)} / 1k chars, Multilingual ${formatUsd(multiRate)} / 1k chars`
+                ? `. Flash ${formatUsd(flashRate)} / 1k chars, Multilingual ${formatUsd(multiRate)} / 1k chars`
                 : ""}
               .
             </p>

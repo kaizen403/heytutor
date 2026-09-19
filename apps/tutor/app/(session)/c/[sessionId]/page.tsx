@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: SessionPageProps): Promise<Me
       googleBot: { index: false, follow: false },
     },
     openGraph: {
-      title: `${SITE_NAME} — Whiteboard session`,
+      title: `${SITE_NAME}: Whiteboard session`,
       description: "Your private AI whiteboard tutoring session.",
     },
     other: {
