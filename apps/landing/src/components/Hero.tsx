@@ -43,9 +43,9 @@ export default function Hero() {
 
       <div className="relative z-20 flex w-full min-w-0 flex-col items-center px-5 text-center sm:px-8 lg:px-10">
         <h1 className="type-h1 type-h1--hero w-full min-w-0 max-w-4xl text-frost">
-          <span className="block animate-fade-up">Accelute, the AI tutor</span>
+          <span className="block animate-fade-up">AI that teaches you</span>
           <span className="block animate-fade-up [animation-delay:100ms]">
-            on a live <span className="text-ice">whiteboard</span>.
+            on a <span className="text-ice">whiteboard</span>.
           </span>
         </h1>
         <p
