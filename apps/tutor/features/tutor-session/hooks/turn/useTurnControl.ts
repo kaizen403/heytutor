@@ -10,7 +10,7 @@ import {
   prepareVerifiedLessonSegments,
   remainingDeferredAnnotations,
 } from "@heytutor/drawing";
-import { tutorDebug, voiceSettingsForDelivery } from "@heytutor/tutor-core";
+import { compactConversationHistory, tutorDebug, voiceSettingsForDelivery } from "@heytutor/tutor-core";
 import {
   summarizeSegmentsForTrace,
   normalizeSegmentForAlignment,
@@ -932,10 +932,10 @@ export function useTurnControl(
         narrationSinceEpochRef.current,
       );
       if (interruptedLesson) {
-        conversationHistoryRef.current.push(interruptedLesson);
-        if (conversationHistoryRef.current.length > 10) {
-          conversationHistoryRef.current.shift();
-        }
+        conversationHistoryRef.current = compactConversationHistory([
+          ...conversationHistoryRef.current,
+          interruptedLesson,
+        ]);
       }
 
       tutorDebug("turn", "doubt interrupts lesson", {

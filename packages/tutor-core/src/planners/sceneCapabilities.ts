@@ -12,6 +12,7 @@ import {
   familiesFromProblemStructure,
 } from "@heytutor/scene-engine";
 import type { ProblemStructureView, SceneVisualFamily } from "@heytutor/scene-engine";
+import { isExplainRequest } from "../llm/reasoningEffort";
 
 // The family union and the structure router live in the scene-engine seam
 // (synthesize/familyClassification.ts); re-exported here for existing callers.
@@ -234,7 +235,12 @@ export function inferSceneCapabilities(
   const lawIds = hints.lawIds ?? hints.turnPlan?.lawIds ?? [];
   const stem = normalizeStem(question);
   const explicitVisual = /\b(?:draw|diagram|illustrat(?:e|ion)|sketch|construct|plot|graph|locate|mark|show)\b/i.test(stem);
-  const structureFamilies = familiesFromProblemStructure(hints.problemIR);
+  // An explain question with no numbers has no solved apparatus. ProblemIR
+  // still sometimes stamps a field or a circuit, and the scene planner then
+  // tries to draw charges for the laws of thermodynamics.
+  const structureFamilies = isExplainRequest(stem) && !/\d/.test(stem)
+    ? []
+    : familiesFromProblemStructure(hints.problemIR);
   // When ProblemIR structure names families it is the live catalog: the
   // English tables below only add coverage, their delete-overrides may not
   // revoke a structure-derived family, and structure keeps the leading
@@ -285,6 +291,18 @@ export function inferSceneCapabilities(
   applyStemFamilyOverrides(stem, families, {
     preserveFamilies: structureDecisive ? structureFamilies : [],
   });
+  // "thermodynamic" in a law id is not a P–V cycle. Keep state_plot only when
+  // the stem actually names a process or a graph.
+  const statePlotProcess =
+    /(?:isothermal|adiabatic|isobaric|isochoric|carnot|indicator diagram|p\s*[-–]?\s*[vt]\s*(?:diagram|graph)|thermodynamic cycle|cyclic process)/i;
+  if (
+    families.has("state_plot")
+    && isExplainRequest(stem)
+    && !explicitVisual
+    && !statePlotProcess.test(`${stem} ${lawText}`)
+  ) {
+    families.delete("state_plot");
+  }
 
   const operators = new Set(BASE_OPERATORS);
   const predicates = new Set(["exists", "label_attached"]);

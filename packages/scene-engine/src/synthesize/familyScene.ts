@@ -36,6 +36,7 @@ import {
   type SceneVisualFamily,
 } from "./familyClassification";
 import { demandRejection, sceneDemand } from "./sceneDemand";
+import { buildConceptSchematic, CONCEPT_SCHEMATIC_FAMILY } from "./conceptSchematic";
 import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
 import { findStatedCurves, type StatedCurve } from "./statedEquations";
 import { metricAssertions } from "../archetypes/contract";
@@ -194,6 +195,23 @@ function synthesizeFromFamilies(
           ? `compiled ${family} from the turn plan and reusable operators`
           : `compiled ${family} grounded in the question wording; no plan-backed metric proof, so the geometry is qualitative`,
       family,
+    };
+  }
+  // Explain/concept plans name the objects to teach (systems, flows,
+  // reservoirs) even when the stem names no apparatus. Compile those as a
+  // qualitative schematic after every metric family declined, never as a
+  // canned P–V rectangle.
+  const conceptDocument = buildConceptSchematic(question, input.turnPlan);
+  const conceptCompiled = conceptDocument ? tryCompile(conceptDocument) : null;
+  if (conceptCompiled && !demandRejection(conceptCompiled.document, demand)) {
+    return {
+      ...conceptCompiled,
+      tier: schematic ? "question_representation" : "qualitative_verified",
+      nonMetric: true,
+      reason: schematic
+        ? "compiled a teaching schematic from the turn plan after the exact operator program was unavailable"
+        : "compiled a teaching schematic from the turn plan's named systems and flows; geometry is qualitative",
+      family: CONCEPT_SCHEMATIC_FAMILY,
     };
   }
   return null;
@@ -1956,7 +1974,7 @@ function buildStatePlot(
   const closed = /(?:cycle|clockwise|rectangular)/i.test(question);
   if (!schematic && pressures.length < 2 && volumes.length < 2 && !closed) return null;
   const namedCycle = closed
-    || /(?:cyclic|thermodynamic|isothermal|adiabatic|isobaric|isochoric|carnot|indicator diagram|p\s*[-–]?\s*[vt]\s*(?:diagram|graph)|pressure.{0,40}volume|volume.{0,40}pressure)/i.test(question);
+    || /(?:cyclic|isothermal|adiabatic|isobaric|isochoric|carnot|indicator diagram|p\s*[-–]?\s*[vt]\s*(?:diagram|graph)|pressure.{0,40}volume|volume.{0,40}pressure|thermodynamic cycle)/i.test(question);
   if (schematic && pressures.length < 2 && volumes.length < 2 && !namedCycle) return null;
   const axisLabel = /p\s*[-–]?\s*t\s*(?:diagram|graph)/i.test(question) ? "P-T" : "P-V";
   const corners = [

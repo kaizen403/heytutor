@@ -113,6 +113,16 @@ const DIAGRAM_SETUP = /^(?:draw|sketch|show|illustrate)\b/i;
 const ANY_ASK_VERB =
   /\b(?:find|calculate|determine|compute|evaluate|solve|prove|derive|show\s+that|verify|simplify|expand|factori[sz]e|integrate|differentiate|estimate|convert|how\s+much|how\s+many|what\s+is\s+the\s+value)\b/i;
 
+/** True when the user asked for an explanation, not an MCQ or a numbered solve. */
+export function isExplainRequest(question: string): boolean {
+  const q = question.trim();
+  if (q.length === 0) return false;
+  if (/\b(?:which of the following|which of these|assertion|reason\s*\(?r?)\b/i.test(q)) {
+    return false;
+  }
+  return /\b(?:explain|walk me through|tell me about|overview of|basics of|introduce)\b/i.test(q);
+}
+
 /** True when the user asked to learn an idea, not to solve a numbered problem. */
 export function isConceptLessonQuestion(question: string): boolean {
   const q = question.trim();

@@ -11,6 +11,7 @@ import {
 } from "@heytutor/drawing";
 import {
   streamLLMResponse,
+  compactConversationHistory,
   tutorDebug,
   resolveApiUrl,
   planSceneDocumentWithRepair,
@@ -817,8 +818,10 @@ export function useQuestionHandler(
         // A doubt or a resume plans nothing: the page already carries the
         // lesson's figure and rows, and the plan its numbers came from is
         // inherited below.
-        const recentConversation = conversationHistoryRef.current
-          .slice(-3)
+        const recentConversation = compactConversationHistory(
+          conversationHistoryRef.current,
+          { maxTurns: 3, lastAssistantChars: 400, olderAssistantChars: 180 },
+        )
           .map((exchange) => `User: ${exchange.user}\nTutor: ${exchange.assistant}`)
           .join("\n\n");
         let recoveredScene = findVerifiedSceneRecovery(question, storedTurnsRef.current, {
@@ -1884,15 +1887,17 @@ export function useQuestionHandler(
                         : null,
                     )
                 : question,
-              conversationHistory: isContinuation
-                ? [
-                    ...conversationHistoryRef.current,
-                    {
-                      user: question,
-                      assistant: lessonNarrationText(fullResponse),
-                    },
-                  ]
-                : conversationHistoryRef.current,
+              conversationHistory: compactConversationHistory(
+                isContinuation
+                  ? [
+                      ...conversationHistoryRef.current,
+                      {
+                        user: question,
+                        assistant: lessonNarrationText(fullResponse),
+                      },
+                    ]
+                  : conversationHistoryRef.current,
+              ),
               proxyUrl: resolveApiUrl("/api/chat"),
               sessionId: sessionId ?? undefined,
               traceId: turnTraceId ?? undefined,
@@ -2091,14 +2096,13 @@ export function useQuestionHandler(
           responseText.length > 0 ? lessonNarrationText(responseText) : narrationText;
 
         if (finalNarration.trim() && !turnCancelled && !cancelRef.current) {
-          conversationHistoryRef.current.push({
-            user: question,
-            assistant: finalNarration,
-          });
-
-          if (conversationHistoryRef.current.length > 10) {
-            conversationHistoryRef.current.shift();
-          }
+          conversationHistoryRef.current = compactConversationHistory([
+            ...conversationHistoryRef.current,
+            {
+              user: question,
+              assistant: finalNarration,
+            },
+          ]);
 
           const currentId = sessionId;
           if (currentId && rawResponseRef.current) {
