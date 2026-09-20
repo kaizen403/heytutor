@@ -1088,6 +1088,7 @@ export function TutorSessionShell({
   /** A new question replaces the board the marks were about. */
   const submitQuestionAndDropMarks = useCallback(
     (question: string) => {
+      ensureTTSClient().unlockAudio?.();
       marking.disarm();
       if (storedTurnsCount > 0) {
         startNextQuestion(question);
@@ -1095,7 +1096,7 @@ export function TutorSessionShell({
       }
       void handleQuestion(question);
     },
-    [handleQuestion, marking, startNextQuestion, storedTurnsCount],
+    [ensureTTSClient, handleQuestion, marking, startNextQuestion, storedTurnsCount],
   );
 
   useEffect(() => {

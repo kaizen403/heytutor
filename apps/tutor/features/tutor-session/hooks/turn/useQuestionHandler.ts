@@ -353,6 +353,11 @@ export function useQuestionHandler(
   const handleQuestion = useCallback(
     async (rawQuestion: string, options?: HandleQuestionOptions) => {
       const question = normalizeTutorQuestion(rawQuestion);
+      // Join the Ask click before any await. Committing the home board and
+      // begin-turn used to run first (~1s); Chrome dropped the gesture,
+      // AudioContext stayed suspended through planning, and the first spoken
+      // beat fell through to silent speechSynthesis.
+      ensureTTSClient().unlockAudio?.();
       // A doubt answers on the page it was asked about; see `lib/turn/doubtTurn`.
       const doubt = options?.doubt ?? null;
       // The rest of a lesson a mid-lesson doubt just paused. Mutually exclusive
@@ -625,8 +630,8 @@ export function useQuestionHandler(
         wsSpan.end(metadata);
       };
 
-      // Unlock WebAudio inside the submit gesture before any await — otherwise
-      // planning (up to 8s) leaves AudioContext suspended and TTS is silent.
+      // Re-arm the graph the Ask click already held. Planning can last a
+      // minute; this does not replace unlocking inside the gesture.
       const tts = ensureTTSClient();
       tts.unlockAudio?.();
 
