@@ -18,6 +18,7 @@ export * from "./archetypes";
 export * from "./synthesize/familyClassification";
 export * from "./synthesize/sceneDemand";
 export * from "./synthesize/familyScene";
+export * from "./synthesize/conceptSchematic";
 export * from "./synthesize/dsaFamilies";
 export * from "./chemistry";
 

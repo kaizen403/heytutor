@@ -267,6 +267,19 @@ export function selectTurnPlanV3Consensus(
     requestedUnknownCoverage(candidate) === maximumCoverage);
   if (complete.length === 1) return complete[0]!;
 
+  // Concept lessons have no numeric unknowns, so coverage is a tie. Prefer
+  // the plan that named more of the objects the explanation is about, otherwise
+  // the shorter lane wins and the schematic has nothing to draw.
+  if (maximumCoverage === 0) {
+    const ranked = [...complete].sort((first, second) =>
+      qualitativeRichness(second) - qualitativeRichness(first));
+    const richest = ranked[0]!;
+    const next = ranked[1];
+    if (!next || qualitativeRichness(richest) > qualitativeRichness(next)) {
+      return richest;
+    }
+  }
+
   const groups = new Map<string, TurnPlanV3[]>();
   for (const candidate of complete) {
     const fingerprint = requestedResultFingerprint(candidate);
@@ -281,6 +294,14 @@ export function selectTurnPlanV3Consensus(
   return complete.find((candidate) => candidate === audited) ??
     complete.find((candidate) => candidate === planned) ??
     complete[0]!;
+}
+
+function qualitativeRichness(plan: TurnPlanV3): number {
+  const hints = plan.qualitativeClaims.reduce(
+    (count, claim) => count + (claim.relatedEntityHints?.length ?? 0),
+    0,
+  );
+  return plan.qualitativeClaims.length * 10 + hints;
 }
 
 function requestedUnknownCoverage(plan: TurnPlanV3): number {
@@ -892,7 +913,7 @@ function mergeAbortSignals(first: AbortSignal, second: AbortSignal): AbortSignal
 }
 
 export const TURN_PLAN_V3_VISUAL_GROUNDING =
-  "Set visualRequirement=required when quantities/entities must be located or related in space, even without a draw verb.";
+  "Set visualRequirement=required when quantities/entities must be located in space, or an explain names systems or flows.";
 
 /** Prompt length before the visualRequirement grounding line (chars). Growth must stay ≤ 150. */
 export const TURN_PLAN_V3_PROMPT_BASELINE_CHARS = 2648;
@@ -929,6 +950,6 @@ Required checks:
 - for directional claims, define a coordinate convention and evaluate vector or orientation operations component by component;
 - check qualitative claims against conservation laws, boundary conditions, limiting cases, and each other;
 - keep only assumptions necessary to make the question well-defined;
-- retain visualRequirement=required whenever the question explicitly requests a visual, the candidate already set required for a spatial setup, or quantities/entities must be located or related in space.
+- retain visualRequirement=required whenever the question explicitly requests a visual, the candidate already set required for a spatial setup, quantities/entities must be located or related in space, or an explain question's claims name systems, flows, or apparatus.
 
 Use the same required keys and shapes as turn-plan/v3. The question field must contain the submitted question. Return the complete corrected plan, even when the candidate was already correct.`;

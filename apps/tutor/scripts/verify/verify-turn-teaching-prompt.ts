@@ -361,6 +361,10 @@ assert(
   CONCEPT_LESSON_RUNTIME_ADDON.includes("deriving it is the lesson"),
   "the concept lesson addon must require the named relation to be derived, not just quoted",
 );
+assert(
+  CONCEPT_LESSON_RUNTIME_ADDON.includes("Do not invent measurements"),
+  "a concept lesson must not invent numbers the question did not ask for",
+);
 
 // The turn's first spoken beat leads everything the runtime writes. Ordering
 // is the whole point of it: a lesson whose opening line arrives after the

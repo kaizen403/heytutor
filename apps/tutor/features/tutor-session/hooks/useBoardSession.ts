@@ -8,6 +8,7 @@ import {
   type VerifiedDiagram,
 } from "@heytutor/drawing";
 import {
+  compactConversationHistory,
   createTTSClient,
   type ConversationExchange,
   type TTSClient,
@@ -448,10 +449,12 @@ export function useBoardSession({
         // turns shows the Accelute landing (inputInteracted=false), while a board
         // with prior turns shows the doubt InputBar (inputInteracted=true).
         setInputInteracted(turns.length > 0);
-        conversationHistoryRef.current = turns.map((turn) => ({
-          user: turn.question,
-          assistant: lessonNarrationText(turn.rawResponse),
-        }));
+        conversationHistoryRef.current = compactConversationHistory(
+          turns.map((turn) => ({
+            user: turn.question,
+            assistant: lessonNarrationText(turn.rawResponse),
+          })),
+        );
 
         const lastTurn = turns[turns.length - 1];
         const lastNarration = lastTurn

@@ -30,6 +30,7 @@ export * from "./tts/voiceSettings";
 export * from "./llm/fastMode";
 export * from "./llm/traceHeaders";
 export * from "./llm/llmAPI";
+export * from "./llm/conversationHistory";
 export * from "./llm/mockResponses";
 export * from "./llm/reasoningEffort";
 export * from "./sync/sentenceChunker";

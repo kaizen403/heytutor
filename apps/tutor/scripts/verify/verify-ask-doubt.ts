@@ -214,7 +214,8 @@ assert(
   "the doubt turn must wait for the interrupted turn to unwind",
 );
 assert(
-  handleAskDoubt.includes("conversationHistoryRef.current.push"),
+  handleAskDoubt.includes("compactConversationHistory")
+    && handleAskDoubt.includes("interruptedLesson"),
   "the interrupted lesson must reach the doubt turn's conversation history",
 );
 assert(
