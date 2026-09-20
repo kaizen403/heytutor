@@ -950,6 +950,9 @@ export function useTurnControl(
       // doubt turn skips `beginBoardEpoch` and writes under what the lesson wrote.
       // Keep the visible figure — aborting an in-flight intro used to wipe it.
       stopTurn({ keepVisibleBoard: true });
+      // stop() closes the lecture AudioContext. Re-arm it in this click so the
+      // doubt's first sentence is not silent after the interrupt unwind.
+      ttsClientRef.current?.unlockAudio?.();
       const snapshot = pausedLessonFromLive({
         record: boardPageRef.current,
         boardId: sessionId,
@@ -1012,6 +1015,7 @@ export function useTurnControl(
       sessionId,
       setLastError,
       stopTurn,
+      ttsClientRef,
       turnActiveRef,
     ],
   );

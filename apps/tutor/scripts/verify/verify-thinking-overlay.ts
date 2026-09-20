@@ -120,6 +120,36 @@ assert(
   "finishing the teaching stream must not drop the overlay before the voice starts",
 );
 
+const HANDLER_ANCHOR = "const handleQuestion = useCallback(";
+const handlerAt = handler.indexOf(HANDLER_ANCHOR);
+assert(handlerAt >= 0, `this gate reads handleQuestion from "${HANDLER_ANCHOR}"`);
+const handlerBody = handler.slice(handlerAt);
+const unlockAt = handlerBody.indexOf("unlockAudio");
+const firstAwaitAt = handlerBody.search(/\n\s*await /);
+assert(
+  unlockAt >= 0 && firstAwaitAt >= 0 && unlockAt < firstAwaitAt,
+  "WebAudio must unlock on the Ask click before the first await — committing the home board first drops the gesture, AudioContext stays suspended, and the lesson falls through to silent speechSynthesis",
+);
+
+const submitAt = shell.indexOf("const submitQuestionAndDropMarks = useCallback(");
+assert(submitAt >= 0, "Ask must go through submitQuestionAndDropMarks");
+const submitBody = shell.slice(submitAt, submitAt + 500);
+const submitUnlockAt = submitBody.indexOf("unlockAudio");
+const submitNextAt = submitBody.indexOf("startNextQuestion");
+assert(
+  submitUnlockAt >= 0 && submitNextAt >= 0 && submitUnlockAt < submitNextAt,
+  "the Ask click must unlock WebAudio before it navigates to a new board, while the gesture still counts",
+);
+
+const turnControl = readFileSync(
+  resolve(tutorRoot, "features/tutor-session/hooks/turn/useTurnControl.ts"),
+  "utf8",
+);
+assert(
+  /stopTurn\(\{ keepVisibleBoard: true \}\);[\s\S]{0,240}unlockAudio/.test(turnControl),
+  "a doubt that stops the live lecture must re-arm WebAudio in the same click — stop() closes the lecture graph",
+);
+
 console.log(
   "verify-thinking-overlay: pending overlay names the wait, and the board stays covered until the voice starts",
 );
