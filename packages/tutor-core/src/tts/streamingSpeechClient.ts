@@ -593,6 +593,7 @@ export class StreamingSpeechClient implements TTSClient {
     this.playing = false;
     this.totalScheduledMediaSec = 0;
     this.mediaClock = createRateMediaClock(this.playbackRate);
+    this.httpPlaybackOriginCtxTime = null;
     this.stopHtmlAudio();
     if (this.audioContext) {
       this.scheduledEnd = this.audioContext.currentTime;
@@ -1648,6 +1649,8 @@ export class StreamingSpeechClient implements TTSClient {
     }
     const ctx = await this.ensureAudioContext();
     this.scheduledEnd = Math.max(this.scheduledEnd, ctx.currentTime);
+    // HTTP has no WS job to reset the media clock. Start each sentence at zero.
+    this.mediaClock = createRateMediaClock(this.playbackRate);
     this.httpPlaybackOriginCtxTime = null;
     const sourceDonePromises: Promise<void>[] = [];
     const playable = await this.buffersForSmoothPlayback(ctx, entry.chunks, entry.buffers);
@@ -1834,6 +1837,7 @@ export class StreamingSpeechClient implements TTSClient {
       const ctx = await this.ensureAudioContext();
       throwIfStopped();
       this.scheduledEnd = Math.max(this.scheduledEnd, ctx.currentTime);
+      this.mediaClock = createRateMediaClock(this.playbackRate);
       this.httpPlaybackOriginCtxTime = null;
 
       await this.httpGate.acquire(controller.signal);
@@ -2142,6 +2146,7 @@ export class StreamingSpeechClient implements TTSClient {
     this.scheduledEnd = 0;
     this.totalScheduledMediaSec = 0;
     this.mediaClock = createRateMediaClock(this.playbackRate);
+    this.httpPlaybackOriginCtxTime = null;
     this.stopHtmlAudio();
 
     if (this.ws?.readyState === WebSocket.OPEN) {
