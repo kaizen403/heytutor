@@ -102,7 +102,6 @@ import { isWaitingToTeach, markerCursorState } from "./lib/board/markerVisibilit
 import { DOUBT_THINKING_FALLBACK, doubtThinkingAnchor } from "./lib/board/doubtAnchor";
 import { doubtTurnTitle, isDoubtPrompt } from "./lib/input/askDoubt";
 import type { BoardPageRecord, PageTurnKind } from "./lib/turn/doubtTurn";
-import type { NotesChatTag } from "./lib/notes/notesChatTag";
 import { canStartStoredLectureReplay } from "./lib/replay/autoReplay";
 
 const FAST_MODE_STORAGE_KEY = "htutor_fast_mode";
@@ -873,9 +872,9 @@ export function TutorSessionShell({
   const notesRailOpen = notesEnabled && notesOpen && !isMobile;
 
   const handleNotesChatSend = useCallback(
-    (message: string, tag: NotesChatTag | null = null) => {
+    (message: string) => {
       const liveTurn = lessonNotes.turns[lessonNotes.turns.length - 1] ?? null;
-      void sendNotesChat(message, liveNotesPayload(liveTurn), lectureInProgress, tag);
+      void sendNotesChat(message, liveNotesPayload(liveTurn), lectureInProgress, null);
     },
     [lectureInProgress, lessonNotes, sendNotesChat],
   );

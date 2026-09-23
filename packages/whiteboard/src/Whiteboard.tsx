@@ -99,6 +99,7 @@ import type { StuntKind } from "./penStunts";
 import {
   instrumentForActivity,
   instrumentInkStyle,
+  PENCIL_WIDTH_SCALE,
   type InstrumentInkStyle,
   type InstrumentKind,
   type PenActivity,
@@ -185,9 +186,8 @@ export interface ShapeDrawOptions {
   strokeWidth?: number;
   /**
    * What this stroke commits to, which is what decides the instrument.
-   * `construction` is scaffolding — a guide, a tick, a hatch, a dropped line —
-   * and is laid down in pencil; everything else is the figure itself and is
-   * inked with the pen. See `instrumentForActivity`.
+   * The figure and its scaffolding — a guide, a tick, a hatch, a dropped line —
+   * are both laid down in pencil. See `instrumentForActivity`.
    */
   strokeRole?: "primary" | "construction" | "trace";
   /** When provided, the shape draw duration is damped against the audio clock
@@ -331,8 +331,14 @@ const HIGHLIGHT_OPACITY = 0.34;
 const ANNOTATION_STROKE_WIDTH = 3.25;
 /** A box is a quiet gesture — it frames the formula, it does not shout. */
 const BOX_STROKE_WIDTH = 2;
-/** Scene-engine figure ink. Pencil-thin; focus traces stay on their own width. */
-const SHAPE_STROKE_WIDTH = 1.55;
+/**
+ * Scene-engine figure ink, before the pencil's own thinning.
+ * Laid width is this times `PENCIL_WIDTH_SCALE` — light lead, not a pen line.
+ * Focus traces and work-area gestures stay on their own widths.
+ */
+const SHAPE_STROKE_WIDTH = 1.15;
+/** What a scene stroke actually measures once the pencil has thinned it. */
+const SCENE_LEAD_WIDTH = SHAPE_STROKE_WIDTH * PENCIL_WIDTH_SCALE;
 /** Scene setup ink: visible, not a 10s sketch. Matches tutor-core SCENE_MAX_MS. */
 const SCENE_SHAPE_MAX_MS = 320;
 const SCENE_SHAPE_MIN_MS = 70;
@@ -1115,10 +1121,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           return;
         }
 
-        // Construction scaffolding is sketched in pencil; the figure itself is
-        // inked with the pen. The twirl only plays on an actual change, and the
-        // compiler emits construction ink after the structure it hangs off, so a
-        // scene picks the pencil up once rather than once per stroke.
+        // The figure and the scaffolding it hangs off are both pencil. The twirl
+        // only plays on an actual change, and the compiler emits construction
+        // ink after the structure it hangs off, so a scene picks the pencil up
+        // once rather than once per stroke.
         const activity: PenActivity = options?.strokeRole === "construction" ? "sketch" : "draw";
         await equipInstrumentFor(activity);
         if (options?.shouldCancel?.()) {
@@ -1303,7 +1309,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           if (!(node instanceof Konva.Path)) {
             return;
           }
-          if (node.strokeWidth() !== SHAPE_STROKE_WIDTH || !node.strokeEnabled()) {
+          if (Math.abs(node.strokeWidth() - SCENE_LEAD_WIDTH) > 0.08 || !node.strokeEnabled()) {
             return;
           }
 
@@ -1388,7 +1394,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             const replacement = new Konva.Path({
               data: `M ${sx} ${sy} L ${ex} ${ey}`,
               stroke: node.stroke(),
-              strokeWidth: SHAPE_STROKE_WIDTH,
+              strokeWidth: node.strokeWidth(),
+              opacity: node.opacity(),
               fillEnabled: false,
               lineCap: "round",
               lineJoin: "round",
