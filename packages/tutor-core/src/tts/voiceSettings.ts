@@ -3,7 +3,10 @@
  * voice: the WebSocket stream and the HTTP fallback. They each held their own
  * literal, so a lesson could change character the moment the socket dropped.
  *
- * The dials, and why they sit where they do:
+ * Speed is shared by Cartesia and ElevenLabs. The other dials are retained
+ * for the ElevenLabs adapter; Cartesia receives only generation speed.
+ *
+ * The ElevenLabs dials, and why they sit where they do:
  *
  * - `stability` is variability, inverted. Low is expressive and occasionally
  *   uneven; high is steady and flat. A teacher reading the same shape of

@@ -1,4 +1,4 @@
-/** Aggregate Langfuse generation observations into AI + ElevenLabs run cost. */
+/** Aggregate Langfuse generation observations into AI + speech run cost. */
 
 import {
   calculateLlmCostDetails,
@@ -33,6 +33,7 @@ export interface RunCostKindRow {
   stream: "llm" | "tts";
   observations: number;
   inputTokens: number;
+  cachedInputTokens: number;
   outputTokens: number;
   characters: number;
   usd: number;
@@ -44,6 +45,7 @@ export interface RunCostSessionRow {
   traces: number;
   observations: number;
   inputTokens: number;
+  cachedInputTokens: number;
   outputTokens: number;
   characters: number;
   llmUsd: number;
@@ -57,8 +59,11 @@ export interface RunCostTotals {
   llmObservations: number;
   ttsObservations: number;
   inputTokens: number;
+  cachedInputTokens: number;
   outputTokens: number;
   characters: number;
+  /** Generations that finished with no token usage. Their spend is unknown, not zero. */
+  unknownUsage: number;
   llmUsd: number;
   ttsUsd: number;
   totalUsd: number;
@@ -77,8 +82,10 @@ export const EMPTY_RUN_COST: RunCostReport = {
     llmObservations: 0,
     ttsObservations: 0,
     inputTokens: 0,
+    cachedInputTokens: 0,
     outputTokens: 0,
     characters: 0,
+    unknownUsage: 0,
     llmUsd: 0,
     ttsUsd: 0,
     totalUsd: 0,
@@ -116,7 +123,7 @@ export function isTtsObservation(observation: CostObservation): boolean {
   return unit.includes("char");
 }
 
-function readTokenUsage(observation: CostObservation): { input: number; output: number } {
+function readTokenUsage(observation: CostObservation): { input: number; output: number; cachedInput: number } {
   const details = observation.usageDetails ?? {};
   const input =
     asFiniteNumber(observation.usage?.input) ??
@@ -128,7 +135,12 @@ function readTokenUsage(observation: CostObservation): { input: number; output: 
     asFiniteNumber(details.output) ??
     asFiniteNumber(details.completion_tokens) ??
     0;
-  return { input, output };
+  const reportedCache =
+    asFiniteNumber(details.cachedInput) ??
+    asFiniteNumber(details.cached_input) ??
+    asFiniteNumber(details.cached_tokens) ??
+    0;
+  return { input, output, cachedInput: Math.min(input, Math.max(0, reportedCache)) };
 }
 
 function readCharacterUsage(observation: CostObservation): number {
@@ -156,6 +168,7 @@ function emptyKind(name: string, stream: "llm" | "tts"): RunCostKindRow {
     stream,
     observations: 0,
     inputTokens: 0,
+    cachedInputTokens: 0,
     outputTokens: 0,
     characters: 0,
     usd: 0,
@@ -169,6 +182,7 @@ export function emptyRunCostSession(sessionId: string): RunCostSessionRow {
     traces: 0,
     observations: 0,
     inputTokens: 0,
+    cachedInputTokens: 0,
     outputTokens: 0,
     characters: 0,
     llmUsd: 0,
@@ -209,8 +223,10 @@ export function aggregateRunCost(observations: CostObservation[]): RunCostReport
   const sessionTraces = new Map<string, Set<string>>();
 
   let inputTokens = 0;
+  let cachedInputTokens = 0;
   let outputTokens = 0;
   let characters = 0;
+  let unknownUsage = 0;
   let llmUsd = 0;
   let ttsUsd = 0;
   let llmObservations = 0;
@@ -248,7 +264,9 @@ export function aggregateRunCost(observations: CostObservation[]): RunCostReport
       if (chars <= 0) {
         continue;
       }
-      const usd = calculateTtsCostDetails(chars, { model }).total ?? 0;
+      const metadata = observation.metadata as Record<string, unknown> | undefined;
+      const provider = metadata?.provider === "cartesia" || metadata?.provider === "elevenlabs" ? metadata.provider : undefined;
+      const usd = calculateTtsCostDetails(chars, { model, provider }).total ?? 0;
       let kind = kinds.get(kindName);
       if (!kind) {
         kind = emptyKind(kindName, "tts");
@@ -268,6 +286,7 @@ export function aggregateRunCost(observations: CostObservation[]): RunCostReport
 
     const tokens = readTokenUsage(observation);
     if (tokens.input <= 0 && tokens.output <= 0) {
+      unknownUsage += 1;
       continue;
     }
     const usd = calculateLlmCostDetails(tokens, { model }).total ?? 0;
@@ -278,13 +297,16 @@ export function aggregateRunCost(observations: CostObservation[]): RunCostReport
     }
     kind.observations += 1;
     kind.inputTokens += tokens.input;
+    kind.cachedInputTokens += tokens.cachedInput;
     kind.outputTokens += tokens.output;
     kind.usd = roundUsd(kind.usd + usd);
     rememberModel(kind, model);
     session.inputTokens += tokens.input;
+    session.cachedInputTokens += tokens.cachedInput;
     session.outputTokens += tokens.output;
     session.llmUsd = roundUsd(session.llmUsd + usd);
     inputTokens += tokens.input;
+    cachedInputTokens += tokens.cachedInput;
     outputTokens += tokens.output;
     llmUsd = roundUsd(llmUsd + usd);
     llmObservations += 1;
@@ -307,6 +329,8 @@ export function aggregateRunCost(observations: CostObservation[]): RunCostReport
       llmObservations,
       ttsObservations,
       inputTokens,
+      cachedInputTokens,
+      unknownUsage,
       outputTokens,
       characters,
       llmUsd,
@@ -360,7 +384,12 @@ export function parseCostObservation(value: unknown, sessionId?: string): CostOb
 }
 
 export function snapshotPricing(): {
-  llm: Array<{ lane: LlmRateLane; inputUsdPer1M: number; outputUsdPer1M: number }>;
+  llm: Array<{
+    lane: LlmRateLane;
+    inputUsdPer1M: number;
+    cachedInputUsdPer1M: number;
+    outputUsdPer1M: number;
+  }>;
   tts: Array<{ lane: TtsRateLane; usdPer1kChars: number }>;
 } {
   const models: Array<[LlmRateLane, string]> = [
@@ -368,13 +397,20 @@ export function snapshotPricing(): {
     ["kimi-k3", "accounts/fireworks/models/kimi-k3"],
     ["deepseek-flash", "accounts/fireworks/models/deepseek-v4p1-flash"],
     ["qwen-vision", "accounts/fireworks/models/qwen3p7-plus"],
+    ["jev", "typesafe-ai/jev"],
   ];
   return {
     llm: models.map(([, model]) => {
       const rates = resolveLlmRates(model);
-      return { lane: rates.lane, inputUsdPer1M: rates.inputUsdPer1M, outputUsdPer1M: rates.outputUsdPer1M };
+      return {
+        lane: rates.lane,
+        inputUsdPer1M: rates.inputUsdPer1M,
+        cachedInputUsdPer1M: rates.cachedInputUsdPer1M,
+        outputUsdPer1M: rates.outputUsdPer1M,
+      };
     }),
     tts: [
+      { lane: "cartesia", usdPer1kChars: calculateTtsCostDetails(1000, { provider: "cartesia" }).total ?? 0.05 },
       {
         lane: "flash",
         usdPer1kChars: calculateTtsCostDetails(1000, { model: "eleven_flash_v2_5" }).total ?? TTS_RATE_DEFAULTS.flash,

@@ -21,6 +21,7 @@ import {
 } from "@/lib/obs/chatTrace";
 import { requireLessonGrant } from "@/lib/billing/gate";
 import { recordLlmSpend } from "@/lib/billing/track";
+import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
 import { markGrantInUse } from "@/lib/billing/grant";
 import type { SpendActor } from "@/lib/billing/actor";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
@@ -121,20 +122,8 @@ function readReasoningChunk(payload: FireworksSSEPayload): string {
   return typeof reasoning === "string" ? reasoning : "";
 }
 
-function buildUsageDetails(usage: FireworksUsage | undefined): {
-  input?: number;
-  output?: number;
-  total?: number;
-} {
-  if (!usage) {
-    return {};
-  }
-
-  const input = usage.prompt_tokens;
-  const output = usage.completion_tokens;
-  const total = usage.total_tokens ?? (input !== undefined && output !== undefined ? input + output : undefined);
-
-  return { input, output, total };
+function readUsage(usage: unknown) {
+  return parseProviderUsage(usage);
 }
 
 async function finalizeMockTrace(
@@ -340,7 +329,7 @@ function createTracingTransformStream(
   let bufferedText = "";
   let accumulatedOutput = "";
   let accumulatedReasoning = "";
-  let latestUsage: FireworksUsage | undefined;
+  let latestUsage: unknown;
   let latestPerfMetrics: FireworksPerfMetrics | undefined;
   let firstContentAt: number | null = null;
   let firstReasoningAt: number | null = null;
@@ -439,23 +428,26 @@ function createTracingTransformStream(
         });
       }
 
+      const usage = readUsage(latestUsage);
       endLlmGeneration(turnTrace, {
         output: accumulatedOutput,
-        usageDetails: buildUsageDetails(latestUsage),
+        usageDetails: usageDetailsFromParsed(usage),
         metadata: {
           ttft_ms: latestPerfMetrics?.ttft_ms,
           tokens_per_sec: latestPerfMetrics?.tokens_per_sec,
           reasoning_chars: accumulatedReasoning.length,
           content_chars: accumulatedOutput.length,
+          usage_status: usage.known ? "known" : "unknown",
+          cached_input_tokens: usage.cachedInput ?? 0,
         },
         mock,
         updateTrace,
       });
-      if (spend && !mock) {
+      if (spend && !mock && usage.known) {
         recordLlmSpend({
           actor: spend.actor,
           model: spend.model,
-          usage: buildUsageDetails(latestUsage),
+          usage: usageDetailsFromParsed(usage),
         });
       }
 
@@ -594,13 +586,14 @@ async function handlePlannerRequest({
     try {
       const parsedResponse = JSON.parse(jsonBody) as {
         choices?: { message?: { content?: string; reasoning_content?: string } }[];
-        usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+        usage?: unknown;
       };
       const content = parsedResponse.choices?.[0]?.message?.content ?? "";
       const reasoning = parsedResponse.choices?.[0]?.message?.reasoning_content ?? "";
+      const usage = readUsage(parsedResponse.usage);
       endLlmGeneration(turnTrace, {
         output: content,
-        usageDetails: buildUsageDetails(parsedResponse.usage as FireworksUsage | undefined),
+        usageDetails: usageDetailsFromParsed(usage),
         metadata: {
           planner: true,
           scene_planner_version: turnPlanV3 || problemIRV1 ? undefined : semanticSceneV2 ? 2 : 1,
@@ -612,15 +605,19 @@ async function handlePlannerRequest({
           planner_model: transport.model,
           planner_lane: plannerLane,
           planner_attempts: transport.attemptCount,
+          usage_status: usage.known ? "known" : "unknown",
+          cached_input_tokens: usage.cachedInput ?? 0,
         },
         model: transport.model,
         updateTrace: false,
       });
-      recordLlmSpend({
-        actor,
-        model: transport.model,
-        usage: buildUsageDetails(parsedResponse.usage as FireworksUsage | undefined),
-      });
+      if (usage.known) {
+        recordLlmSpend({
+          actor,
+          model: transport.model,
+          usage: usageDetailsFromParsed(usage),
+        });
+      }
     } catch {
       endLlmGeneration(turnTrace, {
         output: jsonBody.slice(0, 2_000),
@@ -649,7 +646,7 @@ async function handlePlannerRequest({
     tutorDebug("planner", "proxy error", { message, elapsed_ms: Date.now() - requestStartedAt });
     endLlmGeneration(turnTrace, {
       output: message,
-      metadata: { error: true, planner: true, aborted },
+      metadata: { error: true, planner: true, aborted, usage_status: "unknown" },
       updateTrace: false,
       level: aborted ? "WARNING" : "ERROR",
     });

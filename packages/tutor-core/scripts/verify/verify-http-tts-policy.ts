@@ -3,6 +3,7 @@ import {
   MAX_CONCURRENT_HTTP_TTS,
   MAX_HTTP_PREFETCH,
   parseRetryAfterSec,
+  shouldRetryTtsTransport,
   ttsHttpRetryDelayMs,
 } from "../../src/tts/httpTtsPolicy";
 
@@ -21,6 +22,9 @@ assert(
   ttsHttpRetryDelayMs(429, 0, 5) === 2_000,
   "Retry-After must be honoured but capped so the pen does not wait 5s",
 );
+assert(shouldRetryTtsTransport(new TypeError("NetworkError when attempting to fetch resource."), 0), "a dropped HTTP connection must be retried once");
+assert(!shouldRetryTtsTransport(new TypeError("NetworkError when attempting to fetch resource."), 1), "a dropped HTTP connection must not be retried forever");
+assert(!shouldRetryTtsTransport(new DOMException("tts stopped", "AbortError"), 0), "an aborted fetch must not be retried");
 assert(parseRetryAfterSec("1.5") === 1.5, "Retry-After seconds must parse");
 assert(parseRetryAfterSec("nope") === undefined, "a junk Retry-After must be ignored");
 

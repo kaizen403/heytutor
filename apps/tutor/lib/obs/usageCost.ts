@@ -1,3 +1,4 @@
+import type { SpeechProvider } from "../tts/providerConfig";
 /** USD cost helpers for Langfuse `costDetails`. Rates are per-model, env-overridable. */
 
 export interface UsageCounts {
@@ -5,6 +6,8 @@ export interface UsageCounts {
   output?: number;
   total?: number;
   characters?: number;
+  /** Prompt tokens reported as cache hits. Subset of `input`. */
+  cachedInput?: number;
 }
 
 export type CostDetails = Record<string, number>;
@@ -14,17 +17,29 @@ export type LlmRateLane =
   | "kimi-k3"
   | "deepseek-flash"
   | "qwen-vision"
+  | "jev"
   | "unknown";
 
-/** Fireworks published serverless rates (USD per 1M tokens). */
-export const LLM_RATE_DEFAULTS: Record<
-  Exclude<LlmRateLane, "unknown">,
-  { inputUsdPer1M: number; outputUsdPer1M: number }
-> = {
-  "kimi-k3-fast": { inputUsdPer1M: 4.5, outputUsdPer1M: 22.5 },
-  "kimi-k3": { inputUsdPer1M: 3, outputUsdPer1M: 15 },
-  "deepseek-flash": { inputUsdPer1M: 0.22, outputUsdPer1M: 0.66 },
-  "qwen-vision": { inputUsdPer1M: 0.5, outputUsdPer1M: 3 },
+/** Published rates checked 23 September 2026. USD per 1M tokens. */
+export const LLM_RATE_VERSION = "2026-09-23";
+
+export interface LlmRate {
+  inputUsdPer1M: number;
+  outputUsdPer1M: number;
+  /**
+   * Cache-hit input rate. Kimi publishes a discount. Other lanes bill cache
+   * hits at the normal input rate until that provider publishes one.
+   */
+  cachedInputUsdPer1M: number;
+}
+
+/** Fireworks published serverless rates, plus TypeSafe's published Jev input rate. */
+export const LLM_RATE_DEFAULTS: Record<Exclude<LlmRateLane, "unknown">, LlmRate> = {
+  "kimi-k3-fast": { inputUsdPer1M: 4.5, outputUsdPer1M: 22.5, cachedInputUsdPer1M: 0.45 },
+  "kimi-k3": { inputUsdPer1M: 3, outputUsdPer1M: 15, cachedInputUsdPer1M: 0.3 },
+  "deepseek-flash": { inputUsdPer1M: 0.22, outputUsdPer1M: 0.66, cachedInputUsdPer1M: 0.22 },
+  "qwen-vision": { inputUsdPer1M: 0.5, outputUsdPer1M: 3, cachedInputUsdPer1M: 0.5 },
+  jev: { inputUsdPer1M: 0.042, outputUsdPer1M: 0, cachedInputUsdPer1M: 0.042 },
 };
 
 const UNKNOWN_FALLBACK = LLM_RATE_DEFAULTS["kimi-k3-fast"];
@@ -46,6 +61,9 @@ export function roundUsd(value: number): number {
 export function resolveLlmRateLane(model?: string | null): LlmRateLane {
   const id = (model ?? "").toLowerCase();
   if (!id) return "unknown";
+  if (id.includes("typesafe") || id.endsWith("/jev") || id === "jev" || id.startsWith("jev-")) {
+    return "jev";
+  }
   if (id.includes("kimi-k3-fast") || id.includes("kimi_k3_fast")) {
     return "kimi-k3-fast";
   }
@@ -71,6 +89,8 @@ function laneEnvPrefix(lane: LlmRateLane): string | null {
       return "FIREWORKS_DEEPSEEK_FLASH";
     case "qwen-vision":
       return "FIREWORKS_VISION";
+    case "jev":
+      return "JEV";
     default:
       return null;
   }
@@ -80,28 +100,34 @@ export function resolveLlmRates(model?: string | null): {
   lane: LlmRateLane;
   inputUsdPer1M: number;
   outputUsdPer1M: number;
+  cachedInputUsdPer1M: number;
 } {
   const lane = resolveLlmRateLane(model);
   const defaults = lane === "unknown" ? UNKNOWN_FALLBACK : LLM_RATE_DEFAULTS[lane];
   const prefix = laneEnvPrefix(lane);
   if (!prefix) {
+    const inputUsdPer1M = readEnvNumber("FIREWORKS_UNKNOWN_INPUT_USD_PER_1M", defaults.inputUsdPer1M);
     return {
       lane,
-      inputUsdPer1M: readEnvNumber("FIREWORKS_UNKNOWN_INPUT_USD_PER_1M", defaults.inputUsdPer1M),
+      inputUsdPer1M,
       outputUsdPer1M: readEnvNumber("FIREWORKS_UNKNOWN_OUTPUT_USD_PER_1M", defaults.outputUsdPer1M),
+      cachedInputUsdPer1M: inputUsdPer1M,
     };
   }
+  const inputUsdPer1M = readEnvNumber(`${prefix}_INPUT_USD_PER_1M`, defaults.inputUsdPer1M);
   return {
     lane,
-    inputUsdPer1M: readEnvNumber(`${prefix}_INPUT_USD_PER_1M`, defaults.inputUsdPer1M),
+    inputUsdPer1M,
     outputUsdPer1M: readEnvNumber(`${prefix}_OUTPUT_USD_PER_1M`, defaults.outputUsdPer1M),
+    cachedInputUsdPer1M: readEnvNumber(`${prefix}_CACHED_INPUT_USD_PER_1M`, defaults.cachedInputUsdPer1M),
   };
 }
 
-export type TtsRateLane = "flash" | "multilingual" | "unknown";
+export type TtsRateLane = "cartesia" | "flash" | "multilingual" | "unknown";
 
 /** ElevenLabs published API rates (USD per 1k characters). */
 export const TTS_RATE_DEFAULTS: Record<TtsRateLane, number> = {
+  cartesia: 0.05,
   flash: 0.05,
   multilingual: 0.1,
   unknown: 0.1,
@@ -110,6 +136,7 @@ export const TTS_RATE_DEFAULTS: Record<TtsRateLane, number> = {
 export function resolveTtsRateLane(model?: string | null): TtsRateLane {
   const id = (model ?? "").toLowerCase();
   if (!id) return "unknown";
+  if (id.startsWith("sonic")) return "cartesia";
   if (id.includes("flash") || id.includes("turbo")) return "flash";
   if (id.includes("multilingual") || id.includes("eleven_v3") || id.includes("eleven-v3")) {
     return "multilingual";
@@ -135,20 +162,28 @@ export function calculateLlmCostDetails(
   options: { model?: string | null } = {},
 ): CostDetails {
   const rates = resolveLlmRates(options.model);
-  const inputTokens = usage.input ?? 0;
-  const outputTokens = usage.output ?? 0;
-  const input = roundUsd((inputTokens / 1_000_000) * rates.inputUsdPer1M);
+  const inputTokens = Math.max(0, usage.input ?? 0);
+  const cachedTokens = Math.min(inputTokens, Math.max(0, usage.cachedInput ?? 0));
+  const uncachedTokens = inputTokens - cachedTokens;
+  const outputTokens = Math.max(0, usage.output ?? 0);
+  const uncached = (uncachedTokens / 1_000_000) * rates.inputUsdPer1M;
+  const cached = (cachedTokens / 1_000_000) * rates.cachedInputUsdPer1M;
+  const input = roundUsd(uncached + cached);
   const output = roundUsd((outputTokens / 1_000_000) * rates.outputUsdPer1M);
   const total = roundUsd(input + output);
 
-  return { input, output, total };
+  return { input, cachedInput: roundUsd(cached), output, total };
 }
 
 export function calculateTtsCostDetails(
   characters: number,
-  options: { model?: string | null } = {},
+  options: { model?: string | null; provider?: SpeechProvider } = {},
 ): CostDetails {
-  const charactersCost = roundUsd((characters / 1000) * elevenLabsUsdPer1kChars(options.model));
+  const provider = options.provider ?? (options.model?.startsWith("sonic") ? "cartesia" : "elevenlabs");
+  const rate = provider === "cartesia"
+    ? readEnvNumber("CARTESIA_USD_PER_1K_CHARS", 0.05)
+    : elevenLabsUsdPer1kChars(options.model);
+  const charactersCost = roundUsd((characters / 1000) * rate);
   return { characters: charactersCost, total: charactersCost };
 }
 
@@ -161,19 +196,20 @@ export function llmUsageUsd(
 
 export function ttsUsageUsd(
   characters: number,
-  options: { model?: string | null } = {},
+  options: { model?: string | null; provider?: SpeechProvider } = {},
 ): number {
   return calculateTtsCostDetails(characters, options).total ?? 0;
 }
 
 export function enrichTraceMetadataWithCosts(
   metadata: Record<string, unknown>,
+  speech: { provider?: SpeechProvider; model?: string } = {},
 ): Record<string, unknown> {
   const enriched = { ...metadata };
   const chars = enriched.total_tts_chars;
 
   if (typeof chars === "number" && chars > 0) {
-    enriched.tts_cost_usd = calculateTtsCostDetails(chars).total;
+    enriched.tts_cost_usd = calculateTtsCostDetails(chars, speech).total;
   }
 
   const llmCost = enriched.llm_cost_usd;

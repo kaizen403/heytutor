@@ -119,4 +119,40 @@ assert(
   "the home route must not redirect into a board",
 );
 
+const notesChat = read("app/api/boards/[boardId]/notes-chat/route.ts");
+const notesChatGet = notesChat.slice(
+  notesChat.indexOf("export async function GET"),
+  notesChat.indexOf("export async function POST"),
+);
+assert(
+  /return NextResponse\.json\(\{\s*messages: \[\]\s*\}\)/.test(notesChatGet),
+  "GET notes-chat must return an empty thread when the board row is not persisted yet",
+);
+assert(
+  /const foreign = await prisma\.board\.findFirst/.test(notesChatGet),
+  "GET notes-chat must distinguish a missing draft from a board owned by someone else",
+);
+assert(
+  notesChatGet.includes('return NextResponse.json({ error: "not found" }, { status: 404 })'),
+  "GET notes-chat must still 404 for another user's board",
+);
+const notesChatPost = notesChat.slice(notesChat.indexOf("export async function POST"));
+assert(
+  /const board = await getOwnedBoard\(boardId, userId\);\s*if \(!board\) \{\s*return NextResponse\.json\(\{ error: "not found" \}, \{ status: 404 \}\);/.test(
+    notesChatPost,
+  ),
+  "POST notes-chat must still require an owned board row before writing chat",
+);
+
+const notesClient = read("lib/boards/notesChatClient.ts");
+assert(
+  /fetch\(resolveApiUrl\(`\/api\/boards\/\$\{boardId\}\/notes-chat`\)\)/.test(notesClient),
+  "the notes sidebar loads history from GET notes-chat",
+);
+const notesHook = read("features/tutor-session/hooks/useNotesChat.ts");
+assert(
+  /fetchNotesChatMessages\(boardId\)/.test(notesHook),
+  "opening a board must fetch notes-chat for that session id, including drafts",
+);
+
 console.log("draft board url verification passed");

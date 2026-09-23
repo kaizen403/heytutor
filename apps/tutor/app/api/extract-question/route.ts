@@ -12,6 +12,7 @@ import {
   genTraceId,
   startTurnTrace,
 } from "@/lib/obs/langfuse";
+import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
 import { questionImageKey } from "@/lib/object-store/keys";
 import { readQuestionImage } from "@/lib/object-store/questionImage";
 import { uploadImage } from "@/lib/object-store/s3";
@@ -112,24 +113,24 @@ export async function POST(request: Request): Promise<Response> {
 
   const data = (await response.json()) as {
     choices?: { message?: { content?: unknown } }[];
-    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    usage?: unknown;
   };
+  const usage = usageDetailsFromParsed(parseProviderUsage(data.usage));
   const question = parseExtractedQuestion(
     readExtractedContent(data.choices?.[0]?.message?.content),
   );
   if (!question) {
     endLlmGeneration(turnTrace, {
       output: "",
-      usageDetails: {
-        input: data.usage?.prompt_tokens,
-        output: data.usage?.completion_tokens,
-        total: data.usage?.total_tokens,
-      },
+      usageDetails: usage,
       metadata: { error: true, reason: "no_question" },
       model,
       updateTrace: false,
       level: "WARNING",
     });
+    if (usage) {
+      recordLlmSpend({ actor, model, usage });
+    }
     flushInBackground();
     return Response.json(
       { error: "No question found in that image. Try a closer, sharper photo." },
@@ -137,22 +138,19 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const usage = {
-    input: data.usage?.prompt_tokens,
-    output: data.usage?.completion_tokens,
-    total: data.usage?.total_tokens,
-  };
   endLlmGeneration(turnTrace, {
     output: question,
     usageDetails: usage,
     metadata: { latency_ms: Date.now() - startedAt },
     model,
   });
-  recordLlmSpend({
-    actor,
-    model,
-    usage,
-  });
+  if (usage) {
+    recordLlmSpend({
+      actor,
+      model,
+      usage,
+    });
+  }
   flushInBackground();
 
   const imageUrl = await uploadImage(

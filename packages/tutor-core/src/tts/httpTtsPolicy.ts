@@ -13,6 +13,18 @@ export function parseRetryAfterSec(header: string | null | undefined): number | 
   return Number.isFinite(seconds) && seconds >= 0 ? seconds : undefined;
 }
 
+/**
+ * One more try after the browser reports the connection failed.
+ * An abort is not a network error: retrying it just races the stop button.
+ * Firefox rejects an aborted fetch as `TypeError: NetworkError...` with the
+ * signal already aborted; callers must classify that as an abort first.
+ */
+export function shouldRetryTtsTransport(error: unknown, attempt: number): boolean {
+  if (attempt >= 1) return false;
+  if (error instanceof DOMException && error.name === "AbortError") return false;
+  return error instanceof TypeError;
+}
+
 /** Delay before one retry, or null when the status should not be retried. */
 export function ttsHttpRetryDelayMs(
   status: number,

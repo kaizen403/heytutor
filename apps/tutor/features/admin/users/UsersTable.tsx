@@ -26,7 +26,7 @@ export function UsersTable({ users }: { users: AdminUserRow[] }) {
             <th className={cn(HEAD, "text-right")}>Boards</th>
             <th className={cn(HEAD, "text-right")}>Messages</th>
             <th className={HEAD}>Last turn</th>
-            <th className={cn(HEAD, "text-right")} title="Estimated Fireworks + ElevenLabs this calendar month">
+            <th className={cn(HEAD, "text-right")} title="Estimated AI + voice this calendar month">
               Spend · month
             </th>
           </tr>

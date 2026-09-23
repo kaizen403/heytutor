@@ -201,7 +201,7 @@ Object.defineProperty(globalThis, "AudioContext", {
 });
 Object.defineProperty(globalThis, "fetch", {
   configurable: true,
-  value: async () => new Response("{}", { status: 200, headers: { "content-type": "application/json" } }),
+  value: async (url: string) => Response.json(url.endsWith("/api/tts/ws-ticket") ? { ticket: "test-ticket" } : {}),
 });
 
 const { ElevenLabsWebSocketTTSClient } = await import("../../src/tts/elevenLabsWebSocketClient");

@@ -96,6 +96,7 @@ export function RunCostBox({
     ? `${formatTokenCount(totals.inputTokens)} in · ${formatTokenCount(totals.outputTokens)} out`
     : "—";
   const voiceHint = totals ? `${formatCharCount(totals.characters)} chars` : "—";
+  const cartesiaRate = data?.pricing.tts.find((row) => row.lane === "cartesia")?.usdPer1kChars;
   const flashRate = data?.pricing.tts.find((row) => row.lane === "flash")?.usdPer1kChars;
   const multiRate = data?.pricing.tts.find((row) => row.lane === "multilingual")?.usdPer1kChars;
 
@@ -170,7 +171,7 @@ export function RunCostBox({
               ))}
               {(report?.byKind.length ?? 0) === 0 ? (
                 <li className="type-accent-xs text-faint">
-                  Planner, teaching, and ElevenLabs spans land here after Langfuse ingests the run.
+                  Planner, teaching, and voice spans land here after Langfuse ingests the run.
                 </li>
               ) : null}
             </ul>
@@ -189,7 +190,8 @@ export function RunCostBox({
             ) : null}
 
             <p className="type-accent-xs leading-relaxed text-faint">
-              AI is Fireworks serverless. Voice is ElevenLabs API
+              AI is Fireworks serverless. Voice uses the selected speech provider
+              {cartesiaRate != null ? `. Cartesia estimate ${formatUsd(cartesiaRate)} / 1k chars` : ""}
               {flashRate != null && multiRate != null
                 ? `. Flash ${formatUsd(flashRate)} / 1k chars, Multilingual ${formatUsd(multiRate)} / 1k chars`
                 : ""}

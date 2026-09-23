@@ -677,7 +677,9 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
     // Last, so it is the final word on step count: how long THIS question's
     // lesson should be. Without it every question got the same short lesson
     // and stopped at the bottom of the first board page.
-    !codeLesson ? lessonScopePromptAddon(lessonBudget) : "",
+    !codeLesson ? lessonScopePromptAddon(lessonBudget, {
+      conceptLesson: isConceptLessonQuestion(question),
+    }) : "",
     teachingPromptAddon({
       teachingNote: input.teachingNote,
       alwaysShowUnits: input.alwaysShowUnits,

@@ -110,12 +110,14 @@ export async function POST(request: Request, context: RouteContext) {
   const segmentMeta = metadata.segments ?? [];
 
   const audioUrls = new Map<number, string | null>();
+  const audioFormats = new Map<number, string>();
   for (const segment of segmentMeta) {
     const file = formData.get(`audio-${segment.orderIndex}`);
     if (file instanceof File && file.size > 0) {
       const bytes = new Uint8Array(await file.arrayBuffer());
-      const key = lectureAudioKey(boardId, turnId, segment.orderIndex);
-      audioUrls.set(segment.orderIndex, await uploadAudio(key, bytes));
+      audioFormats.set(segment.orderIndex, file.type);
+      const key = lectureAudioKey(boardId, turnId, segment.orderIndex, file.type);
+      audioUrls.set(segment.orderIndex, await uploadAudio(key, bytes, file.type));
     } else {
       audioUrls.set(segment.orderIndex, null);
     }
@@ -159,7 +161,7 @@ export async function POST(request: Request, context: RouteContext) {
           spokenText: segment.spokenText ?? "",
           command: segment.command === undefined ? undefined : (segment.command as Prisma.InputJsonValue),
           audioUrl: audioUrls.get(segment.orderIndex) ?? null,
-          audioFormat: "audio/mpeg",
+          audioFormat: audioFormats.get(segment.orderIndex) ?? "audio/mpeg",
           durationMs: segment.durationMs ?? null,
           timings: segment.timings === undefined ? undefined : (segment.timings as Prisma.InputJsonValue),
         }));

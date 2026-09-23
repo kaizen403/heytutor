@@ -4,7 +4,7 @@
  * The student picks a language and an accent in Settings; those two choices
  * collapse to one `TutorVoiceKey`, which is the only thing that crosses the
  * wire. The browser sends it (header on HTTP, query param on the WebSocket)
- * and the server maps it to an ElevenLabs voice id from env — voice ids are
+ * and the server maps it to the selected provider's voice id from env — voice ids are
  * never exposed to the client.
  *
  * Hindi has a single voice, so it ignores the accent choice.
@@ -79,7 +79,7 @@ export function voiceKeyLabel(key: TutorVoiceKey): string {
 /** What the student chose in Settings, as the TTS clients carry it. */
 export interface TutorVoicePreferences {
   voiceKey: TutorVoiceKey;
-  /** Trade voice quality for first-audio latency (`eleven_flash_v2_5`). */
+  /** Request the deployment's low-latency model, when configured. */
   lowLatency: boolean;
 }
 

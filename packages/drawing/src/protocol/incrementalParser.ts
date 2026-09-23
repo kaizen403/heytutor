@@ -5,6 +5,7 @@ import {
   parseDrawingTag,
   parseDrawCommandFromTag,
   repairHeaderOnlyTextTags,
+  getSegmentCommands,
   type TutorSegment,
 } from './drawingProtocol';
 
@@ -14,6 +15,8 @@ type ParserState = 'NARRATION' | 'TAG_BUFFER';
 
 export interface IncrementalTagParserOptions {
   onSegmentReady?: (segment: TutorSegment) => void;
+  /** Keep inline pointing cues inside one spoken teaching step. */
+  preserveStepSpeech?: boolean;
 }
 
 export class IncrementalTagParser {
@@ -27,10 +30,14 @@ export class IncrementalTagParser {
    */
   private headerOnlyTextTag = false;
   private charPosition = 0;
+  private readonly preserveStepSpeech: boolean;
+  private insideStep = false;
+  private stepSegments: TutorSegment[] = [];
   onSegmentReady?: (segment: TutorSegment) => void;
 
   constructor(options: IncrementalTagParserOptions = {}) {
     this.onSegmentReady = options.onSegmentReady;
+    this.preserveStepSpeech = options.preserveStepSpeech ?? false;
   }
 
   push(chunk: string): void {
@@ -51,6 +58,7 @@ export class IncrementalTagParser {
     }
 
     this.emitTrailingNarration();
+    this.emitStep();
   }
 
   private processChar(char: string): void {
@@ -186,6 +194,11 @@ export class IncrementalTagParser {
   private tryEmitCompleteTag(): void {
     const upperTag = this.tagBuffer.toUpperCase();
     if (upperTag === '[STEP]') {
+      if (this.preserveStepSpeech) {
+        this.emitTrailingNarration();
+        this.emitStep();
+      }
+      this.insideStep = true;
       this.charPosition += this.tagBuffer.length;
       this.tagBuffer = '';
       this.state = 'NARRATION';
@@ -197,6 +210,8 @@ export class IncrementalTagParser {
       this.tagBuffer = '';
       this.state = 'NARRATION';
       this.emitTrailingNarration();
+      this.emitStep();
+      this.insideStep = false;
       return;
     }
 
@@ -272,6 +287,19 @@ export class IncrementalTagParser {
       return;
     }
 
-    this.onSegmentReady?.(segment);
+    if (this.preserveStepSpeech && this.insideStep) {
+      this.stepSegments.push(segment);
+    } else {
+      this.onSegmentReady?.(segment);
+    }
+  }
+
+  private emitStep(): void {
+    if (this.stepSegments.length === 0) return;
+    const commands = this.stepSegments.flatMap(getSegmentCommands);
+    const narration = this.stepSegments.map((segment) => segment.narration)
+      .filter(Boolean).join(' ').replace(/\s+([,.!?;:])/g, '$1');
+    this.stepSegments = [];
+    this.onSegmentReady?.({ narration, command: commands[0] ?? null, commands });
   }
 }

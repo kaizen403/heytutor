@@ -1,4 +1,5 @@
-import { calculateLlmCostDetails, calculateTtsCostDetails } from "@/lib/obs/usageCost";
+import type { SpeechProvider } from "../tts/providerConfig";
+import { calculateLlmCostDetails, calculateTtsCostDetails, type UsageCounts } from "@/lib/obs/usageCost";
 import { AutumnUnavailableError, trackFeature } from "./autumnClient";
 import { BILLING_FEATURES, usdToMillicents } from "./catalog";
 import { isProviderMockMode, isTtsConfigured } from "./flags";
@@ -45,7 +46,7 @@ function rememberSpend(input: {
 export function recordLlmSpend(input: {
   actor: SpendActor;
   model?: string | null;
-  usage?: { input?: number; output?: number; total?: number };
+  usage?: UsageCounts;
 }): void {
   const usage = input.usage ?? {};
   const tokens = (usage.input ?? 0) + (usage.output ?? 0) || usage.total || 0;
@@ -76,13 +77,14 @@ export function recordTtsSpend(input: {
   userId: string;
   characters: number;
   model?: string | null;
+  provider?: SpeechProvider;
   skipAutumn?: boolean;
   skipGates?: boolean;
 }): void {
   if (input.characters <= 0 || !isTtsConfigured()) {
     return;
   }
-  const usd = calculateTtsCostDetails(input.characters, { model: input.model }).total ?? 0;
+  const usd = calculateTtsCostDetails(input.characters, { model: input.model, provider: input.provider }).total ?? 0;
   if (shouldCountUsd(input) && usd > 0) {
     rememberSpend({
       userId: input.userId,

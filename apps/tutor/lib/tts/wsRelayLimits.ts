@@ -1,4 +1,4 @@
-/** Hard cap so a stolen ticket cannot stream unbounded ElevenLabs spend. */
+/** Hard cap so a stolen ticket cannot stream unbounded speech-provider spend. */
 export const TTS_WS_MAX_CHARS_PER_CONNECTION = 48_000;
 export const TTS_WS_IDLE_MS = 120_000;
 export const TTS_WS_MAX_CONNECTIONS_PER_USER = 3;

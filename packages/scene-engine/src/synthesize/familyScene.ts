@@ -2264,6 +2264,8 @@ function inclineDocument(question: string, theta: number): SceneDocument {
   const bodyCenterX = contactX + (-Math.sin(radians)) * bodyRadius;
   const bodyCenterY = contactY + Math.cos(radians) * bodyRadius;
   const weightStart = rollingBody ? "body_center" : "contact";
+  const rough = !rollingBody && /\b(?:rough|friction)\b/i.test(question)
+    && !/\b(?:smooth|frictionless)\b/i.test(question);
   return baseDocument({
     question,
     reason: rollingBody
@@ -2277,6 +2279,7 @@ function inclineDocument(question: string, theta: number): SceneDocument {
       { id: "incline", kind: "segment", role: "inclined plane" },
       { id: "normal", kind: "vector", role: "normal reaction", label: "N" },
       { id: "weight", kind: "vector", role: "weight", label: "mg" },
+      ...(rough ? [{ id: "friction", kind: "vector" as const, role: "friction force", label: "f" }] : []),
       ...(rollingBody
         ? [
             { id: "body_center", kind: "point" as const, role: "rolling body center" },
@@ -2291,6 +2294,10 @@ function inclineDocument(question: string, theta: number): SceneDocument {
       { id: "make_incline", operator: "segment", inputs: { start: "base", end: "top" }, outputs: ["incline"] },
       { id: "make_normal", operator: "normal_at", inputs: { point: "contact", surface: "incline" }, outputs: ["normal"] },
       { id: "make_weight", operator: "vector", inputs: { start: weightStart, direction: [0, -1], length: 1.2 }, outputs: ["weight"] },
+      ...(rough ? [{
+        id: "make_friction", operator: "vector" as const,
+        inputs: { start: "contact", direction: [endX, endY], length: 1 }, outputs: ["friction"],
+      }] : []),
       ...(rollingBody
         ? [
             pointAt("body_center", bodyCenterX, bodyCenterY),
@@ -2310,9 +2317,21 @@ function inclineDocument(question: string, theta: number): SceneDocument {
     assertions: [
       { id: "contact_on_incline", predicate: "on", entities: ["contact", "incline"], expected: true, severity: "fatal" },
       { id: "normal_perp", predicate: "perpendicular", entities: ["normal", "incline"], expected: true, severity: "fatal" },
+      ...(rough ? [{ id: "friction_parallel", predicate: "parallel" as const, entities: ["friction", "incline"], expected: true, severity: "fatal" as const }] : []),
       ...(rollingBody
         ? [{ id: "body_exists", predicate: "exists" as const, entities: ["body"], expected: true, severity: "fatal" as const }]
         : []),
+    ],
+    revealGroups: [
+      {
+        id: "setup", entityIds: ["base", "top", "contact", "incline", ...(rollingBody ? ["body_center", "body"] : [])],
+        dependsOn: [], narrationCue: "The body touches the incline at P, with the surface tilted above the horizontal.",
+      },
+      {
+        id: "forces", entityIds: ["weight", "normal", ...(rough ? ["friction"] : [])], dependsOn: ["setup"],
+        narrationCue: "The weight mg points straight down, and the normal reaction N points away from the surface."
+          + (rough ? " If the body tends to slide downhill, friction f acts uphill; the arrow illustrates that case." : ""),
+      },
     ],
   });
 }

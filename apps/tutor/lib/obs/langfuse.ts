@@ -1,3 +1,4 @@
+import type { SpeechProvider } from "../tts/providerConfig";
 import { randomUUID } from "crypto";
 import {
   Langfuse,
@@ -127,6 +128,7 @@ export interface EndLlmGenerationParams {
     input?: number;
     output?: number;
     total?: number;
+    cachedInput?: number;
   };
   metadata?: Record<string, unknown>;
   mock?: boolean;
@@ -208,6 +210,7 @@ export interface RecordTtsSpanParams {
   characters: number;
   model: string;
   voiceId: string;
+  provider?: SpeechProvider;
   transport: "http" | "ws" | "browser-fallback";
   latencyMs?: number;
 }
@@ -218,6 +221,7 @@ export function recordTtsSpan({
   characters,
   model,
   voiceId,
+  provider,
   transport,
   latencyMs,
 }: RecordTtsSpanParams): void {
@@ -233,6 +237,7 @@ export function recordTtsSpan({
     model,
     metadata: {
       voice_id: voiceId,
+      provider,
       transport,
       latency_ms: latencyMs,
     },
@@ -241,13 +246,14 @@ export function recordTtsSpan({
   const costDetails =
     transport === "browser-fallback"
       ? { characters: 0, total: 0 }
-      : calculateTtsCostDetails(characters, { model });
+      : calculateTtsCostDetails(characters, { model, provider });
 
   generation.end({
     usageDetails: { characters },
     costDetails,
     metadata: {
       voice_id: voiceId,
+      provider,
       transport,
       latency_ms: latencyMs,
       tts_cost_usd: costDetails.total,

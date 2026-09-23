@@ -1,7 +1,8 @@
+import { transcriptionRequest } from "@/lib/tts/transcriptionProvider";
 import { requireLessonCredits } from "@/lib/billing/gate";
 
-const ELEVENLABS_STT_URL = "https://api.elevenlabs.io/v1/speech-to-text";
-const DEFAULT_STT_MODEL = "scribe_v1";
+import { sttConfig } from "@/lib/tts/providerConfig";
+
 /** A minute of browser-encoded speech is well under this; the cap is for junk. */
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 
@@ -19,23 +20,18 @@ function filenameForAudio(mimeType: string): string {
   return "dictation.webm";
 }
 
-/**
- * Speech-to-text for the mic in the ask bar.
- *
- * Deliberately reads `ELEVENLABS_STT_API_KEY` and not the `ELEVENLABS_API_KEY`
- * the narration uses: dictation and lesson audio are separate budgets, and one
- * running dry or being rotated must not silence the other.
- */
+/** Provider selection and credentials stay on the server. */
 export async function POST(request: Request): Promise<Response> {
   const gated = await requireLessonCredits(request);
   if (gated instanceof Response) return gated;
 
-  const apiKey = process.env.ELEVENLABS_STT_API_KEY;
+  const config = sttConfig();
+  const { provider, apiKey, url } = config;
   if (!apiKey) {
     // Not the student's fault and not fatal — the mic falls back to the
     // browser's own dictation, so say so in a shape the client can branch on.
     return Response.json(
-      { error: "Voice input needs ELEVENLABS_STT_API_KEY.", unconfigured: true },
+      { error: "Voice input is not configured yet.", unconfigured: true },
       { status: 503 },
     );
   }
@@ -67,25 +63,17 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "That is not an audio recording." }, { status: 400 });
   }
 
-  const upstream = new FormData();
-  upstream.set("file", audio, filenameForAudio(audio.type));
-  upstream.set("model_id", process.env.ELEVENLABS_STT_MODEL ?? DEFAULT_STT_MODEL);
-  // Punctuation is wanted; "(laughs)" and "(background noise)" are not — they
-  // would be typed straight into the question box.
-  upstream.set("tag_audio_events", "false");
-  upstream.set("diarize", "false");
   const languageCode = form.get("language_code");
-  if (typeof languageCode === "string" && languageCode.trim()) {
-    upstream.set("language_code", languageCode.trim());
-  }
+  const upstream = transcriptionRequest(config, audio, filenameForAudio(audio.type),
+    typeof languageCode === "string" ? languageCode : undefined);
 
   const startedAt = Date.now();
   let response: Response;
   try {
-    response = await fetch(ELEVENLABS_STT_URL, {
+    response = await fetch(url, {
       method: "POST",
-      headers: { "xi-api-key": apiKey },
-      body: upstream,
+      ...upstream,
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(30_000)]),
     });
   } catch {
     return Response.json(
@@ -95,8 +83,8 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    console.error(`[stt] elevenlabs ${response.status}: ${detail.slice(0, 400)}`);
+    await response.body?.cancel();
+    console.error(`[stt] ${provider} returned ${response.status}`);
     return Response.json(
       {
         error:
@@ -111,6 +99,7 @@ export async function POST(request: Request): Promise<Response> {
   const data = (await response.json().catch(() => ({}))) as {
     text?: unknown;
     language_code?: unknown;
+    language?: unknown;
   };
   const text = typeof data.text === "string" ? data.text.trim() : "";
   if (!text) {
@@ -122,7 +111,7 @@ export async function POST(request: Request): Promise<Response> {
 
   return Response.json({
     text,
-    languageCode: typeof data.language_code === "string" ? data.language_code : null,
+    languageCode: typeof data.language_code === "string" ? data.language_code : typeof data.language === "string" ? data.language : null,
     latencyMs: Date.now() - startedAt,
   });
 }

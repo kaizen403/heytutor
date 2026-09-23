@@ -111,6 +111,7 @@ import {
   buildTurnTeachingPrompt,
   resumeLessonUserPrompt,
 } from "../../lib/turn/turnTeachingPrompt";
+import { LectureMarkupBuffer } from "../../lib/turn/lectureCueRepair";
 import { restoreVerifiedPresentationFromTurn } from "../../lib/scene/restoreVerifiedDiagram";
 import {
   selectVerifiedRepresentation,
@@ -1828,7 +1829,9 @@ export function useQuestionHandler(
           bufferedSegment = null;
         };
 
+        const markup = codeLesson ? null : new LectureMarkupBuffer();
         const parser = new IncrementalTagParser({
+          preserveStepSpeech: !codeLesson,
           onSegmentReady: (segment) => {
             if (STREAM_SEGMENTS_LIVE) {
               // A tag glued straight after another tag joins the sentence
@@ -1932,7 +1935,8 @@ export function useQuestionHandler(
                   preview: delta.slice(0, 80),
                 });
               }
-              parser.push(delta);
+              const piece = markup ? markup.push(delta) : delta;
+              if (piece) parser.push(piece);
             },
           );
 
@@ -2009,11 +2013,10 @@ export function useQuestionHandler(
           });
         }
 
-        const rawResponse = fullResponse;
         const streamStats = lastStreamStats;
 
         tutorDebug("turn", "LLM stream finished", {
-          response_chars: rawResponse.length,
+          response_chars: fullResponse.length,
           trace_id: traceId,
           stream_stats: streamStats,
           segments_so_far: collectedSegmentsRef.current.length,
@@ -2033,6 +2036,12 @@ export function useQuestionHandler(
         if (!thinkingEnded) {
           endThinking({ phase: "no_first_token" });
         }
+
+        if (markup) {
+          const extra = markup.finish();
+          if (extra) parser.push(extra);
+        }
+        const rawResponse = markup ? markup.text() : fullResponse;
 
         parser.flush();
         // Flush the final segment through verified-scene ownership filtering.

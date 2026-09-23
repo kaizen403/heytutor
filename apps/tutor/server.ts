@@ -5,15 +5,8 @@ import next from "next";
 import { WebSocket, WebSocketServer } from "ws";
 import { HTUTOR_UID_COOKIE } from "./lib/cookies";
 import { flushInBackground, recordTtsSpan } from "./lib/obs/langfuse";
-import {
-  DEFAULT_ELEVENLABS_MODEL,
-  LOW_LATENCY_ELEVENLABS_MODEL,
-  resolveVoiceId,
-} from "./lib/tts/ttsProxy";
-import {
-  buildMultiContextSegmentMessages,
-  normalizeMultiContextServerPayload,
-} from "./lib/tts/ttsRelayProtocol";
+import { ttsConfig } from "./lib/tts/providerConfig";
+import { createTtsRelay } from "./lib/tts/ttsProvider";
 import { readWsTicket } from "./lib/tts/wsTicket";
 import { isAuthDisabled } from "./lib/authDisabled";
 import { isAutumnEnabled } from "./lib/billing/flags";
@@ -43,6 +36,8 @@ async function warmDevRoutes(baseUrl: string): Promise<void> {
     `/api/boards/${warmupBoardId}`,
     `/api/boards/${warmupBoardId}/turns`,
     "/api/chat",
+    "/api/tts/ws-ticket",
+    "/api/tts/stream",
   ];
 
   for (const routePath of routes) {
@@ -54,7 +49,7 @@ async function warmDevRoutes(baseUrl: string): Promise<void> {
   }
 }
 
-interface ElevenLabsWsMessage {
+interface TtsSegmentMessage {
   text?: string;
   flush?: boolean;
   /**
@@ -79,7 +74,7 @@ interface TtsRelayContext {
   grant: TurnGrant | null;
   traceId?: string;
   sessionId?: string;
-  /** ElevenLabs natural voice speed, 0.7–1.2. Pitch-preserving. */
+  /** Natural voice speed, 0.7–1.2. Pitch-preserving. */
   speed?: number;
   /** Language/accent chosen in Settings; picks the upstream voice id. */
   voiceKey?: TutorVoiceKey;
@@ -88,13 +83,16 @@ interface TtsRelayContext {
 }
 
 function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void {
-  const apiKey = process.env.ELEVENLABS_API_KEY;
-  const voiceId = resolveVoiceId(normalizeVoiceKey(context.voiceKey));
-  // A per-request low-latency choice wins over the deployment default, which
-  // in turn wins over the built-in quality model.
-  const modelId = context.lowLatency
-    ? LOW_LATENCY_ELEVENLABS_MODEL
-    : process.env.ELEVENLABS_MODEL ?? DEFAULT_ELEVENLABS_MODEL;
+  let config: ReturnType<typeof ttsConfig>;
+  try {
+    config = ttsConfig(normalizeVoiceKey(context.voiceKey), context.lowLatency);
+  } catch {
+    clientWs.send(JSON.stringify({ type: "error", message: "Invalid speech provider configuration" }));
+    clientWs.close(1011, "Invalid speech configuration");
+    releaseTtsWsConnection(context.userId);
+    return;
+  }
+  const { apiKey, voiceId, model: modelId, provider } = config;
 
   if (!apiKey || !voiceId) {
     clientWs.send(JSON.stringify({ type: "error", message: "TTS not configured" }));
@@ -103,22 +101,16 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
     return;
   }
 
-  const upstreamUrl =
-    `wss://api.elevenlabs.io/v1/text-to-speech/${voiceId}/multi-stream-input` +
-    `?model_id=${encodeURIComponent(modelId)}&sync_alignment=true&auto_mode=true`;
-
-  const upstream = new WebSocket(upstreamUrl, {
-    headers: {
-      "xi-api-key": apiKey,
-    },
-  });
+  const relay = createTtsRelay(config);
+  const upstream = new WebSocket(relay.url, { headers: relay.headers, handshakeTimeout: 10_000 });
 
   let upstreamReady = false;
   let pendingSegmentText = "";
-  let pendingVoiceSettings: ElevenLabsWsMessage["voice_settings"] | undefined;
+  let pendingVoiceSettings: TtsSegmentMessage["voice_settings"] | undefined;
   let pendingSegmentIndex: number | undefined;
   let segmentSequence = 0;
   let charsUsed = 0;
+  const pendingSpend = new Map<string, { characters: number; startedAt: number; grant: TurnGrant }>();
   const segmentStartedAt = { value: 0 };
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -142,6 +134,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
   bumpIdle();
 
   upstream.on("open", () => {
+    if (clientWs.readyState !== WebSocket.OPEN) { upstream.close(); return; }
     upstreamReady = true;
     clientWs.send(JSON.stringify({ type: "ready" }));
   });
@@ -159,11 +152,27 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
     const payload = data.toString();
 
     try {
-      // The context was already closed when its text was flushed, so this only
-      // normalizes `is_final` to the `isFinal` the browser reads.
-      clientWs.send(normalizeMultiContextServerPayload(payload).forwardPayload);
+      const normalized = relay.receive(payload);
+      if (normalized) {
+        clientWs.send(normalized);
+        const message = JSON.parse(normalized);
+        if (message.isFinal) {
+          const id = message.contextId ?? message.context_id;
+          const spend = pendingSpend.get(id);
+          if (spend) {
+            pendingSpend.delete(id);
+            recordTtsSpan({ traceId: context.traceId, sessionId: context.sessionId,
+              characters: spend.characters, model: modelId, provider, voiceId, transport: "ws",
+              latencyMs: Date.now() - spend.startedAt });
+            recordTtsSpend({ userId: context.userId, characters: spend.characters, model: modelId, provider,
+              skipAutumn: spend.grant.skipAutumn ?? !isAutumnEnabled(), skipGates: spend.grant.skipGates });
+            flushInBackground();
+          }
+        }
+      }
     } catch {
-      clientWs.send(payload);
+      clientWs.send(JSON.stringify({ type: "error", message: "Speech generation failed. Please retry." }));
+      clientWs.close(1011, "Speech generation failed");
     }
   });
 
@@ -196,7 +205,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
       return;
     }
     try {
-      const message = JSON.parse(raw) as ElevenLabsWsMessage;
+      const message = JSON.parse(raw) as TtsSegmentMessage;
 
       if (typeof message.text === "string") {
         if (message.text.length > 0) {
@@ -220,7 +229,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
       }
 
       if (message.voice_settings && typeof message.voice_settings === "object") {
-        const filtered: ElevenLabsWsMessage["voice_settings"] = {
+        const filtered: TtsSegmentMessage["voice_settings"] = {
           stability: typeof message.voice_settings.stability === "number"
             ? message.voice_settings.stability
             : 0.4,
@@ -259,25 +268,9 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
             return;
           }
           charsUsed += characters;
-          if (context.traceId) {
-            recordTtsSpan({
-              traceId: context.traceId,
-              sessionId: context.sessionId,
-              characters,
-              model: modelId,
-              voiceId,
-              transport: "ws",
-              latencyMs: segmentStartedAt.value > 0 ? Date.now() - segmentStartedAt.value : undefined,
-            });
-          }
-          recordTtsSpend({
-            userId: context.userId,
-            characters,
-            model: modelId,
-            skipAutumn: liveGrant?.skipAutumn ?? !isAutumnEnabled(),
-            skipGates: liveGrant?.skipGates ?? false,
+          pendingSpend.set(`segment_${pendingSegmentIndex ?? segmentSequence + 1}`, {
+            characters, startedAt: segmentStartedAt.value, grant: liveGrant,
           });
-          flushInBackground();
         }
 
         if (characters > 0) {
@@ -285,7 +278,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
           // The client's own numbering when it sent one, so it can pair audio
           // with the sentence that asked for it.
           const contextId = `segment_${pendingSegmentIndex ?? segmentSequence}`;
-          const messages = buildMultiContextSegmentMessages(
+          const messages = relay.segment(
             contextId,
             segmentText,
             pendingVoiceSettings ?? {
@@ -302,7 +295,7 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
         segmentStartedAt.value = 0;
       }
     } catch {
-      // non-json payloads are dropped — only structured TTS messages are forwarded
+      closeForPolicy("invalid_speech_request");
     }
   });
 
@@ -314,9 +307,13 @@ function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void 
       released = true;
       releaseTtsWsConnection(context.userId);
     }
+    relay.dispose();
+    pendingSpend.clear();
     if (upstream.readyState === WebSocket.OPEN) {
-      upstream.send(JSON.stringify({ close_socket: true }));
+      if (relay.closeMessage) upstream.send(JSON.stringify(relay.closeMessage));
       upstream.close();
+    } else if (upstream.readyState === WebSocket.CONNECTING) {
+      upstream.terminate();
     }
   };
 

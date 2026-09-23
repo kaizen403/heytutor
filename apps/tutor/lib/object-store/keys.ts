@@ -9,6 +9,7 @@ export type StoredObjectRef =
       boardId: string;
       turnId: string;
       segmentIndex: number;
+      ext: "mp3" | "wav";
     }
   | {
       kind: "image";
@@ -21,8 +22,9 @@ export function lectureAudioKey(
   boardId: string,
   turnId: string,
   segmentIndex: number,
+  contentType = "audio/mpeg",
 ): string {
-  return `lectures/${boardId}/${turnId}/${segmentIndex}.mp3`;
+  return `lectures/${boardId}/${turnId}/${segmentIndex}.${contentType === "audio/wav" ? "wav" : "mp3"}`;
 }
 
 export function boardAudioPrefix(boardId: string): string {
@@ -50,7 +52,7 @@ export function parseStoredObjectKey(key: string): StoredObjectRef | null {
   }
 
   const lecture =
-    /^lectures\/([A-Za-z0-9._-]{1,128})\/([A-Za-z0-9._-]{1,128})\/(0|[1-9]\d{0,5})\.mp3$/.exec(
+    /^lectures\/([A-Za-z0-9._-]{1,128})\/([A-Za-z0-9._-]{1,128})\/(0|[1-9]\d{0,5})\.(mp3|wav)$/.exec(
       trimmed,
     );
   if (lecture?.[1] && lecture[2] && lecture[3]) {
@@ -59,6 +61,7 @@ export function parseStoredObjectKey(key: string): StoredObjectRef | null {
       boardId: lecture[1],
       turnId: lecture[2],
       segmentIndex: Number(lecture[3]),
+      ext: lecture[4] === "wav" ? "wav" : "mp3",
     };
   }
 

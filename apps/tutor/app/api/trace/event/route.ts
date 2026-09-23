@@ -1,3 +1,4 @@
+import { ttsConfig } from "@/lib/tts/providerConfig";
 import {
   flushSafely,
   recordTurnEvents,
@@ -87,7 +88,7 @@ export async function POST(request: Request): Promise<Response> {
     updateTurnTrace({
       traceId: body.traceId,
       sessionId: body.sessionId,
-      metadata: enrichTraceMetadataWithCosts(body.traceMetadata),
+      metadata: enrichTraceMetadataWithCosts(body.traceMetadata, { provider: ttsConfig().provider, model: ttsConfig().model }),
     });
   }
 

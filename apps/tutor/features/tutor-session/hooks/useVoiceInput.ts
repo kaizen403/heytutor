@@ -86,7 +86,7 @@ const readServerSupport = () => false;
 /**
  * The mic in the ask bar: press, speak, press again, and the words are in the box.
  *
- * Recording is the browser's job and transcription is ElevenLabs' — the audio
+ * Recording is the browser's job and transcription is the speech provider's — the audio
  * goes to `/api/stt`, which holds the key. Nothing here ever sees it.
  */
 export function useVoiceInput({

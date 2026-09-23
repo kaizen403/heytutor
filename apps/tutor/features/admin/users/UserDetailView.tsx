@@ -52,7 +52,7 @@ export function UserDetailView({ userId }: { userId: string }) {
           <KpiCard
             label="Spend this period"
             value={user.spendMillicents == null ? "—" : formatMillicentsUsd(user.spendMillicents)}
-            hint="billed Fireworks + ElevenLabs"
+            hint="billed AI + voice"
             tone="sky"
           />
           <KpiCard

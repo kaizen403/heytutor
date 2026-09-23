@@ -1,5 +1,5 @@
-import { ElevenLabsTTSClient, type TTSClient } from "./elevenLabsClient";
-import { ElevenLabsWebSocketTTSClient } from "./elevenLabsWebSocketClient";
+import { HttpSpeechClient, type TTSClient } from "./speechClient";
+import { StreamingSpeechClient } from "./streamingSpeechClient";
 import { resolveApiUrl } from "../publicOrigins";
 import type { TutorVoicePreferences } from "./voiceLanguage";
 
@@ -13,8 +13,8 @@ export type CreateTTSClientOptions = {
 export function createTTSClient(options: CreateTTSClientOptions = {}): TTSClient {
   const client =
     typeof window !== "undefined"
-      ? new ElevenLabsWebSocketTTSClient()
-      : new ElevenLabsTTSClient({
+      ? new StreamingSpeechClient()
+      : new HttpSpeechClient({
           proxyUrl: resolveApiUrl("/api/tts"),
           streamUrl: resolveApiUrl("/api/tts/stream"),
         });

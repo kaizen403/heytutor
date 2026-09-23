@@ -210,6 +210,16 @@ export function resolveLessonBudget(
   question: string,
   familiarity: SubjectFamiliarity = "normal",
 ): LessonBudget {
+  // An explanation is organized around ideas, not one board row for every
+  // sentence. Keep explicit proofs and multi-part problems on the work ladder.
+  if (isConceptLessonQuestion(question) && !isBareArithmetic(question)
+    && !PROOF_LEAD.test(question) && countMathAsks(question) < 3) {
+    const scope = familiarity === "new" ? "standard" : "compact";
+    const steps = familiarity === "revision"
+      ? { minSteps: 6, maxSteps: 9 }
+      : SCOPE_STEPS[scope];
+    return { scope, ...steps, boardPages: boardPagesFor(steps.maxSteps) };
+  }
   const classified = classifyLessonScope(question);
   const scope =
     familiarity === "revision"
@@ -226,7 +236,14 @@ export function resolveLessonBudget(
  * It is the last word on step count, so it is appended after every other
  * teaching addon.
  */
-export function lessonScopePromptAddon(budget: LessonBudget): string {
+export function lessonScopePromptAddon(budget: LessonBudget, options: { conceptLesson?: boolean } = {}): string {
+  if (options.conceptLesson) {
+    return `LESSON LENGTH FOR THIS QUESTION
+This overrides earlier step counts and instructions to fill pages. Aim for ${budget.minSteps}-${budget.maxSteps} connected teaching steps. Each step is one spoken sentence: at most a few words of reason, then the board row spoken token for token, then its tag, then the step ends. Say every = as equals, never is. The row's own words are that sentence, so the pen writes them as they are said. Do not spend a sentence on the reason and only then name the row.
+Explain a figure part in that same sentence, with [FOCUS] right after its spoken name. Do not repeat that explanation in a separate figure tour.
+Do not pad the lesson to reach a count or fill a page. Combine a definition with its immediate use, avoid duplicate equations and recap rows, and stop when the question is answered. Keep necessary reasoning and a meaningful check; do not split trivial algebra into several spoken announcements. The board can turn pages when needed. The governing relation and the closing result each end with [EMPHASIZE:last] immediately after that [WRITE], in the same step. Do not box a definition or a routine line. Do not write a summary or a final "one idea to remember" row; end on the last new idea or check.
+State a law's assumptions in a few words at the start of its formula sentence, then speak the formula with equals, and keep that condition attached when substituting or stating the result. If the question leaves the regime unspecified, distinguish the relevant cases rather than silently choosing one. For example, static friction adjusts up to μ_s N; sliding friction equals μ_k N and opposes relative sliding. Never present f = μN as the universal friction law and qualify it afterward. A rough surface alone does not establish sliding. Use distinct static and kinetic symbols, and explicitly introduce the sliding-down case before deriving its acceleration. Label any illustrative choice of motion or sign convention, and do not infer motion from a schematic arrow. Components replace a vector in the equations; they are not additional forces.`;
+  }
   return `LESSON LENGTH FOR THIS QUESTION
 This overrides every earlier step count. Teach this question in ${budget.minSteps}-${budget.maxSteps} steps, and [WRITE] a board line in each of them. A step that only moves the marker over the figure writes nothing and does not count toward that range, so spend the range on the working and not on a figure tour.
 This question needs about ${budget.boardPages} board ${budget.boardPages === 1 ? "page" : "pages"} of work (${BOARD_ROWS_PER_PAGE} rows fit on a page). Keep writing past the bottom of the first page. The board turns to a fresh page by itself and the finished page is saved to the student's notes. Never compress a derivation, drop a rung of the ladder, or skip the interpretation so the work fits on one page.

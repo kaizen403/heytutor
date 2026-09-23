@@ -4627,7 +4627,17 @@ export function implicitSolverEntityIds(document: SceneDocument): Set<string> {
   }
 
   return new Set(document.constructions.flatMap((construction) => {
-    if (construction.operator === "normal_at") return construction.outputs;
+    if (construction.operator === "normal_at") {
+      return construction.outputs.filter((output) => {
+        const entity = document.entities.find((candidate) => candidate.id === output);
+        // The operator serves both invisible optical normals and visible
+        // contact forces. A required reaction vector must keep its ink.
+        const reaction = entity?.kind === "vector"
+          && /\b(?:force|reaction)\b/i.test(entity.role ?? "")
+          && (required.has(output) || grouped.has(output));
+        return !reaction;
+      });
+    }
     if (construction.operator === "reflect_at" || construction.operator === "refract_at") {
       const normalId = construction.outputs[1];
       return normalId && !required.has(normalId) ? [normalId] : [];

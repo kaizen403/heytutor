@@ -11,8 +11,7 @@ const read = (relative: string) => readFileSync(resolve(root, relative), "utf8")
 
 const sessionRoutes: Array<[string, string]> = [
   ["app/api/chat/route.ts", "requireLessonGrant"],
-  ["app/api/tts/route.ts", "requireLessonGrant"],
-  ["app/api/tts/stream/route.ts", "requireLessonGrant"],
+  ["lib/tts/handleTtsRequest.ts", "requireLessonGrant"],
   ["app/api/tts/ws-ticket/route.ts", "requireSpendActor"],
   ["app/api/stt/route.ts", "requireLessonCredits"],
   ["app/api/extract-question/route.ts", "requireLessonCredits"],
@@ -28,7 +27,7 @@ for (const [file, gate] of sessionRoutes) {
 
 const chat = read("app/api/chat/route.ts");
 assert(chat.includes("recordLlmSpend"), "chat must track llm_tokens after usage");
-const tts = read("app/api/tts/route.ts");
+const tts = read("lib/tts/handleTtsRequest.ts");
 assert(tts.includes("consumeTtsChars"), "HTTP TTS must decrement the grant budget");
 assert(tts.includes("ttsSkippedResponse"), "HTTP TTS must skip ElevenLabs at the budget");
 const ws = read("server.ts");
@@ -41,7 +40,7 @@ assert(ws.includes("TTS_WS_IDLE_MS"), "WS TTS must idle-timeout the relay");
 assert(ws.includes("ttsWsCharsWithinCeiling"), "WS TTS must cap characters per connection");
 assert(ws.includes("tryAcquireTtsWsConnection"), "WS TTS must cap concurrent sockets per user");
 const ttsClient = readFileSync(
-  resolve(root, "../../packages/tutor-core/src/tts/elevenLabsWebSocketClient.ts"),
+  resolve(root, "../../packages/tutor-core/src/tts/streamingSpeechClient.ts"),
   "utf8",
 );
 assert(
@@ -108,7 +107,7 @@ assert(
   "Langfuse must cost generations with the actual model, not a flat Fireworks table",
 );
 assert(
-  langfuse.includes("calculateTtsCostDetails(characters, { model })"),
+  langfuse.includes("calculateTtsCostDetails(characters, { model, provider })"),
   "Langfuse TTS cost must follow the ElevenLabs model, not a flat Flash rate",
 );
 assert(

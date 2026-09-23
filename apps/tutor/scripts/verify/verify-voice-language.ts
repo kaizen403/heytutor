@@ -88,6 +88,8 @@ assert(
 assert(TTS_LANG_HEADER === "x-tts-lang", "tts language header name changed");
 assert(TTS_LANG_QUERY === "lang", "tts language query param changed");
 
+process.env.TTS_PROVIDER = "elevenlabs";
+
 // --- server-side env resolution -------------------------------------------
 const saved = {
   en: process.env.ELEVENLABS_VOICE_ID,
@@ -172,7 +174,7 @@ assert(
 );
 
 const httpClient = readFileSync(
-  resolve(root, "../../packages/tutor-core/src/tts/elevenLabsClient.ts"),
+  resolve(root, "../../packages/tutor-core/src/tts/speechClient.ts"),
   "utf8",
 );
 assert(
@@ -181,7 +183,7 @@ assert(
 );
 
 const wsClient = readFileSync(
-  resolve(root, "../../packages/tutor-core/src/tts/elevenLabsWebSocketClient.ts"),
+  resolve(root, "../../packages/tutor-core/src/tts/streamingSpeechClient.ts"),
   "utf8",
 );
 assert(
@@ -198,7 +200,7 @@ assert(
 const ttsRoute = readFileSync(resolve(root, "app/api/tts/route.ts"), "utf8");
 const ttsStream = readFileSync(resolve(root, "app/api/tts/stream/route.ts"), "utf8");
 assert(
-  ttsRoute.includes("voiceKeyFromRequest") && ttsStream.includes("voiceKeyFromRequest"),
+  ttsRoute.includes("handleTtsRequest") && ttsStream.includes("handleTtsRequest") && readFileSync(resolve(root, "lib/tts/handleTtsRequest.ts"), "utf8").includes("voiceKeyFromRequest"),
   "HTTP TTS routes must resolve the voice from x-tts-lang",
 );
 

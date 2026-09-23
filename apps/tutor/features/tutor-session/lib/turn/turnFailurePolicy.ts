@@ -29,6 +29,19 @@ export function shouldAbandonTurn(consecutiveFailures: number): boolean {
 }
 
 /**
+ * The voice never became audible. Distinct from a draw failure: the figure
+ * already inked inside the intro transaction is still good, and cancelling
+ * the turn here erases it and skips every later sentence.
+ */
+export function isVoiceStartupFailure(error: unknown): boolean {
+  if (!(error instanceof Error) || error.name === "AbortError") return false;
+  return (
+    error.message.startsWith("The voice could not start") ||
+    error.message.startsWith("tts segment timeout")
+  );
+}
+
+/**
  * Pair a draw promise with the voice narrating it: if the draw fails, silence
  * the speech before propagating. The rejection still reaches the caller, so
  * the queue can count it toward `shouldAbandonTurn`.

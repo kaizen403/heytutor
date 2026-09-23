@@ -1,3 +1,4 @@
+import { ttsConfig } from "../tts/providerConfig";
 import { timingSafeEqualText } from "@/lib/crypto/timingSafeEqualText";
 
 const TRUTHY = new Set(["1", "true", "yes", "on"]);
@@ -30,7 +31,8 @@ export function isProviderMockMode(env: NodeJS.ProcessEnv = process.env): boolea
 }
 
 export function isTtsConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
-  return Boolean(env.ELEVENLABS_API_KEY?.trim());
+  const config = ttsConfig("en-IN", false, env);
+  return Boolean(config.apiKey && config.voiceId);
 }
 
 export const LECTURE_LAB_HEADER = "x-heytutor-lecture-lab";

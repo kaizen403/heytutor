@@ -379,7 +379,7 @@ export function InputBar({
     if (voiceUnavailable && speechSupported) clearVoiceError();
   }, [clearVoiceError, speechSupported, voiceUnavailable]);
 
-  /** ElevenLabs is the mic; the browser's own dictation is the safety net. */
+  /** The selected speech provider handles the mic; the browser's own dictation is the safety net. */
   const useBrowserDictation = !voice.supported || voiceUnavailable;
   const micAvailable = voice.supported || speechSupported;
   const micListening = useBrowserDictation ? isListening : voice.state === "listening";

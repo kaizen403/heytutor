@@ -14,11 +14,12 @@ const ALLOWED_MEDIA_TYPES = new Set([
   "image/webp",
   "image/gif",
   "audio/mpeg",
+  "audio/wav",
 ]);
 
 export function contentTypeForStoredKey(key: string): string {
   const parsed = parseStoredObjectKey(key);
-  if (parsed?.kind === "lecture") return "audio/mpeg";
+  if (parsed?.kind === "lecture") return parsed.ext === "wav" ? "audio/wav" : "audio/mpeg";
   if (parsed?.kind === "image") return IMAGE_TYPES[parsed.ext] ?? "application/octet-stream";
   return "application/octet-stream";
 }
@@ -29,7 +30,7 @@ export function isAllowedMediaContentType(value: string): boolean {
 
 export function contentDispositionForKey(key: string): string {
   const parsed = parseStoredObjectKey(key);
-  if (parsed?.kind === "lecture") return 'inline; filename="lecture.mp3"';
+  if (parsed?.kind === "lecture") return `inline; filename="lecture.${parsed.ext}"`;
   if (parsed?.kind === "image") return `inline; filename="question.${parsed.ext}"`;
   return 'attachment; filename="download"';
 }

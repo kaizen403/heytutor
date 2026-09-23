@@ -18,6 +18,7 @@ import {
   type DrawCommand,
   type VerifiedDiagram,
 } from "@heytutor/drawing";
+import { repairLectureMarkup } from "../../features/tutor-session/lib/turn/lectureCueRepair";
 import {
   classifyDsaQuestion,
   createFallbackTurnPlanV3,
@@ -714,6 +715,9 @@ export async function runLecture(
     }
     run.teaching.continuations = continueCount;
     run.teaching.incomplete = incomplete;
+    // The live turn repairs this same text before the pen and the voice, so
+    // the grade is the lesson a student would have heard.
+    fullResponse = repairLectureMarkup(fullResponse);
     run.teaching.rawText = fullResponse;
     run.timings.teachMs = Date.now() - teachStartedAt;
 

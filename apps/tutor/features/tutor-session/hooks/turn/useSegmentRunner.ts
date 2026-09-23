@@ -44,6 +44,7 @@ import { waitUntilDrawClock } from "@/lib/replay/replayAudio";
 import { orderCommandsBySpokenAnchor } from "../../lib/turn/segmentPlanning";
 import { guardDrawWithSpeech } from "../../lib/turn/turnFailurePolicy";
 import { speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
+import { requireSpeechStart } from "../../lib/turn/speechStartup";
 import { resolveCommandInkBudgetMs } from "../../types";
 import type { UseSegmentRunnerParams } from "./types";
 
@@ -906,7 +907,8 @@ export function useSegmentRunner({
         try {
           await raceWithCancel(
             Promise.race([
-              tts.speakSegment(text, options),
+              requireSpeechStart(tts.speakSegment(text, options), () =>
+                audioStartedAtMs !== null || isCancelled() || isPausedRef.current),
               new Promise<never>((_, reject) => {
                 timeoutId = window.setTimeout(() => {
                   timedOut = true;
@@ -928,6 +930,9 @@ export function useSegmentRunner({
           });
           // Kill zombie WS/HTTP work so the next paragraph is not blocked.
           tts.abandonSpeaking?.();
+          // Do not count a silent fallback as a successful lecture beat. Let
+          // the queue stop after repeated failures and show its retry message.
+          if (audioStartedAtMs === null && !isCancelled()) throw error;
         } finally {
           if (timeoutId !== null) {
             window.clearTimeout(timeoutId);
@@ -936,6 +941,7 @@ export function useSegmentRunner({
         }
       };
 
+      let segmentCompleted = false;
       try {
         if (!(await waitWhilePaused())) return;
 
@@ -1004,8 +1010,9 @@ export function useSegmentRunner({
           if (isCancelled()) return;
           tutorDebug("segment", "paired narration+draw complete", { index });
         }
+        segmentCompleted = true;
       } finally {
-        if (!isCancelled()) {
+        if (segmentCompleted && !isCancelled()) {
           recordedSegmentsRef.current.push({
             orderIndex: index,
             narration: segment.narration,
@@ -1045,6 +1052,7 @@ export function useSegmentRunner({
       raceWithCancel,
       applyTurnPhase,
       cancelRef,
+      isPausedRef,
       waitWhilePaused,
       turnActiveRef,
       turnGenerationRef,

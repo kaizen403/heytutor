@@ -87,7 +87,7 @@ export interface OverviewTopSpender {
   spentMillicents: number;
 }
 
-/** Langfuse-priced Fireworks + ElevenLabs usage for a bounded window. */
+/** Langfuse-priced AI + voice usage for a bounded window. */
 export interface OverviewInference {
   configured: boolean;
   /** 0 when the window is "this user's recorded boards", not a day range. */

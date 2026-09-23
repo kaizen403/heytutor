@@ -22,16 +22,22 @@ function frameAncestors(env: NodeJS.ProcessEnv = process.env): string {
  * the public landing site (the `?embed=1` showcase).
  */
 export function contentSecurityPolicy(env: NodeJS.ProcessEnv = process.env): string {
+  // Next's dev runtime evaluates the react-refresh bundle. Production stays closed.
+  const scriptSrc =
+    env.NODE_ENV === "production"
+      ? "script-src 'self' 'unsafe-inline'"
+      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     // Google sign-in stores the avatar on *.googleusercontent.com. Without
     // that host the sidebar/profile <img> is blocked and renders as an empty ring.
     "img-src 'self' data: blob: https://*.googleusercontent.com https://*.ggpht.com",
     "font-src 'self'",
     "connect-src 'self'",
-    "media-src 'self' blob:",
+    // data: covers the tiny unlock/silence WAV used to start WebAudio.
+    "media-src 'self' blob: data:",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

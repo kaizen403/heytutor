@@ -421,8 +421,8 @@ releaseLectureAudioContext(lectureB);
   // the socket dropped. One constant now, and it has to be the one both files
   // read: a literal reintroduced in either file is the drift this catches.
   const sources = [
-    readFileSync(resolve(import.meta.dirname, "../../src/tts/elevenLabsClient.ts"), "utf8"),
-    readFileSync(resolve(import.meta.dirname, "../../src/tts/elevenLabsWebSocketClient.ts"), "utf8"),
+    readFileSync(resolve(import.meta.dirname, "../../src/tts/speechClient.ts"), "utf8"),
+    readFileSync(resolve(import.meta.dirname, "../../src/tts/streamingSpeechClient.ts"), "utf8"),
   ];
   assert(
     sources[1]!.includes("from \"./httpTtsPolicy\"") && !sources[1]!.includes("MAX_HTTP_PREFETCH = 6"),

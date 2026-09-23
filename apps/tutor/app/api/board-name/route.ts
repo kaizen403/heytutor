@@ -3,7 +3,9 @@ import {
   finalizeBoardTitle,
 } from "@/lib/boards/boardTitle";
 import { isSpendActor, requireSpendActor } from "@/lib/billing/gate";
+import { recordLlmSpend } from "@/lib/billing/track";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
+import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 
@@ -53,6 +55,10 @@ export async function POST(request: Request): Promise<Response> {
 
     const data = await response.json();
     const rawTitle: string = data?.choices?.[0]?.message?.content ?? "";
+    const usage = usageDetailsFromParsed(parseProviderUsage(data?.usage));
+    if (usage) {
+      recordLlmSpend({ actor, model, usage });
+    }
 
     return Response.json({ title: finalizeBoardTitle(question, rawTitle) });
   } catch {

@@ -1,3 +1,4 @@
+import { speechAudioMimeType } from "@heytutor/tutor-core";
 import { resolveApiUrl, type AudioTimings } from "@heytutor/tutor-core";
 import type { DrawCommand, StoredCommandEnvelope } from "@heytutor/drawing";
 import type { BoardEntry } from "@/lib/boards/types";
@@ -210,7 +211,7 @@ export async function saveTurn(
     if (segment.audioBytes && segment.audioBytes.length > 0) {
       formData.append(
         `audio-${segment.orderIndex}`,
-        new Blob([new Uint8Array(segment.audioBytes)], { type: "audio/mpeg" }),
+        new Blob([new Uint8Array(segment.audioBytes)], { type: speechAudioMimeType(segment.audioBytes) }),
       );
     }
   }

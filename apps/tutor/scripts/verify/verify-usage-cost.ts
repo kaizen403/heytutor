@@ -65,4 +65,23 @@ assert(
   "Multilingual is $0.10 / 1k",
 );
 
-console.log("✓ per-model usageCost rates (Kimi Fast, Kimi K3, DeepSeek Flash, Qwen vision, TTS)");
+const jev = calculateLlmCostDetails(
+  { input: 1_000_000, output: 1_000_000 },
+  { model: "typesafe-ai/jev" },
+);
+assert(resolveLlmRateLane("typesafe-ai/jev") === "jev", "Jev must not use the Kimi Fast fallback");
+assert(jev.input === 0.042 && jev.output === 0 && jev.total === 0.042, "Jev is $0.042 / 1M input and free output");
+
+const cachedFast = calculateLlmCostDetails(
+  { input: 1_000_000, cachedInput: 1_000_000, output: 0 },
+  { model: DEFAULT_FIREWORKS_FAST_MODEL },
+);
+assert(cachedFast.input === 0.45 && cachedFast.total === 0.45, "a full Kimi Fast cache hit is $0.45 / 1M, not $4.50");
+
+const mixedFast = calculateLlmCostDetails(
+  { input: 2_000_000, cachedInput: 1_000_000, output: 0 },
+  { model: DEFAULT_FIREWORKS_FAST_MODEL },
+);
+assert(mixedFast.total === 4.95, "only the cache-hit portion gets the cached rate");
+
+console.log("✓ per-model usageCost rates (Kimi Fast, Kimi K3, DeepSeek Flash, Qwen vision, Jev, TTS)");

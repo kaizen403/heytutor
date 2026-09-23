@@ -106,6 +106,29 @@ assert(report.byKind.some((row) => row.name === "tts-segment" && row.stream === 
 assert(formatUsd(0) === "$0", "zero formats");
 assert(formatUsd(1.234) === "$1.23", "dollars use two places");
 
+const cachedReport = aggregateRunCost([
+  {
+    name: "fireworks-llm",
+    type: "GENERATION",
+    model: DEFAULT_FIREWORKS_FAST_MODEL,
+    usage: { input: 1_000_000, output: 0, total: 1_000_000, unit: "TOKENS" },
+    usageDetails: { cachedInput: 1_000_000 },
+  },
+]);
+assert(cachedReport.totals.cachedInputTokens === 1_000_000, "cache hits must be counted separately");
+assert(cachedReport.totals.llmUsd === 0.45, "a full Kimi Fast cache hit is $0.45 / 1M");
+
+const unknownReport = aggregateRunCost([
+  {
+    name: "fireworks-llm",
+    type: "GENERATION",
+    model: DEFAULT_FIREWORKS_FAST_MODEL,
+  },
+]);
+assert(unknownReport.totals.unknownUsage === 1, "a generation with no usage is unknown");
+assert(unknownReport.totals.llmUsd === 0, "unknown usage must not be given a made-up token price");
+assert(unknownReport.totals.llmObservations === 0, "unknown usage is not a measured generation");
+
 const summed = sumSessionCosts(report.bySession);
 assert(summed.llmUsd === report.totals.llmUsd, "topic chips sum AI cost across boards");
 assert(summed.ttsUsd === report.totals.ttsUsd, "topic chips sum voice cost across boards");
@@ -132,7 +155,7 @@ assert(
   "run-cost must read Langfuse observations for the lecture boards",
 );
 assert(
-  read("lib/obs/langfuse.ts").includes("calculateTtsCostDetails(characters, { model })"),
+  read("lib/obs/langfuse.ts").includes("calculateTtsCostDetails(characters, { model, provider })"),
   "TTS Langfuse spans must price the spoken model",
 );
 assert(

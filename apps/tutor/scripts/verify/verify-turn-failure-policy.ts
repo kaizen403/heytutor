@@ -17,6 +17,7 @@
 import {
   MAX_CONSECUTIVE_SEGMENT_FAILURES,
   guardDrawWithSpeech,
+  isVoiceStartupFailure,
   shouldAbandonTurn,
 } from "../../features/tutor-session/lib/turn/turnFailurePolicy";
 
@@ -83,6 +84,33 @@ async function main(): Promise<void> {
     assert(
       MAX_CONSECUTIVE_SEGMENT_FAILURES >= 2,
       "aborting on the very first failure would end turns on a single transient command",
+    );
+  }
+
+  // --- A missed voice must not be treated as a dead figure. ---
+  {
+    const voice = new Error("The voice could not start. Please try the lesson again.");
+    assert(isVoiceStartupFailure(voice), "a silent beat is a voice failure");
+    assert(
+      isVoiceStartupFailure(new Error("tts segment timeout after 9000ms")),
+      "a speech timeout is a voice failure",
+    );
+    assert(
+      !isVoiceStartupFailure(new Error("whiteboard module went away")),
+      "a draw failure must still abort the figure",
+    );
+    assert(
+      !isVoiceStartupFailure(new DOMException("turn cancelled", "AbortError")),
+      "a real cancel must still abort the figure",
+    );
+    const { readFileSync } = await import("node:fs");
+    const intro = readFileSync(
+      new URL("../../features/tutor-session/hooks/turn/useTurnControl.ts", import.meta.url),
+      "utf8",
+    );
+    assert(
+      intro.includes("isVoiceStartupFailure(error)"),
+      "the verified intro must keep the figure when only the voice failed",
     );
   }
 

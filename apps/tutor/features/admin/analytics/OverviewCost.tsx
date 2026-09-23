@@ -31,7 +31,7 @@ export function OverviewCost({ cost }: { cost: OverviewCostPayload }) {
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="type-accent-xs text-faint">Cost</h2>
         <p className="type-accent-xs text-faint">
-          Fireworks + ElevenLabs estimate · period {cost.period}
+          AI + voice estimate · period {cost.period}
         </p>
       </div>
 

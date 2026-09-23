@@ -248,7 +248,8 @@ Object.defineProperty(globalThis, "WebSocket", { configurable: true, value: Rela
 Object.defineProperty(globalThis, "AudioContext", { configurable: true, value: FakeAudioContext });
 Object.defineProperty(globalThis, "fetch", {
   configurable: true,
-  value: async () => {
+  value: async (url: string) => {
+    if (url.endsWith("/api/tts/ws-ticket")) return Response.json({ ticket: "test-ticket" });
     throw new Error("a working websocket must not fall back to HTTP");
   },
 });

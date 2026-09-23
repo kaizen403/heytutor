@@ -16,7 +16,7 @@ import {
   normalizeSegmentForAlignment,
 } from "../../lib/turn/segmentPlanning";
 import { placeDsaFigureIntro, resolveCodeLessonSegments } from "../../lib/code-lesson/codeLessonSegments";
-import { shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
+import { isVoiceStartupFailure, shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
 import { clearSpotlight } from "../../lib/board/spotlight";
 import { dropDiagramRects } from "../../lib/board/boardLayout";
 import {
@@ -245,6 +245,12 @@ export function useTurnControl(
               consecutive_failures: consecutiveSegmentFailuresRef.current,
             });
             cancelRef.current = true;
+            const failure = {
+              message: "The lesson could not continue playing. Please try again.",
+              question: liveQuestionRef.current,
+            };
+            setLastError(failure);
+            onError?.(failure);
           }
         } finally {
           if (counted()) {
@@ -264,6 +270,9 @@ export function useTurnControl(
       currentTraceIdRef,
       sessionId,
       turnTelemetryRef,
+      liveQuestionRef,
+      setLastError,
+      onError,
     ],
   );
 
@@ -320,16 +329,32 @@ export function useTurnControl(
         activeIntroTransactionRef.current = transactionId;
         let committed = false;
         try {
+          // A missed voice is not a broken figure. Aborting this transaction
+          // used to wipe the diagram already on the board and cancel every
+          // sentence after it — the lecture stopped on the second complex.
+          let voiceFailures = 0;
           for (const [offset, segment] of normalized.entries()) {
             if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
               throw new DOMException("verified intro cancelled", "AbortError");
             }
-            await runSegment(
-              segment,
-              startIndex + offset,
-              collectedSegmentsRef.current,
-              turnGeneration,
-            );
+            try {
+              await runSegment(
+                segment,
+                startIndex + offset,
+                collectedSegmentsRef.current,
+                turnGeneration,
+              );
+              voiceFailures = 0;
+            } catch (error) {
+              if (!counted() || !isVoiceStartupFailure(error)) throw error;
+              voiceFailures += 1;
+              tutorDebug("segment", "intro voice failed; keeping the figure", {
+                index: startIndex + offset,
+                error: error instanceof Error ? error.message : String(error),
+                consecutive_failures: voiceFailures,
+              });
+              if (shouldAbandonTurn(voiceFailures)) throw error;
+            }
           }
           if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
             throw new DOMException("verified intro cancelled", "AbortError");
@@ -749,10 +774,6 @@ export function useTurnControl(
     setIsPaused(true);
     ttsClientRef.current?.pause();
     replayAudioRef.current?.pause();
-    // Belt-and-suspenders: Chromium speechSynthesis often ignores pause().
-    if (typeof window !== "undefined") {
-      window.speechSynthesis?.cancel();
-    }
     whiteboardRef.current?.setPaused(true);
     tutorDebug("turn", "paused");
   }, [phase, isPausedRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef]);

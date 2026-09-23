@@ -1,7 +1,7 @@
-export const MAX_TURN_UPLOAD_BYTES = 32 * 1024 * 1024;
+export const MAX_TURN_UPLOAD_BYTES = 128 * 1024 * 1024;
 export const MAX_TURN_METADATA_BYTES = 256 * 1024;
 export const MAX_TURN_AUDIO_BYTES = 8 * 1024 * 1024;
-export const MAX_TURN_TOTAL_AUDIO_BYTES = 24 * 1024 * 1024;
+export const MAX_TURN_TOTAL_AUDIO_BYTES = 96 * 1024 * 1024;
 export const MAX_TURN_SEGMENTS = 256;
 
 export type TurnUploadValidation =
@@ -80,8 +80,8 @@ export function validateTurnUploadParts(
     if (!orderIndexes.has(orderIndex) || audioIndexes.has(orderIndex)) {
       return { ok: false, status: 400, error: `audio part ${name} has no unique matching segment` };
     }
-    if (value.type !== "audio/mpeg") {
-      return { ok: false, status: 415, error: `audio part ${name} must be audio/mpeg` };
+    if (value.type !== "audio/mpeg" && value.type !== "audio/wav") {
+      return { ok: false, status: 415, error: `audio part ${name} must be audio/mpeg or audio/wav` };
     }
     if (value.size > MAX_TURN_AUDIO_BYTES) {
       return { ok: false, status: 413, error: `audio part ${name} exceeds the size limit` };

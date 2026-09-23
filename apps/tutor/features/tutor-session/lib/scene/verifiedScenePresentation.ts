@@ -170,8 +170,17 @@ export function buildVerifiedDiagramPresentation(
     const phaseIndices = indicesByGroup.get(groupId) ?? emptyPhaseIndices();
     const group = renderScene.revealGroups.find((candidate) => candidate.id === groupId);
     const timelineCue = timelineNarration(renderScene, "reveal", groupId);
+    // A planner can narrate each entity while putting their ink in one group.
+    // Preserve those explanations instead of speaking the fallback group id.
+    const memberIds = new Set(group?.entityIds ?? []);
+    const memberCues = [...new Set(renderScene.timeline
+      .filter((entry) => entry.action === "reveal" && memberIds.has(entry.targetId))
+      .map((entry) => entry.narrationIntent?.trim())
+      .filter((cue): cue is string => Boolean(cue && isSpokenProse(cue))))];
     // Prefer planner prose when present; short group cues still drive the fallback templates.
     const cue = (timelineCue && isSpokenProse(timelineCue) ? timelineCue : null)
+      || (group?.narrationCue && isSpokenProse(group.narrationCue) ? group.narrationCue : null)
+      || memberCues.join(" ")
       || group?.narrationCue
       || timelineCue
       || groupId;
@@ -593,7 +602,9 @@ function cueSubject(cue: string): string {
     )
     .replace(/\s+/g, " ")
     .trim();
-  return subject || "the physical setup";
+  return !subject || /^(?:scene|rg\s+\w+|group\s*\d*)$/i.test(subject)
+    ? "the physical setup"
+    : subject;
 }
 
 /** True when the planner already wrote speakable teaching prose. */
@@ -687,6 +698,7 @@ const SPEAKABLE_LABEL = /^[A-Za-z]{1,2}[′']?$/;
 
 function cleanRole(role: string | undefined): string {
   return (role ?? "")
+    .replace(/_/g, " ")
     .replace(/\([^)]*\)/g, " ")
     .replace(/[:;]/g, ",")
     .replace(/\s+/g, " ")

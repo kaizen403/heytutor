@@ -68,7 +68,7 @@ export function UserProfileCard({
         </div>
 
         <div className="glass rounded-xl px-3 py-2.5">
-          <p className="type-accent-xs text-faint">Spend by period · Fireworks + ElevenLabs</p>
+          <p className="type-accent-xs text-faint">Spend by period · AI + voice</p>
           {spend.length > 0 ? (
             <dl className="mt-1 divide-y divide-stroke/60">
               {spend.map((entry) => (

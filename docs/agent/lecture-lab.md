@@ -120,6 +120,24 @@ every frame shown, and whether the narration read code aloud, leaked machinery
 words, or repeated itself. Whether the explanation teaches well is a reviewer's
 job.
 
+## Semantic review
+
+`assess.ts` reads a finished round and asks Jev whether the explanation is
+incomplete, contradicts the stored facts, or describes the wrong figure. It
+writes `assessments/` next to the round. It does not change `summary.json` or
+the deterministic grade, and a Jev pass is not a release approval.
+
+```bash
+cd apps/tutor
+# write the requests, do not call a provider
+pnpm exec tsx scripts/lecture-lab/assess.ts .lecture-lab/round-01
+# send public corpus text. Requires AI_GATEWAY_API_KEY.
+pnpm exec tsx scripts/lecture-lab/assess.ts .lecture-lab/round-01 --live --limit 20
+```
+
+`--no-zdr` turns off zero data retention. Use it only for public or synthetic
+text. Leave it off for anything that came from a student.
+
 **The dev server needs Postgres.** Without it `/api/chat` answers 401 and every
 turn is recorded as a transport failure in under a second, which looks exactly
 like the model being down. `docker compose up -d postgres` first.

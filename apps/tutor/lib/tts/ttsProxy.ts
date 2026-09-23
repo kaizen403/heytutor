@@ -1,5 +1,5 @@
+import { availableVoiceKeys, ttsConfig } from "./providerConfig";
 import {
-  DEFAULT_VOICE_KEY,
   normalizeVoiceKey,
   TTS_LANG_HEADER,
   type TutorVoiceKey,
@@ -14,37 +14,18 @@ export const DEFAULT_ELEVENLABS_MODEL = "eleven_multilingual_v2";
  */
 export const LOW_LATENCY_ELEVENLABS_MODEL = "eleven_flash_v2_5";
 
-/**
- * Voice id per language/accent. `ELEVENLABS_VOICE_ID` stays the Indian-English
- * default so an existing deployment keeps working with no new env vars; the
- * others are optional and fall back to it rather than failing the request.
- */
-const VOICE_ENV_KEYS: Record<TutorVoiceKey, string> = {
-  "en-IN": "ELEVENLABS_VOICE_ID",
-  "en-GB": "ELEVENLABS_VOICE_ID_EN_GB",
-  "en-US": "ELEVENLABS_VOICE_ID_EN_US",
-  "hi-IN": "ELEVENLABS_VOICE_ID_HI",
-};
-
+/** Compatibility exports; provider selection and voice configuration have one owner. */
 export function resolveVoiceId(voiceKey: TutorVoiceKey): string | undefined {
-  const configured = process.env[VOICE_ENV_KEYS[voiceKey]]?.trim();
-  if (configured) return configured;
-  // An unconfigured accent/language speaks in the default voice instead of
-  // dropping the turn's audio.
-  return process.env[VOICE_ENV_KEYS[DEFAULT_VOICE_KEY]]?.trim() || undefined;
+  return ttsConfig(voiceKey).voiceId;
 }
-
-/** Which languages this deployment can actually speak, for the settings UI. */
-export function configuredVoiceKeys(): TutorVoiceKey[] {
-  return (Object.keys(VOICE_ENV_KEYS) as TutorVoiceKey[])
-    .filter((key) => Boolean(process.env[VOICE_ENV_KEYS[key]]?.trim()));
-}
+export function configuredVoiceKeys(): TutorVoiceKey[] { return availableVoiceKeys(); }
 
 export function voiceKeyFromRequest(request: Request): TutorVoiceKey {
   return normalizeVoiceKey(request.headers.get(TTS_LANG_HEADER));
 }
 
-export interface ElevenLabsTtsBody {
+export interface SpeechRequestBody {
+  low_latency?: boolean;
   text?: string;
   model_id?: string;
   voice_settings?: Record<string, number>;
@@ -53,20 +34,16 @@ export interface ElevenLabsTtsBody {
 }
 
 export function missingTtsConfig(): string[] {
+  const config = ttsConfig();
+  const prefix = config.provider.toUpperCase();
   const missing: string[] = [];
-
-  if (!process.env.ELEVENLABS_API_KEY) {
-    missing.push("ELEVENLABS_API_KEY");
-  }
-
-  if (!process.env.ELEVENLABS_VOICE_ID) {
-    missing.push("ELEVENLABS_VOICE_ID");
-  }
+  if (!config.apiKey) missing.push(`${prefix}_API_KEY`);
+  if (!config.voiceId) missing.push(`${prefix}_VOICE_ID`);
 
   return missing;
 }
 
-export function buildElevenLabsPayload(body: ElevenLabsTtsBody): Record<string, unknown> {
+export function buildElevenLabsPayload(body: SpeechRequestBody): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     text: typeof body.text === "string" ? body.text : "",
     model_id: body.model_id ?? process.env.ELEVENLABS_MODEL ?? DEFAULT_ELEVENLABS_MODEL,
@@ -151,7 +128,7 @@ export function parseUpstreamErrorMessage(errorBody: string): string {
 export function upstreamErrorResponse(status: number, errorBody: string): Response {
   return Response.json(
     {
-      error: "elevenlabs tts request failed",
+      error: "Speech provider request failed",
       upstream_status: status,
       upstream_message: parseUpstreamErrorMessage(errorBody),
     },
@@ -168,3 +145,6 @@ export function ttsNotConfiguredResponse(): Response {
     { status: 503 },
   );
 }
+
+/** Legacy import compatibility. */
+export type ElevenLabsTtsBody = SpeechRequestBody;

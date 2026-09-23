@@ -1,3 +1,4 @@
+import { speechAudioMimeType } from "@heytutor/tutor-core";
 import type {
   RecordedSegmentPayload,
   SceneVisualStatus,
@@ -6,7 +7,7 @@ import type {
 } from "@/lib/boards/boardsClient";
 
 export function createReplayAudioBlobUrl(bytes: Uint8Array): string {
-  return URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "audio/mpeg" }));
+  return URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: speechAudioMimeType(bytes) }));
 }
 
 export function enrichStoredSegmentsWithReplayAudio(

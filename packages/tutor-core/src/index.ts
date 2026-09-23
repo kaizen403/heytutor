@@ -47,3 +47,5 @@ export * from "./code/classifyDsaQuestion";
 export * from "./code/codeLessonPlanner";
 export * from "./code/codeLessonTeaching";
 export * from "./code/mockCodeLesson";
+
+export * from "./tts/audioFormat";

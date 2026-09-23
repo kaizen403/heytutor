@@ -50,6 +50,22 @@ assert(
   contentSecurityPolicy().includes("https://*.googleusercontent.com"),
   "CSP must allow Google profile photos",
 );
+assert(
+  !contentSecurityPolicy(env({ NODE_ENV: "production" })).includes("'unsafe-eval'"),
+  "production CSP must not allow eval",
+);
+assert(
+  contentSecurityPolicy(env({ NODE_ENV: "development" })).includes("'unsafe-eval'"),
+  "development CSP must allow eval for the Next dev runtime",
+);
+assert(
+  contentSecurityPolicy().includes("media-src 'self' blob: data:"),
+  "CSP must allow data: audio for the WebAudio unlock WAV",
+);
+assert(
+  contentSecurityPolicy(env({ NODE_ENV: "production" })).includes("media-src 'self' blob: data:"),
+  "production CSP must allow data: audio for the WebAudio unlock WAV",
+);
 
 assert(read("next.config.ts").includes("securityHeaderEntries"), "next.config applies security headers");
 assert(read("middleware.ts").includes("applySecurityHeaders"), "middleware applies security headers");

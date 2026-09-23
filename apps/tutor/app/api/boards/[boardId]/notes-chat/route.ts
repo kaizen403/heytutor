@@ -11,7 +11,6 @@ import { prisma } from "@/lib/db/prisma";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import {
   assembleLessonNotes,
-  formatLessonNotesForPrompt,
   notesFromStoredTurn,
   parseLiveTurnNotes,
 } from "@/features/tutor-session/lib/notes/lessonNotes";
@@ -26,7 +25,9 @@ import {
   genTraceId,
   startTurnTrace,
 } from "@/lib/obs/langfuse";
-import { resolveTeachingModel, fetchTeachingCompletion } from "@/lib/llm/teachingTransport";
+import { fetchTeachingCompletion } from "@/lib/llm/teachingTransport";
+import { prepareNotesChat } from "@/lib/llm/notesChatPolicy";
+import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 const NOTES_CHAT_MAX_MESSAGE_CHARS = 2000;
@@ -114,7 +115,16 @@ export async function GET(request: Request, context: RouteContext) {
 
   const board = await getOwnedBoard(boardId, userId);
   if (!board) {
-    return NextResponse.json({ error: "not found" }, { status: 404 });
+    // Home drafts mint a client UUID and open notes before any row exists.
+    // An empty thread is honest there; a row owned by someone else stays 404.
+    const foreign = await prisma.board.findFirst({
+      where: { id: boardId },
+      select: { id: true },
+    });
+    if (foreign) {
+      return NextResponse.json({ error: "not found" }, { status: 404 });
+    }
+    return NextResponse.json({ messages: [] });
   }
 
   const rows = await prisma.boardChatMessage.findMany({
@@ -165,7 +175,6 @@ export async function POST(request: Request, context: RouteContext) {
   const live = parseLiveTurnNotes(body.liveNotes);
   const persisted = await loadPersistedTurns(boardId);
   const notes = assembleLessonNotes(persisted, live, lectureInProgress);
-  const notesPrompt = formatLessonNotesForPrompt(notes);
 
   const historyRows = await prisma.boardChatMessage.findMany({
     where: { boardId, userId },
@@ -184,8 +193,6 @@ export async function POST(request: Request, context: RouteContext) {
 
   const tag = parseNotesChatTag(body.tag);
   const userContent = formatTaggedUserMessage(message, tag);
-  const taggedPrompt = tag ? `\n\n${formatNotesChatTagPrompt(tag)}` : "";
-  const systemPrompt = `${NOTES_CHAT_SYSTEM_PROMPT}\n\nlesson notes:\n${notesPrompt}${taggedPrompt}`;
 
   await prisma.boardChatMessage.create({
     data: {
@@ -232,7 +239,17 @@ export async function POST(request: Request, context: RouteContext) {
     });
   }
 
-  const model = resolveTeachingModel(process.env, { fastMode: true });
+  const prepared = await prepareNotesChat({
+    notes,
+    tag,
+    userMessage: message,
+    signal: request.signal,
+    network: true,
+  });
+  const model = prepared.model;
+  const taggedPrompt = tag ? `\n\n${formatNotesChatTagPrompt(tag)}` : "";
+  const systemPrompt = `${NOTES_CHAT_SYSTEM_PROMPT}\n\nlesson notes:\n${prepared.notesText}${taggedPrompt}`;
+  const evaluation = prepared.evaluation;
   const fireworksBody = JSON.stringify({
     model,
     max_tokens: NOTES_CHAT_MAX_TOKENS,
@@ -284,7 +301,7 @@ export async function POST(request: Request, context: RouteContext) {
   const decoder = new TextDecoder();
   let buffered = "";
   let accumulated = "";
-  let latestUsage: { input?: number; output?: number; total?: number } | undefined;
+  let latestUsage: unknown;
 
   const transform = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
@@ -317,15 +334,31 @@ export async function POST(request: Request, context: RouteContext) {
           data: { boardId, userId, role: "assistant", content: reply },
         });
       }
+      const parsedUsage = parseProviderUsage(latestUsage);
       endLlmGeneration(turnTrace, {
         output: reply,
-        usageDetails: latestUsage,
-        metadata: { content_chars: reply.length },
+        usageDetails: usageDetailsFromParsed(parsedUsage),
+        metadata: {
+          content_chars: reply.length,
+          notes_policy: prepared.mode,
+          notes_context: prepared.context,
+          notes_truncated: prepared.truncated,
+          notes_model: model,
+          usage_status: parsedUsage.known ? "known" : "unknown",
+          cached_input_tokens: parsedUsage.cachedInput ?? 0,
+          jev_status: evaluation?.status ?? "skipped",
+          jev_decision: evaluation?.status === "assessed" ? evaluation.decision : null,
+          jev_reason: evaluation?.status === "unavailable" ? evaluation.reason : null,
+          jev_input_tokens: evaluation?.status === "assessed" ? evaluation.usage.inputTokens : 0,
+          jev_estimated_usd: evaluation?.status === "assessed" ? evaluation.usage.estimatedUsd : 0,
+        },
         model,
       });
+      if (parsedUsage.known) {
+        recordLlmSpend({ actor, model, usage: usageDetailsFromParsed(parsedUsage) });
+      }
       if (reply) {
         recordNotesMessage(actor);
-        recordLlmSpend({ actor, model, usage: latestUsage });
       }
       flushInBackground();
       controller.enqueue(encodeSse({ done: true }));
@@ -364,21 +397,14 @@ function encodeNotesChatDelta(line: string): { delta: string } {
   }
 }
 
-function readNotesChatUsage(line: string): { input?: number; output?: number; total?: number } | undefined {
+function readNotesChatUsage(line: string): unknown {
   if (!line.startsWith("data: ")) return undefined;
   const jsonString = line.slice(6).trim();
   if (!jsonString || jsonString === "[DONE]") return undefined;
   try {
     const parsed: unknown = JSON.parse(jsonString);
     if (!isRecord(parsed) || !isRecord(parsed.usage)) return undefined;
-    const input = parsed.usage.prompt_tokens;
-    const output = parsed.usage.completion_tokens;
-    const total = parsed.usage.total_tokens;
-    return {
-      input: typeof input === "number" ? input : undefined,
-      output: typeof output === "number" ? output : undefined,
-      total: typeof total === "number" ? total : undefined,
-    };
+    return parsed.usage;
   } catch {
     return undefined;
   }

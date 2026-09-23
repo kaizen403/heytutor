@@ -18,6 +18,8 @@ For diagram authority, representation tiers, and ownership rules see
 [../agent/architecture.md](../agent/architecture.md). This file is about speech ↔
 handwriting sync after the verified scene is committed.
 
+See [speech-providers.md](speech-providers.md) for provider selection, Cartesia/ElevenLabs adapters, timestamp mapping, and WAV/MP3 replay.
+
 ## High-Level Flow
 
 The main live path is:
@@ -28,7 +30,7 @@ The main live path is:
 4. `prepareVerifiedLessonSegments()` keeps narration and work-area `WRITE`/`PAUSE` only.
 5. Segments are queued through `enqueueSegment()` / `segmentChainRef` in `useTurnControl.ts`.
 6. `runSegment()` in `useSegmentRunner.ts` speaks the segment narration and runs allowed write commands concurrently.
-7. `createTTSClient()` returns `ElevenLabsWebSocketTTSClient` in the browser (multi-context per segment).
+7. `createTTSClient()` returns `StreamingSpeechClient` in the browser (one context per segment, with Cartesia as the server default).
 8. `Whiteboard.writeText()` renders work-area ink on Konva layers; verified reveal groups animate separately.
 9. Captured audio/timings/commands are persisted as turns and replayed later by `replayLecture()`.
 
