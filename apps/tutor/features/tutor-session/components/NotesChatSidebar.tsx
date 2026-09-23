@@ -4,15 +4,9 @@ import { useCallback, useMemo, useState } from "react";
 import { X } from "lucide-react";
 
 import type { LessonNotesSnapshot } from "../lib/notes/lessonNotes";
-import {
-  collectSelectableNotes,
-  defaultTaggedQuestion,
-  type NotesChatTag,
-} from "../lib/notes/notesChatTag";
 import type { NotesChatMessage } from "@/lib/boards/notesChatClient";
 import { NotesChatThread } from "./NotesChatThread";
 import { NotesChatComposer } from "./NotesChatComposer";
-import { MathText } from "@/features/tutor-session/components/MathText";
 
 interface NotesChatSidebarProps {
   notes: LessonNotesSnapshot;
@@ -20,7 +14,7 @@ interface NotesChatSidebarProps {
   sending: boolean;
   error: string | null;
   onClose?: () => void;
-  onSend: (message: string, tag?: NotesChatTag | null) => void;
+  onSend: (message: string) => void;
   onStop?: () => void;
 }
 
@@ -56,32 +50,18 @@ export function NotesChatSidebar({
   onStop,
 }: NotesChatSidebarProps) {
   const [draft, setDraft] = useState("");
-  const [tag, setTag] = useState<NotesChatTag | null>(null);
 
   const starters = useMemo(() => buildPromptStarters(notes), [notes]);
-  const selectable = useMemo(() => collectSelectableNotes(notes), [notes]);
 
   const submit = useCallback(
-    (message: string, nextTag: NotesChatTag | null = tag) => {
-      const text = message.trim() || (nextTag ? defaultTaggedQuestion(nextTag) : "");
+    (message: string) => {
+      const text = message.trim();
       if (!text) return;
-      onSend(text, nextTag);
+      onSend(text);
       setDraft("");
-      setTag(null);
     },
-    [onSend, tag],
+    [onSend],
   );
-
-  const toggleTag = useCallback((candidate: NotesChatTag) => {
-    setTag((current) =>
-      current &&
-      current.kind === candidate.kind &&
-      current.turnIndex === candidate.turnIndex &&
-      current.text === candidate.text
-        ? null
-        : candidate,
-    );
-  }, []);
 
   return (
     <aside className="ncs">
@@ -98,34 +78,6 @@ export function NotesChatSidebar({
           </button>
         ) : null}
       </header>
-
-      {selectable.length > 0 ? (
-        <div className="ncs__picker" aria-label="Board lines you can tag">
-          <p className="ncs__picker-label">Tag a board line</p>
-          <div className="ncs__picker-list">
-            {selectable.map((candidate) => {
-              const selected =
-                tag?.kind === candidate.kind &&
-                tag.turnIndex === candidate.turnIndex &&
-                tag.text === candidate.text;
-              return (
-                <button
-                  key={`${candidate.kind}:${candidate.turnIndex}:${candidate.text}`}
-                  type="button"
-                  className={selected ? "ncs__pick ncs__pick--on" : "ncs__pick"}
-                  aria-pressed={selected}
-                  onClick={() => toggleTag(candidate)}
-                >
-                  <span className="ncs__pick-kind">
-                    {candidate.kind === "work" ? "line" : "question"}
-                  </span>
-                  <MathText>{candidate.text}</MathText>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
 
       <div className="ncs__body">
         <NotesChatThread
@@ -147,8 +99,6 @@ export function NotesChatSidebar({
         onValueChange={setDraft}
         sending={sending}
         starters={starters}
-        tag={tag}
-        onClearTag={() => setTag(null)}
         onSend={(message) => submit(message)}
         onStop={onStop}
       />
@@ -250,65 +200,7 @@ const STYLES = `
   color: var(--ink);
 }
 
-/* ── Board-line picker ──────────────────────────────────── */
-
-.ncs__picker {
-  flex-shrink: 0;
-  border-top: 1px solid var(--line);
-  padding: 0.65rem 1rem 0.75rem;
-}
-
-.ncs__picker-label {
-  margin: 0 0 0.4rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--ink-faint);
-}
-
-.ncs__picker-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  max-height: 7.5rem;
-  overflow-y: auto;
-}
-
-.ncs__pick {
-  display: flex;
-  align-items: baseline;
-  gap: 0.45rem;
-  width: 100%;
-  border: 1px solid var(--line-strong);
-  border-radius: 0.55rem;
-  background: var(--paper);
-  padding: 0.35rem 0.55rem;
-  text-align: left;
-  font-size: 0.75rem;
-  line-height: 1.45;
-  color: var(--ink-soft);
-  cursor: pointer;
-}
-
-.ncs__pick:hover {
-  border-color: rgba(74, 158, 255, 0.35);
-  color: var(--ink);
-}
-
-.ncs__pick--on {
-  border-color: rgba(74, 158, 255, 0.45);
-  background: var(--accent-soft);
-  color: var(--ink);
-}
-
-.ncs__pick-kind {
-  flex-shrink: 0;
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--ink-faint);
-}
-
+/* Kept for older messages that still carry a stored board-line tag. */
 .ncs__tag {
   display: inline-flex;
   align-items: center;
@@ -336,24 +228,6 @@ const STYLES = `
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.ncs__tag-x {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ink-faint);
-  cursor: pointer;
-}
-
-.ncs__tag-x:hover {
-  color: var(--ink);
 }
 
 /* ── Body ───────────────────────────────────────────────── */

@@ -294,8 +294,8 @@ export function useCommandExecution({
           ...shapeOptions,
           pace: inkPace,
           cued: options.cued === true,
-          // Construction scaffolding is drawn in pencil, the figure itself in
-          // pen. The compiler already tags which is which.
+          // The figure and its scaffolding are both pencil. The compiler tags
+          // which strokes are construction so a dashed guide can stay a guide.
           strokeRole: shapeOptions?.strokeRole ?? rawCommand.visualStyle?.strokeRole,
           strokeWidth: shapeOptions?.strokeWidth
             ?? rawCommand.visualStyle?.strokeWidth
@@ -1441,6 +1441,23 @@ export function useCommandExecution({
           const { flightMs, drawMs } = speechSplit(command);
           const annotationKind = command.type.toLowerCase() as AnnotationKind;
 
+          // Scene force vectors / axes / rays are figure ink (pencil + SHAPE_STROKE_WIDTH).
+          // Transient FOCUS traces and ordinary teaching arrows stay annotations.
+          const inkArrow = async (path: string) => {
+            if (trustedDiagramGeometry && command.visualStyle?.strokeRole !== "trace") {
+              await drawShape(path, drawMs);
+              return;
+            }
+            if (command.visualStyle?.strokeRole === "trace") {
+              await drawAnnotation(annotationKind, path, drawMs, {
+                strokeWidth: command.visualStyle.strokeWidth ?? 1.25,
+                transient: true,
+              });
+              return;
+            }
+            await drawAnnotation(annotationKind, path, drawMs);
+          };
+
           if (command.type === "UNDERLINE" && params.length >= 4) {
             const [x1, y1, x2, y2] = params;
             if ([x1, y1, x2, y2].every(Number.isFinite)) {
@@ -1468,25 +1485,14 @@ export function useCommandExecution({
             if ([x1, y1, cx, cy, x2, y2].every(Number.isFinite)) {
               await wb.flyCursorTo(x1, y1, flightMs);
               if (commandCancelled()) return;
-              await drawAnnotation(
-                annotationKind,
-                curvedArrowPath(x1, y1, cx, cy, x2, y2),
-                drawMs,
-              );
+              await inkArrow(curvedArrowPath(x1, y1, cx, cy, x2, y2));
             }
           } else if (command.type === "ARROW" && params.length >= 4) {
             const [x1, y1, x2, y2] = params;
             if ([x1, y1, x2, y2].every(Number.isFinite)) {
               await wb.flyCursorTo(x1, y1, flightMs);
               if (commandCancelled()) return;
-              await drawAnnotation(
-                annotationKind,
-                arrowPath(x1, y1, x2, y2),
-                drawMs,
-                command.visualStyle?.strokeRole === "trace"
-                  ? { strokeWidth: command.visualStyle.strokeWidth ?? 1.25, transient: true }
-                  : undefined,
-              );
+              await inkArrow(arrowPath(x1, y1, x2, y2));
             }
           } else if (command.type === "HIGHLIGHT" && params.length >= 4) {
             const [x, y, w, h] = params;
