@@ -3,6 +3,7 @@ import {
   normalizeVoiceKey,
   TTS_LANG_HEADER,
   type TutorVoiceKey,
+  type TutorVoiceSettings,
 } from "@heytutor/tutor-core";
 
 export const ELEVENLABS_TTS_BASE = "https://api.elevenlabs.io/v1/text-to-speech";
@@ -28,7 +29,7 @@ export interface SpeechRequestBody {
   low_latency?: boolean;
   text?: string;
   model_id?: string;
-  voice_settings?: Record<string, number>;
+  voice_settings?: TutorVoiceSettings;
   previous_text?: string;
   next_text?: string;
 }
