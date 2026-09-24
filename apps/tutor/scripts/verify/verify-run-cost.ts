@@ -5,6 +5,8 @@ import {
   aggregateRunCost,
   formatUsd,
   isTtsObservation,
+  LECTURE_COST_FOLLOW_MS,
+  lectureCostNeedsFetch,
   sumSessionCosts,
   type CostObservation,
 } from "../../lib/obs/runCost";
@@ -233,8 +235,29 @@ assert(costChip.includes("Voice") && costChip.includes("formatUsd(cost.ttsUsd)")
 const lectureCosts = read("features/admin/hooks/useLectureCosts.ts");
 assert(lectureCosts.includes("BATCH_SIZE = 40"), "lecture costs must batch session ids");
 assert(lectureCosts.includes("FAILURE_BACKOFF_MS"), "a failed Langfuse lookup must back off instead of retrying immediately");
-assert(lectureCosts.includes("hot || missing"), "completed cached lectures must not refetch every poll");
-assert(lectureCosts.includes("session.hot || settling"), "only running (and settling) boards stay hot");
+assert(lectureCosts.includes("lectureCostNeedsFetch"), "a finished lecture must keep fetching until its cost lands");
+assert(lectureCosts.includes("LECTURE_COST_FOLLOW_MS"), "the post-lecture cost check must stay open for several minutes");
+const followUntil = 1_000 + LECTURE_COST_FOLLOW_MS;
+assert(
+  lectureCostNeedsFetch({ running: true, watched: true, priced: false, followUntilMs: null, nowMs: 1_000 }),
+  "a running lecture keeps fetching",
+);
+assert(
+  lectureCostNeedsFetch({ running: false, watched: true, priced: false, followUntilMs: followUntil, nowMs: followUntil - 1 }),
+  "after a lecture ends the cost keeps loading until the traces land",
+);
+assert(
+  lectureCostNeedsFetch({ running: false, watched: true, priced: true, followUntilMs: followUntil, nowMs: followUntil - 1 }),
+  "a late trace can still raise the cost after the lecture ends",
+);
+assert(
+  !lectureCostNeedsFetch({ running: false, watched: true, priced: true, followUntilMs: followUntil, nowMs: followUntil }),
+  "a priced lecture stops refetching once the follow window closes",
+);
+assert(
+  !lectureCostNeedsFetch({ running: false, watched: false, priced: true, followUntilMs: followUntil, nowMs: 1_000 }),
+  "a lecture that already has a price is not polled again",
+);
 
 const topicRow = read("features/admin/components/TopicRow.tsx");
 assert(topicRow.includes("<CostChip cost={topicCost}"), "each topic must show a summed cost chip");

@@ -200,6 +200,24 @@ export function emptyRunCostSession(sessionId: string): RunCostSessionRow {
   };
 }
 
+/** Keep reading Langfuse after a lecture stops so a late ingest still fills the chip. */
+export const LECTURE_COST_FOLLOW_MS = 5 * 60_000;
+
+export function lectureCostNeedsFetch(input: {
+  running: boolean;
+  /** This page saw the board running, then it stopped. */
+  watched: boolean;
+  priced: boolean;
+  followUntilMs: number | null;
+  nowMs: number;
+}): boolean {
+  if (input.running) return true;
+  const following = input.followUntilMs != null && input.nowMs < input.followUntilMs;
+  if (input.watched && following) return true;
+  if (input.priced) return false;
+  return following;
+}
+
 export function sumSessionCosts(
   rows: ReadonlyArray<Pick<RunCostSessionRow, "llmUsd" | "ttsUsd">>,
 ): Pick<RunCostSessionRow, "llmUsd" | "ttsUsd" | "totalUsd"> {

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
   emptyRunCostSession,
+  lectureCostNeedsFetch,
+  LECTURE_COST_FOLLOW_MS,
   type RunCostApiPayload,
   type RunCostSessionRow,
 } from "@/lib/obs/runCost";
@@ -14,7 +16,6 @@ export interface LectureCostSession {
 
 const BATCH_SIZE = 40;
 const POLL_MS = 8_000;
-const SETTLE_MS = 45_000;
 const FAILURE_BACKOFF_MS = 15_000;
 
 function chunkIds(ids: string[], size: number): string[][] {
@@ -47,8 +48,9 @@ async function fetchSessionCosts(
 
 /**
  * Langfuse costs for recorded / running lecture boards in the syllabus list.
- * Completed sessions are fetched once and cached; only hot (running or just
- * finished) ids are polled.
+ * A priced board that was already finished is fetched once. A board this page
+ * watched keeps updating until a few minutes after it stops, so the chip shows
+ * the cost once the traces land.
  */
 export function useLectureCosts(
   sessions: readonly LectureCostSession[],
@@ -56,9 +58,10 @@ export function useLectureCosts(
   const [bySession, setBySession] = useState<Record<string, RunCostSessionRow>>({});
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
-  const fetchedRef = useRef(new Set<string>());
+  const pricedRef = useRef(new Set<string>());
+  const watchedRef = useRef(new Set<string>());
+  const followUntilRef = useRef(new Map<string, number>());
   const prevHotRef = useRef(new Set<string>());
-  const settleUntilRef = useRef(new Map<string, number>());
   const inFlightRef = useRef(false);
   const queuedRef = useRef(false);
   const retryAtRef = useRef(0);
@@ -79,9 +82,10 @@ export function useLectureCosts(
         sessionsRef.current.filter((session) => session.hot).map((session) => session.sessionId),
       );
       const now = Date.now();
+      for (const id of nextHot) watchedRef.current.add(id);
       for (const id of prevHotRef.current) {
         if (!nextHot.has(id)) {
-          settleUntilRef.current.set(id, now + SETTLE_MS);
+          followUntilRef.current.set(id, now + LECTURE_COST_FOLLOW_MS);
         }
       }
       prevHotRef.current = nextHot;
@@ -97,11 +101,18 @@ export function useLectureCosts(
         const id = session.sessionId.trim();
         if (!id || seen.has(id)) continue;
         seen.add(id);
-        const settling = (settleUntilRef.current.get(id) ?? 0) > now;
-        const hot = session.hot || settling;
-        const missing = !fetchedRef.current.has(id);
-        // Completed boards stay cached; only missing, running, or settling ids refetch.
-        if (hot || missing) {
+        if (!session.hot && !followUntilRef.current.has(id) && !pricedRef.current.has(id)) {
+          followUntilRef.current.set(id, now + LECTURE_COST_FOLLOW_MS);
+        }
+        if (
+          lectureCostNeedsFetch({
+            running: session.hot,
+            watched: watchedRef.current.has(id),
+            priced: pricedRef.current.has(id),
+            followUntilMs: followUntilRef.current.get(id) ?? null,
+            nowMs: now,
+          })
+        ) {
           wanted.push(id);
         }
       }
@@ -113,8 +124,10 @@ export function useLectureCosts(
       setBySession((current) => {
         const next = { ...current };
         for (const row of rows) {
+          const previous = current[row.sessionId];
+          if (row.totalUsd <= 0 && (previous?.totalUsd ?? 0) > 0) continue;
           next[row.sessionId] = row;
-          fetchedRef.current.add(row.sessionId);
+          if (row.totalUsd > 0) pricedRef.current.add(row.sessionId);
         }
         return next;
       });
