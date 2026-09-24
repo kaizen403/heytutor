@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { billingPeriodKey } from "@/lib/billing/ledgerMath";
 import { fetchRunCostForSessions, fetchRunCostForWindow } from "@/lib/obs/langfuseQuery";
+import { sumSessionCosts, type RunCostSessionRow } from "@/lib/obs/runCost";
 import { previousPeriodKey, recentPeriodKeys } from "./costPeriods";
 import { userLabel } from "./labels";
 import type {
@@ -13,7 +14,10 @@ import type {
 const TOP_SPENDERS = 5;
 const SERIES_MONTHS = 6;
 const INFERENCE_WINDOW_DAYS = 7;
-const USER_BOARD_COST_LIMIT = 20;
+const USER_BOARD_COST_BATCH = 40;
+const USER_BOARD_COST_CAP = 200;
+
+export type BoardCost = Pick<RunCostSessionRow, "llmUsd" | "ttsUsd" | "totalUsd">;
 
 function periodStartUtc(period: string): Date {
   return new Date(`${period}-01T00:00:00.000Z`);
@@ -150,19 +154,39 @@ export async function fetchOverviewCost(nowMs: number = Date.now()): Promise<Ove
   return { ...ledger, inference7d };
 }
 
-export async function fetchUserInferenceCost(boardIds: readonly string[]): Promise<OverviewInference> {
-  const ids = boardIds.filter(Boolean).slice(0, USER_BOARD_COST_LIMIT);
-  const result = await fetchRunCostForSessions(ids);
-  if (!result.configured) return emptyInference(false);
-  if (result.error) return emptyInference(true, result.error);
+export async function fetchUserBoardCosts(boardIds: readonly string[]): Promise<{
+  inference: OverviewInference;
+  byBoardId: Record<string, BoardCost>;
+}> {
+  const ids = [...new Set(boardIds.filter(Boolean))].slice(0, USER_BOARD_COST_CAP);
+  const byBoardId: Record<string, BoardCost> = {};
+  const rows: BoardCost[] = [];
+  let observations = 0;
+  let configured = true;
+  for (let index = 0; index < ids.length; index += USER_BOARD_COST_BATCH) {
+    const result = await fetchRunCostForSessions(ids.slice(index, index + USER_BOARD_COST_BATCH));
+    configured = result.configured;
+    if (!result.configured) return { inference: emptyInference(false), byBoardId: {} };
+    if (result.error) return { inference: emptyInference(true, result.error), byBoardId: {} };
+    observations += result.report.totals.observations;
+    for (const row of result.report.bySession) {
+      const cost = { llmUsd: row.llmUsd, ttsUsd: row.ttsUsd, totalUsd: row.totalUsd };
+      byBoardId[row.sessionId] = cost;
+      rows.push(cost);
+    }
+  }
+  const totals = sumSessionCosts(rows);
   return {
-    configured: true,
-    windowDays: 0,
-    llmUsd: result.report.totals.llmUsd,
-    ttsUsd: result.report.totals.ttsUsd,
-    totalUsd: result.report.totals.totalUsd,
-    observations: result.report.totals.observations,
-    truncated: boardIds.length > USER_BOARD_COST_LIMIT,
-    error: undefined,
+    inference: {
+      configured,
+      windowDays: 0,
+      llmUsd: totals.llmUsd,
+      ttsUsd: totals.ttsUsd,
+      totalUsd: totals.totalUsd,
+      observations,
+      truncated: boardIds.length > USER_BOARD_COST_CAP,
+      error: undefined,
+    },
+    byBoardId,
   };
 }

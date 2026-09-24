@@ -192,6 +192,9 @@ export interface AdminUserBoard {
   createdAt: string;
   updatedAt: string;
   turns: number;
+  llmUsd: number | null;
+  ttsUsd: number | null;
+  totalUsd: number | null;
 }
 
 export interface AdminUserTurn {

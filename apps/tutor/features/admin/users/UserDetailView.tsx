@@ -60,9 +60,11 @@ export function UserDetailView({ userId }: { userId: string }) {
             value={data.inference.totalUsd > 0 ? formatUsd(data.inference.totalUsd) : "—"}
             hint={
               data.inference.totalUsd > 0
-                ? `${formatUsd(data.inference.llmUsd)} AI · ${formatUsd(data.inference.ttsUsd)} voice`
+                ? `${formatUsd(data.inference.llmUsd)} AI · ${formatUsd(data.inference.ttsUsd)} voice${
+                    data.inference.truncated ? " · newest 200 boards" : ""
+                  }`
                 : data.inference.configured
-                  ? "from this user's boards"
+                  ? "no traced usage on this user's boards"
                   : "Langfuse not configured"
             }
           />
