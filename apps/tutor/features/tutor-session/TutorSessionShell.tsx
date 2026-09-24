@@ -31,6 +31,7 @@ import {
 import {
   CanvasLanding,
   CanvasLandingDoodles,
+  type CanvasLandingSuggestion,
 } from "@/features/tutor-session/components/CanvasLanding";
 import { LandingPixelField } from "@/features/tutor-session/components/LandingPixelField";
 import { type ReplayCue } from "@/lib/replay/replayTimeline";
@@ -218,7 +219,47 @@ export function TutorSessionShell({
 }: TutorSessionShellProps) {
   const router = useRouter();
   const accountMe = useAccountMe();
+  const [homeSuggestions, setHomeSuggestions] = useState<CanvasLandingSuggestion[] | null>(null);
   const isHeadless = variant === "headless";
+
+  useEffect(() => {
+    if (!isDraft || isHeadless) return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch("/api/home-suggestions", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const result = await response.json() as {
+          suggestions?: CanvasLandingSuggestion[];
+          source?: "ai" | "fallback";
+          needsRefresh?: boolean;
+        };
+        if (!controller.signal.aborted && result.suggestions?.length === 5) {
+          setHomeSuggestions(result.suggestions);
+        }
+        if (!result.needsRefresh) return;
+        const refreshed = await fetch("/api/home-suggestions", {
+          method: "POST",
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (!refreshed.ok) return;
+        const updated = await refreshed.json() as {
+          suggestions?: CanvasLandingSuggestion[];
+          generated?: boolean;
+        };
+        if (!controller.signal.aborted && result.source === "fallback" && updated.generated && updated.suggestions?.length === 5) {
+          setHomeSuggestions(updated.suggestions);
+        }
+      } catch {
+        // The curated cards remain usable if the network or model is unavailable.
+      }
+    })();
+    return () => controller.abort();
+  }, [isDraft, isHeadless]);
   /**
    * What this surface may do, and — separately — whether it draws the app
    * frame. Admin Watch is a `panel`: the whole lesson, inside a drawer that
@@ -1502,7 +1543,9 @@ export function TutorSessionShell({
                 <LandingPixelField />
                 <div className="relative z-10 flex min-h-full w-full flex-col [justify-content:safe_center] px-3 py-3 sm:px-8 sm:py-5">
                   <CanvasLanding
-                    suggestions={suggestionsForSubjects(parseSubjects(accountMe?.profile?.subjects))}
+                    suggestions={accountMe?.settings.showHomeSuggestions === false
+                      ? []
+                      : homeSuggestions ?? suggestionsForSubjects(parseSubjects(accountMe?.profile?.subjects))}
                     onSubmit={(question) => void handleQuestion(question)}
                     onOpenSettings={() => setSettingsOpen(true)}
                     familiarity={settings.familiarity}

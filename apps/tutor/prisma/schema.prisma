@@ -32,6 +32,7 @@ model User {
   turns                 Turn[]
   chatMessages          BoardChatMessage[]
   settings              UserSettings?
+  homeSuggestionCache   HomeSuggestionCache?
   periodSpend           BillingPeriodSpend[]
 
   @@map("users")
@@ -86,6 +87,20 @@ model UserSettings {
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
+}
+
+model HomeSuggestionCache {
+  userId           String    @id @map("user_id")
+  packs            Json
+  cursor           Int       @default(0)
+  sourceTurnId     String?   @map("source_turn_id")
+  generatedAt      DateTime? @map("generated_at") @db.Timestamptz(6)
+  nextGenerationAt DateTime  @default(now()) @map("next_generation_at") @db.Timestamptz(6)
+  quotaDay         String    @default("") @map("quota_day")
+  generationsToday Int       @default(0) @map("generations_today")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("home_suggestion_cache")
 }
 
 model Board {

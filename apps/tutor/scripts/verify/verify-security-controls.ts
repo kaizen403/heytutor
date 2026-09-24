@@ -75,6 +75,7 @@ assert(rateLimitBucketForPath("/api/auth/callback/google") === "auth", "auth cal
 assert(rateLimitBucketForPath("/api/account/me") === "account", "account routes are rate-limited");
 assert(rateLimitBucketForPath("/api/boards/abc") === "boards", "board routes are rate-limited");
 assert(rateLimitBucketForPath("/api/trace/event") === "trace", "trace routes are rate-limited");
+assert(rateLimitBucketForPath("/api/home-suggestions") === "suggestions", "AI suggestions are rate-limited");
 assert(rateLimitBucketForPath("/api/health") === null, "health is not credit-shaped-limited");
 
 resetIpRateLimitsForTests();
