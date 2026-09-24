@@ -148,6 +148,13 @@ assert(
   getTurnGrant("mid-lesson")?.allowedTraceIds.has("explain-this") === true,
   "the doubt trace is on the same grant",
 );
+const exhaustedFollowOn = grantForFollowOnTurn({
+  userId: "mid-lesson",
+  traceId: "another-doubt",
+  remainingMillicents: 0,
+  planId: "free",
+});
+assert(!exhaustedFollowOn.ok && exhaustedFollowOn.reason === "out_of_credits", "a new doubt stops when the usage balance is exhausted");
 
 const typicalFast = calculateLlmCostDetails(
   { input: 20_000, output: 8_000 },

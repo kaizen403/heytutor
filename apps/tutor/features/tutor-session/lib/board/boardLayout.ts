@@ -1,4 +1,4 @@
-import { measureTextWidth, WORK_CONTINUATION_INDENT } from "@heytutor/drawing";
+import { measureTextWidth, parseWorkRowSelector, resolveWorkAreaRow, WORK_CONTINUATION_INDENT } from "@heytutor/drawing";
 import {
   ANNOTATION_SNAP_DISTANCE,
   BOARD_WIDTH,
@@ -114,6 +114,43 @@ export function findNearestTextRect(
 
 export function registerBoardAnchor(layout: BoardLayoutState, rect: BoardTextRect): void {
   layout.rects.push(rect);
+}
+
+/** A reserved row becomes board context only when its handwriting finishes. */
+export function commitWorkRowInk(
+  layout: BoardLayoutState,
+  text: string,
+  x: number,
+  y: number,
+): void {
+  for (let index = layout.rects.length - 1; index >= 0; index -= 1) {
+    const row = layout.rects[index]!;
+    if (row.pendingInk && row.text === text && row.x === x && row.y === y) {
+      row.pendingInk = false;
+      return;
+    }
+  }
+}
+
+/** Resolve a row only if it has actually been written and still says what the tag quotes. */
+export function resolveVisibleEmphasisRow(
+  rawSelector: string | undefined,
+  rects: readonly BoardTextRect[],
+): BoardTextRect | null {
+  const raw = rawSelector ?? "";
+  const separator = raw.indexOf("|");
+  const selector = separator < 0 ? raw : raw.slice(0, separator);
+  const row = resolveWorkAreaRow(
+    parseWorkRowSelector(selector),
+    rects.filter((rect) => !rect.pendingInk),
+  );
+  if (!row) return null;
+  if (separator >= 0) {
+    const quoted = raw.slice(separator + 1).normalize("NFKC").replace(/\s+/g, "").toLowerCase();
+    const visible = (row.text ?? "").normalize("NFKC").replace(/\s+/g, "").toLowerCase();
+    if (!quoted || quoted !== visible) return null;
+  }
+  return row;
 }
 
 /**
@@ -315,7 +352,7 @@ export interface WorkColumnRow {
 /** Everything written down the left of the page, top to bottom. */
 export function workColumnRows(layout: BoardLayoutState): WorkColumnRow[] {
   return layout.rects
-    .filter((rect) => rect.x < WORK_AREA_MAX_X && (rect.text ?? "").trim().length > 0)
+    .filter((rect) => rect.x < WORK_AREA_MAX_X && !rect.pendingInk && (rect.text ?? "").trim().length > 0)
     .slice()
     .sort((a, b) => a.y - b.y || a.x - b.x)
     .map((rect) => {

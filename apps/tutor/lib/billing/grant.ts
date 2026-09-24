@@ -1,6 +1,5 @@
 import {
   GRANT_TTL_MS,
-  MAX_DOUBTS_PER_CREDIT,
   TTS_CHARS_PER_LESSON,
   BILLING_PLANS,
 } from "./catalog";
@@ -15,7 +14,6 @@ export interface TurnGrant {
   expiresAt: number;
   ttsCharsRemaining: number;
   usdMillicentsRemaining: number;
-  doubtCount: number;
   inUse: number;
   skipAutumn: boolean;
   skipGates: boolean;
@@ -107,7 +105,6 @@ export function createLessonGrant(input: {
     expiresAt: nowFn() + (input.ttlMs ?? GRANT_TTL_MS),
     ttsCharsRemaining: input.ttsChars ?? TTS_CHARS_PER_LESSON,
     usdMillicentsRemaining: input.usdMillicents ?? Number.MAX_SAFE_INTEGER,
-    doubtCount: 0,
     inUse: 0,
     skipAutumn: input.skipAutumn === true,
     skipGates,
@@ -145,14 +142,10 @@ export function recoverGrantForPaidCall(input: {
 export function attachTraceToGrant(
   userId: string,
   traceId: string,
-): { ok: true; grant: TurnGrant } | { ok: false; reason: "no_grant" | "doubt_limit" } {
+): { ok: true; grant: TurnGrant } | { ok: false; reason: "no_grant" } {
   const grant = prune(userId);
   if (!grant) return { ok: false, reason: "no_grant" };
   if (grant.allowedTraceIds.has(traceId)) return { ok: true, grant };
-  if (grant.doubtCount >= MAX_DOUBTS_PER_CREDIT) {
-    return { ok: false, reason: "doubt_limit" };
-  }
-  grant.doubtCount += 1;
   grant.allowedTraceIds.add(traceId);
   grant.expiresAt = Math.max(grant.expiresAt, nowFn() + GRANT_TTL_MS);
   return { ok: true, grant };
@@ -173,9 +166,19 @@ export function grantForFollowOnTurn(input: {
   skipGates?: boolean;
 }):
   | { ok: true; grant: TurnGrant }
-  | { ok: false; reason: "out_of_credits" | "doubt_limit" | "concurrent_limit" } {
+  | { ok: false; reason: "out_of_credits" | "concurrent_limit" } {
   const existing = prune(input.userId);
   if (existing) {
+    // Follow-up count is unrestricted, but each new answer still needs usage.
+    // Otherwise a grant minted before the balance reached zero could buy
+    // unbounded LLM calls after the monthly envelope was exhausted.
+    if (
+      !existing.allowedTraceIds.has(input.traceId) &&
+      !existing.skipGates &&
+      (input.remainingMillicents <= 0 || existing.usdMillicentsRemaining <= 0)
+    ) {
+      return { ok: false, reason: "out_of_credits" };
+    }
     const attached = attachTraceToGrant(input.userId, input.traceId);
     if (attached.ok) {
       attached.grant.planId = input.planId;
@@ -185,9 +188,6 @@ export function grantForFollowOnTurn(input: {
         attached.grant.usdMillicentsRemaining = input.remainingMillicents;
       }
       return attached;
-    }
-    if (attached.reason === "doubt_limit") {
-      return { ok: false, reason: "doubt_limit" };
     }
   }
   if (input.remainingMillicents <= 0) {
@@ -208,7 +208,7 @@ export function grantForFollowOnTurn(input: {
 export function requireGrantForTrace(
   userId: string,
   traceId: string | undefined,
-): { ok: true; grant: TurnGrant } | { ok: false; reason: "no_grant" | "doubt_limit" } {
+): { ok: true; grant: TurnGrant } | { ok: false; reason: "no_grant" } {
   const grant = prune(userId);
   if (!grant) return { ok: false, reason: "no_grant" };
   if (!traceId || grant.allowedTraceIds.has(traceId)) return { ok: true, grant };

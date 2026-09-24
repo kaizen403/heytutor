@@ -79,7 +79,6 @@ export function useTurnControl(
     rewoundRef,
     conversationHistoryRef,
     liveQuestionRef,
-    narrationSinceEpochRef,
     ttsClientRef,
     ensureTTSClient,
     currentTraceIdRef,
@@ -948,9 +947,18 @@ export function useTurnControl(
         return;
       }
 
+      // The page transcript includes every earlier doubt. Handing it back on
+      // each interruption duplicates old explanations until they crowd out the
+      // student's current question. Only the interrupted turn belongs here.
+      const interruptedNarration = runtime.turnActive
+        ? recordedSegmentsRef.current
+            .map((segment) => segment.narration.trim())
+            .filter(Boolean)
+            .join(" ")
+        : "";
       const interruptedLesson = buildInterruptedLessonExchange(
-        liveQuestionRef.current,
-        narrationSinceEpochRef.current,
+        boardPageRef.current?.turn.question ?? liveQuestionRef.current,
+        interruptedNarration,
       );
       if (interruptedLesson) {
         conversationHistoryRef.current = compactConversationHistory([
@@ -962,7 +970,7 @@ export function useTurnControl(
       tutorDebug("turn", "doubt interrupts lesson", {
         lesson_question_preview: (liveQuestionRef.current ?? "").slice(0, 80),
         doubt_preview: (doubt || composed).slice(0, 80),
-        narration_chars: narrationSinceEpochRef.current.length,
+        narration_chars: interruptedNarration.length,
       });
 
       pendingDoubtRef.current = request;
@@ -1030,7 +1038,7 @@ export function useTurnControl(
       activeVerifiedDiagramRef,
       handleQuestionRef,
       liveQuestionRef,
-      narrationSinceEpochRef,
+      recordedSegmentsRef,
       pendingSegmentCountRef,
       phaseRef,
       sessionId,

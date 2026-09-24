@@ -385,12 +385,12 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
     : [
         "- Answer what the student asked, about the part they pointed at. Do not greet, do not read the question back, do not open the lesson again, and do not carry on with the rest of the problem once the doubt is answered.",
         figureOnBoard
-          ? "- Your first step points and writes nothing. Say which line or figure part you mean and put [EMPHASIZE:wN] on that row, with the id listed beside it above, or [FOCUS:entity_id] on that figure part. A step that only points is correct here. Write from the second step on."
-          : "- Your first step points and writes nothing. Say which line you mean and put [EMPHASIZE:wN] on that row, with the id listed beside it above. A step that only points is correct here. Write from the second step on.",
+          ? "- Your first step points and writes nothing. Say which line or figure part you mean. To box an existing row, copy its id and exact text from the board list above into [EMPHASIZE:row_id|exact row text], or use [FOCUS:entity_id] on that figure part. If no listed row is the line you mean, do not box one. A step that only points is correct here. Write from the second step on."
+          : "- Your first step points and writes nothing. Say which line you mean. To box an existing row, copy its id and exact text from the board list above into [EMPHASIZE:row_id|exact row text]. If no listed row is the line you mean, do not box one. A step that only points is correct here. Write from the second step on.",
         "- A row id holds only while this page is on the board. Once the board turns to a fresh page, old ids name new rows: never box an old row after that, write it again instead.",
         `- Explain it a different way from the first time: a smaller step, the reason behind the move, or a tiny example. ${example}`,
-        "- Never [WRITE] a row that is still on this page. To use one again, say so and point at it with [EMPHASIZE:wN].",
-        "- When the student asks you to go through the whole thing again, walk the rows top to bottom, one step each with [EMPHASIZE:wN] on that row (boxing every row is right here), and write only the lines that are missing. When they ask you to start over, write it again under the last row, and let the board turn when the column runs out.",
+        "- Never [WRITE] a row that is still on this page. To use one again, say so and box it with [EMPHASIZE:row_id|exact row text]. For a line you just wrote in this doubt, use [EMPHASIZE:last|exact row text]. The runtime checks the text against visible ink before boxing.",
+        "- When the student asks you to go through the whole thing again, walk the rows top to bottom, one step each with [EMPHASIZE:row_id|exact row text] on that row (boxing every row is right here), and write only the lines that are missing. When they ask you to start over, write it again under the last row, and let the board turn when the column runs out.",
         `- ${doubtSpaceRule(input, figureOnBoard)}`,
         noAnnotate,
         emptyMark,

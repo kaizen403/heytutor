@@ -20,7 +20,6 @@ export type BillingPlanId = (typeof BILLING_PLANS)[keyof typeof BILLING_PLANS];
 
 export const GRANT_TTL_MS = 20 * 60 * 1000;
 export const TTS_CHARS_PER_LESSON = 12_000;
-export const MAX_DOUBTS_PER_CREDIT = 8;
 export const MAX_IN_FLIGHT_LESSONS = 1;
 export const MAX_NEW_QUESTIONS_PER_HOUR = 3;
 export const TOP_UP_USD = 10;

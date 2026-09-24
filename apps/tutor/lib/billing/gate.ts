@@ -236,10 +236,6 @@ export async function requireLessonGrant(
   if (matched.ok) {
     return { actor, grant: matched.grant };
   }
-  if (matched.reason === "doubt_limit") {
-    return billingResponse("doubt_limit", 0);
-  }
-
   const planIdOrError = await resolvePlanId(actor);
   if (planIdOrError instanceof Response) return planIdOrError;
   const planId = planIdOrError;

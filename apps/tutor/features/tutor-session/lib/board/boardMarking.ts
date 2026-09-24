@@ -381,6 +381,7 @@ export function collectMarkCandidates(
   }
 
   for (const rect of rects) {
+    if (rect.pendingInk) continue;
     const text = normalizeText(rect.text ?? "");
     if (!text) continue;
     candidates.push({
