@@ -12,9 +12,10 @@ export interface LectureCostSession {
   hot: boolean;
 }
 
-const BATCH_SIZE = 20;
+const BATCH_SIZE = 40;
 const POLL_MS = 8_000;
 const SETTLE_MS = 45_000;
+const FAILURE_BACKOFF_MS = 15_000;
 
 function chunkIds(ids: string[], size: number): string[][] {
   const batches: string[][] = [];
@@ -60,6 +61,7 @@ export function useLectureCosts(
   const settleUntilRef = useRef(new Map<string, number>());
   const inFlightRef = useRef(false);
   const queuedRef = useRef(false);
+  const retryAtRef = useRef(0);
 
   const idKey = sessions
     .map((session) => session.sessionId)
@@ -88,6 +90,7 @@ export function useLectureCosts(
     const idsToFetch = (): string[] => {
       rememberHotTransitions();
       const now = Date.now();
+      if (now < retryAtRef.current) return [];
       const wanted: string[] = [];
       const seen = new Set<string>();
       for (const session of sessionsRef.current) {
@@ -132,7 +135,11 @@ export function useLectureCosts(
           for (const batch of chunkIds(ids, BATCH_SIZE)) {
             if (controller.signal.aborted) return;
             const rows = await fetchSessionCosts(batch, controller.signal);
-            if (rows) mergeRows(rows);
+            if (!rows) {
+              retryAtRef.current = Date.now() + FAILURE_BACKOFF_MS;
+              break;
+            }
+            mergeRows(rows);
           }
         } while (queuedRef.current && !controller.signal.aborted);
       } catch (error) {

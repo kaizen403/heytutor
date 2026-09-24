@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { sessionObservationsPath } from "../../lib/obs/langfuseQuery";
 import {
   aggregateRunCost,
   formatUsd,
@@ -103,6 +104,15 @@ assert(voiceFlash === 0.05, "1k Flash chars are $0.05 on the API table");
 assert(report.bySession.length === 2, "each board is its own session row");
 assert(report.byKind.some((row) => row.name === "fireworks-llm" && row.stream === "llm"), "teaching kind");
 assert(report.byKind.some((row) => row.name === "tts-segment" && row.stream === "tts"), "voice kind");
+const observationsPath = sessionObservationsPath(
+  ["board-a", "board-b"],
+  "cursor-1",
+  Date.parse("2026-09-24T00:00:00.000Z"),
+);
+assert(observationsPath.startsWith("/api/public/v2/observations?"), "board costs must use the v2 observations read");
+assert(observationsPath.includes("stringOptions"), "many boards share one session filter");
+assert(observationsPath.includes("board-a") && observationsPath.includes("board-b"), "the filter lists every board");
+assert(!observationsPath.includes("/api/public/traces"), "board costs must not call the rate-limited traces list");
 assert(formatUsd(0) === "$0", "zero formats");
 assert(formatUsd(1.234) === "$1.23", "dollars use two places");
 
@@ -221,7 +231,8 @@ assert(costChip.includes("AI") && costChip.includes("formatUsd(cost.llmUsd)"), "
 assert(costChip.includes("Voice") && costChip.includes("formatUsd(cost.ttsUsd)"), "tooltip must show voice inference cost");
 
 const lectureCosts = read("features/admin/hooks/useLectureCosts.ts");
-assert(lectureCosts.includes("BATCH_SIZE = 20"), "lecture costs must batch session ids");
+assert(lectureCosts.includes("BATCH_SIZE = 40"), "lecture costs must batch session ids");
+assert(lectureCosts.includes("FAILURE_BACKOFF_MS"), "a failed Langfuse lookup must back off instead of retrying immediately");
 assert(lectureCosts.includes("hot || missing"), "completed cached lectures must not refetch every poll");
 assert(lectureCosts.includes("session.hot || settling"), "only running (and settling) boards stay hot");
 
