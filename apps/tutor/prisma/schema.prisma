@@ -72,7 +72,7 @@ model UserSettings {
   markerStunts         String[] @default(["thumbAround", "knuckleRoll", "helicopter", "tossCatch"]) @map("marker_stunts")
   /// Lecture download container. `mp4` unless the student picked `webm`.
   lectureFileType      String   @default("mp4") @map("lecture_file_type")
-  speedMultiplier      Float    @default(1.5) @map("speed_multiplier")
+  speedMultiplier      Float    @default(1.25) @map("speed_multiplier")
   uiLanguage           String   @default("en") @map("ui_language")
   showHomeSuggestions  Boolean  @default(true) @map("show_home_suggestions")
   reducedMotion        Boolean  @default(false) @map("reduced_motion")

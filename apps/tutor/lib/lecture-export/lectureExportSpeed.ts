@@ -1,7 +1,7 @@
 /**
  * Downloaded lectures are time-compressed to this rate so QuickTime, VLC, and
  * the phone player play them at 1.25× without a speed control. In-app replay
- * still uses the student's slider (default 1.5×).
+ * still uses the student's slider (default 1.25×).
  */
 export const LECTURE_EXPORT_PLAYBACK_RATE = 1.25;
 

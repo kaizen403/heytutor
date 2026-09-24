@@ -9,7 +9,7 @@
  *   node sync-analyser.mjs <run-dir|console.jsonl> [more runs...] [--json out.json] [--md out.md] [--worst 3]
  *
  * All durations are WALL milliseconds (what the student sees). The runtime
- * plays TTS at DEFAULT_REPLAY_SPEED (1.5x) by default, so `total_duration_ms`
+ * plays TTS at DEFAULT_REPLAY_SPEED (1.25x) by default, so `total_duration_ms`
  * from the alignment is media time; the analyser measures the playback rate
  * per lesson from the log itself and reports it.
  *

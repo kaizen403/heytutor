@@ -2,6 +2,7 @@ import { STUNT_KINDS } from "@heytutor/whiteboard";
 import { readFileSync } from "node:fs";
 import {
   accountSettingsPatch,
+  DEFAULT_ACCOUNT_SETTINGS,
   lessonSettingsFromAccount,
   markerStuntsColumn,
   parseAccountSettings,
@@ -9,11 +10,17 @@ import {
   teachingPromptAddon,
   TEACHING_NOTE_MAX,
 } from "../../lib/account/userSettings";
-import { toggleMarkerStunt } from "../../lib/account/lessonSettings";
+import { DEFAULT_PLAYBACK_SPEED, toggleMarkerStunt } from "../../lib/account/lessonSettings";
+import { DEFAULT_REPLAY_SPEED } from "../../lib/replay/replayAudio";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
+
+assert(DEFAULT_PLAYBACK_SPEED === 1.25, "new tutor and admin sessions start at 1.25×");
+assert(DEFAULT_ACCOUNT_SETTINGS.speedMultiplier === DEFAULT_PLAYBACK_SPEED, "new accounts use the session default");
+assert(DEFAULT_REPLAY_SPEED === DEFAULT_PLAYBACK_SPEED, "admin Watch uses the session default");
+assert(parseAccountSettings({}).speedMultiplier === DEFAULT_PLAYBACK_SPEED, "missing speed uses the new default");
 
 const parsed = parseAccountSettings({
   speedMultiplier: 2,

@@ -270,7 +270,7 @@ The rules now in force, each with an offline gate:
   or divided by; whole words only; unmatched tokens attach to their neighbour instead
   of being spread to the sentence end (`matchedCharFraction`, verify-sync-schedules).
 - **A glyph fills its spoken slot.** `scheduledGlyphBudgetMs`: 90 to 350 media ms per
-  character, run in wall time through the playback rate (live default 1.5x), a slow
+  character, run in wall time through the playback rate (live default 1.25x), a slow
   finishing stroke instead of a park on a long word (verify-pen-motion).
 - **One trace per named part, on its word.** `getFocusTargetSchedule` anchors each
   target on its drawn label, entity label or role word (case-sensitive for short
@@ -314,4 +314,3 @@ The current live design should therefore be:
 - **Do not ink until playback is audible**, then follow that clock.
 - **Persist real timings for replay.**
 - **Prompt commands immediately after spoken cue phrases.**
-

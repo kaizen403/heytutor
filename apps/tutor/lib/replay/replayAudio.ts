@@ -1,6 +1,7 @@
 import { applyHtmlAudioPlaybackRate } from "@heytutor/tutor-core";
+import { DEFAULT_PLAYBACK_SPEED } from "@/lib/account/lessonSettings";
 
-export const DEFAULT_REPLAY_SPEED = 1.5;
+export const DEFAULT_REPLAY_SPEED = DEFAULT_PLAYBACK_SPEED;
 
 export interface PlayReplayAudioOptions {
   playbackRate?: number;
