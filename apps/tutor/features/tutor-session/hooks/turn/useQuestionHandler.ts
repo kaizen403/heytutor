@@ -329,6 +329,9 @@ export function useQuestionHandler(
           turn.id === localTurn.id ? turnForReplay : turn,
         );
         setStoredTurnsCount(storedTurnsRef.current.length);
+        // Fill the next home cards after the question exists in saved history.
+        // The endpoint deduplicates tabs and enforces its model-call budget.
+        void fetch("/api/home-suggestions", { method: "POST", cache: "no-store" }).catch(() => undefined);
         return true;
       }).catch(() => false);
     },

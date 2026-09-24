@@ -3,7 +3,27 @@ import { LANDING_SUGGESTIONS } from "@/features/tutor-session/constants";
 import { AVAILABLE_SUBJECTS, type SubjectId } from "./types";
 
 const SUBJECT_SUGGESTIONS: Record<SubjectId, CanvasLandingSuggestion[]> = {
-  physics: LANDING_SUGGESTIONS,
+  physics: [
+    ...LANDING_SUGGESTIONS,
+    {
+      topic: "Capacitors",
+      kind: "lecture",
+      question:
+        "Explain how capacitance changes when a dielectric is inserted between parallel plates.",
+    },
+    {
+      topic: "Circular motion",
+      kind: "problem",
+      question:
+        "A 2 kg mass moves in a circle of radius 1 m at 3 m/s. Find its centripetal force.",
+    },
+    {
+      topic: "Waves",
+      kind: "lecture",
+      question:
+        "Derive the relation between wave speed, frequency, and wavelength using a traveling wave.",
+    },
+  ],
   maths: [
     {
       topic: "Quadratics",
@@ -29,6 +49,30 @@ const SUBJECT_SUGGESTIONS: Record<SubjectId, CanvasLandingSuggestion[]> = {
       question:
         "An AP has first term 3 and common difference 5. Find the 12th term and the sum of the first 12.",
     },
+    {
+      topic: "Circles",
+      kind: "lecture",
+      question:
+        "Explain how completing the square reveals the centre and radius of a circle.",
+    },
+    {
+      topic: "Integrals",
+      kind: "lecture",
+      question:
+        "Derive the area under y = x² from x = 0 to x = 2 using integration.",
+    },
+    {
+      topic: "Probability",
+      kind: "problem",
+      question:
+        "Two fair dice are rolled. Find the probability that their sum is 8.",
+    },
+    {
+      topic: "Vectors",
+      kind: "problem",
+      question:
+        "Vectors (3, 4) and (1, −2) are given. Find their dot product and the angle between them.",
+    },
   ],
   dsa: [
     {
@@ -40,17 +84,18 @@ const SUBJECT_SUGGESTIONS: Record<SubjectId, CanvasLandingSuggestion[]> = {
     {
       topic: "Binary search",
       kind: "lecture",
-      question: "Show how binary search updates mid while searching for 7 in [1, 3, 5, 7, 9].",
+      question:
+        "Show how binary search updates mid while searching for 7 in [1, 3, 5, 7, 9].",
     },
     {
       topic: "Stacks",
       kind: "problem",
-      question: "Valid Parentheses for \"()[]{}\". Trace the stack.",
+      question: 'Valid Parentheses for "()[]{}". Trace the stack.',
     },
     {
       topic: "Sliding window",
       kind: "problem",
-      question: "Longest substring without repeating characters in \"abcabcbb\".",
+      question: 'Longest substring without repeating characters in "abcabcbb".',
     },
   ],
   chemistry: [
@@ -83,6 +128,24 @@ const SUBJECT_SUGGESTIONS: Record<SubjectId, CanvasLandingSuggestion[]> = {
       kind: "problem",
       question:
         "Draw 3-methylbut-1-ene and give the major product when it reacts with HBr.",
+    },
+    {
+      topic: "Equilibrium",
+      kind: "lecture",
+      question:
+        "Explain Le Chatelier's principle using the Haber process when pressure increases.",
+    },
+    {
+      topic: "Atomic structure",
+      kind: "lecture",
+      question:
+        "Derive the energy of an electron in the nth Bohr orbit of hydrogen.",
+    },
+    {
+      topic: "Solutions",
+      kind: "problem",
+      question:
+        "Find the molarity of a solution containing 5.85 g of NaCl in 500 mL of solution.",
     },
   ],
 };
@@ -125,7 +188,9 @@ export function mixHomeSuggestions(
   return picked;
 }
 
-export function suggestionsForSubjects(subjects: SubjectId[]): CanvasLandingSuggestion[] {
+export function suggestionsForSubjects(
+  subjects: SubjectId[],
+): CanvasLandingSuggestion[] {
   const candidates: CanvasLandingSuggestion[] = [];
   const seen = new Set<string>();
   const order: SubjectId[] = subjects.length > 0 ? subjects : ["physics"];
@@ -141,4 +206,25 @@ export function suggestionsForSubjects(subjects: SubjectId[]): CanvasLandingSugg
     return mixHomeSuggestions(LANDING_SUGGESTIONS);
   }
   return mixHomeSuggestions(candidates);
+}
+
+/** Immediate, rotating cards while a student's AI batch is being prepared. */
+export function fallbackHomeSuggestions(
+  subjects: SubjectId[],
+  cursor: number,
+): CanvasLandingSuggestion[] {
+  const main =
+    subjects.find((subject) => AVAILABLE_SUBJECTS.includes(subject)) ??
+    "physics";
+  const related = SUBJECT_SUGGESTIONS[main];
+  const differentSubject =
+    AVAILABLE_SUBJECTS.find((subject) => subject !== main) ?? "maths";
+  const different = SUBJECT_SUGGESTIONS[differentSubject];
+  const offset = (Math.max(0, cursor) * 4) % related.length;
+  const four = Array.from(
+    { length: 4 },
+    (_, index) => related[(offset + index) % related.length]!,
+  );
+  const outlier = different[Math.max(0, cursor) % different.length]!;
+  return [...mixHomeSuggestions(four, 4), outlier];
 }
