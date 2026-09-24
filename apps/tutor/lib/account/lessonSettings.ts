@@ -77,6 +77,7 @@ export const DEFAULT_SETTINGS: Omit<SettingsState, "speedMultiplier"> = {
 
 export const SPEED_MIN = 0.5;
 export const SPEED_MAX = 3;
+export const DEFAULT_PLAYBACK_SPEED = 1.25;
 
 export function getMarkerColorHex(id: MarkerColorId): string {
   return MARKER_COLORS.find((entry) => entry.id === id)?.color ?? "#1B2A4A";

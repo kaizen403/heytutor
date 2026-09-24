@@ -161,7 +161,7 @@ export type TutorSessionShellProps = {
   autoReplay?: boolean;
   /** Capture TTS bytes; do not play through speakers. Defaults on for `headless`. */
   muteAudio?: boolean;
-  /** Controlled playback rate (admin Watch). Same model as student replay; default 1.5×. */
+  /** Controlled playback rate (admin Watch). Same model as student replay; default 1.25×. */
   playbackRate?: number;
   onPhase?: (phase: TutorPhase) => void;
   /** Fired after the turn is persisted (and saved when `onComplete` is set). */

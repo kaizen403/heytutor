@@ -562,8 +562,8 @@ assert(
 );
 
 assert(
-  DEFAULT_REPLAY_SPEED === 1.5,
-  "Watch overlay default speed must be 1.5×",
+  DEFAULT_REPLAY_SPEED === 1.25,
+  "Watch overlay default speed must be 1.25×",
 );
 
 const overlayAudio = { playbackRate: 1, preservesPitch: false } as HTMLAudioElement & {

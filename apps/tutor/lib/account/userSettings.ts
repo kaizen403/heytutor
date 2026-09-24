@@ -14,6 +14,7 @@ import {
 } from "@heytutor/tutor-core";
 import {
   DEFAULT_LECTURE_FILE_TYPE,
+  DEFAULT_PLAYBACK_SPEED,
   DEFAULT_SETTINGS,
   isLectureFileType,
   isMarkerColorId,
@@ -52,7 +53,7 @@ export type AccountSettings = SettingsState & {
 };
 
 export const DEFAULT_ACCOUNT_SETTINGS: AccountSettings = {
-  speedMultiplier: 1.5,
+  speedMultiplier: DEFAULT_PLAYBACK_SPEED,
   ...DEFAULT_SETTINGS,
   uiLanguage: "en",
   showHomeSuggestions: true,
