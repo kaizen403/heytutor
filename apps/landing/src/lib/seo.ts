@@ -70,7 +70,7 @@ const HOME_FAQS: readonly Faq[] = [
   {
     question: 'Is Accelute a free AI tutor?',
     answer:
-      'Yes. Accelute has a free plan with monthly included usage, enough to try a few questions and a doubt chain. Plus and Pro add more if you need the board every day. Follow-up doubts on a question are part of that lesson.',
+      'Yes. Start with the Free plan and see how Accelute teaches on a live whiteboard. Plus and Pro are there when you want to make it part of your study routine.',
   },
   {
     question: 'What subjects can I study with Accelute?',
@@ -216,7 +216,7 @@ export const PAGES: readonly SeoPage[] = [
       {
         question: 'Is Accelute free to try?',
         answer:
-          'Yes. The free plan includes monthly usage so you can try physics, maths, and a doubt chain before you pay. Open Accelute, ask a question, and unmute.',
+          'Yes. Start with the Free plan to see how Accelute teaches physics, maths, and more on a live whiteboard. Open the tutor, ask a question, and unmute.',
       },
     ],
     sections: [
@@ -251,7 +251,7 @@ export const PAGES: readonly SeoPage[] = [
       {
         heading: 'How to start',
         paragraphs: [
-          'Open Accelute, ask the question you are stuck on, and unmute. The first lesson is the product. The free plan is enough to see whether this way of teaching clicks for you.',
+          'Open Accelute, ask the question you are stuck on, and unmute. The Free plan lets you see whether this way of teaching clicks for you.',
         ],
       },
     ],
@@ -316,7 +316,7 @@ export const PAGES: readonly SeoPage[] = [
       {
         heading: 'Exam weeks',
         paragraphs: [
-          'Accelute is for practice, not for sitting an exam. Use it to walk a type of question until the method is yours. Heavy weeks are what the higher plans are for: more lessons when you need the board every day. The free plan is there so you can try the way it teaches before you pay.',
+          'Accelute is for practice, not for sitting an exam. Use it to walk a type of question until the method is yours. Plus and Pro fit a regular study routine or a more demanding period of exam preparation. The Free plan lets you try the way it teaches before you pay.',
           'Do not use it to break a school’s academic rules. The point is to understand the step, not to submit the board as your own work.',
         ],
       },
