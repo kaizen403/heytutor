@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { billingPeriodKey } from "@/lib/billing/ledgerMath";
-import { fetchUserInferenceCost } from "./costQueries";
+import { fetchUserBoardCosts } from "./costQueries";
 import { classifyOutcome, extractArtifactSummary } from "./outcome";
 import type {
   AdminUserRow,
@@ -8,7 +8,7 @@ import type {
   UserDetailPayload,
 } from "./types";
 
-const BOARDS_TAKE = 50;
+const BOARDS_TAKE = 200;
 const TURNS_TAKE = 50;
 const MESSAGES_TAKE = 20;
 const MESSAGE_PREVIEW_CHARS = 280;
@@ -131,6 +131,8 @@ export async function userDetail(userId: string): Promise<UserDetailPayload | nu
       }
     : null;
 
+  const costs = await fetchUserBoardCosts(boards.map((board) => board.id));
+
   return {
     user: row,
     settings,
@@ -143,6 +145,9 @@ export async function userDetail(userId: string): Promise<UserDetailPayload | nu
       createdAt: board.createdAt.toISOString(),
       updatedAt: board.updatedAt.toISOString(),
       turns: board._count.turns,
+      llmUsd: costs.byBoardId[board.id]?.llmUsd ?? null,
+      ttsUsd: costs.byBoardId[board.id]?.ttsUsd ?? null,
+      totalUsd: costs.byBoardId[board.id]?.totalUsd ?? null,
     })),
     turns: turnRows.map((turn) => {
       const summary = extractArtifactSummary(turn.sceneArtifacts);
@@ -174,6 +179,6 @@ export async function userDetail(userId: string): Promise<UserDetailPayload | nu
       spentMillicents: entry.spentMillicents,
       bonusMillicents: entry.bonusMillicents,
     })),
-    inference: await fetchUserInferenceCost(boards.map((board) => board.id)),
+    inference: costs.inference,
   };
 }

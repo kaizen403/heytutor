@@ -1,5 +1,6 @@
 import type { AdminUserBoard } from "@/lib/admin/types";
 import { cn } from "@/lib/utils";
+import { CostChip } from "../components/CostChip";
 import { formatRelativeTime, truncateText } from "../shared/lib/format";
 
 function StatePill({ board }: { board: AdminUserBoard }) {
@@ -39,7 +40,14 @@ export function UserBoards({ boards }: { boards: AdminUserBoard[] }) {
                   {board.preview ? truncateText(board.preview, 72) : "no questions yet"}
                 </p>
               </div>
-              <div className="shrink-0 text-right">
+              <div className="flex shrink-0 items-center gap-3 text-right">
+                <CostChip
+                  cost={
+                    board.totalUsd == null
+                      ? undefined
+                      : { llmUsd: board.llmUsd ?? 0, ttsUsd: board.ttsUsd ?? 0, totalUsd: board.totalUsd }
+                  }
+                />
                 <p className={cn("type-accent-xs tabular-nums text-frost")}>
                   {board.turns} turn{board.turns === 1 ? "" : "s"}
                 </p>

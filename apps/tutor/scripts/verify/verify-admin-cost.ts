@@ -30,7 +30,8 @@ assert(read("lib/obs/langfuseQuery.ts").includes("fetchRunCostForTraces"), "turn
 assert(read("features/admin/analytics/OverviewCost.tsx").includes("AI vs voice"), "overview splits AI and voice");
 assert(read("features/admin/users/UsersView.tsx").includes('value: "spend"'), "users can sort by spend");
 assert(read("features/admin/users/UserDetailView.tsx").includes("AI / voice"), "user detail shows inference split");
-assert(read("lib/admin/userDetailQueries.ts").includes("fetchUserInferenceCost"), "user detail loads board Langfuse cost");
+assert(read("lib/admin/userDetailQueries.ts").includes("fetchUserBoardCosts"), "user detail prices every listed board");
+assert(read("features/admin/users/UserBoards.tsx").includes("CostChip"), "each user board shows its lecture cost");
 assert(read("lib/admin/turnsQueries.ts").includes("fetchRunCostForTraces"), "the turn log attaches per-turn cost");
 assert(read("lib/admin/costPeriods.ts").includes("billingPeriodKey"), "month keys stay on the UTC ledger calendar");
 
