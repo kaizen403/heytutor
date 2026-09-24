@@ -6,6 +6,7 @@ import {
 import {
   balanceFromRow,
   remainingUsagePct,
+  takePostedMillicents,
 } from "../../lib/billing/ledgerMath";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -13,6 +14,15 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 assert(usdToMillicents(3.5) === 3500, "$3.50 is 3500 millicents");
+let pending = 0;
+let posted = 0;
+for (let i = 0; i < 24; i += 1) {
+  const next = takePostedMillicents(pending, 0.000042);
+  pending = next.pending;
+  posted += next.millicents;
+}
+assert(posted === 1, "24 Jev calls of 1k tokens post one millicent, not zero");
+assert(pending > 0 && pending < 1, "the fraction under one millicent stays queued");
 assert(usdToMillicents(12) === 12_000, "$12 is 12000 millicents");
 assert(usdToMillicents(10) === 10_000, "$10 top-up is 10000 millicents");
 assert(remainingUsagePct(0, 3500) === 100, "unused Free bar is 100%");

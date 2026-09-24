@@ -1,10 +1,11 @@
 import type { SpeechProvider } from "../tts/providerConfig";
 import { calculateLlmCostDetails, calculateTtsCostDetails, type UsageCounts } from "@/lib/obs/usageCost";
 import { AutumnUnavailableError, trackFeature } from "./autumnClient";
-import { BILLING_FEATURES, usdToMillicents } from "./catalog";
+import { BILLING_FEATURES } from "./catalog";
 import { isProviderMockMode, isTtsConfigured } from "./flags";
 import { consumeUsdMillicents, getTurnGrant, syncGrantUsdRemaining } from "./grant";
 import { addPeriodSpend, cacheUsageOnUser } from "./ledger";
+import { takePostedMillicents } from "./ledgerMath";
 import type { SpendActor } from "./actor";
 
 function shouldCountUsd(input: { skipGates?: boolean }): boolean {
@@ -15,20 +16,25 @@ function shouldTrackAutumn(input: { skipAutumn?: boolean; skipGates?: boolean })
   return !input.skipAutumn && !input.skipGates && !isProviderMockMode();
 }
 
+const spendRemainder = new Map<string, number>();
+
 function rememberSpend(input: {
   userId: string;
   planId?: string | null;
   usd: number;
 }): void {
-  const millicents = usdToMillicents(input.usd);
+  const queued = takePostedMillicents(spendRemainder.get(input.userId) ?? 0, input.usd);
+  spendRemainder.set(input.userId, queued.pending);
+  const millicents = queued.millicents;
   const grant = getTurnGrant(input.userId);
   if (grant && millicents > 0) {
     consumeUsdMillicents(grant, millicents);
   }
+  if (millicents <= 0) return;
   void addPeriodSpend({
     userId: input.userId,
     planId: input.planId ?? grant?.planId,
-    usd: input.usd,
+    usd: millicents / 1000,
   })
     .then((balance) => {
       syncGrantUsdRemaining(input.userId, balance.remainingMillicents);

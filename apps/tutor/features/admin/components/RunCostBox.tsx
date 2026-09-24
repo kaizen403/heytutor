@@ -13,6 +13,7 @@ const KIND_LABELS: Record<string, string> = {
   "code-lesson-v1": "Code lesson",
   "notes-chat-llm": "Notes",
   "tts-segment": "Voice",
+  "jev-evaluation": "Jev",
   "qwen-vision": "Photo OCR",
   "extract-question": "Photo OCR",
 };
@@ -96,6 +97,7 @@ export function RunCostBox({
     ? `${formatTokenCount(totals.inputTokens)} in · ${formatTokenCount(totals.outputTokens)} out`
     : "—";
   const voiceHint = totals ? `${formatCharCount(totals.characters)} chars` : "—";
+  const jevRate = data?.pricing.llm.find((row) => row.lane === "jev")?.inputUsdPer1M;
   const cartesiaRate = data?.pricing.tts.find((row) => row.lane === "cartesia")?.usdPer1kChars;
   const flashRate = data?.pricing.tts.find((row) => row.lane === "flash")?.usdPer1kChars;
   const multiRate = data?.pricing.tts.find((row) => row.lane === "multilingual")?.usdPer1kChars;
@@ -190,8 +192,10 @@ export function RunCostBox({
             ) : null}
 
             <p className="type-accent-xs leading-relaxed text-faint">
-              AI is Fireworks serverless. Voice uses the selected speech provider
-              {cartesiaRate != null ? `. Cartesia estimate ${formatUsd(cartesiaRate)} / 1k chars` : ""}
+              AI is Fireworks serverless
+              {jevRate != null ? ` plus Jev at ${formatUsd(jevRate)} / 1M input tokens` : ""}
+              . Voice uses the selected speech provider
+              {cartesiaRate != null ? `. Cartesia ${formatUsd(cartesiaRate)} / 1k chars` : ""}
               {flashRate != null && multiRate != null
                 ? `. Flash ${formatUsd(flashRate)} / 1k chars, Multilingual ${formatUsd(multiRate)} / 1k chars`
                 : ""}

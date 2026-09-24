@@ -250,6 +250,16 @@ export async function POST(request: Request, context: RouteContext) {
   const taggedPrompt = tag ? `\n\n${formatNotesChatTagPrompt(tag)}` : "";
   const systemPrompt = `${NOTES_CHAT_SYSTEM_PROMPT}\n\nlesson notes:\n${prepared.notesText}${taggedPrompt}`;
   const evaluation = prepared.evaluation;
+  if (evaluation?.status === "assessed" && evaluation.usage.inputTokens > 0) {
+    recordLlmSpend({
+      actor,
+      model: evaluation.provenance.model,
+      usage: {
+        input: evaluation.usage.inputTokens,
+        output: evaluation.usage.outputTokens,
+      },
+    });
+  }
   const fireworksBody = JSON.stringify({
     model,
     max_tokens: NOTES_CHAT_MAX_TOKENS,
