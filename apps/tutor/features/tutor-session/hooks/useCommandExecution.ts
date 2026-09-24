@@ -60,7 +60,7 @@ import { frameAdvanceRole } from "../lib/code-lesson/codeLessonSegments";
 import type { SpokenSegmentClock } from "../lib/code-lesson/codeSpokenSync";
 import { runFrameWalkBeat, runTypedBlockBeat, walkSpokenStops, frameWalkPlan } from "../lib/code-lesson/spokenWalk";
 import type { BoardTextRect, BoardLayoutState } from "../types";
-import { isInDiagramZone, registerBoardAnchor, workColumnMaxWidth } from "../lib/board/boardLayout";
+import { commitWorkRowInk, isInDiagramZone, registerBoardAnchor, resolveVisibleEmphasisRow, workColumnMaxWidth } from "../lib/board/boardLayout";
 import { wrapWorkRow } from "./useBoardLayout";
 import { resolveSnappedAnnotationParams } from "../lib/board/annotationSnap";
 import { withSpotlight } from "../lib/board/spotlight";
@@ -121,7 +121,7 @@ function pointWorkRowTargets(
   for (const raw of wanted) {
     const id = raw.trim();
     if (!id) continue;
-    const row = resolveWorkAreaRow(parseWorkRowSelector(id), rects);
+    const row = resolveWorkAreaRow(parseWorkRowSelector(id), rects.filter((rect) => !rect.pendingInk));
     if (!row) continue;
     targets.push({
       id: row.workId ?? id,
@@ -721,6 +721,9 @@ export function useCommandExecution({
             // lettered C, F, M and I silently under the row, before the
             // geometry they name existed. A label now waits for its spoken
             // name, through the FOCUS that carries its id.
+            if (command.type === "WRITE" && !commandCancelled()) {
+              commitWorkRowInk(boardLayoutRef.current, command.text, placement.x, placement.y);
+            }
           }
           break;
         }
@@ -1322,8 +1325,8 @@ export function useCommandExecution({
           break;
         }
         case "EMPHASIZE": {
-          const row = resolveWorkAreaRow(
-            parseWorkRowSelector(command.text),
+          const row = resolveVisibleEmphasisRow(
+            command.text,
             boardLayoutRef.current.rects,
           );
           if (!row) break;

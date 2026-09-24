@@ -214,6 +214,7 @@ export function useBoardLayout({
             width: estimateBoardTextWidthAtSize(command.text, textCommandFontSize(command)),
             height: TEXT_LAYOUT.textHeight,
             text: command.text,
+            pendingInk: command.type === "WRITE",
           };
           // Restore/replay keep the stored x,y, but a long lesson reuses those
           // y values after a live page-turn whose erase was never recorded.
@@ -286,6 +287,7 @@ export function useBoardLayout({
         width: Math.min(width, slot.maxWidth),
         height,
         text: command.text,
+        pendingInk: command.type === "WRITE",
       };
       registerBoardAnchor(
         boardLayoutRef.current,

@@ -393,13 +393,14 @@ const NOT_BESIDE_THE_CODE_PANEL = new Set<DrawCommand["type"]>(["WRITE", "EMPHAS
  */
 export function doubtSegment(
   segment: TutorSegment,
-  options: { codePanelShowing: boolean },
+  options: { codePanelShowing: boolean; boardRows?: readonly { workId?: string; text: string }[] },
 ): TutorSegment | null {
   const commands = getSegmentCommands(segment);
   const kept = commands.filter(
     (command) =>
       !NOT_A_DOUBT_COMMAND.has(command.type) &&
-      !(options.codePanelShowing && NOT_BESIDE_THE_CODE_PANEL.has(command.type)),
+      !(options.codePanelShowing && NOT_BESIDE_THE_CODE_PANEL.has(command.type)) &&
+      (command.type !== "EMPHASIZE" || groundedDoubtEmphasis(command.text, options.boardRows ?? [])),
   );
   if (kept.length === commands.length) return segment;
   if (kept.length === 0 && !segment.narration.trim()) return null;
@@ -410,6 +411,23 @@ export function doubtSegment(
     delete next.commands;
   }
   return next;
+}
+
+/** A doubt may box only a line whose exact text it copied from this page. */
+function groundedDoubtEmphasis(
+  raw: string | undefined,
+  rows: readonly { workId?: string; text: string }[],
+): boolean {
+  const separator = raw?.indexOf("|") ?? -1;
+  if (separator < 1) return false;
+  const id = raw!.slice(0, separator).trim().toLowerCase();
+  const quoted = raw!.slice(separator + 1).normalize("NFKC").replace(/\s+/g, "").toLowerCase();
+  if (!quoted) return false;
+  if (id === "last") return true; // Written by this doubt; checked against live ink at execution.
+  return rows.some((row) =>
+    row.workId?.toLowerCase() === id &&
+    row.text.normalize("NFKC").replace(/\s+/g, "").toLowerCase() === quoted,
+  );
 }
 
 /** Pointing that names parts of a scene; a text only save has no scene to name. */

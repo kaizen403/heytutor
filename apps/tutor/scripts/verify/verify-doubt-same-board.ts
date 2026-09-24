@@ -544,7 +544,7 @@ function doubtInput(overrides: Partial<DoubtTeachingPromptInput> = {}): DoubtTea
   const segment: TutorSegment = {
     narration: "so two theta is sixty degrees",
     command: command("WRITE", "2θ = 60°"),
-    commands: [command("WRITE", "2θ = 60°"), command("EMPHASIZE", "last"), command("TYPE"), command("FRAME"), command("POINT", "cell_0")],
+    commands: [command("WRITE", "2θ = 60°"), command("EMPHASIZE", "last|2θ = 60°"), command("TYPE"), command("FRAME"), command("POINT", "cell_0")],
   };
   const onNotebook = doubtSegment(segment, { codePanelShowing: false });
   assert(

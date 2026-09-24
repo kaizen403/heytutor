@@ -39,12 +39,13 @@ import {
   type AudioTimings,
   type InitialTimingWaitRelease,
   type TTSClient,
+  SpeechSynthesisTTSClient,
 } from "@heytutor/tutor-core";
 import { waitUntilDrawClock } from "@/lib/replay/replayAudio";
 import { orderCommandsBySpokenAnchor } from "../../lib/turn/segmentPlanning";
 import { guardDrawWithSpeech } from "../../lib/turn/turnFailurePolicy";
 import { speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
-import { requireSpeechStart } from "../../lib/turn/speechStartup";
+import { requireSpeechStart, speakWithStartupRecovery, speechPlaybackOverdue } from "../../lib/turn/speechStartup";
 import { resolveCommandInkBudgetMs } from "../../types";
 import type { UseSegmentRunnerParams } from "./types";
 
@@ -81,6 +82,7 @@ export function useSegmentRunner({
   // used to assume 15 spoken chars a second; the voice runs 11 to 13.5, so
   // every guessed row finished a median 1.4 s before its words.
   const speechRateRef = useRef(createSpeechRateState());
+  const browserSpeechRef = useRef<SpeechSynthesisTTSClient | null>(null);
 
   const waitWhilePaused = useCallback(async (): Promise<boolean> => {
     while (isPausedRef.current) {
@@ -889,9 +891,9 @@ export function useSegmentRunner({
         },
         onTimings: captureTimings,
         onEnd: markSpeechComplete,
-        onError: () => {
-          markSpeechComplete();
-        },
+        // The provider can report an error before this runner starts browser
+        // recovery. Only the final outcome releases the drawing wait.
+        onError: () => {},
       };
 
       const speakSegmentWithTimeout = async (
@@ -903,20 +905,83 @@ export function useSegmentRunner({
         const timeoutMs = speakSegmentTimeoutMs(text);
         let timedOut = false;
         let timeoutId: number | null = null;
+        let playbackWatchId: number | null = null;
+        let usingBrowserFallback = false;
 
         try {
-          await raceWithCancel(
-            Promise.race([
-              requireSpeechStart(tts.speakSegment(text, options), () =>
-                audioStartedAtMs !== null || isCancelled() || isPausedRef.current),
-              new Promise<never>((_, reject) => {
-                timeoutId = window.setTimeout(() => {
-                  timedOut = true;
-                  reject(new Error(`tts segment timeout after ${timeoutMs}ms`));
-                }, timeoutMs);
-              }),
-            ]),
-          );
+          const spoken = requireSpeechStart(speakWithStartupRecovery({
+            primary: (onStart) => tts.speakSegment(text, {
+              ...options,
+              onStart: () => {
+                if (usingBrowserFallback || isCancelled()) return;
+                options.onStart?.();
+                onStart();
+              },
+              onEnd: () => {
+                if (!usingBrowserFallback && audioStartedAtMs !== null) options.onEnd?.();
+              },
+              onTimings: (timings) => {
+                if (!usingBrowserFallback) options.onTimings?.(timings);
+              },
+              onAudioCaptured: (audio) => {
+                if (!usingBrowserFallback) options.onAudioCaptured?.(audio);
+              },
+            }),
+            fallback: async () => {
+              browserSpeechRef.current ??= new SpeechSynthesisTTSClient();
+              browserSpeechRef.current.setPlaybackRate(tts.getPlaybackRate?.() ?? 1);
+              let browserError: unknown = null;
+              await browserSpeechRef.current.speakSegment(text, {
+                ...options,
+                onError: (error) => { browserError = error; },
+              });
+              if (browserError && !isCancelled()) throw browserError;
+            },
+            abandonPrimary: () => {
+              if (tts.abandonSpeaking) tts.abandonSpeaking();
+              else tts.stop();
+            },
+            hasStarted: () => audioStartedAtMs !== null,
+            canFallback: () => !isCancelled() && !isPausedRef.current,
+            onFallback: (reason) => {
+              usingBrowserFallback = true;
+              capturedAudio = null;
+              capturedTimings = null;
+              capturedDurationMs = null;
+              tel?.mark("tts-browser-recovery", { segment_index: index, reason });
+            },
+          }), () => audioStartedAtMs !== null || isCancelled() || isPausedRef.current);
+          const playbackWatch = new Promise<never>((_, reject) => {
+            const check = () => {
+              const timings = capturedTimings;
+              if (
+                !usingBrowserFallback && audioStartedAtMs !== null && timings &&
+                validateAudioTimingsForNarration(narration, timings).valid &&
+                speechPlaybackOverdue({
+                  elapsedMs: performance.now() - audioStartedAtMs,
+                  audioDurationMs: timings.totalDuration * 1000,
+                  playbackRate: tts.getPlaybackRate?.() ?? 1,
+                  paused: isPausedRef.current,
+                })
+              ) {
+                timedOut = true;
+                reject(new Error("tts segment playback stalled after audio started"));
+                return;
+              }
+              playbackWatchId = window.setTimeout(check, 250);
+            };
+            playbackWatchId = window.setTimeout(check, 250);
+          });
+          await raceWithCancel(Promise.race([
+            spoken,
+            playbackWatch,
+            new Promise<never>((_, reject) => {
+              timeoutId = window.setTimeout(() => {
+                timedOut = true;
+                reject(new Error(`tts segment timeout after ${timeoutMs}ms`));
+              }, timeoutMs);
+            }),
+          ]));
         } catch (error) {
           tutorDebug("tts", "segment speech failed", {
             index,
@@ -936,6 +1001,9 @@ export function useSegmentRunner({
         } finally {
           if (timeoutId !== null) {
             window.clearTimeout(timeoutId);
+          }
+          if (playbackWatchId !== null) {
+            window.clearTimeout(playbackWatchId);
           }
           markSpeechComplete();
         }

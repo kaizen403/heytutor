@@ -156,7 +156,7 @@ const notebook = { figure: variants.figure, full: variants.full, noFigure: varia
 for (const [label, prompt] of Object.entries(notebook)) {
   const block = doubtBlockOf(prompt, label);
   assert(block.includes("Your first step points and writes nothing"), `${label}: the first step must point, not write`);
-  assert(block.includes("[EMPHASIZE:wN]"), `${label}: the pointing form uses a placeholder id`);
+  assert(block.includes("[EMPHASIZE:row_id|exact row text]"), `${label}: the pointing form binds the id to visible text`);
   assert(block.includes("old ids name new rows"), `${label}: a row id must not be trusted after the page turns`);
 }
 for (const [label, prompt] of Object.entries(variants)) {

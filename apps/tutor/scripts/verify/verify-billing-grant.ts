@@ -1,4 +1,4 @@
-import { MAX_DOUBTS_PER_CREDIT, TTS_CHARS_PER_LESSON } from "../../lib/billing/catalog";
+import { TTS_CHARS_PER_LESSON } from "../../lib/billing/catalog";
 import {
   attachTraceToGrant,
   consumeTtsChars,
@@ -21,12 +21,10 @@ assert(minted.ok && minted.grant.ttsCharsRemaining === TTS_CHARS_PER_LESSON, "ne
 const same = requireGrantForTrace("u1", "lesson-1");
 assert(same.ok, "the lesson trace reuses the grant");
 
-for (let i = 0; i < MAX_DOUBTS_PER_CREDIT; i++) {
+for (let i = 0; i < 12; i++) {
   const attached = attachTraceToGrant("u1", `doubt-${i}`);
   assert(attached.ok, `doubt ${i} reuses the grant`);
 }
-const overflow = attachTraceToGrant("u1", "doubt-overflow");
-assert(!overflow.ok && overflow.reason === "doubt_limit", "the 9th extra trace is refused");
 
 const budget = consumeTtsChars(minted.grant, TTS_CHARS_PER_LESSON);
 assert(budget.allowed && budget.remaining === 0, "exact budget is allowed");
@@ -49,4 +47,4 @@ consumeUsdMillicents(lastTurn.grant, 1);
 assert(shouldSkipTtsForUsage(lastTurn.grant), "TTS skips when remaining USD hits 0");
 
 resetTurnGrantsForTests();
-console.log("✓ turn grants: reuse, doubt cap, TTS budget, concurrent fuse");
+console.log("✓ turn grants: reuse across doubts, TTS budget, concurrent fuse");

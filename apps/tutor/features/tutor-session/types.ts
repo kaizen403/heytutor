@@ -30,6 +30,8 @@ export interface BoardTextRect {
   commandIndex?: number;
   workIndex?: number;
   workId?: string;
+  /** Space is reserved, but the pen has not finished this row yet. */
+  pendingInk?: boolean;
 }
 
 export interface BoardLayoutState {

@@ -1804,7 +1804,10 @@ export function useQuestionHandler(
           // put on this page.
           const outgoing = doubt
             ? prepared.segments.flatMap((segment) => {
-                const kept = doubtSegment(segment, { codePanelShowing });
+                const kept = doubtSegment(segment, {
+                  codePanelShowing,
+                  boardRows: pagePromptInput.boardRows,
+                });
                 return kept ? [kept] : [];
               })
             : (resolved?.segments ?? prepared.segments);
