@@ -30,6 +30,21 @@ export function billingPeriodResetAt(ms = nowFn()): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1);
 }
 
+/**
+ * Whole millicents to post now, plus the fraction still owed.
+ * Jev and short Cartesia clips are often below $0.001; rounding each call
+ * would drop them from the monthly admin total.
+ */
+export function takePostedMillicents(
+  pending: number,
+  usd: number,
+): { millicents: number; pending: number } {
+  const next = pending + usd * 1000;
+  if (!Number.isFinite(next) || next <= 0) return { millicents: 0, pending: 0 };
+  const millicents = Math.floor(next + 1e-9);
+  return { millicents, pending: next - millicents };
+}
+
 export function remainingUsagePct(spentMillicents: number, allowanceMillicents: number): number {
   if (allowanceMillicents <= 0) return 0;
   const remaining = Math.max(0, allowanceMillicents - Math.max(0, spentMillicents));

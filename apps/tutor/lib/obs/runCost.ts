@@ -3,6 +3,7 @@
 import {
   calculateLlmCostDetails,
   calculateTtsCostDetails,
+  resolveLlmRateLane,
   resolveLlmRates,
   roundUsd,
   TTS_RATE_DEFAULTS,
@@ -143,6 +144,14 @@ function readTokenUsage(observation: CostObservation): { input: number; output: 
   return { input, output, cachedInput: Math.min(input, Math.max(0, reportedCache)) };
 }
 
+/** Notes traces store Jev on the generator. A real `jev-evaluation` row is priced on its own. */
+function jevMetadataTokens(observation: CostObservation): number {
+  if (observation.name === "jev-evaluation") return 0;
+  if (resolveLlmRateLane(observationModel(observation)) === "jev") return 0;
+  const tokens = asFiniteNumber(observation.metadata?.jev_input_tokens) ?? 0;
+  return tokens > 0 ? tokens : 0;
+}
+
 function readCharacterUsage(observation: CostObservation): number {
   const details = observation.usageDetails ?? {};
   const fromDetails = asFiniteNumber(details.characters);
@@ -257,6 +266,26 @@ export function aggregateRunCost(observations: CostObservation[]): RunCostReport
         sessionTraces.set(sessionId, set);
       }
       set.add(traceId);
+    }
+
+    const attachedJevTokens = jevMetadataTokens(observation);
+    if (attachedJevTokens > 0) {
+      const jevModel = "typesafe-ai/jev";
+      const usd = calculateLlmCostDetails({ input: attachedJevTokens, output: 0 }, { model: jevModel }).total ?? 0;
+      let kind = kinds.get("jev-evaluation");
+      if (!kind) {
+        kind = emptyKind("jev-evaluation", "llm");
+        kinds.set("jev-evaluation", kind);
+      }
+      kind.observations += 1;
+      kind.inputTokens += attachedJevTokens;
+      kind.usd = roundUsd(kind.usd + usd);
+      rememberModel(kind, jevModel);
+      session.inputTokens += attachedJevTokens;
+      session.llmUsd = roundUsd(session.llmUsd + usd);
+      inputTokens += attachedJevTokens;
+      llmUsd = roundUsd(llmUsd + usd);
+      llmObservations += 1;
     }
 
     if (isTtsObservation(observation)) {

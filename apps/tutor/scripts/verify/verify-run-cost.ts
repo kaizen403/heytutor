@@ -126,6 +126,44 @@ const unknownReport = aggregateRunCost([
   },
 ]);
 assert(unknownReport.totals.unknownUsage === 1, "a generation with no usage is unknown");
+const notesWithJev = aggregateRunCost([
+  {
+    name: "notes-chat-llm",
+    type: "GENERATION",
+    model: DEFAULT_FIREWORKS_FAST_MODEL,
+    usage: { input: 8_000, output: 600, total: 8_600, unit: "TOKENS" },
+    metadata: { jev_input_tokens: 2_000 },
+  },
+  {
+    name: "tts-segment",
+    type: "GENERATION",
+    model: "sonic-3.6",
+    metadata: { provider: "cartesia" },
+    usageDetails: { characters: 1_000 },
+  },
+]);
+const notesAi = calculateLlmCostDetails(
+  { input: 8_000, output: 600 },
+  { model: DEFAULT_FIREWORKS_FAST_MODEL },
+).total ?? 0;
+const jevAi = calculateLlmCostDetails({ input: 2_000, output: 0 }, { model: "typesafe-ai/jev" }).total ?? 0;
+assert(notesWithJev.totals.llmUsd === notesAi + jevAi, "notes cost must add Jev input, not the Kimi Fast rate");
+assert(notesWithJev.totals.ttsUsd === 0.05, "1k Sonic characters are $0.05");
+assert(
+  notesWithJev.byKind.some((row) => row.name === "jev-evaluation" && row.usd === jevAi),
+  "Jev is its own cost row",
+);
+const jevRow = aggregateRunCost([
+  {
+    name: "jev-evaluation",
+    type: "GENERATION",
+    model: "typesafe-ai/jev",
+    usage: { input: 2_000, output: 0, total: 2_000, unit: "TOKENS" },
+    metadata: { jev_input_tokens: 2_000 },
+  },
+]);
+assert(jevRow.totals.llmUsd === jevAi, "a Jev generation must not also bill its metadata");
+
 assert(unknownReport.totals.llmUsd === 0, "unknown usage must not be given a made-up token price");
 assert(unknownReport.totals.llmObservations === 0, "unknown usage is not a measured generation");
 
@@ -165,6 +203,10 @@ assert(
 assert(
   read("app/api/boards/[boardId]/notes-chat/route.ts").includes("stream_options: { include_usage: true }"),
   "notes-chat must request Fireworks usage for Langfuse",
+);
+assert(
+  read("app/api/boards/[boardId]/notes-chat/route.ts").includes("evaluation.provenance.model"),
+  "notes-chat must bill Jev on the Jev rate, not the generator rate",
 );
 assert(
   read("app/api/extract-question/route.ts").includes('generationName: "qwen-vision"'),

@@ -125,7 +125,11 @@ export function resolveLlmRates(model?: string | null): {
 
 export type TtsRateLane = "cartesia" | "flash" | "multilingual" | "unknown";
 
-/** ElevenLabs published API rates (USD per 1k characters). */
+/**
+ * USD per 1k characters. Cartesia Sonic is 1 credit per character.
+ * $0.05 matches the Pro plan ($5 / 100,000 credits). Startup and Scale
+ * are cheaper; set CARTESIA_USD_PER_1K_CHARS to that plan's credit price.
+ */
 export const TTS_RATE_DEFAULTS: Record<TtsRateLane, number> = {
   cartesia: 0.05,
   flash: 0.05,
@@ -136,7 +140,7 @@ export const TTS_RATE_DEFAULTS: Record<TtsRateLane, number> = {
 export function resolveTtsRateLane(model?: string | null): TtsRateLane {
   const id = (model ?? "").toLowerCase();
   if (!id) return "unknown";
-  if (id.startsWith("sonic")) return "cartesia";
+  if (id.startsWith("sonic") || id.includes("cartesia")) return "cartesia";
   if (id.includes("flash") || id.includes("turbo")) return "flash";
   if (id.includes("multilingual") || id.includes("eleven_v3") || id.includes("eleven-v3")) {
     return "multilingual";
@@ -179,7 +183,8 @@ export function calculateTtsCostDetails(
   characters: number,
   options: { model?: string | null; provider?: SpeechProvider } = {},
 ): CostDetails {
-  const provider = options.provider ?? (options.model?.startsWith("sonic") ? "cartesia" : "elevenlabs");
+  const modelId = options.model?.toLowerCase() ?? "";
+  const provider = options.provider ?? (modelId.startsWith("sonic") ? "cartesia" : "elevenlabs");
   const rate = provider === "cartesia"
     ? readEnvNumber("CARTESIA_USD_PER_1K_CHARS", 0.05)
     : elevenLabsUsdPer1kChars(options.model);

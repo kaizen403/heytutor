@@ -59,6 +59,8 @@ const ttsUnknown = calculateTtsCostDetails(1000);
 assert(ttsUnknown.total === TTS_RATE_DEFAULTS.unknown, "unknown TTS overestimates on Multilingual, not Flash");
 assert(resolveTtsRateLane("eleven_flash_v2_5") === "flash", "Flash v2.5 is the $0.05 lane");
 assert(resolveTtsRateLane("eleven_multilingual_v2") === "multilingual", "Multilingual v2 is the $0.10 lane");
+assert(calculateTtsCostDetails(1000, { model: "sonic-3.6" }).total === 0.05, "Sonic is the Cartesia $0.05 / 1k credit rate");
+assert(resolveTtsRateLane("sonic-3.6") === "cartesia", "Sonic must not use the ElevenLabs table");
 assert(calculateTtsCostDetails(1000, { model: "eleven_flash_v2_5" }).total === 0.05, "Flash is $0.05 / 1k");
 assert(
   calculateTtsCostDetails(1000, { model: "eleven_multilingual_v2" }).total === 0.1,
