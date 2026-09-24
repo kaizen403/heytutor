@@ -1,9 +1,5 @@
 /** Student-facing catalog. Do not add plans that are not in the billing plan. */
 
-export const TOP_UP = {
-  priceUsd: 10,
-} as const
-
 export type PlanHrefKind = 'login' | 'contact'
 
 type PlanBase = {
@@ -34,7 +30,7 @@ export const PLANS: readonly LandingPlan[] = [
     id: 'free',
     name: 'Free',
     priceUsd: 0,
-    blurb: 'Monthly included usage to try physics, maths, and a doubt chain.',
+    blurb: 'Explore a new way to learn with clear explanations on a live whiteboard.',
     cta: 'Try it free',
     hrefKind: 'login',
   },
@@ -42,7 +38,7 @@ export const PLANS: readonly LandingPlan[] = [
     id: 'plus',
     name: 'Plus',
     priceUsd: 19,
-    blurb: 'Daily practice. About a lesson or two a day.',
+    blurb: 'Make the whiteboard part of your regular study routine.',
     cta: 'Get Plus',
     hrefKind: 'login',
     featured: true,
@@ -52,7 +48,7 @@ export const PLANS: readonly LandingPlan[] = [
     id: 'pro',
     name: 'Pro',
     priceUsd: 39,
-    blurb: 'Heavy exam weeks when you need the board every day.',
+    blurb: 'Stay focused through demanding study and exam preparation.',
     cta: 'Get Pro',
     hrefKind: 'login',
   },
@@ -60,7 +56,7 @@ export const PLANS: readonly LandingPlan[] = [
     id: 'team',
     name: 'Team',
     priceUsd: null,
-    blurb: 'Coaching centres. Pooled usage, billed with us, not self-serve.',
+    blurb: 'Bring whiteboard tutoring to your coaching centre with a plan for your team.',
     cta: 'Contact for centres',
     hrefKind: 'contact',
   },

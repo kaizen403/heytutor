@@ -178,12 +178,11 @@ assert(UPGRADE_LABEL === "Upgrade", "upgrade label");
 const plans = landing("lib/plans.ts");
 assert(!plans.includes("creditsPerMonth"), "landing plans have no credit counts");
 assert(!plans.includes("CREDIT_UNIT"), "landing plans drop credit unit copy");
-assert(plans.includes("Monthly included usage"), "Free blurb is monthly included usage");
-assert(plans.includes("Pooled usage"), "Team is pooled usage");
+assert(!/lesson or two|doubt chain|monthly included usage/i.test(plans), "landing plans avoid allowance copy");
 
 const pricing = landing("components/PricingSection.tsx");
 assert(!/credits/i.test(pricing), "pricing section has no credit copy");
-assert(pricing.includes("Add usage"), "pricing top-up is add usage");
+assert(!/included usage|Doubts on those questions|Top-up/i.test(pricing), "pricing section avoids allowance copy");
 
 const terms = landing("pages/TermsPage.tsx");
 assert(!/8 credits|40 credits|90 credits|15 credits/i.test(terms), "terms drop credit counts");

@@ -5,7 +5,7 @@ import DitherHalo from './dither/DitherHalo'
 import Reveal from './Reveal'
 import SketchWallpaper from './sketch/SketchWallpaper'
 import { CAL_BOOKING_HREF } from '../lib/calHref'
-import { PLANS, TOP_UP, type LandingPlan } from '../lib/plans'
+import { PLANS, type LandingPlan } from '../lib/plans'
 import { TUTOR_LOGIN_HREF } from '../lib/tutorAppHref'
 
 function planHref(plan: LandingPlan): string {
@@ -34,10 +34,10 @@ function Price({ plan }: { plan: LandingPlan }) {
 function PlanPoints({ plan }: { plan: LandingPlan }) {
   const points =
     plan.id === 'team'
-      ? ['Pooled usage for a centre', 'Invoice, not self-serve checkout']
+      ? ['Pooled access for your centre', 'Invoiced billing']
       : [
-          'Doubts on those questions included',
-          'Included usage resets each calendar month',
+          'Spoken, step-by-step explanations',
+          'Diagrams, notes, and lesson replay',
         ]
 
   return (
@@ -77,11 +77,11 @@ function PlanCard({ plan }: { plan: LandingPlan }) {
       <Price plan={plan} />
       {plan.id === 'team' ? (
         <p className="mt-2 font-heading text-lg tracking-[-0.02em] text-sky-200">
-          Pooled usage
+          For coaching centres
         </p>
       ) : (
         <p className="mt-2 font-heading text-lg tracking-[-0.02em] text-sky-200">
-          Monthly included usage
+          Live whiteboard tutoring
         </p>
       )}
       <p className="mt-3 text-[13.5px] leading-relaxed text-brand-muted-dark">
@@ -139,8 +139,8 @@ export default function PricingSection() {
             Plans for <span className="text-ice">practice</span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-brand-muted-dark sm:text-lg">
-            Each plan includes monthly usage. Included usage resets each
-            calendar month.
+            Choose a plan that fits the way you study. Every plan brings the
+            explanation to life on a live whiteboard.
           </p>
         </Reveal>
 
@@ -155,18 +155,11 @@ export default function PricingSection() {
           ))}
         </Reveal>
 
-        <Reveal variant="fade" delay={160} className="mt-8 sm:mt-10">
-          <div className="glass rim-sky mx-auto flex max-w-3xl flex-col items-center gap-1 rounded-2xl px-5 py-5 text-center sm:px-8">
-            <p className="type-accent-s text-sky-300">Top-up</p>
-            <p className="mt-2 text-[15px] leading-relaxed text-[rgba(240,245,247,0.72)]">
-              Add usage for ${TOP_UP.priceUsd}. Stacks on any plan for this
-              calendar month.
-            </p>
-            <p className="mt-2 text-[13px] leading-relaxed text-[rgba(240,245,247,0.48)]">
-              Prices in USD. If you are 13–17, a parent or guardian completes
-              paid checkout.
-            </p>
-          </div>
+        <Reveal variant="fade" delay={160} className="mt-8 text-center sm:mt-10">
+          <p className="text-[13px] leading-relaxed text-[rgba(240,245,247,0.48)]">
+            Prices in USD. If you are 13–17, a parent or guardian completes
+            paid checkout.
+          </p>
         </Reveal>
       </div>
     </section>
