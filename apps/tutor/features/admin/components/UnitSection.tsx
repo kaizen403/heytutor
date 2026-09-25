@@ -66,12 +66,21 @@ function UnitCompletionBar({
       aria-valuemax={possible}
       aria-valuenow={recorded}
     >
-      <span className="flex h-1 w-16 overflow-hidden rounded-full bg-ink-700" aria-hidden>
+      <span
+        className="flex h-1 w-16 overflow-hidden rounded-full bg-ink-700"
+        aria-hidden
+      >
         {recorded > 0 ? (
-          <span className="h-full shrink-0 bg-sky-500/80" style={{ width: recordedWidth }} />
+          <span
+            className="h-full shrink-0 bg-sky-500/80"
+            style={{ width: recordedWidth }}
+          />
         ) : null}
         {running > 0 && runningWidth !== "0%" ? (
-          <span className="h-full shrink-0 bg-sky-500/35" style={{ width: runningWidth }} />
+          <span
+            className="h-full shrink-0 bg-sky-500/35"
+            style={{ width: runningWidth }}
+          />
         ) : null}
       </span>
       <span className="type-accent-xs tabular-nums text-faint">
@@ -100,11 +109,18 @@ export function UnitSection({
   const filtered = summary.shown !== summary.total;
 
   return (
-    <section className={cn("glass card-lift rounded-xl", expanded ? "overflow-visible" : "overflow-hidden")}>
+    <section
+      className={cn(
+        "glass card-lift rounded-xl",
+        expanded ? "overflow-visible" : "overflow-hidden",
+      )}
+    >
       <div
         className={cn(
-          "flex items-center gap-3 px-3 py-2.5 transition-colors",
-          expanded ? "border-b border-stroke bg-white/[0.04]" : "hover:bg-white/[0.03]",
+          "flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-3 transition-colors",
+          expanded
+            ? "border-b border-stroke bg-white/[0.04]"
+            : "hover:bg-white/[0.03]",
         )}
       >
         {selecting ? (
@@ -126,7 +142,7 @@ export function UnitSection({
           type="button"
           onClick={onToggleExpanded}
           aria-expanded={expanded}
-          className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+          className="flex min-w-[min(100%,16rem)] flex-1 flex-wrap items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
         >
           <ChevronRight
             className={cn(
@@ -138,7 +154,9 @@ export function UnitSection({
           <span className="type-accent-xs shrink-0 rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-1 text-sky-300">
             {number}
           </span>
-          <span className="min-w-0 truncate text-sm font-medium text-frost">{title}</span>
+          <span className="min-w-0 truncate text-sm font-medium text-frost">
+            {title}
+          </span>
           <UnitCompletionBar
             recorded={summary.recorded}
             running={summary.running}
@@ -154,20 +172,26 @@ export function UnitSection({
           ))}
         </button>
 
-        <div className="type-accent-xs flex shrink-0 items-center gap-3 text-faint">
-          <span title={filtered ? `${summary.shown} of ${summary.total} topics match the filters` : undefined}>
-            {filtered ? `${summary.shown}/${summary.total}` : summary.total} topics
+        <div className="type-accent-xs flex flex-wrap items-center gap-3 text-faint">
+          <span
+            title={
+              filtered
+                ? `${summary.shown} of ${summary.total} topics match the filters`
+                : undefined
+            }
+          >
+            {filtered ? `${summary.shown}/${summary.total}` : summary.total}{" "}
+            topics
           </span>
           {summary.running > 0 ? (
             <span className="text-sky-300" title="Lectures recording right now">
               {summary.running} recording
             </span>
           ) : null}
-          <span title={`${summary.recorded} of ${summary.possible} lectures recorded`}>
-            {summary.recorded} rec
-          </span>
-          <span title={`${summary.accepted} of ${summary.total} topics accepted`}>
-            {summary.accepted} ok
+          <span
+            title={`${summary.accepted} of ${summary.total} topics accepted`}
+          >
+            {summary.accepted} accepted
           </span>
           {deletableCount > 0 ? (
             <PlainButton

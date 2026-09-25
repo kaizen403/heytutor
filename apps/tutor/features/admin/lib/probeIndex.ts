@@ -89,3 +89,12 @@ export function probesByIds(index: ProbeIndex, ids: Iterable<string>): ProbeQues
   }
   return picked;
 }
+
+/** A filtered bulk action must operate on the questions the admin can see. */
+export function visibleSelectedProbes(
+  index: ProbeIndex,
+  selectedIds: Iterable<string>,
+  visibleIds: ReadonlySet<string>,
+): ProbeQuestion[] {
+  return probesByIds(index, selectedIds).filter((probe) => visibleIds.has(probe.id));
+}
