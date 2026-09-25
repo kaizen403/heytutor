@@ -47,7 +47,7 @@ import {
   mergePlaygroundRecordings,
   recordingKey,
 } from "./lib/playgroundBoards";
-import { buildProbeIndex, probesByIds, probesForTopic } from "./lib/probeIndex";
+import { buildProbeIndex, probesForTopic, visibleSelectedProbes } from "./lib/probeIndex";
 import {
   PROBE_DIFFICULTIES,
   unitIdFor,
@@ -321,6 +321,14 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         : visibleUnits,
     [visibleUnits, active],
   );
+  const visibleProbeIds = useMemo(
+    () => new Set(shownUnits.flatMap((unit) => unit.selectableIds)),
+    [shownUnits],
+  );
+  const visibleSelected = useMemo(
+    () => visibleSelectedProbes(probeIndex, selectedIds, visibleProbeIds),
+    [probeIndex, selectedIds, visibleProbeIds],
+  );
   const matchCount = useMemo(
     () => visibleUnits.reduce((sum, unit) => sum + unit.topics.length, 0),
     [visibleUnits],
@@ -518,7 +526,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
   }, []);
 
   const startSelected = () => {
-    const questions = probesByIds(probeIndex, selectedIds);
+    const questions = visibleSelected;
     if (questions.length === 0) {
       return;
     }
@@ -560,11 +568,11 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     });
   };
 
-  const selectedCount = selectedIds.size;
+  const selectedCount = visibleSelected.length;
   const selectedRecordingIds = useMemo(() => {
     const ids: string[] = [];
     const seen = new Set<string>();
-    for (const probe of probesByIds(probeIndex, selectedIds)) {
+    for (const probe of visibleSelected) {
       const board = recordings.get(
         recordingKey(probe.topicId, probe.difficulty),
       );
@@ -575,7 +583,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
       ids.push(board.id);
     }
     return ids;
-  }, [probeIndex, selectedIds, recordings, recordingBoardIds]);
+  }, [visibleSelected, recordings, recordingBoardIds]);
   const completedJobRecordingIds = useMemo(
     () => deletableJobBoardIds(queue.jobs, recordingBoardIds),
     [queue.jobs, recordingBoardIds],

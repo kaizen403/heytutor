@@ -77,7 +77,7 @@ export function RunBar({
   onDeleteCompleted,
   completedDeleteCount,
 }: RunBarProps) {
-  const [open, setOpen] = useState(jobs.length <= 20);
+  const [open, setOpen] = useState(false);
 
   if (jobs.length === 0) {
     return null;

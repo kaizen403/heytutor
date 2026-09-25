@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildProbeIndex, probesForTopic, probesForUnit, probesByIds } from "../../features/admin/lib/probeIndex";
+import { buildProbeIndex, probesForTopic, probesForUnit, probesByIds, visibleSelectedProbes } from "../../features/admin/lib/probeIndex";
 import { PROBE_DIFFICULTIES, parseProbeFile, questionsForTopic, questionsForUnit } from "../../features/admin/lib/probes";
 import { buildLectureStates, cellStateFor } from "../../features/admin/lib/lectureState";
 import { collapseLectureState, topicMatchesFilters, normalizeQuery, filtersAreActive, DEFAULT_TOPIC_FILTERS } from "../../features/admin/lib/topicFilters";
@@ -48,6 +48,8 @@ const someIds = probes.slice(0, 50).map(p => p.id);
 assert(probesByIds(index, someIds).length === 50, "probesByIds lost entries");
 assert(probesByIds(index, ["nope"]).length === 0, "probesByIds invented an entry");
 console.log("✓ probesByIds round-trips and ignores unknown ids");
+const visibleSelection = visibleSelectedProbes(index, new Set(someIds), new Set([someIds[0]!]));
+assert(visibleSelection.length === 1 && visibleSelection[0]?.id === someIds[0], "recording after filtering must exclude hidden selected questions");
 
 // 4. Lecture state precedence: running (attached) beats an older recording.
 const topicId = items[0]!.id;
@@ -219,7 +221,8 @@ assert(runBar.includes('aria-label="Recording run progress"') && runBar.includes
 assert(runCostBox.includes("Cost breakdown") && runCostBox.includes("report?.byKind") && runCostBox.includes("report.bySession"), "run cost breakdown must retain category and lecture detail");
 assert(!playground.includes("interactive: true") && !topicRow.includes("Teach live"), "UX reorganization must not include interactive playback changes");
 assert(playground.includes("if (next === subject) return;"), "clicking the active subject must preserve the selected batch");
-assert(runBar.includes("useState(jobs.length <= 20)"), "large recording batches must start with the job list collapsed");
+assert(runBar.includes("useState(false)"), "a queue that starts empty must not expand when a large recording batch arrives");
+assert(playground.includes("visibleSelectedProbes(probeIndex, selectedIds, visibleProbeIds)"), "recording and selection count must use visible questions");
 console.log("✓ playground UX preserves navigation, selection, recording, and cost details");
 
 console.log("\nverify-admin-playground: all checks passed");
