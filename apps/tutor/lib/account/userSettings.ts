@@ -10,7 +10,6 @@ import {
   DEFAULT_FAMILIARITY,
   isSubjectFamiliarity,
   isTutorAccent,
-  isTutorAudioLanguage,
 } from "@heytutor/tutor-core";
 import {
   DEFAULT_LECTURE_FILE_TYPE,
@@ -121,9 +120,6 @@ export function parseAccountSettings(value: unknown): AccountSettings {
   const familiarity = isSubjectFamiliarity(row.familiarity)
     ? row.familiarity
     : DEFAULT_FAMILIARITY;
-  const audioLanguage = isTutorAudioLanguage(row.audioLanguage)
-    ? row.audioLanguage
-    : DEFAULT_AUDIO_LANGUAGE;
   const accent = isTutorAccent(row.accent) ? row.accent : DEFAULT_ACCENT;
   const markerColor: MarkerColorId = isMarkerColorId(row.markerColor)
     ? row.markerColor
@@ -131,12 +127,13 @@ export function parseAccountSettings(value: unknown): AccountSettings {
 
   return {
     speedMultiplier: clampSpeed(Number(row.speedMultiplier)),
-    fastMode: row.fastMode !== false,
+    // Product UI no longer exposes these; old rows must not stick.
+    fastMode: true,
     familiarity,
-    audioLanguage,
+    audioLanguage: DEFAULT_AUDIO_LANGUAGE,
     accent,
-    narrationEnabled: row.narrationEnabled !== false,
-    lowLatencyVoice: row.lowLatencyVoice === true,
+    narrationEnabled: true,
+    lowLatencyVoice: false,
     subtitlesEnabled: row.subtitlesEnabled === true,
     markerColor,
     markerStunts: parseMarkerStunts(row.markerStunts),
@@ -161,12 +158,10 @@ export function accountSettingsPatch(value: unknown): Partial<AccountSettings> {
   const next: Partial<AccountSettings> = {};
 
   if ("speedMultiplier" in row) next.speedMultiplier = clampSpeed(Number(row.speedMultiplier));
-  if ("fastMode" in row) next.fastMode = row.fastMode === true;
+  // fastMode / audioLanguage / narrationEnabled / lowLatencyVoice are product
+  // defaults, not user patches — ignore so a stale client cannot turn them off.
   if (isSubjectFamiliarity(row.familiarity)) next.familiarity = row.familiarity;
-  if (isTutorAudioLanguage(row.audioLanguage)) next.audioLanguage = row.audioLanguage;
   if (isTutorAccent(row.accent)) next.accent = row.accent;
-  if ("narrationEnabled" in row) next.narrationEnabled = row.narrationEnabled === true;
-  if ("lowLatencyVoice" in row) next.lowLatencyVoice = row.lowLatencyVoice === true;
   if ("subtitlesEnabled" in row) next.subtitlesEnabled = row.subtitlesEnabled === true;
   if (isMarkerColorId(row.markerColor)) next.markerColor = row.markerColor;
   if ("markerStunts" in row) next.markerStunts = parseStuntKinds(row.markerStunts);
@@ -187,9 +182,6 @@ export function readSettingsCache(): Partial<SettingsState> {
   if (typeof window === "undefined") return {};
   const overrides: Partial<SettingsState> = {};
   try {
-    if (window.localStorage.getItem(SETTINGS_CACHE_KEYS.fastMode) === "0") {
-      overrides.fastMode = false;
-    }
     if (window.localStorage.getItem(SETTINGS_CACHE_KEYS.subtitles) === "1") {
       overrides.subtitlesEnabled = true;
     }
@@ -201,16 +193,10 @@ export function readSettingsCache(): Partial<SettingsState> {
     if (isMarkerColorId(storedMarker)) overrides.markerColor = storedMarker;
     const storedLevel = window.localStorage.getItem(SETTINGS_CACHE_KEYS.familiarity);
     if (isSubjectFamiliarity(storedLevel)) overrides.familiarity = storedLevel;
-    const storedLanguage = window.localStorage.getItem(SETTINGS_CACHE_KEYS.audioLanguage);
-    if (isTutorAudioLanguage(storedLanguage)) overrides.audioLanguage = storedLanguage;
+    // fastMode / audioLanguage / narration / lowLatency are product defaults —
+    // never restore a cached override that turns them off.
     const storedAccent = window.localStorage.getItem(SETTINGS_CACHE_KEYS.accent);
     if (isTutorAccent(storedAccent)) overrides.accent = storedAccent;
-    if (window.localStorage.getItem(SETTINGS_CACHE_KEYS.narration) === "0") {
-      overrides.narrationEnabled = false;
-    }
-    if (window.localStorage.getItem(SETTINGS_CACHE_KEYS.lowLatency) === "1") {
-      overrides.lowLatencyVoice = true;
-    }
     const storedStunts = window.localStorage.getItem(SETTINGS_CACHE_KEYS.markerStunts);
     // "" is a real answer here: it is the student having deselected every
     // trick, which `parseStuntKinds` reads as the empty list.

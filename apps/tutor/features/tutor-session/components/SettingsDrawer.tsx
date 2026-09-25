@@ -3,20 +3,16 @@
 import {
   Settings,
   Gauge,
-  Volume2,
   Mic2,
   Captions,
   PenLine,
   Sparkles,
-  Zap,
-  BookOpen,
-  Rabbit,
   FileDown,
 } from "lucide-react";
 
 import Link from "next/link";
 import { useState } from "react";
-import { isSubjectFamiliarity, isTutorAccent, isTutorAudioLanguage, type SubjectFamiliarity } from "@heytutor/tutor-core";
+import { isSubjectFamiliarity, isTutorAccent, isTutorAudioLanguage } from "@heytutor/tutor-core";
 import {
   MarkerStuntPreview,
   STUNT_COPY,
@@ -183,16 +179,6 @@ function ToggleRow({
 
 export { isSubjectFamiliarity, isTutorAccent, isTutorAudioLanguage };
 
-// One axis, shared with the chat-bar picker: how familiar the student is with
-// the subject. The step count itself comes from the question (see
-// `lessonScope.ts`) and this shifts that band one tier, so the hints describe
-// the shift rather than an absolute number a proof would blow past anyway.
-const FAMILIARITY_OPTIONS: ReadonlyArray<[SubjectFamiliarity, string, string]> = [
-  ["new", "New", "Not learned yet, so teach it fully"],
-  ["normal", "Normal", "Rusty, so give the usual lesson"],
-  ["revision", "Revision", "Known already, so refresh only"],
-];
-
 /**
  * Pick the tricks, and watch the one you are picking.
  *
@@ -278,10 +264,6 @@ export function SettingsDrawer({
     onSettingsChange({ ...settings, ...partial });
   };
 
-  // Hindi ships as a single voice, so the accent choice only applies to English.
-  const accentApplies = settings.audioLanguage === "english";
-  const familiarityHint = FAMILIARITY_OPTIONS.find(([id]) => id === settings.familiarity)?.[2];
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -308,39 +290,6 @@ export function SettingsDrawer({
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 pb-6 pt-1">
           <SettingsSection>
-            <SectionLabel icon={Zap}>Fast mode</SectionLabel>
-            <ToggleRow
-              title="Use Fireworks Fast serving"
-              hint="On by default. Planners use Kimi K3 Fast; teaching uses GLM 5.3 Fast. Turn off to stay on standard Kimi K3 and GLM 5.3 Flash."
-              checked={settings.fastMode}
-              onCheckedChange={(checked) => update({ fastMode: checked })}
-            />
-          </SettingsSection>
-
-          <SettingsSection>
-            <SectionLabel icon={BookOpen} note={familiarityHint}>
-              Default familiarity
-            </SectionLabel>
-            <div className="flex flex-wrap gap-2">
-              {FAMILIARITY_OPTIONS.map(([value, label]) => (
-                <SelectPill
-                  key={value}
-                  label={label}
-                  checked={settings.familiarity === value}
-                  onClick={() => update({ familiarity: value })}
-                />
-              ))}
-            </div>
-            <p className="mt-2 text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
-              Familiarity: where every new question starts. Change it per question
-              with Select Familiarity in the chat bar. It says how well you know the topic, not how
-              hard the problem is, so New means the subject is new to you and the tutor assumes
-              less and works through more. Every setting still states the givens, the formula, and
-              what the answer means.
-            </p>
-          </SettingsSection>
-
-          <SettingsSection>
             <SectionLabel icon={Gauge}>Playback Speed</SectionLabel>
             <div className="flex h-8 items-center gap-3">
               <input
@@ -363,28 +312,7 @@ export function SettingsDrawer({
           </SettingsSection>
 
           <SettingsSection>
-            <SectionLabel icon={Volume2}>Audio Language</SectionLabel>
-            <div className="flex flex-wrap gap-2">
-              <SelectPill
-                label="English"
-                checked={settings.audioLanguage === "english"}
-                onClick={() => update({ audioLanguage: "english" })}
-              />
-              <SelectPill
-                label="Hindi"
-                checked={settings.audioLanguage === "hindi"}
-                onClick={() => update({ audioLanguage: "hindi" })}
-              />
-            </div>
-            <p className="mt-2 text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
-              Changes the speaking voice. Lessons are still written and taught in English.
-            </p>
-          </SettingsSection>
-
-          <SettingsSection>
-            <SectionLabel icon={Mic2} note={accentApplies ? undefined : "English only"}>
-              Accent
-            </SectionLabel>
+            <SectionLabel icon={Mic2}>Accent</SectionLabel>
             <div className="flex flex-wrap gap-2">
               {(
                 [
@@ -396,42 +324,11 @@ export function SettingsDrawer({
                 <SelectPill
                   key={value}
                   label={label}
-                  checked={accentApplies && settings.accent === value}
-                  disabled={!accentApplies}
+                  checked={settings.accent === value}
                   onClick={() => update({ accent: value })}
                 />
               ))}
             </div>
-          </SettingsSection>
-
-          <SettingsSection>
-            <SectionLabel icon={Volume2}>Narration</SectionLabel>
-            <ToggleRow
-              title="Speak the lesson out loud"
-              hint="Off keeps the board writing in sync but stays silent, useful in a shared room."
-              checked={settings.narrationEnabled}
-              onCheckedChange={(checked) => update({ narrationEnabled: checked })}
-            />
-          </SettingsSection>
-
-          <SettingsSection>
-            <SectionLabel icon={Rabbit}>Voice quality</SectionLabel>
-            <div className="flex flex-wrap gap-2">
-              <SelectPill
-                label="Natural"
-                checked={!settings.lowLatencyVoice}
-                onClick={() => update({ lowLatencyVoice: false })}
-              />
-              <SelectPill
-                label="Low latency"
-                checked={settings.lowLatencyVoice}
-                onClick={() => update({ lowLatencyVoice: true })}
-              />
-            </div>
-            <p className="mt-2 text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
-              Low latency starts speaking sooner with a slightly flatter voice. Takes effect on the
-              next question.
-            </p>
           </SettingsSection>
 
           <SettingsSection>

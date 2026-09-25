@@ -27,7 +27,6 @@ import {
   DEFAULT_FAMILIARITY,
   type SubjectFamiliarity,
   type TutorAccent,
-  type TutorAudioLanguage,
 } from "@heytutor/tutor-core";
 import { safeNextPath } from "@/lib/auth/publicPaths";
 import { learnerRoleForLogin, type LoginRole } from "@/lib/auth/loginRole";
@@ -54,7 +53,6 @@ export function OnboardingScreen({
   const [examGoal, setExamGoal] = useState<ExamGoal | null>(null);
   const [classYear, setClassYear] = useState<ClassYear | null>(null);
   const [subjects, setSubjects] = useState<SubjectId[]>([]);
-  const [audioLanguage, setAudioLanguage] = useState<TutorAudioLanguage>(DEFAULT_AUDIO_LANGUAGE);
   const [accent, setAccent] = useState<TutorAccent>(DEFAULT_ACCENT);
   const [familiarity, setFamiliarity] = useState<SubjectFamiliarity>(DEFAULT_FAMILIARITY);
   const [error, setError] = useState<string | null>(null);
@@ -123,7 +121,7 @@ export function OnboardingScreen({
           examGoal,
           classYear,
           subjects,
-          audioLanguage,
+          audioLanguage: DEFAULT_AUDIO_LANGUAGE,
           accent,
           familiarity,
         }),
@@ -294,16 +292,6 @@ export function OnboardingScreen({
                 {copy.shared.voiceLegend}
               </legend>
               <div className="flex flex-wrap gap-2">
-                <Choice
-                  label="English"
-                  checked={audioLanguage === "english"}
-                  onClick={() => setAudioLanguage("english")}
-                />
-                <Choice
-                  label="Hindi"
-                  checked={audioLanguage === "hindi"}
-                  onClick={() => setAudioLanguage("hindi")}
-                />
                 <Choice label="India" checked={accent === "india"} onClick={() => setAccent("india")} />
                 <Choice label="UK" checked={accent === "uk"} onClick={() => setAccent("uk")} />
                 <Choice label="US" checked={accent === "us"} onClick={() => setAccent("us")} />
