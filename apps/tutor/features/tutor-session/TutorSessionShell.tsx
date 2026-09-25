@@ -222,44 +222,50 @@ export function TutorSessionShell({
   const [homeSuggestions, setHomeSuggestions] = useState<CanvasLandingSuggestion[] | null>(null);
   const isHeadless = variant === "headless";
 
+  const loadHomeSuggestions = useCallback(async (signal?: AbortSignal, applyGenerated = false) => {
+    try {
+      const response = await fetch("/api/home-suggestions", {
+        signal,
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const result = (await response.json()) as {
+        suggestions?: CanvasLandingSuggestion[];
+        source?: "ai" | "fallback";
+        needsRefresh?: boolean;
+      };
+      if (signal?.aborted) return;
+      if (result.suggestions?.length === 5) {
+        setHomeSuggestions(result.suggestions);
+      }
+      if (!result.needsRefresh) return;
+      const refreshed = await fetch("/api/home-suggestions", {
+        method: "POST",
+        signal,
+        cache: "no-store",
+      });
+      if (!refreshed.ok || signal?.aborted) return;
+      const updated = (await refreshed.json()) as {
+        suggestions?: CanvasLandingSuggestion[];
+        generated?: boolean;
+      };
+      if (signal?.aborted || !updated.generated || updated.suggestions?.length !== 5) return;
+      // A reload keeps a stored pack on screen and only fills in when there was
+      // none. The refresh icon asked for a new set, so a fresh batch replaces it.
+      if (applyGenerated || result.source === "fallback") {
+        setHomeSuggestions(updated.suggestions);
+      }
+    } catch {
+      // The curated cards remain usable if the network or model is unavailable.
+    }
+  }, []);
+
   useEffect(() => {
     if (!isDraft || isHeadless) return;
     const controller = new AbortController();
-    void (async () => {
-      try {
-        const response = await fetch("/api/home-suggestions", {
-          signal: controller.signal,
-          cache: "no-store",
-        });
-        if (!response.ok) return;
-        const result = await response.json() as {
-          suggestions?: CanvasLandingSuggestion[];
-          source?: "ai" | "fallback";
-          needsRefresh?: boolean;
-        };
-        if (!controller.signal.aborted && result.suggestions?.length === 5) {
-          setHomeSuggestions(result.suggestions);
-        }
-        if (!result.needsRefresh) return;
-        const refreshed = await fetch("/api/home-suggestions", {
-          method: "POST",
-          signal: controller.signal,
-          cache: "no-store",
-        });
-        if (!refreshed.ok) return;
-        const updated = await refreshed.json() as {
-          suggestions?: CanvasLandingSuggestion[];
-          generated?: boolean;
-        };
-        if (!controller.signal.aborted && result.source === "fallback" && updated.generated && updated.suggestions?.length === 5) {
-          setHomeSuggestions(updated.suggestions);
-        }
-      } catch {
-        // The curated cards remain usable if the network or model is unavailable.
-      }
-    })();
+    void loadHomeSuggestions(controller.signal);
     return () => controller.abort();
-  }, [isDraft, isHeadless]);
+  }, [isDraft, isHeadless, loadHomeSuggestions]);
   /**
    * What this surface may do, and — separately — whether it draws the app
    * frame. Admin Watch is a `panel`: the whole lesson, inside a drawer that
@@ -1546,6 +1552,11 @@ export function TutorSessionShell({
                     suggestions={accountMe?.settings.showHomeSuggestions === false
                       ? []
                       : homeSuggestions ?? suggestionsForSubjects(parseSubjects(accountMe?.profile?.subjects))}
+                    onRefreshSuggestions={
+                      accountMe?.settings.showHomeSuggestions === false
+                        ? undefined
+                        : () => loadHomeSuggestions(undefined, true)
+                    }
                     onSubmit={(question) => void handleQuestion(question)}
                     onOpenSettings={() => setSettingsOpen(true)}
                     familiarity={settings.familiarity}

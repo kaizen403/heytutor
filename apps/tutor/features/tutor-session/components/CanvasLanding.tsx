@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { Brand } from "@/components/brand/Brand";
 import { LANDING_PROMPT } from "@/lib/site";
 import { useIsMobile } from "@/lib/client/useMediaQuery";
@@ -29,6 +31,8 @@ export interface CanvasLandingProps {
   billingNotice?: BillingFailure | null;
   onUpgrade?: () => void;
   onBillingFailure?: (failure: BillingFailure) => void;
+  /** Swap the stack for another set. The control is an icon, with no label. */
+  onRefreshSuggestions?: () => void | Promise<void>;
 }
 
 export function CanvasLanding({
@@ -42,8 +46,26 @@ export function CanvasLanding({
   billingNotice = null,
   onUpgrade,
   onBillingFailure,
+  onRefreshSuggestions,
 }: CanvasLandingProps) {
   const isMobile = useIsMobile();
+  const [refreshing, setRefreshing] = useState(false);
+  const [listEpoch, setListEpoch] = useState(0);
+
+  function refreshSuggestions() {
+    if (!onRefreshSuggestions || refreshing) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reduceMotion) setRefreshing(true);
+    void (async () => {
+      try {
+        await onRefreshSuggestions();
+      } finally {
+        setListEpoch((epoch) => epoch + 1);
+        if (reduceMotion) return;
+        window.setTimeout(() => setRefreshing(false), 480);
+      }
+    })();
+  }
 
   return (
     <section className="ac-landing animate-wb-fade-in">
@@ -73,8 +95,26 @@ export function CanvasLanding({
 
       {suggestions.length > 0 && (
         <div className="ac-landing__suggestions">
-          <p className="ac-landing__suggestions-label">a lesson or a problem</p>
-          <ul className="ac-landing__question-list">
+          <div className="ac-landing__suggestions-head">
+            <p className="ac-landing__suggestions-label">a lesson or a problem</p>
+            {onRefreshSuggestions ? (
+              <button
+                type="button"
+                className="ac-landing__suggestions-refresh"
+                aria-label="New questions"
+                onClick={refreshSuggestions}
+              >
+                <RefreshCw
+                  className={refreshing ? "is-spinning" : undefined}
+                  aria-hidden
+                />
+              </button>
+            ) : null}
+          </div>
+          <ul
+            key={listEpoch}
+            className={`ac-landing__question-list${listEpoch > 0 ? " is-fresh" : ""}`}
+          >
             {suggestions.map((suggestion) => (
               <li key={suggestion.question} className="ac-landing__question-item">
                 <button
@@ -243,8 +283,16 @@ const STYLES = `
   formulas doodled beside the column, rather than the mono label face the rest
   of the chrome uses. Caveat runs small for its point size, hence the step up.
 */
-.ac-landing__suggestions-label {
+.ac-landing__suggestions-head {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr 1.75rem;
+  align-items: center;
   margin: 0 0 0.65rem;
+}
+
+.ac-landing__suggestions-label {
+  grid-column: 2;
+  margin: 0;
   font-family: var(--font-hand);
   font-size: 1.3125rem;
   font-weight: 500;
@@ -252,6 +300,51 @@ const STYLES = `
   line-height: 1.1;
   color: var(--ink-soft);
   text-align: center;
+}
+
+.ac-landing__suggestions-refresh {
+  grid-column: 3;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.ac-landing__suggestions-refresh svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.ac-landing__suggestions-refresh:hover,
+.ac-landing__suggestions-refresh:focus-visible {
+  color: var(--accent);
+  background: var(--ink-800);
+  outline: none;
+}
+
+.ac-landing__suggestions-refresh svg.is-spinning {
+  animation: ac-landing-refresh-spin 0.48s linear;
+}
+
+@keyframes ac-landing-refresh-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ac-landing__question-list.is-fresh {
+  animation: ac-landing-questions-in 280ms ease;
+}
+
+@keyframes ac-landing-questions-in {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
 }
 
 .ac-landing__question-list {
@@ -400,8 +493,11 @@ const STYLES = `
     margin-top: 0;
   }
 
-  .ac-landing__suggestions-label {
+  .ac-landing__suggestions-head {
     margin-bottom: 0.45rem;
+  }
+
+  .ac-landing__suggestions-label {
     font-size: 1.125rem;
   }
 
@@ -423,8 +519,11 @@ const STYLES = `
 
 @media (prefers-reduced-motion: reduce) {
   .ac-landing__question,
-  .ac-landing__question-go {
+  .ac-landing__question-go,
+  .ac-landing__suggestions-refresh svg.is-spinning,
+  .ac-landing__question-list.is-fresh {
     transition: none;
+    animation: none;
   }
   .ac-landing__question:active {
     transform: none;
