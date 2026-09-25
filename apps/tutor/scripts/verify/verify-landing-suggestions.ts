@@ -105,6 +105,21 @@ assert(
   "the suggestion label must say the stack is lessons and problems, not only questions",
 );
 assert(
+  landingCss.includes('aria-label="New questions"') &&
+    landingCss.includes("ac-landing__suggestions-refresh") &&
+    !/>\s*Refresh\s*</.test(landingCss),
+  "the suggestion stack needs a small icon control, not a Refresh text button",
+);
+const shell = readFileSync(
+  join(here, "../../features/tutor-session/TutorSessionShell.tsx"),
+  "utf8",
+);
+assert(
+  shell.includes("onRefreshSuggestions") &&
+    shell.includes("loadHomeSuggestions(undefined, true)"),
+  "the empty board refresh icon must ask for a new suggestion set",
+);
+assert(
   new Set(LANDING_SUGGESTIONS.map((suggestion) => suggestion.question)).size ===
     LANDING_SUGGESTIONS.length,
   "landing suggestion prompts must be unique",
