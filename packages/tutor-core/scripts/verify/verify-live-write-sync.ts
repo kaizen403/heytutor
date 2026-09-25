@@ -146,6 +146,26 @@ function simulateLiveWrite(input: LiveWriteSimInput): {
 
 // --- the voice is the clock, even after a wall race ------------------------
 {
+  // Browser speech reports a short or partial alignment only at onend. A
+  // longer estimated focus cue still needs to release immediately once the
+  // sentence is over; otherwise each FOCUS waits for its 8 s timeout.
+  const completedFallback = resolveLiveAudioPositionMs({
+    speechComplete: true,
+    capturedDurationMs: 5_334,
+    estimateSpeechMs: 12_556,
+    playbackPositionMs: null,
+    audioStartedAtMs: 0,
+    nowMs: 40_000,
+    maxAudioPositionMs: 5_334,
+    playbackRate: 1.25,
+  });
+  assert(
+    completedFallback.positionMs >= 12_556,
+    `completed browser speech must release estimated focus cues (got ${completedFallback.positionMs})`,
+  );
+}
+
+{
   const raced = resolveLiveAudioPositionMs({
     speechComplete: false,
     capturedDurationMs: null,

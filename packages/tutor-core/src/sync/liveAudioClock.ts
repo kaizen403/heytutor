@@ -27,12 +27,17 @@ const END_PADDING_MS = 40;
 
 export function resolveLiveAudioPositionMs(input: LiveAudioClockInput): LiveAudioClock {
   if (input.speechComplete) {
-    const durationMs =
-      input.capturedDurationMs ??
-      Math.max(input.estimateSpeechMs, 0);
-    const endPosition = durationMs + END_PADDING_MS;
-    const maxAudioPositionMs = Math.max(input.maxAudioPositionMs, endPosition);
-    return { positionMs: endPosition, maxAudioPositionMs };
+    // Browser fallback may hand us a short or partial alignment only when it
+    // ends. Estimated FOCUS and WRITE cues can sit beyond that duration; if
+    // the finished clock stops at the reported end, each later cue waits for
+    // its timeout even though there is no voice left to follow.
+    const endPosition = Math.max(
+      input.capturedDurationMs ?? 0,
+      input.estimateSpeechMs,
+      input.maxAudioPositionMs,
+      0,
+    ) + END_PADDING_MS;
+    return { positionMs: endPosition, maxAudioPositionMs: endPosition };
   }
 
   const playback = input.playbackPositionMs;

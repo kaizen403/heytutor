@@ -30,6 +30,7 @@ import {
   applyBufferSourcePlaybackRate,
   applyHtmlAudioMute,
   applyHtmlAudioPlaybackRate,
+  browserFallbackPlaybackRate,
   clampPlaybackRate,
   createRateMediaClock,
   mediaPositionSec,
@@ -82,6 +83,7 @@ interface SegmentJob {
   resolve: () => void;
   reject: (error: unknown) => void;
   settled: boolean;
+  completing: boolean;
   textSent: boolean;
   playbackStarted: boolean;
   /** ctx.currentTime (seconds) when this job's first audio source begins playing. */
@@ -349,11 +351,13 @@ export class StreamingSpeechClient implements TTSClient {
   private connectedTraceId?: string;
   private connectedSessionId?: string;
   private speechFallback = new SpeechSynthesisTTSClient();
+  private activeBrowserFallbackRate: number | null = null;
   private paused = false;
   private playbackRate = 1.0;
   private mediaClock: RateMediaClock = createRateMediaClock(1);
   private totalScheduledMediaSec = 0;
   private currentHtmlAudio: HTMLAudioElement | null = null;
+  private cancelHtmlAudio: (() => void) | null = null;
   private muted = false;
   private voicePreferences: TutorVoicePreferences = { ...DEFAULT_VOICE_PREFERENCES };
 
@@ -604,6 +608,20 @@ export class StreamingSpeechClient implements TTSClient {
     tutorDebug("tts", "stopActiveAudio", { reason });
   }
 
+  private async speakWithBrowserFallback(
+    spokenText: string,
+    options: SpeakSegmentOptions,
+  ): Promise<void> {
+    const rate = browserFallbackPlaybackRate(this.playbackRate);
+    this.activeBrowserFallbackRate = rate;
+    this.speechFallback.setPlaybackRate(rate);
+    try {
+      await this.speechFallback.speakSegment(spokenText, options);
+    } finally {
+      this.activeBrowserFallbackRate = null;
+    }
+  }
+
   private abortHttpStream(reason: string): void {
     for (const controller of this.httpControllers) {
       controller.abort();
@@ -654,7 +672,7 @@ export class StreamingSpeechClient implements TTSClient {
         }
         tutorDebug("tts", "AudioContext suspended — using speechSynthesis fallback");
         this.stopActiveAudio("suspended-fallback");
-        await this.speechFallback.speakSegment(spokenText, options);
+        await this.speakWithBrowserFallback(spokenText, options);
         return;
       }
     }
@@ -787,7 +805,7 @@ export class StreamingSpeechClient implements TTSClient {
         return;
       }
       try {
-        await this.speechFallback.speakSegment(spokenText, options);
+        await this.speakWithBrowserFallback(spokenText, options);
       } catch (fallbackError) {
         options.onError?.(fallbackError);
       }
@@ -985,6 +1003,7 @@ export class StreamingSpeechClient implements TTSClient {
       resolve: () => {},
       reject: () => {},
       settled: false,
+      completing: false,
       textSent: false,
       playbackStarted: false,
       timingsEmitted: false,
@@ -1359,16 +1378,17 @@ export class StreamingSpeechClient implements TTSClient {
     job.playbackStarted = true;
     this.playing = true;
 
-    if (!job.started) {
+    const notifyStart = () => {
+      if (job.started || job.settled || this.currentJob !== job) return;
       job.started = true;
       tutorDebug("tts", "ws playback start (buffered)", {
         ttft_ms: Math.round(performance.now() - job.startedAt),
         buffered_chunks: playable.length,
       });
       job.options.onStart?.();
-    }
+    };
 
-    const htmlDone = this.tryPlayHtmlAudio(job.capturedChunks, job);
+    const htmlDone = this.tryPlayHtmlAudio(job.capturedChunks, notifyStart);
     if (htmlDone) {
       job.sourceDonePromises.push(htmlDone);
       return;
@@ -1377,6 +1397,7 @@ export class StreamingSpeechClient implements TTSClient {
     for (const audioBuffer of playable) {
       this.scheduleBufferSource(ctx, job, audioBuffer);
     }
+    notifyStart();
   }
 
   private async ingestAudioBuffer(
@@ -1532,7 +1553,7 @@ export class StreamingSpeechClient implements TTSClient {
 
   private async completeCurrentJob(): Promise<void> {
     const job = this.currentJob;
-    if (!job || job.settled) {
+    if (!job || job.settled || job.completing) {
       return;
     }
 
@@ -1547,10 +1568,17 @@ export class StreamingSpeechClient implements TTSClient {
       return;
     }
 
-    job.settled = true;
+    job.completing = true;
     this.clearTimers();
 
-    await Promise.all(job.sourceDonePromises);
+    try {
+      await Promise.all(job.sourceDonePromises);
+    } catch (error) {
+      if (this.currentJob === job && !job.settled) this.failCurrentJob(error);
+      return;
+    }
+    if (this.currentJob !== job || job.settled) return;
+    job.settled = true;
     this.finalizeJob(job);
 
     while (this.jobs.length > 0 && this.jobs[0].settled) {
@@ -1628,7 +1656,7 @@ export class StreamingSpeechClient implements TTSClient {
     options: SpeakSegmentOptions,
   ): Promise<void> {
     try {
-      const ctx = await this.ensureAudioContext();
+      await this.ensureAudioContext();
       const ingested = await this.ingestHttpAudio(entry.spokenText, options, entry.controller);
       entry.buffers = ingested.buffers;
       entry.chunks = ingested.chunks;
@@ -1666,8 +1694,7 @@ export class StreamingSpeechClient implements TTSClient {
     if (entry.timings.totalDuration > 0) {
       options.onTimings?.(toSegmentRelativeAudioTimings(entry.timings));
     }
-    options.onStart?.();
-    const htmlDone = this.tryPlayHtmlAudio(entry.chunks);
+    const htmlDone = this.tryPlayHtmlAudio(entry.chunks, options.onStart);
     if (htmlDone) {
       sourceDonePromises.push(htmlDone);
     } else {
@@ -1677,6 +1704,7 @@ export class StreamingSpeechClient implements TTSClient {
         }
         sourceDonePromises.push(this.scheduleDecodedBuffer(ctx, audioBuffer));
       }
+      options.onStart?.();
     }
     if (entry.chunks.length > 0) {
       options.onAudioCaptured?.({
@@ -1885,8 +1913,7 @@ export class StreamingSpeechClient implements TTSClient {
         started = true;
         this.playing = true;
         this.lastSuccessfulTransport = "http";
-        options.onStart?.();
-        const htmlDone = this.tryPlayHtmlAudio(capturedChunks);
+        const htmlDone = this.tryPlayHtmlAudio(capturedChunks, options.onStart);
         if (htmlDone) {
           sourceDonePromises.push(htmlDone);
           return;
@@ -1894,6 +1921,7 @@ export class StreamingSpeechClient implements TTSClient {
         for (const audioBuffer of playable) {
           sourceDonePromises.push(this.scheduleDecodedBuffer(ctx, audioBuffer));
         }
+        options.onStart?.();
       };
 
       const playLine = async (line: string) => {
@@ -1954,10 +1982,9 @@ export class StreamingSpeechClient implements TTSClient {
     ) as ArrayBuffer;
     const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
     const startAt = Math.max(ctx.currentTime + 0.05, this.scheduledEnd);
-    const htmlDone = this.tryPlayHtmlAudio([bytes]);
+    const htmlDone = this.tryPlayHtmlAudio([bytes], options.onStart);
     if (htmlDone) {
       this.playing = true;
-      options.onStart?.();
       await htmlDone;
       return;
     }
@@ -1980,8 +2007,8 @@ export class StreamingSpeechClient implements TTSClient {
 
       this.activeSources.push(source);
       this.playing = true;
-      options.onStart?.();
       source.start(startAt);
+      options.onStart?.();
       this.totalScheduledMediaSec += audioBuffer.duration;
       this.scheduledEnd = startAt + remainingWallSec(audioBuffer.duration, this.playbackRate);
     });
@@ -1996,15 +2023,17 @@ export class StreamingSpeechClient implements TTSClient {
     if (!audio) {
       return;
     }
+    this.cancelHtmlAudio?.();
     audio.onended = null;
     audio.onerror = null;
+    audio.onplaying = null;
     audio.pause();
     audio.removeAttribute("src");
     audio.load();
     this.currentHtmlAudio = null;
   }
 
-  private tryPlayHtmlAudio(chunks: Uint8Array[], job?: SegmentJob): Promise<void> | null {
+  private tryPlayHtmlAudio(chunks: Uint8Array[], onStart?: () => void): Promise<void> | null {
     if (typeof Audio !== "function" || typeof Blob === "undefined" || chunks.length === 0) {
       return null;
     }
@@ -2024,28 +2053,43 @@ export class StreamingSpeechClient implements TTSClient {
     applyHtmlAudioMute(audio, this.muted);
     this.stopHtmlAudio();
     this.currentHtmlAudio = audio;
-    const ctx = this.audioContext;
-    if (job && job.audibleStartCtxTime === undefined && ctx) {
-      job.audibleStartCtxTime = ctx.currentTime;
-    }
-    if (!job && this.httpPlaybackOriginCtxTime === null && ctx) {
-      this.httpPlaybackOriginCtxTime = ctx.currentTime;
-    }
-    return new Promise<void>((resolve) => {
-      const finish = () => {
+    return new Promise<void>((resolve, reject) => {
+      let settled = false;
+      let started = false;
+      const announceStart = () => {
+        if (settled || started || this.currentHtmlAudio !== audio) return;
+        started = true;
+        onStart?.();
+      };
+      const finish = (error?: Error) => {
+        if (settled) return;
+        settled = true;
+        audio.onended = null;
+        audio.onerror = null;
+        audio.onplaying = null;
         URL.revokeObjectURL(url);
         if (this.currentHtmlAudio === audio) {
           this.currentHtmlAudio = null;
+          this.cancelHtmlAudio = null;
         }
         if (this.activeSources.length === 0) {
           this.playing = false;
         }
-        resolve();
+        if (error) reject(error);
+        else resolve();
       };
-      audio.onended = finish;
-      audio.onerror = finish;
+      this.cancelHtmlAudio = () => finish(new DOMException("audio stopped", "AbortError"));
+      audio.onplaying = announceStart;
+      audio.onended = () => finish();
+      audio.onerror = () => finish(new Error("HTML audio playback failed"));
       this.playing = true;
-      void audio.play().catch(finish);
+      try {
+        void audio.play().then(announceStart, (error: unknown) => {
+          finish(error instanceof Error ? error : new Error(String(error)));
+        });
+      } catch (error) {
+        finish(error instanceof Error ? error : new Error(String(error)));
+      }
     });
   }
 
@@ -2161,6 +2205,7 @@ export class StreamingSpeechClient implements TTSClient {
     this.finishedContexts.clear();
     this.paused = false;
     this.speechFallback.stop();
+    this.activeBrowserFallbackRate = null;
     releaseLectureAudioContext(this.audioContext);
     this.audioContext = null;
     this.outputGain = null;
@@ -2172,8 +2217,10 @@ export class StreamingSpeechClient implements TTSClient {
 
   getPlaybackPositionMs(): number | null {
     const html = this.currentHtmlAudio;
-    if (html && Number.isFinite(html.currentTime) && html.currentTime > 0) {
-      return html.currentTime * 1000;
+    if (html) {
+      return Number.isFinite(html.currentTime) && html.currentTime > 0
+        ? html.currentTime * 1000
+        : null;
     }
     const ctx = this.audioContext;
     if (!ctx) {
@@ -2237,10 +2284,10 @@ export class StreamingSpeechClient implements TTSClient {
     if (this.currentHtmlAudio) {
       applyHtmlAudioPlaybackRate(this.currentHtmlAudio, safe);
     }
-    this.speechFallback.setPlaybackRate(safe);
+    this.speechFallback.setPlaybackRate(browserFallbackPlaybackRate(safe));
   }
 
   getPlaybackRate(): number {
-    return this.playbackRate;
+    return this.activeBrowserFallbackRate ?? this.playbackRate;
   }
 }

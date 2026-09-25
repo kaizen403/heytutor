@@ -14,6 +14,11 @@ export function clampPlaybackRate(rate: number): number {
   return Math.min(Math.max(rate, MIN_PLAYBACK_RATE), MAX_PLAYBACK_RATE);
 }
 
+/** System speech becomes harsh above natural pace; keep fallback ink on its actual rate. */
+export function browserFallbackPlaybackRate(rate: number): number {
+  return Math.min(clampPlaybackRate(rate), 1);
+}
+
 export function applyHtmlAudioPlaybackRate(audio: HTMLAudioElement, rate: number): void {
   const safe = clampPlaybackRate(rate);
   audio.playbackRate = safe;

@@ -3,6 +3,7 @@ import { StreamingSpeechClient } from "../../../../packages/tutor-core/src/tts/s
 import { pcmToWav } from "../../lib/tts/cartesiaProtocol";
 import { createTtsRelay } from "../../lib/tts/ttsProvider";
 import { ttsConfig } from "../../lib/tts/providerConfig";
+import { requireSpeechStart } from "../../features/tutor-session/lib/turn/speechStartup";
 
 const relay = createTtsRelay(
   ttsConfig("en-IN", false, { CARTESIA_API_KEY: "test" }),
@@ -80,10 +81,14 @@ class Socket {
   }
 }
 class AudioContextFake {
+  static latest: AudioContextFake | null = null;
   state = "running";
   currentTime = 0;
   sampleRate = 24000;
   destination = {};
+  constructor() {
+    AudioContextFake.latest = this;
+  }
   async resume() {
     this.state = "running";
   }
@@ -211,6 +216,181 @@ async function main() {
   assert.equal(httpCalls, 1);
   assert.equal(captures[2]?.mimeType, "audio/wav");
   httpClient.stop();
+
+  // An HTMLAudioElement may wait for its decoder or output device after
+  // play() is called. The whiteboard must not consume AudioContext time as
+  // though that pending element were audible, and a rejected play() must not
+  // count as a successfully spoken segment.
+  class DelayedAudio {
+    static latest: DelayedAudio | null = null;
+    currentTime = 0;
+    playbackRate = 1;
+    preservesPitch = false;
+    muted = false;
+    volume = 1;
+    onended: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    private resolvePlay: (() => void) | null = null;
+    private rejectPlay: ((error: Error) => void) | null = null;
+    constructor() {
+      DelayedAudio.latest = this;
+    }
+    play(): Promise<void> {
+      return new Promise((resolve, reject) => {
+        this.resolvePlay = resolve;
+        this.rejectPlay = reject;
+      });
+    }
+    start() {
+      this.currentTime = 0.05;
+      this.resolvePlay?.();
+    }
+    fail() {
+      this.rejectPlay?.(new Error("audio output blocked"));
+    }
+    end() {
+      this.onended?.();
+    }
+    pause() {}
+    removeAttribute() {}
+    load() {}
+  }
+  Object.defineProperty(globalThis, "Audio", {
+    configurable: true,
+    value: DelayedAudio,
+  });
+  const currentHtmlAudio = (): DelayedAudio | null => DelayedAudio.latest;
+  globalThis.fetch = async (input) => {
+    if (String(input).endsWith("/api/tts/ws-ticket"))
+      return new Response(null, { status: 401 });
+    return new Response(
+      JSON.stringify({ audio: pcmToWav(Buffer.alloc(4800)).toString("base64") }) + "\n",
+    );
+  };
+  const delayedClient = new StreamingSpeechClient();
+  delayedClient.setPlaybackRate(1.25);
+  let starts = 0;
+  const delayed = delayedClient.speakSegment("Delayed.", {
+    onStart: () => { starts++; },
+  });
+  for (let i = 0; !currentHtmlAudio() && i < 50; i++)
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  const firstAudio = currentHtmlAudio();
+  assert(firstAudio, "HTTP narration must reach HTML audio");
+  AudioContextFake.latest!.currentTime = 1;
+  assert.equal(starts, 0, "pending play() must not release the drawing start gate");
+  assert.equal(delayedClient.getPlaybackPositionMs(), null, "pending HTML audio must not use the running AudioContext clock");
+  firstAudio.start();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(starts, 1, "audible HTML playback starts the paired drawing");
+  assert(Math.abs((delayedClient.getPlaybackPositionMs() ?? 0) - 50) < 1, "drawing follows the HTML media clock");
+  firstAudio.end();
+  await delayed;
+  DelayedAudio.latest = null;
+  const blocked = delayedClient.speakSegment("Blocked.", {
+    onStart: () => { starts++; },
+  });
+  for (let i = 0; !currentHtmlAudio() && i < 50; i++)
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  const blockedAudio = currentHtmlAudio();
+  assert(blockedAudio);
+  blockedAudio.fail();
+  await assert.rejects(
+    requireSpeechStart(blocked, () => starts > 1),
+    /voice could not start/i,
+    "blocked playback must be recoverable, not silently treated as spoken",
+  );
+  assert.equal(starts, 1, "blocked playback must not release the drawing start gate");
+  delayedClient.stop();
+
+  // The normal production transport is WebSocket lookahead. It must obey the
+  // same audible-start contract as the HTTP fallback above.
+  DelayedAudio.latest = null;
+  globalThis.fetch = async (input) => {
+    if (String(input).endsWith("/api/tts/ws-ticket"))
+      return Response.json({ ticket: "test" });
+    throw new Error("WebSocket narration unexpectedly fell back to HTTP");
+  };
+  const wsDelayedClient = new StreamingSpeechClient();
+  wsDelayedClient.setPlaybackRate(1.25);
+  let wsStarts = 0;
+  const wsDelayed = wsDelayedClient.speakSegment("Socket delayed.", {
+    onStart: () => { wsStarts++; },
+  });
+  for (let i = 0; !currentHtmlAudio() && i < 50; i++)
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  const socketAudio = currentHtmlAudio();
+  assert(socketAudio, "WebSocket narration must reach HTML audio");
+  AudioContextFake.latest!.currentTime = 1;
+  assert.equal(wsStarts, 0, "WebSocket playback must wait for audible HTML audio");
+  assert.equal(wsDelayedClient.getPlaybackPositionMs(), null, "WebSocket drawing must not run on the AudioContext while HTML audio buffers");
+  socketAudio.start();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(wsStarts, 1);
+  socketAudio.end();
+  await wsDelayed;
+  DelayedAudio.latest = null;
+  const wsBlocked = wsDelayedClient.speakSegment("Socket blocked.", {
+    onStart: () => { wsStarts++; },
+  });
+  for (let i = 0; !currentHtmlAudio() && i < 50; i++)
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  const socketBlockedAudio = currentHtmlAudio();
+  assert(socketBlockedAudio);
+  socketBlockedAudio.fail();
+  await assert.rejects(
+    requireSpeechStart(wsBlocked, () => wsStarts > 1),
+    /voice could not start/i,
+    "a rejected WebSocket playback must fail over instead of hanging the segment",
+  );
+  assert.equal(wsStarts, 1);
+  wsDelayedClient.stop();
+
+  let fallbackUtteranceRate = 0;
+  class Utterance {
+    rate = 1;
+    pitch = 1;
+    volume = 1;
+    onstart: (() => void) | null = null;
+    onend: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    onboundary: (() => void) | null = null;
+    constructor(readonly text: string) {}
+  }
+  Object.defineProperty(globalThis, "SpeechSynthesisUtterance", {
+    configurable: true,
+    value: Utterance,
+  });
+  Object.defineProperty(globalThis, "speechSynthesis", {
+    configurable: true,
+    value: {
+      getVoices: () => [],
+      resume() {},
+      cancel() {},
+      speak(utterance: Utterance) {
+        fallbackUtteranceRate = utterance.rate;
+        setTimeout(() => {
+          utterance.onstart?.();
+          setTimeout(() => utterance.onend?.(), 10);
+        }, 0);
+      },
+    },
+  });
+  globalThis.fetch = async (input) => {
+    if (String(input).endsWith("/api/tts/ws-ticket"))
+      return new Response(null, { status: 401 });
+    throw new Error("speech provider unavailable");
+  };
+  const naturalFallbackClient = new StreamingSpeechClient();
+  naturalFallbackClient.setPlaybackRate(2);
+  let rateDuringFallback = 0;
+  await naturalFallbackClient.speakSegment("Natural fallback.", {
+    onStart: () => { rateDuringFallback = naturalFallbackClient.getPlaybackRate(); },
+  });
+  assert.equal(fallbackUtteranceRate, 1, "system voice must not speak at the user's 2× media rate");
+  assert.equal(rateDuringFallback, 1, "drawing must follow the fallback's actual 1× voice rate");
+  assert.equal(naturalFallbackClient.getPlaybackRate(), 2, "provider audio retains the selected rate afterward");
+  naturalFallbackClient.stop();
   console.log(
     "Cartesia adapter → browser: final-packet audio, lookahead, timings-before-start, WAV decoding and replay capture passed",
   );

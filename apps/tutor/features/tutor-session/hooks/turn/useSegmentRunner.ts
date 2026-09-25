@@ -40,6 +40,7 @@ import {
   type InitialTimingWaitRelease,
   type TTSClient,
   SpeechSynthesisTTSClient,
+  browserFallbackPlaybackRate,
 } from "@heytutor/tutor-core";
 import { waitUntilDrawClock } from "@/lib/replay/replayAudio";
 import { orderCommandsBySpokenAnchor } from "../../lib/turn/segmentPlanning";
@@ -108,6 +109,8 @@ export function useSegmentRunner({
       if (isStale()) return;
 
       const tts = ensureTTSClient();
+      let browserRecoveryRate: number | null = null;
+      const segmentPlaybackRate = () => browserRecoveryRate ?? tts.getPlaybackRate?.() ?? 1;
 
       tutorDebug("segment", "runSegment start", {
         index,
@@ -270,7 +273,7 @@ export function useSegmentRunner({
           audioStartedAtMs,
           nowMs: performance.now(),
           maxAudioPositionMs,
-          playbackRate: tts.getPlaybackRate?.() ?? 1,
+          playbackRate: segmentPlaybackRate(),
         });
         maxAudioPositionMs = resolved.maxAudioPositionMs;
         return resolved.positionMs;
@@ -587,7 +590,7 @@ export function useSegmentRunner({
                   charDurationsMs: writeSchedule.charDurationsMs,
                   getAudioPositionMs: liveAudioPositionMs,
                   // The slots are media ms; the glyph tween runs in wall time.
-                  getPlaybackRate: () => tts.getPlaybackRate?.() ?? 1,
+                  getPlaybackRate: segmentPlaybackRate,
                   onCharacterStart: ({ char, index: charIndex, targetMs, audioPositionMs }) => {
                     if (loggedChars >= 8) {
                       return;
@@ -706,7 +709,7 @@ export function useSegmentRunner({
             if (startDelayMs > 0 && (cueStartMs !== null || speechWindow)) {
               await waitUntilDrawClock(liveAudioPositionMs, cueStartMs ?? speechWindow!.startMs, {
                 shouldCancel: isCancelled,
-                getPlaybackRate: () => tts.getPlaybackRate?.() ?? 1,
+                getPlaybackRate: segmentPlaybackRate,
               });
               if (isCancelled()) {
                 return;
@@ -792,7 +795,7 @@ export function useSegmentRunner({
               ...(cueWindow ? { cued: true } : {}),
               ...(focusSchedule ? { focusSchedule } : {}),
               getAudioPositionMs: liveAudioPositionMs,
-              getPlaybackRate: () => tts.getPlaybackRate?.() ?? 1,
+              getPlaybackRate: segmentPlaybackRate,
               // The sentence's own clock for the code lesson. TYPE, FRAME and
               // the code-lesson FOCUS follow its words with it (see
               // lib/code-lesson/codeSpokenSync.ts, SpokenSegmentClock). The
@@ -804,7 +807,7 @@ export function useSegmentRunner({
                 getTimings: () => capturedTimings,
                 estimatedTotalMs: estimateSpeechMs,
                 getAudioPositionMs: liveAudioPositionMs,
-                getPlaybackRate: () => tts.getPlaybackRate?.() ?? 1,
+                getPlaybackRate: segmentPlaybackRate,
                 msPerChar: speechMsPerChar,
               },
             });
@@ -929,7 +932,7 @@ export function useSegmentRunner({
             }),
             fallback: async () => {
               browserSpeechRef.current ??= new SpeechSynthesisTTSClient();
-              browserSpeechRef.current.setPlaybackRate(tts.getPlaybackRate?.() ?? 1);
+              browserSpeechRef.current.setPlaybackRate(segmentPlaybackRate());
               let browserError: unknown = null;
               await browserSpeechRef.current.speakSegment(text, {
                 ...options,
@@ -945,6 +948,7 @@ export function useSegmentRunner({
             canFallback: () => !isCancelled() && !isPausedRef.current,
             onFallback: (reason) => {
               usingBrowserFallback = true;
+              browserRecoveryRate = browserFallbackPlaybackRate(tts.getPlaybackRate?.() ?? 1);
               capturedAudio = null;
               capturedTimings = null;
               capturedDurationMs = null;
@@ -960,7 +964,7 @@ export function useSegmentRunner({
                 speechPlaybackOverdue({
                   elapsedMs: performance.now() - audioStartedAtMs,
                   audioDurationMs: timings.totalDuration * 1000,
-                  playbackRate: tts.getPlaybackRate?.() ?? 1,
+                  playbackRate: segmentPlaybackRate(),
                   paused: isPausedRef.current,
                 })
               ) {
