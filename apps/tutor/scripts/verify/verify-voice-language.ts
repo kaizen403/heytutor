@@ -126,24 +126,41 @@ process.env.ELEVENLABS_VOICE_ID_HI = saved.hi ?? "";
 if (saved.gb) process.env.ELEVENLABS_VOICE_ID_EN_GB = saved.gb;
 if (saved.us) process.env.ELEVENLABS_VOICE_ID_EN_US = saved.us;
 
-// --- student-usable path: pills write, persist, and reach TTS --------------
+// --- student-usable path: accent writes, persist, and reach TTS ------------
 const settingsDrawer = readFileSync(
   resolve(root, "features/tutor-session/components/SettingsDrawer.tsx"),
   "utf8",
 );
-assert(!settingsDrawer.includes("Soon"), "Audio Language / Accent must not ship a Soon badge");
+assert(!settingsDrawer.includes("Soon"), "Accent must not ship a Soon badge");
 assert(!settingsDrawer.includes("subtitleLanguage"), "dead subtitleLanguage field came back");
 assert(
-  settingsDrawer.includes("Lessons are still written and taught in English"),
-  "language pills must not claim they translate the lesson",
+  !settingsDrawer.includes('update({ audioLanguage: "hindi" })'),
+  "the drawer must not offer a Hindi audioLanguage pill",
 );
 assert(
-  settingsDrawer.includes('onClick={() => update({ audioLanguage: "hindi" })}'),
-  "the Hindi pill must change audioLanguage",
+  !settingsDrawer.includes("Audio Language"),
+  "Audio Language is no longer a student setting",
 );
 assert(
-  settingsDrawer.includes("disabled={!accentApplies}"),
-  "accent pills must stay enabled for English and disable only for Hindi",
+  !settingsDrawer.includes("disabled={!accentApplies}") && !settingsDrawer.includes("English only"),
+  "accent pills stay enabled now that audio is always English",
+);
+assert(settingsDrawer.includes('update({ accent: value })'), "accent pills must write accent");
+
+const settingsScreen = readFileSync(
+  resolve(root, "features/account/SettingsScreen.tsx"),
+  "utf8",
+);
+assert(
+  !settingsScreen.includes('patch({ audioLanguage: "hindi" })') &&
+    !settingsScreen.includes('label="Hindi"'),
+  "account settings must not offer Hindi audio",
+);
+assert(
+  !settingsScreen.includes('title="Fast mode"') &&
+    !settingsScreen.includes('title="Narration"') &&
+    !settingsScreen.includes('label="Low latency"'),
+  "account settings must not expose fast mode, narration, or low-latency voice",
 );
 
 const shell = readFileSync(
@@ -160,9 +177,15 @@ for (const key of [
   assert(shell.includes(key), `persisted setting ${key} is missing from the shell`);
 }
 assert(shell.includes("settingsHydrated"), "persist writes must wait until stored settings load");
-assert(shell.includes("toVoiceKey(settings.audioLanguage, settings.accent)"), "shell must collapse language+accent");
+assert(
+  shell.includes("toVoiceKey(DEFAULT_AUDIO_LANGUAGE, settings.accent)") ||
+    shell.includes("toVoiceKey(DEFAULT_AUDIO_LANGUAGE, accent)"),
+  "shell must collapse English + accent into the voice key",
+);
 assert(shell.includes("setVoicePreferences"), "shell must push the voice key into the TTS client");
 assert(shell.includes("voicePreferencesRef"), "first TTS create must see the stored voice, not the default");
+assert(!shell.includes("cache.fastMode === false"), "shell must not apply a cached fastMode off");
+assert(shell.includes("fastModeRef.current = true"), "fastModeRef must stay on");
 
 const boardSession = readFileSync(
   resolve(root, "features/tutor-session/hooks/useBoardSession.ts"),

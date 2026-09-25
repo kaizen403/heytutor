@@ -25,13 +25,36 @@ assert(parseAccountSettings({}).speedMultiplier === DEFAULT_PLAYBACK_SPEED, "mis
 const parsed = parseAccountSettings({
   speedMultiplier: 2,
   fastMode: false,
+  audioLanguage: "hindi",
+  narrationEnabled: false,
+  lowLatencyVoice: true,
   teachingNote: "  I mix up unit vectors  ",
   alwaysShowUnits: true,
 });
 assert(parsed.speedMultiplier === 2, "speed is kept");
-assert(parsed.fastMode === false, "fast mode can turn off");
+assert(parsed.fastMode === true, "fast mode stays on even when the row says off");
+assert(parsed.audioLanguage === "english", "audio stays English even when the row says Hindi");
+assert(parsed.narrationEnabled === true, "narration stays on even when the row says off");
+assert(parsed.lowLatencyVoice === false, "voice stays Natural even when the row says low latency");
 assert(parsed.teachingNote === "I mix up unit vectors", "teaching note is trimmed");
 assert(parsed.alwaysShowUnits === true, "units toggle is kept");
+
+assert(
+  !("fastMode" in accountSettingsPatch({ fastMode: false })),
+  "a PATCH cannot turn fast mode off",
+);
+assert(
+  !("audioLanguage" in accountSettingsPatch({ audioLanguage: "hindi" })),
+  "a PATCH cannot switch audio language",
+);
+assert(
+  !("narrationEnabled" in accountSettingsPatch({ narrationEnabled: false })),
+  "a PATCH cannot turn narration off",
+);
+assert(
+  !("lowLatencyVoice" in accountSettingsPatch({ lowLatencyVoice: true })),
+  "a PATCH cannot switch to low latency voice",
+);
 
 const lesson = lessonSettingsFromAccount(parsed);
 assert(lesson.speedMultiplier === 2, "lesson sheet gets speed");

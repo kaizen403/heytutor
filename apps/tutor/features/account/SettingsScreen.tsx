@@ -102,22 +102,8 @@ export function SettingsScreen({ section }: { section: string }) {
             <AccountCard title="Tutor">
               <p className="mb-3 text-xs text-[rgba(237,237,235,0.5)]">
                 These instructions go into the teaching prompt only. They never reach scene-engine geometry.
+                Familiarity is chosen in the lesson chat bar.
               </p>
-              <div className="flex flex-wrap gap-2">
-                {(["new", "normal", "revision"] as const).map((value) => (
-                  <Choice
-                    key={value}
-                    label={value}
-                    checked={settings.familiarity === value}
-                    onClick={() => patch({ familiarity: value })}
-                  />
-                ))}
-              </div>
-              <Toggle
-                title="Fast mode"
-                checked={settings.fastMode}
-                onChange={(checked) => patch({ fastMode: checked })}
-              />
               <Toggle
                 title="Always show units"
                 checked={settings.alwaysShowUnits}
@@ -143,19 +129,10 @@ export function SettingsScreen({ section }: { section: string }) {
 
           {active === "voice" ? (
             <AccountCard title="Voice and speech">
-              <Toggle
-                title="Narration"
-                checked={settings.narrationEnabled}
-                onChange={(checked) => patch({ narrationEnabled: checked })}
-              />
               <div className="mt-3 flex flex-wrap gap-2">
-                <Choice label="English" checked={settings.audioLanguage === "english"} onClick={() => patch({ audioLanguage: "english" })} />
-                <Choice label="Hindi" checked={settings.audioLanguage === "hindi"} onClick={() => patch({ audioLanguage: "hindi" })} />
                 <Choice label="India" checked={settings.accent === "india"} onClick={() => patch({ accent: "india" })} />
                 <Choice label="UK" checked={settings.accent === "uk"} onClick={() => patch({ accent: "uk" })} />
                 <Choice label="US" checked={settings.accent === "us"} onClick={() => patch({ accent: "us" })} />
-                <Choice label="Natural" checked={!settings.lowLatencyVoice} onClick={() => patch({ lowLatencyVoice: false })} />
-                <Choice label="Low latency" checked={settings.lowLatencyVoice} onClick={() => patch({ lowLatencyVoice: true })} />
               </div>
               <label className="mt-4 block text-xs text-[rgba(237,237,235,0.55)]">
                 Playback speed {settings.speedMultiplier}x

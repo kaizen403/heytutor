@@ -24,6 +24,7 @@ import {
   type SettingsState,
 } from "@/features/tutor-session/components/SettingsDrawer";
 import {
+  DEFAULT_AUDIO_LANGUAGE,
   toVoiceKey,
   type SubjectFamiliarity,
   type TutorVoicePreferences,
@@ -412,18 +413,24 @@ export function TutorSessionShell({
       delete cache.speedMultiplier;
     }
     if (Object.keys(cache).length > 0) {
-      if (cache.fastMode === false) fastModeRef.current = false;
       if (cache.familiarity) familiarityRef.current = cache.familiarity;
       // Read after mount so SSR HTML stays the production default.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSettings((current) => ({ ...current, ...cache }));
+      setSettings((current) => ({
+        ...current,
+        ...cache,
+        // Product defaults: never apply a cached off/Hindi/low-latency override.
+        fastMode: true,
+        audioLanguage: DEFAULT_AUDIO_LANGUAGE,
+        narrationEnabled: true,
+        lowLatencyVoice: false,
+      }));
     }
-    const language = cache.audioLanguage ?? DEFAULT_SETTINGS.audioLanguage;
+    fastModeRef.current = true;
     const accent = cache.accent ?? DEFAULT_SETTINGS.accent;
-    const lowLatency = cache.lowLatencyVoice ?? DEFAULT_SETTINGS.lowLatencyVoice;
     voicePreferencesRef.current = {
-      voiceKey: toVoiceKey(language, accent),
-      lowLatency,
+      voiceKey: toVoiceKey(DEFAULT_AUDIO_LANGUAGE, accent),
+      lowLatency: false,
     };
 
     let cancelled = false;
@@ -435,6 +442,10 @@ export function TutorSessionShell({
       .then((data) => {
         if (cancelled || !data?.settings) return;
         const next = lessonSettingsFromAccount(data.settings);
+        next.fastMode = true;
+        next.audioLanguage = DEFAULT_AUDIO_LANGUAGE;
+        next.narrationEnabled = true;
+        next.lowLatencyVoice = false;
         teachingPrefsRef.current = {
           teachingNote: data.settings.teachingNote,
           alwaysShowUnits: data.settings.alwaysShowUnits,
@@ -445,7 +456,7 @@ export function TutorSessionShell({
         }
         setSettings(next);
         writeSettingsCache(next);
-        fastModeRef.current = next.fastMode;
+        fastModeRef.current = true;
         familiarityRef.current = next.familiarity;
       })
       .catch(() => {
@@ -460,11 +471,11 @@ export function TutorSessionShell({
   }, [isHeadless, speedIsControlled]);
 
   useEffect(() => {
-    fastModeRef.current = settings.fastMode;
+    fastModeRef.current = true;
     if (!settingsHydrated || isHeadless || typeof window === "undefined") {
       return;
     }
-    writeStoredSetting(FAST_MODE_STORAGE_KEY, settings.fastMode ? "1" : "0");
+    writeStoredSetting(FAST_MODE_STORAGE_KEY, "1");
   }, [settings.fastMode, isHeadless, settingsHydrated]);
 
   useEffect(() => {
@@ -496,31 +507,26 @@ export function TutorSessionShell({
     writeStoredSetting(FAMILIARITY_STORAGE_KEY, settings.familiarity);
   }, [settings.familiarity, isHeadless, settingsHydrated]);
 
-  // Language/accent/latency reach the server as one voice key; the TTS client
-  // reconnects on the next segment so the new voice is used.
+  // Accent reaches the server as part of the English voice key; the TTS client
+  // reconnects on the next segment so the new voice is used. Audio stays English
+  // and natural (not low-latency) — those are no longer student toggles.
   useEffect(() => {
     if (!settingsHydrated) {
       return;
     }
     const voicePreferences: TutorVoicePreferences = {
-      voiceKey: toVoiceKey(settings.audioLanguage, settings.accent),
-      lowLatency: settings.lowLatencyVoice,
+      voiceKey: toVoiceKey(DEFAULT_AUDIO_LANGUAGE, settings.accent),
+      lowLatency: false,
     };
     voicePreferencesRef.current = voicePreferences;
     ttsClientRef.current?.setVoicePreferences?.(voicePreferences);
     if (isHeadless || typeof window === "undefined") {
       return;
     }
-    writeStoredSetting(AUDIO_LANGUAGE_STORAGE_KEY, settings.audioLanguage);
+    writeStoredSetting(AUDIO_LANGUAGE_STORAGE_KEY, DEFAULT_AUDIO_LANGUAGE);
     writeStoredSetting(ACCENT_STORAGE_KEY, settings.accent);
-    writeStoredSetting(LOW_LATENCY_STORAGE_KEY, settings.lowLatencyVoice ? "1" : "0");
-  }, [
-    settings.audioLanguage,
-    settings.accent,
-    settings.lowLatencyVoice,
-    isHeadless,
-    settingsHydrated,
-  ]);
+    writeStoredSetting(LOW_LATENCY_STORAGE_KEY, "0");
+  }, [settings.accent, isHeadless, settingsHydrated]);
 
   useEffect(() => {
     if (!settingsHydrated || !can.persistSettings) return;
@@ -568,11 +574,12 @@ export function TutorSessionShell({
 
   useEffect(() => {
     // A headless/muted embed stays silent regardless of the student's choice.
+    // Narration itself stays on — there is no student toggle anymore.
     ttsClientRef.current?.setMuted?.(mutePlayback || !settings.narrationEnabled);
     if (!settingsHydrated || isHeadless || typeof window === "undefined") {
       return;
     }
-    writeStoredSetting(NARRATION_STORAGE_KEY, settings.narrationEnabled ? "1" : "0");
+    writeStoredSetting(NARRATION_STORAGE_KEY, "1");
   }, [settings.narrationEnabled, mutePlayback, isHeadless, settingsHydrated]);
 
   // Keep AudioContext eligible for audible playback after long planning awaits.
