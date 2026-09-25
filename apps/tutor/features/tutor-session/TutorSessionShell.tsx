@@ -1329,6 +1329,9 @@ export function TutorSessionShell({
           height={BOARD_HEIGHT}
           cursorState={cursorState}
           inkColor={getMarkerColorHex(settings.markerColor)}
+          pencilColor={getMarkerColorHex(settings.pencilColor)}
+          markerThickness={settings.markerThickness}
+          pencilThickness={settings.pencilThickness}
           markerStunts={settings.markerStunts}
         />
         {waitingToTeach && (

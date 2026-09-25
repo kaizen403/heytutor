@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { AccountCard, AccountPageFrame } from "./AccountPageFrame";
 import { SiteButton } from "@/components/ui/site-button";
+import { BoardInkControls } from "@/features/tutor-session/components/BoardInkControls";
 import {
   SETTINGS_SECTION_LABELS,
   SETTINGS_SECTIONS,
@@ -18,7 +19,6 @@ import {
   type AccountSettings,
 } from "@/lib/account/userSettings";
 import {
-  MARKER_COLORS,
   getMarkerColorHex,
   toggleMarkerStunt,
 } from "@/features/tutor-session/components/SettingsDrawer";
@@ -41,6 +41,8 @@ export function SettingsScreen({ section }: { section: string }) {
   const active: SettingsSection = isSettingsSection(section) ? section : "general";
   const [settings, setSettings] = useState<AccountSettings>(DEFAULT_ACCOUNT_SETTINGS);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
+  const pendingPatchRef = useRef<Partial<AccountSettings>>({});
+  const savingRef = useRef(false);
 
   useEffect(() => {
     void fetch("/api/account/me")
@@ -51,13 +53,37 @@ export function SettingsScreen({ section }: { section: string }) {
       });
   }, []);
 
+  const savePending = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    try {
+      // A slider can change several times before one PATCH returns. Send one
+      // request at a time so an older value cannot overwrite the final choice.
+      while (Object.keys(pendingPatchRef.current).length > 0) {
+        const next = pendingPatchRef.current;
+        pendingPatchRef.current = {};
+        try {
+          const response = await fetch("/api/account/settings", {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(next),
+          });
+          if (!response.ok) throw new Error("Could not save settings");
+        } catch {
+          // Retain the latest value for each setting so the next edit retries it.
+          pendingPatchRef.current = { ...next, ...pendingPatchRef.current };
+          break;
+        }
+      }
+    } finally {
+      savingRef.current = false;
+    }
+  };
+
   const patch = (partial: Partial<AccountSettings>) => {
     setSettings((current) => ({ ...current, ...partial }));
-    void fetch("/api/account/settings", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(partial),
-    });
+    pendingPatchRef.current = { ...pendingPatchRef.current, ...partial };
+    void savePending();
   };
 
   return (
@@ -159,20 +185,7 @@ export function SettingsScreen({ section }: { section: string }) {
 
           {active === "board" ? (
             <AccountCard title="Board">
-              <div className="flex flex-wrap gap-2.5">
-                {MARKER_COLORS.map((color) => (
-                  <button
-                    key={color.id}
-                    type="button"
-                    title={color.label}
-                    onClick={() => patch({ markerColor: color.id })}
-                    className={`h-8 w-8 rounded-full ${
-                      settings.markerColor === color.id ? "ring-2 ring-sky-500 ring-offset-2 ring-offset-[#171716]" : ""
-                    }`}
-                    style={{ backgroundColor: color.color }}
-                  />
-                ))}
-              </div>
+              <BoardInkControls settings={settings} onChange={patch} />
               <Toggle
                 title="Subtitles on the board"
                 checked={settings.subtitlesEnabled}

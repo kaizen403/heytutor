@@ -81,17 +81,43 @@ const GRAPHITE = "#51555F";
 export const PENCIL_INK_MIX = 0.55;
 export const PENCIL_WIDTH_SCALE = 0.82;
 export const PENCIL_INK_OPACITY = 0.78;
+export const INK_THICKNESS_MIN = 0.6;
+export const INK_THICKNESS_MAX = 1.6;
+export const INK_THICKNESS_STEP = 0.2;
+export const DEFAULT_INK_THICKNESS = 1;
 
-export function instrumentInkStyle(kind: InstrumentKind, inkColor: string): InstrumentInkStyle {
+export interface InkStylePreferences {
+  pencilColor?: string;
+  markerThickness?: number;
+  pencilThickness?: number;
+}
+
+function safeThickness(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_INK_THICKNESS;
+  return Math.min(INK_THICKNESS_MAX, Math.max(INK_THICKNESS_MIN, value));
+}
+
+export function instrumentInkStyle(
+  kind: InstrumentKind,
+  inkColor: string,
+  preferences: InkStylePreferences = {},
+): InstrumentInkStyle {
   const ink = channels(inkColor) ? inkColor : "#1B2A4A";
   if (kind === "pencil") {
+    const leadColor = preferences.pencilColor && channels(preferences.pencilColor)
+      ? preferences.pencilColor
+      : ink;
     return {
-      color: mix(ink, GRAPHITE, PENCIL_INK_MIX),
-      widthScale: PENCIL_WIDTH_SCALE,
+      color: mix(leadColor, GRAPHITE, PENCIL_INK_MIX),
+      widthScale: PENCIL_WIDTH_SCALE * safeThickness(preferences.pencilThickness),
       opacity: PENCIL_INK_OPACITY,
     };
   }
-  return { color: ink, widthScale: 1, opacity: 1 };
+  return {
+    color: ink,
+    widthScale: kind === "pen" ? safeThickness(preferences.markerThickness) : 1,
+    opacity: 1,
+  };
 }
 
 export interface InstrumentPalette {
