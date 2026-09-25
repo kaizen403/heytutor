@@ -201,4 +201,25 @@ console.log(
   `✓ unit completion slots: Kinematics ${kinematicsPossible}/${kinematics.items.length * 3}, chemistry 1 ${chemistryPossible}/${chemistryConcepts.items.length * 3}, ${mathsEmpty.length} maths units with no fixtures`,
 );
 
+// 13. The playground keeps review, recording controls, and cost details in a
+// navigable workspace without changing what is recorded or billed.
+const toolbar = readFileSync(join(__dirname, "../../features/admin/components/AdminToolbar.tsx"), "utf8");
+const runBar = readFileSync(join(__dirname, "../../features/admin/components/RunBar.tsx"), "utf8");
+const runCostBox = readFileSync(join(__dirname, "../../features/admin/components/RunCostBox.tsx"), "utf8");
+const playgroundPage = readFileSync(join(__dirname, "../../app/admin/playground/page.tsx"), "utf8");
+assert(toolbar.includes('href="/admin"') && toolbar.includes("Test playground"), "playground header must offer a clear way back to admin");
+assert(toolbar.includes('aria-label="Browse syllabus"') && toolbar.includes('aria-label="Find and select questions"'), "subject choice and question filters must remain discoverable");
+assert(toolbar.includes("Export progress") && toolbar.includes("Reset progress"), "progress export and reset must remain available");
+assert(playgroundPage.includes("<AdminPlayground tree={tree} probes={probes} />"), "playground route must keep the existing syllabus and probes");
+assert(playground.includes('aria-label="Recording activity and costs"') && playground.includes("<RunBar") && playground.includes("<RunCostBox"), "run controls and cost report must stay together");
+assert(playground.includes("queue.enqueue(questions);") && playground.includes("queue.startAgain();"), "bulk recording and rerun must preserve queue behavior");
+assert(playground.includes("setFilters(DEFAULT_TOPIC_FILTERS);") && playground.includes("setSelectedIds(new Set());"), "changing subjects must clear stale filters and selection");
+assert(playground.indexOf("topicMatchesFilters(") < playground.indexOf("selectableIds.push(probe.id)"), "unit bulk selection must only include visible topics");
+assert(runBar.includes('aria-label="Recording run progress"') && runBar.includes("job.error"), "run progress and failures must remain visible");
+assert(runCostBox.includes("Cost breakdown") && runCostBox.includes("report?.byKind") && runCostBox.includes("report.bySession"), "run cost breakdown must retain category and lecture detail");
+assert(!playground.includes("interactive: true") && !topicRow.includes("Teach live"), "UX reorganization must not include interactive playback changes");
+assert(playground.includes("if (next === subject) return;"), "clicking the active subject must preserve the selected batch");
+assert(runBar.includes("useState(jobs.length <= 20)"), "large recording batches must start with the job list collapsed");
+console.log("✓ playground UX preserves navigation, selection, recording, and cost details");
+
 console.log("\nverify-admin-playground: all checks passed");

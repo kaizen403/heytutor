@@ -6,7 +6,11 @@ import { sumSessionCosts, type RunCostSessionRow } from "@/lib/obs/runCost";
 import { cn } from "@/lib/utils";
 import type { DifficultyState } from "../lib/lectureState";
 import type { SyllabusItem } from "../lib/parseSyllabus";
-import { PROBE_DIFFICULTIES, type ProbeDifficulty, type ProbeQuestion } from "../lib/probes";
+import {
+  PROBE_DIFFICULTIES,
+  type ProbeDifficulty,
+  type ProbeQuestion,
+} from "../lib/probes";
 import type { ItemStatus } from "../lib/progressStorage";
 import { Checkbox } from "./Checkbox";
 import { CostChip } from "./CostChip";
@@ -19,7 +23,9 @@ export interface TopicRowProps {
   states: Record<ProbeDifficulty, DifficultyState>;
   /** Board to act on per difficulty - the live board while running, else the recording. */
   boardIds: Partial<Record<ProbeDifficulty, string>>;
-  costsByBoardId: Partial<Record<string, Pick<RunCostSessionRow, "llmUsd" | "ttsUsd" | "totalUsd">>>;
+  costsByBoardId: Partial<
+    Record<string, Pick<RunCostSessionRow, "llmUsd" | "ttsUsd" | "totalUsd">>
+  >;
   checked: boolean;
   status: ItemStatus;
   selecting: boolean;
@@ -69,7 +75,7 @@ export function TopicRow({
     <li className="border-b border-stroke/60 last:border-b-0">
       <div
         className={cn(
-          "group flex items-center gap-3 px-3 py-2 transition-colors hover:bg-white/[0.035]",
+          "group flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-3 transition-colors hover:bg-white/[0.035]",
           checked && "bg-sky-500/[0.06]",
           selecting && selectedCount > 0 && "bg-sky-500/[0.10]",
         )}
@@ -81,15 +87,20 @@ export function TopicRow({
             disabled={!hasFixtures}
             onCheckedChange={(selected) => onToggleSelected(probeIds, selected)}
             aria-label={`Select ${item.text}`}
-            title={hasFixtures ? "Select all three difficulties" : "No question fixtures for this topic yet"}
+            title={
+              hasFixtures
+                ? "Select all three difficulties"
+                : "No question fixtures for this topic yet"
+            }
           />
         ) : null}
 
         <button
           type="button"
           onClick={onOpenSheet}
-          className="min-w-0 flex-1 text-left"
-          title="Open review panel"
+          className="min-w-[min(100%,14rem)] flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+          aria-label={`Review ${item.text}`}
+          title="Review topic and notes"
         >
           <span className="text-sm leading-snug text-frost/90 transition-colors group-hover:text-frost">
             {item.text}
@@ -98,7 +109,11 @@ export function TopicRow({
 
         <CostChip cost={topicCost} />
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div
+          className="flex shrink-0 items-center gap-1"
+          role="group"
+          aria-label="Lecture difficulty"
+        >
           {PROBE_DIFFICULTIES.map((difficulty) => (
             <DifficultyCell
               key={difficulty}
@@ -109,7 +124,7 @@ export function TopicRow({
           ))}
         </div>
 
-        <div className="flex w-[7.5rem] shrink-0 justify-end">
+        <div className="flex shrink-0 justify-end">
           <StatusBadge status={status} />
         </div>
 
@@ -117,25 +132,39 @@ export function TopicRow({
           type="button"
           onClick={onToggleExpanded}
           aria-expanded={expanded}
-          aria-label={expanded ? `Hide questions for ${item.text}` : `Show questions for ${item.text}`}
+          aria-label={
+            expanded
+              ? `Hide questions for ${item.text}`
+              : `Show questions for ${item.text}`
+          }
           title={expanded ? "Hide questions" : "Show questions"}
           className="shrink-0 rounded-md p-1 text-faint transition-colors hover:bg-ink-700 hover:text-sky-300"
         >
-          <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
+          <ChevronRight
+            className={cn(
+              "h-4 w-4 transition-transform",
+              expanded && "rotate-90",
+            )}
+          />
         </button>
       </div>
 
       {expanded ? (
         <ul className="flex flex-col gap-1 border-t border-stroke bg-ink-950/50 px-3 py-2">
           {PROBE_DIFFICULTIES.map((difficulty) => {
-            const probe = probes.find((entry) => entry.difficulty === difficulty);
+            const probe = probes.find(
+              (entry) => entry.difficulty === difficulty,
+            );
             const state = states[difficulty];
             const boardId = boardIds[difficulty];
             const isRecorded = state === "recorded";
             const isRunning = state === "running";
 
             return (
-              <li key={difficulty} className="flex items-start gap-3 rounded-md px-1 py-1.5">
+              <li
+                key={difficulty}
+                className="flex flex-wrap items-start gap-2 rounded-md px-1 py-1.5 sm:gap-3"
+              >
                 {selecting ? (
                   <Checkbox
                     checked={probe ? selectedIds.has(probe.id) : false}
@@ -158,23 +187,31 @@ export function TopicRow({
                 <p
                   data-probe-question={probe ? probe.id : undefined}
                   className={cn(
-                    "min-w-0 flex-1 whitespace-pre-wrap break-words text-xs leading-relaxed",
+                    "min-w-[min(100%,14rem)] flex-1 whitespace-pre-wrap break-words text-xs leading-relaxed",
                     probe ? "text-sky-300" : "italic text-frost/25",
                   )}
                 >
                   {probe ? probe.question : "No question fixture yet"}
                 </p>
 
-                <div className="flex shrink-0 items-center gap-1">
-                  {isRecorded || isRunning ? <CostChip cost={boardId ? costsByBoardId[boardId] : undefined} /> : null}
+                <div className="flex flex-wrap items-center gap-1">
+                  {isRecorded || isRunning ? (
+                    <CostChip cost={boardId ? costsByBoardId[boardId] : undefined} />
+                  ) : null}
                   {isRunning && boardId ? (
-                    <PlainButton variant="sky" onClick={() => onActivate(difficulty)}>
+                    <PlainButton
+                      variant="sky"
+                      onClick={() => onActivate(difficulty)}
+                    >
                       Watch live
                     </PlainButton>
                   ) : null}
                   {isRecorded && boardId ? (
                     <>
-                      <PlainButton variant="ice" onClick={() => onActivate(difficulty)}>
+                      <PlainButton
+                        variant="ice"
+                        onClick={() => onActivate(difficulty)}
+                      >
                         Watch
                       </PlainButton>
                       <PlainButton onClick={() => onNotes(difficulty)}>
