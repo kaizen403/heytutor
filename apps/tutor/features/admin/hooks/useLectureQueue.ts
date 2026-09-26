@@ -67,7 +67,9 @@ export function useLectureQueue() {
   const stopRef = useRef(false);
   const pumpingRef = useRef(false);
   const settleByJobRef = useRef(new Map<string, (outcome: JobOutcome) => void>());
+  const readyByJobRef = useRef(new Map<string, (boardId: string, question: string) => void>());
   const lastQuestionsRef = useRef<ProbeQuestion[]>([]);
+  const lastInteractiveRef = useRef(false);
   const heldBoardIdRef = useRef<string | null>(null);
   const [lastBatchCount, setLastBatchCount] = useState(0);
   const concurrencyRef = useRef(concurrency);
@@ -82,6 +84,7 @@ export function useLectureQueue() {
     // Hold the map itself: by cleanup time the ref may point elsewhere, and
     // the pending jobs that need settling are the ones captured here.
     const settleByJob = settleByJobRef.current;
+    const readyByJob = readyByJobRef.current;
     return () => {
       aliveRef.current = false;
       stopRef.current = true;
@@ -89,6 +92,7 @@ export function useLectureQueue() {
         finish({ status: "failed", error: "stopped" });
       }
       settleByJob.clear();
+      readyByJob.clear();
     };
   }, []);
 
@@ -186,12 +190,14 @@ export function useLectureQueue() {
       const startedAt = Date.now();
       patchJob(job.id, { status: "running", startedAt, phase: "idle", error: undefined });
 
-      const board = await createBoardWithTitle(job.title);
+      const board = await createBoardWithTitle(job.title).catch(() => null);
       if (stopRef.current) {
+        readyByJobRef.current.delete(job.id);
         patchJob(job.id, { status: "failed", error: "stopped", endedAt: Date.now() });
         return;
       }
       if (!board) {
+        readyByJobRef.current.delete(job.id);
         patchJob(job.id, {
           status: "failed",
           error: "could not create board",
@@ -206,8 +212,15 @@ export function useLectureQueue() {
       if (!aliveRef.current) {
         return;
       }
-      const runtime: HeadlessRuntime = { jobId: job.id, boardId: board.id, question: job.question };
+      const runtime: HeadlessRuntime = {
+        jobId: job.id,
+        boardId: board.id,
+        question: job.question,
+        interactive: job.interactive,
+      };
       setRuntimes((current) => attachLectureRuntime(current, runtime));
+      readyByJobRef.current.get(job.id)?.(board.id, job.question);
+      readyByJobRef.current.delete(job.id);
 
       const outcome = await waitForOutcome(job.id, JOB_TIMEOUT_MS);
       const held = shouldKeepHeadlessRuntime(board.id, heldBoardIdRef.current);
@@ -267,16 +280,20 @@ export function useLectureQueue() {
   }, [runJob]);
 
   const enqueue = useCallback(
-    (questions: ProbeQuestion[]) => {
+    (questions: ProbeQuestion[], options?: { interactive?: boolean; onReady?: (boardId: string, question: string) => void }) => {
       if (questions.length === 0) {
         return;
       }
       stopRef.current = false;
       lastQuestionsRef.current = questions;
+      lastInteractiveRef.current = options?.interactive === true;
       if (aliveRef.current) {
         setLastBatchCount(questions.length);
       }
-      const created = makeLectureJobs(questions, Date.now());
+      const created = makeLectureJobs(questions, Date.now(), options);
+      if (created.length === 1 && options?.onReady) {
+        readyByJobRef.current.set(created[0]!.id, options.onReady);
+      }
       syncJobs([...jobsRef.current, ...created]);
       void pump();
     },
@@ -304,12 +321,13 @@ export function useLectureQueue() {
     [dropRuntimeIfIdle],
   );
 
-  const startAgain = useCallback(() => {
+  const startAgain = useCallback((options?: { onReady?: (boardId: string, question: string) => void }) => {
     const questions = lastQuestionsRef.current;
     if (questions.length === 0) {
       return;
     }
     stopRef.current = true;
+    readyByJobRef.current.clear();
     heldBoardIdRef.current = null;
     for (const finish of settleByJobRef.current.values()) {
       finish({ status: "failed", error: "stopped" });
@@ -319,7 +337,10 @@ export function useLectureQueue() {
       setRuntimes([]);
     }
     stopRef.current = false;
-    const created = makeLectureJobs(questions, Date.now());
+    const created = makeLectureJobs(questions, Date.now(), { interactive: lastInteractiveRef.current });
+    if (created.length === 1 && options?.onReady) {
+      readyByJobRef.current.set(created[0]!.id, options.onReady);
+    }
     syncJobs(created);
     void pump();
   }, [pump, syncJobs]);
@@ -333,6 +354,7 @@ export function useLectureQueue() {
 
   const stopAll = useCallback(() => {
     stopRef.current = true;
+    readyByJobRef.current.clear();
     heldBoardIdRef.current = null;
     for (const finish of settleByJobRef.current.values()) {
       finish({ status: "failed", error: "stopped" });

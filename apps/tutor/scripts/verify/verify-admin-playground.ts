@@ -214,12 +214,12 @@ assert(toolbar.includes('aria-label="Browse syllabus"') && toolbar.includes('ari
 assert(toolbar.includes("Export progress") && toolbar.includes("Reset progress"), "progress export and reset must remain available");
 assert(playgroundPage.includes("<AdminPlayground tree={tree} probes={probes} />"), "playground route must keep the existing syllabus and probes");
 assert(playground.includes('aria-label="Recording activity and costs"') && playground.includes("<RunBar") && playground.includes("<RunCostBox"), "run controls and cost report must stay together");
-assert(playground.includes("queue.enqueue(questions);") && playground.includes("queue.startAgain();"), "bulk recording and rerun must preserve queue behavior");
+assert(playground.includes("queue.enqueue(questions, {") && playground.includes("queue.startAgain({"), "bulk recording and rerun must preserve queue behavior while single questions can teach live");
 assert(playground.includes("setFilters(DEFAULT_TOPIC_FILTERS);") && playground.includes("setSelectedIds(new Set());"), "changing subjects must clear stale filters and selection");
 assert(playground.indexOf("topicMatchesFilters(") < playground.indexOf("selectableIds.push(probe.id)"), "unit bulk selection must only include visible topics");
 assert(runBar.includes('aria-label="Recording run progress"') && runBar.includes("job.error"), "run progress and failures must remain visible");
 assert(runCostBox.includes("Cost breakdown") && runCostBox.includes("report?.byKind") && runCostBox.includes("report.bySession"), "run cost breakdown must retain category and lecture detail");
-assert(!playground.includes("interactive: true") && !topicRow.includes("Teach live"), "UX reorganization must not include interactive playback changes");
+assert(playground.includes("interactive: true") && topicRow.includes("Teach live"), "a single question may teach live while the recording workspace stays available");
 assert(playground.includes("if (next === subject) return;"), "clicking the active subject must preserve the selected batch");
 assert(runBar.includes("useState(false)"), "a queue that starts empty must not expand when a large recording batch arrives");
 assert(playground.includes("visibleSelectedProbes(probeIndex, selectedIds, visibleProbeIds)"), "recording and selection count must use visible questions");

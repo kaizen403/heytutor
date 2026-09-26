@@ -24,6 +24,8 @@ export type LectureJob = {
   startedAt?: number;
   endedAt?: number;
   error?: string;
+  /** A single question watched as a normal, interactive tutor session. */
+  interactive?: boolean;
 };
 
 const SYLLABUS_SLUG_TITLE = /^(?:\[Playground\]\s*)?(physics|maths|chemistry)\|\d+\|/;
@@ -40,7 +42,11 @@ export function lectureJobTitle(job: Pick<LectureJob, "question"> & { title?: st
   return finalizeBoardTitle(job.question);
 }
 
-export function makeLectureJobs(questions: ProbeQuestion[], now: number): LectureJob[] {
+export function makeLectureJobs(
+  questions: ProbeQuestion[],
+  now: number,
+  options?: { interactive?: boolean },
+): LectureJob[] {
   return questions.map((probe, index) => ({
     id: `${probe.id}:${now}:${index}`,
     probeId: probe.id,
@@ -49,6 +55,7 @@ export function makeLectureJobs(questions: ProbeQuestion[], now: number): Lectur
     question: probe.question,
     title: finalizeBoardTitle(probe.question),
     status: "queued",
+    interactive: questions.length === 1 && options?.interactive === true,
   }));
 }
 

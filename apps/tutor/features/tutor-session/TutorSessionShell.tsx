@@ -760,7 +760,7 @@ export function TutorSessionShell({
     commitDraftBoard,
     autoQuestion,
     replaceAutoQuestionUrl: variant === "full",
-    enableKeyboardControls: variant !== "headless",
+    enableKeyboardControls: variant === "full",
     onComplete,
     onError,
     phase,
@@ -1004,7 +1004,7 @@ export function TutorSessionShell({
     setSettings,
     pauseTurn,
     resumeTurn,
-    enableKeyboardControls: variant !== "headless",
+    enableKeyboardControls: variant === "full",
     enabled: !isHeadless,
   });
 
