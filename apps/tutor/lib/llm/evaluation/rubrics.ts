@@ -81,6 +81,29 @@ const NOTES_ROUTING_QUESTIONS: Record<string, EvaluationQuestion> = {
   },
 };
 
+const DSA_TEACHING_QUESTIONS: Record<string, EvaluationQuestion> = {
+  motivation: {
+    type: "choice",
+    instructions: "For this student's coding question, is a brief explanation of the obvious slow approach needed before the worked example? Judge the wording and familiarity, not the algorithm's correctness. When the question asks for an intuition or a full explanation, choose show_slow_way, even when it names the technique. When it asks for implementation or revision, choose start_worked_example.",
+    criteria: {
+      show_slow_way: "The student needs motivation for the technique; briefly establish why the obvious approach is too slow.",
+      start_worked_example: "The student asks for implementation or revision; begin the worked example directly.",
+      uncertain: ABSTAIN,
+    },
+  },
+  emphasis: {
+    type: "choice",
+    instructions: "Which one teaching emphasis best matches the student's question? This only changes narration focus; every verified figure frame and code block must still be shown.",
+    criteria: {
+      intuition: "The student asks why the technique works or is new to the idea.",
+      walkthrough: "The student mainly needs to see the algorithm move through a concrete example.",
+      implementation: "The student asks how to implement it or translate the idea into code.",
+      edge_cases: "The student asks about bugs, boundary conditions, or tricky cases.",
+      uncertain: ABSTAIN,
+    },
+  },
+};
+
 export const VISUAL_NEED_QUESTIONS: Record<string, EvaluationQuestion> = {
   visual_need: {
     type: "choice",
@@ -105,6 +128,7 @@ export function questionsForJob(job: TutorEvaluationJob): Record<string, Evaluat
   switch (job) {
     case "lesson_review": return LESSON_REVIEW_QUESTIONS;
     case "notes_routing": return NOTES_ROUTING_QUESTIONS;
+    case "dsa_teaching": return DSA_TEACHING_QUESTIONS;
     case "visual_need": return VISUAL_NEED_QUESTIONS;
   }
 }
@@ -113,6 +137,7 @@ export function rubricVersionForJob(job: TutorEvaluationJob): string {
   switch (job) {
     case "lesson_review": return "lesson-review/v1";
     case "notes_routing": return "notes-routing/v1";
+    case "dsa_teaching": return "dsa-teaching/v1";
     case "visual_need": return "visual-need/v1";
   }
 }

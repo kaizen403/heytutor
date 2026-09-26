@@ -1683,6 +1683,7 @@ export function TutorSessionShell({
               rewindSegmentText={rewindSegmentText}
               verifiedDiagram={activeVerifiedDiagram}
               codeLessonPanel={<CodeLessonPanel controller={codeLessonController} />}
+              codeLessonController={codeLessonController}
               marking={boardMarking}
               onRetraceEntity={handleRetraceEntity}
               onRetryError={(question) => {

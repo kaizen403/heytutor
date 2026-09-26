@@ -8,6 +8,8 @@ import { questionsForJob } from "../../lib/llm/evaluation/rubrics";
 import type { NormalizedAnswer, TutorAssessment } from "../../lib/llm/evaluation/types";
 import { prepareNotesChat } from "../../lib/llm/notesChatPolicy";
 import { DEFAULT_PROBLEM_IR_MODEL, DEFAULT_TEACHING_FAST_MODEL } from "../../lib/llm/fireworksModels";
+import { assessDsaTeachingPolicy } from "../../lib/llm/dsaTeachingPolicy";
+import { codeLessonBeatPlan } from "@heytutor/tutor-core";
 import { formatLessonNotesForPrompt, type LessonNotesSnapshot } from "../../features/tutor-session/lib/notes/lessonNotes";
 import { selectNotesForPrompt } from "../../features/tutor-session/lib/notes/notesContext";
 
@@ -286,7 +288,65 @@ const down = await prepareNotesChat({
 assert(down.model === DEFAULT_TEACHING_FAST_MODEL, "Jev mode without a call keeps the current model");
 assert((down.evaluation as TutorAssessment | null) === null, "a skipped call is not a cheap approval");
 
-console.log("✓ Jev evaluation contract, notes routing policy, and bounded notes context");
+resetEvaluationCircuitForTests();
+let dsaBody: { state?: { question?: string }; questions?: unknown } = {};
+const dsa = await assessDsaTeachingPolicy({
+  question: "Explain how to implement two sum with a hash map.",
+  familiarity: "normal",
+  technique: "hash_two_sum",
+  options: {
+    apiKey: "test",
+    fetchImpl: async (_input, init) => {
+      dsaBody = JSON.parse(String(init?.body));
+      return Response.json({
+        answers: {
+          motivation: { type: "choice", choice: "start_worked_example" },
+          emphasis: { type: "choice", choice: "implementation" },
+        },
+        usage: { inputTokens: 100, outputTokens: 2 },
+      });
+    },
+  },
+});
+assert(dsa.assessment.status === "assessed", "Jev can assess a bounded DSA teaching decision");
+assert(dsa.policy.motivation === "start_worked_example" && dsa.policy.emphasis === "implementation",
+  "typed Jev choices affect optional lesson motivation and emphasis");
+assert(!JSON.stringify(dsaBody.questions).includes(dsaBody.state?.question ?? "missing"),
+  "the student's question cannot modify the DSA rubric");
+const directBeats = codeLessonBeatPlan({
+  frames: [{ id: "f1", caption: "start" }, { id: "f2", caption: "move" }],
+  blockIds: ["b1", "b2"],
+  familiarity: "normal",
+  motivation: dsa.policy.motivation,
+});
+assert(!directBeats.some((beat) => beat.kind === "brute_force" || beat.kind === "frame_why" || beat.kind === "trace_through"),
+  "Jev may remove optional repetition but cannot add another pass over the example");
+assert(directBeats.filter((beat) => beat.kind === "frame_show").length === 2 &&
+  directBeats.filter((beat) => beat.kind === "block").length === 2,
+  "every committed frame and code block remains mandatory");
+
+const beginner = await assessDsaTeachingPolicy({
+  question: "I have never seen a hash map. Teach me two sum.",
+  familiarity: "new",
+  options: { apiKey: "test", fetchImpl: async () => Response.json({
+    answers: {
+      motivation: { type: "choice", choice: "start_worked_example" },
+      emphasis: { type: "choice", choice: "intuition" },
+    },
+  }) },
+});
+assert(beginner.policy.motivation === "show_slow_way", "new students still get technique motivation");
+
+const dsaUnavailable = await assessDsaTeachingPolicy({
+  question: "two sum",
+  familiarity: "normal",
+  options: { apiKey: null },
+});
+assert(dsaUnavailable.assessment.status === "unavailable" &&
+  dsaUnavailable.policy.motivation === "show_slow_way" && dsaUnavailable.policy.emphasis === "walkthrough",
+  "missing Jev credentials keep the existing lesson path");
+
+console.log("✓ Jev evaluation contract, notes routing, DSA teaching policy, and bounded context");
 }
 
 main().catch((error: unknown) => {

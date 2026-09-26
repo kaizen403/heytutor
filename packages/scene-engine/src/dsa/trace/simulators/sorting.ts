@@ -84,6 +84,26 @@ function sortedAtDepth(values: readonly number[], depth: number): number[] {
   return out;
 }
 
+/** Ground a merge-level explanation in the actual child runs it combines. */
+function firstMergeDecisions(
+  values: readonly number[],
+  segments: readonly Segment[],
+  depth: number,
+): Array<{ left: number; right: number; first: number }> {
+  const childRuns = sortedAtDepth(values, depth + 1);
+  const decisions: Array<{ left: number; right: number; first: number }> = [];
+  for (const segment of segments) {
+    if (segment.end - segment.start < 2) continue;
+    const mid = segment.start + Math.floor((segment.end - segment.start) / 2);
+    const left = childRuns[segment.start]!;
+    const right = childRuns[mid]!;
+    const first = left <= right ? left : right;
+    decisions.push({ left, right, first });
+    if (decisions.length === 2) break;
+  }
+  return decisions;
+}
+
 const MAX_MERGE_FRAMES = 12;
 
 export function simulateMergeSort(input: SortInput): AlgorithmTrace | null {
@@ -103,14 +123,14 @@ export function simulateMergeSort(input: SortInput): AlgorithmTrace | null {
   // Break down: one frame per level of the real recursion.
   for (let depth = 1; depth <= maxDepth; depth += 1) {
     const segments = segmentsAtDepth(values.length, depth);
-    const sizes = segments.map((segment) => segment.end - segment.start);
+    const groups = segments.map((segment) => values.slice(segment.start, segment.end).join(" "));
     frames.push({
       id: `split${depth}`,
       caption: depth === maxDepth ? "Down to single values" : `Split into ${segments.length} ranges`,
       narrationIntent:
         depth === maxDepth
           ? `Every range is now a single value, and one value is sorted by definition. That is the base case, and from here the work is putting the pieces back together in order.`
-          : `Each range splits in half again, giving ${segments.length} ranges of ${[...new Set(sizes)].sort((a, b) => a - b).join(" and ")}. Nothing has been compared yet: this is pure division.`,
+          : `Split the current ranges in half: ${groups.join(" | ")}. No values have been compared yet; these are the pieces that will be sorted and merged.`,
       state: { kind: "array", cells: cells(values), groups: groupsFrom(values, segments) },
     });
   }
@@ -119,14 +139,20 @@ export function simulateMergeSort(input: SortInput): AlgorithmTrace | null {
   for (let depth = maxDepth - 1; depth >= 1; depth -= 1) {
     const segments = segmentsAtDepth(values.length, depth);
     const merged = sortedAtDepth(values, depth);
+    const decisions = firstMergeDecisions(values, segments, depth);
     if (frames.length >= MAX_MERGE_FRAMES - 3) break;
     frames.push({
       id: `merge${depth}`,
       caption: `Merged into ${segments.length} sorted runs`,
-      narrationIntent: `Neighbouring ranges merge pairwise, so the array is now ${segments.length} sorted runs: ${segments
+      narrationIntent: `Neighbouring ranges make ${segments.length} sorted runs: ${segments
         .map((segment) => merged.slice(segment.start, segment.end).join(" "))
-        .join(" | ")}. Each merge only ever compares the front of one run with the front of the other.`,
-      state: { kind: "array", cells: cells(merged), groups: groupsFrom(merged, segments, "done") },
+        .join(" | ")}. ${decisions.map(({ left, right, first }) => `Compare ${left} with ${right}: ${first} goes first`).join("; ")}. Then advance only the run whose front was taken.`,
+      state: {
+        kind: "array",
+        cells: cells(merged),
+        groups: groupsFrom(merged, segments, "done"),
+        note: decisions[0] ? `${decisions[0].left} vs ${decisions[0].right} => ${decisions[0].first}` : undefined,
+      },
     });
   }
 
@@ -145,6 +171,9 @@ export function simulateMergeSort(input: SortInput): AlgorithmTrace | null {
       const takeLeft = left[i]! <= right[j]!;
       const taken = takeLeft ? left[i]! : right[j]!;
       const other = takeLeft ? right[j]! : left[i]!;
+      const comparison = taken === other ? `${taken} ties ${other}, so the left one goes first` : `${taken} is smaller than ${other}, so it goes out first`;
+      const nextLeft = left[i + (takeLeft ? 1 : 0)];
+      const nextRight = right[j + (takeLeft ? 0 : 1)];
       out.push(taken);
       comparisons += 1;
       const marks = new Map<number, TraceMark>();
@@ -152,8 +181,12 @@ export function simulateMergeSort(input: SortInput): AlgorithmTrace | null {
       marks.set(takeLeft ? left.length + j : i, "candidate");
       frames.push({
         id: `take${comparisons}`,
-        caption: `${taken} is smaller than ${other}, so it goes out first`,
-        narrationIntent: `Both runs are already sorted, so the smallest value left in the whole array has to be at the front of one of them. ${taken} is smaller than ${other}, so ${taken} is written to the output and that run's marker moves on. Nothing else is ever compared.`,
+        caption: comparison,
+        narrationIntent: `${comparison}. The output is now ${out.join(" ")}. ${
+          nextLeft !== undefined && nextRight !== undefined
+            ? `Next compare ${nextLeft} with ${nextRight}.`
+            : "One run is empty, so the other run's remaining values follow in order."
+        }`,
         state: {
           kind: "array",
           cells: marked(cells([...left, ...right]), marks),

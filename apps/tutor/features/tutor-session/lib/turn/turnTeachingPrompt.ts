@@ -12,6 +12,7 @@ import { WORK_ZONE, type TutorSegment } from "@heytutor/drawing";
 import {
   CHEMISTRY_LESSON_RUNTIME_ADDON,
   CODE_LESSON_SYSTEM_PROMPT,
+  DSA_EXPLANATION_SYSTEM_PROMPT,
   CONCEPT_LESSON_RUNTIME_ADDON,
   FAMILIARITY_ADDONS,
   FAST_MODE_TEACHING_ADDON,
@@ -33,6 +34,7 @@ import {
   resolveLessonBudget,
   type CodeLessonFigureFrame,
   type CodeLessonPlan,
+  type DsaTeachingPolicy,
   type LessonBudget,
   type SubjectFamiliarity,
 } from "@heytutor/tutor-core";
@@ -48,6 +50,8 @@ export interface TurnTeachingPromptInput {
   /** `ProblemAuthorityV1Response["projection"]` when the solver answered. */
   solverProjection: unknown;
   codeLesson: CodeLessonPlan | null;
+  /** The question requests an explanation of the worked example without code. */
+  codeLessonIncludeCode?: boolean;
   /**
    * The walk-through frames actually committed to the board, in order. The
    * teaching prompt narrates these; describing the planner's requested steps
@@ -55,6 +59,7 @@ export interface TurnTeachingPromptInput {
    * not see.
    */
   codeLessonFrames?: readonly CodeLessonFigureFrame[];
+  codeLessonTeachingPolicy?: DsaTeachingPolicy;
   /** Facts about the detected algorithm, for the concept beats and the close. */
   codeLessonFacts?: {
     terms?: readonly string[];
@@ -111,6 +116,7 @@ The left column is a notebook, not an editor. [WRITE] at most one short phrase p
  * row in every continued step, which on this turn is forbidden ink.
  */
 const CODE_LESSON_CONTINUATION_PROMPT = `Continue the code lesson exactly where the previous response stopped. Return only [STEP]...[/STEP] blocks, following the same lesson shape and the same rules: one [FOCUS:frame_id|spotlight] on a figure step, one [TYPE:blockId] on a code step, no tag on an opening, a trace-through or a close, and never [WRITE]. Do not restate anything already said, do not summarise what came before, and do not start again from the beginning.`;
+const DSA_EXPLANATION_CONTINUATION_PROMPT = `Continue the worked example exactly where the previous response stopped. Return only [STEP]...[/STEP] blocks. Use one [FOCUS:frame_id|spotlight] for each remaining figure step and no tag on the close. Never use [TYPE] or [WRITE]. Explain the actual values and decisions, then close with the reason for time and space complexity. Do not recap or restart.`;
 
 /**
  * The plan and solver blocks. Shared by a lesson and by a doubt about it, so
@@ -457,6 +463,7 @@ export interface ResumeTeachingPromptInput {
   codeLessonResumeNote?: string | null;
   /** The paused code lesson, so the resume can list every remaining beat. */
   codeLesson?: CodeLessonPlan | null;
+  codeLessonIncludeCode?: boolean;
   codeLessonFrames?: readonly CodeLessonFigureFrame[];
   alreadyRevealedBlockIds?: readonly string[];
   framesAlreadyShown?: number;
@@ -499,7 +506,9 @@ function remainingCodeLessonStepsBlock(input: ResumeTeachingPromptInput): string
   const plan = input.codeLesson;
   if (!plan) return "";
   const frames = input.codeLessonFrames ?? [];
-  const blockIds = plan.sections.flatMap((section) => section.blocks.map((block) => block.id));
+  const blockIds = input.codeLessonIncludeCode === false
+    ? []
+    : plan.sections.flatMap((section) => section.blocks.map((block) => block.id));
   const remaining = remainingCodeLessonBeats(
     codeLessonBeatPlan({
       frames: frames.map((frame) => ({ id: frame.id, caption: frame.caption })),
@@ -537,7 +546,14 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
     codeBoard ? null : input.solverProjection,
   );
 
-  const rules = panelShowing || input.codeLesson
+  const rules = input.codeLesson && input.codeLessonIncludeCode === false
+    ? [
+        "- Continue the worked example at its next frame. The student asked for an explanation, so no code editor appears and no [TYPE] tags are allowed.",
+        "- Explain the actual values and decisions on each remaining frame, then close with the reason for time and space complexity.",
+        input.codeLessonResumeNote?.trim() ? `- ${input.codeLessonResumeNote.trim()}` : "",
+        "- Do not recap or restart the example.",
+      ]
+    : panelShowing || input.codeLesson
     ? [
         "- Continue the original lesson from the next unwritten step. Do not greet, do not recap, do not repeat the doubt, and do not start the lesson again.",
         "- The original question is still the question of this lesson. Teach it to the end, including the complexity close.",
@@ -585,7 +601,9 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
     .filter(Boolean)
     .join("\n\n");
 
-  const basePrompt = codeBoard ? CODE_LESSON_CONTINUATION_PROMPT : TUTOR_CONTINUATION_PROMPT;
+  const basePrompt = input.codeLesson && input.codeLessonIncludeCode === false
+    ? DSA_EXPLANATION_CONTINUATION_PROMPT
+    : codeBoard ? CODE_LESSON_CONTINUATION_PROMPT : TUTOR_CONTINUATION_PROMPT;
   return {
     runtimeAddon,
     openingSegment: null,
@@ -606,7 +624,7 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
   // calculate with it", "[ANNOTATE:entity_id]") and lists every cell id as a
   // focus target, which is exactly what the code addon then forbids.
   const diagramPromptAddon = codeLesson
-    ? (input.diagramPromptAddon ? "" : CODE_LESSON_NO_DIAGRAM_ADDON)
+    ? (input.codeLessonFrames?.length || input.diagramPromptAddon ? "" : CODE_LESSON_NO_DIAGRAM_ADDON)
     : (input.diagramPromptAddon ?? TEXT_ONLY_DIAGRAM_ADDON);
 
   const { turnPlanPromptAddon, solverPromptAddon } = turnPlanPromptAddons(
@@ -646,7 +664,7 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
   const runtimeAddon = [
     openingSegment ? LESSON_OPENING_PROMPT_ADDON : "",
     codeLesson
-      ? dsaOpeningPromptAddon(givenSegments.length > 0)
+      ? dsaOpeningPromptAddon(givenSegments.length > 0, input.codeLessonIncludeCode)
       : givenValuesPromptAddon(givenSegments.length > 0),
     diagramPromptAddon,
     codeLesson
@@ -658,6 +676,8 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
           terms: input.codeLessonFacts?.terms,
           resultText: input.codeLessonFacts?.resultText,
           earlyExit: input.codeLessonFacts?.earlyExit,
+          teachingPolicy: input.codeLessonTeachingPolicy,
+          includeCode: input.codeLessonIncludeCode,
         })
       : "",
     input.isDsa && !codeLesson ? DSA_WITHOUT_CODE_LESSON_ADDON : "",
@@ -693,8 +713,12 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
   // physics rules it argued with (one or two sentences a step, a board row in
   // every step, stop before complexity) were being obeyed often enough to
   // shorten lessons and leak handwriting into them.
-  const basePrompt = codeLesson ? CODE_LESSON_SYSTEM_PROMPT : TUTOR_SYSTEM_PROMPT;
-  const continuationBase = codeLesson ? CODE_LESSON_CONTINUATION_PROMPT : TUTOR_CONTINUATION_PROMPT;
+  const basePrompt = codeLesson && input.codeLessonIncludeCode === false
+    ? DSA_EXPLANATION_SYSTEM_PROMPT
+    : codeLesson ? CODE_LESSON_SYSTEM_PROMPT : TUTOR_SYSTEM_PROMPT;
+  const continuationBase = codeLesson && input.codeLessonIncludeCode === false
+    ? DSA_EXPLANATION_CONTINUATION_PROMPT
+    : codeLesson ? CODE_LESSON_CONTINUATION_PROMPT : TUTOR_CONTINUATION_PROMPT;
   return {
     runtimeAddon,
     openingSegment,

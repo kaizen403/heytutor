@@ -85,7 +85,7 @@ const RECAP_LEAD =
  * complexity at all.
  */
 const COMPLEXITY_MENTION =
-  /\b(?:o\s*\(|big[- ]o|time complexity|space complexity|n log n)\b|\b(?:linear|logarithmic|quadratic|constant)\s+(?:extra\s+)?(?:time|space|work|memory)\b|\b(?:time|space|memory|work)\s+(?:is|stays|remains|grows|becomes)\s+(?:\w+\s+){0,2}(?:linear|logarithmic|quadratic|constant)\b|\b(?:linear|logarithmic|quadratic|constant)\s+in\s+the\s+(?:number|length|size)\b/i;
+  /\b(?:o\s*\(|big[- ]o|time complexity|space complexity|n log n)\b|\b(?:linear|logarithmic|quadratic|constant)\s+(?:extra\s+)?(?:time|space|work|memory)\b|\b(?:time|space|memory|work)\s+(?:is|stays|remains|grows|becomes)\s+(?:\w+\s+){0,2}(?:linear|logarithmic|quadratic|constant)\b|\b(?:linear|logarithmic|quadratic|constant)\s+in\s+the\s+(?:number|length|size)\b|\btime\s+(?:is|takes|costs)\s+(?:about\s+)?n\s+(?:squared|cubed)\b|\bn\s+(?:squared|cubed)\s+(?:time|space|work|memory)\b|\b(?:time|space)\s+(?:is|takes|costs)\s+(?:also\s+)?[mn]\s+times\s+[mn]\b/i;
 
 function sentences(text: string): string[] {
   return text
@@ -233,9 +233,10 @@ export function gradeDsaLecture(run: DsaLectureRun): DsaLectureGrade {
       add("frames_never_shown", "major", `${run.teaching.unshownFrameCount} of ${run.figure.frameCount}`);
     }
     if (run.teaching.insertedFrameCount > 0 && run.figure.frameCount > 1) {
-      const catchUp = run.teaching.insertedFrameCount - Math.max(0, run.teaching.figureBeats - 1);
+      const catchUp = run.teaching.codeCatchUpFrameCount ??
+        Math.max(0, run.teaching.insertedFrameCount - Math.max(0, run.teaching.figureBeats - 1));
       if (catchUp > 0) {
-        add("frames_caught_up_during_code", "minor", `${catchUp} frame advances were inserted beside code because the figure walk was skipped`);
+        add("frames_caught_up_during_code", "major", `${catchUp} frame advances were inserted beside code because the figure walk was skipped`);
       }
     }
     if (run.teaching.unknownBlockIds.length > 0) {
@@ -279,7 +280,9 @@ export function gradeDsaLecture(run: DsaLectureRun): DsaLectureGrade {
       add("no_complexity", "minor", "the lesson never states time or space complexity");
     }
     // Beats that are only a tag, no words: the board moves in silence.
-    const silent = run.teaching.beats.filter((beat) => beat.actions.length > 0 && beat.speech.length < 20).length;
+    const silent = run.teaching.beats.filter((beat) =>
+      beat.actions.some((action) => action.kind !== "pause" && action.kind !== "write") && beat.speech.length < 20,
+    ).length;
     if (silent > 0) add("silent_beats", "minor", `${silent} beat(s) with a tag and almost no speech`);
     // The board follows the voice only where the voice names something on
     // it. A code beat whose words name none of its block's lines leaves the
@@ -314,14 +317,13 @@ export function gradeDsaLecture(run: DsaLectureRun): DsaLectureGrade {
     if (unanchoredFigure.length > 0) {
       add("figure_beat_unanchored", "minor", `${unanchoredFigure.length} figure beat(s) name no cell of their frame: ${unanchoredFigure.slice(0, 4).join(", ")}`);
     }
-    // Pace: spoken words per beat against the floor the prompt states. Words
-    // are the unit the prompt uses, because sentences varied from ten to
-    // fourteen words and a sentence count bought half the intended time.
+    // Catch near-silent steps, but allow brief frame transitions. A quota on
+    // every beat made the tutor repeat itself and inflated long walks.
     if (run.codeLesson.accepted) {
       const words = joined.split(/\s+/).filter(Boolean).length / Math.max(1, run.teaching.beats.length);
       const floor = CODE_LESSON_STEP_WORDS[run.familiarity];
-      if (words < floor * 0.7) {
-        add("thin_beats", "major", `${Math.round(words)} words per beat against a floor of ${floor}`);
+      if (words < Math.min(10, floor * 0.4)) {
+        add("thin_beats", "major", `${Math.round(words)} words per beat on average`);
       }
     }
   }
@@ -332,11 +334,15 @@ export function gradeDsaLecture(run: DsaLectureRun): DsaLectureGrade {
     const band = CODE_LESSON_TARGET_BY_FAMILIARITY[run.familiarity];
     if (ms < band.min * 0.6) add("lesson_too_short", "major", `${metrics.estimatedMinutes} min`);
     else if (ms < band.min) add("lesson_short", "minor", `${metrics.estimatedMinutes} min`);
-    else if (ms > band.max * 1.3) add("lesson_too_long", "minor", `${metrics.estimatedMinutes} min`);
+    else if (ms > band.max * 1.3) add("lesson_too_long", "major", `${metrics.estimatedMinutes} min`);
   }
 
   const penalty = findings.reduce((sum, finding) => sum + SEVERITY_WEIGHT[finding.severity], 0);
   const score = Math.max(0, 100 - penalty);
-  const passed = !findings.some((finding) => finding.severity === "fatal");
+  const passed = !findings.some((finding) =>
+    finding.severity === "fatal" ||
+    finding.code === "frames_caught_up_during_code" ||
+    finding.code === "lesson_too_long",
+  );
   return { ...base, passed, score, findings, metrics };
 }

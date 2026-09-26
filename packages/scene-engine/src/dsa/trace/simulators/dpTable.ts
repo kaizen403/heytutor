@@ -183,6 +183,98 @@ export function simulateEditDistance(input: TwoStringInput): AlgorithmTrace | nu
   };
 }
 
+/** Count ways to form each target prefix from each source prefix. */
+export function simulateDistinctSubsequences(input: { s: string; t: string }): AlgorithmTrace | null {
+  const source = [...input.s];
+  const target = [...input.t];
+  // The board can show at most an 8 by 7 table legibly. Larger inputs use
+  // the canonical example instead of silently truncating a student's values.
+  if (source.length < 2 || source.length > 7 || target.length < 2 || target.length > 6 ||
+    target.length > source.length) return null;
+  const dp: number[][] = Array.from({ length: source.length + 1 }, () =>
+    Array.from({ length: target.length + 1 }, () => 0));
+  for (let r = 0; r <= source.length; r += 1) dp[r]![0] = 1;
+  for (let r = 1; r <= source.length; r += 1) {
+    for (let c = 1; c <= target.length; c += 1) {
+      dp[r]![c] = dp[r - 1]![c]! +
+        (source[r - 1] === target[c - 1] ? dp[r - 1]![c - 1]! : 0);
+    }
+  }
+
+  const rowLabels = [EMPTY_PREFIX, ...source];
+  const colLabels = [EMPTY_PREFIX, ...target];
+  const ways = (count: number): string => `${count} ${count === 1 ? "way" : "ways"}`;
+  const cellsAfter = (filledRows: number, focus: [number, number] | null): TraceCell[][] =>
+    dp.map((row, r) => row.map((value, c): TraceCell => ({
+      text: r > filledRows && c > 0 ? "" : String(value),
+      ...(focus?.[0] === r && focus[1] === c ? { mark: "active" } : {}),
+    })));
+  const frames: TraceFrame[] = [{
+    id: "base",
+    caption: "Empty target: one way in every source prefix",
+    narrationIntent: `Every row represents a prefix of "${input.s}" and every column a prefix of "${input.t}". Column ${EMPTY_PREFIX} is one because deleting every source character makes the empty target in exactly one way. The top row is zero for every nonempty target prefix. No full target has been formed yet.`,
+    state: { kind: "grid", rowLabels, colLabels, cells: cellsAfter(0, null) },
+  }];
+
+  // Show the first move, a middle row, the strongest branching point, and
+  // the answer. Filling every row forced the voice to say the same recurrence
+  // seven times. All table values are still computed and verified first.
+  const milestoneRows = new Set([1, Math.ceil(source.length / 2), source.length]);
+  let branchRow = 0;
+  let branchCount = 1;
+  for (let r = 2; r < source.length; r += 1) {
+    const largestPartial = Math.max(...dp[r]!.slice(1, target.length));
+    if (largestPartial > branchCount) {
+      branchRow = r;
+      branchCount = largestPartial;
+    }
+  }
+  if (branchRow > 0) milestoneRows.add(branchRow);
+
+  for (let r = 1; r <= source.length; r += 1) {
+    if (!milestoneRows.has(r)) continue;
+    const matches = Array.from({ length: target.length }, (_, index) => index + 1)
+      .filter((c) => source[r - 1] === target[c - 1] && dp[r - 1]![c - 1]! > 0);
+    const isFinal = r === source.length;
+    const focusCol = isFinal ? target.length : (
+      matches[matches.length - 1] ??
+      Array.from({ length: target.length }, (_, index) => index + 1)
+        .filter((c) => dp[r]![c]! > 0).at(-1) ?? 1
+    );
+    const above = dp[r - 1]![focusCol]!;
+    const diagonal = source[r - 1] === target[focusCol - 1]
+      ? dp[r - 1]![focusCol - 1]!
+      : 0;
+    const prefix = input.t.slice(0, focusCol);
+    const current = dp[r]![focusCol]!;
+    frames.push({
+      id: `row${r}`,
+      caption: isFinal
+        ? `Full target "${input.t}": ${ways(dp[r]![target.length]!)}`
+        : `After "${input.s.slice(0, r)}": "${prefix}" has ${ways(current)}`,
+      narrationIntent: `This cell counts ways to form target prefix "${prefix}" from source prefix "${input.s.slice(0, r)}". Skipping the new "${source[r - 1]}" carries ${ways(above)} from above.${diagonal > 0 ? ` Matching it adds ${ways(diagonal)} from the diagonal, for ${ways(current)} here.` : ` It adds no matching ways, leaving ${ways(current)} here.`}${isFinal ? ` The FULL target "${input.t}" has ${ways(dp[r]![target.length]!)}, which is the answer.` : r === 1 ? ` This is still only a partial target; the full target "${input.t}" has zero ways so far.` : ""}`,
+      state: {
+        kind: "grid", rowLabels, colLabels,
+        cells: cellsAfter(r, [r, focusCol]),
+        write: [r, focusCol],
+        reads: diagonal > 0
+          ? [[r - 1, focusCol], [r - 1, focusCol - 1]]
+          : [[r - 1, focusCol]],
+      },
+    });
+  }
+
+  const result = dp[source.length]![target.length]!;
+  return {
+    algorithmId: "distinct_subsequences_dp",
+    title: "Distinct subsequences",
+    input: { s: input.s, t: input.t },
+    result,
+    resultText: String(result),
+    frames,
+  };
+}
+
 export interface KnapsackInput {
   weights: number[];
   values: number[];

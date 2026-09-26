@@ -33,7 +33,7 @@ function assert(condition: unknown, message: string): asserts condition {
  * exactly the budget that made bubble sort unteachable: the comparisons and
  * swaps that are the algorithm all happened between two frames. A walk-through
  * that shows the operations needs room for them, and the pacing gate confirms
- * the resulting lesson still lands in the 6 to 10 minute band.
+ * the resulting lesson follows the current familiarity-based band.
  */
 const MAX_FRAMES_PER_FAMILY = 16;
 
@@ -434,6 +434,25 @@ for (const family of ALGORITHM_FAMILIES) {
     singles.state.kind === "array" && singles.state.groups?.every((group) => group.cells.length === 1),
     "merge_sort: the deepest split must reach single values",
   );
+  const eight = detectAlgorithm("Explain merge sort on [8, 3, 5, 4, 7, 6, 1, 2]")?.trace;
+  assert(eight?.algorithmId === "merge_sort", "merge_sort: the reported example must route to its simulator");
+  const firstSplit = eight.frames.find((frame) => frame.id === "split1");
+  assert(firstSplit?.narrationIntent.includes("8 3 5 4 | 7 6 1 2"),
+    "merge_sort: the first split must give the tutor the two actual halves");
+  const firstMerge = eight.frames.find((frame) => frame.id === "merge2");
+  assert(
+    firstMerge?.narrationIntent.includes("8") && firstMerge.narrationIntent.includes("3") &&
+      /compare 8 (?:with|and) 3/i.test(firstMerge.narrationIntent),
+    "merge_sort: the first merge explanation must name a real comparison from the student's example",
+  );
+  assert(firstMerge.state.kind === "array" && firstMerge.state.note === "8 vs 3 => 3",
+    "merge_sort: the comparison must also be visible on the verified board");
+  const firstTake = eight.frames.find((frame) => frame.id === "take1");
+  assert(
+    firstTake?.narrationIntent.includes("output is now 1") &&
+      firstTake.narrationIntent.includes("Next compare 3 with 2"),
+    "merge_sort: a take must explain the output so far and the next front values",
+  );
 }
 
 // --- Floyd-Warshall: the case that shipped broken. ---
@@ -491,6 +510,30 @@ for (const family of ALGORITHM_FAMILIES) {
 {
   const trace = runDefault("edit_distance");
   assert(trace.result === 3, `edit_distance: expected 3, got ${String(trace.result)}`);
+}
+
+// --- Distinct subsequences: choose two of the three b's in rabbbit. ---
+{
+  const trace = runDefault("distinct_subsequences_dp");
+  assert(trace.result === 3, `distinct subsequences: expected 3, got ${String(trace.result)}`);
+  const row4 = gridOf(trace.frames.find((frame) => frame.id === "row4")!);
+  const row5 = gridOf(trace.frames.find((frame) => frame.id === "row5")!);
+  const final = gridOf(trace.frames[trace.frames.length - 1]!);
+  assert(row4.cells[4]![4] === "1" && row4.cells[4]![6] === "0",
+    "rabb forms the target prefix rabb once, but cannot yet form the full target rabbit");
+  assert(row5.cells[5]![4] === "3" && row5.cells[5]![6] === "0",
+    "three b's give three ways to form rabb, not rabbit");
+  assert(final.cells[7]![6] === "3", "only the final t completes rabbit in three ways");
+  const other = familyById("distinct_subsequences_dp")!.run('s = "babgbag", t = "bag"');
+  assert(other?.exampleSource === "question" && other.trace.result === 5,
+    "the student's second example must yield five from its own strings");
+  const noMatch = familyById("distinct_subsequences_dp")!.run('s = "abc", t = "zz"');
+  assert(noMatch?.exampleSource === "question" && noMatch.trace.result === 0,
+    "an impossible target must yield zero from the student's strings");
+  const noMatchFinal = noMatch.trace.frames.at(-1)!;
+  assert(noMatchFinal.state.kind === "grid" && noMatchFinal.state.write?.[0] === 3 &&
+    noMatchFinal.state.write[1] === 2,
+  "the last frame must focus the full-target answer cell even when its count is zero");
 }
 
 // --- Next greater element: [2,1,2,4,3] -> [4,2,4,null,null]. ---
@@ -3019,6 +3062,7 @@ for (const family of ALGORITHM_FAMILIES) {
     ["longest substring without repeating characters", "sliding_window_unique"],
     ["explain binary search", "binary_search"],
     ["what is edit distance between two strings", "edit_distance"],
+    ["count distinct subsequences of s equal to t", "distinct_subsequences_dp"],
     ["a car accelerates from rest at 2 m/s^2", null],
     ["draw the velocity-time graph for the motion", null],
     ["find the area under the curve y = x^2", null],
@@ -3123,6 +3167,8 @@ for (const family of ALGORITHM_FAMILIES) {
     prim: { edges: ["A-B", "B-C", "C-D"], weight: 7 },
     // "ABCB" and "BDCB" share "BCB".
     lcs: 3,
+    // Choose which two of the three b's in rabbbit to keep for rabbit.
+    distinct_subsequences_dp: 3,
     // horse -> rorse -> rose -> ros is three edits.
     edit_distance: 3,
     // Capacity 7 takes the weight-3 and weight-4 items: 4 + 5 = 9.

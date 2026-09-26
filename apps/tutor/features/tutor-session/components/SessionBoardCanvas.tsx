@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { ResponseBubble } from "@/features/tutor-session/components/ResponseBubble";
 import { getMarkerColorHex, type SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 import type { WhiteboardHandle, CursorState } from "@heytutor/whiteboard";
@@ -14,6 +14,7 @@ import { BoardErrorBanner } from "./BoardErrorBanner";
 import type { BoardMarkingApi } from "../hooks/useBoardMarking";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 import { isOutOfUsageLock } from "@/lib/billing/studentCopy";
+import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 
 export interface SessionBoardCanvasProps {
   boardViewport: BoardViewport;
@@ -35,6 +36,7 @@ export interface SessionBoardCanvasProps {
   verifiedDiagram?: VerifiedDiagram | null;
   /** DSA code-lesson overlay, rendered inside the scaled board box. */
   codeLessonPanel?: ReactNode;
+  codeLessonController: CodeLessonController;
   /** The student's marker. While armed it owns the board's pointer. */
   marking?: BoardMarkingApi | null;
   onRetraceEntity?: (entityId: string) => void;
@@ -71,11 +73,17 @@ export function SessionBoardCanvas({
   rewindSegmentText,
   verifiedDiagram,
   codeLessonPanel,
+  codeLessonController,
   marking,
   onRetraceEntity,
   onRetryError,
   onDismissError,
 }: SessionBoardCanvasProps) {
+  const codeLessonActive = useSyncExternalStore(
+    (listener) => codeLessonController.subscribe(listener),
+    () => Boolean(codeLessonController.getActivePlan()),
+    () => false,
+  );
   const retraceBusyRef = useRef(false);
   const [hoveringAnchor, setHoveringAnchor] = useState(false);
   const idle = phase === "idle" && !isReplaying && !rewindActive;
@@ -263,7 +271,7 @@ export function SessionBoardCanvas({
         <ResponseBubble
           text={rewindActive ? rewindSegmentText : currentSegmentText}
           visible={
-            settings.subtitlesEnabled &&
+            (settings.subtitlesEnabled || codeLessonActive) &&
             (rewindActive
               ? rewindSegmentText.length > 0
               : phase === "speaking" || phase === "drawing")

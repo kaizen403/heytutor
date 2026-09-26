@@ -25,6 +25,7 @@ import {
   dsaOpeningPointIds,
   dsaOpeningPromptAddon,
   getMockCodeLessonPlan,
+  isExplanationOnlyDsaQuestion,
   type CodeLessonFigureFrame,
   type SubjectFamiliarity,
 } from "../../src/index";
@@ -54,6 +55,29 @@ const FRAMES: CodeLessonFigureFrame[] = [
     narrationIntent: "We need 11 to reach 26, and 11 is already in the map at index 2.",
   },
 ];
+
+{
+  const visualAsk = "Explain Merge Sort using the array [8, 3, 5, 4, 7, 6, 1, 2]. Show how the array splits, then merge the pieces step by step. Explain why its time complexity is O(n log n) and space complexity is O(n).";
+  assert(isExplanationOnlyDsaQuestion(visualAsk), "a visual explanation request should not open the code editor");
+  assert(!isExplanationOnlyDsaQuestion("Explain merge sort and write the Python code"), "an explicit code request still needs code");
+  assert(!isExplanationOnlyDsaQuestion("Explain and solve Longest Substring Without Repeating Characters"), "a solve request still needs code");
+  assert(!isExplanationOnlyDsaQuestion("Walk me through implementing Dijkstra in Java"), "an implementing request still needs code");
+  assert(!isExplanationOnlyDsaQuestion("Explain how solving two sum works"), "a solving request still needs code");
+  assert(isExplanationOnlyDsaQuestion("Explain dynamic programming for coin change"), "dynamic programming names a technique, not a program");
+  assert(isExplanationOnlyDsaQuestion("What is the intuition behind Kadane's algorithm?"), "an intuition request is an explanation");
+  const prompt = codeLessonPromptAddon(PLAN, { frames: FRAMES, familiarity: "normal", includeCode: false });
+  assert(!/\[TYPE:/.test(prompt), "an explanation-only prompt cannot ask for code blocks");
+  assert(!/split and merge/i.test(prompt), "the explanation-only close cannot assume Merge Sort");
+  const steeredToCode = codeLessonPromptAddon(PLAN, {
+    frames: FRAMES,
+    familiarity: "normal",
+    includeCode: false,
+    teachingPolicy: { motivation: "start_worked_example", emphasis: "implementation" },
+  });
+  assert(!/code decisions/i.test(steeredToCode), "a lesson without code cannot be steered toward code decisions");
+  assert(/No code editor or code blocks appear/i.test(prompt), "the tutor must know the example stays on screen");
+  assert(FRAMES.every((frame) => prompt.includes(`[FOCUS:${frame.id}|spotlight]`)), "all verified frames still need teaching beats");
+}
 
 // --- The prompt describes the committed frames, and only those. ---
 {
@@ -116,13 +140,13 @@ const FRAMES: CodeLessonFigureFrame[] = [
 
   assert(/FAMILIARITY: NEW/.test(prompts.get("new")!), "New must name its familiarity");
   assert(/FAMILIARITY: REVISION/.test(prompts.get("revision")!), "Revision must name its familiarity");
-  // Sentences were the wrong unit: the model's sentences run ten to fourteen
-  // words, so "three to four sentences" bought about half the intended time.
+  // A word target is a ceiling for most beats, not a floor to pad toward.
   for (const familiarity of ["new", "normal", "revision"] as const) {
     assert(
-      prompts.get(familiarity)!.includes(`at least ${CODE_LESSON_STEP_WORDS[familiarity]} spoken words`),
-      `${familiarity} must state its own word floor`,
+      prompts.get(familiarity)!.includes(`no more than about ${CODE_LESSON_STEP_WORDS[familiarity]} words`),
+      `${familiarity} must state its own concise word guidance`,
     );
+    assert(!/at least \d+ spoken words/.test(prompts.get(familiarity)!), "no mandatory word floor");
   }
   assert(
     CODE_LESSON_STEP_WORDS.new > CODE_LESSON_STEP_WORDS.normal &&
@@ -151,8 +175,19 @@ const FRAMES: CodeLessonFigureFrame[] = [
   for (const kinds of [newKinds, normalKinds, revisionKinds]) {
     assert(kinds[0] === "opening", "every lesson opens by stating the problem");
     assert(kinds[kinds.length - 1] === "close", "every lesson closes on the complexity");
-    assert(kinds.includes("trace_through"), "every lesson runs the finished code on the example");
+    assert(!kinds.includes("trace_through"), "worked frames must not be retold after the walkthrough");
+    assert(!kinds.includes("frame_why"), "frame reasoning belongs in the frame's own beat");
   }
+  assert(
+    codeLessonBeatPlan({ frames: [], blockIds: BLOCK_IDS, familiarity: "normal" })
+      .some((beat) => beat.kind === "trace_through"),
+    "without frames, the example still needs a spoken run",
+  );
+  assert(
+    !codeLessonBeatPlan({ frames: FRAMES, blockIds: BLOCK_IDS, familiarity: "normal", motivation: "start_worked_example" })
+      .some((beat) => beat.kind === "brute_force"),
+    "a direct lesson can skip optional motivation without skipping verified material",
+  );
   const openingBrief = codeLessonBeatPlan({
     frames: FRAMES.map((frame) => ({ id: frame.id, caption: frame.caption })),
     blockIds: BLOCK_IDS,

@@ -28,7 +28,7 @@ const shell = read("features/tutor-session/TutorSessionShell.tsx");
 assert.match(shell, /useLecturePageHalt/, "the session shell must halt audio when the page dies");
 
 const turn = read("features/tutor-session/hooks/turn/useTurnControl.ts");
-const stopTurnStart = turn.indexOf("const stopTurn = useCallback(() => {");
+const stopTurnStart = turn.search(/const stopTurn = useCallback\(\([^)]*\) => \{/);
 assert.notEqual(stopTurnStart, -1, "stopTurn is gone");
 const stopTurnBody = turn.slice(stopTurnStart, turn.indexOf("}, [", stopTurnStart));
 const idleGuard = stopTurnBody.indexOf('phase === "idle"');

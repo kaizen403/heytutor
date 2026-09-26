@@ -842,6 +842,8 @@ export function useSegmentRunner({
                 estimatedTotalMs: estimateSpeechMs,
                 getAudioPositionMs: liveAudioPositionMs,
                 getPlaybackRate: segmentPlaybackRate,
+                isSpeechComplete: () => speechComplete,
+                canAdvanceAfterSpeech: () => !isPausedRef.current,
                 msPerChar: speechMsPerChar,
               },
             });

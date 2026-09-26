@@ -74,6 +74,7 @@ import {
   simulateMinCostStairs,
 } from "./trace/simulators/dpLinear";
 import {
+  simulateDistinctSubsequences,
   simulateEditDistance,
   simulateKnapsack,
   simulateLongestCommonSubsequence,
@@ -801,6 +802,24 @@ export const ALGORITHM_FAMILIES: readonly AlgorithmFamily[] = [
     hints: [/\bsubsequence\b/i, /\bdp\s+table\b/i],
     run: (question) =>
       grounded(parseStringPair(question), { a: "ABCB", b: "BDCB" }, simulateLongestCommonSubsequence),
+  },
+  {
+    id: "distinct_subsequences_dp",
+    title: "Distinct subsequences",
+    structure: "grid",
+    cues: [
+      /\bdistinct\s+subsequences\b/i,
+      /\bnumber\s+of\s+distinct\s+subsequences\b/i,
+    ],
+    hints: [/\bdelete\s+characters\b/i, /\bform\s+(?:the\s+)?target\b/i],
+    run: (question) => grounded(
+      (() => {
+        const pair = parseStringPair(question);
+        return pair ? { s: pair.a, t: pair.b } : null;
+      })(),
+      { s: "rabbbit", t: "rabbit" },
+      simulateDistinctSubsequences,
+    ),
   },
   {
     id: "edit_distance",

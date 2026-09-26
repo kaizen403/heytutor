@@ -189,6 +189,12 @@ export const FAMILY_TEACHING: Record<string, FamilyTeachingFacts> = {
     terms: ["subsequence", "table"],
     codeShape: { helpers: "none" },
   },
+  distinct_subsequences_dp: {
+    mechanism:
+      "fill a table of counts for source and target prefixes: every cell carries the count from above for skipping the new source character, and adds the diagonal count only when that character matches the target character for this column.",
+    terms: ["subsequence", "table"],
+    codeShape: { helpers: "none" },
+  },
   edit_distance: {
     mechanism:
       "fill a table of costs between prefixes: matching letters carry the diagonal down unchanged, otherwise pay one and take the cheapest of replace, delete and insert.",

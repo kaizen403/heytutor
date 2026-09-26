@@ -27,6 +27,7 @@ import {
   CODE_LESSON_STEP_MS,
   FRAME_SWAP_MS,
   classifyDsaQuestion,
+  isExplanationOnlyDsaQuestion,
   codeLessonSectionCode,
   codeLessonStepCount,
   createFallbackTurnPlanV3,
@@ -61,6 +62,7 @@ import {
 } from "@/features/tutor-session/lib/code-lesson/dsaFrames";
 import { codeTypingCharOffsetsMs } from "@/features/tutor-session/lib/code-lesson/codeLessonController";
 import { prettierSyntaxCheck } from "@/features/tutor-session/lib/code-lesson/prettierSyntaxCheck";
+import { fetchDsaTeachingPolicy } from "@/features/tutor-session/lib/code-lesson/dsaTeachingPolicyClient";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 
 /** Spoken pace the audio clock assumes before real timings arrive. */
@@ -161,6 +163,8 @@ export interface DsaLectureRun {
     missingBlockIds: string[];
     unshownFrameCount: number;
     insertedFrameCount: number;
+    /** Exact count of advances inserted beside TYPE, if this run recorded it. */
+    codeCatchUpFrameCount?: number;
     figureBeats: number;
     codeBeats: number;
     /** Tags the teaching stream is never allowed to emit on a DSA turn. */
@@ -248,6 +252,7 @@ export async function runDsaLecture(
   const startedAt = Date.now();
 
   const classification = classifyDsaQuestion(question);
+  const explanationOnly = classification.isDsa && isExplanationOnlyDsaQuestion(question);
   const ranking = rankAlgorithms(question)
     .slice(0, 4)
     .map((entry) => ({ family: entry.family.id, score: entry.score, margin: entry.margin }));
@@ -306,6 +311,7 @@ export async function runDsaLecture(
       missingBlockIds: [],
       unshownFrameCount: 0,
       insertedFrameCount: 0,
+      codeCatchUpFrameCount: 0,
       figureBeats: 0,
       codeBeats: 0,
       forbiddenTags: [],
@@ -366,6 +372,17 @@ export async function runDsaLecture(
       run.codeLesson.totalLines = run.codeLesson.sections.reduce((sum, section) => sum + section.lines, 0);
       run.codeLesson.diagramHint = codeLesson.diagramHint;
     }
+
+    // Start the small Jev decision while the verified frame set is compiled.
+    const teachingPolicyPromise = codeLesson && !options.offline && familiarity === "normal"
+      ? fetchDsaTeachingPolicy({
+          url: `${options.origin}/api/dsa-teaching-policy`,
+          question,
+          familiarity,
+          technique: boardContext?.context.familyId ?? null,
+          traceId,
+        })
+      : null;
 
     // The figure. Offline mode has no plan, so only a real trace can draw;
     // that is exactly the question offline mode asks ("does the catalog
@@ -482,12 +499,15 @@ export async function runDsaLecture(
       return run;
     }
 
+    const explanationOnlyWithFrames = explanationOnly && Boolean(frameSet?.frames.length);
     const teachingPrompt = buildTurnTeachingPrompt({
       question,
       diagramPromptAddon: activeDiagram?.promptAddon ?? null,
       turnPlan: codeLesson ? createFallbackTurnPlanV3(question) : null,
       solverProjection: null,
       codeLesson,
+      codeLessonIncludeCode: !explanationOnlyWithFrames,
+      ...(teachingPolicyPromise ? { codeLessonTeachingPolicy: await teachingPolicyPromise } : {}),
       codeLessonFrames: frameSet?.frames.map((frame) => ({
         id: frame.id,
         caption: frame.caption,
@@ -501,7 +521,7 @@ export async function runDsaLecture(
     run.promptChars = teachingPrompt.systemPrompt.length;
     run.promptAddon = teachingPrompt.runtimeAddon;
     run.teaching.expectedStepCount = codeLesson
-      ? codeLessonStepCount(frameSet?.frames.length ?? 0, run.codeLesson.blockCount)
+      ? codeLessonStepCount(frameSet?.frames.length ?? 0, explanationOnlyWithFrames ? 0 : run.codeLesson.blockCount)
       : 0;
 
     // Mirrors the app: opening notes first, then the figure. With no
@@ -515,6 +535,7 @@ export async function runDsaLecture(
       : (openingPointIds.length > 0 ? openingPointIds : staticPointIds);
     const conductor = codeLesson
       ? createCodeLessonConductor(codeLesson, {
+          includeCode: !explanationOnlyWithFrames,
           frameCount: frameSet?.frames.length ?? 0,
           frameIds: frameSet?.frames.map((frame) => frame.id) ?? [],
           frameFocusIds: frameSet?.frames.map((frame) => frame.focusEntityIds) ?? [],
@@ -537,6 +558,7 @@ export async function runDsaLecture(
     const unknownBlockIds: string[] = [];
     const duplicateBlockIds: string[] = [];
     let insertedFrameCount = 0;
+    let codeCatchUpFrameCount = 0;
     let framesShown = frameSet && frameSet.frames.length > 0 ? 1 : 0;
     for (const segment of teachingPrompt.givenSegments) {
       const text = segment.command?.text ?? "";
@@ -562,6 +584,7 @@ export async function runDsaLecture(
         unknownBlockIds.push(...resolved.unknownBlockIds);
         duplicateBlockIds.push(...resolved.duplicateBlockIds);
         insertedFrameCount = resolved.insertedFrameCount;
+        codeCatchUpFrameCount = resolved.codeCatchUpFrameCount;
       }
       for (const segment of resolved?.segments ?? prepared.segments) {
         const actions: DsaBeatAction[] = [];
@@ -690,6 +713,7 @@ export async function runDsaLecture(
     run.teaching.unknownBlockIds = unknownBlockIds;
     run.teaching.duplicateBlockIds = duplicateBlockIds;
     run.teaching.insertedFrameCount = insertedFrameCount;
+    run.teaching.codeCatchUpFrameCount = codeCatchUpFrameCount;
     run.teaching.forbiddenTags = forbidden;
     const finalProgress = conductor?.status();
     run.teaching.missingBlockIds = finalProgress?.missingBlockIds ?? [];
