@@ -3,18 +3,38 @@ import { DEFAULT_PLAYBACK_SPEED } from "@/lib/account/lessonSettings";
 
 export const DEFAULT_REPLAY_SPEED = DEFAULT_PLAYBACK_SPEED;
 
+/** Retry from the interrupted word only when per-character alignment is trustworthy. */
+export function remainingReplaySpeech(
+  spokenText: string,
+  playedMs: number,
+  timings?: { charStartTimes: number[] } | null,
+): string {
+  if (!timings || timings.charStartTimes.length !== spokenText.length || playedMs <= 0) {
+    return spokenText;
+  }
+  const firstUnheard = timings.charStartTimes.findIndex((start) => start * 1000 > playedMs);
+  // The final character can have started but not finished when media fails.
+  const interruptedAt = firstUnheard < 0 ? spokenText.length - 1 : firstUnheard;
+  const wordStart = spokenText.lastIndexOf(" ", interruptedAt - 1) + 1;
+  return spokenText.slice(wordStart).trim();
+}
+
 export interface PlayReplayAudioOptions {
   audio?: HTMLAudioElement;
   playbackRate?: number;
   maxDurationMs?: number;
   startAtMs?: number;
   onStart?: (durationMs: number) => void;
+  /** Position sampled before a failed media element is unloaded/reset. */
+  onFailure?: (playedMs: number) => void;
   shouldCancel?: () => boolean;
+  /** Current user pause state, including before the queued media pause event. */
+  isPaused?: () => boolean;
   /** Live playback-rate reader so mid-cue speed changes retune timeout + element. */
   getPlaybackRate?: () => number;
 }
 
-const LOAD_TIMEOUT_MS = 12_000;
+const LOAD_TIMEOUT_MS = 6_000;
 
 export function applyReplayPlaybackRate(
   audio: HTMLAudioElement,
@@ -80,12 +100,12 @@ export function playReplayAudio(
   let loadTimeoutId: number | null = null;
   let playbackTimeoutId: number | null = null;
   let ratePollId: number | null = null;
-  let finishPlayback: ((error?: unknown) => void) | null = null;
   let started = false;
   let mediaDurationMs = options.maxDurationMs ?? 60_000;
 
   const done = new Promise<void>((resolve, reject) => {
     let settled = false;
+    let pauseEpoch = 0;
 
     const finish = (error?: unknown) => {
       if (settled) {
@@ -111,11 +131,19 @@ export function playReplayAudio(
         ratePollId = null;
       }
 
+      audio.onpause = null;
+      audio.onplay = null;
       audio.onplaying = null;
       audio.onloadedmetadata = null;
       audio.onended = null;
       audio.onerror = null;
-      finishPlayback = null;
+
+      if (error) {
+        options.onFailure?.(Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0);
+      }
+      if (error || options.shouldCancel?.()) {
+        stopReplayAudio(audio);
+      }
 
       if (error) {
         reject(error);
@@ -124,8 +152,6 @@ export function playReplayAudio(
 
       resolve();
     };
-
-    finishPlayback = finish;
 
     const currentRate = (): number =>
       Math.max(options.getPlaybackRate?.() ?? audio.playbackRate ?? 1, 0.1);
@@ -140,6 +166,10 @@ export function playReplayAudio(
       );
       const wallBudgetMs = remainingMediaMs / currentRate() + 8_000;
       playbackTimeoutId = window.setTimeout(() => {
+        playbackTimeoutId = null;
+        // The control marks pause synchronously, but the browser may queue
+        // `pause` behind this watchdog. Resume/playing arms a fresh budget.
+        if (options.isPaused?.() || audio.paused) return;
         finish(new Error(`Replay audio playback timeout: ${url}`));
       }, Math.max(wallBudgetMs, 15_000));
     };
@@ -159,12 +189,19 @@ export function playReplayAudio(
           : options.maxDurationMs ?? 700;
       mediaDurationMs = durationMs;
       options.onStart?.(durationMs);
-      armPlaybackTimeout();
     };
 
-    loadTimeoutId = window.setTimeout(() => {
-      finish(new Error(`Replay audio load timeout: ${url}`));
-    }, LOAD_TIMEOUT_MS);
+    const armLoadTimeout = () => {
+      if (loadTimeoutId !== null) window.clearTimeout(loadTimeoutId);
+      loadTimeoutId = window.setTimeout(() => {
+        loadTimeoutId = null;
+        // pause() may have run while its media event is still queued. Resume's
+        // play event arms a fresh bounded wait rather than charging paused time.
+        if (options.isPaused?.() || audio.paused) return;
+        finish(new Error(`Replay audio load timeout: ${url}`));
+      }, LOAD_TIMEOUT_MS);
+    };
+    armLoadTimeout();
 
     const seekToStart = () => {
       if (options.startAtMs && options.startAtMs > 0) {
@@ -182,9 +219,33 @@ export function playReplayAudio(
       }
     };
 
-    // Loading metadata or emitting `play` does not mean sound is coming out yet.
+    // Metadata and `play` can arrive while the media element is still
+    // buffering. The board clock starts only when audio can actually play.
     audio.onplaying = () => {
+      if (audio.paused || options.isPaused?.() || settled) return;
       notifyStart();
+      if (loadTimeoutId !== null) {
+        window.clearTimeout(loadTimeoutId);
+        loadTimeoutId = null;
+      }
+      armPlaybackTimeout();
+    };
+    audio.onpause = () => {
+      if (!audio.paused || settled) return;
+      pauseEpoch++;
+      if (loadTimeoutId !== null) {
+        window.clearTimeout(loadTimeoutId);
+        loadTimeoutId = null;
+      }
+      if (playbackTimeoutId !== null) {
+        window.clearTimeout(playbackTimeoutId);
+        playbackTimeoutId = null;
+      }
+    };
+    audio.onplay = () => {
+      // A resumed element can buffer again before `playing`; bound that wait.
+      // A queued play event may also arrive after pause, so never arm it then.
+      if (!settled && !audio.paused && !options.isPaused?.()) armLoadTimeout();
     };
 
     audio.onended = () => finish();
@@ -198,7 +259,7 @@ export function playReplayAudio(
       const rate = currentRate();
       if (Math.abs(audio.playbackRate - rate) > 0.001) {
         applyReplayPlaybackRate(audio, rate);
-        if (started) {
+        if (started && !audio.paused && !options.isPaused?.()) {
           armPlaybackTimeout();
         }
       }
@@ -207,24 +268,20 @@ export function playReplayAudio(
     if (audio.readyState >= 1) {
       seekToStart();
     }
-    void audio.play().catch((error: unknown) => finish(error));
+    const playEpoch = pauseEpoch;
+    void audio.play().catch((error: unknown) => {
+      // A pause interrupts a pending play() promise, sometimes after resume.
+      // The resumed element still owns this cue until `ended` or a real error.
+      if (pauseEpoch !== playEpoch || options.isPaused?.()
+        || (error instanceof Error && error.name === "AbortError" && !audio.paused)) return;
+      finish(error);
+    });
+    if (options.shouldCancel) {
+      cancelInterval = window.setInterval(() => {
+        if (options.shouldCancel?.()) finish();
+      }, 32);
+    }
   });
-
-  if (options.shouldCancel) {
-    cancelInterval = window.setInterval(() => {
-      if (options.shouldCancel?.()) {
-        audio.pause();
-        finishPlayback?.();
-      }
-    }, 32);
-    const clearCancelInterval = () => {
-      if (cancelInterval !== null) {
-        window.clearInterval(cancelInterval);
-        cancelInterval = null;
-      }
-    };
-    void done.then(clearCancelInterval, clearCancelInterval);
-  }
 
   return { audio, done };
 }
@@ -245,6 +302,7 @@ export function waitUntilDrawClock(
   targetMs: number,
   options: {
     shouldCancel?: () => boolean;
+    isPaused?: () => boolean;
     getPlaybackRate?: () => number;
     nowMs?: () => number;
   } = {},
@@ -252,7 +310,8 @@ export function waitUntilDrawClock(
   return new Promise((resolve) => {
     let done = false;
     const nowMs = options.nowMs ?? (() => performance.now());
-    const startWall = nowMs();
+    let lastWall = nowMs();
+    let activeWallMs = 0;
     const schedule = globalThis.setTimeout.bind(globalThis);
 
     const finish = () => {
@@ -267,12 +326,23 @@ export function waitUntilDrawClock(
         finish();
         return;
       }
+      const now = nowMs();
+      if (options.isPaused?.()) {
+        // Keep stateful media/wall fallback clocks sampled without advancing
+        // the draw target or charging paused time against the deadline.
+        getPositionMs();
+        lastWall = now;
+        schedule(step, 16);
+        return;
+      }
+      activeWallMs += now - lastWall;
+      lastWall = now;
       const rate = Math.max(options.getPlaybackRate?.() ?? 1, 0.1);
       if (getPositionMs() + 10 >= targetMs) {
         finish();
         return;
       }
-      if (nowMs() - startWall > Math.max(targetMs / rate + 4_000, 8_000)) {
+      if (activeWallMs > Math.max(targetMs / rate + 4_000, 8_000)) {
         finish();
         return;
       }
@@ -292,18 +362,20 @@ export function waitForReplayMediaTime(
     getPlaybackRate?: () => number;
   } = {},
 ): Promise<void> {
-  const origin = performance.now();
+  const fallbackClock = createAccumulatingMediaClock({
+    getPlaybackRate: () => options.getPlaybackRate?.() ?? audio.playbackRate ?? 1,
+    isPaused: () => audio.paused,
+  });
   return waitUntilDrawClock(
     () => {
       const media = Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0;
       if (media > 0 || audio.ended) {
         return media;
       }
-      const rate = Math.max(options.getPlaybackRate?.() ?? audio.playbackRate ?? 1, 0.1);
-      return (performance.now() - origin) * rate;
+      return fallbackClock.positionMs();
     },
     targetMs,
-    options,
+    { ...options, isPaused: () => audio.paused },
   );
 }
 
@@ -311,15 +383,41 @@ export function waitForReplayMediaTime(
 export function createAccumulatingMediaClock(options: {
   getPlaybackRate: () => number;
   nowMs?: () => number;
-}): { positionMs: () => number } {
+  isPaused?: () => boolean;
+}): { positionMs: () => number; nowMs: () => number; setPaused: (paused: boolean) => void } {
   const nowMs = options.nowMs ?? (() => performance.now());
   let mediaMs = 0;
   let lastWall = nowMs();
-  return {
-    positionMs: () => {
-      const now = nowMs();
-      mediaMs += (now - lastWall) * Math.max(options.getPlaybackRate(), 0.1);
+  let activeWall = lastWall;
+  let paused = options.isPaused?.() ?? false;
+  const advance = (now: number, nextPaused: boolean) => {
+    if (!paused) activeWall += Math.max(now - lastWall, 0);
+    lastWall = now;
+    paused = nextPaused;
+  };
+  const activeNow = () => {
+    const now = nowMs();
+    const observedPaused = options.isPaused?.() ?? paused;
+    if (observedPaused !== paused) {
+      // A sampled-only transition has no trustworthy transition timestamp.
+      // Drop this ambiguous interval; controls use setPaused for exact edges.
+      paused = observedPaused;
       lastWall = now;
+    } else {
+      advance(now, paused);
+    }
+    return activeWall;
+  };
+  let lastActive = activeWall;
+  return {
+    // Called by the pause/resume control itself: no draw/timer sample is needed
+    // during a backgrounded pause to exclude its wall time.
+    setPaused: (nextPaused) => { advance(nowMs(), nextPaused); },
+    nowMs: activeNow,
+    positionMs: () => {
+      const now = activeNow();
+      mediaMs += (now - lastActive) * Math.max(options.getPlaybackRate(), 0.1);
+      lastActive = now;
       return mediaMs;
     },
   };

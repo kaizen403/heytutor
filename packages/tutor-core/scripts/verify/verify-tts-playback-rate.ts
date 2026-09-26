@@ -23,8 +23,8 @@ function assert(condition: unknown, message: string): asserts condition {
 assert(clampPlaybackRate(2) === 2, "2× must not be clamped to ElevenLabs generation range");
 assert(clampPlaybackRate(0.5) === 0.5, "0.5× must stay below the generation floor");
 assert(clampPlaybackRate(3) === 3, "3× is a legal lecture speed");
-assert(browserFallbackPlaybackRate(2) === 1, "system voice fallback stays at natural pace");
-assert(browserFallbackPlaybackRate(0.8) === 0.8, "a deliberately slow voice stays slow");
+assert(browserFallbackPlaybackRate(1.25) === 1, "browser fallback must not become robotic at default 1.25×");
+assert(browserFallbackPlaybackRate(0.75) === 0.75, "a deliberate slower voice remains slower");
 
 const html = { playbackRate: 1, preservesPitch: false } as HTMLAudioElement & {
   preservesPitch: boolean;

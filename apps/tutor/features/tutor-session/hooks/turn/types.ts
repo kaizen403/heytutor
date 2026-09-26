@@ -115,6 +115,8 @@ export type UseTurnLifecycleParams = {
   setLiveTurnKind?: Dispatch<SetStateAction<PageTurnKind>>;
   ttsClientRef: RefObject<TTSClient | null>;
   replayAudioRef: RefObject<HTMLAudioElement | null>;
+  /** Active replay draw wall clock; pause controls mark transitions synchronously. */
+  replayDrawClockRef: RefObject<{ setPaused: (paused: boolean) => void } | null>;
   replayAudioPreloadRef: RefObject<Map<string, HTMLAudioElement>>;
   cancelRef: RefObject<boolean>;
   turnActiveRef: RefObject<boolean>;

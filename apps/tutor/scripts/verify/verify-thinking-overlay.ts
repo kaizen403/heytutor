@@ -104,12 +104,12 @@ assert(
   "voice never starting must still drop the preparing overlay",
 );
 assert(
-  runner.includes("waitedMs: performance.now() - waitStartedAt"),
-  "the first schedule must give up if the voice never starts",
+  runner.includes("waitedMs: waitClock.elapsedMs()"),
+  "the first schedule must give up after active (not paused) wait if the voice never starts",
 );
 assert(
-  runner.includes("playbackPositionMs: tts.getPlaybackPositionMs()"),
-  "the first schedule must wait for actual playback, not merely onStart",
+  runner.includes("playbackPositionMs: usingBrowserFallback ? null : tts.getPlaybackPositionMs()"),
+  "the first schedule must wait for primary playback, not merely onStart or stale primary position during browser recovery",
 );
 assert(
   !/if \(isCancelled\(\) return;\s*applyTurnPhase\("speaking"\)/.test(runner),

@@ -83,6 +83,7 @@ export function useTurnControl(
     ensureTTSClient,
     currentTraceIdRef,
     replayAudioRef,
+    replayDrawClockRef,
     replayAudioPreloadRef,
     cancelRef,
     turnActiveRef,
@@ -162,7 +163,7 @@ export function useTurnControl(
     [turnActiveRef, cancelRef, phaseRef, setPhase],
   );
 
-  const { runSegment } = useSegmentRunner({ ...params, applyTurnPhase });
+  const { runSegment, pauseFallbackSpeech, resumeFallbackSpeech, stopFallbackSpeech } = useSegmentRunner({ ...params, applyTurnPhase });
 
   const enqueueSegment = useCallback(
     (segment: TutorSegment, turnGeneration = turnGenerationRef.current) => {
@@ -645,6 +646,7 @@ export function useTurnControl(
     // TTS buffer or speechSynthesis utterance is still talking — especially
     // after a raced stop. Returning before this left the lecture audible.
     ttsClientRef.current?.stop();
+    stopFallbackSpeech();
     if (typeof window !== "undefined") {
       window.speechSynthesis?.cancel();
     }
@@ -739,6 +741,7 @@ export function useTurnControl(
     replayAudioPreloadRef,
     replayGenerationRef,
     ttsClientRef,
+    stopFallbackSpeech,
     whiteboardRef,
     segmentChainRef,
     drawChainRef,
@@ -769,13 +772,15 @@ export function useTurnControl(
       return;
     }
 
+    pauseFallbackSpeech();
     isPausedRef.current = true;
+    replayDrawClockRef.current?.setPaused(true);
     setIsPaused(true);
     ttsClientRef.current?.pause();
     replayAudioRef.current?.pause();
     whiteboardRef.current?.setPaused(true);
     tutorDebug("turn", "paused");
-  }, [phase, isPausedRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef]);
+  }, [phase, isPausedRef, replayDrawClockRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef, pauseFallbackSpeech]);
 
   const resumeTurn = useCallback(() => {
     if (!isPausedRef.current) {
@@ -788,12 +793,14 @@ export function useTurnControl(
     }
 
     isPausedRef.current = false;
+    replayDrawClockRef.current?.setPaused(false);
+    resumeFallbackSpeech();
     setIsPaused(false);
     ttsClientRef.current?.resume();
     void replayAudioRef.current?.play().catch(() => undefined);
     whiteboardRef.current?.setPaused(false);
     tutorDebug("turn", "resumed");
-  }, [isPausedRef, rewoundRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef]);
+  }, [isPausedRef, rewoundRef, replayDrawClockRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef, resumeFallbackSpeech]);
 
   useEffect(() => {
     if (!enableKeyboardControls) {

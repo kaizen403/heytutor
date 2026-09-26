@@ -40,13 +40,12 @@ import {
   type InitialTimingWaitRelease,
   type TTSClient,
   SpeechSynthesisTTSClient,
-  browserFallbackPlaybackRate,
 } from "@heytutor/tutor-core";
 import { waitUntilDrawClock } from "@/lib/replay/replayAudio";
 import { orderCommandsBySpokenAnchor } from "../../lib/turn/segmentPlanning";
 import { guardDrawWithSpeech } from "../../lib/turn/turnFailurePolicy";
 import { speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
-import { requireSpeechStart, speakWithStartupRecovery, speechPlaybackOverdue } from "../../lib/turn/speechStartup";
+import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
 import { resolveCommandInkBudgetMs } from "../../types";
 import type { UseSegmentRunnerParams } from "./types";
 
@@ -84,6 +83,31 @@ export function useSegmentRunner({
   // every guessed row finished a median 1.4 s before its words.
   const speechRateRef = useRef(createSpeechRateState());
   const browserSpeechRef = useRef<SpeechSynthesisTTSClient | null>(null);
+  const browserFallbackOwnerRef = useRef<symbol | null>(null);
+  const fallbackPauseGenerationRef = useRef(0);
+  const speechClockRef = useRef<PauseAwareSpeechClock | null>(null);
+  const timingWaitClockRef = useRef<PauseAwareSpeechClock | null>(null);
+
+  // Turn controls own both transports. Browser pause() cancels its current
+  // utterance; the fallback loop retries that sentence after resume.
+  const pauseFallbackSpeech = () => {
+    speechClockRef.current?.pause();
+    timingWaitClockRef.current?.pause();
+    fallbackPauseGenerationRef.current++;
+    if (browserFallbackOwnerRef.current) browserSpeechRef.current?.pause();
+  };
+  const resumeFallbackSpeech = () => {
+    speechClockRef.current?.resume();
+    timingWaitClockRef.current?.resume();
+    if (browserFallbackOwnerRef.current) browserSpeechRef.current?.resume();
+  };
+  const stopFallbackSpeech = () => {
+    // A cancelled turn must not leave its startup poll suspended forever.
+    speechClockRef.current?.resume();
+    timingWaitClockRef.current?.resume();
+    fallbackPauseGenerationRef.current++;
+    if (browserFallbackOwnerRef.current) browserSpeechRef.current?.stop();
+  };
 
   const waitWhilePaused = useCallback(async (): Promise<boolean> => {
     while (isPausedRef.current) {
@@ -236,6 +260,10 @@ export function useSegmentRunner({
         200,
       );
       let audioStartedAtMs: number | null = null;
+      let audioStartedAtActiveMs: number | null = null;
+      let usingBrowserFallback = false;
+      let speechAborted = false;
+      const segmentFallbackOwner = Symbol("browser fallback");
       let speechComplete = false;
       let actualDrawMs = 0;
       let timingTelemetryCount = 0;
@@ -261,6 +289,7 @@ export function useSegmentRunner({
 
       let maxAudioPositionMs = Number.NEGATIVE_INFINITY;
       const liveAudioPositionMs = (): number => {
+        const clock = speechClockRef.current;
         const resolved = resolveLiveAudioPositionMs({
           speechComplete,
           capturedDurationMs:
@@ -269,9 +298,9 @@ export function useSegmentRunner({
               ? Math.round(capturedTimings.totalDuration * 1000)
               : null),
           estimateSpeechMs,
-          playbackPositionMs: tts.getPlaybackPositionMs(),
-          audioStartedAtMs,
-          nowMs: performance.now(),
+          playbackPositionMs: usingBrowserFallback ? null : tts.getPlaybackPositionMs(),
+          audioStartedAtMs: clock && audioStartedAtActiveMs !== null ? audioStartedAtActiveMs : audioStartedAtMs,
+          nowMs: clock ? clock.elapsedMs() : performance.now(),
           maxAudioPositionMs,
           playbackRate: segmentPlaybackRate(),
         });
@@ -288,25 +317,30 @@ export function useSegmentRunner({
        */
       const waitForInitialTimings = (): Promise<void> =>
         new Promise((resolve) => {
-          const waitStartedAt = performance.now();
+          const waitClock = createPauseAwareSpeechClock();
+          if (isPausedRef.current) waitClock.pause();
+          timingWaitClockRef.current = waitClock;
           let settled = false;
           let timerId: number | null = null;
           const evaluate = () => {
             if (settled) {
               return;
             }
+            const speechClock = speechClockRef.current;
+            const nowMs = speechClock?.elapsedMs() ?? performance.now();
             const decision = resolveInitialTimingWait({
               hasNarration,
               timingChars: capturedTimings?.charStartTimes.length ?? 0,
-              audioStartedAtMs,
-              nowMs: performance.now(),
+              audioStartedAtMs: speechClock && audioStartedAtActiveMs !== null ? audioStartedAtActiveMs : audioStartedAtMs,
+              nowMs,
               speechComplete,
               cancelled: isCancelled(),
-              playbackPositionMs: tts.getPlaybackPositionMs(),
-              waitedMs: performance.now() - waitStartedAt,
+              playbackPositionMs: usingBrowserFallback ? null : tts.getPlaybackPositionMs(),
+              waitedMs: waitClock.elapsedMs(),
             });
             if (decision.release) {
               settled = true;
+              if (timingWaitClockRef.current === waitClock) timingWaitClockRef.current = null;
               if (timerId !== null) {
                 window.clearTimeout(timerId);
               }
@@ -316,7 +350,7 @@ export function useSegmentRunner({
               }
               initialTimingWait = {
                 release: decision.source,
-                waitedMs: Math.round(performance.now() - waitStartedAt),
+                waitedMs: Math.round(waitClock.elapsedMs()),
               };
               resolve();
               return;
@@ -329,7 +363,7 @@ export function useSegmentRunner({
               // deadline timer at one frame so we notice the first sample.
               const delay =
                 decision.releaseAtMs !== null
-                  ? Math.max(decision.releaseAtMs - performance.now(), 0) + 1
+                  ? Math.max(decision.releaseAtMs - nowMs, 0) + 1
                   : 16;
               timerId = window.setTimeout(() => {
                 timerId = null;
@@ -872,6 +906,7 @@ export function useSegmentRunner({
         if (isCancelled() || !turnActiveRef.current) return;
         if (audioStartedAtMs === null) {
           audioStartedAtMs = performance.now();
+          audioStartedAtActiveMs = speechClockRef.current?.elapsedMs() ?? null;
         }
         // Narration-only: drop the overlay as soon as onStart fires.
         // Paired speech+ink waits until playback is audible so a long
@@ -909,7 +944,9 @@ export function useSegmentRunner({
         let timedOut = false;
         let timeoutId: number | null = null;
         let playbackWatchId: number | null = null;
-        let usingBrowserFallback = false;
+        const clock = createPauseAwareSpeechClock();
+        if (isPausedRef.current) clock.pause();
+        speechClockRef.current = clock;
 
         try {
           const spoken = requireSpeechStart(speakWithStartupRecovery({
@@ -933,27 +970,50 @@ export function useSegmentRunner({
             fallback: async () => {
               browserSpeechRef.current ??= new SpeechSynthesisTTSClient();
               browserSpeechRef.current.setPlaybackRate(segmentPlaybackRate());
-              let browserError: unknown = null;
-              await browserSpeechRef.current.speakSegment(text, {
-                ...options,
-                onError: (error) => { browserError = error; },
-              });
-              if (browserError && !isCancelled()) throw browserError;
+              browserFallbackOwnerRef.current = segmentFallbackOwner;
+              try {
+                await speakWithPauseOwnedFallback({
+                  speak: ({ onStart, onEnd, onError }) => browserSpeechRef.current!.speakSegment(text, {
+                    ...options,
+                    onStart: () => {
+                      if (isCancelled()) return;
+                      // pause() cancels browser speech; its next utterance starts
+                      // this same sentence over, so restart the media clock too.
+                      if (audioStartedAtMs !== null) {
+                        audioStartedAtMs = performance.now();
+                        audioStartedAtActiveMs = clock.elapsedMs();
+                      }
+                      onStart();
+                      options.onStart?.();
+                    },
+                    onEnd: () => { if (!isCancelled()) { onEnd(); options.onEnd?.(); } },
+                    onError,
+                  }),
+                  waitWhilePaused,
+                  isCancelled: () => isCancelled() || speechAborted,
+                  pauseGeneration: () => fallbackPauseGenerationRef.current,
+                });
+              } finally {
+                if (browserFallbackOwnerRef.current === segmentFallbackOwner) {
+                  browserFallbackOwnerRef.current = null;
+                }
+              }
             },
             abandonPrimary: () => {
               if (tts.abandonSpeaking) tts.abandonSpeaking();
               else tts.stop();
             },
             hasStarted: () => audioStartedAtMs !== null,
-            canFallback: () => !isCancelled() && !isPausedRef.current,
+            canFallback: () => !isCancelled() && !speechAborted && !isPausedRef.current,
             onFallback: (reason) => {
               usingBrowserFallback = true;
-              browserRecoveryRate = browserFallbackPlaybackRate(tts.getPlaybackRate?.() ?? 1);
+              browserRecoveryRate = browserRecoveryPlaybackRate(tts.getPlaybackRate?.() ?? 1);
               capturedAudio = null;
               capturedTimings = null;
               capturedDurationMs = null;
               tel?.mark("tts-browser-recovery", { segment_index: index, reason });
             },
+            clock,
           }), () => audioStartedAtMs !== null || isCancelled() || isPausedRef.current);
           const playbackWatch = new Promise<never>((_, reject) => {
             const check = () => {
@@ -962,7 +1022,7 @@ export function useSegmentRunner({
                 !usingBrowserFallback && audioStartedAtMs !== null && timings &&
                 validateAudioTimingsForNarration(narration, timings).valid &&
                 speechPlaybackOverdue({
-                  elapsedMs: performance.now() - audioStartedAtMs,
+                  elapsedMs: clock.elapsedMs() - (audioStartedAtActiveMs ?? 0),
                   audioDurationMs: timings.totalDuration * 1000,
                   playbackRate: segmentPlaybackRate(),
                   paused: isPausedRef.current,
@@ -980,13 +1040,20 @@ export function useSegmentRunner({
             spoken,
             playbackWatch,
             new Promise<never>((_, reject) => {
-              timeoutId = window.setTimeout(() => {
-                timedOut = true;
-                reject(new Error(`tts segment timeout after ${timeoutMs}ms`));
-              }, timeoutMs);
+              const check = () => {
+                if (clock.elapsedMs() >= timeoutMs) {
+                  timedOut = true;
+                  reject(new Error(`tts segment timeout after ${timeoutMs}ms`));
+                  return;
+                }
+                timeoutId = window.setTimeout(check, 250);
+              };
+              timeoutId = window.setTimeout(check, 250);
             }),
           ]));
         } catch (error) {
+          speechAborted = true;
+          if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
           tutorDebug("tts", "segment speech failed", {
             index,
             error: error instanceof Error ? error.message : String(error),
@@ -1001,7 +1068,9 @@ export function useSegmentRunner({
           tts.abandonSpeaking?.();
           // Do not count a silent fallback as a successful lecture beat. Let
           // the queue stop after repeated failures and show its retry message.
-          if (audioStartedAtMs === null && !isCancelled()) throw error;
+          // Browser recovery only succeeds after its utterance actually ends.
+          // A partial onStart before a synthesis error is still a failed beat.
+          if ((audioStartedAtMs === null || usingBrowserFallback) && !isCancelled()) throw error;
         } finally {
           if (timeoutId !== null) {
             window.clearTimeout(timeoutId);
@@ -1009,6 +1078,7 @@ export function useSegmentRunner({
           if (playbackWatchId !== null) {
             window.clearTimeout(playbackWatchId);
           }
+          if (speechClockRef.current === clock) speechClockRef.current = null;
           markSpeechComplete();
         }
       };
@@ -1043,6 +1113,8 @@ export function useSegmentRunner({
           // promises are independent: Promise.all rejects on the draw side
           // while the speech carries on narrating a board that has frozen.
           const guardedDraw = guardDrawWithSpeech(drawPromise, (error) => {
+            speechAborted = true;
+            if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
             tutorDebug("segment", "draw failed; silencing narration", {
               index,
               error: error instanceof Error ? error.message : String(error),
@@ -1140,5 +1212,5 @@ export function useSegmentRunner({
     ],
   );
 
-  return { runSegment };
+  return { runSegment, pauseFallbackSpeech, resumeFallbackSpeech, stopFallbackSpeech };
 }
