@@ -16,7 +16,7 @@ import {
 } from "@heytutor/tutor-core";
 import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { buildLocalStoredTurn } from "@/lib/replay/replayTurns";
-import { boardPath, draftBoardPath } from "@/features/tutor-session/lib/board/boardRoute";
+import { boardPath, draftBoardPath, isUntouchedHomeBoard } from "@/features/tutor-session/lib/board/boardRoute";
 import {
   sortBoards,
   withArchived,
@@ -63,6 +63,8 @@ export interface UseBoardSessionParams {
   isDraft?: boolean;
   /** Mint a fresh home board and route to it, optionally carrying a question. */
   startDraftBoard?: (question?: string) => void;
+  /** The student opened a saved board, so a New board hold must let that route through. */
+  onChooseBoard?: (id: string) => void;
   router: AppRouterInstance;
   phase: TutorPhase;
   speedMultiplier: number;
@@ -79,7 +81,9 @@ export interface UseBoardSessionParams {
   /** Language/accent/latency from Settings; applied on first client create. */
   voicePreferencesRef: RefObject<TutorVoicePreferences>;
   speedRef: RefObject<number>;
-  stopTurnRef: RefObject<(() => void) | null>;
+  stopTurnRef: RefObject<
+    ((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => void) | null
+  >;
   replayAudioRef: RefObject<HTMLAudioElement | null>;
   replayAudioPreloadRef: RefObject<Map<string, HTMLAudioElement>>;
   setNarrationText: Dispatch<SetStateAction<string>>;
@@ -102,6 +106,7 @@ export function useBoardSession({
   sessionId,
   isDraft = false,
   startDraftBoard,
+  onChooseBoard,
   router,
   phase,
   speedMultiplier,
@@ -138,6 +143,10 @@ export function useBoardSession({
   const restoreGenerationRef = useRef(0);
   const activeSessionIdRef = useRef(sessionId);
   const isDraftRef = useRef(isDraft);
+  // During render, not in an effect: a commit that resolves between this
+  // render and the effect must see that New board already left.
+  activeSessionIdRef.current = sessionId;
+  isDraftRef.current = isDraft;
 
   useEffect(() => {
     activeSessionIdRef.current = sessionId;
@@ -185,15 +194,27 @@ export function useBoardSession({
   const openBoard = useCallback(
     (question = "") => {
       // Already sitting on the unsaved home board: ask it here rather than
-      // throwing away a blank board to mint another blank board.
-      if (isDraft && storedTurnsCount === 0 && !question.trim()) return;
+      // throwing away a blank board to mint another blank board. A lesson that
+      // was stopped before its turn was saved still counts as used.
+      const untouchedHome = isUntouchedHomeBoard({
+        isDraft,
+        storedTurnsCount,
+        inputInteracted,
+        phaseIsIdle: phase === "idle",
+        question,
+        boardTitle: boards.find((board) => board.id === sessionId)?.title,
+      });
+      if (untouchedHome) return;
+      // Idle stop used to return before invalidating the turn. Stragglers then
+      // woke on the new board once restore cleared the cancel flag.
+      stopTurnRef.current?.({ supersede: true });
       if (startDraftBoard) {
         startDraftBoard(question);
         return;
       }
       router.push(draftBoardPath(question));
     },
-    [isDraft, storedTurnsCount, startDraftBoard, router],
+    [isDraft, storedTurnsCount, inputInteracted, phase, boards, sessionId, startDraftBoard, router, stopTurnRef],
   );
 
   const createNewBoard = useCallback(() => {
@@ -219,8 +240,13 @@ export function useBoardSession({
     const board = await createBoard(sessionId);
     if (!board) return false;
 
-    committedDraftRef.current = sessionId;
     setBoards((prev) => [board, ...prev.filter((b) => b.id !== board.id)]);
+    // New board already left this lesson. Claiming its URL now would put
+    // `/c/{id}` back in the bar and the router can snap the screen back to it.
+    // Leave the commit marker alone too, so the board now on screen can still
+    // claim its own URL.
+    if (activeSessionIdRef.current !== sessionId) return true;
+    committedDraftRef.current = sessionId;
     // Keep Next's history state. A null state desyncs the App Router and can
     // remount the session layout, which kills the turn that just claimed the URL.
     window.history.replaceState(window.history.state ?? {}, "", boardPath(board.id));
@@ -230,9 +256,10 @@ export function useBoardSession({
   const switchBoard = useCallback(
     (id: string) => {
       if (id === sessionId) return;
+      onChooseBoard?.(id);
       router.push(boardPath(id));
     },
-    [sessionId, router],
+    [sessionId, router, onChooseBoard],
   );
 
   const deleteBoard = useCallback(
@@ -254,6 +281,7 @@ export function useBoardSession({
 
         if (id === sessionId) {
           if (remaining.length > 0) {
+            onChooseBoard?.(remaining[0]!.id);
             router.push(boardPath(remaining[0]!.id));
           } else {
             openBoard();
@@ -261,7 +289,7 @@ export function useBoardSession({
         }
       })();
     },
-    [sessionId, router, openBoard, phase, stopTurnRef, boards],
+    [sessionId, router, openBoard, phase, stopTurnRef, boards, onChooseBoard],
   );
 
   /**

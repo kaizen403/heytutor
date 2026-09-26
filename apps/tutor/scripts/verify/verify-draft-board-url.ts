@@ -8,8 +8,11 @@ import { resolve } from "node:path";
 import {
   boardIdFromPathname,
   boardPath,
+  boardTitleNamesLesson,
   createDraftBoardId,
   draftBoardPath,
+  isUntouchedHomeBoard,
+  resolveSessionBoard,
 } from "../../features/tutor-session/lib/board/boardRoute";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -39,14 +42,116 @@ assert(
   "every home board must get its own id",
 );
 
-const page = read("features/tutor-session/TutorSessionPage.tsx");
+const home = resolveSessionBoard({
+  routeBoardId: null,
+  draftBoardId: "draft",
+  abandonedRouteId: null,
+  chosenBoardId: null,
+});
+assert(home.sessionId === "draft" && home.isDraft, "the home board is the unclaimed draft");
+
+const held = resolveSessionBoard({
+  routeBoardId: "lesson",
+  draftBoardId: "fresh",
+  abandonedRouteId: "lesson",
+  chosenBoardId: null,
+});
 assert(
-  /const isDraft = routeBoardId === null/.test(page),
-  "draft state must be read off the URL, so claiming it flips the flag",
+  held.sessionId === "fresh" && held.isDraft,
+  "New board stays up while the router still names the lecture it left",
+);
+
+const picked = resolveSessionBoard({
+  routeBoardId: "lesson",
+  draftBoardId: "fresh",
+  abandonedRouteId: null,
+  chosenBoardId: "lesson",
+});
+assert(
+  picked.sessionId === "lesson" && !picked.isDraft,
+  "opening the lecture from the list shows it again",
+);
+
+const other = resolveSessionBoard({
+  routeBoardId: "other",
+  draftBoardId: "fresh",
+  abandonedRouteId: "lesson",
+  chosenBoardId: null,
+});
+assert(
+  other.sessionId === "other" && !other.isDraft,
+  "a different board the router reached is the one on screen",
+);
+
+const claimed = resolveSessionBoard({
+  routeBoardId: "fresh",
+  draftBoardId: "fresh",
+  abandonedRouteId: "lesson",
+  chosenBoardId: null,
+});
+assert(
+  claimed.sessionId === "fresh" && !claimed.isDraft,
+  "once Next names the new draft, it is no longer an unsaved home board",
+);
+
+assert(
+  isUntouchedHomeBoard({
+    isDraft: true,
+    storedTurnsCount: 0,
+    inputInteracted: false,
+    phaseIsIdle: true,
+    boardTitle: "New board",
+  }),
+  "a blank home board must not mint another blank board",
 );
 assert(
-  /sessionId = routeBoardId \?\? draftBoardId/.test(page),
-  "the claimed URL must resolve to the same id the draft was already using",
+  !isUntouchedHomeBoard({
+    isDraft: true,
+    storedTurnsCount: 0,
+    inputInteracted: true,
+    phaseIsIdle: true,
+    boardTitle: "New board",
+  }),
+  "asking on the home board means New board has to leave it",
+);
+assert(
+  !isUntouchedHomeBoard({
+    isDraft: true,
+    storedTurnsCount: 0,
+    inputInteracted: false,
+    phaseIsIdle: true,
+    boardTitle: "Centripetal force of circular motion",
+  }),
+  "a lesson stopped before its turn was saved still counts as used",
+);
+assert(
+  !isUntouchedHomeBoard({
+    isDraft: false,
+    storedTurnsCount: 0,
+    inputInteracted: false,
+    phaseIsIdle: true,
+  }),
+  "a saved board is never the untouched home board",
+);
+assert(boardTitleNamesLesson("Centripetal force of circular motion"), "a lesson title names a lesson");
+assert(!boardTitleNamesLesson("new board"), "the placeholder title does not name a lesson");
+
+const page = read("features/tutor-session/TutorSessionPage.tsx");
+assert(
+  /resolveSessionBoard\(/.test(page),
+  "which board is on screen must go through resolveSessionBoard",
+);
+assert(
+  /boardIdFromPathname\(window\.location\.pathname\)/.test(page),
+  "New board must remember the lecture in the address bar, not only the route Next reports",
+);
+assert(
+  /window\.location\.pathname\.startsWith\("\/c\/"\)/.test(page),
+  "New Board must put the address bar back on the home board when the lesson claimed /c/{id} without a navigation",
+);
+assert(
+  /onChooseBoard=\{chooseBoard\}/.test(page),
+  "opening a saved board must release the New board hold",
 );
 
 const boardSession = read("features/tutor-session/hooks/useBoardSession.ts");
@@ -59,6 +164,10 @@ assert(
 assert(
   /if \(!isDraft \|\| committedDraftRef\.current === sessionId\) return false/.test(boardSession),
   "a board may only be committed once, and only from a draft",
+);
+assert(
+  /if \(activeSessionIdRef\.current !== sessionId\) return true/.test(boardSession),
+  "a lesson that New board already left must not claim the URL out from under the fresh board",
 );
 assert(
   /let detail = draft \? null : await fetchBoardDetail\(boardId\)/.test(boardSession),

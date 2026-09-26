@@ -156,6 +156,8 @@ export type TutorSessionShellProps = {
   isDraft?: boolean;
   /** Mint a fresh home board and route to it, optionally carrying a question to auto-submit. */
   onStartDraftBoard?: (question?: string) => void;
+  /** The student opened a saved board. Drop any New board hold on the previous route. */
+  onChooseBoard?: (id: string) => void;
   variant?: TutorSessionVariant;
   /** Submitted once the board and whiteboard are ready. */
   autoQuestion?: string;
@@ -204,6 +206,7 @@ export function TutorSessionShell({
   sessionId,
   isDraft = false,
   onStartDraftBoard,
+  onChooseBoard,
   variant = "full",
   autoQuestion,
   autoReplay = false,
@@ -313,7 +316,9 @@ export function TutorSessionShell({
   const activeVerifiedDiagramRef = useRef<VerifiedDiagram | null>(null);
   const [activeVerifiedDiagram, setActiveVerifiedDiagram] = useState<VerifiedDiagram | null>(null);
   const segmentPlanStatsRef = useRef<SegmentPlanStats>(createEmptySegmentPlanStats());
-  const stopTurnRef = useRef<(() => void) | null>(null);
+  const stopTurnRef = useRef<
+    ((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => void) | null
+  >(null);
   const pendingSegmentCountRef = useRef(0);
   const narrationDensityRef = useRef(0);
   const inkPaceRef = useRef<InkPace>("follow");
@@ -396,6 +401,11 @@ export function TutorSessionShell({
   useEffect(() => {
     boardPageRef.current = null;
     boardShowsStoppedReplayRef.current = false;
+    // The previous lecture's figure caption lives in React state. Clear it
+    // with the session, ahead of the async ink restore.
+    activeVerifiedDiagramRef.current = null;
+    setActiveVerifiedDiagram(null);
+    void whiteboardRef.current?.clearBoard();
   }, [sessionId]);
   useEffect(() => {
     if (!isReplaying) return;
@@ -719,6 +729,7 @@ export function TutorSessionShell({
     sessionId,
     isDraft,
     startDraftBoard: onStartDraftBoard,
+    onChooseBoard,
     router,
     phase,
     speedMultiplier: settings.speedMultiplier,

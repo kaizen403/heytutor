@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   boardIdFromPathname,
   createDraftBoardId,
   draftBoardPath,
+  resolveSessionBoard,
 } from "./lib/board/boardRoute";
 import { TutorSessionShell } from "./TutorSessionShell";
 
@@ -24,18 +25,50 @@ export function TutorSessionPage() {
   // look like the lecture refreshed.
   const [draftBoardId, setDraftBoardId] = useState(createDraftBoardId);
   const routeBoardId = boardIdFromPathname(pathname);
-  const sessionId = routeBoardId ?? draftBoardId;
-  // Claiming the URL turns `routeBoardId` into this same id, so the board keeps
-  // teaching across the switch instead of remounting on a "new" session.
-  const isDraft = routeBoardId === null;
+  // The lecture New board just left. Next keeps reporting it: a draft claims
+  // `/c/{id}` with replaceState and leaves the router there, and a later
+  // reconcile snaps the route back. Until the student opens another board,
+  // that id must not take the screen again.
+  const [abandonedRouteId, setAbandonedRouteId] = useState<string | null>(null);
+  const [chosenBoardId, setChosenBoardId] = useState<string | null>(null);
+  const { sessionId: activeSessionId, isDraft: activeIsDraft } = resolveSessionBoard({
+    routeBoardId,
+    draftBoardId,
+    abandonedRouteId,
+    chosenBoardId,
+  });
+
+  useEffect(() => {
+    if (chosenBoardId && routeBoardId === chosenBoardId) {
+      setChosenBoardId(null);
+    }
+  }, [chosenBoardId, routeBoardId]);
 
   const startDraftBoard = useCallback(
     (question = "") => {
-      setDraftBoardId(createDraftBoardId());
-      router.push(draftBoardPath(question));
+      const id = createDraftBoardId();
+      const left =
+        boardIdFromPathname(pathname) ??
+        (typeof window !== "undefined" ? boardIdFromPathname(window.location.pathname) : null);
+      setChosenBoardId(null);
+      setAbandonedRouteId(left);
+      setDraftBoardId(id);
+      const path = draftBoardPath(question);
+      // The address bar can already say `/c/{id}` while Next's router is still
+      // on `/`. Pushing `/` then does nothing, so put the bar back on the home
+      // board in the same click. Keeping Next's history state avoids a remount.
+      if (typeof window !== "undefined" && window.location.pathname.startsWith("/c/")) {
+        window.history.replaceState(window.history.state ?? {}, "", path);
+      }
+      router.push(path);
     },
-    [router],
+    [pathname, router],
   );
+
+  const chooseBoard = useCallback((id: string) => {
+    setAbandonedRouteId(null);
+    setChosenBoardId(id);
+  }, []);
 
   const autoQuestion = searchParams.get("q") ?? undefined;
   const autoReplay = searchParams.get("replay") === "1";
@@ -43,9 +76,10 @@ export function TutorSessionPage() {
 
   return (
     <TutorSessionShell
-      sessionId={sessionId}
-      isDraft={isDraft}
+      sessionId={activeSessionId}
+      isDraft={activeIsDraft}
       onStartDraftBoard={startDraftBoard}
+      onChooseBoard={chooseBoard}
       variant={embed ? "embed" : "full"}
       autoQuestion={autoQuestion}
       autoReplay={autoReplay}

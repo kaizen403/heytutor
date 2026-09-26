@@ -389,6 +389,9 @@ export function useQuestionHandler(
       }
 
       pendingQuestionRef.current = null;
+      // Suggestion clicks never go through the input bar, so a lesson started
+      // from a card looked untouched until the turn finished saving.
+      setInputInteracted(true);
       if (!doubt && !resume) {
         clearPausedLesson();
       }

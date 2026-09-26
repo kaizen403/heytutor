@@ -641,7 +641,7 @@ export function useTurnControl(
   /** Board id the offer belongs to, or null. Another board must not resume it. */
   const [pausedLessonOfferBoardId, setPausedLessonOfferBoardId] = useState<string | null>(null);
 
-  const stopTurn = useCallback((options?: { keepVisibleBoard?: boolean }) => {
+  const stopTurn = useCallback((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => {
     // Always kill speech first. The UI can already look idle while a leftover
     // TTS buffer or speechSynthesis utterance is still talking — especially
     // after a raced stop. Returning before this left the lecture audible.
@@ -652,6 +652,21 @@ export function useTurnControl(
     }
 
     if (phase === "idle" && !isReplaying) {
+      // New board. The UI is already idle, but a parked segment only checks
+      // the generation it captured. Bump it so that segment cannot draw after
+      // the next board clears the cancel flag. Do not touch input state: this
+      // board is about to be replaced, and marking it interacted would skip
+      // the landing on the fresh one.
+      if (options?.supersede) {
+        cancelRef.current = true;
+        turnActiveRef.current = false;
+        turnGenerationRef.current += 1;
+        pendingSegmentCountRef.current = 0;
+        turnAbortRef.current?.abort();
+        whiteboardRef.current?.cancelAnimations();
+        segmentChainRef.current = Promise.resolve();
+        drawChainRef.current = Promise.resolve();
+      }
       return;
     }
 
