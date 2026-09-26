@@ -53,8 +53,17 @@ export async function verifyAdminLivePlayback(): Promise<void> {
   );
   assert.match(
     watchSource,
-    /if \(event\.key === "Escape"\) \{\s*event\.stopImmediatePropagation\(\);\s*onCloseRef\.current\(\)/,
+    /if \(event\.key === "Escape" && !dialogOpen\) \{\s*event\.preventDefault\(\);\s*event\.stopImmediatePropagation\(\);\s*onCloseRef\.current\(\)/,
     "closing Watch with Escape must not also cancel the live lecture",
+  );
+  const shellSource = readFileSync(
+    resolve(import.meta.dirname, "../../features/tutor-session/TutorSessionShell.tsx"),
+    "utf8",
+  );
+  assert.equal(
+    (shellSource.match(/enableKeyboardControls: variant === "full"/g) ?? []).length,
+    2,
+    "an embedded Watch must not own global live/rewind keyboard controls",
   );
 
   const question: ProbeQuestion = {

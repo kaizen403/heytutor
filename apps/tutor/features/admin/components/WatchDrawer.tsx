@@ -133,13 +133,14 @@ function WatchDrawerFrame({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const dialogOpen = Boolean(document.querySelector('[role="dialog"][data-state="open"]'));
       const action = fullscreenKeyAction({
         key: event.key,
         withModifier: event.ctrlKey || event.metaKey || event.altKey,
         typing: isTypingElement(document.activeElement),
         fullscreen: fullscreen.active,
         mode: fullscreen.mode,
-        dialogOpen: Boolean(document.querySelector('[role="dialog"][data-state="open"]')),
+        dialogOpen,
         // Watch's own Escape closes the overlay. Native full screen is the
         // browser's Escape; fallback leaves with the overlay on unmount.
         lessonOwnsEscape: true,
@@ -149,7 +150,8 @@ function WatchDrawerFrame({
         fullscreen.toggle();
         return;
       }
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !dialogOpen) {
+        event.preventDefault();
         event.stopImmediatePropagation();
         onCloseRef.current();
       }
