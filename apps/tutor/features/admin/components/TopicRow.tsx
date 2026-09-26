@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, ScrollText, Trash2 } from "lucide-react";
+import { ChevronRight, Play, ScrollText, Trash2 } from "lucide-react";
 import { PlainButton } from "@/components/ui/site-button";
 import { sumSessionCosts, type RunCostSessionRow } from "@/lib/obs/runCost";
 import { cn } from "@/lib/utils";
@@ -204,6 +204,12 @@ export function TopicRow({
                       onClick={() => onActivate(difficulty)}
                     >
                       Watch live
+                    </PlainButton>
+                  ) : null}
+                  {state === "idle" && probe ? (
+                    <PlainButton variant="sky" onClick={() => onActivate(difficulty)}>
+                      <Play className="h-3 w-3" aria-hidden />
+                      Teach live
                     </PlainButton>
                   ) : null}
                   {isRecorded && boardId ? (

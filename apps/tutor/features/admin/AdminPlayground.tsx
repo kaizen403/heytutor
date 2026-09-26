@@ -410,6 +410,14 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     setHeldBoardId(null);
   }, [setHeldBoardId]);
 
+  const presentInteractiveLecture = useCallback((boardId: string, question: string) => {
+    setHeldBoardId(boardId);
+    setWatchIntent("live");
+    setWatchTitle(question);
+    setWatchQuestion(question);
+    setWatchBoardId(boardId);
+  }, [setHeldBoardId]);
+
   const notice = useCallback((title: string, description: string) => {
     setDialog({ mode: "notice", title, description });
   }, []);
@@ -525,13 +533,24 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     });
   }, []);
 
+  const teachLiveQuestion = (question: ProbeQuestion) => {
+    unlockTutorAudio();
+    queue.enqueue([question], {
+      interactive: true,
+      onReady: presentInteractiveLecture,
+    });
+  };
+
   const startSelected = () => {
     const questions = visibleSelected;
     if (questions.length === 0) {
       return;
     }
     unlockTutorAudio();
-    queue.enqueue(questions);
+    queue.enqueue(questions, {
+      interactive: questions.length === 1,
+      onReady: questions.length === 1 ? presentInteractiveLecture : undefined,
+    });
     setSelectedIds(new Set());
     setSelecting(false);
   };
@@ -550,6 +569,10 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
   const activateCell = (topic: VisibleTopic, difficulty: ProbeDifficulty) => {
     const boardId = topic.boardIds[difficulty];
     if (!boardId) {
+      if (topic.states[difficulty] === "idle") {
+        const probe = topic.probes.find((entry) => entry.difficulty === difficulty);
+        if (probe) teachLiveQuestion(probe);
+      }
       return;
     }
     const probe = topic.probes.find((entry) => entry.difficulty === difficulty);
@@ -822,7 +845,9 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                 onStartAgain={() => {
                   closeWatch();
                   unlockTutorAudio();
-                  queue.startAgain();
+                  queue.startAgain({
+                    onReady: queue.lastBatchCount === 1 ? presentInteractiveLecture : undefined,
+                  });
                 }}
                 onClear={queue.clearJobs}
                 onWatchLive={(boardId) => {
@@ -993,7 +1018,10 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
             : undefined
         }
         onIntentChange={(next) => {
-          if (watchIntent === "live") return;
+          if (watchIntent === "live") {
+            if (liveJob?.status === "running") return;
+            setHeldBoardId(null);
+          }
           if (next === "replay") unlockTutorAudio();
           setWatchIntent(next);
         }}
@@ -1005,6 +1033,44 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         const promoted = Boolean(
           isLiveWatch && liveRuntime?.jobId === runtime.jobId && liveSlot,
         );
+        if (runtime.interactive) {
+          return (
+            <div
+              key={runtime.jobId}
+              data-lecture-job-id={runtime.jobId}
+              data-lecture-board-id={runtime.boardId}
+              aria-hidden={promoted ? undefined : true}
+              inert={!promoted}
+              style={
+                promoted && liveSlot
+                  ? { ...promotedLectureFrameStyle(liveSlot), pointerEvents: "auto" }
+                  : {
+                      position: "fixed",
+                      left: 0,
+                      top: 0,
+                      width: "100vw",
+                      height: "100dvh",
+                      opacity: 0,
+                      overflow: "hidden",
+                      pointerEvents: "none",
+                      zIndex: -1,
+                    }
+              }
+            >
+              <div className="h-full w-full">
+                <TutorSessionShell
+                  sessionId={runtime.boardId}
+                  variant="panel"
+                  autoQuestion={runtime.question}
+                  muteAudio={!promoted}
+                  onPhase={(phase) => queue.handlePhase(runtime.jobId, phase)}
+                  onComplete={() => queue.handleComplete(runtime.jobId)}
+                  onError={(error) => queue.handleError(runtime.jobId, error)}
+                />
+              </div>
+            </div>
+          );
+        }
         return (
           <div
             key={runtime.jobId}

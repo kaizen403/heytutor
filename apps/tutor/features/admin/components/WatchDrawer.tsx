@@ -14,7 +14,6 @@ import {
   useSessionChromeHidden,
 } from "@/features/tutor-session/hooks/useBoardFullscreen";
 import { fullscreenKeyAction, isTypingElement } from "@/features/tutor-session/lib/board/boardFullscreen";
-import { DEFAULT_REPLAY_SPEED } from "@/lib/replay/replayAudio";
 
 export type WatchIntent = "replay" | "notes" | "live";
 
@@ -112,7 +111,7 @@ function WatchDrawerFrame({
   onDelete,
 }: WatchDrawerProps & { boardId: string }) {
   const isLive = intent === "live";
-  const [speed, setSpeed] = useState(DEFAULT_REPLAY_SPEED);
+  const [speed, setSpeed] = useState(1);
   const [exportApi, setExportApi] = useState<TutorSessionExportApi | null>(null);
   const fullscreen = useBoardFullscreen();
   const closeAndExit = useCallback(() => {
@@ -151,11 +150,12 @@ function WatchDrawerFrame({
         return;
       }
       if (event.key === "Escape") {
+        event.stopImmediatePropagation();
         onCloseRef.current();
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [fullscreen]);
 
   useEffect(() => {
@@ -222,6 +222,18 @@ function WatchDrawerFrame({
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        {isLive && liveStatus === "complete" ? (
+          <SiteButton
+            variant="ice"
+            size="sm"
+            onClick={() => {
+              unlockTutorAudio();
+              onIntentChange("replay");
+            }}
+          >
+            Watch replay
+          </SiteButton>
+        ) : null}
         {isLive ? null : (
           <>
             <ReplaySpeedSelect value={speed} onChange={setSpeed} />

@@ -502,7 +502,7 @@ export function useReplay({
         .length;
 
       const spokenText = (cue.segment.spokenText || cue.narration).trim();
-      const speakLiveTts = async (): Promise<void> => {
+      const speakLiveTts = async (onStart?: () => void): Promise<void> => {
         const tts = ttsClientRef.current;
         if (!spokenText || !tts || shouldCancel()) {
           if (remainingMs > 0) {
@@ -517,7 +517,7 @@ export function useReplay({
         tts.unlockAudio?.();
         tts.setMuted?.(false);
         tts.setPlaybackRate(getRate());
-        await tts.speakSegment(spokenText);
+        await tts.speakSegment(spokenText, { onStart });
       };
 
       const drawRemaining = (audio?: HTMLAudioElement) =>
@@ -540,12 +540,22 @@ export function useReplay({
             replayAudioPreloadRef.current.delete(cue.audioUrl);
           }
 
+          let releaseDrawStart = () => {};
+          const voiceStarted = new Promise<void>((resolve) => {
+            releaseDrawStart = resolve;
+          });
+          let recordedAudioStarted = false;
           const { audio, done } = playReplayAudio(cue.audioUrl, {
+            audio: preloaded,
             playbackRate: getRate(),
             getPlaybackRate: getRate,
             maxDurationMs: fallbackDurationMs,
             startAtMs: offsetMs,
             shouldCancel,
+            onStart: () => {
+              recordedAudioStarted = true;
+              releaseDrawStart();
+            },
           });
           replayAudioRef.current = audio;
           whiteboardRef.current?.setAnimationSpeed(getRate());
@@ -560,14 +570,21 @@ export function useReplay({
             if (shouldCancel()) {
               return;
             }
-            await speakLiveTts();
+            try {
+              await speakLiveTts(releaseDrawStart);
+            } finally {
+              releaseDrawStart();
+            }
           });
 
           if (!skipDraw) {
+            // Metadata may load long before playback. Start ink with sound.
+            await Promise.race([voiceStarted, voiceDone]);
+            if (shouldCancel()) return;
             setPhase("drawing");
             await Promise.all([
               raceWithCancel(voiceDone),
-              raceWithCancel(drawRemaining(audio)),
+              raceWithCancel(drawRemaining(recordedAudioStarted ? audio : undefined)),
             ]);
           } else {
             await raceWithCancel(voiceDone);
