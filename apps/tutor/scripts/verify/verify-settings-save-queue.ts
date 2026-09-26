@@ -89,7 +89,7 @@ async function verifyNavigationDrainsQueuedEdit() {
 }
 
 async function verifyPermanentFailureStopsRetrying() {
-  for (const status of [401, 403]) {
+  for (const status of [401, 403, 409]) {
     const timers: Array<() => void> = [];
     const statuses: string[] = [];
     let calls = 0;
@@ -155,5 +155,10 @@ void (async () => {
   const screen = readFileSync(new URL("../../features/account/SettingsScreen.tsx", import.meta.url), "utf8");
   assert.match(screen, /status: response\.status/, "PATCH exposes HTTP status for retry classification");
   assert.match(screen, /aria-live="polite"/, "save outcome is visible on the settings screen");
+  assert.match(screen, /x-heytutor-account-id/, "PATCH must carry the account captured before the edit");
+  assert.match(screen, /if \(!profile\?\.id\) return/, "edits must wait until the account identity is known");
+  const route = readFileSync(new URL("../../app/api/account/settings/route.ts", import.meta.url), "utf8");
+  assert.match(route, /x-heytutor-account-id/, "server must compare the expected account to its authenticated session");
+  assert.ok(route.indexOf("x-heytutor-account-id") < route.indexOf("prisma.userSettings.upsert"), "reject cross-account retries before writing settings");
   console.log("✓ settings autosave drains after navigation, retries transient errors, stops on 4xx, and reports save status");
 })().catch((error: unknown) => { console.error(error); process.exitCode = 1; });

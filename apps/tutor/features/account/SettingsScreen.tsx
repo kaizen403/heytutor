@@ -46,11 +46,30 @@ export function SettingsScreen({ section }: { section: string }) {
   const saveQueueRef = useRef<ReturnType<typeof createSettingsPatchQueue<AccountSettings>> | null>(null);
 
   useEffect(() => {
+    let unmounted = false;
+    let ownerId: string | null = null;
+    void fetch("/api/account/me")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load account settings");
+        return response.json() as Promise<{ settings?: AccountSettings; profile?: AccountProfile }>;
+      })
+      .then((data) => {
+        if (unmounted) return;
+        if (data.settings) setSettings(data.settings);
+        if (data.profile?.id) {
+          ownerId = data.profile.id;
+          setProfile(data.profile);
+        }
+      })
+      .catch(() => {
+        if (!unmounted) setSaveStatus("error");
+      });
     const queue = createSettingsPatchQueue<AccountSettings>({
       send: async (patch) => {
+        if (!ownerId) throw Object.assign(new Error("Account not loaded"), { status: 401 });
         const response = await fetch("/api/account/settings", {
           method: "PATCH",
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": "application/json", "x-heytutor-account-id": ownerId },
           body: JSON.stringify(patch),
         });
         if (!response.ok) throw Object.assign(new Error("Could not save settings"), { status: response.status });
@@ -59,21 +78,14 @@ export function SettingsScreen({ section }: { section: string }) {
     });
     saveQueueRef.current = queue;
     return () => {
+      unmounted = true;
       queue.dispose();
       saveQueueRef.current = null;
     };
   }, []);
 
-  useEffect(() => {
-    void fetch("/api/account/me")
-      .then((response) => response.json())
-      .then((data: { settings?: AccountSettings; profile?: AccountProfile }) => {
-        if (data.settings) setSettings(data.settings);
-        if (data.profile) setProfile(data.profile);
-      });
-  }, []);
-
   const patch = (partial: Partial<AccountSettings>) => {
+    if (!profile?.id) return;
     setSettings((current) => ({ ...current, ...partial }));
     saveQueueRef.current?.enqueue(partial);
   };
