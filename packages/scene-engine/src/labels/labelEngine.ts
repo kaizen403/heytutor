@@ -459,6 +459,63 @@ export function placeLabels(
   };
 }
 
+export interface LabelRowOrigin {
+  /** The block's left edge for `left`, its right edge for `right`. */
+  x: number;
+  /** Top of the first row. */
+  y: number;
+  align: "left" | "right";
+}
+
+/**
+ * Lay labels out as rows, one under the next, aligned on one edge, and pin
+ * them there. Tries each origin in turn and returns the pinned owners for the
+ * first block whose every row is inside the view and clear of ink; null when
+ * none is.
+ *
+ * Pinned labels are not checked against ink by `placeLabels`, so the check
+ * happens here, before anything is pinned.
+ */
+export function stackLabelRows(
+  owners: LabelOwner[],
+  origins: LabelRowOrigin[],
+  viewBounds: LabelBounds | undefined,
+  obstacles: LabelObstacle[],
+  options: LabelEngineOptions = {},
+): LabelOwner[] | null {
+  const minGapPx = options.minGapPx ?? DEFAULTS.minGapPx;
+  for (const origin of origins) {
+    const rows: LabelOwner[] = [];
+    let top = origin.y;
+    for (const owner of owners) {
+      const size = centeredTextBounds(owner.text, { x: 0, y: 0 }, options);
+      const center = {
+        x: origin.align === "left" ? origin.x + size.width / 2 : origin.x - size.width / 2,
+        y: top + size.height / 2,
+      };
+      const bounds = centeredTextBounds(owner.text, center, options);
+      if (
+        (viewBounds && !boundsInside(bounds, viewBounds)) ||
+        obstacles.some((obstacle) => labelOverlapsObstacle(bounds, obstacle, minGapPx))
+      ) {
+        break;
+      }
+      rows.push({
+        ...owner,
+        anchor: center,
+        pinToAnchor: true,
+        allowLeader: false,
+        useOwnerBounds: false,
+        tetherPx: undefined,
+        incidentTangents: undefined,
+      });
+      top += size.height + minGapPx + 2;
+    }
+    if (rows.length === owners.length) return rows;
+  }
+  return null;
+}
+
 function leaderDistances(viewBounds: LabelBounds | undefined): number[] {
   const maxDistance = viewBounds
     ? Math.ceil(Math.hypot(viewBounds.width, viewBounds.height))

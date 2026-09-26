@@ -7,7 +7,6 @@ import {
   remainingReplaySpeech,
   speedAwareDelay,
   stopReplayAudio,
-  waitUntilDrawClock,
 } from "@/lib/replay/replayAudio";
 import {
   buildReplayTimeline,
@@ -29,23 +28,13 @@ import {
   cancelFrame,
   scheduleFrame,
 } from "@heytutor/drawing";
-import type { WriteSchedule, WhiteboardHandle } from "@heytutor/whiteboard";
+import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import {
   estimateSpeechDurationMs,
   mathToSpeech,
-  capSceneBatchDurations,
-  isCuedSceneBatch,
-  catchUpWriteScheduleOffsets,
   createScheduledWriteClock,
-  getBestWriteCharScheduleMs,
-  getCommandDrawDurationMs,
-  getCommandSpeechWindow,
-  inkPaceContextForSegment,
-  leadWriteScheduleToSpeech,
-  selectInkPace,
   tutorDebug,
   unlockTutorAudio,
-  type InkPace,
   type TTSClient,
 } from "@heytutor/tutor-core";
 import { appendCodeLessonNotesImages } from "@/lib/code-render/codeLessonNotesImages";
@@ -55,17 +44,8 @@ import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
 import type { TutorPhase } from "../types";
 import { isWhiteboardReadyToDraw } from "../lib/board/whiteboardReady";
-
-type ExecuteCommandOptions = {
-  durationScale?: number;
-  speechDurationMs?: number;
-  writeSchedule?: WriteSchedule;
-  applyLayout?: boolean;
-  segmentNarration?: string;
-  trustedDiagramGeometry?: boolean;
-  isCancelled?: () => boolean;
-  inkPace?: InkPace;
-};
+import { drawSegmentInk, planSegmentInk } from "../lib/turn/segmentInk";
+import type { ExecuteCommandOptions } from "./turn/types";
 
 type ReplayGenerationState = {
   generation: number;
@@ -227,6 +207,7 @@ export function useReplay({
       fallbackDurationMs?: number,
       initialTextCommandIndex = 0,
       startAtMs = 0,
+      opensSentence = true,
     ): Promise<void> => {
       const isCurrentReplay = () =>
         isReplayGenerationCurrent({
@@ -242,28 +223,17 @@ export function useReplay({
       setPhase("drawing");
       // Ink RAF speed tracks the live rate so mid-cue changes stay aligned.
       whiteboardRef.current?.setAnimationSpeed(Math.max(speedRef.current, 0.1));
-      const paceContext = inkPaceContextForSegment({
-        verifiedDiagramIntro: isStoredCommandTrustedGeometry(segment.command),
-        commandCount: segmentCommands.length,
+      const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
+      const inkPlan = planSegmentInk({
+        commands: segmentCommands,
+        verifiedDiagramIntro: trustedDiagramGeometry,
         hasNarration: narration.length > 0,
       });
-      const commandPaces = segmentCommands.map((cmd) => selectInkPace(cmd, paceContext));
-      const pacedDurations = segmentCommands.map((cmd, commandIndex) =>
-        getCommandDrawDurationMs(cmd, commandPaces[commandIndex]),
-      );
-      const sceneBatch = commandPaces.filter((pace) => pace === "scene").length >= 4;
-      // A cued intro (every command names the word it was drawn under) was
-      // paced by the voice when it was taught; the batch cap would squeeze it
-      // back into 1.3 s on replay.
-      const sceneDurations = sceneBatch
-        ? capSceneBatchDurations(pacedDurations, undefined, { cued: isCuedSceneBatch(segmentCommands) })
-        : null;
-      const totalDrawWeight = pacedDurations.reduce((sum, ms) => sum + ms, 0);
       const durationMs =
         fallbackDurationMs ??
         segment.durationMs ??
         estimateSpeechDurationMs(mathToSpeech(narration).length);
-      const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
+      const spokenChars = mathToSpeech(narration).length;
       const getRate = () => Math.max(speedRef.current, 0.1);
       const shouldCancel = () => !isCurrentReplay();
       const isPaused = () => isPausedRef.current;
@@ -286,102 +256,56 @@ export function useReplay({
         },
       });
 
-      let textCommandIndex = initialTextCommandIndex;
+      // Same pacing as the live lesson, on the recording's clock: figure parts
+      // wait for their cue words, FOCUS traces each part on its name, and a
+      // sentence's commands run in the order their words are spoken.
       try {
-      for (let commandIndex = 0; commandIndex < segmentCommands.length; commandIndex++) {
-        const command = segmentCommands[commandIndex]!;
-        const pace = commandPaces[commandIndex]!;
-        if (!isCurrentReplay()) {
-          return;
-        }
-
-        whiteboardRef.current?.setAnimationSpeed(getRate());
-
-        const isTextCommand =
-          command.type === "WRITE" || command.type === "LABEL" || command.type === "TYPE";
-        const scheduleWorkWrite =
-          isTextCommand &&
-          Boolean(narration) &&
-          !(trustedDiagramGeometry && command.type === "LABEL");
-        const writePlan = scheduleWorkWrite
-          ? getBestWriteCharScheduleMs(
-              narration,
-              command,
-              segment.timings,
-              durationMs,
-              textCommandIndex,
-            )
-          : null;
-
-        if (writePlan && writePlan.offsetsMs.length > 0) {
-          const audioPosAtScheduleMs = Math.round(getDrawClockMs());
-          const effectiveOffsets = catchUpWriteScheduleOffsets(
-            leadWriteScheduleToSpeech(writePlan.offsetsMs, audioPosAtScheduleMs, writePlan.maxInitialWaitMs),
-            audioPosAtScheduleMs,
-          );
-          await executeCommandWithCancel(command, {
-            applyLayout: false,
-            isCancelled: () => !isCurrentReplay(),
-            trustedDiagramGeometry,
-            inkPace: pace,
-            writeSchedule: {
-              charStartOffsetsMs: effectiveOffsets,
-              charDurationsMs: writePlan.charDurationsMs,
-              getAudioPositionMs: getDrawClockMs,
-            },
-          });
-          if (isTextCommand) {
-            textCommandIndex++;
-          }
-          continue;
-        }
-
-        const speechWindow =
-          narration && segment.timings
-            ? getCommandSpeechWindow(narration, command, segment.timings, textCommandIndex)
-            : {
-                startMs: 0,
-                durationMs,
-                matched: false,
-              };
-
-        if (speechWindow.startMs > 0) {
-          await waitUntilDrawClock(getDrawClockMs, speechWindow.startMs, {
-            shouldCancel,
-            isPaused,
+        await drawSegmentInk({
+          plan: inkPlan,
+          verifiedDiagramIntro: trustedDiagramGeometry,
+          clock: {
+            narration,
+            getTimings: () => segment.timings,
+            totalSpeechMs: narration ? durationMs : Math.max(inkPlan.totalDrawWeight, 200),
+            estimatedSpeechMs: durationMs,
+            // Without an alignment, cue words are estimated across the clip's
+            // real length rather than the default speaking rate.
+            msPerChar: !segment.timings && segment.durationMs && spokenChars > 0
+              ? segment.durationMs / spokenChars
+              : undefined,
+            getAudioPositionMs: getDrawClockMs,
             getPlaybackRate: getRate,
+            isPaused,
             nowMs: wallClock.nowMs,
-          });
-        }
-        if (!isCurrentReplay()) {
-          return;
-        }
-
-        const commandWeight = pacedDurations[commandIndex] ?? getCommandDrawDurationMs(command, pace);
-        // Scene batches keep their capped reveal time instead of stretching a
-        // train across the recorded sentence. Follow ink still fills the cue.
-        const commandBudgetMs = sceneDurations
-          ? sceneDurations[commandIndex] ?? commandWeight
-          : totalDrawWeight > 0
-            ? Math.max(Math.round(durationMs * (commandWeight / totalDrawWeight)), 50)
-            : Math.max(Math.round(speechWindow.durationMs), 50);
-
-        await executeCommandWithCancel(command, {
-          applyLayout: false,
-          isCancelled: () => !isCurrentReplay(),
-          speechDurationMs: commandBudgetMs,
-          trustedDiagramGeometry,
-          inkPace: pace,
+            // A recorded clip's position stops at its end; a code block still
+            // typing then finishes on the wall clock, as it does live.
+            ...(audio ? { isSpeechComplete: () => audio.ended } : {}),
+            canAdvanceAfterSpeech: () => !isPausedRef.current,
+          },
+          getDiagram: () => activeVerifiedDiagramRef?.current ?? null,
+          isCancelled: shouldCancel,
+          waitWhilePaused: async () => {
+            while (isPausedRef.current) {
+              if (shouldCancel()) return false;
+              await new Promise((resolve) => window.setTimeout(resolve, 80));
+            }
+            return !shouldCancel();
+          },
+          execute: executeCommandWithCancel,
+          commandOptions: () => ({
+            applyLayout: false,
+            isCancelled: shouldCancel,
+            trustedDiagramGeometry,
+          }),
+          beforeCommand: () => whiteboardRef.current?.setAnimationSpeed(getRate()),
+          initialTextCommandIndex,
+          opensSentence,
         });
-        if (isTextCommand) {
-          textCommandIndex++;
-        }
-      }
       } finally {
         if (replayDrawClockRef.current === wallClock) replayDrawClockRef.current = null;
       }
     },
-    [cancelRef, isPausedRef, replayAudioRef, replayDrawClockRef, replayGenerationRef, speedRef, setPhase, whiteboardRef, executeCommandWithCancel],
+    [activeVerifiedDiagramRef, cancelRef, isPausedRef, replayAudioRef, replayDrawClockRef, replayGenerationRef, speedRef, setPhase, whiteboardRef, executeCommandWithCancel],
   );
 
   const waitWhileReplayPaused = useCallback(async (generation: number) => {
@@ -526,6 +450,8 @@ export function useReplay({
       const speakLiveTts = async (onStart?: () => void, text = spokenText): Promise<void> => {
         const tts = ttsClientRef.current;
         if (!text || !tts || shouldCancel()) {
+          // Nothing to hear: a silent beat's ink starts now.
+          onStart?.();
           if (remainingMs > 0) {
             await speedAwareDelay(remainingMs, {
               shouldCancel,
@@ -551,6 +477,7 @@ export function useReplay({
           fallbackDurationMs,
           initialTextCommandIndex,
           offsetMs,
+          startIdx === 0,
         );
 
       try {
@@ -625,8 +552,15 @@ export function useReplay({
         } else {
           setPhase("speaking");
           whiteboardRef.current?.setAnimationSpeed(getRate());
-          const voiceDone = speakLiveTts();
+          let releaseDrawStart = () => {};
+          const voiceStarted = new Promise<void>((resolve) => {
+            releaseDrawStart = resolve;
+          });
+          const voiceDone = speakLiveTts(releaseDrawStart).finally(releaseDrawStart);
           if (!skipDraw && remainingCommands.length > 0) {
+            // As live: the pen waits for the voice it follows to be heard.
+            await Promise.race([voiceStarted, voiceDone]);
+            if (shouldCancel()) return;
             setPhase("drawing");
             await Promise.all([
               raceWithCancel(voiceDone),
@@ -657,6 +591,7 @@ export function useReplay({
             fallbackDurationMs,
             initialTextCommandIndex,
             offsetMs,
+            startIdx === 0,
           );
         }
       }

@@ -184,6 +184,111 @@ assert(
   missingTrustedResult.value.segments.some((segment) => isRecord(segment.command) && segment.command.trustedDiagramGeometry === true),
   "the server must inject verified intro segments when the client omitted them",
 );
+assert(
+  missingTrustedResult.value.segments.every((segment) => segment.sourceOrderIndex === null),
+  "server-built intro rows own no uploaded audio",
+);
+
+// The live order: the runtime CLEAR, the opening line and the given rows, then
+// the figure, then the lesson. Each row's audio part is uploaded under the
+// index it was submitted with. The figure used to be moved ahead of the
+// opening, and every row in between was saved with its neighbour's recording.
+const spokenIntroTimings = { charStartTimes: [0, 0.1], charDurations: [0.1, 0.1], totalDuration: 4.2 };
+const spokenOrder = clone(exactMetadata);
+const clientIntro = spokenOrder.segments.map((segment) => ({
+  ...segment,
+  durationMs: 4200,
+  timings: spokenIntroTimings,
+}));
+spokenOrder.segments = [
+  {
+    orderIndex: 0,
+    narration: "",
+    spokenText: "",
+    command: { type: "CLEAR", params: [], charPosition: 0, narrationBefore: "" },
+  },
+  {
+    orderIndex: 0,
+    narration: "okay... this one asks for the sum.",
+    spokenText: "okay... this one asks for the sum.",
+    command: null,
+    durationMs: 2100,
+  },
+  {
+    orderIndex: 0,
+    narration: "Given... a equals 2.",
+    spokenText: "Given... a equals 2.",
+    command: {
+      type: "WRITE",
+      params: [90, 145, 28],
+      text: "a = 2",
+      charPosition: 0,
+      narrationBefore: "Given... a equals 2.",
+    },
+    durationMs: 1800,
+  },
+  ...clientIntro,
+  {
+    orderIndex: 0,
+    narration: "Now add three.",
+    spokenText: "Now add three.",
+    command: {
+      type: "WRITE",
+      params: [90, 211, 28],
+      text: "2+3=5",
+      charPosition: 0,
+      narrationBefore: "Now add three.",
+    },
+    durationMs: 1500,
+  },
+].map((segment, orderIndex) => ({ ...segment, orderIndex, sourceOrderIndex: 99 }));
+const spokenOrderResult = await canonicalizeTurnSceneMetadata(spokenOrder);
+assert(spokenOrderResult.ok, `spoken order fixture should persist: ${spokenOrderResult.ok ? "" : spokenOrderResult.error}`);
+const persistedOrder = spokenOrderResult.value.segments;
+assert(
+  persistedOrder.map((segment) => segment.narration).join("|") ===
+    spokenOrder.segments.map((segment) => segment.narration).join("|"),
+  "persisted rows must keep the order they were spoken in",
+);
+assert(
+  persistedOrder.every((segment, index) => segment.sourceOrderIndex === index && segment.orderIndex === index),
+  "each persisted row must own the audio part it was submitted with, never a client-claimed one",
+);
+const persistedIntro = persistedOrder.filter((segment) =>
+  isRecord(segment.command) && segment.command.trustedDiagramGeometry === true);
+assert(persistedIntro.length === clientIntro.length, "every spoken intro sentence keeps its row");
+assert(
+  persistedIntro.every((segment) => segment.durationMs === 4200 && segment.timings === spokenIntroTimings),
+  "intro rows keep the duration and alignment recorded for their audio",
+);
+assert(
+  JSON.stringify(persistedIntro.map((segment) => segment.command)) ===
+    JSON.stringify(exactPresentation.introSegments.map((segment) =>
+      serializeSegmentCommands(getSegmentCommands(segment), { trustedDiagramGeometry: true }))),
+  "intro ink still comes from the server compile",
+);
+
+const extraSpokenIntro = clone(exactMetadata);
+extraSpokenIntro.segments = [
+  ...extraSpokenIntro.segments,
+  {
+    orderIndex: extraSpokenIntro.segments.length,
+    narration: "A figure sentence the server does not draw.",
+    spokenText: "A figure sentence the server does not draw.",
+    command: serializeSegmentCommands(getSegmentCommands(exactPresentation.introSegments[0]!), {
+      trustedDiagramGeometry: true,
+    }),
+  },
+];
+const extraSpokenIntroResult = await canonicalizeTurnSceneMetadata(extraSpokenIntro);
+assert(extraSpokenIntroResult.ok, "an extra spoken intro sentence must not fail the save");
+const extraRow = extraSpokenIntroResult.value.segments.at(-1);
+assert(
+  extraRow?.narration === "A figure sentence the server does not draw." &&
+    extraRow.command === null &&
+    extraRow.sourceOrderIndex === extraSpokenIntro.segments.length - 1,
+  "an intro sentence past the server compile keeps its words and audio and drops its ink",
+);
 
 const forgedSolver = clone(exactMetadata);
 assert(isRecord(forgedSolver.sceneArtifacts) && isRecord(forgedSolver.sceneArtifacts.solverResult), "fixture needs solver result");

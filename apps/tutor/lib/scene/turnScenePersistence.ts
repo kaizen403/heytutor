@@ -39,6 +39,13 @@ export interface SubmittedTurnSegment {
   command: unknown;
   durationMs?: number;
   timings?: unknown;
+  /**
+   * Set by canonicalization only: the submitted `orderIndex` whose uploaded
+   * audio part belongs to this row, or null when the row was built on the
+   * server and has no recording. Rows can move, so the audio lookup must not
+   * use the canonical `orderIndex`.
+   */
+  sourceOrderIndex?: number | null;
 }
 
 export interface SubmittedTurnSceneMetadata {
@@ -82,14 +89,21 @@ export type TurnScenePersistenceResult =
  * to replay with the uncompiled-diagram guards disabled.
  */
 export async function canonicalizeTurnSceneMetadata(
-  metadata: SubmittedTurnSceneMetadata,
+  submittedMetadata: SubmittedTurnSceneMetadata,
 ): Promise<TurnScenePersistenceResult> {
-  const question = metadata.question?.trim();
+  const question = submittedMetadata.question?.trim();
   if (!question) return failure("question is required for scene validation");
-  if (!Array.isArray(metadata.segments)) return failure("segments must be an array");
-  if (!validSegmentOrder(metadata.segments)) {
+  if (!Array.isArray(submittedMetadata.segments)) return failure("segments must be an array");
+  if (!validSegmentOrder(submittedMetadata.segments)) {
     return failure("segment orderIndex values must be unique non-negative integers");
   }
+  const metadata: SubmittedTurnSceneMetadata = {
+    ...submittedMetadata,
+    segments: submittedMetadata.segments.map((segment) => ({
+      ...segment,
+      sourceOrderIndex: segment.orderIndex,
+    })),
+  };
 
   // A submitted plan that fails validation is rejected outright rather than
   // silently dropped: its TYPE segments would otherwise fail with a confusing
@@ -392,35 +406,57 @@ function isEpochClearSegment(segment: SubmittedTurnSegment): boolean {
   );
 }
 
-/** Keep teaching WRITE/FOCUS and the runtime CLEAR; replace client diagram ink. */
+/**
+ * Keep teaching WRITE/FOCUS and the runtime CLEAR; replace client diagram ink.
+ *
+ * Only the ink is replaced. Each spoken intro sentence stays where it was
+ * spoken, with the audio, alignment and duration recorded for it: the opening
+ * and the given rows are spoken before the figure, and moving the figure ahead
+ * of them paired every one of those rows with its neighbour's recording.
+ * `sourceOrderIndex` names the submitted row whose audio part a row owns;
+ * server-only intro rows own none.
+ */
 function mergeServerDiagramIntro(
   submitted: SubmittedTurnSegment[],
   introSegments: TutorSegment[],
 ): SubmittedTurnSegment[] {
-  const teaching = submitted.filter((segment) => !isStoredCommandTrustedGeometry(segment.command));
-  const leadingClears: SubmittedTurnSegment[] = [];
-  const rest: SubmittedTurnSegment[] = [];
-  let seenInk = false;
-  for (const segment of teaching) {
-    if (!seenInk && isEpochClearSegment(segment)) {
-      leadingClears.push(segment);
-      continue;
-    }
-    seenInk = true;
-    rest.push(segment);
-  }
-  const intro: SubmittedTurnSegment[] = introSegments.map((segment) => ({
+  const serverIntro: SubmittedTurnSegment[] = introSegments.map((segment) => ({
     orderIndex: 0,
     narration: segment.narration,
     spokenText: segment.narration,
     command: serializeSegmentCommands(getSegmentCommands(segment), {
       trustedDiagramGeometry: true,
     }),
+    sourceOrderIndex: null,
   }));
-  return [...leadingClears, ...intro, ...rest].map((segment, orderIndex) => ({
-    ...segment,
-    orderIndex,
-  }));
+  const merged: SubmittedTurnSegment[] = [];
+  let nextIntro = 0;
+  let lastIntroPosition = -1;
+  let leadingClearCount = 0;
+  let seenInk = false;
+  for (const segment of submitted) {
+    if (!isStoredCommandTrustedGeometry(segment.command)) {
+      if (!seenInk && isEpochClearSegment(segment)) leadingClearCount += 1;
+      else seenInk = true;
+      merged.push(segment);
+      continue;
+    }
+    seenInk = true;
+    const server = serverIntro[nextIntro];
+    nextIntro += 1;
+    merged.push(server
+      ? { ...segment, command: server.command }
+      // More spoken intro sentences than the server compile draws: keep the
+      // words and their recording, drop the ink nobody verified.
+      : { ...segment, command: null });
+    lastIntroPosition = merged.length - 1;
+  }
+  const missing = serverIntro.slice(nextIntro);
+  if (missing.length > 0) {
+    const insertAt = lastIntroPosition >= 0 ? lastIntroPosition + 1 : leadingClearCount;
+    merged.splice(insertAt, 0, ...missing);
+  }
+  return merged.map((segment, orderIndex) => ({ ...segment, orderIndex }));
 }
 
 function minimalFailureArtifacts(

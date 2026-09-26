@@ -293,22 +293,23 @@ async function main(): Promise<void> {
     );
   }
 
-  // --- The runner tells each command what slice of the beat it may spend. ---
+  // --- The sentence's ink pass (live and replay share it) tells each command
+  // what slice of the beat it may spend. ---
   {
     const runner = readFileSync(
-      new URL("../../features/tutor-session/hooks/turn/useSegmentRunner.ts", import.meta.url),
+      new URL("../../features/tutor-session/lib/turn/segmentInk.ts", import.meta.url),
       "utf8",
     ).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
     // A cued figure part's share is its cue window; every other command keeps
     // its matched window or its weighted slice of the beat.
     assert(
       /speechShareMs:\s*cueWindow\s*\?[\s\S]{0,900}?:\s*speechWindow\?\.durationMs \|\| commandSpeechMs/.test(runner),
-      "the runner must pass each command its own share of the segment's spoken time",
+      "the ink pass must give each command its own share of the segment's spoken time",
     );
     // A pointing walk gets what is left of the sentence, never the fallback
     // window's 300 ms (measured: the pen stood still for the other 19.7 s).
     assert(
-      /command\.type === "POINT"[\s\S]{0,600}?totalSpeechMs\) - Math\.round\(liveAudioPositionMs\(\)\)/.test(runner),
+      /command\.type === "POINT"[\s\S]{0,600}?totalSpeechMs\) - Math\.round\(clock\.getAudioPositionMs\(\)\)/.test(runner),
       "a POINT walk must be sized to the rest of the sentence",
     );
 

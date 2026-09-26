@@ -120,13 +120,14 @@ Key functions/sections:
 
 - `runSegment()` pairs narration and drawing.
 - `waitForInitialTimings()` waits only briefly for first TTS timing data. It must not wait for most of the sentence.
-- `runDraw()` executes commands for the segment via `executeCommandWithCancel` from `useCommandExecution.ts`.
+- `runDraw()` hands the sentence to `drawSegmentInk()` in `lib/turn/segmentInk.ts`, which executes its commands via `executeCommandWithCancel` from `useCommandExecution.ts`. Replay calls the same function with the recorded clip as the clock, so cue waits, FOCUS schedules and spoken ordering are identical live and on replay. Pacing changes go there, never into one caller.
 - For `WRITE`/`LABEL`, live code should:
   - Use `getWriteCharScheduleMs()` if `capturedTimings` is already available.
   - Otherwise use `getEstimatedWriteCharScheduleMs()` immediately.
   - Pass `WriteSchedule` to `Whiteboard.writeText()`.
 - `liveAudioPositionMs()` is the clock passed into `Whiteboard.writeText()`.
 - `replayLecture()` in `useReplay.ts` uses persisted audio/timings and gates against `audio.currentTime`.
+- Persistence keeps every row where it was spoken. The server replaces figure-intro ink with its own compile but leaves the row, its audio part, alignment and duration in place (`mergeServerDiagramIntro` in `lib/scene/turnScenePersistence.ts`); the upload route reads each row's audio by `sourceOrderIndex`. Moving the intro ahead of the opening once paired every early row with its neighbour's recording.
 
 Debug logs to inspect:
 

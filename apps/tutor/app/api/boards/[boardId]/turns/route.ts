@@ -22,6 +22,7 @@ interface TurnSegmentMeta {
   command: unknown;
   durationMs?: number;
   timings?: unknown;
+  sourceOrderIndex?: number | null;
 }
 
 interface TurnMetadata {
@@ -112,7 +113,9 @@ export async function POST(request: Request, context: RouteContext) {
   const audioUrls = new Map<number, string | null>();
   const audioFormats = new Map<number, string>();
   for (const segment of segmentMeta) {
-    const file = formData.get(`audio-${segment.orderIndex}`);
+    // Canonicalization may move rows; the audio part keeps its submitted index.
+    const source = segment.sourceOrderIndex === undefined ? segment.orderIndex : segment.sourceOrderIndex;
+    const file = source === null ? null : formData.get(`audio-${source}`);
     if (file instanceof File && file.size > 0) {
       const bytes = new Uint8Array(await file.arrayBuffer());
       audioFormats.set(segment.orderIndex, file.type);
