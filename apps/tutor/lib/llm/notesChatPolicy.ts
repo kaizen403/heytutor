@@ -32,7 +32,7 @@ function resolveNotesEvaluationMode(
   return "off";
 }
 
-function evaluationUsesZeroDataRetention(
+export function evaluationUsesZeroDataRetention(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
   const raw = env.TUTOR_EVALUATION_ZDR?.trim().toLowerCase();
