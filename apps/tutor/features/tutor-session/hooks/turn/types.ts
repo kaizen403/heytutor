@@ -140,7 +140,7 @@ export type UseTurnLifecycleParams = {
   /** Owns the DSA code panel; DSA turns commit their CodeLessonPlan here. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
   segmentPlanStatsRef: RefObject<SegmentPlanStats>;
-  stopTurnRef: RefObject<(() => void) | null>;
+  stopTurnRef: RefObject<((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => void) | null>;
   speedRef: RefObject<number>;
   /** Prefer Fireworks Fast routers when configured. Default on. */
   fastModeRef: RefObject<boolean>;
@@ -248,7 +248,7 @@ export type TurnControlApi = {
       errorQuestion?: string;
     },
   ) => Promise<void>;
-  stopTurn: (options?: { keepVisibleBoard?: boolean }) => void;
+  stopTurn: (options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => void;
   pauseTurn: () => void;
   resumeTurn: () => void;
   /**
