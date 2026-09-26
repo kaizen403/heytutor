@@ -48,8 +48,8 @@ export async function verifyAdminLivePlayback(): Promise<void> {
   );
   assert.match(
     watchSource,
-    /window\.addEventListener\("keydown", onKeyDown, true\)/,
-    "Watch Escape must run in capture before the live shell's window listener",
+    /window\.addEventListener\("keydown", onKeyDown\)/,
+    "Watch Escape must run after the board marker's capture listener can disarm itself",
   );
   assert.match(
     watchSource,

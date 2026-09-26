@@ -156,8 +156,10 @@ function WatchDrawerFrame({
         onCloseRef.current();
       }
     };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
+    // The board marker gets Escape first on capture and disarms itself.
+    // Watch closes only when that listener has not consumed the key.
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [fullscreen]);
 
   useEffect(() => {
