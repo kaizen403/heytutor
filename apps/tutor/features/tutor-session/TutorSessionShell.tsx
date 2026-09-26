@@ -293,6 +293,7 @@ export function TutorSessionShell({
   const [creditsOpen, setCreditsOpen] = useState(false);
   const ttsClientRef = useRef<TTSClient | null>(null);
   const replayAudioRef = useRef<HTMLAudioElement | null>(null);
+  const replayDrawClockRef = useRef<{ setPaused: (paused: boolean) => void } | null>(null);
   const replayAudioPreloadRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const cancelRef = useRef(false);
   const turnActiveRef = useRef(false);
@@ -781,6 +782,7 @@ export function TutorSessionShell({
     setLiveTurnKind,
     ttsClientRef,
     replayAudioRef,
+    replayDrawClockRef,
     replayAudioPreloadRef,
     cancelRef,
     turnActiveRef,
@@ -943,6 +945,7 @@ export function TutorSessionShell({
     speedRef,
     isPausedRef,
     replayAudioRef,
+    replayDrawClockRef,
     replayAudioPreloadRef,
     storedTurnsRef,
     codeLessonControllerRef,

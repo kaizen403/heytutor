@@ -136,6 +136,7 @@ export function useLectureRewind({
   const rewindGenerationRef = useRef(0);
   const rewindCueRef = useRef<ReplayCue | null>(null);
   const rewindAudioRef = useRef<HTMLAudioElement | null>(null);
+  const rewindDrawClockRef = useRef<{ setPaused: (paused: boolean) => void } | null>(null);
   const rewindAudioPreloadRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const rewindTurnsRef = useRef<StoredTurn[]>([]);
   const rewindQuestionRef = useRef("");
@@ -283,6 +284,7 @@ export function useLectureRewind({
   const pauseRewind = useCallback(() => {
     if (rewindPausedRef.current) return;
     rewindPausedRef.current = true;
+    rewindDrawClockRef.current?.setPaused(true);
     setRewindPaused(true);
     rewindAudioRef.current?.pause();
     rewindBoardRef.current?.setPaused(true);
@@ -291,6 +293,7 @@ export function useLectureRewind({
   const resumeRewind = useCallback(() => {
     if (!rewindPausedRef.current) return;
     rewindPausedRef.current = false;
+    rewindDrawClockRef.current?.setPaused(false);
     setRewindPaused(false);
     void rewindAudioRef.current?.play().catch(() => undefined);
     rewindBoardRef.current?.setPaused(false);
@@ -307,6 +310,7 @@ export function useLectureRewind({
     speedRef,
     isPausedRef: rewindPausedRef,
     replayAudioRef: rewindAudioRef,
+    replayDrawClockRef: rewindDrawClockRef,
     replayAudioPreloadRef: rewindAudioPreloadRef,
     storedTurnsRef: rewindTurnsRef,
     activeVerifiedDiagramRef: rewindDiagramRef,

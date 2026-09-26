@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { playReplayAudio } from "../../lib/replay/replayAudio";
+import { playReplayAudio, remainingReplaySpeech } from "../../lib/replay/replayAudio";
 import { useReplay, type UseReplayParams } from "../../features/tutor-session/hooks/useReplay";
 import type { ReplayCue } from "../../lib/replay/replayTimeline";
 import { DifficultyCell } from "../../features/admin/components/DifficultyCell";
@@ -20,6 +20,7 @@ class FakeAudio {
   playbackRate = 1;
   preload = "";
   playCurrentTime: number | null = null;
+  unloadCount = 0;
   onloadedmetadata: (() => void) | null = null;
   onplay: (() => void) | null = null;
   onplaying: (() => void) | null = null;
@@ -37,8 +38,8 @@ class FakeAudio {
   }
 
   pause(): void {}
-  removeAttribute(): void {}
-  load(): void {}
+  removeAttribute(): void { this.unloadCount++; }
+  load(): void { this.currentTime = 0; }
 }
 
 export async function verifyAdminLivePlayback(): Promise<void> {
@@ -137,6 +138,7 @@ export async function verifyAdminLivePlayback(): Promise<void> {
 
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const previousAudio = Object.getOwnPropertyDescriptor(globalThis, "Audio");
+  const previousPerformance = Object.getOwnPropertyDescriptor(globalThis, "performance");
   Object.defineProperty(globalThis, "window", {
     value: globalThis,
     configurable: true,
@@ -230,12 +232,18 @@ export async function verifyAdminLivePlayback(): Promise<void> {
     };
     const cancelRef = { current: false };
     const replayGenerationRef = { current: 1 };
-    const replayAudioRef = { current: null };
+    const replayAudioRef: { current: HTMLAudioElement | null } = { current: null };
+    let drawPosition: (() => number) | undefined;
+    let nowMs = 0;
+    Object.defineProperty(globalThis, "performance", {
+      value: { now: () => nowMs }, configurable: true,
+    });
     let replay!: ReturnType<typeof useReplay>;
     const params = {
       cancelRef,
       replayGenerationRef,
       replayAudioRef,
+      replayDrawClockRef: { current: null },
       replayAudioPreloadRef: { current: new Map() },
       replayCueRef: { current: null },
       isPausedRef: { current: false },
@@ -247,6 +255,8 @@ export async function verifyAdminLivePlayback(): Promise<void> {
           setMuted: () => {},
           setPlaybackRate: () => {},
           speakSegment: async (text: string) => {
+            assert.equal(FakeAudio.instances.at(-1)?.unloadCount, 1,
+              "failed recorded media must be unloaded before fallback voice starts");
             fallbackSpeech.push(text);
           },
         },
@@ -255,6 +265,9 @@ export async function verifyAdminLivePlayback(): Promise<void> {
       setCurrentSegmentText: () => {},
       setReplayProgressMs: () => {},
       raceWithCancel: async <T,>(promise: Promise<T>) => promise,
+      executeCommandWithCancel: (async (_command, options) => {
+        drawPosition = options?.writeSchedule?.getAudioPositionMs;
+      }) satisfies UseReplayParams["executeCommandWithCancel"],
     } as unknown as UseReplayParams;
     renderToStaticMarkup(React.createElement(() => {
       replay = useReplay(params);
@@ -272,6 +285,69 @@ export async function verifyAdminLivePlayback(): Promise<void> {
       ["Explain the answer."],
       "a recorded clip that began playing but failed must finish through live TTS",
     );
+
+    const partialCue: ReplayCue = {
+      ...cue,
+      timings: {
+        charStartTimes: Array.from(cue.narration, (_, index) => index * 0.1),
+        charDurations: Array.from(cue.narration, () => 0.1),
+        totalDuration: 1.9,
+      },
+    };
+    const partialPlayback = replay.playReplayCue(partialCue, 0, 1, true);
+    await Promise.resolve();
+    const partialAudio = FakeAudio.instances[4]!;
+    partialAudio.onplaying?.();
+    partialAudio.currentTime = 1.4; // half of "answer" has already played
+    partialAudio.onerror?.();
+    await partialPlayback;
+    assert.deepEqual(fallbackSpeech, ["Explain the answer.", "answer."],
+      "aligned partial playback should only repeat the interrupted word, not the whole sentence");
+    assert.equal(remainingReplaySpeech("Explain the answer.", 1_850, partialCue.timings), "answer.",
+      "failure during the last word must not silently omit its ending");
+    assert.equal(remainingReplaySpeech("Explain the answer.", 1_400, { charStartTimes: [0] }),
+      "Explain the answer.", "misaligned timings must fall back to the full sentence");
+
+    // A seek already skipped the first words even if the recorded clip never
+    // reaches `playing` (or fails before metadata exposes currentTime).
+    const midSeek = replay.playReplayCue(partialCue, 1_400, 1, true);
+    await Promise.resolve();
+    const seekAudio = FakeAudio.instances[5]!;
+    seekAudio.onerror?.();
+    await midSeek;
+    assert.deepEqual(fallbackSpeech,
+      ["Explain the answer.", "answer.", "answer."],
+      "failed mid-cue seek must resume at the sought word, not repeat the full sentence");
+
+    const write = {
+      type: "WRITE" as const, text: "answer.", params: [90, 142],
+      charPosition: 0, narrationBefore: "",
+    };
+    // The recording reaches 1.4s and then unload resets currentTime to 0.
+    // The drawing clock must continue from the last voice position, not wait
+    // for a zero-based fallback to catch up with an already-heard word.
+    const writingAudio = new FakeAudio("fixture.mp3");
+    writingAudio.currentTime = 1.4;
+    replayAudioRef.current = writingAudio as unknown as HTMLAudioElement;
+    await replay.runReplaySegmentDraw(partialCue.segment, [write],
+      partialCue.narration, 1, writingAudio as unknown as HTMLAudioElement, 4_000);
+    assert.ok(drawPosition, "aligned replay WRITE should receive a voice clock");
+    assert.equal(drawPosition(), 1_400);
+    replayAudioRef.current = null;
+    writingAudio.currentTime = 0;
+    nowMs += 100;
+    assert.ok(drawPosition() >= 1_500,
+      "draw clock must keep advancing from recorded audio position after media failure");
+
+    // Failure before onplaying starts drawing only after live TTS starts; its
+    // first WRITE still needs the absolute sought cue position.
+    drawPosition = undefined;
+    await replay.runReplaySegmentDraw(partialCue.segment, [write],
+      partialCue.narration, 1, undefined, 4_000, 0, 1_400);
+    const soughtDrawPosition = drawPosition as (() => number) | undefined;
+    assert.ok(soughtDrawPosition);
+    assert.equal(soughtDrawPosition(), 1_400,
+      "live-TTS draw after a failed seek must not restart at cue time zero");
   } finally {
     if (previousWindow)
       Object.defineProperty(globalThis, "window", previousWindow);
@@ -279,6 +355,9 @@ export async function verifyAdminLivePlayback(): Promise<void> {
     if (previousAudio)
       Object.defineProperty(globalThis, "Audio", previousAudio);
     else Reflect.deleteProperty(globalThis, "Audio");
+    if (previousPerformance)
+      Object.defineProperty(globalThis, "performance", previousPerformance);
+    else Reflect.deleteProperty(globalThis, "performance");
   }
   console.log(
     "✓ admin Teach live, audible replay start, and preloaded audio reuse",

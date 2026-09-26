@@ -4,6 +4,7 @@ import {
   applyReplaySpeed,
   createAccumulatingMediaClock,
   playReplayAudio,
+  remainingReplaySpeech,
   speedAwareDelay,
   stopReplayAudio,
   waitUntilDrawClock,
@@ -82,6 +83,7 @@ export type UseReplayParams = {
   speedRef: RefObject<number>;
   isPausedRef: RefObject<boolean>;
   replayAudioRef: RefObject<HTMLAudioElement | null>;
+  replayDrawClockRef: RefObject<{ setPaused: (paused: boolean) => void } | null>;
   replayAudioPreloadRef: RefObject<Map<string, HTMLAudioElement>>;
   storedTurnsRef: RefObject<StoredTurn[]>;
   /** Replayed DSA turns re-commit their persisted CodeLessonPlan here. */
@@ -134,6 +136,7 @@ export function useReplay({
   speedRef,
   isPausedRef,
   replayAudioRef,
+  replayDrawClockRef,
   replayAudioPreloadRef,
   storedTurnsRef,
   codeLessonControllerRef,
@@ -223,6 +226,7 @@ export function useReplay({
       audio?: HTMLAudioElement,
       fallbackDurationMs?: number,
       initialTextCommandIndex = 0,
+      startAtMs = 0,
     ): Promise<void> => {
       const isCurrentReplay = () =>
         isReplayGenerationCurrent({
@@ -262,15 +266,28 @@ export function useReplay({
       const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
       const getRate = () => Math.max(speedRef.current, 0.1);
       const shouldCancel = () => !isCurrentReplay();
-      const wallClock = createAccumulatingMediaClock({ getPlaybackRate: getRate });
+      const isPaused = () => isPausedRef.current;
+      const wallClock = createAccumulatingMediaClock({ getPlaybackRate: getRate, isPaused });
+      replayDrawClockRef.current = wallClock;
+      // An in-cue seek and the latest recorded position are both absolute
+      // media time. Keep that origin if failed media unload resets currentTime.
+      let mediaToWallOffsetMs = Math.max(startAtMs, 0);
       const getDrawClockMs = createScheduledWriteClock({
-        getRawPositionMs: () =>
-          audio && Number.isFinite(audio.currentTime) && audio.currentTime > 0
-            ? audio.currentTime * 1000
-            : wallClock.positionMs(),
+        nowMs: wallClock.nowMs,
+        getRawPositionMs: () => {
+          const wallMs = wallClock.positionMs();
+          if (audio && replayAudioRef.current === audio
+            && Number.isFinite(audio.currentTime) && audio.currentTime > 0) {
+            const mediaMs = audio.currentTime * 1000;
+            mediaToWallOffsetMs = mediaMs - wallMs;
+            return mediaMs;
+          }
+          return Math.max(startAtMs, wallMs + mediaToWallOffsetMs);
+        },
       });
 
       let textCommandIndex = initialTextCommandIndex;
+      try {
       for (let commandIndex = 0; commandIndex < segmentCommands.length; commandIndex++) {
         const command = segmentCommands[commandIndex]!;
         const pace = commandPaces[commandIndex]!;
@@ -331,7 +348,9 @@ export function useReplay({
         if (speechWindow.startMs > 0) {
           await waitUntilDrawClock(getDrawClockMs, speechWindow.startMs, {
             shouldCancel,
+            isPaused,
             getPlaybackRate: getRate,
+            nowMs: wallClock.nowMs,
           });
         }
         if (!isCurrentReplay()) {
@@ -358,8 +377,11 @@ export function useReplay({
           textCommandIndex++;
         }
       }
+      } finally {
+        if (replayDrawClockRef.current === wallClock) replayDrawClockRef.current = null;
+      }
     },
-    [cancelRef, replayGenerationRef, speedRef, setPhase, whiteboardRef, executeCommandWithCancel],
+    [cancelRef, isPausedRef, replayAudioRef, replayDrawClockRef, replayGenerationRef, speedRef, setPhase, whiteboardRef, executeCommandWithCancel],
   );
 
   const waitWhileReplayPaused = useCallback(async (generation: number) => {
@@ -501,9 +523,9 @@ export function useReplay({
         .length;
 
       const spokenText = (cue.segment.spokenText || cue.narration).trim();
-      const speakLiveTts = async (onStart?: () => void): Promise<void> => {
+      const speakLiveTts = async (onStart?: () => void, text = spokenText): Promise<void> => {
         const tts = ttsClientRef.current;
-        if (!spokenText || !tts || shouldCancel()) {
+        if (!text || !tts || shouldCancel()) {
           if (remainingMs > 0) {
             await speedAwareDelay(remainingMs, {
               shouldCancel,
@@ -516,7 +538,7 @@ export function useReplay({
         tts.unlockAudio?.();
         tts.setMuted?.(false);
         tts.setPlaybackRate(getRate());
-        await tts.speakSegment(spokenText, { onStart });
+        await tts.speakSegment(text, { onStart });
       };
 
       const drawRemaining = (audio?: HTMLAudioElement) =>
@@ -528,6 +550,7 @@ export function useReplay({
           audio,
           fallbackDurationMs,
           initialTextCommandIndex,
+          offsetMs,
         );
 
       try {
@@ -544,6 +567,7 @@ export function useReplay({
             releaseDrawStart = resolve;
           });
           let recordedAudioStarted = false;
+          let failedAtMs = 0;
           const { audio, done } = playReplayAudio(cue.audioUrl, {
             audio: preloaded,
             playbackRate: getRate(),
@@ -551,6 +575,8 @@ export function useReplay({
             maxDurationMs: fallbackDurationMs,
             startAtMs: offsetMs,
             shouldCancel,
+            isPaused: () => isPausedRef.current,
+            onFailure: (playedMs) => { failedAtMs = playedMs; },
             onStart: () => {
               recordedAudioStarted = true;
               releaseDrawStart();
@@ -569,15 +595,22 @@ export function useReplay({
             if (shouldCancel()) {
               return;
             }
+            // playReplayAudio unloads the failed element before rejecting, so
+            // the replacement voice cannot overlap a late-playing recording.
+            if (!(await waitWhileReplayPaused(generation))) return;
             try {
-              await speakLiveTts(releaseDrawStart);
+              await speakLiveTts(
+                releaseDrawStart,
+                remainingReplaySpeech(spokenText, Math.max(offsetMs, failedAtMs), cue.timings),
+              );
             } finally {
               releaseDrawStart();
             }
           });
 
           if (!skipDraw) {
-            // Metadata may load long before playback. Start ink with sound.
+            // Buffering may finish well after metadata. Keep the pen parked
+            // until either recorded audio or the live TTS fallback is heard.
             await Promise.race([voiceStarted, voiceDone]);
             if (shouldCancel()) return;
             setPhase("drawing");
@@ -623,6 +656,7 @@ export function useReplay({
             undefined,
             fallbackDurationMs,
             initialTextCommandIndex,
+            offsetMs,
           );
         }
       }
@@ -633,6 +667,7 @@ export function useReplay({
     },
     [
       cancelRef,
+      isPausedRef,
       replayGenerationRef,
       replayCueRef,
       replayAudioPreloadRef,
