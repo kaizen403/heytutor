@@ -81,6 +81,18 @@ export const NOTES_ROUTING_QUESTIONS: Record<string, EvaluationQuestion> = {
   },
 };
 
+export const VISUAL_NEED_QUESTIONS: Record<string, EvaluationQuestion> = {
+  visual_need: {
+    type: "choice",
+    instructions: "Decide whether teaching this exact question needs a drawing in the diagram area. Use recent conversation to resolve references in follow-up questions. Choose required when the student asks for a drawing, graph, plot, construction, spatial setup, apparatus, process flow, or geometric relationship, or when seeing these is needed to follow the solution. Choose optional when a grounded drawing would help but the solution is clear through words and equations alone. Choose none for purely symbolic, arithmetic, or factual questions with no meaningful drawable setup. A reference to an unavailable figure without enough named structure to reconstruct it does not justify inventing a drawing.",
+    criteria: {
+      required: "A source-grounded drawing is expected or necessary to teach this question.",
+      optional: "A drawing could help, but the solution remains clear without one.",
+      none: "There is no meaningful source-grounded drawing to make.",
+    },
+  },
+};
+
 const LESSON_FLAGS: Record<string, ReadonlySet<string>> = {
   addresses_requested_parts: new Set(["partial", "missing"]),
   contradicts_authoritative_facts: new Set(["contradiction"]),
@@ -90,11 +102,19 @@ const LESSON_FLAGS: Record<string, ReadonlySet<string>> = {
 };
 
 export function questionsForJob(job: TutorEvaluationJob): Record<string, EvaluationQuestion> {
-  return job === "lesson_review" ? LESSON_REVIEW_QUESTIONS : NOTES_ROUTING_QUESTIONS;
+  switch (job) {
+    case "lesson_review": return LESSON_REVIEW_QUESTIONS;
+    case "notes_routing": return NOTES_ROUTING_QUESTIONS;
+    case "visual_need": return VISUAL_NEED_QUESTIONS;
+  }
 }
 
 export function rubricVersionForJob(job: TutorEvaluationJob): string {
-  return job === "lesson_review" ? "lesson-review/v1" : "notes-routing/v1";
+  switch (job) {
+    case "lesson_review": return "lesson-review/v1";
+    case "notes_routing": return "notes-routing/v1";
+    case "visual_need": return "visual-need/v1";
+  }
 }
 
 export function flagsFromLessonAnswers(answers: Record<string, NormalizedAnswer>): string[] {
