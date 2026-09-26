@@ -70,8 +70,9 @@ or code block. If Jev is unavailable, the default shape still teaches.
 An explicit explanation request without a request to code or solve stays on
 the verified frame walk and closes with complexity. The planner still grounds
 the family and example, but the editor remains hidden and the conductor owes
-no code blocks. A question that asks to write, implement, or solve keeps the
-code beats. Continuations and resumes use the same distinction.
+no code blocks, including when the family drew no frames. A question that asks
+to write, implement, or solve keeps the code beats. Continuations and resumes
+use the same distinction.
 
 The planner prefers one runnable section with the algorithm and a short
 example call. Normalization collapses a driver that repeats the exact earlier

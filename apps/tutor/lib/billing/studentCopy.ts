@@ -61,7 +61,9 @@ export function studentBillingMessage(code: string): string {
     case "concurrent_limit":
       return "A lesson is already in progress";
     case "doubt_limit":
-      return "You've asked enough doubts on this question";
+      // The per-question doubt cap is gone. Keep the code so an older response
+      // still decodes, and say the same thing as an empty envelope.
+      return OUT_OF_USAGE_TITLE;
     case "autumn_unavailable":
       return "Billing is temporarily unavailable";
     case "unauthorized":

@@ -24,6 +24,7 @@ import {
   remainingCodeLessonBeats,
   dsaOpeningPointIds,
   dsaOpeningPromptAddon,
+  dsaLessonIncludesCode,
   getMockCodeLessonPlan,
   isExplanationOnlyDsaQuestion,
   type CodeLessonFigureFrame,
@@ -65,6 +66,8 @@ const FRAMES: CodeLessonFigureFrame[] = [
   assert(!isExplanationOnlyDsaQuestion("Explain how solving two sum works"), "a solving request still needs code");
   assert(isExplanationOnlyDsaQuestion("Explain dynamic programming for coin change"), "dynamic programming names a technique, not a program");
   assert(isExplanationOnlyDsaQuestion("What is the intuition behind Kadane's algorithm?"), "an intuition request is an explanation");
+  assert(!dsaLessonIncludesCode(true), "an explanation request hides code even when the family drew no frames");
+  assert(dsaLessonIncludesCode(false), "a request that is not explanation-only still teaches the code");
   const prompt = codeLessonPromptAddon(PLAN, { frames: FRAMES, familiarity: "normal", includeCode: false });
   assert(!/\[TYPE:/.test(prompt), "an explanation-only prompt cannot ask for code blocks");
   assert(!/split and merge/i.test(prompt), "the explanation-only close cannot assume Merge Sort");

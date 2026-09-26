@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom";
 import { ArrowLeft, Maximize, Minimize, Radio, ScrollText, Trash2, X } from "lucide-react";
 import { PlainButton, SiteButton } from "@/components/ui/site-button";
+import { DEFAULT_REPLAY_SPEED } from "@/lib/replay/replayAudio";
 import { cn } from "@/lib/utils";
 import { TutorSessionShell, unlockTutorAudio, type TutorSessionExportApi } from "@/features/tutor-session";
 import type { TutorPhase } from "@/features/tutor-session/types";
@@ -111,7 +112,7 @@ function WatchDrawerFrame({
   onDelete,
 }: WatchDrawerProps & { boardId: string }) {
   const isLive = intent === "live";
-  const [speed, setSpeed] = useState(1);
+  const [speed, setSpeed] = useState(DEFAULT_REPLAY_SPEED);
   const [exportApi, setExportApi] = useState<TutorSessionExportApi | null>(null);
   const fullscreen = useBoardFullscreen();
   const closeAndExit = useCallback(() => {

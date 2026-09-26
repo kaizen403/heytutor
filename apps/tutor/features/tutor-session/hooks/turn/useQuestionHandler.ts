@@ -24,6 +24,7 @@ import {
   questionRequiresVisual,
   classifyDsaQuestion,
   isExplanationOnlyDsaQuestion,
+  dsaLessonIncludesCode,
   dsaOpeningPointIds,
   planCodeLessonV1,
   type CodeLessonPlan,
@@ -1605,9 +1606,10 @@ export function useQuestionHandler(
         ? workColumnRoom(boardLayoutRef.current, fbdPhaseStartedRef.current)
         : null;
       const revealedChars = codeLessonControllerRef?.current?.getState().revealedChars ?? {};
-      const explanationOnlyWithFrames = explanationOnlyDsa && Boolean(dsaFrameSet?.frames.length);
+      // Explanation requests hide the editor even when this family drew no frames.
+      const includeDsaCode = dsaLessonIncludesCode(explanationOnlyDsa);
       const revealedBlockIds = codeLesson ? fullyRevealedBlockIds(codeLesson, revealedChars) : [];
-      const missingBlockIds = codeLesson && !explanationOnlyWithFrames
+      const missingBlockIds = codeLesson && includeDsaCode
         ? codeLesson.sections
             .flatMap((section) => section.blocks.map((block) => block.id))
             .filter((id) => !revealedBlockIds.includes(id))
@@ -1664,7 +1666,7 @@ export function useQuestionHandler(
                   )
                 : null,
               codeLesson,
-              codeLessonIncludeCode: !explanationOnlyWithFrames,
+              codeLessonIncludeCode: includeDsaCode,
               codeLessonFrames: dsaFrameSet?.frames.map((frame) => ({
                 id: frame.id,
                 caption: frame.caption,
@@ -1679,7 +1681,7 @@ export function useQuestionHandler(
             turnPlan,
             solverProjection: problemAuthority?.projection ?? null,
             codeLesson,
-            codeLessonIncludeCode: !explanationOnlyWithFrames,
+            codeLessonIncludeCode: includeDsaCode,
             codeLessonTeachingPolicy: dsaTeachingPolicy.current ?? FALLBACK_DSA_TEACHING_POLICY,
             // The frames the board will actually show, so the narration is about
             // the figure in front of the student rather than the planner's hint.
@@ -1865,7 +1867,7 @@ export function useQuestionHandler(
           : (openingPointIds.length > 0 ? openingPointIds : staticPointIds);
         const conductor = codeLesson
           ? createCodeLessonConductor(codeLesson, {
-              includeCode: !explanationOnlyWithFrames,
+              includeCode: includeDsaCode,
               frameCount: dsaFrameSet?.frames.length ?? 0,
               frameIds: dsaFrameSet?.frames.map((frame) => frame.id) ?? [],
               frameFocusIds: dsaFrameSet?.frames.map((frame) => frame.focusEntityIds) ?? [],
