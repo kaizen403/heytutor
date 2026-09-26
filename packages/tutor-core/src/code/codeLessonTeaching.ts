@@ -5,6 +5,7 @@ import {
   codeLessonBeatPlan,
   type CodeLessonBeat,
   type CodeLessonPlan,
+  type DsaTeachingPolicy,
 } from "./codeLessonPlan";
 
 /**
@@ -36,6 +37,9 @@ export interface CodeLessonTeachingOptions {
   resultText?: string;
   /** The walk stopped early because the algorithm found its answer. */
   earlyExit?: boolean;
+  teachingPolicy?: DsaTeachingPolicy;
+  /** Concept questions use the verified trace without opening the code editor. */
+  includeCode?: boolean;
 }
 
 /**
@@ -79,19 +83,30 @@ voice:
 - never use a dash as punctuation. use a comma, a colon, or a second sentence.
 - no markdown, no bullet lists, no emojis, no meta commentary.`;
 
+/** Used when the student asks to understand a verified algorithm walk, without code. */
+export const DSA_EXPLANATION_SYSTEM_PROMPT = `you are clicky, a clear and patient teacher with a voice, a shared board, and a pen. Speak in natural, conversational sentences for the ear.
+
+The problem and example are written on the left. The verified worked example appears on the right when you name its first frame, then changes through the committed frames. You cannot alter its values or draw new marks.
+
+Return only [STEP]...[/STEP] blocks in the order given. A figure step carries one [FOCUS:frame_id|spotlight] after the first sentence that names the change. The opening and complexity close carry no tag. Never use [TYPE], [WRITE], or any drawing, label, erase, or annotation tag.
+
+Teach the operation, not the caption: on a comparison, say the actual values, why one is chosen, and what remains. On a regrouping, name the new groups once and move on. Explain the rule that makes each move safe and how the repeated work and storage determine complexity. Do not narrate code or mention an editor, panel, frame id, planner, or compiler.
+
+Use short clauses and a breath after a result. Do not repeat a step, read a caption aloud, or pad with a recap. No markdown, bullet lists, emojis, or meta commentary.`;
+
 /** What each familiarity spends its words on. */
 const FAMILIARITY_SHAPE: Record<SubjectFamiliarity, { words: number; guidance: string }> = {
   new: {
     words: CODE_LESSON_STEP_WORDS.new,
-    guidance: `FAMILIARITY: NEW. The student has not met this technique. Teach the tool itself before it is used: what a hash map, a pointer, a stack or a recursive call is, in plain words, with what it is good at and what it costs. Give the slow way first and say why it is too slow, because that is what makes the idea land. On every figure beat say what changed and why with the actual numbers, and say what the algorithm will do next. On every code beat say what the line does before you say what it is called, and connect it to the frame that showed it happening.`,
+    guidance: `FAMILIARITY: NEW. Introduce unfamiliar tools in plain words. Give the slow way and why it struggles. Use the actual example values to explain each figure move. Connect code to the move it implements.`,
   },
   normal: {
     words: CODE_LESSON_STEP_WORDS.normal,
-    guidance: `FAMILIARITY: NORMAL. The student has seen this before and is rusty. Skip the definitions, but give the slow way one sentence and the reason it is slow. On every figure beat say why the algorithm makes this move, with the numbers, and what it will do next. On every code beat connect the line to the frame it implements.`,
+    guidance: `FAMILIARITY: NORMAL. Skip basic definitions. Explain why each important move follows from the previous one, using the example values. Connect code to the figure only when that connection adds insight.`,
   },
   revision: {
     words: CODE_LESSON_STEP_WORDS.revision,
-    guidance: `FAMILIARITY: REVISION. The student knows this and wants it sharpened. Do not motivate the technique or define its terms, and take each frame in one step. Spend the words where memory actually fails: the invariant the loop keeps, the exact loop bounds and update order, the edge cases, and the two mistakes people really make writing this.`,
+    guidance: `FAMILIARITY: REVISION. Skip motivation and definitions. Focus on the invariant, loop bounds, update order, edge cases and realistic mistakes.`,
   },
 };
 
@@ -115,7 +130,8 @@ export function codeLessonPromptAddon(
   const familiarity = options.familiarity ?? "normal";
   const shape = FAMILIARITY_SHAPE[familiarity];
   const frames = options.frames ?? [];
-  const blockIds = plan.sections.flatMap((section) => section.blocks.map((block) => block.id));
+  const includeCode = options.includeCode ?? true;
+  const blockIds = includeCode ? plan.sections.flatMap((section) => section.blocks.map((block) => block.id)) : [];
   const beats = codeLessonBeatPlan({
     frames: frames.map((frame) => ({ id: frame.id, caption: frame.caption })),
     blockIds,
@@ -123,6 +139,7 @@ export function codeLessonPromptAddon(
     earlyExit: options.earlyExit,
     terms: options.terms,
     resultText: options.resultText,
+    motivation: options.teachingPolicy?.motivation,
   });
 
   const blockSource = (id: string): string | null => {
@@ -137,11 +154,15 @@ export function codeLessonPromptAddon(
     .map((section) => `SECTION ${section.id} — ${section.title}\n${section.explanation}`)
     .join("\n\n");
 
-  return `CODE LESSON — this turn teaches an algorithm with a pre-committed, validated ${plan.language} program titled "${plan.title}". The left column already holds the problem in ink. The worked example appears on the right when you name the first frame, and the editor appears on the left when you reveal the first code block.
+  return `${includeCode
+    ? `CODE LESSON — this turn teaches an algorithm with a pre-committed, validated ${plan.language} program titled "${plan.title}". The left column already holds the problem in ink. The worked example appears on the right when you name the first frame, and the editor appears on the left when you reveal the first code block.`
+    : "WORKED EXAMPLE LESSON — the student asked how the algorithm works, not for a program. The left column holds the problem in ink. Teach from the verified example on the right as it changes. No code editor or code blocks appear in this lesson."}
 
-LESSON SHAPE. Exactly ${beats.length} steps, listed below, in this order, nothing added and nothing skipped. Each step is at least ${shape.words} spoken words, unless its own line below says otherwise, and none runs past about ${Math.round(shape.words * 1.6)}. A step shorter than the floor is a summary, and a summary is the one thing this lesson must not be: the student cannot see how long the lesson is and is not waiting for it to end. Spend the words on the reasoning, which is what the figure and the code cannot say for themselves.
+LESSON SHAPE. Exactly ${beats.length} steps, listed below, in this order, nothing added and nothing skipped. Speak naturally: most steps need one to three short sentences, usually no more than about ${shape.words} words. A simple frame change can take one sentence; a difficult decision may take more. Never pad a step to meet a word count. Spend time on reasoning the figure and code cannot show, and move on once the point is clear.
 
 ${shape.guidance}
+
+TEACHING EMPHASIS: ${teachingEmphasis(options.teachingPolicy?.emphasis ?? "walkthrough")}
 
 ${figureFrameFacts(frames)}
 
@@ -151,13 +172,15 @@ ${beats.map((beat, index) => renderBeat(beat, index, blockSource)).join("\n")}
 Hard rules for this turn:
 - One tag per step, exactly as listed above. A figure tag sits after the first sentence that names the frame; a code tag sits after the words that explain the block. Never two tags, never a tag the list does not give you.
 - A figure step names a frame. The figure moves to that frame the first time you name it and stays there while you keep naming it, so two steps on one frame are two steps on the same picture. Never name a frame you have already left.
-- Reveal every block exactly once, in the order listed. Never invent, repeat or skip a block id.
+${includeCode
+    ? "- Reveal every block exactly once, in the order listed. Never invent, repeat or skip a block id."
+    : "- Do not discuss code lines, functions, or implementation details. Explain the decisions and intermediate states on the worked example."}
 - Never write code, values, or expressions as board ink. This turn owns no handwriting.
 - Close with the complexity and the reason for it. Do not end on a recap of the lesson.
 
-The committed program, section by section (context for your narration only, never read out):
+${includeCode ? `The committed program, section by section (context for your narration only, never read out):
 
-${sectionListing}`;
+${sectionListing}` : "End after explaining the result and why the time and space costs follow from the split and merge work."}`;
 }
 
 /**
@@ -182,8 +205,17 @@ function figureFrameFacts(frames: readonly CodeLessonFigureFrame[]): string {
       return `frame ${index + 1} [FOCUS:${frame.id}|spotlight]${role}\n   caption drawn under it: ${frame.caption}\n   what it establishes: ${frame.narrationIntent}`;
     })
     .join("\n");
-  return `FIGURE — ${frames.length} frames of one worked example, drawn on the right in this order. None of them is on the board when you start. Naming a frame draws it. For each one you are given the caption the student can read and the facts it establishes. Those facts are notes, not a script: never read them out and never quote the caption. Say the same facts in your own words with the real numbers, and add what the notes leave out, which is why the algorithm made that move and what it does next.
+  return `FIGURE — ${frames.length} frames of one worked example, drawn on the right in this order. None of them is on the board when you start. Naming a frame draws it. The captions and facts below are grounding notes, not a script. Do not quote them. On a comparison or choice, name the actual values, which one wins, and what changes next. On a pure regrouping, keep it to one clear sentence. Explain why each choice is safe instead of merely reading the new row. Do not retell the same example after its frames are complete.
 ${lines}`;
+}
+
+function teachingEmphasis(emphasis: DsaTeachingPolicy["emphasis"]): string {
+  switch (emphasis) {
+    case "intuition": return "make the central idea intuitive before discussing implementation details.";
+    case "implementation": return "connect the important code decisions to their effect on the worked example.";
+    case "edge_cases": return "call out boundary cases at the point where the algorithm handles them.";
+    default: return "let the worked example carry the explanation, one meaningful change per frame.";
+  }
 }
 
 export interface DsaOpeningInput {
@@ -226,11 +258,13 @@ export function dsaOpeningPointIds(rowCount: number): string[] {
   return Array.from({ length: rowCount }, (_, index) => `w${index + 1}`);
 }
 
-export function dsaOpeningPromptAddon(hasOpening: boolean): string {
+export function dsaOpeningPromptAddon(hasOpening: boolean, includeCode = true): string {
   if (!hasOpening) return "";
   return `PROBLEM IS ALREADY ON THE BOARD
 The runtime already spoke the opening line, then wrote the problem title and the example values on the left, in ink, with the pen. Do not rewrite them, do not open the lesson a second time, and do not read the question back.
-Start by saying what is being asked, in plain words, using those values. The worked-example figure is not on the board yet: it appears when you name the first frame. The code editor is not on the board yet: it appears when you reveal the first code block. Never mention an editor, a panel, or a figure that the student cannot see.`;
+Start by saying what is being asked, in plain words, using those values. The worked-example figure is not on the board yet: it appears when you name the first frame. ${includeCode
+    ? "The code editor is not on the board yet: it appears when you reveal the first code block."
+    : "This is an explanation of the example; no code editor appears."} Never mention an editor, a panel, or a figure that the student cannot see.`;
 }
 
 function dsaOpeningRows(input: DsaOpeningInput): Array<{ board: string; spoken: string }> {

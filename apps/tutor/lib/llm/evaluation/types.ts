@@ -4,7 +4,7 @@ export const JEV_GATEWAY_MODEL = "typesafe-ai/jev";
 export const JEV_EVALUATE_URL = "https://ai-gateway.vercel.sh/v1/evaluate";
 export const EVALUATION_POLICY_VERSION = "advisory/v1";
 
-export type TutorEvaluationJob = "lesson_review" | "notes_routing" | "visual_need";
+export type TutorEvaluationJob = "lesson_review" | "notes_routing" | "dsa_teaching" | "visual_need";
 
 export type EvaluationQuestion =
   | {
@@ -71,6 +71,13 @@ export interface NotesRoutingState {
   lessonNotes: string;
 }
 
+export interface DsaTeachingState {
+  notice: string;
+  question: string;
+  familiarity: "new" | "normal" | "revision";
+  technique: string | null;
+}
+
 export interface VisualNeedState {
   notice: string;
   question: string;
@@ -80,6 +87,7 @@ export interface VisualNeedState {
 export type TutorEvaluationRequest =
   | { job: "lesson_review"; state: LessonReviewState }
   | { job: "notes_routing"; state: NotesRoutingState }
+  | { job: "dsa_teaching"; state: DsaTeachingState }
   | { job: "visual_need"; state: VisualNeedState };
 
 export type TutorAssessment =

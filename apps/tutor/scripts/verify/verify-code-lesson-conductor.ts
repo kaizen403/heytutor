@@ -168,6 +168,7 @@ function frameCount(segments: TutorSegment[]): number {
   const result = resolveCodeLessonSegments(stream, PLAN, { frameCount: 4 });
   // Frame 1 is delayed intro, not a FRAME command, so three advances remain.
   assert(result.insertedFrameCount === 3, `expected 3 advances, got ${result.insertedFrameCount}`);
+  assert(result.codeCatchUpFrameCount === 3, "all advances caused by skipped figure tags are true catch-up");
   assert(frameCount(result.segments) === 3, "advances must actually be emitted into the stream");
 
   // No two advances may sit against the same block, or the figure would jump
@@ -463,6 +464,8 @@ function frameCount(segments: TutorSegment[]): number {
     frameCount(second.segments) === 2,
     `two more frames named means two advances, got ${frameCount(second.segments)}`,
   );
+  assert(second.codeCatchUpFrameCount === 0,
+    "advances attached to narrated figure beats are not code catch-up");
   assert(conductor.status().unshownFrameCount === 0, "the walk-through must be complete");
 
   // An id the walk-through does not have falls back to advancing in order,
@@ -541,7 +544,7 @@ function frameCount(segments: TutorSegment[]): number {
     `a spoken step must carry a pointing move, got ${commands.map((command) => command.type).join(",") || "nothing"}`,
   );
   assert(
-    commands[0]!.text === "w1,w2",
+    commands[0]!.text === "w1",
     `before the figure is up the marker must point at the opening notes, got ${commands[0]!.text}`,
   );
 
@@ -632,6 +635,27 @@ function frameCount(segments: TutorSegment[]): number {
   assert(
     beforePoints.some((command) => (command.text ?? "").includes("cell0_0")),
     "before the figure is up the marker walks the opening notes",
+  );
+}
+
+// --- A concept question walks the figure and never opens the editor. ---
+{
+  const conductor = createCodeLessonConductor(PLAN, {
+    includeCode: false,
+    frameCount: 2,
+    frameIds: ["input", "sorted"],
+    framePointIds: [["cell0"], ["cell1"]],
+  });
+  const resolved = conductor.resolve([
+    focusSegment("input", "we start with the input."),
+    focusSegment("sorted", "the sorted result follows from the merge."),
+    typeSegment(ORDER[0]!, "this code was not requested."),
+  ]);
+  assert(conductor.status().missingBlockIds.length === 0, "an explanation-only lesson owes no code blocks");
+  assert(conductor.status().unshownFrameCount === 0, "the verified walk still reaches its last frame");
+  assert(
+    resolved.segments.flatMap(getSegmentCommands).every((command) => command.type !== "TYPE"),
+    "even a stray TYPE tag cannot open the code editor in an explanation-only lesson",
   );
 }
 

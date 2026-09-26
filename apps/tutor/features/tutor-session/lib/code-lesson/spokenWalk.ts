@@ -204,8 +204,29 @@ export async function runTypedBlockBeat(input: TypedBlockBeatInput): Promise<Typ
   const plan = controller.getActivePlan();
   const state = () => controller.getState();
   const caretNow = () => codeLessonCaretBoardPoint(revealedSectionText(state(), state().activeSectionIndex));
+  // The media clock stops when speech ends. A long or short code block must
+  // still finish typing after that point, or its queued segment never settles
+  // and the whole lesson (including Replay) stays locked. Keep the real audio
+  // clock while it runs, then finish the bounded typing tail at playback rate.
+  let typingMediaMs = clock?.getAudioPositionMs() ?? 0;
+  let typingWallMs = now();
+  const typingClock = clock ? {
+    getAudioPositionMs: () => {
+      const wallNow = now();
+      typingMediaMs = Math.max(typingMediaMs, clock.getAudioPositionMs());
+      if (clock.isSpeechComplete?.() && clock.canAdvanceAfterSpeech?.() !== false) {
+        typingMediaMs += Math.max(wallNow - typingWallMs, 0) * clock.getPlaybackRate();
+      }
+      typingWallMs = wallNow;
+      return typingMediaMs;
+    },
+    getPlaybackRate: clock.getPlaybackRate,
+  } : null;
   const start = caretNow();
-  await host.flyCursorTo(start.x, start.y, 240);
+  // The first code block crosses from the worked example to the editor.
+  // A 240 ms flight covered most of the board and looked like a teleport.
+  const firstCodeBlock = !Object.values(state().revealedChars).some((count) => count > 0);
+  await host.flyCursorTo(start.x, start.y, firstCodeBlock ? MARKER_HOP_MS : 240);
   if (isCancelled()) return { cancelled: true, typedMs: 0, linesVisited: [], schedule: null };
   host.setCursorState?.("drawing");
 
@@ -239,8 +260,8 @@ export async function runTypedBlockBeat(input: TypedBlockBeatInput): Promise<Typ
     await controller.typeBlock(blockId, {
       shouldCancel: isCancelled,
       delay,
-      ...(clock
-        ? { clock: clock.getAudioPositionMs, getPlaybackRate: clock.getPlaybackRate }
+      ...(typingClock
+        ? { clock: typingClock.getAudioPositionMs, getPlaybackRate: typingClock.getPlaybackRate }
         : {}),
     });
   } finally {

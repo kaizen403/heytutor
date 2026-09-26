@@ -16,7 +16,7 @@ import {
 } from "@heytutor/tutor-core";
 import { WORK_ZONE, fitBoardText } from "@heytutor/drawing";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
-import { buildTurnTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
+import { buildResumeTeachingPrompt, buildTurnTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -353,6 +353,47 @@ assert(
   !codeLesson.systemPrompt.includes("at the end of the step"),
   "the code lesson contract must not send the frame tag to the end of the step",
 );
+
+const explanation = buildTurnTeachingPrompt({
+  question: "Explain merge sort on [8, 3, 5, 4, 7, 6, 1, 2] step by step.",
+  diagramPromptAddon: null,
+  turnPlan: null,
+  solverProjection: null,
+  codeLesson: getMockCodeLessonPlan("two sum"),
+  codeLessonIncludeCode: false,
+  codeLessonFrames: [
+    { id: "input", caption: "unsorted input", narrationIntent: "start with the eight values" },
+    { id: "split1", caption: "two ranges", narrationIntent: "split the range in half" },
+  ],
+  isDsa: true,
+  familiarity: "normal",
+  fastMode: true,
+});
+assert(!/\[TYPE:/.test(explanation.runtimeAddon), "an explanation request must not schedule code typing");
+assert(!explanation.systemPrompt.includes("how to teach code"), "an explanation request needs a board teaching prompt without code instructions");
+assert(!/\[TYPE:blockId\]/.test(explanation.continuationPrompt), "an explanation continuation must stay on the worked example");
+const explanationResume = buildResumeTeachingPrompt({
+  lessonQuestion: "Explain merge sort on [8, 3, 5, 4, 7, 6, 1, 2] step by step.",
+  boardRows: [],
+  rowsLeftOnPage: 0,
+  nextRowY: null,
+  diagramPromptAddon: null,
+  codePanelShowing: false,
+  codeLessonBoard: true,
+  codeLesson: getMockCodeLessonPlan("two sum"),
+  codeLessonIncludeCode: false,
+  codeLessonFrames: [
+    { id: "input", caption: "unsorted input", narrationIntent: "start with the eight values" },
+    { id: "split1", caption: "two ranges", narrationIntent: "split the range in half" },
+  ],
+  framesAlreadyShown: 1,
+  turnPlan: null,
+  solverProjection: null,
+  familiarity: "normal",
+  fastMode: true,
+});
+assert(!/\[TYPE:blockId\]/.test(explanationResume.runtimeAddon), "resuming an explanation must not add code beats");
+assert(explanationResume.runtimeAddon.includes("[FOCUS:split1|spotlight]"), "the remaining frame must survive a resume");
 
 // A concept lesson whose subject is a relation has to derive it. Mayer's
 // relation, Carnot efficiency and equipartition were each stated and then

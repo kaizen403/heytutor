@@ -933,17 +933,12 @@ export function useCommandExecution({
               .split(",")
               .map((id) => id.trim())
               .filter(Boolean);
-            const idleTargets = resolveVerifiedDiagramFocusTargets(
-              { ...command, type: "FOCUS", text: next.pointEntityIds.join(","), semanticRef: { entityId: next.pointEntityIds.join(",") } },
-              next.presentation.diagram,
-            );
             const walked = await runFrameWalkBeat({
               host: wb,
               anchors: next.presentation.diagram.anchors,
               clock: options.spokenClock,
               isCancelled: commandCancelled,
               delay: cancellableDelay,
-              idleStops: markerTourStops(idleTargets, pointBeatsRef.current),
               stopBeforeIds: focusIds,
             });
             if (walked.cancelled) return;
@@ -1204,7 +1199,6 @@ export function useCommandExecution({
                 untilMs: rest.totalMs,
                 isCancelled: commandCancelled,
                 delay: cancellableDelay,
-                idleStops: markerTourStops(targets, pointBeatsRef.current + 1),
               });
               if (walked.cancelled) return;
               pointBeatsRef.current += 1;

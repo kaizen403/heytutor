@@ -54,6 +54,8 @@ interface Options {
   familiarity: SubjectFamiliarity;
   offline: boolean;
   fastMode: boolean;
+  question: string | null;
+  questionPattern: string | null;
 }
 
 function parseOptions(argv: string[]): Options {
@@ -95,6 +97,8 @@ function parseOptions(argv: string[]): Options {
     familiarity: (flags.get("familiarity") as SubjectFamiliarity) ?? "normal",
     offline: flags.get("offline") === "true",
     fastMode: flags.get("slow") !== "true",
+    question: flags.get("question") ?? null,
+    questionPattern: flags.get("pattern") ?? null,
   };
 }
 
@@ -298,7 +302,14 @@ async function main(): Promise<void> {
 
   if (!options.offline) {
     const landing = await fetch(`${options.origin}/`, { redirect: "manual" });
-    const cookie = (landing.headers.getSetCookie?.() ?? []).map((entry) => entry.split(";")[0]).join("; ");
+    let cookie = (landing.headers.getSetCookie?.() ?? []).map((entry) => entry.split(";")[0]).join("; ");
+    // With Auth.js enabled, / redirects before setting a device cookie. The
+    // CSRF endpoint does issue session cookies, while the lab token still
+    // authorizes the paid calls independently of a student login.
+    if (!cookie) {
+      const csrf = await fetch(`${options.origin}/api/auth/csrf`);
+      cookie = (csrf.headers.getSetCookie?.() ?? []).map((entry) => entry.split(";")[0]).join("; ");
+    }
     if (!cookie) throw new Error("dev server issued no anonymous session cookie");
     const nativeFetch = globalThis.fetch;
     globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
@@ -313,7 +324,19 @@ async function main(): Promise<void> {
     }) as typeof fetch;
   }
 
-  const probes = loadLeetCodeProbes(repoRoot, options);
+  const probes = options.question
+    ? [{
+        id: "ask|ad-hoc|question|medium",
+        number: 0,
+        title: "Ad hoc DSA question",
+        difficulty: "medium",
+        pattern: options.questionPattern ?? "",
+        tags: [],
+        example: "",
+        expectedOutput: "",
+        question: options.question,
+      }]
+    : loadLeetCodeProbes(repoRoot, options);
   console.log(
     `dsa lab: ${probes.length} probes, ${options.offline ? "OFFLINE (no LLM)" : `concurrency ${options.concurrency}, familiarity ${options.familiarity}`} -> ${options.out}`,
   );

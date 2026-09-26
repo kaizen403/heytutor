@@ -58,12 +58,38 @@ or rescales as the walk advances. The box is dropped before the board draws.
 
 ## Length and shape
 
-`codeLessonBeatPlan` builds the running order: an opening, the slow way, the
-figure frames (a second beat on each while the band allows), an early-exit
-beat, one beat per code block, a trace-through, and a close on complexity. New
-adds a concept beat per term; Revision replaces the motivation with the
-invariant, the edge cases and the real bugs. `CODE_LESSON_STEP_WORDS` states
-the floor per step, and `CODE_LESSON_TARGET_BY_FAMILIARITY` the band.
+`codeLessonBeatPlan` builds the running order: an opening, optional slow-way
+motivation, one reasoned beat per verified frame, an early-exit beat, one beat
+per code block, and a close on complexity. With no frames, a spoken example
+trace takes their place. New adds a concept beat per term; Revision spends its
+extra beats on the invariant, edge cases and real bugs. `CODE_LESSON_STEP_WORDS`
+is upper guidance for most steps, not a word floor. Jev may select motivation
+and a teaching emphasis from the student's question; it cannot remove a frame
+or code block. If Jev is unavailable, the default shape still teaches.
+
+An explicit explanation request without a request to code or solve stays on
+the verified frame walk and closes with complexity. The planner still grounds
+the family and example, but the editor remains hidden and the conductor owes
+no code blocks. A question that asks to write, implement, or solve keeps the
+code beats. Continuations and resumes use the same distinction.
+
+The planner prefers one runnable section with the algorithm and a short
+example call. Normalization collapses a driver that repeats the exact earlier
+function, avoiding a second narration of the same program. The lecture lab
+records code catch-up frames separately from normal advances triggered by a
+figure beat.
+
+DSA voice is captioned on the board while it plays, even when general
+subtitles are off. This keeps the explanation visible beside the worked
+example and any code being taught. The marker follows named cells and code lines; on a spoken-only
+beat it holds at one relevant anchor instead of roaming across the figure.
+Numeric quantities such as “two halves” do not count as named cells even when
+the example contains a `2`. The first move from the figure to the editor takes
+a full marker hop, so it reads as a move across the board rather than a jump.
+
+Merge Sort frame notes now state the actual fronts compared at each merge
+level. The final merge names the growing output and the next front values,
+giving the tutor a concrete decision to explain at each frame.
 
 The board does not start on the first frame with an empty editor. The runtime
 writes the problem title and example on the left with the pen, the tutor
@@ -95,11 +121,17 @@ for.
 
 ## Coverage
 
-Seventy-five families. `verify-dsa-routing` scores all 104 probes in
+Seventy-six families. `verify-dsa-routing` scores all 104 probes in
 `data/leetcode-probes` against the live catalog: a probe whose declared pattern
 has a family must route to it, and a probe carrying a `catalogNote` must draw
-nothing. Eighty-six of 104 probes draw a simulated walk; the rest have no
-family yet and say so.
+nothing. The remaining probes have no family yet and say so.
+
+Distinct Subsequences now has a source-grounded table simulator. It computes
+the count for every source and target prefix, then shows the base case, a first
+move, a middle row, the strongest branching row, and the final answer. A
+partial target prefix is named explicitly; the full target remains separate
+until its own cell is reached. This replaced a planner-authored hint whose
+narration wrongly said that `rab` had formed the full target `rabbit`.
 
 Adding a family means four things in one change: the simulator, an
 `ALGORITHM_FAMILIES` entry, a `familyTeaching` record, and hand-computed
@@ -193,6 +225,11 @@ as the words last, drawing nothing. Three callers use it:
   step. A spotlight is a glance, not a state: held for a whole beat it greys
   the figure and reads as the frozen board it was meant to fix.
 - **A code block being typed.** The pen follows the caret line by line.
+
+After the voice ends, code typing finishes its bounded remaining characters on
+a short wall-clock tail. The media clock stops at the end of speech; using it
+alone could leave a partially typed block waiting forever and keep the lesson
+queue, Replay and the next question locked.
 
 Three sizing rules matter. `narrationTourMs` takes 85% of the segment runner's
 own 85ms-per-character estimate, because a walk that outlasts its words holds

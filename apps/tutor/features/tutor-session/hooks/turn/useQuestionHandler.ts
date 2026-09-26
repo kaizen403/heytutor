@@ -23,9 +23,11 @@ import {
   normalizeTutorQuestion,
   questionRequiresVisual,
   classifyDsaQuestion,
+  isExplanationOnlyDsaQuestion,
   dsaOpeningPointIds,
   planCodeLessonV1,
   type CodeLessonPlan,
+  type DsaTeachingPolicy,
   type ProblemAuthorityV1Response,
   type SceneCandidateValidation,
   type ScenePlanWithRepairResult,
@@ -101,6 +103,10 @@ import {
   type DsaFrameSet,
 } from "../../lib/code-lesson/dsaFrames";
 import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
+import {
+  FALLBACK_DSA_TEACHING_POLICY,
+  fetchDsaTeachingPolicy,
+} from "../../lib/code-lesson/dsaTeachingPolicyClient";
 import { beginTurn, parseBillingFailureFromUnknown, rememberBillingFailure, type BillingFailure } from "@/lib/billing/billingClient";
 import { studentBillingMessage } from "@/lib/billing/studentCopy";
 import { buildVerifiedDiagramPresentation } from "../../lib/scene/verifiedScenePresentation";
@@ -684,9 +690,12 @@ export function useQuestionHandler(
       // solver pipeline. If the code planner fails (including its one repair
       // attempt), the question falls through to the standard lesson unchanged.
       let codeLesson: CodeLessonPlan | null = null;
+      let dsaTeachingPolicyPromise: Promise<DsaTeachingPolicy> | null = null;
       let dsaFrameSet: DsaFrameSet | null = null;
       let dsaProofAssertions: SceneAssertion[] = [];
       const dsaClassification = classifyDsaQuestion(resume?.lessonQuestion ?? question);
+      const explanationOnlyDsa = dsaClassification.isDsa &&
+        isExplanationOnlyDsaQuestion(resume?.lessonQuestion ?? question);
       // Resolve the walk-through first, so the program can be planned against
       // the algorithm the board will actually draw.
       let boardContext: CodeLessonBoardContext | null = null;
@@ -731,6 +740,18 @@ export function useQuestionHandler(
       }
 
       if (codeLesson && !resume) {
+        // New and Revision already have fixed motivation rules. Only Normal
+        // needs a semantic choice, saving a Jev request on those other turns.
+        if (familiarityRef.current === "normal") {
+          dsaTeachingPolicyPromise = fetchDsaTeachingPolicy({
+            url: resolveApiUrl("/api/dsa-teaching-policy"),
+            question,
+            familiarity: familiarityRef.current,
+            technique: boardContext?.context.familyId ?? null,
+            traceId: turnTraceId,
+            signal: abortController.signal,
+          });
+        }
         turnPlan = createFallbackTurnPlanV3(question);
         // Prefer a real execution trace: when the algorithm catalog knows this
         // family we can run it on a concrete example and draw what it actually
@@ -1580,8 +1601,9 @@ export function useQuestionHandler(
         ? workColumnRoom(boardLayoutRef.current, fbdPhaseStartedRef.current)
         : null;
       const revealedChars = codeLessonControllerRef?.current?.getState().revealedChars ?? {};
+      const explanationOnlyWithFrames = explanationOnlyDsa && Boolean(dsaFrameSet?.frames.length);
       const revealedBlockIds = codeLesson ? fullyRevealedBlockIds(codeLesson, revealedChars) : [];
-      const missingBlockIds = codeLesson
+      const missingBlockIds = codeLesson && !explanationOnlyWithFrames
         ? codeLesson.sections
             .flatMap((section) => section.blocks.map((block) => block.id))
             .filter((id) => !revealedBlockIds.includes(id))
@@ -1638,6 +1660,7 @@ export function useQuestionHandler(
                   )
                 : null,
               codeLesson,
+              codeLessonIncludeCode: !explanationOnlyWithFrames,
               codeLessonFrames: dsaFrameSet?.frames.map((frame) => ({
                 id: frame.id,
                 caption: frame.caption,
@@ -1652,6 +1675,10 @@ export function useQuestionHandler(
             turnPlan,
             solverProjection: problemAuthority?.projection ?? null,
             codeLesson,
+            codeLessonIncludeCode: !explanationOnlyWithFrames,
+            codeLessonTeachingPolicy: dsaTeachingPolicyPromise
+              ? (await awaitCurrentTurn(dsaTeachingPolicyPromise, isCurrentTurn)) ?? FALLBACK_DSA_TEACHING_POLICY
+              : FALLBACK_DSA_TEACHING_POLICY,
             // The frames the board will actually show, so the narration is about
             // the figure in front of the student rather than the planner's hint.
             codeLessonFrames: dsaFrameSet?.frames.map((frame) => ({
@@ -1836,6 +1863,7 @@ export function useQuestionHandler(
           : (openingPointIds.length > 0 ? openingPointIds : staticPointIds);
         const conductor = codeLesson
           ? createCodeLessonConductor(codeLesson, {
+              includeCode: !explanationOnlyWithFrames,
               frameCount: dsaFrameSet?.frames.length ?? 0,
               frameIds: dsaFrameSet?.frames.map((frame) => frame.id) ?? [],
               frameFocusIds: dsaFrameSet?.frames.map((frame) => frame.focusEntityIds) ?? [],

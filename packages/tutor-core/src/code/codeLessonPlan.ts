@@ -43,9 +43,8 @@ export const CODE_TYPE_MAX_BLOCK_MS = 24_000;
 export const FRAME_SWAP_MS = 2_800;
 
 /**
- * How long a DSA lesson should run. The owner asked for 6-10 minutes: long
- * enough to walk a worked example frame by frame and then build the code
- * beside it.
+ * Broad pacing guardrail. The lesson length should follow the verified
+ * example and program, rather than a minimum duration imposed on every step.
  *
  * The length is NOT a step count handed to the model. It used to be — a flat
  * "teach this in 23 to 37 steps" — and against a lesson with eleven things in
@@ -55,39 +54,53 @@ export const FRAME_SWAP_MS = 2_800;
  * block, plus an opening and a close. Familiarity sets how long a step is,
  * and that is what moves a lesson inside the band.
  */
-export const CODE_LESSON_TARGET_MS = { min: 6 * 60_000, max: 10 * 60_000 } as const;
-export const CODE_LESSON_SPOKEN_MS_PER_STEP = 23_000;
+export const CODE_LESSON_TARGET_MS = { min: 4 * 60_000, max: 8 * 60_000 } as const;
+export const CODE_LESSON_SPOKEN_MS_PER_STEP = 18_000;
 
 /**
- * Spoken length of one step, by familiarity. Measured, not guessed: across a
- * 104-lesson round the model hit the step count it was given almost exactly,
- * so the length of a lesson is the step count times the length of a step, and
- * both have to be stated. At the old 16 seconds a median lesson of fourteen
- * steps could not exceed 3.7 minutes however well it was taught.
+ * Planning estimate for one meaningful beat. Real narration and typing
+ * timings, rather than this constant, determine replay duration.
  */
 export const CODE_LESSON_STEP_MS = {
-  new: 28_000,
+  new: 22_000,
   normal: CODE_LESSON_SPOKEN_MS_PER_STEP,
-  revision: 16_000,
+  revision: 14_000,
 } as const;
 
 /**
- * Spoken words per step. Sentences are the wrong unit: the model's sentences
- * ran ten to fourteen words, so "three to four sentences" bought about half
- * the intended time. The prompt quotes these and the lab measures them.
+ * Approximate upper guidance for most spoken beats. A fixed minimum padded
+ * short frame changes and made the tutor repeat itself.
  */
 export const CODE_LESSON_STEP_WORDS = {
-  new: 65,
-  normal: 50,
-  revision: 35,
+  new: 42,
+  normal: 34,
+  revision: 24,
 } as const;
 
 /** The band a lesson should land in, by familiarity. */
 export const CODE_LESSON_TARGET_BY_FAMILIARITY = {
-  new: { min: 8 * 60_000, max: 11 * 60_000 },
-  normal: { min: 6 * 60_000, max: 9 * 60_000 },
-  revision: { min: 4 * 60_000, max: 7 * 60_000 },
+  new: { min: 4 * 60_000, max: 9 * 60_000 },
+  normal: { min: 3 * 60_000, max: 7 * 60_000 },
+  revision: { min: 2 * 60_000, max: 5 * 60_000 },
 } as const;
+
+export type DsaLessonMotivation = "show_slow_way" | "start_worked_example";
+export type DsaLessonEmphasis = "intuition" | "walkthrough" | "implementation" | "edge_cases";
+export interface DsaTeachingPolicy {
+  motivation: DsaLessonMotivation;
+  emphasis: DsaLessonEmphasis;
+}
+
+/** An explicit request to understand a technique without asking for a program. */
+export function isExplanationOnlyDsaQuestion(question: string): boolean {
+  const asksToExplain = /\b(?:explain|teach me|how (?:does|do)|walk (?:me )?through|show (?:me )?how)\b/i.test(question);
+  const asksForImplementation = /\b(?:code|coding|implement|implementation|write|program|function|solve|solution)\b/i.test(question);
+  return asksToExplain && !asksForImplementation;
+}
+export const DEFAULT_DSA_TEACHING_POLICY: DsaTeachingPolicy = {
+  motivation: "show_slow_way",
+  emphasis: "walkthrough",
+};
 
 export type CodeLessonBeatKind =
   | "opening"
@@ -124,6 +137,8 @@ export interface CodeLessonBeatPlanInput {
   terms?: readonly string[];
   /** The answer the walk-through ends on, so the close can state it. */
   resultText?: string;
+  /** Jev may omit optional motivation; it cannot omit frames or code. */
+  motivation?: DsaLessonMotivation;
 }
 
 /**
@@ -152,7 +167,7 @@ export function codeLessonBeatPlan(input: CodeLessonBeatPlanInput): CodeLessonBe
       });
     }
   }
-  if (familiarity !== "revision") {
+  if (familiarity !== "revision" && (familiarity === "new" || input.motivation !== "start_worked_example")) {
     beats.push({
       kind: "brute_force",
       brief: "the obvious slow way, and why it is too slow on a long input",
@@ -162,42 +177,20 @@ export function codeLessonBeatPlan(input: CodeLessonBeatPlanInput): CodeLessonBe
     beats.push({ kind: "idea", brief: "the idea behind the fast approach, in one or two sentences" });
   }
 
-  // A second beat on each frame is where the reasoning goes, but a long walk
-  // cannot afford one on every frame: an exchange sort draws eleven frames,
-  // and two beats each would push the lesson past anything a student sits
-  // through. Spend the budget the band leaves after everything mandatory.
-  const mandatory = beats.length
-    + frames.length
-    + input.blockIds.length
-    + (input.earlyExit && familiarity !== "revision" ? 1 : 0)
-    + (familiarity === "revision" ? 3 : 0)
-    + 2;
-  const room = Math.floor(CODE_LESSON_TARGET_BY_FAMILIARITY[familiarity].max / CODE_LESSON_STEP_MS[familiarity]);
-  let whyBudget = familiarity === "revision" ? 0 : Math.max(0, room - mandatory);
-
   frames.forEach((frame, index) => {
-    // A long walk-through is taught briskly: eleven frames at a full beat each
-    // is a quarter of an hour before the code starts.
+    // A long walk-through moves quickly through pure regrouping, but a frame
+    // that chooses a value still needs the reason for that choice.
     const brisk = frames.length > 6 && index > 0;
     beats.push({
       kind: "frame_show",
       tag: `[FOCUS:${frame.id}|spotlight]`,
       frameId: frame.id,
       brief: index === 0
-        ? `what the figure shows and what the algorithm is about to do with it`
+        ? "what the input shows and the first move, with its reason"
         : brisk
-          ? `what changed on the figure, with the actual values, in two sentences`
-          : `what changed on the figure, with the actual values`,
+          ? "if this only regroups values, say the new groups once; if it compares or chooses, name the operands, choice, why it is safe, and the resulting state"
+          : "what changed, with the actual values, and why this move follows",
     });
-    if (index > 0 && whyBudget > 0) {
-      whyBudget -= 1;
-      beats.push({
-        kind: "frame_why",
-        tag: `[FOCUS:${frame.id}|spotlight]`,
-        frameId: frame.id,
-        brief: "same frame: why the algorithm made that move, and what it does next",
-      });
-    }
   });
 
   if (input.earlyExit && familiarity !== "revision") {
@@ -219,10 +212,12 @@ export function codeLessonBeatPlan(input: CodeLessonBeatPlanInput): CodeLessonBe
   if (familiarity === "revision") {
     beats.push({ kind: "invariant", brief: "the invariant the loop keeps, and the exact loop bounds and update order" });
   }
-  beats.push({
-    kind: "trace_through",
-    brief: `the finished code run on the example in words, one step at a time, ending on the answer${input.resultText ? ` (${input.resultText})` : ""}`,
-  });
+  if (frames.length === 0) {
+    beats.push({
+      kind: "trace_through",
+      brief: `run the finished code on the example in words, ending on the answer${input.resultText ? ` (${input.resultText})` : ""}`,
+    });
+  }
   if (familiarity === "revision") {
     beats.push({ kind: "edge_cases", brief: "the edge cases: empty input, one element, no answer, duplicates" });
     beats.push({ kind: "bugs", brief: "the two mistakes people actually make writing this, and how the code avoids them" });
@@ -628,6 +623,30 @@ export function normalizeCodeLessonPlan(value: unknown, question: string): unkno
         : {}),
     }];
   });
+  // Some plans give a complete function as section one, then repeat that same
+  // source before the example print in a second "driver" section. The later
+  // section already contains the entire runnable program. Keep it once and
+  // preserve the first section's practice range instead of asking a second
+  // model call to repair a purely redundant presentation split.
+  for (let index = 0; index < sections.length - 1; index += 1) {
+    const earlier = sections[index]!;
+    const later = sections[index + 1]!;
+    const earlierCode = earlier.blocks.map((block) => block.code).join("\n").trimEnd();
+    const laterCode = later.blocks.map((block) => block.code).join("\n").trimStart();
+    if (!earlierCode || !laterCode.startsWith(`${earlierCode}\n`)) continue;
+    sections[index + 1] = {
+      ...later,
+      id: earlier.id,
+      title: earlier.title,
+      explanation: earlier.explanation,
+      blocks: repackSectionBlocks(later.blocks, earlier.id),
+      typeAlongRanges: [...earlier.typeAlongRanges, ...later.typeAlongRanges]
+        .sort((a, b) => a.startLine - b.startLine)
+        .filter((range, rangeIndex, ranges) => rangeIndex === 0 || range.startLine > ranges[rangeIndex - 1]!.endLine),
+    };
+    sections.splice(index, 1);
+    index -= 1;
+  }
   const rawHint = isRecord(value.diagramHint) ? value.diagramHint : {};
   const structure = CODE_LESSON_DIAGRAM_STRUCTURES.includes(
     rawHint.structure as CodeLessonDiagramStructure,

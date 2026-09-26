@@ -95,6 +95,8 @@ pnpm exec tsx scripts/lecture-lab/dsa-run.ts --offline --out .lecture-lab/dsa-of
 # the whole lesson, against the dev server
 pnpm exec tsx scripts/lecture-lab/dsa-run.ts --concurrency 3 --out .lecture-lab/dsa-01
 pnpm exec tsx scripts/lecture-lab/dsa-run.ts --only "lc|1|two-sum|easy" --familiarity new --out .lecture-lab/one
+# replay a question asked in the product, without editing the corpus
+pnpm exec tsx scripts/lecture-lab/dsa-run.ts --question 'Explain merge sort on [8, 3, 5, 4, 7, 6, 1, 2]' --pattern merge_sort --out .lecture-lab/merge-sort
 # board frames as PNGs (headless Firefox; there is no Chrome on this machine)
 node scripts/lecture-lab/svg2png.mjs .lecture-lab/dsa-01/frames
 ```

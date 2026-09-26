@@ -34,6 +34,10 @@ export interface SpokenSegmentClock {
   getAudioPositionMs: () => number;
   /** Media ms per wall ms. Live lectures run at 1.5. */
   getPlaybackRate: () => number;
+  /** True after the audio segment has ended or been abandoned. */
+  isSpeechComplete?: () => boolean;
+  /** Pause a post-speech code-typing tail while the student has paused. */
+  canAdvanceAfterSpeech?: () => boolean;
   /** The session's measured speech rate when the runner has one. */
   msPerChar?: number;
 }
@@ -448,6 +452,27 @@ export interface FrameWalkStop {
 }
 
 const INDEX_CUES = new Set(["index", "indices", "position", "positions", "slot", "slots", "place"]);
+/** Quantities in an explanation are not labels on the diagram's cells. */
+const COUNT_UNITS = new Set([
+  "array", "arrays", "block", "blocks", "cell", "cells", "comparison", "comparisons",
+  "element", "elements", "group", "groups", "half", "halves", "item", "items",
+  "level", "levels", "list", "lists", "merge", "merges", "part", "parts",
+  "piece", "pieces", "range", "ranges", "row", "rows", "run", "runs",
+  "side", "sides", "split", "splits", "step", "steps", "value", "values",
+]);
+const COUNT_MODIFIERS = new Set(["equal", "final", "more", "new", "remaining", "short", "sorted"]);
+const COUNT_ORDINAL_CUES = new Set(["depth", "level", "pass", "phase", "round", "step"]);
+
+function isSpokenQuantity(words: readonly SpokenWord[], at: number): boolean {
+  const word = words[at]!;
+  const next = words[at + 1];
+  const afterModifier = words[at + 2];
+  const previous = words[at - 1];
+  if (previous && COUNT_ORDINAL_CUES.has(previous.text)) return true;
+  if (!next || next.clause !== word.clause) return false;
+  if (COUNT_UNITS.has(next.text)) return true;
+  return COUNT_MODIFIERS.has(next.text) && afterModifier?.clause === word.clause && COUNT_UNITS.has(afterModifier.text);
+}
 const REGION_WORDS = new Set(["range", "region", "window", "remaining", "candidates", "half", "bracket", "span"]);
 const EXCLUDED_WORDS = new Set(["dropped", "drop", "excluded", "exclude", "discarded", "discard", "eliminated", "eliminate", "crossed", "thrown", "throw", "ruled", "gone"]);
 const ROLE_NOISE = new Set(["marker", "direction", "array", "cell", "mark", "active", "pointer", "region", "still", "possible", "the", "of", "a"]);
@@ -587,6 +612,7 @@ export function frameSpokenWalk(
       const asIndex = index.indexByText.get(text);
       const asValue = index.cellByValue.get(text);
       if (wantsIndex && asIndex) push(asIndex, word);
+      else if (isSpokenQuantity(words, wordIndex)) continue;
       else if (asNote && nearby.some((near) => index.byName.get(near)?.includes(asNote))) push(asNote, word);
       else if (asValue) push(asValue, word);
       else if (asIndex) push(asIndex, word);

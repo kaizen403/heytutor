@@ -11,11 +11,15 @@ export interface ResolvedCodeLessonSegments {
   duplicateBlockIds: string[];
   /** Frame advances the conductor inserted, from either kind of beat. */
   insertedFrameCount: number;
+  /** Advances inserted beside code because the model skipped the figure. */
+  codeCatchUpFrameCount: number;
   /** Frames of the walk-through still unseen when this batch ended. */
   unshownFrameCount: number;
 }
 
 export interface ConductorOptions {
+  /** Keep an explanation-only lesson on its verified frames; no code blocks are owed. */
+  includeCode?: boolean;
   /** Total worked-example frames; none are on the board until the first FOCUS. */
   frameCount?: number;
   /**
@@ -114,7 +118,9 @@ export function createCodeLessonConductor(
   options: ConductorOptions = {},
 ): CodeLessonConductor {
   // The canonical order. Anything the model asks for is matched against this.
-  const order = plan.sections.flatMap((section) => section.blocks.map((block) => block.id));
+  const order = options.includeCode === false
+    ? []
+    : plan.sections.flatMap((section) => section.blocks.map((block) => block.id));
   const revealed = new Set(options.alreadyRevealedBlockIds ?? []);
   let nextBlock = 0;
   while (nextBlock < order.length && revealed.has(order[nextBlock]!)) {
@@ -147,6 +153,7 @@ export function createCodeLessonConductor(
     blocksPerAdvance:
       frameCount > 1 ? order.length / frameCount : Number.POSITIVE_INFINITY,
     insertedFrames: 0,
+    codeCatchUpFrames: 0,
     figureBeats: 0,
     pending: [],
   };
@@ -167,6 +174,7 @@ export function createCodeLessonConductor(
         missingBlockIds: state.order.slice(state.nextBlock),
         duplicateBlockIds: [],
         insertedFrameCount: state.insertedFrames,
+        codeCatchUpFrameCount: state.codeCatchUpFrames,
         unshownFrameCount: Math.max(state.frameCount - state.framesShown, 0),
       };
     },
@@ -244,6 +252,7 @@ interface ConductorState {
   frameIds: string[];
   blocksPerAdvance: number;
   insertedFrames: number;
+  codeCatchUpFrames: number;
   /** Figure beats the model has narrated so far, one per FOCUS-tagged step. */
   figureBeats: number;
   /**
@@ -293,11 +302,11 @@ export function frameAdvanceRole(command: DrawCommand): FrameAdvanceRole | null 
  */
 function spokenPointStops(state: ConductorState): readonly string[] {
   if (state.frameCount === 0 || state.framesShown <= 0) {
-    return state.fallbackPointIds;
+    return state.fallbackPointIds.slice(0, 1);
   }
   const at = state.framesShown - 1;
-  return [state.framePointIds[at], state.frameFocusIds[at]]
-    .find((ids) => (ids?.length ?? 0) > 0) ?? [];
+  return ([state.framePointIds[at], state.frameFocusIds[at]]
+    .find((ids) => (ids?.length ?? 0) > 0) ?? []).slice(0, 1);
 }
 
 const FIGURE_INTRO_TRIGGERS = new Set(["FOCUS", "FRAME", "TYPE"]);
@@ -333,10 +342,10 @@ export function placeDsaFigureIntro(
  */
 function pointCommand(entityIds: readonly string[]): DrawCommand | null {
   if (entityIds.length === 0) return null;
-  // Every stop the frame offers, not the first few: the executor walks them
-  // for as long as the step's words run, and three adjacent cells is not a
-  // walk. The board itself decides where they are.
-  const spec = entityIds.slice(0, 6).join(",");
+  // Spoken-only beats hold at one stable anchor. Frame and code beats have
+  // their own word-linked tours; wandering across unrelated cells here made
+  // untagged explanation sound detached from what the student was reading.
+  const spec = entityIds[0]!;
   return {
     type: "POINT",
     params: [],
@@ -433,6 +442,7 @@ function runConductor(
           commands.push(frameCommand("catch_up"));
           state.framesShown += 1;
           state.insertedFrames += 1;
+          state.codeCatchUpFrames += 1;
         }
 
         revealed.add(blockId);
@@ -530,6 +540,7 @@ function runConductor(
     missingBlockIds: order.slice(state.nextBlock),
     duplicateBlockIds,
     insertedFrameCount: state.insertedFrames,
+    codeCatchUpFrameCount: state.codeCatchUpFrames,
     unshownFrameCount: Math.max(state.frameCount - state.framesShown, 0),
   };
 }

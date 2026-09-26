@@ -334,7 +334,7 @@ Required keys: schemaVersion:"code-lesson/v1", question, title, language, sectio
 language: one of "python","javascript","typescript","java","cpp". Use the language the question asks for; otherwise "python".
 title: at most 48 characters.
 
-sections: 1-4 items {id,title,explanation,blocks,typeAlongRanges}. A section is one self-contained unit of code shown on its own page, and every section must be syntactically complete on its own. Order them the way you would explain them at a board: the function that IS the algorithm first, then any helper it genuinely calls, then a short driver that runs the worked example and prints its result. Do not invent a helper: a one-pass algorithm is one function, and a class with several short methods is one section rather than one section per method. Never redefine a function that an earlier section already defined.
+sections: 1-4 items {id,title,explanation,blocks,typeAlongRanges}. Prefer ONE section containing the algorithm and a short driver at the end that runs only the worked example and prints its result. Split into more sections only when a genuinely separate helper or class makes one page too long. Never define the same function twice and never repeat the algorithm in a driver section. Do not add bonus test cases to the driver: the board already walks the worked example. Every section must be syntactically complete on its own. A one-pass algorithm is one function, and a class with several short methods is one section rather than one section per method.
 - id: compact slug like "s1".
 - title: at most 40 characters.
 - explanation: 3-5 plain sentences that say what this section does on the concrete example, not a one-line summary. No markdown.
