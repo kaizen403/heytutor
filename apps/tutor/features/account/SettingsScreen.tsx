@@ -43,11 +43,14 @@ export function SettingsScreen({ section }: { section: string }) {
   const [settings, setSettings] = useState<AccountSettings>(DEFAULT_ACCOUNT_SETTINGS);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const saveQueueRef = useRef<ReturnType<typeof createSettingsPatchQueue<AccountSettings>> | null>(null);
 
   useEffect(() => {
     let unmounted = false;
     let ownerId: string | null = null;
+    setLoadState("loading");
     void fetch("/api/account/me")
       .then(async (response) => {
         if (!response.ok) throw new Error("Could not load account settings");
@@ -55,14 +58,14 @@ export function SettingsScreen({ section }: { section: string }) {
       })
       .then((data) => {
         if (unmounted) return;
+        if (!data.profile?.id) throw new Error("Account identity unavailable");
         if (data.settings) setSettings(data.settings);
-        if (data.profile?.id) {
-          ownerId = data.profile.id;
-          setProfile(data.profile);
-        }
+        ownerId = data.profile.id;
+        setProfile(data.profile);
+        setLoadState("ready");
       })
       .catch(() => {
-        if (!unmounted) setSaveStatus("error");
+        if (!unmounted) setLoadState("error");
       });
     const queue = createSettingsPatchQueue<AccountSettings>({
       send: async (patch) => {
@@ -82,13 +85,26 @@ export function SettingsScreen({ section }: { section: string }) {
       queue.dispose();
       saveQueueRef.current = null;
     };
-  }, []);
+  }, [loadAttempt]);
 
   const patch = (partial: Partial<AccountSettings>) => {
     if (!profile?.id) return;
     setSettings((current) => ({ ...current, ...partial }));
     saveQueueRef.current?.enqueue(partial);
   };
+
+  if (loadState !== "ready" || !profile?.id) return (
+    <AccountPageFrame title="Settings" subtitle="Account settings. The in-lesson drawer stays a quick sheet for the board.">
+      <div role="status" className="space-y-3 text-sm text-[rgba(237,237,235,0.62)]">
+        <p>{loadState === "error" ? "Could not load account settings." : "Loading account settings…"}</p>
+        {loadState === "error" && (
+          <SiteButton variant="ice" size="sm" onClick={() => setLoadAttempt((current) => current + 1)}>
+            Retry loading
+          </SiteButton>
+        )}
+      </div>
+    </AccountPageFrame>
+  );
 
   return (
     <AccountPageFrame title="Settings" subtitle="Account settings. The in-lesson drawer stays a quick sheet for the board.">

@@ -157,6 +157,8 @@ void (async () => {
   assert.match(screen, /aria-live="polite"/, "save outcome is visible on the settings screen");
   assert.match(screen, /x-heytutor-account-id/, "PATCH must carry the account captured before the edit");
   assert.match(screen, /if \(!profile\?\.id\) return/, "edits must wait until the account identity is known");
+  assert.match(screen, /if \(loadState !== "ready" \|\| !profile\?\.id\) return/, "unloaded settings must not expose controls that silently discard edits");
+  assert.match(screen, /setLoadAttempt\(\(current\) => current \+ 1\)/, "a failed account load must offer a retry");
   const route = readFileSync(new URL("../../app/api/account/settings/route.ts", import.meta.url), "utf8");
   assert.match(route, /x-heytutor-account-id/, "server must compare the expected account to its authenticated session");
   assert.ok(route.indexOf("x-heytutor-account-id") < route.indexOf("prisma.userSettings.upsert"), "reject cross-account retries before writing settings");
