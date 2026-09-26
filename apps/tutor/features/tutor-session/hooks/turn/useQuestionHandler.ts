@@ -690,7 +690,9 @@ export function useQuestionHandler(
       // solver pipeline. If the code planner fails (including its one repair
       // attempt), the question falls through to the standard lesson unchanged.
       let codeLesson: CodeLessonPlan | null = null;
-      let dsaTeachingPolicyPromise: Promise<DsaTeachingPolicy> | null = null;
+      // Jev's choice counts only if it arrived before the teaching prompt is
+      // built. The default policy is always a complete lesson.
+      const dsaTeachingPolicy: { current: DsaTeachingPolicy | null } = { current: null };
       let dsaFrameSet: DsaFrameSet | null = null;
       let dsaProofAssertions: SceneAssertion[] = [];
       const dsaClassification = classifyDsaQuestion(resume?.lessonQuestion ?? question);
@@ -716,16 +718,17 @@ export function useQuestionHandler(
       } else if (!doubt && dsaClassification.isDsa) {
         boardContext = resolveCodeLessonBoardContext(question);
         // New and Revision already have fixed motivation rules. Only Normal
-        // needs a semantic choice, and it runs beside the code planner so the
-        // choice costs no extra wait before the first word.
+        // needs a semantic choice, and it runs beside the code planner.
         if (familiarityRef.current === "normal") {
-          dsaTeachingPolicyPromise = fetchDsaTeachingPolicy({
+          void fetchDsaTeachingPolicy({
             url: resolveApiUrl("/api/dsa-teaching-policy"),
             question,
             familiarity: familiarityRef.current,
             technique: boardContext?.context.familyId ?? null,
             traceId: turnTraceId,
             signal: abortController.signal,
+          }).then((policy) => {
+            dsaTeachingPolicy.current = policy;
           });
         }
         const codeLessonResponse = await awaitCurrentTurn(
@@ -1677,9 +1680,7 @@ export function useQuestionHandler(
             solverProjection: problemAuthority?.projection ?? null,
             codeLesson,
             codeLessonIncludeCode: !explanationOnlyWithFrames,
-            codeLessonTeachingPolicy: dsaTeachingPolicyPromise
-              ? (await awaitCurrentTurn(dsaTeachingPolicyPromise, isCurrentTurn)) ?? FALLBACK_DSA_TEACHING_POLICY
-              : FALLBACK_DSA_TEACHING_POLICY,
+            codeLessonTeachingPolicy: dsaTeachingPolicy.current ?? FALLBACK_DSA_TEACHING_POLICY,
             // The frames the board will actually show, so the narration is about
             // the figure in front of the student rather than the planner's hint.
             codeLessonFrames: dsaFrameSet?.frames.map((frame) => ({

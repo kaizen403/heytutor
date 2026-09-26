@@ -440,6 +440,16 @@ function normalizeLineRange(value: unknown): CodeLessonLineRange | null {
   return { startLine, endLine };
 }
 
+/** Sorted ranges where each one starts after the last range kept, not the last one seen. */
+function withoutOverlappingRanges(ranges: readonly CodeLessonLineRange[]): CodeLessonLineRange[] {
+  const kept: CodeLessonLineRange[] = [];
+  for (const range of [...ranges].sort((a, b) => a.startLine - b.startLine)) {
+    const last = kept[kept.length - 1];
+    if (!last || range.startLine > last.endLine) kept.push(range);
+  }
+  return kept;
+}
+
 /**
  * Regroup a section's blocks so every block is a reveal-sized run of lines.
  *
@@ -641,9 +651,7 @@ export function normalizeCodeLessonPlan(value: unknown, question: string): unkno
       title: earlier.title,
       explanation: earlier.explanation,
       blocks: repackSectionBlocks(later.blocks, earlier.id),
-      typeAlongRanges: [...earlier.typeAlongRanges, ...later.typeAlongRanges]
-        .sort((a, b) => a.startLine - b.startLine)
-        .filter((range, rangeIndex, ranges) => rangeIndex === 0 || range.startLine > ranges[rangeIndex - 1]!.endLine),
+      typeAlongRanges: withoutOverlappingRanges([...earlier.typeAlongRanges, ...later.typeAlongRanges]),
     };
     sections.splice(index, 1);
     index -= 1;

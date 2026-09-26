@@ -361,6 +361,34 @@ assert(repeatedValidated.plan.sections[0]!.blocks.map((block) => block.code).joi
 assert(repeatedValidated.plan.sections[0]!.typeAlongRanges.some((range) => range.startLine === 2),
   "the original algorithm practice range survives the collapse");
 
+const nestedRanges = validateCodeLessonPlan(normalizeCodeLessonPlan({
+  schemaVersion: "code-lesson/v1",
+  title: "Word Break",
+  language: "python",
+  sections: [
+    {
+      id: "algorithm",
+      title: "The algorithm",
+      explanation: "Mark reachable prefixes.",
+      blocks: [{ code: "def word_break(s, words):\n    ok = [True]\n    return ok[0]" }],
+      typeAlongRanges: [{ startLine: 1, endLine: 3 }],
+    },
+    {
+      id: "driver",
+      title: "Run the example",
+      explanation: "Print the answer.",
+      blocks: [{ code: "def word_break(s, words):\n    ok = [True]\n    return ok[0]\n\nprint(word_break(\"catsand\", [\"cats\", \"and\"]))" }],
+      typeAlongRanges: [{ startLine: 2, endLine: 2 }, { startLine: 3, endLine: 3 }, { startLine: 5, endLine: 5 }],
+    },
+  ],
+  diagramHint: { structure: "none" },
+}, "word break"));
+assert(nestedRanges.plan, `ranges nested inside a kept range are dropped, not left to fail validation: ${JSON.stringify(nestedRanges.issues)}`);
+assert(JSON.stringify(nestedRanges.plan.sections[0]!.typeAlongRanges) === JSON.stringify([
+  { startLine: 1, endLine: 3 },
+  { startLine: 5, endLine: 5 },
+]), "only ranges that start after the last kept range survive the collapse");
+
 // --- DSA classifier fixtures: positives, language routing, and guards. ---
 
 const positives = [
