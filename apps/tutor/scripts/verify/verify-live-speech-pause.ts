@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import ts from "typescript";
+import { resolveLiveAudioPositionMs } from "@heytutor/tutor-core";
 import {
   browserRecoveryPlaybackRate,
   createPauseAwareSpeechClock,
@@ -8,6 +10,84 @@ import {
   speechPlaybackOverdue,
   waitForSpeechStartup,
 } from "../../features/tutor-session/lib/turn/speechStartup";
+
+/** Exercise the runner's actual clock and browser onStart callback without mounting React. */
+function verifyRestartedBrowserSpeechDoesNotLeadInk(runner: string) {
+  const source = ts.createSourceFile("useSegmentRunner.ts", runner, ts.ScriptTarget.Latest, true);
+  let maxDeclaration: ts.VariableDeclaration | undefined;
+  let positionDeclaration: ts.VariableDeclaration | undefined;
+  let browserOnStart: ts.ArrowFunction | undefined;
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node)) {
+      if (node.name.getText(source) === "maxAudioPositionMs") maxDeclaration = node;
+      if (node.name.getText(source) === "liveAudioPositionMs") positionDeclaration = node;
+    }
+    if (ts.isCallExpression(node) && node.expression.getText(source).includes("browserSpeechRef.current!.speakSegment")) {
+      const options = node.arguments[1];
+      if (options && ts.isObjectLiteralExpression(options)) {
+        const start = options.properties.find((property) =>
+          ts.isPropertyAssignment(property) && property.name.getText(source) === "onStart",
+        );
+        if (start && ts.isPropertyAssignment(start) && ts.isArrowFunction(start.initializer)) {
+          browserOnStart = start.initializer;
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  assert(maxDeclaration?.initializer && positionDeclaration?.initializer && browserOnStart,
+    "the test must execute the live runner's media clock and browser fallback onStart");
+
+  const harness = `
+    let audioStartedAtMs: number | null = null;
+    let audioStartedAtActiveMs: number | null = null;
+    let usingBrowserFallback = true;
+    const tts = { getPlaybackPositionMs: () => 1_600 };
+    const speechClockRef = { current: clock };
+    const segmentPlaybackRate = () => 1;
+    const isCancelled = () => false;
+    const onStart = () => {};
+    const options = { onStart: () => {
+      if (audioStartedAtMs === null) {
+        audioStartedAtMs = now();
+        audioStartedAtActiveMs = clock.elapsedMs();
+      }
+    } };
+    let speechComplete = false;
+    let capturedDurationMs: number | null = null;
+    let capturedTimings: null = null;
+    const estimateSpeechMs = 4_000;
+    let maxAudioPositionMs = ${maxDeclaration.initializer.getText(source)};
+    const liveAudioPositionMs = ${positionDeclaration.initializer.getText(source)};
+    const restart = ${browserOnStart.getText(source)};
+    return { liveAudioPositionMs, restart };
+  `;
+  const compiled = ts.transpileModule(`function makeHarness(clock: unknown, now: () => number) { ${harness} }`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const makeHarness = new Function("resolveLiveAudioPositionMs", `${compiled}\nreturn makeHarness;`)(
+    resolveLiveAudioPositionMs,
+  ) as (clock: ReturnType<typeof createPauseAwareSpeechClock>, now: () => number) => {
+    liveAudioPositionMs: () => number;
+    restart: () => void;
+  };
+
+  let nowMs = 0;
+  const clock = createPauseAwareSpeechClock(() => nowMs);
+  const { liveAudioPositionMs, restart } = makeHarness(clock, () => nowMs);
+  restart(); // First browser utterance starts the sentence.
+  nowMs = 1_600;
+  assert.equal(liveAudioPositionMs(), 1_600, "ink had followed the first utterance");
+  clock.pause(); // Browser pause cancels this utterance.
+  nowMs = 7_600;
+  assert.equal(liveAudioPositionMs(), 1_600, "paused time must not advance ink");
+  clock.resume();
+  restart(); // Resume starts the same sentence from the beginning.
+  assert.equal(liveAudioPositionMs(), 0, "restarted voice must not inherit earlier ink position");
+  nowMs = 7_780;
+  assert.equal(liveAudioPositionMs(), 180, "draw clock must follow restarted speech, not the old 1.6s high water");
+}
 
 async function main() {
   assert.equal(browserRecoveryPlaybackRate(1.5), 1, "browser TTS must not pitch up at lesson speed");
@@ -134,7 +214,8 @@ async function main() {
   assert.match(control, /resumeFallbackSpeech\(\)/);
   assert.match(runner, /const stopFallbackSpeech = \(\) => \{[\s\S]*?speechClockRef\.current\?\.resume\(\);/, "stopping a paused turn must release its pending startup deadline");
   assert.match(control, /stopFallbackSpeech\(\)/);
-  console.log("verified live speech deadlines and browser fallback follow pause/resume/stop");
+  verifyRestartedBrowserSpeechDoesNotLeadInk(runner);
+  console.log("verified live speech deadlines, browser fallback, and restarted-voice ink clock");
 }
 
 void main().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -977,11 +977,13 @@ export function useSegmentRunner({
                     ...options,
                     onStart: () => {
                       if (isCancelled()) return;
-                      // pause() cancels browser speech; its next utterance starts
-                      // this same sentence over, so restart the media clock too.
+                      // pause() cancels browser speech; the next utterance starts
+                      // this sentence over. Reset both its origin and the wall
+                      // fallback's high-water mark so ink waits for the voice.
                       if (audioStartedAtMs !== null) {
                         audioStartedAtMs = performance.now();
                         audioStartedAtActiveMs = clock.elapsedMs();
+                        maxAudioPositionMs = Number.NEGATIVE_INFINITY;
                       }
                       onStart();
                       options.onStart?.();

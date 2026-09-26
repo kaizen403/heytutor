@@ -141,6 +141,34 @@ try {
   assert.equal(stalledResume.unloadCount, 1);
   assert.equal(clock.pending, 0);
 
+  // The control discards a rejected resume play(). With no play/playing/error
+  // event, both watchdogs were cleared by pause and the cue used to hang.
+  let rejectedResumePaused = false;
+  const rejectedResumeAudio = new FakeAudio("rejected-resume.mp3");
+  const rejectedResume = playReplayAudio("rejected-resume.mp3", {
+    audio: rejectedResumeAudio as unknown as HTMLAudioElement,
+    isPaused: () => rejectedResumePaused,
+  });
+  let rejectedResumeError = "pending";
+  void rejectedResume.done.catch((error: unknown) => {
+    rejectedResumeError = error instanceof Error ? error.message : String(error);
+  });
+  rejectedResumeAudio.onplaying?.();
+  rejectedResumePaused = true;
+  rejectedResumeAudio.pause();
+  clock.advance(20_000);
+  await Promise.resolve();
+  assert.equal(rejectedResumeError, "pending", "pause cannot fail the cue");
+  rejectedResumePaused = false;
+  rejectedResumeAudio.play = () => Promise.reject(new Error("resume blocked"));
+  void rejectedResumeAudio.play().catch(() => undefined); // the real control discards this rejection
+  clock.advance(6_201);
+  await Promise.resolve();
+  assert.equal(rejectedResumeError, "Replay audio load timeout: rejected-resume.mp3",
+    "rejected resume must settle, not strand the cue");
+  assert.equal(rejectedResumeAudio.unloadCount, 1, "failed resume must unload before fallback");
+  assert.equal(clock.pending, 0);
+
   // The first pending play rejection may arrive after a rapid resume.
   const buffering = new FakeAudio("buffering.mp3", true);
   const resumed = playReplayAudio("buffering.mp3", { audio: buffering as unknown as HTMLAudioElement });
