@@ -24,8 +24,8 @@
  *      may drop the size, and then it drops to the next step on the scale for
  *      the whole block, never to a bespoke per-row number.
  *
- * The steps are far enough apart to read as deliberate (about a 1.28 ratio)
- * and few enough that one board never shows more than three of them.
+ * The work sizes sit slightly below the heading and above figure labels. A
+ * board uses only a few roles at once, so each size stays consistent.
  */
 import { measureTextWidth } from "../handwriting/handwriting";
 
@@ -43,7 +43,7 @@ export type BoardTextRole =
   | "annotation";
 
 /**
- * The scale. Five steps, each about 1.28x the one below it.
+ * The scale. Work rows are compact enough to leave room for the figure.
  *
  * `work` and `workNarrow` are the same role at two column widths: beside a
  * figure the solution column is roughly a quarter of the board, and one
@@ -53,8 +53,8 @@ export type BoardTextRole =
  */
 export const BOARD_TYPE_SCALE = {
   heading: 46,
-  work: 36,
-  workNarrow: 28,
+  work: 32,
+  workNarrow: 27,
   label: 24,
   annotation: 19,
 } as const;

@@ -29,10 +29,16 @@ export { DrawTransactionRegistry, type DrawTransactionNode } from "./drawTransac
 export { VirtualCursor, type VirtualCursorProps } from "./VirtualCursor";
 export {
   instrumentForActivity,
+  instrumentInkStyle,
+  INK_THICKNESS_MIN,
+  INK_THICKNESS_MAX,
+  INK_THICKNESS_STEP,
+  DEFAULT_INK_THICKNESS,
   instrumentMetrics,
   instrumentPalette,
   instrumentShapes,
   type InstrumentKind,
+  type InkStylePreferences,
   type InstrumentMetrics,
   type InstrumentPalette,
   type InstrumentShape,

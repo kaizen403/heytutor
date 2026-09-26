@@ -15,6 +15,7 @@ export type HeadlessRuntime = {
   jobId: string;
   boardId: string;
   question: string;
+  interactive?: boolean;
 };
 
 /** Identity for one recording shell. Both ids are required; neither may be reused. */

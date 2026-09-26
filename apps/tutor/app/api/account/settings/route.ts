@@ -15,6 +15,10 @@ export async function GET() {
 export async function PATCH(request: Request) {
   const userId = await requireSessionUserId();
   if (isAuthFailure(userId)) return userId;
+  const expectedAccountId = request.headers.get("x-heytutor-account-id");
+  if (expectedAccountId && expectedAccountId !== userId) {
+    return NextResponse.json({ error: "account changed; settings not saved" }, { status: 409 });
+  }
   await ensureUser(userId);
 
   let body: unknown = {};

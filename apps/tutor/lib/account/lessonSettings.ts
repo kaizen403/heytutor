@@ -1,4 +1,11 @@
-import { STUNT_KINDS, type StuntKind } from "@heytutor/whiteboard";
+import {
+  DEFAULT_INK_THICKNESS,
+  INK_THICKNESS_MAX,
+  INK_THICKNESS_MIN,
+  INK_THICKNESS_STEP,
+  STUNT_KINDS,
+  type StuntKind,
+} from "@heytutor/whiteboard";
 import {
   DEFAULT_ACCENT,
   DEFAULT_AUDIO_LANGUAGE,
@@ -23,6 +30,15 @@ export const MARKER_COLORS = [
 ] as const;
 
 export type MarkerColorId = (typeof MARKER_COLORS)[number]["id"];
+
+export { INK_THICKNESS_MIN, INK_THICKNESS_MAX, INK_THICKNESS_STEP, DEFAULT_INK_THICKNESS };
+
+export function clampInkThickness(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_INK_THICKNESS;
+  const bounded = Math.min(INK_THICKNESS_MAX, Math.max(INK_THICKNESS_MIN, value));
+  const step = Math.round((bounded - INK_THICKNESS_MIN) / INK_THICKNESS_STEP);
+  return Number((INK_THICKNESS_MIN + step * INK_THICKNESS_STEP).toFixed(1));
+}
 
 /** Containers the lecture download can actually encode. MP4 is the default. */
 export const LECTURE_FILE_TYPES = ["mp4", "webm"] as const;
@@ -50,6 +66,9 @@ export interface SettingsState {
   lowLatencyVoice: boolean;
   subtitlesEnabled: boolean;
   markerColor: MarkerColorId;
+  pencilColor: MarkerColorId;
+  markerThickness: number;
+  pencilThickness: number;
   /**
    * Marker stunts: which tricks the hand may play while the tutor talks, on
    * top of the small fidgets it always plays. A selection rather than a
@@ -70,6 +89,9 @@ export const DEFAULT_SETTINGS: Omit<SettingsState, "speedMultiplier"> = {
   lowLatencyVoice: false,
   subtitlesEnabled: false,
   markerColor: "navy",
+  pencilColor: "navy",
+  markerThickness: DEFAULT_INK_THICKNESS,
+  pencilThickness: DEFAULT_INK_THICKNESS,
   // Everything the hand can do, until the student narrows it.
   markerStunts: [...STUNT_KINDS],
   lectureFileType: DEFAULT_LECTURE_FILE_TYPE,

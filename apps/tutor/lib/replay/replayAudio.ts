@@ -4,6 +4,7 @@ import { DEFAULT_PLAYBACK_SPEED } from "@/lib/account/lessonSettings";
 export const DEFAULT_REPLAY_SPEED = DEFAULT_PLAYBACK_SPEED;
 
 export interface PlayReplayAudioOptions {
+  audio?: HTMLAudioElement;
   playbackRate?: number;
   maxDurationMs?: number;
   startAtMs?: number;
@@ -71,7 +72,7 @@ export function playReplayAudio(
   url: string,
   options: PlayReplayAudioOptions = {},
 ): { audio: HTMLAudioElement; done: Promise<void> } {
-  const audio = new Audio(url);
+  const audio = options.audio ?? new Audio(url);
   applyReplayPlaybackRate(audio, options.playbackRate ?? 1);
   audio.preload = "auto";
 
@@ -110,7 +111,7 @@ export function playReplayAudio(
         ratePollId = null;
       }
 
-      audio.onplay = null;
+      audio.onplaying = null;
       audio.onloadedmetadata = null;
       audio.onended = null;
       audio.onerror = null;
@@ -165,17 +166,24 @@ export function playReplayAudio(
       finish(new Error(`Replay audio load timeout: ${url}`));
     }, LOAD_TIMEOUT_MS);
 
-    audio.onloadedmetadata = () => {
+    const seekToStart = () => {
       if (options.startAtMs && options.startAtMs > 0) {
         audio.currentTime = Math.min(
           options.startAtMs / 1000,
           Number.isFinite(audio.duration) ? audio.duration : options.startAtMs / 1000,
         );
       }
-      notifyStart();
     };
 
-    audio.onplay = () => {
+    audio.onloadedmetadata = () => {
+      seekToStart();
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        mediaDurationMs = Math.round(audio.duration * 1000);
+      }
+    };
+
+    // Loading metadata or emitting `play` does not mean sound is coming out yet.
+    audio.onplaying = () => {
       notifyStart();
     };
 
@@ -196,6 +204,9 @@ export function playReplayAudio(
       }
     }, 100);
 
+    if (audio.readyState >= 1) {
+      seekToStart();
+    }
     void audio.play().catch((error: unknown) => finish(error));
   });
 
@@ -206,12 +217,13 @@ export function playReplayAudio(
         finishPlayback?.();
       }
     }, 32);
-    void done.finally(() => {
+    const clearCancelInterval = () => {
       if (cancelInterval !== null) {
         window.clearInterval(cancelInterval);
         cancelInterval = null;
       }
-    });
+    };
+    void done.then(clearCancelInterval, clearCancelInterval);
   }
 
   return { audio, done };

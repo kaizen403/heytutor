@@ -320,18 +320,21 @@ export function useBoardSession({
     [applyBoardPatch],
   );
 
+  // A running turn can retain the first render's callback. Read the current
+  // mute state so opening Watch Live cannot be undone by the next segment.
+  const mutedRef = useRef(muted);
   const ensureTTSClient = useCallback((): TTSClient => {
     if (!ttsClientRef.current) {
       ttsClientRef.current = createTTSClient({
-        muted,
+        muted: mutedRef.current,
         voicePreferences: voicePreferencesRef.current,
       });
     } else {
-      ttsClientRef.current.setMuted?.(muted);
+      ttsClientRef.current.setMuted?.(mutedRef.current);
     }
     ttsClientRef.current.setPlaybackRate(speedRef.current);
     return ttsClientRef.current;
-  }, [ttsClientRef, voicePreferencesRef, speedRef, muted]);
+  }, [ttsClientRef, voicePreferencesRef, speedRef]);
 
   // Create the TTS client once on mount only. Re-creating it when `muted`
   // flips (promoting a headless lecture to Watch Live) runs the cleanup's
@@ -347,6 +350,7 @@ export function useBoardSession({
 
   // Apply mute changes reactively without tearing down the connection.
   useEffect(() => {
+    mutedRef.current = muted;
     ttsClientRef.current?.setMuted?.(muted);
   }, [muted, ttsClientRef]);
 

@@ -69,6 +69,9 @@ model UserSettings {
   lowLatencyVoice      Boolean  @default(false) @map("low_latency_voice")
   subtitlesEnabled     Boolean  @default(false) @map("subtitles_enabled")
   markerColor          String   @default("navy") @map("marker_color")
+  pencilColor          String   @default("navy") @map("pencil_color")
+  markerThickness      Float    @default(1) @map("marker_thickness")
+  pencilThickness      Float    @default(1) @map("pencil_thickness")
   /// Which marker stunts the student picked. Empty means the hand plays none.
   markerStunts         String[] @default(["thumbAround", "knuckleRoll", "helicopter", "tossCatch"]) @map("marker_stunts")
   /// Lecture download container. `mp4` unless the student picked `webm`.

@@ -20,6 +20,7 @@ import {
   MAX_BOARD_FONT_SIZE,
   MIN_BOARD_FONT_SIZE,
   WORK_ZONE,
+  type DrawCommandInkSettings,
 } from "@heytutor/drawing";
 import {
   DEFAULT_WHITEBOARD_TIME_SOURCE,
@@ -97,9 +98,10 @@ import {
 } from "./penIdle";
 import type { StuntKind } from "./penStunts";
 import {
+  DEFAULT_INK_THICKNESS,
+  commandInkStyle,
   instrumentForActivity,
   instrumentInkStyle,
-  PENCIL_WIDTH_SCALE,
   type InstrumentInkStyle,
   type InstrumentKind,
   type PenActivity,
@@ -111,6 +113,9 @@ export interface WhiteboardProps {
   height?: number;
   cursorState?: CursorState;
   inkColor?: string;
+  pencilColor?: string;
+  markerThickness?: number;
+  pencilThickness?: number;
   /**
    * What the hand does while the tutor is thinking. `spin` plays with whatever
    * is in hand where it last wrote — the repertoire of idle gestures in
@@ -173,6 +178,7 @@ export type AnnotationKind =
 
 export interface AnnotationOptions {
   strokeWidth?: number;
+  inkSettings?: DrawCommandInkSettings;
   fillColor?: string;
   fillOpacity?: number;
   /** Remove the gesture after a short fade so review traces do not overwrite ink. */
@@ -183,6 +189,7 @@ export interface AnnotationOptions {
 
 export interface ShapeDrawOptions {
   dashed?: boolean;
+  inkSettings?: DrawCommandInkSettings;
   strokeWidth?: number;
   /**
    * What this stroke commits to, which is what decides the instrument.
@@ -229,7 +236,9 @@ export interface WhiteboardHandle {
     schedule?: WriteSchedule,
     fontSize?: number,
     shouldCancel?: () => boolean,
+    inkSettings?: DrawCommandInkSettings,
   ) => Promise<void>;
+  getInkSettings: () => DrawCommandInkSettings;
   clearBoard: (duration?: number) => Promise<void>;
   eraseRegion: (
     x: number,
@@ -331,14 +340,10 @@ const HIGHLIGHT_OPACITY = 0.34;
 const ANNOTATION_STROKE_WIDTH = 3.25;
 /** A box is a quiet gesture — it frames the formula, it does not shout. */
 const BOX_STROKE_WIDTH = 2;
-/**
- * Scene-engine figure ink, before the pencil's own thinning.
- * Laid width is this times `PENCIL_WIDTH_SCALE` — light lead, not a pen line.
- * Focus traces and work-area gestures stay on their own widths.
- */
+/** Scene-engine figure ink, before the pencil's own thinning. */
 const SHAPE_STROKE_WIDTH = 1.15;
-/** What a scene stroke actually measures once the pencil has thinned it. */
-const SCENE_LEAD_WIDTH = SHAPE_STROKE_WIDTH * PENCIL_WIDTH_SCALE;
+/** Marks eligible for gap cutting retain this tag when thickness changes. */
+const SCENE_LEAD_ATTR = "sceneLead";
 /** Scene setup ink: visible, not a 10s sketch. Matches tutor-core SCENE_MAX_MS. */
 const SCENE_SHAPE_MAX_MS = 320;
 const SCENE_SHAPE_MIN_MS = 70;
@@ -450,6 +455,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       height = DEFAULT_HEIGHT,
       cursorState = "idle",
       inkColor = DEFAULT_INK_COLOR,
+      pencilColor = inkColor,
+      markerThickness = DEFAULT_INK_THICKNESS,
+      pencilThickness = DEFAULT_INK_THICKNESS,
       thinkingMotion = "spin",
       markerStunts = NO_STUNTS,
     },
@@ -545,6 +553,15 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       duster: cursorState === "erasing" ? cursorOpacity(cursorState) : 0,
     });
     const inkColorRef = useRef(inkColor);
+    const inkPreferencesRef = useRef({ pencilColor, markerThickness, pencilThickness });
+    const getInkSettings = useCallback((): DrawCommandInkSettings => ({
+      markerColor: inkColorRef.current,
+      pencilColor: inkPreferencesRef.current.pencilColor,
+      markerThickness: inkPreferencesRef.current.markerThickness,
+      pencilThickness: inkPreferencesRef.current.pencilThickness,
+    }), []);
+    const styleForCommand = useCallback((recorded?: DrawCommandInkSettings): InstrumentInkStyle =>
+      commandInkStyle(instrumentRef.current, getInkSettings(), recorded), [getInkSettings]);
     /**
      * The stunt setting, read on the frame the pose is computed. A prop in the
      * idle effect's dependency list would tear the effect down and rebuild it,
@@ -555,6 +572,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     useEffect(() => {
       inkColorRef.current = inkColor;
     }, [inkColor]);
+
+    useEffect(() => {
+      inkPreferencesRef.current = { pencilColor, markerThickness, pencilThickness };
+    }, [pencilColor, markerThickness, pencilThickness]);
 
     useEffect(() => {
       markerStuntsRef.current = markerStunts;
@@ -1147,11 +1168,14 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
         // Styled for whatever is now in hand, so a figure drawn in pencil
         // actually lands in lead rather than in the pen's ink.
-        const inkStyle = instrumentInkStyle(instrumentRef.current, inkColorRef.current);
+        const inkStyle = styleForCommand(options?.inkSettings);
         const path = new Konva.Path(
           inkPathConfig(pathData, options?.strokeWidth ?? SHAPE_STROKE_WIDTH, inkStyle),
         );
         tagBoardInk(path, "scene");
+        if (Math.abs((options?.strokeWidth ?? SHAPE_STROKE_WIDTH) - SHAPE_STROKE_WIDTH) < 0.01) {
+          path.setAttr(SCENE_LEAD_ATTR, true);
+        }
         const totalLength = path.getLength();
 
         // How long this line takes is decided by how long the line is, so every
@@ -1282,6 +1306,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         hopNib,
         jumpNib,
         moveNib,
+        styleForCommand,
         tagBoardInk,
         trackNode,
         untrackNode,
@@ -1309,7 +1334,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           if (!(node instanceof Konva.Path)) {
             return;
           }
-          if (Math.abs(node.strokeWidth() - SCENE_LEAD_WIDTH) > 0.08 || !node.strokeEnabled()) {
+          if (node.getAttr(SCENE_LEAD_ATTR) !== true || !node.strokeEnabled()) {
             return;
           }
 
@@ -1405,6 +1430,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               replacement,
               (node.getAttr(BOARD_INK_ATTR) as BoardInkKind | undefined) ?? "scene",
             );
+            replacement.setAttr(SCENE_LEAD_ATTR, true);
             replacements.push(replacement);
           }
         };
@@ -1534,7 +1560,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           inkPathConfig(
             pathData,
             strokeWidth,
-            instrumentInkStyle(instrumentRef.current, inkColorRef.current),
+            styleForCommand(options.inkSettings),
           ),
         );
         tagBoardInk(path, boardInkKindAt(path.getClientRect().x));
@@ -1589,7 +1615,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         animLayer.batchDraw();
         drawLayer.batchDraw();
       },
-      [animateOver, equipInstrumentFor, moveNib, tagBoardInk, trackNode, untrackNode],
+      [animateOver, equipInstrumentFor, moveNib, styleForCommand, tagBoardInk, trackNode, untrackNode],
     );
 
     const waitForAudioPosition = useCallback(
@@ -1735,6 +1761,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         schedule?: WriteSchedule,
         fontSize: number = BOARD_TYPE_SCALE.label,
         shouldCancel?: () => boolean,
+        inkSettings?: DrawCommandInkSettings,
       ): Promise<void> => {
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
@@ -1777,7 +1804,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           // Read after the equip: teaching prose is always in pen, but a
           // compiler-owned label is lettered with whatever the hand is already
           // holding, so a name on a pencilled figure is written in the same lead.
-          const inkStyle = instrumentInkStyle(instrumentRef.current, inkColorRef.current);
+          const inkStyle = styleForCommand(inkSettings);
           const characterPaths = await pathsPromise;
 
           if (characterPaths.length === 0) {
@@ -2225,7 +2252,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             drawLayer.batchDraw();
           }
         } catch {
-          const inkStyle = instrumentInkStyle(instrumentRef.current, inkColorRef.current);
+          const inkStyle = styleForCommand(inkSettings);
           const textNode = new Konva.Text({
             text,
             x,
@@ -2282,6 +2309,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         jumpNib,
         moveNib,
         nowMs,
+        styleForCommand,
         tagBoardInk,
         trackNode,
         untrackNode,
@@ -2542,8 +2570,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       const beginTrace = (): void => {
         const node = new Konva.Path({
           data: scratchStrokePath(cycle, box),
-          stroke: inkColorRef.current,
-          strokeWidth: SCRATCH_STROKE_WIDTH,
+          stroke: instrumentInkStyle("pencil", inkColorRef.current, inkPreferencesRef.current).color,
+          strokeWidth: SCRATCH_STROKE_WIDTH * inkPreferencesRef.current.pencilThickness,
           opacity: SCRATCH_OPACITY,
           fillEnabled: false,
           lineCap: "round",
@@ -3058,8 +3086,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         setTimeSource: (source: WhiteboardTimeSource | null) => {
           timeSourceRef.current = source ?? DEFAULT_WHITEBOARD_TIME_SOURCE;
         },
+        getInkSettings,
       }),
-      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, clearBoard, commitDrawTransaction, drawAnnotation, drawShape, eraseRegion, eraseWorkInk, finishAbortedDrawTransaction, flourishPen, flyCursorTo, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
+      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, clearBoard, commitDrawTransaction, drawAnnotation, drawShape, eraseRegion, eraseWorkInk, finishAbortedDrawTransaction, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
     );
 
     return (
@@ -3107,7 +3136,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             spin={cursorViewRef.current.spin}
             lift={cursorViewRef.current.lift}
             scale={cursorViewRef.current.scale}
-            color={activeInstrument === "highlighter" ? HIGHLIGHT_FILL : inkColor}
+            color={activeInstrument === "highlighter" ? HIGHLIGHT_FILL : activeInstrument === "pencil" ? pencilColor : inkColor}
             instrument={activeInstrument}
             visible={cursorAlphaRef.current.pen > CURSOR_ALPHA_EPSILON}
             opacity={cursorAlphaRef.current.pen}

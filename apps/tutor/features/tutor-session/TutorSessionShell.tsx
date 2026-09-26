@@ -760,7 +760,7 @@ export function TutorSessionShell({
     commitDraftBoard,
     autoQuestion,
     replaceAutoQuestionUrl: variant === "full",
-    enableKeyboardControls: variant !== "headless",
+    enableKeyboardControls: variant === "full",
     onComplete,
     onError,
     phase,
@@ -1004,7 +1004,7 @@ export function TutorSessionShell({
     setSettings,
     pauseTurn,
     resumeTurn,
-    enableKeyboardControls: variant !== "headless",
+    enableKeyboardControls: variant === "full",
     enabled: !isHeadless,
   });
 
@@ -1329,6 +1329,9 @@ export function TutorSessionShell({
           height={BOARD_HEIGHT}
           cursorState={cursorState}
           inkColor={getMarkerColorHex(settings.markerColor)}
+          pencilColor={getMarkerColorHex(settings.pencilColor)}
+          markerThickness={settings.markerThickness}
+          pencilThickness={settings.pencilThickness}
           markerStunts={settings.markerStunts}
         />
         {waitingToTeach && (

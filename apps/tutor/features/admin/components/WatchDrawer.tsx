@@ -14,7 +14,6 @@ import {
   useSessionChromeHidden,
 } from "@/features/tutor-session/hooks/useBoardFullscreen";
 import { fullscreenKeyAction, isTypingElement } from "@/features/tutor-session/lib/board/boardFullscreen";
-import { DEFAULT_REPLAY_SPEED } from "@/lib/replay/replayAudio";
 
 export type WatchIntent = "replay" | "notes" | "live";
 
@@ -112,7 +111,7 @@ function WatchDrawerFrame({
   onDelete,
 }: WatchDrawerProps & { boardId: string }) {
   const isLive = intent === "live";
-  const [speed, setSpeed] = useState(DEFAULT_REPLAY_SPEED);
+  const [speed, setSpeed] = useState(1);
   const [exportApi, setExportApi] = useState<TutorSessionExportApi | null>(null);
   const fullscreen = useBoardFullscreen();
   const closeAndExit = useCallback(() => {
@@ -134,13 +133,14 @@ function WatchDrawerFrame({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const dialogOpen = Boolean(document.querySelector('[role="dialog"][data-state="open"]'));
       const action = fullscreenKeyAction({
         key: event.key,
         withModifier: event.ctrlKey || event.metaKey || event.altKey,
         typing: isTypingElement(document.activeElement),
         fullscreen: fullscreen.active,
         mode: fullscreen.mode,
-        dialogOpen: Boolean(document.querySelector('[role="dialog"][data-state="open"]')),
+        dialogOpen,
         // Watch's own Escape closes the overlay. Native full screen is the
         // browser's Escape; fallback leaves with the overlay on unmount.
         lessonOwnsEscape: true,
@@ -150,10 +150,14 @@ function WatchDrawerFrame({
         fullscreen.toggle();
         return;
       }
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !dialogOpen) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
         onCloseRef.current();
       }
     };
+    // The board marker gets Escape first on capture and disarms itself.
+    // Watch closes only when that listener has not consumed the key.
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [fullscreen]);
@@ -222,6 +226,18 @@ function WatchDrawerFrame({
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        {isLive && liveStatus === "complete" ? (
+          <SiteButton
+            variant="ice"
+            size="sm"
+            onClick={() => {
+              unlockTutorAudio();
+              onIntentChange("replay");
+            }}
+          >
+            Watch replay
+          </SiteButton>
+        ) : null}
         {isLive ? null : (
           <>
             <ReplaySpeedSelect value={speed} onChange={setSpeed} />
