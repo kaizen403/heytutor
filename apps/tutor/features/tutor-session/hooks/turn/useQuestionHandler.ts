@@ -830,9 +830,14 @@ export function useQuestionHandler(
         )
           .map((exchange) => `User: ${exchange.user}\nTutor: ${exchange.assistant}`)
           .join("\n\n");
-        let recoveredScene = findVerifiedSceneRecovery(question, storedTurnsRef.current, {
-          boardId: sessionId,
-        });
+        // A repeated phrase can refer to a different figure after prior turns.
+        // Reuse of a context-free scene would skip both the contextual turn
+        // planner and Jev's visual assessment for this follow-up.
+        let recoveredScene = recentConversation
+          ? null
+          : findVerifiedSceneRecovery(question, storedTurnsRef.current, {
+              boardId: sessionId,
+            });
         let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
         let visualNeedPromise: ReturnType<typeof fetchVisualNeed> | null = null;
 
