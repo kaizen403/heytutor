@@ -106,6 +106,7 @@ export function playReplayAudio(
   const done = new Promise<void>((resolve, reject) => {
     let settled = false;
     let pauseEpoch = 0;
+    let waitingForResume = false;
 
     const finish = (error?: unknown) => {
       if (settled) {
@@ -197,7 +198,9 @@ export function playReplayAudio(
         loadTimeoutId = null;
         // pause() may have run while its media event is still queued. Resume's
         // play event arms a fresh bounded wait rather than charging paused time.
-        if (options.isPaused?.() || audio.paused) return;
+        // A rejected resume play() may leave audio.paused true without firing
+        // play/playing/error; only the caller's pause state can exempt it.
+        if (options.isPaused?.() || (audio.paused && !waitingForResume)) return;
         finish(new Error(`Replay audio load timeout: ${url}`));
       }, LOAD_TIMEOUT_MS);
     };
@@ -223,6 +226,7 @@ export function playReplayAudio(
     // buffering. The board clock starts only when audio can actually play.
     audio.onplaying = () => {
       if (audio.paused || options.isPaused?.() || settled) return;
+      waitingForResume = false;
       notifyStart();
       if (loadTimeoutId !== null) {
         window.clearTimeout(loadTimeoutId);
@@ -233,6 +237,7 @@ export function playReplayAudio(
     audio.onpause = () => {
       if (!audio.paused || settled) return;
       pauseEpoch++;
+      waitingForResume = true;
       if (loadTimeoutId !== null) {
         window.clearTimeout(loadTimeoutId);
         loadTimeoutId = null;
@@ -255,6 +260,13 @@ export function playReplayAudio(
     ratePollId = window.setInterval(() => {
       if (settled) {
         return;
+      }
+      // Resume's play() belongs to the transport control, which discards its
+      // rejection. If it emits no play/playing event, restore the load watchdog
+      // once the caller leaves pause so this cue can fail over instead of hanging.
+      if (waitingForResume && options.isPaused && !options.isPaused()
+        && loadTimeoutId === null && playbackTimeoutId === null) {
+        armLoadTimeout();
       }
       const rate = currentRate();
       if (Math.abs(audio.playbackRate - rate) > 0.001) {
