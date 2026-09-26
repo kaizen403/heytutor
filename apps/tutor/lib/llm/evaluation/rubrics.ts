@@ -84,10 +84,10 @@ const NOTES_ROUTING_QUESTIONS: Record<string, EvaluationQuestion> = {
 const DSA_TEACHING_QUESTIONS: Record<string, EvaluationQuestion> = {
   motivation: {
     type: "choice",
-    instructions: "For this student's coding question, is a brief explanation of the obvious slow approach needed before the worked example? Judge the wording and familiarity, not the algorithm's correctness. When the question asks for an intuition or a full explanation, choose show_slow_way. When it names a technique or asks for implementation or revision, choose start_worked_example.",
+    instructions: "For this student's coding question, is a brief explanation of the obvious slow approach needed before the worked example? Judge the wording and familiarity, not the algorithm's correctness. When the question asks for an intuition or a full explanation, choose show_slow_way, even when it names the technique. When it asks for implementation or revision, choose start_worked_example.",
     criteria: {
       show_slow_way: "The student needs motivation for the technique; briefly establish why the obvious approach is too slow.",
-      start_worked_example: "The student already names the method or asks for implementation or revision; begin the worked example directly.",
+      start_worked_example: "The student asks for implementation or revision; begin the worked example directly.",
       uncertain: ABSTAIN,
     },
   },

@@ -715,6 +715,19 @@ export function useQuestionHandler(
         }
       } else if (!doubt && dsaClassification.isDsa) {
         boardContext = resolveCodeLessonBoardContext(question);
+        // New and Revision already have fixed motivation rules. Only Normal
+        // needs a semantic choice, and it runs beside the code planner so the
+        // choice costs no extra wait before the first word.
+        if (familiarityRef.current === "normal") {
+          dsaTeachingPolicyPromise = fetchDsaTeachingPolicy({
+            url: resolveApiUrl("/api/dsa-teaching-policy"),
+            question,
+            familiarity: familiarityRef.current,
+            technique: boardContext?.context.familyId ?? null,
+            traceId: turnTraceId,
+            signal: abortController.signal,
+          });
+        }
         const codeLessonResponse = await awaitCurrentTurn(
           planCodeLessonV1(question, {
             proxyUrl: plannerUrl,
@@ -740,18 +753,6 @@ export function useQuestionHandler(
       }
 
       if (codeLesson && !resume) {
-        // New and Revision already have fixed motivation rules. Only Normal
-        // needs a semantic choice, saving a Jev request on those other turns.
-        if (familiarityRef.current === "normal") {
-          dsaTeachingPolicyPromise = fetchDsaTeachingPolicy({
-            url: resolveApiUrl("/api/dsa-teaching-policy"),
-            question,
-            familiarity: familiarityRef.current,
-            technique: boardContext?.context.familyId ?? null,
-            traceId: turnTraceId,
-            signal: abortController.signal,
-          });
-        }
         turnPlan = createFallbackTurnPlanV3(question);
         // Prefer a real execution trace: when the algorithm catalog knows this
         // family we can run it on a concrete example and draw what it actually

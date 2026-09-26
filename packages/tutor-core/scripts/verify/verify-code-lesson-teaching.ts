@@ -61,8 +61,20 @@ const FRAMES: CodeLessonFigureFrame[] = [
   assert(isExplanationOnlyDsaQuestion(visualAsk), "a visual explanation request should not open the code editor");
   assert(!isExplanationOnlyDsaQuestion("Explain merge sort and write the Python code"), "an explicit code request still needs code");
   assert(!isExplanationOnlyDsaQuestion("Explain and solve Longest Substring Without Repeating Characters"), "a solve request still needs code");
+  assert(!isExplanationOnlyDsaQuestion("Walk me through implementing Dijkstra in Java"), "an implementing request still needs code");
+  assert(!isExplanationOnlyDsaQuestion("Explain how solving two sum works"), "a solving request still needs code");
+  assert(isExplanationOnlyDsaQuestion("Explain dynamic programming for coin change"), "dynamic programming names a technique, not a program");
+  assert(isExplanationOnlyDsaQuestion("What is the intuition behind Kadane's algorithm?"), "an intuition request is an explanation");
   const prompt = codeLessonPromptAddon(PLAN, { frames: FRAMES, familiarity: "normal", includeCode: false });
   assert(!/\[TYPE:/.test(prompt), "an explanation-only prompt cannot ask for code blocks");
+  assert(!/split and merge/i.test(prompt), "the explanation-only close cannot assume Merge Sort");
+  const steeredToCode = codeLessonPromptAddon(PLAN, {
+    frames: FRAMES,
+    familiarity: "normal",
+    includeCode: false,
+    teachingPolicy: { motivation: "start_worked_example", emphasis: "implementation" },
+  });
+  assert(!/code decisions/i.test(steeredToCode), "a lesson without code cannot be steered toward code decisions");
   assert(/No code editor or code blocks appear/i.test(prompt), "the tutor must know the example stays on screen");
   assert(FRAMES.every((frame) => prompt.includes(`[FOCUS:${frame.id}|spotlight]`)), "all verified frames still need teaching beats");
 }

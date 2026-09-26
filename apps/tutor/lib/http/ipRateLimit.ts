@@ -27,7 +27,7 @@ function normalizeIp(ip: string): string {
   return ip.replace(/^::ffff:/, "").trim();
 }
 
-/** Caddy connects to this process on loopback. Next appends that hop to X-Forwarded-For. */
+/** The local reverse proxy reaches this process on loopback, so a loopback hop is never the client. */
 function isLoopback(ip: string): boolean {
   const normalized = normalizeIp(ip);
   return normalized === "127.0.0.1" || normalized === "::1" || normalized === "localhost";

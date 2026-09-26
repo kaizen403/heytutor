@@ -162,7 +162,7 @@ LESSON SHAPE. Exactly ${beats.length} steps, listed below, in this order, nothin
 
 ${shape.guidance}
 
-TEACHING EMPHASIS: ${teachingEmphasis(options.teachingPolicy?.emphasis ?? "walkthrough")}
+TEACHING EMPHASIS: ${teachingEmphasis(lessonEmphasis(options.teachingPolicy?.emphasis, includeCode))}
 
 ${figureFrameFacts(frames)}
 
@@ -180,7 +180,7 @@ ${includeCode
 
 ${includeCode ? `The committed program, section by section (context for your narration only, never read out):
 
-${sectionListing}` : "End after explaining the result and why the time and space costs follow from the split and merge work."}`;
+${sectionListing}` : "End after explaining the result and why the time and space costs follow from the work the example showed."}`;
 }
 
 /**
@@ -207,6 +207,15 @@ function figureFrameFacts(frames: readonly CodeLessonFigureFrame[]): string {
     .join("\n");
   return `FIGURE — ${frames.length} frames of one worked example, drawn on the right in this order. None of them is on the board when you start. Naming a frame draws it. The captions and facts below are grounding notes, not a script. Do not quote them. On a comparison or choice, name the actual values, which one wins, and what changes next. On a pure regrouping, keep it to one clear sentence. Explain why each choice is safe instead of merely reading the new row. Do not retell the same example after its frames are complete.
 ${lines}`;
+}
+
+/** A lesson with no code cannot be steered toward code decisions. */
+function lessonEmphasis(
+  emphasis: DsaTeachingPolicy["emphasis"] | undefined,
+  includeCode: boolean,
+): DsaTeachingPolicy["emphasis"] {
+  if (!emphasis || (!includeCode && emphasis === "implementation")) return "walkthrough";
+  return emphasis;
 }
 
 function teachingEmphasis(emphasis: DsaTeachingPolicy["emphasis"]): string {

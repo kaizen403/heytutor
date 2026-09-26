@@ -93,8 +93,9 @@ export interface DsaTeachingPolicy {
 
 /** An explicit request to understand a technique without asking for a program. */
 export function isExplanationOnlyDsaQuestion(question: string): boolean {
-  const asksToExplain = /\b(?:explain|teach me|how (?:does|do)|walk (?:me )?through|show (?:me )?how)\b/i.test(question);
-  const asksForImplementation = /\b(?:code|coding|implement|implementation|write|program|function|solve|solution)\b/i.test(question);
+  const asksToExplain = /\b(?:explain\w*|teach me|intuition|how (?:does|do)|walk (?:me )?through|show (?:me )?how)\b/i.test(question);
+  // "programming" stays out: "explain dynamic programming" is not a code request.
+  const asksForImplementation = /\b(?:cod(?:e|es|ed|ing)|implement\w*|writ(?:e|es|ing|ten)|programs?|functions?|solv(?:e|es|ed|ing)|solutions?)\b/i.test(question);
   return asksToExplain && !asksForImplementation;
 }
 export const DEFAULT_DSA_TEACHING_POLICY: DsaTeachingPolicy = {
