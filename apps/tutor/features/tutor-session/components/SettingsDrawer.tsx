@@ -12,7 +12,6 @@ import {
 
 import Link from "next/link";
 import { useState } from "react";
-import { isSubjectFamiliarity, isTutorAccent, isTutorAudioLanguage } from "@heytutor/tutor-core";
 import {
   MarkerStuntPreview,
   STUNT_COPY,
@@ -43,12 +42,8 @@ import { cn } from "@/lib/utils";
 export {
   DEFAULT_SETTINGS,
   MARKER_COLORS,
-  SPEED_MAX,
-  SPEED_MIN,
   getMarkerColorHex,
-  isMarkerColorId,
   toggleMarkerStunt,
-  type MarkerColorId,
   type SettingsState,
 } from "@/lib/account/lessonSettings";
 
@@ -177,7 +172,6 @@ function ToggleRow({
   );
 }
 
-export { isSubjectFamiliarity, isTutorAccent, isTutorAudioLanguage };
 
 /**
  * Pick the tricks, and watch the one you are picking.

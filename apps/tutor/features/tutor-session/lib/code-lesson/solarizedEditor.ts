@@ -86,7 +86,7 @@ export function codeLessonLanguageLabel(language: CodeLessonLanguage): string {
   return LANGUAGE_META[language].label;
 }
 
-export function codeLessonFileExtension(language: CodeLessonLanguage): string {
+function codeLessonFileExtension(language: CodeLessonLanguage): string {
   return LANGUAGE_META[language].extension;
 }
 

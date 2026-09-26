@@ -231,7 +231,7 @@ export interface DoubtTeachingPromptInput {
  * A doubt is as long as what was asked, which the model reads from the doubt
  * itself. This is only what the turn logs in place of a lesson budget.
  */
-export const DOUBT_LESSON_BUDGET: LessonBudget = {
+const DOUBT_LESSON_BUDGET: LessonBudget = {
   scope: "compact",
   minSteps: 2,
   maxSteps: 6,
@@ -478,7 +478,7 @@ export interface ResumeTeachingPromptInput {
  * The user prompt for a paused lesson that continues after a doubt. The
  * teaching model must not see the original question again or it restarts.
  */
-export const RESUME_LESSON_USER_PROMPT = "continue";
+const RESUME_LESSON_USER_PROMPT = "continue";
 
 const RESUME_AFTER_DOUBT_NOTE =
   "A doubt on this board has been answered. Pick up the original lesson from the next unwritten step and teach it to the end. Do not restart, do not recap, and do not repeat the doubt.";

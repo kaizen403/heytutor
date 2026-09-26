@@ -25,7 +25,7 @@ export function getSiteUrl(): URL {
   return new URL(configured.startsWith("http") ? configured : `https://${configured}`);
 }
 
-export function getLandingUrl(): URL {
+function getLandingUrl(): URL {
   const configured =
     process.env.NEXT_PUBLIC_LANDING_URL ??
     (process.env.NODE_ENV === "development" ? "http://localhost:5173" : "https://accelute.co");

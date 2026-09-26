@@ -1,5 +1,5 @@
 export const LECTURE_VIDEO_CODECS = ["avc", "vp9", "av1", "vp8"] as const;
-export const LECTURE_AUDIO_CODECS = ["aac", "opus", "pcm-s16"] as const;
+const LECTURE_AUDIO_CODECS = ["aac", "opus", "pcm-s16"] as const;
 
 export type LectureVideoCodec = (typeof LECTURE_VIDEO_CODECS)[number];
 export type LectureAudioCodec = (typeof LECTURE_AUDIO_CODECS)[number];

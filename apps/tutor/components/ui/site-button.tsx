@@ -20,7 +20,7 @@ const SIZE_CLASS: Record<SiteButtonSize, string> = {
   md: "btn-md",
 };
 
-export interface SiteButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface SiteButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   /** ice = white key (primary), sky = accent, ghost = a step of the ground, danger = destructive. */
   variant?: SiteButtonVariant;
   size?: SiteButtonSize;
@@ -45,7 +45,7 @@ export const SiteButton = React.forwardRef<HTMLButtonElement, SiteButtonProps>(
 );
 SiteButton.displayName = "SiteButton";
 
-export interface PlainButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface PlainButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: SiteButtonVariant;
 }
 

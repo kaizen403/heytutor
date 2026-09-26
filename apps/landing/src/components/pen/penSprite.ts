@@ -186,11 +186,6 @@ const roundPolyPath = (ctx: CanvasRenderingContext2D, pts: readonly Pt[], r: num
 const safeLength = (length: number): number =>
   Number.isFinite(length) && length > 1 ? length : 1
 
-/** Half-width of the barrel at its widest, in CSS px, for a given pen length. */
-export function penBarrelHalfWidth(length: number): number {
-  return MAX_W * HB_FRACTION * safeLength(length)
-}
-
 /* ── Render ───────────────────────────────────────────────────────────────*/
 
 /** `length` = full pen length in CSS px. `dpr` = device pixel ratio to render at. */

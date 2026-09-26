@@ -9,8 +9,6 @@ export const dynamic = "force-dynamic";
 
 const MAX_SESSION_IDS = 40;
 
-export type RunCostResponse = RunCostApiPayload;
-
 function parseSessionIds(body: unknown): string[] {
   if (typeof body !== "object" || body === null) return [];
   const raw = (body as { sessionIds?: unknown }).sessionIds;

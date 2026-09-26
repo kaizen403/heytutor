@@ -30,8 +30,6 @@ import { getLegalHref } from "@/lib/site";
 import { useEntitlement } from "@/lib/billing/useEntitlement";
 import { remainingPctBarWidth, remainingPctLabel } from "@/lib/billing/studentCopy";
 
-export type { BoardEntry };
-
 interface BoardHistoryProps {
   boards: BoardEntry[];
   activeBoardId: string | null;
@@ -67,7 +65,7 @@ const PANEL: CSSProperties = {
   borderRight: "1px solid var(--stroke)",
 };
 
-export { SIDEBAR_WIDTH, SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH };
+export { SIDEBAR_WIDTH };
 
 function PinIcon({ filled = false }: { filled?: boolean }) {
   return (

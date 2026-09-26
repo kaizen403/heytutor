@@ -1,7 +1,7 @@
 import { parseStoredObjectKey } from "./keys";
 
-export const MEDIA_API_PATH = "/api/media";
-export const LECTURE_AUDIO_API_PATH = "/api/lecture-audio";
+const MEDIA_API_PATH = "/api/media";
+const LECTURE_AUDIO_API_PATH = "/api/lecture-audio";
 
 export function mediaProxyUrl(key: string): string {
   return `${MEDIA_API_PATH}?key=${encodeURIComponent(key)}`;

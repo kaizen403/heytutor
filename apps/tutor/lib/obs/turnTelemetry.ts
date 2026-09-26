@@ -1,7 +1,7 @@
 import type { TurnTelemetryEvent } from "@/lib/obs/langfuse";
 import { resolveApiUrl } from "@heytutor/tutor-core";
 
-export interface TurnTelemetryPayload {
+interface TurnTelemetryPayload {
   traceId: string;
   sessionId?: string;
   events: TurnTelemetryEvent[];

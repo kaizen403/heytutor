@@ -109,7 +109,7 @@ const MAX_TARGET_TEXT = 240;
 /** The left work column. Mirrors `withWorkRowIdentity`'s split. */
 const WORK_AREA_MAX_X = 400;
 
-export function markStrokeBounds(points: MarkPoint[]): MarkRect {
+function markStrokeBounds(points: MarkPoint[]): MarkRect {
   if (points.length === 0) {
     return { x: 0, y: 0, width: 0, height: 0 };
   }
@@ -126,7 +126,7 @@ export function markStrokeBounds(points: MarkPoint[]): MarkRect {
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
-export function markStrokeLength(points: MarkPoint[]): number {
+function markStrokeLength(points: MarkPoint[]): number {
   let total = 0;
   for (let i = 1; i < points.length; i++) {
     total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
@@ -419,7 +419,7 @@ function regionTarget(bounds: MarkRect): MarkTarget {
  * A ring is about everything it encloses. A wide oval around the working
  * keeps every line inside it; a ring round one row still keeps only that row.
  */
-export function resolveMarkTarget(
+function resolveMarkTarget(
   points: MarkPoint[],
   gesture: MarkGesture,
   candidates: readonly MarkCandidate[],
@@ -585,7 +585,7 @@ export function summarizeMarks(marks: readonly BoardMark[]): string {
 }
 
 /** Prompt lines for one stroke. A multi-line ring lists every enclosed line. */
-export function formatMarkForPrompt(mark: BoardMark): string {
+function formatMarkForPrompt(mark: BoardMark): string {
   const verb = GESTURE_VERB[mark.gesture];
   const targets = markTargets(mark);
   if (targets.length === 1) {

@@ -3,7 +3,7 @@ import { fitWorkTextCommand } from "../layout/lessonPlanner";
 import type { VerifiedDiagram, VerifiedDiagramAnchor } from "./verifiedDiagram";
 import { resolveVerifiedDiagramFocusTargets } from "./semanticGesture";
 
-export { resolveVerifiedDiagramFocusTarget, resolveVerifiedDiagramFocusTargets } from "./semanticGesture";
+export { resolveVerifiedDiagramFocusTarget } from "./semanticGesture";
 
 const MARKER_ACTION_PATTERN =
   /\b(?:let me draw|i(?:'|’)ll draw|i will draw|let(?:'|’)s draw|i will mark|let me mark|i will label|let me label|i(?:'|’)ll label|let(?:'|’)s label|let(?:'|’)s circle|i will circle|let me circle|now circle)\b/i;
@@ -116,7 +116,7 @@ export function spokenFocusTarget(
  * centre" names two, and each gets its own gesture when its name is spoken.
  * The first name found wins ties for an anchor named twice.
  */
-export function spokenFocusTargets(
+function spokenFocusTargets(
   narration: string,
   diagram: VerifiedDiagram | null,
 ): VerifiedDiagramAnchor[] {

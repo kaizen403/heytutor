@@ -13,7 +13,7 @@ import {
  * board snapshot of a DSA turn shows only the diagram — the code lives in a
  * DOM panel invisible to Konva capture — so notes composite these renders.
  */
-export function codeLessonNotesImages(plan: CodeLessonPlan, scale = 2): string[] {
+function codeLessonNotesImages(plan: CodeLessonPlan, scale = 2): string[] {
   const images: string[] = [];
   for (const [sectionIndex, section] of plan.sections.entries()) {
     const code = codeLessonSectionCode(section);

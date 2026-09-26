@@ -206,21 +206,12 @@ export function parseFormula(input: string): ParsedFormula | null {
   };
 }
 
-export function formulaMass(formula: ParsedFormula): number {
-  return formula.atoms.reduce((sum, atom) => sum + atom.count * atom.element.mass, 0);
-}
-
-/** Total valence electrons of a species, charge included (Lewis count). */
-export function valenceElectronCount(formula: ParsedFormula, valence: (element: ElementRecord) => number): number {
-  return formula.atoms.reduce((sum, atom) => sum + atom.count * valence(atom.element), 0) - formula.charge;
-}
-
 /**
  * A formula-shaped token in running text. Requires at least one element
  * symbol followed by a digit, a bracket, a charge, or a second symbol, so
  * ordinary capitalised words are not read as formulas.
  */
-export const FORMULA_TOKEN = /(?<![A-Za-z])(\[?(?:[A-Z][a-z]?\d*|\((?:[A-Z][a-z]?\d*)+\)\d*)+\]?\d*(?:\^?\(?\d*[+-]\)?)?)(?![a-z])/g;
+const FORMULA_TOKEN = /(?<![A-Za-z])(\[?(?:[A-Z][a-z]?\d*|\((?:[A-Z][a-z]?\d*)+\)\d*)+\]?\d*(?:\^?\(?\d*[+-]\)?)?)(?![a-z])/g;
 
 const NOT_FORMULA_WORDS = new Set([
   "I", "A", "In", "At", "As", "Be", "No", "He", "Si", "So", "If", "Or", "On", "Of", "By", "Am", "An", "Is", "It",

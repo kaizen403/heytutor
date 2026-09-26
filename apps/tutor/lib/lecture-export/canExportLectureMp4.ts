@@ -1,6 +1,5 @@
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { pageTurnsEndingAt } from "@/lib/boards/boardContinuation";
-import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import { lectureExportCacheKey } from "./lectureExportFrames";
 import { LECTURE_EXPORT_PLAYBACK_RATE } from "./lectureExportSpeed";
 import type { LectureContainer } from "./lectureExportProfile";
@@ -81,11 +80,6 @@ export function shouldCancelLectureExport(state: {
   isReplaying: boolean;
 }): boolean {
   return state.cancelled || state.phase !== "idle" || state.isReplaying;
-}
-
-export function cueHasSpokenAudio(cue: ReplayCue): boolean {
-  const spoken = cue.narration.trim().length > 0;
-  return spoken && Boolean(cue.audioUrl);
 }
 
 export function lectureDownloadFilename(

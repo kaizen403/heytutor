@@ -78,9 +78,9 @@ export function fallbackTiming(): LessonTiming {
   return { starts, total: t }
 }
 
-export const TYPING_CHARS_PER_SECOND = 38
-export const TYPING_DURATION = QUESTION_TEXT.length / TYPING_CHARS_PER_SECOND
-export const SUBMIT_PAUSE = 5.6
+const TYPING_CHARS_PER_SECOND = 38
+const TYPING_DURATION = QUESTION_TEXT.length / TYPING_CHARS_PER_SECOND
+const SUBMIT_PAUSE = 5.6
 export const HOLD_DURATION = 3.0
 export const CLEAR_DURATION = 1.2
 

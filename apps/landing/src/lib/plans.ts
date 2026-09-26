@@ -1,6 +1,6 @@
 /** Student-facing catalog. Do not add plans that are not in the billing plan. */
 
-export type PlanHrefKind = 'login' | 'contact'
+type PlanHrefKind = 'login' | 'contact'
 
 type PlanBase = {
   name: string

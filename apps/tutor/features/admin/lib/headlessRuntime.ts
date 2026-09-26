@@ -1,9 +1,9 @@
 import { BOARD_HEIGHT, BOARD_WIDTH } from "@/features/tutor-session/constants";
 
 /** Scaled live preview so the admin can see ink without covering the syllabus. */
-export const HEADLESS_PREVIEW_SCALE = 0.36;
+const HEADLESS_PREVIEW_SCALE = 0.36;
 
-export const LIVE_WATCH_SLOT_ATTR = "data-live-watch-slot";
+const LIVE_WATCH_SLOT_ATTR = "data-live-watch-slot";
 
 export type LiveWatchSlotRect = {
   left: number;
@@ -11,13 +11,6 @@ export type LiveWatchSlotRect = {
   width: number;
   height: number;
 };
-
-export function headlessLecturePreviewSize(): { width: number; height: number } {
-  return {
-    width: Math.round(BOARD_WIDTH * HEADLESS_PREVIEW_SCALE),
-    height: Math.round(BOARD_HEIGHT * HEADLESS_PREVIEW_SCALE),
-  };
-}
 
 /** Keep Konva in the viewport without showing stacked live canvases. */
 export function headlessLectureOffscreenStyle(index: number): {
@@ -55,38 +48,6 @@ export function liveRecordingsDockStyle(): {
     right: 16,
     bottom: 88,
     zIndex: 40,
-  };
-}
-
-export function headlessLecturePreviewStyle(index: number): {
-  position: "fixed";
-  right: number;
-  bottom: number;
-  width: number;
-  height: number;
-  zIndex: number;
-  overflow: "hidden";
-  pointerEvents: "auto";
-  borderRadius: number;
-  border: string;
-  background: string;
-  boxShadow: string;
-} {
-  const size = headlessLecturePreviewSize();
-  const caption = 28;
-  return {
-    position: "fixed",
-    right: 16,
-    bottom: 88 + index * (size.height + caption + 12),
-    width: size.width,
-    height: size.height + caption,
-    zIndex: 40,
-    overflow: "hidden",
-    pointerEvents: "auto",
-    borderRadius: 12,
-    border: "1px solid rgba(74, 158, 255, 0.28)",
-    background: "#171716",
-    boxShadow: "0 16px 40px rgba(0, 0, 0, 0.45)",
   };
 }
 

@@ -92,7 +92,7 @@ function expressionRun(source: string, from: number, step: -1 | 1): string | nul
 }
 
 /** OCR-tolerant repair into the bounded 2-D expression language. */
-export function normalizeExamExpression(raw: string): string | null {
+function normalizeExamExpression(raw: string): string | null {
   let source = raw
     .replace(/[−–—]/g, "-")
     .replace(/²/g, "^2")
@@ -123,7 +123,7 @@ export function normalizeExamExpression(raw: string): string | null {
  * exact. Anything that is not precisely a conic is rejected rather than
  * approximated.
  */
-export function classifyStatedCurve(expression: string): StatedCurve | null {
+function classifyStatedCurve(expression: string): StatedCurve | null {
   let evaluate: (x: number, y: number) => number;
   try {
     const parsed = parseMathExpression2D(expression);

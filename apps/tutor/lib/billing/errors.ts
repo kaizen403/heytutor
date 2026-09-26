@@ -1,4 +1,4 @@
-export const BILLING_ERROR_CODES = [
+const BILLING_ERROR_CODES = [
   "unauthorized",
   "out_of_credits",
   "rate_limited",
@@ -56,8 +56,4 @@ export function billingResponse(
   error?: string,
 ): Response {
   return Response.json(billingBody(code, remaining, error), { status: billingStatus(code) });
-}
-
-export function isBillingResponse(value: unknown): value is Response {
-  return value instanceof Response;
 }

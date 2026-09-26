@@ -50,16 +50,16 @@ export const LEAN_GAIN: Record<PenActivity, number> = {
   idle: 5,
 };
 /** Time constant for the wrist catching up to a new tilt. */
-export const TILT_TIME_CONSTANT_MS = 140;
+const TILT_TIME_CONSTANT_MS = 140;
 /** The wrist cannot whip: cap on how fast the barrel may roll. */
 export const TILT_MAX_DEG_PER_SEC = 110;
 /**
  * Heading is smoothed over distance travelled, not frames, so a slow careful
  * stroke and a fast one turn the barrel the same way per pixel.
  */
-export const HEADING_SMOOTH_PX = 7;
+const HEADING_SMOOTH_PX = 7;
 /** Travel below this is noise — keep the previous heading instead of spinning. */
-export const HEADING_MIN_TRAVEL = 0.45;
+const HEADING_MIN_TRAVEL = 0.45;
 /**
  * After the pen has waited on the voice, the first frame back must not swallow
  * the whole pause as one giant catch-up step.
@@ -72,20 +72,20 @@ export const HOP_MAX_MS = 64;
 export const HOP_LIFT_PX = 3.5;
 /** Air travel between strokes inside one glyph moves faster than ink. */
 export const AIR_TRAVEL_WEIGHT = 0.55;
-export const AIR_MIN_GAP_PX = 2.5;
+const AIR_MIN_GAP_PX = 2.5;
 export const AIR_LIFT_PX = 2.5;
 
 export const SWAP_DURATION_MS = 340;
 export const SWAP_HURRY_MS = 120;
-export const SWAP_LIFT_PX = 15;
-export const FLOURISH_LIFT_PX = 9;
+const SWAP_LIFT_PX = 15;
+const FLOURISH_LIFT_PX = 9;
 export const FLIGHT_LIFT_PX = 7;
 
 export function restingTilt(activity: PenActivity): number {
   return RESTING_TILT[activity];
 }
 
-export function toDegrees(radians: number): number {
+function toDegrees(radians: number): number {
   return radians / DEG;
 }
 
@@ -334,10 +334,10 @@ export type NibTravel = "settle" | "hop" | "fly";
  * that a reach is supposed to avoid. Budgeting a *speed* instead means a short
  * reach is quick and a long one takes longer, which is what an arm does.
  */
-export const MAX_AIR_SPEED_PX_PER_MS = 2.6;
+const MAX_AIR_SPEED_PX_PER_MS = 2.6;
 /** A reach is never briefer than a carry, and never long enough to be late. */
-export const SHAPE_REACH_MIN_MS = HOP_MAX_MS;
-export const SHAPE_REACH_MAX_MS = 300;
+const SHAPE_REACH_MIN_MS = HOP_MAX_MS;
+const SHAPE_REACH_MAX_MS = 300;
 
 /**
  * How long the nib spends getting to the start of the next shape. One source of
@@ -446,7 +446,7 @@ export function advanceIdleHold(
   };
 }
 
-export function easeInOutCubic(progress: number): number {
+function easeInOutCubic(progress: number): number {
   const t = clamp01(progress);
   return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
 }
@@ -530,7 +530,7 @@ export interface InstrumentPose {
  */
 export const SWAP_MIN_OPACITY = 0.62;
 /** How thin the barrel gets at the turn — the moment the instruments change. */
-export const SWAP_MIN_FLATTEN = 0.08;
+const SWAP_MIN_FLATTEN = 0.08;
 
 /**
  * One flip between the fingers: the instrument rises off the board, turns
@@ -579,7 +579,7 @@ export interface ThinkingPose {
   scale: number;
 }
 
-export const TAP_PERIOD_MS = 2400;
+const TAP_PERIOD_MS = 2400;
 const TAP_FRACTION = 0.16;
 const TAP_RISE_PX = 6.5;
 
@@ -619,18 +619,18 @@ export function thinkingPose(elapsedMs: number): ThinkingPose {
  * budget.
  */
 export const WAIT_GRACE_MS = 170;
-export const WAIT_RAMP_MS = 320;
+const WAIT_RAMP_MS = 320;
 /** How far the nib relaxes off the board once the pause is real. */
-export const WAIT_HOVER_PX = 1.5;
-export const WAIT_HOVER_MS = 850;
+const WAIT_HOVER_PX = 1.5;
+const WAIT_HOVER_MS = 850;
 /** Nothing happens before this: a pause has to become a pause first. */
 export const WAIT_FIRST_GESTURE_MS = 2200;
 /** Gap between gestures — a floor plus a per-gesture spread, never a period. */
 export const WAIT_GESTURE_GAP_MIN_MS = 2500;
-export const WAIT_GESTURE_GAP_SPREAD_MS = 4300;
+const WAIT_GESTURE_GAP_SPREAD_MS = 4300;
 /** Past this the hand has settled, so the gestures get smaller and rarer. */
 export const WAIT_CALM_AFTER_MS = 14000;
-export const WAIT_CALM_RAMP_MS = 9000;
+const WAIT_CALM_RAMP_MS = 9000;
 /** The hand comes back to the board over this long before the next character. */
 export const WAIT_SETTLE_MS = 220;
 
@@ -792,7 +792,7 @@ export function settleWaitingPose(pose: WaitingPose, settle: number): WaitingPos
 /** One full twirl of the pen while the tutor waits on a response. */
 export const SPIN_PERIOD_MS = 1400;
 /** The wrist takes a beat to bring the twirl up to speed. */
-export const SPIN_RAMP_MS = 220;
+const SPIN_RAMP_MS = 220;
 export const SPIN_LIFT_PX = 6;
 const SPIN_RISE_MS = 320;
 /**
@@ -915,7 +915,7 @@ export interface ScratchBox {
 }
 
 /** Deterministic per-seed noise, so a doodle replays identically in verify. */
-export function randomSource(seed: number): () => number {
+function randomSource(seed: number): () => number {
   let state = (Math.floor(seed) * 1664525 + 1013904223) >>> 0;
   return () => {
     state = (state * 1664525 + 1013904223) >>> 0;
@@ -985,11 +985,11 @@ export function scratchStrokePath(seed: number, box: ScratchBox): string {
  */
 
 /** How far a carry between strokes bows above the straight line. */
-export const CARRY_BOW_RATIO = 0.18;
-export const CARRY_BOW_MAX_PX = 9;
+const CARRY_BOW_RATIO = 0.18;
+const CARRY_BOW_MAX_PX = 9;
 /** How far a full flight across the board bows above the straight line. */
-export const FLIGHT_BOW_RATIO = 0.15;
-export const FLIGHT_BOW_MAX_PX = 34;
+const FLIGHT_BOW_RATIO = 0.15;
+const FLIGHT_BOW_MAX_PX = 34;
 
 export interface TravelPoint {
   x: number;
@@ -1061,7 +1061,7 @@ export function carryEase(progress: number): number {
  * placing the nib. `smootherstep` is that profile; the skew moves peak speed
  * to roughly 42% of the way through.
  */
-export const REACH_SKEW = 0.18;
+const REACH_SKEW = 0.18;
 export function reachEase(progress: number): number {
   const t = clamp01(progress);
   return smootherstep(clamp01(t + REACH_SKEW * t * (1 - t)));
@@ -1071,7 +1071,7 @@ export function reachEase(progress: number): number {
  * When the barrel starts rolling toward its landing tilt. Early in a flight
  * the pen still holds the angle it wrote at; the turn happens on approach.
  */
-export const FLIGHT_SETTLE_FROM = 0.5;
+const FLIGHT_SETTLE_FROM = 0.5;
 export function flightRotationBlend(progress: number): number {
   return smoothstep(clamp01((clamp01(progress) - FLIGHT_SETTLE_FROM) / (1 - FLIGHT_SETTLE_FROM)));
 }

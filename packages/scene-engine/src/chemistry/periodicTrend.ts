@@ -40,7 +40,7 @@ export const PERIODIC_FAMILY = "chem_periodic" as const;
 /* Data                                                                      */
 /* ------------------------------------------------------------------------- */
 
-export type PeriodicProperty = "ie1" | "electronegativity" | "radius" | "egh";
+type PeriodicProperty = "ie1" | "electronegativity" | "radius" | "egh";
 
 /** Electron gain enthalpy, kJ/mol (NCERT Table 3.7 and the standard main group values). */
 const ELECTRON_GAIN_ENTHALPY: Readonly<Record<string, number>> = {
@@ -64,7 +64,7 @@ const IONIC_RADIUS: Readonly<Record<string, number>> = {
   "S-2": 184, "Cl-1": 181, "Br-1": 196, "I-1": 220, "Se-2": 198, "Te-2": 221,
 };
 
-export interface PropertySpec {
+interface PropertySpec {
   readonly property: PeriodicProperty;
   /** Axis title, at most 16 characters. */
   readonly axis: string;
@@ -82,40 +82,24 @@ const PROPERTY_SPEC: Readonly<Record<PeriodicProperty, PropertySpec>> = {
 };
 
 /** Electron gain enthalpy of an element, kJ/mol, or null when the table has no value. */
-export function electronGainEnthalpy(symbol: string): number | null {
+function electronGainEnthalpy(symbol: string): number | null {
   return ELECTRON_GAIN_ENTHALPY[symbol] ?? null;
 }
 
 /** Ionic radius of a monatomic ion, pm, or null when the table has no value. */
-export function ionicRadiusPm(symbol: string, charge: number): number | null {
+function ionicRadiusPm(symbol: string, charge: number): number | null {
   if (!Number.isInteger(charge) || charge === 0) return null;
   return IONIC_RADIUS[`${symbol}${charge > 0 ? "+" : "-"}${Math.abs(charge)}`] ?? null;
 }
 
 /** The table value of a property for an element, or null when undefined. */
-export function propertyValue(property: PeriodicProperty, element: ElementRecord): number | null {
+function propertyValue(property: PeriodicProperty, element: ElementRecord): number | null {
   switch (property) {
     case "ie1": return element.ie1;
     case "electronegativity": return element.electronegativity;
     case "radius": return element.radiusPm;
     case "egh": return electronGainEnthalpy(element.symbol);
   }
-}
-
-/**
- * Pure solver other families may call: the elements that have a value for the
- * property, in increasing order of that value, with the values alongside.
- * Ties keep the input order.
- */
-export function periodicOrder(
-  property: PeriodicProperty,
-  elements: readonly ElementRecord[],
-): { ordered: ElementRecord[]; values: number[] } {
-  const rows = elements
-    .map((element, index) => ({ element, value: propertyValue(property, element), index }))
-    .filter((row): row is { element: ElementRecord; value: number; index: number } => row.value !== null)
-    .sort((a, b) => a.value - b.value || a.index - b.index);
-  return { ordered: rows.map((row) => row.element), values: rows.map((row) => row.value) };
 }
 
 /* ------------------------------------------------------------------------- */

@@ -49,11 +49,11 @@ export function workLinesFromCommands(commands: readonly DrawCommand[]): string[
   return lines;
 }
 
-export function workLinesFromStoredCommand(stored: unknown): string[] {
+function workLinesFromStoredCommand(stored: unknown): string[] {
   return workLinesFromCommands(parseStoredSegmentCommands(stored));
 }
 
-export function workLinesFromTutorSegment(segment: TutorSegment): string[] {
+function workLinesFromTutorSegment(segment: TutorSegment): string[] {
   return workLinesFromCommands(getSegmentCommands(segment));
 }
 

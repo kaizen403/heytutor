@@ -6,9 +6,9 @@
  * out three segments in a row at exactly 18000ms while audio was still
  * arriving, then abandonSpeaking stopped both the voice and the code typing.
  */
-export const TTS_FIRST_CHUNK_BUDGET_MS = 15_000;
+const TTS_FIRST_CHUNK_BUDGET_MS = 15_000;
 export const TTS_SEGMENT_TIMEOUT_CEILING_MS = 90_000;
-export const TTS_MS_PER_SPOKEN_CHAR = 90;
+const TTS_MS_PER_SPOKEN_CHAR = 90;
 
 export function speakSegmentTimeoutMs(text: string): number {
   const speechMs = Math.max(text.trim().length * TTS_MS_PER_SPOKEN_CHAR, 800);

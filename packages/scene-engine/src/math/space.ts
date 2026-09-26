@@ -23,18 +23,11 @@ const ISO_COS = Math.sqrt(3) / 2;
 const ISO_SIN = 0.5;
 const EPSILON = 1e-9;
 
-export function vec3(x: number, y: number, z: number): Vec3 {
-  if (![x, y, z].every(Number.isFinite)) {
-    throw new Error("space coordinates must be finite");
-  }
-  return { x, y, z };
-}
-
 export function vec3Add(a: Vec3, b: Vec3): Vec3 {
   return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
 }
 
-export function vec3Sub(a: Vec3, b: Vec3): Vec3 {
+function vec3Sub(a: Vec3, b: Vec3): Vec3 {
   return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
 }
 
@@ -42,11 +35,7 @@ export function vec3Scale(a: Vec3, scalar: number): Vec3 {
   return { x: a.x * scalar, y: a.y * scalar, z: a.z * scalar };
 }
 
-export function vec3Dot(a: Vec3, b: Vec3): number {
-  return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-export function vec3Cross(a: Vec3, b: Vec3): Vec3 {
+function vec3Cross(a: Vec3, b: Vec3): Vec3 {
   return {
     x: a.y * b.z - a.z * b.y,
     y: a.z * b.x - a.x * b.z,
@@ -58,7 +47,7 @@ export function vec3Length(a: Vec3): number {
   return Math.hypot(a.x, a.y, a.z);
 }
 
-export function vec3Normalize(a: Vec3, name = "space vector"): Vec3 {
+function vec3Normalize(a: Vec3, name = "space vector"): Vec3 {
   const length = vec3Length(a);
   if (!(length > EPSILON)) throw new Error(`${name} must be nonzero`);
   return vec3Scale(a, 1 / length);

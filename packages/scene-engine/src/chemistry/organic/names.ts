@@ -12,7 +12,7 @@
  */
 import { attachMolecule, parseSmiles, valenceOk, type BondOrder, type Molecule } from "./smiles";
 
-export interface CatalogEntry {
+interface CatalogEntry {
   readonly name: string;
   readonly smiles: string;
   readonly aliases?: readonly string[];
@@ -24,7 +24,7 @@ export interface CatalogEntry {
 /* Catalog                                                                   */
 /* ------------------------------------------------------------------------- */
 
-export const CATALOG: readonly CatalogEntry[] = [
+const CATALOG: readonly CatalogEntry[] = [
   // alkanes
   { name: "methane", smiles: "C", aliases: ["CH4"] },
   { name: "ethane", smiles: "CC", aliases: ["C2H6", "CH3CH3"] },
@@ -289,10 +289,7 @@ for (const entry of CATALOG) {
   }
 }
 
-/** Longest catalog key length, in characters, for the stem scanner's window. */
-export const CATALOG_KEYS = CATALOG_BY_KEY;
-
-export function catalogLookup(text: string): Molecule | null {
+function catalogLookup(text: string): Molecule | null {
   const entry = CATALOG_BY_KEY.get(catalogKey(text));
   if (!entry) return null;
   const molecule = parseSmiles(entry.smiles);

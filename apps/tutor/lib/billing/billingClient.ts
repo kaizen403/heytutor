@@ -6,11 +6,6 @@ import { patchEntitlementSnapshot, setEntitlementSnapshot, type Entitlement } fr
 
 export type BillingTurnKind = "lesson" | "doubt" | "resume";
 
-export interface BillingErrorPayload {
-  code: string;
-  remaining: number | null;
-}
-
 export interface BillingFailure {
   status: number;
   code: string;
@@ -62,15 +57,6 @@ export function rememberBillingFailure(failure: BillingFailure): void {
   if (isOutOfCreditsCode(failure.code)) {
     patchEntitlementSnapshot({ remainingPct: 0 });
   }
-}
-
-export function isBillingErrorPayload(value: unknown): value is BillingErrorPayload {
-  return Boolean(
-    value &&
-      typeof value === "object" &&
-      "code" in value &&
-      typeof (value as { code?: unknown }).code === "string",
-  );
 }
 
 export function parseBillingFailureFromBody(status: number, body: unknown): BillingFailure | null {

@@ -1,14 +1,14 @@
 import type { LearnerRole } from "@/lib/account/types";
 
 /** Chosen on the login buttons before Google (or local) sign-in. */
-export const LOGIN_ROLES = ["student", "individual"] as const;
+const LOGIN_ROLES = ["student", "individual"] as const;
 
 export type LoginRole = (typeof LOGIN_ROLES)[number];
 
 export const HTUTOR_LOGIN_ROLE_COOKIE = "htutor_login_role";
 
 export function isLoginRole(value: unknown): value is LoginRole {
-  return value === "student" || value === "individual";
+  return typeof value === "string" && (LOGIN_ROLES as readonly string[]).includes(value);
 }
 
 /** Individuals skip the college question and land on the individual setup. */

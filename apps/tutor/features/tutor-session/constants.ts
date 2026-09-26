@@ -158,13 +158,6 @@ export function codeLessonCaretBoardPoint(revealedText: string): { x: number; y:
   };
 }
 
-/**
- * How often the marker catches up with the code caret while a block types.
- * Short enough that the pen looks like it is writing the line, long enough
- * that it is not re-animating every frame.
- */
-export const CODE_CARET_FOLLOW_MS = 160;
-
 export const ANNOTATION_SNAP_DISTANCE = 40;
 
 /**

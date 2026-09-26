@@ -1,4 +1,4 @@
-export const EXAM_GOALS = [
+const EXAM_GOALS = [
   "jee_main",
   "jee_advanced",
   "school",
@@ -9,12 +9,12 @@ export const EXAM_GOALS = [
 
 export type ExamGoal = (typeof EXAM_GOALS)[number];
 
-export const CLASS_YEARS = ["11", "12", "dropper", "ug1", "ug2", "ug3", "ug4", "other"] as const;
+const CLASS_YEARS = ["11", "12", "dropper", "ug1", "ug2", "ug3", "ug4", "other"] as const;
 
 export type ClassYear = (typeof CLASS_YEARS)[number];
 
 /** First onboarding question: college student, or individual. */
-export const LEARNER_ROLES = ["college", "other"] as const;
+const LEARNER_ROLES = ["college", "other"] as const;
 
 export type LearnerRole = (typeof LEARNER_ROLES)[number];
 
@@ -29,7 +29,7 @@ export const SCHOOL_EXAM_GOALS: readonly ExamGoal[] = [
 ];
 export const COLLEGE_EXAM_GOALS: readonly ExamGoal[] = ["coding", "course", "learning"];
 
-export const SUBJECTS = ["physics", "maths", "dsa", "chemistry"] as const;
+const SUBJECTS = ["physics", "maths", "dsa", "chemistry"] as const;
 
 export type SubjectId = (typeof SUBJECTS)[number];
 
@@ -39,7 +39,7 @@ export const AVAILABLE_SUBJECTS: readonly SubjectId[] = ["physics", "maths", "ch
 /** Onboarding chips only. Never stored, never suggested. */
 export const COMING_SOON_SUBJECTS: readonly SubjectId[] = ["dsa"];
 
-export const AGE_BANDS = ["under_13", "13_17", "18_plus"] as const;
+const AGE_BANDS = ["under_13", "13_17", "18_plus"] as const;
 
 export type AgeBand = (typeof AGE_BANDS)[number];
 
@@ -63,7 +63,7 @@ export const CLASS_YEAR_LABELS: Record<ClassYear, string> = {
   other: "Other",
 };
 
-export const LEARNER_ROLE_LABELS: Record<LearnerRole, string> = {
+const LEARNER_ROLE_LABELS: Record<LearnerRole, string> = {
   college: "College student",
   other: "Individual",
 };
@@ -139,7 +139,7 @@ export function examGoalFitsRole(role: LearnerRole, goal: ExamGoal): boolean {
   return examGoalsForRole(role).includes(goal);
 }
 
-export function isSubjectId(value: unknown): value is SubjectId {
+function isSubjectId(value: unknown): value is SubjectId {
   return typeof value === "string" && (SUBJECTS as readonly string[]).includes(value);
 }
 

@@ -99,15 +99,15 @@ export interface ScheduledFocusOptions {
  */
 export const FOCUS_FLIGHT_LEAD_MS = 320;
 /** Longest hop between two points of a focus. */
-export const FOCUS_HOP_MAX_MS = 160;
+const FOCUS_HOP_MAX_MS = 160;
 /** A hop across a label's width still reads as a movement. */
-export const FOCUS_HOP_MIN_MS = 24;
+const FOCUS_HOP_MIN_MS = 24;
 /** Hand speed for a hop: 160 ms covers a quarter of the diagram zone. */
-export const FOCUS_HOP_PX_PER_MS = 1.6;
+const FOCUS_HOP_PX_PER_MS = 1.6;
 /** A traced path shorter than this is a flicker, not a gesture. */
-export const FOCUS_PATH_MIN_MS = 180;
+const FOCUS_PATH_MIN_MS = 180;
 export const FOCUS_PULSE_MS = 260;
-export const FOCUS_SPOTLIGHT_OPACITY = 0.36;
+const FOCUS_SPOTLIGHT_OPACITY = 0.36;
 const SPOTLIGHT_PAD_PX = 10;
 /** Under this distance the whiteboard settles the nib without a flight. */
 const NIB_SETTLE_PX = 6;
@@ -125,7 +125,7 @@ export function focusHopMs(from: FocusPenPoint | null, to: FocusPenPoint, capMs:
   return Math.min(Math.max(distance / FOCUS_HOP_PX_PER_MS, FOCUS_HOP_MIN_MS), cap);
 }
 
-export function unionRect(rects: readonly SpotlightRect[]): SpotlightRect {
+function unionRect(rects: readonly SpotlightRect[]): SpotlightRect {
   const first = rects[0] ?? { x: 0, y: 0, width: 0, height: 0 };
   return rects.reduce((union, rect) => {
     const x = Math.min(union.x, rect.x);

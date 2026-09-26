@@ -202,16 +202,8 @@ export function isMetal(element: ElementRecord): boolean {
   return metalsP.has(element.symbol);
 }
 
-export function isNobleGas(element: ElementRecord): boolean {
-  return element.group === 18;
-}
-
 /** Elements in one period (main groups only when `mainOnly`). */
 export function periodElements(period: number, mainOnly = true): ElementRecord[] {
   return ELEMENTS.filter((element) => element.period === period
     && (!mainOnly || element.block === "s" || element.block === "p"));
-}
-
-export function groupElements(group: number): ElementRecord[] {
-  return ELEMENTS.filter((element) => element.group === group);
 }

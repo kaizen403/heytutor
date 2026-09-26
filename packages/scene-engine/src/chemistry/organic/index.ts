@@ -21,14 +21,7 @@ import { heavyAtomCount, parseSmiles, type Molecule } from "./smiles";
 export const ORGANIC_FAMILY = "chem_organic" as const;
 
 export { moleculeFromName } from "./names";
-export { layoutMolecule, type LaidOutMolecule } from "./layout";
-export { organicFacts, type OrganicFacts } from "./facts";
-export type { Molecule } from "./smiles";
-
-/** A molecule from a SMILES string in the supported subset, or null. */
-export function moleculeFromSmiles(smiles: string): Molecule | null {
-  return parseSmiles(smiles);
-}
+export { organicFacts } from "./facts";
 
 const MAX_HEAVY_ATOMS = 24;
 const MAX_MOLECULES = 6;
@@ -222,7 +215,7 @@ function repairReagentOcr(phrase: string): string {
     .replace(/\bnh[,;](?=\s|\/|$)/g, "nh3");
 }
 
-export function readReagent(rawPhrase: string): string | null {
+function readReagent(rawPhrase: string): string | null {
   const phrase = repairReagentOcr(rawPhrase);
   const hits: Array<{ label: string; at: number }> = [];
   const claimed: Array<[number, number]> = [];

@@ -88,7 +88,7 @@ const TOPIC_PATTERNS: Array<{
   },
 ];
 
-export function formatBoardTitle(raw: string): string {
+function formatBoardTitle(raw: string): string {
   let title = raw.trim().replace(/^["']|["']$/g, "").trim();
   title = title.replace(/[.!?]+$/, "").trim();
 

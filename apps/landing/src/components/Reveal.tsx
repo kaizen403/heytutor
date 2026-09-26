@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ElementType, type ReactNode } from 'react'
 
 /** How the element arrives. See `.reveal--*` in index.css. */
-export type RevealVariant = 'up' | 'left' | 'right' | 'rise' | 'fade'
+type RevealVariant = 'up' | 'left' | 'right' | 'rise' | 'fade'
 
 interface RevealProps {
   children: ReactNode

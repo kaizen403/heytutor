@@ -7,12 +7,6 @@ import {
 } from "./ledgerMath";
 
 export {
-  balanceFromRow,
-  billingPeriodKey,
-  billingPeriodResetAt,
-  remainingUsagePct,
-  resetLedgerNowForTests,
-  setLedgerNowForTests,
   type PeriodBalance,
 } from "./ledgerMath";
 

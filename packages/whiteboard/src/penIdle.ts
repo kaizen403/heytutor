@@ -70,10 +70,10 @@ import {
 } from "./penStunts";
 
 /** Ease out of stillness rather than starting mid-gesture. */
-export const IDLE_RAMP_MS = 320;
+const IDLE_RAMP_MS = 320;
 /** How far the nib relaxes off the board once the hand is off duty. */
 export const IDLE_HOVER_PX = 3.2;
-export const IDLE_HOVER_MS = 700;
+const IDLE_HOVER_MS = 700;
 /**
  * The hand is off duty the moment the pen is, so the first gesture comes soon
  * — the voice is already talking. `IDLE_HOLD_DWELL_MS` upstream has already
@@ -82,11 +82,11 @@ export const IDLE_HOVER_MS = 700;
 export const IDLE_FIRST_GESTURE_MS = 420;
 /** Rest between gestures — a floor plus a per-gesture spread, never a period. */
 export const IDLE_GAP_MIN_MS = 700;
-export const IDLE_GAP_SPREAD_MS = 1900;
+const IDLE_GAP_SPREAD_MS = 1900;
 /** Past this the hand has settled into the pause: smaller, rarer gestures. */
 export const IDLE_CALM_AFTER_MS = 12000;
-export const IDLE_CALM_RAMP_MS = 10000;
-export const IDLE_CALM_GAP_GAIN = 0.9;
+const IDLE_CALM_RAMP_MS = 10000;
+const IDLE_CALM_GAP_GAIN = 0.9;
 export const IDLE_CALM_AMPLITUDE_DROP = 0.35;
 /** The pen fidgets where it stands: a soft cap on how far it may stray, in px. */
 export const IDLE_TRAVEL_MAX_PX = 18;
@@ -95,7 +95,7 @@ export const IDLE_LIFT_MAX_PX = 16;
 /** How long the hand takes to put the instrument back down when work arrives. */
 export const IDLE_RELEASE_MS = 140;
 /** Lift at the top of a full twirl. */
-export const IDLE_TWIRL_LIFT_PX = 7;
+const IDLE_TWIRL_LIFT_PX = 7;
 
 /**
  * What the hand is doing with the pen.
@@ -154,7 +154,7 @@ export const IDLE_GESTURE_MS: Record<IdleGestureKind, number> = {
  * in the set: it is the largest read on the board, and showing it constantly is
  * exactly the failure this module exists to fix.
  */
-export const IDLE_GESTURE_WEIGHT: Record<IdleGestureKind, number> = {
+const IDLE_GESTURE_WEIGHT: Record<IdleGestureKind, number> = {
   twirl: 0.6,
   roll: 1.6,
   tap: 1.5,

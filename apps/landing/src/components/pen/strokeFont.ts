@@ -12,14 +12,14 @@
 
 export type Pt = { x: number; y: number }
 
-export interface Glyph {
+interface Glyph {
   adv: number
   strokes: Pt[][]
 }
 
 const p = (x: number, y: number): Pt => ({ x, y })
 
-export const GLYPHS: Record<string, Glyph> = {
+const GLYPHS: Record<string, Glyph> = {
   v: {
     adv: 0.6,
     strokes: [[p(0.06, 0.3), p(0.18, 0.6), p(0.3, 0.92), p(0.42, 0.6), p(0.54, 0.3)]],
@@ -150,7 +150,7 @@ const SUP_RISE = 0.42
  * Catmull-Rom through `pts`, sampled into a polyline. Endpoints are duplicated
  * so the curve actually starts and ends on the first/last control point.
  */
-export function smoothStroke(pts: Pt[], samplesPerSpan = 12): Pt[] {
+function smoothStroke(pts: Pt[], samplesPerSpan = 12): Pt[] {
   if (pts.length < 2) return pts.slice()
   if (pts.length === 2) {
     const out: Pt[] = []

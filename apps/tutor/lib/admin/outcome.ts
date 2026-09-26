@@ -1,6 +1,5 @@
 import type {
   DiagramGenerationStatus,
-  SceneArtifactsV3,
 } from "@heytutor/scene-engine";
 
 /**
@@ -29,7 +28,7 @@ export const FAILED_VISUAL_STATUSES: readonly ["text_only", "retry_required", "l
   "legacy",
 ];
 
-export const REPRESENTATION_TIERS = [
+const REPRESENTATION_TIERS = [
   "exact_verified",
   "qualitative_verified",
   "question_representation",
@@ -38,7 +37,7 @@ export const REPRESENTATION_TIERS = [
 export type RepresentationTier = (typeof REPRESENTATION_TIERS)[number];
 
 /** Why an exact scene was attempted but not committed (scene-engine contract). */
-export const DEGRADATION_REASONS = [
+const DEGRADATION_REASONS = [
   "planner_unavailable",
   "candidate_invalid",
   "missing_capability",
@@ -48,7 +47,7 @@ export const DEGRADATION_REASONS = [
 
 export type DegradationReason = (typeof DEGRADATION_REASONS)[number];
 
-export const DIAGRAM_RESULT_STATUSES = ["ready", "retry_required", "not_required", "text_only"] as const;
+const DIAGRAM_RESULT_STATUSES = ["ready", "retry_required", "not_required", "text_only"] as const;
 
 const MAX_ISSUE_CODES = 32;
 const ISSUE_CODE_PATTERN = /^[a-z0-9_-]{1,64}$/i;
@@ -70,7 +69,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function isRepresentationTier(value: unknown): value is RepresentationTier {
+function isRepresentationTier(value: unknown): value is RepresentationTier {
   return (
     typeof value === "string" &&
     (REPRESENTATION_TIERS as readonly string[]).includes(value)
@@ -177,5 +176,3 @@ export function foldOutcomeCounts(
   }
   return counts;
 }
-
-export type { SceneArtifactsV3 };

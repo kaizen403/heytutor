@@ -19,7 +19,7 @@ import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildVerifiedDiagramPresentation } from "./verifiedScenePresentation";
 
-export function isDsaSceneDocument(document: SceneDocument): boolean {
+function isDsaSceneDocument(document: SceneDocument): boolean {
   return (document.source as Record<string, unknown>).synthesizedDsa === true;
 }
 

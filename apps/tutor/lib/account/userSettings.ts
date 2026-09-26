@@ -24,7 +24,7 @@ import {
   type SettingsState,
 } from "@/lib/account/lessonSettings";
 
-export const SETTINGS_CACHE_KEYS = {
+const SETTINGS_CACHE_KEYS = {
   fastMode: "htutor_fast_mode",
   subtitles: "htutor_subtitles",
   speed: "htutor_speed",
@@ -88,7 +88,7 @@ export function parseMarkerStunts(value: unknown): StuntKind[] {
   return parseStuntKinds(value);
 }
 
-export function clampSpeed(value: number): number {
+function clampSpeed(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_ACCOUNT_SETTINGS.speedMultiplier;
   return Math.min(SPEED_MAX, Math.max(SPEED_MIN, value));
 }

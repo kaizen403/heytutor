@@ -22,7 +22,7 @@ export function lessonOffsetSec(tSeconds: number, timing: LessonTiming): number 
   return t - teachStart()
 }
 
-export function isHeroNarrationWindow(offsetSec: number, totalSec: number): boolean {
+function isHeroNarrationWindow(offsetSec: number, totalSec: number): boolean {
   return offsetSec >= 0 && offsetSec < totalSec
 }
 

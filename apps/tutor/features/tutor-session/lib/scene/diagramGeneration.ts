@@ -12,11 +12,6 @@ import {
   type VisualRequirement,
 } from "@heytutor/scene-engine";
 
-export {
-  REQUIRED_DIAGRAM_DEADLINE_MS,
-  resolveDiagramFailureStatus,
-};
-
 export type { DiagramGenerationStatus, VisualRequirement };
 
 export const REQUIRED_DIAGRAM_RETRY_ENABLED =

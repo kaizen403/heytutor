@@ -15,13 +15,10 @@ import {
   type ValidationReport,
 } from "@heytutor/scene-engine";
 
-export const REPRESENTATION_TIERS = [
-  "exact_verified",
-  "qualitative_verified",
-  "question_representation",
-] as const;
-
-export type RepresentationTier = (typeof REPRESENTATION_TIERS)[number];
+export type RepresentationTier =
+  | "exact_verified"
+  | "qualitative_verified"
+  | "question_representation";
 
 export interface ExactVerifiedRepresentation {
   sceneDocument: SceneDocument;

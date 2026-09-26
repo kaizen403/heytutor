@@ -51,7 +51,7 @@ export const SPOKEN_WALK_TAIL_MS = 140;
  */
 export const SPOKEN_WALK_REST_MAX_MS = 4_000;
 /** Reading along one code line takes about this long, media ms. */
-export const CODE_LINE_TRACE_MS = 2_200;
+const CODE_LINE_TRACE_MS = 2_200;
 /** How long the pen takes to catch up with a caret that moved, media ms. */
 const CARET_FOLLOW_MS = 160;
 /** How often the pen looks at a caret that has not moved, wall ms. */
@@ -87,7 +87,7 @@ export interface SpokenWalkResult {
  * A clock that stops advancing (audio stalled, tab hidden) releases the
  * wait after the wall time the target would have taken plus four seconds.
  */
-export async function waitForAudioMs(
+async function waitForAudioMs(
   clock: SpokenWalkClock,
   targetMs: number,
   options: { isCancelled: () => boolean; delay: (wallMs: number) => Promise<void>; now: () => number },

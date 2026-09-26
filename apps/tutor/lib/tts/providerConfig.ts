@@ -4,7 +4,7 @@ export type SpeechProvider = "cartesia" | "elevenlabs";
 export type SpeechEnvironment = Record<string, string | undefined>;
 export const CARTESIA_VERSION = "2026-08-14";
 /** Simi (formerly Indian Lady): native Indian English, verified against the live voice API. */
-export const DEFAULT_CARTESIA_VOICE = "3b554273-4299-48b9-9aaf-eefd438e3941";
+const DEFAULT_CARTESIA_VOICE = "3b554273-4299-48b9-9aaf-eefd438e3941";
 const VOICE_SUFFIXES: Record<TutorVoiceKey, string> = {
   "en-IN": "",
   "en-GB": "_EN_GB",

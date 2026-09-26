@@ -50,7 +50,7 @@ export function normalizeQuery(query: string): string {
  * Matches the topic label and its probe questions. Reviewers usually remember
  * the wording of a question rather than the syllabus label, so both are searched.
  */
-export function topicMatchesQuery(
+function topicMatchesQuery(
   item: SyllabusItem,
   probes: readonly ProbeQuestion[],
   normalizedQuery: string,

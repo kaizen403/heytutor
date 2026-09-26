@@ -22,7 +22,7 @@ import { ChemScene, chemStem, planQuantity, type ChemPlanQuantity } from "./scen
 export const KINETICS_FAMILY = "chem_kinetics" as const;
 
 /** Gas constant in J per mol per K, the value JEE stems quote. */
-export const GAS_CONSTANT = 8.314;
+const GAS_CONSTANT = 8.314;
 
 export type ReactionOrder = 0 | 1 | 2;
 
@@ -107,14 +107,14 @@ export interface KineticsSolution {
 /* ------------------------------------------------------------------------- */
 /* Pure formulas                                                              */
 
-export function rateConstantFromHalfLife(order: ReactionOrder, tHalf: number, a0?: number | null): number | null {
+function rateConstantFromHalfLife(order: ReactionOrder, tHalf: number, a0?: number | null): number | null {
   if (!(tHalf > 0)) return null;
   if (order === 1) return Math.LN2 / tHalf;
   if (order === 0) return a0 && a0 > 0 ? a0 / (2 * tHalf) : null;
   return a0 && a0 > 0 ? 1 / (tHalf * a0) : null;
 }
 
-export function halfLifeFromRateConstant(order: ReactionOrder, k: number, a0?: number | null): number | null {
+function halfLifeFromRateConstant(order: ReactionOrder, k: number, a0?: number | null): number | null {
   if (!(k > 0)) return null;
   if (order === 1) return Math.LN2 / k;
   if (order === 0) return a0 && a0 > 0 ? a0 / (2 * k) : null;
@@ -122,7 +122,7 @@ export function halfLifeFromRateConstant(order: ReactionOrder, k: number, a0?: n
 }
 
 /** Time for the reaction to be `fraction` complete (0.9 for 90 %). */
-export function timeForCompletion(order: ReactionOrder, k: number, fraction: number, a0?: number | null): number | null {
+function timeForCompletion(order: ReactionOrder, k: number, fraction: number, a0?: number | null): number | null {
   if (!(k > 0) || !(fraction > 0) || !(fraction < 1)) return null;
   if (order === 1) return Math.log(1 / (1 - fraction)) / k;
   if (order === 0) return a0 && a0 > 0 ? (fraction * a0) / k : null;
@@ -130,7 +130,7 @@ export function timeForCompletion(order: ReactionOrder, k: number, fraction: num
 }
 
 /** [A]/[A]_0 remaining after time t. */
-export function fractionRemaining(order: ReactionOrder, k: number, t: number, a0?: number | null): number | null {
+function fractionRemaining(order: ReactionOrder, k: number, t: number, a0?: number | null): number | null {
   if (!(k > 0) || !(t >= 0)) return null;
   if (order === 1) return Math.exp(-k * t);
   if (order === 0) return a0 && a0 > 0 ? Math.max(0, 1 - (k * t) / a0) : null;
@@ -138,19 +138,19 @@ export function fractionRemaining(order: ReactionOrder, k: number, t: number, a0
 }
 
 /** Ea in J per mol from the ratio k2/k1 between T1 and T2 (K). */
-export function activationEnergyFromRatio(ratio: number, T1: number, T2: number): number | null {
+function activationEnergyFromRatio(ratio: number, T1: number, T2: number): number | null {
   if (!(ratio > 0) || !(T1 > 0) || !(T2 > 0) || T1 === T2) return null;
   return (GAS_CONSTANT * Math.log(ratio)) / (1 / T1 - 1 / T2);
 }
 
 /** k2 / k1 from Ea (J per mol) between T1 and T2 (K). */
-export function rateConstantRatio(Ea: number, T1: number, T2: number): number | null {
+function rateConstantRatio(Ea: number, T1: number, T2: number): number | null {
   if (!(T1 > 0) || !(T2 > 0)) return null;
   return Math.exp((Ea / GAS_CONSTANT) * (1 / T1 - 1 / T2));
 }
 
 /** The temperature (K) at which k reaches k2 given k1 at T1 and Ea (J per mol). */
-export function temperatureForRateConstant(k1: number, T1: number, k2: number, Ea: number): number | null {
+function temperatureForRateConstant(k1: number, T1: number, k2: number, Ea: number): number | null {
   if (!(k1 > 0) || !(k2 > 0) || !(T1 > 0) || !(Ea > 0)) return null;
   const inverse = 1 / T1 - (GAS_CONSTANT / Ea) * Math.log(k2 / k1);
   return inverse > 0 ? 1 / inverse : null;

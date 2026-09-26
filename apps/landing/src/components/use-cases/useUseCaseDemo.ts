@@ -20,7 +20,7 @@ import { drawResistorsLesson, RESISTORS_STAGES } from '../hero-lesson/resistorsP
 export type BeatId = 'ask' | 'annotate' | 'doubt' | 'replay' | 'notes'
 
 /** One beat runs this long before looping. Matches the rail's dwell. */
-export const BEAT_SECONDS = 7
+const BEAT_SECONDS = 7
 
 interface Frame {
   snapshot: LessonSnapshot
@@ -63,7 +63,7 @@ export interface DemoCopy {
 }
 
 /** The frame for a beat at time `t` seconds into it. Exported for the verify script. */
-export function frameFor(beat: BeatId, t: number, copy: DemoCopy): Frame {
+function frameFor(beat: BeatId, t: number, copy: DemoCopy): Frame {
   const bubble = copy.bubbles[Math.min(copy.bubbles.length - 1, Math.floor(t / 1.6))] ?? ''
 
   switch (beat) {

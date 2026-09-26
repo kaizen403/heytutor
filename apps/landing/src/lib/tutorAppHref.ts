@@ -8,14 +8,14 @@ function normalizeOrigin(origin?: string): string {
 
 const configuredTutorOrigin = normalizeOrigin(import.meta.env.VITE_TUTOR_ORIGIN)
 
-export const TUTOR_APP_ORIGIN =
+const TUTOR_APP_ORIGIN =
   configuredTutorOrigin ||
   (import.meta.env.DEV ? DEFAULT_DEV_TUTOR_ORIGIN : DEFAULT_PROD_TUTOR_ORIGIN)
 
 export const TUTOR_APP_HREF = new URL('/', `${TUTOR_APP_ORIGIN}/`).toString()
 
 /** Landing CTAs start Google on the tutor origin (`/login?google=1`). */
-export function tutorLoginHref(next?: string): string {
+function tutorLoginHref(next?: string): string {
   const url = new URL('/login', `${TUTOR_APP_ORIGIN}/`)
   url.searchParams.set('google', '1')
   if (next && next !== '/') {

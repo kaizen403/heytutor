@@ -59,7 +59,7 @@ const MIN_SEPARATION = 0.72;
  * Groups drawn as one labelled vertex: nitro (NO_2), sulphonic acid (SO_3H),
  * diazonium (N_2^+). Returns the hidden atoms and the label per anchor.
  */
-export function collapsedGroups(molecule: Molecule): { hidden: Set<number>; labels: Map<number, string> } {
+function collapsedGroups(molecule: Molecule): { hidden: Set<number>; labels: Map<number, string> } {
   const hidden = new Set<number>();
   const labels = new Map<number, string>();
   for (const atom of molecule.atoms) {
@@ -95,7 +95,7 @@ export function collapsedGroups(molecule: Molecule): { hidden: Set<number>; labe
 /* ------------------------------------------------------------------------- */
 
 /** Simple cycles of size 3..8 kept greedily by size so each adds a new bond (an SSSR stand-in). */
-export function perceiveRings(molecule: Molecule, visible: (atom: number) => boolean): number[][] {
+function perceiveRings(molecule: Molecule, visible: (atom: number) => boolean): number[][] {
   const adjacency = new Map<number, number[]>();
   for (const atom of molecule.atoms) {
     if (!visible(atom.index)) continue;

@@ -5,7 +5,7 @@
  */
 export const LECTURE_EXPORT_PLAYBACK_RATE = 1.25;
 
-export function clampLectureExportPlaybackRate(rate: number): number {
+function clampLectureExportPlaybackRate(rate: number): number {
   if (!Number.isFinite(rate) || rate <= 0) return 1;
   return rate;
 }

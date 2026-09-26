@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
  * the lesson assumes the least and teaches the most. It never means a harder
  * problem. Hints carry that meaning because a bare label cannot.
  */
-export const FAMILIARITY_OPTIONS: ReadonlyArray<{
+const FAMILIARITY_OPTIONS: ReadonlyArray<{
   id: SubjectFamiliarity;
   label: string;
   hint: string;
@@ -22,7 +22,7 @@ export const FAMILIARITY_OPTIONS: ReadonlyArray<{
   { id: "revision", label: "Revision", hint: "I know it and want a refresh" },
 ];
 
-export function familiarityLabel(familiarity: SubjectFamiliarity): string {
+function familiarityLabel(familiarity: SubjectFamiliarity): string {
   return FAMILIARITY_OPTIONS.find((entry) => entry.id === familiarity)?.label ?? "Normal";
 }
 

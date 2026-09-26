@@ -1,7 +1,7 @@
 const WINDOW_MS = 60_000;
 const AUTH_WINDOW_MS = 10 * 60_000;
 
-export const IP_RATE_LIMITS = {
+const IP_RATE_LIMITS = {
   auth: { limit: 40, windowMs: AUTH_WINDOW_MS },
   account: { limit: 60, windowMs: WINDOW_MS },
   boards: { limit: 180, windowMs: WINDOW_MS },
@@ -17,10 +17,6 @@ interface WindowHits {
 
 const buckets = new Map<string, WindowHits>();
 let nowFn: () => number = Date.now;
-
-export function setRateLimitNowForTests(now: () => number): void {
-  nowFn = now;
-}
 
 export function resetIpRateLimitsForTests(): void {
   buckets.clear();

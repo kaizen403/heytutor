@@ -1,5 +1,4 @@
 import {
-  DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
   ListObjectsV2Command,
@@ -10,9 +9,7 @@ import { getObjectStoreConfig } from "./config";
 import { isSafeObjectKey } from "./keys";
 import { mediaProxyUrl } from "./mediaUrl";
 
-export { isObjectStoreConfigured, getObjectStoreConfig } from "./config";
-export { lectureAudioKey, boardAudioPrefix, questionImageKey, userImagePrefix } from "./keys";
-export { mediaProxyUrl } from "./mediaUrl";
+export { boardAudioPrefix, userImagePrefix } from "./keys";
 
 let cachedClient: S3Client | null | undefined;
 
@@ -35,7 +32,7 @@ export type StoredObjectBody = {
   contentType: string;
 };
 
-export async function putObject(
+async function putObject(
   key: string,
   bytes: Uint8Array,
   contentType: string,
@@ -87,25 +84,6 @@ export async function getObject(key: string): Promise<StoredObjectBody | null> {
   }
 }
 
-export async function deleteObject(key: string): Promise<boolean> {
-  if (!isSafeObjectKey(key)) return false;
-  const config = getObjectStoreConfig();
-  const client = getClient();
-  if (!config || !client) return false;
-
-  try {
-    await client.send(
-      new DeleteObjectCommand({
-        Bucket: config.bucket,
-        Key: key,
-      }),
-    );
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export async function deletePrefix(prefix: string): Promise<void> {
   const config = getObjectStoreConfig();
   const client = getClient();
@@ -152,12 +130,4 @@ export async function uploadImage(
   contentType: string,
 ): Promise<string | null> {
   return putObject(key, bytes, contentType);
-}
-
-export async function deleteAudio(key: string): Promise<boolean> {
-  return deleteObject(key);
-}
-
-export async function deleteAudioBulk(keys: string[]): Promise<void> {
-  await Promise.all(keys.map((key) => deleteAudio(key)));
 }

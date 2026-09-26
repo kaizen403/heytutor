@@ -16,13 +16,8 @@ export function isInDiagramZone(x: number, y: number): boolean {
   );
 }
 
-export function clampNumber(value: number, min: number, max: number): number {
+function clampNumber(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
-}
-
-export function estimateBoardTextWidth(text: string): number {
-  const measured = measureTextWidth(text, 32);
-  return clampNumber(measured + 16, 40, BOARD_WIDTH - TEXT_LAYOUT.marginX * 2);
 }
 
 export function estimateBoardTextWidthAtSize(text: string, fontSize: number): number {
@@ -79,7 +74,7 @@ export function bboxNearRect(
   return pointNearRect(cx, cy, rect, padding);
 }
 
-export function pointRectDistance(px: number, py: number, rect: BoardTextRect): number {
+function pointRectDistance(px: number, py: number, rect: BoardTextRect): number {
   const cx = rect.x + rect.width / 2;
   const cy = rect.y + rect.height / 2;
   return Math.hypot(px - cx, py - cy);
@@ -240,7 +235,7 @@ export function workColumnMaxWidth(
  * x still cannot shift the column, but a continuation stays set in under the
  * line it belongs to.
  */
-export function workRowIndentOf(requestedX: number): number {
+function workRowIndentOf(requestedX: number): number {
   if (!Number.isFinite(requestedX)) return 0;
   const offset = requestedX - TEXT_LAYOUT.marginX;
   return Math.abs(offset - WORK_CONTINUATION_INDENT) <= WORK_CONTINUATION_INDENT / 2

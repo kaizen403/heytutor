@@ -350,10 +350,6 @@ export function updateTurnTrace({
   lf.trace({ id: traceId, sessionId }).update({ metadata });
 }
 
-export async function flush(): Promise<void> {
-  await getClient()?.flushAsync();
-}
-
 const FLUSH_TIMEOUT_MS = 3000;
 
 /** Flush Langfuse events without blocking the caller or throwing on network errors. */

@@ -8,12 +8,12 @@ import { prisma } from "@/lib/db/prisma";
 
 const pendingUserEnsures = new Map<string, Promise<void>>();
 
-export async function getSessionUserId(): Promise<string | null> {
+async function getSessionUserId(): Promise<string | null> {
   const session = await auth();
   return session?.user?.id ?? null;
 }
 
-export async function getAnonymousCookieId(): Promise<string | null> {
+async function getAnonymousCookieId(): Promise<string | null> {
   if (!isAuthDisabled()) return null;
   const cookieStore = await cookies();
   const existing = cookieStore.get(HTUTOR_UID_COOKIE)?.value;
@@ -97,19 +97,7 @@ async function ensureUserOnce(userId: string): Promise<void> {
   }
 }
 
-/**
- * Returns the authenticated user id, or a 401 NextResponse if the user cookie
- * is missing. Use this to gate proxy routes that call paid upstream APIs.
- */
-export async function requireUserId(): Promise<string | NextResponse> {
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-  return userId;
-}
-
-/** Type guard that unwraps a `requireUserId` result into a plain userId. */
+/** Type guard for a route helper that returns either a user id or a 401 response. */
 export function isAuthFailure(result: string | NextResponse): result is NextResponse {
   return result instanceof NextResponse;
 }

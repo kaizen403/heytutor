@@ -23,7 +23,6 @@ The only structural diagram authority.
 | Family synthesis | `src/synthesize/familyScene.ts`, `src/synthesize/sceneDemand.ts` |
 | Archetypes | `src/archetypes/` (detect, slots, generators — reusable, not topic plugins) |
 | DSA traces → figures | `src/dsa/` (`algorithmCatalog`, simulators, `traceToScene`) |
-| Bank answer options | `src/bank/answerOptions.ts` |
 | Golden corpus | `scripts/verify/verify-golden-corpus.ts` |
 | Capability corpora | `scripts/verify/verify-physics-evaluation-corpus.ts`, `scripts/verify/verify-math-evaluation-corpus.ts` |
 | Compile oracles | `scripts/probes/evaluationCompileProbes.ts`, `scripts/verify/verify-evaluation-compile.ts` |

@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export type MessageDialogMode = "confirm" | "notice";
+type MessageDialogMode = "confirm" | "notice";
 
 interface MessageDialogProps {
   open: boolean;

@@ -119,7 +119,7 @@ function hundBoxes(degeneracy: 1 | 2, electrons: number): number[] {
 }
 
 /** Board form of a species: O_2^(2-), NO^(+), CO, He_2^(+). */
-export function moSpeciesLabel(species: string): string {
+function moSpeciesLabel(species: string): string {
   const parsed = parseSpecies(species);
   if (!parsed) return species;
   const head = parsed.head.replace(/2$/, "_2");

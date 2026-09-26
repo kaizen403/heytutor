@@ -5,7 +5,7 @@ import { accountIsRefused } from "./ageGate";
 import { isAuthDisabled } from "@/lib/authDisabled";
 import { isAgeBand } from "@/lib/account/types";
 
-export async function loadSignedInUser() {
+async function loadSignedInUser() {
   const session = await auth();
   if (!session?.user?.id) return null;
   return prisma.user.findUnique({ where: { id: session.user.id } });

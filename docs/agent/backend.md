@@ -77,7 +77,6 @@ Production and dev both use `tsx server.ts` (not `next start`):
 | `obs/usageCost.ts` | Cost enrichment for Langfuse metadata |
 | `obs/turnTelemetry.ts` | Client-side turn span instrumentation |
 | `object-store/` | Private S3 put/get/delete for lecture MP3s and question photos |
-| `r2/r2.ts` / `r2/r2Keys.ts` | Re-exports of `object-store` |
 | `replay/replayTurns.ts` / `replay/replayAudio.ts` / `replay/replayTimeline.ts` | Replay orchestration |
 | `client/exportNotesPdf.ts` | PDF export of board notes |
 | `client/subtitleText.ts` | Subtitle rendering helpers |

@@ -44,7 +44,7 @@ const EPSILON = 1e-9;
 const PLANO_RATIO = 40;
 const ARC_SAMPLES = 24;
 
-export function axisDirection(from: OpticsPoint, to: OpticsPoint): OpticsPoint {
+function axisDirection(from: OpticsPoint, to: OpticsPoint): OpticsPoint {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const span = Math.hypot(dx, dy) || 1;
@@ -52,7 +52,7 @@ export function axisDirection(from: OpticsPoint, to: OpticsPoint): OpticsPoint {
   return hat.x < 0 ? { x: -hat.x, y: -hat.y } : hat;
 }
 
-export function perpendicular(hat: OpticsPoint): OpticsPoint {
+function perpendicular(hat: OpticsPoint): OpticsPoint {
   return { x: -hat.y, y: hat.x };
 }
 
@@ -63,12 +63,12 @@ export function sagOf(signedRadius: number, halfHeight: number): number {
   return radius - Math.sqrt(Math.max(0, radius * radius - height * height));
 }
 
-export function isPlano(signedRadius: number, halfHeight: number): boolean {
+function isPlano(signedRadius: number, halfHeight: number): boolean {
   if (!Number.isFinite(signedRadius)) return true;
   return Math.abs(signedRadius) > PLANO_RATIO * Math.max(halfHeight, EPSILON);
 }
 
-export function resolveSignedRadius(spec: SphericalSurfaceSpec, hat: OpticsPoint): number {
+function resolveSignedRadius(spec: SphericalSurfaceSpec, hat: OpticsPoint): number {
   if (spec.center) {
     const inferred =
       (spec.center.x - spec.vertex.x) * hat.x + (spec.center.y - spec.vertex.y) * hat.y;

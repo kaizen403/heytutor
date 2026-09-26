@@ -30,10 +30,6 @@ function grantMap(): Map<string, TurnGrant> {
 
 let nowFn: () => number = Date.now;
 
-export function setGrantNowForTests(now: () => number): void {
-  nowFn = now;
-}
-
 export function resetTurnGrantsForTests(): void {
   grantMap().clear();
   nowFn = Date.now;
@@ -256,11 +252,6 @@ export function syncGrantUsdRemaining(userId: string, remainingMillicents: numbe
   const grant = prune(userId);
   if (!grant || grant.skipGates) return;
   grant.usdMillicentsRemaining = Math.max(0, remainingMillicents);
-}
-
-export function inFlightLessonCount(userId: string): number {
-  const grant = prune(userId);
-  return grant?.inUse ?? 0;
 }
 
 export function releaseTurnGrant(userId: string): void {

@@ -10,12 +10,6 @@ export type LectureBoardMeta = {
   difficulty: ProbeDifficulty;
 };
 
-export type PlaygroundRecording = {
-  topicId: string;
-  difficulty: ProbeDifficulty;
-  board: BoardEntry;
-};
-
 export function playgroundBoardTitle(topicId: string, difficulty: ProbeDifficulty): string {
   return `[Playground] ${topicId} · ${difficulty}`;
 }
@@ -55,7 +49,7 @@ function parseLectureBoardIndex(raw: unknown): Map<string, LectureBoardMeta> {
   return index;
 }
 
-export function readLectureBoardIndex(): Map<string, LectureBoardMeta> {
+function readLectureBoardIndex(): Map<string, LectureBoardMeta> {
   if (typeof window === "undefined") {
     return new Map();
   }
