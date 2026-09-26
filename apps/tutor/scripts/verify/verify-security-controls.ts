@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { isAuthDisabled } from "../../lib/authDisabled";
-import { consumeIpRateLimit, rateLimitBucketForPath, resetIpRateLimitsForTests } from "../../lib/http/ipRateLimit";
+import {
+  clientIpFromForwarded,
+  consumeIpRateLimit,
+  rateLimitBucketForPath,
+  resetIpRateLimitsForTests,
+} from "../../lib/http/ipRateLimit";
 import { contentSecurityPolicy, securityHeaderEntries } from "../../lib/http/securityHeaders";
 import {
   resetTtsWsConnectionsForTests,
@@ -77,6 +82,18 @@ assert(rateLimitBucketForPath("/api/boards/abc") === "boards", "board routes are
 assert(rateLimitBucketForPath("/api/trace/event") === "trace", "trace routes are rate-limited");
 assert(rateLimitBucketForPath("/api/home-suggestions") === "suggestions", "AI suggestions are rate-limited");
 assert(rateLimitBucketForPath("/api/health") === null, "health is not credit-shaped-limited");
+assert(
+  clientIpFromForwarded("203.0.113.8, 127.0.0.1", undefined) === "203.0.113.8",
+  "the local reverse-proxy hop is not the client",
+);
+assert(
+  clientIpFromForwarded("198.51.100.4, ::ffff:127.0.0.1", "127.0.0.1") === "198.51.100.4",
+  "an IPv4-mapped loopback hop is not the client",
+);
+assert(
+  clientIpFromForwarded(undefined, "203.0.113.9") === "203.0.113.9",
+  "a direct remote address is the client when no forwarded chain exists",
+);
 
 resetIpRateLimitsForTests();
 for (let i = 0; i < 40; i += 1) {

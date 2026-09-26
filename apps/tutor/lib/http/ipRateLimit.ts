@@ -23,19 +23,31 @@ export function resetIpRateLimitsForTests(): void {
   nowFn = Date.now;
 }
 
+function normalizeIp(ip: string): string {
+  return ip.replace(/^::ffff:/, "").trim();
+}
+
+/** Caddy connects to this process on loopback. Next appends that hop to X-Forwarded-For. */
+function isLoopback(ip: string): boolean {
+  const normalized = normalizeIp(ip);
+  return normalized === "127.0.0.1" || normalized === "::1" || normalized === "localhost";
+}
+
 export function clientIpFromForwarded(
   forwarded: string | undefined,
   remoteAddress: string | undefined,
 ): string {
-  if (forwarded?.trim()) {
-    const hops = forwarded
-      .split(",")
-      .map((part) => part.trim())
-      .filter(Boolean);
-    const last = hops[hops.length - 1];
-    if (last) return last.replace(/^::ffff:/, "");
+  const hops = (forwarded ?? "")
+    .split(",")
+    .map((part) => normalizeIp(part))
+    .filter(Boolean);
+  for (let index = hops.length - 1; index >= 0; index -= 1) {
+    const hop = hops[index];
+    if (hop && !isLoopback(hop)) return hop;
   }
-  return (remoteAddress ?? "unknown").replace(/^::ffff:/, "");
+  const remote = normalizeIp(remoteAddress ?? "");
+  if (remote && !isLoopback(remote)) return remote;
+  return hops[hops.length - 1] || remote || "unknown";
 }
 
 export function rateLimitBucketForPath(pathname: string): IpRateBucket | null {
