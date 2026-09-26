@@ -104,6 +104,8 @@ import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
 import { beginTurn, parseBillingFailureFromUnknown, rememberBillingFailure, type BillingFailure } from "@/lib/billing/billingClient";
 import { studentBillingMessage } from "@/lib/billing/studentCopy";
 import { buildVerifiedDiagramPresentation } from "../../lib/scene/verifiedScenePresentation";
+import { fetchVisualNeed } from "../../lib/scene/visualNeedClient";
+import { resolveSelectedVisualStatus, resolveVisualRequirement } from "../../lib/scene/visualRequirement";
 import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
 import {
   buildDoubtTeachingPrompt,
@@ -832,6 +834,7 @@ export function useQuestionHandler(
           boardId: sessionId,
         });
         let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
+        let visualNeedPromise: ReturnType<typeof fetchVisualNeed> | null = null;
 
         if (recoveredScene) {
           turnPlan = recoveredScene.turnPlan;
@@ -847,6 +850,14 @@ export function useQuestionHandler(
             source: recoveredScene.source,
           });
         } else {
+          // Resolve visual need alongside the turn planner. Jev supplies no geometry.
+          visualNeedPromise = fetchVisualNeed({
+            url: resolveApiUrl("/api/visual-need"),
+            question,
+            conversationContext: recentConversation,
+            traceId: turnTraceId,
+            signal: abortController.signal,
+          });
           const turnPlanStartedAt = Date.now();
           const plannedTurn = await awaitCurrentTurn(planTurnV3(question, {
             proxyUrl: plannerUrl,
@@ -893,6 +904,19 @@ export function useQuestionHandler(
             createFallbackTurnPlanV3(question),
             plannedTurn?.peerTurnPlans,
           );
+          const evaluatedVisualNeed = await awaitCurrentTurn(visualNeedPromise, isCurrentTurn);
+          turnPlan = {
+            ...turnPlan,
+            visualRequirement: resolveVisualRequirement(
+              turnPlan.visualRequirement,
+              evaluatedVisualNeed,
+              questionRequiresVisual(question),
+            ),
+          };
+          tutorDebug("planner", "visual need decision", {
+            evaluated: evaluatedVisualNeed,
+            effective: turnPlan.visualRequirement,
+          });
         }
 
         // Await ProblemIR before family inference so the live exact path routes
@@ -1233,7 +1257,6 @@ export function useQuestionHandler(
                   }
                 : null,
             });
-            sceneV2Document = selected.sceneDocument;
             // A figure the student cannot read is not a figure.
             //
             // Two things were reaching the board and being narrated as though
@@ -1263,19 +1286,22 @@ export function useQuestionHandler(
                 primitive_count: selected.renderScene.primitives.length,
               });
             }
-            sceneV2RenderScene = selectedHasInk ? selected.renderScene : null;
+            const selectedIsDrawable = selectedHasInk &&
+              selected.sceneDocument.visualDecision.mode === "scene";
+            sceneV2Document = selectedIsDrawable ? selected.sceneDocument : null;
+            sceneV2RenderScene = selectedIsDrawable ? selected.renderScene : null;
             sceneV2Report = selected.validationReport;
-            sceneVisualStatus = selectedHasInk &&
-              selected.sceneDocument.visualDecision.mode === "scene"
-              ? "validated"
-              : "text_only";
-            representationTier = selected.tier;
-            representationNonMetric = selected.nonMetric;
+            sceneVisualStatus = resolveSelectedVisualStatus(
+              turnPlan.visualRequirement,
+              selectedIsDrawable,
+            );
+            representationTier = selectedIsDrawable ? selected.tier : null;
+            representationNonMetric = selectedIsDrawable ? selected.nonMetric : false;
             representationReason = selected.reason;
-            representationFamily = selected.family ?? null;
+            representationFamily = selectedIsDrawable ? selected.family ?? null : null;
             // Never cache a scene that drew nothing: recovery would replay it
             // on a later turn only for the same guard to drop it again.
-            if (selectedHasInk && selected.tier === "exact_verified" && turnPlan) {
+            if (selectedIsDrawable && selected.tier === "exact_verified" && turnPlan) {
               rememberVerifiedScene(question, selected.sceneDocument, turnPlan, {
                 boardId: sessionId,
               });
@@ -1437,6 +1463,31 @@ export function useQuestionHandler(
         diagramSource = "none";
         activeVerifiedDiagramRef.current = null;
         setActiveVerifiedDiagram?.(null);
+      }
+
+      if (!doubt && !resume && diagramSource === "none" && sceneVisualStatus === "validated") {
+        // Compilation can yield no executable board commands. Keep its scene
+        // out of persistence and recovery, and retain a required visual failure.
+        sceneVisualStatus = resolveSelectedVisualStatus(
+          codeLesson ? "required" : turnPlan?.visualRequirement ?? "optional",
+          false,
+        );
+        sceneV2Document = null;
+        sceneV2RenderScene = null;
+        sceneV2IntroSegments = null;
+        representationTier = null;
+        representationNonMetric = false;
+        representationFamily = null;
+        forgetVerifiedScene(question, { boardId: sessionId });
+        if (sceneArtifacts) {
+          sceneArtifacts = {
+            ...sceneArtifacts,
+            representationTier: undefined,
+            nonMetric: undefined,
+            diagramResultStatus: sceneVisualStatus === "retry_required" ? "retry_required" : "text_only",
+            selectionReason: "verified_presentation_has_no_drawable_ink",
+          };
+        }
       }
 
       if (!doubt && !resume) {
