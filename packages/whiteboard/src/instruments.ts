@@ -120,6 +120,20 @@ export function instrumentInkStyle(
   };
 }
 
+/** Recorded commands override the board's current dials for their own marks. */
+export function commandInkStyle(
+  kind: InstrumentKind,
+  current: { markerColor: string; pencilColor: string; markerThickness: number; pencilThickness: number },
+  recorded?: { markerColor: string; pencilColor: string; markerThickness: number; pencilThickness: number },
+): InstrumentInkStyle {
+  const settings = recorded ?? current;
+  return instrumentInkStyle(kind, settings.markerColor, {
+    pencilColor: settings.pencilColor,
+    markerThickness: settings.markerThickness,
+    pencilThickness: settings.pencilThickness,
+  });
+}
+
 export interface InstrumentPalette {
   /** Barrel body plus its lit and shaded facets. */
   barrel: string;

@@ -35,14 +35,34 @@ import {
 import { getLegalHref } from "@/lib/site";
 import type { AccountProfile } from "@/lib/account/types";
 import { PlanUsageCard } from "./PlanUsageCard";
+import { createSettingsPatchQueue, type SaveStatus } from "@/lib/account/settingsPatchQueue";
 
 export function SettingsScreen({ section }: { section: string }) {
   const router = useRouter();
   const active: SettingsSection = isSettingsSection(section) ? section : "general";
   const [settings, setSettings] = useState<AccountSettings>(DEFAULT_ACCOUNT_SETTINGS);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
-  const pendingPatchRef = useRef<Partial<AccountSettings>>({});
-  const savingRef = useRef(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
+  const saveQueueRef = useRef<ReturnType<typeof createSettingsPatchQueue<AccountSettings>> | null>(null);
+
+  useEffect(() => {
+    const queue = createSettingsPatchQueue<AccountSettings>({
+      send: async (patch) => {
+        const response = await fetch("/api/account/settings", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+        if (!response.ok) throw Object.assign(new Error("Could not save settings"), { status: response.status });
+      },
+      onStatus: setSaveStatus,
+    });
+    saveQueueRef.current = queue;
+    return () => {
+      queue.dispose();
+      saveQueueRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     void fetch("/api/account/me")
@@ -53,37 +73,9 @@ export function SettingsScreen({ section }: { section: string }) {
       });
   }, []);
 
-  const savePending = async () => {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    try {
-      // A slider can change several times before one PATCH returns. Send one
-      // request at a time so an older value cannot overwrite the final choice.
-      while (Object.keys(pendingPatchRef.current).length > 0) {
-        const next = pendingPatchRef.current;
-        pendingPatchRef.current = {};
-        try {
-          const response = await fetch("/api/account/settings", {
-            method: "PATCH",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(next),
-          });
-          if (!response.ok) throw new Error("Could not save settings");
-        } catch {
-          // Retain the latest value for each setting so the next edit retries it.
-          pendingPatchRef.current = { ...next, ...pendingPatchRef.current };
-          break;
-        }
-      }
-    } finally {
-      savingRef.current = false;
-    }
-  };
-
   const patch = (partial: Partial<AccountSettings>) => {
     setSettings((current) => ({ ...current, ...partial }));
-    pendingPatchRef.current = { ...pendingPatchRef.current, ...partial };
-    void savePending();
+    saveQueueRef.current?.enqueue(partial);
   };
 
   return (
@@ -103,6 +95,20 @@ export function SettingsScreen({ section }: { section: string }) {
           ))}
         </nav>
         <div className="min-w-0 flex-1 space-y-4">
+          {saveStatus && (
+            <div className="flex items-center gap-2 text-xs text-[rgba(237,237,235,0.62)]" role="status" aria-live="polite">
+              <span>{
+                saveStatus === "saving" ? "Saving settings…" :
+                saveStatus === "saved" ? "Settings saved" :
+                saveStatus === "retrying" ? "Save failed. Retrying…" : "Could not save settings."
+              }</span>
+              {saveStatus === "error" && (
+                <button type="button" className="text-sky-300 underline" onClick={() => saveQueueRef.current?.retry()}>
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
           {active === "general" ? (
             <AccountCard title="General">
               <p className="text-sm text-[rgba(237,237,235,0.62)]">
