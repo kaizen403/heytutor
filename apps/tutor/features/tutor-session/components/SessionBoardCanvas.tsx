@@ -154,6 +154,9 @@ export function SessionBoardCanvas({
             height={BOARD_HEIGHT}
             cursorState={cursorState}
             inkColor={getMarkerColorHex(settings.markerColor)}
+            pencilColor={getMarkerColorHex(settings.pencilColor)}
+            markerThickness={settings.markerThickness}
+            pencilThickness={settings.pencilThickness}
             markerStunts={settings.markerStunts}
           />
           {codeLessonPanel}
@@ -248,6 +251,9 @@ export function SessionBoardCanvas({
                 height={BOARD_HEIGHT}
                 cursorState={rewindCursorState}
                 inkColor={getMarkerColorHex(settings.markerColor)}
+                pencilColor={getMarkerColorHex(settings.pencilColor)}
+                markerThickness={settings.markerThickness}
+                pencilThickness={settings.pencilThickness}
                 markerStunts={settings.markerStunts}
               />
             </div>
@@ -292,6 +298,9 @@ export function SessionBoardCanvas({
             height={BOARD_HEIGHT}
             cursorState="drawing"
             inkColor={getMarkerColorHex(settings.markerColor)}
+            pencilColor={getMarkerColorHex(settings.pencilColor)}
+            markerThickness={settings.markerThickness}
+            pencilThickness={settings.pencilThickness}
             thinkingMotion="none"
           />
         </div>

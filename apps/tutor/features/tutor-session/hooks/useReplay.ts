@@ -425,10 +425,9 @@ export function useReplay({
             return;
           }
           const command = cue.commands[i]!;
-          // PAUSE is pure dwell, and FOCUS only paints transient emphasis that
-          // it clears again — neither leaves a mark. Replaying them during a
-          // catch-up buys nothing and costs their full duration each.
-          if (command.type === "PAUSE" || command.type === "FOCUS") {
+          // FOCUS can also release permanent deferred labels and dimensions.
+          // Its seek path draws those instantly and skips the transient gesture.
+          if (command.type === "PAUSE") {
             continue;
           }
           await executeCommand(command, {
