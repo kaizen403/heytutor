@@ -37,7 +37,7 @@ function narrationOutsideTags(text: string): string {
  * One closed step, or a tail that never opened one. Relation rows that were
  * spoken without "equals" pick up the word. Everything else is unchanged.
  */
-export function repairLectureStep(step: string): string {
+function repairLectureStep(step: string): string {
   if (/\[TYPE[:\]]/i.test(step)) return step;
   const parsed = parseDrawingCommands(step);
   if (!parsed.commands.some(isRelationWrite)) return step;

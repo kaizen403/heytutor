@@ -1,6 +1,5 @@
 /** Object keys for lecture audio and question photos. Safe to import from route handlers. */
 
-const PATH_SEGMENT = /^[A-Za-z0-9._-]{1,128}$/;
 const IMAGE_EXT = /^(jpg|jpeg|png|webp|gif)$/;
 
 export type StoredObjectRef =
@@ -83,8 +82,4 @@ export function parseStoredObjectKey(key: string): StoredObjectRef | null {
 
 export function isSafeObjectKey(key: string): boolean {
   return parseStoredObjectKey(key) !== null;
-}
-
-export function isSafePathSegment(value: string): boolean {
-  return PATH_SEGMENT.test(value);
 }

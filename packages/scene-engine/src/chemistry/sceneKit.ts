@@ -272,5 +272,5 @@ export class ChemScene {
   }
 }
 
-export { round, compact };
+export { round };
 export type { Vec2 };

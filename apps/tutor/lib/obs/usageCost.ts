@@ -20,9 +20,6 @@ export type LlmRateLane =
   | "jev"
   | "unknown";
 
-/** Published rates checked 23 September 2026. USD per 1M tokens. */
-export const LLM_RATE_VERSION = "2026-09-23";
-
 export interface LlmRate {
   inputUsdPer1M: number;
   outputUsdPer1M: number;
@@ -190,20 +187,6 @@ export function calculateTtsCostDetails(
     : elevenLabsUsdPer1kChars(options.model);
   const charactersCost = roundUsd((characters / 1000) * rate);
   return { characters: charactersCost, total: charactersCost };
-}
-
-export function llmUsageUsd(
-  usage: UsageCounts,
-  options: { model?: string | null } = {},
-): number {
-  return calculateLlmCostDetails(usage, options).total ?? 0;
-}
-
-export function ttsUsageUsd(
-  characters: number,
-  options: { model?: string | null; provider?: SpeechProvider } = {},
-): number {
-  return calculateTtsCostDetails(characters, options).total ?? 0;
 }
 
 export function enrichTraceMetadataWithCosts(

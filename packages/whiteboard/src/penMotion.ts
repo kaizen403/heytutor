@@ -1,10 +1,5 @@
-/**
- * Handwriting motion helpers. Keep the nib on a continuous timeline:
- * cubic ease-in-out on a 12ms Tegaki stroke looks like a freeze.
- */
 
-export const SHORT_STROKE_EASE_MS = 120;
-export const AUDIO_WAIT_SLACK_MS = 24;
+const AUDIO_WAIT_SLACK_MS = 24;
 
 export function clamp01(value: number): number {
   if (value <= 0) return 0;
@@ -59,7 +54,7 @@ export const INK_STRETCH_MAX = 1.5;
 export const PACE_SCALE_MIN = 0.55;
 export const PACE_SCALE_MAX = 1.6;
 
-export function clampPaceScale(scale: number): number {
+function clampPaceScale(scale: number): number {
   if (!Number.isFinite(scale)) return 1;
   return Math.min(Math.max(scale, PACE_SCALE_MIN), PACE_SCALE_MAX);
 }
@@ -230,9 +225,9 @@ export function scheduledGlyphBudgetMs(input: {
  * word. `maxFraction` is the share of the glyph its last stroke actually owns,
  * so the linger never reaches back into an earlier stroke or the air before it.
  */
-export const LINGER_TAIL_MAX = 0.35;
+const LINGER_TAIL_MAX = 0.35;
 
-export function lingerTailFraction(
+function lingerTailFraction(
   inkMs: number,
   lingerMs: number,
   maxFraction = LINGER_TAIL_MAX,
@@ -316,12 +311,6 @@ export function simulateScheduledGlyphs(input: {
     previousMs = inkMs;
   }
   return { glyphs, lastEndMs: penFreeMs, maxPauseMs };
-}
-
-/** Natural pen motion for long scene strokes. */
-export function easePen(progress: number): number {
-  const t = clamp01(progress);
-  return t < 0.5 ? 2 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
 }
 
 /**
@@ -426,7 +415,7 @@ export function audioWaitAlreadyDue(
   return positionMs >= targetMs - slackMs;
 }
 
-export function sampleCountForLength(totalLength: number): number {
+function sampleCountForLength(totalLength: number): number {
   return Math.max(12, Math.min(64, Math.ceil(Math.max(totalLength, 1) / 3)));
 }
 
@@ -523,20 +512,20 @@ export function writeUsesStrokePenMotion(input: {
  * and less on the straights, which is what separates a written letter from a
  * path traced at one constant rate.
  */
-export const CORNER_LINGER = 0.9;
+const CORNER_LINGER = 0.9;
 /** A cusp must not stall the pen outright, so the turn term is capped. */
-export const MAX_CORNER_TURN = 1.6;
+const MAX_CORNER_TURN = 1.6;
 /**
  * The pen presses in and lifts off rather than starting and stopping at full
  * speed, so the ends of every stroke get a little extra time.
  */
-export const STROKE_EDGE_LINGER = 0.3;
-export const STROKE_EDGE_FRACTION = 0.16;
+const STROKE_EDGE_LINGER = 0.3;
+const STROKE_EDGE_FRACTION = 0.16;
 /**
  * Air between two strokes of the same glyph costs far less time than ink:
  * the hand carries over quickly and settles on the next start.
  */
-export const AIR_PACE_WEIGHT = 0.4;
+const AIR_PACE_WEIGHT = 0.4;
 
 export interface PaceSegment {
   kind: "ink" | "air";

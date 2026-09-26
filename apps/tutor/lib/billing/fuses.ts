@@ -9,10 +9,6 @@ interface HourlyBucket {
 const hourly = new Map<string, HourlyBucket>();
 let nowFn: () => number = Date.now;
 
-export function setBillingNowForTests(now: () => number): void {
-  nowFn = now;
-}
-
 export function resetBillingFusesForTests(): void {
   hourly.clear();
   nowFn = Date.now;

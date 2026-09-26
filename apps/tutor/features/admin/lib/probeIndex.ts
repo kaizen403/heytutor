@@ -26,7 +26,7 @@ function difficultyRank(difficulty: ProbeDifficulty): number {
   return PROBE_DIFFICULTIES.indexOf(difficulty);
 }
 
-export function topicDifficultyKey(topicId: string, difficulty: ProbeDifficulty): string {
+function topicDifficultyKey(topicId: string, difficulty: ProbeDifficulty): string {
   return `${topicId}::${difficulty}`;
 }
 
@@ -69,14 +69,6 @@ export function probesForTopic(index: ProbeIndex, topicId: string): ProbeQuestio
 
 export function probesForUnit(index: ProbeIndex, unitId: string): ProbeQuestion[] {
   return index.byUnit.get(unitId) ?? EMPTY;
-}
-
-export function probeFor(
-  index: ProbeIndex,
-  topicId: string,
-  difficulty: ProbeDifficulty,
-): ProbeQuestion | undefined {
-  return index.byTopicDifficulty.get(topicDifficultyKey(topicId, difficulty));
 }
 
 export function probesByIds(index: ProbeIndex, ids: Iterable<string>): ProbeQuestion[] {

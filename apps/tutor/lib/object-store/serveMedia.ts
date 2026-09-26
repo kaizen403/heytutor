@@ -4,7 +4,7 @@ import { parseStoredObjectKey } from "./keys";
 import { contentDispositionForKey, contentTypeForStoredKey } from "./safeContentType";
 import { getObject } from "./s3";
 
-export async function userCanReadObject(userId: string, key: string): Promise<boolean> {
+async function userCanReadObject(userId: string, key: string): Promise<boolean> {
   const parsed = parseStoredObjectKey(key);
   if (!parsed) return false;
   if (parsed.kind === "image") {

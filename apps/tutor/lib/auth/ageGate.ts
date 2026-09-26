@@ -9,7 +9,7 @@ export type AgeGateDecision =
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function normalizeGuardianEmail(value: unknown): string | null {
+function normalizeGuardianEmail(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const email = value.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) return null;
@@ -34,10 +34,6 @@ export function decideAgeGate(input: {
     return { ok: false, reason: "guardian_required" };
   }
   return { ok: true, band: "13_17", guardianEmail };
-}
-
-export function ageBandNeedsOnboarding(ageBand: AgeBand | null | undefined): boolean {
-  return ageBand == null;
 }
 
 export function accountIsRefused(ageBand: AgeBand | null | undefined): boolean {

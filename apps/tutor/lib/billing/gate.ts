@@ -15,7 +15,6 @@ import {
   ensureBypassGrant,
   getTurnGrant,
   grantForFollowOnTurn,
-  markGrantInUse,
   recoverGrantForPaidCall,
   releaseTurnGrant,
   requireGrantForTrace,
@@ -76,7 +75,7 @@ function remainingPctFrom(balance: PeriodBalance): number {
   return balance.remainingPct;
 }
 
-export async function beginTurnForActor(
+async function beginTurnForActor(
   actor: SpendActor,
   input: { traceId: string; kind: TurnKind },
 ): Promise<BeginTurnSuccess | Response> {
@@ -256,18 +255,6 @@ export async function requireLessonGrant(
     return billingResponse("no_grant", remainingPct);
   }
   return { actor, grant: recovered };
-}
-
-export async function withGrantInUse<T>(
-  grant: TurnGrant,
-  work: () => Promise<T>,
-): Promise<T> {
-  markGrantInUse(grant, 1);
-  try {
-    return await work();
-  } finally {
-    markGrantInUse(grant, -1);
-  }
 }
 
 export async function requireLessonCredits(

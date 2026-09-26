@@ -52,7 +52,7 @@ export function parseWorkRowSelector(raw: string | undefined): WorkRowSelector |
   return { kind: "id", id: trimmed };
 }
 
-export function workRowsOf(rects: readonly WorkAreaRow[]): WorkAreaRow[] {
+function workRowsOf(rects: readonly WorkAreaRow[]): WorkAreaRow[] {
   return rects.filter((rect) => rect.workIndex != null || rect.workId != null);
 }
 

@@ -78,9 +78,9 @@ export interface InstrumentInkStyle {
  * washed-out pen.
  */
 const GRAPHITE = "#51555F";
-export const PENCIL_INK_MIX = 0.55;
+const PENCIL_INK_MIX = 0.55;
 export const PENCIL_WIDTH_SCALE = 0.82;
-export const PENCIL_INK_OPACITY = 0.78;
+const PENCIL_INK_OPACITY = 0.78;
 export const INK_THICKNESS_MIN = 0.6;
 export const INK_THICKNESS_MAX = 1.6;
 export const INK_THICKNESS_STEP = 0.2;
@@ -189,7 +189,7 @@ function toHex(r: number, g: number, b: number): string {
 }
 
 /** Blend two colours; `amount` is how much of `target` lands in the result. */
-export function mix(hex: string, target: string, amount: number): string {
+function mix(hex: string, target: string, amount: number): string {
   const from = channels(hex);
   const to = channels(target);
   if (!from || !to) return hex;
@@ -339,7 +339,7 @@ export function instrumentPalette(kind: InstrumentKind, inkColor: string): Instr
  * same list to SVG, so what a designer looks at and what the tutor holds can
  * never drift apart. Local space: nib at (0,0), barrel running up -Y.
  */
-export type PaletteKey = keyof InstrumentPalette;
+type PaletteKey = keyof InstrumentPalette;
 
 interface ShapeBase {
   fill?: PaletteKey;

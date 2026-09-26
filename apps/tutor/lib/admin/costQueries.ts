@@ -36,7 +36,7 @@ function emptyInference(configured: boolean, error?: string): OverviewInference 
   };
 }
 
-export async function fetchLedgerCostOverview(nowMs: number = Date.now()): Promise<
+async function fetchLedgerCostOverview(nowMs: number = Date.now()): Promise<
   Omit<OverviewCost, "inference7d">
 > {
   const period = billingPeriodKey(nowMs);
@@ -126,7 +126,7 @@ export async function fetchLedgerCostOverview(nowMs: number = Date.now()): Promi
   };
 }
 
-export async function fetchInferenceWindow(
+async function fetchInferenceWindow(
   nowMs: number = Date.now(),
 ): Promise<OverviewInference> {
   const to = new Date(nowMs);

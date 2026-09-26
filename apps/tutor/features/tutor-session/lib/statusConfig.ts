@@ -1,6 +1,6 @@
 import type { TutorPhase, StatusDisplay } from "../types";
 
-export const STATUS_CONFIG: Record<TutorPhase, StatusDisplay> = {
+const STATUS_CONFIG: Record<TutorPhase, StatusDisplay> = {
   idle: {
     color: "rgba(118, 118, 118, 0.7)",
     label: "ready",
@@ -33,21 +33,21 @@ export const STATUS_CONFIG: Record<TutorPhase, StatusDisplay> = {
   },
 };
 
-export const PAUSED_STATUS: StatusDisplay = {
+const PAUSED_STATUS: StatusDisplay = {
   color: "#767676",
   label: "paused",
   dotClass: "",
   labelColor: "#767676",
 };
 
-export const REPLAYING_STATUS: StatusDisplay = {
+const REPLAYING_STATUS: StatusDisplay = {
   color: "#4A9EFF",
   label: "replaying\u2026",
   dotClass: "animate-wb-glow",
   labelColor: "#4A9EFF",
 };
 
-export const REWINDING_STATUS: StatusDisplay = {
+const REWINDING_STATUS: StatusDisplay = {
   color: "#4A9EFF",
   label: "reviewing\u2026",
   dotClass: "animate-wb-glow",

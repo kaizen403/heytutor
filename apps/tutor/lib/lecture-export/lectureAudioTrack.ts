@@ -13,7 +13,7 @@ export function resolveLectureAudioUrl(cue: ReplayCue): string | null {
   return url ? url : null;
 }
 
-export function frameCountForDuration(durationMs: number, sampleRate: number): number {
+function frameCountForDuration(durationMs: number, sampleRate: number): number {
   return Math.max(0, Math.round((sampleRate * Math.max(durationMs, 0)) / 1000));
 }
 
@@ -46,7 +46,7 @@ export function fitPcmToDuration(
   });
 }
 
-export function resampleChannel(
+function resampleChannel(
   input: Float32Array,
   fromRate: number,
   toRate: number,
@@ -68,7 +68,7 @@ export function resampleChannel(
   return out;
 }
 
-export function resampleTrack(track: PcmTrack, toRate: number): PcmTrack {
+function resampleTrack(track: PcmTrack, toRate: number): PcmTrack {
   if (track.sampleRate === toRate) {
     return track;
   }
@@ -147,7 +147,7 @@ export function mixCueAudio(options: {
   };
 }
 
-export async function fetchLectureAudioBytes(url: string): Promise<Uint8Array | null> {
+async function fetchLectureAudioBytes(url: string): Promise<Uint8Array | null> {
   try {
     const response = await fetch(lectureAudioFetchUrl(url));
     if (!response.ok) {
@@ -163,17 +163,6 @@ function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const copy = new Uint8Array(bytes.byteLength);
   copy.set(bytes);
   return copy.buffer;
-}
-
-export async function decodeLectureAudioBytes(
-  bytes: Uint8Array,
-  decode: (data: ArrayBuffer) => Promise<PcmTrack>,
-): Promise<PcmTrack | null> {
-  try {
-    return await decode(bytesToArrayBuffer(bytes));
-  } catch {
-    return null;
-  }
 }
 
 export type BuiltLectureAudioTrack = {

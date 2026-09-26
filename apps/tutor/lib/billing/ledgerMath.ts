@@ -11,21 +11,13 @@ export interface PeriodBalance {
   nextResetAt: number;
 }
 
-let nowFn: () => number = Date.now;
-
-export function setLedgerNowForTests(now: () => number): void {
-  nowFn = now;
-}
-
-export function resetLedgerNowForTests(): void {
-  nowFn = Date.now;
-}
+const nowFn: () => number = Date.now;
 
 export function billingPeriodKey(ms = nowFn()): string {
   return new Date(ms).toISOString().slice(0, 7);
 }
 
-export function billingPeriodResetAt(ms = nowFn()): number {
+function billingPeriodResetAt(ms = nowFn()): number {
   const date = new Date(ms);
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1);
 }

@@ -22,7 +22,7 @@ import { normalizeChemistryText } from "./formula";
 import { elementBySymbol } from "./elements";
 
 export const SOLID_FAMILY = "chem_unit_cell" as const;
-export const AVOGADRO = 6.022e23;
+const AVOGADRO = 6.022e23;
 
 export type Lattice = "sc" | "bcc" | "fcc" | "hcp";
 
@@ -49,7 +49,7 @@ const LATTICE_NAME: Record<Lattice, string> = { sc: "simple cubic", bcc: "bcc", 
 const LATTICE_SHORT: Record<Lattice, string> = { sc: "sc", bcc: "bcc", fcc: "fcc", hcp: "hcp" };
 
 /** Read a lattice from a word the student used: "ccp", "face centred cubic", "body-centered", "hcp". */
-export function latticeFromWord(word: string): Lattice | null {
+function latticeFromWord(word: string): Lattice | null {
   const w = word.toLowerCase().trim();
   if (/\b(?:fcc|ccp)\b|cubic close|face[ -]?cent/.test(w)) return "fcc";
   if (/\bbcc\b|body[ -]?cent/.test(w)) return "bcc";

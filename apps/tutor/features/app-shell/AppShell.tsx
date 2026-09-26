@@ -8,7 +8,6 @@ import {
 } from "@/features/tutor-session/components/BoardHistory";
 import type { AppShellBoardHandlers, AppShellProfile, AppShellVariant } from "./types";
 
-export { SIDEBAR_WIDTH };
 
 type AppShellProps = AppShellBoardHandlers & {
   profile: AppShellProfile;
@@ -160,13 +159,4 @@ export function AppShell({
       </div>
     </div>
   );
-}
-
-export function useAppShellNav() {
-  const router = useRouter();
-  return {
-    openMobileNav: undefined as undefined | ((open: boolean) => void),
-    expandSidebar: undefined as undefined | (() => void),
-    router,
-  };
 }

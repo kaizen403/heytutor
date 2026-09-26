@@ -24,7 +24,7 @@ import {
   SOLARIZED_TOKEN_COLORS,
 } from "./solarizedEditor";
 
-export function codeLessonLanguageExtension(language: CodeLessonLanguage): Extension {
+function codeLessonLanguageExtension(language: CodeLessonLanguage): Extension {
   switch (language) {
     case "python":
       return python();
@@ -57,7 +57,7 @@ const codeLessonHighlight = HighlightStyle.define([
   { tag: [tags.punctuation, tags.bracket], color: SOLARIZED_TOKEN_COLORS.punc },
 ]);
 
-export const codeLessonTheme: Extension = [
+const codeLessonTheme: Extension = [
   EditorView.theme(
     {
       "&": {

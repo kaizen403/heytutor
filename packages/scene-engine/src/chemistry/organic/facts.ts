@@ -4,7 +4,7 @@
  * neighbour-distinctness test, and the functional groups present. Pure
  * functions over the molecular graph so other lanes can call them.
  */
-import { bondOrderSum, elementCounts, molecularFormula, neighbours, type Molecule } from "./smiles";
+import { elementCounts, molecularFormula, neighbours, type Molecule } from "./smiles";
 
 export type Hybridisation = "sp" | "sp2" | "sp3";
 
@@ -18,7 +18,7 @@ export interface OrganicFacts {
   readonly functionalGroups: string[];
 }
 
-export function carbonHybridisation(molecule: Molecule, atom: number): Hybridisation | null {
+function carbonHybridisation(molecule: Molecule, atom: number): Hybridisation | null {
   const entry = molecule.atoms[atom];
   if (!entry || entry.element !== "C") return null;
   const orders = neighbours(molecule, atom).map((around) => around.bond.order);
@@ -30,7 +30,7 @@ export function carbonHybridisation(molecule: Molecule, atom: number): Hybridisa
 }
 
 /** (2C + 2 + N - H - X) / 2 for a neutral molecule; halogens count as hydrogens. */
-export function degreeOfUnsaturation(molecule: Molecule): number {
+function degreeOfUnsaturation(molecule: Molecule): number {
   const counts = elementCounts(molecule);
   const c = counts.get("C") ?? 0;
   const n = counts.get("N") ?? 0;
@@ -56,7 +56,7 @@ function branchSignature(molecule: Molecule, from: number, via: number, depth: n
   return `${head}(${children.join(",")})`;
 }
 
-export function chiralCentres(molecule: Molecule): number[] {
+function chiralCentres(molecule: Molecule): number[] {
   const centres: number[] = [];
   for (const atom of molecule.atoms) {
     if (atom.element !== "C" || carbonHybridisation(molecule, atom.index) !== "sp3") continue;
@@ -69,7 +69,7 @@ export function chiralCentres(molecule: Molecule): number[] {
   return centres;
 }
 
-export function functionalGroups(molecule: Molecule): string[] {
+function functionalGroups(molecule: Molecule): string[] {
   const found = new Set<string>();
   const element = (index: number): string => molecule.atoms[index]!.element;
   for (const atom of molecule.atoms) {
@@ -145,4 +145,3 @@ export function organicFacts(molecule: Molecule): OrganicFacts {
   };
 }
 
-export { bondOrderSum };

@@ -5,7 +5,7 @@ import type { AccountProfile } from "@/lib/account/types";
 import type { AccountSettings } from "@/lib/account/userSettings";
 import type { AppShellProfile } from "./types";
 
-export type AccountMe = {
+type AccountMe = {
   profile: AccountProfile;
   settings: AccountSettings;
 };

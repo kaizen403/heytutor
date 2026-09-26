@@ -9,7 +9,7 @@ import { MECHANICS_GENERATORS } from "./mechanics";
 import { OPTICS_GENERATORS } from "./optics";
 import { TOPIC_GENERATORS } from "./topics";
 
-export type { Generator, GeneratorContext, GeneratorTable } from "./context";
+export type { Generator } from "./context";
 
 const TABLE: GeneratorTable = {
   ...MECHANICS_GENERATORS,

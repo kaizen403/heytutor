@@ -200,7 +200,7 @@ export function neighbours(molecule: Molecule, atom: number): Array<{ atom: numb
 }
 
 /** Sum of bond orders at an atom (aromatic bonds count by their Kekulé order). */
-export function bondOrderSum(molecule: Molecule, atom: number): number {
+function bondOrderSum(molecule: Molecule, atom: number): number {
   return neighbours(molecule, atom).reduce((sum, entry) => sum + entry.bond.order, 0);
 }
 
@@ -323,13 +323,6 @@ export function attachMolecule(molecule: Molecule, atom: number, fragment: Molec
     entry.hydrogens = Math.max(0, valenceFor(entry) - bondOrderSum(joined, entry.index));
   }
   return joined;
-}
-
-/** `attachMolecule` with a fragment written as SMILES; its first atom joins. */
-export function attachFragment(molecule: Molecule, atom: number, fragmentSmiles: string, order: BondOrder = 1): Molecule | null {
-  const fragment = parseSmiles(fragmentSmiles);
-  if (!fragment) return null;
-  return attachMolecule(molecule, atom, fragment, 0, order);
 }
 
 /** True when every atom has a chemically possible valence (no five-bonded carbon). */

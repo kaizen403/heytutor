@@ -9,16 +9,16 @@ export const BOARD_BEZEL_DESKTOP_PX = 16;
 export const BOARD_BEZEL_MOBILE_PX = 10;
 
 /** Width change below this is measurement noise, not a rotation or sidebar. */
-export const BOARD_FRAME_WIDTH_LOCK_PX = 8;
+const BOARD_FRAME_WIDTH_LOCK_PX = 8;
 /** Sub-pixel / URL-bar jitter. Larger drops are real layout (footer, deck). */
-export const BOARD_FRAME_HEIGHT_JITTER_PX = 8;
+const BOARD_FRAME_HEIGHT_JITTER_PX = 8;
 /**
  * Visual-viewport inset that means the on-screen keyboard owns a height drop.
  * Smaller insets are browser chrome; a layout footer is not this.
  */
 export const BOARD_FRAME_KEYBOARD_INSET_PX = 80;
 
-export function boardBezelPx(isMobile: boolean): number {
+function boardBezelPx(isMobile: boolean): number {
   return isMobile ? BOARD_BEZEL_MOBILE_PX : BOARD_BEZEL_DESKTOP_PX;
 }
 

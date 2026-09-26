@@ -24,7 +24,7 @@ export interface NotesChatPreparation {
  * `shadow` still answers with Kimi and records a Jev recommendation.
  * `jev` uses the cheap model only when Jev explicitly chooses it.
  */
-export function resolveNotesEvaluationMode(
+function resolveNotesEvaluationMode(
   env: Record<string, string | undefined> = process.env,
 ): NotesEvaluationMode {
   const raw = env.TUTOR_NOTES_EVALUATION_MODE?.trim().toLowerCase();

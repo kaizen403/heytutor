@@ -95,7 +95,7 @@ function gasAnionCouple(gas: string, anion: string, e0: number, phase: "g" | "s"
  * NCERT Table 3.1 values (volts, 298 K). Au3+/Au and Br2/Br- follow the
  * older JEE tables the brief quotes (1.50, 1.08).
  */
-export const STANDARD_POTENTIALS: readonly CoupleRecord[] = [
+const STANDARD_POTENTIALS: readonly CoupleRecord[] = [
   metalCouple("Li", 1, -3.04),
   metalCouple("Rb", 1, -2.98),
   metalCouple("K", 1, -2.93),
@@ -210,7 +210,7 @@ export const STANDARD_POTENTIALS: readonly CoupleRecord[] = [
 ];
 
 /** Canonical spelling of one species: "Zn^(2+)" and "Zn++" both give "Zn2+". */
-export function canonicalSpecies(text: string): string | null {
+function canonicalSpecies(text: string): string | null {
   let cleaned = normalizeChemistryText(text)
     .replace(/\((?:aq|s|g|l|sol|soln|solution)\)/gi, "")
     .replace(/\s+/g, "");
@@ -225,7 +225,7 @@ export function canonicalSpecies(text: string): string | null {
 }
 
 /** Board spelling of a species with subscripts and a bracketed charge. */
-export function speciesLabel(formula: string): string {
+function speciesLabel(formula: string): string {
   const parsed = parseFormula(formula);
   if (!parsed) return formula;
   const body = parsed.atoms.map((atom) => `${atom.symbol}${atom.count > 1 ? `_${atom.count}` : ""}`).join("");
@@ -235,7 +235,7 @@ export function speciesLabel(formula: string): string {
 }
 
 /** Canonical couple key from any spelling, or null when neither side parses. */
-export function coupleKey(text: string): string | null {
+function coupleKey(text: string): string | null {
   const parts = normalizeChemistryText(text).replace(/\|/g, "/").split("/");
   if (parts.length !== 2) return null;
   const a = canonicalSpecies(parts[0]!);
@@ -326,7 +326,7 @@ function numberOf(text: string): number {
  * "E° of Zn2+/Zn and Cu2+/Cu are -0.76 V and 0.34 V respectively". An
  * "oxidation potential" is negated to a reduction potential.
  */
-export function statedPotentials(question: string): Map<string, { e0: number; n?: number }> {
+function statedPotentials(question: string): Map<string, { e0: number; n?: number }> {
   const text = normalizeChemistryText(question);
   const found = new Map<string, { e0: number; n?: number }>();
   const store = (rawCouple: string, value: number, index: number, n?: number): void => {
@@ -1190,7 +1190,7 @@ function inertMaterialLabel(question: string): string | null {
 }
 
 /** Faraday's law: metal mass deposited, in grams, when the stem gives a current and a time. */
-export function faradayMass(question: string, deposit: { symbol: string; n: number }): { grams: number; ampere: number; seconds: number } | null {
+function faradayMass(question: string, deposit: { symbol: string; n: number }): { grams: number; ampere: number; seconds: number } | null {
   const text = normalizeChemistryText(question);
   const current = /(\d+(?:\.\d+)?)\s*(?:A\b|amp(?:ere)?s?\b|mA\b)/.exec(text);
   const time = /(\d+(?:\.\d+)?)\s*(s\b|sec(?:ond)?s?\b|min(?:ute)?s?\b|h\b|hr\b|hours?\b)/.exec(text);

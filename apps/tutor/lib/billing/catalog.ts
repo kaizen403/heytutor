@@ -20,11 +20,9 @@ export type BillingPlanId = (typeof BILLING_PLANS)[keyof typeof BILLING_PLANS];
 
 export const GRANT_TTL_MS = 20 * 60 * 1000;
 export const TTS_CHARS_PER_LESSON = 12_000;
-export const MAX_IN_FLIGHT_LESSONS = 1;
 export const MAX_NEW_QUESTIONS_PER_HOUR = 3;
 export const TOP_UP_USD = 10;
-export const TOP_UP_EXPIRY_MONTHS = 12;
-export const MILLICENTS_PER_USD = 1000;
+const MILLICENTS_PER_USD = 1000;
 
 export interface PlanCatalogEntry {
   planId: BillingPlanId;
@@ -62,7 +60,7 @@ export function isKnownPlanId(value: string | null | undefined): value is "free"
   return value === "free" || value === "plus" || value === "pro";
 }
 
-export function planCatalogEntry(planId: string | null | undefined): PlanCatalogEntry {
+function planCatalogEntry(planId: string | null | undefined): PlanCatalogEntry {
   return isKnownPlanId(planId) ? PLAN_CATALOG[planId] : PLAN_CATALOG.free;
 }
 
@@ -81,9 +79,9 @@ export function millicentsToUsd(millicents: number): number {
   return millicents / MILLICENTS_PER_USD;
 }
 
-export const CHECKOUT_PLAN_IDS = [BILLING_PLANS.plus, BILLING_PLANS.pro] as const;
+const CHECKOUT_PLAN_IDS = [BILLING_PLANS.plus, BILLING_PLANS.pro] as const;
 export type CheckoutPlanId = (typeof CHECKOUT_PLAN_IDS)[number];
 
 export function isCheckoutPlanId(value: string | null | undefined): value is CheckoutPlanId {
-  return value === BILLING_PLANS.plus || value === BILLING_PLANS.pro;
+  return (CHECKOUT_PLAN_IDS as readonly string[]).includes(value ?? "");
 }

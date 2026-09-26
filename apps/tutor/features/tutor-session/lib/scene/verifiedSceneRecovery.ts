@@ -124,7 +124,7 @@ export function forgetVerifiedScene(question: string, scope: VerifiedSceneScope)
   memory.delete(verifiedSceneMemoryKey(boardId, questionKey));
 }
 
-export function verifiedSceneMemoryKey(boardId: string, questionKey: string): string {
+function verifiedSceneMemoryKey(boardId: string, questionKey: string): string {
   return `${boardId.trim()}::${questionKey}`;
 }
 

@@ -15,7 +15,7 @@ export const DOUBT_INTERRUPT_HINT =
   "Asking a doubt pauses the lesson and answers it right here, under what is on the board. You can continue the lecture afterwards, or ask another doubt.";
 
 /** The interrupted question is context, not the new question — keep it short. */
-export const MAX_DOUBT_CONTEXT_CHARS = 400;
+const MAX_DOUBT_CONTEXT_CHARS = 400;
 
 /** Longest wait for the interrupted turn to unwind before the doubt is surfaced back. */
 export const DOUBT_INTERRUPT_TIMEOUT_MS = 8000;
@@ -76,7 +76,7 @@ export interface DoubtTurnRequest {
   afterReplay: boolean;
 }
 
-export const DOUBT_TITLE_PREFIX = "Doubt: ";
+const DOUBT_TITLE_PREFIX = "Doubt: ";
 const MAX_DOUBT_TITLE_CHARS = 160;
 
 /** "Doubt: why is it negative", or what was marked when nothing was typed. */

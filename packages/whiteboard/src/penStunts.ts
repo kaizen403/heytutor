@@ -161,11 +161,11 @@ export const STUNT_TRAVEL_MAX_PX = 34;
 /** And further off the board, because a toss leaves it. */
 export const STUNT_LIFT_MAX_PX = 30;
 /** Peak lift of the toss, before mood and the soft cap. */
-export const TOSS_LIFT_PX = 26;
+const TOSS_LIFT_PX = 26;
 /** How wide the hand orbits under a thumb-around. */
-export const THUMB_ORBIT_PX = 9;
+const THUMB_ORBIT_PX = 9;
 /** How far out the pen walks across the knuckles. */
-export const KNUCKLE_REACH_PX = 17;
+const KNUCKLE_REACH_PX = 17;
 
 /**
  * One stunt's departure from rest at `t` in [0, 1], before mood and the caps.

@@ -55,7 +55,7 @@ export interface StatusDisplay {
 }
 
 /** Base draw budget for geometric commands — the adaptive function scales these. */
-export const BASE_SHAPE_DRAW_MS: Partial<Record<DrawCommand["type"], number>> = {
+const BASE_SHAPE_DRAW_MS: Partial<Record<DrawCommand["type"], number>> = {
   DRAW_CIRCLE: 1050,
   DRAW_LINE: 420,
   DRAW_RECT: 850,

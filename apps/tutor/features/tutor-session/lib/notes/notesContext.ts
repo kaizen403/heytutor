@@ -2,7 +2,7 @@ import { formatLessonNotesForPrompt, type LessonNotesSnapshot } from "./lessonNo
 import type { NotesChatTag } from "./notesChatTag";
 
 /** Rough character budget for notes sent to the chat model. */
-export const NOTES_CONTEXT_CHAR_BUDGET = 12_000;
+const NOTES_CONTEXT_CHAR_BUDGET = 12_000;
 
 export interface NotesContextSelection {
   text: string;

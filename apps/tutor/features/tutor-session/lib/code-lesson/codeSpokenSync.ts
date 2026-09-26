@@ -17,7 +17,7 @@
 import { mathToSpeech, type AudioTimings } from "@heytutor/tutor-core";
 
 /** Measured pooled speech rate, media ms per spoken character (10 Sep 2026). */
-export const CODE_SPOKEN_MS_PER_CHAR = 86;
+const CODE_SPOKEN_MS_PER_CHAR = 86;
 
 /**
  * What the segment runner hands a code-lesson command so it can follow the
@@ -254,7 +254,7 @@ function splitCompoundIdentifier(identifier: string): string[] {
  * under 2 cannot fire a line on its own, so "if" in "if you look at the
  * figure" moves nothing.
  */
-export function codeLineSpokenNames(line: string): Map<string, SpokenName> {
+function codeLineSpokenNames(line: string): Map<string, SpokenName> {
   const names = new Map<string, SpokenName>();
   const add = (name: string, weight: number): void => {
     const key = name.toLowerCase();
@@ -478,7 +478,7 @@ function pointerNames(label: string): string[] {
 }
 
 /** Every way the voice can name a part of this frame. */
-export function indexFrameNames(anchors: readonly FrameAnchor[]): FrameNameIndex {
+function indexFrameNames(anchors: readonly FrameAnchor[]): FrameNameIndex {
   const byName = new Map<string, string[]>();
   const cellByValue = new Map<string, string>();
   const indexByText = new Map<string, string>();

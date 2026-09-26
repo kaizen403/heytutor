@@ -35,9 +35,9 @@ the builder first; let it draw nothing rather than draw a guess.
 
 ## A2. Unfinished agent work (three agents died: rate limit, then sleep + network)
 
-- **MCQ answer oracle.** `packages/scene-engine/src/bank/answerOptions.ts` exists (582 lines,
-  typechecks) but its logic is **unverified** — written by an interrupted agent. Needs
-  `verify-answer-options.ts`, a correctness review, a corpus measurement, and wiring.
+- **MCQ answer oracle.** The unwired `answerOptions.ts` draft was removed because nothing
+  imported it. The oracle still needs a reviewed parser, `verify-answer-options.ts`, a corpus
+  measurement, and wiring.
   *Why it matters:* nothing in this repo measures whether the **answer** is right. Thousands
   of bank rows carry inline options, so an answer not among them is a free error signal — the
   cheapest route to a per-unit answer-accuracy number, which does not exist today.

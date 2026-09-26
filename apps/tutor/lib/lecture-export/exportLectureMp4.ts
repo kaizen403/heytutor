@@ -45,10 +45,10 @@ import {
   lectureExportMediaMs,
 } from "./lectureExportSpeed";
 
-export const LECTURE_EXPORT_FPS = 24;
-export const LECTURE_EXPORT_FRAME_MS = 1000 / LECTURE_EXPORT_FPS;
-export const LECTURE_EXPORT_WIDTH = 1200;
-export const LECTURE_EXPORT_HEIGHT = 700;
+const LECTURE_EXPORT_FPS = 24;
+const LECTURE_EXPORT_FRAME_MS = 1000 / LECTURE_EXPORT_FPS;
+const LECTURE_EXPORT_WIDTH = 1200;
+const LECTURE_EXPORT_HEIGHT = 700;
 
 export type LectureExportProgress = {
   currentMs: number;
@@ -64,7 +64,7 @@ export type LectureExportResult = {
   extension: LectureExportProfile["extension"];
 };
 
-export async function probeLectureExportProfile(
+async function probeLectureExportProfile(
   preferredContainer: LectureContainer = "mp4",
 ): Promise<LectureExportProfile | null> {
   if (!canEncodeLectureMp4()) {

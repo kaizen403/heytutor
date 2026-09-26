@@ -58,5 +58,3 @@ export function slice(value: number, from: number, to: number): number {
   if (to <= from) return value >= to ? 1 : 0
   return Math.min(1, Math.max(0, (value - from) / (to - from)))
 }
-
-export const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)

@@ -86,7 +86,7 @@ function nativeFullscreenElement(): Element | null {
  * well as on iOS, which is exactly right: both cases fall back to the app
  * chrome coming off, and neither should promise more than it can do.
  */
-export function nativeFullscreenAvailable(): boolean {
+function nativeFullscreenAvailable(): boolean {
   const doc = fullscreenDocument();
   if (!doc) return false;
   const root = doc.documentElement as FullscreenCapableElement;

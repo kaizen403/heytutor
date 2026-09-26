@@ -1,4 +1,4 @@
-export const AUTH_PUBLIC_PATHS = [
+const AUTH_PUBLIC_PATHS = [
   "/login",
   "/api/auth",
   "/favicon.ico",

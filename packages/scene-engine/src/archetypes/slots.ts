@@ -40,31 +40,6 @@ export function setSlot(bag: SlotBag, key: string, value: SlotValue | null | und
   bag.sources[key] = source;
 }
 
-export function slotNumber(bag: SlotBag, key: string): number | null {
-  const value = bag.values[key];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-export function slotText(bag: SlotBag, key: string): string | null {
-  const value = bag.values[key];
-  return typeof value === "string" && value.trim() ? value : null;
-}
-
-export function slotNumbers(bag: SlotBag, key: string): number[] {
-  const value = bag.values[key];
-  return Array.isArray(value) ? value.filter((item): item is number => typeof item === "number" && Number.isFinite(item)) : [];
-}
-
-export function slotStrings(bag: SlotBag, key: string): string[] {
-  const value = bag.values[key];
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
-}
-
-export function isGrounded(bag: SlotBag, key: string): boolean {
-  const source = bag.sources[key];
-  return source === "plan" || source === "stem";
-}
-
 /* ------------------------------------------------------------------------- */
 /* Plan quantities                                                            */
 /* ------------------------------------------------------------------------- */
@@ -93,7 +68,7 @@ export function collectPlanQuantities(turnPlan: unknown): PlanQuantity[] {
   });
 }
 
-export function normalizeKey(value: string): string {
+function normalizeKey(value: string): string {
   return value
     .toLowerCase()
     .replace(/\\(?:mathrm|text|operatorname)/g, "")
@@ -102,7 +77,7 @@ export function normalizeKey(value: string): string {
 }
 
 /** First plan quantity whose id or symbol normalizes to one of the aliases. */
-export function planQuantity(quantities: readonly PlanQuantity[], aliases: readonly string[]): PlanQuantity | null {
+function planQuantity(quantities: readonly PlanQuantity[], aliases: readonly string[]): PlanQuantity | null {
   const wanted = aliases.map(normalizeKey);
   return quantities.find((quantity) =>
     wanted.includes(normalizeKey(quantity.id)) || wanted.includes(normalizeKey(quantity.symbol))) ?? null;
@@ -289,7 +264,7 @@ export function refractiveIndex(stem: string): number | null {
 const EXPRESSION_CHARS = /[0-9xty+\-*/^().\s]|sin|cos|tan|sqrt|abs|ln|log|exp|pi|e/;
 
 /** Read a safe expression body starting at `start`, stopping at the first foreign token. */
-export function readExpression(source: string, start = 0): string {
+function readExpression(source: string, start = 0): string {
   const allowed = new Set(["x", "t", "pi", "e", "sin", "cos", "tan", "sqrt", "abs", "ln", "log", "exp"]);
   let index = start;
   while (index < source.length) {
@@ -307,7 +282,7 @@ export function readExpression(source: string, start = 0): string {
 }
 
 /** Make an exam-style expression safe for the engine's parser: explicit `*`, `^`, no unicode. */
-export function normalizeExpression(raw: string): string {
+function normalizeExpression(raw: string): string {
   let source = raw
     .replace(/[−–—]/g, "-")
     .replace(/²/g, "^2")
@@ -325,7 +300,7 @@ export function normalizeExpression(raw: string): string {
   return source.replace(/^\+/, "").replace(/[+\-*/^(.]+$/, "");
 }
 
-export function isSafeExpression(expression: string, variable: "x" | "t" = "x"): boolean {
+function isSafeExpression(expression: string, variable: "x" | "t" = "x"): boolean {
   if (!expression) return false;
   const other = variable === "x" ? "t" : "x";
   if (new RegExp(`\\b${other}\\b`).test(expression)) return false;

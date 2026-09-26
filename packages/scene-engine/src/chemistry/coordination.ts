@@ -523,13 +523,13 @@ function drawingCost(arrangement: Arrangement, layout: SiteLayout[], instances: 
 
 const ROMAN = ["0", "I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
 
-export function oxidationRoman(ox: number): string {
+function oxidationRoman(ox: number): string {
   if (ox >= 0 && ox < ROMAN.length) return ROMAN[ox]!;
   return String(ox);
 }
 
 /** [Co(NH3)4Cl2]^(+) back to the way a student writes it. */
-export function plainFormula(text: string): string {
+function plainFormula(text: string): string {
   return text.replace(/\^\((\d*[+-])\)/g, "$1").replace(/\^(\d*[+-])/g, "$1");
 }
 

@@ -1,7 +1,7 @@
 export const MAX_TURN_UPLOAD_BYTES = 128 * 1024 * 1024;
-export const MAX_TURN_METADATA_BYTES = 256 * 1024;
+const MAX_TURN_METADATA_BYTES = 256 * 1024;
 export const MAX_TURN_AUDIO_BYTES = 8 * 1024 * 1024;
-export const MAX_TURN_TOTAL_AUDIO_BYTES = 96 * 1024 * 1024;
+const MAX_TURN_TOTAL_AUDIO_BYTES = 96 * 1024 * 1024;
 export const MAX_TURN_SEGMENTS = 256;
 
 export type TurnUploadValidation =

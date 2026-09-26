@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "apps/landing/scripts/**/*.{ts,tsx,mjs,js}",
+    "apps/tutor/autumn.config.ts",
+    "apps/tutor/scripts/**/*.{ts,tsx,mjs,js}",
+    "packages/drawing/scripts/**/*.{ts,tsx,mjs,js}",
+    "packages/scene-engine/scripts/**/*.{ts,tsx,mjs,js}",
+    "packages/tutor-core/scripts/**/*.{ts,tsx,mjs,js}",
+    "packages/whiteboard/scripts/**/*.{ts,tsx,mjs,js}",
+    "tools/**/*.{ts,tsx,mjs,js}"
+  ],
+  "ignorePatterns": [".agents/**"],
+  "ignoreDependencies": [
+    "@next/eslint-plugin-next",
+    "atmn",
+    "eslint-config-next"
+  ]
+}

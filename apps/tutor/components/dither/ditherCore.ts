@@ -34,31 +34,10 @@ const BAYER_8 = [
 export const bayerThreshold = (x: number, y: number): number =>
   (BAYER_8[((y & 7) << 3) | (x & 7)] + 0.5) / 64
 
-/**
- * Pull `base` density up to 1 across the last `band` px before `edge`,
- * quadratically — so the field stays airy, then fuses solid quickly.
- */
-export const fusedDensity = (base: number, y: number, edge: number, band: number): number => {
-  const i = Math.min(1, Math.max(0, (y - (edge - band)) / band))
-  return base + (1 - base) * i * i
-}
-
 /** '#rrggbb' → packed ABGR uint32, the byte order of an RGBA ImageData buffer. */
 export const hexToAbgr = (hex: string): number => {
   const v = Number.parseInt(hex.slice(1), 16)
   return (0xff000000 | ((v & 255) << 16) | (((v >> 8) & 255) << 8) | ((v >> 16) & 255)) >>> 0
-}
-
-/** Channel-wise mix of two packed ABGR colours. `t` is clamped to 0–1. */
-export const mixAbgr = (a: number, b: number, t: number): number => {
-  const u = t <= 0 ? 0 : t >= 1 ? 1 : t
-  const ir = a & 255
-  const ig = (a >> 8) & 255
-  const ib = (a >> 16) & 255
-  const r = (ir + ((b & 255) - ir) * u + 0.5) | 0
-  const g = (ig + (((b >> 8) & 255) - ig) * u + 0.5) | 0
-  const bl = (ib + (((b >> 16) & 255) - ib) * u + 0.5) | 0
-  return (0xff000000 | (bl << 16) | (g << 8) | r) >>> 0
 }
 
 export type DitherRender = (

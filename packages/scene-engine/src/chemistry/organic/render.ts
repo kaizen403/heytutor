@@ -19,14 +19,12 @@ export interface RenderedMolecule {
   readonly labels: string[];
 }
 
-const SUBSCRIPT_DIGITS = "0123456789";
-
 function subscript(count: number): string {
   return count > 1 ? `_${count}` : "";
 }
 
 /** Symbol plus its hydrogens and charge, the way a skeletal formula labels a heteroatom. */
-export function atomLabel(laid: LaidOutMolecule, index: number): string | null {
+function atomLabel(laid: LaidOutMolecule, index: number): string | null {
   const molecule = laid.molecule;
   const atom = molecule.atoms[index]!;
   const group = laid.groupLabels.get(index);
@@ -137,4 +135,3 @@ export function renderMolecule(c: ChemScene, laid: LaidOutMolecule, prefix: stri
   return { ids, labelledAtomIds, bounds: { minX: centre.x - width / 2, maxX: centre.x + width / 2, minY: centre.y - height / 2, maxY: centre.y + height / 2 }, labels };
 }
 
-export { SUBSCRIPT_DIGITS };

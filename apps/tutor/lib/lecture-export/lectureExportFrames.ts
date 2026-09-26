@@ -1,5 +1,5 @@
-export const LECTURE_EXPORT_SAMPLE_WIDTH = 48;
-export const LECTURE_EXPORT_SAMPLE_HEIGHT = 28;
+const LECTURE_EXPORT_SAMPLE_WIDTH = 48;
+const LECTURE_EXPORT_SAMPLE_HEIGHT = 28;
 
 /** Group consecutive still frames into one encoded sample; keep moving ink as its own samples. */
 export function planLectureEncodeSpans(changed: readonly boolean[]): { start: number; count: number }[] {

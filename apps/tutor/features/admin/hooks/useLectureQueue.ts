@@ -26,8 +26,6 @@ import {
 } from "../lib/playgroundBoards";
 import type { ProbeQuestion } from "../lib/probes";
 
-export type { HeadlessRuntime };
-
 type JobOutcome = { status: "complete" } | { status: "failed"; error: string };
 
 function delay(ms: number): Promise<void> {

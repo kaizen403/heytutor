@@ -23,7 +23,7 @@ import { useEntitlement } from "@/lib/billing/useEntitlement";
 import { SiteButton } from "@/components/ui/site-button";
 import { AccountCard } from "./AccountPageFrame";
 
-export function UsageMeter({
+function UsageMeter({
   remainingPct,
   staff,
 }: {

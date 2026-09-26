@@ -9,7 +9,7 @@ export const NOTES_DATA_NOTICE =
 const ABSTAIN =
   "The supplied text does not contain enough information to decide. Choose this instead of guessing.";
 
-export const LESSON_REVIEW_QUESTIONS: Record<string, EvaluationQuestion> = {
+const LESSON_REVIEW_QUESTIONS: Record<string, EvaluationQuestion> = {
   addresses_requested_parts: {
     type: "choice",
     instructions:
@@ -66,7 +66,7 @@ export const LESSON_REVIEW_QUESTIONS: Record<string, EvaluationQuestion> = {
   },
 };
 
-export const NOTES_ROUTING_QUESTIONS: Record<string, EvaluationQuestion> = {
+const NOTES_ROUTING_QUESTIONS: Record<string, EvaluationQuestion> = {
   effort: {
     type: "choice",
     instructions:

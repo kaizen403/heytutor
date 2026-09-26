@@ -129,7 +129,7 @@ export interface CodePanelFrameSpec {
   caretClockMs?: number;
 }
 
-export function codePanelChromeHeight(): number {
+function codePanelChromeHeight(): number {
   return CODE_RENDER_METRICS.sectionBarHeight;
 }
 

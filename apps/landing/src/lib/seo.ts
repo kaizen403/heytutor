@@ -425,7 +425,7 @@ export const PAGES: readonly SeoPage[] = [
 
 const PAGE_BY_PATH = new Map(PAGES.map((page) => [page.path, page]))
 
-export function normalizePath(raw: string): string {
+function normalizePath(raw: string): string {
   const noQuery = raw.split('?')[0]?.split('#')[0] ?? '/'
   let path = noQuery.trim() || '/'
   if (!path.startsWith('/')) path = `/${path}`
@@ -449,7 +449,7 @@ export function htmlFileName(page: SeoPage): string {
   return `${page.slug}.html`
 }
 
-export function articlePages(): SeoPage[] {
+function articlePages(): SeoPage[] {
   return PAGES.filter((page) => page.kind === 'article')
 }
 
@@ -635,7 +635,7 @@ export function jsonLdGraph(page: SeoPage): {
   }
 }
 
-export function renderSeoHead(page: SeoPage): string {
+function renderSeoHead(page: SeoPage): string {
   const url = canonicalUrl(page.path)
   const json = JSON.stringify(jsonLdGraph(page), null, 2).replace(
     /\n/g,

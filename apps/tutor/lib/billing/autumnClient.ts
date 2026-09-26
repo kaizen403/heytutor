@@ -3,7 +3,6 @@ import {
   BILLING_FEATURES,
   BILLING_PLANS,
   isKnownPlanId,
-  planCatalogEntry,
   type BillingFeatureId,
 } from "./catalog";
 import { isAutumnEnabled } from "./flags";
@@ -43,11 +42,7 @@ export function resetAutumnClientForTests(): void {
   testClient = null;
 }
 
-export function setAutumnClientForTests(value: AutumnClient | null): void {
-  testClient = value;
-}
-
-export function getAutumnClient(env: NodeJS.ProcessEnv = process.env): AutumnClient {
+function getAutumnClient(env: NodeJS.ProcessEnv = process.env): AutumnClient {
   if (testClient) return testClient;
   if (client) return client;
   const secretKey = autumnSecret(env);
@@ -260,16 +255,6 @@ export function unlimitedSnapshot(planId = BILLING_PLANS.pro): AutumnCustomerSna
     planId,
     remainingLessons: null,
     remainingNotes: null,
-    nextResetAt: null,
-  };
-}
-
-export function localDisabledSnapshot(): AutumnCustomerSnapshot {
-  const free = planCatalogEntry(BILLING_PLANS.free);
-  return {
-    planId: free.planId,
-    remainingLessons: null,
-    remainingNotes: free.notesMessagesPerMonth,
     nextResetAt: null,
   };
 }

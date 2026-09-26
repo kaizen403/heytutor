@@ -52,7 +52,7 @@ function toMetresPerSecond(value: number, clause: string): number {
   return /km\s*\/\s*h|kmph|km\s*h\^-1/i.test(clause) ? value / 3.6 : value;
 }
 
-export function parseMotionPhases(question: string): Phase[] {
+function parseMotionPhases(question: string): Phase[] {
   const stem = prepareStem(question);
   const clauses = stem.split(/(?:,|;|\.(?!\d)|\bthen\b|\band then\b|\bafter (?:that|which)\b|\bfinally\b|\bnext\b)/i).map((clause) => clause.trim()).filter(Boolean);
   const phases: Phase[] = [];
@@ -260,7 +260,7 @@ type ProcessKind = "isobaric" | "isochoric" | "isothermal" | "adiabatic";
 interface Process { kind: ProcessKind; from: string; to: string; grows: boolean | null }
 const GAMMA = 1.4;
 
-export function parseProcesses(question: string): Process[] {
+function parseProcesses(question: string): Process[] {
   const stem = prepareStem(question);
   const found: Process[] = [];
   const pattern = /\b(isobaric|isochoric|isovolumetric|isothermal|adiabatic)\b([^.;]{0,80}?)(?:from\s+)?\b([A-D])\b\s*(?:to|→|->|—|-)\s*\b([A-D])\b/gi;

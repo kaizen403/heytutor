@@ -76,7 +76,7 @@ export interface RunCostReport {
   bySession: RunCostSessionRow[];
 }
 
-export const EMPTY_RUN_COST: RunCostReport = {
+const EMPTY_RUN_COST: RunCostReport = {
   totals: {
     traces: 0,
     observations: 0,
@@ -166,7 +166,7 @@ function readCharacterUsage(observation: CostObservation): number {
   return 0;
 }
 
-export function observationKindName(observation: CostObservation): string {
+function observationKindName(observation: CostObservation): string {
   const name = observation.name?.trim();
   return name && name.length > 0 ? name : "other";
 }
