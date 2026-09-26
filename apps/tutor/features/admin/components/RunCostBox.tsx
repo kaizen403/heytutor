@@ -3,7 +3,13 @@
 import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatCharCount, formatTokenCount, formatUsd, type RunCostApiPayload, type RunCostReport } from "@/lib/obs/runCost";
+import {
+  formatCharCount,
+  formatTokenCount,
+  formatUsd,
+  type RunCostApiPayload,
+  type RunCostReport,
+} from "@/lib/obs/runCost";
 
 const KIND_LABELS: Record<string, string> = {
   "fireworks-llm": "Teaching",
@@ -42,7 +48,9 @@ function statusCopy(options: {
   if (options.error === "langfuse_unavailable") return "Langfuse unreachable";
   if (options.error === "unauthorized") return "Admin only";
   if (options.observations === 0) {
-    return options.busy || options.loading ? "Waiting for traces" : "No traces yet";
+    return options.busy || options.loading
+      ? "Waiting for traces"
+      : "No traces yet";
   }
   return options.busy ? "Live" : "From Langfuse";
 }
@@ -96,11 +104,21 @@ export function RunCostBox({
   const llmHint = totals
     ? `${formatTokenCount(totals.inputTokens)} in · ${formatTokenCount(totals.outputTokens)} out`
     : "—";
-  const voiceHint = totals ? `${formatCharCount(totals.characters)} chars` : "—";
-  const jevRate = data?.pricing.llm.find((row) => row.lane === "jev")?.inputUsdPer1M;
-  const cartesiaRate = data?.pricing.tts.find((row) => row.lane === "cartesia")?.usdPer1kChars;
-  const flashRate = data?.pricing.tts.find((row) => row.lane === "flash")?.usdPer1kChars;
-  const multiRate = data?.pricing.tts.find((row) => row.lane === "multilingual")?.usdPer1kChars;
+  const voiceHint = totals
+    ? `${formatCharCount(totals.characters)} chars`
+    : "—";
+  const jevRate = data?.pricing.llm.find(
+    (row) => row.lane === "jev",
+  )?.inputUsdPer1M;
+  const cartesiaRate = data?.pricing.tts.find(
+    (row) => row.lane === "cartesia",
+  )?.usdPer1kChars;
+  const flashRate = data?.pricing.tts.find(
+    (row) => row.lane === "flash",
+  )?.usdPer1kChars;
+  const multiRate = data?.pricing.tts.find(
+    (row) => row.lane === "multilingual",
+  )?.usdPer1kChars;
 
   const sessionRows = useMemo(() => {
     if (!report) return [];
@@ -114,13 +132,11 @@ export function RunCostBox({
     <div className={cn("glass rounded-xl", busy && "glass-sky")}>
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 px-3 py-2.5">
         <div className="min-w-0">
-          <p className="type-accent-xs text-faint">{status}</p>
-          <p className="mt-1 text-[15px] font-medium tracking-[-0.02em] text-frost">
-            Cost
-            <span className="ml-2 tabular-nums text-sky-200">
-              {formatUsd(totals?.totalUsd ?? 0)}
-            </span>
+          <p className="text-sm font-medium text-frost">Run cost</p>
+          <p className="mt-1 text-xl font-semibold tabular-nums tracking-tight text-sky-200">
+            {observations > 0 ? formatUsd(totals?.totalUsd ?? 0) : "—"}
           </p>
+          <p className="mt-1 text-xs text-soft">{status}</p>
         </div>
         <p className="type-accent-xs text-faint">
           {lectureCount} lecture{lectureCount === 1 ? "" : "s"}
@@ -129,8 +145,16 @@ export function RunCostBox({
       </div>
 
       <div className="space-y-1.5 border-t border-stroke px-3 py-2.5">
-        <CostLine label="AI" value={formatUsd(totals?.llmUsd ?? 0)} hint={llmHint} />
-        <CostLine label="Voice" value={formatUsd(totals?.ttsUsd ?? 0)} hint={voiceHint} />
+        <CostLine
+          label="AI"
+          value={observations > 0 ? formatUsd(totals?.llmUsd ?? 0) : "—"}
+          hint={llmHint}
+        />
+        <CostLine
+          label="Voice"
+          value={observations > 0 ? formatUsd(totals?.ttsUsd ?? 0) : "—"}
+          hint={voiceHint}
+        />
         {totals && totals.totalUsd > 0 ? (
           <div className="flex h-1 overflow-hidden rounded-full bg-ink-700">
             <div
@@ -152,14 +176,20 @@ export function RunCostBox({
           className="flex w-full items-center justify-between rounded-md px-1.5 py-1 text-left type-accent-xs text-faint transition-colors hover:text-frost"
           aria-expanded={open}
         >
-          Details
-          <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} aria-hidden />
+          Cost breakdown
+          <ChevronDown
+            className={cn("h-3 w-3 transition-transform", open && "rotate-180")}
+            aria-hidden
+          />
         </button>
         {open ? (
           <div className="space-y-3 px-1.5 pb-2 pt-1">
             <ul className="space-y-1">
               {(report?.byKind ?? []).map((row) => (
-                <li key={row.name} className="flex items-baseline justify-between gap-3">
+                <li
+                  key={row.name}
+                  className="flex items-baseline justify-between gap-3"
+                >
                   <p className="min-w-0 truncate type-accent-xs text-soft">
                     {kindLabel(row.name)}
                     <span className="ml-1.5 text-faint">
@@ -168,12 +198,15 @@ export function RunCostBox({
                         : `${formatTokenCount(row.inputTokens + row.outputTokens)} tok`}
                     </span>
                   </p>
-                  <p className="shrink-0 tabular-nums type-accent-xs text-frost">{formatUsd(row.usd)}</p>
+                  <p className="shrink-0 tabular-nums type-accent-xs text-frost">
+                    {formatUsd(row.usd)}
+                  </p>
                 </li>
               ))}
               {(report?.byKind.length ?? 0) === 0 ? (
                 <li className="type-accent-xs text-faint">
-                  Planner, teaching, and voice spans land here after Langfuse ingests the run.
+                  Planner, teaching, and voice spans land here after Langfuse
+                  ingests the run.
                 </li>
               ) : null}
             </ul>
@@ -181,8 +214,13 @@ export function RunCostBox({
             {sessionRows.length > 1 ? (
               <ul className="space-y-1 border-t border-stroke pt-2">
                 {sessionRows.map((row) => (
-                  <li key={row.sessionId} className="flex items-baseline justify-between gap-3">
-                    <p className="min-w-0 truncate type-accent-xs text-soft">{row.title}</p>
+                  <li
+                    key={row.sessionId}
+                    className="flex items-baseline justify-between gap-3"
+                  >
+                    <p className="min-w-0 truncate type-accent-xs text-soft">
+                      {row.title}
+                    </p>
                     <p className="shrink-0 tabular-nums type-accent-xs text-frost">
                       {formatUsd(row.totalUsd)}
                     </p>
@@ -193,9 +231,13 @@ export function RunCostBox({
 
             <p className="type-accent-xs leading-relaxed text-faint">
               AI is Fireworks serverless
-              {jevRate != null ? ` plus Jev at ${formatUsd(jevRate)} / 1M input tokens` : ""}
+              {jevRate != null
+                ? ` plus Jev at ${formatUsd(jevRate)} / 1M input tokens`
+                : ""}
               . Voice uses the selected speech provider
-              {cartesiaRate != null ? `. Cartesia ${formatUsd(cartesiaRate)} / 1k chars` : ""}
+              {cartesiaRate != null
+                ? `. Cartesia ${formatUsd(cartesiaRate)} / 1k chars`
+                : ""}
               {flashRate != null && multiRate != null
                 ? `. Flash ${formatUsd(flashRate)} / 1k chars, Multilingual ${formatUsd(multiRate)} / 1k chars`
                 : ""}
