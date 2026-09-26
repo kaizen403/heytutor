@@ -28,6 +28,7 @@ import {
   FRAME_SWAP_MS,
   classifyDsaQuestion,
   isExplanationOnlyDsaQuestion,
+  dsaLessonIncludesCode,
   codeLessonSectionCode,
   codeLessonStepCount,
   createFallbackTurnPlanV3,
@@ -499,14 +500,14 @@ export async function runDsaLecture(
       return run;
     }
 
-    const explanationOnlyWithFrames = explanationOnly && Boolean(frameSet?.frames.length);
+    const includeDsaCode = dsaLessonIncludesCode(explanationOnly);
     const teachingPrompt = buildTurnTeachingPrompt({
       question,
       diagramPromptAddon: activeDiagram?.promptAddon ?? null,
       turnPlan: codeLesson ? createFallbackTurnPlanV3(question) : null,
       solverProjection: null,
       codeLesson,
-      codeLessonIncludeCode: !explanationOnlyWithFrames,
+      codeLessonIncludeCode: includeDsaCode,
       ...(teachingPolicyPromise ? { codeLessonTeachingPolicy: await teachingPolicyPromise } : {}),
       codeLessonFrames: frameSet?.frames.map((frame) => ({
         id: frame.id,
@@ -521,7 +522,7 @@ export async function runDsaLecture(
     run.promptChars = teachingPrompt.systemPrompt.length;
     run.promptAddon = teachingPrompt.runtimeAddon;
     run.teaching.expectedStepCount = codeLesson
-      ? codeLessonStepCount(frameSet?.frames.length ?? 0, explanationOnlyWithFrames ? 0 : run.codeLesson.blockCount)
+      ? codeLessonStepCount(frameSet?.frames.length ?? 0, includeDsaCode ? run.codeLesson.blockCount : 0)
       : 0;
 
     // Mirrors the app: opening notes first, then the figure. With no
@@ -535,7 +536,7 @@ export async function runDsaLecture(
       : (openingPointIds.length > 0 ? openingPointIds : staticPointIds);
     const conductor = codeLesson
       ? createCodeLessonConductor(codeLesson, {
-          includeCode: !explanationOnlyWithFrames,
+          includeCode: includeDsaCode,
           frameCount: frameSet?.frames.length ?? 0,
           frameIds: frameSet?.frames.map((frame) => frame.id) ?? [],
           frameFocusIds: frameSet?.frames.map((frame) => frame.focusEntityIds) ?? [],

@@ -108,6 +108,7 @@ assert(filtersAreActive({ ...DEFAULT_TOPIC_FILTERS, query: " x " }), "query must
 console.log("✓ filtersAreActive");
 
 const watchDrawer = readFileSync(join(__dirname, "../../features/admin/components/WatchDrawer.tsx"), "utf8");
+assert(watchDrawer.includes("useState(DEFAULT_REPLAY_SPEED)"), "admin Watch must open at the same replay speed as the tutor");
 assert(watchDrawer.includes("LessonActions"), "admin Watch must mount the same Replay / Download actions as the tutor");
 assert(watchDrawer.includes("onExportApi"), "admin Watch must take Replay / Notes PDF / MP4 from the embed shell");
 assert(watchDrawer.includes("downloadNotesPdf"), "admin Watch must offer Notes (PDF)");

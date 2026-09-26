@@ -109,6 +109,34 @@ export function buildInterruptedLessonExchange(
 }
 
 /**
+ * The lesson a doubt interrupted. A doubt turn's title is not that lesson;
+ * the page record keeps the original stem on `lessonQuestion`.
+ */
+export function interruptedLessonStem(
+  page: { lessonQuestion?: string | null } | null | undefined,
+  liveQuestion: string | null | undefined,
+): string {
+  const lesson = page?.lessonQuestion?.trim() ?? "";
+  if (lesson) return lesson;
+  return (liveQuestion ?? "").trim();
+}
+
+/**
+ * Completed sentences plus the one still being spoken. A segment is recorded
+ * only after it finishes, so a mid-sentence interrupt would otherwise omit
+ * what the student was hearing.
+ */
+export function interruptedTurnNarration(
+  completed: readonly string[],
+  inFlight: string,
+): string {
+  const heard = completed.map((line) => line.trim()).filter(Boolean);
+  const live = inFlight.trim();
+  if (live && heard[heard.length - 1] !== live) heard.push(live);
+  return heard.join(" ");
+}
+
+/**
  * Identity of an `?q=` auto-submission. The board id alone is not enough (the
  * same board can be handed a new question) and the question alone is not either
  * (the same question can start a new board).

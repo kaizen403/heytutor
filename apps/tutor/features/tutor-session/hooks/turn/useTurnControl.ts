@@ -23,6 +23,8 @@ import {
   autoQuestionSubmissionKey,
   buildDoubtPrompt,
   buildInterruptedLessonExchange,
+  interruptedLessonStem,
+  interruptedTurnNarration,
   doubtInterruptsLesson,
   doubtTurnTitle,
   isRuntimeReadyForDoubt,
@@ -163,7 +165,7 @@ export function useTurnControl(
     [turnActiveRef, cancelRef, phaseRef, setPhase],
   );
 
-  const { runSegment, pauseFallbackSpeech, resumeFallbackSpeech, stopFallbackSpeech } = useSegmentRunner({ ...params, applyTurnPhase });
+  const { runSegment, pauseFallbackSpeech, resumeFallbackSpeech, stopFallbackSpeech, speakingNarrationRef } = useSegmentRunner({ ...params, applyTurnPhase });
 
   const enqueueSegment = useCallback(
     (segment: TutorSegment, turnGeneration = turnGenerationRef.current) => {
@@ -973,13 +975,13 @@ export function useTurnControl(
       // each interruption duplicates old explanations until they crowd out the
       // student's current question. Only the interrupted turn belongs here.
       const interruptedNarration = runtime.turnActive
-        ? recordedSegmentsRef.current
-            .map((segment) => segment.narration.trim())
-            .filter(Boolean)
-            .join(" ")
+        ? interruptedTurnNarration(
+            recordedSegmentsRef.current.map((segment) => segment.narration),
+            speakingNarrationRef.current,
+          )
         : "";
       const interruptedLesson = buildInterruptedLessonExchange(
-        boardPageRef.current?.turn.question ?? liveQuestionRef.current,
+        interruptedLessonStem(boardPageRef.current, liveQuestionRef.current),
         interruptedNarration,
       );
       if (interruptedLesson) {
@@ -1061,6 +1063,7 @@ export function useTurnControl(
       handleQuestionRef,
       liveQuestionRef,
       recordedSegmentsRef,
+      speakingNarrationRef,
       pendingSegmentCountRef,
       phaseRef,
       sessionId,

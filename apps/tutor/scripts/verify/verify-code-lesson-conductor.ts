@@ -10,6 +10,7 @@
  * These cases are the adversarial streams, not the happy path: the point is
  * that a badly-behaved model still produces a correct lesson.
  */
+import { readFileSync } from "node:fs";
 import { getSegmentCommands, type TutorSegment } from "@heytutor/drawing";
 import type { CodeLessonPlan } from "@heytutor/tutor-core";
 import {
@@ -676,6 +677,17 @@ function frameCount(segments: TutorSegment[]): number {
     "if the stream never names a frame the intro still appends",
   );
 }
+
+const handlerSource = readFileSync(new URL("../../features/tutor-session/hooks/turn/useQuestionHandler.ts", import.meta.url), "utf8");
+const labSource = readFileSync(new URL("../../scripts/lecture-lab/dsaPipeline.ts", import.meta.url), "utf8");
+assert(
+  handlerSource.includes("dsaLessonIncludesCode(explanationOnlyDsa)") && !handlerSource.includes("explanationOnlyWithFrames"),
+  "the live lesson must hide code for an explanation request even with no frames",
+);
+assert(
+  labSource.includes("dsaLessonIncludesCode(explanationOnly)") && !labSource.includes("explanationOnlyWithFrames"),
+  "the lecture lab must hide code for an explanation request even with no frames",
+);
 
 console.log(
   `verify-code-lesson-conductor: ${ORDER.length} blocks — scrambled, repeated, unknown, ` +

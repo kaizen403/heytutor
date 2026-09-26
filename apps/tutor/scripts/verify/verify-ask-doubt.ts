@@ -6,6 +6,8 @@ import {
   autoQuestionSubmissionKey,
   buildDoubtPrompt,
   buildInterruptedLessonExchange,
+  interruptedLessonStem,
+  interruptedTurnNarration,
   doubtInterruptsLesson,
   isRuntimeReadyForDoubt,
   DOUBT_INTERRUPT_HINT,
@@ -117,6 +119,27 @@ assert(
     exchange.assistant === "we started with newton's second law.",
   "the interrupted lesson must reach the doubt turn as a real exchange",
 );
+assert(
+  interruptedLessonStem(
+    { lessonQuestion: "find the acceleration" },
+    "Doubt: why is the sign negative",
+  ) === "find the acceleration",
+  "a nested doubt must name the lesson, not the doubt title on the active turn",
+);
+assert(
+  interruptedLessonStem({ lessonQuestion: "  " }, "find the acceleration") === "find the acceleration",
+  "a blank page stem falls back to the live lesson question",
+);
+assert(
+  interruptedTurnNarration(["we started with newton's second law"], "the sign comes from the direction") ===
+    "we started with newton's second law the sign comes from the direction",
+  "a mid-sentence interrupt must keep the sentence still being spoken",
+);
+assert(
+  interruptedTurnNarration(["we started with newton's second law"], "we started with newton's second law") ===
+    "we started with newton's second law",
+  "a finished sentence must not be recorded twice",
+);
 
 // The shell never unmounts between boards, so a boolean "already submitted"
 // latch would swallow the second Next Question of a session.
@@ -217,6 +240,14 @@ assert(
   handleAskDoubt.includes("compactConversationHistory")
     && handleAskDoubt.includes("interruptedLesson"),
   "the interrupted lesson must reach the doubt turn's conversation history",
+);
+assert(
+  handleAskDoubt.includes("interruptedLessonStem") && !handleAskDoubt.includes("turn.question"),
+  "the interrupted exchange must use the lesson stem, not the active turn title",
+);
+assert(
+  handleAskDoubt.includes("interruptedTurnNarration") && handleAskDoubt.includes("speakingNarrationRef"),
+  "the interrupted exchange must include the sentence still being spoken",
 );
 assert(
   handleAskDoubt.includes("DOUBT_INTERRUPT_TIMEOUT_MESSAGE"),

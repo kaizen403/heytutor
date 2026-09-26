@@ -55,6 +55,10 @@ assert(studentBillingMessage("no_grant").toLowerCase().includes("start"), "lost 
 assert(studentBillingMessage("unauthorized") === "Sign in to continue", "401 is sign-in, not usage");
 assert(studentBillingMessage("timeout").toLowerCase().includes("too long"), "begin-turn timeout is not a silent cancel");
 assert(studentBillingMessage("rate_limited").toLowerCase().includes("too many"), "429 is rate limit copy");
+assert(
+  studentBillingMessage("doubt_limit") === OUT_OF_USAGE_TITLE,
+  "a retired per-question doubt cap must not claim the student asked enough doubts",
+);
 assert(studentBillingMessage("autumn_unavailable").toLowerCase().includes("unavailable"), "503 copy");
 assert(OUT_OF_USAGE_TITLE === "Out of usage", "402 title is Out of usage");
 assert(TEEN_CHECKOUT_COPY.includes("parent or guardian"), "teen checkout copy");

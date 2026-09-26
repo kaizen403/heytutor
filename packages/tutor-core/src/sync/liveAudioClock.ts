@@ -208,6 +208,29 @@ export function shouldStartLiveDraw(input: {
   return !input.hasNarration || input.audioStarted;
 }
 
+/**
+ * Whether this spoken beat may start inking.
+ *
+ * A beat that never started audio must not dump its commands. Browser speech
+ * can fire `onStart` and then fail the utterance; that partial start is still
+ * a failed beat. A primary voice that already started and later stalled may
+ * keep the ink that matches what was heard.
+ */
+export function shouldInkSpokenSegment(input: {
+  hasNarration: boolean;
+  audioStarted: boolean;
+  speechFailed: boolean;
+  browserFallback: boolean;
+}): boolean {
+  if (input.speechFailed && (!input.audioStarted || input.browserFallback)) {
+    return false;
+  }
+  return shouldStartLiveDraw({
+    hasNarration: input.hasNarration,
+    audioStarted: input.audioStarted,
+  });
+}
+
 /** What became of the exact alignment when a handwriting schedule was built. */
 export type TtsScheduleUse =
   /** The schedule is the alignment. */

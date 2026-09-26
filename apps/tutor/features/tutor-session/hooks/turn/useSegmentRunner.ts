@@ -16,7 +16,7 @@ import {
   tutorDebug,
   mathToSpeech,
   voiceSettingsForDelivery,
-  shouldStartLiveDraw,
+  shouldInkSpokenSegment,
   type AudioTimings,
   type InitialTimingWaitRelease,
   type TTSClient,
@@ -61,6 +61,8 @@ export function useSegmentRunner({
   // used to assume 15 spoken chars a second; the voice runs 11 to 13.5, so
   // every guessed row finished a median 1.4 s before its words.
   const speechRateRef = useRef(createSpeechRateState());
+  /** The sentence being spoken. Recorded segments omit it until the beat ends. */
+  const speakingNarrationRef = useRef("");
   const browserSpeechRef = useRef<SpeechSynthesisTTSClient | null>(null);
   const browserFallbackOwnerRef = useRef<symbol | null>(null);
   const fallbackPauseGenerationRef = useRef(0);
@@ -384,12 +386,20 @@ export function useSegmentRunner({
               return;
             }
             if (
-              !shouldStartLiveDraw({
+              !shouldInkSpokenSegment({
                 hasNarration: true,
                 audioStarted: audioStartedAtMs !== null,
+                speechFailed: speechAborted,
+                browserFallback: usingBrowserFallback,
               })
             ) {
-              tutorDebug("draw", "skipped silent dump; voice never started", { index });
+              tutorDebug(
+                "draw",
+                speechAborted
+                  ? "skipped ink; speech failed before the pen started"
+                  : "skipped silent dump; voice never started",
+                { index },
+              );
               // Voice never came: uncover the board so the lecture is not stuck
               // behind "preparing" for the rest of the turn.
               applyTurnPhase("speaking");
@@ -695,6 +705,7 @@ export function useSegmentRunner({
       };
 
       let segmentCompleted = false;
+      if (hasNarration) speakingNarrationRef.current = narration;
       try {
         if (!(await waitWhilePaused())) return;
 
@@ -767,6 +778,9 @@ export function useSegmentRunner({
         }
         segmentCompleted = true;
       } finally {
+        if (speakingNarrationRef.current === narration) {
+          speakingNarrationRef.current = "";
+        }
         if (segmentCompleted && !isCancelled()) {
           recordedSegmentsRef.current.push({
             orderIndex: index,
@@ -820,8 +834,9 @@ export function useSegmentRunner({
       narrationDensityRef,
       drawChainRef,
       reserveTextCommandPlacements,
+      speakingNarrationRef,
     ],
   );
 
-  return { runSegment, pauseFallbackSpeech, resumeFallbackSpeech, stopFallbackSpeech };
+  return { runSegment, pauseFallbackSpeech, resumeFallbackSpeech, stopFallbackSpeech, speakingNarrationRef };
 }

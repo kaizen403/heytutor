@@ -98,6 +98,15 @@ export function isExplanationOnlyDsaQuestion(question: string): boolean {
   const asksForImplementation = /\b(?:cod(?:e|es|ed|ing)|implement\w*|writ(?:e|es|ing|ten)|programs?|functions?|solv(?:e|es|ed|ing)|solutions?)\b/i.test(question);
   return asksToExplain && !asksForImplementation;
 }
+
+/**
+ * An explanation request hides the editor even when the family drew no frames.
+ * Frames and code are separate: "Explain two sum" owes no blocks either way.
+ */
+export function dsaLessonIncludesCode(explanationOnly: boolean): boolean {
+  return !explanationOnly;
+}
+
 export const DEFAULT_DSA_TEACHING_POLICY: DsaTeachingPolicy = {
   motivation: "show_slow_way",
   emphasis: "walkthrough",

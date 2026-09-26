@@ -38,6 +38,7 @@ import {
   INITIAL_TIMING_GRACE_AFTER_START_MS,
   classifyTtsScheduleUse,
   resolveInitialTimingWait,
+  shouldInkSpokenSegment,
   shouldStartLiveDraw,
   type InitialTimingWaitRelease,
 } from "../../src/sync/liveAudioClock";
@@ -665,6 +666,42 @@ assert(
 assert(
   shouldStartLiveDraw({ hasNarration: false, audioStarted: false }),
   "a draw-only segment has no voice to wait for",
+);
+assert(
+  !shouldInkSpokenSegment({
+    hasNarration: true,
+    audioStarted: false,
+    speechFailed: true,
+    browserFallback: false,
+  }),
+  "a spoken beat that failed before audio started must not ink",
+);
+assert(
+  !shouldInkSpokenSegment({
+    hasNarration: true,
+    audioStarted: true,
+    speechFailed: true,
+    browserFallback: true,
+  }),
+  "a browser utterance that fires onStart and then fails is still a failed beat",
+);
+assert(
+  shouldInkSpokenSegment({
+    hasNarration: true,
+    audioStarted: true,
+    speechFailed: true,
+    browserFallback: false,
+  }),
+  "a primary voice that already started may keep the ink that matches what was heard",
+);
+assert(
+  shouldInkSpokenSegment({
+    hasNarration: true,
+    audioStarted: true,
+    speechFailed: false,
+    browserFallback: false,
+  }),
+  "a spoken beat whose voice started may ink",
 );
 
 // The schedule log names what became of the alignment. `schedule_source`
