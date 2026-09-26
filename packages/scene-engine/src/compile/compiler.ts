@@ -12,8 +12,11 @@ import {
 import {
   obstaclesFromPrimitives,
   placeLabels,
+  stackLabelRows,
   workColumnObstacle,
   POINT_LABEL_TETHER_PX,
+  type LabelEngineOptions,
+  type LabelObstacle,
   type LabelOwner,
 } from "../labels/labelEngine";
 // The engine reserves the room the board will letter into, so it measures with
@@ -481,17 +484,23 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       incidentTangents: undefined,
     };
   };
-  const labels = placeLabels(
-    pinDsaLabels
-      ? uniqueLabelOwners.map(pinOwner)
-      : uniqueLabelOwners.map((owner) => (pinnedEntityIds.has(owner.entityId) ? pinOwner(owner) : owner)),
-    [...obstaclesFromPrimitives(primitives), workColumnObstacle()],
-    pinDsaLabels
-      // 16 is the validator's own compact-label ceiling; a lower cap here
-      // rejected labels the document had already accepted.
-      ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth }
-      : { measureTextPx: measureTextWidth },
-  );
+  const placementOwners = pinDsaLabels
+    ? uniqueLabelOwners.map(pinOwner)
+    : uniqueLabelOwners.map((owner) => (pinnedEntityIds.has(owner.entityId) ? pinOwner(owner) : owner));
+  const labelObstacles = [...obstaclesFromPrimitives(primitives), workColumnObstacle()];
+  const labelOptions: LabelEngineOptions = pinDsaLabels
+    // 16 is the validator's own compact-label ceiling; a lower cap here
+    // rejected labels the document had already accepted.
+    ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth }
+    : { measureTextPx: measureTextWidth };
+  const stackedOwners = pinDsaLabels
+    ? null
+    : stackSummaryLabelOwners(document, placementOwners, summaryLabelIds, primitives, labelObstacles, labelOptions);
+  let labels = placeLabels(stackedOwners ?? placementOwners, labelObstacles, labelOptions);
+  if (stackedOwners && labels.issues.length > 0) {
+    const solved = placeLabels(placementOwners, labelObstacles, labelOptions);
+    if (solved.issues.length < labels.issues.length) labels = solved;
+  }
   for (const issue of labels.issues) {
     issues.push({
       code: issue.code,
@@ -518,6 +527,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         labelBounds: placement.bounds,
         usesLeader: placement.usesLeader,
         ...(pinDsaLabels ? { fontPx: DSA_LABEL_FONT_PX, labelPad: 3 } : {}),
+        ...(summaryLabelIds.has(placement.labelId) ? { summary: true } : {}),
       },
     });
     if (!pinDsaLabels && placement.usesLeader && placement.leaderFrom && placement.leaderTo) {
@@ -550,13 +560,26 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
 
   const entityBounds: Record<string, { x: number; y: number; width: number; height: number }> = {};
-  for (const primitive of primitives) {
+  const addEntityBounds = (primitive: RenderPrimitive) => {
     const points = primitive.kind === "circle" || primitive.kind === "arc"
       ? circleBounds(primitive.points[0]!, primitive.radius ?? 0)
       : primitive.points;
     const bounds = boundsOf(points);
     const current = entityBounds[primitive.entityId];
     entityBounds[primitive.entityId] = current ? unionBounds(current, bounds) : bounds;
+  };
+  // A quantity summary sits in the givens block, away from what it measures.
+  // Counted into its target's box, it stretched the particle's box to the top
+  // of the figure and "this is the particle" sent the pen there.
+  const summaries = primitives.filter((primitive) => primitive.provenance?.summary === true);
+  for (const primitive of primitives) {
+    if (primitive.provenance?.summary !== true) addEntityBounds(primitive);
+  }
+  const drawnOnlyAsSummary = new Set(
+    summaries.map((primitive) => primitive.entityId).filter((entityId) => !entityBounds[entityId]),
+  );
+  for (const primitive of summaries) {
+    if (drawnOnlyAsSummary.has(primitive.entityId)) addEntityBounds(primitive);
   }
   for (const [aliasId, renderedId] of coincidentPointAliases) {
     const bounds = entityBounds[renderedId];
@@ -625,6 +648,61 @@ function normalizeIdentifier(value: string): string {
   return value.trim().toLowerCase().replace(/[₀-₉]/g, (digit) =>
     String("₀₁₂₃₄₅₆₇₈₉".indexOf(digit)),
   );
+}
+
+/**
+ * Quantity summaries ("v_i = +3.0 m/s", "m = 2.0 kg") read as one block of
+ * givens beside the figure. Handed to the slot solver one at a time they
+ * shared an anchor and fanned out around it — one above, one to each side,
+ * one below with a leader to empty paper — which on the board read as stray
+ * writing over the picture. Stack each figure's summaries as rows in the first
+ * corner that is clear of ink, in the order the document gives them. Null
+ * when there are none or no corner fits, and the solver places them as before.
+ */
+function stackSummaryLabelOwners(
+  document: SceneDocument,
+  owners: LabelOwner[],
+  summaryLabelIds: ReadonlySet<string>,
+  primitives: RenderPrimitive[],
+  obstacles: LabelObstacle[],
+  options: LabelEngineOptions,
+): LabelOwner[] | null {
+  const summaries = owners.filter((owner) =>
+    owner.labelId && summaryLabelIds.has(owner.labelId) && !owner.pinToAnchor);
+  if (summaries.length === 0) return null;
+  const annotationOrder = new Map(document.annotations.map((annotation, index) => [annotation.id, index]));
+  const byGroup = new Map<string, LabelOwner[]>();
+  for (const owner of summaries) {
+    const groupId = primitives.find((primitive) => primitive.entityId === owner.entityId)?.groupId ?? "";
+    byGroup.set(groupId, [...(byGroup.get(groupId) ?? []), owner]);
+  }
+  const replaced = new Map<LabelOwner, LabelOwner>();
+  for (const [groupId, members] of byGroup) {
+    const view = members[0]!.viewBounds;
+    const groupBounds = boundsForPrimitives(primitives.filter((primitive) => primitive.groupId === groupId));
+    if (!view || !groupBounds) return null;
+    const ordered = [...members].sort((a, b) =>
+      (annotationOrder.get(a.labelId!) ?? 0) - (annotationOrder.get(b.labelId!) ?? 0));
+    const inset = 8;
+    // The first row sits where the single summary anchor used to (46 px in).
+    const top = view.y + 30;
+    const left = Math.max(view.x + inset, groupBounds.x);
+    const right = Math.min(view.x + view.width - inset, groupBounds.x + groupBounds.width);
+    const rows = stackLabelRows(
+      ordered,
+      [
+        { x: left, y: top, align: "left" },
+        { x: right, y: top, align: "right" },
+        { x: left, y: groupBounds.y + groupBounds.height + 16, align: "left" },
+      ],
+      view,
+      obstacles,
+      options,
+    );
+    if (!rows) return null;
+    ordered.forEach((owner, index) => replaced.set(owner, rows[index]!));
+  }
+  return owners.map((owner) => replaced.get(owner) ?? owner);
 }
 
 function isViewSummaryText(text: string | undefined): boolean {

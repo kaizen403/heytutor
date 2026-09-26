@@ -412,9 +412,14 @@ try {
   });
   const replayHookSource = readFileSync(resolve(import.meta.dirname,
     "../../features/tutor-session/hooks/useReplay.ts"), "utf8");
+  const segmentInkSource = readFileSync(resolve(import.meta.dirname,
+    "../../features/tutor-session/lib/turn/segmentInk.ts"), "utf8");
   assert.match(replayHookSource,
-    /waitUntilDrawClock\(getDrawClockMs, speechWindow\.startMs, \{[^}]*nowMs: wallClock\.nowMs/s,
-    "the real replay draw waiter must use the pause-aware clock for its deadline");
+    /clock: \{[^}]*getAudioPositionMs: getDrawClockMs,[^}]*isPaused,[^}]*nowMs: wallClock\.nowMs/s,
+    "the real replay draw clock must carry the pause-aware wall clock");
+  assert.match(segmentInkSource,
+    /waitUntilDrawClock\(clock\.getAudioPositionMs,[^;]*isPaused: clock\.isPaused[^;]*nowMs: clock\.nowMs/s,
+    "the shared draw waiter must use the pause-aware clock for its deadline");
   void unsampledWait.then(() => { unsampledDone = true; });
   clock.advance(16);
   activeClock.setPaused(true);
