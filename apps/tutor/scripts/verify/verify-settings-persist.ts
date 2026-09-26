@@ -59,6 +59,24 @@ assert(
 const lesson = lessonSettingsFromAccount(parsed);
 assert(lesson.speedMultiplier === 2, "lesson sheet gets speed");
 assert(!("teachingNote" in lesson), "lesson sheet does not carry the teaching note field");
+assert(parsed.markerColor === "navy" && parsed.pencilColor === "navy", "new accounts start with matching ink");
+assert(parsed.markerThickness === 1 && parsed.pencilThickness === 1, "new accounts start at regular thickness");
+
+const legacyInk = parseAccountSettings({ markerColor: "red" });
+assert(legacyInk.pencilColor === "red", "an old account keeps its pencil tint");
+const customInk = parseAccountSettings({
+  markerColor: "blue",
+  pencilColor: "green",
+  markerThickness: 1.4,
+  pencilThickness: 0.8,
+});
+assert(customInk.pencilColor === "green", "pencil color is independent of marker color");
+assert(customInk.markerThickness === 1.4 && customInk.pencilThickness === 0.8, "both widths survive the row");
+assert(lessonSettingsFromAccount(customInk).pencilThickness === 0.8, "the board receives pencil width");
+assert(parseAccountSettings({ markerThickness: 99 }).markerThickness === 1.6, "stored widths are bounded");
+assert(accountSettingsPatch({ pencilColor: "purple", markerThickness: 0.6 }).pencilColor === "purple", "the API accepts pencil color");
+assert(accountSettingsPatch({ pencilThickness: 1.2 }).pencilThickness === 1.2, "the API accepts pencil width");
+assert(!("markerThickness" in accountSettingsPatch({ markerThickness: "huge" })), "invalid widths are ignored");
 
 /*
   Marker stunts are a selection, not a switch, and the selection has to survive

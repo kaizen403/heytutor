@@ -47,6 +47,14 @@ export interface DrawCommandSemanticRef {
   actionId?: string;
 }
 
+/** Ink preferences frozen when this command first reaches the board. */
+export interface DrawCommandInkSettings {
+  markerColor: string;
+  pencilColor: string;
+  markerThickness: number;
+  pencilThickness: number;
+}
+
 export interface DrawCommand {
   type: DrawCommandType;
   params: number[];
@@ -57,6 +65,8 @@ export interface DrawCommand {
   syncReason?: string;
   /** Optional verified-scene styling. Parser-produced freehand commands omit it. */
   visualStyle?: DrawCommandVisualStyle;
+  /** Draw-time appearance for persisted replay, rewind, restore, and export. */
+  inkSettings?: DrawCommandInkSettings;
   /** Stable semantic ownership for compiled ink and later replay/debugging. */
   semanticRef?: DrawCommandSemanticRef;
   /**
@@ -461,6 +471,19 @@ export function getSegmentCommands(segment: TutorSegment): DrawCommand[] {
   }
 
   return segment.command ? [segment.command] : [];
+}
+
+export function captureCommandInk(command: DrawCommand, settings: DrawCommandInkSettings): DrawCommand {
+  if (!command.inkSettings) {
+    command.inkSettings = { ...settings };
+  }
+  return command;
+}
+
+/** Recreated marks use the recorded parent appearance, not the replay-time dials. */
+export function inheritCommandInk(parent: DrawCommand, child: DrawCommand): DrawCommand {
+  if (parent.inkSettings) captureCommandInk(child, parent.inkSettings);
+  return child;
 }
 
 export function parseStoredSegmentCommands(stored: unknown): DrawCommand[] {

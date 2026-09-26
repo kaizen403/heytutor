@@ -28,11 +28,11 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
+import { BoardInkControls } from "./BoardInkControls";
 import {
   getMarkerColorHex,
   LECTURE_FILE_TYPES,
   LECTURE_FILE_TYPE_LABELS,
-  MARKER_COLORS,
   SPEED_MAX,
   SPEED_MIN,
   toggleMarkerStunt,
@@ -367,28 +367,8 @@ export function SettingsDrawer({
           </SettingsSection>
 
           <SettingsSection>
-            <SectionLabel icon={PenLine}>Marker Color</SectionLabel>
-            <div className="flex flex-wrap gap-2.5">
-              {MARKER_COLORS.map(({ id, color, label }) => {
-                const selected = settings.markerColor === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-label={label}
-                    title={label}
-                    onClick={() => update({ markerColor: id })}
-                    className={[
-                      "h-10 w-10 rounded-full transition-all",
-                      selected
-                        ? "scale-105 ring-2 ring-sky-500 ring-offset-2 ring-offset-ink-850"
-                        : "ring-1 ring-stroke hover:scale-105",
-                    ].join(" ")}
-                    style={{ backgroundColor: color }}
-                  />
-                );
-              })}
-            </div>
+            <SectionLabel icon={PenLine}>Board ink</SectionLabel>
+            <BoardInkControls settings={settings} onChange={update} />
           </SettingsSection>
 
           <SettingsSection>

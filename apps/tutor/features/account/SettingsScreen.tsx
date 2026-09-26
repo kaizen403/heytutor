@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { AccountCard, AccountPageFrame } from "./AccountPageFrame";
 import { SiteButton } from "@/components/ui/site-button";
+import { BoardInkControls } from "@/features/tutor-session/components/BoardInkControls";
 import {
   SETTINGS_SECTION_LABELS,
   SETTINGS_SECTIONS,
@@ -18,7 +19,6 @@ import {
   type AccountSettings,
 } from "@/lib/account/userSettings";
 import {
-  MARKER_COLORS,
   getMarkerColorHex,
   toggleMarkerStunt,
 } from "@/features/tutor-session/components/SettingsDrawer";
@@ -35,30 +35,76 @@ import {
 import { getLegalHref } from "@/lib/site";
 import type { AccountProfile } from "@/lib/account/types";
 import { PlanUsageCard } from "./PlanUsageCard";
+import { createSettingsPatchQueue, type SaveStatus } from "@/lib/account/settingsPatchQueue";
 
 export function SettingsScreen({ section }: { section: string }) {
   const router = useRouter();
   const active: SettingsSection = isSettingsSection(section) ? section : "general";
   const [settings, setSettings] = useState<AccountSettings>(DEFAULT_ACCOUNT_SETTINGS);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const saveQueueRef = useRef<ReturnType<typeof createSettingsPatchQueue<AccountSettings>> | null>(null);
 
   useEffect(() => {
+    let unmounted = false;
+    let ownerId: string | null = null;
+    setLoadState("loading");
     void fetch("/api/account/me")
-      .then((response) => response.json())
-      .then((data: { settings?: AccountSettings; profile?: AccountProfile }) => {
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load account settings");
+        return response.json() as Promise<{ settings?: AccountSettings; profile?: AccountProfile }>;
+      })
+      .then((data) => {
+        if (unmounted) return;
+        if (!data.profile?.id) throw new Error("Account identity unavailable");
         if (data.settings) setSettings(data.settings);
-        if (data.profile) setProfile(data.profile);
+        ownerId = data.profile.id;
+        setProfile(data.profile);
+        setLoadState("ready");
+      })
+      .catch(() => {
+        if (!unmounted) setLoadState("error");
       });
-  }, []);
+    const queue = createSettingsPatchQueue<AccountSettings>({
+      send: async (patch) => {
+        if (!ownerId) throw Object.assign(new Error("Account not loaded"), { status: 401 });
+        const response = await fetch("/api/account/settings", {
+          method: "PATCH",
+          headers: { "content-type": "application/json", "x-heytutor-account-id": ownerId },
+          body: JSON.stringify(patch),
+        });
+        if (!response.ok) throw Object.assign(new Error("Could not save settings"), { status: response.status });
+      },
+      onStatus: setSaveStatus,
+    });
+    saveQueueRef.current = queue;
+    return () => {
+      unmounted = true;
+      queue.dispose();
+      saveQueueRef.current = null;
+    };
+  }, [loadAttempt]);
 
   const patch = (partial: Partial<AccountSettings>) => {
+    if (!profile?.id) return;
     setSettings((current) => ({ ...current, ...partial }));
-    void fetch("/api/account/settings", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(partial),
-    });
+    saveQueueRef.current?.enqueue(partial);
   };
+
+  if (loadState !== "ready" || !profile?.id) return (
+    <AccountPageFrame title="Settings" subtitle="Account settings. The in-lesson drawer stays a quick sheet for the board.">
+      <div role="status" className="space-y-3 text-sm text-[rgba(237,237,235,0.62)]">
+        <p>{loadState === "error" ? "Could not load account settings." : "Loading account settings…"}</p>
+        {loadState === "error" && (
+          <SiteButton variant="ice" size="sm" onClick={() => setLoadAttempt((current) => current + 1)}>
+            Retry loading
+          </SiteButton>
+        )}
+      </div>
+    </AccountPageFrame>
+  );
 
   return (
     <AccountPageFrame title="Settings" subtitle="Account settings. The in-lesson drawer stays a quick sheet for the board.">
@@ -77,6 +123,20 @@ export function SettingsScreen({ section }: { section: string }) {
           ))}
         </nav>
         <div className="min-w-0 flex-1 space-y-4">
+          {saveStatus && (
+            <div className="flex items-center gap-2 text-xs text-[rgba(237,237,235,0.62)]" role="status" aria-live="polite">
+              <span>{
+                saveStatus === "saving" ? "Saving settings…" :
+                saveStatus === "saved" ? "Settings saved" :
+                saveStatus === "retrying" ? "Save failed. Retrying…" : "Could not save settings."
+              }</span>
+              {saveStatus === "error" && (
+                <button type="button" className="text-sky-300 underline" onClick={() => saveQueueRef.current?.retry()}>
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
           {active === "general" ? (
             <AccountCard title="General">
               <p className="text-sm text-[rgba(237,237,235,0.62)]">
@@ -159,20 +219,7 @@ export function SettingsScreen({ section }: { section: string }) {
 
           {active === "board" ? (
             <AccountCard title="Board">
-              <div className="flex flex-wrap gap-2.5">
-                {MARKER_COLORS.map((color) => (
-                  <button
-                    key={color.id}
-                    type="button"
-                    title={color.label}
-                    onClick={() => patch({ markerColor: color.id })}
-                    className={`h-8 w-8 rounded-full ${
-                      settings.markerColor === color.id ? "ring-2 ring-sky-500 ring-offset-2 ring-offset-[#171716]" : ""
-                    }`}
-                    style={{ backgroundColor: color.color }}
-                  />
-                ))}
-              </div>
+              <BoardInkControls settings={settings} onChange={patch} />
               <Toggle
                 title="Subtitles on the board"
                 checked={settings.subtitlesEnabled}

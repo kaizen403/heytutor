@@ -15,6 +15,7 @@ import {
   DEFAULT_LECTURE_FILE_TYPE,
   DEFAULT_PLAYBACK_SPEED,
   DEFAULT_SETTINGS,
+  clampInkThickness,
   isLectureFileType,
   isMarkerColorId,
   SPEED_MAX,
@@ -28,6 +29,9 @@ export const SETTINGS_CACHE_KEYS = {
   subtitles: "htutor_subtitles",
   speed: "htutor_speed",
   markerColor: "htutor_marker_color",
+  pencilColor: "htutor_pencil_color",
+  markerThickness: "htutor_marker_thickness",
+  pencilThickness: "htutor_pencil_thickness",
   familiarity: "htutor_lesson_depth",
   audioLanguage: "htutor_audio_language",
   accent: "htutor_accent",
@@ -105,6 +109,9 @@ export function lessonSettingsFromAccount(settings: AccountSettings): SettingsSt
     lowLatencyVoice: settings.lowLatencyVoice,
     subtitlesEnabled: settings.subtitlesEnabled,
     markerColor: settings.markerColor,
+    pencilColor: settings.pencilColor,
+    markerThickness: settings.markerThickness,
+    pencilThickness: settings.pencilThickness,
     markerStunts: settings.markerStunts,
     lectureFileType: settings.lectureFileType,
   };
@@ -136,6 +143,9 @@ export function parseAccountSettings(value: unknown): AccountSettings {
     lowLatencyVoice: false,
     subtitlesEnabled: row.subtitlesEnabled === true,
     markerColor,
+    pencilColor: isMarkerColorId(row.pencilColor) ? row.pencilColor : markerColor,
+    markerThickness: clampInkThickness(Number(row.markerThickness ?? DEFAULT_SETTINGS.markerThickness)),
+    pencilThickness: clampInkThickness(Number(row.pencilThickness ?? DEFAULT_SETTINGS.pencilThickness)),
     markerStunts: parseMarkerStunts(row.markerStunts),
     lectureFileType: isLectureFileType(row.lectureFileType)
       ? row.lectureFileType
@@ -164,6 +174,13 @@ export function accountSettingsPatch(value: unknown): Partial<AccountSettings> {
   if (isTutorAccent(row.accent)) next.accent = row.accent;
   if ("subtitlesEnabled" in row) next.subtitlesEnabled = row.subtitlesEnabled === true;
   if (isMarkerColorId(row.markerColor)) next.markerColor = row.markerColor;
+  if (isMarkerColorId(row.pencilColor)) next.pencilColor = row.pencilColor;
+  if (typeof row.markerThickness === "number" && Number.isFinite(row.markerThickness)) {
+    next.markerThickness = clampInkThickness(row.markerThickness);
+  }
+  if (typeof row.pencilThickness === "number" && Number.isFinite(row.pencilThickness)) {
+    next.pencilThickness = clampInkThickness(row.pencilThickness);
+  }
   if ("markerStunts" in row) next.markerStunts = parseStuntKinds(row.markerStunts);
   if (isLectureFileType(row.lectureFileType)) next.lectureFileType = row.lectureFileType;
   if ("showHomeSuggestions" in row) next.showHomeSuggestions = row.showHomeSuggestions === true;
@@ -191,6 +208,17 @@ export function readSettingsCache(): Partial<SettingsState> {
     }
     const storedMarker = window.localStorage.getItem(SETTINGS_CACHE_KEYS.markerColor);
     if (isMarkerColorId(storedMarker)) overrides.markerColor = storedMarker;
+    const storedPencil = window.localStorage.getItem(SETTINGS_CACHE_KEYS.pencilColor);
+    if (isMarkerColorId(storedPencil)) overrides.pencilColor = storedPencil;
+    else if (isMarkerColorId(storedMarker)) overrides.pencilColor = storedMarker;
+    const markerThickness = window.localStorage.getItem(SETTINGS_CACHE_KEYS.markerThickness);
+    if (markerThickness !== null && Number.isFinite(Number(markerThickness))) {
+      overrides.markerThickness = clampInkThickness(Number(markerThickness));
+    }
+    const pencilThickness = window.localStorage.getItem(SETTINGS_CACHE_KEYS.pencilThickness);
+    if (pencilThickness !== null && Number.isFinite(Number(pencilThickness))) {
+      overrides.pencilThickness = clampInkThickness(Number(pencilThickness));
+    }
     const storedLevel = window.localStorage.getItem(SETTINGS_CACHE_KEYS.familiarity);
     if (isSubjectFamiliarity(storedLevel)) overrides.familiarity = storedLevel;
     // fastMode / audioLanguage / narration / lowLatency are product defaults —
@@ -216,6 +244,9 @@ export function writeSettingsCache(settings: SettingsState): void {
     window.localStorage.setItem(SETTINGS_CACHE_KEYS.subtitles, settings.subtitlesEnabled ? "1" : "0");
     window.localStorage.setItem(SETTINGS_CACHE_KEYS.speed, String(settings.speedMultiplier));
     window.localStorage.setItem(SETTINGS_CACHE_KEYS.markerColor, settings.markerColor);
+    window.localStorage.setItem(SETTINGS_CACHE_KEYS.pencilColor, settings.pencilColor);
+    window.localStorage.setItem(SETTINGS_CACHE_KEYS.markerThickness, String(settings.markerThickness));
+    window.localStorage.setItem(SETTINGS_CACHE_KEYS.pencilThickness, String(settings.pencilThickness));
     window.localStorage.setItem(SETTINGS_CACHE_KEYS.familiarity, settings.familiarity);
     window.localStorage.setItem(SETTINGS_CACHE_KEYS.audioLanguage, settings.audioLanguage);
     window.localStorage.setItem(SETTINGS_CACHE_KEYS.accent, settings.accent);

@@ -110,6 +110,22 @@ function verifyTheMarkChangesToo(): void {
   // keeps a trace of whatever the board writes in.
   const redLead = instrumentInkStyle("pencil", "#B3261E");
   assert.notEqual(redLead.color, pencil.color, "lead must follow the board's ink colour");
+
+  const customPen = instrumentInkStyle("pen", BOARD_INK, {
+    pencilColor: "#D64545",
+    markerThickness: 1.4,
+    pencilThickness: 0.8,
+  });
+  const customPencil = instrumentInkStyle("pencil", BOARD_INK, {
+    pencilColor: "#D64545",
+    markerThickness: 1.4,
+    pencilThickness: 0.8,
+  });
+  assert.equal(customPen.color, BOARD_INK, "pencil color does not recolor marker writing");
+  assert.equal(customPen.widthScale, 1.4, "marker thickness changes writing width");
+  assert.equal(customPencil.widthScale, pencil.widthScale * 0.8, "pencil thickness changes figure width");
+  assert.equal(customPencil.color, instrumentInkStyle("pencil", "#D64545").color, "pencil color changes lead independently");
+  assert.equal(instrumentInkStyle("pen", BOARD_INK, { markerThickness: 100 }).widthScale, 1.6, "an invalidly thick mark is bounded");
 }
 
 /**

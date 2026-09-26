@@ -7,6 +7,8 @@ import {
 } from "@heytutor/whiteboard";
 import {
   type DrawCommand,
+  captureCommandInk,
+  inheritCommandInk,
   type VerifiedDiagram,
   type VerifiedDiagramAnchor,
   type VerifiedDiagramCommand,
@@ -236,6 +238,9 @@ export function useCommandExecution({
       const wb = whiteboardRef.current;
       const commandCancelled = () => cancelRef.current || options.isCancelled?.() === true;
       if (!wb || commandCancelled()) return;
+      // The same command object is serialized after live execution. Replays
+      // already carry this snapshot, so a later settings change cannot restyle it.
+      const inkSettings = captureCommandInk(rawCommand, wb.getInkSettings()).inkSettings;
       const trustedDiagramGeometryEarly = options.trustedDiagramGeometry === true;
       // durationScale 0 is a seek catching the board up to a timestamp. Nothing
       // in that pass is being watched, so every pacing rule below is off.
@@ -264,6 +269,7 @@ export function useCommandExecution({
         if (rawCommand.visualStyle?.strokeRole === "trace") {
           if (dsaInk) return Promise.resolve();
           return wb.drawAnnotation("underline", path, duration, {
+            inkSettings,
             strokeWidth: rawCommand.visualStyle.strokeWidth ?? 1.25,
             transient: true,
             shouldCancel: commandCancelled,
@@ -275,11 +281,13 @@ export function useCommandExecution({
         if (rawCommand.visualStyle?.fillRole === "region") {
           return Promise.all([
             wb.drawAnnotation("highlight", path, duration, {
+              inkSettings,
               fillColor: "#9CCBFF",
               fillOpacity: 0.18,
               shouldCancel: commandCancelled,
             }),
             wb.drawShape(path, duration, {
+              inkSettings,
               ...shapeOptions,
               pace: inkPace,
               cued: options.cued === true,
@@ -291,6 +299,7 @@ export function useCommandExecution({
           ]).then(() => undefined);
         }
         return wb.drawShape(path, duration, {
+          inkSettings,
           ...shapeOptions,
           pace: inkPace,
           cued: options.cued === true,
@@ -313,7 +322,7 @@ export function useCommandExecution({
         duration: number,
         schedule?: WriteSchedule,
         fontSize?: number,
-      ) => wb.writeText(text, x, y, duration, schedule, fontSize, commandCancelled);
+      ) => wb.writeText(text, x, y, duration, schedule, fontSize, commandCancelled, inkSettings);
       const drawAnnotation: WhiteboardHandle["drawAnnotation"] = (
         kind,
         path,
@@ -321,6 +330,7 @@ export function useCommandExecution({
         annotationOptions,
       ) => wb.drawAnnotation(kind, path, duration, {
         ...annotationOptions,
+        inkSettings,
         shouldCancel: commandCancelled,
       });
 
@@ -831,20 +841,21 @@ export function useCommandExecution({
           const frames = codeLessonControllerRef?.current?.frames;
           if (!frames || !frames.hasNext()) break;
 
-          // A replay seek wants the finished state, not a redraw per frame.
+          // Seek advances each stored FRAME cue so the displayed frame gets
+          // that cue's recorded ink, even when settings changed mid-lesson.
           if (durationScale <= 0.05) {
-            const last = frames.jumpToEnd();
-            if (last) {
+            const frame = frames.advance();
+            if (frame) {
               await eraseWhiteboardRegionIfCurrent(
                 wb,
                 { ...DSA_DIAGRAM_ZONE, duration: 0 },
                 commandCancelled,
               );
-              activeVerifiedDiagramRef.current = last.presentation.diagram;
-              setActiveVerifiedDiagram?.(last.presentation.diagram);
-              for (const next of last.presentation.diagram.commands) {
+              activeVerifiedDiagramRef.current = frame.presentation.diagram;
+              setActiveVerifiedDiagram?.(frame.presentation.diagram);
+              for (const next of frame.presentation.diagram.commands) {
                 if (commandCancelled()) return;
-                await executeCommand(verifiedDiagramCommandToDrawCommand(next), {
+                await executeCommand(inheritCommandInk(command, verifiedDiagramCommandToDrawCommand(next)), {
                   trustedDiagramGeometry: true,
                   applyLayout: false,
                   isCancelled: commandCancelled,
@@ -898,7 +909,7 @@ export function useCommandExecution({
           for (const drawCommand of next.presentation.diagram.commands) {
             if (commandCancelled()) return;
             const budgetMs = frameCommandBudgetMs(drawCommand);
-            await executeCommand(verifiedDiagramCommandToDrawCommand(drawCommand), {
+            await executeCommand(inheritCommandInk(command, verifiedDiagramCommandToDrawCommand(drawCommand)), {
               trustedDiagramGeometry: true,
               applyLayout: false,
               isCancelled: commandCancelled,
@@ -1023,7 +1034,7 @@ export function useCommandExecution({
               for (const next of takeDeferredAnnotations(activeDiagram, { entityIds })) {
                 if (commandCancelled()) return { cancelled: true, penAt };
                 await executeCommand(
-                  {
+                  inheritCommandInk(command, {
                     type: next.type,
                     params: [...next.params],
                     text: next.text,
@@ -1031,12 +1042,13 @@ export function useCommandExecution({
                     narrationBefore: "",
                     visualStyle: next.visualStyle,
                     semanticRef: next.semanticRef,
-                  },
+                  }),
                   {
                     trustedDiagramGeometry: true,
                     applyLayout: false,
                     isCancelled: commandCancelled,
                     inkPace: "scene",
+                    durationScale: options.durationScale,
                   },
                 );
                 const [x, y, size] = next.params;
@@ -1107,7 +1119,7 @@ export function useCommandExecution({
           for (const next of deferred) {
             if (commandCancelled()) return;
             await executeCommand(
-              {
+              inheritCommandInk(command, {
                 type: next.type,
                 params: [...next.params],
                 text: next.text,
@@ -1115,15 +1127,17 @@ export function useCommandExecution({
                 narrationBefore: "",
                 visualStyle: next.visualStyle,
                 semanticRef: next.semanticRef,
-              },
+              }),
               {
                 trustedDiagramGeometry: true,
                 applyLayout: false,
                 isCancelled: commandCancelled,
                 inkPace: "scene",
+                durationScale: options.durationScale,
               },
             );
           }
+          if (isSeekCatchUp) break;
           // Tracing rectangle outlines with the marker looks like scribbling
           // on a DSA figure. Code lessons only dim everything except the named
           // cells — the figure itself stays the explanation.
@@ -1375,7 +1389,7 @@ export function useCommandExecution({
           for (const next of deferred) {
             if (commandCancelled()) return;
             await executeCommand(
-              {
+              inheritCommandInk(command, {
                 type: next.type,
                 params: [...next.params],
                 text: next.text,
@@ -1383,12 +1397,13 @@ export function useCommandExecution({
                 narrationBefore: "",
                 visualStyle: next.visualStyle,
                 semanticRef: next.semanticRef,
-              },
+              }),
               {
                 trustedDiagramGeometry: true,
                 applyLayout: false,
                 isCancelled: commandCancelled,
                 inkPace: "scene",
+                durationScale: options.durationScale,
               },
             );
           }
