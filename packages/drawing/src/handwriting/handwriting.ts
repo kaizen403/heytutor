@@ -214,7 +214,7 @@ function rewriteLatexScriptBraces(text: string): string {
  * which keeps a downstroke heavier than a hairline without letting any letter
  * look like it was written with a different marker.
  */
-const NIB_EM = 0.0625;
+const NIB_EM = 0.052;
 /** How much of the font's own stroke modelling survives, 0 = a plotter pen. */
 const NIB_MODELLING = 0.35;
 /** Nothing is thinner than this, whatever the maths says. */
@@ -254,7 +254,7 @@ function strokeWidthPx(pressureUnits: number, fontSize: number): number {
  * size — and how far the advance may move off the font's own to hold it.
  *
  * Caveat's advances are drawn for filled outlines. The board writes the
- * skeletons of those outlines with a ~0.06em nib, so the same advances leave a
+ * skeletons of those outlines with a ~0.05em nib, so the same advances leave a
  * lot more air than the font ever meant to, and Caveat's own side bearings vary
  * enormously (left 0.25em to -0.07em), so the air between letters inside one
  * word ranged from 0.06em to 0.15em. Uneven air inside a word is what stops it
