@@ -158,6 +158,7 @@ export async function beginTurn(input: {
   traceId: string;
   kind: BillingTurnKind;
   signal?: AbortSignal;
+  ownsTurn: () => boolean;
 }): Promise<BeginTurnOk | BeginTurnErr> {
   const timeout =
     typeof AbortSignal.timeout === "function"
@@ -180,6 +181,7 @@ export async function beginTurn(input: {
   }
   const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   const remainingPct = remainingPctFromPayload(payload);
+  const mayRemember = input.ownsTurn();
   if (!response.ok) {
     const err: BeginTurnErr = {
       ok: false,
@@ -187,7 +189,7 @@ export async function beginTurn(input: {
       code: typeof payload.code === "string" ? payload.code : "out_of_credits",
       remaining: remainingPct,
     };
-    rememberRemainingPct(err.remaining);
+    if (mayRemember) rememberRemainingPct(err.remaining);
     return err;
   }
   const ok: BeginTurnOk = {
@@ -198,7 +200,7 @@ export async function beginTurn(input: {
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };
-  rememberRemainingPct(ok.remainingPct, { planId: ok.planId, nextResetAt: ok.nextResetAt });
+  if (mayRemember) rememberRemainingPct(ok.remainingPct, { planId: ok.planId, nextResetAt: ok.nextResetAt });
   return ok;
 }
 

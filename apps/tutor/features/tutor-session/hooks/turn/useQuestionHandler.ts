@@ -544,6 +544,8 @@ export function useQuestionHandler(
           traceId: currentTraceIdRef.current!,
           kind: doubt ? "doubt" : resume ? "resume" : "lesson",
           signal: abortController.signal,
+          ownsTurn: () =>
+            turnGeneration === turnGenerationRef.current && !abortController.signal.aborted,
         });
       } catch {
         // Transport failures reject. Billing refusals and the 15s timeout return.
