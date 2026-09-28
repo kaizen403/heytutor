@@ -538,11 +538,23 @@ export function useQuestionHandler(
       if (turnGeneration !== turnGenerationRef.current) {
         return;
       }
-      const billed = await beginTurn({
-        traceId: currentTraceIdRef.current!,
-        kind: doubt ? "doubt" : resume ? "resume" : "lesson",
-        signal: abortController.signal,
-      });
+      let billed: Awaited<ReturnType<typeof beginTurn>>;
+      try {
+        billed = await beginTurn({
+          traceId: currentTraceIdRef.current!,
+          kind: doubt ? "doubt" : resume ? "resume" : "lesson",
+          signal: abortController.signal,
+        });
+      } catch {
+        // Transport failures reject. Billing refusals and the 15s timeout return.
+        // A stop aborts this signal and moves the generation before we resume.
+        // The rejection text can include a URL, so it is not read or logged.
+        if (turnGeneration === turnGenerationRef.current && !abortController.signal.aborted) {
+          emitError({ message: "network error. check your connection", question });
+          finishLectureUi(turnGeneration);
+        }
+        return;
+      }
       if (!billed.ok) {
         const billing = {
           status: billed.status,
@@ -550,7 +562,8 @@ export function useQuestionHandler(
           remaining: billed.remaining,
         };
         emitError({ message: studentBillingMessage(billed.code), question, billing });
-        setPhase("idle");
+        // Release this attempt. A newer generation is left running.
+        finishLectureUi(turnGeneration);
         return;
       }
       // Awaited before the doubt itself is saved, so the server keeps the two
