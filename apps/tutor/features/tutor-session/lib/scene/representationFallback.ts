@@ -1,4 +1,5 @@
 import {
+  SCENE_ENGINE_VERSION,
   compileSceneDocument,
   detectArchetype,
   isRiverBoatStem,
@@ -8,6 +9,7 @@ import {
   demandRejection,
   sceneDemand,
   tierForForeignDocument,
+  validateSceneDocument,
   type ProblemStructureView,
   type RenderScene,
   type SceneDocument,
@@ -102,12 +104,15 @@ const RELATION_PREDICATES = [
 /**
  * Select the highest-confidence representation without changing the exact
  * scene's proof contract. An exact candidate wins only when the caller's final
- * report is valid and the scene still compiles under the current engine.
+ * report is valid and the current engine supplies the selected render/report.
  */
 export function selectVerifiedRepresentation(
   input: RepresentationSelectionInput,
 ): SelectedRepresentation {
-  if (input.exact && isUsableExactRepresentation(input.exact, input.question, input.problemIR)) {
+  const currentCompile = input.exact
+    ? compileUsableExactRepresentation(input.exact, input.question, input.problemIR)
+    : null;
+  if (input.exact && currentCompile?.renderScene) {
     // A validated planner scene wins over every fallback, but its tier is
     // earned, not assumed: exact needs a fatal metric proof (an angle, a ratio,
     // a function value, Snell's law). Existence and topology alone are
@@ -117,8 +122,8 @@ export function selectVerifiedRepresentation(
       tier: decision.tier,
       nonMetric: decision.nonMetric,
       sceneDocument: input.exact.sceneDocument,
-      renderScene: input.exact.renderScene,
-      validationReport: input.exact.validationReport,
+      renderScene: currentCompile.renderScene,
+      validationReport: currentCompile.report,
       reason: decision.tier === "exact_verified"
         ? `caller supplied a verified scene with ${decision.reason}`
         : `caller supplied a verified scene; ${decision.reason}`,
@@ -241,36 +246,183 @@ export function buildSourceGroundedRepresentation(
   };
 }
 
-function isUsableExactRepresentation(
+function compileUsableExactRepresentation(
   candidate: ExactVerifiedRepresentation,
   expectedQuestion: string,
   problemIR?: ProblemStructureView | null,
-): boolean {
+): ReturnType<typeof compileSceneDocument> | null {
+  // TypeScript's interface is not a runtime proof: the caller may supply an
+  // incomplete, forged or stale report despite the ExactVerifiedRepresentation type.
+  if (!isCurrentEngineReport(candidate.validationReport)) return null;
   // A planner scene is validated and compiled, which proves the geometry is
   // sound — never that it is this question's geometry. It faces the same
   // picture demand the synthesized families face, so a validated-but-wrong
   // figure falls through to the fallback instead of being taught.
   if (demandRejection(candidate.sceneDocument, sceneDemand(expectedQuestion, problemIR))) {
-    return false;
+    return null;
   }
   const sourceQuestion = candidate.sceneDocument.source.question;
   if (
     typeof sourceQuestion !== "string" ||
     normalizeQuestion(sourceQuestion) !== normalizeQuestion(expectedQuestion) ||
-    !candidate.validationReport.valid ||
     candidate.validationReport.issues.some((issue) =>
       issue.severity === "fatal" || issue.code === "assertion_failed") ||
     candidate.sceneDocument.visualDecision.mode !== "scene" ||
-    candidate.renderScene.primitives.length === 0 ||
     usesMensurationSolidOnContactProblem(expectedQuestion, candidate.sceneDocument) ||
     usesCollidingCircuitViews(expectedQuestion, candidate.sceneDocument) ||
     usesGenericVectorDiagramOnRiverBoat(expectedQuestion, candidate.sceneDocument) ||
     usesPlannerOpticsOnArchetypeStem(expectedQuestion, candidate.sceneDocument)
   ) {
-    return false;
+    return null;
+  }
+  const normalized = validateSceneDocument(candidate.sceneDocument);
+  // The compiler validates a normalized copy, but compiles the supplied document.
+  // Do not accept a raw document whose actions, proofs or operands were changed
+  // (or dropped) by that normalization while returning the raw document to the tutor.
+  if (!normalized.document || !sameJsonStructure(normalized.document, candidate.sceneDocument, true)) {
+    return null;
   }
   const currentCompile = compileSceneDocument(candidate.sceneDocument);
-  return currentCompile.ok && Boolean(currentCompile.renderScene?.primitives.length);
+  return currentCompile.ok && currentCompile.report.valid &&
+    !currentCompile.report.issues.some((issue) =>
+      issue.severity === "fatal" || issue.code === "assertion_failed") &&
+    reportsAgree(candidate.validationReport, currentCompile.report) &&
+    currentCompile.renderScene?.primitives.length
+    ? currentCompile
+    : null;
+}
+
+function isCurrentEngineReport(value: unknown): value is ValidationReport {
+  if (!isRecord(value) || value.engineVersion !== SCENE_ENGINE_VERSION ||
+      value.valid !== true || !Array.isArray(value.issues) || !isRecord(value.stats)) return false;
+  if (Object.keys(value).length !== 4 ||
+      !Object.keys(value).every((key) => ["engineVersion", "valid", "issues", "stats"].includes(key))) return false;
+  const stats = value.stats;
+  if (Object.keys(stats).length !== 4 ||
+      !Object.keys(stats).every((key) =>
+        ["entityCount", "constructionCount", "primitiveCount", "assertionCount"].includes(key))) return false;
+  if (![stats.entityCount, stats.constructionCount, stats.primitiveCount, stats.assertionCount]
+    .every((count) => typeof count === "number" && Number.isSafeInteger(count) && count >= 0)) return false;
+  return value.issues.every((issue) => isRecord(issue) &&
+    Object.keys(issue).every((key) =>
+      ["code", "message", "severity", "path", "entityIds", "expected", "actual", "residual"].includes(key)) &&
+    typeof issue.code === "string" && issue.code.length > 0 &&
+    typeof issue.message === "string" &&
+    (issue.severity === "fatal" || issue.severity === "warning") &&
+    (issue.path === undefined || typeof issue.path === "string") &&
+    (issue.entityIds === undefined || (Array.isArray(issue.entityIds) &&
+      issue.entityIds.every((id) => typeof id === "string"))) &&
+    (issue.residual === undefined || (typeof issue.residual === "number" && Number.isFinite(issue.residual))));
+}
+
+function reportsAgree(caller: ValidationReport, current: ValidationReport): boolean {
+  return sameJsonStructure(caller, current);
+}
+
+const NORMALIZED_ANNOTATION_STYLE_FIELDS = new Set(["count", "pointStyle", "transient"]);
+
+function isAnnotationRecordPath(path: readonly string[]): boolean {
+  return path.length === 2 && path[0] === "annotations" && /^\d+$/.test(path[1]!);
+}
+
+function isAnnotationStylePath(path: readonly string[]): boolean {
+  return path.length === 3 && isAnnotationRecordPath(path.slice(0, 2)) && path[2] === "style";
+}
+
+/** normalizeAnnotationStyle always writes count, pointStyle, and transient, using
+ * undefined for each omitted field. An omitted style is written as an own
+ * style: undefined. Those paths are schema shape, not dropped data.
+ */
+function isNormalizedAnnotationStyleField(path: readonly string[]): boolean {
+  return path.length === 4 && isAnnotationStylePath(path.slice(0, 3)) &&
+    NORMALIZED_ANNOTATION_STYLE_FIELDS.has(path[3]!);
+}
+
+function isSchemaNormalizedUndefinedStyle(path: readonly string[], record: object, key: string): boolean {
+  return explicitUndefined(record, key) && (
+    (key === "style" && isAnnotationRecordPath(path)) ||
+    (isAnnotationStylePath(path) && NORMALIZED_ANNOTATION_STYLE_FIELDS.has(key))
+  );
+}
+
+function explicitUndefined(value: object, key: string): boolean {
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  return Boolean(descriptor && Object.hasOwn(descriptor, "value") && descriptor.value === undefined);
+}
+
+/** Compare report/document structure without JSON.stringify's key-order sensitivity
+ * or lossy handling of unknown values. An omitted annotation style is equivalent
+ * only to normalization's own style: undefined. Inside that style object,
+ * normalization may add undefined count, pointStyle, or transient children.
+ * Object keys are unordered; array elements are not.
+ */
+function sameJsonStructure(
+  left: unknown,
+  right: unknown,
+  allowUndefinedAnnotationStyle = false,
+  path: readonly string[] = [],
+  seenLeft = new WeakSet<object>(),
+  seenRight = new WeakSet<object>(),
+): boolean {
+  if (left === undefined || right === undefined) {
+    return left === undefined && right === undefined && allowUndefinedAnnotationStyle &&
+      (isAnnotationStylePath(path) || isNormalizedAnnotationStyleField(path));
+  }
+  if (left === null || right === null || typeof left !== "object" || typeof right !== "object") {
+    if (typeof left !== typeof right || left === null || right === null) {
+      return left === null && right === null;
+    }
+    return (typeof left === "string" || typeof left === "boolean" ||
+      (typeof left === "number" && Number.isFinite(left))) && Object.is(left, right);
+  }
+  if (seenLeft.has(left) || seenRight.has(right)) return false;
+  seenLeft.add(left);
+  seenRight.add(right);
+  try {
+    if (Array.isArray(left) || Array.isArray(right)) {
+      if (!Array.isArray(left) || !Array.isArray(right) ||
+          Object.getPrototypeOf(left) !== Array.prototype ||
+          Object.getPrototypeOf(right) !== Array.prototype ||
+          left.length !== right.length ||
+          Reflect.ownKeys(left).length !== left.length + 1 ||
+          Reflect.ownKeys(right).length !== right.length + 1) return false;
+      for (let index = 0; index < left.length; index += 1) {
+        const l = Object.getOwnPropertyDescriptor(left, index);
+        const r = Object.getOwnPropertyDescriptor(right, index);
+        if (!l || !r || !Object.hasOwn(l, "value") || !Object.hasOwn(r, "value") ||
+            !sameJsonStructure(l.value, r.value, allowUndefinedAnnotationStyle,
+              [...path, String(index)], seenLeft, seenRight)) return false;
+      }
+      return true;
+    }
+    if (!isPlainRecord(left) || !isPlainRecord(right)) return false;
+    const leftKeys = Reflect.ownKeys(left);
+    const rightKeys = Reflect.ownKeys(right);
+    if (leftKeys.some((key) => typeof key !== "string") ||
+        rightKeys.some((key) => typeof key !== "string")) return false;
+    const comparable = (record: object, keys: readonly (string | symbol)[]): string[] =>
+      (keys as string[]).filter((key) =>
+        !(allowUndefinedAnnotationStyle && isSchemaNormalizedUndefinedStyle(path, record, key)));
+    const leftComparable = comparable(left, leftKeys);
+    const rightComparable = comparable(right, rightKeys);
+    if (leftComparable.length !== rightComparable.length ||
+        rightComparable.some((key) => !leftComparable.includes(key))) return false;
+    return leftComparable.every((key) => {
+      const l = Object.getOwnPropertyDescriptor(left, key);
+      const r = Object.getOwnPropertyDescriptor(right, key);
+      return l && r && Object.hasOwn(l, "value") && Object.hasOwn(r, "value") &&
+        sameJsonStructure(l.value, r.value, allowUndefinedAnnotationStyle,
+          [...path, key], seenLeft, seenRight);
+    });
+  } finally {
+    seenLeft.delete(left);
+    seenRight.delete(right);
+  }
+}
+
+function isPlainRecord(value: object): boolean {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function normalizeQuestion(value: string): string {
