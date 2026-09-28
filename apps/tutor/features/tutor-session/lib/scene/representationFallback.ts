@@ -321,16 +321,28 @@ function reportsAgree(caller: ValidationReport, current: ValidationReport): bool
 
 const NORMALIZED_ANNOTATION_STYLE_FIELDS = new Set(["count", "pointStyle", "transient"]);
 
+function isAnnotationRecordPath(path: readonly string[]): boolean {
+  return path.length === 2 && path[0] === "annotations" && /^\d+$/.test(path[1]!);
+}
+
 function isAnnotationStylePath(path: readonly string[]): boolean {
-  return path.length === 3 && path[0] === "annotations" && /^\d+$/.test(path[1]!) && path[2] === "style";
+  return path.length === 3 && isAnnotationRecordPath(path.slice(0, 2)) && path[2] === "style";
 }
 
 /** normalizeAnnotationStyle always writes count, pointStyle, and transient, using
- * undefined for each omitted field. Those paths are schema shape, not dropped data.
+ * undefined for each omitted field. An omitted style is written as an own
+ * style: undefined. Those paths are schema shape, not dropped data.
  */
 function isNormalizedAnnotationStyleField(path: readonly string[]): boolean {
   return path.length === 4 && isAnnotationStylePath(path.slice(0, 3)) &&
     NORMALIZED_ANNOTATION_STYLE_FIELDS.has(path[3]!);
+}
+
+function isSchemaNormalizedUndefinedStyle(path: readonly string[], record: object, key: string): boolean {
+  return explicitUndefined(record, key) && (
+    (key === "style" && isAnnotationRecordPath(path)) ||
+    (isAnnotationStylePath(path) && NORMALIZED_ANNOTATION_STYLE_FIELDS.has(key))
+  );
 }
 
 function explicitUndefined(value: object, key: string): boolean {
@@ -339,9 +351,10 @@ function explicitUndefined(value: object, key: string): boolean {
 }
 
 /** Compare report/document structure without JSON.stringify's key-order sensitivity
- * or lossy handling of unknown values. Scene annotations may have an explicitly
- * undefined optional style, and normalization may add undefined count, pointStyle,
- * or transient children. Object keys are unordered; array elements are not.
+ * or lossy handling of unknown values. An omitted annotation style is equivalent
+ * only to normalization's own style: undefined. Inside that style object,
+ * normalization may add undefined count, pointStyle, or transient children.
+ * Object keys are unordered; array elements are not.
  */
 function sameJsonStructure(
   left: unknown,
@@ -389,8 +402,7 @@ function sameJsonStructure(
         rightKeys.some((key) => typeof key !== "string")) return false;
     const comparable = (record: object, keys: readonly (string | symbol)[]): string[] =>
       (keys as string[]).filter((key) =>
-        !(allowUndefinedAnnotationStyle && isAnnotationStylePath(path) &&
-          NORMALIZED_ANNOTATION_STYLE_FIELDS.has(key) && explicitUndefined(record, key)));
+        !(allowUndefinedAnnotationStyle && isSchemaNormalizedUndefinedStyle(path, record, key)));
     const leftComparable = comparable(left, leftKeys);
     const rightComparable = comparable(right, rightKeys);
     if (leftComparable.length !== rightComparable.length ||

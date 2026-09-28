@@ -302,6 +302,78 @@ for (const [name, style] of [
   }).sceneDocument, authored, `${name} must stay selected when normalization only adds undefined style siblings`);
 }
 
+// validateSceneDocument always writes style: normalizeAnnotationStyle(...).
+// When the raw annotation omits style, that value is an own property set to
+// undefined. A compiled exact scene must still be selected.
+const unstyledAnnotation = functionDocument("x^2", 4, "source_curve");
+unstyledAnnotation.annotations = [
+  { id: "plain_mark", kind: "endpoint", targetIds: ["source_curve"] },
+];
+assert.equal(Object.hasOwn(unstyledAnnotation.annotations[0]!, "style"), false, "the raw annotation must omit style");
+const unstyledValidated = validateSceneDocument(unstyledAnnotation);
+assert(unstyledValidated.document, "an unstyled annotation must validate");
+const normalizedUnstyled = unstyledValidated.document.annotations[0];
+assert(
+  normalizedUnstyled && Object.hasOwn(normalizedUnstyled, "style") && normalizedUnstyled.style === undefined,
+  "normalization must materialize an own style: undefined",
+);
+const unstyledCompiled = compileSceneDocument(unstyledAnnotation);
+assert(
+  unstyledCompiled.ok && unstyledCompiled.renderScene && unstyledCompiled.report.valid && unstyledCompiled.renderScene.primitives.length > 0,
+  "an unstyled annotation scene must compile as an exact figure",
+);
+const selectedUnstyled = selectVerifiedRepresentation({
+  question,
+  exact: {
+    sceneDocument: unstyledAnnotation,
+    renderScene: unstyledCompiled.renderScene,
+    validationReport: unstyledCompiled.report,
+  },
+});
+assert.equal(selectedUnstyled.sceneDocument, unstyledAnnotation, "an omitted annotation style must not replace a compiled exact scene");
+assert.equal(selectedUnstyled.tier, "exact_verified", "the unstyled annotation metric proof must stay exact");
+assert.equal(selectedUnstyled.sceneDocument.annotations[0]?.id, "plain_mark", "the unstyled annotation must stay on the selected document");
+assert.deepEqual(selectedUnstyled.renderScene, unstyledCompiled.renderScene, "unstyled annotation ink must come from the fresh compile");
+assert.deepEqual(selectedUnstyled.validationReport, unstyledCompiled.report, "unstyled annotation report must come from the fresh compile");
+
+const unknownAnnotationField = functionDocument("x^2", 4, "source_curve");
+unknownAnnotationField.annotations = [
+  { id: "plain_mark", kind: "endpoint", targetIds: ["source_curve"] },
+];
+Object.assign(unknownAnnotationField.annotations[0]!, { ignored: undefined });
+const unknownAnnotationCompile = compileSceneDocument(unknownAnnotationField);
+assert(
+  unknownAnnotationCompile.ok && unknownAnnotationCompile.renderScene && unknownAnnotationCompile.report.valid,
+  "an unknown undefined annotation field must still compile",
+);
+assert.notEqual(selectVerifiedRepresentation({
+  question,
+  exact: {
+    sceneDocument: unknownAnnotationField,
+    renderScene: unknownAnnotationCompile.renderScene,
+    validationReport: unknownAnnotationCompile.report,
+  },
+}).sceneDocument, unknownAnnotationField, "an unknown undefined annotation field must not attest the scene");
+
+const collapsedUnknownStyle = functionDocument("x^2", 4, "source_curve");
+collapsedUnknownStyle.annotations = [
+  { id: "plain_mark", kind: "endpoint", targetIds: ["source_curve"], style: {} },
+];
+Object.assign(collapsedUnknownStyle.annotations[0]!.style!, { ignored: undefined });
+const collapsedUnknownCompile = compileSceneDocument(collapsedUnknownStyle);
+assert(
+  collapsedUnknownCompile.ok && collapsedUnknownCompile.renderScene && collapsedUnknownCompile.report.valid,
+  "a style object with only an unknown undefined field must still compile",
+);
+assert.notEqual(selectVerifiedRepresentation({
+  question,
+  exact: {
+    sceneDocument: collapsedUnknownStyle,
+    renderScene: collapsedUnknownCompile.renderScene,
+    validationReport: collapsedUnknownCompile.report,
+  },
+}).sceneDocument, collapsedUnknownStyle, "an unknown undefined style child must not be treated as an omitted style");
+
 const unknownStyleField = functionDocument("x^2", 4, "source_curve");
 unknownStyleField.annotations = [{
   id: "open_mark",
