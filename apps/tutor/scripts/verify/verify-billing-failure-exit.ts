@@ -1,16 +1,22 @@
 /**
  * A refused or rejected begin-turn must drop the active-turn latch before it returns.
+ * A result that resolves after stop or a newer turn must not emit, remember a
+ * billing failure, lock usage, idle, or finish.
  *
  * Evidence class: extracted-source execution, plus AST checks.
  * useQuestionHandler is not mounted. Its arguments are the live session, and
  * the real beginTurn sends a billing request. This script copies fragments out
  * of the source and runs them:
  *   - the await beginTurn region, against a fake beginTurn that returns or rejects
+ *   - the ownership return after that await, when the source has one
  *   - the `if (!billed.ok)` statement in handleQuestion
  *   - finishLectureUi's callback body, which is the release those paths must call
  *   - the submit gate that returns while turnActiveRef is set
  * shouldFlushPendingQuestion is the exported flush predicate and is called
- * directly. Statements after a successful bill are not executed. No network call.
+ * directly. rememberBillingFailure is the real function. A marker assigned
+ * immediately after the extracted region is the runtime evidence that execution
+ * continued. partialTurnSaved, beginBoardEpoch, and the liveQuestionRef write
+ * are not executed; their position is AST-only. No network call.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -18,11 +24,13 @@ import { resolve } from "node:path";
 import ts from "typescript";
 import { clearSpotlight } from "../../features/tutor-session/lib/board/spotlight";
 import { shouldFlushPendingQuestion } from "../../features/tutor-session/hooks/turn/useQuestionHandler";
-import { parseBillingFailureFromUnknown } from "../../lib/billing/billingClient";
+import { parseBillingFailureFromUnknown, rememberBillingFailure } from "../../lib/billing/billingClient";
+import { getEntitlementSnapshot, setEntitlementSnapshot } from "../../lib/billing/entitlementState";
 import { isOutOfUsageLock, OUT_OF_USAGE_TITLE, studentBillingMessage } from "../../lib/billing/studentCopy";
 import type { TutorPhase } from "../../features/tutor-session/types";
 
 const QUESTION = "why is the sky blue";
+const ENTITLEMENT_BASELINE = 40;
 const FAILURE = { ok: false as const, status: 402, code: "out_of_credits", remaining: 0 };
 const TIMEOUT = { ok: false as const, status: 504, code: "timeout", remaining: null };
 const CONNECTION_FAILURE = "network error. check your connection";
@@ -49,6 +57,9 @@ type Snapshot = {
   spotlight: unknown;
   ttsStops: number;
   usageDepleted: boolean;
+  rememberBillingFailureCalls: number;
+  entitlementRemainingPct: number | null;
+  continuedPastBilling: boolean;
 };
 
 type ArmInput = {
@@ -135,6 +146,30 @@ function tryAroundBeginTurn(root: ts.Node, source: ts.SourceFile): ts.TryStateme
   return undefined;
 }
 
+function isStaleTurnReturn(statement: ts.Statement, source: ts.SourceFile): boolean {
+  if (!ts.isIfStatement(statement)) return false;
+  const expr = statement.expression.getText(source).replace(/\s+/g, "");
+  const body = statement.thenStatement;
+  const returns = ts.isBlock(body)
+    ? body.statements.some(ts.isReturnStatement)
+    : ts.isReturnStatement(body);
+  return (
+    returns &&
+    expr.includes("turnGeneration!==turnGenerationRef.current") &&
+    expr.includes("abortController.signal.aborted")
+  );
+}
+
+function statementsBetween(start: ts.Node | undefined, end: ts.Node | undefined): ts.Statement[] {
+  if (!start || !end) return [];
+  const block = start.parent;
+  if (!block || !ts.isBlock(block) || end.parent !== block) return [];
+  const from = block.statements.indexOf(start as ts.Statement);
+  const to = block.statements.indexOf(end as ts.Statement);
+  if (from < 0 || to < 0 || to <= from) return [];
+  return block.statements.slice(from + 1, to);
+}
+
 function beginTurnRegion(root: ts.Node, source: ts.SourceFile): string {
   const call = callsNamed(root, source, "beginTurn")[0];
   assert.ok(call, "handleQuestion has no beginTurn call");
@@ -157,9 +192,20 @@ function beginTurnRegion(root: ts.Node, source: ts.SourceFile): string {
   const previous = block.statements[index - 1];
   if (previous && declaresBilled(previous, source)) parts.push(previous);
   parts.push(statement);
-  const next = block.statements[index + 1];
-  if (next && ts.isIfStatement(next) && next.expression.getText(source).replace(/\s+/g, "") === "!billed.ok") {
-    parts.push(next);
+  let cursor = index + 1;
+  while (cursor < block.statements.length) {
+    const next = block.statements[cursor];
+    if (!next) break;
+    if (ts.isIfStatement(next) && next.expression.getText(source).replace(/\s+/g, "") === "!billed.ok") {
+      parts.push(next);
+      break;
+    }
+    if (isStaleTurnReturn(next, source)) {
+      parts.push(next);
+      cursor += 1;
+      continue;
+    }
+    break;
   }
   return parts.map((part) => part.getText(source)).join("\n");
 }
@@ -208,6 +254,8 @@ function loadHarness(
       let beginTurnCalls = 0;
       let releaseCalls = 0;
       let usageDepleted = false;
+      let rememberBillingFailureCalls = 0;
+      let continuedPastBilling = false;
       let beginMode = "return";
       let abortController = new AbortController();
       const clearSpotlight = deps.clearSpotlight;
@@ -227,6 +275,8 @@ function loadHarness(
         errors.push(error);
         const billing = error && error.billing;
         if (!billing) return;
+        deps.rememberBillingFailure(billing);
+        rememberBillingFailureCalls += 1;
         if (typeof billing.remaining === "number" && billing.remaining <= 0) usageDepleted = true;
         if (billing.remaining == null && (billing.code === "out_of_credits" || billing.code === "daily_usd_limit")) {
           usageDepleted = true;
@@ -250,6 +300,7 @@ function loadHarness(
         const resume = null;
         const currentTraceIdRef = { current: "trace-local" };
         ${beginRegion}
+        continuedPastBilling = true;
       }
       function arm(input) {
         billed = input.billed;
@@ -269,9 +320,17 @@ function loadHarness(
         releaseCalls = 0;
         ttsStops = 0;
         usageDepleted = false;
+        rememberBillingFailureCalls = 0;
+        continuedPastBilling = false;
         beginMode = input.beginMode || "return";
         abortController = new AbortController();
         if (input.aborted) abortController.abort();
+        deps.setEntitlementSnapshot({
+          planId: "free",
+          remainingPct: deps.baselineRemaining,
+          nextResetAt: null,
+          staff: false,
+        });
       }
       function snapshot() {
         return {
@@ -286,6 +345,9 @@ function loadHarness(
           spotlight: whiteboard.spotlight,
           ttsStops,
           usageDepleted,
+          rememberBillingFailureCalls,
+          entitlementRemainingPct: (deps.getEntitlementSnapshot() || {}).remainingPct ?? null,
+          continuedPastBilling,
         };
       }
       return { arm, applyBillingExit, settleBeginTurn, laterSubmit, snapshot };
@@ -301,11 +363,19 @@ function loadHarness(
     studentBillingMessage: typeof studentBillingMessage;
     clearSpotlight: typeof clearSpotlight;
     billingShapedRejection: string;
+    rememberBillingFailure: typeof rememberBillingFailure;
+    getEntitlementSnapshot: typeof getEntitlementSnapshot;
+    setEntitlementSnapshot: typeof setEntitlementSnapshot;
+    baselineRemaining: number;
   }) => Harness;
   return createHarness({
     studentBillingMessage,
     clearSpotlight,
     billingShapedRejection: BILLING_SHAPED_REJECTION,
+    rememberBillingFailure,
+    getEntitlementSnapshot,
+    setEntitlementSnapshot,
+    baselineRemaining: ENTITLEMENT_BASELINE,
   });
 }
 
@@ -329,7 +399,10 @@ function isTutorPhase(phase: string): phase is TutorPhase {
 
 async function main(): Promise<void> {
   console.log(
-    "evidence: extracted-source execution of the beginTurn await, the billing-failure if, finishLectureUi, and the submit gate. The fake beginTurn returns or rejects in-process. Hooks were not mounted. No network call.",
+    "evidence: extracted-source execution of the beginTurn await, the ownership return when the source has one, the billing-failure if, finishLectureUi, and the submit gate. The fake beginTurn returns or rejects in-process. Hooks were not mounted. No network call.",
+  );
+  console.log(
+    "success follow-through: runtime marker continuedPastBilling is assigned immediately after the extracted region. AST-only: the next source statement is partialTurnSaved, then beginBoardEpoch and liveQuestionRef. The harness does not call them.",
   );
 
   const handler = readSource("../../features/tutor-session/hooks/turn/useQuestionHandler.ts");
@@ -435,6 +508,15 @@ async function main(): Promise<void> {
     nextName === "partialTurnSaved",
     `the statement after a billing refusal must stay the success fall-through, found ${String(nextName)}`,
   );
+  const afterBillingText = parent.statements
+    .slice(parent.statements.indexOf(billingIf) + 1)
+    .map((statement) => statement.getText(handler))
+    .join("\n");
+  check(afterBillingText.includes("beginBoardEpoch("), "success continuation must still open the board epoch");
+  check(
+    afterBillingText.includes("liveQuestionRef.current"),
+    "success continuation must still assign the active question",
+  );
 
   const guard = releaseBody.statements[0];
   check(guard !== undefined && ts.isIfStatement(guard), "finishLectureUi must still start with the generation guard");
@@ -459,8 +541,21 @@ async function main(): Promise<void> {
   assert.match(beginRegion, /!billed\.ok/);
   assert.equal(beginRegion.includes("partialTurnSaved"), false);
   assert.equal(beginRegion.includes("beginBoardEpoch"), false);
+  assert.equal(beginRegion.includes("liveQuestionRef"), false);
   assert.equal(beginRegion.includes("${"), false);
   assert.equal(beginRegion.includes("`"), false);
+  const betweenTryAndBilling = statementsBetween(beginTry, billingIf);
+  const ownershipGuard = betweenTryAndBilling.find((statement) => isStaleTurnReturn(statement, handler));
+  check(
+    betweenTryAndBilling.length === 1 && ownershipGuard !== undefined,
+    `a returned beginTurn must return on a stale generation or abort before the billing branch, found ${betweenTryAndBilling.length} statement(s)`,
+  );
+  const guardText = ownershipGuard?.getText(handler) ?? "";
+  check(
+    guardText.length > 0 && beginRegion.includes(guardText),
+    "settleBeginTurn must execute the extracted ownership return, not a copied predicate",
+  );
+  console.log(`ownership return executed: ${guardText.length > 0 && beginRegion.includes(guardText)}`);
 
   const harness = loadHarness(
     billingIf.getText(handler),
@@ -490,6 +585,9 @@ async function main(): Promise<void> {
   check(emitted?.billing?.code === "out_of_credits", "billing error must keep the refusal code");
   check(emitted?.billing?.remaining === 0, "billing error must keep remaining usage");
   check(failed.usageDepleted === true, "a returned out-of-usage refusal must still mark usage depleted");
+  check(failed.rememberBillingFailureCalls === 1, "a returned out-of-usage refusal must still call rememberBillingFailure");
+  check(failed.entitlementRemainingPct === 0, "a returned out-of-usage refusal must still record the empty envelope");
+  check(raisesUsageLock(emitted) === true, "a returned out-of-usage refusal must still raise the usage lock");
   check(failed.beginTurnCalls === 0, "running the failure path must not call beginTurn");
   check(failed.releaseCalls === 1, "failure path must call finishLectureUi before returning");
   check(
@@ -541,6 +639,8 @@ async function main(): Promise<void> {
   check(accepted.spotlight === "dimmed", "a successful beginTurn must not clear the spotlight");
   check(accepted.ttsStops === 0, "a successful beginTurn must not stop speech");
 
+  // The branch body, entered directly. The await path's ownership return is
+  // settled below and is what skips this branch after stop or a newer turn.
   harness.arm({
     billed: FAILURE,
     question: QUESTION,
@@ -554,8 +654,8 @@ async function main(): Promise<void> {
     failures.push(`superseded billing exit threw: ${error instanceof Error ? error.message : String(error)}`);
   }
   const superseded = harness.snapshot();
-  check(superseded.errors.length === 1, "a superseded refusal must still emit the billing error");
-  check(superseded.releaseCalls === 1, "a superseded refusal must still call finishLectureUi");
+  check(superseded.errors.length === 1, "the billing branch, when entered, still emits the billing error");
+  check(superseded.releaseCalls === 1, "the billing branch, when entered for a stale generation, still calls finishLectureUi");
   check(
     superseded.releaseGenerations.length === 1 && superseded.releaseGenerations[0] === 4,
     "a superseded refusal must pass its own generation into finishLectureUi",
@@ -601,6 +701,15 @@ async function main(): Promise<void> {
   check(settledOk.phase === "thinking", "a resolved beginTurn must leave phaseRef thinking");
   check(settledOk.beginTurnCalls === 1, "a resolved beginTurn must bill once");
   check(settledOk.usageDepleted === false, "a resolved beginTurn must not mark usage depleted");
+  check(settledOk.rememberBillingFailureCalls === 0, "a resolved beginTurn must not call rememberBillingFailure");
+  check(
+    settledOk.entitlementRemainingPct === ENTITLEMENT_BASELINE,
+    "a resolved beginTurn must leave the entitlement baseline",
+  );
+  check(
+    settledOk.continuedPastBilling === true,
+    "runtime: a current success falls through to the continuation marker. AST-only: partialTurnSaved is the next source statement and is not called",
+  );
   check(settledOk.spotlight === "dimmed", "a resolved beginTurn must not clear the spotlight");
   check(settledOk.ttsStops === 0, "a resolved beginTurn must not stop speech");
 
@@ -613,8 +722,17 @@ async function main(): Promise<void> {
   check(refusalError?.message !== CONNECTION_FAILURE, "a returned refusal must not be reported as a connection failure");
   check(refusalError?.billing?.code === "out_of_credits", "a returned refusal must keep its billing code");
   check(settledRefusal.usageDepleted === true, "a returned refusal must still mark usage depleted");
+  check(settledRefusal.rememberBillingFailureCalls === 1, "a returned refusal must still call rememberBillingFailure");
+  check(settledRefusal.entitlementRemainingPct === 0, "a returned refusal must still record the empty envelope");
+  check(raisesUsageLock(refusalError) === true, "a returned refusal must still raise the usage lock");
   check(settledRefusal.releaseCalls === 1, "a returned refusal must still release");
   check(settledRefusal.turnActive === false, "a returned refusal must clear the latch");
+  check(settledRefusal.phase === "idle", "a returned refusal must idle phaseRef");
+  check(
+    settledRefusal.phaseSets.length === 1 && settledRefusal.phaseSets[0] === "idle",
+    `a returned refusal must show idle once, got ${JSON.stringify(settledRefusal.phaseSets)}`,
+  );
+  check(settledRefusal.continuedPastBilling === false, "a returned refusal must return before the success continuation");
   check(harness.laterSubmit() === "accepted", "a later submit must follow a returned refusal");
 
   harness.arm({ ...owned, billed: TIMEOUT, beginMode: "return" });
@@ -628,8 +746,16 @@ async function main(): Promise<void> {
   check(timeoutError?.message !== CONNECTION_FAILURE, "a returned timeout must not be reported as a connection failure");
   check(timeoutError?.billing?.code === "timeout", "a returned timeout must keep the timeout code");
   check(settledTimeout.usageDepleted === false, "a returned timeout must not mark usage depleted");
+  check(settledTimeout.rememberBillingFailureCalls === 1, "a returned timeout must still call rememberBillingFailure");
+  check(
+    settledTimeout.entitlementRemainingPct === ENTITLEMENT_BASELINE,
+    "a returned timeout must not zero the envelope",
+  );
+  check(!raisesUsageLock(timeoutError), "a returned timeout must not raise the usage lock");
   check(settledTimeout.releaseCalls === 1, "a returned timeout must still release");
   check(settledTimeout.turnActive === false, "a returned timeout must clear the latch");
+  check(settledTimeout.phase === "idle", "a returned timeout must idle phaseRef");
+  check(settledTimeout.continuedPastBilling === false, "a returned timeout must return before the success continuation");
 
   const expectConnectionRelease = async (label: string, beginMode: BeginMode): Promise<void> => {
     harness.arm({ ...owned, billed: { ok: true }, beginMode, aborted: false });
@@ -644,6 +770,12 @@ async function main(): Promise<void> {
     check(error?.billing == null, `${label}: must not attach a billing failure`);
     check(!raisesUsageLock(error), `${label}: must not raise the usage lock`);
     check(snap.usageDepleted === false, `${label}: must not mark usage depleted`);
+    check(snap.rememberBillingFailureCalls === 0, `${label}: must not call rememberBillingFailure`);
+    check(
+      snap.entitlementRemainingPct === ENTITLEMENT_BASELINE,
+      `${label}: must leave the entitlement baseline, remaining ${String(snap.entitlementRemainingPct)}`,
+    );
+    check(snap.continuedPastBilling === false, `${label}: must return before the success continuation`);
     check(snap.releaseCalls === 1, `${label}: must release the current generation`);
     check(
       snap.releaseGenerations.length === 1 && snap.releaseGenerations[0] === 4,
@@ -697,6 +829,60 @@ async function main(): Promise<void> {
     check(snap.spotlight === "dimmed", `${label}: must not clear the spotlight`);
     check(snap.ttsStops === 0, `${label}: must not stop speech`);
     check(snap.usageDepleted === false, `${label}: must not mark usage depleted`);
+    check(snap.rememberBillingFailureCalls === 0, `${label}: must not call rememberBillingFailure`);
+    check(
+      snap.entitlementRemainingPct === ENTITLEMENT_BASELINE,
+      `${label}: entitlement remaining was ${String(snap.entitlementRemainingPct)}`,
+    );
+    check(snap.continuedPastBilling === false, `${label}: must return before the success continuation`);
+    check(harness.laterSubmit() !== "accepted", `${label}: the active turn must still hold the submit gate`);
+  };
+
+  const expectStaleReturnIgnored = async (
+    label: string,
+    billed: ArmInput["billed"],
+    activeGeneration: number,
+    aborted: boolean,
+  ): Promise<void> => {
+    harness.arm({
+      billed,
+      question: QUESTION,
+      turnGeneration: 4,
+      activeGeneration,
+      phase: "thinking",
+      beginMode: "return",
+      aborted,
+    });
+    await settleOrNote(label);
+    const snap = harness.snapshot();
+    check(snap.beginTurnCalls === 1, `${label}: beginTurn must run once, got ${snap.beginTurnCalls}`);
+    check(
+      snap.errors.length === 0,
+      `${label}: must not emit an error, kind ${messageKind(snap.errors[0]?.message)}`,
+    );
+    check(
+      snap.rememberBillingFailureCalls === 0,
+      `${label}: must not call rememberBillingFailure, got ${snap.rememberBillingFailureCalls}`,
+    );
+    check(
+      snap.entitlementRemainingPct === ENTITLEMENT_BASELINE,
+      `${label}: entitlement remaining was ${String(snap.entitlementRemainingPct)}`,
+    );
+    check(!raisesUsageLock(snap.errors[0]), `${label}: must not raise the usage lock`);
+    check(snap.usageDepleted === false, `${label}: must not mark usage depleted`);
+    check(snap.releaseCalls === 0, `${label}: must not finish the turn, got ${snap.releaseCalls}`);
+    check(snap.turnActive === true, `${label}: must not clear the active latch`);
+    check(snap.phase === "thinking", `${label}: must not idle phaseRef, got ${snap.phase}`);
+    check(
+      snap.phaseSets.length === 0,
+      `${label}: must not set the visible phase, got ${JSON.stringify(snap.phaseSets)}`,
+    );
+    check(snap.spotlight === "dimmed", `${label}: must not clear the spotlight`);
+    check(snap.ttsStops === 0, `${label}: must not stop speech`);
+    check(
+      snap.continuedPastBilling === false,
+      `${label}: runtime returned before the success continuation. AST-only: that continuation starts at partialTurnSaved, which this harness does not call`,
+    );
     check(harness.laterSubmit() !== "accepted", `${label}: the active turn must still hold the submit gate`);
   };
 
@@ -704,6 +890,12 @@ async function main(): Promise<void> {
   await expectLeftRunning("aborted newer turn", 7, true);
   await expectLeftRunning("aborted current generation", 4, true);
 
+  await expectStaleReturnIgnored("superseded returned refusal", FAILURE, 7, false);
+  await expectStaleReturnIgnored("aborted returned refusal", FAILURE, 4, true);
+  await expectStaleReturnIgnored("superseded returned success", { ok: true }, 7, false);
+  await expectStaleReturnIgnored("aborted returned success", { ok: true }, 4, true);
+
+  setEntitlementSnapshot(null);
   if (failures.length > 0) {
     for (const failure of failures) console.error(`FAIL ${failure}`);
     process.exitCode = 1;
@@ -713,6 +905,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
+  setEntitlementSnapshot(null);
   const name = error instanceof Error ? error.name : "Error";
   console.error(`FAIL verifier crashed (${name})`);
   process.exitCode = 1;

@@ -555,6 +555,10 @@ export function useQuestionHandler(
         }
         return;
       }
+      // Returned after stop or a newer turn: leave that lesson's error, latch, and page alone.
+      if (turnGeneration !== turnGenerationRef.current || abortController.signal.aborted) {
+        return;
+      }
       if (!billed.ok) {
         const billing = {
           status: billed.status,
