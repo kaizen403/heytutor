@@ -544,6 +544,8 @@ export function useQuestionHandler(
           traceId: currentTraceIdRef.current!,
           kind: doubt ? "doubt" : resume ? "resume" : "lesson",
           signal: abortController.signal,
+          ownsTurn: () =>
+            turnGeneration === turnGenerationRef.current && !abortController.signal.aborted,
         });
       } catch {
         // Transport failures reject. Billing refusals and the 15s timeout return.
@@ -553,6 +555,10 @@ export function useQuestionHandler(
           emitError({ message: "network error. check your connection", question });
           finishLectureUi(turnGeneration);
         }
+        return;
+      }
+      // Returned after stop or a newer turn: leave that lesson's error, latch, and page alone.
+      if (turnGeneration !== turnGenerationRef.current || abortController.signal.aborted) {
         return;
       }
       if (!billed.ok) {
