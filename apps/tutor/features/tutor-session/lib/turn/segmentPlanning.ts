@@ -123,6 +123,17 @@ export function shouldRepairResumeWithoutInk(
   return !chunkIncomplete || continueCount >= maxContinuations;
 }
 
+export function shouldRestoreResumeOffer(
+  streamFailed: boolean,
+  queueCancelled: boolean,
+  turnGeneration: number,
+  activeGeneration: number,
+): boolean {
+  // An internal playback failure cancels the queue without replacing the turn.
+  // A user stop or new question advances the generation and must not re-offer it.
+  return turnGeneration === activeGeneration && (streamFailed || queueCancelled);
+}
+
 export function isTeachingResponseIncomplete(
   chunk: string,
   fullResponse: string,

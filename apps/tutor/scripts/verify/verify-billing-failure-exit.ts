@@ -233,6 +233,9 @@ function loadHarness(
       const studentBillingMessage = deps.studentBillingMessage;
       let billed = { ok: true };
       let question = "";
+      // The extracted billing branch also reads the optional paused lesson.
+      // This harness exercises ordinary turns, where there is no resume.
+      const resume = null;
       let turnGeneration = 0;
       const turnGenerationRef = { current: 0 };
       const turnActiveRef = { current: false };
@@ -297,7 +300,6 @@ function loadHarness(
       }
       async function settleBeginTurn() {
         const doubt = null;
-        const resume = null;
         const currentTraceIdRef = { current: "trace-local" };
         const previousTraceId = undefined;
         ${beginRegion}

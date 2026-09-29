@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { IncrementalTagParser, parseDrawingCommands, prepareVerifiedLessonSegments, type TutorSegment } from "@heytutor/drawing";
-import { canStreamResumeRepair, createResumeInkGate, isTeachingResponseIncomplete, normalizeSegmentForAlignment, shouldRepairResumeWithoutInk } from "../../features/tutor-session/lib/turn/segmentPlanning";
+import { canStreamResumeRepair, createResumeInkGate, isTeachingResponseIncomplete, normalizeSegmentForAlignment, shouldRepairResumeWithoutInk, shouldRestoreResumeOffer } from "../../features/tutor-session/lib/turn/segmentPlanning";
 import { pausedLessonFromLive } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { LectureMarkupBuffer } from "../../features/tutor-session/lib/turn/lectureCueRepair";
 import { buildResumeTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
@@ -43,6 +43,12 @@ assert(!shouldRepairResumeWithoutInk(true, 1, 2),
   "an incomplete no-ink chunk before the limit should continue normally");
 assert(shouldRepairResumeWithoutInk(false, 0, 2),
   "a closed speech-only chunk should be repaired immediately");
+assert(shouldRestoreResumeOffer(false, true, 4, 4),
+  "a cancelled queue on the current resume must restore Continue");
+assert(!shouldRestoreResumeOffer(false, true, 4, 5),
+  "a superseded resume must not restore an outdated Continue offer");
+assert(shouldRestoreResumeOffer(true, false, 4, 4),
+  "an ordinary stream error on the current resume must restore Continue");
 
 const bufferedInk = createResumeInkGate();
 const bufferedMarkup = new LectureMarkupBuffer();
@@ -163,8 +169,10 @@ assert(billingGate.split("if (resume) offerPausedLessonResume(resume);").length 
 const teachingFailure = source.split("console.error(\"Tutor error:\", error);")[1]?.split("} finally {")[0] ?? "";
 const teachingCleanup = source.split("} finally {")[1]?.split("finishLectureUi(turnGeneration);")[0] ?? "";
 assert(teachingFailure.includes("resumeFailed = Boolean(resume);") &&
-  teachingCleanup.includes("if (resumeFailed && resume && isCurrentTurn()) offerPausedLessonResume(resume);"),
-  "a teaching-stream error must restore Continue after pending board work settles");
+  teachingCleanup.includes("shouldRestoreResumeOffer(") &&
+  teachingCleanup.includes("resumeFailed, cancelRef.current, turnGeneration, turnGenerationRef.current,") &&
+  teachingCleanup.includes("(resume && cancelRef.current)"),
+  "a teaching-stream error or internal queue cancellation must restore Continue after pending work settles");
 assert(source.includes("canStreamResumeRepair(continueCount, MAX_LLM_CONTINUATIONS, resumeInkRetry)"),
   "the live stream must allow the reserved corrective retry");
 assert(source.includes("shouldRepairResumeWithoutInk(chunkIncomplete, continueCount, MAX_LLM_CONTINUATIONS)"),

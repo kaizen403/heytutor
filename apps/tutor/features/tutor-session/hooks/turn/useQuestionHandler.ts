@@ -147,6 +147,7 @@ import {
   isTeachingResponseIncomplete,
   normalizeSegmentForAlignment,
   shouldRepairResumeWithoutInk,
+  shouldRestoreResumeOffer,
 } from "../../lib/turn/segmentPlanning";
 import type { TutorPhase } from "../../types";
 import { isWhiteboardReadyToDraw } from "../../lib/board/whiteboardReady";
@@ -2404,8 +2405,7 @@ export function useQuestionHandler(
       } finally {
         if (
           turnGeneration === turnGenerationRef.current &&
-          !turnCancelled &&
-          !cancelRef.current
+          ((!turnCancelled && !cancelRef.current) || (resume && cancelRef.current))
         ) {
           // A stream failure can occur after the intro was enqueued. Do not expose
           // an idle UI until that exact turn's ink has settled; otherwise the next
@@ -2426,7 +2426,11 @@ export function useQuestionHandler(
           ]);
         }
 
-        if (resumeFailed && resume && isCurrentTurn()) offerPausedLessonResume(resume);
+        if (
+          resume && shouldRestoreResumeOffer(
+            resumeFailed, cancelRef.current, turnGeneration, turnGenerationRef.current,
+          )
+        ) offerPausedLessonResume(resume);
         if (turnAbortRef.current === abortController) {
           turnAbortRef.current = null;
         }
