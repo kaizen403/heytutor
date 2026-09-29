@@ -358,6 +358,10 @@ export class HttpSpeechClient implements TTSClient {
   private streamUrl: string;
   private modelId?: string;
   private currentAudioEl: HTMLAudioElement | null = null;
+  private fallback: SpeechSynthesisTTSClient | null = null;
+  private fallbackGeneration = 0;
+  private pauseEpoch = 0;
+  private pauseWaiters = new Set<() => void>();
   private playing = false;
   private paused = false;
   private playbackRate = 1.0;
@@ -384,9 +388,22 @@ export class HttpSpeechClient implements TTSClient {
 
   setMuted(muted: boolean): void {
     this.muted = muted;
+    this.fallback?.setMuted(muted);
     if (this.currentAudioEl) {
       applyHtmlAudioMute(this.currentAudioEl, muted);
     }
+  }
+
+  private async waitForResume(generation: number): Promise<boolean> {
+    while (this.paused && this.fallbackGeneration === generation) {
+      await new Promise<void>((resolve) => { this.pauseWaiters.add(resolve); });
+    }
+    return this.fallbackGeneration === generation;
+  }
+
+  private wakePauseWaiters(): void {
+    for (const wake of this.pauseWaiters) wake();
+    this.pauseWaiters.clear();
   }
 
   async speak({ text, onStart, onEnd, onError, onTimings }: SpeakOptions): Promise<void> {
@@ -409,6 +426,7 @@ export class HttpSpeechClient implements TTSClient {
     }: SpeakSegmentOptions = {},
   ): Promise<void> {
     const spokenText = mathToSpeech(text.trim());
+    const generation = this.fallbackGeneration;
 
     if (spokenText.length === 0) {
       onEnd?.();
@@ -437,14 +455,26 @@ export class HttpSpeechClient implements TTSClient {
       this.playing = false;
       onError?.(error);
 
-      const fallback = new SpeechSynthesisTTSClient();
-      await fallback.speakSegment(spokenText, {
-        traceId,
-        sessionId,
-        onStart,
-        onEnd,
-        onTimings,
-      });
+      let announced = false;
+      while (await this.waitForResume(generation)) {
+        const fallback = new SpeechSynthesisTTSClient();
+        this.fallback = fallback;
+        fallback.setMuted(this.muted);
+        const epoch = this.pauseEpoch;
+        let ended = false;
+        try {
+          await fallback.speakSegment(spokenText, {
+            traceId,
+            sessionId,
+            onStart: () => { if (!announced) { announced = true; onStart?.(); } },
+            onEnd: () => { ended = true; onEnd?.(); },
+            onTimings,
+          });
+        } finally {
+          if (this.fallback === fallback) this.fallback = null;
+        }
+        if (ended || this.fallbackGeneration !== generation || this.pauseEpoch === epoch) return;
+      }
     }
   }
 
@@ -612,20 +642,22 @@ export class HttpSpeechClient implements TTSClient {
 
   pause(): void {
     this.paused = true;
+    this.pauseEpoch++;
     this.currentAudioEl?.pause();
-    // Also silence any browser-speech fallback path if layered.
-    if (typeof window !== "undefined") {
-      window.speechSynthesis?.pause();
-      window.speechSynthesis?.cancel();
-    }
+    this.fallback?.pause();
   }
 
   resume(): void {
     this.paused = false;
+    this.wakePauseWaiters();
     void this.currentAudioEl?.play().catch(() => undefined);
   }
 
   stop(): void {
+    this.fallbackGeneration++;
+    this.wakePauseWaiters();
+    this.fallback?.stop();
+    this.fallback = null;
     if (this.currentAudioEl) {
       this.currentAudioEl.pause();
       this.currentAudioEl = null;
@@ -645,6 +677,15 @@ export class HttpSpeechClient implements TTSClient {
     }
     return audio.currentTime * 1000;
   }
+}
+
+// speechSynthesis.cancel() affects the entire window, not one utterance. Lease
+// the engine to one client at a time; pending clients never enter its queue.
+let browserSpeechOwner: SpeechSynthesisTTSClient | null = null;
+const browserSpeechWaiters: Array<{ client: SpeechSynthesisTTSClient; start: () => void }> = [];
+
+function claimBrowserSpeech(client: SpeechSynthesisTTSClient): void {
+  browserSpeechOwner = client;
 }
 
 export class SpeechSynthesisTTSClient implements TTSClient {
@@ -680,8 +721,9 @@ export class SpeechSynthesisTTSClient implements TTSClient {
     { traceId, sessionId, onStart, onEnd, onError, onTimings, onAudioCaptured: _onAudioCaptured }: SpeakSegmentOptions = {},
   ): Promise<void> {
     if (typeof window === "undefined" || !window.speechSynthesis) {
-      onError?.(new Error("SpeechSynthesis not available"));
-      return;
+      const error = new Error("SpeechSynthesis not available");
+      onError?.(error);
+      throw error;
     }
 
     const spokenText = mathToSpeech(text.trim());
@@ -694,10 +736,7 @@ export class SpeechSynthesisTTSClient implements TTSClient {
     void recordBrowserFallbackTts(spokenText, { traceId, sessionId });
 
     this.stop();
-    // cancel() does not clear the browser's paused flag. A previous lecture
-    // pause otherwise leaves every fallback utterance queued forever.
-    window.speechSynthesis.resume();
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       let settled = false;
       let utterance: SpeechSynthesisUtterance | null = null;
       const watches: Array<ReturnType<typeof setTimeout>> = [];
@@ -712,7 +751,7 @@ export class SpeechSynthesisTTSClient implements TTSClient {
         for (const id of watches) clearTimeout(id);
         watches.length = 0;
       };
-      const finish = (notify?: () => void) => {
+      const finish = (notify?: () => void, error?: unknown) => {
         if (settled) return;
         settled = true;
         clearWatches();
@@ -720,7 +759,15 @@ export class SpeechSynthesisTTSClient implements TTSClient {
         this.playing = false;
         this.currentUtterance = null;
         this.cancelUtterance = null;
-        try { notify?.(); } finally { resolve(); }
+        const waiting = browserSpeechWaiters.findIndex((entry) => entry.client === this);
+        if (waiting >= 0) browserSpeechWaiters.splice(waiting, 1);
+        const owned = browserSpeechOwner === this;
+        if (owned) browserSpeechOwner = null;
+        try { notify?.(); } finally {
+          if (error) reject(error);
+          else resolve();
+          if (owned && !browserSpeechOwner) browserSpeechWaiters.shift()?.start();
+        }
       };
       this.cancelUtterance = () => finish();
 
@@ -765,7 +812,8 @@ export class SpeechSynthesisTTSClient implements TTSClient {
         };
         next.onerror = (event) => {
           if (utterance !== next) return;
-          finish(() => onError?.(new Error(`SpeechSynthesis error: ${event.error}`)));
+          const error = new Error(`SpeechSynthesis error: ${event.error}`);
+          finish(() => onError?.(error), error);
         };
         this.currentUtterance = next;
         window.speechSynthesis.resume();
@@ -777,30 +825,28 @@ export class SpeechSynthesisTTSClient implements TTSClient {
       // One fresh utterance on a later turn recovers. The give-up stays at
       // 2.5s so a dead engine cannot stall the lecture.
       const giveUp = () => {
-        finish(() => onError?.(new Error("Browser speech did not start")));
         window.speechSynthesis.cancel();
+        const error = new Error("Browser speech did not start");
+        finish(() => onError?.(error), error);
       };
-      watches.push(setTimeout(() => {
+      const start = () => {
         if (settled) return;
+        claimBrowserSpeech(this);
+        // cancel() does not clear the browser's paused flag.
         window.speechSynthesis.resume();
         watches.push(setTimeout(() => {
           if (settled) return;
-          try {
-            speakNow();
-          } catch (error) {
-            finish(() => onError?.(error));
-          }
-        }, 0));
-      }, 400));
-      watches.push(setTimeout(() => {
-        if (!settled) giveUp();
-      }, 2_500));
-
-      try {
-        speakNow();
-      } catch (error) {
-        finish(() => onError?.(error));
-      }
+          window.speechSynthesis.resume();
+          watches.push(setTimeout(() => {
+            if (settled) return;
+            try { speakNow(); } catch (error) { finish(() => onError?.(error), error); }
+          }, 0));
+        }, 400));
+        watches.push(setTimeout(() => { if (!settled) giveUp(); }, 2_500));
+        try { speakNow(); } catch (error) { finish(() => onError?.(error), error); }
+      };
+      if (browserSpeechOwner) browserSpeechWaiters.push({ client: this, start });
+      else start();
     });
   }
 
@@ -813,14 +859,15 @@ export class SpeechSynthesisTTSClient implements TTSClient {
   }
 
   pause(): void {
-    this.cancelUtterance?.();
-    if (typeof window !== "undefined" && window.speechSynthesis) {
+    const ownsSpeech = browserSpeechOwner === this;
+    if (ownsSpeech && typeof window !== "undefined" && window.speechSynthesis) {
       // Chromium frequently keeps talking through pause(), and Firefox leaves
       // the engine paused after cancel() so the next sentence never starts.
       // cancel() is the mute; resume() clears the stuck flag.
       window.speechSynthesis.cancel();
       window.speechSynthesis.resume();
     }
+    this.cancelUtterance?.();
     this.playing = false;
     this.currentUtterance = null;
   }
@@ -830,11 +877,12 @@ export class SpeechSynthesisTTSClient implements TTSClient {
   }
 
   stop(): void {
-    this.cancelUtterance?.();
-    if (typeof window !== "undefined" && window.speechSynthesis) {
+    const ownsSpeech = browserSpeechOwner === this;
+    if (ownsSpeech && typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
       window.speechSynthesis.resume();
     }
+    this.cancelUtterance?.();
 
     this.playing = false;
     this.currentUtterance = null;

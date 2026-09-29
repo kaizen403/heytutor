@@ -42,13 +42,16 @@ export function lectureJobTitle(job: Pick<LectureJob, "question"> & { title?: st
   return finalizeBoardTitle(job.question);
 }
 
+let nextLectureBatchId = 0;
+
 export function makeLectureJobs(
   questions: ProbeQuestion[],
   now: number,
   options?: { interactive?: boolean },
 ): LectureJob[] {
+  const batchId = nextLectureBatchId++;
   return questions.map((probe, index) => ({
-    id: `${probe.id}:${now}:${index}`,
+    id: `${probe.id}:${now}:${batchId}:${index}`,
     probeId: probe.id,
     topicId: probe.topicId,
     difficulty: probe.difficulty,

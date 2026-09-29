@@ -19,7 +19,7 @@ import {
   resolveTurnTraceInput,
   shouldUpdateParentTraceOutput,
 } from "@/lib/obs/chatTrace";
-import { requireLessonGrant } from "@/lib/billing/gate";
+import { holdGrantUntilStreamEnds, requireLessonGrant } from "@/lib/billing/gate";
 import { recordLlmSpend } from "@/lib/billing/track";
 import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
 import { markGrantInUse } from "@/lib/billing/grant";
@@ -680,7 +680,9 @@ export async function POST(request: Request): Promise<Response> {
     return gated;
   }
   const { actor, grant } = gated;
-  markGrantInUse(grant, 1);
+  const grantTraceId = readChatTraceHeaders(request.headers).traceId ?? `bypass-${actor.userId}`;
+  markGrantInUse(grant, 1, grantTraceId);
+  let streamOwnsGrant = false;
   try {
   const rawBody = await request.text();
   const sessionId = request.headers.get("x-session-id") ?? undefined;
@@ -888,7 +890,9 @@ export async function POST(request: Request): Promise<Response> {
       total_setup_ms: Date.now() - requestStartedAt,
     });
 
-    return new Response(tracedBody, {
+    const heldBody = holdGrantUntilStreamEnds(grant, grantTraceId, tracedBody);
+    streamOwnsGrant = true;
+    return new Response(heldBody, {
       status: response.status,
       headers: {
         "content-type": response.headers.get("content-type") ?? "text/event-stream",
@@ -921,6 +925,6 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
   } finally {
-    markGrantInUse(grant, -1);
+    if (!streamOwnsGrant) markGrantInUse(grant, -1, grantTraceId);
   }
 }

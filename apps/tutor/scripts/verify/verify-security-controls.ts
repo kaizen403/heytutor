@@ -12,6 +12,7 @@ import {
   resetTtsWsConnectionsForTests,
   tryAcquireTtsWsConnection,
   TTS_WS_MAX_CONNECTIONS_PER_USER,
+  TTS_WS_MAX_CONNECTIONS_WITH_BYPASS,
   ttsWsCharsWithinCeiling,
 } from "../../lib/tts/wsRelayLimits";
 
@@ -109,6 +110,22 @@ for (let i = 0; i < TTS_WS_MAX_CONNECTIONS_PER_USER; i += 1) {
   assert(tryAcquireTtsWsConnection("user-a"), "a user may open up to the socket cap");
 }
 assert(!tryAcquireTtsWsConnection("user-a"), "a fourth TTS socket for one user is refused");
+resetTtsWsConnectionsForTests();
+assert(TTS_WS_MAX_CONNECTIONS_WITH_BYPASS === 5, "the authenticated staff cap is five");
+for (let i = 0; i < TTS_WS_MAX_CONNECTIONS_WITH_BYPASS; i += 1) {
+  assert(tryAcquireTtsWsConnection("staff-a", true), "authenticated staff can open five sockets");
+}
+assert(!tryAcquireTtsWsConnection("staff-a", true), "the sixth staff socket is refused");
+resetTtsWsConnectionsForTests();
+for (let i = 0; i < TTS_WS_MAX_CONNECTIONS_PER_USER; i += 1) {
+  assert(tryAcquireTtsWsConnection("dev-cookie", false), "anonymous dev sockets retain the base cap");
+}
+assert(!tryAcquireTtsWsConnection("dev-cookie", false), "an anonymous fourth socket is refused");
+const relayServer = read("server.ts");
+assert(/!isAuthDisabled\(\)\s*&&\s*ticketUser\?\.userId\s*===\s*userId\s*&&\s*grant\.skipGates/.test(relayServer),
+  "only an authenticated session ticket and server grant can increase the socket cap");
+assert(/tryAcquireTtsWsConnection\(userId, authenticatedSkipGates\)/.test(relayServer),
+  "the server must pass the authenticated staff allowance to the connection cap");
 
 const media = read("lib/object-store/serveMedia.ts");
 assert(!media.includes("object.contentType"), "media responses must not echo the stored Content-Type");

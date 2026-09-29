@@ -629,25 +629,33 @@ export class StreamingSpeechClient implements TTSClient {
         let ended = false;
         let failed = false;
         let failure: unknown;
-        await this.speechFallback.speakSegment(spokenText, {
-          ...options,
-          onStart: () => {
-            if (attemptPauseEpoch !== this.pauseEpoch || this.speakGeneration !== generation) return;
-            if (!announced) {
-              announced = true;
-              options.onStart?.();
-            }
-          },
-          onEnd: () => {
-            if (attemptPauseEpoch !== this.pauseEpoch || this.speakGeneration !== generation) return;
-            ended = true;
-            options.onEnd?.();
-          },
-          onError: (error) => {
-            failed = true;
-            failure = error;
-          },
-        });
+        try {
+          await this.speechFallback.speakSegment(spokenText, {
+            ...options,
+            onStart: () => {
+              if (attemptPauseEpoch !== this.pauseEpoch || this.speakGeneration !== generation) return;
+              if (!announced) {
+                announced = true;
+                options.onStart?.();
+              }
+            },
+            onEnd: () => {
+              if (attemptPauseEpoch !== this.pauseEpoch || this.speakGeneration !== generation) return;
+              ended = true;
+              options.onEnd?.();
+            },
+            onError: (error) => {
+              failed = true;
+              failure = error;
+            },
+          });
+        } catch (error) {
+          // The browser client rejects genuine failures; pause/stop resolves.
+          // Still classify by generation/epoch so a late error from a cancelled
+          // utterance cannot fail a resumed sentence.
+          failed = true;
+          failure = error;
+        }
         // SpeechSynthesis.cancel() on pause resolves without onEnd. Retry even
         // if the user has already resumed; stopping must not report an error.
         if (this.speakGeneration !== generation) return;

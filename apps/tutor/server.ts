@@ -372,7 +372,10 @@ app.prepare().then(() => {
         socket.destroy();
         return;
       }
-      if (!tryAcquireTtsWsConnection(userId)) {
+      // Only a signed, session-minted ticket plus a server-side bypass grant
+      // may open the extra staff sockets; anonymous dev cookies keep the base cap.
+      const authenticatedSkipGates = !isAuthDisabled() && ticketUser?.userId === userId && grant.skipGates;
+      if (!tryAcquireTtsWsConnection(userId, authenticatedSkipGates)) {
         socket.destroy();
         return;
       }

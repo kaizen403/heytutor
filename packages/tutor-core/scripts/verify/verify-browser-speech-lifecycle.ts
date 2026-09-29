@@ -28,13 +28,14 @@ try {
   let errors = 0;
   const stalled = client.speakSegment("Explain the forces on the block.", {
     onError: () => errors++,
-  }).then(() => { settled = true; });
+  });
+  void stalled.then(() => { settled = true; }, () => { settled = true; });
   mock.timers.tick(3_000);
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
   assert(settled, "browser speech that never starts must settle within 3s, not stall every lecture beat");
-  await stalled;
+  await assert.rejects(stalled, /Browser speech did not start/);
   assert.equal(errors, 1, "silent browser speech must report its failure exactly once");
   assert(!paused && resumeCalls > 0, "a previous pause must not leave browser fallback suspended");
 

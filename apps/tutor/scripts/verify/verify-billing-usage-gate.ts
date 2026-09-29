@@ -57,6 +57,15 @@ assert(
   "later planner/teaching/title calls on the same grant finish even after spend hits $0",
 );
 assert(shouldSkipTtsForUsage(minted.grant), "TTS still skips at 0 USD remaining");
+assert(requireGrantForTrace("fresh-free", "question-1").ok,
+  "the original paid trace can finish after exhaustion");
+const exhaustedDirect = requireGrantForTrace("fresh-free", "direct-paid-new-trace");
+assert(!exhaustedDirect.ok && exhaustedDirect.reason === "out_of_credits",
+  "direct paid calls cannot attach a new trace after exhaustion");
+assert(!minted.grant.allowedTraceIds.has("direct-paid-new-trace"),
+  "a denied direct trace is never authorized for retries");
+assert(recoverGrantForPaidCall({ userId: "fresh-free", traceId: "direct-paid-new-trace", remainingMillicents: 0, planId: "free" }) === null,
+  "grant recovery refuses a new direct trace at zero balance");
 assert(
   beginTurnAccess({
     remainingMillicents: 0,
@@ -86,6 +95,12 @@ const recovered = recoverGrantForPaidCall({
 });
 assert(recovered !== null, "lost grant remints while monthly USD remains");
 assert(requireGrantForTrace("fresh-free", "question-1").ok, "chat sees the reminted grant");
+assert(!requireGrantForTrace("fresh-free", "fresh-direct-trace").ok,
+  "fresh direct paid traces require a persisted balance check");
+assert(recoverGrantForPaidCall({ userId: "fresh-free", traceId: "fresh-direct-trace", remainingMillicents: unusedFree, planId: "free" }) !== null,
+  "a direct paid trace attaches after a positive persisted balance check");
+assert(recoverGrantForPaidCall({ userId: "fresh-free", traceId: "stale-balance-trace", remainingMillicents: 0, planId: "free" }) === null,
+  "a stale positive grant cannot override exhausted persisted usage");
 
 resetTurnGrantsForTests();
 assert(

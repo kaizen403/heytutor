@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import "./verify-lecture-stop-ownership";
 
 /**
  * Firefox often skips React unmount when the tab or window goes away

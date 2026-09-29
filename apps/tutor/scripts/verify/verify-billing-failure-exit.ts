@@ -299,6 +299,7 @@ function loadHarness(
         const doubt = null;
         const resume = null;
         const currentTraceIdRef = { current: "trace-local" };
+        const previousTraceId = undefined;
         ${beginRegion}
         continuedPastBilling = true;
       }
