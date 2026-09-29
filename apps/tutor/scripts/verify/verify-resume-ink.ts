@@ -149,6 +149,11 @@ assert(prompt.runtimeAddon.includes("Why is arcsin acute?"), "resume must also s
 const source = readFileSync(resolve(__dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
 assert(source.includes("createResumeInkGate("), "the live resume path must use the ink gate");
 assert(/resumeInkGate\.offer\(normalizeSegmentForAlignment\(seg\)\)/.test(source), "filtered stream segments must pass through the gate");
+const flushBody = source.split("const flushBufferedSegment = () => {")[1]?.split("let markup =")[0] ?? "";
+assert(flushBody.includes("if (!resumeInkGate) {") &&
+  flushBody.includes("if (!codeLesson) enqueueLessonOpening();") &&
+  flushBody.includes("if (resumeInkGate && readySegments.length > 0) enqueueLessonOpening();"),
+  "a failed resume must not enqueue its figure intro before a written step passes the ink gate");
 assert(source.includes("resumeInkGate.reset()"), "speech-only first attempts must be discarded before retry");
 assert(source.includes("resumeInkGate.hasInk()"), "the final response must be checked for ink");
 assert(source.includes("offerPausedLessonResume(resume)"), "a failed generation must keep Continue available for another try");

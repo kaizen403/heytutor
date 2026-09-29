@@ -1923,10 +1923,13 @@ export function useQuestionHandler(
 
         const flushBufferedSegment = () => {
           if (!bufferedSegment) return;
-          // Notes first. A physics figure still opens with the first teaching
-          // segment; a code-lesson figure waits until a FOCUS/TYPE needs it.
-          enqueueOpeningNotes();
-          if (!codeLesson) enqueueLessonOpening();
+          // A resumed lecture must not queue its opening figure until a
+          // spoken-and-written step passes the ink gate. Otherwise an intro
+          // can keep drawing after a no-ink resume reports failure.
+          if (!resumeInkGate) {
+            enqueueOpeningNotes();
+            if (!codeLesson) enqueueLessonOpening();
+          }
           const prepared = prepareVerifiedLessonSegments([bufferedSegment], activeDiagram);
           // DSA turns own no handwriting: [TYPE] resolves to its committed
           // block in plan order, frame advances are inserted between blocks,
@@ -1948,9 +1951,13 @@ export function useQuestionHandler(
             ensureFigureIntro();
           }
           for (const seg of outgoing) {
-            for (const ready of resumeInkGate
+            const readySegments = resumeInkGate
               ? resumeInkGate.offer(normalizeSegmentForAlignment(seg))
-              : [seg]) {
+              : [seg];
+            // Enqueue the figure before the first accepted writing segment,
+            // never before an attempt that may still fail for lack of ink.
+            if (resumeInkGate && readySegments.length > 0) enqueueLessonOpening();
+            for (const ready of readySegments) {
               enqueueSegment(ready, turnGeneration);
             }
           }
