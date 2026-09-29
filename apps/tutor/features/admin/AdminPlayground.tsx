@@ -11,6 +11,7 @@ import { RunCostBox } from "./components/RunCostBox";
 import { TopicRow } from "./components/TopicRow";
 import { TopicSheet } from "./components/TopicSheet";
 import { UnitSection, type UnitSummary } from "./components/UnitSection";
+import { NotesSlidesOverlay } from "./components/NotesSlidesOverlay";
 import { WatchDrawer, type WatchIntent } from "./components/WatchDrawer";
 import { useLectureCosts } from "./hooks/useLectureCosts";
 import { useLectureQueue } from "./hooks/useLectureQueue";
@@ -126,6 +127,10 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
   const [watchQuestion, setWatchQuestion] = useState<string | undefined>(
     undefined,
   );
+  const [notesBoard, setNotesBoard] = useState<{
+    boardId: string;
+    title?: string;
+  } | null>(null);
   const [dialog, setDialog] = useState<{
     mode: "confirm" | "notice";
     title: string;
@@ -410,7 +415,12 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     setHeldBoardId(null);
   }, [setHeldBoardId]);
 
+  const closeNotes = useCallback(() => {
+    setNotesBoard(null);
+  }, []);
+
   const presentInteractiveLecture = useCallback((boardId: string, question: string) => {
+    setNotesBoard(null);
     setHeldBoardId(boardId);
     setWatchIntent("live");
     setWatchTitle(question);
@@ -422,12 +432,8 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
     setDialog({ mode: "notice", title, description });
   }, []);
 
-  const openLecture = useCallback(
-    (
-      boardId: string,
-      intent: Exclude<WatchIntent, "live">,
-      options?: { title?: string; question?: string },
-    ) => {
+  const openNotes = useCallback(
+    (boardId: string, title?: string) => {
       if (recordingBoardIds.has(boardId)) {
         notice(
           "Still recording",
@@ -435,9 +441,25 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         );
         return;
       }
+      closeWatch();
+      setNotesBoard({ boardId, title });
+    },
+    [closeWatch, notice, recordingBoardIds],
+  );
+
+  const openLecture = useCallback(
+    (boardId: string, options?: { title?: string; question?: string }) => {
+      if (recordingBoardIds.has(boardId)) {
+        notice(
+          "Still recording",
+          "This lecture is still being recorded. Use Watch live to follow along, or wait for it to finish.",
+        );
+        return;
+      }
+      setNotesBoard(null);
       setHeldBoardId(null);
       unlockTutorAudio();
-      setWatchIntent(intent);
+      setWatchIntent("replay");
       setWatchTitle(options?.title);
       setWatchQuestion(options?.question);
       setWatchBoardId(boardId);
@@ -460,6 +482,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         );
         return;
       }
+      setNotesBoard(null);
       unlockTutorAudio();
       setHeldBoardId(boardId);
       setWatchIntent("live");
@@ -475,6 +498,9 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
       if (watchBoardId && boardIds.includes(watchBoardId)) {
         closeWatch();
       }
+      if (notesBoard && boardIds.includes(notesBoard.boardId)) {
+        closeNotes();
+      }
       const result = await queue.removeRecordings(boardIds);
       if (result.failed === 0) {
         return;
@@ -488,7 +514,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
           : `Deleted ${result.deleted}, but ${result.failed} could not be removed.`,
       );
     },
-    [closeWatch, notice, queue, watchBoardId],
+    [closeNotes, closeWatch, notesBoard, notice, queue, watchBoardId],
   );
 
   const deleteLectures = useCallback(
@@ -583,7 +609,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
       });
       return;
     }
-    openLecture(boardId, "replay", {
+    openLecture(boardId, {
       title: topic.item.text,
       question:
         probe?.question ||
@@ -783,17 +809,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                         onNotes={(difficulty) => {
                           const boardId = topic.boardIds[difficulty];
                           if (!boardId) return;
-                          const probe = topic.probes.find(
-                            (entry) => entry.difficulty === difficulty,
-                          );
-                          openLecture(boardId, "notes", {
-                            title: topic.item.text,
-                            question:
-                              probe?.question ||
-                              recordings.get(
-                                recordingKey(topic.item.id, difficulty),
-                              )?.preview,
-                          });
+                          openNotes(boardId, topic.item.text);
                         }}
                         onDelete={(difficulty) => {
                           const boardId = topic.boardIds[difficulty];
@@ -863,7 +879,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                   const job = queue.jobs.find(
                     (entry) => entry.boardId === boardId,
                   );
-                  openLecture(boardId, "replay", {
+                  openLecture(boardId, {
                     title: job ? lectureJobTitle(job) : undefined,
                     question: job?.question,
                   });
@@ -872,10 +888,7 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
                   const job = queue.jobs.find(
                     (entry) => entry.boardId === boardId,
                   );
-                  openLecture(boardId, "notes", {
-                    title: job ? lectureJobTitle(job) : undefined,
-                    question: job?.question,
-                  });
+                  openNotes(boardId, job ? lectureJobTitle(job) : undefined);
                 }}
                 onDelete={(boardId) => deleteLectures([boardId])}
                 onDeleteCompleted={
@@ -1004,6 +1017,15 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         onConfirm={dialog?.onConfirm}
       />
 
+      {notesBoard ? (
+        <NotesSlidesOverlay
+          key={notesBoard.boardId}
+          boardId={notesBoard.boardId}
+          title={notesBoard.title}
+          onClose={closeNotes}
+        />
+      ) : null}
+
       <WatchDrawer
         boardId={watchBoardId}
         intent={watchIntent}
@@ -1024,6 +1046,10 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
           }
           if (next === "replay") unlockTutorAudio();
           setWatchIntent(next);
+        }}
+        onOpenNotes={() => {
+          if (!watchBoardId) return;
+          openNotes(watchBoardId, watchTitle);
         }}
         onClose={closeWatch}
         onDelete={(boardId) => deleteLectures([boardId])}

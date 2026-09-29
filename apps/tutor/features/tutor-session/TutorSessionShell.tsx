@@ -145,6 +145,12 @@ export type TutorSessionExportApi = {
   lectureExportProgress: LectureExportProgress | null;
   lectureExportError: string | null;
   replayLecture: () => boolean;
+  /** Saved board pages as images. Meaningful once `boardReady` is true. */
+  collectNotesSlides: () => Promise<string[]>;
+  /** Restore has finished, so `collectNotesSlides` reads the saved pages. */
+  boardReady: boolean;
+  /** The restored board has at least one saved turn. */
+  hasSavedTurns: boolean;
   downloadNotesPdf: () => void;
   downloadLectureMp4: () => void;
   cancelLectureExport: () => void;
@@ -948,6 +954,7 @@ export function TutorSessionShell({
 
   const {
     replayLecture,
+    collectNotesSlides,
     downloadNotesPdf,
     handleReplaySpeedChange: applyReplaySpeed,
   } = useReplay({
@@ -1299,6 +1306,9 @@ export function TutorSessionShell({
       lectureExportProgress,
       lectureExportError,
       replayLecture,
+      collectNotesSlides,
+      boardReady: boardLoaded,
+      hasSavedTurns: storedTurnsCount > 0,
       downloadNotesPdf,
       downloadLectureMp4,
       cancelLectureExport,
@@ -1317,6 +1327,9 @@ export function TutorSessionShell({
     lectureExportProgress,
     lectureExportError,
     replayLecture,
+    collectNotesSlides,
+    boardLoaded,
+    storedTurnsCount,
     downloadNotesPdf,
     downloadLectureMp4,
     cancelLectureExport,

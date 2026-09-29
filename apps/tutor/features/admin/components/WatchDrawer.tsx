@@ -16,7 +16,7 @@ import {
 } from "@/features/tutor-session/hooks/useBoardFullscreen";
 import { fullscreenKeyAction, isTypingElement } from "@/features/tutor-session/lib/board/boardFullscreen";
 
-export type WatchIntent = "replay" | "notes" | "live";
+export type WatchIntent = "replay" | "live";
 
 const WATCH_OVERLAY_HISTORY_KEY = "htutorWatchOverlay";
 /** Above the promoted headless board (z-61) once the chrome leaves the overlay flow. */
@@ -30,6 +30,8 @@ interface WatchDrawerProps {
   livePhase?: TutorPhase;
   liveStatus?: "running" | "complete" | "failed";
   onIntentChange: (intent: WatchIntent) => void;
+  /** Leave the board and open the slides overlay for this lecture. */
+  onOpenNotes: () => void;
   onClose: () => void;
   onDelete?: (boardId: string) => void;
 }
@@ -42,6 +44,7 @@ export function WatchDrawer({
   livePhase,
   liveStatus,
   onIntentChange,
+  onOpenNotes,
   onClose,
   onDelete,
 }: WatchDrawerProps) {
@@ -51,9 +54,8 @@ export function WatchDrawer({
 
   return (
     <WatchDrawerFrame
-      // Keyed on the board alone. It used to carry the intent as well, so
-      // switching to Notes tore the lesson down and built it again; the Ask
-      // panel is now part of the same session rather than a separate surface.
+      // Keyed on the board alone so switching between live and replay keeps
+      // the lesson mounted. Notes is a separate overlay and never lands here.
       key={boardId}
       boardId={boardId}
       intent={intent}
@@ -62,6 +64,7 @@ export function WatchDrawer({
       livePhase={livePhase}
       liveStatus={liveStatus}
       onIntentChange={onIntentChange}
+      onOpenNotes={onOpenNotes}
       onClose={onClose}
       onDelete={onDelete}
     />
@@ -108,6 +111,7 @@ function WatchDrawerFrame({
   livePhase,
   liveStatus,
   onIntentChange,
+  onOpenNotes,
   onClose,
   onDelete,
 }: WatchDrawerProps & { boardId: string }) {
@@ -129,7 +133,7 @@ function WatchDrawerFrame({
     live: isLive
       ? liveStatus !== "complete" && liveStatus !== "failed"
       : Boolean(exportApi?.isReplaying),
-    pinned: intent === "notes",
+    pinned: false,
   });
 
   useEffect(() => {
@@ -182,8 +186,7 @@ function WatchDrawerFrame({
     };
   }, [boardId]);
 
-  const heading =
-    title ?? (isLive ? "Live lecture" : intent === "notes" ? "Lecture notes" : "Lecture replay");
+  const heading = title ?? (isLive ? "Live lecture" : "Lecture replay");
   const boardFullscreen = fullscreen.active;
 
   const headerBar = (
@@ -286,13 +289,8 @@ function WatchDrawerFrame({
               </button>
               <button
                 type="button"
-                onClick={() => onIntentChange("notes")}
-                className={cn(
-                  "type-accent-xs inline-flex items-center gap-1 rounded-full px-3 py-1.5",
-                  intent === "notes"
-                    ? "bg-sky-500/12 text-sky-300"
-                    : "text-soft hover:text-frost",
-                )}
+                onClick={onOpenNotes}
+                className="type-accent-xs inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-soft hover:text-frost"
               >
                 <ScrollText className="h-3 w-3" />
                 Notes
@@ -372,8 +370,6 @@ function WatchDrawerFrame({
                 muteAudio={false}
                 playbackRate={speed}
                 onExportApi={setExportApi}
-                notesOpen={intent === "notes"}
-                onNotesOpenChange={(open) => onIntentChange(open ? "notes" : "replay")}
                 boardFullscreenApi={fullscreen}
               />
             </div>
