@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, X } from "lucide-react";
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { SiteButton } from "@/components/ui/site-button";
 import { Spinner } from "@/components/ui/spinner";
@@ -18,8 +19,12 @@ interface NotesSlidesOverlayProps {
 }
 
 /**
- * Saved lecture pages, as slides, with a download. The board is restored
- * off-screen only long enough to photograph those pages.
+ * Saved lecture pages, as slides, with a download.
+ *
+ * The pages only exist as ink on a board, so a headless session restores
+ * them long enough to photograph. That session is portaled off the left
+ * edge of the window. A canvas parked inside this dialog paints over the
+ * slides, which is the board the Notes button used to open.
  */
 export function NotesSlidesOverlay({ boardId, title, onClose }: NotesSlidesOverlayProps) {
   const heading = title?.trim() || "Lecture notes";
@@ -70,6 +75,11 @@ export function NotesSlidesOverlay({ boardId, title, onClose }: NotesSlidesOverl
     };
   }, [attempt, boardReady, hasSavedTurns]);
 
+  const [captureHost, setCaptureHost] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setCaptureHost(document.body);
+  }, []);
+
   const count = slides?.length ?? 0;
   const active = count === 0 ? 0 : Math.min(index, count - 1);
   const slide = count > 0 ? slides?.[active] : undefined;
@@ -118,58 +128,58 @@ export function NotesSlidesOverlay({ boardId, title, onClose }: NotesSlidesOverl
     })();
   };
 
-  return (
-    <DialogPrimitive.Root open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Content
-          data-notes-overlay=""
-          className="site-theme fixed inset-0 z-[80] flex h-[100dvh] w-screen flex-col overflow-hidden bg-ink-950 outline-none"
-          onKeyDown={(event) => {
-            if (count < 2) return;
-            if (event.key === "ArrowLeft") {
-              event.preventDefault();
-              setIndex((current) => Math.max(0, Math.min(current, count - 1) - 1));
-            } else if (event.key === "ArrowRight") {
-              event.preventDefault();
-              setIndex((current) => Math.min(count - 1, Math.min(current, count - 1) + 1));
-            }
-          }}
+  const capture =
+    capturing && captureHost
+      ? createPortal(
+          <div
+            aria-hidden
+            data-notes-capture=""
+            style={{
+              position: "fixed",
+              left: -10000,
+              top: 0,
+              width: BOARD_WIDTH,
+              height: BOARD_HEIGHT,
+              overflow: "hidden",
+              pointerEvents: "none",
+            }}
           >
-            {capturing ? (
-              <div
-                aria-hidden
-                inert
-                data-notes-capture=""
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  width: BOARD_WIDTH,
-                  height: BOARD_HEIGHT,
-                  opacity: 0,
-                  overflow: "hidden",
-                  pointerEvents: "none",
-                }}
-              >
-                <TutorSessionShell
-                  key={`${boardId}:${attempt}`}
-                  sessionId={boardId}
-                  variant="headless"
-                  muteAudio
-                  onExportApi={setExportApi}
-                />
-              </div>
-            ) : null}
+            <TutorSessionShell
+              key={`${boardId}:${attempt}`}
+              sessionId={boardId}
+              variant="headless"
+              muteAudio
+              onExportApi={setExportApi}
+            />
+          </div>,
+          captureHost,
+        )
+      : null;
+
+  return (
+    <>
+      {capture}
+      <DialogPrimitive.Root open onOpenChange={(open) => { if (!open) onClose(); }}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-[80] bg-ink-950/75" />
+          <DialogPrimitive.Content
+            data-notes-overlay=""
+            className="site-theme fixed left-1/2 top-1/2 z-[81] flex h-[min(92dvh,860px)] w-[min(calc(100vw-2rem),1040px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-stroke bg-ink-900 text-frost shadow-[0_24px_60px_-24px_rgba(3,11,18,0.8)] outline-none"
+            onKeyDown={(event) => {
+              if (count < 2) return;
+              if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                setIndex((current) => Math.max(0, Math.min(current, count - 1) - 1));
+              } else if (event.key === "ArrowRight") {
+                event.preventDefault();
+                setIndex((current) => Math.min(count - 1, Math.min(current, count - 1) + 1));
+              }
+            }}
+          >
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-stroke px-3 py-2 sm:px-4 sm:py-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <SiteButton variant="ghost" size="sm" onClick={onClose} aria-label="Back to syllabus" className="shrink-0">
-                  <ArrowLeft className="h-4 w-4" />
-                  Back
-                </SiteButton>
-                <DialogTitle className="min-w-0 truncate pr-0 text-sm font-medium tracking-normal text-frost">
-                  {heading}
-                </DialogTitle>
-              </div>
+              <DialogTitle className="min-w-0 truncate pr-0 text-sm font-medium tracking-normal text-frost">
+                {heading}
+              </DialogTitle>
               <div className="flex shrink-0 items-center gap-2">
                 <SiteButton
                   variant="ice"
@@ -198,7 +208,7 @@ export function NotesSlidesOverlay({ boardId, title, onClose }: NotesSlidesOverl
               Slides from this lecture. Download saves them as a PDF.
             </DialogDescription>
 
-            <div className="relative min-h-0 flex-1 bg-ink-900">
+            <div className="relative min-h-0 flex-1 bg-ink-950">
               {preparing ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-soft" role="status">
                   <Spinner size={22} className="text-sky-400" />
@@ -288,5 +298,6 @@ export function NotesSlidesOverlay({ boardId, title, onClose }: NotesSlidesOverl
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
+    </>
   );
 }
