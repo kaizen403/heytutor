@@ -453,6 +453,9 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
 export interface ResumeTeachingPromptInput {
   lessonQuestion: string;
   boardRows: readonly DoubtBoardRow[];
+  /** Work as it stood before the doubt (may be on an earlier page now). */
+  lessonBoardRows?: readonly DoubtBoardRow[];
+  interruptedStep?: string;
   rowsLeftOnPage: number;
   nextRowY: number | null;
   diagramPromptAddon: string | null;
@@ -578,6 +581,12 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
       ? `The student stopped the lesson on "${lessonQuestion}" to ask a doubt. The doubt has been answered. The board is exactly as they left it after that answer, and everything on it stays where it is. The original question is still the question of this lesson.`
       : "The student asked a doubt. It has been answered. Continue the lesson on this board as it stands.",
     panelShowing ? doubtCodeBlock(input.codePanelText) : doubtBoardBlock(input.boardRows),
+    !codeBoard && input.lessonBoardRows?.length
+      ? `The original lecture had reached these notebook lines when the student interrupted (an earlier page may no longer be visible):\n${input.lessonBoardRows.slice(-MAX_DOUBT_BOARD_ROWS).map((row) => row.text.slice(0, MAX_DOUBT_ROW_CHARS)).join("\n")}\nUse these as the completed work, not as lines to write again.`
+      : "",
+    !codeBoard && input.interruptedStep?.trim()
+      ? `The last lesson idea before the interruption was: ${input.interruptedStep.trim().slice(0, 500)}. Finish its unfinished reasoning, then take the next step; do not jump back to the beginning.`
+      : "",
     remainingSteps,
     "This turn continues the original lesson, not a new one. It replaces every rule above about opening the lesson, the \"Given\" rows, and restarting from the beginning. Those rules describe a fresh page; this page is already written.",
     ...rules,

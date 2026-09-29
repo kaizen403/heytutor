@@ -140,9 +140,14 @@ import {
   rememberVerifiedScene,
 } from "../../lib/scene/verifiedSceneRecovery";
 import {
+  canStreamResumeRepair,
   createEmptySegmentPlanStats,
+  createResumeInkGate,
   foldGluedSegment,
   isTeachingResponseIncomplete,
+  normalizeSegmentForAlignment,
+  shouldRepairResumeWithoutInk,
+  shouldRestoreResumeOffer,
 } from "../../lib/turn/segmentPlanning";
 import type { TutorPhase } from "../../types";
 import { isWhiteboardReadyToDraw } from "../../lib/board/whiteboardReady";
@@ -557,6 +562,7 @@ export function useQuestionHandler(
         // The rejection text can include a URL, so it is not read or logged.
         if (turnGeneration === turnGenerationRef.current && !abortController.signal.aborted) {
           emitError({ message: "network error. check your connection", question });
+          if (resume) offerPausedLessonResume(resume);
           finishLectureUi(turnGeneration);
         }
         return;
@@ -573,6 +579,7 @@ export function useQuestionHandler(
         };
         emitError({ message: studentBillingMessage(billed.code), question, billing });
         // Release this attempt. A newer generation is left running.
+        if (resume) offerPausedLessonResume(resume);
         finishLectureUi(turnGeneration);
         return;
       }
@@ -1676,6 +1683,8 @@ export function useQuestionHandler(
           ? buildResumeTeachingPrompt({
               ...pagePromptInput,
               lessonQuestion: resume.lessonQuestion,
+              lessonBoardRows: resume.lessonBoardRows,
+              interruptedStep: resume.interruptedStep,
               codeLessonBoard: Boolean(codeLesson),
               solverProjection: resume.solverProjection,
               codeLessonResumeNote: codeLesson
@@ -1796,6 +1805,7 @@ export function useQuestionHandler(
         });
       }
 
+      let resumeFailed = false;
       try {
         // Inside the try: enqueueVerifiedIntro validates the intro commands and
         // throws synchronously on an unexpected one. Outside, that rejection was
@@ -1872,6 +1882,14 @@ export function useQuestionHandler(
               command.type === "TYPE",
           );
 
+        // A resumed non-code lecture cannot become a speech-only turn: hold
+        // its first words until a filtered, aligned WRITE really reaches the
+        // queue. A missing pen is repaired before anything is spoken.
+        const resumeInkGate = resume && !codeLesson && !codePanelShowing
+          ? createResumeInkGate()
+          : null;
+        let resumeInkRetry = false;
+        let resumeInkAttempts = 0;
         // Buffer one segment so unverified marker commands are removed before
         // they enter the speech and drawing queues.
         let bufferedSegment: TutorSegment | null = null;
@@ -1909,10 +1927,13 @@ export function useQuestionHandler(
 
         const flushBufferedSegment = () => {
           if (!bufferedSegment) return;
-          // Notes first. A physics figure still opens with the first teaching
-          // segment; a code-lesson figure waits until a FOCUS/TYPE needs it.
-          enqueueOpeningNotes();
-          if (!codeLesson) enqueueLessonOpening();
+          // A resumed lecture must not queue its opening figure until a
+          // spoken-and-written step passes the ink gate. Otherwise an intro
+          // can keep drawing after a no-ink resume reports failure.
+          if (!resumeInkGate) {
+            enqueueOpeningNotes();
+            if (!codeLesson) enqueueLessonOpening();
+          }
           const prepared = prepareVerifiedLessonSegments([bufferedSegment], activeDiagram);
           // DSA turns own no handwriting: [TYPE] resolves to its committed
           // block in plan order, frame advances are inserted between blocks,
@@ -1934,7 +1955,15 @@ export function useQuestionHandler(
             ensureFigureIntro();
           }
           for (const seg of outgoing) {
-            enqueueSegment(seg, turnGeneration);
+            const readySegments = resumeInkGate
+              ? resumeInkGate.offer(normalizeSegmentForAlignment(seg))
+              : [seg];
+            // Enqueue the figure before the first accepted writing segment,
+            // never before an attempt that may still fail for lack of ink.
+            if (resumeInkGate && readySegments.length > 0) enqueueLessonOpening();
+            for (const ready of readySegments) {
+              enqueueSegment(ready, turnGeneration);
+            }
           }
           if (
             prepared.blockedCommandCount > 0 ||
@@ -1951,8 +1980,8 @@ export function useQuestionHandler(
           bufferedSegment = null;
         };
 
-        const markup = codeLesson ? null : new LectureMarkupBuffer();
-        const parser = new IncrementalTagParser({
+        let markup = codeLesson ? null : new LectureMarkupBuffer();
+        let parser = new IncrementalTagParser({
           preserveStepSpeech: !codeLesson,
           onSegmentReady: (segment) => {
             if (STREAM_SEGMENTS_LIVE) {
@@ -1985,14 +2014,16 @@ export function useQuestionHandler(
         // Beats the lesson still owed when the previous chunk ended.
         let beatsLeftBefore = Number.POSITIVE_INFINITY;
 
-        while (continueCount <= MAX_LLM_CONTINUATIONS) {
+        while (canStreamResumeRepair(continueCount, MAX_LLM_CONTINUATIONS, resumeInkRetry)) {
           const isContinuation = continueCount > 0 && !reasoningOnlyRetry;
           const streamResult = await streamLLMResponse(
             {
               systemPrompt: isContinuation
                 ? turnContinuationPrompt
                 : turnSystemPrompt,
-              userPrompt: isContinuation
+              userPrompt: resumeInkRetry
+                ? `${resumeLessonUserPrompt()}\n\nYour previous continuation contained no usable [WRITE] step. Continue from the next unfinished derivation step on the existing board. For each new mathematical step, put its short [WRITE:text,x,y] tag immediately after the words that explain it. Do not repeat the doubt or any already written row. Return [STEP] blocks, not narration alone.`
+                : isContinuation
                 ? [
                     "continue",
                     // A code lesson that stopped early left the panel
@@ -2112,13 +2143,49 @@ export function useQuestionHandler(
             });
           }
 
+          const chunkIncomplete = isTeachingResponseIncomplete(
+            streamResult.text,
+            fullResponse,
+            previousChunk,
+          );
+          // At the last continuation, an open STEP may already contain a valid
+          // WRITE held by markup/parser. Drain it before deciding there was no
+          // ink; otherwise the retry discards work the model actually wrote.
+          if (
+            resumeInkGate && !resumeInkGate.hasInk() && resumeInkAttempts < 1 &&
+            shouldRepairResumeWithoutInk(chunkIncomplete, continueCount, MAX_LLM_CONTINUATIONS)
+          ) {
+            const pending = markup?.finish();
+            if (pending) parser.push(pending);
+            parser.flush();
+            flushBufferedSegment();
+          }
+          if (
+            resumeInkGate && !resumeInkGate.hasInk() && resumeInkAttempts < 1 &&
+            shouldRepairResumeWithoutInk(chunkIncomplete, continueCount, MAX_LLM_CONTINUATIONS)
+          ) {
+            // No command has been queued or spoken: throw the no-ink attempt
+            // away when it ended cleanly or exhausted normal continuations.
+            resumeInkAttempts += 1;
+            resumeInkRetry = true;
+            parser.flush();
+            flushBufferedSegment();
+            parser = new IncrementalTagParser({
+              preserveStepSpeech: !codeLesson,
+              onSegmentReady: parser.onSegmentReady,
+            });
+            resumeInkGate.reset();
+            markup = new LectureMarkupBuffer();
+            fullResponse = "";
+            previousChunk = "";
+            continueCount += 1;
+            tel.mark("resume-without-ink-retry", { attempt: resumeInkAttempts });
+            continue;
+          }
+          resumeInkRetry = false;
           if (
             !codeLessonUnfinished &&
-            !isTeachingResponseIncomplete(
-              streamResult.text,
-              fullResponse,
-              previousChunk,
-            )
+            !chunkIncomplete
           ) {
             break;
           }
@@ -2180,6 +2247,18 @@ export function useQuestionHandler(
           }
         }
         throwIfTurnCancelled();
+        if (resumeInkGate && !resumeInkGate.hasInk()) {
+          // A stopped lecture must not be marked complete merely because the
+          // model returned a closed speech-only step twice.
+          const message = "The lecture could not resume with board writing. Please try Continue lecture again.";
+          tel.mark("resume-without-ink", { attempts: resumeInkAttempts + 1 });
+          turnCancelled = true;
+          if (resume) offerPausedLessonResume(resume);
+          emitError({ message, question });
+          setNarrationText(message);
+          setCurrentSegmentText(message);
+          return;
+        }
 
         const responseText = rawResponse.trim();
         rawResponseRef.current = responseText;
@@ -2307,6 +2386,7 @@ export function useQuestionHandler(
         }
 
         console.error("Tutor error:", error);
+        resumeFailed = Boolean(resume);
         const billing = parseBillingFailureFromUnknown(error);
         let message = "something went wrong. try asking again.";
         if (billing) {
@@ -2325,8 +2405,7 @@ export function useQuestionHandler(
       } finally {
         if (
           turnGeneration === turnGenerationRef.current &&
-          !turnCancelled &&
-          !cancelRef.current
+          ((!turnCancelled && !cancelRef.current) || (resume && cancelRef.current))
         ) {
           // A stream failure can occur after the intro was enqueued. Do not expose
           // an idle UI until that exact turn's ink has settled; otherwise the next
@@ -2347,6 +2426,11 @@ export function useQuestionHandler(
           ]);
         }
 
+        if (
+          resume && shouldRestoreResumeOffer(
+            resumeFailed, cancelRef.current, turnGeneration, turnGenerationRef.current,
+          )
+        ) offerPausedLessonResume(resume);
         if (turnAbortRef.current === abortController) {
           turnAbortRef.current = null;
         }

@@ -262,7 +262,7 @@ export type TurnControlApi = {
    * After a doubt turn ends, offer Continue lecture / Ask another doubt rather
    * than picking the lesson back up on its own.
    */
-  offerPausedLessonResume: () => void;
+  offerPausedLessonResume: (resume?: PausedLessonRequest) => void;
   /** Drop a paused lecture: a fresh question, or a board change. */
   clearPausedLesson: () => void;
   /** True while a mid-lecture doubt has been answered and the lesson can continue. */

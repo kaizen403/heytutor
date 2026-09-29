@@ -18,7 +18,7 @@ import {
 import { placeDsaFigureIntro, resolveCodeLessonSegments } from "../../lib/code-lesson/codeLessonSegments";
 import { isVoiceStartupFailure, shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
 import { clearSpotlight } from "../../lib/board/spotlight";
-import { dropDiagramRects } from "../../lib/board/boardLayout";
+import { dropDiagramRects, workColumnRows } from "../../lib/board/boardLayout";
 import {
   autoQuestionSubmissionKey,
   buildDoubtPrompt,
@@ -993,6 +993,9 @@ export function useTurnControl(
         narration_chars: interruptedNarration.length,
       });
 
+      const lessonBoardRows = workColumnRows(boardLayoutRef.current).map((row) => ({ ...row }));
+      const interruptedStep = (speakingNarrationRef.current ||
+        recordedSegmentsRef.current.at(-1)?.narration || "").trim();
       pendingDoubtRef.current = request;
       doubtDeadlineRef.current = Date.now() + DOUBT_INTERRUPT_TIMEOUT_MS;
       // Stops the voice and the pen and leaves the page exactly as it is: the
@@ -1008,6 +1011,8 @@ export function useTurnControl(
         lessonQuestion: liveQuestionRef.current,
         codeLesson: Boolean(codeLessonControllerRef?.current?.getActivePlan()),
         figureDrawn: Boolean(activeVerifiedDiagramRef.current),
+        lessonBoardRows,
+        interruptedStep,
       });
       if (snapshot) {
         const existing = pausedLessonRef.current;
@@ -1051,6 +1056,7 @@ export function useTurnControl(
     },
     [
       boardShowsStoppedReplayRef,
+      boardLayoutRef,
       boardPageRef,
       cancelDoubtFlush,
       codeLessonControllerRef,
@@ -1075,7 +1081,8 @@ export function useTurnControl(
     setPausedLessonOfferBoardId(null);
   }, []);
 
-  const offerPausedLessonResume = useCallback(() => {
+  const offerPausedLessonResume = useCallback((resume?: PausedLessonRequest) => {
+    if (resume) pausedLessonRef.current = resume;
     const pending = pausedLessonRef.current;
     if (!pending || pending.boardId !== sessionId) {
       return;
