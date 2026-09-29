@@ -32,6 +32,8 @@ import {
   storedTurnContinuesBoard,
 } from "@/lib/boards/boardContinuation";
 
+import type { DoubtBoardRow } from "./turnTeachingPrompt";
+
 /** A lesson opens a page; a doubt answers on it; a resume continues after that. */
 export type PageTurnKind = "lesson" | "doubt" | "resume";
 
@@ -149,6 +151,10 @@ export interface PausedLessonRequest {
   figureDrawn: boolean;
   /** A code lesson was on the board; the panel and frames stay. */
   codeLesson: boolean;
+  /** Notebook rows at the moment the doubt interrupted, before any page turn. */
+  lessonBoardRows?: readonly DoubtBoardRow[];
+  /** The last lesson idea the student heard, for resuming at the next step. */
+  interruptedStep?: string;
 }
 
 /**
@@ -213,6 +219,8 @@ export function pausedLessonFromLive(input: {
   lessonQuestion: string;
   codeLesson: boolean;
   figureDrawn: boolean;
+  lessonBoardRows?: readonly DoubtBoardRow[];
+  interruptedStep?: string;
 }): PausedLessonRequest | null {
   const fromPage = pausedLessonFromPage(input.record, input.codeLesson);
   if (fromPage) {
@@ -221,6 +229,8 @@ export function pausedLessonFromLive(input: {
       boardId: fromPage.boardId || input.boardId,
       figureDrawn: fromPage.figureDrawn || input.figureDrawn,
       codeLesson: fromPage.codeLesson || input.codeLesson,
+      lessonBoardRows: input.lessonBoardRows ?? fromPage.lessonBoardRows,
+      interruptedStep: input.interruptedStep ?? fromPage.interruptedStep,
     };
   }
   const lessonQuestion = input.lessonQuestion.trim();
@@ -233,6 +243,8 @@ export function pausedLessonFromLive(input: {
     scene: null,
     figureDrawn: input.figureDrawn,
     codeLesson: input.codeLesson,
+    lessonBoardRows: input.lessonBoardRows,
+    interruptedStep: input.interruptedStep,
   };
 }
 

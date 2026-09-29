@@ -89,6 +89,40 @@ export function summarizeSegmentsForTrace(segments: TutorSegment[]): Array<{
   }));
 }
 
+/** Discard a speech-only lead-in to a resumed notebook lesson. A model that
+ * never produces a usable WRITE gets one corrective retry, not an audio-only
+ * lecture. The first audible resumed step must move the pen.
+ */
+export function createResumeInkGate() {
+  let inkStarted = false;
+  return {
+    offer(segment: TutorSegment): TutorSegment[] {
+      if (inkStarted) return [segment];
+      if (!segment.narration.trim() || !getSegmentCommands(segment).some((command) => command.type === "WRITE")) return [];
+      inkStarted = true;
+      return [segment];
+    },
+    hasInk: () => inkStarted,
+    reset() {
+      inkStarted = false;
+    },
+  };
+}
+
+/** Reserve only the next request for a scheduled no-ink repair beyond the usual continuation budget. */
+export function canStreamResumeRepair(continueCount: number, maxContinuations: number, resumeInkRetry: boolean): boolean {
+  return continueCount <= maxContinuations || (resumeInkRetry && continueCount === maxContinuations + 1);
+}
+
+/** A closed no-ink response needs repair now; an open one does when no normal continuation remains. */
+export function shouldRepairResumeWithoutInk(
+  chunkIncomplete: boolean,
+  continueCount: number,
+  maxContinuations: number,
+): boolean {
+  return !chunkIncomplete || continueCount >= maxContinuations;
+}
+
 export function isTeachingResponseIncomplete(
   chunk: string,
   fullResponse: string,

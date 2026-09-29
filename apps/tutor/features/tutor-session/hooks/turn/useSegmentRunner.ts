@@ -523,6 +523,7 @@ export function useSegmentRunner({
 
       const markVoiceStarted = () => {
         if (isCancelled() || !turnActiveRef.current) return;
+        if (hasNarration) speakingNarrationRef.current = narration;
         if (audioStartedAtMs === null) {
           audioStartedAtMs = performance.now();
           audioStartedAtActiveMs = speechClockRef.current?.elapsedMs() ?? null;
@@ -705,7 +706,6 @@ export function useSegmentRunner({
       };
 
       let segmentCompleted = false;
-      if (hasNarration) speakingNarrationRef.current = narration;
       try {
         if (!(await waitWhilePaused())) return;
 
