@@ -644,14 +644,10 @@ export function useTurnControl(
   const [pausedLessonOfferBoardId, setPausedLessonOfferBoardId] = useState<string | null>(null);
 
   const stopTurn = useCallback((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => {
-    // Always kill speech first. The UI can already look idle while a leftover
-    // TTS buffer or speechSynthesis utterance is still talking — especially
-    // after a raced stop. Returning before this left the lecture audible.
+    // Stop only this shell's primary and runner-owned fallback. Browser
+    // speechSynthesis.cancel() is page-global and could silence a sibling.
     ttsClientRef.current?.stop();
     stopFallbackSpeech();
-    if (typeof window !== "undefined") {
-      window.speechSynthesis?.cancel();
-    }
 
     if (phase === "idle" && !isReplaying) {
       // New board. The UI is already idle, but a parked segment only checks

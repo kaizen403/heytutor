@@ -1,4 +1,7 @@
 let sharedAudioContext: AudioContext | null = null;
+// Reserve independent graphs for the admin queue's maximum five shells after the Watch gesture.
+const primedLectureContexts: AudioContext[] = [];
+const LATE_LECTURE_RESERVE = 5;
 const lectureAudioContexts = new Set<AudioContext>();
 const audioHolds = new Map<AudioContext, AudioBufferSourceNode>();
 
@@ -71,7 +74,10 @@ export function getSharedAudioContext(): AudioContext {
  * decodeAudioData / BufferSource timelines or Watch Live speech starves.
  */
 export function createLectureAudioContext(): AudioContext {
-  const ctx = new AudioContext();
+  // Take a context constructed and resumed during the Watch click.
+  let ctx = primedLectureContexts.shift();
+  while (ctx?.state === "closed") ctx = primedLectureContexts.shift();
+  ctx ??= new AudioContext();
   lectureAudioContexts.add(ctx);
   return ctx;
 }
@@ -106,6 +112,9 @@ export function haltAllLectureAudio(): void {
   for (const ctx of [...lectureAudioContexts]) {
     releaseLectureAudioContext(ctx);
   }
+  for (const ctx of primedLectureContexts.splice(0)) {
+    releaseLectureAudioContext(ctx);
+  }
   if (sharedAudioContext && sharedAudioContext.state !== "closed") {
     releaseContextHold(sharedAudioContext);
     void sharedAudioContext.close().catch(() => undefined);
@@ -124,7 +133,17 @@ export function unlockTutorAudio(): void {
   }
   const shared = getSharedAudioContext();
   holdContext(shared);
-  for (const ctx of lectureAudioContexts) {
+  // The reserve includes graphs already leased to mounted lectures. Repeated
+  // Watch gestures must not allocate five more when all five are in use.
+  for (let i = primedLectureContexts.length - 1; i >= 0; i--) {
+    if (primedLectureContexts[i].state === "closed") primedLectureContexts.splice(i, 1);
+  }
+  const activeLectures = [...lectureAudioContexts].filter((ctx) => ctx.state !== "closed");
+  while (primedLectureContexts.length + activeLectures.length < LATE_LECTURE_RESERVE) {
+    primedLectureContexts.push(new AudioContext());
+  }
+  for (const ctx of primedLectureContexts) holdContext(ctx);
+  for (const ctx of activeLectures) {
     holdContext(ctx);
   }
   if (typeof window !== "undefined") {

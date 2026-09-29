@@ -29,6 +29,10 @@ for (const [file, gate] of sessionRoutes) {
 
 const chat = read("app/api/chat/route.ts");
 assert(chat.includes("recordLlmSpend"), "chat must track llm_tokens after usage");
+assert(chat.includes("holdGrantUntilStreamEnds(grant, grantTraceId, tracedBody)"),
+  "chat must hold its staff trace until stream completion");
+assert(read("lib/billing/billingClient.ts").includes("parentTraceId: input.parentTraceId"),
+  "begin-turn sends the previous live trace for follow-on binding");
 const tts = read("lib/tts/handleTtsRequest.ts");
 assert(tts.includes("consumeTtsChars"), "HTTP TTS must decrement the grant budget");
 assert(tts.includes("ttsSkippedResponse"), "HTTP TTS must skip ElevenLabs at the budget");
@@ -90,6 +94,8 @@ assert(read("lib/billing/grant.ts").includes("heytutorTurnGrants"), "grants surv
 
 const handler = read("features/tutor-session/hooks/turn/useQuestionHandler.ts");
 assert(handler.includes("beginTurn("), "the live turn must request a grant before planners");
+assert(handler.includes("parentTraceId: previousTraceId"),
+  "doubt and resume begin-turn must bind to the prior live trace");
 
 const lab = read("scripts/lecture-lab/run.ts");
 assert(lab.includes("applyLectureLabHeaders"), "lecture-lab must send the shared-secret header");

@@ -217,11 +217,14 @@ export async function saveTurn(
   }
 
   const url = resolveApiUrl(`/api/boards/${boardId}/turns`);
+  // Keep the logical save's key across retries when a committed response is lost.
+  const idempotencyKey = crypto.randomUUID();
   const MAX_SAVE_ATTEMPTS = 3;
   for (let attempt = 1; attempt <= MAX_SAVE_ATTEMPTS; attempt += 1) {
     try {
       const res = await fetch(url, {
         method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
         body: formData,
       });
       if (res.ok) {

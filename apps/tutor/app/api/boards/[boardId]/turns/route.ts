@@ -42,6 +42,38 @@ function nullableJson(value: unknown): Prisma.InputJsonValue | Prisma.NullTypes.
   return value == null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
 }
 
+function turnResponse(turn: Turn, insertedSegments: Segment[]) {
+  return NextResponse.json({
+    turn: {
+      id: turn.id,
+      orderIndex: turn.orderIndex,
+      question: turn.question,
+      rawResponse: turn.rawResponse,
+      speedMultiplier: turn.speedMultiplier,
+      traceId: turn.traceId,
+      sceneDocument: turn.sceneDocument,
+      sceneEngineVersion: turn.sceneEngineVersion,
+      validationReport: turn.validationReport,
+      visualStatus: turn.visualStatus,
+      sceneArtifacts: turn.sceneArtifacts,
+      createdAt: turn.createdAt.getTime(),
+      segments: insertedSegments
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+        .map((segment) => ({
+          id: segment.id,
+          orderIndex: segment.orderIndex,
+          narration: segment.narration,
+          spokenText: segment.spokenText,
+          command: segment.command,
+          audioUrl: segment.audioUrl,
+          audioFormat: segment.audioFormat,
+          durationMs: segment.durationMs,
+          timings: segment.timings,
+        })),
+    },
+  });
+}
+
 export async function POST(request: Request, context: RouteContext) {
   const uploadPreflight = validateTurnUploadHeaders(request.headers);
   if (!uploadPreflight.ok) {
@@ -54,6 +86,10 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const { boardId } = await context.params;
+  const idempotencyKey = request.headers.get("idempotency-key");
+  if (idempotencyKey !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
+    return NextResponse.json({ error: "invalid idempotency key" }, { status: 400 });
+  }
   await ensureUser(userId);
 
   const board = await prisma.board.findFirst({
@@ -107,6 +143,16 @@ export async function POST(request: Request, context: RouteContext) {
     ...canonicalScene.value,
   };
 
+  // Skip a second audio upload when a committed response was lost. The
+  // transaction repeats this check under the board lock for concurrent saves.
+  if (idempotencyKey !== null) {
+    const existing = await prisma.turn.findFirst({
+      where: { boardId, userId, idempotencyKey },
+      include: { segments: { orderBy: { orderIndex: "asc" } } },
+    });
+    if (existing) return turnResponse(existing, existing.segments);
+  }
+
   const turnId = crypto.randomUUID();
   const segmentMeta = metadata.segments ?? [];
 
@@ -136,6 +182,14 @@ export async function POST(request: Request, context: RouteContext) {
         // Lock the board row so concurrent turn saves serialize against it.
         await tx.$queryRaw`SELECT 1 FROM "boards" WHERE "id" = ${boardId} FOR UPDATE`;
 
+        if (idempotencyKey !== null) {
+          const existing = await tx.turn.findFirst({
+            where: { boardId, userId, idempotencyKey },
+            include: { segments: { orderBy: { orderIndex: "asc" } } },
+          });
+          if (existing) return { turn: existing, insertedSegments: existing.segments };
+        }
+
         const turnCount = await tx.turn.count({ where: { boardId } });
         const orderIndex = turnCount;
 
@@ -144,6 +198,7 @@ export async function POST(request: Request, context: RouteContext) {
             id: turnId,
             boardId,
             userId,
+            idempotencyKey,
             orderIndex,
             question: metadata.question,
             rawResponse: metadata.rawResponse,
@@ -202,33 +257,5 @@ export async function POST(request: Request, context: RouteContext) {
     throw lastError ?? new Error("failed to save turn after retries");
   }
 
-  return NextResponse.json({
-    turn: {
-      id: saved.turn.id,
-      orderIndex: saved.turn.orderIndex,
-      question: saved.turn.question,
-      rawResponse: saved.turn.rawResponse,
-      speedMultiplier: saved.turn.speedMultiplier,
-      traceId: saved.turn.traceId,
-      sceneDocument: saved.turn.sceneDocument,
-      sceneEngineVersion: saved.turn.sceneEngineVersion,
-      validationReport: saved.turn.validationReport,
-      visualStatus: saved.turn.visualStatus,
-      sceneArtifacts: saved.turn.sceneArtifacts,
-      createdAt: saved.turn.createdAt.getTime(),
-      segments: saved.insertedSegments
-        .sort((a, b) => a.orderIndex - b.orderIndex)
-        .map((segment) => ({
-          id: segment.id,
-          orderIndex: segment.orderIndex,
-          narration: segment.narration,
-          spokenText: segment.spokenText,
-          command: segment.command,
-          audioUrl: segment.audioUrl,
-          audioFormat: segment.audioFormat,
-          durationMs: segment.durationMs,
-          timings: segment.timings,
-        })),
-    },
-  });
+  return turnResponse(saved.turn, saved.insertedSegments);
 }

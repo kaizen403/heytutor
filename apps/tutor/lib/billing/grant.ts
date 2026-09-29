@@ -15,6 +15,11 @@ export interface TurnGrant {
   ttsCharsRemaining: number;
   usdMillicentsRemaining: number;
   inUse: number;
+  /** Reserved staff traces; 0 means begun but no paid chat request has started yet. */
+  activeBypassTraces: Map<string, number>;
+  bypassFollowOnTraceIds: Set<string>;
+  bypassFollowOnRoots: Map<string, string>;
+  bypassLessonTraceIds: Set<string>;
   skipAutumn: boolean;
   skipGates: boolean;
 }
@@ -29,6 +34,10 @@ function grantMap(): Map<string, TurnGrant> {
 }
 
 let nowFn: () => number = Date.now;
+
+export function setGrantNowForTests(now: () => number): void {
+  nowFn = now;
+}
 
 export function resetTurnGrantsForTests(): void {
   grantMap().clear();
@@ -49,15 +58,47 @@ export function getTurnGrant(userId: string): TurnGrant | null {
   return prune(userId);
 }
 
+const MAX_CONCURRENT_BYPASS_TRACES = 5;
+
+function reserveBypassTrace(grant: TurnGrant, traceId: string): boolean {
+  if (!grant.activeBypassTraces.has(traceId)) {
+    if (grant.activeBypassTraces.size >= MAX_CONCURRENT_BYPASS_TRACES) return false;
+    grant.activeBypassTraces.set(traceId, 0);
+  }
+  grant.allowedTraceIds.add(traceId);
+  grant.bypassLessonTraceIds.add(traceId);
+  grant.expiresAt = Math.max(grant.expiresAt, nowFn() + GRANT_TTL_MS);
+  return true;
+}
+
+export function attachBypassFollowOnTrace(userId: string, traceId: string, parentTraceId: string | undefined): TurnGrant | null {
+  const grant = prune(userId);
+  if (!grant?.skipGates || !parentTraceId || parentTraceId === traceId) return null;
+  const root = grant.bypassLessonTraceIds.has(parentTraceId)
+    ? parentTraceId
+    : grant.bypassFollowOnRoots.get(parentTraceId);
+  if (!root || grant.bypassLessonTraceIds.has(traceId)) return null;
+  if (grant.bypassFollowOnRoots.has(traceId) && grant.bypassFollowOnRoots.get(traceId) !== root) return null;
+  // The original chat can end before recording audio. Reclaim its slot only
+  // when capacity remains; a follow-on must not become a sixth recording.
+  if (!grant.activeBypassTraces.has(root) && !reserveBypassTrace(grant, root)) return null;
+  grant.bypassFollowOnTraceIds.add(traceId);
+  grant.bypassFollowOnRoots.set(traceId, root);
+  grant.allowedTraceIds.add(traceId);
+  grant.expiresAt = Math.max(grant.expiresAt, nowFn() + GRANT_TTL_MS);
+  return grant;
+}
+
 export function ensureBypassGrant(input: {
   userId: string;
   traceId: string;
   planId?: string;
 }): TurnGrant | null {
   const existing = prune(input.userId);
-  if (existing) {
-    existing.allowedTraceIds.add(input.traceId);
-    existing.expiresAt = Math.max(existing.expiresAt, nowFn() + GRANT_TTL_MS);
+  if (existing?.skipGates) {
+    if (existing.bypassFollowOnTraceIds.has(input.traceId)) {
+      if (!existing.activeBypassTraces.has(existing.bypassFollowOnRoots.get(input.traceId)!)) return null;
+    } else if (!reserveBypassTrace(existing, input.traceId)) return null;
     existing.skipAutumn = true;
     existing.skipGates = true;
     existing.usdMillicentsRemaining = Number.MAX_SAFE_INTEGER;
@@ -86,6 +127,12 @@ export function createLessonGrant(input: {
   skipGates?: boolean;
 }): { ok: true; grant: TurnGrant } | { ok: false; reason: "concurrent_limit" } {
   const existing = prune(input.userId);
+  // Bypass turns can begin before any paid call increments inUse. Keep every
+  // active staff trace on the same grant instead of replacing its predecessor.
+  if (existing?.skipGates && input.skipGates === true) {
+    if (!reserveBypassTrace(existing, input.traceId)) return { ok: false, reason: "concurrent_limit" };
+    return { ok: true, grant: existing };
+  }
   if (existing && existing.inUse > 0 && existing.lessonTraceId !== input.traceId) {
     return { ok: false, reason: "concurrent_limit" };
   }
@@ -102,6 +149,10 @@ export function createLessonGrant(input: {
     ttsCharsRemaining: input.ttsChars ?? TTS_CHARS_PER_LESSON,
     usdMillicentsRemaining: input.usdMillicents ?? Number.MAX_SAFE_INTEGER,
     inUse: 0,
+    activeBypassTraces: new Map(skipGates ? [[input.traceId, 0]] : []),
+    bypassFollowOnTraceIds: new Set(),
+    bypassFollowOnRoots: new Map(),
+    bypassLessonTraceIds: new Set(skipGates ? [input.traceId] : []),
     skipAutumn: input.skipAutumn === true,
     skipGates,
   };
@@ -119,7 +170,9 @@ export function recoverGrantForPaidCall(input: {
 }): TurnGrant | null {
   const existing = prune(input.userId);
   if (existing) {
+    if (existing.skipGates !== (input.skipGates === true)) return null;
     if (existing.allowedTraceIds.has(input.traceId)) return existing;
+    if (!existing.skipGates && (input.remainingMillicents <= 0 || existing.usdMillicentsRemaining <= 0)) return null;
     const attached = attachTraceToGrant(input.userId, input.traceId);
     return attached.ok ? attached.grant : null;
   }
@@ -165,6 +218,9 @@ export function grantForFollowOnTurn(input: {
   | { ok: false; reason: "out_of_credits" | "concurrent_limit" } {
   const existing = prune(input.userId);
   if (existing) {
+    if (existing.skipGates !== (input.skipGates === true)) {
+      return { ok: false, reason: "concurrent_limit" };
+    }
     // Follow-up count is unrestricted, but each new answer still needs usage.
     // Otherwise a grant minted before the balance reached zero could buy
     // unbounded LLM calls after the monthly envelope was exhausted.
@@ -204,15 +260,27 @@ export function grantForFollowOnTurn(input: {
 export function requireGrantForTrace(
   userId: string,
   traceId: string | undefined,
-): { ok: true; grant: TurnGrant } | { ok: false; reason: "no_grant" } {
+): { ok: true; grant: TurnGrant } | { ok: false; reason: "no_grant" | "out_of_credits" } {
   const grant = prune(userId);
   if (!grant) return { ok: false, reason: "no_grant" };
-  if (!traceId || grant.allowedTraceIds.has(traceId)) return { ok: true, grant };
-  return attachTraceToGrant(userId, traceId);
+  if (traceId && grant.allowedTraceIds.has(traceId)) return { ok: true, grant };
+  if (!grant.skipGates && grant.usdMillicentsRemaining <= 0) {
+    return { ok: false, reason: "out_of_credits" };
+  }
+  // New direct paid traces must check the persisted balance in gate before
+  // attaching; an in-memory grant may be stale after another process spends.
+  return { ok: false, reason: "no_grant" };
 }
 
-export function markGrantInUse(grant: TurnGrant, delta: 1 | -1): void {
+export function markGrantInUse(grant: TurnGrant, delta: 1 | -1, traceId?: string): void {
   grant.inUse = Math.max(0, grant.inUse + delta);
+  if (!grant.skipGates || !traceId) return;
+  const root = grant.bypassFollowOnRoots.get(traceId) ?? traceId;
+  const count = grant.activeBypassTraces.get(root);
+  if (count === undefined) return;
+  if (delta === 1) grant.activeBypassTraces.set(root, count + 1);
+  else if (count <= 1) grant.activeBypassTraces.delete(root);
+  else grant.activeBypassTraces.set(root, count - 1);
 }
 
 export function consumeTtsChars(
@@ -252,6 +320,11 @@ export function syncGrantUsdRemaining(userId: string, remainingMillicents: numbe
   const grant = prune(userId);
   if (!grant || grant.skipGates) return;
   grant.usdMillicentsRemaining = Math.max(0, remainingMillicents);
+}
+
+export function inFlightLessonCount(userId: string): number {
+  const grant = prune(userId);
+  return grant?.inUse ?? 0;
 }
 
 export function releaseTurnGrant(userId: string): void {

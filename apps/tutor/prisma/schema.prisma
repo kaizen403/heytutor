@@ -147,6 +147,7 @@ model Turn {
   id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   boardId            String    @map("board_id")
   userId             String    @map("user_id")
+  idempotencyKey     String?   @map("idempotency_key") @db.Uuid
   orderIndex         Int       @map("order_index")
   question           String
   rawResponse        String    @map("raw_response")
@@ -163,6 +164,7 @@ model Turn {
   segments           Segment[]
 
   @@unique([boardId, orderIndex], map: "turns_board_id_order_index_key")
+  @@unique([boardId, userId, idempotencyKey], map: "turns_board_id_user_id_idempotency_key_key")
   @@index([boardId], map: "turns_board_id_idx")
   @@index([userId], map: "turns_user_id_idx")
   @@index([createdAt], map: "turns_created_at_idx")

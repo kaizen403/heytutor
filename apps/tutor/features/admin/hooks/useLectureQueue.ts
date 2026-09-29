@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createBoardWithTitle, deleteBoardApi, fetchBoards, requestBoardTitle, updateBoard } from "@/lib/boards/boardsClient";
+import { resolveApiUrl } from "@heytutor/tutor-core";
+import { createBoardWithTitle, deleteBoardApi, fetchBoardDetail, fetchBoards, requestBoardTitle, updateBoard } from "@/lib/boards/boardsClient";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { TutorPhase } from "@/features/tutor-session/types";
 import { finalizeBoardTitle } from "@/lib/boards/boardTitle";
@@ -63,7 +64,8 @@ export function useLectureQueue() {
 
   const jobsRef = useRef<LectureJob[]>([]);
   const stopRef = useRef(false);
-  const pumpingRef = useRef(false);
+  const generationRef = useRef(0);
+  const pumpingRef = useRef<number | null>(null);
   const settleByJobRef = useRef(new Map<string, (outcome: JobOutcome) => void>());
   const readyByJobRef = useRef(new Map<string, (boardId: string, question: string) => void>());
   const lastQuestionsRef = useRef<ProbeQuestion[]>([]);
@@ -86,6 +88,7 @@ export function useLectureQueue() {
     return () => {
       aliveRef.current = false;
       stopRef.current = true;
+      generationRef.current += 1;
       for (const finish of settleByJob.values()) {
         finish({ status: "failed", error: "stopped" });
       }
@@ -105,10 +108,10 @@ export function useLectureQueue() {
     syncJobs(jobsRef.current.map((job) => (job.id === id ? { ...job, ...patch } : job)));
   }, [syncJobs]);
 
-  const refreshBoards = useCallback(async () => {
+  const refreshBoards = useCallback(async (generation?: number) => {
     const list = await fetchBoards();
     const adopted = await adoptLegacyPlaygroundBoards(list);
-    if (aliveRef.current) {
+    if (aliveRef.current && (generation === undefined || generation === generationRef.current)) {
       setBoards(adopted);
     }
   }, []);
@@ -170,31 +173,79 @@ export function useLectureQueue() {
   }, []);
 
   const nameLectureBoard = useCallback(
-    (jobId: string, boardId: string, question: string, currentTitle: string) => {
+    (jobId: string, boardId: string, question: string, currentTitle: string, generation: number) => {
       void requestBoardTitle(question).then(async (named) => {
-        if (!aliveRef.current || !named || named === currentTitle) {
+        if (!aliveRef.current || generation !== generationRef.current || stopRef.current || !named || named === currentTitle) {
           return;
         }
         patchJob(jobId, { title: named });
         await updateBoard(boardId, { title: named });
-        await refreshBoards();
+        if (generation === generationRef.current && !stopRef.current) {
+          await refreshBoards(generation);
+        }
       });
     },
     [patchJob, refreshBoards],
   );
 
+  const discardUnusedBoard = useCallback(async (board: BoardEntry, job: LectureJob) => {
+    const inUse = () => heldBoardIdRef.current === board.id || jobsRef.current.some((entry) => entry.boardId === board.id);
+    const preserve = () => {
+      rememberLectureBoard(board.id, { topicId: job.topicId, difficulty: job.difficulty });
+      if (aliveRef.current) void refreshBoards().catch(() => {});
+    };
+    if (inUse()) return;
+    try {
+      // A saved turn or preview makes this a recording, not an empty orphan.
+      const detail = await fetchBoardDetail(board.id);
+      if (inUse()) return;
+      if (!detail || detail.turns.length > 0 || detail.board.preview.trim()) {
+        preserve();
+        return;
+      }
+      // Only orphan cleanup is conditional; explicit removal remains unconditional.
+      const deleted = await fetch(resolveApiUrl(`/api/boards/${board.id}?ifEmpty=1`), { method: "DELETE" });
+      if (!deleted.ok) preserve();
+    } catch {
+      // Uncertain inspection or deletion must never cause us to forget a board.
+      preserve();
+    }
+  }, [refreshBoards]);
+
   const runJob = useCallback(
-    async (job: LectureJob) => {
+    async (job: LectureJob, generation: number) => {
+      const isCurrent = () => aliveRef.current && generation === generationRef.current && !stopRef.current;
       const startedAt = Date.now();
       patchJob(job.id, { status: "running", startedAt, phase: "idle", error: undefined });
 
-      const board = await createBoardWithTitle(job.title).catch(() => null);
-      if (stopRef.current) {
-        readyByJobRef.current.delete(job.id);
-        patchJob(job.id, { status: "failed", error: "stopped", endedAt: Date.now() });
+      // Begin the deadline before POST; stop/timeout releases the pump even
+      // when board creation has not returned.
+      const settled = { outcome: null as JobOutcome | null };
+      const outcomePromise = waitForOutcome(job.id, JOB_TIMEOUT_MS).then((outcome) => {
+        settled.outcome = outcome;
+        return outcome;
+      });
+      const boardPromise = createBoardWithTitle(job.title).catch(() => null);
+      const first = await Promise.race([
+        boardPromise.then((board) => ({ kind: "board" as const, board })),
+        outcomePromise.then((outcome) => ({ kind: "outcome" as const, outcome })),
+      ]);
+      if (first.kind === "outcome") {
+        // A late response still needs safe disposal after the pump moves on.
+        void boardPromise.then((board) => { if (board) void discardUnusedBoard(board, job); });
+      }
+      if (!isCurrent()) {
+        if (first.kind === "board" && first.board) void discardUnusedBoard(first.board, job);
         return;
       }
+      if (first.kind === "outcome") {
+        readyByJobRef.current.delete(job.id);
+        patchJob(job.id, { status: first.outcome.status, error: first.outcome.status === "failed" ? first.outcome.error : undefined, endedAt: Date.now() });
+        return;
+      }
+      const board = first.board;
       if (!board) {
+        settleByJobRef.current.get(job.id)?.({ status: "failed", error: "could not create board" });
         readyByJobRef.current.delete(job.id);
         patchJob(job.id, {
           status: "failed",
@@ -203,30 +254,34 @@ export function useLectureQueue() {
         });
         return;
       }
-
-      rememberLectureBoard(board.id, { topicId: job.topicId, difficulty: job.difficulty });
-      void nameLectureBoard(job.id, board.id, job.question, job.title);
-      patchJob(job.id, { boardId: board.id });
-      if (!aliveRef.current) {
+      if (settled.outcome) {
+        void discardUnusedBoard(board, job);
+        readyByJobRef.current.delete(job.id);
+        patchJob(job.id, { status: settled.outcome.status, error: settled.outcome.status === "failed" ? settled.outcome.error : undefined, endedAt: Date.now() });
         return;
       }
+
+      rememberLectureBoard(board.id, { topicId: job.topicId, difficulty: job.difficulty });
+      void nameLectureBoard(job.id, board.id, job.question, job.title, generation);
+      patchJob(job.id, { boardId: board.id });
       const runtime: HeadlessRuntime = {
         jobId: job.id,
         boardId: board.id,
         question: job.question,
         interactive: job.interactive,
       };
-      setRuntimes((current) => attachLectureRuntime(current, runtime));
+      setRuntimes((current) => isCurrent() ? attachLectureRuntime(current, runtime) : current);
       readyByJobRef.current.get(job.id)?.(board.id, job.question);
       readyByJobRef.current.delete(job.id);
+      if (!isCurrent()) return;
 
-      const outcome = await waitForOutcome(job.id, JOB_TIMEOUT_MS);
+      const outcome = await outcomePromise;
       const held = shouldKeepHeadlessRuntime(board.id, heldBoardIdRef.current);
-      if (aliveRef.current && !held) {
-        setRuntimes((current) => detachLectureRuntime(current, { jobId: job.id, boardId: board.id }));
+      if (isCurrent() && !held) {
+        setRuntimes((current) => isCurrent() ? detachLectureRuntime(current, { jobId: job.id, boardId: board.id }) : current);
       }
       await delay(100);
-      if (!aliveRef.current) {
+      if (!isCurrent()) {
         return;
       }
 
@@ -236,25 +291,25 @@ export function useLectureQueue() {
         endedAt: Date.now(),
         boardId: board.id,
       });
-      await refreshBoards();
+      await refreshBoards(generation);
     },
-    [nameLectureBoard, patchJob, refreshBoards, waitForOutcome],
+    [discardUnusedBoard, nameLectureBoard, patchJob, refreshBoards, waitForOutcome],
   );
 
-  const pump = useCallback(async () => {
-    if (pumpingRef.current) {
+  const pump = useCallback(async (generation: number) => {
+    if (pumpingRef.current === generation || generation !== generationRef.current || stopRef.current) {
       return;
     }
-    pumpingRef.current = true;
+    pumpingRef.current = generation;
     const inFlight = new Set<Promise<void>>();
     try {
       const launch = () => {
-        if (stopRef.current) {
+        if (stopRef.current || generation !== generationRef.current) {
           return;
         }
         const batch = nextQueuedJobs(jobsRef.current, concurrencyRef.current);
         for (const job of batch) {
-          const pending = runJob(job).finally(() => {
+          const pending = runJob(job, generation).finally(() => {
             inFlight.delete(pending);
           });
           inFlight.add(pending);
@@ -264,15 +319,17 @@ export function useLectureQueue() {
       launch();
       while (inFlight.size > 0) {
         await Promise.race(inFlight);
-        if (stopRef.current) {
+        if (stopRef.current || generation !== generationRef.current) {
           break;
         }
         launch();
       }
     } finally {
-      pumpingRef.current = false;
-      if (!stopRef.current && jobsRef.current.some((job) => job.status === "queued")) {
-        void pump();
+      if (pumpingRef.current === generation) {
+        pumpingRef.current = null;
+      }
+      if (generation === generationRef.current && !stopRef.current && jobsRef.current.some((job) => job.status === "queued")) {
+        void pump(generation);
       }
     }
   }, [runJob]);
@@ -282,6 +339,7 @@ export function useLectureQueue() {
       if (questions.length === 0) {
         return;
       }
+      if (stopRef.current) generationRef.current += 1;
       stopRef.current = false;
       lastQuestionsRef.current = questions;
       lastInteractiveRef.current = options?.interactive === true;
@@ -293,7 +351,7 @@ export function useLectureQueue() {
         readyByJobRef.current.set(created[0]!.id, options.onReady);
       }
       syncJobs([...jobsRef.current, ...created]);
-      void pump();
+      void pump(generationRef.current);
     },
     [pump, syncJobs],
   );
@@ -325,6 +383,7 @@ export function useLectureQueue() {
       return;
     }
     stopRef.current = true;
+    generationRef.current += 1;
     readyByJobRef.current.clear();
     heldBoardIdRef.current = null;
     for (const finish of settleByJobRef.current.values()) {
@@ -340,7 +399,7 @@ export function useLectureQueue() {
       readyByJobRef.current.set(created[0]!.id, options.onReady);
     }
     syncJobs(created);
-    void pump();
+    void pump(generationRef.current);
   }, [pump, syncJobs]);
 
   const clearJobs = useCallback(() => {
@@ -352,6 +411,7 @@ export function useLectureQueue() {
 
   const stopAll = useCallback(() => {
     stopRef.current = true;
+    generationRef.current += 1;
     readyByJobRef.current.clear();
     heldBoardIdRef.current = null;
     for (const finish of settleByJobRef.current.values()) {
@@ -364,16 +424,18 @@ export function useLectureQueue() {
     syncJobs(drainLectureJobs(jobsRef.current, Date.now()));
   }, [syncJobs]);
 
+  const isRunningJob = useCallback((jobId: string) => {
+    return jobsRef.current.some((job) => job.id === jobId && job.status === "running" && !!job.boardId);
+  }, []);
+
   const handlePhase = useCallback(
     (jobId: string, next: TutorPhase) => {
-      patchJob(jobId, { phase: next });
+      if (isRunningJob(jobId)) {
+        patchJob(jobId, { phase: next });
+      }
     },
-    [patchJob],
+    [isRunningJob, patchJob],
   );
-
-  const isRunningJob = useCallback((jobId: string) => {
-    return jobsRef.current.some((job) => job.id === jobId && job.status === "running");
-  }, []);
 
   const handleComplete = useCallback(
     (jobId: string) => {

@@ -104,6 +104,7 @@ import {
   type DsaFrameSet,
 } from "../../lib/code-lesson/dsaFrames";
 import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
+import { recordingAudioCaptureComplete, recordingAudioPersistenceComplete } from "../../lib/turn/recordingAudioCapture";
 import {
   FALLBACK_DSA_TEACHING_POLICY,
   fetchDsaTeachingPolicy,
@@ -290,7 +291,8 @@ export function useQuestionHandler(
 
   /**
    * Put one turn on the board's saved turns: locally at once, so replay, notes
-   * and the next doubt see it, then on the server. Resolves true once saved.
+   * and the next doubt see it, then on the server. Returns the raw persisted
+   * turn, before local replay URLs can mask missing server audio.
    */
   const saveTurnToBoard = useCallback(
     (input: {
@@ -302,7 +304,7 @@ export function useQuestionHandler(
       segments: RecordedSegmentPayload[];
       scene: PersistedTurnScene;
       traceId: string | null;
-    }): Promise<boolean> => {
+    }): Promise<StoredTurn | null> => {
       const localTurn = persistTurnForReplay(
         input.question,
         input.rawResponse,
@@ -325,7 +327,7 @@ export function useQuestionHandler(
         ...input.scene,
         segments: input.segments,
       }).then((savedTurn) => {
-        if (!savedTurn) return false;
+        if (!savedTurn) return null;
         const turnForReplay: StoredTurn = {
           ...savedTurn,
           segments: enrichStoredSegmentsWithReplayAudio(
@@ -341,8 +343,8 @@ export function useQuestionHandler(
         // Fill the next home cards after the question exists in saved history.
         // The endpoint deduplicates tabs and enforces its model-call budget.
         void fetch("/api/home-suggestions", { method: "POST", cache: "no-store" }).catch(() => undefined);
-        return true;
-      }).catch(() => false);
+        return savedTurn;
+      }).catch(() => null);
     },
     [
       persistTurnForReplay,
@@ -510,6 +512,7 @@ export function useQuestionHandler(
       collectedSegmentsRef.current = [];
       recordedSegmentsRef.current = [];
       rawResponseRef.current = "";
+      const previousTraceId = doubt || resume ? currentTraceIdRef.current ?? undefined : undefined;
       currentTraceIdRef.current = crypto.randomUUID();
       segmentChainRef.current = Promise.resolve();
       drawChainRef.current = Promise.resolve();
@@ -543,6 +546,7 @@ export function useQuestionHandler(
         billed = await beginTurn({
           traceId: currentTraceIdRef.current!,
           kind: doubt ? "doubt" : resume ? "resume" : "lesson",
+          parentTraceId: previousTraceId,
           signal: abortController.signal,
           ownsTurn: () =>
             turnGeneration === turnGenerationRef.current && !abortController.signal.aborted,
@@ -574,7 +578,9 @@ export function useQuestionHandler(
       }
       // Awaited before the doubt itself is saved, so the server keeps the two
       // in order; if it fails, the doubt opens a page of its own instead.
-      const partialTurnSaved = partialTurnSave ? saveTurnToBoard(partialTurnSave) : null;
+      const partialTurnSaved = partialTurnSave
+        ? saveTurnToBoard(partialTurnSave).then(Boolean)
+        : null;
       // A doubt and a resume keep the page. Only a fresh lesson snapshots it
       // into the notes and clears it.
       if (!doubt && !resume) {
@@ -2239,14 +2245,15 @@ export function useQuestionHandler(
             // A lesson opens its page with the runtime CLEAR. A doubt is saved
             // under its own title onto the page it answered on, with no CLEAR,
             // so replay and a reload keep that page and its figure under it.
+            const segmentsForSave = continues
+              ? reindexRecordedSegments(recordedSegmentsRef.current)
+              : withBoardEpochSegment(recordedSegmentsRef.current);
             const savePromise = saveTurnToBoard({
               boardId: currentId,
               question: doubt ? doubt.title : question,
               preview: page.lessonQuestion,
               rawResponse: rawResponseRef.current,
-              segments: continues
-                ? reindexRecordedSegments(recordedSegmentsRef.current)
-                : withBoardEpochSegment(recordedSegmentsRef.current),
+              segments: segmentsForSave,
               scene: doubt
                 ? doubtTurnScene(page.lessonQuestion, continues)
                 : (page.turn.scene ?? textOnlyTurnScene()),
@@ -2260,7 +2267,19 @@ export function useQuestionHandler(
                 return;
               }
               if (saved) {
-                onComplete();
+                if (
+                  !recordingAudioCaptureComplete(recordedSegmentsRef.current) ||
+                  !recordingAudioPersistenceComplete(segmentsForSave, saved.segments)
+                ) {
+                  // Preserve the partial board for diagnosis; no second POST.
+                  // Only automatic recordings have an onComplete callback.
+                  emitError({
+                    message: "lecture recording saved, but narration audio was not fully persisted; replay may be silent",
+                    question,
+                  });
+                } else {
+                  onComplete();
+                }
               } else {
                 emitError({
                   message: "could not save the lecture recording",

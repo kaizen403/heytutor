@@ -154,7 +154,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   });
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
   try {
     const userId = await getUserId();
     if (!userId) {
@@ -164,14 +164,43 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const { boardId } = await context.params;
     await ensureUser(userId);
 
-    const board = await getOwnedBoard(boardId, userId);
-    if (!board) {
-      return NextResponse.json({ error: "not found" }, { status: 404 });
+    const guard = new URL(request.url).searchParams;
+    if (guard.has("ifEmpty")) {
+      if (guard.get("ifEmpty") !== "1") {
+        return NextResponse.json({ error: "invalid ifEmpty" }, { status: 400 });
+      }
+      const outcome = await prisma.$transaction(async (tx) => {
+        // A turn insert needs an FK key-share lock on this board. Locking the
+        // row first serializes that insert against the emptiness check and
+        // cascade delete; a GET followed by DELETE cannot do this safely.
+        const rows = await tx.$queryRaw<Array<{ id: string; preview: string }>>`
+          SELECT id, preview FROM boards
+          WHERE id = ${boardId} AND user_id = ${userId}
+          FOR UPDATE
+        `;
+        if (!rows.length) return "not-found";
+        if (rows[0]!.preview.trim()) return "not-empty";
+        const turn = await tx.turn.findFirst({ where: { boardId }, select: { id: true } });
+        if (turn) return "not-empty";
+        const message = await tx.boardChatMessage.findFirst({ where: { boardId }, select: { id: true } });
+        if (message) return "not-empty";
+        await tx.board.delete({ where: { id: boardId } });
+        return "deleted";
+      });
+      if (outcome === "not-found") {
+        return NextResponse.json({ error: "not found" }, { status: 404 });
+      }
+      if (outcome === "not-empty") {
+        return NextResponse.json({ error: "board is not empty" }, { status: 409 });
+      }
+    } else {
+      // Explicit user deletion retains its existing unconditional semantics.
+      const board = await getOwnedBoard(boardId, userId);
+      if (!board) {
+        return NextResponse.json({ error: "not found" }, { status: 404 });
+      }
+      await prisma.board.delete({ where: { id: boardId } });
     }
-
-    await prisma.board.delete({
-      where: { id: boardId },
-    });
 
     void (async () => {
       try {

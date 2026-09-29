@@ -157,6 +157,7 @@ function mergeAbortSignals(first?: AbortSignal, second?: AbortSignal): AbortSign
 export async function beginTurn(input: {
   traceId: string;
   kind: BillingTurnKind;
+  parentTraceId?: string;
   signal?: AbortSignal;
   ownsTurn: () => boolean;
 }): Promise<BeginTurnOk | BeginTurnErr> {
@@ -171,7 +172,7 @@ export async function beginTurn(input: {
       credentials: "include",
       headers: { "content-type": "application/json" },
       signal: mergeAbortSignals(input.signal, timeout),
-      body: JSON.stringify({ traceId: input.traceId, kind: input.kind }),
+      body: JSON.stringify({ traceId: input.traceId, kind: input.kind, parentTraceId: input.parentTraceId }),
     });
   } catch (error) {
     if (timeout?.aborted && !input.signal?.aborted) {
