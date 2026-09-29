@@ -85,6 +85,8 @@ import {
   DEFAULT_REPLAY_SPEED,
   syncControlledPlaybackRate,
 } from "@/lib/replay/replayAudio";
+import { canPlayFinishedLecture } from "@/lib/replay/lecturePlayer";
+import { useLecturePlayer } from "./hooks/useLecturePlayer";
 import {
   PAGE_GUTTER_X,
   PAGE_GUTTER_Y,
@@ -173,6 +175,13 @@ export type TutorSessionShellProps = {
   muteAudio?: boolean;
   /** Controlled playback rate (admin Watch). Same model as student replay; default 1.25×. */
   playbackRate?: number;
+  /** The playback bar's speed menu, when `playbackRate` is controlled. */
+  onPlaybackRateChange?: (rate: number) => void;
+  /**
+   * Offer the playback bar on a finished lecture. Admin Watch turns it off
+   * for a recording that did not complete.
+   */
+  lecturePlayback?: boolean;
   onPhase?: (phase: TutorPhase) => void;
   /** Fired after the turn is persisted (and saved when `onComplete` is set). */
   onComplete?: () => void;
@@ -218,6 +227,8 @@ export function TutorSessionShell({
   autoReplay = false,
   muteAudio,
   playbackRate,
+  onPlaybackRateChange,
+  lecturePlayback = true,
   onPhase,
   onComplete,
   onError,
@@ -615,11 +626,9 @@ export function TutorSessionShell({
     };
   }, []);
 
-  const skipInkRestoreRef = useRef(autoReplay);
-  // Read only by the async board-detail restore, so an effect is soon enough.
-  useEffect(() => {
-    skipInkRestoreRef.current = autoReplay;
-  }, [autoReplay]);
+  // The lecture player plays over the finished board, so an auto replay still
+  // restores it: a doubt asked after the replay needs the page underneath.
+  const skipInkRestoreRef = useRef(false);
 
   /*
     One rule, one place: `markerVisibility.ts` owns the phase-to-cursor-state
@@ -1049,7 +1058,53 @@ export function TutorSessionShell({
     lectureFileType: settings.lectureFileType,
   });
 
-
+  /*
+    The playback bar is for a lecture that is over and fully recorded: nothing
+    teaching, no rewind, no in-place replay, and a voice file for every spoken
+    step. The turns ref is read on the count that mirrors it.
+  */
+  /* eslint-disable react-hooks/refs, react-hooks/exhaustive-deps -- storedTurnsCount mirrors the ref */
+  const lecturePlayerAvailable = useMemo(
+    () =>
+      lecturePlayback &&
+      boardLoaded &&
+      canPlayFinishedLecture({
+        isHeadless,
+        phase,
+        lectureActive: isReplaying || rewindActive,
+        storedTurns: storedTurnsRef.current,
+      }),
+    [boardLoaded, isHeadless, isReplaying, lecturePlayback, phase, rewindActive, sessionId, storedTurnsCount],
+  );
+  /* eslint-enable react-hooks/refs, react-hooks/exhaustive-deps */
+  const lecturePlayerRate = playbackRate ?? settings.speedMultiplier;
+  const handleLecturePlayerRate = useCallback(
+    (rate: number) => {
+      if (speedIsControlled) {
+        onPlaybackRateChange?.(rate);
+        return;
+      }
+      applyReplaySpeed(rate);
+    },
+    [applyReplaySpeed, onPlaybackRateChange, speedIsControlled],
+  );
+  const lecturePlayer = useLecturePlayer({
+    sessionId,
+    storedTurnsRef,
+    storedTurnsCount,
+    available: lecturePlayerAvailable,
+    rate: lecturePlayerRate,
+    onRateChange: handleLecturePlayerRate,
+    enableKeyboard: !isHeadless,
+  });
+  const lecturePlayerActive = lecturePlayer.active;
+  const closeLecturePlayer = lecturePlayer.close;
+  const playLectureFromStart = lecturePlayer.playFromStart;
+  /** Replay prefers the player; a lecture missing some audio replays in place. */
+  const startLectureReplay = useCallback((): boolean => {
+    if (lecturePlayerAvailable && playLectureFromStart()) return true;
+    return replayLecture();
+  }, [lecturePlayerAvailable, playLectureFromStart, replayLecture]);
 
   /**
    * The lesson chrome's pause button while rewound means "take me back to the
@@ -1087,10 +1142,12 @@ export function TutorSessionShell({
   const canMark = can.marking && boardLoaded && !rewindActive && boardHasContent;
 
   const quietTutorForMarking = useCallback(() => {
+    // Marks resolve against the finished page, so the past comes down first.
+    closeLecturePlayer();
     if (!rewindActive && !isPausedRef.current && phaseRef.current !== "idle") {
       pauseTurn();
     }
-  }, [pauseTurn, rewindActive]);
+  }, [closeLecturePlayer, pauseTurn, rewindActive]);
 
   const marking = useBoardMarking({
     boardLayoutRef,
@@ -1202,7 +1259,7 @@ export function TutorSessionShell({
     ) {
       return;
     }
-    if (!replayLecture()) {
+    if (!startLectureReplay()) {
       return;
     }
     autoReplayStartedRef.current = true;
@@ -1212,7 +1269,7 @@ export function TutorSessionShell({
     boardLoaded,
     storedTurnsCount,
     isReplaying,
-    replayLecture,
+    startLectureReplay,
     storedTurnsRef,
     boardViewport.measured,
     boardViewport.scale,
@@ -1228,10 +1285,12 @@ export function TutorSessionShell({
     };
   }, []);
 
+  const haltLecturePlayer = lecturePlayer.halt;
   useLecturePageHalt(() => {
     stopTurnOnUnmountRef.current();
     ttsClientRef.current?.stop();
     haltRewind();
+    haltLecturePlayer();
   });
 
   /**
@@ -1257,7 +1316,7 @@ export function TutorSessionShell({
     notesOpen;
   const chromeHidden = useSessionChromeHidden({
     fullscreen: boardFullscreen,
-    live: phase !== "idle" || isReplaying,
+    live: phase !== "idle" || isReplaying || lecturePlayer.playing,
     pinned: chromePinned,
   });
 
@@ -1300,12 +1359,12 @@ export function TutorSessionShell({
       canDownload: frameless ? canDownloadNotes : canDownload,
       canDownloadLecture,
       lectureFileType,
-      isReplaying,
+      isReplaying: isReplaying || lecturePlayerActive,
       isDownloading,
       isExportingLecture,
       lectureExportProgress,
       lectureExportError,
-      replayLecture,
+      replayLecture: startLectureReplay,
       collectNotesSlides,
       boardReady: boardLoaded,
       hasSavedTurns: storedTurnsCount > 0,
@@ -1322,11 +1381,12 @@ export function TutorSessionShell({
     canDownloadLecture,
     lectureFileType,
     isReplaying,
+    lecturePlayerActive,
     isDownloading,
     isExportingLecture,
     lectureExportProgress,
     lectureExportError,
-    replayLecture,
+    startLectureReplay,
     collectNotesSlides,
     boardLoaded,
     storedTurnsCount,
@@ -1565,7 +1625,7 @@ export function TutorSessionShell({
             chromeHidden={chromeHidden}
             isFullscreen={boardFullscreen}
             onToggleFullscreen={fullscreen.toggle}
-            onReplay={replayLecture}
+            onReplay={startLectureReplay}
             onDownload={downloadNotesPdf}
             onDownloadLecture={downloadLectureMp4}
             onCancelLectureExport={cancelLectureExport}
@@ -1694,6 +1754,18 @@ export function TutorSessionShell({
               rewindActive={rewindActive}
               rewindCursorState={rewindCursorState}
               rewindSegmentText={rewindSegmentText}
+              playerStore={lecturePlayerAvailable || lecturePlayerActive ? lecturePlayer.store : null}
+              playerControls={lecturePlayer.controls}
+              playerView={lecturePlayer.view}
+              playerBoardRef={lecturePlayer.playerBoardRef}
+              playerCodePanelRef={lecturePlayer.codePanelCanvasRef}
+              playerFreezeRef={lecturePlayer.freezeCanvasRef}
+              playerFullscreen={
+                can.appChrome || boardFullscreenApi
+                  ? { active: boardFullscreen, toggle: fullscreen.toggle }
+                  : null
+              }
+              playerActivityRef={boardContainerRef}
               verifiedDiagram={activeVerifiedDiagram}
               codeLessonPanel={<CodeLessonPanel controller={codeLessonController} />}
               codeLessonController={codeLessonController}
@@ -1815,7 +1887,7 @@ export function TutorSessionShell({
       variant="session"
       boards={boards}
       activeBoardId={sessionId}
-      busyBoardId={phase !== "idle" || isReplaying ? sessionId : null}
+      busyBoardId={phase !== "idle" || isReplaying || lecturePlayer.playing ? sessionId : null}
       onSelect={switchBoard}
       onNew={createNewBoard}
       onDelete={deleteBoard}

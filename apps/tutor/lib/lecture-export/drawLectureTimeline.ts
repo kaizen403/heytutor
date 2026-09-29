@@ -47,10 +47,15 @@ export async function drawLectureTimeline(options: {
   waitForAdvance: () => Promise<void>;
   shouldCancel: () => boolean;
   setAnimationSpeed?: (rate: number) => void;
+  /** Cues before this one are already on the board. */
+  startCueIndex?: number;
+  /** Runs as each cue begins, before it draws. */
+  onCueStart?: (cue: ReplayCue, index: number) => void;
 }): Promise<void> {
   const { cues, executeCommand, getClockMs, waitForAdvance, shouldCancel } = options;
 
-  for (const cue of cues) {
+  for (let index = Math.max(0, options.startCueIndex ?? 0); index < cues.length; index++) {
+    const cue = cues[index]!;
     if (shouldCancel()) {
       return;
     }
@@ -60,6 +65,7 @@ export async function drawLectureTimeline(options: {
       return;
     }
 
+    options.onCueStart?.(cue, index);
     options.setAnimationSpeed?.(1);
 
     if (cue.commands.length > 0) {
@@ -116,9 +122,11 @@ async function drawExportCue(options: {
     }
     const command = segmentCommands[commandIndex]!;
     const pace = commandPaces[commandIndex]!;
-    const isTextCommand = command.type === "WRITE" || command.type === "LABEL";
+    const isTextCommand =
+      command.type === "WRITE" || command.type === "LABEL" || command.type === "TYPE";
     const scheduleWorkWrite =
       isTextCommand &&
+      command.type !== "TYPE" &&
       Boolean(narration) &&
       !(trustedDiagramGeometry && command.type === "LABEL");
     const writePlan = scheduleWorkWrite

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
  * and still needs a speed control. Kept here rather than inside the drawer so
  * the option list stays one list.
  */
-const REPLAY_SPEED_OPTIONS = [
+export const REPLAY_SPEED_OPTIONS = [
   0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3,
 ] as const;
 

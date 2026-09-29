@@ -1417,58 +1417,38 @@ html:fullscreen::backdrop {
   animation: wb-progress-sweep 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Lecture scrub bar. The filled part is what has been taught and can be
-   revisited; during a live lecture the track ends at the live edge, so there is
-   no unfilled "future" to drag into. */
-/*
-  A scrub bar sitting at the live edge is a 100%-filled slab, so anything bright
-  here is the loudest thing on the screen for the whole lecture. The fill is a
-  deep sky, the rail recedes into the glass bar it sits in, and the thumb is
-  ringed in the bar's own ground rather than in white. Hover and focus step
-  both up so the control still answers.
-*/
-.replay-slider {
-  --replay-progress: 0%;
-  --replay-rail: rgba(255, 255, 255, 0.1);
-  --replay-thumb: var(--sky-600);
-  touch-action: none;
-  background: linear-gradient(
-    to right,
-    var(--replay-fill, #1c4f9c) 0%,
-    var(--replay-fill, #1c4f9c) var(--replay-progress),
-    var(--replay-rail) var(--replay-progress),
-    var(--replay-rail) 100%
-  );
+/* ── Finished-lecture player ── */
+
+/* The play/pause acknowledgement in the middle of the board. Reduced motion
+   keeps the fade and drops the growth, so `animationend` still clears it. */
+@keyframes wb-player-flash {
+  from {
+    opacity: 1;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.4);
+  }
 }
 
-.replay-slider:hover,
-.replay-slider:focus-visible {
-  --replay-fill: var(--sky-600);
-  --replay-thumb: var(--sky-500);
+@keyframes wb-player-flash-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
-.replay-slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 9999px;
-  background: var(--replay-thumb);
-  border: 2px solid var(--ink-850);
-  cursor: pointer;
+.wb-player-flash {
+  animation: wb-player-flash 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.replay-slider::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border-radius: 9999px;
-  background: var(--replay-thumb);
-  border: 2px solid var(--ink-850);
-  cursor: pointer;
-}
-
-.replay-slider:focus-visible {
-  outline: 2px solid rgba(74, 158, 255, 0.55);
-  outline-offset: 3px;
+@media (prefers-reduced-motion: reduce) {
+  .wb-player-flash {
+    animation-name: wb-player-flash-fade;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

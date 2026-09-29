@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 import { TutorSessionShell, unlockTutorAudio, type TutorSessionExportApi } from "@/features/tutor-session";
 import type { TutorPhase } from "@/features/tutor-session/types";
 import { LessonActions } from "@/features/tutor-session/components/LessonActions";
-import { ReplaySpeedSelect } from "@/features/tutor-session/components/ReplaySpeedSelect";
 import {
   useBoardFullscreen,
   useSessionChromeHidden,
@@ -34,6 +33,8 @@ interface WatchDrawerProps {
   onOpenNotes: () => void;
   onClose: () => void;
   onDelete?: (boardId: string) => void;
+  /** The recording finished. Only a finished lecture gets the playback bar. */
+  lectureComplete?: boolean;
 }
 
 export function WatchDrawer({
@@ -47,6 +48,7 @@ export function WatchDrawer({
   onOpenNotes,
   onClose,
   onDelete,
+  lectureComplete = true,
 }: WatchDrawerProps) {
   if (!boardId) {
     return null;
@@ -67,6 +69,7 @@ export function WatchDrawer({
       onOpenNotes={onOpenNotes}
       onClose={onClose}
       onDelete={onDelete}
+      lectureComplete={lectureComplete}
     />
   );
 }
@@ -114,6 +117,7 @@ function WatchDrawerFrame({
   onOpenNotes,
   onClose,
   onDelete,
+  lectureComplete,
 }: WatchDrawerProps & { boardId: string }) {
   const isLive = intent === "live";
   const [speed, setSpeed] = useState(DEFAULT_REPLAY_SPEED);
@@ -244,7 +248,6 @@ function WatchDrawerFrame({
         ) : null}
         {isLive ? null : (
           <>
-            <ReplaySpeedSelect value={speed} onChange={setSpeed} />
             <LessonActions
               canReplay={exportApi?.canReplay ?? false}
               canDownload={exportApi?.canDownload ?? false}
@@ -369,6 +372,8 @@ function WatchDrawerFrame({
                 autoReplay={intent === "replay"}
                 muteAudio={false}
                 playbackRate={speed}
+                onPlaybackRateChange={setSpeed}
+                lecturePlayback={lectureComplete}
                 onExportApi={setExportApi}
                 boardFullscreenApi={fullscreen}
               />
