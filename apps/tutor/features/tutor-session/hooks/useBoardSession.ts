@@ -100,6 +100,11 @@ export interface UseBoardSessionParams {
   activeVerifiedDiagramRef?: RefObject<VerifiedDiagram | null>;
   setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
   fbdPhaseStartedRef?: RefObject<boolean>;
+  /**
+   * How fast restored ink is drawn. Notes passes 0 so each mark is stamped
+   * finished; opening a board keeps a short replay.
+   */
+  inkRestoreDurationScale?: number;
 }
 
 export function useBoardSession({
@@ -132,6 +137,7 @@ export function useBoardSession({
   activeVerifiedDiagramRef,
   setActiveVerifiedDiagram,
   fbdPhaseStartedRef,
+  inkRestoreDurationScale = 0.05,
 }: UseBoardSessionParams) {
   const [boards, setBoards] = useState<BoardEntry[]>([]);
   const [boardLoaded, setBoardLoaded] = useState(false);
@@ -576,7 +582,7 @@ export function useBoardSession({
               }
 
               await executeCommandRef.current(command, {
-                durationScale: 0.05,
+                durationScale: inkRestoreDurationScale,
                 applyLayout: false,
                 trustedDiagramGeometry,
                 isCancelled: isStale,
@@ -622,6 +628,7 @@ export function useBoardSession({
       activeVerifiedDiagramRef,
       setActiveVerifiedDiagram,
       fbdPhaseStartedRef,
+      inkRestoreDurationScale,
     ],
   );
 

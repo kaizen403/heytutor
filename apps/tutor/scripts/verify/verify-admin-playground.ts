@@ -146,6 +146,14 @@ assert(
 assert(notesOverlay.includes('variant="headless"'), "slide capture stays off the visible board");
 assert(notesOverlay.includes("createPortal"), "slide capture is portaled out of the notes dialog");
 assert(notesOverlay.includes("left: -10000"), "slide capture sits off-screen, not over the slides");
+assert(notesOverlay.includes("restoreInkInstantly"), "notes stamps finished pages instead of replaying the pen");
+const boardSession = readFileSync(join(__dirname, "../../features/tutor-session/hooks/useBoardSession.ts"), "utf8");
+assert(boardSession.includes("inkRestoreDurationScale"), "board restore can stamp ink for the notes overlay");
+const whiteboard = readFileSync(join(__dirname, "../../../../packages/whiteboard/src/Whiteboard.tsx"), "utf8");
+assert(
+  whiteboard.includes("if (duration <= 0)") && whiteboard.includes("!(duration > 0)"),
+  "a zero-duration mark is stamped, not replayed",
+);
 assert(notesOverlay.includes("collectNotesSlides"), "the overlay shows the saved lecture pages");
 assert(notesOverlay.includes("exportNotesPdf"), "the overlay can download those slides");
 assert(notesOverlay.includes("Download"), "the overlay offers a download action");

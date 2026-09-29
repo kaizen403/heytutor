@@ -949,7 +949,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const distance = distanceBetween(start, end);
         const fixedRotation = targetRotation ?? HANDWRITING_ROTATION;
 
-        if (distance < 6) {
+        if (distance < 6 || !(duration > 0)) {
           settleNib(x, y, fixedRotation);
           return;
         }
@@ -1147,6 +1147,24 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         // ink after the structure it hangs off, so a scene picks the pencil up
         // once rather than once per stroke.
         const activity: PenActivity = options?.strokeRole === "construction" ? "sketch" : "draw";
+        if (duration <= 0) {
+          applyInstrument(instrumentForActivity(activity));
+          const inkStyle = styleForCommand(options?.inkSettings);
+          const path = new Konva.Path(
+            inkPathConfig(pathData, options?.strokeWidth ?? SHAPE_STROKE_WIDTH, inkStyle),
+          );
+          if (options?.dashed) {
+            path.dash([6, 5]);
+          }
+          tagBoardInk(path, "scene");
+          if (Math.abs((options?.strokeWidth ?? SHAPE_STROKE_WIDTH) - SHAPE_STROKE_WIDTH) < 0.01) {
+            path.setAttr(SCENE_LEAD_ATTR, true);
+          }
+          drawLayer.add(path);
+          trackNode(path, completedNodesRef.current);
+          drawLayer.batchDraw();
+          return;
+        }
         await equipInstrumentFor(activity);
         if (options?.shouldCancel?.()) {
           return;
@@ -1301,6 +1319,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       },
       [
         animateOver,
+        applyInstrument,
         equipInstrumentFor,
         flyCursorTo,
         hopNib,
@@ -1477,9 +1496,13 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         // arrows and circles are gestures made with whatever is already in
         // hand, so they never interrupt a reveal to fetch another pen.
         if (kind === "highlight") {
-          await equipInstrumentFor("highlight");
-          if (options.shouldCancel?.()) {
-            return;
+          if (duration <= 0) {
+            applyInstrument(instrumentForActivity("highlight"));
+          } else {
+            await equipInstrumentFor("highlight");
+            if (options.shouldCancel?.()) {
+              return;
+            }
           }
         }
 
@@ -1597,6 +1620,12 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         }
 
         if (options.transient) {
+          if (duration <= 0) {
+            path.destroy();
+            untrackNode(path, animNodesRef.current);
+            animLayer.batchDraw();
+            return;
+          }
           await animateOver(180, (progress) => {
             path.opacity(1 - progress);
             animLayer.batchDraw();
@@ -1615,7 +1644,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         animLayer.batchDraw();
         drawLayer.batchDraw();
       },
-      [animateOver, equipInstrumentFor, moveNib, styleForCommand, tagBoardInk, trackNode, untrackNode],
+      [animateOver, applyInstrument, equipInstrumentFor, moveNib, styleForCommand, tagBoardInk, trackNode, untrackNode],
     );
 
     const waitForAudioPosition = useCallback(
@@ -1771,6 +1800,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         }
 
         const inkKind = boardInkKindAt(x);
+        if (duration <= 0 && !schedule && inkKind === "work") {
+          applyInstrument("pen");
+        }
 
         // Teaching prose is written with the pen. Compiler-owned diagram labels
         // are part of the sketch and are lettered with whatever is already in
@@ -2301,6 +2333,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       },
       [
         animateOver,
+        applyInstrument,
         equipInstrumentFor,
         flyCursorTo,
         glideNibTo,
@@ -2332,6 +2365,16 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const highlightLayer = highlightLayerRef.current;
 
         if (!drawLayer || !animLayer || !cursorLayer || shouldCancel?.()) {
+          return;
+        }
+
+        if (duration <= 0) {
+          const erasedRect = { x, y, width: regionWidth, height: regionHeight };
+          destroyNodesInRect(completedNodesRef.current, erasedRect);
+          destroyNodesInRect(animNodesRef.current, erasedRect);
+          drawLayer.batchDraw();
+          animLayer.batchDraw();
+          highlightLayer?.batchDraw();
           return;
         }
 
