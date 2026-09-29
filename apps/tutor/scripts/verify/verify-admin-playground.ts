@@ -113,12 +113,13 @@ assert(watchDrawer.includes("LessonActions"), "admin Watch must mount the same R
 assert(watchDrawer.includes("onExportApi"), "admin Watch must take Replay / Notes PDF / MP4 from the embed shell");
 assert(watchDrawer.includes("downloadNotesPdf"), "admin Watch must offer Notes (PDF)");
 assert(watchDrawer.includes("downloadLectureMp4"), "admin Watch must offer Lecture (MP4)");
-// Notes is no longer a second surface beside the lesson with its own PDF
-// button: it is the session's own Ask panel, and the PDF is the same action
-// the tutor's header offers (asserted above through `downloadNotesPdf`).
 assert(
-  watchDrawer.includes("onNotesOpenChange"),
-  "admin Notes must open the session's own Ask panel",
+  watchDrawer.includes("onOpenNotes"),
+  "admin Notes must leave the board for the slides overlay",
+);
+assert(
+  !watchDrawer.includes("notesOpen"),
+  "admin Notes must not open the lesson board",
 );
 const playground = readFileSync(join(__dirname, "../../features/admin/AdminPlayground.tsx"), "utf8");
 assert(playground.includes("RunCostBox"), "admin runs must show Langfuse cost next to the queue");
@@ -136,6 +137,17 @@ assert(
   !watchDrawer.includes("LectureNotesPanel"),
   "admin Watch must not mount a second, poorer notes surface",
 );
+const notesOverlay = readFileSync(join(__dirname, "../../features/admin/components/NotesSlidesOverlay.tsx"), "utf8");
+assert(playground.includes("<NotesSlidesOverlay"), "Notes opens a slides overlay");
+assert(
+  !playground.includes('openLecture(boardId, "notes"'),
+  "Notes must not open the lecture board",
+);
+assert(notesOverlay.includes('variant="headless"'), "slide capture stays off the visible board");
+assert(notesOverlay.includes("collectNotesSlides"), "the overlay shows the saved lecture pages");
+assert(notesOverlay.includes("exportNotesPdf"), "the overlay can download those slides");
+assert(notesOverlay.includes("Download"), "the overlay offers a download action");
+assert(notesOverlay.includes('data-notes-overlay=""'), "notes is an overlay, not a board route");
 assert(
   watchDrawer.includes("useBoardFullscreen") && watchDrawer.includes("boardFullscreenApi={fullscreen}"),
   "admin Watch must reuse the tutor full screen hook and hand it to the panel",

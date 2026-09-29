@@ -764,12 +764,50 @@ export function useReplay({
     return true;
   }, [storedTurnsRef, isReplaying, playReplayFrom, ttsClientRef, whiteboardRef]);
 
+  /**
+   * Board pages in teaching order, including the page still on screen and any
+   * code-panel pages the board snapshot cannot see. Call this only after
+   * restore has finished; an earlier capture is a blank sheet.
+   */
+  const collectNotesSlides = useCallback(async (): Promise<string[]> => {
+    const wb = whiteboardRef.current;
+    if (!wb) {
+      return [];
+    }
+    const epochs: NotesEpoch[] = [...notesEpochsRef.current];
+    const finalSnapshot = wb.captureSnapshot(2);
+    if (finalSnapshot) {
+      epochs.push({
+        index: epochs.length,
+        question: liveQuestionRef.current,
+        snapshotDataUrl: finalSnapshot,
+        narrationText: narrationSinceEpochRef.current,
+        timestampMs: Date.now(),
+      });
+    }
+    // Stored turns are the authority after a reload — epochs only supply
+    // board images captured this session.
+    const detail = await fetchBoardDetail(sessionId);
+    const storedTurns = detail?.turns.length ? detail.turns : storedTurnsRef.current;
+    const sections = notesPdfSectionsFromStoredTurns(storedTurns, epochs);
+    // DSA turns keep their code in a DOM panel the board snapshot cannot
+    // see; render each section's code as its own notes page.
+    appendCodeLessonNotesImages(sections, storedTurns);
+    return notesPdfSlideImages(sections);
+  }, [
+    whiteboardRef,
+    notesEpochsRef,
+    narrationSinceEpochRef,
+    liveQuestionRef,
+    storedTurnsRef,
+    sessionId,
+  ]);
+
   const downloadNotesPdf = useCallback(() => {
     if (isDownloading) {
       return;
     }
-    const wb = whiteboardRef.current;
-    if (!wb) {
+    if (!whiteboardRef.current) {
       return;
     }
     setIsDownloading(true);
@@ -779,30 +817,24 @@ export function useReplay({
         await new Promise<void>((resolve) => {
           requestAnimationFrame(() => window.setTimeout(resolve, 0));
         });
-        const epochs: NotesEpoch[] = [...notesEpochsRef.current];
-        const finalSnapshot = wb.captureSnapshot(2);
-        if (finalSnapshot) {
-          epochs.push({
-            index: epochs.length,
-            question: liveQuestionRef.current,
-            snapshotDataUrl: finalSnapshot,
-            narrationText: narrationSinceEpochRef.current,
-            timestampMs: Date.now(),
-          });
-        }
-        // Stored turns are the authority after a reload — epochs only supply
-        // board images captured this session.
-        const detail = await fetchBoardDetail(sessionId);
-        const storedTurns = detail?.turns.length ? detail.turns : storedTurnsRef.current;
-        const sections = notesPdfSectionsFromStoredTurns(storedTurns, epochs);
-        // DSA turns keep their code in a DOM panel the board snapshot cannot
-        // see; render each section's code as its own notes page.
-        appendCodeLessonNotesImages(sections, storedTurns);
-        if (notesPdfSlideImages(sections).length === 0) {
+        const images = await collectNotesSlides();
+        if (images.length === 0) {
           return;
         }
         const boardTitle = boards.find((b) => b.id === sessionId)?.title ?? "Lecture Notes";
-        await exportNotesPdf({ title: boardTitle, sections });
+        await exportNotesPdf({
+          title: boardTitle,
+          sections: [
+            {
+              question: "",
+              images,
+              workLines: [],
+              narration: "",
+              planFacts: [],
+              interrupted: false,
+            },
+          ],
+        });
       } catch (error) {
         console.error("Notes PDF export failed:", error);
       } finally {
@@ -811,14 +843,10 @@ export function useReplay({
     })();
   }, [
     whiteboardRef,
-    notesEpochsRef,
-    narrationSinceEpochRef,
-    liveQuestionRef,
-    storedTurnsRef,
+    collectNotesSlides,
     boards,
     sessionId,
     isDownloading,
-    isReplaying,
     setIsDownloading,
   ]);
 
@@ -919,6 +947,7 @@ export function useReplay({
     playReplayCue,
     playReplayFrom,
     replayLecture,
+    collectNotesSlides,
     downloadNotesPdf,
     seekReplay,
     toggleReplayPlayPause,

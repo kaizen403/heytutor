@@ -106,8 +106,8 @@ const CAPABILITY_KEYS = [
     "admin Watch must not mount the unauthenticated demo variant",
   );
   assert(
-    watch.includes("notesOpen=") && watch.includes("onNotesOpenChange="),
-    "admin Watch drives the session's own Ask panel rather than a second notes surface",
+    watch.includes("onOpenNotes") && !watch.includes("notesOpen="),
+    "admin Notes leaves the board for the slides overlay",
   );
 
   const sessionPage = read("features/tutor-session/TutorSessionPage.tsx");
