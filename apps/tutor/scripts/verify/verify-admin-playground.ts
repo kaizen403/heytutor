@@ -144,6 +144,8 @@ assert(
   "Notes must not open the lecture board",
 );
 assert(notesOverlay.includes('variant="headless"'), "slide capture stays off the visible board");
+assert(notesOverlay.includes("createPortal"), "slide capture is portaled out of the notes dialog");
+assert(notesOverlay.includes("left: -10000"), "slide capture sits off-screen, not over the slides");
 assert(notesOverlay.includes("collectNotesSlides"), "the overlay shows the saved lecture pages");
 assert(notesOverlay.includes("exportNotesPdf"), "the overlay can download those slides");
 assert(notesOverlay.includes("Download"), "the overlay offers a download action");
