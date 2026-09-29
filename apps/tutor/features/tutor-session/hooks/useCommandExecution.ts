@@ -622,7 +622,7 @@ export function useCommandExecution({
               const dimensionSize = BOARD_TYPE_SCALE.annotation;
               const dimensionWidth = measureTextWidth(command.text, dimensionSize);
               const labelX = labelCenterX - dimensionWidth / 2;
-              await wb.flyCursorTo(labelX, labelY, 80, -35);
+              await wb.flyCursorTo(labelX, labelY, isSeekCatchUp ? 0 : 80, -35);
               if (commandCancelled()) return;
               await writeText(command.text, labelX, labelY, labelDrawMs, undefined, dimensionSize);
               if (isInDiagramZone(labelX, labelY)) {

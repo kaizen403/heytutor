@@ -182,6 +182,11 @@ export type TutorSessionShellProps = {
    * for a recording that did not complete.
    */
   lecturePlayback?: boolean;
+  /**
+   * Stamp saved ink instead of replaying the pen. The notes overlay only
+   * needs the finished pages.
+   */
+  restoreInkInstantly?: boolean;
   onPhase?: (phase: TutorPhase) => void;
   /** Fired after the turn is persisted (and saved when `onComplete` is set). */
   onComplete?: () => void;
@@ -229,6 +234,7 @@ export function TutorSessionShell({
   playbackRate,
   onPlaybackRateChange,
   lecturePlayback = true,
+  restoreInkInstantly = false,
   onPhase,
   onComplete,
   onError,
@@ -766,6 +772,7 @@ export function TutorSessionShell({
     resetBoardLayout,
     executeCommand,
     skipInkRestoreRef,
+    inkRestoreDurationScale: restoreInkInstantly ? 0 : 0.05,
     codeLessonControllerRef,
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
