@@ -108,7 +108,15 @@ export interface UseCommandExecutionParams {
    * every later frame.
    */
   setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
+  /**
+   * The clock pen tours measure their budget on. A board drawn on a virtual
+   * clock passes that clock, or a tour would run on wall time while its
+   * delays run on the board's.
+   */
+  nowMs?: () => number;
 }
+
+const wallNowMs = () => performance.now();
 
 /** POINT at opening notes: work-row ids like `w1`, resolved from board layout. */
 function pointWorkRowTargets(
@@ -171,6 +179,7 @@ export function useCommandExecution({
   adaptiveFactorRef,
   codeLessonControllerRef,
   setActiveVerifiedDiagram,
+  nowMs = wallNowMs,
 }: UseCommandExecutionParams) {
   // How many marker walks this board has run. It rotates the route so two
   // steps about the same frame do not repeat the same two moves.
@@ -826,7 +835,7 @@ export function useCommandExecution({
               ),
               isCancelled: commandCancelled,
               delay: cancellableDelay,
-              now: () => performance.now(),
+              now: nowMs,
             },
           );
           pointBeatsRef.current += 1;
@@ -841,19 +850,20 @@ export function useCommandExecution({
           const frames = codeLessonControllerRef?.current?.frames;
           if (!frames || !frames.hasNext()) break;
 
-          // Seek advances each stored FRAME cue so the displayed frame gets
-          // that cue's recorded ink, even when settings changed mid-lesson.
+          // Neither a restore nor a seek wants the redraw animated. A restore
+          // shows the finished lesson, so it lands on the last frame; a seek
+          // stops part way, so each FRAME it passes is exactly one step.
           if (durationScale <= 0.05) {
-            const frame = frames.advance();
-            if (frame) {
+            const last = isSeekCatchUp ? frames.advance() : frames.jumpToEnd();
+            if (last) {
               await eraseWhiteboardRegionIfCurrent(
                 wb,
                 { ...DSA_DIAGRAM_ZONE, duration: 0 },
                 commandCancelled,
               );
-              activeVerifiedDiagramRef.current = frame.presentation.diagram;
-              setActiveVerifiedDiagram?.(frame.presentation.diagram);
-              for (const next of frame.presentation.diagram.commands) {
+              activeVerifiedDiagramRef.current = last.presentation.diagram;
+              setActiveVerifiedDiagram?.(last.presentation.diagram);
+              for (const next of last.presentation.diagram.commands) {
                 if (commandCancelled()) return;
                 await executeCommand(inheritCommandInk(command, verifiedDiagramCommandToDrawCommand(next)), {
                   trustedDiagramGeometry: true,
@@ -1186,7 +1196,7 @@ export function useCommandExecution({
                   totalMs: Math.min(Math.max(speechDurationMs ?? 600, 600), 1600),
                   isCancelled: commandCancelled,
                   delay: cancellableDelay,
-                  now: () => performance.now(),
+                  now: nowMs,
                 });
               },
             );
@@ -1277,7 +1287,7 @@ export function useCommandExecution({
                   totalMs: Math.min(Math.max(totalMs, 600), CODE_FOCUS_SPOTLIGHT_MS),
                   isCancelled: commandCancelled,
                   delay: cancellableDelay,
-                  now: () => performance.now(),
+                  now: nowMs,
                 },
               );
               if (litTourCancelled) return true;
@@ -1317,7 +1327,7 @@ export function useCommandExecution({
                   totalMs: walkMs,
                   isCancelled: commandCancelled,
                   delay: cancellableDelay,
-                  now: () => performance.now(),
+                  now: nowMs,
                 },
               );
               if (walkCancelled) return;
@@ -1561,6 +1571,7 @@ export function useCommandExecution({
       turnTelemetryRef,
       whiteboardRef,
       codeLessonControllerRef,
+      nowMs,
     ],
   );
 

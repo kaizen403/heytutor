@@ -56,6 +56,7 @@ the canvas and still teach. Invalid or partial candidates never render.
 | DSA lesson bench | `apps/tutor/scripts/lecture-lab/dsa-run.ts` + `data/leetcode-probes/` |
 | Admin panel (overview / users / logs / fails) | `apps/tutor/app/admin/(panel)/` + `features/admin/{nav,analytics,users,turns,shared}/` + `lib/admin/` |
 | Test playground (syllabus lectures) | `apps/tutor/app/admin/playground/page.tsx` + `features/admin/AdminPlayground.tsx` |
+| Finished-lecture playback bar (seek, speed, chapters) | `apps/tutor/features/tutor-session/hooks/useLecturePlayer.ts` + `components/LecturePlayerBar.tsx` + `lib/replay/lecturePlayer.ts` |
 | Chemistry figures (formula to figure) | `packages/scene-engine/src/chemistry/` — families, `classify.ts`, `router.ts`; bench in `scripts/chemistry-lab/` |
 
 ## Agent Guidelines

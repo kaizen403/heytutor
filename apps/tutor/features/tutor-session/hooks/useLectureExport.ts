@@ -114,6 +114,11 @@ export function useLectureExport({
     }
   }, []);
 
+  const exportNowMs = useCallback(
+    () => clockRef.current?.now() ?? performance.now(),
+    [],
+  );
+
   const {
     boardLayoutRef,
     notesEpochsRef,
@@ -149,6 +154,7 @@ export function useLectureExport({
     raceWithCancel,
     inkPaceRef,
     adaptiveFactorRef,
+    nowMs: exportNowMs,
   });
 
   const cancelLectureExport = useCallback(() => {

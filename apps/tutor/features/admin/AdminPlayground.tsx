@@ -1053,6 +1053,9 @@ export function AdminPlayground({ tree, probes }: AdminPlaygroundProps) {
         }}
         onClose={closeWatch}
         onDelete={(boardId) => deleteLectures([boardId])}
+        lectureComplete={
+          !queue.jobs.some((job) => job.boardId === watchBoardId && job.status === "failed")
+        }
       />
 
       {queue.runtimes.map((runtime, index) => {

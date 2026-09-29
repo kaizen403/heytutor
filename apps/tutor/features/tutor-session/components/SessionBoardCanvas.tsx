@@ -15,6 +15,9 @@ import type { BoardMarkingApi } from "../hooks/useBoardMarking";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 import { isOutOfUsageLock } from "@/lib/billing/studentCopy";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
+import type { LecturePlayerView } from "../hooks/useLecturePlayer";
+import type { LecturePlayerControls, LecturePlayerStore } from "@/lib/replay/lecturePlayer";
+import { LecturePlayerBar } from "./LecturePlayerBar";
 
 export interface SessionBoardCanvasProps {
   boardViewport: BoardViewport;
@@ -33,6 +36,17 @@ export interface SessionBoardCanvasProps {
   rewindActive: boolean;
   rewindCursorState: CursorState;
   rewindSegmentText: string;
+  /** A finished lecture's playback bar. Absent when the board has none. */
+  playerStore?: LecturePlayerStore | null;
+  playerControls?: LecturePlayerControls | null;
+  /** The board the finished lecture plays on, over this one, while active. */
+  playerView?: LecturePlayerView | null;
+  playerBoardRef?: RefObject<WhiteboardHandle | null>;
+  playerCodePanelRef?: RefObject<HTMLCanvasElement | null>;
+  playerFreezeRef?: RefObject<HTMLCanvasElement | null>;
+  playerFullscreen?: { active: boolean; toggle: () => void } | null;
+  /** Pointer movement over this wakes the playback bar. */
+  playerActivityRef?: RefObject<HTMLElement | null>;
   verifiedDiagram?: VerifiedDiagram | null;
   /** DSA code-lesson overlay, rendered inside the scaled board box. */
   codeLessonPanel?: ReactNode;
@@ -42,6 +56,28 @@ export interface SessionBoardCanvasProps {
   onRetraceEntity?: (entityId: string) => void;
   onRetryError: (question: string) => void;
   onDismissError: () => void;
+}
+
+function BoardCaption({ caption }: { caption: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        left: DIAGRAM_ZONE.x + 12,
+        top: 628,
+        width: DIAGRAM_ZONE.width - 24,
+        pointerEvents: "none",
+        textAlign: "center",
+        fontSize: 13,
+        lineHeight: 1.35,
+        color: "var(--ink-500)",
+        fontFamily: "ui-sans-serif, system-ui, sans-serif",
+      }}
+    >
+      {caption}
+    </div>
+  );
 }
 
 function canvasPointFromPointer(
@@ -71,6 +107,14 @@ export function SessionBoardCanvas({
   rewindActive,
   rewindCursorState,
   rewindSegmentText,
+  playerStore,
+  playerControls,
+  playerView,
+  playerBoardRef,
+  playerCodePanelRef,
+  playerFreezeRef,
+  playerFullscreen,
+  playerActivityRef,
   verifiedDiagram,
   codeLessonPanel,
   codeLessonController,
@@ -86,7 +130,8 @@ export function SessionBoardCanvas({
   );
   const retraceBusyRef = useRef(false);
   const [hoveringAnchor, setHoveringAnchor] = useState(false);
-  const idle = phase === "idle" && !isReplaying && !rewindActive;
+  const playerActive = Boolean(playerView?.active);
+  const idle = phase === "idle" && !isReplaying && !rewindActive && !playerActive;
   const markingArmed = Boolean(marking?.armed);
   // The marker owns every pointer while it is out: a stroke must never also
   // fire a retrace or open a label popover.
@@ -187,25 +232,7 @@ export function SessionBoardCanvas({
               enabled={labelsSettled}
             />
           ) : null}
-          {caption ? (
-            <div
-              aria-hidden="true"
-              style={{
-                position: "absolute",
-                left: DIAGRAM_ZONE.x + 12,
-                top: 628,
-                width: DIAGRAM_ZONE.width - 24,
-                pointerEvents: "none",
-                textAlign: "center",
-                fontSize: 13,
-                lineHeight: 1.35,
-                color: "var(--ink-500)",
-                fontFamily: "ui-sans-serif, system-ui, sans-serif",
-              }}
-            >
-              {caption}
-            </div>
-          ) : null}
+          {caption ? <BoardCaption caption={caption} /> : null}
           {canRetrace ? (
             <div
               aria-hidden="true"
@@ -266,17 +293,76 @@ export function SessionBoardCanvas({
               />
             </div>
           ) : null}
+
+          {playerView?.active ? (
+            // The finished lecture replayed on its own board, over the
+            // finished one. Hidden until its first frame is built, so the
+            // board underneath is what shows while it catches up.
+            <div
+              className="absolute inset-0"
+              style={{ zIndex: 6, visibility: playerView.revealed ? "visible" : "hidden" }}
+              aria-label="Lecture playback"
+            >
+              <Whiteboard
+                ref={playerBoardRef}
+                width={BOARD_WIDTH}
+                height={BOARD_HEIGHT}
+                cursorState={playerView.cursorState}
+                inkColor={getMarkerColorHex(settings.markerColor)}
+                pencilColor={getMarkerColorHex(settings.pencilColor)}
+                markerThickness={settings.markerThickness}
+                pencilThickness={settings.pencilThickness}
+                markerStunts={settings.markerStunts}
+              />
+              <canvas
+                ref={playerCodePanelRef}
+                aria-hidden
+                className="pointer-events-none absolute left-0 top-0"
+                style={{ width: BOARD_WIDTH, height: BOARD_HEIGHT }}
+              />
+              {playerView.caption ? <BoardCaption caption={playerView.caption} /> : null}
+              <canvas
+                ref={playerFreezeRef}
+                aria-hidden
+                className="pointer-events-none absolute left-0 top-0"
+                style={{ width: BOARD_WIDTH, height: BOARD_HEIGHT, visibility: "hidden" }}
+              />
+            </div>
+          ) : null}
         </div>
 
-        <ResponseBubble
-          text={rewindActive ? rewindSegmentText : currentSegmentText}
-          visible={
-            (settings.subtitlesEnabled || codeLessonActive) &&
-            (rewindActive
-              ? rewindSegmentText.length > 0
-              : phase === "speaking" || phase === "drawing")
-          }
-        />
+        {playerView?.active ? (
+          // Lifted clear of the playback bar along the bottom edge.
+          <div className="pointer-events-none absolute inset-x-0 top-0" style={{ bottom: 64 }}>
+            <ResponseBubble
+              text={playerView.segmentText}
+              visible={
+                (settings.subtitlesEnabled || codeLessonActive) &&
+                playerView.revealed &&
+                playerView.segmentText.length > 0
+              }
+            />
+          </div>
+        ) : (
+          <ResponseBubble
+            text={rewindActive ? rewindSegmentText : currentSegmentText}
+            visible={
+              (settings.subtitlesEnabled || codeLessonActive) &&
+              (rewindActive
+                ? rewindSegmentText.length > 0
+                : phase === "speaking" || phase === "drawing")
+            }
+          />
+        )}
+
+        {playerStore && playerControls ? (
+          <LecturePlayerBar
+            store={playerStore}
+            controls={playerControls}
+            fullscreen={playerFullscreen}
+            activityTargetRef={playerActivityRef}
+          />
+        ) : null}
 
         {phase === "idle" && lastError && !(lastError.billing && isOutOfUsageLock(lastError.billing)) && (
           <BoardErrorBanner

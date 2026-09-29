@@ -13,7 +13,7 @@ export function resolveLectureAudioUrl(cue: ReplayCue): string | null {
   return url ? url : null;
 }
 
-function frameCountForDuration(durationMs: number, sampleRate: number): number {
+export function frameCountForDuration(durationMs: number, sampleRate: number): number {
   return Math.max(0, Math.round((sampleRate * Math.max(durationMs, 0)) / 1000));
 }
 
@@ -147,7 +147,7 @@ export function mixCueAudio(options: {
   };
 }
 
-async function fetchLectureAudioBytes(url: string): Promise<Uint8Array | null> {
+export async function fetchLectureAudioBytes(url: string): Promise<Uint8Array | null> {
   try {
     const response = await fetch(lectureAudioFetchUrl(url));
     if (!response.ok) {

@@ -126,8 +126,18 @@ Key functions/sections:
   - Otherwise use `getEstimatedWriteCharScheduleMs()` immediately.
   - Pass `WriteSchedule` to `Whiteboard.writeText()`.
 - `liveAudioPositionMs()` is the clock passed into `Whiteboard.writeText()`.
-- `replayLecture()` in `useReplay.ts` uses persisted audio/timings and gates against `audio.currentTime`.
+- `replayLecture()` in `useReplay.ts` uses persisted audio/timings and gates against `audio.currentTime`. It is now only the fallback for a lecture with a segment missing its recording, and the engine behind live rewind.
 - Persistence keeps every row where it was spoken. The server replaces figure-intro ink with its own compile but leaves the row, its audio part, alignment and duration in place (`mergeServerDiagramIntro` in `lib/scene/turnScenePersistence.ts`); the upload route reads each row's audio by `sourceOrderIndex`. Moving the intro ahead of the opening once paired every early row with its neighbour's recording.
+
+### Finished-lecture playback bar
+
+`hooks/useLecturePlayer.ts` + `components/LecturePlayerBar.tsx`, pure rules in `lib/replay/lecturePlayer.ts`.
+
+- **Gate:** `canPlayFinishedLecture` — idle board, no rewind or in-place replay, and every spoken segment has recorded audio. Admin Watch also requires the job to have completed.
+- **One clock:** `lib/replay/lecturePlayerAudio.ts` stitches every segment MP3 into one 24 kHz WAV blob, each cue exactly `[startMs, endMs)`. A single `<audio>` element is the clock: pause, speed (pitch kept) and seek are the element's own.
+- **Board as a function of time:** a separate overlay board takes a `VirtualWhiteboardClock` as its time source; every frame sets it to the smoothed `audio.currentTime` and pumps. Ink, delays and pen tours (`useCommandExecution({ nowMs })`) all read it, so voice and ink cannot drift. `drawLectureTimeline` is the same engine the MP4 export runs.
+- **Seek:** freeze the current frame, redraw the page the target sits on instantly (`durationScale: 0`; each `FRAME` advances one frame), start the engine at the target cue and step the clock to the target in 32 ms steps (the whiteboard credits a new tween at most 50 ms on its first frame), then move the audio and drop the freeze. Seeks during a seek collapse to the latest.
+- **DSA code panel:** drawn from lecture time by `codeLessonFrameSpec` on a canvas over the player board, not typed by a controller.
 
 Debug logs to inspect:
 
