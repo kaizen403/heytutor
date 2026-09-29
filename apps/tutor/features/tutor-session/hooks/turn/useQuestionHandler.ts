@@ -561,6 +561,7 @@ export function useQuestionHandler(
         // The rejection text can include a URL, so it is not read or logged.
         if (turnGeneration === turnGenerationRef.current && !abortController.signal.aborted) {
           emitError({ message: "network error. check your connection", question });
+          if (resume) offerPausedLessonResume(resume);
           finishLectureUi(turnGeneration);
         }
         return;
@@ -577,6 +578,7 @@ export function useQuestionHandler(
         };
         emitError({ message: studentBillingMessage(billed.code), question, billing });
         // Release this attempt. A newer generation is left running.
+        if (resume) offerPausedLessonResume(resume);
         finishLectureUi(turnGeneration);
         return;
       }
@@ -1802,6 +1804,7 @@ export function useQuestionHandler(
         });
       }
 
+      let resumeFailed = false;
       try {
         // Inside the try: enqueueVerifiedIntro validates the intro commands and
         // throws synchronously on an unexpected one. Outside, that rejection was
@@ -2382,6 +2385,7 @@ export function useQuestionHandler(
         }
 
         console.error("Tutor error:", error);
+        resumeFailed = Boolean(resume);
         const billing = parseBillingFailureFromUnknown(error);
         let message = "something went wrong. try asking again.";
         if (billing) {
@@ -2422,6 +2426,7 @@ export function useQuestionHandler(
           ]);
         }
 
+        if (resumeFailed && resume && isCurrentTurn()) offerPausedLessonResume(resume);
         if (turnAbortRef.current === abortController) {
           turnAbortRef.current = null;
         }

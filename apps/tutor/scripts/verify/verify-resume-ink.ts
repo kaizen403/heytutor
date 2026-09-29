@@ -157,6 +157,14 @@ assert(flushBody.includes("if (!resumeInkGate) {") &&
 assert(source.includes("resumeInkGate.reset()"), "speech-only first attempts must be discarded before retry");
 assert(source.includes("resumeInkGate.hasInk()"), "the final response must be checked for ink");
 assert(source.includes("offerPausedLessonResume(resume)"), "a failed generation must keep Continue available for another try");
+const billingGate = source.split("billed = await beginTurn(")[1]?.split("const partialTurnSaved =")[0] ?? "";
+assert(billingGate.split("if (resume) offerPausedLessonResume(resume);").length === 3,
+  "network and billing failures before teaching must each restore Continue");
+const teachingFailure = source.split("console.error(\"Tutor error:\", error);")[1]?.split("} finally {")[0] ?? "";
+const teachingCleanup = source.split("} finally {")[1]?.split("finishLectureUi(turnGeneration);")[0] ?? "";
+assert(teachingFailure.includes("resumeFailed = Boolean(resume);") &&
+  teachingCleanup.includes("if (resumeFailed && resume && isCurrentTurn()) offerPausedLessonResume(resume);"),
+  "a teaching-stream error must restore Continue after pending board work settles");
 assert(source.includes("canStreamResumeRepair(continueCount, MAX_LLM_CONTINUATIONS, resumeInkRetry)"),
   "the live stream must allow the reserved corrective retry");
 assert(source.includes("shouldRepairResumeWithoutInk(chunkIncomplete, continueCount, MAX_LLM_CONTINUATIONS)"),
