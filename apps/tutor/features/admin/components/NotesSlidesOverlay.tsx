@@ -149,7 +149,6 @@ export function NotesSlidesOverlay({ boardId, title, onClose }: NotesSlidesOverl
               sessionId={boardId}
               variant="headless"
               muteAudio
-              restoreInkInstantly
               onExportApi={setExportApi}
             />
           </div>,
