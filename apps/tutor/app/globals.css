@@ -1364,40 +1364,132 @@ html:fullscreen::backdrop {
   -webkit-backdrop-filter: blur(14px) saturate(120%);
 }
 
-.wb-pending__label {
-  margin: 0;
-  color: color-mix(in srgb, var(--board-ink) 82%, transparent);
-  letter-spacing: 0.014em;
-  animation: wb-pending-line 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+/* A patch of graph paper under the group, fading out before the edges so it
+   reads as the page showing through rather than a panel. */
+.wb-pending__grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--wb-paper-ink) 14%, transparent) 1px,
+    transparent 1.4px
+  );
+  background-size: 18px 18px;
+  background-position: center;
+  -webkit-mask-image: radial-gradient(300px 210px at 50% 50%, #000 0%, transparent 100%);
+  mask-image: radial-gradient(300px 210px at 50% 50%, #000 0%, transparent 100%);
+  animation: wb-fade-in 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.wb-pending__rail {
-  width: 128px;
-  height: 2px;
-  overflow: hidden;
+.wb-sketch {
+  display: block;
+  width: 168px;
+  height: 76px;
+  overflow: visible;
+  animation: wb-sketch-life var(--beat, 2800ms) ease-in-out both;
+}
+
+.wb-sketch__stroke {
+  stroke-dasharray: 1 2;
+  animation: wb-sketch-draw var(--dur, 380ms) cubic-bezier(0.55, 0.1, 0.35, 1) var(--at, 0ms) both;
+}
+
+.wb-sketch__note {
+  font-family: var(--font-hand);
+  font-weight: 500;
+  animation: wb-sketch-note 420ms cubic-bezier(0.16, 1, 0.3, 1) var(--at, 0ms) both;
+}
+
+.wb-pending__label {
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  color: color-mix(in srgb, var(--board-ink) 82%, transparent);
+  letter-spacing: 0.014em;
+  animation: wb-pending-write 640ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.wb-pending__dots {
+  display: inline-flex;
+  gap: 2.5px;
+  margin-left: 3px;
+}
+
+.wb-pending__dots > span {
+  width: 2.5px;
+  height: 2.5px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--wb-paper-ink) 14%, transparent);
+  background: currentColor;
+  animation: wb-pending-dot 1.4s ease-in-out infinite;
+}
+
+.wb-pending__dots > span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.wb-pending__dots > span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+/* The rail is a line being inked along a dotted pencil guide: the guide
+   repeats the grid's dots, the fill is the pen's ink, and the nib at its
+   head is where the pen is. */
+.wb-pending__rail {
+  position: relative;
+  width: 148px;
+  height: 8px;
+  margin-top: 2px;
+}
+
+.wb-pending__rail::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--wb-paper-ink) 28%, transparent) 0.9px,
+    transparent 1.15px
+  );
+  background-size: 6px 2px;
+  background-repeat: repeat-x;
+  background-position: left center;
 }
 
 .wb-pending__rail-fill {
-  position: relative;
-  height: 100%;
-  border-radius: inherit;
-  background: color-mix(in srgb, var(--wb-paper-ink) 55%, transparent);
-  animation: wb-pending-fill 14s cubic-bezier(0.16, 1, 0.3, 1) both;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 244, 220, 0.65), transparent) -80% 0 / 36% 100%
+      no-repeat,
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--board-ink) 16%, transparent),
+      color-mix(in srgb, var(--board-ink) 78%, transparent)
+    );
+  animation:
+    wb-pending-fill 24s cubic-bezier(0.22, 0.7, 0.3, 1) both,
+    wb-pending-sheen 2.4s ease-in-out 0.6s infinite;
 }
 
 .wb-pending__rail-fill::after {
   content: "";
   position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 244, 220, 0.5) 50%,
-    transparent 100%
-  );
-  animation: wb-pending-sheen 1.8s ease-in-out infinite;
+  right: -3px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--board-ink) 85%, transparent);
+  animation: wb-pending-nib 1.6s ease-in-out infinite;
 }
 
 /* ── Thinking progress bar ── */
@@ -1547,10 +1639,66 @@ html:fullscreen::backdrop {
   }
 }
 
-@keyframes wb-pending-line {
+/* The label is written left to right, not faded in. */
+@keyframes wb-pending-write {
+  from {
+    opacity: 0.35;
+    clip-path: inset(-40% 100% -40% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(-40% -12% -40% 0);
+  }
+}
+
+@keyframes wb-pending-dot {
+  0%,
+  70%,
+  100% {
+    opacity: 0.2;
+    transform: translateY(0);
+  }
+  35% {
+    opacity: 0.85;
+    transform: translateY(-1.5px);
+  }
+}
+
+/* The sketch holds while the beat is up and lifts just before the next. */
+@keyframes wb-sketch-life {
+  0% {
+    opacity: 0;
+  }
+  4%,
+  86% {
+    opacity: 0.72;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+/* The hidden dash would leave a round-cap dot at the start, so the stroke
+   stays invisible until it begins to draw. */
+@keyframes wb-sketch-draw {
+  from {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes wb-sketch-note {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(2px);
   }
   to {
     opacity: 1;
@@ -1569,10 +1717,26 @@ html:fullscreen::backdrop {
 
 @keyframes wb-pending-sheen {
   from {
-    transform: translateX(-120%);
+    background-position:
+      -80% 0,
+      0 0;
   }
   to {
-    transform: translateX(120%);
+    background-position:
+      200% 0,
+      0 0;
+  }
+}
+
+@keyframes wb-pending-nib {
+  0%,
+  100% {
+    transform: scale(0.8);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--board-ink) 12%, transparent);
+  }
+  50% {
+    transform: scale(1);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--board-ink) 0%, transparent);
   }
 }
 
@@ -1694,11 +1858,24 @@ html:fullscreen::backdrop {
   .wb-pending__label,
   .wb-pending__rail-fill,
   .wb-pending__rail-fill::after,
+  .wb-pending__grid,
+  .wb-pending__dots > span,
+  .wb-sketch,
+  .wb-sketch__stroke,
+  .wb-sketch__note,
   .metal-sheen::after {
     animation: none !important;
   }
 
   .wb-pending__rail-fill {
     width: 50%;
+  }
+
+  .wb-sketch {
+    opacity: 0.72;
+  }
+
+  .wb-pending__dots > span {
+    opacity: 0.45;
   }
 }

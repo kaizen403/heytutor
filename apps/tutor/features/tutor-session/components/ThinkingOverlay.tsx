@@ -2,6 +2,8 @@
 
 import { PenSpinner } from "@heytutor/whiteboard/pen-spinner";
 import { usePendingBeat } from "../hooks/usePendingBeat";
+import { PENDING_BEAT_MS } from "../lib/board/pendingBeats";
+import { PendingSketch } from "./PendingSketch";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "../constants";
 
 interface ThinkingOverlayProps {
@@ -61,19 +63,26 @@ export function ThinkingOverlay({ ink = "#1B2A4A", onBoardAt = null, scale }: Th
       <div className="absolute left-0 right-0 top-0 h-0.5 overflow-hidden">
         <div className="wb-progress-bar" />
       </div>
+      <div className="wb-pending__grid" aria-hidden />
       <LessonPending ink={ink} />
     </div>
   );
 }
 
 function LessonPending({ ink }: { ink: string }) {
-  const label = usePendingBeat();
+  const { index, label } = usePendingBeat();
 
   return (
-    <div className="wb-pending__pen flex h-full w-full flex-col items-center justify-center gap-3.5">
+    <div className="wb-pending__pen relative flex h-full w-full flex-col items-center justify-center gap-2.5">
       <PenSpinner size={48} ink={ink} trail={false} smear={false} />
+      <PendingSketch key={index} index={index} ink={ink} beatMs={PENDING_BEAT_MS} />
       <p key={label} className="wb-pending__label type-accent-s">
         {label}
+        <span className="wb-pending__dots" aria-hidden>
+          <span />
+          <span />
+          <span />
+        </span>
       </p>
       <div className="wb-pending__rail" aria-hidden>
         <div className="wb-pending__rail-fill" />

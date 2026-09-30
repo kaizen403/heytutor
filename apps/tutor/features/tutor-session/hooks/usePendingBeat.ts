@@ -19,5 +19,5 @@ export function usePendingBeat(periodMs = PENDING_BEAT_MS) {
     return () => window.clearInterval(id);
   }, [periodMs]);
 
-  return LESSON_PENDING_BEATS[index] ?? LESSON_PENDING_BEATS[0];
+  return { index, label: LESSON_PENDING_BEATS[index] ?? LESSON_PENDING_BEATS[0] };
 }
