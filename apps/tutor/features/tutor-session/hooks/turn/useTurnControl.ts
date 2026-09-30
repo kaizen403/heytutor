@@ -137,7 +137,11 @@ export function useTurnControl(
     whiteboardRef.current?.setPaused(false);
     // Whatever happened during the turn, the board must not be left dimmed.
     clearSpotlight(whiteboardRef.current);
-    ttsClientRef.current?.stop();
+    try {
+      ttsClientRef.current?.stop();
+    } catch {
+      // Transport cleanup cannot keep a cancelled lecture active in the UI.
+    }
     phaseRef.current = "idle";
     setPhase("idle");
     setCurrentSegmentText("");
@@ -646,8 +650,15 @@ export function useTurnControl(
   const stopTurn = useCallback((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => {
     // Stop only this shell's primary and runner-owned fallback. Browser
     // speechSynthesis.cancel() is page-global and could silence a sibling.
-    ttsClientRef.current?.stop();
-    stopFallbackSpeech();
+    try {
+      ttsClientRef.current?.stop();
+    } catch (error) {
+      turnTelemetryRef.current?.mark("tts-stop-failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      stopFallbackSpeech();
+    }
 
     if (phase === "idle" && !isReplaying) {
       // New board. The UI is already idle, but a parked segment only checks
@@ -707,7 +718,6 @@ export function useTurnControl(
     }
     replayAudioPreloadRef.current.clear();
     replayGenerationRef.current += 1;
-    ttsClientRef.current?.stop();
     whiteboardRef.current?.cancelAnimations();
     const activeIntroTransaction = activeIntroTransactionRef.current;
     if (activeIntroTransaction) {
@@ -793,7 +803,12 @@ export function useTurnControl(
     replayAudioRef.current?.pause();
     whiteboardRef.current?.setPaused(true);
     tutorDebug("turn", "paused");
-  }, [phase, isPausedRef, replayDrawClockRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef, pauseFallbackSpeech]);
+    turnTelemetryRef.current?.mark("turn-paused", {
+      phase: phaseRef.current,
+      turn_generation: turnGenerationRef.current,
+      pending_segment_count: pendingSegmentCountRef.current,
+    });
+  }, [phase, phaseRef, isPausedRef, replayDrawClockRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef, pauseFallbackSpeech, turnTelemetryRef, turnGenerationRef, pendingSegmentCountRef]);
 
   const resumeTurn = useCallback(() => {
     if (!isPausedRef.current) {
@@ -813,7 +828,12 @@ export function useTurnControl(
     void replayAudioRef.current?.play().catch(() => undefined);
     whiteboardRef.current?.setPaused(false);
     tutorDebug("turn", "resumed");
-  }, [isPausedRef, rewoundRef, replayDrawClockRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef, resumeFallbackSpeech]);
+    turnTelemetryRef.current?.mark("turn-resumed", {
+      phase: phaseRef.current,
+      turn_generation: turnGenerationRef.current,
+      pending_segment_count: pendingSegmentCountRef.current,
+    });
+  }, [phaseRef, isPausedRef, rewoundRef, replayDrawClockRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef, resumeFallbackSpeech, turnTelemetryRef, turnGenerationRef, pendingSegmentCountRef]);
 
   useEffect(() => {
     if (!enableKeyboardControls) {

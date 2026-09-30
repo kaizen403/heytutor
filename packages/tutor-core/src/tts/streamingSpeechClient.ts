@@ -406,7 +406,7 @@ export class StreamingSpeechClient implements TTSClient {
 
   async prewarm(options: PrewarmOptions = {}): Promise<void> {
     this.halted = false;
-    await this.ensureAudioContext();
+    await this.ensureAudioContext(typeof Audio !== "function");
 
     const connectStart = performance.now();
 
@@ -555,6 +555,7 @@ export class StreamingSpeechClient implements TTSClient {
       job.resolve = resolve;
       job.reject = reject;
       job.timingsEmitted = false;
+      this.emitAudioReady(job);
       this.emitTimings(job);
       tutorDebug("tts", "ws segment claimed from lookahead", {
         spoken_chars: job.spokenText.length,
@@ -690,6 +691,22 @@ export class StreamingSpeechClient implements TTSClient {
     this.halted = false;
     const spokenText = mathToSpeech(text.trim());
     const generation = this.speakGeneration;
+    const callbacks = options;
+    let audioReady = false;
+    // Readiness can synchronously abandon/stop this generation. Every callback
+    // retained by a transport must honor that cancellation, even after a successor starts.
+    options = { ...options,
+      onAudioReady: () => {
+        if (audioReady || this.speakGeneration !== generation) return;
+        audioReady = true;
+        callbacks.onAudioReady?.();
+      },
+      onStart: () => { if (this.speakGeneration === generation) callbacks.onStart?.(); },
+      onEnd: () => { if (this.speakGeneration === generation) callbacks.onEnd?.(); },
+      onError: (error) => { if (this.speakGeneration === generation) callbacks.onError?.(error); },
+      onTimings: (timings) => { if (this.speakGeneration === generation) callbacks.onTimings?.(timings); },
+      onAudioCaptured: (audio) => { if (this.speakGeneration === generation) callbacks.onAudioCaptured?.(audio); },
+    };
 
     if (spokenText.length === 0) {
       options.onEnd?.();
@@ -703,8 +720,9 @@ export class StreamingSpeechClient implements TTSClient {
       return;
     }
 
-    const ctx = await this.ensureAudioContext();
-    if (ctx.state === "suspended") {
+    // Native media plays complete provider bytes independently of WebAudio.
+    const ctx = typeof Audio === "function" ? null : await this.ensureAudioContext();
+    if (ctx?.state === "suspended") {
       // Intentional pause leaves the context suspended — wait, don't speak.
       if (this.paused) {
         if (!(await this.waitWhileUnpaused(generation))) {
@@ -1072,6 +1090,12 @@ export class StreamingSpeechClient implements TTSClient {
     };
   }
 
+  private emitAudioReady(job: SegmentJob): void {
+    if (job.claimed && !job.settled && job.contextFinal && job.capturedChunks.some((chunk) => chunk.length > 0)) {
+      job.options.onAudioReady?.();
+    }
+  }
+
   private emitTimings(job: SegmentJob): void {
     if (job.timings.totalDuration <= 0) {
       return;
@@ -1156,7 +1180,7 @@ export class StreamingSpeechClient implements TTSClient {
 
     let ctx: AudioContext;
     try {
-      ctx = await this.ensureAudioContext();
+      ctx = await this.ensureAudioContext(typeof Audio !== "function");
     } catch {
       return;
     }
@@ -1306,23 +1330,16 @@ export class StreamingSpeechClient implements TTSClient {
     }
 
     this.streamHandler = async (event: MessageEvent) => {
+      let messageJob: SegmentJob | null = null;
       try {
         if (typeof event.data !== "string") {
           const binaryJob = this.chunkTargetJob ?? this.currentJob;
           if (!binaryJob || binaryJob.settled) {
             return;
           }
-          const arrayBuffer =
-            event.data instanceof ArrayBuffer
-              ? event.data
-              : event.data instanceof Blob
-                ? await event.data.arrayBuffer()
-                : null;
-
-          if (arrayBuffer) {
-            const ingestPromise = this.ingestAudioBuffer(ctx, binaryJob, arrayBuffer);
-            binaryJob.pendingAudioIngestPromises.push(ingestPromise);
-            await ingestPromise;
+          messageJob = binaryJob;
+          if (event.data instanceof ArrayBuffer || event.data instanceof Blob) {
+            await this.queueAudioIngest(ctx, binaryJob, event.data);
           }
 
           return;
@@ -1358,29 +1375,42 @@ export class StreamingSpeechClient implements TTSClient {
         if (!job || job.settled) {
           return;
         }
+        messageJob = job;
 
         // A provider may deliver its last audio and completion in the same packet.
         // Ingest it before honoring final, or that sentence becomes silent.
         const audioBase64 = readAudioBase64(chunk);
         if (audioBase64) {
           const bytes = base64ToUint8Array(audioBase64);
-          const ingestPromise = this.ingestAudioBuffer(
+          await this.queueAudioIngest(
             ctx, job,
             bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
           );
-          job.pendingAudioIngestPromises.push(ingestPromise);
-          await ingestPromise;
+          if (job.settled) return;
           job.chunkOffsetSec = mergeChunkTimings(job.timings, chunk, job.chunkOffsetSec);
-          if (job.timings.totalDuration > 0) this.emitTimings(job);
+          if (!chunk.isFinal && !chunk.is_final && job.timings.totalDuration > 0) this.emitTimings(job);
         }
         if (chunk.isFinal || chunk.is_final) {
+          // Keep final false while preceding conversions ingest, so claim/resume
+          // cannot announce readiness or start a truncated clip in the meantime.
+          await Promise.all(job.pendingAudioIngestPromises);
+          if (job.settled || job.contextFinal) return;
           job.contextFinal = true;
+          this.emitAudioReady(job);
+          if (job.settled) return;
           this.emitTimings(job);
-          await Promise.allSettled(job.pendingAudioIngestPromises);
           if (!job.playbackStarted) await this.tryStartJobPlayback(job);
           if (job === this.currentJob) await this.completeCurrentJob();
         }
       } catch (error) {
+        if (messageJob && !messageJob.settled) {
+          if (this.currentJob === messageJob) this.failCurrentJob(error);
+          else {
+            messageJob.settled = true;
+            messageJob.reject(error);
+            this.releaseJobContext(messageJob);
+          }
+        }
         tutorDebug("tts", "ws stream handler error", { error: String(error) });
       }
     };
@@ -1405,9 +1435,9 @@ export class StreamingSpeechClient implements TTSClient {
     if (!this.canSchedulePlayback(job) || job.playbackStarted || this.paused || !job.contextFinal) return;
     if (job.pendingAudioBuffers.length === 0 && job.capturedChunks.length === 0) return;
 
-    // Assign before the first await: resume and the final-packet handler may
-    // otherwise both decode and start the same sentence.
-    const starting = this.startJobPlayback(job);
+    // Install the shared promise before native play can synchronously call
+    // onStart (and re-enter resume), not only before asynchronous decoding.
+    const starting = Promise.resolve().then(() => this.startJobPlayback(job));
     job.playbackStartPromise = starting;
     try {
       await starting;
@@ -1417,40 +1447,49 @@ export class StreamingSpeechClient implements TTSClient {
   }
 
   private async startJobPlayback(job: SegmentJob): Promise<void> {
-    const ctx = await this.ensureAudioContext();
-    const playable = await this.buffersForSmoothPlayback(
-      ctx,
-      job.capturedChunks,
-      job.pendingAudioBuffers,
-    );
-    if (playable.length === 0 || this.paused || !this.canSchedulePlayback(job)) {
-      return;
-    }
-    job.decodedAudio = true;
-    job.pendingAudioBuffers.length = 0;
-    job.playbackStarted = true;
-    this.playing = true;
-
+    if (this.paused || !this.canSchedulePlayback(job) || job.playbackStarted) return;
     const notifyStart = () => {
       if (job.started || job.settled || this.currentJob !== job) return;
       job.started = true;
       tutorDebug("tts", "ws playback start (buffered)", {
         ttft_ms: Math.round(performance.now() - job.startedAt),
-        buffered_chunks: playable.length,
+        buffered_chunks: job.capturedChunks.length,
       });
       job.options.onStart?.();
     };
 
     const htmlDone = this.tryPlayHtmlAudio(job.capturedChunks, notifyStart);
     if (htmlDone) {
+      job.playbackStarted = true;
       job.sourceDonePromises.push(htmlDone);
       return;
     }
 
+    const ctx = await this.ensureAudioContext();
+    const playable = await this.buffersForSmoothPlayback(ctx, job.capturedChunks, job.pendingAudioBuffers);
+    if (playable.length === 0 || this.paused || !this.canSchedulePlayback(job)) return;
+    job.decodedAudio = true;
+    job.pendingAudioBuffers.length = 0;
+    job.playbackStarted = true;
+    this.playing = true;
     for (const audioBuffer of playable) {
       this.scheduleBufferSource(ctx, job, audioBuffer);
     }
     notifyStart();
+  }
+
+  private queueAudioIngest(ctx: AudioContext, job: SegmentJob, data: ArrayBuffer | Blob): Promise<void> {
+    const preceding = job.pendingAudioIngestPromises.at(-1) ?? Promise.resolve();
+    // Register before conversion starts, and retain arrival order even if a
+    // later Blob's arrayBuffer promise resolves before an earlier one.
+    const ingestion = preceding.then(async () => {
+      if (job.settled) return;
+      const arrayBuffer = data instanceof Blob ? await data.arrayBuffer() : data;
+      if (job.settled) return;
+      await this.ingestAudioBuffer(ctx, job, arrayBuffer);
+    });
+    job.pendingAudioIngestPromises.push(ingestion);
+    return ingestion;
   }
 
   private async ingestAudioBuffer(
@@ -1612,11 +1651,12 @@ export class StreamingSpeechClient implements TTSClient {
     }
 
     await Promise.allSettled(job.pendingAudioIngestPromises);
+    if (this.currentJob !== job || job.settled || job.completing) return;
     if (this.paused && !job.playbackStarted) return;
 
     if (!hasPlayableSegmentAudio({
       receivedAudio: job.receivedAudio,
-      decodedAudio: job.decodedAudio,
+      decodedAudio: job.decodedAudio || job.sourceDonePromises.length > 0,
       capturedChunkCount: job.capturedChunks.length,
     })) {
       this.failCurrentJob(new Error("websocket tts finalized without audio"));
@@ -1711,7 +1751,6 @@ export class StreamingSpeechClient implements TTSClient {
     options: SpeakSegmentOptions,
   ): Promise<void> {
     try {
-      await this.ensureAudioContext();
       const ingested = await this.ingestHttpAudio(entry.spokenText, options, entry.controller);
       entry.buffers = ingested.buffers;
       entry.chunks = ingested.chunks;
@@ -1726,22 +1765,13 @@ export class StreamingSpeechClient implements TTSClient {
     options: SpeakSegmentOptions,
     generation: number,
   ): Promise<void> {
-    if (this.speakGeneration !== generation || this.paused) {
-      options.onEnd?.();
-      return;
-    }
-    const ctx = await this.ensureAudioContext();
-    this.scheduledEnd = Math.max(this.scheduledEnd, ctx.currentTime);
+    if (this.speakGeneration !== generation) return;
+    if (entry.chunks.some((chunk) => chunk.length > 0)) options.onAudioReady?.();
+    if (!(await this.waitWhileUnpaused(generation))) return;
     // HTTP has no WS job to reset the media clock. Start each sentence at zero.
     this.mediaClock = createRateMediaClock(this.playbackRate);
     this.httpPlaybackOriginCtxTime = null;
     const sourceDonePromises: Promise<void>[] = [];
-    const playable = await this.buffersForSmoothPlayback(ctx, entry.chunks, entry.buffers);
-    if (playable.length === 0) {
-      options.onEnd?.();
-      return;
-    }
-    this.playing = true;
     this.lastSuccessfulTransport = "http";
     // The alignment is complete before a prefetch plays, so it goes out
     // before `onStart`, the same order the socket keeps. The runner's first
@@ -1753,6 +1783,12 @@ export class StreamingSpeechClient implements TTSClient {
     if (htmlDone) {
       sourceDonePromises.push(htmlDone);
     } else {
+      const ctx = await this.ensureAudioContext();
+      const playable = await this.buffersForSmoothPlayback(ctx, entry.chunks, entry.buffers);
+      if (!(await this.waitWhileUnpaused(generation))) return;
+      if (playable.length === 0) throw new Error("TTS prefetch returned no playable audio");
+      this.scheduledEnd = Math.max(this.scheduledEnd, ctx.currentTime);
+      this.playing = true;
       for (const audioBuffer of playable) {
         if (this.speakGeneration !== generation) {
           return;
@@ -1917,9 +1953,7 @@ export class StreamingSpeechClient implements TTSClient {
 
     let httpSlotHeld = false;
     try {
-      const ctx = await this.ensureAudioContext();
       throwIfStopped();
-      this.scheduledEnd = Math.max(this.scheduledEnd, ctx.currentTime);
       this.mediaClock = createRateMediaClock(this.playbackRate);
       this.httpPlaybackOriginCtxTime = null;
 
@@ -1961,18 +1995,26 @@ export class StreamingSpeechClient implements TTSClient {
           return;
         }
         throwIfStopped();
-        const playable = await this.buffersForSmoothPlayback(ctx, capturedChunks, []);
-        if (playable.length === 0) {
-          return;
-        }
-        started = true;
-        this.playing = true;
-        this.lastSuccessfulTransport = "http";
+        if (capturedChunks.length === 0) return;
+        options.onAudioReady?.();
+        if (!(await this.waitWhileUnpaused(generation))) { throwIfStopped(); return; }
+        throwIfStopped();
         const htmlDone = this.tryPlayHtmlAudio(capturedChunks, options.onStart);
         if (htmlDone) {
+          started = true;
+          this.lastSuccessfulTransport = "http";
           sourceDonePromises.push(htmlDone);
           return;
         }
+        const ctx = await this.ensureAudioContext();
+        const playable = await this.buffersForSmoothPlayback(ctx, capturedChunks, []);
+        if (!(await this.waitWhileUnpaused(generation))) { throwIfStopped(); return; }
+        throwIfStopped();
+        if (playable.length === 0) return;
+        started = true;
+        this.playing = true;
+        this.lastSuccessfulTransport = "http";
+        this.scheduledEnd = Math.max(this.scheduledEnd, ctx.currentTime);
         for (const audioBuffer of playable) {
           sourceDonePromises.push(this.scheduleDecodedBuffer(ctx, audioBuffer));
         }
@@ -2028,21 +2070,24 @@ export class StreamingSpeechClient implements TTSClient {
 
   async playAudio(bytes: Uint8Array, options: { onStart?: () => void } = {}): Promise<void> {
     this.halted = false;
+    const generation = this.speakGeneration;
+    if (!(await this.waitWhileUnpaused(generation)) || this.speakGeneration !== generation) return;
+    const htmlDone = this.tryPlayHtmlAudio([bytes], options.onStart);
+    if (htmlDone) {
+      await htmlDone;
+      return;
+    }
     const ctx = await this.ensureAudioContext();
     await this.waitForTimelineReady(ctx);
+    if (!(await this.waitWhileUnpaused(generation))) return;
 
     const arrayBuffer = bytes.buffer.slice(
       bytes.byteOffset,
       bytes.byteOffset + bytes.byteLength,
     ) as ArrayBuffer;
     const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+    if (!(await this.waitWhileUnpaused(generation))) return;
     const startAt = Math.max(ctx.currentTime + 0.05, this.scheduledEnd);
-    const htmlDone = this.tryPlayHtmlAudio([bytes], options.onStart);
-    if (htmlDone) {
-      this.playing = true;
-      await htmlDone;
-      return;
-    }
 
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
@@ -2113,8 +2158,15 @@ export class StreamingSpeechClient implements TTSClient {
     return new Promise<void>((resolve, reject) => {
       let settled = false;
       let announced = false;
+      const unload = () => {
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+      };
       const announceStart = () => {
-        if (settled || announced || this.paused || this.currentHtmlAudio !== audio) return;
+        if (settled || this.currentHtmlAudio !== audio) { unload(); return; }
+        if (this.paused) { audio.pause(); return; }
+        if (announced) return;
         announced = true;
         onStart?.();
       };
@@ -2125,6 +2177,7 @@ export class StreamingSpeechClient implements TTSClient {
         audio.onended = null;
         audio.onerror = null;
         audio.onplaying = null;
+        unload();
         URL.revokeObjectURL(url);
         if (this.currentHtmlAudio === audio) {
           this.currentHtmlAudio = null;
@@ -2173,13 +2226,13 @@ export class StreamingSpeechClient implements TTSClient {
     return this.outputGain;
   }
 
-  private async ensureAudioContext(): Promise<AudioContext> {
+  private async ensureAudioContext(resume = true): Promise<AudioContext> {
     if (this.halted) {
       throw new DOMException("tts stopped", "AbortError");
     }
     this.audioContext = this.audioContext ?? createLectureAudioContext();
 
-    if (this.audioContext.state === "suspended" && !this.paused) {
+    if (resume && this.audioContext.state === "suspended" && !this.paused) {
       try {
         await this.audioContext.resume();
       } catch (error) {
@@ -2220,11 +2273,22 @@ export class StreamingSpeechClient implements TTSClient {
     const htmlAudio = this.currentHtmlAudio;
     if (htmlAudio) {
       const playPauseEpoch = this.pauseEpoch;
+      const generation = this.speakGeneration;
+      const onStart = this.currentHtmlOnStart;
+      const onFailure = this.failHtmlAudio;
       void htmlAudio.play().then(
-        () => this.currentHtmlOnStart?.(),
+        () => {
+          if (this.speakGeneration !== generation || this.currentHtmlAudio !== htmlAudio) {
+            htmlAudio.pause();
+            htmlAudio.removeAttribute("src");
+            htmlAudio.load();
+            return;
+          }
+          onStart?.();
+        },
         (error: unknown) => {
-          if (this.currentHtmlAudio === htmlAudio && this.pauseEpoch === playPauseEpoch) {
-            this.failHtmlAudio?.(error);
+          if (this.speakGeneration === generation && this.currentHtmlAudio === htmlAudio && this.pauseEpoch === playPauseEpoch) {
+            onFailure?.(error);
           }
         },
       );

@@ -104,8 +104,14 @@ assert(
   "voice never starting must still drop the preparing overlay",
 );
 assert(
-  runner.includes("waitedMs: waitClock.elapsedMs()"),
-  "the first schedule must give up after active (not paused) wait if the voice never starts",
+  runner.includes("waitedMs: speechClock?.elapsedMs() ?? waitClock.elapsedMs()"),
+  "the first schedule must use the current pause-aware speech clock, or the pause-aware initial wait clock before speech starts",
+);
+assert(
+  runner.includes('decision.source === "give_up" && startupPending') &&
+    runner.includes("startupPending = audioStartedAtMs === null && !speechComplete && !speechAborted") &&
+    !runner.includes("providerAudioReadyAtMs"),
+  "the initial pen wait must join the owned speech startup/final outcome through handoff and retry, not race a duplicate grace timestamp; failure, completion and cancellation still release it",
 );
 assert(
   runner.includes("playbackPositionMs: usingBrowserFallback ? null : tts.getPlaybackPositionMs()"),

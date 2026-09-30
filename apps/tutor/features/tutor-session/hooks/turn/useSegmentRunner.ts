@@ -292,9 +292,15 @@ export function useSegmentRunner({
               speechComplete,
               cancelled: isCancelled(),
               playbackPositionMs: usingBrowserFallback ? null : tts.getPlaybackPositionMs(),
-              waitedMs: waitClock.elapsedMs(),
+              // Provider recovery resets its active clock. Reuse that origin
+              // instead of spending the retry's budget on the abandoned voice.
+              waitedMs: speechClock?.elapsedMs() ?? waitClock.elapsedMs(),
             });
-            if (decision.release) {
+            // Speech owns startup expiry, browser handoff and the one provider
+            // retry. Its bounded final outcome, not a competing pen timer,
+            // releases a no-start wait; accepted onStart can release it sooner.
+            const startupPending = audioStartedAtMs === null && !speechComplete && !speechAborted;
+            if (decision.release && !(decision.source === "give_up" && startupPending)) {
               settled = true;
               if (timingWaitClockRef.current === waitClock) timingWaitClockRef.current = null;
               if (timerId !== null) {
@@ -318,7 +324,7 @@ export function useSegmentRunner({
               // Playback becoming audible is not an event — poll. Cap the
               // deadline timer at one frame so we notice the first sample.
               const delay =
-                decision.releaseAtMs !== null
+                !decision.release && decision.releaseAtMs !== null
                   ? Math.max(decision.releaseAtMs - nowMs, 0) + 1
                   : 16;
               timerId = window.setTimeout(() => {
@@ -564,56 +570,115 @@ export function useSegmentRunner({
         let timedOut = false;
         let timeoutId: number | null = null;
         let playbackWatchId: number | null = null;
-        const clock = createPauseAwareSpeechClock();
+        let clock = createPauseAwareSpeechClock();
         if (isPausedRef.current) clock.pause();
         speechClockRef.current = clock;
+        let ownsPrimary = true;
+        let primaryGeneration = 0;
+        let providerRecoveryAttempted = false;
+        const speakPrimary = (onStart: () => boolean, onAudioReady: () => void) => {
+          const attempt = ++primaryGeneration;
+          const canAcceptPrimary = () => ownsPrimary && attempt === primaryGeneration && !isCancelled() && !speechAborted;
+          return tts.speakSegment(text, {
+            ...options,
+            onAudioReady: () => {
+              if (!canAcceptPrimary()) return;
+              onAudioReady();
+            },
+            onStart: () => {
+              if (!canAcceptPrimary() || isPausedRef.current || !onStart()) return;
+              options.onStart?.();
+            },
+            onEnd: () => {
+              if (canAcceptPrimary() && audioStartedAtMs !== null) options.onEnd?.();
+            },
+            onTimings: (timings) => { if (canAcceptPrimary()) options.onTimings?.(timings); },
+            onAudioCaptured: (audio) => { if (canAcceptPrimary()) options.onAudioCaptured?.(audio); },
+          });
+        };
+        const abandonPrimary = () => {
+          ownsPrimary = false;
+          primaryGeneration++;
+          if (tts.abandonSpeaking) tts.abandonSpeaking();
+          else tts.stop();
+        };
 
         try {
           const spoken = requireSpeechStart(speakWithStartupRecovery({
-            primary: (onStart) => tts.speakSegment(text, {
-              ...options,
-              onStart: () => {
-                if (usingBrowserFallback || isCancelled()) return;
-                options.onStart?.();
-                onStart();
-              },
-              onEnd: () => {
-                if (!usingBrowserFallback && audioStartedAtMs !== null) options.onEnd?.();
-              },
-              onTimings: (timings) => {
-                if (!usingBrowserFallback) options.onTimings?.(timings);
-              },
-              onAudioCaptured: (audio) => {
-                if (!usingBrowserFallback) options.onAudioCaptured?.(audio);
-              },
-            }),
+            primary: speakPrimary,
             fallback: async () => {
               browserSpeechRef.current ??= new SpeechSynthesisTTSClient();
               browserSpeechRef.current.setPlaybackRate(segmentPlaybackRate());
               browserFallbackOwnerRef.current = segmentFallbackOwner;
+              const firstPauseGeneration = fallbackPauseGenerationRef.current;
+              let browserRestartAttempted = false;
               try {
                 await speakWithPauseOwnedFallback({
-                  speak: ({ onStart, onEnd, onError }) => browserSpeechRef.current!.speakSegment(text, {
-                    ...options,
-                    onStart: () => {
-                      if (isCancelled()) return;
-                      // pause() cancels browser speech; the next utterance starts
-                      // this sentence over. Reset both its origin and the wall
-                      // fallback's high-water mark so ink waits for the voice.
-                      if (audioStartedAtMs !== null) {
-                        audioStartedAtMs = performance.now();
-                        audioStartedAtActiveMs = clock.elapsedMs();
-                        maxAudioPositionMs = Number.NEGATIVE_INFINITY;
-                      }
-                      onStart();
-                      options.onStart?.();
-                    },
-                    onEnd: () => { if (!isCancelled()) { onEnd(); options.onEnd?.(); } },
-                    onError,
-                  }),
+                  speak: async ({ onStart, onEnd, onError }) => {
+                    const attemptGeneration = fallbackPauseGenerationRef.current;
+                    browserRestartAttempted ||= attemptGeneration !== firstPauseGeneration;
+                    let activeAttempt = true;
+                    const canAcceptBrowser = () => activeAttempt && usingBrowserFallback && !isCancelled() && !speechAborted &&
+                      !isPausedRef.current && attemptGeneration === fallbackPauseGenerationRef.current;
+                    try {
+                      await browserSpeechRef.current!.speakSegment(text, {
+                        ...options,
+                        onStart: () => {
+                          if (!canAcceptBrowser()) return;
+                          // pause() cancels browser speech; the next utterance starts
+                          // this sentence over. Reset both its origin and the wall
+                          // fallback's high-water mark so ink waits for the voice.
+                          if (audioStartedAtMs !== null) {
+                            audioStartedAtMs = performance.now();
+                            audioStartedAtActiveMs = clock.elapsedMs();
+                            maxAudioPositionMs = Number.NEGATIVE_INFINITY;
+                          }
+                          onStart();
+                          options.onStart?.();
+                        },
+                        onTimings: (timings) => { if (canAcceptBrowser()) options.onTimings?.(timings); },
+                        onAudioCaptured: (audio) => { if (canAcceptBrowser()) options.onAudioCaptured?.(audio); },
+                        onEnd: () => { if (canAcceptBrowser()) { onEnd(); options.onEnd?.(); } },
+                        onError,
+                      });
+                    } finally {
+                      activeAttempt = false;
+                    }
+                  },
                   waitWhilePaused,
                   isCancelled: () => isCancelled() || speechAborted,
                   pauseGeneration: () => fallbackPauseGenerationRef.current,
+                });
+              } catch (error) {
+                // The failed speak promise is joined above. Stop its owned voice
+                // before retrying the SAME sentence, never mark it completed.
+                if (!browserRestartAttempted || providerRecoveryAttempted || isCancelled() || speechAborted) throw error;
+                browserSpeechRef.current.stop();
+                if (!(await waitWhilePaused()) || isCancelled() || speechAborted) return;
+                providerRecoveryAttempted = true;
+                if (browserFallbackOwnerRef.current === segmentFallbackOwner) browserFallbackOwnerRef.current = null;
+                usingBrowserFallback = false;
+                browserRecoveryRate = null;
+                audioStartedAtMs = null;
+                audioStartedAtActiveMs = null;
+                maxAudioPositionMs = Number.NEGATIVE_INFINITY;
+                capturedAudio = null;
+                capturedTimings = null;
+                capturedDurationMs = null;
+                timingsOrigin = null;
+                speechComplete = false;
+                clock = createPauseAwareSpeechClock();
+                speechClockRef.current = clock;
+                ownsPrimary = true;
+                tel?.mark("tts-provider-recovery", { segment_index: index, reason: "browser-restart-failed" });
+                await speakWithStartupRecovery({
+                  primary: speakPrimary,
+                  abandonPrimary,
+                  hasStarted: () => audioStartedAtMs !== null,
+                  canFallback: () => !isCancelled() && !speechAborted,
+                  // No recovery loop: one bounded provider attempt, then abort.
+                  fallback: async () => { throw new Error("Provider voice did not restart after browser recovery"); },
+                  clock,
                 });
               } finally {
                 if (browserFallbackOwnerRef.current === segmentFallbackOwner) {
@@ -621,10 +686,7 @@ export function useSegmentRunner({
                 }
               }
             },
-            abandonPrimary: () => {
-              if (tts.abandonSpeaking) tts.abandonSpeaking();
-              else tts.stop();
-            },
+            abandonPrimary,
             hasStarted: () => audioStartedAtMs !== null,
             canFallback: () => !isCancelled() && !speechAborted && !isPausedRef.current,
             onFallback: (reason) => {
@@ -692,8 +754,15 @@ export function useSegmentRunner({
           // the queue stop after repeated failures and show its retry message.
           // Browser recovery only succeeds after its utterance actually ends.
           // A partial onStart before a synthesis error is still a failed beat.
+          if (providerRecoveryAttempted && !isCancelled()) {
+            // A retry timeout is NOT the intro's tolerable first-voice miss.
+            // Keep this out of isVoiceStartupFailure so failed recovery aborts
+            // the transaction instead of skipping narration and committing ink.
+            throw new Error("Provider voice recovery failed", { cause: error });
+          }
           if ((audioStartedAtMs === null || usingBrowserFallback) && !isCancelled()) throw error;
         } finally {
+          ownsPrimary = false;
           if (timeoutId !== null) {
             window.clearTimeout(timeoutId);
           }
