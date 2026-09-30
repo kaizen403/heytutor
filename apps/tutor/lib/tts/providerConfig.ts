@@ -3,8 +3,21 @@ import type { TutorVoiceKey } from "@heytutor/tutor-core";
 export type SpeechProvider = "cartesia" | "elevenlabs";
 export type SpeechEnvironment = Record<string, string | undefined>;
 export const CARTESIA_VERSION = "2026-08-14";
-/** Simi (formerly Indian Lady): native Indian English, verified against the live voice API. */
-const DEFAULT_CARTESIA_VOICE = "3b554273-4299-48b9-9aaf-eefd438e3941";
+/**
+ * Built-in Cartesia teaching voices, one per accent. Each is verified against
+ * the live voice API for a native accent, and each synthesizes on sonic-3.6.
+ * Per-accent env overrides below still win over these defaults.
+ */
+const DEFAULT_CARTESIA_VOICES: Record<TutorVoiceKey, string> = {
+  /** Simi (formerly Indian Lady): native Indian English. */
+  "en-IN": "3b554273-4299-48b9-9aaf-eefd438e3941",
+  /** Courtney: native British English, measured delivery for complex information. */
+  "en-GB": "16a4052e-1f11-47ac-95f5-9330bee062f9",
+  /** Clara: native General American, precise enunciation for instructions. */
+  "en-US": "01eaafa9-308a-4276-a017-6ab0cf061b1f",
+  /** No Hindi-native default yet; keeps the previous Indian-voice fallback. */
+  "hi-IN": "3b554273-4299-48b9-9aaf-eefd438e3941",
+};
 const VOICE_SUFFIXES: Record<TutorVoiceKey, string> = {
   "en-IN": "",
   "en-GB": "_EN_GB",
@@ -36,7 +49,7 @@ export function ttsConfig(
   const voiceId =
     env[`${prefix}_VOICE_ID${VOICE_SUFFIXES[voiceKey]}`]?.trim() ||
     env[`${prefix}_VOICE_ID`]?.trim() ||
-    (provider === "cartesia" ? DEFAULT_CARTESIA_VOICE : undefined);
+    (provider === "cartesia" ? DEFAULT_CARTESIA_VOICES[voiceKey] : undefined);
   const model =
     provider === "cartesia"
       ? (lowLatency && env.CARTESIA_LOW_LATENCY_MODEL?.trim()) ||
@@ -63,7 +76,7 @@ export function availableVoiceKeys(
   return (Object.keys(VOICE_SUFFIXES) as TutorVoiceKey[]).filter(
     (key) =>
       Boolean(env[`${prefix}_VOICE_ID${VOICE_SUFFIXES[key]}`]?.trim()) ||
-      (prefix === "CARTESIA" && key === "en-IN"),
+      (prefix === "CARTESIA" && key !== "hi-IN"),
   );
 }
 

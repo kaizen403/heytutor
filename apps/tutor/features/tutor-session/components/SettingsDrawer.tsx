@@ -3,6 +3,7 @@
 import {
   Settings,
   Gauge,
+  Mic,
   Captions,
   PenLine,
   Sparkles,
@@ -302,6 +303,30 @@ export function SettingsDrawer({
                 {settings.speedMultiplier}x
               </span>
             </div>
+          </SettingsSection>
+
+          <SettingsSection>
+            <SectionLabel icon={Mic}>Voice</SectionLabel>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Tutor voice">
+              <SelectPill
+                label="India"
+                checked={settings.accent === "india"}
+                onClick={() => update({ accent: "india" })}
+              />
+              <SelectPill
+                label="UK"
+                checked={settings.accent === "uk"}
+                onClick={() => update({ accent: "uk" })}
+              />
+              <SelectPill
+                label="US"
+                checked={settings.accent === "us"}
+                onClick={() => update({ accent: "us" })}
+              />
+            </div>
+            <p className="mt-2 text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
+              The tutor&rsquo;s accent. Applies from the next spoken segment.
+            </p>
           </SettingsSection>
 
           <SettingsSection>

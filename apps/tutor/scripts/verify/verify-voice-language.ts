@@ -142,8 +142,11 @@ assert(
   "Audio Language is no longer a student setting",
 );
 assert(
-  !settingsDrawer.includes(">Accent<") && !settingsDrawer.includes('update({ accent: value })'),
-  "the lesson settings sheet must not offer an accent picker",
+  settingsDrawer.includes(">Voice<") &&
+    settingsDrawer.includes('update({ accent: "india" })') &&
+    settingsDrawer.includes('update({ accent: "uk" })') &&
+    settingsDrawer.includes('update({ accent: "us" })'),
+  "the lesson settings sheet must offer the India/UK/US voice picker",
 );
 
 const settingsScreen = readFileSync(
