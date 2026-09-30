@@ -35,6 +35,9 @@ pnpm turbo run build --filter=@heytutor/tutor...
 
 echo "==> migrate"
 cd apps/tutor
+# postinstall generate is skipped when the lockfile did not change, which
+# leaves production on a client that 500s for models added since the last install.
+pnpm exec prisma generate
 pnpm exec prisma migrate deploy
 cd "$ROOT"
 
