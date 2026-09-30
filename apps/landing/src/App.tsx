@@ -1,36 +1,50 @@
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useRef, type RefObject } from 'react'
+import { useNearViewport } from './lib/useNearViewport'
 import Hero from './components/Hero'
 import DitherBand from './components/dither/DitherBand'
 import DitherHalo from './components/dither/DitherHalo'
 import FaqSection from './components/FaqSection'
 import LessonShowcase from './components/LessonShowcase'
+import BackedBySection from './components/BackedBySection'
 import PricingSection from './components/PricingSection'
 import Footer from './components/Footer'
 import SeoHead from './components/SeoHead'
 
 /* Split at the section boundary: this keeps Motion and the whole 1280px
-   DashboardMockup (Konva included) out of the entry chunk, and the section
-   sits far enough below the fold to have loaded before anyone scrolls to it.
-   The placeholder reserves its height so nothing shifts when it arrives. */
+   DashboardMockup (Konva included) out of the entry chunk. The import only
+   starts once the slot is within reach, so a phone that never scrolls that
+   far never downloads it. */
 const UseCasesSection = lazy(() => import('./components/use-cases/UseCasesSection'))
+
+/** Holds the `use-cases` anchor so nav links still land before the section
+    loads, and reserves its height so nothing shifts when it arrives. */
+function UseCasesPlaceholder({ slotRef }: { slotRef?: RefObject<HTMLDivElement | null> }) {
+  return <div ref={slotRef} id="use-cases" className="min-h-[760px]" aria-hidden />
+}
+
+function DeferredUseCases() {
+  const slot = useRef<HTMLDivElement>(null)
+  const near = useNearViewport(slot, '50% 0px')
+  if (!near) return <UseCasesPlaceholder slotRef={slot} />
+  return (
+    <Suspense fallback={<UseCasesPlaceholder />}>
+      <UseCasesSection />
+    </Suspense>
+  )
+}
 
 function App() {
   return (
     <div className="relative min-h-screen bg-ink-950 text-frost">
       <SeoHead path="/" />
-      {/* Hero, the dither melt and the lesson section share one navy field.
-          Nothing draws its own background across the seam, so there is no
-          element boundary left for a hairline to show up on. */}
+      {/* Hero, the lesson section and the backers strip share one navy field.
+          The hero's pixel sea melts into it on its own, and nothing draws its
+          own background across the seam, so there is no element boundary
+          left for a hairline to show up on. */}
       <div className="fx-grain relative bg-ink-950">
         <Hero />
-        <DitherBand
-          from="#59AFD4"
-          via="#1E4D66"
-          to="#06121C"
-          heightClass="h-[clamp(14rem,28vh,22rem)]"
-          className="-mt-8"
-        />
         <LessonShowcase />
+        <BackedBySection />
       </div>
       {/* Separation between the lesson and the use cases. The band swells up
           out of the page navy and sinks back into it — both ends are the page
@@ -54,9 +68,7 @@ function App() {
         </div>
       </div>
 
-      <Suspense fallback={<div className="min-h-[760px]" aria-hidden />}>
-        <UseCasesSection />
-      </Suspense>
+      <DeferredUseCases />
       <PricingSection />
       <FaqSection />
       <Footer />

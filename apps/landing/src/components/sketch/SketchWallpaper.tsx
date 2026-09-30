@@ -728,8 +728,8 @@ const SCATTERS: Record<NonNullable<SketchWallpaperProps['variant']>, Cluster[]> 
     /* The first screen, worked cover-to-cover. The pen's figure owns the
         middle (x 330–928, y 309–484 at 1280×800, plus a 14px clear margin)
         and the pixel decor props sit in the outer thirds — everything else
-        is notebook. Ink runs bold (0.24–0.32 after the multiplier); the
-        headline zone carries only faint marks (0.10–0.12). */
+        is notebook. Ink runs bold (0.29–0.37 after the multiplier); the
+        headline zone carries only faint marks (0.12–0.15). */
     /* ── top-left corner ── */
     { doodle: DoodleEmc2, left: 1.5, top: 12, width: 150, rotate: -4, opacity: 0.22, ink: 'sky-200', wideOnly: true },
     { doodle: DoodleCO2, left: 0.5, top: 25, width: 60, rotate: 3, opacity: 0.19, ink: 'mist', wideOnly: true },
@@ -863,7 +863,7 @@ export default function SketchWallpaper({
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
   const palette = INKS[tone] as Record<string, string>
   const clusters = SCATTERS[variant]
-  const inkScale = mode === 'bold' ? 1.25 : 1
+  const inkScale = mode === 'bold' ? 1.55 : 1.3
 
   return (
     <div aria-hidden className={`sketch-wallpaper select-none ${className}`}>
@@ -874,7 +874,7 @@ export default function SketchWallpaper({
           position: 'absolute',
           top: `${cluster.top}%`,
           width: cluster.width,
-          opacity: Math.min(0.32, cluster.opacity * inkScale),
+          opacity: Math.min(0.4, cluster.opacity * inkScale),
           transform: `rotate(${cluster.rotate}deg)`,
         }
         if (cluster.left !== undefined) style.left = `${cluster.left}%`

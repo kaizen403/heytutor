@@ -3,9 +3,8 @@ import { renderPenSprite, type PenSprite } from './penSprite'
 import { buildScene, sampleAt, type Scene } from './scene'
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   PenPlotter: a pen draws a unit circle, unrolls it into y = sin θ across the
-   lane, carries one point across to the wave with a dashed projection, then
-   leaves frame.
+   PenPlotter: a pen draws a pair of axes across the lane, sketches cos θ and
+   sin θ over them, names each beside its end, then leaves frame.
 
    Three things keep it smooth:
    · One continuous path with a smoothed velocity field (see scene.ts), so the

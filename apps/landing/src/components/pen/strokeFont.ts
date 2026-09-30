@@ -71,6 +71,26 @@ const GLYPHS: Record<string, Glyph> = {
       ],
     ],
   },
+  c: {
+    adv: 0.54,
+    strokes: [
+      [
+        p(0.47, 0.4), p(0.37, 0.3), p(0.21, 0.31), p(0.1, 0.47),
+        p(0.09, 0.72), p(0.18, 0.92), p(0.34, 0.99), p(0.49, 0.9),
+      ],
+    ],
+  },
+  // o: one loop from the top, round to the left and a little past where it
+  // started so it closes.
+  o: {
+    adv: 0.62,
+    strokes: [
+      [
+        p(0.33, 0.3), p(0.17, 0.35), p(0.08, 0.56), p(0.11, 0.82), p(0.25, 0.98),
+        p(0.42, 0.96), p(0.53, 0.78), p(0.53, 0.51), p(0.44, 0.34), p(0.31, 0.3), p(0.22, 0.33),
+      ],
+    ],
+  },
   '2': {
     adv: 0.58,
     strokes: [

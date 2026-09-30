@@ -11,6 +11,7 @@ const relay = createTtsRelay(
 const captures: { bytes: Uint8Array; mimeType: string }[] = [];
 let decoded = 0;
 let sent = 0;
+const connectedUrls: string[] = [];
 class Socket {
   static OPEN = 1;
   static CONNECTING = 0;
@@ -22,7 +23,8 @@ class Socket {
   private listeners = new Map<string, Set<(event: { data: string }) => void>>();
   private text = "";
   private index = 0;
-  constructor() {
+  constructor(url?: string) {
+    if (url) connectedUrls.push(String(url));
     setTimeout(() => {
       this.readyState = 1;
       this.onopen?.();
@@ -391,6 +393,40 @@ async function main() {
   assert.equal(rateDuringFallback, 1, "drawing must follow the fallback's actual 1× voice rate");
   assert.equal(naturalFallbackClient.getPlaybackRate(), 2, "provider audio retains the selected rate afterward");
   naturalFallbackClient.stop();
+
+  // A voice switch drops audio generated in the old voice and reconnects, so
+  // the next segment speaks in the newly selected voice — never the old one.
+  delete (globalThis as unknown as Record<string, unknown>).Audio;
+  globalThis.fetch = async (input) => {
+    if (String(input).endsWith("/api/tts/ws-ticket"))
+      return Response.json({ ticket: "test" });
+    throw new Error("voice-switch block unexpectedly fell back to HTTP");
+  };
+  const switchClient = new StreamingSpeechClient();
+  const urlsBefore = connectedUrls.length;
+  await switchClient.prewarm();
+  assert.equal(connectedUrls.length, urlsBefore + 1);
+  assert(connectedUrls[urlsBefore]!.includes("lang=en-IN"));
+  switchClient.prefetchSegment("Switched voice.");
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert(
+    switchClient.peekSegmentTimings("Switched voice.") !== null,
+    "the prefetch must generate before the switch",
+  );
+  switchClient.setVoicePreferences({ voiceKey: "en-GB", lowLatency: false });
+  assert.equal(
+    switchClient.peekSegmentTimings("Switched voice."),
+    null,
+    "old-voice audio must not be visible after the switch",
+  );
+  await switchClient.speakSegment("Switched voice.", {});
+  assert.equal(
+    connectedUrls.length,
+    urlsBefore + 2,
+    "the next segment must reconnect in the new voice",
+  );
+  assert(connectedUrls[urlsBefore + 1]!.includes("lang=en-GB"));
+  switchClient.stop();
   console.log(
     "Cartesia adapter → browser: final-packet audio, lookahead, timings-before-start, WAV decoding and replay capture passed",
   );
