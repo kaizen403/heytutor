@@ -9,6 +9,10 @@ import {
   createSeekQueue,
   createSmoothedMediaClock,
   lectureAudioComplete,
+  lectureHasPlayableAudio,
+  lecturePaceRate,
+  mediaSecondsForSeek,
+  audioIsAtMediaEnd,
   lecturePlayerKeyAction,
   msFromFraction,
   planLectureSeek,
@@ -237,6 +241,7 @@ const gate = {
   storedTurns: turns,
 };
 assert.equal(lectureAudioComplete(turns), true, "silent CLEAR segments need no audio");
+assert.equal(lectureHasPlayableAudio(turns), true);
 assert.equal(canPlayFinishedLecture(gate), true);
 
 const missingAudio = [
@@ -245,10 +250,21 @@ const missingAudio = [
   nextTurn,
 ];
 assert.equal(lectureAudioComplete(missingAudio), false, "a blank audioUrl is missing audio");
-assert.equal(canPlayFinishedLecture({ ...gate, storedTurns: missingAudio }), false);
+assert.equal(
+  lectureHasPlayableAudio(missingAudio),
+  true,
+  "the other spoken clips still make the lecture playable",
+);
+assert.equal(
+  canPlayFinishedLecture({ ...gate, storedTurns: missingAudio }),
+  true,
+  "a gap in the recording must not hide the timeline",
+);
 
 const nullAudio = [turn("t", 0, "q", [spokenSegment(0, "a", 500, null)])];
 assert.equal(lectureAudioComplete(nullAudio), false);
+assert.equal(lectureHasPlayableAudio(nullAudio), false);
+assert.equal(canPlayFinishedLecture({ ...gate, storedTurns: nullAudio }), false);
 
 const spokenOnly: StoredSegment = {
   ...spokenSegment(0, "s", 500, null),
@@ -258,8 +274,9 @@ const spokenOnly: StoredSegment = {
 assert.equal(
   lectureAudioComplete([turn("t", 0, "q", [spokenOnly])]),
   false,
-  "spokenText alone makes a segment spoken",
+  "board text without narration is not a spoken clip",
 );
+assert.equal(lectureHasPlayableAudio([turn("t", 0, "q", [spokenOnly])]), false);
 
 assert.equal(lectureAudioComplete([]), false, "no spoken segment, no lecture audio");
 assert.equal(
@@ -459,5 +476,27 @@ assert.equal(msFromFraction(0.5, 6400), 3200);
 assert.equal(msFromFraction(-0.2, 6400), 0);
 assert.equal(msFromFraction(1.5, 6400), 6400);
 assert.equal(msFromFraction(Number.NaN, 6400), 0);
+
+assert.equal(lecturePaceRate(1.25), 0.9, "1.25 plays a little slower than real time");
+assert.equal(lecturePaceRate(1.5), 1.5, "1.5 stays faster than the 1.25 pace");
+assert.equal(lecturePaceRate(1), 1);
+assert.equal(lecturePaceRate(0.75), 0.75);
+assert.equal(lecturePaceRate(Number.NaN), 1);
+
+assert.equal(mediaSecondsForSeek(164_000, 179), 164);
+assert.ok(mediaSecondsForSeek(179_000, 179) < 179, "a seek to the end must land before ended");
+assert.equal(mediaSecondsForSeek(0, 179), 0);
+assert.equal(
+  audioIsAtMediaEnd({ ended: true, currentTime: 0, duration: 10 }),
+  true,
+);
+assert.equal(
+  audioIsAtMediaEnd({ ended: false, currentTime: 179, duration: 179 }),
+  true,
+);
+assert.equal(
+  audioIsAtMediaEnd({ ended: false, currentTime: 164, duration: 179 }),
+  false,
+);
 
 console.log("verify-lecture-player: ok");

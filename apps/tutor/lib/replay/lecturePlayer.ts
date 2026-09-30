@@ -83,6 +83,39 @@ export type LecturePlayerKeyAction = "toggle" | "back" | "forward" | "start" | "
 
 export const LECTURE_PLAYER_SKIP_MS = 10_000;
 
+/**
+ * The pace the lecture actually plays at.
+ *
+ * 1.25 is the default stop. It sits a little under real time, so it is not
+ * the same pace as 1.5. Every other stop is the number on the menu.
+ */
+export function lecturePaceRate(selected: number): number {
+  if (!Number.isFinite(selected) || selected <= 0) return 1;
+  if (Math.abs(selected - 1.25) < 0.001) return 0.9;
+  return Math.min(Math.max(selected, 0.1), 4);
+}
+
+/**
+ * Seconds to put on an HTML media element for a lecture seek.
+ *
+ * Playing from the exact duration leaves the element `ended`, which is silent.
+ */
+export function mediaSecondsForSeek(targetMs: number, durationSec: number): number {
+  const seconds = (Number.isFinite(targetMs) ? Math.max(0, targetMs) : 0) / 1000;
+  if (!Number.isFinite(durationSec) || durationSec <= 0) return seconds;
+  return Math.min(seconds, Math.max(durationSec - 0.05, 0));
+}
+
+export function audioIsAtMediaEnd(audio: {
+  ended: boolean;
+  currentTime: number;
+  duration: number;
+}): boolean {
+  if (audio.ended) return true;
+  if (!Number.isFinite(audio.duration) || audio.duration <= 0) return false;
+  return audio.currentTime >= audio.duration - 0.05;
+}
+
 /** `m:ss`, or `h:mm:ss` from an hour up. */
 export function formatPlayerTime(ms: number): string {
   const total = Number.isFinite(ms) ? Math.max(0, Math.floor(ms / 1000)) : 0;
@@ -168,19 +201,38 @@ export function buildLecturePlayerTimeline(turns: StoredTurn[]): LecturePlayerTi
   return { cues, totalMs, chapters, pageStartTurnIndex };
 }
 
-/** Every spoken segment has recorded audio, and there is at least one. */
+function segmentHasNarration(segment: StoredTurn["segments"][number]): boolean {
+  return segment.narration.trim().length > 0;
+}
+
+function segmentHasAudio(segment: StoredTurn["segments"][number]): boolean {
+  return Boolean(segment.audioUrl?.trim());
+}
+
+/** Every narrated segment has recorded audio, and there is at least one. */
 export function lectureAudioComplete(turns: StoredTurn[]): boolean {
   let spoken = 0;
   for (const turn of turns) {
     for (const segment of turn.segments) {
-      const isSpoken =
-        segment.narration.trim().length > 0 || segment.spokenText.trim().length > 0;
-      if (!isSpoken) continue;
-      if (!segment.audioUrl?.trim()) return false;
+      if (!segmentHasNarration(segment)) continue;
+      if (!segmentHasAudio(segment)) return false;
       spoken += 1;
     }
   }
   return spoken > 0;
+}
+
+/**
+ * The finished-lecture bar can stitch silence over a missing clip. It only
+ * needs one narrated step with audio, not a perfect recording of every step.
+ */
+export function lectureHasPlayableAudio(turns: StoredTurn[]): boolean {
+  for (const turn of turns) {
+    for (const segment of turn.segments) {
+      if (segmentHasNarration(segment) && segmentHasAudio(segment)) return true;
+    }
+  }
+  return false;
 }
 
 export function canPlayFinishedLecture(input: {
@@ -194,7 +246,7 @@ export function canPlayFinishedLecture(input: {
     input.phase === "idle" &&
     !input.lectureActive &&
     input.storedTurns.length > 0 &&
-    lectureAudioComplete(input.storedTurns) &&
+    lectureHasPlayableAudio(input.storedTurns) &&
     buildReplayTimeline(input.storedTurns).totalMs > 0
   );
 }

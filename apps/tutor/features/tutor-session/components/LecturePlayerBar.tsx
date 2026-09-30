@@ -465,10 +465,10 @@ const SpeedControl = memo(function SpeedControl({
 /**
  * Transport for a finished lecture, drawn over the bottom of the board.
  *
- * Collapsed to a slim rail while the finished board is on show, a full
- * YouTube-style bar once engaged, and auto-hidden during playback. Scrubbing
- * previews locally and seeks once on release, because each seek rebuilds the
- * whole board.
+ * Full YouTube-style bar on the finished board, auto-hidden only while the
+ * lecture is playing and the pointer is idle. A 3px rail after the lesson
+ * ended was easy to miss against the board edge. Scrubbing previews locally
+ * and seeks once on release, because each seek rebuilds the whole board.
  */
 export function LecturePlayerBar({
   store,
@@ -507,9 +507,11 @@ export function LecturePlayerBar({
   const playing = status === "playing";
   const scrubbing = scrubMs !== null;
   const engaged = hovered || keyboardFocus || menuOpen || scrubbing;
-  const collapsed = !active && !engaged && !tapOpen;
-  const chromeHidden = !collapsed && playing && idle && !engaged;
-  const fullShown = !collapsed && !chromeHidden;
+  // Stay expanded after the lecture finishes. Collapse was a 3px rail that
+  // read as "no timeline" unless the pointer was already on the board edge.
+  const collapsed = false;
+  const chromeHidden = playing && idle && !engaged && !tapOpen;
+  const fullShown = !chromeHidden;
 
   const holdMs =
     pendingSeekMs !== null && Math.abs(positionMs - pendingSeekMs) > SEEK_SETTLE_MS
