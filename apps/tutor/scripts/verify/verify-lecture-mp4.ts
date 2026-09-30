@@ -14,6 +14,7 @@ import {
   latestCompletedTurn,
   lectureDownloadFilename,
   lecturePageCacheKey,
+  LECTURE_PAGE_CACHE_REVISION,
   shouldCancelLectureExport,
   speakingLectureSegments,
   turnHasExportableAudio,
@@ -253,7 +254,7 @@ assert.equal(
 );
 assert.equal(lectureExportProgressLabel({ currentMs: 0, totalMs: 273000, phase: "audio" }), "Preparing…");
 assert.equal(lectureExportProgressLabel({ currentMs: 54600, totalMs: 273000, phase: "video" }), "20%");
-assert.equal(lectureExportProgressLabel({ currentMs: 273000, totalMs: 273000, phase: "mux" }), "Saving…");
+assert.equal(lectureExportProgressLabel({ currentMs: 273000, totalMs: 273000, phase: "mux" }), "Finishing…");
 assert.equal(
   lectureExportCacheKey({
     id: "turn-1",
@@ -274,12 +275,12 @@ assert.equal(lectureExportMediaMs(800), 1000, "file time 0.8s is lesson time 1s"
 }
 assert.equal(
   lecturePageCacheKey([first]),
-  `${lectureExportCacheKey(first)}@${LECTURE_EXPORT_PLAYBACK_RATE}`,
+  `${lectureExportCacheKey(first)}@${LECTURE_EXPORT_PLAYBACK_RATE}@${LECTURE_PAGE_CACHE_REVISION}`,
   "cache key includes 1.25× so a previously downloaded 1× file is not reused",
 );
 assert.equal(
   lecturePageCacheKey([first], "webm"),
-  `${lectureExportCacheKey(first)}@${LECTURE_EXPORT_PLAYBACK_RATE}.webm`,
+  `${lectureExportCacheKey(first)}@${LECTURE_EXPORT_PLAYBACK_RATE}@${LECTURE_PAGE_CACHE_REVISION}.webm`,
   "a WebM download must not reuse the cached MP4",
 );
 {
@@ -306,6 +307,11 @@ assert.equal(
     exportSource.includes("preferredContainer"),
     true,
     "encode must honour the student's lecture file type",
+  );
+  assert.equal(
+    exportSource.includes('fastStart: false'),
+    true,
+    "MP4 must not rewrite the whole file in memory before the download starts",
   );
 }
 

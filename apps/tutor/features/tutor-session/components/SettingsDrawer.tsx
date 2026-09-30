@@ -3,7 +3,6 @@
 import {
   Settings,
   Gauge,
-  Mic2,
   Captions,
   PenLine,
   Sparkles,
@@ -302,26 +301,6 @@ export function SettingsDrawer({
               >
                 {settings.speedMultiplier}x
               </span>
-            </div>
-          </SettingsSection>
-
-          <SettingsSection>
-            <SectionLabel icon={Mic2}>Accent</SectionLabel>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  ["india", "India"],
-                  ["uk", "UK"],
-                  ["us", "US"],
-                ] as const
-              ).map(([value, label]) => (
-                <SelectPill
-                  key={value}
-                  label={label}
-                  checked={settings.accent === value}
-                  onClick={() => update({ accent: value })}
-                />
-              ))}
             </div>
           </SettingsSection>
 

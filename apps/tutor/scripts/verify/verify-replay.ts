@@ -16,9 +16,12 @@ import {
   createScheduledWriteClock,
   simulateScheduledWriteWait,
 } from "@heytutor/tutor-core";
+import { fetchLectureAudioBytes } from "../../lib/lecture-export/lectureAudioTrack";
 import {
   buildLocalStoredTurn,
   enrichStoredSegmentsWithReplayAudio,
+  releaseReplayAudioBytes,
+  replayAudioBytesForUrl,
 } from "../../lib/replay/replayTurns";
 import {
   buildReplayTimeline,
@@ -73,6 +76,11 @@ const savedSegments = [
 const enriched = enrichStoredSegmentsWithReplayAudio(savedSegments, recorded, register);
 assert.equal(enriched.length, 1);
 assert.ok(enriched[0]?.audioUrl?.startsWith("blob:"));
+assert.deepEqual(
+  [...(replayAudioBytesForUrl(enriched[0]!.audioUrl!) ?? [])],
+  [1, 2, 3, 4],
+  "the download must read the captured clip without fetching the blob URL",
+);
 
 const remoteSaved = enrichStoredSegmentsWithReplayAudio(
   [{ ...savedSegments[0]!, audioUrl: "https://pub.example/lectures/a.mp3" }],
@@ -182,4 +190,17 @@ assert.equal(deadAudioClock(), 180, "a missing MP3 clock must write against wall
   );
 }
 
-console.log("verify-replay: ok");
+void (async () => {
+  const downloaded = await fetchLectureAudioBytes(enriched[0]!.audioUrl!);
+  assert.deepEqual(
+    [...(downloaded ?? [])],
+    [1, 2, 3, 4],
+    "lecture export must use the held clip when fetch(blob:) is blocked",
+  );
+  releaseReplayAudioBytes(enriched[0]!.audioUrl!);
+  assert.equal(replayAudioBytesForUrl(enriched[0]!.audioUrl!), null);
+  console.log("verify-replay: ok");
+})().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

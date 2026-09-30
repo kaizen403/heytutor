@@ -15,7 +15,7 @@ import {
   type TutorVoicePreferences,
 } from "@heytutor/tutor-core";
 import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
-import { buildLocalStoredTurn } from "@/lib/replay/replayTurns";
+import { buildLocalStoredTurn, releaseReplayAudioBytes } from "@/lib/replay/replayTurns";
 import { boardPath, draftBoardPath, isUntouchedHomeBoard } from "@/features/tutor-session/lib/board/boardRoute";
 import {
   sortBoards,
@@ -389,6 +389,7 @@ export function useBoardSession({
   const revokeReplayBlobUrls = useCallback(() => {
     for (const url of replayBlobUrlsRef.current) {
       URL.revokeObjectURL(url);
+      releaseReplayAudioBytes(url);
     }
     replayBlobUrlsRef.current = [];
   }, []);
@@ -410,6 +411,7 @@ export function useBoardSession({
         kept.push(url);
       } else {
         URL.revokeObjectURL(url);
+        releaseReplayAudioBytes(url);
       }
     }
     replayBlobUrlsRef.current = kept;

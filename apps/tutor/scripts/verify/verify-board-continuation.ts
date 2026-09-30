@@ -33,6 +33,7 @@ import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersiste
 import {
   latestLecturePage,
   lecturePageCacheKey,
+  LECTURE_PAGE_CACHE_REVISION,
   pageHasExportableAudio,
 } from "../../lib/lecture-export/canExportLectureMp4";
 import { lectureExportCacheKey } from "../../lib/lecture-export/lectureExportFrames";
@@ -224,7 +225,7 @@ async function main(): Promise<void> {
     );
     assert(
       lecturePageCacheKey([secondLesson]) ===
-        `${lectureExportCacheKey(secondLesson)}@${LECTURE_EXPORT_PLAYBACK_RATE}`,
+        `${lectureExportCacheKey(secondLesson)}@${LECTURE_EXPORT_PLAYBACK_RATE}@${LECTURE_PAGE_CACHE_REVISION}`,
       "a page of one turn keeps that turn's cache key plus the 1.25× export rate",
     );
     assert(

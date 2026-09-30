@@ -6,8 +6,27 @@ import type {
   StoredTurn,
 } from "@/lib/boards/boardsClient";
 
+/**
+ * Bytes behind each in-tab lecture clip. The download reads these directly:
+ * `fetch` of a blob URL is blocked by connect-src, so the file was silence
+ * even though replay could play the same clip.
+ */
+const replayAudioBytesByUrl = new Map<string, Uint8Array>();
+
 export function createReplayAudioBlobUrl(bytes: Uint8Array): string {
-  return URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: speechAudioMimeType(bytes) }));
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const url = URL.createObjectURL(new Blob([copy], { type: speechAudioMimeType(copy) }));
+  replayAudioBytesByUrl.set(url, copy);
+  return url;
+}
+
+export function replayAudioBytesForUrl(url: string): Uint8Array | null {
+  return replayAudioBytesByUrl.get(url) ?? null;
+}
+
+export function releaseReplayAudioBytes(url: string): void {
+  replayAudioBytesByUrl.delete(url);
 }
 
 export function enrichStoredSegmentsWithReplayAudio(

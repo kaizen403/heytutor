@@ -234,7 +234,11 @@ export async function exportLectureMp4(options: {
     format:
       profile.container === "webm"
         ? new WebMOutputFormat()
-        : new Mp4OutputFormat({ fastStart: "in-memory" }),
+        // moov stays at the end. in-memory fast start holds every encoded
+        // sample until the end, then copies the whole lecture on the main
+        // thread, so the Download button sits on "Finishing…" and the file
+        // never starts.
+        : new Mp4OutputFormat({ fastStart: false }),
     target,
   });
   const videoSource = new CanvasSource(composeCanvas, {
