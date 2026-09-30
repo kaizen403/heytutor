@@ -35,7 +35,10 @@ export function contentSecurityPolicy(env: NodeJS.ProcessEnv = process.env): str
     // that host the sidebar/profile <img> is blocked and renders as an empty ring.
     "img-src 'self' data: blob: https://*.googleusercontent.com https://*.ggpht.com",
     "font-src 'self'",
-    "connect-src 'self'",
+    // blob: and data: are the lecture clips still held in this tab. Replay
+    // plays them through media-src; the download reads the same URLs with
+    // fetch, which is connect-src. Without them here the file is silence.
+    "connect-src 'self' blob: data:",
     // data: covers the tiny unlock/silence WAV used to start WebAudio.
     "media-src 'self' blob: data:",
     "object-src 'none'",

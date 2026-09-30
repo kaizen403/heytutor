@@ -142,10 +142,9 @@ assert(
   "Audio Language is no longer a student setting",
 );
 assert(
-  !settingsDrawer.includes("disabled={!accentApplies}") && !settingsDrawer.includes("English only"),
-  "accent pills stay enabled now that audio is always English",
+  !settingsDrawer.includes(">Accent<") && !settingsDrawer.includes('update({ accent: value })'),
+  "the lesson settings sheet must not offer an accent picker",
 );
-assert(settingsDrawer.includes('update({ accent: value })'), "accent pills must write accent");
 
 const settingsScreen = readFileSync(
   resolve(root, "features/account/SettingsScreen.tsx"),

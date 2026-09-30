@@ -7,7 +7,7 @@ import {
   userImagePrefix,
 } from "../../lib/object-store/keys";
 import { mediaKeyFromUrl, mediaProxyUrl } from "../../lib/object-store/mediaUrl";
-import { isAllowedLectureAudioSource, lectureAudioFetchUrl } from "../../lib/lecture-export/lectureAudioUrl";
+import { dataUrlToBytes, isAllowedLectureAudioSource, lectureAudioFetchUrl } from "../../lib/lecture-export/lectureAudioUrl";
 import {
   contentDispositionForKey,
   contentTypeForStoredKey,
@@ -54,6 +54,12 @@ assert(mediaKeyFromUrl("/api/chat") === null, "other API paths are not media");
 
 assert(lectureAudioFetchUrl(proxy) === proxy, "same-origin media path is fetched directly");
 assert(lectureAudioFetchUrl("blob:hello") === "blob:hello", "blob URLs stay direct");
+assert(
+  dataUrlToBytes("data:audio/wav;base64,AQIDBA==")?.join(",") === "1,2,3,4",
+  "data URLs decode without a fetch the content policy would block",
+);
+assert(dataUrlToBytes("data:text/plain,hi")?.join(",") === "104,105", "plain data URLs decode");
+assert(dataUrlToBytes("https://example.com/a.mp3") === null, "only data URLs decode inline");
 assert(
   lectureAudioFetchUrl("https://pub.example/lectures/a.mp3", "http://localhost:3000") ===
     "/api/lecture-audio?src=https%3A%2F%2Fpub.example%2Flectures%2Fa.mp3",

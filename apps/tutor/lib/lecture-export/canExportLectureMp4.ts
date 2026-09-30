@@ -62,6 +62,12 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
 }
 
 /**
+ * Bump when an already-cached file would be wrong for the same page.
+ * `audio2` drops silent downloads from before in-tab clips were readable.
+ */
+export const LECTURE_PAGE_CACHE_REVISION = "audio2";
+
+/**
  * Cache identity of a page export. It changes whenever a doubt adds a turn to
  * the page, and a page of one turn keys exactly as that turn always has.
  */
@@ -70,7 +76,7 @@ export function lecturePageCacheKey(
   fileType: LectureContainer = "mp4",
 ): string {
   const turnsKey = turns.map((turn) => lectureExportCacheKey(turn)).join("+");
-  const base = `${turnsKey}@${LECTURE_EXPORT_PLAYBACK_RATE}`;
+  const base = `${turnsKey}@${LECTURE_EXPORT_PLAYBACK_RATE}@${LECTURE_PAGE_CACHE_REVISION}`;
   return fileType === "mp4" ? base : `${base}.${fileType}`;
 }
 

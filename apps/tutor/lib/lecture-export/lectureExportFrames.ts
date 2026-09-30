@@ -69,7 +69,7 @@ export function lectureExportProgressLabel(progress: {
     return "Preparing…";
   }
   if (progress.phase === "mux") {
-    return "Saving…";
+    return "Finishing…";
   }
   if (progress.totalMs <= 0) {
     return "Encoding…";

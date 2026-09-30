@@ -4,6 +4,27 @@
  * Blob and same-origin URLs stay direct.
  */
 
+/** Bytes of a `data:` URL. Lecture clips use these only as a fallback. */
+export function dataUrlToBytes(url: string): Uint8Array | null {
+  const comma = url.indexOf(",");
+  if (!url.startsWith("data:") || comma < 0) return null;
+  const meta = url.slice(0, comma);
+  const payload = url.slice(comma + 1);
+  try {
+    if (meta.includes(";base64")) {
+      const binary = atob(payload.replace(/\s/g, ""));
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      return bytes;
+    }
+    return new TextEncoder().encode(decodeURIComponent(payload));
+  } catch {
+    return null;
+  }
+}
+
 export function lectureAudioFetchUrl(
   url: string,
   origin: string | null = typeof location === "undefined" ? null : location.origin,

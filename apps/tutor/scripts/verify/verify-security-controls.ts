@@ -65,6 +65,10 @@ assert(
   "development CSP must allow eval for the Next dev runtime",
 );
 assert(
+  contentSecurityPolicy().includes("connect-src 'self' blob: data:"),
+  "lecture download must be allowed to fetch in-tab blob and data audio",
+);
+assert(
   contentSecurityPolicy().includes("media-src 'self' blob: data:"),
   "CSP must allow data: audio for the WebAudio unlock WAV",
 );

@@ -1,5 +1,6 @@
+import { replayAudioBytesForUrl } from "@/lib/replay/replayTurns";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
-import { lectureAudioFetchUrl } from "./lectureAudioUrl";
+import { dataUrlToBytes, lectureAudioFetchUrl } from "./lectureAudioUrl";
 
 export const LECTURE_EXPORT_SAMPLE_RATE = 44_100;
 
@@ -148,6 +149,16 @@ export function mixCueAudio(options: {
 }
 
 export async function fetchLectureAudioBytes(url: string): Promise<Uint8Array | null> {
+  // In-tab clips are blob: or data: URLs. fetch() of those is connect-src, and
+  // a policy of 'self' turns every spoken cue into silence in the download.
+  // Replay never hits that path — it plays the URL on an <audio> element.
+  if (url.startsWith("blob:")) {
+    const held = replayAudioBytesForUrl(url);
+    if (held) return held;
+  }
+  if (url.startsWith("data:")) {
+    return dataUrlToBytes(url);
+  }
   try {
     const response = await fetch(lectureAudioFetchUrl(url));
     if (!response.ok) {
