@@ -776,7 +776,7 @@ export function useCommandExecution({
             }
             forgetErasedTextRects(eraseRect);
           }
-          // Board restore (0.05) and replay seeks (0) want the finished block,
+          // Board restore and replay seeks (0) want the finished block,
           // not a typing animation racing a clock that no longer exists.
           if (durationScale <= 0.05) {
             controller.revealBlockInstant(blockId);
@@ -850,20 +850,20 @@ export function useCommandExecution({
           const frames = codeLessonControllerRef?.current?.frames;
           if (!frames || !frames.hasNext()) break;
 
-          // Neither a restore nor a seek wants the redraw animated. A restore
-          // shows the finished lesson, so it lands on the last frame; a seek
-          // stops part way, so each FRAME it passes is exactly one step.
+          // Neither a restore nor a seek wants the redraw animated. Each FRAME
+          // passed is exactly one step, so a restore lands where the lecture
+          // ended and a seek where it was scrubbed to.
           if (durationScale <= 0.05) {
-            const last = isSeekCatchUp ? frames.advance() : frames.jumpToEnd();
-            if (last) {
+            const frame = frames.advance();
+            if (frame) {
               await eraseWhiteboardRegionIfCurrent(
                 wb,
                 { ...DSA_DIAGRAM_ZONE, duration: 0 },
                 commandCancelled,
               );
-              activeVerifiedDiagramRef.current = last.presentation.diagram;
-              setActiveVerifiedDiagram?.(last.presentation.diagram);
-              for (const next of last.presentation.diagram.commands) {
+              activeVerifiedDiagramRef.current = frame.presentation.diagram;
+              setActiveVerifiedDiagram?.(frame.presentation.diagram);
+              for (const next of frame.presentation.diagram.commands) {
                 if (commandCancelled()) return;
                 await executeCommand(inheritCommandInk(command, verifiedDiagramCommandToDrawCommand(next)), {
                   trustedDiagramGeometry: true,

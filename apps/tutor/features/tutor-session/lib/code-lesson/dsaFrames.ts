@@ -392,11 +392,4 @@ export class DsaFrameController {
     this.index += 1;
     return this.set!.frames[this.index]!;
   }
-
-  /** Jump straight to the last frame, for replay seeks and board restores. */
-  jumpToEnd(): DsaFrame | null {
-    if (!this.set || this.set.frames.length === 0) return null;
-    this.index = this.set.frames.length - 1;
-    return this.set.frames[this.index]!;
-  }
 }

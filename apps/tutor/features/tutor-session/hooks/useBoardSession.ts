@@ -100,11 +100,6 @@ export interface UseBoardSessionParams {
   activeVerifiedDiagramRef?: RefObject<VerifiedDiagram | null>;
   setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
   fbdPhaseStartedRef?: RefObject<boolean>;
-  /**
-   * How fast restored ink is drawn. Notes passes 0 so each mark is stamped
-   * finished; opening a board keeps a short replay.
-   */
-  inkRestoreDurationScale?: number;
 }
 
 export function useBoardSession({
@@ -137,7 +132,6 @@ export function useBoardSession({
   activeVerifiedDiagramRef,
   setActiveVerifiedDiagram,
   fbdPhaseStartedRef,
-  inkRestoreDurationScale = 0.05,
 }: UseBoardSessionParams) {
   const [boards, setBoards] = useState<BoardEntry[]>([]);
   const [boardLoaded, setBoardLoaded] = useState(false);
@@ -581,8 +575,11 @@ export function useBoardSession({
                 return;
               }
 
+              // The boot face covers the board until this loop ends, so no
+              // one sees it: stamp finished ink. Any other scale still plays
+              // every FOCUS tour and pen swap at full length behind the loader.
               await executeCommandRef.current(command, {
-                durationScale: inkRestoreDurationScale,
+                durationScale: 0,
                 applyLayout: false,
                 trustedDiagramGeometry,
                 isCancelled: isStale,
@@ -628,7 +625,6 @@ export function useBoardSession({
       activeVerifiedDiagramRef,
       setActiveVerifiedDiagram,
       fbdPhaseStartedRef,
-      inkRestoreDurationScale,
     ],
   );
 
