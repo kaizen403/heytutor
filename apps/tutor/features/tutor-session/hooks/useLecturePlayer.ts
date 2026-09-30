@@ -17,6 +17,7 @@ import {
 } from "@heytutor/whiteboard";
 import type { VerifiedDiagram } from "@heytutor/drawing";
 import type { InkPace } from "@heytutor/tutor-core";
+import { applyHtmlAudioPlaybackRate } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
@@ -37,6 +38,9 @@ import {
   createSeekQueue,
   createSmoothedMediaClock,
   lecturePlayerKeyAction,
+  lecturePaceRate,
+  mediaSecondsForSeek,
+  audioIsAtMediaEnd,
   planLectureSeek,
   skipTarget,
   LECTURE_PLAYER_SKIP_MS,
@@ -164,10 +168,6 @@ async function settleFrame(clock: VirtualWhiteboardClock): Promise<void> {
 
 function waitForSeeked(audio: HTMLAudioElement): Promise<void> {
   return new Promise((resolve) => {
-    if (!audio.seeking) {
-      resolve();
-      return;
-    }
     const done = () => {
       window.clearTimeout(timer);
       audio.removeEventListener("seeked", done);
@@ -175,6 +175,9 @@ function waitForSeeked(audio: HTMLAudioElement): Promise<void> {
     };
     const timer = window.setTimeout(done, SEEKED_TIMEOUT_MS);
     audio.addEventListener("seeked", done);
+    queueMicrotask(() => {
+      if (!audio.seeking) done();
+    });
   });
 }
 
@@ -262,6 +265,7 @@ export function useLecturePlayer({
   const drawDoneRef = useRef(true);
   const rateRef = useRef(rate);
   const onRateChangeRef = useRef(onRateChange);
+  onRateChangeRef.current = onRateChange;
 
   const cancelRef = useRef(false);
   const speedRef = useRef(1);
@@ -451,8 +455,21 @@ export function useLecturePlayer({
   const startAudio = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio || !activeRef.current) return;
-    audio.playbackRate = rateRef.current;
+    applyHtmlAudioPlaybackRate(audio, lecturePaceRate(rateRef.current));
+    audio.muted = false;
+    const seconds = mediaSecondsForSeek(positionRef.current, audio.duration);
+    if (audioIsAtMediaEnd(audio) || Math.abs(audio.currentTime - seconds) > 0.05) {
+      try {
+        audio.currentTime = seconds;
+      } catch {
+        // Metadata may not be ready yet; play() still starts from the last seek.
+      }
+    }
     smoothClock.reset(positionRef.current, performance.now());
+    if (!audio.paused && !audio.ended) {
+      setPlayerStatus("playing");
+      return;
+    }
     try {
       await audio.play();
       if (!activeRef.current || seekQueue.busy()) return;
@@ -488,7 +505,15 @@ export function useLecturePlayer({
       const current = () => generation === drawGenerationRef.current && !supersededRef.current;
       const stillOurs = () => generation === drawGenerationRef.current;
 
-      audio.pause();
+      // Keep the element playing (muted) when this seek should resume. A pause
+      // here drops the scrub gesture, and play() after the board rebuild is
+      // autoplay-blocked: the lecture looks right and the voice never starts.
+      if (wantsPlayingRef.current) {
+        audio.muted = true;
+      } else {
+        audio.pause();
+        audio.muted = false;
+      }
       if (paintFreeze()) setFreezeVisible(true);
 
       // Let the draw loop this seek replaces see it is stale and stop before
@@ -583,9 +608,14 @@ export function useLecturePlayer({
       publishCueText(cues, plan.targetCueIndex);
       store.set({ positionMs: plan.targetMs });
 
-      audio.currentTime = plan.targetMs / 1000;
+      try {
+        audio.currentTime = mediaSecondsForSeek(plan.targetMs, audio.duration);
+      } catch {
+        // The blob may not have reported duration yet.
+      }
       await waitForSeeked(audio);
       if (!current()) return false;
+      audio.muted = false;
       smoothClock.reset(plan.targetMs, performance.now());
 
       drawBoardNow();
@@ -615,6 +645,18 @@ export function useLecturePlayer({
       positionRef.current = target;
       store.set({ positionMs: target });
       setPlayerStatus("seeking");
+      const audio = audioRef.current;
+      // Start the voice in this gesture, before the board catch-up awaits.
+      // After `ended`, a play() issued seconds later is treated as autoplay.
+      if (play && audio && audio.src) {
+        audio.muted = true;
+        try {
+          audio.currentTime = mediaSecondsForSeek(target, audio.duration);
+        } catch {
+          // ignore
+        }
+        void audio.play().catch(() => undefined);
+      }
       if (!seekQueue.request(target)) {
         supersededRef.current = true;
         return;
@@ -707,7 +749,11 @@ export function useLecturePlayer({
     // Wake the stale draw loop's clock waits so it sees the new generation.
     clockRef.current?.pump();
     playerBoardRef.current?.cancelAnimations();
-    audioRef.current?.pause();
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.muted = false;
+    }
     lastCueIndexRef.current = -1;
     positionRef.current = timelineRef.current?.totalMs ?? 0;
     const wasActive = activeRef.current;
@@ -803,7 +849,7 @@ export function useLecturePlayer({
     store.set({ rate });
     const audio = audioRef.current;
     if (audio) {
-      audio.playbackRate = rate;
+      applyHtmlAudioPlaybackRate(audio, lecturePaceRate(rate));
       smoothClock.reset(positionRef.current, performance.now());
     }
   }, [rate, smoothClock, store]);
@@ -817,6 +863,8 @@ export function useLecturePlayer({
 
     const onEnded = () => {
       if (!activeRef.current || statusRef.current === "seeking") return;
+      // A delayed `ended` from the previous finish must not silence a seek back.
+      if (Number.isFinite(audio.duration) && audio.currentTime < audio.duration - 0.2) return;
       const total = timelineRef.current?.totalMs ?? 0;
       positionRef.current = total;
       clockRef.current?.setNow(total);
@@ -899,7 +947,7 @@ export function useLecturePlayer({
             audio.src = track.url;
             audio.load();
           }
-          audio.playbackRate = rateRef.current;
+          audio.playbackRate = lecturePaceRate(rateRef.current);
           trackReadyRef.current = true;
           store.set({ loadedMs: timeline.totalMs });
           if (!activeRef.current) setPlayerStatus("ready");
@@ -912,7 +960,7 @@ export function useLecturePlayer({
           console.error("Lecture track failed to load:", error);
           pendingStartRef.current = null;
           store.set({ error: "The lecture audio could not be loaded." });
-          setPlayerStatus("unavailable");
+          if (!activeRef.current) setPlayerStatus("ready");
         });
     });
     return () => {
@@ -940,12 +988,16 @@ export function useLecturePlayer({
       // Ink that runs past the last word finishes after the voice stops, on
       // the same clock, so the final frame is the finished board.
       if (statusRef.current === "ended" && !drawDoneRef.current) {
-        clock.setNow(clock.now() + wallDeltaMs * Math.max(rateRef.current, 0.1));
+        clock.setNow(clock.now() + wallDeltaMs * Math.max(lecturePaceRate(rateRef.current), 0.1));
         clock.pump();
         renderCodePanel(timeline.totalMs);
         return;
       }
       if (statusRef.current !== "playing") return;
+      const pace = lecturePaceRate(rateRef.current);
+      if (Math.abs(audio.playbackRate - pace) > 0.001) {
+        applyHtmlAudioPlaybackRate(audio, pace);
+      }
       const ms = Math.min(
         smoothClock.sample({
           mediaMs: audio.currentTime * 1000,

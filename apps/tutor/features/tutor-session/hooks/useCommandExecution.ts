@@ -405,10 +405,11 @@ export function useCommandExecution({
       // flashes past the eye — applied during a catch-up it would instead
       // replay every command as a visible 50ms tween, so scrubbing back one
       // step redraws the whole lecture from the beginning. Zero means zero.
+      // 0 is a seek and 0.05 is a board restore. Both want the finished mark.
+      // Flooring the restore at 50ms made every saved stroke take real time,
+      // so reopening a lecture sat on "loading the board".
       const scaledDuration = (duration: number) =>
-        durationScale === 0
-          ? 0
-          : Math.max(Math.round(duration * durationScale), 50);
+        durationScale <= 0.05 ? 0 : Math.max(Math.round(duration * durationScale), 50);
 
       const speechSplit = (command: DrawCommand) => {
         if (speechDurationMs === undefined) {
@@ -964,6 +965,8 @@ export function useCommandExecution({
           break;
         }
         case "PAUSE": {
+          // A restore or a seek is not waiting out the silence between sentences.
+          if (durationScale <= 0.05) break;
           const pauseMs =
             speechDurationMs !== undefined
               ? Math.max(Math.round(speechDurationMs), 50)

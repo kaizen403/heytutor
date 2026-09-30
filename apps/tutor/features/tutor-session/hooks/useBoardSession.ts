@@ -515,6 +515,11 @@ export function useBoardSession({
         resetBoardLayout(false, false);
         codeLessonControllerRef?.current?.reset();
 
+        // The overlay is "loading the board", and it only leaves when this
+        // flag flips. Ink after this is the finished page, drawn with no
+        // stroke delays, so it should not keep the spinner up.
+        if (!isStale()) setBoardLoaded(true);
+
         if (turns.length === 0 || skipInkRestoreRef?.current) {
           return;
         }
