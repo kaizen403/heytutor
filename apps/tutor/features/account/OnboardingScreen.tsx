@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { GraduationCap, User } from "lucide-react";
+import { ChevronDown, GraduationCap, User } from "lucide-react";
 import { Brand } from "@/components/brand/Brand";
 import { SiteButton } from "@/components/ui/site-button";
 import {
@@ -12,7 +12,6 @@ import {
   COMING_SOON_SUBJECTS,
   SUBJECT_LABELS,
   classYearsForRole,
-  isClassYear,
   type AgeBand,
   type ClassYear,
   type LearnerRole,
@@ -225,26 +224,16 @@ export function OnboardingScreen({
               />
             </label>
 
-            <label className="block text-sm text-[rgba(237,237,235,0.7)]">
+            <div className="block text-sm text-[rgba(237,237,235,0.7)]">
               {pathCopy.yearLegend}
-              <select
-                value={classYear ?? ""}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setClassYear(isClassYear(value) ? value : null);
-                }}
-                className="mt-1.5 w-full rounded-xl border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.25)] px-3 py-2.5 text-sm text-frost outline-none focus:border-sky-500 [&>option]:bg-[#171716]"
-              >
-                <option value="" disabled>
-                  {copy.shared.yearPlaceholder}
-                </option>
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {CLASS_YEAR_LABELS[year]}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <YearSelect
+                label={pathCopy.yearLegend}
+                placeholder={copy.shared.yearPlaceholder}
+                years={years}
+                value={classYear}
+                onChange={setClassYear}
+              />
+            </div>
 
             <fieldset>
               <legend className="mb-2 text-sm text-[rgba(237,237,235,0.7)]">
@@ -348,6 +337,116 @@ export function OnboardingScreen({
         )}
       </div>
     </main>
+  );
+}
+
+function YearSelect({
+  label,
+  placeholder,
+  years,
+  value,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  years: readonly ClassYear[];
+  value: ClassYear | null;
+  onChange: (year: ClassYear) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  const selectedIndex = value ? years.indexOf(value) : -1;
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    return () => document.removeEventListener("mousedown", onPointer);
+  }, [open]);
+
+  const openMenu = () => {
+    setActive(selectedIndex >= 0 ? selectedIndex : 0);
+    setOpen(true);
+  };
+
+  return (
+    <div ref={rootRef} className="relative mt-1.5">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-label={label}
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            if (!open) openMenu();
+            else setActive((index) => Math.min(years.length - 1, index + 1));
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            if (!open) openMenu();
+            else setActive((index) => Math.max(0, index - 1));
+          } else if (event.key === "Enter" && open) {
+            event.preventDefault();
+            const year = years[active];
+            if (year) onChange(year);
+            setOpen(false);
+          } else if (event.key === "Escape") {
+            setOpen(false);
+          }
+        }}
+        className={`flex w-full items-center justify-between rounded-xl border bg-[rgba(0,0,0,0.25)] px-3 py-2.5 text-left text-sm outline-none focus:border-sky-500 ${
+          open ? "border-sky-500" : "border-[rgba(255,255,255,0.1)]"
+        } ${value ? "text-frost" : "text-[rgba(237,237,235,0.45)]"}`}
+      >
+        <span>{value ? CLASS_YEAR_LABELS[value] : placeholder}</span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-sky-300 transition ${open ? "rotate-180" : ""}`}
+          aria-hidden
+        />
+      </button>
+      {open ? (
+        <ul
+          id={listId}
+          role="listbox"
+          aria-label={label}
+          className="absolute z-20 mt-1.5 max-h-64 w-full overflow-auto rounded-xl border border-[rgba(255,255,255,0.1)] bg-[#171716] p-1 shadow-[0_16px_40px_rgba(0,0,0,0.45)]"
+        >
+          {years.map((year, index) => {
+            const selected = year === value;
+            const highlighted = index === active;
+            return (
+              <li key={year} role="presentation">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onMouseEnter={() => setActive(index)}
+                  onClick={() => {
+                    onChange(year);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center rounded-lg px-3 py-2 text-left text-sm ${
+                    selected
+                      ? "bg-sky-500/18 text-sky-200"
+                      : highlighted
+                        ? "bg-[rgba(74,158,255,0.1)] text-frost"
+                        : "text-[rgba(237,237,235,0.82)]"
+                  }`}
+                >
+                  {CLASS_YEAR_LABELS[year]}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 

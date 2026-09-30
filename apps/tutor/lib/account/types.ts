@@ -16,6 +16,7 @@ const CLASS_YEARS = [
   "11",
   "12",
   "dropper",
+  "ug",
   "ug1",
   "ug2",
   "ug3",
@@ -31,7 +32,7 @@ const LEARNER_ROLES = ["college", "other"] as const;
 
 export type LearnerRole = (typeof LEARNER_ROLES)[number];
 
-export const SCHOOL_YEARS: readonly ClassYear[] = ["8", "9", "10", "11", "12", "dropper", "other"];
+export const SCHOOL_YEARS: readonly ClassYear[] = ["8", "9", "10", "11", "12", "dropper", "ug", "other"];
 export const COLLEGE_YEARS: readonly ClassYear[] = ["ug1", "ug2", "ug3", "ug4", "pg", "other"];
 
 export const SCHOOL_EXAM_GOALS: readonly ExamGoal[] = [
@@ -72,6 +73,7 @@ export const CLASS_YEAR_LABELS: Record<ClassYear, string> = {
   "11": "Class 11",
   "12": "Class 12",
   dropper: "Dropper",
+  ug: "UG (undergraduate)",
   ug1: "First year",
   ug2: "Second year",
   ug3: "Third year",
