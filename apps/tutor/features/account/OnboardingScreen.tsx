@@ -10,13 +10,11 @@ import {
   AVAILABLE_SUBJECTS,
   CLASS_YEAR_LABELS,
   COMING_SOON_SUBJECTS,
-  EXAM_GOAL_LABELS,
   SUBJECT_LABELS,
   classYearsForRole,
-  examGoalsForRole,
+  isClassYear,
   type AgeBand,
   type ClassYear,
-  type ExamGoal,
   type LearnerRole,
   type SubjectId,
 } from "@/lib/account/types";
@@ -50,16 +48,15 @@ export function OnboardingScreen({
   const [ageBand, setAgeBand] = useState<AgeBand | null>(null);
   const [guardianEmail, setGuardianEmail] = useState("");
   const [name, setName] = useState(initialName);
-  const [examGoal, setExamGoal] = useState<ExamGoal | null>(null);
   const [classYear, setClassYear] = useState<ClassYear | null>(null);
   const [subjects, setSubjects] = useState<SubjectId[]>([]);
   const [accent, setAccent] = useState<TutorAccent>(DEFAULT_ACCENT);
   const [familiarity, setFamiliarity] = useState<SubjectFamiliarity>(DEFAULT_FAMILIARITY);
+  const [familiarityInfoOpen, setFamiliarityInfoOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const pathCopy = learnerRole === "college" ? copy.college : copy.other;
-  const goals = learnerRole ? examGoalsForRole(learnerRole) : [];
   const years = learnerRole ? classYearsForRole(learnerRole) : [];
 
   const toggleSubject = (subject: SubjectId) => {
@@ -70,7 +67,6 @@ export function OnboardingScreen({
 
   const pickRole = (role: LearnerRole) => {
     setLearnerRole(role);
-    setExamGoal(null);
     setClassYear(null);
     setError(null);
   };
@@ -118,7 +114,7 @@ export function OnboardingScreen({
           ageBand,
           guardianEmail,
           name,
-          examGoal,
+          examGoal: "learning",
           classYear,
           subjects,
           audioLanguage: DEFAULT_AUDIO_LANGUAGE,
@@ -229,37 +225,26 @@ export function OnboardingScreen({
               />
             </label>
 
-            <fieldset>
-              <legend className="mb-2 text-sm text-[rgba(237,237,235,0.7)]">
-                {pathCopy.goalLegend}
-              </legend>
-              <div className="flex flex-wrap gap-2">
-                {goals.map((goal) => (
-                  <Choice
-                    key={goal}
-                    label={EXAM_GOAL_LABELS[goal]}
-                    checked={examGoal === goal}
-                    onClick={() => setExamGoal(goal)}
-                  />
-                ))}
-              </div>
-            </fieldset>
-
-            <fieldset>
-              <legend className="mb-2 text-sm text-[rgba(237,237,235,0.7)]">
-                {pathCopy.yearLegend}
-              </legend>
-              <div className="flex flex-wrap gap-2">
+            <label className="block text-sm text-[rgba(237,237,235,0.7)]">
+              {pathCopy.yearLegend}
+              <select
+                value={classYear ?? ""}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setClassYear(isClassYear(value) ? value : null);
+                }}
+                className="mt-1.5 w-full rounded-xl border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.25)] px-3 py-2.5 text-sm text-frost outline-none focus:border-sky-500 [&>option]:bg-[#171716]"
+              >
+                <option value="" disabled>
+                  {copy.shared.yearPlaceholder}
+                </option>
                 {years.map((year) => (
-                  <Choice
-                    key={year}
-                    label={CLASS_YEAR_LABELS[year]}
-                    checked={classYear === year}
-                    onClick={() => setClassYear(year)}
-                  />
+                  <option key={year} value={year}>
+                    {CLASS_YEAR_LABELS[year]}
+                  </option>
                 ))}
-              </div>
-            </fieldset>
+              </select>
+            </label>
 
             <fieldset>
               <legend className="mb-2 text-sm text-[rgba(237,237,235,0.7)]">
@@ -299,9 +284,39 @@ export function OnboardingScreen({
             </fieldset>
 
             <fieldset>
-              <legend className="mb-2 text-sm text-[rgba(237,237,235,0.7)]">
+              <legend className="mb-2 flex items-center gap-2 text-sm text-[rgba(237,237,235,0.7)]">
                 {copy.shared.familiarityLegend}
+                <button
+                  type="button"
+                  aria-expanded={familiarityInfoOpen}
+                  aria-controls="familiarity-info"
+                  aria-label={copy.shared.familiarityInfoLabel}
+                  title={copy.shared.familiarityInfoLabel}
+                  onClick={() => setFamiliarityInfoOpen((open) => !open)}
+                  className={`inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px] font-semibold leading-none outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 ${
+                    familiarityInfoOpen
+                      ? "border-sky-500 bg-sky-500/12 text-sky-200"
+                      : "border-[rgba(255,255,255,0.2)] text-[rgba(237,237,235,0.6)] hover:border-sky-500 hover:text-sky-200"
+                  }`}
+                >
+                  i
+                </button>
               </legend>
+              {familiarityInfoOpen ? (
+                <div
+                  id="familiarity-info"
+                  className="mb-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(0,0,0,0.2)] px-3 py-2.5 text-xs leading-5 text-[rgba(237,237,235,0.62)]"
+                >
+                  <ul className="flex flex-col gap-0.5">
+                    {copy.shared.familiarityInfo.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-1.5 text-[rgba(237,237,235,0.5)]">
+                    {copy.shared.familiarityInfoNote}
+                  </p>
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 <Choice
                   label="New"

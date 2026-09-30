@@ -9,7 +9,20 @@ const EXAM_GOALS = [
 
 export type ExamGoal = (typeof EXAM_GOALS)[number];
 
-const CLASS_YEARS = ["11", "12", "dropper", "ug1", "ug2", "ug3", "ug4", "other"] as const;
+const CLASS_YEARS = [
+  "8",
+  "9",
+  "10",
+  "11",
+  "12",
+  "dropper",
+  "ug1",
+  "ug2",
+  "ug3",
+  "ug4",
+  "pg",
+  "other",
+] as const;
 
 export type ClassYear = (typeof CLASS_YEARS)[number];
 
@@ -18,8 +31,8 @@ const LEARNER_ROLES = ["college", "other"] as const;
 
 export type LearnerRole = (typeof LEARNER_ROLES)[number];
 
-export const SCHOOL_YEARS: readonly ClassYear[] = ["11", "12", "dropper", "other"];
-export const COLLEGE_YEARS: readonly ClassYear[] = ["ug1", "ug2", "ug3", "ug4", "other"];
+export const SCHOOL_YEARS: readonly ClassYear[] = ["8", "9", "10", "11", "12", "dropper", "other"];
+export const COLLEGE_YEARS: readonly ClassYear[] = ["ug1", "ug2", "ug3", "ug4", "pg", "other"];
 
 export const SCHOOL_EXAM_GOALS: readonly ExamGoal[] = [
   "jee_main",
@@ -53,6 +66,9 @@ export const EXAM_GOAL_LABELS: Record<ExamGoal, string> = {
 };
 
 export const CLASS_YEAR_LABELS: Record<ClassYear, string> = {
+  "8": "Class 8",
+  "9": "Class 9",
+  "10": "Class 10",
   "11": "Class 11",
   "12": "Class 12",
   dropper: "Dropper",
@@ -60,6 +76,7 @@ export const CLASS_YEAR_LABELS: Record<ClassYear, string> = {
   ug2: "Second year",
   ug3: "Third year",
   ug4: "Fourth year",
+  pg: "Postgraduate",
   other: "Other",
 };
 

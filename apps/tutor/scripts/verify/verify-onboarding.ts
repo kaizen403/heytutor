@@ -50,6 +50,24 @@ assert(
   CLASS_YEAR_LABELS.ug1 === "First year" && CLASS_YEAR_LABELS["11"] === "Class 11",
   "college years and school years keep their own labels",
 );
+assert(
+  SCHOOL_YEARS.join(",") === "8,9,10,11,12,dropper,other",
+  "the individual path runs from Class 8 through dropper",
+);
+assert(
+  COLLEGE_YEARS.join(",") === "ug1,ug2,ug3,ug4,pg,other",
+  "the college path runs from first year through postgraduate",
+);
+assert(
+  CLASS_YEAR_LABELS["8"] === "Class 8" && CLASS_YEAR_LABELS.pg === "Postgraduate",
+  "new years carry plain labels",
+);
+assert(classYearFitsRole("other", "9") && !classYearFitsRole("college", "10"), "school classes stay off the college path");
+assert(classYearFitsRole("college", "pg") && !classYearFitsRole("other", "pg"), "postgraduate is a college year");
+assert(
+  Object.values(CLASS_YEAR_LABELS).every((label) => !/[—–]/.test(label)),
+  "year labels carry no dash punctuation",
+);
 
 assert(
   profileSubtitle({ learnerRole: "college", examGoal: "coding", classYear: "ug2" }) ===
@@ -71,7 +89,10 @@ const screen = readFileSync(resolve(root, "features/account/OnboardingScreen.tsx
 assert(screen.includes('"role" | "setup"') || screen.includes("type Step = \"role\" | \"setup\""), "onboarding is role then a setup page");
 assert(screen.includes("pickRole(\"college\")") && screen.includes("pickRole(\"other\")"), "both answers on the first page");
 assert(screen.includes("GraduationCap") && screen.includes("User"), "role cards carry college and individual logos");
-assert(screen.includes("examGoalsForRole") && screen.includes("classYearsForRole"), "the setup page is chosen from the role");
+assert(screen.includes("classYearsForRole"), "the setup page is chosen from the role");
+assert(screen.includes("<select") && screen.includes("{years.map((year) => (\n                  <option"), "the year is a dropdown of the role's years");
+assert(!screen.includes("Why are you here?"), "onboarding does not ask why you are here");
+assert(screen.includes('examGoal: "learning"'), "a hidden default goal still satisfies the account");
 assert(screen.includes("learnerRole"), "the chosen role is sent with the rest of onboarding");
 
 const api = readFileSync(resolve(root, "app/api/account/onboarding/route.ts"), "utf8");

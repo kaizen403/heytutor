@@ -179,7 +179,7 @@ export function LoginScreen({
           <a className="text-sky-300 underline-offset-2 hover:underline" href={getLegalHref("/privacy")}>
             Privacy Policy
           </a>
-          . Under 13 is not allowed. Ages 13 to 17 need a guardian email.
+          .
         </p>
       </div>
     </main>
