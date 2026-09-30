@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PrismaClient } from "@prisma/client";
 import { LANDING_SUGGESTIONS } from "../../features/tutor-session/constants";
 import {
   isLectureHomePrompt,
@@ -301,4 +302,12 @@ assert(
   "a fresh batch is reused instead of calling AI on every reload",
 );
 
-console.log("verify-landing-suggestions: ok");
+const prismaProbe = new PrismaClient();
+const hasSuggestionCache = "homeSuggestionCache" in prismaProbe;
+void prismaProbe.$disconnect().finally(() => {
+  assert(
+    hasSuggestionCache,
+    "Prisma client is missing HomeSuggestionCache. Run prisma generate or the suggestion refresh returns 500 and the icon does nothing.",
+  );
+  console.log("verify-landing-suggestions: ok");
+});

@@ -109,6 +109,14 @@ function startServer(): void {
   });
 }
 
+function generatePrismaClient(): void {
+  // Schema changes do not rerun the package postinstall, so a dev server
+  // started from an older client 500s on models added later (home suggestions).
+  console.log("[dev] Generating Prisma client…");
+  run("pnpm exec prisma generate", tutorRoot);
+}
+
 removeProductionNextOutput();
+generatePrismaClient();
 ensureLocalDb();
 startServer();
