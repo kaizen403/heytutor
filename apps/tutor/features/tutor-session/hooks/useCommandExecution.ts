@@ -62,6 +62,7 @@ import { frameAdvanceRole } from "../lib/code-lesson/codeLessonSegments";
 import type { SpokenSegmentClock } from "../lib/code-lesson/codeSpokenSync";
 import { runFrameWalkBeat, runTypedBlockBeat, walkSpokenStops, frameWalkPlan } from "../lib/code-lesson/spokenWalk";
 import type { BoardTextRect, BoardLayoutState } from "../types";
+import type { IntroLayoutCheckpoint } from "../lib/board/introLayoutCheckpoint";
 import { commitWorkRowInk, isInDiagramZone, registerBoardAnchor, resolveVisibleEmphasisRow, workColumnMaxWidth } from "../lib/board/boardLayout";
 import { wrapWorkRow } from "./useBoardLayout";
 import { resolveSnappedAnnotationParams } from "../lib/board/annotationSnap";
@@ -95,6 +96,7 @@ export interface UseCommandExecutionParams {
     x: number,
     y: number,
     applyLayout: boolean,
+    introLayoutCheckpoint?: IntroLayoutCheckpoint,
   ) => Promise<{ x: number; y: number }>;
   raceWithCancel: <T>(promise: Promise<T>) => Promise<T | undefined>;
   inkPaceRef: RefObject<InkPace>;
@@ -203,6 +205,7 @@ export function useCommandExecution({
     async function executeCommand(
       rawCommand: DrawCommand,
       options: {
+        introLayoutCheckpoint?: IntroLayoutCheckpoint;
         durationScale?: number;
         speechDurationMs?: number;
         writeSchedule?: WriteSchedule;
@@ -247,6 +250,11 @@ export function useCommandExecution({
       const wb = whiteboardRef.current;
       const commandCancelled = () => cancelRef.current || options.isCancelled?.() === true;
       if (!wb || commandCancelled()) return;
+      const commandLayout = options.introLayoutCheckpoint?.layout ?? boardLayoutRef.current;
+      const registerAnchor = (rect: BoardTextRect) => {
+        if (options.introLayoutCheckpoint) options.introLayoutCheckpoint.registerAnchor(rect);
+        else registerBoardAnchor(commandLayout, rect);
+      };
       // The same command object is serialized after live execution. Replays
       // already carry this snapshot, so a later settings change cannot restyle it.
       const inkSettings = captureCommandInk(rawCommand, wb.getInkSettings()).inkSettings;
@@ -509,7 +517,7 @@ export function useCommandExecution({
             if (commandCancelled()) return;
             await drawShape(pointMarkPath(x, y, radius), Math.min(drawMs, 280));
             if (isInDiagramZone(x, y)) {
-              registerBoardAnchor(boardLayoutRef.current, {
+              registerAnchor({
                 x: x - 8,
                 y: y - 8,
                 width: 16,
@@ -539,7 +547,7 @@ export function useCommandExecution({
               const midX = splinePoints[midIdx - 1] ?? sx1;
               const midY = splinePoints[midIdx] ?? sy1;
               if (isInDiagramZone(midX, midY)) {
-                registerBoardAnchor(boardLayoutRef.current, {
+                registerAnchor({
                   x: Math.min(...splinePoints.filter((_, i) => i % 2 === 0)),
                   y: Math.min(...splinePoints.filter((_, i) => i % 2 === 1)),
                   width: 100,
@@ -564,7 +572,7 @@ export function useCommandExecution({
               if (params.some((value, index) => index % 2 === 0 && isInDiagramZone(value, params[index + 1] ?? 0))) {
                 const xs = params.filter((_, i) => i % 2 === 0);
                 const ys = params.filter((_, i) => i % 2 === 1);
-                registerBoardAnchor(boardLayoutRef.current, {
+                registerAnchor({
                   x: Math.min(...xs),
                   y: Math.min(...ys),
                   width: Math.max(...xs) - Math.min(...xs) || 20,
@@ -593,7 +601,7 @@ export function useCommandExecution({
               );
             }
             if (isInDiagramZone((x1 + x2) / 2, (y1 + y2) / 2)) {
-              registerBoardAnchor(boardLayoutRef.current, {
+              registerAnchor({
                 x: Math.min(x1, x2),
                 y: Math.min(y1, y2),
                 width: Math.abs(x2 - x1) || 20,
@@ -627,7 +635,7 @@ export function useCommandExecution({
               if (commandCancelled()) return;
               await writeText(command.text, labelX, labelY, labelDrawMs, undefined, dimensionSize);
               if (isInDiagramZone(labelX, labelY)) {
-                registerBoardAnchor(boardLayoutRef.current, {
+                registerAnchor({
                   x: labelX,
                   y: labelY,
                   width: Math.max(dimensionWidth, 24),
@@ -686,6 +694,7 @@ export function useCommandExecution({
                   x,
                   y,
                   command.type === "WRITE" || options.applyLayout !== false,
+                  options.introLayoutCheckpoint,
                 );
             if (isInDiagramZone(placement.x, placement.y)) {
               const diagramLabels = boardLayoutRef.current.rects.filter(
@@ -721,7 +730,7 @@ export function useCommandExecution({
               );
             } else {
               const { flightMs, drawMs } = speechSplit(command);
-              await wb.flyCursorTo(placement.x, placement.y, flightMs, -35);
+              await wb.flyCursorTo(placement.x, placement.y, flightMs, -35, command.type === "LABEL" ? commandCancelled : undefined);
               if (commandCancelled()) return;
               const penDrawMs =
                 inkPace === "follow" && !isSeekCatchUp
@@ -1017,6 +1026,13 @@ export function useCommandExecution({
         case "FOCUS": {
           const targets = resolveVerifiedDiagramFocusTargets(command, activeDiagram);
           if (targets.length === 0 || !activeDiagram) break;
+          // Marker tours/spoken walks use a three-argument host. Bind this
+          // focus's cancellation without changing the shared board adapter.
+          const focusCursorHost = {
+            flyCursorTo: (x: number, y: number, durationMs: number) =>
+              wb.flyCursorTo(x, y, durationMs, undefined, commandCancelled),
+            setCursorState: wb.setCursorState,
+          };
           const codeLessonActive = Boolean(codeLessonControllerRef?.current?.getActivePlan())
             || activeDiagram?.layout === "code_lesson";
           const spec = parseFocusSpec(command.semanticRef?.entityId ?? command.text);
@@ -1093,7 +1109,8 @@ export function useCommandExecution({
             const scheduleCancelled = await runScheduledFocus(
               {
                 setSpotlight: (spotlight) => wb.setSpotlight(spotlight),
-                flyCursorTo: (x, y, durationMs) => wb.flyCursorTo(x, y, durationMs),
+                flyCursorTo: (x, y, durationMs, rotation, shouldCancel) =>
+                  wb.flyCursorTo(x, y, durationMs, rotation, shouldCancel),
                 drawAnnotation: (kind, path, durationMs, annotationOptions) =>
                   drawAnnotation(kind, path, durationMs, annotationOptions),
               },
@@ -1159,7 +1176,7 @@ export function useCommandExecution({
             if (spokenClock) {
               const plan = frameWalkPlan(activeDiagram.anchors, spokenClock);
               if (plan.stops.some((stop) => focusIds.has(stop.id))) {
-                const approach = await walkSpokenStops(wb, plan.stops, spokenClock, {
+                const approach = await walkSpokenStops(focusCursorHost, plan.stops, spokenClock, {
                   untilMs: plan.totalMs,
                   isCancelled: commandCancelled,
                   delay: cancellableDelay,
@@ -1195,7 +1212,7 @@ export function useCommandExecution({
                 // The pen walks the lit entities while the tutor names them.
                 // It used to go `idle` here, which is opacity 0: the figure
                 // was spotlit and the pen was nowhere on the board.
-                return await tourMarker(wb, markerTourStops(targets, pointBeatsRef.current), {
+                return await tourMarker(focusCursorHost, markerTourStops(targets, pointBeatsRef.current), {
                   totalMs: Math.min(Math.max(speechDurationMs ?? 600, 600), 1600),
                   isCancelled: commandCancelled,
                   delay: cancellableDelay,
@@ -1208,7 +1225,7 @@ export function useCommandExecution({
               // The veil is up for a glance; the rest of the sentence still
               // names cells, and the pen keeps walking them.
               const rest = frameWalkPlan(activeDiagram.anchors, spokenClock);
-              const walked = await walkSpokenStops(wb, rest.stops, spokenClock, {
+              const walked = await walkSpokenStops(focusCursorHost, rest.stops, spokenClock, {
                 untilMs: rest.totalMs,
                 isCancelled: commandCancelled,
                 delay: cancellableDelay,
@@ -1269,7 +1286,7 @@ export function useCommandExecution({
               }));
               const paths = (tracePaths.length > 0 ? tracePaths : fallbacks).slice(0, 8);
               for (const candidate of paths) {
-                await wb.flyCursorTo(candidate.x, candidate.y, Math.min(160, totalMs / paths.length));
+                await wb.flyCursorTo(candidate.x, candidate.y, Math.min(160, totalMs / paths.length), undefined, commandCancelled);
                 if (commandCancelled()) return true;
                 await drawAnnotation(
                   "underline",
@@ -1284,7 +1301,7 @@ export function useCommandExecution({
               // for as long as the veil is up, though — the rest of the step
               // is walked below, over an undimmed figure.
               const litTourCancelled = await tourMarker(
-                wb,
+                focusCursorHost,
                 markerTourStops(targets, pointBeatsRef.current),
                 {
                   totalMs: Math.min(Math.max(totalMs, 600), CODE_FOCUS_SPOTLIGHT_MS),
@@ -1324,7 +1341,7 @@ export function useCommandExecution({
               CODE_FOCUS_SPOTLIGHT_MS;
             if (walkMs > 400) {
               const walkCancelled = await tourMarker(
-                wb,
+                focusCursorHost,
                 markerTourStops(targets, pointBeatsRef.current + 1),
                 {
                   totalMs: walkMs,
@@ -1582,6 +1599,7 @@ export function useCommandExecution({
     async (
       command: DrawCommand,
       options: {
+        introLayoutCheckpoint?: IntroLayoutCheckpoint;
         durationScale?: number;
         speechDurationMs?: number;
         writeSchedule?: WriteSchedule;
@@ -1595,7 +1613,12 @@ export function useCommandExecution({
         inkPace?: InkPace;
       } = {},
     ): Promise<void> => {
-      await raceWithCancel(executeCommand(command, options));
+      const execution = executeCommand(command, options);
+      // An atomic intro must join the underlying cancelled command before
+      // rolling back its nodes/metadata. The adapter makes its own waits
+      // cancellable; a winning shell-level race is not that join.
+      if (options.introLayoutCheckpoint) await execution;
+      else await raceWithCancel(execution);
     },
     [executeCommand, raceWithCancel],
   );

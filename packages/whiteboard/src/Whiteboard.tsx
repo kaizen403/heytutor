@@ -31,7 +31,7 @@ import {
 import { Layer, Path as KonvaPath, Rect, Stage } from "react-konva";
 import { VirtualCursor } from "./VirtualCursor";
 import { cursorOpacity, type CursorState } from "./cursorState";
-import { DrawTransactionRegistry } from "./drawTransactionRegistry";
+import { DrawTransactionRegistry, type DrawCommandOwnership } from "./drawTransactionRegistry";
 import {
   advanceSpeedAwareProgress,
   audioWaitAlreadyDue,
@@ -265,10 +265,15 @@ export interface WhiteboardHandle {
   setInstrument: (instrument: InstrumentKind, hurry?: boolean) => Promise<void>;
   /** Spin the instrument in place — a beat of punctuation between steps. */
   flourishPen: (turns?: number) => Promise<void>;
-  flyCursorTo: (x: number, y: number, duration: number, targetRotation?: number) => Promise<void>;
+  flyCursorTo: (x: number, y: number, duration: number, targetRotation?: number, shouldCancel?: () => boolean) => Promise<void>;
   setPaused: (paused: boolean) => void;
   cancelAnimations: () => void;
   beginDrawTransaction: () => string;
+  createDrawSavepoint: (transactionId: string) => string;
+  /** Cancel only the current beat; await its commands before rollback. */
+  cancelDrawSavepoint: (transactionId: string, savepointId: string) => void;
+  /** Only after the owning stale command execution has been cancelled and joined. */
+  rollbackDrawSavepoint: (transactionId: string, savepointId: string) => void;
   commitDrawTransaction: (transactionId: string) => void;
   abortDrawTransaction: (transactionId: string) => void;
   finishAbortedDrawTransaction: (transactionId: string) => void;
@@ -295,7 +300,7 @@ export interface WhiteboardHandle {
       hole: { x: number; y: number; width: number; height: number };
       opacity?: number;
     } | null,
-  ) => void;
+  ) => () => void;
 }
 
 interface CursorView {
@@ -879,7 +884,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
      * for callers on a tight audio budget (compiler labels, catch-up writing).
      */
     const swapInstrument = useCallback(
-      async (kind: InstrumentKind, hurry = false): Promise<void> => {
+      async (kind: InstrumentKind, hurry = false, shouldCancel?: () => boolean,
+        ownership = drawTransactionsRef.current.capture()): Promise<void> => {
+        const isCancelled = (): boolean => Boolean(shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
+        if (isCancelled()) return;
         if (instrumentRef.current === kind) {
           return;
         }
@@ -903,8 +911,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             fade: pose.opacity,
             flatten: pose.flatten,
           });
-        });
+        }, isCancelled);
 
+        if (isCancelled()) return;
         if (!handedOver) {
           applyInstrument(kind);
         }
@@ -915,14 +924,18 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
     /** Reach for whatever this kind of work is done with. */
     const equipInstrumentFor = useCallback(
-      (activity: PenActivity, hurry = false): Promise<void> =>
-        swapInstrument(instrumentForActivity(activity), hurry),
+      (activity: PenActivity, hurry = false, shouldCancel?: () => boolean,
+        ownership = drawTransactionsRef.current.capture()): Promise<void> =>
+        swapInstrument(instrumentForActivity(activity), hurry, shouldCancel, ownership),
       [swapInstrument],
     );
 
     /** Spin in place without changing instrument. */
     const flourishPen = useCallback(
       async (turns = 1): Promise<void> => {
+        const ownership = drawTransactionsRef.current.capture();
+        const isCancelled = (): boolean => drawTransactionsRef.current.isCancelled(ownership);
+        if (isCancelled()) return;
         const { x, y, rotation } = cursorViewRef.current;
         await animateOver(SCRATCH_FLOURISH_MS, (progress) => {
           const pose = flourishPose(progress, turns);
@@ -930,8 +943,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             spin: pose.spin,
             lift: pose.lift,
           });
-        });
-        setCursorViewSafely(x, y, rotation, 1);
+        }, isCancelled);
+        if (!isCancelled()) setCursorViewSafely(x, y, rotation, 1);
       },
       [animateOver, setCursorViewSafely],
     );
@@ -942,7 +955,11 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         y: number,
         duration: number,
         targetRotation?: number,
+        shouldCancel?: () => boolean,
+        ownership = drawTransactionsRef.current.capture(),
       ): Promise<void> => {
+        const isCancelled = (): boolean => Boolean(shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
+        if (isCancelled()) return;
         const start = { x: cursorViewRef.current.x, y: cursorViewRef.current.y };
         const startRotation = cursorViewRef.current.rotation;
         const end = { x, y };
@@ -973,9 +990,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             1,
             { lift: FLIGHT_LIFT_PX * arc },
           );
-        });
+        }, isCancelled);
 
-        settleNib(x, y, fixedRotation);
+        if (!isCancelled()) settleNib(x, y, fixedRotation);
       },
       [animateOver, setCursorViewSafely, settleNib],
     );
@@ -996,7 +1013,11 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         durationMs: number,
         activity: PenActivity,
         playback?: { lockToWallClock?: boolean },
+        shouldCancel?: () => boolean,
+        ownership = drawTransactionsRef.current.capture(),
       ): Promise<void> => {
+        const isCancelled = (): boolean => Boolean(shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
+        if (isCancelled()) return;
         const start = { x: cursorViewRef.current.x, y: cursorViewRef.current.y };
         const bow = carryBow(distanceBetween(start, { x, y }));
         await animateOver(durationMs, (progress) => {
@@ -1004,8 +1025,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           const arc = Math.sin(Math.PI * progress);
           const point = bowedPoint(start, { x, y }, eased, bow);
           hoverNib(point.x, point.y, activity, HOP_LIFT_PX * arc);
-        }, undefined, playback);
-        jumpNib(x, y, activity);
+        }, isCancelled, playback);
+        if (!isCancelled()) jumpNib(x, y, activity);
       },
       [animateOver, hoverNib, jumpNib],
     );
@@ -1026,7 +1047,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
      * next stroke for the pen.
      */
     const glideNibTo = useCallback(
-      (x: number, y: number, activity: PenActivity): void => {
+      (x: number, y: number, activity: PenActivity, shouldCancel?: () => boolean,
+        ownership = drawTransactionsRef.current.capture()): void => {
+        const isCancelled = (): boolean => Boolean(shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
+        if (isCancelled()) return;
         const start = { x: cursorViewRef.current.x, y: cursorViewRef.current.y };
         const distance = distanceBetween(start, { x, y });
         if (nibTravelFor(distance) === "settle") {
@@ -1050,13 +1074,16 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             hoverNib(point.x, point.y, activity, HOP_LIFT_PX * arc);
             written = { x: cursorViewRef.current.x, y: cursorViewRef.current.y };
           },
-          () => !ours(),
+          () => !ours() || isCancelled(),
         );
       },
       [animateOver, hoverNib, jumpNib],
     );
 
     const cancelAnimations = useCallback((): void => {
+      // Resolving a wait schedules its continuation. Retire captured commands
+      // first, while leaving synchronous keep-visible commit free to release ink.
+      drawTransactionsRef.current.cancelCommands();
       Array.from(animationCleanupsRef.current).forEach((cleanup) => cleanup());
       Array.from(frameIdsRef.current).forEach((frameId) => timeSourceRef.current.cancelFrame(frameId));
       frameIdsRef.current.clear();
@@ -1065,12 +1092,13 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     const clearTrackedNodes = useCallback((nodes: Set<Konva.Node>): void => {
       nodes.forEach((node) => {
         node.destroy();
+        drawTransactionsRef.current.detach(node);
       });
       nodes.clear();
     }, []);
 
-    const trackNode = useCallback((node: Konva.Node, nodes: Set<Konva.Node>): boolean => {
-      if (!drawTransactionsRef.current.track(node)) return false;
+    const trackNode = useCallback((node: Konva.Node, nodes: Set<Konva.Node>, ownership?: DrawCommandOwnership): boolean => {
+      if (!drawTransactionsRef.current.track(node, ownership)) return false;
       nodes.add(node);
       return true;
     }, []);
@@ -1087,6 +1115,27 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       drawTransactionsRef.current.commit(transactionId);
     }, []);
 
+    const createDrawSavepoint = useCallback((transactionId: string): string => {
+      return drawTransactionsRef.current.savepoint(transactionId);
+    }, []);
+
+    const cancelDrawSavepoint = useCallback((transactionId: string, savepointId: string): void => {
+      drawTransactionsRef.current.cancel(transactionId, savepointId);
+    }, []);
+
+    const rollbackDrawSavepoint = useCallback((transactionId: string, savepointId: string): void => {
+      const nodes = drawTransactionsRef.current.rollback(transactionId, savepointId);
+      nodes.forEach((node) => {
+        animNodesRef.current.delete(node);
+        completedNodesRef.current.delete(node);
+      });
+      animLayerRef.current?.batchDraw();
+      drawLayerRef.current?.batchDraw();
+      highlightLayerRef.current?.batchDraw();
+      spotlightNodesRef.current = spotlightNodesRef.current.filter((node) => !nodes.has(node));
+      spotlightLayerRef.current?.batchDraw();
+    }, []);
+
     const abortDrawTransaction = useCallback((transactionId: string): void => {
       const nodes = drawTransactionsRef.current.abort(transactionId);
       nodes.forEach((node) => {
@@ -1096,6 +1145,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       animLayerRef.current?.batchDraw();
       drawLayerRef.current?.batchDraw();
       highlightLayerRef.current?.batchDraw();
+      spotlightNodesRef.current = spotlightNodesRef.current.filter((node) => !nodes.has(node));
+      spotlightLayerRef.current?.batchDraw();
     }, []);
 
     const finishAbortedDrawTransaction = useCallback((transactionId: string): void => {
@@ -1114,6 +1165,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           ) {
             node.destroy();
             nodes.delete(node);
+            drawTransactionsRef.current.detach(node);
           }
         });
       },
@@ -1129,16 +1181,24 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         if (node.getAttr(BOARD_INK_ATTR) === kind) {
           node.destroy();
           nodes.delete(node);
+          drawTransactionsRef.current.detach(node);
         }
       });
     }, []);
 
     const drawShape = useCallback(
       async (pathData: string, duration: number, options?: ShapeDrawOptions): Promise<void> => {
+        const ownership = drawTransactionsRef.current.capture();
+        const isCancelled = (): boolean => Boolean(options?.shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
+        const ownNode = (node: Konva.Node, nodes: Set<Konva.Node>): boolean => trackNode(node, nodes, ownership);
+        const discardNode = (node: Konva.Node, nodes: Set<Konva.Node>): void => {
+          if (drawTransactionsRef.current.status(ownership) === "released") return;
+          node.destroy(); untrackNode(node, nodes); drawTransactionsRef.current.detach(node);
+        };
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
 
-        if (!drawLayer || !animLayer || options?.shouldCancel?.()) {
+        if (!drawLayer || !animLayer || isCancelled()) {
           return;
         }
 
@@ -1161,12 +1221,12 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             path.setAttr(SCENE_LEAD_ATTR, true);
           }
           drawLayer.add(path);
-          trackNode(path, completedNodesRef.current);
+          ownNode(path, completedNodesRef.current);
           drawLayer.batchDraw();
           return;
         }
-        await equipInstrumentFor(activity);
-        if (options?.shouldCancel?.()) {
+        await equipInstrumentFor(activity, false, isCancelled, ownership);
+        if (isCancelled()) {
           return;
         }
 
@@ -1219,7 +1279,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           path.dash([6, 5]);
           path.opacity(0);
           animLayer.add(path);
-          trackNode(path, animNodesRef.current);
+          ownNode(path, animNodesRef.current);
           animLayer.batchDraw();
 
           const dashedFadeMs = options?.cued
@@ -1232,11 +1292,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               moveNib(point.x, point.y, activity);
             }
             animLayer.batchDraw();
-          });
+          }, isCancelled);
 
-          if (options?.shouldCancel?.()) {
-            path.destroy();
-            untrackNode(path, animNodesRef.current);
+          if (isCancelled()) {
+            discardNode(path, animNodesRef.current);
             animLayer.batchDraw();
             return;
           }
@@ -1244,7 +1303,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           path.opacity(inkStyle.opacity);
           path.moveTo(drawLayer);
           untrackNode(path, animNodesRef.current);
-          trackNode(path, completedNodesRef.current);
+          ownNode(path, completedNodesRef.current);
           animLayer.batchDraw();
           drawLayer.batchDraw();
           return;
@@ -1253,7 +1312,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         path.dash([totalLength]);
         path.dashOffset(totalLength);
         animLayer.add(path);
-        trackNode(path, animNodesRef.current);
+        ownNode(path, animNodesRef.current);
         animLayer.batchDraw();
 
         const pathSamples = sampleKonvaPath(path, totalLength);
@@ -1273,15 +1332,14 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           effectiveDuration = Math.max(effectiveDuration - reachMs, SCENE_SHAPE_MIN_MS);
         }
         if (travel === "fly") {
-          await flyCursorTo(startPoint.x, startPoint.y, reachMs, restingTilt(activity));
+          await flyCursorTo(startPoint.x, startPoint.y, reachMs, restingTilt(activity), isCancelled, ownership);
         } else if (travel === "hop") {
-          await hopNib(startPoint.x, startPoint.y, reachMs, activity);
+          await hopNib(startPoint.x, startPoint.y, reachMs, activity, undefined, isCancelled, ownership);
         } else {
           jumpNib(startPoint.x, startPoint.y, activity);
         }
-        if (options?.shouldCancel?.()) {
-          path.destroy();
-          untrackNode(path, animNodesRef.current);
+        if (isCancelled()) {
+          discardNode(path, animNodesRef.current);
           animLayer.batchDraw();
           return;
         }
@@ -1300,11 +1358,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           path.dashOffset(totalLength - drawnLength);
           moveNib(point.x, point.y, activity);
           animLayer.batchDraw();
-        });
+        }, isCancelled);
 
-        if (options?.shouldCancel?.()) {
-          path.destroy();
-          untrackNode(path, animNodesRef.current);
+        if (isCancelled()) {
+          discardNode(path, animNodesRef.current);
           animLayer.batchDraw();
           return;
         }
@@ -1313,7 +1370,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         path.dashOffset(0);
         path.moveTo(drawLayer);
         untrackNode(path, animNodesRef.current);
-        trackNode(path, completedNodesRef.current);
+        ownNode(path, completedNodesRef.current);
         animLayer.batchDraw();
         drawLayer.batchDraw();
       },
@@ -1337,6 +1394,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         rect: { x: number; y: number; width: number; height: number },
         margin = 8,
       ): void => {
+        if (drawTransactionsRef.current.hasSavepoint()) {
+          throw new Error("cannot punch diagram line gaps while a creation-only draw savepoint is active");
+        }
         const drawLayer = drawLayerRef.current;
         if (!drawLayer) {
           return;
@@ -1463,6 +1523,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
         toDestroy.forEach((node) => {
           node.destroy();
+          drawTransactionsRef.current.detach(node);
         });
 
         replacements.forEach((path) => {
@@ -1484,11 +1545,18 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         duration: number,
         options: AnnotationOptions = {},
       ): Promise<void> => {
+        const ownership = drawTransactionsRef.current.capture();
+        const isCancelled = (): boolean => Boolean(options.shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
+        const ownNode = (node: Konva.Node, nodes: Set<Konva.Node>): boolean => trackNode(node, nodes, ownership);
+        const discardNode = (node: Konva.Node, nodes: Set<Konva.Node>): void => {
+          if (drawTransactionsRef.current.status(ownership) === "released") return;
+          node.destroy(); untrackNode(node, nodes); drawTransactionsRef.current.detach(node);
+        };
         const drawLayer = drawLayerRef.current;
         const highlightLayer = highlightLayerRef.current;
         const animLayer = animLayerRef.current;
 
-        if (!drawLayer || !animLayer || options.shouldCancel?.()) {
+        if (!drawLayer || !animLayer || isCancelled()) {
           return;
         }
 
@@ -1499,8 +1567,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           if (duration <= 0) {
             applyInstrument(instrumentForActivity("highlight"));
           } else {
-            await equipInstrumentFor("highlight");
-            if (options.shouldCancel?.()) {
+            await equipInstrumentFor("highlight", false, isCancelled, ownership);
+            if (isCancelled()) {
               return;
             }
           }
@@ -1527,7 +1595,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           // a highlight that silently never appears. Commit it outright.
           if (!(box.width > 0) || !(box.height > 0)) {
             targetLayer.add(mark);
-            trackNode(mark, completedNodesRef.current);
+            ownNode(mark, completedNodesRef.current);
             targetLayer.batchDraw();
             return;
           }
@@ -1541,7 +1609,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           tagBoardInk(sweep, boardInkKindAt(box.x));
           sweep.add(mark);
           targetLayer.add(sweep);
-          trackNode(sweep, completedNodesRef.current);
+          ownNode(sweep, completedNodesRef.current);
           targetLayer.batchDraw();
 
           const sweepWidth = box.width + bleed * 2;
@@ -1559,12 +1627,11 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               moveNib(box.x + box.width * eased, nibY, "highlight");
               targetLayer.batchDraw();
             },
-            options.shouldCancel,
+            isCancelled,
           );
 
-          if (options.shouldCancel?.()) {
-            sweep.destroy();
-            untrackNode(sweep, completedNodesRef.current);
+          if (isCancelled()) {
+            discardNode(sweep, completedNodesRef.current);
             targetLayer.batchDraw();
             return;
           }
@@ -1592,7 +1659,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         path.dash([totalLength]);
         path.dashOffset(totalLength);
         animLayer.add(path);
-        trackNode(path, animNodesRef.current);
+        ownNode(path, animNodesRef.current);
         animLayer.batchDraw();
 
         const annotationSamples = sampleKonvaPath(path, totalLength);
@@ -1610,28 +1677,25 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           path.dashOffset(totalLength - drawnLength);
           moveNib(point.x, point.y, "annotate");
           animLayer.batchDraw();
-        });
+        }, isCancelled);
 
-        if (options.shouldCancel?.()) {
-          path.destroy();
-          untrackNode(path, animNodesRef.current);
+        if (isCancelled()) {
+          discardNode(path, animNodesRef.current);
           animLayer.batchDraw();
           return;
         }
 
         if (options.transient) {
           if (duration <= 0) {
-            path.destroy();
-            untrackNode(path, animNodesRef.current);
+            discardNode(path, animNodesRef.current);
             animLayer.batchDraw();
             return;
           }
           await animateOver(180, (progress) => {
             path.opacity(1 - progress);
             animLayer.batchDraw();
-          });
-          path.destroy();
-          untrackNode(path, animNodesRef.current);
+          }, isCancelled);
+          discardNode(path, animNodesRef.current);
           animLayer.batchDraw();
           return;
         }
@@ -1640,7 +1704,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         path.dashOffset(0);
         path.moveTo(drawLayer);
         untrackNode(path, animNodesRef.current);
-        trackNode(path, completedNodesRef.current);
+        ownNode(path, completedNodesRef.current);
         animLayer.batchDraw();
         drawLayer.batchDraw();
       },
@@ -1653,6 +1717,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         getAudioPositionMs: () => number,
         originWallMs: number,
         getPlaybackRate?: () => number,
+        shouldCancel?: () => boolean,
       ): Promise<void> =>
         new Promise((resolve) => {
           let done = false;
@@ -1706,7 +1771,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             }
             // Hand the exact parked pose back, so the character that was
             // waiting starts from where it would have without the idle.
-            if (idled) {
+            if (idled && !shouldCancel?.()) {
               settleNib(anchor.x, anchor.y, anchor.rotation);
               idled = false;
             }
@@ -1716,7 +1781,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
           const step = (): void => {
             if (done) return;
-            if (!mountedRef.current) {
+            if (!mountedRef.current || shouldCancel?.()) {
               cleanup();
               return;
             }
@@ -1772,7 +1837,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
           animationCleanupsRef.current.add(cleanup);
           const immediate = currentClockMs();
-          if (audioWaitAlreadyDue(immediate, targetMs)) {
+          if (shouldCancel?.() || audioWaitAlreadyDue(immediate, targetMs)) {
             cleanup();
             return;
           }
@@ -1780,6 +1845,44 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         }),
       [cancelTrackedFrame, nowMs, requestTrackedFrame, setCursorViewSafely, settleNib],
     );
+
+    /** Join a lookup only while this command owns it. Late fulfillment/rejection is consumed. */
+    const waitForOwnedPromise = useCallback(<T,>(promise: Promise<T>, shouldCancel: () => boolean): Promise<T | undefined> =>
+      new Promise((resolve, reject) => {
+        let done = false;
+        let frameId: number | null = null;
+        const cleanup = (): void => {
+          if (done) return;
+          done = true;
+          if (frameId !== null) cancelTrackedFrame(frameId);
+          animationCleanupsRef.current.delete(cleanup);
+          resolve(undefined);
+        };
+        const step = (): void => {
+          if (done) return;
+          if (!mountedRef.current || shouldCancel()) { cleanup(); return; }
+          frameId = requestTrackedFrame(step);
+        };
+        animationCleanupsRef.current.add(cleanup);
+        // Attach both handlers immediately, even if already cancelled. Never leave
+        // the uncancellable provider lookup's late rejection unobserved.
+        promise.then((value) => {
+          if (done) return;
+          if (shouldCancel()) { cleanup(); return; }
+          done = true;
+          if (frameId !== null) cancelTrackedFrame(frameId);
+          animationCleanupsRef.current.delete(cleanup);
+          resolve(value);
+        }, (error: unknown) => {
+          if (done) return;
+          if (shouldCancel()) { cleanup(); return; }
+          done = true;
+          if (frameId !== null) cancelTrackedFrame(frameId);
+          animationCleanupsRef.current.delete(cleanup);
+          reject(error);
+        });
+        step();
+      }), [cancelTrackedFrame, requestTrackedFrame]);
 
     const writeText = useCallback(
       async (
@@ -1792,10 +1895,19 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         shouldCancel?: () => boolean,
         inkSettings?: DrawCommandInkSettings,
       ): Promise<void> => {
+        const ownership = drawTransactionsRef.current.capture();
+        const isCancelled = (): boolean => Boolean(shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
+        const ownNode = (node: Konva.Node, nodes: Set<Konva.Node>): boolean => trackNode(node, nodes, ownership);
+        const discardNode = (node: Konva.Node, nodes: Set<Konva.Node>): void => {
+          if (drawTransactionsRef.current.status(ownership) === "released") return;
+          node.destroy();
+          untrackNode(node, nodes);
+          drawTransactionsRef.current.detach(node);
+        };
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
 
-        if (!drawLayer || !animLayer || shouldCancel?.()) {
+        if (!drawLayer || !animLayer || isCancelled()) {
           return;
         }
 
@@ -1822,13 +1934,13 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           // Paths and the instrument swap overlap so a 340 ms pen-from-pencil
           // flourish cannot eat the first spoken syllable. Scheduled rows hurry
           // the swap: the voice is already on the word.
-          const pathsPromise = textToStrokePaths(text, x, y, resolvedFontSize);
+          const pathsPromise = waitForOwnedPromise(textToStrokePaths(text, x, y, resolvedFontSize), isCancelled);
           if (!labelSized) {
             await Promise.all([
-              equipInstrumentFor("write", scheduledWrite),
+              equipInstrumentFor("write", scheduledWrite, isCancelled, ownership),
               pathsPromise,
             ]);
-            if (shouldCancel?.()) {
+            if (isCancelled()) {
               return;
             }
           }
@@ -1839,7 +1951,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           const inkStyle = styleForCommand(inkSettings);
           const characterPaths = await pathsPromise;
 
-          if (characterPaths.length === 0) {
+          if (isCancelled() || !characterPaths || characterPaths.length === 0) {
             return;
           }
 
@@ -1895,7 +2007,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             })
           ) {
             for (const { charPath } of charInfos) {
-              if (shouldCancel?.()) return;
+              if (isCancelled()) return;
               if (charPath.strokes.length === 0) {
                 const textNode = new Konva.Text({
                   text: charPath.char,
@@ -1909,7 +2021,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 });
                 tagBoardInk(textNode, inkKind);
                 drawLayer.add(textNode);
-                trackNode(textNode, completedNodesRef.current);
+                ownNode(textNode, completedNodesRef.current);
                 continue;
               }
               for (const stroke of charPath.strokes) {
@@ -1918,14 +2030,14 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 );
                 tagBoardInk(pathNode, inkKind);
                 drawLayer.add(pathNode);
-                trackNode(pathNode, completedNodesRef.current);
+                ownNode(pathNode, completedNodesRef.current);
               }
             }
             const last = charInfos.at(-1)?.charPath;
             if (last) {
               // The label is already on the board; the hand catches up to it on
               // its own time rather than appearing at the end of it.
-              glideNibTo(last.x + last.width, last.y, "write");
+              glideNibTo(last.x + last.width, last.y, "write", isCancelled, ownership);
             }
             drawLayer.batchDraw();
             return;
@@ -1977,6 +2089,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                   firstStroke.startY,
                   due ? Math.min(reachMs, 140) : reachMs,
                   HANDWRITING_ROTATION,
+                  isCancelled,
+                  ownership,
                 );
                 return;
               }
@@ -1986,13 +2100,15 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 hopDurationMs(dist) / playbackRate(),
                 "write",
                 scheduledPlayback,
+                isCancelled,
+                ownership,
               );
             };
             await Promise.all([
               approachFirstGlyph(),
-              waitForAudioPosition(firstCue, audioPositionMs, scheduleOriginMs, playbackRate),
+              waitForAudioPosition(firstCue, audioPositionMs, scheduleOriginMs, playbackRate, isCancelled),
             ]);
-            if (!mountedRef.current || shouldCancel?.()) return;
+            if (!mountedRef.current || isCancelled()) return;
           }
 
           const flyBudgetMs = Math.min(totalStrokes * 2, duration * 0.06);
@@ -2003,7 +2119,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           let previousScheduledInkMs: number | null = null;
 
           for (let ci = 0; ci < charInfos.length; ci++) {
-            if (!mountedRef.current || shouldCancel?.()) return;
+            if (!mountedRef.current || isCancelled()) return;
 
             const { charPath, pathLength, strokeLengths } = charInfos[ci];
 
@@ -2015,8 +2131,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               const start = offsets[Math.min(ci, offsets.length - 1)] ?? 0;
               // Hold this character until the voice reaches its spoken moment.
               // Missing/stuck clocks fall through to wall time from this WRITE start.
-              await waitForAudioPosition(start, audioPositionMs, scheduleOriginMs, playbackRate);
-              if (!mountedRef.current || shouldCancel?.()) return;
+              await waitForAudioPosition(start, audioPositionMs, scheduleOriginMs, playbackRate, isCancelled);
+              if (!mountedRef.current || isCancelled()) return;
               schedule?.onCharacterStart?.({
                 char: charPath.char,
                 index: ci,
@@ -2070,7 +2186,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
               const charDuration = Math.max(charBudgetMs, 30);
               animLayer.add(textNode);
-              trackNode(textNode, animNodesRef.current);
+              ownNode(textNode, animNodesRef.current);
               animLayer.batchDraw();
 
               const fadeVariation = handwritingVariation(ci * 13 + 7);
@@ -2092,13 +2208,12 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                   moveNib(charPath.x + charPath.width * eased, charPath.y, "write");
                   animLayer.batchDraw();
                 },
-                undefined,
+                isCancelled,
                 scheduled ? scheduledPlayback : undefined,
               );
 
-              if (shouldCancel?.()) {
-                textNode.destroy();
-                untrackNode(textNode, animNodesRef.current);
+              if (isCancelled()) {
+                discardNode(textNode, animNodesRef.current);
                 animLayer.batchDraw();
                 return;
               }
@@ -2106,7 +2221,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               textNode.opacity(inkStyle.opacity);
               textNode.moveTo(drawLayer);
               untrackNode(textNode, animNodesRef.current);
-              trackNode(textNode, completedNodesRef.current);
+              ownNode(textNode, completedNodesRef.current);
               animLayer.batchDraw();
               drawLayer.batchDraw();
               continue;
@@ -2126,6 +2241,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 firstStroke.startY,
                 shapeReachMs(dist),
                 HANDWRITING_ROTATION,
+                isCancelled,
+                ownership,
               );
             } else if (hopMs > 0) {
               // The hop comes out of this character's own time so the ink
@@ -2138,6 +2255,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 scheduled ? hopMs / playbackRate() : hopMs,
                 "write",
                 scheduled ? scheduledPlayback : undefined,
+                isCancelled,
+                ownership,
               );
               // What the hop leaves the glyph is floored at half the slot
               // floor, so a between-word carry never reduces the letter after
@@ -2146,7 +2265,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             } else {
               jumpNib(firstStroke.startX, firstStroke.startY, "write");
             }
-            if (!mountedRef.current || shouldCancel?.()) return;
+            if (!mountedRef.current || isCancelled()) return;
 
             const strokeNodes: Array<{
               pathNode: Konva.Path;
@@ -2166,7 +2285,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               pathNode.dash([totalLength]);
               pathNode.dashOffset(totalLength);
               animLayer.add(pathNode);
-              trackNode(pathNode, animNodesRef.current);
+              ownNode(pathNode, animNodesRef.current);
               let samples = strokeSampleCacheRef.current.get(stroke.pathData);
               if (!samples) {
                 samples = sampleKonvaPath(pathNode, totalLength);
@@ -2262,12 +2381,11 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 moveNib(point.x, point.y, "write");
               }
               animLayer.batchDraw();
-            }, undefined, scheduled ? scheduledPlayback : undefined);
+            }, isCancelled, scheduled ? scheduledPlayback : undefined);
 
-            if (shouldCancel?.()) {
+            if (isCancelled()) {
               for (const node of strokeNodes) {
-                node.pathNode.destroy();
-                untrackNode(node.pathNode, animNodesRef.current);
+                discardNode(node.pathNode, animNodesRef.current);
               }
               animLayer.batchDraw();
               return;
@@ -2278,12 +2396,13 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               node.pathNode.dashOffset(0);
               node.pathNode.moveTo(drawLayer);
               untrackNode(node.pathNode, animNodesRef.current);
-              trackNode(node.pathNode, completedNodesRef.current);
+              ownNode(node.pathNode, completedNodesRef.current);
             }
             animLayer.batchDraw();
             drawLayer.batchDraw();
           }
         } catch {
+          if (isCancelled()) return;
           const inkStyle = styleForCommand(inkSettings);
           const textNode = new Konva.Text({
             text,
@@ -2298,7 +2417,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           tagBoardInk(textNode, inkKind);
 
           animLayer.add(textNode);
-          trackNode(textNode, animNodesRef.current);
+          ownNode(textNode, animNodesRef.current);
           // The glyph path lookup failed and this line is being faded in
           // instead of written, but the hand still has to get to the start of
           // it. Bridged like any other reposition: a fallback is still watched.
@@ -2306,7 +2425,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           if (nibTravelFor(fallbackReach) === "settle") {
             jumpNib(x, y, "write");
           } else {
-            await flyCursorTo(x, y, shapeReachMs(fallbackReach), HANDWRITING_ROTATION);
+            await flyCursorTo(x, y, shapeReachMs(fallbackReach), HANDWRITING_ROTATION, isCancelled, ownership);
           }
           animLayer.batchDraw();
 
@@ -2314,11 +2433,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             textNode.opacity(progress * inkStyle.opacity);
             moveNib(x + textNode.getTextWidth() * progress, y, "write");
             animLayer.batchDraw();
-          });
+          }, isCancelled);
 
-          if (shouldCancel?.()) {
-            textNode.destroy();
-            untrackNode(textNode, animNodesRef.current);
+          if (isCancelled()) {
+            discardNode(textNode, animNodesRef.current);
             animLayer.batchDraw();
             return;
           }
@@ -2326,7 +2444,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           textNode.opacity(inkStyle.opacity);
           textNode.moveTo(drawLayer);
           untrackNode(textNode, animNodesRef.current);
-          trackNode(textNode, completedNodesRef.current);
+          ownNode(textNode, completedNodesRef.current);
           animLayer.batchDraw();
           drawLayer.batchDraw();
         }
@@ -2347,6 +2465,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         trackNode,
         untrackNode,
         waitForAudioPosition,
+        waitForOwnedPromise,
       ],
     );
 
@@ -2359,12 +2478,14 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         duration: number,
         shouldCancel?: () => boolean,
       ): Promise<void> => {
+        const ownership = drawTransactionsRef.current.capture();
+        const isCancelled = (): boolean => Boolean(shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
         const cursorLayer = cursorLayerRef.current;
         const highlightLayer = highlightLayerRef.current;
 
-        if (!drawLayer || !animLayer || !cursorLayer || shouldCancel?.()) {
+        if (!drawLayer || !animLayer || !cursorLayer || isCancelled()) {
           return;
         }
 
@@ -2382,8 +2503,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         updateCursorState("erasing");
 
         const targetY = y + regionHeight / 2;
-        await flyCursorTo(x, targetY, Math.min(duration * 0.3, 800));
-        if (shouldCancel?.()) return;
+        await flyCursorTo(x, targetY, Math.min(duration * 0.3, 800), undefined, isCancelled, ownership);
+        if (isCancelled()) return;
 
         const sweepDuration = Math.max(duration * 0.7, 100);
         await animateOver(sweepDuration, (progress) => {
@@ -2398,21 +2519,23 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           animLayer.batchDraw();
           highlightLayer?.batchDraw();
           cursorLayer.batchDraw();
-        }, shouldCancel);
+        }, isCancelled);
 
-        if (!shouldCancel?.()) updateCursorState(previousCursorState);
+        if (!isCancelled()) updateCursorState(previousCursorState);
       },
       [animateOver, destroyNodesInRect, flyCursorTo, setCursorViewSafely, updateCursorState],
     );
 
     const eraseWorkInk = useCallback(
       async (duration: number, shouldCancel?: () => boolean): Promise<void> => {
+        const ownership = drawTransactionsRef.current.capture();
+        const isCancelled = (): boolean => Boolean(shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
         const cursorLayer = cursorLayerRef.current;
         const highlightLayer = highlightLayerRef.current;
 
-        if (!drawLayer || !animLayer || !cursorLayer || shouldCancel?.()) {
+        if (!drawLayer || !animLayer || !cursorLayer || isCancelled()) {
           return;
         }
 
@@ -2436,24 +2559,24 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const regionWidth = DIAGRAM_ZONE.x - WORK_ZONE.x;
         const regionHeight = WORK_ZONE.height;
         const targetY = y + regionHeight / 2;
-        await flyCursorTo(x, targetY, Math.min(duration * 0.3, 800));
-        if (shouldCancel?.()) {
-          updateCursorState(previousCursorState);
-          return;
-        }
+        await flyCursorTo(x, targetY, Math.min(duration * 0.3, 800), undefined, isCancelled, ownership);
+        if (isCancelled()) return;
         const sweepDuration = Math.max(duration * 0.7, 100);
         await animateOver(sweepDuration, (progress) => {
           const sweepX = x + regionWidth * progress;
           setCursorViewSafely(sweepX, targetY, 0, 1);
           cursorLayer.batchDraw();
-        }, shouldCancel);
-        if (!shouldCancel?.()) updateCursorState(previousCursorState);
+        }, isCancelled);
+        if (!isCancelled()) updateCursorState(previousCursorState);
       },
       [animateOver, destroyTaggedInk, flyCursorTo, setCursorViewSafely, updateCursorState],
     );
 
     const clearBoard = useCallback(
       async (duration?: number): Promise<void> => {
+        drawTransactionsRef.current.clear();
+        const ownership = drawTransactionsRef.current.capture();
+        const isCancelled = (): boolean => drawTransactionsRef.current.isCancelled(ownership);
         const drawLayer = drawLayerRef.current;
         const animLayer = animLayerRef.current;
         const cursorLayer = cursorLayerRef.current;
@@ -2468,23 +2591,27 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           updateCursorState("erasing");
 
           const targetY = height / 2;
-          await flyCursorTo(50, targetY, Math.min(duration * 0.3, 800));
+          await flyCursorTo(50, targetY, Math.min(duration * 0.3, 800), undefined, isCancelled, ownership);
+          if (!isCancelled()) {
+            const sweepDuration = Math.max(duration * 0.7, 100);
+            await animateOver(sweepDuration, (progress) => {
+              const sweepX = 50 + (width - 50) * progress;
+              setCursorViewSafely(sweepX, targetY, 0, 1);
 
-          const sweepDuration = Math.max(duration * 0.7, 100);
-          await animateOver(sweepDuration, (progress) => {
-            const sweepX = 50 + (width - 50) * progress;
-            setCursorViewSafely(sweepX, targetY, 0, 1);
+              const erasedRect = { x: 0, y: 0, width: 50 + (width - 50) * progress, height };
+              destroyNodesInRect(completedNodesRef.current, erasedRect);
+              destroyNodesInRect(animNodesRef.current, erasedRect);
 
-            const erasedRect = { x: 0, y: 0, width: 50 + (width - 50) * progress, height };
-            destroyNodesInRect(completedNodesRef.current, erasedRect);
-            destroyNodesInRect(animNodesRef.current, erasedRect);
+              drawLayer.batchDraw();
+              animLayer.batchDraw();
+              highlightLayer?.batchDraw();
+              cursorLayer.batchDraw();
+            }, isCancelled);
+          }
 
-            drawLayer.batchDraw();
-            animLayer.batchDraw();
-            highlightLayer?.batchDraw();
-            cursorLayer.batchDraw();
-          });
-
+          // A retired clear must not restore the cursor, reset pace, or destroy
+          // a spotlight installed after cancellation.
+          if (isCancelled()) return;
           updateCursorState(previousCursorState);
         } else {
           clearTrackedNodes(animNodesRef.current);
@@ -2497,8 +2624,10 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
         // Reset the reactive shape-speed damping so the next turn starts fresh.
         previousPaceScaleRef.current = null;
-        drawTransactionsRef.current.clear();
-        for (const node of spotlightNodesRef.current) node.destroy();
+        for (const node of spotlightNodesRef.current) {
+          node.destroy();
+          drawTransactionsRef.current.detach(node);
+        }
         spotlightNodesRef.current = [];
         highlightLayer?.batchDraw();
         spotlightLayerRef.current?.batchDraw();
@@ -2512,13 +2641,29 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         hole: { x: number; y: number; width: number; height: number };
         opacity?: number;
       } | null,
-    ): void => {
+    ): (() => void) => {
+      const ownership = drawTransactionsRef.current.capture();
+      const installed: Konva.Rect[] = [];
       const spotlightLayer = spotlightLayerRef.current;
-      for (const node of spotlightNodesRef.current) node.destroy();
+      const dispose = (): void => {
+        // A keep-visible commit releases exactly the nodes already painted.
+        // An old FOCUS finally must neither destroy them nor a successor's veil.
+        if (drawTransactionsRef.current.status(ownership) === "released") return;
+        for (const node of installed) {
+          node.destroy();
+          drawTransactionsRef.current.detach(node);
+        }
+        spotlightNodesRef.current = spotlightNodesRef.current.filter((node) => !installed.includes(node));
+        spotlightLayer?.batchDraw();
+      };
+      for (const node of spotlightNodesRef.current) {
+        node.destroy();
+        drawTransactionsRef.current.detach(node);
+      }
       spotlightNodesRef.current = [];
       if (!spotlightLayer || !spotlight) {
         spotlightLayer?.batchDraw();
-        return;
+        return dispose;
       }
       const opacity = spotlight.opacity ?? 0.36;
       const veil = spotlight.veil;
@@ -2552,10 +2697,13 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           opacity,
           listening: false,
         });
+        if (!drawTransactionsRef.current.track(rect, ownership)) continue;
         spotlightLayer.add(rect);
+        installed.push(rect);
         spotlightNodesRef.current.push(rect);
       }
       spotlightLayer.batchDraw();
+      return dispose;
     }, []);
 
     /**
@@ -3070,6 +3218,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         },
         cancelAnimations,
         beginDrawTransaction,
+        createDrawSavepoint,
+        cancelDrawSavepoint,
+        rollbackDrawSavepoint,
         commitDrawTransaction,
         abortDrawTransaction,
         finishAbortedDrawTransaction,
@@ -3131,7 +3282,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         },
         getInkSettings,
       }),
-      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, clearBoard, commitDrawTransaction, drawAnnotation, drawShape, eraseRegion, eraseWorkInk, finishAbortedDrawTransaction, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
+      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawShape, eraseRegion, eraseWorkInk, finishAbortedDrawTransaction, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
     );
 
     return (
