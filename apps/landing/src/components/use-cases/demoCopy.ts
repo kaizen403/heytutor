@@ -1,13 +1,38 @@
-import { RESISTORS_QUESTION, RESISTORS_SEGMENTS } from '../hero-lesson/resistorsProgram'
-import type { DemoCopy } from './useUseCaseDemo'
+export const DEMO_QUESTION =
+  'Three 12 Ω resistors. Find the series and parallel resistance.'
+export const DEMO_DOUBT = 'Why is it less than 12 Ω?'
+export const DEMO_ANSWER =
+  'The current has three paths instead of one. Each carries V/12, so together they carry V/4. The equivalent resistance is 4 Ω.'
 
-/**
- * The lesson the use cases demonstrate. The question and the narration come
- * straight from the board program that draws it, so the copy on the rail can
- * never drift from what the whiteboard is actually doing.
- */
-export const RESISTORS_DEMO: DemoCopy = {
-  question: RESISTORS_QUESTION,
-  doubt: 'wait, why does parallel come out smaller than one resistor?',
-  bubbles: RESISTORS_SEGMENTS.map((segment) => segment.bubble),
-}
+export const DEMO_STEPS = {
+  ask: [
+    'Ask a question',
+    'Read the problem',
+    'Watch it unfold',
+    'See the answer',
+  ],
+  annotate: [
+    'Start with the figure',
+    'Follow the method',
+    'Work through it',
+    'Understand the result',
+  ],
+  doubt: [
+    'Click Ask Doubt',
+    'Type your question',
+    'Circle the step',
+    'Get your answer',
+  ],
+  replay: [
+    'Replay the lesson',
+    'Choose a chapter',
+    'Set your pace',
+    'Watch it again',
+  ],
+  notes: [
+    'Open Download',
+    'Choose your format',
+    'Prepare the file',
+    'Keep the lesson',
+  ],
+} as const

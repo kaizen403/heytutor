@@ -1,0 +1,25 @@
+/* Current desktop product chrome inside the existing Safari presentation. */
+.hero-product {
+  position: relative;
+  width: 1280px;
+  height: 762px;
+  overflow: hidden;
+  color: var(--frost);
+  background: var(--ink-950);
+  font: 14px Inter, ui-sans-serif, system-ui, sans-serif;
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+}
+.hero-product-main { position: absolute; inset: 0 0 0 264px; }
+.hero-product-board { position: absolute; top: 73px; left: 0; right: 0; }
+.hero-product-composer {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 14px;
+  max-width: 850px;
+  margin: 0 auto;
+  min-height: 56px;
+}
+.hero-product-composer .mockup-input { font-size: 14px; }
+.hero-product .demo-session-header { right: 14px; left: 14px; }

@@ -40,21 +40,23 @@ assert.ok(
   timings.total > timings.starts[timings.starts.length - 1],
   "total duration must extend past the last segment start",
 );
-assert.ok(timings.total > 20 && timings.total < 60, "hero voiceover should be a ~half-minute take");
+assert.ok(timings.total > 60 && timings.total < 180, "the complete worked lesson should run at a natural teaching pace");
 
 const mp3 = statSync(resolve(root, "public/hero/lesson.mp3"));
 assert.ok(mp3.size > 200_000, "lesson.mp3 is missing or too small to be a real voiceover");
 
 const generator = read("scripts/generate-hero-voice.mjs");
-assert.match(generator, /style:\s*0\.35/, "generator must use the live tutor's style dial");
-assert.match(generator, /speed:\s*0\.88/, "generator must use generation speed, not playbackRate");
-assert.doesNotMatch(generator, /mp3_44100_96/, "hero voiceover should not be the old 96 kbps take");
-
-for (const segment of SEGMENTS) {
-  assert.ok(
-    generator.includes(segment.speech),
-    `generator is out of sync with lessonScript: missing "${segment.speech}"`,
-  );
+assert.match(generator, /generateLandingVoice/, "voice generation must use the current tutor provider");
+const speechGenerator = read("../tutor/scripts/lecture-lab/generateLandingVoice.ts");
+assert.match(speechGenerator, /voiceSettingsForDelivery/, "reuse the live delivery settings");
+assert.match(speechGenerator, /requestTts/, "reuse the live provider adapter");
+assert.match(speechGenerator, /lessonAsset.json/, "speech and ink must share one captured lesson");
+const asset = JSON.parse(read("src/components/hero-lesson/lessonAsset.json"));
+assert.equal(asset.voice.provider, "cartesia");
+assert.equal(asset.voice.model, "sonic-3.6");
+for (const [index, segment] of asset.segments.entries()) {
+  assert.equal(SEGMENTS[index].speech, segment.narration);
+  assert.ok(Math.abs(segment.timings.totalDuration - ((timings.starts[index + 1] ?? timings.total) - timings.starts[index])) < 0.001, `duration ${index}`);
 }
 
 const hook = read("src/components/hero-lesson/useLessonSimulation.ts");

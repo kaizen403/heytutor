@@ -1,20 +1,14 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Volume2 } from 'lucide-react'
-import DashboardMockup from '../DashboardMockup'
-import { QUESTION_TEXT } from '../hero-lesson/lessonScript'
-import { useLessonSimulation } from '../hero-lesson/useLessonSimulation'
+import metadata from '../hero-lesson/lessonMetadata.json'
+import { useHeroVideo } from '../hero-lesson/useHeroVideo'
 import SafariChrome from './SafariChrome'
 import { DESIGN_H, DESIGN_W, MOBILE_MQ, SIDEBAR_W } from './windowSize'
 
 /**
- * The live, self-driving mockup inside the Safari window — the same
- * DashboardMockup /record.html renders, running its own lesson on its own
- * clock. The simulation observes the window body, so the lesson pauses itself
- * when the window scrolls offscreen (and reduced-motion users get the
- * completed board with sound 'unavailable' — no poster branch needed).
- *
- * Loaded on demand: this module pulls in the whiteboard renderer and the
- * lesson voice, which the first screen never needs.
+ * A recording of the current tutor renderer, with speech and ink muxed onto
+ * one clock. Loaded on demand and paused offscreen; reduced-motion users see
+ * the finished board until they choose to play the lesson.
  */
 export default function LiveLessonWindow({
   visibilityRootRef,
@@ -22,7 +16,7 @@ export default function LiveLessonWindow({
   visibilityRootRef: RefObject<HTMLElement | null>
 }) {
   const bodyRef = useRef<HTMLDivElement>(null)
-  const { snapshot, sound, toggleSound, boardRef, cursorState } = useLessonSimulation(visibilityRootRef)
+  const { videoRef, sound, toggleSound, reduced, onReady, onError } = useHeroVideo(visibilityRootRef)
   const [view, setView] = useState({ fit: 0, cropSidebar: false })
 
   useEffect(() => {
@@ -50,15 +44,26 @@ export default function LiveLessonWindow({
       <SafariChrome sound={sound} onToggle={toggleSound} />
       <div ref={bodyRef} className="overflow-hidden" style={{ height: DESIGN_H * fit }}>
         <div
-          className="origin-top-left"
           style={{
-            width: DESIGN_W,
-            height: DESIGN_H,
-            transform: `translateX(${cropSidebar ? -SIDEBAR_W * fit : 0}px) scale(${fit})`,
+            width: DESIGN_W * fit,
+            height: DESIGN_H * fit,
+            marginLeft: cropSidebar ? -SIDEBAR_W * fit : 0,
           }}
         >
-          <DashboardMockup
-            drive={{ question: QUESTION_TEXT, snapshot, sound, toggleSound, boardRef, cursorState }}
+          <video
+            ref={videoRef}
+            src={`/hero/lesson-loop.mp4?v=${metadata.version}`}
+            poster={`/hero/lesson-poster.jpg?v=${metadata.version}`}
+            width={DESIGN_W}
+            height={DESIGN_H}
+            muted={sound !== 'on'}
+            loop
+            playsInline
+            preload={reduced ? 'none' : 'metadata'}
+            onLoadedData={onReady}
+            onError={onError}
+            aria-label={`Tutor lesson: ${metadata.question}`}
+            style={{ display: 'block', width: '100%', height: '100%', objectFit: 'fill' }}
           />
         </div>
       </div>

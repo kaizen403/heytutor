@@ -17,6 +17,7 @@ import {
   verifiedDiagramHasDrawableInk,
   type DrawCommand,
   type VerifiedDiagram,
+  type TutorSegment,
 } from "@heytutor/drawing";
 import { repairLectureMarkup } from "../../features/tutor-session/lib/turn/lectureCueRepair";
 import {
@@ -165,6 +166,13 @@ export interface RunLectureOptions {
   topicId?: string;
   unitId?: string;
   difficulty?: string;
+  /** Optional artifact capture; the live pipeline remains the authority. */
+  onPresentation?: (presentation: {
+    diagram: VerifiedDiagram | null;
+    opening: TutorSegment | null;
+    givens: TutorSegment[];
+    intro: TutorSegment[];
+  }) => void;
 }
 
 /** The plan and the stem filter agree this question needs no picture. */
@@ -660,6 +668,12 @@ export async function runLecture(
         .map((command) => command.text)
         .filter((text): text is string => typeof text === "string"),
     );
+    options.onPresentation?.({
+      diagram: activeDiagram,
+      opening: teachingPrompt.openingSegment,
+      givens: teachingPrompt.givenSegments,
+      intro: presentation?.introSegments ?? [],
+    });
 
     const teachStartedAt = Date.now();
     let fullResponse = "";

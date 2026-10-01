@@ -28,6 +28,9 @@ importers:
       '@heytutor/drawing':
         specifier: workspace:*
         version: link:../../packages/drawing
+      '@heytutor/tutor-core':
+        specifier: workspace:*
+        version: link:../../packages/tutor-core
       '@heytutor/whiteboard':
         specifier: workspace:*
         version: link:../../packages/whiteboard
@@ -53,6 +56,9 @@ importers:
       '@heytutor/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
+      '@heytutor/scene-engine':
+        specifier: workspace:*
+        version: link:../../packages/scene-engine
       '@heytutor/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config

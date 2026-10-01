@@ -11,7 +11,6 @@ const PENDING_BEATS = [
   'preparing the lecture',
 ] as const
 
-const INK = '#F2F2F4'
 
 const CANVAS_W = 1200
 const CANVAS_H = 700
@@ -23,10 +22,8 @@ const BOARD_SCALE = Math.min(SURFACE_W / CANVAS_W, SURFACE_H / CANVAS_H)
    bevelled side walls over a brushed face with the base ledge cut in as a hard
    stop, and the contact shadow as pure box-shadow so layout is untouched. */
 const FRAME_STYLE = {
-  background:
-    'linear-gradient(90deg, rgba(255,255,255,0.07) 0, transparent 18px, transparent calc(100% - 18px), rgba(0,0,0,0.3) 100%), linear-gradient(180deg, #43434C 0, #33333A 5px, #26262C 38%, #1C1C21 calc(100% - 9px), #0D0D10 calc(100% - 9px), #08080A 100%)',
-  boxShadow:
-    '0 0 0 1px #050506, inset 0 1px 0 rgba(255,255,255,0.16), inset 1px 0 0 rgba(255,255,255,0.05), inset -1px 0 0 rgba(0,0,0,0.5), inset 0 -1px 0 rgba(0,0,0,0.7), 0 28px 64px -32px rgba(3,11,18,0.62)',
+  background: 'linear-gradient(180deg, #242422 0, #212120 calc(100% - 9px), #171716 calc(100% - 9px), #171716 100%)',
+  boxShadow: '0 0 0 1px rgba(255,255,255,0.06), 0 24px 56px -32px rgba(0,0,0,0.7)',
 } as const
 
 function LiveLessonBoard({
@@ -38,7 +35,6 @@ function LiveLessonBoard({
   boardRef: (handle: WhiteboardHandle | null) => void
   cursorState: CursorState
 }) {
-  const { bubble } = snapshot
 
   return (
     <div style={{ position: 'relative', width: 988, height: 588, margin: '10px auto 0', borderRadius: 14, ...FRAME_STYLE }}>
@@ -139,43 +135,7 @@ function LiveLessonBoard({
           </div>
         )}
 
-        {/* Narration bubble (ResponseBubble) */}
-        {bubble && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 20,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'rgba(21, 21, 23, 0.94)',
-              color: INK,
-              borderRadius: 12,
-              boxShadow: '0 10px 30px -8px rgba(0, 0, 0, 0.55)',
-              border: '1px solid rgba(242, 242, 244, 0.08)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-              padding: '12px 24px',
-              maxWidth: 'calc(100% - 2rem)',
-              zIndex: 2,
-            }}
-          >
-            <p
-              key={bubble}
-              style={{
-                margin: 0,
-                textAlign: 'center',
-                fontSize: 16,
-                fontWeight: 500,
-                lineHeight: 1.5,
-                color: INK,
-                whiteSpace: 'nowrap',
-                animation: 'wb-bubble-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both',
-              }}
-            >
-              {bubble}
-            </p>
-          </div>
-        )}
+
       </div>
 
       {/* specular sweep across the bezel top, plus the inner hairline (.wb-frame ::after) */}
@@ -186,8 +146,6 @@ function LiveLessonBoard({
           borderRadius: 14,
           pointerEvents: 'none',
           zIndex: 1,
-          background:
-            'linear-gradient(104deg, transparent 12%, rgba(255,255,255,0.05) 28%, rgba(255,255,255,0.09) 34%, transparent 48%)',
           boxShadow: 'inset 0 0 0 1px rgba(240, 246, 252, 0.045)',
         }}
       />
