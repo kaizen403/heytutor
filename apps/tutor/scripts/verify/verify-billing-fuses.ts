@@ -1,3 +1,4 @@
+import { MAX_NEW_QUESTIONS_PER_HOUR } from "../../lib/billing/catalog";
 import {
   questionsRemainingThisHour,
   recordNewQuestion,
@@ -10,10 +11,10 @@ function assert(condition: unknown, message: string): asserts condition {
 
 resetBillingFusesForTests();
 const user = "user-fuses";
-assert(recordNewQuestion(user).ok, "first question in the hour is allowed");
-assert(recordNewQuestion(user).ok, "second question in the hour is allowed");
-assert(recordNewQuestion(user).ok, "third question in the hour is allowed");
-assert(!recordNewQuestion(user).ok, "fourth question in the hour is blocked");
+for (let index = 0; index < MAX_NEW_QUESTIONS_PER_HOUR; index += 1) {
+  assert(recordNewQuestion(user).ok, `question ${index + 1} in the hour is allowed`);
+}
+assert(!recordNewQuestion(user).ok, "the next question in the hour is blocked");
 assert(questionsRemainingThisHour(user) === 0, "hourly remaining hits zero");
 
 resetBillingFusesForTests();
