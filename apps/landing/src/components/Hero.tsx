@@ -30,10 +30,9 @@ export default function Hero() {
 
       <Navbar />
 
-      {/* A pen flies in from off-screen left, draws a unit circle, unrolls it
-          into a sine wave along the shared axis, writes y = sin θ, then leaves
-          frame to the right. The whole performance is one continuous stroke
-          path. */}
+      {/* A pen flies in from off-screen left, draws the axes, sketches
+          cos θ and sin θ across them and labels each, then leaves frame to
+          the right. The whole performance is one continuous stroke path. */}
       <PenPlotter className="absolute inset-0 z-[5] pointer-events-none overflow-hidden" />
 
       {/* A student's desk, scattered through the empty outer thirds. */}
@@ -54,12 +53,6 @@ export default function Hero() {
         >
           Ask a question. Watch it draw, write, and explain each step out loud.
           An AI whiteboard tutor for how you actually study.
-        </p>
-        <p
-          className="animate-fade-up mt-3 hidden text-[13px] tracking-[-0.01em] text-[rgba(240,245,247,0.42)] sm:block"
-          style={{ animationDelay: '200ms' }}
-        >
-          Physics · Maths · Chemistry · Coding · and the rest of the syllabus
         </p>
 
         <div
@@ -83,11 +76,11 @@ export default function Hero() {
         className="w-full flex-1 shrink-0 basis-[150px] sm:basis-[170px] lg:basis-[190px]"
       />
 
-      {/* The pixel sea. It sits below the pen lane with a little clear water
-          between the crests and the lowest ink, and fuses solid at the hero's
-          foot; <DitherBand> in App.tsx then melts that ice into the next
-          section so the two grounds don't meet on a line. */}
-      <div className="relative w-full shrink-0 basis-[220px] sm:basis-[240px] lg:basis-[280px]">
+      {/* The pixel sea. The top margin is clear water between the crests and
+          the lowest ink; the foot melts straight into the page navy, so the
+          next section starts on the same ground with no solid slab or seam
+          band in between. */}
+      <div className="relative mt-8 w-full shrink-0 basis-[270px] sm:mt-10 sm:basis-[300px] lg:basis-[340px]">
         {/* Light the water-line: the dots rise out of a soft sky bloom. */}
         <div
           aria-hidden
@@ -96,7 +89,7 @@ export default function Hero() {
         <DitherWave
           className="pointer-events-none absolute inset-x-0 -top-6 bottom-0 z-[2]"
           surface={112}
-          foot={64}
+          melt={0.36}
           edgeLift={30}
           edgeFalloff={260}
           dim="#3E8FB4"

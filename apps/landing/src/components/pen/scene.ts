@@ -66,19 +66,6 @@ const cubic = (p0: Pt, c1: Pt, c2: Pt, p1: Pt, n: number): Pt[] => {
   return out
 }
 
-const quad = (p0: Pt, c: Pt, p2: Pt, n: number): Pt[] => {
-  const out: Pt[] = []
-  for (let i = 0; i <= n; i++) {
-    const t = i / n
-    const u = 1 - t
-    out.push({
-      x: u * u * p0.x + 2 * u * t * c.x + t * t * p2.x,
-      y: u * u * p0.y + 2 * u * t * c.y + t * t * p2.y,
-    })
-  }
-  return out
-}
-
 const dirAt = (pts: Pt[], atStart: boolean): Pt => {
   const a = atStart ? pts[0] : pts[pts.length - 1]
   const b = atStart ? pts[Math.min(1, pts.length - 1)] : pts[Math.max(0, pts.length - 2)]
@@ -93,47 +80,6 @@ const tickMark = (at: Pt, vertical: boolean, back: number, fwd: number): Pt[] =>
   vertical
     ? [{ x: at.x, y: at.y - back }, { x: at.x, y: at.y + fwd }]
     : [{ x: at.x - back, y: at.y }, { x: at.x + fwd, y: at.y }]
-
-/** A dashed run a→b, as one stroke per dash — the pen really does flick each one. */
-const dashLine = (a: Pt, b: Pt, dash: number, gap: number): Pt[][] => {
-  const total = dist(a, b)
-  if (total < dash) return []
-  const ux = (b.x - a.x) / total
-  const uy = (b.y - a.y) / total
-  const out: Pt[][] = []
-  for (let d = 0; d + dash <= total; d += dash + gap) {
-    out.push([
-      { x: a.x + ux * d, y: a.y + uy * d },
-      { x: a.x + ux * (d + dash), y: a.y + uy * (d + dash) },
-    ])
-  }
-  return out
-}
-
-const circleAt = (c: Pt, r: number, startDeg: number): Pt[] => {
-  const out: Pt[] = []
-  const n = 28
-  for (let i = 0; i <= n; i++) {
-    const a = (startDeg * Math.PI) / 180 + (i / n) * Math.PI * 2
-    out.push({ x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r })
-  }
-  return out
-}
-
-/**
- * Arc about `c` in canvas angles (0 = +x, positive turns clockwise on screen),
- * from `fromDeg` through `sweepDeg`. circleAt's 28 sides are fine for a dot but
- * facet visibly at the size of the unit circle.
- */
-const arc = (c: Pt, r: number, fromDeg: number, sweepDeg: number): Pt[] => {
-  const n = Math.max(24, Math.ceil((Math.abs(sweepDeg) / 360) * r * 1.2))
-  const out: Pt[] = []
-  for (let i = 0; i <= n; i++) {
-    const a = ((fromDeg + (i / n) * sweepDeg) * Math.PI) / 180
-    out.push({ x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r })
-  }
-  return out
-}
 
 /**
  * Smooth 1-D wobble from three summed sines (~62px, ~146px and ~370px
@@ -255,27 +201,33 @@ const upperDoodlesBottom = (h: number) => Math.max(h * 0.38 + 60, h * 0.31 + 95,
 /** Lowest ink of the mobile doodles parked between the buttons and the lane. */
 const mobileDoodlesBottom = (h: number) => h * 0.49 + 60
 
+/** Largest amplitude, and the one the figure was sized around. */
 const R_MAX = 125
-/** Wave period as a multiple of R when width is what binds. The true unroll is
-    2πR; at that scale a period and a half would not fit beside the circle. */
+/** Wave period as a multiple of R when width is what binds. */
 const PERIOD_R = 3.8
-/** The radius is drawn at this angle, and read off the wave at the same θ. */
-const ANGLE_DEG = 60
+/** The curves stop 3/8 of a period past a whole turn (θ = 3π/4), where
+    sin θ is up at +0.71 and cos θ down at -0.71: each ends clear of the other
+    and of the axis, with room to be named beside its own end. */
+const END_TURN = 0.375
+const SIN_LABEL = 'sin θ'
+const COS_LABEL = 'cos θ'
 
-/** Everything in the figure scales off the circle's radius. */
+/** Everything in the figure scales off the amplitude. */
 const proportions = (R: number) => {
   const em = clamp(R * 0.31, 15, 30)
-  // How far each axis runs past the circle. Never less than the y label needs
-  // to clear the top of the circle with its tail.
+  // How far each axis runs past the curves. Never less than the y label needs
+  // to clear the top of the cosine's first crest with its tail.
   const ov = Math.max(R * 0.2, em * 0.78)
-  // Axis run past the end of the wave, room for its θ.
-  const tail = em * 1.15
+  // Past the end of the waves: a gap, the curve labels, then the axis carries
+  // on under θ.
+  const labelW = Math.max(layoutText(SIN_LABEL, 0, 0, em).width, layoutText(COS_LABEL, 0, 0, em).width)
+  const tail = em * 0.4 + labelW + em * 1.15
   return {
     em,
     ov,
     tail,
     height: 2 * R + 2 * ov + em * 0.28,
-    width: ov + 2 * R + 1.5 * PERIOD_R * R + tail,
+    width: ov + (1 + END_TURN) * PERIOD_R * R + tail,
   }
 }
 
@@ -335,22 +287,17 @@ export function buildScene(g: StageGeom): Scene | null {
   const R = fitRadius(maxW, maxH)
   const { em, ov, tail } = proportions(R)
 
-  // Whatever width the circle leaves goes to the wave: two periods if they
-  // stay readable, otherwise a period and a half.
-  const waveRoom = maxW - (ov + 2 * R + tail)
-  let periods = 1.5
-  let P = waveRoom / 1.5
-  if (waveRoom / 2 >= R * 3.4) {
-    periods = 2
-    P = Math.min(waveRoom / 2, R * 4.4)
-  }
+  // Whatever width the axes and labels leave goes to the waves: two turns and
+  // the end if the periods stay readable, otherwise one.
+  const waveRoom = maxW - ov - tail
+  const periods = (waveRoom / (2 + END_TURN) >= R * 3.4 ? 2 : 1) + END_TURN
+  const P = Math.min(waveRoom / periods, R * 4.4)
 
-  const figW = ov + 2 * R + periods * P + tail
-  const cx = mid - figW / 2 + ov + R
+  const figW = ov + periods * P + tail
+  const cx = mid - figW / 2 + ov // the y axis, where θ = 0
   const cy = usableBottom - R - ov
-  const centre = { x: cx, y: cy }
-  const x0 = cx + R // the unroll origin: the circle's rightmost point, θ = 0
-  const waveEnd = x0 + periods * P
+  const origin = { x: cx, y: cy }
+  const waveEnd = cx + periods * P
   const tip = cy - R - ov // top of the vertical axis
 
   // A bigger figure is drawn by a quicker hand, so a wide screen does not
@@ -365,114 +312,69 @@ export function buildScene(g: StageGeom): Scene | null {
     travel: 1000 * pace,
     hop: 900 * pace,
   }
-  const angle = (ANGLE_DEG * Math.PI) / 180
-  const rim = { x: cx + R * Math.cos(angle), y: cy - R * Math.sin(angle) }
-  const dot = clamp(em * 0.22, 3.5, 6)
-
   const b = new Builder()
 
-  /* 1 ── in from off-screen left, ARRIVING STRAIGHT DOWN onto the circle's
-         leftmost point. The last control point sits directly above the
-         landing, so the entry tangent and the circle's first tangent are the
-         same and the pen flows into the stroke with no turn. */
-  const land = { x: cx - R, y: cy }
+  /* 1 ── in from off-screen left, ARRIVING LEVEL onto the left end of the θ
+         axis. The last control point sits on the axis behind the landing, so
+         the entry tangent and the axis's own are the same and the pen flows
+         into the stroke with no turn. */
+  const land = { x: cx - ov, y: cy }
   b.travel(
     cubic(
       { x: -heroW * 0.2 - 150, y: tip - R * 1.3 },
       { x: Math.min(heroW * 0.14, land.x - R), y: tip - R * 1.5 },
-      { x: land.x, y: cy - R * 1.6 },
+      { x: land.x - R * 0.9, y: cy },
       land,
       72,
     ),
     1250 * pace,
   )
 
-  /* 2 ── the unit circle, counterclockwise as seen (canvas angles run the
-         other way), and a little past closed so the join never shows a gap.
-         Its target speed cancels the curvature damping, which would otherwise
-         hold a small circle to two thirds of drawing pace all the way round. */
-  b.stroke(arc(centre, R, 180, -372), S.draw * (1 + CURV_K / R))
-
-  /* 3 ── the shared axis: the circle's horizontal diameter, carried on under
-         the wave. θ at its end, ticks at 2π and π on the way back, then the
-         short vertical axis drawn upward so y is written where the pen stops. */
-  b.stroke([{ x: cx - R - ov, y: cy }, { x: waveEnd + tail, y: cy }], S.rule, S.hop)
-
-  // The last half period decides which side of the axis is empty at its end.
-  const lastLobeAbove = periods % 1 !== 0
-  const thetaY = lastLobeAbove ? cy + em * 1.22 : cy - em * 0.28
-  for (const st of layoutText('θ', waveEnd + em * 0.3, thetaY, em).strokes) b.stroke(st, S.write, S.hop)
+  /* 2 ── the θ axis, θ written over its end, a tick at every π on the way
+         back, then the vertical axis drawn upward so y is written where the
+         pen stops, right beside where cos θ starts. */
+  const axisEnd = waveEnd + tail
+  b.stroke([land, { x: axisEnd, y: cy }], S.rule, S.hop)
+  for (const st of layoutText('θ', axisEnd - em * 0.85, cy - em * 0.28, em).strokes) b.stroke(st, S.write, S.hop)
 
   const tk = clamp(R * 0.075, 3.5, 6)
-  for (const f of [1, 0.5]) b.stroke(tickMark({ x: x0 + P * f, y: cy }, true, tk, tk), S.flick, S.hop)
+  for (let f = Math.floor(periods * 2) / 2; f > 0; f -= 0.5) {
+    b.stroke(tickMark({ x: cx + P * f, y: cy }, true, tk, tk), S.flick, S.hop)
+  }
 
   b.stroke([{ x: cx, y: cy + R + ov }, { x: cx, y: tip }], S.rule, S.hop)
   for (const st of layoutText('y', cx - em * 0.84, tip + em * 0.42, em).strokes) b.stroke(st, S.write, S.hop)
 
-  /* 4 ── the radius out to a point on the rim, stopping short of the ring
-         drawn round that point. The ring starts where its tangent carries on
-         along the radius. */
-  const ux = Math.cos(angle)
-  const uy = -Math.sin(angle)
-  b.stroke([centre, { x: rim.x - ux * (dot + 2), y: rim.y - uy * (dot + 2) }], S.rule, S.hop)
-  b.stroke(circleAt(rim, dot, 270 - ANGLE_DEG), S.write, S.hop)
-
-  /* 5 ── e^{iθ} names the point, then the equation goes in the open space
-         over the first trough, underlined. On a small circle (1024 wide,
-         phones) the label's superscripts shrink to specks and it crowds the
-         y label and the projection, so it is left off. */
-  const eulerY = rim.y - dot - 4
-  if (R >= 56 && eulerY - em * 1.01 >= usableTop - 2) {
-    for (const st of layoutText('e^i^θ', rim.x + dot * 0.4 + 3, eulerY, em).strokes) b.stroke(st, S.write, S.hop)
+  /* 3 ── cos θ from its crest on the y axis, in one stroke at drawing pace,
+         then named beside its end, below the axis. y = cy - R f(θ) because
+         the canvas is y-down. */
+  const curve = (f: (th: number) => number): Pt[] => {
+    const steps = Math.ceil((periods * P) / 2)
+    const out: Pt[] = []
+    for (let i = 0; i <= steps; i++) {
+      const th = (i / steps) * periods * Math.PI * 2
+      out.push({ x: cx + (th / (Math.PI * 2)) * P, y: cy - R * f(th) })
+    }
+    return out
   }
+  // Labels sit on their curve's end: the x-height is centred on it.
+  const labelAt = (text: string, end: Pt) => layoutText(text, waveEnd + em * 0.4, end.y + em * 0.35, em).strokes
 
-  // Centred on the trough and half way up it. On a small circle the text is
-  // set smaller so the underline clears the ticks and both ends clear the
-  // wave where it crosses the axis.
-  const eqText = 'y = sin θ'
-  const eqEm = Math.max(9, Math.min(em, (R / 2 - tk - 3) / 0.73, (P * 0.56) / layoutText(eqText, 0, 0, 1).width))
-  const eqW = layoutText(eqText, 0, 0, eqEm).width
-  const eqX = x0 + P * 0.75 - eqW / 2
-  const eqY = cy - R / 2 + eqEm * 0.27
-  for (const st of layoutText(eqText, eqX, eqY, eqEm).strokes) b.stroke(st, S.write, S.hop)
-  b.stroke(
-    quad(
-      { x: eqX - eqEm * 0.06, y: eqY + eqEm * 0.44 },
-      { x: eqX + eqW * 0.5, y: eqY + eqEm * 0.52 },
-      { x: eqX + eqW - eqEm * 0.05, y: eqY + eqEm * 0.42 },
-      16,
-    ),
-    S.flick,
-    S.hop,
-  )
+  const cos = curve(Math.cos)
+  b.stroke(cos, S.draw, S.hop)
+  for (const st of labelAt(COS_LABEL, cos[cos.length - 1])) b.stroke(st, S.write, S.hop)
 
-  /* 6 ── the unroll: y = sin θ peeled off the circle's rightmost point in one
-         stroke, at drawing pace. y = cy - R sin θ because the canvas is y-down. */
-  const steps = Math.ceil((periods * P) / 2)
-  const wave: Pt[] = []
-  for (let i = 0; i <= steps; i++) {
-    const th = (i / steps) * periods * Math.PI * 2
-    wave.push({ x: x0 + (th / (Math.PI * 2)) * P, y: cy - R * Math.sin(th) })
-  }
-  b.stroke(wave, S.draw, S.travel)
+  /* 4 ── back across to the origin for sin θ, named above the axis where it
+         ends. */
+  const sin = curve(Math.sin)
+  b.stroke(sin, S.draw, S.travel)
+  const sinLabel = labelAt(SIN_LABEL, sin[sin.length - 1])
+  for (const st of sinLabel) b.stroke(st, S.write, S.hop)
 
-  /* 7 ── read the height across: dashed from the rim point to the same θ on
-         the wave, then ring it. The dashes are sized to land exactly on both
-         rings rather than stopping a gap short. */
-  const hit = { x: x0 + P * (ANGLE_DEG / 360), y: rim.y }
-  const from = { x: rim.x + dot + 2, y: rim.y }
-  const to = { x: hit.x - dot - 2, y: rim.y }
-  const span = to.x - from.x
-  const dash0 = clamp(R * 0.15, 7, 16)
-  const count = Math.max(2, Math.round((span + dash0 * 0.6) / (dash0 * 1.6)))
-  const dash = span / (count + 0.6 * (count - 1))
-  for (const d of dashLine(from, to, dash, dash * 0.6 - 0.01)) b.stroke(d, S.flick, S.hop)
-  const ring = circleAt(hit, dot, 270)
-  b.stroke(ring, S.write, S.hop)
-
-  /* 8 ── away through the top-right, leaving the ring along its own tangent
-         and gathering speed */
-  const last = ring[ring.length - 1]
+  /* 5 ── away through the top-right, leaving the last stroke along its own
+         tangent and gathering speed */
+  const lastStroke = sinLabel[sinLabel.length - 1]
+  const last = lastStroke[lastStroke.length - 1]
   b.travel(
     cubic(
       last,
@@ -598,7 +500,7 @@ export function buildScene(g: StageGeom): Scene | null {
     speed: finalSpeed,
     duration: time[n - 1],
     maxSpeed,
-    origin: centre,
+    origin,
   }
 }
 

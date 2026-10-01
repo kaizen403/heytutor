@@ -9,7 +9,8 @@ import { bayerThreshold, fusedDensity, hexToAbgr, mixAbgr, useDitherCanvas } fro
    solid band across the last stretch. Dots near the surface are the dim
    colour, deeper ones the bright colour, dithered between the two.
    Through the foot the solid band grades bright → mid. When `melt` is set,
-   that foot instead colour-lerps through to `sink` for a section seam.
+   the field never fuses: it thins back out and dithers into `sink`, so the
+   hero hands over to the next section with no band between them.
    Above the water-line the canvas is transparent, so the hero shows through.
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -91,24 +92,29 @@ export default function DitherWave({
           continue
         }
         const bottom = row * cell + cell
-        if (bottom >= edge) {
-          const fall = Math.min(1, Math.max(0, (bottom + wobble * 0.5 - edge) / footPx))
-          if (melt == null) {
-            // Compact sea: grade bright → mid so the foot matches the next
-            // seam's `from`, without swallowing the graph lane above.
-            buf[idx] = fall * fall < bayerThreshold(col + 5, row + 2) ? brightAbgr : midAbgr
-            continue
+        const base = Math.min(0.16 + (depth / ramp) * 0.68, 0.84)
+        if (melt != null) {
+          // Never fuses: below the edge the dots thin out and dim toward
+          // teal while the gaps between them dither over to `sink`. The last
+          // quarter of the foot is solid `sink`, so whatever overlaps the
+          // hero's bottom edge lands on the page ground, not on a stripe.
+          const fall = Math.min(1, Math.max(0, (bottom + wobble * 0.5 - edge) / (footPx * 0.75)))
+          const keep = 1 - fall
+          if (base * keep * keep > bayerThreshold(col, row)) {
+            const dot = depth / tint < bayerThreshold(col + 3, row + 5) ? dimAbgr : brightAbgr
+            buf[idx] = fall > 0 ? mixAbgr(dot, viaAbgr, Math.min(1, fall * 1.3)) : dot
+          } else {
+            buf[idx] = fall > bayerThreshold(col + 1, row + 6) ? sinkAbgr : 0
           }
-          const ice = mixAbgr(brightAbgr, midAbgr, Math.min(1, fall * 0.45))
-          const grain = (bayerThreshold(col + 5, row + 2) - 0.5) * 0.06
-          const tMix = Math.min(1, Math.max(0, fall * 1.5 + grain))
-          buf[idx] =
-            tMix < 0.5
-              ? mixAbgr(ice, viaAbgr, tMix * 2)
-              : mixAbgr(viaAbgr, sinkAbgr, (tMix - 0.5) * 2)
           continue
         }
-        const base = Math.min(0.16 + (depth / ramp) * 0.68, 0.84)
+        if (bottom >= edge) {
+          // Compact sea: grade bright → mid so the foot matches the next
+          // seam's `from`, without swallowing the graph lane above.
+          const fall = Math.min(1, Math.max(0, (bottom + wobble * 0.5 - edge) / footPx))
+          buf[idx] = fall * fall < bayerThreshold(col + 5, row + 2) ? brightAbgr : midAbgr
+          continue
+        }
         const density = fusedDensity(base, bottom + wobble, edge, fuse)
         if (density <= bayerThreshold(col, row)) {
           buf[idx] = 0

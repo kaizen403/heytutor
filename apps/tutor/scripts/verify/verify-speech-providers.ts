@@ -54,8 +54,46 @@ async function main() {
   );
   assert.deepEqual(availableVoiceKeys({ CARTESIA_VOICE_ID_HI: "hindi" }), [
     "en-IN",
+    "en-GB",
+    "en-US",
     "hi-IN",
   ]);
+  assert.deepEqual(availableVoiceKeys({}), ["en-IN", "en-GB", "en-US"]);
+  // Each English accent resolves to its own native teaching voice by default.
+  assert.equal(
+    ttsConfig("en-GB", false, env).voiceId,
+    "16a4052e-1f11-47ac-95f5-9330bee062f9",
+  );
+  assert.equal(
+    ttsConfig("en-US", false, env).voiceId,
+    "01eaafa9-308a-4276-a017-6ab0cf061b1f",
+  );
+  assert.equal(
+    ttsConfig("en-GB", false, { ...env, CARTESIA_VOICE_ID_EN_GB: "custom" })
+      .voiceId,
+    "custom",
+  );
+  // The base id pins the Indian voice only; it must not mask the UK/US defaults.
+  assert.equal(
+    ttsConfig("en-GB", false, { ...env, CARTESIA_VOICE_ID: "pinned" }).voiceId,
+    "16a4052e-1f11-47ac-95f5-9330bee062f9",
+  );
+  assert.equal(
+    ttsConfig("en-US", false, { ...env, CARTESIA_VOICE_ID: "pinned" }).voiceId,
+    "01eaafa9-308a-4276-a017-6ab0cf061b1f",
+  );
+  assert.equal(
+    ttsConfig("hi-IN", false, { ...env, CARTESIA_VOICE_ID: "pinned" }).voiceId,
+    "pinned",
+  );
+  assert.equal(
+    ttsConfig("en-GB", false, {
+      TTS_PROVIDER: "elevenlabs",
+      ELEVENLABS_API_KEY: "eleven-test",
+      ELEVENLABS_VOICE_ID: "legacy",
+    }).voiceId,
+    "legacy",
+  );
   const config = ttsConfig("en-IN", true, env);
   const relay = createTtsRelay(config);
   const settings = { stability: 0.4, similarity_boost: 0.75, speed: 0.95 };

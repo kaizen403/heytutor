@@ -69,6 +69,8 @@ interface TimestampChunkPayload {
 interface SegmentJob {
   spokenText: string;
   options: SpeakSegmentOptions;
+  /** Voice identity the job was generated with; a voice switch orphans it. */
+  voice: string;
   /**
    * Upstream context carrying this job's chunks. Bound on the first message
    * that names a context id, in the order the texts were sent, so several
@@ -114,16 +116,32 @@ interface SegmentJob {
  * lookahead's flat copy is the one that gets played and the opening sounds
  * exactly like the body it was supposed to differ from.
  */
-function prefetchKey(spokenText: string, options: SpeakSegmentOptions): string {
-  return `${voiceSettingsKey(options.voiceSettings)}\u0000${spokenText}`;
+/**
+ * Which voice (and model lane) generated a sentence. The voice id is baked
+ * into the upstream connection, so a sentence generated before a voice switch
+ * must never be claimed after it: the student picked a new voice, and the
+ * next segment has to speak in it.
+ */
+function voiceIdentity(preferences: TutorVoicePreferences): string {
+  return `${preferences.voiceKey}\u0000${preferences.lowLatency ? "flash" : "natural"}`;
+}
+
+function prefetchKey(
+  spokenText: string,
+  options: SpeakSegmentOptions,
+  voice: string,
+): string {
+  return `${voice}\u0000${voiceSettingsKey(options.voiceSettings)}\u0000${spokenText}`;
 }
 
 function jobMatches(
   job: SegmentJob,
   spokenText: string,
   options: SpeakSegmentOptions,
+  voice: string,
 ): boolean {
   return (
+    job.voice === voice &&
     job.spokenText === spokenText &&
     voiceSettingsKey(job.options.voiceSettings) === voiceSettingsKey(options.voiceSettings)
   );
@@ -352,6 +370,8 @@ export class StreamingSpeechClient implements TTSClient {
   private scheduledEnd = 0;
   private connectedTraceId?: string;
   private connectedSessionId?: string;
+  /** Voice identity baked into the current socket's URL; a mismatch reconnects. */
+  private connectedVoice?: string;
   private speechFallback = new SpeechSynthesisTTSClient();
   private activeBrowserFallbackRate: number | null = null;
   private paused = false;
@@ -428,7 +448,8 @@ export class StreamingSpeechClient implements TTSClient {
 
   prefetchSegment(text: string, options: SpeakSegmentOptions = {}): void {
     const spokenText = mathToSpeech(text.trim());
-    if (!spokenText || this.paused || this.prefetches.has(prefetchKey(spokenText, options))) {
+    const voice = voiceIdentity(this.voicePreferences);
+    if (!spokenText || this.paused || this.prefetches.has(prefetchKey(spokenText, options, voice))) {
       return;
     }
     // On the socket the next sentence gets a context of its own and starts
@@ -459,7 +480,7 @@ export class StreamingSpeechClient implements TTSClient {
       done: Promise.resolve(),
       generating: true,
     };
-    this.prefetches.set(prefetchKey(spokenText, options), entry);
+    this.prefetches.set(prefetchKey(spokenText, options, voice), entry);
     entry.done = this.fillHttpPrefetch(entry, options).finally(() => {
       entry.generating = false;
       this.httpControllers.delete(controller);
@@ -472,7 +493,8 @@ export class StreamingSpeechClient implements TTSClient {
    * the runner gets there, and playback starts with no round trip at all.
    */
   private prefetchOverWebSocket(spokenText: string, options: SpeakSegmentOptions): void {
-    if (this.jobs.some((job) => !job.settled && jobMatches(job, spokenText, options))) {
+    const voice = voiceIdentity(this.voicePreferences);
+    if (this.jobs.some((job) => !job.settled && jobMatches(job, spokenText, options, voice))) {
       return;
     }
     // The head of the queue is the sentence being spoken, or the one the
@@ -519,18 +541,19 @@ export class StreamingSpeechClient implements TTSClient {
     if (!spokenText) {
       return null;
     }
+    const voice = voiceIdentity(this.voicePreferences);
     const job = this.jobs.find(
       (candidate) =>
         !candidate.settled &&
         candidate.contextFinal &&
         candidate.timings.totalDuration > 0 &&
         candidate.timings.charStartTimes.length > 0 &&
-        jobMatches(candidate, spokenText, options),
+        jobMatches(candidate, spokenText, options, voice),
     );
     if (job) {
       return toSegmentRelativeAudioTimings(job.timings);
     }
-    const prefetch = this.prefetches.get(prefetchKey(spokenText, options));
+    const prefetch = this.prefetches.get(prefetchKey(spokenText, options, voice));
     if (
       prefetch &&
       !prefetch.generating &&
@@ -747,18 +770,19 @@ export class StreamingSpeechClient implements TTSClient {
     }
 
     const allowWebSocket = Date.now() >= this.wsDisabledUntil;
+    const voice = voiceIdentity(this.voicePreferences);
     // A sentence already generating on its own context: no round trip left to
     // pay, so it takes precedence over every other way of producing audio.
     const lookaheadJob = allowWebSocket
       ? this.jobs.find(
-          (job) => !job.claimed && !job.settled && jobMatches(job, spokenText, options),
+          (job) => !job.claimed && !job.settled && jobMatches(job, spokenText, options, voice),
         ) ?? null
       : null;
 
     if (!lookaheadJob) {
-      const prefetch = this.prefetches.get(prefetchKey(spokenText, options));
+      const prefetch = this.prefetches.get(prefetchKey(spokenText, options, voice));
       if (prefetch) {
-        this.prefetches.delete(prefetchKey(spokenText, options));
+        this.prefetches.delete(prefetchKey(spokenText, options, voice));
         try {
           await prefetch.done;
           if (!prefetch.error && (prefetch.buffers.length > 0 || prefetch.chunks.length > 0)) {
@@ -906,6 +930,14 @@ export class StreamingSpeechClient implements TTSClient {
     tutorDebug("tts", "abandonSpeaking");
   }
 
+  /** The socket's baked-in voice still matches what the student selected. */
+  private socketVoiceMatches(): boolean {
+    return (
+      this.connectedVoice !== undefined &&
+      this.connectedVoice === voiceIdentity(this.voicePreferences)
+    );
+  }
+
   private shouldReconnect(traceId?: string, _sessionId?: string): boolean {
     // Reuse an in-flight CONNECTING socket / connectPromise instead of
     // orphaning it with resetConnection (which only closes OPEN sockets).
@@ -913,6 +945,11 @@ export class StreamingSpeechClient implements TTSClient {
       return false;
     }
     if (this.ws === null || this.ws.readyState !== WebSocket.OPEN) {
+      return true;
+    }
+    // A voice switch mid-sentence leaves the socket alone so the line
+    // finishes; the next segment reconnects so it speaks in the new voice.
+    if (!this.socketVoiceMatches()) {
       return true;
     }
     // A leftover socket from the previous question would stamp this lesson's
@@ -940,6 +977,7 @@ export class StreamingSpeechClient implements TTSClient {
     this.connectPromise = null;
     this.connectedTraceId = undefined;
     this.connectedSessionId = undefined;
+    this.connectedVoice = undefined;
     this.sentSegmentSequence = 0;
     this.finishedContexts.clear();
   }
@@ -950,7 +988,10 @@ export class StreamingSpeechClient implements TTSClient {
     onConnect?: (info: { ms: number; ok: boolean }) => void,
   ): Promise<void> {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      if (!traceId || this.connectedTraceId === traceId) {
+      if (
+        (!traceId || this.connectedTraceId === traceId) &&
+        this.socketVoiceMatches()
+      ) {
         onConnect?.({ ms: 0, ok: true });
         return;
       }
@@ -1000,6 +1041,7 @@ export class StreamingSpeechClient implements TTSClient {
         this.ws = ws;
         this.connectedTraceId = traceId;
         this.connectedSessionId = sessionId;
+        this.connectedVoice = voiceIdentity(this.voicePreferences);
         // The relay counts contexts per connection, so this must too, and
         // the ids a dead socket finished with are this socket's fresh ones.
         this.sentSegmentSequence = 0;
@@ -1043,6 +1085,7 @@ export class StreamingSpeechClient implements TTSClient {
           this.connectPromise = null;
           this.connectedTraceId = undefined;
           this.connectedSessionId = undefined;
+          this.connectedVoice = undefined;
           this.detachStreamHandler();
           this.rejectAllJobs(new Error("websocket closed"));
           this.currentJob = null;
@@ -1064,6 +1107,7 @@ export class StreamingSpeechClient implements TTSClient {
     return {
       spokenText,
       options,
+      voice: voiceIdentity(this.voicePreferences),
       claimed: true,
       resolve: () => {},
       reject: () => {},
@@ -2355,6 +2399,7 @@ export class StreamingSpeechClient implements TTSClient {
     this.connectPromise = null;
     this.connectedTraceId = undefined;
     this.connectedSessionId = undefined;
+    this.connectedVoice = undefined;
     this.sentSegmentSequence = 0;
     this.finishedContexts.clear();
     this.paused = false;
@@ -2405,7 +2450,9 @@ export class StreamingSpeechClient implements TTSClient {
    * The voice id is baked into the upstream socket, so a language or model
    * change can only take effect on a fresh connection. Drop the idle socket
    * here and let the next segment reconnect; a socket that is mid-sentence is
-   * left alone so the current line finishes in the old voice.
+   * left alone so the current line finishes in the old voice, and the next
+   * segment reconnects it (see `shouldReconnect`). Sentences already
+   * generated in the old voice are dropped, never played.
    */
   setVoicePreferences(preferences: TutorVoicePreferences): void {
     const changed =
@@ -2415,6 +2462,14 @@ export class StreamingSpeechClient implements TTSClient {
     if (!changed) {
       return;
     }
+    // Old-voice audio must not leak into the next segment: the claim keys no
+    // longer match it, and dropping it here also stops paying for it.
+    // Already-claimed audio was deleted from the map at claim time, so the
+    // line being spoken is unaffected.
+    for (const prefetch of this.prefetches.values()) {
+      prefetch.controller.abort();
+    }
+    this.prefetches.clear();
     if (!this.playing && this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.close();
       this.ws = null;
