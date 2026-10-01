@@ -41,6 +41,9 @@ import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
 import { findStatedCurves, type StatedCurve } from "./statedEquations";
 import { metricAssertions } from "../archetypes/contract";
 import { synthesizeArchetypeScene } from "../archetypes";
+import { buildSolidFigure } from "./solidFigure";
+import { buildPlanarMensuration } from "./planarMensuration";
+import { sourceMensurationStructure } from "./sourceMensuration";
 import {
   SCENE_DOCUMENT_VERSION,
   type RenderScene,
@@ -278,6 +281,7 @@ function resolveRequestedFamilies(
   const structure = familiesFromProblemStructure(problemIR);
   const merged = new Set<SceneVisualFamily>([
     ...structure,
+    ...familiesFromProblemStructure(sourceMensurationStructure(question)),
     ...(requested ?? []).filter(isSceneVisualFamily),
     ...inferFamiliesFromQuestion(question),
   ]);
@@ -1455,6 +1459,8 @@ function buildBoundedRegion(
   _quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  const planar = buildPlanarMensuration(question);
+  if (planar) return planar;
   const expressions = extractExplicitFunctions(question);
   // Two explicit curves already bound a region, and function_region also draws
   // both boundaries beyond it. Only reach for the inequality system when that
@@ -3733,38 +3739,6 @@ function extractSpaceDirection(
   const match = matches[index];
   if (!match) return null;
   return { x: Number(match[1]), y: Number(match[2]), z: Number(match[3]) };
-}
-
-function buildSolidFigure(question: string, quantities: PlanQuantity[], _schematic: boolean): SceneDocument | null {
-  const radius = firstQuantity(quantities, ["r", "radius"]) ?? 1.2;
-  const height = firstQuantity(quantities, ["h", "height"]) ?? 2.4;
-  const kind = /\bcone\b/i.test(question) ? "cone"
-    : /\bfrustum\b/i.test(question) ? "frustum"
-      : /\bhemisphere\b/i.test(question) ? "hemisphere"
-        : /\bsphere\b/i.test(question) ? "sphere"
-          : "cylinder";
-  if (!/(?:cylinder|cone|frustum|hemisphere|sphere)/i.test(question)) return null;
-  return baseDocument({
-    question,
-    reason: "solid projection from named mensuration family",
-    quantities: [],
-    entities: [
-      { id: "center", kind: "point", role: "solid center" },
-      { id: "solid", kind: "polyline", role: "solid projection" },
-    ],
-    constructions: [
-      pointAt("center", 0, 0),
-      {
-        id: "make_solid",
-        operator: "solid_projection",
-        inputs: kind === "frustum"
-          ? { kind, center: "center", radius, height, topRadius: radius * 0.55, axis: "vertical" }
-          : { kind, center: "center", radius, height, axis: "vertical" },
-        outputs: ["solid"],
-      },
-    ],
-    assertions: [{ id: "solid_exists", predicate: "exists", entities: ["solid"], expected: true, severity: "fatal" }],
-  });
 }
 
 function buildPointField(question: string, _quantities: PlanQuantity[], _schematic: boolean): SceneDocument | null {

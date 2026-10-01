@@ -54,6 +54,7 @@ import {
 } from "./annotationMarks";
 import { appendCompiledAnnotations } from "./sceneAnnotations";
 import { lensSectionOutline, sphericalSurfaceGeometry } from "./opticsSurfaces";
+import { readPolyhedralSolid, polyhedralPaths, polyhedralSection, type PolyhedralSolid } from "../math/polyhedralSolid";
 
 type Point = { x: number; y: number };
 type Viewport = { x: number; y: number; width: number; height: number; padding?: number };
@@ -70,6 +71,7 @@ type SolidProjection = {
   radius: number;
   height: number;
   topRadius: number;
+  innerRadius?: number;
   axis: "vertical" | "horizontal";
 };
 type Geometry =
@@ -80,7 +82,7 @@ type Geometry =
   | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
   | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number }
   | { kind: "dimension"; a: Point; b: Point }
-  | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; spaceFrame?: SpaceFrame };
+  | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame };
 
 const EPSILON = 1e-6;
 
@@ -1280,6 +1282,27 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         break;
       }
       case "inside": {
+        const subjectGeometry = values[0];
+        const enclosing = values[1];
+        if (subjectGeometry?.kind === "circle") {
+          if (enclosing?.kind === "circle") {
+            passed = distance(subjectGeometry.center, enclosing.center) + subjectGeometry.radius < enclosing.radius - EPSILON;
+          } else if (enclosing?.kind === "path" && enclosing.closed === true) {
+            // A circle lies in a polygon exactly when its center is inside and
+            // no boundary edge comes within its radius. Sampling the rim would
+            // miss a crossing between samples.
+            passed = pointInsidePolygon(subjectGeometry.center, enclosing.points) && enclosing.points.every((a, index) => {
+              const b = enclosing.points[(index + 1) % enclosing.points.length]!;
+              const dx = b.x - a.x;
+              const dy = b.y - a.y;
+              const squared = dx * dx + dy * dy;
+              if (squared <= EPSILON ** 2) return true;
+              const t = Math.max(0, Math.min(1, ((subjectGeometry.center.x - a.x) * dx + (subjectGeometry.center.y - a.y) * dy) / squared));
+              return distance(subjectGeometry.center, { x: a.x + t * dx, y: a.y + t * dy }) > subjectGeometry.radius + EPSILON;
+            });
+          }
+          break;
+        }
         const subject = asPoint(values[0]);
         const boundary = values[1];
         passed = boundary?.kind === "circle"
@@ -2254,6 +2277,11 @@ function solidProjectionGeometry(
   quantities: Map<string, Record<string, unknown>>,
 ): Extract<Geometry, { kind: "compound" }> {
   const kind = inputs.kind;
+  if (kind === "polyhedron") {
+    const center = resolvePoint(inputs.center, geometry);
+    const spec = readPolyhedralSolid(inputs, (value) => resolveNumber(value, quantities));
+    return { kind: "compound", paths: polyhedralPaths(spec, center), terminals: [center, { x: center.x, y: center.y + spec.height }], polyhedralSolid: { spec, center } };
+  }
   if (!isSolidProjectionKind(kind)) throw new Error(`unsupported solid_projection kind ${String(kind)}`);
   const center = resolvePoint(first(inputs, ["center"]), geometry);
   const radius = positive(resolveNumber(first(inputs, ["radius"]), quantities), "radius");
@@ -2272,9 +2300,14 @@ function solidProjectionGeometry(
     throw new Error("frustum topRadius must differ from radius; use cylinder for equal radii");
   }
 
-  const solid: SolidProjection = { kind, center, radius, height, topRadius, axis };
+  const innerRadius = inputs.innerRadius === undefined ? undefined : positive(resolveNumber(inputs.innerRadius, quantities), "innerRadius");
+  if (innerRadius !== undefined && (kind !== "cylinder" || innerRadius >= radius)) throw new Error("innerRadius requires a cylinder with innerRadius < radius");
+  const solid: SolidProjection = { kind, center, radius, height, topRadius, axis, innerRadius };
   const paths = solidProjectionPaths(solid);
-  assertConnectedProjectionTopology(kind, paths);
+  // An annular solid has two independently connected contour sets. Check each
+  // boundary; connecting the inner and outer walls would fill the actual hole.
+  assertConnectedProjectionTopology(kind, paths.slice(0, innerRadius === undefined ? paths.length : 4));
+  if (innerRadius !== undefined) assertConnectedProjectionTopology(kind, paths.slice(4));
   const extents = solidProjectionExtents(solid);
   return { kind: "compound", paths, terminals: extents, solidProjection: solid };
 }
@@ -2283,16 +2316,19 @@ function solidCrossSectionGeometry(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
-): Extract<Geometry, { kind: "path" }> {
+): Extract<Geometry, { kind: "path" | "multi_path" }> {
   const solidId = first(inputs, ["solid"]);
-  if (typeof solidId !== "string") throw new Error("solid_cross_section solid must reference a solid_projection");
+  if (typeof solidId !== "string") throw new Error("solid_cross_section solid must reference a solid operator");
   const solidGeometry = geometry.get(solidId);
   const solid = solidGeometry?.kind === "compound" ? solidGeometry.solidProjection : undefined;
-  if (!solid) throw new Error(`${solidId} is not a solid_projection`);
+  const polyhedral = solidGeometry?.kind === "compound" ? solidGeometry.polyhedralSolid : undefined;
+  if (!solid && !polyhedral) throw new Error(`${solidId} is not a solid operator`);
   const at = resolveNumber(first(inputs, ["at"]), quantities);
   if (!(at > 0 && at < 1)) throw new Error("solid_cross_section at must be strictly between 0 and 1");
   const plane = inputs.plane === undefined ? "transverse" : inputs.plane;
   if (plane !== "transverse") throw new Error("solid_cross_section currently supports plane transverse only");
+  if (polyhedral) return { kind: "path", points: polyhedralSection(polyhedral.spec, polyhedral.center, at) };
+  if (!solid) throw new Error("missing solid geometry");
 
   const { axial, radius } = solidCrossSectionDimensions(solid, at);
   if (!(radius > EPSILON) || !Number.isFinite(axial) || !Number.isFinite(radius)) {
@@ -2302,7 +2338,9 @@ function solidCrossSectionGeometry(
   if (points.length < 4 || distance(points[0]!, points.at(-1)!) > EPSILON) {
     throw new Error("solid_cross_section must produce a closed finite contour");
   }
-  return { kind: "path", points };
+  return solid.innerRadius === undefined
+    ? { kind: "path", points }
+    : { kind: "multi_path", paths: [points, projectionEllipse(solid, axial, solid.innerRadius)] };
 }
 
 function spaceFrameGeometry(
@@ -2843,6 +2881,7 @@ function solidProjectionPaths(solid: SolidProjection): Point[][] {
       top,
       [projectionPoint(solid, 0, -radius), projectionPoint(solid, height, -radius)],
       [projectionPoint(solid, 0, radius), projectionPoint(solid, height, radius)],
+      ...(solid.innerRadius === undefined ? [] : solidProjectionPaths({ ...solid, radius: solid.innerRadius, innerRadius: undefined })),
     ];
   }
   if (kind === "cone") {

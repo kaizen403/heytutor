@@ -16,6 +16,7 @@ import {
   type SupportedSceneComponentSymbol,
 } from "../capability/capabilityManifest";
 import { ensureStudentFacingPointMarks, promoteAngleMarkVertices } from "./namedPoints";
+import { readPolyhedralSolid } from "../math/polyhedralSolid";
 
 const ARRAY_FIELDS = [
   "quantities", "entities", "constructions", "relations", "assertions",
@@ -5264,10 +5265,22 @@ function validateMensurationConstruction(
         actual: centerId,
       });
     }
+    if (inputs.kind === "polyhedron") {
+      try {
+        readPolyhedralSolid(inputs, (value) => {
+          const result = validationNumber(value, document);
+          if (result === null) throw new Error("dimensions must be finite numbers or quantity references");
+          return result;
+        });
+      } catch (error) {
+        issues.push({ code: "invalid_polyhedral_solid", message: error instanceof Error ? error.message : "invalid polyhedral solid", severity: "fatal", path: `constructions[${index}].inputs` });
+      }
+      return;
+    }
     if (!SOLID_PROJECTION_KINDS.has(String(inputs.kind))) {
       issues.push({
         code: "invalid_solid_projection_kind",
-        message: "solid_projection kind must be cylinder, cone, frustum, sphere, or hemisphere",
+        message: "solid_projection kind must be cylinder, cone, frustum, sphere, hemisphere, or polyhedron",
         severity: "fatal",
         path: `constructions[${index}].inputs.kind`,
         actual: inputs.kind,
@@ -5331,6 +5344,12 @@ function validateMensurationConstruction(
         path: `constructions[${index}].inputs.topRadius`,
         actual: inputs.topRadius,
       });
+    }
+    if (inputs.innerRadius !== undefined) {
+      const inner = validationNumber(inputs.innerRadius, document);
+      if (inputs.kind !== "cylinder" || inner === null || radius === null || !(inner > 0 && inner < radius)) {
+        issues.push({ code: "invalid_solid_inner_radius", message: "innerRadius requires a cylinder with 0 < innerRadius < radius", severity: "fatal", path: `constructions[${index}].inputs.innerRadius` });
+      }
     }
     return;
   }
@@ -6337,6 +6356,7 @@ function requiredOperatorForDerivedRole(entity: SceneDocument["entities"][number
   if (/\bsolid of revolution\b/.test(normalized)) return "solid_of_revolution";
   if (/\bsolid cross section\b/.test(normalized)) return "solid_cross_section";
   if (/\bsolid projection\b/.test(normalized)) return "solid_projection";
+  if (/\bpolyhedral solid\b/.test(normalized)) return "solid_projection";
   if (/\bspace frame\b|\b3d axes\b/.test(normalized)) return "space_frame";
   if (/\bspace point\b/.test(normalized)) return "space_point";
   if (/\bspace line\b/.test(normalized)) return "space_line";

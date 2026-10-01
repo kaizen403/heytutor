@@ -470,6 +470,7 @@ Allowed AST nodes: number, constant(pi|e), variable, unary(+|-), binary(+|-|*|/|
 Allowed solve requests: evaluate, roots, intersections, definite_integral.
 Use evaluate for any requested scalar that can be written as a closed numeric AST after substituting the givens.
 Do not invent a solve request for a law or assumption not justified by the submitted question and validated TurnPlan.
+For mensuration, represent each source shape and part as solid (3D) or region (2D), and include solid/section or bounded_region representation intent. Ground the join or cavity in source facts; a scalar answer still needs its spatial setup.
 
 Every solve request that computes a numeric TurnPlan unknown MUST include resultBinding:
 { "turnPlanQuantityId": exact unknown id, "symbol": exact unknown symbol, "unit": exact unknown unit when present, "evidenceFactIds": [requested fact ids] }.
