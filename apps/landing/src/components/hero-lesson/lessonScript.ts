@@ -1,4 +1,4 @@
-/** Captured, reviewed optics lesson and its recorded media clock.
+/** Captured square-pyramid lesson and its recorded media clock.
  * Geometry comes from the verified scene; speech uses the current tutor provider.
  * The offline recorder executes the current whiteboard and ink conductor.
  */

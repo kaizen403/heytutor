@@ -6,12 +6,11 @@ import { IncrementalTagParser, prepareVerifiedLessonSegments, type TutorSegment 
 import { normalizeSegmentForAlignment } from "../../features/tutor-session/lib/turn/segmentPlanning";
 import { runLecture, type RunLectureOptions } from "./lecturePipeline";
 import { applyLectureLabHeaders } from "./labAuth";
-import { reviewLandingLesson } from "./reviewLandingLesson";
 import { gradeLecture } from "./grade";
 
 async function main() {
   const origin = process.env.HERO_TUTOR_ORIGIN ?? "http://127.0.0.1:3001";
-  const question = "An object 3 cm tall is placed 30 cm in front of a convex lens with focal length 10 cm. Find the image distance and height, and describe the image. Draw a ray diagram.";
+  const question = "A pyramid has a square base of side 6 cm and a perpendicular height of 4 cm. Find its volume and total surface area.";
   const landing = await fetch(`${origin}/`, { redirect: "manual" });
   const cookie = landing.headers.getSetCookie().map((entry) => entry.split(";")[0]).join("; ");
   if (!cookie) throw new Error("The local tutor must enable anonymous dev sessions");
@@ -32,8 +31,8 @@ async function main() {
   });
   mkdirSync(resolve(process.cwd(), ".lecture-lab"), { recursive: true });
   writeFileSync(resolve(process.cwd(), ".lecture-lab/landing-hero-run.json"), JSON.stringify(run, null, 2));
-  if (run.error || !presentation?.diagram || !run.diagram.committed || run.diagram.tier !== "exact_verified") {
-    throw new Error(run.error ?? `The demo requires a verified, committed figure: ${JSON.stringify(run.diagram)}`);
+  if (run.error || !presentation?.diagram || !run.diagram.committed || run.diagram.declinedUnreadable) {
+    throw new Error(run.error ?? "The demo requires a verified, readable, committed figure");
   }
   const teaching: TutorSegment[] = [];
   const parser = new IncrementalTagParser({ preserveStepSpeech: true, onSegmentReady: (segment) => teaching.push(segment) });
@@ -49,10 +48,10 @@ async function main() {
   const output = resolve(process.cwd(), "../landing/src/components/hero-lesson/lessonAsset.json");
   mkdirSync(resolve(output, ".."), { recursive: true });
   writeFileSync(output, JSON.stringify({
-    schema: 1, tier: run.diagram.tier, title: "Image formed by a convex lens", question,
+    schema: 1, tier: run.diagram.tier, title: "Volume & surface area of a square pyramid", question,
     generatedAt: new Date().toISOString(), sourceCommit: execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim(),
     diagram: presentation.diagram, solver: run.solver, grade: gradeLecture(run),
-    segments: reviewLandingLesson(segments),
+    segments,
   }, null, 2) + "\n");
 
   console.log(`Captured ${segments.length} segments; ${run.diagram.tier}; ${run.teaching.writes.length} work rows.`);

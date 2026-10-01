@@ -25,7 +25,7 @@ function DashboardChrome({ rootRef, drive }: { rootRef: RefObject<HTMLDivElement
   const typed = question.slice(0, snapshot.typedCount)
   return (
     <div ref={rootRef} className="hero-product" data-lesson-phase={snapshot.phase} data-lesson-clock={snapshot.timeSeconds ?? 0} style={product.theme as CSSProperties}>
-      <DesktopSidebar title={LESSON_TITLE} preview="v = 15 cm · hᵢ = −1.5 cm" />
+      <DesktopSidebar title={LESSON_TITLE} preview="V = 48 cm³ · Surface area = 96 cm²" />
       <main className="hero-product-main">
         <header className="demo-session-header">
           <div className="demo-session-identity">

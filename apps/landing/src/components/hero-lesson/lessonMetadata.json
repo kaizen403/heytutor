@@ -1,9 +1,9 @@
 {
-  "title": "Image formed by a convex lens",
-  "question": "An object 3 cm tall is placed 30 cm in front of a convex lens with focal length 10 cm. Find the image distance and height, and describe the image. Draw a ray diagram.",
-  "version": "e40eba0d6323",
-  "duration": 150.58320808410645,
-  "audioOffsetSeconds": 9.783,
-  "sceneTier": "exact_verified",
-  "sourceCommit": "42cbb31"
+  "title": "Volume & surface area of a square pyramid",
+  "question": "A pyramid has a square base of side 6 cm and a perpendicular height of 4 cm. Find its volume and total surface area.",
+  "version": "a916bfec37bd",
+  "duration": 173.25222945213318,
+  "audioOffsetSeconds": 7.812,
+  "sceneTier": "qualitative_verified",
+  "sourceCommit": "85acc7d"
 }
