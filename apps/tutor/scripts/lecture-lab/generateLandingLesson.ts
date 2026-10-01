@@ -7,6 +7,7 @@ import { normalizeSegmentForAlignment } from "../../features/tutor-session/lib/t
 import { runLecture, type RunLectureOptions } from "./lecturePipeline";
 import { applyLectureLabHeaders } from "./labAuth";
 import { gradeLecture } from "./grade";
+import { reviewLandingLesson } from "./reviewLandingLesson";
 
 async function main() {
   const origin = process.env.HERO_TUTOR_ORIGIN ?? "http://127.0.0.1:3001";
@@ -31,7 +32,8 @@ async function main() {
   });
   mkdirSync(resolve(process.cwd(), ".lecture-lab"), { recursive: true });
   writeFileSync(resolve(process.cwd(), ".lecture-lab/landing-hero-run.json"), JSON.stringify(run, null, 2));
-  if (run.error || !presentation?.diagram || !run.diagram.committed || run.diagram.declinedUnreadable) {
+  const verifiedFigure = run.diagram.tier === "exact_verified" || run.diagram.tier === "qualitative_verified";
+  if (run.error || !presentation?.diagram || !run.diagram.committed || run.diagram.declinedUnreadable || !verifiedFigure) {
     throw new Error(run.error ?? "The demo requires a verified, readable, committed figure");
   }
   const teaching: TutorSegment[] = [];
@@ -51,7 +53,7 @@ async function main() {
     schema: 1, tier: run.diagram.tier, title: "Volume & surface area of a square pyramid", question,
     generatedAt: new Date().toISOString(), sourceCommit: execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim(),
     diagram: presentation.diagram, solver: run.solver, grade: gradeLecture(run),
-    segments,
+    segments: reviewLandingLesson(segments),
   }, null, 2) + "\n");
 
   console.log(`Captured ${segments.length} segments; ${run.diagram.tier}; ${run.teaching.writes.length} work rows.`);
