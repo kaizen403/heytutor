@@ -32,6 +32,8 @@ export interface SpeakSegmentOptions {
   voiceSettings?: TutorVoiceSettings;
   traceId?: string;
   sessionId?: string;
+  /** Fires once for complete claimed provider bytes, before decode/load; not audibility. */
+  onAudioReady?: () => void;
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (error: unknown) => void;
@@ -769,13 +771,22 @@ export class SpeechSynthesisTTSClient implements TTSClient {
           if (owned && !browserSpeechOwner) browserSpeechWaiters.shift()?.start();
         }
       };
-      this.cancelUtterance = () => finish();
+      const cancelOwnedUtterance = () => {
+        if (browserSpeechOwner !== this) return;
+        // Cancellation can dispatch onerror synchronously. Retain the lease
+        // until the engine is empty so a successor cannot be cancelled too.
+        detach();
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.resume();
+      };
+      this.cancelUtterance = () => { cancelOwnedUtterance(); finish(); };
 
       const startTime = { value: 0 };
       const charStartTimes: number[] = new Array(spokenText.length).fill(0);
       const charDurations: number[] = new Array(spokenText.length).fill(0.06);
 
       const speakNow = () => {
+        if (settled || browserSpeechOwner !== this) return;
         detach();
         const next = new SpeechSynthesisUtterance(spokenText);
         utterance = next;
@@ -825,7 +836,7 @@ export class SpeechSynthesisTTSClient implements TTSClient {
       // One fresh utterance on a later turn recovers. The give-up stays at
       // 2.5s so a dead engine cannot stall the lecture.
       const giveUp = () => {
-        window.speechSynthesis.cancel();
+        cancelOwnedUtterance();
         const error = new Error("Browser speech did not start");
         finish(() => onError?.(error), error);
       };
@@ -835,10 +846,10 @@ export class SpeechSynthesisTTSClient implements TTSClient {
         // cancel() does not clear the browser's paused flag.
         window.speechSynthesis.resume();
         watches.push(setTimeout(() => {
-          if (settled) return;
-          window.speechSynthesis.resume();
+          if (settled || browserSpeechOwner !== this || this.playing) return;
+          cancelOwnedUtterance();
           watches.push(setTimeout(() => {
-            if (settled) return;
+            if (settled || browserSpeechOwner !== this) return;
             try { speakNow(); } catch (error) { finish(() => onError?.(error), error); }
           }, 0));
         }, 400));
@@ -859,14 +870,6 @@ export class SpeechSynthesisTTSClient implements TTSClient {
   }
 
   pause(): void {
-    const ownsSpeech = browserSpeechOwner === this;
-    if (ownsSpeech && typeof window !== "undefined" && window.speechSynthesis) {
-      // Chromium frequently keeps talking through pause(), and Firefox leaves
-      // the engine paused after cancel() so the next sentence never starts.
-      // cancel() is the mute; resume() clears the stuck flag.
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.resume();
-    }
     this.cancelUtterance?.();
     this.playing = false;
     this.currentUtterance = null;
@@ -877,11 +880,6 @@ export class SpeechSynthesisTTSClient implements TTSClient {
   }
 
   stop(): void {
-    const ownsSpeech = browserSpeechOwner === this;
-    if (ownsSpeech && typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.resume();
-    }
     this.cancelUtterance?.();
 
     this.playing = false;

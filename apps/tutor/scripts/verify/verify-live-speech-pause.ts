@@ -47,6 +47,7 @@ function verifyRestartedBrowserSpeechDoesNotLeadInk(runner: string) {
     const speechClockRef = { current: clock };
     const segmentPlaybackRate = () => 1;
     const isCancelled = () => false;
+    const canAcceptBrowser = () => true;
     const onStart = () => {};
     const options = { onStart: () => {
       if (audioStartedAtMs === null) {
@@ -173,6 +174,28 @@ async function main() {
   await fallback;
   assert.deepEqual(starts, [1, 2], "resume must retry a browser utterance cancelled by pause");
 
+  // A cancellation rejection can arrive after rapid Pause/Resume, when the
+  // boolean is no longer paused. Ownership is the attempt's pause generation.
+  let rejectedGeneration = 0;
+  let rejectedAttempts = 0;
+  await speakWithPauseOwnedFallback({
+    speak: async ({ onStart, onEnd, onError }) => {
+      rejectedAttempts++;
+      onStart();
+      if (rejectedAttempts === 1) {
+        rejectedGeneration++;
+        const error = new DOMException("pause interrupted browser start", "AbortError");
+        onError(error);
+        throw error;
+      }
+      onEnd();
+    },
+    waitWhilePaused: async () => true,
+    isCancelled: () => false,
+    pauseGeneration: () => rejectedGeneration,
+  });
+  assert.equal(rejectedAttempts, 2, "a rejected pause-owned attempt must replay the same sentence after rapid resume");
+
   let cancelled = false;
   let stopUtterance!: () => void;
   let startsAfterFailure = 0;
@@ -209,6 +232,7 @@ async function main() {
   assert.match(runner, /playbackRate: segmentPlaybackRate\(\)/);
   assert.match(runner, /getPlaybackRate: segmentPlaybackRate/g);
   assert.match(runner, /if \(\(audioStartedAtMs === null \|\| usingBrowserFallback\) && !isCancelled\(\)\) throw error;/, "failed browser recovery must not count as a successful lesson beat even after partial audio");
+  assert.match(runner, /if \(providerRecoveryAttempted && !isCancelled\(\)\)[\s\S]*?throw new Error\("Provider voice recovery failed"/, "failed provider recovery must not be swallowed as a tolerable intro startup miss");
   assert.match(runner, /speechAborted = true;\s*if \(browserFallbackOwnerRef\.current === segmentFallbackOwner\) stopFallbackSpeech\(\);/, "an obsolete segment must not stop a newer turn's browser voice");
   assert.match(control, /pauseFallbackSpeech\(\)/);
   assert.match(control, /resumeFallbackSpeech\(\)/);

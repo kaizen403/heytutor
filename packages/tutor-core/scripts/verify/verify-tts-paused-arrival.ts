@@ -31,6 +31,8 @@ class FakeWebSocket {
   close() { this.readyState = 0; this.onclose?.(); }
 }
 class FakeAudioContext {
+  static latestSource: AudioBufferSourceNode;
+  static sourceCalls = 0;
   static decodeCalls = 0;
   static holdDecodes = false;
   static releaseDecodes: Array<() => void> = [];
@@ -48,6 +50,12 @@ class FakeAudioContext {
     return { duration: 1 } as AudioBuffer;
   }
   createGain() { return { gain: { value: 1 }, connect() {} } as unknown as GainNode; }
+  createBufferSource() {
+    const source = { playbackRate: { value: 1 }, connect() {}, start() {}, stop() {}, onended: null };
+    FakeAudioContext.sourceCalls++;
+    FakeAudioContext.latestSource = source as unknown as AudioBufferSourceNode;
+    return FakeAudioContext.latestSource;
+  }
 }
 class FakeAudio {
   static latest: FakeAudio;
@@ -97,7 +105,7 @@ assert.equal(started, 0, "audio must not announce speech during pause");
 assert.equal(finished, false, "pause must retain the sentence for resume");
 client.resume();
 const deadline = Date.now() + 1000;
-while (!FakeAudio.latest && Date.now() < deadline) {
+while ((!FakeAudio.latest || started === 0) && Date.now() < deadline) {
   await new Promise((resolve) => setTimeout(resolve, 5));
 }
 assert.equal(FakeAudio.playCalls, 1, "resuming must play buffered sentence exactly once");
@@ -110,6 +118,9 @@ client.stop();
 // The final-packet handler and resume() both try to start the same decoded job.
 // Hold decoding so the second starter enters before the first can mark started.
 FakeWebSocket.autoPackets = false;
+// The native path no longer decodes. Keep the original decode/resume race
+// exercised on the WebAudio-only fallback, and test native startup separately.
+Object.defineProperty(globalThis, "Audio", { configurable: true, value: undefined });
 FakeAudioContext.holdDecodes = true;
 FakeAudioContext.decodeCalls = 0;
 FakeAudio.playCalls = 0;
@@ -139,12 +150,12 @@ assert.equal(FakeAudioContext.decodeCalls, 1,
 FakeAudioContext.holdDecodes = false;
 for (const release of FakeAudioContext.releaseDecodes.splice(0)) release();
 const playDeadline = Date.now() + 1000;
-while (FakeAudio.playCalls === 0 && Date.now() < playDeadline) {
+while (FakeAudioContext.sourceCalls === 0 && Date.now() < playDeadline) {
   await new Promise((resolve) => setTimeout(resolve, 2));
 }
-assert.equal(FakeAudio.playCalls, 1, "concurrent final/resume must create only one media playback");
+assert.equal(FakeAudioContext.sourceCalls, 1, "concurrent final/resume must create only one media playback");
 assert.equal(racingStarts, 1);
-FakeAudio.latest.end();
+FakeAudioContext.latestSource.onended?.(new Event("ended"));
 await Promise.race([racingSpeech, new Promise<never>((_, reject) => setTimeout(() => reject(new Error("racing speech did not finish")), 1000))]);
 racing.stop();
 console.log("late TTS audio waits for resume; concurrent final/resume starts once");

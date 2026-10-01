@@ -15,6 +15,7 @@ import type { SpokenSegmentClock } from "../../lib/code-lesson/codeSpokenSync";
 import type { DoubtTurnRequest } from "../../lib/input/askDoubt";
 import type { BoardPageRecord, PageTurnKind, PausedLessonRequest } from "../../lib/turn/doubtTurn";
 import type { BillingFailure } from "@/lib/billing/billingClient";
+import type { IntroLayoutCheckpoint } from "../../lib/board/introLayoutCheckpoint";
 
 /** A question opens a fresh page unless it carries a doubt or resumes this one. */
 export type HandleQuestionOptions = {
@@ -24,6 +25,8 @@ export type HandleQuestionOptions = {
 };
 
 export type ExecuteCommandOptions = {
+  /** Explicit metadata owner for atomic scene-intro commands. */
+  introLayoutCheckpoint?: IntroLayoutCheckpoint;
   durationScale?: number;
   speechDurationMs?: number;
   /** This command's slice of the segment's spoken time. */

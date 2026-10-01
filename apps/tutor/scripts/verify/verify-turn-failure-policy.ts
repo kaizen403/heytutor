@@ -87,7 +87,7 @@ async function main(): Promise<void> {
     );
   }
 
-  // --- A missed voice must not be treated as a dead figure. ---
+  // --- Voice failures remain distinct, but verified intros cannot skip a beat. ---
   {
     const voice = new Error("The voice could not start. Please try the lesson again.");
     assert(isVoiceStartupFailure(voice), "a silent beat is a voice failure");
@@ -108,9 +108,24 @@ async function main(): Promise<void> {
       new URL("../../features/tutor-session/hooks/turn/useTurnControl.ts", import.meta.url),
       "utf8",
     );
+    const verifiedIntro = intro.slice(
+      intro.indexOf("const enqueueVerifiedIntro = useCallback("),
+      intro.indexOf("const processResponseText = useCallback("),
+    );
     assert(
-      intro.includes("isVoiceStartupFailure(error)"),
-      "the verified intro must keep the figure when only the voice failed",
+      !verifiedIntro.includes("isVoiceStartupFailure(") && !verifiedIntro.includes("voiceFailures"),
+      "an atomic verified intro cannot swallow a startup failure and commit a missing reveal beat",
+    );
+    assert(
+      verifiedIntro.indexOf("await runSegment(") >= 0 &&
+        verifiedIntro.indexOf("await runSegment(") < verifiedIntro.indexOf("wb.commitDrawTransaction(transactionId)"),
+      "every intro beat must finish before the figure transaction commits",
+    );
+    assert(
+      verifiedIntro.includes("wb.abortDrawTransaction(transactionId)") &&
+        verifiedIntro.includes("!introRecordedRows.has(row)") &&
+        verifiedIntro.includes("narrationSinceEpochRef.current = narrationBeforeIntro"),
+      "a failed intro must abort its ink and discard its own successful-row/narration metadata",
     );
   }
 

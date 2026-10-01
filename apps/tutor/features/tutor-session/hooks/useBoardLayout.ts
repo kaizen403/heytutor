@@ -14,6 +14,7 @@ import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { useBoardViewport, type BoardViewportMode } from "./useBoardViewport";
 import { TEXT_LAYOUT, DIAGRAM_ZONE, WORK_ROW_FONT_SIZE, BOARD_WIDTH } from "../constants";
 import type { BoardTextRect, BoardLayoutState } from "../types";
+import type { IntroLayoutCheckpoint } from "../lib/board/introLayoutCheckpoint";
 import {
   isInDiagramZone,
   estimateBoardTextWidthAtSize,
@@ -204,6 +205,7 @@ export function useBoardLayout({
       x: number,
       y: number,
       applyLayout: boolean,
+      introLayoutCheckpoint?: IntroLayoutCheckpoint,
       /** `maxWidth` is the work column at this row — callers must fit ink to it. */
     ): Promise<{ x: number; y: number; maxWidth: number }> => {
       if (!applyLayout || !command.text) {
@@ -228,7 +230,8 @@ export function useBoardLayout({
           ) {
             await eraseWorkColumnForNewPage(command.text);
           }
-          registerBoardAnchor(
+          if (introLayoutCheckpoint) introLayoutCheckpoint.registerAnchor(rect);
+          else registerBoardAnchor(
             boardLayoutRef.current,
             command.type === "WRITE" ? withWorkRowIdentity(boardLayoutRef.current, rect) : rect,
           );

@@ -78,6 +78,9 @@ try {
   for (const ctx of [...lateLectures.slice(2), ...replacements]) releaseLectureAudioContext(ctx);
   haltAllLectureAudio();
 
+  // The following cases intentionally exercise browser synthesis, not native
+  // provider playback (which no longer depends on a suspended WebAudio graph).
+  Object.defineProperty(globalThis, "Audio", { configurable: true, value: undefined });
   const foreground = new StreamingSpeechClient();
   const background = new StreamingSpeechClient();
   const foregroundSpeech = foreground.speakSegment("Foreground narration.");

@@ -249,6 +249,37 @@ async function main(): Promise<void> {
     );
   }
 
+  // --- External cancellation joins a parked initial flight without unpausing. ---
+  {
+    const board = fakeBoard();
+    let cancelled = false;
+    let pollFlight = () => {};
+    let releaseFlight = () => {};
+    board.host.flyCursorTo = (...args: unknown[]) => new Promise<void>((resolve) => {
+      const shouldCancel = args[4] as (() => boolean) | undefined;
+      releaseFlight = resolve;
+      pollFlight = () => { if (shouldCancel?.()) resolve(); };
+    });
+    let settled = false;
+    const run = runScheduledFocus(board.host, [board.target("M", 900, 2600, WINDOWS[0].at)], {
+      emphasis: "spotlight", veil: VEIL, getAudioPositionMs: board.now,
+      waitUntilAudioMs: board.waitUntil, isCancelled: () => cancelled, floorMs: 420,
+    }).then((result) => { settled = true; return result; });
+    const flush = async () => { for (let index = 0; index < 20; index++) await Promise.resolve(); };
+    await flush();
+    assert(!settled, "the flight must really be parked before external cancellation");
+    cancelled = true;
+    pollFlight();
+    await flush();
+    try {
+      assert(settled, "scheduled focus must pass external cancellation to its initial flight so it joins while paused");
+      assert(await run, "cancelled flight reports cancellation");
+      assert(board.letters().length === 0, "a cancelled flight cannot consume/letter deferred annotations");
+      assert(board.traces().length === 0, "a cancelled flight cannot trace");
+      assert(board.spotlights().at(-1)?.hole === null, "a cancelled flight lowers its spotlight");
+    } finally { releaseFlight(); await run; }
+  }
+
   // --- Arriving late: every target still gets its label and a floor trace, in order. ---
   {
     const board = fakeBoard({ startAtMs: 7000 });
