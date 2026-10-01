@@ -1,4 +1,6 @@
 import { useCallback, useRef } from "react";
+import type { IntroLayoutCheckpoint } from "../../lib/board/introLayoutCheckpoint";
+import type { RecordedSegmentPayload } from "@/lib/boards/boardsClient";
 import {
   getSegmentCommands,
   prefetchStrokePaths,
@@ -68,6 +70,7 @@ export function useSegmentRunner({
   const fallbackPauseGenerationRef = useRef(0);
   const speechClockRef = useRef<PauseAwareSpeechClock | null>(null);
   const timingWaitClockRef = useRef<PauseAwareSpeechClock | null>(null);
+  const introDrawOwnerRef = useRef<{ owner: symbol; freeze: () => void } | null>(null);
 
   // Turn controls own both transports. Browser pause() cancels its current
   // utterance; the fallback loop retries that sentence after resume.
@@ -78,6 +81,9 @@ export function useSegmentRunner({
     if (browserFallbackOwnerRef.current) browserSpeechRef.current?.pause();
   };
   const resumeFallbackSpeech = () => {
+    // Resume will repeat the browser sentence, not continue its old media cursor.
+    // Invalidate the pen synchronously before the board's paused flag is lifted.
+    if (introDrawOwnerRef.current?.owner === browserFallbackOwnerRef.current) introDrawOwnerRef.current?.freeze();
     speechClockRef.current?.resume();
     timingWaitClockRef.current?.resume();
     if (browserFallbackOwnerRef.current) browserSpeechRef.current?.resume();
@@ -106,6 +112,9 @@ export function useSegmentRunner({
       index: number,
       allSegments: TutorSegment[],
       turnGeneration: number,
+      rollbackIntroInk?: () => void,
+      introLayoutCheckpoint?: IntroLayoutCheckpoint,
+      onRecorded?: (row: RecordedSegmentPayload) => void,
     ): Promise<void> => {
       const isStale = () => turnGeneration !== turnGenerationRef.current;
       const isCancelled = () => cancelRef.current || isStale();
@@ -221,6 +230,33 @@ export function useSegmentRunner({
       let speechAborted = false;
       const segmentFallbackOwner = Symbol("browser fallback");
       let speechComplete = false;
+      let drawGeneration = 0;
+      let introRestartPending = false;
+      let ownedDraw: Promise<void> = Promise.resolve();
+      let startOwnedDraw: (() => void) | null = null;
+      const freezeIntroDraw = () => {
+        if (!rollbackIntroInk || introRestartPending) return;
+        drawGeneration++;
+        introRestartPending = true;
+      };
+      const restartIntroDraw = async () => {
+        if (!rollbackIntroInk || !introRestartPending) return;
+        // A cancelled command may still be finishing an async glyph/path lookup.
+        // Join it before taking away its nodes or allowing a successor to draw.
+        await ownedDraw;
+        if (isCancelled() || speechAborted) return;
+        rollbackIntroInk();
+        audioStartedAtMs = null;
+        audioStartedAtActiveMs = null;
+        maxAudioPositionMs = Number.NEGATIVE_INFINITY;
+        capturedAudio = null;
+        capturedTimings = null;
+        capturedDurationMs = null;
+        timingsOrigin = null;
+        speechComplete = false;
+        introRestartPending = false;
+        startOwnedDraw?.();
+      };
       let actualDrawMs = 0;
       let timingTelemetryCount = 0;
       let lastTimingTelemetryChars = -1;
@@ -271,7 +307,7 @@ export function useSegmentRunner({
        * the turn is cancelled. Peeked timings and onStart used to release the
        * pen onto a silent 1.5× wall clock.
        */
-      const waitForInitialTimings = (): Promise<void> =>
+      const waitForInitialTimings = (drawCancelled = isCancelled): Promise<void> =>
         new Promise((resolve) => {
           const waitClock = createPauseAwareSpeechClock();
           if (isPausedRef.current) waitClock.pause();
@@ -290,7 +326,7 @@ export function useSegmentRunner({
               audioStartedAtMs: speechClock && audioStartedAtActiveMs !== null ? audioStartedAtActiveMs : audioStartedAtMs,
               nowMs,
               speechComplete,
-              cancelled: isCancelled(),
+              cancelled: drawCancelled(),
               playbackPositionMs: usingBrowserFallback ? null : tts.getPlaybackPositionMs(),
               // Provider recovery resets its active clock. Reuse that origin
               // instead of spending the retry's budget on the abandoned voice.
@@ -339,11 +375,18 @@ export function useSegmentRunner({
       const runDraw = async (
         totalSpeechMs: number,
         audioTimings?: AudioTimings | null,
+        generation = drawGeneration,
       ): Promise<void> => {
+        const isCancelled = () => cancelRef.current || isStale() || speechAborted || generation !== drawGeneration;
+        const waitWhilePaused = async () => {
+          while (isPausedRef.current && !isCancelled()) await cancellableDelay(16);
+          return !isCancelled();
+        };
         const drawName = `draw-${index}`;
         const drawSpan = tel?.span(drawName, segmentName);
         const drawStart = performance.now();
         const diagramDrawOptions = {
+          introLayoutCheckpoint,
           trustedDiagramGeometry: segment.verifiedDiagramIntro === true,
           applyLayout: segment.verifiedDiagramIntro !== true,
           segmentIndex: index,
@@ -387,7 +430,7 @@ export function useSegmentRunner({
           // used once `onStart` has fired — not before, or the pen dumps the
           // figure on the wall clock while TTS is still connecting.
           if (hasNarration) {
-            await raceWithCancel(waitForInitialTimings());
+            await raceWithCancel(waitForInitialTimings(isCancelled));
             if (isCancelled()) {
               return;
             }
@@ -436,6 +479,8 @@ export function useSegmentRunner({
               getPlaybackRate: segmentPlaybackRate,
               isSpeechComplete: () => speechComplete,
               canAdvanceAfterSpeech: () => !isPausedRef.current,
+              isPaused: () => isPausedRef.current,
+              nowMs: () => speechClockRef.current?.elapsedMs() ?? performance.now(),
             },
             getDiagram: () => activeVerifiedDiagramRef.current,
             isCancelled,
@@ -617,6 +662,8 @@ export function useSegmentRunner({
                   speak: async ({ onStart, onEnd, onError }) => {
                     const attemptGeneration = fallbackPauseGenerationRef.current;
                     browserRestartAttempted ||= attemptGeneration !== firstPauseGeneration;
+                    await restartIntroDraw();
+                    if (isCancelled() || speechAborted || isPausedRef.current || attemptGeneration !== fallbackPauseGenerationRef.current) return;
                     let activeAttempt = true;
                     const canAcceptBrowser = () => activeAttempt && usingBrowserFallback && !isCancelled() && !speechAborted &&
                       !isPausedRef.current && attemptGeneration === fallbackPauseGenerationRef.current;
@@ -655,6 +702,9 @@ export function useSegmentRunner({
                 if (!browserRestartAttempted || providerRecoveryAttempted || isCancelled() || speechAborted) throw error;
                 browserSpeechRef.current.stop();
                 if (!(await waitWhilePaused()) || isCancelled() || speechAborted) return;
+                freezeIntroDraw();
+                await restartIntroDraw();
+                if (isCancelled() || speechAborted) return;
                 providerRecoveryAttempted = true;
                 if (browserFallbackOwnerRef.current === segmentFallbackOwner) browserFallbackOwnerRef.current = null;
                 usingBrowserFallback = false;
@@ -760,6 +810,8 @@ export function useSegmentRunner({
             // the transaction instead of skipping narration and committing ink.
             throw new Error("Provider voice recovery failed", { cause: error });
           }
+          // An interrupted verified reveal is atomic, even if speech started.
+          if (segment.verifiedDiagramIntro === true && !isCancelled()) throw error;
           if ((audioStartedAtMs === null || usingBrowserFallback) && !isCancelled()) throw error;
         } finally {
           ownsPrimary = false;
@@ -798,49 +850,62 @@ export function useSegmentRunner({
           if (isCancelled()) return;
           if (!(await waitWhilePaused())) return;
 
-          const drawPromise = runDraw(estimateSpeechMs, null);
-          drawChainRef.current = drawPromise.catch(() => undefined);
           // If the ink stops, the voice stops with it. Without this the two
           // promises are independent: Promise.all rejects on the draw side
           // while the speech carries on narrating a board that has frozen.
-          const guardedDraw = guardDrawWithSpeech(drawPromise, (error) => {
-            speechAborted = true;
-            if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
-            tutorDebug("segment", "draw failed; silencing narration", {
-              index,
-              error: error instanceof Error ? error.message : String(error),
+          startOwnedDraw = () => {
+            ownedDraw = guardDrawWithSpeech(runDraw(estimateSpeechMs, null, drawGeneration), (error) => {
+              speechAborted = true;
+              if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
+              tutorDebug("segment", "draw failed; silencing narration", {
+                index,
+                error: error instanceof Error ? error.message : String(error),
+              });
+              tel?.mark("segment-draw-failed", {
+                segment_index: index,
+                error: error instanceof Error ? error.message : String(error),
+              });
+              tts.abandonSpeaking?.();
             });
-            tel?.mark("segment-draw-failed", {
-              segment_index: index,
-              error: error instanceof Error ? error.message : String(error),
-            });
-            tts.abandonSpeaking?.();
-          });
+            // Observe immediately, but retain the rejection for the paired join.
+            drawChainRef.current = ownedDraw.catch(() => undefined);
+          };
+          if (rollbackIntroInk) introDrawOwnerRef.current = { owner: segmentFallbackOwner, freeze: freezeIntroDraw };
+          startOwnedDraw();
 
-          await Promise.all([
-            speakSegmentWithTimeout(narration, {
-              ...speakOptions,
-              onStart: () => {
-                markVoiceStarted();
-                tutorDebug("tts", "segment audio started", { index });
-                tel?.mark("tts-start", {
-                  segment_index: index,
-                  chars: narration.length,
-                  command_count: segmentCommands.length,
-                });
-              },
-              onTimings: (timings) => {
-                captureTimings(timings);
-                if (timings.totalDuration > 0) {
-                  tutorDebug("tts", "segment timings", {
-                    index,
-                    total_duration_ms: Math.round(timings.totalDuration * 1000),
+          try {
+            await Promise.all([
+              speakSegmentWithTimeout(narration, {
+                ...speakOptions,
+                onStart: () => {
+                  markVoiceStarted();
+                  tutorDebug("tts", "segment audio started", { index });
+                  tel?.mark("tts-start", {
+                    segment_index: index,
+                    chars: narration.length,
+                    command_count: segmentCommands.length,
                   });
-                }
-              },
-            }),
-            guardedDraw,
-          ]);
+                },
+                onTimings: (timings) => {
+                  captureTimings(timings);
+                  if (timings.totalDuration > 0) {
+                    tutorDebug("tts", "segment timings", {
+                      index,
+                      total_duration_ms: Math.round(timings.totalDuration * 1000),
+                    });
+                  }
+                },
+              }),
+              ownedDraw,
+            ]);
+            // The initial draw may have settled before Pause. Completion still
+            // joins the CURRENT replay, not just that first execution.
+            await ownedDraw;
+          } finally {
+            drawGeneration++;
+            await ownedDraw.catch(() => undefined);
+            if (introDrawOwnerRef.current?.owner === segmentFallbackOwner) introDrawOwnerRef.current = null;
+          }
 
           if (isCancelled()) return;
           tutorDebug("segment", "paired narration+draw complete", { index });
@@ -851,7 +916,7 @@ export function useSegmentRunner({
           speakingNarrationRef.current = "";
         }
         if (segmentCompleted && !isCancelled()) {
-          recordedSegmentsRef.current.push({
+          const recordedRow: RecordedSegmentPayload = {
             orderIndex: index,
             narration: segment.narration,
             spokenText: mathToSpeech(narration),
@@ -871,11 +936,15 @@ export function useSegmentRunner({
               return Math.max(spoken, elapsed);
             })(),
             timings: capturedTimings,
-          });
+          };
+          recordedSegmentsRef.current.push(recordedRow);
           if (segment.narration.trim()) {
             narrationSinceEpochRef.current +=
               (narrationSinceEpochRef.current ? " " : "") + segment.narration.trim();
           }
+          // Publish ownership in the same synchronous completion as the row
+          // and narration, before Stop or another turn can take shared refs.
+          onRecorded?.(recordedRow);
         }
         tutorDebug("segment", "runSegment end", { index, ...segmentMetadata });
         segmentSpan?.end(segmentMetadata);

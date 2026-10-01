@@ -16,9 +16,10 @@ import {
   normalizeSegmentForAlignment,
 } from "../../lib/turn/segmentPlanning";
 import { placeDsaFigureIntro, resolveCodeLessonSegments } from "../../lib/code-lesson/codeLessonSegments";
-import { isVoiceStartupFailure, shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
+import { shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
 import { clearSpotlight } from "../../lib/board/spotlight";
-import { dropDiagramRects, workColumnRows } from "../../lib/board/boardLayout";
+import { workColumnRows } from "../../lib/board/boardLayout";
+import { createIntroLayoutCheckpoint } from "../../lib/board/introLayoutCheckpoint";
 import {
   autoQuestionSubmissionKey,
   buildDoubtPrompt,
@@ -95,6 +96,7 @@ export function useTurnControl(
     drawChainRef,
     collectedSegmentsRef,
     recordedSegmentsRef,
+    narrationSinceEpochRef,
     activeVerifiedDiagramRef,
     codeLessonControllerRef,
     fbdPhaseMarkedRef,
@@ -119,6 +121,7 @@ export function useTurnControl(
     executeCommandWithCancel,
   } = params;
   const activeIntroTransactionRef = useRef<string | null>(null);
+  const introNarrationCleanupRef = useRef<{ transactionId: string; rollback: () => void } | null>(null);
   /** Set when a doubt interrupt commits an in-flight intro so its catch does not roll the ink back. */
   const introKeptByStopRef = useRef<string | null>(null);
   /** Resets on any segment that completes; see turnFailurePolicy. */
@@ -294,7 +297,9 @@ export function useTurnControl(
           // handler as ARROW, which is permitted here. Rejecting them threw out
           // of the intro and left the turn stuck in "thinking" on a blank board
           // for every scene with a focus-on-point or an enclose annotation.
-          ["ARROW", "CIRCLE_AROUND", "HIGHLIGHT", "LABEL", "DIMENSION", "FOCUS"].includes(command.type)
+          // FOCUS may consume deferred annotations and control spotlight state.
+          // The canonical presentation compiler keeps it outside intro reveals.
+          ["ARROW", "CIRCLE_AROUND", "HIGHLIGHT", "LABEL", "DIMENSION"].includes(command.type)
         )
       );
       if (unsafeCommand) {
@@ -332,35 +337,50 @@ export function useTurnControl(
           return;
         }
         const transactionId = wb.beginDrawTransaction();
+        const introLayout = createIntroLayoutCheckpoint(boardLayoutRef.current);
         activeIntroTransactionRef.current = transactionId;
+        const introRecordedRows = new Set<(typeof recordedSegmentsRef.current)[number]>();
+        const narrationBeforeIntro = narrationSinceEpochRef.current;
+        let narrationAfterIntro = narrationBeforeIntro;
+        let narrationCleanupDone = false;
+        const rollbackIntroNarration = () => {
+          if (narrationCleanupDone) return;
+          narrationCleanupDone = true;
+          // Compare against the last value this intro actually published. A
+          // replacement turn/notes epoch owns any different value by now.
+          if (narrationSinceEpochRef.current === narrationAfterIntro) {
+            narrationSinceEpochRef.current = narrationBeforeIntro;
+          }
+        };
+        introNarrationCleanupRef.current = { transactionId, rollback: rollbackIntroNarration };
         let committed = false;
         try {
-          // A missed voice is not a broken figure. Aborting this transaction
-          // used to wipe the diagram already on the board and cancel every
-          // sentence after it — the lecture stopped on the second complex.
-          let voiceFailures = 0;
+          // Every compiled reveal beat must finish both speech and actual ink.
+          // A startup miss cannot count as an empty successful reveal.
           for (const [offset, segment] of normalized.entries()) {
             if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
               throw new DOMException("verified intro cancelled", "AbortError");
             }
-            try {
-              await runSegment(
-                segment,
-                startIndex + offset,
-                collectedSegmentsRef.current,
-                turnGeneration,
-              );
-              voiceFailures = 0;
-            } catch (error) {
-              if (!counted() || !isVoiceStartupFailure(error)) throw error;
-              voiceFailures += 1;
-              tutorDebug("segment", "intro voice failed; keeping the figure", {
-                index: startIndex + offset,
-                error: error instanceof Error ? error.message : String(error),
-                consecutive_failures: voiceFailures,
-              });
-              if (shouldAbandonTurn(voiceFailures)) throw error;
-            }
+            const savepointId = wb.createDrawSavepoint(transactionId);
+            const beatLayout = createIntroLayoutCheckpoint(introLayout.layout, introLayout);
+            await runSegment(
+              segment,
+              startIndex + offset,
+              collectedSegmentsRef.current,
+              turnGeneration,
+              () => {
+                if (cancelRef.current || !counted() || activeIntroTransactionRef.current !== transactionId) {
+                  throw new DOMException("verified intro restart cancelled", "AbortError");
+                }
+                beatLayout.rollback();
+                wb.rollbackDrawSavepoint(transactionId, savepointId);
+              },
+              beatLayout,
+              (row) => {
+                introRecordedRows.add(row);
+                narrationAfterIntro = narrationSinceEpochRef.current;
+              },
+            );
           }
           if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
             throw new DOMException("verified intro cancelled", "AbortError");
@@ -380,17 +400,21 @@ export function useTurnControl(
             throw error;
           }
           wb.abortDrawTransaction(transactionId);
+          introLayout.rollback();
+          // Remove exact rows owned by this intro even after Stop increments the
+          // turn generation. Never splice a replacement turn's new recordings.
+          recordedSegmentsRef.current = recordedSegmentsRef.current.filter((row) => !introRecordedRows.has(row));
+          rollbackIntroNarration();
           // Only the intro's own turn is torn down with it. A stopped turn's
           // intro unwinding late must not cancel, abort, or strip the figure
           // from the turn that has already replaced it.
           if (counted()) {
+            // Intro rows become successful together with the whole figure.
             activeVerifiedDiagramRef.current = null;
             setActiveVerifiedDiagram?.(null);
             fbdPhaseMarkedRef.current = false;
             fbdPhaseStartedRef.current = false;
-            // The aborted figure is off the board; the rows written before it
-            // are not. Forgetting those too let a doubt asked next write over them.
-            dropDiagramRects(boardLayoutRef.current);
+
             cancelRef.current = true;
             pendingSegmentCountRef.current = 0;
             turnAbortRef.current?.abort(error);
@@ -402,6 +426,9 @@ export function useTurnControl(
           if (!committed && !kept) wb.finishAbortedDrawTransaction(transactionId);
           if (activeIntroTransactionRef.current === transactionId) {
             activeIntroTransactionRef.current = null;
+          }
+          if (introNarrationCleanupRef.current?.transactionId === transactionId) {
+            introNarrationCleanupRef.current = null;
           }
           if (counted()) {
             pendingSegmentCountRef.current = Math.max(
@@ -419,6 +446,8 @@ export function useTurnControl(
       boardPageRef,
       cancelRef,
       collectedSegmentsRef,
+      recordedSegmentsRef,
+      narrationSinceEpochRef,
       fbdPhaseMarkedRef,
       fbdPhaseStartedRef,
       pendingSegmentCountRef,
@@ -648,6 +677,10 @@ export function useTurnControl(
   const [pausedLessonOfferBoardId, setPausedLessonOfferBoardId] = useState<string | null>(null);
 
   const stopTurn = useCallback((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => {
+    // Stop invalidates generation and releases the queue immediately. Remove
+    // this intro's completed epoch contribution before a successor can append;
+    // a doubt explicitly retains the visible intro and its completed narration.
+    if (!options?.keepVisibleBoard) introNarrationCleanupRef.current?.rollback();
     // Stop only this shell's primary and runner-owned fallback. Browser
     // speechSynthesis.cancel() is page-global and could silence a sibling.
     try {

@@ -4,13 +4,19 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import type Konva from "konva";
+import { DrawTransactionRegistry } from "../../../../packages/whiteboard/src/drawTransactionRegistry";
+import { mountTestWhiteboard } from "../../../../packages/whiteboard/scripts/whiteboardTestHarness";
 import { synthesizeArchetypeScene } from "@heytutor/scene-engine";
-import type { DrawCommand, TutorSegment } from "@heytutor/drawing";
+import { textToStrokePaths, type DrawCommand, type TutorSegment } from "@heytutor/drawing";
 import { mathToSpeech, type AudioTimings, type TTSClient } from "@heytutor/tutor-core";
 import { SpeechSynthesisTTSClient, type SpeakSegmentOptions } from "../../../../packages/tutor-core/src/tts/speechClient";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import type { ExecuteCommandOptions, UseTurnLifecycleParams } from "../../features/tutor-session/hooks/turn/types";
 import type { RecordedSegmentPayload } from "../../lib/boards/boardsClient";
+import type { BoardLayoutState } from "../../features/tutor-session/types";
+import { TEXT_LAYOUT } from "../../features/tutor-session/constants";
+import { createIntroLayoutCheckpoint } from "../../features/tutor-session/lib/board/introLayoutCheckpoint";
 
 /**
  * Actual useTurnControl -> useSegmentRunner -> drawSegmentInk -> browser client.
@@ -20,6 +26,8 @@ import type { RecordedSegmentPayload } from "../../lib/boards/boardsClient";
  * actual executed ink, transaction commit, and complete captured rows.
  */
 const app = fileURLToPath(new URL("../../", import.meta.url));
+// Read-only unchanged-worktree comparison; fixtures/transports stay identical.
+const hookApp = process.env.DIAGRAM_AUDIO_SOURCE_ROOT ? path.join(process.env.DIAGRAM_AUDIO_SOURCE_ROOT, "apps/tutor") : app;
 const requireApp = createRequire(new URL("../../package.json", import.meta.url));
 const core = { ...requireApp("@heytutor/tutor-core"), SpeechSynthesisTTSClient };
 const react = { useRef: (current: unknown) => ({ current }), useCallback: (fn: unknown) => fn,
@@ -35,31 +43,38 @@ function loadHook(file: string): Record<string, unknown> {
   const localRequire = (specifier: string) => {
     if (specifier === "react") return react;
     if (specifier === "@heytutor/tutor-core") return core;
-    if (specifier === "./useSegmentRunner") return loadHook(path.resolve(path.dirname(file), `${specifier}.ts`));
+    if (["./useSegmentRunner", "./useBoardViewport"].includes(specifier)) return loadHook(path.resolve(path.dirname(file), `${specifier}.ts`));
     return requireApp(specifier.startsWith(".") ? path.resolve(path.dirname(file), specifier) : specifier);
   };
   new Function("require", "module", "exports", compiled)(localRequire, hookModule, hookModule.exports);
   loaded.set(file, hookModule.exports);
   return hookModule.exports;
 }
-const runTurnControl = loadHook(path.join(app, "features/tutor-session/hooks/turn/useTurnControl.ts")).useTurnControl as
+const runTurnControl = loadHook(path.join(hookApp, "features/tutor-session/hooks/turn/useTurnControl.ts")).useTurnControl as
   typeof import("../../features/tutor-session/hooks/turn/useTurnControl").useTurnControl;
 const scene = synthesizeArchetypeScene({ question: "A 2 kg block on a 30 degree incline with friction coefficient 0.2. Find its acceleration." });
 assert(scene, "the generic scene must compile");
 const presentation = buildVerifiedDiagramPresentation(scene.document, scene.renderScene);
-const intro = presentation.introSegments[0]!;
-assert(intro.commands && intro.commands.length > 1);
+const intros = presentation.introSegments;
+const intro = intros[0]!;
+const introCommandCount = intros.reduce((total, beat) => total + beat.commands!.length, 0);
+assert.deepEqual(intros.map((beat) => beat.commands!.length), [14, 11, 8]);
 const lesson: TutorSegment = { narration: "The net force equals mass times acceleration.", command: {
   type: "WRITE", text: "F = ma", params: [80, 150], charPosition: 0, narrationBefore: "The net force equals mass times acceleration.",
 } };
 
-type Mode = "near" | "late-grace" | "late-grace-paused" | "late-grace-stop" | "ready-no-audio" | "grace-expiry-race" | "grace-expiry-handoff" | "retry-grace-expiry-race" | "retry-late-grace" | "retry-late-grace-paused" | "restart" | "reject-pause" | "never" | "stop" | "stop-error" | "stale" | "retry-fails" | "retry-hangs";
+type Mode = "intro-command-join" | "later-same-narration-new-turn" | "real-later-same-layout-new-turn" | "third-stop" | "third-no-audio" | "third-failure" | "third-timeout" | "third-draw-failure" | "real-later-stop" | "real-later-new-turn" | "intro-focus-rejected" | "later-new-turn" | "later-doubt" | "real-label-restart" | "real-browser-restart" | "real-provider-restart" | "browser-restart" | "provider-restart" | "later-timeout" | "later-failure" | "later-no-audio" | "later-stop" | "later-draw-failure" | "near" | "late-grace" | "late-grace-paused" | "late-grace-stop" | "ready-no-audio" | "grace-expiry-race" | "grace-expiry-handoff" | "retry-grace-expiry-race" | "retry-late-grace" | "retry-late-grace-paused" | "restart" | "reject-pause" | "never" | "stop" | "stop-error" | "stale" | "retry-fails" | "retry-hangs";
 type Event = { atMs: number; name: string; [key: string]: unknown };
-async function scenario(mode: Mode) {
-  const directProvider = ["near", "late-grace", "late-grace-paused", "late-grace-stop", "ready-no-audio", "grace-expiry-race", "grace-expiry-handoff"].includes(mode);
+async function scenario(selectedMode: Mode) {
+  const realCanvas = selectedMode.startsWith("real-");
+  const deferredLabel = selectedMode === "real-label-restart";
+  const failureBeat = selectedMode.startsWith("third-") ? 2 : 1;
+  const mode = (selectedMode.includes("same-narration-new-turn") || selectedMode.includes("same-layout-new-turn") ? "later-new-turn" : deferredLabel ? "provider-restart" : realCanvas ? selectedMode.slice(5) : selectedMode.startsWith("third-") ? selectedMode.replace("third-", "later-") : selectedMode) as Mode;
+  const restartCase = mode === "browser-restart" || mode === "provider-restart";
+  const directProvider = ["later-new-turn", "later-doubt", "later-timeout", "later-failure", "later-no-audio", "later-stop", "later-draw-failure", "near", "late-grace", "late-grace-paused", "late-grace-stop", "ready-no-audio", "grace-expiry-race", "grace-expiry-handoff"].includes(mode);
   const lateRetry = mode === "retry-late-grace" || mode === "retry-late-grace-paused" || mode === "retry-grace-expiry-race";
   const expiryRace = ["grace-expiry-race", "grace-expiry-handoff", "retry-grace-expiry-race"].includes(mode);
-  const successful = ["near", "late-grace", "late-grace-paused", "retry-late-grace", "retry-late-grace-paused", "restart", "reject-pause", "grace-expiry-handoff"].includes(mode);
+  const successful = ["browser-restart", "provider-restart", "near", "late-grace", "late-grace-paused", "retry-late-grace", "retry-late-grace-paused", "restart", "reject-pause", "grace-expiry-handoff"].includes(mode);
   let now = 0;
   let sequence = 0;
   const timers = new Map<number, { at: number; run: () => void }>();
@@ -97,8 +112,12 @@ async function scenario(mode: Mode) {
     speak(next: Utterance) {
       utterance = next; browserAttempts++;
       record("browser-attempt", { text: next.text, rate: next.rate });
-      if (mode !== "never" && mode !== "ready-no-audio" && mode !== "grace-expiry-race" && browserAttempts === 1) {
+      if (mode !== "later-no-audio" && mode !== "never" && mode !== "ready-no-audio" && mode !== "grace-expiry-race" && browserAttempts === 1) {
         setTimer(() => { if (utterance === next) { record("browser-start"); next.onstart?.(); } }, 50);
+      }
+      if (mode === "browser-restart" && browserAttempts > 1) {
+        setTimer(() => { if (utterance === next) { record("browser-start"); next.onstart?.(); } }, 200);
+        setTimer(() => { if (utterance === next) { utterance = null; record("browser-end"); next.onend?.(); } }, 200 + mathToSpeech(next.text).length * 86);
       }
       if (mode === "grace-expiry-handoff") {
         setTimer(() => {
@@ -156,7 +175,7 @@ async function scenario(mode: Mode) {
   };
   const ref = <T,>(current: T) => ({ current });
   type Job = { text: string; options: SpeakSegmentOptions & { onAudioReady?: () => void }; resolve: () => void;
-    startedAt: number | null; position: number; duration: number; dead: boolean };
+    startedAt: number | null; position: number; duration: number; dead: boolean; reject: (error: unknown) => void };
   const jobs: Job[] = [];
   let current: Job | null = null;
   let providerPaused = false;
@@ -172,12 +191,14 @@ async function scenario(mode: Mode) {
     speakSegment(text: string, options: Job["options"] = {}) {
       providerCalls++;
       record("provider-attempt", { text, voiceSettings: options.voiceSettings });
-      return new Promise<void>((resolve) => {
+      return new Promise<void>((resolve, reject) => {
         const duration = mathToSpeech(text).length * 86;
-        const job: Job = { text, options, resolve, startedAt: null, position: 0, duration, dead: false };
+        const job: Job = { text, options, resolve, startedAt: null, position: 0, duration, dead: false, reject };
         jobs.push(job); current = job;
+        if (mode === "later-no-audio" && providerCalls === failureBeat + 1) return;
         if (mode === "never" || mode === "stop-error" || (mode === "retry-fails" && providerCalls > 1)) return;
-        if (!directProvider && providerCalls === 1) return; // Force app browser recovery.
+        if (restartCase && providerCalls === 2) return;
+        if (!restartCase && !directProvider && providerCalls === 1) return; // Force app browser recovery.
         const timings: AudioTimings = { totalDuration: duration / 1000,
           charStartTimes: Array.from({ length: mathToSpeech(text).length }, (_, i) => i * 0.086),
           charDurations: Array.from({ length: mathToSpeech(text).length }, () => 0.086) };
@@ -186,7 +207,7 @@ async function scenario(mode: Mode) {
         setTimer(() => {
           // Keep these callbacks callable even when abandoned, to catch stale ownership.
           record("provider-bytes-ready");
-          if (mode !== "retry-hangs" || providerCalls !== 2) options.onTimings?.(timings);
+          if ((mode !== "retry-hangs" || providerCalls !== 2) && (mode !== "later-timeout" || providerCalls !== failureBeat + 1)) options.onTimings?.(timings);
           options.onAudioReady?.();
           if (mode === "ready-no-audio") {
             setTimer(() => { record("provider-ready-repeat"); options.onAudioReady?.(); }, 2_400);
@@ -201,11 +222,16 @@ async function scenario(mode: Mode) {
             assert.equal(utterance, null, "browser synthesis must be silent before provider playback");
             job.startedAt = now;
             record("provider-start", { rate: 1.25, nativeActiveMs: providerActiveMs() - nativeReadyAtMs }); options.onStart?.();
-            if (mode === "retry-hangs" && providerCalls === 2) return; // Starts without alignment, then never ends.
+            if (mode === "later-failure" && providerCalls === failureBeat + 1) {
+              setTimer(() => { record("provider-error"); job.dead = true; reject(new Error("offline later-beat speech failure")); }, 200);
+              return;
+            }
+            if (mode === "retry-hangs" && providerCalls === 2 || mode === "later-timeout" && providerCalls === failureBeat + 1) return; // Starts without alignment, then never ends.
             const checkEnd = () => {
               if (job.dead) return;
               if (!providerPaused && (samplePosition() ?? 0) >= duration) {
                 options.onAudioCaptured?.({ bytes: Uint8Array.of(82, 73, 70, 70), mimeType: "audio/wav" });
+                record("provider-end", { text });
                 options.onEnd?.(); job.dead = true; resolve(); current = null;
               } else setTimer(checkEnd, 25);
             };
@@ -236,25 +262,43 @@ async function scenario(mode: Mode) {
   let committed = false;
   let aborted = false;
   const ink: Array<{ command: DrawCommand; atMs: number; audioPosition: number | null }> = [];
+  class InkNode {
+    attrs = new Map<string, unknown>();
+    destroyed = false;
+    constructor(readonly command: DrawCommand) {}
+    getAttr(name: string) { return this.attrs.get(name); }
+    setAttr(name: string, value: unknown) { this.attrs.set(name, value); }
+    destroy() { this.destroyed = true; }
+  }
+  const registry = new DrawTransactionRegistry<InkNode>();
+  const nodes: InkNode[] = [];
+  const visibleIntro = () => [...new Map(nodes.filter((node) => !node.destroyed && node.command.type !== "WRITE")
+    .map((node) => [node.command, node])).values()];
+  const unrelated = new InkNode(lesson.command!);
+  registry.track(unrelated); nodes.push(unrelated);
   const params = {
     sessionId: "offline-board", phase: "thinking", isReplaying: false, boardLoaded: false,
     ensureTTSClient: () => provider as unknown as TTSClient, ttsClientRef: ref(provider), phaseRef: ref("thinking"),
     cancelRef: ref(false), turnActiveRef: ref(true), turnGenerationRef: ref(1), isPausedRef: ref(false),
     turnAbortRef: ref(new AbortController()), currentTraceIdRef: ref("offline-trace"),
     segmentChainRef: ref(Promise.resolve()), drawChainRef: ref(Promise.resolve()),
-    collectedSegmentsRef: ref<TutorSegment[]>([]), recordedSegmentsRef: ref<RecordedSegmentPayload[]>([]), narrationSinceEpochRef: ref(""),
+    collectedSegmentsRef: ref<TutorSegment[]>([]), recordedSegmentsRef: ref<RecordedSegmentPayload[]>([]), narrationSinceEpochRef: ref("Earlier work narration."),
     activeVerifiedDiagramRef: ref(presentation.diagram), pendingSegmentCountRef: ref(0),
     fbdPhaseMarkedRef: ref(false), fbdPhaseStartedRef: ref(false),
-    boardLayoutRef: ref({ rects: [], textRects: [], anchors: new Map(), occupiedRects: [] }),
+    boardLayoutRef: ref<BoardLayoutState>({ rects: [], nextY: 100 }),
     boardPageRef: ref({ boardId: "offline-board", figureDrawn: false }),
     narrationDensityRef: ref(0), turnStatsRef: ref({ ttsChars: 0, drawMs: 0 }),
     turnTelemetryRef: ref({ mark: record, span: () => ({ end() {} }), meta() {}, durationMs: () => now, flush: async () => {} }),
-    whiteboardRef: ref({ beginDrawTransaction: () => "intro", commitDrawTransaction: () => {
-      assert.equal(ink.filter((row) => row.command.type !== "WRITE").length, intro.commands!.length,
+    whiteboardRef: ref({ beginDrawTransaction: () => registry.begin(),
+    createDrawSavepoint: (id: string) => registry.savepoint(id),
+    rollbackDrawSavepoint: (id: string, origin: string) => { registry.rollback(id, origin); record("beat-rolled-back"); },
+    commitDrawTransaction: (id: string) => {
+      if (mode !== "later-doubt") assert.equal(visibleIntro().length, introCommandCount,
         "commit requires every actual intro ink command, not draw-complete's planned count");
-      committed = true; record("intro-committed");
-    }, abortDrawTransaction: () => { aborted = true; record("intro-aborted"); },
-    finishAbortedDrawTransaction() {}, setPaused() {}, cancelAnimations() {}, clearSpotlight() {} }),
+      if (mode !== "later-doubt") assertCapturedAtCommit();
+      registry.commit(id); committed = true; record("intro-committed");
+    }, abortDrawTransaction: (id: string) => { registry.abort(id); aborted = true; record("intro-aborted"); },
+    finishAbortedDrawTransaction(id: string) { registry.finishAborted(id); }, setPaused() {}, cancelAnimations() {}, clearSpotlight() {} }),
     stopTurnRef: ref(null), replayDrawClockRef: ref(null), replayAudioRef: ref(null), rewoundRef: ref(false),
     replayCueRef: ref(null), replayAudioPreloadRef: ref(new Map()), replayGenerationRef: ref(1),
     clearCancelTimers() {},
@@ -264,24 +308,300 @@ async function scenario(mode: Mode) {
     executeCommandWithCancel: async (command: DrawCommand, options: ExecuteCommandOptions): Promise<void> => {
       while (params.isPausedRef.current && !options.isCancelled?.()) await new Promise<void>((resolve) => setTimer(resolve, 25));
       if (options.isCancelled?.() || params.cancelRef.current) return;
+      if (mode === "later-draw-failure" && options.segmentNarration === intros[failureBeat]!.narration) throw new Error("offline later-beat draw failure");
+      const node = new InkNode(command); registry.track(node); nodes.push(node);
       ink.push({ command, atMs: now, audioPosition: samplePosition() });
-      // Canvas engine's command completion is asynchronous, not fabricated by telemetry.
-      await new Promise<void>((resolve) => setTimer(resolve, 20));
+      // The command can still own async ink when Pause cancels its voice.
+      const duration = restartCase ? Math.max((options.speechDurationMs ?? 20) / (options.getPlaybackRate?.() ?? 1), 80) : 20;
+      let elapsed = 0;
+      while (elapsed < duration && !options.isCancelled?.()) {
+        await new Promise<void>((resolve) => setTimer(resolve, 20));
+        if (!params.isPausedRef.current) elapsed += 20;
+      }
+      record("command-settled", { beat: options.segmentNarration, cancelled: options.isCancelled?.() ?? false });
     },
     setCurrentSegmentText() {}, setPhase() {}, setIsPaused() {}, setActiveVerifiedDiagram() {},
     setInputInteracted() {}, setIsReplaying() {}, setReplayProgressMs() {}, setReplayTotalMs() {},
   };
+  const pathGate: { release: (() => void) | null } = { release: null };
+  const metadataAtSavepoint = new Map<string, { layout: BoardLayoutState; rects: BoardLayoutState["rects"]; nextY: number }>();
+  const unrelatedAnchor = { x: 80, y: 80, width: 120, height: 28, text: "F = ma" };
+  const earlierFigureAnchor = { x: 1000, y: 80, width: 80, height: 28, text: "earlier figure" };
+  const concurrentAnchor = { x: 900, y: 600, width: 60, height: 28, text: "unrelated figure" };
+  const successorAnchor = { x: 1100, y: 90, width: 70, height: 28, text: "successor figure" };
+  const successorDiagram = { ...presentation.diagram, name: "offline-successor" };
+  let successorLayout: BoardLayoutState | null = null;
+  let expectedSuccessorPrefix = "replacement turn";
+  let originalLayout: BoardLayoutState | null = null;
+  type MetadataRollback = { before: { layout: BoardLayoutState; rects: BoardLayoutState["rects"]; nextY: number }; layout: BoardLayoutState; rects: BoardLayoutState["rects"]; nextY: number };
+  let rolledBackMetadata: MetadataRollback | null = null;
+  const assertCapturedAtCommit = () => {
+    assert.deepEqual(params.recordedSegmentsRef.current.map((row) => row.narration), intros.map((beat) => beat.narration),
+      "every completed intro row is already captured at root commit, not just afterwards");
+    for (const [index, row] of params.recordedSegmentsRef.current.entries()) {
+      assert((row.durationMs ?? 0) > 0, "every intro recording at commit has its complete speech duration");
+      const uncapturedBrowser = mode === "browser-restart" && index === 1 || mode === "grace-expiry-handoff" && index === 0;
+      if (uncapturedBrowser) assert.equal(row.audioBytes, null, "browser speech does not invent captured bytes at commit");
+      else assert((row.audioBytes?.length ?? 0) > 0, "provider bytes must exist before root commit");
+    }
+  };
   try {
+    if (realCanvas) {
+      const board = mountTestWhiteboard(process.env.DIAGRAM_AUDIO_SOURCE_ROOT
+        ? path.join(process.env.DIAGRAM_AUDIO_SOURCE_ROOT, "packages/whiteboard/src/Whiteboard.tsx") : undefined,
+      async (...args) => {
+        const paths = textToStrokePaths(...args);
+        if (deferredLabel && !events.some((event) => event.name === "label-path-pending") &&
+            args[0] === intros[1]!.commands!.find((command) => command.type === "LABEL")!.text) {
+          record("label-path-pending");
+          await new Promise<void>((resolve) => { pathGate.release = resolve; });
+          record("label-path-released");
+        }
+        return paths;
+      });
+      board.setTimeSource({ now: () => now, requestFrame: (callback) => setTimer(() => callback(now), 16),
+        cancelFrame: (id) => { timers.delete(id); } });
+      let drawingCommand = lesson.command!;
+      for (const layer of [board.getDrawLayer()!, board.getAnimLayer()!]) {
+        const add = layer.add.bind(layer);
+        layer.add = (...children) => {
+          for (const child of children as Konva.Node[]) {
+            if (child.getAttr("verifyCommand")) continue;
+            const command = drawingCommand;
+            child.setAttr("verifyCommand", command);
+            nodes.push({ command, get destroyed() { return child.getParent() === null; },
+              destroy: () => child.destroy(), getAttr: (name: string) => child.getAttr(name),
+              setAttr: (name: string, value: unknown) => { child.setAttr(name, value); }, attrs: new Map(),
+            });
+          }
+          return add(...children);
+        };
+      }
+      nodes.length = 0;
+      await board.writeText("F = ma", 80, 80, 0);
+      assert(nodes.length > 0, "the real canvas harness must start with actual unrelated work ink");
+      const workNodes = [...nodes];
+      const commit = board.commitDrawTransaction;
+      board.commitDrawTransaction = (id) => {
+        assert.equal(visibleIntro().length, introCommandCount, "real node tracking requires ink from every compiled command");
+        assertCapturedAtCommit();
+        commit(id); committed = true; record("intro-committed");
+      };
+      const rollback = board.rollbackDrawSavepoint;
+      const checkpoint = board.createDrawSavepoint;
+      board.createDrawSavepoint = (id) => {
+        const point = checkpoint(id);
+        const layout = params.boardLayoutRef.current;
+        metadataAtSavepoint.set(point, { layout, rects: [...layout.rects], nextY: layout.nextY });
+        return point;
+      };
+      board.rollbackDrawSavepoint = (id, origin) => {
+        const before = metadataAtSavepoint.get(origin)!;
+        rolledBackMetadata = { before, layout: params.boardLayoutRef.current, rects: [...before.layout.rects], nextY: before.layout.nextY };
+        rollback(id, origin); record("beat-rolled-back");
+      };
+      const abort = board.abortDrawTransaction;
+      board.abortDrawTransaction = (id) => { abort(id); aborted = true; record("intro-aborted"); };
+      params.whiteboardRef.current = board as unknown as typeof params.whiteboardRef.current;
+      const commandHook = loadHook(path.join(hookApp, "features/tutor-session/hooks/useCommandExecution.ts")).useCommandExecution as
+        typeof import("../../features/tutor-session/hooks/useCommandExecution").useCommandExecution;
+      const layoutHook = loadHook(path.join(hookApp, "features/tutor-session/hooks/useBoardLayout.ts")).useBoardLayout as
+        typeof import("../../features/tutor-session/hooks/useBoardLayout").useBoardLayout;
+      const placement = layoutHook({ whiteboardRef: { current: board }, cancelRef: params.cancelRef,
+        fbdPhaseStartedRef: params.fbdPhaseStartedRef, liveQuestionRef: ref("offline"), viewportMode: "fixed" });
+      placement.boardLayoutRef.current = { rects: [unrelatedAnchor, earlierFigureAnchor], nextY: 150 };
+      params.boardLayoutRef = placement.boardLayoutRef;
+      originalLayout = placement.boardLayoutRef.current;
+      const execution = commandHook({ ...params, whiteboardRef: { current: board }, speedRef: ref(1),
+        forceSequentialWorkLayoutRef: ref(false), inkPaceRef: ref("scene"), adaptiveFactorRef: ref(1), notesEpochsRef: ref([]),
+        forgetErasedTextRects() {}, resetBoardLayout() {}, resolveTextPlacement: placement.resolveTextPlacement,
+      } as unknown as Parameters<typeof commandHook>[0]);
+      params.executeCommandWithCancel = async (command, options) => {
+        drawingCommand = command;
+        ink.push({ command, atMs: now, audioPosition: samplePosition() });
+        await execution.executeCommandWithCancel(command, options);
+        record("command-settled", { beat: options.segmentNarration, cancelled: options.isCancelled?.() ?? false });
+        assert(workNodes.every((node) => !node.destroyed), "restart must preserve all real work-row nodes");
+      };
+    }
     // Unused UI dependencies are intentionally omitted from this hook seam.
     const control = runTurnControl(params as unknown as UseTurnLifecycleParams, ref(async () => {}));
-    control.enqueueVerifiedIntro([intro], 1);
+    if (selectedMode === "intro-command-join") {
+      const board = mountTestWhiteboard();
+      let drawEntered = false;
+      let releaseDraw = () => {};
+      let releaseCancel = () => {};
+      const cancelled = new Promise<undefined>((resolve) => { releaseCancel = () => resolve(undefined); });
+      board.drawShape = async () => {
+        drawEntered = true;
+        await new Promise<void>((resolve) => { releaseDraw = resolve; });
+      };
+      board.flyCursorTo = async () => {};
+      const commandHook = loadHook(path.join(hookApp, "features/tutor-session/hooks/useCommandExecution.ts")).useCommandExecution as
+        typeof import("../../features/tutor-session/hooks/useCommandExecution").useCommandExecution;
+      const execution = commandHook({ ...params, whiteboardRef: { current: board }, speedRef: ref(1),
+        inkPaceRef: ref("scene"), adaptiveFactorRef: ref(1), forceSequentialWorkLayoutRef: ref(false),
+        raceWithCancel: (promise: Promise<unknown>) => Promise.race([promise, cancelled]),
+        resolveTextPlacement: async (_command: DrawCommand, x: number, y: number) => ({ x, y }),
+      } as unknown as Parameters<typeof commandHook>[0]);
+      const ownership = createIntroLayoutCheckpoint(params.boardLayoutRef.current);
+      let joined = false;
+      const runCommand = execution.executeCommandWithCancel({ type: "DRAW_POINT", params: [800, 300], charPosition: 0, narrationBefore: "" },
+        { trustedDiagramGeometry: true, introLayoutCheckpoint: ownership } as ExecuteCommandOptions).then(() => { joined = true; });
+      await flush();
+      assert(drawEntered, "the real executor must enter the underlying async draw");
+      params.cancelRef.current = true;
+      releaseCancel();
+      await flush();
+      try {
+        assert.equal(joined, false, "the transactional command wrapper must join actual drawing, not merely win its cancellation race");
+      } finally { releaseDraw(); await runCommand; }
+      ownership.rollback();
+      assert.equal(params.boardLayoutRef.current.rects.length, 0, "rollback after join has no late anchor mutations");
+      console.log("verified diagram audio intro-command-join: transaction awaits the underlying cancelled executor");
+      return;
+    }
+    if (selectedMode === "intro-focus-rejected") {
+      assert(intros.every((beat) => beat.commands!.every((command) => command.type !== "FOCUS")),
+        "canonical presentations keep semantic/deferred FOCUS outside the transactional intro");
+      const originalDiagram = params.activeVerifiedDiagramRef.current;
+      const originalDeferred = originalDiagram.deferredAnnotations;
+      const injected: TutorSegment = { ...intros[1]!, commands: [...intros[1]!.commands!, {
+        type: "FOCUS", params: [], text: "B", semanticRef: { entityId: "B" }, charPosition: 0, narrationBefore: "",
+      }] };
+      try {
+        assert.throws(() => control.enqueueVerifiedIntro([intros[0]!, injected, intros[2]!], 1),
+          /verified intro contains non-transactional command FOCUS/,
+          "a FOCUS that may consume deferred annotations is rejected before any intro side effect");
+      } finally {
+        // A red run may have enqueued it: invalidate before restoring globals.
+        params.cancelRef.current = true;
+        await flush();
+      }
+      assert.equal(params.activeVerifiedDiagramRef.current, originalDiagram);
+      assert.equal(originalDiagram.deferredAnnotations, originalDeferred);
+      assert.equal(params.collectedSegmentsRef.current.length, 0);
+      assert.equal(params.pendingSegmentCountRef.current, 0);
+      assert.equal(providerCalls, 0);
+      console.log("verified diagram audio intro-focus-rejected: canonical intro contract preserves deferred metadata");
+      return;
+    }
+    control.enqueueVerifiedIntro(intros, 1);
     control.enqueueSegment(lesson, 1);
     let failure: unknown = null;
     let settled = false;
     const run = params.segmentChainRef.current.then(() => { settled = true; }, (error: unknown) => {
       failure = error; settled = true;
     });
-    if (lateRetry) {
+    let replacementRun: Promise<void> = Promise.resolve();
+    if (restartCase) {
+      for (let target = 0; !events.some((event) => event.name === "browser-start"); target += 100) {
+        assert(target < 35_000); await advance(target);
+      }
+      if (deferredLabel) {
+        for (let target = now; pathGate.release === null; target += 20) { assert(target < 45_000); await advance(target); }
+      } else await advance(now + (realCanvas ? 6_000 : 2_500));
+      const previousNodes = visibleIntro().filter((node) => intros[0]!.commands!.includes(node.command));
+      const interruptedNodes = visibleIntro().filter((node) => intros[1]!.commands!.includes(node.command));
+      assert.equal(previousNodes.length, intros[0]!.commands!.length);
+      assert(interruptedNodes.length > 0 && interruptedNodes.length < intros[1]!.commands!.length,
+        "Pause must happen after actual paced ink, inside the current reveal beat");
+      control.pauseTurn();
+      const pausedNodes = visibleIntro().length;
+      await advance(now + 20_000);
+      assert.equal(visibleIntro().length, pausedNodes, "Pause itself does not roll back the visible board");
+      if (realCanvas) {
+        assert(params.boardLayoutRef.current.rects.some((rect) => rect.text === intros[1]!.commands!.find((command) => command.type === "LABEL")!.text),
+          "the interrupted beat must register actual label metadata, not a coordinate-only placement stub");
+        params.boardLayoutRef.current.rects.push(concurrentAnchor);
+      }
+      control.resumeTurn();
+      await advance(now + 100);
+      if (deferredLabel) {
+        const rollbackBeforeRelease = events.some((event) => event.name === "beat-rolled-back");
+        if (rollbackBeforeRelease) {
+          // The real adapter can now cancel/join its owned lookup without
+          // waiting for an uncooperative glyph provider. Its detached promise
+          // must never create nodes or metadata after ownership was released.
+          const joined = events.findIndex((event) => event.name === "command-settled" &&
+            event.beat === intros[1]!.narration && event.cancelled === true);
+          assert(joined >= 0 && joined < events.findIndex((event) => event.name === "beat-rolled-back"),
+            "rollback still joins the actual cancelled command before restoring metadata");
+        }
+        const nodesBeforeRelease = visibleIntro().length;
+        pathGate.release!();
+        await advance(now + 100);
+        assert(events.some((event) => event.name === "beat-rolled-back"), "a joined glyph wait must release beat rollback");
+        if (rollbackBeforeRelease) assert.equal(visibleIntro().length, nodesBeforeRelease,
+          "late detached glyph fulfillment cannot paint onto the restarted beat");
+        else assert(events.findIndex((event) => event.name === "label-path-released") <
+          events.findIndex((event) => event.name === "beat-rolled-back"), "a pending owned glyph execution joins before rollback");
+      }
+      if (realCanvas) {
+        const metadata = rolledBackMetadata as MetadataRollback | null;
+        assert(metadata, "the actual adapter must reach beat rollback");
+        assert.equal(metadata.layout, metadata.before.layout, "rollback retains the original layout object");
+        assert.deepEqual(metadata.rects, [...metadata.before.rects, concurrentAnchor],
+          "rollback removes current-beat metadata only, preserving earlier anchors and unrelated concurrent work");
+        for (const rect of metadata.before.rects) assert(metadata.rects.includes(rect), "earlier anchor identity survives rollback");
+        assert.equal(metadata.nextY, metadata.before.nextY, "scene-only rollback preserves the work-column cursor");
+      }
+      assert.equal(visibleIntro().length, previousNodes.length,
+        "restart startup removes only the interrupted beat; stale pen cannot draw ahead of narration");
+      for (const node of previousNodes) assert.equal(node.destroyed, false);
+      for (const node of interruptedNodes) assert.equal(node.destroyed, true);
+      assert.equal(unrelated.destroyed, false);
+      const restartOrigin = now;
+      for (let target = now; events.filter((event) => event.name === "tts-start" && event.segment_index === 1).length < 2; target += 10) {
+        assert(target < restartOrigin + 10_000); await advance(target);
+      }
+      assert.equal(visibleIntro().length, previousNodes.length, "restarted media position zero contains no current-beat ink");
+      await advance(now + 1_200);
+      assert(visibleIntro().length > previousNodes.length && visibleIntro().length < previousNodes.length + intros[1]!.commands!.length,
+        "only the current beat replays progressively on its new speech origin");
+    } else if (["later-stop", "later-new-turn", "later-doubt"].includes(mode)) {
+      for (let target = 0; !events.some((event) => event.name === "tts-start" && event.segment_index === failureBeat); target += 100) {
+        assert(target < 30_000); await advance(target);
+      }
+      assert.equal(visibleIntro().filter((node) => intros[0]!.commands!.includes(node.command)).length, intros[0]!.commands!.length);
+      if (failureBeat === 2) assert.equal(params.recordedSegmentsRef.current.length, 2, "the final beat fails after two complete captured reveal rows");
+      assert(visibleIntro().length < introCommandCount, "Stop interrupts a later beat, not the completed intro");
+      if (realCanvas) params.boardLayoutRef.current.rects.push(concurrentAnchor);
+      const stoppedEpoch = params.narrationSinceEpochRef.current;
+      control.stopTurn({ keepVisibleBoard: mode === "later-doubt", supersede: mode === "later-new-turn" });
+      assert.equal(params.narrationSinceEpochRef.current,
+        mode === "later-doubt" ? `Earlier work narration. ${intros[0]!.narration}` : "Earlier work narration.",
+        "ordinary Stop removes completed intro-owned epoch narration synchronously; explicit doubt retains it");
+      if (mode === "later-new-turn") {
+        params.cancelRef.current = false;
+        params.turnActiveRef.current = true;
+        params.activeVerifiedDiagramRef.current = successorDiagram;
+        if (realCanvas) {
+          successorLayout = selectedMode.includes("same-layout") ? originalLayout! : { rects: [], nextY: 200 };
+          successorLayout.rects.push(successorAnchor);
+          successorLayout.nextY = 200;
+          params.boardLayoutRef.current = successorLayout;
+        }
+        expectedSuccessorPrefix = selectedMode.includes("same-narration") ? stoppedEpoch : "replacement turn";
+        params.narrationSinceEpochRef.current = expectedSuccessorPrefix;
+        if (selectedMode.includes("same-narration")) {
+          await advance(now + 100);
+          assert.equal(params.narrationSinceEpochRef.current, expectedSuccessorPrefix,
+            "Stop cleanup is idempotent: a successor owning the same text cannot be overwritten by late unwind");
+        }
+        control.enqueueSegment(lesson, params.turnGenerationRef.current);
+        replacementRun = params.segmentChainRef.current;
+        const successorNarration = params.narrationSinceEpochRef.current;
+        const startCount = events.filter((event) => event.name === "tts-start").length;
+        const stale = jobs[failureBeat]!;
+        stale.options.onAudioReady?.(); stale.options.onStart?.();
+        stale.options.onTimings?.({ totalDuration: 999, charStartTimes: [0], charDurations: [999] });
+        stale.options.onAudioCaptured?.({ bytes: Uint8Array.of(255), mimeType: "audio/wav" });
+        stale.options.onEnd?.();
+        assert.equal(params.narrationSinceEpochRef.current, successorNarration, "old provider callbacks cannot append successor narration");
+        assert.equal(events.filter((event) => event.name === "tts-start").length, startCount, "old provider callbacks cannot restart successor clocks");
+      }
+    } else if (lateRetry) {
       await advance(6_525); // Pause the first browser attempt before it starts.
       assert.equal(browserAttempts, 1);
       assert.equal(ink.length, 0);
@@ -436,29 +756,51 @@ async function scenario(mode: Mode) {
     await advance(110_000);
     assert.equal(settled, true, `${mode}: all pending work must settle within a bounded active-time budget`);
     await run;
+    await replacementRun;
     let drawSettled = false;
     void params.drawChainRef.current.then(() => { drawSettled = true; });
     await flush();
     assert.equal(drawSettled, true, `${mode}: failure/cancellation must also release the actual draw wait`);
-    if (successful) {
+    if (process.env.DIAGRAM_AUDIO_EVENTS) console.log(JSON.stringify(events));
+    if (mode === "later-doubt") {
+      assert.equal(committed, true, "an explicit doubt interrupt retains the visible figure");
+      assert.equal(aborted, false, "the old intro unwind cannot roll back a doubt-kept figure");
+      assert.equal(params.boardPageRef.current.figureDrawn, true);
+      assert(visibleIntro().length >= intros[0]!.commands!.length && visibleIntro().length < introCommandCount);
+      assert.deepEqual(params.recordedSegmentsRef.current.map((row) => row.narration), [intros[0]!.narration],
+        "a doubt preserves completed narration only, never a partial current beat");
+      assert.equal(params.narrationSinceEpochRef.current, `Earlier work narration. ${intros[0]!.narration}`,
+        "late doubt unwind must preserve the retained epoch narration");
+    } else if (successful) {
       assert.equal(failure, null);
       assert.equal(committed, true);
       assert.equal(aborted, false);
       assert.equal(params.boardPageRef.current.figureDrawn, true);
       assert.equal(params.cancelRef.current, false);
+      const commit = events.find((event) => event.name === "intro-committed")!;
+      for (const beat of intros) {
+        const ended = events.filter((event) => event.name === "provider-end" && event.text === beat.narration.trim()).at(-1);
+        if (ended) assert(ended.atMs <= commit.atMs, "atomic commit must join every intro narration's actual end");
+        else assert(events.some((event) => event.name === "browser-end" && event.atMs <= commit.atMs), "uncaptured browser narration still needs actual onEnd before commit");
+      }
+      assert.deepEqual(visibleIntro().map((node) => node.command), intros.flatMap((beat) => beat.commands!),
+        "success requires actual visible commands from ALL compiled beats in their authoritative order");
+      if (restartCase) assert.equal(ink.filter((row) => intros[0]!.commands!.includes(row.command)).length, intros[0]!.commands!.length,
+        "completed earlier beats are never replayed");
       assert(ink.some((row) => row.command.type === "WRITE"), "subsequent lesson must progress with actual work ink");
-      assert.deepEqual(params.recordedSegmentsRef.current.map((row) => row.narration), [intro.narration, lesson.narration]);
-      if (mode === "grace-expiry-handoff") {
-        assert.equal(params.recordedSegmentsRef.current[0]!.audioBytes, null, "browser synthesis does not fabricate captured provider bytes");
-        assert((params.recordedSegmentsRef.current[0]!.durationMs ?? 0) > 0, "the browser row must reach its actual onEnd before recording");
-        assert((params.recordedSegmentsRef.current[1]!.audioBytes?.length ?? 0) > 0);
+      assert.deepEqual(params.recordedSegmentsRef.current.map((row) => row.narration), [...intros.map((beat) => beat.narration), lesson.narration]);
+      if (mode === "grace-expiry-handoff" || mode === "browser-restart") {
+        const browserRowIndex = mode === "browser-restart" ? 1 : 0;
+        assert.equal(params.recordedSegmentsRef.current[browserRowIndex]!.audioBytes, null, "browser synthesis does not fabricate captured provider bytes");
+        assert((params.recordedSegmentsRef.current[browserRowIndex]!.durationMs ?? 0) > 0, "the browser row must reach its actual onEnd before recording");
+        assert((params.recordedSegmentsRef.current.at(-1)!.audioBytes?.length ?? 0) > 0);
         assert(events.findIndex((event) => event.name === "browser-end") < events.findIndex((event) => event.name === "intro-committed"));
       } else {
         assert(params.recordedSegmentsRef.current.every((row) => (row.audioBytes?.length ?? 0) > 0), "only complete provider-captured rows are recorded");
         assert.equal(params.recordedSegmentsRef.current[0]!.durationMs, mathToSpeech(intro.narration.trim()).length * 86,
           "browser partial capture must not leak into recovered provider recording");
       }
-      assert.equal(events.filter((event) => event.name === "provider-attempt").length, directProvider ? 2 : 3);
+      assert.equal(events.filter((event) => event.name === "provider-attempt").length, mode === "browser-restart" || directProvider ? intros.length + 1 : intros.length + 2);
       if (mode.startsWith("late-grace") || lateRetry) {
         assert(ink.every((row) => (row.audioPosition ?? 0) > 0), "every intro/work command must follow actual advancing provider speech");
         assert.equal(events.find((event) => event.name === "provider-start")?.nativeActiveMs, 2_400);
@@ -472,13 +814,39 @@ async function scenario(mode: Mode) {
       }
     } else {
       assert.equal(committed, false, "a failed/cancelled intro must never fake a committed diagram");
+      assert.equal(aborted, true, "every failed intro must abort atomically");
+      assert.equal(visibleIntro().length, 0, "abort removes every beat of intro ink");
       assert.equal(params.boardPageRef.current.figureDrawn, false, "a failed/cancelled intro cannot claim diagram metadata");
-      assert.equal(params.recordedSegmentsRef.current.length, 0, "no partial successful saved rows");
+      if (mode === "later-new-turn") {
+        assert.equal(params.cancelRef.current, false, "old intro unwind cannot cancel a replacement turn");
+        assert.equal(params.activeVerifiedDiagramRef.current, successorDiagram);
+        assert.deepEqual(params.recordedSegmentsRef.current.map((row) => row.narration), [lesson.narration],
+          "old intro rows are discarded by identity; the replacement turn's real WRITE row survives");
+        assert(params.narrationSinceEpochRef.current.startsWith(expectedSuccessorPrefix));
+      } else {
+        assert.equal(params.recordedSegmentsRef.current.length, 0, "no partial successful saved rows");
+        assert.equal(params.narrationSinceEpochRef.current, "Earlier work narration.", "aborted intro never leaks narration into the notes epoch");
+      }
       if (mode === "never" || mode === "stop-error" || mode === "ready-no-audio" || mode === "late-grace-stop") assert.equal(ink.length, 0);
       if (mode === "retry-fails" || mode === "retry-hangs") assert.equal(providerCalls, 2, "provider retry cannot loop indefinitely");
     }
+    assert.equal(unrelated.destroyed, false, "intro transaction never clears unrelated work rows");
+    if (originalLayout) {
+      assert(originalLayout.rects.includes(unrelatedAnchor));
+      assert(originalLayout.rects.includes(earlierFigureAnchor), "an intro abort cannot discard pre-existing figure anchors");
+      assert(originalLayout.rects.includes(concurrentAnchor));
+      if (restartCase) assert.equal(params.boardLayoutRef.current, originalLayout);
+      else if (originalLayout !== successorLayout) assert.deepEqual(originalLayout.rects, [unrelatedAnchor, earlierFigureAnchor, concurrentAnchor], "root abort removes only intro-owned metadata from its original object");
+      else assert.deepEqual(originalLayout.rects.filter((rect) => rect.x >= 400), [earlierFigureAnchor, concurrentAnchor, successorAnchor],
+        "root abort cannot remove successor anchors appended to the very same layout object");
+      if (successorLayout) {
+        assert.equal(params.boardLayoutRef.current, successorLayout);
+        assert(successorLayout.rects.includes(successorAnchor), "old intro unwind preserves successor layout metadata");
+        assert.equal(successorLayout.nextY, 200 + TEXT_LAYOUT.lineHeight, "old rollback does not reset successor work placement");
+      }
+    }
     record("scenario-complete");
-    console.log(`verified diagram audio ${mode}: ${ink.length} executed ink commands, ${params.recordedSegmentsRef.current.length} complete recorded rows`);
+    console.log(`verified diagram audio ${selectedMode}: ${ink.length} executed ink commands, ${params.recordedSegmentsRef.current.length} complete recorded rows`);
   } finally {
     core.SpeechSynthesisTTSClient = SpeechSynthesisTTSClient;
     for (const [key, descriptor] of saved) {
@@ -489,7 +857,7 @@ async function scenario(mode: Mode) {
 }
 async function main() {
   const selection = process.argv.find((arg) => arg.startsWith("--case="))?.slice(7) as Mode | undefined;
-  const cases: Mode[] = ["near", "late-grace", "late-grace-paused", "late-grace-stop", "ready-no-audio", "grace-expiry-race", "grace-expiry-handoff", "retry-grace-expiry-race", "retry-late-grace", "retry-late-grace-paused", "restart", "reject-pause", "never", "stop", "stop-error", "stale", "retry-fails", "retry-hangs"];
+  const cases: Mode[] = ["intro-command-join", "later-same-narration-new-turn", "real-later-same-layout-new-turn", "third-stop", "third-no-audio", "third-failure", "third-timeout", "third-draw-failure", "real-later-stop", "real-later-new-turn", "intro-focus-rejected", "later-new-turn", "later-doubt", "real-label-restart", "real-browser-restart", "real-provider-restart", "browser-restart", "provider-restart", "later-timeout", "later-draw-failure", "later-failure", "later-no-audio", "later-stop", "near", "late-grace", "late-grace-paused", "late-grace-stop", "ready-no-audio", "grace-expiry-race", "grace-expiry-handoff", "retry-grace-expiry-race", "retry-late-grace", "retry-late-grace-paused", "restart", "reject-pause", "never", "stop", "stop-error", "stale", "retry-fails", "retry-hangs"];
   assert(!selection || cases.includes(selection), `unknown case: ${selection}`);
   for (const mode of selection ? [selection] : cases) await scenario(mode);
 }
