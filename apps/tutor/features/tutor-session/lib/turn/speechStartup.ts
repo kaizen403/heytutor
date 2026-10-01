@@ -11,6 +11,8 @@ export async function requireSpeechStart(
 
 /** Stop waiting on a transport that has neither spoken nor settled. */
 export const SPEECH_STARTUP_DEADLINE_MS = 6_500;
+/** Complete bytes may still be waiting for native media to start. */
+export const SPEECH_MEDIA_READY_GRACE_MS = 2_500;
 
 /** Active playback time, excluding every pause (including repeated pauses). */
 export function createPauseAwareSpeechClock(now: () => number = () => performance.now()) {
@@ -44,18 +46,23 @@ export async function waitForSpeechStartup(
   completed: Promise<void>,
   deadlineMs: number = SPEECH_STARTUP_DEADLINE_MS,
   clock?: PauseAwareSpeechClock,
+  activeDeadlineMs?: () => number,
 ): Promise<"started" | "settled" | "timeout"> {
   if (clock) {
-    let outcome: "started" | "settled" | null = null;
-    void started.then(() => { outcome = "started"; });
+    const state: { outcome: { kind: "started" | "settled"; atMs: number } | null } = { outcome: null };
+    void started.then(() => { state.outcome = { kind: "started", atMs: clock.elapsedMs() }; });
     void completed.then(
-      () => { outcome ??= "settled"; },
-      () => { outcome ??= "settled"; },
+      () => { state.outcome ??= { kind: "settled", atMs: clock.elapsedMs() }; },
+      () => { state.outcome ??= { kind: "settled", atMs: clock.elapsedMs() }; },
     );
     while (true) {
       if (!clock.isPaused()) {
-        if (outcome) return outcome;
-        if (clock.elapsedMs() >= deadlineMs) return "timeout";
+        const deadline = activeDeadlineMs?.() ?? deadlineMs;
+        // Polling may observe both expiry and a start. Judge the event's
+        // active-time arrival, preserving starts accepted before the cutoff.
+        const outcome = state.outcome;
+        if (outcome) return outcome.atMs < deadline ? outcome.kind : "timeout";
+        if (clock.elapsedMs() >= deadline) return "timeout";
       }
       await new Promise<void>((resolve) => setTimeout(resolve, 25));
     }
@@ -76,9 +83,11 @@ export async function waitForSpeechStartup(
 
 /** A stalled first chunk must hand the sentence to the browser voice. */
 export async function speakWithStartupRecovery(input: {
-  primary: (onStart: () => void) => Promise<void>;
+  /** Only publish app onStart when this owned startup accepts the event. */
+  primary: (onStart: () => boolean, onAudioReady: () => void) => Promise<void>;
   fallback: () => Promise<void>;
   abandonPrimary: () => void;
+  /** Caller display state is not allowed to override the owned startup outcome. */
   hasStarted: () => boolean;
   canFallback: () => boolean;
   onFallback?: (reason: "settled" | "timeout") => void;
@@ -87,16 +96,42 @@ export async function speakWithStartupRecovery(input: {
 }): Promise<void> {
   let announceStart: (() => void) | null = null;
   const started = new Promise<void>((resolve) => { announceStart = resolve; });
-  const primary = input.primary(() => announceStart?.());
-  const outcome = await waitForSpeechStartup(started, primary, input.deadlineMs, input.clock);
-  if (outcome !== "started" && !input.hasStarted()) {
-    if (!input.canFallback()) return;
-    input.abandonPrimary();
-    input.onFallback?.(outcome);
-    await input.fallback();
-    return;
+  const clock = input.clock ?? createPauseAwareSpeechClock();
+  const deadlineMs = input.deadlineMs ?? SPEECH_STARTUP_DEADLINE_MS;
+  let readyAtMs: number | null = null;
+  let ownsPrimary = true;
+  let acceptedStart = false;
+  const activeDeadlineMs = () => readyAtMs === null ? deadlineMs :
+    Math.max(deadlineMs, readyAtMs + SPEECH_MEDIA_READY_GRACE_MS);
+  const primary = input.primary(
+    () => {
+      if (!ownsPrimary || clock.isPaused() || clock.elapsedMs() >= activeDeadlineMs()) return false;
+      acceptedStart = true;
+      announceStart?.();
+      return true;
+    },
+    () => {
+      if (ownsPrimary && readyAtMs === null && clock.elapsedMs() < activeDeadlineMs()) {
+        readyAtMs = clock.elapsedMs();
+      }
+    },
+  );
+  try {
+    const outcome = await waitForSpeechStartup(started, primary, deadlineMs, clock, activeDeadlineMs);
+    // Native/app callback work can cross the cutoff before promise observers
+    // run. Only our synchronous acceptance (never caller hasStarted) may win.
+    if (outcome !== "started" && !acceptedStart) {
+      ownsPrimary = false;
+      if (!input.canFallback()) return;
+      input.abandonPrimary();
+      input.onFallback?.(outcome);
+      await input.fallback();
+      return;
+    }
+    await primary;
+  } finally {
+    ownsPrimary = false;
   }
-  await primary;
 }
 
 /** Browser pause() cancels the utterance and resolves speakSegment; retry it on resume. */
@@ -112,11 +147,15 @@ export async function speakWithPauseOwnedFallback(input: {
     let started = false;
     let ended = false;
     let error: unknown = null;
-    await input.speak({
-      onStart: () => { started = true; },
-      onEnd: () => { ended = true; },
-      onError: (reason) => { error = reason; },
-    });
+    try {
+      await input.speak({
+        onStart: () => { started = true; },
+        onEnd: () => { ended = true; },
+        onError: (reason) => { error = reason; },
+      });
+    } catch (reason) {
+      error = reason;
+    }
     if (input.isCancelled()) return;
     if (generation !== input.pauseGeneration()) continue;
     if (error) throw error;

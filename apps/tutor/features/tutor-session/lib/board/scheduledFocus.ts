@@ -70,7 +70,7 @@ export interface ScheduledFocusTarget {
 }
 
 export interface ScheduledFocusHost extends SpotlightHost {
-  flyCursorTo: (x: number, y: number, durationMs: number) => Promise<void>;
+  flyCursorTo: (x: number, y: number, durationMs: number, rotation?: number, shouldCancel?: () => boolean) => Promise<void>;
   drawAnnotation: (
     kind: "underline" | "circle_around",
     path: string,
@@ -163,11 +163,9 @@ export async function runScheduledFocus(
         opacity: FOCUS_SPOTLIGHT_OPACITY,
       }
     : null;
-  // The veil goes up once for the whole focus and comes down in
-  // withSpotlight's finally, whatever happens in between. The hole moves
-  // from target to target inside the body; that is a re-aim of a veil the
-  // helper already owns, not a second raise.
-  return withSpotlight(host, spotlight, async () => {
+  // Every re-aim replaces the lease owned by this focus. The helper releases
+  // the latest target's nodes, not just the initial union or a successor veil.
+  return withSpotlight(host, spotlight, async (scope) => {
     let penAt: FocusPenPoint | null = null;
     for (const target of targets) {
       if (options.isCancelled()) return true;
@@ -179,9 +177,10 @@ export async function runScheduledFocus(
       // and a glyph later.
       await options.waitUntilAudioMs(target.startMs - FOCUS_FLIGHT_LEAD_MS);
       if (options.isCancelled()) return true;
-      if (spotlight) host.setSpotlight?.({ ...spotlight, hole: paddedHole(target.rects) });
+      if (spotlight) scope.setSpotlight?.({ ...spotlight, hole: paddedHole(target.rects) });
       const approachMs = focusHopMs(penAt, first, FOCUS_HOP_MAX_MS);
-      if (approachMs > 0) await host.flyCursorTo(first.x, first.y, approachMs);
+      if (approachMs > 0) await host.flyCursorTo(first.x, first.y, approachMs, undefined, options.isCancelled);
+      if (options.isCancelled()) return true;
       penAt = first;
 
       // The label's ink belongs to this target, so it is released here and
@@ -205,7 +204,8 @@ export async function runScheduledFocus(
       for (const candidate of target.paths) {
         if (options.isCancelled()) return true;
         const hopMs = focusHopMs(penAt, candidate, perPathMs / 3);
-        if (hopMs > 0) await host.flyCursorTo(candidate.x, candidate.y, hopMs);
+        if (hopMs > 0) await host.flyCursorTo(candidate.x, candidate.y, hopMs, undefined, options.isCancelled);
+        if (options.isCancelled()) return true;
         await host.drawAnnotation(
           "underline",
           candidate.path,
@@ -221,7 +221,8 @@ export async function runScheduledFocus(
         if (options.isCancelled()) return true;
         const leftMs = target.endMs - options.getAudioPositionMs() - pulseMs;
         const hopMs = focusHopMs(penAt, target.pulse, Math.max(leftMs, FOCUS_HOP_MIN_MS));
-        if (hopMs > 0) await host.flyCursorTo(target.pulse.x, target.pulse.y, hopMs);
+        if (hopMs > 0) await host.flyCursorTo(target.pulse.x, target.pulse.y, hopMs, undefined, options.isCancelled);
+        if (options.isCancelled()) return true;
         await host.drawAnnotation("circle_around", target.pulse.path, pulseMs, {
           strokeWidth: 1.1,
           transient: true,

@@ -650,8 +650,11 @@ function between(source: string, file: string, start: string, end: string): stri
   );
   const intro = between(source, file, "const enqueueVerifiedIntro", "const processResponseText");
   assert(
-    !intro.includes("resetBoardLayout(") && intro.includes("dropDiagramRects("),
-    "an aborted figure intro forgets the figure, not the rows the doubt continues under",
+    !intro.includes("resetBoardLayout(") &&
+      !intro.includes("dropDiagramRects(") &&
+      intro.includes("createIntroLayoutCheckpoint(boardLayoutRef.current)") &&
+      intro.includes("introLayout.rollback()"),
+    "an aborted figure intro forgets only its owned anchors, not earlier figures or the rows the doubt continues under",
   );
   assert(intro.includes("figureDrawn = true"), "a committed intro marks the figure as drawn on the page");
 }

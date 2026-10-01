@@ -27,12 +27,15 @@ export interface SpotlightSpec {
 }
 
 export interface SpotlightHost {
-  setSpotlight?: (spec: SpotlightSpec | null) => void;
+  /** Production boards return an identity-scoped release; legacy hosts may return void. */
+  setSpotlight?: (spec: SpotlightSpec | null) => (() => void) | void;
 }
 
 /**
- * Run `body` with the spotlight up, and take it down on every exit path —
- * normal completion, an early cancel, or a throw.
+ * Run `body` with the spotlight up, and release this focus's latest installation
+ * on every exit path. Re-aim through the supplied scoped host, never the shared
+ * host, so cleanup owns the final target as well as the initial union.
+ * A late finally cannot remove a successor or a keep-visible committed veil.
  *
  * `body` returns true when it bailed out for cancellation, so the caller can
  * propagate that without a bare `return` skipping the cleanup. The value is
@@ -41,16 +44,29 @@ export interface SpotlightHost {
 export async function withSpotlight(
   host: SpotlightHost,
   spec: SpotlightSpec | null,
-  body: () => Promise<boolean>,
+  body: (scope: SpotlightHost) => Promise<boolean>,
 ): Promise<boolean> {
-  // A null spec means this focus does not dim anything (pulse, trace). The
-  // teardown still runs, which is harmless and keeps every focus path shaped
-  // the same way.
-  if (spec) host.setSpotlight?.(spec);
+  let release: (() => void) | undefined;
+  const scope: SpotlightHost = {
+    setSpotlight: (next) => {
+      if (!next) {
+        release?.();
+        release = undefined;
+        return;
+      }
+      const lease = host.setSpotlight?.(next);
+      // Only hosts with the old void contract need a global lower. Never use
+      // that fallback for a production lease, even if its root was committed.
+      release = typeof lease === "function" ? lease
+        : host.setSpotlight ? () => { host.setSpotlight?.(null); } : undefined;
+    },
+  };
   try {
-    return await body();
+    if (spec) scope.setSpotlight?.(spec);
+    return await body(scope);
   } finally {
-    host.setSpotlight?.(null);
+    // A null-spec trace owns nothing and must not clear another focus's veil.
+    release?.();
   }
 }
 
