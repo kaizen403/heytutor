@@ -100,6 +100,9 @@ for (const stem of [
   assert(polyhedral?.document.constructions.some((c) => c.operator === "solid_projection" && c.inputs.kind === "polyhedron"), `${stem}: missing labelled polyhedral solid`);
   assert(polyhedral.renderScene.primitives.some((p) => p.kind === "dimension"));
   assert(polyhedral.renderScene.primitives.some((p) => p.text?.includes("cm")));
+  for (const dimension of polyhedral.document.entities.filter((entity) => entity.kind === "dimension")) {
+    assert(polyhedral.document.revealGroups[0]?.narrationCue?.includes(dimension.label!), "source dimensions must be named during the figure introduction so their labels are revealed");
+  }
   assert(synthesizeFamilyScene({ question: stem })?.document.constructions.some((c) => c.operator === "solid_projection" && c.inputs.kind === "polyhedron"), "source dimensions must still supply structure when the planner is unavailable");
 }
 const falling = synthesizeFamilyScene({
