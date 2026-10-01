@@ -27,7 +27,7 @@ assert(usdToMillicents(3.5) === 3500, "Free envelope is 3500 millicents");
 assert(millicentsToUsd(3500) === 3.5, "3500 millicents is $3.50");
 assert(TTS_CHARS_PER_LESSON === 12_000, "TTS fuse is 12000 chars");
 assert(GRANT_TTL_MS === 20 * 60 * 1000, "grant TTL is 20 minutes");
-assert(MAX_NEW_QUESTIONS_PER_HOUR === 3, "3 new questions per hour");
+assert(MAX_NEW_QUESTIONS_PER_HOUR === 8, "8 new questions per hour");
 assert(BILLING_FEATURES.lessons === "lessons", "lessons feature id");
 assert(BILLING_FEATURES.notesMessages === "notes_messages", "notes feature id");
 assert(BILLING_FEATURES.ttsChars === "tts_chars", "tts feature id");
