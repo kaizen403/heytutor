@@ -105,6 +105,7 @@ import {
 } from "../../lib/code-lesson/dsaFrames";
 import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
 import { recordingAudioCaptureComplete, recordingAudioPersistenceComplete } from "../../lib/turn/recordingAudioCapture";
+import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
 import {
   FALLBACK_DSA_TEACHING_POLICY,
   fetchDsaTeachingPolicy,
@@ -133,6 +134,7 @@ import {
   PROBLEM_AUTHORITY_DEADLINE_MS,
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
+  shouldAttemptExactScene,
 } from "../../lib/scene/diagramGeneration";
 import {
   findVerifiedSceneRecovery,
@@ -1008,6 +1010,20 @@ export function useQuestionHandler(
         const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily)
           || isChemistryQuestion(question);
         const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
+        // Detected before the exact gate so a question with no family and no
+        // named figure skips the LLM planner instead of holding the student in
+        // silence for the same text-only fallback it would have reached anyway.
+        const earlyArchetype = detectArchetype(question, {
+          turnPlan: planningTurnPlan,
+          problemIR: problemAuthority?.problemIR ?? null,
+        });
+        const shouldAttemptLlmScene = shouldAttemptExactScene({
+          visualRequirement: planningTurnPlan.visualRequirement,
+          chemistryLane,
+          familyCount: sceneCapabilities.families.length,
+          hasArchetype: earlyArchetype !== null,
+        });
+        const skippedExactForMissingCapability = shouldPlanExactScene && !shouldAttemptLlmScene;
         const planContext = [
           recentConversation,
           `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\nDo not contradict, replace, or independently recalculate these quantities and claims.`,
@@ -1152,15 +1168,13 @@ export function useQuestionHandler(
             recoveredScene = null;
           }
         }
-        if (!result && shouldPlanExactScene && remainingPlannerMs > 0) {
+        if (!result && shouldAttemptLlmScene && remainingPlannerMs > 0) {
           // The archetype detector names the figure the question calls for
           // (its roles and required operators); the planner is told, so a
           // projectile is planned as a trajectory with components rather than
-          // whatever the coarse family suggests.
-          const archetype = detectArchetype(question, {
-            turnPlan: planningTurnPlan,
-            problemIR: problemAuthority?.problemIR ?? null,
-          });
+          // whatever the coarse family suggests. Detected once above so the
+          // exact gate itself can see it.
+          const archetype = earlyArchetype;
           const archetypeSpec = archetype ? ARCHETYPES[archetype.id] : null;
           const archetypeGuidance = archetypeSpec
             ? [
@@ -1279,12 +1293,13 @@ export function useQuestionHandler(
           shouldPlanExactScene &&
           (!value || value.document.visualDecision.mode !== "scene")
         ) {
-          const missingCapability = value?.document.visualDecision.mode === "text_only" ||
+          const missingCapability = skippedExactForMissingCapability ||
+            value?.document.visualDecision.mode === "text_only" ||
             exactIssueCodes.some((code) => /unsupported_operator|missing_capability/.test(code));
           exactDegradation = {
             attemptedTier: "exact_verified",
             reason: !result
-              ? "planner_unavailable"
+              ? skippedExactForMissingCapability ? "missing_capability" : "planner_unavailable"
               : missingCapability ? "missing_capability" : "candidate_invalid",
             issueCodes: exactIssueCodes,
             candidateCount: result?.candidates.length ?? 0,
@@ -2369,7 +2384,12 @@ export function useQuestionHandler(
           }
         }
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
+        // Stop leftover planner and teaching requests so the next question is
+        // not refused while this one is already on the error toast.
+        if (!abortController.signal.aborted) {
+          abortController.abort();
+        }
+        if (isBenignTurnAbort(error)) {
           turnCancelled = true;
           endThinking({ phase: "cancelled" });
           return;

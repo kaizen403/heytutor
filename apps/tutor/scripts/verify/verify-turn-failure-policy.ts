@@ -17,6 +17,7 @@
 import {
   MAX_CONSECUTIVE_SEGMENT_FAILURES,
   guardDrawWithSpeech,
+  isBenignTurnAbort,
   isVoiceStartupFailure,
   shouldAbandonTurn,
 } from "../../features/tutor-session/lib/turn/turnFailurePolicy";
@@ -103,7 +104,31 @@ async function main(): Promise<void> {
       !isVoiceStartupFailure(new DOMException("turn cancelled", "AbortError")),
       "a real cancel must still abort the figure",
     );
+    assert(
+      isBenignTurnAbort(new DOMException("The user aborted a request.", "AbortError")),
+      "a fetch abort must not become the took-too-long toast",
+    );
+    assert(
+      isBenignTurnAbort(new Error("The user aborted a request.")),
+      "a plain abort error must not become the took-too-long toast",
+    );
+    assert(
+      !isBenignTurnAbort(new DOMException("The operation was aborted due to timeout", "TimeoutError")),
+      "a deadline must still fail the turn",
+    );
+    assert(
+      !isBenignTurnAbort(new Error("Planner attempt timed out")),
+      "a planner deadline must still fail the turn",
+    );
     const { readFileSync } = await import("node:fs");
+    const handler = readFileSync(
+      new URL("../../features/tutor-session/hooks/turn/useQuestionHandler.ts", import.meta.url),
+      "utf8",
+    );
+    assert(
+      handler.includes("isBenignTurnAbort(error)"),
+      "a fetch abort in the turn must stay a cancel, not the took-too-long toast",
+    );
     const intro = readFileSync(
       new URL("../../features/tutor-session/hooks/turn/useTurnControl.ts", import.meta.url),
       "utf8",

@@ -1,6 +1,13 @@
 import { TTS_CHARS_PER_LESSON } from "../../lib/billing/catalog";
-import { authorizePaidCreditTrace, beginTurnForActor, holdGrantUntilStreamEnds } from "../../lib/billing/gate";
 import {
+  authorizePaidCreditTrace,
+  beginTurnForActor,
+  createInUseRelease,
+  holdGrantUntilStreamEnds,
+  releaseInUseWhenClientLeaves,
+} from "../../lib/billing/gate";
+import {
+  STALE_IN_USE_MS,
   attachTraceToGrant,
   consumeTtsChars,
   consumeUsdMillicents,
@@ -10,7 +17,9 @@ import {
   recoverGrantForPaidCall,
   requireGrantForTrace,
   resetTurnGrantsForTests,
+  setGrantNowForTests,
   shouldSkipTtsForUsage,
+  touchGrantInUse,
 } from "../../lib/billing/grant";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -42,6 +51,69 @@ markGrantInUse(minted.grant, -1);
 const sequential = createLessonGrant({ userId: "u1", traceId: "lesson-2" });
 assert(sequential.ok, "a finished lesson can be replaced");
 
+resetTurnGrantsForTests();
+const stuck = createLessonGrant({ userId: "u-abort", traceId: "lesson-a" });
+assert(stuck.ok, "the abandoned lesson has a grant");
+markGrantInUse(stuck.grant, 1, "lesson-a");
+const releaseStuck = createInUseRelease(stuck.grant, "lesson-a");
+const clientLeft = new AbortController();
+releaseInUseWhenClientLeaves(clientLeft.signal, releaseStuck);
+assert(
+  !createLessonGrant({ userId: "u-abort", traceId: "lesson-b" }).ok,
+  "an open chat still blocks the retry before the browser disconnects",
+);
+clientLeft.abort();
+releaseStuck();
+assert(
+  createLessonGrant({ userId: "u-abort", traceId: "lesson-b" }).ok,
+  "a client abort frees the lesson even when the stream never cancels",
+);
+
+resetTurnGrantsForTests();
+const paired = createLessonGrant({ userId: "u-paired", traceId: "lesson-a" });
+assert(paired.ok, "two chats share one grant");
+markGrantInUse(paired.grant, 1, "lesson-a");
+markGrantInUse(paired.grant, 1, "lesson-a");
+const releaseOne = createInUseRelease(paired.grant, "lesson-a");
+const oneLeft = new AbortController();
+releaseInUseWhenClientLeaves(oneLeft.signal, releaseOne);
+oneLeft.abort();
+releaseOne();
+assert(paired.grant.inUse === 1, "one aborted chat must not clear a second in-flight chat");
+assert(
+  !createLessonGrant({ userId: "u-paired", traceId: "lesson-b" }).ok,
+  "the chat that is still open still blocks the retry",
+);
+
+resetTurnGrantsForTests();
+let staleNow = Date.now();
+setGrantNowForTests(() => staleNow);
+const leaked = createLessonGrant({ userId: "u-stale", traceId: "lesson-a" });
+assert(leaked.ok, "the leaked lesson has a grant");
+markGrantInUse(leaked.grant, 1, "lesson-a");
+assert(
+  !createLessonGrant({ userId: "u-stale", traceId: "lesson-b" }).ok,
+  "a fresh in-use grant still blocks a concurrent lesson",
+);
+staleNow += STALE_IN_USE_MS + 1;
+assert(
+  createLessonGrant({ userId: "u-stale", traceId: "lesson-b" }).ok,
+  "a remount that never fired request.signal must not 429 the retry",
+);
+
+resetTurnGrantsForTests();
+staleNow = Date.now();
+setGrantNowForTests(() => staleNow);
+const live = createLessonGrant({ userId: "u-live", traceId: "lesson-a" });
+assert(live.ok, "the live lesson has a grant");
+markGrantInUse(live.grant, 1, "lesson-a");
+staleNow += STALE_IN_USE_MS - 1000;
+touchGrantInUse(live.grant);
+staleNow += 2000;
+assert(
+  !createLessonGrant({ userId: "u-live", traceId: "lesson-b" }).ok,
+  "a streaming lesson still blocks while its chunks keep arriving",
+);
 resetTurnGrantsForTests();
 const staffActor = {
   userId: "staff-user",

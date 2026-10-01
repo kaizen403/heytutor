@@ -19,6 +19,7 @@ import {
   recoverGrantForPaidCall,
   releaseTurnGrant,
   requireGrantForTrace,
+  touchGrantInUse,
   type TurnGrant,
   type TurnKind,
 } from "./grant";
@@ -279,19 +280,37 @@ export async function withGrantInUse<T>(
   }
 }
 
+/** One chat request may end by stream close, cancel, or the client disconnecting. */
+export function createInUseRelease(grant: TurnGrant, traceId: string): () => void {
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    markGrantInUse(grant, -1, traceId);
+  };
+}
+
+/**
+ * A browser abort does not always cancel the response stream. Fireworks can
+ * stay open, `inUse` stays above zero, and the next question is refused.
+ */
+export function releaseInUseWhenClientLeaves(signal: AbortSignal, release: () => void): void {
+  if (signal.aborted) {
+    release();
+    return;
+  }
+  signal.addEventListener("abort", release, { once: true });
+}
+
 /** Keep a chat grant busy through the streamed body, not just until response headers. */
 export function holdGrantUntilStreamEnds(
   grant: TurnGrant,
   traceId: string,
   body: ReadableStream<Uint8Array>,
+  releaseInUse?: () => void,
 ): ReadableStream<Uint8Array> {
   const reader = body.getReader();
-  let released = false;
-  const release = () => {
-    if (released) return;
-    released = true;
-    markGrantInUse(grant, -1, traceId);
-  };
+  const release = releaseInUse ?? createInUseRelease(grant, traceId);
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
@@ -300,6 +319,7 @@ export function holdGrantUntilStreamEnds(
           release();
           controller.close();
         } else {
+          touchGrantInUse(grant);
           controller.enqueue(value);
         }
       } catch (error) {
