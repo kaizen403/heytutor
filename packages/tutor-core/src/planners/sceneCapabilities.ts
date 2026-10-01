@@ -10,6 +10,7 @@ import {
   restrictFamiliesToChemistry,
   riverBoatVariantFromProblemStructure,
   familiesFromProblemStructure,
+  sourceMensurationStructure,
 } from "@heytutor/scene-engine";
 import type { ProblemStructureView, SceneVisualFamily } from "@heytutor/scene-engine";
 import { isExplainRequest } from "../llm/reasoningEffort";
@@ -93,9 +94,10 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
     "tangent_line", "normal_line", "function_region", "point", "intersection", "vector_components",
   ],
   bounded_region: [
-    "axes", "function_curve", "function_region", "representative_slice", "solid_of_revolution", "point",
+    "axes", "function_curve", "function_region", "constraint_region", "representative_slice", "solid_of_revolution", "point",
+    "circle", "arc", "rectangle", "polygon", "dimension", "right_angle_mark",
   ],
-  solid_figure: ["solid_projection", "solid_cross_section", "point", "dimension", "label"],
+  solid_figure: ["solid_projection", "solid_cross_section", "space_frame", "space_point", "point", "dimension", "label"],
   fluid_apparatus: ["rectangle", "polygon", "polyline", "connect", "vector", "dimension", "circle"],
   point_field: ["point", "vector", "circle", "line", "dimension", "angle_mark"],
   energy_level: ["axes", "segment", "vector", "dimension", "label", "rectangle", "point"],
@@ -176,8 +178,8 @@ const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
   circuit_network: "Every circuit component is a symbol with two terminals. Series components share consecutive terminals; parallel components share the same terminal pair. Prove path or sameTerminalPair. If a phasor diagram is named, put it in a second reveal group as vectors from one origin with angle_between; do not replace symbols with arrows.",
   state_plot: "Plot named states as points on axes whose x and y spans are comparable layout numbers, not raw SI magnitudes. A closed cycle is one polygon or polyline through shared point IDs. Independent axis scales are display-only; never place V=0.002 against P=1e5 in world coordinates.",
   analytic_curve: "Use the question's expression in function_curve, parametric_curve, polar_curve, or implicit_curve. Derive tangent_line and normal_line from that curve; never send a slope or guessed endpoints. Prove a named point with function_value {x, y} as cartesian coordinates on that curve (optionally include t or theta). Do not treat the parameter t as x.",
-  bounded_region: "Build each bounding curve with function_curve, then function_region for the enclosed area. For planar area, representative_slice is a vertical strip. For a disk or washer about y=axisY, set method to disk or washer so the engine draws the foreshortened circular face from those function radii; use solid_of_revolution for the generating-profile silhouette. Never sketch a disk or washer by guessed polygons.",
-  solid_figure: "Use solid_projection for each named solid. Composite solids share the join radius. Dimension true radii and heights; do not invent hidden faces as separate guessed polygons.",
+  bounded_region: "For planar mensuration, construct the source's straight or circular boundaries with polygon, rectangle, circle or arc, using shared world points and labelled dimensions. Never substitute an unrelated graph. For function-bounded area, use function_curve plus function_region and a representative_slice strip. A disk or washer about y=axisY uses representative_slice method disk or washer; solid_of_revolution derives the generating-profile silhouette. Never sketch a disk or washer by guessed polygons.",
+  solid_figure: "Represent every source solid: solid_projection for curved boundaries; solid_projection kind polyhedron extrudes or tapers the actual base for boxes, prisms, pyramids and their frustums. Compose separate operators at the stated shared face; never replace a composite with just one part. A hollow cylinder uses innerRadius and its section retains the hole. Label given dimensions, distinguish perpendicular height from slant length, and retain the internal joining face as a join, not an exposed surface. solid_cross_section is an engine-derived slice. For unsupported cuts or incomplete measurements, use an honest source-grounded schematic without invented physical values, not an unrelated solid.",
   fluid_apparatus: "Construct the connected vessel or pipe as closed polygons/rectangles that share terminals. Dimension named radii or diameters. Flow and force arrows attach to those bodies; do not draw disconnected tanks.",
   point_field: "Place each named charge or current-carrying wire as a point or line. Field and force vectors share those IDs. Circular field geometry around a wire is a circle, not a guessed arc family. Prove collinearity, opposite directions, or perpendicularity named by the question.",
   energy_level: "Draw energy or stopping-potential as an axis-aligned level diagram. Semiconductor topics reuse the same stacked levels: valence and conduction bands, optional donor/acceptor levels, and a p–n depletion region as adjacent regions on one axis. Transitions are segments or vectors between shared level IDs. Do not invent a circuit or a ray path for a photoelectric/Bohr energy balance; a device I–V curve is a state plot.",
@@ -261,7 +263,10 @@ export function inferSceneCapabilities(
       planningGuidance: [],
     };
   }
-  const families = new Set<SceneVisualFamily>(structureFamilies);
+  const families = new Set<SceneVisualFamily>([
+    ...structureFamilies,
+    ...familiesFromProblemStructure(sourceMensurationStructure(question)),
+  ]);
   const lawText = lawIds.join(" ");
   for (const [pattern, matches] of LAW_FAMILIES) {
     if (pattern.test(lawText)) matches.forEach((family) => families.add(family));
