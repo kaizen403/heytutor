@@ -927,7 +927,7 @@ Unknown: {id,symbol,unit?}. Claim: {id,claim,expected,relatedQuantityIds?,relate
 lawIds and assumptions are arrays of strings. Do not emit assumption objects. Claim-related quantity IDs may reference givens, derived quantities, or unknowns.
 
 Set visualRequirement to:
-- "required" when the user explicitly asks to draw, diagram, sketch, construct, plot, graph, illustrate, locate spatially, or when a faithful visual is necessary to answer the requested task.
+- "required" for mensuration (area, perimeter, volume, surface area), explicit draw/diagram/sketch/construct/plot/graph/illustrate requests, spatial location, or tasks needing a faithful visual.
 - "optional" when a visual would help but the requested answer remains complete without one.
 - "none" when a visual adds no instructional meaning.
 ${TURN_PLAN_V3_VISUAL_GROUNDING}

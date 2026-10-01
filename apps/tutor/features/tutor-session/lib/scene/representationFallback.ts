@@ -8,6 +8,7 @@ import {
   synthesizeLastResortScene,
   demandRejection,
   sceneDemand,
+  sourceMensurationStructure,
   tierForForeignDocument,
   validateSceneDocument,
   type ProblemStructureView,
@@ -112,7 +113,22 @@ export function selectVerifiedRepresentation(
   const currentCompile = input.exact
     ? compileUsableExactRepresentation(input.exact, input.question, input.problemIR)
     : null;
-  if (input.exact && currentCompile?.renderScene) {
+  const families = input.families?.length ? input.families : undefined;
+  const synthesize = () => synthesizeFamilyScene({
+    question: input.question,
+    turnPlan: input.turnPlan,
+    families,
+    problemIR: input.problemIR ?? null,
+  });
+  // Complete source-bound mensuration operators preserve each part and its
+  // dimensions. Prefer them to a sketch proved only to exist; metric-proved
+  // scenes retain their priority. Other families keep their existing policy.
+  const unprovenMensuration = input.exact && currentCompile?.renderScene &&
+    tierForForeignDocument(input.exact.sceneDocument).tier !== "exact_verified" &&
+    sourceMensurationStructure(input.question);
+  const sourceFigure = unprovenMensuration ? synthesize() : null;
+  const preferSourceFigure = sourceFigure?.family === "solid_figure" || sourceFigure?.family === "bounded_region";
+  if (input.exact && currentCompile?.renderScene && !preferSourceFigure) {
     // A validated planner scene wins over every fallback, but its tier is
     // earned, not assumed: exact needs a fatal metric proof (an angle, a ratio,
     // a function value, Snell's law). Existence and topology alone are
@@ -130,13 +146,7 @@ export function selectVerifiedRepresentation(
     };
   }
 
-  const families = input.families?.length ? input.families : undefined;
-  const synthesized = synthesizeFamilyScene({
-    question: input.question,
-    turnPlan: input.turnPlan,
-    families,
-    problemIR: input.problemIR ?? null,
-  });
+  const synthesized = sourceFigure ?? synthesize();
   if (synthesized) {
     return {
       tier: synthesized.tier,
@@ -283,11 +293,14 @@ function compileUsableExactRepresentation(
     return null;
   }
   const currentCompile = compileSceneDocument(candidate.sceneDocument);
+  const hasReadableInk = currentCompile.renderScene?.primitives.some((primitive) =>
+    (primitive.kind === "label" || primitive.kind === "dimension") &&
+    typeof primitive.text === "string" && primitive.text.trim().length > 0);
   return currentCompile.ok && currentCompile.report.valid &&
     !currentCompile.report.issues.some((issue) =>
       issue.severity === "fatal" || issue.code === "assertion_failed") &&
     reportsAgree(candidate.validationReport, currentCompile.report) &&
-    currentCompile.renderScene?.primitives.length
+    currentCompile.renderScene?.primitives.length && hasReadableInk
     ? currentCompile
     : null;
 }
