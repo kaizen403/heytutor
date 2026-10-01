@@ -29,8 +29,10 @@ for (const [file, gate] of sessionRoutes) {
 
 const chat = read("app/api/chat/route.ts");
 assert(chat.includes("recordLlmSpend"), "chat must track llm_tokens after usage");
-assert(chat.includes("holdGrantUntilStreamEnds(grant, grantTraceId, tracedBody)"),
-  "chat must hold its staff trace until stream completion");
+assert(chat.includes("holdGrantUntilStreamEnds(grant, grantTraceId, tracedBody, releaseInUse)"),
+  "the teaching stream must share the grant release with client abort");
+assert(chat.includes("releaseInUseWhenClientLeaves(request.signal, releaseInUse)"),
+  "a disconnected chat must drop inUse before the upstream call returns");
 assert(read("lib/billing/billingClient.ts").includes("parentTraceId: input.parentTraceId"),
   "begin-turn sends the previous live trace for follow-on binding");
 const tts = read("lib/tts/handleTtsRequest.ts");

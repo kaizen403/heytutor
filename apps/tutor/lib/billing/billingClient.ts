@@ -160,10 +160,28 @@ export async function beginTurn(input: {
   parentTraceId?: string;
   signal?: AbortSignal;
   ownsTurn: () => boolean;
+  /** Tests only. Production uses the 15s client deadline. */
+  timeoutMs?: number;
+}): Promise<BeginTurnOk | BeginTurnErr> {
+  const first = await beginTurnOnce(input);
+  // A stalled begin-turn used to stick the "took too long" toast while the
+  // server was still answering. One more attempt, same trace, before that.
+  if (first.ok || first.code !== "timeout") return first;
+  if (input.signal?.aborted || !input.ownsTurn()) return first;
+  return beginTurnOnce(input);
+}
+
+async function beginTurnOnce(input: {
+  traceId: string;
+  kind: BillingTurnKind;
+  parentTraceId?: string;
+  signal?: AbortSignal;
+  ownsTurn: () => boolean;
+  timeoutMs?: number;
 }): Promise<BeginTurnOk | BeginTurnErr> {
   const timeout =
     typeof AbortSignal.timeout === "function"
-      ? AbortSignal.timeout(BEGIN_TURN_TIMEOUT_MS)
+      ? AbortSignal.timeout(input.timeoutMs ?? BEGIN_TURN_TIMEOUT_MS)
       : undefined;
   let response: Response;
   try {

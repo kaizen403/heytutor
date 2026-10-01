@@ -60,6 +60,25 @@ export function shouldBlockLessonForDiagram(_status: DiagramGenerationStatus): b
   return false;
 }
 
+/**
+ * Whether the LLM scene planner is worth awaiting. When no deterministic
+ * family matches and no archetype names the figure, the exact attempt has
+ * nothing to compile against: awaiting it only holds the student in silence
+ * before the same text-only fallback. Skipping still records the miss as
+ * `missing_capability` and still teaches.
+ */
+export function shouldAttemptExactScene(input: {
+  visualRequirement: VisualRequirement;
+  chemistryLane: boolean;
+  familyCount: number;
+  hasArchetype: boolean;
+}): boolean {
+  if (input.visualRequirement === "none") return false;
+  if (input.chemistryLane) return false;
+  if (input.familyCount > 0) return true;
+  return input.hasArchetype;
+}
+
 export function shouldRevalidateSceneCandidatesAfterAuthority(options: {
   problemAuthorityAvailable: boolean;
   planningTurnPlan: unknown;
