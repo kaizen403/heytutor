@@ -1,63 +1,23 @@
-/**
- * Hero lesson script — a self-playing kinematics mini-lesson for the landing hero.
- *
- * The `speech` strings are the EXACT text sent to ElevenLabs by
- * apps/landing/scripts/generate-hero-voice.mjs. If you change them, re-run that
- * script to regenerate public/hero/lesson.mp3 + lesson-timings.json. When the
- * timings file is absent the simulation runs on the estimated durations below —
- * same rule as the live tutor: estimated schedules first, never block on TTS.
- *
- * Board ink is rendered by the real @heytutor/whiteboard renderer, driven by
- * heroLessonPlayer.ts; this file only owns the spoken script, the timing model,
- * and the surrounding chrome state (input typing, header chip, bubble).
+/** Captured, reviewed optics lesson and its recorded media clock.
+ * Geometry comes from the verified scene; speech uses the current tutor provider.
+ * The offline recorder executes the current whiteboard and ink conductor.
  */
+import asset from './lessonAsset.json' with { type: 'json' }
+import type { TutorSegment, VerifiedDiagram } from '@heytutor/drawing'
+import type { AudioTimings } from '@heytutor/tutor-core'
 
-export const QUESTION_TEXT =
-  'A car starts from rest and accelerates at 2 m/s² for 5 s. Find the final velocity.'
-
-export const LESSON_TITLE = 'Final velocity of a car'
-
-export interface LessonSegment {
-  /** Exact spoken sentence (drives TTS + timing offsets). Keep in sync with the generator script. */
-  speech: string
-  /** Caption shown in the narration bubble while this segment plays. */
-  bubble: string
-  /** Estimated duration (seconds) used when no TTS timings are available. */
-  fallbackDuration: number
-}
-
-export const SEGMENTS: LessonSegment[] = [
-  {
-    speech: "Let's find the final velocity of this car.",
-    bubble: "let's find the final velocity of this car",
-    fallbackDuration: 3.2,
-  },
-  {
-    speech: 'It starts from rest, accelerates at two metres per second squared, for five seconds.',
-    bubble: 'starts from rest · a = 2 m/s² · t = 5 s',
-    fallbackDuration: 6.0,
-  },
-  {
-    speech: 'We use the first equation of motion: v equals u plus a t.',
-    bubble: 'first equation of motion: v = u + at',
-    fallbackDuration: 5.2,
-  },
-  {
-    speech: "On a velocity time graph, that's a straight line rising from the origin.",
-    bubble: 'on a v–t graph, velocity rises in a straight line',
-    fallbackDuration: 5.8,
-  },
-  {
-    speech: 'Substituting the values: v equals zero, plus two times five.',
-    bubble: 'substitute: v = 0 + 2 × 5',
-    fallbackDuration: 4.8,
-  },
-  {
-    speech: 'So the final velocity is ten metres per second.',
-    bubble: 'final velocity = 10 m/s',
-    fallbackDuration: 4.0,
-  },
-]
+export const QUESTION_TEXT = asset.question
+export const LESSON_TITLE = asset.title
+export const VERIFIED_DIAGRAM = asset.diagram as unknown as VerifiedDiagram
+export const HERO_SEGMENTS = asset.segments as unknown as (TutorSegment & {
+  verifiedDiagramIntro: boolean
+  timings?: AudioTimings
+})[]
+export const SEGMENTS = HERO_SEGMENTS.map((segment) => ({
+  speech: segment.narration,
+  bubble: '',
+  fallbackDuration: segment.timings?.totalDuration ?? Math.max(2, segment.narration.length * 0.065),
+}))
 
 /* ── Timing model ─────────────────────────────────────────────────────────── */
 
@@ -81,7 +41,7 @@ export function fallbackTiming(): LessonTiming {
 const TYPING_CHARS_PER_SECOND = 38
 const TYPING_DURATION = QUESTION_TEXT.length / TYPING_CHARS_PER_SECOND
 const SUBMIT_PAUSE = 5.6
-export const HOLD_DURATION = 3.0
+export const HOLD_DURATION = 6.0
 export const CLEAR_DURATION = 1.2
 
 /**
@@ -113,6 +73,7 @@ export function loopDuration(timing: LessonTiming): number {
 export type SimPhase = 'typing' | 'submit' | 'teaching' | 'hold' | 'clearing'
 
 export interface LessonSnapshot {
+  timeSeconds?: number
   phase: SimPhase
   /** Characters of the question currently visible in the input. */
   typedCount: number

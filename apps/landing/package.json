@@ -10,12 +10,16 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
     "clean": "rm -rf dist",
-    "verify": "node scripts/verify/verify-hero-voice-policy.ts && node scripts/verify/verify-hero-voice.ts && node scripts/verify/verify-hero-audio-clock.ts && node scripts/verify/verify-seo.ts",
-    "gen:hero-voice": "node scripts/generate-hero-voice.mjs"
+    "verify": "node scripts/verify/verify-hero-voice-policy.ts && node scripts/verify/verify-hero-voice.ts && node scripts/verify/verify-hero-lesson.ts && node scripts/verify/verify-hero-audio-clock.ts && node scripts/verify/verify-seo.ts && node scripts/verify/verify-use-case-demo.ts && node scripts/generate-use-case-lesson.mjs --check",
+    "record:hero": "node scripts/record-hero-lesson.mjs",
+    "encode:hero": "node scripts/encode-hero-video.mjs",
+    "gen:hero-voice": "node scripts/generate-hero-voice.mjs",
+    "gen:use-case-lesson": "node scripts/generate-use-case-lesson.mjs"
   },
   "dependencies": {
     "@heytutor/design-tokens": "workspace:*",
     "@heytutor/drawing": "workspace:*",
+    "@heytutor/tutor-core": "workspace:*",
     "@heytutor/whiteboard": "workspace:*",
     "konva": "^10.3.0",
     "lucide-react": "^1.21.0",
@@ -26,6 +30,7 @@
   },
   "devDependencies": {
     "@heytutor/eslint-config": "workspace:*",
+    "@heytutor/scene-engine": "workspace:*",
     "@heytutor/typescript-config": "workspace:*",
     "@types/node": "^20",
     "@types/react": "^19",

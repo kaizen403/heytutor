@@ -22,6 +22,7 @@ import {
   snapToNarrationIfDeadAir,
   startTimeMsToMatchAudio,
 } from './heroAudioClock'
+import { useHeroInk } from './useHeroInk'
 import { createHeroAudioEngine, type HeroAudioEngine } from './heroAudioEngine'
 
 const AUDIO_SRC = '/hero/lesson.mp3'
@@ -65,6 +66,9 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
   const [boardReady, setBoardReady] = useState(false)
   const [timingReady, setTimingReady] = useState(false)
   const boardHandleRef = useRef<WhiteboardHandle | null>(null)
+  const ink = useHeroInk(boardHandleRef)
+  const inkRef = useRef(ink)
+  useEffect(() => { inkRef.current = ink }, [ink])
   const engineRef = useRef<HeroAudioEngine | null>(null)
   const stRef = useRef<SimInternals>({
     timing: toPlaybackTiming(fallbackTiming()),
@@ -239,7 +243,7 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
         }
       }
 
-      setSnapshot(deriveSnapshot(t, st.timing))
+      setSnapshot({ ...deriveSnapshot(t, st.timing), timeSeconds: t })
     }
     raf = requestAnimationFrame(tick)
 
@@ -274,23 +278,24 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
       },
       getMonotonicMs: () => {
         const s = stRef.current
-        return performance.now() - s.start - s.pausedAccum
+        return (s.pausedAt ?? performance.now()) - s.start - s.pausedAccum
       },
       isPaused: () => stRef.current.pausedAt !== null,
       isCancelled: () => cancelled,
       setCursorState,
     }
-    void runHeroLessonLoop(board, st.timing, controls)
+    void runHeroLessonLoop(board, st.timing, controls, inkRef.current)
 
     return () => {
       cancelled = true
+      inkRef.current.cancelRef.current = true
       board.cancelAnimations()
     }
   }, [reduced, boardReady, timingReady])
 
   useEffect(() => {
     if (!reduced || !boardReady || !boardHandleRef.current) return
-    void drawStaticLesson(boardHandleRef.current)
+    void drawStaticLesson(boardHandleRef.current, inkRef.current)
   }, [reduced, boardReady])
 
   const toggleSound = () => {

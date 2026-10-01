@@ -2,8 +2,10 @@ import {
   ChevronLeft, ChevronRight, Copy, Lock, PanelLeft, Plus, RotateCw, Share, Volume2, VolumeX, X,
 } from 'lucide-react'
 import Logo from '../Logo'
-import { LESSON_TITLE } from '../hero-lesson/lessonScript'
-import type { SoundState } from '../hero-lesson/useLessonSimulation'
+import metadata from '../hero-lesson/lessonMetadata.json'
+import type { SoundState } from '../hero-lesson/useHeroVideo'
+
+const LESSON_TITLE = metadata.title
 
 /* macOS window-control colours, with the highlight the real ones carry. */
 const LIGHTS = [
