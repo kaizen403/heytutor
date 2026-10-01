@@ -29,6 +29,18 @@ export function shouldAbandonTurn(consecutiveFailures: number): boolean {
 }
 
 /**
+ * The browser cancelled the fetch. That is the student leaving, or this turn
+ * aborting a request, not a deadline. A message that also says the attempt
+ * timed out is a deadline and still fails the turn.
+ */
+export function isBenignTurnAbort(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (error.name === "TimeoutError") return false;
+  if (/timed out|timeout|deadline/i.test(error.message)) return false;
+  return error.name === "AbortError" || /\babort(?:ed|ing)?\b/i.test(error.message);
+}
+
+/**
  * The voice never became audible. Distinct from a draw failure: the figure
  * already inked inside the intro transaction is still good, and cancelling
  * the turn here erases it and skips every later sentence.

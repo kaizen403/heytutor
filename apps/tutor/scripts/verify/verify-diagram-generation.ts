@@ -9,6 +9,7 @@ import {
   diagramFailureVisualStatus,
   resolvePlannedSceneVisualStatus,
   selectBestAvailableTurnPlan,
+  shouldAttemptExactScene,
   shouldBlockLessonForDiagram,
   shouldRevalidateSceneCandidatesAfterAuthority,
 } from "../../features/tutor-session/lib/scene/diagramGeneration";
@@ -35,6 +36,46 @@ assert(
   "the initial turn plan must tolerate observed latency while reserving a bounded audit window",
 );
 assert(PROBLEM_AUTHORITY_DEADLINE_MS <= 18_000, "solver authority must preserve at least twenty-two seconds for scene synthesis");
+
+// A question with no deterministic family and no named figure must not hold
+// the student in silence awaiting the LLM scene planner. The 1 Oct 2026
+// missionaries puzzle ("3 villagers and 3 carribans problem") sat 30s in
+// planning before the page went away; with no family it must teach text-only
+// instead of awaiting the exact attempt.
+assert(
+  !shouldAttemptExactScene({ visualRequirement: "optional", chemistryLane: false, familyCount: 0, hasArchetype: false }),
+  "no family and no archetype must skip the exact planner and teach in text",
+);
+assert(
+  shouldAttemptExactScene({ visualRequirement: "optional", chemistryLane: false, familyCount: 1, hasArchetype: false }),
+  "an inferred family must still attempt the exact planner",
+);
+assert(
+  shouldAttemptExactScene({ visualRequirement: "optional", chemistryLane: false, familyCount: 0, hasArchetype: true }),
+  "a named archetype must still attempt the exact planner without a family",
+);
+assert(
+  !shouldAttemptExactScene({ visualRequirement: "none", chemistryLane: false, familyCount: 1, hasArchetype: true }),
+  "visualRequirement none never attempts the exact planner",
+);
+assert(
+  !shouldAttemptExactScene({ visualRequirement: "optional", chemistryLane: true, familyCount: 1, hasArchetype: true }),
+  "the chemistry lane never goes to the LLM scene planner",
+);
+{
+  const turnHandler = readFileSync(
+    resolve(process.cwd(), "features/tutor-session/hooks/turn/useQuestionHandler.ts"),
+    "utf8",
+  );
+  assert(
+    turnHandler.includes("shouldAttemptLlmScene"),
+    "the live turn must gate the LLM scene planner on families/archetype, not just visualRequirement",
+  );
+  assert(
+    turnHandler.includes("skippedExactForMissingCapability"),
+    "a skipped exact attempt must record missing_capability instead of planner_unavailable",
+  );
+}
 
 // The turn-plan audit is deliberately NOT on the live path.
 //

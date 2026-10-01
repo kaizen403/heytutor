@@ -208,6 +208,36 @@ async function exercise(input: Case): Promise<void> {
   expectMeter(input.meter, input.name);
 }
 
+async function exerciseTimeoutRetry(): Promise<void> {
+  let calls = 0;
+  globalThis.fetch = async (_url, init) => {
+    calls += 1;
+    if (calls === 1) {
+      await new Promise<void>((_resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("the stalled begin-turn must abort")), 1_000);
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+        });
+      });
+    }
+    return new Response(JSON.stringify({
+      remainingPct: 99,
+      planId: "free",
+      nextResetAt: BASELINE_RESET,
+      ttsCharsRemaining: 100,
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  const result = await beginTurn({
+    traceId: "retry-trace",
+    kind: "lesson",
+    timeoutMs: 20,
+    ownsTurn: () => true,
+  });
+  assert.equal(calls, 2, "a begin-turn timeout must try once more before the toast");
+  assert.equal(result.ok, true, "the second attempt must start the lesson");
+}
+
 async function main(): Promise<void> {
   const originalFetch = globalThis.fetch;
   const failures: string[] = [];
@@ -224,6 +254,14 @@ async function main(): Promise<void> {
         failures.push(`${input.name}: ${message}`);
         console.error(`FAIL ${input.name}: ${message}`);
       }
+    }
+    try {
+      await exerciseTimeoutRetry();
+      console.log("pass timeout retries once");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      failures.push(`timeout retry: ${message}`);
+      console.error(`FAIL timeout retry: ${message}`);
     }
   } finally {
     globalThis.fetch = originalFetch;

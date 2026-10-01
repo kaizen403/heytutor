@@ -15,6 +15,8 @@ export interface TurnGrant {
   ttsCharsRemaining: number;
   usdMillicentsRemaining: number;
   inUse: number;
+  /** Last acquire, release, or streamed chunk while busy. Reclaimed when stale. */
+  inUseUpdatedAt: number;
   /** Reserved staff traces; 0 means begun but no paid chat request has started yet. */
   activeBypassTraces: Map<string, number>;
   bypassFollowOnTraceIds: Set<string>;
@@ -23,6 +25,14 @@ export interface TurnGrant {
   skipAutumn: boolean;
   skipGates: boolean;
 }
+
+/**
+ * A chat that stopped streaming without releasing (browser gone, `request.signal`
+ * never fired, stream `cancel` never ran) must not refuse retries for the full
+ * 20-minute grant TTL. Streams touch the grant on every chunk, so 30s without
+ * activity means the holder is dead, not slow.
+ */
+export const STALE_IN_USE_MS = 30_000;
 
 const globalForGrants = globalThis as unknown as {
   heytutorTurnGrants?: Map<string, TurnGrant>;
@@ -134,7 +144,14 @@ export function createLessonGrant(input: {
     return { ok: true, grant: existing };
   }
   if (existing && existing.inUse > 0 && existing.lessonTraceId !== input.traceId) {
-    return { ok: false, reason: "concurrent_limit" };
+    // A remount that never fired `request.signal` and never cancelled the
+    // stream leaves `inUse` above zero. The holder is gone, so a retry on the
+    // same board must teach instead of 429ing until the 20-minute TTL expires.
+    if (!existing.skipGates && nowFn() - existing.inUseUpdatedAt > STALE_IN_USE_MS) {
+      existing.inUse = 0;
+    } else {
+      return { ok: false, reason: "concurrent_limit" };
+    }
   }
   if (existing && existing.inUse > 0 && existing.lessonTraceId === input.traceId) {
     return { ok: true, grant: existing };
@@ -149,6 +166,7 @@ export function createLessonGrant(input: {
     ttsCharsRemaining: input.ttsChars ?? TTS_CHARS_PER_LESSON,
     usdMillicentsRemaining: input.usdMillicents ?? Number.MAX_SAFE_INTEGER,
     inUse: 0,
+    inUseUpdatedAt: nowFn(),
     activeBypassTraces: new Map(skipGates ? [[input.traceId, 0]] : []),
     bypassFollowOnTraceIds: new Set(),
     bypassFollowOnRoots: new Map(),
@@ -272,8 +290,13 @@ export function requireGrantForTrace(
   return { ok: false, reason: "no_grant" };
 }
 
+export function touchGrantInUse(grant: TurnGrant): void {
+  grant.inUseUpdatedAt = nowFn();
+}
+
 export function markGrantInUse(grant: TurnGrant, delta: 1 | -1, traceId?: string): void {
   grant.inUse = Math.max(0, grant.inUse + delta);
+  grant.inUseUpdatedAt = nowFn();
   if (!grant.skipGates || !traceId) return;
   const root = grant.bypassFollowOnRoots.get(traceId) ?? traceId;
   const count = grant.activeBypassTraces.get(root);
