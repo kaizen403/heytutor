@@ -45,17 +45,17 @@ export function buildPolyhedralFigure(question: string): SceneDocument | null {
   const prefix = question.slice(Math.max(0, mentions[0]!.index! - 40), mentions[0]!.index!);
   const descriptor = prefix + " " + question.slice(mentions[0]!.index! + mentions[0]![0].length);
   let base: Record<string, unknown>;
-  let measures: Array<{ name: string; value: Measure }>;
+  let measures: Array<{ name: string; role: string; value: Measure }>;
   let h = dimensions.height;
   if (kind === "cube" || kind === "cuboid" || /\brectangular\b/i.test(descriptor)) {
     if (!dimensions.length || !dimensions.width || !h) return null;
     base = { kind: "rectangle", length: length(dimensions.length), width: length(dimensions.width) };
-    measures = [{ name: "l", value: dimensions.length }, { name: "w", value: dimensions.width }];
+    measures = [{ name: "l", role: "base length", value: dimensions.length }, { name: "w", role: "base width", value: dimensions.width }];
   } else if (/\bright triangular\b/i.test(descriptor)) {
     if (!dimensions.base || !dimensions.baseHeight) return null;
     h ??= dimensions.length;
     base = { kind: "polygon", vertices: [[0, 0], [length(dimensions.base), 0], [0, length(dimensions.baseHeight)]] };
-    measures = [{ name: "b", value: dimensions.base }, { name: "a", value: dimensions.baseHeight }];
+    measures = [{ name: "b", role: "base edge", value: dimensions.base }, { name: "a", role: "base altitude", value: dimensions.baseHeight }];
   } else {
     const regular = /\bregular\b/i.test(descriptor);
     const namedSides = /\bsquare\b/i.test(descriptor) ? 4 : /\bequilateral\b/i.test(descriptor) ? 3
@@ -66,7 +66,7 @@ export function buildPolyhedralFigure(question: string): SceneDocument | null {
     h ??= kind === "prism" ? dimensions.length : undefined;
     base = sides === 4 ? { kind: "rectangle", length: length(dimensions.side), width: length(dimensions.side) }
       : { kind: "regular_polygon", sides, side: length(dimensions.side) };
-    measures = [{ name: "s", value: dimensions.side }];
+    measures = [{ name: "s", role: "base side", value: dimensions.side }];
   }
   if (!h) return null;
   const inputs = { kind: "polyhedron", base, height: length(h), topScale: kind === "pyramid" ? 0 : 1 };
@@ -81,27 +81,33 @@ export function buildPolyhedralFigure(question: string): SceneDocument | null {
     { id: "make_solid", operator: "solid_projection", inputs: { center: "solid_center", ...inputs }, outputs: [kind] },
   ];
   const dimensionIds: string[] = [];
-  const addDimension = (name: string, value: Measure, a: { x: number; y: number }, b: { x: number; y: number }) => {
+  const addDimension = (name: string, role: string, value: Measure, a: { x: number; y: number }, b: { x: number; y: number }) => {
     const id = `${kind}_${name}`;
     for (const [suffix, p] of [["a", a], ["b", b]] as const) {
       entities.push({ id: `${id}_${suffix}`, kind: "point", role: "construction helper point" });
       constructions.push({ id: `make_${id}_${suffix}`, operator: "point", inputs: { ...p, coordinateSpace: "world" }, outputs: [`${id}_${suffix}`] });
     }
-    entities.push({ id, kind: "dimension", role: `solid ${name} dimension`, label: `${name} = ${value.value} ${value.unit}` });
+    entities.push({ id, kind: "dimension", role, label: `${name} = ${value.value} ${value.unit}` });
     constructions.push({ id: `make_${id}`, operator: "dimension", inputs: { start: `${id}_a`, end: `${id}_b` }, outputs: [id] });
     dimensionIds.push(id);
   };
   const center = { x: 0, y: 0 };
   const projected = spec.base.map((p) => projectSolidPoint(center, p, 0));
-  addDimension(measures[0]!.name, measures[0]!.value, projected[0]!, projected[1]!);
+  addDimension(measures[0]!.name, measures[0]!.role, measures[0]!.value, projected[0]!, projected[1]!);
   if (measures[1]) {
     // A right triangle's other leg joins vertex 0 to 2; a rectangle's
     // width joins vertex 1 to 2. Never label the hypotenuse as base altitude.
-    addDimension(measures[1].name, measures[1].value, base.kind === "polygon" ? projected[0]! : projected[1]!, projected[2]!);
+    addDimension(measures[1].name, measures[1].role, measures[1].value, base.kind === "polygon" ? projected[0]! : projected[1]!, projected[2]!);
   }
   const right = Math.max(...projected.map((p) => p.x)) + length(h) * 0.2;
-  addDimension("h", h, { x: right, y: 0 }, { x: right, y: spec.height });
-  const groups: SceneRevealGroup[] = [{ id: "solid_setup", entityIds: [kind, ...dimensionIds], dependsOn: [], narrationCue: "introduce the solid, its base and perpendicular height" }];
+  addDimension("h", "perpendicular height", h, { x: right, y: 0 }, { x: right, y: spec.height });
+  // Name each compiled measurement so the shared reveal conductor letters it
+  // during the figure introduction instead of withholding it for a later FOCUS.
+  const spokenDimensions = entities.filter((entity) => dimensionIds.includes(entity.id))
+    .map((entity) => `${entity.role} ${entity.label}`);
+  const dimensionList = spokenDimensions.length === 2 ? spokenDimensions.join(" and ")
+    : `${spokenDimensions.slice(0, -1).join(", ")}, and ${spokenDimensions.at(-1)}`;
+  const groups: SceneRevealGroup[] = [{ id: "solid_setup", entityIds: [kind, ...dimensionIds], dependsOn: [], narrationCue: `Here is the ${kind}, with ${dimensionList}.` }];
   return {
     schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "source-defined base extruded or tapered by the geometry engine" },
     source: { question, synthesizedFamily: true }, quantities: [], entities, constructions, relations: [], annotations: [],

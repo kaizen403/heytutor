@@ -143,10 +143,16 @@ function synthesizeFromFamilies(
   // refers to a figure we do not have and names no drawable apparatus gets no
   // fake circuit/network ink — the caller degrades to text-only.
   if (figureAbsentWithoutNamedApparatus(normalizeStem(question))) return null;
-  // Parameterized archetypes run first: they compute geometry from typed slots
-  // and have already faced the same picture demand. They return null for
-  // anything they do not own, so the family builders below keep the rest.
-  const archetype = synthesizeArchetypeScene({
+  // Parameterized archetypes compute geometry from typed slots and have
+  // already faced the same picture demand. Complete source-bound geometry
+  // keeps the existing family selection's priority over generic lexical cues.
+  const families = resolveRequestedFamilies(question, input.families, input.problemIR);
+  const sourceFamilies = familiesFromProblemStructure(sourceMensurationStructure(question));
+  // A complete source-bound solid or region is stronger than a generic
+  // archetype cue such as "height of". The existing family selection still
+  // owns physics overrides and the solved ProblemIR's leading family.
+  const preferSourceGeometry = sourceFamilies.some((family) => family === families[0]);
+  const archetype = preferSourceGeometry ? null : synthesizeArchetypeScene({
     question,
     turnPlan: input.turnPlan,
     problemIR: input.problemIR ?? null,
@@ -164,7 +170,6 @@ function synthesizeFromFamilies(
     };
   }
   const quantities = collectPlanQuantities(input.turnPlan);
-  const families = resolveRequestedFamilies(question, input.families, input.problemIR);
   // What this stem's picture must (and must not) contain, whichever family
   // ends up drawing it.
   const demand = sceneDemand(question, input.problemIR);

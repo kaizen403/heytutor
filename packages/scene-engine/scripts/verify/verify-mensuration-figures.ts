@@ -90,6 +90,7 @@ for (const stem of [
   "A cube has edge 5 cm. Find its volume and surface area.",
   "A cuboid has length 8 cm, width 5 cm and height 3 cm. Find its surface area.",
   "A square pyramid has base side 6 cm and height 4 cm. Find its volume.",
+  "A pyramid has a square base of side 6 cm and a perpendicular height of 4 cm. Find its volume and total surface area.",
   "A regular hexagonal prism has base side 4 cm and height 10 cm. Find its volume.",
   "A right triangular prism has base 6 cm, base height 8 cm and length 10 cm. Find its volume.",
 ]) {
@@ -99,8 +100,16 @@ for (const stem of [
   assert(polyhedral?.document.constructions.some((c) => c.operator === "solid_projection" && c.inputs.kind === "polyhedron"), `${stem}: missing labelled polyhedral solid`);
   assert(polyhedral.renderScene.primitives.some((p) => p.kind === "dimension"));
   assert(polyhedral.renderScene.primitives.some((p) => p.text?.includes("cm")));
+  for (const dimension of polyhedral.document.entities.filter((entity) => entity.kind === "dimension")) {
+    assert(polyhedral.document.revealGroups[0]?.narrationCue?.includes(dimension.label!), "source dimensions must be named during the figure introduction so their labels are revealed");
+  }
   assert(synthesizeFamilyScene({ question: stem })?.document.constructions.some((c) => c.operator === "solid_projection" && c.inputs.kind === "polyhedron"), "source dimensions must still supply structure when the planner is unavailable");
 }
+const falling = synthesizeFamilyScene({
+  question: "A solid sphere of radius 3 cm is dropped from a height of 4 m. Find its speed just before reaching the ground.",
+  problemIR: { entities: [{ id: "falling_body", kind: "body" }], representationIntents: [{ kind: "free_body" }] },
+});
+assert.equal(falling?.family, "contact_body", "a solved physics representation must retain priority over a source-bound solid");
 const hollowFigure = synthesizeFamilyScene({ question: "A hollow cylinder has outer radius 5 cm, inner radius 3 cm and height 8 cm. Find its volume.", families: ["solid_figure"] });
 assert.equal(hollowFigure?.document.constructions.find((c) => c.operator === "solid_projection")?.inputs.innerRadius, 3, "hollow cylinders must show their actual cavity");
 const irregular = synthesizeFamilyScene({ question: "An irregular hexagonal prism has one side 4 cm and height 10 cm. Find its volume.", families: ["solid_figure"] });

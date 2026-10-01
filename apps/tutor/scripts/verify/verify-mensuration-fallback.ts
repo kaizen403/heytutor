@@ -63,6 +63,7 @@ for (const stem of [
   "A cube has edge 5 cm. Find its volume and surface area.",
   "A cuboid has length 8 cm, width 5 cm and height 3 cm. Find its surface area.",
   "A square pyramid has base side 6 cm and height 4 cm. Find its volume.",
+  "A pyramid has a square base of side 6 cm and a perpendicular height of 4 cm. Find its volume and total surface area.",
   "A regular hexagonal prism has base side 4 cm and height 10 cm. Find its volume.",
   "A hollow cylinder has outer radius 5 cm, inner radius 3 cm and height 8 cm. Find its volume.",
 ]) {
@@ -76,6 +77,13 @@ for (const stem of [
   const board = buildVerifiedDiagramPresentation(result.sceneDocument, result.renderScene, { figureFamily: "solid_figure" });
   assert(board && verifiedDiagramHasDrawableInk(board.diagram), `${stem}: missing live board ink`);
   assert(board.diagram.anchors.some((anchor) => anchor.labels.some((label) => label.includes("cm"))), "dimensions must remain readable and focusable in the actual board representation");
+  if (result.sceneDocument.constructions.some((construction) => construction.inputs.kind === "polyhedron")) {
+    const introduced = new Set(board.diagram.reveals.flatMap((reveal) => reveal.commandIndices));
+    for (const [index, command] of board.diagram.commands.entries()) {
+      if (command.type !== "LABEL" || !command.text?.includes("cm")) continue;
+      assert(introduced.has(index), `${stem}: ${command.text} must be lettered during the figure introduction`);
+    }
+  }
 }
 const planar = inferSceneCapabilities("Find the area of the source region.", { problemIR: { entities: [{ kind: "region" }] } });
 for (const operator of ["rectangle", "polygon", "circle", "arc", "dimension"]) assert(planar.constructionOperators.includes(operator), `planar area requires ${operator}`);
