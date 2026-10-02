@@ -21,7 +21,7 @@ import {
  */
 export interface CodeLessonFigureFrame {
   id: string;
-  /** The line drawn under the figure. */
+  /** Names this frame for the tutor. The board does not draw it. */
   caption: string;
   /** What this frame is for, written by whoever produced the frame. */
   narrationIntent: string;

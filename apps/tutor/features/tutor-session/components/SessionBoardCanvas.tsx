@@ -5,7 +5,7 @@ import { ResponseBubble } from "@/features/tutor-session/components/ResponseBubb
 import { getMarkerColorHex, type SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
 import type { WhiteboardHandle, CursorState } from "@heytutor/whiteboard";
 import { hitTestVerifiedAnchor, type VerifiedDiagram } from "@heytutor/drawing";
-import { BOARD_WIDTH, BOARD_HEIGHT, DIAGRAM_ZONE } from "../constants";
+import { BOARD_WIDTH, BOARD_HEIGHT } from "../constants";
 import type { BoardViewport, TutorPhase } from "../types";
 import { DiagramLabelInspector } from "./DiagramLabelInspector";
 import { BoardMarkingLayer } from "./BoardMarkingLayer";
@@ -56,28 +56,6 @@ export interface SessionBoardCanvasProps {
   onRetraceEntity?: (entityId: string) => void;
   onRetryError: (question: string) => void;
   onDismissError: () => void;
-}
-
-function BoardCaption({ caption }: { caption: string }) {
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        position: "absolute",
-        left: DIAGRAM_ZONE.x + 12,
-        top: 628,
-        width: DIAGRAM_ZONE.width - 24,
-        pointerEvents: "none",
-        textAlign: "center",
-        fontSize: 13,
-        lineHeight: 1.35,
-        color: "var(--ink-500)",
-        fontFamily: "ui-sans-serif, system-ui, sans-serif",
-      }}
-    >
-      {caption}
-    </div>
-  );
 }
 
 function canvasPointFromPointer(
@@ -168,8 +146,6 @@ export function SessionBoardCanvas({
     triggerRetrace(hit.id);
   }, [canRetrace, triggerRetrace, verifiedDiagram]);
 
-  const caption = verifiedDiagram?.caption?.trim();
-
   // Symbols become answerable once the figure has settled.
   const labelsSettled = (phase === "idle" || phase === "speaking") && !markingArmed;
 
@@ -232,7 +208,6 @@ export function SessionBoardCanvas({
               enabled={labelsSettled}
             />
           ) : null}
-          {caption ? <BoardCaption caption={caption} /> : null}
           {canRetrace ? (
             <div
               aria-hidden="true"
@@ -320,7 +295,6 @@ export function SessionBoardCanvas({
                 className="pointer-events-none absolute left-0 top-0"
                 style={{ width: BOARD_WIDTH, height: BOARD_HEIGHT }}
               />
-              {playerView.caption ? <BoardCaption caption={playerView.caption} /> : null}
               <canvas
                 ref={playerFreezeRef}
                 aria-hidden

@@ -432,8 +432,7 @@ export function TutorSessionShell({
   useEffect(() => {
     boardPageRef.current = null;
     boardShowsStoppedReplayRef.current = false;
-    // Render already reset the figure caption for this session. Clear the
-    // imperative board state ahead of the asynchronous ink restore as well.
+    // Clear the previous lecture's figure before the async ink restore.
     activeVerifiedDiagramRef.current = null;
     void whiteboardRef.current?.clearBoard();
   }, [sessionId]);
