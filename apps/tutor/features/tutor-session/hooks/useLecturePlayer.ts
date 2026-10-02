@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -265,7 +266,6 @@ export function useLecturePlayer({
   const drawDoneRef = useRef(true);
   const rateRef = useRef(rate);
   const onRateChangeRef = useRef(onRateChange);
-  onRateChangeRef.current = onRateChange;
 
   const cancelRef = useRef(false);
   const speedRef = useRef(1);
@@ -300,7 +300,7 @@ export function useLecturePlayer({
     [store],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     onRateChangeRef.current = onRateChange;
   }, [onRateChange]);
 

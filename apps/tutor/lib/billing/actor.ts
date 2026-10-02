@@ -3,6 +3,8 @@ import { ensureUser, isAuthFailure, requireSessionUserId } from "@/lib/auth";
 import { isEmbedDemoRequest } from "@/lib/auth/publicPaths";
 import { isAdminEmail } from "@/lib/auth/admins";
 import { prisma } from "@/lib/db/prisma";
+import { isAuthDisabled } from "@/lib/authDisabled";
+import { decideAgeGate } from "@/lib/auth/ageGate";
 import { billingResponse } from "./errors";
 import { isAutumnEnabled, isLectureLabRequest } from "./flags";
 
@@ -43,17 +45,19 @@ export async function requireSpendActor(
 
   const session = await auth();
   const sessionEmail = session?.user?.email?.trim().toLowerCase() || null;
-  let email = sessionEmail;
-  if (!email) {
-    const row = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true },
-    });
-    email = row?.email?.trim().toLowerCase() || null;
-  }
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, onboardingCompletedAt: true, ageBand: true, guardianEmail: true },
+  });
+  if (!user) return billingResponse("unauthorized", null, "unauthorized");
+  const email = user.email?.trim().toLowerCase() || sessionEmail;
 
   const staff = await isAdminEmail(email);
   const lectureLab = isLectureLabRequest(request);
+  if (!staff && !lectureLab && !isAuthDisabled() &&
+      (!user.onboardingCompletedAt || !decideAgeGate({ ageBand: user.ageBand, guardianEmail: user.guardianEmail }).ok)) {
+    return Response.json({ error: "onboarding_required" }, { status: 403 });
+  }
   return {
     userId,
     email,

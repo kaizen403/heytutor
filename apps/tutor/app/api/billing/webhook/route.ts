@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/db/prisma";
-import { BILLING_PLANS, TOP_UP_USD, isKnownPlanId } from "@/lib/billing/catalog";
 import { isAutumnEnabled } from "@/lib/billing/flags";
-import { addPeriodBonusUsd } from "@/lib/billing/ledger";
+import { usesRazorpay } from "@/lib/billing/razorpayConfig";
+import { applyAutumnWebhookEvent } from "@/lib/billing/webhookCredit";
+import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
 import {
   customerIdFromWebhookPayload,
   planIdFromWebhookPayload,
@@ -10,7 +10,13 @@ import {
 } from "@/lib/billing/webhook";
 
 export async function POST(request: Request): Promise<Response> {
-  const payload = await request.text();
+  if (usesRazorpay()) return new Response(null, { status: 204 });
+  let payload: string;
+  try {
+    payload = await readBoundedText(request);
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "invalid request body" }, { status: error instanceof RequestBodyError ? error.status : 400 });
+  }
   const secret = process.env.AUTUMN_WEBHOOK_SECRET?.trim();
 
   if (isAutumnEnabled() && !secret) {
@@ -46,24 +52,7 @@ export async function POST(request: Request): Promise<Response> {
     return new Response(null, { status: 204 });
   }
 
-  if (planId === BILLING_PLANS.lessonTopUp) {
-    const user = await prisma.user.findUnique({
-      where: { id: customerId },
-      select: { planId: true },
-    });
-    const knownPlan = isKnownPlanId(user?.planId) ? user.planId : BILLING_PLANS.free;
-    await addPeriodBonusUsd({
-      userId: customerId,
-      planId: knownPlan,
-      usd: TOP_UP_USD,
-    });
-    return new Response(null, { status: 204 });
-  }
-
-  await prisma.user.updateMany({
-    where: { id: customerId },
-    data: { planId },
-  });
+  await applyAutumnWebhookEvent({ eventId: headers.svixId, userId: customerId, planId });
 
   return new Response(null, { status: 204 });
 }

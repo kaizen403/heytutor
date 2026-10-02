@@ -164,13 +164,6 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 async function downloadExport() {
-  const response = await fetch("/api/account/export");
-  if (!response.ok) return;
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "accelute-export.json";
-  link.click();
-  URL.revokeObjectURL(url);
+  const { downloadAccountExport } = await import("@/lib/account/exportClient");
+  await downloadAccountExport();
 }

@@ -6,8 +6,8 @@ export interface UsageGateGrant {
 export type BeginTurnKind = "lesson" | "doubt" | "resume";
 
 /**
- * Monthly USD is checked before a question starts. Once a grant exists,
- * later planner/teaching/title calls on that question must not 402.
+ * Reusing an existing lesson identity does not authorize new provider spend.
+ * Each paid call separately reserves its cost against the persisted balance.
  */
 export function beginTurnAccess(input: {
   remainingMillicents: number;
@@ -34,7 +34,6 @@ export function paidCallAccess(input: {
   remainingMillicents: number;
   grant: unknown | null;
 }): "allow" | "out_of_credits" {
-  if (input.grant) return "allow";
   if (input.remainingMillicents > 0) return "allow";
   return "out_of_credits";
 }

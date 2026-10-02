@@ -27,5 +27,12 @@ fi
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 KEY="backups/postgres-${STAMP}.sql.gz"
 
-pg_dump "$DATABASE_URL" --no-owner --no-acl | gzip | aws s3 cp - "s3://${BUCKET}/${KEY}"
+umask 077
+BACKUP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/heytutor-db-backup.XXXXXX")"
+trap 'rm -f -- "${BACKUP_DIR}/postgres.sql.gz"; rmdir -- "$BACKUP_DIR"' EXIT
+pg_dump "$DATABASE_URL" --no-owner --no-acl | gzip > "${BACKUP_DIR}/postgres.sql.gz"
+# The instance may create backups, but cannot read, delete or overwrite one.
+# PutObject is intentionally used instead of the unconditional s3 cp uploader.
+aws s3api put-object --bucket "$BUCKET" --key "$KEY" \
+  --body "${BACKUP_DIR}/postgres.sql.gz" --if-none-match '*' >/dev/null
 echo "wrote s3://${BUCKET}/${KEY}"

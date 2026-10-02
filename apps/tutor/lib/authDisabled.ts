@@ -8,5 +8,5 @@ export function isAuthDisabled(
   nodeEnv = env.NODE_ENV,
 ): boolean {
   if (nodeEnv === "production") return false;
-  return env.AUTH_DISABLED === "1" || env.NEXT_PUBLIC_AUTH_DISABLED === "1";
+  return env.AUTH_DISABLED === "1" && env.NEXT_PUBLIC_AUTH_DISABLED === "1";
 }

@@ -32,6 +32,7 @@ export async function GET(request: Request) {
     const upstream = await fetch(src, {
       headers: { accept: "audio/mpeg" },
       signal: AbortSignal.timeout(UPSTREAM_MS),
+      redirect: "error",
     });
     if (!upstream.ok) {
       return NextResponse.json({ error: "audio not found" }, { status: 404 });
