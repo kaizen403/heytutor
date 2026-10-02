@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy
+  group: ${{ github.event_name == 'pull_request' && format('security-pr-{0}', github.event.pull_request.number) || 'deploy' }}
   cancel-in-progress: false
 
 permissions:
@@ -86,6 +86,7 @@ jobs:
         run: |
           # The isolated service starts empty. Legacy migration names cannot
           # bootstrap in lexical order; never db push a deployment database.
+          pnpm --filter @heytutor/tutor exec prisma validate
           pnpm --filter @heytutor/tutor exec prisma db push --skip-generate
           pnpm verify:security-db
           createdb heytutor_razorpay_verify_ci
@@ -179,8 +180,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          git push origin "${GITHUB_SHA}:refs/heads/dev"
-          git push origin "${GITHUB_SHA}:refs/heads/main"
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            if git merge-base --is-ancestor origin/dev "$GITHUB_SHA"; then
+              git push origin "${GITHUB_SHA}:refs/heads/dev"
+            else
+              echo "dev contains independent commits; preserving its branch head."
+            fi
+          else
+            if ! git merge-base --is-ancestor origin/main "$GITHUB_SHA"; then
+              echo "main has advanced; reconcile dev through a reviewed PR before promotion."
+              exit 1
+            fi
+            git push origin "${GITHUB_SHA}:refs/heads/main"
+          fi
 
   deploy-production:
     name: Production (Cloudflare + tutor)

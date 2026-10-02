@@ -6,6 +6,7 @@ import { isAuthPublicPath, isEmbedDemoRequest, loginRedirectPath } from "@/lib/a
 import { hasAuthSessionCookie } from "@/lib/auth/sessionCookie";
 import { applySecurityHeaders, contentSecurityPolicy } from "@/lib/http/securityHeaders";
 import { clientIpFromForwarded, consumeIpRateLimit, rateLimitBucketForPath } from "@/lib/http/ipRateLimit";
+import { hasAllowedMutationOrigin } from "@/lib/http/requestOrigin";
 
 const BACKEND_ORIGIN = process.env.BACKEND_ORIGIN?.replace(/\/$/, "");
 
@@ -89,6 +90,10 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set("content-security-policy", contentSecurityPolicy(process.env, nonce));
   const nextResponse = () => NextResponse.next({ request: { headers: requestHeaders } });
   const secure = (response: NextResponse) => withSecurityHeaders(response, nonce);
+
+  if (!hasAllowedMutationOrigin(request)) {
+    return secure(NextResponse.json({ error: "invalid_request_origin" }, { status: 403 }));
+  }
 
   const limited = rateLimitResponse(request);
   if (limited) return limited;
