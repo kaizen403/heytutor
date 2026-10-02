@@ -16,7 +16,7 @@ async function context(userId: string, db: Database) {
   const [row, topUps] = await Promise.all([
     db.billingPeriodSpend.findUnique({ where: { userId_period: { userId, period: access.period } } }),
     db.billingPurchase.findMany({
-      where: { userId, testMode: razorpayTestMode(), status: "paid", planId: "lesson_top_up", accessEndsAt: { gt: now } },
+      where: { userId, testMode: razorpayTestMode(), status: { in: ["paid", "refunded"] }, planId: "lesson_top_up", accessEndsAt: { gt: now } },
       orderBy: [{ accessEndsAt: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     }),
   ]);
@@ -26,7 +26,10 @@ async function context(userId: string, db: Database) {
 export async function loadRazorpayBalance(userId: string, db: Database = prisma) {
   const { access, baseSpent, topUps } = await context(userId, db);
   const bonusMillicents = topUps.reduce((sum, row) => sum + topUpAllowance(row), 0);
-  const topUpSpent = topUps.reduce((sum, row) => sum + Math.min(row.spentMillicents, topUpAllowance(row)), 0);
+  // A refund removes allowance, never vendor usage already consumed. Preserve
+  // the resulting debt, even on fully refunded packs, until their original
+  // expiry so buying another pack cannot erase it.
+  const topUpSpent = topUps.reduce((sum, row) => sum + row.spentMillicents, 0);
   return balanceFromRow({
     planId: access.planId, period: access.period, includedMillicents: access.includedMillicents,
     nextResetAt: access.endsAt.getTime(), spentMillicents: baseSpent + topUpSpent, bonusMillicents,

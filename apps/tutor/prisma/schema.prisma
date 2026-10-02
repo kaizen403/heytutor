@@ -296,6 +296,7 @@ model ObjectDeletionJob {
   prefix        String   @unique
   userId        String?  @map("user_id")
   bytes         BigInt   @default(0)
+  pendingTurns  Int      @default(0) @map("pending_turns")
   attempts      Int      @default(0)
   nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)

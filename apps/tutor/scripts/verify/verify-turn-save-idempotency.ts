@@ -75,7 +75,7 @@ function load(relativePath: string, dependencies: Record<string, unknown>): Row 
       if (!(name in dependencies)) throw new Error(`Missing stub: ${name}`);
       return dependencies[name];
     },
-    FormData, Blob, File, Request, Response, Headers, Uint8Array, TextEncoder, TextDecoder, crypto,
+    FormData, Blob, File, Request, Response, Headers, Uint8Array, TextEncoder, TextDecoder, crypto, AbortSignal,
     console, setTimeout, process: { env: { NODE_ENV: "test" } }, fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
   }, { filename: relativePath });
   return compiledModule.exports;
@@ -93,6 +93,7 @@ const { POST } = load("app/api/boards/[boardId]/turns/route.ts", {
   "@/lib/boards/storageQuota": {
     reserveTurnStorage: async ({ userId, bytes }: { userId: string; bytes: number }) => ({ userId, bytes }),
     settleTurnStorage: async () => undefined,
+    abandonTurnStorage: async () => undefined,
     releaseStorageBytes: async () => undefined,
     withUserStorageLock: (_userId: string, run: (tx: Row) => Promise<Row>) => prisma.$transaction(run),
     StorageQuotaError: class extends Error {},

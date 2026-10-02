@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 
 export const MAX_ACCOUNT_STORAGE_BYTES = 1024 * 1024 * 1024;
@@ -83,13 +84,17 @@ export async function releaseStorageBytes(userId: string, bytes: bigint | number
   });
 }
 
-export interface TurnStorageReservation { userId: string; bytes: number }
+export interface TurnStorageReservation { userId: string; bytes: number; cleanupId: string }
+
+const UPLOAD_RECOVERY_MS = 30 * 60_000;
 
 export async function reserveTurnStorage(input: {
   userId: string;
   boardId: string;
   bytes: number;
+  turnId: string;
 }): Promise<TurnStorageReservation> {
+  const cleanupId = randomUUID();
   await withUserStorageLock(input.userId, async (tx) => {
     const board = await tx.board.findFirst({ where: { id: input.boardId, userId: input.userId } });
     if (!board) throw new StorageQuotaError("board not found", 404);
@@ -106,21 +111,46 @@ export async function reserveTurnStorage(input: {
       where: { userId: input.userId },
       data: { reservedBytes: { increment: BigInt(input.bytes) }, pendingTurns: { increment: 1 } },
     });
+    await tx.objectDeletionJob.create({ data: {
+      id: cleanupId, prefix: `lectures/${input.boardId}/${input.turnId}/`, userId: input.userId,
+      bytes: BigInt(input.bytes), pendingTurns: 1, nextAttemptAt: new Date(Date.now() + UPLOAD_RECOVERY_MS),
+    } });
   });
-  return { userId: input.userId, bytes: input.bytes };
+  return { userId: input.userId, bytes: input.bytes, cleanupId };
 }
 
 /** Settle exactly once from the handler after persistence or an abandoned save. */
 export async function settleTurnStorage(reservation: TurnStorageReservation, refundBytes = false, transaction?: Prisma.TransactionClient): Promise<void> {
   const settle = async (tx: Prisma.TransactionClient) => {
+    await tx.$queryRaw`SELECT id FROM object_deletion_jobs WHERE id = ${reservation.cleanupId}::uuid FOR UPDATE`;
+    const intent = await tx.objectDeletionJob.findUnique({ where: { id: reservation.cleanupId } });
+    if (!intent || intent.userId !== reservation.userId || intent.attempts !== 0 || intent.pendingTurns !== 1 || intent.nextAttemptAt <= new Date()) {
+      throw new StorageQuotaError("upload reservation expired", 409);
+    }
     const storage = await tx.userStorage.findUnique({ where: { userId: reservation.userId } });
-    if (!storage) return;
+    if (!storage) throw new StorageQuotaError("account not found", 404);
     const bytes = refundBytes ? storage.reservedBytes - BigInt(reservation.bytes) : storage.reservedBytes;
     await tx.userStorage.update({
       where: { userId: reservation.userId },
       data: { reservedBytes: bytes > 0n ? bytes : 0n, pendingTurns: Math.max(0, storage.pendingTurns - 1) },
     });
+    await tx.objectDeletionJob.delete({ where: { id: reservation.cleanupId } });
   };
   if (transaction) await settle(transaction);
   else await withUserStorageLock(reservation.userId, settle);
+}
+
+/** Leave bytes charged and make the pre-existing cleanup intent due. If the
+ * database is unavailable, its original deadline still recovers both charges. */
+export async function abandonTurnStorage(reservation: TurnStorageReservation, transaction?: Prisma.TransactionClient): Promise<void> {
+  const abandon = async (tx: Prisma.TransactionClient) => {
+    await tx.$queryRaw`SELECT id FROM object_deletion_jobs WHERE id = ${reservation.cleanupId}::uuid FOR UPDATE`;
+    const intent = await tx.objectDeletionJob.findUnique({ where: { id: reservation.cleanupId } });
+    if (!intent || intent.userId !== reservation.userId || intent.attempts !== 0 || intent.pendingTurns !== 1) return;
+    const storage = await tx.userStorage.findUnique({ where: { userId: reservation.userId } });
+    if (storage) await tx.userStorage.update({ where: { userId: reservation.userId }, data: { pendingTurns: Math.max(0, storage.pendingTurns - 1) } });
+    await tx.objectDeletionJob.update({ where: { id: intent.id }, data: { pendingTurns: 0, nextAttemptAt: new Date() } });
+  };
+  if (transaction) await abandon(transaction);
+  else await withUserStorageLock(reservation.userId, abandon);
 }

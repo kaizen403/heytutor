@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { lectureAudioKey } from "@/lib/object-store/keys";
 import { uploadAudio } from "@/lib/object-store/s3";
 import { readBoundedFormData, RequestBodyError } from "@/lib/http/requestBody";
-import { reserveTurnStorage, settleTurnStorage, StorageQuotaError, withUserStorageLock } from "@/lib/boards/storageQuota";
+import { abandonTurnStorage, reserveTurnStorage, settleTurnStorage, StorageQuotaError, withUserStorageLock } from "@/lib/boards/storageQuota";
 import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
 import { isTurnMetadataPersistable } from "@/lib/scene/turnPersistencePolicy";
 import { canonicalizeTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
@@ -205,18 +205,21 @@ export async function POST(request: Request, context: RouteContext) {
   for (const [, value] of formData.entries()) if (value instanceof File) storedBytes += value.size;
   let reservation;
   try {
-    reservation = await reserveTurnStorage({ userId, boardId, bytes: storedBytes });
+    reservation = await reserveTurnStorage({ userId, boardId, turnId, bytes: storedBytes });
   } catch (error) {
     if (error instanceof StorageQuotaError) return NextResponse.json({ error: error.message }, { status: error.status });
     throw error;
   }
   let settled = false;
-  const cleanupData = { id: crypto.randomUUID(), prefix: `lectures/${boardId}/${turnId}/`, userId, bytes: BigInt(storedBytes) };
+  // End uploads well before their durable cleanup intent becomes due. A late
+  // completion also has to atomically remove an unclaimed intent to commit.
+  const uploadSignal = AbortSignal.any([request.signal, AbortSignal.timeout(10 * 60_000)]);
   try {
 
   const audioUrls = new Map<number, string | null>();
   const audioFormats = new Map<number, string>();
   for (const segment of segmentMeta) {
+    if (uploadSignal.aborted) throw new StorageQuotaError("turn upload canceled or expired", 409);
     // Canonicalization may move rows; the audio part keeps its submitted index.
     const source = segment.sourceOrderIndex === undefined ? segment.orderIndex : segment.sourceOrderIndex;
     const file = source === null ? null : formData.get(`audio-${source}`);
@@ -224,11 +227,13 @@ export async function POST(request: Request, context: RouteContext) {
       const bytes = new Uint8Array(await file.arrayBuffer());
       audioFormats.set(segment.orderIndex, file.type);
       const key = lectureAudioKey(boardId, turnId, segment.orderIndex, file.type);
-      audioUrls.set(segment.orderIndex, await uploadAudio(key, bytes, file.type));
+      audioUrls.set(segment.orderIndex, await uploadAudio(key, bytes, file.type, uploadSignal));
     } else {
       audioUrls.set(segment.orderIndex, null);
     }
   }
+
+  if (uploadSignal.aborted) throw new StorageQuotaError("turn upload canceled or expired", 409);
 
   const MAX_INSERT_ATTEMPTS = 3;
   let saved: { turn: Turn; insertedSegments: Segment[] } | null = null;
@@ -252,8 +257,7 @@ export async function POST(request: Request, context: RouteContext) {
               include: { segments: { orderBy: { orderIndex: "asc" } } },
             });
             if (!existing) throw new StorageQuotaError("lesson save allowance has already been used", 409);
-            await tx.objectDeletionJob.create({ data: cleanupData });
-            await settleTurnStorage(reservation, false, tx);
+            await abandonTurnStorage(reservation, tx);
             return { turn: existing, insertedSegments: existing.segments };
           }
         }
@@ -264,8 +268,7 @@ export async function POST(request: Request, context: RouteContext) {
             include: { segments: { orderBy: { orderIndex: "asc" } } },
           });
           if (existing) {
-            await tx.objectDeletionJob.create({ data: cleanupData });
-            await settleTurnStorage(reservation, false, tx);
+            await abandonTurnStorage(reservation, tx);
             return { turn: existing, insertedSegments: existing.segments };
           }
         }
@@ -347,14 +350,11 @@ export async function POST(request: Request, context: RouteContext) {
   return turnResponse(saved.turn, saved.insertedSegments);
   } catch (error) {
     if (!settled) {
-      // Failed and losing uploads get durable cleanup receipts. Retain their
-      // charge until the worker confirms object deletion and refunds it.
+      // Admission already persisted a cleanup intent. Best-effort acceleration
+      // can fail during a DB outage; the original deadline remains recoverable.
       try {
-        await withUserStorageLock(userId, async (tx) => {
-          await tx.objectDeletionJob.create({ data: cleanupData });
-          await settleTurnStorage(reservation, false, tx);
-        });
-      } catch { /* retain the reservation if persistence is unavailable */ }
+        await abandonTurnStorage(reservation);
+      } catch { /* the pre-upload receipt retains bytes and pending-turn recovery */ }
     }
     if (error instanceof StorageQuotaError) return NextResponse.json({ error: error.message }, { status: error.status });
     throw error;

@@ -132,8 +132,9 @@ export async function uploadAudio(
   key: string,
   bytes: Uint8Array,
   contentType = "audio/mpeg",
+  signal?: AbortSignal,
 ): Promise<string | null> {
-  return putObject(key, bytes, contentType);
+  return putObject(key, bytes, contentType, signal);
 }
 
 export async function uploadImage(

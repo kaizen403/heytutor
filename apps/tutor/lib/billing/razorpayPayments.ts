@@ -2,7 +2,7 @@ import { prisma } from "../db/prisma";
 import { PaymentError, razorpayTestMode } from "./razorpayConfig";
 import { addBillingMonth, type RazorpayPayment } from "./razorpayProtocol";
 import { fetchRazorpayOrderPayments } from "./razorpayApi";
-import { loadRazorpayAccess, lockRazorpayUser } from "./razorpayPurchases";
+import { loadRazorpayAccess, lockRazorpayUser, purchasePreparationStatus, recoverRazorpayPurchaseOrder } from "./razorpayPurchases";
 import { loadRazorpayBalance } from "./razorpayBalance";
 import { getTurnGrant, releaseTurnGrant } from "./grant";
 
@@ -90,13 +90,14 @@ export async function applyRazorpayPayment(payment: RazorpayPayment): Promise<st
 }
 
 export async function reconcileRazorpayPurchase(userId: string, purchaseId: string) {
-  const purchase = await prisma.billingPurchase.findFirst({ where: { id: purchaseId, userId, testMode: razorpayTestMode() } });
+  let purchase = await prisma.billingPurchase.findFirst({ where: { id: purchaseId, userId, testMode: razorpayTestMode() } });
   if (!purchase) throw new PaymentError("purchase_not_found", 404);
+  if (!purchase.orderId) purchase = await recoverRazorpayPurchaseOrder(purchase);
   if (purchase.orderId) {
     const payments = await fetchRazorpayOrderPayments(purchase.orderId);
     const captured = payments.find(row => row.captured && ["captured", "refunded"].includes(row.status));
     if (captured) await applyRazorpayPayment(captured);
   }
   const updated = await prisma.billingPurchase.findUniqueOrThrow({ where: { id: purchaseId } });
-  return { purchaseId, status: updated.status, planId: updated.planId };
+  return { purchaseId, status: purchasePreparationStatus(updated), planId: updated.planId };
 }

@@ -24,6 +24,7 @@ const topUp = load(resolve(root, "app/api/billing/top-up/route.ts")) as typeof i
 const verify = load(resolve(root, "app/api/billing/razorpay/verify/route.ts")) as typeof import("../../app/api/billing/razorpay/verify/route");
 const webhook = load(resolve(root, "app/api/billing/razorpay/webhook/route.ts")) as typeof import("../../app/api/billing/razorpay/webhook/route");
 const status = load(resolve(root, "app/api/billing/razorpay/status/route.ts")) as typeof import("../../app/api/billing/razorpay/status/route");
+const history = load(resolve(root, "app/api/billing/razorpay/history/route.ts")) as typeof import("../../app/api/billing/razorpay/history/route");
 
 async function main() {
   const database = new URL(process.env.DATABASE_URL ?? "");
@@ -38,6 +39,10 @@ async function main() {
   let expectedAmount = 2900;
   let expectedCurrency = "USD";
   let rateCalls = 0;
+  let orderPosts = 0;
+  let loseOrderResponse = false;
+  let rejectOrderCreation = false;
+  const providerOrders = new Map<string, { id: string; amount: number; currency: string; receipt: string }>();
   const payment = () => ({ id: "pay_routetest", order_id: providerOrderId, amount: expectedAmount, currency: expectedCurrency, captured, status: captured ? "captured" : "authorized", amount_refunded: 0 });
   globalThis.fetch = async (input, init) => {
     if (String(input) === "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml") {
@@ -47,11 +52,20 @@ async function main() {
     assert(String(input).startsWith("https://api.razorpay.com/v1/"), "only fixed provider endpoints are requested");
     apiCalls++;
     if (providerUnavailable) throw new Error("upstream timeout");
+    if (String(input).includes("/orders?")) {
+      const receipt = new URL(String(input)).searchParams.get("receipt");
+      assert(receipt, "recovery uses the stored purchase receipt");
+      return Response.json({ items: [...providerOrders.values()].filter(order => order.receipt === receipt) });
+    }
     if (String(input).endsWith("/orders")) {
+      orderPosts++;
+      if (rejectOrderCreation) throw new Error("order creation failed");
       const body = JSON.parse(String(init?.body)) as { amount: number; currency: string; receipt: string };
       assert.equal(body.amount, expectedAmount, "the provider receives exactly the displayed, signed price");
       assert.equal(body.currency, expectedCurrency);
       providerOrderId = `order_${body.receipt.replaceAll("-", "")}`;
+      providerOrders.set(body.receipt, { ...body, id: providerOrderId });
+      if (loseOrderResponse) throw new Error("order was created but its response timed out");
       return Response.json({ ...body, id: providerOrderId });
     }
     return Response.json(String(input).endsWith("/payments") && String(input).includes("/orders/") ? { items: [payment()] } : payment());
@@ -78,6 +92,90 @@ async function main() {
     assert.equal((await checkout.POST(request("/checkout", { planId: "plus", idempotencyKey: randomUUID() }))).status, 409, "missing price confirmation never creates an order");
     assert.equal((await checkout.POST(request("/checkout", { planId: "plus", idempotencyKey: randomUUID(), quote: quote + "x" }))).status, 400, "tampered prices never create an order");
     assert.equal(apiCalls, 0, "bad requests never reach the provider");
+    const preparationUser = randomUUID();
+    await prisma.user.create({ data: { id: preparationUser } });
+    actorId = preparationUser;
+    try {
+      const stalledKey = randomUUID();
+      loseOrderResponse = true;
+      const beforePosts = orderPosts;
+      assert.equal((await checkout.POST(request("/checkout", { planId: "plus", idempotencyKey: stalledKey, quote }))).status, 503);
+      loseOrderResponse = false;
+      const stalled = await prisma.billingPurchase.findUniqueOrThrow({ where: { userId_idempotencyKey: { userId: preparationUser, idempotencyKey: stalledKey } } });
+      assert.equal(stalled.orderId, null);
+      const preparationHistory = await (await history.GET(new Request("https://example.test/history"))).json();
+      assert.equal(preparationHistory.purchases[0]?.status, "preparing", "failed order preparation remains visible in owned history");
+      assert.equal((await checkout.POST(request("/checkout", { planId: "plus", idempotencyKey: stalledKey, quote }))).status, 409, "an in-flight order is never blindly recreated");
+      await prisma.billingPurchase.update({ where: { id: stalled.id }, data: { createdAt: new Date(Date.now() - 20_000) } });
+      const recoveredOrder = await checkout.POST(request("/checkout", { planId: "plus", idempotencyKey: stalledKey, quote }));
+      assert.equal(recoveredOrder.status, 200, "a lost order response is recovered by exact provider receipt");
+      assert.equal((await recoveredOrder.json()).checkout.orderId, providerOrders.get(stalled.id)?.id);
+      assert.equal(orderPosts, beforePosts + 1, "recovery cannot create a second provider order");
+
+      const failedKey = randomUUID();
+      rejectOrderCreation = true;
+      assert.equal((await checkout.POST(request("/checkout", { planId: "plus", idempotencyKey: failedKey, quote }))).status, 503);
+      rejectOrderCreation = false;
+      const failed = await prisma.billingPurchase.findUniqueOrThrow({ where: { userId_idempotencyKey: { userId: preparationUser, idempotencyKey: failedKey } } });
+      await prisma.billingPurchase.update({ where: { id: failed.id }, data: { createdAt: new Date(Date.now() - 120_000) } });
+      const expired = await checkout.POST(request("/checkout", { planId: "plus", idempotencyKey: failedKey, quote }));
+      assert.equal(expired.status, 410, "a missing provider order has a bounded preparation lifetime");
+      assert.equal((await expired.json()).code, "checkout_expired");
+      const expiredHistory = await (await history.GET(new Request("https://example.test/history"))).json();
+      assert.equal(expiredHistory.purchases.find((row: { id: string }) => row.id === failed.id)?.status, "expired");
+      const expiredStatus = await status.GET(new Request(`https://example.test/status?purchaseId=${failed.id}`));
+      assert.equal((await expiredStatus.json()).status, "expired", "status recovery never claims an expired preparation is awaiting a payment");
+      const beforeInvalidCurrency = apiCalls;
+      await prisma.billingPurchase.update({ where: { id: failed.id }, data: { currency: "EUR" } });
+      assert.equal((await status.GET(new Request(`https://example.test/status?purchaseId=${failed.id}`))).status, 503, "recovery rejects an unsupported stored currency");
+      assert.equal(apiCalls, beforeInvalidCurrency, "invalid stored prices never reach the provider");
+      assert.equal(orderPosts, beforePosts + 2, "expired recovery never retries the failed creation POST");
+      console.log("PASS lost order response recovery, bounded preparation expiry, and visible history");
+    } finally {
+      actorId = userId; loseOrderResponse = false; rejectOrderCreation = false;
+      await prisma.user.delete({ where: { id: preparationUser } });
+      apiCalls = 0;
+    }
+    const historyUser = randomUUID();
+    await prisma.user.create({ data: { id: historyUser } });
+    actorId = historyUser;
+    try {
+      const now = Date.now();
+      const historyRow = (createdAt: number, status = "pending", testMode = true) => ({
+        id: randomUUID(), userId: historyUser, idempotencyKey: randomUUID(), planId: "plus",
+        amount: 2900, currency: "USD", usageMillicents: 29000, keyId: "rzp_test_routes",
+        testMode, status, createdAt: new Date(createdAt),
+      });
+      const paid = historyRow(now - 120_000, "paid");
+      const refunded = historyRow(now - 121_000, "refunded");
+      const attempts = Array.from({ length: 35 }, (_, index) => historyRow(now - 100_000 + index));
+      const preparing = historyRow(now - 1_000);
+      const otherMode = historyRow(now, "paid", false);
+      await prisma.billingPurchase.createMany({ data: [paid, refunded, ...attempts, preparing, otherMode] });
+      const payload = await (await history.GET(new Request("https://example.test/history"))).json() as { purchases: Array<{ id: string; status: string; createdAt: string }> };
+      assert(payload.purchases.some(row => row.id === paid.id), "failed checkout attempts cannot displace an older paid purchase");
+      assert(payload.purchases.some(row => row.id === refunded.id), "failed checkout attempts cannot displace an older refunded purchase");
+      assert.equal(payload.purchases.length, 12, "history independently retains completed purchases and only the latest ten attempts");
+      assert.equal(payload.purchases.filter(row => row.status === "expired").length, 9);
+      assert.equal(payload.purchases[0]?.id, preparing.id);
+      assert.equal(payload.purchases[0]?.status, "preparing");
+      assert.equal(payload.purchases.some(row => row.id === otherMode.id), false, "history remains mode isolated");
+      for (let index = 1; index < payload.purchases.length; index++) {
+        assert(Date.parse(payload.purchases[index - 1]!.createdAt) >= Date.parse(payload.purchases[index]!.createdAt), "merged history is newest first");
+      }
+      const completed = Array.from({ length: 35 }, (_, index) => historyRow(now - 10_000 + index, index % 2 ? "paid" : "refunded"));
+      await prisma.billingPurchase.createMany({ data: completed });
+      const capped = await (await history.GET(new Request("https://example.test/history"))).json() as { purchases: Array<{ id: string; status: string }> };
+      assert.equal(capped.purchases.filter(row => ["paid", "refunded"].includes(row.status)).length, 30, "completed history has its own thirty-purchase bound");
+      assert.equal(capped.purchases.length, 40);
+      actorId = userId;
+      const owned = await (await history.GET(new Request("https://example.test/history"))).json() as { purchases: Array<{ id: string }> };
+      assert.equal(owned.purchases.some(row => row.id === completed[0]?.id), false, "history remains account isolated");
+      console.log("PASS completed purchase history survives failed attempts with independent bounds and account/mode isolation");
+    } finally {
+      actorId = userId;
+      await prisma.user.delete({ where: { id: historyUser } });
+    }
     const idempotencyKey = randomUUID();
     const response = await checkout.POST(request("/api/billing/checkout", { planId: "plus", idempotencyKey, quote, amount: 1, currency: "INR" }));
     assert.equal(response.status, 200);

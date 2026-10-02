@@ -57,12 +57,50 @@ async function verifyCheckoutUsageLockOrder() {
   }
 }
 
+async function verifyTopUpRefundDebt() {
+  const userId = randomUUID();
+  await prisma.user.create({ data: { id: userId } });
+  async function topUp() {
+    const id = randomUUID();
+    const orderId = `order_${id.replaceAll("-", "")}`;
+    await prisma.billingPurchase.create({ data: { id, userId, idempotencyKey: randomUUID(), planId: "lesson_top_up", amount: 1000, usageMillicents: 10000, currency: "USD", keyId: "rzp_test_verification", testMode: true, orderId } });
+    const payment = { id: `pay_${id.replaceAll("-", "")}`, order_id: orderId, amount: 1000, currency: "USD", status: "captured", captured: true, amount_refunded: 0 };
+    await applyRazorpayPayment(payment);
+    return { id, payment };
+  }
+  try {
+    await addPeriodSpend({ userId, usd: 3.5 });
+    const original = await topUp();
+    await addPeriodSpend({ userId, usd: 8 });
+    await applyRazorpayPayment({ ...original.payment, amount_refunded: 500 });
+    await topUp();
+    assert.equal((await loadPeriodBalance({ userId })).remainingMillicents, 7000, "refunding 5000 of a pack with 8000 spent leaves 3000 debt against the next pack");
+    const receipt = await reservePeriodUsage({ userId, planId: "free", traceId: randomUUID(), kind: "teaching", millicents: 2000, maxCalls: 4 });
+    assert(receipt);
+    assert.equal(receipt.remainingMillicents, 5000);
+    await settlePeriodUsage({ userId, reservationId: receipt.id, actualMillicents: 500 });
+    assert.equal((await loadPeriodBalance({ userId })).remainingMillicents, 6500, "usage settlement refunds only unused vendor spend, not refund debt");
+    await applyRazorpayPayment({ ...original.payment, status: "refunded", amount_refunded: 1000 });
+    assert.equal((await loadPeriodBalance({ userId })).remainingMillicents, 1500, "a full pack refund retains its already-consumed usage through the original expiry");
+    process.env.RAZORPAY_KEY_ID = "rzp_live_verification";
+    assert.equal((await loadPeriodBalance({ userId })).remainingMillicents, 3500, "sandbox refund debt cannot debit live credit");
+    process.env.RAZORPAY_KEY_ID = "rzp_test_verification";
+    await prisma.billingPurchase.update({ where: { id: original.id }, data: { accessEndsAt: new Date("2020-01-01") } });
+    assert.equal((await loadPeriodBalance({ userId })).remainingMillicents, 9500, "refund debt ends with its original pack period, not an unrelated later month");
+    console.log("PASS top-up partial/full refund debt, new credits, settlement, expiry, and mode isolation");
+  } finally {
+    process.env.RAZORPAY_KEY_ID = "rzp_test_verification";
+    await prisma.user.delete({ where: { id: userId } });
+  }
+}
+
 async function main() {
   const url = new URL(process.env.DATABASE_URL ?? "");
   assert(["localhost", "127.0.0.1"].includes(url.hostname) && url.pathname.startsWith("/heytutor_razorpay_verify_"), "Use a dedicated local Razorpay verification database");
   process.env.BILLING_PROVIDER = "razorpay";
   process.env.RAZORPAY_KEY_ID = "rzp_test_verification";
   await verifyCheckoutUsageLockOrder();
+  await verifyTopUpRefundDebt();
   const userId = randomUUID();
   await prisma.user.create({ data: { id: userId } });
   async function purchase(planId = "plus", amount = 1900, usageMillicents = 12000) {

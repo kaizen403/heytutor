@@ -20,17 +20,32 @@ async function api(path: string, body?: unknown): Promise<unknown> {
   }
 }
 
-export async function createRazorpayOrder(offer: PaymentOffer, receipt: string): Promise<string> {
-  const value = await api("orders", {
-    amount: offer.amount, currency: offer.currency, receipt, partial_payment: false,
-    notes: { purchase_id: receipt, plan_id: offer.planId },
-  });
+function readOrderId(value: unknown, offer: { amount: number; currency: string }, receipt: string): string {
   if (!value || typeof value !== "object") throw new PaymentError("payments_unavailable");
   const order = value as Record<string, unknown>;
   if (!isProviderId(order.id, "order") || order.amount !== offer.amount || order.currency !== offer.currency || order.receipt !== receipt) {
     throw new PaymentError("payments_unavailable");
   }
   return order.id;
+}
+
+export async function createRazorpayOrder(offer: PaymentOffer, receipt: string): Promise<string> {
+  return readOrderId(await api("orders", {
+    amount: offer.amount, currency: offer.currency, receipt, partial_payment: false,
+    notes: { purchase_id: receipt, plan_id: offer.planId },
+  }), offer, receipt);
+}
+
+/** Receipt filtering is a read-only Orders API operation. Require an exact
+ * receipt and frozen price: substring matches or ambiguous orders are unsafe. */
+export async function findRazorpayOrderByReceipt(offer: Pick<PaymentOffer, "amount" | "currency">, receipt: string): Promise<string | null> {
+  const value = await api(`orders?receipt=${encodeURIComponent(receipt)}&count=100`);
+  if (!value || typeof value !== "object" || !("items" in value) || !Array.isArray(value.items) || value.items.length > 100) {
+    throw new PaymentError("payments_unavailable");
+  }
+  const matches = value.items.filter(row => row && typeof row === "object" && row.receipt === receipt);
+  if (matches.length > 1) throw new PaymentError("payments_unavailable");
+  return matches.length ? readOrderId(matches[0], offer, receipt) : null;
 }
 
 export async function fetchRazorpayPayment(paymentId: string): Promise<RazorpayPayment> {
