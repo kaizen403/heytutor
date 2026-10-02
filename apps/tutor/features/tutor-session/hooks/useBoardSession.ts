@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import {
@@ -143,18 +143,12 @@ export function useBoardSession({
   const restoreGenerationRef = useRef(0);
   const activeSessionIdRef = useRef(sessionId);
   const isDraftRef = useRef(isDraft);
-  // During render, not in an effect: a commit that resolves between this
-  // render and the effect must see that New board already left.
-  activeSessionIdRef.current = sessionId;
-  isDraftRef.current = isDraft;
-
-  useEffect(() => {
+  // Commit the active board before paint and before asynchronous continuations.
+  // An abandoned concurrent render must not change these ownership checks.
+  useLayoutEffect(() => {
     activeSessionIdRef.current = sessionId;
-  }, [sessionId]);
-
-  useEffect(() => {
     isDraftRef.current = isDraft;
-  }, [isDraft]);
+  }, [sessionId, isDraft]);
 
   useEffect(() => {
     const rate = Math.max(speedMultiplier, 0.1);
@@ -205,6 +199,9 @@ export function useBoardSession({
         boardTitle: boards.find((board) => board.id === sessionId)?.title,
       });
       if (untouchedHome) return;
+      // Leaving is an event boundary: a save resolving before React commits
+      // the next board must already be unable to claim the old board's URL.
+      activeSessionIdRef.current = "";
       // Idle stop used to return before invalidating the turn. Stragglers then
       // woke on the new board once restore cleared the cancel flag.
       stopTurnRef.current?.({ supersede: true });
@@ -256,6 +253,7 @@ export function useBoardSession({
   const switchBoard = useCallback(
     (id: string) => {
       if (id === sessionId) return;
+      activeSessionIdRef.current = id;
       onChooseBoard?.(id);
       router.push(boardPath(id));
     },

@@ -53,11 +53,12 @@ export function recordLlmSpend(input: {
   actor: SpendActor;
   model?: string | null;
   usage?: UsageCounts;
+  accounted?: boolean;
 }): void {
   const usage = input.usage ?? {};
   const tokens = (usage.input ?? 0) + (usage.output ?? 0) || usage.total || 0;
   const usd = calculateLlmCostDetails(usage, { model: input.model }).total ?? 0;
-  if (shouldCountUsd(input.actor) && usd > 0) {
+  if (!input.accounted && shouldCountUsd(input.actor) && usd > 0) {
     rememberSpend({
       userId: input.actor.userId,
       planId: getTurnGrant(input.actor.userId)?.planId,
@@ -86,12 +87,13 @@ export function recordTtsSpend(input: {
   provider?: SpeechProvider;
   skipAutumn?: boolean;
   skipGates?: boolean;
+  accounted?: boolean;
 }): void {
   if (input.characters <= 0 || !isTtsConfigured()) {
     return;
   }
   const usd = calculateTtsCostDetails(input.characters, { model: input.model, provider: input.provider }).total ?? 0;
-  if (shouldCountUsd(input) && usd > 0) {
+  if (!input.accounted && shouldCountUsd(input) && usd > 0) {
     rememberSpend({
       userId: input.userId,
       planId: getTurnGrant(input.userId)?.planId,

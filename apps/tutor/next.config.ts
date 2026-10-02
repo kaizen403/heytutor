@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import path from "path";
 import { securityHeaderEntries } from "./lib/http/securityHeaders";
+import { SENTRY_TUNNEL_PATH } from "./lib/obs/sentryTunnel";
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
@@ -8,7 +10,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
-        headers: securityHeaderEntries(),
+        headers: securityHeaderEntries().filter(header => header.key !== "Content-Security-Policy"),
       },
     ];
   },
@@ -40,4 +42,28 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  tunnelRoute: SENTRY_TUNNEL_PATH,
+  silent: !process.env.SENTRY_AUTH_TOKEN,
+  telemetry: false,
+  sourcemaps: {
+    disable: !process.env.SENTRY_AUTH_TOKEN,
+  },
+  // A missing org or a Sentry outage must not fail the EC2 build.
+  errorHandler(error) {
+    console.warn(`[sentry] build plugin: ${error.message}`);
+  },
+  webpack: {
+    excludeServerRoutes: ["/api/health"],
+    automaticVercelMonitors: false,
+    treeshake: {
+      removeDebugLogging: true,
+      excludeReplayIframe: true,
+      excludeReplayShadowDOM: true,
+      excludeReplayCompressionWorker: true,
+    },
+  },
+});

@@ -194,9 +194,11 @@ function CreditsFooterButton({
 
 function ProfileAvatar({ src }: { src?: string | null }) {
   const [failed, setFailed] = useState(false);
-  useEffect(() => {
+  const [previousSrc, setPreviousSrc] = useState(src);
+  if (previousSrc !== src) {
+    setPreviousSrc(src);
     setFailed(false);
-  }, [src]);
+  }
   if (src && !failed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element

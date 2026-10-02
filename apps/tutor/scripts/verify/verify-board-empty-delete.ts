@@ -13,6 +13,7 @@ let userId: string | null = "owner";
 let injectBeforeLock: (() => void) | undefined;
 let locked = false;
 let deletes = 0;
+const deletionJobs: string[] = [];
 
 // Bundle the real route, substituting only authentication and database IO. The
 // transaction fake models the board row lock and lets a turn arrive after an
@@ -53,12 +54,17 @@ let deletes = 0;
           },
         },
         board: {
+          findFirst: async ({ where }: { where: { id: string; userId: string } }) => {
+            const board = boards.get(where.id);
+            return board?.userId === where.userId ? board : null;
+          },
           delete: async ({ where }: { where: { id: string } }) => {
-            assert(locked, "conditional deletion must happen under the row lock");
+            assert(deletionJobs.includes(`lectures/${where.id}/`), "durable cleanup must be queued before deleting ownership records");
             deletes++;
             boards.delete(where.id);
           },
         },
+        objectDeletionJob: { create: async ({ data }: { data: { prefix: string } }) => { deletionJobs.push(data.prefix); } },
       });
     },
   },
@@ -71,12 +77,14 @@ const { outputFiles } = await build({
   plugins: [{
     name: "board-route-fixtures",
     setup(build: { onResolve: (opts: { filter: RegExp }, cb: (args: { path: string }) => object) => void; onLoad: (opts: { filter: RegExp; namespace: string }, cb: (args: { path: string }) => object) => void }) {
-      build.onResolve({ filter: /^@\/lib\/(auth|db\/prisma|object-store\/s3)$/ }, (args) => ({ path: args.path, namespace: "fixture" }));
+      build.onResolve({ filter: /^@\/lib\/(auth|db\/prisma|object-store\/s3|boards\/storageQuota)$/ }, (args) => ({ path: args.path, namespace: "fixture" }));
       build.onLoad({ filter: /.*/, namespace: "fixture" }, (args) => ({
         contents: args.path.endsWith("auth")
           ? "export const getUserId = async () => globalThis.__boardDeleteTest.userId; export const ensureUser = async () => {};"
           : args.path.endsWith("prisma")
             ? "export const prisma = globalThis.__boardDeleteTest.prisma;"
+            : args.path.endsWith("storageQuota")
+              ? "export const MAX_BOARD_TITLE_CHARS=200; export const MAX_BOARD_PREVIEW_CHARS=2000; export const ensureStorageAccounting=async()=>{}; export const boardStorageBytes=async()=>0n; export const withUserStorageLock=(id,run)=>globalThis.__boardDeleteTest.prisma.$transaction(run);"
             : "export const boardAudioPrefix = (id) => id; export const deletePrefix = async () => {};",
         loader: "js",
       }));
@@ -115,8 +123,10 @@ try {
   assert((await run("chat")).status === 409 && boards.has("chat"), "chat messages must protect a board");
   seed("empty");
   assert((await run("empty")).status === 200 && !boards.has("empty"), "empty orphan must be deleted");
+  assert(deletionJobs.includes("lectures/empty/"), "empty deletion must durably enqueue cleanup before losing its row");
   seed("manual", { turns: 1, preview: "saved lesson" });
   assert((await run("manual", false)).status === 200 && !boards.has("manual"), "manual deletion must remain unconditional");
+  assert(deletionJobs.includes("lectures/manual/"), "manual deletion must durably enqueue cleanup");
   seed("someone-else", { userId: "other" });
   assert((await run("someone-else")).status === 404 && boards.has("someone-else"), "owner restriction must be preserved");
   userId = null;

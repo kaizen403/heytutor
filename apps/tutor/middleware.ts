@@ -4,7 +4,7 @@ import { HTUTOR_UID_COOKIE } from "@/lib/cookies";
 import { isAuthDisabled } from "@/lib/authDisabled";
 import { isAuthPublicPath, isEmbedDemoRequest, loginRedirectPath } from "@/lib/auth/publicPaths";
 import { hasAuthSessionCookie } from "@/lib/auth/sessionCookie";
-import { applySecurityHeaders } from "@/lib/http/securityHeaders";
+import { applySecurityHeaders, contentSecurityPolicy } from "@/lib/http/securityHeaders";
 import { clientIpFromForwarded, consumeIpRateLimit, rateLimitBucketForPath } from "@/lib/http/ipRateLimit";
 
 const BACKEND_ORIGIN = process.env.BACKEND_ORIGIN?.replace(/\/$/, "");
@@ -39,8 +39,8 @@ async function proxyApiToBackend(request: NextRequest): Promise<NextResponse> {
   });
 }
 
-function withSecurityHeaders(response: NextResponse): NextResponse {
-  applySecurityHeaders(response.headers);
+function withSecurityHeaders(response: NextResponse, nonce?: string): NextResponse {
+  applySecurityHeaders(response.headers, process.env, nonce);
   return response;
 }
 
@@ -83,32 +83,38 @@ function withOptionalDemoCookie(request: NextRequest, response: NextResponse): N
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  const nonce = btoa(crypto.randomUUID());
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("content-security-policy", contentSecurityPolicy(process.env, nonce));
+  const nextResponse = () => NextResponse.next({ request: { headers: requestHeaders } });
+  const secure = (response: NextResponse) => withSecurityHeaders(response, nonce);
 
   const limited = rateLimitResponse(request);
   if (limited) return limited;
 
   if (BACKEND_ORIGIN && pathname.startsWith("/api/") && !pathname.startsWith("/api/auth")) {
-    return withSecurityHeaders(await proxyApiToBackend(request));
+    return secure(await proxyApiToBackend(request));
   }
 
   if (isAuthDisabled()) {
-    return withIdentityCookie(request, withSecurityHeaders(NextResponse.next()));
+    return withIdentityCookie(request, secure(nextResponse()));
   }
 
   if (isAuthPublicPath(pathname) || pathname.startsWith("/api/")) {
-    return withOptionalDemoCookie(request, withSecurityHeaders(NextResponse.next()));
+    return withOptionalDemoCookie(request, secure(nextResponse()));
   }
 
   if (isEmbedDemoRequest(pathname, search)) {
-    return withOptionalDemoCookie(request, withSecurityHeaders(NextResponse.next()));
+    return withOptionalDemoCookie(request, secure(nextResponse()));
   }
 
   if (!hasAuthSessionCookie(request)) {
     const url = new URL(loginRedirectPath(pathname, search), request.url);
-    return withSecurityHeaders(NextResponse.redirect(url));
+    return secure(NextResponse.redirect(url));
   }
 
-  return withSecurityHeaders(NextResponse.next());
+  return secure(nextResponse());
 }
 
 export const config = {

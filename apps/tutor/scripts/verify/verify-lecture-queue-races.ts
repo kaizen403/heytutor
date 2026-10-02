@@ -94,7 +94,7 @@ globalThis.fetch = async (input, init) => {
     boardRequests.push(request);
     return request.promise;
   }
-  if (url.endsWith("/api/boards") && !init?.method) {
+  if (new URL(url, "http://localhost").pathname === "/api/boards" && !init?.method) {
     if (failNextBoardList) { failNextBoardList = false; throw new Error("offline listing"); }
     return Response.json({ boards: [] });
   }
@@ -115,7 +115,7 @@ globalThis.fetch = async (input, init) => {
     return response ?? Response.json({ ok: true });
   }
   if (!init?.method && url.includes("/api/boards/")) {
-    const id = url.split("/").at(-1)!;
+    const id = new URL(url, "http://localhost").pathname.split("/").at(-1)!;
     const pending = pendingDetails.get(id);
     if (pending) return pending.promise;
     const custom = detailResponses.get(id);

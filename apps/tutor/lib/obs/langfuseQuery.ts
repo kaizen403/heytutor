@@ -1,4 +1,6 @@
 import { isLangfuseConfigured } from "./langfuse";
+import { scopedTraceId, scopedSessionId } from "./traceOwnership";
+import { prisma } from "../db/prisma";
 import {
   aggregateRunCost,
   parseCostObservation,
@@ -201,9 +203,9 @@ function asPositiveInt(value: unknown): number | undefined {
   return undefined;
 }
 
-export async function fetchRunCostForTraces(traceIds: string[]): Promise<{
+export async function fetchRunCostForTraces(traceIds: string[], ownersByTraceId: ReadonlyMap<string, string> = new Map()): Promise<{
   configured: boolean;
-  byTraceId: Record<string, { llmUsd: number; ttsUsd: number; totalUsd: number }>;
+  byTraceId: Record<string, { llmUsd: number; ttsUsd: number; totalUsd: number; observationTraceId?: string }>;
   error?: string;
 }> {
   const unique = [...new Set(traceIds.map((id) => id.trim()).filter(Boolean))].slice(0, MAX_SESSIONS);
@@ -216,8 +218,18 @@ export async function fetchRunCostForTraces(traceIds: string[]): Promise<{
   }
 
   try {
+    const observationTraceIds = new Map<string, string>();
     const batches = await mapPool(unique, TRACE_FETCH_CONCURRENCY, async (traceId) => {
-      const observations = await fetchTraceObservations(credentials, traceId, traceId);
+      const userId = ownersByTraceId.get(traceId);
+      let observationTraceId = userId ? scopedTraceId(userId, traceId) : traceId;
+      let observations = await fetchTraceObservations(credentials, observationTraceId, traceId);
+      // Historical observations used raw ids; only trusted admin lookups can
+      // fall back to those read-only records during the transition.
+      if (observations.length === 0 && userId) {
+        observationTraceId = traceId;
+        observations = await fetchTraceObservations(credentials, traceId, traceId);
+      }
+      observationTraceIds.set(traceId, observationTraceId);
       return observations.map((observation) => ({
         ...observation,
         sessionId: traceId,
@@ -225,12 +237,13 @@ export async function fetchRunCostForTraces(traceIds: string[]): Promise<{
       }));
     });
     const report = aggregateRunCost(batches.flat());
-    const byTraceId: Record<string, { llmUsd: number; ttsUsd: number; totalUsd: number }> = {};
+    const byTraceId: Record<string, { llmUsd: number; ttsUsd: number; totalUsd: number; observationTraceId?: string }> = {};
     for (const row of report.bySession) {
       byTraceId[row.sessionId] = {
         llmUsd: row.llmUsd,
         ttsUsd: row.ttsUsd,
         totalUsd: row.totalUsd,
+        observationTraceId: observationTraceIds.get(row.sessionId),
       };
     }
     return { configured: true, byTraceId };
@@ -311,10 +324,16 @@ export async function fetchRunCostForSessions(sessionIds: string[]): Promise<{
 
   try {
     const observations: CostObservation[] = [];
+    const boards = await prisma.board.findMany({ where: { id: { in: unique } }, select: { id: true, userId: true } });
+    const clientSessionIds = new Map(unique.map(id => [id, id]));
+    for (const board of boards) clientSessionIds.set(scopedSessionId(board.userId, board.id), board.id);
     let cursor: string | undefined;
     for (let page = 0; page < SESSION_OBSERVATION_PAGES; page += 1) {
-      const payload = await langfuseGet(credentials, sessionObservationsPath(unique, cursor));
-      observations.push(...readObservations(payload, "unknown"));
+      const payload = await langfuseGet(credentials, sessionObservationsPath([...clientSessionIds.keys()], cursor));
+      observations.push(...readObservations(payload, "unknown").map(observation => ({
+        ...observation,
+        sessionId: clientSessionIds.get(observation.sessionId ?? "") ?? observation.sessionId,
+      })));
       const next = readCursor(payload);
       if (!next || next === cursor) break;
       cursor = next;

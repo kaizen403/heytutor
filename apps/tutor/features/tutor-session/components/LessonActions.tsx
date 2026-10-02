@@ -78,11 +78,9 @@ export function LessonActions({
     };
   }, [menuOpen]);
 
-  useEffect(() => {
-    if (!isExportingLecture) {
-      setCancelRevealed(false);
-    }
-  }, [isExportingLecture]);
+  if (!isExportingLecture && cancelRevealed) {
+    setCancelRevealed(false);
+  }
 
   const menuVisible = menuOpen && !isExportingLecture;
   const showCancel = isExportingLecture && cancelRevealed;

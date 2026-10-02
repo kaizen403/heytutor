@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   emptyRunCostSession,
   lectureCostNeedsFetch,
@@ -57,7 +57,9 @@ export function useLectureCosts(
 ): Record<string, RunCostSessionRow> {
   const [bySession, setBySession] = useState<Record<string, RunCostSessionRow>>({});
   const sessionsRef = useRef(sessions);
-  sessionsRef.current = sessions;
+  useLayoutEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
   const pricedRef = useRef(new Set<string>());
   const watchedRef = useRef(new Set<string>());
   const followUntilRef = useRef(new Map<string, number>());

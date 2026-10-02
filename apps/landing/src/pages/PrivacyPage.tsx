@@ -2,7 +2,7 @@ import LegalDocument, { LegalSection } from './LegalDocument'
 
 export default function PrivacyPage() {
   return (
-    <LegalDocument title="Privacy Policy" updated="17 September 2026" path="/privacy">
+    <LegalDocument title="Privacy Policy" updated="2 October 2026" path="/privacy">
       <LegalSection title="1. Who we are">
         <p>
           This Privacy Policy explains how Accelute (“we”, “us”) collects and
@@ -105,6 +105,15 @@ export default function PrivacyPage() {
           long as needed to run the account, tax, and support. Server logs
           are kept only as long as needed for security and debugging. Email
           from a subscribe form is kept until you ask us to remove it.
+        </p>
+        <p>
+          After account deletion, we retain a keyed hash of the verified email
+          and its free-allowance usage for up to 90 days to prevent repeated
+          account creation from resetting free credits. This record does not
+          contain your email, name, boards, or lesson content. Deleted media is
+          removed through a retrying cleanup queue, so storage outages may
+          delay removal. Billing receipts may remain to prevent duplicate
+          charges or credits and to support payment records.
         </p>
       </LegalSection>
 

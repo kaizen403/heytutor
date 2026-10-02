@@ -10,7 +10,12 @@ const pendingUserEnsures = new Map<string, Promise<void>>();
 
 async function getSessionUserId(): Promise<string | null> {
   const session = await auth();
-  return session?.user?.id ?? null;
+  const userId = session?.user?.id;
+  if (!userId) return null;
+  // A JWT remains cryptographically valid after deletion. Database existence
+  // is the authorization boundary, rather than the lifetime of that cookie.
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  return user?.id ?? null;
 }
 
 async function getAnonymousCookieId(): Promise<string | null> {
@@ -72,11 +77,16 @@ export async function ensureUser(userId: string): Promise<void> {
 
 async function ensureUserOnce(userId: string): Promise<void> {
   try {
-    await prisma.user.upsert({
-      where: { id: userId },
-      create: { id: userId },
-      update: {},
-    });
+    if (isAuthDisabled()) {
+      await prisma.user.upsert({
+        where: { id: userId },
+        create: { id: userId },
+        update: {},
+      });
+    } else {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+      if (!user) throw new Error("Account no longer exists");
+    }
     await prisma.userSettings.upsert({
       where: { userId },
       create: { userId },

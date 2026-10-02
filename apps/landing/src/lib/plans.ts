@@ -12,7 +12,7 @@ type PlanBase = {
 }
 
 export type IndividualPlan = PlanBase & {
-  id: 'free' | 'plus' | 'pro'
+  id: 'free' | 'plus'
   priceUsd: number
   hrefKind: 'login'
 }
@@ -37,20 +37,12 @@ export const PLANS: readonly LandingPlan[] = [
   {
     id: 'plus',
     name: 'Plus',
-    priceUsd: 19,
-    blurb: 'Make the whiteboard part of your regular study routine.',
-    cta: 'Get Plus',
+    priceUsd: 29,
+    blurb: 'More room to practise, ask why, and turn difficult topics into progress.',
+    cta: 'Upgrade now',
     hrefKind: 'login',
     featured: true,
-    badge: 'Most students',
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    priceUsd: 39,
-    blurb: 'Stay focused through demanding study and exam preparation.',
-    cta: 'Get Pro',
-    hrefKind: 'login',
+    badge: 'Your next step',
   },
   {
     id: 'team',

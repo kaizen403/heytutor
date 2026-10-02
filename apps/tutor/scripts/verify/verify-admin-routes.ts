@@ -57,10 +57,6 @@ assert(
   playgroundPage.includes("AdminPlayground"),
   "the playground page must render the syllabus playground",
 );
-assert(
-  playgroundPage.includes('href="/admin"'),
-  "the playground must link back to the admin panel",
-);
 
 const nav = read("features/admin/nav/AdminNav.tsx");
 for (const href of ["/admin", "/admin/playground", "/admin/users", "/admin/logs", "/admin/fails"]) {
@@ -68,6 +64,11 @@ for (const href of ["/admin", "/admin/playground", "/admin/users", "/admin/logs"
 }
 
 const playground = read("features/admin/AdminPlayground.tsx");
+assert(
+  playground.includes("<AdminToolbar") &&
+    read("features/admin/components/AdminToolbar.tsx").includes('href="/admin"'),
+  "the playground's mounted toolbar must link back to the admin panel",
+);
 assert(
   playground.includes('variant="headless"'),
   "AdminPlayground must keep running lectures headlessly — the panel restructure must not touch it",

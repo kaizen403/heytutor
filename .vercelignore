@@ -21,3 +21,10 @@ node_modules/
 .omo/
 .omx/
 .devlog/
+
+# Private configuration and isolated release ownership.
+**/.env*
+.razorpay-release-owner
+**/.next/
+**/.turbo/
+**/dist/

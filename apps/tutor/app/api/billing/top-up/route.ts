@@ -1,13 +1,8 @@
-import { AutumnUnavailableError, attachTopUp } from "@/lib/billing/autumnClient";
 import { TOP_UP_USD } from "@/lib/billing/catalog";
-import { billingResponse } from "@/lib/billing/errors";
-import { isAutumnEnabled } from "@/lib/billing/flags";
 import { isSpendActor, requireSpendActor } from "@/lib/billing/gate";
-
-function successUrl(): string {
-  const base = (process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
-  return `${base}/usage`;
-}
+import { usesRazorpay, PaymentError, paymentErrorResponse } from "@/lib/billing/razorpayConfig";
+import { createRazorpayCheckout } from "@/lib/billing/razorpayPurchases";
+import { readPaymentJson, UUID_PATTERN } from "@/lib/billing/paymentRequest";
 
 export async function POST(request: Request): Promise<Response> {
   const actor = await requireSpendActor(request);
@@ -15,20 +10,12 @@ export async function POST(request: Request): Promise<Response> {
   if (actor.skipGates) {
     return Response.json({ url: null, skipped: true, usd: TOP_UP_USD });
   }
-  if (!isAutumnEnabled()) {
-    return billingResponse("autumn_unavailable", null, "Autumn is disabled");
+  if (usesRazorpay()) {
+    try {
+      const body = await readPaymentJson(request);
+      if (typeof body.idempotencyKey !== "string" || !UUID_PATTERN.test(body.idempotencyKey)) throw new PaymentError("invalid_request", 400);
+      return Response.json({ checkout: await createRazorpayCheckout(actor.userId, "lesson_top_up", body.idempotencyKey, body.quote) }, { headers: { "cache-control": "no-store" } });
+    } catch (error) { return paymentErrorResponse(error); }
   }
-
-  try {
-    const result = await attachTopUp({
-      userId: actor.userId,
-      successUrl: successUrl(),
-    });
-    return Response.json({ url: result.url, usd: TOP_UP_USD });
-  } catch (error) {
-    if (error instanceof AutumnUnavailableError) {
-      return billingResponse("autumn_unavailable", null, error.message);
-    }
-    throw error;
-  }
+  return paymentErrorResponse(new PaymentError("payments_unavailable"));
 }
