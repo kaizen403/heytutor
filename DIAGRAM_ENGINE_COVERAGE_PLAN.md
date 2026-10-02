@@ -2,6 +2,8 @@
 
 Updated: 2 October 2026. Status: **25-chapter expansion complete; further coverage work paused at the user's request.**
 
+Publication: [PR #80 — Expand verified diagram operators across 25 chapters](https://github.com/kaizen403/heytutor/pull/80).
+
 This is the review and resume document for the reusable scene-operator expansion. The user asked to publish the completed work through a PR and merge it to `main`, then leave a documented path toward full coverage. Do not start the future backlog until the user resumes it.
 
 ## What was requested and completed
