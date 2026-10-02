@@ -29,6 +29,8 @@ export type NormalizedAnswer =
   | { type: "score"; score: number; probabilities: Record<string, number> | null };
 
 export interface EvaluationUsage {
+  /** Missing or malformed provider usage is unknown, not a measured zero. */
+  knownUsage?: boolean;
   inputTokens: number;
   outputTokens: number;
   reportedCostUsd: number | null;

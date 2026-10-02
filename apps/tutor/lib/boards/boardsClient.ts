@@ -38,13 +38,19 @@ export interface BoardDetail {
 }
 
 export async function fetchBoards(): Promise<BoardEntry[]> {
-  const res = await fetch(resolveApiUrl("/api/boards"));
-  if (!res.ok) {
-    return [];
+  const boards: BoardEntry[] = [];
+  let page = 0;
+  // Each response is bounded. The server caps accounts at 200 boards; the
+  // extra iteration accommodates pre-migration accounts without an open loop.
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const res = await fetch(resolveApiUrl(`/api/boards?page=${page}`));
+    if (!res.ok) return boards;
+    const data = await res.json() as { boards?: BoardEntry[]; nextPage?: number | null };
+    boards.push(...(data.boards ?? []));
+    if (typeof data.nextPage !== "number" || data.nextPage <= page) break;
+    page = data.nextPage;
   }
-
-  const data = (await res.json()) as { boards?: BoardEntry[] };
-  return data.boards ?? [];
+  return boards;
 }
 
 export async function createBoard(id?: string): Promise<BoardEntry | null> {
@@ -103,12 +109,18 @@ export async function requestBoardTitle(question: string): Promise<string> {
 }
 
 export async function fetchBoardDetail(boardId: string): Promise<BoardDetail | null> {
-  const res = await fetch(resolveApiUrl(`/api/boards/${boardId}`));
-  if (!res.ok) {
-    return null;
+  let result: BoardDetail | null = null;
+  let page = 0;
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const res = await fetch(resolveApiUrl(`/api/boards/${boardId}?page=${page}`));
+    if (!res.ok) return null;
+    const data = await res.json() as BoardDetail & { nextPage?: number | null };
+    if (!result) result = { board: data.board, turns: [] };
+    result.turns.push(...data.turns);
+    if (typeof data.nextPage !== "number" || data.nextPage <= page) break;
+    page = data.nextPage;
   }
-
-  return (await res.json()) as BoardDetail;
+  return result;
 }
 
 export async function updateBoard(

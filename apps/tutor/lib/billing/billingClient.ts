@@ -3,6 +3,7 @@ import type { CheckoutPlanId } from "./catalog";
 import { isBillingErrorCode } from "./errors";
 import { isOutOfCreditsCode } from "./studentCopy";
 import { patchEntitlementSnapshot, setEntitlementSnapshot, type Entitlement } from "./entitlementState";
+import { openRazorpayCheckout, type RazorpayCheckout } from "./razorpayCheckout";
 
 export type BillingTurnKind = "lesson" | "doubt" | "resume";
 
@@ -31,6 +32,7 @@ export interface BeginTurnErr {
 export type BillingRedirect =
   | { ok: true; url: string }
   | { ok: true; skipped: true }
+  | { ok: true; checkout: RazorpayCheckout }
   | { ok: false } & BillingFailure;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -269,7 +271,8 @@ async function postBillingRedirect(
     method: "POST",
     credentials: "include",
     headers: { "content-type": "application/json" },
-    body: body ? JSON.stringify(body) : "{}",
+    body: JSON.stringify({ ...body, idempotencyKey: crypto.randomUUID() }),
+    signal: AbortSignal.timeout(20_000),
   });
   const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   if (!response.ok) {
@@ -280,29 +283,49 @@ async function postBillingRedirect(
       remaining: remainingPctFromPayload(payload),
     };
   }
-  if (payload.skipped === true || payload.url == null) {
+  if (isRecord(payload.checkout) && payload.checkout.provider === "razorpay") {
+    const checkout = payload.checkout;
+    if (typeof checkout.purchaseId !== "string" || typeof checkout.keyId !== "string" ||
+        typeof checkout.orderId !== "string" || typeof checkout.amount !== "number" ||
+        typeof checkout.currency !== "string" || typeof checkout.planId !== "string" || typeof checkout.testMode !== "boolean") {
+      return { ok: false, status: 503, code: "payments_unavailable", remaining: null };
+    }
+    return { ok: true, checkout: checkout as unknown as RazorpayCheckout };
+  }
+  if (payload.skipped === true || payload.url === null) {
     return { ok: true, skipped: true };
   }
   if (typeof payload.url !== "string") {
-    return { ok: true, skipped: true };
+    return { ok: false, status: 503, code: "payments_unavailable", remaining: null };
   }
   return { ok: true, url: payload.url };
 }
 
-export async function startCheckout(planId: CheckoutPlanId): Promise<BillingRedirect> {
-  return postBillingRedirect("/api/billing/checkout", { planId });
+export async function startCheckout(planId: CheckoutPlanId, quote?: string | null): Promise<BillingRedirect> {
+  return postBillingRedirect("/api/billing/checkout", { planId, quote });
 }
 
-export async function startTopUp(): Promise<BillingRedirect> {
-  return postBillingRedirect("/api/billing/top-up");
+export async function startTopUp(quote?: string | null): Promise<BillingRedirect> {
+  return postBillingRedirect("/api/billing/top-up", { quote });
 }
 
 export async function openCustomerPortal(): Promise<BillingRedirect> {
   return postBillingRedirect("/api/billing/portal");
 }
 
-export async function followBillingRedirect(result: BillingRedirect): Promise<boolean> {
+export async function refreshPaidEntitlement(): Promise<boolean> {
+  try { return (await fetchEntitlement(AbortSignal.timeout(15_000))).ok; }
+  catch { return false; }
+}
+
+export async function followBillingRedirect(result: BillingRedirect): Promise<boolean | "paid_refresh_needed"> {
   if (!result.ok) return false;
+  if ("checkout" in result) {
+    const paid = await openRazorpayCheckout(result.checkout);
+    // Payment confirmation remains authoritative if the usage refresh is lost.
+    if (paid && !await refreshPaidEntitlement()) return "paid_refresh_needed";
+    return paid;
+  }
   if ("skipped" in result && result.skipped) return true;
   if ("url" in result && result.url) {
     window.location.assign(result.url);

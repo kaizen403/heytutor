@@ -2,6 +2,7 @@ import { AutumnUnavailableError, openBillingPortal } from "@/lib/billing/autumnC
 import { billingResponse } from "@/lib/billing/errors";
 import { isAutumnEnabled } from "@/lib/billing/flags";
 import { isSpendActor, requireSpendActor } from "@/lib/billing/gate";
+import { usesRazorpay } from "@/lib/billing/razorpayConfig";
 
 function returnUrl(): string {
   const base = (process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -14,6 +15,7 @@ export async function POST(request: Request): Promise<Response> {
   if (actor.skipGates) {
     return Response.json({ url: null, skipped: true });
   }
+  if (usesRazorpay()) return Response.json({ url: "/usage" });
   if (!isAutumnEnabled()) {
     return billingResponse("autumn_unavailable", null, "Autumn is disabled");
   }

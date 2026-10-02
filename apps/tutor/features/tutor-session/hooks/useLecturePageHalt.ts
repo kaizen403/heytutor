@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { haltAllLectureAudio } from "@heytutor/tutor-core";
 
 /**
@@ -13,7 +13,9 @@ import { haltAllLectureAudio } from "@heytutor/tutor-core";
  */
 export function useLecturePageHalt(haltSession: () => void): void {
   const haltSessionRef = useRef(haltSession);
-  haltSessionRef.current = haltSession;
+  useLayoutEffect(() => {
+    haltSessionRef.current = haltSession;
+  }, [haltSession]);
 
   useEffect(() => {
     const halt = () => {

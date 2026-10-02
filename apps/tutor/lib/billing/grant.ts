@@ -5,6 +5,10 @@ import {
 } from "./catalog";
 
 export type TurnKind = "lesson" | "doubt" | "resume";
+export type PaidCallKind = "planner" | "teaching" | "stt" | "photo" | "tts" | "notes" | "policy" | "title" | "suggestions";
+export const PAID_CALL_LIMITS: Record<PaidCallKind, number> = {
+  planner: 12, teaching: 4, stt: 3, photo: 3, tts: 240, notes: 30, policy: 4, title: 1, suggestions: 2,
+};
 
 export interface TurnGrant {
   userId: string;
@@ -12,9 +16,13 @@ export interface TurnGrant {
   allowedTraceIds: Set<string>;
   planId: string;
   expiresAt: number;
+  /** Verified purchase expiry, including WS jobs holding this object. */
+  billingExpiresAt?: number;
   ttsCharsRemaining: number;
   usdMillicentsRemaining: number;
   inUse: number;
+  paidCallCounts: Map<string, number>;
+  paidCallsPending: Map<string, number>;
   /** Last acquire, release, or streamed chunk while busy. Reclaimed when stale. */
   inUseUpdatedAt: number;
   /** Reserved staff traces; 0 means begun but no paid chat request has started yet. */
@@ -44,6 +52,7 @@ function grantMap(): Map<string, TurnGrant> {
 }
 
 let nowFn: () => number = Date.now;
+let lastSweep = 0;
 
 export function setGrantNowForTests(now: () => number): void {
   nowFn = now;
@@ -52,9 +61,15 @@ export function setGrantNowForTests(now: () => number): void {
 export function resetTurnGrantsForTests(): void {
   grantMap().clear();
   nowFn = Date.now;
+  lastSweep = 0;
 }
 
 function prune(userId: string): TurnGrant | null {
+  const now = nowFn();
+  if (now - lastSweep >= 60_000 || grantMap().size >= 10_000) {
+    lastSweep = now;
+    for (const [id, old] of grantMap()) if (old.expiresAt <= now) grantMap().delete(id);
+  }
   const grant = grantMap().get(userId);
   if (!grant) return null;
   if (grant.expiresAt <= nowFn()) {
@@ -157,6 +172,7 @@ export function createLessonGrant(input: {
     return { ok: true, grant: existing };
   }
   const skipGates = input.skipGates === true;
+  if (!existing && grantMap().size >= 10_000) return { ok: false, reason: "concurrent_limit" };
   const grant: TurnGrant = {
     userId: input.userId,
     lessonTraceId: input.traceId,
@@ -166,6 +182,8 @@ export function createLessonGrant(input: {
     ttsCharsRemaining: input.ttsChars ?? TTS_CHARS_PER_LESSON,
     usdMillicentsRemaining: input.usdMillicents ?? Number.MAX_SAFE_INTEGER,
     inUse: 0,
+    paidCallCounts: new Map(),
+    paidCallsPending: new Map(),
     inUseUpdatedAt: nowFn(),
     activeBypassTraces: new Map(skipGates ? [[input.traceId, 0]] : []),
     bypassFollowOnTraceIds: new Set(),
@@ -281,10 +299,10 @@ export function requireGrantForTrace(
 ): { ok: true; grant: TurnGrant } | { ok: false; reason: "no_grant" | "out_of_credits" } {
   const grant = prune(userId);
   if (!grant) return { ok: false, reason: "no_grant" };
-  if (traceId && grant.allowedTraceIds.has(traceId)) return { ok: true, grant };
   if (!grant.skipGates && grant.usdMillicentsRemaining <= 0) {
     return { ok: false, reason: "out_of_credits" };
   }
+  if (traceId && grant.allowedTraceIds.has(traceId)) return { ok: true, grant };
   // New direct paid traces must check the persisted balance in gate before
   // attaching; an in-memory grant may be stale after another process spends.
   return { ok: false, reason: "no_grant" };
@@ -325,7 +343,7 @@ export function consumeTtsChars(
 }
 
 export function shouldSkipTtsForUsage(grant: TurnGrant): boolean {
-  return !grant.skipGates && grant.usdMillicentsRemaining <= 0;
+  return !grant.skipGates && (grant.usdMillicentsRemaining <= 0 || (grant.billingExpiresAt !== undefined && grant.billingExpiresAt <= nowFn()));
 }
 
 export function consumeUsdMillicents(
@@ -352,4 +370,22 @@ export function inFlightLessonCount(userId: string): number {
 
 export function releaseTurnGrant(userId: string): void {
   grantMap().delete(userId);
+}
+
+/** Synchronous acquisition before the first await; identical traces cannot
+ * race past this bound. Durable receipt counts provide the restart boundary. */
+export function acquirePaidCall(grant: TurnGrant, kind: PaidCallKind, traceId = grant.lessonTraceId): { release(): void } | null {
+  const group = kind === "tts" ? "tts" : "ai";
+  const pending = grant.paidCallsPending.get(group) ?? 0;
+  const key = `${traceId}:${kind}`;
+  const used = grant.paidCallCounts.get(key) ?? 0;
+  if (!grant.skipGates && (pending >= (group === "tts" ? 24 : 4) || used >= PAID_CALL_LIMITS[kind])) return null;
+  grant.paidCallCounts.set(key, used + 1);
+  grant.paidCallsPending.set(group, pending + 1);
+  let released = false;
+  return { release() {
+    if (released) return;
+    released = true;
+    grant.paidCallsPending.set(group, Math.max(0, (grant.paidCallsPending.get(group) ?? 1) - 1));
+  } };
 }

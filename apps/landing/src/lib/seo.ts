@@ -70,7 +70,7 @@ const HOME_FAQS: readonly Faq[] = [
   {
     question: 'Is Accelute a free AI tutor?',
     answer:
-      'Yes. Start with the Free plan and see how Accelute teaches on a live whiteboard. Plus and Pro are there when you want to make it part of your study routine.',
+      'Yes. Start with the Free plan and see how Accelute teaches on a live whiteboard. Plus gives you more room when you want to make it part of your study routine.',
   },
   {
     question: 'What subjects can I study with Accelute?',
@@ -316,7 +316,7 @@ export const PAGES: readonly SeoPage[] = [
       {
         heading: 'Exam weeks',
         paragraphs: [
-          'Accelute is for practice, not for sitting an exam. Use it to walk a type of question until the method is yours. Plus and Pro fit a regular study routine or a more demanding period of exam preparation. The Free plan lets you try the way it teaches before you pay.',
+          'Accelute is for practice, not for sitting an exam. Use it to walk a type of question until the method is yours. Plus fits a regular study routine and focused exam preparation. The Free plan lets you try the way it teaches before you pay.',
           'Do not use it to break a school’s academic rules. The point is to understand the step, not to submit the board as your own work.',
         ],
       },

@@ -122,16 +122,25 @@ export default function TermsPage() {
           minutes. Teaching, diagrams, voice, and follow-up doubts on a
           question are included in that usage.
         </p>
-        <p>Individual plans, billed in US dollars:</p>
+        <p>Individual plans at standard US-dollar prices:</p>
         <ul>
           <li>Free: US$0, monthly included usage</li>
-          <li>Plus: US$19 per month</li>
-          <li>Pro: US$39 per month</li>
+          <li>Plus: US$29 per month</li>
         </ul>
         <p>
-          You may buy a usage top-up for US$10. Top-up usage stacks on any plan
-          for the current calendar month. Included plan usage resets at the
-          start of each calendar month and does not roll over.
+          Customers in India are offered the INR equivalent using a recent
+          reference exchange rate. Customers elsewhere are offered USD.
+          The checkout shows the final price and currency before payment. A
+          Razorpay plan purchase provides one month of access and does not
+          renew automatically. Early renewals start after existing paid months;
+          Free included usage resets at the start of each calendar month.
+          Paid monthly included usage does not roll over.
+        </p>
+        <p>
+          You may add credits at the standard price of US$10, or its INR equivalent
+          in India. Extra usage
+          expires at the end of the usage period in which it was purchased.
+          An upgrade preserves unused extra usage until its original expiry.
         </p>
         <p>
           Coaching centres and other teams are not self-serve. Contact us to

@@ -1,6 +1,7 @@
 import { attachFreePlan } from "@/lib/billing/attachFree";
 import { prisma } from "@/lib/db/prisma";
 import { mergeAnonymousUser } from "./mergeAnonymousUser";
+import { restoreIdentityUsage } from "./abuseIdentity";
 
 export type SignedInProfile = {
   email?: string | null;
@@ -40,19 +41,19 @@ export async function findOrCreateSignedInUser(
     }
   }
 
-  const created = await prisma.user.create({
-    data: {
-      id: crypto.randomUUID(),
-      email,
-      name: profile.name ?? null,
-      image: profile.image ?? null,
-      emailVerified: profile.emailVerified ?? (email ? new Date() : null),
-    },
-  });
-  await prisma.userSettings.upsert({
-    where: { userId: created.id },
-    create: { userId: created.id },
-    update: {},
+  const created = await prisma.$transaction(async tx => {
+    const user = await tx.user.create({
+      data: {
+        id: crypto.randomUUID(),
+        email,
+        name: profile.name ?? null,
+        image: profile.image ?? null,
+        emailVerified: profile.emailVerified ?? (email ? new Date() : null),
+      },
+    });
+    await restoreIdentityUsage(tx, user);
+    await tx.userSettings.upsert({ where: { userId: user.id }, create: { userId: user.id }, update: {} });
+    return user;
   });
   await mergeAnonymousUser(prisma, {
     anonymousUserId,

@@ -1,27 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import {
-  followBillingRedirect,
-  openCustomerPortal,
-  startCheckout,
-  startTopUp,
-  type BillingRedirect,
-} from "@/lib/billing/billingClient";
 import { PLAN_CATALOG, type CheckoutPlanId } from "@/lib/billing/catalog";
 import {
   TEEN_CHECKOUT_COPY,
   TOP_UP_CTA,
-  UPGRADE_LABEL,
   formatResetLabel,
   isTeenAgeBand,
   remainingPctBarWidth,
   remainingPctLabel,
-  studentBillingMessage,
 } from "@/lib/billing/studentCopy";
 import { useEntitlement } from "@/lib/billing/useEntitlement";
 import { SiteButton } from "@/components/ui/site-button";
 import { AccountCard } from "./AccountPageFrame";
+import { type CheckoutCurrency, type PaymentCatalog, formatCheckoutPrice } from "@/lib/billing/paymentCatalog";
+import { PaymentHistory } from "./PaymentHistory";
+import { usePaymentCatalog } from "@/lib/billing/usePaymentCatalog";
+import { useBillingActions } from "./useBillingActions";
+import { PaymentCurrencyPicker } from "./PaymentCurrencyPicker";
 
 function UsageMeter({
   remainingPct,
@@ -56,13 +51,17 @@ export function PlanUsageCard({
   compact = false,
   ageBand,
   onOpenUsage,
+  selectedPlan,
 }: {
   compact?: boolean;
   ageBand?: string | null;
   onOpenUsage?: () => void;
+  selectedPlan?: CheckoutPlanId | null;
 }) {
   const { entitlement, loading } = useEntitlement();
-  const { busy, error, checkout, topUp, portal } = useBillingActions();
+  const { catalog, currency, failed, selectCurrency, refresh } = usePaymentCatalog();
+  const { busy, error, notice, checkout, topUp, portal, revision } = useBillingActions(catalog, refresh);
+  const razorpay = catalog?.provider === "razorpay";
   const staff = entitlement?.staff === true;
   const plan = PLAN_CATALOG[entitlement?.planId === "plus" || entitlement?.planId === "pro" ? entitlement.planId : "free"];
   const remainingPct = entitlement?.remainingPct ?? null;
@@ -70,7 +69,7 @@ export function PlanUsageCard({
   const planLabel = staff ? "Staff" : plan.name;
 
   return (
-    <AccountCard title="Plan and usage">
+    <AccountCard title="Your learning plan">
       {loading && !entitlement ? (
         <p className="text-sm text-[rgba(237,237,235,0.55)]">Loading plan…</p>
       ) : (
@@ -78,6 +77,8 @@ export function PlanUsageCard({
           <p className="text-sm text-frost">{planLabel}</p>
           <p className="mt-1 text-xs text-[rgba(237,237,235,0.5)]">{formatResetLabel(entitlement?.nextResetAt ?? null)}</p>
           <UsageMeter remainingPct={remainingPct} staff={staff} />
+          {razorpay && !staff ? <p className="mt-3 text-xs text-white/50">One month per purchase. No automatic renewal. Added credits expire with the current usage period.</p> : null}
+          {catalog?.testMode && !staff ? <p role="status" className="mt-2 text-xs text-sky-300">Test checkout — no real money is charged.</p> : null}
           {teen ? (
             <p className="mt-3 text-sm text-[rgba(237,237,235,0.62)]">{TEEN_CHECKOUT_COPY}</p>
           ) : null}
@@ -87,16 +88,23 @@ export function PlanUsageCard({
         </>
       )}
 
+      {!staff ? <div className="mt-4"><PaymentCurrencyPicker currency={currency} onChange={selectCurrency} disabled={busy !== null} /></div> : null}
+      {failed ? <p role="status" className="mt-3 text-xs text-white/50">Could not load payment options. Please refresh to try again.</p> : null}
+      {catalog && !catalog.available && !staff ? <p role="status" className="mt-3 text-xs text-white/50">{catalog.unavailableReason === "exchange_rate_unavailable" ? "Could not get a recent INR amount. Please try again shortly." : "Checkout is not available in this currency yet. You can keep using your current plan."}</p> : null}
+
       {compact ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {!staff ? (
             <SiteButton size="sm" onClick={() => void portal()} disabled={busy !== null}>
-              Manage billing
+              Purchase history
             </SiteButton>
           ) : null}
+          {!staff ? <SiteButton size="sm" variant="sky" disabled={busy !== null || !catalog?.available || !catalog.plans.lesson_top_up} onClick={() => void topUp()}>
+            {busy === "credits" ? "Opening checkout…" : `Add credits${catalog?.plans.lesson_top_up ? ` · ${formatCheckoutPrice(catalog.plans.lesson_top_up)}` : ""}`}
+          </SiteButton> : null}
           {onOpenUsage ? (
             <SiteButton size="sm" onClick={onOpenUsage}>
-              Open usage
+              Upgrade now
             </SiteButton>
           ) : null}
         </div>
@@ -104,37 +112,39 @@ export function PlanUsageCard({
 
       {!compact && !staff ? (
         <div className="mt-4 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div>
             <PlanOffer
               planId="plus"
               current={entitlement?.planId === "plus"}
               busy={busy}
               onCheckout={checkout}
+              catalog={catalog}
+              currency={currency}
+              currentPlan={entitlement?.planId ?? "free"}
+              selected={selectedPlan === "plus"}
             />
-            <PlanOffer
-              planId="pro"
-              current={entitlement?.planId === "pro"}
-              busy={busy}
-              onCheckout={checkout}
-            />
+
           </div>
           <div className="flex flex-wrap gap-2">
             <SiteButton
               size="sm"
               variant="sky"
-              disabled={busy !== null}
+              disabled={busy !== null || !catalog?.available}
               onClick={() => void topUp()}
             >
-              {TOP_UP_CTA}
+              {busy === "credits" ? "Opening checkout…" : catalog?.plans.lesson_top_up ? `Add credits · ${formatCheckoutPrice(catalog.plans.lesson_top_up)}` : currency === "USD" ? TOP_UP_CTA : "Add credits"}
             </SiteButton>
             <SiteButton size="sm" disabled={busy !== null} onClick={() => void portal()}>
-              Manage billing
+              Purchase history
             </SiteButton>
           </div>
+          {currency === "INR" && catalog?.fxDate ? <p className="text-xs text-white/50">INR equivalent of $29 · reference rate from {catalog.fxDate}. The amount above is the checkout total.</p> : null}
+          {razorpay ? <PaymentHistory revision={revision} /> : null}
         </div>
       ) : null}
 
-      {error ? <p className="mt-3 text-sm text-[rgba(237,237,235,0.62)]">{error}</p> : null}
+      {notice ? <p role="status" className="mt-3 text-sm text-sky-300">{notice}</p> : null}
+      {error ? <p role="status" className="mt-3 text-sm text-[rgba(237,237,235,0.62)]">{error}</p> : null}
     </AccountCard>
   );
 }
@@ -144,62 +154,40 @@ function PlanOffer({
   current,
   busy,
   onCheckout,
+  catalog,
+  currency,
+  currentPlan,
+  selected,
 }: {
   planId: CheckoutPlanId;
   current: boolean;
   busy: string | null;
-  onCheckout: (planId: CheckoutPlanId) => Promise<void>;
+  onCheckout: () => Promise<void>;
+  catalog: PaymentCatalog | null;
+  currency: CheckoutCurrency | null;
+  currentPlan: string;
+  selected: boolean;
 }) {
   const plan = PLAN_CATALOG[planId];
+  const razorpay = catalog?.provider === "razorpay";
+  const price = catalog?.plans[planId];
   return (
-    <div className="rounded-xl border border-[rgba(255,255,255,0.08)] p-3">
+    <div className={`rounded-xl border p-3 ${selected ? "border-sky-500/60" : "border-white/10"}`}>
       <p className="text-sm font-medium text-frost">{plan.name}</p>
       <p className="mt-1 text-lg text-frost">
-        ${plan.priceUsdPerMonth}
+        {price ? formatCheckoutPrice(price) : currency === "USD" ? `$${plan.priceUsdPerMonth}` : currency === "INR" ? catalog ? "INR amount unavailable" : "Checking INR amount…" : "Loading price…"}
         <span className="text-xs text-[rgba(237,237,235,0.5)]"> / month</span>
       </p>
       <SiteButton
         className="mt-3"
         size="sm"
-        variant={planId === "plus" ? "sky" : "ghost"}
-        disabled={current || busy !== null}
-        onClick={() => void onCheckout(planId)}
+        variant="sky"
+        disabled={(!razorpay && current) || busy !== null || !catalog?.available || !price}
+        onClick={() => void onCheckout()}
       >
-        {current ? "Current plan" : `${UPGRADE_LABEL} to ${plan.name}`}
+        {busy === planId ? "Opening checkout…" : current && razorpay ? "Extend your month" : current ? "Current plan" : "Upgrade now"}
       </SiteButton>
+      {razorpay ? <p className="mt-2 text-xs text-white/55">{current || (currentPlan === "pro" && planId === "plus") ? "Starts after your existing paid months." : "One month of access from payment confirmation."}</p> : null}
     </div>
   );
-}
-
-function useBillingActions() {
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const run = async (label: string, work: () => Promise<BillingRedirect>) => {
-    setBusy(label);
-    setError(null);
-    try {
-      const result = await work();
-      if (!result.ok) {
-        setError(studentBillingMessage(result.code));
-        return;
-      }
-      if ("skipped" in result && result.skipped) {
-        return;
-      }
-      await followBillingRedirect(result);
-    } catch {
-      setError("Could not open billing.");
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  return {
-    busy,
-    error,
-    checkout: (planId: CheckoutPlanId) => run(planId, () => startCheckout(planId)),
-    topUp: () => run("top-up", () => startTopUp()),
-    portal: () => run("portal", () => openCustomerPortal()),
-  };
 }

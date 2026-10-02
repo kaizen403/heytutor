@@ -12,6 +12,7 @@ import { isAdminEmail } from "@/lib/auth/admins";
 import { isAllowedLoginEmail } from "@/lib/auth/studentEmail";
 import { HTUTOR_LOGIN_ROLE_COOKIE, isLoginRole, type LoginRole } from "@/lib/auth/loginRole";
 import { findOrCreateSignedInUser } from "@/lib/auth/signedInUser";
+import { prisma } from "@/lib/db/prisma";
 
 const googleId = process.env.AUTH_GOOGLE_ID ?? process.env.GOOGLE_CLIENT_ID;
 const googleSecret = process.env.AUTH_GOOGLE_SECRET ?? process.env.GOOGLE_CLIENT_SECRET;
@@ -142,6 +143,9 @@ const authConfig = {
         token.name = user.name;
         token.picture = user.image;
       }
+      if (!token.sub) return null;
+      const current = await prisma.user.findUnique({ where: { id: token.sub }, select: { id: true } });
+      if (!current) return null;
       return token;
     },
     async session({ session, token }) {

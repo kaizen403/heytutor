@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   boardIdFromPathname,
@@ -38,11 +38,9 @@ export function TutorSessionPage() {
     chosenBoardId,
   });
 
-  useEffect(() => {
-    if (chosenBoardId && routeBoardId === chosenBoardId) {
-      setChosenBoardId(null);
-    }
-  }, [chosenBoardId, routeBoardId]);
+  if (chosenBoardId && routeBoardId === chosenBoardId) {
+    setChosenBoardId(null);
+  }
 
   const startDraftBoard = useCallback(
     (question = "") => {
@@ -62,13 +60,13 @@ export function TutorSessionPage() {
       }
       router.push(path);
     },
-    [pathname, router],
+    [pathname, router, setChosenBoardId, setAbandonedRouteId],
   );
 
   const chooseBoard = useCallback((id: string) => {
     setAbandonedRouteId(null);
     setChosenBoardId(id);
-  }, []);
+  }, [setAbandonedRouteId, setChosenBoardId]);
 
   const autoQuestion = searchParams.get("q") ?? undefined;
   const autoReplay = searchParams.get("replay") === "1";

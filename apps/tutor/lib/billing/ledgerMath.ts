@@ -49,9 +49,11 @@ export function balanceFromRow(input: {
   bonusMillicents: number;
   period?: string;
   nowMs?: number;
+  includedMillicents?: number;
+  nextResetAt?: number;
 }): PeriodBalance {
   const nowMs = input.nowMs ?? nowFn();
-  const included = includedUsdMillicents(input.planId);
+  const included = input.includedMillicents ?? includedUsdMillicents(input.planId);
   const allowanceMillicents = included + Math.max(0, input.bonusMillicents);
   const spentMillicents = Math.max(0, input.spentMillicents);
   return {
@@ -62,6 +64,6 @@ export function balanceFromRow(input: {
     allowanceMillicents,
     remainingMillicents: Math.max(0, allowanceMillicents - spentMillicents),
     remainingPct: remainingUsagePct(spentMillicents, allowanceMillicents),
-    nextResetAt: billingPeriodResetAt(nowMs),
+    nextResetAt: input.nextResetAt ?? billingPeriodResetAt(nowMs),
   };
 }

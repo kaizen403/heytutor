@@ -16,7 +16,8 @@ export function tryAcquireTtsWsConnection(userId: string, authenticatedSkipGates
   const limit = authenticatedSkipGates
     ? TTS_WS_MAX_CONNECTIONS_WITH_BYPASS
     : TTS_WS_MAX_CONNECTIONS_PER_USER;
-  if (current >= limit) return false;
+  const total = [...connectionsByUser.values()].reduce((sum, count) => sum + count, 0);
+  if (current >= limit || total >= 200) return false;
   connectionsByUser.set(userId, current + 1);
   return true;
 }

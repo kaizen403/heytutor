@@ -7,6 +7,7 @@ import {
   type LangfuseTraceClient,
 } from "langfuse";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
+import { scopedTraceId, scopedSessionId } from "./traceOwnership";
 import {
   calculateLlmCostDetails,
   calculateTtsCostDetails,
@@ -74,6 +75,7 @@ export interface TurnTrace {
 }
 
 export interface StartTurnTraceParams {
+  userId?: string;
   sessionId?: string;
   /** Parent-trace input: the student question. Omit when attaching so a planner prompt cannot replace it. */
   input?: string;
@@ -87,6 +89,7 @@ export interface StartTurnTraceParams {
 }
 
 export function startTurnTrace({
+  userId,
   sessionId,
   input,
   generationInput,
@@ -106,9 +109,11 @@ export function startTurnTrace({
     model ?? resolveFireworksModel();
 
   const trace = lf.trace({
-    id: traceId,
+    id: userId ? scopedTraceId(userId, traceId) : traceId,
     name,
-    sessionId,
+    userId,
+    sessionId: userId && sessionId ? scopedSessionId(userId, sessionId) : sessionId,
+    metadata: userId ? { client_trace_id: traceId, client_session_id: sessionId } : undefined,
     ...(input ? { input } : {}),
     tags: buildTraceTags(mock ? ["mock"] : undefined),
   });
@@ -205,6 +210,7 @@ export function endLlmGeneration(
 }
 
 export interface RecordTtsSpanParams {
+  userId?: string;
   traceId?: string;
   sessionId?: string;
   characters: number;
@@ -216,6 +222,7 @@ export interface RecordTtsSpanParams {
 }
 
 export function recordTtsSpan({
+  userId,
   traceId,
   sessionId,
   characters,
@@ -231,7 +238,10 @@ export function recordTtsSpan({
     return;
   }
 
-  const trace = lf.trace({ id: traceId, sessionId });
+  const trace = lf.trace({
+    id: userId ? scopedTraceId(userId, traceId) : traceId,
+    sessionId: userId && sessionId ? scopedSessionId(userId, sessionId) : sessionId,
+  });
   const generation = trace.generation({
     name: "tts-segment",
     model,
@@ -274,12 +284,14 @@ export interface TurnTelemetryEvent {
 }
 
 export interface RecordTurnEventsParams {
+  userId?: string;
   traceId: string;
   sessionId?: string;
   events: TurnTelemetryEvent[];
 }
 
 export interface UpdateTurnTraceParams {
+  userId?: string;
   traceId: string;
   sessionId?: string;
   metadata: Record<string, unknown>;
@@ -301,6 +313,7 @@ function createTimedSpan(
 }
 
 export function recordTurnEvents({
+  userId,
   traceId,
   sessionId,
   events,
@@ -311,7 +324,10 @@ export function recordTurnEvents({
     return;
   }
 
-  const trace = lf.trace({ id: traceId, sessionId });
+  const trace = lf.trace({
+    id: userId ? scopedTraceId(userId, traceId) : traceId,
+    sessionId: userId && sessionId ? scopedSessionId(userId, sessionId) : sessionId,
+  });
   const spanClients = new Map<string, LangfuseSpanClient>();
 
   const rootEvents = events.filter((event) => !event.parentName);
@@ -337,6 +353,7 @@ export function recordTurnEvents({
 }
 
 export function updateTurnTrace({
+  userId,
   traceId,
   sessionId,
   metadata,
@@ -347,7 +364,10 @@ export function updateTurnTrace({
     return;
   }
 
-  lf.trace({ id: traceId, sessionId }).update({ metadata });
+  lf.trace({
+    id: userId ? scopedTraceId(userId, traceId) : traceId,
+    sessionId: userId && sessionId ? scopedSessionId(userId, sessionId) : sessionId,
+  }).update({ metadata });
 }
 
 const FLUSH_TIMEOUT_MS = 3000;

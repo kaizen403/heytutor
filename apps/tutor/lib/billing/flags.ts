@@ -1,5 +1,6 @@
 import { ttsConfig } from "../tts/providerConfig";
 import { timingSafeEqualText } from "@/lib/crypto/timingSafeEqualText";
+import { usesRazorpay } from "./razorpayConfig";
 
 const TRUTHY = new Set(["1", "true", "yes", "on"]);
 const FALSY = new Set(["0", "false", "no", "off"]);
@@ -19,6 +20,7 @@ export function isAutumnEnabled(
   env: NodeJS.ProcessEnv = process.env,
   nodeEnv = env.NODE_ENV,
 ): boolean {
+  if (usesRazorpay(env)) return false;
   if (!autumnSecret(env)) return false;
   const raw = env.AUTUMN_ENABLED?.trim().toLowerCase();
   if (raw && FALSY.has(raw)) return false;
