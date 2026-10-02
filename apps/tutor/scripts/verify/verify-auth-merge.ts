@@ -35,13 +35,17 @@ function env(values: Record<string, string>): NodeJS.ProcessEnv {
 assert(!isAuthDisabled(env({}), "development"), "login gate is on when AUTH_DISABLED is unset");
 assert(!isAuthDisabled(env({ AUTH_DISABLED: "1" }), "production"), "AUTH_DISABLED is ignored in production");
 assert(
-  isAuthDisabled(env({ AUTH_DISABLED: "1" }), "development"),
-  "AUTH_DISABLED=1 is the local testing hatch",
+  !isAuthDisabled(env({ AUTH_DISABLED: "1" }), "development"),
+  "the server flag alone cannot disable authentication",
 );
 assert(
-  isAuthDisabled(env({ NEXT_PUBLIC_AUTH_DISABLED: "1" }), "development"),
-  "NEXT_PUBLIC_AUTH_DISABLED=1 matches the client hatch",
+  !isAuthDisabled(env({ NEXT_PUBLIC_AUTH_DISABLED: "1" }), "development"),
+  "the client flag alone cannot disable authentication",
 );
+assert(isAuthDisabled(env({ AUTH_DISABLED: "1", NEXT_PUBLIC_AUTH_DISABLED: "1" }), "development"),
+  "both flags are required for the local testing hatch");
+assert(!isAuthDisabled(env({ AUTH_DISABLED: "1", NEXT_PUBLIC_AUTH_DISABLED: "1" }), "production"),
+  "both local hatch flags remain ignored in production");
 
 assert(isAuthPublicPath("/login"), "login is public");
 assert(isAuthPublicPath("/monitoring"), "the Sentry tunnel is public");

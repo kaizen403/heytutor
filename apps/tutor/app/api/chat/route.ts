@@ -46,6 +46,7 @@ import {
 } from "@/lib/llm/teachingTransport";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
+const PUBLIC_CHAT_ERROR = "The tutor is temporarily unavailable. Please try again.";
 
 // Hard reasoning-token caps per tier. kimi-k2p6's `reasoning_effort` levels are
 // NOT hard budgets (low can out-reason medium and run until max_tokens), so we
@@ -575,9 +576,9 @@ async function handlePlannerRequest({
     });
 
     if (!response.ok) {
-      const errorBody = await response.text();
+      await response.body?.cancel();
       endLlmGeneration(turnTrace, {
-        output: errorBody,
+        output: PUBLIC_CHAT_ERROR,
         metadata: {
           error: true,
           status: response.status,
@@ -591,8 +592,8 @@ async function handlePlannerRequest({
         level: "ERROR",
       });
       flushInBackground();
-      return new Response(errorBody, {
-        status: response.status,
+      return Response.json({ error: PUBLIC_CHAT_ERROR }, {
+        status: 502,
         headers: { "content-type": "application/json", "x-heytutor-trace-id": traceId },
       });
     }
@@ -671,7 +672,7 @@ async function handlePlannerRequest({
     });
     flushInBackground();
     return Response.json(
-      { error: message },
+      { error: PUBLIC_CHAT_ERROR },
       { status: 500, headers: { "x-heytutor-trace-id": traceId } },
     );
   } finally {
@@ -882,20 +883,19 @@ export async function POST(request: Request): Promise<Response> {
     });
 
     if (!response.ok) {
-      const errorBody = await response.text();
+      await response.body?.cancel();
 
       endLlmGeneration(turnTrace, {
-        output: errorBody,
+        output: PUBLIC_CHAT_ERROR,
         metadata: { error: true, status: response.status },
         updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
         level: "ERROR",
       });
       flushInBackground();
 
-      return new Response(errorBody, {
-        status: response.status,
+      return Response.json({ error: PUBLIC_CHAT_ERROR }, {
+        status: 502,
         headers: {
-          "content-type": response.headers.get("content-type") ?? "application/json",
           "x-heytutor-trace-id": traceId,
         },
       });
@@ -958,7 +958,7 @@ export async function POST(request: Request): Promise<Response> {
     flushInBackground();
 
     return Response.json(
-      { error: message },
+      { error: PUBLIC_CHAT_ERROR },
       {
         status: 500,
         headers: { "x-heytutor-trace-id": traceId },
