@@ -1047,6 +1047,22 @@ html:fullscreen::backdrop {
   transform: translateY(18px);
 }
 
+@media (max-height: 500px) and (orientation: landscape) {
+  .wb-session-chrome--top {
+    padding-top: 3px;
+    padding-bottom: 3px;
+  }
+
+  .wb-session-chrome--top .wb-session-header-layout {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .wb-session-chrome--top .wb-session-header-title {
+    line-height: 1.25;
+  }
+}
+
 /* With the controls gone the pointer is the last piece of chrome left on the
    paper. It comes back on the movement that brings the controls back. */
 .wb-board-immersive[data-chrome-hidden="true"] {

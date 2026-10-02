@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import * as React from "react";
 import { createElement, type ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -101,6 +102,7 @@ for (const overlay of [false, true]) {
     overlay,
   }));
   assert.ok(header.includes(headerProps.boardTitle));
+  assert.match(header, /wb-session-header-layout/, "The compact header exposes the scoped landscape layout hook");
   assert.match(header, /flex flex-col items-stretch gap-2/, "The compact title has its own row");
   assert.match(header, /line-clamp-2 break-words/, "Long board titles wrap within the mobile header");
   assert.match(header, /flex-wrap justify-between/, "Compact header actions wrap instead of pushing the title offscreen");
@@ -110,6 +112,14 @@ for (const overlay of [false, true]) {
 const desktopHeader = renderToStaticMarkup(createElement(SessionHeader, headerProps));
 assert.match(desktopHeader, /flex flex-nowrap items-center gap-2 sm:gap-3/, "Desktop retains the single-row header");
 assert.match(desktopHeader, /block truncate/, "Desktop title truncation stays unchanged");
+
+const css = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
+assert.match(
+  css,
+  /@media \(max-height: 500px\) and \(orientation: landscape\)\s*\{\s*\.wb-session-chrome--top\s*\{\s*padding-top: 3px;\s*padding-bottom: 3px;\s*\}\s*\.wb-session-chrome--top \.wb-session-header-layout\s*\{\s*flex-direction: row;\s*align-items: center;/,
+  "Only the short-landscape overlay header is single-row, leaving work rows clear without resizing the board",
+);
+assert.match(css, /\.wb-session-chrome--top \.wb-session-header-title\s*\{\s*line-height: 1\.25;/, "Wrapped overlay titles remain within the 44px control row");
 
 Reflect.deleteProperty(globalThis, "React");
 

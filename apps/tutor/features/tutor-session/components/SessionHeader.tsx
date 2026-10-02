@@ -108,7 +108,7 @@ export function SessionHeader({
           : { flexShrink: 0 }
       }
     >
-      <div className={compactActions ? "flex flex-col items-stretch gap-2" : "flex flex-nowrap items-center gap-2 sm:gap-3"}>
+      <div className={`wb-session-header-layout ${compactActions ? "flex flex-col items-stretch gap-2" : "flex flex-nowrap items-center gap-2 sm:gap-3"}`}>
         {/* Left: navigation + board identity */}
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           {showNav && (
@@ -127,7 +127,7 @@ export function SessionHeader({
 
           <div className="min-w-0 flex-1">
             <span
-              className={`min-w-0 text-[15px] font-semibold tracking-[-0.015em] text-frost sm:text-base ${compactActions ? "line-clamp-2 break-words" : "block truncate"}`}
+              className={`wb-session-header-title min-w-0 text-[15px] font-semibold tracking-[-0.015em] text-frost sm:text-base ${compactActions ? "line-clamp-2 break-words" : "block truncate"}`}
               title={title}
             >
               {title}
