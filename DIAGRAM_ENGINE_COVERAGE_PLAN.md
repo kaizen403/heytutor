@@ -213,6 +213,20 @@ pnpm build
 
 The monolithic tutor-core command stops at its first failure; use individual gates to establish the complete result when a known baseline failure remains. Full tutor verification requires an isolated test `DATABASE_URL`. See [deploy runbook](docs/ops/ci-cd.md) for the repository's required PR checks and production deployment path. Merging to `main` triggers the repository deployment workflow; this document does not assert that the deployment has completed.
 
+## Orders 1–5, resumed
+
+The user resumed chapter coverage for orders 1–5 while another session owns the DCP backlog. These operators take explicit source values. They do not look up a chapter or question id. Invalid inputs emit no partial scene.
+
+| Order | Chapter | Operators | Accuracy boundary |
+| --- | --- | --- | --- |
+| 1 | Kinematics | `velocity_triangle`, `collinear_velocity_pair`, `crossing_strategies`, `parallel_guides`, `relative_velocity`, `motion_graph`, `uniform_circular_motion`, `projectile_trajectory` | River sums, one-frame relative velocity, supplied motion samples, v^2/R, and the projectile landing time are certified. A launch that never meets the landing line fails closed. |
+| 2 | Current electricity | `kirchhoff_network`, `metre_bridge`, `potentiometer` | Explicit graphs are solved by KCL. A metre-bridge jockey and a potentiometer null point must match the balance law. A cell above the driver has no null point. |
+| 3 | Laws of motion | `free_body`, `coupled_bodies`, `incline_friction` | Explicit forces must match equilibrium or ma. Incline normal, friction, and acceleration come from mass, angle, mu, and the stated motion. A string rejects compression. |
+| 4 | Work, energy and power | `vertical_circle`, `mechanical_energy_pair`, `work_interval`, `spring_energy`, `potential_curve`, `collision` | Work is the source dot product. Spring energy is k x^2/2. Collision velocities obey the 1D impact law and reject a separating pair. Samples of U(x) are not an invented potential. |
+| 5 | Magnetic effects | `current_element_field`, `conductor_force`, `parallel_wire_force`, `magnetic_dipole_field`, `solenoid_field`, `loop_torque`, `galvanometer`, `bar_magnet`, `cyclotron` | Loop torque is I(A cross B). Galvanometer deflection is NIBA/k and must stay within a right angle. Bar-magnet lines follow the dipole polar equation. Cyclotron radius is mv/(\|q\|B). |
+
+Gate: `packages/scene-engine/scripts/verify/verify-chapter-operators.ts`. Live family templates for the vertical circle, pulley, and generic circuit remain layout figures; they do not claim these certified magnitudes. Operator count is not question-bank coverage.
+
 ## Immediate handoff
 
-Completed operators and guards passed the publication integration checks above. **Further full-coverage implementation is intentionally paused.** The next substantive task, when the user resumes, is DCP-01: establish a trustworthy coverage denominator and independent source obligations, then select a measured reusable gap. Do not spend another session adding chapter operators without measuring how they improve source-faithful, end-to-end diagrams.
+Orders 1–5 now have certified operators for the leftover rows: relative velocity, motion graphs, circular motion, incline projectiles, Kirchhoff plus metre bridge and potentiometer, free-body and incline friction, work, springs, collisions, current loops, the galvanometer, the bar magnet, and the cyclotron. The DCP backlog remains the other session's work.
