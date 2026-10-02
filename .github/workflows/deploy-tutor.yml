@@ -136,6 +136,7 @@ jobs:
         run: |
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm rebuild @prisma/client @prisma/engines esbuild prisma
+          pnpm --filter @heytutor/tutor exec prisma generate
 
       - name: Build landing
         run: pnpm turbo run build --filter=@heytutor/landing...
