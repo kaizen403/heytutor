@@ -17,6 +17,67 @@ import {
 } from "../capability/capabilityManifest";
 import { ensureStudentFacingPointMarks, promoteAngleMarkVertices } from "./namedPoints";
 import { readPolyhedralSolid } from "../math/polyhedralSolid";
+import { STATISTICS_OPERATORS, validateStatisticsConstruction } from "../compile/statistics";
+import { TRIANGLE_OPERATORS, validateTriangleConstruction } from "../compile/triangleGeometry";
+import { CONIC_OPERATORS, validateConicConstruction } from "../compile/conicGeometry";
+import { SPACE_DERIVATION_OPERATORS, validateSpaceDerivationConstruction } from "../compile/spaceDerivations";
+import { PROBABILITY_OPERATORS, validateProbabilityConstruction } from "../compile/probabilityGeometry";
+import { FIELD_OPERATORS, validateFieldConstruction } from "../compile/fieldGeometry";
+import { CIRCLE_OPERATORS, validateCircleConstruction } from "../compile/circleGeometry";
+import { AFFINE_OPERATORS, validateAffineConstruction } from "../compile/affineGeometry";
+import { VECTOR_OPERATORS, validateVectorConstruction } from "../compile/vectorGeometry";
+import { KINEMATICS_OPERATORS, validateKinematicsConstruction } from "../compile/kinematicsGeometry";
+import { CALCULUS_OPERATORS as DERIVED_CURVE_OPERATORS, validateCalculusConstruction as validateDerivedCurveConstruction, validateAnalyticLineConstruction } from "../compile/calculusGeometry";
+import { AC_OPERATORS, validateAcConstruction } from "../compile/acGeometry";
+import { WAVES_OPERATORS, validateWavesConstruction } from "../compile/wavesGeometry";
+import { GEOMETRIC_OPTICS_OPERATORS, validateGeometricOpticsConstruction } from "../compile/geometricOpticsGeometry";
+import { THERMODYNAMICS_OPERATORS, validateThermodynamicsConstruction } from "../compile/thermodynamicsGeometry";
+
+import { COMPLEX_OPERATORS, validateComplexConstruction } from "../compile/complexGeometry";
+const COMPLEX_CONSTRUCTIONS = new Set<string>(COMPLEX_OPERATORS);
+
+import { MAGNETIC_OPERATORS, validateMagneticConstruction } from "../compile/magneticGeometry";
+const MAGNETIC_CONSTRUCTIONS = new Set<string>(MAGNETIC_OPERATORS);
+
+import { FLUID_OPERATORS, validateFluidConstruction } from "../compile/fluidGeometry";
+const FLUID_CONSTRUCTIONS = new Set<string>(FLUID_OPERATORS);
+
+import { HARMONIC_MOTION_OPERATORS, validateHarmonicMotionConstruction } from "../compile/harmonicMotionGeometry";
+const HARMONIC_MOTION_CONSTRUCTIONS = new Set<string>(HARMONIC_MOTION_OPERATORS);
+
+import { GRAVITY_OPERATORS, validateGravityConstruction } from "../compile/gravityGeometry";
+const GRAVITY_CONSTRUCTIONS = new Set<string>(GRAVITY_OPERATORS);
+
+import { SET_OPERATORS, validateSetConstruction } from "../compile/setGeometry";
+const SET_CONSTRUCTIONS = new Set<string>(SET_OPERATORS);
+
+import { INDUCTION_OPERATORS, validateInductionConstruction } from "../compile/inductionGeometry";
+const INDUCTION_CONSTRUCTIONS = new Set<string>(INDUCTION_OPERATORS);
+
+import { ROTATION_OPERATORS, validateRotationConstruction } from "../compile/rotationGeometry";
+const ROTATION_CONSTRUCTIONS = new Set<string>(ROTATION_OPERATORS);
+
+import { COMBINATORICS_OPERATORS, validateCombinatoricsConstruction } from "../compile/combinatoricsGeometry";
+const COMBINATORICS_CONSTRUCTIONS = new Set<string>(COMBINATORICS_OPERATORS);
+import { ELASTICITY_OPERATORS, validateElasticityConstruction } from "../compile/elasticityGeometry";
+const ELASTICITY_CONSTRUCTIONS = new Set<string>(ELASTICITY_OPERATORS);
+
+const STATISTICAL_CONSTRUCTIONS = new Set<string>(STATISTICS_OPERATORS);
+const TRIANGLE_CONSTRUCTIONS = new Set<string>(TRIANGLE_OPERATORS);
+const CONIC_CONSTRUCTIONS = new Set<string>(CONIC_OPERATORS);
+const SPACE_DERIVATION_CONSTRUCTIONS = new Set<string>(SPACE_DERIVATION_OPERATORS);
+const PROBABILITY_CONSTRUCTIONS = new Set<string>(PROBABILITY_OPERATORS);
+const FIELD_CONSTRUCTIONS = new Set<string>(FIELD_OPERATORS);
+const CIRCLE_CONSTRUCTIONS = new Set<string>(CIRCLE_OPERATORS);
+const AFFINE_CONSTRUCTIONS = new Set<string>(AFFINE_OPERATORS);
+const VECTOR_CONSTRUCTIONS = new Set<string>(VECTOR_OPERATORS);
+const KINEMATICS_CONSTRUCTIONS = new Set<string>(KINEMATICS_OPERATORS);
+const CALCULUS_CONSTRUCTIONS = new Set<string>(DERIVED_CURVE_OPERATORS);
+const AC_CONSTRUCTIONS = new Set<string>(AC_OPERATORS);
+const WAVES_CONSTRUCTIONS = new Set<string>(WAVES_OPERATORS);
+const GEOMETRIC_OPTICS_CONSTRUCTIONS = new Set<string>(GEOMETRIC_OPTICS_OPERATORS);
+const THERMODYNAMICS_CONSTRUCTIONS = new Set<string>(THERMODYNAMICS_OPERATORS);
+const SPATIAL_POINT_CONSTRUCTIONS = new Set(["space_point", "space_project", "space_closest_points", "space_intersection"]);
 
 const ARRAY_FIELDS = [
   "quantities", "entities", "constructions", "relations", "assertions",
@@ -24,13 +85,33 @@ const ARRAY_FIELDS = [
 ] as const;
 
 const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
+  elastic_profile: "polyline", elastic_state: "point",
+  flux_process: "polyline", rotational_motion: "point", rotational_state: "vector", planar_torque: "polyline",
+  set_select: "label",
+  harmonic_motion: "polyline", harmonic_state: "point", gravitational_field: "vector", gravitational_force: "vector",
+  complex_point: "point", complex_transform: "point", complex_roots: "point",
+  magnetic_force: "vector", magnetic_components: "vector",
+  hydrostatic_profile: "polyline", hydrostatic_state: "point", buoyancy: "vector",
   segment: "segment", ray: "ray", line: "line", circle: "circle", arc: "arc",
   rectangle: "polygon", polygon: "polygon", polyline: "polyline", vector: "vector",
   axes: "axes", function_curve: "curve", function_region: "region",
   parametric_curve: "polyline", polar_curve: "polyline", implicit_curve: "polyline",
+  conic: "polyline", conic_anchor: "point", conic_directrix: "line", conic_asymptotes: "polyline", conic_tangent: "line",
+  histogram: "polyline", frequency_polygon: "polyline", cumulative_frequency: "polyline",
+  electric_field: "vector",
+  circle_from_three_points: "circle", circle_tangent_at: "line",
+  affine_point: "point",
+  vector_sum: "vector", vector_scale: "vector", vector_projection: "vector",
+  constant_acceleration_trajectory: "polyline",
+  curve_anchor: "point", curve_secant: "line", curve_derivative: "vector",
+  impedance: "vector", impedance_combine: "vector",
+  harmonic_wave: "polyline", wave_superposition: "polyline", wave_sample: "point",
+  polytropic_process: "polyline", isochoric_process: "polyline", process_state: "point",
+  triangle_center: "point",
   tangent_line: "line", normal_line: "line", representative_slice: "region",
   solid_of_revolution: "solid", solid_projection: "solid", solid_cross_section: "region",
   space_frame: "polyline", space_point: "point", space_line: "line", plane: "polygon",
+  space_project: "point", space_segment: "segment",
   wavefront_family: "polyline", aperture: "polyline", screen_pattern: "polyline",
   transverse_field: "polyline", polarizer: "polyline",
   optical_train: "ray",
@@ -42,11 +123,11 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
 
 const INFERRED_CONSTRUCTION_ENTITY = "__inferredConstructionEntity";
 const CONSTRUCTION_ENTITY_REFERENCE_KEYS = new Set([
-  "start", "end", "from", "to", "a", "b", "center", "origin", "surface",
+  "start", "end", "from", "to", "a", "b", "c", "center", "origin", "surface", "conic",
   "through", "parallelTo", "first", "second", "point", "line", "incoming",
   "normal", "vertex", "curve", "upper", "lower", "profile", "solid", "basis",
   "vector", "target", "points", "direction", "axis", "objective", "eyepiece", "focus",
-  "object", "finalImage", "virtualImage", "frame",
+  "object", "finalImage", "virtualImage", "frame", "onto", "at", "position", "field", "circle", "circleA", "circleB", "externalPoint", "path", "vectors", "trajectory", "sources", "impedance", "waves", "wave", "process", "source", "force", "motion", "partition",
 ]);
 
 /** Capability-corpus gate: fixtures may only name executable scene operators. */
@@ -4204,6 +4285,33 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
         });
       }
     }
+    if (isRecord(construction.inputs)) {
+      if (COMPLEX_CONSTRUCTIONS.has(construction.operator)) validateComplexConstruction(construction, index, document, constructionByOutput, issues);
+      if (MAGNETIC_CONSTRUCTIONS.has(construction.operator)) validateMagneticConstruction(construction, index, document, constructionByOutput, issues);
+      if (FLUID_CONSTRUCTIONS.has(construction.operator)) validateFluidConstruction(construction, index, document, constructionByOutput, issues);
+      if (HARMONIC_MOTION_CONSTRUCTIONS.has(construction.operator)) validateHarmonicMotionConstruction(construction, index, document, constructionByOutput, issues);
+      if (GRAVITY_CONSTRUCTIONS.has(construction.operator)) validateGravityConstruction(construction, index, document, constructionByOutput, issues);
+      if (COMBINATORICS_CONSTRUCTIONS.has(construction.operator)) validateCombinatoricsConstruction(construction, index, document, constructionByOutput, issues);
+      if (ELASTICITY_CONSTRUCTIONS.has(construction.operator)) validateElasticityConstruction(construction, index, document, constructionByOutput, issues);
+      if (SET_CONSTRUCTIONS.has(construction.operator)) validateSetConstruction(construction, index, document, constructionByOutput, issues);
+      if (INDUCTION_CONSTRUCTIONS.has(construction.operator)) validateInductionConstruction(construction, index, document, constructionByOutput, issues);
+      if (ROTATION_CONSTRUCTIONS.has(construction.operator)) validateRotationConstruction(construction, index, document, constructionByOutput, issues);
+      if (STATISTICAL_CONSTRUCTIONS.has(construction.operator)) validateStatisticsConstruction(construction, index, document, constructionByOutput, issues);
+      if (TRIANGLE_CONSTRUCTIONS.has(construction.operator)) validateTriangleConstruction(construction, index, document, constructionByOutput, issues);
+      if (CONIC_CONSTRUCTIONS.has(construction.operator)) validateConicConstruction(construction, index, document, constructionByOutput, issues);
+      if (SPACE_DERIVATION_CONSTRUCTIONS.has(construction.operator)) validateSpaceDerivationConstruction(construction, index, document, constructionByOutput, issues);
+      if (PROBABILITY_CONSTRUCTIONS.has(construction.operator)) validateProbabilityConstruction(construction, index, document, constructionByOutput, issues);
+      if (FIELD_CONSTRUCTIONS.has(construction.operator)) validateFieldConstruction(construction, index, document, constructionByOutput, issues);
+      if (CIRCLE_CONSTRUCTIONS.has(construction.operator)) validateCircleConstruction(construction, index, document, constructionByOutput, issues);
+      if (AFFINE_CONSTRUCTIONS.has(construction.operator)) validateAffineConstruction(construction, index, document, constructionByOutput, issues);
+      if (VECTOR_CONSTRUCTIONS.has(construction.operator)) validateVectorConstruction(construction, index, document, constructionByOutput, issues);
+      if (KINEMATICS_CONSTRUCTIONS.has(construction.operator)) validateKinematicsConstruction(construction, index, document, constructionByOutput, issues);
+      if (CALCULUS_CONSTRUCTIONS.has(construction.operator)) validateDerivedCurveConstruction(construction, index, document, constructionByOutput, issues);
+      if (AC_CONSTRUCTIONS.has(construction.operator)) validateAcConstruction(construction, index, document, constructionByOutput, issues);
+      if (WAVES_CONSTRUCTIONS.has(construction.operator)) validateWavesConstruction(construction, index, document, constructionByOutput, issues);
+      if (GEOMETRIC_OPTICS_CONSTRUCTIONS.has(construction.operator)) validateGeometricOpticsConstruction(construction, index, document, constructionByOutput, issues);
+      if (THERMODYNAMICS_CONSTRUCTIONS.has(construction.operator)) validateThermodynamicsConstruction(construction, index, document, constructionByOutput, issues);
+    }
     if (construction.operator === "function_curve" && isRecord(construction.inputs)) {
       validateFunctionCurveInputs(construction.inputs, index, document, issues);
       if (!Array.isArray(construction.outputs) || construction.outputs.length !== 1) {
@@ -4961,6 +5069,10 @@ function validateCalculusConstruction(
   if (operator === "tangent_line" || operator === "normal_line") {
     const curveId = inputs.curve ?? inputs.target;
     const producer = producerFor(curveId);
+    if (producer && ["harmonic_wave", "wave_superposition", "polytropic_process", "isochoric_process", "constant_acceleration_trajectory", "hydrostatic_profile", "harmonic_motion", "flux_process", "elastic_profile"].includes(producer.operator)) {
+      validateAnalyticLineConstruction(construction, index, document, constructionByOutput, issues);
+      return;
+    }
     if (!producer || !SAMPLED_CURVE_OPERATORS.has(producer.operator)) {
       addBadReference("curve", "a function_curve, parametric_curve, or polar_curve", curveId);
       return;
@@ -5509,7 +5621,8 @@ function validateSpaceConstruction(
   if (operator === "space_line") {
     const pointInput = inputs.point ?? inputs.origin ?? inputs.through;
     const fromSpacePoint = typeof pointInput === "string"
-      && constructionByOutput.get(pointInput)?.operator === "space_point";
+      && SPATIAL_POINT_CONSTRUCTIONS.has(constructionByOutput.get(pointInput)?.operator ?? "")
+      && document.entities.find((entity) => entity.id === pointInput)?.kind === "point";
     const fromCoords = validationVec3(pointInput, document);
     if (!fromSpacePoint && fromCoords === null) {
       issues.push({
@@ -5569,7 +5682,8 @@ function validateSpaceConstruction(
   } else {
     const pointInput = inputs.point ?? inputs.origin;
     const fromSpacePoint = typeof pointInput === "string"
-      && constructionByOutput.get(pointInput)?.operator === "space_point";
+      && SPATIAL_POINT_CONSTRUCTIONS.has(constructionByOutput.get(pointInput)?.operator ?? "")
+      && document.entities.find((entity) => entity.id === pointInput)?.kind === "point";
     const fromCoords = validationVec3(pointInput, document);
     if (!fromSpacePoint && fromCoords === null) {
       issues.push({
@@ -6252,13 +6366,15 @@ function validateFunctionCurveInputs(
   }
 }
 
-function validationNumber(value: unknown, document: SceneDocument, seen = new Set<string>()): number | null {
+function validationNumber(value: unknown, document: SceneDocument, seen = new Set<string>(), depth = 0): number | null {
+  if (depth > 32) return null;
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (typeof value !== "string" || seen.has(value)) return null;
+  if (isRecord(value) && "value" in value) return validationNumber(value.value, document, seen, depth + 1);
+  if (typeof value !== "string" || value.trim() === "" || seen.has(value)) return null;
   const quantity = document.quantities.find((candidate) => candidate.id === value);
-  if (!quantity) return null;
+  if (!quantity) return Number.isFinite(Number(value)) ? Number(value) : null;
   seen.add(value);
-  return validationNumber(quantity.value, document, seen);
+  return validationNumber(quantity.value, document, seen, depth + 1);
 }
 
 function normalizeAnnotationStyle(value: unknown): SceneAnnotationStyle | undefined {

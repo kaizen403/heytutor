@@ -55,6 +55,45 @@ import {
 import { appendCompiledAnnotations } from "./sceneAnnotations";
 import { lensSectionOutline, sphericalSurfaceGeometry } from "./opticsSurfaces";
 import { readPolyhedralSolid, polyhedralPaths, polyhedralSection, type PolyhedralSolid } from "../math/polyhedralSolid";
+import { evaluateCombinatoricsConstruction, type CombinatoricsGraphDefinition, type CombinatoricsNodeDefinition, type CombinatoricsEdgeDefinition } from "./combinatoricsGeometry";
+import { evaluateElasticityConstruction, type ElasticProfileDefinition, type ElasticStateDefinition } from "./elasticityGeometry";
+import { evaluateInductionConstruction, type FluxProcessDefinition, type InductionStateDefinition } from "./inductionGeometry";
+import { evaluateRotationConstruction, type RotationMotionDefinition, type RotationVectorDefinition, type PlanarTorqueDefinition } from "./rotationGeometry";
+import { evaluateSetConstruction, type SetPartitionDefinition, type SetAtomDefinition, type SetSelectionDefinition } from "./setGeometry";
+import { evaluateHarmonicMotionConstruction, type HarmonicMotionDefinition, type HarmonicStateDefinition } from "./harmonicMotionGeometry";
+import { evaluateGravityConstruction, type GravityFieldDefinition, type GravityForceDefinition } from "./gravityGeometry";
+import { evaluateComplexConstruction, type ComplexNumberDefinition } from "./complexGeometry";
+import { evaluateMagneticConstruction, type MagneticForceDefinition } from "./magneticGeometry";
+import { evaluateFluidConstruction, type HydrostaticProfileDefinition, type HydrostaticStateDefinition, type BuoyancyDefinition } from "./fluidGeometry";
+import { withEvaluatedOutputLabels } from "./outputLabels";
+import { evaluateStatisticsConstruction } from "./statistics";
+import { evaluateProbabilityConstruction } from "./probabilityGeometry";
+import { evaluateCircleConstruction } from "./circleGeometry";
+import { evaluateAffineConstruction } from "./affineGeometry";
+import { evaluateVectorConstruction, type VectorDefinition } from "./vectorGeometry";
+import { evaluateKinematicsConstruction, kinematicsPointResidual, type KinematicTrajectoryDefinition, type KinematicStateDefinition } from "./kinematicsGeometry";
+import { calculusAnchorResidual, evaluateCalculusConstruction, type CalculusAnchorDefinition, type CalculusDerivativeDefinition } from "./calculusGeometry";
+import { evaluateAcConstruction, type AcImpedanceDefinition, type AcPhasorDefinition } from "./acGeometry";
+import { evaluateWavesConstruction, type WaveDefinition, type WaveSampleDefinition } from "./wavesGeometry";
+import { evaluateGeometricOpticsConstruction, type OpticalImageDefinition, type OpticalFocusDefinition } from "./geometricOpticsGeometry";
+import { evaluateThermodynamicsConstruction, type ThermodynamicProcessDefinition, type ThermodynamicStateDefinition } from "./thermodynamicsGeometry";
+import { evaluateFieldConstruction, type ElectricFieldDefinition } from "./fieldGeometry";
+import { evaluateTriangleConstruction } from "./triangleGeometry";
+import { conicPointResidual, evaluateConicConstruction, type ConicDefinition } from "./conicGeometry";
+import {
+  evaluateSpaceDerivationConstruction,
+  spaceAcuteAngle,
+  spaceCollinearityResidual,
+  spaceBetweenResidual,
+  spaceProofCompatibility,
+  spaceDirectionResidual,
+  spaceIncidenceResidual,
+  spaceMetricLength,
+  spacePointDistance,
+  type SpaceLineDefinition,
+  type SpacePlaneDefinition,
+  type SpaceSegmentDefinition,
+} from "./spaceDerivations";
 
 type Point = { x: number; y: number };
 type Viewport = { x: number; y: number; width: number; height: number; padding?: number };
@@ -63,6 +102,46 @@ type SampledCurve = {
   parameterMin: number;
   parameterMax: number;
   evaluate: (parameter: number) => Point;
+  derivative?: (parameter: number) => Point;
+};
+type DerivedGeometryMetadata = {
+  combinatoricsGraph?: CombinatoricsGraphDefinition;
+  combinatoricsNode?: CombinatoricsNodeDefinition;
+  combinatoricsEdge?: CombinatoricsEdgeDefinition;
+  elasticProfile?: ElasticProfileDefinition;
+  elasticState?: ElasticStateDefinition;
+  fluxProcess?: FluxProcessDefinition;
+  inductionState?: InductionStateDefinition;
+  rotationalMotion?: RotationMotionDefinition;
+  rotationalVector?: RotationVectorDefinition;
+  planarTorque?: PlanarTorqueDefinition;
+  setPartition?: SetPartitionDefinition;
+  setAtom?: SetAtomDefinition;
+  setSelection?: SetSelectionDefinition;
+  setIndex?: number;
+  harmonicMotion?: HarmonicMotionDefinition;
+  harmonicState?: HarmonicStateDefinition;
+  gravityField?: GravityFieldDefinition;
+  gravityForce?: GravityForceDefinition;
+  complexNumber?: ComplexNumberDefinition;
+  magneticForce?: MagneticForceDefinition;
+  hydrostaticProfile?: HydrostaticProfileDefinition;
+  hydrostaticState?: HydrostaticStateDefinition;
+  buoyancyDefinition?: BuoyancyDefinition;
+  electricField?: ElectricFieldDefinition;
+  vectorDefinition?: VectorDefinition;
+  kinematicTrajectory?: KinematicTrajectoryDefinition;
+  kinematicState?: KinematicStateDefinition;
+  calculusAnchor?: CalculusAnchorDefinition;
+  calculusDerivative?: CalculusDerivativeDefinition;
+  acImpedance?: AcImpedanceDefinition;
+  acPhasor?: AcPhasorDefinition;
+  waveDefinition?: WaveDefinition;
+  waveSample?: WaveSampleDefinition;
+  opticalImage?: OpticalImageDefinition;
+  opticalFocus?: OpticalFocusDefinition;
+  physicalProcess?: ThermodynamicProcessDefinition;
+  thermodynamicState?: ThermodynamicStateDefinition;
 };
 type SolidProjectionKind = "cylinder" | "cone" | "frustum" | "sphere" | "hemisphere";
 type SolidProjection = {
@@ -75,14 +154,14 @@ type SolidProjection = {
   axis: "vertical" | "horizontal";
 };
 type Geometry =
-  | { kind: "point"; point: Point; space?: Vec3 }
-  | { kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; sampledCurve?: SampledCurve }
-  | { kind: "multi_path"; paths: Point[][] }
-  | { kind: "circle"; center: Point; radius: number }
+  | ({ kind: "point"; point: Point; space?: Vec3; spaceFrameId?: string; sampledCurve?: SampledCurve } & DerivedGeometryMetadata)
+  | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition } & DerivedGeometryMetadata)
+  | ({ kind: "multi_path"; paths: Point[][] } & DerivedGeometryMetadata)
+  | ({ kind: "circle"; center: Point; radius: number } & DerivedGeometryMetadata)
   | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
   | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number }
   | { kind: "dimension"; a: Point; b: Point }
-  | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame };
+  | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame; conic?: ConicDefinition };
 
 const EPSILON = 1e-6;
 
@@ -93,6 +172,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
   const issues = [...structural.report.issues];
   const geometry = new Map<string, Geometry>();
+  const checkedClaimOutputIds = new Set<string>();
   const quantities = new Map(document.quantities.map((quantity) => [quantity.id, quantity]));
   const layoutOverrides = computeLogicalLayout(document);
   const parallelLaneOffsets = computeParallelLaneOffsets(document);
@@ -114,6 +194,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       if (!isExecutableSceneConstructionOperator(operator)) {
         throw new Error(`unsupported operator ${operator}`);
       }
+      if (operator === "dimension" && hasDisplayAncestor(construction.outputs, geometry, document, hasIndependentDisplayMetric)) {
+        throw new Error("Dimensions cannot measure independently scaled source geometry; use its verified source values");
+      }
       const outputs = evaluateConstruction(operator, inputs, geometry, quantities);
       if (construction.operator === "point" && construction.outputs[0]) {
         const override = layoutOverrides.get(construction.outputs[0]);
@@ -127,6 +210,10 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         if (assignChainedRefractInternalPath(id, outputIndex, construction, document, geometry)) return;
         geometry.set(id, next);
       });
+      document = withEvaluatedOutputLabels(construction, originalIndex, inputs, outputs, document, {
+        number: (value) => resolveNumber(value, quantities),
+        point: (value) => resolvePoint(value, geometry),
+      }, issues, checkedClaimOutputIds);
     } catch (error) {
       issues.push({ code: "construction_failed", message: `${construction.id}: ${errorMessage(error)}`, severity: "fatal", path: `constructions[${originalIndex}]`, entityIds: construction.outputs });
     }
@@ -210,6 +297,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     }
   }
 
+  validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
   for (const assertion of document.assertions) validateAssertion(assertion, geometry, document, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
 
@@ -228,6 +316,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     entityToGroup,
     viewport,
     hasLabels,
+    checkedClaimOutputIds,
   );
   if (!transformPlan) {
     issues.push({ code: "empty_geometry", message: "Scene has no finite geometry to render", severity: "fatal" });
@@ -323,7 +412,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     labelOwners.push({
       labelId: `primitive_${entity.id}_label`,
       entityId: entity.id,
-      anchor: dimensionMid ?? transform(labelAnchor(target)),
+      anchor: dimensionMid ?? screenLabelAnchor(entity.id, target, primitives, transform),
       text: useCombinedText ? combinedText : entity.label,
       viewBounds: transformPlan.viewportFor(entity.id),
       useOwnerBounds: target.kind === "point" || target.kind === "arc" || target.kind === "dimension" ? false : undefined,
@@ -433,7 +522,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       issues.push({ code: "annotation_target_unrendered", message: `Annotation ${annotation.id} target is not rendered`, severity: annotation.kind === "callout" ? "warning" : "fatal", entityIds: [targetId] });
       continue;
     }
-    const center = transformPlan.transformFor(targetId)(labelAnchor(target));
+    const center = screenLabelAnchor(targetId, target, primitives, transformPlan.transformFor(targetId));
     if (annotation.kind === "label" || annotation.kind === "callout") {
       const rawText = annotation.text ?? document.entities.find((entity) => entity.id === targetId)?.label;
       const text = annotation.kind === "callout" ? compactCalloutLabel(rawText) : rawText;
@@ -762,12 +851,19 @@ function createEntityTransformPlan(
   entityToGroup: Map<string, string>,
   viewport: Viewport,
   hasLabels: boolean,
+  checkedClaimOutputIds: ReadonlySet<string>,
 ): EntityTransformPlan | null {
   const renderGeometry = [...geometry.entries()].filter(([id]) => !constructionOnlyIds.has(id));
   const fallbackViewport = withLabelPadding(viewport, hasLabels, document.source.dsaFitBox === true);
-  const fitEntries = renderGeometry.filter(([id]) =>
-    document.entities.find((entity) => entity.id === id)?.kind !== "label",
-  );
+  const participatesInFit = (id: string): boolean => {
+    const value = geometry.get(id);
+    // Source-derived count/scalar anchors contribute to the fitted scene even
+    // when their presentation is text only.
+    const derivedAnchor = value?.kind === "point" && (checkedClaimOutputIds.has(id) ||
+      Object.keys(value).some((key) => key !== "kind" && key !== "point"));
+    return document.entities.find((entity) => entity.id === id)?.kind !== "label" || derivedAnchor;
+  };
+  const fitEntries = renderGeometry.filter(([id]) => participatesInFit(id));
   const fallback = createTransform(
     (fitEntries.length > 0 ? fitEntries : renderGeometry).map(([, value]) => value),
     fallbackViewport,
@@ -806,8 +902,7 @@ function createEntityTransformPlan(
     const slot = slots[index]!;
     const values = component.ids.flatMap((id) => {
       const value = geometry.get(id);
-      const kind = document.entities.find((entity) => entity.id === id)?.kind;
-      return value && !constructionOnlyIds.has(id) && kind !== "label" ? [value] : [];
+      return value && !constructionOnlyIds.has(id) && participatesInFit(id) ? [value] : [];
     });
     const componentTransform = createTransform(values, withLabelPadding(slot, hasLabels));
     if (!componentTransform) return;
@@ -886,7 +981,10 @@ function orderConstructionsByDependency(document: SceneDocument): Array<{
   });
   const dependencies = document.constructions.map((construction, index) => {
     const owners = new Set<number>();
-    collectStrings(construction.inputs, (value) => {
+    // Tree IDs and outcome text have their own namespace; only the placement
+    // origin is a geometric dependency, even when an outcome names a point.
+    const dependencyInputs = geometricDependencyInputs(construction);
+    collectStrings(dependencyInputs, (value) => {
       const owner = outputOwner.get(value);
       if (owner !== undefined && owner !== index) owners.add(owner);
     });
@@ -911,6 +1009,18 @@ function orderConstructionsByDependency(document: SceneDocument): Array<{
   return ordered;
 }
 
+/** Item/outcome names are local mathematical namespaces, not scene references. */
+function geometricDependencyInputs(construction: SceneDocument["constructions"][number]): unknown {
+  switch (construction.operator) {
+    case "probability_tree":
+    case "set_partition":
+    case "permutation_cycles":
+    case "subset_lattice": return construction.inputs.origin;
+    case "set_select": return [construction.inputs.partition, construction.inputs.at];
+    default: return construction.inputs;
+  }
+}
+
 function collectStrings(value: unknown, visit: (value: string) => void): void {
   if (typeof value === "string") visit(value);
   else if (Array.isArray(value)) for (const item of value) collectStrings(item, visit);
@@ -925,7 +1035,79 @@ function evaluateConstruction(
 ): Geometry[] {
   const point = (names: string[]): Point => resolvePoint(first(inputs, names), geometry);
   const number = (names: string[]): number => resolveNumber(first(inputs, names), quantities);
+  const constructionContext = {
+    number: (value: unknown) => resolveNumber(value, quantities),
+    point: (value: unknown) => resolvePoint(value, geometry),
+    geometry: (value: unknown) => resolveGeometry(value, geometry, true),
+  };
   switch (operator) {
+    case "permutation_cycles":
+    case "subset_lattice": return evaluateCombinatoricsConstruction(operator, inputs, constructionContext);
+    case "elastic_profile":
+    case "elastic_state": return evaluateElasticityConstruction(operator, inputs, constructionContext);
+    case "flux_process":
+    case "induction_state": return evaluateInductionConstruction(operator, inputs, constructionContext);
+    case "rotational_motion":
+    case "rotational_state":
+    case "planar_torque": return evaluateRotationConstruction(operator, inputs, constructionContext);
+    case "set_partition":
+    case "set_select": return evaluateSetConstruction(operator, inputs, constructionContext);
+    case "harmonic_motion":
+    case "harmonic_state": return evaluateHarmonicMotionConstruction(operator, inputs, constructionContext);
+    case "gravitational_field":
+    case "gravitational_force": return evaluateGravityConstruction(operator, inputs, constructionContext);
+    case "complex_point":
+    case "complex_transform":
+    case "complex_roots": return evaluateComplexConstruction(operator, inputs, constructionContext);
+    case "magnetic_force":
+    case "magnetic_components": return evaluateMagneticConstruction(operator, inputs, constructionContext);
+    case "hydrostatic_profile":
+    case "hydrostatic_state":
+    case "buoyancy": return evaluateFluidConstruction(operator, inputs, constructionContext);
+    case "histogram":
+    case "frequency_polygon":
+    case "cumulative_frequency": return evaluateStatisticsConstruction(operator, inputs, constructionContext);
+    case "probability_tree": return evaluateProbabilityConstruction(operator, inputs, constructionContext);
+    case "electric_field":
+    case "field_components": return evaluateFieldConstruction(operator, inputs, constructionContext);
+    case "circle_from_three_points":
+    case "circle_tangent_at":
+    case "circle_tangency_points":
+    case "circle_intersections": return evaluateCircleConstruction(operator, inputs, constructionContext);
+    case "affine_point":
+    case "affine_path": return evaluateAffineConstruction(operator, inputs, constructionContext);
+    case "vector_sum":
+    case "vector_scale":
+    case "vector_projection": return evaluateVectorConstruction(operator, inputs, constructionContext);
+    case "constant_acceleration_trajectory":
+    case "trajectory_state": return evaluateKinematicsConstruction(operator, inputs, constructionContext);
+    case "curve_anchor":
+    case "curve_secant":
+    case "curve_derivative": return evaluateCalculusConstruction(operator, inputs, constructionContext);
+    case "impedance":
+    case "impedance_combine":
+    case "phasor_response": return evaluateAcConstruction(operator, inputs, constructionContext);
+    case "harmonic_wave":
+    case "wave_superposition":
+    case "wave_sample": return evaluateWavesConstruction(operator, inputs, constructionContext);
+    case "gaussian_image":
+    case "optical_focus": return evaluateGeometricOpticsConstruction(operator, inputs, constructionContext);
+    case "polytropic_process":
+    case "isochoric_process":
+    case "process_state": return evaluateThermodynamicsConstruction(operator, inputs, constructionContext);
+    case "triangle_from_sides":
+    case "triangle_from_sas":
+    case "triangle_from_asa":
+    case "triangle_center": return evaluateTriangleConstruction(operator, inputs, constructionContext);
+    case "conic":
+    case "conic_anchor":
+    case "conic_directrix":
+    case "conic_asymptotes":
+    case "conic_tangent": return evaluateConicConstruction(operator, inputs, constructionContext);
+    case "space_project":
+    case "space_intersection":
+    case "space_closest_points":
+    case "space_segment": return evaluateSpaceDerivationConstruction(operator, inputs, constructionContext);
     case "point": return [{ kind: "point", point: { x: number(["x"]), y: number(["y"]) } }];
     case "label": return [{
       kind: "point",
@@ -1177,12 +1359,43 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
     return;
   }
   if (isTopologySceneProofPredicate(predicate)) {
+    if (values.some(isNonmetricGeometry)) {
+      issues.push({code:"invalid_nonmetric_assertion",message:"Nonmetric set and discrete graph layouts do not establish electrical terminal topology",severity:"fatal",entityIds:assertion.entities});
+      return;
+    }
     evaluateTopologyAssertion(assertion, document, issues);
     return;
   }
   if (hasUnconstructedGeometry) {
     issues.push({ code: "assertion_entity_unconstructed", message: `Assertion ${assertion.id} references unconstructed geometry`, severity, entityIds: assertion.entities });
     return;
+  }
+  if (values.some(isNonmetricGeometry) && !["exists", "entity_count", "label_attached"].includes(predicate)) {
+    const atom = values.find((value) => value?.kind === "point" && value.setAtom !== undefined);
+    const circle = values.find((value) => value?.kind === "circle" && value.setIndex !== undefined);
+    const certifiedMembership = predicate === "inside" && values.length === 2 &&
+      atom?.kind === "point" && circle?.kind === "circle" && atom.setPartition !== undefined && atom.setPartition === circle.setPartition;
+    if (!certifiedMembership) {
+      issues.push({code:"invalid_nonmetric_assertion",message:"Nonmetric layouts cannot certify distances, angles, areas or physical relations; set witnesses only certify their own partition membership",severity:"fatal",entityIds:assertion.entities});
+      return;
+    }
+  }
+  if (["equal_length", "distance_ratio"].includes(predicate) && hasDisplayAncestor(assertion.entities, geometry, document, hasIndependentDisplayMetric)) {
+    issues.push({code:"invalid_display_metric_assertion",message:"Independently normalized arrows and scaled physical plots cannot certify length equality or distance ratios",severity:"fatal",entityIds:assertion.entities});
+    return;
+  }
+  if (["on", "incident", "between", "parallel", "perpendicular", "collinear", "equal_angle", "angle_between", "same_side"].includes(predicate) &&
+      hasDisplayAncestor(assertion.entities, geometry, document, hasPageNormalGlyph)) {
+    issues.push({code:"invalid_page_normal_assertion",message:"A page-normal dot/cross glyph cannot certify an in-plane incidence or direction relation",severity:"fatal",entityIds:assertion.entities});
+    return;
+  }
+  if (!["exists", "entity_count", "label_attached"].includes(predicate)) {
+    const worldCompatibility = spaceProofCompatibility(values);
+    if (worldCompatibility !== null && (worldCompatibility === false ||
+      !["on", "incident", "between", "parallel", "perpendicular", "collinear", "equal_length", "equal_angle", "angle_between", "distance_ratio"].includes(predicate))) {
+      issues.push({ code: "invalid_world_assertion", message: "World-space assertions require compatible world operands and an implemented world predicate", severity: "fatal", entityIds: assertion.entities });
+      return;
+    }
   }
   let passed = false;
   let residual: number | undefined;
@@ -1198,17 +1411,26 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
             : undefined;
         const support = pointGeometry === values[0] ? values[1] : values[0];
         if (!pointGeometry || !support) break;
-        residual = pointGeometryResidual(pointGeometry, support);
+        const spatialResidual = spaceIncidenceResidual(pointGeometry, support);
+        residual = spatialResidual ?? pointGeometryResidual(pointGeometry, support);
         const sampledCurve = support.kind === "path" ? support.sampledCurve : undefined;
-        if (sampledCurve) {
+        const motion = (support.kind === "path" || support.kind === "point") ? support.kinematicTrajectory : undefined;
+        const motionState = pointGeometry.kinematicState;
+        const supportId = pointGeometry === values[0] ? assertion.entities[1] : assertion.entities[0];
+        const anchorResidual = calculusAnchorResidual(pointGeometry, support, supportId);
+        if (anchorResidual !== null) {
+          residual = anchorResidual;
+        } else if (motion && motionState?.quantity === "position" && motionState.trajectoryId === supportId) {
+          residual = kinematicsPointResidual(motion, pointGeometry.point, motionState.time);
+        } else if (sampledCurve) {
           residual = sampledCurveCartesianResidual(sampledCurve, pointGeometry.point, {});
         }
         const exactTolerance = tolerance(assertion);
-        const relationTolerance = typeof assertion.tolerance === "number" || !isDerivedDirection(assertion.entities[1], document)
+        const relationTolerance = spatialResidual !== null || typeof assertion.tolerance === "number" || !isDerivedDirection(assertion.entities[1], document)
           ? exactTolerance
           : Math.max(exactTolerance, geometryScale(geometry) * 0.005);
         passed = residual < relationTolerance;
-        if (!passed) {
+        if (!passed && spatialResidual === null) {
           const bodyResidual = rigidBodyContactResidual(values[0], values[1], geometry);
           if (bodyResidual !== null) {
             residual = bodyResidual;
@@ -1220,9 +1442,14 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         }
         break;
       }
-      case "between": passed = isBetween(asPoint(values[0]), asPoint(values[1]), asPoint(values[2])); break;
+      case "between": {
+        const worldResidual = spaceBetweenResidual(values[0], values[1], values[2]);
+        if (worldResidual === null) passed = isBetween(asPoint(values[0]), asPoint(values[1]), asPoint(values[2]));
+        else { residual = worldResidual; passed = Number.isFinite(residual) && residual < tolerance(assertion); }
+        break;
+      }
       case "parallel": {
-        residual = parallelResidual(asLine(values[0]), asLine(values[1]));
+        residual = spaceDirectionResidual(values[0], values[1], "parallel") ?? parallelResidual(asLine(values[0]), asLine(values[1]));
         const exactTolerance = tolerance(assertion);
         const relationTolerance = typeof assertion.tolerance === "number" || !assertion.entities.some((id) => isDerivedDirection(id, document))
           ? exactTolerance
@@ -1233,16 +1460,16 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         }
         break;
       }
-      case "perpendicular": residual = perpendicularResidual(asLine(values[0]), asLine(values[1])); passed = residual < tolerance(assertion); break;
-      case "collinear": residual = collinearResidual(assertion.entities.map((id) => asPoint(geometry.get(id)))); passed = residual < tolerance(assertion); break;
+      case "perpendicular": residual = spaceDirectionResidual(values[0], values[1], "perpendicular") ?? perpendicularResidual(asLine(values[0]), asLine(values[1])); passed = residual < tolerance(assertion); break;
+      case "collinear": residual = spaceCollinearityResidual(values) ?? collinearResidual(assertion.entities.map((id) => asPoint(geometry.get(id)))); passed = residual < tolerance(assertion); break;
       case "equal_length": {
         const measured = values.length >= 4 &&
           values.length % 2 === 0 &&
           values.every((value) => value?.kind === "point")
           ? Array.from({ length: values.length / 2 }, (_, index) =>
-              distance(asPoint(values[index * 2]), asPoint(values[index * 2 + 1])),
+              spacePointDistance(values[index * 2], values[index * 2 + 1]) ?? distance(asPoint(values[index * 2]), asPoint(values[index * 2 + 1])),
             )
-          : values.map((value) => length(asLine(value)));
+          : values.map((value) => spaceMetricLength(value) ?? length(asLine(value)));
         if (measured.length < 2) break;
         residual = Math.max(...measured.slice(1).map((value) => Math.abs(value - measured[0]!)));
         passed = residual < tolerance(assertion);
@@ -1254,10 +1481,10 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           : null;
         const firstAngle = markedAngles
           ? Math.abs(markedAngles[0]!.endAngle - markedAngles[0]!.startAngle)
-          : values.length === 4 ? acuteAngleBetween(asLine(values[0]), asLine(values[1])) : NaN;
+          : values.length === 4 ? spaceAcuteAngle(values[0], values[1]) ?? acuteAngleBetween(asLine(values[0]), asLine(values[1])) : NaN;
         const secondAngle = markedAngles
           ? Math.abs(markedAngles[1]!.endAngle - markedAngles[1]!.startAngle)
-          : values.length === 4 ? acuteAngleBetween(asLine(values[2]), asLine(values[3])) : NaN;
+          : values.length === 4 ? spaceAcuteAngle(values[2], values[3]) ?? acuteAngleBetween(asLine(values[2]), asLine(values[3])) : NaN;
         if (!Number.isFinite(firstAngle) || !Number.isFinite(secondAngle)) break;
         residual = Math.abs(firstAngle - secondAngle);
         passed = residual < tolerance(assertion);
@@ -1266,7 +1493,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
       case "angle_between": {
         if (values.length !== 2) break;
         const expectedAngle = expectedAngleRadians(assertion.expected);
-        residual = Math.abs(acuteAngleBetween(asLine(values[0]), asLine(values[1])) - expectedAngle);
+        residual = Math.abs((spaceAcuteAngle(values[0], values[1]) ?? acuteAngleBetween(asLine(values[0]), asLine(values[1]))) - expectedAngle);
         passed = residual < angularTolerance(assertion);
         break;
       }
@@ -1334,8 +1561,13 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         break;
       }
       case "distance_ratio": {
-        const ratio = distance(asPoint(values[0]), asPoint(values[1])) /
-          distance(asPoint(values[2]), asPoint(values[3]));
+        const numerator = spacePointDistance(values[0], values[1]) ?? distance(asPoint(values[0]), asPoint(values[1]));
+        const denominator = spacePointDistance(values[2], values[3]) ?? distance(asPoint(values[2]), asPoint(values[3]));
+        if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || !(denominator > EPSILON)) {
+          issues.push({ code: "invalid_distance_ratio", message: "Distance ratio requires finite lengths and a nonzero denominator", severity: "fatal", entityIds: assertion.entities });
+          return;
+        }
+        const ratio = numerator / denominator;
         residual = Math.abs(ratio - Number(assertion.expected));
         passed = residual < tolerance(assertion);
         break;
@@ -1468,6 +1700,10 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
       default: return assertNeverSceneCapability(predicate);
     }
   } catch { passed = false; }
+  if (!["exists", "entity_count", "label_attached"].includes(predicate) && spaceProofCompatibility(values) !== null && !Number.isFinite(residual)) {
+    issues.push({ code: "invalid_world_assertion", message: "World-space assertion could not evaluate a finite mathematical residual", severity: "fatal", entityIds: assertion.entities });
+    return;
+  }
   if (assertion.expected === false) passed = !passed;
   if (!passed) issues.push({ code: "assertion_failed", message: assertion.reason ?? `Assertion ${assertion.id} failed`, severity, entityIds: assertion.entities, expected: assertion.expected, residual });
 }
@@ -1812,7 +2048,28 @@ function emptyRenderScene(document: SceneDocument) {
 }
 function report(document: SceneDocument, issues: SceneIssue[], primitiveCount: number): ValidationReport { return { engineVersion: SCENE_ENGINE_VERSION, valid: !issues.some((issue) => issue.severity === "fatal"), issues, stats: { entityCount: document.entities.length, constructionCount: document.constructions.length, primitiveCount, assertionCount: document.assertions.length } }; }
 function first(inputs: Record<string, unknown>, names: string[]): unknown { for (const name of names) if (inputs[name] !== undefined) return inputs[name]; throw new Error(`missing input ${names.join("|")}`); }
-function resolveNumber(value: unknown, quantities: Map<string, Record<string, unknown>>): number { if (typeof value === "number" && Number.isFinite(value)) return value; if (typeof value === "string") { const quantity = quantities.get(value); if (quantity) return resolveNumber(quantity.value, quantities); const parsed = Number(value); if (Number.isFinite(parsed)) return parsed; } if (typeof value === "object" && value && "value" in value) return resolveNumber((value as { value: unknown }).value, quantities); throw new Error(`non-numeric value ${String(value)}`); }
+function resolveNumber(value: unknown, quantities: Map<string, Record<string, unknown>>, seen = new Set<unknown>(), depth = 0): number {
+  if (depth > 32 || seen.has(value)) throw new Error("numeric reference is cyclic or exceeds depth 32");
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const quantity = quantities.get(value);
+    if (quantity) {
+      seen.add(value);
+      return resolveNumber(quantity.value, quantities, seen, depth + 1);
+    }
+    const parsed = Number(value);
+    const decimal = /^[+-]?((?:\d+(?:\.\d*)?|\.\d+))(?:[eE][+-]?\d+)?$/.exec(value.trim());
+    if (parsed === 0 && decimal && /[1-9]/.test(decimal[1]!)) {
+      throw new Error("A nonzero source literal cannot underflow to certified zero");
+    }
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  if (typeof value === "object" && value && "value" in value) {
+    seen.add(value);
+    return resolveNumber((value as { value: unknown }).value, quantities, seen, depth + 1);
+  }
+  throw new Error("input must be a finite number or numeric quantity reference");
+}
 function functionCurveGeometry(
   inputs: Record<string, unknown>,
   quantities: Map<string, Record<string, unknown>>,
@@ -1835,7 +2092,7 @@ function functionCurveGeometry(
   return {
     kind: "path",
     points,
-    sampledCurve: { curveKind: "function", parameterMin: xMin, parameterMax: xMax, evaluate },
+    sampledCurve: { curveKind: "function", parameterMin: xMin, parameterMax: xMax, evaluate, derivative: (x) => ({ x: 1, y: expression.derivative(x) }) },
   };
 }
 
@@ -1860,7 +2117,7 @@ function parametricCurveGeometry(
   return {
     kind: "path",
     points: sampleCurve(evaluate, tMin, tMax, samples),
-    sampledCurve: { curveKind: "parametric", parameterMin: tMin, parameterMax: tMax, evaluate },
+    sampledCurve: { curveKind: "parametric", parameterMin: tMin, parameterMax: tMax, evaluate, derivative: (t) => ({ x: xExpression.derivative(t), y: yExpression.derivative(t) }) },
   };
 }
 
@@ -1884,7 +2141,14 @@ function polarCurveGeometry(
   return {
     kind: "path",
     points: sampleCurve(evaluate, thetaMin, thetaMax, samples),
-    sampledCurve: { curveKind: "polar", parameterMin: thetaMin, parameterMax: thetaMax, evaluate },
+    sampledCurve: {
+      curveKind: "polar", parameterMin: thetaMin, parameterMax: thetaMax, evaluate,
+      derivative: (theta) => {
+        const radius = radiusExpression.evaluate(theta);
+        const rate = radiusExpression.derivative(theta);
+        return { x: rate * Math.cos(theta) - radius * Math.sin(theta), y: rate * Math.sin(theta) + radius * Math.cos(theta) };
+      },
+    },
   };
 }
 
@@ -2376,7 +2640,7 @@ function spacePointGeometry(
   const frame = resolveSpaceFrame(first(inputs, ["frame"]), geometry);
   const space = resolveVec3(inputs, quantities, ["x"], ["y"], ["z"]);
   const projected = isometricProject(space, frame);
-  return { kind: "point", point: { x: projected.x, y: projected.y }, space };
+  return { kind: "point", point: { x: projected.x, y: projected.y }, space, spaceFrameId: String(inputs.frame) };
 }
 
 function spaceLineGeometry(
@@ -2386,6 +2650,7 @@ function spaceLineGeometry(
 ): Extract<Geometry, { kind: "path" }> {
   const frame = resolveSpaceFrame(first(inputs, ["frame"]), geometry);
   const anchor = resolveSpacePointInput(first(inputs, ["point", "origin", "through"]), geometry, quantities);
+  assertSpacePointFrame(first(inputs, ["point", "origin", "through"]), inputs.frame, geometry);
   const direction = resolveVec3Value(first(inputs, ["direction"]), quantities, "space_line direction");
   if (!(vec3Length(direction) > EPSILON)) throw new Error("space_line direction must be nonzero");
   const tMin = inputs.tMin === undefined ? -1.5 : resolveNumber(inputs.tMin, quantities);
@@ -2397,7 +2662,7 @@ function spaceLineGeometry(
   const end = vec3Add(anchor, vec3Scale(direction, tMax));
   const a = isometricProject(start, frame);
   const b = isometricProject(end, frame);
-  return { kind: "path", infinite: true, points: distinctPathPoints({ x: a.x, y: a.y }, { x: b.x, y: b.y }, "space_line") };
+  return { kind: "path", infinite: true, points: distinctPathPoints({ x: a.x, y: a.y }, { x: b.x, y: b.y }, "space_line"), spaceLine: { frameId: String(inputs.frame), point: anchor, direction } };
 }
 
 function planeGeometry(
@@ -2423,6 +2688,7 @@ function planeGeometry(
     v = cartesian.v;
   } else {
     point = resolveSpacePointInput(first(inputs, ["point", "origin"]), geometry, quantities);
+    assertSpacePointFrame(first(inputs, ["point", "origin"]), inputs.frame, geometry);
     u = resolveVec3Value(first(inputs, ["u"]), quantities, "plane u");
     v = resolveVec3Value(first(inputs, ["v"]), quantities, "plane v");
   }
@@ -2430,7 +2696,15 @@ function planeGeometry(
     const projected = isometricProject(corner, frame);
     return { x: projected.x, y: projected.y };
   });
-  return { kind: "path", closed: true, points: corners };
+  const crossNormal = { x: u.y * v.z - u.z * v.y, y: u.z * v.x - u.x * v.z, z: u.x * v.y - u.y * v.x };
+  const normal = vec3Scale(crossNormal, 1 / vec3Length(crossNormal));
+  return { kind: "path", closed: true, points: corners, spacePlane: { frameId: String(inputs.frame), point, normal } };
+}
+
+function assertSpacePointFrame(value: unknown, frameId: unknown, geometry: Map<string, Geometry>): void {
+  if (typeof value !== "string") return;
+  const resolved = geometry.get(value);
+  if (resolved?.kind === "point" && resolved.space && resolved.spaceFrameId !== frameId) throw new Error("space point must belong to the same frame as its line or plane");
 }
 
 function resolveSpaceFrame(value: unknown, geometry: Map<string, Geometry>): SpaceFrame {
@@ -3071,6 +3345,13 @@ function functionCurveReference(value: unknown, geometry: Map<string, Geometry>,
 
 function sampledCurveDerivative(curve: SampledCurve, at: number): Point {
   assertParameterInDomain(curve, at, "curve derivative", true);
+  if (curve.derivative) {
+    const derivative = curve.derivative(at);
+    if (!Number.isFinite(derivative.x) || !Number.isFinite(derivative.y) || Math.hypot(derivative.x, derivative.y) < EPSILON) {
+      throw new Error("curve derivative must be finite and nonzero for a tangent or normal");
+    }
+    return derivative;
+  }
   const range = curve.parameterMax - curve.parameterMin;
   const margin = Math.min(at - curve.parameterMin, curve.parameterMax - at);
   let h = Math.min(range * 1e-3, margin / 4);
@@ -3435,11 +3716,72 @@ function curveExpression(entityId: string | undefined, document: SceneDocument) 
   }
   return parseMathExpression(construction.inputs.expression);
 }
-function resolvePoint(value: unknown, geometry: Map<string, Geometry>): Point { if (typeof value === "string") return asPoint(geometry.get(value)); if (Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number" && Number.isFinite(item))) return { x: value[0] as number, y: value[1] as number }; if (isRecord(value) && typeof value.x === "number" && typeof value.y === "number") return { x: value.x, y: value.y }; throw new Error(`invalid point reference ${String(value)}`); }
+function isNonmetricGeometry(value: Geometry | undefined): boolean {
+  return value !== undefined && Object.values(value).some((entry) => isRecord(entry) && entry.nonmetric === true);
+}
+const INDEPENDENT_DISPLAY_KEYS = new Set(["displayLength", "timeScale", "parameterScale", "voltageScale", "currentScale", "pressureScale", "volumeScale", "depthScale", "xScale", "yScale", "ordinateScale", "fluxScale", "strainScale", "stressScale"]);
+function geometryMetadataMatches(value: Geometry | undefined, predicate: (metadata: Record<string, unknown>) => boolean): boolean {
+  const seen = new Set<unknown>();
+  function visit(candidate: unknown, depth: number): boolean {
+    if (!isRecord(candidate) || seen.has(candidate)) return false;
+    if (depth > 8) return true; // Unknown/deep authority cannot become an affirmative proof.
+    seen.add(candidate);
+    return predicate(candidate) || Object.values(candidate).some((entry) => visit(entry, depth + 1));
+  }
+  return value !== undefined && Object.entries(value).some(([key, entry]) => !["points", "paths", "point", "center", "terminals"].includes(key) && visit(entry, 0));
+}
+function hasIndependentDisplayMetric(value: Geometry | undefined): boolean {
+  return geometryMetadataMatches(value, (metadata) => Object.keys(metadata).some((key) => INDEPENDENT_DISPLAY_KEYS.has(key)) ||
+    ("displayScale" in metadata && "unit" in metadata && "magnitude" in metadata));
+}
+function hasPageNormalGlyph(value: Geometry | undefined): boolean {
+  return geometryMetadataMatches(value, (metadata) => metadata.pageNormal === "out" || metadata.pageNormal === "in");
+}
+/** Numeric ink on an untyped descendant cannot recover erased physical units/scales. */
+function validateDisplayDescendantClaims(document: SceneDocument, geometry: Map<string, Geometry>, checkedOutputIds: Set<string>, issues: SceneIssue[]): void {
+  const numericClaim = (text: unknown): boolean => typeof text === "string" && /(?<![A-Za-z0-9_])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?![A-Za-z0-9_])/.test(text);
+  for (const construction of document.constructions) {
+    for (const id of construction.outputs) {
+      // A completed claim validator owns this boundary; metadata alone never
+      // grants permission to bypass numeric validation.
+      if (checkedOutputIds.has(id)) continue;
+      const claim = document.entities.some((entity) => entity.id === id && numericClaim(entity.label)) ||
+        document.annotations.some((annotation) => annotation.targetIds.includes(id) && (numericClaim(annotation.text) || annotation.quantityId !== undefined)) ||
+        (construction.operator === "label" && numericClaim(construction.inputs.text));
+      if (claim && hasDisplayAncestor([id], geometry, document, hasIndependentDisplayMetric)) {
+        issues.push({code:"invalid_display_derived_claim",message:"A generic descendant of scaled source geometry cannot certify numeric physical values; label its typed source owner",severity:"fatal",entityIds:[id]});
+      }
+    }
+  }
+}
+/** Follow source dependencies so generic paths cannot erase display authority. */
+function hasDisplayAncestor(entityIds: readonly string[], geometry: Map<string, Geometry>, document: SceneDocument, matches: (value: Geometry | undefined) => boolean): boolean {
+  const producers = new Map(document.constructions.flatMap((construction) => construction.outputs.map((id) => [id, construction] as const)));
+  const visited = new Set<string>();
+  function visit(id: string, depth: number): boolean {
+    if (depth > 32 || visited.size > 4096) return true;
+    if (visited.has(id)) return false;
+    visited.add(id);
+    if (matches(geometry.get(id))) return true;
+    const producer = producers.get(id);
+    if (!producer) return false;
+    const references: string[] = [];
+    collectStrings(geometricDependencyInputs(producer), (reference) => { if (reference !== id && producers.get(reference) !== producer && producers.has(reference)) references.push(reference); });
+    return references.some((reference) => visit(reference, depth + 1));
+  }
+  return entityIds.some((id) => visit(id, 0));
+}
+function assertPlanarGeometry(value: Geometry | undefined): void {
+  if (hasPageNormalGlyph(value)) throw new Error("2D constructions cannot discard page-normal glyph authority");
+  if (isNonmetricGeometry(value)) throw new Error("Metric constructions cannot discard nonmetric layout metadata");
+  if (spaceProofCompatibility([value]) !== null) throw new Error("2D constructions cannot discard world metadata; use the corresponding space operator");
+}
+function resolvePoint(value: unknown, geometry: Map<string, Geometry>): Point { if (typeof value === "string") { const resolved = geometry.get(value); assertPlanarGeometry(resolved); return asPoint(resolved); } if (Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number" && Number.isFinite(item))) return { x: value[0] as number, y: value[1] as number }; if (isRecord(value) && typeof value.x === "number" && typeof value.y === "number") return { x: value.x, y: value.y }; throw new Error(`invalid point reference ${String(value)}`); }
 function resolvePointArray(value: unknown, geometry: Map<string, Geometry>): Point[] { if (!Array.isArray(value) || value.length < 2) throw new Error("points must contain at least two points"); return value.map((item) => resolvePoint(item, geometry)); }
 function resolveAngleArmPoint(value: unknown, vertex: Point, geometry: Map<string, Geometry>): Point {
   if (typeof value !== "string") return resolvePoint(value, geometry);
   const resolved = geometry.get(value);
+  assertPlanarGeometry(resolved);
   if (resolved?.kind === "point") return resolved.point;
   const points = resolved?.kind === "path"
     ? resolved.points
@@ -3453,10 +3795,10 @@ function resolveAngleArmPoint(value: unknown, vertex: Point, geometry: Map<strin
   if (distance(lastPoint, vertex) < EPSILON && distance(firstPoint, vertex) >= EPSILON) return firstPoint;
   throw new Error("angle arm path must meet the angle vertex at exactly one endpoint");
 }
-function resolveLine(value: unknown, geometry: Map<string, Geometry>): [Point, Point] { if (typeof value === "string") return asLine(geometry.get(value)); if (Array.isArray(value) && value.length === 2) return [resolvePoint(value[0], geometry), resolvePoint(value[1], geometry)]; throw new Error(`invalid line reference ${String(value)}`); }
+function resolveLine(value: unknown, geometry: Map<string, Geometry>): [Point, Point] { if (typeof value === "string") { const resolved = geometry.get(value); assertPlanarGeometry(resolved); return asLine(resolved); } if (Array.isArray(value) && value.length === 2) return [resolvePoint(value[0], geometry), resolvePoint(value[1], geometry)]; throw new Error(`invalid line reference ${String(value)}`); }
 function resolveVector(value: unknown, geometry: Map<string, Geometry>): Point {
   if (typeof value === "string") {
-    const line = asLine(geometry.get(value));
+    const line = resolveLine(value, geometry);
     return { x: line[1].x - line[0].x, y: line[1].y - line[0].y };
   }
   if (Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number")) {
@@ -3467,10 +3809,11 @@ function resolveVector(value: unknown, geometry: Map<string, Geometry>): Point {
   }
   throw new Error("invalid vector");
 }
-function resolveGeometry(value: unknown, geometry: Map<string, Geometry>): Geometry {
+function resolveGeometry(value: unknown, geometry: Map<string, Geometry>, allowWorld = false): Geometry {
   if (typeof value !== "string") throw new Error("surface must reference constructed geometry");
   const resolved = geometry.get(value);
   if (!resolved) throw new Error(`missing surface geometry ${value}`);
+  if (!allowWorld) assertPlanarGeometry(resolved);
   return resolved;
 }
 function resolveContactDirection(origin:Point,inputs:Record<string,unknown>,geometry:Map<string,Geometry>):Point{
@@ -3635,6 +3978,28 @@ function routedConnectorPoints(
     end,
   ];
 }
+function screenLabelAnchor(entityId: string, value: Geometry, primitives: RenderPrimitive[], transform: (point: Point) => RenderPoint): RenderPoint {
+  if (value.kind === "path" && value.infinite) {
+    const rendered = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind !== "label");
+    const start = rendered?.points[0];
+    const end = rendered?.points.at(-1);
+    if (start && end) {
+      // Infinite lines are clipped independently of their construction span.
+      // A label leader must attach to the visible stroke, not an off-board
+      // endpoint retained solely for the mathematical line definition.
+      const anchor = transform(labelAnchor(value));
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const lengthSquared = dx * dx + dy * dy;
+      const t = lengthSquared > EPSILON
+        ? Math.max(0, Math.min(1, ((anchor.x - start.x) * dx + (anchor.y - start.y) * dy) / lengthSquared))
+        : 0;
+      return { x: start.x + t * dx, y: start.y + t * dy };
+    }
+  }
+  return transform(labelAnchor(value));
+}
+
 function labelAnchor(value: Geometry): Point {
   if (value.kind === "point") return value.point;
   if (value.kind === "path") return labelAnchorForPath(value.points, value.directed === true, value.infinite === true);
@@ -3939,7 +4304,10 @@ function geometryCanReachTarget(value: Geometry | undefined, target: Point, tole
 }
 function isBetween(p:Point,a:Point,b:Point):boolean{return collinearResidual([a,p,b])<EPSILON&&p.x>=Math.min(a.x,b.x)-EPSILON&&p.x<=Math.max(a.x,b.x)+EPSILON&&p.y>=Math.min(a.y,b.y)-EPSILON&&p.y<=Math.max(a.y,b.y)+EPSILON;}
 function pointGeometryResidual(pointGeometry:Geometry|undefined,target:Geometry|undefined):number{
+  const spatial=spaceIncidenceResidual(pointGeometry,target);if(spatial!==null)return spatial;
   const point=asPoint(pointGeometry);
+  if(target?.kind==="point")return distance(point,target.point);
+  if(target?.kind==="compound"&&target.conic)return conicPointResidual(target.conic,point);
   if(target?.kind==="circle"||target?.kind==="arc")return Math.abs(distance(point,target.center)-target.radius);
   if(target?.kind==="path"){
     if(target.infinite)return pointLineResidual(point,[target.points[0]!,target.points.at(-1)!]);

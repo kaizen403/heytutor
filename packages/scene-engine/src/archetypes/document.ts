@@ -365,6 +365,20 @@ export class SceneBuilder {
     );
   }
 
+  spaceProject(id: string, frame: string, point: string, onto: string, role: string, label?: string): string {
+    return this.declare(
+      { id, kind: "point", role, ...(label ? { label: compact(label) } : {}) },
+      { id: `make_${id}`, operator: "space_project", inputs: { frame, point, onto }, outputs: [id] },
+    );
+  }
+
+  spaceSegment(id: string, frame: string, a: string, b: string, role: string, label?: string): string {
+    return this.declare(
+      { id, kind: "segment", role, ...(label ? { label: compact(label) } : {}) },
+      { id: `make_${id}`, operator: "space_segment", inputs: { frame, a, b }, outputs: [id] },
+    );
+  }
+
   spaceLine(id: string, frame: string, point: string | [number, number, number], direction: [number, number, number], role: string, label?: string, tMin = -1.5, tMax = 1.5): string {
     return this.declare(
       { id, kind: "line", role, ...(label ? { label: compact(label) } : {}) },

@@ -123,6 +123,9 @@ export function sphericalSurfaceGeometry(spec: SphericalSurfaceSpec): SphericalS
 
 export function lensSectionOutline(spec: LensSectionSpec): OpticsPoint[] {
   if (!(spec.halfHeight > 0)) throw new Error("lens_section halfHeight must be positive");
+  if (spec.thickness !== undefined && (!Number.isFinite(spec.thickness) || !(spec.thickness > 0))) {
+    throw new Error("lens_section explicit thickness must be positive and finite");
+  }
   const hat = axisDirection(spec.axisFrom, spec.axisTo);
   const height = spec.halfHeight;
   const sag1 = sagOf(spec.radius1, height);
@@ -140,6 +143,15 @@ export function lensSectionOutline(spec: LensSectionSpec): OpticsPoint[] {
   };
   const left = surfacePoints(vertex1, spec.radius1, hat, height);
   const right = surfacePoints(vertex2, spec.radius2, hat, height);
+  // A declared centre thickness can be smaller than the surface sag. That
+  // would reverse the surfaces at the aperture and produce a crossed polygon.
+  // Both circular sag differences are monotone with height; the minimum gap
+  // is at the axis or the aperture, which are included in these samples.
+  if (left.some((point, index) => {
+    const opposite = right[index]!;
+    const gap = (opposite.x - point.x) * hat.x + (opposite.y - point.y) * hat.y;
+    return !Number.isFinite(gap) || !(gap > EPSILON);
+  })) throw new Error("lens_section thickness must keep its two surfaces disjoint across the aperture");
   return [...left, ...right.slice().reverse()];
 }
 
