@@ -15,7 +15,7 @@ The expansion adds **67 reusable operators across 25 chapters**. These operators
 Catalog counts need their baseline:
 
 - Development workspace: 61 → 128 canonical operators. The initial 61 included a pre-existing, uncommitted `solid_anchor` operator from another session.
-- Publication branch based on `origin/main` at `ae6c166655bc937de36f57f9fd29ccc9c07d9cba`: **60 → 127**, adding the same 67 operators. The separate `solid_anchor` work is not included in this PR.
+- Publication branch initially based on `origin/main` at `ae6c166655bc937de36f57f9fd29ccc9c07d9cba`: **60 → 127**, adding the same 67 operators. The separate `solid_anchor` work is not included in this PR.
 - Operator count is expressibility, not a question-bank success percentage or a guarantee that every question in a chapter works.
 
 The first fifteen chapters are the first fifteen rows below; the subsequent ten run from complex numbers through elasticity.
@@ -130,7 +130,7 @@ Checked against the current `main` base in `/tmp/heytutor-coverage-pr`, with its
 
 Integration corrections were limited to the completed feature: computed label anchors are included in viewport fitting through actual checked output ownership; the original catalog's baseline gate remains independent of later extensions; compact planner wording fits the existing repair budget; a primitive fixture now declares source points visible instead of hidden helpers. The latter fixture failure was reproduced on unchanged `main`. No chapter/family routing, validator bypass or unrelated feature was introduced.
 
-The PR and its check history are the durable publication record. Merging `main` is authorized by the user; further coverage implementation remains paused.
+The branch also incorporates the landing-only `main` update at `ff6a35d`; its landing build passed again. The PR and its check history are the durable publication record. Merging `main` is authorized by the user; further coverage implementation remains paused.
 
 ## What full coverage should mean
 
