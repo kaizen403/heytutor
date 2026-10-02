@@ -37,14 +37,14 @@ function App() {
   return (
     <div className="relative min-h-screen bg-ink-950 text-frost">
       <SeoHead path="/" />
-      {/* Hero, the lesson section and the backers strip share one navy field.
+      {/* Hero, the backers strip and the lesson section share one navy field.
           The hero's pixel sea melts into it on its own, and nothing draws its
           own background across the seam, so there is no element boundary
           left for a hairline to show up on. */}
       <div className="fx-grain relative bg-ink-950">
         <Hero />
-        <LessonShowcase />
         <BackedBySection />
+        <LessonShowcase />
       </div>
       {/* Separation between the lesson and the use cases. The band swells up
           out of the page navy and sinks back into it — both ends are the page
