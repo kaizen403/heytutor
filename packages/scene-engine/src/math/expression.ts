@@ -45,6 +45,7 @@ const FUNCTIONS = {
 export interface ParsedMathExpression {
   readonly source: string;
   evaluate(x: number): number;
+  derivative(x: number): number;
   assertContinuousOn(xMin: number, xMax: number): void;
 }
 
@@ -72,6 +73,10 @@ export function parseMathExpression(source: string): ParsedMathExpression {
       }
       const budget = { remaining: MAX_EVALUATION_STEPS };
       return checked(evaluateNode(root, { x, y: 0 }, budget), "expression result");
+    },
+    derivative(x: number): number {
+      assertSupportedVariable(x, "x");
+      return evaluateDerivative(root, x, { remaining: MAX_EVALUATION_STEPS }).derivative;
     },
     assertContinuousOn(xMin: number, xMax: number): void {
       if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || !(xMin < xMax)) {
@@ -328,6 +333,70 @@ function checked(value: number, description: string): number {
   if (!Number.isFinite(value)) throw new Error(`${description} is not finite`);
   if (Math.abs(value) > MAX_ABSOLUTE_VALUE) throw new Error(`${description} exceeds the supported numeric range`);
   return value;
+}
+
+type Dual = { value: number; derivative: number; constant: boolean };
+/** Forward-mode chain rule on the parser's AST; no sampled differences or new expression grammar. */
+function evaluateDerivative(node: ExpressionNode, x: number, budget: { remaining: number }): Dual {
+  budget.remaining -= 1;
+  if (budget.remaining < 0) throw new Error("expression derivative exceeded the operation budget");
+  const dual = (value: number, derivative: number, constant: boolean): Dual => ({ value: checked(value, "derivative expression value"), derivative: checked(derivative, "analytic derivative"), constant });
+  if (node.kind === "number") return dual(node.value, 0, true);
+  if (node.kind === "variable") return dual(x, 1, false);
+  if (node.kind === "unary") {
+    const a = evaluateDerivative(node.value, x, budget);
+    const sign = node.operator === "-" ? -1 : 1;
+    return dual(sign * a.value, sign * a.derivative, a.constant);
+  }
+  if (node.kind === "binary") {
+    const a = evaluateDerivative(node.left, x, budget); const b = evaluateDerivative(node.right, x, budget);
+    const constant = a.constant && b.constant;
+    switch (node.operator) {
+      case "+": return dual(a.value + b.value, a.derivative + b.derivative, constant);
+      case "-": return dual(a.value - b.value, a.derivative - b.derivative, constant);
+      case "*": return dual(a.value * b.value, a.derivative * b.value + a.value * b.derivative, constant);
+      case "/": return dual(a.value / b.value, (a.derivative - (a.value / b.value) * b.derivative) / b.value, constant);
+      case "^": {
+        const value = checked(a.value ** b.value, "derivative power value");
+        if (constant) return dual(value, 0, true);
+        if (b.constant) {
+          if (b.value === 0) return dual(value, 0, true);
+          if (a.value <= 0 && !Number.isInteger(b.value)) throw new Error("fractional-power derivative requires a strictly positive base");
+          return dual(value, b.value * a.value ** (b.value - 1) * a.derivative, false);
+        }
+        if (!(a.value > 0)) throw new Error("variable-power derivative requires a strictly positive base");
+        return dual(value, value * (b.derivative * Math.log(a.value) + b.value * a.derivative / a.value), false);
+      }
+    }
+  }
+  const argument = evaluateDerivative(node.argument, x, budget);
+  const value = checked(FUNCTIONS[node.name](argument.value), "derivative function value");
+  if (argument.constant) return dual(value, 0, true);
+  let factor: number;
+  switch (node.name) {
+    case "sin": factor = Math.cos(argument.value); break;
+    case "cos": factor = -Math.sin(argument.value); break;
+    case "tan": {
+      const cosine = Math.cos(argument.value);
+      if (!(Math.abs(cosine) > 1e-12)) throw new Error("tan derivative is undefined at its pole");
+      factor = 1 / cosine / cosine; break;
+    }
+    case "asin":
+    case "acos":
+      if (!(Math.abs(argument.value) < 1)) throw new Error(`${node.name} derivative requires argument strictly within (-1,1)`);
+      factor = (node.name === "acos" ? -1 : 1) / Math.sqrt((1 - argument.value) * (1 + argument.value)); break;
+    case "atan": factor = 1 / (1 + argument.value * argument.value); break;
+    case "sqrt":
+      if (!(argument.value > 0)) throw new Error("sqrt derivative requires a strictly positive argument");
+      factor = 0.5 / value; break;
+    case "abs":
+      if (argument.value === 0) throw new Error("abs derivative cannot be certified at its cusp");
+      factor = Math.sign(argument.value); break;
+    case "exp": factor = value; break;
+    case "log":
+    case "ln": factor = 1 / argument.value; break;
+  }
+  return dual(value, factor * argument.derivative, false);
 }
 
 function assertSupportedVariable(value: number, name: VariableName): void {

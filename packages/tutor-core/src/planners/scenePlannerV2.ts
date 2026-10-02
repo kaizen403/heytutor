@@ -117,7 +117,11 @@ export async function repairSceneDocument(
   if (errors.length === 0) return null;
 
   const previousStructure = summarizeSceneCandidateForRepair(candidate);
-  const prompt = `${buildSceneDocumentPlannerPrompt(question, options)}
+  const usedOperators = Array.isArray(candidate.constructions)
+    ? candidate.constructions.flatMap((construction) =>
+      isPlainObject(construction) && typeof construction.operator === "string" ? [construction.operator] : [])
+    : [];
+  const prompt = `${buildSceneDocumentPlannerPrompt(question, options, usedOperators)}
 
 REPAIR REQUEST
 The previous candidate failed deterministic validation. Return a complete replacement document, not a patch. Rebuild the failing subgraph from the authoritative facts and supported operators.

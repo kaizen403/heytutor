@@ -11,6 +11,8 @@ import {
   riverBoatVariantFromProblemStructure,
   familiesFromProblemStructure,
   sourceMensurationStructure,
+  SUPPORTED_SCENE_CONSTRUCTION_OPERATORS,
+  PLANNER_VISIBLE_SCENE_PROOF_PREDICATES,
 } from "@heytutor/scene-engine";
 import type { ProblemStructureView, SceneVisualFamily } from "@heytutor/scene-engine";
 import { isExplainRequest } from "../llm/reasoningEffort";
@@ -72,41 +74,59 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
     "surface_contact", "normal_at", "reflect_direction", "refract_direction", "parallel_through",
     "reflect_at", "refract_at", "angle_mark", "right_angle_mark",
   ],
-  axis_view: ["line", "segment", "ray", "arc", "vector", "dimension", "reflect_point", "sign_badge", "spherical_surface", "lens_section"],
+  axis_view: ["line", "segment", "ray", "arc", "vector", "dimension", "reflect_point", "sign_badge", "spherical_surface", "lens_section", "gaussian_image", "optical_focus"],
   interface: ["line", "circle", "arc", "polygon", "surface_intersection", "surface_contact", "normal_at", "spherical_surface"],
   instrument_chain: ["line", "segment", "ray", "arc", "vector", "dimension", "parallel_through", "perpendicular_through", "optical_train"],
-  wavefront: ["wavefront_family", "line", "vector", "perpendicular_through"],
+  wavefront: ["wavefront_family", "line", "vector", "perpendicular_through", "harmonic_wave", "wave_superposition", "wave_sample"],
   aperture: ["aperture", "line", "segment"],
   screen_pattern: ["screen_pattern", "line", "segment", "dimension"],
-  transverse_field: ["transverse_field", "line", "vector"],
+  transverse_field: ["transverse_field", "line", "vector", "harmonic_wave", "wave_superposition", "wave_sample"],
   polarizer: ["polarizer", "line", "angle_mark"],
-  contact_body: [
+  contact_body: ["elastic_profile", "elastic_state",
     "rectangle", "circle", "line", "segment", "vector", "vector_components",
     "surface_contact", "angle_mark", "right_angle_mark", "polyline", "rotate", "arc",
     "midpoint", "tick_mark", "sign_badge",
+    "rotational_motion", "rotational_state", "planar_torque",
+    "harmonic_motion", "harmonic_state", "gravitational_field", "gravitational_force",
+    "constant_acceleration_trajectory", "trajectory_state", "vector_sum", "vector_scale", "vector_projection",
   ],
-  circuit_network: [
+  circuit_network: ["flux_process", "induction_state",
     "symbol", "connect", "point", "vector", "vector_components", "arc", "angle_mark",
+    "impedance", "impedance_combine", "phasor_response",
   ],
-  state_plot: ["axes", "point", "polygon", "polyline", "vector", "label"],
-  analytic_curve: [
+  state_plot: ["permutation_cycles", "subset_lattice", "elastic_profile", "elastic_state","flux_process", "induction_state","set_partition", "set_select","harmonic_motion", "harmonic_state","hydrostatic_profile", "hydrostatic_state", "buoyancy", "axes", "point", "polygon", "polyline", "vector", "label", "histogram", "frequency_polygon", "cumulative_frequency", "probability_tree", "polytropic_process", "isochoric_process", "process_state"],
+  analytic_curve: ["elastic_profile", "elastic_state",
     "axes", "function_curve", "parametric_curve", "polar_curve", "implicit_curve",
     "tangent_line", "normal_line", "function_region", "point", "intersection", "vector_components",
+    "conic", "conic_anchor", "conic_directrix", "conic_asymptotes", "conic_tangent",
+    "constant_acceleration_trajectory", "trajectory_state",
+    "curve_anchor", "curve_secant", "curve_derivative",
+    "harmonic_wave", "wave_superposition", "wave_sample",
+    "flux_process", "induction_state",
+    "harmonic_motion", "harmonic_state",
+    "hydrostatic_profile", "hydrostatic_state", "complex_point", "complex_transform", "complex_roots",
+    "histogram", "frequency_polygon", "cumulative_frequency",
   ],
   bounded_region: [
     "axes", "function_curve", "function_region", "constraint_region", "representative_slice", "solid_of_revolution", "point",
     "circle", "arc", "rectangle", "polygon", "dimension", "right_angle_mark",
   ],
   solid_figure: ["solid_projection", "solid_cross_section", "space_frame", "space_point", "point", "dimension", "label"],
-  fluid_apparatus: ["rectangle", "polygon", "polyline", "connect", "vector", "dimension", "circle"],
-  point_field: ["point", "vector", "circle", "line", "dimension", "angle_mark"],
+  fluid_apparatus: ["elastic_profile", "elastic_state","hydrostatic_profile", "hydrostatic_state", "buoyancy", "solid_projection", "solid_cross_section", "point", "rectangle", "polygon", "polyline", "connect", "vector", "dimension", "circle"],
+  point_field: ["point", "vector", "circle", "line", "dimension", "angle_mark", "electric_field", "field_components", "magnetic_force", "magnetic_components", "gravitational_field", "gravitational_force", "flux_process", "induction_state"],
   energy_level: ["axes", "segment", "vector", "dimension", "label", "rectangle", "point"],
-  coordinate_figure: [
+  coordinate_figure: ["permutation_cycles", "subset_lattice","set_partition", "set_select",
+    "complex_point", "complex_transform", "complex_roots",
     "axes", "point", "line", "circle", "polygon", "intersection", "tangent_line",
     "right_angle_mark", "angle_mark", "angle_bisector", "implicit_curve", "function_curve",
     "space_frame", "space_point", "space_line", "plane", "tick_mark",
+    "space_project", "space_intersection", "space_closest_points", "space_segment",
+    "conic", "conic_anchor", "conic_directrix", "conic_asymptotes", "conic_tangent",
+    "triangle_from_sides", "triangle_from_sas", "triangle_from_asa", "triangle_center",
+    "circle_from_three_points", "circle_tangent_at", "circle_tangency_points", "circle_intersections",
+    "affine_point", "affine_path", "probability_tree",
   ],
-  vector_diagram: ["axes", "vector", "vector_components", "angle_mark", "label", "sign_badge", "tick_mark"],
+  vector_diagram: ["rotational_motion", "rotational_state", "planar_torque", "magnetic_force", "magnetic_components", "gravitational_field", "gravitational_force","axes", "vector", "vector_components", "angle_mark", "label", "sign_badge", "tick_mark", "vector_sum", "vector_scale", "vector_projection"],
 };
 
 const CHEMISTRY_PREDICATES = ["exists", "label_attached"] as const;
@@ -176,14 +196,14 @@ const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
   polarizer: "Use polarizer for every transmission axis, derive stated relative angles, and keep labels attached to their own optical element.",
   contact_body: "Construct contact surfaces and rigid bodies first. Attach every force vector to its body with a shared point ID, using vector_components with the physical surface as basis on an incline. For a hinged rod or rotating rigid body, reuse one hinge/axis point and derive the second pose with rotate; attach weight at the centre of mass. Prove contact, perpendicular normals, equal rod lengths, and opposite action-reaction. Never draw a free-body as floating arrows or two disconnected copies of the same body.",
   circuit_network: "Every circuit component is a symbol with two terminals. Series components share consecutive terminals; parallel components share the same terminal pair. Prove path or sameTerminalPair. If a phasor diagram is named, put it in a second reveal group as vectors from one origin with angle_between; do not replace symbols with arrows.",
-  state_plot: "Plot named states as points on axes whose x and y spans are comparable layout numbers, not raw SI magnitudes. A closed cycle is one polygon or polyline through shared point IDs. Independent axis scales are display-only; never place V=0.002 against P=1e5 in world coordinates.",
+  state_plot: "Plot named states as points on axes whose x and y spans are comparable layout numbers, not raw SI magnitudes. For supplied grouped counts, use histogram (density for unequal widths), frequency_polygon, or cumulative_frequency. Use probability_tree for explicit conditional outcome branches and computed joint leaf probabilities. A closed cycle is one polygon or polyline through shared point IDs. Independent axis scales are display-only; never place V=0.002 against P=1e5 in world coordinates.",
   analytic_curve: "Use the question's expression in function_curve, parametric_curve, polar_curve, or implicit_curve. Derive tangent_line and normal_line from that curve; never send a slope or guessed endpoints. Prove a named point with function_value {x, y} as cartesian coordinates on that curve (optionally include t or theta). Do not treat the parameter t as x.",
   bounded_region: "For planar mensuration, construct the source's straight or circular boundaries with polygon, rectangle, circle or arc, using shared world points and labelled dimensions. Never substitute an unrelated graph. For function-bounded area, use function_curve plus function_region and a representative_slice strip. A disk or washer about y=axisY uses representative_slice method disk or washer; solid_of_revolution derives the generating-profile silhouette. Never sketch a disk or washer by guessed polygons.",
   solid_figure: "Represent every source solid: solid_projection for curved boundaries; solid_projection kind polyhedron extrudes or tapers the actual base for boxes, prisms, pyramids and their frustums. Compose separate operators at the stated shared face; never replace a composite with just one part. A hollow cylinder uses innerRadius and its section retains the hole. Label given dimensions, distinguish perpendicular height from slant length, and retain the internal joining face as a join, not an exposed surface. solid_cross_section is an engine-derived slice. For unsupported cuts or incomplete measurements, use an honest source-grounded schematic without invented physical values, not an unrelated solid.",
   fluid_apparatus: "Construct the connected vessel or pipe as closed polygons/rectangles that share terminals. Dimension named radii or diameters. Flow and force arrows attach to those bodies; do not draw disconnected tanks.",
-  point_field: "Place each named charge or current-carrying wire as a point or line. Field and force vectors share those IDs. Circular field geometry around a wire is a circle, not a guessed arc family. Prove collinearity, opposite directions, or perpendicularity named by the question.",
+  point_field: "Place each named charge or current-carrying wire as a point or line. Field and force vectors share those IDs. Compute point-charge fields with electric_field and field_components; schematic mode expresses direction, SI mode requires explicit consistent length and charge units. Circular field geometry around a wire is a circle, not a guessed arc family. Prove collinearity, opposite directions, or perpendicularity named by the question.",
   energy_level: "Draw energy or stopping-potential as an axis-aligned level diagram. Semiconductor topics reuse the same stacked levels: valence and conduction bands, optional donor/acceptor levels, and a p–n depletion region as adjacent regions on one axis. Transitions are segments or vectors between shared level IDs. Do not invent a circuit or a ray path for a photoelectric/Bohr energy balance; a device I–V curve is a state plot.",
-  coordinate_figure: "Plot named points on axes, then construct the asked line, circle, polygon, or right-angle mark from those IDs. Intersections and tangents are derived operators, not guessed extra points. For a named hyperbola, ellipse, or parabola, use implicit_curve (or function_curve when y is explicit) on display axes; never treat a 2D conic or a planar angle-between-lines as space_frame. For 3D lines, planes, skew lines, or shortest distance, build one space_frame, then space_point / space_line / plane in that frame; never flatten a 3D question onto a guessed 2D circle.",
+  coordinate_figure: "Plot named points on axes, then construct the asked line, circle, polygon, or right-angle mark from those IDs. Intersections and tangents are derived operators, not guessed extra points. For a canonical hyperbola, ellipse, or parabola, use conic and its derived anchors, directrices, asymptotes, and tangents; use implicit_curve for a different explicit implicit equation; never treat a 2D conic or a planar angle-between-lines as space_frame. For 3D lines, planes, skew lines, or shortest distance, build one space_frame, then space_point / space_line / plane and space_project / space_intersection / space_closest_points / space_segment in that frame; never flatten a 3D question onto a guessed 2D circle.",
   vector_diagram: "Draw named vectors from a shared origin in one frame. Use vector_components for resolved parts and prove the named angle or perpendicular/parallel relation. Do not substitute a free-body or a circuit.",
 };
 
@@ -341,6 +361,14 @@ export function inferSceneCapabilities(
     stem,
     structureDecisive ? ordered : orderFamiliesByStemPreference(stem, ordered),
   );
+  // An explicit visual without a recognized representation still reaches the
+  // universal construction language. Do not add chapter keyword routers to
+  // make a reusable operator available.
+  if (orderedFamilies.length === 0 && (explicitVisual || hints.turnPlan?.visualRequirement === "required")) {
+    SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.forEach((operator) => operators.add(operator));
+    PLANNER_VISIBLE_SCENE_PROOF_PREDICATES.forEach((predicate) => predicates.add(predicate));
+    planningGuidance.add("Choose supported constructions from the question's explicit quantities and relations. Derive landmarks and numeric labels with the engine; do not guess missing physical inputs.");
+  }
   return {
     visualRequired: orderedFamilies.length > 0
       || explicitVisual

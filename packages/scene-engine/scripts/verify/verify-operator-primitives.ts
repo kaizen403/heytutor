@@ -221,7 +221,9 @@ function operatorDocument(config: {
     source: { question: config.question },
     quantities: [],
     entities: [
-      ...config.points.map((point) => ({ id: point.id, kind: "point", role: "construction point" })),
+      // These are visible source points measured by the checks above, rather
+      // than construction-only helpers intentionally omitted by the engine.
+      ...config.points.map((point) => ({ id: point.id, kind: "point", role: "visible source point" })),
       ...(config.paths ?? []).map((path) => ({ id: path.id, kind: path.operator, role: `${path.operator} reference` })),
       { id: output, kind: config.outputKind, role: config.operator.replaceAll("_", " ") },
     ],

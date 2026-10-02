@@ -123,8 +123,8 @@ function spacePointPlane(context: GeneratorContext) {
   scene.spaceFrame("frame", "origin", "frame");
   scene.plane("plane", "frame", [a, b, c, d * k], "plane", `${fmt(a)}x${b >= 0 ? "+" : ""}${fmt(b)}y${c >= 0 ? "+" : ""}${fmt(c)}z=${fmt(d)}`.slice(0, 16), 2.4);
   scene.spacePoint("P", "frame", [point[0]! * k, point[1]! * k, point[2]! * k], "point", `P(${point.map((value) => fmt(value)).join(",")})`);
-  scene.spacePoint("N", "frame", [foot[0] * k, foot[1] * k, foot[2] * k], "nearest point N on the plane", "N");
-  scene.segment("PN", "P", "N", "shortest distance PN from the point to the plane", grounded(context, "point") && grounded(context, "plane") ? `d=${fmt(distance)}` : "d");
+  scene.spaceProject("N", "frame", "P", "plane", "nearest point N on the plane", "N");
+  scene.spaceSegment("PN", "frame", "P", "N", "shortest distance PN from the point to the plane", grounded(context, "point") && grounded(context, "plane") ? `d=${fmt(distance)}` : "d");
   scene.labelled("P", "PN");
   return scene.build();
 }

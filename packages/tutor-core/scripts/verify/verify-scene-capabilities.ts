@@ -185,14 +185,16 @@ function assertExactCapabilityList(
   }
 }
 
+// Preserve the original catalog's contract independently of later additions.
+// New operator contracts have their own reusable-scene-capabilities gate.
 assertExactCapabilityList(
-  "construction operator manifest",
-  SUPPORTED_SCENE_CONSTRUCTION_OPERATORS,
+  "baseline construction operator manifest",
+  SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.filter((operator) => (EXPECTED_CONSTRUCTION_OPERATORS as readonly string[]).includes(operator)),
   EXPECTED_CONSTRUCTION_OPERATORS,
 );
 assertExactCapabilityList(
-  "planner-visible construction operator manifest",
-  PLANNER_VISIBLE_SCENE_CONSTRUCTION_OPERATORS,
+  "baseline planner-visible construction operator manifest",
+  PLANNER_VISIBLE_SCENE_CONSTRUCTION_OPERATORS.filter((operator) => (EXPECTED_CONSTRUCTION_OPERATORS as readonly string[]).includes(operator)),
   EXPECTED_CONSTRUCTION_OPERATORS,
 );
 assertExactCapabilityList(
@@ -300,7 +302,6 @@ assertExactCapabilityList(
 
 const validatorProbe = [
   ...new Set([
-    ...EXPECTED_CONSTRUCTION_OPERATORS,
     ...SUPPORTED_SCENE_CONSTRUCTION_OPERATORS,
     "__unsupported_scene_operator__",
   ]),
