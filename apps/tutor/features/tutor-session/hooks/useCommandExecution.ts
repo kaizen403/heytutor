@@ -107,10 +107,9 @@ export interface UseCommandExecutionParams {
   /** Set for DSA turns; TYPE commands reveal blocks through it. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
   /**
-   * Publishes the diagram currently on the board to React. A worked-example
-   * frame swap changes the figure, and the caption under it is rendered from
-   * this state — without the setter the board kept frame 1's caption under
-   * every later frame.
+   * Publishes the diagram currently on the board to React. The label
+   * inspector and retrace targets read this state, so a worked-example frame
+   * swap has to publish the new frame and not only point the ref at it.
    */
   setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
   /**
@@ -924,9 +923,8 @@ export function useCommandExecution({
           if (!wiped) return;
           // Point FOCUS at the new figure before drawing it, so a spotlight
           // in the same segment resolves against what is actually on screen.
-          // The caption under the board reads from React state, so publish the
-          // frame too: without this the board kept frame 1's caption while the
-          // figure moved on, and the tutor described a line nobody could see.
+          // The label inspector and retrace targets read React state, so
+          // publish the frame too.
           activeVerifiedDiagramRef.current = next.presentation.diagram;
           setActiveVerifiedDiagram?.(next.presentation.diagram);
           for (const drawCommand of next.presentation.diagram.commands) {
