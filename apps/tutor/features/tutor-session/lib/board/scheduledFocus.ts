@@ -19,7 +19,7 @@
  * Everything here is in media milliseconds. The whiteboard scales the
  * durations it is handed by its animation speed, and the audio clock the
  * waits are measured against is media time, so nothing needs the playback
- * rate except the wait itself, which the caller wires.
+ * rate except the waits and deadline-bound flights, which the caller wires.
  */
 import type { FocusEmphasis } from "@heytutor/drawing";
 import { withSpotlight, type SpotlightHost, type SpotlightRect } from "./spotlight";
@@ -87,6 +87,8 @@ export interface ScheduledFocusOptions {
   getAudioPositionMs: () => number;
   /** Resolves when the audio clock reaches targetMs, or on cancel. */
   waitUntilAudioMs: (targetMs: number) => Promise<void>;
+  /** Converts a remaining media-time window to a safe whiteboard flight budget. */
+  flightBudgetMs?: (audioMs: number) => number;
   isCancelled: () => boolean;
   /** Least a target is traced for when its window has already passed. */
   floorMs: number;
@@ -193,8 +195,11 @@ export async function runScheduledFocus(
       // Writing a label leaves the pen beyond its trace start. Spend the
       // remaining lead on that return, so the calmer hop does not steal the
       // first word of the explanation from the trace itself.
-      const returnMs = focusHopMs(penAt, first, Math.max(0, target.startMs - options.getAudioPositionMs()));
-      if (returnMs > 0) {
+      const remainingMs = Math.max(0, target.startMs - options.getAudioPositionMs());
+      const returnMs = focusHopMs(penAt, first, options.flightBudgetMs?.(remainingMs) ?? remainingMs);
+      if (Math.hypot(penAt.x - first.x, penAt.y - first.y) >= NIB_SETTLE_PX) {
+        // An exhausted lead settles the nib immediately; adding a minimum
+        // hop after the word would delay the explanation a second time.
         await host.flyCursorTo(first.x, first.y, returnMs, undefined, options.isCancelled);
         if (options.isCancelled()) return true;
         penAt = first;

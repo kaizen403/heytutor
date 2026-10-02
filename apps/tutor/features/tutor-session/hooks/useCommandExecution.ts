@@ -49,6 +49,7 @@ import {
   getFlightDuration,
   selectInkPace,
   effectiveWhiteboardInkSpeed,
+  SCENE_ADAPTIVE_MIN,
   SCENE_MIN_MS,
   tutorDebug,
   type InkPace,
@@ -1126,6 +1127,17 @@ export function useCommandExecution({
                     shouldCancel: commandCancelled,
                     getPlaybackRate: options.getPlaybackRate,
                   }),
+                flightBudgetMs: (audioMs) => {
+                  // Lettering can leave the board at scene pace while the
+                  // voice keeps its playback rate. Budget against the slowest
+                  // adaptive pen speed and leave two frames for the landing.
+                  const rate = options.getPlaybackRate?.() ?? 1;
+                  const playbackRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
+                  const minInkSpeed = Math.max(0.25, effectiveWhiteboardInkSpeed(
+                    speedRef.current, SCENE_ADAPTIVE_MIN, inkPaceRef.current,
+                  ));
+                  return Math.max(0, audioMs / playbackRate - 32) * minInkSpeed;
+                },
                 isCancelled: commandCancelled,
                 floorMs: focusFloorMs,
               },

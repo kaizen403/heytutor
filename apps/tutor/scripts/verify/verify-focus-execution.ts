@@ -43,8 +43,9 @@ function ring(id: string, x: number, y: number): { path: string; x: number; y: n
  * it forward to the word; a flight, a glyph or a trace advances it by what
  * the pen spent, because the voice keeps going while the pen works.
  */
-function fakeBoard(options: { startAtMs?: number; letterMs?: number; labelOffsetPx?: number } = {}) {
+function fakeBoard(options: { startAtMs?: number; letterMs?: number; labelOffsetPx?: number; flightScaleAfterLetter?: number } = {}) {
   let audioMs = options.startAtMs ?? 0;
+  let flightScale = 1;
   // One glyph at scene pace. It fits the lead with room to spare, so a
   // trace that does not wait for the name starts visibly before it.
   const letterMs = options.letterMs ?? 60;
@@ -55,9 +56,9 @@ function fakeBoard(options: { startAtMs?: number; letterMs?: number; labelOffset
       events.push({ kind: "spotlight", at: audioMs, hole: spec?.hole ?? null });
     },
     flyCursorTo: async (x, y, ms) => {
-      assert(ms > 0, "a flight must have a positive duration");
+      assert(ms >= 0, "a flight cannot have a negative duration");
       events.push({ kind: "fly", at: audioMs, x, y, ms });
-      audioMs += ms;
+      audioMs += ms / flightScale;
     },
     drawAnnotation: async (kind, path, ms) => {
       assert(ms > 0, "a trace must have a positive duration");
@@ -82,6 +83,7 @@ function fakeBoard(options: { startAtMs?: number; letterMs?: number; labelOffset
     letter: async () => {
       events.push({ kind: "letter", at: audioMs, id, ms: letterMs });
       audioMs += letterMs;
+      flightScale = options.flightScaleAfterLetter ?? flightScale;
       return { cancelled: false, penAt: { x: at.x + labelOffsetPx, y: at.y } };
     },
   });
@@ -108,6 +110,44 @@ const WINDOWS = [
 ] as const;
 
 async function main(): Promise<void> {
+  // A label can leave the board at a slower animation pace than the voice.
+  // The remaining speech time is not the duration the flight may consume.
+  {
+    const board = fakeBoard({ letterMs: 160, flightScaleAfterLetter: 0.5 });
+    await runScheduledFocus(board.host, [board.target("M", 900, 2600, WINDOWS[0].at)], {
+      emphasis: "trace", veil: VEIL, getAudioPositionMs: board.now,
+      waitUntilAudioMs: board.waitUntil, isCancelled: () => false, floorMs: 420,
+      flightBudgetMs: (audioMs: number) => audioMs * 0.5,
+    });
+    assert(board.traces()[0]!.at === 900, "a slowed return after lettering must still leave the trace on its spoken word");
+  }
+
+  // Finishing a label on the word leaves no time for a second flight.
+  {
+    const board = fakeBoard({ letterMs: 220 });
+    await runScheduledFocus(board.host, [board.target("M", 900, 2600, WINDOWS[0].at)], {
+      emphasis: "trace", veil: VEIL, getAudioPositionMs: board.now,
+      waitUntilAudioMs: board.waitUntil, isCancelled: () => false, floorMs: 420,
+    });
+    assert(board.traces()[0]!.at === 900, "an exhausted lead must not add another flight after the word");
+    const landing = board.events.filter((event): event is FlyEvent => event.kind === "fly").at(-1)!;
+    assert(landing.ms === 0, "an exhausted lead must settle the nib at the trace start");
+  }
+
+  // Already-revealed labels, as in the recorded pyramid intro, need no return.
+  {
+    const board = fakeBoard();
+    const target = board.target("M", 900, 2600, WINDOWS[0].at);
+    target.letter = async () => ({ cancelled: false, penAt: null });
+    await runScheduledFocus(board.host, [target], {
+      emphasis: "trace", veil: VEIL, getAudioPositionMs: board.now,
+      waitUntilAudioMs: board.waitUntil, isCancelled: () => false, floorMs: 420,
+      flightBudgetMs: (audioMs) => audioMs * 0.5,
+    });
+    assert(board.events.filter((event) => event.kind === "fly").length === 1, "revealed labels must keep their single original approach");
+    assert(board.traces()[0]!.at === 900, "a revealed label keeps its trace on the spoken word");
+  }
+
   // --- Three names, three windows: each traced on its word, in order. ---
   {
     const board = fakeBoard();
