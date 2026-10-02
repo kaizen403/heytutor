@@ -1,5 +1,7 @@
 /* Only the walkthrough camera scales. Every product control stays desktop-sized. */
 .use-case-viewport {
+  --use-case-width: 1440;
+  --use-case-offset: 0px;
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 10;
@@ -10,6 +12,7 @@
 .use-case-laptop {
   position: absolute;
   inset: 0 auto auto 0;
+  left: calc(-1 * var(--use-case-offset) * var(--use-case-fit, 1));
   width: 1440px;
   height: 900px;
   transform-origin: 0 0;
@@ -27,6 +30,13 @@
   position: relative;
   will-change: transform;
   background: var(--ink-950);
+}
+@media (max-width: 639px) {
+  .use-case-viewport {
+    --use-case-width: 1176;
+    --use-case-offset: 264px;
+    aspect-ratio: 1176 / 900;
+  }
 }
 .demo-sidebar {
   position: absolute;
