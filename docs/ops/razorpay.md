@@ -110,6 +110,11 @@ and signature-authenticated. It verifies the exact raw request body.
 - Callback, recovery, and webhook delivery share a PostgreSQL transaction and
   per-user advisory lock. An order is credited once, including concurrent
   callback/webhook delivery. Replayed checkout idempotency keys reuse orders.
+- If order creation loses its response, a retry or Check checkout recovers the
+  exact frozen order through Razorpay's receipt-filtered Orders API. The app never
+  retries its creation POST. Preparation stays in flight for the first 15 seconds;
+  after one minute without a provider order it reports an expired checkout, kept
+  in history, so the buyer can start another attempt.
 - A paid month starts when confirmed. Renewals queue another full month.
   Plus bought during historical Pro coverage starts after existing paid coverage. UTC month ends are
   clamped for dates such as January 31.
@@ -120,6 +125,9 @@ and signature-authenticated. It verifies the exact raw request body.
   proportional allowance; partial plan refunds keep the month active. Refunds
   revoke cached grants and retained WebSocket allowance. Future unused queued
   months are compacted; historical consumed months are never regranted.
+- Refunded top-up usage already consumed remains debt through that pack's
+  original expiry, including full refunds. Buying another pack cannot erase it;
+  sandbox debt cannot debit live usage.
 - New purchases refresh an exhausted existing grant without resetting its
   trace ownership or per-lesson speech ceiling. Paid-call admission rechecks
   current access. Expiry does not authorize more paid provider calls; narration
@@ -171,6 +179,11 @@ applied migrations or mark failed migrations resolved on a production DB blindly
   trace ownership, WebSocket lifecycle, and independent retained identity floors
   for sandbox and live billing. Navigation, lecture audio/player, queue races,
   landing demonstrations, and country handlers pass after dependency updates.
+- Upload cleanup is recorded in the admission transaction before uploading.
+  Migration 22 adds the pending-turn charge to durable cleanup receipts. A failed
+  save, cleanup database outage, or process crash leaves a recoverable intent;
+  worker leases fence late commits and release capacity once. Real PostgreSQL
+  tests cover successful saves, crashes, abandonment, replay, and claimed intents.
 - Chromium checks cover automatic country selection, currency correction and
   persistence, the sole paid plan, Add credits, mobile layout, signed quote
   submission, cancellation/recovery, double clicks, expired quotes, SDK retry,

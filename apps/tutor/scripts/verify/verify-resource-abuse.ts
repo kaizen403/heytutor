@@ -18,7 +18,7 @@ const userId = "f6fa709b-b77a-487c-b7d0-5fb8a6c60679";
 const boardId = "2ee1e7eb-aae0-40ba-a494-a13c99d63e9a";
 const date = new Date("2026-10-02T00:00:00Z");
 const board = { id: boardId, userId, title: "A lesson", preview: "", createdAt: date, updatedAt: date, pinnedAt: null, archivedAt: null };
-let scenario: "normal" | "board-limit" | "turn-limit" | "storage-limit" | "list" | "near-turn-limit" | "foreign-trace" = "normal";
+let scenario: "normal" | "board-limit" | "turn-limit" | "storage-limit" | "list" | "near-turn-limit" | "foreign-trace" | "save-and-cleanup-failure" = "normal";
 let writes = 0;
 let uploads = 0;
 let parses = 0;
@@ -61,8 +61,14 @@ const tx = {
     },
   },
   objectDeletionJob: {
-    findUnique: async ({ where }: { where: { prefix: string } }) => deletionJobs.get(where.prefix) ?? null,
-    create: async ({ data }: { data: Record<string, unknown> & { prefix: string } }) => { deletionJobs.set(data.prefix, data); return data; },
+    findUnique: async ({ where }: { where: { prefix?: string; id?: string } }) => where.prefix ? deletionJobs.get(where.prefix) ?? null : [...deletionJobs.values()].find(job => job.id === where.id) ?? null,
+    create: async ({ data }: { data: Record<string, unknown> & { prefix: string } }) => { const job = { attempts: 0, ...data }; deletionJobs.set(data.prefix, job); return job; },
+    update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+      const job = [...deletionJobs.values()].find(item => item.id === where.id)!; Object.assign(job, data); return job;
+    },
+    delete: async ({ where }: { where: { id: string } }) => {
+      for (const [prefix, job] of deletionJobs) if (job.id === where.id) deletionJobs.delete(prefix);
+    },
   },
   board: {
     findFirst: async ({ where }: { where: { id?: string } } = { where: {} }) => where.id && where.id !== boardId ? null : board,
@@ -96,6 +102,7 @@ let lockTail = Promise.resolve();
 const prisma = {
   ...tx,
   $transaction: async <T>(callback: (value: typeof tx) => Promise<T>) => {
+    if (scenario === "save-and-cleanup-failure" && uploads > 0) throw new Error("fake transient database outage");
     let unlock: (() => void) | undefined;
     const connection = { ...tx, $queryRaw: async (...args: unknown[]) => {
       const sql = Array.isArray(args[0]) ? args[0].join("") : "";
@@ -210,6 +217,18 @@ async function main(): Promise<void> {
     assert.equal(uploads, 1);
     assert.equal(pendingTurns, 0);
     assert(ledgerBytes > 48n, "persistent audio and metadata must remain charged after save");
+  });
+  await check("a save and its cleanup transaction failing together preserve the pre-upload recovery intent", async () => {
+    scenario = "save-and-cleanup-failure";
+    await assert.rejects(turns.POST(lessonRequest(), context), /fake transient database outage/);
+    assert.equal(createdTurns, 0);
+    assert.equal(uploads, 1);
+    assert.equal(pendingTurns, 1);
+    assert.equal(deletionJobs.size, 1);
+    const intent = [...deletionJobs.values()][0]!;
+    assert.equal(intent.pendingTurns, 1);
+    assert.equal(BigInt(String(intent.bytes)), ledgerBytes);
+    assert((intent.nextAttemptAt as Date) > new Date(), "crash recovery stays scheduled without another successful DB write");
   });
   await check("production saves without a server-issued lesson trace are denied before upload", async () => {
     const response = await turns.POST(lessonRequest(null), context);

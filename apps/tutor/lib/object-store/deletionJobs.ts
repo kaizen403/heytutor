@@ -32,7 +32,7 @@ async function claimDeletion(now: Date): Promise<ObjectDeletionJob | null> {
     UPDATE object_deletion_jobs AS job
     SET attempts = job.attempts + 1, next_attempt_at = ${leaseUntil}
     FROM due WHERE job.id = due.id
-    RETURNING job.id, job.prefix, job.user_id AS "userId", job.bytes,
+    RETURNING job.id, job.prefix, job.user_id AS "userId", job.bytes, job.pending_turns AS "pendingTurns",
       job.attempts, job.next_attempt_at AS "nextAttemptAt", job.created_at AS "createdAt"
   `;
   return jobs[0] ?? null;
@@ -47,12 +47,14 @@ async function finishDeletion(job: ObjectDeletionJob): Promise<boolean> {
     await tx.$queryRaw`SELECT id FROM object_deletion_jobs WHERE id = ${job.id}::uuid FOR UPDATE`;
     const current = await tx.objectDeletionJob.findUnique({ where: { id: job.id } });
     if (!current || current.attempts !== job.attempts || current.nextAttemptAt.getTime() !== job.nextAttemptAt.getTime()) return false;
-    if (users.length && job.userId && job.bytes > 0n) {
+    if (users.length && job.userId && (job.bytes > 0n || job.pendingTurns > 0)) {
       const storage = await tx.userStorage.findUnique({ where: { userId: job.userId } });
       if (storage) {
         await tx.userStorage.update({
           where: { userId: job.userId },
-          data: { reservedBytes: storage.reservedBytes > job.bytes ? storage.reservedBytes - job.bytes : 0n },
+          data: { reservedBytes: storage.reservedBytes > job.bytes ? storage.reservedBytes - job.bytes : 0n,
+            ...(job.pendingTurns > 0 ? { pendingTurns: Math.max(0, storage.pendingTurns - job.pendingTurns) } : {}),
+          },
         });
       }
     }

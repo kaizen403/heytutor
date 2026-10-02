@@ -76,6 +76,8 @@ export async function checkPendingPurchase(purchaseId: string): Promise<"paid" |
   });
   const payload = await response.json() as { status?: string; code?: string };
   if (!response.ok) throw new CheckoutError(payload.code ?? "payments_unavailable");
+  if (payload.status === "expired") throw new CheckoutError("checkout_expired");
+  if (payload.status === "preparing") throw new CheckoutError("checkout_preparing");
   if (payload.status === "paid" || payload.status === "refunded") { clearPendingPurchase(); return payload.status; }
   return "pending";
 }

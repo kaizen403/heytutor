@@ -77,6 +77,8 @@ export function studentBillingMessage(code: string): string {
     case "checkout_preparing":
     case "checkout_in_progress":
       return "A checkout is already in progress. Please wait.";
+    case "checkout_expired":
+      return "This checkout was not prepared. Please try your purchase again.";
     case "checkout_load_failed":
       return "Could not load secure checkout. Check your connection and try again.";
     case "invalid_payment":
