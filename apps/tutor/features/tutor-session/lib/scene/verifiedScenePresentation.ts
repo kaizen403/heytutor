@@ -1,4 +1,5 @@
 import {
+  measureTextInkBounds,
   measureTextWidth,
   verifiedDiagramCommandToDrawCommand,
   DIAGRAM_ZONE,
@@ -26,6 +27,7 @@ import {
 import { CUE_DEFAULT_MS_PER_CHAR, cuedInkFloorMs, findSpokenToken } from "@heytutor/tutor-core";
 import { DSA_CODE_PANEL_RECT, DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildLabelGlossary } from "./labelGlossary";
+import { isDsaConstructionGuide } from "./diagramInk";
 
 /** Named axis marks stay small so they read as dots, not hollow letters. */
 const DIAGRAM_POINT_RADIUS = 2;
@@ -68,7 +70,9 @@ export function buildVerifiedDiagramPresentation(
   const labels: LabelPlacementState = {
     keys: new Set<string>(),
     rects: [],
-    obstacles: [...obstaclesFromPrimitives(renderScene.primitives), layout.protectedColumn],
+    // Unsolved labels carry anchors, not occupied text boxes. Each solved
+    // label enters the obstacle set below at its actual rendered bounds.
+    obstacles: [...obstaclesFromPrimitives(renderScene.primitives.filter((primitive) => primitive.kind !== "label" || primitive.labelPlacement === "absolute")), layout.protectedColumn],
     layout,
   };
   const commandKeys = new Set<string>();
@@ -96,6 +100,9 @@ export function buildVerifiedDiagramPresentation(
       command.text ?? "",
       command.visualStyle?.strokeRole ?? "",
       command.visualStyle?.fillRole ?? "",
+      command.visualStyle?.measurementRole ?? "",
+      command.visualStyle?.labelLeader ? "labelLeader" : "",
+      command.visualStyle?.measurementRole ? command.semanticRef?.entityId ?? "" : "",
       command.semanticRef?.actionId ?? "",
     ].join(":");
     if (commandKeys.has(key)) return null;
@@ -475,9 +482,7 @@ function isDsaMarkerScribble(command: VerifiedDiagramCommand): boolean {
     return true;
   }
   if (command.visualStyle?.strokeRole === "trace") return true;
-  return command.type === "DRAW_LINE"
-    && command.visualStyle?.dashed === true
-    && command.visualStyle?.strokeRole === "construction";
+  return command.type === "DRAW_LINE" && isDsaConstructionGuide(command);
 }
 
 interface DeferredCommand {
@@ -521,7 +526,7 @@ function deferralReason(
   if (primitive.provenance?.transient === true) return "annotation";
   if (command.type === "CIRCLE_AROUND" || command.type === "HIGHLIGHT") return "annotation";
   if (command.visualStyle?.strokeRole === "trace") return "annotation";
-  if (command.type === "LABEL" || command.type === "DIMENSION") return "named";
+  if (command.type === "LABEL" || command.type === "DIMENSION" || primitive.provenance?.measurementRole === "witness" || primitive.provenance?.labelLeader === true) return "named";
   return null;
 }
 
@@ -538,7 +543,11 @@ function annotationVisualStyle(
     ? provenance.strokeRole
     : command.visualStyle?.strokeRole;
   const fillRole = provenance.fillRole === "region" ? "region" as const : command.visualStyle?.fillRole;
-  if (!corresponding && !dashed && !strokeRole && !fillRole) return {};
+  const measurementRole = provenance.measurementRole === "bar" || provenance.measurementRole === "witness"
+    ? provenance.measurementRole
+    : undefined;
+  const labelLeader = provenance.labelLeader === true;
+  if (!corresponding && !dashed && !strokeRole && !fillRole && !measurementRole && !labelLeader) return {};
   return {
     visualStyle: {
       ...command.visualStyle,
@@ -546,6 +555,8 @@ function annotationVisualStyle(
       dashed,
       strokeRole,
       fillRole,
+      ...(measurementRole ? { measurementRole } : {}),
+      ...(labelLeader ? { labelLeader: true } : {}),
       strokeWidth: corresponding === 2 ? 2.9 : command.visualStyle?.strokeWidth,
     },
   };
@@ -567,7 +578,7 @@ function correspondingGroupsFromDocument(document: SceneDocument): Array<{ id: s
 }
 
 function revealPhaseForPrimitive(primitive: RenderPrimitive): RevealPhase {
-  if (primitive.kind === "label" || primitive.kind === "dimension") return "detail";
+  if (primitive.kind === "label" || primitive.kind === "dimension" || primitive.provenance?.measurementRole === "witness" || primitive.provenance?.labelLeader === true) return "detail";
   if (primitive.kind === "ray" || primitive.kind === "vector") return "direction";
   // A point marks a position on geometry that must already exist.
   if (primitive.kind === "point") return "marker";
@@ -1472,21 +1483,13 @@ function addLabel(
     obstacles,
     // `fontPx`, not the 24px default: the reserved box has to be the size this
     // label is actually lettered at, and a compiled label may carry its own.
-    { fontHeightPx: fontPx, measureTextPx: measureTextWidth },
+    { fontHeightPx: fontPx, measureTextPx: measureTextWidth, measureTextInkBounds },
   );
 
-  // With every stroke blocking, the label still has to land somewhere. Solving
-  // again against the protected column alone keeps the same one engine — and
-  // the same in-view, out-of-the-work-column guarantees — instead of the fixed
-  // offset this used to fall back to, which ignored the figure entirely.
-  const placement = solve(labels.obstacles).placements[0]
-    ?? solve(labels.obstacles.filter((obstacle) => obstacle.kind === "protected")).placements[0];
-  const placed = placement?.bounds ?? {
-    x: clamp(x + 10, labels.layout.minX, labels.layout.maxX - width),
-    y: clamp(y - 26, 55, 580),
-    width,
-    height: 32,
-  };
+  const solution = solve(labels.obstacles);
+  const placement = solution.ok ? solution.placements[0] : undefined;
+  if (!placement) throw new Error(`Verified diagram label ${primitive.id} has no collision-free placement`);
+  const placed = placement.bounds;
 
   labels.rects.push(placed);
   labels.obstacles.push({
@@ -1501,13 +1504,8 @@ function addLabel(
   if (placement?.usesLeader && placement.leaderFrom && placement.leaderTo) {
     commands.push({
       type: "DRAW_LINE",
-      params: [
-        placement.leaderFrom.x,
-        placement.leaderFrom.y,
-        placement.leaderTo.x,
-        placement.leaderTo.y,
-      ],
-      visualStyle: { strokeRole: "construction", strokeWidth: 1.1 },
+      params: flatten(placement.leaderPath ?? [placement.leaderFrom, placement.leaderTo]),
+      visualStyle: { strokeRole: "construction", strokeWidth: 1.1, labelLeader: true },
       semanticRef: { entityId: primitive.entityId, primitiveId: primitive.id },
     });
   }
@@ -1603,10 +1601,6 @@ function orderedRevealGroupIds(scene: RenderScene): string[] {
   return result;
 }
 
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
 
 function flatten(points: Array<{ x: number; y: number }>): number[] {
   return points.flatMap((point) => [point.x, point.y]);

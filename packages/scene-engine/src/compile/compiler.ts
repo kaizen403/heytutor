@@ -21,7 +21,7 @@ import {
 } from "../labels/labelEngine";
 // The engine reserves the room the board will letter into, so it measures with
 // the board's own glyph metrics rather than an average character box.
-import { measureTextWidth } from "@heytutor/drawing";
+import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
@@ -94,6 +94,8 @@ import {
   type SpacePlaneDefinition,
   type SpaceSegmentDefinition,
 } from "./spaceDerivations";
+import { projectSolidPoint, solidAnchorPoint, solidSectionDimensions, type SolidProjection, type SolidProjectionKind } from "./solidAnchors";
+import { validateSolidMeasurements } from "./solidMeasurements";
 
 type Point = { x: number; y: number };
 type Viewport = { x: number; y: number; width: number; height: number; padding?: number };
@@ -143,16 +145,7 @@ type DerivedGeometryMetadata = {
   physicalProcess?: ThermodynamicProcessDefinition;
   thermodynamicState?: ThermodynamicStateDefinition;
 };
-type SolidProjectionKind = "cylinder" | "cone" | "frustum" | "sphere" | "hemisphere";
-type SolidProjection = {
-  kind: SolidProjectionKind;
-  center: Point;
-  radius: number;
-  height: number;
-  topRadius: number;
-  innerRadius?: number;
-  axis: "vertical" | "horizontal";
-};
+
 type Geometry =
   | ({ kind: "point"; point: Point; space?: Vec3; spaceFrameId?: string; sampledCurve?: SampledCurve } & DerivedGeometryMetadata)
   | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition } & DerivedGeometryMetadata)
@@ -298,10 +291,12 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   }
 
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
+  validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
   for (const assertion of document.assertions) validateAssertion(assertion, geometry, document, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
 
   const viewport: Viewport = options.viewport ?? { x: 410, y: 55, width: 740, height: 555, padding: 24 };
+  const dimensionLanes = computeDimensionLaneOffsets(document, geometry, entityToGroup, constructionOnlyIds);
   const hasLabels = document.entities.some((entity) => Boolean(entity.label)) ||
     document.annotations.some((annotation) =>
       (annotation.kind === "label" || annotation.kind === "callout") &&
@@ -317,6 +312,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     viewport,
     hasLabels,
     checkedClaimOutputIds,
+    dimensionLanes,
   );
   if (!transformPlan) {
     issues.push({ code: "empty_geometry", message: "Scene has no finite geometry to render", severity: "fatal" });
@@ -329,7 +325,6 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       .map((construction) => construction.inputs.incoming)
       .filter((value): value is string => typeof value === "string"),
   );
-  const dimensionLanes = computeDimensionLaneOffsets(document, geometry, entityToGroup);
   applyCorrespondingAngleCounts(document, geometry);
   const primitives: RenderPrimitive[] = [];
   const renderableIds = new Set(document.requiredEntityIds);
@@ -356,6 +351,52 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     }
   }
   appendCorrespondingTickPrimitives(document, geometry, primitives, entityToGroup, transformPlan, constructionOnlyIds);
+  // Moving one lane also moves its witnesses. Recheck earlier dimensions
+  // against that final ink until the bounded lane search is stable.
+  for (let pass = 0; pass <= dimensionLanes.size; pass++) {
+    const changed = relocateObstructedDimensions(document, geometry, primitives, transformPlan, dimensionLanes, issues);
+    if (!changed || issues.some((issue) => issue.severity === "fatal")) break;
+  }
+  assertDimensionViewport(primitives, transformPlan, issues);
+  if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
+
+  // Annotation ink is part of the scene's geometry. Reserve it before solving
+  // labels so a later brace, tick, or polarity mark cannot cross solved text.
+  // Construction points remain exact anchors for marks such as a peak's
+  // projection onto axes, without becoming extra visible helper dots.
+  const annotationAnchorIds = new Set(document.annotations.flatMap((annotation) => annotation.targetIds));
+  const annotationAnchors = [...geometry.entries()].flatMap(([id, value]) =>
+    constructionOnlyIds.has(id) && annotationAnchorIds.has(id) && value.kind === "point"
+      ? toPrimitives(id, "point", value, entityToGroup.get(id) ?? document.revealGroups[0]?.id ?? "scene", transformPlan.transformFor(id), transformPlan.viewportFor(id), false)
+      : [],
+  );
+  appendCompiledAnnotations(document, primitives, entityToGroup, issues, annotationAnchors);
+  const annotationLabels = new Map(
+    primitives
+      .filter((primitive) => primitive.kind === "label" && typeof primitive.provenance?.annotationId === "string")
+      .map((primitive) => [primitive.id, primitive]),
+  );
+  const annotationLabelOwners: LabelOwner[] = [];
+  for (const primitive of annotationLabels.values()) {
+    const anchor = primitive.points[0];
+    if (!anchor || !primitive.text) continue;
+    const annotation = document.annotations.find((candidate) => candidate.id === primitive.provenance?.annotationId);
+    const targetId = annotation?.targetIds.find((id) => geometry.has(id));
+    annotationLabelOwners.push({
+      labelId: primitive.id,
+      entityId: primitive.entityId,
+      anchor,
+      text: primitive.text,
+      viewBounds: targetId ? transformPlan.viewportFor(targetId) : viewport,
+      useOwnerBounds: false,
+      preferredSlot: annotation?.kind === "brace" ? "south" : undefined,
+      tetherPx: annotation?.kind === "polarity" ? POINT_LABEL_TETHER_PX : undefined,
+      allowLeader: annotation?.kind !== "polarity",
+    });
+  }
+  for (let index = primitives.length - 1; index >= 0; index -= 1) {
+    if (annotationLabels.has(primitives[index]!.id)) primitives.splice(index, 1);
+  }
 
   const labelOwners: LabelOwner[] = [];
   const consumedAnnotationIds = new Set<string>();
@@ -400,25 +441,19 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (valueAnnotation && useCombinedText) consumedAnnotationIds.add(valueAnnotation.id);
     if (explicitAnnotation && !useCombinedText && !semanticDirectionMarker) continue;
     const transform = transformPlan.transformFor(entity.id);
-    const dimensionPrimitive = target.kind === "dimension"
-      ? primitives.find((primitive) => primitive.entityId === entity.id && primitive.kind === "dimension")
-      : undefined;
-    const dimensionMid = dimensionPrimitive && dimensionPrimitive.points.length >= 2
-      ? {
-          x: (dimensionPrimitive.points[0]!.x + dimensionPrimitive.points[1]!.x) / 2,
-          y: (dimensionPrimitive.points[0]!.y + dimensionPrimitive.points[1]!.y) / 2,
-        }
-      : undefined;
     labelOwners.push({
       labelId: `primitive_${entity.id}_label`,
       entityId: entity.id,
-      anchor: dimensionMid ?? screenLabelAnchor(entity.id, target, primitives, transform),
+      anchor: screenLabelAnchor(entity.id, target, primitives, transform),
       text: useCombinedText ? combinedText : entity.label,
       viewBounds: transformPlan.viewportFor(entity.id),
       useOwnerBounds: target.kind === "point" || target.kind === "arc" || target.kind === "dimension" ? false : undefined,
-      incidentTangents: target.kind === "point" ? screenIncidentTangents(target.point, geometry, transform) : undefined,
-      tetherPx: target.kind === "point" ? POINT_LABEL_TETHER_PX : undefined,
-      allowLeader: true,
+      incidentTangents: target.kind === "point" && entity.kind === "point" ? screenIncidentTangents(target.point, geometry, transform) : undefined,
+      tetherPx: target.kind === "point" && entity.kind === "point" ? pointLabelTether(entity.label) : undefined,
+      allowLeader: entity.kind === "point" ? !isPointIdentifierText(entity.label) : true,
+      requireLeader: entity.provenance?.requireLabelLeader === true,
+      leaderGeometrySafe: entity.kind === "point" || entity.provenance?.leaderGeometrySafe === true,
+      ...dimensionLabelPlacement(entity.id, target, primitives, transformPlan.viewportFor(entity.id)),
     });
   }
   for (const annotation of document.annotations) {
@@ -533,14 +568,21 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         text,
         preferredSlot: placementSlot(annotation.placementIntent),
         viewBounds: transformPlan.viewportFor(targetId),
-        useOwnerBounds: target.kind === "arc" ? false : undefined,
+        useOwnerBounds: target.kind === "point" || target.kind === "arc" || target.kind === "dimension" ? false : undefined,
+        incidentTangents: target.kind === "point" && targetEntity?.kind === "point"
+          ? screenIncidentTangents(target.point, geometry, transformPlan.transformFor(targetId))
+          : undefined,
+        tetherPx: target.kind === "point" && targetEntity?.kind === "point" ? pointLabelTether(text) : undefined,
+        leaderGeometrySafe: targetEntity?.kind === "point",
+        allowLeader: targetEntity?.kind === "point" ? !isPointIdentifierText(text) : undefined,
+        ...dimensionLabelPlacement(targetId, target, primitives, transformPlan.viewportFor(targetId)),
       });
     }
   }
 
   attachAngleMeasureLabels(document, geometry, labelOwners, transformPlan, consumedAnnotationIds);
 
-  const uniqueLabelOwners = labelOwners.filter((owner, index, all) => {
+  const uniqueLabelOwners = [...labelOwners.filter((owner, index, all) => {
     if (owner.labelId && summaryLabelIds.has(owner.labelId)) {
       return all.findIndex((candidate) => candidate.labelId === owner.labelId) === index;
     }
@@ -548,7 +590,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       candidate.entityId === owner.entityId &&
       (!candidate.labelId || !summaryLabelIds.has(candidate.labelId))
     ) === index;
-  });
+  }), ...annotationLabelOwners];
   const pinDsaLabels = document.source.synthesizedDsa === true;
   // A chemistry figure pins its atom symbols on the atom itself (an element
   // symbol beside a bond junction reads as a substituent) while its bond
@@ -582,8 +624,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const labelOptions: LabelEngineOptions = pinDsaLabels
     // 16 is the validator's own compact-label ceiling; a lower cap here
     // rejected labels the document had already accepted.
-    ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth }
-    : { measureTextPx: measureTextWidth };
+    ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds }
+    : { measureTextPx: measureTextWidth, measureTextInkBounds };
   const stackedOwners = pinDsaLabels
     ? null
     : stackSummaryLabelOwners(document, placementOwners, summaryLabelIds, primitives, labelObstacles, labelOptions);
@@ -615,7 +657,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       text: placement.text,
       labelPlacement: "absolute",
       provenance: {
+        ...annotationLabels.get(placement.labelId)?.provenance,
         labelBounds: placement.bounds,
+        ...(placement.collisionBounds ? { labelCollisionBounds: placement.collisionBounds } : {}),
         usesLeader: placement.usesLeader,
         ...(pinDsaLabels ? { fontPx: DSA_LABEL_FONT_PX, labelPad: 3 } : {}),
         ...(summaryLabelIds.has(placement.labelId) ? { summary: true } : {}),
@@ -626,16 +670,15 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         id: `${placement.labelId}_leader`,
         entityId: placement.entityId,
         groupId,
-        kind: "line",
-        points: [
+        kind: placement.leaderPath ? "polyline" : "line",
+        points: (placement.leaderPath ?? [
           { x: round(placement.leaderFrom.x), y: round(placement.leaderFrom.y) },
           { x: round(placement.leaderTo.x), y: round(placement.leaderTo.y) },
-        ],
-        provenance: { annotation: "callout", dashed: true, strokeRole: "construction" },
+        ]).map((point) => ({ x: round(point.x), y: round(point.y) })),
+        provenance: { annotation: "callout", dashed: true, strokeRole: "construction", labelLeader: true },
       });
     }
   }
-  appendCompiledAnnotations(document, primitives, entityToGroup, issues);
   assertScreenAttachedLabels(document, geometry, primitives, transformPlan, issues);
 
   const renderedIds = new Set([
@@ -852,17 +895,22 @@ function createEntityTransformPlan(
   viewport: Viewport,
   hasLabels: boolean,
   checkedClaimOutputIds: ReadonlySet<string>,
+  dimensionLanes: Map<string, number>,
 ): EntityTransformPlan | null {
   const renderGeometry = [...geometry.entries()].filter(([id]) => !constructionOnlyIds.has(id));
-  const fallbackViewport = withLabelPadding(viewport, hasLabels, document.source.dsaFitBox === true);
+  const fallbackViewport = withDimensionPadding(
+    withLabelPadding(viewport, hasLabels, document.source.dsaFitBox === true),
+    [...dimensionLanes.entries()].map(([id, offset]) => Math.abs(offset) + dimensionLabelClearance(document, geometry, id)),
+  );
   const participatesInFit = (id: string): boolean => {
+    const entity = document.entities.find((candidate) => candidate.id === id);
     const value = geometry.get(id);
-    // Source-derived count/scalar anchors contribute to the fitted scene even
-    // when their presentation is text only.
     const derivedAnchor = value?.kind === "point" && (checkedClaimOutputIds.has(id) ||
       Object.keys(value).some((key) => key !== "kind" && key !== "point"));
-    return document.entities.find((entity) => entity.id === id)?.kind !== "label" || derivedAnchor;
+    return entity?.kind !== "label" || derivedAnchor || entity.provenance?.pinLabel === true || document.source.synthesizedDsa === true;
   };
+  // A pinned label owns this exact position. Include its anchor before the
+  // glyph margin is reserved, so a caption beyond a trimmed bond stays in view.
   const fitEntries = renderGeometry.filter(([id]) => participatesInFit(id));
   const fallback = createTransform(
     (fitEntries.length > 0 ? fitEntries : renderGeometry).map(([, value]) => value),
@@ -880,10 +928,24 @@ function createEntityTransformPlan(
     [...new Set(component.renderIds.map((id) => entityToGroup.get(id)!).filter(Boolean))],
   );
   const distinctGroups = new Set(componentGroups.flat());
+  const componentByEntity = new Map(components.flatMap((component, index) =>
+    component.ids.map((id) => [id, index] as const),
+  ));
+  // Connected geometry is one physical figure even when its parts were
+  // constructed independently. Separate transforms would break the proven
+  // join and scale its measurements against different coordinate systems.
+  const connectsComponents = document.assertions.some((assertion) =>
+    assertion.predicate === "connected" && assertion.expected !== false &&
+    new Set(assertion.entities.flatMap((id) => {
+      const component = componentByEntity.get(id);
+      return component === undefined ? [] : [component];
+    })).size > 1,
+  );
   // DSA example frames must keep the full diagram-zone width. Packing them
   // into a 2-column grid shrinks each cell until the handwritten value
   // fills the box and sits on the stroke.
   const canPack = document.source.synthesizedDsa !== true &&
+    !connectsComponents &&
     components.length > 1 &&
     componentGroups.every((groups) => groups.length === 1) &&
     distinctGroups.size === components.length;
@@ -898,19 +960,26 @@ function createEntityTransformPlan(
   const slots = viewSlots(viewport, ordered.length);
   const transformByEntity = new Map<string, (point: Point) => RenderPoint>();
   const viewportByEntity = new Map<string, Viewport>();
+  let invalidSlot = false;
   ordered.forEach(({ component }, index) => {
     const slot = slots[index]!;
     const values = component.ids.flatMap((id) => {
       const value = geometry.get(id);
       return value && !constructionOnlyIds.has(id) && participatesInFit(id) ? [value] : [];
     });
-    const componentTransform = createTransform(values, withLabelPadding(slot, hasLabels));
-    if (!componentTransform) return;
+    const componentTransform = createTransform(values, withDimensionPadding(
+      withLabelPadding(slot, hasLabels),
+      component.ids.flatMap((id) => dimensionLanes.has(id)
+        ? [Math.abs(dimensionLanes.get(id)!) + dimensionLabelClearance(document, geometry, id)]
+        : []),
+    ));
+    if (!componentTransform) { invalidSlot = true; return; }
     component.ids.forEach((id) => {
       transformByEntity.set(id, componentTransform);
       viewportByEntity.set(id, slot);
     });
   });
+  if (invalidSlot) return null;
   return {
     transformFor: (entityId) => transformByEntity.get(entityId) ?? fallback,
     viewportFor: (entityId) => viewportByEntity.get(entityId) ?? viewport,
@@ -969,6 +1038,38 @@ function withLabelPadding(viewport: Viewport, hasLabels: boolean, hasOwnFitBox =
   // of its height. A document without that box keeps the reserve.
   if (hasOwnFitBox) return { ...viewport, padding: Math.max(viewport.padding ?? 0, 18) };
   return { ...viewport, padding: Math.min(64, Math.max(viewport.padding ?? 24, Math.min(viewport.width, viewport.height) * 0.18)) };
+}
+
+const DIMENSION_LANE_PX = 28;
+const DIMENSION_LABEL_LANE_PX = 60;
+const DIMENSION_CAP_HALF_PX = 5;
+const DIMENSION_WITNESS_OVERHANG_PX = 6;
+
+function dimensionLabelText(document: SceneDocument, entityId: string): string | undefined {
+  const entityLabel = document.entities.find((entity) => entity.id === entityId)?.label;
+  const annotation = document.annotations.find((annotation) =>
+    (annotation.kind === "label" || annotation.kind === "callout") && annotation.targetIds.includes(entityId) && annotation.text &&
+    !(annotation.quantityId && entityLabel) && !(annotation.kind === "callout" && isViewSummaryText(annotation.text)),
+  );
+  return annotation?.kind === "callout" ? compactCalloutLabel(annotation.text)
+    : annotation?.text ?? entityLabel;
+}
+
+function dimensionLabelClearance(document: SceneDocument, geometry: Map<string, Geometry>, entityId: string): number {
+  const text = dimensionLabelText(document, entityId);
+  const value = geometry.get(entityId);
+  if (!text || value?.kind !== "dimension") return 0;
+  const normal = dimensionNormal({ x: value.a.x, y: -value.a.y }, { x: value.b.x, y: -value.b.y });
+  const extent = Math.abs(normal.x) > Math.abs(normal.y) ? measureTextWidth(text, 24) + 8 : 32;
+  return extent + 14;
+}
+
+function withDimensionPadding(viewport: Viewport, offsets: number[]): Viewport {
+  if (offsets.length === 0) return viewport;
+  return {
+    ...viewport,
+    padding: Math.max(viewport.padding ?? 24, Math.max(...offsets.map(Math.abs)) + DIMENSION_WITNESS_OVERHANG_PX),
+  };
 }
 
 function orderConstructionsByDependency(document: SceneDocument): Array<{
@@ -1170,6 +1271,15 @@ function evaluateConstruction(
     case "solid_of_revolution": return [solidOfRevolutionGeometry(inputs, geometry, quantities)];
     case "solid_projection": return [solidProjectionGeometry(inputs, geometry, quantities)];
     case "solid_cross_section": return [solidCrossSectionGeometry(inputs, geometry, quantities)];
+    case "solid_anchor": {
+      const solidId = first(inputs, ["solid"]);
+      const target = typeof solidId === "string" ? geometry.get(solidId) : undefined;
+      if (target?.kind !== "compound" || !target.solidProjection) throw new Error("solid_anchor solid must reference a solid_projection");
+      return [{ kind: "point", point: solidAnchorPoint(target.solidProjection,
+        resolveNumber(inputs.at, quantities),
+        inputs.radialFraction === undefined ? 0 : resolveNumber(inputs.radialFraction, quantities),
+        inputs.angleDeg === undefined ? 0 : resolveNumber(inputs.angleDeg, quantities)) }];
+    }
     case "space_frame": return [spaceFrameGeometry(inputs, geometry, quantities)];
     case "space_point": return [spacePointGeometry(inputs, geometry, quantities)];
     case "space_line": return [spaceLineGeometry(inputs, geometry, quantities)];
@@ -1287,11 +1397,17 @@ function evaluateConstruction(
       const b = resolveAngleArmPoint(first(inputs, ["b", "second"]), vertex, geometry);
       const u = normalize({ x: a.x - vertex.x, y: a.y - vertex.y });
       const v = normalize({ x: b.x - vertex.x, y: b.y - vertex.y });
+      // A square corner asserts perpendicularity. Normalize first so the
+      // proof tolerance does not depend on either arm's length or units.
+      if (Math.abs(u.x * v.x + u.y * v.y) > EPSILON) {
+        throw new Error("right_angle_mark arms must be perpendicular");
+      }
       const size = inputs.size === undefined
         ? Math.min(distance(vertex, a), distance(vertex, b)) * 0.16
         : positive(resolveNumber(inputs.size, quantities), "size");
       return [{
         kind: "path",
+        markedAngleRadians: Math.PI / 2,
         points: [
           { x: vertex.x + u.x * size, y: vertex.y + u.y * size },
           { x: vertex.x + (u.x + v.x) * size, y: vertex.y + (u.y + v.y) * size },
@@ -1476,14 +1592,14 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         break;
       }
       case "equal_angle": {
-        const markedAngles = values.length === 2 && values.every((value) => value?.kind === "arc")
-          ? values as Array<Extract<Geometry, { kind: "arc" }>>
-          : null;
+        const markedAngles = values.length === 2 ? values.map((value) => value?.kind === "arc"
+          ? Math.abs(value.endAngle - value.startAngle)
+          : value?.kind === "path" ? value.markedAngleRadians ?? NaN : NaN) : null;
         const firstAngle = markedAngles
-          ? Math.abs(markedAngles[0]!.endAngle - markedAngles[0]!.startAngle)
+          ? markedAngles[0]!
           : values.length === 4 ? spaceAcuteAngle(values[0], values[1]) ?? acuteAngleBetween(asLine(values[0]), asLine(values[1])) : NaN;
         const secondAngle = markedAngles
-          ? Math.abs(markedAngles[1]!.endAngle - markedAngles[1]!.startAngle)
+          ? markedAngles[1]!
           : values.length === 4 ? spaceAcuteAngle(values[2], values[3]) ?? acuteAngleBetween(asLine(values[2]), asLine(values[3])) : NaN;
         if (!Number.isFinite(firstAngle) || !Number.isFinite(secondAngle)) break;
         residual = Math.abs(firstAngle - secondAngle);
@@ -1749,6 +1865,7 @@ function createTransform(values: Geometry[], viewport: { x: number; y: number; w
   const spanY = Math.max(maxY - minY, 0);
   const innerWidth = viewport.width - 2 * padding;
   const innerHeight = viewport.height - 2 * padding;
+  if (!(innerWidth > 0) || !(innerHeight > 0)) return null;
   const width = Math.max(spanX, 1);
   const height = Math.max(spanY, 1);
   const uniformScale = Math.min(innerWidth / width, innerHeight / height);
@@ -1891,8 +2008,28 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
   }
   if (value.kind === "axes") return [{ id: `primitive_${entityId}`, entityId, groupId, kind: "axes", points: [transform({ x: value.xMin, y: 0 }), transform({ x: value.xMax, y: 0 }), transform({ x: 0, y: value.yMin }), transform({ x: 0, y: value.yMax })], text: label, provenance }];
   if (value.kind === "dimension") {
-    const [start, end] = offsetDimension(transform(value.a), transform(value.b), dimensionOffsetPx);
-    return [{ id: `primitive_${entityId}`, entityId, groupId, kind: "dimension", points: [start, end], text: label, provenance }];
+    const measuredStart = transform(value.a);
+    const measuredEnd = transform(value.b);
+    const [start, end] = offsetDimension(measuredStart, measuredEnd, dimensionOffsetPx);
+    const bar: RenderPrimitive = {
+      id: `primitive_${entityId}`, entityId, groupId, kind: "dimension", points: [start, end], text: label,
+      provenance: { ...provenance, measurementRole: "bar", measuredStart, measuredEnd },
+    };
+    if (Math.abs(dimensionOffsetPx) < EPSILON) return [bar];
+    const witnesses = [[measuredStart, start], [measuredEnd, end]].map(([measured, cap], index): RenderPrimitive => {
+      const dx = cap!.x - measured!.x;
+      const dy = cap!.y - measured!.y;
+      const length = Math.hypot(dx, dy);
+      return {
+        id: `primitive_${entityId}_witness_${index}`, entityId, groupId, kind: "line",
+        points: [measured!, {
+          x: round(cap!.x + dx / length * DIMENSION_WITNESS_OVERHANG_PX),
+          y: round(cap!.y + dy / length * DIMENSION_WITNESS_OVERHANG_PX),
+        }],
+        provenance: { ...provenance, measurementRole: "witness", dashed: true, strokeRole: "construction" },
+      };
+    });
+    return [bar, ...witnesses];
   }
   if (value.kind === "multi_path") {
     const primitives: RenderPrimitive[] = value.paths.map((path, index) => ({
@@ -1945,7 +2082,10 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
     : entityKind === "vector" || value.directed
       ? "vector"
       : value.closed
-        ? (value.points.length === 4 ? "rectangle" : "polygon")
+        ? (value.points.length === 4 && value.points.every((point, index) => {
+            const next = value.points[(index + 1) % value.points.length]!;
+            return Math.abs(point.x - next.x) < EPSILON || Math.abs(point.y - next.y) < EPSILON;
+          }) ? "rectangle" : "polygon")
         : value.points.length > 2
           ? "polyline"
           : "line";
@@ -1986,32 +2126,73 @@ function computeDimensionLaneOffsets(
   document: SceneDocument,
   geometry: Map<string, Geometry>,
   entityToGroup: Map<string, string>,
+  constructionOnlyIds: Set<string>,
 ): Map<string, number> {
-  const buckets = new Map<string, string[]>();
+  const dimensions: Array<{ id: string; groupId: string; a: Point; b: Point; length: number; labeled: boolean }> = [];
   for (const construction of document.constructions) {
     if (construction.operator !== "dimension") continue;
     const entityId = construction.outputs[0];
     const value = entityId ? geometry.get(entityId) : undefined;
     if (!entityId || value?.kind !== "dimension") continue;
-    const angle = Math.atan2(value.b.y - value.a.y, value.b.x - value.a.x);
-    const undirected = ((angle % Math.PI) + Math.PI) % Math.PI;
-    const orientationBucket = Math.round(undirected / (Math.PI / 12)) % 12;
-    const key = `${entityToGroup.get(entityId) ?? "scene"}:${orientationBucket}`;
-    buckets.set(key, [...(buckets.get(key) ?? []), entityId]);
+    dimensions.push({ id: entityId, groupId: entityToGroup.get(entityId) ?? "scene", a: value.a, b: value.b, length: distance(value.a, value.b), labeled: Boolean(dimensionLabelText(document, entityId)) });
   }
+  // Short nested spans stay near the figure. Unrelated measures share a lane;
+  // their number or construction order must never push an annotation away.
+  dimensions.sort((a, b) => a.length - b.length || a.id.localeCompare(b.id));
   const offsets = new Map<string, number>();
-  for (const ids of buckets.values()) {
-    ids.forEach((id, index) => offsets.set(id, (index + 1) * 28));
+  const assignedLanes = new Map<string, number>();
+  const labeledGroups = new Set(dimensions.filter((dimension) => dimension.labeled).map((dimension) => dimension.groupId));
+  for (const dimension of dimensions) {
+    const occupied = new Set(dimensions.flatMap((other) => {
+      const lane = assignedLanes.get(other.id);
+      return lane !== undefined && other.groupId === dimension.groupId && dimensionSpansOverlap(dimension, other)
+        ? [lane]
+        : [];
+    }));
+    let lane = 1;
+    while (occupied.has(lane)) lane++;
+    assignedLanes.set(dimension.id, lane);
+    const groupPoints = [...geometry.entries()].flatMap(([id, value]) =>
+      entityToGroup.get(id) === dimension.groupId && value.kind !== "dimension" &&
+      !constructionOnlyIds.has(id) && document.entities.find((entity) => entity.id === id)?.kind !== "label"
+        ? pointsOf(value).filter(finitePoint)
+        : [],
+    );
+    const center = groupPoints.length > 0 ? centerOfBounds(groupPoints) : {
+      x: (dimension.a.x + dimension.b.x) / 2, y: (dimension.a.y + dimension.b.y) / 2,
+    };
+    // The screen flips mathematical y. Pick the outward side of the group's
+    // geometry, with the same canonical normal for reversed endpoints.
+    const normal = dimensionNormal({ x: dimension.a.x, y: -dimension.a.y }, { x: dimension.b.x, y: -dimension.b.y });
+    const outward = normal.x * ((dimension.a.x + dimension.b.x) / 2 - center.x)
+      - normal.y * ((dimension.a.y + dimension.b.y) / 2 - center.y);
+    const laneGap = labeledGroups.has(dimension.groupId) ? DIMENSION_LABEL_LANE_PX : DIMENSION_LANE_PX;
+    offsets.set(dimension.id, (DIMENSION_LANE_PX + (lane - 1) * laneGap) * (outward < -EPSILON ? -1 : 1));
   }
   return offsets;
 }
 
-function offsetDimension(start: RenderPoint, end: RenderPoint, amount: number): [RenderPoint, RenderPoint] {
-  if (amount <= 0) return [start, end];
+function dimensionSpansOverlap(first: { a: Point; b: Point; length: number }, second: { a: Point; b: Point; length: number }): boolean {
+  const ux = (first.b.x - first.a.x) / first.length;
+  const uy = (first.b.y - first.a.y) / first.length;
+  const tolerance = EPSILON * Math.max(1, first.length, second.length);
+  const perpendicular = (point: Point) => Math.abs((point.x - first.a.x) * uy - (point.y - first.a.y) * ux);
+  if (perpendicular(second.a) > tolerance || perpendicular(second.b) > tolerance) return false;
+  const projection = (point: Point) => (point.x - first.a.x) * ux + (point.y - first.a.y) * uy;
+  const [from, to] = [projection(second.a), projection(second.b)].sort((a, b) => a - b);
+  return Math.min(first.length, to!) - Math.max(0, from!) > tolerance;
+}
+
+function centerOfBounds(points: Point[]): Point {
+  const bounds = boundsOf(points);
+  return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+}
+
+function dimensionNormal(start: RenderPoint, end: RenderPoint): RenderPoint {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const magnitude = Math.hypot(dx, dy);
-  if (magnitude < EPSILON) return [start, end];
+  if (magnitude < EPSILON) return { x: 0, y: 0 };
   let nx = -dy / magnitude;
   let ny = dx / magnitude;
   if (Math.abs(ny) >= Math.abs(nx)) {
@@ -2020,10 +2201,148 @@ function offsetDimension(start: RenderPoint, end: RenderPoint, amount: number): 
     nx *= -1;
     ny *= -1;
   }
+  return { x: nx, y: ny };
+}
+
+function offsetDimension(start: RenderPoint, end: RenderPoint, amount: number): [RenderPoint, RenderPoint] {
+  const { x: nx, y: ny } = dimensionNormal(start, end);
   return [
     { x: round(start.x + nx * amount), y: round(start.y + ny * amount) },
     { x: round(end.x + nx * amount), y: round(end.y + ny * amount) },
   ];
+}
+
+function assertDimensionViewport(primitives: RenderPrimitive[], transformPlan: EntityTransformPlan, issues: SceneIssue[]): void {
+  const failed = new Set<string>();
+  for (const primitive of primitives) {
+    if (primitive.provenance?.measurementRole !== "bar" && primitive.provenance?.measurementRole !== "witness") continue;
+    const viewport = transformPlan.viewportFor(primitive.entityId);
+    const points = primitive.kind === "dimension" && primitive.points.length >= 2
+      ? primitive.points.flatMap((point) => {
+          const normal = dimensionNormal(primitive.points[0]!, primitive.points[1]!);
+          return [-1, 1].map((direction) => ({ x: point.x + direction * normal.x * DIMENSION_CAP_HALF_PX, y: point.y + direction * normal.y * DIMENSION_CAP_HALF_PX }));
+        })
+      : primitive.points;
+    if (points.every((point) => finitePoint(point) && point.x >= viewport.x - EPSILON && point.x <= viewport.x + viewport.width + EPSILON && point.y >= viewport.y - EPSILON && point.y <= viewport.y + viewport.height + EPSILON)) continue;
+    if (failed.has(primitive.entityId)) continue;
+    failed.add(primitive.entityId);
+    issues.push({ code: "dimension_outside_view", message: `Dimension ${primitive.entityId} cannot keep its endpoint witnesses and caps inside the view`, severity: "fatal", entityIds: [primitive.entityId] });
+  }
+}
+
+/** Keep a measurement bar out of the figure while its witnesses retain the
+ * exact source endpoints. Search only the available viewport; no mark or
+ * glyph is allowed to escape the scene's reserved envelope. */
+function relocateObstructedDimensions(
+  document: SceneDocument,
+  geometry: Map<string, Geometry>,
+  primitives: RenderPrimitive[],
+  transformPlan: EntityTransformPlan,
+  dimensionLanes: Map<string, number>,
+  issues: SceneIssue[],
+): boolean {
+  let changed = false;
+  const fontHeightPx = document.source.synthesizedDsa === true ? DSA_LABEL_FONT_PX : 24;
+  const paddingPx = document.source.synthesizedDsa === true ? 3 : 4;
+  const pinned: LabelObstacle[] = document.entities.flatMap((entity) => {
+    const value = geometry.get(entity.id);
+    if (!entity.label || !value || entity.provenance?.pinLabel !== true) return [];
+    const anchor = transformPlan.transformFor(entity.id)(centerOf(value));
+    const width = measureTextWidth(entity.label, fontHeightPx) + paddingPx * 2;
+    const height = fontHeightPx + paddingPx * 2;
+    return [{ id: `reserved_${entity.id}`, entityId: entity.id, kind: "label" as const,
+      bounds: { x: anchor.x - width / 2, y: anchor.y - height / 2, width, height } }];
+  });
+  const bars = primitives.filter((primitive) => primitive.kind === "dimension");
+  for (const bar of bars) {
+    const value = geometry.get(bar.entityId);
+    const offset = dimensionLanes.get(bar.entityId);
+    if (value?.kind !== "dimension" || offset === undefined) continue;
+    const other = primitives.filter((primitive) => primitive.entityId !== bar.entityId);
+    const ink = obstaclesFromPrimitives(other.filter((primitive) => primitive.provenance?.measurementRole !== "witness"))
+      .filter((obstacle) => obstacle.segments?.length);
+    const viewport = transformPlan.viewportFor(bar.entityId);
+    const transform = transformPlan.transformFor(bar.entityId);
+    const entity = document.entities.find((candidate) => candidate.id === bar.entityId);
+    const text = dimensionLabelText(document, bar.entityId);
+    const labelClears = (candidate: RenderPrimitive[]): boolean => {
+      if (!text) return true;
+      const owner: LabelOwner = {
+        entityId: bar.entityId, text,
+        anchor: screenLabelAnchor(bar.entityId, value, candidate, transform),
+        ...dimensionLabelPlacement(bar.entityId, value, candidate, viewport),
+        allowLeader: false,
+      };
+      // Other endpoint witnesses are real ink too. A free bar alone is not
+      // enough if its label would straddle another measurement's connection.
+      return placeLabels([owner], [...obstaclesFromPrimitives([...other, ...candidate]), ...pinned, workColumnObstacle()],
+        { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds }).ok;
+    };
+    if (!dimensionBarObstructed(bar, ink) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
+    const maxOffset = Math.hypot(viewport.width, viewport.height);
+    const preferredSign = Math.sign(offset) || 1;
+    let replacement: RenderPrimitive[] | undefined;
+    for (let amount = Math.abs(offset); amount <= maxOffset && !replacement; amount += DIMENSION_LANE_PX) {
+      for (const sign of [preferredSign, -preferredSign]) {
+        const candidate = toPrimitives(bar.entityId, "dimension", value, bar.groupId, transform, viewport, false, amount * sign, undefined, entity?.provenance);
+        const candidateBar = candidate.find((primitive) => primitive.kind === "dimension")!;
+        const boundsIssues: SceneIssue[] = [];
+        assertDimensionViewport(candidate, transformPlan, boundsIssues);
+        if (boundsIssues.length > 0 || dimensionBarObstructed(candidateBar, ink)) continue;
+        if (!labelClears(candidate)) continue;
+        replacement = candidate;
+        dimensionLanes.set(bar.entityId, amount * sign);
+        break;
+      }
+    }
+    if (!replacement) {
+      issues.push({ code: "dimension_overlap_unresolved", message: `Dimension ${bar.entityId} cannot clear the verified figure and keep its labels in view`, severity: "fatal", entityIds: [bar.entityId] });
+      continue;
+    }
+    for (let index = primitives.length - 1; index >= 0; index--) {
+      if (primitives[index]!.entityId === bar.entityId && primitives[index]!.provenance?.measurementRole) primitives.splice(index, 1);
+    }
+    primitives.push(...replacement);
+    changed = true;
+  }
+  return changed;
+}
+
+function dimensionBarObstructed(bar: RenderPrimitive, ink: LabelObstacle[]): boolean {
+  const start = bar.points[0];
+  const end = bar.points[1];
+  if (!start || !end) return true;
+  const normal = dimensionNormal(start, end);
+  const caps = [start, end].map((point): [Point, Point] => [
+    { x: point.x - normal.x * DIMENSION_CAP_HALF_PX, y: point.y - normal.y * DIMENSION_CAP_HALF_PX },
+    { x: point.x + normal.x * DIMENSION_CAP_HALF_PX, y: point.y + normal.y * DIMENSION_CAP_HALF_PX },
+  ]);
+  return [[start, end] as [Point, Point], ...caps].some((segment) => ink.some((obstacle) =>
+    obstacle.segments!.some((other) => !dimensionEndpointCarrier(bar, other) && (segmentsTouch(segment, other) ||
+      Math.min(pointSegmentResidual(segment[0], other), pointSegmentResidual(segment[1], other),
+        pointSegmentResidual(other[0], segment), pointSegmentResidual(other[1], segment)) < 4)),
+  ));
+}
+
+/** A continuous perpendicular surface can also be the measured endpoint's
+ * witness carrier. Its exact contact with the endpoint cap is intentional;
+ * unrelated surfaces crossing the bar still block the lane. */
+function dimensionEndpointCarrier(bar: RenderPrimitive, segment: [Point, Point]): boolean {
+  const start = bar.points[0];
+  const end = bar.points[1];
+  if (!start || !end) return false;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const sx = segment[1].x - segment[0].x;
+  const sy = segment[1].y - segment[0].y;
+  const lengths = Math.hypot(dx, dy) * Math.hypot(sx, sy);
+  if (lengths < EPSILON || Math.abs((dx * sx + dy * sy) / lengths) > 0.001) return false;
+  return [bar.provenance?.measuredStart, bar.provenance?.measuredEnd].some((value, index) => {
+    if (!value || typeof value !== "object" || !("x" in value) || !("y" in value)) return false;
+    const measured = value as RenderPoint;
+    return finitePoint(measured) && pointSegmentResidual(measured, segment) < 0.04 &&
+      pointSegmentResidual(bar.points[index]!, segment) < 0.04;
+  });
 }
 
 function clipInfinitePath(start:RenderPoint,next:RenderPoint,directed:boolean,viewport:{x:number;y:number;width:number;height:number;padding?:number}):RenderPoint[]{
@@ -3196,20 +3515,7 @@ function solidProjectionExtents(solid: SolidProjection): [Point, Point] {
 }
 
 function solidCrossSectionDimensions(solid: SolidProjection, at: number): { axial: number; radius: number } {
-  if (solid.kind === "cylinder") return { axial: solid.height * at, radius: solid.radius };
-  if (solid.kind === "cone") return { axial: solid.height * at, radius: solid.radius * (1 - at) };
-  if (solid.kind === "frustum") {
-    return {
-      axial: solid.height * at,
-      radius: solid.radius + (solid.topRadius - solid.radius) * at,
-    };
-  }
-  if (solid.kind === "sphere") {
-    const axial = -solid.radius + 2 * solid.radius * at;
-    return { axial, radius: Math.sqrt(Math.max(0, solid.radius ** 2 - axial ** 2)) };
-  }
-  const axial = solid.radius * at;
-  return { axial, radius: Math.sqrt(Math.max(0, solid.radius ** 2 - axial ** 2)) };
+  return solidSectionDimensions(solid, at);
 }
 
 function projectionEllipse(solid: SolidProjection, axial: number, radius: number): Point[] {
@@ -3252,9 +3558,7 @@ function sampleProjectionPath(samples: number, evaluate: (angle: number) => Poin
 }
 
 function projectionPoint(solid: SolidProjection, axial: number, radial: number): Point {
-  return solid.axis === "vertical"
-    ? { x: solid.center.x + radial, y: solid.center.y + axial }
-    : { x: solid.center.x + axial, y: solid.center.y + radial };
+  return projectSolidPoint(solid, axial, radial);
 }
 
 function assertConnectedProjectionTopology(kind: SolidProjectionKind, paths: Point[][]): void {
@@ -3978,6 +4282,42 @@ function routedConnectorPoints(
     end,
   ];
 }
+function dimensionLabelPlacement(entityId: string, value: Geometry, primitives: RenderPrimitive[], viewport: Viewport): Partial<LabelOwner> {
+  if (value.kind !== "dimension") return {};
+  const bar = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind === "dimension");
+  const measured = bar?.provenance?.measuredStart as RenderPoint | undefined;
+  if (!bar?.points[0] || !bar.points[1] || !measured) return {};
+  const anchor = { x: (bar.points[0].x + bar.points[1].x) / 2, y: (bar.points[0].y + bar.points[1].y) / 2 };
+  const dx = bar.points[0].x - measured.x;
+  const dy = bar.points[0].y - measured.y;
+  const placementBounds = { x: viewport.x, y: viewport.y, width: viewport.width, height: viewport.height };
+  let preferredSlot: LabelOwner["preferredSlot"];
+  // The glyphs belong on the far side of their own bar. Constrain the view
+  // half-plane as well as the preferred slot, so a crowded label cannot
+  // jump back across the measured figure. A bounded leader may use the
+  // full viewport, but it must avoid every verified stroke and glyph.
+  if (Math.abs(dx) > Math.abs(dy)) {
+    preferredSlot = dx < 0 ? "west" : "east";
+    if (dx < 0) placementBounds.width = anchor.x - DIMENSION_CAP_HALF_PX - viewport.x;
+    else {
+      placementBounds.x = anchor.x + DIMENSION_CAP_HALF_PX;
+      placementBounds.width = viewport.x + viewport.width - placementBounds.x;
+    }
+  } else {
+    preferredSlot = dy < 0 ? "north" : "south";
+    if (dy < 0) placementBounds.height = anchor.y - DIMENSION_CAP_HALF_PX - viewport.y;
+    else {
+      placementBounds.y = anchor.y + DIMENSION_CAP_HALF_PX;
+      placementBounds.height = viewport.y + viewport.height - placementBounds.y;
+    }
+  }
+  return {
+    preferredSlot, placementBounds,
+    viewBounds: { x: viewport.x, y: viewport.y, width: viewport.width, height: viewport.height },
+    allowLeader: true, leaderGeometrySafe: true, tetherPx: 120, useOwnerBounds: false,
+  };
+}
+
 function screenLabelAnchor(entityId: string, value: Geometry, primitives: RenderPrimitive[], transform: (point: Point) => RenderPoint): RenderPoint {
   if (value.kind === "path" && value.infinite) {
     const rendered = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind !== "label");
@@ -3997,6 +4337,15 @@ function screenLabelAnchor(entityId: string, value: Geometry, primitives: Render
       return { x: start.x + t * dx, y: start.y + t * dy };
     }
   }
+  const dimension = value.kind === "dimension"
+    ? primitives.find((primitive) => primitive.entityId === entityId && primitive.kind === "dimension")
+    : undefined;
+  if (dimension && dimension.points.length >= 2) {
+    return {
+      x: (dimension.points[0]!.x + dimension.points[1]!.x) / 2,
+      y: (dimension.points[0]!.y + dimension.points[1]!.y) / 2,
+    };
+  }
   return transform(labelAnchor(value));
 }
 
@@ -4010,6 +4359,18 @@ function labelAnchor(value: Geometry): Point {
   if (value.kind === "circle") return { x: value.center.x + value.radius, y: value.center.y };
   if (value.kind === "axes") return { x: 0, y: 0 };
   return centerOf(value);
+}
+
+function isPointIdentifierText(text: string): boolean {
+  return /^[A-Za-zΑ-ω][A-Za-z0-9₀-₉_]{0,2}$/.test(text.trim());
+}
+
+function pointLabelTether(text: string): number {
+  // Keep point identifiers in the same 56 px neighborhood. A measured phrase
+  // needs room for its own glyphs: add only its excess half-width, so text
+  // remains just as close to the anchor instead of failing on box size alone.
+  if (isPointIdentifierText(text)) return POINT_LABEL_TETHER_PX;
+  return POINT_LABEL_TETHER_PX + Math.max(0, measureTextWidth(text, 24) - 24) / 2;
 }
 
 function screenIncidentTangents(
@@ -4058,13 +4419,12 @@ function assertScreenAttachedLabels(
       continue;
     }
     const value = geometry.get(entityId);
-    if (value?.kind !== "point") continue;
+    if (value?.kind !== "point" || document.entities.find((entity) => entity.id === entityId)?.kind !== "point") continue;
     const screen = transformPlan.transformFor(entityId)(value.point);
     const attached = labels.some((label) => {
       const center = label.points[0];
       if (!center) return false;
-      if (Math.hypot(center.x - screen.x, center.y - screen.y) <= POINT_LABEL_TETHER_PX) return true;
-      return label.provenance?.usesLeader === true;
+      return Math.hypot(center.x - screen.x, center.y - screen.y) <= pointLabelTether(label.text ?? "") + 0.02;
     });
     if (!attached) {
       issues.push({

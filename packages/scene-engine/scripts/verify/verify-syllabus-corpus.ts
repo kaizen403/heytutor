@@ -1170,7 +1170,7 @@ const PROBE_SCENE_EASY: Record<string, Record<string, unknown>> = {
       constructions: [
         pointConstruction("a", 0, 0),
         pointConstruction("b", 1, 0),
-        pointConstruction("c", 0, 1),
+        pointConstruction("c", 1, 1),
         { id: "make_ab", operator: "segment", inputs: { start: "a", end: "b" }, outputs: ["ab"] },
         { id: "make_ac", operator: "segment", inputs: { start: "a", end: "c" }, outputs: ["ac"] },
         { id: "make_bc", operator: "segment", inputs: { start: "b", end: "c" }, outputs: ["bc"] },
@@ -1180,7 +1180,7 @@ const PROBE_SCENE_EASY: Record<string, Record<string, unknown>> = {
       relations: [],
       assertions: [
         { id: "probe_equal_angle", predicate: "equal_angle", entities: ["angle_a", "angle_a"], expected: true, severity: "fatal", reason: "a marked angle equals itself" },
-        { id: "probe_angle_between", predicate: "angle_between", entities: ["ab", "ac"], expected: { value: 90, unit: "degree" }, severity: "fatal", reason: "AB and AC are perpendicular" },
+        { id: "probe_angle_between", predicate: "angle_between", entities: ["ab", "ac"], expected: { value: 45, unit: "degree" }, severity: "fatal", reason: "The right-isosceles triangle has a 45 degree angle at A" },
       ],
       annotations: [],
     },

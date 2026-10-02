@@ -49,6 +49,8 @@ export const CUE_DEFAULT_MS_PER_CHAR = 86;
 
 /** The nib's speed on figure ink, mirrored from the whiteboard's INK_SPEED_PX_PER_MS. */
 export const CUE_INK_SPEED_PX_PER_MS = 2;
+/** An unhurried follow stroke lays down half as much ink per media millisecond. */
+const CUE_FOLLOW_INK_SPEED_PX_PER_MS = CUE_INK_SPEED_PX_PER_MS / 2;
 /** Shortest stroke the whiteboard will animate, mirrored from SCENE_SHAPE_MIN_MS. */
 export const CUE_STROKE_MIN_MS = 70;
 /**
@@ -264,7 +266,11 @@ export function cuedInkCapMs(command: DrawCommand, floorMs = cuedInkFloorMs(comm
   const isText = TEXT_TYPES.has(command.type)
     && (command.type !== "DIMENSION" || Boolean(command.text?.trim()));
   if (isText) return floorMs;
-  const natural = Math.round(getCommandDrawDurationMs(command, "follow") * CUED_FOLLOW_STRETCH);
+  // A DRAW_LINE can be a complete polygon or sampled curve. Its type's
+  // fixed natural alone cannot describe the time needed for that much ink.
+  const geometryNatural = getFlightDuration(command, "follow")
+    + Math.max(CUE_STROKE_MIN_MS, estimateCommandInkLengthPx(command) / CUE_FOLLOW_INK_SPEED_PX_PER_MS);
+  const natural = Math.round(Math.max(getCommandDrawDurationMs(command, "follow"), geometryNatural) * CUED_FOLLOW_STRETCH);
   return Math.max(Math.min(natural, Math.round(floorMs * CUED_STRETCH_MAX)), floorMs);
 }
 

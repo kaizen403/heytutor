@@ -8,10 +8,11 @@ import {
   type SceneRevealGroup,
 } from "../types";
 import { buildPolyhedralFigure } from "./polyhedralFigure";
+import type { SolidProjectionKind } from "../compile/solidAnchors";
 
 type SolidKind = "cylinder" | "cone" | "frustum" | "sphere" | "hemisphere";
-type DimensionKind = "radius" | "height" | "topRadius" | "innerRadius";
-interface Measure { value: number; unit: string; sourceText: string }
+type DimensionKind = "radius" | "diameter" | "height" | "topRadius" | "innerRadius";
+interface Measure { value: number; unit: string; sourceText: string; derivedFromDiameter?: boolean }
 interface SolidFact {
   kind: SolidKind;
   start: number;
@@ -21,12 +22,17 @@ interface SolidFact {
 
 const UNIT_SCALE: Record<string, number> = { mm: 0.001, cm: 0.01, m: 1, km: 1000 };
 
-export function buildSolidFigure(question: string): SceneDocument | null {
+export function buildSolidFigure(question: string, quantities: SolidQuantity[] = []): SceneDocument | null {
   const polyhedral = buildPolyhedralFigure(question);
   if (polyhedral) return polyhedral;
   // This reads source facts inside an already-selected family; it does not
   // route subjects or author contours. solid_projection owns every contour.
-  const mentions = [...question.matchAll(/\b(hemisphere|cylinder|frustum|sphere|cone)s?\b/gi)];
+  const mentions = [...question.matchAll(/\b(hemisphere|cylinder|frustum|sphere|cone)s?\b/gi)].filter((mention, index, all) => {
+    const prior = all[index - 1];
+    // A frustum of a cone names one body; the parent type is not another solid.
+    return !(mention[1]!.toLowerCase() === "cone" && prior?.[1]?.toLowerCase() === "frustum" &&
+      /^\s+of\s+(?:(?:a|the)\s+)?$/i.test(question.slice(prior.index! + prior[0].length, mention.index!)));
+  });
   if (mentions.some((mention, index) => mentions.slice(0, index).some((prior) => prior[1]!.toLowerCase() === mention[1]!.toLowerCase()) && /\b(?:another|second|additional)\s+(?:\w+\s+){0,2}$/i.test(question.slice(Math.max(0, mention.index! - 40), mention.index!)))) return null;
   const facts: SolidFact[] = [];
   for (const [index, mention] of mentions.entries()) {
@@ -38,16 +44,17 @@ export function buildSolidFigure(question: string): SceneDocument | null {
     }
     const dimensions = readDimensions(question.slice(mention.index! + mention[0].length, mentions[index + 1]?.index ?? question.length));
     if (!dimensions) return null;
-    for (const key of ["radius", "height", "topRadius", "innerRadius"] as const) {
+    for (const key of ["radius", "diameter", "height", "topRadius", "innerRadius"] as const) {
       const measure = dimensions[key];
       if (!measure) continue;
       if (fact.dimensions[key] && !sameLength(fact.dimensions[key], measure)) return null;
-      fact.dimensions[key] = measure;
+      if (!fact.dimensions[key] || !measure.derivedFromDiameter) fact.dimensions[key] = measure;
     }
   }
   if (facts.length === 0) return null;
   if (/\b(?:drilled|scooped|cut out|removed from)\b/i.test(question)) return null;
-  if (/\bhollow\b/i.test(question) && (facts.length !== 1 || facts[0]!.kind !== "cylinder" || !facts[0]!.dimensions.innerRadius)) return null;
+  const hollow = /\bhollow\b/i.test(question);
+  if (hollow && (facts.length !== 1 || facts[0]!.kind !== "cylinder")) return null;
   // A melting comparison may show one representative of each solid. A
   // multi-part assembly must not silently collapse several equal-kind parts.
   if (mentions.some((mention) => /s$/i.test(mention[0])) && !/\b(?:melted|recast)\b/i.test(question)) return null;
@@ -72,7 +79,9 @@ export function buildSolidFigure(question: string): SceneDocument | null {
     return null;
   }
   const solids = joined ?? facts;
-  if (solids.some((solid) => !completeDimensions(solid))) return null;
+  if (solids.some((solid) => !completeDimensions(solid)) || (hollow && !solids[0]!.dimensions.innerRadius)) {
+    return solids.length === 1 ? buildQuantitySolidFigure(question, solids[0]!, quantities, hollow) : null;
+  }
   const unit = solids[0]!.dimensions.radius!.unit;
   const length = (measure: Measure) => measure.value * UNIT_SCALE[measure.unit]! / UNIT_SCALE[unit]!;
   const entities: SceneEntity[] = [];
@@ -85,10 +94,15 @@ export function buildSolidFigure(question: string): SceneDocument | null {
     constructions.push({ id: `make_${id}`, operator: "point", inputs: { x, y, coordinateSpace: "world" }, outputs: [id] });
     return id;
   };
-  const dimension = (id: string, start: string, end: string, symbol: string, measure: Measure): string => {
+  const dimension = (id: string, start: string, end: string, symbol: string, measure: Measure, measurementKind: "radius" | "diameter" | "height" | "inner_radius", solid: string): string => {
     entities.push({ id, kind: "dimension", role: `solid ${symbol} dimension`, label: `${symbol} = ${measure.value} ${measure.unit}` });
-    constructions.push({ id: `make_${id}`, operator: "dimension", inputs: { start, end }, outputs: [id] });
+    constructions.push({ id: `make_${id}`, operator: "dimension", inputs: { start, end, measurementKind, solid }, outputs: [id] });
     visible.push(id);
+    return id;
+  };
+  const anchor = (id: string, solid: string, at: number, radialFraction: number, angleDeg = 0): string => {
+    entities.push({ id, kind: "point", role: "construction helper point" });
+    constructions.push({ id: `make_${id}`, operator: "solid_anchor", inputs: { solid, at, radialFraction, angleDeg }, outputs: [id] });
     return id;
   };
   const maxRadius = Math.max(...solids.map((solid) => length(solid.dimensions.radius!)));
@@ -114,27 +128,34 @@ export function buildSolidFigure(question: string): SceneDocument | null {
     });
     visible.push(id);
     const groupIds: string[] = [id];
-    if (!joined || index === 0) {
-      const radialCenter = solid.kind === "sphere" ? center : `${id}_center`;
-      const radialEnd = point(`${id}_rim`, x + radius, solid.kind === "sphere" ? y + radius : y);
-      groupIds.push(dimension(`${id}_radius`, radialCenter, radialEnd, "r", solid.dimensions.radius!));
+    const face = solid.kind === "cylinder" ? 1 : solid.kind === "sphere" ? 0.5 : 0;
+    if ((!joined || index === 0) && !solid.dimensions.radius!.derivedFromDiameter) {
+      const radialCenter = anchor(`${id}_radius_center`, id, face, 0);
+      const radialEnd = anchor(`${id}_rim`, id, face, 1);
+      groupIds.push(dimension(`${id}_radius`, radialCenter, radialEnd, "r", solid.dimensions.radius!, "radius", id));
+    }
+    if (solid.dimensions.diameter) {
+      const diameterFace = solid.kind === "cylinder" ? 0 : face;
+      const a = anchor(`${id}_diameter_start`, id, diameterFace, 1, 180);
+      const b = anchor(`${id}_diameter_end`, id, diameterFace, 1, 0);
+      groupIds.push(dimension(`${id}_diameter`, a, b, "D", solid.dimensions.diameter, "diameter", id));
     }
     if (solid.dimensions.height) {
       const side = index % 2 === 0 ? 1 : -1;
-      const dimensionX = x + side * maxRadius * 1.4;
-      const a = point(`${id}_height_start`, dimensionX, y);
-      const b = point(`${id}_height_end`, dimensionX, y + height);
-      groupIds.push(dimension(`${id}_height`, a, b, "h", solid.dimensions.height));
+      const radialFraction = solid.kind === "cylinder" ? 1 : 0;
+      const a = anchor(`${id}_height_start`, id, 0, radialFraction, side > 0 ? 0 : 180);
+      const b = anchor(`${id}_height_end`, id, 1, radialFraction, side > 0 ? 0 : 180);
+      groupIds.push(dimension(`${id}_height`, a, b, "h", solid.dimensions.height, "height", id));
     }
     if (solid.dimensions.innerRadius) {
-      const end = point(`${id}_inner_rim`, x - length(solid.dimensions.innerRadius), y + height);
-      const start = point(`${id}_inner_center`, x, y + height);
-      groupIds.push(dimension(`${id}_inner_radius`, start, end, "r_i", solid.dimensions.innerRadius));
+      const end = anchor(`${id}_inner_rim`, id, 1, length(solid.dimensions.innerRadius) / radius, 180);
+      const start = anchor(`${id}_inner_center`, id, 1, 0);
+      groupIds.push(dimension(`${id}_inner_radius`, start, end, "r_i", solid.dimensions.innerRadius, "inner_radius", id));
     }
     if (solid.dimensions.topRadius) {
-      const a = point(`${id}_top_center`, x, y + height);
-      const b = point(`${id}_top_rim`, x + length(solid.dimensions.topRadius), y + height);
-      groupIds.push(dimension(`${id}_top_radius`, a, b, "R", solid.dimensions.topRadius));
+      const a = anchor(`${id}_top_center`, id, 1, 0);
+      const b = anchor(`${id}_top_rim`, id, 1, 1);
+      groupIds.push(dimension(`${id}_top_radius`, a, b, "R", solid.dimensions.topRadius, "radius", id));
     }
     groups.push({ id: `${id}_group`, entityIds: groupIds, dependsOn: index ? [groups[index - 1]!.id] : [], narrationCue: `show the ${solid.kind} and its given dimensions` });
     baseY += height;
@@ -163,10 +184,16 @@ function readDimensions(clause: string): SolidFact["dimensions"] | null {
     const prefix = clause.slice(Math.max(0, match.index! - 8), match.index!);
     if (/slant\s*$/i.test(prefix)) continue;
     const kind: DimensionKind = name.includes("height") ? "height" : /inner|internal/.test(name) ? "innerRadius" : /top|upper|smaller/.test(name) ? "topRadius" : "radius";
-    const value = Number(match[2]) / (name === "diameter" ? 2 : 1);
-    const measure = { value, unit: match[3]!.toLowerCase(), sourceText: match[0] };
+    const isDiameter = name === "diameter";
+    const value = Number(match[2]) / (isDiameter ? 2 : 1);
+    const measure: Measure = { value, unit: match[3]!.toLowerCase(), sourceText: match[0], ...(isDiameter ? { derivedFromDiameter: true } : {}) };
     if (dimensions[kind] && !sameLength(dimensions[kind], measure)) return null;
-    dimensions[kind] = measure;
+    if (!dimensions[kind] || !isDiameter) dimensions[kind] = measure;
+    if (isDiameter) {
+      const diameter = { ...measure, value: Number(match[2]), derivedFromDiameter: false };
+      if (dimensions.diameter && !sameLength(dimensions.diameter, diameter)) return null;
+      dimensions.diameter = diameter;
+    }
   }
   return dimensions;
 }
@@ -195,4 +222,137 @@ function completeDimensions(solid: SolidFact): boolean {
 
 function sameLength(a: Measure, b: Measure): boolean {
   return Math.abs(a.value * UNIT_SCALE[a.unit]! - b.value * UNIT_SCALE[b.unit]!) < 1e-9;
+}
+
+/** Only explicit, source-backed single-solid quantities may fill parser gaps. */
+function buildQuantitySolidFigure(question: string, fact: SolidFact, quantities: SolidQuantity[], hollow: boolean): SceneDocument | null {
+  const parts = solidFigureParts(fact.kind, quantities);
+  if (!parts || parts.quantities.length === 0) return null;
+  if (fact.kind === "frustum" && !parts.entities.some((entity) => entity.id === "top_radius_measure")) return null;
+  const projection = parts.constructions.find((construction) => construction.operator === "solid_projection" && construction.outputs.includes("solid"));
+  const inner = parts.constructions.find((construction) => construction.operator === "solid_projection" && construction.outputs.includes("inner_solid"));
+  if (!projection || (hollow && !inner)) return null;
+  const used = quantities.filter((quantity) => parts.quantities.some((item) => item.id === quantity.id));
+  const unit = (quantity: SolidQuantity) => quantity.unit?.trim().toLowerCase() ?? "";
+  const sameUnit = used.every((quantity) => unit(quantity) === unit(used[0]!));
+  const geometryScale = sameUnit ? UNIT_SCALE[unit(used[0]!)] : 1;
+  const close = (a: number, b: number) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-9 * Math.max(Math.abs(a), Math.abs(b));
+  for (const [key, measure] of Object.entries(fact.dimensions)) {
+    const input = key === "innerRadius" ? inner?.inputs.radius : key === "diameter" ? Number(projection.inputs.radius) * 2 : projection.inputs[key];
+    if (typeof input !== "number" || geometryScale === undefined || !close(input * geometryScale, measure.value * UNIT_SCALE[measure.unit]!)) return null;
+  }
+  const compactSource = question.replace(/\s+/g, "").toLowerCase();
+  if (used.some((quantity) => {
+    const explicit = `${quantity.symbol}=${quantity.value}${quantity.unit ?? ""}`.replace(/\s+/g, "").toLowerCase();
+    if (quantity.symbol && compactSource.includes(explicit)) return false;
+    const scale = UNIT_SCALE[unit(quantity)];
+    return scale === undefined || !Object.values(fact.dimensions).some((measure) => close(quantity.value * scale, measure.value * UNIT_SCALE[measure.unit]!));
+  })) return null;
+  const entityIds = parts.entities.map((entity) => entity.id);
+  const cue = `Show the ${fact.kind}: ${parts.entities.filter((entity) => entity.kind === "dimension").map((entity) => entity.label).join(", ")}`;
+  return {
+    schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "source-backed solid quantities with exact measurement anchors" },
+    source: { question, synthesizedFamily: true }, ...parts, relations: [], annotations: [], requiredEntityIds: entityIds,
+    revealGroups: [{ id: "setup", entityIds, dependsOn: [], narrationCue: cue }],
+    teachingTimeline: [{ id: "reveal_setup", action: "reveal", targetId: "setup", dependsOn: [], narrationIntent: cue }],
+  };
+}
+
+interface SolidQuantity { id: string; symbol: string; value: number; unit?: string }
+type SolidFigureParts = Pick<SceneDocument, "entities" | "constructions" | "quantities" | "assertions">;
+
+/** Compose solids and their measurements from quantity bindings, preserving R/r. */
+export function solidFigureParts(kind: SolidProjectionKind, quantities: SolidQuantity[]): SolidFigureParts | null {
+  const name = (id: string) => id.replace(/[^a-z]/gi, "").toLowerCase();
+  const matchesName = (q: SolidQuantity, aliases: string[]) => {
+    const id = name(q.id);
+    return aliases.some((alias) => id === alias || id === `${kind}${alias}` || id === `${alias}${kind}`);
+  };
+  const named = (aliases: string[]) => quantities.find((q) => matchesName(q, aliases));
+  // A symbol is not an owner: sphere_radius/r and water_rise/Δh must never
+  // become the radius and height of a vessel. A one-solid fallback cannot
+  // faithfully represent explicitly scoped measurements of several solids.
+  const measurementNames = ["r", "d", "h", "l", "radius", "diameter", "height", "length", "outerradius", "externalradius", "innerradius", "internalradius", "topradius", "baseradius", "bottomradius", "outerdiameter", "externaldiameter", "innerdiameter", "topdiameter", "basediameter", "bottomdiameter"];
+  const solidKinds: SolidProjectionKind[] = ["cylinder", "cone", "frustum", "sphere", "hemisphere"];
+  if (quantities.some((q) => solidKinds.some((owner) => owner !== kind && measurementNames.some((measurement) =>
+    name(q.id) === `${owner}${measurement}` || name(q.id) === `${measurement}${owner}`,
+  )))) return null;
+  const neutralSymbol = (symbol: string) => quantities.find((q) => q.symbol === symbol && name(q.id) === name(symbol));
+  const outer = named(["outerradius", "externalradius"]) ?? neutralSymbol("R");
+  const inner = named(["innerradius", "internalradius"]) ?? (kind === "cylinder" && outer ? quantities.find((q) =>
+    q !== outer && q.symbol === "r" && ["r", "radius"].includes(q.id.replace(/[^a-z]/gi, "").toLowerCase()),
+  ) : undefined);
+  const radius = (kind === "frustum" ? named(["baseradius", "bottomradius"]) : undefined) ?? outer ?? named(["radius", "r"]);
+  const diameters = quantities.filter((q) => matchesName(q, ["diameter", "d", "outerdiameter", "externaldiameter", "basediameter", "bottomdiameter"]));
+  const diameter = diameters[0];
+  const height = named(kind === "cylinder" ? ["height", "length", "h", "l"] : ["height", "h"]);
+  const topRadius = named(["topradius"]) ?? (kind === "frustum" && outer ? neutralSymbol("r") : undefined);
+  const used = [radius, ...diameters, height, kind === "cylinder" ? inner : topRadius].filter((q): q is SolidQuantity => Boolean(q));
+  // Render ratios only when lengths have a shared scale. Labels retain source units.
+  const scales: Record<string, number> = { m: 1, cm: 0.01, mm: 0.001, km: 1000 };
+  const unit = (q: SolidQuantity) => q.unit?.trim().toLowerCase() ?? "";
+  const sameUnit = used.every((q) => unit(q) === (used[0] ? unit(used[0]) : ""));
+  if (!sameUnit && used.some((q) => scales[unit(q)] === undefined)) return null;
+  const value = (q: SolidQuantity) => q.value * (sameUnit ? 1 : scales[unit(q)]!);
+  if (used.some((q) => !(value(q) > 0) || !Number.isFinite(value(q)))) return null;
+  if (diameter && diameters.some((other) => Math.abs(value(other) - value(diameter)) > 1e-9 * Math.max(value(other), value(diameter)))) return null;
+  if (radius && diameter && Math.abs(value(diameter) - 2 * value(radius)) > 1e-9 * Math.max(value(diameter), 2 * value(radius))) return null;
+  const r = radius ? value(radius) : diameter ? value(diameter) / 2 : 1.2;
+  if (kind === "cylinder" && inner && ((!radius && !diameter) || value(inner) >= r)) return null;
+  const h = height ? value(height) : r * 2;
+  const entities: SceneEntity[] = [
+    { id: "center", kind: "point", role: "construction helper point" },
+    { id: "solid", kind: "polyline", role: "solid projection" },
+  ];
+  const constructions: SceneConstruction[] = [
+    { id: "make_center", operator: "point", inputs: { x: 0, y: 0 }, outputs: ["center"] },
+    { id: "make_solid", operator: "solid_projection", inputs: { kind, center: "center", radius: r, axis: "vertical",
+      ...(["cylinder", "cone", "frustum"].includes(kind) ? { height: h } : {}),
+      ...(kind === "frustum" ? { topRadius: topRadius ? value(topRadius) : r * 0.55 } : {}) }, outputs: ["solid"] },
+  ];
+  const anchor = (id: string, solid: string, at: number, radialFraction: number, angleDeg = 0) => {
+    entities.push({ id, kind: "point", role: "construction helper point" });
+    constructions.push({ id: `make_${id}`, operator: "solid_anchor", inputs: { solid, at, radialFraction, angleDeg }, outputs: [id] });
+  };
+  const measure = (id: string, start: string, end: string, quantity: SolidQuantity, measurementKind: "radius" | "diameter" | "height", solid = "solid") => {
+    entities.push({ id, kind: "dimension", role: "solid measurement", label: `${quantity.symbol} = ${quantity.value}${quantity.unit ? ` ${quantity.unit}` : ""}` });
+    constructions.push({ id: `make_${id}`, operator: "dimension", inputs: { start, end, measurementKind, solid }, outputs: [id] });
+  };
+  // Cone/frustum radii belong to the base. Cylinder radii belong to the top
+  // face; spheres use the equatorial cross-section.
+  const face = kind === "cylinder" ? 1 : kind === "sphere" ? 0.5 : 0;
+  if (radius) anchor("radius_center", "solid", face, 0);
+  if (radius) {
+    anchor("radius_rim", "solid", face, 1);
+    measure("radius_measure", "radius_center", "radius_rim", radius, "radius");
+  }
+  if (diameter) {
+    // A cylinder's base has the same diameter as its top. Use that actual
+    // section to separate the full span from top-face bore/radius marks.
+    const diameterFace = kind === "cylinder" ? 0 : face;
+    anchor("diameter_start", "solid", diameterFace, 1, 180);
+    anchor("diameter_end", "solid", diameterFace, 1, 0);
+    measure("diameter_measure", "diameter_start", "diameter_end", diameter, "diameter");
+  }
+  if (kind === "cylinder" && inner) {
+    entities.push({ id: "inner_solid", kind: "polyline", role: "inner cylinder projection" });
+    constructions.push({ id: "make_inner_solid", operator: "solid_projection", inputs: { kind, center: "center", radius: value(inner), height: h, axis: "vertical" }, outputs: ["inner_solid"] });
+    anchor("inner_center", "inner_solid", face, 0);
+    anchor("inner_rim", "inner_solid", face, 1, 180);
+    measure("inner_radius_measure", "inner_center", "inner_rim", inner, "radius", "inner_solid");
+  }
+  if (height && ["cylinder", "cone", "frustum"].includes(kind)) {
+    // A cone or frustum has no pair of parallel rim sides: use axis centres
+    // for its true height rather than accidentally dimensioning slant height.
+    const radialFraction = kind === "cylinder" ? 1 : 0;
+    anchor("height_base", "solid", 0, radialFraction);
+    anchor("height_top", "solid", 1, radialFraction);
+    measure("height_measure", "height_base", "height_top", height, "height");
+  }
+  if (kind === "frustum" && topRadius) {
+    anchor("top_radius_center", "solid", 1, 0);
+    anchor("top_radius_rim", "solid", 1, 1);
+    measure("top_radius_measure", "top_radius_center", "top_radius_rim", topRadius, "radius");
+  }
+  return { entities, constructions, quantities: used.map((q) => ({ ...q })), assertions: [{ id: "solid_exists", predicate: "exists", entities: ["solid"], expected: true, severity: "fatal" }] };
 }

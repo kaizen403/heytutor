@@ -893,7 +893,11 @@ function drawForm(c: ChemScene, form: LewisForm, prefix: string, offset: Vec2, u
   let inkMinY = Number.POSITIVE_INFINITY;
   const noteInk = (point: Vec2) => { inkMinY = Math.min(inkMinY, point.y); };
   for (const atom of form.atoms) {
-    ids.push(c.atom(`${prefix}${atom.id}`, atom.symbol, positions.get(atom.id)!));
+    const at = positions.get(atom.id)!;
+    ids.push(c.atom(`${prefix}${atom.id}`, atom.symbol, at));
+    // Trimmed bond ends stop before their atom. The formula row must clear
+    // the lowest atom itself, including a terminal hydrogen with no dots.
+    noteInk(at);
   }
   for (const bond of form.bonds) {
     const a = form.atoms.find((atom) => atom.id === bond.a)!;
@@ -945,7 +949,7 @@ function drawForm(c: ChemScene, form: LewisForm, prefix: string, offset: Vec2, u
   }
   if (under) {
     const box = atomsBox(form);
-    ids.push(c.text(`${prefix}name`, { x: offset.x + (box.minX + box.maxX) / 2, y: inkMinY - 30 * px }, under, "formula"));
+    ids.push(c.text(`${prefix}name`, { x: offset.x + (box.minX + box.maxX) / 2, y: inkMinY - 24 * px }, under, "formula"));
   }
   return { ids };
 }

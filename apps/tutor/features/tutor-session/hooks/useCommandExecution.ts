@@ -78,6 +78,7 @@ import {
 } from "../lib/board/scheduledFocus";
 import { markerTourStops, narrationTourMs, tourMarker } from "../lib/board/markerTour";
 import { resultSpanOfRow } from "../lib/board/formulaEmphasis";
+import { focusTraceCommands, isDsaConstructionGuide } from "../lib/scene/diagramInk";
 
 export interface UseCommandExecutionParams {
   whiteboardRef: RefObject<WhiteboardHandle | null>;
@@ -294,7 +295,7 @@ export function useCommandExecution({
             shouldCancel: commandCancelled,
           });
         }
-        if (dsaInk && rawCommand.visualStyle?.dashed && rawCommand.visualStyle?.strokeRole === "construction") {
+        if (dsaInk && isDsaConstructionGuide(rawCommand)) {
           return Promise.resolve();
         }
         if (rawCommand.visualStyle?.fillRole === "region") {
@@ -1255,15 +1256,7 @@ export function useCommandExecution({
           }
           const emphasis = focusEmphasisOf(command);
           const targetIds = new Set(targets.map((target) => target.id));
-          const targetCommands = activeDiagram.commands.filter((candidate) =>
-            candidate.semanticRef?.entityId &&
-            targetIds.has(candidate.semanticRef.entityId) &&
-            !candidate.semanticRef?.actionId &&
-            candidate.visualStyle?.strokeRole !== "trace" &&
-            candidate.type !== "LABEL" &&
-            candidate.type !== "WRITE" &&
-            candidate.type !== "DIMENSION",
-          );
+          const targetCommands = focusTraceCommands(activeDiagram, targetIds);
           const hole = targets.reduce((union, target) => {
             const x = Math.min(union.x, target.x);
             const y = Math.min(union.y, target.y);
@@ -1711,6 +1704,16 @@ function verifiedCommandTracePath(
         ? { path: linePath(x1!, y1!, x2!, y2!), x: x1!, y: y1! }
         : null;
     }
+    case "DIMENSION": {
+      const [x1, y1, x2, y2, offset] = params;
+      if (![x1, y1, x2, y2, offset].every(Number.isFinite)) return null;
+      const length = Math.hypot(x2! - x1!, y2! - y1!) || 1;
+      return {
+        path: dimensionPath(x1!, y1!, x2!, y2!, offset!).path,
+        x: x1! - (y2! - y1!) / length * offset!,
+        y: y1! + (x2! - x1!) / length * offset!,
+      };
+    }
     case "ARROW": {
       const [x1, y1, a, b, x2, y2] = params;
       if (params.length >= 6 && [x1, y1, a, b, x2, y2].every(Number.isFinite)) {
@@ -1727,19 +1730,6 @@ function verifiedCommandTracePath(
     default:
       return null;
   }
-}
-
-/** Ink the pen may trace for a focus: the entity's own strokes, never its text or scaffolding. */
-function focusTraceCommands(diagram: VerifiedDiagram, entityIds: ReadonlySet<string>): VerifiedDiagramCommand[] {
-  return diagram.commands.filter((candidate) =>
-    candidate.semanticRef?.entityId &&
-    entityIds.has(candidate.semanticRef.entityId) &&
-    !candidate.semanticRef?.actionId &&
-    candidate.visualStyle?.strokeRole !== "trace" &&
-    candidate.type !== "LABEL" &&
-    candidate.type !== "WRITE" &&
-    candidate.type !== "DIMENSION",
-  );
 }
 
 function anchorRingPath(anchor: VerifiedDiagramAnchor): FocusTracePath {
