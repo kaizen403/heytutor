@@ -158,8 +158,8 @@ export default function LessonShowcase() {
     <section
       id="lesson"
       /* No background of its own: the shared navy field in App.tsx runs straight
-         through from the hero. Pulled up over the sea's last navy so the two
-         boxes never meet on an edge. */
+         through the hero and backers strip. The small overlap blends the lesson
+         into the bottom of the backers section without an edge. */
       className="relative -mt-8 overflow-hidden px-5 pb-20 pt-16 sm:px-8 sm:pb-24 sm:pt-20 lg:px-10 lg:pb-28"
     >
       <div aria-hidden className="band-lift pointer-events-none absolute inset-0" />
