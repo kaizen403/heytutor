@@ -168,7 +168,7 @@ const boxBlur = (src: Float32Array, radius: number, passes: number): Float32Arra
 
 /* ── Where the figure may go ──────────────────────────────────────────────
    The lane spans the hero, but the rows it covers are shared with the pixel
-   book and bulb (HeroPixelDecor, lg and up) and with the wallpaper doodles that
+   geometry tools and bulb (HeroPixelDecor, lg and up) and with the wallpaper doodles that
    flank it (SketchWallpaper's hero scatter). These limits mirror those
    percentages, measured off the rendered page at 1024 to 1920 wide. If either
    layout moves, move these with it. */
@@ -180,7 +180,7 @@ interface Band {
 
 /** lg and up: between the pixel props and the flanking doodle columns. */
 const wideBand = (w: number): Band => ({
-  // the book's right edge; the Newton and circle doodles 18 to 19.5% in
+  // the tools' right edge; the Newton and circle doodles 18 to 19.5% in
   left: Math.max(w * 0.06 + 240, w * 0.195 + 62),
   // the bulb's left edge; the pH scale 20% in; the 22.5% column (xl only)
   right: Math.min(w * 0.94 - 205, w * 0.8 - 80, w >= 1250 ? w * 0.775 - 50 : Infinity),
