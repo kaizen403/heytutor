@@ -163,6 +163,11 @@ function turnPlanPromptAddons(
   // teaching model ignored it and was right, which is not a guarantee worth
   // relying on. Say what the block actually is.
   const solverVerified = Boolean(solverProjection);
+  // The planner also stores transport and repair notes in this legacy list.
+  // Those explain pipeline decisions, never conditions of the student's problem.
+  const assumptions = (turnPlan?.assumptions ?? []).filter((text) =>
+    !/^(?:A verified illustration is required|Turn-plan model was unavailable|Mock mode does not solve|Removed \d+ (?:invalid planner dependency|directional sign))/.test(text),
+  );
   const turnPlanPromptAddon = turnPlan
     ? `${solverVerified ? "AUTHORITATIVE TURN PLAN V3" : "TURN PLAN V3 (NOT INDEPENDENTLY CHECKED)"}
 ${solverVerified
@@ -174,8 +179,12 @@ ${JSON.stringify({
   derived: turnPlan.derived,
   qualitativeClaims: turnPlan.qualitativeClaims,
   lawIds: turnPlan.lawIds,
-  assumptions: turnPlan.assumptions,
-})}${assumedSymbols.length > 0
+  assumptions,
+})}${assumptions.length > 0 ? `
+PROBLEM CONDITIONS
+The assumptions listed above are modelling conditions, not extra givens. Read the user's exact question to distinguish stated conditions from unstated assumptions; neither the drawing nor a qualitative claim establishes an unstated condition.
+Before the first calculation that depends on an unstated assumption, explicitly say "assuming" and explain the condition. Say which requested result is not uniquely determined without it.
+When giving that dependent answer, say "under that assumption" in the SAME STEP as its numeric value. The answer's [WRITE] row must carry a compact condition too, or follow a row stating it, so the student's saved notes remain conditional. This applies even when some other quantity in the plan is solver-verified. Do not silently drop the condition at the final answer.` : ""}${assumedSymbols.length > 0
   ? `
 NOT STATED BY THE QUESTION: ${assumedSymbols.join(", ")}. The question never supplies these; they are illustrative values chosen so the idea can be worked through.
 Never call them given. Say "suppose" or "take, for example" the first time each one is spoken, and [WRITE] that word on the row that carries it. Never present a result computed from them as a fact about the world.`
