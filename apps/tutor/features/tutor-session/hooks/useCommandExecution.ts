@@ -49,6 +49,7 @@ import {
   getFlightDuration,
   selectInkPace,
   effectiveWhiteboardInkSpeed,
+  SCENE_ADAPTIVE_MIN,
   SCENE_MIN_MS,
   tutorDebug,
   type InkPace,
@@ -69,6 +70,8 @@ import { resolveSnappedAnnotationParams } from "../lib/board/annotationSnap";
 import { withSpotlight } from "../lib/board/spotlight";
 import {
   runScheduledFocus,
+  focusHopMs,
+  FOCUS_HOP_MAX_MS,
   type FocusTargetSchedule,
   type FocusTracePath,
   type ScheduledFocusTarget,
@@ -1124,6 +1127,17 @@ export function useCommandExecution({
                     shouldCancel: commandCancelled,
                     getPlaybackRate: options.getPlaybackRate,
                   }),
+                flightBudgetMs: (audioMs) => {
+                  // Lettering can leave the board at scene pace while the
+                  // voice keeps its playback rate. Budget against the slowest
+                  // adaptive pen speed and leave two frames for the landing.
+                  const rate = options.getPlaybackRate?.() ?? 1;
+                  const playbackRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
+                  const minInkSpeed = Math.max(0.25, effectiveWhiteboardInkSpeed(
+                    speedRef.current, SCENE_ADAPTIVE_MIN, inkPaceRef.current,
+                  ));
+                  return Math.max(0, audioMs / playbackRate - 32) * minInkSpeed;
+                },
                 isCancelled: commandCancelled,
                 floorMs: focusFloorMs,
               },
@@ -1286,12 +1300,14 @@ export function useCommandExecution({
               }));
               const paths = (tracePaths.length > 0 ? tracePaths : fallbacks).slice(0, 8);
               for (const candidate of paths) {
-                await wb.flyCursorTo(candidate.x, candidate.y, Math.min(160, totalMs / paths.length), undefined, commandCancelled);
+                const perPathMs = totalMs / paths.length;
+                const hopMs = focusHopMs(null, candidate, Math.min(FOCUS_HOP_MAX_MS, perPathMs / 3));
+                await wb.flyCursorTo(candidate.x, candidate.y, hopMs, undefined, commandCancelled);
                 if (commandCancelled()) return true;
                 await drawAnnotation(
                   "underline",
                   candidate.path,
-                  Math.max(Math.round(totalMs / paths.length) - 160, 180),
+                  Math.max(Math.round(perPathMs - hopMs), 180),
                   { strokeWidth: 1.25, transient: true },
                 );
               }

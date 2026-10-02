@@ -1,9 +1,11 @@
 {
-  "title": "Volume & surface area of a square pyramid",
+  "title": "Square pyramid volume and surface area",
   "question": "A pyramid has a square base of side 6 cm and a perpendicular height of 4 cm. Find its volume and total surface area.",
-  "version": "145b350c4d20",
-  "duration": 174.07432889938354,
-  "audioOffsetSeconds": 8.154,
+  "version": "c5d33bad223d",
+  "duration": 187.94660019874573,
+  "audioOffsetSeconds": 1,
   "sceneTier": "qualitative_verified",
-  "sourceCommit": "85acc7d"
+  "sourceCommit": "a350853ede601bb18940c8a60b99ddfdb40e84fc",
+  "recordingKind": "native-tutor-session",
+  "turnId": "99f9b120-f4d8-481f-aab6-209d237f8e41"
 }
