@@ -243,6 +243,12 @@ assert(!isCuedSceneBatch(train), "a batch with no spoken cues is not a cued batc
   assert(cuedInkFloorMs(label) === getCommandDrawDurationMs(label, "follow"), "a label's floor is its handwriting natural");
   assert(cuedInkCapMs(label) === cuedInkFloorMs(label), "a label is not drawn out over its word");
   assert(cuedInkCapMs(arc) > arcFloor && cuedInkCapMs(arc) <= arcFloor * 4, "a shape may be drawn out, but only a few times its hand-speed time");
+  const mediumLine = command("DRAW_LINE", [600, 300, 900, 300]);
+  const perimeter = command("DRAW_LINE", [600, 500, 700, 200, 930, 200, 930, 500, 600, 500]);
+  assert(cuedInkCapMs(perimeter) > cuedInkCapMs(mediumLine), "a long closed perimeter has more unhurried hand time than one ordinary line");
+  assert(cuedInkCapMs(perimeter) <= cuedInkFloorMs(perimeter) * 4, "geometry-aware caps retain the hand-speed stretch ceiling");
+  const subdivided: DrawCommand = { ...mediumLine, params: [600, 300, 700, 300, 800, 300, 900, 300] };
+  assert(cuedInkCapMs(subdivided) === cuedInkCapMs(mediumLine), "polyline subdivision must not inflate the actual ink budget");
   assert(cuedInkBudgetMs({ remainingMs: 50, floorMs: 136, capMs: 544 }) === 136, "a window shorter than the floor still gets the floor");
   assert(cuedInkBudgetMs({ remainingMs: 5000, floorMs: 136, capMs: 544 }) === 544, "a long window is capped");
   assert(cuedInkBudgetMs({ remainingMs: 300, floorMs: 136, capMs: 544 }) === 300, "inside the window the part fills what is left");

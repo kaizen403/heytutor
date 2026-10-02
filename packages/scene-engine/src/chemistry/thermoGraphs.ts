@@ -451,8 +451,8 @@ function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
   const barrierIds: string[] = [guide];
   if (n === 1) {
     const step = spec.steps[0]!;
-    const foot = s.helper("ea_foot", { x: peakX(0) - 0.35, y: yR }, "barrier foot helper");
-    const top = s.helper("ea_top", { x: peakX(0) - 0.35, y: y(peaks[0]!) }, "barrier top helper");
+    const foot = s.helper("ea_foot", { x: peakX(0), y: yR }, "barrier foot helper");
+    const top = s.helper("ea_top", { x: peakX(0), y: y(peaks[0]!) }, "barrier top helper");
     s.dimension("ea_dim", foot, top, "activation energy", spec.eaKnown ? `E_a = ${fmt(step.ea)} ${u}` : "E_a");
     s.labelled("ea_dim");
     barrierIds.push("ea_dim");
@@ -464,8 +464,8 @@ function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
       dashed(c, "catalysed");
       s.labelled("catalysed");
       proveOnCurve(c, "catalysed_peak", "catalysed", peakX(0), peakCat);
-      const catTop = s.helper("ea_cat_top", { x: peakX(0) - 0.35, y: peakCat }, "catalysed top helper");
-      const catFoot = s.helper("ea_cat_foot", { x: peakX(0) - 0.35, y: yR }, "catalysed foot helper");
+      const catTop = s.helper("ea_cat_top", { x: peakX(0), y: peakCat }, "catalysed top helper");
+      const catFoot = s.helper("ea_cat_foot", { x: peakX(0), y: yR }, "catalysed foot helper");
       s.dimension("ea_cat_dim", catFoot, catTop, "catalysed activation energy", typeof spec.catalyst === "number" ? `E_a = ${fmt(eaCat)} ${u}` : "E_a (catalyst)");
       s.labelled("ea_cat_dim");
       barrierIds.push("catalysed", "ea_cat_dim");
@@ -475,7 +475,10 @@ function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
   s.group("barrier", barrierIds, "the activation energy is the climb from the reactant level to the top of the barrier");
 
   if (Math.abs(yP - yR) > 1e-6) {
-    const x = centre(n) - halfWidth - 0.25;
+    // Reuse the product plateau and reactant guide's right endpoint. Putting
+    // the measured span inside the curve makes its reference ambiguous and
+    // forces short energy-gap labels across the plateau.
+    const x = centre(n) + halfWidth;
     const a = s.helper("dh_a", { x, y: yR }, "enthalpy reference helper");
     const b = s.helper("dh_b", { x, y: yP }, "enthalpy product helper");
     const net = levels[n]!;

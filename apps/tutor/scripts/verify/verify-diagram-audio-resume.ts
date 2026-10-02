@@ -58,7 +58,9 @@ const presentation = buildVerifiedDiagramPresentation(scene.document, scene.rend
 const intros = presentation.introSegments;
 const intro = intros[0]!;
 const introCommandCount = intros.reduce((total, beat) => total + beat.commands!.length, 0);
-assert.deepEqual(intros.map((beat) => beat.commands!.length), [14, 11, 8]);
+// The body centre is a hidden force anchor. P uses a nearby label without a
+// callout and waits until named; the mass label and all force ink remain.
+assert.deepEqual(intros.map((beat) => beat.commands!.length), [14, 7, 8]);
 const lesson: TutorSegment = { narration: "The net force equals mass times acceleration.", command: {
   type: "WRITE", text: "F = ma", params: [80, 150], charPosition: 0, narrationBefore: "The net force equals mass times acceleration.",
 } };
@@ -500,7 +502,24 @@ async function scenario(selectedMode: Mode) {
       }
       if (deferredLabel) {
         for (let target = now; pathGate.release === null; target += 20) { assert(target < 45_000); await advance(target); }
-      } else await advance(now + (realCanvas ? 6_000 : 2_500));
+      } else {
+        // The verified scene may shorten a caption or remove redundant ink.
+        // Pause on observed partial drawing, rather than a wall-time guess
+        // that could now land after the whole reveal beat has completed.
+        const deadline = now + 20_000;
+        let partialBeatObserved = false;
+        for (let target = now; target < deadline; target += 20) {
+          await advance(target);
+          const currentBeat = visibleIntro().filter((node) => intros[1]!.commands!.includes(node.command));
+          const labelReady = !realCanvas || params.boardLayoutRef.current.rects.some((rect) =>
+            rect.text === intros[1]!.commands!.find((command) => command.type === "LABEL")!.text);
+          if (currentBeat.length > 0 && currentBeat.length < intros[1]!.commands!.length && labelReady) {
+            partialBeatObserved = true;
+            break;
+          }
+        }
+        assert(partialBeatObserved, "a paced reveal must expose partial ink before its bounded pause deadline");
+      }
       const previousNodes = visibleIntro().filter((node) => intros[0]!.commands!.includes(node.command));
       const interruptedNodes = visibleIntro().filter((node) => intros[1]!.commands!.includes(node.command));
       assert.equal(previousNodes.length, intros[0]!.commands!.length);
