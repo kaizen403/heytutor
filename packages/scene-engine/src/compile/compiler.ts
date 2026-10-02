@@ -64,6 +64,12 @@ import { evaluateHarmonicMotionConstruction, type HarmonicMotionDefinition, type
 import { evaluateGravityConstruction, type GravityFieldDefinition, type GravityForceDefinition } from "./gravityGeometry";
 import { evaluateComplexConstruction, type ComplexNumberDefinition } from "./complexGeometry";
 import { evaluateMagneticConstruction, type MagneticForceDefinition } from "./magneticGeometry";
+import { evaluateRelativeMotionConstruction, type RelativeMotionMark } from "./relativeMotionGeometry";
+import { evaluateNetworkConstruction, type NetworkBranchDefinition } from "./networkGeometry";
+import { evaluateMechanicsDiagramConstruction, type MechanicsMark } from "./mechanicsDiagramGeometry";
+import { evaluateCurrentFieldConstruction, type CurrentFieldMark } from "./currentFieldGeometry";
+import { evaluateChapterRemainderConstruction, type RemainderMark } from "./chapterRemainderGeometry";
+import { evaluateChapterInstrumentConstruction, type InstrumentMark } from "./chapterInstrumentGeometry";
 import { evaluateFluidConstruction, type HydrostaticProfileDefinition, type HydrostaticStateDefinition, type BuoyancyDefinition } from "./fluidGeometry";
 import { withEvaluatedOutputLabels } from "./outputLabels";
 import { evaluateStatisticsConstruction } from "./statistics";
@@ -127,6 +133,12 @@ type DerivedGeometryMetadata = {
   gravityForce?: GravityForceDefinition;
   complexNumber?: ComplexNumberDefinition;
   magneticForce?: MagneticForceDefinition;
+  relativeMotion?: RelativeMotionMark;
+  networkBranch?: NetworkBranchDefinition;
+  mechanics?: MechanicsMark;
+  currentField?: CurrentFieldMark;
+  remainder?: RemainderMark;
+  instrument?: InstrumentMark;
   hydrostaticProfile?: HydrostaticProfileDefinition;
   hydrostaticState?: HydrostaticStateDefinition;
   buoyancyDefinition?: BuoyancyDefinition;
@@ -1162,6 +1174,35 @@ function evaluateConstruction(
     case "complex_roots": return evaluateComplexConstruction(operator, inputs, constructionContext);
     case "magnetic_force":
     case "magnetic_components": return evaluateMagneticConstruction(operator, inputs, constructionContext);
+    case "velocity_triangle":
+    case "collinear_velocity_pair":
+    case "crossing_strategies":
+    case "parallel_guides": return evaluateRelativeMotionConstruction(operator, inputs, constructionContext);
+    case "kirchhoff_network": return evaluateNetworkConstruction(operator, inputs, constructionContext);
+    case "free_body":
+    case "coupled_bodies":
+    case "vertical_circle":
+    case "mechanical_energy_pair": return evaluateMechanicsDiagramConstruction(operator, inputs, constructionContext);
+    case "current_element_field":
+    case "conductor_force":
+    case "parallel_wire_force":
+    case "magnetic_dipole_field":
+    case "solenoid_field": return evaluateCurrentFieldConstruction(operator, inputs, constructionContext);
+    case "relative_velocity":
+    case "motion_graph":
+    case "uniform_circular_motion":
+    case "projectile_trajectory":
+    case "work_interval":
+    case "spring_energy":
+    case "potential_curve":
+    case "collision":
+    case "loop_torque":
+    case "galvanometer":
+    case "bar_magnet": return evaluateChapterRemainderConstruction(operator, inputs, constructionContext);
+    case "metre_bridge":
+    case "potentiometer":
+    case "incline_friction":
+    case "cyclotron": return evaluateChapterInstrumentConstruction(operator, inputs, constructionContext);
     case "hydrostatic_profile":
     case "hydrostatic_state":
     case "buoyancy": return evaluateFluidConstruction(operator, inputs, constructionContext);
@@ -4023,7 +4064,7 @@ function curveExpression(entityId: string | undefined, document: SceneDocument) 
 function isNonmetricGeometry(value: Geometry | undefined): boolean {
   return value !== undefined && Object.values(value).some((entry) => isRecord(entry) && entry.nonmetric === true);
 }
-const INDEPENDENT_DISPLAY_KEYS = new Set(["displayLength", "timeScale", "parameterScale", "voltageScale", "currentScale", "pressureScale", "volumeScale", "depthScale", "xScale", "yScale", "ordinateScale", "fluxScale", "strainScale", "stressScale"]);
+const INDEPENDENT_DISPLAY_KEYS = new Set(["displayLength", "timeScale", "parameterScale", "voltageScale", "currentScale", "pressureScale", "volumeScale", "depthScale", "xScale", "yScale", "ordinateScale", "fluxScale", "strainScale", "stressScale", "displayScale", "forceScale", "accelerationScale", "heightScale", "speedScale"]);
 function geometryMetadataMatches(value: Geometry | undefined, predicate: (metadata: Record<string, unknown>) => boolean): boolean {
   const seen = new Set<unknown>();
   function visit(candidate: unknown, depth: number): boolean {
