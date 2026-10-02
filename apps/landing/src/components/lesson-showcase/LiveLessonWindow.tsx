@@ -16,7 +16,7 @@ export default function LiveLessonWindow({
   visibilityRootRef: RefObject<HTMLElement | null>
 }) {
   const bodyRef = useRef<HTMLDivElement>(null)
-  const { videoRef, sound, toggleSound, reduced, onReady, onError } = useHeroVideo(visibilityRootRef)
+  const { videoRef, sound, onScreen, toggleSound, reduced, onReady, onError } = useHeroVideo(visibilityRootRef)
   const [view, setView] = useState({ fit: 0, cropSidebar: false })
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export default function LiveLessonWindow({
             poster={`/hero/lesson-poster.jpg?v=${metadata.version}`}
             width={DESIGN_W}
             height={DESIGN_H}
-            muted={sound !== 'on'}
+            muted={sound !== 'on' || !onScreen}
             loop
             playsInline
             preload={reduced ? 'none' : 'metadata'}
