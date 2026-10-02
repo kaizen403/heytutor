@@ -143,8 +143,8 @@ body {
 
   /* Longer hero lockup — smaller on phones so both lines stay compact. */
   .type-h1--hero {
-    font-size: 22px;
-    line-height: 28px;
+    font-size: clamp(24px, 6.8vw, 30px);
+    line-height: 1.2;
   }
   @media (min-width: 640px) {
     .type-h1--hero { font-size: 36px; line-height: 42px; }

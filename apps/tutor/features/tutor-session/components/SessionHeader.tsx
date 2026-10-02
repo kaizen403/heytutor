@@ -108,7 +108,7 @@ export function SessionHeader({
           : { flexShrink: 0 }
       }
     >
-      <div className="flex flex-nowrap items-center gap-2 sm:gap-3">
+      <div className={compactActions ? "flex flex-col items-stretch gap-2" : "flex flex-nowrap items-center gap-2 sm:gap-3"}>
         {/* Left: navigation + board identity */}
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           {showNav && (
@@ -116,7 +116,7 @@ export function SessionHeader({
               type="button"
               onClick={onExpandSidebar}
               aria-label="Open navigation"
-              className={`btn-plain btn-ghost h-10 w-10 shrink-0 rounded-[9px] sm:h-[34px] sm:w-[34px] ${navButtonClassName ?? ""}`}
+              className={`btn-plain btn-ghost shrink-0 rounded-[9px] ${compactActions ? "h-11 w-11" : "h-10 w-10 sm:h-[34px] sm:w-[34px]"} ${navButtonClassName ?? ""}`}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -127,7 +127,7 @@ export function SessionHeader({
 
           <div className="min-w-0 flex-1">
             <span
-              className="block min-w-0 truncate text-[15px] font-semibold tracking-[-0.015em] text-frost sm:text-base"
+              className={`min-w-0 text-[15px] font-semibold tracking-[-0.015em] text-frost sm:text-base ${compactActions ? "line-clamp-2 break-words" : "block truncate"}`}
               title={title}
             >
               {title}
@@ -145,7 +145,7 @@ export function SessionHeader({
         </div>
 
         {/* Right: actions */}
-        <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
+        <div className={`flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2 ${compactActions ? "flex-wrap justify-between" : "flex-nowrap"}`}>
           {showNotesToggle && onToggleNotes ? (
             <button
               type="button"
@@ -153,7 +153,7 @@ export function SessionHeader({
               aria-label={notesOpen ? "Hide chat" : "Ask me anything"}
               aria-pressed={notesOpen}
               className={`btn btn-sm ${notesOpen ? "btn-sky" : "btn-ghost"} ${
-                compactActions ? "h-10 w-10 px-0" : "h-10 w-10 px-0 sm:h-[34px] sm:w-auto sm:px-[15px]"
+                compactActions ? "h-11 w-11 px-0" : "h-10 w-10 px-0 sm:h-[34px] sm:w-auto sm:px-[15px]"
               }`}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -188,7 +188,7 @@ export function SessionHeader({
               aria-label={isFullscreen ? "Leave full screen" : "Full screen board"}
               aria-pressed={isFullscreen}
               title={isFullscreen ? "Leave full screen (f)" : "Full screen board (f)"}
-              className="btn-plain btn-ghost h-10 w-10 shrink-0 rounded-full px-0 sm:h-8 sm:w-8"
+              className={`btn-plain btn-ghost shrink-0 rounded-full px-0 ${compactActions ? "h-11 w-11" : "h-10 w-10 sm:h-8 sm:w-8"}`}
             >
               {isFullscreen ? (
                 <Minimize size={15} strokeWidth={2} aria-hidden />
@@ -208,7 +208,7 @@ export function SessionHeader({
                 // Not the danger face. Stopping a lesson is reversible — the
                 // board keeps everything written so far and the lecture can be
                 // replayed — so it does not warrant the one red in the UI.
-                className="btn btn-ghost btn-sm shrink-0"
+                className={`btn btn-ghost btn-sm shrink-0 ${compactActions ? "min-h-11" : ""}`}
               >
                 Stop
               </button>

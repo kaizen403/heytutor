@@ -61,7 +61,7 @@ export default function Navbar() {
             </Button>
             <button
               type="button"
-              className="flex h-9 w-9 items-center justify-center text-[rgba(240,245,247,0.7)] transition-colors duration-300 hover:text-frost md:hidden"
+              className="flex h-11 w-11 items-center justify-center text-[rgba(240,245,247,0.7)] transition-colors duration-300 hover:text-frost md:hidden"
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label="Toggle menu"
               aria-expanded={mobileOpen}
