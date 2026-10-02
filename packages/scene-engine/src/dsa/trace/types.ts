@@ -277,7 +277,7 @@ export type TraceStructure = TraceFrameState["kind"];
 export interface TraceFrame {
   /** Stable slug — the reveal-group id and the gate's address for this frame. */
   id: string;
-  /** At most 60 characters; drawn under the figure. */
+  /** At most 60 characters. Names the frame for narration. The board does not draw it. */
   caption: string;
   /** What the tutor should say while this frame is up. */
   narrationIntent: string;

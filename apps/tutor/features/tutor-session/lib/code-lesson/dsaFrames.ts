@@ -55,7 +55,7 @@ export interface DsaSourceFrames {
 
 export interface DsaFrame {
   id: string;
-  /** Short line drawn under the figure. */
+  /** Short name for this frame. The board does not draw it. */
   caption: string;
   /** What the tutor should say while this frame is on the board. */
   narrationIntent: string;
