@@ -1534,7 +1534,8 @@ export function useQuestionHandler(
         diagramSource = "verified_scene";
         activeVerifiedDiagramRef.current = activeDiagram;
         // A code lesson writes the problem first. Holding the figure out of
-        // React state keeps its caption off the board until the delayed intro.
+        // React state keeps the label inspector off the board until the
+        // delayed intro.
         if (!codeLesson) {
           setActiveVerifiedDiagram?.(activeDiagram);
         }

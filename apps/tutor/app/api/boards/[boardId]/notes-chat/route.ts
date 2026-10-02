@@ -6,7 +6,12 @@ import {
   tutorDebug,
 } from "@heytutor/tutor-core";
 import { requireNotesAccess, isSpendActor, requireSpendActor } from "@/lib/billing/gate";
+import { reservePaidUsage, holdPaidUsage, maximumLlmCost, actualLlmCost, type PaidUsageReservation } from "@/lib/billing/paidUsage";
+import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
+import { reserveStorageBytes, releaseStorageBytes, StorageQuotaError, withUserStorageLock } from "@/lib/boards/storageQuota";
 import { recordLlmSpend, recordNotesMessage } from "@/lib/billing/track";
+import type { SpendActor } from "@/lib/billing/actor";
+import { holdNotesReservation } from "@/lib/billing/notesReservation";
 import { prisma } from "@/lib/db/prisma";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import {
@@ -28,6 +33,7 @@ import {
 import { fetchTeachingCompletion } from "@/lib/llm/teachingTransport";
 import { prepareNotesChat } from "@/lib/llm/notesChatPolicy";
 import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
+import { registerWsConnectionRevocation } from "@/lib/tts/wsTicket";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 const NOTES_CHAT_MAX_MESSAGE_CHARS = 2000;
@@ -142,7 +148,17 @@ export async function GET(request: Request, context: RouteContext) {
 export async function POST(request: Request, context: RouteContext) {
   const gated = await requireNotesAccess(request);
   if (gated instanceof Response) return gated;
-  const { actor } = gated;
+  try {
+    const response = await postNotesChat(request, context, gated.actor);
+    if (!response.ok) await gated.release?.();
+    return response.ok ? holdNotesReservation(response, gated.release) : response;
+  } catch (error) {
+    await gated.release?.();
+    throw error;
+  }
+}
+
+async function postNotesChat(request: Request, context: RouteContext, actor: SpendActor) {
   const userId = actor.userId;
 
   const { boardId } = await context.params;
@@ -154,9 +170,9 @@ export async function POST(request: Request, context: RouteContext) {
 
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "invalid json" }, { status: 400 });
+    body = await readBoundedJson(request, 512 * 1024);
+  } catch (error) {
+    return NextResponse.json({ error: "invalid json" }, { status: error instanceof RequestBodyError ? error.status : 400 });
   }
 
   if (!isRecord(body) || typeof body.message !== "string") {
@@ -169,6 +185,9 @@ export async function POST(request: Request, context: RouteContext) {
   }
   if (message.length > NOTES_CHAT_MAX_MESSAGE_CHARS) {
     return NextResponse.json({ error: "message too long" }, { status: 400 });
+  }
+  if (request.signal.aborted) {
+    return NextResponse.json({ error: "request canceled" }, { status: 499 });
   }
 
   const lectureInProgress = body.lectureInProgress === true;
@@ -194,21 +213,89 @@ export async function POST(request: Request, context: RouteContext) {
   const tag = parseNotesChatTag(body.tag);
   const userContent = formatTaggedUserMessage(message, tag);
 
-  await prisma.boardChatMessage.create({
-    data: {
-      boardId,
-      userId,
-      role: "user",
-      content: message,
-      tag: tag ? { kind: tag.kind, text: tag.text, turnIndex: tag.turnIndex } : undefined,
-    },
-  });
-
+  const messageBytes = Buffer.byteLength(message) + Buffer.byteLength(JSON.stringify(tag)) + 256;
+  const replyBudgetBytes = 64 * 1024;
+  let replyBytes = 0;
+  let storageReleased = false;
+  let initialStorageReserved = false;
+  let savingReply: Promise<void> | undefined;
+  let storageRelease: Promise<void> | undefined;
+  let unregisterAccount = () => {};
+  try {
+    await reserveStorageBytes(userId, messageBytes + replyBudgetBytes);
+    initialStorageReserved = true;
+    await withUserStorageLock(userId, async tx => {
+      if (await tx.boardChatMessage.count({ where: { boardId, userId } }) >= 2000) throw new StorageQuotaError("notes history is full", 429);
+      if (!await tx.board.findFirst({ where: { id: boardId, userId } })) throw new StorageQuotaError("board not found", 404);
+      await tx.boardChatMessage.create({ data: {
+        boardId, userId, role: "user", content: message, storageBytes: BigInt(messageBytes),
+        tag: tag ? { kind: tag.kind, text: tag.text, turnIndex: tag.turnIndex } : undefined,
+      } });
+    });
+  } catch (error) {
+    if (initialStorageReserved) await releaseStorageBytes(userId, messageBytes + replyBudgetBytes).catch(() => {});
+    return NextResponse.json({ error: error instanceof StorageQuotaError ? error.message : "Could not save message." }, { status: error instanceof StorageQuotaError ? error.status : 503 });
+  }
+  const releaseReplyStorage = () => {
+    storageRelease ??= (async () => {
+      storageReleased = true;
+      unregisterAccount();
+      // Cancellation can arrive while TransformStream.flush is committing its
+      // reply. Settle that transaction before calculating the unused capacity.
+      await savingReply?.catch(() => {});
+      await releaseStorageBytes(userId, replyBudgetBytes - replyBytes).catch(error => {
+        if (!(error instanceof StorageQuotaError && error.status === 404)) console.error("[notes] storage settlement failed", error);
+      });
+    })();
+    return storageRelease;
+  };
+  const saveReply = async (reply: string) => {
+    if (storageReleased) return;
+    const bytes = Buffer.byteLength(reply) + 256;
+    if (bytes > replyBudgetBytes) throw new Error("notes reply too large");
+    savingReply = withUserStorageLock(userId, async tx => {
+      if (!await tx.board.findFirst({ where: { id: boardId, userId } })) throw new StorageQuotaError("board not found", 404);
+      if (await tx.boardChatMessage.count({ where: { boardId, userId } }) >= 2000) throw new StorageQuotaError("notes history is full", 429);
+      await tx.boardChatMessage.create({ data: { boardId, userId, role: "assistant", content: reply, storageBytes: BigInt(bytes) } });
+    }).then(() => { replyBytes = bytes; });
+    await savingReply;
+  };
+  const holdStorage = (body: ReadableStream<Uint8Array>) => {
+    const reader = body.getReader();
+    return new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        try { const item = await reader.read(); if (item.done) { await releaseReplyStorage(); controller.close(); } else controller.enqueue(item.value); }
+        catch (error) { await releaseReplyStorage(); controller.error(error); }
+      },
+      async cancel(reason) { try { await reader.cancel(reason); } finally { await releaseReplyStorage(); } },
+    });
+  };
+  let paid: PaidUsageReservation | undefined;
+  let policy: PaidUsageReservation | undefined;
+  let policyDispatched = false;
+  let storageHandedOff = false;
+  try {
+  const accountCanceled = new AbortController();
+  const requestSignal = AbortSignal.any([request.signal, accountCanceled.signal, AbortSignal.timeout(120_000)]);
+  // Account deletion also cancels HTTP notes generation. Register before any
+  // asynchronous provider admission; late registration after deletion aborts.
+  unregisterAccount = registerWsConnectionRevocation(userId, () => accountCanceled.abort());
+  const dispatchAccessError = async () => {
+    if (requestSignal.aborted) return NextResponse.json({ error: "request canceled" }, { status: 499 });
+    const activeUser = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!activeUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    if (!await getOwnedBoard(boardId, userId)) return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (requestSignal.aborted) return NextResponse.json({ error: "request canceled" }, { status: 499 });
+    return null;
+  };
+  const initialDispatchError = await dispatchAccessError();
+  if (initialDispatchError) return initialDispatchError;
   const apiKey = process.env.FIREWORKS_API_KEY?.trim();
   const mock = !apiKey;
   const traceId = genTraceId();
   const turnTrace = startTurnTrace({
     sessionId: boardId,
+    userId,
     input: userContent,
     traceId,
     mock,
@@ -218,9 +305,8 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (mock) {
     const reply = stripNotesChatProtocol(getMockNotesChatResponse(userContent));
-    await prisma.boardChatMessage.create({
-      data: { boardId, userId, role: "assistant", content: reply },
-    });
+    await saveReply(reply);
+    await releaseReplyStorage();
     endLlmGeneration(turnTrace, {
       output: reply,
       usageDetails: { input: 0, output: 0, total: 0 },
@@ -239,13 +325,24 @@ export async function POST(request: Request, context: RouteContext) {
     });
   }
 
-  const prepared = await prepareNotesChat({
+  const mode = process.env.TUTOR_NOTES_EVALUATION_MODE?.trim().toLowerCase();
+  if ((mode === "shadow" || mode === "jev") && process.env.AI_GATEWAY_API_KEY?.trim()) {
+    const reservation = await reservePaidUsage({ actor, kind: "policy", traceId, usd: 0.03 });
+    if (reservation instanceof Response) return reservation;
+    policy = reservation;
+  }
+  const policyDispatchError = await dispatchAccessError();
+  if (policyDispatchError) { await policy?.cancelBeforeDispatch(); policy = undefined; return policyDispatchError; }
+  let prepared: Awaited<ReturnType<typeof prepareNotesChat>>;
+  policyDispatched = policy !== undefined;
+  try { prepared = await prepareNotesChat({
     notes,
     tag,
     userMessage: message,
-    signal: request.signal,
+    signal: requestSignal,
     network: true,
-  });
+  }); } catch (error) { await policy?.finish(); throw error; }
+  await policy?.settle(prepared.evaluation?.status === "assessed" && prepared.evaluation.usage.inputTokens > 0 ? prepared.evaluation.usage.estimatedUsd : undefined);
   const model = prepared.model;
   const taggedPrompt = tag ? `\n\n${formatNotesChatTagPrompt(tag)}` : "";
   const systemPrompt = `${NOTES_CHAT_SYSTEM_PROMPT}\n\nlesson notes:\n${prepared.notesText}${taggedPrompt}`;
@@ -253,6 +350,7 @@ export async function POST(request: Request, context: RouteContext) {
   if (evaluation?.status === "assessed" && evaluation.usage.inputTokens > 0) {
     recordLlmSpend({
       actor,
+      accounted: true,
       model: evaluation.provenance.model,
       usage: {
         input: evaluation.usage.inputTokens,
@@ -274,11 +372,21 @@ export async function POST(request: Request, context: RouteContext) {
     ],
   });
 
+  const reservation = await reservePaidUsage({ actor, kind: "notes", traceId,
+    usd: maximumLlmCost(JSON.parse(fireworksBody).messages, NOTES_CHAT_MAX_TOKENS, [model]) });
+  if (reservation instanceof Response) return reservation;
+  paid = reservation;
+  const dispatchError = await dispatchAccessError();
+  if (dispatchError) {
+    await reservation.cancelBeforeDispatch();
+    paid = undefined;
+    return dispatchError;
+  }
   let upstream: Response;
   try {
     upstream = await fetchTeachingCompletion({
       url: FIREWORKS_CHAT_URL,
-      signal: request.signal,
+      signal: requestSignal,
       init: {
         method: "POST",
         headers: {
@@ -292,7 +400,7 @@ export async function POST(request: Request, context: RouteContext) {
     const err = error instanceof Error ? error.message : "notes-chat fetch failed";
     endLlmGeneration(turnTrace, { output: err, metadata: { error: true } });
     flushInBackground();
-    return NextResponse.json({ error: err }, { status: 502 });
+    return NextResponse.json({ error: "Could not generate an answer. Please retry." }, { status: 502 });
   }
 
   if (!upstream.ok || !upstream.body) {
@@ -303,7 +411,7 @@ export async function POST(request: Request, context: RouteContext) {
     });
     flushInBackground();
     return NextResponse.json(
-      { error: errorBody || "notes-chat upstream error" },
+      { error: "Could not generate an answer. Please retry." },
       { status: upstream.status || 502 },
     );
   }
@@ -316,6 +424,7 @@ export async function POST(request: Request, context: RouteContext) {
   const transform = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
       buffered += decoder.decode(chunk, { stream: true });
+      if (buffered.length > 128 * 1024 || accumulated.length > 60 * 1024) throw new Error("notes stream limit exceeded");
       const lines = buffered.split(/\r?\n/);
       buffered = lines.pop() ?? "";
       for (const line of lines) {
@@ -340,11 +449,10 @@ export async function POST(request: Request, context: RouteContext) {
       }
       const reply = stripNotesChatProtocol(accumulated);
       if (reply) {
-        await prisma.boardChatMessage.create({
-          data: { boardId, userId, role: "assistant", content: reply },
-        });
+        await saveReply(reply);
       }
       const parsedUsage = parseProviderUsage(latestUsage);
+      await reservation.settle(parsedUsage.known ? actualLlmCost(usageDetailsFromParsed(parsedUsage), model) : undefined);
       endLlmGeneration(turnTrace, {
         output: reply,
         usageDetails: usageDetailsFromParsed(parsedUsage),
@@ -365,7 +473,7 @@ export async function POST(request: Request, context: RouteContext) {
         model,
       });
       if (parsedUsage.known) {
-        recordLlmSpend({ actor, model, usage: usageDetailsFromParsed(parsedUsage) });
+        recordLlmSpend({ actor, model, usage: usageDetailsFromParsed(parsedUsage), accounted: true });
       }
       if (reply) {
         recordNotesMessage(actor);
@@ -377,7 +485,10 @@ export async function POST(request: Request, context: RouteContext) {
 
   tutorDebug("notes-chat", "streaming", { board_id: boardId, trace_id: traceId });
 
-  return new Response(upstream.body.pipeThrough(transform), {
+  const streamBody = holdStorage(holdPaidUsage(upstream.body.pipeThrough(transform), reservation));
+  paid = undefined;
+  storageHandedOff = true;
+  return new Response(streamBody, {
     status: 200,
     headers: {
       "content-type": "text/event-stream",
@@ -385,6 +496,16 @@ export async function POST(request: Request, context: RouteContext) {
       "x-heytutor-trace-id": traceId,
     },
   });
+  } finally {
+    // Each cleanup is independent: a billing write failure must not strand a
+    // storage allowance or an undispatched policy admission.
+    try {
+      if (policy) await (policyDispatched ? policy.finish() : policy.cancelBeforeDispatch());
+    } finally {
+      try { if (paid) await paid.finish(); }
+      finally { if (!storageHandedOff) await releaseReplyStorage(); }
+    }
+  }
 }
 
 function encodeSse(payload: Record<string, unknown>): Uint8Array {

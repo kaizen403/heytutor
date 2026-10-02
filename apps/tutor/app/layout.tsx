@@ -1,5 +1,6 @@
+import { headers } from "next/headers";
 import type { Metadata, Viewport } from "next";
-import { Caveat, Fraunces, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import {
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
@@ -10,24 +11,29 @@ import {
 import { AuthSessionProvider } from "@/components/auth/AuthSessionProvider";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
+// Keep production builds independent of Google Fonts network responses.
+const inter = localFont({
+  src: "../public/fonts/inter-variable.woff2",
+  weight: "100 900",
   variable: "--font-inter",
   display: "swap",
-  adjustFontFallback: true,
+  adjustFontFallback: "Arial",
 });
 
-const caveat = Caveat({
-  subsets: ["latin"],
-  weight: ["500", "600"],
+const caveat = localFont({
+  src: "../public/fonts/caveat-variable.woff2",
+  weight: "500 600",
   variable: "--font-caveat",
   display: "swap",
+  adjustFontFallback: false,
 });
 
-const fraunces = Fraunces({
-  subsets: ["latin"],
+const fraunces = localFont({
+  src: "../public/fonts/fraunces-variable.woff2",
+  weight: "100 900",
   variable: "--font-fraunces",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
 });
 
 export const viewport: Viewport = {
@@ -121,11 +127,12 @@ const structuredData = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="en"
@@ -134,6 +141,7 @@ export default function RootLayout({
       <head>
         <script
           type="application/ld+json"
+          nonce={nonce}
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </head>

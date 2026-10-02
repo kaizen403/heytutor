@@ -51,19 +51,21 @@ EOF
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y ca-certificates curl git docker.io docker-compose-plugin
+apt-get install -y ca-certificates curl git gnupg docker.io docker-compose-plugin ffmpeg
+ffmpeg -version >/dev/null
+ffprobe -version >/dev/null
 
-if ! command -v node >/dev/null; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+if ! command -v node >/dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" != "24" ]; then
+  curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
   apt-get install -y nodejs
 fi
 
 corepack enable
 corepack prepare pnpm@10.32.0 --activate
 
-if ! command -v caddy >/dev/null; then
+if ! command -v caddy >/dev/null || ! dpkg --compare-versions "$(caddy version | awk '{print $1}' | sed 's/^v//')" ge 2.10.0; then
   apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
   apt-get update
   apt-get install -y caddy
@@ -85,6 +87,9 @@ if ! id heytutor >/dev/null 2>&1; then
 fi
 mkdir -p /var/lib/heytutor
 chown heytutor:heytutor /var/lib/heytutor
+chgrp -R heytutor "$APP_DIR"
+chmod -R g+rX "$APP_DIR"
+chmod 750 "$APP_DIR"
 if [ -f "$ENV_FILE" ]; then
   chgrp heytutor "$ENV_FILE"
   chmod 640 "$ENV_FILE"
@@ -97,12 +102,29 @@ ${SSLIP_HOST} {
     X-Content-Type-Options nosniff
     Referrer-Policy strict-origin-when-cross-origin
     Permissions-Policy "camera=(), geolocation=(), microphone=(self), payment=(), usb=()"
-    Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+  }
+  # Next.js owns the per-response nonce CSP. Do not replace it in the proxy.
+  @turn_upload path /api/boards/*/turns
+  @speech_upload path /api/stt
+  @question_upload path /api/extract-question
+  @small_body not path /api/boards/*/turns /api/stt /api/extract-question
+  request_body @turn_upload {
+    max_size 36MiB
+  }
+  request_body @speech_upload {
+    max_size 11MiB
+  }
+  request_body @question_upload {
+    max_size 12MiB
+  }
+  request_body @small_body {
+    max_size 512KiB
   }
   reverse_proxy 127.0.0.1:3000
 }
 EOF
 
+caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 systemctl enable caddy
 systemctl reload caddy || systemctl restart caddy
 
@@ -120,7 +142,7 @@ NoNewPrivileges=true
 WorkingDirectory=${APP_DIR}
 Environment=HOME=/var/lib/heytutor
 EnvironmentFile=${APP_DIR}/apps/tutor/.env.production
-ExecStart=/usr/bin/bash -lc 'cd apps/tutor && pnpm exec prisma migrate deploy && NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000 pnpm exec tsx server.ts'
+ExecStart=/usr/bin/bash -lc 'cd apps/tutor && NODE_ENV=production HOSTNAME=${SSLIP_HOST} LISTEN_HOST=127.0.0.1 PORT=3000 pnpm exec tsx server.ts'
 Restart=always
 RestartSec=5
 
@@ -128,8 +150,11 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm rebuild @prisma/client @prisma/engines esbuild prisma
+pnpm --filter @heytutor/tutor exec prisma generate
 pnpm turbo run build --filter=@heytutor/tutor...
+pnpm --filter @heytutor/tutor exec prisma migrate deploy
 mkdir -p "${APP_DIR}/apps/tutor/.next/cache"
 chgrp -R heytutor "${APP_DIR}/apps/tutor/.next"
 chmod -R g+rwX "${APP_DIR}/apps/tutor/.next"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronLeft, ChevronRight, Download, X } from "lucide-react";
@@ -17,6 +17,10 @@ interface NotesSlidesOverlayProps {
   title?: string;
   onClose: () => void;
 }
+
+const subscribeToCaptureHost = () => () => {};
+const getCaptureHost = () => document.body;
+const getServerCaptureHost = () => null;
 
 /**
  * Saved lecture pages, as slides, with a download.
@@ -40,7 +44,9 @@ export function NotesSlidesOverlay({ boardId, title, onClose }: NotesSlidesOverl
   const boardReady = exportApi?.boardReady === true;
   const hasSavedTurns = exportApi?.hasSavedTurns === true;
   const collectRef = useRef<TutorSessionExportApi["collectNotesSlides"] | null>(null);
-  collectRef.current = exportApi?.collectNotesSlides ?? null;
+  useLayoutEffect(() => {
+    collectRef.current = exportApi?.collectNotesSlides ?? null;
+  }, [exportApi]);
 
   useEffect(() => {
     if (!boardReady) {
@@ -75,10 +81,11 @@ export function NotesSlidesOverlay({ boardId, title, onClose }: NotesSlidesOverl
     };
   }, [attempt, boardReady, hasSavedTurns]);
 
-  const [captureHost, setCaptureHost] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setCaptureHost(document.body);
-  }, []);
+  const captureHost = useSyncExternalStore(
+    subscribeToCaptureHost,
+    getCaptureHost,
+    getServerCaptureHost,
+  );
 
   const count = slides?.length ?? 0;
   const active = count === 0 ? 0 : Math.min(index, count - 1);

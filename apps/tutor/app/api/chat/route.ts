@@ -27,8 +27,11 @@ import {
 } from "@/lib/billing/gate";
 import { recordLlmSpend } from "@/lib/billing/track";
 import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
-import { markGrantInUse } from "@/lib/billing/grant";
+import { markGrantInUse, type TurnGrant } from "@/lib/billing/grant";
 import type { SpendActor } from "@/lib/billing/actor";
+import { reservePaidUsage, maximumLlmCost, actualLlmCost, holdPaidUsage, type PaidUsageReservation } from "@/lib/billing/paidUsage";
+import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
+import { serverChatBody } from "@/lib/llm/chatRequest";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
 import {
   fetchPlannerCompletion,
@@ -43,6 +46,7 @@ import {
 } from "@/lib/llm/teachingTransport";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
+const PUBLIC_CHAT_ERROR = "The tutor is temporarily unavailable. Please try again.";
 
 // Hard reasoning-token caps per tier. kimi-k2p6's `reasoning_effort` levels are
 // NOT hard budgets (low can out-reason medium and run until max_tokens), so we
@@ -289,13 +293,14 @@ function injectStreamOptions(
   codeLesson = false,
 ): string {
   try {
-    const parsed = JSON.parse(bodyText) as ChatRequestBody & Record<string, unknown>;
+    const parsed = serverChatBody(JSON.parse(bodyText));
     const contentBudget = resolveTeachingContentBudget({
       codeLesson,
       env: process.env,
     });
 
     parsed.model = serverModel;
+    parsed.stream = true;
     parsed.stream_options = { include_usage: true };
 
     // We drive reasoning exclusively through `thinking` — Fireworks rejects a
@@ -328,7 +333,7 @@ function createTracingTransformStream(
   mock: boolean,
   requestStartedAt: number,
   updateTrace: boolean,
-  spend?: { actor: SpendActor; model: string },
+  spend?: { actor: SpendActor; model: string; reservation: PaidUsageReservation; unknownCost: () => number; retryCost: () => number },
 ): TransformStream<Uint8Array, Uint8Array> {
   const decoder = new TextDecoder();
   let bufferedText = "";
@@ -452,10 +457,12 @@ function createTracingTransformStream(
         recordLlmSpend({
           actor: spend.actor,
           model: spend.model,
+          accounted: true,
           usage: usageDetailsFromParsed(usage),
         });
       }
 
+      if (spend) await spend.reservation.settle(usage.known ? (actualLlmCost(usageDetailsFromParsed(usage), spend.model) ?? 0) + spend.retryCost() : spend.unknownCost());
       flushInBackground();
     },
   });
@@ -477,6 +484,7 @@ interface PlannerRequestArgs {
   deadlineMs: number;
   signal: AbortSignal;
   actor: SpendActor;
+  grant: TurnGrant;
 }
 
 async function handlePlannerRequest({
@@ -495,6 +503,7 @@ async function handlePlannerRequest({
   deadlineMs,
   signal,
   actor,
+  grant,
 }: PlannerRequestArgs): Promise<Response> {
   const plannerModels = resolvePlannerModels({
     semanticSceneV2,
@@ -505,6 +514,7 @@ async function handlePlannerRequest({
     fastMode,
   });
 
+  let reservation: PaidUsageReservation | null = null;
   const deadlineController = new AbortController();
   const deadlineId = setTimeout(
     () => deadlineController.abort(new DOMException("Planner request deadline exceeded", "TimeoutError")),
@@ -512,7 +522,7 @@ async function handlePlannerRequest({
   );
   const boundedSignal = mergePlannerSignals(signal, deadlineController.signal);
   try {
-    const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+    const parsed = serverChatBody(JSON.parse(rawBody));
     delete parsed.reasoning_effort;
     if (semanticSceneV2 || turnPlanV3 || problemIRV1 || codeLessonV1) {
       // Hidden reasoning adds latency without improving the audited document.
@@ -535,6 +545,9 @@ async function handlePlannerRequest({
     parsed.stream = false;
     parsed.response_format = { type: "json_object" };
 
+    const reserved = await reservePaidUsage({ actor, grant, kind: "planner", traceId, usd: maximumLlmCost(parsed.messages, Number(parsed.max_tokens), plannerModels, plannerModels.length * 2) });
+    if (reserved instanceof Response) return reserved;
+    reservation = reserved;
     const upstreamStartedAt = Date.now();
     const transport = await fetchPlannerCompletion({
       url: FIREWORKS_CHAT_URL,
@@ -563,9 +576,9 @@ async function handlePlannerRequest({
     });
 
     if (!response.ok) {
-      const errorBody = await response.text();
+      await response.body?.cancel();
       endLlmGeneration(turnTrace, {
-        output: errorBody,
+        output: PUBLIC_CHAT_ERROR,
         metadata: {
           error: true,
           status: response.status,
@@ -579,8 +592,8 @@ async function handlePlannerRequest({
         level: "ERROR",
       });
       flushInBackground();
-      return new Response(errorBody, {
-        status: response.status,
+      return Response.json({ error: PUBLIC_CHAT_ERROR }, {
+        status: 502,
         headers: { "content-type": "application/json", "x-heytutor-trace-id": traceId },
       });
     }
@@ -620,9 +633,11 @@ async function handlePlannerRequest({
         recordLlmSpend({
           actor,
           model: transport.model,
+          accounted: true,
           usage: usageDetailsFromParsed(usage),
         });
       }
+      if (usage.known && transport.attemptCount === 1) await reservation.settle(actualLlmCost(usageDetailsFromParsed(usage), transport.model));
     } catch {
       endLlmGeneration(turnTrace, {
         output: jsonBody.slice(0, 2_000),
@@ -657,11 +672,12 @@ async function handlePlannerRequest({
     });
     flushInBackground();
     return Response.json(
-      { error: message },
+      { error: PUBLIC_CHAT_ERROR },
       { status: 500, headers: { "x-heytutor-trace-id": traceId } },
     );
   } finally {
     clearTimeout(deadlineId);
+    await reservation?.finish().catch(error => console.error("[billing] planner reconciliation failed", error));
   }
 }
 
@@ -690,8 +706,18 @@ export async function POST(request: Request): Promise<Response> {
   const releaseInUse = createInUseRelease(grant, grantTraceId);
   releaseInUseWhenClientLeaves(request.signal, releaseInUse);
   let streamOwnsGrant = false;
+  let reservation: PaidUsageReservation | null = null;
+  let attemptCount = 0;
+  let singleAttemptCost = 0;
+  const requestSignal = AbortSignal.any([request.signal, AbortSignal.timeout(120_000)]);
   try {
-  const rawBody = await request.text();
+  let rawBody: string;
+  try {
+    rawBody = await readBoundedText(request);
+    serverChatBody(JSON.parse(rawBody));
+  } catch (error) {
+    return Response.json({ error: "Invalid chat request." }, { status: error instanceof RequestBodyError ? error.status : 400 });
+  }
   const sessionId = request.headers.get("x-session-id") ?? undefined;
   const userInput = readPromptFromBody(rawBody);
   const { traceId: incomingTraceId, question } = readChatTraceHeaders(request.headers);
@@ -705,6 +731,7 @@ export async function POST(request: Request): Promise<Response> {
     ? resolveTeachingModel(process.env, { fastMode })
     : resolveFireworksModel({ fastMode });
   const turnTrace = startTurnTrace({
+    userId: actor.userId,
     sessionId,
     input: resolveTurnTraceInput({ kind, attach, question, userInput }),
     generationInput: userInput,
@@ -773,8 +800,9 @@ export async function POST(request: Request): Promise<Response> {
           Number.parseInt(request.headers.get("x-planner-deadline-ms") ?? "60000", 10) || 60_000,
         ),
       ),
-      signal: request.signal,
+      signal: requestSignal,
       actor,
+      grant,
     });
   }
 
@@ -791,6 +819,11 @@ export async function POST(request: Request): Promise<Response> {
     afterReasoningOnly: request.headers.get("x-heytutor-reasoning-retry") === "1",
   });
   const bodyToSend = injectStreamOptions(rawBody, serverModel, reasoningEffort, isCodeLessonTurn);
+  const providerBody = JSON.parse(bodyToSend) as Record<string, unknown>;
+  singleAttemptCost = maximumLlmCost(providerBody.messages, Number(providerBody.max_tokens), [serverModel]);
+  const reserved = await reservePaidUsage({ actor, grant, kind: "teaching", traceId, usd: singleAttemptCost * 3 });
+  if (reserved instanceof Response) return reserved;
+  reservation = reserved;
 
   tutorDebug("chat", "forwarding to Fireworks", {
     model: serverModel,
@@ -809,9 +842,11 @@ export async function POST(request: Request): Promise<Response> {
     // aborting a whole turn for a one-off network hiccup.
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
+        if (requestSignal.aborted) break;
+        attemptCount += 1;
         response = await fetchTeachingCompletion({
           url: FIREWORKS_CHAT_URL,
-          signal: request.signal,
+          signal: requestSignal,
           init: {
             method: "POST",
             headers: {
@@ -829,7 +864,7 @@ export async function POST(request: Request): Promise<Response> {
           attempt: attempt + 1,
           message: error instanceof Error ? error.message : String(error),
         });
-        if (request.signal.aborted) break;
+        if (requestSignal.aborted) break;
         if (attempt < 2) {
           await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
         }
@@ -848,20 +883,19 @@ export async function POST(request: Request): Promise<Response> {
     });
 
     if (!response.ok) {
-      const errorBody = await response.text();
+      await response.body?.cancel();
 
       endLlmGeneration(turnTrace, {
-        output: errorBody,
+        output: PUBLIC_CHAT_ERROR,
         metadata: { error: true, status: response.status },
         updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
         level: "ERROR",
       });
       flushInBackground();
 
-      return new Response(errorBody, {
-        status: response.status,
+      return Response.json({ error: PUBLIC_CHAT_ERROR }, {
+        status: 502,
         headers: {
-          "content-type": response.headers.get("content-type") ?? "application/json",
           "x-heytutor-trace-id": traceId,
         },
       });
@@ -888,7 +922,7 @@ export async function POST(request: Request): Promise<Response> {
         false,
         upstreamStartedAt,
         shouldUpdateParentTraceOutput(kind, userInput),
-        { actor, model: serverModel },
+        { actor, model: serverModel, reservation, unknownCost: () => singleAttemptCost * attemptCount, retryCost: () => singleAttemptCost * Math.max(0, attemptCount - 1) },
       ),
     );
 
@@ -897,7 +931,7 @@ export async function POST(request: Request): Promise<Response> {
       total_setup_ms: Date.now() - requestStartedAt,
     });
 
-    const heldBody = holdGrantUntilStreamEnds(grant, grantTraceId, tracedBody, releaseInUse);
+    const heldBody = holdGrantUntilStreamEnds(grant, grantTraceId, holdPaidUsage(tracedBody, reservation, () => singleAttemptCost * attemptCount), releaseInUse);
     streamOwnsGrant = true;
     return new Response(heldBody, {
       status: response.status,
@@ -924,7 +958,7 @@ export async function POST(request: Request): Promise<Response> {
     flushInBackground();
 
     return Response.json(
-      { error: message },
+      { error: PUBLIC_CHAT_ERROR },
       {
         status: 500,
         headers: { "x-heytutor-trace-id": traceId },
@@ -932,6 +966,9 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
   } finally {
-    if (!streamOwnsGrant) releaseInUse();
+    if (!streamOwnsGrant) {
+      await reservation?.settle(singleAttemptCost * attemptCount).catch(error => console.error("[billing] teaching reconciliation failed", error));
+      releaseInUse();
+    }
   }
 }

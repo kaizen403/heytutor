@@ -32,7 +32,7 @@ const YOUTUBE_PATH =
 const NAVIGATION_LINKS: FooterLink[] = [
   { label: 'How it works', href: '/#lesson' },
   { label: 'Use cases', href: '/#use-cases' },
-  { label: 'Pricing', href: '/#pricing' },
+  { label: 'Upgrade', href: '/#pricing' },
   { label: 'Questions', href: '/#faq' },
   { label: 'Try the app', href: TUTOR_LOGIN_HREF },
 ]

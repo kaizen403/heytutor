@@ -32,7 +32,9 @@ require_database_url() {
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y ca-certificates curl git gnupg postgresql-client unzip
+apt-get install -y ca-certificates curl git gnupg postgresql-client unzip ffmpeg
+ffmpeg -version >/dev/null
+ffprobe -version >/dev/null
 
 if ! command -v aws >/dev/null; then
   curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
@@ -41,17 +43,17 @@ if ! command -v aws >/dev/null; then
   rm -rf /tmp/aws /tmp/awscliv2.zip
 fi
 
-if ! command -v node >/dev/null; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+if ! command -v node >/dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" != "24" ]; then
+  curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
   apt-get install -y nodejs
 fi
 
 corepack enable
 corepack prepare pnpm@10.32.0 --activate
 
-if ! command -v caddy >/dev/null; then
+if ! command -v caddy >/dev/null || ! dpkg --compare-versions "$(caddy version | awk '{print $1}' | sed 's/^v//')" ge 2.10.0; then
   apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
   apt-get update
   apt-get install -y caddy
@@ -59,11 +61,12 @@ fi
 
 mkdir -p "$APP_DIR"
 if [ ! -d "$APP_DIR/.git" ]; then
-  git clone "$REPO_URL" "$APP_DIR"
+  chown ubuntu:ubuntu "$APP_DIR"
+  sudo -H -u ubuntu env GIT_TERMINAL_PROMPT=0 git clone "$REPO_URL" "$APP_DIR"
 fi
 
 cd "$APP_DIR"
-git pull --ff-only
+sudo -H -u ubuntu env GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" pull --ff-only
 
 require_database_url
 
@@ -72,8 +75,10 @@ if ! id heytutor >/dev/null 2>&1; then
 fi
 mkdir -p /var/lib/heytutor
 chown heytutor:heytutor /var/lib/heytutor
-# ubuntu's umask 077 leaves /opt/heytutor at 700; the service user must enter it.
-chmod -R a+rX "$APP_DIR"
+# The service can read its checkout without making private env files public.
+chgrp -R heytutor "$APP_DIR"
+chmod -R g+rX "$APP_DIR"
+chmod 750 "$APP_DIR"
 if [ -f "$ENV_FILE" ]; then
   chgrp heytutor "$ENV_FILE"
   chmod 640 "$ENV_FILE"
@@ -86,12 +91,29 @@ ${HOSTNAME_FQDN} {
     X-Content-Type-Options nosniff
     Referrer-Policy strict-origin-when-cross-origin
     Permissions-Policy "camera=(), geolocation=(), microphone=(self), payment=(), usb=()"
-    Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://accelute.co https://www.accelute.co"
+  }
+  # Next.js owns the per-response nonce CSP. Do not replace it in the proxy.
+  @turn_upload path /api/boards/*/turns
+  @speech_upload path /api/stt
+  @question_upload path /api/extract-question
+  @small_body not path /api/boards/*/turns /api/stt /api/extract-question
+  request_body @turn_upload {
+    max_size 36MiB
+  }
+  request_body @speech_upload {
+    max_size 11MiB
+  }
+  request_body @question_upload {
+    max_size 12MiB
+  }
+  request_body @small_body {
+    max_size 512KiB
   }
   reverse_proxy 127.0.0.1:3000
 }
 EOF
 
+caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 systemctl enable caddy
 systemctl reload caddy || systemctl restart caddy
 
@@ -109,7 +131,7 @@ WorkingDirectory=${APP_DIR}
 Environment=HOME=/var/lib/heytutor
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=${APP_DIR}/apps/tutor/.env.production
-ExecStart=/usr/bin/bash -lc 'cd apps/tutor && pnpm exec prisma migrate deploy && NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000 pnpm exec tsx server.ts'
+ExecStart=/usr/bin/bash -lc 'cd apps/tutor && NODE_ENV=production HOSTNAME=${HOSTNAME_FQDN} LISTEN_HOST=127.0.0.1 PORT=3000 pnpm exec tsx server.ts'
 Restart=always
 RestartSec=5
 
@@ -125,8 +147,11 @@ chmod 644 /etc/cron.d/heytutor-backup
 touch /var/log/heytutor-backup.log
 chown heytutor:heytutor /var/log/heytutor-backup.log
 
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm rebuild @prisma/client @prisma/engines esbuild prisma
+pnpm --filter @heytutor/tutor exec prisma generate
 pnpm turbo run build --filter=@heytutor/tutor...
+pnpm --filter @heytutor/tutor exec prisma migrate deploy
 mkdir -p "${APP_DIR}/apps/tutor/.next/cache"
 chgrp -R heytutor "${APP_DIR}/apps/tutor/.next"
 chmod -R g+rwX "${APP_DIR}/apps/tutor/.next"

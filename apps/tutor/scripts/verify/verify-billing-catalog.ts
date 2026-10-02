@@ -17,7 +17,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 assert(PLAN_CATALOG.free.includedUsdPerMonth === 3.5, "Free envelope is $3.50");
-assert(PLAN_CATALOG.plus.priceUsdPerMonth === 19 && PLAN_CATALOG.plus.includedUsdPerMonth === 12, "Plus is $19 / $12 envelope");
+assert(PLAN_CATALOG.plus.priceUsdPerMonth === 29 && PLAN_CATALOG.plus.includedUsdPerMonth === 12, "Plus is $29 / $12 envelope");
 assert(PLAN_CATALOG.pro.priceUsdPerMonth === 39 && PLAN_CATALOG.pro.includedUsdPerMonth === 24, "Pro is $39 / $24 envelope");
 assert(PLAN_CATALOG.free.notesMessagesPerMonth === 30, "Free notes 30");
 assert(PLAN_CATALOG.plus.notesMessagesPerMonth === 200, "Plus notes 200");
@@ -44,7 +44,7 @@ assert(!config.includes("included: 8"), "autumn.config must not include 8 lesson
 assert(!config.includes("included: 40"), "autumn.config must not include 40 lesson credits");
 assert(!config.includes("included: 90"), "autumn.config must not include 90 lesson credits");
 assert(!config.includes("included: 15"), "autumn.config must not include 15 top-up credits");
-assert(config.includes("amount: 19"), "autumn.config Plus price");
+assert(config.includes("amount: 29"), "autumn.config Plus price");
 assert(config.includes("amount: 39"), "autumn.config Pro price");
 assert(config.includes("amount: 10"), "autumn.config top-up price");
 assert(config.includes("autoEnable: true"), "Free auto-enables on first customer");

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import vm from "node:vm";
 import ts from "typescript";
+import { readBoundedFormData, RequestBodyError } from "../../lib/http/requestBody";
 
 const root = resolve(__dirname, "../..");
 // The in-memory Prisma stub intentionally accepts arbitrary query and row shapes.
@@ -35,7 +36,7 @@ const prisma = {
     await previous;
     try {
       const tx = {
-        $queryRaw: async () => [],
+        $queryRaw: async () => [{ id: "owned-board" }],
         turn: {
           findFirst: async ({ where }: Row) => {
             const found = turns.find((turn) => Object.entries(where).every(([key, value]) => turn[key] === value));
@@ -56,6 +57,7 @@ const prisma = {
           return inserted;
         } },
         board: { update: async () => ({}) },
+        objectDeletionJob: { create: async () => ({}) },
       };
       return await callback(tx);
     } finally { release(); }
@@ -73,8 +75,8 @@ function load(relativePath: string, dependencies: Record<string, unknown>): Row 
       if (!(name in dependencies)) throw new Error(`Missing stub: ${name}`);
       return dependencies[name];
     },
-    FormData, Blob, File, Request, Response, Headers, Uint8Array, crypto,
-    console, setTimeout, fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
+    FormData, Blob, File, Request, Response, Headers, Uint8Array, TextEncoder, TextDecoder, crypto, AbortSignal,
+    console, setTimeout, process: { env: { NODE_ENV: "test" } }, fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
   }, { filename: relativePath });
   return compiledModule.exports;
 }
@@ -84,12 +86,24 @@ const { POST } = load("app/api/boards/[boardId]/turns/route.ts", {
   "next/server": { NextResponse: { json: (body: unknown, options?: ResponseInit) => Response.json(body, options) } },
   "@/lib/auth": { getUserId: async () => userId, ensureUser: async () => {} },
   "@/lib/db/prisma": { prisma },
+  "@/lib/http/requestBody": { readBoundedFormData, RequestBodyError },
+  "@/lib/obs/traceOwnership": { assertOwnedTrace: async () => true },
+  // Storage admission has its own real-helper race tests in
+  // verify-resource-abuse. This fixture stays focused on logical-save identity.
+  "@/lib/boards/storageQuota": {
+    reserveTurnStorage: async ({ userId, bytes }: { userId: string; bytes: number }) => ({ userId, bytes }),
+    settleTurnStorage: async () => undefined,
+    abandonTurnStorage: async () => undefined,
+    releaseStorageBytes: async () => undefined,
+    withUserStorageLock: (_userId: string, run: (tx: Row) => Promise<Row>) => prisma.$transaction(run),
+    StorageQuotaError: class extends Error {},
+  },
   "@/lib/object-store/keys": { lectureAudioKey: () => "key" },
   "@/lib/object-store/s3": { uploadAudio: async (_key: string, bytes: Uint8Array) => {
     uploads++;
     uploadedAudio.push(Array.from(bytes));
     return "https://example.test/audio";
-  } },
+  }, deletePrefix: async () => undefined },
   "@/lib/scene/turnPersistencePolicy": { isTurnMetadataPersistable: () => true },
   "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: async (metadata: Row) => ({
     ok: true,
@@ -99,7 +113,7 @@ const { POST } = load("app/api/boards/[boardId]/turns/route.ts", {
       })) }
       : {},
   }) },
-  "@/lib/scene/turnUploadLimits": { validateTurnUploadHeaders: () => ({ ok: true }), validateTurnUploadParts: () => ({ ok: true }) },
+  "@/lib/scene/turnUploadLimits": { MAX_TURN_UPLOAD_BYTES: 36 * 1024 * 1024, validateTurnUploadHeaders: () => ({ ok: true }), validateTurnUploadParts: () => ({ ok: true }) },
 });
 const { saveTurn } = load("lib/boards/boardsClient.ts", {
   "@heytutor/tutor-core": { speechAudioMimeType: () => "audio/mpeg", resolveApiUrl: (url: string) => `https://example.test${url}` },
@@ -119,7 +133,7 @@ async function main() {
     const saved = await saveTurn("board-a", {
       question: "Lecture", rawResponse: "answer", speedMultiplier: 1,
       segments: [{ orderIndex: 0, narration: "hi", spokenText: "hi", command: null,
-        audioBytes: new Uint8Array([1, 2, 3]), durationMs: 100, timings: null }],
+        audioBytes: new Uint8Array([73, 68, 51, 1, 2, 3]), durationMs: 100, timings: null }],
     });
     assert.equal(requests, 2, "lost response triggers a retry");
     assert.equal(turns.length, 1, "lost response followed by retry cannot insert a duplicate turn");
@@ -182,14 +196,14 @@ async function main() {
     remapped.append("metadata", JSON.stringify({ question: "Q", rawResponse: "remap", segments: [
       { orderIndex: 7, narration: "spoken", spokenText: "spoken", command: null },
     ] }));
-    remapped.append("audio-7", new Blob([new Uint8Array([7, 8, 9])], { type: "audio/mpeg" }));
+    remapped.append("audio-7", new Blob([new Uint8Array([73, 68, 51, 7, 8, 9])], { type: "audio/mpeg" }));
     const remapResponse = await POST(new Request("https://example.test/api/boards/board-a/turns", {
       method: "POST", body: remapped,
     }), { params: Promise.resolve({ boardId: "board-a" }) });
     assert.equal(remapResponse.status, 200);
     assert.equal((await remapResponse.json()).turn.segments[0].orderIndex, 0,
       "canonicalization may reindex the stored segment");
-    assert.deepEqual(uploadedAudio.at(-1), [7, 8, 9],
+    assert.deepEqual(uploadedAudio.at(-1), [73, 68, 51, 7, 8, 9],
       "audio lookup must use sourceOrderIndex, not the reindexed segment's orderIndex");
     const migration = readFileSync(resolve(root, "prisma/migrations/19_turn_save_idempotency/migration.sql"), "utf8");
     assert.match(migration, /ADD COLUMN "idempotency_key" UUID\s*;/,

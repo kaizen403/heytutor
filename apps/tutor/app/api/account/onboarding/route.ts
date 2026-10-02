@@ -14,6 +14,7 @@ import {
 import { mapAccountProfile, mapAccountSettings } from "@/lib/account/mapUser";
 import { accountSettingsPatch } from "@/lib/account/userSettings";
 import { signOut } from "@/auth";
+import { deleteAuthenticatedAccount } from "@/lib/auth/deleteAccount";
 
 async function notifyGuardian(email: string, studentName: string): Promise<boolean> {
   const key = process.env.AUTH_RESEND_KEY ?? process.env.RESEND_API_KEY;
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
     guardianEmail: body.guardianEmail,
   });
   if (!age.ok && age.reason === "under_13") {
-    await prisma.user.delete({ where: { id: userId } }).catch(() => undefined);
+    await deleteAuthenticatedAccount(userId);
     await signOut({ redirect: false });
     return NextResponse.json({ error: "under_13", refused: true }, { status: 403 });
   }

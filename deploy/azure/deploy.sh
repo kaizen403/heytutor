@@ -48,6 +48,13 @@ EOF
 
 echo "==> heytutor deploy @ $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
+if [ "$(node -p 'process.versions.node.split(".")[0]')" != "24" ]; then
+  echo "Node 24 LTS is required. Run the updated deploy/azure/setup-vm.sh before deployment." >&2
+  exit 1
+fi
+command -v ffmpeg >/dev/null
+command -v ffprobe >/dev/null
+
 echo "==> postgres"
 load_postgres_env
 if docker compose version >/dev/null 2>&1; then
@@ -60,7 +67,9 @@ echo "==> install"
 export CI=true
 corepack enable
 corepack prepare pnpm@10.32.0 --activate
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm rebuild @prisma/client @prisma/engines esbuild prisma
+pnpm --filter @heytutor/tutor exec prisma generate
 
 echo "==> build tutor stack"
 pnpm turbo run build --filter=@heytutor/tutor...
@@ -70,7 +79,16 @@ cd apps/tutor
 pnpm exec prisma migrate deploy
 cd "$ROOT"
 
-if sudo systemctl is-active --quiet heytutor 2>/dev/null; then
+if [ -f /etc/systemd/system/heytutor.service ]; then
+  PUBLIC_HOST=$(node -e 'const url = new URL(process.env.AUTH_URL || process.env.NEXT_PUBLIC_SITE_URL); if (url.protocol !== "https:") process.exit(1); process.stdout.write(url.hostname)')
+  # Override an older unit's public socket binding during upgrades as well.
+  sudo mkdir -p /etc/systemd/system/heytutor.service.d
+  sudo tee /etc/systemd/system/heytutor.service.d/runtime.conf >/dev/null <<EOF
+[Service]
+ExecStart=
+ExecStart=/usr/bin/bash -lc 'cd apps/tutor && NODE_ENV=production HOSTNAME=${PUBLIC_HOST} LISTEN_HOST=127.0.0.1 PORT=3000 pnpm exec tsx server.ts'
+EOF
+  sudo systemctl daemon-reload
   echo "==> restart heytutor.service"
   sudo systemctl restart heytutor
 else

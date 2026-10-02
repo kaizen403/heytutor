@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -101,7 +102,6 @@ export interface LecturePlayerView {
   active: boolean;
   revealed: boolean;
   cursorState: CursorState;
-  caption: string;
   segmentText: string;
 }
 
@@ -119,7 +119,6 @@ export interface LecturePlayerApi {
   /** The voice is running. */
   playing: boolean;
   segmentText: string;
-  caption: string;
   cursorState: CursorState;
   /** Header Replay and `?replay=1`: play the lecture from its start. */
   playFromStart: () => boolean;
@@ -265,7 +264,6 @@ export function useLecturePlayer({
   const drawDoneRef = useRef(true);
   const rateRef = useRef(rate);
   const onRateChangeRef = useRef(onRateChange);
-  onRateChangeRef.current = onRateChange;
 
   const cancelRef = useRef(false);
   const speedRef = useRef(1);
@@ -284,7 +282,6 @@ export function useLecturePlayer({
   const [active, setActive] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [segmentText, setSegmentText] = useState("");
-  const [caption, setCaption] = useState("");
   // The store changes every frame; selecting the status re-renders only when it does.
   const status = useSyncExternalStore(
     store.subscribe,
@@ -300,7 +297,7 @@ export function useLecturePlayer({
     [store],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     onRateChangeRef.current = onRateChange;
   }, [onRateChange]);
 
@@ -338,10 +335,6 @@ export function useLecturePlayer({
     viewportMode: "fixed",
   });
 
-  const publishDiagram = useCallback((diagram: VerifiedDiagram | null) => {
-    setCaption(diagram?.caption?.trim() ?? "");
-  }, []);
-
   const { executeCommand } = useCommandExecution({
     whiteboardRef: playerBoardRef,
     cancelRef,
@@ -362,7 +355,6 @@ export function useLecturePlayer({
     inkPaceRef,
     adaptiveFactorRef,
     codeLessonControllerRef: controllerRef,
-    setActiveVerifiedDiagram: publishDiagram,
     nowMs: clockNowMs,
   });
 
@@ -399,9 +391,8 @@ export function useLecturePlayer({
         controller.frames.current()?.presentation.diagram ?? restoreVerifiedDiagramFromTurn(turn);
       diagramRef.current = diagram;
       fbdStartedRef.current = Boolean(diagram);
-      publishDiagram(diagram);
     },
-    [publishDiagram, storedTurnsRef],
+    [storedTurnsRef],
   );
 
   const publishCueText = useCallback((cues: readonly ReplayCue[], index: number) => {
@@ -1093,8 +1084,8 @@ export function useLecturePlayer({
 
   const cursorState: CursorState = active && status !== "ended" ? "drawing" : "idle";
   const view = useMemo<LecturePlayerView>(
-    () => ({ active, revealed, cursorState, caption, segmentText }),
-    [active, caption, cursorState, revealed, segmentText],
+    () => ({ active, revealed, cursorState, segmentText }),
+    [active, cursorState, revealed, segmentText],
   );
 
   return {
@@ -1108,7 +1099,6 @@ export function useLecturePlayer({
     revealed,
     playing: active && status === "playing",
     segmentText,
-    caption,
     cursorState,
     playFromStart,
     close,

@@ -3,24 +3,103 @@ name: Deploy
 on:
   push:
     branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
   workflow_dispatch:
 
 concurrency:
-  group: deploy
+  group: ${{ github.event_name == 'pull_request' && format('security-pr-{0}', github.event.pull_request.number) || 'deploy' }}
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  deployments: write
+  contents: read
 
 env:
   PNPM_VERSION: "10.32.0"
+  WRANGLER_VERSION: "4.146.0"
   CLOUDFLARE_PAGES_PROJECT: accelute
   VITE_TUTOR_ORIGIN: https://app.accelute.co
 
 jobs:
+  security:
+    name: Security checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: security
+          POSTGRES_PASSWORD: security_ci_only
+          POSTGRES_DB: heytutor_security_ci
+        ports:
+          - "127.0.0.1:5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U security -d heytutor_security_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://security:security_ci_only@127.0.0.1:5432/heytutor_security_ci
+      SECURITY_TEST_DATABASE_URL: postgresql://security:security_ci_only@127.0.0.1:5432/heytutor_security_ci
+      PGHOST: 127.0.0.1
+      PGUSER: security
+      PGPASSWORD: security_ci_only
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install audio validation and database tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg postgresql-client
+          ffmpeg -version >/dev/null
+          ffprobe -version >/dev/null
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run reviewed native build scripts and generate Prisma
+        run: |
+          pnpm rebuild @prisma/client @prisma/engines esbuild prisma
+          pnpm --filter @heytutor/tutor exec prisma generate
+      - name: Build shared packages
+        run: pnpm turbo run build --filter='./packages/*'
+      - name: Typecheck and lint
+        run: |
+          pnpm typecheck
+          pnpm lint
+      - name: Build production applications
+        run: pnpm build
+      - name: Security and payment regressions
+        run: |
+          python3 deploy/aws/verify-ssm-deploy.py
+          pnpm verify:security
+          pnpm --filter @heytutor/tutor verify:razorpay
+      - name: Disposable database concurrency checks
+        run: |
+          # The isolated service starts empty. Legacy migration names cannot
+          # bootstrap in lexical order; never db push a deployment database.
+          pnpm --filter @heytutor/tutor exec prisma validate
+          pnpm --filter @heytutor/tutor exec prisma db push --skip-generate
+          pnpm verify:security-db
+          createdb heytutor_razorpay_verify_ci
+          export DATABASE_URL=postgresql://security:security_ci_only@127.0.0.1:5432/heytutor_razorpay_verify_ci
+          pnpm --filter @heytutor/tutor exec prisma db push --skip-generate
+          pnpm --filter @heytutor/tutor verify:razorpay-db
+      - name: Reject known dependency vulnerabilities
+        run: pnpm audit --audit-level low
+
   deploy-dev:
     name: Cloudflare Pages (dev)
+    needs: security
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -41,21 +120,24 @@ jobs:
           fi
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm rebuild @prisma/client @prisma/engines esbuild prisma
+          pnpm --filter @heytutor/tutor exec prisma generate
 
       - name: Build landing
         run: pnpm turbo run build --filter=@heytutor/landing...
@@ -63,7 +145,7 @@ jobs:
           VITE_TUTOR_ORIGIN: ${{ env.VITE_TUTOR_ORIGIN }}
 
       - name: Upload landing dist
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: landing-dist
           path: apps/landing/dist
@@ -74,7 +156,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: >
-          npx --yes wrangler@4 pages deploy apps/landing/dist
+          npx --yes wrangler@${{ env.WRANGLER_VERSION }} pages deploy apps/landing/dist
           --project-name=accelute
           --branch=dev
           --commit-dirty=true
@@ -85,9 +167,11 @@ jobs:
     needs: deploy-dev
     if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
 
@@ -96,8 +180,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          git push origin "${GITHUB_SHA}:refs/heads/dev"
-          git push origin "${GITHUB_SHA}:refs/heads/main"
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            if git merge-base --is-ancestor origin/dev "$GITHUB_SHA"; then
+              git push origin "${GITHUB_SHA}:refs/heads/dev"
+            else
+              echo "dev contains independent commits; preserving its branch head."
+            fi
+          else
+            if ! git merge-base --is-ancestor origin/main "$GITHUB_SHA"; then
+              echo "main has advanced; reconcile dev through a reviewed PR before promotion."
+              exit 1
+            fi
+            git push origin "${GITHUB_SHA}:refs/heads/main"
+          fi
 
   deploy-production:
     name: Production (Cloudflare + tutor)
@@ -105,12 +200,19 @@ jobs:
     if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 50
+    permissions:
+      contents: read
+      id-token: write
     environment:
       name: production
       url: https://app.accelute.co
     steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
       - name: Download landing dist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: landing-dist
           path: apps/landing/dist
@@ -120,57 +222,58 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: >
-          npx --yes wrangler@4 pages deploy apps/landing/dist
+          npx --yes wrangler@${{ env.WRANGLER_VERSION }} pages deploy apps/landing/dist
           --project-name=accelute
           --branch=main
           --commit-dirty=true
           --commit-hash=${{ github.sha }}
 
-      - name: Require tutor deploy secrets
+      - name: Require restricted AWS deployment configuration
         env:
-          HOST: ${{ secrets.TUTOR_DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.TUTOR_DEPLOY_USER }}
-          KEY: ${{ secrets.TUTOR_DEPLOY_SSH_KEY }}
+          DEPLOY_ROLE: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          INSTANCE_ID: ${{ vars.AWS_TUTOR_INSTANCE_ID }}
         run: |
-          missing=0
-          if [ -z "$HOST" ]; then echo "TUTOR_DEPLOY_HOST is not set"; missing=1; fi
-          if [ -z "$DEPLOY_USER" ]; then echo "TUTOR_DEPLOY_USER is not set"; missing=1; fi
-          if [ -z "$KEY" ]; then echo "TUTOR_DEPLOY_SSH_KEY is not set"; missing=1; fi
-          if [ "$missing" -ne 0 ]; then
-            echo "Set the three TUTOR_DEPLOY_* repo secrets, then re-run."
+          set -euo pipefail
+          if [[ ! "$DEPLOY_ROLE" =~ ^arn:aws:iam::[0-9]{12}:role/.+$ ]] || [[ ! "$INSTANCE_ID" =~ ^i-[0-9a-f]{8,17}$ ]]; then
+            echo "Set production variables AWS_DEPLOY_ROLE_ARN and AWS_TUTOR_INSTANCE_ID for the restricted AcceluteDeploy SSM document."
             exit 1
           fi
 
-      - name: Deploy tutor over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          GITHUB_SHA: ${{ github.sha }}
+      - name: Assume production deployment role using GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
         with:
-          host: ${{ secrets.TUTOR_DEPLOY_HOST }}
-          username: ${{ secrets.TUTOR_DEPLOY_USER }}
-          key: ${{ secrets.TUTOR_DEPLOY_SSH_KEY }}
-          command_timeout: 40m
-          timeout: 60s
-          request_pty: true
-          envs: GITHUB_SHA
-          script: |
-            set -euo pipefail
-            cd /opt/heytutor
-            git fetch origin
-            git fetch origin main
-            git fetch origin dev || true
-            if ! git cat-file -e "${GITHUB_SHA}^{commit}" 2>/dev/null; then
-              git fetch origin "${GITHUB_SHA}"
-            fi
-            git reset --hard "${GITHUB_SHA}"
-            ./deploy/aws/deploy.sh
-            for i in $(seq 1 24); do
-              if curl -fsS http://127.0.0.1:3000/api/health | grep -q '"ok":true'; then
-                echo "health ok"
-                exit 0
-              fi
-              sleep 5
-            done
-            echo "tutor health check failed after deploy"
-            sudo journalctl -u heytutor -n 80 --no-pager || true
-            exit 1
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-south-2
+          role-session-name: accelute-deploy-${{ github.run_id }}
+          role-duration-seconds: 3600
+          mask-aws-account-id: true
+
+      - name: Deploy tutor through the restricted SSM document
+        env:
+          INSTANCE_ID: ${{ vars.AWS_TUTOR_INSTANCE_ID }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          command_id=$(aws ssm send-command \
+            --document-name AcceluteDeploy \
+            --instance-ids "$INSTANCE_ID" \
+            --parameters "{\"Commit\":[\"${GITHUB_SHA}\"]}" \
+            --timeout-seconds 2400 \
+            --query Command.CommandId --output text)
+          echo "SSM deployment command: $command_id"
+          # The document also limits execution to 40 minutes. Do not print its
+          # production process output or environment into public Actions logs.
+          for attempt in $(seq 1 250); do
+            status=$(aws ssm get-command-invocation \
+              --command-id "$command_id" --instance-id "$INSTANCE_ID" \
+              --query Status --output text 2>/dev/null || true)
+            case "$status" in
+              Success) echo "Tutor deploy and health check succeeded"; exit 0 ;;
+              Failed|Cancelled|TimedOut|Cancelling)
+                echo "Tutor deployment ended with SSM status: $status"
+                exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "Tutor deployment did not complete within the bounded SSM wait; inspect the command in AWS Systems Manager."
+          exit 1

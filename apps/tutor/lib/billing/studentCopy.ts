@@ -3,7 +3,7 @@ import { TOP_UP_USD } from "./catalog";
 export const OUT_OF_USAGE_TITLE = "Out of usage";
 export const UPGRADE_LABEL = "Upgrade";
 export const TEEN_CHECKOUT_COPY = "Ask a parent or guardian to upgrade.";
-export const TOP_UP_CTA = `Add usage · $${TOP_UP_USD}`;
+export const TOP_UP_CTA = `Add credits · $${TOP_UP_USD}`;
 
 export function isTeenAgeBand(ageBand: string | null | undefined): boolean {
   return ageBand === "13_17";
@@ -65,7 +65,26 @@ export function studentBillingMessage(code: string): string {
       // still decodes, and say the same thing as an empty envelope.
       return OUT_OF_USAGE_TITLE;
     case "autumn_unavailable":
+    case "payments_unavailable":
       return "Billing is temporarily unavailable";
+    case "invalid_quote":
+    case "price_changed":
+      return "Please refresh this page to get the latest price before paying.";
+    case "payment_pending":
+      return "Your payment is still being confirmed. Check payment status before trying again.";
+    case "payment_refunded":
+      return "This payment has been refunded.";
+    case "checkout_preparing":
+    case "checkout_in_progress":
+      return "A checkout is already in progress. Please wait.";
+    case "checkout_expired":
+      return "This checkout was not prepared. Please try your purchase again.";
+    case "checkout_load_failed":
+      return "Could not load secure checkout. Check your connection and try again.";
+    case "invalid_payment":
+      return "Could not verify the payment. Check payment status or contact support.";
+    case "purchase_not_found":
+      return "This purchase belongs to a different account. Sign in with the account used at checkout.";
     case "unauthorized":
       return "Sign in to continue";
     case "tts_budget":

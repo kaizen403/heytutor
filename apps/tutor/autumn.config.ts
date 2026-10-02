@@ -1,6 +1,6 @@
 /**
  * Autumn CLI catalog. Sync with `pnpm dlx atmn push` after `atmn login`.
- * Runtime numbers live in `lib/billing/catalog.ts` — keep them identical.
+ * Legacy access catalog. New paid purchases are served only by Razorpay.
  * Lesson counts are unlimited here; the student bar is remaining % of USD.
  */
 import { atmn, feature, plan } from "atmn";
@@ -54,11 +54,11 @@ export const free = plan({
 
 export const plus = plan({
   planId: "plus",
-  versionSlug: "v2",
-  active: true,
+  versionSlug: "v3",
+  active: false,
   name: "Plus",
   group: "main",
-  price: { amount: 19, interval: "month" },
+  price: { amount: 29, interval: "month" },
   items: [
     { featureId: notesMessages.featureId, included: 200, reset: { interval: "month" } },
     ...trackedMeters,
@@ -68,7 +68,7 @@ export const plus = plan({
 export const pro = plan({
   planId: "pro",
   versionSlug: "v2",
-  active: true,
+  active: false,
   name: "Pro",
   group: "main",
   price: { amount: 39, interval: "month" },
@@ -81,7 +81,7 @@ export const pro = plan({
 export const lessonTopUp = plan({
   planId: "lesson_top_up",
   versionSlug: "v2",
-  active: true,
+  active: false,
   name: "Usage top-up",
   addOn: true,
   price: { amount: 10, interval: "one_off" },

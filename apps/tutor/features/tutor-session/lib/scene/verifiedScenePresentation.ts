@@ -368,7 +368,7 @@ function visibleFigureCaption(caption: string | undefined): string | undefined {
   return cleaned || undefined;
 }
 
-/** The caption the scene document draws under the figure, if it has one. */
+/** The caption annotation on the scene document, if it has one. It is spoken in a code lesson and is not drawn on the board. */
 function captionAnnotationOf(document: SceneDocument): string | undefined {
   const caption = document.annotations?.find((annotation) => annotation.kind === "caption");
   const text = caption?.text?.trim();

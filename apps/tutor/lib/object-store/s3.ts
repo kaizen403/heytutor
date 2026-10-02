@@ -36,6 +36,7 @@ async function putObject(
   key: string,
   bytes: Uint8Array,
   contentType: string,
+  signal?: AbortSignal,
 ): Promise<string | null> {
   if (!isSafeObjectKey(key)) return null;
   const config = getObjectStoreConfig();
@@ -50,6 +51,7 @@ async function putObject(
         Body: Buffer.from(bytes),
         ContentType: contentType,
       }),
+      { abortSignal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000) },
     );
     return mediaProxyUrl(key);
   } catch (error) {
@@ -85,34 +87,44 @@ export async function getObject(key: string): Promise<StoredObjectBody | null> {
 }
 
 export async function deletePrefix(prefix: string): Promise<void> {
+  const folder = /^(?:lectures\/[A-Za-z0-9._-]{1,128}\/(?:[A-Za-z0-9._-]{1,128}\/)?|images\/[A-Za-z0-9._-]{1,128}\/)$/;
+  const imageKey = prefix.startsWith("images/") && isSafeObjectKey(prefix) && !prefix.endsWith("/");
+  if ((!folder.test(prefix) && !imageKey) || prefix.includes("..")) throw new Error("invalid object deletion prefix");
   const config = getObjectStoreConfig();
   const client = getClient();
-  if (!config || !client) return;
-  if (!prefix.startsWith("lectures/") && !prefix.startsWith("images/")) return;
-  if (prefix.includes("..")) return;
+  if (!config || !client) throw new Error("object storage deletion is not configured");
+  const signal = AbortSignal.timeout(45_000);
+  const deleteKeys = async (objects: Array<{ Key: string }>) => {
+    const result = await client.send(new DeleteObjectsCommand({ Bucket: config.bucket, Delete: { Objects: objects, Quiet: true } }), { abortSignal: signal });
+    if (result.Errors?.length) throw new Error("object deletion was rejected by storage");
+  };
+  if (imageKey) { await deleteKeys([{ Key: prefix }]); return; }
 
   let token: string | undefined;
+  const seenTokens = new Set<string>();
+  let pages = 0;
   do {
+    if (++pages > 100) throw new Error("object deletion pagination exceeds its page limit");
     const listed = await client.send(
       new ListObjectsV2Command({
         Bucket: config.bucket,
         Prefix: prefix,
         ContinuationToken: token,
+        MaxKeys: 1000,
       }),
+      { abortSignal: signal },
     );
     const objects = (listed.Contents ?? [])
       .map((entry) => entry.Key)
       .filter((key): key is string => Boolean(key))
       .map((Key) => ({ Key }));
     if (objects.length > 0) {
-      await client.send(
-        new DeleteObjectsCommand({
-          Bucket: config.bucket,
-          Delete: { Objects: objects, Quiet: true },
-        }),
-      );
+      if (objects.some(({ Key }) => !Key.startsWith(prefix))) throw new Error("object deletion escaped its prefix");
+      await deleteKeys(objects);
     }
     token = listed.IsTruncated ? listed.NextContinuationToken : undefined;
+    if (listed.IsTruncated && (!token || seenTokens.has(token))) throw new Error("invalid object deletion pagination");
+    if (token) seenTokens.add(token);
   } while (token);
 }
 
@@ -120,14 +132,16 @@ export async function uploadAudio(
   key: string,
   bytes: Uint8Array,
   contentType = "audio/mpeg",
+  signal?: AbortSignal,
 ): Promise<string | null> {
-  return putObject(key, bytes, contentType);
+  return putObject(key, bytes, contentType, signal);
 }
 
 export async function uploadImage(
   key: string,
   bytes: Uint8Array,
   contentType: string,
+  signal?: AbortSignal,
 ): Promise<string | null> {
-  return putObject(key, bytes, contentType);
+  return putObject(key, bytes, contentType, signal);
 }

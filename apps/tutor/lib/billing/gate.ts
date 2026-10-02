@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { HEYTUTOR_TRACE_ID_HEADER, readTraceIdHeader } from "@heytutor/tutor-core";
 import { prisma } from "@/lib/db/prisma";
 import {
@@ -26,6 +27,23 @@ import {
 import { cacheUsageOnUser, loadPeriodBalance, type PeriodBalance } from "./ledger";
 import { isSpendActor, requireSpendActor, type SpendActor } from "./actor";
 import { beginTurnAccess, paidCallAccess } from "./usageGate";
+import { usesRazorpay } from "./razorpayConfig";
+import { loadRazorpayAccess } from "./razorpayPurchases";
+import { reserveRazorpayNote } from "./razorpayNotes";
+import { registerOwnedTrace, assertOwnedTrace } from "../obs/traceOwnership";
+import { readBoundedJson, RequestBodyError } from "../http/requestBody";
+
+function bindRazorpayGrant(grant: TurnGrant, balance: PeriodBalance): void {
+  if (usesRazorpay()) grant.billingExpiresAt = balance.nextResetAt;
+  grant.planId = balance.planId;
+  grant.usdMillicentsRemaining = Math.min(grant.usdMillicentsRemaining, balance.remainingMillicents);
+}
+
+async function refreshRazorpayGrant(actor: SpendActor, grant: TurnGrant): Promise<Response | null> {
+  const balance = await loadPeriodBalance({ userId: actor.userId, planId: grant.planId });
+  bindRazorpayGrant(grant, balance);
+  return balance.remainingMillicents <= 0 ? billingResponse("out_of_credits", 0) : null;
+}
 
 export interface BeginTurnSuccess {
   grant: TurnGrant;
@@ -39,14 +57,10 @@ const beginTurnLocks = new Map<string, Promise<void>>();
 async function withUserLock<T>(userId: string, work: () => Promise<T>): Promise<T> {
   const previous = beginTurnLocks.get(userId) ?? Promise.resolve();
   const current = previous.catch(() => undefined).then(work);
-  beginTurnLocks.set(
-    userId,
-    current.then(
-      () => undefined,
-      () => undefined,
-    ),
-  );
-  return current;
+  const settled = current.then(() => undefined, () => undefined);
+  beginTurnLocks.set(userId, settled);
+  try { return await current; }
+  finally { if (beginTurnLocks.get(userId) === settled) beginTurnLocks.delete(userId); }
 }
 
 async function cachedPlanId(userId: string): Promise<string> {
@@ -59,6 +73,7 @@ async function cachedPlanId(userId: string): Promise<string> {
 
 async function resolvePlanId(actor: SpendActor): Promise<string | Response> {
   if (actor.skipGates) return BILLING_PLANS.pro;
+  if (usesRazorpay()) return (await loadRazorpayAccess(actor.userId)).planId;
   const planId = await cachedPlanId(actor.userId);
   if (actor.skipAutumn) return planId;
   try {
@@ -81,11 +96,18 @@ export async function beginTurnForActor(
   actor: SpendActor,
   input: { traceId: string; kind: TurnKind; parentTraceId?: string },
 ): Promise<BeginTurnSuccess | Response> {
-  if (!input.traceId) {
+  if (readTraceIdHeader(input.traceId) !== input.traceId) {
     return billingResponse("no_grant", 0, "traceId is required");
   }
 
-  return withUserLock(actor.userId, () => beginTurnLocked(actor, input));
+  return withUserLock(actor.userId, async () => {
+    const result = await beginTurnLocked(actor, input);
+    if (!(result instanceof Response) && !await registerOwnedTrace(actor.userId, input.traceId)) {
+      releaseTurnGrant(actor.userId);
+      return billingResponse("no_grant", 0);
+    }
+    return result;
+  });
 }
 
 async function beginTurnLocked(
@@ -151,6 +173,7 @@ async function beginTurnLocked(
     if (!followOn.ok) {
       return billingResponse(followOn.reason, followOn.reason === "out_of_credits" ? 0 : remainingPct);
     }
+    bindRazorpayGrant(followOn.grant, balance);
     return {
       grant: followOn.grant,
       remainingPct,
@@ -186,6 +209,7 @@ async function beginTurnLocked(
   if (!minted.ok) {
     return billingResponse("concurrent_limit", remainingPct);
   }
+  bindRazorpayGrant(minted.grant, balance);
 
   const hourly = recordNewQuestion(actor.userId);
   if (!hourly.ok) {
@@ -210,8 +234,9 @@ export async function beginTurnFromRequest(request: Request): Promise<BeginTurnS
   if (!isSpendActor(actor)) return actor;
   let body: { traceId?: unknown; kind?: unknown; parentTraceId?: unknown } = {};
   try {
-    body = (await request.json()) as typeof body;
-  } catch {
+    body = await readBoundedJson(request, 4096);
+  } catch (error) {
+    if (error instanceof RequestBodyError) return Response.json({ error: error.message }, { status: error.status });
     return billingResponse("no_grant", 0, "invalid json");
   }
   const traceId = typeof body.traceId === "string" ? body.traceId.trim() : "";
@@ -236,6 +261,7 @@ export async function requireLessonGrant(
       planId: BILLING_PLANS.pro,
     });
     if (!grant) return billingResponse("concurrent_limit", 0);
+    if (!await registerOwnedTrace(actor.userId, traceId) || !await assertOwnedTrace(actor.userId, traceId, request.headers.get("x-session-id") ?? undefined)) return billingResponse("no_grant", 0);
     return { actor, grant };
   }
 
@@ -243,6 +269,9 @@ export async function requireLessonGrant(
   const traceId = readTraceIdHeader(request.headers.get(HEYTUTOR_TRACE_ID_HEADER));
   const matched = requireGrantForTrace(actor.userId, traceId);
   if (matched.ok) {
+    const denied = await refreshRazorpayGrant(actor, matched.grant);
+    if (denied) return denied;
+    if (traceId && !await assertOwnedTrace(actor.userId, traceId, request.headers.get("x-session-id") ?? undefined)) return billingResponse("no_grant", 0);
     return { actor, grant: matched.grant };
   }
   if (matched.reason === "out_of_credits") return billingResponse("out_of_credits", 0);
@@ -254,9 +283,12 @@ export async function requireLessonGrant(
   if (paidCallAccess({ remainingMillicents: balance.remainingMillicents, grant: null }) !== "allow") {
     return billingResponse("out_of_credits", remainingPct);
   }
+  const recoveredTrace = traceId ?? randomUUID();
+  if (questionsRemainingThisHour(actor.userId) <= 0) return billingResponse("rate_limited", remainingPct);
+  if (!await registerOwnedTrace(actor.userId, recoveredTrace)) return billingResponse("no_grant", remainingPct);
   const recovered = recoverGrantForPaidCall({
     userId: actor.userId,
-    traceId: traceId ?? `recovered-${actor.userId}`,
+    traceId: recoveredTrace,
     remainingMillicents: balance.remainingMillicents,
     planId,
     skipAutumn: actor.skipAutumn,
@@ -265,6 +297,9 @@ export async function requireLessonGrant(
   if (!recovered) {
     return billingResponse("no_grant", remainingPct);
   }
+  if (!recordNewQuestion(actor.userId).ok) return billingResponse("rate_limited", remainingPct);
+  if (!await assertOwnedTrace(actor.userId, recoveredTrace, request.headers.get("x-session-id") ?? undefined)) return billingResponse("no_grant", remainingPct);
+  bindRazorpayGrant(recovered, balance);
   return { actor, grant: recovered };
 }
 
@@ -349,6 +384,7 @@ export function authorizePaidCreditTrace(
   }
   const traceId = readTraceIdHeader(request.headers.get(HEYTUTOR_TRACE_ID_HEADER));
   if (traceId && grant?.allowedTraceIds.has(traceId)) {
+    if (!actor.skipGates && grant.usdMillicentsRemaining <= 0) return billingResponse("out_of_credits", 0);
     return { actor, grant, remainingPct: null };
   }
   if (grant && grant.usdMillicentsRemaining <= 0) return billingResponse("out_of_credits", 0);
@@ -359,7 +395,7 @@ export function authorizePaidCreditTrace(
   }
   const recovered = recoverGrantForPaidCall({
     userId: actor.userId,
-    traceId: traceId ?? `recovered-${actor.userId}`,
+    traceId: traceId ?? randomUUID(),
     remainingMillicents: balance.remainingMillicents,
     planId,
     skipAutumn: actor.skipAutumn,
@@ -372,28 +408,19 @@ export function authorizePaidCreditTrace(
 export async function requireLessonCredits(
   request: Request,
 ): Promise<{ actor: SpendActor; grant: TurnGrant | null; remainingPct: number | null } | Response> {
-  const actor = await requireSpendActor(request);
-  if (!isSpendActor(actor)) return actor;
-  if (actor.skipGates) return authorizePaidCreditTrace(request, actor, null, BILLING_PLANS.pro);
-  const grant = getTurnGrant(actor.userId);
-  if (grant?.skipGates) return billingResponse("no_grant", 0);
-  const traceId = readTraceIdHeader(request.headers.get(HEYTUTOR_TRACE_ID_HEADER));
-  if (traceId && grant?.allowedTraceIds.has(traceId)) {
-    return authorizePaidCreditTrace(request, actor, null, grant.planId);
-  }
-  if (grant && grant.usdMillicentsRemaining <= 0) return billingResponse("out_of_credits", 0);
-  const planIdOrError = await resolvePlanId(actor);
-  if (planIdOrError instanceof Response) return planIdOrError;
-  const planId = planIdOrError;
-  const balance = await loadPeriodBalance({ userId: actor.userId, planId });
-  return authorizePaidCreditTrace(request, actor, balance, planId);
+  const authorized = await requireLessonGrant(request);
+  return authorized instanceof Response ? authorized : { ...authorized, remainingPct: null };
 }
 
 export async function requireNotesAccess(
   request: Request,
-): Promise<{ actor: SpendActor; remaining: number | null } | Response> {
+): Promise<{ actor: SpendActor; remaining: number | null; release?: () => Promise<void> } | Response> {
   const actor = await requireSpendActor(request);
   if (!isSpendActor(actor)) return actor;
+  if (!actor.skipGates && usesRazorpay()) {
+    const reservation = await reserveRazorpayNote(actor.userId);
+    return reservation ? { actor, ...reservation } : billingResponse("notes_limit", 0);
+  }
   if (actor.skipGates || actor.skipAutumn) {
     return { actor, remaining: null };
   }

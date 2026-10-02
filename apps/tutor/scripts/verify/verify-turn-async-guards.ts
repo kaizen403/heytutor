@@ -13,11 +13,9 @@ import { isReplayGenerationCurrent } from "../../features/tutor-session/hooks/us
  * A worked-example frame swap has to publish the new frame, not just point the
  * ref at it.
  *
- * The caption under the board renders from React state, and the deferred
- * annotations a FOCUS reveals are read off the published diagram. When the
- * FRAME handler only updated the ref, the board kept frame 1's caption under
- * every later figure — the picture said one thing and the line under it said
- * another, for the whole lesson.
+ * The label inspector and retrace targets read the published diagram. When
+ * the FRAME handler only updated the ref, later frames kept frame 1's
+ * targets for the whole lesson.
  */
 function assertFrameSwapPublishesDiagram(): void {
   const source = readFileSync(

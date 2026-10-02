@@ -14,18 +14,13 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "check": "pnpm typecheck && pnpm lint && pnpm build",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "verify:security": "pnpm --filter @heytutor/tutor verify:security",
+    "verify:security-db": "pnpm --filter @heytutor/tutor verify:security-db"
   },
   "devDependencies": {
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
-  },
-  "pnpm": {
-    "overrides": {
-      "dompurify": "3.4.13",
-      "postcss": "8.5.26",
-      "sharp": "0.35.3"
-    }
   },
   "packageManager": "pnpm@10.32.0"
 }

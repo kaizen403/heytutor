@@ -1,7 +1,9 @@
-export const MAX_TURN_UPLOAD_BYTES = 128 * 1024 * 1024;
+import { MAX_TURN_BODY_BYTES } from "@/lib/http/resourceLimits";
+
+export const MAX_TURN_UPLOAD_BYTES = MAX_TURN_BODY_BYTES;
 const MAX_TURN_METADATA_BYTES = 256 * 1024;
 export const MAX_TURN_AUDIO_BYTES = 8 * 1024 * 1024;
-const MAX_TURN_TOTAL_AUDIO_BYTES = 96 * 1024 * 1024;
+const MAX_TURN_TOTAL_AUDIO_BYTES = 32 * 1024 * 1024;
 export const MAX_TURN_SEGMENTS = 256;
 
 export type TurnUploadValidation =
@@ -19,8 +21,7 @@ export function validateTurnUploadHeaders(headers: Headers): TurnUploadValidatio
   }
 
   const rawLength = headers.get("content-length") ?? "";
-  // Browsers usually send Content-Length; some Next/dev paths omit it. Size is
-  // still enforced after multipart parse. Reject only when a declared length is over cap.
+  // The route stream-counts undeclared bodies before multipart parsing too.
   if (rawLength && !/^[1-9]\d*$/.test(rawLength)) {
     return { ok: false, status: 411, error: "content-length is invalid" };
   }
