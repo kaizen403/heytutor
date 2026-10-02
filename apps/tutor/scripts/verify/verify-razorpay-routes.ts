@@ -136,6 +136,46 @@ async function main() {
       await prisma.user.delete({ where: { id: preparationUser } });
       apiCalls = 0;
     }
+    const historyUser = randomUUID();
+    await prisma.user.create({ data: { id: historyUser } });
+    actorId = historyUser;
+    try {
+      const now = Date.now();
+      const historyRow = (createdAt: number, status = "pending", testMode = true) => ({
+        id: randomUUID(), userId: historyUser, idempotencyKey: randomUUID(), planId: "plus",
+        amount: 2900, currency: "USD", usageMillicents: 29000, keyId: "rzp_test_routes",
+        testMode, status, createdAt: new Date(createdAt),
+      });
+      const paid = historyRow(now - 120_000, "paid");
+      const refunded = historyRow(now - 121_000, "refunded");
+      const attempts = Array.from({ length: 35 }, (_, index) => historyRow(now - 100_000 + index));
+      const preparing = historyRow(now - 1_000);
+      const otherMode = historyRow(now, "paid", false);
+      await prisma.billingPurchase.createMany({ data: [paid, refunded, ...attempts, preparing, otherMode] });
+      const payload = await (await history.GET(new Request("https://example.test/history"))).json() as { purchases: Array<{ id: string; status: string; createdAt: string }> };
+      assert(payload.purchases.some(row => row.id === paid.id), "failed checkout attempts cannot displace an older paid purchase");
+      assert(payload.purchases.some(row => row.id === refunded.id), "failed checkout attempts cannot displace an older refunded purchase");
+      assert.equal(payload.purchases.length, 12, "history independently retains completed purchases and only the latest ten attempts");
+      assert.equal(payload.purchases.filter(row => row.status === "expired").length, 9);
+      assert.equal(payload.purchases[0]?.id, preparing.id);
+      assert.equal(payload.purchases[0]?.status, "preparing");
+      assert.equal(payload.purchases.some(row => row.id === otherMode.id), false, "history remains mode isolated");
+      for (let index = 1; index < payload.purchases.length; index++) {
+        assert(Date.parse(payload.purchases[index - 1]!.createdAt) >= Date.parse(payload.purchases[index]!.createdAt), "merged history is newest first");
+      }
+      const completed = Array.from({ length: 35 }, (_, index) => historyRow(now - 10_000 + index, index % 2 ? "paid" : "refunded"));
+      await prisma.billingPurchase.createMany({ data: completed });
+      const capped = await (await history.GET(new Request("https://example.test/history"))).json() as { purchases: Array<{ id: string; status: string }> };
+      assert.equal(capped.purchases.filter(row => ["paid", "refunded"].includes(row.status)).length, 30, "completed history has its own thirty-purchase bound");
+      assert.equal(capped.purchases.length, 40);
+      actorId = userId;
+      const owned = await (await history.GET(new Request("https://example.test/history"))).json() as { purchases: Array<{ id: string }> };
+      assert.equal(owned.purchases.some(row => row.id === completed[0]?.id), false, "history remains account isolated");
+      console.log("PASS completed purchase history survives failed attempts with independent bounds and account/mode isolation");
+    } finally {
+      actorId = userId;
+      await prisma.user.delete({ where: { id: historyUser } });
+    }
     const idempotencyKey = randomUUID();
     const response = await checkout.POST(request("/api/billing/checkout", { planId: "plus", idempotencyKey, quote, amount: 1, currency: "INR" }));
     assert.equal(response.status, 200);

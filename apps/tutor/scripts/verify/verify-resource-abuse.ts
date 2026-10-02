@@ -18,7 +18,8 @@ const userId = "f6fa709b-b77a-487c-b7d0-5fb8a6c60679";
 const boardId = "2ee1e7eb-aae0-40ba-a494-a13c99d63e9a";
 const date = new Date("2026-10-02T00:00:00Z");
 const board = { id: boardId, userId, title: "A lesson", preview: "", createdAt: date, updatedAt: date, pinnedAt: null, archivedAt: null };
-let scenario: "normal" | "board-limit" | "turn-limit" | "storage-limit" | "list" | "near-turn-limit" | "foreign-trace" | "save-and-cleanup-failure" = "normal";
+let scenario: "normal" | "board-limit" | "turn-limit" | "storage-limit" | "list" | "near-turn-limit" | "foreign-trace" | "save-and-cleanup-failure" | "cancel-upload" = "normal";
+let uploadStarted: (() => void) | null = null;
 let writes = 0;
 let uploads = 0;
 let parses = 0;
@@ -101,6 +102,17 @@ const tx = {
 let lockTail = Promise.resolve();
 const prisma = {
   ...tx,
+  $queryRaw: async (...args: unknown[]) => {
+    const sql = Array.isArray(args[0]) ? args[0].join("") : "";
+    if (!sql.includes("WITH due")) return tx.$queryRaw();
+    const now = args[1] as Date;
+    const lease = args[2] as Date;
+    const job = [...deletionJobs.values()].find(item => (item.nextAttemptAt as Date) <= now);
+    if (!job) return [];
+    job.attempts = Number(job.attempts) + 1;
+    job.nextAttemptAt = lease;
+    return [{ ...job }];
+  },
   $transaction: async <T>(callback: (value: typeof tx) => Promise<T>) => {
     if (scenario === "save-and-cleanup-failure" && uploads > 0) throw new Error("fake transient database outage");
     let unlock: (() => void) | undefined;
@@ -122,7 +134,16 @@ mock.module(modulePath("lib/auth.ts"), {
 mock.module(modulePath("lib/db/prisma.ts"), { namedExports: { prisma } });
 mock.module(modulePath("lib/object-store/s3.ts"), {
   namedExports: {
-    uploadAudio: async () => { uploads++; return "/api/media?key=resource-verification"; },
+    uploadAudio: async (_key: string, _bytes: Uint8Array, _format: string, signal?: AbortSignal) => {
+      uploads++;
+      if (scenario !== "cancel-upload") return "/api/media?key=resource-verification";
+      uploadStarted?.();
+      assert(signal, "the real handler must forward cancellation to object storage");
+      return new Promise<null>(resolve => {
+        if (signal.aborted) resolve(null);
+        else signal.addEventListener("abort", () => resolve(null), { once: true });
+      });
+    },
     deletePrefix: async () => undefined,
     deleteObject: async () => undefined,
     deleteObjects: async () => undefined,
@@ -139,13 +160,14 @@ const ownedBoard = load(modulePath("app/api/boards/[boardId]/route.ts")) as type
 const turns = load(modulePath("app/api/boards/[boardId]/turns/route.ts")) as typeof import("../../app/api/boards/[boardId]/turns/route");
 const { MAX_TURN_UPLOAD_BYTES } = load(modulePath("lib/scene/turnUploadLimits.ts")) as typeof import("../../lib/scene/turnUploadLimits");
 const quota = load(modulePath("lib/boards/storageQuota.ts")) as typeof import("../../lib/boards/storageQuota");
+const { runObjectDeletionBatch } = load(modulePath("lib/object-store/deletionJobs.ts")) as typeof import("../../lib/object-store/deletionJobs");
 const accountExport = load(modulePath("app/api/account/export/route.ts")) as typeof import("../../app/api/account/export/route");
 const { serveUserObject } = load(modulePath("lib/object-store/serveMedia.ts")) as typeof import("../../lib/object-store/serveMedia");
 const context = { params: Promise.resolve({ boardId }) };
 const jsonRequest = (path: string, body: object, method = "POST") => new Request(`https://example.test${path}`, {
   method, headers: { "content-type": "application/json", origin: "https://example.test" }, body: JSON.stringify(body),
 });
-function lessonRequest(traceId: string | null = crypto.randomUUID()): Request {
+function lessonRequest(traceId: string | null = crypto.randomUUID(), signal?: AbortSignal): Request {
   const form = new FormData();
   form.set("metadata", JSON.stringify({
     question: "What is 2 + 2?", rawResponse: "2 + 2 = 4.", visualStatus: "text_only", traceId: traceId ?? undefined,
@@ -169,7 +191,7 @@ function lessonRequest(traceId: string | null = crypto.randomUUID()): Request {
   view.setUint32(40, 4, true);
   form.set("audio-0", new Blob([audio], { type: "audio/wav" }), "lesson.wav");
   return new Request(`https://example.test/api/boards/${boardId}/turns`, {
-    method: "POST", headers: { origin: "https://example.test" }, body: form,
+    method: "POST", headers: { origin: "https://example.test" }, body: form, signal,
   });
 }
 const failures: string[] = [];
@@ -184,6 +206,7 @@ async function check(name: string, run: () => Promise<void>): Promise<void> {
   committedTurns.clear();
   traceReceipts.clear();
   deletionJobs.clear();
+  uploadStarted = null;
   scenario = "normal";
   try { await run(); console.log(`PASS: ${name}`); }
   catch (error) { failures.push(name); console.error(`FAIL: ${name}`, error); }
@@ -229,6 +252,26 @@ async function main(): Promise<void> {
     assert.equal(intent.pendingTurns, 1);
     assert.equal(BigInt(String(intent.bytes)), ledgerBytes);
     assert((intent.nextAttemptAt as Date) > new Date(), "crash recovery stays scheduled without another successful DB write");
+  });
+  await check("canceling an in-flight upload leaves recoverable cleanup and restores capacity once", async () => {
+    scenario = "cancel-upload";
+    const controller = new AbortController();
+    const started = new Promise<void>(resolve => { uploadStarted = resolve; });
+    const saving = turns.POST(lessonRequest(undefined, controller.signal), context);
+    await started;
+    assert.equal(deletionJobs.size, 1, "cleanup must exist while the upload is in flight");
+    assert.equal(pendingTurns, 1);
+    controller.abort();
+    const response = await saving;
+    assert.equal(response.status, 409);
+    assert.equal(createdTurns, 0);
+    assert.equal(pendingTurns, 0);
+    assert(ledgerBytes > 0n, "cancelled audio stays charged until confirmed deletion");
+    assert.equal((await runObjectDeletionBatch({ now: new Date(Date.now() + 1000), limit: 1 })).completed, 1);
+    assert.equal(ledgerBytes, 0n);
+    assert.equal(pendingTurns, 0);
+    assert.equal(deletionJobs.size, 0);
+    assert.equal((await runObjectDeletionBatch({ limit: 1 })).completed, 0, "cancellation cleanup cannot refund twice");
   });
   await check("production saves without a server-issued lesson trace are denied before upload", async () => {
     const response = await turns.POST(lessonRequest(null), context);

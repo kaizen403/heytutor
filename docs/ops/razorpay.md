@@ -191,7 +191,9 @@ applied migrations or mark failed migrations resolved on a production DB blindly
   fixtures; they do not create real payments.
 - The owner's existing Live keys were verified with an authenticated read-only
   Razorpay API request. Production private credentials are configured, with
-  international checkout disabled pending merchant approval. The existing paid
+  USD checkout disabled. The dashboard shows international cards enabled but
+  PayPal unlinked and required for foreign-currency checkout on this account;
+  the owner chose to keep USD checkout disabled for now. The existing paid
   production account is staff; no ordinary Autumn subscribers require migration.
 - The owner declined Test keys and authorized the existing Live credentials.
   No genuine sandbox or real-money capture, refund, or settlement was performed.

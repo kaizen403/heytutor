@@ -87,6 +87,9 @@ git reset --hard origin/main
   script before upgrading an older host
 - Installs deps with scripts disabled, runs the reviewed Prisma/esbuild scripts,
   explicitly generates Prisma, and builds the tutor monorepo slice
+- Uses checked-in interface fonts with `next/font/local`; build availability
+  does not depend on Google Fonts responses. Sources and licenses are recorded
+  in `apps/tutor/public/fonts/variable-fonts.md`.
 - Runs `prisma migrate deploy` against `DATABASE_URL`
 - Restarts `heytutor.service`; service startup does not run schema migrations
 
