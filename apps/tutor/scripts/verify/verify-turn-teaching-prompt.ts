@@ -99,6 +99,26 @@ const verified = buildTurnTeachingPrompt({
   fastMode: true,
 });
 
+const conditional = buildTurnTeachingPrompt({
+  question,
+  diagramPromptAddon: null,
+  turnPlan: { ...plan, assumptions: [
+    "The surface is frictionless.",
+    "A verified illustration is required by the question's spatial or explicit visual request.",
+    "Turn-plan model was unavailable; visual requirement was classified conservatively.",
+    "Removed 2 invalid planner dependency references.",
+  ] },
+  solverProjection: { verified: true },
+  codeLesson: null,
+  isDsa: false,
+  familiarity: "normal",
+  fastMode: true,
+});
+assert(conditional.systemPrompt.includes("The surface is frictionless."), "keep the problem's modelling condition for teaching");
+assert(!conditional.systemPrompt.includes("A verified illustration is required"), "do not present illustration policy as a problem assumption");
+assert(!conditional.systemPrompt.includes("Turn-plan model was unavailable"), "do not teach internal fallback notes");
+assert(!conditional.systemPrompt.includes("Removed 2 invalid planner dependency"), "do not teach planner repair notes");
+
 assert(
   verified.systemPrompt.includes("AUTHORITATIVE TURN PLAN V3"),
   "a solver-verified plan keeps its authority",
