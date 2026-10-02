@@ -121,7 +121,7 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   polytropic_process: "polyline", isochoric_process: "polyline", process_state: "point",
   triangle_center: "point",
   tangent_line: "line", normal_line: "line", representative_slice: "region",
-  solid_of_revolution: "solid", solid_projection: "solid", solid_cross_section: "region",
+  solid_of_revolution: "solid", solid_projection: "solid", solid_cross_section: "region", solid_anchor: "point",
   space_frame: "polyline", space_point: "point", space_line: "line", plane: "polygon",
   space_project: "point", space_segment: "segment",
   wavefront_family: "polyline", aperture: "polyline", screen_pattern: "polyline",
@@ -154,7 +154,7 @@ const CALCULUS_OPERATORS = new Set([
   "parametric_curve", "polar_curve", "implicit_curve", "tangent_line", "normal_line",
   "representative_slice", "solid_of_revolution",
 ]);
-const MENSURATION_OPERATORS = new Set(["solid_projection", "solid_cross_section"]);
+const MENSURATION_OPERATORS = new Set(["solid_projection", "solid_cross_section", "solid_anchor"]);
 const SPACE_OPERATORS = new Set(["space_frame", "space_point", "space_line", "plane"]);
 const WAVE_VISUAL_OPERATORS = new Set([
   "wavefront_family", "aperture", "screen_pattern", "transverse_field", "polarizer",
@@ -4708,7 +4708,7 @@ function normalizeGenericPlannerSchema(raw: Record<string, unknown>): Record<str
                   : operator === "circle" ? "circle"
                     : operator === "arc" || operator === "spherical_surface" ? "arc"
                       : operator === "lens_section" ? "polygon"
-                      : operator === "point" ? "point"
+                      : operator === "point" || operator === "solid_anchor" ? "point"
                             : operator === "vector" ? "vector"
                             : operator === "dimension" ? "dimension"
                               : operator === "sign_badge" ? "vector"
@@ -4775,6 +4775,7 @@ export function implicitSolverEntityIds(document: SceneDocument): Set<string> {
     }
     if (
       construction.operator === "point" ||
+      construction.operator === "solid_anchor" ||
       construction.operator === "midpoint" ||
       construction.operator === "rotate" ||
       construction.operator === "project"
@@ -5370,14 +5371,15 @@ function validateMensurationConstruction(
   }
   const output = construction.outputs[0];
   const outputKind = document.entities.find((entity) => entity.id === output)?.kind;
-  if (output && outputKind && outputKind !== "polyline") {
+  const expectedKind = operator === "solid_anchor" ? "point" : "polyline";
+  if (output && outputKind && outputKind !== expectedKind) {
     issues.push({
       code: `invalid_${operator}_output_kind`,
-      message: `${operator} output must use entity kind polyline`,
+      message: `${operator} output must use entity kind ${expectedKind}`,
       severity: "fatal",
       path: `constructions[${index}].outputs[0]`,
       entityIds: [output],
-      expected: "polyline",
+      expected: expectedKind,
       actual: outputKind,
     });
   }
@@ -5488,8 +5490,8 @@ function validateMensurationConstruction(
   const solidProducer = typeof solidId === "string" ? constructionByOutput.get(solidId) : undefined;
   if (solidProducer?.operator !== "solid_projection") {
     issues.push({
-      code: "invalid_solid_cross_section_reference",
-      message: "solid_cross_section solid must reference a solid_projection output",
+      code: `invalid_${operator}_reference`,
+      message: `${operator} solid must reference a solid_projection output`,
       severity: "fatal",
       path: `constructions[${index}].inputs.solid`,
       entityIds: typeof solidId === "string" ? [solidId] : undefined,
@@ -5497,6 +5499,18 @@ function validateMensurationConstruction(
     });
   }
   const at = validationNumber(inputs.at, document);
+  if (operator === "solid_anchor") {
+    for (const [name, value, valid] of [
+      ["at", at, at !== null && at >= 0 && at <= 1],
+      ["radialFraction", inputs.radialFraction === undefined ? 0 : validationNumber(inputs.radialFraction, document), true],
+      ["angleDeg", inputs.angleDeg === undefined ? 0 : validationNumber(inputs.angleDeg, document), true],
+    ] as const) {
+      const inRange = name !== "radialFraction" || (value !== null && value >= 0 && value <= 1);
+      if (value !== null && valid && inRange) continue;
+      issues.push({ code: `invalid_solid_anchor_${name}`, message: `solid_anchor ${name} must be finite${name === "angleDeg" ? "" : " and between 0 and 1"}`, severity: "fatal", path: `constructions[${index}].inputs.${name}`, actual: inputs[name] });
+    }
+    return;
+  }
   if (at === null || !(at > 0 && at < 1)) {
     issues.push({
       code: "invalid_solid_cross_section_position",

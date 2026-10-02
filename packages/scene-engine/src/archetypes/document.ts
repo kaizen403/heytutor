@@ -91,6 +91,23 @@ export class SceneBuilder {
     );
   }
 
+  /** Text with a computed anchor; it is not a physical point mark. */
+  labelAt(id: string, at: Vec2, role: string, label: string, options: {
+    pinToAnchor?: boolean;
+    requireLeader?: boolean;
+    leaderGeometrySafe?: boolean;
+  } = {}): string {
+    const anchor = this.helper(`${id}_anchor`, at, `${role} text anchor`);
+    return this.declare(
+      { id, kind: "label", role, label: compact(label), provenance: {
+        pinLabel: options.pinToAnchor === true,
+        requireLabelLeader: options.requireLeader === true,
+        leaderGeometrySafe: options.leaderGeometrySafe === true,
+      } },
+      { id: `make_${id}`, operator: "label", inputs: { target: anchor, text: compact(label) }, outputs: [id] },
+    );
+  }
+
   midpoint(id: string, a: string, b: string, role: string, label?: string): string {
     return this.declare(
       { id, kind: "point", role, ...(label ? { label: compact(label) } : {}) },

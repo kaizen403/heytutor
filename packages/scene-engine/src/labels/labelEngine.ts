@@ -25,6 +25,8 @@ export interface LabelOwner {
   preferredSlot?: Exclude<LabelSlot, "leader">;
   /** Optional view clip region; labels must stay inside. */
   viewBounds?: LabelBounds;
+  /** Glyph-only region, such as the outside half-plane of a dimension bar. */
+  placementBounds?: LabelBounds;
   /** Use the supplied anchor directly instead of the owner's ink bounds. */
   useOwnerBounds?: boolean;
   /** Unit screen-space tangents of strokes that meet this anchor. */
@@ -33,6 +35,10 @@ export interface LabelOwner {
   tetherPx?: number;
   /** Distant leader slots. Default true; point letters set false. */
   allowLeader?: boolean;
+  /** A moved callout must retain an explicit connector to its exact anchor. */
+  requireLeader?: boolean;
+  /** Keep the entire leader off other geometry; contact at its anchor is legal. */
+  leaderGeometrySafe?: boolean;
   /**
    * Sit on the anchor instead of offsetting to a compass slot. Used for
    * values that belong inside a cell, node, or edge — not beside it.
@@ -64,12 +70,16 @@ export type LabelSlot =
 export interface LabelPlacementCandidate {
   slot: LabelSlot;
   bounds: LabelBounds;
+  /** Extra rendered ink outside the layout box; never changes the text origin. */
+  collisionBounds?: LabelBounds;
   /** Lower is better. */
   score: number;
   overlaps: string[];
   usesLeader: boolean;
   leaderFrom?: RenderPoint;
   leaderTo?: RenderPoint;
+  /** Exact endpoints with optional orthogonal bends to clear neighboring text. */
+  leaderPath?: RenderPoint[];
 }
 
 export interface LabelEngineOptions {
@@ -86,6 +96,8 @@ export interface LabelEngineOptions {
    * centre — leaves the ink sitting off-centre inside what was reserved.
    */
   measureTextPx?: (text: string, fontHeightPx: number) => number;
+  /** Actual renderer ink at the top-left run position, including scripts. */
+  measureTextInkBounds?: (text: string, x: number, y: number, fontHeightPx: number) => LabelBounds | null;
 }
 
 export interface LabelEngineResult {
@@ -95,10 +107,12 @@ export interface LabelEngineResult {
     entityId: string;
     text: string;
     bounds: LabelBounds;
+    collisionBounds?: LabelBounds;
     slot: LabelSlot;
     usesLeader: boolean;
     leaderFrom?: RenderPoint;
     leaderTo?: RenderPoint;
+    leaderPath?: RenderPoint[];
   }>;
   issues: Array<{
     code: "label_overlap_unresolved" | "label_outside_view" | "label_too_long" | "label_duplicate" | "label_unattached";
@@ -163,6 +177,11 @@ const INTERMEDIATE_LEADER_DIRECTIONS = [
   { dx: Math.cos(Math.PI / 8), dy: Math.sin(Math.PI / 8) },
 ];
 
+const FINE_LEADER_DIRECTIONS = Array.from({ length: 16 }, (_, index) => {
+  const angle = ((index * 2 + 1) * Math.PI) / 16;
+  return { dx: Math.cos(angle), dy: Math.sin(angle) };
+});
+
 interface PreparedLabelOwner {
   owner: LabelOwner;
   originalIndex: number;
@@ -177,11 +196,20 @@ export function estimateTextBounds(
   slot: Exclude<LabelSlot, "leader">,
   options: LabelEngineOptions = {},
 ): LabelBounds {
+  return textBoundsAtSlot(text, anchor, slot, options, (options.minGapPx ?? DEFAULTS.minGapPx) + 8);
+}
+
+function textBoundsAtSlot(
+  text: string,
+  anchor: RenderPoint,
+  slot: Exclude<LabelSlot, "leader">,
+  options: LabelEngineOptions,
+  gap: number,
+): LabelBounds {
   const paddingPx = options.paddingPx ?? DEFAULTS.paddingPx;
   const width = textInkWidth(text, options) + paddingPx * 2;
   const height = textInkHeight(options) + paddingPx * 2;
   const offset = SLOT_OFFSETS.find((entry) => entry.slot === slot) ?? SLOT_OFFSETS[0]!;
-  const gap = (options.minGapPx ?? DEFAULTS.minGapPx) + 8;
   const x = anchor.x + offset.dx * (gap + width / 2) - width / 2;
   const y = anchor.y + offset.dy * (gap + height / 2) - height / 2;
   return { x, y, width, height };
@@ -241,30 +269,51 @@ export function placeLabels(
   // A pinned label is ink the other labels must clear. A bond-angle label was
   // free to land on a pinned atom symbol because the symbol never entered the
   // obstacle list; a skeletal structure has no circle around its heteroatoms.
-  const pinnedObstacles: LabelObstacle[] = owners
-    .filter((owner) => owner.pinToAnchor)
-    .map((owner) => ({
+  const pinnedBounds = owners.map((owner) => owner.pinToAnchor
+    ? centeredTextBounds(owner.text, owner.anchor, options)
+    : null);
+  const pinnedInkBounds = owners.map((owner, index) => {
+    const bounds = pinnedBounds[index];
+    if (!bounds || !options.measureTextInkBounds) return bounds;
+    const padding = options.paddingPx ?? DEFAULTS.paddingPx;
+    return options.measureTextInkBounds(owner.text, bounds.x + padding, bounds.y + padding,
+      options.fontHeightPx ?? DEFAULTS.fontHeightPx) ?? bounds;
+  });
+  const pinnedObstacles: LabelObstacle[] = owners.flatMap((owner, index) => {
+    const bounds = pinnedBounds[index];
+    return bounds ? [{
       id: owner.labelId ?? `pinned_${owner.entityId}`,
       entityId: owner.entityId,
-      bounds: centeredTextBounds(owner.text, owner.anchor, options),
+      bounds: extendForInk(bounds, pinnedInkBounds[index]),
       kind: "label" as const,
-    }));
+    }] : [];
+  });
   const solverObstacles = pinnedObstacles.length > 0 ? [...obstacles, ...pinnedObstacles] : obstacles;
 
   const prepared = owners.map((owner, originalIndex): PreparedLabelOwner => {
     if (owner.pinToAnchor) {
       const bounds = centeredTextBounds(owner.text, owner.anchor, options);
-      const outside = owner.viewBounds ? !boundsInside(bounds, owner.viewBounds) : false;
-      const protectedHit = obstacles.some((obstacle) =>
-        obstacle.kind === "protected" && labelOverlapsObstacle(bounds, obstacle, minGapPx),
-      );
+      const ink = pinnedInkBounds[originalIndex];
+      const collisionBounds = extendForInk(bounds, ink);
+      const outside = outsideOwnerView(collisionBounds, owner);
+      const protectedHits = obstacles
+        .filter((obstacle) => obstacle.kind === "protected" && labelOverlapsObstacle(collisionBounds, obstacle, minGapPx))
+        .map((obstacle) => obstacle.id);
+      const pinnedHits = owners.flatMap((other, index) => {
+        const otherInk = pinnedInkBounds[index];
+        return index !== originalIndex && ink && otherInk && boundsOverlap(ink, otherInk)
+          ? [other.labelId ?? `pinned_${other.entityId}`]
+          : [];
+      });
       const overlaps = [
         ...(outside ? ["view_clip"] : []),
-        ...(protectedHit ? [obstacles.find((obstacle) => obstacle.kind === "protected")?.id ?? "protected"] : []),
+        ...protectedHits,
+        ...pinnedHits,
       ];
       const candidate: LabelPlacementCandidate = {
         slot: "east",
         bounds,
+        collisionBounds,
         score: 0,
         overlaps,
         usesLeader: false,
@@ -282,13 +331,17 @@ export function placeLabels(
       : unionBounds(
           obstacles.filter((obstacle) => obstacle.entityId === owner.entityId).map((obstacle) => obstacle.bounds),
         );
-    const candidates: LabelPlacementCandidate[] = SLOT_OFFSETS.map((slot) => {
+    // Point labels can use a closer compass slot when the usual margin wastes
+    // clear interior space. Every candidate still clears ink by minGapPx.
+    const anchorGaps = owner.tetherPx === undefined ? [minGapPx + 8] : [minGapPx + 8, minGapPx + 4, minGapPx];
+    const candidates: LabelPlacementCandidate[] = owner.requireLeader ? [] : anchorGaps.flatMap((anchorGap, gapIndex) => SLOT_OFFSETS.map((slot) => {
       const anchor = ownerBounds ? anchorOnBounds(ownerBounds, slot.slot) : owner.anchor;
-      const bounds = estimateTextBounds(owner.text, anchor, slot.slot, options);
+      const bounds = textBoundsAtSlot(owner.text, anchor, slot.slot, options, anchorGap);
+      const collisionBounds = textCollisionBounds(owner.text, bounds, options);
       const overlaps = solverObstacles
-        .filter((obstacle) => labelOverlapsObstacle(bounds, obstacle, minGapPx))
+        .filter((obstacle) => labelOverlapsObstacle(collisionBounds, obstacle, minGapPx))
         .map((obstacle) => obstacle.id);
-      const outside = owner.viewBounds ? !boundsInside(bounds, owner.viewBounds) : false;
+      const outside = outsideOwnerView(collisionBounds, owner);
       if (outside) overlaps.push("view_clip");
       if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
       const incident = incidentAligned(slot.slot, owner.incidentTangents);
@@ -296,11 +349,12 @@ export function placeLabels(
       return {
         slot: slot.slot,
         bounds,
-        score: slot.preference + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0) + (incident ? 40 : 0) + drift * 0.08,
+        collisionBounds,
+        score: slot.preference + gapIndex * 8 + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0) + (incident ? 40 : 0) + drift * 0.08,
         overlaps,
         usesLeader: false,
       };
-    });
+    }));
 
     const leaderDirections = [
       ...SLOT_OFFSETS.map((direction) => ({
@@ -309,42 +363,68 @@ export function placeLabels(
         preference: direction.preference,
         slot: direction.slot,
       })),
-      ...INTERMEDIATE_LEADER_DIRECTIONS.map((direction, index) => ({
+      ...[...INTERMEDIATE_LEADER_DIRECTIONS, ...FINE_LEADER_DIRECTIONS].map((direction, index) => ({
         ...direction,
         preference: SLOT_OFFSETS.length + index,
         slot: undefined,
       })),
     ];
-    const leaderCandidates = owner.allowLeader === false
+    const leaderCandidates = owner.allowLeader === false && owner.tetherPx === undefined
       ? []
-      : leaderDistances(owner.viewBounds).flatMap((distance) =>
-      leaderDirections.map((direction) => {
+      : leaderDistances(owner.viewBounds, owner.tetherPx).flatMap((distance) =>
+      [...leaderDirections, ...boxClearanceDirections(owner.text, distance, options, minGapPx)].map((direction) => {
           const center = {
             x: owner.anchor.x + direction.dx * distance,
             y: owner.anchor.y + direction.dy * distance,
           };
           const bounds = centeredTextBounds(owner.text, center, options);
+          const collisionBounds = textCollisionBounds(owner.text, bounds, options);
           const overlaps = solverObstacles
-            .filter((obstacle) => labelOverlapsObstacle(bounds, obstacle, minGapPx))
+            .filter((obstacle) => labelOverlapsObstacle(collisionBounds, obstacle, minGapPx))
             .map((obstacle) => obstacle.id);
-          const outside = owner.viewBounds ? !boundsInside(bounds, owner.viewBounds) : false;
+          const outside = outsideOwnerView(collisionBounds, owner);
           if (outside) overlaps.push("view_clip");
+          if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
           // The line stops outside the text. Running it to `center` — which is
           // what the board drew for years — strikes the label through.
-          const leaderTo = leaderEndpoint(owner.anchor, center, bounds);
-          return {
+          const leaderTo = leaderEndpoint(owner.anchor, center, collisionBounds);
+          const candidate: LabelPlacementCandidate = {
             slot: "leader" as const,
             bounds,
+            collisionBounds,
             score: 100 + distance + direction.preference +
               (owner.preferredSlot && direction.slot === owner.preferredSlot ? -24 : 0) +
               overlaps.length * 10 + (outside ? 50 : 0),
             overlaps,
-            usesLeader: true,
-            ...(leaderTo ? { leaderFrom: owner.anchor, leaderTo } : {}),
+            usesLeader: owner.allowLeader !== false && Boolean(leaderTo),
+            ...(owner.allowLeader !== false && leaderTo ? { leaderFrom: owner.anchor, leaderTo } : {}),
           };
+          if (owner.requireLeader && !candidate.usesLeader) overlaps.push("leader_required");
+          // Routing cannot repair a glyph box that is already illegal. Keep
+          // those candidates for diagnostics without exploring their elbows.
+          if (overlaps.length > 0) return candidate;
+          const fixedLabels = solverObstacles.filter((obstacle) => obstacle.kind === "label");
+          const routed = routeLeader(candidate, fixedLabels.map((obstacle) => obstacle.bounds), owner.viewBounds, minGapPx,
+            owner.leaderGeometrySafe ? obstacles.filter((obstacle) => obstacle.kind !== "label") : []);
+          if (routed) return routed;
+          for (const obstacle of fixedLabels) {
+            if (leaderCrosses(candidate, obstacle.bounds, minGapPx) && !overlaps.includes(obstacle.id)) overlaps.push(obstacle.id);
+          }
+          if (owner.leaderGeometrySafe) overlaps.push("leader_geometry");
+          return candidate;
         }),
     );
-    const allCandidates = deduplicateCandidates([...candidates, ...leaderCandidates])
+    const nearbyCandidates: LabelPlacementCandidate[] = owner.tetherPx !== undefined
+      ? nearbyTetheredCenters(owner, solverObstacles, options, minGapPx).map((center) => {
+          const bounds = centeredTextBounds(owner.text, center, options);
+          const collisionBounds = textCollisionBounds(owner.text, bounds, options);
+          const overlaps = solverObstacles.filter((obstacle) => labelOverlapsObstacle(collisionBounds, obstacle, minGapPx)).map((obstacle) => obstacle.id);
+          if (outsideOwnerView(collisionBounds, owner)) overlaps.push("view_clip");
+          if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
+          return { slot: "leader", bounds, collisionBounds, score: 150 + Math.hypot(center.x - owner.anchor.x, center.y - owner.anchor.y), overlaps, usesLeader: false };
+        })
+      : [];
+    const allCandidates = deduplicateCandidates([...candidates, ...leaderCandidates, ...nearbyCandidates])
       .sort((a, b) => a.score - b.score);
     const validCandidates = allCandidates
       .filter((candidate) => candidate.overlaps.length === 0)
@@ -366,11 +446,19 @@ export function placeLabels(
   const unpinned = prepared.filter((item) => !item.owner.pinToAnchor);
 
   for (const item of pinned) {
-    if (item.candidates[0]?.overlaps.includes("view_clip")) {
+    const overlaps = item.candidates[0]?.overlaps ?? [];
+    if (overlaps.includes("view_clip")) {
       issues.push({
         code: "label_outside_view",
         entityId: item.owner.entityId,
         message: `No in-view label slot for ${item.owner.entityId}`,
+      });
+    } else if (overlaps.length > 0) {
+      issues.push({
+        code: "label_overlap_unresolved",
+        entityId: item.owner.entityId,
+        message: `Pinned label for ${item.owner.entityId} overlaps reserved ink`,
+        overlappingIds: overlaps,
       });
     }
   }
@@ -404,13 +492,13 @@ export function placeLabels(
   }
 
   const candidatesToSolve = unpinned.filter((item) => item.validCandidates.length > 0);
-  // Keeping leaders off neighbouring text is a preference, not a requirement.
-  // In a corridor with room for the labels but not for the lines between them
-  // it is the only arrangement there is, and a figure with a leader grazing a
-  // label still beats the rejected scene that no figure at all would mean.
-  const selected = candidatesToSolve.length > 0
-    ? solveLabelPlacements(candidatesToSolve, minGapPx, "leaders_clear")
-      ?? solveLabelPlacements(candidatesToSolve, minGapPx, "boxes_only")
+  // A leader crossing another label breaks the label's attachment just as
+  // surely as overlapping glyphs. Keep that constraint in every solve.
+  // Once an owner has no legal glyph slot the whole scene must be rejected.
+  // Searching all remaining combinations cannot repair that fixed failure.
+  const selected = issues.length === 0 && candidatesToSolve.length > 0
+    ? solveLabelPlacements(candidatesToSolve, minGapPx, "straight", solverObstacles)
+      ?? solveLabelPlacements(candidatesToSolve, minGapPx, "routed", solverObstacles)
     : new Map<number, LabelPlacementCandidate>();
   if (!selected && candidatesToSolve.length > 0) {
     const mostConstrained = [...candidatesToSolve].sort(comparePreparedOwners)[0]!;
@@ -423,13 +511,14 @@ export function placeLabels(
 
   const placements: LabelEngineResult["placements"] = [
     ...pinned.flatMap((item) => {
-      const chosen = item.validCandidates[0] ?? item.candidates[0];
-      if (!chosen || chosen.overlaps.includes("view_clip")) return [];
+      const chosen = item.validCandidates[0];
+      if (!chosen) return [];
       return [{
         labelId: item.owner.labelId ?? `label:${item.owner.entityId}`,
         entityId: item.owner.entityId,
         text: item.owner.text,
         bounds: chosen.bounds,
+        ...(chosen.collisionBounds !== chosen.bounds ? { collisionBounds: chosen.collisionBounds } : {}),
         slot: chosen.slot,
         usesLeader: false,
       }];
@@ -443,10 +532,12 @@ export function placeLabels(
             entityId: item.owner.entityId,
             text: item.owner.text,
             bounds: chosen.bounds,
+            ...(chosen.collisionBounds !== chosen.bounds ? { collisionBounds: chosen.collisionBounds } : {}),
             slot: chosen.slot,
             usesLeader: chosen.usesLeader,
             leaderFrom: chosen.leaderFrom,
             leaderTo: chosen.leaderTo,
+            leaderPath: chosen.leaderPath,
           }];
         })
       : []),
@@ -494,9 +585,10 @@ export function stackLabelRows(
         y: top + size.height / 2,
       };
       const bounds = centeredTextBounds(owner.text, center, options);
+      const collisionBounds = textCollisionBounds(owner.text, bounds, options);
       if (
-        (viewBounds && !boundsInside(bounds, viewBounds)) ||
-        obstacles.some((obstacle) => labelOverlapsObstacle(bounds, obstacle, minGapPx))
+        (viewBounds && !boundsInside(collisionBounds, viewBounds)) ||
+        obstacles.some((obstacle) => labelOverlapsObstacle(collisionBounds, obstacle, minGapPx))
       ) {
         break;
       }
@@ -509,20 +601,58 @@ export function stackLabelRows(
         tetherPx: undefined,
         incidentTangents: undefined,
       });
-      top += size.height + minGapPx + 2;
+      top = collisionBounds.y + collisionBounds.height + minGapPx + 2;
     }
     if (rows.length === owners.length) return rows;
   }
   return null;
 }
 
-function leaderDistances(viewBounds: LabelBounds | undefined): number[] {
+function leaderDistances(viewBounds: LabelBounds | undefined, tetherPx?: number): number[] {
+  if (tetherPx !== undefined) {
+    const distances: number[] = [];
+    for (let distance = 24; distance <= tetherPx; distance += 8) distances.push(distance);
+    if (distances.at(-1) !== tetherPx) distances.push(tetherPx);
+    return distances;
+  }
   const maxDistance = viewBounds
     ? Math.ceil(Math.hypot(viewBounds.width, viewBounds.height))
     : 360;
   const distances = [40, 68, 96, 124, 160, 196];
   for (let distance = 228; distance <= maxDistance; distance += 32) distances.push(distance);
   return distances;
+}
+
+function boxClearanceDirections(text: string, distance: number, options: LabelEngineOptions, gap: number): Array<{ dx: number; dy: number; preference: number; slot: undefined }> {
+  const size = centeredTextBounds(text, { x: 0, y: 0 }, options);
+  const directions: Array<{ dx: number; dy: number; preference: number; slot: undefined }> = [];
+  // These positions keep a glyph box just clear of an incident horizontal or
+  // vertical stroke. Fixed compass angles can miss that narrow usable sector.
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+    const y = size.height / 2 + gap + 1;
+    if (y < distance) directions.push({ dx: sx * Math.sqrt(1 - (y / distance) ** 2), dy: sy * y / distance, preference: 32, slot: undefined });
+    const x = size.width / 2 + gap + 1;
+    if (x < distance) directions.push({ dx: sx * x / distance, dy: sy * Math.sqrt(1 - (x / distance) ** 2), preference: 33, slot: undefined });
+  }
+  return directions;
+}
+
+function nearbyTetheredCenters(owner: LabelOwner, obstacles: LabelObstacle[], options: LabelEngineOptions, gap: number): RenderPoint[] {
+  const size = centeredTextBounds(owner.text, owner.anchor, options);
+  const dx = size.width / 2 + gap + 1;
+  const dy = size.height / 2 + gap + 1;
+  const xs = new Set([owner.anchor.x - dx, owner.anchor.x + dx]);
+  const ys = new Set([owner.anchor.y - dy, owner.anchor.y + dy]);
+  for (const obstacle of obstacles) {
+    for (const x of [obstacle.bounds.x - dx, obstacle.bounds.x + obstacle.bounds.width + dx]) {
+      if (Math.abs(x - owner.anchor.x) <= owner.tetherPx!) xs.add(x);
+    }
+    for (const y of [obstacle.bounds.y - dy, obstacle.bounds.y + obstacle.bounds.height + dy]) {
+      if (Math.abs(y - owner.anchor.y) <= owner.tetherPx!) ys.add(y);
+    }
+  }
+  return [...xs].flatMap((x) => [...ys].map((y) => ({ x, y })))
+    .filter((center) => Math.hypot(center.x - owner.anchor.x, center.y - owner.anchor.y) <= owner.tetherPx! + 1e-6);
 }
 
 function deduplicateCandidates(candidates: LabelPlacementCandidate[]): LabelPlacementCandidate[] {
@@ -541,21 +671,37 @@ function comparePreparedOwners(a: PreparedLabelOwner, b: PreparedLabelOwner): nu
     a.originalIndex - b.originalIndex;
 }
 
-type SeparationRule = "leaders_clear" | "boxes_only";
-
 function solveLabelPlacements(
   owners: PreparedLabelOwner[],
   minGapPx: number,
-  rule: SeparationRule,
+  routing: "straight" | "routed",
+  obstacles: LabelObstacle[],
 ): Map<number, LabelPlacementCandidate> | null {
   const selected = new Map<number, LabelPlacementCandidate>();
   const remaining = new Set(owners.map((owner) => owner.originalIndex));
   const byIndex = new Map(owners.map((owner) => [owner.originalIndex, owner]));
   let visited = 0;
   const maxVisited = Math.max(20_000, owners.length * 20_000);
+  const fixedLabels = obstacles.filter((obstacle) => obstacle.kind === "label").map((obstacle) => obstacle.bounds);
+
+  const routedSelection = (): Map<number, LabelPlacementCandidate> | null => {
+    const routed = new Map<number, LabelPlacementCandidate>();
+    for (const [index, candidate] of selected) {
+      const boxes = [...fixedLabels, ...[...selected].filter(([other]) => other !== index).map(([, placement]) => candidateCollisionBounds(placement))];
+      const owner = byIndex.get(index)?.owner;
+      const route = routeLeader(candidate, boxes, owner?.viewBounds, minGapPx,
+        owner?.leaderGeometrySafe ? obstacles.filter((obstacle) => obstacle.kind !== "label") : [],
+        [...routed.values()].flatMap(leaderPoints));
+      if (!route) return null;
+      routed.set(index, route);
+    }
+    return routed;
+  };
 
   const compatibleCandidates = (owner: PreparedLabelOwner) => owner.validCandidates.filter((candidate) =>
-    [...selected.values()].every((placed) => compatible(candidate, placed, minGapPx, rule)),
+    [...selected.values()].every((placed) => routing === "routed"
+      ? !boundsOverlap(candidateCollisionBounds(candidate), candidateCollisionBounds(placed), minGapPx)
+      : compatible(candidate, placed, minGapPx)),
   );
 
   const search = (): boolean => {
@@ -574,7 +720,7 @@ function solveLabelPlacements(
     for (const candidate of next.compatible) {
       visited += 1;
       selected.set(next.owner.originalIndex, candidate);
-      if (search()) return true;
+      if ((routing === "straight" || routedSelection()) && search()) return true;
       selected.delete(next.owner.originalIndex);
       if (visited >= maxVisited) break;
     }
@@ -582,7 +728,7 @@ function solveLabelPlacements(
     return false;
   };
 
-  return search() ? selected : null;
+  return search() ? (routing === "routed" ? routedSelection() : selected) : null;
 }
 
 /**
@@ -596,12 +742,50 @@ function compatible(
   candidate: LabelPlacementCandidate,
   placed: LabelPlacementCandidate,
   minGapPx: number,
-  rule: SeparationRule,
 ): boolean {
-  if (boundsOverlap(candidate.bounds, placed.bounds, minGapPx)) return false;
-  if (rule === "boxes_only") return true;
-  return !leaderCrosses(candidate, placed.bounds, minGapPx) &&
-    !leaderCrosses(placed, candidate.bounds, minGapPx);
+  if (boundsOverlap(candidateCollisionBounds(candidate), candidateCollisionBounds(placed), minGapPx)) return false;
+  return !leaderCrosses(candidate, candidateCollisionBounds(placed), minGapPx) &&
+    !leaderCrosses(placed, candidateCollisionBounds(candidate), minGapPx) &&
+    !leadersConflict(candidate, placed);
+}
+
+function leaderPoints(candidate: LabelPlacementCandidate): RenderPoint[][] {
+  return candidate.leaderFrom && candidate.leaderTo
+    ? [candidate.leaderPath ?? [candidate.leaderFrom, candidate.leaderTo]]
+    : [];
+}
+
+function leadersConflict(first: LabelPlacementCandidate, second: LabelPlacementCandidate): boolean {
+  return leaderPoints(first).some((a) => leaderPoints(second).some((b) => leaderPathsConflict(a, b)));
+}
+
+/** Leaders may branch at one shared owner anchor, but never cross or share ink. */
+function leaderPathsConflict(first: RenderPoint[], second: RenderPoint[]): boolean {
+  const sharedAnchor = Math.hypot(first[0]!.x - second[0]!.x, first[0]!.y - second[0]!.y) <= 1e-6;
+  return first.slice(1).some((end, index) => second.slice(1).some((otherEnd, otherIndex) => {
+    const start = first[index]!;
+    const otherStart = second[otherIndex]!;
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const ex = otherEnd.x - otherStart.x;
+    const ey = otherEnd.y - otherStart.y;
+    const ax = otherStart.x - start.x;
+    const ay = otherStart.y - start.y;
+    const denominator = dx * ey - dy * ex;
+    if (Math.abs(denominator) < 1e-9) {
+      if (Math.abs(ax * dy - ay * dx) > 1e-6) return false;
+      const span = dx * dx + dy * dy;
+      if (span < 1e-9) return false;
+      const a = (ax * dx + ay * dy) / span;
+      const b = ((otherEnd.x - start.x) * dx + (otherEnd.y - start.y) * dy) / span;
+      return Math.min(1, Math.max(a, b)) - Math.max(0, Math.min(a, b)) > 1e-6;
+    }
+    const along = (ax * ey - ay * ex) / denominator;
+    const across = (ax * dy - ay * dx) / denominator;
+    if (along < -1e-6 || along > 1 + 1e-6 || across < -1e-6 || across > 1 + 1e-6) return false;
+    const hit = { x: start.x + dx * along, y: start.y + dy * along };
+    return !sharedAnchor || Math.hypot(hit.x - first[0]!.x, hit.y - first[0]!.y) > 1e-6;
+  }));
 }
 
 /**
@@ -611,12 +795,100 @@ function compatible(
  */
 function leaderCrosses(candidate: LabelPlacementCandidate, bounds: LabelBounds, gap: number): boolean {
   if (!candidate.leaderFrom || !candidate.leaderTo) return false;
-  return segmentIntersectsBounds(candidate.leaderFrom, candidate.leaderTo, {
+  const path = candidate.leaderPath ?? [candidate.leaderFrom, candidate.leaderTo];
+  const expanded = {
     x: bounds.x - gap,
     y: bounds.y - gap,
     width: bounds.width + gap * 2,
     height: bounds.height + gap * 2,
+  };
+  return path.slice(1).some((point, index) => segmentIntersectsBounds(path[index]!, point, expanded));
+}
+
+/** A small deterministic set of elbows around reserved text; no arbitrary pixels. */
+function routeLeader(
+  candidate: LabelPlacementCandidate,
+  obstacles: LabelBounds[],
+  viewBounds: LabelBounds | undefined,
+  gap: number,
+  geometry: LabelObstacle[] = [],
+  otherLeaders: RenderPoint[][] = [],
+): LabelPlacementCandidate | null {
+  const from = candidate.leaderFrom;
+  const to = candidate.leaderTo;
+  if (!from || !to) return candidate;
+  const routes: RenderPoint[][] = [
+    [from, to],
+    [from, { x: from.x, y: to.y }, to],
+    [from, { x: to.x, y: from.y }, to],
+  ];
+  const leaderBounds = otherLeaders.map((path): LabelBounds => {
+    const xs = path.map((point) => point.x);
+    const ys = path.map((point) => point.y);
+    return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
   });
+  for (const box of [...obstacles, ...geometry.filter((obstacle) => obstacle.segments?.length).map((obstacle) => obstacle.bounds), ...leaderBounds]) {
+    for (const y of [box.y - gap - 1, box.y + box.height + gap + 1]) {
+      routes.push([from, { x: from.x, y }, { x: to.x, y }, to]);
+    }
+    for (const x of [box.x - gap - 1, box.x + box.width + gap + 1]) {
+      routes.push([from, { x, y: from.y }, { x, y: to.y }, to]);
+    }
+  }
+  const routeLength = (path: RenderPoint[]) => path.slice(1).reduce((total, point, index) =>
+    total + Math.hypot(point.x - path[index]!.x, point.y - path[index]!.y), 0);
+  const legal = routes
+    .map((path) => path.filter((point, index) => index === 0 || Math.hypot(point.x - path[index - 1]!.x, point.y - path[index - 1]!.y) > 1e-6))
+    .filter((path) => !viewBounds || path.every((point) =>
+      point.x >= viewBounds.x && point.x <= viewBounds.x + viewBounds.width &&
+      point.y >= viewBounds.y && point.y <= viewBounds.y + viewBounds.height,
+    ))
+    .filter((path) => !leaderCrosses({ ...candidate, leaderPath: path }, candidateCollisionBounds(candidate), 0))
+    .filter((path) => obstacles.every((box) => !leaderCrosses({ ...candidate, leaderPath: path }, box, gap)))
+    .filter((path) => !leaderCrossesGeometry(path, geometry))
+    .filter((path) => otherLeaders.every((other) => !leaderPathsConflict(path, other)))
+    .sort((a, b) => routeLength(a) - routeLength(b) || a.length - b.length);
+  const path = legal[0];
+  return path ? { ...candidate, leaderPath: path.length > 2 ? path : undefined } : null;
+}
+
+function leaderCrossesGeometry(path: RenderPoint[], obstacles: LabelObstacle[]): boolean {
+  const anchor = path[0]!;
+  return path.slice(1).some((end, index) => {
+    const start = path[index]!;
+    return obstacles.some((obstacle) => (obstacle.segments ?? []).some(([a, b]) => {
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const ex = b.x - a.x;
+      const ey = b.y - a.y;
+      const denominator = dx * ey - dy * ex;
+      const ax = a.x - start.x;
+      const ay = a.y - start.y;
+      if (Math.abs(denominator) < 1e-9) {
+        if (Math.abs(ax * dy - ay * dx) > 1e-6) return false;
+        const span = dx * dx + dy * dy;
+        if (span < 1e-9) return false;
+        const first = (ax * dx + ay * dy) / span;
+        const second = ((b.x - start.x) * dx + (b.y - start.y) * dy) / span;
+        return Math.min(1, Math.max(first, second)) - Math.max(0, Math.min(first, second)) > 1e-6;
+      }
+      const along = (ax * ey - ay * ex) / denominator;
+      const across = (ax * dy - ay * dx) / denominator;
+      if (along < -1e-6 || along > 1 + 1e-6 || across < -1e-6 || across > 1 + 1e-6) return false;
+      const hit = { x: start.x + dx * along, y: start.y + dy * along };
+      // Compiled primitive coordinates are rounded to hundredths of a pixel;
+      // their common analytic anchor can therefore miss a stroke by a few
+      // hundredths. This tolerance admits that shared contact only.
+      return Math.hypot(hit.x - anchor.x, hit.y - anchor.y) > 0.05;
+    }));
+  });
+}
+
+function outsideOwnerView(bounds: LabelBounds, owner: LabelOwner): boolean {
+  return Boolean(
+    (owner.viewBounds && !boundsInside(bounds, owner.viewBounds)) ||
+    (owner.placementBounds && !boundsInside(bounds, owner.placementBounds)),
+  );
 }
 
 function incidentAligned(
@@ -672,7 +944,7 @@ function leaderEndpoint(from: RenderPoint, center: RenderPoint, bounds: LabelBou
 function beyondTether(bounds: LabelBounds, anchor: RenderPoint, tetherPx: number | undefined): boolean {
   if (tetherPx === undefined) return false;
   const center = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
-  return Math.hypot(center.x - anchor.x, center.y - anchor.y) > tetherPx;
+  return Math.hypot(center.x - anchor.x, center.y - anchor.y) > tetherPx + 1e-6;
 }
 
 function centeredTextBounds(text: string, center: RenderPoint, options: LabelEngineOptions): LabelBounds {
@@ -680,6 +952,22 @@ function centeredTextBounds(text: string, center: RenderPoint, options: LabelEng
   const width = textInkWidth(text, options) + paddingPx * 2;
   const height = textInkHeight(options) + paddingPx * 2;
   return { x: center.x - width / 2, y: center.y - height / 2, width, height };
+}
+
+/** Layout remains an em box; only collision reservation follows overhanging ink. */
+function extendForInk(bounds: LabelBounds, ink: LabelBounds | null | undefined): LabelBounds {
+  return !ink || boundsInside(ink, bounds) ? bounds : unionBounds([bounds, ink]) ?? bounds;
+}
+
+function textCollisionBounds(text: string, bounds: LabelBounds, options: LabelEngineOptions): LabelBounds {
+  if (!options.measureTextInkBounds) return bounds;
+  const padding = options.paddingPx ?? DEFAULTS.paddingPx;
+  return extendForInk(bounds, options.measureTextInkBounds(text, bounds.x + padding, bounds.y + padding,
+    options.fontHeightPx ?? DEFAULTS.fontHeightPx));
+}
+
+function candidateCollisionBounds(candidate: LabelPlacementCandidate): LabelBounds {
+  return candidate.collisionBounds ?? candidate.bounds;
 }
 
 /** Width of the glyph run itself, before padding. */
@@ -705,11 +993,18 @@ function textInkHeight(options: LabelEngineOptions): number {
 
 /** Build coarse axis-aligned obstacles from compiled primitives. */
 export function obstaclesFromPrimitives(primitives: RenderPrimitive[]): LabelObstacle[] {
-  return primitives.flatMap((primitive) => {
+  return primitives.flatMap((primitive): LabelObstacle[] => {
+    const labelBounds = primitive.kind === "label"
+      ? primitive.provenance?.labelCollisionBounds ?? primitive.provenance?.labelBounds : undefined;
+    if (isLabelBounds(labelBounds)) return [{
+      id: primitive.id, entityId: primitive.entityId, kind: "label" as const, bounds: labelBounds,
+    }];
     if (primitive.points.length === 0) return [];
-    const obstaclePoints = primitive.kind === "arc" && primitive.radius && primitive.startAngle !== undefined && primitive.endAngle !== undefined
-      ? sampleArc(primitive.points[0]!, primitive.radius, primitive.startAngle, primitive.endAngle)
-      : primitive.points;
+    const obstaclePoints = primitive.kind === "circle" && primitive.radius
+      ? sampleArc(primitive.points[0]!, primitive.radius, 0, Math.PI * 2)
+      : primitive.kind === "arc" && primitive.radius && primitive.startAngle !== undefined && primitive.endAngle !== undefined
+        ? sampleArc(primitive.points[0]!, primitive.radius, primitive.startAngle, primitive.endAngle)
+        : primitive.points;
     const xs = obstaclePoints.map((point) => point.x);
     const ys = obstaclePoints.map((point) => point.y);
     let minX = Math.min(...xs);
@@ -723,9 +1018,11 @@ export function obstaclesFromPrimitives(primitives: RenderPrimitive[]): LabelObs
       maxY = Math.max(maxY, primitive.points[0]!.y + primitive.radius);
     }
     const pad = primitive.kind === "label" ? 2 : 4;
-    const segments = primitive.kind === "label" || primitive.kind === "point"
+    const segments: LabelObstacle["segments"] = primitive.kind === "label" || primitive.kind === "point"
       ? undefined
-      : pathSegments(obstaclePoints, primitive.kind === "polygon" || primitive.kind === "rectangle" || primitive.kind === "circle");
+      : primitive.kind === "axes" && obstaclePoints.length >= 4
+        ? [[obstaclePoints[0]!, obstaclePoints[1]!], [obstaclePoints[2]!, obstaclePoints[3]!]]
+        : pathSegments(obstaclePoints, primitive.kind === "polygon" || primitive.kind === "rectangle" || primitive.kind === "circle");
     return [{
       id: primitive.id,
       entityId: primitive.entityId,
@@ -734,11 +1031,17 @@ export function obstaclesFromPrimitives(primitives: RenderPrimitive[]): LabelObs
       bounds: {
         x: minX - pad,
         y: minY - pad,
-        width: Math.max(4, maxX - minX) + pad * 2,
-        height: Math.max(4, maxY - minY) + pad * 2,
+        width: (primitive.kind === "point" ? 0 : Math.max(4, maxX - minX)) + pad * 2,
+        height: (primitive.kind === "point" ? 0 : Math.max(4, maxY - minY)) + pad * 2,
       },
     }];
   });
+}
+
+function isLabelBounds(value: unknown): value is LabelBounds {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Partial<LabelBounds>;
+  return [record.x, record.y, record.width, record.height].every((number) => typeof number === "number" && Number.isFinite(number));
 }
 
 function labelOverlapsObstacle(label: LabelBounds, obstacle: LabelObstacle, gap: number): boolean {
@@ -777,6 +1080,10 @@ function segmentIntersectsBounds(start: RenderPoint, end: RenderPoint, bounds: L
 }
 
 function segmentsIntersect(a: RenderPoint, b: RenderPoint, c: RenderPoint, d: RenderPoint): boolean {
+  if (
+    Math.max(a.x, b.x) < Math.min(c.x, d.x) || Math.max(c.x, d.x) < Math.min(a.x, b.x) ||
+    Math.max(a.y, b.y) < Math.min(c.y, d.y) || Math.max(c.y, d.y) < Math.min(a.y, b.y)
+  ) return false;
   const cross = (p: RenderPoint, q: RenderPoint, r: RenderPoint) =>
     (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
   const abC = cross(a, b, c);

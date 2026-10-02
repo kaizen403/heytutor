@@ -499,8 +499,8 @@ interface Layout {
 const OCT_BASAL: readonly Slot[] = [
   { deg: 180, len: 1, style: "plain", seat: "equatorial" },
   { deg: 0, len: 1, style: "plain", seat: "equatorial" },
-  { deg: 225, len: 0.78, style: "wedge", seat: "equatorial" },
-  { deg: 45, len: 0.78, style: "dash", seat: "equatorial" },
+  { deg: 225, len: 0.9, style: "wedge", seat: "equatorial" },
+  { deg: 45, len: 0.9, style: "dash", seat: "equatorial" },
 ];
 
 function pentagonSlots(): Slot[] {
@@ -687,9 +687,9 @@ interface DrawnSpecies { readonly ids: string[]; readonly frameIds: string[]; re
 
 /** Reach of the panel beyond the molecule's furthest atom, so symbols and caption lines clear its border. */
 const PANEL_SIDE = 0.5;
-const TITLE_GAP = 0.5;
-const CAPTION_GAP = 0.5;
-const CAPTION_STEP = 0.36;
+const TITLE_GAP = 0.65;
+const CAPTION_GAP = 1;
+const CAPTION_STEP = 0.65;
 const PANEL_END = 0.32;
 
 /**
@@ -748,7 +748,13 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   });
   if (withAngle && layout.angle && result.bondAngle) {
     const [a, b] = layout.angle;
-    detailIds.push(c.angle(`${tag}_ang`, centralId, ligandIds[a]!, ligandIds[b]!, result.bondAngle, layout.angleRadius ?? 0.36));
+    const radius = layout.angleRadius ?? 0.36;
+    detailIds.push(c.angle(`${tag}_ang`, centralId, ligandIds[a]!, ligandIds[b]!, result.bondAngle, radius));
+    // A linear molecule has no atom above its centre, but its semicircular
+    // angle mark occupies that space. Include the mark in the panel reach so
+    // the formula cannot be pinned on top of the angle's label anchor.
+    minY = Math.min(minY, origin.y - radius);
+    maxY = Math.max(maxY, origin.y + radius);
   }
   const titleY = maxY + TITLE_GAP;
   const hybridY = minY - CAPTION_GAP;

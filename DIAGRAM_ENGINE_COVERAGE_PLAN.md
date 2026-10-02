@@ -229,4 +229,4 @@ Gate: `packages/scene-engine/scripts/verify/verify-chapter-operators.ts`. Live f
 
 ## Immediate handoff
 
-Orders 1–5 now have certified operators for the leftover rows: relative velocity, motion graphs, circular motion, incline projectiles, Kirchhoff plus metre bridge and potentiometer, free-body and incline friction, work, springs, collisions, current loops, the galvanometer, the bar magnet, and the cyclotron. The DCP backlog remains the other session's work.
+Orders 1–5 are completed for the leftover rows named in the coverage plan. The chapter gate passed after merging `main`, including the precise-measurement contracts from #82. This is operator coverage, not the 90% admin-topic bar, and not question-bank coverage. The DCP backlog remains the other session's work. Live vertical-circle, pulley, and generic circuit templates remain layout figures.

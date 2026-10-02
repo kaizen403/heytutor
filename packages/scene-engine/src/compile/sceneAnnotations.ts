@@ -35,6 +35,7 @@ import {
 
 const TEXT_KINDS = new Set<string>(["label", "callout", "narration"]);
 const TRANSIENT_DEFAULT = new Set<SceneAnnotationKind>(["enclose", "trace", "badge", "spin"]);
+const INDIVIDUAL_TARGET_MARKS = new Set<SceneAnnotationKind>(["equal_tick", "equal_arc", "parallel_mark", "endpoint"]);
 
 export function isSceneAnnotationKind(kind: string): kind is SceneAnnotationKind {
   return (SCENE_ANNOTATION_KINDS as readonly string[]).includes(kind);
@@ -45,6 +46,7 @@ export function appendCompiledAnnotations(
   primitives: RenderPrimitive[],
   entityToGroup: Map<string, string>,
   issues: SceneIssue[],
+  anchorPrimitives: RenderPrimitive[] = [],
 ): void {
   for (const annotation of document.annotations) {
     if (TEXT_KINDS.has(annotation.kind)) continue;
@@ -57,7 +59,7 @@ export function appendCompiledAnnotations(
       });
       continue;
     }
-    const targets = targetPrimitives(annotation, document, primitives);
+    const targets = targetPrimitives(annotation, document, [...primitives, ...anchorPrimitives]);
     if (targets.length === 0) {
       issues.push({
         code: "annotation_target_unrendered",
@@ -88,13 +90,30 @@ export function appendCompiledAnnotations(
         ? "trace"
         : "construction",
     };
-    const extra = geometryFor(annotation, targets);
-    extra.forEach((primitive, index) => {
+    const individualMarks = INDIVIDUAL_TARGET_MARKS.has(annotation.kind);
+    const targetSets = individualMarks
+      ? [...new Set(targets.map((target) => target.entityId))].map((id) => targets.filter((target) => target.entityId === id))
+      : [targets];
+    const extra = targetSets.flatMap((targetSet) => {
+      const marks = geometryFor(annotation, targetSet);
+      // One arc is the existing verified arc, so count=1 needs no extra ink.
+      const existingArc = annotation.kind === "equal_arc" && (annotation.style?.count ?? 1) === 1 && targetSet.some((target) => target.kind === "arc");
+      if (marks.length === 0 && !existingArc) {
+        issues.push({ code: "annotation_geometry_unresolved", message: `Annotation ${annotation.id} cannot mark its target geometry`, severity: "fatal", entityIds: [annotation.id, ...targetSet.map((target) => target.entityId)] });
+      }
+      // A repeated mark belongs to each target's reveal. Keep a later edge's
+      // tick or endpoint from appearing while that edge is still hidden.
+      const markGroupId = individualMarks
+        ? targetSet[0]?.groupId ?? groupId
+        : groupId;
+      return marks.map((primitive) => ({ primitive, groupId: markGroupId }));
+    });
+    extra.forEach(({ primitive, groupId: markGroupId }, index) => {
       primitives.push({
         ...primitive,
         id: `${annotation.id}_${index}`,
         entityId: annotation.id,
-        groupId,
+        groupId: markGroupId,
         provenance: { ...provenance, ...primitive.provenance },
       });
     });
@@ -112,7 +131,7 @@ function targetPrimitives(
     if (ids.has(group.id)) group.entityIds.forEach((id) => ids.add(id));
   }
   return primitives.filter((primitive) =>
-    ids.has(primitive.entityId) && primitive.kind !== "label" && primitive.provenance?.annotationId !== annotation.id,
+    ids.has(primitive.entityId) && primitive.kind !== "label" && primitive.provenance?.measurementRole !== "witness" && primitive.provenance?.annotationId !== annotation.id,
   );
 }
 
@@ -126,11 +145,13 @@ function groupFor(annotation: SceneAnnotation, entityToGroup: Map<string, string
 
 function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): Omit<RenderPrimitive, "id" | "entityId" | "groupId">[] {
   const count = congruenceCount(annotation.style?.count ?? 1);
-  const ink = targets.filter((primitive) => primitive.kind !== "dimension");
+  const ink = targets;
   const points = ink.flatMap((primitive) => primitive.points);
+  const extentPoints = ink.flatMap(annotationExtentPoints);
+  if (points.length === 0) return [];
   switch (annotation.kind) {
     case "enclose": {
-      const bounds = encloseBounds(points, ink.some((primitive) => primitive.kind === "point") ? 10 : 8);
+      const bounds = encloseBounds(extentPoints, ink.some((primitive) => primitive.kind === "point") ? 10 : 8);
       return [{
         kind: "rectangle",
         points: rectanglePoints(bounds),
@@ -146,7 +167,7 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): O
           provenance: { annotation: "highlight", fillRole: "region" },
         }];
       }
-      const bounds = encloseBounds(points, 4);
+      const bounds = encloseBounds(extentPoints, 4);
       return [{
         kind: "rectangle",
         points: rectanglePoints(bounds),
@@ -183,7 +204,7 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): O
       }));
     }
     case "equal_tick": {
-      const path = lineEnds(ink);
+      const path = straightLineEnds(ink);
       if (!path) return [];
       return congruenceTickSegments(path.start, path.end, count).map((segment) => ({
         kind: "line" as const,
@@ -205,7 +226,7 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): O
       }));
     }
     case "parallel_mark": {
-      const path = lineEnds(ink);
+      const path = straightLineEnds(ink);
       if (!path) return [];
       return parallelChevrons(path.start, path.end, count).map((segment) => ({
         kind: "polyline" as const,
@@ -264,9 +285,9 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): O
       const closed = ink.find((primitive) =>
         primitive.kind === "polygon" || primitive.kind === "rectangle" || (primitive.kind === "polyline" && primitive.points.length > 3),
       );
-      const ring = closed ? inflateClosedPath(closed.points) : inflateClosedPath(convexHull(points));
+      const ring = closed ? inflateClosedPath(closed.points) : inflateClosedPath(convexHull(extentPoints));
       if (ring.length < 3) {
-        const bounds = encloseBounds(points, 14);
+        const bounds = encloseBounds(extentPoints, 14);
         return [{ kind: "rectangle", points: rectanglePoints(bounds), provenance: { annotation: "loop" } }];
       }
       return [{
@@ -376,6 +397,45 @@ function lineEnds(primitives: RenderPrimitive[]): { start: RenderPoint; end: Ren
   const start = path.points[0];
   const end = path.points.at(-1);
   if (!start || !end) return null;
+  return { start, end };
+}
+
+/** Circular primitives store their centre; bounds must cover their stroke. */
+function annotationExtentPoints(primitive: RenderPrimitive): RenderPoint[] {
+  const center = primitive.points[0];
+  if (!center || !primitive.radius || (primitive.kind !== "circle" && primitive.kind !== "arc")) return primitive.points;
+  const rawStart = primitive.kind === "arc" ? primitive.startAngle ?? 0 : 0;
+  const rawEnd = primitive.kind === "arc" ? primitive.endAngle ?? 2 * Math.PI : 2 * Math.PI;
+  const tau = 2 * Math.PI;
+  const span = Math.max(-tau, Math.min(tau, rawEnd - rawStart));
+  const start = ((rawStart % tau) + tau) % tau;
+  const end = start + span;
+  const angles = Array.from({ length: 65 }, (_, index) => start + (end - start) * index / 64);
+  // Include exact extrema even when an arc starts between sample positions.
+  for (let index = Math.ceil(Math.min(start, end) / (Math.PI / 2)); index <= Math.floor(Math.max(start, end) / (Math.PI / 2)); index += 1) angles.push(index * Math.PI / 2);
+  return angles.map((angle) => ({ x: center.x + primitive.radius! * Math.cos(angle), y: center.y + primitive.radius! * Math.sin(angle) }));
+}
+
+/** Straight-edge marks cannot use an imaginary chord through a bent path. */
+function straightLineEnds(primitives: RenderPrimitive[]): { start: RenderPoint; end: RenderPoint } | null {
+  const path = primitives.find((primitive) =>
+    ["line", "polyline", "ray", "vector", "dimension"].includes(primitive.kind) && primitive.points.length >= 2,
+  );
+  if (!path) return null;
+  const start = path.points[0]!;
+  const end = path.points.at(-1)!;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 0.05) return null;
+  let previous = -0.05;
+  for (const point of path.points) {
+    const x = point.x - start.x;
+    const y = point.y - start.y;
+    const along = (x * dx + y * dy) / length;
+    if (Math.abs(x * dy - y * dx) / length > 0.05 || along < previous - 0.05 || along > length + 0.05) return null;
+    previous = along;
+  }
   return { start, end };
 }
 

@@ -761,7 +761,7 @@ function drawFigure(c: ChemScene, id: string, figure: Figure, origin: Vec2): str
     const baseY = result.geometry === "linear" ? -0.7 : result.geometry === "tetrahedral" ? -1.35 : -1.5;
     // A chelate label on the lower front pair reaches down to the name row.
     const lowest = Math.min(...pinned.map((entry) => entry.at.y - origin.y));
-    const nameY = Math.min(baseY, lowest - 0.3);
+    const nameY = Math.min(baseY, lowest - 0.65);
     const nameId = c.text(`${id}_n`, place({ x: 0, y: nameY }), figure.name, "isomer name");
     c.scene.labelled(nameId);
   }

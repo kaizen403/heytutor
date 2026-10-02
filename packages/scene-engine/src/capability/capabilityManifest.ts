@@ -137,6 +137,7 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
     "solid_of_revolution",
     "solid_projection",
     "solid_cross_section",
+    "solid_anchor",
     "space_frame",
     "space_point",
     "space_line",
