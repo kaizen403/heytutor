@@ -39,6 +39,10 @@ export interface DrawCommandVisualStyle {
   /** Verified closed region rendered below its boundary ink. */
   fillRole?: 'region';
   correspondingFamily?: 1 | 2 | 3;
+  /** Verified distance ink; witnesses must travel and reveal with their bar. */
+  measurementRole?: 'bar' | 'witness';
+  /** Label callout ink is never the figure's focus trace. */
+  labelLeader?: boolean;
 }
 
 export interface DrawCommandSemanticRef {

@@ -920,8 +920,7 @@ function buildHintParts(
     : null;
 }
 
-function buildStepParts(hint: DsaDiagramHint, step: DsaDiagramStep, row: number): StructureParts | null {
-  const originY = -row * 2.15;
+function buildStepParts(hint: DsaDiagramHint, step: DsaDiagramStep): StructureParts | null {
   if (step.groups && step.groups.length > 0) {
     const built: StructureParts[] = [];
     let originX = 0;
@@ -936,7 +935,7 @@ function buildStepParts(hint: DsaDiagramHint, step: DsaDiagramStep, row: number)
       const groupParts = buildHintParts(groupHint, { showIndices: false });
       if (!groupParts) continue;
       const width = (group.values?.length ?? group.nodes?.length ?? 4) * 1.7;
-      built.push(relocateParts(groupParts, `${step.id}_g${groupIndex}`, originX, originY));
+      built.push(relocateParts(groupParts, `${step.id}_g${groupIndex}`, originX, 0));
       originX += width + 1.6;
     }
     if (built.length === 0) return null;
@@ -962,7 +961,27 @@ function buildStepParts(hint: DsaDiagramHint, step: DsaDiagramStep, row: number)
   };
   const parts = buildHintParts(stepHint, { showIndices: false });
   if (!parts) return null;
-  return relocateParts(parts, step.id, 0, originY);
+  return relocateParts(parts, step.id, 0, 0);
+}
+
+/** Constructed geometry and pinned pointer anchors determine the row reach. */
+function partsVerticalExtent(parts: StructureParts): { min: number; max: number } | null {
+  const points = new Map<string, number>();
+  for (const construction of parts.constructions) {
+    if (construction.operator !== "point" || typeof construction.inputs.y !== "number") continue;
+    for (const output of construction.outputs) points.set(output, construction.inputs.y);
+  }
+  const reach = [...points.values()];
+  for (const construction of parts.constructions) {
+    const center = typeof construction.inputs.center === "string" ? points.get(construction.inputs.center) : undefined;
+    if (center === undefined) continue;
+    const half = construction.operator === "rectangle" && typeof construction.inputs.height === "number"
+      ? construction.inputs.height / 2
+      : construction.operator === "circle" && typeof construction.inputs.radius === "number"
+        ? construction.inputs.radius : 0;
+    reach.push(center - half, center + half);
+  }
+  return reach.length > 0 ? { min: Math.min(...reach), max: Math.max(...reach) } : null;
 }
 
 /** Build the scene-document/v2 for a DSA hint, or null when unsupported. */
@@ -981,9 +1000,14 @@ export function synthesizeDsaSceneDocument(
   if (steps) {
     const stepParts: StructureParts[] = [];
     const groups: SceneRevealGroup[] = [];
+    const builtSteps = steps.map((step) => buildStepParts(hint, step));
+    if (builtSteps.some((part) => !part)) return null;
+    const extents = builtSteps.map((part) => partsVerticalExtent(part!));
+    if (extents.some((extent) => !extent)) return null;
+    const rowPitch = Math.max(...extents.map((extent) => extent!.max))
+      - Math.min(...extents.map((extent) => extent!.min)) + 0.8;
     for (const [index, step] of steps.entries()) {
-      const built = buildStepParts(hint, step, index);
-      if (!built) return null;
+      const built = relocateParts(builtSteps[index]!, "", 0, -index * rowPitch);
       stepParts.push(built);
       groups.push({
         id: step.id,
@@ -1075,7 +1099,7 @@ function hintFrameDocument(
 ): SceneDocument | null {
   // Row 0 for every frame: a frame owns the whole zone, so nothing is offset
   // to make room for the frames around it.
-  const parts = buildStepParts(hint, step, 0);
+  const parts = buildStepParts(hint, step);
   if (!parts) return null;
   const revealGroups: SceneRevealGroup[] = [
     {

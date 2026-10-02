@@ -99,8 +99,11 @@ export function buildPolyhedralFigure(question: string): SceneDocument | null {
     // width joins vertex 1 to 2. Never label the hypotenuse as base altitude.
     addDimension(measures[1].name, measures[1].role, measures[1].value, base.kind === "polygon" ? projected[0]! : projected[1]!, projected[2]!);
   }
-  const right = Math.max(...projected.map((p) => p.x)) + length(h) * 0.2;
-  addDimension("h", "perpendicular height", h, { x: right, y: 0 }, { x: right, y: spec.height });
+  const heightBase = spec.topScale === 1
+    ? spec.base[projected.reduce((rightmost, point, index) => point.x > projected[rightmost]!.x ? index : rightmost, 0)]!
+    : { x: 0, y: 0 };
+  const heightTop = { x: heightBase.x * spec.topScale, y: heightBase.y * spec.topScale };
+  addDimension("h", "perpendicular height", h, projectSolidPoint(center, heightBase, 0), projectSolidPoint(center, heightTop, spec.height));
   // Name each compiled measurement so the shared reveal conductor letters it
   // during the figure introduction instead of withholding it for a later FOCUS.
   const spokenDimensions = entities.filter((entity) => dimensionIds.includes(entity.id))

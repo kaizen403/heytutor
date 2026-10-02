@@ -726,7 +726,7 @@ function panelAxes(c: ChemScene, tag: string, panel: Panel, xLabel: string, yLab
   const xAxis = c.arrow(`${tag}_xaxis`, { x: x0 - 0.45, y: y0 }, { x: x0 + X_SPAN + xPad, y: y0 }, "x axis");
   const yAxis = c.arrow(`${tag}_yaxis`, { x: x0, y: y0 - 0.45 }, { x: x0, y: y0 + Y_SPAN + yPad }, "y axis");
   const xl = c.text(`${tag}_xl`, { x: x0 + X_SPAN + xPad, y: y0 - 0.7 }, xLabel, "axis label");
-  const yl = c.text(`${tag}_yl`, { x: x0 + 0.05, y: y0 + Y_SPAN + yPad + 0.55 }, yLabel, "axis label");
+  const yl = c.text(`${tag}_yl`, { x: x0 + 0.05, y: y0 + Y_SPAN + yPad + 1.15 }, yLabel, "axis label");
   panel.ids.push(xAxis, yAxis, xl, yl);
 }
 

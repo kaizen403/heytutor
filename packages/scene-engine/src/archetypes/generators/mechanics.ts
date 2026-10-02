@@ -140,11 +140,11 @@ function inclineBody(context: GeneratorContext) {
   let centreId: string;
   if (rolling) {
     const radius = 0.55;
-    centreId = scene.point("G", add(contact, scale(normal, radius)), "body centre of mass");
+    centreId = scene.helper("G", add(contact, scale(normal, radius)), "body centre of mass");
     scene.circle("body", "G", radius, "rolling body", massLabel);
   } else {
     const height = 0.7;
-    centreId = scene.point("G", add(contact, scale(normal, height / 2)), "body centre of mass");
+    centreId = scene.helper("G", add(contact, scale(normal, height / 2)), "body centre of mass");
     scene.box("body", add(contact, scale(normal, height / 2)), 1.2, height, theta, "body block", massLabel);
   }
   forceArrow(scene, "weight", centreId, { x: 0, y: -1 }, 1.4, "weight", "mg");
@@ -616,8 +616,8 @@ function collisionLine(context: GeneratorContext) {
   const len2 = u2 === 0 ? 0 : 0.4 + 1.4 * Math.abs(u2) / fastest;
   const scene = new SceneBuilder(context.question, "two bodies about to collide along a line", "collision_line");
   groundLine(scene, "line", { x: -2, y: 0 }, { x: 7, y: 0 }, "line of motion");
-  scene.point("C1", { x: 0, y: 0.5 }, "body centre", "m1");
-  scene.point("C2", { x: 4.5, y: 0.5 }, "body centre", "m2");
+  scene.helper("C1", { x: 0, y: 0.5 }, "body centre");
+  scene.helper("C2", { x: 4.5, y: 0.5 }, "body centre");
   scene.circle("body1", "C1", 0.5, "body", grounded(context, "m1") ? `m1=${withUnit(num(context, "m1", 1), "kg")}` : "m1");
   scene.circle("body2", "C2", 0.5, "body", grounded(context, "m2") ? `m2=${withUnit(num(context, "m2", 1), "kg")}` : "m2");
   scene.point("u1_start", { x: 0.5, y: 0.5 }, "velocity tail");

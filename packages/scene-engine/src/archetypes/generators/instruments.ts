@@ -43,18 +43,18 @@ function vernierCalliper(context: GeneratorContext) {
   scene.rectangle("bar", "bar_c", 64, 4, "main scale bar");
   ticks(scene, "ms", 0, barY, 60, 1, (index) => (index % 10 === 0 ? 2.4 : index % 5 === 0 ? 1.7 : 1.0), "main scale", true);
   for (const value of [0, 10, 20, 30, 40, 50, 60]) {
-    scene.point(`ms_label_${value}`, { x: value, y: barY + 3.2 }, "main scale number", `${value}`);
+    scene.labelAt(`ms_label_${value}`, { x: value, y: barY + 14.5 }, "main scale number", `${value}`, { pinToAnchor: true });
   }
-  scene.point("ms_caption", { x: 30, y: barY + 5.8 }, "main scale caption", "main scale (mm)");
+  scene.labelAt("ms_caption", { x: 30, y: barY + 20.5 }, "main scale caption", "main scale (mm)");
 
   // Vernier plate under the bar: 10 divisions over 9 mm, starting at the reading.
   const v0 = vernierOffset;
   scene.helper("vp_c", { x: v0 + 6, y: barY - 1.6 }, "vernier plate centre");
   scene.rectangle("vernier_plate", "vp_c", 14, 3.2, "vernier scale plate");
   ticks(scene, "vs", v0, barY, 10, 0.9, (index) => (index % 5 === 0 ? 1.9 : 1.2), "vernier scale", false);
-  scene.point("vs_zero_label", { x: v0, y: barY - 3.6 }, "vernier zero", "0");
-  scene.point("vs_ten_label", { x: v0 + 9, y: barY - 3.6 }, "vernier ten", "10");
-  scene.point("vs_caption", { x: v0 + 4.5, y: barY - 5.2 }, "vernier scale caption", "vernier: 10 div = 9 mm");
+  scene.labelAt("vs_zero_label", { x: v0, y: barY - 14.5 }, "vernier zero", "0", { pinToAnchor: true });
+  scene.labelAt("vs_ten_label", { x: v0 + 9, y: barY - 14.5 }, "vernier ten", "10", { pinToAnchor: true });
+  scene.labelAt("vs_caption", { x: v0 + 4.5, y: barY - 20.5 }, "vernier scale caption", "10 div = 9 mm");
 
   // Jaws: fixed lower external jaw at x=0, sliding jaw at the vernier; small internal jaws above.
   scene.helper("fixed_jaw_c", { x: -1.5, y: barY - 6 }, "fixed jaw centre");
@@ -73,12 +73,12 @@ function vernierCalliper(context: GeneratorContext) {
 
   // The coinciding division and the reading.
   const coincide = exampleDivision;
-  scene.point("coincide_mark", { x: v0 + coincide * 0.9, y: barY - 3.6 }, "coinciding vernier division", `${coincide}th`);
+  scene.labelAt("coincide_mark", { x: v0 + coincide * 0.9, y: barY - 3.2 }, "coinciding vernier division", `${coincide}th`, { requireLeader: true, leaderGeometrySafe: true });
   const reading = zeroError === "none"
     ? `= ${fmt(exampleMain + coincide * leastCount)} mm`
     : zeroError === "positive" ? `error +${fmt(coincide * leastCount)} mm` : `error −${fmt((10 - coincide) * leastCount)} mm`;
-  scene.point("reading_note", { x: 30, y: barY - 8.5 }, "reading", reading);
-  scene.point("lc_note", { x: 30, y: barY - 10.3 }, "least count", "LC = 0.1 mm");
+  scene.labelAt("reading_note", { x: 30, y: barY - 26.5 }, "reading", reading);
+  scene.labelAt("lc_note", { x: 30, y: barY - 32.5 }, "least count", "LC = 0.1 mm");
   scene.assert("vernier_ratio", "distance_ratio", ["vs0_a", "vs10_a", "ms0_a", "ms10_a"], 0.9);
   if (zeroError === "none" && grounded(context, "mainScaleReading") && grounded(context, "vernierDivision") && v0 > 0) {
     // The vernier zero sits at the reading: (MSR + VSD·LC) main-scale millimetres from the main-scale zero.
@@ -119,7 +119,7 @@ function screwGauge(context: GeneratorContext) {
   scene.helper("ref_b", { x: 40, y: 6 }, "reference line end");
   scene.segment("reference_line", "ref_a", "ref_b", "reference line of the pitch scale");
   ticks(scene, "ps", 27, 6, 12, 1, (index) => (index % 5 === 0 ? 1.6 : 1.0), "pitch scale", true);
-  scene.point("ps_caption", { x: 33, y: 9.6 }, "pitch scale caption", `pitch = ${fmt(pitch)} mm`);
+  scene.labelAt("ps_caption", { x: 33, y: 9.6 }, "pitch scale caption", `pitch = ${fmt(pitch)} mm`);
   const thimbleX = 40 + (zeroError === "none" ? 6 : 0);
   scene.helper("thimble_c", { x: thimbleX + 5, y: 6 }, "thimble centre");
   scene.rectangle("thimble", "thimble_c", 10, 7, "thimble with the circular scale", "thimble");
@@ -131,13 +131,13 @@ function screwGauge(context: GeneratorContext) {
     const b = scene.helper(`cs${index}_b`, { x: thimbleX - (index % 5 === 0 ? 1.4 : 0.9), y }, "circular scale tick tip");
     scene.segment(`cs${index}`, a, b, index === 0 ? "circular scale" : "circular scale tick");
   }
-  scene.point("cs_zero_label", { x: thimbleX + 1.6, y: 3 + zeroShift }, "circular scale zero", "0");
-  scene.point("cs_caption", { x: thimbleX + 5, y: 11 }, "circular scale caption", `${divisions} div`);
+  scene.labelAt("cs_zero_label", { x: thimbleX + 18, y: 3 + zeroShift }, "circular scale zero", "0", { pinToAnchor: true });
+  scene.labelAt("cs_caption", { x: thimbleX + 5, y: 11 }, "circular scale caption", `${divisions} div`);
   scene.helper("ratchet_c", { x: thimbleX + 12.5, y: 6 }, "ratchet centre");
   scene.rectangle("ratchet", "ratchet_c", 4, 3, "ratchet", "ratchet");
-  scene.point("lc_note", { x: 20, y: -13 }, "least count", `LC=${fmt(leastCount, 2)} mm`);
+  scene.labelAt("lc_note", { x: 20, y: -13 }, "least count", `LC=${fmt(leastCount, 2)} mm`);
   if (zeroError !== "none") {
-    scene.point("ze_note", { x: thimbleX + 5, y: -13 }, "zero error", zeroError === "positive" ? "+ve zero error" : "−ve zero error");
+    scene.labelAt("ze_note", { x: thimbleX + 5, y: -13 }, "zero error", zeroError === "positive" ? "+ve zero error" : "−ve zero error");
   }
   scene.assert("spindle_on_axis", "parallel", ["spindle", "reference_line"]);
   scene.assert("ticks_perp", "perpendicular", ["ps0", "reference_line"]);
@@ -160,7 +160,7 @@ function magneticSusceptibility(context: GeneratorContext) {
   scene.point("tc_mark", { x: T0, y: 0 }, "Curie temperature", grounded(context, "curieTemperature") ? `T_C=${fmt(T0)} K` : "T_C");
   scene.helper("tc_top", { x: T0, y: 5.5 * k }, "Curie line top");
   scene.segment("tc_line", "tc_mark", "tc_top", "Curie temperature line");
-  scene.point("ferro_below", { x: 0.5 * T0, y: 5.5 * k }, "ferromagnetic region below T_C", "ferro: large χ");
+  scene.labelAt("ferro_below", { x: 0.5 * T0, y: 5.5 * k }, "ferromagnetic region below T_C", "ferro: large χ");
   scene.assert("para_value", "function_value", ["paramagnetic"], { x: Number(T0.toFixed(6)), y: Number((k * 0.8).toFixed(6)) });
   scene.assert("dia_flat", "function_value", ["diamagnetic"], { x: Number((0.5 * tMax).toFixed(6)), y: Number((-0.6 * k).toFixed(6)) });
   scene.assert("tc_perp", "perpendicular", ["tc_line", "axes"], true, "warning");
@@ -183,8 +183,8 @@ function bindingEnergyCurve(context: GeneratorContext) {
   scene.point("peak", { x: best, y: evaluate(best) * k }, "most stable nuclei near iron", `Fe ≈ ${fmt(evaluate(best), 2)} MeV`);
   scene.point("peak_foot", { x: best, y: 0 }, "peak mass number", `A≈${best}`);
   scene.segment("peak_drop", "peak", "peak_foot", "ordinate at the peak");
-  scene.point("fusion_note", { x: 20, y: 9.3 * k }, "fusion region", "fusion →");
-  scene.point("fission_note", { x: 200, y: 9.3 * k }, "fission region", "← fission");
+  scene.labelAt("fusion_note", { x: 20, y: 9.3 * k }, "fusion region", "fusion →");
+  scene.labelAt("fission_note", { x: 200, y: 9.3 * k }, "fission region", "← fission");
   if (massNumber !== null && massNumber >= 4 && massNumber <= 240) {
     scene.point("asked", { x: massNumber, y: evaluate(massNumber) * k }, "asked nucleus", `A=${massNumber}`);
     scene.assert("asked_on_curve", "function_value", ["curve"], { x: massNumber, y: Number((evaluate(massNumber) * k).toFixed(6)) });

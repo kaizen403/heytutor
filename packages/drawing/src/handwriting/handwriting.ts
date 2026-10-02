@@ -1645,6 +1645,15 @@ async function buildStrokePaths(
   y: number,
   fontSize: number,
 ): Promise<CharacterPath[]> {
+  return buildStrokePathsSync(rawText, x, y, fontSize);
+}
+
+function buildStrokePathsSync(
+  rawText: string,
+  x: number,
+  y: number,
+  fontSize: number,
+): CharacterPath[] {
   const text = normalizeStrokeText(rawText);
   const scale = fontSize / UNITS_PER_EM;
   const baselineY = y + ASCENDER * scale;
@@ -1789,6 +1798,59 @@ async function buildStrokePaths(
       handStyleAt(emAlongLine, lineSeed, glyphSeed),
     );
   });
+}
+
+export interface TextInkBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Reserve the actual handwritten ink, including scripts and hand variation.
+ * Coordinates match textToStrokePaths: x/y are the run's top-left position.
+ * Curve control points give conservative bounds without guessing an em box.
+ */
+export function measureTextInkBounds(
+  rawText: string,
+  x: number,
+  y: number,
+  fontSize: number,
+): TextInkBounds | null {
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  const include = (px: number, py: number, pad: number) => {
+    minX = Math.min(minX, px - pad);
+    minY = Math.min(minY, py - pad);
+    maxX = Math.max(maxX, px + pad);
+    maxY = Math.max(maxY, py + pad);
+  };
+  for (const character of buildStrokePathsSync(rawText, x, y, fontSize)) {
+    if (character.strokes.length === 0) {
+      // Unknown glyphs are rendered as text by the board. Keep their full
+      // character box rather than claiming an unmeasured symbol has no ink.
+      include(character.x, character.y, 0);
+      include(character.x + character.width, character.y + (character.fontSize ?? fontSize), 0);
+      continue;
+    }
+    for (const stroke of character.strokes) {
+      const tokens = stroke.pathData.match(PATH_TOKEN) ?? [];
+      let pendingX: number | null = null;
+      for (const token of tokens) {
+        if (/^[A-Za-z]$/.test(token)) { pendingX = null; continue; }
+        const value = Number(token);
+        if (!Number.isFinite(value)) continue;
+        if (pendingX === null) pendingX = value;
+        else { include(pendingX, value, stroke.width / 2); pendingX = null; }
+      }
+    }
+  }
+  return Number.isFinite(minX) && Number.isFinite(minY)
+    ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+    : null;
 }
 
 /**

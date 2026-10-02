@@ -98,19 +98,20 @@ function straightWireField(context: GeneratorContext) {
   const r = maybeNum(context, "r");
   const unit = /\bcm\b/i.test(context.question) ? "cm" : "m";
   const scene = new SceneBuilder(context.question, "long straight current seen end-on with its circular field lines", "straight_wire_field");
-  scene.point("W", { x: 0, y: 0 }, "wire cross-section (current out of the page)", "I ⊙");
-  scene.circle("wire", "W", 0.22, "wire");
+  scene.helper("W", { x: 0, y: 0 }, "wire cross-section centre");
+  scene.circle("wire", "W", 0.22, "wire", "I");
+  scene.annotations.push({ id: "current", kind: "endpoint", targetIds: ["wire"], style: { pointStyle: "filled" } });
   for (const [index, radius] of [1, 2, 3].entries()) {
     scene.circle(`field${index + 1}`, "W", radius, "field line");
     scene.point(`arrow${index + 1}_at`, { x: 0, y: radius }, "field line arrow anchor");
     scene.vector(`arrow${index + 1}`, `arrow${index + 1}_at`, { direction: { x: -1, y: 0 }, length: 0.35 }, "field direction on the line", index === 2 ? "B" : undefined);
   }
   scene.point("P", { x: 2, y: 0 }, "field point", "P");
-  scene.segment("radius", "W", "P", "distance from the wire", r !== null && grounded(context, "r") ? `r=${withUnit(r, unit)}` : "r");
+  scene.dimension("radius", "W", "P", "distance from the wire", r !== null && grounded(context, "r") ? `r=${withUnit(r, unit)}` : "r");
   scene.vector("B_P", "P", { direction: { x: 0, y: 1 }, length: 1.0 }, "field at P", "B");
   scene.assert("p_on_line", "on", ["P", "field2"]);
   scene.assert("b_tangent", "perpendicular", ["B_P", "radius"]);
-  scene.labelled("W", "B_P");
+  scene.labelled("wire", "B_P");
   return scene.build();
 }
 

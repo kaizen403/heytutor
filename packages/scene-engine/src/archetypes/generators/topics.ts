@@ -157,8 +157,8 @@ function barMagnetBody(scene: SceneBuilder, centre: Vec2, angleDeg: number): voi
   const half = 2;
   const along = { x: Math.cos(angleDeg * DEG), y: Math.sin(angleDeg * DEG) };
   scene.box("magnet", centre, 2 * half, 0.8, angleDeg, "bar magnet");
-  scene.point("S", { x: centre.x - along.x * (half - 0.5), y: centre.y - along.y * (half - 0.5) }, "south pole", "S");
-  scene.point("N", { x: centre.x + along.x * (half - 0.5), y: centre.y + along.y * (half - 0.5) }, "north pole", "N");
+  scene.point("S", { x: centre.x - along.x * half, y: centre.y - along.y * half }, "south pole", "S");
+  scene.point("N", { x: centre.x + along.x * half, y: centre.y + along.y * half }, "north pole", "N");
   scene.segment("axis", "S", "N", "magnetic axis");
 }
 
@@ -377,12 +377,22 @@ function centreOfMass(context: GeneratorContext) {
   scene.point("line_b", { x: xMax + 1, y: 0 }, "line end");
   scene.segment("line", "line_a", "line_b", "line of the masses");
   const heaviest = Math.max(...given);
+  const coordinateY = -(0.25 + 0.35) - 0.65;
+  scene.helper("coordinate_axis_a", { x: xMin - 1, y: coordinateY });
+  scene.helper("coordinate_axis_b", { x: xMax + 1, y: coordinateY });
+  scene.segment("coordinate_axis", "coordinate_axis_a", "coordinate_axis_b", "position coordinate axis");
   given.forEach((mass, index) => {
-    scene.point(`P${index + 1}`, { x: xs[index]!, y: 0 }, "body position", `x${index + 1}=${fmt(xs[index]!)}`);
+    scene.helper(`P${index + 1}`, { x: xs[index]!, y: 0 }, "body position");
     scene.circle(`body${index + 1}`, `P${index + 1}`, 0.25 + 0.35 * mass / heaviest, "body", grounded(context, "masses") ? `m${index + 1}=${withUnit(mass, "kg")}` : `m${index + 1}`);
+    const coordinate = scene.point(`coordinate${index + 1}`, { x: xs[index]!, y: coordinateY }, "body position coordinate marker", `x${index + 1}=${fmt(xs[index]!)}`);
+    const guide = scene.segment(`position_guide${index + 1}`, `P${index + 1}`, coordinate, "position coordinate projection");
+    scene.entities.find((entity) => entity.id === guide)!.provenance = { dashed: true, strokeRole: "construction" };
+    scene.assert(`coordinate_on_axis${index + 1}`, "on", [coordinate, "coordinate_axis"]);
+    scene.assert(`coordinate_projected${index + 1}`, "perpendicular", [guide, "coordinate_axis"]);
+    scene.labelled(coordinate);
   });
   scene.point("CM", { x: xcm, y: 0 }, "centre of mass", `CM x=${fmt(xcm)}`);
-  scene.point("CM_mark_top", { x: xcm, y: 0.9 }, "centre of mass mark");
+  scene.helper("CM_mark_top", { x: xcm, y: 0.9 }, "centre of mass mark");
   scene.segment("CM_mark", "CM", "CM_mark_top", "centre of mass marker");
   if (given.length === 2 && given[0]! > 0 && given[1]! > 0) {
     scene.assert("lever_rule", "distance_ratio", ["P1", "CM", "CM", "P2"], Number((given[1]! / given[0]!).toFixed(6)));
