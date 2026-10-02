@@ -25,59 +25,78 @@ const line = (ctx: CanvasRenderingContext2D, u: number, x1: number, y1: number, 
   ctx.stroke()
 }
 
-/** An open book, seen slightly from above: two leaves rising off a spine,
-    the page block showing under each, a written page, and a ribbon. */
-export const paintBook: PixelPaint = (ctx, s) => {
+/** A graduated semicircular protractor with a metal divider laid over it. */
+export const paintGeometryTools: PixelPaint = (ctx, s) => {
   const u = s / 100
   ctx.save()
   inkStroke(ctx, 2.2 * u)
 
-  // Leaves, mirrored about the spine
-  for (const dir of [-1, 1]) {
-    const x = (v: number) => (50 + dir * v) * u
-    ctx.beginPath()
-    ctx.moveTo(x(0), 28 * u)
-    ctx.bezierCurveTo(x(12), 20 * u, x(26), 18 * u, x(42), 22 * u)
-    ctx.lineTo(x(42), 72 * u)
-    ctx.bezierCurveTo(x(26), 68 * u, x(12), 70 * u, x(0), 78 * u)
-    ctx.closePath()
-    ctx.stroke()
-
-    // The page block: two more edges stepping out under the leaf
-    ctx.lineWidth = 1.5 * u
-    for (let k = 1; k <= 2; k++) {
-      const d = k * 3.2
-      ctx.beginPath()
-      ctx.moveTo(x(42 + d * 0.6), (24 + d) * u)
-      ctx.lineTo(x(42 + d * 0.6), (72 + d) * u)
-      ctx.bezierCurveTo(x(26), (68 + d) * u, x(12), (70 + d) * u, x(0), (78 + d) * u)
-      ctx.stroke()
-    }
-    ctx.lineWidth = 2.2 * u
-  }
-
-  // Spine
-  line(ctx, u, 50, 28, 50, 84)
-
-  // Written lines, in accent, ragged like real text
-  accentStroke(ctx, 1.6 * u)
-  const left = [24, 22, 25, 14, 23]
-  const right = [23, 25, 18, 24, 12]
-  for (let i = 0; i < 5; i++) {
-    const y = 34 + i * 8
-    line(ctx, u, 14, y + 1.2, 14 + left[i]!, y - 1.2)
-    line(ctx, u, 86 - right[i]!, y - 1.2, 86, y + 1.2)
-  }
-
-  // Ribbon marker hanging off the spine
-  accentStroke(ctx, 2 * u)
+  // The protractor's flat edge and two concentric graduated arcs.
   ctx.beginPath()
-  ctx.moveTo(53 * u, 78 * u)
-  ctx.lineTo(55 * u, 94 * u)
-  ctx.lineTo(57.5 * u, 90 * u)
-  ctx.lineTo(60 * u, 94 * u)
-  ctx.lineTo(58 * u, 77 * u)
+  ctx.arc(34 * u, 77 * u, 29 * u, Math.PI, Math.PI * 2)
+  ctx.lineTo(63 * u, 81 * u)
+  ctx.lineTo(5 * u, 81 * u)
+  ctx.closePath()
   ctx.stroke()
+  accentStroke(ctx, 1.2 * u)
+  ctx.beginPath()
+  ctx.arc(34 * u, 77 * u, 21 * u, Math.PI, Math.PI * 2)
+  ctx.stroke()
+  for (let i = 0; i <= 18; i++) {
+    const angle = Math.PI + i * Math.PI / 18
+    const inner = i % 3 === 0 ? 23 : 26
+    line(ctx, u,
+      34 + Math.cos(angle) * inner, 77 + Math.sin(angle) * inner,
+      34 + Math.cos(angle) * 29, 77 + Math.sin(angle) * 29,
+    )
+  }
+  line(ctx, u, 34, 73, 34, 81)
+  line(ctx, u, 31, 77, 37, 77)
+  ctx.fillStyle = '#7FC4E2'
+  ctx.font = `${5 * u}px monospace`
+  ctx.textAlign = 'center'
+  ctx.fillText('90', 34 * u, 63 * u)
+  ctx.fillText('180', 14 * u, 76 * u)
+  ctx.fillText('0', 55 * u, 76 * u)
+
+  // Clear the protractor behind the divider so the two objects stay distinct.
+  ctx.save()
+  ctx.globalCompositeOperation = 'destination-out'
+  inkStroke(ctx, 7 * u)
+  line(ctx, u, 67, 24, 45, 88)
+  line(ctx, u, 70, 24, 88, 85)
+  ctx.restore()
+
+  // Two tapered metal legs, both ending in a point rather than a pencil.
+  inkStroke(ctx, 2 * u)
+  ctx.beginPath()
+  ctx.moveTo(64 * u, 25 * u)
+  ctx.lineTo(43 * u, 85 * u)
+  ctx.lineTo(43 * u, 94 * u)
+  ctx.lineTo(48 * u, 86 * u)
+  ctx.lineTo(69 * u, 27 * u)
+  ctx.moveTo(68 * u, 27 * u)
+  ctx.lineTo(85 * u, 84 * u)
+  ctx.lineTo(91 * u, 91 * u)
+  ctx.lineTo(90 * u, 82 * u)
+  ctx.lineTo(73 * u, 25 * u)
+  ctx.stroke()
+
+  // The hinge, knurled handle and small adjustment screw.
+  ctx.beginPath()
+  ctx.arc(68.5 * u, 23 * u, 6 * u, 0, Math.PI * 2)
+  ctx.stroke()
+  line(ctx, u, 66, 16, 66, 8)
+  line(ctx, u, 71, 16, 71, 8)
+  line(ctx, u, 66, 8, 71, 8)
+  accentStroke(ctx, 1.6 * u)
+  ctx.beginPath()
+  ctx.arc(68.5 * u, 23 * u, 2 * u, 0, Math.PI * 2)
+  ctx.stroke()
+  line(ctx, u, 58, 50, 78, 50)
+  for (let x = 63; x <= 73; x += 2.5) line(ctx, u, x, 48, x, 52)
+  line(ctx, u, 45, 86, 43, 94)
+  line(ctx, u, 87, 83, 91, 91)
 
   ctx.restore()
 }
