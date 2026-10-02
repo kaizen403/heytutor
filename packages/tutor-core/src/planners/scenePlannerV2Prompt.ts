@@ -65,7 +65,7 @@ export const SCENE_DOCUMENT_PLANNER_PROMPT = `Plan one compact scene-document/v2
 
 REQUIRED SHAPE
 Include schemaVersion, visualDecision, source, quantities, entities, constructions, relations, assertions, annotations, requiredEntityIds, revealGroups, and teachingTimeline. Use relations:[].
-Entity: {id,kind,role?,label?}. Construction: {id,operator,inputs,outputs}. Assertion: {id,predicate,entities,expected,severity}. Annotation: {id,kind,targetIds,text?,placementIntent?,quantityId?}. kind is label, callout, or caption. Captions are one honest line under the figure, not 16-character diagram labels.
+Entity: {id,kind,role?,label?}. Construction: {id,operator,inputs,outputs}. Assertion: {id,predicate,entities,expected,severity}. Annotation: {id,kind,targetIds,text?,placementIntent?,quantityId?}. kind is label, callout, or caption. Do not add a figure title or caption. The board does not draw a line under the figure, and a caption is not a 16-character diagram label.
 
 VISUAL DECISION
 - Use scene when geometry, topology, apparatus, graphs, regions, bodies, vectors, rays, fields, forces, or spatial relations help explain the submitted question.

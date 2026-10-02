@@ -289,16 +289,16 @@ function checkFrame(familyId: string, frame: DsaFrameScene): void {
     );
   }
 
-  // The caption is the line the student reads under the figure, and the
-  // teaching prompt quotes it to the tutor as what the board says. It has to
-  // survive compilation: 71 of these 110 frames used to arrive with none,
+  // The caption names the frame for the teaching prompt. The board does not
+  // draw it. It still has to survive compilation: 71 of these 110 frames used
+  // to arrive with none,
   // because the validator folds `caption` into `callout` and any callout of
   // sixteen characters or fewer then looked like a label for some entity. The
   // frame that reads "11 + 15 = 26" — the answer — was one of them.
   assert(
     typeof frame.renderScene.caption === "string" &&
       frame.renderScene.caption.includes(frame.caption),
-    `${where}: the board shows ${JSON.stringify(frame.renderScene.caption)} under a frame captioned ${JSON.stringify(frame.caption)}`,
+    `${where}: compiled caption ${JSON.stringify(frame.renderScene.caption)} dropped the frame caption ${JSON.stringify(frame.caption)}`,
   );
 }
 
