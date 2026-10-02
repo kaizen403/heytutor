@@ -40,7 +40,7 @@ const silence = `anullsrc=r=48000:cl=mono:d=${duration}[silence]`
 const mix = `[silence]${played.map((_, index) => `[a${index}]`).join('')}amix=inputs=${played.length + 1}:duration=first:normalize=0:dropout_transition=0[a]`
 const recordedAudio = resolve(frames, 'native-speech.wav')
 execFileSync('ffmpeg', ['-v', 'error', '-y', ...inputs, '-filter_complex', [...audioFilters, silence, mix].join(';'), '-map', '[a]', '-c:a', 'pcm_s16le', recordedAudio])
-const video = `[0:v]trim=start=${trimStart}:duration=${duration},setpts=PTS-STARTPTS,fps=30[v]`
+const video = `[0:v]trim=start=${trimStart}:duration=${duration},setpts=PTS-STARTPTS,fps=60[v]`
 execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', resolve(frames, 'frames.txt'), '-i', recordedAudio,
   '-filter_complex', video, '-map', '[v]', '-map', '1:a', '-t', String(duration),
   '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', mp4])
@@ -49,7 +49,12 @@ execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', String(duration - 3), '-i', 
 // Retain an audio-only download made from the recording, never a new TTS take.
 execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', mp4, '-vn', '-c:a', 'libmp3lame', '-b:a', '128k', resolve(root, 'public/hero/lesson.mp3')])
 const version = createHash('sha256').update(readFileSync(mp4)).digest('hex').slice(0, 12)
-const provenance = { ...capture, startEpoch: undefined, audio: played.map(({ id, sha256, start, end }) => ({
+const provenance = { ...capture, startEpoch: undefined,
+  audioProvenance: {
+    source: 'observed-native-playback',
+    persistedTurnAudioAvailable: capture.turn.segments.filter((segment) => segment.narration.trim()).every((segment) => segment.hasAudio),
+  },
+  audio: played.map(({ id, sha256, start, end }) => ({
   id, sha256, startSeconds: start.epoch - capture.startEpoch - trimStart,
   endSeconds: end.epoch - capture.startEpoch - trimStart,
   mediaStart: start.mediaTime, mediaEnd: end.mediaTime, playbackRate: start.rate,

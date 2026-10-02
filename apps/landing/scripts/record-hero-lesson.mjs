@@ -74,7 +74,7 @@ try {
     frames.push({ file, timestamp: metadata.timestamp })
     await cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => {})
   })
-  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 96, maxWidth: width, maxHeight: height, everyNthFrame: 2 })
+  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 96, maxWidth: width, maxHeight: height, everyNthFrame: 1 })
   await input.pressSequentially(question, { delay: 22 })
   await page.getByRole('button', { name: 'Ask', exact: true }).click()
   const stop = page.getByRole('button', { name: 'Stop teaching', exact: true })

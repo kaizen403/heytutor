@@ -93,17 +93,17 @@ export interface ScheduledFocusOptions {
 }
 
 /**
- * The pen leaves for a part this long before its name: a hop of up to 160 ms
- * and a one-glyph label fit inside it, so the label lands on the word and the
+ * Leave early enough for a calm cross-board reach and a short label, so the
+ * extra travel time comes before the spoken name rather than delaying it. The
  * trace starts on it rather than a flight and a glyph later.
  */
-export const FOCUS_FLIGHT_LEAD_MS = 320;
+export const FOCUS_FLIGHT_LEAD_MS = 620;
 /** Longest hop between two points of a focus. */
-const FOCUS_HOP_MAX_MS = 160;
+export const FOCUS_HOP_MAX_MS = 400;
 /** A hop across a label's width still reads as a movement. */
-const FOCUS_HOP_MIN_MS = 24;
-/** Hand speed for a hop: 160 ms covers a quarter of the diagram zone. */
-const FOCUS_HOP_PX_PER_MS = 1.6;
+const FOCUS_HOP_MIN_MS = 80;
+/** Longer reaches spend more frames in the existing eased flight. */
+const FOCUS_HOP_PX_PER_MS = 1.2;
 /** A traced path shorter than this is a flicker, not a gesture. */
 const FOCUS_PATH_MIN_MS = 180;
 export const FOCUS_PULSE_MS = 260;
@@ -189,6 +189,16 @@ export async function runScheduledFocus(
       const lettered = await target.letter();
       if (lettered.cancelled) return true;
       if (lettered.penAt) penAt = lettered.penAt;
+
+      // Writing a label leaves the pen beyond its trace start. Spend the
+      // remaining lead on that return, so the calmer hop does not steal the
+      // first word of the explanation from the trace itself.
+      const returnMs = focusHopMs(penAt, first, Math.max(0, target.startMs - options.getAudioPositionMs()));
+      if (returnMs > 0) {
+        await host.flyCursorTo(first.x, first.y, returnMs, undefined, options.isCancelled);
+        if (options.isCancelled()) return true;
+        penAt = first;
+      }
 
       await options.waitUntilAudioMs(target.startMs);
       if (options.isCancelled()) return true;

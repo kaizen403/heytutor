@@ -14,6 +14,7 @@
 import { readFileSync } from "node:fs";
 import {
   FOCUS_FLIGHT_LEAD_MS,
+  FOCUS_HOP_MAX_MS,
   FOCUS_PULSE_MS,
   focusHopMs,
   runScheduledFocus,
@@ -176,9 +177,12 @@ async function main(): Promise<void> {
 
   // --- A hop is sized by the distance, and no distance is no hop. ---
   {
+    const acrossBoard = focusHopMs({ x: 0, y: 0 }, { x: 800, y: 0 }, 600);
+    assert(acrossBoard >= 360 && acrossBoard <= 420, "an explanatory cross-board reach must take enough frames to read as a smooth hand movement");
+    assert(FOCUS_FLIGHT_LEAD_MS >= acrossBoard + 120, "leave early enough to finish the slower reach and label before the spoken name");
     assert(focusHopMs(null, { x: 0, y: 0 }, 160) === 160, "an unknown start costs the cap");
     assert(focusHopMs({ x: 0, y: 0 }, { x: 3, y: 0 }, 160) === 0, "under the nib's settle distance there is no flight");
-    assert(focusHopMs({ x: 0, y: 0 }, { x: 14, y: 0 }, 160) === 24, "a hop across a label is the minimum hop");
+    assert(focusHopMs({ x: 0, y: 0 }, { x: 14, y: 0 }, 160) === 80, "a hop across a label spans several display frames");
     assert(focusHopMs({ x: 0, y: 0 }, { x: 800, y: 0 }, 160) === 160, "a long hop is capped");
     assert(focusHopMs({ x: 0, y: 0 }, { x: 800, y: 0 }, 60) === 60, "a small budget caps the hop below the ceiling");
   }
@@ -300,7 +304,7 @@ async function main(): Promise<void> {
       traces.every((trace, index) => index === 0 || trace.at >= traces[index - 1]!.at),
       "a late focus never runs the clock backwards",
     );
-    assert(board.now() - 7000 < 3 * (420 + 160 + 60) + 1, "a late focus does not wait for windows that have passed");
+    assert(board.now() - 7000 < 3 * (420 + FOCUS_HOP_MAX_MS + 60) + 1, "a late focus spends only its bounded movement budget, without waiting for windows that have passed");
   }
 
   // --- The executor wires the loop, and labels are released by ids alone. ---
