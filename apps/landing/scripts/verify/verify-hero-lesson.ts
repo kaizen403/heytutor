@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { parseStoredSegmentCommands } from '@heytutor/drawing'
 const root = resolve(import.meta.dirname, '../..')
@@ -17,9 +18,11 @@ const side = 6, height = 4
 const slantHeight = Math.hypot(height, side / 2)
 const volume = side ** 2 * height / 3
 const surfaceArea = side ** 2 + 4 * side * slantHeight / 2
-assert.ok(rows.includes(`V = ${volume} cm^3`))
-assert.ok(rows.includes(`l = ${slantHeight} cm`))
-assert.ok(rows.includes(`TSA = ${surfaceArea} cm^2`))
+assert.ok(rows.some((row) => /^V\b/i.test(row) && row.includes(`${volume} cm^3`)))
+assert.ok(rows.some((row) => /^l\b/i.test(row) && row.includes(`${slantHeight} cm`)))
+const surfaceRowIndex = rows.findIndex((row) => /\bTSA\b/i.test(row) && row.includes(`${surfaceArea} cm^2`))
+assert.ok(surfaceRowIndex >= 0)
+assert.match([rows[surfaceRowIndex - 1] ?? '', rows[surfaceRowIndex]].join(' '), /assum|right.*pyramid|apex.*cent(?:er|re)/i, 'the surface-area answer must retain its condition in the saved notes')
 const edges = commands.filter((command) => command.type === 'DRAW_LINE' && command.semanticRef?.entityId === 'pyramid')
 assert.equal(edges.length, 5, 'one closed square base and four edges to the apex')
 const base = edges[0].params
@@ -31,7 +34,13 @@ const intro = capture.turn.segments.find((segment: { command: unknown }) => pars
 const labels = parseStoredSegmentCommands(intro.command).filter((command) => command.type === 'LABEL').map((command) => command.text)
 assert.ok(labels.includes('s = 6 cm'), 'native introduction labels the base side')
 assert.ok(labels.includes('h = 4 cm'), 'native introduction labels the perpendicular height')
-assert.match(capture.turn.segments.map((segment: { narration: string }) => segment.narration).join(' '), /directly above the center/, 'the actual lesson explains its centred-apex condition')
+const speech = capture.turn.segments.map((segment: { narration: string }) => segment.narration.toLowerCase())
+const assumptionIndex = speech.findIndex((text: string) => /assum|treat.*as/.test(text) && /right.*pyramid|apex.*cent(?:er|re)/.test(text))
+const slantIndex = speech.findIndex((text: string) => /slant height.*hypotenuse|l equals.*square root|l squared equals/.test(text))
+assert.ok(assumptionIndex >= 0 && assumptionIndex < slantIndex, 'state the centred-apex assumption before using it')
+assert.ok(speech.some((text: string) => /not.*(?:determin|enough|specif|fixed)|cannot.*determin|need.*(?:apex|condition)|depend.*apex/.test(text)), 'explain that the givens alone do not determine surface area')
+const surfaceAnswer = speech.find((text: string) => /(?:ninety six|ninety-six|96).*square cent(?:imeters|imetres)/.test(text))
+assert.match(surfaceAnswer ?? '', /under.*assumption|assum|for.*right.*pyramid|if.*apex|with.*apex/, 'qualify surface area in the actual spoken answer')
 const showcase = read('src/components/lesson-showcase/LiveLessonWindow.tsx')
 assert.match(showcase, /lesson-loop\.mp4/)
 assert.match(showcase, /playsInline/)
@@ -69,6 +78,8 @@ for (const track of tracks) {
 }
 assert.ok(hasVideo && hasAudio, 'the recording must contain both the desktop picture and speech')
 assert.ok(mp4.includes(Buffer.from('avc1')), 'widely supported H.264 video')
+const frameRate = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=avg_frame_rate', '-of', 'default=nw=1:nk=1', resolve(root, 'public/hero/lesson-loop.mp4')], { encoding: 'utf8' }).trim()
+assert.equal(frameRate, '60/1', 'preserve the pen movement in a 60 fps delivery file')
 const metadata = JSON.parse(read('src/components/hero-lesson/lessonMetadata.json'))
 assert.equal(createHash('sha256').update(mp4).digest('hex').slice(0, 12), metadata.version, 'the landing must reference the newly exported video')
 assert.equal(metadata.title, capture.title)

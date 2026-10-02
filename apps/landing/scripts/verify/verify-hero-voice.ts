@@ -7,7 +7,9 @@ const root = resolve(import.meta.dirname, '../..')
 const read = (path: string) => readFileSync(resolve(root, path), 'utf8')
 const capture = JSON.parse(read('src/components/hero-lesson/lessonCapture.json'))
 assert.equal(capture.kind, 'native-tutor-session')
+assert.equal(capture.audioProvenance.source, 'observed-native-playback')
 const spoken = capture.turn.segments.filter((segment: { narration: string }) => segment.narration.trim())
+assert.equal(capture.audioProvenance.persistedTurnAudioAvailable, spoken.every((segment: { hasAudio: boolean }) => segment.hasAudio), 'native playback capture must not imply that saved cloud audio was verified')
 assert.equal(capture.audio.length, spoken.length, 'retain every original narrated clip')
 let previousEnd = 0
 for (const audio of capture.audio) {

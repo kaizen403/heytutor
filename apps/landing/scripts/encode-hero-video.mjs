@@ -40,8 +40,13 @@ const silence = `anullsrc=r=48000:cl=mono:d=${duration}[silence]`
 const mix = `[silence]${played.map((_, index) => `[a${index}]`).join('')}amix=inputs=${played.length + 1}:duration=first:normalize=0:dropout_transition=0[a]`
 const recordedAudio = resolve(frames, 'native-speech.wav')
 execFileSync('ffmpeg', ['-v', 'error', '-y', ...inputs, '-filter_complex', [...audioFilters, silence, mix].join(';'), '-map', '[a]', '-c:a', 'pcm_s16le', recordedAudio])
+// JPEG inputs default to a 25 Hz time base. That rounds nearby compositor
+// frames onto the same 40 ms timestamp and drops real pen movement. Give each
+// image a millisecond time base while retaining every recorded duration.
+const frameTimeline = resolve(frames, 'encoded-frames.ffconcat')
+writeFileSync(frameTimeline, 'ffconcat version 1.0\n' + readFileSync(resolve(frames, 'frames.txt'), 'utf8').replace(/^(file .+)$/gm, '$1\noption framerate 1000'))
 const video = `[0:v]trim=start=${trimStart}:duration=${duration},setpts=PTS-STARTPTS,fps=60[v]`
-execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', resolve(frames, 'frames.txt'), '-i', recordedAudio,
+execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', frameTimeline, '-i', recordedAudio,
   '-filter_complex', video, '-map', '[v]', '-map', '1:a', '-t', String(duration),
   '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', mp4])
 execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', mp4, '-c:v', 'libvpx-vp9', '-crf', '25', '-b:v', '0', '-row-mt', '1', '-cpu-used', '4', '-threads', '6', '-c:a', 'libopus', '-b:a', '96k', resolve(root, 'public/hero/lesson-loop.webm')])
