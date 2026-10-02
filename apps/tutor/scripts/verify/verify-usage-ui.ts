@@ -63,9 +63,9 @@ assert(studentBillingMessage("autumn_unavailable").toLowerCase().includes("unava
 assert(OUT_OF_USAGE_TITLE === "Out of usage", "402 title is Out of usage");
 assert(TEEN_CHECKOUT_COPY.includes("parent or guardian"), "teen checkout copy");
 assert(PLAN_CATALOG.free.includedUsdPerMonth === 3.5, "Free $3.50 envelope");
-assert(PLAN_CATALOG.plus.priceUsdPerMonth === 19 && PLAN_CATALOG.plus.includedUsdPerMonth === 12, "Plus 19/$12");
+assert(PLAN_CATALOG.plus.priceUsdPerMonth === 29 && PLAN_CATALOG.plus.includedUsdPerMonth === 12, "Plus 29/$12");
 assert(PLAN_CATALOG.pro.priceUsdPerMonth === 39 && PLAN_CATALOG.pro.includedUsdPerMonth === 24, "Pro 39/$24");
-assert(TOP_UP_USD === 10 && TOP_UP_CTA === "Add usage · $10", "top-up CTA");
+assert(TOP_UP_USD === 10 && TOP_UP_CTA === "Add credits · $10", "top-up CTA");
 
 const chat402 = parseBillingFailureFromMessage(
   'LLM proxy error (402): {"code":"out_of_credits","remainingPct":0}',
@@ -106,15 +106,16 @@ assert(settings.includes('onOpenUsage={() => router.push("/usage")}'), "settings
 assert(!settings.includes("There are no prices and no checkout"), "settings placeholder copy is gone");
 
 const planCard = read("features/account/PlanUsageCard.tsx");
-assert(planCard.includes("startCheckout"), "plan card can checkout Plus/Pro");
-assert(planCard.includes("startTopUp"), "plan card can top up");
-assert(planCard.includes("openCustomerPortal"), "plan card opens the portal");
+const billingActions = read("features/account/useBillingActions.ts");
+assert(billingActions.includes('startCheckout("plus"'), "plan card purchases Plus");
+assert(billingActions.includes("startTopUp"), "plan card can add credits");
+assert(billingActions.includes("openCustomerPortal"), "plan card opens history");
 assert(planCard.includes("TEEN_CHECKOUT_COPY"), "plan card has 13–17 copy");
 assert(planCard.includes("AccountCard"), "plan card stays on account chrome");
 assert(planCard.includes("SiteButton"), "plan card uses SiteButton");
 assert(planCard.includes("UsageMeter"), "plan card uses remaining-% meter");
 assert(planCard.includes("TOP_UP_CTA"), "plan card top-up is Add usage");
-assert(!planCard.includes("credits"), "plan card has no credit copy");
+assert(planCard.includes("Add credits"), "settings and upgrade offer Add credits");
 assert(!planCard.includes("3.50") && !planCard.includes("3.5"), "student bar does not show $3.50");
 
 const dialog = read("features/account/OutOfCreditsDialog.tsx");
@@ -185,7 +186,8 @@ assert(!plans.includes("CREDIT_UNIT"), "landing plans drop credit unit copy");
 assert(!/lesson or two|doubt chain|monthly included usage/i.test(plans), "landing plans avoid allowance copy");
 
 const pricing = landing("components/PricingSection.tsx");
-assert(!/credits/i.test(pricing), "pricing section has no credit copy");
+assert(pricing.includes("Add credits"), "upgrade section offers credits");
+assert(!pricing.includes(">Pricing<"), "upgrade section uses upgrade copy");
 assert(!/included usage|Doubts on those questions|Top-up/i.test(pricing), "pricing section avoids allowance copy");
 
 const terms = landing("pages/TermsPage.tsx");

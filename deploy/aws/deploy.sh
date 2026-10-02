@@ -24,20 +24,27 @@ fi
 
 echo "==> heytutor deploy @ $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
+if [ "$(node -p 'process.versions.node.split(".")[0]')" != "24" ]; then
+  echo "Node 24 LTS is required. Run the updated deploy/aws/setup-vm.sh before deployment." >&2
+  exit 1
+fi
+command -v ffmpeg >/dev/null
+command -v ffprobe >/dev/null
+
 echo "==> install"
 export CI=true
 corepack enable
 corepack prepare pnpm@10.32.0 --activate
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm rebuild @prisma/client @prisma/engines esbuild prisma
+# Generate before typechecking/building against newly added schema models.
+pnpm --filter @heytutor/tutor exec prisma generate
 
 echo "==> build tutor stack"
 pnpm turbo run build --filter=@heytutor/tutor...
 
 echo "==> migrate"
 cd apps/tutor
-# postinstall generate is skipped when the lockfile did not change, which
-# leaves production on a client that 500s for models added since the last install.
-pnpm exec prisma generate
 pnpm exec prisma migrate deploy
 cd "$ROOT"
 
@@ -47,8 +54,9 @@ if ! sudo id heytutor >/dev/null 2>&1 && ! id heytutor >/dev/null 2>&1; then
 fi
 sudo mkdir -p /var/lib/heytutor
 sudo chown heytutor:heytutor /var/lib/heytutor
-# ubuntu's umask 077 leaves /opt/heytutor at 700; the service user must enter it.
-sudo chmod -R a+rX "$ROOT"
+sudo chgrp -R heytutor "$ROOT"
+sudo chmod -R g+rX "$ROOT"
+sudo chmod 750 "$ROOT"
 sudo chgrp heytutor "$ENV_FILE"
 sudo chmod 640 "$ENV_FILE"
 sudo mkdir -p "$ROOT/apps/tutor/.next/cache"
@@ -71,7 +79,7 @@ WorkingDirectory=${ROOT}
 Environment=HOME=/var/lib/heytutor
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=${ENV_FILE}
-ExecStart=/usr/bin/bash -lc 'cd apps/tutor && pnpm exec prisma migrate deploy && NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000 pnpm exec tsx server.ts'
+ExecStart=/usr/bin/bash -lc 'cd apps/tutor && NODE_ENV=production HOSTNAME=app.accelute.co LISTEN_HOST=127.0.0.1 PORT=3000 pnpm exec tsx server.ts'
 Restart=always
 RestartSec=5
 

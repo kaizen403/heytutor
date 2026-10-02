@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { fetchRunCostForTraces, readLangfuseQueryCredentials } from "@/lib/obs/langfuseQuery";
+import { scopedTraceId } from "@/lib/obs/traceOwnership";
 import { classifyOutcome, extractArtifactSummary } from "./outcome";
 import { userLabel } from "./labels";
 import { failedTurnWhere } from "./turnFilters";
@@ -74,7 +75,8 @@ export async function listTurns(input: ListTurnsInput): Promise<TurnsPagePayload
 
   const traceBase = langfuseTraceBase();
   const traceIds = rows.flatMap((row) => (row.traceId ? [row.traceId] : []));
-  const costs = await fetchRunCostForTraces(traceIds);
+  const traceOwners = new Map(rows.flatMap(row => row.traceId ? [[row.traceId, row.userId] as const] : []));
+  const costs = await fetchRunCostForTraces(traceIds, traceOwners);
   const turns: AdminTurnRow[] = rows.map((row) => {
     const summary = extractArtifactSummary(row.sceneArtifacts);
     const cost = row.traceId ? costs.byTraceId[row.traceId] : undefined;
@@ -88,7 +90,7 @@ export async function listTurns(input: ListTurnsInput): Promise<TurnsPagePayload
       candidateCount: summary?.candidateCount ?? null,
       sceneEngineVersion: row.sceneEngineVersion,
       traceId: row.traceId,
-      traceUrl: row.traceId && traceBase ? `${traceBase}${row.traceId}` : null,
+      traceUrl: row.traceId && traceBase ? `${traceBase}${cost?.observationTraceId ?? scopedTraceId(row.userId, row.traceId)}` : null,
       userId: row.userId,
       userLabel: userLabel({
         userId: row.userId,

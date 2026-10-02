@@ -10,6 +10,8 @@ import { BILLING_PLANS, isKnownPlanId } from "@/lib/billing/catalog";
 import { billingResponse } from "@/lib/billing/errors";
 import { isSpendActor, requireSpendActor } from "@/lib/billing/gate";
 import { cacheUsageOnUser, loadPeriodBalance } from "@/lib/billing/ledger";
+import { usesRazorpay } from "@/lib/billing/razorpayConfig";
+import { loadRazorpayAccess } from "@/lib/billing/razorpayPurchases";
 
 function entitlementJson(input: {
   planId: string;
@@ -43,7 +45,9 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     let planId: "free" | "plus" | "pro" = BILLING_PLANS.free;
-    if (!actor.skipAutumn) {
+    if (usesRazorpay()) {
+      planId = (await loadRazorpayAccess(actor.userId)).planId;
+    } else if (!actor.skipAutumn) {
       await ensureAutumnCustomer({ userId: actor.userId, email: actor.email });
       const snapshot = await loadCustomerSnapshot({ userId: actor.userId });
       if (isKnownPlanId(snapshot.planId)) planId = snapshot.planId;
@@ -62,7 +66,7 @@ export async function GET(request: Request): Promise<Response> {
     }).catch(() => undefined);
     return NextResponse.json(
       entitlementJson({
-        planId,
+        planId: balance.planId,
         remainingPct: balance.remainingPct,
         nextResetAt: balance.nextResetAt,
         staff: false,

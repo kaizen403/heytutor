@@ -1,24 +1,12 @@
 import { transcriptionRequest } from "@/lib/tts/transcriptionProvider";
 import { requireLessonCredits } from "@/lib/billing/gate";
-
 import { sttConfig } from "@/lib/tts/providerConfig";
-
-/** A minute of browser-encoded speech is well under this; the cap is for junk. */
-const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
-
-/**
- * ElevenLabs picks the decoder off the filename, so a blob named `.bin` is
- * rejected even when the bytes are fine. MediaRecorder gives us the container
- * in the blob's MIME type; translate it into an extension it recognises.
- */
-function filenameForAudio(mimeType: string): string {
-  const base = mimeType.split(";")[0]?.trim().toLowerCase() ?? "";
-  if (base === "audio/mp4" || base === "audio/aac" || base === "audio/x-m4a") return "dictation.mp4";
-  if (base === "audio/mpeg" || base === "audio/mp3") return "dictation.mp3";
-  if (base === "audio/wav" || base === "audio/x-wav") return "dictation.wav";
-  if (base === "audio/ogg") return "dictation.ogg";
-  return "dictation.webm";
-}
+import {
+  MAX_DICTATION_AUDIO_BYTES,
+  validateDictationAudio,
+} from "@/lib/tts/audioValidation";
+import { readBoundedFormData, RequestBodyError } from "@/lib/http/requestBody";
+import { reservePaidUsage } from "@/lib/billing/paidUsage";
 
 /** Provider selection and credentials stay on the server. */
 export async function POST(request: Request): Promise<Response> {
@@ -38,11 +26,14 @@ export async function POST(request: Request): Promise<Response> {
 
   let form: FormData;
   try {
-    form = await request.formData();
-  } catch {
+    form = await readBoundedFormData(
+      request,
+      MAX_DICTATION_AUDIO_BYTES + 64 * 1024,
+    );
+  } catch (error) {
     return Response.json(
       { error: "Send the recording as multipart form data." },
-      { status: 400 },
+      { status: error instanceof RequestBodyError ? error.status : 400 },
     );
   }
 
@@ -53,65 +44,120 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  if (audio.size > MAX_AUDIO_BYTES) {
+  const entries = [...form.entries()];
+  if (
+    entries.some(([key]) => key !== "audio" && key !== "language_code") ||
+    form.getAll("audio").length !== 1 ||
+    form.getAll("language_code").length > 1
+  ) {
     return Response.json(
-      { error: "That recording is too long. Keep it under a minute." },
-      { status: 413 },
+      { error: "Send one audio recording." },
+      { status: 400 },
     );
   }
-  if (audio.type && !audio.type.startsWith("audio/")) {
-    return Response.json({ error: "That is not an audio recording." }, { status: 400 });
-  }
-
   const languageCode = form.get("language_code");
-  const upstream = transcriptionRequest(config, audio, filenameForAudio(audio.type),
-    typeof languageCode === "string" ? languageCode : undefined);
-
-  const startedAt = Date.now();
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      ...upstream,
-      signal: AbortSignal.any([request.signal, AbortSignal.timeout(30_000)]),
-    });
-  } catch {
+  if (
+    languageCode !== null &&
+    (typeof languageCode !== "string" ||
+      !/^[a-z]{2,3}(?:-[a-zA-Z]{2,4})?$/.test(languageCode))
+  ) {
     return Response.json(
-      { error: "Could not reach the transcriber. Check your connection." },
-      { status: 502 },
+      { error: "That language is not supported." },
+      { status: 400 },
     );
   }
-
-  if (!response.ok) {
-    await response.body?.cancel();
-    console.error(`[stt] ${provider} returned ${response.status}`);
+  const validated = await validateDictationAudio(audio, request.signal);
+  if (!validated.ok)
     return Response.json(
       {
-        error:
-          response.status === 429
-            ? "The transcriber is busy. Try again in a moment."
-            : "Could not transcribe that. Try again.",
+        error: validated.error,
+        ...(validated.status === 503 ? { unconfigured: true } : {}),
       },
-      { status: response.status === 429 ? 429 : 502 },
+      { status: validated.status },
     );
-  }
-
-  const data = (await response.json().catch(() => ({}))) as {
-    text?: unknown;
-    language_code?: unknown;
-    language?: unknown;
-  };
-  const text = typeof data.text === "string" ? data.text.trim() : "";
-  if (!text) {
-    return Response.json(
-      { error: "Could not make out any speech in that." },
-      { status: 422 },
-    );
-  }
-
-  return Response.json({
-    text,
-    languageCode: typeof data.language_code === "string" ? data.language_code : typeof data.language === "string" ? data.language : null,
-    latencyMs: Date.now() - startedAt,
+  const configuredRate = Number(process.env.STT_USD_PER_MINUTE ?? "0.02");
+  const rate =
+    Number.isFinite(configuredRate) && configuredRate > 0 && configuredRate <= 1
+      ? configuredRate
+      : 0.02;
+  const usd = (validated.durationSeconds / 60) * rate;
+  const reservation = await reservePaidUsage({
+    actor: gated.actor,
+    grant: gated.grant,
+    kind: "stt",
+    usd,
+    traceId: request.headers.get("x-heytutor-trace-id") ?? undefined,
   });
+  if (reservation instanceof Response) return reservation;
+  const startedAt = Date.now();
+  try {
+    if (request.signal.aborted) {
+      await reservation.cancelBeforeDispatch();
+      return Response.json(
+        { error: "The recording request was cancelled." },
+        { status: 400 },
+      );
+    }
+    const upstream = transcriptionRequest(
+      config,
+      audio,
+      validated.filename,
+      typeof languageCode === "string" ? languageCode : undefined,
+    );
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        ...upstream,
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(30_000)]),
+      });
+    } catch {
+      return Response.json(
+        { error: "Could not reach the transcriber. Check your connection." },
+        { status: 502 },
+      );
+    }
+
+    if (!response.ok) {
+      await response.body?.cancel();
+      console.error(`[stt] ${provider} returned ${response.status}`);
+      return Response.json(
+        {
+          error:
+            response.status === 429
+              ? "The transcriber is busy. Try again in a moment."
+              : "Could not transcribe that. Try again.",
+        },
+        { status: response.status === 429 ? 429 : 502 },
+      );
+    }
+
+    const data = (await response.json().catch(() => ({}))) as {
+      text?: unknown;
+      language_code?: unknown;
+      language?: unknown;
+    };
+    // Decoded duration is server-owned; an empty transcript still used the vendor.
+    await reservation.settle(usd);
+    const text = typeof data.text === "string" ? data.text.trim() : "";
+    if (!text) {
+      return Response.json(
+        { error: "Could not make out any speech in that." },
+        { status: 422 },
+      );
+    }
+
+    return Response.json({
+      text,
+      languageCode:
+        typeof data.language_code === "string"
+          ? data.language_code
+          : typeof data.language === "string"
+            ? data.language
+            : null,
+      latencyMs: Date.now() - startedAt,
+    });
+  } finally {
+    await reservation.finish();
+  }
 }

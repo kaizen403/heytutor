@@ -4,11 +4,15 @@ import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { lectureAudioKey } from "@/lib/object-store/keys";
 import { uploadAudio } from "@/lib/object-store/s3";
+import { readBoundedFormData, RequestBodyError } from "@/lib/http/requestBody";
+import { reserveTurnStorage, settleTurnStorage, StorageQuotaError, withUserStorageLock } from "@/lib/boards/storageQuota";
+import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
 import { isTurnMetadataPersistable } from "@/lib/scene/turnPersistencePolicy";
 import { canonicalizeTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
 import {
   validateTurnUploadHeaders,
   validateTurnUploadParts,
+  MAX_TURN_UPLOAD_BYTES,
 } from "@/lib/scene/turnUploadLimits";
 
 interface RouteContext {
@@ -102,9 +106,10 @@ export async function POST(request: Request, context: RouteContext) {
 
   let formData: FormData;
   try {
-    formData = await request.formData();
-  } catch {
-    return NextResponse.json({ error: "invalid multipart form data" }, { status: 400 });
+    formData = await readBoundedFormData(request, MAX_TURN_UPLOAD_BYTES);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "invalid multipart form data" },
+      { status: error instanceof RequestBodyError ? error.status : 400 });
   }
   const metadataRaw = formData.get("metadata");
 
@@ -117,6 +122,28 @@ export async function POST(request: Request, context: RouteContext) {
     metadata = JSON.parse(metadataRaw) as TurnMetadata;
   } catch {
     return NextResponse.json({ error: "invalid metadata json" }, { status: 400 });
+  }
+  if (!metadata || typeof metadata !== "object" ||
+    typeof metadata.question !== "string" || metadata.question.length > 12_000 ||
+    typeof metadata.rawResponse !== "string" || metadata.rawResponse.length > 100_000 ||
+    (metadata.traceId !== undefined && (typeof metadata.traceId !== "string" || metadata.traceId.length > 128)) ||
+    (metadata.speedMultiplier !== undefined && (!Number.isFinite(metadata.speedMultiplier) || metadata.speedMultiplier < 0.25 || metadata.speedMultiplier > 4))) {
+    return NextResponse.json({ error: "invalid or oversized turn fields" }, { status: 400 });
+  }
+  const requiresSaveAllowance = process.env.NODE_ENV === "production";
+  if (requiresSaveAllowance) {
+    if (!metadata.traceId || !await assertOwnedTrace(userId, metadata.traceId, boardId)) {
+      return NextResponse.json({ error: "an authorized lesson save allowance is required" }, { status: 403 });
+    }
+    const allowance = await prisma.ownedTrace.findUnique({ where: { traceId: metadata.traceId } });
+    if (allowance?.savedTurnId) {
+      const existing = await prisma.turn.findFirst({
+        where: { id: allowance.savedTurnId, userId, boardId },
+        include: { segments: { orderBy: { orderIndex: "asc" } } },
+      });
+      if (existing) return turnResponse(existing, existing.segments);
+      return NextResponse.json({ error: "lesson save allowance has already been used" }, { status: 409 });
+    }
   }
 
   const uploadParts = validateTurnUploadParts(formData, metadataRaw, metadata.segments);
@@ -155,6 +182,37 @@ export async function POST(request: Request, context: RouteContext) {
 
   const turnId = crypto.randomUUID();
   const segmentMeta = metadata.segments ?? [];
+  for (const segment of segmentMeta) {
+    if ((segment.narration !== undefined && (typeof segment.narration !== "string" || segment.narration.length > 12_000)) ||
+      (segment.spokenText !== undefined && (typeof segment.spokenText !== "string" || segment.spokenText.length > 12_000)) ||
+      (segment.durationMs !== undefined && (!Number.isFinite(segment.durationMs) || segment.durationMs < 0 || segment.durationMs > 600_000))) {
+      return NextResponse.json({ error: "invalid or oversized segment fields" }, { status: 400 });
+    }
+  }
+  // Validate all media before any upload so a later invalid segment cannot
+  // leave earlier objects behind while its reservation is refunded.
+  for (const [, value] of formData.entries()) {
+    if (!(value instanceof File) || value.size === 0) continue;
+    const prefix = new Uint8Array(await value.slice(0, 12).arrayBuffer());
+    const text = new TextDecoder().decode(prefix);
+    const wave = text.startsWith("RIFF") && text.slice(8, 12) === "WAVE";
+    const mp3 = text.startsWith("ID3") || (prefix[0] === 0xff && ((prefix[1] ?? 0) & 0xe0) === 0xe0 && ((prefix[1] ?? 0) & 0x06) !== 0);
+    if ((value.type === "audio/wav" && !wave) || (value.type === "audio/mpeg" && !mp3)) {
+      return NextResponse.json({ error: "audio content does not match its declared format" }, { status: 415 });
+    }
+  }
+  let storedBytes = new TextEncoder().encode(JSON.stringify(metadata)).byteLength;
+  for (const [, value] of formData.entries()) if (value instanceof File) storedBytes += value.size;
+  let reservation;
+  try {
+    reservation = await reserveTurnStorage({ userId, boardId, bytes: storedBytes });
+  } catch (error) {
+    if (error instanceof StorageQuotaError) return NextResponse.json({ error: error.message }, { status: error.status });
+    throw error;
+  }
+  let settled = false;
+  const cleanupData = { id: crypto.randomUUID(), prefix: `lectures/${boardId}/${turnId}/`, userId, bytes: BigInt(storedBytes) };
+  try {
 
   const audioUrls = new Map<number, string | null>();
   const audioFormats = new Map<number, string>();
@@ -178,16 +236,38 @@ export async function POST(request: Request, context: RouteContext) {
 
   for (let attempt = 0; attempt < MAX_INSERT_ATTEMPTS; attempt += 1) {
     try {
-      saved = await prisma.$transaction(async (tx) => {
+      saved = await withUserStorageLock(userId, async (tx) => {
         // Lock the board row so concurrent turn saves serialize against it.
-        await tx.$queryRaw`SELECT 1 FROM "boards" WHERE "id" = ${boardId} FOR UPDATE`;
+        const ownedRows = await tx.$queryRaw<Array<{ id: string }>>`SELECT 1 FROM "boards" WHERE "id" = ${boardId} AND user_id = ${userId} FOR UPDATE`;
+        if (!ownedRows.length) throw new StorageQuotaError("board not found", 404);
+
+        if (requiresSaveAllowance) {
+          const allowance = await tx.ownedTrace.findUnique({ where: { traceId: metadata.traceId! } });
+          if (!allowance || allowance.userId !== userId || allowance.expiresAt <= new Date()) {
+            throw new StorageQuotaError("lesson save allowance expired or is not owned", 403);
+          }
+          if (allowance.savedTurnId) {
+            const existing = await tx.turn.findFirst({
+              where: { id: allowance.savedTurnId, userId, boardId },
+              include: { segments: { orderBy: { orderIndex: "asc" } } },
+            });
+            if (!existing) throw new StorageQuotaError("lesson save allowance has already been used", 409);
+            await tx.objectDeletionJob.create({ data: cleanupData });
+            await settleTurnStorage(reservation, false, tx);
+            return { turn: existing, insertedSegments: existing.segments };
+          }
+        }
 
         if (idempotencyKey !== null) {
           const existing = await tx.turn.findFirst({
             where: { boardId, userId, idempotencyKey },
             include: { segments: { orderBy: { orderIndex: "asc" } } },
           });
-          if (existing) return { turn: existing, insertedSegments: existing.segments };
+          if (existing) {
+            await tx.objectDeletionJob.create({ data: cleanupData });
+            await settleTurnStorage(reservation, false, tx);
+            return { turn: existing, insertedSegments: existing.segments };
+          }
         }
 
         const turnCount = await tx.turn.count({ where: { boardId } });
@@ -201,6 +281,7 @@ export async function POST(request: Request, context: RouteContext) {
             idempotencyKey,
             orderIndex,
             question: metadata.question,
+            storageBytes: BigInt(storedBytes),
             rawResponse: metadata.rawResponse,
             speedMultiplier: metadata.speedMultiplier ?? 1,
             traceId: metadata.traceId ?? null,
@@ -237,6 +318,11 @@ export async function POST(request: Request, context: RouteContext) {
           },
         });
 
+        if (requiresSaveAllowance) await tx.ownedTrace.update({
+          where: { traceId: metadata.traceId! }, data: { savedTurnId: turn.id },
+        });
+
+        await settleTurnStorage(reservation, false, tx);
         return { turn, insertedSegments };
       });
       break;
@@ -256,6 +342,21 @@ export async function POST(request: Request, context: RouteContext) {
   if (!saved) {
     throw lastError ?? new Error("failed to save turn after retries");
   }
+  settled = true;
 
   return turnResponse(saved.turn, saved.insertedSegments);
+  } catch (error) {
+    if (!settled) {
+      // Failed and losing uploads get durable cleanup receipts. Retain their
+      // charge until the worker confirms object deletion and refunds it.
+      try {
+        await withUserStorageLock(userId, async (tx) => {
+          await tx.objectDeletionJob.create({ data: cleanupData });
+          await settleTurnStorage(reservation, false, tx);
+        });
+      } catch { /* retain the reservation if persistence is unavailable */ }
+    }
+    if (error instanceof StorageQuotaError) return NextResponse.json({ error: error.message }, { status: error.status });
+    throw error;
+  }
 }

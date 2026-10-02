@@ -26,6 +26,16 @@ function tutorLoginHref(next?: string): string {
 
 export const TUTOR_LOGIN_HREF = tutorLoginHref()
 
+export function tutorPlanHref(planId: 'plus', currency?: 'USD' | 'INR'): string {
+  return tutorLoginHref(`/usage?plan=${planId}${currency ? `&currency=${currency}` : ''}`)
+}
+
+export function tutorCreditsHref(currency?: 'USD' | 'INR'): string {
+  return tutorLoginHref(`/settings/usage${currency ? `?currency=${currency}` : ''}`)
+}
+
+export const TUTOR_BILLING_CATALOG_HREF = new URL('/api/billing/catalog', `${TUTOR_APP_ORIGIN}/`).toString()
+
 export function tutorQuestionHref(question: string): string {
   const destination = new URL('/', `${TUTOR_APP_ORIGIN}/`)
   const normalizedQuestion = question.trim()

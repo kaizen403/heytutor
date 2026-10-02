@@ -208,8 +208,11 @@ export async function assessTutorState(
     if (options.circuit) noteSuccess();
 
     const usageRecord = isRecord(payload.usage) ? payload.usage : {};
-    const inputTokens = typeof usageRecord.inputTokens === "number" ? usageRecord.inputTokens : 0;
-    const outputTokens = typeof usageRecord.outputTokens === "number" ? usageRecord.outputTokens : 0;
+    const validTokens = (value: unknown): value is number =>
+      typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+    const knownUsage = validTokens(usageRecord.inputTokens) && validTokens(usageRecord.outputTokens);
+    const inputTokens = validTokens(usageRecord.inputTokens) ? usageRecord.inputTokens : 0;
+    const outputTokens = validTokens(usageRecord.outputTokens) ? usageRecord.outputTokens : 0;
     const reported = readReportedCost(payload.providerMetadata);
     const estimatedUsd = calculateLlmCostDetails(
       { input: inputTokens, output: outputTokens },
@@ -234,6 +237,7 @@ export async function assessTutorState(
       useCheapGenerator: decision === "cheap_explanation",
       provenance,
       usage: {
+        knownUsage,
         inputTokens,
         outputTokens,
         reportedCostUsd: reported.cost,

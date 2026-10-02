@@ -14,7 +14,14 @@ async function userCanReadObject(userId: string, key: string): Promise<boolean> 
     where: { id: parsed.boardId, userId },
     select: { id: true },
   });
-  return board != null;
+  if (!board) return false;
+  // A caller can supply a draft board ID when creating a board. Ownership of
+  // that ID alone must not expose an orphaned object left by a deleted board.
+  const turn = await prisma.turn.findFirst({
+    where: { id: parsed.turnId, boardId: parsed.boardId, userId },
+    select: { id: true },
+  });
+  return turn != null;
 }
 
 export async function serveUserObject(userId: string, key: string): Promise<Response> {

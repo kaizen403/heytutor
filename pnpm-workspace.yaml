@@ -1,3 +1,24 @@
 packages:
   - "apps/*"
   - "packages/*"
+onlyBuiltDependencies:
+  - "@prisma/client"
+  - "@prisma/engines"
+  - "esbuild"
+  - "prisma"
+overrides:
+  dompurify: "3.4.16"
+  postcss: "8.5.26"
+  sharp: "0.35.4"
+  # Prisma 6 uses only plain-record deepmerge in its local config loader.
+  # v8 preserves that API and fixes recursive-graph stack exhaustion.
+  "@prisma/config@6>deepmerge-ts": "8.0.2"
+  # tsup 8's build API remains compatible; v0.28.1 fixes Windows serve paths.
+  "tsup@8>esbuild": "0.28.1"
+  # Compatible security releases for transitive tooling/runtime dependencies.
+  "brace-expansion@1": "1.1.21"
+  "brace-expansion@5": "5.0.12"
+  "js-yaml@4": "4.3.2"
+  "nanoid@3": "3.3.18"
+  "browserslist@4": "4.28.7"
+  "baseline-browser-mapping@2": "2.11.0"

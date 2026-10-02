@@ -5,7 +5,7 @@ import { AccountPageFrame } from "./AccountPageFrame";
 import { PlanUsageCard } from "./PlanUsageCard";
 import type { AccountProfile } from "@/lib/account/types";
 
-export function UsageScreen() {
+export function UsageScreen({ selectedPlan }: { selectedPlan?: "plus" | null }) {
   const [profile, setProfile] = useState<AccountProfile | null>(null);
 
   useEffect(() => {
@@ -19,9 +19,9 @@ export function UsageScreen() {
   return (
     <AccountPageFrame
       title="Plans and usage"
-      subtitle="Plus, Pro, and extra usage. Included usage resets each calendar month."
+      subtitle="Go further with Plus, add credits, and view your purchases."
     >
-      <PlanUsageCard ageBand={profile?.ageBand} />
+      <PlanUsageCard ageBand={profile?.ageBand} selectedPlan={selectedPlan} />
     </AccountPageFrame>
   );
 }

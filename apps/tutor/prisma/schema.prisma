@@ -8,34 +8,67 @@ datasource db {
 }
 
 model User {
-  id                    String             @id
-  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  email                 String?            @unique
+  id                    String                 @id
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  email                 String?                @unique
   name                  String?
   image                 String?
-  emailVerified         DateTime?          @map("email_verified") @db.Timestamptz(6)
-  onboardingCompletedAt DateTime?          @map("onboarding_completed_at") @db.Timestamptz(6)
-  examGoal              String?            @map("exam_goal")
-  classYear             String?            @map("class_year")
+  emailVerified         DateTime?              @map("email_verified") @db.Timestamptz(6)
+  onboardingCompletedAt DateTime?              @map("onboarding_completed_at") @db.Timestamptz(6)
+  examGoal              String?                @map("exam_goal")
+  classYear             String?                @map("class_year")
   /// Set at onboarding: college student, or not.
-  learnerRole           String?            @map("learner_role")
-  subjects              String[]           @default([])
-  locale                String             @default("en")
-  ageBand               String?            @map("age_band")
-  guardianEmail         String?            @map("guardian_email")
-  guardianNotifiedAt    DateTime?          @map("guardian_notified_at") @db.Timestamptz(6)
-  learningNote          String?            @map("learning_note")
+  learnerRole           String?                @map("learner_role")
+  subjects              String[]               @default([])
+  locale                String                 @default("en")
+  ageBand               String?                @map("age_band")
+  guardianEmail         String?                @map("guardian_email")
+  guardianNotifiedAt    DateTime?              @map("guardian_notified_at") @db.Timestamptz(6)
+  learningNote          String?                @map("learning_note")
   /// Fast UI cache only. Monthly millicents ledger is usage authority.
-  planId                String?              @map("plan_id")
-  remainingPct          Int?                 @map("remaining_pct")
+  planId                String?                @map("plan_id")
+  remainingPct          Int?                   @map("remaining_pct")
   boards                Board[]
   turns                 Turn[]
   chatMessages          BoardChatMessage[]
   settings              UserSettings?
   homeSuggestionCache   HomeSuggestionCache?
   periodSpend           BillingPeriodSpend[]
+  purchases             BillingPurchase[]
+  paidUsage             PaidUsageReservation[]
+  ownedTraces           OwnedTrace[]
+  storage               UserStorage?
 
   @@map("users")
+}
+
+/// Immutable checkout price and grant; captured payments are access authority.
+/// No card, UPI, bank details, or raw provider payloads are stored.
+model BillingPurchase {
+  id              String    @id @db.Uuid
+  userId          String    @map("user_id")
+  idempotencyKey  String    @map("idempotency_key") @db.Uuid
+  planId          String    @map("plan_id")
+  amount          Int
+  currency        String
+  usageMillicents Int       @map("usage_millicents")
+  spentMillicents Int       @default(0) @map("spent_millicents")
+  keyId           String    @map("key_id")
+  testMode        Boolean   @map("test_mode")
+  orderId         String?   @unique @map("order_id")
+  paymentId       String?   @unique @map("payment_id")
+  status          String    @default("pending")
+  refundAmount    Int       @default(0) @map("refund_amount")
+  grantedPeriod   String?   @map("granted_period")
+  accessStartsAt  DateTime? @map("access_starts_at") @db.Timestamptz(6)
+  accessEndsAt    DateTime? @map("access_ends_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, testMode, status, accessEndsAt])
+  @@map("billing_purchases")
 }
 
 /// Staff who can open /admin and sign in with a personal Google account.
@@ -48,46 +81,47 @@ model Admin {
 
 /// Calendar-month USD spend (millicents) plus top-up allowance for that period.
 model BillingPeriodSpend {
-  userId           String   @map("user_id")
-  period           String
-  spentMillicents  Int      @default(0) @map("spent_millicents")
-  bonusMillicents  Int      @default(0) @map("bonus_millicents")
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String   @map("user_id")
+  period          String
+  spentMillicents Int      @default(0) @map("spent_millicents")
+  bonusMillicents Int      @default(0) @map("bonus_millicents")
+  notesMessages   Int      @default(0) @map("notes_messages")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, period])
   @@map("billing_period_spend")
 }
 
 model UserSettings {
-  userId               String   @id @map("user_id")
-  fastMode             Boolean  @default(true) @map("fast_mode")
-  familiarity          String   @default("normal")
-  audioLanguage        String   @default("english") @map("audio_language")
-  accent               String   @default("india")
-  narrationEnabled     Boolean  @default(true) @map("narration_enabled")
-  lowLatencyVoice      Boolean  @default(false) @map("low_latency_voice")
-  subtitlesEnabled     Boolean  @default(false) @map("subtitles_enabled")
-  markerColor          String   @default("navy") @map("marker_color")
-  pencilColor          String   @default("navy") @map("pencil_color")
-  markerThickness      Float    @default(1) @map("marker_thickness")
-  pencilThickness      Float    @default(1) @map("pencil_thickness")
+  userId              String   @id @map("user_id")
+  fastMode            Boolean  @default(true) @map("fast_mode")
+  familiarity         String   @default("normal")
+  audioLanguage       String   @default("english") @map("audio_language")
+  accent              String   @default("india")
+  narrationEnabled    Boolean  @default(true) @map("narration_enabled")
+  lowLatencyVoice     Boolean  @default(false) @map("low_latency_voice")
+  subtitlesEnabled    Boolean  @default(false) @map("subtitles_enabled")
+  markerColor         String   @default("navy") @map("marker_color")
+  pencilColor         String   @default("navy") @map("pencil_color")
+  markerThickness     Float    @default(1) @map("marker_thickness")
+  pencilThickness     Float    @default(1) @map("pencil_thickness")
   /// Which marker stunts the student picked. Empty means the hand plays none.
-  markerStunts         String[] @default(["thumbAround", "knuckleRoll", "helicopter", "tossCatch"]) @map("marker_stunts")
+  markerStunts        String[] @default(["thumbAround", "knuckleRoll", "helicopter", "tossCatch"]) @map("marker_stunts")
   /// Lecture download container. `mp4` unless the student picked `webm`.
-  lectureFileType      String   @default("mp4") @map("lecture_file_type")
-  speedMultiplier      Float    @default(1.25) @map("speed_multiplier")
-  uiLanguage           String   @default("en") @map("ui_language")
-  showHomeSuggestions  Boolean  @default(true) @map("show_home_suggestions")
-  reducedMotion        Boolean  @default(false) @map("reduced_motion")
-  teachingNote         String   @default("") @map("teaching_note")
-  alwaysShowUnits      Boolean  @default(false) @map("always_show_units")
-  alwaysStateLawFirst  Boolean  @default(false) @map("always_state_law_first")
-  rememberWeakTopics   Boolean  @default(true) @map("remember_weak_topics")
-  emailWeeklyRecap     Boolean  @default(false) @map("email_weekly_recap")
-  emailGuardianNotice  Boolean  @default(true) @map("email_guardian_notice")
-  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lectureFileType     String   @default("mp4") @map("lecture_file_type")
+  speedMultiplier     Float    @default(1.25) @map("speed_multiplier")
+  uiLanguage          String   @default("en") @map("ui_language")
+  showHomeSuggestions Boolean  @default(true) @map("show_home_suggestions")
+  reducedMotion       Boolean  @default(false) @map("reduced_motion")
+  teachingNote        String   @default("") @map("teaching_note")
+  alwaysShowUnits     Boolean  @default(false) @map("always_show_units")
+  alwaysStateLawFirst Boolean  @default(false) @map("always_state_law_first")
+  rememberWeakTopics  Boolean  @default(true) @map("remember_weak_topics")
+  emailWeeklyRecap    Boolean  @default(false) @map("email_weekly_recap")
+  emailGuardianNotice Boolean  @default(true) @map("email_guardian_notice")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
 }
@@ -127,16 +161,17 @@ model Board {
 }
 
 model BoardChatMessage {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  boardId   String   @map("board_id")
-  userId    String   @map("user_id")
-  role      String
-  content   String
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  boardId      String   @map("board_id")
+  userId       String   @map("user_id")
+  role         String
+  content      String
+  storageBytes BigInt   @default(0) @map("storage_bytes")
   /// Board line the student tagged when they sent this message (user rows only).
-  tag       Json?
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag          Json?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  board        Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([boardId, createdAt], map: "board_chat_messages_board_id_created_at_idx")
   @@index([userId], map: "board_chat_messages_user_id_idx")
@@ -150,6 +185,7 @@ model Turn {
   idempotencyKey     String?   @map("idempotency_key") @db.Uuid
   orderIndex         Int       @map("order_index")
   question           String
+  storageBytes       BigInt    @default(0) @map("storage_bytes")
   rawResponse        String    @map("raw_response")
   speedMultiplier    Float     @default(1) @map("speed_multiplier")
   traceId            String?   @map("trace_id")
@@ -187,4 +223,83 @@ model Segment {
 
   @@index([turnId], map: "segments_turn_id_idx")
   @@map("segments")
+}
+
+/// Charged before provider contact. Unknown/cancelled usage retains its cap.
+model PaidUsageReservation {
+  id                String   @id @db.Uuid
+  userId            String   @map("user_id")
+  traceId           String?  @map("trace_id")
+  kind              String
+  period            String
+  planId            String   @map("plan_id")
+  amountMillicents  Int      @map("amount_millicents")
+  settledMillicents Int?     @map("settled_millicents")
+  allocations       Json
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, traceId, kind])
+  @@index([createdAt])
+  @@map("paid_usage_reservations")
+}
+
+/// Purpose-limited deletion/signup abuse control; never retains raw email.
+model AbuseIdentity {
+  identityHash       String    @id @map("identity_hash")
+  freePeriod         String    @map("free_period")
+  spentMillicents    Int       @default(0) @map("spent_millicents")
+  freeWindowStartsAt DateTime? @map("free_window_starts_at") @db.Timestamptz(6)
+  expiresAt          DateTime  @map("expires_at") @db.Timestamptz(6)
+
+  @@index([expiresAt])
+  @@map("abuse_identities")
+}
+
+model OwnedTrace {
+  traceId     String   @id @map("trace_id")
+  userId      String   @map("user_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(6)
+  savedTurnId String?  @map("saved_turn_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("owned_traces")
+}
+
+/// Receipt intentionally survives account deletion; no payment payload or PII.
+model BillingWebhookEvent {
+  provider  String
+  eventId   String   @map("event_id")
+  userId    String?  @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([provider, eventId])
+  @@index([createdAt])
+  @@map("billing_webhook_events")
+}
+
+model UserStorage {
+  userId        String @id @map("user_id")
+  reservedBytes BigInt @default(0) @map("reserved_bytes")
+  pendingTurns  Int    @default(0) @map("pending_turns")
+  user          User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_storage")
+}
+
+/// Retry erasure until storage confirms deletion; survives account cascade.
+model ObjectDeletionJob {
+  id            String   @id @db.Uuid
+  prefix        String   @unique
+  userId        String?  @map("user_id")
+  bytes         BigInt   @default(0)
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([nextAttemptAt])
+  @@map("object_deletion_jobs")
 }

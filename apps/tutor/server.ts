@@ -1,25 +1,25 @@
 import "./patch-localstorage";
+
 import { createServer, type IncomingMessage } from "http";
+import { Socket } from "node:net";
 import { parse as parseUrl } from "node:url";
 import next from "next";
-import { WebSocket, WebSocketServer } from "ws";
+import { WebSocketServer } from "ws";
 import { HTUTOR_UID_COOKIE } from "./lib/cookies";
-import { flushInBackground, recordTtsSpan } from "./lib/obs/langfuse";
-import { ttsConfig } from "./lib/tts/providerConfig";
-import { createTtsRelay } from "./lib/tts/ttsProvider";
+import { relayTtsWebSocket } from "./lib/tts/wsRelay";
+import { protectNodeRequest } from "./lib/http/nodeRequest";
+import { startObjectDeletionWorker } from "./lib/object-store/deletionJobs";
+import { prisma } from "./lib/db/prisma";
+import { assertOwnedTrace } from "./lib/obs/traceOwnership";
+import { readTraceIdHeader } from "@heytutor/tutor-core";
 import { readWsTicket } from "./lib/tts/wsTicket";
 import { isAuthDisabled } from "./lib/authDisabled";
-import { isAutumnEnabled } from "./lib/billing/flags";
-import { consumeTtsChars, getTurnGrant, shouldSkipTtsForUsage, type TurnGrant } from "./lib/billing/grant";
-import { recordTtsSpend } from "./lib/billing/track";
+import { getTurnGrant } from "./lib/billing/grant";
 import {
-  releaseTtsWsConnection,
   tryAcquireTtsWsConnection,
-  TTS_WS_IDLE_MS,
-  TTS_WS_MAX_MESSAGE_CHARS,
-  ttsWsCharsWithinCeiling,
+  releaseTtsWsConnection,
 } from "./lib/tts/wsRelayLimits";
-import { normalizeVoiceKey, type TutorVoiceKey } from "@heytutor/tutor-core";
+import { normalizeVoiceKey } from "@heytutor/tutor-core";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "localhost";
@@ -49,283 +49,10 @@ async function warmDevRoutes(baseUrl: string): Promise<void> {
   }
 }
 
-interface TtsSegmentMessage {
-  text?: string;
-  flush?: boolean;
-  /**
-   * Which context the browser expects this sentence's audio to come back on.
-   * Several sentences generate at once and a short one finishes first, so the
-   * client cannot read the pairing off the order replies arrive in.
-   */
-  segment_index?: number;
-  voice_settings?: {
-    stability: number;
-    similarity_boost: number;
-    style?: number;
-    speed?: number;
-  };
-  generation_config?: {
-    chunk_length_schedule: number[];
-  };
-}
-
-interface TtsRelayContext {
-  userId: string;
-  grant: TurnGrant | null;
-  traceId?: string;
-  sessionId?: string;
-  /** Natural voice speed, 0.7–1.2. Pitch-preserving. */
-  speed?: number;
-  /** Language/accent chosen in Settings; picks the upstream voice id. */
-  voiceKey?: TutorVoiceKey;
-  /** Set when the student picked the low-latency model in Settings. */
-  lowLatency?: boolean;
-}
-
-function relayTtsWebSocket(clientWs: WebSocket, context: TtsRelayContext): void {
-  let config: ReturnType<typeof ttsConfig>;
-  try {
-    config = ttsConfig(normalizeVoiceKey(context.voiceKey), context.lowLatency);
-  } catch {
-    clientWs.send(JSON.stringify({ type: "error", message: "Invalid speech provider configuration" }));
-    clientWs.close(1011, "Invalid speech configuration");
-    releaseTtsWsConnection(context.userId);
-    return;
-  }
-  const { apiKey, voiceId, model: modelId, provider } = config;
-
-  if (!apiKey || !voiceId) {
-    clientWs.send(JSON.stringify({ type: "error", message: "TTS not configured" }));
-    clientWs.close(1011, "TTS not configured");
-    releaseTtsWsConnection(context.userId);
-    return;
-  }
-
-  const relay = createTtsRelay(config);
-  const upstream = new WebSocket(relay.url, { headers: relay.headers, handshakeTimeout: 10_000 });
-
-  let upstreamReady = false;
-  let pendingSegmentText = "";
-  let pendingVoiceSettings: TtsSegmentMessage["voice_settings"] | undefined;
-  let pendingSegmentIndex: number | undefined;
-  let segmentSequence = 0;
-  let charsUsed = 0;
-  const pendingSpend = new Map<string, { characters: number; startedAt: number; grant: TurnGrant }>();
-  const segmentStartedAt = { value: 0 };
-  let idleTimer: ReturnType<typeof setTimeout> | undefined;
-
-  const closeForPolicy = (reason: string): void => {
-    if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.send(JSON.stringify({ type: "skip", reason }));
-      clientWs.close(1008, reason);
-    }
-    if (upstream.readyState === WebSocket.OPEN) {
-      upstream.close();
-    }
-  };
-
-  const bumpIdle = (): void => {
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => {
-      closeForPolicy("idle");
-    }, TTS_WS_IDLE_MS);
-  };
-
-  bumpIdle();
-
-  upstream.on("open", () => {
-    if (clientWs.readyState !== WebSocket.OPEN) { upstream.close(); return; }
-    upstreamReady = true;
-    clientWs.send(JSON.stringify({ type: "ready" }));
-  });
-
-  upstream.on("message", (data, isBinary) => {
-    if (clientWs.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
-    if (isBinary) {
-      clientWs.send(data, { binary: true });
-      return;
-    }
-
-    const payload = data.toString();
-
-    try {
-      const normalized = relay.receive(payload);
-      if (normalized) {
-        clientWs.send(normalized);
-        const message = JSON.parse(normalized);
-        if (message.isFinal) {
-          const id = message.contextId ?? message.context_id;
-          const spend = pendingSpend.get(id);
-          if (spend) {
-            pendingSpend.delete(id);
-            recordTtsSpan({ traceId: context.traceId, sessionId: context.sessionId,
-              characters: spend.characters, model: modelId, provider, voiceId, transport: "ws",
-              latencyMs: Date.now() - spend.startedAt });
-            recordTtsSpend({ userId: context.userId, characters: spend.characters, model: modelId, provider,
-              skipAutumn: spend.grant.skipAutumn ?? !isAutumnEnabled(), skipGates: spend.grant.skipGates });
-            flushInBackground();
-          }
-        }
-      }
-    } catch {
-      clientWs.send(JSON.stringify({ type: "error", message: "Speech generation failed. Please retry." }));
-      clientWs.close(1011, "Speech generation failed");
-    }
-  });
-
-  upstream.on("error", (error) => {
-    if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.send(
-        JSON.stringify({
-          type: "error",
-          message: error instanceof Error ? error.message : "upstream tts error",
-        }),
-      );
-    }
-  });
-
-  upstream.on("close", () => {
-    if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.close();
-    }
-  });
-
-  clientWs.on("message", (data) => {
-    bumpIdle();
-    if (!upstreamReady || upstream.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
-    const raw = data.toString();
-    if (raw.length > TTS_WS_MAX_MESSAGE_CHARS) {
-      closeForPolicy("tts_budget");
-      return;
-    }
-    try {
-      const message = JSON.parse(raw) as TtsSegmentMessage;
-
-      if (typeof message.text === "string") {
-        if (message.text.length > 0) {
-          if (pendingSegmentText.length === 0) {
-            segmentStartedAt.value = Date.now();
-          }
-          pendingSegmentText += message.text;
-          if (pendingSegmentText.length > TTS_WS_MAX_MESSAGE_CHARS) {
-            closeForPolicy("tts_budget");
-            return;
-          }
-        }
-      }
-
-      if (
-        typeof message.segment_index === "number" &&
-        Number.isSafeInteger(message.segment_index) &&
-        message.segment_index > 0
-      ) {
-        pendingSegmentIndex = message.segment_index;
-      }
-
-      if (message.voice_settings && typeof message.voice_settings === "object") {
-        const filtered: TtsSegmentMessage["voice_settings"] = {
-          stability: typeof message.voice_settings.stability === "number"
-            ? message.voice_settings.stability
-            : 0.4,
-          similarity_boost: typeof message.voice_settings.similarity_boost === "number"
-            ? message.voice_settings.similarity_boost
-            : 0.75,
-          ...(typeof message.voice_settings.style === "number"
-            ? { style: message.voice_settings.style }
-            : {}),
-          ...(typeof message.voice_settings.speed === "number"
-            ? { speed: message.voice_settings.speed }
-            : {}),
-        };
-        pendingVoiceSettings = filtered;
-      }
-
-      if (message.flush) {
-        const segmentText = pendingSegmentText.trim();
-        const characters = segmentText.length;
-
-        if (characters > 0) {
-          const liveGrant = getTurnGrant(context.userId) ?? context.grant;
-          if (!liveGrant) {
-            closeForPolicy("tts_budget");
-            return;
-          }
-          if (!ttsWsCharsWithinCeiling(charsUsed, characters)) {
-            closeForPolicy("tts_budget");
-            return;
-          }
-          const budget = shouldSkipTtsForUsage(liveGrant)
-            ? { allowed: false as const, remaining: 0 }
-            : consumeTtsChars(liveGrant, characters);
-          if (!budget.allowed) {
-            closeForPolicy("tts_budget");
-            return;
-          }
-          charsUsed += characters;
-          pendingSpend.set(`segment_${pendingSegmentIndex ?? segmentSequence + 1}`, {
-            characters, startedAt: segmentStartedAt.value, grant: liveGrant,
-          });
-        }
-
-        if (characters > 0) {
-          segmentSequence += 1;
-          // The client's own numbering when it sent one, so it can pair audio
-          // with the sentence that asked for it.
-          const contextId = `segment_${pendingSegmentIndex ?? segmentSequence}`;
-          const messages = relay.segment(
-            contextId,
-            segmentText,
-            pendingVoiceSettings ?? {
-              stability: 0.5,
-              similarity_boost: 0.75,
-              ...(context.speed && context.speed !== 1 ? { speed: context.speed } : {}),
-            },
-          );
-          messages.forEach((upstreamMessage) => upstream.send(JSON.stringify(upstreamMessage)));
-        }
-        pendingSegmentText = "";
-        pendingVoiceSettings = undefined;
-        pendingSegmentIndex = undefined;
-        segmentStartedAt.value = 0;
-      }
-    } catch {
-      closeForPolicy("invalid_speech_request");
-    }
-  });
-
-  let released = false;
-  const teardown = (): void => {
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = undefined;
-    if (!released) {
-      released = true;
-      releaseTtsWsConnection(context.userId);
-    }
-    relay.dispose();
-    pendingSpend.clear();
-    if (upstream.readyState === WebSocket.OPEN) {
-      if (relay.closeMessage) upstream.send(JSON.stringify(relay.closeMessage));
-      upstream.close();
-    } else if (upstream.readyState === WebSocket.CONNECTING) {
-      upstream.terminate();
-    }
-  };
-
-  clientWs.on("close", teardown);
-
-  clientWs.on("error", () => {
-    teardown();
-  });
-}
-
 app.prepare().then(() => {
-  const server = createServer((req, res) => {
+  startObjectDeletionWorker();
+  const server = createServer({ maxHeaderSize: 16 * 1024 }, (req, res) => {
+    if (!protectNodeRequest(req, res)) return;
     const parsedUrl = parseUrl(req.url ?? "", true);
     const startedAt = Date.now();
     res.on("finish", () => {
@@ -342,9 +69,15 @@ app.prepare().then(() => {
     void handle(req, res, parsedUrl);
   });
 
-  const wss = new WebSocketServer({ noServer: true });
+  server.headersTimeout = 15_000;
+  server.requestTimeout = 120_000;
+  server.keepAliveTimeout = 5_000;
+  server.maxConnections = 256;
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024, perMessageDeflate: false });
 
   server.on("upgrade", (request: IncomingMessage, socket, head) => {
+    if (socket instanceof Socket) socket.setTimeout(10_000, () => socket.destroy());
+    void (async () => {
     const { pathname, query } = parseUrl(request.url ?? "", true);
 
     if (pathname === "/api/tts/ws") {
@@ -367,11 +100,18 @@ app.prepare().then(() => {
         return;
       }
 
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+      if (!user) { socket.destroy(); return; }
+      const origin = request.headers.origin;
+      if (!origin || new URL(origin).host !== request.headers.host) { socket.destroy(); return; }
       const grant = getTurnGrant(userId);
       if (!grant) {
         socket.destroy();
         return;
       }
+      const traceId = readTraceIdHeader(typeof query.traceId === "string" ? query.traceId : null) ?? grant.lessonTraceId;
+      const sessionId = typeof query.sessionId === "string" ? query.sessionId : undefined;
+      if (!grant.allowedTraceIds.has(traceId) || !await assertOwnedTrace(userId, traceId, sessionId)) { socket.destroy(); return; }
       // Only a signed, session-minted ticket plus a server-side bypass grant
       // may open the extra staff sockets; anonymous dev cookies keep the base cap.
       const authenticatedSkipGates = !isAuthDisabled() && ticketUser?.userId === userId && grant.skipGates;
@@ -380,8 +120,6 @@ app.prepare().then(() => {
         return;
       }
 
-      const traceId = typeof query.traceId === "string" ? query.traceId : undefined;
-      const sessionId = typeof query.sessionId === "string" ? query.sessionId : undefined;
       const rawSpeed = typeof query.speed === "string" ? Number(query.speed) : NaN;
       const speed = Number.isFinite(rawSpeed)
         ? Math.min(Math.max(rawSpeed, 0.7), 1.2)
@@ -391,16 +129,31 @@ app.prepare().then(() => {
       );
       const lowLatency = query.model === "flash";
 
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        relayTtsWebSocket(ws, { userId, grant, traceId, sessionId, speed, voiceKey, lowLatency });
-      });
+      let released = false;
+      const releaseConnection = () => {
+        if (released) return;
+        released = true;
+        releaseTtsWsConnection(userId);
+      };
+      socket.once("close", releaseConnection);
+      try {
+        if (socket instanceof Socket) socket.setTimeout(0);
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          ws.once("close", releaseConnection);
+          relayTtsWebSocket(ws, { userId, grant, traceId, sessionId, speed, voiceKey, lowLatency, releaseConnection });
+        });
+      } catch {
+        releaseConnection();
+        socket.destroy();
+      }
       return;
     }
 
     socket.destroy();
+    })().catch(() => socket.destroy());
   });
 
-  server.listen(port, () => {
+  server.listen(port, process.env.LISTEN_HOST ?? "127.0.0.1", () => {
     const baseUrl = `http://${hostname}:${port}`;
     console.log(`> accelute ready on ${baseUrl}`);
     console.log(`> TTS WebSocket relay on ws://${hostname}:${port}/api/tts/ws`);

@@ -53,12 +53,13 @@ const minted = createLessonGrant({
 assert(minted.ok, "begin-turn mints a grant");
 consumeUsdMillicents(minted.grant, unusedFree);
 assert(
-  paidCallAccess({ remainingMillicents: 0, grant: minted.grant }) === "allow",
-  "later planner/teaching/title calls on the same grant finish even after spend hits $0",
+  paidCallAccess({ remainingMillicents: 0, grant: minted.grant }) === "out_of_credits",
+  "an existing grant cannot authorize new spend against an exhausted envelope",
 );
 assert(shouldSkipTtsForUsage(minted.grant), "TTS still skips at 0 USD remaining");
-assert(requireGrantForTrace("fresh-free", "question-1").ok,
-  "the original paid trace can finish after exhaustion");
+const exhaustedOriginal = requireGrantForTrace("fresh-free", "question-1");
+assert(!exhaustedOriginal.ok && exhaustedOriginal.reason === "out_of_credits",
+  "an existing trace cannot authorize another paid request after exhaustion");
 const exhaustedDirect = requireGrantForTrace("fresh-free", "direct-paid-new-trace");
 assert(!exhaustedDirect.ok && exhaustedDirect.reason === "out_of_credits",
   "direct paid calls cannot attach a new trace after exhaustion");

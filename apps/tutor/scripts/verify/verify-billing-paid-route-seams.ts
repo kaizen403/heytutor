@@ -3,6 +3,13 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 
 const load = createRequire(import.meta.url);
+const root = resolve(import.meta.dirname, "../..");
+// Import the real, independent header parser while excluding unrelated scene
+// compilation initialization from this paid-HTTP boundary test.
+const headers = load(resolve(root, "../../packages/tutor-core/src/llm/traceHeaders.ts")) as typeof import("../../../../packages/tutor-core/src/llm/traceHeaders");
+mock.module(resolve(root, "../../packages/tutor-core/src/index.ts"), {
+  namedExports: { ...headers, normalizeTutorQuestion: (value: string) => value.trim() },
+});
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -20,17 +27,34 @@ const actor = {
 };
 const billingPath = resolve(import.meta.dirname, "../../lib/billing");
 const appPath = resolve(import.meta.dirname, "../../app/api");
+let remainingMillicents = 0;
+const ownedTraces = new Map<string, { userId: string; expiresAt: Date }>([
+  ["original", { userId: actor.userId, expiresAt: new Date(Date.now() + 86_400_000) }],
+  ["foreign", { userId: "another-account", expiresAt: new Date(Date.now() + 86_400_000) }],
+]);
 mock.module(resolve(billingPath, "actor.ts"), {
   namedExports: { requireSpendActor: async () => actor, isSpendActor: () => true },
 });
 mock.module(resolve(billingPath, "ledger.ts"), {
   namedExports: {
-    loadPeriodBalance: async () => ({ remainingMillicents: 0, remainingPct: 0 }),
+    loadPeriodBalance: async () => ({ remainingMillicents, remainingPct: remainingMillicents > 0 ? 100 : 0, planId: "free" }),
     cacheUsageOnUser: async () => undefined,
+    reservePeriodUsage: async () => { throw new Error("invalid or unauthorized request cannot reserve paid vendor work"); },
+    settlePeriodUsage: async () => { throw new Error("no paid work was dispatched"); },
   },
 });
 mock.module(resolve(import.meta.dirname, "../../lib/db/prisma.ts"), {
-  namedExports: { prisma: { user: { findUnique: async () => ({ planId: "free" }) } } },
+  namedExports: { prisma: {
+    user: { findUnique: async () => ({ id: actor.userId, planId: "free" }) },
+    ownedTrace: {
+      findUnique: async ({ where }: { where: { traceId: string } }) => ownedTraces.get(where.traceId) ?? null,
+      createMany: async ({ data }: { data: { traceId: string; userId: string; expiresAt: Date }[] }) => {
+        for (const row of data) if (!ownedTraces.has(row.traceId)) ownedTraces.set(row.traceId, row);
+        return { count: data.length };
+      },
+      deleteMany: async () => ({ count: 0 }),
+    },
+  } },
 });
 
 const { createLessonGrant, consumeUsdMillicents, resetTurnGrantsForTests } =
@@ -55,8 +79,8 @@ async function main(): Promise<void> {
         headers: trace ? { "x-heytutor-trace-id": trace } : {},
       }));
       const known = await post("original");
-      assert(known.status === 400 || known.status === 503,
-        `${name}: the known trace reaches request validation, not a paid provider`);
+      assert(known.status === 402,
+        `${name}: exhausted known traces are denied before parsing or provider work`);
       const fresh = await post("new-trace");
       assert(fresh.status === 402, `${name}: exhausted grant denies unknown trace before provider`);
       const missing = await post();
@@ -84,6 +108,22 @@ async function main(): Promise<void> {
       }));
       assert(response.status !== 400 && response.status !== 503,
         `${name}: ordinary actor cannot use previously privileged grant`);
+    }
+    resetTurnGrantsForTests();
+    remainingMillicents = 3500;
+    const funded = createLessonGrant({ userId: actor.userId, traceId: "original", usdMillicents: 3500 });
+    assert(funded.ok, "owned funded grant exists");
+    for (const [name, route] of routes) {
+      const response = await route.POST(new Request(`https://example.test/api/${name}`, {
+        method: "POST", headers: { "x-heytutor-trace-id": "original" },
+      }));
+      assert(response.status === 400 || response.status === 503,
+        `${name}: a funded owned trace reaches input validation without vendor work`);
+      const foreign = await route.POST(new Request(`https://example.test/api/${name}`, {
+        method: "POST", headers: { "x-heytutor-trace-id": "foreign" },
+      }));
+      assert(foreign.status === 402,
+        `${name}: account credit cannot authorize another account's trace`);
     }
   } finally {
     globalThis.fetch = originalFetch;

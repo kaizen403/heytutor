@@ -52,6 +52,8 @@ assert(names.has("Referrer-Policy"), "Referrer-Policy is set");
 assert(names.has("Permissions-Policy"), "Permissions-Policy is set");
 assert(contentSecurityPolicy().includes("frame-ancestors"), "CSP limits who may frame the tutor");
 assert(contentSecurityPolicy().includes("https://accelute.co"), "the landing origin may frame the embed");
+assert(contentSecurityPolicy(env({ NODE_ENV: "production" })).includes("https://accelute.co/api/region"), "first-party country detection is allowed by production CSP");
+assert(contentSecurityPolicy(env({ NODE_ENV: "development", NEXT_PUBLIC_LANDING_URL: "http://localhost:5174" })).includes("http://localhost:5174/api/region"), "configured landing country endpoint is allowed without a wildcard");
 assert(
   contentSecurityPolicy().includes("https://*.googleusercontent.com"),
   "CSP must allow Google profile photos",
@@ -87,6 +89,7 @@ assert(rateLimitBucketForPath("/api/boards/abc") === "boards", "board routes are
 assert(rateLimitBucketForPath("/api/trace/event") === "trace", "trace routes are rate-limited");
 assert(rateLimitBucketForPath("/api/home-suggestions") === "suggestions", "AI suggestions are rate-limited");
 assert(rateLimitBucketForPath("/api/health") === null, "health is not credit-shaped-limited");
+assert(rateLimitBucketForPath("/monitoring") === "sentry", "the Sentry tunnel is rate-limited");
 assert(
   clientIpFromForwarded("203.0.113.8, 127.0.0.1", undefined) === "203.0.113.8",
   "the local reverse-proxy hop is not the client",

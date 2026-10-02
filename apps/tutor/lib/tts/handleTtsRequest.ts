@@ -1,6 +1,9 @@
 import { flushInBackground, recordTtsSpan } from "../obs/langfuse";
 import { requireLessonGrant } from "../billing/gate";
 import { recordTtsSpend } from "../billing/track";
+import { reservePaidUsage, holdPaidUsage } from "../billing/paidUsage";
+import { calculateTtsCostDetails } from "../obs/usageCost";
+import { readBoundedJson, RequestBodyError } from "../http/requestBody";
 import {
   consumeTtsChars,
   markGrantInUse,
@@ -24,7 +27,7 @@ export async function handleTtsRequest(
   const { actor, grant } = gated;
   let body: SpeechRequestBody;
   try {
-    body = await request.json();
+    body = await readBoundedJson(request, 96 * 1024);
     if (
       !body ||
       typeof body.text !== "string" ||
@@ -32,10 +35,10 @@ export async function handleTtsRequest(
       body.text.length > 20_000
     )
       throw new Error("Invalid text");
-  } catch {
+  } catch (error) {
     return Response.json(
       { error: "Send non-empty speech text (up to 20000 characters)." },
-      { status: 400 },
+      { status: error instanceof RequestBodyError ? error.status : 400 },
     );
   }
   const config = ttsConfig(
@@ -46,6 +49,7 @@ export async function handleTtsRequest(
     request.headers.get("x-tts-transport") === "browser-fallback";
   const record = (latencyMs: number) => {
     recordTtsSpan({
+      userId: actor.userId,
       traceId: request.headers.get("x-heytutor-trace-id") ?? undefined,
       sessionId: request.headers.get("x-session-id") ?? undefined,
       characters: body.text!.length,
@@ -63,6 +67,7 @@ export async function handleTtsRequest(
         provider: config.provider,
         skipAutumn: actor.skipAutumn,
         skipGates: actor.skipGates,
+        accounted: true,
       });
     flushInBackground();
   };
@@ -77,6 +82,8 @@ export async function handleTtsRequest(
   )
     return ttsSkippedResponse("budget");
   const startedAt = Date.now();
+  const reservation = await reservePaidUsage({ actor, grant, kind: "tts", traceId: request.headers.get("x-heytutor-trace-id") ?? undefined, usd: calculateTtsCostDetails(body.text.length, config).total ?? 0 });
+  if (reservation instanceof Response) return reservation;
   markGrantInUse(grant, 1);
   let released = false;
   const release = () => {
@@ -86,10 +93,11 @@ export async function handleTtsRequest(
     }
   };
   try {
-    const response = await requestTts(config, body, timestamps, request.signal);
+    const response = await requestTts(config, body, timestamps, AbortSignal.any([request.signal, AbortSignal.timeout(60_000)]));
     if (!response.ok || !response.body) {
       await response.body?.cancel();
       release();
+      await reservation.finish();
       return Response.json(
         {
           error: "Speech provider request failed",
@@ -120,7 +128,7 @@ export async function handleTtsRequest(
         await reader.cancel(reason);
       },
     });
-    return new Response(stream, {
+    return new Response(holdPaidUsage(stream, reservation), {
       headers: {
         "content-type": response.headers.get("content-type") ?? "audio/mpeg",
         "cache-control": "no-store",
@@ -128,6 +136,7 @@ export async function handleTtsRequest(
     });
   } catch {
     release();
+    await reservation.finish();
     return Response.json(
       { error: "Speech is temporarily unavailable. Please retry." },
       { status: 502 },

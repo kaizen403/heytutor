@@ -217,6 +217,38 @@ export type TutorSessionShellProps = {
   belowBoardPanel?: ReactNode;
 };
 
+async function requestHomeSuggestions(
+  onSuggestions: (suggestions: CanvasLandingSuggestion[]) => void,
+  signal?: AbortSignal,
+  applyGenerated = false,
+) {
+  try {
+    const response = await fetch("/api/home-suggestions", { signal, cache: "no-store" });
+    if (!response.ok) return;
+    const result = (await response.json()) as {
+      suggestions?: CanvasLandingSuggestion[];
+      source?: "ai" | "fallback";
+      needsRefresh?: boolean;
+    };
+    if (signal?.aborted) return;
+    if (result.suggestions?.length === 5) onSuggestions(result.suggestions);
+    if (!result.needsRefresh) return;
+    const refreshed = await fetch("/api/home-suggestions", {
+      method: "POST", signal, cache: "no-store",
+    });
+    if (!refreshed.ok || signal?.aborted) return;
+    const updated = (await refreshed.json()) as {
+      suggestions?: CanvasLandingSuggestion[];
+      generated?: boolean;
+    };
+    if (signal?.aborted || !updated.generated || updated.suggestions?.length !== 5) return;
+    // Refresh replaces the pack; background generation only fills a fallback.
+    if (applyGenerated || result.source === "fallback") onSuggestions(updated.suggestions);
+  } catch {
+    // Curated cards remain usable if the network or model is unavailable.
+  }
+}
+
 export function TutorSessionShell({
   sessionId,
   isDraft = false,
@@ -243,43 +275,11 @@ export function TutorSessionShell({
   const [homeSuggestions, setHomeSuggestions] = useState<CanvasLandingSuggestion[] | null>(null);
   const isHeadless = variant === "headless";
 
-  const loadHomeSuggestions = useCallback(async (signal?: AbortSignal, applyGenerated = false) => {
-    try {
-      const response = await fetch("/api/home-suggestions", {
-        signal,
-        cache: "no-store",
-      });
-      if (!response.ok) return;
-      const result = (await response.json()) as {
-        suggestions?: CanvasLandingSuggestion[];
-        source?: "ai" | "fallback";
-        needsRefresh?: boolean;
-      };
-      if (signal?.aborted) return;
-      if (result.suggestions?.length === 5) {
-        setHomeSuggestions(result.suggestions);
-      }
-      if (!result.needsRefresh) return;
-      const refreshed = await fetch("/api/home-suggestions", {
-        method: "POST",
-        signal,
-        cache: "no-store",
-      });
-      if (!refreshed.ok || signal?.aborted) return;
-      const updated = (await refreshed.json()) as {
-        suggestions?: CanvasLandingSuggestion[];
-        generated?: boolean;
-      };
-      if (signal?.aborted || !updated.generated || updated.suggestions?.length !== 5) return;
-      // A reload keeps a stored pack on screen and only fills in when there was
-      // none. The refresh icon asked for a new set, so a fresh batch replaces it.
-      if (applyGenerated || result.source === "fallback") {
-        setHomeSuggestions(updated.suggestions);
-      }
-    } catch {
-      // The curated cards remain usable if the network or model is unavailable.
-    }
-  }, []);
+  const loadHomeSuggestions = useCallback(
+    (signal?: AbortSignal, applyGenerated = false) =>
+      requestHomeSuggestions(setHomeSuggestions, signal, applyGenerated),
+    [setHomeSuggestions],
+  );
 
   useEffect(() => {
     if (!isDraft || isHeadless) return;
@@ -311,6 +311,15 @@ export function TutorSessionShell({
   const [currentSegmentText, setCurrentSegmentText] = useState("");
   const [lastError, setLastError] = useState<TutorSessionError | null>(null);
   const [creditsOpen, setCreditsOpen] = useState(false);
+  const [creditsError, setCreditsError] = useState(lastError);
+  if (creditsError !== lastError) {
+    setCreditsError(lastError);
+    if (lastError?.billing && isOutOfUsageLock(lastError.billing)) {
+      setCreditsOpen(true);
+    } else if (!lastError) {
+      setCreditsOpen(false);
+    }
+  }
   const ttsClientRef = useRef<TTSClient | null>(null);
   const replayAudioRef = useRef<HTMLAudioElement | null>(null);
   const replayDrawClockRef = useRef<{ setPaused: (paused: boolean) => void } | null>(null);
@@ -332,6 +341,11 @@ export function TutorSessionShell({
   const fbdPhaseStartedRef = useRef(false);
   const activeVerifiedDiagramRef = useRef<VerifiedDiagram | null>(null);
   const [activeVerifiedDiagram, setActiveVerifiedDiagram] = useState<VerifiedDiagram | null>(null);
+  const [diagramSessionId, setDiagramSessionId] = useState(sessionId);
+  if (diagramSessionId !== sessionId) {
+    setDiagramSessionId(sessionId);
+    setActiveVerifiedDiagram(null);
+  }
   const segmentPlanStatsRef = useRef<SegmentPlanStats>(createEmptySegmentPlanStats());
   const stopTurnRef = useRef<
     ((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => void) | null
@@ -418,10 +432,9 @@ export function TutorSessionShell({
   useEffect(() => {
     boardPageRef.current = null;
     boardShowsStoppedReplayRef.current = false;
-    // The previous lecture's figure caption lives in React state. Clear it
-    // with the session, ahead of the async ink restore.
+    // Render already reset the figure caption for this session. Clear the
+    // imperative board state ahead of the asynchronous ink restore as well.
     activeVerifiedDiagramRef.current = null;
-    setActiveVerifiedDiagram(null);
     void whiteboardRef.current?.clearBoard();
   }, [sessionId]);
   useEffect(() => {
@@ -580,14 +593,6 @@ export function TutorSessionShell({
     };
   }, [accountMe]);
 
-  useEffect(() => {
-    if (lastError?.billing && isOutOfUsageLock(lastError.billing)) {
-      setCreditsOpen(true);
-    } else if (!lastError) {
-      setCreditsOpen(false);
-    }
-  }, [lastError]);
-
   const handleBillingFailure = useCallback((failure: BillingFailure) => {
     rememberBillingFailure(failure);
     setLastError({
@@ -595,7 +600,7 @@ export function TutorSessionShell({
       question: "",
       billing: failure,
     });
-  }, []);
+  }, [setLastError]);
   const goUsage = useCallback(() => {
     router.push("/usage");
   }, [router]);

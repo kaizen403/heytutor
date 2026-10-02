@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "2.2",
+  "description": "Deploy a current HeyTutor dev/main commit through the fixed host entry point",
+  "parameters": {
+    "Commit": {
+      "type": "String",
+      "description": "Exact 40-character tested commit SHA",
+      "allowedPattern": "^[0-9a-f]{40}$",
+      "interpolationType": "ENV_VAR"
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:runShellScript",
+      "name": "DeployHeyTutor",
+      "inputs": {
+        "timeoutSeconds": "2400",
+        "runCommand": ["/opt/heytutor/deploy/aws/ssm-deploy.sh"]
+      }
+    }
+  ]
+}

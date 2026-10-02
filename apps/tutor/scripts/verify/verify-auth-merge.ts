@@ -44,6 +44,7 @@ assert(
 );
 
 assert(isAuthPublicPath("/login"), "login is public");
+assert(isAuthPublicPath("/monitoring"), "the Sentry tunnel is public");
 assert(isAuthPublicPath("/api/auth/callback/google"), "auth callbacks are public");
 assert(isAuthPublicPath("/fonts/stack-sans-notch.woff2"), "webfonts stay public");
 assert(!isAuthPublicPath("/settings"), "settings is not public");

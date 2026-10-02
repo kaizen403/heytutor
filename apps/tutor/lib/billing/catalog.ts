@@ -43,7 +43,7 @@ export const PLAN_CATALOG: Record<"free" | "plus" | "pro", PlanCatalogEntry> = {
   plus: {
     planId: BILLING_PLANS.plus,
     name: "Plus",
-    priceUsdPerMonth: 19,
+    priceUsdPerMonth: 29,
     includedUsdPerMonth: 12,
     notesMessagesPerMonth: 200,
   },
@@ -79,7 +79,8 @@ export function millicentsToUsd(millicents: number): number {
   return millicents / MILLICENTS_PER_USD;
 }
 
-const CHECKOUT_PLAN_IDS = [BILLING_PLANS.plus, BILLING_PLANS.pro] as const;
+// Pro remains readable for historical purchases, but is no longer for sale.
+const CHECKOUT_PLAN_IDS = [BILLING_PLANS.plus] as const;
 export type CheckoutPlanId = (typeof CHECKOUT_PLAN_IDS)[number];
 
 export function isCheckoutPlanId(value: string | null | undefined): value is CheckoutPlanId {

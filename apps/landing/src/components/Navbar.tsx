@@ -7,7 +7,7 @@ import { TUTOR_LOGIN_HREF } from '../lib/tutorAppHref'
 const NAV_LINKS = [
   { href: '/#lesson', label: 'How it works' },
   { href: '/#use-cases', label: 'Use cases' },
-  { href: '/#pricing', label: 'Pricing' },
+  { href: '/#pricing', label: 'Upgrade' },
   { href: '/#faq', label: 'Questions' },
 ]
 

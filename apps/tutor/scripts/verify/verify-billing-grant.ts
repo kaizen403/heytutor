@@ -1,11 +1,7 @@
 import { TTS_CHARS_PER_LESSON } from "../../lib/billing/catalog";
-import {
-  authorizePaidCreditTrace,
-  beginTurnForActor,
-  createInUseRelease,
-  holdGrantUntilStreamEnds,
-  releaseInUseWhenClientLeaves,
-} from "../../lib/billing/gate";
+import { createRequire } from "node:module";
+import { resolve } from "node:path";
+import { mock } from "node:test";
 import {
   STALE_IN_USE_MS,
   attachTraceToGrant,
@@ -21,6 +17,29 @@ import {
   shouldSkipTtsForUsage,
   touchGrantInUse,
 } from "../../lib/billing/grant";
+
+// Keep the gate's real durable ownership checks, with local persistence only.
+// node --experimental-test-module-mocks --import tsx scripts/verify/verify-billing-grant.ts
+const load = createRequire(import.meta.url);
+const root = resolve(import.meta.dirname, "../..");
+const headers = load(resolve(root, "../../packages/tutor-core/src/llm/traceHeaders.ts")) as typeof import("../../../../packages/tutor-core/src/llm/traceHeaders");
+mock.module(resolve(root, "../../packages/tutor-core/src/index.ts"), { namedExports: headers });
+const traces = new Map<string, { traceId: string; userId: string; expiresAt: Date }>();
+mock.module(resolve(root, "lib/db/prisma.ts"), {
+  namedExports: { prisma: {
+    user: { findUnique: async ({ where }: { where: { id: string } }) => ({ id: where.id, planId: "free" }) },
+    ownedTrace: {
+      createMany: async ({ data }: { data: { traceId: string; userId: string; expiresAt: Date }[] }) => {
+        for (const row of data) if (!traces.has(row.traceId)) traces.set(row.traceId, row);
+        return { count: data.length };
+      },
+      findUnique: async ({ where }: { where: { traceId: string } }) => traces.get(where.traceId) ?? null,
+      deleteMany: async () => ({ count: 0 }),
+    },
+  } },
+});
+const { authorizePaidCreditTrace, beginTurnForActor, createInUseRelease, holdGrantUntilStreamEnds, releaseInUseWhenClientLeaves } =
+  load(resolve(root, "lib/billing/gate.ts")) as typeof import("../../lib/billing/gate");
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -236,8 +255,8 @@ for (const path of ["stt", "extract-question"]) {
     headers: traceId ? { "x-heytutor-trace-id": traceId } : {},
   });
   const same = authorizePaidCreditTrace(request("authorized"), ordinaryActor, null, "free");
-  assert(!(same instanceof Response) && same.grant === ordinary.grant,
-    `${path} may finish its known trace when usage reaches zero`);
+  assert(same instanceof Response && same.status === 402,
+    `${path} cannot start new paid work on its known trace when usage reaches zero`);
   for (const fresh of [request(), request("unknown")]) {
     const denied = authorizePaidCreditTrace(fresh, ordinaryActor, { remainingMillicents: 0, remainingPct: 0 }, "free");
     assert(denied instanceof Response && denied.status === 402,
@@ -276,7 +295,7 @@ resetTurnGrantsForTests();
 console.log("✓ turn grants: reuse across doubts, TTS budget, concurrent fuse");
 }
 
-void main().catch((error) => {
+void main().finally(() => mock.restoreAll()).catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

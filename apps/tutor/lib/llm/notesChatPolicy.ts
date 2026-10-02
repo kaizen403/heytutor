@@ -64,9 +64,10 @@ export async function prepareNotesChat(input: {
   const selected = mode === "off"
     ? null
     : selectNotesForPrompt(input.notes, input.tag);
-  const notesText = selected?.text ?? formatLessonNotesForPrompt(input.notes);
+  const allNotesText = selected?.text ?? formatLessonNotesForPrompt(input.notes);
+  const notesText = allNotesText.slice(0, 120_000);
   const context = selected?.context ?? "full";
-  const truncated = selected?.truncated ?? false;
+  const truncated = (selected?.truncated ?? false) || notesText.length < allNotesText.length;
   const strong = strongNotesModel(env);
 
   if (mode === "cheap") {

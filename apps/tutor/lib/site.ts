@@ -33,6 +33,10 @@ function getLandingUrl(): URL {
 }
 
 export function getLegalHref(path: "/terms" | "/privacy"): string {
+  return getLandingHref(path);
+}
+
+export function getLandingHref(path: string): string {
   return new URL(path, getLandingUrl()).toString();
 }
 

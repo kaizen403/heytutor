@@ -34,6 +34,7 @@ import {
 } from "@heytutor/whiteboard";
 import { getLegalHref } from "@/lib/site";
 import type { AccountProfile } from "@/lib/account/types";
+import { downloadAccountExport } from "@/lib/account/exportClient";
 import { PlanUsageCard } from "./PlanUsageCard";
 import { createSettingsPatchQueue, type SaveStatus } from "@/lib/account/settingsPatchQueue";
 
@@ -50,7 +51,6 @@ export function SettingsScreen({ section }: { section: string }) {
   useEffect(() => {
     let unmounted = false;
     let ownerId: string | null = null;
-    setLoadState("loading");
     void fetch("/api/account/me")
       .then(async (response) => {
         if (!response.ok) throw new Error("Could not load account settings");
@@ -98,7 +98,10 @@ export function SettingsScreen({ section }: { section: string }) {
       <div role="status" className="space-y-3 text-sm text-[rgba(237,237,235,0.62)]">
         <p>{loadState === "error" ? "Could not load account settings." : "Loading account settings…"}</p>
         {loadState === "error" && (
-          <SiteButton variant="ice" size="sm" onClick={() => setLoadAttempt((current) => current + 1)}>
+          <SiteButton variant="ice" size="sm" onClick={() => {
+            setLoadState("loading");
+            setLoadAttempt((current) => current + 1);
+          }}>
             Retry loading
           </SiteButton>
         )}
@@ -517,13 +520,5 @@ function Choice({
 }
 
 async function downloadExport() {
-  const response = await fetch("/api/account/export");
-  if (!response.ok) return;
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "accelute-export.json";
-  link.click();
-  URL.revokeObjectURL(url);
+  await downloadAccountExport();
 }

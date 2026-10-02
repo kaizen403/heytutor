@@ -29,7 +29,9 @@ for (const [file, gate] of sessionRoutes) {
 
 const chat = read("app/api/chat/route.ts");
 assert(chat.includes("recordLlmSpend"), "chat must track llm_tokens after usage");
-assert(chat.includes("holdGrantUntilStreamEnds(grant, grantTraceId, tracedBody, releaseInUse)"),
+assert(chat.includes("holdGrantUntilStreamEnds(grant, grantTraceId, holdPaidUsage(tracedBody, reservation,"),
+  "chat must retain its trace and paid reservation until stream completion");
+assert(chat.includes("singleAttemptCost * attemptCount), releaseInUse)"),
   "the teaching stream must share the grant release with client abort");
 assert(chat.includes("releaseInUseWhenClientLeaves(request.signal, releaseInUse)"),
   "a disconnected chat must drop inUse before the upstream call returns");
@@ -38,7 +40,7 @@ assert(read("lib/billing/billingClient.ts").includes("parentTraceId: input.paren
 const tts = read("lib/tts/handleTtsRequest.ts");
 assert(tts.includes("consumeTtsChars"), "HTTP TTS must decrement the grant budget");
 assert(tts.includes("ttsSkippedResponse"), "HTTP TTS must skip ElevenLabs at the budget");
-const ws = read("server.ts");
+const ws = read("server.ts") + read("lib/tts/wsRelay.ts");
 assert(ws.includes("readWsTicket"), "WS TTS must auth from the session ticket");
 assert(ws.includes("isAuthDisabled"), "WS must not take htutor_uid when auth is on");
 assert(ws.includes("tts_budget"), "WS TTS must skip when the grant budget is gone");
@@ -84,9 +86,10 @@ const beginTurn = read("app/api/billing/begin-turn/route.ts");
 assert(beginTurn.includes("beginTurnFromRequest"), "begin-turn must run the grant + Autumn gate");
 assert(beginTurn.includes("remainingPct"), "begin-turn returns remainingPct");
 assert(read("app/api/billing/webhook/route.ts").includes("verifyAutumnWebhookSignature"), "webhook verifies signatures");
-assert(read("app/api/billing/webhook/route.ts").includes("addPeriodBonusUsd"), "webhook top-up adds USD bonus");
-assert(read("app/api/billing/checkout/route.ts").includes("attachCheckoutPlan"), "checkout route exists");
-assert(read("app/api/billing/top-up/route.ts").includes("attachTopUp"), "top-up route exists");
+assert(read("app/api/billing/webhook/route.ts").includes("applyAutumnWebhookEvent"), "verified webhook uses the atomic credit handler");
+assert(read("lib/billing/webhookCredit.ts").includes("bonusMillicents: { increment: bonusMillicents }"), "verified webhook top-up adds USD bonus atomically");
+assert(read("app/api/billing/checkout/route.ts").includes("createRazorpayCheckout"), "checkout route exists");
+assert(read("app/api/billing/top-up/route.ts").includes("createRazorpayCheckout"), "top-up route exists");
 assert(read("app/api/billing/portal/route.ts").includes("openBillingPortal"), "portal route exists");
 assert(read("app/api/billing/entitlement/route.ts").includes("remainingPct"), "entitlement returns remainingPct");
 assert(!read("lib/billing/gate.ts").includes("trackFeature"), "begin-turn must not track Autumn lessons");
@@ -137,4 +140,4 @@ assert(
   "an existing connection_limit must not be overwritten",
 );
 
-console.log("✓ paid routes require session grants; Autumn checkout/webhook/begin-turn are wired");
+console.log("✓ paid routes require session grants; Razorpay checkout and legacy entitlement management are wired");
