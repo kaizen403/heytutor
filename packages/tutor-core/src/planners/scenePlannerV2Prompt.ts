@@ -79,11 +79,11 @@ Entity:{id,kind,role?,label?}; Construction:{id,operator,inputs,outputs}; Assert
 
 AUTHORITY
 - Faithful supported visual:scene; otherwise text_only,empty arrays.
-- Show the problem setup, not a solved answer sheet. Setup before calculation. Do not place derived scalar answers in the initial scene; spatial targets need exact plan-backed geometry.
+- Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially; calculate after setup. Spatial targets need exact plan-backed geometry.
 - Question/AUTHORITATIVE TURN PLAN are fixed evidence. Copy exact quantity id/value/unit. Invent no measurements,signs,components,topology or assumptions. Display lengths never establish physical values.
 - World coordinates certify metrics/directions; nonmetric layout uses inline dimensionless literals. Quantities are evidence, never display sizes.
-- Resolve references; one producer per required visible entity. Order dependencies; reuse IDs. Duplicate geometry/terminal pairs are fatal. Preserve output arity/order.
-- Use deterministic operators for curves,regions,solids,intersections,transforms,normals,rays. Function regions:function_curve + function_region. Never guess.
+- Resolve references; one producer per required entity. Order dependencies,reuse IDs; duplicate geometry/terminal pairs are fatal. Preserve output arity/order.
+- Deterministic curves,regions,solids,intersections,transforms,normals,rays only. Function regions:function_curve + function_region. Never guess.
 - refract_direction is the visible outgoing ray. Do not output a direction helper or wrap the result in ray/vector.
 
 RELATIONS
@@ -91,17 +91,17 @@ RELATIONS
 - Incoming ray:surface_contact -> normal_at -> reflect_direction/refract_direction. Given contact incidence:reflect_at/refract_at. One representation per ray.
 - Circuit components use symbol,two distinct terminals; never connect/segment or duplicate its edge. Series shares consecutive terminals; parallel shares a pair. Prove path,sameTerminalPair,pathCount,connected or degree.
 - Closed routes:shared p0...p(N-1),edge i:p(i)->p(i+1 mod N). Split contacts at shared IDs. Overlap,crossing,on or equal coordinates with distinct IDs never prove connectivity. Named sides use shared terminals. Up/down vertical; left/right horizontal.
-- Page normal:[0,0,-1] into-page cross;[0,0,1] out-of-page dot,never planar arrows. Compared/disconnected views:disjoint reveal groups. Cross-view connectors require explicit short/bypass.
+- Page normal:[0,0,-1] into-page cross;[0,0,1] out-of-page dot,never planar arrows. Separate views:disjoint reveal groups;cross-view connectors need explicit short/bypass.
 - requiredEntityIds:existence; omit exists. At most6 assertions. equal_angle:four paths; angle_between:two,expected:{value,unit:"degree"|"radian"}; function_value:[curve],expected:{x,y}; root:[curve],expected:x|{x}.
 
 LABELS AND REVEAL
-- Labels identify owners/values in at most16 characters; explain in narration. Do not add a figure title or caption. The board does not draw a line under the figure.
-- Attach to existing owners. No positioning geometry or helper/unnamed junction/wire terminal labels. Paths from targetIds,never coordinates/CIRCLE_AROUND.
+- Labels:owners/values,at most16 characters. Narrate explanations. No figure titles,captions or underlines.
+- Attach to owners; no positioning geometry or helper/junction/wire-terminal labels. Paths from targetIds,never coordinates/CIRCLE_AROUND.
 - Kinds:label,callout,caption,narration,enclose,highlight,trace,badge,spin,equal_tick,equal_arc,parallel_mark,hatch,brace,endpoint,loop,sense,drop,ghost,extend,frame,polarity,slope_triangle. style:{count:1|2|3,pointStyle:"filled"|"open"|"cross"|"square",transient:boolean}.
 - One group unless staged/separate views. revealGroups.entityIds:entity IDs; timeline acts on existing targets.
 Entity kinds:point,segment,ray,line,circle,arc,rectangle,polygon,polyline,vector,axes,object,component,connector,label,dimension,angle_mark,right_angle_mark,tick_mark,sign_badge,wavefront_family,aperture,screen_pattern,transverse_field,polarizer,group.`;
 
-export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Use these exact input keys. Entity references are stable ID strings. Numeric inputs may be numbers or quantity IDs.
+export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity references:stable IDs. Numeric inputs:numbers or quantity IDs.
 - point: {x, y, coordinateSpace:"world"|"layout"}. World coordinates preserve physical distances, angles, and directions; exact givens stay exact, while an unstated vector length may use a normalized local frame. Layout coordinates are small dimensionless integers used only to arrange topology with no metric or directional claim.
 - segment/connect: {start: point_id, end: point_id}.
 - vector: {start: point_id, end: point_id, direction?: vector_id|[dx,dy]|[dx,dy,dz], length?:positive_number}. When direction is present, direction defines orientation; a distinct start/end defines display length, otherwise length or a normalized unit length is used. A pure [0,0,-1] or [0,0,1] direction is the only correct representation for into-page or out-of-page respectively.
@@ -210,7 +210,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Use these exact input keys. E
 - representative_slice: {upper: function_curve_id, lower: function_curve_id, atX, method?:"strip"|"disk"|"washer", axisY?:0}. Requires upper(atX) > lower(atX).
 - solid_of_revolution: {profile: function_curve_id, axisY?:0, xMin?, xMax?, samples?}. Draws the profile, its mirror, and circular end caps about y=axisY. The function must stay on one side of the axis and may meet it only at domain endpoints.
 - solid_projection: {kind:"cylinder"|"cone"|"frustum"|"sphere"|"hemisphere",center:point_id,radius,height?,topRadius?,innerRadius?,axis?:"vertical"|"horizontal"}. Lengths positive. Cylinder/cone/frustum require height; frustum requires topRadius!=radius. Only cylinder permits innerRadius<radius. Sphere/hemisphere omit height/topRadius. center is the base center except for sphere. Output polyline, role "solid projection".
-- solid_anchor: {solid:solid_projection_id, at:number_or_quantity_id, radialFraction?:number_or_quantity_id, angleDeg?:number_or_quantity_id}. Output one point derived from that solid's circular section. at is 0..1 (base to top); a sphere's equator is at=0.5. radialFraction is 0..1, default 0 (centre); 1 selects the rim. angleDeg defaults to 0. A radius joins centre to rim on the same section. A diameter joins rim points at opposite angles, e.g. 0 and 180 degrees, on the same section. Reuse these exact anchors as dimension endpoints; never guess detached measurement points.
+- solid_anchor: {solid:solid_projection_id, at:number, radialFraction?:number, angleDeg?:number}. Output one point derived from that solid's circular section. at is 0..1 (base to top); a sphere's equator is at=0.5. radialFraction is 0..1, default 0 (centre); 1 selects the rim. angleDeg defaults to 0. A radius joins centre to rim on the same section. A diameter joins rim points at opposite angles, e.g. 0 and 180 degrees, on the same section. Reuse these exact anchors as dimension endpoints; never guess detached measurement points.
 - solid_projection: {kind:"polyhedron",center:point_id,base:{kind:"rectangle",length,width}|{kind:"regular_polygon",sides:3..32,side}|{kind:"polygon",vertices:[[x,z],...]},height,topScale?:0..1}. Source-defined convex base; positive perpendicular height. topScale=1 prism,0 pyramid,0..1 frustum. Regularity must be given. Engine isometric projection: never infer 3D metrics from 2D. Output polyline, role "polyhedral solid".
 - solid_cross_section: {solid:solid_projection_id,at:0..1,plane?:"transverse"}. at strictly inside (0,1). Derives a closed section, including the inner hole or tapered base. Output polyline, role "solid cross section".
 - space_frame: {origin:point_id, scale?:positive_number, axisLength?:positive_number}. Places a shared isometric 3D frame at a 2D origin and draws the XYZ axes. Later space_point, space_line, and plane constructions must reference this frame id. Output one polyline entity.
