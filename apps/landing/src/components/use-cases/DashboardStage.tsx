@@ -17,7 +17,10 @@ export default function DashboardStage({ frame }: { frame: DemoFrame }) {
     const node = viewport.current
     if (!node) return
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setFit(entry.contentRect.width / LAPTOP.width)
+      if (entry) {
+        const width = Number(getComputedStyle(node).getPropertyValue('--use-case-width')) || LAPTOP.width
+        setFit(entry.contentRect.width / width)
+      }
     })
     observer.observe(node)
     return () => observer.disconnect()
@@ -28,8 +31,8 @@ export default function DashboardStage({ frame }: { frame: DemoFrame }) {
       <div
         className="use-case-laptop"
         role="img"
-        aria-label="A walkthrough of the full desktop tutor app"
-        style={{ ...asset.theme, transform: `scale(${fit})` } as CSSProperties}
+        aria-label="A walkthrough of the tutor app"
+        style={{ ...asset.theme, '--use-case-fit': fit, transform: `scale(${fit})` } as CSSProperties}
       >
         <div
           className="use-case-camera"

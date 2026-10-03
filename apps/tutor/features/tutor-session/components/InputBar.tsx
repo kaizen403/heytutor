@@ -569,7 +569,7 @@ export function InputBar({
             title="Upload or paste a question photo"
             className={cn(
               "flex shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40",
-              prominent ? "h-10 w-10" : "h-9 w-9",
+              compact ? "h-11 w-11" : prominent ? "h-10 w-10" : "h-9 w-9",
             )}
             style={{ color: isExtracting ? "var(--sky-500)" : "var(--text-soft)" }}
             onMouseEnter={(e) => {
@@ -678,7 +678,7 @@ export function InputBar({
             }
             className={cn(
               "flex shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40",
-              prominent ? "h-10 w-10" : "h-9 w-9",
+              compact ? "h-11 w-11" : prominent ? "h-10 w-10" : "h-9 w-9",
             )}
             style={{
               color: markingArmed ? "var(--ink-950)" : "var(--text-soft)",
@@ -723,7 +723,7 @@ export function InputBar({
             }
             className={cn(
               "relative flex shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40",
-              prominent ? "h-10 w-10" : "h-9 w-9",
+              compact ? "h-11 w-11" : prominent ? "h-10 w-10" : "h-9 w-9",
             )}
             style={{
               color:
@@ -782,7 +782,7 @@ export function InputBar({
         {disabled && onPauseToggle ? (
           <div
             className={cn(
-              "mr-0 flex w-full shrink-0 items-center justify-between gap-1.5 sm:mr-0.5 sm:w-auto",
+              "mr-0 flex w-full shrink-0 flex-wrap items-center justify-between gap-1.5 sm:mr-0.5 sm:w-auto sm:flex-nowrap",
               isMultiline && "sm:ml-auto",
             )}
           >
@@ -790,7 +790,7 @@ export function InputBar({
               type="button"
               onClick={() => onPauseToggle()}
               aria-label={isPaused ? "Resume teaching" : "Pause teaching"}
-              className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+              className={cn("flex shrink-0 items-center justify-center rounded-full transition-colors", compact ? "h-11 w-11" : "h-9 w-9")}
               style={{
                 backgroundColor: "var(--wb-accent-soft)",
                 color: "var(--frost)",
@@ -812,7 +812,7 @@ export function InputBar({
                 type="button"
                 onClick={onCancel}
                 aria-label="Cancel teaching"
-                className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+                className={cn("flex shrink-0 items-center justify-center rounded-full transition-colors", compact ? "h-11 w-11" : "h-9 w-9")}
                 style={{
                   backgroundColor: "var(--stroke)",
                   color: "var(--text-soft)",
@@ -829,7 +829,7 @@ export function InputBar({
               </button>
             )}
             {onOpenSettings ? (
-              <InputSettingsButton onOpen={onOpenSettings} prominent={prominent} />
+              <InputSettingsButton onOpen={onOpenSettings} prominent={prominent} compact={compact} />
             ) : null}
             <button
               type="button"
@@ -844,20 +844,11 @@ export function InputBar({
               disabled={inputLocked}
               className={cn(
                 "btn btn-sky btn-sm shrink-0",
-                compact && "w-[38px] px-0",
+                compact && "min-h-11",
               )}
               onClick={askDoubtFromButton}
             >
-              {compact ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path
-                    d="M12 20h.01M12 6a4 4 0 0 1 4 4c0 2-2 2.5-2 3.5"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              ) : marksCarryTheQuestion ? (
+              {marksCarryTheQuestion ? (
                 MARK_SUBMIT_LABEL
               ) : (
                 "Ask Doubt"
@@ -867,7 +858,7 @@ export function InputBar({
         ) : (
           <div
             className={cn(
-              "mr-0 flex w-full shrink-0 items-center justify-between gap-1.5 sm:mr-0.5 sm:w-auto",
+              "mr-0 flex w-full shrink-0 flex-wrap items-center justify-between gap-1.5 sm:mr-0.5 sm:w-auto sm:flex-nowrap",
               isMultiline && "sm:ml-auto",
             )}
           >
@@ -881,13 +872,13 @@ export function InputBar({
               />
             ) : null}
             {onOpenSettings ? (
-              <InputSettingsButton onOpen={onOpenSettings} prominent={prominent} />
+              <InputSettingsButton onOpen={onOpenSettings} prominent={prominent} compact={compact} />
             ) : null}
             {/* Face and geometry both come from `.btn`. */}
             {outOfCredits ? (
               <button
                 type="button"
-                className={cn("btn btn-sky shrink-0", prominent ? "btn-md" : "btn-sm")}
+                className={cn("btn btn-sky shrink-0", prominent ? "btn-md" : "btn-sm", compact && "min-h-11")}
                 onClick={() => onUpgrade?.()}
               >
                 {UPGRADE_LABEL}
@@ -896,7 +887,7 @@ export function InputBar({
               <button
                 type="submit"
                 disabled={buttonDisabled}
-                className={cn("btn btn-sky shrink-0", prominent ? "btn-md" : "btn-sm")}
+                className={cn("btn btn-sky shrink-0", prominent ? "btn-md" : "btn-sm", compact && "min-h-11")}
               >
                 {marksCarryTheQuestion ? MARK_SUBMIT_LABEL : submitLabel}
               </button>
@@ -911,7 +902,7 @@ export function InputBar({
                     ? "Start this question on a new board"
                     : "Open a new board for your next question"
                 }
-                className={cn("btn btn-ghost shrink-0", prominent ? "btn-md" : "btn-sm")}
+                className={cn("btn btn-ghost shrink-0", prominent ? "btn-md" : "btn-sm", compact && "min-h-11")}
               >
                 Next question
               </button>
@@ -931,9 +922,11 @@ export function InputBar({
 function InputSettingsButton({
   onOpen,
   prominent,
+  compact,
 }: {
   onOpen: () => void;
   prominent: boolean;
+  compact: boolean;
 }) {
   return (
     <button
@@ -942,7 +935,7 @@ function InputSettingsButton({
       aria-label="Board settings"
       className={cn(
         "flex shrink-0 items-center justify-center rounded-full border border-stroke bg-ink-700 text-soft transition-colors hover:border-sky-500/35 hover:bg-ink-600 hover:text-sky-200",
-        prominent ? "h-10 w-10" : "h-9 w-9",
+        compact ? "h-11 w-11" : prominent ? "h-10 w-10" : "h-9 w-9",
       )}
     >
       <Settings className={prominent ? "h-[18px] w-[18px]" : "h-4 w-4"} strokeWidth={1.75} />

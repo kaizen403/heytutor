@@ -92,7 +92,7 @@ export function LessonActions({
   const buttonClass = cn(
     "btn-plain btn-ghost shrink-0 rounded-full",
     compact
-      ? "h-10 w-10 px-0 sm:h-8 sm:w-8"
+      ? "h-11 w-11 px-0"
       : "h-10 w-10 px-0 sm:h-8 sm:w-auto sm:gap-1.5 sm:px-3",
   );
 

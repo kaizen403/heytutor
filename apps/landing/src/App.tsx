@@ -1,4 +1,4 @@
-import { Suspense, lazy, useRef, type RefObject } from 'react'
+import { Suspense, lazy, useEffect, useRef } from 'react'
 import { useNearViewport } from './lib/useNearViewport'
 import Hero from './components/Hero'
 import DitherBand from './components/dither/DitherBand'
@@ -16,20 +16,28 @@ import SeoHead from './components/SeoHead'
    far never downloads it. */
 const UseCasesSection = lazy(() => import('./components/use-cases/UseCasesSection'))
 
-/** Holds the `use-cases` anchor so nav links still land before the section
-    loads, and reserves its height so nothing shifts when it arrives. */
-function UseCasesPlaceholder({ slotRef }: { slotRef?: RefObject<HTMLDivElement | null> }) {
-  return <div ref={slotRef} id="use-cases" className="min-h-[760px]" aria-hidden />
+function UseCasesPlaceholder() {
+  return <div className="min-h-[760px]" aria-hidden />
 }
 
 function DeferredUseCases() {
   const slot = useRef<HTMLDivElement>(null)
   const near = useNearViewport(slot, '50% 0px')
-  if (!near) return <UseCasesPlaceholder slotRef={slot} />
+
+  useEffect(() => {
+    if (window.location.hash === '#use-cases') {
+      slot.current?.scrollIntoView({ block: 'start' })
+    }
+  }, [])
+
   return (
-    <Suspense fallback={<UseCasesPlaceholder />}>
-      <UseCasesSection />
-    </Suspense>
+    <div ref={slot} id="use-cases">
+      {near ? (
+        <Suspense fallback={<UseCasesPlaceholder />}>
+          <UseCasesSection />
+        </Suspense>
+      ) : <UseCasesPlaceholder />}
+    </div>
   )
 }
 
