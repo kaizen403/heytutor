@@ -19,9 +19,7 @@ export function validateException(exception) {
   assert.equal(exception.version, "3.0.3");
   assert.equal(exception.patch, "patches/braces@3.0.3.patch");
   assert.match(exception.patchSha256, /^[a-f0-9]{64}$/);
-  assert.match(exception.expiresAt, /^\d{4}-\d{2}-\d{2}T00:00:00\.000Z$/);
-  assert(Number.isFinite(Date.parse(exception.expiresAt)), "invalid exception expiry");
-  assert.equal(new Date(Date.parse(exception.expiresAt)).toISOString(), exception.expiresAt, "exception expiry must be a real UTC date");
+  assert.equal(exception.expiresAt, "2026-11-02T00:00:00.000Z", "the exception must retain the approved cutoff; a new deadline requires security review");
   assert.deepEqual(Object.keys(exception.sourceSha256).sort(), [...BRACES_FILES].sort(), "every runtime file must be fingerprinted");
   for (const hash of Object.values(exception.sourceSha256)) assert.match(hash, /^[a-f0-9]{64}$/);
 }

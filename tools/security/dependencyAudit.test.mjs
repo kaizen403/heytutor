@@ -19,6 +19,7 @@ test("only the verified advisory and exact version are excepted", () => {
   assert.equal(classifyAudit(report([base]), exception, true, BEFORE_EXPIRY).mitigated.length, 1);
   for (const changed of [
     { ...base, github_advisory_id: "GHSA-aaaa-bbbb-cccc" },
+    { ...base, github_advisory_id: undefined },
     { ...base, module_name: "another-package" },
     { ...base, findings: [{ version: "3.0.2" }] },
     { ...base, findings: [{ version: "3.0.3" }, { version: "2.3.2" }] },
@@ -63,6 +64,7 @@ test("exception cannot lose runtime fingerprints or expand to another advisory",
     { ...exception, patchSha256: "" },
     { ...exception, expiresAt: "never" },
     { ...exception, expiresAt: "2026-02-31T00:00:00.000Z" },
+    { ...exception, expiresAt: "2026-11-03T00:00:00.000Z" },
     { ...exception, sourceSha256: { "lib/parse.js": exception.sourceSha256["lib/parse.js"] } },
   ]) assert.throws(() => validateException(invalid));
 });

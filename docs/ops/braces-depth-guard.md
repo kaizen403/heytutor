@@ -37,7 +37,8 @@ only when:
 Missing, edited or unapplied patch evidence fails the gate. Other advisories
 remain failures regardless of severity or whether they also affect braces.
 The policy file is `tools/security/bracesException.json`; changing its expiry
-or fingerprints requires a new reviewed security decision.
+or fingerprints requires a new reviewed security decision. The verifier also
+pins the approved expiry, so editing only the policy file cannot extend it.
 
 ## Verification
 
