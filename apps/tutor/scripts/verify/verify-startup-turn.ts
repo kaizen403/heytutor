@@ -73,7 +73,7 @@ assert(selectFastVerifiedRepresentation({ question: recordedPlan.question, turnP
 assert.equal(selectFastVerifiedRepresentation({ question: numericQuestion, turnPlan: numericPlan }), null, "the numeric fixture must retain normal model validation");
 assert.equal(synthesizeFamilyScene({ question: failedCompileQuestion, turnPlan: failedCompilePlan }), null, "the pole-crossing fixture must genuinely fail the deterministic family compile");
 
-type Mode = "ready" | "recorded-projectile" | "numeric" | "failed-compile" | "retry" | "prefix-stall" | "partial-stall" | "pause-stall" | "pause-prelude" | "retry-expires" | "stop-before-expiry" | "stop-during-retry" | "stale-content" | "marker-only";
+type Mode = "ready" | "recorded-projectile" | "numeric" | "failed-compile" | "retry" | "prefix-stall" | "partial-stall" | "pause-stall" | "pause-prelude" | "control-eof" | "one-step-stall" | "one-step-split-stall" | "retry-expires" | "stop-before-expiry" | "stop-during-retry" | "stale-content" | "marker-only";
 type Event = { atMs: number; name: string; data?: unknown };
 
 async function scenario(mode: Mode) {
@@ -370,7 +370,36 @@ async function scenario(mode: Mode) {
       assert([...timers.values()].some((timer) => timer.at === 15_000), "control-only steps must keep the startup deadline armed");
     }
 
-    if (mode === "stop-before-expiry" || mode === "stale-content") {
+    if (mode === "control-eof") {
+      content(0, "[STEP][PAUSE:11][/STEP]");
+      finishStream(0);
+      await pump(() => done);
+      await turn;
+      assert.equal(outputs().length, 0, "control-only EOF must never enqueue an opening, figure, playback or board work");
+      assert(events.some((event) => event.name === "turn-error"), "control-only EOF must expose an actionable error");
+      assert(!events.some((event) => event.name === "persist-local"), "a control-only response is not a saved lecture");
+    } else if (mode === "one-step-stall" || mode === "one-step-split-stall") {
+      record("usable-step-delivered");
+      content(0, "[STEP]The range follows from horizontal motion.[WRITE:R = u t,80,150]" +
+        (mode === "one-step-split-stall" ? "[/ST" : "[/STEP]"));
+      if (mode === "one-step-split-stall") {
+        await flush();
+        assert.equal(outputs().length, 0, "an incomplete closing STEP must not release the buffered teaching step");
+        content(0, "EP]");
+      }
+      await flush();
+      assert(outputs().length > 0, "one complete usable teaching step must release the opening without waiting for another step");
+      assert(events.some((event) => event.name === "enqueue" && (event.data as TutorSegment).narration.startsWith("The range follows")),
+        "the complete first step must reach the actual teaching queue");
+      await advance(30_000);
+      assert.equal(streams.length, 1, "a complete usable step must not be discarded by a startup timeout retry");
+      assert(!events.some((event) => event.name === "turn-error"), "available teaching content must not become a false startup error");
+      const countBeforeStop = outputs().length;
+      runControl({ ...lifecycle, phase: lifecycle.phaseRef.current }, handleRef).stopTurn({ keepVisibleBoard: true });
+      await pump(() => done);
+      await turn;
+      assert.equal(outputs().length, countBeforeStop, "Stop must not release more work from the stalled stream");
+    } else if (mode === "stop-before-expiry" || mode === "stale-content") {
       if (mode === "stale-content") {
         content(0, "[STEP]This queued stale sentence must not play.[WRITE:R = u t,80,150][/STEP][STEP]Nor may this one.[/STEP]");
       }
@@ -495,7 +524,7 @@ async function scenario(mode: Mode) {
 async function main() {
   const selected = process.argv[2];
   const failures: string[] = [];
-  const modes: Mode[] = ["ready", "recorded-projectile", "numeric", "failed-compile", "retry", "prefix-stall", "partial-stall", "pause-stall", "pause-prelude", "retry-expires", "stop-before-expiry", "stop-during-retry", "stale-content", "marker-only"];
+  const modes: Mode[] = ["ready", "recorded-projectile", "numeric", "failed-compile", "retry", "prefix-stall", "partial-stall", "pause-stall", "pause-prelude", "control-eof", "one-step-stall", "one-step-split-stall", "retry-expires", "stop-before-expiry", "stop-during-retry", "stale-content", "marker-only"];
   assert(!selected || modes.includes(selected as Mode), `unknown case: ${selected}`);
   for (const mode of modes) {
     if (selected && selected !== mode) continue;

@@ -2065,6 +2065,7 @@ export function useQuestionHandler(
         let continueCount = 0;
         let previousChunk = "";
         let reasoningOnlyRetry = false;
+        let stepBoundaryTail = "";
         // Beats the lesson still owed when the previous chunk ended.
         let beatsLeftBefore = Number.POSITIVE_INFINITY;
 
@@ -2144,7 +2145,14 @@ export function useQuestionHandler(
                 });
               }
               const piece = markup ? markup.push(delta) : delta;
-              if (piece) parser.push(piece);
+              if (piece) {
+                parser.push(piece);
+                const boundaryText = stepBoundaryTail + piece;
+                stepBoundaryTail = boundaryText.slice(-("[/STEP]".length - 1));
+                if (STREAM_SEGMENTS_LIVE && !usableTeachingStepReceived && /\[\/STEP\]/i.test(boundaryText)) {
+                  flushBufferedSegment();
+                }
+              }
             },
           );
 
@@ -2180,6 +2188,7 @@ export function useQuestionHandler(
             if (!usableTeachingStepReceived) {
               bufferedSegment = null;
               startupControlSegments = [];
+              stepBoundaryTail = "";
               fullResponse = "";
               markup = codeLesson ? null : new LectureMarkupBuffer();
               parser = new IncrementalTagParser({
@@ -2306,6 +2315,15 @@ export function useQuestionHandler(
         parser.flush();
         // Flush the final segment through verified-scene ownership filtering.
         flushBufferedSegment();
+        throwIfTurnCancelled();
+        if (STREAM_SEGMENTS_LIVE && !usableTeachingStepReceived) {
+          const message = "The tutor did not return a usable teaching step. Please try asking again.";
+          tel.mark("thinking-unusable-response", { response_chars: rawResponse.length });
+          emitError({ message, question });
+          setNarrationText(message);
+          setCurrentSegmentText(message);
+          return;
+        }
         // A tag the model wrote on its own line waits for the words it belongs
         // to; if the response ended on one, it still has to reach the board.
         if (conductor) {
@@ -2354,11 +2372,6 @@ export function useQuestionHandler(
 
         tutorDebug("turn", "planning lesson from full response");
         throwIfTurnCancelled();
-        // A stream that produced no parseable step never reached
-        // `flushBufferedSegment`, so the opening would otherwise be dropped
-        // along with it. The givens are owed either way; a code-lesson figure
-        // waits until a FOCUS/TYPE, then still lands if the stream never sent
-        // one so the student is not left with notes and no example.
         enqueueLessonOpening();
         if (codeLesson && !(resume && resume.figureDrawn)) ensureFigureIntro();
 
