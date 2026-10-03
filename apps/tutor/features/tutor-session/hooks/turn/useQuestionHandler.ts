@@ -60,6 +60,7 @@ import {
   type ValidationReport,
 } from "@heytutor/scene-engine";
 import { createTurnTelemetry } from "@/lib/obs/turnTelemetry";
+import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
 import { enrichStoredSegmentsWithReplayAudio } from "@/lib/replay/replayTurns";
 import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
@@ -211,6 +212,9 @@ export async function awaitCurrentTurn<T>(
   }
   return result;
 }
+
+/** A queued Ask older than this is not the click that started the turn. */
+const QUEUED_ASK_TTL_MS = 60_000;
 
 export function useQuestionHandler(
   params: UseTurnLifecycleParams,
@@ -376,9 +380,18 @@ export function useQuestionHandler(
     question: string;
     options: HandleQuestionOptions;
   } | null>(null);
+  /**
+   * When a question queued behind the board load was asked; telemetry counts
+   * from it. Only for the same board, and only for a minute: an older click
+   * is a different visit.
+   */
+  const queuedAskRef = useRef<{ question: string; startedAt: number; boardId: string | null } | null>(null);
 
   const handleQuestion = useCallback(
     async (rawQuestion: string, options?: HandleQuestionOptions) => {
+      // The turn's telemetry clock starts here, at the Ask click, not after
+      // the commit, billing and epoch awaits below.
+      const askStartedAt = performance.now();
       const question = normalizeTutorQuestion(rawQuestion);
       // Join the Ask click before any await. Committing the home board and
       // begin-turn used to run first (~1s); Chrome dropped the gesture,
@@ -396,9 +409,19 @@ export function useQuestionHandler(
       if (!boardLoaded || !isWhiteboardReadyToDraw(whiteboardRef.current)) {
         pendingQuestionRef.current = question;
         pendingQuestionOptionsRef.current = options ? { question, options } : null;
+        if (queuedAskRef.current?.question !== question || queuedAskRef.current.boardId !== (sessionId ?? null)) {
+          queuedAskRef.current = { question, startedAt: askStartedAt, boardId: sessionId ?? null };
+        }
         setInputInteracted(true);
         return;
       }
+      const queuedAsk = queuedAskRef.current?.question === question &&
+        queuedAskRef.current.boardId === (sessionId ?? null) &&
+        askStartedAt - queuedAskRef.current.startedAt <= QUEUED_ASK_TTL_MS
+        ? queuedAskRef.current
+        : null;
+      queuedAskRef.current = null;
+      const askOrigin = queuedAsk?.startedAt ?? askStartedAt;
       if (
         phaseRef.current !== "idle" ||
         turnActiveRef.current ||
@@ -547,12 +570,16 @@ export function useQuestionHandler(
         fbdPhaseStartedRef.current = false;
       }
       // Every later save (turns, notes) addresses a board that now exists.
+      const boardCommitWaitStartedAt = performance.now();
       await boardCommitted;
       // Replaced while the row was being written: the turn that superseded this
       // one owns the board, the page record and the live question now.
       if (turnGeneration !== turnGenerationRef.current) {
         return;
       }
+      // Also where the commit wait ends: the generation check above is
+      // synchronous, and gates keep it right after the await.
+      const beginTurnStartedAt = performance.now();
       let billed: Awaited<ReturnType<typeof beginTurn>>;
       try {
         billed = await beginTurn({
@@ -595,10 +622,16 @@ export function useQuestionHandler(
       const partialTurnSaved = partialTurnSave
         ? saveTurnToBoard(partialTurnSave).then(Boolean)
         : null;
+      // Read after the billing checks, which are synchronous: the gates keep
+      // nothing between the begin-turn await and its refusal branch.
+      const beginTurnMs = performance.now() - beginTurnStartedAt;
       // A doubt and a resume keep the page. Only a fresh lesson snapshots it
       // into the notes and clears it.
+      let boardEpochMs: number | null = null;
+      const boardEpochStartedAt = performance.now();
       if (!doubt && !resume) {
         await beginBoardEpoch();
+        boardEpochMs = performance.now() - boardEpochStartedAt;
         if (turnGeneration !== turnGenerationRef.current) {
           return;
         }
@@ -656,12 +689,28 @@ export function useQuestionHandler(
 
       throwIfTurnCancelled();
 
-      const tel = createTurnTelemetry();
+      const tel = createTurnTelemetry({ originPerf: askOrigin });
       turnTelemetryRef.current = tel;
       const turnTraceId = currentTraceIdRef.current;
       if (turnTraceId) {
         tel.setTrace(turnTraceId, sessionId ?? undefined);
       }
+      // A tab closed mid planning still sends what was measured so far. A turn
+      // replaced or thrown before its flush lets go at the next page event.
+      tel.watchPageLifecycle(
+        () => turnTelemetryRef.current === tel && turnGeneration === turnGenerationRef.current,
+      );
+      // Durations only: no question text rides on startup telemetry.
+      tel.mark("startup-ask", {
+        pre_telemetry_ms: tel.durationMs(),
+        queued_for_board_ms: queuedAsk ? Math.round(askStartedAt - queuedAsk.startedAt) : 0,
+        board_commit_ms: Math.round(beginTurnStartedAt - boardCommitWaitStartedAt),
+        begin_turn_ms: Math.round(beginTurnMs),
+        board_epoch_ms: boardEpochMs === null ? null : Math.round(boardEpochMs),
+        turn_kind: doubt ? "doubt" : resume ? "resume" : "lesson",
+      });
+      // `total_duration_ms` and every mark count from the Ask click now.
+      tel.meta({ telemetry_origin: "ask", ...pageLoadTiming.claimFirstTurnMeta(askOrigin) });
       const thinkingSpan = tel.span("thinking");
       let thinkingEnded = false;
 

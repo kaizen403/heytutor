@@ -34,6 +34,13 @@ export interface SpeakSegmentOptions {
   sessionId?: string;
   /** Fires once for complete claimed provider bytes, before decode/load; not audibility. */
   onAudioReady?: () => void;
+  /**
+   * Latency telemetry: the first provider audio bytes for this segment
+   * arrived. `sinceRequestMs` counts from when the segment was requested,
+   * which for a sentence generated ahead is the lookahead request. Never
+   * gates playback.
+   */
+  onFirstAudioByte?: (info: FirstAudioByteInfo) => void;
   onPlaybackBlocked?: (blocked: {
     reason: "context-suspended" | "context-interrupted" | "not-allowed";
     audioContextState: AudioContextState | "interrupted" | null;
@@ -43,6 +50,25 @@ export interface SpeakSegmentOptions {
   onError?: (error: unknown) => void;
   onTimings?: (timings: AudioTimings) => void;
   onAudioCaptured?: (audio: { bytes: Uint8Array; mimeType: string }) => void;
+}
+
+export interface FirstAudioByteInfo {
+  transport: "ws" | "http";
+  sinceRequestMs: number;
+  /** Generated ahead of the claim (socket lookahead or HTTP prefetch). */
+  prefetched: boolean;
+}
+
+/**
+ * The signal behind the most recent `onStart`. `html-audio-playing` is the
+ * media element's `playing` event or its `play()` promise resolving;
+ * `audio-context-scheduled` is a buffer source queued `leadMs` ahead of the
+ * context clock, so the voice is audible that much later;
+ * `speech-synthesis-start` is the browser voice's `start` event.
+ */
+export interface PlaybackStartSignal {
+  signal: "html-audio-playing" | "audio-context-scheduled" | "speech-synthesis-start";
+  leadMs: number;
 }
 
 export interface AudioTimings {
@@ -91,6 +117,13 @@ export interface TTSClient {
    */
   unlockAudio?(): void;
   getAudioContextState?(): AudioContextState | "interrupted" | null;
+  /**
+   * What the latest `onStart` was based on; telemetry only. Null until the
+   * current `speakSegment` has started.
+   */
+  getLastPlaybackStart?(): PlaybackStartSignal | null;
+  /** Whether output is muted (Watch Live off); telemetry only. */
+  isMuted?(): boolean;
   /**
    * Keep generating and capturing TTS, but do not play it through speakers.
    * Writing sync still uses the audio clock.
@@ -696,6 +729,7 @@ function claimBrowserSpeech(client: SpeechSynthesisTTSClient): void {
 }
 
 export class SpeechSynthesisTTSClient implements TTSClient {
+  private lastPlaybackStart: PlaybackStartSignal | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private cancelUtterance: (() => void) | null = null;
   private playing = false;
@@ -710,6 +744,14 @@ export class SpeechSynthesisTTSClient implements TTSClient {
     if (typeof window !== "undefined") {
       window.speechSynthesis?.resume();
     }
+  }
+
+  getLastPlaybackStart(): PlaybackStartSignal | null {
+    return this.lastPlaybackStart;
+  }
+
+  isMuted(): boolean {
+    return this.muted;
   }
 
   setMuted(muted: boolean): void {
@@ -727,6 +769,7 @@ export class SpeechSynthesisTTSClient implements TTSClient {
     text: string,
     { traceId, sessionId, onStart, onEnd, onError, onTimings, onAudioCaptured: _onAudioCaptured }: SpeakSegmentOptions = {},
   ): Promise<void> {
+    this.lastPlaybackStart = null;
     if (typeof window === "undefined" || !window.speechSynthesis) {
       const error = new Error("SpeechSynthesis not available");
       onError?.(error);
@@ -810,6 +853,7 @@ export class SpeechSynthesisTTSClient implements TTSClient {
           clearWatches();
           this.playing = true;
           startTime.value = performance.now();
+          this.lastPlaybackStart = { signal: "speech-synthesis-start", leadMs: 0 };
           onStart?.();
         };
         next.onboundary = (event: SpeechSynthesisEvent) => {
