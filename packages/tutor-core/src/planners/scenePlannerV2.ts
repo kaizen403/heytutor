@@ -276,14 +276,27 @@ function summarizeSceneCandidateForRepair(
  * only: no repair batch launches until it settles true, and none ever does if
  * it settles false. A held search with an invalid seed waits for the decision
  * instead of returning.
+ *
+ * Billing admits at most four "ai" calls in flight per user and twelve
+ * planner calls per trace, and refuses the rest. `maxConcurrentRequests`
+ * bounds this search's own requests in flight (a repair batch waits rather
+ * than exceed it), and `requestBudget` is a counter shared by every search in
+ * the turn: each request spends one, and a search that has none left stops
+ * launching (a repair batch shrinks to what is left).
  */
 export async function planSceneDocumentWithRepair<T>(
   question: string,
   validate: SceneCandidateValidator<T>,
-  options: ScenePlannerOptions & { holdRepairsUntil?: Promise<boolean> },
+  options: ScenePlannerOptions & {
+    holdRepairsUntil?: Promise<boolean>;
+    maxConcurrentRequests?: number;
+    requestBudget?: { remaining: number };
+  },
 ): Promise<ScenePlanWithRepairResult<T> | null> {
   const startedAt = Date.now();
-  const { holdRepairsUntil, ...plannerOptions } = options;
+  const { holdRepairsUntil, maxConcurrentRequests, requestBudget, ...plannerOptions } = options;
+  const maxInFlight = maxConcurrentRequests ?? Number.POSITIVE_INFINITY;
+  const budgetLeft = () => requestBudget?.remaining ?? Number.POSITIVE_INFINITY;
   const timeoutMs = plannerOptions.timeoutMs ?? SCENE_PLANNER_TIMEOUT_MS;
   const remainingMs = () => timeoutMs - (Date.now() - startedAt);
   const initialStrategies = [
@@ -338,6 +351,7 @@ export async function planSceneDocumentWithRepair<T>(
   ) => {
     const key = nextKey;
     nextKey += 1;
+    if (requestBudget) requestBudget.remaining -= 1;
     const controller = new AbortController();
     const signal = plannerOptions.signal
       ? mergeAbortSignals(plannerOptions.signal, controller.signal)
@@ -376,7 +390,7 @@ export async function planSceneDocumentWithRepair<T>(
   // with the rest of the budget, exactly as before.
   const maybeLaunchFallbackPlan = () => {
     if (fallbackPlanLaunched || evaluated.length > 0 || inFlight.size > 0) return;
-    if (plannerOptions.signal?.aborted) return;
+    if (plannerOptions.signal?.aborted || budgetLeft() < 1) return;
     const budgetMs = remainingMs();
     if (budgetMs <= 0) return;
     fallbackPlanLaunched = true;
@@ -388,13 +402,16 @@ export async function planSceneDocumentWithRepair<T>(
     .sort((a, b) => compareValidations(a.validation, b.validation))[0];
   /** Rounds remain and a seed exists: only the hold or the previous round stand in the way. */
   const repairPossible = () =>
-    firstValidAt === null && rounds.length < MAX_SCENE_REPAIR_ROUNDS && nextSeed() !== undefined;
+    firstValidAt === null && rounds.length < MAX_SCENE_REPAIR_ROUNDS && budgetLeft() >= 1 &&
+    nextSeed() !== undefined;
 
   const maybeLaunchRepairRound = () => {
     if (!repairsReleased || !repairPossible()) return;
     if (plannerOptions.signal?.aborted) return;
     const budgetMs = remainingMs();
     if (budgetMs <= 0) return;
+    const roundStrategies = repairStrategies.slice(0, Math.min(repairStrategies.length, budgetLeft()));
+    if (inFlight.size + roundStrategies.length > maxInFlight) return;
     const seed = nextSeed()!;
     const previous = rounds.at(-1);
     if (previous && previous.settled < previous.calls) {
@@ -402,7 +419,7 @@ export async function planSceneDocumentWithRepair<T>(
       if (previous.settled === 0 || !strictlyBetter) return;
     }
     seed.seededRepair = true;
-    const round: Round = { seed, calls: repairStrategies.length, settled: 0 };
+    const round: Round = { seed, calls: roundStrategies.length, settled: 0 };
     rounds.push(round);
     tutorDebug("planner", "semantic scene repair round", {
       round: rounds.length,
@@ -411,7 +428,7 @@ export async function planSceneDocumentWithRepair<T>(
       fatal_count: seed.validation.errors.filter((error) => error.severity === "fatal").length,
     });
     const callTimeoutMs = Math.min(budgetMs, INITIAL_CANDIDATE_TIMEOUT_MS);
-    repairStrategies.forEach((strategy, index) => {
+    roundStrategies.forEach((strategy, index) => {
       launch("repair", round, (signal) => repairSceneDocument(
         question,
         seed.response.document,
@@ -424,7 +441,7 @@ export async function planSceneDocumentWithRepair<T>(
   };
 
   const candidateTimeoutMs = Math.min(timeoutMs, INITIAL_CANDIDATE_TIMEOUT_MS);
-  initialStrategies.forEach((strategy, index) => {
+  initialStrategies.slice(0, Math.max(0, Math.min(budgetLeft(), maxInFlight))).forEach((strategy, index) => {
     launch("plan", null, (signal) => planSceneDocument(
       question,
       { ...plannerOptions, signal, timeoutMs: candidateTimeoutMs },

@@ -228,6 +228,48 @@ try {
     assert.equal(repairs[2]?.seed, "A-r", "round 2 takes the best unrepaired seed: A-r (4 fatal) beats B (5)");
   });
 
+  await scenario("maxConcurrentRequests and the shared request budget bound every search", async () => {
+    // Round 2 would overlap a pending initial and a stalled round-1 call: four in flight.
+    const script = (call: Call): Reply => {
+      if (call.phase === "plan") {
+        return call.lane === "primary" ? { atMs: 1_000, doc: doc("A", 3) } : { atMs: 9_000, doc: doc("B", 5) };
+      }
+      if (call.seed === "A") return call.lane === "primary" ? { atMs: 2_000, doc: doc("A-r", 1) } : { atMs: 8_000, doc: doc("A-r2", 4) };
+      return { atMs: call.atMs + 1_000, doc: doc(`R2-${call.lane}`, 0) };
+    };
+    // A request is in flight from its launch until it is answered or aborted.
+    const answeredAt = new Map<number, number>();
+    const track = (call: Call): Reply => {
+      const reply = script(call);
+      if (reply !== "hang" && reply.atMs !== "now") answeredAt.set(call.index, reply.atMs);
+      return reply;
+    };
+    const peak = (calls: Call[]) => Math.max(...calls.map((launch) => calls.filter((other) =>
+      other.index <= launch.index &&
+      Math.min(answeredAt.get(other.index) ?? Infinity, other.abortedAtMs ?? Infinity) > launch.atMs).length));
+    const calls = harness(track);
+    await settle(planSceneDocumentWithRepair("q", validate, options()));
+    assert.equal(calls.filter((call) => call.phase === "repair")[2]?.atMs, 2_000, "uncapped, round 2 overlaps at 2s");
+    assert.equal(peak(calls), 4);
+
+    answeredAt.clear();
+    now = 0;
+    timers.clear();
+    const capped = harness(track);
+    await settle(planSceneDocumentWithRepair("q", validate, { ...options(), maxConcurrentRequests: 3 }));
+    assert.equal(capped.filter((call) => call.phase === "repair")[2]?.atMs, 8_000,
+      "capped at three, round 2 waits for a slot");
+    assert(peak(capped) <= 3, `capped search peaked at ${peak(capped)}`);
+
+    now = 0;
+    timers.clear();
+    const budget = { remaining: 3 };
+    const spent = harness(() => ({ atMs: 1_000, doc: doc(`x${Math.random()}`, 2) }));
+    await settle(planSceneDocumentWithRepair("q", validate, { ...options(), requestBudget: budget }));
+    assert.equal(spent.length, 3, "two candidates and a one-call repair batch, never more than the budget");
+    assert.equal(budget.remaining, 0);
+  });
+
   await scenario("held repairs: initial candidates only until the caller releases", async () => {
     const release = (() => {
       let resolve!: (value: boolean) => void;

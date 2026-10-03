@@ -591,6 +591,8 @@ export async function runLecture(
             signal: sceneRun.signal,
             timeoutMs: sceneRun.timeoutMs,
             holdRepairsUntil: sceneRun.holdRepairsUntil,
+            maxConcurrentRequests: sceneRun.maxConcurrentRequests,
+            requestBudget: sceneRun.requestBudget,
             fastMode,
             traceId,
             ...gate.request,

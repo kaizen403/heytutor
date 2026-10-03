@@ -21,6 +21,32 @@
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { deepEqual, finalizeScenePlanAfterAuthority } from "./diagramGeneration";
 
+/**
+ * Billing (lib/billing/grant.ts acquirePaidCall) refuses a fifth "ai" call in
+ * flight per user and a thirteenth planner call per trace. A refused scene
+ * request becomes a missing candidate, as on main, but the turn must never
+ * cause one. Worst-case planner calls outside the scene planner: three
+ * turn-plan requests (two lanes plus the retry) and one ProblemIR, which
+ * leaves eight for every scene search of the turn together (main used at
+ * most seven: two candidates, the fallback plan, four repairs).
+ */
+export const SCENE_REQUEST_BUDGET = 12 - 3 - 1;
+/**
+ * At most three scene requests in flight per search. With ProblemIR still
+ * running and a just-aborted turn-plan lane not yet released, a speculative
+ * search's two candidates make four; after a valid candidate the at most two
+ * losers it aborts plus the teaching request that follows make three.
+ */
+export const SCENE_MAX_CONCURRENT_REQUESTS = 3;
+/**
+ * An aborted request keeps its billing slot until the server notices the
+ * disconnect, aborts upstream and settles the reservation (two ledger round
+ * trips). The client cannot observe that, so a restart waits this long after
+ * the discarded run settles: otherwise its two candidates plus an early repair
+ * batch could meet the two discarded calls on the server and make five.
+ */
+export const SCENE_ABORT_NOTICE_MS = 500;
+
 /** What the exact gate decided for one plan, plus the planner request it implies. */
 export interface SceneGateCore {
   /** A figure is wanted and the question is not on the chemistry lane. */
@@ -72,6 +98,8 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   plannerStartedAt: number;
   deadlineMs: number;
   now?: () => number;
+  /** Timer used for SCENE_ABORT_NOTICE_MS; injectable for fake clocks. */
+  sleep?: (ms: number) => Promise<void>;
   /** The turn's own abort; merged into every scene planner run. */
   signal?: AbortSignal;
   /** Wraps every await so a superseded turn throws (awaitCurrentTurn). */
@@ -95,7 +123,14 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   planScene(
     gate: G,
     plan: TurnPlanV3,
-    run: { signal: AbortSignal; timeoutMs: number; holdRepairsUntil?: Promise<boolean> },
+    run: {
+      signal: AbortSignal;
+      timeoutMs: number;
+      holdRepairsUntil?: Promise<boolean>;
+      maxConcurrentRequests: number;
+      /** Shared by every scene search in the turn; each request spends one. */
+      requestBudget: { remaining: number };
+    },
   ): Promise<R | null>;
   /** Revalidate every candidate against the final plan. */
   revalidate(result: R, plan: TurnPlanV3): Promise<R>;
@@ -200,6 +235,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
   input: ScenePlanningOverlapInput<A, G, F, R>,
 ): Promise<ScenePlanningOverlapOutcome<A, G, F, R>> {
   const now = input.now ?? Date.now;
+  const sleep = input.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const guard = input.guard ?? (<T,>(operation: Promise<T>) => operation);
   const remainingMs = () => Math.max(0, input.deadlineMs - (now() - input.plannerStartedAt));
   const parent = input.parentSpan;
@@ -225,6 +261,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     restarted: boolean;
   };
   const inFlight = new Set<Run>();
+  const requestBudget = { remaining: SCENE_REQUEST_BUDGET };
   const startRun = (gate: G, turnPlan: TurnPlanV3, speculative: boolean, restarted: boolean): Run => {
     const controller = new AbortController();
     const signal = input.signal ? mergeAbortSignals(input.signal, controller.signal) : controller.signal;
@@ -242,6 +279,8 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     const promise = input.planScene(gate, turnPlan, {
       signal,
       timeoutMs: remainingMs(),
+      maxConcurrentRequests: SCENE_MAX_CONCURRENT_REQUESTS,
+      requestBudget,
       ...(holdRepairsUntil ? { holdRepairsUntil } : {}),
     });
     // An abandoned run settles on its own; nothing may observe its result.
@@ -362,10 +401,16 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
         speculative.releaseRepairs?.(true);
       } else {
         abortReason = decision.reason;
-        stopRun(speculative, { speculative: true, restarted: false, aborted: decision.reason });
+        const discarded = speculative;
+        stopRun(discarded, { speculative: true, restarted: false, aborted: decision.reason });
         input.telemetry?.mark("scene-speculative-abort", { reason: decision.reason });
         speculative = null;
         if (decision.restart) {
+          // Let the discarded requests finish aborting before new ones start,
+          // so the two never overlap on the client. Aborted fetches settle at
+          // once; the result is never read.
+          await guard(discarded.promise.then(() => undefined, () => undefined));
+          await guard(sleep(SCENE_ABORT_NOTICE_MS));
           run = startRun(gate, turnPlan, false, true);
           restarted = true;
         }

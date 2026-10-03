@@ -1313,6 +1313,8 @@ export function useQuestionHandler(
               signal: run.signal,
               timeoutMs: run.timeoutMs,
               holdRepairsUntil: run.holdRepairsUntil,
+              maxConcurrentRequests: run.maxConcurrentRequests,
+              requestBudget: run.requestBudget,
               fastMode: fastModeRef.current,
               ...gate.request,
             },
