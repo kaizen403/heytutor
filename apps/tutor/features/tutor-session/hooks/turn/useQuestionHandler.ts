@@ -2316,6 +2316,16 @@ export function useQuestionHandler(
         // Flush the final segment through verified-scene ownership filtering.
         flushBufferedSegment();
         throwIfTurnCancelled();
+        if (resumeInkGate && !resumeInkGate.hasInk()) {
+          const message = "The lecture could not resume with board writing. Please try Continue lecture again.";
+          tel.mark("resume-without-ink", { attempts: resumeInkAttempts + 1 });
+          turnCancelled = true;
+          if (resume) offerPausedLessonResume(resume);
+          emitError({ message, question });
+          setNarrationText(message);
+          setCurrentSegmentText(message);
+          return;
+        }
         if (STREAM_SEGMENTS_LIVE && !usableTeachingStepReceived) {
           const message = "The tutor did not return a usable teaching step. Please try asking again.";
           tel.mark("thinking-unusable-response", { response_chars: rawResponse.length });
@@ -2336,19 +2346,6 @@ export function useQuestionHandler(
           }
         }
         throwIfTurnCancelled();
-        if (resumeInkGate && !resumeInkGate.hasInk()) {
-          // A stopped lecture must not be marked complete merely because the
-          // model returned a closed speech-only step twice.
-          const message = "The lecture could not resume with board writing. Please try Continue lecture again.";
-          tel.mark("resume-without-ink", { attempts: resumeInkAttempts + 1 });
-          turnCancelled = true;
-          if (resume) offerPausedLessonResume(resume);
-          emitError({ message, question });
-          setNarrationText(message);
-          setCurrentSegmentText(message);
-          return;
-        }
-
         const responseText = rawResponse.trim();
         rawResponseRef.current = responseText;
 

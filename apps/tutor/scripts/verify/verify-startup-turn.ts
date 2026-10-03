@@ -10,7 +10,8 @@ import { validateTurnPlanV3, synthesizeFamilyScene, type TurnPlanV3, type Proble
 import { selectFastVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 import { forgetVerifiedScene } from "../../features/tutor-session/lib/scene/verifiedSceneRecovery";
 import { createEmptySegmentPlanStats } from "../../features/tutor-session/lib/turn/segmentPlanning";
-import type { UseTurnLifecycleParams, TurnControlApi } from "../../features/tutor-session/hooks/turn/types";
+import type { HandleQuestionOptions, UseTurnLifecycleParams, TurnControlApi } from "../../features/tutor-session/hooks/turn/types";
+import type { PausedLessonRequest } from "../../features/tutor-session/lib/turn/doubtTurn";
 
 const app = fileURLToPath(new URL("../../", import.meta.url));
 const requireApp = createRequire(new URL("../../package.json", import.meta.url));
@@ -73,7 +74,7 @@ assert(selectFastVerifiedRepresentation({ question: recordedPlan.question, turnP
 assert.equal(selectFastVerifiedRepresentation({ question: numericQuestion, turnPlan: numericPlan }), null, "the numeric fixture must retain normal model validation");
 assert.equal(synthesizeFamilyScene({ question: failedCompileQuestion, turnPlan: failedCompilePlan }), null, "the pole-crossing fixture must genuinely fail the deterministic family compile");
 
-type Mode = "ready" | "recorded-projectile" | "numeric" | "failed-compile" | "retry" | "prefix-stall" | "partial-stall" | "pause-stall" | "pause-prelude" | "control-eof" | "one-step-stall" | "one-step-split-stall" | "retry-expires" | "stop-before-expiry" | "stop-during-retry" | "stale-content" | "marker-only";
+type Mode = "ready" | "recorded-projectile" | "numeric" | "failed-compile" | "retry" | "prefix-stall" | "partial-stall" | "pause-stall" | "pause-prelude" | "control-eof" | "one-step-stall" | "one-step-split-stall" | "resume-no-ink" | "retry-expires" | "stop-before-expiry" | "stop-during-retry" | "stale-content" | "marker-only";
 type Event = { atMs: number; name: string; data?: unknown };
 
 async function scenario(mode: Mode) {
@@ -315,7 +316,7 @@ async function scenario(mode: Mode) {
   try {
     forgetVerifiedScene(question, { boardId });
     const lifecycle = params as unknown as UseTurnLifecycleParams;
-    const handleRef = ref<(question: string) => Promise<void>>(async () => {});
+    const handleRef = ref<(question: string, options?: HandleQuestionOptions) => Promise<void>>(async () => {});
     const runControl = loadHook(path.join(app, "features/tutor-session/hooks/turn/useTurnControl.ts")).useTurnControl as
       typeof import("../../features/tutor-session/hooks/turn/useTurnControl").useTurnControl;
     const control = runControl(lifecycle, handleRef);
@@ -323,21 +324,30 @@ async function scenario(mode: Mode) {
       ...control,
       enqueueSegment(segment, generation) { record("enqueue", segment); control.enqueueSegment(segment, generation); },
       enqueueVerifiedIntro(segments, generation) { record("enqueue-intro", segments); control.enqueueVerifiedIntro(segments, generation); },
+      offerPausedLessonResume(resume) { record("resume-offer", resume); control.offerPausedLessonResume(resume); },
     };
     const runHandler = loadHook(path.join(app, "features/tutor-session/hooks/turn/useQuestionHandler.ts")).useQuestionHandler as
       typeof import("../../features/tutor-session/hooks/turn/useQuestionHandler").useQuestionHandler;
     const handler = runHandler(lifecycle, observeControl);
     handleRef.current = handler.handleQuestion;
+    const resume: PausedLessonRequest | undefined = mode === "resume-no-ink" ? {
+      boardId, lessonQuestion: question, turnPlan: plan, solverProjection: null,
+      scene: null, figureDrawn: true, codeLesson: false, lessonBoardRows: [], interruptedStep: "The range follows from horizontal motion.",
+    } : undefined;
+    if (resume) control.offerPausedLessonResume(resume);
     let done = false;
-    const turn = handler.handleQuestion(plan === recordedPlan ? projectileQuestion : question).finally(() => { done = true; });
+    const turn = handler.handleQuestion(plan === recordedPlan ? projectileQuestion : question, resume ? { resume } : undefined).finally(() => { done = true; });
     await flush();
     assert.equal(streams.length, 1, `${mode}: planning must reach the real teaching stream`);
     const outputs = () => events.filter((event) => ["enqueue", "enqueue-intro", "playback", "board-command"].includes(event.name));
     assert.equal(outputs().length, 0, "planning/prefetch must not enqueue or play the opening");
     const prefetch = events.find((event) => event.name === "opening-prefetch");
-    assert(prefetch, "the actual opening must be prefetched");
-    assert(events.indexOf(prefetch) < events.findIndex((event) => event.name === "teaching-request"), "opening prefetch must precede the teaching request");
+    if (!resume) {
+      assert(prefetch, "the actual opening must be prefetched");
+      assert(events.indexOf(prefetch) < events.findIndex((event) => event.name === "teaching-request"), "opening prefetch must precede the teaching request");
+    }
     if (mode === "numeric" || mode === "failed-compile" || mode === "recorded-projectile") {
+      assert(prefetch);
       const authority = events.findIndex((event) => event.name === "problem-authority-response");
       assert(authority >= 0 && authority < events.indexOf(prefetch), "source numbers/operators must retain a formulation attempt before teaching");
       if (mode === "numeric") {
@@ -370,7 +380,30 @@ async function scenario(mode: Mode) {
       assert([...timers.values()].some((timer) => timer.at === 15_000), "control-only steps must keep the startup deadline armed");
     }
 
-    if (mode === "control-eof") {
+    if (mode === "resume-no-ink") {
+      content(0, "[STEP]We continue from the horizontal motion without writing anything.[/STEP]");
+      finishStream(0);
+      await flush();
+      assert.equal(streams.length, 2, "a speech-only notebook resume must get its existing corrective ink retry");
+      content(1, "[STEP]The corrective attempt also speaks without a board row.[/STEP]");
+      finishStream(1);
+      await pump(() => done);
+      await turn;
+      assert.equal(outputs().length, 0, "no-ink resumed attempts must not release opening, figure or speech");
+      assert(events.some((event) => event.name === "turn-error"), "a failed no-ink resume must expose an error");
+      assert(events.some((event) => event.name === "resume-offer" && event.data === resume),
+        "failed notebook resumption must restore Continue with the exact original request");
+      let continued: { question: string; options?: HandleQuestionOptions } | undefined;
+      handleRef.current = async (nextQuestion, options) => {
+        continued = { question: nextQuestion, options };
+        lifecycle.turnActiveRef.current = true;
+      };
+      control.flushPausedLesson();
+      await flush();
+      assert.equal(continued?.question, question, "the restored Continue action must still dispatch the paused lecture");
+      assert.equal(continued?.options?.resume, resume, "Continue must retain the board/plan/scene ownership of the original lecture");
+      control.finishLectureUi(lifecycle.turnGenerationRef.current);
+    } else if (mode === "control-eof") {
       content(0, "[STEP][PAUSE:11][/STEP]");
       finishStream(0);
       await pump(() => done);
@@ -465,6 +498,7 @@ async function scenario(mode: Mode) {
         const opening = events.find((event) => event.name === "enqueue" && (event.data as TutorSegment).delivery === "opening");
         assert(opening, "the opening must be enqueued once the real step gate opens");
         const segment = opening.data as TutorSegment;
+        assert(prefetch);
         const fetched = prefetch.data as { text: string; options: { voiceSettings: unknown; traceId: string; sessionId: string } };
         assert.equal(fetched.text, segment.narration);
         assert.equal(fetched.options.sessionId, boardId);
@@ -524,7 +558,7 @@ async function scenario(mode: Mode) {
 async function main() {
   const selected = process.argv[2];
   const failures: string[] = [];
-  const modes: Mode[] = ["ready", "recorded-projectile", "numeric", "failed-compile", "retry", "prefix-stall", "partial-stall", "pause-stall", "pause-prelude", "control-eof", "one-step-stall", "one-step-split-stall", "retry-expires", "stop-before-expiry", "stop-during-retry", "stale-content", "marker-only"];
+  const modes: Mode[] = ["ready", "recorded-projectile", "numeric", "failed-compile", "retry", "prefix-stall", "partial-stall", "pause-stall", "pause-prelude", "control-eof", "one-step-stall", "one-step-split-stall", "resume-no-ink", "retry-expires", "stop-before-expiry", "stop-during-retry", "stale-content", "marker-only"];
   assert(!selected || modes.includes(selected as Mode), `unknown case: ${selected}`);
   for (const mode of modes) {
     if (selected && selected !== mode) continue;
