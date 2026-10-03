@@ -41,9 +41,22 @@ export interface ProblemAuthorityV1Response {
   traceId?: string;
 }
 
+/**
+ * Formulate the question as ProblemIR and solve it deterministically.
+ *
+ * With a turn plan, the model sees only the plan's answer slots (id, symbol,
+ * unit) and law ids. It never sees the plan's givens, derived values, or
+ * arithmetic, so the solver checks the plan instead of echoing it. Measured
+ * 4 Oct 2026: shown the full plan, the model copied a plan answer as `3/2`
+ * instead of formulating the circuit.
+ *
+ * Without a turn plan (`null`), the call can run alongside the turn planner.
+ * The model then names each requested quantity itself, and the caller must
+ * join the result to the plan with `bindProblemIRToTurnPlan` before auditing.
+ */
 export async function planAndSolveProblemV1(
   question: string,
-  turnPlan: TurnPlanV3,
+  turnPlan: TurnPlanV3 | null,
   options: ProblemPlannerV1Options,
 ): Promise<ProblemAuthorityV1Response | null> {
   const startedAt = Date.now();
@@ -78,10 +91,7 @@ export async function planAndSolveProblemV1(
         stream: false,
         messages: [
           { role: "system", content: PROBLEM_IR_V1_PROMPT },
-          {
-            role: "user",
-            content: `SUBMITTED QUESTION\n${question}\n\nVALIDATED TURN PLAN V3\n${JSON.stringify(turnPlan)}`,
-          },
+          { role: "user", content: problemIRUserMessage(question, turnPlan) },
         ],
       }),
     });
@@ -94,6 +104,12 @@ export async function planAndSolveProblemV1(
     const parsed = parseJsonObject(content);
     const normalized = normalizeProblemIRModelOutput(parsed, question, turnPlan);
     const problemValidation = validateProblemIR(normalized, question);
+    if (problemValidation.problem && problemValidation.problem.facts.length === 0) {
+      // `{}` is a refusal, not a formulation; filled-in defaults must not
+      // turn it into an empty "solved" authority.
+      tutorDebug("planner", "ProblemIR v1 returned no grounded facts");
+      return null;
+    }
     if (!problemValidation.problem) {
       tutorDebug("planner", "ProblemIR v1 rejected", {
         issue_codes: problemValidation.issues.map((issue) => issue.code),
@@ -110,12 +126,11 @@ export async function planAndSolveProblemV1(
     );
     const solverValidation = validateSolverResult(solverResult, problemValidation.problem);
     if (!solverValidation.result || solverValidation.result.status !== "solved") return null;
-    const audit = verifyTurnPlanAgainstSolver(
-      problemValidation.problem,
-      solverValidation.result,
-      turnPlan,
-      question,
-    );
+    // Without a plan there is nothing to audit yet. The binding join and the
+    // audit happen once the plan exists; until then no value is authoritative.
+    const audit: SolverAuthorityAudit = turnPlan
+      ? verifyTurnPlanAgainstSolver(problemValidation.problem, solverValidation.result, turnPlan, question)
+      : { status: "incomplete", issues: [{ code: "turn_plan_pending", message: "no turn plan to audit against yet" }], bindings: [] };
     return {
       problemIR: problemValidation.problem,
       solverResult: solverValidation.result,
@@ -147,13 +162,20 @@ export async function planAndSolveProblemV1(
 export function normalizeProblemIRModelOutput(
   raw: unknown,
   question: string,
-  turnPlan: TurnPlanV3,
+  turnPlan: TurnPlanV3 | null | undefined,
 ): unknown {
   if (!isRecord(raw)) return raw;
   const facts = arrayRecords(raw.facts).flatMap((fact) => {
-    const evidence = exactQuestionEvidence(fact.evidence, question);
+    // The compact wire format carries the quote alone; the span is rebuilt
+    // from the question, never trusted from the model.
+    const evidence = exactQuestionEvidence(
+      fact.evidence ?? (typeof fact.quote === "string" ? { quote: fact.quote } : undefined),
+      question,
+    );
     if (!evidence) return [];
-    return [{ ...fact, evidence }];
+    const lifted: Record<string, unknown> = { ...fact, evidence };
+    delete lifted.quote;
+    return [lifted];
   });
   const factIds = recordIds(facts);
   const withEvidence = (record: Record<string, unknown>): Record<string, unknown> | null => {
@@ -163,16 +185,33 @@ export function normalizeProblemIRModelOutput(
 
   const entities = arrayRecords(raw.entities).flatMap((entity) => {
     const normalized = withEvidence(entity);
-    return normalized ? [normalized] : [];
+    if (!normalized) return [];
+    // Entity kind is a routing hint, never a number. A model that names the
+    // part ("resistor", "network") keeps the entity as `other` with that word
+    // as its label instead of failing the whole numeric authority.
+    if (ENTITY_KINDS.has(String(normalized.kind))) return [normalized];
+    return [{
+      ...normalized,
+      kind: "other",
+      ...(typeof normalized.label === "string" || typeof normalized.kind !== "string"
+        ? {}
+        : { label: normalized.kind }),
+    }];
   });
   const entityIds = recordIds(entities);
 
   const expressions = arrayRecords(raw.expressions).flatMap((expression) => {
     const grounded = withEvidence(expression);
     if (!grounded) return [];
-    const root = normalizeExpressionNode(grounded.root);
+    // `expr` is the compact infix form. It is parsed here into the same typed
+    // AST the validator and solver accept; nothing is evaluated from text.
+    const root = typeof grounded.expr === "string"
+      ? parseInfixExpression(grounded.expr)
+      : normalizeExpressionNode(grounded.root);
     if (!root || !isStructurallySafeExpression(root)) return [];
-    return [{ ...grounded, root }];
+    const lifted: Record<string, unknown> = { ...grounded, root };
+    delete lifted.expr;
+    return [lifted];
   });
   const expressionIds = recordIds(expressions);
 
@@ -185,13 +224,14 @@ export function normalizeProblemIRModelOutput(
         ? [grounded]
         : [];
     }
+    if (!RELATION_KINDS.has(String(grounded.kind))) return [];
     const entityRefs = filterIds(grounded.entityIds, entityIds);
     return entityRefs.length >= 2 ? [{ ...grounded, entityIds: entityRefs }] : [];
   });
 
   const representationIntents = arrayRecords(raw.representationIntents).flatMap((intent) => {
     const grounded = withEvidence(intent);
-    if (!grounded) return [];
+    if (!grounded || !INTENT_KINDS.has(String(grounded.kind))) return [];
     const entityIdsForIntent = filterIds(grounded.entityIds, entityIds);
     return entityIdsForIntent.length > 0
       ? [{ ...grounded, entityIds: entityIdsForIntent }]
@@ -205,7 +245,13 @@ export function normalizeProblemIRModelOutput(
 
   return {
     ...raw,
-    question: normalizedQuestionMatches(raw.question, question) ? question : raw.question,
+    // Constant or echoed fields the model need not spend tokens on. A question
+    // that is present must still match; an absent one is the submitted one.
+    schemaVersion: raw.schemaVersion ?? "problem-ir/v1",
+    id: typeof raw.id === "string" && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(raw.id) ? raw.id : "problem",
+    question: raw.question === undefined || normalizedQuestionMatches(raw.question, question)
+      ? question
+      : raw.question,
     facts,
     entities,
     expressions,
@@ -219,7 +265,7 @@ function normalizeSolveRequest(
   request: Record<string, unknown>,
   expressionIds: Set<string>,
   factIds: Set<string>,
-  turnPlan: TurnPlanV3,
+  turnPlan: TurnPlanV3 | null | undefined,
 ): Record<string, unknown> | null {
   if (typeof request.id !== "string") return null;
   const resultBinding = normalizeResultBinding(request.resultBinding, factIds, turnPlan);
@@ -281,10 +327,22 @@ function normalizeSolveRequest(
 function normalizeResultBinding(
   raw: unknown,
   factIds: Set<string>,
-  turnPlan: TurnPlanV3,
+  turnPlan: TurnPlanV3 | null | undefined,
 ): Record<string, unknown> | null {
   if (!isRecord(raw) || typeof raw.turnPlanQuantityId !== "string" || typeof raw.symbol !== "string") {
     return null;
+  }
+  if (!turnPlan) {
+    // Question-alone formulation: the id is the model's own name for the
+    // quantity. `bindProblemIRToTurnPlan` must rename it before any audit.
+    const evidenceFactIds = filterIds(raw.evidenceFactIds, factIds);
+    if (evidenceFactIds.length === 0 || !validVariable(raw.turnPlanQuantityId)) return null;
+    return {
+      turnPlanQuantityId: raw.turnPlanQuantityId,
+      symbol: raw.symbol,
+      ...(typeof raw.unit === "string" && raw.unit.trim() ? { unit: raw.unit } : {}),
+      evidenceFactIds,
+    };
   }
   const unknown = turnPlan.unknowns.find((candidate) => candidate.id === raw.turnPlanQuantityId);
   const derived = turnPlan.derived.find((candidate) => candidate.id === raw.turnPlanQuantityId);
@@ -305,7 +363,11 @@ function normalizeResultBinding(
 }
 
 function exactQuestionEvidence(raw: unknown, question: string): Record<string, unknown> | null {
-  if (!isRecord(raw) || raw.source !== "question" || typeof raw.quote !== "string" || raw.quote === "") {
+  if (typeof raw === "string") raw = { quote: raw };
+  if (
+    !isRecord(raw) || (raw.source !== undefined && raw.source !== "question") ||
+    typeof raw.quote !== "string" || raw.quote === ""
+  ) {
     return null;
   }
   const quote = raw.quote;
@@ -321,7 +383,10 @@ function exactQuestionEvidence(raw: unknown, question: string): Record<string, u
     occurrences.push(index);
     from = index + Math.max(1, quote.length);
   }
-  if (occurrences.length !== 1) return null;
+  // The validator grounds a fact by its quote; the span is advisory. A quote
+  // that repeats ("m/s") is still the question's own text, so it takes the
+  // first occurrence instead of dropping the fact and everything citing it.
+  if (occurrences.length === 0) return null;
   return { source: "question", start: occurrences[0], end: occurrences[0]! + quote.length, quote };
 }
 
@@ -346,13 +411,17 @@ function normalizeExpressionNode(raw: unknown): Record<string, unknown> | null {
     const functionName = typeof raw.function === "string"
       ? raw.function
       : typeof raw.name === "string" ? raw.name : null;
-    const argument = normalizeExpressionNode(raw.argument ?? raw.arg);
+    // Models write a one-argument call as `args: [x]` about as often as
+    // `argument: x`. Any other arity is not a supported call and is dropped.
+    const listed = Array.isArray(raw.args) && raw.args.length === 1 ? raw.args[0] : undefined;
+    const argument = normalizeExpressionNode(raw.argument ?? raw.arg ?? listed);
     if (!functionName) return null;
     if (!argument) return null;
     normalized.function = functionName;
     normalized.argument = argument;
     delete normalized.name;
     delete normalized.arg;
+    delete normalized.args;
   }
   return normalized;
 }
@@ -381,7 +450,7 @@ function collectVariables(raw: unknown, variables: Set<string>): void {
 
 function closedNumericValue(raw: unknown): number | null {
   if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
-  const normalized = normalizeExpressionNode(raw);
+  const normalized = typeof raw === "string" ? parseInfixExpression(raw) : normalizeExpressionNode(raw);
   if (!normalized) return null;
   try {
     const source = expressionToSafeSource(normalized as never);
@@ -461,31 +530,188 @@ function mergeAbortSignals(first: AbortSignal, second: AbortSignal): AbortSignal
   return controller.signal;
 }
 
+/**
+ * Answer slots, not the plan. Values, givens and arithmetic stay out so the
+ * formulation is independent; ids, symbols and units are what a binding needs.
+ */
+export function problemIRUserMessage(question: string, turnPlan: TurnPlanV3 | null): string {
+  if (!turnPlan) {
+    return `SUBMITTED QUESTION\n${question}\n\nANSWER SLOTS\nnone: name each requested numeric quantity yourself`;
+  }
+  const slots = turnPlan.unknowns.map((unknown) => ({
+    id: unknown.id,
+    symbol: unknown.symbol,
+    ...(unknown.unit ? { unit: unknown.unit } : {}),
+  }));
+  return `SUBMITTED QUESTION\n${question}\n\nANSWER SLOTS\n${JSON.stringify(slots)}` +
+    (turnPlan.lawIds.length > 0 ? `\n\nLAWS\n${turnPlan.lawIds.join(", ")}` : "");
+}
+
+/**
+ * Join a question-alone ProblemIR to a turn plan that finished afterwards.
+ *
+ * A binding is renamed to a plan unknown only when its normalized symbol and
+ * unit match exactly one unknown and no other binding claims that unknown.
+ * Anything ambiguous loses its binding, which audits as `incomplete` (an
+ * absent second opinion), never as a contradiction.
+ */
+export function bindProblemIRToTurnPlan(problem: ProblemIR, turnPlan: TurnPlanV3): ProblemIR {
+  const matches = new Map<string, string[]>();
+  for (const request of problem.solveRequests) {
+    const binding = request.resultBinding;
+    if (!binding) continue;
+    const unknownIds = turnPlan.unknowns
+      .filter((unknown) =>
+        normalizeToken(unknown.symbol) === normalizeToken(binding.symbol) &&
+        normalizeUnitToken(unknown.unit) === normalizeUnitToken(binding.unit))
+      .map((unknown) => unknown.id);
+    matches.set(request.id, unknownIds);
+  }
+  const claims = new Map<string, number>();
+  for (const unknownIds of matches.values()) {
+    if (unknownIds.length === 1) claims.set(unknownIds[0]!, (claims.get(unknownIds[0]!) ?? 0) + 1);
+  }
+  return {
+    ...problem,
+    solveRequests: problem.solveRequests.map((request) => {
+      if (!request.resultBinding) return request;
+      const unknownIds = matches.get(request.id) ?? [];
+      const { resultBinding, ...rest } = request;
+      if (unknownIds.length !== 1 || claims.get(unknownIds[0]!) !== 1) return rest as typeof request;
+      const unknown = turnPlan.unknowns.find((candidate) => candidate.id === unknownIds[0])!;
+      return {
+        ...request,
+        resultBinding: {
+          ...resultBinding,
+          turnPlanQuantityId: unknown.id,
+          symbol: unknown.symbol,
+          ...(unknown.unit ? { unit: unknown.unit } : {}),
+        },
+      };
+    }),
+  };
+}
+
+const ENTITY_KINDS = new Set(["point", "line", "curve", "region", "body", "solid", "component", "field", "state", "other"]);
+const INTENT_KINDS = new Set(["graph", "bounded_region", "section", "solid", "network", "apparatus", "free_body", "field", "conceptual"]);
+const RELATION_KINDS = new Set(["incident", "parallel", "perpendicular", "tangent", "inside", "connected", "symmetric"]);
+const INFIX_FUNCTIONS = new Set(["sin", "cos", "tan", "asin", "acos", "atan", "sqrt", "abs", "exp", "log", "ln"]);
+const MAX_INFIX_LENGTH = 256;
+const MAX_INFIX_DEPTH = 48;
+
+type InfixToken =
+  | { kind: "number"; value: number }
+  | { kind: "name"; value: string }
+  | { kind: "op"; value: "+" | "-" | "*" | "/" | "^" | "(" | ")" };
+
+/**
+ * Parse the compact infix form into ProblemIR's typed AST. The grammar is the
+ * AST's own: numbers, pi, e, identifiers, + - * / ^, parentheses and the
+ * whitelisted one-argument functions. Multiplication must be explicit. Any
+ * other character, or anything left over, rejects the whole expression.
+ */
+export function parseInfixExpression(source: string): Record<string, unknown> | null {
+  if (typeof source !== "string" || source.trim() === "" || source.length > MAX_INFIX_LENGTH) return null;
+  const tokens: InfixToken[] = [];
+  const pattern = /\s*(?:(\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)|([A-Za-z][A-Za-z0-9_]*)|([-+*/^()]))/y;
+  let index = 0;
+  while (index < source.length) {
+    if (/^\s*$/.test(source.slice(index))) break;
+    pattern.lastIndex = index;
+    const match = pattern.exec(source);
+    if (!match) return null;
+    index = pattern.lastIndex;
+    if (match[1] !== undefined) tokens.push({ kind: "number", value: Number(match[1]) });
+    else if (match[2] !== undefined) tokens.push({ kind: "name", value: match[2] });
+    else tokens.push({ kind: "op", value: match[3] as "+" });
+  }
+  let position = 0;
+  const peekOp = (value: string) => {
+    const token = tokens[position];
+    return token?.kind === "op" && token.value === value;
+  };
+  const expression = (depth: number): Record<string, unknown> => {
+    if (depth > MAX_INFIX_DEPTH) throw new Error("too deep");
+    let left = term(depth + 1);
+    while (peekOp("+") || peekOp("-")) {
+      const operator = (tokens[position++] as { value: string }).value;
+      left = { kind: "binary", operator, left, right: term(depth + 1) };
+    }
+    return left;
+  };
+  const term = (depth: number): Record<string, unknown> => {
+    let left = unary(depth + 1);
+    while (peekOp("*") || peekOp("/")) {
+      const operator = (tokens[position++] as { value: string }).value;
+      left = { kind: "binary", operator, left, right: unary(depth + 1) };
+    }
+    return left;
+  };
+  const unary = (depth: number): Record<string, unknown> => {
+    if (depth > MAX_INFIX_DEPTH) throw new Error("too deep");
+    if (peekOp("+") || peekOp("-")) {
+      const operator = (tokens[position++] as { value: string }).value;
+      return { kind: "unary", operator, operand: unary(depth + 1) };
+    }
+    return power(depth + 1);
+  };
+  const power = (depth: number): Record<string, unknown> => {
+    const base = primary(depth + 1);
+    if (!peekOp("^")) return base;
+    position += 1;
+    return { kind: "binary", operator: "^", left: base, right: unary(depth + 1) };
+  };
+  const primary = (depth: number): Record<string, unknown> => {
+    const token = tokens[position++];
+    if (!token) throw new Error("unexpected end");
+    if (token.kind === "number") {
+      if (!Number.isFinite(token.value)) throw new Error("invalid number");
+      return { kind: "number", value: token.value };
+    }
+    if (token.kind === "name") {
+      if (peekOp("(")) {
+        if (!INFIX_FUNCTIONS.has(token.value)) throw new Error("unsupported function");
+        position += 1;
+        const argument = expression(depth + 1);
+        if (!peekOp(")")) throw new Error("missing )");
+        position += 1;
+        return { kind: "call", function: token.value, argument };
+      }
+      if (INFIX_FUNCTIONS.has(token.value)) throw new Error("function without argument");
+      if (token.value === "pi" || token.value === "e") return { kind: "constant", name: token.value };
+      return { kind: "variable", name: token.value };
+    }
+    if (token.value === "(") {
+      const inner = expression(depth + 1);
+      if (!peekOp(")")) throw new Error("missing )");
+      position += 1;
+      return inner;
+    }
+    throw new Error("unexpected operator");
+  };
+  try {
+    const root = expression(0);
+    return position === tokens.length ? root : null;
+  } catch {
+    return null;
+  }
+}
+
 const PROBLEM_IR_V1_PROMPT = `You are the topic-neutral formulation planner for a verified teaching engine.
-Return exactly one JSON object matching problem-ir/v1. Never return prose or markdown.
+Formulate the SUBMITTED QUESTION yourself and return one minified JSON object on a single line. No prose, markdown, indentation or line breaks.
 
-Use only facts grounded by exact character spans from SUBMITTED QUESTION. Copy the submitted question exactly into question.
-Represent mathematics as the typed AST; never emit code, executable strings, pixels, or drawing commands.
-Allowed AST nodes: number, constant(pi|e), variable, unary(+|-), binary(+|-|*|/|^), call(sin|cos|tan|asin|acos|atan|sqrt|abs|exp|log|ln).
-Allowed solve requests: evaluate, roots, intersections, definite_integral.
-Use evaluate for any requested scalar that can be written as a closed numeric AST after substituting the givens.
-Do not invent a solve request for a law or assumption not justified by the submitted question and validated TurnPlan.
-For mensuration, represent each source shape and part as solid (3D) or region (2D), and include solid/section or bounded_region representation intent. Ground the join or cavity in source facts; a scalar answer still needs its spatial setup.
+Shape (every array required, may be empty):
+{"facts":[{"id":"fSpeed","kind":"given|requested|assumption","statement":"at most 10 words","quote":"exact substring of the question"}],"entities":[{"id":"ball","kind":"point|line|curve|region|body|solid|component|field|state|other","label":"optional","evidenceFactIds":["fSpeed"]}],"expressions":[{"id":"eTime","valueType":"scalar|function","expr":"2*20*sin(30*pi/180)/10","evidenceFactIds":["fSpeed"]}],"constraints":[],"representationIntents":[{"id":"iPath","kind":"graph|bounded_region|section|solid|network|apparatus|free_body|field|conceptual","entityIds":["ball"],"evidenceFactIds":["fSpeed"]}],"solveRequests":[{"id":"sTime","kind":"evaluate","expressionId":"eTime","resultBinding":{"turnPlanQuantityId":"T","symbol":"T","unit":"s","evidenceFactIds":["fTime"]}}]}
 
-Every solve request that computes a numeric TurnPlan unknown MUST include resultBinding:
-{ "turnPlanQuantityId": exact unknown id, "symbol": exact unknown symbol, "unit": exact unknown unit when present, "evidenceFactIds": [requested fact ids] }.
-Do not infer or rename TurnPlan ids. Intermediary roots/intersections used only for a representation may omit resultBinding.
-All fact/entity/expression/constraint/intent/request ids are short alphanumeric identifiers beginning with a letter or underscore-free camelCase.
+Entity kind is exactly one of point line curve region body solid component field state other (a circuit part is component). network and apparatus are representation intent kinds, not entity kinds.
+Facts: one per stated value, condition, or requested result. quote is copied character for character from the question. Use only values the question states; never use pixels, drawing commands or code.
+expr: numbers, pi, e, at most one variable, + - * / ^, parentheses, and sin cos tan asin acos atan sqrt abs exp ln. Always write * explicitly. Trig takes radians, so 30 degrees is 30*pi/180. log and ln both mean natural log.
+Constraints: {"id","kind":"equation|inequality","leftExpressionId","rightExpressionId","relation":"< <= > >= (inequality only)","evidenceFactIds"} or {"id","kind":"incident|parallel|perpendicular|tangent|inside|connected|symmetric","entityIds":[two or more],"evidenceFactIds"}.
+Solve requests: evaluate {expressionId}; roots {expressionId,variable,domain:{"min","max"}}; intersections {leftExpressionId,rightExpressionId,variable,domain}; definite_integral {expressionId,variable,lower,upper}.
 
-Required root fields:
-{
-  "schemaVersion":"problem-ir/v1",
-  "id":"shortId",
-  "question":"exact submitted question",
-  "facts":[{"id":"...","kind":"given|requested|assumption","statement":"...","evidence":{"source":"question","start":0,"end":1,"quote":"exact substring"}}],
-  "entities":[{"id":"...","kind":"point|line|curve|region|body|solid|component|field|state|other","label":"optional","evidenceFactIds":["..."]}],
-  "expressions":[{"id":"...","valueType":"scalar|function","root":{"kind":"number","value":1},"evidenceFactIds":["..."]}],
-  "constraints":[],
-  "representationIntents":[{"id":"...","kind":"graph|bounded_region|section|solid|network|apparatus|free_body|field|conceptual","entityIds":["..."],"evidenceFactIds":["..."]}],
-  "solveRequests":[]
-}`;
+For each requested numeric result, work out the governing law yourself and write one evaluate expr with every given value substituted, using the complete formula (every factor, angle term and sign). Emit expressions only when a solve request or constraint uses them; never one per given value.
+If the givens are symbols rather than numbers, emit no solve requests; still return facts, entities and representation intents.
+For mensuration, represent each source shape and part as solid (3D) or region (2D), and include solid/section or bounded_region representation intent. Ground the join or cavity in source facts.
+
+Every solve request that computes an ANSWER SLOT must carry resultBinding with that slot's exact id, symbol and unit (omit unit when the slot has none), and evidenceFactIds naming the requested fact. Never rename a slot. When ANSWER SLOTS says none, choose a short id, the conventional symbol and the SI unit yourself.
+All ids are short alphanumeric camelCase identifiers beginning with a letter.`;
