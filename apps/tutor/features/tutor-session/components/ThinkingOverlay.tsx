@@ -7,6 +7,9 @@ import { PendingSketch } from "./PendingSketch";
 import { BOARD_HEIGHT, BOARD_WIDTH } from "../constants";
 
 interface ThinkingOverlayProps {
+  paused?: boolean;
+  onResume?: () => void;
+  onEnableAudio?: (() => void) | null;
   /** Marker colour the clicker writes in. */
   ink?: string;
   /**
@@ -30,7 +33,27 @@ interface ThinkingOverlayProps {
  * The board stays paper; the clicker is the wait. The short line under it
  * names that wait, so a long plan is not a dead board.
  */
-export function ThinkingOverlay({ ink = "#1B2A4A", onBoardAt = null, scale }: ThinkingOverlayProps) {
+export function ThinkingOverlay({ ink = "#1B2A4A", onBoardAt = null, scale, paused = false, onResume, onEnableAudio }: ThinkingOverlayProps) {
+  if (paused || onEnableAudio) {
+    return (
+      <div
+        className={`${onBoardAt ? "" : "wb-pending "}pointer-events-none absolute inset-0 z-20 flex items-center justify-center`}
+      >
+        <div className="pointer-events-auto rounded-2xl border border-current/10 bg-[var(--wb-paper)] px-6 py-5 text-center shadow-sm" style={{ color: ink }}>
+          <p role="status" className="type-accent-s">
+            {paused ? "Lecture paused" : "Audio needs your permission"}
+          </p>
+          <button
+            type="button"
+            className="mt-3 min-h-11 rounded-full border border-current/20 px-5 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+            onClick={paused ? onResume : onEnableAudio ?? undefined}
+          >
+            {paused ? "Resume" : "Tap to enable audio"}
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (onBoardAt) {
     return (
       <div

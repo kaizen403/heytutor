@@ -385,6 +385,7 @@ export class StreamingSpeechClient implements TTSClient {
   private cancelHtmlAudio: (() => void) | null = null;
   private failHtmlAudio: ((error: unknown) => void) | null = null;
   private muted = false;
+  private playbackBlockedCallback: SpeakSegmentOptions["onPlaybackBlocked"];
   private voicePreferences: TutorVoicePreferences = { ...DEFAULT_VOICE_PREFERENCES };
 
   private jobs: SegmentJob[] = [];
@@ -613,6 +614,7 @@ export class StreamingSpeechClient implements TTSClient {
   }
 
   private stopActiveAudio(reason: string, options?: { preserveHttp?: boolean }): void {
+    this.playbackBlockedCallback?.(null);
     if (!options?.preserveHttp) {
       this.abortHttpStream(reason);
     }
@@ -643,6 +645,7 @@ export class StreamingSpeechClient implements TTSClient {
     options: SpeakSegmentOptions,
     generation = this.speakGeneration,
   ): Promise<void> {
+    options.onPlaybackBlocked?.(null);
     const rate = browserFallbackPlaybackRate(this.playbackRate);
     this.activeBrowserFallbackRate = rate;
     this.speechFallback.setPlaybackRate(rate);
@@ -729,12 +732,17 @@ export class StreamingSpeechClient implements TTSClient {
       onError: (error) => { if (this.speakGeneration === generation) callbacks.onError?.(error); },
       onTimings: (timings) => { if (this.speakGeneration === generation) callbacks.onTimings?.(timings); },
       onAudioCaptured: (audio) => { if (this.speakGeneration === generation) callbacks.onAudioCaptured?.(audio); },
+      onPlaybackBlocked: callbacks.onPlaybackBlocked ? (blocked) => {
+        if (this.speakGeneration === generation && (!blocked || (!this.paused && !this.muted && !this.halted))) {
+          callbacks.onPlaybackBlocked?.(blocked);
+        }
+      } : undefined,
     };
-
     if (spokenText.length === 0) {
       options.onEnd?.();
       return;
     }
+    this.playbackBlockedCallback = options.onPlaybackBlocked;
 
     try {
     // Pause must silence immediately and must not start a fallback voice.
@@ -905,6 +913,11 @@ export class StreamingSpeechClient implements TTSClient {
         return;
       }
       throw error;
+    } finally {
+      if (this.playbackBlockedCallback === options.onPlaybackBlocked) {
+        options.onPlaybackBlocked?.(null);
+        this.playbackBlockedCallback = undefined;
+      }
     }
   }
 
@@ -913,6 +926,8 @@ export class StreamingSpeechClient implements TTSClient {
    * Clears audio sources and rejects queued jobs so the segment runner can continue.
    */
   abandonSpeaking(): void {
+    this.playbackBlockedCallback?.(null);
+    this.playbackBlockedCallback = undefined;
     this.speakGeneration += 1;
     this.clearTimers();
     this.detachStreamHandler();
@@ -2199,6 +2214,7 @@ export class StreamingSpeechClient implements TTSClient {
     applyHtmlAudioMute(audio, this.muted);
     this.stopHtmlAudio();
     this.currentHtmlAudio = audio;
+    const playbackBlockedCallback = this.playbackBlockedCallback;
     return new Promise<void>((resolve, reject) => {
       let settled = false;
       let announced = false;
@@ -2213,11 +2229,13 @@ export class StreamingSpeechClient implements TTSClient {
         if (announced) return;
         announced = true;
         onStart?.();
+        playbackBlockedCallback?.(null);
       };
       this.currentHtmlOnStart = announceStart;
       const finish = (error?: unknown) => {
         if (settled) return;
         settled = true;
+        playbackBlockedCallback?.(null);
         audio.onended = null;
         audio.onerror = null;
         audio.onplaying = null;
@@ -2247,9 +2265,11 @@ export class StreamingSpeechClient implements TTSClient {
           // A pause while the clip is still loading rejects play() with
           // AbortError. The same clip is resumed later; it has not ended.
           if (this.currentHtmlAudio === audio && this.pauseEpoch !== playPauseEpoch) return;
+          if (!settled && this.holdBlockedHtmlAudio(error, audio)) return;
           finish(error instanceof Error ? error : new Error(String(error)));
         });
       } catch (error) {
+        if (this.holdBlockedHtmlAudio(error, audio)) return;
         finish(error instanceof Error ? error : new Error(String(error)));
       }
     });
@@ -2277,12 +2297,20 @@ export class StreamingSpeechClient implements TTSClient {
     this.audioContext = this.audioContext ?? createLectureAudioContext();
 
     if (resume && this.audioContext.state === "suspended" && !this.paused) {
+      const blockedCallback = this.playbackBlockedCallback;
+      const generation = this.speakGeneration;
+      const pauseEpoch = this.pauseEpoch;
       try {
         await this.audioContext.resume();
       } catch (error) {
         tutorDebug("tts", "AudioContext resume failed", {
           error: error instanceof Error ? error.message : String(error),
         });
+      }
+      const afterResume = this.getAudioContextState();
+      if (this.speakGeneration === generation && this.pauseEpoch === pauseEpoch && this.playbackBlockedCallback === blockedCallback &&
+        (afterResume === "suspended" || afterResume === "interrupted")) {
+        this.reportPlaybackBlocked(afterResume === "suspended" ? "context-suspended" : "context-interrupted");
       }
     }
 
@@ -2299,6 +2327,23 @@ export class StreamingSpeechClient implements TTSClient {
     }
 
     return this.audioContext;
+  }
+
+  getAudioContextState(): AudioContextState | "interrupted" | null {
+    return this.audioContext?.state ?? null;
+  }
+
+  private holdBlockedHtmlAudio(error: unknown, audio: HTMLAudioElement): boolean {
+    if (this.currentHtmlAudio !== audio || !this.playbackBlockedCallback || this.paused || this.muted || this.halted ||
+      !(error instanceof Error) || error.name !== "NotAllowedError") return false;
+    this.reportPlaybackBlocked("not-allowed");
+    return true;
+  }
+
+  private reportPlaybackBlocked(reason: "context-suspended" | "context-interrupted" | "not-allowed"): void {
+    if (this.paused || this.muted || this.halted) return;
+    if (reason !== "not-allowed" && typeof Audio === "function" && this.activeSources.length === 0) return;
+    this.playbackBlockedCallback?.({ reason, audioContextState: this.getAudioContextState() });
   }
 
   pause(): void {
@@ -2332,12 +2377,27 @@ export class StreamingSpeechClient implements TTSClient {
         },
         (error: unknown) => {
           if (this.speakGeneration === generation && this.currentHtmlAudio === htmlAudio && this.pauseEpoch === playPauseEpoch) {
+            if (this.holdBlockedHtmlAudio(error, htmlAudio)) return;
             onFailure?.(error);
           }
         },
       );
     }
-    void this.audioContext?.resume();
+    const ctx = this.audioContext;
+    const generation = this.speakGeneration;
+    const pauseEpoch = this.pauseEpoch;
+    const blockedCallback = this.playbackBlockedCallback;
+    if (ctx) {
+      const reportIfBlocked = () => {
+        if (this.audioContext !== ctx || this.speakGeneration !== generation || this.pauseEpoch !== pauseEpoch ||
+          this.playbackBlockedCallback !== blockedCallback) return;
+        const state = this.getAudioContextState();
+        if (state === "suspended" || state === "interrupted") {
+          this.reportPlaybackBlocked(state === "suspended" ? "context-suspended" : "context-interrupted");
+        }
+      };
+      void ctx.resume().then(reportIfBlocked, reportIfBlocked);
+    }
     this.speechFallback.resume();
     const job = this.currentJob;
     if (job && !job.settled) {
@@ -2366,6 +2426,8 @@ export class StreamingSpeechClient implements TTSClient {
   }
 
   stop(): void {
+    this.playbackBlockedCallback?.(null);
+    this.playbackBlockedCallback = undefined;
     this.halted = true;
     this.speakGeneration += 1;
     this.clearTimers();

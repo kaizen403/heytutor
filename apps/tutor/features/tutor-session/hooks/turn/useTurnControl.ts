@@ -36,7 +36,7 @@ import {
 import { pausedLessonFromLive, type PausedLessonRequest } from "../../lib/turn/doubtTurn";
 import { useSegmentRunner } from "./useSegmentRunner";
 import type { TutorPhase } from "../../types";
-import type { HandleQuestionOptions, TurnControlApi, UseTurnLifecycleParams } from "./types";
+import type { HandleQuestionOptions, TurnControlApi, TurnPauseSource, UseTurnLifecycleParams } from "./types";
 
 export const EMPTY_AI_RESPONSE_MESSAGE = "the tutor did not answer. try asking again.";
 
@@ -71,6 +71,7 @@ export function useTurnControl(
     replaceAutoQuestionUrl = false,
     enableKeyboardControls = true,
     onError,
+    onSpeechStartupStatus,
     phase,
     isReplaying,
     boardLoaded,
@@ -135,6 +136,7 @@ export function useTurnControl(
       return;
     }
     turnActiveRef.current = false;
+    if (typeof onSpeechStartupStatus === "function") onSpeechStartupStatus(null);
     isPausedRef.current = false;
     setIsPaused(false);
     whiteboardRef.current?.setPaused(false);
@@ -160,6 +162,7 @@ export function useTurnControl(
     setCurrentSegmentText,
     setInputInteracted,
     phaseRef,
+    onSpeechStartupStatus,
   ]);
 
   const applyTurnPhase = useCallback(
@@ -677,6 +680,7 @@ export function useTurnControl(
   const [pausedLessonOfferBoardId, setPausedLessonOfferBoardId] = useState<string | null>(null);
 
   const stopTurn = useCallback((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => {
+    if (typeof onSpeechStartupStatus === "function") onSpeechStartupStatus(null);
     // Stop invalidates generation and releases the queue immediately. Remove
     // this intro's completed epoch contribution before a successor can append;
     // a doubt explicitly retains the visible intro and its completed narration.
@@ -807,6 +811,7 @@ export function useTurnControl(
     setIsReplaying,
     setReplayProgressMs,
     setReplayTotalMs,
+    onSpeechStartupStatus,
   ]);
 
   useEffect(() => {
@@ -823,8 +828,8 @@ export function useTurnControl(
     };
   }, [stopTurnRef]);
 
-  const pauseTurn = useCallback(() => {
-    if (phase === "idle" || isPausedRef.current) {
+  const pauseTurn = useCallback((source: TurnPauseSource = "control") => {
+    if (phaseRef.current === "idle" || isPausedRef.current) {
       return;
     }
 
@@ -837,11 +842,14 @@ export function useTurnControl(
     whiteboardRef.current?.setPaused(true);
     tutorDebug("turn", "paused");
     turnTelemetryRef.current?.mark("turn-paused", {
+      source: source === "keyboard" || source === "doubt-composer" || source === "marking" || source === "rewind"
+        ? source : "control",
       phase: phaseRef.current,
       turn_generation: turnGenerationRef.current,
       pending_segment_count: pendingSegmentCountRef.current,
+      audio_context_state: ttsClientRef.current?.getAudioContextState?.() ?? null,
     });
-  }, [phase, phaseRef, isPausedRef, replayDrawClockRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef, pauseFallbackSpeech, turnTelemetryRef, turnGenerationRef, pendingSegmentCountRef]);
+  }, [phaseRef, isPausedRef, replayDrawClockRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef, pauseFallbackSpeech, turnTelemetryRef, turnGenerationRef, pendingSegmentCountRef]);
 
   const resumeTurn = useCallback(() => {
     if (!isPausedRef.current) {
@@ -865,6 +873,7 @@ export function useTurnControl(
       phase: phaseRef.current,
       turn_generation: turnGenerationRef.current,
       pending_segment_count: pendingSegmentCountRef.current,
+      audio_context_state: ttsClientRef.current?.getAudioContextState?.() ?? null,
     });
   }, [phaseRef, isPausedRef, rewoundRef, replayDrawClockRef, setIsPaused, ttsClientRef, replayAudioRef, whiteboardRef, resumeFallbackSpeech, turnTelemetryRef, turnGenerationRef, pendingSegmentCountRef]);
 
@@ -883,6 +892,7 @@ export function useTurnControl(
       ) {
         return;
       }
+      if (event.key === " " && target instanceof HTMLElement && target.closest("button, [role='button']")) return;
 
       // While the student is in the past, the rewind overlay owns these keys.
       if (rewoundRef?.current) {
@@ -902,7 +912,7 @@ export function useTurnControl(
       if (isPausedRef.current) {
         resumeTurn();
       } else {
-        pauseTurn();
+        pauseTurn("keyboard");
       }
     };
 

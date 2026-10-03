@@ -11,12 +11,16 @@ import {
   sourceMensurationStructure,
   tierForForeignDocument,
   validateSceneDocument,
+  validateSceneQuantityAgreement,
+  validateTurnPlanSceneProofs,
+  validateTurnPlanV3,
   type ProblemStructureView,
   type RenderScene,
   type SceneDocument,
   type TurnPlanV3,
   type ValidationReport,
 } from "@heytutor/scene-engine";
+import { isQuotedPhysicalConstant, questionStatesValue } from "@heytutor/tutor-core";
 
 export type RepresentationTier =
   | "exact_verified"
@@ -101,6 +105,41 @@ const RELATION_PREDICATES = [
   "congruent",
   "incident",
 ] as const;
+
+export function selectFastVerifiedRepresentation(
+  input: RepresentationSelectionInput,
+): SelectedRepresentation | null {
+  const plan = validateTurnPlanV3(input.turnPlan, input.question).plan;
+  if (!plan || plan.visualRequirement === "none") return null;
+  if (plan.givens.some((given) => !questionStatesValue(input.question, given.value) &&
+      !isQuotedPhysicalConstant(given.symbol, given.value))) return null;
+  const result = synthesizeFamilyScene({
+    question: input.question,
+    turnPlan: plan,
+    families: input.families,
+    problemIR: input.problemIR ?? null,
+  });
+  if (!result?.validationReport.valid || result.tier === "question_representation" ||
+      !result.renderScene.primitives.some((primitive) =>
+        (primitive.kind === "label" || primitive.kind === "dimension") && primitive.text?.trim())) return null;
+  if (result.tier !== "exact_verified" && (plan.givens.length > 0 ||
+      plan.derived.some((quantity) => !questionStatesValue(input.question, quantity.value)))) return null;
+  const agreement = validateSceneQuantityAgreement(result.document.quantities, plan,
+    result.renderScene.primitives.flatMap((primitive) =>
+      (primitive.kind === "label" || primitive.kind === "dimension") && typeof primitive.text === "string"
+        ? [primitive.text] : []));
+  if (agreement.length > 0 || (result.tier === "exact_verified" &&
+      validateTurnPlanSceneProofs(result.document, plan).some((issue) => issue.severity === "fatal"))) return null;
+  return {
+    tier: result.tier,
+    nonMetric: result.nonMetric,
+    sceneDocument: result.document,
+    renderScene: result.renderScene,
+    validationReport: result.validationReport,
+    reason: result.reason,
+    family: result.family,
+  };
+}
 
 /**
  * Select the highest-confidence representation without changing the exact

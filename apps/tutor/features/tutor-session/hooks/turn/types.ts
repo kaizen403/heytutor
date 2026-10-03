@@ -3,7 +3,7 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
-import type { ConversationExchange, InkPace, TTSClient } from "@heytutor/tutor-core";
+import type { ConversationExchange, InkPace, SpeakSegmentOptions, TTSClient } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { RecordedSegmentPayload, StoredTurn } from "@/lib/boards/boardsClient";
 import type { BoardEntry } from "@/lib/boards/types";
@@ -22,6 +22,15 @@ export type HandleQuestionOptions = {
   doubt?: DoubtTurnRequest;
   /** The rest of a lesson a mid-lesson doubt just paused. */
   resume?: PausedLessonRequest;
+};
+
+export type TurnPauseSource = "control" | "keyboard" | "doubt-composer" | "marking" | "rewind";
+
+export type SpeechStartupStatus = {
+  turnGeneration: number;
+  segmentIndex: number;
+  blocked: NonNullable<Parameters<NonNullable<SpeakSegmentOptions["onPlaybackBlocked"]>>[0]>;
+  enableAudio: () => void;
 };
 
 export type ExecuteCommandOptions = {
@@ -84,6 +93,7 @@ export type UseTurnLifecycleParams = {
   enableKeyboardControls?: boolean;
   onComplete?: () => void;
   onError?: (error: { message: string; question: string; billing?: BillingFailure }) => void;
+  onSpeechStartupStatus?: (status: SpeechStartupStatus | null) => void;
   phase: TutorPhase;
   isReplaying: boolean;
   boardLoaded: boolean;
@@ -227,6 +237,7 @@ export type UseSegmentRunnerParams = Pick<
   | "narrationDensityRef"
   | "drawChainRef"
   | "reserveTextCommandPlacements"
+  | "onSpeechStartupStatus"
 > & {
   applyTurnPhase: (next: TutorPhase) => void;
 };
@@ -254,7 +265,7 @@ export type TurnControlApi = {
     },
   ) => Promise<void>;
   stopTurn: (options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => void;
-  pauseTurn: () => void;
+  pauseTurn: (source?: TurnPauseSource) => void;
   resumeTurn: () => void;
   /**
    * After a mid-lesson doubt finishes, continue the paused lecture on this
