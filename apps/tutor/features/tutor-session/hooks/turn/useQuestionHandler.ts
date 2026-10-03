@@ -11,6 +11,8 @@ import {
 } from "@heytutor/drawing";
 import {
   streamLLMResponse,
+  TEACHING_HEDGE_AFTER_MS,
+  type TeachingAttemptKind,
   compactConversationHistory,
   tutorDebug,
   resolveApiUrl,
@@ -215,6 +217,14 @@ export async function awaitCurrentTurn<T>(
 
 /** A queued Ask older than this is not the click that started the turn. */
 const QUEUED_ASK_TTL_MS = 60_000;
+
+/**
+ * Race a silent first teaching request with a reasoning-off copy. Off unless
+ * NEXT_PUBLIC_TEACHING_HEDGE=1: a hedge spends a second paid teaching call,
+ * and the per-turn call cap and billing for the losing request are owner
+ * decisions.
+ */
+export const TEACHING_HEDGE_ENABLED = process.env.NEXT_PUBLIC_TEACHING_HEDGE === "1";
 
 export function useQuestionHandler(
   params: UseTurnLifecycleParams,
@@ -2056,6 +2066,14 @@ export function useQuestionHandler(
         let bufferedSegment: TutorSegment | null = null;
         let usableTeachingStepReceived = false;
         let startupControlSegments: TutorSegment[] = [];
+        // Startup telemetry, measured from the turn's first teaching request
+        // so a hedge or a retry shows up as the wait the student actually had.
+        let teachingRequestStartedAt: number | null = null;
+        let teachingAttempt: TeachingAttemptKind = "primary";
+        let teachingFirstTokenMarked = false;
+        let teachingFirstStepMarked = false;
+        const msSinceTeachingRequest = () =>
+          teachingRequestStartedAt === null ? null : Math.round(performance.now() - teachingRequestStartedAt);
         // One conductor for the whole turn: block order and the placement of
         // frame advances have to carry across streamed segments, so this
         // cannot be recreated per flush.
@@ -2151,6 +2169,10 @@ export function useQuestionHandler(
             });
           }
           bufferedSegment = null;
+          if (usableTeachingStepReceived && !teachingFirstStepMarked) {
+            teachingFirstStepMarked = true;
+            tel.mark("teaching-first-step", { ms_since_request: msSinceTeachingRequest(), attempt: teachingAttempt });
+          }
         };
 
         let markup = codeLesson ? null : new LectureMarkupBuffer();
@@ -2190,6 +2212,11 @@ export function useQuestionHandler(
 
         while (canStreamResumeRepair(continueCount, MAX_LLM_CONTINUATIONS, resumeInkRetry)) {
           const isContinuation = continueCount > 0 && !reasoningOnlyRetry;
+          // Only the turn's first teaching request is hedged. Continuations,
+          // the startup retry and resumed lectures keep a single request.
+          const hedgeThisRequest = TEACHING_HEDGE_ENABLED &&
+            continueCount === 0 && !reasoningOnlyRetry && !resumeInkRetry && !resume;
+          teachingAttempt = "primary";
           const streamResult = await streamLLMResponse(
             {
               systemPrompt: isContinuation
@@ -2246,6 +2273,20 @@ export function useQuestionHandler(
               // The retry after a reasoning-only response must speak.
               noReasoning: reasoningOnlyRetry,
               hasUsableContent: STREAM_SEGMENTS_LIVE ? () => usableTeachingStepReceived : undefined,
+              // A silent first request is raced by a reasoning-off copy; the
+              // first to speak wins and only its words reach the parser.
+              hedge: hedgeThisRequest ? { afterMs: TEACHING_HEDGE_AFTER_MS } : undefined,
+              onRequestStart: ({ attempt, startedAt }) => {
+                teachingRequestStartedAt ??= startedAt;
+                tel.mark("teaching-request", { attempt });
+              },
+              onHedgeStart: ({ afterMs }) => {
+                tel.mark("teaching-hedge-start", { after_ms: afterMs });
+              },
+              onHedgeWinner: ({ winner, firstContentTokenMs }) => {
+                teachingAttempt = winner;
+                tel.mark("teaching-hedge-winner", { winner, first_content_token_ms: firstContentTokenMs });
+              },
               signal: abortController.signal,
               onTraceId: (id) => {
                 currentTraceIdRef.current = id;
@@ -2257,6 +2298,10 @@ export function useQuestionHandler(
                 return;
               }
               endThinking({ phase: "first_token", delta_chars: delta.length });
+              if (!teachingFirstTokenMarked) {
+                teachingFirstTokenMarked = true;
+                tel.mark("teaching-first-token", { ms_since_request: msSinceTeachingRequest(), attempt: teachingAttempt });
+              }
               if (delta.includes("[")) {
                 tutorDebug("parser", "draw tag delta", {
                   delta_chars: delta.length,
