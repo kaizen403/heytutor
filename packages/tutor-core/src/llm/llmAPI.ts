@@ -56,7 +56,7 @@ export interface StreamLLMResponseParams {
   /** The hedge request is about to open. `afterMs` is measured from the first request. */
   onHedgeStart?: (event: { afterMs: number }) => void;
   /** A hedge was opened and a request has now won. Not called when no hedge opened. */
-  onHedgeWinner?: (event: { winner: TeachingAttemptKind; ttftContentMs: number }) => void;
+  onHedgeWinner?: (event: { winner: TeachingAttemptKind; firstContentTokenMs: number }) => void;
   onTraceId?: (traceId: string) => void;
   signal?: AbortSignal;
   /** Client-generated Langfuse turn id. Every planner and teaching call on this question shares it. */
@@ -296,6 +296,19 @@ export async function streamLLMResponse(
   let settle: () => void = () => undefined;
   const settled = new Promise<void>((resolve) => { settle = resolve; });
 
+  // Observer callbacks are telemetry: one that throws must never kill or hang
+  // a request, and must never throw out of a timer.
+  const notify = (name: string, callback: () => void) => {
+    try {
+      callback();
+    } catch (error: unknown) {
+      tutorDebug("llm", "teaching request callback failed", {
+        callback: name,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
   const abortAttempt = (attempt: TeachingAttempt, reason: unknown) => {
     attempt.controller.abort(reason);
     void attempt.reader?.cancel().catch(() => undefined);
@@ -338,12 +351,16 @@ export async function streamLLMResponse(
     if (hedgeStartedAfterMs !== null) {
       tutorDebug("llm", "teaching hedge winner", {
         winner: attempt.kind,
-        ttft_content_ms: attempt.firstContentTokenMs,
+        first_content_token_ms: attempt.firstContentTokenMs,
       });
-      onHedgeWinner?.({ winner: attempt.kind, ttftContentMs: attempt.firstContentTokenMs ?? 0 });
+      notify("onHedgeWinner", () => onHedgeWinner?.({
+        winner: attempt.kind,
+        firstContentTokenMs: attempt.firstContentTokenMs ?? 0,
+      }));
     }
-    if (attempt.kind === "hedge" && attempt.traceId) {
-      onTraceId?.(attempt.traceId);
+    const hedgeTraceId = attempt.kind === "hedge" ? attempt.traceId : null;
+    if (hedgeTraceId) {
+      notify("onTraceId", () => onTraceId?.(hedgeTraceId));
     }
     for (const held of attempt.heldDeltas.splice(0)) {
       if (attempt.controller.signal.aborted) return;
@@ -525,15 +542,21 @@ export async function streamLLMResponse(
         });
       }
     } finally {
-      if (attempt.reader) {
-        void attempt.reader.cancel().catch(() => undefined);
-        attempt.reader.releaseLock();
+      try {
+        if (attempt.reader) {
+          void attempt.reader.cancel().catch(() => undefined);
+          attempt.reader.releaseLock();
+        }
+      } catch {
+        // A reader that cannot release must still let the call settle.
+      } finally {
+        onAttemptSettled();
       }
-      onAttemptSettled();
     }
   };
 
-  const startAttempt = (kind: TeachingAttemptKind) => {
+  /** Starts the request first; observer callbacks run only once it is in flight. */
+  const startAttempt = (kind: TeachingAttemptKind, beforeRequestEvent?: () => void) => {
     const attempt: TeachingAttempt = {
       kind,
       controller: new AbortController(),
@@ -555,8 +578,9 @@ export async function streamLLMResponse(
     attempts.push(attempt);
     if (!hedging) winner = attempt;
     if (signal?.aborted) abortAttempt(attempt, signal.reason);
-    onRequestStart?.({ attempt: kind, startedAt: attempt.startedAt });
     void runAttempt(attempt);
+    if (beforeRequestEvent) notify("onHedgeStart", beforeRequestEvent);
+    notify("onRequestStart", () => onRequestStart?.({ attempt: kind, startedAt: attempt.startedAt }));
     return attempt;
   };
 
@@ -577,9 +601,9 @@ export async function streamLLMResponse(
           hedgeTimer = undefined;
           if (winner || firstContentTimedOut || signal?.aborted) return;
           hedgeStartedAfterMs = Math.round(performance.now() - streamStart);
-          tutorDebug("llm", "teaching hedge start", { after_ms: hedgeStartedAfterMs });
-          onHedgeStart?.({ afterMs: hedgeStartedAfterMs });
-          startAttempt("hedge");
+          const afterMs = hedgeStartedAfterMs;
+          tutorDebug("llm", "teaching hedge start", { after_ms: afterMs });
+          startAttempt("hedge", () => onHedgeStart?.({ afterMs }));
         }, hedgeAfterMs);
       }
     }

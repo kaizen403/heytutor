@@ -510,8 +510,8 @@ try {
           assert(event.afterMs >= 25, "the hedge must wait for its threshold");
           log.push("hedge-start");
         },
-        onHedgeWinner: (event: { winner: string; ttftContentMs: number }) => {
-          assert(event.ttftContentMs >= 0);
+        onHedgeWinner: (event: { winner: string; firstContentTokenMs: number }) => {
+          assert(event.firstContentTokenMs >= 0);
           log.push(`winner:${event.winner}`);
         },
       },
@@ -822,6 +822,129 @@ try {
     assert.equal(result.streamStats?.hedge?.winner, joined.includes("Hedge") ? "hedge" : "primary");
     assertClean(primary.response);
     assertClean(hedgeStream.response);
+  }
+
+  {
+    // The hedge wins, then its own stream errors: the error surfaces as it does today.
+    const primary = streamedResponse();
+    const hedgeStream = streamedResponse();
+    const calls = stubResponses(primary.response, hedgeStream.response);
+    const deltas: string[] = [];
+    const completion = streamLLMResponse(hedgeParams, (delta) => deltas.push(delta));
+    await sleep(45);
+    hedgeStream.delta({ content: "[STEP]The hedge starts" });
+    await sleep(0);
+    assert.equal(calls[0]!.signal?.aborted, true);
+    const failure = new Error("hedge stream dropped");
+    hedgeStream.fail(failure);
+    await assert.rejects(completion, (error) => error === failure, "a winner's stream error must reach the caller");
+    assert.deepEqual(deltas, ["[STEP]The hedge starts"]);
+    assertClean(primary.response);
+    assertClean(hedgeStream.response);
+  }
+
+  for (const hedgeOutcome of ["wins", "times-out"] as const) {
+    // The primary fails with a 500 after the hedge opened: the hedge still decides.
+    const hedgeStream = streamedResponse();
+    const calls = stubResponses(
+      () => new Promise<Response>((resolve) => originalSetTimeout(() => resolve(new Response("upstream failed", { status: 500 })), 40)),
+      hedgeStream.response,
+    );
+    const deltas: string[] = [];
+    const completion = streamLLMResponse(hedgeParams, (delta) => deltas.push(delta));
+    await sleep(60);
+    assert.equal(calls.length, 2, "the hedge opens before the primary's 500 arrives");
+    if (hedgeOutcome === "wins") {
+      hedgeStream.delta({ content: "[STEP]The hedge carries the lesson.[/STEP]" });
+      hedgeStream.close();
+      const result = await completion;
+      assert.equal(result.text, "[STEP]The hedge carries the lesson.[/STEP]");
+      assert.deepEqual(deltas, [result.text]);
+      assert.equal(result.streamStats?.attempt, "hedge");
+      assert.equal(result.streamStats?.hedge?.attempts[0]?.outcome, "failed");
+    } else {
+      const result = await completion;
+      assert.equal(result.streamStats?.firstContentTimedOut, true, "a failed primary and a silent hedge reach today's retry path");
+      assert.equal(result.text, "");
+      assert.equal(calls[1]!.signal?.aborted, true);
+      assert.equal(hedgeStream.cancels, 1);
+    }
+    assertClean(hedgeStream.response);
+  }
+
+  {
+    // Stop while both requests are still waiting for headers.
+    const external = new AbortController();
+    const stop = new DOMException("Student pressed Stop before either answered", "AbortError");
+    const signals: AbortSignal[] = [];
+    globalThis.fetch = (_url, init) => {
+      const requestSignal = init?.signal;
+      assert(requestSignal);
+      signals.push(requestSignal);
+      return new Promise<Response>(() => {});
+    };
+    const completion = streamLLMResponse({ ...hedgeParams, signal: external.signal });
+    await sleep(45);
+    assert.equal(signals.length, 2);
+    external.abort(stop);
+    await assert.rejects(completion, (error) => error === stop, "Stop before headers must reject as it does today");
+    assert(signals.every((requestSignal) => requestSignal.reason === stop), "Stop must reach both requests");
+    assertClean(undefined, external.signal);
+  }
+
+  {
+    // The primary completes reasoning-only while the hedge is pending: the call waits for the hedge.
+    const primary = streamedResponse();
+    const hedgeStream = streamedResponse();
+    stubResponses(primary.response, hedgeStream.response);
+    let settledEarly = false;
+    const deltas: string[] = [];
+    const completion = streamLLMResponse(hedgeParams, (delta) => deltas.push(delta));
+    void completion.then(() => { settledEarly = true; }, () => { settledEarly = true; });
+    await sleep(45);
+    primary.delta({ reasoning_content: "Only thinking, then done." });
+    primary.close();
+    await sleep(10);
+    assert.equal(settledEarly, false, "a pending hedge must still be given its chance");
+    hedgeStream.delta({ content: "[STEP]The hedge answers.[/STEP]" });
+    hedgeStream.close();
+    const result = await completion;
+    assert.equal(result.text, "[STEP]The hedge answers.[/STEP]");
+    assert.deepEqual(deltas, [result.text]);
+    assert.equal(result.streamStats?.attempt, "hedge");
+    assert.equal(result.streamStats?.hedge?.attempts[0]?.outcome, "completed");
+    assertClean(primary.response);
+    assertClean(hedgeStream.response);
+  }
+
+  for (const hedged of [false, true]) {
+    // Throwing observer callbacks can neither kill nor hang a request.
+    const primary = streamedResponse();
+    const hedgeStream = streamedResponse();
+    const calls = stubResponses(primary.response, hedgeStream.response);
+    const thrown: string[] = [];
+    const fail = (name: string) => () => { thrown.push(name); throw new Error(`${name} observer failed`); };
+    const deltas: string[] = [];
+    const completion = streamLLMResponse({
+      ...(hedged ? hedgeParams : params),
+      onRequestStart: fail("request"),
+      onHedgeStart: fail("hedge-start"),
+      onHedgeWinner: fail("winner"),
+    }, (delta) => deltas.push(delta));
+    const speaker = hedged ? hedgeStream : primary;
+    if (hedged) {
+      await sleep(45);
+      assert.equal(calls.length, 2, "a throwing observer must not stop the hedge from opening");
+    }
+    speaker.delta({ content: "[STEP]Observers failed, the lesson did not.[/STEP]" });
+    speaker.close();
+    const result = await completion;
+    assert.equal(result.text, "[STEP]Observers failed, the lesson did not.[/STEP]");
+    assert.deepEqual(deltas, [result.text]);
+    assert.deepEqual(thrown, hedged ? ["request", "hedge-start", "request", "winner"] : ["request"]);
+    assert.equal(result.streamStats?.attempt, hedged ? "hedge" : "primary");
+    assertClean(primary.response);
+    if (hedged) assertClean(hedgeStream.response);
   }
 } finally {
   globalThis.fetch = originalFetch;

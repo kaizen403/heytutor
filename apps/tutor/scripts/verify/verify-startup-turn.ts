@@ -581,7 +581,7 @@ async function scenario(mode: Mode, hedgeEnabled = false) {
           } else {
             assert.equal(winner.length, 1);
             assert.equal(winner[0]!.metadata?.winner, mode === "hedge-wins" ? "hedge" : "primary");
-            assert.equal(typeof winner[0]!.metadata?.ttft_content_ms, "number");
+            assert.equal(typeof winner[0]!.metadata?.first_content_token_ms, "number");
           }
           for (const name of ["teaching-first-token", "teaching-first-step"]) {
             assert.equal(named(name).length, 1, `${name} must be marked once`);

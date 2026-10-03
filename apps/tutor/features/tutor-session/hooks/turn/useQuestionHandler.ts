@@ -2164,9 +2164,9 @@ export function useQuestionHandler(
               onHedgeStart: ({ afterMs }) => {
                 tel.mark("teaching-hedge-start", { after_ms: afterMs });
               },
-              onHedgeWinner: ({ winner, ttftContentMs }) => {
+              onHedgeWinner: ({ winner, firstContentTokenMs }) => {
                 teachingAttempt = winner;
-                tel.mark("teaching-hedge-winner", { winner, ttft_content_ms: ttftContentMs });
+                tel.mark("teaching-hedge-winner", { winner, first_content_token_ms: firstContentTokenMs });
               },
               signal: abortController.signal,
               onTraceId: (id) => {
