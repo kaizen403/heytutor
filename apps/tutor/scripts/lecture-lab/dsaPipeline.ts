@@ -36,6 +36,7 @@ import {
   normalizeTutorQuestion,
   planCodeLessonV1,
   streamLLMResponse,
+  TEACHING_HEDGE_AFTER_MS,
   type CodeLessonPlan,
   type SubjectFamiliarity,
 } from "@heytutor/tutor-core";
@@ -643,6 +644,8 @@ export async function runDsaLecture(
         hasAuthoritativePlan: Boolean(codeLesson),
         fastMode,
         codeLesson: Boolean(codeLesson),
+        // Same startup hedge as the live tutor: only the first request races.
+        hedge: continueCount === 0 ? { afterMs: TEACHING_HEDGE_AFTER_MS } : undefined,
         traceId,
         question,
       });
@@ -650,7 +653,11 @@ export async function runDsaLecture(
       run.teaching.contentChars += streamResult.streamStats?.contentChars ?? 0;
       run.teaching.reasoningChars += streamResult.streamStats?.reasoningChars ?? 0;
       if (run.teaching.ttftMs === null) {
-        run.teaching.ttftMs = streamResult.streamStats?.ttftContentMs ?? null;
+        // A winning hedge reports its first token from its own start; add the
+        // wait before it opened so the bench still measures what a student saw.
+        const stats = streamResult.streamStats;
+        const hedgeOffsetMs = stats?.attempt === "hedge" ? (stats.hedge?.startedAfterMs ?? 0) : 0;
+        run.teaching.ttftMs = stats?.ttftContentMs == null ? null : stats.ttftContentMs + hedgeOffsetMs;
       }
 
       const reasoningOnlyChunk =

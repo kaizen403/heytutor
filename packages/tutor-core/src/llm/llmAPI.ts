@@ -7,6 +7,28 @@ export interface ConversationExchange {
   assistant: string;
 }
 
+export type TeachingAttemptKind = "primary" | "hedge";
+
+/**
+ * How long the first teaching request may stay silent before a second,
+ * reasoning-off request races it. Measured from the first request's start.
+ */
+export const TEACHING_HEDGE_AFTER_MS = 8_000;
+
+export interface TeachingAttemptStats {
+  attempt: TeachingAttemptKind;
+  /** When this request started, in ms after the first request started. */
+  startedAfterMs: number;
+  /** First non-whitespace content token, from this request's own start. */
+  firstContentTokenMs: number | null;
+  /** First usable content, from this request's own start. */
+  ttftContentMs: number | null;
+  ttftReasoningMs: number | null;
+  reasoningChars: number;
+  contentChars: number;
+  outcome: "completed" | "aborted" | "failed";
+}
+
 export interface StreamLLMResponseParams {
   systemPrompt: string;
   userPrompt: string;
@@ -23,6 +45,18 @@ export interface StreamLLMResponseParams {
   noReasoning?: boolean;
   firstContentTimeoutMs?: number;
   hasUsableContent?: () => boolean;
+  /**
+   * Race a reasoning-off copy of this request when no content token has
+   * arrived `afterMs` after the request started. The first request to send a
+   * content token wins and the other is aborted. Off unless given.
+   */
+  hedge?: { afterMs: number };
+  /** Every request this call opens, with its `performance.now()` start. */
+  onRequestStart?: (event: { attempt: TeachingAttemptKind; startedAt: number }) => void;
+  /** The hedge request is about to open. `afterMs` is measured from the first request. */
+  onHedgeStart?: (event: { afterMs: number }) => void;
+  /** A hedge was opened and a request has now won. Not called when no hedge opened. */
+  onHedgeWinner?: (event: { winner: TeachingAttemptKind; ttftContentMs: number }) => void;
   onTraceId?: (traceId: string) => void;
   signal?: AbortSignal;
   /** Client-generated Langfuse turn id. Every planner and teaching call on this question shares it. */
@@ -41,6 +75,14 @@ export interface StreamLLMResult {
     ttftContentMs: number | null;
     ttftReasoningMs: number | null;
     firstContentTimedOut: boolean;
+    /** Which request the text came from. */
+    attempt?: TeachingAttemptKind;
+    /** Present only when hedging was enabled for this call. */
+    hedge?: {
+      startedAfterMs: number | null;
+      winner: TeachingAttemptKind | null;
+      attempts: TeachingAttemptStats[];
+    };
   };
 }
 
@@ -158,6 +200,49 @@ function buildRequestHeaders(
   );
 }
 
+/** Races a fetch with its own controller so an aborted request always settles. */
+function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) {
+    promise.catch(() => undefined);
+    return Promise.reject(signal.reason);
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
+interface TeachingAttempt {
+  kind: TeachingAttemptKind;
+  controller: AbortController;
+  startedAt: number;
+  noReasoning: boolean;
+  hedgeHeader: boolean;
+  reader?: ReadableStreamDefaultReader<Uint8Array>;
+  traceId: string | null;
+  text: string;
+  /** Whitespace content held until this request wins, then replayed in order. */
+  heldDeltas: string[];
+  reasoningChars: number;
+  contentChars: number;
+  firstContentTokenMs: number | null;
+  ttftContentMs: number | null;
+  ttftReasoningMs: number | null;
+  outcome: "pending" | "completed" | "aborted" | "failed";
+  threw: boolean;
+  error?: unknown;
+}
+
 export async function streamLLMResponse(
   {
     systemPrompt,
@@ -171,6 +256,10 @@ export async function streamLLMResponse(
     noReasoning,
     firstContentTimeoutMs = 15_000,
     hasUsableContent,
+    hedge,
+    onRequestStart,
+    onHedgeStart,
+    onHedgeWinner,
     onTraceId,
     signal,
     traceId: requestTraceId,
@@ -180,31 +269,90 @@ export async function streamLLMResponse(
 ): Promise<StreamLLMResult> {
   const model = "server";
   const streamStart = performance.now();
-  const requestController = new AbortController();
   const timeoutMs = Number.isFinite(firstContentTimeoutMs) && firstContentTimeoutMs > 0
     ? firstContentTimeoutMs
     : 15_000;
+  const hedgeAfterMs = hedge && Number.isFinite(hedge.afterMs) && hedge.afterMs >= 0
+    ? hedge.afterMs
+    : null;
+  const hedging = hedgeAfterMs !== null;
+  const requestBody = JSON.stringify({
+    model,
+    max_tokens: 12000,
+    temperature: 0.3,
+    stream: true,
+    reasoning_effort: "none",
+    perf_metrics_in_response: true,
+    messages: buildMessages(systemPrompt, conversationHistory, userPrompt),
+  });
+  const attempts: TeachingAttempt[] = [];
+  // Without a hedge the only request owns the stream from the start, so every
+  // content chunk reaches onDelta exactly as it always has.
+  let winner: TeachingAttempt | null = null;
   let firstContentTimer: ReturnType<typeof setTimeout> | undefined;
+  let hedgeTimer: ReturnType<typeof setTimeout> | undefined;
   let firstContentTimedOut = false;
-  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
-  let traceId: string | null = null;
-  const decoder = new TextDecoder();
-  let bufferedText = "";
-  let accumulatedResponseText = "";
-  let reasoningChars = 0;
-  let contentChars = 0;
-  let ttftContentMs: number | null = null;
-  let ttftReasoningMs: number | null = null;
+  let hedgeStartedAfterMs: number | null = null;
+  let settle: () => void = () => undefined;
+  const settled = new Promise<void>((resolve) => { settle = resolve; });
 
-  const abortRequest = (reason: unknown) => {
-    clearTimeout(firstContentTimer);
-    requestController.abort(reason);
-    void reader?.cancel().catch(() => undefined);
+  const abortAttempt = (attempt: TeachingAttempt, reason: unknown) => {
+    attempt.controller.abort(reason);
+    void attempt.reader?.cancel().catch(() => undefined);
   };
-  const onExternalAbort = () => abortRequest(signal?.reason);
+  const abortAll = (reason: unknown) => {
+    clearTimeout(firstContentTimer);
+    firstContentTimer = undefined;
+    clearTimeout(hedgeTimer);
+    hedgeTimer = undefined;
+    for (const attempt of attempts) abortAttempt(attempt, reason);
+  };
+  const onExternalAbort = () => abortAll(signal?.reason);
 
-  const processLine = (line: string): boolean => {
-    if (requestController.signal.aborted || !line.startsWith("data: ")) {
+  const deliver = (attempt: TeachingAttempt, chunk: string) => {
+    onDelta?.(chunk);
+
+    if (attempt.ttftContentMs === null && (hasUsableContent
+      ? hasUsableContent()
+      : attempt.text.replace(/\[[^\]]*(?:\]|$)/g, "").trim().length > 0)) {
+      clearTimeout(firstContentTimer);
+      firstContentTimer = undefined;
+      attempt.ttftContentMs = Math.round(performance.now() - attempt.startedAt);
+      tutorDebug("llm", "first content token", {
+        attempt: attempt.kind,
+        ttft_ms: attempt.ttftContentMs,
+        preview: chunk.slice(0, 80),
+      });
+    }
+  };
+
+  const claimWinner = (attempt: TeachingAttempt) => {
+    winner = attempt;
+    clearTimeout(hedgeTimer);
+    hedgeTimer = undefined;
+    for (const other of attempts) {
+      if (other !== attempt) {
+        abortAttempt(other, new DOMException("Another teaching request spoke first", "AbortError"));
+      }
+    }
+    if (hedgeStartedAfterMs !== null) {
+      tutorDebug("llm", "teaching hedge winner", {
+        winner: attempt.kind,
+        ttft_content_ms: attempt.firstContentTokenMs,
+      });
+      onHedgeWinner?.({ winner: attempt.kind, ttftContentMs: attempt.firstContentTokenMs ?? 0 });
+    }
+    if (attempt.kind === "hedge" && attempt.traceId) {
+      onTraceId?.(attempt.traceId);
+    }
+    for (const held of attempt.heldDeltas.splice(0)) {
+      if (attempt.controller.signal.aborted) return;
+      deliver(attempt, held);
+    }
+  };
+
+  const processLine = (attempt: TeachingAttempt, line: string): boolean => {
+    if (attempt.controller.signal.aborted || !line.startsWith("data: ")) {
       return false;
     }
 
@@ -219,12 +367,13 @@ export async function streamLLMResponse(
       const reasoningChunk = readReasoningChunk(eventPayload);
 
       if (reasoningChunk !== null) {
-        reasoningChars += reasoningChunk.length;
+        attempt.reasoningChars += reasoningChunk.length;
 
-        if (ttftReasoningMs === null) {
-          ttftReasoningMs = Math.round(performance.now() - streamStart);
+        if (attempt.ttftReasoningMs === null) {
+          attempt.ttftReasoningMs = Math.round(performance.now() - attempt.startedAt);
           tutorDebug("llm", "first reasoning token (ignored for teaching)", {
-            ttft_ms: ttftReasoningMs,
+            attempt: attempt.kind,
+            ttft_ms: attempt.ttftReasoningMs,
             preview: reasoningChunk.slice(0, 80),
           });
         }
@@ -233,20 +382,25 @@ export async function streamLLMResponse(
       const textChunk = readContentChunk(eventPayload);
 
       if (textChunk !== null) {
-        contentChars += textChunk.length;
-        accumulatedResponseText += textChunk;
-        onDelta?.(textChunk);
+        attempt.contentChars += textChunk.length;
+        attempt.text += textChunk;
 
-        if (ttftContentMs === null && (hasUsableContent
-          ? hasUsableContent()
-          : accumulatedResponseText.replace(/\[[^\]]*(?:\]|$)/g, "").trim().length > 0)) {
-          clearTimeout(firstContentTimer);
-          firstContentTimer = undefined;
-          ttftContentMs = Math.round(performance.now() - streamStart);
-          tutorDebug("llm", "first content token", {
-            ttft_ms: ttftContentMs,
-            preview: textChunk.slice(0, 80),
-          });
+        if (winner === null) {
+          // Whitespace is not a content token: a request that has only
+          // cleared its throat has not started the lesson.
+          if (!/\S/.test(textChunk)) {
+            attempt.heldDeltas.push(textChunk);
+            return false;
+          }
+          attempt.firstContentTokenMs = Math.round(performance.now() - attempt.startedAt);
+          claimWinner(attempt);
+          if (attempt.controller.signal.aborted) return false;
+        } else if (attempt.firstContentTokenMs === null && /\S/.test(textChunk)) {
+          attempt.firstContentTokenMs = Math.round(performance.now() - attempt.startedAt);
+        }
+
+        if (winner === attempt) {
+          deliver(attempt, textChunk);
         }
       }
     } catch (error: unknown) {
@@ -258,149 +412,251 @@ export async function streamLLMResponse(
     return false;
   };
 
-  const finishResult = (): StreamLLMResult => {
-    if (firstContentTimedOut && noReasoning) {
-      throw new Error("The lesson did not start in time, even after retrying. Please try asking again.");
-    }
-
-    const durationMs = Math.round(performance.now() - streamStart);
-    const streamStats = {
-      durationMs,
-      contentChars,
-      reasoningChars,
-      ttftContentMs,
-      ttftReasoningMs,
-      firstContentTimedOut,
-    };
-
-    tutorDebug("llm", "stream complete", streamStats);
-
-    if (accumulatedResponseText.length === 0) {
-      tutorDebug("llm", "empty content output", {
-        reasoning_chars: reasoningChars,
-        hint:
-          reasoningChars > 0
-            ? "model sent reasoning_content only — check reasoning_effort"
-            : "no content or reasoning received",
-      });
-    }
-
-    return { text: accumulatedResponseText, traceId, streamStats };
+  const onAttemptSettled = () => {
+    if (attempts.some((attempt) => attempt.outcome === "pending")) return;
+    // Every request has ended. A pending hedge has nothing left to race:
+    // the first request finished (or failed) without speaking, which is
+    // today's reasoning-only or error path.
+    clearTimeout(hedgeTimer);
+    hedgeTimer = undefined;
+    settle();
   };
 
-  try {
-    if (signal?.aborted) {
-      onExternalAbort();
-    } else {
-      signal?.addEventListener("abort", onExternalAbort, { once: true });
-      if (!hasUsableContent?.()) {
-        firstContentTimer = setTimeout(() => {
-          firstContentTimedOut = true;
-          abortRequest(new DOMException("LLM first-content deadline expired", "TimeoutError"));
-        }, timeoutMs);
-      }
-    }
+  const runAttempt = async (attempt: TeachingAttempt): Promise<void> => {
+    try {
+      tutorDebug("llm", "fetch start", {
+        model,
+        attempt: attempt.kind,
+        user_chars: userPrompt.length,
+        history_turns: conversationHistory.length,
+      });
 
-    tutorDebug("llm", "fetch start", {
-      model,
-      user_chars: userPrompt.length,
-      history_turns: conversationHistory.length,
-    });
-
-    const response = await fetch(proxyUrl, {
-      method: "POST",
-      headers: buildRequestHeaders(
+      const headers = buildRequestHeaders(
         sessionId,
         hasAuthoritativePlan,
         fastMode,
         codeLesson,
-        noReasoning,
+        attempt.noReasoning,
         requestTraceId,
         question,
-      ),
-      signal: requestController.signal,
-      body: JSON.stringify({
-        model,
-        max_tokens: 12000,
-        temperature: 0.3,
-        stream: true,
-        reasoning_effort: "none",
-        perf_metrics_in_response: true,
-        messages: buildMessages(systemPrompt, conversationHistory, userPrompt),
-      }),
-    });
-
-    tutorDebug("llm", "fetch headers received", {
-      status: response.status,
-      elapsed_ms: Math.round(performance.now() - streamStart),
-    });
-
-    traceId = response.headers.get("x-heytutor-trace-id");
-
-    if (traceId) {
-      onTraceId?.(traceId);
-    }
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`LLM proxy error (${response.status}): ${errorBody}`);
-    }
-
-    if (!response.body) {
-      throw new Error("LLM proxy returned no response body.");
-    }
-
-    reader = response.body.getReader();
-
-    while (true) {
-      if (requestController.signal.aborted) {
-        break;
+      );
+      if (attempt.hedgeHeader) {
+        headers["x-heytutor-teaching-hedge"] = "1";
       }
 
-      const { value, done } = await reader.read();
+      const response = await raceAbort(fetch(proxyUrl, {
+        method: "POST",
+        headers,
+        signal: attempt.controller.signal,
+        body: requestBody,
+      }), attempt.controller.signal);
 
-      if (done || requestController.signal.aborted) {
-        break;
+      tutorDebug("llm", "fetch headers received", {
+        attempt: attempt.kind,
+        status: response.status,
+        elapsed_ms: Math.round(performance.now() - attempt.startedAt),
+      });
+
+      attempt.traceId = response.headers.get("x-heytutor-trace-id");
+
+      if (attempt.traceId && attempt.kind === "primary") {
+        onTraceId?.(attempt.traceId);
       }
 
-      bufferedText += decoder.decode(value, { stream: true });
-      const lines = bufferedText.split(/\r?\n/);
-      bufferedText = lines.pop() ?? "";
+      if (!response.ok) {
+        const errorBody = await raceAbort(response.text(), attempt.controller.signal);
+        throw new Error(`LLM proxy error (${response.status}): ${errorBody}`);
+      }
 
-      for (const line of lines) {
-        if (processLine(line)) {
-          return finishResult();
+      if (!response.body) {
+        throw new Error("LLM proxy returned no response body.");
+      }
+
+      const reader = response.body.getReader();
+      attempt.reader = reader;
+      const decoder = new TextDecoder();
+      let bufferedText = "";
+      let sawDone = false;
+
+      while (!sawDone) {
+        if (attempt.controller.signal.aborted) {
+          break;
         }
-      }
-    }
 
-    if (!requestController.signal.aborted) {
-      bufferedText += decoder.decode();
+        const { value, done } = await reader.read();
 
-      if (bufferedText.length > 0) {
-        for (const line of bufferedText.split(/\r?\n/)) {
-          if (processLine(line)) {
+        if (done || attempt.controller.signal.aborted) {
+          break;
+        }
+
+        bufferedText += decoder.decode(value, { stream: true });
+        const lines = bufferedText.split(/\r?\n/);
+        bufferedText = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (processLine(attempt, line)) {
+            sawDone = true;
             break;
           }
         }
       }
+
+      if (!sawDone && !attempt.controller.signal.aborted) {
+        bufferedText += decoder.decode();
+
+        if (bufferedText.length > 0) {
+          for (const line of bufferedText.split(/\r?\n/)) {
+            if (processLine(attempt, line)) {
+              break;
+            }
+          }
+        }
+      }
+
+      attempt.outcome = sawDone || !attempt.controller.signal.aborted ? "completed" : "aborted";
+    } catch (error: unknown) {
+      attempt.threw = true;
+      attempt.error = error;
+      attempt.outcome = attempt.controller.signal.aborted ? "aborted" : "failed";
+      if (attempt !== winner) {
+        tutorDebug("llm", "teaching request ended without speaking", {
+          attempt: attempt.kind,
+          outcome: attempt.outcome,
+        });
+      }
+    } finally {
+      if (attempt.reader) {
+        void attempt.reader.cancel().catch(() => undefined);
+        attempt.reader.releaseLock();
+      }
+      onAttemptSettled();
+    }
+  };
+
+  const startAttempt = (kind: TeachingAttemptKind) => {
+    const attempt: TeachingAttempt = {
+      kind,
+      controller: new AbortController(),
+      startedAt: performance.now(),
+      // The hedge exists to start speaking quickly, so it never thinks.
+      noReasoning: kind === "hedge" ? true : Boolean(noReasoning),
+      hedgeHeader: kind === "hedge",
+      traceId: null,
+      text: "",
+      heldDeltas: [],
+      reasoningChars: 0,
+      contentChars: 0,
+      firstContentTokenMs: null,
+      ttftContentMs: null,
+      ttftReasoningMs: null,
+      outcome: "pending",
+      threw: false,
+    };
+    attempts.push(attempt);
+    if (!hedging) winner = attempt;
+    if (signal?.aborted) abortAttempt(attempt, signal.reason);
+    onRequestStart?.({ attempt: kind, startedAt: attempt.startedAt });
+    void runAttempt(attempt);
+    return attempt;
+  };
+
+  try {
+    if (!signal?.aborted) {
+      signal?.addEventListener("abort", onExternalAbort, { once: true });
+      // The usable-step deadline is measured from the first request's start,
+      // whichever request ends up winning: a hedge never extends it.
+      if (!hasUsableContent?.()) {
+        firstContentTimer = setTimeout(() => {
+          firstContentTimer = undefined;
+          firstContentTimedOut = true;
+          abortAll(new DOMException("LLM first-content deadline expired", "TimeoutError"));
+        }, timeoutMs);
+      }
+      if (hedgeAfterMs !== null) {
+        hedgeTimer = setTimeout(() => {
+          hedgeTimer = undefined;
+          if (winner || firstContentTimedOut || signal?.aborted) return;
+          hedgeStartedAfterMs = Math.round(performance.now() - streamStart);
+          tutorDebug("llm", "teaching hedge start", { after_ms: hedgeStartedAfterMs });
+          onHedgeStart?.({ afterMs: hedgeStartedAfterMs });
+          startAttempt("hedge");
+        }, hedgeAfterMs);
+      }
+    }
+
+    const primary = startAttempt("primary");
+
+    await settled;
+
+    const chosen: TeachingAttempt = winner
+      ?? (firstContentTimedOut || signal?.aborted
+        ? primary
+        : attempts.find((attempt) => attempt.outcome === "completed") ?? primary);
+
+    const finishResult = (): StreamLLMResult => {
+      if (firstContentTimedOut && noReasoning) {
+        throw new Error("The lesson did not start in time, even after retrying. Please try asking again.");
+      }
+
+      // Only the winner's words ever reached onDelta, so only they are text.
+      const text = chosen === winner ? chosen.text : "";
+      const durationMs = Math.round(performance.now() - streamStart);
+      const streamStats: NonNullable<StreamLLMResult["streamStats"]> = {
+        durationMs,
+        contentChars: chosen.contentChars,
+        reasoningChars: chosen.reasoningChars,
+        ttftContentMs: chosen.ttftContentMs,
+        ttftReasoningMs: chosen.ttftReasoningMs,
+        firstContentTimedOut,
+        attempt: chosen.kind,
+      };
+      if (hedging) {
+        const pickedWinner: TeachingAttempt | null = winner;
+        streamStats.hedge = {
+          startedAfterMs: hedgeStartedAfterMs,
+          winner: pickedWinner ? pickedWinner.kind : null,
+          attempts: attempts.map((attempt) => ({
+            attempt: attempt.kind,
+            startedAfterMs: Math.round(attempt.startedAt - streamStart),
+            firstContentTokenMs: attempt.firstContentTokenMs,
+            ttftContentMs: attempt.ttftContentMs,
+            ttftReasoningMs: attempt.ttftReasoningMs,
+            reasoningChars: attempt.reasoningChars,
+            contentChars: attempt.contentChars,
+            outcome: attempt.outcome === "pending" ? "aborted" : attempt.outcome,
+          })),
+        };
+      }
+
+      tutorDebug("llm", "stream complete", streamStats);
+
+      if (text.length === 0) {
+        tutorDebug("llm", "empty content output", {
+          reasoning_chars: chosen.reasoningChars,
+          hint:
+            chosen.reasoningChars > 0
+              ? "model sent reasoning_content only — check reasoning_effort"
+              : "no content or reasoning received",
+        });
+      }
+
+      return { text, traceId: chosen.traceId ?? primary.traceId, streamStats };
+    };
+
+    if (chosen.threw) {
+      if (firstContentTimedOut) {
+        return finishResult();
+      }
+      if (signal?.aborted && chosen.reader) {
+        return finishResult();
+      }
+      throw chosen.error;
     }
 
     return finishResult();
-  } catch (error: unknown) {
-    if (firstContentTimedOut) {
-      return finishResult();
-    }
-    if (signal?.aborted && reader) {
-      return finishResult();
-    }
-    throw error;
   } finally {
     clearTimeout(firstContentTimer);
+    clearTimeout(hedgeTimer);
     signal?.removeEventListener("abort", onExternalAbort);
-    if (reader) {
-      void reader.cancel().catch(() => undefined);
-      reader.releaseLock();
-    }
   }
 }

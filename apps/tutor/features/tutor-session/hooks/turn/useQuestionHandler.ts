@@ -11,6 +11,8 @@ import {
 } from "@heytutor/drawing";
 import {
   streamLLMResponse,
+  TEACHING_HEDGE_AFTER_MS,
+  type TeachingAttemptKind,
   compactConversationHistory,
   tutorDebug,
   resolveApiUrl,
@@ -1937,6 +1939,14 @@ export function useQuestionHandler(
         let bufferedSegment: TutorSegment | null = null;
         let usableTeachingStepReceived = false;
         let startupControlSegments: TutorSegment[] = [];
+        // Startup telemetry, measured from the turn's first teaching request
+        // so a hedge or a retry shows up as the wait the student actually had.
+        let teachingRequestStartedAt: number | null = null;
+        let teachingAttempt: TeachingAttemptKind = "primary";
+        let teachingFirstTokenMarked = false;
+        let teachingFirstStepMarked = false;
+        const msSinceTeachingRequest = () =>
+          teachingRequestStartedAt === null ? null : Math.round(performance.now() - teachingRequestStartedAt);
         // One conductor for the whole turn: block order and the placement of
         // frame advances have to carry across streamed segments, so this
         // cannot be recreated per flush.
@@ -2032,6 +2042,10 @@ export function useQuestionHandler(
             });
           }
           bufferedSegment = null;
+          if (usableTeachingStepReceived && !teachingFirstStepMarked) {
+            teachingFirstStepMarked = true;
+            tel.mark("teaching-first-step", { ms_since_request: msSinceTeachingRequest(), attempt: teachingAttempt });
+          }
         };
 
         let markup = codeLesson ? null : new LectureMarkupBuffer();
@@ -2071,6 +2085,10 @@ export function useQuestionHandler(
 
         while (canStreamResumeRepair(continueCount, MAX_LLM_CONTINUATIONS, resumeInkRetry)) {
           const isContinuation = continueCount > 0 && !reasoningOnlyRetry;
+          // Only the turn's first teaching request is hedged. Continuations,
+          // the startup retry and resumed lectures keep a single request.
+          const hedgeThisRequest = continueCount === 0 && !reasoningOnlyRetry && !resumeInkRetry && !resume;
+          teachingAttempt = "primary";
           const streamResult = await streamLLMResponse(
             {
               systemPrompt: isContinuation
@@ -2127,6 +2145,20 @@ export function useQuestionHandler(
               // The retry after a reasoning-only response must speak.
               noReasoning: reasoningOnlyRetry,
               hasUsableContent: STREAM_SEGMENTS_LIVE ? () => usableTeachingStepReceived : undefined,
+              // A silent first request is raced by a reasoning-off copy; the
+              // first to speak wins and only its words reach the parser.
+              hedge: hedgeThisRequest ? { afterMs: TEACHING_HEDGE_AFTER_MS } : undefined,
+              onRequestStart: ({ attempt, startedAt }) => {
+                teachingRequestStartedAt ??= startedAt;
+                tel.mark("teaching-request", { attempt });
+              },
+              onHedgeStart: ({ afterMs }) => {
+                tel.mark("teaching-hedge-start", { after_ms: afterMs });
+              },
+              onHedgeWinner: ({ winner, ttftContentMs }) => {
+                teachingAttempt = winner;
+                tel.mark("teaching-hedge-winner", { winner, ttft_content_ms: ttftContentMs });
+              },
               signal: abortController.signal,
               onTraceId: (id) => {
                 currentTraceIdRef.current = id;
@@ -2138,6 +2170,10 @@ export function useQuestionHandler(
                 return;
               }
               endThinking({ phase: "first_token", delta_chars: delta.length });
+              if (!teachingFirstTokenMarked) {
+                teachingFirstTokenMarked = true;
+                tel.mark("teaching-first-token", { ms_since_request: msSinceTeachingRequest(), attempt: teachingAttempt });
+              }
               if (delta.includes("[")) {
                 tutorDebug("parser", "draw tag delta", {
                   delta_chars: delta.length,
