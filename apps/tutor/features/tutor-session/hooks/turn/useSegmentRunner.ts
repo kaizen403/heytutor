@@ -20,6 +20,7 @@ import {
   voiceSettingsForDelivery,
   shouldInkSpokenSegment,
   type AudioTimings,
+  type FirstAudioByteInfo,
   type InitialTimingWaitRelease,
   type TTSClient,
   SpeechSynthesisTTSClient,
@@ -29,6 +30,7 @@ import { guardDrawWithSpeech } from "../../lib/turn/turnFailurePolicy";
 import { speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
 import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
 import type { UseSegmentRunnerParams } from "./types";
+import { recordFirstAudible, recordTtsFirstByte } from "../../../../lib/obs/turnTelemetry";
 
 /**
  * Sentences asked for ahead of the one being spoken. The TTS client caps how
@@ -138,6 +140,8 @@ export function useSegmentRunner({
 
       const tel = turnTelemetryRef.current;
       const segmentName = `segment-${index}`;
+      // One `tts-first-byte` per segment, even across a provider recovery.
+      let firstAudioByteRecorded = false;
       const segmentSpan = tel?.span(segmentName);
       if (isCancelled()) {
         segmentSpan?.end({ skipped: true, reason: "cancelled" });
@@ -576,6 +580,15 @@ export function useSegmentRunner({
 
       const markVoiceStarted = () => {
         if (isCancelled() || !turnActiveRef.current) return;
+        // Once per turn; the browser voice and the provider both land here
+        // only after their start was accepted.
+        const startSignal = usingBrowserFallback ? null : tts.getLastPlaybackStart?.() ?? null;
+        recordFirstAudible(tel, {
+          segmentIndex: index,
+          transport: usingBrowserFallback ? "browser" : "provider",
+          signal: usingBrowserFallback ? "speech-synthesis-start" : startSignal?.signal ?? "unknown",
+          leadMs: startSignal?.leadMs ?? 0,
+        });
         if (usingBrowserFallback) tel?.mark("tts-startup-accepted", {
           segment_index: index,
           turn_generation: turnGeneration,
@@ -609,6 +622,11 @@ export function useSegmentRunner({
           capturedAudio = audio.bytes;
         },
         onTimings: captureTimings,
+        onFirstAudioByte: (info: FirstAudioByteInfo) => {
+          if (firstAudioByteRecorded || isCancelled()) return;
+          firstAudioByteRecorded = true;
+          recordTtsFirstByte(tel, { segmentIndex: index, ...info });
+        },
         onEnd: markSpeechComplete,
         // The provider can report an error before this runner starts browser
         // recovery. Only the final outcome releases the drawing wait.
@@ -702,6 +720,7 @@ export function useSegmentRunner({
             },
             onTimings: (timings) => { if (canAcceptPrimary()) options.onTimings?.(timings); },
             onAudioCaptured: (audio) => { if (canAcceptPrimary()) options.onAudioCaptured?.(audio); },
+            onFirstAudioByte: (info) => { if (canAcceptPrimary()) options.onFirstAudioByte?.(info); },
           });
         };
         const abandonPrimary = () => {
