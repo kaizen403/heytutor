@@ -31,7 +31,6 @@ import {
   bindProblemIRToTurnPlan,
   normalizeProblemIRModelOutput,
   planAndSolveProblemV1,
-  withdrawDisagreeingBindings,
 } from "../../../../packages/tutor-core/src/planners/problemPlannerV1";
 import { planTurnV3 } from "../../../../packages/tutor-core/src/planners/turnPlannerV3";
 import { applyLectureLabHeaders } from "../lecture-lab/labAuth";
@@ -304,9 +303,7 @@ async function main(): Promise<void> {
       let clientResult: RunRecord["clientResult"] = "null";
       let auditIssueCodes: string[] = [];
       if (result && turnPlan) {
-        const problem = options.noPlan
-          ? withdrawDisagreeingBindings(bindProblemIRToTurnPlan(result.problemIR, turnPlan), result.solverResult, turnPlan)
-          : result.problemIR;
+        const problem = options.noPlan ? bindProblemIRToTurnPlan(result.problemIR, turnPlan) : result.problemIR;
         const reconciled = reconcileTurnPlanWithSolver(turnPlan, problem, result.solverResult);
         const audit = verifyTurnPlanAgainstSolver(problem, result.solverResult, reconciled, question);
         clientResult = audit.status;

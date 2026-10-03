@@ -7,10 +7,10 @@
  * 14.5s median and 3 of 14 passed the client's 18s deadline. The model now
  * writes facts as a quote, expressions as bounded infix, and skips the
  * constant and echoed fields. This gate proves the compact form lifts to the
- * same validated problem-ir/v1 and that nothing about the authority weakened.
- * Every numeric case runs the live hook's order (reconcile, then audit),
- * because reconcile rewrites plan values before the audit can see them: a
- * wrong formulation must never come out `verified` with a changed value.
+ * same validated problem-ir/v1, and that the conversion is semantics neutral:
+ * run in the live hook's order (reconcile, then audit), a compact answer and
+ * the same answer in origin/main's canonical form reach the same outcome and
+ * teach the same values, right formula or wrong.
  */
 import { strict as assert } from "node:assert";
 import {
@@ -24,9 +24,7 @@ import {
   normalizeProblemIRModelOutput,
   parseInfixExpression,
   planAndSolveProblemV1,
-  planValueRoundsSolverValue,
   problemIRUserMessage,
-  withdrawDisagreeingBindings,
   type ProblemAuthorityV1Response,
 } from "../../src/planners/problemPlannerV1";
 
@@ -103,16 +101,36 @@ function liveOutcome(result: ProblemAuthorityV1Response | null, plan: TurnPlanV3
   return { status: audit.status, taught: reconciled.derived };
 }
 
-/** A verified lesson may only sharpen a rounded plan value, never change it. */
-function assertNoChangedAnswer(outcome: ReturnType<typeof liveOutcome>, label: string, plan: TurnPlanV3 = turnPlan) {
-  for (const quantity of outcome.taught) {
-    const original = plan.derived.find((candidate) => candidate.id === quantity.id)!;
-    if (outcome.status === "verified") {
-      assert.ok(planValueRoundsSolverValue(original.value, quantity.value), `${label}: verified ${quantity.id} moved from ${original.value} to ${quantity.value}`);
-    } else {
-      assert.equal(quantity.value, original.value, `${label}: an unverified turn must keep the plan's ${quantity.id}`);
-    }
-  }
+/** Hand written origin/main canonical form of `compactOutput`, with the AST spelled out. */
+type Node = Record<string, unknown>;
+const num = (value: number): Node => ({ kind: "number", value });
+const pi: Node = { kind: "constant", name: "pi" };
+const bin = (operator: string, left: Node, right: Node): Node => ({ kind: "binary", operator, left, right });
+const call = (fn: string, argument: Node): Node => ({ kind: "call", function: fn, argument });
+const degrees = (value: number) => bin("/", bin("*", num(value), pi), num(180));
+
+function canonicalOutput(rangeRoot: Node) {
+  const compact = compactOutput("1");
+  const span = (quote: string) => {
+    const start = question.indexOf(quote);
+    return { source: "question", start, end: start + quote.length, quote };
+  };
+  const roots: Record<string, Node> = {
+    eTime: bin("/", bin("*", bin("*", num(2), num(20)), call("sin", degrees(30))), num(10)),
+    eHeight: bin("/", bin("^", bin("*", num(20), call("sin", degrees(30))), num(2)), bin("*", num(2), num(10))),
+    eRange: rangeRoot,
+  };
+  return {
+    schemaVersion: "problem-ir/v1",
+    id: "problem",
+    question,
+    facts: compact.facts.map(({ quote, ...fact }) => ({ ...fact, evidence: span(quote) })),
+    entities: compact.entities,
+    expressions: compact.expressions.map(({ expr: _expr, ...expression }) => ({ ...expression, root: roots[expression.id] })),
+    constraints: [],
+    representationIntents: compact.representationIntents,
+    solveRequests: compact.solveRequests,
+  };
 }
 
 // 1. The compact form lifts to valid problem-ir/v1 and verifies a correct plan.
@@ -122,13 +140,7 @@ const verified = await planAndSolveProblemV1(
   turnPlan,
   options(modelReturns(compactOutput("20^2*sin(2*30*pi/180)/10"), seen)),
 );
-// The planner's own audit runs before reconcile, so a rounded plan value reads
-// as a contradiction there; the live hook's order is what a student sees.
 assert.ok(verified, "compact output must solve");
-const verifiedLive = liveOutcome(verified);
-assert.equal(verifiedLive.status, "verified", "reconcile sharpens the rounded 34.64 and the audit agrees");
-assert.ok(Math.abs(verifiedLive.taught.find((quantity) => quantity.id === "R")!.value - range) < 1e-9);
-assertNoChangedAnswer(verifiedLive, "correct formula");
 assert.equal(verified?.problemIR.schemaVersion, "problem-ir/v1");
 assert.equal(verified?.problemIR.question, question, "an absent question is the submitted question");
 assert.ok(validateProblemIR(verified?.problemIR, question).valid, "the lifted object is canonical problem-ir/v1");
@@ -140,22 +152,28 @@ const userContent = seen.body!.messages[1]!.content;
 assert.ok(userContent.includes(`VALIDATED TURN PLAN V3\n${JSON.stringify(turnPlan)}`));
 assert.ok(seen.body!.messages[0]!.content.includes("minified JSON"));
 
-// 2. A wrong formulation never comes out verified with a changed value.
-for (const wrongRange of ["20^2/10", "2*20^2*sin(30*pi/180)/10", "20^2*sin(2*30)/10", "20^2*sin(60)/10", "e*1000"]) {
-  const wrong = await planAndSolveProblemV1(question, turnPlan, options(modelReturns(compactOutput(wrongRange))));
-  const outcome = liveOutcome(wrong);
-  assert.notEqual(outcome.status, "verified", `${wrongRange} must not verify`);
-  assert.notEqual(outcome.status, "contradiction", `${wrongRange} is an absent second opinion, not a stopped lesson`);
-  assertNoChangedAnswer(outcome, wrongRange);
+// 2. Format conversion is semantics neutral. The same formulation in compact
+// and canonical form yields the same ProblemIR, solver values, and live
+// outcome (reconcile, then audit), whether the formula is right or wrong.
+// The wrong one (R = u^2/g) is taught as 40 and verified in both forms: that
+// is origin/main's reconcile behaviour, reported separately, not changed here.
+const rightRange = bin("/", bin("*", bin("^", num(20), num(2)), call("sin", degrees(60))), num(10));
+const wrongRange = bin("/", bin("^", num(20), num(2)), num(10));
+for (const [compactExpr, canonicalRoot, label] of [
+  ["20^2*sin(60*pi/180)/10", rightRange, "right formula"],
+  ["20^2/10", wrongRange, "wrong formula"],
+] as const) {
+  const fromCompact = await planAndSolveProblemV1(question, turnPlan, options(modelReturns(compactOutput(compactExpr))));
+  const fromCanonical = await planAndSolveProblemV1(question, turnPlan, options(modelReturns(canonicalOutput(canonicalRoot))));
+  assert.ok(fromCompact && fromCanonical, `${label}: both forms solve`);
+  assert.deepEqual(fromCompact.problemIR, fromCanonical.problemIR, `${label}: same canonical ProblemIR`);
+  assert.deepEqual(fromCompact.solverResult, fromCanonical.solverResult, `${label}: same solver result`);
+  assert.deepEqual(fromCompact.audit, fromCanonical.audit, `${label}: same planner audit`);
+  assert.deepEqual(liveOutcome(fromCompact), liveOutcome(fromCanonical), `${label}: same live outcome`);
 }
-const lawSlip = await planAndSolveProblemV1(question, turnPlan, options(modelReturns(compactOutput("20^2/10"))));
-assert.equal(lawSlip?.problemIR.solveRequests.find((request) => request.id === "sRange")?.resultBinding, undefined, "the disagreeing binding is withdrawn");
-assert.equal(lawSlip?.audit.status, "incomplete");
-assert.equal(lawSlip?.projection, null);
-// A plan written to two decimals or one still counts as the solver's value rounded.
-assert.equal(planValueRoundsSolverValue(1.8, 1.846), true);
-assert.equal(planValueRoundsSolverValue(2, 2.4), false, "an integer plan value is not a rounded 2.4");
-assert.equal(planValueRoundsSolverValue(40, range), false);
+const rightLive = liveOutcome(await planAndSolveProblemV1(question, turnPlan, options(modelReturns(compactOutput("20^2*sin(60*pi/180)/10")))));
+assert.equal(rightLive.status, "verified", "reconcile sharpens the rounded 34.64 and the audit agrees");
+assert.ok(Math.abs(rightLive.taught.find((quantity) => quantity.id === "R")!.value - range) < 1e-9);
 
 // 2b. Unknown kinds keep origin/main's rejection: a mapped `other` entity
 // labelled "battery" would count as a circuit source in family routing.
@@ -258,10 +276,8 @@ assert.equal(alone?.audit.issues[0]?.code, "turn_plan_pending");
 assert.equal(alone?.projection, null);
 const bound = bindProblemIRToTurnPlan(alone!.problemIR, turnPlan);
 assert.deepEqual(bound.solveRequests.map((request) => request.resultBinding?.turnPlanQuantityId), ["T", "H", "R"]);
-// After the join the integration withdraws disagreeing bindings, then runs
-// the hook's reconcile and audit, exactly as for a plan-aware result.
-const joined = (problem: typeof bound, plan: TurnPlanV3) =>
-  liveOutcome({ ...alone!, problemIR: withdrawDisagreeingBindings(problem, alone!.solverResult, plan) }, plan);
+// After the join, the integration runs the hook's reconcile and audit.
+const joined = (problem: typeof bound, plan: TurnPlanV3) => liveOutcome({ ...alone!, problemIR: problem }, plan);
 assert.equal(joined(bound, turnPlan).status, "verified");
 
 // An ambiguous or unit-mismatched join drops the binding: incomplete, never a contradiction.

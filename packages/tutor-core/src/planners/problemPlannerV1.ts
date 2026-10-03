@@ -44,10 +44,7 @@ export interface ProblemAuthorityV1Response {
 /**
  * Formulate the question as ProblemIR and solve it deterministically.
  *
- * The model sees the question and the validated plan. A bound solver value
- * that disagrees with the plan beyond rounding loses its binding (see
- * `withdrawDisagreeingBindings`), so the caller's reconcile step can only
- * sharpen a rounded plan value, never swap in a different answer.
+ * The model sees the question and the validated plan, as on origin/main.
  *
  * Without a turn plan (`null`), the call can run alongside the turn planner.
  * The model then names each requested quantity itself, and the caller must
@@ -125,9 +122,7 @@ export async function planAndSolveProblemV1(
     );
     const solverValidation = validateSolverResult(solverResult, problemValidation.problem);
     if (!solverValidation.result || solverValidation.result.status !== "solved") return null;
-    const problem = turnPlan
-      ? withdrawDisagreeingBindings(problemValidation.problem, solverValidation.result, turnPlan)
-      : problemValidation.problem;
+    const problem = problemValidation.problem;
     // Without a plan there is nothing to audit yet. The binding join and the
     // audit happen once the plan exists; until then no value is authoritative.
     const audit: SolverAuthorityAudit = turnPlan
@@ -153,56 +148,6 @@ export async function planAndSolveProblemV1(
   } finally {
     clearTimeout(timeoutId);
   }
-}
-
-/**
- * The caller reconciles the plan with the solver before auditing, and
- * reconcile replaces a plan value with any bound solver value whose id,
- * symbol and unit agree. That is right for a rounded plan value (34.64 for
- * 34.641...) and wrong for a different answer: a formulation with the wrong
- * law (R = u^2/g) would overwrite the plan's 34.64 with 40 and then audit as
- * verified. So a binding survives only when the plan value is the solver
- * value rounded to the plan's own displayed precision, within 5%. Anything
- * else loses its binding and audits as `incomplete`: an absent second
- * opinion, never a silently changed answer and never a stopped lesson.
- */
-export function withdrawDisagreeingBindings(
-  problem: ProblemIR,
-  result: SolverResult,
-  turnPlan: TurnPlanV3,
-): ProblemIR {
-  const values = new Map(result.values.map((value) => [value.requestId, value]));
-  let changed = false;
-  const solveRequests = problem.solveRequests.map((request) => {
-    const binding = request.resultBinding;
-    if (!binding) return request;
-    const derived = turnPlan.derived.find((quantity) => quantity.id === binding.turnPlanQuantityId);
-    const value = values.get(request.id);
-    if (!derived || !value || typeof value.approximate !== "number") return request;
-    if (planValueRoundsSolverValue(derived.value, value.approximate)) return request;
-    tutorDebug("planner", "ProblemIR binding withdrawn: solver and plan disagree", {
-      quantity_id: binding.turnPlanQuantityId,
-      plan_value: derived.value,
-      solver_value: value.approximate,
-    });
-    changed = true;
-    const withdrawn: Record<string, unknown> = { ...request };
-    delete withdrawn.resultBinding;
-    return withdrawn as unknown as typeof request;
-  });
-  return changed ? { ...problem, solveRequests } : problem;
-}
-
-/** True when `plan` is `solver` rounded to the decimals `plan` is written with. */
-export function planValueRoundsSolverValue(plan: number, solver: number): boolean {
-  if (!Number.isFinite(plan) || !Number.isFinite(solver)) return false;
-  const difference = Math.abs(plan - solver);
-  if (difference <= 1e-9 * Math.max(1, Math.abs(solver))) return true;
-  const written = String(plan);
-  if (/e/i.test(written)) return false;
-  const decimals = written.includes(".") ? written.split(".")[1]!.length : 0;
-  const halfUnit = 0.5 * 10 ** -decimals;
-  return difference <= halfUnit * (1 + 1e-9) && difference <= 0.05 * Math.abs(solver);
 }
 
 /**
@@ -614,8 +559,7 @@ export function problemIRUserMessage(question: string, turnPlan: TurnPlanV3 | nu
  * A binding is renamed to a plan unknown only when its normalized symbol and
  * unit match exactly one unknown and no other binding claims that unknown.
  * Anything ambiguous loses its binding, which audits as `incomplete` (an
- * absent second opinion), never as a contradiction. Run
- * `withdrawDisagreeingBindings` on the result before reconcile and audit.
+ * absent second opinion), never as a contradiction.
  */
 export function bindProblemIRToTurnPlan(problem: ProblemIR, turnPlan: TurnPlanV3): ProblemIR {
   const matches = new Map<string, string[]>();
