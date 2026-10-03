@@ -167,7 +167,9 @@ try {
       "the pending initial candidate is aborted once the grace closes");
     assert(result?.validation.valid && result.response.document.tag === "R2-primary");
     assert.equal(result?.repaired, true);
+    assert.equal(result?.selectedFromRepair, true);
     assert.equal(result?.repairRounds, 2);
+    assert(repairs.every((call) => call.deadlineMs === 30_000), "each repair call is capped at the 30s candidate cap");
     assert.deepEqual(tags(result), ["A", "A-rprimary", "A-ralternate", "R2-primary"],
       "the aborted alternate never enters the candidate record");
     assert.equal(result?.candidates.filter((candidate) => candidate.selected).length, 1);
@@ -189,8 +191,76 @@ try {
     assert.equal(result?.repairRounds, 2);
     assert.equal(result?.validation.valid, false);
     assert.equal(result?.response.document.tag, "B", "the fewest fatal errors win across all evaluated candidates");
-    assert.equal(result?.repaired, false, "the selected candidate is an initial plan");
+    assert.equal(result?.repaired, true, "repaired keeps its meaning: a repair round produced candidates");
+    assert.equal(result?.selectedFromRepair, false, "the selected candidate is an initial plan");
     assert.equal(result?.candidates.length, 6);
+  });
+
+  await scenario("a stalled round-1 call does not starve round 2 when a strictly better seed waits", async () => {
+    const calls = harness((call) => {
+      if (call.phase === "plan") {
+        return call.lane === "primary" ? { atMs: 1_000, doc: doc("A", 3) } : { atMs: 2_000, doc: doc("B", 1) };
+      }
+      if (call.seed === "A") return call.lane === "primary" ? { atMs: 4_000, doc: doc("A-r", 4) } : "hang";
+      return { atMs: 6_000, doc: doc(`B-r${call.lane}`, call.lane === "primary" ? 0 : 2) };
+    });
+    const { value: result } = await settle(planSceneDocumentWithRepair("q", validate, options()));
+    const repairs = calls.filter((call) => call.phase === "repair");
+    assert.equal(repairs[2]?.seed, "B");
+    assert.equal(repairs[2]?.atMs, 4_000, "round 2 starts once one round-1 call settled and B beats round 1's seed");
+    assert.equal(repairs.length, 4);
+    assert(repairs[1]?.aborted, "the stalled round-1 call is aborted after the valid repair");
+    assert.equal(result?.response.document.tag, "B-rprimary");
+  });
+
+  await scenario("without a strictly better seed, round 2 waits for the whole of round 1", async () => {
+    const calls = harness((call) => {
+      if (call.phase === "plan") {
+        return call.lane === "primary" ? { atMs: 1_000, doc: doc("A", 3) } : { atMs: 2_000, doc: doc("B", 5) };
+      }
+      if (call.seed === "A") return call.lane === "primary" ? { atMs: 4_000, doc: doc("A-r", 4) } : "hang";
+      return { atMs: call.atMs + 1_000, doc: doc(`R2-${call.lane}`, 0) };
+    });
+    await settle(planSceneDocumentWithRepair("q", validate, options()));
+    const repairs = calls.filter((call) => call.phase === "repair");
+    assert.equal(repairs[1]?.abortedAtMs, 31_000, "the stalled repair stops at its own 30s cap");
+    assert.equal(repairs[2]?.atMs, 31_000, "round 2 launches only when round 1 has fully settled");
+    assert.equal(repairs[2]?.seed, "A-r", "round 2 takes the best unrepaired seed: A-r (4 fatal) beats B (5)");
+  });
+
+  await scenario("held repairs: initial candidates only until the caller releases", async () => {
+    const release = (() => {
+      let resolve!: (value: boolean) => void;
+      const promise = new Promise<boolean>((onResolve) => {
+        resolve = onResolve;
+      });
+      return { promise, resolve };
+    })();
+    const calls = harness((call) => call.phase === "plan"
+      ? { atMs: 1_000 + call.index * 1_000, doc: doc(call.lane === "primary" ? "A" : "B", 2) }
+      : { atMs: call.atMs + 1_000, doc: doc(`rep-${call.lane}`, 0) });
+    setTimeout(() => release.resolve(true), 10_000);
+    const { value: result, atMs } = await settle(planSceneDocumentWithRepair("q", validate, {
+      ...options(),
+      holdRepairsUntil: release.promise,
+    }));
+    const repairs = calls.filter((call) => call.phase === "repair");
+    assert.equal(repairs[0]?.atMs, 10_000, "no repair before the release, even with two invalid candidates");
+    assert.equal(repairs.length, 2);
+    assert.equal(atMs, 11_000, "both repairs answered, nothing pending: no grace wait");
+    assert(result?.validation.valid);
+
+    const withheld = harness((call) => call.phase === "plan"
+      ? { atMs: 1_000, doc: doc(call.lane === "primary" ? "A" : "B", 2) }
+      : { atMs: call.atMs + 1_000, doc: doc("rep", 0) });
+    const refused = Promise.resolve(false);
+    const { value: unrepaired } = await settle(planSceneDocumentWithRepair("q", validate, {
+      ...options(),
+      holdRepairsUntil: refused,
+    }));
+    assert.equal(withheld.filter((call) => call.phase === "repair").length, 0, "a refused release never repairs");
+    assert.equal(unrepaired?.repaired, false);
+    assert.equal(unrepaired?.validation.valid, false);
   });
 
   await scenario("a valid initial candidate ends the search and aborts in-flight repairs", async () => {
