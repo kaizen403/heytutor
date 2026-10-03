@@ -214,6 +214,14 @@ export async function awaitCurrentTurn<T>(
   return result;
 }
 
+/**
+ * Race a silent first teaching request with a reasoning-off copy. Off unless
+ * NEXT_PUBLIC_TEACHING_HEDGE=1: a hedge spends a second paid teaching call,
+ * and the per-turn call cap and billing for the losing request are owner
+ * decisions.
+ */
+export const TEACHING_HEDGE_ENABLED = process.env.NEXT_PUBLIC_TEACHING_HEDGE === "1";
+
 export function useQuestionHandler(
   params: UseTurnLifecycleParams,
   turnControl: Pick<
@@ -2087,7 +2095,8 @@ export function useQuestionHandler(
           const isContinuation = continueCount > 0 && !reasoningOnlyRetry;
           // Only the turn's first teaching request is hedged. Continuations,
           // the startup retry and resumed lectures keep a single request.
-          const hedgeThisRequest = continueCount === 0 && !reasoningOnlyRetry && !resumeInkRetry && !resume;
+          const hedgeThisRequest = TEACHING_HEDGE_ENABLED &&
+            continueCount === 0 && !reasoningOnlyRetry && !resumeInkRetry && !resume;
           teachingAttempt = "primary";
           const streamResult = await streamLLMResponse(
             {
