@@ -224,7 +224,12 @@ function requestedResultFingerprint(value: unknown): string {
   }).sort().join(";");
 }
 
-function deepEqual(first: unknown, second: unknown): boolean {
+/**
+ * Structural equality for plans and planner inputs. A key present with an
+ * undefined value is not the same as a missing key: the strict reading, so a
+ * difference never hides behind it.
+ */
+export function deepEqual(first: unknown, second: unknown): boolean {
   if (first === second) return true;
   if (typeof first !== typeof second) return false;
   if (Array.isArray(first) || Array.isArray(second)) {

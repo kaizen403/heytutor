@@ -61,6 +61,8 @@ type PlanCall = {
   signal: AbortSignal;
   timeoutMs: number;
   atMs: number;
+  /** The repair hold's settled value: undefined while pending, "none" when absent. */
+  hold: { value: boolean | undefined } | "none";
   reply: ReturnType<typeof deferred<Result | null>>;
 };
 
@@ -126,7 +128,11 @@ function harness(script: Script) {
     selectFast: (fastPlan, fastAuthority) => script.fast?.(fastPlan, fastAuthority) ?? null,
     planScene: (gate, scenePlan, run) => {
       const reply = deferred<Result | null>();
-      planCalls.push({ gate, plan: scenePlan, signal: run.signal, timeoutMs: run.timeoutMs, atMs: nowMs, reply });
+      const hold: PlanCall["hold"] = run.holdRepairsUntil ? { value: undefined } : "none";
+      if (hold !== "none") void run.holdRepairsUntil!.then((value) => {
+        hold.value = value;
+      });
+      planCalls.push({ gate, plan: scenePlan, signal: run.signal, timeoutMs: run.timeoutMs, atMs: nowMs, hold, reply });
       record("plan-scene", { plan: gate.planId });
       return reply.promise;
     },
@@ -232,6 +238,14 @@ assert.deepEqual(
   decideSpeculation({ gate: baseGate, turnPlan: specPlan }, finalFacts({ gate: { ...baseGate, shouldAttemptLlmScene: false } })),
   { keep: false, reason: "not_attempted", restart: false },
 );
+assert.equal(
+  (decideSpeculation(
+    { gate: { ...baseGate, request: { conversationContext: "x", planningGuidance: undefined } }, turnPlan: specPlan },
+    finalFacts({ turnPlan: specPlan }),
+  ) as { reason: string }).reason,
+  "inputs_changed",
+  "an undefined key is not the same as a missing one",
+);
 assert.deepEqual(
   decideSpeculation({ gate: baseGate, turnPlan: specPlan }, finalFacts({ turnPlan: specPlan, remainingMs: 0 })),
   { keep: false, reason: "budget", restart: false },
@@ -263,10 +277,12 @@ async function main(): Promise<void> {
     assert.equal(h.planCalls[0]!.plan, h.initialPlan);
     assert.equal(h.planCalls[0]!.timeoutMs, 51_000, "it runs inside the same 60s planner budget");
     assert.equal(names(h.events).indexOf("scene-speculative-start") > names(h.events).indexOf("plan-scene"), true);
+    assert.deepEqual(h.planCalls[0]!.hold, { value: undefined }, "a speculative run holds its repairs");
     h.advance(6_000);
     h.authority.resolve({ id: "ir" });
     await flush();
     assert.equal(h.planCalls.length, 1, "kept: no second planner run");
+    assert.deepEqual(h.planCalls[0]!.hold, { value: true }, "keeping the run releases its repairs");
     assert(!h.planCalls[0]!.signal.aborted);
     h.advance(10_000);
     h.planCalls[0]!.reply.resolve(h.result("spec", h.planCalls[0]!));
@@ -311,6 +327,8 @@ async function main(): Promise<void> {
     await flush();
     assert.equal(h.planCalls.length, 2);
     assert(h.planCalls[0]!.signal.aborted);
+    assert.deepEqual(h.planCalls[0]!.hold, { value: false }, "a discarded run never launched a repair");
+    assert.equal(h.planCalls[1]!.hold, "none", "the restart repairs freely");
     assert.equal(h.planCalls[1]!.gate.planId, "final", "the restart uses the gate inferred with ProblemIR");
     assert.equal(h.planCalls[1]!.timeoutMs, 42_000, "the restart gets only what is left of 60s");
     assert.deepEqual(h.events.find((event) => event.name === "scene-speculative-abort")?.data, { reason: "families_changed" });
@@ -423,6 +441,10 @@ async function main(): Promise<void> {
     h.authority.resolve({ id: "ir" });
     await assert.rejects(h.outcome, /turn cancelled/);
     assert(h.planCalls[0]!.signal.aborted);
+    await flush();
+    assert.deepEqual(h.planCalls[0]!.hold, { value: false });
+    assert.deepEqual(h.events.find((event) => event.name === "scene-planner:end")?.data,
+      { speculative: true, restarted: false, aborted: true }, "a cancelled run still closes its span");
 
     const failing = harness({});
     await flush();
@@ -503,6 +525,11 @@ async function main(): Promise<void> {
   assert(/speculationAllowed: recoveredScene === null/.test(hook), "a recovered scene must never speculate");
   assert(!/planSceneDocumentWithRepair\([\s\S]{0,40}validateCandidate,/.test(hook),
     "the hook must not keep a second, serial scene planner call");
+  assert(/isCurrentTurn\)\.catch\(closeTurnPlanSpanOnFailure\)/.test(hook) &&
+    /turnPlanSpan\.end\(\{ aborted: true \}\)/.test(hook),
+    "a cancelled turn plan closes its span");
+  assert(/holdRepairsUntil: run\.holdRepairsUntil/.test(hook) && /holdRepairsUntil: sceneRun\.holdRepairsUntil/.test(bench),
+    "both callers pass the repair hold to the scene planner");
   assert(/tel\.span\("turn-plan", "planner"\)/.test(hook) && /tel\.span\("problem-ir", "planner"\)/.test(hook),
     "turn-plan and problem-ir spans are children of planner");
   passed += 1;

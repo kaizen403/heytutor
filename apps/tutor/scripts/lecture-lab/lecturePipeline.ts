@@ -590,6 +590,7 @@ export async function runLecture(
             proxyUrl: plannerUrl,
             signal: sceneRun.signal,
             timeoutMs: sceneRun.timeoutMs,
+            holdRepairsUntil: sceneRun.holdRepairsUntil,
             fastMode,
             traceId,
             ...gate.request,

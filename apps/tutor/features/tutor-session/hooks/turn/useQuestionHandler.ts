@@ -950,6 +950,11 @@ export function useQuestionHandler(
           });
           const turnPlanStartedAt = Date.now();
           const turnPlanSpan = tel.span("turn-plan", "planner");
+          // A cancelled or failed turn plan still closes its span.
+          const closeTurnPlanSpanOnFailure = (error: unknown): never => {
+            turnPlanSpan.end({ aborted: true });
+            throw error;
+          };
           const plannedTurn = await awaitCurrentTurn(planTurnV3(question, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
@@ -958,7 +963,7 @@ export function useQuestionHandler(
             timeoutMs: TURN_PLAN_DEADLINE_MS,
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
-          }), isCurrentTurn);
+          }), isCurrentTurn).catch(closeTurnPlanSpanOnFailure);
           // The turn-plan audit used to run here: a second LLM opinion on the
           // plan, awaited before the scene planner could start. Measured on
           // "Concave mirror, f = 15 cm, object at 20 cm" it cost 8.9s of a 37s
@@ -1307,6 +1312,7 @@ export function useQuestionHandler(
               traceId: turnTraceId ?? undefined,
               signal: run.signal,
               timeoutMs: run.timeoutMs,
+              holdRepairsUntil: run.holdRepairsUntil,
               fastMode: fastModeRef.current,
               ...gate.request,
             },

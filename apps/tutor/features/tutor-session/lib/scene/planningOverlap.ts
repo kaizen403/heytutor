@@ -19,7 +19,7 @@
  * measures the path students get. Everything with I/O is injected.
  */
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
-import { finalizeScenePlanAfterAuthority } from "./diagramGeneration";
+import { deepEqual, finalizeScenePlanAfterAuthority } from "./diagramGeneration";
 
 /** What the exact gate decided for one plan, plus the planner request it implies. */
 export interface SceneGateCore {
@@ -87,8 +87,16 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   /** A stored verified scene, validated against the final plan. */
   recover?(gate: G, plan: TurnPlanV3): R | null;
   selectFast(plan: TurnPlanV3, authority: A | null, gate: G): F | null;
-  /** One planSceneDocumentWithRepair run whose validator is bound to `plan`. */
-  planScene(gate: G, plan: TurnPlanV3, run: { signal: AbortSignal; timeoutMs: number }): Promise<R | null>;
+  /**
+   * One planSceneDocumentWithRepair run whose validator is bound to `plan`.
+   * A speculative run passes `holdRepairsUntil`: it generates initial
+   * candidates only, and repairs once the run is kept (true) or never (false).
+   */
+  planScene(
+    gate: G,
+    plan: TurnPlanV3,
+    run: { signal: AbortSignal; timeoutMs: number; holdRepairsUntil?: Promise<boolean> },
+  ): Promise<R | null>;
   /** Revalidate every candidate against the final plan. */
   revalidate(result: R, plan: TurnPlanV3): Promise<R>;
 }
@@ -205,6 +213,9 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
 
   type Run = {
     controller: AbortController;
+    /** Speculative runs only: settle true to allow repairs, false to forbid them. */
+    releaseRepairs: ((release: boolean) => void) | null;
+    spanEnded: boolean;
     promise: Promise<R | null>;
     startedAt: number;
     gate: G;
@@ -219,18 +230,53 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     const signal = input.signal ? mergeAbortSignals(input.signal, controller.signal) : controller.signal;
     const span = input.telemetry?.span("scene-planner", parent);
     const startedAt = now();
-    const promise = input.planScene(gate, turnPlan, { signal, timeoutMs: remainingMs() });
+    // A discarded speculative run used to have launched a repair batch already
+    // (up to four calls) by the time ProblemIR answered. Its repairs now wait
+    // for the keep decision, inside the same budget.
+    let releaseRepairs: ((release: boolean) => void) | null = null;
+    const holdRepairsUntil = speculative
+      ? new Promise<boolean>((resolve) => {
+          releaseRepairs = resolve;
+        })
+      : undefined;
+    const promise = input.planScene(gate, turnPlan, {
+      signal,
+      timeoutMs: remainingMs(),
+      ...(holdRepairsUntil ? { holdRepairsUntil } : {}),
+    });
     // An abandoned run settles on its own; nothing may observe its result.
     promise.catch(() => {});
-    const run = { controller, promise, startedAt, gate, turnPlan, span, speculative, restarted };
+    const run: Run = {
+      controller,
+      releaseRepairs,
+      spanEnded: false,
+      promise,
+      startedAt,
+      gate,
+      turnPlan,
+      span,
+      speculative,
+      restarted,
+    };
     inFlight.add(run);
     return run;
+  };
+  const endRunSpan = (run: Run, metadata: Record<string, unknown>) => {
+    if (run.spanEnded) return;
+    run.spanEnded = true;
+    run.span?.end(metadata);
+  };
+  const stopRun = (run: Run, metadata: Record<string, unknown>) => {
+    run.releaseRepairs?.(false);
+    run.controller.abort();
+    inFlight.delete(run);
+    endRunSpan(run, metadata);
   };
   const finishRun = async (run: Run): Promise<R | null> => {
     const result = await guard(run.promise);
     inFlight.delete(run);
     timings.scenePlannerMs = now() - run.startedAt;
-    run.span?.end({
+    endRunSpan(run, {
       speculative: run.speculative,
       restarted: run.restarted,
       candidates: result?.candidates.length ?? 0,
@@ -313,11 +359,10 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
         run = speculative;
         kept = true;
         validatedAgainst = speculative.turnPlan;
+        speculative.releaseRepairs?.(true);
       } else {
         abortReason = decision.reason;
-        speculative.controller.abort();
-        inFlight.delete(speculative);
-        speculative.span?.end({ speculative: true, restarted: false, aborted: decision.reason });
+        stopRun(speculative, { speculative: true, restarted: false, aborted: decision.reason });
         input.telemetry?.mark("scene-speculative-abort", { reason: decision.reason });
         speculative = null;
         if (decision.restart) {
@@ -363,8 +408,11 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       timings,
     };
   } finally {
-    // A cancelled turn or a thrown authority never leaves a planner running.
-    for (const run of inFlight) run.controller.abort();
+    // A cancelled turn or a thrown authority never leaves a planner running,
+    // and its span still closes.
+    for (const run of [...inFlight]) {
+      stopRun(run, { speculative: run.speculative, restarted: run.restarted, aborted: true });
+    }
   }
 }
 
@@ -372,27 +420,6 @@ function sameMembers(first: readonly string[], second: readonly string[]): boole
   const left = new Set(first);
   const right = new Set(second);
   return left.size === right.size && [...left].every((value) => right.has(value));
-}
-
-function deepEqual(first: unknown, second: unknown): boolean {
-  if (first === second) return true;
-  if (typeof first !== typeof second) return false;
-  if (Array.isArray(first) || Array.isArray(second)) {
-    return Array.isArray(first) &&
-      Array.isArray(second) &&
-      first.length === second.length &&
-      first.every((value, index) => deepEqual(value, second[index]));
-  }
-  if (typeof first !== "object" || first === null || typeof second !== "object" || second === null) {
-    return false;
-  }
-  const firstRecord = first as Record<string, unknown>;
-  const secondRecord = second as Record<string, unknown>;
-  const firstKeys = Object.keys(firstRecord).filter((key) => firstRecord[key] !== undefined).sort();
-  const secondKeys = Object.keys(secondRecord).filter((key) => secondRecord[key] !== undefined).sort();
-  return firstKeys.length === secondKeys.length &&
-    firstKeys.every((key, index) =>
-      key === secondKeys[index] && deepEqual(firstRecord[key], secondRecord[key]));
 }
 
 function mergeAbortSignals(first: AbortSignal, second: AbortSignal): AbortSignal {
