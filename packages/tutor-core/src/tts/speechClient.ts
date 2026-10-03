@@ -34,6 +34,10 @@ export interface SpeakSegmentOptions {
   sessionId?: string;
   /** Fires once for complete claimed provider bytes, before decode/load; not audibility. */
   onAudioReady?: () => void;
+  onPlaybackBlocked?: (blocked: {
+    reason: "context-suspended" | "context-interrupted" | "not-allowed";
+    audioContextState: AudioContextState | "interrupted" | null;
+  } | null) => void;
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (error: unknown) => void;
@@ -86,6 +90,7 @@ export interface TTSClient {
    * allows audible playback later (planning awaits would otherwise leave it suspended).
    */
   unlockAudio?(): void;
+  getAudioContextState?(): AudioContextState | "interrupted" | null;
   /**
    * Keep generating and capturing TTS, but do not play it through speakers.
    * Writing sync still uses the audio clock.

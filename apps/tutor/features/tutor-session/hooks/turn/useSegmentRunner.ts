@@ -57,6 +57,7 @@ export function useSegmentRunner({
   narrationDensityRef,
   drawChainRef,
   reserveTextCommandPlacements,
+  onSpeechStartupStatus,
 }: UseSegmentRunnerParams) {
   // The voice's measured pace, learned from every aligned sentence of the
   // session and used wherever a sentence has no alignment yet. The estimate
@@ -71,6 +72,7 @@ export function useSegmentRunner({
   const speechClockRef = useRef<PauseAwareSpeechClock | null>(null);
   const timingWaitClockRef = useRef<PauseAwareSpeechClock | null>(null);
   const introDrawOwnerRef = useRef<{ owner: symbol; freeze: () => void } | null>(null);
+  const startupStatusOwnerRef = useRef<symbol | null>(null);
 
   // Turn controls own both transports. Browser pause() cancels its current
   // utterance; the fallback loop retries that sentence after resume.
@@ -574,6 +576,14 @@ export function useSegmentRunner({
 
       const markVoiceStarted = () => {
         if (isCancelled() || !turnActiveRef.current) return;
+        if (usingBrowserFallback) tel?.mark("tts-startup-accepted", {
+          segment_index: index,
+          turn_generation: turnGeneration,
+          transport: "browser",
+          accepted: true,
+          paused: isPausedRef.current,
+          audio_context_state: null,
+        });
         if (hasNarration) speakingNarrationRef.current = narration;
         if (audioStartedAtMs === null) {
           audioStartedAtMs = performance.now();
@@ -621,17 +631,70 @@ export function useSegmentRunner({
         let ownsPrimary = true;
         let primaryGeneration = 0;
         let providerRecoveryAttempted = false;
+        const startupOwner = Symbol();
+        const clearStartupStatus = () => {
+          if (startupStatusOwnerRef.current !== startupOwner) return;
+          startupStatusOwnerRef.current = null;
+          onSpeechStartupStatus?.(null);
+        };
         const speakPrimary = (onStart: () => boolean, onAudioReady: () => void) => {
           const attempt = ++primaryGeneration;
           const canAcceptPrimary = () => ownsPrimary && attempt === primaryGeneration && !isCancelled() && !speechAborted;
+          tel?.mark("tts-startup-attempted", {
+            segment_index: index,
+            turn_generation: turnGeneration,
+            transport: "provider",
+            audio_context_state: tts.getAudioContextState?.() ?? null,
+          });
           return tts.speakSegment(text, {
             ...options,
+            onPlaybackBlocked: (blocked) => {
+              if (!canAcceptPrimary() || !turnActiveRef.current) return;
+              if (!blocked) {
+                clearStartupStatus();
+                return;
+              }
+              if (isPausedRef.current) return;
+              tel?.mark("tts-playback-blocked", {
+                segment_index: index,
+                turn_generation: turnGeneration,
+                reason: blocked.reason,
+                audio_context_state: blocked.audioContextState,
+              });
+              startupStatusOwnerRef.current = startupOwner;
+              onSpeechStartupStatus?.({
+                turnGeneration,
+                segmentIndex: index,
+                blocked,
+                enableAudio: () => {
+                  if (startupStatusOwnerRef.current !== startupOwner || !canAcceptPrimary() ||
+                    isPausedRef.current || !turnActiveRef.current) return;
+                  tel?.mark("tts-audio-enable-attempted", {
+                    segment_index: index,
+                    turn_generation: turnGeneration,
+                    audio_context_state: tts.getAudioContextState?.() ?? null,
+                  });
+                  tts.unlockAudio?.();
+                  tts.resume();
+                },
+              });
+            },
             onAudioReady: () => {
               if (!canAcceptPrimary()) return;
               onAudioReady();
             },
             onStart: () => {
-              if (!canAcceptPrimary() || isPausedRef.current || !onStart()) return;
+              const accepted = canAcceptPrimary() && !isPausedRef.current && onStart();
+              if (!isStale()) tel?.mark("tts-startup-accepted", {
+                segment_index: index,
+                turn_generation: turnGeneration,
+                transport: "provider",
+                accepted,
+                paused: isPausedRef.current,
+                audio_context_state: tts.getAudioContextState?.() ?? null,
+              });
+              if (!accepted) return;
+              clearStartupStatus();
               options.onStart?.();
             },
             onEnd: () => {
@@ -642,6 +705,7 @@ export function useSegmentRunner({
           });
         };
         const abandonPrimary = () => {
+          clearStartupStatus();
           ownsPrimary = false;
           primaryGeneration++;
           if (tts.abandonSpeaking) tts.abandonSpeaking();
@@ -668,6 +732,12 @@ export function useSegmentRunner({
                     const canAcceptBrowser = () => activeAttempt && usingBrowserFallback && !isCancelled() && !speechAborted &&
                       !isPausedRef.current && attemptGeneration === fallbackPauseGenerationRef.current;
                     try {
+                      tel?.mark("tts-startup-attempted", {
+                        segment_index: index,
+                        turn_generation: turnGeneration,
+                        transport: "browser",
+                        audio_context_state: null,
+                      });
                       await browserSpeechRef.current!.speakSegment(text, {
                         ...options,
                         onStart: () => {
@@ -815,6 +885,7 @@ export function useSegmentRunner({
           if ((audioStartedAtMs === null || usingBrowserFallback) && !isCancelled()) throw error;
         } finally {
           ownsPrimary = false;
+          clearStartupStatus();
           if (timeoutId !== null) {
             window.clearTimeout(timeoutId);
           }
@@ -973,6 +1044,7 @@ export function useSegmentRunner({
       drawChainRef,
       reserveTextCommandPlacements,
       speakingNarrationRef,
+      onSpeechStartupStatus,
     ],
   );
 

@@ -26,6 +26,7 @@ import {
   isExplanationOnlyDsaQuestion,
   dsaLessonIncludesCode,
   dsaOpeningPointIds,
+  voiceSettingsForDelivery,
   planCodeLessonV1,
   type CodeLessonPlan,
   type DsaTeachingPolicy,
@@ -125,6 +126,7 @@ import {
 import { LectureMarkupBuffer } from "../../lib/turn/lectureCueRepair";
 import { restoreVerifiedPresentationFromTurn } from "../../lib/scene/restoreVerifiedDiagram";
 import {
+  selectFastVerifiedRepresentation,
   selectVerifiedRepresentation,
   type RepresentationTier,
 } from "../../lib/scene/representationFallback";
@@ -135,6 +137,7 @@ import {
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
   shouldAttemptExactScene,
+  turnPlanNeedsNumericAuthority,
 } from "../../lib/scene/diagramGeneration";
 import {
   findVerifiedSceneRecovery,
@@ -279,6 +282,7 @@ export function useQuestionHandler(
     revokeUnreferencedReplayBlobUrls,
     onComplete,
     onError,
+    onSpeechStartupStatus,
   } = params;
 
   const emitError = useCallback((error: { message: string; question: string; billing?: BillingFailure }) => {
@@ -466,6 +470,7 @@ export function useQuestionHandler(
 
       const turnGeneration = turnGenerationRef.current + 1;
       turnGenerationRef.current = turnGeneration;
+      onSpeechStartupStatus?.(null);
       cancelRef.current = false;
       isPausedRef.current = false;
       setIsPaused(false);
@@ -684,7 +689,7 @@ export function useQuestionHandler(
       // Re-arm the graph the Ask click already held. Planning can last a
       // minute; this does not replace unlocking inside the gesture.
       const tts = ensureTTSClient();
-      tts.unlockAudio?.();
+      if (!isPausedRef.current) tts.unlockAudio?.();
 
       // The verified semantic scene engine is the only diagram generation path.
       setPhaseIfCurrent("planning");
@@ -936,20 +941,6 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
           }), isCurrentTurn);
-          if (plannedTurn) {
-            const remainingAuthorityMs = Math.max(
-              1_000,
-              SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
-            );
-            problemAuthorityPromise = planAndSolveProblemV1(question, plannedTurn.turnPlan, {
-              proxyUrl: plannerUrl,
-              sessionId: sessionId ?? undefined,
-              traceId: turnTraceId ?? undefined,
-              signal: abortController.signal,
-              timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, remainingAuthorityMs),
-              fastMode: fastModeRef.current,
-            });
-          }
           // The turn-plan audit used to run here: a second LLM opinion on the
           // plan, awaited before the scene planner could start. Measured on
           // "Concave mirror, f = 15 cm, object at 20 cm" it cost 8.9s of a 37s
@@ -972,6 +963,19 @@ export function useQuestionHandler(
             createFallbackTurnPlanV3(question),
             plannedTurn?.peerTurnPlans,
           );
+          if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
+            const remainingAuthorityMs = Math.max(1_000, SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt));
+            problemAuthorityPromise = planAndSolveProblemV1(question, turnPlan, {
+              proxyUrl: plannerUrl,
+              sessionId: sessionId ?? undefined,
+              traceId: turnTraceId ?? undefined,
+              signal: abortController.signal,
+              timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, remainingAuthorityMs),
+              fastMode: fastModeRef.current,
+            });
+          } else if (plannedTurn) {
+            tel.mark("planner-numeric-authority-not-needed", { reason: "no_unstated_numeric_results" });
+          }
           const evaluatedVisualNeed = await awaitCurrentTurn(visualNeedPromise, isCurrentTurn);
           turnPlan = {
             ...turnPlan,
@@ -992,16 +996,42 @@ export function useQuestionHandler(
         if (problemAuthorityPromise) {
           problemAuthority = await awaitCurrentTurn(problemAuthorityPromise, isCurrentTurn);
         }
+        if (problemAuthority) {
+          turnPlan = reconcileTurnPlanWithSolver(
+            turnPlan,
+            problemAuthority.problemIR,
+            problemAuthority.solverResult,
+          );
+          const authorityAudit = verifyTurnPlanAgainstSolver(
+            problemAuthority.problemIR,
+            problemAuthority.solverResult,
+            turnPlan,
+            question,
+          );
+          problemAuthority = {
+            ...problemAuthority,
+            audit: authorityAudit,
+            projection: authorityAudit.status === "verified"
+              ? buildSolverAuthorityProjection(
+                  problemAuthority.problemIR,
+                  problemAuthority.solverResult,
+                  authorityAudit,
+                )
+              : null,
+          };
+          tutorDebug("planner", "solver authority audit", {
+            status: authorityAudit.status,
+            issue_codes: authorityAudit.issues.map((issue) => issue.code),
+            binding_count: authorityAudit.bindings.length,
+            elapsed_ms: problemAuthority.elapsedMs,
+          });
+        }
         const planningTurnPlan = turnPlan;
         const sceneCapabilities = inferSceneCapabilities(question, {
           lawIds: planningTurnPlan.lawIds,
           problemIR: problemAuthority?.problemIR ?? null,
           turnPlan: planningTurnPlan,
         });
-        const remainingPlannerMs = Math.max(
-          0,
-          SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
-        );
         // A chemistry question never goes to the LLM scene planner: its
         // figure is computed from the formula or the named process by the
         // engine's chemistry families, and a model-authored molecule or cell
@@ -1168,7 +1198,24 @@ export function useQuestionHandler(
             recoveredScene = null;
           }
         }
-        if (!result && shouldAttemptLlmScene && remainingPlannerMs > 0) {
+        const fastRepresentation = !result && shouldPlanExactScene &&
+          problemAuthority?.audit.status !== "contradiction"
+          ? selectFastVerifiedRepresentation({
+              question,
+              turnPlan,
+              problemIR: problemAuthority?.problemIR ?? null,
+              families: sceneCapabilities.families,
+            })
+          : null;
+        if (fastRepresentation) {
+          tel.mark("planner-deterministic-ready", {
+            representation_tier: fastRepresentation.tier,
+            family: fastRepresentation.family,
+            primitive_count: fastRepresentation.renderScene.primitives.length,
+          });
+        }
+        const remainingPlannerMs = Math.max(0, SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt));
+        if (!result && !fastRepresentation && shouldAttemptLlmScene && remainingPlannerMs > 0) {
           // The archetype detector names the figure the question calls for
           // (its roles and required operators); the planner is told, so a
           // projectile is planned as a trajectory with components rather than
@@ -1207,37 +1254,6 @@ export function useQuestionHandler(
                 : {}),
             },
           ).catch(() => null), isCurrentTurn);
-        }
-
-        if (problemAuthority) {
-          turnPlan = reconcileTurnPlanWithSolver(
-            turnPlan,
-            problemAuthority.problemIR,
-            problemAuthority.solverResult,
-          );
-          const authorityAudit = verifyTurnPlanAgainstSolver(
-            problemAuthority.problemIR,
-            problemAuthority.solverResult,
-            turnPlan,
-            question,
-          );
-          problemAuthority = {
-            ...problemAuthority,
-            audit: authorityAudit,
-            projection: authorityAudit.status === "verified"
-              ? buildSolverAuthorityProjection(
-                  problemAuthority.problemIR,
-                  problemAuthority.solverResult,
-                  authorityAudit,
-                )
-              : null,
-          };
-          tutorDebug("planner", "solver authority audit", {
-            status: authorityAudit.status,
-            issue_codes: authorityAudit.issues.map((issue) => issue.code),
-            binding_count: authorityAudit.bindings.length,
-            elapsed_ms: problemAuthority.elapsedMs,
-          });
         }
 
         const authoritativeTurnPlan = turnPlan;
@@ -1291,6 +1307,7 @@ export function useQuestionHandler(
           };
         } else if (
           shouldPlanExactScene &&
+          !fastRepresentation &&
           (!value || value.document.visualDecision.mode !== "scene")
         ) {
           const missingCapability = skippedExactForMissingCapability ||
@@ -1323,7 +1340,7 @@ export function useQuestionHandler(
               });
               throw new NoFigureNeeded();
             }
-            const selected = selectVerifiedRepresentation({
+            const selected = fastRepresentation ?? selectVerifiedRepresentation({
               question,
               turnPlan,
               problemIR: problemAuthority?.problemIR ?? null,
@@ -1406,6 +1423,9 @@ export function useQuestionHandler(
           }
         }
 
+        const selectedModelCandidate = result?.candidates.find((candidate) =>
+          candidate.selected && candidate.validation.valid && representationTier === "exact_verified" &&
+          sceneV2Document === candidate.validation.value?.document);
         sceneArtifacts = {
           schemaVersion: "scene-artifacts/v3",
           turnPlan,
@@ -1433,7 +1453,7 @@ export function useQuestionHandler(
               candidateId: candidate.candidateId,
               strategy: candidate.response.strategy,
               phase: candidate.response.phase,
-              accepted: candidate.selected && representationTier === "exact_verified",
+              accepted: candidate === selectedModelCandidate,
               sceneDocument: candidate.response.document as unknown as SceneDocument,
               validationReport: report,
               score: candidate.score,
@@ -1442,9 +1462,7 @@ export function useQuestionHandler(
                 .map((issue) => issue.code),
             };
           }) ?? [],
-          selectedCandidateId: representationTier === "exact_verified"
-            ? result?.candidates.find((candidate) => candidate.selected)?.candidateId ?? null
-            : null,
+          selectedCandidateId: selectedModelCandidate?.candidateId ?? null,
           selectionReason: representationReason ?? (sceneVisualStatus === "validated"
             ? usedVerifiedRecovery ? "verified_scene_recovery" : "validated_scene"
             : sceneVisualStatus === "retry_required"
@@ -1762,7 +1780,15 @@ export function useQuestionHandler(
       // Transition from planning back to thinking before the LLM stream starts.
       throwIfTurnCancelled();
       setPhaseIfCurrent("thinking");
-      tts.unlockAudio?.();
+      if (!isPausedRef.current) tts.unlockAudio?.();
+      if (STREAM_SEGMENTS_LIVE && openingSegment?.narration.trim() && !isPausedRef.current) {
+        tts.prefetchSegment?.(openingSegment.narration, {
+          traceId: turnTraceId ?? undefined,
+          sessionId: sessionId ?? undefined,
+          voiceSettings: voiceSettingsForDelivery(openingSegment.delivery),
+        });
+        tel.mark("tts-opening-prefetched", { chars: openingSegment.narration.length });
+      }
 
       // Commit the plan before narration so every later [TYPE] reveals a
       // pre-validated block. The panel stays hidden until the first TYPE.
@@ -1882,7 +1908,7 @@ export function useQuestionHandler(
           // Same-gesture resume can expire during a long plan. Re-arm WebAudio
           // before the first spoken beat so the overlay is not replaced by a
           // silent dump.
-          tts.unlockAudio?.();
+          if (!isPausedRef.current && !figureIntroEnqueued) tts.unlockAudio?.();
           enqueueOpeningNotes();
           if (!codeLesson) {
             if (figureIntroEnqueued || !STREAM_SEGMENTS_LIVE) return;
@@ -1909,6 +1935,8 @@ export function useQuestionHandler(
         // Buffer one segment so unverified marker commands are removed before
         // they enter the speech and drawing queues.
         let bufferedSegment: TutorSegment | null = null;
+        let usableTeachingStepReceived = false;
+        let startupControlSegments: TutorSegment[] = [];
         // One conductor for the whole turn: block order and the placement of
         // frame advances have to carry across streamed segments, so this
         // cannot be recreated per flush.
@@ -1924,7 +1952,7 @@ export function useQuestionHandler(
         const fallbackPointIds = dsaFrameSet
           ? openingPointIds
           : (openingPointIds.length > 0 ? openingPointIds : staticPointIds);
-        const conductor = codeLesson
+        const createTurnConductor = () => codeLesson
           ? createCodeLessonConductor(codeLesson, {
               includeCode: includeDsaCode,
               frameCount: dsaFrameSet?.frames.length ?? 0,
@@ -1940,16 +1968,13 @@ export function useQuestionHandler(
                 : {}),
             })
           : null;
+        let conductor = createTurnConductor();
 
         const flushBufferedSegment = () => {
           if (!bufferedSegment) return;
           // A resumed lecture must not queue its opening figure until a
           // spoken-and-written step passes the ink gate. Otherwise an intro
           // can keep drawing after a no-ink resume reports failure.
-          if (!resumeInkGate) {
-            enqueueOpeningNotes();
-            if (!codeLesson) enqueueLessonOpening();
-          }
           const prepared = prepareVerifiedLessonSegments([bufferedSegment], activeDiagram);
           // DSA turns own no handwriting: [TYPE] resolves to its committed
           // block in plan order, frame advances are inserted between blocks,
@@ -1967,16 +1992,29 @@ export function useQuestionHandler(
                 return kept ? [kept] : [];
               })
             : (resolved?.segments ?? prepared.segments);
-          if (codeLesson && outgoing.some(segmentNeedsFigure)) {
+          const hasTeachingContent = outgoing.some((segment) => /[\p{L}\p{N}]/u.test(segment.narration));
+          if (!usableTeachingStepReceived && !hasTeachingContent) startupControlSegments.push(...outgoing);
+          const queuedSegments = !usableTeachingStepReceived && !hasTeachingContent
+            ? []
+            : [...startupControlSegments.splice(0), ...outgoing];
+          if (hasTeachingContent) {
+            if (!resumeInkGate) {
+              usableTeachingStepReceived = true;
+              enqueueOpeningNotes();
+              if (!codeLesson) enqueueLessonOpening();
+            }
+          }
+          if (codeLesson && queuedSegments.some(segmentNeedsFigure)) {
             ensureFigureIntro();
           }
-          for (const seg of outgoing) {
+          for (const seg of queuedSegments) {
             const readySegments = resumeInkGate
               ? resumeInkGate.offer(normalizeSegmentForAlignment(seg))
               : [seg];
             // Enqueue the figure before the first accepted writing segment,
             // never before an attempt that may still fail for lack of ink.
             if (resumeInkGate && readySegments.length > 0) enqueueLessonOpening();
+            if (readySegments.some((segment) => /[\p{L}\p{N}]/u.test(segment.narration))) usableTeachingStepReceived = true;
             for (const ready of readySegments) {
               enqueueSegment(ready, turnGeneration);
             }
@@ -2087,6 +2125,7 @@ export function useQuestionHandler(
               codeLesson: Boolean(codeLesson),
               // The retry after a reasoning-only response must speak.
               noReasoning: reasoningOnlyRetry,
+              hasUsableContent: STREAM_SEGMENTS_LIVE ? () => usableTeachingStepReceived : undefined,
               signal: abortController.signal,
               onTraceId: (id) => {
                 currentTraceIdRef.current = id;
@@ -2122,8 +2161,8 @@ export function useQuestionHandler(
           // emitted no spoken content. Retry the original question once instead
           // of failing the turn (upstream already raised the token ceiling).
           const reasoningOnlyChunk =
-            streamResult.text.trim().length === 0 &&
-            (streamResult.streamStats?.reasoningChars ?? 0) > 0;
+            (!usableTeachingStepReceived && streamResult.streamStats?.firstContentTimedOut === true) ||
+            (streamResult.text.trim().length === 0 && (streamResult.streamStats?.reasoningChars ?? 0) > 0);
           if (
             reasoningOnlyChunk &&
             !reasoningOnlyRetry &&
@@ -2134,6 +2173,22 @@ export function useQuestionHandler(
             tutorDebug("turn", "reasoning-only response, retrying question", {
               reasoning_chars: streamResult.streamStats?.reasoningChars ?? 0,
             });
+            tel.mark("teaching-startup-retry", {
+              reason: streamResult.streamStats?.firstContentTimedOut ? "first_content_timeout" : "reasoning_only",
+              reasoning_chars: streamResult.streamStats?.reasoningChars ?? 0,
+            });
+            if (!usableTeachingStepReceived) {
+              bufferedSegment = null;
+              startupControlSegments = [];
+              fullResponse = "";
+              markup = codeLesson ? null : new LectureMarkupBuffer();
+              parser = new IncrementalTagParser({
+                preserveStepSpeech: !codeLesson,
+                onSegmentReady: parser.onSegmentReady,
+              });
+              resumeInkGate?.reset();
+              conductor = createTurnConductor();
+            }
             continue;
           }
           reasoningOnlyRetry = false;
@@ -2385,6 +2440,7 @@ export function useQuestionHandler(
           }
         }
       } catch (error) {
+        const wasCurrentTurn = isCurrentTurn();
         // Stop leftover planner and teaching requests so the next question is
         // not refused while this one is already on the error toast.
         if (!abortController.signal.aborted) {
@@ -2401,7 +2457,7 @@ export function useQuestionHandler(
           return;
         }
 
-        if (!isCurrentTurn()) {
+        if (!wasCurrentTurn) {
           turnCancelled = true;
           return;
         }
@@ -2416,7 +2472,7 @@ export function useQuestionHandler(
           message = "network error. check your connection";
         } else if (error instanceof Error && /tts|audio|elevenlabs|speech/i.test(error.message)) {
           message = "audio generation failed. the lesson continues without voice";
-        } else if (error instanceof Error && /timeout|aborted|abort/i.test(error.message)) {
+        } else if (error instanceof Error && (error.name === "TimeoutError" || /timeout|aborted|abort|did not start in time/i.test(error.message))) {
           message = "the request took too long. try asking again.";
         }
         setNarrationText(message);
@@ -2431,20 +2487,15 @@ export function useQuestionHandler(
           // A stream failure can occur after the intro was enqueued. Do not expose
           // an idle UI until that exact turn's ink has settled; otherwise the next
           // question resets scene ownership underneath commands still in flight.
-          const segmentQueue = segmentChainRef.current;
-          await Promise.race([
-            segmentQueue.catch(() => undefined),
-            new Promise<void>((resolve) => {
-              window.setTimeout(resolve, 20_000);
-            }),
-          ]);
-          const drawQueue = drawChainRef.current;
-          await Promise.race([
-            drawQueue.catch(() => undefined),
-            new Promise<void>((resolve) => {
-              window.setTimeout(resolve, 20_000);
-            }),
-          ]);
+          for (const queueRef of [segmentChainRef, drawChainRef]) {
+            let queueTimeoutId: number | undefined;
+            await Promise.race([
+              queueRef.current.catch(() => undefined),
+              new Promise<void>((resolve) => {
+                queueTimeoutId = window.setTimeout(resolve, 20_000);
+              }),
+            ]).finally(() => window.clearTimeout(queueTimeoutId));
+          }
         }
 
         if (
@@ -2499,7 +2550,7 @@ export function useQuestionHandler(
           offerPausedLessonResume();
         }
 
-        if (turnGeneration === turnGenerationRef.current) {
+        if (turnTelemetryRef.current === tel) {
           turnTelemetryRef.current = null;
         }
         void tel.flush();
@@ -2538,6 +2589,7 @@ export function useQuestionHandler(
       setLastError,
       emitError,
       onComplete,
+      onSpeechStartupStatus,
       turnActiveRef,
       turnGenerationRef,
       turnAbortRef,

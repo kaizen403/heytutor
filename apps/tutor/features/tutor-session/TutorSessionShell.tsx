@@ -66,6 +66,7 @@ import {
 import { useCommandExecution } from "./hooks/useCommandExecution";
 import { useCancelControl } from "./hooks/useCancelControl";
 import { useTurnLifecycle } from "./hooks/useTurnLifecycle";
+import type { SpeechStartupStatus } from "./hooks/turn/types";
 import { useBoardLayout } from "./hooks/useBoardLayout";
 import { useBoardSession } from "./hooks/useBoardSession";
 import { useAdaptiveDrawSpeed } from "./hooks/useAdaptiveDrawSpeed";
@@ -307,6 +308,7 @@ export function TutorSessionShell({
   const phaseRef = useRef<TutorPhase>("idle");
   const [isPaused, setIsPaused] = useState(false);
   const isPausedRef = useRef(false);
+  const [speechStartupStatus, setSpeechStartupStatus] = useState<SpeechStartupStatus | null>(null);
   const [narrationText, setNarrationText] = useState("");
   const [currentSegmentText, setCurrentSegmentText] = useState("");
   const [lastError, setLastError] = useState<TutorSessionError | null>(null);
@@ -794,6 +796,7 @@ export function TutorSessionShell({
     enableKeyboardControls: variant === "full",
     onComplete,
     onError,
+    onSpeechStartupStatus: setSpeechStartupStatus,
     phase,
     isReplaying,
     boardLoaded,
@@ -1015,6 +1018,7 @@ export function TutorSessionShell({
     resumeTurn,
   });
 
+  const pauseForRewind = useCallback(() => pauseTurn("rewind"), [pauseTurn]);
   const {
     rewindBoardRef,
     rewindActive,
@@ -1036,7 +1040,7 @@ export function TutorSessionShell({
     livePausedRef: isPausedRef,
     rewoundRef,
     setSettings,
-    pauseTurn,
+    pauseTurn: pauseForRewind,
     resumeTurn,
     enableKeyboardControls: variant === "full",
     enabled: !isHeadless,
@@ -1114,7 +1118,7 @@ export function TutorSessionShell({
    * The lesson chrome's pause button while rewound means "take me back to the
    * lecture" — the live turn cannot resume under a board showing the past.
    */
-  const handleLessonPauseToggle = useCallback(() => {
+  const handleLessonPauseToggle = useCallback((source: "control" | "doubt-composer" = "control") => {
     if (rewindActive) {
       goLive();
       return;
@@ -1122,7 +1126,7 @@ export function TutorSessionShell({
     if (isPaused) {
       resumeTurn();
     } else {
-      pauseTurn();
+      pauseTurn(source);
     }
   }, [rewindActive, goLive, isPaused, resumeTurn, pauseTurn]);
 
@@ -1149,7 +1153,7 @@ export function TutorSessionShell({
     // Marks resolve against the finished page, so the past comes down first.
     closeLecturePlayer();
     if (!rewindActive && !isPausedRef.current && phaseRef.current !== "idle") {
-      pauseTurn();
+      pauseTurn("marking");
     }
   }, [closeLecturePlayer, pauseTurn, rewindActive]);
 
@@ -1428,6 +1432,8 @@ export function TutorSessionShell({
         {waitingToTeach && (
           <ThinkingOverlay
             ink={pendingInk}
+            paused={isPaused}
+            onResume={resumeTurn}
             onBoardAt={
               liveTurnKind === "lesson" ? null : (doubtThinkingAt ?? DOUBT_THINKING_FALLBACK)
             }
@@ -1736,6 +1742,13 @@ export function TutorSessionShell({
             {waitingToTeach && !rewindActive && (
               <ThinkingOverlay
                 ink={pendingInk}
+                paused={isPaused}
+                onResume={resumeTurn}
+                onEnableAudio={
+                  !isPaused && !mutePlayback
+                    ? speechStartupStatus?.enableAudio
+                    : null
+                }
                 onBoardAt={
                   liveTurnKind === "lesson" ? null : (doubtThinkingAt ?? DOUBT_THINKING_FALLBACK)
                 }
