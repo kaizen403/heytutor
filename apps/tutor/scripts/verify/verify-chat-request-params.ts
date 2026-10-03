@@ -225,6 +225,15 @@ const unitChecks: [string, () => void][] = [
     );
     assert.deepEqual(chatTrace.chatTimingMetadata({ requestStartedAt: 1000, upstreamStartedAt: 1300 }), { server_setup_ms: 300 });
   }],
+  ["connect_ms is the final attempt only; retries and their backoff are reported apart", () => {
+    assert.deepEqual(
+      chatTrace.chatTimingMetadata({
+        requestStartedAt: 1000, upstreamStartedAt: 1300, finalAttemptStartedAt: 2600,
+        attemptCount: 3, responseHeadersAt: 2800, firstContentAt: 3300,
+      }),
+      { server_setup_ms: 300, connect_ms: 200, attempt_count: 3, retry_ms: 1300, ttft_content_ms: 2000 },
+    );
+  }],
 ];
 
 // ---------------------------------------------------------------- route
@@ -363,6 +372,8 @@ const routeChecks: [string, () => Promise<void>][] = [
     assert.equal(typeof metadata.server_setup_ms, "number");
     assert.equal(typeof metadata.connect_ms, "number");
     assert.equal(typeof metadata.ttft_content_ms, "number");
+    assert.equal(metadata.attempt_count, 1);
+    assert.equal(metadata.retry_ms, 0);
     assert.equal(metadata.teaching_hedge, undefined, "an ordinary call is not tagged as a hedge");
     assert.equal(reservations.size, 0);
     assert.equal(pendingAi(), 0);
@@ -445,6 +456,25 @@ const routeChecks: [string, () => Promise<void>][] = [
     await settleMicrotasks();
     assert.equal(reservations.size, 0);
     assert.equal(pendingAi(), 0);
+  }],
+  ["an upstream stream that dies mid-flight is an upstream error, not an abort", async () => {
+    const trace = arrange();
+    const upstreams: Upstream[] = [];
+    installHeldProvider(upstreams);
+    const response = await chat.POST(chatRequest(trace));
+    assert.equal(response.status, 200);
+    upstreams[0]!.controller.enqueue(sse({ choices: [{ delta: { content: "Force" } }] }));
+    upstreams[0]!.controller.error(new TypeError("terminated"));
+    await assert.rejects(response.text());
+    await settleMicrotasks();
+    const metadata = generationFor(1).metadata!;
+    assert.equal(metadata.aborted, undefined, "the student did not abort this request");
+    assert.equal(metadata.upstream_error, "TypeError");
+    assert.equal(generationFor(1).level, "ERROR");
+    assert.equal(settlements.length, 1, "the failed stream settles once");
+    assert.equal(reservations.size, 0);
+    assert.equal(pendingAi(), 0);
+    assert.equal(grants.getTurnGrant(actor.userId)?.inUse, 0);
   }],
   ["a hedge still counts toward the trace's finite teaching allowance", async () => {
     const trace = arrange();

@@ -331,6 +331,9 @@ interface TeachingTraceTiming {
   requestStartedAt: number;
   /** First upstream fetch attempt started. */
   upstreamStartedAt: number;
+  /** The attempt that produced the response started. */
+  finalAttemptStartedAt: number;
+  attemptCount: number;
   /** Upstream response headers arrived. */
   responseHeadersAt: number;
 }
@@ -342,6 +345,8 @@ function createTracingTransformStream(
   updateTrace: boolean,
   spend?: { actor: SpendActor; model: string; reservation: PaidUsageReservation; unknownCost: () => number; retryCost: () => number },
   generationMetadata: Record<string, unknown> = {},
+  /** The student's request signal only; server deadlines are not aborts. */
+  clientSignal?: AbortSignal,
 ): TransformStream<Uint8Array, Uint8Array> {
   const requestStartedAt = timing.upstreamStartedAt;
   const decoder = new TextDecoder();
@@ -486,25 +491,32 @@ function createTracingTransformStream(
       if (spend) await spend.reservation.settle(usage.known ? (actualLlmCost(usageDetailsFromParsed(usage), spend.model) ?? 0) + spend.retryCost() : spend.unknownCost());
       flushInBackground();
     },
-    // Billing for a cancelled stream is settled by `holdPaidUsage`; this only
-    // records the abandoned generation (for example the losing hedge).
+    // Runs when the client cancels the body and when the upstream stream
+    // dies mid-flight. Billing for both is settled by `holdPaidUsage`; this
+    // only closes the generation, as an abort (for example the losing hedge)
+    // or as an upstream error.
     cancel(reason) {
       if (generationEnded) return;
       generationEnded = true;
+      const clientAborted = clientSignal?.aborted === true;
+      const reasonName = reason instanceof Error || reason instanceof DOMException
+        ? reason.name
+        : typeof reason === "string" ? reason.slice(0, 120) : undefined;
       endLlmGeneration(turnTrace, {
         output: accumulatedOutput,
         metadata: {
           ...generationMetadata,
           ...timingMetadata(),
-          aborted: true,
-          abort_reason: reason instanceof Error ? reason.name : typeof reason === "string" ? reason.slice(0, 120) : undefined,
+          ...(clientAborted
+            ? { aborted: true, abort_reason: reasonName }
+            : { error: true, upstream_error: reasonName ?? "unknown" }),
           reasoning_chars: accumulatedReasoning.length,
           content_chars: accumulatedOutput.length,
           usage_status: "unknown",
         },
         mock,
         updateTrace: false,
-        level: "WARNING",
+        level: clientAborted ? "WARNING" : "ERROR",
       });
       flushInBackground();
     },
@@ -593,10 +605,15 @@ async function handlePlannerRequest({
     if (reserved instanceof Response) return reserved;
     reservation = reserved;
     const upstreamStartedAt = Date.now();
+    let finalAttemptStartedAt = upstreamStartedAt;
     const transport = await fetchPlannerCompletion({
       url: FIREWORKS_CHAT_URL,
       apiKey,
       body: parsed,
+      fetchImpl: (input, init) => {
+        finalAttemptStartedAt = Date.now();
+        return fetch(input, init);
+      },
       models: plannerModels,
       signal: boundedSignal,
       onRetry: ({ attempt, delayMs, message, model, modelAttempt, status }) => {
@@ -611,7 +628,13 @@ async function handlePlannerRequest({
       },
     });
     const { response } = transport;
-    const timing = chatTimingMetadata({ requestStartedAt, upstreamStartedAt, responseHeadersAt: Date.now() });
+    const timing = chatTimingMetadata({
+      requestStartedAt,
+      upstreamStartedAt,
+      finalAttemptStartedAt,
+      attemptCount: transport.attemptCount,
+      responseHeadersAt: Date.now(),
+    });
 
     tutorDebug("planner", "fireworks response", {
       status: response.status,
@@ -895,6 +918,7 @@ export async function POST(request: Request): Promise<Response> {
   let upstreamStartedAt: number | null = null;
   try {
     upstreamStartedAt = Date.now();
+    let finalAttemptStartedAt = upstreamStartedAt;
     let response: Response | null = null;
     let lastFetchError: unknown = null;
 
@@ -904,6 +928,7 @@ export async function POST(request: Request): Promise<Response> {
       try {
         if (requestSignal.aborted) break;
         attemptCount += 1;
+        finalAttemptStartedAt = Date.now();
         response = await fetchTeachingCompletion({
           url: FIREWORKS_CHAT_URL,
           signal: requestSignal,
@@ -937,7 +962,13 @@ export async function POST(request: Request): Promise<Response> {
         : new Error("fetch failed");
     }
 
-    const timing: TeachingTraceTiming = { requestStartedAt, upstreamStartedAt, responseHeadersAt: Date.now() };
+    const timing: TeachingTraceTiming = {
+      requestStartedAt,
+      upstreamStartedAt,
+      finalAttemptStartedAt,
+      attemptCount,
+      responseHeadersAt: Date.now(),
+    };
     tutorDebug("chat", "Fireworks response headers", {
       status: response.status,
       ...chatTimingMetadata(timing),
@@ -985,6 +1016,7 @@ export async function POST(request: Request): Promise<Response> {
         shouldUpdateParentTraceOutput(kind, userInput),
         { actor, model: serverModel, reservation, unknownCost: () => singleAttemptCost * attemptCount, retryCost: () => singleAttemptCost * Math.max(0, attemptCount - 1) },
         teachingMetadata,
+        request.signal,
       ),
     );
 
@@ -1016,11 +1048,12 @@ export async function POST(request: Request): Promise<Response> {
       metadata: {
         ...teachingMetadata,
         ...(upstreamStartedAt === null ? {} : { server_setup_ms: upstreamStartedAt - requestStartedAt }),
+        attempt_count: attemptCount,
         error: true,
-        aborted: requestSignal.aborted,
+        ...(request.signal.aborted ? { aborted: true } : { upstream_error: error instanceof Error ? error.name : "unknown" }),
       },
       updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
-      level: "ERROR",
+      level: request.signal.aborted ? "WARNING" : "ERROR",
     });
     flushInBackground();
 

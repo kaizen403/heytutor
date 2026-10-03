@@ -106,20 +106,37 @@ export function providerPerfMetadata(
 
 /**
  * The route's own clock, all in ms. `server_setup_ms` is request received to
- * upstream fetch start (auth, grant, reservation), `connect_ms` is upstream
- * fetch start to response headers, and `ttft_content_ms` is upstream fetch
- * start to the first spoken content chunk.
+ * the first upstream fetch (auth, grant, reservation). `connect_ms` is the
+ * final attempt's fetch start to its response headers; earlier failed
+ * attempts and their backoff sleeps are `retry_ms`, and `attempt_count` says
+ * how many fetches ran. `ttft_content_ms` is the first upstream fetch to the
+ * first spoken content chunk, so it includes any retries.
  */
 export function chatTimingMetadata(timing: {
   requestStartedAt: number;
   upstreamStartedAt: number;
+  finalAttemptStartedAt?: number | null;
+  attemptCount?: number;
   responseHeadersAt?: number | null;
   firstContentAt?: number | null;
-}): { server_setup_ms: number; connect_ms?: number; ttft_content_ms?: number } {
+}): {
+  server_setup_ms: number;
+  connect_ms?: number;
+  retry_ms?: number;
+  attempt_count?: number;
+  ttft_content_ms?: number;
+} {
+  const finalAttemptStartedAt = timing.finalAttemptStartedAt ?? timing.upstreamStartedAt;
   return {
     server_setup_ms: Math.max(0, timing.upstreamStartedAt - timing.requestStartedAt),
     ...(timing.responseHeadersAt != null
-      ? { connect_ms: Math.max(0, timing.responseHeadersAt - timing.upstreamStartedAt) }
+      ? { connect_ms: Math.max(0, timing.responseHeadersAt - finalAttemptStartedAt) }
+      : {}),
+    ...(timing.attemptCount !== undefined
+      ? {
+          attempt_count: timing.attemptCount,
+          retry_ms: Math.max(0, finalAttemptStartedAt - timing.upstreamStartedAt),
+        }
       : {}),
     ...(timing.firstContentAt != null
       ? { ttft_content_ms: Math.max(0, timing.firstContentAt - timing.upstreamStartedAt) }
