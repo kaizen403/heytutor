@@ -16,7 +16,7 @@ pnpm rebuild @prisma/client @prisma/engines esbuild prisma
 pnpm --filter @heytutor/tutor exec prisma generate
 pnpm check    # typecheck + lint + build
 pnpm verify:security
-pnpm audit --audit-level low
+pnpm verify:dependency-security
 ```
 
 ## Architecture
@@ -41,8 +41,10 @@ Push to `dev` or `main`. The workflow always does this in order:
 
 1. **Security checks** — Node 24 LTS, frozen dependency install with reviewed
    native build scripts, shared package builds, typecheck, lint, security and
-   Razorpay checks, isolated loopback Postgres 17 tests, and zero known audit
-   advisories. The security database is disposable and never uses production
+   Razorpay checks, isolated loopback Postgres 17 tests, and zero unmitigated
+   audit advisories. The original braces depth advisory stays visible under a
+   temporary, hash-pinned backport exception: [dependency gate](braces-depth-guard.md).
+   The security database is disposable and never uses production
    credentials. Its empty schema uses `prisma db push` because historical
    migration names do not sort in their original application order. Production
    continues to use `prisma migrate deploy` against its existing history.

@@ -94,7 +94,7 @@ jobs:
           pnpm --filter @heytutor/tutor exec prisma db push --skip-generate
           pnpm --filter @heytutor/tutor verify:razorpay-db
       - name: Reject known dependency vulnerabilities
-        run: pnpm audit --audit-level low
+        run: pnpm verify:dependency-security
 
   deploy-dev:
     name: Cloudflare Pages (dev)
