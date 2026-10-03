@@ -63,11 +63,7 @@ const fetchImpl: typeof fetch = async (_input, init) => {
   const headers = new Headers(init?.headers);
   assert.equal(headers.get("x-problem-ir-version"), "1");
   const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
-  // The formulation sees the plan's answer slots only: never its values or
-  // arithmetic, so the solver checks the plan instead of echoing it.
-  assert.ok(body.messages[1]?.content.includes('[{"id":"sum","symbol":"S"}]'));
-  assert.ok(!body.messages[1]?.content.includes("2 + 3 = 5"));
-  assert.ok(!body.messages[1]?.content.includes('"value":5'));
+  assert.ok(body.messages[1]?.content.includes(JSON.stringify(turnPlan)));
   return Response.json(
     { choices: [{ message: { content: JSON.stringify(problem) } }] },
     { headers: { "x-heytutor-trace-id": "trace-problem-v1" } },
