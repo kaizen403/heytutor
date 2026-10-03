@@ -16,7 +16,8 @@
     "check": "pnpm typecheck && pnpm lint && pnpm build",
     "clean": "turbo run clean",
     "verify:security": "pnpm --filter @heytutor/tutor verify:security",
-    "verify:security-db": "pnpm --filter @heytutor/tutor verify:security-db"
+    "verify:security-db": "pnpm --filter @heytutor/tutor verify:security-db",
+    "verify:dependency-security": "node --test tools/security/bracesConsumers.test.mjs tools/security/dependencyAudit.test.mjs && node tools/security/dependencyAudit.mjs"
   },
   "devDependencies": {
     "turbo": "^2.5.4",
