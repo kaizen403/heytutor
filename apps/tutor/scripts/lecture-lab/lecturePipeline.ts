@@ -41,6 +41,8 @@ import {
   buildSolverAuthorityProjection,
   compileSceneDocument,
   detectArchetype,
+  isChemistryQuestion,
+  isChemistrySceneFamily,
   normalizeClaimedClosedRouteGeometry,
   normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities,
@@ -57,6 +59,7 @@ import {
 } from "@heytutor/scene-engine";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
+  selectFastVerifiedRepresentation,
   selectVerifiedRepresentation,
   type RepresentationTier,
 } from "@/features/tutor-session/lib/scene/representationFallback";
@@ -64,9 +67,14 @@ import {
   PROBLEM_AUTHORITY_DEADLINE_MS,
   SCENE_PLANNER_DEADLINE_MS,
   TURN_PLAN_DEADLINE_MS,
-  finalizeScenePlanAfterAuthority,
   selectBestAvailableTurnPlan,
+  shouldAttemptExactScene,
+  turnPlanNeedsNumericAuthority,
 } from "@/features/tutor-session/lib/scene/diagramGeneration";
+import {
+  runScenePlanningOverlap,
+  type SpeculationAbortReason,
+} from "@/features/tutor-session/lib/scene/planningOverlap";
 import { buildTurnTeachingPrompt } from "@/features/tutor-session/lib/turn/turnTeachingPrompt";
 import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/segmentPlanning";
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
@@ -78,6 +86,21 @@ export interface LectureStep {
   tags: { type: string; params: number[]; text?: string }[];
 }
 
+export interface LecturePlanningStages {
+  turnPlanMs: number;
+  /** ProblemIR plus solver, from request to answer; 0 when not needed. */
+  problemIrMs: number;
+  deterministicFigureMs: number;
+  /** Start to result of the scene planner run that was used. */
+  scenePlannerMs: number;
+  revalidateMs: number;
+  /** The speculative run started during ProblemIR produced the scene. */
+  speculative: boolean;
+  /** Scene planning was started again on the final facts. */
+  restarted: boolean;
+  speculationAbort: SpeculationAbortReason | null;
+}
+
 export interface LectureRun {
   probeId: string;
   topicId: string;
@@ -86,7 +109,13 @@ export interface LectureRun {
   question: string;
   familiarity: SubjectFamiliarity;
   startedAt: string;
-  timings: { planMs: number; teachMs: number; totalMs: number };
+  timings: {
+    planMs: number;
+    teachMs: number;
+    totalMs: number;
+    /** The live planner stages, measured on the same orchestration. */
+    stages?: LecturePlanningStages;
+  };
   error: string | null;
   isDsa: boolean;
   plan: {
@@ -233,6 +262,16 @@ export async function runLecture(
   const startedAt = Date.now();
   const dsaClassification = classifyDsaQuestion(question);
 
+  const stages: LecturePlanningStages = {
+    turnPlanMs: 0,
+    problemIrMs: 0,
+    deterministicFigureMs: 0,
+    scenePlannerMs: 0,
+    revalidateMs: 0,
+    speculative: false,
+    restarted: false,
+    speculationAbort: null,
+  };
   const run: LectureRun = {
     probeId: options.probeId ?? "",
     topicId: options.topicId ?? "",
@@ -241,7 +280,12 @@ export async function runLecture(
     question,
     familiarity,
     startedAt: new Date(startedAt).toISOString(),
-    timings: { planMs: 0, teachMs: 0, totalMs: 0 },
+    timings: {
+      planMs: 0,
+      teachMs: 0,
+      totalMs: 0,
+      stages,
+    },
     error: null,
     isDsa: dsaClassification.isDsa,
     plan: null,
@@ -289,53 +333,45 @@ export async function runLecture(
 
   try {
     const plannerStartedAt = Date.now();
-    let turnPlan: TurnPlanV3 | null = null;
+    let turnPlan: TurnPlanV3;
     let problemAuthority: ProblemAuthorityV1Response | null = null;
 
+    const turnPlanStartedAt = Date.now();
     const plannedTurn = await planTurnV3(question, {
       proxyUrl: plannerUrl,
       timeoutMs: TURN_PLAN_DEADLINE_MS,
       fastMode,
       traceId,
     });
-    let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
-    if (plannedTurn) {
-      const remainingAuthorityMs = Math.max(
-        1_000,
-        SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
-      );
-      problemAuthorityPromise = planAndSolveProblemV1(question, plannedTurn.turnPlan, {
-        proxyUrl: plannerUrl,
-        timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, remainingAuthorityMs),
-        fastMode,
-        traceId,
-      });
-    }
+    stages.turnPlanMs = Date.now() - turnPlanStartedAt;
     turnPlan = selectBestAvailableTurnPlan(
       undefined,
       plannedTurn?.turnPlan,
       createFallbackTurnPlanV3(question),
       plannedTurn?.peerTurnPlans,
     );
-
-    if (problemAuthorityPromise) {
-      problemAuthority = await problemAuthorityPromise.catch(() => null);
+    // Mirrors the live hook: ProblemIR only when the plan needs numeric
+    // authority, started from the selected plan. The bench has no visual-need
+    // service, so the planner's own visual requirement stands.
+    let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
+    if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
+      const remainingAuthorityMs = Math.max(
+        1_000,
+        SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
+      );
+      const problemIrStartedAt = Date.now();
+      problemAuthorityPromise = planAndSolveProblemV1(question, turnPlan, {
+        proxyUrl: plannerUrl,
+        timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, remainingAuthorityMs),
+        fastMode,
+        traceId,
+      })
+        .catch(() => null)
+        .then((authority) => {
+          stages.problemIrMs = Date.now() - problemIrStartedAt;
+          return authority;
+        });
     }
-
-    const planningTurnPlan = turnPlan;
-    const sceneCapabilities = inferSceneCapabilities(question, {
-      lawIds: planningTurnPlan.lawIds,
-      problemIR: problemAuthority?.problemIR ?? null,
-      turnPlan: planningTurnPlan,
-    });
-    const remainingPlannerMs = Math.max(
-      0,
-      SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
-    );
-    const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none";
-    const planContext =
-      `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\n` +
-      "Do not contradict, replace, or independently recalculate these quantities and claims.";
 
     const validateCandidateAgainstPlan = (
       candidate: Record<string, unknown>,
@@ -427,14 +463,46 @@ export async function runLecture(
       };
     };
 
-    const archetype = detectArchetype(question, {
-      turnPlan: planningTurnPlan,
-      problemIR: problemAuthority?.problemIR ?? null,
-    });
-    run.diagram.archetypeId = archetype?.id ?? null;
-
-    let result: ScenePlanWithRepairResult<ValidatedSceneCandidate> | null = null;
-    if (shouldPlanExactScene && remainingPlannerMs > 0) {
+    type BenchSceneGate = {
+      sceneCapabilities: ReturnType<typeof inferSceneCapabilities>;
+      shouldPlanExactScene: boolean;
+      shouldAttemptLlmScene: boolean;
+      families: readonly string[];
+      archetypeId: string | null;
+      request: {
+        conversationContext: string;
+        constructionOperators?: ReturnType<typeof inferSceneCapabilities>["constructionOperators"];
+        proofPredicates?: ReturnType<typeof inferSceneCapabilities>["proofPredicates"];
+        planningGuidance?: string[];
+      };
+    };
+    // Mirrors deriveSceneGate in the live hook: chemistry lane, exact gate,
+    // archetype guidance and the planner request built from the same plan.
+    const deriveSceneGate = (
+      planningTurnPlan: TurnPlanV3,
+      authority: ProblemAuthorityV1Response | null,
+    ): BenchSceneGate => {
+      const sceneCapabilities = inferSceneCapabilities(question, {
+        lawIds: planningTurnPlan.lawIds,
+        problemIR: authority?.problemIR ?? null,
+        turnPlan: planningTurnPlan,
+      });
+      const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily)
+        || isChemistryQuestion(question);
+      const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
+      const archetype = detectArchetype(question, {
+        turnPlan: planningTurnPlan,
+        problemIR: authority?.problemIR ?? null,
+      });
+      const shouldAttemptLlmScene = shouldAttemptExactScene({
+        visualRequirement: planningTurnPlan.visualRequirement,
+        chemistryLane,
+        familyCount: sceneCapabilities.families.length,
+        hasArchetype: archetype !== null,
+      });
+      const planContext =
+        `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\n` +
+        "Do not contradict, replace, or independently recalculate these quantities and claims.";
       const archetypeSpec = archetype ? ARCHETYPES[archetype.id] : null;
       const archetypeGuidance = archetypeSpec
         ? [
@@ -445,15 +513,14 @@ export async function runLecture(
               ".",
           ]
         : [];
-      result = await planSceneDocumentWithRepair(
-        question,
-        (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan),
-        {
-          proxyUrl: plannerUrl,
-          timeoutMs: remainingPlannerMs,
+      return {
+        sceneCapabilities,
+        shouldPlanExactScene,
+        shouldAttemptLlmScene,
+        families: sceneCapabilities.families,
+        archetypeId: archetype?.id ?? null,
+        request: {
           conversationContext: planContext,
-          fastMode,
-          traceId,
           ...(sceneCapabilities.families.length > 0
             ? {
                 constructionOperators: sceneCapabilities.constructionOperators,
@@ -464,44 +531,89 @@ export async function runLecture(
               ? { planningGuidance: archetypeGuidance }
               : {}),
         },
-      ).catch(() => null);
-    }
-
-    if (problemAuthority) {
-      turnPlan = reconcileTurnPlanWithSolver(
-        turnPlan,
-        problemAuthority.problemIR,
-        problemAuthority.solverResult,
-      );
-      const authorityAudit = verifyTurnPlanAgainstSolver(
-        problemAuthority.problemIR,
-        problemAuthority.solverResult,
-        turnPlan,
-        question,
-      );
-      problemAuthority = {
-        ...problemAuthority,
-        audit: authorityAudit,
-        projection:
-          authorityAudit.status === "verified"
-            ? buildSolverAuthorityProjection(
-                problemAuthority.problemIR,
-                problemAuthority.solverResult,
-                authorityAudit,
-              )
-            : null,
       };
-    }
+    };
 
-    const authoritativeTurnPlan = turnPlan;
-    result = await finalizeScenePlanAfterAuthority(result, {
-      problemAuthorityAvailable: problemAuthority !== null,
-      planningTurnPlan,
-      authoritativeTurnPlan,
-      revalidate: (sceneResult) =>
+    const planning = await runScenePlanningOverlap<
+      ProblemAuthorityV1Response,
+      BenchSceneGate,
+      NonNullable<ReturnType<typeof selectFastVerifiedRepresentation>>,
+      ScenePlanWithRepairResult<ValidatedSceneCandidate>
+    >({
+      turnPlan,
+      problemAuthority: problemAuthorityPromise,
+      speculationAllowed: true,
+      plannerStartedAt,
+      deadlineMs: SCENE_PLANNER_DEADLINE_MS,
+      deriveGate: deriveSceneGate,
+      applyAuthority: (planToReconcile, authority) => {
+        const reconciledPlan = reconcileTurnPlanWithSolver(
+          planToReconcile,
+          authority.problemIR,
+          authority.solverResult,
+        );
+        const authorityAudit = verifyTurnPlanAgainstSolver(
+          authority.problemIR,
+          authority.solverResult,
+          reconciledPlan,
+          question,
+        );
+        return {
+          turnPlan: reconciledPlan,
+          authority: {
+            ...authority,
+            audit: authorityAudit,
+            projection:
+              authorityAudit.status === "verified"
+                ? buildSolverAuthorityProjection(
+                    authority.problemIR,
+                    authority.solverResult,
+                    authorityAudit,
+                  )
+                : null,
+          },
+        };
+      },
+      fastFigureBlocked: (authority) => authority?.audit.status === "contradiction",
+      selectFast: (planningTurnPlan, authority, gate) =>
+        selectFastVerifiedRepresentation({
+          question,
+          turnPlan: planningTurnPlan,
+          problemIR: authority?.problemIR ?? null,
+          families: gate.sceneCapabilities.families,
+        }),
+      planScene: (gate, planningTurnPlan, sceneRun) =>
+        planSceneDocumentWithRepair(
+          question,
+          (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan),
+          {
+            proxyUrl: plannerUrl,
+            signal: sceneRun.signal,
+            timeoutMs: sceneRun.timeoutMs,
+            holdRepairsUntil: sceneRun.holdRepairsUntil,
+            fastMode,
+            traceId,
+            ...gate.request,
+          },
+        ).catch(() => null),
+      revalidate: (sceneResult, authoritativeTurnPlan) =>
         revalidateScenePlanWithRepairResult(sceneResult, (candidate) =>
           validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
         ),
+    });
+    turnPlan = planning.turnPlan;
+    problemAuthority = planning.authority;
+    const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
+    const fastRepresentation = planning.fast;
+    const result = planning.scene;
+    run.diagram.archetypeId = planning.gate.archetypeId;
+    Object.assign(stages, {
+      deterministicFigureMs: planning.timings.deterministicFigureMs,
+      scenePlannerMs: planning.timings.scenePlannerMs,
+      revalidateMs: planning.timings.revalidateMs,
+      speculative: planning.speculation.kept,
+      restarted: planning.speculation.restarted,
+      speculationAbort: planning.speculation.abortReason,
     });
 
     const solverAuthorityBlocked = problemAuthority?.audit.status === "contradiction";
@@ -518,10 +630,16 @@ export async function runLecture(
     );
     if (solverAuthorityBlocked) {
       run.diagram.degradationReason = "solver_contradiction";
-    } else if (shouldPlanExactScene && (!value || value.document.visualDecision.mode !== "scene")) {
+    } else if (
+      shouldPlanExactScene &&
+      !fastRepresentation &&
+      (!value || value.document.visualDecision.mode !== "scene")
+    ) {
+      const skippedExactForMissingCapability = !shouldAttemptLlmScene;
       run.diagram.degradationReason = !result
-        ? "planner_unavailable"
-        : value?.document.visualDecision.mode === "text_only"
+        ? skippedExactForMissingCapability ? "missing_capability" : "planner_unavailable"
+        : value?.document.visualDecision.mode === "text_only" ||
+            run.diagram.candidateErrorCodes.some((code) => /unsupported_operator|missing_capability/.test(code))
           ? "missing_capability"
           : "candidate_invalid";
     }
@@ -541,7 +659,7 @@ export async function runLecture(
         problemIR: problemAuthority?.problemIR ?? null,
         turnPlan,
       });
-      const selected = selectVerifiedRepresentation({
+      const selected = fastRepresentation ?? selectVerifiedRepresentation({
         question,
         turnPlan,
         problemIR: problemAuthority?.problemIR ?? null,
