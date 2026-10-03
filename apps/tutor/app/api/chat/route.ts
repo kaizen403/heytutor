@@ -14,6 +14,8 @@ import {
 } from "@/lib/obs/langfuse";
 import {
   chatGenerationName,
+  chatTimingMetadata,
+  providerPerfMetadata,
   readChatTraceHeaders,
   resolveChatGenerationKind,
   resolveTurnTraceInput,
@@ -31,7 +33,7 @@ import { markGrantInUse, type TurnGrant } from "@/lib/billing/grant";
 import type { SpendActor } from "@/lib/billing/actor";
 import { reservePaidUsage, maximumLlmCost, actualLlmCost, holdPaidUsage, type PaidUsageReservation } from "@/lib/billing/paidUsage";
 import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
-import { serverChatBody } from "@/lib/llm/chatRequest";
+import { isTeachingHedge, serverChatBody } from "@/lib/llm/chatRequest";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
 import {
   fetchPlannerCompletion,
@@ -74,15 +76,11 @@ interface FireworksUsage {
   total_tokens?: number;
 }
 
-interface FireworksPerfMetrics {
-  ttft_ms?: number;
-  tokens_per_sec?: number;
-}
-
 interface FireworksSSEPayload {
   choices?: { delta?: { content?: string; reasoning_content?: string } }[];
   usage?: FireworksUsage;
-  perf_metrics?: FireworksPerfMetrics;
+  /** Final chunk only; shape read by `providerPerfMetadata`. */
+  perf_metrics?: unknown;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -328,22 +326,41 @@ function injectStreamOptions(
   }
 }
 
+interface TeachingTraceTiming {
+  /** POST received, before auth, grant, and reservation work. */
+  requestStartedAt: number;
+  /** First upstream fetch attempt started. */
+  upstreamStartedAt: number;
+  /** The attempt that produced the response started. */
+  finalAttemptStartedAt: number;
+  attemptCount: number;
+  /** Upstream response headers arrived. */
+  responseHeadersAt: number;
+}
+
 function createTracingTransformStream(
   turnTrace: TurnTrace | null,
   mock: boolean,
-  requestStartedAt: number,
+  timing: TeachingTraceTiming,
   updateTrace: boolean,
   spend?: { actor: SpendActor; model: string; reservation: PaidUsageReservation; unknownCost: () => number; retryCost: () => number },
+  generationMetadata: Record<string, unknown> = {},
+  /** The student's request signal only; server deadlines are not aborts. */
+  clientSignal?: AbortSignal,
 ): TransformStream<Uint8Array, Uint8Array> {
+  const requestStartedAt = timing.upstreamStartedAt;
   const decoder = new TextDecoder();
   let bufferedText = "";
   let accumulatedOutput = "";
   let accumulatedReasoning = "";
   let latestUsage: unknown;
-  let latestPerfMetrics: FireworksPerfMetrics | undefined;
+  let latestPerfMetrics: unknown;
   let firstContentAt: number | null = null;
   let firstReasoningAt: number | null = null;
   let chunkCount = 0;
+  // A client abort cancels the stream instead of flushing it; whichever runs
+  // first closes the Langfuse generation.
+  let generationEnded = false;
 
   const processLine = (line: string): void => {
     if (!line.startsWith("data: ")) {
@@ -399,7 +416,11 @@ function createTracingTransformStream(
     }
   };
 
-  return new TransformStream({
+  const timingMetadata = () => chatTimingMetadata({ ...timing, firstContentAt });
+
+  // `cancel` is a standard transformer hook (Node 20+) that the DOM lib types
+  // in this TypeScript version do not declare yet.
+  const transformer: Transformer<Uint8Array, Uint8Array> & { cancel(reason: unknown): void } = {
     transform(chunk, controller) {
       controller.enqueue(chunk);
 
@@ -419,6 +440,8 @@ function createTracingTransformStream(
       }
 
       const durationMs = Date.now() - requestStartedAt;
+      const usage = readUsage(latestUsage);
+      const perf = providerPerfMetadata(latestPerfMetrics, { completionTokens: usage.known ? usage.output : undefined });
 
       tutorDebug("chat", "upstream stream complete", {
         duration_ms: durationMs,
@@ -427,8 +450,8 @@ function createTracingTransformStream(
         content_chunks: chunkCount,
         ttft_content_ms: firstContentAt ? firstContentAt - requestStartedAt : null,
         ttft_reasoning_ms: firstReasoningAt ? firstReasoningAt - requestStartedAt : null,
-        fireworks_ttft_ms: latestPerfMetrics?.ttft_ms,
-        tokens_per_sec: latestPerfMetrics?.tokens_per_sec,
+        fireworks_ttft_ms: perf.ttft_ms,
+        tokens_per_sec: perf.tokens_per_sec,
       });
 
       if (accumulatedOutput.length === 0) {
@@ -438,21 +461,24 @@ function createTracingTransformStream(
         });
       }
 
-      const usage = readUsage(latestUsage);
-      endLlmGeneration(turnTrace, {
-        output: accumulatedOutput,
-        usageDetails: usageDetailsFromParsed(usage),
-        metadata: {
-          ttft_ms: latestPerfMetrics?.ttft_ms,
-          tokens_per_sec: latestPerfMetrics?.tokens_per_sec,
-          reasoning_chars: accumulatedReasoning.length,
-          content_chars: accumulatedOutput.length,
-          usage_status: usage.known ? "known" : "unknown",
-          cached_input_tokens: usage.cachedInput ?? 0,
-        },
-        mock,
-        updateTrace,
-      });
+      if (!generationEnded) {
+        generationEnded = true;
+        endLlmGeneration(turnTrace, {
+          output: accumulatedOutput,
+          usageDetails: usageDetailsFromParsed(usage),
+          metadata: {
+            ...generationMetadata,
+            ...perf,
+            ...timingMetadata(),
+            reasoning_chars: accumulatedReasoning.length,
+            content_chars: accumulatedOutput.length,
+            usage_status: usage.known ? "known" : "unknown",
+            cached_input_tokens: usage.cachedInput ?? 0,
+          },
+          mock,
+          updateTrace,
+        });
+      }
       if (spend && !mock && usage.known) {
         recordLlmSpend({
           actor: spend.actor,
@@ -465,7 +491,37 @@ function createTracingTransformStream(
       if (spend) await spend.reservation.settle(usage.known ? (actualLlmCost(usageDetailsFromParsed(usage), spend.model) ?? 0) + spend.retryCost() : spend.unknownCost());
       flushInBackground();
     },
-  });
+    // Runs when the client cancels the body and when the upstream stream
+    // dies mid-flight. Billing for both is settled by `holdPaidUsage`; this
+    // only closes the generation, as an abort (for example the losing hedge)
+    // or as an upstream error.
+    cancel(reason) {
+      if (generationEnded) return;
+      generationEnded = true;
+      const clientAborted = clientSignal?.aborted === true;
+      const reasonName = reason instanceof Error || reason instanceof DOMException
+        ? reason.name
+        : typeof reason === "string" ? reason.slice(0, 120) : undefined;
+      endLlmGeneration(turnTrace, {
+        output: accumulatedOutput,
+        metadata: {
+          ...generationMetadata,
+          ...timingMetadata(),
+          ...(clientAborted
+            ? { aborted: true, abort_reason: reasonName }
+            : { error: true, upstream_error: reasonName ?? "unknown" }),
+          reasoning_chars: accumulatedReasoning.length,
+          content_chars: accumulatedOutput.length,
+          usage_status: "unknown",
+        },
+        mock,
+        updateTrace: false,
+        level: clientAborted ? "WARNING" : "ERROR",
+      });
+      flushInBackground();
+    },
+  };
+  return new TransformStream(transformer);
 }
 
 interface PlannerRequestArgs {
@@ -522,7 +578,7 @@ async function handlePlannerRequest({
   );
   const boundedSignal = mergePlannerSignals(signal, deadlineController.signal);
   try {
-    const parsed = serverChatBody(JSON.parse(rawBody));
+    const parsed = serverChatBody(JSON.parse(rawBody), "planner");
     delete parsed.reasoning_effort;
     if (semanticSceneV2 || turnPlanV3 || problemIRV1 || codeLessonV1) {
       // Hidden reasoning adds latency without improving the audited document.
@@ -549,10 +605,15 @@ async function handlePlannerRequest({
     if (reserved instanceof Response) return reserved;
     reservation = reserved;
     const upstreamStartedAt = Date.now();
+    let finalAttemptStartedAt = upstreamStartedAt;
     const transport = await fetchPlannerCompletion({
       url: FIREWORKS_CHAT_URL,
       apiKey,
       body: parsed,
+      fetchImpl: (input, init) => {
+        finalAttemptStartedAt = Date.now();
+        return fetch(input, init);
+      },
       models: plannerModels,
       signal: boundedSignal,
       onRetry: ({ attempt, delayMs, message, model, modelAttempt, status }) => {
@@ -567,10 +628,17 @@ async function handlePlannerRequest({
       },
     });
     const { response } = transport;
+    const timing = chatTimingMetadata({
+      requestStartedAt,
+      upstreamStartedAt,
+      finalAttemptStartedAt,
+      attemptCount: transport.attemptCount,
+      responseHeadersAt: Date.now(),
+    });
 
     tutorDebug("planner", "fireworks response", {
       status: response.status,
-      connect_ms: Date.now() - upstreamStartedAt,
+      ...timing,
       model: transport.model,
       attempts: transport.attemptCount,
     });
@@ -580,6 +648,7 @@ async function handlePlannerRequest({
       endLlmGeneration(turnTrace, {
         output: PUBLIC_CHAT_ERROR,
         metadata: {
+          ...timing,
           error: true,
           status: response.status,
           planner: true,
@@ -605,6 +674,7 @@ async function handlePlannerRequest({
       const parsedResponse = JSON.parse(jsonBody) as {
         choices?: { message?: { content?: string; reasoning_content?: string } }[];
         usage?: unknown;
+        perf_metrics?: unknown;
       };
       const content = parsedResponse.choices?.[0]?.message?.content ?? "";
       const reasoning = parsedResponse.choices?.[0]?.message?.reasoning_content ?? "";
@@ -613,6 +683,12 @@ async function handlePlannerRequest({
         output: content,
         usageDetails: usageDetailsFromParsed(usage),
         metadata: {
+          ...providerPerfMetadata(parsedResponse.perf_metrics, {
+            headers: response.headers,
+            completionTokens: usage.known ? usage.output : undefined,
+          }),
+          ...timing,
+          temperature: parsed.temperature,
           planner: true,
           scene_planner_version: turnPlanV3 || problemIRV1 ? undefined : semanticSceneV2 ? 2 : 1,
           turn_planner_version: turnPlanV3 ? 3 : undefined,
@@ -807,6 +883,11 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const reasoningMode = parseReasoningMode(process.env.TUTOR_REASONING_MODE);
+  // A hedge is admitted exactly like any teaching call on this trace: same
+  // grant, ownership check, per-trace call allowance, and reservation. The
+  // header only tags the generation so the pair can be told apart.
+  const teachingHedge = isTeachingHedge(request.headers);
+  const teachingMetadata: Record<string, unknown> = teachingHedge ? { teaching_hedge: true } : {};
   const teachingPass = request.headers.get("x-heytutor-teaching-pass");
   const hasAuthoritativePlan = teachingPass === "planned";
   const isCodeLessonTurn =
@@ -831,10 +912,13 @@ export async function POST(request: Request): Promise<Response> {
     code_lesson: isCodeLessonTurn,
     reasoning_mode: reasoningMode,
     reasoning_effort: reasoningEffort,
+    teaching_hedge: teachingHedge,
   });
 
+  let upstreamStartedAt: number | null = null;
   try {
-    const upstreamStartedAt = Date.now();
+    upstreamStartedAt = Date.now();
+    let finalAttemptStartedAt = upstreamStartedAt;
     let response: Response | null = null;
     let lastFetchError: unknown = null;
 
@@ -844,6 +928,7 @@ export async function POST(request: Request): Promise<Response> {
       try {
         if (requestSignal.aborted) break;
         attemptCount += 1;
+        finalAttemptStartedAt = Date.now();
         response = await fetchTeachingCompletion({
           url: FIREWORKS_CHAT_URL,
           signal: requestSignal,
@@ -877,9 +962,16 @@ export async function POST(request: Request): Promise<Response> {
         : new Error("fetch failed");
     }
 
+    const timing: TeachingTraceTiming = {
+      requestStartedAt,
+      upstreamStartedAt,
+      finalAttemptStartedAt,
+      attemptCount,
+      responseHeadersAt: Date.now(),
+    };
     tutorDebug("chat", "Fireworks response headers", {
       status: response.status,
-      connect_ms: Date.now() - upstreamStartedAt,
+      ...chatTimingMetadata(timing),
     });
 
     if (!response.ok) {
@@ -887,7 +979,7 @@ export async function POST(request: Request): Promise<Response> {
 
       endLlmGeneration(turnTrace, {
         output: PUBLIC_CHAT_ERROR,
-        metadata: { error: true, status: response.status },
+        metadata: { ...teachingMetadata, ...chatTimingMetadata(timing), error: true, status: response.status },
         updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
         level: "ERROR",
       });
@@ -904,7 +996,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!response.body) {
       endLlmGeneration(turnTrace, {
         output: "",
-        metadata: { error: true, reason: "empty_body" },
+        metadata: { ...teachingMetadata, ...chatTimingMetadata(timing), error: true, reason: "empty_body" },
         updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
         level: "ERROR",
       });
@@ -920,9 +1012,11 @@ export async function POST(request: Request): Promise<Response> {
       createTracingTransformStream(
         turnTrace,
         false,
-        upstreamStartedAt,
+        timing,
         shouldUpdateParentTraceOutput(kind, userInput),
         { actor, model: serverModel, reservation, unknownCost: () => singleAttemptCost * attemptCount, retryCost: () => singleAttemptCost * Math.max(0, attemptCount - 1) },
+        teachingMetadata,
+        request.signal,
       ),
     );
 
@@ -951,9 +1045,15 @@ export async function POST(request: Request): Promise<Response> {
 
     endLlmGeneration(turnTrace, {
       output: message,
-      metadata: { error: true },
+      metadata: {
+        ...teachingMetadata,
+        ...(upstreamStartedAt === null ? {} : { server_setup_ms: upstreamStartedAt - requestStartedAt }),
+        attempt_count: attemptCount,
+        error: true,
+        ...(request.signal.aborted ? { aborted: true } : { upstream_error: error instanceof Error ? error.name : "unknown" }),
+      },
       updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
-      level: "ERROR",
+      level: request.signal.aborted ? "WARNING" : "ERROR",
     });
     flushInBackground();
 
