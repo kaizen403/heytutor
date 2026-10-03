@@ -213,6 +213,9 @@ export async function awaitCurrentTurn<T>(
   return result;
 }
 
+/** A queued Ask older than this is not the click that started the turn. */
+const QUEUED_ASK_TTL_MS = 60_000;
+
 export function useQuestionHandler(
   params: UseTurnLifecycleParams,
   turnControl: Pick<
@@ -377,8 +380,12 @@ export function useQuestionHandler(
     question: string;
     options: HandleQuestionOptions;
   } | null>(null);
-  /** When a question queued behind the board load was asked; telemetry counts from it. */
-  const queuedAskRef = useRef<{ question: string; startedAt: number } | null>(null);
+  /**
+   * When a question queued behind the board load was asked; telemetry counts
+   * from it. Only for the same board, and only for a minute: an older click
+   * is a different visit.
+   */
+  const queuedAskRef = useRef<{ question: string; startedAt: number; boardId: string | null } | null>(null);
 
   const handleQuestion = useCallback(
     async (rawQuestion: string, options?: HandleQuestionOptions) => {
@@ -402,13 +409,17 @@ export function useQuestionHandler(
       if (!boardLoaded || !isWhiteboardReadyToDraw(whiteboardRef.current)) {
         pendingQuestionRef.current = question;
         pendingQuestionOptionsRef.current = options ? { question, options } : null;
-        if (queuedAskRef.current?.question !== question) {
-          queuedAskRef.current = { question, startedAt: askStartedAt };
+        if (queuedAskRef.current?.question !== question || queuedAskRef.current.boardId !== (sessionId ?? null)) {
+          queuedAskRef.current = { question, startedAt: askStartedAt, boardId: sessionId ?? null };
         }
         setInputInteracted(true);
         return;
       }
-      const queuedAsk = queuedAskRef.current?.question === question ? queuedAskRef.current : null;
+      const queuedAsk = queuedAskRef.current?.question === question &&
+        queuedAskRef.current.boardId === (sessionId ?? null) &&
+        askStartedAt - queuedAskRef.current.startedAt <= QUEUED_ASK_TTL_MS
+        ? queuedAskRef.current
+        : null;
       queuedAskRef.current = null;
       const askOrigin = queuedAsk?.startedAt ?? askStartedAt;
       if (
@@ -684,8 +695,11 @@ export function useQuestionHandler(
       if (turnTraceId) {
         tel.setTrace(turnTraceId, sessionId ?? undefined);
       }
-      // A tab closed mid planning still sends what was measured so far.
-      tel.watchPageLifecycle();
+      // A tab closed mid planning still sends what was measured so far. A turn
+      // replaced or thrown before its flush lets go at the next page event.
+      tel.watchPageLifecycle(
+        () => turnTelemetryRef.current === tel && turnGeneration === turnGenerationRef.current,
+      );
       // Durations only: no question text rides on startup telemetry.
       tel.mark("startup-ask", {
         pre_telemetry_ms: tel.durationMs(),

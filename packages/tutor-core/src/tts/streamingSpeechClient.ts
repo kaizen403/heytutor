@@ -681,6 +681,7 @@ export class StreamingSpeechClient implements TTSClient {
               if (attemptPauseEpoch !== this.pauseEpoch || this.speakGeneration !== generation) return;
               if (!announced) {
                 announced = true;
+                this.notePlaybackStart("speech-synthesis-start", 0);
                 options.onStart?.();
               }
             },
@@ -733,6 +734,8 @@ export class StreamingSpeechClient implements TTSClient {
 
   async speakSegment(text: string, options: SpeakSegmentOptions = {}): Promise<void> {
     this.halted = false;
+    // A start signal belongs to one segment; a fallback must not read the last.
+    this.lastPlaybackStart = null;
     const spokenText = mathToSpeech(text.trim());
     const generation = this.speakGeneration;
     const callbacks = options;
@@ -2378,6 +2381,10 @@ export class StreamingSpeechClient implements TTSClient {
 
   getLastPlaybackStart(): PlaybackStartSignal | null {
     return this.lastPlaybackStart;
+  }
+
+  isMuted(): boolean {
+    return this.muted;
   }
 
   private notePlaybackStart(signal: PlaybackStartSignal["signal"], leadSec: number): void {

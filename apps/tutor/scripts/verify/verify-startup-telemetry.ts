@@ -15,7 +15,9 @@ import ts from "typescript";
 import type { TutorSegment } from "@heytutor/drawing";
 import type { SpeakSegmentOptions, TTSClient } from "@heytutor/tutor-core";
 import type { TurnTelemetryEvent } from "../../lib/obs/langfuse";
+import type { PlaybackStartSignal } from "@heytutor/tutor-core";
 import {
+  MAX_TELEMETRY_BODY_BYTES,
   MAX_TURN_TELEMETRY_EVENTS,
   STARTUP_PRIORITY_EVENTS,
   createTurnTelemetry,
@@ -196,6 +198,51 @@ async function verifyPageLifecycleCheckpoint() {
   // No page at all (server, tests): watching is a no-op.
   const headless = createTurnTelemetry({ env: { ...h.env, window: null, document: null } });
   headless.watchPageLifecycle();
+
+  // A flickering tab adds at most three checkpoint markers to one turn.
+  const f = harness();
+  const flicker = createTurnTelemetry({ env: f.env });
+  flicker.setTrace("trace-flicker");
+  flicker.watchPageLifecycle();
+  f.pageDocument.visibilityState = "hidden";
+  for (let i = 0; i < 6; i++) {
+    f.pageDocument.dispatchEvent(new Event("visibilitychange"));
+    await settle();
+  }
+  assert.equal(f.names().filter((name) => name === "turn-checkpoint").length, 3);
+  await flicker.flush();
+
+  // A turn that never flushed (replaced, or thrown out of planning) sends
+  // once at the next page event, then lets go of the page.
+  const s = harness();
+  let current = true;
+  const stranded = createTurnTelemetry({ env: s.env });
+  stranded.setTrace("trace-stranded");
+  stranded.watchPageLifecycle(() => current);
+  stranded.mark("planner-started");
+  current = false;
+  s.pageWindow.dispatchEvent(new Event("pagehide"));
+  await settle();
+  assert.equal(s.batches.length, 1, "a stranded turn still sends what it has");
+  stranded.mark("late");
+  s.pageWindow.dispatchEvent(new Event("pagehide"));
+  s.pageDocument.visibilityState = "hidden";
+  s.pageDocument.dispatchEvent(new Event("visibilitychange"));
+  await settle();
+  assert.equal(s.batches.length, 1, "and its listeners are gone after that");
+
+  // The next turn watching the same page removes the last one's listeners.
+  const n = harness();
+  const older = createTurnTelemetry({ env: n.env });
+  older.setTrace("trace-older");
+  older.watchPageLifecycle(() => true);
+  const newer = createTurnTelemetry({ env: n.env });
+  newer.setTrace("trace-newer");
+  newer.watchPageLifecycle(() => true);
+  n.pageWindow.dispatchEvent(new Event("pagehide"));
+  await settle();
+  assert.deepEqual(n.batches.map((batch) => batch.traceId), ["trace-newer"], "only the newest turn watches the page");
+  await newer.flush();
 }
 
 async function verifyPriorityRetention() {
@@ -248,14 +295,49 @@ async function verifyPriorityRetention() {
 
 async function verifyLargeBatchesSplit() {
   const h = harness();
-  const tel = createTurnTelemetry({ env: h.env });
+  // Keepalive bodies share one quota: the next part may only leave once the
+  // previous one has been handed over.
+  let inFlight = 0;
+  let maxInFlight = 0;
+  const bodyBytes: number[] = [];
+  const sequentialEnv: TurnTelemetryEnv = { ...h.env, send: async (body, options) => {
+    inFlight++;
+    maxInFlight = Math.max(maxInFlight, inFlight);
+    bodyBytes.push(Buffer.byteLength(body));
+    await new Promise((resolve) => setTimeout(resolve, 1));
+    await h.env.send(body, options);
+    inFlight--;
+  } };
+  const tel = createTurnTelemetry({ env: sequentialEnv });
   tel.setTrace("trace-split");
-  for (let i = 0; i < MAX_TURN_TELEMETRY_EVENTS; i++) tel.mark("write-char-start", { padding: "x".repeat(400), index: i });
+  // Two bytes per character: a char count would let these past the limit.
+  for (let i = 0; i < MAX_TURN_TELEMETRY_EVENTS; i++) tel.mark("write-char-start", { padding: "é".repeat(120), index: i });
   tel.meta({ turn_kind: "lesson" });
   await tel.flush();
   assert(h.batches.length > 1, "a body past the keepalive limit is split");
+  assert.equal(maxInFlight, 1, "split bodies are sent one after another, never together");
+  assert(bodyBytes.every((bytes) => bytes <= MAX_TELEMETRY_BODY_BYTES), "every body fits in bytes, not characters");
   assert.equal(h.names().length, MAX_TURN_TELEMETRY_EVENTS);
   assert.equal(h.batches.filter((batch) => batch.traceMetadata).length, 1, "metadata rides on one part only");
+
+  // A page going away gets exactly one body, startup events first.
+  const l = harness();
+  const leaving = createTurnTelemetry({ originPerf: 0, env: l.env });
+  leaving.setTrace("trace-leaving");
+  leaving.watchPageLifecycle();
+  for (let i = 0; i < 300; i++) leaving.mark("write-char-start", { padding: "é".repeat(120), index: i });
+  leaving.mark("startup-ask", { pre_telemetry_ms: 0 });
+  leaving.mark("teaching-request");
+  l.pageWindow.dispatchEvent(new Event("pagehide"));
+  await settle();
+  assert.equal(l.batches.length, 1, "a lifecycle checkpoint sends one body");
+  assert(Buffer.byteLength(JSON.stringify(l.batches[0]!)) <= MAX_TELEMETRY_BODY_BYTES + 200);
+  const leftNames = l.batches[0]!.events.map((event) => event.name);
+  assert(leftNames.includes("startup-ask") && leftNames.includes("teaching-request") && leftNames.includes("turn-checkpoint"),
+    "startup events go first when the body is full");
+  assert(leftNames.length < 303, "what does not fit stays behind");
+  await leaving.flush();
+  assert.equal(l.names().length, 303, "the rest leaves later if the page comes back, still once each");
 }
 
 async function verifyFirstAudibleHelpers() {
@@ -279,6 +361,14 @@ async function verifyFirstAudibleHelpers() {
   recordFirstAudible({ mark() {} } as unknown as TurnTelemetry, { segmentIndex: 0, transport: "browser", signal: "speech-synthesis-start", leadMs: 0 });
   recordFirstAudible(null, { segmentIndex: 0, transport: "browser", signal: "speech-synthesis-start", leadMs: 0 });
   recordTtsFirstByte({} as TurnTelemetry, { segmentIndex: 0, sinceRequestMs: 1, transport: "http", prefetched: true });
+  assert.equal(audible[0]!.metadata?.muted, false);
+  const m = harness();
+  const muted = createTurnTelemetry({ originPerf: 0, env: m.env });
+  muted.setTrace("trace-muted");
+  recordFirstAudible(muted, { segmentIndex: 0, transport: "provider", signal: "html-audio-playing", leadMs: 0, muted: true });
+  await settle();
+  assert.equal(m.batches[0]!.events.find((event) => event.name === "first-audible")!.metadata?.muted, true,
+    "a muted lesson still fires first-audible, flagged");
 }
 
 async function verifyPageLoadClock() {
@@ -329,6 +419,7 @@ async function verifyRunnerSeam() {
     addEventListener() {}, removeEventListener() {},
   } });
   try {
+    const runTurn = async (lastStart: PlaybackStartSignal | null, mutedOutput = false) => {
     const h = harness();
     const tel = createTurnTelemetry({ originPerf: 0, env: h.env });
     tel.setTrace("trace-runner");
@@ -348,7 +439,8 @@ async function verifyRunnerSeam() {
       get isPlaying() { return false; },
       getPlaybackPositionMs: () => 0,
       setPlaybackRate: () => {}, getPlaybackRate: () => 1,
-      getLastPlaybackStart: () => ({ signal: "html-audio-playing", leadMs: 0 }),
+      getLastPlaybackStart: () => lastStart,
+      isMuted: () => mutedOutput,
     };
     const ref = <T,>(current: T) => ({ current });
     const params = {
@@ -375,10 +467,6 @@ async function verifyRunnerSeam() {
     const events = h.batches.flatMap((batch) => batch.events);
     const audible = events.filter((event) => event.name === "first-audible");
     assert.equal(audible.length, 1, "the runner emits first-audible once per turn");
-    assert.deepEqual(
-      { ...audible[0]!.metadata },
-      { since_ask_ms: 30_000, segment_index: 0, transport: "provider", signal: "html-audio-playing", scheduled_lead_ms: 0 },
-    );
     const firstBytes = events.filter((event) => event.name === "tts-first-byte");
     assert.deepEqual(firstBytes.map((event) => event.metadata?.segment_index), [0, 1], "one first byte per segment");
     assert.equal(firstBytes[0]!.metadata?.since_request_ms, 650);
@@ -387,6 +475,24 @@ async function verifyRunnerSeam() {
       const body = JSON.stringify(batch);
       assert(!body.includes(STUDENT_TEXT) && !body.includes("Resolve the weight"), "no narration or question text in telemetry");
     }
+    return audible[0]!.metadata!;
+    };
+    assert.deepEqual(
+      { ...(await runTurn({ signal: "html-audio-playing", leadMs: 0 })) },
+      { since_ask_ms: 30_000, segment_index: 0, transport: "provider", signal: "html-audio-playing", scheduled_lead_ms: 0, muted: false },
+    );
+    assert.deepEqual(
+      { ...(await runTurn({ signal: "speech-synthesis-start", leadMs: 0 })) },
+      { since_ask_ms: 30_000, segment_index: 0, transport: "browser", signal: "speech-synthesis-start", scheduled_lead_ms: 0, muted: false },
+      "the provider's own browser fallback (mock mode, a suspended context) is reported as the browser voice",
+    );
+    assert.deepEqual(
+      { ...(await runTurn(null)) },
+      { since_ask_ms: 30_000, segment_index: 0, transport: "provider", signal: "unknown", scheduled_lead_ms: 0, muted: false },
+      "no signal is unknown with no lead",
+    );
+    assert.equal((await runTurn({ signal: "audio-context-scheduled", leadMs: 45 }, true)).since_ask_ms, 30_045);
+    assert.equal((await runTurn({ signal: "audio-context-scheduled", leadMs: 45 }, true)).muted, true);
   } finally {
     if (savedWindow) Object.defineProperty(globalThis, "window", savedWindow);
     else Reflect.deleteProperty(globalThis, "window");
@@ -415,12 +521,26 @@ async function verifyStreamingClientSeam() {
   replace("window", { setTimeout: (fn: () => void, ms?: number) => setTimeout(fn, ms), clearTimeout: (id: number) => clearTimeout(id),
     addEventListener() {}, removeEventListener() {} });
   replace("location", { protocol: "http:", host: "localhost:3000", origin: "http://localhost:3000" });
+  class Utterance {
+    onstart: (() => void) | null = null; onend: (() => void) | null = null;
+    onerror: ((event: { error: string }) => void) | null = null; onboundary: (() => void) | null = null;
+    volume = 1; rate = 1; pitch = 1; lang = ""; voice: unknown = null;
+    constructor(readonly text: string) {}
+  }
+  const utterances: Utterance[] = [];
+  (globalThis as unknown as { window: Record<string, unknown> }).window.speechSynthesis = {
+    getVoices: () => [], resume() {}, pause() {}, cancel() {}, speaking: false, pending: false,
+    speak(utterance: Utterance) { utterances.push(utterance); },
+  };
+  replace("SpeechSynthesisUtterance", Utterance);
+  let failStream = false;
   replace("Audio", NativeAudio);
   replace("WebSocket", class { static OPEN = 1; constructor() { throw new Error("no sockets in this verify"); } });
   replace("fetch", async (url: unknown) => {
     // A missing ticket keeps the client off the socket, so this stays offline.
     if (String(url).includes("ws-ticket")) return Response.json({});
-    assert(String(url).includes("/api/tts/stream"), "only the offline TTS stub may be called");
+    if (!String(url).includes("/api/tts/stream")) return Response.json({});
+    if (failStream) return new Response("refused", { status: 400 });
     now += 700;
     return new Response(`${JSON.stringify({ audio_base64: Buffer.from([73, 68, 51, 1]).toString("base64") })}\n`);
   });
@@ -439,6 +559,22 @@ async function verifyStreamingClientSeam() {
     await spoken;
     assert.deepEqual(firstBytes, [{ transport: "http", sinceRequestMs: 700, prefetched: false }]);
     assert.deepEqual(startSignal, { signal: "html-audio-playing", leadMs: 0 }, "native playback reports the playing signal");
+
+    // The provider fails and the browser voice speaks: its own signal, never
+    // the previous segment's leftover.
+    failStream = true;
+    let fallbackSignal: unknown = "not started";
+    const fallback = client.speakSegment("The normal force balances the rest.", {
+      onStart: () => { fallbackSignal = client.getLastPlaybackStart(); },
+    });
+    await settle();
+    assert.equal(client.getLastPlaybackStart(), null, "each segment starts with no signal");
+    for (let i = 0; i < 200 && utterances.length === 0; i++) await new Promise((resolve) => setTimeout(resolve, 1));
+    assert.equal(utterances.length, 1, "the failed stream fell back to the browser voice");
+    utterances[0]!.onstart?.();
+    utterances[0]!.onend?.();
+    await fallback;
+    assert.deepEqual(fallbackSignal, { signal: "speech-synthesis-start", leadMs: 0 });
     client.stop();
   } finally {
     for (const [key, descriptor] of saved) {
@@ -550,7 +686,12 @@ function verifyHandlerPrivacy() {
   const handlerStart = source.indexOf("async (rawQuestion: string, options?: HandleQuestionOptions) => {");
   assert(handlerStart > 0 && askLine > handlerStart, "the Ask origin is taken inside the handler");
   assert(askLine < source.indexOf("normalizeTutorQuestion(rawQuestion)", handlerStart), "and before anything else");
-  assert(source.indexOf("tel.watchPageLifecycle();") > source.indexOf("tel.setTrace(turnTraceId"), "lifecycle checkpoints after the trace id");
+  const watch = source.indexOf("tel.watchPageLifecycle(");
+  assert(watch > source.indexOf("tel.setTrace(turnTraceId"), "lifecycle checkpoints after the trace id");
+  const watchEnd = source.indexOf(");", watch);
+  assert(watchEnd > watch, "watchPageLifecycle end anchor");
+  assert(/turnTelemetryRef\.current === tel && turnGeneration === turnGenerationRef\.current/.test(source.slice(watch, watchEnd)),
+    "a replaced turn's listeners let go of the page");
 }
 
 async function main() {

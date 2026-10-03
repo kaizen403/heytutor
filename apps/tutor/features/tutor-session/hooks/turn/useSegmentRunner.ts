@@ -582,12 +582,17 @@ export function useSegmentRunner({
         if (isCancelled() || !turnActiveRef.current) return;
         // Once per turn; the browser voice and the provider both land here
         // only after their start was accepted.
+        // The provider resets its signal per segment and records its own
+        // browser fallback (mock mode, a suspended context), so a null
+        // signal is unknown with no lead, never the previous segment's.
         const startSignal = usingBrowserFallback ? null : tts.getLastPlaybackStart?.() ?? null;
+        const browserVoice = usingBrowserFallback || startSignal?.signal === "speech-synthesis-start";
         recordFirstAudible(tel, {
           segmentIndex: index,
-          transport: usingBrowserFallback ? "browser" : "provider",
-          signal: usingBrowserFallback ? "speech-synthesis-start" : startSignal?.signal ?? "unknown",
-          leadMs: startSignal?.leadMs ?? 0,
+          transport: browserVoice ? "browser" : "provider",
+          signal: browserVoice ? "speech-synthesis-start" : startSignal?.signal ?? "unknown",
+          leadMs: startSignal?.signal === "audio-context-scheduled" ? startSignal.leadMs : 0,
+          muted: tts.isMuted?.() ?? false,
         });
         if (usingBrowserFallback) tel?.mark("tts-startup-accepted", {
           segment_index: index,

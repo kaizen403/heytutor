@@ -31,9 +31,11 @@ export interface TurnTelemetry {
   /**
    * Checkpoints on pagehide and on the tab going hidden, so a student who
    * closes the tab mid planning still leaves the turn's timings behind. The
-   * final flush removes the listeners.
+   * final flush removes the listeners. So does the next turn watching the
+   * same page, and the first page event after `isCurrent` turns false: a
+   * turn that exits without flushing cannot leave them behind.
    */
-  watchPageLifecycle(): void;
+  watchPageLifecycle(isCurrent?: () => boolean): void;
   flush(): Promise<void>;
 }
 
@@ -65,7 +67,6 @@ export const STARTUP_PRIORITY_EVENTS = [
   "scene-speculative-abort",
   "tts-first-byte",
   "first-audible",
-  "turn-checkpoint",
 ] as const;
 
 const STARTUP_PRIORITY_SET = new Set<string>(STARTUP_PRIORITY_EVENTS);
@@ -78,6 +79,7 @@ const DECISION_EVENT_PREFIXES = [
   "write-schedule-ready",
   "tts-timing-",
   "tts-startup-",
+  "turn-checkpoint",
   "planner",
   "thinking",
 ] as const;
@@ -93,10 +95,22 @@ export function turnTelemetryEventTier(name: string): 0 | 1 | 2 {
 }
 
 /**
- * Keepalive fetch and sendBeacon both refuse bodies past 64 KiB. A batch
- * above this is split so a pagehide checkpoint is not silently dropped.
+ * Keepalive fetch and sendBeacon share one 64 KiB budget for everything in
+ * flight. A live page sends split bodies one after another; a page going
+ * away gets one body under this, startup events first.
  */
-const MAX_TELEMETRY_BODY_CHARS = 60_000;
+export const MAX_TELEMETRY_BODY_BYTES = 60_000;
+
+/** A tab flicking hidden and back must not fill the buffer with markers. */
+const MAX_LIFECYCLE_CHECKPOINT_MARKS = 3;
+
+const utf8 = typeof TextEncoder !== "undefined" ? new TextEncoder() : null;
+function byteLength(text: string): number {
+  return utf8 ? utf8.encode(text).length : text.length * 3;
+}
+
+/** Lifecycle listeners per page target; only the newest turn keeps them. */
+const lifecycleOwners = new WeakMap<object, () => void>();
 
 /** Seams for the verify script; production reads the browser globals. */
 export interface TurnTelemetryEnv {
@@ -174,7 +188,7 @@ function defaultEnv(): TurnTelemetryEnv {
 /** Splits a payload until every body fits a keepalive request. */
 function payloadBodies(payload: TurnTelemetryPayload): string[] {
   const body = JSON.stringify(payload);
-  if (body.length <= MAX_TELEMETRY_BODY_CHARS || payload.events.length <= 1) {
+  if (byteLength(body) <= MAX_TELEMETRY_BODY_BYTES || payload.events.length <= 1) {
     return [body];
   }
   const half = Math.ceil(payload.events.length / 2);
@@ -182,6 +196,31 @@ function payloadBodies(payload: TurnTelemetryPayload): string[] {
     ...payloadBodies({ ...payload, events: payload.events.slice(0, half) }),
     ...payloadBodies({ ...payload, events: payload.events.slice(half), traceMetadata: undefined }),
   ];
+}
+
+/**
+ * The events that fit one keepalive body, highest tier first and in their
+ * original order within a tier. The rest are returned to keep.
+ */
+function fitOneBody(
+  base: TurnTelemetryPayload,
+  candidates: TurnTelemetryEvent[],
+): { sent: TurnTelemetryEvent[]; kept: TurnTelemetryEvent[] } {
+  let budget = MAX_TELEMETRY_BODY_BYTES - byteLength(JSON.stringify(base));
+  const ranked = candidates
+    .map((event, index) => ({ event, index, tier: turnTelemetryEventTier(event.name) }))
+    .sort((a, b) => b.tier - a.tier || a.index - b.index);
+  const chosen = new Set<number>();
+  for (const { event, index } of ranked) {
+    const cost = byteLength(JSON.stringify(event)) + 1;
+    if (cost > budget) continue;
+    budget -= cost;
+    chosen.add(index);
+  }
+  return {
+    sent: candidates.filter((_, index) => chosen.has(index)),
+    kept: candidates.filter((_, index) => !chosen.has(index)),
+  };
 }
 
 export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): TurnTelemetry {
@@ -205,6 +244,7 @@ export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): T
   let droppedEvents = 0;
   let lastSentMetadata: string | null = null;
   let removeLifecycle: (() => void) | null = null;
+  let lifecycleMarks = 0;
 
   const pushEvent = (event: TurnTelemetryEvent): void => {
     if (events.length < MAX_TURN_TELEMETRY_EVENTS) {
@@ -256,8 +296,11 @@ export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): T
         events: pendingEvents,
         traceMetadata: pendingMetadata,
       });
-      // Sent together: a pagehide may not run anything queued after it.
-      await Promise.all(bodies.map((body) => env.send(body, { beacon }).catch(() => undefined)));
+      // One at a time: parallel keepalive bodies share one 64 KiB quota and
+      // the browser drops whichever overflows it.
+      for (const body of bodies) {
+        await env.send(body, { beacon }).catch(() => undefined);
+      }
     } catch {
       // Telemetry never throws into the turn.
     }
@@ -286,18 +329,29 @@ export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): T
     try {
       // Without a trace the events stay buffered for the next send.
       if (!traceId) return;
-      if (lifecycle) {
+      if (lifecycle && lifecycleMarks < MAX_LIFECYCLE_CHECKPOINT_MARKS) {
+        lifecycleMarks += 1;
         mark("turn-checkpoint", {
           reason,
           since_ask_ms: Math.round(env.now() - originPerf),
           open_spans: [...activeSpans.keys()].slice(0, 20),
         });
       }
-      const pendingEvents = takePending(lifecycle);
+      let pendingEvents = takePending(lifecycle);
       const metadata = metadataForSend();
       const metadataJson = metadata ? JSON.stringify(metadata) : null;
       const pendingMetadata = metadataJson !== lastSentMetadata ? metadata : undefined;
       lastSentMetadata = metadataJson;
+      if (lifecycle) {
+        // The page may be gone after this: one body, startup events first.
+        // What does not fit stays buffered in case the tab comes back.
+        const fitted = fitOneBody(
+          { traceId, sessionId, events: [], traceMetadata: pendingMetadata },
+          pendingEvents,
+        );
+        events.unshift(...fitted.kept);
+        pendingEvents = fitted.sent;
+      }
       await send(pendingEvents, pendingMetadata, lifecycle);
     } catch {
       // Telemetry never throws into the turn.
@@ -357,34 +411,53 @@ export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): T
       return checkpoint(reason, false);
     },
 
-    watchPageLifecycle() {
+    watchPageLifecycle(isCurrent) {
       if (removeLifecycle) return;
       const target = env.window;
       const doc = env.document;
-      const onPageHide = () => { void checkpoint("pagehide", true); };
-      const onVisibility = () => {
-        if (doc?.visibilityState === "hidden") void checkpoint("hidden", true);
+      const owner = target ?? doc;
+      if (!owner) return;
+      const lifecycleCheckpoint = (reason: string) => {
+        let current = true;
+        try {
+          current = isCurrent ? isCurrent() : true;
+        } catch {
+          current = false;
+        }
+        void checkpoint(reason, true);
+        // A turn that was replaced or threw without flushing sends what it
+        // has once, then lets go of the page.
+        if (!current) dispose();
       };
-      try {
-        target?.addEventListener("pagehide", onPageHide);
-        doc?.addEventListener("visibilitychange", onVisibility);
-      } catch {
-        return;
-      }
-      removeLifecycle = () => {
+      const onPageHide = () => { lifecycleCheckpoint("pagehide"); };
+      const onVisibility = () => {
+        if (doc?.visibilityState === "hidden") lifecycleCheckpoint("hidden");
+      };
+      const dispose = () => {
         try {
           target?.removeEventListener("pagehide", onPageHide);
           doc?.removeEventListener("visibilitychange", onVisibility);
         } catch {
           // ignore
         }
+        if (lifecycleOwners.get(owner) === dispose) lifecycleOwners.delete(owner);
+        if (removeLifecycle === dispose) removeLifecycle = null;
       };
+      // One live turn per page: the previous turn's listeners go now.
+      lifecycleOwners.get(owner)?.();
+      try {
+        target?.addEventListener("pagehide", onPageHide);
+        doc?.addEventListener("visibilitychange", onVisibility);
+      } catch {
+        return;
+      }
+      removeLifecycle = dispose;
+      lifecycleOwners.set(owner, dispose);
     },
 
     async flush() {
       // The turn is over: a later hide has nothing of this turn to save.
       removeLifecycle?.();
-      removeLifecycle = null;
 
       if (!traceId) {
         return;
@@ -445,7 +518,14 @@ export type FirstAudibleSignal =
  */
 export function recordFirstAudible(
   tel: TurnTelemetry | null | undefined,
-  info: { segmentIndex: number; transport: "provider" | "browser"; signal: FirstAudibleSignal; leadMs: number },
+  info: {
+    segmentIndex: number;
+    transport: "provider" | "browser";
+    signal: FirstAudibleSignal;
+    leadMs: number;
+    /** Output muted (Watch Live off): still the moment the voice started, flagged. */
+    muted?: boolean;
+  },
 ): void {
   try {
     if (typeof tel?.markOnce !== "function" || typeof tel.durationMs !== "function") return;
@@ -457,6 +537,7 @@ export function recordFirstAudible(
       transport: info.transport,
       signal: info.signal,
       scheduled_lead_ms: leadMs,
+      muted: info.muted === true,
     })) return;
     tel.meta({ first_audible_since_ask_ms: sinceAskMs });
     void tel.checkpoint("first-audible");
