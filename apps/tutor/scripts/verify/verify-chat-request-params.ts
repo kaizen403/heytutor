@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createServer, type Server } from "node:http";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { mock } from "node:test";
@@ -141,6 +142,14 @@ const chatTrace = load(path("lib/obs/chatTrace.ts")) as typeof import("../../lib
 const grants = load(path("lib/billing/grant.ts")) as typeof import("../../lib/billing/grant");
 const fuses = load(path("lib/billing/fuses.ts")) as typeof import("../../lib/billing/fuses");
 const chat = load(path("app/api/chat/route.ts")) as typeof import("../../app/api/chat/route");
+const nodeRequest = load(path("lib/http/nodeRequest.ts")) as typeof import("../../lib/http/nodeRequest");
+// The same body clone Next runs for every request that passes middleware.
+const nextBodyStreams = load("next/dist/server/body-streams.js") as {
+  getCloneableBody(readable: import("node:http").IncomingMessage): {
+    cloneBodyStream(): NodeJS.ReadableStream & { resume(): void };
+    finalize(): Promise<void>;
+  };
+};
 const { serverChatBody, plannerTemperature, isTeachingHedge, TEACHING_TEMPERATURE } = chatRequestModule;
 
 const messages = [{ role: "user", content: "Explain force." }];
@@ -493,6 +502,157 @@ const routeChecks: [string, () => Promise<void>][] = [
   }],
 ];
 
+// ---------------------------------------------------------------- aborts
+const processFaults: string[] = [];
+const onUnhandledRejection = (reason: unknown) => {
+  processFaults.push(`unhandledRejection: ${reason instanceof Error ? `${reason.name} ${reason.message}` : String(reason)}`);
+};
+const onUncaughtException = (error: Error) => {
+  processFaults.push(`uncaughtException: ${error.message} ${(error as { code?: string }).code ?? ""}`.trim());
+};
+
+async function expectNoProcessFaults(run: () => Promise<void>): Promise<void> {
+  processFaults.length = 0;
+  process.on("unhandledRejection", onUnhandledRejection);
+  process.on("uncaughtException", onUncaughtException);
+  try {
+    await run();
+    // Destroyed streams report their errors on later ticks.
+    await new Promise((done) => setTimeout(done, 50));
+    await settleMicrotasks();
+  } finally {
+    process.off("unhandledRejection", onUnhandledRejection);
+    process.off("uncaughtException", onUncaughtException);
+  }
+  assert.deepEqual(processFaults, [], "an aborted request must not reach the process error handlers");
+}
+
+function plannerRequest(traceId: string, signal: AbortSignal): Request {
+  return chatRequest(traceId, {
+    headers: { "x-planner": "1", "x-problem-ir-version": "1" },
+    body: { stream: false, temperature: 0 },
+    signal,
+  });
+}
+
+/** Planner fetch that never answers; rejects with the signal reason like undici. */
+function hangingPlannerFetch(): typeof fetch {
+  return async (_url, options) => new Promise<Response>((_resolve, reject) => {
+    const signal = options?.signal;
+    signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+  });
+}
+
+/** Planner fetch that sends headers and then stalls mid-body. */
+function stalledBodyPlannerFetch(): typeof fetch {
+  return async (_url, options) => {
+    const signal = options?.signal;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('{"choices":[{"message":{"content":"'));
+        signal?.addEventListener("abort", () => {
+          try { controller.error(signal.reason); } catch { /* already closed */ }
+        }, { once: true });
+      },
+    });
+    return new Response(body, { headers: { "content-type": "application/json" } });
+  };
+}
+
+/** Next aborts the route's request signal with an error whose message is "". */
+class ResponseAborted extends Error {
+  override name = "ResponseAborted";
+}
+
+const abortChecks: [string, () => Promise<void>][] = [
+  ["a planner aborted before upstream headers settles without a process fault", async () => {
+    const trace = arrange();
+    globalThis.fetch = hangingPlannerFetch();
+    await expectNoProcessFaults(async () => {
+      const controller = new AbortController();
+      const pending = chat.POST(plannerRequest(trace, controller.signal));
+      await settleMicrotasks();
+      controller.abort(new ResponseAborted());
+      const response = await pending;
+      assert.equal(response.status, 500);
+      await response.text();
+    });
+    assert.equal(reservations.size, 0, "the aborted planner reservation settles");
+    assert.equal(pendingAi(), 0);
+    assert.equal(generationFor(1).metadata?.aborted, true);
+  }],
+  ["a planner aborted after headers but before its body settles without a process fault", async () => {
+    const trace = arrange();
+    globalThis.fetch = stalledBodyPlannerFetch();
+    await expectNoProcessFaults(async () => {
+      const controller = new AbortController();
+      const pending = chat.POST(plannerRequest(trace, controller.signal));
+      await settleMicrotasks();
+      controller.abort(new ResponseAborted());
+      const response = await pending;
+      assert.equal(response.status, 500);
+      await response.text();
+    });
+    assert.equal(reservations.size, 0);
+    assert.equal(pendingAi(), 0);
+  }],
+  ["two planners aborted in the same tick both settle without a process fault", async () => {
+    const trace = arrange();
+    let calls = 0;
+    const hanging = hangingPlannerFetch();
+    const stalled = stalledBodyPlannerFetch();
+    globalThis.fetch = async (url, options) => (calls++ % 2 === 0 ? hanging : stalled)(url, options);
+    await expectNoProcessFaults(async () => {
+      const controller = new AbortController();
+      const pending = [chat.POST(plannerRequest(trace, controller.signal)), chat.POST(plannerRequest(trace, controller.signal))];
+      await settleMicrotasks();
+      controller.abort(new ResponseAborted());
+      const responses = await Promise.all(pending);
+      assert.deepEqual(responses.map((response) => response.status), [500, 500]);
+      await Promise.all(responses.map((response) => response.text()));
+    });
+    assert.equal(reservations.size, 0);
+    assert.equal(pendingAi(), 0);
+  }],
+  ["a client that disconnects before the route reads its body is not an uncaughtException", async () => {
+    // Real Node HTTP server with the production guard and Next's middleware
+    // body clone. The clone copies a PassThrough's fields, `_events` included,
+    // onto the request; the socket close then destroys it with
+    // `Error: aborted` (ECONNRESET). This is the fault seen in the lab when a
+    // request stalled before its body was read and the client gave up.
+    let server: Server | undefined;
+    await expectNoProcessFaults(async () => {
+      let reachedRoute!: () => void;
+      const routeReached = new Promise<void>((done) => { reachedRoute = done; });
+      server = createServer((req, res) => {
+        if (!nodeRequest.protectNodeRequest(req, res)) return;
+        void (async () => {
+          const clonable = nextBodyStreams.getCloneableBody(req);
+          clonable.cloneBodyStream().resume();
+          await new Promise((done) => setTimeout(done, 5));
+          await clonable.finalize();
+          // The route is still authenticating; it has not read the body.
+          reachedRoute();
+          setTimeout(() => { if (!res.destroyed) res.end("{}"); }, 400);
+        })();
+      });
+      await new Promise<void>((done) => server!.listen(0, "127.0.0.1", done));
+      const { port } = server.address() as { port: number };
+      const controller = new AbortController();
+      const request = originalFetch(`http://127.0.0.1:${port}/api/chat`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ messages }),
+        signal: controller.signal,
+      }).catch(() => undefined);
+      await routeReached;
+      controller.abort();
+      await request;
+      await new Promise((done) => setTimeout(done, 100));
+    }).finally(() => new Promise<void>((done) => server ? server.close(() => done()) : done()));
+  }],
+];
+
 async function main(): Promise<void> {
   const failures: string[] = [];
   try {
@@ -500,7 +660,7 @@ async function main(): Promise<void> {
       try { run(); console.log(`ok ${name}`); }
       catch (error) { failures.push(name); console.error(`FAIL ${name}: ${error instanceof Error ? error.message : String(error)}`); }
     }
-    for (const [name, run] of routeChecks) {
+    for (const [name, run] of [...routeChecks, ...abortChecks]) {
       try { await run(); console.log(`ok ${name}`); }
       catch (error) { failures.push(name); console.error(`FAIL ${name}: ${error instanceof Error ? error.stack ?? error.message : String(error)}`); }
     }
@@ -513,7 +673,7 @@ async function main(): Promise<void> {
     mock.restoreAll();
   }
   if (failures.length > 0) {
-    console.error(`${failures.length}/${unitChecks.length + routeChecks.length} chat parameter checks failed`);
+    console.error(`${failures.length}/${unitChecks.length + routeChecks.length + abortChecks.length} chat parameter checks failed`);
     process.exit(1);
   }
   console.log("chat request params verification passed");
