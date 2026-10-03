@@ -10,7 +10,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
+import { planSceneDocumentWithRepair, type SceneCandidateValidation } from "@heytutor/tutor-core";
 import {
+  SCENE_REQUEST_BUDGET,
   decideSpeculation,
   runScenePlanningOverlap,
   shouldStartSpeculativeScene,
@@ -115,6 +117,9 @@ function harness(script: Script) {
     plannerStartedAt: script.plannerStartedAt ?? 0,
     deadlineMs: 60_000,
     now: () => nowMs,
+    sleep: async (ms) => {
+      nowMs += ms;
+    },
     guard: script.guard,
     telemetry,
     parentSpan: "planner",
@@ -132,6 +137,8 @@ function harness(script: Script) {
       if (hold !== "none") void run.holdRepairsUntil!.then((value) => {
         hold.value = value;
       });
+      // Like planSceneDocumentWithRepair, an aborted run settles promptly.
+      run.signal.addEventListener("abort", () => reply.resolve(null), { once: true });
       planCalls.push({ gate, plan: scenePlan, signal: run.signal, timeoutMs: run.timeoutMs, atMs: nowMs, hold, reply });
       record("plan-scene", { plan: gate.planId });
       return reply.promise;
@@ -330,7 +337,9 @@ async function main(): Promise<void> {
     assert.deepEqual(h.planCalls[0]!.hold, { value: false }, "a discarded run never launched a repair");
     assert.equal(h.planCalls[1]!.hold, "none", "the restart repairs freely");
     assert.equal(h.planCalls[1]!.gate.planId, "final", "the restart uses the gate inferred with ProblemIR");
-    assert.equal(h.planCalls[1]!.timeoutMs, 42_000, "the restart gets only what is left of 60s");
+    assert.equal(h.planCalls[1]!.timeoutMs, 41_500,
+      "the restart waits out the abort notice, then gets only what is left of 60s");
+    assert.equal(h.planCalls[1]!.atMs, 18_500);
     assert.deepEqual(h.events.find((event) => event.name === "scene-speculative-abort")?.data, { reason: "families_changed" });
     h.planCalls[1]!.reply.resolve(h.result("restart", h.planCalls[1]!));
     const outcome = await h.outcome;
@@ -514,6 +523,127 @@ async function main(): Promise<void> {
     const outcome = await h.outcome;
     assert.equal(outcome.scene?.tag, "spec");
     assert.deepEqual(h.revalidations, []);
+  });
+
+  await scenario("worst-case turns never trip the billing caps (4 ai in flight, 12 planner calls)", async () => {
+    const grant = readFileSync(join(process.cwd(), "lib/billing/grant.ts"), "utf8");
+    assert(/planner: 12,/.test(grant) && /group === "tts" \? 24 : 4\)/.test(grant),
+      "the caps this case enforces must match acquirePaidCall");
+    assert.equal(SCENE_REQUEST_BUDGET, 12 - 3 - 1);
+    for (const worstCase of ["restart_then_two_repair_rounds", "empty_answers_everywhere"] as const) {
+      // A fake /api/chat with acquirePaidCall's admission: a refused call is a 429.
+      // An aborted call keeps its slot until the server notices (NOTICE_MS).
+      const NOTICE_MS = 15;
+      const server = { inFlight: 0, peak: 0, planner: 0, refused: 0 };
+      const admit = (planner: boolean) => {
+        if (server.inFlight >= 4 || (planner && server.planner >= 12)) {
+          server.refused += 1;
+          return false;
+        }
+        server.inFlight += 1;
+        server.peak = Math.max(server.peak, server.inFlight);
+        if (planner) server.planner += 1;
+        return true;
+      };
+      const release = () => {
+        server.inFlight -= 1;
+      };
+      const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+      // Turn plan: two lanes and the retry spent, one aborted lane not yet noticed.
+      for (let lane = 0; lane < 3; lane += 1) assert(admit(true));
+      release();
+      release();
+      setTimeout(release, NOTICE_MS);
+      // ProblemIR holds a slot until it answers.
+      assert(admit(true));
+      const authority = deferred<Authority | null>();
+      setTimeout(() => {
+        release();
+        authority.resolve({ id: "ir" });
+      }, 60);
+
+      let sceneCall = 0;
+      const doc = (tag: string, fatal: number) => ({ schemaVersion: "scene-document/v2", tag, fatal });
+      const reply = (phase: string, lane: string, index: number): { ms: number; doc: Record<string, unknown> | null } => {
+        if (worstCase === "empty_answers_everywhere") {
+          if (phase === "plan") return index < 2 || (index >= 3 && index < 5) ? { ms: 5, doc: null } : { ms: 120, doc: doc(`F${index}`, 2) };
+          return { ms: 20, doc: doc(`R${index}`, 3) };
+        }
+        // Speculative candidates are still pending at 60ms and get discarded.
+        if (index < 2) return { ms: 500, doc: doc("spec", 1) };
+        if (phase === "plan") return lane === "primary" ? { ms: 10, doc: doc("A", 3) } : { ms: 200, doc: doc("B", 4) };
+        return { ms: lane === "primary" ? 15 : 150, doc: doc(`R${index}`, index >= 6 && lane === "primary" ? 0 : 2) };
+      };
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
+        const headers = new Headers(init?.headers);
+        const index = sceneCall;
+        sceneCall += 1;
+        if (!admit(true)) {
+          return { ok: false, status: 429, headers: new Headers(), json: async () => ({ error: "concurrent_limit" }) } as unknown as Response;
+        }
+        const scripted = reply(headers.get("x-scene-planner-phase") ?? "", headers.get("x-scene-planner-lane") ?? "", index);
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            release();
+            resolve({
+              ok: true,
+              status: 200,
+              headers: new Headers(),
+              json: async () => ({ choices: [{ message: { content: scripted.doc ? JSON.stringify(scripted.doc) : "" } }] }),
+            } as unknown as Response);
+          }, scripted.ms);
+          init?.signal?.addEventListener("abort", () => {
+            clearTimeout(timer);
+            setTimeout(release, NOTICE_MS);
+            reject(new DOMException("aborted", "AbortError"));
+          }, { once: true });
+        });
+      }) as typeof fetch;
+      try {
+        const validate = (candidate: Record<string, unknown>): SceneCandidateValidation<string> =>
+          Number(candidate.fatal) === 0
+            ? { valid: true, errors: [], value: String(candidate.tag) }
+            : { valid: false, errors: [{ code: "fatal_geometry", message: "x", severity: "fatal" }] };
+        const outcome = await runScenePlanningOverlap<Authority, Gate, Fast, Awaited<ReturnType<typeof planSceneDocumentWithRepair<string>>> & object>({
+          turnPlan: plan(35.35),
+          problemAuthority: authority.promise,
+          speculationAllowed: true,
+          plannerStartedAt: Date.now(),
+          deadlineMs: 60_000,
+          deriveGate: (_gatePlan, answered) => ({
+            shouldPlanExactScene: true,
+            shouldAttemptLlmScene: true,
+            families: answered ? ["projectile", "vector_diagram"] : ["projectile"],
+            archetypeId: null,
+            request: {},
+            planId: answered ? "final" : "speculative",
+          }),
+          applyAuthority: (authorityPlan, answered) => ({ turnPlan: authorityPlan, authority: answered }),
+          fastFigureBlocked: () => false,
+          selectFast: () => null,
+          planScene: (_gate, _scenePlan, run) => planSceneDocumentWithRepair(QUESTION, validate, {
+            proxyUrl: "http://planner.test",
+            signal: run.signal,
+            timeoutMs: run.timeoutMs,
+            holdRepairsUntil: run.holdRepairsUntil,
+            maxConcurrentRequests: run.maxConcurrentRequests,
+            requestBudget: run.requestBudget,
+          }),
+          revalidate: async (result) => result,
+        });
+        assert.equal(outcome.speculation.restarted, true, `${worstCase}: the worst case restarts`);
+        // Teaching starts the moment planning returns, next to any aborted loser.
+        assert(admit(false), `${worstCase}: the teaching request must be admitted`);
+        await wait(NOTICE_MS * 3);
+        assert.equal(server.refused, 0, `${worstCase}: no call may be refused`);
+        assert(server.peak <= 4, `${worstCase}: peak ${server.peak} ai calls in flight`);
+        assert(server.planner <= 12, `${worstCase}: ${server.planner} planner calls in one trace`);
+        console.log(`verify-planning-overlap: ${worstCase} peak ${server.peak} in flight, ${server.planner} planner calls, ${outcome.scene?.repairRounds ?? 0} repair rounds`);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    }
   });
 
   // Both callers run the same module, so the bench measures the live path.
