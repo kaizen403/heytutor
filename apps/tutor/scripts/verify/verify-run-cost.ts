@@ -13,7 +13,7 @@ import {
 import { calculateLlmCostDetails, calculateTtsCostDetails } from "../../lib/obs/usageCost";
 import {
   DEFAULT_FIREWORKS_FAST_MODEL,
-  DEFAULT_PROBLEM_IR_MODEL,
+  DEFAULT_CHEAP_FIREWORKS_MODEL,
 } from "../../lib/llm/fireworksModels";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -40,7 +40,7 @@ const observations: CostObservation[] = [
     type: "GENERATION",
     sessionId: "board-a",
     traceId: "trace-1",
-    model: DEFAULT_PROBLEM_IR_MODEL,
+    model: DEFAULT_CHEAP_FIREWORKS_MODEL,
     usage: { input: 3_000, output: 500, total: 3_500, unit: "TOKENS" },
   },
   {
@@ -80,7 +80,7 @@ const plan = calculateLlmCostDetails(
 ).total ?? 0;
 const ir = calculateLlmCostDetails(
   { input: 3_000, output: 500 },
-  { model: DEFAULT_PROBLEM_IR_MODEL },
+  { model: DEFAULT_CHEAP_FIREWORKS_MODEL },
 ).total ?? 0;
 const teach = calculateLlmCostDetails(
   { input: 10_000, output: 2_000 },

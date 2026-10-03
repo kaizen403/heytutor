@@ -1,6 +1,8 @@
 import {
   DEFAULT_FIREWORKS_FAST_MODEL,
+  DEFAULT_CHEAP_FIREWORKS_MODEL,
   DEFAULT_PROBLEM_IR_MODEL,
+  resolveCheapFireworksModel,
 } from "../../lib/llm/fireworksModels";
 import {
   fetchPlannerCompletion,
@@ -53,12 +55,12 @@ async function main(): Promise<void> {
     env: {},
   });
   assert(
-    problemIRModels[0] === DEFAULT_PROBLEM_IR_MODEL,
-    "Problem IR must default to DeepSeek V4.1 Flash",
+    JSON.stringify(problemIRModels) === JSON.stringify([DEFAULT_PROBLEM_IR_MODEL]),
+    "Problem IR must default to its own model",
   );
   assert(
-    DEFAULT_PROBLEM_IR_MODEL === "accounts/fireworks/models/deepseek-v4p1-flash",
-    "the Problem IR default must stay on deepseek-v4p1-flash",
+    DEFAULT_PROBLEM_IR_MODEL === "accounts/fireworks/routers/kimi-k3-fast",
+    "the Problem IR default is Kimi K3 Fast in both modes",
   );
   const problemIRFast = resolvePlannerModels({
     semanticSceneV2: false,
@@ -70,7 +72,7 @@ async function main(): Promise<void> {
   });
   assert(
     JSON.stringify(problemIRFast) === JSON.stringify([DEFAULT_PROBLEM_IR_MODEL]),
-    "fast mode must not send Problem IR to Kimi K3 Fast",
+    "fast mode must not change the Problem IR model",
   );
   const problemIRIgnoresPlannerEnv = resolvePlannerModels({
     semanticSceneV2: false,
@@ -104,6 +106,16 @@ async function main(): Promise<void> {
   assert(
     JSON.stringify(problemIROverride) === JSON.stringify(["problem-ir-only"]),
     "FIREWORKS_PROBLEM_IR_MODEL must be the only Problem IR override",
+  );
+  // Notes chat resolved its cheap model through Problem IR's resolver. Moving
+  // Problem IR to Kimi must leave that resolution byte for byte unchanged.
+  assert(
+    DEFAULT_CHEAP_FIREWORKS_MODEL === "accounts/fireworks/models/deepseek-v4p1-flash" &&
+      resolveCheapFireworksModel({ env: {} }) === "accounts/fireworks/models/deepseek-v4p1-flash" &&
+      resolveCheapFireworksModel({ env: { FIREWORKS_PROBLEM_IR_MODEL: " problem-ir-only " } }) === "problem-ir-only" &&
+      resolveCheapFireworksModel({ env: { FIREWORKS_MODEL: "planner-standard", FIREWORKS_FAST_MODEL: "planner-fast" } }) ===
+        "accounts/fireworks/models/deepseek-v4p1-flash",
+    "the cheap notes model must resolve exactly as before",
   );
   assert(
     resolvePlannerMaxTokens({

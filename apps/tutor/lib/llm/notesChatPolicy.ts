@@ -2,7 +2,7 @@ import type { LessonNotesSnapshot } from "@/features/tutor-session/lib/notes/les
 import { formatLessonNotesForPrompt } from "@/features/tutor-session/lib/notes/lessonNotes";
 import { selectNotesForPrompt } from "@/features/tutor-session/lib/notes/notesContext";
 import type { NotesChatTag } from "@/features/tutor-session/lib/notes/notesChatTag";
-import { resolveProblemIRFireworksModel, resolveTeachingFireworksModel } from "./fireworksModels";
+import { resolveCheapFireworksModel, resolveTeachingFireworksModel } from "./fireworksModels";
 import { assessTutorState } from "./evaluation/gateway";
 import { NOTES_DATA_NOTICE } from "./evaluation/rubrics";
 import type { TutorAssessment } from "./evaluation/types";
@@ -45,7 +45,7 @@ function strongNotesModel(env: Record<string, string | undefined>): string {
 
 function cheapNotesModel(env: Record<string, string | undefined>): string {
   const override = env.FIREWORKS_NOTES_MODEL?.trim();
-  return override || resolveProblemIRFireworksModel({ env });
+  return override || resolveCheapFireworksModel({ env });
 }
 
 export async function prepareNotesChat(input: {
