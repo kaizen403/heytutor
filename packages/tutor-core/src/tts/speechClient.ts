@@ -34,6 +34,13 @@ export interface SpeakSegmentOptions {
   sessionId?: string;
   /** Fires once for complete claimed provider bytes, before decode/load; not audibility. */
   onAudioReady?: () => void;
+  /**
+   * Latency telemetry: the first provider audio bytes for this segment
+   * arrived. `sinceRequestMs` counts from when the segment was requested,
+   * which for a sentence generated ahead is the lookahead request. Never
+   * gates playback.
+   */
+  onFirstAudioByte?: (info: FirstAudioByteInfo) => void;
   onPlaybackBlocked?: (blocked: {
     reason: "context-suspended" | "context-interrupted" | "not-allowed";
     audioContextState: AudioContextState | "interrupted" | null;
@@ -43,6 +50,24 @@ export interface SpeakSegmentOptions {
   onError?: (error: unknown) => void;
   onTimings?: (timings: AudioTimings) => void;
   onAudioCaptured?: (audio: { bytes: Uint8Array; mimeType: string }) => void;
+}
+
+export interface FirstAudioByteInfo {
+  transport: "ws" | "http";
+  sinceRequestMs: number;
+  /** Generated ahead of the claim (socket lookahead or HTTP prefetch). */
+  prefetched: boolean;
+}
+
+/**
+ * The signal behind the most recent `onStart`. `html-audio-playing` is the
+ * media element's `playing` event or its `play()` promise resolving;
+ * `audio-context-scheduled` is a buffer source queued `leadMs` ahead of the
+ * context clock, so the voice is audible that much later.
+ */
+export interface PlaybackStartSignal {
+  signal: "html-audio-playing" | "audio-context-scheduled";
+  leadMs: number;
 }
 
 export interface AudioTimings {
@@ -91,6 +116,8 @@ export interface TTSClient {
    */
   unlockAudio?(): void;
   getAudioContextState?(): AudioContextState | "interrupted" | null;
+  /** What the latest `onStart` was based on; telemetry only. */
+  getLastPlaybackStart?(): PlaybackStartSignal | null;
   /**
    * Keep generating and capturing TTS, but do not play it through speakers.
    * Writing sync still uses the audio clock.
