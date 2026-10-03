@@ -24,9 +24,21 @@ export const DEFAULT_TEACHING_FAST_MODEL =
 
 /**
  * Problem IR only. Independent of Fast mode, FIREWORKS_MODEL, and teaching.
- * Compact JSON formulation — not spoken teaching.
+ * Compact JSON formulation, not spoken teaching.
+ *
+ * Kimi K3 Fast in both modes. Measured 4 Oct 2026 on the compact wire format:
+ * p50 3.9s and max 4.8s over 15 calls against DeepSeek V4.1 Flash's p50 6.9s
+ * with a 13 tok/s episode that ran 35 to 40s, and the two-loop Kirchhoff
+ * formula right 3 of 3 times against DeepSeek's 0 of 5.
  */
 export const DEFAULT_PROBLEM_IR_MODEL =
+  "accounts/fireworks/routers/kimi-k3-fast";
+
+/**
+ * The cheap lane: notes chat when the cheap cohort or Jev picks it. This was
+ * the Problem IR default until Problem IR moved to Kimi K3 Fast.
+ */
+export const DEFAULT_CHEAP_FIREWORKS_MODEL =
   "accounts/fireworks/models/deepseek-v4p1-flash";
 
 /**
@@ -128,7 +140,7 @@ export function resolveFireworksVisionModel(
 /**
  * Problem IR (`x-problem-ir-version: 1`) only.
  *
- * - `FIREWORKS_PROBLEM_IR_MODEL` or DeepSeek V4.1 Flash.
+ * - `FIREWORKS_PROBLEM_IR_MODEL` or Kimi K3 Fast.
  * - Ignores Fast mode, `FIREWORKS_MODEL`, `FIREWORKS_FAST_MODEL`, and teaching env.
  */
 export function resolveProblemIRFireworksModel(options: {
@@ -136,4 +148,16 @@ export function resolveProblemIRFireworksModel(options: {
 } = {}): string {
   const env = options.env ?? process.env;
   return trimModel(env.FIREWORKS_PROBLEM_IR_MODEL) || DEFAULT_PROBLEM_IR_MODEL;
+}
+
+/**
+ * The cheap notes model, resolved exactly as it was while it shared Problem
+ * IR's resolver: `FIREWORKS_PROBLEM_IR_MODEL` still overrides it, so a
+ * deployment that set that variable sees no change in notes chat.
+ */
+export function resolveCheapFireworksModel(options: {
+  env?: Record<string, string | undefined>;
+} = {}): string {
+  const env = options.env ?? process.env;
+  return trimModel(env.FIREWORKS_PROBLEM_IR_MODEL) || DEFAULT_CHEAP_FIREWORKS_MODEL;
 }

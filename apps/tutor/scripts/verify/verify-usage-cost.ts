@@ -11,7 +11,7 @@ import {
   DEFAULT_FIREWORKS_FAST_MODEL,
   DEFAULT_FIREWORKS_MODEL,
   DEFAULT_FIREWORKS_VISION_MODEL,
-  DEFAULT_PROBLEM_IR_MODEL,
+  DEFAULT_CHEAP_FIREWORKS_MODEL,
 } from "../../lib/llm/fireworksModels";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -20,7 +20,7 @@ function assert(condition: unknown, message: string): asserts condition {
 
 assert(resolveLlmRateLane(DEFAULT_FIREWORKS_FAST_MODEL) === "kimi-k3-fast", "Kimi Fast must not share the DeepSeek table");
 assert(resolveLlmRateLane(DEFAULT_FIREWORKS_MODEL) === "kimi-k3", "standard Kimi K3 is its own lane");
-assert(resolveLlmRateLane(DEFAULT_PROBLEM_IR_MODEL) === "deepseek-flash", "Problem IR is DeepSeek Flash");
+assert(resolveLlmRateLane(DEFAULT_CHEAP_FIREWORKS_MODEL) === "deepseek-flash", "the cheap lane is DeepSeek Flash");
 assert(resolveLlmRateLane(DEFAULT_FIREWORKS_VISION_MODEL) === "qwen-vision", "OCR is Qwen vision");
 assert(resolveLlmRateLane("accounts/fireworks/routers/kimi-k3-fast") === "kimi-k3-fast", "router ids must match Fast");
 
@@ -45,7 +45,7 @@ assert(oneMFast.input === 4.5 && oneMFast.output === 22.5 && oneMFast.total === 
 
 const oneMFlash = calculateLlmCostDetails(
   { input: 1_000_000, output: 1_000_000 },
-  { model: DEFAULT_PROBLEM_IR_MODEL },
+  { model: DEFAULT_CHEAP_FIREWORKS_MODEL },
 );
 assert(oneMFlash.total === 0.88, "1M DeepSeek tokens must not be billed as Kimi Fast");
 
