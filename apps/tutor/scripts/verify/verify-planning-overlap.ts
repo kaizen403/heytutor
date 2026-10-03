@@ -273,8 +273,11 @@ async function main(): Promise<void> {
     const outcome = await h.outcome;
     assert.equal(outcome.speculation.kept, true);
     assert.equal(outcome.speculation.restarted, false);
-    assert.equal(outcome.scene?.tag, "spec+revalidated", "solver authority forces the final revalidation");
-    assert.deepEqual(h.revalidations, [h.initialPlan], "selection runs on the final plan");
+    assert.equal(outcome.scene?.tag, "spec", "the plan the candidates were validated against is the final plan");
+    assert.equal(h.planCalls[0]!.plan, outcome.turnPlan, "selection already ran on the final facts");
+    assert.deepEqual(h.revalidations, [], "an identical plan is not recompiled, even with solver authority");
+    assert.equal(outcome.timings.revalidateSkipped, true);
+    assert.deepEqual(h.events.find((event) => event.name === "revalidate:end")?.data, { skipped: true });
     assert.equal(outcome.timings.scenePlannerMs, 16_000);
     const plannerEnd = h.events.find((event) => event.name === "scene-planner:end");
     assert.deepEqual(plannerEnd?.data, { speculative: true, restarted: false, candidates: 2, repair_rounds: 1, valid: true });
@@ -335,7 +338,7 @@ async function main(): Promise<void> {
     const outcome = await h.outcome;
     assert(outcome.scene?.tag.startsWith("fresh"), "a stale candidate is never selected");
     assert.equal(outcome.turnPlan, reconciled);
-    assert(h.revalidations.every((revalidated) => revalidated === reconciled));
+    assert.deepEqual(h.revalidations, [], "the restart was validated against the reconciled plan itself");
   });
 
   await scenario("a solver contradiction keeps the serial behaviour: no deterministic figure, planner result kept", async () => {
@@ -442,6 +445,53 @@ async function main(): Promise<void> {
         `${event.name} carries a free text value: ${String(value)}`);
       }
     }
+  });
+
+  await scenario("revalidation is skipped only when the validated plan is the final plan", async () => {
+    const { finalizeScenePlanAfterAuthority, shouldRevalidateSceneCandidatesAfterAuthority } =
+      await import("../../features/tutor-session/lib/scene/diagramGeneration");
+    const validated = plan(35.35);
+    const decide = (candidatesValidatedAgainst: unknown, authoritativeTurnPlan: unknown) =>
+      shouldRevalidateSceneCandidatesAfterAuthority({
+        problemAuthorityAvailable: true,
+        planningTurnPlan: validated,
+        authoritativeTurnPlan,
+        candidatesValidatedAgainst,
+      });
+    assert.equal(decide(validated, validated), false, "same object: skip");
+    assert.equal(decide(validated, structuredClone(validated)), false, "deep-equal: skip");
+    assert.equal(decide(validated, plan(36.1)), true, "a reconciled value: revalidate");
+    assert.equal(decide(validated, { ...validated, visualRequirement: "optional" }), true, "any other change: revalidate");
+    assert.equal(shouldRevalidateSceneCandidatesAfterAuthority({
+      problemAuthorityAvailable: true,
+      planningTurnPlan: validated,
+      authoritativeTurnPlan: validated,
+    }), true, "a caller that does not name the validated plan keeps the forced revalidation");
+    let calls = 0;
+    const kept = { id: "kept" };
+    const finalized = await finalizeScenePlanAfterAuthority(kept, {
+      problemAuthorityAvailable: true,
+      planningTurnPlan: validated,
+      authoritativeTurnPlan: structuredClone(validated),
+      candidatesValidatedAgainst: validated,
+      revalidate: async (result) => {
+        calls += 1;
+        return result;
+      },
+    });
+    assert.equal(finalized, kept);
+    assert.equal(calls, 0);
+
+    // A kept speculative run whose plan is only deep-equal to the final plan.
+    const h = harness({});
+    await flush();
+    h.authority.resolve({ id: "ir", plan: structuredClone(h.initialPlan) });
+    await flush();
+    assert.equal(h.planCalls.length, 1, "deep-equal facts keep the speculative run");
+    h.planCalls[0]!.reply.resolve(h.result("spec", h.planCalls[0]!));
+    const outcome = await h.outcome;
+    assert.equal(outcome.scene?.tag, "spec");
+    assert.deepEqual(h.revalidations, []);
   });
 
   // Both callers run the same module, so the bench measures the live path.

@@ -95,11 +95,27 @@ export function shouldAttemptExactScene(input: {
   return input.hasArchetype;
 }
 
+/**
+ * Revalidation recompiles every candidate against the final plan. Solver
+ * authority used to force it unconditionally because the caller could not say
+ * which plan its candidates had been validated against; when candidates ran
+ * concurrently with authority that plan could be stale. A caller that does
+ * know passes `candidatesValidatedAgainst`: validation is a pure function of
+ * (candidate, plan), so the recompile is skipped when that plan is the final
+ * plan or deep-equal to it, and kept whenever anything changed. In the live
+ * hook both were the same object on every turn, so every candidate of every
+ * authority turn was compiled twice for an identical answer.
+ */
 export function shouldRevalidateSceneCandidatesAfterAuthority(options: {
   problemAuthorityAvailable: boolean;
   planningTurnPlan: unknown;
   authoritativeTurnPlan: unknown;
+  /** The exact plan every candidate was validated against, when known. */
+  candidatesValidatedAgainst?: unknown;
 }): boolean {
+  if (options.candidatesValidatedAgainst !== undefined) {
+    return !deepEqual(options.candidatesValidatedAgainst, options.authoritativeTurnPlan);
+  }
   if (options.problemAuthorityAvailable) return true;
   return !deepEqual(options.planningTurnPlan, options.authoritativeTurnPlan);
 }
@@ -110,6 +126,7 @@ export async function finalizeScenePlanAfterAuthority<T>(
     problemAuthorityAvailable: boolean;
     planningTurnPlan: unknown;
     authoritativeTurnPlan: unknown;
+    candidatesValidatedAgainst?: unknown;
     revalidate: (result: T) => Promise<T>;
   },
 ): Promise<T | null> {

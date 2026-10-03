@@ -338,6 +338,9 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
         problemAuthorityAvailable: authority !== null,
         planningTurnPlan: validatedAgainst,
         authoritativeTurnPlan: turnPlan,
+        // Every validator here is bound to the plan it was handed and nothing
+        // else, so an identical final plan cannot change any verdict.
+        candidatesValidatedAgainst: validatedAgainst,
         revalidate: (result) => {
           revalidated = true;
           return input.revalidate(result, turnPlan);
