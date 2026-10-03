@@ -217,20 +217,34 @@ assert.deepEqual(parseInfixExpression("e*1000"), {
 });
 // Typeset symbols map to the grammar's own.
 assert.deepEqual(parseInfixExpression("2*π×3−1"), parseInfixExpression("2*pi*3-1"));
+assert.deepEqual(parseInfixExpression("π*r^2"), parseInfixExpression("pi*r^2"));
+assert.equal(parseInfixExpression("πr"), null, "π maps to a separate token, so πr is not a variable");
 assert.deepEqual(parseInfixExpression("6÷2·3"), parseInfixExpression("6/2*3"));
-// Depth is counted per parenthesis, matching ProblemIR's 24 level ceiling.
+// The parser's recursion guard counts parentheses (24 deep parses, 25 does
+// not). ProblemIR's own depth rule still applies after parsing: a 40 term
+// flat sum parses, then the normalizer drops it, as it would the same AST.
 assert.ok(parseInfixExpression(`${"(".repeat(24)}1${")".repeat(24)}`));
 assert.equal(parseInfixExpression(`${"(".repeat(25)}1${")".repeat(25)}`), null);
-assert.ok(parseInfixExpression(Array.from({ length: 40 }, () => "1").join("+")), "a long flat sum is not deep");
-// Trig of a bare literal beyond one turn is degrees read as radians: refused.
+const flatSum = Array.from({ length: 40 }, () => "1").join("+");
+assert.ok(parseInfixExpression(flatSum));
+const flatNormalized = normalizeProblemIRModelOutput(compactOutput(flatSum), question, turnPlan) as {
+  expressions: Array<{ id: string }>;
+};
+assert.equal(flatNormalized.expressions.some((expression) => expression.id === "eRange"), false, "the validator's depth rule drops a 40 term chain");
+assert.equal(
+  (normalizeProblemIRModelOutput(compactOutput(Array.from({ length: 20 }, () => "1").join("+")), question, turnPlan) as {
+    expressions: Array<{ id: string }>;
+  }).expressions.some((expression) => expression.id === "eRange"),
+  true,
+  "a 20 term chain is within the depth rule",
+);
+// Trig of a bare literal is evaluated as written (radians), as origin/main
+// does for the canonical AST: x = 0.1 sin(5t) at t = 2 is a correct answer.
 const trig = (expr: string) => (normalizeProblemIRModelOutput(compactOutput(expr), question, turnPlan) as {
   expressions: Array<{ id: string }>;
 }).expressions.some((expression) => expression.id === "eRange");
-assert.equal(trig("20^2*sin(60)/10"), false);
-assert.equal(trig("20^2*sin(2*30)/10"), false);
-assert.equal(trig("20^2*cos(-45)/10"), false);
-assert.equal(trig("20^2*sin(2*30*pi/180)/10"), true);
-assert.equal(trig("20^2*sin(1.2)/10"), true, "a radian argument within one turn stays");
+assert.equal(trig("0.1*sin(5*2)"), true);
+assert.equal(trig("20^2*sin(60)/10"), true);
 const twoVariables = normalizeProblemIRModelOutput(
   compactOutput("u^2*sin(2*theta)/g"),
   question,
@@ -239,7 +253,7 @@ const twoVariables = normalizeProblemIRModelOutput(
 assert.ok(!twoVariables.expressions.some((expression) => expression.id === "eRange"), "a symbolic expression is not solvable");
 assert.ok(!twoVariables.solveRequests.some((request) => request.id === "sRange"));
 
-// 6. `args: [x]` is the same one-argument call as `argument: x`.
+// 6. `args: [x]` is not an alias, exactly as on origin/main: the call drops.
 const argsAlias = normalizeProblemIRModelOutput({
   ...compactOutput("1"),
   expressions: [{
@@ -248,18 +262,8 @@ const argsAlias = normalizeProblemIRModelOutput({
     root: { kind: "call", name: "sqrt", args: [{ kind: "number", value: 4 }] },
     evidenceFactIds: ["fRange"],
   }],
-}, question, turnPlan) as { expressions: Array<{ root: Record<string, unknown> }> };
-assert.deepEqual(argsAlias.expressions[0]?.root, { kind: "call", function: "sqrt", argument: { kind: "number", value: 4 } });
-const twoArgs = normalizeProblemIRModelOutput({
-  ...compactOutput("1"),
-  expressions: [{
-    id: "eRange",
-    valueType: "scalar",
-    root: { kind: "call", name: "sqrt", args: [{ kind: "number", value: 4 }, { kind: "number", value: 9 }] },
-    evidenceFactIds: ["fRange"],
-  }],
 }, question, turnPlan) as { expressions: unknown[] };
-assert.equal(twoArgs.expressions.length, 0, "any other arity is dropped");
+assert.equal(argsAlias.expressions.length, 0);
 
 // 7. Question alone: solved, never audited, until bound to the plan.
 const aloneSeen: { body?: { messages: Array<{ content: string }> } } = {};
