@@ -130,8 +130,8 @@ import {
   selectVerifiedRepresentation,
   type RepresentationTier,
 } from "../../lib/scene/representationFallback";
+import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
 import {
-  finalizeScenePlanAfterAuthority,
   SCENE_PLANNER_DEADLINE_MS,
   PROBLEM_AUTHORITY_DEADLINE_MS,
   TURN_PLAN_DEADLINE_MS,
@@ -908,17 +908,34 @@ export function useQuestionHandler(
             });
         let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
         let visualNeedPromise: ReturnType<typeof fetchVisualNeed> | null = null;
+        // ProblemIR runs alongside the visual decision and, when it is slow,
+        // alongside speculative scene candidates; its span records its own cost.
+        const traceProblemAuthority = (
+          operation: Promise<ProblemAuthorityV1Response | null>,
+        ): Promise<ProblemAuthorityV1Response | null> => {
+          const problemIrSpan = tel.span("problem-ir", "planner");
+          return operation.then(
+            (authority) => {
+              problemIrSpan.end({ ok: authority !== null });
+              return authority;
+            },
+            (error: unknown) => {
+              problemIrSpan.end({ ok: false });
+              throw error;
+            },
+          );
+        };
 
         if (recoveredScene) {
           turnPlan = recoveredScene.turnPlan;
-          problemAuthorityPromise = planAndSolveProblemV1(question, turnPlan, {
+          problemAuthorityPromise = traceProblemAuthority(planAndSolveProblemV1(question, turnPlan, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
             traceId: turnTraceId ?? undefined,
             signal: abortController.signal,
             timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, SCENE_PLANNER_DEADLINE_MS),
             fastMode: fastModeRef.current,
-          });
+          }));
           tutorDebug("planner", "found verified scene recovery candidate", {
             source: recoveredScene.source,
           });
@@ -932,6 +949,7 @@ export function useQuestionHandler(
             signal: abortController.signal,
           });
           const turnPlanStartedAt = Date.now();
+          const turnPlanSpan = tel.span("turn-plan", "planner");
           const plannedTurn = await awaitCurrentTurn(planTurnV3(question, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
@@ -957,6 +975,7 @@ export function useQuestionHandler(
           // `auditTurnPlanV3` itself is untouched in tutor-core and keeps its
           // gate, so restoring it here is a one-line change.
           turnPlanMs = Date.now() - turnPlanStartedAt;
+          turnPlanSpan.end({ ok: plannedTurn !== null, latency_ms: turnPlanMs });
           turnPlan = selectBestAvailableTurnPlan(
             undefined,
             plannedTurn?.turnPlan,
@@ -965,14 +984,14 @@ export function useQuestionHandler(
           );
           if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
             const remainingAuthorityMs = Math.max(1_000, SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt));
-            problemAuthorityPromise = planAndSolveProblemV1(question, turnPlan, {
+            problemAuthorityPromise = traceProblemAuthority(planAndSolveProblemV1(question, turnPlan, {
               proxyUrl: plannerUrl,
               sessionId: sessionId ?? undefined,
               traceId: turnTraceId ?? undefined,
               signal: abortController.signal,
               timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, remainingAuthorityMs),
               fastMode: fastModeRef.current,
-            });
+            }));
           } else if (plannedTurn) {
             tel.mark("planner-numeric-authority-not-needed", { reason: "no_unstated_numeric_results" });
           }
@@ -991,73 +1010,14 @@ export function useQuestionHandler(
           });
         }
 
-        // Await ProblemIR before family inference so the live exact path routes
-        // circuit/river families from problem structure, not the English catalog.
-        if (problemAuthorityPromise) {
-          problemAuthority = await awaitCurrentTurn(problemAuthorityPromise, isCurrentTurn);
-        }
-        if (problemAuthority) {
-          turnPlan = reconcileTurnPlanWithSolver(
-            turnPlan,
-            problemAuthority.problemIR,
-            problemAuthority.solverResult,
-          );
-          const authorityAudit = verifyTurnPlanAgainstSolver(
-            problemAuthority.problemIR,
-            problemAuthority.solverResult,
-            turnPlan,
-            question,
-          );
-          problemAuthority = {
-            ...problemAuthority,
-            audit: authorityAudit,
-            projection: authorityAudit.status === "verified"
-              ? buildSolverAuthorityProjection(
-                  problemAuthority.problemIR,
-                  problemAuthority.solverResult,
-                  authorityAudit,
-                )
-              : null,
-          };
-          tutorDebug("planner", "solver authority audit", {
-            status: authorityAudit.status,
-            issue_codes: authorityAudit.issues.map((issue) => issue.code),
-            binding_count: authorityAudit.bindings.length,
-            elapsed_ms: problemAuthority.elapsedMs,
-          });
-        }
-        const planningTurnPlan = turnPlan;
-        const sceneCapabilities = inferSceneCapabilities(question, {
-          lawIds: planningTurnPlan.lawIds,
-          problemIR: problemAuthority?.problemIR ?? null,
-          turnPlan: planningTurnPlan,
-        });
-        // A chemistry question never goes to the LLM scene planner: its
-        // figure is computed from the formula or the named process by the
-        // engine's chemistry families, and a model-authored molecule or cell
-        // was the wrong picture every time it compiled. The deterministic
-        // fallback below draws it.
-        const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily)
-          || isChemistryQuestion(question);
-        const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
-        // Detected before the exact gate so a question with no family and no
-        // named figure skips the LLM planner instead of holding the student in
-        // silence for the same text-only fallback it would have reached anyway.
-        const earlyArchetype = detectArchetype(question, {
-          turnPlan: planningTurnPlan,
-          problemIR: problemAuthority?.problemIR ?? null,
-        });
-        const shouldAttemptLlmScene = shouldAttemptExactScene({
-          visualRequirement: planningTurnPlan.visualRequirement,
-          chemistryLane,
-          familyCount: sceneCapabilities.families.length,
-          hasArchetype: earlyArchetype !== null,
-        });
-        const skippedExactForMissingCapability = shouldPlanExactScene && !shouldAttemptLlmScene;
-        const planContext = [
-          recentConversation,
-          `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\nDo not contradict, replace, or independently recalculate these quantities and claims.`,
-        ].filter(Boolean).join("\n\n");
+        // ProblemIR still decides family inference, the deterministic figure
+        // and selection, so the live exact path routes circuit/river families
+        // from problem structure, not the English catalog. What changed is that
+        // the LLM scene planner no longer waits for it: while ProblemIR runs,
+        // candidates are generated from the turn plan alone and kept only when
+        // the final facts would have issued the identical request against the
+        // identical plan (planningOverlap.ts). Production turns spent 55 to 61s
+        // in this block with the two stages in series.
         type ValidatedSceneCandidate = {
           document: SceneDocument;
           renderScene: RenderScene;
@@ -1155,24 +1115,171 @@ export function useQuestionHandler(
             },
           };
         };
-        const validateCandidate = (candidate: Record<string, unknown>) =>
-          validateCandidateAgainstPlan(candidate, planningTurnPlan);
-        let result: ScenePlanWithRepairResult<ValidatedSceneCandidate> | null = null;
+        type SceneGate = {
+          sceneCapabilities: ReturnType<typeof inferSceneCapabilities>;
+          chemistryLane: boolean;
+          shouldPlanExactScene: boolean;
+          shouldAttemptLlmScene: boolean;
+          families: readonly string[];
+          archetypeId: string | null;
+          request: {
+            conversationContext: string;
+            constructionOperators?: ReturnType<typeof inferSceneCapabilities>["constructionOperators"];
+            proofPredicates?: ReturnType<typeof inferSceneCapabilities>["proofPredicates"];
+            planningGuidance?: string[];
+          };
+        };
+        const deriveSceneGate = (
+          planningTurnPlan: TurnPlanV3,
+          authority: ProblemAuthorityV1Response | null,
+        ): SceneGate => {
+          const sceneCapabilities = inferSceneCapabilities(question, {
+            lawIds: planningTurnPlan.lawIds,
+            problemIR: authority?.problemIR ?? null,
+            turnPlan: planningTurnPlan,
+          });
+          // A chemistry question never goes to the LLM scene planner: its
+          // figure is computed from the formula or the named process by the
+          // engine's chemistry families, and a model-authored molecule or cell
+          // was the wrong picture every time it compiled. The deterministic
+          // fallback below draws it.
+          const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily)
+            || isChemistryQuestion(question);
+          const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
+          // Detected before the exact gate so a question with no family and no
+          // named figure skips the LLM planner instead of holding the student in
+          // silence for the same text-only fallback it would have reached anyway.
+          const earlyArchetype = detectArchetype(question, {
+            turnPlan: planningTurnPlan,
+            problemIR: authority?.problemIR ?? null,
+          });
+          const shouldAttemptLlmScene = shouldAttemptExactScene({
+            visualRequirement: planningTurnPlan.visualRequirement,
+            chemistryLane,
+            familyCount: sceneCapabilities.families.length,
+            hasArchetype: earlyArchetype !== null,
+          });
+          const planContext = [
+            recentConversation,
+            `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\nDo not contradict, replace, or independently recalculate these quantities and claims.`,
+          ].filter(Boolean).join("\n\n");
+          // The archetype detector names the figure the question calls for
+          // (its roles and required operators); the planner is told, so a
+          // projectile is planned as a trajectory with components rather than
+          // whatever the coarse family suggests.
+          const archetypeSpec = earlyArchetype ? ARCHETYPES[earlyArchetype.id] : null;
+          const archetypeGuidance = archetypeSpec
+            ? [
+                `Figure: ${archetypeSpec.label}. It must contain entities with roles: ${archetypeSpec.contract.roles.join(", ")}` +
+                  (archetypeSpec.contract.operators?.length ? `; use ${archetypeSpec.contract.operators.join(", ")}` : "") +
+                  ".",
+              ]
+            : [];
+          return {
+            sceneCapabilities,
+            chemistryLane,
+            shouldPlanExactScene,
+            shouldAttemptLlmScene,
+            families: sceneCapabilities.families,
+            archetypeId: earlyArchetype?.id ?? null,
+            request: {
+              conversationContext: planContext,
+              // Any inferred family (FBD, circuit, conic, energy level, …) gets a
+              // compact operator catalog; optics is no longer the only match.
+              ...(sceneCapabilities.families.length > 0
+                ? {
+                    constructionOperators: sceneCapabilities.constructionOperators,
+                    proofPredicates: sceneCapabilities.proofPredicates,
+                    planningGuidance: [...sceneCapabilities.planningGuidance, ...archetypeGuidance],
+                  }
+                : archetypeGuidance.length > 0
+                  ? { planningGuidance: archetypeGuidance }
+                  : {}),
+            },
+          };
+        };
         let usedVerifiedRecovery = false;
-        if (shouldPlanExactScene && recoveredScene) {
-          const validation = validateCandidate(
-            recoveredScene.document as unknown as Record<string, unknown>,
-          );
-          if (validation.valid) {
+        const planning = await runScenePlanningOverlap<
+          ProblemAuthorityV1Response,
+          SceneGate,
+          NonNullable<ReturnType<typeof selectFastVerifiedRepresentation>>,
+          ScenePlanWithRepairResult<ValidatedSceneCandidate>
+        >({
+          turnPlan,
+          problemAuthority: problemAuthorityPromise,
+          // A recovered scene is revalidated on the final facts, never planned.
+          speculationAllowed: recoveredScene === null,
+          plannerStartedAt,
+          deadlineMs: SCENE_PLANNER_DEADLINE_MS,
+          signal: abortController.signal,
+          guard: (operation) => awaitCurrentTurn(operation, isCurrentTurn),
+          telemetry: tel,
+          parentSpan: "planner",
+          deriveGate: deriveSceneGate,
+          applyAuthority: (planToReconcile, authority) => {
+            const reconciledPlan = reconcileTurnPlanWithSolver(
+              planToReconcile,
+              authority.problemIR,
+              authority.solverResult,
+            );
+            const authorityAudit = verifyTurnPlanAgainstSolver(
+              authority.problemIR,
+              authority.solverResult,
+              reconciledPlan,
+              question,
+            );
+            tutorDebug("planner", "solver authority audit", {
+              status: authorityAudit.status,
+              issue_codes: authorityAudit.issues.map((issue) => issue.code),
+              binding_count: authorityAudit.bindings.length,
+              elapsed_ms: authority.elapsedMs,
+            });
+            return {
+              turnPlan: reconciledPlan,
+              authority: {
+                ...authority,
+                audit: authorityAudit,
+                projection: authorityAudit.status === "verified"
+                  ? buildSolverAuthorityProjection(
+                      authority.problemIR,
+                      authority.solverResult,
+                      authorityAudit,
+                    )
+                  : null,
+              },
+            };
+          },
+          fastFigureBlocked: (authority) => authority?.audit.status === "contradiction",
+          recover: (gate, planningTurnPlan) => {
+            const recovery = recoveredScene;
+            if (!gate.shouldPlanExactScene || !recovery) return null;
+            const validation = validateCandidateAgainstPlan(
+              recovery.document as unknown as Record<string, unknown>,
+              planningTurnPlan,
+            );
+            if (!validation.valid) {
+              tutorDebug("planner", "verified scene recovery rejected by current engine", {
+                source: recovery.source,
+                error_codes: validation.errors.map((error) => error.code),
+              });
+              forgetVerifiedScene(question, { boardId: sessionId });
+              recoveredScene = null;
+              return null;
+            }
             const response = {
-              document: recoveredScene.document as unknown as Record<string, unknown>,
-              rawContent: JSON.stringify(recoveredScene.document),
+              document: recovery.document as unknown as Record<string, unknown>,
+              rawContent: JSON.stringify(recovery.document),
               phase: "plan" as const,
               lane: "primary" as const,
               elapsedMs: 0,
-              strategy: `verified_scene_recovery:${recoveredScene.source}`,
+              strategy: `verified_scene_recovery:${recovery.source}`,
             };
-            result = {
+            usedVerifiedRecovery = true;
+            tutorDebug("planner", "verified scene recovery accepted", {
+              source: recovery.source,
+              primitive_count: validation.value?.report.stats.primitiveCount ?? 0,
+            });
+            return {
               response,
               validation,
               repaired: false,
@@ -1184,29 +1291,37 @@ export function useQuestionHandler(
                 selected: true,
               }],
             };
-            usedVerifiedRecovery = true;
-            tutorDebug("planner", "verified scene recovery accepted", {
-              source: recoveredScene.source,
-              primitive_count: validation.value?.report.stats.primitiveCount ?? 0,
-            });
-          } else {
-            tutorDebug("planner", "verified scene recovery rejected by current engine", {
-              source: recoveredScene.source,
-              error_codes: validation.errors.map((error) => error.code),
-            });
-            forgetVerifiedScene(question, { boardId: sessionId });
-            recoveredScene = null;
-          }
-        }
-        const fastRepresentation = !result && shouldPlanExactScene &&
-          problemAuthority?.audit.status !== "contradiction"
-          ? selectFastVerifiedRepresentation({
-              question,
-              turnPlan,
-              problemIR: problemAuthority?.problemIR ?? null,
-              families: sceneCapabilities.families,
-            })
-          : null;
+          },
+          selectFast: (planningTurnPlan, authority, gate) => selectFastVerifiedRepresentation({
+            question,
+            turnPlan: planningTurnPlan,
+            problemIR: authority?.problemIR ?? null,
+            families: gate.sceneCapabilities.families,
+          }),
+          planScene: (gate, planningTurnPlan, run) => planSceneDocumentWithRepair(
+            question,
+            (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan),
+            {
+              proxyUrl: plannerUrl,
+              sessionId: sessionId ?? undefined,
+              traceId: turnTraceId ?? undefined,
+              signal: run.signal,
+              timeoutMs: run.timeoutMs,
+              fastMode: fastModeRef.current,
+              ...gate.request,
+            },
+          ).catch(() => null),
+          revalidate: (sceneResult, authoritativeTurnPlan) => revalidateScenePlanWithRepairResult(
+            sceneResult,
+            (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
+          ),
+        });
+        turnPlan = planning.turnPlan;
+        problemAuthority = planning.authority;
+        const planningTurnPlan = turnPlan;
+        const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
+        const skippedExactForMissingCapability = shouldPlanExactScene && !shouldAttemptLlmScene;
+        const fastRepresentation = planning.fast;
         if (fastRepresentation) {
           tel.mark("planner-deterministic-ready", {
             representation_tier: fastRepresentation.tier,
@@ -1214,58 +1329,7 @@ export function useQuestionHandler(
             primitive_count: fastRepresentation.renderScene.primitives.length,
           });
         }
-        const remainingPlannerMs = Math.max(0, SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt));
-        if (!result && !fastRepresentation && shouldAttemptLlmScene && remainingPlannerMs > 0) {
-          // The archetype detector names the figure the question calls for
-          // (its roles and required operators); the planner is told, so a
-          // projectile is planned as a trajectory with components rather than
-          // whatever the coarse family suggests. Detected once above so the
-          // exact gate itself can see it.
-          const archetype = earlyArchetype;
-          const archetypeSpec = archetype ? ARCHETYPES[archetype.id] : null;
-          const archetypeGuidance = archetypeSpec
-            ? [
-                `Figure: ${archetypeSpec.label}. It must contain entities with roles: ${archetypeSpec.contract.roles.join(", ")}` +
-                  (archetypeSpec.contract.operators?.length ? `; use ${archetypeSpec.contract.operators.join(", ")}` : "") +
-                  ".",
-              ]
-            : [];
-          result = await awaitCurrentTurn(planSceneDocumentWithRepair(
-            question,
-            validateCandidate,
-            {
-            proxyUrl: plannerUrl,
-            sessionId: sessionId ?? undefined,
-            traceId: turnTraceId ?? undefined,
-            signal: abortController.signal,
-            timeoutMs: remainingPlannerMs,
-            conversationContext: planContext,
-            fastMode: fastModeRef.current,
-            // Any inferred family (FBD, circuit, conic, energy level, …) gets a
-            // compact operator catalog; optics is no longer the only match.
-            ...(sceneCapabilities.families.length > 0
-              ? {
-                  constructionOperators: sceneCapabilities.constructionOperators,
-                  proofPredicates: sceneCapabilities.proofPredicates,
-                  planningGuidance: [...sceneCapabilities.planningGuidance, ...archetypeGuidance],
-                }
-              : archetypeGuidance.length > 0
-                ? { planningGuidance: archetypeGuidance }
-                : {}),
-            },
-          ).catch(() => null), isCurrentTurn);
-        }
-
-        const authoritativeTurnPlan = turnPlan;
-        result = await awaitCurrentTurn(finalizeScenePlanAfterAuthority(result, {
-          problemAuthorityAvailable: problemAuthority !== null,
-          planningTurnPlan,
-          authoritativeTurnPlan,
-          revalidate: (sceneResult) => revalidateScenePlanWithRepairResult(
-            sceneResult,
-            (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
-          ),
-        }), isCurrentTurn);
+        const result = planning.scene;
         const solverAuthorityBlocked = problemAuthority?.audit.status === "contradiction";
 
         sceneV2Document = result?.response.document ?? null;
