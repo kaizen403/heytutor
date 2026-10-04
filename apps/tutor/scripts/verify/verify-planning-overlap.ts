@@ -82,6 +82,8 @@ interface Script {
   recover?: Result | null;
   guard?: <T>(operation: Promise<T>) => Promise<T>;
   plannerStartedAt?: number;
+  /** Speculation scenarios force the flag on; it defaults off in the app. */
+  speculationEnabled?: boolean;
 }
 
 function harness(script: Script) {
@@ -118,6 +120,7 @@ function harness(script: Script) {
     turnPlan: initialPlan,
     problemAuthority: authorityPromise,
     speculationAllowed: script.speculationAllowed ?? true,
+    speculationEnabled: script.speculationEnabled ?? true,
     plannerStartedAt: script.plannerStartedAt ?? 0,
     deadlineMs: 60_000,
     now: () => nowMs,
@@ -263,6 +266,38 @@ assert.deepEqual(
 );
 
 async function main(): Promise<void> {
+  await scenario("flag off (the default): origin/main's sequence, no speculative call, no prediction", async () => {
+    let fastCalls = 0;
+    const h = harness({
+      speculationEnabled: false,
+      fast: () => {
+        fastCalls += 1;
+        return null;
+      },
+    });
+    h.advance(9_000);
+    await flush();
+    assert.equal(h.planCalls.length, 0, "no scene planner call before ProblemIR answers");
+    assert.equal(fastCalls, 0, "no deterministic figure compiled from the turn plan alone");
+    assert(!h.events.some((event) => event.name.startsWith("scene-speculative")));
+    h.authority.resolve({ id: "ir" });
+    await flush();
+    assert.equal(fastCalls, 1, "the fast figure runs once, on the final facts");
+    assert.equal(h.planCalls.length, 1, "then the planner, once");
+    assert.equal(h.planCalls[0]!.gate.planId, "final");
+    assert.equal(h.planCalls[0]!.hold, "none", "nothing is held");
+    h.planCalls[0]!.reply.resolve(h.result("serial", h.planCalls[0]!));
+    const outcome = await h.outcome;
+    assert.deepEqual(outcome.speculation, { started: false, kept: false, abortReason: null, restarted: false });
+    assert.deepEqual(h.revalidations, [], "row 6 still skips the unchanged revalidation");
+    assert.deepEqual(names(h.events).filter((name) => name.endsWith(":start")), [
+      "deterministic-figure:start", "scene-planner:start", "revalidate:start",
+    ]);
+    const { SCENE_SPECULATION_ENABLED } = await import("../../features/tutor-session/lib/scene/planningOverlap");
+    assert.equal(SCENE_SPECULATION_ENABLED, process.env.NEXT_PUBLIC_SCENE_SPECULATION === "1");
+    if (process.env.NEXT_PUBLIC_SCENE_SPECULATION === undefined) assert.equal(SCENE_SPECULATION_ENABLED, false);
+  });
+
   await scenario("a turn with no ProblemIR plans exactly once, after the gate, as before", async () => {
     const h = harness({ authority: "none" });
     await flush();
@@ -613,6 +648,7 @@ async function main(): Promise<void> {
           turnPlan: plan(35.35),
           problemAuthority: authority.promise,
           speculationAllowed: true,
+          speculationEnabled: true,
           plannerStartedAt: Date.now(),
           deadlineMs: 60_000,
           deriveGate: (_gatePlan, answered) => ({
@@ -702,7 +738,7 @@ async function main(): Promise<void> {
       if (result) await revalidateScenePlanWithRepairResult(result, validate);
       return counts;
     };
-    const branchFlow = async (which: Case) => {
+    const branchFlow = async (which: Case, speculationEnabled: boolean) => {
       const { counts, validate } = counter();
       const authority = deferred<Authority | null>();
       // ProblemIR answers after the speculative candidates have arrived.
@@ -711,6 +747,7 @@ async function main(): Promise<void> {
         turnPlan: plan(35.35),
         problemAuthority: authority.promise,
         speculationAllowed: true,
+        speculationEnabled,
         plannerStartedAt: Date.now(),
         deadlineMs: 60_000,
         sleep: async () => {},
@@ -749,8 +786,14 @@ async function main(): Promise<void> {
       const restoreMain = install(which);
       const main = await mainFlow(which).finally(restoreMain);
       const restoreBranch = install(which);
-      const branch = await branchFlow(which).finally(restoreBranch);
+      const branch = await branchFlow(which, true).finally(restoreBranch);
+      const restoreOff = install(which);
+      const off = await branchFlow(which, false).finally(restoreOff);
       const mainCompiles = main.validate + main.fast;
+      const offCompiles = off.counts.validate + off.counts.fast;
+      assert.equal(off.counts.fast, 1, `${which}, flag off: no turn-plan-only prediction`);
+      assert(offCompiles <= mainCompiles, `${which}, flag off: compiled ${offCompiles}, main ${mainCompiles}`);
+      assert.equal(off.outcome.speculation.started, false, `${which}, flag off: nothing speculative`);
       const branchCompiles = branch.counts.validate + branch.counts.fast;
       // The one extra deterministic attempt is the turn-plan-only prediction.
       assert.equal(branch.counts.fast, 2, `${which}: the prediction and the final deterministic figure`);
@@ -769,7 +812,7 @@ async function main(): Promise<void> {
       }
       if (which === "late_deterministic") assert.equal(branch.outcome.speculation.abortReason, "deterministic");
       if (which.startsWith("kept")) assert.equal(branch.outcome.timings.revalidateSkipped, true);
-      console.log(`verify-planning-overlap: ${which} compiles main ${mainCompiles} (${main.validate} validate + ${main.fast} fast), branch ${branchCompiles} (${branch.counts.validate} + ${branch.counts.fast})`);
+      console.log(`verify-planning-overlap: ${which} compiles main ${mainCompiles} (${main.validate} validate + ${main.fast} fast), speculation on ${branchCompiles} (${branch.counts.validate} + ${branch.counts.fast}), off ${offCompiles} (${off.counts.validate} + ${off.counts.fast})`);
     }
   });
 

@@ -31,6 +31,17 @@ import { deepEqual, finalizeScenePlanAfterAuthority } from "./diagramGeneration"
  * most seven: two candidates, the fallback plan, four repairs).
  */
 export const SCENE_REQUEST_BUDGET = 12 - 3 - 1;
+
+/**
+ * Speculation is off unless NEXT_PUBLIC_SCENE_SPECULATION=1. Measured over 24
+ * real turns once ProblemIR answered in ~3.8s instead of timing out at 18s:
+ * 9 of 9 speculative turns were discarded and restarted (families_changed 6,
+ * inputs_changed 3), none kept, and each discard cost two calls plus the
+ * settle wait. Off, the turn runs origin/main's sequence (ProblemIR, the fast
+ * figure, then the planner) and makes no turn-plan-only prediction; early
+ * repair, the caps and the revalidation skip still apply.
+ */
+export const SCENE_SPECULATION_ENABLED = process.env.NEXT_PUBLIC_SCENE_SPECULATION === "1";
 /**
  * At most three scene requests in flight per search. With ProblemIR still
  * running and a just-aborted turn-plan lane not yet released, a speculative
@@ -95,6 +106,8 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   problemAuthority: Promise<A | null> | null;
   /** False on paths that never speculate, such as a recovered scene. */
   speculationAllowed: boolean;
+  /** Defaults to SCENE_SPECULATION_ENABLED; injectable for tests. */
+  speculationEnabled?: boolean;
   plannerStartedAt: number;
   deadlineMs: number;
   now?: () => number;
@@ -345,7 +358,8 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       await Promise.resolve();
     }
 
-    if (input.speculationAllowed && authorityPending) {
+    const speculationEnabled = input.speculationEnabled ?? SCENE_SPECULATION_ENABLED;
+    if (speculationEnabled && input.speculationAllowed && authorityPending) {
       const gate = input.deriveGate(input.turnPlan, null);
       const budgetMs = remainingMs();
       const eligible = gate.shouldPlanExactScene && gate.shouldAttemptLlmScene && budgetMs > 0;
