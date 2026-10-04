@@ -542,6 +542,8 @@ export async function runLecture(
     >({
       turnPlan,
       problemAuthority: problemAuthorityPromise,
+      // Speculation follows NEXT_PUBLIC_SCENE_SPECULATION like the live hook
+      // (SCENE_SPECULATION_ENABLED, default off).
       speculationAllowed: true,
       plannerStartedAt,
       deadlineMs: SCENE_PLANNER_DEADLINE_MS,
