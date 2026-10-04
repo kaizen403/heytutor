@@ -188,4 +188,15 @@ export interface ValidationResult {
 
 export interface CompileOptions {
   viewport?: { x: number; y: number; width: number; height: number; padding?: number };
+  /**
+   * Ink measure for label collision boxes. Defaults to the shared exact
+   * argument cache over the renderer's own `measureTextInkBounds`; a measure
+   * given here is used as is, uncached (gates compare the two).
+   */
+  measureLabelInkBounds?: (
+    text: string,
+    x: number,
+    y: number,
+    fontHeightPx: number,
+  ) => { x: number; y: number; width: number; height: number } | null;
 }
