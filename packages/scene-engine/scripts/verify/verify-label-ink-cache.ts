@@ -14,6 +14,10 @@
  * Over the golden corpus, the math and physics evaluation probes, the
  * archetype probes and the typed maths corpus this gate asserts:
  *
+ *   - the fast measure reproduces, bit for bit, a golden fixture written by
+ *     the measure as it stood on origin/main (every glyph, scripts, unknown
+ *     glyphs, -0, half steps, huge and non-finite values), so a change to a
+ *     helper both routes share cannot move them together unnoticed;
  *   - an uncached compile, a first cached compile and an immediate recompile
  *     from the warm cache are deep equal (render scene, label positions, provenance, report), and
  *     place labels through the identical sequence of measurements;
@@ -24,7 +28,12 @@
  *   - the cache is bounded, keeps `-0` apart from `0`, and hands out copies,
  *     so nothing one compile does to its bounds reaches another compile.
  *
- * Run: pnpm exec tsx scripts/verify/verify-label-ink-cache.ts [--full]
+ * Modes: the default is the fast gate in the `verify` chain: golden and
+ * evaluation scenes plus every 24th archetype and every 20th typed scene.
+ * `--corpus` runs every scene; `--full` also compiles every scene against the
+ * printed reference and checks every distinct box the corpus measures.
+ *
+ * Run: pnpm exec tsx scripts/verify/verify-label-ink-cache.ts [--corpus | --full]
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -43,11 +52,14 @@ import {
 } from "../../src/labels/labelEngine";
 import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
 import type { CompileResult, SceneDocument } from "../../src/types";
+import { decodeInkDouble, LABEL_INK_GOLDEN_SCHEMA, type LabelInkGoldenRecord } from "../lib/labelInkGolden";
 import { ARCHETYPE_PROBES } from "../probes/archetypeProbes";
 import { EVALUATION_COMPILE_PROBES } from "../probes/evaluationCompileProbes";
 import { PHYSICS_EVALUATION_COMPILE_PROBES } from "../probes/evaluationPhysicsProbes";
 
 const full = process.argv.includes("--full");
+const wholeCorpus = full || process.argv.includes("--corpus");
+const mode = full ? "full" : wholeCorpus ? "corpus" : "fast";
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtures = join(here, "../../fixtures");
 
@@ -79,12 +91,14 @@ function loadCorpus(): CorpusScene[] {
   for (const [key, raw] of Object.entries({ ...EVALUATION_COMPILE_PROBES, ...PHYSICS_EVALUATION_COMPILE_PROBES })) {
     scenes.push({ id: `evaluation:${key}`, document: validated(raw, key), reference: true });
   }
-  for (const probe of ARCHETYPE_PROBES) {
+  for (const [index, probe] of ARCHETYPE_PROBES.entries()) {
+    if (!wholeCorpus && index % 24 !== 0) continue;
     const document = attemptArchetypeScene({ question: probe.question }).scene?.document;
     if (document) scenes.push({ id: `archetype:${probe.id}`, document: structuredClone(document), reference: false });
   }
   const typed = readJson("evaluation/typed-maths-v1.json").questions as Array<{ id: string; question: string }>;
-  for (const entry of typed) {
+  for (const [index, entry] of typed.entries()) {
+    if (!wholeCorpus && index % 20 !== 0) continue;
     const families = inferSceneCapabilities(entry.question).families;
     const scene = synthesizeFamilyScene({ question: entry.question, families })
       ?? synthesizeLastResortScene({ question: entry.question, families });
@@ -114,7 +128,8 @@ function timed<T>(run: () => T): { value: T; ms: number } {
 }
 
 const corpus = loadCorpus();
-assert.ok(corpus.length >= 150, `corpus shrank to ${corpus.length} scenes; the gate would pass on too little`);
+const minimumScenes = wholeCorpus ? 150 : 40;
+assert.ok(corpus.length >= minimumScenes, `corpus shrank to ${corpus.length} scenes; the gate would pass on too little`);
 const counts = new Map<string, number>();
 for (const scene of corpus) {
   const family = scene.id.split(":")[0]!;
@@ -195,7 +210,7 @@ const random = () => {
   seed = (seed * 1103515245 + 12345) % 2147483648;
   return seed / 2147483648;
 };
-for (let index = 0; index < (full ? 200_000 : 20_000); index++) {
+for (let index = 0; index < (full ? 200_000 : wholeCorpus ? 20_000 : 1_000); index++) {
   const text = texts[Math.floor(random() * texts.length)]!;
   const step = (value: number) => Math.round(value * 200) / 200 + (random() < 0.5 ? 0 : (random() - 0.5) * 1e-9);
   sampled.push([text, step(400 + random() * 760), step(40 + random() * 620), [24, 20, 18, 14.88][index % 4]!]);
@@ -220,6 +235,30 @@ for (const call of sampled) {
 }
 assert.equal(measureMismatches, 0, "the fast ink measure disagrees with the printed reference");
 
+// The fast measure against origin/main's own answers, not against a
+// reference that shares its helpers.
+const golden = readJson("regression/label-ink-golden-v1.json") as { schemaVersion: string; records: LabelInkGoldenRecord[] };
+assert.equal(golden.schemaVersion, LABEL_INK_GOLDEN_SCHEMA);
+assert.ok(golden.records.length >= 3_000, "the golden ink fixture lost records");
+let goldenMismatches = 0;
+for (const record of golden.records) {
+  const call: Call = [record.args[0], decodeInkDouble(record.args[1]), decodeInkDouble(record.args[2]), decodeInkDouble(record.args[3])];
+  const expected: LabelBounds | null | string = record.throws !== undefined
+    ? `threw ${record.throws}`
+    : record.ink
+      ? { x: decodeInkDouble(record.ink[0]), y: decodeInkDouble(record.ink[1]), width: decodeInkDouble(record.ink[2]), height: decodeInkDouble(record.ink[3]) }
+      : null;
+  for (const measure of [measureTextInkBounds, measureWrittenTextInkBounds, labelInkBoundsCache.measure]) {
+    const actual = outcome(measure, call);
+    const agree = typeof actual === "string" || typeof expected === "string" ? actual === expected : sameBounds(actual, expected);
+    if (!agree) {
+      goldenMismatches += 1;
+      if (goldenMismatches <= 5) console.error(`  golden mismatch ${JSON.stringify(record.args)}: ${JSON.stringify(actual)}`);
+    }
+  }
+}
+assert.equal(goldenMismatches, 0, "the ink measure moved off the origin/main golden fixture");
+
 // 3. The cache cannot carry anything between compiles but exact answers.
 {
   const probe = createTextInkBoundsCache(measureTextInkBounds, 64);
@@ -243,6 +282,14 @@ assert.equal(measureMismatches, 0, "the fast ink measure disagrees with the prin
   probe.clear();
   assert.deepStrictEqual(probe.stats(), { calls: 0, hits: 0, evictions: 0, size: 0, capacity: 64 });
 
+  // A key copied forward from the older generation is one entry, not two.
+  const tiny = createTextInkBoundsCache(measureTextInkBounds, 4);
+  for (const text of ["a", "b", "c", "a"]) tiny.measure(text, 600, 300, 24);
+  assert.equal(tiny.stats().size, 3, "a promoted key must count once");
+  tiny.measure("d", 600, 300, 24);
+  assert.deepStrictEqual({ size: tiny.stats().size, evictions: tiny.stats().evictions }, { size: 3, evictions: 1 },
+    "dropping the older generation evicts only the keys not copied forward");
+
   // A compile after another compile's entries equals a compile from empty.
   const target = corpus.find((scene) => scene.id === "golden:mirror")!;
   labelInkBoundsCache.clear();
@@ -252,11 +299,11 @@ assert.equal(measureMismatches, 0, "the fast ink measure disagrees with the prin
 }
 
 const percent = (part: number, whole: number) => `${whole === 0 ? 0 : ((100 * part) / whole).toFixed(1)}%`;
-console.log("verify-label-ink-cache: ok");
+console.log(`verify-label-ink-cache: ok (${mode})`);
 console.log(`  scenes=${corpus.length} (${[...counts].map(([family, count]) => `${family}=${count}`).join(" ")})`);
 console.log(`  measurements=${totalCalls} distinct=${distinct.size} peak-cache-size=${peakSize}/${TEXT_INK_CACHE_CAPACITY}`);
 console.log(`  first compile: hits=${coldStats.hits}/${coldStats.calls} (${percent(coldStats.hits, coldStats.calls)})`);
 console.log(`  recompile: hits=${warmStats.hits}/${warmStats.calls} (${percent(warmStats.hits, warmStats.calls)})`);
 console.log(`  compile ms: uncached=${uncachedMs.toFixed(0)} first-cached=${coldMs.toFixed(0)} recompile=${warmMs.toFixed(0)}`);
-console.log(`  printed reference: scenes=${referenceScenes} reference-ms=${referenceMs.toFixed(0)} fast-ms=${fastMs.toFixed(0)}${full ? "" : " (pass --full for every scene)"}`);
-console.log(`  measure agreement: ${sampled.length} boxes bit-identical`);
+console.log(`  printed reference: scenes=${referenceScenes} reference-ms=${referenceMs.toFixed(0)} fast-ms=${fastMs.toFixed(0)}${full ? "" : " (--full for every scene)"}`);
+console.log(`  measure agreement: ${sampled.length} boxes bit-identical; origin/main golden: ${golden.records.length} records`);
