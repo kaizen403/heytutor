@@ -117,8 +117,9 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   selectFast(plan: TurnPlanV3, authority: A | null, gate: G): F | null;
   /**
    * One planSceneDocumentWithRepair run whose validator is bound to `plan`.
-   * A speculative run passes `holdRepairsUntil`: it generates initial
-   * candidates only, and repairs once the run is kept (true) or never (false).
+   * A speculative run passes `holdValidationUntil`: it fetches initial
+   * candidates only, and validates and repairs them once the run is kept
+   * (true) or never (false), so a discarded run compiles nothing.
    */
   planScene(
     gate: G,
@@ -126,7 +127,7 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
     run: {
       signal: AbortSignal;
       timeoutMs: number;
-      holdRepairsUntil?: Promise<boolean>;
+      holdValidationUntil?: Promise<boolean>;
       maxConcurrentRequests: number;
       /** Shared by every scene search in the turn; each request spends one. */
       requestBudget: { remaining: number };
@@ -168,9 +169,13 @@ export interface ScenePlanningOverlapOutcome<A, G, F, R> {
  * Speculation starts only where the serial path would reach the LLM planner
  * on these same inputs: ProblemIR is still pending, the exact gate says plan
  * (visual requirement not none, not chemistry, some family or archetype), the
- * budget is not spent, and the deterministic figure does not already resolve
- * from the turn plan alone (when it does, the final facts almost always pick
- * it too, and the speculative calls would only be aborted).
+ * budget is not spent, and the deterministic figure does not already compile
+ * from the turn plan alone. That check is a synchronous scene compile (1 to
+ * 3 s of main thread, profiled), but it runs while ProblemIR is in flight and
+ * it is what keeps a turn whose figure is deterministic from paying for two
+ * scene model calls that would only be aborted (verify-startup-turn holds
+ * that invariant). The fast figure on the final facts still aborts
+ * speculation, and a held run has compiled nothing by then.
  */
 export function shouldStartSpeculativeScene(input: {
   speculationAllowed: boolean;
@@ -249,8 +254,8 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
 
   type Run = {
     controller: AbortController;
-    /** Speculative runs only: settle true to allow repairs, false to forbid them. */
-    releaseRepairs: ((release: boolean) => void) | null;
+    /** Speculative runs only: true validates and repairs, false never will. */
+    releaseValidation: ((release: boolean) => void) | null;
     spanEnded: boolean;
     promise: Promise<R | null>;
     startedAt: number;
@@ -267,13 +272,14 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     const signal = input.signal ? mergeAbortSignals(input.signal, controller.signal) : controller.signal;
     const span = input.telemetry?.span("scene-planner", parent);
     const startedAt = now();
-    // A discarded speculative run used to have launched a repair batch already
-    // (up to four calls) by the time ProblemIR answered. Its repairs now wait
-    // for the keep decision, inside the same budget.
-    let releaseRepairs: ((release: boolean) => void) | null = null;
-    const holdRepairsUntil = speculative
+    // A discarded speculative run used to have compiled its candidates (1 to
+    // 3 s of main thread each) and launched a repair batch (up to four calls)
+    // by the time ProblemIR answered. Both now wait for the keep decision,
+    // inside the same budget.
+    let releaseValidation: ((release: boolean) => void) | null = null;
+    const holdValidationUntil = speculative
       ? new Promise<boolean>((resolve) => {
-          releaseRepairs = resolve;
+          releaseValidation = resolve;
         })
       : undefined;
     const promise = input.planScene(gate, turnPlan, {
@@ -281,13 +287,13 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       timeoutMs: remainingMs(),
       maxConcurrentRequests: SCENE_MAX_CONCURRENT_REQUESTS,
       requestBudget,
-      ...(holdRepairsUntil ? { holdRepairsUntil } : {}),
+      ...(holdValidationUntil ? { holdValidationUntil } : {}),
     });
     // An abandoned run settles on its own; nothing may observe its result.
     promise.catch(() => {});
     const run: Run = {
       controller,
-      releaseRepairs,
+      releaseValidation,
       spanEnded: false,
       promise,
       startedAt,
@@ -306,7 +312,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     run.span?.end(metadata);
   };
   const stopRun = (run: Run, metadata: Record<string, unknown>) => {
-    run.releaseRepairs?.(false);
+    run.releaseValidation?.(false);
     run.controller.abort();
     inFlight.delete(run);
     endRunSpan(run, metadata);
@@ -357,7 +363,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
           has_archetype: gate.archetypeId !== null,
           budget_ms: budgetMs,
         });
-      } else if (eligible && deterministicPredicted) {
+      } else if (deterministicPredicted) {
         input.telemetry?.mark("scene-speculative-skip", { reason: "deterministic_predicted" });
       }
     }
@@ -398,7 +404,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
         run = speculative;
         kept = true;
         validatedAgainst = speculative.turnPlan;
-        speculative.releaseRepairs?.(true);
+        speculative.releaseValidation?.(true);
       } else {
         abortReason = decision.reason;
         const discarded = speculative;

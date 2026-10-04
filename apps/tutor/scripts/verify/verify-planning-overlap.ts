@@ -10,7 +10,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
-import { planSceneDocumentWithRepair, type SceneCandidateValidation } from "@heytutor/tutor-core";
+import {
+  planSceneDocumentWithRepair,
+  revalidateScenePlanWithRepairResult,
+  type SceneCandidateValidation,
+} from "@heytutor/tutor-core";
 import {
   SCENE_REQUEST_BUDGET,
   decideSpeculation,
@@ -133,8 +137,8 @@ function harness(script: Script) {
     selectFast: (fastPlan, fastAuthority) => script.fast?.(fastPlan, fastAuthority) ?? null,
     planScene: (gate, scenePlan, run) => {
       const reply = deferred<Result | null>();
-      const hold: PlanCall["hold"] = run.holdRepairsUntil ? { value: undefined } : "none";
-      if (hold !== "none") void run.holdRepairsUntil!.then((value) => {
+      const hold: PlanCall["hold"] = run.holdValidationUntil ? { value: undefined } : "none";
+      if (hold !== "none") void run.holdValidationUntil!.then((value) => {
         hold.value = value;
       });
       // Like planSceneDocumentWithRepair, an aborted run settles promptly.
@@ -626,7 +630,7 @@ async function main(): Promise<void> {
             proxyUrl: "http://planner.test",
             signal: run.signal,
             timeoutMs: run.timeoutMs,
-            holdRepairsUntil: run.holdRepairsUntil,
+            holdValidationUntil: run.holdValidationUntil,
             maxConcurrentRequests: run.maxConcurrentRequests,
             requestBudget: run.requestBudget,
           }),
@@ -646,6 +650,129 @@ async function main(): Promise<void> {
     }
   });
 
+  await scenario("no candidate is compiled more often than on origin/main", async () => {
+    // Every validate call compiles the candidate (1 to 3 s of main thread
+    // each, profiled); so does each deterministic figure attempt.
+    type Case = "kept" | "kept_with_repairs" | "restart" | "deterministic" | "late_deterministic";
+    const doc = (tag: string, fatal: number) => ({ schemaVersion: "scene-document/v2", tag, fatal });
+    const reply = (which: Case, phase: string) => which === "kept_with_repairs" && phase === "plan"
+      ? doc("needs-repair", 2)
+      : doc(phase, 0);
+    const install = (which: Case) => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
+        const phase = new Headers(init?.headers).get("x-scene-planner-phase") ?? "";
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => resolve({
+            ok: true,
+            status: 200,
+            headers: new Headers(),
+            json: async () => ({ choices: [{ message: { content: JSON.stringify(reply(which, phase)) } }] }),
+          } as unknown as Response), 5);
+          init?.signal?.addEventListener("abort", () => {
+            clearTimeout(timer);
+            reject(new DOMException("aborted", "AbortError"));
+          }, { once: true });
+        });
+      }) as typeof fetch;
+      return () => {
+        globalThis.fetch = originalFetch;
+      };
+    };
+    const counter = () => {
+      const counts = { validate: 0, fast: 0 };
+      const validate = (candidate: Record<string, unknown>): SceneCandidateValidation<string> => {
+        counts.validate += 1;
+        return Number(candidate.fatal) === 0
+          ? { valid: true, errors: [], value: String(candidate.tag) }
+          : { valid: false, errors: [{ code: "fatal_geometry", message: "x", severity: "fatal" }] };
+      };
+      return { counts, validate };
+    };
+    const finalFamilies = (which: Case) => which === "restart" ? ["projectile", "vector_diagram"] : ["projectile"];
+    const sceneOptions = { proxyUrl: "http://planner.test", timeoutMs: 60_000 };
+
+    // origin/main: ProblemIR first, then the fast figure, then the planner on
+    // the final plan, then the forced revalidation that authority triggered.
+    const mainFlow = async (which: Case) => {
+      const { counts, validate } = counter();
+      counts.fast += 1;
+      if (which === "deterministic" || which === "late_deterministic") return counts;
+      const result = await planSceneDocumentWithRepair(QUESTION, validate, sceneOptions);
+      if (result) await revalidateScenePlanWithRepairResult(result, validate);
+      return counts;
+    };
+    const branchFlow = async (which: Case) => {
+      const { counts, validate } = counter();
+      const authority = deferred<Authority | null>();
+      // ProblemIR answers after the speculative candidates have arrived.
+      setTimeout(() => authority.resolve({ id: "ir" }), 40);
+      const outcome = await runScenePlanningOverlap<Authority, Gate, Fast, NonNullable<Awaited<ReturnType<typeof planSceneDocumentWithRepair<string>>>>>({
+        turnPlan: plan(35.35),
+        problemAuthority: authority.promise,
+        speculationAllowed: true,
+        plannerStartedAt: Date.now(),
+        deadlineMs: 60_000,
+        sleep: async () => {},
+        deriveGate: (_gatePlan, answered) => ({
+          shouldPlanExactScene: true,
+          shouldAttemptLlmScene: true,
+          families: answered ? finalFamilies(which) : ["projectile"],
+          archetypeId: null,
+          request: {},
+          planId: answered ? "final" : "speculative",
+        }),
+        applyAuthority: (authorityPlan, answered) => ({ turnPlan: authorityPlan, authority: answered }),
+        fastFigureBlocked: () => false,
+        selectFast: (_fastPlan, answered) => {
+          counts.fast += 1;
+          return which === "deterministic" || (which === "late_deterministic" && answered)
+            ? { figure: "fast" }
+            : null;
+        },
+        planScene: (_gate, _scenePlan, run) => planSceneDocumentWithRepair(QUESTION, validate, {
+          ...sceneOptions,
+          signal: run.signal,
+          timeoutMs: run.timeoutMs,
+          holdValidationUntil: run.holdValidationUntil,
+          maxConcurrentRequests: run.maxConcurrentRequests,
+          requestBudget: run.requestBudget,
+        }),
+        revalidate: (result, finalPlan) => revalidateScenePlanWithRepairResult(result, (candidate) => {
+          void finalPlan;
+          return validate(candidate);
+        }),
+      });
+      return { counts, outcome };
+    };
+    for (const which of ["kept", "kept_with_repairs", "restart", "deterministic", "late_deterministic"] as const) {
+      const restoreMain = install(which);
+      const main = await mainFlow(which).finally(restoreMain);
+      const restoreBranch = install(which);
+      const branch = await branchFlow(which).finally(restoreBranch);
+      const mainCompiles = main.validate + main.fast;
+      const branchCompiles = branch.counts.validate + branch.counts.fast;
+      // The one extra deterministic attempt is the turn-plan-only prediction.
+      assert.equal(branch.counts.fast, 2, `${which}: the prediction and the final deterministic figure`);
+      assert(branch.counts.validate <= main.validate,
+        `${which}: branch validated ${branch.counts.validate} candidates, main ${main.validate}`);
+      if (!which.endsWith("deterministic")) {
+        assert(branchCompiles <= mainCompiles, `${which}: branch compiled ${branchCompiles}, main ${mainCompiles}`);
+      }
+      if (which === "restart") {
+        assert.equal(branch.outcome.speculation.abortReason, "families_changed");
+        assert.equal(branch.counts.validate, 2,
+          "restart: only the two restarted candidates are compiled, the discarded ones never");
+      }
+      if (which.endsWith("deterministic")) {
+        assert.equal(branch.counts.validate, 0, `${which}: speculative candidates never compiled`);
+      }
+      if (which === "late_deterministic") assert.equal(branch.outcome.speculation.abortReason, "deterministic");
+      if (which.startsWith("kept")) assert.equal(branch.outcome.timings.revalidateSkipped, true);
+      console.log(`verify-planning-overlap: ${which} compiles main ${mainCompiles} (${main.validate} validate + ${main.fast} fast), branch ${branchCompiles} (${branch.counts.validate} + ${branch.counts.fast})`);
+    }
+  });
+
   // Both callers run the same module, so the bench measures the live path.
   const appRoot = join(process.cwd());
   const hook = readFileSync(join(appRoot, "features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
@@ -658,7 +785,8 @@ async function main(): Promise<void> {
   assert(/isCurrentTurn\)\.catch\(closeTurnPlanSpanOnFailure\)/.test(hook) &&
     /turnPlanSpan\.end\(\{ aborted: true \}\)/.test(hook),
     "a cancelled turn plan closes its span");
-  assert(/holdRepairsUntil: run\.holdRepairsUntil/.test(hook) && /holdRepairsUntil: sceneRun\.holdRepairsUntil/.test(bench),
+  assert(/holdValidationUntil: run\.holdValidationUntil/.test(hook) &&
+    /holdValidationUntil: sceneRun\.holdValidationUntil/.test(bench),
     "both callers pass the repair hold to the scene planner");
   assert(/tel\.span\("turn-plan", "planner"\)/.test(hook) && /tel\.span\("problem-ir", "planner"\)/.test(hook),
     "turn-plan and problem-ir spans are children of planner");

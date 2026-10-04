@@ -272,10 +272,12 @@ function summarizeSceneCandidateForRepair(
  *   when it closes is aborted.
  * - Selection is compareValidations over every evaluated candidate.
  *
- * `holdRepairsUntil` lets a speculative caller generate initial candidates
- * only: no repair batch launches until it settles true, and none ever does if
- * it settles false. A held search with an invalid seed waits for the decision
- * instead of returning.
+ * `holdValidationUntil` lets a speculative caller fetch initial candidates
+ * without spending anything else on them: they are neither validated nor
+ * repaired until it settles true, and never if it settles false. Validation
+ * compiles every candidate, which costs 1 to 3 s of main thread each, so a
+ * discarded speculative run must not have compiled anything. A held search
+ * with fetched candidates waits for the decision instead of returning.
  *
  * Billing admits at most four "ai" calls in flight per user and twelve
  * planner calls per trace, and refuses the rest. `maxConcurrentRequests`
@@ -288,13 +290,13 @@ export async function planSceneDocumentWithRepair<T>(
   question: string,
   validate: SceneCandidateValidator<T>,
   options: ScenePlannerOptions & {
-    holdRepairsUntil?: Promise<boolean>;
+    holdValidationUntil?: Promise<boolean>;
     maxConcurrentRequests?: number;
     requestBudget?: { remaining: number };
   },
 ): Promise<ScenePlanWithRepairResult<T> | null> {
   const startedAt = Date.now();
-  const { holdRepairsUntil, maxConcurrentRequests, requestBudget, ...plannerOptions } = options;
+  const { holdValidationUntil, maxConcurrentRequests, requestBudget, ...plannerOptions } = options;
   const maxInFlight = maxConcurrentRequests ?? Number.POSITIVE_INFINITY;
   const budgetLeft = () => requestBudget?.remaining ?? Number.POSITIVE_INFINITY;
   const timeoutMs = plannerOptions.timeoutMs ?? SCENE_PLANNER_TIMEOUT_MS;
@@ -330,16 +332,18 @@ export async function planSceneDocumentWithRepair<T>(
   let nextKey = 0;
   let firstValidAt: number | null = null;
   let fallbackPlanLaunched = false;
-  let repairsReleased = holdRepairsUntil === undefined;
-  const releaseMarker: unique symbol = Symbol("repairs-released");
-  const releaseDecision = holdRepairsUntil?.then(
+  let released = holdValidationUntil === undefined;
+  const releaseMarker: unique symbol = Symbol("validation-released");
+  const releaseDecision = holdValidationUntil?.then(
     (release): typeof releaseMarker => {
-      repairsReleased = release;
+      released = release;
       return releaseMarker;
     },
     (): typeof releaseMarker => releaseMarker,
   );
-  let releaseDecided = holdRepairsUntil === undefined;
+  let releaseDecided = holdValidationUntil === undefined;
+  /** Fetched while held, in arrival order; validated only once released. */
+  const held: ScenePlannerResponse[] = [];
   void releaseDecision?.then(() => {
     releaseDecided = true;
   });
@@ -369,12 +373,13 @@ export async function planSceneDocumentWithRepair<T>(
     inFlight.set(key, entry);
   };
 
-  const evaluate = async (settled: Settled) => {
+  const collect = (settled: Settled): ScenePlannerResponse | null => {
     const round = inFlight.get(settled.key)?.round;
     inFlight.delete(settled.key);
     if (round) round.settled += 1;
-    const candidate = settled.candidate;
-    if (!candidate) return;
+    return settled.candidate;
+  };
+  const evaluate = async (candidate: ScenePlannerResponse) => {
     const candidateValidation = await validate(candidate.document);
     tutorDebug("planner", "semantic scene candidate validation", {
       phase: candidate.phase,
@@ -389,7 +394,7 @@ export async function planSceneDocumentWithRepair<T>(
   // Every initial plan settled without a parseable candidate: one serial plan
   // with the rest of the budget, exactly as before.
   const maybeLaunchFallbackPlan = () => {
-    if (fallbackPlanLaunched || evaluated.length > 0 || inFlight.size > 0) return;
+    if (fallbackPlanLaunched || evaluated.length > 0 || held.length > 0 || inFlight.size > 0) return;
     if (plannerOptions.signal?.aborted || budgetLeft() < 1) return;
     const budgetMs = remainingMs();
     if (budgetMs <= 0) return;
@@ -406,7 +411,7 @@ export async function planSceneDocumentWithRepair<T>(
     nextSeed() !== undefined;
 
   const maybeLaunchRepairRound = () => {
-    if (!repairsReleased || !repairPossible()) return;
+    if (!released || !repairPossible()) return;
     if (plannerOptions.signal?.aborted) return;
     const budgetMs = remainingMs();
     if (budgetMs <= 0) return;
@@ -459,18 +464,28 @@ export async function planSceneDocumentWithRepair<T>(
 
     // Evaluate everything that has already arrived before choosing a seed.
     const arrived = [...inFlight.values()].flatMap((entry) => entry.settled ? [entry.settled] : []);
-    for (const settled of arrived) await evaluate(settled);
+    for (const settled of arrived) {
+      const candidate = collect(settled);
+      if (!candidate) continue;
+      if (released) await evaluate(candidate);
+      else held.push(candidate);
+    }
+    if (released && held.length > 0) {
+      for (const candidate of held.splice(0)) await evaluate(candidate);
+      continue;
+    }
     if (arrived.length > 0) continue;
+    if (releaseDecided && !released) break;
 
     maybeLaunchFallbackPlan();
     maybeLaunchRepairRound();
-    const awaitingRelease = !releaseDecided && repairPossible();
+    const awaitingRelease = !releaseDecided && held.length > 0;
     if (inFlight.size === 0 && !awaitingRelease) break;
 
     const timeoutMarker = Symbol("candidate-wait-timeout");
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const settled = await Promise.race([
-      ...[...inFlight.values()].map((entry) => entry.promise),
+      ...[...inFlight.values()].filter((entry) => !entry.settled).map((entry) => entry.promise),
       ...(releaseDecision && !releaseDecided ? [releaseDecision] : []),
       new Promise<typeof timeoutMarker>((resolve) => {
         timeoutId = setTimeout(() => resolve(timeoutMarker), waitMs);
@@ -482,7 +497,7 @@ export async function planSceneDocumentWithRepair<T>(
       releaseDecided = true;
       continue;
     }
-    await evaluate(settled);
+    // The arrived scan at the top collects it, in arrival order.
   }
   for (const entry of inFlight.values()) entry.controller.abort();
 

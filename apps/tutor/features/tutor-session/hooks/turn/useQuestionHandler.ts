@@ -1371,7 +1371,7 @@ export function useQuestionHandler(
               traceId: turnTraceId ?? undefined,
               signal: run.signal,
               timeoutMs: run.timeoutMs,
-              holdRepairsUntil: run.holdRepairsUntil,
+              holdValidationUntil: run.holdValidationUntil,
               maxConcurrentRequests: run.maxConcurrentRequests,
               requestBudget: run.requestBudget,
               fastMode: fastModeRef.current,
