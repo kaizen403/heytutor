@@ -270,7 +270,7 @@ try {
     assert.equal(budget.remaining, 0);
   });
 
-  await scenario("held repairs: initial candidates only until the caller releases", async () => {
+  await scenario("held validation: candidates are fetched but not compiled until the caller releases", async () => {
     const release = (() => {
       let resolve!: (value: boolean) => void;
       const promise = new Promise<boolean>((onResolve) => {
@@ -281,28 +281,39 @@ try {
     const calls = harness((call) => call.phase === "plan"
       ? { atMs: 1_000 + call.index * 1_000, doc: doc(call.lane === "primary" ? "A" : "B", 2) }
       : { atMs: call.atMs + 1_000, doc: doc(`rep-${call.lane}`, 0) });
+    const validatedAt: number[] = [];
+    const counted = (candidate: Record<string, unknown>) => {
+      validatedAt.push(now);
+      return validate(candidate);
+    };
     setTimeout(() => release.resolve(true), 10_000);
-    const { value: result, atMs } = await settle(planSceneDocumentWithRepair("q", validate, {
+    const { value: result, atMs } = await settle(planSceneDocumentWithRepair("q", counted, {
       ...options(),
-      holdRepairsUntil: release.promise,
+      holdValidationUntil: release.promise,
     }));
     const repairs = calls.filter((call) => call.phase === "repair");
+    assert.deepEqual(validatedAt.slice(0, 2), [10_000, 10_000], "nothing is validated before the release");
     assert.equal(repairs[0]?.atMs, 10_000, "no repair before the release, even with two invalid candidates");
     assert.equal(repairs.length, 2);
+    assert.equal(validatedAt.length, 4, "each candidate is validated exactly once");
     assert.equal(atMs, 11_000, "both repairs answered, nothing pending: no grace wait");
     assert(result?.validation.valid);
 
     const withheld = harness((call) => call.phase === "plan"
       ? { atMs: 1_000, doc: doc(call.lane === "primary" ? "A" : "B", 2) }
       : { atMs: call.atMs + 1_000, doc: doc("rep", 0) });
-    const refused = Promise.resolve(false);
-    const { value: unrepaired } = await settle(planSceneDocumentWithRepair("q", validate, {
+    let refusedValidations = 0;
+    const refused = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5_000));
+    const { value: discarded } = await settle(planSceneDocumentWithRepair("q", (candidate) => {
+      refusedValidations += 1;
+      return validate(candidate);
+    }, {
       ...options(),
-      holdRepairsUntil: refused,
+      holdValidationUntil: refused,
     }));
     assert.equal(withheld.filter((call) => call.phase === "repair").length, 0, "a refused release never repairs");
-    assert.equal(unrepaired?.repaired, false);
-    assert.equal(unrepaired?.validation.valid, false);
+    assert.equal(refusedValidations, 0, "a refused release never compiles a candidate");
+    assert.equal(discarded, null);
   });
 
   await scenario("a valid initial candidate ends the search and aborts in-flight repairs", async () => {
