@@ -184,12 +184,16 @@ export function createTextInkBoundsCache(
   let calls = 0;
   let hits = 0;
   let evictions = 0;
+  // Keys copied forward from the older generation sit in both until the
+  // older one is dropped; they are one entry, not two.
+  let promoted = 0;
   const store = (key: string, bounds: LabelBounds | null): void => {
     if (capacity < 2) return;
     newer ??= createInkGeneration(generationSize);
     if (newer.slots.size >= generationSize) {
       const recycled: InkGeneration = older ?? createInkGeneration(generationSize);
-      evictions += older?.slots.size ?? 0;
+      evictions += (older?.slots.size ?? 0) - promoted;
+      promoted = 0;
       recycled.slots.clear();
       older = newer;
       newer = recycled;
@@ -210,6 +214,8 @@ export function createTextInkBoundsCache(
         hits += 1;
         const bounds = readInkSlot(older!, aged);
         store(key, bounds);
+        // Unless filling the newer generation just dropped the older one.
+        if (older?.slots.has(key)) promoted += 1;
         return bounds ? { ...bounds } : null;
       }
       const bounds = measure(text, x, y, fontHeightPx);
@@ -221,12 +227,13 @@ export function createTextInkBoundsCache(
       calls,
       hits,
       evictions,
-      size: (newer?.slots.size ?? 0) + (older?.slots.size ?? 0),
+      size: (newer?.slots.size ?? 0) + (older?.slots.size ?? 0) - promoted,
       capacity,
     }),
     clear() {
       newer?.slots.clear();
       older?.slots.clear();
+      promoted = 0;
       calls = 0;
       hits = 0;
       evictions = 0;
