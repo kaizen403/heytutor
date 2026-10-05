@@ -7,6 +7,7 @@ import type {
   AdminUserSettings,
   UserDetailPayload,
 } from "./types";
+import { mapAccountSettings } from "@/lib/account/mapUser";
 
 const BOARDS_TAKE = 200;
 const TURNS_TAKE = 50;
@@ -123,7 +124,8 @@ export async function userDetail(userId: string): Promise<UserDetailPayload | nu
     ? {
         fastMode: user.settings.fastMode,
         narrationEnabled: user.settings.narrationEnabled,
-        audioLanguage: user.settings.audioLanguage,
+        // What the lesson speaks, not the raw row: a legacy "hindi" row is English.
+        audioLanguage: mapAccountSettings(user.settings).audioLanguage,
         accent: user.settings.accent,
         uiLanguage: user.settings.uiLanguage,
         speedMultiplier: user.settings.speedMultiplier,

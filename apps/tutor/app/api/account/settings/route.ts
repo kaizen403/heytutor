@@ -3,13 +3,14 @@ import { ensureUser, isAuthFailure, requireSessionUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { mapAccountSettings } from "@/lib/account/mapUser";
 import { accountSettingsPatch } from "@/lib/account/userSettings";
+import { hinglishVoiceAvailable } from "@/lib/tts/providerConfig";
 
 export async function GET() {
   const userId = await requireSessionUserId();
   if (isAuthFailure(userId)) return userId;
   await ensureUser(userId);
   const row = await prisma.userSettings.findUnique({ where: { userId } });
-  return NextResponse.json({ settings: mapAccountSettings(row) });
+  return NextResponse.json({ settings: mapAccountSettings(row), hinglishAvailable: hinglishVoiceAvailable() });
 }
 
 export async function PATCH(request: Request) {
@@ -28,11 +29,11 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  const patch = accountSettingsPatch(body);
+  const patch = accountSettingsPatch(body, { hinglishAvailable: hinglishVoiceAvailable() });
   const row = await prisma.userSettings.upsert({
     where: { userId },
     create: { userId, ...patch },
     update: patch,
   });
-  return NextResponse.json({ settings: mapAccountSettings(row) });
+  return NextResponse.json({ settings: mapAccountSettings(row), hinglishAvailable: hinglishVoiceAvailable() });
 }

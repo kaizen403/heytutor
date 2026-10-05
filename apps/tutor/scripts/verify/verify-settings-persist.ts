@@ -11,6 +11,7 @@ import {
   TEACHING_NOTE_MAX,
 } from "../../lib/account/userSettings";
 import { DEFAULT_PLAYBACK_SPEED, toggleMarkerStunt } from "../../lib/account/lessonSettings";
+import { mapAccountSettings } from "../../lib/account/mapUser";
 import { DEFAULT_REPLAY_SPEED } from "../../lib/replay/replayAudio";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -33,7 +34,8 @@ const parsed = parseAccountSettings({
 });
 assert(parsed.speedMultiplier === 2, "speed is kept");
 assert(parsed.fastMode === true, "fast mode stays on even when the row says off");
-assert(parsed.audioLanguage === "english", "audio stays English even when the row says Hindi");
+assert(parsed.audioLanguage === "english", "a legacy hindi row (English lesson, Hindi accent) reads as English");
+assert(parseAccountSettings({ audioLanguage: "hinglish" }).audioLanguage === "hinglish", "a saved Hinglish choice is kept");
 assert(parsed.narrationEnabled === true, "narration stays on even when the row says off");
 assert(parsed.lowLatencyVoice === false, "voice stays Natural even when the row says low latency");
 assert(parsed.teachingNote === "I mix up unit vectors", "teaching note is trimmed");
@@ -44,9 +46,25 @@ assert(
   "a PATCH cannot turn fast mode off",
 );
 assert(
-  !("audioLanguage" in accountSettingsPatch({ audioLanguage: "hindi" })),
-  "a PATCH cannot switch audio language",
+  !("audioLanguage" in accountSettingsPatch({ audioLanguage: "hinglish" })),
+  "without a Sarvam key a PATCH cannot choose Hinglish",
 );
+assert(
+  !("audioLanguage" in accountSettingsPatch({ audioLanguage: "english" })),
+  "without a Sarvam key the field is ignored, so a whole-object PATCH cannot erase a saved Hinglish choice",
+);
+assert(
+  accountSettingsPatch({ audioLanguage: "hinglish" }, { hinglishAvailable: true }).audioLanguage === "hinglish" &&
+    accountSettingsPatch({ audioLanguage: "english" }, { hinglishAvailable: true }).audioLanguage === "english",
+  "with a Sarvam key the student can switch between English and Hinglish",
+);
+assert(
+  !("audioLanguage" in accountSettingsPatch({ audioLanguage: "hindi" }, { hinglishAvailable: true })),
+  "the legacy hindi value is never written again",
+);
+const hinglishRow = { ...DEFAULT_ACCOUNT_SETTINGS, audioLanguage: "hinglish" } as unknown as Parameters<typeof mapAccountSettings>[0];
+assert(mapAccountSettings(hinglishRow, true).audioLanguage === "hinglish", "with a key the lesson speaks Hinglish");
+assert(mapAccountSettings(hinglishRow, false).audioLanguage === "english", "without a key a saved Hinglish choice speaks English");
 assert(
   !("narrationEnabled" in accountSettingsPatch({ narrationEnabled: false })),
   "a PATCH cannot turn narration off",

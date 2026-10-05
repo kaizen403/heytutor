@@ -312,7 +312,10 @@ export function aggregateRunCost(observations: CostObservation[]): RunCostReport
         continue;
       }
       const metadata = observation.metadata as Record<string, unknown> | undefined;
-      const provider = metadata?.provider === "cartesia" || metadata?.provider === "elevenlabs" ? metadata.provider : undefined;
+      const provider =
+        metadata?.provider === "cartesia" || metadata?.provider === "elevenlabs" || metadata?.provider === "sarvam"
+          ? metadata.provider
+          : undefined;
       const usd = calculateTtsCostDetails(chars, { model, provider }).total ?? 0;
       let kind = kinds.get(kindName);
       if (!kind) {
@@ -458,6 +461,7 @@ export function snapshotPricing(): {
     }),
     tts: [
       { lane: "cartesia", usdPer1kChars: calculateTtsCostDetails(1000, { provider: "cartesia" }).total ?? 0.05 },
+      { lane: "sarvam", usdPer1kChars: calculateTtsCostDetails(1000, { provider: "sarvam" }).total ?? TTS_RATE_DEFAULTS.sarvam },
       {
         lane: "flash",
         usdPer1kChars: calculateTtsCostDetails(1000, { model: "eleven_flash_v2_5" }).total ?? TTS_RATE_DEFAULTS.flash,

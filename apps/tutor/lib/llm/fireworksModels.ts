@@ -44,9 +44,13 @@ export const DEFAULT_CHEAP_FIREWORKS_MODEL =
 /**
  * Cheapest Fireworks model that accepts images. Teaching stays on
  * `FIREWORKS_TEACHING_MODEL`; OCR has its own lane.
+ *
+ * Qwen 3.7 Plus was the default until Fireworks undeployed it: every photo
+ * came back 404 and the student saw "Could not read that image". DeepSeek
+ * V4.1 Flash reads printed maths cleanly at the lowest serverless rate.
  */
 export const DEFAULT_FIREWORKS_VISION_MODEL =
-  "accounts/fireworks/models/qwen3p7-plus";
+  "accounts/fireworks/models/deepseek-v4p1-flash";
 
 function trimModel(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
@@ -166,6 +170,17 @@ export function resolveFireworksVisionModel(
   env: Record<string, string | undefined> = process.env,
 ): string {
   return trimModel(env.FIREWORKS_VISION_MODEL) || DEFAULT_FIREWORKS_VISION_MODEL;
+}
+
+/**
+ * OCR models in the order to try. A configured model comes first; the default
+ * follows so a model Fireworks has withdrawn degrades to the default instead
+ * of failing every photo.
+ */
+export function resolveFireworksVisionModels(
+  env: Record<string, string | undefined> = process.env,
+): string[] {
+  return [...new Set([resolveFireworksVisionModel(env), DEFAULT_FIREWORKS_VISION_MODEL])];
 }
 
 /**

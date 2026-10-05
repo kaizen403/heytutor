@@ -547,7 +547,10 @@ export function useSegmentRunner({
         if (timingsOrigin === null && timings.charStartTimes.length > 0) {
           timingsOrigin = "callback";
         }
-        capturedTimings = timings;
+        // Duration-only timings (the Hinglish voice has no alignment) teach the
+        // speaking rate and the recorded length, and nothing else: the pen
+        // keeps its estimated schedule, as with no timings at all.
+        if (timings.charStartTimes.length > 0) capturedTimings = timings;
         const validation = validateAudioTimingsForNarration(narration, timings);
         if (timings.totalDuration > 0) {
           speechRateRef.current = observeSpeechRate(

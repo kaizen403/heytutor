@@ -21,7 +21,8 @@ function assert(condition: unknown, message: string): asserts condition {
 assert(resolveLlmRateLane(DEFAULT_FIREWORKS_FAST_MODEL) === "kimi-k3-fast", "Kimi Fast must not share the DeepSeek table");
 assert(resolveLlmRateLane(DEFAULT_FIREWORKS_MODEL) === "kimi-k3", "standard Kimi K3 is its own lane");
 assert(resolveLlmRateLane(DEFAULT_CHEAP_FIREWORKS_MODEL) === "deepseek-flash", "the cheap lane is DeepSeek Flash");
-assert(resolveLlmRateLane(DEFAULT_FIREWORKS_VISION_MODEL) === "qwen-vision", "OCR is Qwen vision");
+assert(resolveLlmRateLane(DEFAULT_FIREWORKS_VISION_MODEL) === "deepseek-flash", "OCR bills at the DeepSeek Flash rate");
+assert(resolveLlmRateLane("accounts/fireworks/models/qwen3p7-plus") === "qwen-vision", "a configured Qwen OCR model keeps its lane");
 assert(resolveLlmRateLane("accounts/fireworks/routers/kimi-k3-fast") === "kimi-k3-fast", "router ids must match Fast");
 
 const fast = resolveLlmRates(DEFAULT_FIREWORKS_FAST_MODEL);

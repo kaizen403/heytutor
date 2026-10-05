@@ -165,6 +165,17 @@ function spokenFocusTargets(
     .map((entry) => entry.anchor);
 }
 
+const DEVANAGARI = /\p{Script=Devanagari}/u;
+
+/**
+ * The board stays in English on a Hinglish lesson: only the voice mixes
+ * languages. The handwriting has no Devanagari glyphs, so a row the model
+ * wrote in Devanagari would draw as gaps. It is dropped; the narration plays.
+ */
+export function isDevanagariWrite(command: DrawCommand): boolean {
+  return command.type === "WRITE" && DEVANAGARI.test(command.text ?? "");
+}
+
 export function prepareVerifiedLessonSegments(
   segments: TutorSegment[],
   diagram: VerifiedDiagram | null,
@@ -193,7 +204,7 @@ export function prepareVerifiedLessonSegments(
     const keptCommands = withSpokenFocus.flatMap((command) => {
       const candidates = command.type === "WRITE" ? fitWorkTextCommand(command) : [command];
       return candidates.filter((candidate) => {
-        if (!isBlockedVerifiedDiagramCommand(candidate, diagram)) return true;
+        if (!isBlockedVerifiedDiagramCommand(candidate, diagram) && !isDevanagariWrite(candidate)) return true;
         blockedCommandCount += 1;
         return false;
       });

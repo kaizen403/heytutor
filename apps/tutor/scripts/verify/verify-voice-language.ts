@@ -1,8 +1,9 @@
 /**
  * Settings → voice wiring. The student picks a language and an accent; that
  * pair must collapse to one voice key, cross the wire, and resolve to the
- * right ElevenLabs voice id on the server — with Indian English as the
- * default and as the fallback for anything unconfigured.
+ * right voice on the server, with Indian English as the default and as the
+ * fallback for anything unconfigured. Hinglish is one Sarvam voice, offered
+ * only when the server holds a Sarvam key (see verify-sarvam-tts).
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -41,9 +42,9 @@ assert(
 assert(toVoiceKey("english", "india") === "en-IN", "english/india should be en-IN");
 assert(toVoiceKey("english", "uk") === "en-GB", "english/uk should be en-GB");
 assert(toVoiceKey("english", "us") === "en-US", "english/us should be en-US");
-// Hindi ships one voice, so the accent choice must not fork it.
+// Hinglish ships one voice, so the accent choice must not fork it.
 for (const accent of ["india", "uk", "us"] as const) {
-  assert(toVoiceKey("hindi", accent) === "hi-IN", `hindi/${accent} should stay hi-IN`);
+  assert(toVoiceKey("hinglish", accent) === "hi-IN", `hinglish/${accent} should stay hi-IN`);
 }
 
 // --- untrusted wire values fall back rather than going silent --------------
@@ -56,7 +57,9 @@ for (const bad of ["", "fr-FR", "en", null, undefined, 42, {}]) {
 assert(normalizeVoiceKey("hi-IN") === "hi-IN", "a valid voice key was rewritten");
 
 // --- settings type guards reject junk from localStorage --------------------
-assert(isTutorAudioLanguage("hindi") && !isTutorAudioLanguage("marathi"), "language guard is wrong");
+assert(isTutorAudioLanguage("hinglish") && !isTutorAudioLanguage("marathi"), "language guard is wrong");
+// Rows saved as "hindi" before the Hinglish voice meant an English lesson.
+assert(!isTutorAudioLanguage("hindi"), "a legacy hindi row must not switch a student to Hinglish");
 assert(isTutorAccent("uk") && !isTutorAccent("aus"), "accent guard is wrong");
 assert(isSubjectFamiliarity("new") && !isSubjectFamiliarity("epic"), "familiarity guard is wrong");
 
@@ -89,6 +92,9 @@ assert(TTS_LANG_HEADER === "x-tts-lang", "tts language header name changed");
 assert(TTS_LANG_QUERY === "lang", "tts language query param changed");
 
 process.env.TTS_PROVIDER = "elevenlabs";
+// The ElevenLabs cases below are about per-accent env voices, not Sarvam.
+const savedSarvam = process.env.SARVAM_API_KEY;
+delete process.env.SARVAM_API_KEY;
 
 // --- server-side env resolution -------------------------------------------
 const saved = {
@@ -125,6 +131,7 @@ process.env.ELEVENLABS_VOICE_ID = saved.en ?? "";
 process.env.ELEVENLABS_VOICE_ID_HI = saved.hi ?? "";
 if (saved.gb) process.env.ELEVENLABS_VOICE_ID_EN_GB = saved.gb;
 if (saved.us) process.env.ELEVENLABS_VOICE_ID_EN_US = saved.us;
+if (savedSarvam) process.env.SARVAM_API_KEY = savedSarvam;
 
 // --- student-usable path: accent writes, persist, and reach TTS ------------
 const settingsDrawer = readFileSync(
@@ -134,8 +141,13 @@ const settingsDrawer = readFileSync(
 assert(!settingsDrawer.includes("Soon"), "Accent must not ship a Soon badge");
 assert(!settingsDrawer.includes("subtitleLanguage"), "dead subtitleLanguage field came back");
 assert(
-  !settingsDrawer.includes('update({ audioLanguage: "hindi" })'),
-  "the drawer must not offer a Hindi audioLanguage pill",
+  !settingsDrawer.includes('audioLanguage: "hindi"'),
+  "the drawer must not offer the legacy Hindi value",
+);
+assert(
+  settingsDrawer.includes('update({ audioLanguage: "hinglish" })') &&
+    settingsDrawer.includes("{hinglishAvailable ? ("),
+  "the drawer offers Hinglish only when the server holds a Sarvam key",
 );
 assert(
   !settingsDrawer.includes("Audio Language"),
@@ -143,9 +155,9 @@ assert(
 );
 assert(
   settingsDrawer.includes(">Voice<") &&
-    settingsDrawer.includes('update({ accent: "india" })') &&
-    settingsDrawer.includes('update({ accent: "uk" })') &&
-    settingsDrawer.includes('update({ accent: "us" })'),
+    settingsDrawer.includes('update({ audioLanguage: "english", accent: "india" })') &&
+    settingsDrawer.includes('update({ audioLanguage: "english", accent: "uk" })') &&
+    settingsDrawer.includes('update({ audioLanguage: "english", accent: "us" })'),
   "the lesson settings sheet must offer the India/UK/US voice picker",
 );
 
@@ -154,9 +166,14 @@ const settingsScreen = readFileSync(
   "utf8",
 );
 assert(
-  !settingsScreen.includes('patch({ audioLanguage: "hindi" })') &&
+  !settingsScreen.includes('audioLanguage: "hindi"') &&
     !settingsScreen.includes('label="Hindi"'),
-  "account settings must not offer Hindi audio",
+  "account settings must not offer the legacy Hindi value",
+);
+assert(
+  settingsScreen.includes('patch({ audioLanguage: "hinglish" })') &&
+    settingsScreen.includes("{hinglishAvailable ? ("),
+  "account settings offer Hinglish only when the server holds a Sarvam key",
 );
 assert(
   !settingsScreen.includes('title="Fast mode"') &&
@@ -180,9 +197,13 @@ for (const key of [
 }
 assert(shell.includes("settingsHydrated"), "persist writes must wait until stored settings load");
 assert(
-  shell.includes("toVoiceKey(DEFAULT_AUDIO_LANGUAGE, settings.accent)") ||
+  shell.includes("toVoiceKey(settings.audioLanguage, settings.accent)"),
+  "shell must collapse language + accent into the voice key",
+);
+assert(
+  shell.includes('hinglish && data.settings.audioLanguage === "hinglish"') &&
     shell.includes("toVoiceKey(DEFAULT_AUDIO_LANGUAGE, accent)"),
-  "shell must collapse English + accent into the voice key",
+  "Hinglish comes only from the server's answer; a stale local cache starts in English",
 );
 assert(shell.includes("setVoicePreferences"), "shell must push the voice key into the TTS client");
 assert(shell.includes("voicePreferencesRef"), "first TTS create must see the stored voice, not the default");

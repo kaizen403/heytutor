@@ -40,6 +40,8 @@ export interface LessonOpeningInput {
    * the line hands over to those rows or to the setup.
    */
   hasBoardOpening: boolean;
+  /** The Hinglish voice speaks a Hinglish opening; the ask stays in English. */
+  language?: "english" | "hinglish";
 }
 
 /**
@@ -48,6 +50,8 @@ export interface LessonOpeningInput {
  * what makes this land as a teacher starting rather than a recording playing.
  */
 const LEADS = ["okay...", "right...", "alright..."] as const;
+/** Hinglish leads. None is चलो, which the step prompt forbids as an opener. */
+const HINGLISH_LEADS = ["तो...", "अच्छा...", "ठीक है..."] as const;
 
 /** Verbs that ask for a quantity: what follows them is the thing wanted. */
 const NOUN_ASK =
@@ -137,6 +141,7 @@ const DIAGRAM_INSTRUCTION_TAIL =
 export function lessonOpeningLine(input: LessonOpeningInput): string {
   const question = input.question.replace(/\s+/g, " ").trim();
   if (!question) return "";
+  if (input.language === "hinglish") return hinglishOpeningLine(input, question);
   const lead = LEADS[leadIndex(question)] ?? LEADS[0];
 
   if (input.kind === "code") {
@@ -176,6 +181,38 @@ export function lessonOpeningLine(input: LessonOpeningInput): string {
   return input.hasBoardOpening
     ? `${lead} let's work through this one. here's what the question gives us.`
     : `${lead} let's work through this one, and set it up as we go.`;
+}
+
+/**
+ * The same skeleton in Hinglish: Hindi in Devanagari, the ask and the topic
+ * in the question's own English, as the Sarvam voice needs it.
+ */
+function hinglishOpeningLine(input: LessonOpeningInput, question: string): string {
+  const lead = HINGLISH_LEADS[leadIndex(question)] ?? HINGLISH_LEADS[0];
+  if (input.kind === "code") return `${lead} इसे शुरू से समझते हैं.`;
+  if (input.kind === "concept") {
+    const drawing = drawingTopic(question);
+    if (drawing) {
+      const object = DETERMINER_LEAD.test(drawing) ? drawing : `the figure for ${drawing}`;
+      return `${lead} आज हम ${object} draw करेंगे. पहले इसे set up करते हैं.`;
+    }
+    if (OPEN_QUESTION_LEAD.test(question)) {
+      const asked = trimQuestion(question);
+      if (asked) return `${lead} सवाल ये है, ${asked}. इसे शुरू से build करते हैं.`;
+    }
+    const topic = conceptTopic(question);
+    if (topic) return `${lead} ये lesson ${topic} के बारे में है. इसे basics से build करते हैं.`;
+    return `${lead} इसे शुरू से समझते हैं.`;
+  }
+  const ask = problemAskPhrase(question);
+  if (ask) {
+    return input.hasBoardOpening
+      ? `${lead} ये question ${ask}. पहले देखते हैं क्या दिया है.`
+      : `${lead} ये question ${ask}. पहले इसे set up करते हैं.`;
+  }
+  return input.hasBoardOpening
+    ? `${lead} ये question solve करते हैं. देखो question हमें क्या देता है.`
+    : `${lead} ये question solve करते हैं, और साथ साथ set up करते हैं.`;
 }
 
 /**
