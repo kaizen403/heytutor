@@ -1,4 +1,4 @@
-import type { SubjectFamiliarity } from "@heytutor/tutor-core";
+import type { SubjectFamiliarity, TutorVoicePreferences } from "@heytutor/tutor-core";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
@@ -165,6 +165,13 @@ export type UseTurnLifecycleParams = {
    * selects the scaffolding addon.
    */
   familiarityRef: RefObject<SubjectFamiliarity>;
+  /** The live voice. The Hinglish (Sarvam) voice turns the narration Hinglish. */
+  voicePreferencesRef?: RefObject<TutorVoicePreferences>;
+  /**
+   * A language switch made during a lesson. Hinglish words to an English
+   * voice (or the reverse) would be wrong, so it waits for the next question.
+   */
+  pendingVoicePreferencesRef?: RefObject<TutorVoicePreferences | null>;
   /** Teaching-note and tutor toggles. Injected into the teaching prompt only. */
   teachingPrefsRef?: RefObject<{
     teachingNote: string;

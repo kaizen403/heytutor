@@ -113,6 +113,9 @@ export function RunCostBox({
   const cartesiaRate = data?.pricing.tts.find(
     (row) => row.lane === "cartesia",
   )?.usdPer1kChars;
+  const sarvamRate = data?.pricing.tts.find(
+    (row) => row.lane === "sarvam",
+  )?.usdPer1kChars;
   const flashRate = data?.pricing.tts.find(
     (row) => row.lane === "flash",
   )?.usdPer1kChars;
@@ -237,6 +240,9 @@ export function RunCostBox({
               . Voice uses the selected speech provider
               {cartesiaRate != null
                 ? `. Cartesia ${formatUsd(cartesiaRate)} / 1k chars`
+                : ""}
+              {sarvamRate != null
+                ? `. Sarvam Hinglish ${formatUsd(sarvamRate)} / 1k chars`
                 : ""}
               {flashRate != null && multiRate != null
                 ? `. Flash ${formatUsd(flashRate)} / 1k chars, Multilingual ${formatUsd(multiRate)} / 1k chars`

@@ -10,6 +10,7 @@ import {
   DEFAULT_FIREWORKS_VISION_MODEL,
   resolveFireworksModel,
   resolveFireworksVisionModel,
+  resolveFireworksVisionModels,
 } from "../../lib/llm/fireworksModels";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -18,7 +19,7 @@ function assert(condition: unknown, message: string): asserts condition {
 
 assert(
   resolveFireworksVisionModel({}) === DEFAULT_FIREWORKS_VISION_MODEL,
-  "vision should default to Qwen 3.7 Plus",
+  "vision should default to DeepSeek V4.1 Flash",
 );
 assert(
   resolveFireworksVisionModel({ FIREWORKS_VISION_MODEL: "only-vision" }) ===
@@ -82,7 +83,13 @@ assert(
   "plain text paste must not start OCR",
 );
 
-const pngBytes = Uint8Array.from([1, 2, 3, 4]);
+// A real 1x1 PNG: the parser reads the IHDR dimensions, so junk bytes fail.
+const pngBytes = Uint8Array.from(
+  Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  ),
+);
 const pngDataUrl = `data:image/png;base64,${Buffer.from(pngBytes).toString("base64")}`;
 const parsedPng = readQuestionImage(pngDataUrl);
 assert(parsedPng?.mimeType === "image/png", "png data URLs keep their mime");
@@ -93,6 +100,17 @@ assert(readQuestionImage("not-a-data-url") === null, "plain text is not a photo"
 
 const extractRoute = readFileSync(new URL("../../app/api/extract-question/route.ts", import.meta.url), "utf8");
 assert(extractRoute.includes("startTurnTrace"), "OCR must open a Langfuse generation");
-assert(extractRoute.includes('generationName: "qwen-vision"'), "OCR observations must be named for the vision lane");
+assert(extractRoute.includes('generationName: "vision-ocr"'), "OCR observations must be named for the vision lane");
+assert(
+  JSON.stringify(resolveFireworksVisionModels({ FIREWORKS_VISION_MODEL: "withdrawn" })) ===
+    JSON.stringify(["withdrawn", DEFAULT_FIREWORKS_VISION_MODEL]),
+  "a configured vision model must fall back to the default",
+);
+assert(
+  JSON.stringify(resolveFireworksVisionModels({})) === JSON.stringify([DEFAULT_FIREWORKS_VISION_MODEL]),
+  "the default vision model is tried once",
+);
+assert(!DEFAULT_FIREWORKS_VISION_MODEL.includes("kimi"), "photo OCR must not default to Kimi pricing");
+assert(extractRoute.includes("response.status !== 404"), "a withdrawn model must fall through to the next one");
 
 console.log("extract question verification passed");

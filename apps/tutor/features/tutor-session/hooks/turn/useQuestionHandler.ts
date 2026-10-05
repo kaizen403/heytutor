@@ -33,6 +33,7 @@ import {
   type ProblemAuthorityV1Response,
   type SceneCandidateValidation,
   type ScenePlanWithRepairResult,
+  narrationLanguageForVoice,
 } from "@heytutor/tutor-core";
 import {
   ARCHETYPES,
@@ -262,6 +263,9 @@ export function useQuestionHandler(
     speedRef,
     fastModeRef,
     familiarityRef,
+    voicePreferencesRef,
+    pendingVoicePreferencesRef,
+    ttsClientRef,
     teachingPrefsRef,
     storedTurnsRef,
     pendingSegmentCountRef,
@@ -476,6 +480,17 @@ export function useQuestionHandler(
       setIsPaused(false);
       setIsReplaying(false);
       setLastError(null);
+      // A language switch made during the last question takes effect here,
+      // before this one begins; from now until the turn ends a switch waits.
+      const pendingVoice = pendingVoicePreferencesRef?.current;
+      if (pendingVoice && voicePreferencesRef && pendingVoicePreferencesRef) {
+        pendingVoicePreferencesRef.current = null;
+        voicePreferencesRef.current = pendingVoice;
+        ttsClientRef.current?.setVoicePreferences?.(pendingVoice);
+      }
+      // The voice speaking this turn decides the narration language, so the
+      // words and the voice can never disagree.
+      const turnNarrationLanguage = narrationLanguageForVoice(voicePreferencesRef?.current?.voiceKey);
       turnActiveRef.current = true;
       phaseRef.current = "thinking";
       const abortController = new AbortController();
@@ -1687,6 +1702,7 @@ export function useQuestionHandler(
             dsaFrameSet?.frames.length ?? 0,
           )
         : 0;
+      const narrationLanguage = turnNarrationLanguage;
       const pagePromptInput = {
         boardRows: workColumnRows(boardLayoutRef.current),
         rowsLeftOnPage: pageRoom?.rowsLeft ?? 0,
@@ -1705,6 +1721,7 @@ export function useQuestionHandler(
         teachingNote: teachingPrefsRef?.current.teachingNote ?? "",
         alwaysShowUnits: teachingPrefsRef?.current.alwaysShowUnits ?? false,
         alwaysStateLawFirst: teachingPrefsRef?.current.alwaysStateLawFirst ?? false,
+        narrationLanguage,
       };
       const teachingPrompt = doubt
         ? buildDoubtTeachingPrompt({
@@ -1765,6 +1782,7 @@ export function useQuestionHandler(
             teachingNote: teachingPrefsRef?.current.teachingNote ?? "",
             alwaysShowUnits: teachingPrefsRef?.current.alwaysShowUnits ?? false,
             alwaysStateLawFirst: teachingPrefsRef?.current.alwaysStateLawFirst ?? false,
+            narrationLanguage,
           });
       const { givenSegments, lessonBudget, openingSegment } = teachingPrompt;
       tutorDebug("turn", "lesson budget", {
@@ -2621,6 +2639,9 @@ export function useQuestionHandler(
       conversationHistoryRef,
       fastModeRef,
       familiarityRef,
+      voicePreferencesRef,
+      pendingVoicePreferencesRef,
+      ttsClientRef,
       teachingPrefsRef,
       storedTurnsRef,
       pendingSegmentCountRef,
