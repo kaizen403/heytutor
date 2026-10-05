@@ -1,14 +1,21 @@
 import { readFileSync } from "node:fs";
+import { TEACHING_STARTUP_RETRY_HEADER as CLIENT_STARTUP_RETRY_HEADER } from "@heytutor/tutor-core";
 import {
   CODE_LESSON_TEACHING_MAX_TOKENS,
   DEFAULT_TEACHING_FAST_MODEL,
   DEFAULT_TEACHING_MAX_TOKENS,
   DEFAULT_TEACHING_MODEL,
+  DEFAULT_TEACHING_RETRY_MODEL,
+  TEACHING_STARTUP_RETRY_HEADER,
   TEACHING_TOKEN_CEILING,
   fetchTeachingCompletion,
+  isRetryableTeachingFailure,
+  readTeachingStartupRetry,
   resolveTeachingContentBudget,
   resolveTeachingModel,
+  resolveTeachingModelRoute,
   resolveTeachingReasoningEffort,
+  teachingAttemptModel,
 } from "../../lib/llm/teachingTransport";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -121,6 +128,63 @@ assert(
   "a code lesson must get the 12k teaching budget",
 );
 
+// Startup retry routing. Measured 6 Oct 2026: the Kimi K3 Fast router stalled
+// for about a minute and the startup retry went back to the same router.
+{
+  const same = (actual: unknown, expected: unknown, message: string) =>
+    assert(JSON.stringify(actual) === JSON.stringify(expected), `${message}: got ${JSON.stringify(actual)}`);
+  assert(
+    DEFAULT_TEACHING_RETRY_MODEL === "accounts/fireworks/models/kimi-k3",
+    "the startup retry must default to the standard Kimi K3 deployment",
+  );
+  const first = resolveTeachingModelRoute({}, { fastMode: true });
+  same(first, { model: DEFAULT_TEACHING_FAST_MODEL, alternate: DEFAULT_TEACHING_MODEL, fallbackReason: null },
+    "a first Fast mode request must call the router, with standard Kimi K3 as its alternate");
+  for (const reason of ["first_content_timeout", "reasoning_only"] as const) {
+    same(resolveTeachingModelRoute({}, { fastMode: true, startupRetry: reason }),
+      { model: DEFAULT_TEACHING_MODEL, alternate: null, fallbackReason: `startup_retry_${reason}` },
+      `a Fast mode startup retry (${reason}) must leave the router for standard Kimi K3`);
+  }
+  same(
+    resolveTeachingModelRoute({ FIREWORKS_TEACHING_RETRY_MODEL: " retry-model " }, { fastMode: true, startupRetry: "first_content_timeout" }).model,
+    "retry-model",
+    "FIREWORKS_TEACHING_RETRY_MODEL must override the retry deployment",
+  );
+  same(
+    resolveTeachingModelRoute({ FIREWORKS_TEACHING_RETRY_MODEL: DEFAULT_TEACHING_FAST_MODEL }, { fastMode: true, startupRetry: "first_content_timeout" }),
+    { model: DEFAULT_TEACHING_FAST_MODEL, alternate: null, fallbackReason: null },
+    "a retry deployment equal to the router is no fallback",
+  );
+  same(
+    resolveTeachingModelRoute({ FIREWORKS_TEACHING_MODEL: "standard-model" }, { fastMode: false, startupRetry: "first_content_timeout" }),
+    { model: "standard-model", alternate: null, fallbackReason: null },
+    "with Fast mode off the retry keeps the standard deployment the student chose",
+  );
+  same(resolveTeachingModelRoute({}, {}), { model: DEFAULT_TEACHING_MODEL, alternate: null, fallbackReason: null },
+    "an unlabelled call stays on the standard model with no alternate");
+  same(
+    [0, 1, 2].map((attempt) => teachingAttemptModel(first, attempt, 3)),
+    [DEFAULT_TEACHING_FAST_MODEL, DEFAULT_TEACHING_FAST_MODEL, DEFAULT_TEACHING_MODEL],
+    "only the last network retry moves to the alternate deployment",
+  );
+  same(
+    [0, 1, 2].map((attempt) => teachingAttemptModel(resolveTeachingModelRoute({}, { fastMode: true, startupRetry: "reasoning_only" }), attempt, 3)),
+    [DEFAULT_TEACHING_MODEL, DEFAULT_TEACHING_MODEL, DEFAULT_TEACHING_MODEL],
+    "a startup retry never goes back to the router that stalled",
+  );
+  same(teachingAttemptModel(first, 0, 1), DEFAULT_TEACHING_FAST_MODEL, "a single attempt is never a fallback");
+  assert(isRetryableTeachingFailure(null), "a connection failure is retryable");
+  assert(isRetryableTeachingFailure(new Response(null, { status: 503 })), "a provider 5xx is retryable");
+  assert(!isRetryableTeachingFailure(new Response(null, { status: 400 })), "a 4xx would fail the same way anywhere");
+  assert(!isRetryableTeachingFailure(new Response(null, { status: 200 })), "a stream that started is never retried");
+  assert(TEACHING_STARTUP_RETRY_HEADER === CLIENT_STARTUP_RETRY_HEADER, "client and server must agree on the startup retry header");
+  same(readTeachingStartupRetry(new Headers({ "x-heytutor-reasoning-retry": "1" })), null,
+    "the reasoning-off header alone (a hedge) is not a startup retry");
+  same(readTeachingStartupRetry(new Headers({ [TEACHING_STARTUP_RETRY_HEADER]: "1" })), null, "only a named reason counts");
+  same(readTeachingStartupRetry(new Headers({ [TEACHING_STARTUP_RETRY_HEADER]: "first_content_timeout" })), "first_content_timeout",
+    "the startup retry reason must be read");
+}
+
 async function verifyTimeout(): Promise<void> {
   let timeoutObserved = false;
   let timeoutRejected = false;
@@ -160,6 +224,10 @@ assert(
   const anchors: Array<[string, string, string]> = [
     ["../../features/tutor-session/hooks/turn/useQuestionHandler.ts", "noReasoning: reasoningOnlyRetry", "the live hook must ask for no thinking on the reasoning-only retry"],
     ["../lecture-lab/lecturePipeline.ts", "noReasoning: reasoningOnlyRetry", "the lecture lab must mirror the live retry"],
+    ["../../features/tutor-session/hooks/turn/useQuestionHandler.ts", "startupRetry: reasoningOnlyRetry && !resumeInkRetry ? startupRetryReason : undefined", "the live hook must name its startup retry"],
+    ["../../features/tutor-session/hooks/turn/useQuestionHandler.ts", "startupRetryReason = continueCount === 0 && !resume && !resumeInkRetry ? retryReason : undefined", "only the retry of the first request is a startup retry"],
+    ["../lecture-lab/lecturePipeline.ts", "startupRetry = continueCount === 0;", "the lecture lab must mirror the live startup retry"],
+    ["../../app/api/chat/route.ts", "readTeachingStartupRetry(request.headers)", "the chat route must route the startup retry"],
     ["../../app/api/chat/route.ts", 'afterReasoningOnly: request.headers.get("x-heytutor-reasoning-retry") === "1"', "the chat route must honour the retry header"],
     ["../../../../packages/tutor-core/src/llm/llmAPI.ts", 'headers["x-heytutor-reasoning-retry"] = "1"', "the stream client must send the retry header"],
   ];

@@ -42,9 +42,12 @@ import {
 } from "@/lib/llm/plannerTransport";
 import {
   fetchTeachingCompletion,
+  isRetryableTeachingFailure,
+  readTeachingStartupRetry,
   resolveTeachingContentBudget,
-  resolveTeachingModel,
+  resolveTeachingModelRoute,
   resolveTeachingReasoningEffort,
+  teachingAttemptModel,
 } from "@/lib/llm/teachingTransport";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
@@ -475,6 +478,7 @@ function createTracingTransformStream(
             usage_status: usage.known ? "known" : "unknown",
             cached_input_tokens: usage.cachedInput ?? 0,
           },
+          model: spend?.model,
           mock,
           updateTrace,
         });
@@ -514,6 +518,7 @@ function createTracingTransformStream(
           content_chars: accumulatedOutput.length,
           usage_status: "unknown",
         },
+        model: spend?.model,
         mock,
         updateTrace: false,
         level: clientAborted ? "WARNING" : "ERROR",
@@ -784,7 +789,9 @@ export async function POST(request: Request): Promise<Response> {
   let streamOwnsGrant = false;
   let reservation: PaidUsageReservation | null = null;
   let attemptCount = 0;
-  let singleAttemptCost = 0;
+  // What each dispatched upstream attempt may cost, priced for the model it called.
+  const attemptCosts: number[] = [];
+  const attemptedCost = () => attemptCosts.reduce((total, cost) => total + cost, 0);
   const requestSignal = AbortSignal.any([request.signal, AbortSignal.timeout(120_000)]);
   try {
   let rawBody: string;
@@ -803,9 +810,11 @@ export async function POST(request: Request): Promise<Response> {
   const fastMode = parseFastModeHeader(request.headers.get("x-heytutor-fast-mode"));
   const apiKey = process.env.FIREWORKS_API_KEY;
   const mock = !apiKey;
-  const serverModel = kind === "teaching"
-    ? resolveTeachingModel(process.env, { fastMode })
-    : resolveFireworksModel({ fastMode });
+  // A startup retry after a stalled Fast router runs on the standard deployment.
+  const teachingRoute = kind === "teaching"
+    ? resolveTeachingModelRoute(process.env, { fastMode, startupRetry: readTeachingStartupRetry(request.headers) })
+    : null;
+  const serverModel = teachingRoute ? teachingRoute.model : resolveFireworksModel({ fastMode });
   const turnTrace = startTurnTrace({
     userId: actor.userId,
     sessionId,
@@ -888,6 +897,12 @@ export async function POST(request: Request): Promise<Response> {
   // header only tags the generation so the pair can be told apart.
   const teachingHedge = isTeachingHedge(request.headers);
   const teachingMetadata: Record<string, unknown> = teachingHedge ? { teaching_hedge: true } : {};
+  const route = teachingRoute ?? { model: serverModel, alternate: null, fallbackReason: null };
+  const markModelFallback = (reason: string) => {
+    teachingMetadata.teaching_model_fallback = true;
+    teachingMetadata.teaching_model_fallback_reason = reason;
+  };
+  if (route.fallbackReason) markModelFallback(route.fallbackReason);
   const teachingPass = request.headers.get("x-heytutor-teaching-pass");
   const hasAuthoritativePlan = teachingPass === "planned";
   const isCodeLessonTurn =
@@ -899,15 +914,24 @@ export async function POST(request: Request): Promise<Response> {
     codeLesson: teachingPass === "code-lesson",
     afterReasoningOnly: request.headers.get("x-heytutor-reasoning-retry") === "1",
   });
-  const bodyToSend = injectStreamOptions(rawBody, serverModel, reasoningEffort, isCodeLessonTurn);
-  const providerBody = JSON.parse(bodyToSend) as Record<string, unknown>;
-  singleAttemptCost = maximumLlmCost(providerBody.messages, Number(providerBody.max_tokens), [serverModel]);
-  const reserved = await reservePaidUsage({ actor, grant, kind: "teaching", traceId, usd: singleAttemptCost * 3 });
+  const TEACHING_UPSTREAM_ATTEMPTS = 3;
+  // Same body for every deployment; only `model` differs.
+  const bodyFor = (model: string) => injectStreamOptions(rawBody, model, reasoningEffort, isCodeLessonTurn);
+  const providerBody = JSON.parse(bodyFor(route.model)) as Record<string, unknown>;
+  const attemptCostFor = (model: string) =>
+    maximumLlmCost(providerBody.messages, Number(providerBody.max_tokens), [model]);
+  let reservedUsd = 0;
+  for (let attempt = 0; attempt < TEACHING_UPSTREAM_ATTEMPTS; attempt++) {
+    reservedUsd += attemptCostFor(teachingAttemptModel(route, attempt, TEACHING_UPSTREAM_ATTEMPTS));
+  }
+  const reserved = await reservePaidUsage({ actor, grant, kind: "teaching", traceId, usd: reservedUsd });
   if (reserved instanceof Response) return reserved;
   reservation = reserved;
 
   tutorDebug("chat", "forwarding to Fireworks", {
-    model: serverModel,
+    model: route.model,
+    alternate_model: route.alternate,
+    model_fallback: route.fallbackReason,
     authoritative_plan: hasAuthoritativePlan,
     code_lesson: isCodeLessonTurn,
     reasoning_mode: reasoningMode,
@@ -916,20 +940,33 @@ export async function POST(request: Request): Promise<Response> {
   });
 
   let upstreamStartedAt: number | null = null;
+  // The deployment the latest upstream attempt called.
+  let calledModel = route.model;
   try {
     upstreamStartedAt = Date.now();
     let finalAttemptStartedAt = upstreamStartedAt;
     let response: Response | null = null;
     let lastFetchError: unknown = null;
 
-    // Transient DNS/TLS/"fetch failed" blips are common; one quick retry avoids
-    // aborting a whole turn for a one-off network hiccup.
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // Transient DNS/TLS/"fetch failed" blips and provider 5xx are common; quick
+    // retries avoid aborting a whole turn for a one-off hiccup. When every
+    // earlier attempt failed to connect, the last one moves to the alternate
+    // deployment. Nothing here runs once a response has been accepted, so a
+    // stream that started is never retried.
+    for (let attempt = 0; attempt < TEACHING_UPSTREAM_ATTEMPTS; attempt++) {
+      if (requestSignal.aborted) break;
+      const model = teachingAttemptModel(route, attempt, TEACHING_UPSTREAM_ATTEMPTS);
+      if (model !== route.model && !teachingMetadata.teaching_model_fallback) {
+        markModelFallback("upstream_connect_failure");
+        tutorDebug("chat", "teaching falls back to the alternate deployment", { from: route.model, to: model });
+      }
+      calledModel = model;
+      attemptCount += 1;
+      attemptCosts.push(attemptCostFor(model));
+      finalAttemptStartedAt = Date.now();
+      let failedResponse: Response | null = null;
       try {
-        if (requestSignal.aborted) break;
-        attemptCount += 1;
-        finalAttemptStartedAt = Date.now();
-        response = await fetchTeachingCompletion({
+        const attemptResponse = await fetchTeachingCompletion({
           url: FIREWORKS_CHAT_URL,
           signal: requestSignal,
           init: {
@@ -938,21 +975,34 @@ export async function POST(request: Request): Promise<Response> {
               Authorization: `Bearer ${apiKey}`,
               "content-type": "application/json",
             },
-            body: bodyToSend,
+            body: bodyFor(model),
           },
         });
         lastFetchError = null;
-        break;
+        response = attemptResponse;
+        if (attempt === TEACHING_UPSTREAM_ATTEMPTS - 1 || attemptResponse.ok || !isRetryableTeachingFailure(attemptResponse)) {
+          break;
+        }
+        failedResponse = attemptResponse;
+        await attemptResponse.body?.cancel().catch(() => undefined);
+        response = null;
+        tutorDebug("chat", "Fireworks upstream error before content", {
+          attempt: attempt + 1,
+          model,
+          status: attemptResponse.status,
+        });
       } catch (error: unknown) {
         lastFetchError = error;
         tutorDebug("chat", "Fireworks fetch failed", {
           attempt: attempt + 1,
+          model,
           message: error instanceof Error ? error.message : String(error),
         });
-        if (requestSignal.aborted) break;
-        if (attempt < 2) {
-          await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
-        }
+      }
+      if (requestSignal.aborted) break;
+      if (failedResponse) lastFetchError = new Error(`upstream status ${failedResponse.status}`);
+      if (attempt < TEACHING_UPSTREAM_ATTEMPTS - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
       }
     }
 
@@ -980,6 +1030,7 @@ export async function POST(request: Request): Promise<Response> {
       endLlmGeneration(turnTrace, {
         output: PUBLIC_CHAT_ERROR,
         metadata: { ...teachingMetadata, ...chatTimingMetadata(timing), error: true, status: response.status },
+        model: calledModel,
         updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
         level: "ERROR",
       });
@@ -997,6 +1048,7 @@ export async function POST(request: Request): Promise<Response> {
       endLlmGeneration(turnTrace, {
         output: "",
         metadata: { ...teachingMetadata, ...chatTimingMetadata(timing), error: true, reason: "empty_body" },
+        model: calledModel,
         updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
         level: "ERROR",
       });
@@ -1014,7 +1066,9 @@ export async function POST(request: Request): Promise<Response> {
         false,
         timing,
         shouldUpdateParentTraceOutput(kind, userInput),
-        { actor, model: serverModel, reservation, unknownCost: () => singleAttemptCost * attemptCount, retryCost: () => singleAttemptCost * Math.max(0, attemptCount - 1) },
+        // Usage is priced for the deployment that streamed; earlier failed
+        // attempts keep their own bounded charge.
+        { actor, model: calledModel, reservation, unknownCost: attemptedCost, retryCost: () => attemptedCost() - (attemptCosts.at(-1) ?? 0) },
         teachingMetadata,
         request.signal,
       ),
@@ -1025,7 +1079,7 @@ export async function POST(request: Request): Promise<Response> {
       total_setup_ms: Date.now() - requestStartedAt,
     });
 
-    const heldBody = holdGrantUntilStreamEnds(grant, grantTraceId, holdPaidUsage(tracedBody, reservation, () => singleAttemptCost * attemptCount), releaseInUse);
+    const heldBody = holdGrantUntilStreamEnds(grant, grantTraceId, holdPaidUsage(tracedBody, reservation, attemptedCost), releaseInUse);
     streamOwnsGrant = true;
     return new Response(heldBody, {
       status: response.status,
@@ -1052,6 +1106,7 @@ export async function POST(request: Request): Promise<Response> {
         error: true,
         ...(request.signal.aborted ? { aborted: true } : { upstream_error: error instanceof Error ? error.name : "unknown" }),
       },
+      model: calledModel,
       updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
       level: request.signal.aborted ? "WARNING" : "ERROR",
     });
@@ -1067,7 +1122,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   } finally {
     if (!streamOwnsGrant) {
-      await reservation?.settle(singleAttemptCost * attemptCount).catch(error => console.error("[billing] teaching reconciliation failed", error));
+      await reservation?.settle(attemptedCost()).catch(error => console.error("[billing] teaching reconciliation failed", error));
       releaseInUse();
     }
   }

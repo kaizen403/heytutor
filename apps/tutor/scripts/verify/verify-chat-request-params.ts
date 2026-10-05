@@ -67,7 +67,7 @@ const reservations = new Map<string, number>();
 const settlements: { id: string; reserved: number; actual: number | undefined }[] = [];
 let reservationCounter = 0;
 const ownedTraces = new Map<string, { userId: string; expiresAt: Date }>();
-const generations: { turn: { seq: number }; params: { metadata?: Record<string, unknown>; level?: string } }[] = [];
+const generations: { turn: { seq: number; model?: string }; params: { metadata?: Record<string, unknown>; level?: string; model?: string } }[] = [];
 let turnSeq = 0;
 
 function periodBalance(): PeriodBalance {
@@ -129,8 +129,8 @@ mock.module(path("lib/billing/ledger.ts"), {
 mock.module(path("lib/obs/langfuse.ts"), {
   namedExports: {
     genTraceId: () => `server-trace-${testNumber}`,
-    startTurnTrace: () => ({ seq: ++turnSeq }),
-    endLlmGeneration: (turn: { seq: number }, params: { metadata?: Record<string, unknown>; level?: string }) => {
+    startTurnTrace: ({ model }: { model?: string }) => ({ seq: ++turnSeq, model }),
+    endLlmGeneration: (turn: { seq: number; model?: string }, params: { metadata?: Record<string, unknown>; level?: string; model?: string }) => {
       generations.push({ turn, params });
     },
     flushInBackground: () => undefined,
@@ -142,6 +142,7 @@ const chatTrace = load(path("lib/obs/chatTrace.ts")) as typeof import("../../lib
 const grants = load(path("lib/billing/grant.ts")) as typeof import("../../lib/billing/grant");
 const fuses = load(path("lib/billing/fuses.ts")) as typeof import("../../lib/billing/fuses");
 const chat = load(path("app/api/chat/route.ts")) as typeof import("../../app/api/chat/route");
+const paidUsage = load(path("lib/billing/paidUsage.ts")) as typeof import("../../lib/billing/paidUsage");
 const nodeRequest = load(path("lib/http/nodeRequest.ts")) as typeof import("../../lib/http/nodeRequest");
 // The same body clone Next runs for every request that passes middleware.
 const nextBodyStreams = load("next/dist/server/body-streams.js") as {
@@ -282,6 +283,29 @@ function chatRequest(traceId: string, options: { headers?: Record<string, string
 }
 
 const HEDGE_HEADERS = { "x-heytutor-teaching-hedge": "1", "x-heytutor-reasoning-retry": "1" };
+const ROUTER = "accounts/fireworks/routers/kimi-k3-fast";
+const STANDARD = "accounts/fireworks/models/kimi-k3";
+const STARTUP_RETRY_HEADERS = { "x-heytutor-reasoning-retry": "1", "x-heytutor-startup-retry": "first_content_timeout" };
+
+/** Answers each provider call in turn: a thrown error, a status, or a finished stream. */
+function installScriptedProvider(script: Array<"throw" | number | "stream" | "stream-no-usage">, models: string[], bodies: Record<string, unknown>[] = []): void {
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(String(options?.body)) as Record<string, unknown>;
+    bodies.push(body);
+    models.push(String(body.model));
+    const step = script[models.length - 1];
+    if (step === undefined) throw new Error("no provider call beyond the script");
+    if (step === "throw") throw new TypeError("fetch failed");
+    if (typeof step === "number") return new Response("upstream down", { status: step });
+    if (step === "stream-no-usage") {
+      return new Response(`data: ${JSON.stringify({ choices: [{ delta: { content: "Force." } }] })}\n\ndata: [DONE]\n\n`, { headers: { "content-type": "text/event-stream" } });
+    }
+    return new Response(
+      `data: ${JSON.stringify({ choices: [{ delta: { content: "Force." } }], usage: { prompt_tokens: 800, completion_tokens: 200 } })}\n\ndata: [DONE]\n\n`,
+      { headers: { "content-type": "text/event-stream" } },
+    );
+  };
+}
 
 interface Upstream {
   body: Record<string, unknown>;
@@ -476,6 +500,8 @@ const routeChecks: [string, () => Promise<void>][] = [
     upstreams[0]!.controller.error(new TypeError("terminated"));
     await assert.rejects(response.text());
     await settleMicrotasks();
+    assert.equal(upstreams.length, 1, "a stream that started is never retried on any deployment");
+    assert.equal(generationFor(1).metadata?.teaching_model_fallback, undefined);
     const metadata = generationFor(1).metadata!;
     assert.equal(metadata.aborted, undefined, "the student did not abort this request");
     assert.equal(metadata.upstream_error, "TypeError");
@@ -484,6 +510,130 @@ const routeChecks: [string, () => Promise<void>][] = [
     assert.equal(reservations.size, 0);
     assert.equal(pendingAi(), 0);
     assert.equal(grants.getTurnGrant(actor.userId)?.inUse, 0);
+  }],
+  ["the startup retry leaves the Fast router for standard Kimi K3, and is billed and traced as that model", async () => {
+    const trace = arrange();
+    const upstreams: Upstream[] = [];
+    installHeldProvider(upstreams);
+    const usage = { prompt_tokens: 800, completion_tokens: 200 };
+    const bodies: string[] = [];
+    // A planned turn: the first request already runs with reasoning off.
+    const planned = { "x-heytutor-teaching-pass": "planned" };
+    for (const headers of [planned, { ...planned, ...STARTUP_RETRY_HEADERS }]) {
+      const response = await chat.POST(chatRequest(trace, { headers }));
+      assert.equal(response.status, 200);
+      const upstream = upstreams.at(-1)!;
+      upstream.controller.enqueue(sse({ choices: [{ delta: { content: "Force." } }], usage }));
+      upstream.controller.close();
+      bodies.push(await response.text());
+      await settleMicrotasks();
+    }
+    assert.deepEqual(upstreams.map((upstream) => upstream.body.model), [ROUTER, STANDARD],
+      "the first request calls the router and its startup retry calls the standard deployment");
+    assert.deepEqual(upstreams[1]!.body.thinking, { type: "disabled" }, "the startup retry keeps reasoning off");
+    assert.deepEqual({ ...upstreams[1]!.body, model: ROUTER }, upstreams[0]!.body, "only the model changes on the startup retry");
+    assert.equal(generationFor(1).metadata?.teaching_model_fallback, undefined, "the first request is no fallback");
+    assert.equal(generationFor(2).metadata?.teaching_model_fallback, true);
+    assert.equal(generationFor(2).metadata?.teaching_model_fallback_reason, "startup_retry_first_content_timeout");
+    assert.equal(generations[1]!.turn.model, STANDARD, "the Langfuse generation starts as the model called");
+    assert.equal(generationFor(2).model, STANDARD, "the Langfuse generation ends as the model called");
+    assert.equal(generationFor(1).model, ROUTER);
+    // Standard Kimi K3 is priced at two thirds of the router. The first
+    // request reserves two router attempts and one standard fallback; the
+    // retry reserves three standard attempts. Same usage, two thirds the charge.
+    assert.equal(settlements.length, 2);
+    const [router, standard] = settlements;
+    assert(Math.abs(router!.reserved / standard!.reserved - 4 / 3) < 0.01, `reservation priced per attempt model: ${router!.reserved} vs ${standard!.reserved}`);
+    assert(Math.abs(standard!.actual! / router!.actual! - 2 / 3) < 0.01, `settlement priced for the model called: ${standard!.actual} vs ${router!.actual}`);
+    assert.equal(reservations.size, 0);
+  }],
+  ["a hedge and a plain reasoning-off retry stay on the Fast router", async () => {
+    const trace = arrange();
+    const models: string[] = [];
+    installScriptedProvider(["stream", "stream"], models);
+    for (const headers of [HEDGE_HEADERS, { "x-heytutor-reasoning-retry": "1" }]) {
+      const response = await chat.POST(chatRequest(trace, { headers }));
+      await response.text();
+      await settleMicrotasks();
+    }
+    assert.deepEqual(models, [ROUTER, ROUTER]);
+    assert.equal(generationFor(1).metadata?.teaching_model_fallback, undefined);
+    assert.equal(generationFor(2).metadata?.teaching_model_fallback, undefined);
+  }],
+  ["connection failures and a 5xx move only the last network retry to the alternate deployment", async () => {
+    const trace = arrange();
+    const models: string[] = [];
+    const bodies: Record<string, unknown>[] = [];
+    installScriptedProvider(["throw", 503, "stream"], models, bodies);
+    const response = await chat.POST(chatRequest(trace));
+    assert.equal(response.status, 200);
+    assert.match(await response.text(), /Force\./);
+    await settleMicrotasks();
+    assert.deepEqual(models, [ROUTER, ROUTER, STANDARD]);
+    const generation = generationFor(1);
+    assert.equal(generation.metadata?.teaching_model_fallback, true);
+    assert.equal(generation.metadata?.teaching_model_fallback_reason, "upstream_connect_failure");
+    assert.equal(generation.metadata?.attempt_count, 3);
+    assert.equal(generation.model, STANDARD, "the generation is renamed to the model that streamed");
+    assert.equal(settlements.length, 1);
+    // Two router attempts that never streamed keep their bounded charge; the
+    // usage that streamed is priced for the standard deployment.
+    const attemptCost = (model: string) => paidUsage.maximumLlmCost(bodies[0]!.messages, Number(bodies[0]!.max_tokens), [model]);
+    const millicents = (usd: number) => Math.ceil(usd * 1000);
+    assert.equal(settlements[0]!.reserved, millicents(2 * attemptCost(ROUTER) + attemptCost(STANDARD)), "the reservation covers the alternate's price");
+    assert.equal(
+      settlements[0]!.actual,
+      millicents(paidUsage.actualLlmCost({ input: 800, output: 200 }, STANDARD)! + 2 * attemptCost(ROUTER)),
+      "the streamed usage is billed for the deployment that streamed it",
+    );
+    assert.equal(reservations.size, 0);
+  }],
+  ["a fallback stream with no usage settles at each attempt's own bound", async () => {
+    const trace = arrange();
+    const models: string[] = [];
+    const bodies: Record<string, unknown>[] = [];
+    installScriptedProvider(["throw", "throw", "stream-no-usage"], models, bodies);
+    const response = await chat.POST(chatRequest(trace));
+    await response.text();
+    await settleMicrotasks();
+    assert.deepEqual(models, [ROUTER, ROUTER, STANDARD]);
+    const attemptCost = (model: string) => paidUsage.maximumLlmCost(bodies[0]!.messages, Number(bodies[0]!.max_tokens), [model]);
+    assert.equal(settlements.length, 1);
+    assert.equal(settlements[0]!.actual, Math.ceil((2 * attemptCost(ROUTER) + attemptCost(STANDARD)) * 1000),
+      "the fallback attempt is bounded at the alternate's price, not the router's");
+    assert(settlements[0]!.actual! < Math.ceil(3 * attemptCost(ROUTER) * 1000));
+  }],
+  ["one connection failure retries the router, not the alternate", async () => {
+    const trace = arrange();
+    const models: string[] = [];
+    installScriptedProvider(["throw", "stream"], models);
+    const response = await chat.POST(chatRequest(trace));
+    await response.text();
+    await settleMicrotasks();
+    assert.deepEqual(models, [ROUTER, ROUTER]);
+    assert.equal(generationFor(1).metadata?.teaching_model_fallback, undefined);
+  }],
+  ["a 4xx is not retried on any deployment", async () => {
+    const trace = arrange();
+    const models: string[] = [];
+    installScriptedProvider([400], models);
+    const response = await chat.POST(chatRequest(trace));
+    assert.equal(response.status, 502);
+    await settleMicrotasks();
+    assert.deepEqual(models, [ROUTER]);
+    assert.equal(reservations.size, 0);
+  }],
+  ["a startup retry that cannot connect never goes back to the router", async () => {
+    const trace = arrange();
+    const models: string[] = [];
+    installScriptedProvider(["throw", "throw", "throw"], models);
+    const response = await chat.POST(chatRequest(trace, { headers: STARTUP_RETRY_HEADERS }));
+    assert.equal(response.status, 500);
+    await settleMicrotasks();
+    assert.deepEqual(models, [STANDARD, STANDARD, STANDARD]);
+    assert.equal(generationFor(1).model, STANDARD);
+    assert.equal(generationFor(1).metadata?.teaching_model_fallback_reason, "startup_retry_first_content_timeout");
+    assert.equal(reservations.size, 0);
   }],
   ["a hedge still counts toward the trace's finite teaching allowance", async () => {
     const trace = arrange();

@@ -6,10 +6,12 @@ import {
 import {
   DEFAULT_TEACHING_FAST_MODEL,
   DEFAULT_TEACHING_MODEL,
+  DEFAULT_TEACHING_RETRY_MODEL,
+  resolveTeachingAlternateFireworksModel,
   resolveTeachingFireworksModel,
 } from "./fireworksModels";
 
-export { DEFAULT_TEACHING_FAST_MODEL, DEFAULT_TEACHING_MODEL };
+export { DEFAULT_TEACHING_FAST_MODEL, DEFAULT_TEACHING_MODEL, DEFAULT_TEACHING_RETRY_MODEL };
 const DEFAULT_TEACHING_CONNECT_TIMEOUT_MS = 25_000;
 export const DEFAULT_TEACHING_MAX_TOKENS = 3600;
 export const TEACHING_TOKEN_CEILING = 6_000;
@@ -71,6 +73,77 @@ export function resolveTeachingModel(
     fastMode: options.fastMode,
     env,
   });
+}
+
+/**
+ * Sent only by the client's startup retry: the turn's first teaching request
+ * timed out before a usable step, or spoke nothing but reasoning. The value is
+ * that reason. `x-heytutor-reasoning-retry` keeps its own meaning (reasoning
+ * off) and is also sent by the hedge, so it cannot mark a stall on its own.
+ */
+export const TEACHING_STARTUP_RETRY_HEADER = "x-heytutor-startup-retry";
+
+export type TeachingStartupRetryReason = "first_content_timeout" | "reasoning_only";
+
+export function readTeachingStartupRetry(headers: Headers): TeachingStartupRetryReason | null {
+  const value = headers.get(TEACHING_STARTUP_RETRY_HEADER);
+  return value === "first_content_timeout" || value === "reasoning_only" ? value : null;
+}
+
+export type TeachingModelFallbackReason =
+  | `startup_retry_${TeachingStartupRetryReason}`
+  | "upstream_connect_failure";
+
+export interface TeachingModelRoute {
+  /** The deployment the first upstream attempt calls. */
+  model: string;
+  /** Called on the last network retry when every earlier attempt failed to connect. */
+  alternate: string | null;
+  /** Set when `model` is already the alternate deployment. */
+  fallbackReason: TeachingModelFallbackReason | null;
+}
+
+/**
+ * Which teaching deployment each upstream attempt calls.
+ *
+ * A Fast mode startup retry skips the router that just stalled and runs on
+ * the standard deployment, whatever the stall reason: a reasoning-only retry
+ * runs with thinking off either way, so the deployment change costs nothing.
+ * It gets no alternate of its own; the router is what it is escaping.
+ */
+export function resolveTeachingModelRoute(
+  env: Record<string, string | undefined> = process.env,
+  options: { fastMode?: boolean; startupRetry?: TeachingStartupRetryReason | null } = {},
+): TeachingModelRoute {
+  const model = resolveTeachingModel(env, { fastMode: options.fastMode });
+  const alternate = resolveTeachingAlternateFireworksModel({ fastMode: options.fastMode, env });
+  if (!alternate || alternate === model) return { model, alternate: null, fallbackReason: null };
+  if (options.startupRetry) {
+    return { model: alternate, alternate: null, fallbackReason: `startup_retry_${options.startupRetry}` };
+  }
+  return { model, alternate, fallbackReason: null };
+}
+
+/**
+ * Whether a failed upstream attempt may be retried before any content: a
+ * connection failure (no response) or a provider 5xx. A 4xx is the request's
+ * own fault and would fail the same way anywhere.
+ */
+export function isRetryableTeachingFailure(response: Response | null): boolean {
+  return response === null || response.status >= 500;
+}
+
+/**
+ * The deployment for upstream attempt `attempt` (0 based) of `attempts`. The
+ * last attempt moves to the alternate only when every earlier one failed to
+ * connect; a stream that started is never retried at all.
+ */
+export function teachingAttemptModel(
+  route: TeachingModelRoute,
+  attempt: number,
+  attempts: number,
+): string {
+  return route.alternate && attempt === attempts - 1 && attempt > 0 ? route.alternate : route.model;
 }
 
 /**

@@ -802,6 +802,8 @@ export async function runLecture(
     let continueCount = 0;
     let previousChunk = "";
     let reasoningOnlyRetry = false;
+    // Mirrors the live hook: only the retry of the turn's first request is a startup retry.
+    let startupRetry = false;
     let incomplete = false;
     while (continueCount <= MAX_LLM_CONTINUATIONS) {
       const isContinuation = continueCount > 0 && !reasoningOnlyRetry;
@@ -822,6 +824,7 @@ export async function runLecture(
         ),
         fastMode,
         noReasoning: reasoningOnlyRetry,
+        startupRetry: reasoningOnlyRetry && startupRetry ? "reasoning_only" : undefined,
         traceId,
         question,
       });
@@ -836,6 +839,7 @@ export async function runLecture(
         streamResult.text.trim().length === 0 &&
         (streamResult.streamStats?.reasoningChars ?? 0) > 0;
       if (reasoningOnlyChunk && !reasoningOnlyRetry && continueCount < MAX_LLM_CONTINUATIONS) {
+        startupRetry = continueCount === 0;
         reasoningOnlyRetry = true;
         continueCount += 1;
         continue;

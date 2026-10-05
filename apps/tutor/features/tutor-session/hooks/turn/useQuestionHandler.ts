@@ -13,6 +13,7 @@ import {
   streamLLMResponse,
   TEACHING_HEDGE_AFTER_MS,
   type TeachingAttemptKind,
+  type TeachingStartupRetryReason,
   compactConversationHistory,
   tutorDebug,
   resolveApiUrl,
@@ -2208,6 +2209,9 @@ export function useQuestionHandler(
         let continueCount = 0;
         let previousChunk = "";
         let reasoningOnlyRetry = false;
+        // Set only when the retry follows the turn's first request. The server
+        // moves it off the Fast router that just stalled.
+        let startupRetryReason: TeachingStartupRetryReason | undefined;
         let stepBoundaryTail = "";
         // Beats the lesson still owed when the previous chunk ended.
         let beatsLeftBefore = Number.POSITIVE_INFINITY;
@@ -2274,6 +2278,7 @@ export function useQuestionHandler(
               codeLesson: Boolean(codeLesson),
               // The retry after a reasoning-only response must speak.
               noReasoning: reasoningOnlyRetry,
+              startupRetry: reasoningOnlyRetry && !resumeInkRetry ? startupRetryReason : undefined,
               hasUsableContent: STREAM_SEGMENTS_LIVE ? () => usableTeachingStepReceived : undefined,
               // A silent first request is raced by a reasoning-off copy; the
               // first to speak wins and only its words reach the parser.
@@ -2342,13 +2347,17 @@ export function useQuestionHandler(
             !reasoningOnlyRetry &&
             continueCount < MAX_LLM_CONTINUATIONS
           ) {
+            const retryReason: TeachingStartupRetryReason = streamResult.streamStats?.firstContentTimedOut
+              ? "first_content_timeout"
+              : "reasoning_only";
+            startupRetryReason = continueCount === 0 && !resume && !resumeInkRetry ? retryReason : undefined;
             reasoningOnlyRetry = true;
             continueCount += 1;
             tutorDebug("turn", "reasoning-only response, retrying question", {
               reasoning_chars: streamResult.streamStats?.reasoningChars ?? 0,
             });
             tel.mark("teaching-startup-retry", {
-              reason: streamResult.streamStats?.firstContentTimedOut ? "first_content_timeout" : "reasoning_only",
+              reason: retryReason,
               reasoning_chars: streamResult.streamStats?.reasoningChars ?? 0,
             });
             if (!usableTeachingStepReceived) {
@@ -2367,6 +2376,7 @@ export function useQuestionHandler(
             continue;
           }
           reasoningOnlyRetry = false;
+          startupRetryReason = undefined;
 
           // A code lesson is finished when its beats are, not when the text
           // happens to end on a full stop. The buffered segment has not been
