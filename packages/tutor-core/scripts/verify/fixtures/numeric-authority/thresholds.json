@@ -1,16 +1,16 @@
 {
-  "_comment": "Ratchet only. Baseline is origin/main 9218d38c. Lower a max or raise a min when a fix improves the replay; never loosen.",
+  "_comment": "Ratchet only. Baseline was origin/main 9218d38c; ratcheted after the explicit-arithmetic unit/relation/sign and claim-attribution fixes. Lower a max or raise a min when a fix improves the replay; never loosen.",
   "max": {
-    "lanesRejected": 47,
-    "claimQuantityMismatchLanes": 44,
-    "fallbackTurns": 10,
-    "askedWrong": 17,
-    "askedMissing": 10,
-    "arithmeticRightToWrong": 15,
+    "lanesRejected": 10,
+    "claimQuantityMismatchLanes": 9,
+    "fallbackTurns": 2,
+    "askedWrong": 3,
+    "askedMissing": 4,
+    "arithmeticRightToWrong": 0,
     "opticsRightToWrong": 0,
     "opticsQuantityRightToWrong": 1
   },
   "min": {
-    "askedCorrect": 85
+    "askedCorrect": 105
   }
 }
