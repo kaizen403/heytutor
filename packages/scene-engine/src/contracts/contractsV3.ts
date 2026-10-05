@@ -92,11 +92,17 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
     return { plan: raw, reconciliations: [] };
   }
   const knownUnits = collectPlanUnits(raw);
+  const bindingMeta: NumericBindingMetaMap = new Map();
   const numericBindings = collectNumericBindings(
     Array.isArray(raw.givens) ? raw.givens : [],
+    bindingMeta,
   );
   const reconciliations: TurnPlanArithmeticReconciliation[] = [];
-  const derived = raw.derived.map((value) => {
+  const derived: unknown[] = [...raw.derived];
+  // Evaluate dependencies first so a corrected value reaches every quantity
+  // computed from it, whatever order the plan lists them in.
+  for (const index of derivedEvaluationOrder(raw.derived)) derived[index] = reconcileOne(raw.derived[index]);
+  function reconcileOne(value: unknown): unknown {
     if (
       !isRecord(value) ||
       typeof value.id !== "string" ||
@@ -113,13 +119,14 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
       numericBindings,
       true,
       [value.id, value.symbol].filter((key): key is string => typeof key === "string"),
+      { bindingMeta, declaredValue: value.value },
     );
     if (
       evidence.conflicting ||
       evidence.value === null ||
       approximatelyEqual(evidence.value, value.value)
     ) {
-      addNumericBinding(numericBindings, value);
+      addNumericBinding(numericBindings, value, bindingMeta, evidence.value !== null);
       return value;
     }
     reconciliations.push({
@@ -130,8 +137,13 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
     const corrected: Record<string, unknown> = {
       ...value,
       value: evidence.value,
-      sourceText: replaceTrailingMeasuredValues(
-        value.sourceText,
+      sourceText: replaceRestatedMeasuredValues(
+        replaceTrailingMeasuredValues(
+          value.sourceText,
+          evidence.value,
+          value.unit,
+        ),
+        value.value,
         evidence.value,
         value.unit,
       ),
@@ -139,9 +151,9 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
     if (corrected.sign !== undefined && corrected.sign !== "unsigned") {
       corrected.sign = numericSign(evidence.value);
     }
-    addNumericBinding(numericBindings, corrected);
+    addNumericBinding(numericBindings, corrected, bindingMeta);
     return corrected;
-  });
+  }
   if (reconciliations.length === 0) return { plan: raw, reconciliations };
   return {
     plan: { ...raw, derived },
@@ -236,15 +248,17 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
   givens.forEach((value, index) => validateQuantity(value, `givens[${index}]`, "given"));
   derived.forEach((value, index) => validateQuantity(value, `derived[${index}]`, "derived"));
   const knownUnits = collectPlanUnits(raw);
-  const validationBindings = collectNumericBindings(givens);
-  derived.forEach((value, index) => {
+  const validationBindingMeta: NumericBindingMetaMap = new Map();
+  const validationBindings = collectNumericBindings(givens, validationBindingMeta);
+  derivedEvaluationOrder(derived).forEach((index) => {
+    const value = derived[index];
     if (
       !isRecord(value) ||
       typeof value.value !== "number" ||
       !Number.isFinite(value.value) ||
       typeof value.sourceText !== "string"
     ) {
-      addNumericBinding(validationBindings, value);
+      addNumericBinding(validationBindings, value, validationBindingMeta, false);
       return;
     }
     const evidence = evaluateExplicitArithmetic(
@@ -254,6 +268,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       validationBindings,
       false,
       [value.id, value.symbol].filter((key): key is string => typeof key === "string"),
+      { bindingMeta: validationBindingMeta, declaredValue: value.value },
     );
     if (evidence.invalid) {
       issues.push({
@@ -270,6 +285,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
     } else if (
       evidence.value !== null &&
       !approximatelyEqual(evidence.value, value.value) &&
+      Math.abs(evidence.value - value.value) > (evidence.tolerance ?? 0) &&
       !sourceContainsMatchingMeasuredValue(value.sourceText, value.value, value.unit)
     ) {
       issues.push({
@@ -278,7 +294,14 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
         message: `declared value ${value.value} disagrees with explicit arithmetic result ${evidence.value}`,
       });
     }
-    addNumericBinding(validationBindings, value);
+    addNumericBinding(
+      validationBindings,
+      value,
+      validationBindingMeta,
+      evidence.value !== null &&
+        Math.abs(evidence.value - (value.value as number)) <= (evidence.tolerance ?? 0) +
+          Math.max(1, Math.abs(evidence.value)) * 1e-9,
+    );
   });
 
   const unknownIds = new Set<string>();
@@ -338,19 +361,32 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
         const quantity = typeof id === "string" ? quantityById.get(id) : undefined;
         return quantity ? [quantity] : [];
       });
-      for (const measurement of extractMeasuredValues(value.claim)) {
-        const comparable = linkedQuantities.filter((quantity) =>
+      const claimTexts = [value.claim, value.expected]
+        .filter((text): text is string => typeof text === "string");
+      const claimMeasurements = claimTexts.flatMap((text) =>
+        attributedClaimMeasurements(text, linkedQuantities, value.id as string));
+      for (const { measurement, quantities } of claimMeasurements) {
+        const comparable = quantities.filter((quantity) =>
           typeof quantity.value === "number" &&
           sameMeasurementDimension(quantity.unit, measurement.unit));
         const supported = comparable.some((quantity) =>
           typeof quantity.value === "number" &&
-          equivalentDisplayedMeasuredQuantity(
+          (equivalentDisplayedMeasuredQuantity(
             quantity.value,
             quantity.unit,
             measurement.value,
             measurement.unit,
             measurement.tolerance,
-          ),
+          ) || (
+            isMagnitudeOnlyQuantity(quantity) &&
+            equivalentDisplayedMeasuredQuantity(
+              Math.abs(quantity.value),
+              quantity.unit,
+              Math.abs(measurement.value),
+              measurement.unit,
+              measurement.tolerance,
+            )
+          )),
         );
         if (!supported && comparable.length > 0) {
           issues.push({
@@ -508,6 +544,14 @@ interface ExplicitArithmeticEvidence {
   value: number | null;
   conflicting: boolean;
   invalid: boolean;
+  /** Displayed precision of a stated result the evidence was read from. */
+  tolerance?: number;
+}
+
+interface ExplicitArithmeticOptions {
+  bindingMeta?: NumericBindingMetaMap;
+  /** The plan's own value, used only to choose between unit readings. */
+  declaredValue?: number;
 }
 
 function evaluateExplicitArithmetic(
@@ -517,11 +561,23 @@ function evaluateExplicitArithmetic(
   numericBindings: Map<string, number> = new Map(),
   reconcile = false,
   targetKeys: string[] = [],
+  options: ExplicitArithmeticOptions = {},
 ): ExplicitArithmeticEvidence {
-  const results: number[] = [];
+  const results: Array<{ value: number; tolerance: number }> = [];
+  const pushResult = (value: number, stated?: { tolerance: number } | null) => {
+    results.push({ value, tolerance: stated?.tolerance ?? 0 });
+  };
+  const assertions: Array<{ value: number; tolerance: number }> = [];
+  const bindingMeta = options.bindingMeta ?? new Map<string, NumericBindingMeta>();
+  const declaredAnchor = typeof options.declaredValue === "number" && Number.isFinite(options.declaredValue)
+    ? {
+        value: options.declaredValue,
+        tolerance: displayedNumberTolerance(String(options.declaredValue)),
+      }
+    : null;
   let invalid = false;
-  for (const clause of sourceText.split(/[;\n]+/)) {
-    const equalityParts = clause.split(/\s*(?:=|≈|≃|≅)\s*/);
+  for (const clause of splitArithmeticClauses(sourceText)) {
+    const equalityParts = splitEqualityParts(clause);
     if (equalityParts.length < 2) continue;
     const clauseTargetKeys = expandDescriptiveAssignmentTargets(equalityParts, targetKeys);
     let stated: { value: number; tolerance: number } | null = null;
@@ -544,8 +600,17 @@ function evaluateExplicitArithmetic(
       if (stated && !withinDisplayedPrecision(inverseTrigDegrees, stated)) {
         invalid = true;
       } else {
-        results.push(reconcile ? inverseTrigDegrees : stated?.value ?? inverseTrigDegrees);
+        if (reconcile || !stated) pushResult(inverseTrigDegrees);
+        else pushResult(stated.value, stated);
       }
+      continue;
+    }
+    const assertion = parseTargetAssertion(equalityParts, clauseTargetKeys, expectedUnit);
+    if (assertion) {
+      // "x = 30" restates a value; it is not arithmetic, so it can never be
+      // the source of an overwrite, but a computation that disagrees with it
+      // makes the sourceText contradict itself.
+      assertions.push(assertion);
       continue;
     }
     const solvedTarget = solveExplicitTargetEquation(
@@ -554,12 +619,75 @@ function evaluateExplicitArithmetic(
       knownUnits,
       numericBindings,
       statedIndex,
+      bindingMeta,
     );
     if (solvedTarget !== null) {
-      if (stated && !reconcile && !withinDisplayedPrecision(solvedTarget, stated)) {
+      const targetStated = solvedTarget.isolated ? stated : null;
+      const reading = readSolvedValueInUnit(
+        solvedTarget,
+        equalityParts,
+        expectedUnit,
+        bindingMeta,
+        targetStated ?? declaredAnchor,
+      );
+      if (reading.kind === "inconsistent_units") continue;
+      if (
+        reading.kind === "value" && targetStated &&
+        !withinDisplayedPrecision(reading.value, targetStated) &&
+        usesUntrustedBinding(solvedTarget, bindingMeta) &&
+        (solvedTarget.alternatives ?? []).some((alternative) => {
+          if (usesUntrustedBinding(alternative, bindingMeta)) return false;
+          const alternativeReading = readSolvedValueInUnit(
+            alternative,
+            equalityParts,
+            expectedUnit,
+            bindingMeta,
+            targetStated,
+          );
+          return alternativeReading.kind === "value" &&
+            withinDisplayedPrecision(alternativeReading.value, targetStated);
+        })
+      ) {
+        // The chain's own numbers agree with its result; only an unchecked
+        // upstream value (V = 6 whose text computes 5.727) disagrees. That
+        // is doubt about the upstream value, not evidence for this one.
+        continue;
+      }
+      if (reading.kind === "no_reading") {
+        // Every unit reading of the computed number disagrees with the value
+        // the plan states, so the plan's own arithmetic is wrong. Never
+        // overwrite from an unpinned unit; validation reports it.
+        if (!reconcile) invalid = true;
+        continue;
+      }
+      if (targetStated && !reconcile && !withinDisplayedPrecision(reading.value, targetStated)) {
         invalid = true;
       } else {
-        results.push(reconcile ? solvedTarget : stated?.value ?? solvedTarget);
+        if (reconcile || !targetStated) pushResult(reading.value);
+        else pushResult(targetStated.value, targetStated);
+      }
+      continue;
+    }
+    const anonymous = clauseMentionsTarget(equalityParts, clauseTargetKeys)
+      ? null
+      : evaluateAnchoredAnonymousChain(
+          equalityParts,
+          expectedUnit,
+          knownUnits,
+          numericBindings,
+          bindingMeta,
+          declaredAnchor,
+        );
+    if (anonymous) {
+      if (anonymous.kind === "value") {
+        if (!reconcile && !withinDisplayedPrecision(anonymous.value, anonymous.stated)) {
+          invalid = true;
+        } else {
+          if (reconcile) pushResult(anonymous.value);
+          else pushResult(anonymous.stated.value, anonymous.stated);
+        }
+      } else if (anonymous.kind === "no_reading" && !reconcile) {
+        invalid = true;
       }
       continue;
     }
@@ -590,10 +718,10 @@ function evaluateExplicitArithmetic(
       try {
         const calculated = evaluateMathExpression(expression, 0);
         if (!Number.isFinite(calculated)) continue;
-        if (!stated) {
-          results.push(calculated);
-        } else if (reconcile || withinDisplayedPrecision(calculated, stated)) {
-          results.push(reconcile ? calculated : stated.value);
+        if (!stated || reconcile) {
+          pushResult(calculated);
+        } else if (withinDisplayedPrecision(calculated, stated)) {
+          pushResult(stated.value, stated);
         } else {
           invalid = true;
         }
@@ -604,11 +732,258 @@ function evaluateExplicitArithmetic(
     }
   }
   if (invalid) return { value: null, conflicting: false, invalid: true };
-  if (results.length === 0) return { value: null, conflicting: false, invalid: false };
+  const agree = (
+    one: { value: number; tolerance: number },
+    other: { value: number; tolerance: number },
+  ) => approximatelyEqual(one.value, other.value) ||
+    Math.abs(one.value - other.value) <= one.tolerance + other.tolerance +
+      Math.max(1, Math.abs(one.value), Math.abs(other.value)) * 1e-12;
+  if (results.length === 0) {
+    // A bare restatement is never a reason to overwrite, but validation
+    // still holds the declared value to what the sourceText says it is.
+    if (reconcile || assertions.length === 0) return { value: null, conflicting: false, invalid: false };
+    return assertions.every((assertion) => assertions.every((other) => agree(assertion, other)))
+      ? {
+          value: assertions[0]!.value,
+          conflicting: false,
+          invalid: false,
+          tolerance: Math.max(...assertions.map((assertion) => assertion.tolerance)),
+        }
+      : { value: null, conflicting: true, invalid: false };
+  }
   const first = results[0]!;
-  return results.every((result) => approximatelyEqual(result, first))
-    ? { value: first, conflicting: false, invalid: false }
+  const consistent = results.every((result) => results.every((other) => agree(result, other))) &&
+    assertions.every((assertion) => results.every((result) => agree(result, assertion)));
+  return consistent
+    ? {
+        value: first.value,
+        conflicting: false,
+        invalid: false,
+        tolerance: Math.max(...results.map((result) => result.tolerance)),
+      }
     : { value: null, conflicting: true, invalid: false };
+}
+
+/** Indices of derived quantities, dependencies (dependsOn) first, stable otherwise. */
+function derivedEvaluationOrder(derived: unknown[]): number[] {
+  const indexById = new Map<string, number>();
+  derived.forEach((value, index) => {
+    if (isRecord(value) && typeof value.id === "string" && !indexById.has(value.id)) {
+      indexById.set(value.id, index);
+    }
+  });
+  const dependencies = derived.map((value, index) =>
+    isRecord(value) && Array.isArray(value.dependsOn)
+      ? value.dependsOn.flatMap((id) => {
+          const dependency = typeof id === "string" ? indexById.get(id) : undefined;
+          return dependency === undefined || dependency === index ? [] : [dependency];
+        })
+      : []);
+  const order: number[] = [];
+  const done = new Set<number>();
+  while (order.length < derived.length) {
+    const next = derived.findIndex((_, index) =>
+      !done.has(index) && dependencies[index]!.every((dependency) => done.has(dependency)));
+    // A dependency cycle falls back to the listed order.
+    const chosen = next >= 0 ? next : derived.findIndex((_, index) => !done.has(index));
+    done.add(chosen);
+    order.push(chosen);
+  }
+  return order;
+}
+
+function usesUntrustedBinding(solved: SolvedTargetValue, bindingMeta: NumericBindingMetaMap): boolean {
+  return [...solved.bindingKeys].some((key) => bindingMeta.get(key)?.trusted === false);
+}
+
+function clauseMentionsTarget(equalityParts: string[], targetKeys: string[]): boolean {
+  const targets = new Set(targetKeys.map(normalizeNumericBindingKey).filter(Boolean));
+  return equalityParts.some((part) =>
+    [...part.matchAll(/[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*/gu)].some((match) => {
+      if (!targets.has(normalizeNumericBindingKey(match[0]))) return false;
+      // "= 6 V" names the unit volt, not a voltage called V.
+      const unitLabel = (unitScale(match[0])?.signature ?? "") !== "" &&
+        /[0-9)]\s*$/.test(part.slice(0, match.index));
+      return !unitLabel;
+    }) ||
+    targets.has(normalizeNumericBindingKey(part)));
+}
+
+/**
+ * A quantity's own sourceText may compute it without naming it
+ * ("|5-0|+|4-5|+|9-4| = 5+1+5 = 10" for D = 10). When the chain ends by
+ * restating the declared value, the chain asserts that its arithmetic equals
+ * that value, so it is checkable like a named assignment.
+ */
+function evaluateAnchoredAnonymousChain(
+  equalityParts: string[],
+  expectedUnit: unknown,
+  knownUnits: string[],
+  numericBindings: Map<string, number>,
+  bindingMeta: NumericBindingMetaMap,
+  declaredAnchor: { value: number; tolerance: number } | null,
+):
+  | { kind: "value"; value: number; stated: { value: number; tolerance: number } }
+  | { kind: "inconsistent_units" | "no_reading" }
+  | null {
+  if (!declaredAnchor || equalityParts.length < 3) return null;
+  const finalIndex = equalityParts.length - 1;
+  const final = parseMeasuredPart(equalityParts[finalIndex] ?? "");
+  if (!final) return null;
+  const finalUnit = final.unit ?? expectedUnit;
+  const finalValue = convertMeasuredValue(final.value, finalUnit, expectedUnit);
+  const finalTolerance = convertMeasuredValue(final.tolerance, finalUnit, expectedUnit);
+  if (finalValue === null || finalTolerance === null) return null;
+  const stated = { value: finalValue, tolerance: Math.abs(finalTolerance) };
+  if (!withinDisplayedPrecision(declaredAnchor.value, stated)) return null;
+  for (let index = 1; index < finalIndex; index += 1) {
+    const part = equalityParts[index] ?? "";
+    if (parseMeasuredPart(part)) continue;
+    const bindingKeys = new Set<string>();
+    const expression = normalizeExplicitNumericExpression(
+      part,
+      knownUnits,
+      numericBindings,
+      undefined,
+      bindingKeys,
+    );
+    if (!expression) continue;
+    try {
+      const value = evaluateMathExpression(expression, 0);
+      if (!Number.isFinite(value)) continue;
+      const reading = readSolvedValueInUnit(
+        { value, valueIndex: index, isolated: true, bindingKeys },
+        equalityParts,
+        expectedUnit,
+        bindingMeta,
+        stated,
+      );
+      return reading.kind === "value" ? { ...reading, stated } : reading;
+    } catch {
+      // Try the next member of the chain.
+    }
+  }
+  return null;
+}
+
+/**
+ * Clauses are separate statements. Implication arrows separate derivation
+ * steps ("2(x-30)=x => x=60"); they are never an "=" sign.
+ */
+function splitArithmeticClauses(sourceText: string): string[] {
+  return sourceText
+    .split(/[;\n]+|==>|=>|⇒|⟹|⟶|→|->|\bimplies\b/)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Split one clause into the members of its equality chain. "≈" and its
+ * relatives chain like "="; comparison operators (<=, >=, !=, ≤, ≥, ≠) are
+ * not equalities and stay inside their member, which then cannot evaluate.
+ */
+function splitEqualityParts(clause: string): string[] {
+  const protectedClause = clause
+    .replace(/<=/g, "≤")
+    .replace(/>=/g, "≥")
+    .replace(/!=|=\/=/g, "≠")
+    .replace(/={2,}/g, "=");
+  const parts = protectedClause.split(/\s*(?:=|≈|≃|≅)\s*/);
+  // "use nodal: V = ..." labels the chain; the assignment head is "V".
+  if (parts.length > 1) parts[0] = (parts[0] ?? "").replace(/^[^=]*:\s*(?=\S)/, "");
+  return parts;
+}
+
+/** "x = 30 cm" (target alone on one side, a plain measured value on the other). */
+function parseTargetAssertion(
+  equalityParts: string[],
+  targetKeys: string[],
+  expectedUnit: unknown,
+): { value: number; tolerance: number } | null {
+  if (equalityParts.length !== 2 || targetKeys.length === 0) return null;
+  const targets = new Set(targetKeys.map(normalizeNumericBindingKey).filter(Boolean));
+  const left = normalizeNumericBindingKey(
+    (equalityParts[0] ?? "").replace(/^\s*(?:also|and|or|hence|therefore|thus|so)\s+/i, ""),
+  );
+  if (!targets.has(left)) return null;
+  const measured = parseMeasuredPart(equalityParts[1] ?? "");
+  if (!measured) return null;
+  const unit = measured.unit ?? expectedUnit;
+  const value = convertMeasuredValue(measured.value, unit, expectedUnit);
+  const tolerance = convertMeasuredValue(measured.tolerance, unit, expectedUnit);
+  if (value === null || tolerance === null) return null;
+  return { value, tolerance: Math.abs(tolerance) };
+}
+
+type SolvedValueReading =
+  | { kind: "value"; value: number }
+  | { kind: "inconsistent_units" }
+  | { kind: "no_reading" };
+
+/**
+ * A computed number has no unit of its own. Read it in the quantity's
+ * declared unit only when the text pins the unit:
+ * 1. the chain writes the result with a unit right after the expression
+ *    ("... ≈ 6.283×10⁻⁴ T = 628.3 µT" says the expression is in T);
+ * 2. every same-dimension input it uses carries one unit (f, d_o in cm);
+ * 3. the declared unit is coherent (no prefix), so there is one reading.
+ * Otherwise (a prefixed unit with no evidence) both the declared and the
+ * coherent SI reading are possible; keep the one the stated value supports.
+ */
+function readSolvedValueInUnit(
+  solved: SolvedTargetValue,
+  equalityParts: string[],
+  expectedUnit: unknown,
+  bindingMeta: NumericBindingMetaMap,
+  anchor: { value: number; tolerance: number } | null,
+): SolvedValueReading {
+  const convertFrom = (unit: unknown): SolvedValueReading => {
+    const value = convertMeasuredValue(solved.value, unit, expectedUnit);
+    return value === null ? { kind: "inconsistent_units" } : { kind: "value", value };
+  };
+  if (solved.isolated) {
+    for (let index = solved.valueIndex + 1; index < equalityParts.length; index += 1) {
+      const measured = parseMeasuredPart(equalityParts[index] ?? "");
+      if (!measured) continue;
+      if (!measured.unit) break;
+      // The written result carries a unit label. If the computed number only
+      // matches that result once read in the label's coherent unit (SI
+      // inputs, then "= 628.3 µT"), the label is a converted display.
+      const labelScale = unitScale(measured.unit);
+      if (labelScale && !approximatelyEqual(labelScale.factor, 1)) {
+        const asLabel = withinDisplayedPrecision(solved.value, measured);
+        const asCoherent = withinDisplayedPrecision(solved.value / labelScale.factor, measured);
+        if (asCoherent && !asLabel) {
+          const value = convertMeasuredValue(solved.value / labelScale.factor, measured.unit, expectedUnit);
+          return value === null ? { kind: "inconsistent_units" } : { kind: "value", value };
+        }
+      }
+      return convertFrom(measured.unit);
+    }
+  }
+  const expectedScale = unitScale(expectedUnit);
+  const sameDimensionUnits = [...solved.bindingKeys].flatMap((key) => {
+    const unit = bindingMeta.get(key)?.unit;
+    const scale = unitScale(unit);
+    // Dimensionless inputs (ratios, counts) say nothing about the result unit.
+    return scale && expectedScale && scale.signature !== "" &&
+      scale.signature === expectedScale.signature
+      ? [{ unit, factor: scale.factor }]
+      : [];
+  });
+  if (sameDimensionUnits.length > 0) {
+    const factor = sameDimensionUnits[0]!.factor;
+    if (sameDimensionUnits.every((entry) => approximatelyEqual(entry.factor, factor))) {
+      return convertFrom(sameDimensionUnits[0]!.unit);
+    }
+  }
+  if (!expectedScale || approximatelyEqual(expectedScale.factor, 1)) {
+    return { kind: "value", value: solved.value };
+  }
+  const readings = [solved.value, solved.value / expectedScale.factor];
+  if (!anchor) return { kind: "inconsistent_units" };
+  const supported = readings.filter((reading) => withinDisplayedPrecision(reading, anchor));
+  return supported.length === 1 ? { kind: "value", value: supported[0]! } : { kind: "no_reading" };
 }
 
 function expandDescriptiveAssignmentTargets(
@@ -653,25 +1028,46 @@ function evaluateInverseTrigDegreeTarget(
   return null;
 }
 
+interface SolvedTargetValue {
+  value: number;
+  /** Index of the equality member the value was computed from. */
+  valueIndex: number;
+  /** The target stands alone ("x = expr") rather than inside an equation. */
+  isolated: boolean;
+  /** Numeric bindings substituted while computing the value. */
+  bindingKeys: Set<string>;
+  /** Other members of the chain that also evaluate, in preference order. */
+  alternatives?: SolvedTargetValue[];
+}
+
 function solveExplicitTargetEquation(
   equalityParts: string[],
   targetKeys: string[],
   knownUnits: string[],
   numericBindings: Map<string, number>,
   statedIndex: number,
-): number | null {
+  bindingMeta: NumericBindingMetaMap = new Map(),
+): SolvedTargetValue | null {
   if (targetKeys.length === 0 || equalityParts.length < 2) return null;
   for (let targetIndex = 0; targetIndex < equalityParts.length; targetIndex += 1) {
+    const targetBindingKeys = new Set<string>();
     const targetExpression = normalizeTargetNumericExpression(
       equalityParts[targetIndex] ?? "",
       targetKeys,
       knownUnits,
       numericBindings,
+      targetBindingKeys,
     );
     if (!targetExpression) continue;
+    const isolated = targetExpression === "x";
+    // A stated result belongs to an isolated target ("x = ... = 30"). In an
+    // equation such as "3y - 6 = 9" the plain number is the other side.
     const valueIndices = equalityParts
       .map((_, index) => index)
-      .filter((index) => index !== targetIndex && index !== statedIndex)
+      .filter((index) => index !== targetIndex && (!isolated || index !== statedIndex))
+      // A plain number next to an isolated target restates a value; it is
+      // not arithmetic that can confirm or replace one.
+      .filter((index) => !isolated || !parseMeasuredPart(equalityParts[index] ?? ""))
       .sort((first, second) => {
         const firstUsesBindings = referencesTrustedNumericBinding(
           equalityParts[first] ?? "",
@@ -686,23 +1082,41 @@ function solveExplicitTargetEquation(
         return Number(secondUsesBindings) - Number(firstUsesBindings) ||
           Number(secondHasArithmetic) - Number(firstHasArithmetic) || second - first;
       });
+    const candidates: SolvedTargetValue[] = [];
     for (const valueIndex of valueIndices) {
+      const bindingKeys = new Set(targetBindingKeys);
       const valueExpression = normalizeExplicitNumericExpression(
         equalityParts[valueIndex] ?? "",
         knownUnits,
         numericBindings,
+        undefined,
+        bindingKeys,
       );
       if (!valueExpression) continue;
       try {
         const value = evaluateMathExpression(valueExpression, 0);
         if (!Number.isFinite(value)) continue;
-        if (targetExpression === "x") return value;
-        const solved = solveUniqueEquationValue(targetExpression, value);
-        if (solved !== null) return solved;
+        const solved = isolated ? value : solveUniqueEquationValue(targetExpression, value);
+        if (solved !== null) candidates.push({ value: solved, valueIndex, isolated, bindingKeys });
       } catch {
         // Try a later equality part with more explicit numeric evidence.
       }
     }
+    const preferred = candidates[0];
+    if (!preferred) continue;
+    // Substituting an unsigned magnitude (f2 = 0.30 for a concave lens)
+    // drops a sign the chain writes explicitly ("1/(-0.30)"). The written
+    // sign wins when the two members agree in size and differ only in sign.
+    const usesMagnitude = [...preferred.bindingKeys].some((key) => bindingMeta.get(key)?.magnitudeOnly);
+    if (usesMagnitude) {
+      const explicitSigned = candidates.find((candidate) =>
+        candidate.bindingKeys.size === 0 &&
+        Math.sign(candidate.value) === -Math.sign(preferred.value) &&
+        Math.abs(Math.abs(candidate.value) - Math.abs(preferred.value)) <=
+          1e-6 * Math.max(1, Math.abs(preferred.value)));
+      if (explicitSigned) return explicitSigned;
+    }
+    return { ...preferred, alternatives: candidates.slice(1) };
   }
   return null;
 }
@@ -730,6 +1144,7 @@ function normalizeTargetNumericExpression(
   targetKeys: string[],
   knownUnits: string[],
   numericBindings: Map<string, number>,
+  usedBindingKeys?: Set<string>,
 ): string | null {
   const targets = new Set(targetKeys.map(normalizeNumericBindingKey).filter(Boolean));
   const placeholder = "TargetVariableQ";
@@ -739,7 +1154,16 @@ function normalizeTargetNumericExpression(
   );
   const protectedSource = assignmentSource.replace(
     /[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*/gu,
-    (token) => targets.has(normalizeNumericBindingKey(token)) ? placeholder : token,
+    (token: string, offset: number, whole: string) => {
+      if (!targets.has(normalizeNumericBindingKey(token))) return token;
+      // Implicit products written without a space ("3y", "2(x-30)",
+      // "I(R+r)"). "6 V" or "6V" for a quantity named V is a unit label,
+      // not a product, so a target spelled like a unit never multiplies.
+      const spelledLikeUnit = (unitScale(token)?.signature ?? "") !== "";
+      const before = spelledLikeUnit ? "" : /[0-9)]/.test(whole[offset - 1] ?? "") ? "*" : "";
+      const after = whole[offset + token.length] === "(" ? "*" : "";
+      return `${before}${placeholder}${after}`;
+    },
   );
   if (containsFunctionWrappedTarget(protectedSource, placeholder)) return null;
   let expression = normalizeExplicitNumericExpression(
@@ -747,6 +1171,7 @@ function normalizeTargetNumericExpression(
     knownUnits,
     numericBindings,
     placeholder,
+    usedBindingKeys,
   );
   if (!expression) return null;
   expression = expression.replaceAll(placeholder, "x");
@@ -855,6 +1280,10 @@ function parseLeadingMeasuredValue(
     /^\s*[~≈]?\s*\(?\s*([+-]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))(?:[eE][+-]?\d+)?)\s*([A-Za-zΩ°μµ][A-Za-z0-9Ω°μµ/*^²³·⋅-]*)?/,
   );
   if (!match) return null;
+  // "10(2) + b" or "6.283×10⁻⁴ T" only start with a number; the member is
+  // arithmetic, not a stated result. A trailing word or comment is fine.
+  const rest = text.slice(match[0].length);
+  if (rest.trim() !== "" && /[0-9=+*/^×·⋅−-]/.test(rest)) return null;
   const value = Number(match[1]);
   if (!Number.isFinite(value)) return null;
   const plannedUnit = normalizeUnit(expectedUnit);
@@ -871,11 +1300,13 @@ function normalizeExplicitNumericExpression(
   knownUnits: string[],
   numericBindings: Map<string, number> = new Map(),
   allowedIdentifier?: string,
+  usedBindingKeys?: Set<string>,
 ): string | null {
   let expression = source
     .replace(/[−–]/g, "-")
     .replace(/[×·⋅]/g, "*")
     .replace(/√\s*(?=\()/g, "sqrt")
+    .replace(/√\s*(\d+(?:\.\d+)?|[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*)/gu, "sqrt($1)")
     .replace(/\barcsin\b/gi, "asin")
     .replace(/\barccos\b/gi, "acos")
     .replace(/\barctan\b/gi, "atan")
@@ -889,11 +1320,15 @@ function normalizeExplicitNumericExpression(
     /([+-]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))(?:[eE][+-]?\d+)?)\s*(?:(?:degrees?|deg)\b|°)/gi,
     "(($1)*pi/180)",
   );
-  expression = substituteNumericBindings(expression, numericBindings);
+  const substitutedKeys = new Set<string>();
+  expression = substituteNumericBindings(expression, numericBindings, substitutedKeys);
   for (const unit of knownUnits) {
     const flags = /^[A-Za-z]+$/.test(unit) && unit.length > 1 ? "gi" : "g";
+    // A unit label follows a number ("(0.18 N)(4 m/s)"). The same letters
+    // after an operator are a variable ("μk N" is the normal force), and
+    // deleting them silently changes the arithmetic.
     expression = expression.replace(
-      new RegExp(`${escapeRegExp(unit)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags),
+      new RegExp(`(?<=[0-9.)\\]]\\s*)${escapeRegExp(unit)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags),
       "",
     );
   }
@@ -914,12 +1349,17 @@ function normalizeExplicitNumericExpression(
   ) {
     return null;
   }
+  // A bare "e" in a physics chain is the elementary charge ("(E - φ)/e" in
+  // volts) as often as Euler's number; only "e^..." is unambiguous.
+  if (/(^|[^A-Za-z0-9_.])e(?![A-Za-z0-9_^])/.test(expression)) return null;
+  substitutedKeys.forEach((key) => usedBindingKeys?.add(key));
   return expression;
 }
 
 function substituteNumericBindings(
   expression: string,
   numericBindings: Map<string, number>,
+  usedKeys?: Set<string>,
 ): string {
   const reserved = new Set([
     "sqrt", "sin", "cos", "tan", "asin", "acos", "atan",
@@ -933,40 +1373,72 @@ function substituteNumericBindings(
     (token) => {
       if (reserved.has(token)) return token;
       const exact = numericBindings.get(token);
-      if (exact !== undefined) return `(${exact})`;
+      if (exact !== undefined) {
+        usedKeys?.add(token);
+        return `(${exact})`;
+      }
 
-      const replacements: number[] = [];
+      const replacements: Array<[string, number]> = [];
       let cursor = 0;
       while (cursor < token.length) {
         const match = bindings.find(([key]) => token.startsWith(key, cursor));
         if (!match) return token;
-        replacements.push(match[1]);
+        replacements.push(match);
         cursor += match[0].length;
       }
-      return replacements.map((value) => `(${value})`).join("*");
+      replacements.forEach(([key]) => usedKeys?.add(key));
+      return replacements.map(([, value]) => `(${value})`).join("*");
     },
   );
 }
 
-function collectNumericBindings(values: unknown[]): Map<string, number> {
+interface NumericBindingMeta {
+  unit: unknown;
+  /** No declared sign and a non-negative value: the binding is a size only. */
+  magnitudeOnly: boolean;
+  /**
+   * A given, or a derived value its own sourceText arithmetic confirmed or
+   * corrected. Other derived values are the model's unchecked numbers.
+   */
+  trusted: boolean;
+}
+
+type NumericBindingMetaMap = Map<string, NumericBindingMeta>;
+
+function collectNumericBindings(
+  values: unknown[],
+  meta?: NumericBindingMetaMap,
+): Map<string, number> {
   const bindings = new Map<string, number>();
-  values.forEach((value) => addNumericBinding(bindings, value));
+  values.forEach((value) => addNumericBinding(bindings, value, meta));
   return bindings;
 }
 
 function addNumericBinding(
   bindings: Map<string, number>,
   value: unknown,
+  meta?: NumericBindingMetaMap,
+  trusted = true,
 ): void {
   if (!isRecord(value) || typeof value.value !== "number" || !Number.isFinite(value.value)) return;
+  const entry: NumericBindingMeta = {
+    unit: value.unit,
+    magnitudeOnly: isMagnitudeOnlyQuantity(value),
+    trusted,
+  };
+  const bind = (key: string) => {
+    const normalized = normalizeNumericBindingKey(key);
+    bindings.set(normalized, value.value as number);
+    meta?.set(normalized, entry);
+  };
   for (const key of [value.id, value.symbol]) {
     if (typeof key !== "string" || key.trim() === "") continue;
-    bindings.set(normalizeNumericBindingKey(key), value.value);
+    bind(key);
   }
   if (typeof value.sourceText === "string") {
     const leftHandSide = value.sourceText.split(/[=≈≃≅]/, 1)[0]?.trim();
     if (leftHandSide && /^[A-Za-zΑ-Ωα-ω][A-Za-z0-9Α-Ωα-ω_{}\\]*$/u.test(leftHandSide)) {
-      bindings.set(normalizeNumericBindingKey(leftHandSide), value.value);
+      bind(leftHandSide);
     }
   }
 }
@@ -999,6 +1471,201 @@ function replaceTrailingMeasuredValues(
   }).join("");
 }
 
+const NUMBER_SOURCE = String.raw`[+\-−]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))(?:[eE][+\-−]?\d+)?`;
+const POWER_OF_TEN_SOURCE =
+  String.raw`(?:\s*[×x*·⋅]\s*10\s*(?:\^\s*\(?\s*([+\-−]?\d+)\s*\)?|([⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+)))?`;
+
+/**
+ * An equality member that is only a measured value: "0.0329 m/s",
+ * "6.283×10⁻⁴ T", "≈ -3.3333", "60 mA". Returns null for anything with
+ * arithmetic or prose in it.
+ */
+function parseMeasuredPart(
+  text: string,
+): { value: number; tolerance: number; unit: string | null } | null {
+  const match = text.match(new RegExp(
+    String.raw`^\s*[~≈]?\s*\(?\s*(${NUMBER_SOURCE})${POWER_OF_TEN_SOURCE}\s*\)?\s*([A-Za-zΩΩ°μµ%][A-Za-z0-9ΩΩ°μµ/*^²³¹⁰⁻·⋅ ()\-]*)?\s*[.,]?\s*$`,
+  ));
+  if (!match) return null;
+  const mantissa = match[1]!.replace(/−/g, "-");
+  const exponentText = match[2] ?? (match[3] ? superscriptInteger(match[3]) : null);
+  const exponent = exponentText === null ? 0 : Number(exponentText.replace(/−/g, "-"));
+  const value = Number(mantissa) * 10 ** exponent;
+  if (!Number.isFinite(value)) return null;
+  const unit = match[4]?.trim() || null;
+  if (unit && !isRecognisedUnitLabel(unit)) return null;
+  return {
+    value,
+    tolerance: displayedNumberTolerance(mantissa) * 10 ** exponent,
+    unit,
+  };
+}
+
+/**
+ * A trailing token is a unit only when it parses as one; a lone letter such
+ * as the x in "2x" is a variable, not a unit.
+ */
+function isRecognisedUnitLabel(unit: string): boolean {
+  if (unitScale(unit)) return true;
+  const normalized = normalizeUnit(unit);
+  if (normalized === "degree" || normalized === "radian") return true;
+  return /^[A-Za-z]{2,}$/.test(unit) && !/^(?:is|so|as|at|to|or|and|the|which|for|of|in|on|by)$/i.test(unit);
+}
+
+function superscriptInteger(value: string): string {
+  const sign = value.startsWith("⁻") ? "-" : "";
+  return `${sign}${fromSuperscriptDigits(value.replace(/^[⁺⁻]/, ""))}`;
+}
+
+interface UnitScale {
+  /** Multiplier to the coherent unit with the same signature. */
+  factor: number;
+  /** Base-symbol signature, e.g. "m^1·s^-1"; "" for dimensionless. */
+  signature: string;
+}
+
+const SI_PREFIX_FACTORS: Record<string, number> = {
+  p: 1e-12, n: 1e-9, "µ": 1e-6, "μ": 1e-6, u: 1e-6, m: 1e-3, c: 1e-2, k: 1e3, M: 1e6, G: 1e9,
+};
+
+const PREFIXABLE_UNITS: Record<string, { base: string; factor: number }> = {
+  m: { base: "m", factor: 1 },
+  g: { base: "kg", factor: 1e-3 },
+  s: { base: "s", factor: 1 },
+  A: { base: "A", factor: 1 },
+  K: { base: "K", factor: 1 },
+  mol: { base: "mol", factor: 1 },
+  N: { base: "N", factor: 1 },
+  J: { base: "J", factor: 1 },
+  W: { base: "W", factor: 1 },
+  Pa: { base: "Pa", factor: 1 },
+  Hz: { base: "Hz", factor: 1 },
+  C: { base: "C", factor: 1 },
+  V: { base: "V", factor: 1 },
+  "Ω": { base: "Ω", factor: 1 },
+  F: { base: "F", factor: 1 },
+  H: { base: "H", factor: 1 },
+  T: { base: "T", factor: 1 },
+  Wb: { base: "Wb", factor: 1 },
+  eV: { base: "eV", factor: 1 },
+  L: { base: "L", factor: 1 },
+};
+
+const UNPREFIXED_UNITS: Record<string, { base: string; factor: number }> = {
+  min: { base: "s", factor: 60 },
+  h: { base: "s", factor: 3600 },
+  hr: { base: "s", factor: 3600 },
+  D: { base: "D", factor: 1 },
+  "%": { base: "", factor: 0.01 },
+};
+
+const UNIT_WORD_ALIASES: Record<string, string> = {
+  ohm: "Ω", ohms: "Ω", "Ω": "Ω", kohm: "kΩ", kohms: "kΩ",
+  volt: "V", volts: "V", amp: "A", amps: "A", ampere: "A", amperes: "A",
+  watt: "W", watts: "W", newton: "N", newtons: "N", joule: "J", joules: "J",
+  sec: "s", second: "s", seconds: "s", metre: "m", metres: "m", meter: "m", meters: "m",
+  tesla: "T", hertz: "Hz", dioptre: "D", dioptres: "D", diopter: "D", diopters: "D",
+};
+
+/**
+ * Scale of a unit relative to its coherent form, for the prefixed SI units a
+ * plan writes (µT, mA, nm, cm/s, km/s, kg/m^3, m/s²). Null when any factor is
+ * not recognised; angles stay on the degree/radian path.
+ */
+function unitScale(unit: unknown): UnitScale | null {
+  if (unit === undefined || unit === null) return { factor: 1, signature: "" };
+  if (typeof unit !== "string") return null;
+  const text = unit.trim()
+    .replace(/[−–]/g, "-")
+    .replace(/⁻/g, "^-")
+    .replace(/[¹²³⁰⁴⁵⁶⁷⁸⁹]+/g, (digits) => `^${fromSuperscriptDigits(digits.replace("¹", "1"))}`)
+    .replace(/\^-\^/g, "^-")
+    .replace(/[()]/g, " ");
+  if (text === "" || /^(?:1|none|dimensionless|unitless|scalar)$/i.test(text)) {
+    return { factor: 1, signature: "" };
+  }
+  let factor = 1;
+  const exponents = new Map<string, number>();
+  const segments = text.split("/");
+  for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex += 1) {
+    const direction = segmentIndex === 0 ? 1 : -1;
+    const factors = segments[segmentIndex]!.split(/[\s·⋅*]+/).filter(Boolean);
+    if (factors.length === 0) {
+      if (segmentIndex === 0 && segments.length > 1) continue;
+      return null;
+    }
+    for (const term of factors) {
+      const match = term.match(/^([A-Za-zΩΩµμ%]+)(?:\^?\(?(-?\d+)\)?)?$/u);
+      if (!match) return null;
+      const resolved = resolveUnitSymbol(match[1]!);
+      if (!resolved) return null;
+      const power = Number(match[2] ?? 1) * direction;
+      factor *= resolved.factor ** power;
+      if (resolved.base !== "") {
+        exponents.set(resolved.base, (exponents.get(resolved.base) ?? 0) + power);
+      }
+    }
+  }
+  const signature = [...exponents.entries()]
+    .filter(([, power]) => power !== 0)
+    .sort(([first], [second]) => first.localeCompare(second))
+    .map(([base, power]) => `${base}^${power}`)
+    .join("·");
+  return { factor, signature };
+}
+
+function resolveUnitSymbol(symbol: string): { base: string; factor: number } | null {
+  const aliased = UNIT_WORD_ALIASES[symbol] ?? UNIT_WORD_ALIASES[symbol.toLowerCase()] ??
+    symbol.replace(/Ω/g, "Ω");
+  const direct = PREFIXABLE_UNITS[aliased] ?? UNPREFIXED_UNITS[aliased];
+  if (direct) return direct;
+  const prefix = SI_PREFIX_FACTORS[aliased[0] ?? ""];
+  const base = PREFIXABLE_UNITS[aliased.slice(1)];
+  return prefix !== undefined && base ? { base: base.base, factor: prefix * base.factor } : null;
+}
+
+/** Convert between units only when they provably measure the same thing. */
+function convertMeasuredValue(value: number, fromUnit: unknown, toUnit: unknown): number | null {
+  const from = unitScale(fromUnit);
+  const to = unitScale(toUnit);
+  if (from && to) {
+    return from.signature === to.signature ? value * from.factor / to.factor : null;
+  }
+  return normalizeUnit(fromUnit) === normalizeUnit(toUnit) ? value : null;
+}
+
+/**
+ * After a reconcile, an equality member that restated the replaced value in
+ * another unit ("≈ 0.0329 m/s" beside "= 3.29 cm/s") or as a bare number
+ * would still teach the stale number. Rewrite each such member in its own
+ * unit.
+ */
+function replaceRestatedMeasuredValues(
+  sourceText: string,
+  previousValue: number,
+  value: number,
+  expectedUnit: unknown,
+): string {
+  return sourceText.split(/(\s*(?:=>|⇒|=|≈|≃|≅|;|\n)\s*)/).map((part, index) => {
+    if (index % 2 === 1 || index === 0) return part;
+    const measured = parseMeasuredPart(part);
+    if (!measured) return part;
+    const unit = measured.unit ?? expectedUnit;
+    const previousInUnit = convertMeasuredValue(previousValue, expectedUnit, unit);
+    const valueInUnit = convertMeasuredValue(value, expectedUnit, unit);
+    if (previousInUnit === null || valueInUnit === null) return part;
+    if (Math.abs(previousInUnit - measured.value) > measured.tolerance +
+      Math.max(1, Math.abs(previousInUnit)) * 1e-12) return part;
+    const replacement = Number(valueInUnit.toPrecision(12)).toString();
+    const leading = part.match(/^\s*[~≈]?\s*\(?\s*/)?.[0] ?? "";
+    const rest = part.slice(leading.length).replace(
+      new RegExp(`^${NUMBER_SOURCE}${POWER_OF_TEN_SOURCE}`),
+      "",
+    );
+    return `${leading}${replacement}${rest}`;
+  }).join("");
+}
+
 function fromSuperscriptDigits(value: string): string {
   const digits: Record<string, string> = {
     "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4",
@@ -1008,14 +1675,21 @@ function fromSuperscriptDigits(value: string): string {
 }
 
 function collectPlanUnits(plan: Record<string, unknown>): string[] {
-  const units = [
+  const quantities = [
     ...(Array.isArray(plan.givens) ? plan.givens : []),
     ...(Array.isArray(plan.derived) ? plan.derived : []),
-  ].flatMap((quantity) =>
+  ];
+  // A plan symbol that spells a unit (N for the normal force) is a
+  // variable; stripping it as a unit label would change the arithmetic.
+  const symbols = new Set(quantities.flatMap((quantity) =>
+    isRecord(quantity)
+      ? [quantity.id, quantity.symbol].filter((key): key is string => typeof key === "string")
+      : []));
+  const units = quantities.flatMap((quantity) =>
     isRecord(quantity) && typeof quantity.unit === "string"
       ? unitAliases(quantity.unit)
       : [],
-  );
+  ).filter((unit) => !symbols.has(unit));
   return [...new Set(units)].sort((first, second) => second.length - first.length);
 }
 
@@ -2613,6 +3287,136 @@ function extractMeasuredValues(text: string): Array<{ value: number; unit: strin
     }
   }
   return values;
+}
+
+interface AttributedClaimMeasurement {
+  measurement: { value: number; unit: string; tolerance: number };
+  quantities: Record<string, unknown>[];
+}
+
+/**
+ * A claim may mention many numbers (a condition such as "refracted angle 90°",
+ * an intermediate such as "mg = 50 N", a signed coordinate). Only a number the
+ * claim states as the value of one of its linked quantities can contradict
+ * that quantity:
+ * - the head of an equality chain is the quantity's symbol or id
+ *   ("I_L = V/R = 21/11 ≈ 1.91 A");
+ * - a copula ("is", "equals", ...) whose subject ends with the symbol, or whose
+ *   descriptive subject contains every word of the quantity's id or of the
+ *   claim's own id ("The refracted angle is about 28.1°" under claim id
+ *   refracted_angle).
+ * Numbers in any other position are context, not a stated value.
+ */
+function attributedClaimMeasurements(
+  text: string,
+  linkedQuantities: Record<string, unknown>[],
+  claimId: string,
+): AttributedClaimMeasurement[] {
+  const attributed: AttributedClaimMeasurement[] = [];
+  for (const match of text.matchAll(measuredValuePattern())) {
+    const value = Number(match[1]);
+    const unit = normalizeUnit(match[2]);
+    if (!Number.isFinite(value) || !unit || match.index === undefined) continue;
+    const subject = claimMeasurementSubject(text.slice(0, match.index));
+    if (!subject) continue;
+    const bySymbol = (key: string) => linkedQuantities.filter((quantity) =>
+      quantityMatchKeys(quantity).has(normalizeClaimSubjectKey(key)));
+    let quantities: Record<string, unknown>[] = [];
+    if (subject.kind === "symbol") {
+      quantities = bySymbol(subject.text);
+    } else {
+      const words = subject.text.split(/\s+/).filter(Boolean);
+      quantities = bySymbol(words.at(-1) ?? "");
+      if (quantities.length === 0) {
+        const subjectWords = new Set(descriptiveWords(subject.text));
+        const names = (values: unknown[]) => values
+          .filter((name): name is string => typeof name === "string")
+          .map(descriptiveWords)
+          .filter((nameWords) => nameWords.length > 0);
+        const namesSubject = (nameWords: string[]) =>
+          nameWords.every((word) => subjectWords.has(word));
+        quantities = names([claimId]).some(namesSubject)
+          ? linkedQuantities
+          : linkedQuantities.filter((quantity) => names([quantity.id, quantity.symbol]).some(namesSubject));
+      }
+    }
+    if (quantities.length === 0) continue;
+    attributed.push({
+      measurement: { value, unit, tolerance: displayedNumberTolerance(match[1]!) },
+      quantities,
+    });
+  }
+  return attributed;
+}
+
+const CLAIM_CLAUSE_BOUNDARY =
+  /[,;:<>≤≥!?]|\.\s|\b(?:and|or|so|but|while|whereas|then|thus|hence|therefore|giving|gives|give|since|because|with|where|which|when|if|at|for|from|to|into|of|in|on|is|are|was|were|equals|by|after|before|than|via|i\.e\.|e\.g\.)\b/gi;
+
+function claimMeasurementSubject(
+  prefix: string,
+): { kind: "symbol" | "phrase"; text: string } | null {
+  const trimmed = prefix.replace(/\s+$/, "");
+  if (/[=≈≃≅~]$/.test(trimmed)) {
+    const operands = trimmed.slice(0, -1).split(/[=≈≃≅~]/);
+    for (let index = operands.length - 1; index >= 0; index -= 1) {
+      const operand = operands[index] ?? "";
+      const boundary = lastClaimBoundaryEnd(operand);
+      if (boundary >= 0 || index === 0) {
+        return classifyClaimSubject(operand.slice(Math.max(boundary, 0)));
+      }
+    }
+    return null;
+  }
+  const copula = trimmed.match(
+    /\b(?:is|are|was|were|equals|becomes|be)(?:\s+(?:approximately|about|roughly|nearly|around|exactly|only|just|still|now|also))*$/i,
+  );
+  if (!copula || copula.index === undefined) return null;
+  const before = trimmed.slice(0, copula.index);
+  return classifyClaimSubject(before.slice(Math.max(lastClaimBoundaryEnd(before), 0)));
+}
+
+function lastClaimBoundaryEnd(text: string): number {
+  let end = -1;
+  for (const match of text.matchAll(CLAIM_CLAUSE_BOUNDARY)) {
+    if (match.index !== undefined) end = match.index + match[0].length;
+  }
+  return end;
+}
+
+function classifyClaimSubject(raw: string): { kind: "symbol" | "phrase"; text: string } | null {
+  const text = raw.trim().replace(/^(?:the|a|an|its|their|this|that|net)\s+/i, "").trim();
+  if (text === "") return null;
+  if (/^[A-Za-zΑ-Ωα-ω][\w\u0370-\u03ff₀-₉′'{}\\]*$/u.test(text)) return { kind: "symbol", text };
+  // Expressions (m1*g, x(3)-x(0)) and fragments carrying other numbers are
+  // not the name of a single linked quantity.
+  if (/[0-9+\-*/^()·⋅×]/.test(text)) return null;
+  return { kind: "phrase", text };
+}
+
+function normalizeClaimSubjectKey(value: string): string {
+  return normalizeNumericBindingKey(value)
+    .replace(/[_\s]/g, "")
+    .replace(/[₀-₉]/g, (digit) => String(digit.charCodeAt(0) - 0x2080))
+    .toLowerCase();
+}
+
+function quantityMatchKeys(quantity: Record<string, unknown>): Set<string> {
+  return new Set([quantity.id, quantity.symbol]
+    .filter((key): key is string => typeof key === "string" && key.trim() !== "")
+    .map(normalizeClaimSubjectKey));
+}
+
+function descriptiveWords(value: string): string[] {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((word) => word.length >= 3 && !["the", "and", "for", "with", "from"].includes(word));
+}
+
+function isMagnitudeOnlyQuantity(quantity: Record<string, unknown>): boolean {
+  return (quantity.sign === undefined || quantity.sign === "unsigned") &&
+    typeof quantity.value === "number" && quantity.value >= 0;
 }
 
 function measuredValuePattern(): RegExp {
