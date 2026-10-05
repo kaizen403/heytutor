@@ -572,18 +572,19 @@ const routeChecks: [string, () => Promise<void>][] = [
     assert.deepEqual(models, [ROUTER, ROUTER, STANDARD]);
     const generation = generationFor(1);
     assert.equal(generation.metadata?.teaching_model_fallback, true);
-    assert.equal(generation.metadata?.teaching_model_fallback_reason, "upstream_connect_failure");
+    assert.equal(generation.metadata?.teaching_model_fallback_reason, "upstream_5xx", "the reason names the last failure");
     assert.equal(generation.metadata?.attempt_count, 3);
     assert.equal(generation.model, STANDARD, "the generation is renamed to the model that streamed");
     assert.equal(settlements.length, 1);
-    // Two router attempts that never streamed keep their bounded charge; the
-    // usage that streamed is priced for the standard deployment.
+    // The router attempt that threw keeps its bounded charge, the 503 ran no
+    // generation and is free, and the usage that streamed is priced for the
+    // standard deployment.
     const attemptCost = (model: string) => paidUsage.maximumLlmCost(bodies[0]!.messages, Number(bodies[0]!.max_tokens), [model]);
     const millicents = (usd: number) => Math.ceil(usd * 1000);
     assert.equal(settlements[0]!.reserved, millicents(2 * attemptCost(ROUTER) + attemptCost(STANDARD)), "the reservation covers the alternate's price");
     assert.equal(
       settlements[0]!.actual,
-      millicents(paidUsage.actualLlmCost({ input: 800, output: 200 }, STANDARD)! + 2 * attemptCost(ROUTER)),
+      millicents(paidUsage.actualLlmCost({ input: 800, output: 200 }, STANDARD)! + attemptCost(ROUTER)),
       "the streamed usage is billed for the deployment that streamed it",
     );
     assert.equal(reservations.size, 0);
@@ -597,11 +598,74 @@ const routeChecks: [string, () => Promise<void>][] = [
     await response.text();
     await settleMicrotasks();
     assert.deepEqual(models, [ROUTER, ROUTER, STANDARD]);
+    assert.equal(generationFor(1).metadata?.teaching_model_fallback_reason, "upstream_connect_failure");
     const attemptCost = (model: string) => paidUsage.maximumLlmCost(bodies[0]!.messages, Number(bodies[0]!.max_tokens), [model]);
     assert.equal(settlements.length, 1);
     assert.equal(settlements[0]!.actual, Math.ceil((2 * attemptCost(ROUTER) + attemptCost(STANDARD)) * 1000),
       "the fallback attempt is bounded at the alternate's price, not the router's");
     assert(settlements[0]!.actual! < Math.ceil(3 * attemptCost(ROUTER) * 1000));
+  }],
+  ["two router 503s then a standard stream settle at the streamed usage alone", async () => {
+    const trace = arrange();
+    const models: string[] = [];
+    installScriptedProvider([503, 503, "stream"], models);
+    const response = await chat.POST(chatRequest(trace));
+    assert.equal(response.status, 200);
+    await response.text();
+    await settleMicrotasks();
+    assert.deepEqual(models, [ROUTER, ROUTER, STANDARD]);
+    assert.equal(generationFor(1).metadata?.teaching_model_fallback_reason, "upstream_5xx");
+    assert.equal(settlements.length, 1);
+    assert.equal(settlements[0]!.actual, Math.ceil(paidUsage.actualLlmCost({ input: 800, output: 200 }, STANDARD)! * 1000),
+      "a 503 ran no generation, so it adds nothing to the charge");
+  }],
+  ["a 429 on the router moves straight to the alternate deployment", async () => {
+    const trace = arrange();
+    const models: string[] = [];
+    installScriptedProvider([429, "stream"], models);
+    const response = await chat.POST(chatRequest(trace));
+    assert.equal(response.status, 200);
+    await response.text();
+    await settleMicrotasks();
+    assert.deepEqual(models, [ROUTER, STANDARD], "a saturated router is not asked again");
+    assert.equal(generationFor(1).metadata?.teaching_model_fallback_reason, "upstream_rate_limited");
+    assert.equal(generationFor(1).metadata?.attempt_count, 2);
+    assert.equal(settlements[0]!.actual, Math.ceil(paidUsage.actualLlmCost({ input: 800, output: 200 }, STANDARD)! * 1000),
+      "the 429 ran no generation, so it adds nothing to the charge");
+    assert.equal(reservations.size, 0);
+  }],
+  ["a 429 with no alternate deployment is not retried", async () => {
+    const trace = arrange();
+    const models: string[] = [];
+    installScriptedProvider([429], models);
+    const response = await chat.POST(chatRequest(trace, { headers: STARTUP_RETRY_HEADERS }));
+    assert.equal(response.status, 502);
+    await settleMicrotasks();
+    assert.deepEqual(models, [STANDARD]);
+    assert.equal(reservations.size, 0);
+    assert.equal(pendingAi(), 0);
+  }],
+  ["Stop during the backoff after a 503 releases the slot and reservation at once", async () => {
+    const trace = arrange();
+    const models: string[] = [];
+    installScriptedProvider([503], models);
+    const controller = new AbortController();
+    const pending = chat.POST(chatRequest(trace, { signal: controller.signal }));
+    while (models.length === 0) await new Promise<void>((done) => setImmediate(done));
+    await settleMicrotasks();
+    const abortedAt = performance.now();
+    controller.abort(new DOMException("Stop", "AbortError"));
+    const response = await pending;
+    const elapsed = performance.now() - abortedAt;
+    assert(elapsed < 150, `the backoff must end on abort, not after 400 ms: took ${Math.round(elapsed)} ms`);
+    assert.equal(response.status, 500);
+    await settleMicrotasks();
+    assert.deepEqual(models, [ROUTER], "no attempt starts after Stop");
+    assert.equal(settlements.length, 1);
+    assert.equal(settlements[0]!.actual, 0, "the only attempt was a 503 and ran no generation");
+    assert.equal(reservations.size, 0);
+    assert.equal(pendingAi(), 0);
+    assert.equal(grants.getTurnGrant(actor.userId)?.inUse, 0);
   }],
   ["one connection failure retries the router, not the alternate", async () => {
     const trace = arrange();

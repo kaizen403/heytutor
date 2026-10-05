@@ -90,9 +90,12 @@ export function readTeachingStartupRetry(headers: Headers): TeachingStartupRetry
   return value === "first_content_timeout" || value === "reasoning_only" ? value : null;
 }
 
+/** Why an upstream attempt failed before any content. */
+export type TeachingUpstreamFailure = "upstream_connect_failure" | "upstream_5xx" | "upstream_rate_limited";
+
 export type TeachingModelFallbackReason =
   | `startup_retry_${TeachingStartupRetryReason}`
-  | "upstream_connect_failure";
+  | TeachingUpstreamFailure;
 
 export interface TeachingModelRoute {
   /** The deployment the first upstream attempt calls. */
@@ -125,12 +128,42 @@ export function resolveTeachingModelRoute(
 }
 
 /**
- * Whether a failed upstream attempt may be retried before any content: a
- * connection failure (no response) or a provider 5xx. A 4xx is the request's
- * own fault and would fail the same way anywhere.
+ * Classifies an upstream attempt that produced no stream: a connection
+ * failure (no response), a provider 5xx, or a 429. Any other status is the
+ * request's own fault and would fail the same way anywhere, so it is null.
  */
-export function isRetryableTeachingFailure(response: Response | null): boolean {
-  return response === null || response.status >= 500;
+export function classifyTeachingFailure(response: Response | null): TeachingUpstreamFailure | null {
+  if (response === null) return "upstream_connect_failure";
+  if (response.ok) return null;
+  if (response.status >= 500) return "upstream_5xx";
+  if (response.status === 429) return "upstream_rate_limited";
+  return null;
+}
+
+/**
+ * The attempt to run after `attempt` failed with `failure`, or null to stop.
+ * Connection failures and 5xx retry in order. A 429 retries only by moving
+ * off the saturated deployment: straight to the last attempt when an
+ * alternate exists, and not at all otherwise.
+ */
+export function nextTeachingAttempt(
+  route: TeachingModelRoute,
+  attempt: number,
+  attempts: number,
+  failure: TeachingUpstreamFailure | null,
+): number | null {
+  if (!failure || attempt >= attempts - 1) return null;
+  if (failure === "upstream_rate_limited") return route.alternate ? attempts - 1 : null;
+  return attempt + 1;
+}
+
+/**
+ * Whether a failed attempt may have run a generation. A provider error status
+ * (5xx or 429) means it did not, so it is free; a thrown or aborted attempt
+ * may have, so it keeps its bound.
+ */
+export function teachingAttemptMayHaveGenerated(response: Response | null): boolean {
+  return response === null || !(response.status >= 500 || response.status === 429);
 }
 
 /**

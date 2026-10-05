@@ -35,6 +35,7 @@ import { reservePaidUsage, maximumLlmCost, actualLlmCost, holdPaidUsage, type Pa
 import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
 import { isTeachingHedge, serverChatBody } from "@/lib/llm/chatRequest";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
+import { setTimeout as sleepFor } from "node:timers/promises";
 import {
   fetchPlannerCompletion,
   resolvePlannerMaxTokens,
@@ -42,12 +43,15 @@ import {
 } from "@/lib/llm/plannerTransport";
 import {
   fetchTeachingCompletion,
-  isRetryableTeachingFailure,
+  classifyTeachingFailure,
+  nextTeachingAttempt,
   readTeachingStartupRetry,
   resolveTeachingContentBudget,
   resolveTeachingModelRoute,
   resolveTeachingReasoningEffort,
   teachingAttemptModel,
+  teachingAttemptMayHaveGenerated,
+  type TeachingUpstreamFailure,
 } from "@/lib/llm/teachingTransport";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
@@ -950,21 +954,24 @@ export async function POST(request: Request): Promise<Response> {
 
     // Transient DNS/TLS/"fetch failed" blips and provider 5xx are common; quick
     // retries avoid aborting a whole turn for a one-off hiccup. When every
-    // earlier attempt failed to connect, the last one moves to the alternate
-    // deployment. Nothing here runs once a response has been accepted, so a
-    // stream that started is never retried.
-    for (let attempt = 0; attempt < TEACHING_UPSTREAM_ATTEMPTS; attempt++) {
+    // earlier attempt failed before content, the last one moves to the
+    // alternate deployment; a 429 skips straight there or is not retried.
+    // Nothing here runs once a response has been accepted, so a stream that
+    // started is never retried.
+    let lastFailure: TeachingUpstreamFailure | null = null;
+    let attempt = 0;
+    while (attempt < TEACHING_UPSTREAM_ATTEMPTS) {
       if (requestSignal.aborted) break;
       const model = teachingAttemptModel(route, attempt, TEACHING_UPSTREAM_ATTEMPTS);
       if (model !== route.model && !teachingMetadata.teaching_model_fallback) {
-        markModelFallback("upstream_connect_failure");
-        tutorDebug("chat", "teaching falls back to the alternate deployment", { from: route.model, to: model });
+        markModelFallback(lastFailure ?? "upstream_connect_failure");
+        tutorDebug("chat", "teaching falls back to the alternate deployment", { from: route.model, to: model, after: lastFailure });
       }
       calledModel = model;
       attemptCount += 1;
       attemptCosts.push(attemptCostFor(model));
       finalAttemptStartedAt = Date.now();
-      let failedResponse: Response | null = null;
+      let failure: TeachingUpstreamFailure | null;
       try {
         const attemptResponse = await fetchTeachingCompletion({
           url: FIREWORKS_CHAT_URL,
@@ -979,19 +986,22 @@ export async function POST(request: Request): Promise<Response> {
           },
         });
         lastFetchError = null;
-        response = attemptResponse;
-        if (attempt === TEACHING_UPSTREAM_ATTEMPTS - 1 || attemptResponse.ok || !isRetryableTeachingFailure(attemptResponse)) {
+        // A provider error status means no generation ran: that attempt is free.
+        if (!teachingAttemptMayHaveGenerated(attemptResponse)) attemptCosts[attemptCosts.length - 1] = 0;
+        failure = classifyTeachingFailure(attemptResponse);
+        if (nextTeachingAttempt(route, attempt, TEACHING_UPSTREAM_ATTEMPTS, failure) === null) {
+          response = attemptResponse;
           break;
         }
-        failedResponse = attemptResponse;
         await attemptResponse.body?.cancel().catch(() => undefined);
-        response = null;
+        lastFetchError = new Error(`upstream status ${attemptResponse.status}`);
         tutorDebug("chat", "Fireworks upstream error before content", {
           attempt: attempt + 1,
           model,
           status: attemptResponse.status,
         });
       } catch (error: unknown) {
+        failure = "upstream_connect_failure";
         lastFetchError = error;
         tutorDebug("chat", "Fireworks fetch failed", {
           attempt: attempt + 1,
@@ -999,11 +1009,15 @@ export async function POST(request: Request): Promise<Response> {
           message: error instanceof Error ? error.message : String(error),
         });
       }
-      if (requestSignal.aborted) break;
-      if (failedResponse) lastFetchError = new Error(`upstream status ${failedResponse.status}`);
-      if (attempt < TEACHING_UPSTREAM_ATTEMPTS - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
-      }
+      lastFailure = failure;
+      const next = requestSignal.aborted
+        ? null
+        : nextTeachingAttempt(route, attempt, TEACHING_UPSTREAM_ATTEMPTS, failure);
+      if (next === null) break;
+      // Stop or the client deadline ends the backoff at once, so the pending
+      // slot and the reservation are released without waiting it out.
+      await sleepFor(400 * (attempt + 1), undefined, { signal: requestSignal }).catch(() => undefined);
+      attempt = next;
     }
 
     if (!response) {

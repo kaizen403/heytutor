@@ -9,13 +9,15 @@ import {
   TEACHING_STARTUP_RETRY_HEADER,
   TEACHING_TOKEN_CEILING,
   fetchTeachingCompletion,
-  isRetryableTeachingFailure,
+  classifyTeachingFailure,
+  nextTeachingAttempt,
   readTeachingStartupRetry,
   resolveTeachingContentBudget,
   resolveTeachingModel,
   resolveTeachingModelRoute,
   resolveTeachingReasoningEffort,
   teachingAttemptModel,
+  teachingAttemptMayHaveGenerated,
 } from "../../lib/llm/teachingTransport";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -173,10 +175,23 @@ assert(
     "a startup retry never goes back to the router that stalled",
   );
   same(teachingAttemptModel(first, 0, 1), DEFAULT_TEACHING_FAST_MODEL, "a single attempt is never a fallback");
-  assert(isRetryableTeachingFailure(null), "a connection failure is retryable");
-  assert(isRetryableTeachingFailure(new Response(null, { status: 503 })), "a provider 5xx is retryable");
-  assert(!isRetryableTeachingFailure(new Response(null, { status: 400 })), "a 4xx would fail the same way anywhere");
-  assert(!isRetryableTeachingFailure(new Response(null, { status: 200 })), "a stream that started is never retried");
+  const status = (code: number) => new Response(null, { status: code });
+  same(classifyTeachingFailure(null), "upstream_connect_failure", "no response is a connection failure");
+  same(classifyTeachingFailure(status(503)), "upstream_5xx", "a provider 5xx is named apart");
+  same(classifyTeachingFailure(status(429)), "upstream_rate_limited", "a 429 is named apart");
+  same(classifyTeachingFailure(status(400)), null, "a 4xx would fail the same way anywhere");
+  same(classifyTeachingFailure(status(200)), null, "a stream that started is never retried");
+  const standardOnly = resolveTeachingModelRoute({}, { fastMode: true, startupRetry: "first_content_timeout" });
+  same([0, 1, 2].map((attempt) => nextTeachingAttempt(first, attempt, 3, "upstream_5xx")), [1, 2, null],
+    "5xx and connection failures retry in order until the last attempt");
+  same([0, 1].map((attempt) => nextTeachingAttempt(first, attempt, 3, "upstream_rate_limited")), [2, 2],
+    "a 429 moves straight to the alternate deployment");
+  same(nextTeachingAttempt(standardOnly, 0, 3, "upstream_rate_limited"), null, "with no alternate a 429 is not retried");
+  same(nextTeachingAttempt(standardOnly, 0, 3, "upstream_connect_failure"), 1, "a connection failure still retries without an alternate");
+  same(nextTeachingAttempt(first, 0, 3, null), null, "a usable or 4xx response ends the loop");
+  assert(!teachingAttemptMayHaveGenerated(status(503)) && !teachingAttemptMayHaveGenerated(status(429)),
+    "an error status ran no generation and is free");
+  assert(teachingAttemptMayHaveGenerated(null), "a thrown or aborted attempt keeps its bound");
   assert(TEACHING_STARTUP_RETRY_HEADER === CLIENT_STARTUP_RETRY_HEADER, "client and server must agree on the startup retry header");
   same(readTeachingStartupRetry(new Headers({ "x-heytutor-reasoning-retry": "1" })), null,
     "the reasoning-off header alone (a hedge) is not a startup retry");
@@ -226,7 +241,8 @@ assert(
     ["../lecture-lab/lecturePipeline.ts", "noReasoning: reasoningOnlyRetry", "the lecture lab must mirror the live retry"],
     ["../../features/tutor-session/hooks/turn/useQuestionHandler.ts", "startupRetry: reasoningOnlyRetry && !resumeInkRetry ? startupRetryReason : undefined", "the live hook must name its startup retry"],
     ["../../features/tutor-session/hooks/turn/useQuestionHandler.ts", "startupRetryReason = continueCount === 0 && !resume && !resumeInkRetry ? retryReason : undefined", "only the retry of the first request is a startup retry"],
-    ["../lecture-lab/lecturePipeline.ts", "startupRetry = continueCount === 0;", "the lecture lab must mirror the live startup retry"],
+    ["../lecture-lab/lecturePipeline.ts", "startupRetry: reasoningOnlyRetry ? startupRetry : undefined", "the lecture lab must mirror the live startup retry"],
+    ["../lecture-lab/lecturePipeline.ts", 'streamResult.streamStats?.firstContentTimedOut ? "first_content_timeout" : "reasoning_only"', "the lecture lab must send the real startup retry reason"],
     ["../../app/api/chat/route.ts", "readTeachingStartupRetry(request.headers)", "the chat route must route the startup retry"],
     ["../../app/api/chat/route.ts", 'afterReasoningOnly: request.headers.get("x-heytutor-reasoning-retry") === "1"', "the chat route must honour the retry header"],
     ["../../../../packages/tutor-core/src/llm/llmAPI.ts", 'headers["x-heytutor-reasoning-retry"] = "1"', "the stream client must send the retry header"],
