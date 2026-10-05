@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { getEventListeners } from "node:events";
-import { streamLLMResponse, type StreamLLMResponseParams } from "../../src/llm/llmAPI";
+import { streamLLMResponse, TEACHING_STARTUP_RETRY_HEADER, type StreamLLMResponseParams } from "../../src/llm/llmAPI";
 import { HEYTUTOR_SESSION_ID_HEADER, HEYTUTOR_TRACE_ID_HEADER } from "../../src/llm/traceHeaders";
 
 const originalFetch = globalThis.fetch;
@@ -274,6 +274,7 @@ try {
     assert.equal(activeTimers.size, 0, "usable content must remove the timer before the lesson finishes");
     const headers = new Headers(request.init?.headers);
     assert.equal(headers.get("x-heytutor-reasoning-retry"), "1");
+    assert.equal(headers.get("x-heytutor-startup-retry"), null, "reasoning off alone is not a startup retry");
     assert.equal(headers.get("x-heytutor-teaching-pass"), codeLesson ? "code-lesson" : "planned");
     assert.equal(headers.get("x-heytutor-code-lesson"), codeLesson ? "1" : null);
     assert.equal(headers.get(HEYTUTOR_SESSION_ID_HEADER), "board-1");
@@ -535,6 +536,7 @@ try {
     assert.equal(calls.length, 1, "a fast primary must never open a hedge");
     assert.equal(calls[0]!.headers.get("x-heytutor-teaching-hedge"), null);
     assert.equal(calls[0]!.headers.get("x-heytutor-reasoning-retry"), null, "the primary keeps the caller's reasoning setting");
+    assert.equal(calls[0]!.headers.get("x-heytutor-startup-retry"), null, "a first request is never a startup retry");
     assert.deepEqual(events.log, ["request:primary"], "no hedge start or winner event without a hedge");
     assert.equal(result.text, "[STEP]The primary starts at once.[/STEP]");
     assert.equal(deltas.join(""), result.text);
@@ -570,6 +572,8 @@ try {
     const [primaryCall, hedgeCall] = calls;
     assert.equal(hedgeCall!.headers.get("x-heytutor-teaching-hedge"), "1");
     assert.equal(hedgeCall!.headers.get("x-heytutor-reasoning-retry"), "1", "the hedge must ask for reasoning off");
+    assert.equal(hedgeCall!.headers.get("x-heytutor-startup-retry"), null, "a hedge must not move to the retry deployment");
+    assert.equal(primaryCall!.headers.get("x-heytutor-startup-retry"), null);
     assert.equal(hedgeCall!.headers.get(HEYTUTOR_SESSION_ID_HEADER), "board-1");
     assert.equal(hedgeCall!.headers.get(HEYTUTOR_TRACE_ID_HEADER), "turn-1");
     assert.equal(hedgeCall!.body, primaryCall!.body, "the hedge must send the same body");
@@ -945,6 +949,38 @@ try {
     assert.equal(result.streamStats?.attempt, hedged ? "hedge" : "primary");
     assertClean(primary.response);
     if (hedged) assertClean(hedgeStream.response);
+  }
+
+  // The startup retry names itself, so the server can move a Fast mode retry
+  // off the router that stalled; the reasoning-off header keeps its meaning.
+  for (const reason of ["first_content_timeout", "reasoning_only"] as const) {
+    const stream = streamedResponse();
+    const calls = stubResponses(stream.response);
+    stream.delta({ content: "[STEP]The retry speaks.[/STEP]" });
+    const completion = streamLLMResponse({ ...params, noReasoning: true, startupRetry: reason });
+    await sleep(0);
+    stream.close();
+    await completion;
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]!.headers.get(TEACHING_STARTUP_RETRY_HEADER), reason, "the startup retry must carry its reason");
+    assert.equal(calls[0]!.headers.get("x-heytutor-reasoning-retry"), "1", "the startup retry still runs with reasoning off");
+    assertClean(stream.response);
+  }
+  {
+    // Even if a caller hedged a startup retry, only the primary carries the header.
+    const primary = streamedResponse();
+    const hedgeStream = streamedResponse();
+    const calls = stubResponses(primary.response, hedgeStream.response);
+    const completion = streamLLMResponse({ ...hedgeParams, noReasoning: true, startupRetry: "first_content_timeout" });
+    await sleep(45);
+    assert.equal(calls.length, 2);
+    hedgeStream.delta({ content: "[STEP]Hedge.[/STEP]" });
+    hedgeStream.close();
+    await completion;
+    assert.equal(calls[0]!.headers.get(TEACHING_STARTUP_RETRY_HEADER), "first_content_timeout");
+    assert.equal(calls[1]!.headers.get(TEACHING_STARTUP_RETRY_HEADER), null);
+    assertClean(primary.response);
+    assertClean(hedgeStream.response);
   }
 } finally {
   globalThis.fetch = originalFetch;

@@ -123,6 +123,37 @@ export function resolveTeachingFireworksModel(options: {
   );
 }
 
+/**
+ * The teaching deployment a stalled Fast router falls back to: the standard
+ * serverless Kimi K3. Same weights, a separate serving path. Measured 6 Oct
+ * 2026: the Kimi K3 Fast router stalled for about a minute, and the startup
+ * retry went back to the same router and failed the lesson.
+ */
+export const DEFAULT_TEACHING_RETRY_MODEL = DEFAULT_TEACHING_MODEL;
+
+/**
+ * The alternate teaching deployment, or null when there is none.
+ *
+ * Only a Fast lane teaching call has one: it falls back to
+ * `FIREWORKS_TEACHING_RETRY_MODEL`, then standard Kimi K3. With Fast mode off
+ * the call already runs on the standard path the student chose, and the
+ * router costs more, so it keeps today's single deployment.
+ */
+export function resolveTeachingAlternateFireworksModel(options: {
+  fastMode?: boolean;
+  env?: Record<string, string | undefined>;
+} = {}): string | null {
+  const env = options.env ?? process.env;
+  const fastLane = resolveLaneFastModel(
+    env.FIREWORKS_TEACHING_FAST_MODEL,
+    DEFAULT_TEACHING_FAST_MODEL,
+    options.fastMode,
+  );
+  if (!fastLane) return null;
+  const alternate = trimModel(env.FIREWORKS_TEACHING_RETRY_MODEL) || DEFAULT_TEACHING_RETRY_MODEL;
+  return alternate === fastLane ? null : alternate;
+}
+
 export function resolveFireworksModels(options: {
   fastMode?: boolean;
   env?: Record<string, string | undefined>;

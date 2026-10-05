@@ -136,6 +136,7 @@ async function scenario(mode: Mode, hedgeEnabled = false) {
     controller: ReadableStreamDefaultController<Uint8Array>;
     response: Response;
     retry: boolean;
+    startupRetry: string | null;
     hedge: boolean;
     signal: AbortSignal | null | undefined;
     cancelled: boolean;
@@ -210,6 +211,7 @@ async function scenario(mode: Mode, hedgeEnabled = false) {
         cancel() { stream.cancelled = true; record("teaching-reader-cancelled"); },
       }), { headers: { "content-type": "text/event-stream", "x-heytutor-trace-id": "offline-teaching-trace" } }),
       retry: headers.get("x-heytutor-reasoning-retry") === "1",
+      startupRetry: headers.get("x-heytutor-startup-retry"),
       hedge: hedgeRequest,
       signal: init?.signal,
       cancelled: false,
@@ -483,6 +485,10 @@ async function scenario(mode: Mode, hedgeEnabled = false) {
         assert(streams.slice(0, active).every((stream) => stream.cancelled), "expiry must cancel the primary and any hedge");
         assert.equal(streams[active]!.retry, true, "the retry must send noReasoning to the actual stream transport");
         assert.equal(streams[active]!.hedge, false, "the startup retry is never hedged");
+        assert.equal(streams[active]!.startupRetry, "first_content_timeout",
+          "the startup retry must name itself so the server moves it off the stalled Fast router");
+        assert(streams.slice(0, active).every((stream) => stream.startupRetry === null),
+          "the first request and its hedge are never startup retries");
         assert.equal(outputs().length, 0, "the first expiry must not prematurely enqueue an opening");
         expectedStreams = active + 1;
       }

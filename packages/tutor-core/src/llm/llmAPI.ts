@@ -29,6 +29,11 @@ export interface TeachingAttemptStats {
   outcome: "completed" | "aborted" | "failed";
 }
 
+/** Sent only on the startup retry; the value is why the first request failed. */
+export const TEACHING_STARTUP_RETRY_HEADER = "x-heytutor-startup-retry";
+
+export type TeachingStartupRetryReason = "first_content_timeout" | "reasoning_only";
+
 export interface StreamLLMResponseParams {
   systemPrompt: string;
   userPrompt: string;
@@ -43,6 +48,12 @@ export interface StreamLLMResponseParams {
   codeLesson?: boolean;
   /** Retry after a reasoning-only response: ask the server for no thinking budget. */
   noReasoning?: boolean;
+  /**
+   * This request retries the turn's first teaching request, which timed out
+   * before a usable step or spoke only reasoning. The server moves a Fast mode
+   * retry off the router that stalled. Never set on continuations or resumes.
+   */
+  startupRetry?: TeachingStartupRetryReason;
   firstContentTimeoutMs?: number;
   hasUsableContent?: () => boolean;
   /**
@@ -170,6 +181,7 @@ function buildRequestHeaders(
   noReasoning = false,
   traceId?: string,
   question?: string,
+  startupRetry?: TeachingStartupRetryReason,
 ): Record<string, string> {
   const headers: Record<string, string> = {
     "content-type": "application/json",
@@ -192,6 +204,9 @@ function buildRequestHeaders(
   }
   if (noReasoning) {
     headers["x-heytutor-reasoning-retry"] = "1";
+  }
+  if (startupRetry) {
+    headers[TEACHING_STARTUP_RETRY_HEADER] = startupRetry;
   }
 
   return withFastModeHeader(
@@ -254,6 +269,7 @@ export async function streamLLMResponse(
     fastMode,
     codeLesson,
     noReasoning,
+    startupRetry,
     firstContentTimeoutMs = 15_000,
     hasUsableContent,
     hedge,
@@ -456,6 +472,8 @@ export async function streamLLMResponse(
         attempt.noReasoning,
         requestTraceId,
         question,
+        // The hedge races the first request; it is never a startup retry.
+        attempt.kind === "primary" ? startupRetry : undefined,
       );
       if (attempt.hedgeHeader) {
         headers["x-heytutor-teaching-hedge"] = "1";
