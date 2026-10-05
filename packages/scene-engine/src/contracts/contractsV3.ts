@@ -75,9 +75,17 @@ export interface TurnPlanArithmeticReconciliation {
   reconciledValue: number;
 }
 
+export interface TurnPlanArithmeticDecline {
+  quantityId: string;
+  /** Why the written arithmetic was not used to check or replace the value. */
+  reason: "mixed_units";
+}
+
 export interface TurnPlanArithmeticReconciliationResult {
   plan: unknown;
   reconciliations: TurnPlanArithmeticReconciliation[];
+  /** Values left as declared (and unverified) because the evidence was in doubt. */
+  declined: TurnPlanArithmeticDecline[];
 }
 
 /**
@@ -89,7 +97,7 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
   raw: unknown,
 ): TurnPlanArithmeticReconciliationResult {
   if (!isRecord(raw) || !Array.isArray(raw.derived)) {
-    return { plan: raw, reconciliations: [] };
+    return { plan: raw, reconciliations: [], declined: [] };
   }
   const knownUnits = collectPlanUnits(raw);
   const bindingMeta: NumericBindingMetaMap = new Map();
@@ -98,6 +106,7 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
     bindingMeta,
   );
   const reconciliations: TurnPlanArithmeticReconciliation[] = [];
+  const declined: TurnPlanArithmeticDecline[] = [];
   const derived: unknown[] = [...raw.derived];
   // Evaluate dependencies first so a corrected value reaches every quantity
   // computed from it, whatever order the plan lists them in.
@@ -121,11 +130,16 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
       [value.id, value.symbol].filter((key): key is string => typeof key === "string"),
       { bindingMeta, declaredValue: value.value },
     );
-    if (
-      evidence.conflicting ||
-      evidence.value === null ||
-      approximatelyEqual(evidence.value, value.value)
-    ) {
+    const agrees = evidence.value !== null && approximatelyEqual(evidence.value, value.value);
+    if (evidence.mixedUnits && !agrees) {
+      // Part of the chain mixes units (6400 km in "g R_e^2" for an SI GM)
+      // and only its literal numbers back a reading. Never rewrite through
+      // that doubt, and never trust the value downstream.
+      declined.push({ quantityId: value.id, reason: "mixed_units" });
+      addNumericBinding(numericBindings, value, bindingMeta, false);
+      return value;
+    }
+    if (evidence.conflicting || evidence.value === null || agrees) {
       addNumericBinding(numericBindings, value, bindingMeta, evidence.value !== null);
       return value;
     }
@@ -154,10 +168,11 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
     addNumericBinding(numericBindings, corrected, bindingMeta);
     return corrected;
   }
-  if (reconciliations.length === 0) return { plan: raw, reconciliations };
+  if (reconciliations.length === 0) return { plan: raw, reconciliations, declined };
   return {
     plan: { ...raw, derived },
     reconciliations,
+    declined,
   };
 }
 
@@ -371,20 +386,12 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
         measurement: ClaimMeasurement,
         allowMagnitude: boolean,
       ) => typeof quantity.value === "number" && (
-        claimEquivalentMeasuredQuantity(
-          quantity.value,
-          quantity.unit,
-          measurement.value,
-          measurement.unit,
-          measurement.tolerance,
-        ) || (
+        claimMatchesAtStatedPrecision(quantity.value, quantity.unit, measurement) || (
           allowMagnitude &&
-          claimEquivalentMeasuredQuantity(
+          claimMatchesAtStatedPrecision(
             Math.abs(quantity.value),
             quantity.unit,
-            Math.abs(measurement.value),
-            measurement.unit,
-            measurement.tolerance,
+            { ...measurement, value: Math.abs(measurement.value) },
           )
         ));
       const mismatch = (measurement: ClaimMeasurement) => issues.push({
@@ -602,6 +609,8 @@ interface ExplicitArithmeticEvidence {
   invalid: boolean;
   /** Displayed precision of a stated result the evidence was read from. */
   tolerance?: number;
+  /** A clause mixed input units and was set aside as no evidence. */
+  mixedUnits?: boolean;
 }
 
 interface ExplicitArithmeticOptions {
@@ -633,6 +642,7 @@ function evaluateExplicitArithmetic(
     : null;
   let invalid = false;
   let signConflict = false;
+  let mixedUnits = false;
   for (const clause of splitArithmeticClauses(sourceText)) {
     const equalityParts = splitEqualityParts(clause);
     if (equalityParts.length < 2) continue;
@@ -704,6 +714,10 @@ function evaluateExplicitArithmetic(
         }
       }
       if (reading.kind === "inconsistent_units") continue;
+      if (reading.kind === "mixed_units") {
+        mixedUnits = true;
+        continue;
+      }
       if (
         reading.kind === "value" && targetStated &&
         !withinDisplayedPrecision(reading.value, targetStated) &&
@@ -761,6 +775,8 @@ function evaluateExplicitArithmetic(
         }
       } else if (anonymous.kind === "no_reading" && !reconcile) {
         invalid = true;
+      } else if (anonymous.kind === "mixed_units") {
+        mixedUnits = true;
       }
       continue;
     }
@@ -804,8 +820,8 @@ function evaluateExplicitArithmetic(
       }
     }
   }
-  if (invalid) return { value: null, conflicting: false, invalid: true };
-  if (signConflict) return { value: null, conflicting: true, invalid: false };
+  if (invalid) return { value: null, conflicting: false, invalid: true, mixedUnits };
+  if (signConflict) return { value: null, conflicting: true, invalid: false, mixedUnits };
   const agree = (
     one: { value: number; tolerance: number },
     other: { value: number; tolerance: number },
@@ -815,7 +831,7 @@ function evaluateExplicitArithmetic(
   if (results.length === 0) {
     // A bare restatement is never a reason to overwrite, but validation
     // still holds the declared value to what the sourceText says it is.
-    if (reconcile || assertions.length === 0) return { value: null, conflicting: false, invalid: false };
+    if (reconcile || assertions.length === 0) return { value: null, conflicting: false, invalid: false, mixedUnits };
     return assertions.every((assertion) => assertions.every((other) => agree(assertion, other)))
       ? {
           value: assertions[0]!.value,
@@ -834,8 +850,9 @@ function evaluateExplicitArithmetic(
         conflicting: false,
         invalid: false,
         tolerance: Math.max(...results.map((result) => result.tolerance)),
+        mixedUnits,
       }
-    : { value: null, conflicting: true, invalid: false };
+    : { value: null, conflicting: true, invalid: false, mixedUnits };
 }
 
 /** Indices of derived quantities, dependencies (dependsOn) first, stable otherwise. */
@@ -898,7 +915,7 @@ function evaluateAnchoredAnonymousChain(
   declaredAnchor: { value: number; tolerance: number } | null,
 ):
   | { kind: "value"; value: number; stated: { value: number; tolerance: number } }
-  | { kind: "inconsistent_units" | "no_reading" }
+  | { kind: "inconsistent_units" | "no_reading" | "mixed_units" }
   | null {
   if (!declaredAnchor || equalityParts.length < 3) return null;
   const finalIndex = equalityParts.length - 1;
@@ -925,8 +942,11 @@ function evaluateAnchoredAnonymousChain(
     try {
       const value = evaluateMathExpression(expression, 0);
       if (!Number.isFinite(value)) continue;
+      const coherentValue = usesScaledBinding(bindingKeys, bindingMeta)
+        ? coherentMemberValue("", part, true, [], knownUnits, coherentNumericBindings(numericBindings, bindingMeta))
+        : undefined;
       const reading = readSolvedValueInUnit(
-        { value, valueIndex: index, isolated: true, bindingKeys },
+        { value, valueIndex: index, isolated: true, bindingKeys, coherentValue },
         equalityParts,
         expectedUnit,
         bindingMeta,
@@ -992,7 +1012,73 @@ function parseTargetAssertion(
 type SolvedValueReading =
   | { kind: "value"; value: number }
   | { kind: "inconsistent_units" }
-  | { kind: "no_reading" };
+  | { kind: "no_reading" }
+  /**
+   * The chain mixes units (6400 km beside m/s^2, 32 g/mol in an SI formula,
+   * cm beside m) and only the literal reading of its numbers, not the
+   * dimensionally converted one, agrees with what the chain states or the
+   * plan declares. The expression may convert units itself, or the chain
+   * may have slipped a power of ten; the text cannot tell, so it is no
+   * evidence either way and the reconcile declines.
+   */
+  | { kind: "mixed_units" };
+
+/**
+ * Read a computed number in the declared unit, then hold it to dimensional
+ * analysis when the chain substituted a prefixed or non-coherent input whose
+ * unit does not simply pin the result (one unit shared by every input of
+ * the target's dimension). Converting every input to coherent SI and
+ * evaluating again gives the dimensionally sound result. When the two
+ * readings differ, the coherent one wins only when the chain's stated
+ * result or the plan's declared value supports it; a reading only the
+ * literal numbers support is mixed units, and no reading is a slip.
+ */
+function readSolvedValueInUnit(
+  solved: SolvedTargetValue,
+  equalityParts: string[],
+  expectedUnit: unknown,
+  bindingMeta: NumericBindingMetaMap,
+  /** The chain's stated result first, then the plan's declared value. */
+  anchors: Array<{ value: number; tolerance: number }>,
+): SolvedValueReading {
+  const reading = readSolvedValueInDeclaredUnit(solved, equalityParts, expectedUnit, bindingMeta, anchors);
+  if (solved.coherentValue === undefined || reading.kind !== "value") return reading;
+  const expectedScale = unitScale(expectedUnit);
+  if (expectedScale && expectedScale.signature !== "") {
+    let sameDimensionFactor: number | null = null;
+    let pinnedByOneUnit = true;
+    for (const key of solved.bindingKeys) {
+      const scale = unitScale(bindingMeta.get(key)?.unit);
+      const scaled = scaledBindingUnit(key, bindingMeta) !== null;
+      if (!scale || scale.signature !== expectedScale.signature) {
+        if (scaled) pinnedByOneUnit = false;
+        continue;
+      }
+      if (sameDimensionFactor === null) sameDimensionFactor = scale.factor;
+      else if (!approximatelyEqual(sameDimensionFactor, scale.factor)) pinnedByOneUnit = false;
+    }
+    // f and d_o both in cm for an image distance: the input unit pins the
+    // result, and the declared-unit reader already honours a conversion
+    // written in the expression ("v0*1000/3600").
+    if (pinnedByOneUnit && sameDimensionFactor !== null) return reading;
+  }
+  if (!expectedScale || solved.coherentValue === null) return { kind: "mixed_units" };
+  const dimensional = solved.coherentValue / expectedScale.factor;
+  if (approximatelyEqual(dimensional, reading.value)) return reading;
+  const supports = (value: number) => anchors.some((anchor) => withinDisplayedPrecision(value, anchor));
+  // The coherent reading replaces a declared value only when the chain's own
+  // stated result agrees with it: the chain then writes the conversion out.
+  if (supports(dimensional)) return { kind: "value", value: dimensional };
+  if (supports(reading.value) || supports(solved.value)) {
+    // A conversion cannot be written without a number ("v0*1000/3600",
+    // "(R_e*1e3)^2"). A member of bare symbols ("g R_e^2", "a + b") that
+    // only agrees once its mixed inputs are read literally is a unit slip:
+    // report it. With a literal in the member the text cannot tell.
+    const member = (equalityParts[solved.valueIndex] ?? "").replace(/\^\s*\(?\s*[-−]?\d+(?:\.\d+)?\s*\)?/g, "");
+    return !solved.isolated || /(?<![\w.])\d/.test(member) ? { kind: "mixed_units" } : { kind: "no_reading" };
+  }
+  return { kind: "no_reading" };
+}
 
 /**
  * A computed number has no unit of its own. Read it in the quantity's
@@ -1006,7 +1092,7 @@ type SolvedValueReading =
  * Otherwise (a prefixed unit with no evidence) both the declared and the
  * coherent SI reading are possible; keep the one the stated value supports.
  */
-function readSolvedValueInUnit(
+function readSolvedValueInDeclaredUnit(
   solved: SolvedTargetValue,
   equalityParts: string[],
   expectedUnit: unknown,
@@ -1139,6 +1225,12 @@ interface SolvedTargetValue {
   isolated: boolean;
   /** Numeric bindings substituted while computing the value. */
   bindingKeys: Set<string>;
+  /**
+   * The same member evaluated with every prefixed or non-coherent binding
+   * (km, cm, g, min, %) first converted to its coherent SI unit. Absent when
+   * no such binding was substituted; null when the coherent evaluation fails.
+   */
+  coherentValue?: number | null;
   /** Other members of the chain that also evaluate, in preference order. */
   alternatives?: SolvedTargetValue[];
   /**
@@ -1205,7 +1297,19 @@ function solveExplicitTargetEquation(
         const value = evaluateMathExpression(valueExpression, 0);
         if (!Number.isFinite(value)) continue;
         const solved = isolated ? value : solveUniqueEquationValue(targetExpression, value);
-        if (solved !== null) candidates.push({ value: solved, valueIndex, isolated, bindingKeys });
+        if (solved === null) continue;
+        const candidate: SolvedTargetValue = { value: solved, valueIndex, isolated, bindingKeys };
+        if (usesScaledBinding(bindingKeys, bindingMeta)) {
+          candidate.coherentValue = coherentMemberValue(
+            equalityParts[targetIndex] ?? "",
+            equalityParts[valueIndex] ?? "",
+            isolated,
+            targetKeys,
+            knownUnits,
+            coherentNumericBindings(numericBindings, bindingMeta),
+          );
+        }
+        candidates.push(candidate);
       } catch {
         // Try a later equality part with more explicit numeric evidence.
       }
@@ -1228,6 +1332,62 @@ function solveExplicitTargetEquation(
     return { ...preferred, alternatives: candidates.slice(1), writtenSign };
   }
   return null;
+}
+
+/** A binding whose unit converts to its coherent SI unit by a factor other than 1. */
+function scaledBindingUnit(key: string, bindingMeta: NumericBindingMetaMap): UnitScale | null {
+  const meta = bindingMeta.get(key);
+  if (!meta) return null;
+  const scale = unitScale(meta.unit);
+  return scale && !approximatelyEqual(scale.factor, 1) ? scale : null;
+}
+
+function usesScaledBinding(bindingKeys: Set<string>, bindingMeta: NumericBindingMetaMap): boolean {
+  return [...bindingKeys].some((key) => scaledBindingUnit(key, bindingMeta) !== null);
+}
+
+/** Every binding in its coherent SI unit (6400 km as 6.4e6, 32 g/mol as 0.032). */
+function coherentNumericBindings(
+  numericBindings: Map<string, number>,
+  bindingMeta: NumericBindingMetaMap,
+): Map<string, number> {
+  const coherent = new Map<string, number>();
+  for (const [key, value] of numericBindings) {
+    const scale = scaledBindingUnit(key, bindingMeta);
+    coherent.set(key, scale ? value * scale.factor : value);
+  }
+  return coherent;
+}
+
+/**
+ * Evaluate one equality member (and, for an equation, solve the target side)
+ * with coherent bindings. A dimensionally sound formula then yields the
+ * result in the coherent unit of the target, whatever units the inputs had.
+ */
+function coherentMemberValue(
+  targetMember: string,
+  valueMember: string,
+  isolated: boolean,
+  targetKeys: string[],
+  knownUnits: string[],
+  coherentBindings: Map<string, number>,
+): number | null {
+  try {
+    const valueExpression = normalizeExplicitNumericExpression(valueMember, knownUnits, coherentBindings);
+    if (!valueExpression) return null;
+    const value = evaluateMathExpression(valueExpression, 0);
+    if (!Number.isFinite(value)) return null;
+    if (isolated) return value;
+    const targetExpression = normalizeTargetNumericExpression(
+      targetMember,
+      targetKeys,
+      knownUnits,
+      coherentBindings,
+    );
+    return targetExpression ? solveUniqueEquationValue(targetExpression, value) : null;
+  } catch {
+    return null;
+  }
 }
 
 function explicitArithmeticOperation(source: string): boolean {
@@ -3398,7 +3558,14 @@ function extractMeasuredValues(text: string): Array<{ value: number; unit: strin
   return values;
 }
 
-type ClaimMeasurement = { value: number; unit: string; tolerance: number };
+type ClaimMeasurement = {
+  value: number;
+  unit: string;
+  /** Half a unit in the last written digit: the rounding window. */
+  tolerance: number;
+  /** Significant figures written in the claim's number. */
+  significantFigures?: number;
+};
 
 type ClassifiedClaimMeasurement =
   | {
@@ -3439,12 +3606,53 @@ function claimMeasuredValues(text: string): Array<ClaimMeasurement & { index: nu
       value,
       unit,
       tolerance: displayedNumberTolerance(mantissa.replace(/^[+-]/, "")) * 10 ** exponent,
+      significantFigures: writtenSignificantFigures(mantissa),
       index: match.index,
       length: match[0].length,
     });
   }
   return values;
 }
+
+/** "483.6" has 4, "0.032" has 2, "480" has 3 (a written integer's zeros count). */
+function writtenSignificantFigures(mantissa: string): number {
+  const digits = mantissa.replace(/^[+\-−]/, "").replace(".", "").replace(/^0+/, "");
+  return digits.length;
+}
+
+/**
+ * A claim states a number at its own precision. It matches a quantity when
+ * it is the quantity rounded at that precision ("≈ 484 m/s" for 483.67), or,
+ * for a number written to at least three significant figures, the quantity
+ * truncated there ("483 m/s", "483.6 m/s" for 483.67): one unit in the last
+ * written place, toward zero, at most 1% of the number. Nothing looser: "480"
+ * or "480.0" is not 483.67, and two figures never truncate (12 is not 12.9).
+ */
+function claimMatchesAtStatedPrecision(
+  quantityValue: number,
+  quantityUnit: unknown,
+  measurement: ClaimMeasurement,
+): boolean {
+  if (claimEquivalentMeasuredQuantity(
+    quantityValue,
+    quantityUnit,
+    measurement.value,
+    measurement.unit,
+    measurement.tolerance,
+  )) return true;
+  if ((measurement.significantFigures ?? 0) < CLAIM_TRUNCATION_MIN_FIGURES || measurement.value === 0) return false;
+  const quantity = claimCanonicalMeasurement(quantityValue, quantityUnit);
+  const stated = claimCanonicalMeasurement(measurement.value, measurement.unit);
+  const lastPlace = claimCanonicalMeasurement(2 * measurement.tolerance, measurement.unit);
+  if (!quantity || !stated || !lastPlace || quantity.dimension !== stated.dimension) return false;
+  if (Math.sign(quantity.value) !== Math.sign(stated.value)) return false;
+  const size = Math.abs(quantity.value);
+  const statedSize = Math.abs(stated.value);
+  const slack = Math.max(1, size, statedSize) * 1e-9;
+  return size >= statedSize - slack && size < statedSize + Math.abs(lastPlace.value) - slack;
+}
+
+const CLAIM_TRUNCATION_MIN_FIGURES = 3;
 
 function isClaimUnit(unit: string): boolean {
   const normalized = normalizeUnit(unit);
@@ -3503,7 +3711,7 @@ function classifyClaimMeasurements(
       names([quantity.id, quantity.symbol]).some((nameWords) => nameWords.every((word) => phraseWords.has(word))));
   };
   for (const found of claimMeasuredValues(text)) {
-    const measurement = { value: found.value, unit: found.unit, tolerance: found.tolerance };
+    const measurement = { value: found.value, unit: found.unit, tolerance: found.tolerance, significantFigures: found.significantFigures };
     const prefix = text.slice(0, found.index);
     // The tail of a larger number ("90/11 V", "7.0e6 m", "2/5 m R^2") is
     // not a measured value on its own.

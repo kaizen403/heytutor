@@ -8,7 +8,11 @@
  * - "=>", "≈", ">=" are read as what they are;
  * - a sign written in the expression beats an unsigned magnitude binding;
  * - a genuine arithmetic slip is still corrected or reported;
- * - a claim number stated for a linked quantity must be its value; a number
+ * - inputs in mixed units are read by dimensional analysis; a literal
+ *   reading of mixed units never rewrites a value;
+ * - a claim number stated for a linked quantity must be its value at the
+ *   claim's own precision (rounded, or truncated at three or more
+ *   significant figures); a number
  *   the claim does not attribute but that carries a linked quantity's
  *   dimension must be explained by the plan or the question.
  */
@@ -650,6 +654,127 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
   const input = plan([given("r", 10, "cm")], [derived("x", 0.3, "m", "x = 30 cm = 0.3 m")]);
   check("isolated restatement is not arithmetic", reconciled(input, "x").value === 0.3, reconciled(input, "x"));
   check("isolated restatement valid", liveIssueCodes(input).length === 0, liveIssueCodes(input));
+}
+
+// ---------------------------------------------------------------------------
+// Mixed units: a chain whose inputs carry different units for one dimension
+// (km beside m, cm beside m, g beside kg, min beside s), or a prefixed unit
+// beside a coherent target, is read by dimensional analysis. A value is never
+// rewritten through a literal reading of mixed inputs; a bare-symbol chain
+// that only agrees when read literally is reported; and the coherent result
+// replaces a declared value only when the chain states that result itself.
+// ---------------------------------------------------------------------------
+
+{
+  const cases: Array<{
+    name: string;
+    givens: Quantity[];
+    unit: string;
+    expression: string;
+    correct: number;
+    literal: number;
+  }> = [
+    { name: "km with m", givens: [given("a", 2, "km"), given("b", 500, "m")], unit: "m", expression: "a + b", correct: 2500, literal: 502 },
+    { name: "cm with m", givens: [given("L1", 30, "cm"), given("L2", 1.2, "m")], unit: "m", expression: "L1 + L2", correct: 1.5, literal: 31.2 },
+    { name: "g with kg", givens: [given("m1", 500, "g"), given("m2", 2, "kg")], unit: "kg", expression: "m1 + m2", correct: 2.5, literal: 502 },
+    { name: "minutes with seconds", givens: [given("t1", 2, "min"), given("t2", 30, "s")], unit: "s", expression: "t1 + t2", correct: 150, literal: 32 },
+    // The grav3 shape: a prefixed input in a product for a coherent target
+    // (R in km inside g R^2), scaled down to stay in the evaluator's range.
+    { name: "km in a product for an SI target", givens: [given("g", 9.8, "m/s^2"), given("R", 6.4, "km")], unit: "m^3/s^2", expression: "g R^2", correct: 401408000, literal: 401.408 },
+    { name: "g/mol in an SI formula", givens: [given("Rg", 8.314, "J/(mol K)"), given("T", 300, "K"), given("M", 32, "g/mol")], unit: "m/s", expression: "sqrt(3 Rg T/M)", correct: 483.5610095944461, literal: 15.291541779689844 },
+  ];
+  for (const { name, givens, unit, expression, correct, literal } of cases) {
+    // A correct declared value with an unevaluated chain is never rewritten
+    // to the literal reading.
+    const bare = plan(givens, [derived("q", correct, unit, `q = ${expression}`)]);
+    check(`${name}: correct value kept beside a bare chain`, close(reconciled(bare, "q").value, correct), reconciled(bare, "q"));
+    check(`${name}: correct value with a bare chain valid`, liveIssueCodes(bare).length === 0, liveIssueCodes(bare));
+    // The chain states the correct result in the target's unit: kept, valid.
+    const stated = plan(givens, [derived("q", correct, unit, `q = ${expression} = ${correct} ${unit}`)]);
+    check(`${name}: stated correct value kept`, close(reconciled(stated, "q").value, correct), reconciled(stated, "q"));
+    check(`${name}: stated correct value valid`, liveIssueCodes(stated).length === 0, liveIssueCodes(stated));
+    // The literal reading as the declared value: a unit slip. Never
+    // rewritten through a unit guess. A member of bare symbols is reported
+    // invalid; one with a number in it ("3 Rg T") might convert units itself,
+    // so the reconcile declines and lists it, and the value stays unverified.
+    const slip = plan(givens, [derived("q", literal, unit, `q = ${expression}`)]);
+    check(`${name}: literal slip never rewritten`, close(reconciled(slip, "q").value, literal), reconciled(slip, "q"));
+    if (/(?<![\w.^])\d/.test(expression)) {
+      const declined = reconcileTurnPlanV3ExplicitArithmetic(slip).declined;
+      check(`${name}: literal slip declined and listed`, declined.some((item) => item.quantityId === "q"), declined);
+    } else {
+      check(`${name}: literal slip reported`, issueCodes(slip).includes("source_text_arithmetic_invalid"), issueCodes(slip));
+    }
+    // A stale declared value beside a chain that states the dimensionally
+    // correct result is corrected to that result.
+    const stale = correct * 1.1;
+    const corrected = plan(givens, [derived("q", stale, unit, `q = ${expression} = ${correct} ${unit}`)]);
+    check(`${name}: stated coherent result corrects a stale value`, close(reconciled(corrected, "q").value, correct), reconciled(corrected, "q"));
+  }
+  // The chain writes the literal reading as its result: no reading of the
+  // inputs is both stated and dimensionally sound. Never rewrite either way.
+  const writtenSlip = plan(
+    [given("a", 2, "km"), given("b", 500, "m")],
+    [derived("d", 2500, "m", "d = a + b = 502 m")],
+  );
+  check("mixed units: a chain stating the literal slip never rewrites a correct value",
+    reconciled(writtenSlip, "d").value === 2500, reconciled(writtenSlip, "d"));
+  // A literal in the member may be a conversion the chain writes itself:
+  // declined as no evidence, never rewritten, and listed as declined.
+  const converting = plan(
+    [given("g", 9.8, "m/s^2"), given("R", 6.4, "km")],
+    [derived("GM", 401408000, "m^3/s^2", "GM = g*(R*1000)^2 = 9.8*(6400)^2 = 401408000")],
+  );
+  check("mixed units: an explicit conversion keeps the value", reconciled(converting, "GM").value === 401408000, reconciled(converting, "GM"));
+  check("mixed units: an explicit conversion valid", liveIssueCodes(converting).length === 0, liveIssueCodes(converting));
+  const ambiguous = plan(
+    [given("g", 9.8, "m/s^2"), given("R", 6.4, "km")],
+    [derived("GM", 401.408, "m^3/s^2", "GM = 1*g*R^2")],
+  );
+  const ambiguousResult = reconcileTurnPlanV3ExplicitArithmetic(ambiguous);
+  check("mixed units: a literal-only reading with a literal in the member is never rewritten",
+    (ambiguousResult.plan as ReturnType<typeof plan>).derived[0]?.value === 401.408, ambiguousResult.plan);
+  check("mixed units: the decline is reported",
+    ambiguousResult.declined.some((item) => item.quantityId === "GM" && item.reason === "mixed_units"), ambiguousResult.declined);
+}
+
+// ---------------------------------------------------------------------------
+// Claim precision: a claim number matches its quantity rounded at the
+// claim's own precision, or truncated there when written to at least three
+// significant figures. Nothing looser.
+// ---------------------------------------------------------------------------
+
+{
+  const speed = (value: number) => derived("v", value, "m/s", `v = ${value}`, { symbol: "v_rms" });
+  const claimCodes = (value: number, claim: string) => issueCodes(plan([], [speed(value)], [{
+    id: "c1", claim, expected: true, relatedQuantityIds: ["v"],
+  }]));
+  const accepts: Array<[string, number, string]> = [
+    ["3 s.f. truncation with ≈", 483.67, "Using SI units gives v_rms ≈ 483 m/s."],
+    ["1 d.p. truncation", 483.67, "The rms speed is v_rms = 483.6 m/s."],
+    ["1 d.p. rounding", 483.67, "The rms speed is v_rms = 483.7 m/s."],
+    ["3 s.f. rounding with ≈", 483.67, "Result v_rms ≈ 484 m/s at room temperature."],
+    ["about, rounded", 483.67, "v_rms is about 484 m/s."],
+    ["negative value truncated toward zero", -483.67, "The velocity is v_rms = -483 m/s."],
+  ];
+  for (const [name, value, claim] of accepts) {
+    const codes = claimCodes(value, claim);
+    check(`claim precision accepts ${name}`, !codes.includes("claim_quantity_mismatch"), codes);
+  }
+  const rejects: Array<[string, number, string]> = [
+    ["a different number", 20, "The rms speed is v_rms = 12 m/s."],
+    ["480.0 for 483.67", 483.67, "The rms speed is v_rms = 480.0 m/s."],
+    ["480 for 483.67", 483.67, "The rms speed is v_rms = 480 m/s."],
+    ["two figures never truncate", 12.9, "The rms speed is v_rms = 12 m/s."],
+    ["two figures with ≈ never truncate", 12.9, "The rms speed is v_rms ≈ 12 m/s."],
+    ["truncation only toward zero", 483.62, "The rms speed is v_rms = 483.7 m/s."],
+    ["one past the truncation", 483.67, "The rms speed is v_rms = 482 m/s."],
+    ["sign flip", 483.67, "The velocity is v_rms = -483 m/s."],
+  ];
+  for (const [name, value, claim] of rejects) {
+    const codes = claimCodes(value, claim);
+    check(`claim precision rejects ${name}`, codes.includes("claim_quantity_mismatch"), codes);
+  }
 }
 
 if (failures.length > 0) {

@@ -423,6 +423,11 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
         })),
       });
     }
+    if (reconciled.declined.length > 0) {
+      tutorDebug("planner", "turn plan v3 declined explicit arithmetic", {
+        declined: reconciled.declined.map((item) => ({ quantity_id: item.quantityId, reason: item.reason })),
+      });
+    }
     let result = validateTurnPlanV3(reconciled.plan, question);
     if (result.plan) {
       const opticsAudit = reconcileTurnPlanWithOpticsLaws(result.plan);

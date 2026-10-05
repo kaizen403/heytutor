@@ -131,7 +131,7 @@ const UNCONVERTIBLE = Symbol("unconvertible");
 type Asked = number | null | typeof UNCONVERTIBLE;
 const unconvertible: string[] = [];
 
-function askedValue(plan: LoosePlan, q: Question): Asked {
+function askedQuantityId(plan: LoosePlan, q: Question): string | null {
   const unknowns = Array.isArray(plan?.unknowns) ? plan.unknowns : [];
   if (unknowns.length === 0) return null;
   let asked = unknowns.length === 1 ? unknowns[0] : undefined;
@@ -140,8 +140,13 @@ function askedValue(plan: LoosePlan, q: Question): Asked {
     const compatible = unknowns.filter((u) => convert(1, u.unit, q.unit) !== null);
     if (compatible.length === 1) asked = compatible[0];
   }
-  if (!asked) return null;
-  const derived = (Array.isArray(plan?.derived) ? plan.derived : []).find((d) => d.id === asked.id);
+  return asked?.id ?? null;
+}
+
+function askedValue(plan: LoosePlan, q: Question): Asked {
+  const askedId = askedQuantityId(plan, q);
+  if (askedId === null) return null;
+  const derived = (Array.isArray(plan?.derived) ? plan.derived : []).find((d) => d.id === askedId);
   if (!derived || typeof derived.value !== "number" || !Number.isFinite(derived.value)) return null;
   if (q.altUnits?.some((unit) => normUnit(unit) === normUnit(derived.unit))) return derived.value;
   return convert(derived.value, derived.unit, q.unit) ?? UNCONVERTIBLE;
@@ -169,6 +174,20 @@ function showAsked(value: Asked): string {
     console.error(`numeric authority replay: self-check failed, 12 kg against 12 uC scored ${scored}`);
     process.exit(1);
   }
+}
+
+/**
+ * A rewrite that moves a value by a power of ten (1e3, 1e-6, ...) is the
+ * signature of a unit slip (6400 km read as 6400 m), not of an arithmetic
+ * correction. Non-asked quantities have no truth to score against, so this
+ * shape is what the gate counts for them.
+ */
+function powerOfTenFactor(previous: number, next: number): number | null {
+  if (previous === 0 || next === 0 || !Number.isFinite(previous) || !Number.isFinite(next)) return null;
+  const ratio = Math.abs(next / previous);
+  const exponent = Math.round(Math.log10(ratio));
+  if (exponent === 0) return null;
+  return Math.abs(ratio / 10 ** exponent - 1) <= 0.01 ? exponent : null;
 }
 
 function changed(a: Asked, b: Asked): boolean {
@@ -204,6 +223,10 @@ const asked: Record<Verdict, string[]> = { correct: [], wrong: [], missing: [] }
 const arithmetic = {
   rightToWrong: [] as string[], wrongToRight: [] as string[], neutral: [] as string[],
   reconciliations: 0, acceptedLanes: { rightToWrong: 0, wrongToRight: 0, neutral: 0 },
+  /** Non-asked values rewritten by a power of ten, in any lane (accepted or not). */
+  nonAskedByFactor: [] as string[],
+  /** Values the reconcile left unverified because the chain mixed units. */
+  declined: [] as string[],
 };
 const optics = {
   rightToWrong: [] as string[], wrongToRight: [] as string[], neutral: [] as string[], corrections: 0, lanes: 0,
@@ -232,8 +255,17 @@ function replayLane(lane: LaneFixture, q: Question): TurnPlanV3 | null {
   }
 
   const arith = trace.arithmetic;
+  for (const decline of arith?.declined ?? []) arithmetic.declined.push(`${tag}: ${decline.quantityId}: ${decline.reason}`);
   if (arith && arith.reconciliations.length > 0) {
     arithmetic.reconciliations += arith.reconciliations.length;
+    const askedId = askedQuantityId(trace.normalized as LoosePlan, q);
+    for (const item of arith.reconciliations) {
+      if (item.quantityId === askedId) continue;
+      const exponent = powerOfTenFactor(item.previousValue, item.reconciledValue);
+      if (exponent !== null) {
+        arithmetic.nonAskedByFactor.push(`${tag}: ${item.quantityId} ${item.previousValue} -> ${item.reconciledValue} (x1e${exponent}${plan ? "" : ", lane rejected"})`);
+      }
+    }
     const before = askedValue(trace.normalized as LoosePlan, q);
     const after = askedValue(arith.plan as LoosePlan, q);
     if (changed(before, after)) {
@@ -308,6 +340,7 @@ const metrics: Record<string, number> = {
   arithmeticChangedAsked: arithmetic.rightToWrong.length + arithmetic.wrongToRight.length + arithmetic.neutral.length,
   arithmeticRightToWrong: arithmetic.rightToWrong.length,
   arithmeticWrongToRight: arithmetic.wrongToRight.length,
+  nonAskedRewritesByFactor: arithmetic.nonAskedByFactor.length,
   opticsCorrectedLanes: optics.lanes,
   opticsRightToWrong: optics.rightToWrong.length,
   opticsWrongToRight: optics.wrongToRight.length,
@@ -335,6 +368,10 @@ console.log(`explicit-arithmetic reconcile: ${arithmetic.reconciliations} values
 const accepted = arithmetic.acceptedLanes;
 console.log(`  in accepted lanes only: changed ${accepted.rightToWrong + accepted.wrongToRight + accepted.neutral}: right->wrong ${accepted.rightToWrong}, wrong->right ${accepted.wrongToRight}, neutral ${accepted.neutral}`);
 list("right->wrong", arithmetic.rightToWrong, true);
+console.log(`  non-asked values rewritten by a power of ten (unit slip shape): ${metrics.nonAskedRewritesByFactor}`);
+list("by a power of ten", arithmetic.nonAskedByFactor, true);
+console.log(`  declined for mixed units (value left unverified): ${arithmetic.declined.length}`);
+list("declined", arithmetic.declined);
 list("wrong->right", arithmetic.wrongToRight);
 list("neutral", arithmetic.neutral);
 console.log(`optics law reconcile: ${optics.corrections} corrections in ${optics.lanes} lanes: right->wrong ${metrics.opticsRightToWrong}, wrong->right ${metrics.opticsWrongToRight}, neutral ${optics.neutral.length}`);
