@@ -1,16 +1,17 @@
 {
-  "_comment": "Ratchet only. Baseline was origin/main 9218d38c; ratcheted after the explicit-arithmetic unit/relation/sign and claim-attribution fixes. Lower a max or raise a min when a fix improves the replay; never loosen. Loosened once on purpose for the claim hole (review blocker 3): a claim number with a linked quantity's dimension that the claim does not attribute must be explained by the plan or the question, which rejects op4's unexplained 'refracted angle 90°' (5 lanes, op4#1 to fallback, asked correct 105 to 104, missing 4 to 5) and nlm1 r1 alternate's 'net force 17.6 N' (1 lane).",
+  "_comment": "Ratchet only. Baseline was origin/main 9218d38c; ratcheted after the explicit-arithmetic unit/relation/sign and claim-attribution fixes. Lower a max or raise a min when a fix improves the replay; never loosen. Loosened once on purpose for the claim hole (review blocker 3): a claim number with a linked quantity's dimension that the claim does not attribute must be explained by the plan or the question, which rejects op4's unexplained 'refracted angle 90°' (5 lanes, op4#1 to fallback, asked correct 105 to 104, missing 4 to 5) and nlm1 r1 alternate's 'net force 17.6 N' (1 lane). Loosened again on purpose for review findings P1-a/P1-c (safety first): claim numbers are now read in every unit the plan's unit parser knows (s, m/s, mA, µT, kg, kPa, m^3/s^2, powers of ten), and a claim subject is read across 'of' and after the quantity's name. Six more lanes are rejected, each for a claim number that disagrees with the verified value: grav3 r1 alternate (plan GM 3.92e14 vs claim 4.01408e14), grav3 r2 alternate (reconcile rewrote GM to 4.01408e8 from R_e in km; the claim's 4.01408e14 m^3/s^2 caught it), fl2 r1/r2 alternate (claims kept the stale 3.29 and 9.98 cm/s after reconcile), th5 r1 primary and alternate (claims state 483 and 483.6 m/s against a reconciled 483.67 m/s). th5#1 loses both lanes and goes to fallback: asked correct 104 to 103, missing 5 to 6, fallback 3 to 4, rejected 16 to 22, claim mismatch 15 to 21. askedUnconvertible counts asked values whose unit does not convert to the truth unit; they score wrong, never correct.",
   "max": {
-    "lanesRejected": 16,
-    "claimQuantityMismatchLanes": 15,
-    "fallbackTurns": 3,
+    "lanesRejected": 22,
+    "claimQuantityMismatchLanes": 21,
+    "fallbackTurns": 4,
     "askedWrong": 3,
-    "askedMissing": 5,
+    "askedMissing": 6,
     "arithmeticRightToWrong": 0,
     "opticsRightToWrong": 0,
-    "opticsQuantityRightToWrong": 0
+    "opticsQuantityRightToWrong": 0,
+    "askedUnconvertible": 0
   },
   "min": {
-    "askedCorrect": 104
+    "askedCorrect": 103
   }
 }

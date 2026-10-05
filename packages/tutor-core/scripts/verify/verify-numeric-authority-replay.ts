@@ -36,6 +36,8 @@ interface Question {
   truth: number;
   tol: number;
   absOk: boolean;
+  /** Units that state the same number for this question only (per degree when x is in degrees). */
+  altUnits?: string[];
 }
 
 interface LaneFixture {
@@ -90,6 +92,9 @@ const UNITS: Record<string, [string, number]> = {
   t: ["B", 1], mt: ["B", 1e-3], ut: ["B", 1e-6], g_gauss: ["B", 1e-4],
   hz: ["Hz", 1], khz: ["Hz", 1e3],
   d: ["Pow", 1], dioptre: ["Pow", 1], diopter: ["Pow", 1], dioptres: ["Pow", 1], "m^-1": ["Pow", 1],
+  // Coordinate geometry answers in abstract units are pure numbers.
+  unit: ["Frac", 1], units: ["Frac", 1], squareunits: ["Frac", 1], "sq.units": ["Frac", 1], squnits: ["Frac", 1],
+  cubicunits: ["Frac", 1],
   "%": ["Frac", 0.01], percent: ["Frac", 0.01], "1": ["Frac", 1], "": ["Frac", 1], none: ["Frac", 1], dimensionless: ["Frac", 1],
 };
 
@@ -118,7 +123,15 @@ function convert(value: number, fromUnit: unknown, truthUnit: string): number | 
 /** Manual asked-unknown choice where a plan lists several compatible unknowns. */
 const ASKED_OVERRIDE: Record<string, string> = { op3: "d" };
 
-function askedValue(plan: LoosePlan, q: Question): number | null {
+/**
+ * A value whose unit does not convert to the truth unit cannot be scored, and
+ * must never pass as correct: 12 kg is not an answer of 12 uC.
+ */
+const UNCONVERTIBLE = Symbol("unconvertible");
+type Asked = number | null | typeof UNCONVERTIBLE;
+const unconvertible: string[] = [];
+
+function askedValue(plan: LoosePlan, q: Question): Asked {
   const unknowns = Array.isArray(plan?.unknowns) ? plan.unknowns : [];
   if (unknowns.length === 0) return null;
   let asked = unknowns.length === 1 ? unknowns[0] : undefined;
@@ -130,17 +143,36 @@ function askedValue(plan: LoosePlan, q: Question): number | null {
   if (!asked) return null;
   const derived = (Array.isArray(plan?.derived) ? plan.derived : []).find((d) => d.id === asked.id);
   if (!derived || typeof derived.value !== "number" || !Number.isFinite(derived.value)) return null;
-  return convert(derived.value, derived.unit, q.unit) ?? derived.value;
+  if (q.altUnits?.some((unit) => normUnit(unit) === normUnit(derived.unit))) return derived.value;
+  return convert(derived.value, derived.unit, q.unit) ?? UNCONVERTIBLE;
 }
 
-function verdict(value: number | null, q: Question): Verdict {
+function verdict(value: Asked, q: Question): Verdict {
   if (value === null) return "missing";
+  if (value === UNCONVERTIBLE) return "wrong";
   const v = q.absOk ? Math.abs(value) : value;
   return Math.abs(v - q.truth) <= q.tol * Math.max(Math.abs(q.truth), 1e-12) ? "correct" : "wrong";
 }
 
-function changed(a: number | null, b: number | null): boolean {
-  if (a === null || b === null) return a !== b;
+function showAsked(value: Asked): string {
+  return value === UNCONVERTIBLE ? "unconvertible unit" : String(value);
+}
+
+// Must score wrong: a value in a unit that does not convert to the truth's.
+{
+  const probe: Question = {
+    id: "self-check", topic: "", question: "", unknown: "q", unit: "uC", truth: 12, tol: 0.01, absOk: false,
+  };
+  const plan: LoosePlan = { unknowns: [{ id: "q", unit: "kg" }], derived: [{ id: "q", value: 12, unit: "kg" }] };
+  const scored = verdict(askedValue(plan, probe), probe);
+  if (scored !== "wrong") {
+    console.error(`numeric authority replay: self-check failed, 12 kg against 12 uC scored ${scored}`);
+    process.exit(1);
+  }
+}
+
+function changed(a: Asked, b: Asked): boolean {
+  if (typeof a !== "number" || typeof b !== "number") return a !== b;
   return Math.abs(a - b) > 1e-6 * Math.max(Math.abs(a), Math.abs(b), 1e-12);
 }
 
@@ -207,7 +239,7 @@ function replayLane(lane: LaneFixture, q: Question): TurnPlanV3 | null {
     if (changed(before, after)) {
       const kind = transition(verdict(before, q), verdict(after, q));
       if (plan) arithmetic.acceptedLanes[kind] += 1;
-      arithmetic[kind].push(`${tag}: ${before} -> ${after} (truth ${q.truth} ${q.unit}${plan ? "" : ", lane rejected"})`);
+      arithmetic[kind].push(`${tag}: ${showAsked(before)} -> ${showAsked(after)} (truth ${q.truth} ${q.unit}${plan ? "" : ", lane rejected"})`);
     }
   }
 
@@ -219,7 +251,7 @@ function replayLane(lane: LaneFixture, q: Question): TurnPlanV3 | null {
     const before = askedValue(trace.preOptics, q);
     const after = askedValue(trace.optics.plan, q);
     const kind = changed(before, after) ? transition(verdict(before, q), verdict(after, q)) : "neutral";
-    optics[kind].push(`${tag}: ${before} -> ${after} (truth ${q.truth} ${q.unit}; ${trace.optics.corrections
+    optics[kind].push(`${tag}: ${showAsked(before)} -> ${showAsked(after)} (truth ${q.truth} ${q.unit}; ${trace.optics.corrections
       .map((c) => `${c.lawId} ${c.quantityId} ${c.previousValue}->${c.correctedValue}`).join("; ")})`);
     for (const correction of trace.optics.corrections) {
       const quantity = trace.optics.plan.derived.find((item) => item.id === correction.quantityId);
@@ -255,7 +287,8 @@ for (const [key, turnLanes] of turns) {
     selected = createFallbackTurnPlanV3(q.question);
   }
   const value = askedValue(selected, q);
-  asked[verdict(value, q)].push(`${key}: ${value} (truth ${q.truth} ${q.unit})`);
+  if (value === UNCONVERTIBLE) unconvertible.push(key);
+  asked[verdict(value, q)].push(`${key}: ${showAsked(value)} (truth ${q.truth} ${q.unit})`);
 }
 
 // ---------------------------------------------------------------------------
@@ -271,6 +304,7 @@ const metrics: Record<string, number> = {
   askedCorrect: asked.correct.length,
   askedWrong: asked.wrong.length,
   askedMissing: asked.missing.length,
+  askedUnconvertible: unconvertible.length,
   arithmeticChangedAsked: arithmetic.rightToWrong.length + arithmetic.wrongToRight.length + arithmetic.neutral.length,
   arithmeticRightToWrong: arithmetic.rightToWrong.length,
   arithmeticWrongToRight: arithmetic.wrongToRight.length,
@@ -294,6 +328,7 @@ for (const [code, count] of [...rejectedByCode].sort((a, b) => b[1] - a[1])) {
 list("rejected", rejectedLanes);
 console.log(`turns on fallback plan: ${metrics.fallbackTurns}${fallbackTurns.length ? ` (${fallbackTurns.join(", ")})` : ""}`);
 console.log(`asked values: correct ${metrics.askedCorrect}, wrong ${metrics.askedWrong}, missing ${metrics.askedMissing}`);
+console.log(`  scored wrong for a unit that does not convert to the truth unit: ${metrics.askedUnconvertible}${unconvertible.length ? ` (${unconvertible.join(", ")})` : ""}`);
 list("wrong", asked.wrong, true);
 list("missing", asked.missing);
 console.log(`explicit-arithmetic reconcile: ${arithmetic.reconciliations} values rewritten; asked value changed in ${metrics.arithmeticChangedAsked} lanes: right->wrong ${metrics.arithmeticRightToWrong}, wrong->right ${metrics.arithmeticWrongToRight}, neutral ${arithmetic.neutral.length}`);

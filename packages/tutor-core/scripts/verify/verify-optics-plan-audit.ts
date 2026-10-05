@@ -407,5 +407,27 @@ expectAudit("claimed erect linear magnification", opticsPlan({
   claims: ["The image is virtual and erect"],
 }), { m: 0.5, corrections: 1 });
 
+// A virtual object flips the object distance sign, and the evaluator takes a
+// real object, so any configuration that could hold a virtual object must
+// decline, never "correct". Cartesian truth for each: u = +10 (object right of
+// the lens), f = +20, 1/v = 1/f + 1/u = 3/20, v = 20/3. Reading u = +10 as a
+// real object would "correct" v to -20.
+const virtualLens = (question: string) => opticsPlan({
+  question,
+  lawIds: ["thin lens formula"],
+  givens: { u: { value: 10 }, f: { value: 20 } },
+  derived: { v: { value: 20 / 3 } },
+});
+for (const [name, question, reason] of [
+  ["rays that would meet beyond the lens", "Rays incident on a convex lens of focal length 20 cm would meet at a point 10 cm beyond the lens if the lens were removed. Where do they focus?", /virtual/],
+  ["light directed at a point", "Light is directed at a point 10 cm to the right of a convex lens of focal length 20 cm. Find the image.", /virtual/],
+  ["light that converges", "Light that would converge 10 cm past a convex lens of focal length 20 cm falls on it. Locate the image.", /virtual/],
+  ["image used as the object", "The image formed by the first lens acts as the object for a convex lens of focal length 20 cm placed 10 cm before it.", /virtual/],
+  ["two elements", "A convex lens of focal length 20 cm is placed 10 cm in front of a plane mirror. Find the final image.", /more than one optical element/],
+  ["no real object in the stem", "For a convex lens of focal length 20 cm, take u = 10 cm. Find v.", /real object/],
+] as const) {
+  expectAudit(`possible virtual object declines: ${name}`, virtualLens(question), { v: 20 / 3, corrections: 0, declined: reason });
+}
+
 console.log("verify-optics-plan-audit: ok");
 console.log(`  mirror_corrections=${mirrorAudit.corrections.length} ydse_corrections=${ydseAudit.corrections.length}`);

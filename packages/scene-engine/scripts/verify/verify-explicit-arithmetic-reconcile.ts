@@ -566,6 +566,68 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
   check("the denominator of a fraction is not a measured value", !fraction.includes("claim_quantity_mismatch"), fraction);
 }
 
+{
+  // A wrong value for the linked quantity is rejected even when the same
+  // number is explained elsewhere (here it is the object distance).
+  const question = "An object is placed 12 cm in front of a concave mirror of focal length 7.5 cm. Find the image distance.";
+  const mirror = (claim: string) => {
+    const input = {
+      ...plan([given("u", 12, "cm"), given("f", 7.5, "cm")],
+        [derived("image_distance", 20, "cm", "image_distance = 20 cm", { symbol: "v" })],
+        [{ id: "c1", claim, expected: true, relatedQuantityIds: ["image_distance"] }]),
+      question,
+    };
+    return validateTurnPlanV3(input, question).issues.map((issue) => issue.code);
+  };
+  const across = mirror("The image distance of the mirror is 12 cm.");
+  check("subject read across 'of' rejects a wrong value", across.includes("claim_quantity_mismatch"), across);
+  const wrapped = mirror("The magnitude of the image distance for this mirror is 12 cm.");
+  check("subject read through a transparent head rejects a wrong value", wrapped.includes("claim_quantity_mismatch"), wrapped);
+  const described = mirror("Solving the mirror equation gives an image distance of about 12 cm.");
+  check("number right after the quantity's name rejects a wrong value", described.includes("claim_quantity_mismatch"), described);
+  const correct = mirror("The image distance of the mirror is 20 cm, for an object at 12 cm.");
+  check("subject read across 'of' accepts the right value", !correct.includes("claim_quantity_mismatch"), correct);
+  const nearest = mirror("The image lies further out than the object distance of 12 cm; the image distance is 20 cm.");
+  check("only the name right before a number attributes it", !nearest.includes("claim_quantity_mismatch"), nearest);
+}
+
+{
+  // Every unit the plan's unit parser reads is checked, with prefixes
+  // converted: 120 mA is not 85.7 mA; 0.0857 A is.
+  const unitCases: Array<[string, Quantity, string, boolean]> = [
+    ["mA", derived("I", 85.7, "mA", "I = 85.7 mA"), "The current I is 120 mA.", false],
+    ["mA unattributed", derived("I", 85.7, "mA", "I = 85.7 mA"), "So the ammeter reads 120 mA.", false],
+    ["kg", derived("m", 2, "kg", "m = 2 kg"), "m = 5 kg", false],
+    ["µT", derived("B", 628.3, "µT", "B = 628.3 µT"), "The field B is 314 µT at the centre.", false],
+    ["kPa against Pa", derived("P", 500, "Pa", "P = 500 Pa"), "P = 50 kPa", false],
+    ["m/s", derived("v", 4, "m/s", "v = 4 m/s"), "v = 9 m/s", false],
+    ["power of ten", derived("GM", 4.01408e14, "m^3/s^2", "GM = 4.01408e14"), "GM = 3.92 × 10^14 m^3/s^2", false],
+    ["A against mA", derived("I", 85.7, "mA", "I = 85.7 mA"), "I = 0.0857 A", true],
+    ["mT against µT", derived("B", 628.3, "µT", "B = 628.3 µT"), "B = 0.6283 mT", true],
+    ["g against kg", derived("m", 2, "kg", "m = 2 kg"), "m = 2000 g", true],
+  ];
+  for (const [name, quantity, text, ok] of unitCases) {
+    const codes = issueCodes(plan([given("k", 1)], [quantity], [{ id: "c1", claim: text, expected: true, relatedQuantityIds: [quantity.id] }]));
+    check(`claim unit ${name} ${ok ? "accepted" : "rejected"}`, codes.includes("claim_quantity_mismatch") !== ok, codes);
+  }
+}
+
+{
+  // An operand of the chain's arithmetic is not the value it states.
+  const operand = issueCodes(plan([given("k", 5)], [derived("U1", 10, "mJ", "U1 = 10 mJ", { symbol: "U₁" })], [{
+    id: "c1", claim: "Energy falls by the dielectric constant.", expected: "U₁ = U₀/κ = 50 mJ / 5 = 10 mJ", relatedQuantityIds: ["U1"],
+  }]));
+  check("an operand of the arithmetic is not a stated value", !operand.includes("claim_quantity_mismatch"), operand);
+  // A root the claim discards, beside the quantity's own value, is not taught.
+  const roots = (text: string) => issueCodes(plan([given("h", 25, "m")], [derived("t", 5, "s", "t = 5 s")], [{
+    id: "c1", claim: text, expected: true, relatedQuantityIds: ["t"],
+  }]));
+  const discarded = roots("The quadratic gives roots t = 5 s and t = -1 s; the negative root is rejected as non-physical.");
+  check("a discarded root beside the value is not a contradiction", !discarded.includes("claim_quantity_mismatch"), discarded);
+  const alone = roots("The quadratic gives t = 7 s; the negative root is rejected.");
+  check("a discard word does not excuse a wrong value", alone.includes("claim_quantity_mismatch"), alone);
+}
+
 // ---------------------------------------------------------------------------
 // Rule pins: each case fails when its rule is disabled. (">=" protection is
 // pinned by ">= clause stays valid" above.)

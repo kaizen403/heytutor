@@ -398,9 +398,8 @@ function resolveSignedDistances(
   objectQuantity: TurnPlanQuantityV3,
   focalQuantity: TurnPlanQuantityV3 | null,
 ): SignedDistances | { reason: string } {
-  if (/virtual\s+object|converging\s+(?:beam|light|rays?|pencil)/i.test(plan.question)) {
-    return { reason: "a virtual object reverses the object distance sign, so it cannot fix the convention" };
-  }
+  const objectReason = realObjectDeclineReason(plan);
+  if (objectReason) return { reason: objectReason };
   const object = signedLength(objectQuantity);
   const focal = focalQuantity ? signedLength(focalQuantity) : null;
   if (!object || (focalQuantity && !focal)) return { reason: "a distance contradicts its own sign marker" };
@@ -434,6 +433,53 @@ function resolveSignedDistances(
   // Converging lenses have positive f in both conventions; mirrors flip with the convention.
   const positive = element.kind === "lens" || convention === "real_is_positive" ? element.converging : !element.converging;
   return { convention, fixedByGivens, objectDistance, focalLength: positive ? focal.value : -focal.value };
+}
+
+/**
+ * Light that would converge to a point the element interrupts, an image used
+ * as the next element's object, or an object the stem calls virtual.
+ * "Converging" naming the element itself (a converging lens) is not one.
+ */
+const VIRTUAL_OBJECT_CUE = new RegExp([
+  String.raw`\bvirtual\s+object`,
+  String.raw`\bconverg(?:e|es|ed|ing|ence|ent)\b(?!\s+(?:[a-z-]+\s+)?(?:lens|lenses|mirror|mirrors)\b)`,
+  String.raw`\b(?:meet|meets|intersect|intersects|cross|crosses)\b`,
+  String.raw`\b(?:directed|aimed|heading|incident)\s+(?:at|to|towards?)\s+(?:a|the)\s+point\b`,
+  String.raw`\b(?:acts?|serves?|behaves?|treated|used)\s+as\s+(?:an?\s+|the\s+)?(?:\w+\s+)?object\b`,
+].join("|"), "i");
+
+/** More than one element: a later element's object may be virtual. */
+const MULTIPLE_ELEMENT_CUE =
+  /\b(?:lenses|mirrors|combination|system)\b|\b(?:first|second|third|another|other)\s+(?:[a-z-]+\s+)?(?:lens|mirror)\b/i;
+
+/** Something physical placed before the element: the stem's evidence of a real object. */
+const REAL_OBJECT_CUE =
+  /\b(?:object|candle|pin|needle|flame|bulb|lamp|arrow|source|filament|person|man|woman|boy|girl|child|face|tree|building|tower|coin|insect|bird|fish|toy|card|pencil|rod|stick|matchstick)\b/i;
+
+/**
+ * The real-is-positive evaluator takes a real object, and a real object's
+ * distance sign is the evidence that fixes the convention. A virtual object
+ * flips that sign, so the audit declines unless the question establishes a
+ * single element with a real object in front of it: anything else could be a
+ * virtual object, and a "correction" would then be wrong.
+ */
+function realObjectDeclineReason(plan: TurnPlanV3): string | null {
+  const planText = [
+    plan.question,
+    ...plan.assumptions,
+    ...plan.qualitativeClaims.flatMap((claim) => [claim.claim, typeof claim.expected === "string" ? claim.expected : ""]),
+  ].join(" ");
+  if (VIRTUAL_OBJECT_CUE.test(planText)) {
+    return "the object may be virtual, which reverses the object distance sign, so it cannot fix the convention";
+  }
+  const question = plan.question.toLowerCase();
+  if (MULTIPLE_ELEMENT_CUE.test(question) || (/\blens\b/.test(question) && /\bmirror\b/.test(question))) {
+    return "more than one optical element: a later element's object may be virtual";
+  }
+  if (!REAL_OBJECT_CUE.test(question)) {
+    return "the question does not establish a real object in front of the element";
+  }
+  return null;
 }
 
 function signedLength(quantity: TurnPlanQuantityV3): SignedLength | null {

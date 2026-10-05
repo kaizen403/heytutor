@@ -12,8 +12,13 @@ Q = []
 
 def q(id, topic, question, unknown, unit, fn, tol=1e-2, trap="", abs_ok=False, alt_units=None):
     value = fn()
-    Q.append(dict(id=id, topic=topic, question=question, unknown=unknown, unit=unit,
-                  truth=value, tol=tol, trap=trap, absOk=abs_ok))
+    entry = dict(id=id, topic=topic, question=question, unknown=unknown, unit=unit,
+                 truth=value, tol=tol, trap=trap, absOk=abs_ok)
+    # Units that state the same number for this question (a derivative
+    # "per degree" when x is measured in degrees).
+    if alt_units:
+        entry["altUnits"] = alt_units
+    Q.append(entry)
 
 
 # ---------- kinematics ----------
@@ -233,7 +238,7 @@ q("m5", "coordinate_geometry", "Find the acute angle in degrees between the line
 q("m8", "calculus", "Find the y-intercept of the tangent to the curve y = x^3 - 2x at the point where x = 2.", "y-intercept", "1",
   lambda: (2**3 - 2 * 2) - (3 * 2**2 - 2) * 2)
 q("m9", "calculus", "If y = sin(x degrees), that is the sine of x measured in degrees, find dy/dx at x = 60.", "derivative", "1",
-  lambda: (pi / 180) * math.cos(math.radians(60)), trap="degrees chain rule")
+  lambda: (pi / 180) * math.cos(math.radians(60)), trap="degrees chain rule", alt_units=["1/deg", "deg^-1"])
 q("m10", "coordinate_geometry", "Find the distance between the parallel lines 3x + 4y - 5 = 0 and 6x + 8y + 15 = 0.", "distance", "1",
   lambda: abs(-5 - 15 / 2) / 5, trap="normalize coefficients")
 q("m11", "calculus", "Find the area enclosed between the curves y = x^2 and y = 2x.", "area", "1",
