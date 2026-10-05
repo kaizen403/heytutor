@@ -121,23 +121,6 @@ export function isPlannerQuotedConstant(
     !questionStatesValue(question, given.value);
 }
 
-/**
- * The plan with the question's own wording added as qualitative evidence, for
- * a display-scaled figure only. A value the student wrote ("maximum at 45
- * degrees") is source-grounded even when the planner's claims phrase it
- * symbolically. Matching stays unit-aware, and a scene quantity that names a
- * plan given or derived value must still agree with it exactly.
- */
-function withQuestionAsEvidence(plan: TurnPlanV3, question: string): TurnPlanV3 {
-  return {
-    ...plan,
-    qualitativeClaims: [
-      ...plan.qualitativeClaims,
-      { id: "question_source", claim: question, expected: true },
-    ],
-  };
-}
-
 export function selectFastVerifiedRepresentation(
   input: RepresentationSelectionInput,
 ): SelectedRepresentation | null {
@@ -156,8 +139,7 @@ export function selectFastVerifiedRepresentation(
         (primitive.kind === "label" || primitive.kind === "dimension") && primitive.text?.trim())) return null;
   if (result.tier !== "exact_verified" && (plan.givens.some((given) => !isPlannerQuotedConstant(input.question, given)) ||
       plan.derived.some((quantity) => !questionStatesValue(input.question, quantity.value)))) return null;
-  const agreement = validateSceneQuantityAgreement(result.document.quantities,
-    result.tier === "exact_verified" ? plan : withQuestionAsEvidence(plan, input.question),
+  const agreement = validateSceneQuantityAgreement(result.document.quantities, plan,
     result.renderScene.primitives.flatMap((primitive) =>
       (primitive.kind === "label" || primitive.kind === "dimension") && typeof primitive.text === "string"
         ? [primitive.text] : []));
