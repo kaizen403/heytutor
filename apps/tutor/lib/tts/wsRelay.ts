@@ -10,6 +10,7 @@ import { reservePaidUsage, type PaidUsageReservation } from "../billing/paidUsag
 import { recordTtsSpend } from "../billing/track";
 import { ttsConfig } from "./providerConfig";
 import { createTtsRelay } from "./ttsProvider";
+import { sarvamSpeechText } from "./sarvamProtocol";
 import { registerWsConnectionRevocation } from "./wsTicket";
 import { releaseTtsWsConnection, TTS_WS_IDLE_MS, TTS_WS_MAX_MESSAGE_CHARS, ttsWsCharsWithinCeiling } from "./wsRelayLimits";
 
@@ -185,7 +186,8 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
     const grant = getTurnGrant(context.userId);
     if (!user || !grant || !grant.allowedTraceIds.has(context.traceId) ||
       !await assertOwnedTrace(context.userId, context.traceId, context.sessionId)) { close("account_revoked"); return; }
-    const characters = segmentText.length;
+    // Sarvam bills the text it receives, with digits spelled out as words.
+    const characters = provider === "sarvam" ? sarvamSpeechText(segmentText).length : segmentText.length;
     if (!ttsWsCharsWithinCeiling(charactersUsed, characters) || shouldSkipTtsForUsage(grant) || !consumeTtsChars(grant, characters).allowed) { close("tts_budget"); return; }
     const receipt = await reservePaidUsage({
       actor: { userId: context.userId, email: null, staff: grant.skipGates, lectureLab: false,

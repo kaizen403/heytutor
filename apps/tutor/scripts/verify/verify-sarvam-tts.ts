@@ -8,6 +8,8 @@
  * Sarvam reads "9" as a Hindi numeral that the pen cannot match.
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   availableVoiceKeys,
   DEFAULT_SARVAM_SPEAKER,
@@ -226,6 +228,22 @@ assert.ok(
   parts.every((part) => part.data.text.length <= SARVAM_MAX_TEXT_CHARS),
 );
 assert.equal(parts.map((part) => part.data.text).join(""), long);
+// A space exactly at the limit must not push a message one character over it.
+const edge = `${"a".repeat(SARVAM_MAX_TEXT_CHARS)} ${"b".repeat(10)}`;
+const edgeParts = sarvamTextMessages(edge) as { data: { text: string } }[];
+assert.ok(edgeParts.every((part) => part.data.text.length <= SARVAM_MAX_TEXT_CHARS), "no message over Sarvam's limit");
+assert.equal(edgeParts.map((part) => part.data.text).join(""), edge);
+
+// Sarvam bills the text it receives, digits spelled out; budget and spend count that.
+const relaySource = readFileSync(resolve(import.meta.dirname, "../../lib/tts/wsRelay.ts"), "utf8");
+assert.ok(relaySource.includes('provider === "sarvam" ? sarvamSpeechText(segmentText).length : segmentText.length'));
+const httpSource = readFileSync(resolve(import.meta.dirname, "../../lib/tts/handleTtsRequest.ts"), "utf8");
+assert.ok(
+  httpSource.includes("consumeTtsChars(grant, billedCharacters)") &&
+    httpSource.includes("calculateTtsCostDetails(billedCharacters, config)") &&
+    !httpSource.includes("body.text!.length"),
+  "HTTP budget, spend and the 413 check use the text Sarvam receives",
+);
 
 // Billing: its own lane at the listed rate, never the ElevenLabs default.
 assert.equal(resolveTtsRateLane("bulbul:v3"), "sarvam");

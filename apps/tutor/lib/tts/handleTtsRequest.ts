@@ -46,6 +46,9 @@ export async function handleTtsRequest(
     voiceKeyFromRequest(request),
     body.low_latency === true || body.model_id === "eleven_flash_v2_5",
   );
+  // Sarvam bills the text it receives, with digits spelled out as words.
+  const billedCharacters =
+    config.provider === "sarvam" ? sarvamSpeechText(body.text).length : body.text.length;
   const browserFallback =
     request.headers.get("x-tts-transport") === "browser-fallback";
   const record = (latencyMs: number) => {
@@ -53,7 +56,7 @@ export async function handleTtsRequest(
       userId: actor.userId,
       traceId: request.headers.get("x-heytutor-trace-id") ?? undefined,
       sessionId: request.headers.get("x-session-id") ?? undefined,
-      characters: body.text!.length,
+      characters: billedCharacters,
       model: config.model,
       provider: config.provider,
       voiceId: config.voiceId ?? "unknown",
@@ -63,7 +66,7 @@ export async function handleTtsRequest(
     if (!browserFallback)
       recordTtsSpend({
         userId: actor.userId,
-        characters: body.text!.length,
+        characters: billedCharacters,
         model: config.model,
         provider: config.provider,
         skipAutumn: actor.skipAutumn,
@@ -78,18 +81,18 @@ export async function handleTtsRequest(
   }
   if (!config.apiKey || !config.voiceId) return ttsNotConfiguredResponse();
   // Measured after digits become words: that is the text Sarvam receives.
-  if (config.provider === "sarvam" && sarvamSpeechText(body.text).length > SARVAM_MAX_TEXT_CHARS)
+  if (config.provider === "sarvam" && billedCharacters > SARVAM_MAX_TEXT_CHARS)
     return Response.json(
       { error: `Hinglish speech takes up to ${SARVAM_MAX_TEXT_CHARS} characters per request.` },
       { status: 413 },
     );
   if (
     shouldSkipTtsForUsage(grant) ||
-    !consumeTtsChars(grant, body.text!.length).allowed
+    !consumeTtsChars(grant, billedCharacters).allowed
   )
     return ttsSkippedResponse("budget");
   const startedAt = Date.now();
-  const reservation = await reservePaidUsage({ actor, grant, kind: "tts", traceId: request.headers.get("x-heytutor-trace-id") ?? undefined, usd: calculateTtsCostDetails(body.text.length, config).total ?? 0 });
+  const reservation = await reservePaidUsage({ actor, grant, kind: "tts", traceId: request.headers.get("x-heytutor-trace-id") ?? undefined, usd: calculateTtsCostDetails(billedCharacters, config).total ?? 0 });
   if (reservation instanceof Response) return reservation;
   markGrantInUse(grant, 1);
   let released = false;

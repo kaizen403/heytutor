@@ -154,7 +154,7 @@ assert(
 // --- the handler takes the language from the voice ---------------------------
 const handler = readFileSync(resolve(root, "features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
 assert(
-  handler.includes("narrationLanguageForVoice(voicePreferencesRef?.current?.voiceKey)") &&
+  handler.includes("const turnNarrationLanguage = narrationLanguageForVoice(voicePreferencesRef?.current?.voiceKey);") &&
     (handler.match(/narrationLanguage,/g) ?? []).length >= 2,
   "every teaching prompt gets the narration language of the live voice",
 );
@@ -173,8 +173,9 @@ assert(
 );
 assert(
   handler.indexOf("pendingVoicePreferencesRef.current = null;") > 0 &&
-    handler.indexOf("pendingVoicePreferencesRef.current = null;") < handler.indexOf("narrationLanguageForVoice(voicePreferencesRef"),
-  "the pending voice is applied before this question picks its narration language",
+    handler.indexOf("pendingVoicePreferencesRef.current = null;") < handler.indexOf("narrationLanguageForVoice(voicePreferencesRef") &&
+    handler.indexOf("narrationLanguageForVoice(voicePreferencesRef") < handler.indexOf("turnActiveRef.current = true;"),
+  "a pending switch applies and the language is fixed before the turn goes active, so a switch mid-question waits",
 );
 
 console.log("hinglish lesson: voice-led language, prompts, opening, English board, WAV durations passed");

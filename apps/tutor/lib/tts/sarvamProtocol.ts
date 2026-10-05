@@ -104,7 +104,8 @@ export function sarvamTextMessages(text: string): Record<string, unknown>[] {
   const messages: Record<string, unknown>[] = [];
   let rest = text;
   while (rest.length > SARVAM_MAX_TEXT_CHARS) {
-    const cut = rest.lastIndexOf(" ", SARVAM_MAX_TEXT_CHARS);
+    // The space stays with the first part, so it must sit inside the limit.
+    const cut = rest.lastIndexOf(" ", SARVAM_MAX_TEXT_CHARS - 1);
     const at = cut > 0 ? cut + 1 : SARVAM_MAX_TEXT_CHARS;
     messages.push({ type: "text", data: { text: rest.slice(0, at) } });
     rest = rest.slice(at);

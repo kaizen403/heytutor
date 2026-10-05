@@ -480,6 +480,17 @@ export function useQuestionHandler(
       setIsPaused(false);
       setIsReplaying(false);
       setLastError(null);
+      // A language switch made during the last question takes effect here,
+      // before this one begins; from now until the turn ends a switch waits.
+      const pendingVoice = pendingVoicePreferencesRef?.current;
+      if (pendingVoice && voicePreferencesRef && pendingVoicePreferencesRef) {
+        pendingVoicePreferencesRef.current = null;
+        voicePreferencesRef.current = pendingVoice;
+        ttsClientRef.current?.setVoicePreferences?.(pendingVoice);
+      }
+      // The voice speaking this turn decides the narration language, so the
+      // words and the voice can never disagree.
+      const turnNarrationLanguage = narrationLanguageForVoice(voicePreferencesRef?.current?.voiceKey);
       turnActiveRef.current = true;
       phaseRef.current = "thinking";
       const abortController = new AbortController();
@@ -1691,17 +1702,7 @@ export function useQuestionHandler(
             dsaFrameSet?.frames.length ?? 0,
           )
         : 0;
-      // A language switch made during the last lesson takes effect here, at
-      // the start of a question, never inside one.
-      const pendingVoice = pendingVoicePreferencesRef?.current;
-      if (pendingVoice && voicePreferencesRef && pendingVoicePreferencesRef) {
-        pendingVoicePreferencesRef.current = null;
-        voicePreferencesRef.current = pendingVoice;
-        ttsClientRef.current?.setVoicePreferences?.(pendingVoice);
-      }
-      // The voice speaking this turn decides the narration language, so the
-      // words and the voice can never disagree.
-      const narrationLanguage = narrationLanguageForVoice(voicePreferencesRef?.current?.voiceKey);
+      const narrationLanguage = turnNarrationLanguage;
       const pagePromptInput = {
         boardRows: workColumnRows(boardLayoutRef.current),
         rowsLeftOnPage: pageRoom?.rowsLeft ?? 0,
