@@ -355,6 +355,10 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
   const questionMeasurements = [raw.question, expectedQuestion]
     .filter((text): text is string => typeof text === "string")
     .flatMap(claimMeasuredValues);
+  const planSymbols = new Set([...givens, ...derived, ...unknowns].flatMap((quantity) =>
+    isRecord(quantity) && typeof quantity.symbol === "string" && quantity.symbol.trim() !== ""
+      ? [quantity.symbol.trim()]
+      : []));
   claims.forEach((value, index) => {
     const path = `qualitativeClaims[${index}]`;
     if (!isRecord(value) || typeof value.id !== "string" || typeof value.claim !== "string") {
@@ -400,7 +404,8 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
         message: `measured claim ${measurement.value} ${measurement.unit} disagrees with its linked quantities`,
       });
       const classified = claimTexts.flatMap((text) =>
-        classifyClaimMeasurements(text, linkedQuantities, value.id as string).map((entry) => ({ ...entry, text })));
+        classifyClaimMeasurements(text, linkedQuantities, value.id as string, planSymbols)
+          .map((entry) => ({ ...entry, text })));
       const statesValue = (quantity: Record<string, unknown>) => classified.some((entry) =>
         entry.kind === "linked" && entry.quantities.includes(quantity) &&
         claimSameDimension(quantity.unit, entry.measurement.unit) &&
@@ -3699,6 +3704,7 @@ function classifyClaimMeasurements(
   text: string,
   linkedQuantities: Record<string, unknown>[],
   claimId: string,
+  planSymbols: ReadonlySet<string> = new Set(),
 ): ClassifiedClaimMeasurement[] {
   const classified: ClassifiedClaimMeasurement[] = [];
   const names = (values: unknown[]) => values
@@ -3716,6 +3722,10 @@ function classifyClaimMeasurements(
     // The tail of a larger number ("90/11 V", "7.0e6 m", "2/5 m R^2") is
     // not a measured value on its own.
     if (/[A-Za-z0-9_.^/]$/.test(prefix)) continue;
+    if (claimNumberIsFormulaOperand(text, found, planSymbols)) {
+      classified.push({ kind: "other", measurement });
+      continue;
+    }
     const subject = claimMeasurementSubject(prefix);
     if (!subject) {
       const bound = CLAIM_FUNCTION_ARGUMENT.test(prefix) ||
@@ -3902,6 +3912,59 @@ const CLAIM_DISCARDED_CANDIDATE =
  * of the arithmetic, not the value the chain states.
  */
 const CLAIM_OPERAND_AFTER = /^\s*(?:[/*×·⋅÷^+]|[-−]\s*[\d(.])/;
+
+/**
+ * A number that is part of a formula is an operand, not a stated
+ * measurement, even when the letters after it spell a unit:
+ * - glued to a plan quantity symbol with no space: "2C" in Q²/(2C) is twice
+ *   the capacitance C, not two coulombs;
+ * - after a multiplication, division or power sign ("Q × 5 V", "x^2 m"), or
+ *   before one ("1 C × 1 V");
+ * - inside a bracketed group of an equation that is itself an operand: the
+ *   bracket is glued to an operand or operator ("Q²/(2 C)", "½(3 m)"), or
+ *   the group holds arithmetic of its own ("(2 C + q)").
+ * "Q = 2 C", "the charge is 2 C" and "the charge (2 C)" stay measurements.
+ */
+function claimNumberIsFormulaOperand(
+  text: string,
+  found: { index: number; length: number; unit: string },
+  planSymbols: ReadonlySet<string>,
+): boolean {
+  const end = found.index + found.length;
+  const unitStart = end - found.unit.length;
+  const glued = unitStart > found.index && !/\s/.test(text[unitStart - 1] ?? " ");
+  if (glued && planSymbols.has(found.unit.replace(/(?:\^\d+|[²³])$/, ""))) return true;
+  const before = text.slice(0, found.index);
+  if (CLAIM_OPERATOR_BEFORE.test(before) || CLAIM_OPERATOR_AFTER.test(text.slice(end))) return true;
+  if (!/[=≈≃≅]/.test(text)) return false;
+  const open = innermostOpenBracket(before);
+  if (open < 0) return false;
+  if (CLAIM_OPERAND_BEFORE_BRACKET.test(before.slice(0, open))) return true;
+  const close = text.indexOf(")", end);
+  const group = text.slice(open + 1, found.index) + " " + text.slice(end, close < 0 ? text.length : close);
+  return /[+*/^×·⋅÷]/.test(group);
+}
+
+/** Index of the last "(" in the prefix that is not closed before the number. */
+function innermostOpenBracket(prefix: string): number {
+  let depth = 0;
+  for (let index = prefix.length - 1; index >= 0; index -= 1) {
+    const char = prefix[index];
+    if (char === ")") depth += 1;
+    else if (char === "(") {
+      if (depth === 0) return index;
+      depth -= 1;
+    }
+  }
+  return -1;
+}
+
+/** A multiplication, division or power sign, or a bracket glued to one, right before the number. */
+const CLAIM_OPERATOR_BEFORE = /(?:[*^×·⋅÷/]\s*|[*^×·⋅÷/]\(\s*)$/;
+/** A multiplication, division or power sign right after the number's unit. */
+const CLAIM_OPERATOR_AFTER = /^\s*[*^×·⋅÷/]/;
+/** A bracket glued to an operand or operator: "/(", "²(", "½(", "x(". */
+const CLAIM_OPERAND_BEFORE_BRACKET = /[\p{L}\p{N}_)\]²³½¼¾*^×·⋅÷/+\-−]$/u;
 
 /** A number that is a function argument ("sin(90°)") is not a stated value. */
 const CLAIM_FUNCTION_ARGUMENT = /\b(?:sin|cos|tan|sec|csc|cot|asin|acos|atan|arcsin|arccos|arctan|sqrt|log|ln|exp)\s*\(\s*$/i;

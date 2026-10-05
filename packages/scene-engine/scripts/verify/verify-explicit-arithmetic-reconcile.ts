@@ -739,6 +739,48 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
 }
 
 // ---------------------------------------------------------------------------
+// Formula operands: a number inside a formula is a coefficient, not a
+// measurement, even when the letter after it spells a unit ("2C" in
+// Q²/(2C) is two times the capacitance, not two coulombs). A number stated
+// as a value with a space and no formula around it is still checked.
+// ---------------------------------------------------------------------------
+
+{
+  const capacitance = given("C", 12, "µF");
+  const current = given("I", 15, "mA");
+  const time = given("t", 8, "ms");
+  const charge = derived("Q", 0.00012, "C", "Q = I t = (0.015)(0.008) = 0.00012 C");
+  const voltage = derived("V", 10, "V", "V = Q/C = 0.00012/0.000012 = 10 V");
+  const energy = derived("W", 0.0006, "J", "W = ½QV = 0.5(0.00012)(10) = 0.0006 J");
+  const claimCodes = (claim: string, expected: Claim["expected"] = true) => issueCodes(plan(
+    [capacitance, current, time],
+    [charge, voltage, energy],
+    [{ id: "stored_energy", claim, expected, relatedQuantityIds: ["Q", "V", "W"] }],
+  ));
+  const formulas: Array<[string, string, Claim["expected"]]> = [
+    ["a coefficient glued to a plan symbol in expected", "The stored energy follows from the charge.", "W = Q²/(2C) = ½CV² = ½QV"],
+    ["a coefficient glued to a plan symbol in the claim", "W = Q²/(2C) = ½CV² = ½QV gives 0.6 mJ.", true],
+    ["a number after a multiplication sign", "W = Q × 5 V = 0.6 mJ.", true],
+    ["a number inside a bracketed operand group", "W = Q²/(2 C) with C the capacitance.", true],
+    ["a number before a multiplication sign", "W = ½QV, and 1 C × 1 V = 1 J sets the unit.", true],
+  ];
+  for (const [name, claim, expected] of formulas) {
+    const codes = claimCodes(claim, expected);
+    check(`formula operand is not a measurement: ${name}`, !codes.includes("claim_quantity_mismatch"), codes);
+  }
+  const statements: Array<[string, string]> = [
+    ["an equation with a spaced unit", "Q = 2 C"],
+    ["a copula", "The charge is 2 C."],
+    ["an approximation", "Q ≈ 2 C"],
+    ["a spaced unit inside a plain parenthetical", "The capacitor holds a charge (2 C) after 8 ms."],
+  ];
+  for (const [name, claim] of statements) {
+    const codes = claimCodes(claim);
+    check(`stated measurement still checked: ${name}`, codes.includes("claim_quantity_mismatch"), codes);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Claim precision: a claim number matches its quantity rounded at the
 // claim's own precision, or truncated there when written to at least three
 // significant figures. Nothing looser.

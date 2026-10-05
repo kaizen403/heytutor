@@ -105,9 +105,21 @@ function normUnit(unit: unknown): string {
   return u;
 }
 
+/**
+ * A pure number: no unit, "1", "unitless", or an abstract coordinate unit
+ * ("unit", "square units", "unit^2", "cubic units").
+ */
+function isDimensionlessUnit(normalized: string): boolean {
+  return ["1", "none", "dimensionless", "unitless", "nounit", "nounits"].includes(normalized) ||
+    /^(?:(?:sq(?:uare)?|cu(?:bic)?)\.?)?units?(?:\^?[23]|[²³])?$/.test(normalized);
+}
+
 function convert(value: number, fromUnit: unknown, truthUnit: string): number | null {
   let from = normUnit(fromUnit);
   let to = normUnit(truthUnit);
+  // A dimensionless truth compares numerically with any pure number; a
+  // radian is a pure number too (a degree is not: it needs its factor).
+  if (isDimensionlessUnit(to) && (isDimensionlessUnit(from) || from === "rad")) return value;
   if (truthUnit === "N m") {
     to = "nm_torque";
     if (from === "nm") from = "nm_torque";
@@ -173,6 +185,33 @@ function showAsked(value: Asked): string {
   if (scored !== "wrong") {
     console.error(`numeric authority replay: self-check failed, 12 kg against 12 uC scored ${scored}`);
     process.exit(1);
+  }
+}
+
+// Must score correct: a pure number answered in a plain, abstract or radian unit.
+// Must score wrong: a pure number answered in a unit with a dimension.
+{
+  const probe: Question = {
+    id: "self-check", topic: "", question: "", unknown: "x", unit: "", truth: 1, tol: 0.01, absOk: false,
+  };
+  const scoredAs = (unit: string | undefined) => verdict(askedValue(
+    { unknowns: [{ id: "x", unit }], derived: [{ id: "x", value: 1, unit }] },
+    probe,
+  ), probe);
+  const pure = [undefined, "", "1", "unitless", "dimensionless", "unit", "units", "square units", "unit^2", "rad"];
+  for (const unit of pure) {
+    const scored = scoredAs(unit);
+    if (scored !== "correct") {
+      console.error(`numeric authority replay: self-check failed, 1 ${unit ?? "(no unit)"} against a pure 1 scored ${scored}`);
+      process.exit(1);
+    }
+  }
+  for (const unit of ["kg", "uC", "deg"]) {
+    const scored = scoredAs(unit);
+    if (scored !== "wrong") {
+      console.error(`numeric authority replay: self-check failed, 1 ${unit} against a pure 1 scored ${scored}`);
+      process.exit(1);
+    }
   }
 }
 
