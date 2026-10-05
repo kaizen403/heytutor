@@ -8,7 +8,7 @@
     "askedMissing": 4,
     "arithmeticRightToWrong": 0,
     "opticsRightToWrong": 0,
-    "opticsQuantityRightToWrong": 1
+    "opticsQuantityRightToWrong": 0
   },
   "min": {
     "askedCorrect": 105

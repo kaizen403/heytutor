@@ -13,10 +13,17 @@ export interface OpticsPlanCorrection {
   correctedValue: number;
 }
 
+/** A recognized law the audit refused to evaluate, so the plan value stands unverified. */
+export interface OpticsPlanDecline {
+  lawId: OpticsLawId;
+  reason: string;
+}
+
 export interface OpticsPlanAuditResult {
   plan: TurnPlanV3;
   corrections: OpticsPlanCorrection[];
   checkedLawIds: OpticsLawId[];
+  declined: OpticsPlanDecline[];
 }
 
 type Dimension = "length" | "angle" | "power" | "time" | "speed" | "scalar";
@@ -27,34 +34,42 @@ type Dimension = "length" | "angle" | "power" | "time" | "speed" | "scalar";
  */
 export function reconcileTurnPlanWithOpticsLaws(plan: TurnPlanV3): OpticsPlanAuditResult {
   const lawIds = [...new Set(plan.lawIds.flatMap(canonicalOpticsLawId))];
-  if (lawIds.length === 0) return { plan, corrections: [], checkedLawIds: [] };
+  if (lawIds.length === 0) return { plan, corrections: [], checkedLawIds: [], declined: [] };
 
   let current = plan;
   const corrections: OpticsPlanCorrection[] = [];
   const checkedLawIds: OpticsLawId[] = [];
+  const declined: OpticsPlanDecline[] = [];
   for (const lawId of lawIds) {
     const evaluation = evaluatePlanLaw(current, lawId);
     if (!evaluation) continue;
+    if ("declined" in evaluation) {
+      declined.push({ lawId, reason: evaluation.declined });
+      continue;
+    }
     checkedLawIds.push(lawId);
     for (const output of evaluation.outputs) {
-      const result = correctDerivedQuantity(current, lawId, output.aliases, output.value, output.dimension);
+      const result = correctDerivedQuantity(current, lawId, output);
       current = result.plan;
       corrections.push(...result.corrections);
+      declined.push(...result.declined);
     }
   }
-  return { plan: current, corrections, checkedLawIds };
+  return { plan: current, corrections, checkedLawIds, declined };
 }
 
 interface EvaluatedOutput {
   aliases: string[];
   value: number;
   dimension: Dimension;
+  /** The sign depends on the convention; a plan value differing only in sign is a convention clash, not a slip. */
+  conventionSigned?: boolean;
 }
 
 function evaluatePlanLaw(
   plan: TurnPlanV3,
   lawId: OpticsLawId,
-): { outputs: EvaluatedOutput[] } | null {
+): { outputs: EvaluatedOutput[] } | { declined: string } | null {
   const given = (aliases: string[], dimension: Dimension, absolute = false): number | null => {
     const quantity = findQuantity(plan.givens, aliases);
     if (!quantity) return null;
@@ -71,17 +86,23 @@ function evaluatePlanLaw(
       return null;
     }
   };
-  const output = (aliases: string[], value: number, dimension: Dimension): EvaluatedOutput => ({ aliases, value, dimension });
+  const output = (aliases: string[], value: number, dimension: Dimension, conventionSigned = false): EvaluatedOutput =>
+    ({ aliases, value, dimension, conventionSigned });
 
   if (lawId === "mirror_formula" || lawId === "thin_lens_formula") {
-    const objectDistance = length(["object_distance", "objectdistance", "u"], true);
-    const focalLength = length(["focal_length", "focallength", "f"]);
-    if (objectDistance === null || focalLength === null) return null;
-    const values = evaluate({ objectDistance, focalLength });
-    return values ? { outputs: [
-      output(["image_distance", "imagedistance", "v"], values.imageDistance!, "length"),
+    const element = opticalElement(plan, lawId === "mirror_formula" ? "mirror" : "lens");
+    const objectQuantity = findQuantity(plan.givens, ["object_distance", "objectdistance", "u"]);
+    const focalQuantity = findQuantity(plan.givens, ["focal_length", "focallength", "f"]);
+    if (!objectQuantity || !focalQuantity) return null;
+    const signs = resolveSignedDistances(plan, element, objectQuantity, focalQuantity);
+    if ("reason" in signs) return { declined: signs.reason };
+    const values = evaluate(toRealIsPositive(element, signs));
+    if (!values) return { declined: "the law has no finite real-object solution for these givens" };
+    return { outputs: [
+      output(["image_distance", "imagedistance", "v"], imageSideBetweenConventions(element, signs.convention, values.imageDistance!), "length", true),
+      // Magnification is the ratio of image to object height, so it reads the same in both conventions.
       output(["magnification", "m"], values.magnification!, "scalar"),
-    ] } : null;
+    ] };
   }
   if (lawId === "snell_law") {
     const n1 = scalar(["n1", "refractive_index_1", "incident_index"]);
@@ -137,11 +158,14 @@ function evaluatePlanLaw(
     return values ? { outputs: [output(["power", "P"], values.power!, "power")] } : null;
   }
   if (lawId === "linear_magnification") {
-    const objectDistance = length(["object_distance", "u"], true);
-    const imageDistance = length(["image_distance", "v"], true);
-    if (objectDistance === null || imageDistance === null) return null;
-    const inverted = plan.qualitativeClaims.some((claim) => /inverted/i.test(claim.claim) && claim.expected !== false);
-    const values = evaluate({ objectDistance, imageDistance, orientationSign: inverted ? -1 : 1 });
+    const objectQuantity = findQuantity(plan.givens, ["object_distance", "u"]);
+    const imageQuantity = findQuantity(plan.givens, ["image_distance", "v"]);
+    if (!objectQuantity || !imageQuantity) return null;
+    const objectDistance = Math.abs(toBaseUnit(objectQuantity.value, objectQuantity.unit, "length"));
+    const imageDistance = Math.abs(toBaseUnit(imageQuantity.value, imageQuantity.unit, "length"));
+    const orientationSign = signedOrientation(plan, objectQuantity, imageQuantity) ?? claimedOrientation(plan);
+    if (orientationSign === null) return { declined: "image orientation is not determined by signed distances or an orientation claim" };
+    const values = evaluate({ objectDistance, imageDistance, orientationSign });
     return values ? { outputs: [output(["magnification", "m"], values.magnification!, "scalar")] } : null;
   }
   if (lawId === "lenses_in_contact") {
@@ -280,23 +304,28 @@ function evaluatePlanLaw(
 function correctDerivedQuantity(
   plan: TurnPlanV3,
   lawId: OpticsLawId,
-  aliases: string[],
-  baseValue: number,
-  dimension: Dimension,
-): { plan: TurnPlanV3; corrections: OpticsPlanCorrection[] } {
+  { aliases, value: baseValue, dimension, conventionSigned }: EvaluatedOutput,
+): { plan: TurnPlanV3; corrections: OpticsPlanCorrection[]; declined: OpticsPlanDecline[] } {
   const unknown = findQuantity(plan.unknowns, aliases);
   const expandedAliases = unknown ? [...aliases, unknown.id, unknown.symbol] : aliases;
   const targets = findOutputQuantities(plan.derived, expandedAliases);
-  if (targets.length === 0) return { plan, corrections: [] };
+  const declined: OpticsPlanDecline[] = [];
+  if (targets.length === 0) return { plan, corrections: [], declined };
   const corrections: OpticsPlanCorrection[] = [];
   const correctedById = new Map<string, number>();
   for (const target of targets) {
-    const correctedValue = fromBaseUnit(baseValue, target.unit, dimension);
+    const signedValue = fromBaseUnit(baseValue, target.unit, dimension);
+    // A quantity the plan marks unsigned is a magnitude; compare and write magnitudes only.
+    const correctedValue = target.sign === "unsigned" ? Math.abs(signedValue) : signedValue;
     if (approximatelyEqual(target.value, correctedValue)) continue;
+    if (conventionSigned && approximatelyEqual(Math.abs(target.value), Math.abs(correctedValue))) {
+      declined.push({ lawId, reason: `${target.id} matches in size but its sign follows a different convention than the givens` });
+      continue;
+    }
     correctedById.set(target.id, correctedValue);
     corrections.push({ lawId, quantityId: target.id, previousValue: target.value, correctedValue });
   }
-  if (corrections.length === 0) return { plan, corrections };
+  if (corrections.length === 0) return { plan, corrections, declined };
   const derived = plan.derived.map((quantity) => {
     const correctedValue = correctedById.get(quantity.id);
     return correctedValue === undefined ? quantity : {
@@ -308,7 +337,161 @@ function correctDerivedQuantity(
       sourceText: `Deterministically verified with ${lawId}.`,
     };
   });
-  return { plan: { ...plan, derived }, corrections };
+  return { plan: { ...plan, derived }, corrections, declined };
+}
+
+type SignConvention = "cartesian" | "real_is_positive";
+
+interface OpticalElement {
+  kind: "mirror" | "lens";
+  /** True for concave mirrors and converging lenses, false for convex mirrors and diverging lenses, null when unstated. */
+  converging: boolean | null;
+}
+
+interface SignedDistances {
+  convention: SignConvention;
+  /** Signed object distance in metres, in the plan's own convention. */
+  objectDistance: number;
+  /** Signed focal length in metres, in the plan's own convention. */
+  focalLength: number | null;
+}
+
+interface SignedLength {
+  value: number;
+  magnitudeOnly: boolean;
+}
+
+/**
+ * Read the element from the question: the law fixes mirror or lens, the stem
+ * fixes concave/convex. A stem naming both types leaves the type unknown.
+ */
+function opticalElement(plan: TurnPlanV3, kind: OpticalElement["kind"]): OpticalElement {
+  const text = plan.question.toLowerCase();
+  const converging = kind === "mirror"
+    ? /(?:concave|converging)(?:\s+[a-z]+)?\s+mirror/.test(text)
+    : /(?:convex|converging)(?:\s+[a-z]+)?\s+lens/.test(text);
+  const diverging = kind === "mirror"
+    ? /(?:convex|diverging)(?:\s+[a-z]+)?\s+mirror/.test(text)
+    : /(?:concave|diverging)(?:\s+[a-z]+)?\s+lens/.test(text);
+  return { kind, converging: converging === diverging ? null : converging };
+}
+
+/**
+ * Decide which sign convention the plan's own distances use, and return them
+ * signed in that convention. Evidence: a stated convention, the sign of a real
+ * object's distance (negative only in Cartesian), and for a mirror of known type
+ * the sign of f (a concave mirror has negative f only in Cartesian). Any
+ * disagreement, or no evidence at all, declines instead of guessing.
+ */
+function resolveSignedDistances(
+  plan: TurnPlanV3,
+  element: OpticalElement,
+  objectQuantity: TurnPlanQuantityV3,
+  focalQuantity: TurnPlanQuantityV3 | null,
+): SignedDistances | { reason: string } {
+  if (/virtual\s+object|converging\s+(?:beam|light|rays?|pencil)/i.test(plan.question)) {
+    return { reason: "a virtual object reverses the object distance sign, so it cannot fix the convention" };
+  }
+  const object = signedLength(objectQuantity);
+  const focal = focalQuantity ? signedLength(focalQuantity) : null;
+  if (!object || (focalQuantity && !focal)) return { reason: "a distance contradicts its own sign marker" };
+  if (object.value === 0) return { reason: "object distance is zero" };
+
+  const votes = new Set<SignConvention>();
+  const declared = declaredConvention(plan);
+  if (declared === "conflict") return { reason: "the plan states both Cartesian and real-is-positive conventions" };
+  if (declared) votes.add(declared);
+  if (!object.magnitudeOnly) votes.add(object.value < 0 ? "cartesian" : "real_is_positive");
+  if (focal && !focal.magnitudeOnly && element.converging !== null) {
+    if (element.kind === "mirror") {
+      votes.add((focal.value < 0) === element.converging ? "cartesian" : "real_is_positive");
+    } else if ((focal.value > 0) !== element.converging) {
+      return { reason: "focal length sign contradicts the stated lens type" };
+    }
+  }
+  if (votes.size === 0) return { reason: "no signed distance or stated convention fixes the sign convention" };
+  if (votes.size > 1) return { reason: "the plan mixes Cartesian and real-is-positive signs" };
+  const convention = [...votes][0]!;
+
+  const objectDistance = object.magnitudeOnly && convention === "cartesian" ? -object.value : object.value;
+  if (!focal) return { convention, objectDistance, focalLength: null };
+  if (!focal.magnitudeOnly) return { convention, objectDistance, focalLength: focal.value };
+  if (element.converging === null) return { reason: "focal length is a magnitude and the element type is unstated" };
+  // Converging lenses have positive f in both conventions; mirrors flip with the convention.
+  const positive = element.kind === "lens" || convention === "real_is_positive" ? element.converging : !element.converging;
+  return { convention, objectDistance, focalLength: positive ? focal.value : -focal.value };
+}
+
+function signedLength(quantity: TurnPlanQuantityV3): SignedLength | null {
+  const value = toBaseUnit(quantity.value, quantity.unit, "length");
+  if (quantity.sign === "unsigned") return { value: Math.abs(value), magnitudeOnly: true };
+  if ((quantity.sign === "positive" && value < 0) || (quantity.sign === "negative" && value > 0)) return null;
+  return { value, magnitudeOnly: false };
+}
+
+function declaredConvention(plan: TurnPlanV3): SignConvention | "conflict" | null {
+  const text = [
+    ...plan.lawIds,
+    ...plan.assumptions,
+    ...plan.qualitativeClaims.flatMap((claim) => [claim.claim, typeof claim.expected === "string" ? claim.expected : ""]),
+  ].join(" ");
+  const cartesian = /cartesian/i.test(text);
+  const realIsPositive = /real[\s_-]*is[\s_-]*positive/i.test(text);
+  if (cartesian && realIsPositive) return "conflict";
+  return cartesian ? "cartesian" : realIsPositive ? "real_is_positive" : null;
+}
+
+/**
+ * The scene engine evaluates mirror and lens laws real-is-positive. Cartesian
+ * object distances flip sign; a Cartesian mirror also flips f and v, while a
+ * lens keeps them (both conventions put a converging f and a real image positive).
+ */
+function toRealIsPositive(element: OpticalElement, distances: SignedDistances): { objectDistance: number; focalLength: number } {
+  const cartesian = distances.convention === "cartesian";
+  return {
+    objectDistance: cartesian ? -distances.objectDistance : distances.objectDistance,
+    focalLength: imageSideBetweenConventions(element, distances.convention, distances.focalLength ?? Number.NaN),
+  };
+}
+
+/** Self inverse: converts an image side length (v or f) either way between the plan convention and real-is-positive. */
+function imageSideBetweenConventions(element: OpticalElement, convention: SignConvention, value: number): number {
+  return convention === "cartesian" && element.kind === "mirror" ? -value : value;
+}
+
+/** Orientation from signed u and v when the plan names exactly one element type and its convention is clear. */
+function signedOrientation(
+  plan: TurnPlanV3,
+  objectQuantity: TurnPlanQuantityV3,
+  imageQuantity: TurnPlanQuantityV3,
+): 1 | -1 | null {
+  const mentionsMirror = /mirror/i.test(plan.question);
+  const mentionsLens = /\blens/i.test(plan.question);
+  if (mentionsMirror === mentionsLens) return null;
+  const element = opticalElement(plan, mentionsMirror ? "mirror" : "lens");
+  const focalQuantity = findQuantity(plan.givens, ["focal_length", "focallength", "f"]);
+  const distances = resolveSignedDistances(plan, element, objectQuantity, focalQuantity);
+  const image = signedLength(imageQuantity);
+  if ("reason" in distances || !image || image.magnitudeOnly || image.value === 0) return null;
+  const objectRealPositive = distances.convention === "cartesian" ? -distances.objectDistance : distances.objectDistance;
+  const imageRealPositive = imageSideBetweenConventions(element, distances.convention, image.value);
+  return -imageRealPositive / objectRealPositive < 0 ? -1 : 1;
+}
+
+/** Orientation from explicit claims; none, or claims that disagree, give null. */
+function claimedOrientation(plan: TurnPlanV3): 1 | -1 | null {
+  let orientation: 1 | -1 | null = null;
+  for (const claim of plan.qualitativeClaims) {
+    const holds = claim.expected !== false;
+    const notInverted = /\b(?:not\s+inverted|non-?inverted)\b/i.test(claim.claim);
+    const inverted = !notInverted && /\b(?:inverted|upside[\s-]*down)\b/i.test(claim.claim);
+    const erect = notInverted || /\b(?:erect|upright)\b/i.test(claim.claim);
+    if (inverted === erect) continue;
+    const sign: 1 | -1 = inverted === holds ? -1 : 1;
+    if (orientation !== null && orientation !== sign) return null;
+    orientation = sign;
+  }
+  return orientation;
 }
 
 function findOutputQuantities<T extends { id: string; symbol: string }>(
@@ -355,8 +538,8 @@ function canonicalOpticsLawId(value: string): OpticsLawId[] {
     [/sphericalrefraction/, "spherical_refraction"],
     [/snell/, "snell_law"],
     [/lensmaker/, "lens_maker"],
-    [/thinlens|lensformula/, "thin_lens_formula"],
-    [/mirrorformula/, "mirror_formula"],
+    [/thinlens|lensformula|lensequation/, "thin_lens_formula"],
+    [/mirrorformula|mirrorequation/, "mirror_formula"],
     [/criticalangle/, "critical_angle"],
     [/fiberacceptance|fibreacceptance|numericalaperture/, "fiber_acceptance"],
     [/lensesincontact|lenscombination|poweraddition/, "lenses_in_contact"],
