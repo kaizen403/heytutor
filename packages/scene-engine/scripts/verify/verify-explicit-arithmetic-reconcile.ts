@@ -630,6 +630,33 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
   check("a discarded root beside the value is not a contradiction", !discarded.includes("claim_quantity_mismatch"), discarded);
   const alone = roots("The quadratic gives t = 7 s; the negative root is rejected.");
   check("a discard word does not excuse a wrong value", alone.includes("claim_quantity_mismatch"), alone);
+  // Only the number the discard wording is tied to is excused. The stated
+  // answer must still be the value, even when the value appears elsewhere.
+  const mustReject = [
+    "The negative root t = -1 s is rejected, so the physical answer is t = 7 s; note t = 5 s appears in the working.",
+    "Roots t = 5 s and t = -1 s; reject t = -1 s, so the time of flight is t = 7 s.",
+    "With t = 5 s in the working, the negative root is rejected and the ball lands at t = 7 s.",
+    "Discard the negative value -1 s; t = 5 s solves the quadratic but the answer is t = 7 s.",
+    "-1 s is not physical, t = 5 s is a check, and the time is t = 7 s.",
+    "Rejecting the negative root gives t = 7 s, unlike t = 5 s.",
+    "The roots are t = 5 s and t = 7 s; the positive root is rejected.",
+  ];
+  for (const text of mustReject) {
+    const codes = roots(text);
+    check(`discard wording excuses only its own number: ${text}`, codes.includes("claim_quantity_mismatch"), codes);
+  }
+  const mustAccept = [
+    "The quadratic gives two roots, t = 5 s and t = -1 s; the negative root is rejected as non-physical.",
+    "The negative root t = -1 s is rejected, so the physical answer is t = 5 s.",
+    "Solving gives t = 5 s (rejecting t = -1 s).",
+    "The positive root t = 5 s is the physical answer (negative root t = -1 s rejected).",
+    "Discard the negative value -1 s; the time is t = 5 s.",
+    "The root t = -1 s is not physical, so t = 5 s.",
+  ];
+  for (const text of mustAccept) {
+    const codes = roots(text);
+    check(`a genuine discard with the right answer passes: ${text}`, !codes.includes("claim_quantity_mismatch"), codes);
+  }
 }
 
 // ---------------------------------------------------------------------------

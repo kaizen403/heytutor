@@ -410,6 +410,9 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
         entry.kind === "linked" && entry.quantities.includes(quantity) &&
         claimSameDimension(quantity.unit, entry.measurement.unit) &&
         sameValue(quantity, entry.measurement, entry.magnitude === true || isDeclaredMagnitude(quantity)));
+      const statedOwnValues = (quantities: Record<string, unknown>[]) => quantities
+        .filter(statesValue)
+        .map((quantity) => quantity.value as number);
       for (const entry of classified) {
         if (entry.kind === "other") continue;
         const { measurement } = entry;
@@ -423,9 +426,10 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
             !comparable.some((quantity) =>
               sameValue(quantity, measurement, entry.magnitude === true || isDeclaredMagnitude(quantity))) &&
             // "roots t = 5 s and t = -1 s; the negative root is rejected":
-            // a candidate the claim itself discards, beside the quantity's
-            // own value, is not taught as the value.
-            !(CLAIM_DISCARDED_CANDIDATE.test(entry.text) && comparable.some(statesValue))
+            // a candidate the claim itself discards is not taught as the
+            // value. Only the discarded number is excused; every other
+            // number stated for the quantity must still be its value.
+            !claimNumberIsDiscarded(entry, statedOwnValues(comparable))
           ) mismatch(measurement);
           continue;
         }
@@ -438,6 +442,9 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
           claimSameDimension(quantity.unit, measurement.unit));
         if (comparable.length === 0) continue;
         if (comparable.some((quantity) => sameValue(quantity, measurement, true))) continue;
+        // "discard the negative value -1 s": a number the claim throws away
+        // states nothing.
+        if (claimNumberIsDiscarded(entry, statedOwnValues(comparable))) continue;
         // "I2 = -1.5 A (i.e. 1.5 A into the battery)" restates a number the
         // claim attributes elsewhere; that attribution decides it.
         const restates = classified.some((other) =>
@@ -3572,7 +3579,13 @@ type ClaimMeasurement = {
   significantFigures?: number;
 };
 
-type ClassifiedClaimMeasurement =
+type ClassifiedClaimMeasurement = ClaimMeasurementKind & {
+  /** Where the number (with its unit) sits in the claim text. */
+  index: number;
+  length: number;
+};
+
+type ClaimMeasurementKind =
   | {
     kind: "linked";
     measurement: ClaimMeasurement;
@@ -3718,12 +3731,14 @@ function classifyClaimMeasurements(
   };
   for (const found of claimMeasuredValues(text)) {
     const measurement = { value: found.value, unit: found.unit, tolerance: found.tolerance, significantFigures: found.significantFigures };
+    const push = (entry: ClaimMeasurementKind) =>
+      classified.push({ ...entry, index: found.index, length: found.length });
     const prefix = text.slice(0, found.index);
     // The tail of a larger number ("90/11 V", "7.0e6 m", "2/5 m R^2") is
     // not a measured value on its own.
     if (/[A-Za-z0-9_.^/]$/.test(prefix)) continue;
     if (claimNumberIsFormulaOperand(text, found, planSymbols)) {
-      classified.push({ kind: "other", measurement });
+      push({ kind: "other", measurement });
       continue;
     }
     const subject = claimMeasurementSubject(prefix);
@@ -3732,17 +3747,17 @@ function classifyClaimMeasurements(
         CLAIM_COMPARISON_BEFORE.test(prefix) ||
         CLAIM_COMPARISON_AFTER.test(text.slice(found.index + found.length));
       if (bound) {
-        classified.push({ kind: "other", measurement });
+        push({ kind: "other", measurement });
         continue;
       }
       const described = describedClaimQuantities(prefix, linkedQuantities);
-      classified.push(described.length > 0
+      push(described.length > 0
         ? { kind: "linked", measurement, quantities: described, magnitude: true }
         : { kind: "unattributed", measurement });
       continue;
     }
     if (subject.kind === "expression" || CLAIM_OPERAND_AFTER.test(text.slice(found.index + found.length))) {
-      classified.push({ kind: "other", measurement });
+      push({ kind: "other", measurement });
       continue;
     }
     const bySymbol = (key: string) => linkedQuantities.filter((quantity) =>
@@ -3751,7 +3766,7 @@ function classifyClaimMeasurements(
     if (subject.kind === "symbol") {
       quantities = bySymbol(subject.text);
       if (quantities.length === 0) {
-        classified.push({ kind: "other", measurement });
+        push({ kind: "other", measurement });
         continue;
       }
     } else {
@@ -3771,11 +3786,11 @@ function classifyClaimMeasurements(
       if (quantities.length === 0 && subject.head) quantities = namedBy(subject.head);
       // "magnitude f_k = 6.4 N": the left side of the equation is f_k.
       if (quantities.length === 0 && subject.equationHead && looksLikeSymbol(words.at(-1) ?? "")) {
-        classified.push({ kind: "other", measurement });
+        push({ kind: "other", measurement });
         continue;
       }
     }
-    classified.push(quantities.length > 0
+    push(quantities.length > 0
       ? { kind: "linked", measurement, quantities }
       : { kind: "unattributed", measurement });
   }
@@ -3903,9 +3918,61 @@ function looksLikeSymbol(token: string): boolean {
   return /[_\d\u0370-\u03ff₀-₉′'{}\\]/u.test(token) || token.length <= 3 || !/^[A-Z]?[a-z]+$/.test(token);
 }
 
-/** Wording that throws a candidate value away (a rejected root). */
-const CLAIM_DISCARDED_CANDIDATE =
-  /\b(?:reject(?:s|ed|ing)?|discard(?:s|ed|ing)?|non-?physical|unphysical|extraneous|inadmissible|not\s+physical)\b/i;
+/**
+ * Words that may stand between a discard verb and the number it throws
+ * away: "reject the negative root t = -1 s", "discard the other value 3 m".
+ * A closed list, so "rejecting the root gives t = 7 s" never reaches 7.
+ */
+const CLAIM_DISCARD_NOUN_PHRASE =
+  String.raw`(?:(?:the|a|an|this|that|its|their|negative|positive|other|second|first|smaller|larger|lower|higher|spurious|extraneous|unphysical|non-?physical|root|roots|value|values|solution|solutions|candidate|candidates)\s+)*`;
+
+/** A number right after a discard verb: "reject t = -1 s", "discarding the negative root -1 s". */
+const CLAIM_DISCARD_BEFORE_NUMBER = new RegExp(
+  String.raw`\b(?:reject|discard)(?:s|ed|ing)?\s+${CLAIM_DISCARD_NOUN_PHRASE}(?:[A-Za-zΑ-Ωα-ω][\w\u0370-\u03ff₀-₉′']*\s*=\s*)?[-−+]?\s*$`,
+  "iu",
+);
+
+/**
+ * A number right before the wording that discards it: "t = -1 s is
+ * rejected", "-1 s (rejected)", "-1 s, which is not physical".
+ */
+const CLAIM_DISCARD_AFTER_NUMBER =
+  /^\s*(?:\(\s*|,\s*which\s+)?(?:(?:is|are|was|were|being|gets|get|must\s+be|should\s+be|can\s+be|has\s+to\s+be|also|hence|therefore|thus|so|clearly)\s+)*(?:rejected|discarded|non-?physical|unphysical|extraneous|inadmissible|not\s+(?:physical|admissible|valid|acceptable|allowed))\b/i;
+
+/**
+ * Wording that discards a candidate named only by its sign: "the negative
+ * root is rejected", "rejecting the positive solution". Returns the sign it
+ * names, or null.
+ */
+function claimDiscardedSign(text: string): -1 | 1 | null {
+  const sign = (word: string | undefined) => (/^neg/i.test(word ?? "") ? -1 : 1);
+  const noun = String.raw`(?:root|value|solution|candidate|answer|one)s?`;
+  const predicate = String.raw`(?:(?:is|are|was|were|being|must\s+be|should\s+be|can\s+be|has\s+to\s+be)\s+)?(?:rejected|discarded|non-?physical|unphysical|extraneous|inadmissible|not\s+(?:physical|admissible|valid|acceptable|allowed))\b`;
+  const subject = text.match(new RegExp(String.raw`\b(negative|positive)\s+${noun}\s+${predicate}`, "i"));
+  if (subject) return sign(subject[1]);
+  const object = text.match(new RegExp(String.raw`\b(?:reject|discard)(?:s|ed|ing)?\s+(?:the|a|an|this|that|its)\s+(negative|positive)\s+${noun}\b`, "i"));
+  return object ? sign(object[1]) : null;
+}
+
+/**
+ * The claim throws this number away as a rejected candidate. Only the
+ * number the discard wording is tied to counts: "the negative root t = -1 s
+ * is rejected, so the physical answer is t = 7 s" discards -1 s, never 7 s.
+ * A candidate named only by its sign ("the negative root is rejected") is
+ * discarded when the claim also states the quantity's own value and that
+ * value has the other sign.
+ */
+function claimNumberIsDiscarded(
+  entry: ClassifiedClaimMeasurement & { text: string },
+  statedOwnValues: number[],
+): boolean {
+  const { text, index, length, measurement } = entry;
+  if (CLAIM_DISCARD_BEFORE_NUMBER.test(text.slice(0, index))) return true;
+  if (CLAIM_DISCARD_AFTER_NUMBER.test(text.slice(index + length))) return true;
+  const sign = claimDiscardedSign(text);
+  return sign !== null && Math.sign(measurement.value) === sign && statedOwnValues.length > 0 &&
+    statedOwnValues.every((value) => Math.sign(value) === -sign);
+}
 
 /**
  * A number followed by an operator ("50 mJ / 5", "2 A + 1 A") is an operand

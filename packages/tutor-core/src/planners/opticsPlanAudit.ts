@@ -436,17 +436,64 @@ function resolveSignedDistances(
 }
 
 /**
- * Light that would converge to a point the element interrupts, an image used
- * as the next element's object, or an object the stem calls virtual.
- * "Converging" naming the element itself (a converging lens) is not one.
+ * Light aimed at a point the element interrupts, an image used as the next
+ * element's object, or an object the stem calls virtual. Converging or
+ * meeting light is judged clause by clause in convergenceMayBeVirtualObject.
  */
 const VIRTUAL_OBJECT_CUE = new RegExp([
   String.raw`\bvirtual\s+object`,
-  String.raw`\bconverg(?:e|es|ed|ing|ence|ent)\b(?!\s+(?:[a-z-]+\s+)?(?:lens|lenses|mirror|mirrors)\b)`,
-  String.raw`\b(?:meet|meets|intersect|intersects|cross|crosses)\b`,
   String.raw`\b(?:directed|aimed|heading|incident)\s+(?:at|to|towards?)\s+(?:a|the)\s+point\b`,
   String.raw`\b(?:acts?|serves?|behaves?|treated|used)\s+as\s+(?:an?\s+|the\s+)?(?:\w+\s+)?object\b`,
 ].join("|"), "i");
+
+/**
+ * Rays that converge or meet. "Converging" naming the element itself (a
+ * converging lens) describes no light.
+ */
+const CONVERGING_LIGHT =
+  /\bconverg(?:e|es|ed|ing|ence|ent)\b(?!\s+(?:[a-z-]+\s+)?(?:lens|lenses|mirror|mirrors)\b)|\b(?:meet|meets|met|meeting|intersect|intersects|intersecting|cross|crosses|crossing)\b/i;
+
+/**
+ * Converging light that has not yet reached the element: an incident beam,
+ * light that "would" meet, or light heading for a point behind or beyond
+ * the element. That point is a virtual object.
+ */
+const INCIDENT_LIGHT = new RegExp([
+  String.raw`\b(?:incident|incoming|falls?\s+on|falling\s+on|strikes?|striking|impinges?|impinging)\b`,
+  String.raw`\bwould\b`,
+  String.raw`\bbefore\s+(?:it\s+|they\s+)?(?:reach|reaches|reaching|strikes?|striking|hits?|hitting|meets?|meeting)\b`,
+  String.raw`\b(?:if|when)\s+the\s+(?:lens|mirror)\s+(?:is|were|was)\s+(?:absent|removed|not)\b`,
+  String.raw`\bin\s+the\s+absence\b`,
+  String.raw`\b(?:behind|beyond|past)\b`,
+  String.raw`\btowards?\s+(?:a|the|some)\s+point\b`,
+  String.raw`\bvirtual\b`,
+].join("|"), "i");
+
+/**
+ * Light after the element, or the image it forms: "the reflected rays meet",
+ * "the rays converge after refraction", "converge to form the image".
+ */
+const OUTGOING_LIGHT = new RegExp([
+  String.raw`\b(?:reflected|refracted|emergent|emerging|emerge|emerges|transmitted)\b`,
+  String.raw`\b(?:after|on|upon|following)\s+(?:the\s+)?(?:reflection|refraction|reflecting|refracting|passing)\b`,
+  String.raw`\bto\s+form\s+(?:a|an|the|its)\s+(?:[a-z]+\s+)?image\b`,
+  String.raw`\bform(?:s|ing)?\s+(?:a|an|the|its)\s+(?:[a-z]+\s+)?image\b`,
+  String.raw`\bimage\s+(?:is\s+)?formed\b`,
+].join("|"), "i");
+
+/** Clause boundaries: punctuation and the conjunctions that join clauses. */
+const LIGHT_CLAUSE_BOUNDARY = /[,;:!?]|\.(?:\s|$)|\b(?:and|but|then|while|whereas)\b/i;
+
+/**
+ * Converging or meeting light may describe a virtual object. A clause about
+ * light after the element or about the image it forms is not one; a clause
+ * about incident light is, and a clause that says neither, or both, stays a
+ * possible virtual object.
+ */
+function convergenceMayBeVirtualObject(text: string): boolean {
+  return text.split(LIGHT_CLAUSE_BOUNDARY).some((clause) =>
+    CONVERGING_LIGHT.test(clause) && !(OUTGOING_LIGHT.test(clause) && !INCIDENT_LIGHT.test(clause)));
+}
 
 /** More than one element: a later element's object may be virtual. */
 const MULTIPLE_ELEMENT_CUE =
@@ -469,7 +516,7 @@ function realObjectDeclineReason(plan: TurnPlanV3): string | null {
     ...plan.assumptions,
     ...plan.qualitativeClaims.flatMap((claim) => [claim.claim, typeof claim.expected === "string" ? claim.expected : ""]),
   ].join(" ");
-  if (VIRTUAL_OBJECT_CUE.test(planText)) {
+  if (VIRTUAL_OBJECT_CUE.test(planText) || convergenceMayBeVirtualObject(planText)) {
     return "the object may be virtual, which reverses the object distance sign, so it cannot fix the convention";
   }
   const question = plan.question.toLowerCase();

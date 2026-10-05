@@ -429,5 +429,35 @@ for (const [name, question, reason] of [
   expectAudit(`possible virtual object declines: ${name}`, virtualLens(question), { v: 20 / 3, corrections: 0, declined: reason });
 }
 
+// Converging or meeting wording about light after the element, or about the
+// image, describes a real object's image and must not stop the audit. Concave
+// mirror, Cartesian: u = -30, f = -10, 1/v = -1/10 + 1/30 = -1/15, v = -15.
+// The plan's v = -20 is a slip the audit must correct.
+const realMirror = (question: string, claims: string[] = []) => opticsPlan({
+  question,
+  lawIds: ["mirror formula"],
+  givens: { u: { value: -30 }, f: { value: -10 } },
+  derived: { v: { value: -20 } },
+  claims,
+});
+for (const [name, question, claims] of [
+  ["reflected rays meet", "An object stands 30 cm in front of a concave mirror of focal length 10 cm. Where do the reflected rays meet?", []],
+  ["rays converge to form the image", "An object is 30 cm from a concave mirror of focal length 10 cm. Where do the rays converge to form the image?", []],
+  ["converge after reflection", "A candle is 30 cm in front of a concave mirror of focal length 10 cm. Find where the rays converge after reflection.", []],
+  ["claim about reflected rays", "An object stands 30 cm in front of a concave mirror of focal length 10 cm. Locate the image.", ["The reflected rays converge in front of the mirror, so the image is real."]],
+  ["converging mirror names the element", "An object is 30 cm in front of a converging mirror of focal length 10 cm. Find the image.", []],
+] as const) {
+  expectAudit(`real object image wording audits: ${name}`, realMirror(question, [...claims]), { v: -15, corrections: 1 });
+}
+for (const [name, question] of [
+  ["converging beam incident", "A converging beam is incident on a concave mirror of focal length 10 cm, its object distance 30 cm. Find the image."],
+  ["converging towards a point behind", "Light converging towards a point 30 cm behind a concave mirror of focal length 10 cm falls on it. Find the image of this object."],
+  ["rays which would meet behind", "An object is formed by rays which would meet at a point 30 cm behind a concave mirror of focal length 10 cm. Find the image."],
+  ["meet with no direction", "An object is 30 cm from a concave mirror of focal length 10 cm and the rays meet at a point. Find the image."],
+  ["reflected and incident in one clause", "An object is 30 cm from a concave mirror of focal length 10 cm; the reflected rays would meet behind the mirror. Find the image."],
+] as const) {
+  expectAudit(`incident or ambiguous convergence declines: ${name}`, realMirror(question), { v: -20, corrections: 0, declined: /virtual/ });
+}
+
 console.log("verify-optics-plan-audit: ok");
 console.log(`  mirror_corrections=${mirrorAudit.corrections.length} ydse_corrections=${ydseAudit.corrections.length}`);
