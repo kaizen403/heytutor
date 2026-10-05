@@ -268,9 +268,10 @@ const arithmetic = {
   declined: [] as string[],
 };
 const optics = {
-  rightToWrong: [] as string[], wrongToRight: [] as string[], neutral: [] as string[], corrections: 0, lanes: 0,
-  /** Corrected quantities sharing the asked dimension, scored against truth even when not the asked one. */
-  quantityRightToWrong: [] as string[],
+  /** The audit is report only; any lane whose plan it changed is a regression. */
+  changedLanes: [] as string[],
+  /** Plan values that disagree with an optics law; reported, never applied. */
+  inconsistencies: [] as string[],
   /** Laws the audit refused to evaluate; the plan value stands unverified. */
   declined: [] as string[],
 };
@@ -316,22 +317,13 @@ function replayLane(lane: LaneFixture, q: Question): TurnPlanV3 | null {
 
   for (const decline of trace.optics?.declined ?? []) optics.declined.push(`${tag}: ${decline.lawId}: ${decline.reason}`);
 
-  if (trace.optics && trace.optics.corrections.length > 0) {
-    optics.lanes += 1;
-    optics.corrections += trace.optics.corrections.length;
-    const before = askedValue(trace.preOptics, q);
-    const after = askedValue(trace.optics.plan, q);
-    const kind = changed(before, after) ? transition(verdict(before, q), verdict(after, q)) : "neutral";
-    optics[kind].push(`${tag}: ${showAsked(before)} -> ${showAsked(after)} (truth ${q.truth} ${q.unit}; ${trace.optics.corrections
-      .map((c) => `${c.lawId} ${c.quantityId} ${c.previousValue}->${c.correctedValue}`).join("; ")})`);
-    for (const correction of trace.optics.corrections) {
-      const quantity = trace.optics.plan.derived.find((item) => item.id === correction.quantityId);
-      const previous = convert(correction.previousValue, quantity?.unit, q.unit);
-      const corrected = convert(correction.correctedValue, quantity?.unit, q.unit);
-      if (previous === null || corrected === null) continue;
-      if (transition(verdict(previous, q), verdict(corrected, q)) === "rightToWrong") {
-        optics.quantityRightToWrong.push(`${tag}: ${correction.lawId} ${correction.quantityId} ${correction.previousValue} -> ${correction.correctedValue} ${quantity?.unit ?? ""} (truth ${q.truth} ${q.unit})`);
-      }
+  if (trace.optics) {
+    // preOptics is a copy taken before the audit ran, so an in-place edit shows here too.
+    if (JSON.stringify(trace.optics.plan) !== JSON.stringify(trace.preOptics)) {
+      optics.changedLanes.push(`${tag}: ${showAsked(askedValue(trace.preOptics, q))} -> ${showAsked(askedValue(trace.optics.plan, q))}`);
+    }
+    for (const item of trace.optics.inconsistencies) {
+      optics.inconsistencies.push(`${tag}: ${item.lawId} ${item.quantityId} plan ${item.planValue}, law ${item.lawValue}`);
     }
   }
   return plan;
@@ -380,10 +372,8 @@ const metrics: Record<string, number> = {
   arithmeticRightToWrong: arithmetic.rightToWrong.length,
   arithmeticWrongToRight: arithmetic.wrongToRight.length,
   nonAskedRewritesByFactor: arithmetic.nonAskedByFactor.length,
-  opticsCorrectedLanes: optics.lanes,
-  opticsRightToWrong: optics.rightToWrong.length,
-  opticsWrongToRight: optics.wrongToRight.length,
-  opticsQuantityRightToWrong: optics.quantityRightToWrong.length,
+  opticsChangedLanes: optics.changedLanes.length,
+  opticsInconsistencies: optics.inconsistencies.length,
 };
 
 const list = (label: string, items: string[], always = false) => {
@@ -413,12 +403,9 @@ console.log(`  declined for mixed units (value left unverified): ${arithmetic.de
 list("declined", arithmetic.declined);
 list("wrong->right", arithmetic.wrongToRight);
 list("neutral", arithmetic.neutral);
-console.log(`optics law reconcile: ${optics.corrections} corrections in ${optics.lanes} lanes: right->wrong ${metrics.opticsRightToWrong}, wrong->right ${metrics.opticsWrongToRight}, neutral ${optics.neutral.length}`);
-list("right->wrong", optics.rightToWrong, true);
-console.log(`  corrected quantity in the asked dimension moved right->wrong: ${metrics.opticsQuantityRightToWrong}`);
-list("quantity right->wrong", optics.quantityRightToWrong, true);
-list("wrong->right", optics.wrongToRight);
-list("neutral", optics.neutral);
+console.log(`optics law audit (report only): plans changed ${metrics.opticsChangedLanes}, inconsistencies reported ${metrics.opticsInconsistencies}`);
+list("changed", optics.changedLanes, true);
+list("inconsistent", optics.inconsistencies);
 console.log(`optics law declines (value left unverified): ${optics.declined.length}`);
 list("declined", optics.declined);
 

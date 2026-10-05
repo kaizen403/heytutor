@@ -657,6 +657,35 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
     const codes = roots(text);
     check(`a genuine discard with the right answer passes: ${text}`, !codes.includes("claim_quantity_mismatch"), codes);
   }
+  // A discard named by its place in the list ("the latter", "the second
+  // root", "the other root") excuses only the number it points at among the
+  // candidates listed before it. Every other number must still be the value.
+  const referentialAccept = [
+    "The quadratic gives t = 5 s and t = -1 s; the latter is discarded.",
+    "Roots t = 5 s and t = -1 s; the second root is rejected.",
+    "Roots t = -1 s and t = 5 s; the former is not physical.",
+    "Roots t = 5 s and t = -1 s; the other root is discarded.",
+    "Roots t = -1 s and t = 5 s; the other value is rejected, so the time is t = 5 s.",
+    "Roots t = -1 s and t = 5 s; the first root is rejected as unphysical.",
+    "Solving gives t = 5 s or t = -1 s, and we discard the latter.",
+  ];
+  for (const text of referentialAccept) {
+    const codes = roots(text);
+    check(`a referential discard with the right answer passes: ${text}`, !codes.includes("claim_quantity_mismatch"), codes);
+  }
+  const referentialReject = [
+    "Roots t = 5 s and t = -1 s; the former is discarded.",
+    "Roots t = 7 s and t = -1 s; the latter is discarded.",
+    "Roots t = 5 s and t = -1 s; the latter is discarded, so the time is t = 7 s.",
+    "Roots t = 7 s and t = -1 s; the other root is discarded.",
+    "Roots t = 5 s, t = 7 s and t = -1 s; the latter is discarded.",
+    "Roots t = 5 s and t = -1 s; the first root is rejected.",
+    "The time is t = -1 s; the latter is rejected.",
+  ];
+  for (const text of referentialReject) {
+    const codes = roots(text);
+    check(`a referential discard excuses only the number it names: ${text}`, codes.includes("claim_quantity_mismatch"), codes);
+  }
 }
 
 // ---------------------------------------------------------------------------

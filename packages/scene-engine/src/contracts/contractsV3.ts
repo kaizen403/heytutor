@@ -413,6 +413,11 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       const statedOwnValues = (quantities: Record<string, unknown>[]) => quantities
         .filter(statesValue)
         .map((quantity) => quantity.value as number);
+      // A listed candidate that is one of these quantities' own value.
+      const ownValueOf = (quantities: Record<string, unknown>[]) => (candidate: (typeof classified)[number]) =>
+        quantities.some((quantity) =>
+          claimSameDimension(quantity.unit, candidate.measurement.unit) &&
+          sameValue(quantity, candidate.measurement, ("magnitude" in candidate && candidate.magnitude === true) || isDeclaredMagnitude(quantity)));
       for (const entry of classified) {
         if (entry.kind === "other") continue;
         const { measurement } = entry;
@@ -429,7 +434,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
             // a candidate the claim itself discards is not taught as the
             // value. Only the discarded number is excused; every other
             // number stated for the quantity must still be its value.
-            !claimNumberIsDiscarded(entry, statedOwnValues(comparable))
+            !claimNumberIsDiscarded(entry, statedOwnValues(comparable), classified, ownValueOf(comparable))
           ) mismatch(measurement);
           continue;
         }
@@ -444,7 +449,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
         if (comparable.some((quantity) => sameValue(quantity, measurement, true))) continue;
         // "discard the negative value -1 s": a number the claim throws away
         // states nothing.
-        if (claimNumberIsDiscarded(entry, statedOwnValues(comparable))) continue;
+        if (claimNumberIsDiscarded(entry, statedOwnValues(comparable), classified, ownValueOf(comparable))) continue;
         // "I2 = -1.5 A (i.e. 1.5 A into the battery)" restates a number the
         // claim attributes elsewhere; that attribution decides it.
         const restates = classified.some((other) =>
@@ -3955,20 +3960,74 @@ function claimDiscardedSign(text: string): -1 | 1 | null {
 }
 
 /**
+ * Wording that discards a candidate named by its place in a list: "the latter
+ * is discarded", "the second root is rejected", "the former is not physical",
+ * "we discard the other value". Captures the reference word.
+ */
+const CLAIM_DISCARD_REFERENCE = (() => {
+  const reference = String.raw`(latter|former|first|second|other)`;
+  const noun = String.raw`(?:\s+(?:root|value|solution|candidate|answer|one)s?)?`;
+  const predicate = String.raw`(?:(?:is|are|was|were|being|must\s+be|should\s+be|can\s+be|has\s+to\s+be)\s+)?(?:rejected|discarded|non-?physical|unphysical|extraneous|inadmissible|not\s+(?:physical|admissible|valid|acceptable|allowed))\b`;
+  return {
+    subject: new RegExp(String.raw`\bthe\s+${reference}${noun}\s+${predicate}`, "gi"),
+    object: new RegExp(String.raw`\b(?:reject|discard)(?:s|ed|ing)?\s+the\s+${reference}${noun}\b`, "gi"),
+  };
+})();
+
+/**
+ * Resolve "the latter", "the second root", "the other value" against the
+ * ordered numbers the claim lists before that wording (same dimension, same
+ * claim text). Returns the one candidate the wording points at, or null when
+ * the reference does not pick out exactly one. "The other" names the one of
+ * two candidates that is not the quantity's own value, so it resolves only
+ * when exactly one of the two is that value.
+ */
+function claimReferencedDiscards<T extends ClassifiedClaimMeasurement & { text: string }>(
+  entry: T,
+  siblings: T[],
+  isOwnValue: (candidate: T) => boolean,
+): T[] {
+  const referenced: T[] = [];
+  for (const pattern of [CLAIM_DISCARD_REFERENCE.subject, CLAIM_DISCARD_REFERENCE.object]) {
+    for (const match of entry.text.matchAll(pattern)) {
+      const at = match.index ?? 0;
+      const candidates = siblings
+        .filter((other) => other.text === entry.text && other.kind !== "other" && other.index + other.length <= at &&
+          claimSameDimension(other.measurement.unit, entry.measurement.unit))
+        .sort((left, right) => left.index - right.index);
+      if (candidates.length < 2) continue;
+      const word = (match[1] ?? "").toLowerCase();
+      if (word === "latter") referenced.push(candidates[candidates.length - 1]!);
+      else if (word === "former" || word === "first") referenced.push(candidates[0]!);
+      else if (word === "second") referenced.push(candidates[1]!);
+      else if (word === "other" && candidates.length === 2) {
+        const own = candidates.filter(isOwnValue);
+        if (own.length === 1) referenced.push(candidates.find((candidate) => candidate !== own[0])!);
+      }
+    }
+  }
+  return referenced;
+}
+
+/**
  * The claim throws this number away as a rejected candidate. Only the
  * number the discard wording is tied to counts: "the negative root t = -1 s
  * is rejected, so the physical answer is t = 7 s" discards -1 s, never 7 s.
  * A candidate named only by its sign ("the negative root is rejected") is
  * discarded when the claim also states the quantity's own value and that
- * value has the other sign.
+ * value has the other sign. A candidate named by its place in the list ("the
+ * latter is discarded") is resolved to that one number.
  */
-function claimNumberIsDiscarded(
-  entry: ClassifiedClaimMeasurement & { text: string },
+function claimNumberIsDiscarded<T extends ClassifiedClaimMeasurement & { text: string }>(
+  entry: T,
   statedOwnValues: number[],
+  siblings: T[] = [],
+  isOwnValue: (candidate: T) => boolean = () => false,
 ): boolean {
   const { text, index, length, measurement } = entry;
   if (CLAIM_DISCARD_BEFORE_NUMBER.test(text.slice(0, index))) return true;
   if (CLAIM_DISCARD_AFTER_NUMBER.test(text.slice(index + length))) return true;
+  if (claimReferencedDiscards(entry, siblings, isOwnValue).includes(entry)) return true;
   const sign = claimDiscardedSign(text);
   return sign !== null && Math.sign(measurement.value) === sign && statedOwnValues.length > 0 &&
     statedOwnValues.every((value) => Math.sign(value) === -sign);

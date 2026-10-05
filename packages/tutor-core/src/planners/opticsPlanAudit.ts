@@ -6,11 +6,18 @@ import {
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 
-export interface OpticsPlanCorrection {
+/**
+ * A plan value that disagrees with a recognized optics law under an
+ * unambiguously detected sign convention. Reported only: the audit never
+ * rewrites the plan, because the ProblemIR solver is the numeric authority and
+ * a misread configuration (a virtual object read as real) would otherwise
+ * overwrite a correct value.
+ */
+export interface OpticsPlanInconsistency {
   lawId: OpticsLawId;
   quantityId: string;
-  previousValue: number;
-  correctedValue: number;
+  planValue: number;
+  lawValue: number;
 }
 
 /** A recognized law the audit refused to evaluate, so the plan value stands unverified. */
@@ -20,8 +27,9 @@ export interface OpticsPlanDecline {
 }
 
 export interface OpticsPlanAuditResult {
+  /** The input plan, returned unchanged: the audit is report only. */
   plan: TurnPlanV3;
-  corrections: OpticsPlanCorrection[];
+  inconsistencies: OpticsPlanInconsistency[];
   checkedLawIds: OpticsLawId[];
   declined: OpticsPlanDecline[];
 }
@@ -29,19 +37,19 @@ export interface OpticsPlanAuditResult {
 type Dimension = "length" | "angle" | "power" | "time" | "speed" | "scalar";
 
 /**
- * Recompute recognized optics results from plan givens. Ambiguous or
- * incomplete laws are skipped instead of guessed.
+ * Recompute recognized optics results from plan givens and report any plan
+ * value that disagrees. Never changes a plan value. Ambiguous or incomplete
+ * laws are declined instead of guessed.
  */
 export function reconcileTurnPlanWithOpticsLaws(plan: TurnPlanV3): OpticsPlanAuditResult {
   const lawIds = [...new Set(plan.lawIds.flatMap(canonicalOpticsLawId))];
-  if (lawIds.length === 0) return { plan, corrections: [], checkedLawIds: [], declined: [] };
+  if (lawIds.length === 0) return { plan, inconsistencies: [], checkedLawIds: [], declined: [] };
 
-  let current = plan;
-  const corrections: OpticsPlanCorrection[] = [];
+  const inconsistencies: OpticsPlanInconsistency[] = [];
   const checkedLawIds: OpticsLawId[] = [];
   const declined: OpticsPlanDecline[] = [];
   for (const lawId of lawIds) {
-    const evaluation = evaluatePlanLaw(current, lawId);
+    const evaluation = evaluatePlanLaw(plan, lawId);
     if (!evaluation) continue;
     if ("declined" in evaluation) {
       declined.push({ lawId, reason: evaluation.declined });
@@ -49,13 +57,12 @@ export function reconcileTurnPlanWithOpticsLaws(plan: TurnPlanV3): OpticsPlanAud
     }
     checkedLawIds.push(lawId);
     for (const output of evaluation.outputs) {
-      const result = correctDerivedQuantity(current, lawId, output);
-      current = result.plan;
-      corrections.push(...result.corrections);
+      const result = auditDerivedQuantity(plan, lawId, output);
+      inconsistencies.push(...result.inconsistencies);
       declined.push(...result.declined);
     }
   }
-  return { plan: current, corrections, checkedLawIds, declined };
+  return { plan, inconsistencies, checkedLawIds, declined };
 }
 
 interface EvaluatedOutput {
@@ -100,8 +107,8 @@ function evaluatePlanLaw(
     if (!values) return { declined: "the law has no finite real-object solution for these givens" };
     return { outputs: [
       // A v equal in size and opposite in sign is a convention clash only
-      // when the convention is not fixed by signed givens; otherwise it is a
-      // slip and is corrected like any other.
+      // when the convention is not fixed by signed givens; otherwise it is
+      // reported as an inconsistency like any other.
       output(["image_distance", "imagedistance", "v"], imageSideBetweenConventions(element, signs.convention, values.imageDistance!), "length", !signs.fixedByGivens),
       // Magnification is the ratio of image to object height, so it reads the same in both conventions.
       output(["magnification", "m"], values.magnification!, "scalar"),
@@ -304,43 +311,28 @@ function evaluatePlanLaw(
   return null;
 }
 
-function correctDerivedQuantity(
+function auditDerivedQuantity(
   plan: TurnPlanV3,
   lawId: OpticsLawId,
   { aliases, value: baseValue, dimension, conventionSigned }: EvaluatedOutput,
-): { plan: TurnPlanV3; corrections: OpticsPlanCorrection[]; declined: OpticsPlanDecline[] } {
+): { inconsistencies: OpticsPlanInconsistency[]; declined: OpticsPlanDecline[] } {
   const unknown = findQuantity(plan.unknowns, aliases);
   const expandedAliases = unknown ? [...aliases, unknown.id, unknown.symbol] : aliases;
   const targets = findOutputQuantities(plan.derived, expandedAliases);
+  const inconsistencies: OpticsPlanInconsistency[] = [];
   const declined: OpticsPlanDecline[] = [];
-  if (targets.length === 0) return { plan, corrections: [], declined };
-  const corrections: OpticsPlanCorrection[] = [];
-  const correctedById = new Map<string, number>();
   for (const target of targets) {
     const signedValue = fromBaseUnit(baseValue, target.unit, dimension);
-    // A quantity the plan marks unsigned is a magnitude; compare and write magnitudes only.
-    const correctedValue = target.sign === "unsigned" ? Math.abs(signedValue) : signedValue;
-    if (approximatelyEqual(target.value, correctedValue)) continue;
-    if (conventionSigned && approximatelyEqual(Math.abs(target.value), Math.abs(correctedValue))) {
+    // A quantity the plan marks unsigned is a magnitude; compare magnitudes only.
+    const lawValue = target.sign === "unsigned" ? Math.abs(signedValue) : signedValue;
+    if (approximatelyEqual(target.value, lawValue)) continue;
+    if (conventionSigned && approximatelyEqual(Math.abs(target.value), Math.abs(lawValue))) {
       declined.push({ lawId, reason: `${target.id} matches in size but its sign follows a different convention than the givens` });
       continue;
     }
-    correctedById.set(target.id, correctedValue);
-    corrections.push({ lawId, quantityId: target.id, previousValue: target.value, correctedValue });
+    inconsistencies.push({ lawId, quantityId: target.id, planValue: target.value, lawValue });
   }
-  if (corrections.length === 0) return { plan, corrections, declined };
-  const derived = plan.derived.map((quantity) => {
-    const correctedValue = correctedById.get(quantity.id);
-    return correctedValue === undefined ? quantity : {
-      ...quantity,
-      value: correctedValue,
-      sign: quantity.sign === undefined || quantity.sign === "unsigned"
-        ? quantity.sign
-        : correctedValue > 0 ? "positive" as const : correctedValue < 0 ? "negative" as const : "zero" as const,
-      sourceText: `Deterministically verified with ${lawId}.`,
-    };
-  });
-  return { plan: { ...plan, derived }, corrections, declined };
+  return { inconsistencies, declined };
 }
 
 type SignConvention = "cartesian" | "real_is_positive";
@@ -508,7 +500,7 @@ const REAL_OBJECT_CUE =
  * distance sign is the evidence that fixes the convention. A virtual object
  * flips that sign, so the audit declines unless the question establishes a
  * single element with a real object in front of it: anything else could be a
- * virtual object, and a "correction" would then be wrong.
+ * virtual object, and a reported inconsistency would then be wrong.
  */
 function realObjectDeclineReason(plan: TurnPlanV3): string | null {
   const planText = [

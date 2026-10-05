@@ -428,23 +428,23 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
         declined: reconciled.declined.map((item) => ({ quantity_id: item.quantityId, reason: item.reason })),
       });
     }
-    let result = validateTurnPlanV3(reconciled.plan, question);
+    const result = validateTurnPlanV3(reconciled.plan, question);
     if (result.plan) {
+      // Report only: the optics audit never changes a plan value. The ProblemIR
+      // solver checks the numbers afterwards and is the numeric authority.
+      // The trace keeps a copy taken before the audit, so a gate can prove it changed nothing.
+      if (trace) trace.preOptics = structuredClone(result.plan);
       const opticsAudit = reconcileTurnPlanWithOpticsLaws(result.plan);
-      if (trace) {
-        trace.preOptics = result.plan;
-        trace.optics = opticsAudit;
-      }
-      if (opticsAudit.corrections.length > 0) {
-        tutorDebug("planner", "turn plan v3 reconciled optics laws", {
+      if (trace) trace.optics = opticsAudit;
+      if (opticsAudit.inconsistencies.length > 0) {
+        tutorDebug("planner", "turn plan v3 optics law inconsistency (value left unchanged)", {
           law_ids: opticsAudit.checkedLawIds,
-          corrections: opticsAudit.corrections.map((item) => ({
+          inconsistencies: opticsAudit.inconsistencies.map((item) => ({
             quantity_id: item.quantityId,
-            from: item.previousValue,
-            to: item.correctedValue,
+            plan_value: item.planValue,
+            law_value: item.lawValue,
           })),
         });
-        result = validateTurnPlanV3(opticsAudit.plan, question);
       }
       if (opticsAudit.declined.length > 0) {
         // A declined law leaves the plan's value standing unverified; say so.
