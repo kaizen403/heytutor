@@ -1,14 +1,16 @@
 import {
   reconcileTurnPlanV3ExplicitArithmetic,
   validateTurnPlanV3,
+  type TurnPlanArithmeticReconciliationResult,
   type TurnPlanV3,
+  type TurnPlanValidationIssue,
 } from "@heytutor/scene-engine";
 import { evaluateMathExpression } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 import { inferSceneCapabilities, isQualitativeConceptQuestion, qualitativeQuestionAllowsScene, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
-import { reconcileTurnPlanWithOpticsLaws } from "./opticsPlanAudit";
+import { reconcileTurnPlanWithOpticsLaws, type OpticsPlanAuditResult } from "./opticsPlanAudit";
 
 export interface TurnPlannerV3Options {
   proxyUrl: string;
@@ -202,11 +204,11 @@ async function requestTurnPlanV3(
     };
     const content = payload.choices?.[0]?.message?.content;
     if (typeof content !== "string") return null;
-    const parsed = parseTurnPlan(content, question);
-    if (!parsed) return null;
+    const turnPlan = parseTurnPlanV3Content(content, question);
+    if (!turnPlan) return null;
 
     return {
-      turnPlan: enforceMinimumVisualRequirement(parsed, question),
+      turnPlan,
       rawContent: content,
       elapsedMs: Date.now() - startedAt,
       traceId: response.headers.get("x-heytutor-trace-id") ?? undefined,
@@ -370,7 +372,36 @@ function enforceMinimumVisualRequirement(plan: TurnPlanV3, question: string): Tu
   };
 }
 
-function parseTurnPlan(content: string, question: string): TurnPlanV3 | null {
+/**
+ * Intermediate states of one lane's post-HTTP parse, filled in when a caller
+ * passes an observer. Offline gates read it; the live path passes nothing.
+ */
+export interface TurnPlanV3ParseTrace {
+  normalized?: unknown;
+  arithmetic?: TurnPlanArithmeticReconciliationResult;
+  /** The validated plan before the optics law audit ran. */
+  preOptics?: TurnPlanV3;
+  optics?: OpticsPlanAuditResult;
+  issues?: TurnPlanValidationIssue[];
+  parseError?: string;
+}
+
+/**
+ * The whole post-HTTP step of one turn-plan lane: parse the model's content,
+ * normalize, reconcile explicit arithmetic, validate (claims included), audit
+ * optics laws, and enforce the question's minimum visual requirement. This is
+ * exactly what `planTurnV3` applies to every lane response.
+ */
+export function parseTurnPlanV3Content(
+  content: string,
+  question: string,
+  trace?: TurnPlanV3ParseTrace,
+): TurnPlanV3 | null {
+  const parsed = parseTurnPlan(content, question, trace);
+  return parsed ? enforceMinimumVisualRequirement(parsed, question) : null;
+}
+
+function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3ParseTrace): TurnPlanV3 | null {
   let text = content.trim();
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced?.[1]) text = fenced[1].trim();
@@ -380,7 +411,9 @@ function parseTurnPlan(content: string, question: string): TurnPlanV3 | null {
     if (firstBrace < 0 || lastBrace <= firstBrace) return null;
     const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1)) as unknown;
     const normalized = normalizePlannerTurnPlan(parsed, question);
+    if (trace) trace.normalized = normalized;
     const reconciled = reconcileTurnPlanV3ExplicitArithmetic(normalized);
+    if (trace) trace.arithmetic = reconciled;
     if (reconciled.reconciliations.length > 0) {
       tutorDebug("planner", "turn plan v3 reconciled explicit arithmetic", {
         quantity_ids: reconciled.reconciliations.map((item) => item.quantityId),
@@ -393,6 +426,10 @@ function parseTurnPlan(content: string, question: string): TurnPlanV3 | null {
     let result = validateTurnPlanV3(reconciled.plan, question);
     if (result.plan) {
       const opticsAudit = reconcileTurnPlanWithOpticsLaws(result.plan);
+      if (trace) {
+        trace.preOptics = result.plan;
+        trace.optics = opticsAudit;
+      }
       if (opticsAudit.corrections.length > 0) {
         tutorDebug("planner", "turn plan v3 reconciled optics laws", {
           law_ids: opticsAudit.checkedLawIds,
@@ -405,6 +442,7 @@ function parseTurnPlan(content: string, question: string): TurnPlanV3 | null {
         result = validateTurnPlanV3(opticsAudit.plan, question);
       }
     }
+    if (trace) trace.issues = result.issues;
     if (!result.valid) {
       tutorDebug("planner", "turn plan v3 validation failed", {
         issue_codes: result.issues.map((issue) => issue.code),
@@ -420,6 +458,7 @@ function parseTurnPlan(content: string, question: string): TurnPlanV3 | null {
     }
     return result.plan;
   } catch (error) {
+    if (trace) trace.parseError = error instanceof Error ? error.message : String(error);
     tutorDebug("planner", "turn plan v3 parse failed", {
       reason: error instanceof Error ? error.message : String(error),
       content_chars: content.length,
