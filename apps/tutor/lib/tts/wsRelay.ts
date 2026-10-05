@@ -10,6 +10,7 @@ import { reservePaidUsage, type PaidUsageReservation } from "../billing/paidUsag
 import { recordTtsSpend } from "../billing/track";
 import { ttsConfig } from "./providerConfig";
 import { createTtsRelay } from "./ttsProvider";
+import { sarvamSpeechText } from "./sarvamProtocol";
 import { registerWsConnectionRevocation } from "./wsTicket";
 import { releaseTtsWsConnection, TTS_WS_IDLE_MS, TTS_WS_MAX_MESSAGE_CHARS, ttsWsCharsWithinCeiling } from "./wsRelayLimits";
 
@@ -24,6 +25,8 @@ export interface TtsRelayContext {
   releaseConnection?: () => void;
 }
 interface SegmentMessage {
+  /** The client dropped this lookahead segment; a serial vendor removes it if unsent. */
+  cancel_segment_index?: unknown;
   text?: unknown;
   flush?: unknown;
   segment_index?: unknown;
@@ -38,6 +41,8 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
   let released = false;
   let stopped = false;
   let idle: ReturnType<typeof setTimeout> | undefined;
+  let keepalive: ReturnType<typeof setInterval> | undefined;
+  let undispatched: () => string[] = () => [];
   let unregister = () => {};
   let upstream: WebSocket | undefined = undefined;
   const pending = new Map<string, { receipt: PaidUsageReservation; characters: number; startedAt: number; grant: TurnGrant }>();
@@ -46,9 +51,15 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
     if (stopped) return;
     stopped = true;
     if (idle) clearTimeout(idle);
+    if (keepalive) clearInterval(keepalive);
     unregister();
     if (!released) { released = true; (context.releaseConnection ?? (() => releaseTtsWsConnection(context.userId)))(); }
-    for (const spend of pending.values()) finishReceipt(spend.receipt);
+    // A serial vendor (Sarvam) queues segments here; those never reached it.
+    const neverSent = new Set(undispatched());
+    for (const [id, spend] of pending) {
+      if (neverSent.has(id)) void spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure);
+      else finishReceipt(spend.receipt);
+    }
     pending.clear();
     if (upstream?.readyState === WebSocket.OPEN) upstream.close();
     else if (upstream?.readyState === WebSocket.CONNECTING) upstream.terminate();
@@ -70,9 +81,10 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
   if (!config.apiKey || !config.voiceId) { close("tts_not_configured", 1011); return; }
   const { model, provider, voiceId } = config;
   let relay: ReturnType<typeof createTtsRelay>;
-  try { relay = createTtsRelay(config); }
+  try { relay = createTtsRelay(config, { speed: context.speed }); }
   catch (error) { captureTtsRelayFailure(error); close("speech_connection_failed", 1011); return; }
   client.once("close", () => relay.dispose());
+  undispatched = () => relay.undispatched?.() ?? [];
   try { upstream = new WebSocket(relay.url, { headers: relay.headers, handshakeTimeout: 10_000, maxPayload: MAX_BUFFERED_BYTES }); }
   catch (error) { captureTtsRelayFailure(error); close("speech_connection_failed", 1011); return; }
   const vendor = upstream;
@@ -95,6 +107,11 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
   bumpIdle();
   vendor.on("open", () => {
     if (stopped || client.readyState !== WebSocket.OPEN) { vendor.close(); return; }
+    for (const payload of relay.openMessages ?? []) vendor.send(JSON.stringify(payload));
+    const ping = relay.keepalive;
+    if (ping) keepalive = setInterval(() => {
+      if (vendor.readyState === WebSocket.OPEN) vendor.send(JSON.stringify(ping.message));
+    }, ping.everyMs);
     ready = true;
     client.send(JSON.stringify({ type: "ready" }));
   });
@@ -106,6 +123,7 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
       const normalized = relay.receive(data.toString());
       if (!normalized) return;
       client.send(normalized);
+      for (const payload of relay.drain?.() ?? []) vendor.send(JSON.stringify(payload));
       const message = JSON.parse(normalized);
       if (message.isFinal) {
         const id = message.contextId ?? message.context_id;
@@ -125,6 +143,19 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
   vendor.on("close", () => close("speech_connection_closed", 1011));
   async function accept(message: SegmentMessage): Promise<void> {
     if (stopped || !ready || vendor.readyState !== WebSocket.OPEN) return;
+    if (message.cancel_segment_index !== undefined) {
+      const index = Number(message.cancel_segment_index);
+      if (!Number.isSafeInteger(index)) { close("invalid_segment"); return; }
+      const id = `segment_${index}`;
+      const spend = pending.get(id);
+      // Only a segment the vendor never received is refunded; one in flight
+      // finishes and is charged, and the client ignores its audio.
+      if (spend && relay.cancel?.(id)) {
+        pending.delete(id);
+        await spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure);
+      }
+      return;
+    }
     if (message.text !== undefined && typeof message.text !== "string") { close("invalid_speech_request"); return; }
     if (typeof message.text === "string" && message.text.length) {
       if (!text) startedAt = Date.now();
@@ -155,7 +186,8 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
     const grant = getTurnGrant(context.userId);
     if (!user || !grant || !grant.allowedTraceIds.has(context.traceId) ||
       !await assertOwnedTrace(context.userId, context.traceId, context.sessionId)) { close("account_revoked"); return; }
-    const characters = segmentText.length;
+    // Sarvam bills the text it receives, with digits spelled out as words.
+    const characters = provider === "sarvam" ? sarvamSpeechText(segmentText).length : segmentText.length;
     if (!ttsWsCharsWithinCeiling(charactersUsed, characters) || shouldSkipTtsForUsage(grant) || !consumeTtsChars(grant, characters).allowed) { close("tts_budget"); return; }
     const receipt = await reservePaidUsage({
       actor: { userId: context.userId, email: null, staff: grant.skipGates, lectureLab: false,

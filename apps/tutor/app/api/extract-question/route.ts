@@ -15,7 +15,7 @@ import {
   parseExtractedQuestion,
   readExtractedContent,
 } from "@/lib/llm/extractQuestion";
-import { resolveFireworksVisionModel } from "@/lib/llm/fireworksModels";
+import { resolveFireworksVisionModels } from "@/lib/llm/fireworksModels";
 import {
   endLlmGeneration,
   flushInBackground,
@@ -66,7 +66,8 @@ export async function POST(request: Request): Promise<Response> {
       { error: "Question photos need FIREWORKS_API_KEY." },
       { status: 503 },
     );
-  const model = resolveFireworksVisionModel();
+  const models = resolveFireworksVisionModels();
+  let model = models[0]!;
   const messages = [
     {
       role: "user",
@@ -84,8 +85,13 @@ export async function POST(request: Request): Promise<Response> {
     kind: "photo",
     traceId: request.headers.get("x-heytutor-trace-id") ?? undefined,
     usd:
-      maximumLlmCost(messages, 1024, [model]) +
-      (actualLlmCost({ input: 64_000, output: 0 }, model) ?? 1),
+      maximumLlmCost(messages, 1024, models) +
+      Math.max(
+        ...models.map(
+          (candidate) =>
+            actualLlmCost({ input: 64_000, output: 0 }, candidate) ?? 1,
+        ),
+      ),
   });
   if (reservation instanceof Response) return reservation;
   if (request.signal.aborted) {
@@ -100,29 +106,38 @@ export async function POST(request: Request): Promise<Response> {
     traceId: genTraceId(),
     model,
     name: "extract-question",
-    generationName: "qwen-vision",
+    generationName: "vision-ocr",
   });
   try {
-    const response = await fetch(FIREWORKS_CHAT_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-      },
-      signal: AbortSignal.any([request.signal, AbortSignal.timeout(30_000)]),
-      body: JSON.stringify({
-        model,
-        max_tokens: 1024,
-        n: 1,
-        temperature: 0,
-        reasoning_effort: "none",
-        stream: false,
-        messages,
-      }),
-    });
-    if (!response.ok) {
+    let response: Response | null = null;
+    for (const [index, candidate] of models.entries()) {
+      model = candidate;
+      response = await fetch(FIREWORKS_CHAT_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(30_000)]),
+        body: JSON.stringify({
+          model,
+          max_tokens: 1024,
+          n: 1,
+          temperature: 0,
+          reasoning_effort: "none",
+          stream: false,
+          messages,
+        }),
+      });
+      // 404 means Fireworks no longer serves this model. Nothing was billed,
+      // so try the next one rather than failing the photo.
+      if (response.status !== 404 || index === models.length - 1) break;
+      console.warn(`[extract-question] vision model unavailable: ${model}`);
       await response.body?.cancel();
-      throw new Error(`OCR upstream ${response.status}`);
+    }
+    if (!response?.ok) {
+      await response?.body?.cancel();
+      throw new Error(`OCR upstream ${response?.status} from ${model}`);
     }
     const raw: unknown = await response.json();
     if (typeof raw !== "object" || raw === null || Array.isArray(raw))
@@ -202,9 +217,11 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     if (error instanceof StorageQuotaError)
       return Response.json({ error: error.message }, { status: error.status });
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error(`[extract-question] ${reason}`);
     endLlmGeneration(turnTrace, {
       output: "extract-question failed",
-      metadata: { error: true },
+      metadata: { error: true, reason },
       model,
       updateTrace: false,
       level: "ERROR",

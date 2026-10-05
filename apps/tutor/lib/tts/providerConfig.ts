@@ -1,6 +1,8 @@
 import type { TutorVoiceKey } from "@heytutor/tutor-core";
 
 export type SpeechProvider = "cartesia" | "elevenlabs";
+/** Sarvam is never a deployment-wide vendor; it only speaks the Hinglish voice. */
+export type TtsProvider = SpeechProvider | "sarvam";
 export type SpeechEnvironment = Record<string, string | undefined>;
 export const CARTESIA_VERSION = "2026-08-14";
 /**
@@ -39,11 +41,38 @@ export function speechProvider(
   return value;
 }
 
+/** Picked by ear from the bulbul:v3 voices on 6 Oct 2026. SARVAM_SPEAKER overrides it. */
+export const DEFAULT_SARVAM_SPEAKER = "ritu";
+export const DEFAULT_SARVAM_MODEL = "bulbul:v3";
+
+/** Hinglish is offered only when the deployment has a Sarvam key. */
+export function hinglishVoiceAvailable(
+  env: SpeechEnvironment = process.env,
+): boolean {
+  return Boolean(env.SARVAM_API_KEY?.trim());
+}
+
 export function ttsConfig(
   voiceKey: TutorVoiceKey = "en-IN",
   lowLatency = false,
   env: SpeechEnvironment = process.env,
-) {
+): {
+  provider: TtsProvider;
+  apiKey: string | undefined;
+  voiceId: string | undefined;
+  model: string;
+  voiceKey: TutorVoiceKey;
+  version: string;
+} {
+  if (voiceKey === "hi-IN" && hinglishVoiceAvailable(env))
+    return {
+      provider: "sarvam",
+      apiKey: env.SARVAM_API_KEY?.trim(),
+      voiceId: env.SARVAM_SPEAKER?.trim() || DEFAULT_SARVAM_SPEAKER,
+      model: env.SARVAM_MODEL?.trim() || DEFAULT_SARVAM_MODEL,
+      voiceKey,
+      version: CARTESIA_VERSION,
+    };
   const provider = speechProvider("tts", env);
   const prefix = provider.toUpperCase();
   const perAccent = env[`${prefix}_VOICE_ID${VOICE_SUFFIXES[voiceKey]}`]?.trim();
@@ -84,6 +113,7 @@ export function availableVoiceKeys(
   const prefix = speechProvider("tts", env).toUpperCase();
   return (Object.keys(VOICE_SUFFIXES) as TutorVoiceKey[]).filter(
     (key) =>
+      (key === "hi-IN" && hinglishVoiceAvailable(env)) ||
       Boolean(env[`${prefix}_VOICE_ID${VOICE_SUFFIXES[key]}`]?.trim()) ||
       (prefix === "CARTESIA" && key !== "hi-IN"),
   );

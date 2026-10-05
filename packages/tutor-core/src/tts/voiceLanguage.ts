@@ -7,10 +7,12 @@
  * and the server maps it to the selected provider's voice id from env — voice ids are
  * never exposed to the client.
  *
- * Hindi has a single voice, so it ignores the accent choice.
+ * Hinglish has a single voice (Sarvam), so it ignores the accent choice.
+ * Rows saved as "hindi" before the Hinglish voice meant an English lesson in
+ * a Hindi accent; that value is no longer recognised and reads as English.
  */
 
-export const TUTOR_AUDIO_LANGUAGES = ["english", "hindi"] as const;
+export const TUTOR_AUDIO_LANGUAGES = ["english", "hinglish"] as const;
 export type TutorAudioLanguage = (typeof TUTOR_AUDIO_LANGUAGES)[number];
 
 export const TUTOR_ACCENTS = ["india", "uk", "us"] as const;
@@ -58,7 +60,7 @@ export function toVoiceKey(
   language: TutorAudioLanguage,
   accent: TutorAccent,
 ): TutorVoiceKey {
-  if (language === "hindi") return "hi-IN";
+  if (language === "hinglish") return "hi-IN";
   return ENGLISH_ACCENT_KEYS[accent] ?? DEFAULT_VOICE_KEY;
 }
 
@@ -66,7 +68,7 @@ export function toVoiceKey(
 export function voiceKeyLabel(key: TutorVoiceKey): string {
   switch (key) {
     case "hi-IN":
-      return "Hindi (India)";
+      return "Hinglish";
     case "en-GB":
       return "English (UK)";
     case "en-US":

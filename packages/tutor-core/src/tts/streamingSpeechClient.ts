@@ -1,4 +1,4 @@
-import { speechAudioMimeType } from "./audioFormat";
+import { speechAudioMimeType, wavDurationSec } from "./audioFormat";
 import {
   DEFAULT_VOICE_PREFERENCES,
   TTS_LANG_QUERY,
@@ -358,6 +358,23 @@ function isTtsRelayControlPayload(
     typeof payload.type === "string" &&
     payload.type.length > 0
   );
+}
+
+/**
+ * A voice that sends no alignment (Sarvam) still has a known length: its WAV
+ * header. Only the duration is filled in. The character times stay empty, so
+ * the pen keeps its estimated schedule; the runner uses the duration to learn
+ * the speaking rate and to record how long the sentence lasted for replay.
+ */
+function fillDurationFromWav(timings: AudioTimings, chunks: readonly Uint8Array[]): void {
+  if (timings.totalDuration > 0 || timings.charStartTimes.length > 0) return;
+  let total = 0;
+  for (const chunk of chunks) {
+    const seconds = wavDurationSec(chunk);
+    if (seconds === null) return;
+    total += seconds;
+  }
+  if (total > 0) timings.totalDuration = total;
 }
 
 export class StreamingSpeechClient implements TTSClient {
@@ -1197,6 +1214,13 @@ export class StreamingSpeechClient implements TTSClient {
       for (const stale of this.jobs.filter((queued) => !queued.claimed && !queued.settled)) {
         stale.settled = true;
         this.releaseJobContext(stale);
+        // A serial voice (Sarvam) generates one sentence at a time, so a stale
+        // guess still queued at the relay would delay this one by its whole
+        // length. Tell the relay; a parallel voice ignores the message.
+        const staleIndex = Number(stale.contextId?.replace(/^segment_/, ""));
+        if (Number.isSafeInteger(staleIndex) && this.ws?.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ cancel_segment_index: staleIndex }));
+        }
         tutorDebug("tts", "dropping unspoken lookahead", {
           preview: stale.spokenText.slice(0, 60),
         });
@@ -1457,6 +1481,7 @@ export class StreamingSpeechClient implements TTSClient {
           job.contextFinal = true;
           this.emitAudioReady(job);
           if (job.settled) return;
+          fillDurationFromWav(job.timings, job.capturedChunks);
           this.emitTimings(job);
           if (!job.playbackStarted) await this.tryStartJobPlayback(job);
           if (job === this.currentJob) await this.completeCurrentJob();
@@ -2088,6 +2113,7 @@ export class StreamingSpeechClient implements TTSClient {
         const bytes = base64ToUint8Array(audioBase64);
         capturedChunks.push(bytes);
         chunkOffsetSec = mergeChunkTimings(timings, payload, chunkOffsetSec);
+        fillDurationFromWav(timings, capturedChunks);
         if (timings.totalDuration > 0) {
           options.onTimings?.(toSegmentRelativeAudioTimings(timings));
         }

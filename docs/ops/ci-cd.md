@@ -122,6 +122,9 @@ fill in production keys **before** the first start. Required:
 - `NEXT_PUBLIC_LANDING_URL=https://accelute.co`
 - `AUTH_URL=https://app.accelute.co`
 - `WS_TICKET_SECRET`
+- Optional: `SARVAM_API_KEY` turns on the Hinglish voice (Sarvam bulbul:v3,
+  speaker `ritu`). Without it the Hinglish option is hidden and every voice
+  stays on Cartesia.
 
 Leave `BACKEND_ORIGIN`, `NEXT_PUBLIC_API_ORIGIN`, and `NEXT_PUBLIC_WS_ORIGIN`
 unset. Do not set `AUTH_DEV_LOGIN`.

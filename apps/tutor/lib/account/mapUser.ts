@@ -8,6 +8,7 @@ import {
   type AccountProfile,
   type AccountSnapshot,
 } from "./types";
+import { hinglishVoiceAvailable } from "../tts/providerConfig";
 import { DEFAULT_ACCOUNT_SETTINGS, parseAccountSettings, type AccountSettings } from "./userSettings";
 
 export function mapAccountProfile(user: User): AccountProfile {
@@ -30,9 +31,17 @@ export function mapAccountProfile(user: User): AccountProfile {
   };
 }
 
-export function mapAccountSettings(row: UserSettings | null): AccountSettings {
+/** The settings the lesson actually uses: a saved Hinglish choice reads as
+ * English while the deployment has no Sarvam key, and returns with the key. */
+export function mapAccountSettings(
+  row: UserSettings | null,
+  hinglishAvailable = hinglishVoiceAvailable(),
+): AccountSettings {
   if (!row) return { ...DEFAULT_ACCOUNT_SETTINGS };
-  return parseAccountSettings(row);
+  const settings = parseAccountSettings(row);
+  return settings.audioLanguage === "hinglish" && !hinglishAvailable
+    ? { ...settings, audioLanguage: "english" }
+    : settings;
 }
 
 export function emptySnapshot(): AccountSnapshot {
