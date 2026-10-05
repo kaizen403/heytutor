@@ -99,7 +99,10 @@ function evaluatePlanLaw(
     const values = evaluate(toRealIsPositive(element, signs));
     if (!values) return { declined: "the law has no finite real-object solution for these givens" };
     return { outputs: [
-      output(["image_distance", "imagedistance", "v"], imageSideBetweenConventions(element, signs.convention, values.imageDistance!), "length", true),
+      // A v equal in size and opposite in sign is a convention clash only
+      // when the convention is not fixed by signed givens; otherwise it is a
+      // slip and is corrected like any other.
+      output(["image_distance", "imagedistance", "v"], imageSideBetweenConventions(element, signs.convention, values.imageDistance!), "length", !signs.fixedByGivens),
       // Magnification is the ratio of image to object height, so it reads the same in both conventions.
       output(["magnification", "m"], values.magnification!, "scalar"),
     ] };
@@ -350,6 +353,12 @@ interface OpticalElement {
 
 interface SignedDistances {
   convention: SignConvention;
+  /**
+   * A given carries the sign that fixed the convention (a negative distance,
+   * or a declared positive/negative sign), so it is not a magnitude read one
+   * way or the other.
+   */
+  fixedByGivens: boolean;
   /** Signed object distance in metres, in the plan's own convention. */
   objectDistance: number;
   /** Signed focal length in metres, in the plan's own convention. */
@@ -412,14 +421,19 @@ function resolveSignedDistances(
   if (votes.size === 0) return { reason: "no signed distance or stated convention fixes the sign convention" };
   if (votes.size > 1) return { reason: "the plan mixes Cartesian and real-is-positive signs" };
   const convention = [...votes][0]!;
+  const explicitlySigned = (quantity: TurnPlanQuantityV3, length: SignedLength) =>
+    !length.magnitudeOnly && (length.value < 0 || quantity.sign === "positive" || quantity.sign === "negative");
+  const fixedByGivens = explicitlySigned(objectQuantity, object) ||
+    Boolean(focal && focalQuantity && element.kind === "mirror" && element.converging !== null &&
+      explicitlySigned(focalQuantity, focal));
 
   const objectDistance = object.magnitudeOnly && convention === "cartesian" ? -object.value : object.value;
-  if (!focal) return { convention, objectDistance, focalLength: null };
-  if (!focal.magnitudeOnly) return { convention, objectDistance, focalLength: focal.value };
+  if (!focal) return { convention, fixedByGivens, objectDistance, focalLength: null };
+  if (!focal.magnitudeOnly) return { convention, fixedByGivens, objectDistance, focalLength: focal.value };
   if (element.converging === null) return { reason: "focal length is a magnitude and the element type is unstated" };
   // Converging lenses have positive f in both conventions; mirrors flip with the convention.
   const positive = element.kind === "lens" || convention === "real_is_positive" ? element.converging : !element.converging;
-  return { convention, objectDistance, focalLength: positive ? focal.value : -focal.value };
+  return { convention, fixedByGivens, objectDistance, focalLength: positive ? focal.value : -focal.value };
 }
 
 function signedLength(quantity: TurnPlanQuantityV3): SignedLength | null {

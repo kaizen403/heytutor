@@ -337,6 +337,9 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
   });
 
   const claimIds = new Set<string>();
+  const questionMeasurements = [raw.question, expectedQuestion]
+    .filter((text): text is string => typeof text === "string")
+    .flatMap(extractMeasuredValues);
   claims.forEach((value, index) => {
     const path = `qualitativeClaims[${index}]`;
     if (!isRecord(value) || typeof value.id !== "string" || typeof value.claim !== "string") {
@@ -363,38 +366,82 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       });
       const claimTexts = [value.claim, value.expected]
         .filter((text): text is string => typeof text === "string");
-      const claimMeasurements = claimTexts.flatMap((text) =>
-        attributedClaimMeasurements(text, linkedQuantities, value.id as string));
-      for (const { measurement, quantities } of claimMeasurements) {
-        const comparable = quantities.filter((quantity) =>
-          typeof quantity.value === "number" &&
-          sameMeasurementDimension(quantity.unit, measurement.unit));
-        const supported = comparable.some((quantity) =>
-          typeof quantity.value === "number" &&
-          (equivalentDisplayedMeasuredQuantity(
-            quantity.value,
+      const sameValue = (
+        quantity: Record<string, unknown>,
+        measurement: ClaimMeasurement,
+        allowMagnitude: boolean,
+      ) => typeof quantity.value === "number" && (
+        equivalentDisplayedMeasuredQuantity(
+          quantity.value,
+          quantity.unit,
+          measurement.value,
+          measurement.unit,
+          measurement.tolerance,
+        ) || (
+          allowMagnitude &&
+          equivalentDisplayedMeasuredQuantity(
+            Math.abs(quantity.value),
             quantity.unit,
-            measurement.value,
+            Math.abs(measurement.value),
             measurement.unit,
             measurement.tolerance,
-          ) || (
-            isMagnitudeOnlyQuantity(quantity) &&
+          )
+        ));
+      const mismatch = (measurement: ClaimMeasurement) => issues.push({
+        code: "claim_quantity_mismatch",
+        path: `${path}.claim`,
+        message: `measured claim ${measurement.value} ${measurement.unit} disagrees with its linked quantities`,
+      });
+      const classified = claimTexts.flatMap((text) =>
+        classifyClaimMeasurements(text, linkedQuantities, value.id as string));
+      for (const entry of classified) {
+        if (entry.kind === "other") continue;
+        const { measurement } = entry;
+        if (entry.kind === "linked") {
+          // A number stated as the quantity's value must be its value. The
+          // sign may differ only for a quantity declared as a magnitude.
+          const comparable = entry.quantities.filter((quantity) =>
+            sameMeasurementDimension(quantity.unit, measurement.unit));
+          if (
+            comparable.length > 0 &&
+            !comparable.some((quantity) => sameValue(quantity, measurement, isDeclaredMagnitude(quantity)))
+          ) mismatch(measurement);
+          continue;
+        }
+        // A number the claim does not attribute still carries a linked
+        // quantity's dimension, so it may be that quantity's value worded
+        // indirectly ("comes out to 12 cm"). Prose states sizes without
+        // signs, so a magnitude matches; otherwise the number must be
+        // explained by another of the plan's quantities or by the question.
+        const comparable = linkedQuantities.filter((quantity) =>
+          sameMeasurementDimension(quantity.unit, measurement.unit));
+        if (comparable.length === 0) continue;
+        if (comparable.some((quantity) => sameValue(quantity, measurement, true))) continue;
+        // "I2 = -1.5 A (i.e. 1.5 A into the battery)" restates a number the
+        // claim attributes elsewhere; that attribution decides it.
+        const restates = classified.some((other) =>
+          other.kind !== "unattributed" &&
+          sameMeasurementDimension(other.measurement.unit, measurement.unit) &&
+          equivalentDisplayedMeasuredQuantity(
+            Math.abs(other.measurement.value),
+            other.measurement.unit,
+            Math.abs(measurement.value),
+            measurement.unit,
+            Math.max(measurement.tolerance, other.measurement.tolerance),
+          ));
+        if (restates) continue;
+        const explained = [...quantityById.values()].some((quantity) =>
+          sameMeasurementDimension(quantity.unit, measurement.unit) && sameValue(quantity, measurement, true)) ||
+          questionMeasurements.some((stated) =>
+            sameMeasurementDimension(stated.unit, measurement.unit) &&
             equivalentDisplayedMeasuredQuantity(
-              Math.abs(quantity.value),
-              quantity.unit,
+              Math.abs(stated.value),
+              stated.unit,
               Math.abs(measurement.value),
               measurement.unit,
-              measurement.tolerance,
-            )
-          )),
-        );
-        if (!supported && comparable.length > 0) {
-          issues.push({
-            code: "claim_quantity_mismatch",
-            path: `${path}.claim`,
-            message: `measured claim ${measurement.value} ${measurement.unit} disagrees with its linked quantities`,
-          });
-        }
+              Math.max(measurement.tolerance, stated.tolerance),
+            ));
+        if (!explained) mismatch(measurement);
       }
     } else if (value.relatedQuantityIds !== undefined) {
       issues.push({
@@ -576,6 +623,7 @@ function evaluateExplicitArithmetic(
       }
     : null;
   let invalid = false;
+  let signConflict = false;
   for (const clause of splitArithmeticClauses(sourceText)) {
     const equalityParts = splitEqualityParts(clause);
     if (equalityParts.length < 2) continue;
@@ -623,13 +671,29 @@ function evaluateExplicitArithmetic(
     );
     if (solvedTarget !== null) {
       const targetStated = solvedTarget.isolated ? stated : null;
-      const reading = readSolvedValueInUnit(
-        solvedTarget,
-        equalityParts,
-        expectedUnit,
-        bindingMeta,
-        targetStated ?? declaredAnchor,
-      );
+      const anchors = [targetStated, declaredAnchor].filter((anchor) => anchor !== null);
+      let reading = readSolvedValueInUnit(solvedTarget, equalityParts, expectedUnit, bindingMeta, anchors);
+      if (solvedTarget.writtenSign) {
+        // The written sign wins only when the chain's stated result or the
+        // plan's value agrees with it. Otherwise the chain contradicts itself
+        // on the sign: never overwrite, and report the disagreement.
+        const written = readSolvedValueInUnit(
+          solvedTarget.writtenSign,
+          equalityParts,
+          expectedUnit,
+          bindingMeta,
+          anchors,
+        );
+        if (
+          written.kind === "value" &&
+          anchors.some((anchor) => withinDisplayedPrecision(written.value, anchor))
+        ) {
+          reading = written;
+        } else {
+          signConflict = true;
+          continue;
+        }
+      }
       if (reading.kind === "inconsistent_units") continue;
       if (
         reading.kind === "value" && targetStated &&
@@ -642,7 +706,7 @@ function evaluateExplicitArithmetic(
             equalityParts,
             expectedUnit,
             bindingMeta,
-            targetStated,
+            [targetStated],
           );
           return alternativeReading.kind === "value" &&
             withinDisplayedPrecision(alternativeReading.value, targetStated);
@@ -732,6 +796,7 @@ function evaluateExplicitArithmetic(
     }
   }
   if (invalid) return { value: null, conflicting: false, invalid: true };
+  if (signConflict) return { value: null, conflicting: true, invalid: false };
   const agree = (
     one: { value: number; tolerance: number },
     other: { value: number; tolerance: number },
@@ -856,7 +921,7 @@ function evaluateAnchoredAnonymousChain(
         equalityParts,
         expectedUnit,
         bindingMeta,
-        stated,
+        [stated],
       );
       return reading.kind === "value" ? { ...reading, stated } : reading;
     } catch {
@@ -925,7 +990,9 @@ type SolvedValueReading =
  * declared unit only when the text pins the unit:
  * 1. the chain writes the result with a unit right after the expression
  *    ("... ≈ 6.283×10⁻⁴ T = 628.3 µT" says the expression is in T);
- * 2. every same-dimension input it uses carries one unit (f, d_o in cm);
+ * 2. every same-dimension input it uses carries one unit (f, d_o in cm),
+ *    unless the expression converts units itself (then the stated or
+ *    declared value decides, and neither supporting a reading declines);
  * 3. the declared unit is coherent (no prefix), so there is one reading.
  * Otherwise (a prefixed unit with no evidence) both the declared and the
  * coherent SI reading are possible; keep the one the stated value supports.
@@ -935,7 +1002,8 @@ function readSolvedValueInUnit(
   equalityParts: string[],
   expectedUnit: unknown,
   bindingMeta: NumericBindingMetaMap,
-  anchor: { value: number; tolerance: number } | null,
+  /** The chain's stated result first, then the plan's declared value. */
+  anchors: Array<{ value: number; tolerance: number }>,
 ): SolvedValueReading {
   const convertFrom = (unit: unknown): SolvedValueReading => {
     const value = convertMeasuredValue(solved.value, unit, expectedUnit);
@@ -974,16 +1042,42 @@ function readSolvedValueInUnit(
   if (sameDimensionUnits.length > 0) {
     const factor = sameDimensionUnits[0]!.factor;
     if (sameDimensionUnits.every((entry) => approximatelyEqual(entry.factor, factor))) {
-      return convertFrom(sameDimensionUnits[0]!.unit);
+      const pinned = convertFrom(sameDimensionUnits[0]!.unit);
+      // The expression may convert units itself ("v0*1000/3600" from km/h,
+      // "L/100" from cm). Then the computed number is already in the
+      // declared unit. The input unit pins the reading only when the two
+      // readings coincide, or when the pinned one is what the chain states
+      // or the plan declares; a value the chain's own result supports is
+      // never overwritten through a unit guess.
+      if (pinned.kind !== "value" || approximatelyEqual(pinned.value, solved.value)) return pinned;
+      const supports = (reading: number) =>
+        anchors.some((anchor) => withinDisplayedPrecision(reading, anchor));
+      if (supports(pinned.value)) return pinned;
+      if (supports(solved.value)) return { kind: "value", value: solved.value };
+      return { kind: "no_reading" };
     }
   }
   if (!expectedScale || approximatelyEqual(expectedScale.factor, 1)) {
     return { kind: "value", value: solved.value };
   }
+  if (
+    expectedScale.signature === "" &&
+    approximatelyEqual(expectedScale.factor, 0.01) &&
+    writesPercentScaling(equalityParts[solved.valueIndex] ?? "")
+  ) {
+    // Multiplying a ratio by 100 is what turns it into a percentage, so the
+    // member that writes "×100" is already in percent.
+    return { kind: "value", value: solved.value };
+  }
   const readings = [solved.value, solved.value / expectedScale.factor];
+  const anchor = anchors[0];
   if (!anchor) return { kind: "inconsistent_units" };
   const supported = readings.filter((reading) => withinDisplayedPrecision(reading, anchor));
   return supported.length === 1 ? { kind: "value", value: supported[0]! } : { kind: "no_reading" };
+}
+
+function writesPercentScaling(member: string): boolean {
+  return /[*×·⋅]\s*100(?![\d.])|(?<![\d.])100\s*[*×·⋅]/.test(member);
 }
 
 function expandDescriptiveAssignmentTargets(
@@ -1038,6 +1132,11 @@ interface SolvedTargetValue {
   bindingKeys: Set<string>;
   /** Other members of the chain that also evaluate, in preference order. */
   alternatives?: SolvedTargetValue[];
+  /**
+   * A written member equal in size and opposite in sign to a value computed
+   * from a binding with no declared sign.
+   */
+  writtenSign?: SolvedTargetValue;
 }
 
 function solveExplicitTargetEquation(
@@ -1104,19 +1203,20 @@ function solveExplicitTargetEquation(
     }
     const preferred = candidates[0];
     if (!preferred) continue;
-    // Substituting an unsigned magnitude (f2 = 0.30 for a concave lens)
-    // drops a sign the chain writes explicitly ("1/(-0.30)"). The written
-    // sign wins when the two members agree in size and differ only in sign.
+    // Substituting a binding with no declared sign (f2 = 0.30 for a concave
+    // lens) may drop a sign the chain writes explicitly ("1/(-0.30)"). Keep
+    // the written member that agrees in size and differs only in sign; the
+    // caller lets it win only when the stated result or the declared value
+    // agrees with it.
     const usesMagnitude = [...preferred.bindingKeys].some((key) => bindingMeta.get(key)?.magnitudeOnly);
-    if (usesMagnitude) {
-      const explicitSigned = candidates.find((candidate) =>
-        candidate.bindingKeys.size === 0 &&
-        Math.sign(candidate.value) === -Math.sign(preferred.value) &&
-        Math.abs(Math.abs(candidate.value) - Math.abs(preferred.value)) <=
-          1e-6 * Math.max(1, Math.abs(preferred.value)));
-      if (explicitSigned) return explicitSigned;
-    }
-    return { ...preferred, alternatives: candidates.slice(1) };
+    const writtenSign = usesMagnitude
+      ? candidates.find((candidate) =>
+          candidate.bindingKeys.size === 0 &&
+          Math.sign(candidate.value) === -Math.sign(preferred.value) &&
+          Math.abs(Math.abs(candidate.value) - Math.abs(preferred.value)) <=
+            1e-6 * Math.max(1, Math.abs(preferred.value)))
+      : undefined;
+    return { ...preferred, alternatives: candidates.slice(1), writtenSign };
   }
   return null;
 }
@@ -3289,41 +3389,63 @@ function extractMeasuredValues(text: string): Array<{ value: number; unit: strin
   return values;
 }
 
-interface AttributedClaimMeasurement {
-  measurement: { value: number; unit: string; tolerance: number };
-  quantities: Record<string, unknown>[];
-}
+type ClaimMeasurement = { value: number; unit: string; tolerance: number };
+
+type ClassifiedClaimMeasurement =
+  | { kind: "linked"; measurement: ClaimMeasurement; quantities: Record<string, unknown>[] }
+  /** Stated for something the claim names that is not a linked quantity. */
+  | { kind: "other"; measurement: ClaimMeasurement }
+  /** No subject, or a description that names no linked quantity. */
+  | { kind: "unattributed"; measurement: ClaimMeasurement };
 
 /**
  * A claim may mention many numbers (a condition such as "refracted angle 90°",
- * an intermediate such as "mg = 50 N", a signed coordinate). Only a number the
- * claim states as the value of one of its linked quantities can contradict
- * that quantity:
- * - the head of an equality chain is the quantity's symbol or id
- *   ("I_L = V/R = 21/11 ≈ 1.91 A");
- * - a copula ("is", "equals", ...) whose subject ends with the symbol, or whose
- *   descriptive subject contains every word of the quantity's id or of the
- *   claim's own id ("The refracted angle is about 28.1°" under claim id
- *   refracted_angle).
- * Numbers in any other position are context, not a stated value.
+ * an intermediate such as "mg = 50 N", a signed coordinate). Each number is
+ * classified by what the claim states it is:
+ * - linked: the head of an equality chain is a linked quantity's symbol or id
+ *   ("I_L = V/R = 21/11 ≈ 1.91 A"), or a copula ("is", "equals", ...) whose
+ *   subject ends with the symbol, or whose descriptive subject contains every
+ *   word of the quantity's id or of the claim's own id ("The refracted angle
+ *   is about 28.1°" under claim id refracted_angle);
+ * - other: the head is another symbol or an expression ("mg = 49 N");
+ * - unattributed: anything else ("gives an image distance of about 12 cm").
  */
-function attributedClaimMeasurements(
+function classifyClaimMeasurements(
   text: string,
   linkedQuantities: Record<string, unknown>[],
   claimId: string,
-): AttributedClaimMeasurement[] {
-  const attributed: AttributedClaimMeasurement[] = [];
+): ClassifiedClaimMeasurement[] {
+  const classified: ClassifiedClaimMeasurement[] = [];
   for (const match of text.matchAll(measuredValuePattern())) {
     const value = Number(match[1]);
     const unit = normalizeUnit(match[2]);
     if (!Number.isFinite(value) || !unit || match.index === undefined) continue;
-    const subject = claimMeasurementSubject(text.slice(0, match.index));
-    if (!subject) continue;
+    const measurement = { value, unit, tolerance: displayedNumberTolerance(match[1]!) };
+    const prefix = text.slice(0, match.index);
+    // The tail of a larger number ("90/11 V", "7.0e6 m", "2/5 m R^2") is
+    // not a measured value on its own.
+    if (/[A-Za-z0-9_.^/]$/.test(prefix)) continue;
+    const subject = claimMeasurementSubject(prefix);
+    if (!subject) {
+      const bound = CLAIM_FUNCTION_ARGUMENT.test(prefix) ||
+        CLAIM_COMPARISON_BEFORE.test(prefix) ||
+        CLAIM_COMPARISON_AFTER.test(text.slice(match.index + match[0].length));
+      classified.push({ kind: bound ? "other" : "unattributed", measurement });
+      continue;
+    }
+    if (subject.kind === "expression") {
+      classified.push({ kind: "other", measurement });
+      continue;
+    }
     const bySymbol = (key: string) => linkedQuantities.filter((quantity) =>
       quantityMatchKeys(quantity).has(normalizeClaimSubjectKey(key)));
     let quantities: Record<string, unknown>[] = [];
     if (subject.kind === "symbol") {
       quantities = bySymbol(subject.text);
+      if (quantities.length === 0) {
+        classified.push({ kind: "other", measurement });
+        continue;
+      }
     } else {
       const words = subject.text.split(/\s+/).filter(Boolean);
       quantities = bySymbol(words.at(-1) ?? "");
@@ -3339,22 +3461,23 @@ function attributedClaimMeasurements(
           ? linkedQuantities
           : linkedQuantities.filter((quantity) => names([quantity.id, quantity.symbol]).some(namesSubject));
       }
+      // "magnitude f_k = 6.4 N": the left side of the equation is f_k.
+      if (quantities.length === 0 && subject.equationHead && looksLikeSymbol(words.at(-1) ?? "")) {
+        classified.push({ kind: "other", measurement });
+        continue;
+      }
     }
-    if (quantities.length === 0) continue;
-    attributed.push({
-      measurement: { value, unit, tolerance: displayedNumberTolerance(match[1]!) },
-      quantities,
-    });
+    classified.push(quantities.length > 0
+      ? { kind: "linked", measurement, quantities }
+      : { kind: "unattributed", measurement });
   }
-  return attributed;
+  return classified;
 }
 
 const CLAIM_CLAUSE_BOUNDARY =
   /[,;:<>≤≥!?]|\.\s|\b(?:and|or|so|but|while|whereas|then|thus|hence|therefore|giving|gives|give|since|because|with|where|which|when|if|at|for|from|to|into|of|in|on|is|are|was|were|equals|by|after|before|than|via|i\.e\.|e\.g\.)\b/gi;
 
-function claimMeasurementSubject(
-  prefix: string,
-): { kind: "symbol" | "phrase"; text: string } | null {
+function claimMeasurementSubject(prefix: string): ClaimSubject | null {
   const trimmed = prefix.replace(/\s+$/, "");
   if (/[=≈≃≅~]$/.test(trimmed)) {
     const operands = trimmed.slice(0, -1).split(/[=≈≃≅~]/);
@@ -3362,7 +3485,8 @@ function claimMeasurementSubject(
       const operand = operands[index] ?? "";
       const boundary = lastClaimBoundaryEnd(operand);
       if (boundary >= 0 || index === 0) {
-        return classifyClaimSubject(operand.slice(Math.max(boundary, 0)));
+        const subject = classifyClaimSubject(operand.slice(Math.max(boundary, 0)));
+        return subject && { ...subject, equationHead: true };
       }
     }
     return null;
@@ -3383,15 +3507,48 @@ function lastClaimBoundaryEnd(text: string): number {
   return end;
 }
 
-function classifyClaimSubject(raw: string): { kind: "symbol" | "phrase"; text: string } | null {
+type ClaimSubject = {
+  kind: "symbol" | "phrase" | "expression";
+  text: string;
+  /** The left side of an "=" rather than the subject of a copula. */
+  equationHead?: boolean;
+};
+
+function classifyClaimSubject(raw: string): ClaimSubject | null {
   const text = raw.trim().replace(/^(?:the|a|an|its|their|this|that|net)\s+/i, "").trim();
   if (text === "") return null;
-  if (/^[A-Za-zΑ-Ωα-ω][\w\u0370-\u03ff₀-₉′'{}\\]*$/u.test(text)) return { kind: "symbol", text };
+  // A pronoun names nothing; the number is unattributed, not context.
+  if (/^(?:it|this|that|they|these|those|which|what|there|here|result|answer|value)$/i.test(text)) {
+    return null;
+  }
+  if (looksLikeSymbol(text)) return { kind: "symbol", text };
   // Expressions (m1*g, x(3)-x(0)) and fragments carrying other numbers are
   // not the name of a single linked quantity.
-  if (/[0-9+\-*/^()·⋅×]/.test(text)) return null;
+  if (/[0-9+\-*/^()·⋅×]/.test(text)) return { kind: "expression", text };
   return { kind: "phrase", text };
 }
+
+/**
+ * A single token that reads as a symbol (mg, f_k, θ_c, R2, Vth) rather than
+ * an English word ("current", "Distance"): marks, digits, Greek, or at most
+ * three letters.
+ */
+function looksLikeSymbol(token: string): boolean {
+  if (!/^[A-Za-zΑ-Ωα-ω][\w\u0370-\u03ff₀-₉′'{}\\]*$/u.test(token)) return false;
+  return /[_\d\u0370-\u03ff₀-₉′'{}\\]/u.test(token) || token.length <= 3 || !/^[A-Z]?[a-z]+$/.test(token);
+}
+
+/** A number that is a function argument ("sin(90°)") is not a stated value. */
+const CLAIM_FUNCTION_ARGUMENT = /\b(?:sin|cos|tan|sec|csc|cot|asin|acos|atan|arcsin|arccos|arctan|sqrt|log|ln|exp)\s*\(\s*$/i;
+
+/**
+ * A number on either side of a comparison ("29.4 N < T", "less than weight
+ * 50 N", "exceeding the net displacement of 9 m") is a bound, not the value
+ * of the quantity compared with it.
+ */
+const CLAIM_COMPARISON_BEFORE =
+  /(?:[<>≤≥]\s*|\b(?:(?:less|more|greater|smaller|larger|lower|higher|bigger)\s+than|exceed(?:s|ed|ing)?|below|between)\s+)(?:[A-Za-z_][\w']*\s+){0,4}$/i;
+const CLAIM_COMPARISON_AFTER = /^\s*(?:[<>≤≥]|(?:is\s+)?(?:less|more|greater|smaller|larger|lower|higher|bigger)\s+than\b)/i;
 
 function normalizeClaimSubjectKey(value: string): string {
   return normalizeNumericBindingKey(value)
@@ -3412,6 +3569,17 @@ function descriptiveWords(value: string): string[] {
     .toLowerCase()
     .split(/[^a-z]+/)
     .filter((word) => word.length >= 3 && !["the", "and", "for", "with", "from"].includes(word));
+}
+
+/**
+ * A quantity whose sign a claim may set by convention: one declared
+ * sign: "unsigned", or a given read from the question with no sign (a
+ * radius of 20 cm may be written R2 = -20 cm). A derived value with no
+ * declared sign is the plan's own signed result.
+ */
+function isDeclaredMagnitude(quantity: Record<string, unknown>): boolean {
+  if (typeof quantity.value !== "number" || quantity.value < 0) return false;
+  return quantity.sign === "unsigned" || (quantity.provenance === "given" && quantity.sign === undefined);
 }
 
 function isMagnitudeOnlyQuantity(quantity: Record<string, unknown>): boolean {

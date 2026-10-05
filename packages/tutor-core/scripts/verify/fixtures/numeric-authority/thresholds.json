@@ -1,16 +1,16 @@
 {
-  "_comment": "Ratchet only. Baseline was origin/main 9218d38c; ratcheted after the explicit-arithmetic unit/relation/sign and claim-attribution fixes. Lower a max or raise a min when a fix improves the replay; never loosen.",
+  "_comment": "Ratchet only. Baseline was origin/main 9218d38c; ratcheted after the explicit-arithmetic unit/relation/sign and claim-attribution fixes. Lower a max or raise a min when a fix improves the replay; never loosen. Loosened once on purpose for the claim hole (review blocker 3): a claim number with a linked quantity's dimension that the claim does not attribute must be explained by the plan or the question, which rejects op4's unexplained 'refracted angle 90°' (5 lanes, op4#1 to fallback, asked correct 105 to 104, missing 4 to 5) and nlm1 r1 alternate's 'net force 17.6 N' (1 lane).",
   "max": {
-    "lanesRejected": 10,
-    "claimQuantityMismatchLanes": 9,
-    "fallbackTurns": 2,
+    "lanesRejected": 16,
+    "claimQuantityMismatchLanes": 15,
+    "fallbackTurns": 3,
     "askedWrong": 3,
-    "askedMissing": 4,
+    "askedMissing": 5,
     "arithmeticRightToWrong": 0,
     "opticsRightToWrong": 0,
     "opticsQuantityRightToWrong": 0
   },
   "min": {
-    "askedCorrect": 105
+    "askedCorrect": 104
   }
 }

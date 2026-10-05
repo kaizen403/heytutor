@@ -8,8 +8,9 @@
  * - "=>", "≈", ">=" are read as what they are;
  * - a sign written in the expression beats an unsigned magnitude binding;
  * - a genuine arithmetic slip is still corrected or reported;
- * - a claim is checked only on numbers it states for a linked quantity, and a
- *   claim that contradicts its quantity is still rejected.
+ * - a claim number stated for a linked quantity must be its value; a number
+ *   the claim does not attribute but that carries a linked quantity's
+ *   dimension must be explained by the plan or the question.
  */
 import {
   reconcileTurnPlanV3ExplicitArithmetic,
@@ -354,13 +355,30 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
 }
 
 {
-  const codes = issueCodes(claimPlan({
+  // A number the claim does not attribute but that carries the linked
+  // quantity's dimension must be explained by the plan or the question.
+  const grazing: Claim = {
     id: "c1",
     claim: "At the critical angle the refracted ray grazes the surface with refracted angle 90°.",
     expected: "θ_c = arcsin(1/n)",
     relatedQuantityIds: ["theta_c"],
+  };
+  const explained = issueCodes(plan([angleGiven, given("theta_r", 90, "deg")], [criticalAngle], [grazing]));
+  check("unattributed number explained by a plan quantity", !explained.includes("claim_quantity_mismatch"), explained);
+  const unexplained = issueCodes(claimPlan(grazing));
+  check("unattributed number with the linked dimension and no explanation rejected",
+    unexplained.includes("claim_quantity_mismatch"), unexplained);
+  const fromQuestion = "Light leaves glass (n = 1.5); the refracted ray grazes the surface at 90°. Find the critical angle.";
+  const asked = { ...claimPlan(grazing), question: fromQuestion };
+  const askedCodes = validateTurnPlanV3(asked, fromQuestion).issues.map((issue) => issue.code);
+  check("unattributed number explained by the question text", !askedCodes.includes("claim_quantity_mismatch"), askedCodes);
+  const argument = issueCodes(claimPlan({
+    id: "c1",
+    claim: "Snell's law at the critical angle reads n sin(θ_c) = 1·sin(90°).",
+    expected: true,
+    relatedQuantityIds: ["theta_c"],
   }));
-  check("condition number is not the linked value", !codes.includes("claim_quantity_mismatch"), codes);
+  check("function argument is not a stated value", !argument.includes("claim_quantity_mismatch"), argument);
 }
 
 {
@@ -399,13 +417,16 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
     relatedQuantityIds: ["image_distance"],
   }, [image]));
   check("descriptive subject naming the claim is checked", byClaimId.includes("claim_quantity_mismatch"), byClaimId);
-  const other = issueCodes(claimPlan({
+  const placed: Claim = {
     id: "c4",
     claim: "Placed 15 cm from the mirror, the object forms a real image.",
     expected: true,
     relatedQuantityIds: ["image_distance"],
-  }, [image]));
-  check("a different distance in prose is not the linked value", !other.includes("claim_quantity_mismatch"), other);
+  };
+  const other = issueCodes(plan([angleGiven, given("u", 15, "cm")], [image], [placed]));
+  check("a distance in prose explained by another plan quantity passes", !other.includes("claim_quantity_mismatch"), other);
+  const stray = issueCodes(claimPlan(placed, [image]));
+  check("a stray distance in prose with no explanation rejected", stray.includes("claim_quantity_mismatch"), stray);
 }
 
 {
@@ -444,6 +465,129 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
     relatedQuantityIds: ["N"],
   }]));
   check("claim contradicting the linked symbol rejected", wrong.includes("claim_quantity_mismatch"), wrong);
+}
+
+// ---------------------------------------------------------------------------
+// Review probes: never overwrite what the chain's own result supports; never
+// let a contradicting claim pass silently.
+// ---------------------------------------------------------------------------
+
+{
+  // The expression converts units itself; the input unit must not pin it.
+  const cases: Array<[string, Quantity, Quantity, number]> = [
+    ["km/h converted in the expression", given("v0", 72, "km/h"), derived("v", 20, "m/s", "v = v0*1000/3600 = 20"), 20],
+    ["cm converted in the expression", given("L", 150, "cm"), derived("Lm", 1.5, "m", "Lm = L/100 = 1.5"), 1.5],
+    ["nm converted in the expression", given("lam", 500, "nm"), derived("lam_m", 5e-7, "m", "lam_m = lam*1e-9 = 5e-7"), 5e-7],
+  ];
+  for (const [name, input, output, expected] of cases) {
+    const converted = plan([input], [output]);
+    check(`${name}: not overwritten`, close(reconciled(converted, output.id).value, expected), reconciled(converted, output.id));
+    check(`${name}: valid`, liveIssueCodes(converted).length === 0, liveIssueCodes(converted));
+  }
+  // A slip in a converting chain: no reading supports the value, so decline
+  // and report rather than guess a unit.
+  const slip = plan([given("v0", 72, "km/h")], [derived("v", 21, "m/s", "v = v0*1000/3600 = 21")]);
+  check("converting chain slip never overwritten through a unit guess", reconciled(slip, "v").value === 21, reconciled(slip, "v"));
+  check("converting chain slip reported", liveIssueCodes(slip).includes("source_text_arithmetic_invalid"), liveIssueCodes(slip));
+  // The same-dimension pin still reads cm inputs into a value declared in m.
+  const pinned = plan(
+    [given("f", 10, "cm"), given("d_o", 30, "cm")],
+    [derived("v", 0.15, "m", "v = f*d_o/(d_o - f) = 10*30/20")],
+  );
+  check("same-dimension input pins a cm chain into m", close(reconciled(pinned, "v").value, 0.15), reconciled(pinned, "v"));
+  check("same-dimension pinned chain valid", liveIssueCodes(pinned).length === 0, liveIssueCodes(pinned));
+}
+
+{
+  // A written sign that contradicts the chain's own result never wins.
+  const forces = [given("F", 10, "N"), given("m", 2, "kg")];
+  const stated = plan(forces, [derived("a", 5, "m/s^2", "a = F/m = -10/2 = 5")]);
+  check("written sign against the stated result never overwrites", reconciled(stated, "a").value === 5, reconciled(stated, "a"));
+  check("written sign against the stated result reported",
+    liveIssueCodes(stated).includes("source_text_arithmetic_conflict"), liveIssueCodes(stated));
+  const bare = plan(forces, [derived("a", 5, "m/s^2", "a = F/m = -10/2")]);
+  check("written sign against the declared value never overwrites", reconciled(bare, "a").value === 5, reconciled(bare, "a"));
+  check("written sign against the declared value reported",
+    liveIssueCodes(bare).includes("source_text_arithmetic_conflict"), liveIssueCodes(bare));
+  const agreeing = plan(forces, [derived("a", -5, "m/s^2", "a = F/m = -10/2 = -5")]);
+  check("written sign agreeing with the stated result kept", reconciled(agreeing, "a").value === -5, reconciled(agreeing, "a"));
+}
+
+{
+  // The chain computes the percentage itself.
+  const input = plan([given("a", 40), given("b", 50)], [derived("p", 75, "%", "p = a/b*100 = 80")]);
+  check("percent chain slip corrected", close(reconciled(input, "p").value, 80), reconciled(input, "p"));
+  check("percent chain valid after reconcile", liveIssueCodes(input).length === 0, liveIssueCodes(input));
+}
+
+{
+  const image = derived("v", 20, "cm", "v = 20 cm");
+  const indirect: Array<[string, string, Quantity[], Quantity[], string[]]> = [
+    ["result of a procedure", "Solving the lens equation gives an image distance of about 12 cm", [], [image], ["v"]],
+    ["position phrase", "The image is located 12 cm behind the lens", [], [image], ["v"]],
+    ["outcome verb", "so v comes out to 12 cm", [], [image], ["v"]],
+    ["descriptive copula subject", "the current through R is 3 A", [given("I", 2, "A")], [], ["I"]],
+    ["sign of a derived value with no declared sign", "v = -20 cm", [], [image], ["v"]],
+  ];
+  for (const [name, text, givens, derivedValues, ids] of indirect) {
+    const codes = issueCodes(plan(givens, derivedValues, [{ id: "c1", claim: text, expected: true, relatedQuantityIds: ids }]));
+    check(`indirect contradiction rejected: ${name}`, codes.includes("claim_quantity_mismatch"), codes);
+  }
+  const unsigned = derived("v", 20, "cm", "v = 20 cm", { sign: "unsigned" });
+  const declared = issueCodes(plan([], [unsigned], [{ id: "c1", claim: "v = -20 cm", expected: true, relatedQuantityIds: ["v"] }]));
+  check("sign convention on a declared magnitude accepted", !declared.includes("claim_quantity_mismatch"), declared);
+  const restated = issueCodes(plan([given("E", 3, "V")], [derived("I", 2, "A", "I = 2 A")], [{
+    id: "c1",
+    claim: "I2 = (E - 4.5)/1 = -1.5 A (i.e. 1.5 A into the battery), and the load carries 2 A.",
+    expected: true,
+    relatedQuantityIds: ["I"],
+  }]));
+  check("a restatement of an attributed number is not a new value", !restated.includes("claim_quantity_mismatch"), restated);
+  const bounds = issueCodes(plan([given("m1", 3, "kg")], [derived("T", 36.75, "N", "T = 36.75 N")], [{
+    id: "c1",
+    claim: "Tension lies between the weights: 29.4 N < T = 36.75 N < 49 N, and is less than the weight 49 N.",
+    expected: true,
+    relatedQuantityIds: ["T"],
+  }]));
+  check("comparison bounds are not stated values", !bounds.includes("claim_quantity_mismatch"), bounds);
+  const headed = issueCodes(plan([given("mu", 0.2), given("N", 32, "N")], [derived("a", 3.52, "m/s^2", "a = 3.52")], [{
+    id: "c1",
+    claim: "Friction opposes the pull with magnitude f_k = μ_k N = 6.4 N, so N = 32 N holds the block.",
+    expected: true,
+    relatedQuantityIds: ["N", "a"],
+  }]));
+  check("an equation head naming another symbol is context", !headed.includes("claim_quantity_mismatch"), headed);
+  const fraction = issueCodes(plan([], [derived("V", 8.1818, "V", "V = 90/11 = 8.1818")], [{
+    id: "c1",
+    claim: "The node sits at V = 90/11 V ≈ 8.18 V.",
+    expected: true,
+    relatedQuantityIds: ["V"],
+  }]));
+  check("the denominator of a fraction is not a measured value", !fraction.includes("claim_quantity_mismatch"), fraction);
+}
+
+// ---------------------------------------------------------------------------
+// Rule pins: each case fails when its rule is disabled. (">=" protection is
+// pinned by ">= clause stays valid" above.)
+// ---------------------------------------------------------------------------
+
+{
+  // Unit letters strip only after a number ("6 N"). After an operator they
+  // are a variable: an unbound N must stop the member, not vanish from it.
+  const input = plan(
+    [given("W", 500, "N"), given("m", 50, "kg")],
+    [derived("a", 2, "m/s^2", "a = (N - W)/m = (600 - 500)/50 = 2")],
+  );
+  check("unit letters after an operator are a variable", reconciled(input, "a").value === 2, reconciled(input, "a"));
+  check("unit letters after an operator: chain valid", liveIssueCodes(input).length === 0, liveIssueCodes(input));
+}
+
+{
+  // A plain number next to an isolated target restates a value; "30 cm"
+  // is not arithmetic that can replace the 0.3 m the chain states.
+  const input = plan([given("r", 10, "cm")], [derived("x", 0.3, "m", "x = 30 cm = 0.3 m")]);
+  check("isolated restatement is not arithmetic", reconciled(input, "x").value === 0.3, reconciled(input, "x"));
+  check("isolated restatement valid", liveIssueCodes(input).length === 0, liveIssueCodes(input));
 }
 
 if (failures.length > 0) {

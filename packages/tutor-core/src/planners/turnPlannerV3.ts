@@ -441,6 +441,12 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
         });
         result = validateTurnPlanV3(opticsAudit.plan, question);
       }
+      if (opticsAudit.declined.length > 0) {
+        // A declined law leaves the plan's value standing unverified; say so.
+        tutorDebug("planner", "turn plan v3 optics laws declined", {
+          declined: opticsAudit.declined.map((item) => ({ law_id: item.lawId, reason: item.reason })),
+        });
+      }
     }
     if (trace) trace.issues = result.issues;
     if (!result.valid) {

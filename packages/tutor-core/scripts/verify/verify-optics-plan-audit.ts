@@ -354,6 +354,25 @@ expectAudit("sign-only clash declines", opticsPlan({
   derived: { v: { value: -15 }, m: { value: -0.5 } },
 }), { v: -15, m: -0.5, corrections: 0, declined: /different convention/ });
 
+// Givens fix the convention: u = -30 and f = -10 are Cartesian signs no magnitude
+// carries. 1/v = 1/f - 1/u = -1/10 + 1/30 = -1/15, v = -15. The plan's v = +15 is
+// not another convention, it is a sign slip, and is corrected like any slip.
+expectAudit("sign slip under a convention the givens fix is corrected", opticsPlan({
+  question: "An object stands 30 cm in front of a concave mirror of focal length 10 cm.",
+  lawIds: ["mirror formula"],
+  givens: { u: { value: -30 }, f: { value: -10 } },
+  derived: { v: { value: 15 }, m: { value: -0.5 } },
+}), { v: -15, m: -0.5, corrections: 1 });
+
+// Declared signs fix it too: u = +30 declared positive, concave f = +10 declared positive
+// is real-is-positive, v = +15; the plan's v = -15 is a slip.
+expectAudit("declared signs fix the convention", opticsPlan({
+  question: "An object stands 30 cm in front of a concave mirror of focal length 10 cm.",
+  lawIds: ["mirror formula"],
+  givens: { u: { value: 30, sign: "positive" }, f: { value: 10, sign: "positive" } },
+  derived: { v: { value: -15 }, m: { value: -0.5 } },
+}), { v: 15, m: -0.5, corrections: 1 });
+
 // A diverging lens has negative f in both conventions; f = +20 is a magnitude.
 expectAudit("lens type contradiction declines", opticsPlan({
   question: "An object is 10 cm from a diverging lens of focal length 20 cm.",

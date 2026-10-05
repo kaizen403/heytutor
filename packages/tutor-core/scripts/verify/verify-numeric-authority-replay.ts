@@ -177,6 +177,8 @@ const optics = {
   rightToWrong: [] as string[], wrongToRight: [] as string[], neutral: [] as string[], corrections: 0, lanes: 0,
   /** Corrected quantities sharing the asked dimension, scored against truth even when not the asked one. */
   quantityRightToWrong: [] as string[],
+  /** Laws the audit refused to evaluate; the plan value stands unverified. */
+  declined: [] as string[],
 };
 let laneCount = 0;
 
@@ -208,6 +210,8 @@ function replayLane(lane: LaneFixture, q: Question): TurnPlanV3 | null {
       arithmetic[kind].push(`${tag}: ${before} -> ${after} (truth ${q.truth} ${q.unit}${plan ? "" : ", lane rejected"})`);
     }
   }
+
+  for (const decline of trace.optics?.declined ?? []) optics.declined.push(`${tag}: ${decline.lawId}: ${decline.reason}`);
 
   if (trace.optics && trace.optics.corrections.length > 0) {
     optics.lanes += 1;
@@ -304,6 +308,8 @@ console.log(`  corrected quantity in the asked dimension moved right->wrong: ${m
 list("quantity right->wrong", optics.quantityRightToWrong, true);
 list("wrong->right", optics.wrongToRight);
 list("neutral", optics.neutral);
+console.log(`optics law declines (value left unverified): ${optics.declined.length}`);
+list("declined", optics.declined);
 
 if (assertMode) {
   const failures: string[] = [];
