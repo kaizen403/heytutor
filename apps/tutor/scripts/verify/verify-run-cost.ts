@@ -221,7 +221,7 @@ assert(
   "notes-chat must bill Jev on the Jev rate, not the generator rate",
 );
 assert(
-  read("app/api/extract-question/route.ts").includes('generationName: "qwen-vision"'),
+  read("app/api/extract-question/route.ts").includes('generationName: "vision-ocr"'),
   "photo OCR must land on a Langfuse generation",
 );
 
