@@ -12,6 +12,7 @@ import {
 import { ttsSkippedResponse } from "../billing/ttsSkip";
 import { ttsConfig } from "./providerConfig";
 import { requestTts } from "./ttsProvider";
+import { SARVAM_MAX_TEXT_CHARS, sarvamSpeechText } from "./sarvamProtocol";
 import {
   ttsNotConfiguredResponse,
   voiceKeyFromRequest,
@@ -76,6 +77,12 @@ export async function handleTtsRequest(
     return new Response(null, { status: 204 });
   }
   if (!config.apiKey || !config.voiceId) return ttsNotConfiguredResponse();
+  // Measured after digits become words: that is the text Sarvam receives.
+  if (config.provider === "sarvam" && sarvamSpeechText(body.text).length > SARVAM_MAX_TEXT_CHARS)
+    return Response.json(
+      { error: `Hinglish speech takes up to ${SARVAM_MAX_TEXT_CHARS} characters per request.` },
+      { status: 413 },
+    );
   if (
     shouldSkipTtsForUsage(grant) ||
     !consumeTtsChars(grant, body.text!.length).allowed

@@ -52,6 +52,8 @@ interface SettingsDrawerProps {
   onOpenChange: (open: boolean) => void;
   settings: SettingsState;
   onSettingsChange: (settings: SettingsState) => void;
+  /** Hinglish is offered only when the server holds a Sarvam key. */
+  hinglishAvailable?: boolean;
 }
 
 const SPEED_STEP = 0.25;
@@ -253,7 +255,9 @@ export function SettingsDrawer({
   onOpenChange,
   settings,
   onSettingsChange,
+  hinglishAvailable = false,
 }: SettingsDrawerProps) {
+  const english = settings.audioLanguage !== "hinglish" || !hinglishAvailable;
   const update = (partial: Partial<SettingsState>) => {
     onSettingsChange({ ...settings, ...partial });
   };
@@ -310,22 +314,31 @@ export function SettingsDrawer({
             <div className="flex flex-wrap gap-2" role="group" aria-label="Tutor voice">
               <SelectPill
                 label="India"
-                checked={settings.accent === "india"}
-                onClick={() => update({ accent: "india" })}
+                checked={english && settings.accent === "india"}
+                onClick={() => update({ audioLanguage: "english", accent: "india" })}
               />
               <SelectPill
                 label="UK"
-                checked={settings.accent === "uk"}
-                onClick={() => update({ accent: "uk" })}
+                checked={english && settings.accent === "uk"}
+                onClick={() => update({ audioLanguage: "english", accent: "uk" })}
               />
               <SelectPill
                 label="US"
-                checked={settings.accent === "us"}
-                onClick={() => update({ accent: "us" })}
+                checked={english && settings.accent === "us"}
+                onClick={() => update({ audioLanguage: "english", accent: "us" })}
               />
+              {hinglishAvailable ? (
+                <SelectPill
+                  label="Hinglish"
+                  checked={!english}
+                  onClick={() => update({ audioLanguage: "hinglish" })}
+                />
+              ) : null}
             </div>
             <p className="mt-2 text-[0.6875rem] leading-4" style={{ color: theme.dark }}>
-              The tutor&rsquo;s accent. Applies from the next spoken segment.
+              {english
+                ? "The tutor\u2019s accent. Applies from the next spoken segment."
+                : "The tutor speaks a Hindi and English mix. The board stays in English. Switching language applies from your next question."}
             </p>
           </SettingsSection>
 

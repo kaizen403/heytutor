@@ -1,4 +1,4 @@
-import type { SpeechProvider } from "../tts/providerConfig";
+import type { TtsProvider } from "../tts/providerConfig";
 import { randomUUID } from "crypto";
 import {
   Langfuse,
@@ -216,7 +216,7 @@ export interface RecordTtsSpanParams {
   characters: number;
   model: string;
   voiceId: string;
-  provider?: SpeechProvider;
+  provider?: TtsProvider;
   transport: "http" | "ws" | "browser-fallback";
   latencyMs?: number;
 }

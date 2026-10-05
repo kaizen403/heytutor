@@ -7,6 +7,7 @@ import {
 import {
   DEFAULT_ACCENT,
   DEFAULT_AUDIO_LANGUAGE,
+  isTutorAudioLanguage,
   DEFAULT_FAMILIARITY,
   isSubjectFamiliarity,
   isTutorAccent,
@@ -137,7 +138,8 @@ export function parseAccountSettings(value: unknown): AccountSettings {
     // Product UI no longer exposes these; old rows must not stick.
     fastMode: true,
     familiarity,
-    audioLanguage: DEFAULT_AUDIO_LANGUAGE,
+    // The server masks Hinglish when the deployment has no Sarvam key.
+    audioLanguage: isTutorAudioLanguage(row.audioLanguage) ? row.audioLanguage : DEFAULT_AUDIO_LANGUAGE,
     accent,
     narrationEnabled: true,
     lowLatencyVoice: false,
@@ -162,14 +164,23 @@ export function parseAccountSettings(value: unknown): AccountSettings {
   };
 }
 
-export function accountSettingsPatch(value: unknown): Partial<AccountSettings> {
+export function accountSettingsPatch(
+  value: unknown,
+  options: { hinglishAvailable?: boolean } = {},
+): Partial<AccountSettings> {
   if (!value || typeof value !== "object") return {};
   const row = value as Record<string, unknown>;
   const next: Partial<AccountSettings> = {};
 
   if ("speedMultiplier" in row) next.speedMultiplier = clampSpeed(Number(row.speedMultiplier));
-  // fastMode / audioLanguage / narrationEnabled / lowLatencyVoice are product
-  // defaults, not user patches — ignore so a stale client cannot turn them off.
+  // fastMode / narrationEnabled / lowLatencyVoice are product defaults, not
+  // user patches; ignore them so a stale client cannot turn them off.
+  // Hinglish is saved only where it can be spoken. Without a Sarvam key the
+  // field is ignored rather than rewritten, so a whole-object PATCH from the
+  // client (which then reads English) cannot erase a saved Hinglish choice.
+  if (options.hinglishAvailable && isTutorAudioLanguage(row.audioLanguage)) {
+    next.audioLanguage = row.audioLanguage;
+  }
   if (isSubjectFamiliarity(row.familiarity)) next.familiarity = row.familiarity;
   if (isTutorAccent(row.accent)) next.accent = row.accent;
   if ("subtitlesEnabled" in row) next.subtitlesEnabled = row.subtitlesEnabled === true;

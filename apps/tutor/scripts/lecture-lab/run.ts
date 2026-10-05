@@ -26,6 +26,7 @@ interface Options {
   out: string;
   origin: string;
   familiarity: SubjectFamiliarity;
+  narrationLanguage: "english" | "hinglish";
   only: string[] | null;
   seed: number;
   /**
@@ -70,6 +71,7 @@ function parseOptions(argv: string[]): Options {
     out: flags.get("out") ?? `.lecture-lab/run-${Date.now()}`,
     origin: flags.get("origin") ?? "http://127.0.0.1:3000",
     familiarity: (flags.get("familiarity") as SubjectFamiliarity) ?? "normal",
+    narrationLanguage: flags.get("narration") === "hinglish" ? "hinglish" : "english",
     only: list("only"),
     seed: number("seed", 1) ?? 1,
     ask: flags.get("ask") ?? null,
@@ -249,6 +251,7 @@ async function main(): Promise<void> {
         origin: options.origin,
         cookie,
         familiarity: options.familiarity,
+        narrationLanguage: options.narrationLanguage,
         probeId: probe.id,
         topicId: probe.topicId,
         unitId: unitIdFromTopicId(probe.topicId),

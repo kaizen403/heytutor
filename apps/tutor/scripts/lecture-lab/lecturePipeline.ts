@@ -162,6 +162,8 @@ export interface RunLectureOptions {
   cookie: string;
   familiarity?: SubjectFamiliarity;
   fastMode?: boolean;
+  /** "hinglish" replays a lesson for the Sarvam voice. */
+  narrationLanguage?: "english" | "hinglish";
   probeId?: string;
   topicId?: string;
   unitId?: string;
@@ -655,6 +657,7 @@ export async function runLecture(
       isDsa: dsaClassification.isDsa,
       familiarity,
       fastMode,
+      narrationLanguage: options.narrationLanguage,
     });
     run.promptChars = teachingPrompt.systemPrompt.length;
     run.lessonBudget = {
