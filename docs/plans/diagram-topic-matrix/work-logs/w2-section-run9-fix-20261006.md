@@ -1,0 +1,11 @@
+# Section runtime run9 source binding follow-up
+
+Parent-owned local work; base cba633e69771da6e443ebacbdfa33209f00d585e. Actual run9 retained all three complete ProblemIR/Plans and their original raw model responses. Student run9 failed all three figures; no native or lifecycle credit is granted by this patch.
+
+Complete source-joining request evidence now grounds the actual line only with both exact named endpoint tuples and the supported requested point/mode. Bounded caller line aliases retain their full original label in provenance and display compact AB. The whole regenerated source program authorizes the alias; metadata alone never does. Each grouped original incidence emits a separate fatal point/support assertion, traceable to the original constraint/point IDs. The shared obligation checker requires every pair, never an assertion whose unchecked third operand happens to match. Existing independent source roles, fact consumption, full AST, quantity and request bindings remain required.
+
+The independent review's mode-placement regressions are restored in one consumed division clause with exactly one mode. Explicit external ratio asks with an interior stated divider now reject as inconsistent instead of being silently certified internal. Additional asks, contradictory modes, malformed and unsupported source inputs remain atomic declines.
+
+Evidence: coord/integration/w2-run9-*.log. New own gate retains unmodified raw captures and reconstructs/deep-compares actual bound IR: 70 cases/350 compile/live/save/read/restore checks in TS/public ESM. Original run8 780, ready app138, captured seams168, whole-source42, shared obligations299 and section/matrix cores pass. Engine ESM/DTS build, typecheck and lint pass (four inherited warnings, zero errors). Gate negatives include moved/foreign endpoints/supports, missing incidence proofs/required/reveal, false coordinate captions, partial joining quotes, extra asks, unsupported relations and stale Plan values. Geometry-only compilation correctly remains independent of an unprovided stale Plan; four Plan-aware boundaries reject.
+
+Actual HTTP/pixels/WRITE/narration/reveal still need fresh student runs on a clean committed head. No topic/chapter/READY/ledger changes. Chemistry excluded, no remote push.
