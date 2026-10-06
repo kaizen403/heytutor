@@ -2386,6 +2386,10 @@ function pulleyDocument(question: string): SceneDocument {
       { id: "right_block", kind: "rectangle", role: "hanging block", label: "m2" },
       { id: "left_string", kind: "segment", role: "string" },
       { id: "right_string", kind: "segment", role: "string" },
+      { id: "left_tension", kind: "vector", role: "tension", label: "T" },
+      { id: "right_tension", kind: "vector", role: "tension", label: "T" },
+      { id: "left_weight", kind: "vector", role: "weight", label: "m1g" },
+      { id: "right_weight", kind: "vector", role: "weight", label: "m2g" },
     ],
     constructions: [
       pointAt("axle", 0, 2),
@@ -2396,6 +2400,10 @@ function pulleyDocument(question: string): SceneDocument {
       { id: "make_right_block", operator: "rectangle", inputs: { center: "right_mass", width: 0.8, height: 0.6 }, outputs: ["right_block"] },
       { id: "make_left_string", operator: "segment", inputs: { start: "left_mass", end: "axle" }, outputs: ["left_string"] },
       { id: "make_right_string", operator: "segment", inputs: { start: "right_mass", end: "axle" }, outputs: ["right_string"] },
+      { id: "make_left_tension", operator: "vector", inputs: { start: "left_mass", end: "axle" }, outputs: ["left_tension"] },
+      { id: "make_right_tension", operator: "vector", inputs: { start: "right_mass", end: "axle" }, outputs: ["right_tension"] },
+      { id: "make_left_weight", operator: "vector", inputs: { start: "left_mass", direction: [0, -1], length: 0.8 }, outputs: ["left_weight"] },
+      { id: "make_right_weight", operator: "vector", inputs: { start: "right_mass", direction: [0, -1], length: 0.95 }, outputs: ["right_weight"] },
     ],
     assertions: [
       { id: "pulley_exists", predicate: "exists", entities: ["pulley"], expected: true, severity: "fatal" },
@@ -2812,6 +2820,8 @@ function verticalCircleDocument(question: string, quantities: PlanQuantity[]): S
   const radius = 1.6;
   const loopCenterX = withIncline ? 3.2 : 0;
   const loopCenterY = radius;
+  const featuresTop = /(?:highest|top|loop)/i.test(question);
+  const massAtTop = featuresTop && !/lowest point/i.test(question);
   const entities: SceneEntity[] = [
     { id: "center", kind: "point", role: "circle center" },
     { id: "bottom", kind: "point", role: "lowest point" },
@@ -2820,15 +2830,21 @@ function verticalCircleDocument(question: string, quantities: PlanQuantity[]): S
     { id: "loop", kind: "circle", role: "vertical circle" },
     { id: "radius_arm", kind: "segment", role: "string or track radius" },
     { id: "weight", kind: "vector", role: "weight", label: "mg" },
+    { id: "constraint", kind: "vector", role: "tension or normal", label: "T" },
+    { id: "top_weight", kind: "vector", role: "weight at the top", label: "mg" },
+    { id: "top_constraint", kind: "vector", role: "constraint at the top", label: "T" },
   ];
   const constructions: SceneConstruction[] = [
     pointAt("center", loopCenterX, loopCenterY),
     pointAt("bottom", loopCenterX, loopCenterY - radius),
     pointAt("top", loopCenterX, loopCenterY + radius),
-    pointAt("mass", loopCenterX, loopCenterY - radius),
+    pointAt("mass", loopCenterX, massAtTop ? loopCenterY + radius : loopCenterY - radius),
     { id: "make_loop", operator: "circle", inputs: { center: "center", radius }, outputs: ["loop"] },
     { id: "make_radius", operator: "segment", inputs: { start: "center", end: "mass" }, outputs: ["radius_arm"] },
-    { id: "make_weight", operator: "vector", inputs: { start: "mass", direction: [0, -1], length: 0.9 }, outputs: ["weight"] },
+    { id: "make_weight", operator: "vector", inputs: { start: "bottom", direction: [0, -1], length: 0.75 }, outputs: ["weight"] },
+    { id: "make_constraint", operator: "vector", inputs: { start: "bottom", direction: [0, 1], length: 1.15 }, outputs: ["constraint"] },
+    { id: "make_top_weight", operator: "vector", inputs: { start: "top", direction: [0, -1], length: 0.7 }, outputs: ["top_weight"] },
+    { id: "make_top_constraint", operator: "vector", inputs: { start: "top", direction: [0, -1], length: 1.15 }, outputs: ["top_constraint"] },
   ];
   if (withIncline) {
     const theta = angleDegrees(quantities, question) ?? 30;
@@ -2846,8 +2862,8 @@ function verticalCircleDocument(question: string, quantities: PlanQuantity[]): S
   return baseDocument({
     question,
     reason: withIncline
-      ? "incline feeding a vertical circular loop"
-      : "particle on a vertical circle with weight at the lowest point",
+      ? "incline feeding a vertical loop, with weight and normal at the bottom and the top"
+      : "vertical circle with weight and constraint force at the bottom and the top",
     quantities: [],
     entities,
     constructions,
@@ -3323,165 +3339,197 @@ function riverCrossingWithheld(question: string, quantities: PlanQuantity[]): bo
   return riverBoatVariant(normalizeStem(question)) === "two_triangles" || riverShortestPathAsked(question);
 }
 
+function riverSpeeds(quantities: PlanQuantity[]): { boat: number; current: number; unit: "m/s" | "km/h" | "cm/s" | "unit"; sourced: boolean } {
+  const boatAliases = ["vb", "vboat", "boat", "gboatspeed", "boatspeed"];
+  const currentAliases = ["vc", "vcurrent", "current", "vriver", "vr", "gcurrentspeed", "currentspeed"];
+  const boat = firstQuantity(quantities, boatAliases);
+  const current = firstQuantity(quantities, currentAliases);
+  const boatUnit = unitOf(quantities, boatAliases);
+  const currentUnit = unitOf(quantities, currentAliases);
+  const canonical = (unit: string | undefined): "m/s" | "km/h" | "cm/s" | null => {
+    if (!unit) return null;
+    const key = unit.trim().toLowerCase();
+    if (["m/s", "meter/second", "metre/second"].includes(key)) return "m/s";
+    if (["km/h", "km/hr", "kmph"].includes(key)) return "km/h";
+    if (key === "cm/s") return "cm/s";
+    return null;
+  };
+  const unit = canonical(boatUnit);
+  if (boat !== null && current !== null && boat > 0 && current > 0 && unit && unit === canonical(currentUnit)) {
+    return { boat, current, unit, sourced: true };
+  }
+  return { boat: 5, current: 2, unit: "unit", sourced: false };
+}
+
 function riverBoatDocument(question: string, quantities: PlanQuantity[]): SceneDocument {
-  const stem = normalizeStem(question);
-  const variant = riverBoatVariant(stem);
-  const vb = firstQuantity(quantities, ["vb", "vboat", "boat", "gboatspeed", "boatspeed"]);
-  const vc = firstQuantity(quantities, ["vc", "vcurrent", "current", "vriver", "vr", "gcurrentspeed", "currentspeed"]);
-  const ratio = vb !== null && vc !== null && vb > 0 ? Math.min(0.92, Math.max(0.25, vc / vb)) : 0.45;
-  const vbLen = 2.2;
-  const vcLen = vbLen * ratio;
+  const variant = riverBoatVariant(normalizeStem(question));
+  const speeds = riverSpeeds(quantities);
+  const displayScale = 2.2 / Math.max(speeds.boat, speeds.current);
   const heading = angleDegrees(quantities, question);
   const banks: SceneEntity[] = [
-    { id: "south_w", kind: "point", role: "south bank west" },
-    { id: "south_e", kind: "point", role: "south bank east" },
-    { id: "north_w", kind: "point", role: "north bank west" },
-    { id: "north_e", kind: "point", role: "north bank east" },
     { id: "south_bank", kind: "segment", role: "river bank" },
     { id: "north_bank", kind: "segment", role: "river bank" },
   ];
-  const bankConstructions: SceneConstruction[] = [
-    pointAt("south_w", -3.3, -1.8),
-    pointAt("south_e", 3.3, -1.8),
-    pointAt("north_w", -3.3, 1.8),
-    pointAt("north_e", 3.3, 1.8),
-    { id: "make_south_bank", operator: "segment", inputs: { start: "south_w", end: "south_e" }, outputs: ["south_bank"] },
-    { id: "make_north_bank", operator: "segment", inputs: { start: "north_w", end: "north_e" }, outputs: ["north_bank"] },
+  const bankConstructions: SceneConstruction[] = [{
+    id: "make_banks",
+    operator: "parallel_guides",
+    inputs: { direction: [1, 0], separation: 3.2, halfLength: 3.3, origin: [0, 0] },
+    outputs: ["south_bank", "north_bank"],
+  }];
+  const bankAssertions: SceneAssertion[] = [
+    { id: "banks_exist", predicate: "exists", entities: ["south_bank", "north_bank"], expected: true, severity: "fatal" },
+    { id: "banks_parallel", predicate: "parallel", entities: ["south_bank", "north_bank"], expected: true, severity: "fatal" },
   ];
+  const units = { velocity: speeds.unit };
 
   if (variant === "along_stream") {
     return baseDocument({
       question,
-      reason: "river banks with downstream and upstream velocities along the current",
+      reason: speeds.sourced
+        ? "river banks with source-grounded downstream and upstream velocities"
+        : "river banks with collinear downstream and upstream velocities; speeds are not both sourced",
       quantities: [],
       entities: [
         ...banks,
         { id: "origin", kind: "point", role: "boat", label: "boat" },
-        { id: "vb_end", kind: "point", role: "boat-speed tip" },
-        { id: "vc_end", kind: "point", role: "current tip" },
-        { id: "vd_end", kind: "point", role: "downstream tip" },
-        { id: "vu_end", kind: "point", role: "upstream tip" },
-        { id: "vb", kind: "vector", role: "boat speed", label: "vb" },
         { id: "vc", kind: "vector", role: "current", label: "vc" },
+        { id: "vb", kind: "vector", role: "boat speed", label: "vb" },
         { id: "vd", kind: "vector", role: "downstream", label: "down" },
         { id: "vu", kind: "vector", role: "upstream", label: "up" },
       ],
       constructions: [
         ...bankConstructions,
-        pointAt("origin", -1.4, 0),
-        pointAt("vb_end", -1.4 + vbLen, 0.55),
-        pointAt("vc_end", -1.4 + vcLen, -0.55),
-        pointAt("vd_end", -1.4 + vbLen + vcLen, 0),
-        pointAt("vu_end", -1.4 - Math.max(0.6, vbLen - vcLen), 0),
-        { id: "make_vb", operator: "vector", inputs: { start: "origin", end: "vb_end" }, outputs: ["vb"] },
-        { id: "make_vc", operator: "vector", inputs: { start: "origin", end: "vc_end" }, outputs: ["vc"] },
-        { id: "make_vd", operator: "vector", inputs: { start: "origin", end: "vd_end" }, outputs: ["vd"] },
-        { id: "make_vu", operator: "vector", inputs: { start: "origin", end: "vu_end" }, outputs: ["vu"] },
+        pointAt("origin", -0.4, 0),
+        {
+          id: "make_collinear",
+          operator: "collinear_velocity_pair",
+          inputs: { frameVelocity: [speeds.current, 0], bodySpeed: speeds.boat, units, origin: "origin", displayScale, laneGap: 0.42 },
+          outputs: ["vc", "vb", "vd", "vu"],
+        },
       ],
       assertions: [
-        { id: "banks_exist", predicate: "exists", entities: ["south_bank", "north_bank"], expected: true, severity: "fatal" },
-        { id: "vb_exists", predicate: "exists", entities: ["vb"], expected: true, severity: "fatal" },
-        { id: "current_exists", predicate: "exists", entities: ["vc"], expected: true, severity: "fatal" },
+        ...bankAssertions,
+        { id: "downstream_exists", predicate: "exists", entities: ["vd", "vu"], expected: true, severity: "fatal" },
       ],
     });
   }
 
   if (variant === "two_triangles") {
-    const acrossY = Math.sqrt(Math.max(0.2, 1 - ratio * ratio)) * vbLen;
+    const canCross = speeds.boat > speeds.current;
+    if (!canCross) {
+      return baseDocument({
+        question,
+        reason: "straight-across crossing is impossible at the supplied speeds; only the shortest-time triangle is drawn",
+        quantities: [],
+        entities: [
+          ...banks,
+          { id: "across_origin", kind: "point", role: "straight-across origin", label: "across" },
+          { id: "short_origin", kind: "point", role: "shortest-time origin", label: "short" },
+          { id: "short_vc", kind: "vector", role: "current", label: "vc" },
+          { id: "short_vb", kind: "vector", role: "heading", label: "vb" },
+          { id: "short_vr", kind: "vector", role: "resultant", label: "vr" },
+        ],
+        constructions: [
+          ...bankConstructions,
+          pointAt("across_origin", -1.6, -0.4),
+          pointAt("short_origin", 1.4, -0.4),
+          {
+            id: "make_short",
+            operator: "velocity_triangle",
+            inputs: { frameVelocity: [speeds.current, 0], bodyVelocity: [0, speeds.boat], units, origin: "short_origin", displayScale },
+            outputs: ["short_vc", "short_vb", "short_vr"],
+          },
+        ],
+        assertions: bankAssertions,
+      });
+    }
     return baseDocument({
       question,
-      reason: "two river-crossing velocity triangles: straight across and shortest time",
+      reason: speeds.sourced
+        ? "two source-grounded river-crossing velocity triangles"
+        : "two river-crossing velocity triangles; speeds are not both sourced",
       quantities: [],
       entities: [
         ...banks,
         { id: "across_origin", kind: "point", role: "straight-across origin", label: "across" },
-        { id: "across_vc_end", kind: "point", role: "straight-across current tip" },
-        { id: "across_vb_end", kind: "point", role: "straight-across heading tip" },
-        { id: "across_vr_end", kind: "point", role: "straight-across resultant tip" },
+        { id: "short_origin", kind: "point", role: "shortest-time origin", label: "short" },
         { id: "across_vc", kind: "vector", role: "current", label: "vc" },
         { id: "across_vb", kind: "vector", role: "heading", label: "vb" },
         { id: "across_vr", kind: "vector", role: "resultant", label: "vr" },
-        { id: "short_origin", kind: "point", role: "shortest-time origin", label: "short" },
-        { id: "short_vc_end", kind: "point", role: "shortest-time current tip" },
-        { id: "short_vb_end", kind: "point", role: "shortest-time heading tip" },
-        { id: "short_vr_end", kind: "point", role: "shortest-time resultant tip" },
         { id: "short_vc", kind: "vector", role: "current", label: "vc" },
         { id: "short_vb", kind: "vector", role: "heading", label: "vb" },
         { id: "short_vr", kind: "vector", role: "resultant", label: "vr" },
       ],
       constructions: [
         ...bankConstructions,
-        pointAt("across_origin", -1.7, -0.6),
-        pointAt("across_vc_end", -1.7 + vcLen, -0.6),
-        pointAt("across_vb_end", -1.7 - vcLen, -0.6 + acrossY),
-        pointAt("across_vr_end", -1.7, -0.6 + acrossY),
-        { id: "make_across_vc", operator: "vector", inputs: { start: "across_origin", end: "across_vc_end" }, outputs: ["across_vc"] },
-        { id: "make_across_vb", operator: "vector", inputs: { start: "across_origin", end: "across_vb_end" }, outputs: ["across_vb"] },
-        { id: "make_across_vr", operator: "vector", inputs: { start: "across_origin", end: "across_vr_end" }, outputs: ["across_vr"] },
-        pointAt("short_origin", 1.1, -0.6),
-        pointAt("short_vc_end", 1.1 + vcLen, -0.6),
-        pointAt("short_vb_end", 1.1, -0.6 + vbLen),
-        pointAt("short_vr_end", 1.1 + vcLen, -0.6 + vbLen),
-        { id: "make_short_vc", operator: "vector", inputs: { start: "short_origin", end: "short_vc_end" }, outputs: ["short_vc"] },
-        { id: "make_short_vb", operator: "vector", inputs: { start: "short_origin", end: "short_vb_end" }, outputs: ["short_vb"] },
-        { id: "make_short_vr", operator: "vector", inputs: { start: "short_origin", end: "short_vr_end" }, outputs: ["short_vr"] },
+        pointAt("across_origin", -1.6, -0.4),
+        pointAt("short_origin", 1.4, -0.4),
+        {
+          id: "make_crossing",
+          operator: "crossing_strategies",
+          inputs: {
+            current: [speeds.current, 0],
+            boatSpeed: speeds.boat,
+            units,
+            origin: "across_origin",
+            secondOrigin: "short_origin",
+            displayScale,
+            orientation: 1,
+          },
+          outputs: ["across_vc", "across_vb", "across_vr", "short_vc", "short_vb", "short_vr"],
+        },
       ],
       assertions: [
-        { id: "banks_exist", predicate: "exists", entities: ["south_bank", "north_bank"], expected: true, severity: "fatal" },
+        ...bankAssertions,
         { id: "across_exists", predicate: "exists", entities: ["across_vr"], expected: true, severity: "fatal" },
         { id: "short_exists", predicate: "exists", entities: ["short_vr"], expected: true, severity: "fatal" },
       ],
     });
   }
 
-  const headingDeg = heading ?? 90;
-  const rad = headingDeg * Math.PI / 180;
-  const originX = 0;
-  const originY = -0.5;
-  const vbEnd = { x: originX + vbLen * Math.cos(rad), y: originY + vbLen * Math.sin(rad) };
-  const vcEnd = { x: originX + vcLen, y: originY };
-  const vrEnd = { x: vbEnd.x + vcLen, y: vbEnd.y };
+  const headingDeg = heading ?? null;
+  const radians = (headingDeg ?? 60) * Math.PI / 180;
+  const body = [speeds.boat * Math.cos(radians), speeds.boat * Math.sin(radians)];
   return baseDocument({
     question,
-    reason: "river banks with a heading-and-current velocity triangle",
-    quantities: heading !== null
-      ? [{ id: "theta", symbol: "theta", value: heading, unit: "degree" }]
-      : [],
+    reason: headingDeg === null
+      ? "river banks with a schematic heading triangle; the heading angle is not in the source"
+      : "river banks with a heading-and-current velocity triangle",
+    quantities: headingDeg !== null ? [{ id: "theta", symbol: "theta", value: headingDeg, unit: "degree" }] : [],
     entities: [
       ...banks,
       { id: "origin", kind: "point", role: "boat", label: "boat" },
-      { id: "vb_end", kind: "point", role: "heading tip" },
-      { id: "vc_end", kind: "point", role: "current tip" },
-      { id: "vr_end", kind: "point", role: "resultant tip" },
-      { id: "vb", kind: "vector", role: "heading", label: "vb" },
       { id: "vc", kind: "vector", role: "current", label: "vc" },
+      { id: "vb", kind: "vector", role: "heading", label: "vb" },
       { id: "vr", kind: "vector", role: "resultant", label: "vr" },
-      ...(heading !== null
-        ? [{ id: "heading_mark", kind: "arc" as const, role: "heading angle" }]
-        : []),
+      ...(headingDeg !== null ? [{ id: "heading_mark", kind: "arc" as const, role: "heading angle" }] : []),
     ],
     constructions: [
       ...bankConstructions,
-      pointAt("origin", originX, originY),
-      pointAt("vb_end", vbEnd.x, vbEnd.y),
-      pointAt("vc_end", vcEnd.x, vcEnd.y),
-      pointAt("vr_end", vrEnd.x, vrEnd.y),
-      { id: "make_vb", operator: "vector", inputs: { start: "origin", end: "vb_end" }, outputs: ["vb"] },
-      { id: "make_vc", operator: "vector", inputs: { start: "origin", end: "vc_end" }, outputs: ["vc"] },
-      { id: "make_vr", operator: "vector", inputs: { start: "origin", end: "vr_end" }, outputs: ["vr"] },
-      ...(heading !== null
-        ? [{
-            id: "make_heading_mark",
-            operator: "angle_mark" as const,
-            inputs: { vertex: "origin", a: "vc", b: "vb", radius: 0.45 },
-            outputs: ["heading_mark"],
-          }]
-        : []),
+      pointAt("origin", 0, -0.4),
+      {
+        id: "make_heading",
+        operator: "velocity_triangle",
+        inputs: {
+          frameVelocity: [speeds.current, 0],
+          bodyVelocity: body,
+          units,
+          origin: "origin",
+          displayScale,
+          ...(headingDeg !== null ? { headingDeg } : {}),
+        },
+        outputs: ["vc", "vb", "vr"],
+      },
+      ...(headingDeg !== null ? [{
+        id: "make_heading_mark",
+        operator: "angle_mark" as const,
+        inputs: { vertex: "origin", a: "vc", b: "vb", radius: 0.45 },
+        outputs: ["heading_mark"],
+      }] : []),
     ],
     assertions: [
-      { id: "banks_exist", predicate: "exists", entities: ["south_bank", "north_bank"], expected: true, severity: "fatal" },
-      { id: "heading_exists", predicate: "exists", entities: ["vb"], expected: true, severity: "fatal" },
-      { id: "current_exists", predicate: "exists", entities: ["vc"], expected: true, severity: "fatal" },
+      ...bankAssertions,
+      { id: "heading_exists", predicate: "exists", entities: ["vb", "vc", "vr"], expected: true, severity: "fatal" },
     ],
   });
 }
