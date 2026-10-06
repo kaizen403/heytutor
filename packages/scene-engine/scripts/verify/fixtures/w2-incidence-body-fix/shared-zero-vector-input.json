@@ -1,0 +1,180 @@
+{
+  "question": "Draw the named body marker C incident on the support L.",
+  "problem": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "shared",
+    "question": "Draw the named body marker C incident on the support L.",
+    "facts": [
+      {
+        "id": "f",
+        "kind": "given",
+        "statement": "Draw the named body marker C incident on the support L.",
+        "evidence": {
+          "source": "question",
+          "quote": "Draw the named body marker C incident on the support L.",
+          "start": 0,
+          "end": 55
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "c",
+        "kind": "body",
+        "label": "C",
+        "evidenceFactIds": [
+          "f"
+        ]
+      },
+      {
+        "id": "l",
+        "kind": "line",
+        "label": "L",
+        "evidenceFactIds": [
+          "f"
+        ]
+      }
+    ],
+    "expressions": [],
+    "constraints": [
+      {
+        "id": "onLine",
+        "kind": "incident",
+        "entityIds": [
+          "c",
+          "l"
+        ],
+        "evidenceFactIds": [
+          "f"
+        ]
+      }
+    ],
+    "representationIntents": [
+      {
+        "id": "intent",
+        "kind": "conceptual",
+        "entityIds": [
+          "c",
+          "l"
+        ],
+        "evidenceFactIds": [
+          "f"
+        ]
+      }
+    ],
+    "solveRequests": []
+  },
+  "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "source incident marker"
+    },
+    "source": {
+      "question": "Draw the named body marker C incident on the support L."
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "C",
+        "kind": "vector",
+        "role": "named body marker",
+        "label": "C"
+      },
+      {
+        "id": "L",
+        "kind": "line",
+        "role": "support",
+        "label": "L"
+      },
+      {
+        "id": "u",
+        "kind": "vector",
+        "role": "source vector"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "makeL",
+        "operator": "line",
+        "inputs": {
+          "start": [
+            -2,
+            0
+          ],
+          "end": [
+            2,
+            0
+          ]
+        },
+        "outputs": [
+          "L"
+        ]
+      },
+      {
+        "id": "makeU",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            0,
+            1
+          ],
+          "end": [
+            1,
+            1
+          ]
+        },
+        "outputs": [
+          "u"
+        ]
+      },
+      {
+        "id": "makeC",
+        "operator": "vector_scale",
+        "inputs": {
+          "vector": "u",
+          "factor": 0,
+          "origin": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "outputs": [
+          "C"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "on",
+        "predicate": "on",
+        "entities": [
+          "C",
+          "L"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "C",
+      "L",
+      "u"
+    ],
+    "revealGroups": [
+      {
+        "id": "g",
+        "entityIds": [
+          "C",
+          "L",
+          "u"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Draw the source marker and support."
+      }
+    ],
+    "teachingTimeline": []
+  }
+}
