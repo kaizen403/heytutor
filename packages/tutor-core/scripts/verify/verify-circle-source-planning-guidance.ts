@@ -71,6 +71,16 @@ for(const name of ["zeroed-source-coefficients.original.json","inexact-source-co
  const reconciled=applySourceQuantityAuthority(caller.plan,caller.problem,caller.question);check(reconciled.outcomes.some(row=>row.declineFigure)&&JSON.stringify(reconciled.plan)===JSON.stringify(caller.plan),"refused original rows never enter legacy pruning");
  check(JSON.stringify(caller)===before,"independent original counterexample immutable");
 }
+for(const name of ["ir-functionResult.original.json","ir-wrongFactKind.original.json"]){
+ const caller=JSON.parse(readFileSync(new URL(`./fixtures/circle-full-review-20261006/${name}`,import.meta.url),"utf8"));
+ const before=JSON.stringify(caller);check(circleCallerIssues(caller.question,caller.problem,caller.plan).length>0,"numeric function outputs and definition-as-request cannot borrow scalar source authority");
+ check(!bindCircleSourceProblem(caller.question,caller.problem),"complete wrong original IR refuses source binding");
+ const api=await planProblemAuthorityV1(caller.question,caller.plan,{proxyUrl:"http://offline.invalid",timeoutMs:2000,fetchImpl:async()=>Response.json({choices:[{message:{content:JSON.stringify(caller.problem)}}]})});
+ check(api&&"status"in api&&api.status==="source_declined"&&JSON.stringify(api.rawProblemIR)===JSON.stringify(caller.problem),"ordinary API refuses and retains complete original IR");
+ check(selectVerifiedRepresentation({question:caller.question,turnPlan:caller.plan,problemIR:caller.problem}).renderScene.primitives.length===0,"wrong original IR cannot regain figure authority");
+ check(JSON.stringify(applySourceQuantityAuthority(caller.plan,caller.problem,caller.question).plan)===JSON.stringify(caller.plan),"wrong original IR never prunes caller Plan");
+ check(JSON.stringify(caller)===before,"original independent IR mutation unchanged");
+}
 const carried=JSON.parse(readFileSync(new URL("./fixtures/circle-full-review-20261006/actual-carry-standard-s3.original.json",import.meta.url),"utf8"));
 const carryBefore=JSON.stringify(carried);
 check(circleCallerIssues(carried.question,carried.problem,carried.plan).length===0,"source-proved carried whole S3 retains original empty Plan/null IR");

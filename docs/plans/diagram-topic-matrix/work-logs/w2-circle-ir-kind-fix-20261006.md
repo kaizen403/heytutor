@@ -1,0 +1,9 @@
+# Circle original fact and expression kind obligations
+
+Integration_pending; READY4/FULLY0 and chapter ledger unchanged. Parent followup to38611de9, not fresh independent review.
+
+Two immutable independent counterexamples had been incorrectly described as null syntax refusals in the previous parent work log. Source/public diagnostics actually showed all normal API/compile/app boundaries admitting them. This correction and their original complete inputs are retained. Requested facts now require an actual supported query proposition in their own source quote; a coefficient-equation fact cannot claim requested status without query evidence. An evaluated numeric circle result must retain scalar valueType; a function-typed original result declines rather than borrowing a scalar answer. The supported unrequested function-equation branch is unchanged.
+
+Both complete original inputs are copied byte-identically, never replaced with shortened IR. New regression checks retain raw refused IR, whole original Plan, unchanged inputs and no app ink. Dedicated518 source and own-public checks pass. Original independent44-observation harness retargeted only own paths now shows zero unsafe authority, zero input mutation and zero returnedPlan pruning in both lanes; old wrong observations/logs remain. Carried actual standardS3 source-only nullIR transport caller still draws six primitives unchanged.
+
+Own fresh engine/core builds, existing circle352 source/public checks, given introduction, turn/problem planner, compact/differential IR, fullengine/core/app typechecks and package lints pass Node24.21/pnpm10.32. Full Next build, actual student/save/restart/replay and fresh independent review remain unrun. No provider/Auth/PG/runtime, protected main, remote, Chemistry/W4 or counts modified. Logs: reviews/w2-circle-ir-kind-final-checks-20261006 and w2-circle-ir-kind-fix-*.log.

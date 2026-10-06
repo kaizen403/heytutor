@@ -277,7 +277,10 @@ export function bindCircleSourceProblem(question: string, raw: unknown): CircleP
       let role = coefficientRole ?? (source.equations.some(e => overlap(fact.evidence, e.evidence)) ? "equation" : source.points.some(p => contains(fact.evidence, p.evidence)) ? "point" : source.declarations.some(d => contains(fact.evidence, d)) ? "declaration" : "request");
       if (coefficientRole && !sourceEquation([fact.id])) return null;
       if (role === "request" && (fact.kind !== "requested" || !/\b(?:find|determine|calculate|draw|show|sketch|plot|mark|does|lie|inside|outside)\b/i.test(fact.evidence.quote))) return null;
-      if (fact.kind === "requested") role = "request";
+      if (fact.kind === "requested") {
+        if (!/\b(?:find|determine|calculate|draw|show|sketch|plot|mark|does|lie|inside|outside)\b/i.test(fact.evidence.quote)) return null;
+        role = "request";
+      }
       binding.factBindings.push({ factId: fact.id, role });
     }
     // Every definition and residual source point has actual full-IR evidence.
@@ -303,7 +306,7 @@ export function bindCircleSourceProblem(question: string, raw: unknown): CircleP
     for (const expression of problem.expressions) {
       const request = problem.solveRequests.find(r => r.kind === "evaluate" && r.expressionId === expression.id);
       if (request) {
-        if (!request.resultBinding || request.kind !== "evaluate") return null;
+        if (!request.resultBinding || request.kind !== "evaluate" || expression.valueType !== "scalar") return null;
         const target = request.resultBinding, role = circleResultRole(target.symbol);
         if (!role || !source.asks.includes(role) || !circleRoleUnit(role, target.unit) || !sourceDefinition(expression.evidenceFactIds) || !requestedRole(role, target.evidenceFactIds)) return null;
         const equationsForExpression = evidenceEquations(expression.evidenceFactIds);
