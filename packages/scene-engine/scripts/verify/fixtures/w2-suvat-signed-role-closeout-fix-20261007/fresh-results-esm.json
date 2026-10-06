@@ -1,0 +1,90 @@
+[
+  {
+    "name": "original",
+    "admitted": "ok",
+    "reason": null,
+    "compile": true,
+    "selected": "exact_verified",
+    "marks": 14,
+    "apiStatus": "verified",
+    "bindings": [
+      {
+        "id": "a",
+        "symbol": "a",
+        "value": 2
+      },
+      {
+        "id": "s",
+        "symbol": "s",
+        "value": -15
+      }
+    ],
+    "unchanged": true
+  },
+  {
+    "name": "contradictory-initial-direction",
+    "admitted": "ok",
+    "reason": null,
+    "compile": true,
+    "selected": "exact_verified",
+    "marks": 14,
+    "apiStatus": "verified",
+    "bindings": [
+      {
+        "id": "a",
+        "symbol": "a",
+        "value": 2
+      },
+      {
+        "id": "s",
+        "symbol": "s",
+        "value": -15
+      }
+    ],
+    "unchanged": true
+  },
+  {
+    "name": "negative-distance-requested-fact",
+    "admitted": "ok",
+    "reason": null,
+    "compile": true,
+    "selected": "exact_verified",
+    "marks": 14,
+    "apiStatus": "verified",
+    "bindings": [
+      {
+        "id": "a",
+        "symbol": "a",
+        "value": 2
+      },
+      {
+        "id": "s",
+        "symbol": "s",
+        "value": -15
+      }
+    ],
+    "unchanged": true
+  },
+  {
+    "name": "negative-distance-plan-role",
+    "admitted": "ok",
+    "reason": null,
+    "compile": true,
+    "selected": "exact_verified",
+    "marks": 14,
+    "apiStatus": "verified",
+    "bindings": [
+      {
+        "id": "a",
+        "symbol": "a",
+        "value": 2
+      },
+      {
+        "id": "s",
+        "symbol": "distance",
+        "value": -15
+      }
+    ],
+    "unchanged": true
+  }
+]

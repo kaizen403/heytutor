@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    "baseUrl": "../../../../../..",
+    "paths": {
+      "@/*": [
+        "apps/tutor/*"
+      ],
+      "@heytutor/scene-engine": [
+        "packages/scene-engine/dist/index.js"
+      ],
+      "@heytutor/tutor-core": [
+        "packages/tutor-core/dist/index.js"
+      ],
+      "@heytutor/drawing": [
+        "packages/drawing/dist/index.js"
+      ],
+      "@heytutor/design-tokens": [
+        "packages/design-tokens/src/index.ts"
+      ],
+      "@heytutor/whiteboard": [
+        "packages/whiteboard/dist/index.js"
+      ],
+      "@heytutor/whiteboard/pen-spinner": [
+        "packages/whiteboard/dist/pen-spinner.js"
+      ]
+    },
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "strict": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "noEmit": true,
+    "typeRoots": [
+      "../../../../../../apps/tutor/node_modules/@types"
+    ],
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "../../verify-w2-suvat-signed-role-closeout-fix-20261007.ts"
+  ]
+}

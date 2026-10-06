@@ -6,13 +6,21 @@ import { constantAccelerationSourceProgram, normalized, siValue, type SuvatRole 
 import { expressionToSafeSource, validateProblemIR, type ExpressionNodeIR, type ProblemIR } from "./problemIR";
 import { parseSuvatProofExpression } from "./suvatProofExpression";
 import { parseMathExpression } from "../math/expression";
-import { readSuvatSource, suvatAstKey, type SuvatSource } from "./suvatSource";
+import { readSuvatSource, suvatAstKey, suvatSemantic, type SuvatSemantic, type SuvatSource } from "./suvatSource";
 import type { SceneDocument, SceneIssue } from "../types";
 
 const dimensions = {u:"speed",v:"speed",a:"accel",t:"time",s:"length"} as const;
 const aliases: Record<SuvatRole,string[]> = {u:["u","v0","initialvelocity","initialspeed"],v:["v","vf","finalvelocity","finalspeed"],a:["a","acceleration","deceleration"],t:["t","time","duration"],s:["s","d","distance","displacement"]};
 const key=(text:string) => normalized(text).replace(/[^a-z0-9]/g,"");
 const roleOf=(row:{id:string;symbol:string}):SuvatRole|undefined => (Object.keys(aliases) as SuvatRole[]).find(role=>aliases[role].includes(key(row.symbol)) && (aliases[role].includes(key(row.id)) || row.id.length>0));
+const namedSemantics: Record<string,SuvatSemantic> = {initialvelocity:"velocity",finalvelocity:"velocity",initialspeed:"speed",finalspeed:"speed",distance:"distance",displacement:"displacement"};
+function auditQuantitySemantics(source:SuvatSource,row:{id:string;symbol:string},role:SuvatRole,requested:boolean):void {
+  for(const name of [row.id,row.symbol]){
+    const semantic=namedSemantics[key(name)];if(!semantic)continue;
+    if((semantic==="speed"||semantic==="distance")&&source.state[role]<0)fail("Plan magnitude name borrows a negative signed role");
+    if(requested && !source.asks.some(ask=>ask.role===role&&ask.semantic===semantic))fail("Plan semantic name disagrees with source query");
+  }
+}
 function fail(message:string):never {throw new Error(message);}
 const close=(a:number,b:number) => Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)<=1e-9*Math.max(1,Math.abs(a),Math.abs(b));
 const fields=(row:object,allowed:string[]) => {if(Reflect.ownKeys(row).some(field=>typeof field!=="string"||!allowed.includes(field)))fail("uncovered caller own field");};
@@ -57,6 +65,7 @@ function auditPlan(source:SuvatSource,raw:unknown):TurnPlanV3 {
     for(const row of rows){
       fields(row,rows===plan.unknowns?["id","symbol","unit"]:["id","symbol","value","unit","sign","sourceText","provenance","dependsOn"]);
       const role=roleOf(row);if(!role||ids.has(row.id))fail("unbound or duplicate Plan role");ids.add(row.id);
+      auditQuantitySemantics(source,row,role,rows!==plan.givens);
       if(rowRoles.has(row.id)&&rowRoles.get(row.id)!==role)fail("conflicting Plan role identity");rowRoles.set(row.id,role);
       if(rows===plan.unknowns){
         if(!source.asks.some(ask=>ask.role===role))fail("foreign or extra Plan query");
@@ -81,6 +90,7 @@ function auditPlan(source:SuvatSource,raw:unknown):TurnPlanV3 {
   if(Object.keys(source.roles).some(role=>plan.givens.filter(row=>roleOf(row)===role).length!==1)||source.asks.some(ask=>plan.unknowns.filter(row=>roleOf(row)===ask.role).length!==1||plan.derived.filter(row=>roleOf(row)===ask.role).length!==1))fail("Plan omits or duplicates source givens/queries");
   if(plan.givens.some(row=>plan.unknowns.some(unknown=>unknown.id===row.id)))fail("given/request identity overlaps");
   for(const assumption of plan.assumptions){
+    if(assumption==="initial direction taken as positive" && (source.state.u<0 || source.state.u===0&&source.state.v<0))fail("positive initial convention contradicts current source frame");
     if(assumption!=="A verified illustration is required by the question's spatial or explicit visual request." && !/^(?:uniform \(constant\) acceleration|constant acceleration|uniform acceleration|straight-line motion|initial direction taken as positive)$/.test(assumption))fail("uncovered modelling assumption");
   }
   const laws=new Set(["kinematics_uniform_acceleration","v=u+at","s=(u+v)t/2","s=ut+at^2/2","constant_acceleration"]);
@@ -91,6 +101,7 @@ function auditPlan(source:SuvatSource,raw:unknown):TurnPlanV3 {
     const acceleration=/^Acceleration is opposite to motion \(deceleration of magnitude ([\d.]+) m\/s\^2\)\.$/.exec(claim.claim);
     const distance=/^(?:Braking distance equals average velocity times time\.|Distance equals average velocity times time under uniform acceleration\.)$/.test(claim.claim);
     const role=acceleration?"a":distance?"s":null;
+    if(distance&&source.state.s<0)fail("distance claim borrows negative displacement");
     if(!role||!claim.relatedQuantityIds.some(id=>rowRoles.get(id)===role)||acceleration&&(!close(Number(acceleration[1]),Math.abs(source.state.a))||source.state.a*source.state.u>=0))fail("unproved qualitative statement");
     if(typeof claim.expected!=="string")fail("claim requires a complete proved expected expression");
     const expected=claim.expected.replace(/\s*m\/s\^2\s*$/," ").replace(/\s*m\s*$/," ").trim();
@@ -126,6 +137,7 @@ export function suvatGivenIsSourceOwned(question:string,row:unknown):boolean {
     const reading=readSuvatSource(question);if(reading.status!=="ok")return false;
     const captured=snapshotMathSourceData(row) as TurnPlanV3["givens"][number];
     const role=roleOf(captured);const span=role?reading.source.roles[role]:null;
+    if(role)auditQuantitySemantics(reading.source,captured,role,false);
     return Boolean(role&&span&&captured.provenance==="given"&&captured.sourceText&&normalized(question).includes(normalized(captured.sourceText))&&normalized(captured.sourceText).includes(normalized(span.quote))&&close(siValue(captured,dimensions[role])??NaN,reading.source.state[role]));
   }catch{return false;}
 }
@@ -151,7 +163,7 @@ export function admitSuvatCaller(question:string,rawProblem:unknown,rawPlan:unkn
         const matched=/^(?:find |calculate |determine )?(acceleration|deceleration|distance|displacement|final velocity|final speed|time)(?: travelled while braking| travelled| covered| taken)?$/.exec(statement);
         role=matched?({acceleration:"a",deceleration:"a",distance:"s",displacement:"s","final velocity":"v","final speed":"v",time:"t"} as Record<string,SuvatRole>)[matched[1]!]:undefined;
         const ask=source.asks.find(ask=>ask.role===role);
-        if(!ask||!covers(fact.evidence,ask.evidence))fail("requested fact does not bind source query");
+        if(!ask||!matched||suvatSemantic(matched[1]!)!==ask.semantic||!covers(fact.evidence,ask.evidence))fail("requested fact does not bind source query");
       }else if(/^(?:uniform braking|uniform acceleration|constant acceleration|uniform deceleration)$/.test(statement)){
         role="condition";if(!covers(fact.evidence,source.condition))fail("condition evidence is not explicit source condition");
       }else{
@@ -159,6 +171,8 @@ export function admitSuvatCaller(question:string,rawProblem:unknown,rawPlan:unkn
         if(!match||fact.kind!=="given")fail("unbound given fact statement");
         role=match[1]!.startsWith("initial")?"u":match[1]!.startsWith("final")?"v":/time|duration/.test(match[1]!)?"t":/acceleration|deceleration/.test(match[1]!)?"a":"s";
         const span=source.roles[role];
+        const semantic=suvatSemantic(match[1]!);
+        if((semantic==="speed"||semantic==="distance")&&source.state[role]<0)fail("fact magnitude name borrows a negative signed role");
         const rhs=match[2]!.replace(/\s*\(rest\)$/,"");
         const value=/^([-+]?\d+(?:\.\d+)?)\s*(.*)$/.exec(rhs);
         const expected=value?siValue({id:role,symbol:role,value:Number(value[1]),unit:value[2]|| (role==="u"||role==="v"?"m/s":"")},dimensions[role]):null;

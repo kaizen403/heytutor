@@ -1,0 +1,47 @@
+{
+  "base": "0b5f5171702822e7649b413af1e353ae73ed814e",
+  "parentReport": "/Users/kaizen/heytutor-claude-coord/reviews/w2-suvat-parent-closeout-review-20261006/REPORT.md",
+  "unchangedParentCopies": [
+    {
+      "file": "contradictory-initial-direction.json",
+      "sha256": "f1e1b2921e0d46919fd595e92ffb94a2f00cd61f416fcf8b1118584719c60e5f",
+      "parentPath": "/Users/kaizen/heytutor-claude-coord/reviews/w2-suvat-parent-closeout-review-20261006/contradictory-initial-direction.json"
+    },
+    {
+      "file": "fresh-results-esm.json",
+      "sha256": "ffe290648108097118d655b78d7231defeb6923104f7ab4906295b31bc8b3411",
+      "parentPath": "/Users/kaizen/heytutor-claude-coord/reviews/w2-suvat-parent-closeout-review-20261006/fresh-results-esm.json"
+    },
+    {
+      "file": "fresh-results-source.json",
+      "sha256": "ffe290648108097118d655b78d7231defeb6923104f7ab4906295b31bc8b3411",
+      "parentPath": "/Users/kaizen/heytutor-claude-coord/reviews/w2-suvat-parent-closeout-review-20261006/fresh-results-source.json"
+    },
+    {
+      "file": "fresh.mts",
+      "sha256": "0b67ca5e47dc9e3886197639889b79fc8b91a0564995912399ebafd298c53ac3",
+      "parentPath": "/Users/kaizen/heytutor-claude-coord/reviews/w2-suvat-parent-closeout-review-20261006/fresh.mts"
+    },
+    {
+      "file": "negative-distance-plan-role.json",
+      "sha256": "c81d08ee30bbc1d6d99acdd786f77f77254f6b2a7c6e0973bd0aecf3ce0cb53f",
+      "parentPath": "/Users/kaizen/heytutor-claude-coord/reviews/w2-suvat-parent-closeout-review-20261006/negative-distance-plan-role.json"
+    },
+    {
+      "file": "negative-distance-requested-fact.json",
+      "sha256": "cc39920c23b8d1aab32dcbf2241b02a51c70b4921466f224cf020f1f3ff8cdc3",
+      "parentPath": "/Users/kaizen/heytutor-claude-coord/reviews/w2-suvat-parent-closeout-review-20261006/negative-distance-requested-fact.json"
+    },
+    {
+      "file": "original-ir.json",
+      "sha256": "877e628050cb03463a888db30b12f01e5d68302eeff3fd798933656b62f3738a",
+      "parentPath": "/Users/kaizen/heytutor-claude-coord/reviews/w2-suvat-parent-closeout-review-20261006/original-ir.json"
+    },
+    {
+      "file": "original.json",
+      "sha256": "936a1df16a783f17e304605a135bbdf3f572d7fcd8a1792a486fa64b8e42cd55",
+      "parentPath": "/Users/kaizen/heytutor-claude-coord/reviews/w2-suvat-parent-closeout-review-20261006/original.json"
+    }
+  ],
+  "lockfileSHA256": "a2f9c3fffb1ea3d1cfb646808820afaf9ef807e092bee11bf4acfd5f48cd5427"
+}

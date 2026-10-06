@@ -1,0 +1,306 @@
+{
+  "name": "negative-axis",
+  "q": "A car accelerates uniformly from -8 m/s to -2 m/s in 3 s. Find its acceleration and displacement.",
+  "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "A car accelerates uniformly from -8 m/s to -2 m/s in 3 s. Find its acceleration and displacement.",
+    "givens": [
+      {
+        "id": "u",
+        "symbol": "u",
+        "value": -8,
+        "unit": "m/s",
+        "provenance": "given",
+        "sourceText": "-8 m/s"
+      },
+      {
+        "id": "v",
+        "symbol": "v",
+        "value": -2,
+        "unit": "m/s",
+        "provenance": "given",
+        "sourceText": "-2 m/s"
+      },
+      {
+        "id": "t",
+        "symbol": "t",
+        "value": 3,
+        "unit": "s",
+        "provenance": "given",
+        "sourceText": "3 s"
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "a",
+        "symbol": "a",
+        "unit": "m/s^2"
+      },
+      {
+        "id": "s",
+        "symbol": "s",
+        "unit": "m"
+      }
+    ],
+    "derived": [
+      {
+        "id": "a",
+        "symbol": "a",
+        "value": 2,
+        "unit": "m/s^2",
+        "provenance": "derived",
+        "sourceText": "a=(v-u)/t=(-2--8)/3=2",
+        "dependsOn": [
+          "u",
+          "v",
+          "t"
+        ]
+      },
+      {
+        "id": "s",
+        "symbol": "s",
+        "value": -15,
+        "unit": "m",
+        "provenance": "derived",
+        "sourceText": "s=(u+v)t/2=(-8+-2)*3/2=-15",
+        "dependsOn": [
+          "u",
+          "v",
+          "t"
+        ]
+      }
+    ],
+    "qualitativeClaims": [],
+    "lawIds": [
+      "kinematics_uniform_acceleration",
+      "v=u+at",
+      "s=(u+v)t/2"
+    ],
+    "assumptions": [
+      "uniform (constant) acceleration",
+      "straight-line motion"
+    ],
+    "visualRequirement": "optional"
+  },
+  "ir": {
+    "facts": [
+      {
+        "id": "fU",
+        "kind": "given",
+        "statement": "initial velocity -8 m/s",
+        "evidence": {
+          "source": "question",
+          "start": 28,
+          "end": 39,
+          "quote": "from -8 m/s"
+        }
+      },
+      {
+        "id": "fV",
+        "kind": "given",
+        "statement": "final velocity -2 m/s",
+        "evidence": {
+          "source": "question",
+          "start": 40,
+          "end": 49,
+          "quote": "to -2 m/s"
+        }
+      },
+      {
+        "id": "fT",
+        "kind": "given",
+        "statement": "time 3 s",
+        "evidence": {
+          "source": "question",
+          "start": 50,
+          "end": 56,
+          "quote": "in 3 s"
+        }
+      },
+      {
+        "id": "fUniform",
+        "kind": "given",
+        "statement": "uniform acceleration",
+        "evidence": {
+          "source": "question",
+          "start": 6,
+          "end": 27,
+          "quote": "accelerates uniformly"
+        }
+      },
+      {
+        "id": "fReqA",
+        "kind": "requested",
+        "statement": "find acceleration",
+        "evidence": {
+          "source": "question",
+          "start": 58,
+          "end": 79,
+          "quote": "Find its acceleration"
+        }
+      },
+      {
+        "id": "fReqS",
+        "kind": "requested",
+        "statement": "find displacement",
+        "evidence": {
+          "source": "question",
+          "start": 84,
+          "end": 96,
+          "quote": "displacement"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "car",
+        "kind": "body",
+        "label": "car",
+        "evidenceFactIds": [
+          "fU",
+          "fV",
+          "fT"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eA",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fU",
+          "fV",
+          "fT"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "unary",
+              "operator": "-",
+              "operand": {
+                "kind": "number",
+                "value": 2
+              }
+            },
+            "right": {
+              "kind": "unary",
+              "operator": "-",
+              "operand": {
+                "kind": "number",
+                "value": 8
+              }
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 3
+          }
+        }
+      },
+      {
+        "id": "eS",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fU",
+          "fV",
+          "fT"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "unary",
+                "operator": "-",
+                "operand": {
+                  "kind": "number",
+                  "value": 8
+                }
+              },
+              "right": {
+                "kind": "unary",
+                "operator": "-",
+                "operand": {
+                  "kind": "number",
+                  "value": 2
+                }
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 3
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 2
+          }
+        }
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "iMotion",
+        "kind": "conceptual",
+        "entityIds": [
+          "car"
+        ],
+        "evidenceFactIds": [
+          "fU",
+          "fV",
+          "fT",
+          "fUniform"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sA",
+        "kind": "evaluate",
+        "expressionId": "eA",
+        "resultBinding": {
+          "turnPlanQuantityId": "a",
+          "symbol": "a",
+          "unit": "m/s^2",
+          "evidenceFactIds": [
+            "fReqA"
+          ]
+        }
+      },
+      {
+        "id": "sS",
+        "kind": "evaluate",
+        "expressionId": "eS",
+        "resultBinding": {
+          "turnPlanQuantityId": "s",
+          "symbol": "s",
+          "unit": "m",
+          "evidenceFactIds": [
+            "fReqS"
+          ]
+        }
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "A car accelerates uniformly from -8 m/s to -2 m/s in 3 s. Find its acceleration and displacement."
+  },
+  "content": "{\"facts\":[{\"id\":\"fU\",\"kind\":\"given\",\"statement\":\"initial velocity -8 m/s\",\"quote\":\"from -8 m/s\"},{\"id\":\"fV\",\"kind\":\"given\",\"statement\":\"final velocity -2 m/s\",\"quote\":\"to -2 m/s\"},{\"id\":\"fT\",\"kind\":\"given\",\"statement\":\"time 3 s\",\"quote\":\"in 3 s\"},{\"id\":\"fUniform\",\"kind\":\"given\",\"statement\":\"uniform acceleration\",\"quote\":\"accelerates uniformly\"},{\"id\":\"fReqA\",\"kind\":\"requested\",\"statement\":\"find acceleration\",\"quote\":\"Find its acceleration\"},{\"id\":\"fReqS\",\"kind\":\"requested\",\"statement\":\"find displacement\",\"quote\":\"displacement\"}],\"entities\":[{\"id\":\"car\",\"kind\":\"body\",\"label\":\"car\",\"evidenceFactIds\":[\"fU\",\"fV\",\"fT\"]}],\"expressions\":[{\"id\":\"eA\",\"valueType\":\"scalar\",\"expr\":\"(-2--8)/3\",\"evidenceFactIds\":[\"fU\",\"fV\",\"fT\"]},{\"id\":\"eS\",\"valueType\":\"scalar\",\"expr\":\"(-8+-2)*3/2\",\"evidenceFactIds\":[\"fU\",\"fV\",\"fT\"]}],\"constraints\":[],\"representationIntents\":[{\"id\":\"iMotion\",\"kind\":\"conceptual\",\"entityIds\":[\"car\"],\"evidenceFactIds\":[\"fU\",\"fV\",\"fT\",\"fUniform\"]}],\"solveRequests\":[{\"id\":\"sA\",\"kind\":\"evaluate\",\"expressionId\":\"eA\",\"resultBinding\":{\"turnPlanQuantityId\":\"a\",\"symbol\":\"a\",\"unit\":\"m/s^2\",\"evidenceFactIds\":[\"fReqA\"]}},{\"id\":\"sS\",\"kind\":\"evaluate\",\"expressionId\":\"eS\",\"resultBinding\":{\"turnPlanQuantityId\":\"s\",\"symbol\":\"s\",\"unit\":\"m\",\"evidenceFactIds\":[\"fReqS\"]}}]}",
+  "expected": {
+    "u": -8,
+    "v": -2,
+    "a": 2,
+    "t": 3,
+    "s": -15
+  }
+}

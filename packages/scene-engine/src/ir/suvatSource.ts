@@ -3,13 +3,16 @@ import { normalized, tokens, stemKnowns, suvatSlots, resolveConstantAcceleration
   type SuvatRole, type SuvatState } from "../archetypes/generators/constantAcceleration";
 import type { ExpressionNodeIR, QuestionSourceEvidence } from "./problemIR";
 
+export type SuvatSemantic = "velocity" | "speed" | "displacement" | "distance" | "acceleration" | "time";
+export const suvatSemantic = (name: string): SuvatSemantic => name.includes("speed") ? "speed" : name.includes("velocity") ? "velocity" : name === "distance" ? "distance" : name === "displacement" ? "displacement" : name === "time" || name === "duration" || name === "braking time" ? "time" : "acceleration";
+
 export interface SuvatSource {
   question: string;
   actor: string;
   state: SuvatState;
   roles: Partial<Record<SuvatRole, QuestionSourceEvidence>>;
   condition: QuestionSourceEvidence;
-  asks: Array<{role: SuvatRole; evidence: QuestionSourceEvidence}>;
+  asks: Array<{role: SuvatRole; semantic: SuvatSemantic; evidence: QuestionSourceEvidence}>;
   formulas: Record<SuvatRole, ExpressionNodeIR[]>;
 }
 export type SuvatReading = {status: "none"} | {status: "declined"; reason: string} | {status: "ok"; source: SuvatSource};
@@ -62,6 +65,12 @@ export function readSuvatSource(question: string): SuvatReading {
     }
     if(!role || sourceRoles[role] || slots.knowns[role] === undefined) return decline("unbound source quantity");
     if (role !== "a" && Math.abs(slots.knowns[role]! - row.token.value) > 1e-9) return decline("source speed role conflicts with its rest condition");
+    // Existing source lexemes specify magnitudes; they never license a
+    // negative speed/distance by borrowing velocity/displacement coordinates.
+    const priorEnd = sourceTokens.filter(prior => prior && prior.span.end <= row.span.start).at(-1)?.span.end ?? 0;
+    const names = normalized(statement.slice(priorEnd,row.span.start)).match(/\b(?:speed|velocity|distance|displacement)\b/g);
+    const semantic = names?.at(-1);
+    if(row.token.value < 0 && (semantic === "speed" || semantic === "distance")) return decline("negative source magnitude is physically invalid");
     sourceRoles[role]=row.span;
   }
   for (const [role, pattern] of [["u",STARTS_AT_REST],["v",ENDS_AT_REST]] as const) {
@@ -81,12 +90,12 @@ export function readSuvatSource(question: string): SuvatReading {
   for(const match of query.matchAll(/\b(?:acceleration|deceleration|retardation|distance|displacement|time|duration|velocity|speed)\b/gi)) {
     const role = wordRoles[match[0].toLowerCase()]!;
     if(asks.some(ask=>ask.role===role) || sourceRoles[role]) return decline("duplicate query or query of a stated role");
-    asks.push({role,evidence:evidence(question,split.index+match.index!,split.index+match.index!+match[0].length)});
+    asks.push({role,semantic:suvatSemantic(match[0].toLowerCase()),evidence:evidence(question,split.index+match.index!,split.index+match.index!+match[0].length)});
   }
   let queryResidual=query.toLowerCase().replace(/\b(?:acceleration|deceleration|retardation|distance|displacement|time|duration|velocity|speed)\b/g," ");
   queryResidual=queryResidual.replace(/\b(?:find|calculate|determine|compute|its|the|and|travelled|traveled|covered|covers|while|during|braking|this|time|interval|final|taken|to|stop|it|in|total)\b/g," ");
   if(!asks.length || /[a-z0-9=]/.test(queryResidual))return decline("unconsumed source query");
-  if (solve.state.s < 0 && asks.some(ask => ask.role === "s" && /distance/i.test(ask.evidence.quote))) return decline("signed displacement is not distance");
+  if (asks.some(ask => (ask.semantic === "distance" || ask.semantic === "speed") && solve.state[ask.role] < 0)) return decline("signed source result is not a nonnegative magnitude");
   const known=stemKnowns(question);
   const formulas = Object.fromEntries(roles.map(role=>[role,known[role] === undefined ? [] : [number(known[role]!)] ])) as Record<SuvatRole,ExpressionNodeIR[]>;
   const n=(role:SuvatRole) => formulas[role][0]!;
