@@ -69,7 +69,12 @@ function binary(op: string, a: CirclePolynomial, b: CirclePolynomial): CirclePol
   if (op === "*") return multiplyPolynomial(a, b);
   if (b.size > 1 || [...b.keys()].some(key => key !== "0,0")) throw new Error("nonconstant divisor/exponent");
   const v = coefficient(b, 0, 0);
-  if (op === "/") return new Map([...a].map(([key, value]) => [key, divide(value, v)]));
+  if (op === "/") {
+    // Zero polynomials have no coefficients to iterate. Their divisor still
+    // has to define a value before any cancellation can certify identity.
+    if (!v.n) throw new Error("zero polynomial divisor");
+    return new Map([...a].map(([key, value]) => [key, divide(value, v)]));
+  }
   if (op !== "^" || v.d !== 1n || v.n < 0n || v.n > 2n) throw new Error("unsupported power");
   return v.n === 0n ? constant(exact(1n)) : v.n === 1n ? a : multiplyPolynomial(a, a);
 }

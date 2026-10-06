@@ -13,11 +13,17 @@ import type { SceneDocument, SceneIssue } from "../types";
 
 /** Re-establish the actual caller's whole-IR authority at each scene boundary. */
 export function validateSceneSourceAuthority(document: SceneDocument, question: string, rawProblem?: unknown): SceneIssue[] {
+  const circleReading = readCircleSourceProgram(question);
+  if (circleReading.status === "declined") return [{
+    code: "circle_source_declined", severity: "fatal",
+    message: `Whole Cartesian circle source is unsupported: ${circleReading.reason}`,
+    path: "sourceAuthority.question",
+  }];
   const issues = [
     ...validateOpticalConjugateSource(document, question, rawProblem),
     ...validatePointLineProgramSource(document, question, rawProblem),
     ...validateSectionFormulaProblemSource(document,question,rawProblem),
-    ...(readCircleSourceProgram(question).status==="ok" ? checkCircleSourceProblemBinding(question,rawProblem,document):[]),
+    ...(circleReading.status==="ok" ? checkCircleSourceProblemBinding(question,rawProblem,document):[]),
     ...validateStaticContactTriangleSource(document, question, rawProblem),
     ...(readStatedCircuitProblemSource(question) ? checkStatedCircuitProblemBinding(question, rawProblem, document) : []),
   ];

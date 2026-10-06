@@ -167,6 +167,10 @@ function synthesizeFromFamilies(
 ): SynthesizedFamilyScene | null {
   const question = input.question.trim();
   if (!question) return null;
+  const circleReading = readCircleSourceProgram(question);
+  // A recognized whole circle cannot borrow a partial older family, even
+  // when that family would compile valid geometry for only some of the source.
+  if (circleReading.status === "declined") return null;
   const circleSource = extractCircleSource(question);
   if (circleSource?.kind === "invalid") return null;
   // A section stem that cannot be read whole, whose stated point disagrees
@@ -217,7 +221,7 @@ function synthesizeFromFamilies(
     if (!compiled || demandRejection(compiled.document,demand) || (obligations && visualObligationRejection(obligations,compiled.document,isFullProblemIRStructure(input.problemIR)?input.problemIR:undefined))) return null;
     return {...compiled,tier:"question_representation",nonMetric:true,reason:"Source-bound Cartesian conjugates with explicitly paraxial principal rays.",family:"ray_path"};
   }
-  if (readCircleSourceProgram(question).status==="ok") {
+  if (circleReading.status==="ok") {
     const document=circleSourceDocument(question,input.problemIR);
     const compiled=document?tryCompile(document,{sourceAuthority:{question,problemIR:input.problemIR}}):null;
     if (!compiled || demandRejection(compiled.document,demand) || (obligations && visualObligationRejection(obligations,compiled.document,isFullProblemIRStructure(input.problemIR)?input.problemIR:undefined))) return null;
