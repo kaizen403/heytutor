@@ -28,7 +28,7 @@ import {
 } from "../labels/labelEngine";
 // The engine reserves the room the board will letter into, so it measures with
 // the board's own glyph metrics rather than an average character box.
-import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
+import { boardFontSize, nextSmallerBoardFontSize, measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
@@ -732,8 +732,13 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     const obstacles = [...obstaclesFromPrimitives(primitives.filter(primitive => !polynomialLabels.includes(primitive))), workColumnObstacle()];
     const layout = (fontPx: number) => placeLabels(owners, obstacles, {fontHeightPx: fontPx, maxLabelChars: 100,
       measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk});
-    let fontPx = 24, labels = layout(fontPx);
-    while (!labels.ok && fontPx > 12) labels = layout(--fontPx);
+    let fontPx = boardFontSize("label"), labels = layout(fontPx);
+    while (!labels.ok) {
+      const smaller = nextSmallerBoardFontSize(fontPx);
+      if (smaller === null) break;
+      fontPx = smaller;
+      labels = layout(fontPx);
+    }
     for (const issue of labels.issues) {
       const primitive = polynomialLabels.find(primitive => primitive.id === issue.entityId);
       issues.push({code: issue.code, message: issue.message, severity: "fatal", entityIds: primitive ? [primitive.entityId] : []});

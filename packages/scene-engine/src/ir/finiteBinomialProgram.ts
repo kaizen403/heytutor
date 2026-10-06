@@ -39,11 +39,11 @@ export function readFiniteBinomialProgram(question: string): FiniteBinomialReadi
     const body = question.trim().replace(/^\d+\.\s+/, "");
     const layoutOCR = body.includes("𝑥𝑥");
     let expressionSource: string, requestSource: string, request: FiniteBinomialRequest;
-    const expansion = /^Expand\s+([\s\S]+?)\.?$/i.exec(body);
+    const expansion = /^Expand\s+([\s\S]+?)\.?$/id.exec(body);
     if (expansion) {
-      expressionSource = expansion[1]!.trim(); requestSource = body.slice(0, body.indexOf(expressionSource)).trim(); request = { kind: "expansion" };
+      expressionSource = expansion[1]!.trim(); requestSource = body.slice(0, expansion.indices![1]![0]).trim(); request = { kind: "expansion" };
     } else {
-      const coefficient = /^(?:Find\s+the\s+)?Coefficient\s+of\s+(.+?)\s+in\s+(?:the\s+)?expansion\s+of\s+([\s\S]+)$/i.exec(body);
+      const coefficient = /^(?:Find\s+the\s+)?Coefficient\s+of\s+(.+?)\s+in\s+(?:the\s+)?expansion\s+of\s+([\s\S]+)$/id.exec(body);
       if (!coefficient) throw new Error("unsupported finite polynomial request grammar");
       const tail = coefficient[2]!;
       const ended = /^([\s\S]+?)\s+is(?:\s*\.?\s*)?([\s\S]*)$/i.exec(tail);
@@ -54,7 +54,8 @@ export function readFiniteBinomialProgram(question: string): FiniteBinomialReadi
         if (!/^(?:\([A-D]\)\s+[+-]?\d+(?:\.\d+)?\s*){4}(?:Answer\s+\([A-D]\))?$/i.test(options)
           || [...options.matchAll(/\(([A-D])\)\s+[+-]?\d/gi)].map(m => m[1]!.toUpperCase()).join("") !== "ABCD") throw new Error("unconsumed source options or obligations");
       }
-      requestSource = body.slice(0, body.indexOf(expressionSource)).trim();
+      // The requested monomial may also be the entire polynomial payload.
+      requestSource = body.slice(0, coefficient.indices![2]![0]).trim();
       const target = expandFinitePolynomial(parseFinitePolynomialExpression(normalizeMath(coefficient[1]!, layoutOCR)));
       const nonzero = target.terms.filter(term => term.coefficient.numerator !== "0");
       if (nonzero.length !== 1 || exactPolynomialText(nonzero[0]!.coefficient) !== "1") throw new Error("coefficient request needs one unit monomial");
