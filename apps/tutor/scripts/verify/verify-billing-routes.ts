@@ -31,7 +31,7 @@ const chat = read("app/api/chat/route.ts");
 assert(chat.includes("recordLlmSpend"), "chat must track llm_tokens after usage");
 assert(chat.includes("holdGrantUntilStreamEnds(grant, grantTraceId, holdPaidUsage(tracedBody, reservation,"),
   "chat must retain its trace and paid reservation until stream completion");
-assert(chat.includes("singleAttemptCost * attemptCount), releaseInUse)"),
+assert(chat.includes("holdPaidUsage(tracedBody, reservation, attemptedCost), releaseInUse)"),
   "the teaching stream must share the grant release with client abort");
 assert(chat.includes("releaseInUseWhenClientLeaves(request.signal, releaseInUse)"),
   "a disconnected chat must drop inUse before the upstream call returns");
