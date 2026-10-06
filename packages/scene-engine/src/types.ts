@@ -188,7 +188,7 @@ export interface ValidationResult {
 
 export interface CompileOptions {
   /** Actual caller-owned question/IR, never recovered from document markers. */
-  sourceAuthority?: { question: string; problemIR: unknown };
+  sourceAuthority?: { question: string; problemIR: unknown; turnPlan?: unknown };
   viewport?: { x: number; y: number; width: number; height: number; padding?: number };
   /**
    * Ink measure for label collision boxes. Defaults to the shared exact

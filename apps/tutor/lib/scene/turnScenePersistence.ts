@@ -3,6 +3,7 @@ import {
   SCENE_ARTIFACTS_V3_VERSION,
   SCENE_ENGINE_VERSION,
   compileSceneDocument,
+  finiteBinomialSourceDocument,finiteProgressionSourceProgram,
   canonicalizeUniformCircularSourceDocument,
   pointLineFootOnlyDocumentIsBound,
   validateProblemIR,
@@ -127,11 +128,12 @@ export async function canonicalizeTurnSceneMetadata(
     const retryRequired = metadata.visualStatus === "retry_required";
     const plan = validatedOptionalTurnPlan(metadata.sceneArtifacts, question);
     const degradation = validatedDegradation(metadata.sceneArtifacts);
+    const rejection = validatedProblemIRRejection(metadata.sceneArtifacts,question);
     // A doubt is saved text-only, and without this its marker went with the
     // rest of the artifacts: replay and restore then treated it as a page of
     // its own and dropped the lesson's figure under it.
     const continuation = boardContinuationOf(metadata.sceneArtifacts);
-    const baseArtifacts = retryRequired || degradation || codeLesson || continuation
+    const baseArtifacts = retryRequired || degradation || codeLesson || continuation || rejection
       ? minimalFailureArtifacts(
           plan,
           retryRequired ? "retry_required" : "text_only",
@@ -148,6 +150,7 @@ export async function canonicalizeTurnSceneMetadata(
         sceneArtifacts: baseArtifacts
           ? {
               ...baseArtifacts,
+              ...(rejection ? {problemIRRejection:rejection} : {}),
               ...(codeLesson ? { codeLesson } : {}),
               ...(continuation ? { boardContinuation: continuation } : {}),
             }
@@ -168,7 +171,13 @@ export async function canonicalizeTurnSceneMetadata(
   }
   const tier = metadata.sceneArtifacts.representationTier;
   if (!isRepresentationTier(tier)) return failure("validated scene has an invalid representation tier");
-  const nonMetric = tier !== "exact_verified";
+  const actualPlan=validateTurnPlanV3(metadata.sceneArtifacts.turnPlan,question).plan;
+  const finitePolynomial=finiteBinomialSourceDocument(question,metadata.sceneArtifacts.problemIR);
+  const finiteProgression=finiteProgressionSourceProgram(question,metadata.sceneArtifacts.problemIR,actualPlan);
+  // Exact numeric tables have no geometric metric. Their complete original
+  // source programs, followed by the raw candidate proof below, establish this.
+  const nonMetric = tier !== "exact_verified" || !!finitePolynomial || finiteProgression.status==="ok";
+  const compileOptions={sourceAuthority:{question,problemIR:metadata.sceneArtifacts.problemIR,turnPlan:metadata.sceneArtifacts.turnPlan}};
   if (metadata.sceneArtifacts.nonMetric !== nonMetric) {
     return failure("representation tier and nonMetric flag disagree");
   }
@@ -189,7 +198,7 @@ export async function canonicalizeTurnSceneMetadata(
     // demanding a plan would mean re-deriving what the question already states.
     // Anything less than fully stem-grounded ("mixed", a display default, or a
     // document with no archetype provenance at all) still needs the plan.
-    const submitted = validateSceneDocument(metadata.sceneDocument);
+    const submitted = validateSceneDocument(metadata.sceneDocument,compileOptions);
     if (!submitted.document) {
       // A document that does not even parse is structurally invalid; saying it
       // has a bad plan would hide the real reason from the caller.
@@ -212,7 +221,7 @@ export async function canonicalizeTurnSceneMetadata(
     // save. Trust is re-established by validating and compiling the submitted
     // document; intro ink below is regenerated from this server compile,
     // never from the browser's trusted-geometry payload.
-    const structural = validateSceneDocument(metadata.sceneDocument);
+    const structural = validateSceneDocument(metadata.sceneDocument,compileOptions);
     if (!structural.document) {
       return failure(`accepted representation is structurally invalid: ${formatIssues(structural.report.issues)}`);
     }
@@ -236,7 +245,7 @@ export async function canonicalizeTurnSceneMetadata(
     // the code panel and diverge replay from the taught scene.
     const compiled = compileSceneDocument(
       document,
-      { ...(isDsaSceneDocument(document) ? { viewport: DSA_DIAGRAM_ZONE } : {}), sourceAuthority: { question, problemIR: metadata.sceneArtifacts.problemIR } },
+      { ...(isDsaSceneDocument(document) ? { viewport: DSA_DIAGRAM_ZONE } : {}), sourceAuthority: { question, problemIR: metadata.sceneArtifacts.problemIR, turnPlan:metadata.sceneArtifacts.turnPlan } },
     );
     if (!compiled.ok || !compiled.renderScene) {
       return failure(`accepted representation does not compile: ${formatIssues(compiled.report.issues)}`);
@@ -244,7 +253,7 @@ export async function canonicalizeTurnSceneMetadata(
     report = compiled.report;
     renderScene = compiled.renderScene;
   } else {
-    const structural = validateSceneDocument(metadata.sceneDocument);
+    const structural = validateSceneDocument(metadata.sceneDocument,compileOptions);
     if (!structural.document) {
       return failure(`exact scene is structurally invalid: ${formatIssues(structural.report.issues)}`);
     }
@@ -265,7 +274,7 @@ export async function canonicalizeTurnSceneMetadata(
       }
     }
     document = canonicalizeUniformCircularSourceDocument(document, question) ?? document;
-    const compiled = compileSceneDocument(document, { sourceAuthority: { question, problemIR: metadata.sceneArtifacts.problemIR } });
+    const compiled = compileSceneDocument(document, { sourceAuthority: { question, problemIR: metadata.sceneArtifacts.problemIR, turnPlan:metadata.sceneArtifacts.turnPlan } });
     if (!compiled.ok || !compiled.renderScene) {
       return failure(`exact scene does not compile: ${formatIssues(compiled.report.issues)}`);
     }
@@ -869,4 +878,17 @@ function failure(error: string): { ok: false; error: string } {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Retain refusal evidence only; it cannot authorize any saved diagram. */
+function validatedProblemIRRejection(artifacts:unknown,question:string):SceneArtifactsV3["problemIRRejection"]|undefined {
+ if(!isRecord(artifacts)||!isRecord(artifacts.problemIRRejection))return undefined;
+ const row=artifacts.problemIRRejection;
+ if(row.status!=="source_declined"||row.question!==question||typeof row.rawContent!=="string"||row.rawContent.length>200000
+  ||!Array.isArray(row.issueCodes)||!row.issueCodes.length||!row.issueCodes.every(code=>typeof code==="string"&&code.length<=128)
+  ||typeof row.elapsedMs!=="number"||!Number.isFinite(row.elapsedMs)||row.elapsedMs<0)return undefined;
+ try{
+  const raw=JSON.stringify(row.rawProblemIR);if(!raw||raw.length>200000)return undefined;
+  return {status:"source_declined",question,rawProblemIR:JSON.parse(raw),rawContent:row.rawContent,issueCodes:[...row.issueCodes],elapsedMs:row.elapsedMs};
+ }catch{return undefined;}
 }

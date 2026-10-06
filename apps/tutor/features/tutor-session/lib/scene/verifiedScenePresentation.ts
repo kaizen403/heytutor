@@ -1463,7 +1463,11 @@ function addLabel(
   x: number,
   y: number,
 ): void {
-  const text = compactDiagramLabel(primitive.text);
+  // An absolute engine label has already reserved its actual ink rectangle.
+  // Preserve its source-owned header/answer text instead of silently dropping
+  // required marks at the legacy compact-name limit.
+  const measuredAbsolute=primitive.kind==="label" && primitive.labelPlacement==="absolute" && labelBoundsFromProvenance(primitive.provenance)!==null;
+  const text=measuredAbsolute && typeof primitive.text==="string" && primitive.text.length>0 && primitive.text.length<=256?primitive.text:compactDiagramLabel(primitive.text);
   if (!text) return;
   const key = primitive.provenance?.matrixCell
     ? `${primitive.entityId}:cell:${primitive.id}`
@@ -1561,7 +1565,8 @@ function labelBoundsFromProvenance(
     typeof record.x !== "number" ||
     typeof record.y !== "number" ||
     typeof record.width !== "number" ||
-    typeof record.height !== "number"
+    typeof record.height !== "number" ||
+    ![record.x,record.y,record.width,record.height].every(Number.isFinite) || record.width <= 0 || record.height <= 0
   ) return null;
   const pad = typeof provenance?.labelPad === "number" ? provenance.labelPad : 4;
   return {

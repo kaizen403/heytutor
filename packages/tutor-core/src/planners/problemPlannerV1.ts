@@ -1,5 +1,6 @@
 import {
   LocalDeterministicSolverProvider,
+  readFiniteBinomialProgram,solveFiniteBinomialProblem,readScrewGaugeQuestion,SCREW_GAUGE_QUESTION_GUIDANCE,
   buildSolverAuthorityProjection,
   evaluateMathExpression,
   expressionToSafeSource,
@@ -41,6 +42,23 @@ export interface ProblemAuthorityV1Response {
   traceId?: string;
 }
 
+export interface ProblemAuthorityV1Decline {
+  status: "source_declined";
+  question: string;
+  rawProblemIR: unknown;
+  rawContent: string;
+  issueCodes: string[];
+  elapsedMs: number;
+}
+export type ProblemAuthorityV1Outcome = ProblemAuthorityV1Response | ProblemAuthorityV1Decline | null;
+
+/** Compatibility for benches consuming only successful solver responses.
+ * Live teaching uses the outcome API so a declined input cannot become absent. */
+export async function planAndSolveProblemV1(question:string,turnPlan:TurnPlanV3|null,options:ProblemPlannerV1Options):Promise<ProblemAuthorityV1Response|null>{
+ const outcome=await planProblemAuthorityV1(question,turnPlan,options);
+ return outcome && "status" in outcome ? null : outcome;
+}
+
 /**
  * Formulate the question as ProblemIR and solve it deterministically.
  *
@@ -50,11 +68,11 @@ export interface ProblemAuthorityV1Response {
  * quantity itself and the result must be joined with `bindProblemIRToTurnPlan`
  * before any audit. The live hook always passes a plan.
  */
-export async function planAndSolveProblemV1(
+export async function planProblemAuthorityV1(
   question: string,
   turnPlan: TurnPlanV3 | null,
   options: ProblemPlannerV1Options,
-): Promise<ProblemAuthorityV1Response | null> {
+): Promise<ProblemAuthorityV1Outcome> {
   const startedAt = Date.now();
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(
@@ -86,7 +104,7 @@ export async function planAndSolveProblemV1(
         temperature: 0,
         stream: false,
         messages: [
-          { role: "system", content: PROBLEM_IR_V1_PROMPT },
+          { role: "system", content: PROBLEM_IR_V1_PROMPT + (readScrewGaugeQuestion(question).status==="ok"?`\n${SCREW_GAUGE_QUESTION_GUIDANCE}`:"") },
           { role: "user", content: problemIRUserMessage(question, turnPlan) },
         ],
       }),
@@ -98,8 +116,21 @@ export async function planAndSolveProblemV1(
     const content = payload.choices?.[0]?.message?.content;
     if (typeof content !== "string") return null;
     const parsed = parseJsonObject(content);
-    const normalized = normalizeProblemIRModelOutput(parsed, question, turnPlan);
+    const polynomial=readFiniteBinomialProgram(question);
+    const sourceInput=polynomial.status==="ok"?liftCompactProblemIR(parsed,question):null;
+    const decline=(code:string):ProblemAuthorityV1Decline=>({status:"source_declined",question,
+      rawProblemIR:structuredClone(parsed),rawContent:content,issueCodes:[code],elapsedMs:Date.now()-startedAt});
+    // Syntax lifting preserves every submitted record/unknown field. Audit it
+    // before the legacy normalizer can prune evidence, requests or bindings.
+    const polynomialResult=polynomial.status==="ok"?solveFiniteBinomialProblem(question,sourceInput):null;
+    if(polynomial.status==="ok" && !polynomialResult)return decline("finite_polynomial_full_input_declined");
+    const normalized = polynomial.status==="ok"?sourceInput:normalizeProblemIRModelOutput(parsed, question, turnPlan);
     const problemValidation = validateProblemIR(normalized, question);
+    if(polynomial.status==="ok" && turnPlan && problemValidation.problem?.solveRequests.some(request=>{
+      const binding=request.resultBinding;if(!binding)return false;
+      const row=turnPlan.unknowns.find(unknown=>unknown.id===binding.turnPlanQuantityId);
+      return !row || row.symbol!==binding.symbol || row.unit!==binding.unit;
+    }))return decline("finite_polynomial_caller_binding_declined");
     if (!problemValidation.problem) {
       tutorDebug("planner", "ProblemIR v1 rejected", {
         issue_codes: problemValidation.issues.map((issue) => issue.code),
@@ -108,8 +139,10 @@ export async function planAndSolveProblemV1(
     }
     const elapsedBeforeSolve = Date.now() - startedAt;
     const remainingMs = Math.max(1, options.timeoutMs - elapsedBeforeSolve);
+
+    const provider:SolverProvider=polynomialResult?{id:polynomialResult.providerId,async solve(){return polynomialResult;}}:options.provider ?? new LocalDeterministicSolverProvider();
     const solverResult = await solveWithDeadline(
-      options.provider ?? new LocalDeterministicSolverProvider(),
+      provider,
       problemValidation.problem,
       remainingMs,
       signal,
@@ -753,12 +786,14 @@ Shape (every array required, may be empty):
 
 Use only facts grounded by a quote copied character for character from SUBMITTED QUESTION; one fact per stated value, condition, or requested result. Never emit pixels, drawing commands or code.
 Entity kind is exactly one of point line curve region body solid component field state other (a circuit part is component). network and apparatus are representation intent kinds, not entity kinds.
+For a finite polynomial expansion or coefficient request, preserve exactly one given fact quoting the complete expression, statement equal to that expression, and one requested fact quoting the complete expansion/coefficient request, statement equal to that request. Use one other entity labelled P(x), a conceptual intent consuming these facts, and one function expression containing the complete unsimplified source AST with its given evidence. Full expansion has no scalar solve requests. A coefficient request also has exactly one scalar evaluate expression, requested evidence and an exact unknown id/symbol with dimensionless unit 1; retain the complete polynomial function expression. Never substitute the selected coefficient for the original polynomial. Extra conditions or requests remain unresolved.
 expr: numbers, pi, at most one variable, + - * / ^, parentheses, and sin cos tan asin acos atan sqrt abs exp ln. Always write * explicitly. e is not a constant; write exp(1). Trig takes radians, so 30 degrees is 30*pi/180. log and ln both mean natural log.
 Constraints: {"id","kind":"equation|inequality","leftExpressionId","rightExpressionId","relation":"< <= > >= (inequality only)","evidenceFactIds"} or {"id","kind":"incident|parallel|perpendicular|tangent|inside|connected|symmetric","entityIds":[two or more],"evidenceFactIds"}.
 Solve requests: evaluate {expressionId}; roots {expressionId,variable,domain:{"min","max"}}; intersections {leftExpressionId,rightExpressionId,variable,domain}; definite_integral {expressionId,variable,lower,upper}.
 
 Use evaluate for any requested scalar that can be written as a closed numeric expr after substituting the givens, with the complete formula (every factor, angle term and sign). Emit expressions only when a solve request or constraint uses them; never one per given value.
 Do not invent a solve request for a law or assumption not justified by the submitted question and validated TurnPlan. If the givens are symbols rather than numbers, emit no solve requests; still return facts, entities and representation intents.
+For a finite indexed progression, retain the original sequence name, model, first term/observations/inserted endpoints and finite domain in source facts. Every fact statement must either equal its quote or assert exactly that supported role; consume every premise and requested term or finite sum, including explicit positive/negative real-ratio branches. Use a function expression for each original sequence definition and complete unsimplified numeric evaluate formulas for the requested finite values. Bind every result to the actual Plan id, symbol, unit and requested fact. Never insert an infinite-series assumption, guessed branch, extra result, simplified answer-only expression or omitted premise. If the whole graph is not expressible, leave authority unresolved.
 For mensuration, represent each source shape and part as solid (3D) or region (2D), and include solid/section or bounded_region representation intent. Ground the join or cavity in source facts; a scalar answer still needs its spatial setup.
 
 For a source-explicit ideal DC network, dc_network computes node voltages and signed branch currents from Kirchhoff laws, not a closed guessed current expression. Request shape:

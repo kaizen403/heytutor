@@ -1,3 +1,6 @@
+import { finiteProgressionDocumentIssues, isSourceBoundFiniteProgressionDocument } from "../contracts/finiteProgressionContract";
+import { finiteBinomialDocumentIssues } from "../contracts/finiteBinomialContract";
+import { admitFiniteBinomialProblem, validateFiniteBinomialSourceDocument } from "../ir/finiteBinomialProgram";
 /**
  * Required visual obligations (DCP-02) — the "is this figure complete?" seam.
  *
@@ -251,7 +254,15 @@ export function checkVisualObligations(
   set: VisualObligationSet,
   document: SceneDocument,
   problem?: ProblemIR,
+  turnPlan?: unknown,
 ): VisualObligationCheckResult {
+  const authority = problem ? {question: problem.question, problemIR: problem, turnPlan} : undefined;
+  const progressionIssues = finiteProgressionDocumentIssues(document, authority);
+  const sourceIssues = progressionIssues.length ? progressionIssues : finiteBinomialDocumentIssues(document, authority);
+  if (sourceIssues.length) return {satisfied: false, satisfiedIds: [],
+    missing: sourceIssues.map(issue => ({obligationId: progressionIssues.length ? "finite_progression_source" : "finite_polynomial_source", kind: "named_body", code: issue.code,
+      message: issue.message, problemEntityIds: problem?.entities.map(entity => entity.id) ?? []})),
+    unsupportedIds: set.obligations.filter(obligation => !obligation.supported).map(obligation => obligation.id)};
   const satisfiedIds: string[] = [];
   const missing: VisualObligationMiss[] = [];
   const unsupportedIds: string[] = [];
@@ -306,9 +317,10 @@ export function checkVisualObligations(
 export function visualObligationIssues(
   problem: ProblemIR,
   document: SceneDocument,
+  turnPlan?: unknown,
 ): SceneIssue[] {
   const set = deriveVisualObligations(problem);
-  const result = checkVisualObligations(set, document, problem);
+  const result = checkVisualObligations(set, document, problem, turnPlan);
   return result.missing.map((miss) => ({
     code: miss.code,
     message: miss.message,
@@ -323,8 +335,9 @@ export function visualObligationRejection(
   set: VisualObligationSet,
   document: SceneDocument,
   problem?: ProblemIR,
+  turnPlan?: unknown,
 ): string | null {
-  const result = checkVisualObligations(set, document, problem);
+  const result = checkVisualObligations(set, document, problem, turnPlan);
   return result.missing.length > 0 ? result.missing[0]!.message : null;
 }
 
@@ -395,7 +408,11 @@ function checkObligation(
           };
     }
     case "given_dimension": {
-      return ((problem ? matrixLiteralSourceDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value, obligation.factIds) : null)
+      return ((isSourceBoundFiniteProgressionDocument(document) ? document.entities.some(entity => entity.kind === "label"
+        && Array.isArray(entity.provenance?.expressionIds) && entity.provenance.expressionIds.includes(obligation.problemExpressionId)
+        && entity.provenance.value === obligation.value && document.requiredEntityIds.includes(entity.id)
+        && document.revealGroups.some(group => group.entityIds.includes(entity.id))) : null)
+        ?? (problem ? matrixLiteralSourceDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value, obligation.factIds) : null)
         ?? (problem ? uniformCircularSourceDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value, obligation.factIds) : null)
         ?? (problem ? pointLineRequestedDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value) : null)
         ?? (problem ? sectionFormulaRequestedDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value) : null)
@@ -480,6 +497,9 @@ function mapProblemEntities(
   // Compact badges may name source-proved combinations. Establish the whole
   // circuit correspondence afresh; a badge, role or membership marker alone
   // cannot authorize an identity join.
+  const polynomial = problem ? admitFiniteBinomialProblem(problem.question, problem) : null;
+  const polynomialId = problem && polynomial?.status === "ok"
+    && validateFiniteBinomialSourceDocument(document, problem.question, problem).length === 0 ? polynomial.polynomialEntityId : null;
   const circuit = problem ? bindStatedCircuitProblem(problem.question, problem) : null;
   const circuitBindings = circuit && !checkStatedCircuitProblemBinding(problem!.question, problem, document).some(issue => issue.severity === "fatal")
     ? new Map(circuit.entityBindings.map(row => [row.problemEntityId, row.sceneEntityId])) : null;
@@ -505,6 +525,9 @@ function mapProblemEntities(
   };
   for (const obligation of set.obligations) {
     if (obligation.kind !== "named_body") continue;
+    if (polynomialId === obligation.problemEntityId && byId.has(polynomialId) && !consumed.has(polynomialId)) {
+      mapping.set(obligation.problemEntityId, polynomialId); consumed.add(polynomialId); continue;
+    }
     const circuitId = circuitBindings?.get(obligation.problemEntityId);
     const circuitEntity = circuitId ? byId.get(circuitId) : null;
     if (circuitEntity && kindHolds(circuitEntity, obligation) && !consumed.has(circuitEntity.id)) {

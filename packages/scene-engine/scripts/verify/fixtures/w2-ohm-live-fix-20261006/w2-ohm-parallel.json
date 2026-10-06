@@ -1,0 +1,388 @@
+{
+  "id": "w2-ohm-parallel",
+  "topic": "physics|12|ohms-law-and-resistance",
+  "mode": "live",
+  "question": "Three identical resistors each of 6 Ω are connected in parallel across a 12 V battery. Find the current drawn from the battery.",
+  "expected": {
+    "Req_ohm": 2,
+    "current_A": 6
+  },
+  "provenance": {
+    "path": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T0645-w2-63a9863c/evidence/w2-ohm-parallel-planner-exchanges.json",
+    "sha256": "418bb5a964df175f01e9ccc60b2794486c8deb6e3f2e501cef7d35724d6cbb4f",
+    "exchangeIndex": 3,
+    "status": 200,
+    "base": "c9b48d2d932703b8b60b62b303c21dd1722ee1ad"
+  },
+  "canonicalPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Three identical resistors each of 6 Ω are connected in parallel across a 12 V battery. Find the current drawn from the battery.",
+    "givens": [
+      {
+        "id": "R",
+        "symbol": "R",
+        "value": 6,
+        "unit": "Ω",
+        "sourceText": "each of 6 Ω",
+        "provenance": "given"
+      },
+      {
+        "id": "V",
+        "symbol": "V",
+        "value": 12,
+        "unit": "V",
+        "sourceText": "12 V battery",
+        "provenance": "given"
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "I",
+        "symbol": "I",
+        "unit": "A"
+      }
+    ],
+    "derived": [
+      {
+        "id": "I",
+        "symbol": "I",
+        "value": 6,
+        "unit": "A",
+        "sourceText": "V/R_eq = 12/2 = 6",
+        "provenance": "derived",
+        "dependsOn": [
+          "V",
+          "Rp"
+        ]
+      },
+      {
+        "id": "Rp",
+        "symbol": "R_eq",
+        "value": 2,
+        "unit": "Ω",
+        "sourceText": "R/3 = 6/3 = 2",
+        "provenance": "derived",
+        "dependsOn": [
+          "R"
+        ]
+      }
+    ],
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Three equal resistors in parallel give equivalent resistance R/3.",
+        "expected": "R_eq = R/3 = 2 Ω",
+        "relatedQuantityIds": [
+          "R",
+          "Rp"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "Battery current equals battery voltage divided by equivalent parallel resistance.",
+        "expected": "I = V/R_eq = 6 A",
+        "relatedQuantityIds": [
+          "V",
+          "Rp",
+          "I"
+        ]
+      }
+    ],
+    "lawIds": [
+      "parallel_resistance",
+      "ohms_law"
+    ],
+    "assumptions": [
+      "Ideal battery with constant 12 V terminal voltage",
+      "Resistors are identical and ohmic",
+      "Connecting wires have negligible resistance",
+      "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "visualRequirement": "required"
+  },
+  "rawProblem": {
+    "facts": [
+      {
+        "id": "fRes",
+        "kind": "given",
+        "statement": "Three identical resistors each of 6 Ω",
+        "quote": "Three identical resistors each of 6 Ω"
+      },
+      {
+        "id": "fParallel",
+        "kind": "given",
+        "statement": "resistors connected in parallel across battery",
+        "quote": "connected in parallel across a 12 V battery"
+      },
+      {
+        "id": "fVolt",
+        "kind": "given",
+        "statement": "battery voltage is 12 V",
+        "quote": "12 V battery"
+      },
+      {
+        "id": "fFind",
+        "kind": "requested",
+        "statement": "find current drawn from battery",
+        "quote": "Find the current drawn from the battery"
+      }
+    ],
+    "entities": [
+      {
+        "id": "r1",
+        "kind": "component",
+        "label": "resistor 1",
+        "evidenceFactIds": [
+          "fRes"
+        ]
+      },
+      {
+        "id": "r2",
+        "kind": "component",
+        "label": "resistor 2",
+        "evidenceFactIds": [
+          "fRes"
+        ]
+      },
+      {
+        "id": "r3",
+        "kind": "component",
+        "label": "resistor 3",
+        "evidenceFactIds": [
+          "fRes"
+        ]
+      },
+      {
+        "id": "bat",
+        "kind": "component",
+        "label": "12 V battery",
+        "evidenceFactIds": [
+          "fVolt"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eCur",
+        "valueType": "scalar",
+        "expr": "12/(6/3)",
+        "evidenceFactIds": [
+          "fRes",
+          "fVolt",
+          "fParallel"
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "cPar",
+        "kind": "connected",
+        "entityIds": [
+          "r1",
+          "r2",
+          "r3",
+          "bat"
+        ],
+        "evidenceFactIds": [
+          "fParallel"
+        ]
+      }
+    ],
+    "representationIntents": [
+      {
+        "id": "iCirc",
+        "kind": "network",
+        "entityIds": [
+          "r1",
+          "r2",
+          "r3",
+          "bat"
+        ],
+        "evidenceFactIds": [
+          "fRes",
+          "fParallel",
+          "fVolt"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sCur",
+        "kind": "evaluate",
+        "expressionId": "eCur",
+        "resultBinding": {
+          "turnPlanQuantityId": "I",
+          "symbol": "I",
+          "unit": "A",
+          "evidenceFactIds": [
+            "fFind"
+          ]
+        }
+      }
+    ]
+  },
+  "rawPlannerResponseBody": "{\"id\":\"chatcmpl-4952e9c1721447f0bf05dac2ace32be0\",\"object\":\"chat.completion\",\"created\":1791269327,\"model\":\"accounts/fireworks/models/kimi-k3\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"facts\\\":[{\\\"id\\\":\\\"fRes\\\",\\\"kind\\\":\\\"given\\\",\\\"statement\\\":\\\"Three identical resistors each of 6 Ω\\\",\\\"quote\\\":\\\"Three identical resistors each of 6 Ω\\\"},{\\\"id\\\":\\\"fParallel\\\",\\\"kind\\\":\\\"given\\\",\\\"statement\\\":\\\"resistors connected in parallel across battery\\\",\\\"quote\\\":\\\"connected in parallel across a 12 V battery\\\"},{\\\"id\\\":\\\"fVolt\\\",\\\"kind\\\":\\\"given\\\",\\\"statement\\\":\\\"battery voltage is 12 V\\\",\\\"quote\\\":\\\"12 V battery\\\"},{\\\"id\\\":\\\"fFind\\\",\\\"kind\\\":\\\"requested\\\",\\\"statement\\\":\\\"find current drawn from battery\\\",\\\"quote\\\":\\\"Find the current drawn from the battery\\\"}],\\\"entities\\\":[{\\\"id\\\":\\\"r1\\\",\\\"kind\\\":\\\"component\\\",\\\"label\\\":\\\"resistor 1\\\",\\\"evidenceFactIds\\\":[\\\"fRes\\\"]},{\\\"id\\\":\\\"r2\\\",\\\"kind\\\":\\\"component\\\",\\\"label\\\":\\\"resistor 2\\\",\\\"evidenceFactIds\\\":[\\\"fRes\\\"]},{\\\"id\\\":\\\"r3\\\",\\\"kind\\\":\\\"component\\\",\\\"label\\\":\\\"resistor 3\\\",\\\"evidenceFactIds\\\":[\\\"fRes\\\"]},{\\\"id\\\":\\\"bat\\\",\\\"kind\\\":\\\"component\\\",\\\"label\\\":\\\"12 V battery\\\",\\\"evidenceFactIds\\\":[\\\"fVolt\\\"]}],\\\"expressions\\\":[{\\\"id\\\":\\\"eCur\\\",\\\"valueType\\\":\\\"scalar\\\",\\\"expr\\\":\\\"12/(6/3)\\\",\\\"evidenceFactIds\\\":[\\\"fRes\\\",\\\"fVolt\\\",\\\"fParallel\\\"]}],\\\"constraints\\\":[{\\\"id\\\":\\\"cPar\\\",\\\"kind\\\":\\\"connected\\\",\\\"entityIds\\\":[\\\"r1\\\",\\\"r2\\\",\\\"r3\\\",\\\"bat\\\"],\\\"evidenceFactIds\\\":[\\\"fParallel\\\"]}],\\\"representationIntents\\\":[{\\\"id\\\":\\\"iCirc\\\",\\\"kind\\\":\\\"network\\\",\\\"entityIds\\\":[\\\"r1\\\",\\\"r2\\\",\\\"r3\\\",\\\"bat\\\"],\\\"evidenceFactIds\\\":[\\\"fRes\\\",\\\"fParallel\\\",\\\"fVolt\\\"]}],\\\"solveRequests\\\":[{\\\"id\\\":\\\"sCur\\\",\\\"kind\\\":\\\"evaluate\\\",\\\"expressionId\\\":\\\"eCur\\\",\\\"resultBinding\\\":{\\\"turnPlanQuantityId\\\":\\\"I\\\",\\\"symbol\\\":\\\"I\\\",\\\"unit\\\":\\\"A\\\",\\\"evidenceFactIds\\\":[\\\"fFind\\\"]}}]}\",\"tools\":null},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":2021,\"total_tokens\":2413,\"completion_tokens\":392,\"prompt_tokens_details\":{\"cached_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":0},\"output_tokens_details\":{\"reasoning_tokens\":0}},\"perf_metrics\":{\"prompt-tokens\":\"2021\",\"cached-prompt-tokens\":\"0\",\"server-time-to-first-token\":\"0.521\",\"server-processing-time\":\"3.857\",\"speculation-prompt-matched-tokens\":\"0\"}}",
+  "normalizedProblem": {
+    "facts": [
+      {
+        "id": "fRes",
+        "kind": "given",
+        "statement": "Three identical resistors each of 6 Ω",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 37,
+          "quote": "Three identical resistors each of 6 Ω"
+        }
+      },
+      {
+        "id": "fParallel",
+        "kind": "given",
+        "statement": "resistors connected in parallel across battery",
+        "evidence": {
+          "source": "question",
+          "start": 42,
+          "end": 85,
+          "quote": "connected in parallel across a 12 V battery"
+        }
+      },
+      {
+        "id": "fVolt",
+        "kind": "given",
+        "statement": "battery voltage is 12 V",
+        "evidence": {
+          "source": "question",
+          "start": 73,
+          "end": 85,
+          "quote": "12 V battery"
+        }
+      },
+      {
+        "id": "fFind",
+        "kind": "requested",
+        "statement": "find current drawn from battery",
+        "evidence": {
+          "source": "question",
+          "start": 87,
+          "end": 126,
+          "quote": "Find the current drawn from the battery"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "r1",
+        "kind": "component",
+        "label": "resistor 1",
+        "evidenceFactIds": [
+          "fRes"
+        ]
+      },
+      {
+        "id": "r2",
+        "kind": "component",
+        "label": "resistor 2",
+        "evidenceFactIds": [
+          "fRes"
+        ]
+      },
+      {
+        "id": "r3",
+        "kind": "component",
+        "label": "resistor 3",
+        "evidenceFactIds": [
+          "fRes"
+        ]
+      },
+      {
+        "id": "bat",
+        "kind": "component",
+        "label": "12 V battery",
+        "evidenceFactIds": [
+          "fVolt"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eCur",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fRes",
+          "fVolt",
+          "fParallel"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "number",
+            "value": 12
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "number",
+              "value": 6
+            },
+            "right": {
+              "kind": "number",
+              "value": 3
+            }
+          }
+        }
+      }
+    ],
+    "constraints": [
+      {
+        "id": "cPar",
+        "kind": "connected",
+        "entityIds": [
+          "r1",
+          "r2",
+          "r3",
+          "bat"
+        ],
+        "evidenceFactIds": [
+          "fParallel"
+        ]
+      }
+    ],
+    "representationIntents": [
+      {
+        "id": "iCirc",
+        "kind": "network",
+        "entityIds": [
+          "r1",
+          "r2",
+          "r3",
+          "bat"
+        ],
+        "evidenceFactIds": [
+          "fRes",
+          "fParallel",
+          "fVolt"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sCur",
+        "kind": "evaluate",
+        "expressionId": "eCur",
+        "resultBinding": {
+          "turnPlanQuantityId": "I",
+          "symbol": "I",
+          "unit": "A",
+          "evidenceFactIds": [
+            "fFind"
+          ]
+        }
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Three identical resistors each of 6 Ω are connected in parallel across a 12 V battery. Find the current drawn from the battery."
+  }
+}

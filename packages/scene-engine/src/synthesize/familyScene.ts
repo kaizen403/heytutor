@@ -1,3 +1,7 @@
+import {finiteBinomialPlanIssues} from "../ir/finiteBinomialPlanAuthority";
+import { finiteProgressionSourceProgram } from "../ir/finiteProgressionSourceProgram";
+import { readFiniteProgressionSource } from "../math/finiteProgressionSource";
+import { finiteBinomialSourceDocument, readFiniteBinomialProgram } from "../ir/finiteBinomialProgram";
 /**
  * Compile a verified scene from the question, turn plan, and inferred visual
  * family. Geometry comes from operators and plan quantities — never from
@@ -7,7 +11,7 @@ import { staticContactTriangleDocument } from "../ir/staticContactTriangle";
 import { stemKnowns } from "../archetypes/generators/constantAcceleration";
 import { compileSceneDocument } from "../compile/compiler";
 import { bindStatedCircuitProblem } from "../ir/statedCircuitProblemBinding";
-import { readStatedCircuitProblemSource } from "../ir/statedCircuitAuthority";
+import { claimsStatedResistorCircuit } from "../ir/statedCircuitAuthority";
 import { groundedOhmScene } from "../compile/ohmTopicGeometry";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import {readOpticalConjugateSource} from "../physics/opticalConjugateSource";
@@ -167,6 +171,26 @@ function synthesizeFromFamilies(
 ): SynthesizedFamilyScene | null {
   const question = input.question.trim();
   if (!question) return null;
+  // The complete arithmetic source program, rather than a lexical family cue,
+  // owns this candidate. The actual full IR is retained and audited unchanged.
+  if (readFiniteBinomialProgram(input.question).status === "ok") {
+    if(finiteBinomialPlanIssues(input.question,input.problemIR,input.turnPlan).length)return null;
+    const document = finiteBinomialSourceDocument(input.question, input.problemIR);
+    const compiled = document ? tryCompile(document, {sourceAuthority: {question: input.question, problemIR: input.problemIR,turnPlan:input.turnPlan}}) : null;
+    if (!compiled || !isFullProblemIRStructure(input.problemIR)
+      || visualObligationRejection(deriveVisualObligations(input.problemIR), compiled.document, input.problemIR, input.turnPlan)) return null;
+    return {...compiled, tier: "exact_verified", nonMetric: true, family: "finite_polynomial_expansion",
+      reason: "Exact source-derived finite polynomial coefficients; table spacing is nonmetric."};
+  }
+  if (readFiniteProgressionSource(input.question).status === "ok") {
+    const admitted = finiteProgressionSourceProgram(input.question, input.problemIR, input.turnPlan);
+    if (admitted.status !== "ok") return null;
+    const options = {sourceAuthority: {question: input.question, problemIR: input.problemIR, turnPlan: input.turnPlan}};
+    const compiled = compileSceneDocument(admitted.document, options);
+    if (!compiled.ok || !compiled.renderScene || visualObligationRejection(deriveVisualObligations(admitted.problem), admitted.document, admitted.problem, input.turnPlan)) return null;
+    return {document: admitted.document, renderScene: compiled.renderScene, validationReport: compiled.report, tier: "exact_verified", nonMetric: true, family: "indexed_progression",
+      reason: "Complete source-derived finite progression; discrete table spacing is nonmetric."};
+  }
   const circleReading = readCircleSourceProgram(question);
   // A recognized whole circle cannot borrow a partial older family, even
   // when that family would compile valid geometry for only some of the source.
@@ -237,7 +261,7 @@ function synthesizeFromFamilies(
   }
   // A numeric source circuit must carry the caller's complete IR, not a
   // stock apparatus sketch with matching scalar values.
-  if (readStatedCircuitProblemSource(question)) {
+  if (claimsStatedResistorCircuit(question)) {
     const binding = bindStatedCircuitProblem(question, input.problemIR);
     const compiled = binding ? tryCompile(binding.document) : null;
     if (!compiled || demandRejection(compiled.document, demand)
@@ -4489,7 +4513,7 @@ function tryCompile(document: SceneDocument, options: CompileOptions = {}): {
   validationReport: ValidationReport;
 } | null {
   const pruned = pruneDeadSceneEntities(document as unknown as Record<string, unknown>);
-  const validated = validateSceneDocument(pruned);
+  const validated = validateSceneDocument(pruned, options);
   if (!validated.document) return null;
   const compiled = compileSceneDocument(validated.document, options);
   if (

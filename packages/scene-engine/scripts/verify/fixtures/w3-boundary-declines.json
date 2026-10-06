@@ -1,0 +1,1555 @@
+{
+  "profiles": [
+    {
+      "question": "Coefficient of x^3 in the expansion of (3-2x)^5 is",
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "own_poly",
+        "question": "Coefficient of x^3 in the expansion of (3-2x)^5 is",
+        "facts": [
+          {
+            "id": "premise",
+            "kind": "given",
+            "statement": "(3-2x)^5",
+            "evidence": {
+              "source": "question",
+              "quote": "(3-2x)^5",
+              "start": 39,
+              "end": 47
+            }
+          },
+          {
+            "id": "requested",
+            "kind": "requested",
+            "statement": "Find circumference 9",
+            "evidence": {
+              "source": "question",
+              "quote": "Coefficient of x^3 in the expansion of",
+              "start": 0,
+              "end": 38
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "polynomial",
+            "kind": "other",
+            "label": "P(x)",
+            "evidenceFactIds": [
+              "premise"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "source",
+            "valueType": "function",
+            "root": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "number",
+                  "value": 3
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "variable",
+                    "name": "x"
+                  }
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 5
+              }
+            },
+            "evidenceFactIds": [
+              "premise"
+            ]
+          },
+          {
+            "id": "coefficient",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": -720
+            },
+            "evidenceFactIds": [
+              "requested"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "scope",
+            "kind": "conceptual",
+            "entityIds": [
+              "polynomial"
+            ],
+            "evidenceFactIds": [
+              "premise",
+              "requested"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actual_request",
+            "kind": "evaluate",
+            "expressionId": "coefficient",
+            "resultBinding": {
+              "turnPlanQuantityId": "actual_answer",
+              "symbol": "C_3",
+              "unit": "1",
+              "evidenceFactIds": [
+                "requested"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^3 in the expansion of (3-2x)^5 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_3",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_3",
+            "unit": "1",
+            "value": -720,
+            "provenance": "derived"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      },
+      "earlyPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^3 in the expansion of (3-2x)^5 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_3",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_3",
+            "unit": "1",
+            "value": -720,
+            "provenance": "derived",
+            "sourceText": "Source-verified C_3 = -720"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    },
+    {
+      "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "own_poly",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "facts": [
+          {
+            "id": "premise",
+            "kind": "given",
+            "statement": "(2+x)^6",
+            "evidence": {
+              "source": "question",
+              "quote": "(2+x)^6",
+              "start": 39,
+              "end": 46
+            }
+          },
+          {
+            "id": "requested",
+            "kind": "requested",
+            "statement": "Find circumference 9",
+            "evidence": {
+              "source": "question",
+              "quote": "Coefficient of x^2 in the expansion of",
+              "start": 0,
+              "end": 38
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "polynomial",
+            "kind": "other",
+            "label": "P(x)",
+            "evidenceFactIds": [
+              "premise"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "source",
+            "valueType": "function",
+            "root": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 6
+              }
+            },
+            "evidenceFactIds": [
+              "premise"
+            ]
+          },
+          {
+            "id": "coefficient",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 240
+            },
+            "evidenceFactIds": [
+              "requested"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "scope",
+            "kind": "conceptual",
+            "entityIds": [
+              "polynomial"
+            ],
+            "evidenceFactIds": [
+              "premise",
+              "requested"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actual_request",
+            "kind": "evaluate",
+            "expressionId": "coefficient",
+            "resultBinding": {
+              "turnPlanQuantityId": "actual_answer",
+              "symbol": "C_2",
+              "unit": "1",
+              "evidenceFactIds": [
+                "requested"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1",
+            "value": 240,
+            "provenance": "derived"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      },
+      "earlyPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1",
+            "value": 240,
+            "provenance": "derived",
+            "sourceText": "Source-verified C_2 = 240"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    },
+    {
+      "question": "Coefficient of x^4 in the expansion of (1-x)^7 is",
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "own_poly",
+        "question": "Coefficient of x^4 in the expansion of (1-x)^7 is",
+        "facts": [
+          {
+            "id": "premise",
+            "kind": "given",
+            "statement": "(1-x)^7",
+            "evidence": {
+              "source": "question",
+              "quote": "(1-x)^7",
+              "start": 39,
+              "end": 46
+            }
+          },
+          {
+            "id": "requested",
+            "kind": "requested",
+            "statement": "Find circumference 9",
+            "evidence": {
+              "source": "question",
+              "quote": "Coefficient of x^4 in the expansion of",
+              "start": 0,
+              "end": 38
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "polynomial",
+            "kind": "other",
+            "label": "P(x)",
+            "evidenceFactIds": [
+              "premise"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "source",
+            "valueType": "function",
+            "root": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "number",
+                  "value": 1
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 7
+              }
+            },
+            "evidenceFactIds": [
+              "premise"
+            ]
+          },
+          {
+            "id": "coefficient",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 35
+            },
+            "evidenceFactIds": [
+              "requested"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "scope",
+            "kind": "conceptual",
+            "entityIds": [
+              "polynomial"
+            ],
+            "evidenceFactIds": [
+              "premise",
+              "requested"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actual_request",
+            "kind": "evaluate",
+            "expressionId": "coefficient",
+            "resultBinding": {
+              "turnPlanQuantityId": "actual_answer",
+              "symbol": "C_4",
+              "unit": "1",
+              "evidenceFactIds": [
+                "requested"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^4 in the expansion of (1-x)^7 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_4",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_4",
+            "unit": "1",
+            "value": 35,
+            "provenance": "derived"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      },
+      "earlyPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^4 in the expansion of (1-x)^7 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_4",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_4",
+            "unit": "1",
+            "value": 35,
+            "provenance": "derived",
+            "sourceText": "Source-verified C_4 = 35"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    },
+    {
+      "question": "Coefficient of x^2 in the expansion of (1/2+x/4)^3 is",
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "own_poly",
+        "question": "Coefficient of x^2 in the expansion of (1/2+x/4)^3 is",
+        "facts": [
+          {
+            "id": "premise",
+            "kind": "given",
+            "statement": "(1/2+x/4)^3",
+            "evidence": {
+              "source": "question",
+              "quote": "(1/2+x/4)^3",
+              "start": 39,
+              "end": 50
+            }
+          },
+          {
+            "id": "requested",
+            "kind": "requested",
+            "statement": "Find circumference 9",
+            "evidence": {
+              "source": "question",
+              "quote": "Coefficient of x^2 in the expansion of",
+              "start": 0,
+              "end": 38
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "polynomial",
+            "kind": "other",
+            "label": "P(x)",
+            "evidenceFactIds": [
+              "premise"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "source",
+            "valueType": "function",
+            "root": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "number",
+                    "value": 1
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 2
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "variable",
+                    "name": "x"
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 4
+                  }
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 3
+              }
+            },
+            "evidenceFactIds": [
+              "premise"
+            ]
+          },
+          {
+            "id": "coefficient",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 0.09375
+            },
+            "evidenceFactIds": [
+              "requested"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "scope",
+            "kind": "conceptual",
+            "entityIds": [
+              "polynomial"
+            ],
+            "evidenceFactIds": [
+              "premise",
+              "requested"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actual_request",
+            "kind": "evaluate",
+            "expressionId": "coefficient",
+            "resultBinding": {
+              "turnPlanQuantityId": "actual_answer",
+              "symbol": "C_2",
+              "unit": "1",
+              "evidenceFactIds": [
+                "requested"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^2 in the expansion of (1/2+x/4)^3 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1",
+            "value": 0.09375,
+            "provenance": "derived"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      },
+      "earlyPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^2 in the expansion of (1/2+x/4)^3 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1",
+            "value": 0.09375,
+            "provenance": "derived",
+            "sourceText": "Source-verified C_2 = 0.09375"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    },
+    {
+      "question": "Coefficient of x^7 in the expansion of (1+x)^3 is",
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "own_poly",
+        "question": "Coefficient of x^7 in the expansion of (1+x)^3 is",
+        "facts": [
+          {
+            "id": "premise",
+            "kind": "given",
+            "statement": "(1+x)^3",
+            "evidence": {
+              "source": "question",
+              "quote": "(1+x)^3",
+              "start": 39,
+              "end": 46
+            }
+          },
+          {
+            "id": "requested",
+            "kind": "requested",
+            "statement": "Find circumference 9",
+            "evidence": {
+              "source": "question",
+              "quote": "Coefficient of x^7 in the expansion of",
+              "start": 0,
+              "end": 38
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "polynomial",
+            "kind": "other",
+            "label": "P(x)",
+            "evidenceFactIds": [
+              "premise"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "source",
+            "valueType": "function",
+            "root": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 1
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 3
+              }
+            },
+            "evidenceFactIds": [
+              "premise"
+            ]
+          },
+          {
+            "id": "coefficient",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 0
+            },
+            "evidenceFactIds": [
+              "requested"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "scope",
+            "kind": "conceptual",
+            "entityIds": [
+              "polynomial"
+            ],
+            "evidenceFactIds": [
+              "premise",
+              "requested"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actual_request",
+            "kind": "evaluate",
+            "expressionId": "coefficient",
+            "resultBinding": {
+              "turnPlanQuantityId": "actual_answer",
+              "symbol": "C_7",
+              "unit": "1",
+              "evidenceFactIds": [
+                "requested"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^7 in the expansion of (1+x)^3 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_7",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_7",
+            "unit": "1",
+            "value": 0,
+            "provenance": "derived"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      },
+      "earlyPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^7 in the expansion of (1+x)^3 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_7",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_7",
+            "unit": "1",
+            "value": 0,
+            "provenance": "derived",
+            "sourceText": "Source-verified C_7 = 0"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    }
+  ],
+  "rawControls": [
+    {
+      "name": "normalizer preserves extra-invalid-evidence",
+      "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "own_poly",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "facts": [
+          {
+            "id": "premise",
+            "kind": "given",
+            "statement": "(2+x)^6",
+            "evidence": {
+              "source": "question",
+              "quote": "(2+x)^6",
+              "start": 39,
+              "end": 46
+            }
+          },
+          {
+            "id": "requested",
+            "kind": "requested",
+            "statement": "Coefficient of x^2 in the expansion of",
+            "evidence": {
+              "source": "question",
+              "quote": "Coefficient of x^2 in the expansion of",
+              "start": 0,
+              "end": 38
+            }
+          },
+          {
+            "id": "extra_obligation",
+            "kind": "requested",
+            "statement": "Find another coefficient",
+            "evidence": {
+              "source": "question",
+              "quote": "Find another coefficient",
+              "start": 0,
+              "end": 24
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "polynomial",
+            "kind": "other",
+            "label": "P(x)",
+            "evidenceFactIds": [
+              "premise"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "source",
+            "valueType": "function",
+            "root": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 6
+              }
+            },
+            "evidenceFactIds": [
+              "premise"
+            ]
+          },
+          {
+            "id": "coefficient",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 240
+            },
+            "evidenceFactIds": [
+              "requested"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "scope",
+            "kind": "conceptual",
+            "entityIds": [
+              "polynomial"
+            ],
+            "evidenceFactIds": [
+              "premise",
+              "requested"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actual_request",
+            "kind": "evaluate",
+            "expressionId": "coefficient",
+            "resultBinding": {
+              "turnPlanQuantityId": "actual_answer",
+              "symbol": "C_2",
+              "unit": "1",
+              "evidenceFactIds": [
+                "requested"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1",
+            "value": 240,
+            "provenance": "derived"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    },
+    {
+      "name": "normalizer preserves extra-unresolved-ask",
+      "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "own_poly",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "facts": [
+          {
+            "id": "premise",
+            "kind": "given",
+            "statement": "(2+x)^6",
+            "evidence": {
+              "source": "question",
+              "quote": "(2+x)^6",
+              "start": 39,
+              "end": 46
+            }
+          },
+          {
+            "id": "requested",
+            "kind": "requested",
+            "statement": "Coefficient of x^2 in the expansion of",
+            "evidence": {
+              "source": "question",
+              "quote": "Coefficient of x^2 in the expansion of",
+              "start": 0,
+              "end": 38
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "polynomial",
+            "kind": "other",
+            "label": "P(x)",
+            "evidenceFactIds": [
+              "premise"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "source",
+            "valueType": "function",
+            "root": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 6
+              }
+            },
+            "evidenceFactIds": [
+              "premise"
+            ]
+          },
+          {
+            "id": "coefficient",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 240
+            },
+            "evidenceFactIds": [
+              "requested"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "scope",
+            "kind": "conceptual",
+            "entityIds": [
+              "polynomial"
+            ],
+            "evidenceFactIds": [
+              "premise",
+              "requested"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actual_request",
+            "kind": "evaluate",
+            "expressionId": "coefficient",
+            "resultBinding": {
+              "turnPlanQuantityId": "actual_answer",
+              "symbol": "C_2",
+              "unit": "1",
+              "evidenceFactIds": [
+                "requested"
+              ]
+            }
+          },
+          {
+            "id": "extra",
+            "kind": "evaluate",
+            "expressionId": "absent",
+            "resultBinding": {
+              "turnPlanQuantityId": "alien",
+              "symbol": "alien",
+              "unit": "1",
+              "evidenceFactIds": [
+                "requested"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1",
+            "value": 240,
+            "provenance": "derived"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    },
+    {
+      "name": "normalizer preserves unknown-request-field",
+      "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "own_poly",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "facts": [
+          {
+            "id": "premise",
+            "kind": "given",
+            "statement": "(2+x)^6",
+            "evidence": {
+              "source": "question",
+              "quote": "(2+x)^6",
+              "start": 39,
+              "end": 46
+            }
+          },
+          {
+            "id": "requested",
+            "kind": "requested",
+            "statement": "Coefficient of x^2 in the expansion of",
+            "evidence": {
+              "source": "question",
+              "quote": "Coefficient of x^2 in the expansion of",
+              "start": 0,
+              "end": 38
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "polynomial",
+            "kind": "other",
+            "label": "P(x)",
+            "evidenceFactIds": [
+              "premise"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "source",
+            "valueType": "function",
+            "root": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 6
+              }
+            },
+            "evidenceFactIds": [
+              "premise"
+            ]
+          },
+          {
+            "id": "coefficient",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 240
+            },
+            "evidenceFactIds": [
+              "requested"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "scope",
+            "kind": "conceptual",
+            "entityIds": [
+              "polynomial"
+            ],
+            "evidenceFactIds": [
+              "premise",
+              "requested"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actual_request",
+            "kind": "evaluate",
+            "expressionId": "coefficient",
+            "resultBinding": {
+              "turnPlanQuantityId": "actual_answer",
+              "symbol": "C_2",
+              "unit": "1",
+              "evidenceFactIds": [
+                "requested"
+              ]
+            },
+            "extraObligations": [
+              "find circumference"
+            ]
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1",
+            "value": 240,
+            "provenance": "derived"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    },
+    {
+      "name": "normalizer preserves unknown-expression-field",
+      "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "own_poly",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "facts": [
+          {
+            "id": "premise",
+            "kind": "given",
+            "statement": "(2+x)^6",
+            "evidence": {
+              "source": "question",
+              "quote": "(2+x)^6",
+              "start": 39,
+              "end": 46
+            }
+          },
+          {
+            "id": "requested",
+            "kind": "requested",
+            "statement": "Coefficient of x^2 in the expansion of",
+            "evidence": {
+              "source": "question",
+              "quote": "Coefficient of x^2 in the expansion of",
+              "start": 0,
+              "end": 38
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "polynomial",
+            "kind": "other",
+            "label": "P(x)",
+            "evidenceFactIds": [
+              "premise"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "source",
+            "valueType": "function",
+            "root": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 6
+              },
+              "extraObligations": [
+                "Find another result"
+              ]
+            },
+            "evidenceFactIds": [
+              "premise"
+            ]
+          },
+          {
+            "id": "coefficient",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 240
+            },
+            "evidenceFactIds": [
+              "requested"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "scope",
+            "kind": "conceptual",
+            "entityIds": [
+              "polynomial"
+            ],
+            "evidenceFactIds": [
+              "premise",
+              "requested"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actual_request",
+            "kind": "evaluate",
+            "expressionId": "coefficient",
+            "resultBinding": {
+              "turnPlanQuantityId": "actual_answer",
+              "symbol": "C_2",
+              "unit": "1",
+              "evidenceFactIds": [
+                "requested"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1",
+            "value": 240,
+            "provenance": "derived"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    },
+    {
+      "name": "normalizer preserves wrong-symbol-case",
+      "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "own_poly",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "facts": [
+          {
+            "id": "premise",
+            "kind": "given",
+            "statement": "(2+x)^6",
+            "evidence": {
+              "source": "question",
+              "quote": "(2+x)^6",
+              "start": 39,
+              "end": 46
+            }
+          },
+          {
+            "id": "requested",
+            "kind": "requested",
+            "statement": "Coefficient of x^2 in the expansion of",
+            "evidence": {
+              "source": "question",
+              "quote": "Coefficient of x^2 in the expansion of",
+              "start": 0,
+              "end": 38
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "polynomial",
+            "kind": "other",
+            "label": "P(x)",
+            "evidenceFactIds": [
+              "premise"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "source",
+            "valueType": "function",
+            "root": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 6
+              }
+            },
+            "evidenceFactIds": [
+              "premise"
+            ]
+          },
+          {
+            "id": "coefficient",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 240
+            },
+            "evidenceFactIds": [
+              "requested"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "scope",
+            "kind": "conceptual",
+            "entityIds": [
+              "polynomial"
+            ],
+            "evidenceFactIds": [
+              "premise",
+              "requested"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actual_request",
+            "kind": "evaluate",
+            "expressionId": "coefficient",
+            "resultBinding": {
+              "turnPlanQuantityId": "actual_answer",
+              "symbol": "c_2",
+              "unit": "1",
+              "evidenceFactIds": [
+                "requested"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Coefficient of x^2 in the expansion of (2+x)^6 is",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1"
+          }
+        ],
+        "derived": [
+          {
+            "id": "actual_answer",
+            "symbol": "C_2",
+            "unit": "1",
+            "value": 240,
+            "provenance": "derived"
+          }
+        ],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    }
+  ]
+}

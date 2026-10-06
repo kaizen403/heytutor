@@ -1,0 +1,274 @@
+{
+  "id": "w2-ohm-single",
+  "topic": "physics|12|ohms-law-and-resistance",
+  "mode": "live",
+  "question": "A 12 V battery is connected across a 6 Ω resistor. Find the current through the resistor.",
+  "expected": {
+    "current_A": 2
+  },
+  "provenance": {
+    "path": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T0645-w2-63a9863c/evidence/w2-ohm-single-planner-exchanges.json",
+    "sha256": "51a63603b0f6f8b52db28cfc084f8642b8e8de9df3c04f102fb30c263c74807b",
+    "exchangeIndex": 3,
+    "status": 200,
+    "base": "c9b48d2d932703b8b60b62b303c21dd1722ee1ad"
+  },
+  "canonicalPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "A 12 V battery is connected across a 6 Ω resistor. Find the current through the resistor.",
+    "givens": [
+      {
+        "id": "V",
+        "symbol": "V",
+        "value": 12,
+        "unit": "V",
+        "sourceText": "12 V battery",
+        "provenance": "given"
+      },
+      {
+        "id": "R",
+        "symbol": "R",
+        "value": 6,
+        "unit": "Ω",
+        "sourceText": "6 Ω resistor",
+        "provenance": "given"
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "I",
+        "symbol": "I",
+        "unit": "A"
+      }
+    ],
+    "derived": [
+      {
+        "id": "I",
+        "symbol": "I",
+        "value": 2,
+        "unit": "A",
+        "sourceText": "I = V/R = 12/6 = 2",
+        "provenance": "derived",
+        "dependsOn": [
+          "V",
+          "R"
+        ]
+      }
+    ],
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Current through the resistor follows Ohm's law I = V/R.",
+        "expected": "I = V/R = 12/6 = 2 A",
+        "relatedQuantityIds": [
+          "I",
+          "V",
+          "R"
+        ]
+      }
+    ],
+    "lawIds": [
+      "ohms-law"
+    ],
+    "assumptions": [
+      "Ideal battery with no internal resistance",
+      "Resistor obeys Ohm's law",
+      "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "visualRequirement": "required"
+  },
+  "rawProblem": {
+    "facts": [
+      {
+        "id": "fV",
+        "kind": "given",
+        "statement": "battery voltage is 12 V",
+        "quote": "12 V battery"
+      },
+      {
+        "id": "fR",
+        "kind": "given",
+        "statement": "resistor resistance is 6 Ω",
+        "quote": "6 Ω resistor"
+      },
+      {
+        "id": "fI",
+        "kind": "requested",
+        "statement": "find current through the resistor",
+        "quote": "Find the current through the resistor"
+      }
+    ],
+    "entities": [
+      {
+        "id": "battery",
+        "kind": "component",
+        "label": "battery",
+        "evidenceFactIds": [
+          "fV"
+        ]
+      },
+      {
+        "id": "resistor",
+        "kind": "component",
+        "label": "resistor",
+        "evidenceFactIds": [
+          "fR",
+          "fI"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eI",
+        "valueType": "scalar",
+        "expr": "12/6",
+        "evidenceFactIds": [
+          "fV",
+          "fR"
+        ]
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "iCircuit",
+        "kind": "apparatus",
+        "entityIds": [
+          "battery",
+          "resistor"
+        ],
+        "evidenceFactIds": [
+          "fV",
+          "fR"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sI",
+        "kind": "evaluate",
+        "expressionId": "eI",
+        "resultBinding": {
+          "turnPlanQuantityId": "I",
+          "symbol": "I",
+          "unit": "A",
+          "evidenceFactIds": [
+            "fI"
+          ]
+        }
+      }
+    ]
+  },
+  "rawPlannerResponseBody": "{\"id\":\"chatcmpl-048da7da464b4c72a1529955dbde35e5\",\"object\":\"chat.completion\",\"created\":1791269164,\"model\":\"accounts/fireworks/models/kimi-k3\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"facts\\\":[{\\\"id\\\":\\\"fV\\\",\\\"kind\\\":\\\"given\\\",\\\"statement\\\":\\\"battery voltage is 12 V\\\",\\\"quote\\\":\\\"12 V battery\\\"},{\\\"id\\\":\\\"fR\\\",\\\"kind\\\":\\\"given\\\",\\\"statement\\\":\\\"resistor resistance is 6 Ω\\\",\\\"quote\\\":\\\"6 Ω resistor\\\"},{\\\"id\\\":\\\"fI\\\",\\\"kind\\\":\\\"requested\\\",\\\"statement\\\":\\\"find current through the resistor\\\",\\\"quote\\\":\\\"Find the current through the resistor\\\"}],\\\"entities\\\":[{\\\"id\\\":\\\"battery\\\",\\\"kind\\\":\\\"component\\\",\\\"label\\\":\\\"battery\\\",\\\"evidenceFactIds\\\":[\\\"fV\\\"]},{\\\"id\\\":\\\"resistor\\\",\\\"kind\\\":\\\"component\\\",\\\"label\\\":\\\"resistor\\\",\\\"evidenceFactIds\\\":[\\\"fR\\\",\\\"fI\\\"]}],\\\"expressions\\\":[{\\\"id\\\":\\\"eI\\\",\\\"valueType\\\":\\\"scalar\\\",\\\"expr\\\":\\\"12/6\\\",\\\"evidenceFactIds\\\":[\\\"fV\\\",\\\"fR\\\"]}],\\\"constraints\\\":[],\\\"representationIntents\\\":[{\\\"id\\\":\\\"iCircuit\\\",\\\"kind\\\":\\\"apparatus\\\",\\\"entityIds\\\":[\\\"battery\\\",\\\"resistor\\\"],\\\"evidenceFactIds\\\":[\\\"fV\\\",\\\"fR\\\"]}],\\\"solveRequests\\\":[{\\\"id\\\":\\\"sI\\\",\\\"kind\\\":\\\"evaluate\\\",\\\"expressionId\\\":\\\"eI\\\",\\\"resultBinding\\\":{\\\"turnPlanQuantityId\\\":\\\"I\\\",\\\"symbol\\\":\\\"I\\\",\\\"unit\\\":\\\"A\\\",\\\"evidenceFactIds\\\":[\\\"fI\\\"]}}]}\",\"tools\":null},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1914,\"total_tokens\":2166,\"completion_tokens\":252,\"prompt_tokens_details\":{\"cached_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":0},\"output_tokens_details\":{\"reasoning_tokens\":0}},\"perf_metrics\":{\"prompt-tokens\":\"1914\",\"cached-prompt-tokens\":\"0\",\"server-time-to-first-token\":\"0.851\",\"server-processing-time\":\"1.973\",\"speculation-prompt-matched-tokens\":\"0\"}}",
+  "normalizedProblem": {
+    "facts": [
+      {
+        "id": "fV",
+        "kind": "given",
+        "statement": "battery voltage is 12 V",
+        "evidence": {
+          "source": "question",
+          "start": 2,
+          "end": 14,
+          "quote": "12 V battery"
+        }
+      },
+      {
+        "id": "fR",
+        "kind": "given",
+        "statement": "resistor resistance is 6 Ω",
+        "evidence": {
+          "source": "question",
+          "start": 37,
+          "end": 49,
+          "quote": "6 Ω resistor"
+        }
+      },
+      {
+        "id": "fI",
+        "kind": "requested",
+        "statement": "find current through the resistor",
+        "evidence": {
+          "source": "question",
+          "start": 51,
+          "end": 88,
+          "quote": "Find the current through the resistor"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "battery",
+        "kind": "component",
+        "label": "battery",
+        "evidenceFactIds": [
+          "fV"
+        ]
+      },
+      {
+        "id": "resistor",
+        "kind": "component",
+        "label": "resistor",
+        "evidenceFactIds": [
+          "fR",
+          "fI"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eI",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fV",
+          "fR"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "number",
+            "value": 12
+          },
+          "right": {
+            "kind": "number",
+            "value": 6
+          }
+        }
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "iCircuit",
+        "kind": "apparatus",
+        "entityIds": [
+          "battery",
+          "resistor"
+        ],
+        "evidenceFactIds": [
+          "fV",
+          "fR"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sI",
+        "kind": "evaluate",
+        "expressionId": "eI",
+        "resultBinding": {
+          "turnPlanQuantityId": "I",
+          "symbol": "I",
+          "unit": "A",
+          "evidenceFactIds": [
+            "fI"
+          ]
+        }
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "A 12 V battery is connected across a 6 Ω resistor. Find the current through the resistor."
+  }
+}

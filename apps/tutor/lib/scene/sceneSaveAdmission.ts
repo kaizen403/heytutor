@@ -124,7 +124,7 @@ export function sceneSaveAdmissionFailure(input: {
   // before any quantity correspondence can admit signed setup magnitudes.
   const sourceInputIssues = [
     ...sourceBoundPlanIssues(document,question,turnPlan,input.problemIR),
-    ...validateSceneSourceAuthority(document, question, input.problemIR),
+    ...validateSceneSourceAuthority(document, question, input.problemIR,turnPlan),
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
     ...validateSectionPointSourceInputs(document, question),

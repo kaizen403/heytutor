@@ -21,7 +21,7 @@ import {
   planSceneDocumentWithRepair,
   revalidateScenePlanWithRepairResult,
   planTurnV3,
-  planAndSolveProblemV1,
+  planProblemAuthorityV1,
   createFallbackTurnPlanV3,
   inferSceneCapabilities,
   normalizeTutorQuestion,
@@ -35,6 +35,7 @@ import {
   type CodeLessonPlan,
   type DsaTeachingPolicy,
   type ProblemAuthorityV1Response,
+  type ProblemAuthorityV1Decline,
   type SceneCandidateValidation,
   type ScenePlanWithRepairResult,
   narrationLanguageForVoice,
@@ -989,6 +990,10 @@ export function useQuestionHandler(
               boardId: sessionId,
             });
         let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
+        let sourceDecline:ProblemAuthorityV1Decline|null=null;
+        const retainAuthorityOutcome=(outcome:Awaited<ReturnType<typeof planProblemAuthorityV1>>):ProblemAuthorityV1Response|null=>{
+          if(outcome && "status" in outcome){sourceDecline=outcome;return null;}return outcome;
+        };
         let visualNeedPromise: ReturnType<typeof fetchVisualNeed> | null = null;
         // ProblemIR runs alongside the visual decision and, when it is slow,
         // alongside speculative scene candidates; its span records its own cost.
@@ -1010,14 +1015,14 @@ export function useQuestionHandler(
 
         if (recoveredScene) {
           turnPlan = recoveredScene.turnPlan;
-          problemAuthorityPromise = traceProblemAuthority(planAndSolveProblemV1(question, turnPlan, {
+          problemAuthorityPromise = traceProblemAuthority(planProblemAuthorityV1(question, turnPlan, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
             traceId: turnTraceId ?? undefined,
             signal: abortController.signal,
             timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, SCENE_PLANNER_DEADLINE_MS),
             fastMode: fastModeRef.current,
-          }));
+          }).then(retainAuthorityOutcome));
           tutorDebug("planner", "found verified scene recovery candidate", {
             source: recoveredScene.source,
           });
@@ -1083,14 +1088,14 @@ export function useQuestionHandler(
             tel.mark("planner-source-formulation", { source: sourceFormulation.authority.rawContent, entity_count: sourceFormulation.authority.problemIR.entities.length, request_count: sourceFormulation.authority.problemIR.solveRequests.length });
           } else if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
             const remainingAuthorityMs = Math.max(1_000, SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt));
-            problemAuthorityPromise = traceProblemAuthority(planAndSolveProblemV1(question, turnPlan, {
+            problemAuthorityPromise = traceProblemAuthority(planProblemAuthorityV1(question, turnPlan, {
               proxyUrl: plannerUrl,
               sessionId: sessionId ?? undefined,
               traceId: turnTraceId ?? undefined,
               signal: abortController.signal,
               timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, remainingAuthorityMs),
               fastMode: fastModeRef.current,
-            }));
+            }).then(retainAuthorityOutcome));
           } else if (plannedTurn) {
             tel.mark("planner-numeric-authority-not-needed", { reason: "no_unstated_numeric_results" });
           }
@@ -1123,11 +1128,13 @@ export function useQuestionHandler(
           renderScene: RenderScene;
           report: ValidationReport;
         };
+        let sceneAuthorityIR:unknown=null;
         const validateCandidateAgainstPlan = (
           candidate: Record<string, unknown>,
           authoritativePlan: TurnPlanV3,
         ): SceneCandidateValidation<ValidatedSceneCandidate> => {
-          let validated = validateSceneDocument(pruneDeadSceneEntities(candidate));
+          const compileOptions={sourceAuthority:{question,problemIR:sceneAuthorityIR,turnPlan:authoritativePlan}};
+          let validated = validateSceneDocument(pruneDeadSceneEntities(candidate),compileOptions);
           if (!validated.document) {
             return {
               valid: false,
@@ -1145,7 +1152,7 @@ export function useQuestionHandler(
           if (constraintNormalized !== validated.document) {
             validated = validateSceneDocument(pruneDeadSceneEntities(
               constraintNormalized as unknown as Record<string, unknown>,
-            ));
+            ),compileOptions);
             if (!validated.document) {
               return {
                 valid: false,
@@ -1157,7 +1164,7 @@ export function useQuestionHandler(
           if (annotationPruned !== validated.document) {
             validated = validateSceneDocument(pruneDeadSceneEntities(
               annotationPruned as unknown as Record<string, unknown>,
-            ));
+            ),compileOptions);
             if (!validated.document) {
               return {
                 valid: false,
@@ -1178,7 +1185,7 @@ export function useQuestionHandler(
           }));
           const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
           const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
-          const compiledScene = compileSceneDocument(validated.document);
+          const compiledScene = compileSceneDocument(validated.document,compileOptions);
           const fatalIssues = [
             ...sourceIssues,
             ...authorityIssues,
@@ -1348,11 +1355,14 @@ export function useQuestionHandler(
           telemetry: tel,
           parentSpan: "planner",
           deriveGate: deriveSceneGate,
+          applyUnavailableAuthority: plan => sourceDecline
+            ? applySourceQuantityAuthority(plan, sourceDecline.rawProblemIR, question).plan : plan,
           applyAuthority: async (planToReconcile, authority) => {
             // A captured/model full IR is retained and source-bound before
             // recomputing its solver. Never pair repaired facts with old values.
             const prepared = await prepareSourceProblemAuthority(question, planToReconcile, authority);
             if (prepared) { planToReconcile = prepared.plan; authority = prepared.authority; }
+            sceneAuthorityIR=authority.problemIR;
             const reconciledPlan = applyDeterministicSourceAuthority(reconcileTurnPlanWithSolver(
               planToReconcile,
               authority.problemIR,
@@ -1631,6 +1641,7 @@ export function useQuestionHandler(
           schemaVersion: "scene-artifacts/v3",
           turnPlan,
           problemIR: problemAuthority?.problemIR ?? null,
+          problemIRRejection: sourceDecline ?? undefined,
           solverResult: problemAuthority?.solverResult ?? null,
           solverAuthority: problemAuthority?.audit ?? null,
           representationTier: representationTier ?? undefined,

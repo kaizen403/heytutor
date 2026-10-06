@@ -1,3 +1,8 @@
+import { finiteProgressionDocumentIssues } from "../contracts/finiteProgressionContract";
+import { INDEXED_PROGRESSION_OPERATORS, validateIndexedProgressionConstruction } from "../compile/indexedProgressionGeometry";
+import type { CompileOptions } from "../types";
+import { finiteBinomialDocumentIssues } from "../contracts/finiteBinomialContract";
+import { validateFiniteBinomialConstruction } from "../compile/binomialExpansionGeometry";
 import {
   SCENE_ANNOTATION_KINDS,
   SCENE_DOCUMENT_VERSION,
@@ -146,6 +151,7 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   lens_section: "polygon",
   angle_mark: "angle_mark", right_angle_mark: "right_angle_mark", tick_mark: "tick_mark",
   sign_badge: "vector", dimension: "dimension", connect: "connector", symbol: "component", label: "label",
+  indexed_progression: "indexed_progression", progression_recover: "indexed_progression", progression_insert: "indexed_progression",
   matrix_array: "matrix_array", matrix_add: "matrix_array", matrix_scale: "matrix_array",
   matrix_product: "matrix_array", matrix_transpose: "matrix_array",
 };
@@ -4015,11 +4021,15 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function validateSceneDocument(raw: unknown): ValidationResult {
+export function validateSceneDocument(raw: unknown, options: Pick<CompileOptions, "sourceAuthority"> = {}): ValidationResult {
   const issues: SceneIssue[] = [];
   if (!isRecord(raw)) {
     return result(null, [{ code: "invalid_document", message: "SceneDocument must be an object", severity: "fatal", path: "$" }]);
   }
+  const progressionIssues = finiteProgressionDocumentIssues(raw, options.sourceAuthority);
+  if (progressionIssues.length) return result(null, progressionIssues);
+  const sourceIssues = finiteBinomialDocumentIssues(raw, options.sourceAuthority);
+  if (sourceIssues.length) return result(null, sourceIssues);
   const normalizedRaw: Record<string, unknown> = normalizeGenericPlannerSchema({
     ...raw,
     quantities: raw.quantities ?? [],
@@ -4328,6 +4338,8 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       }
     }
     if (isRecord(construction.inputs)) {
+      if ((INDEXED_PROGRESSION_OPERATORS as readonly string[]).includes(construction.operator)) validateIndexedProgressionConstruction(construction, index, document, issues);
+      if (construction.operator === "finite_polynomial_expansion" && options.sourceAuthority) validateFiniteBinomialConstruction(construction, index, document, issues, options.sourceAuthority);
       if (COMPLEX_CONSTRUCTIONS.has(construction.operator)) validateComplexConstruction(construction, index, document, constructionByOutput, issues);
       if (MAGNETIC_CONSTRUCTIONS.has(construction.operator)) validateMagneticConstruction(construction, index, document, constructionByOutput, issues);
       if (RELATIVE_MOTION_CONSTRUCTIONS.has(construction.operator)) validateRelativeMotionConstruction(construction, index, document, constructionByOutput, issues);

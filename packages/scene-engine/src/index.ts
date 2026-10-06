@@ -69,3 +69,18 @@ export * from "./ir/rightTriangleSource";
 export * from "./ir/staticContactTriangle";
 
 export * from "./ir/staticContactTriangleAuthority";
+
+export * from "./math/finitePolynomialExpansion";
+export * from "./ir/finiteBinomialProgram";
+export * from "./compile/binomialExpansionGeometry";
+export * from "./contracts/finiteBinomialContract";
+
+export * from "./compile/indexedProgressionGeometry";
+export * from "./math/finiteProgressionSource";
+export * from "./ir/finiteProgressionSourceProgram";
+export * from "./contracts/finiteProgressionContract";
+
+export * from "./ir/finiteBinomialPlanAuthority";
+export * from "./ir/measurementSourceAuthority";
+
+export * from "./ir/measurementQuestionPlanAuthority";
