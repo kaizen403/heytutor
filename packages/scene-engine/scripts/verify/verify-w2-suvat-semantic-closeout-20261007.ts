@@ -11,7 +11,9 @@ const bytes=readFileSync(new URL('./fixtures/w2-suvat-semantic-closeout-20261007
 assert.equal(createHash('sha256').update(bytes).digest('hex'),'824b52bd92a478786f2f4bc57dd753b1f640f374810c6db3ec642778bcf907af');
 const predicateBytes=readFileSync(new URL('./fixtures/w2-suvat-semantic-closeout-20261007/predicate-callers.json',import.meta.url));
 assert.equal(createHash('sha256').update(predicateBytes).digest('hex'),'c339c6d292a3286b745d6e5e5eaf5795595eeec61ea9830b216d786887b04ab3');
-const tests=[...JSON.parse(bytes.toString()).cases,...JSON.parse(predicateBytes.toString()).cases];
+const finalBytes=readFileSync(new URL('./fixtures/w2-suvat-semantic-closeout-20261007/final-review-callers.json',import.meta.url));
+assert.equal(createHash('sha256').update(finalBytes).digest('hex'),'8f0ad717e7206001eece65ff7f3659e54e9c41fdc86347791d8c40df6c6ab3a0');
+const tests=[...JSON.parse(bytes.toString()).cases,...JSON.parse(predicateBytes.toString()).cases,...JSON.parse(finalBytes.toString())];
 const original=tests[0].c;
 const doc=E.suvatCallerDocument(original.q,original.ir,original.plan)!;
 let checks=0;const failed:string[]=[];const records=[];

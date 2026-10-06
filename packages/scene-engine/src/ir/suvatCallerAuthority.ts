@@ -10,7 +10,7 @@ import { readSuvatSource, suvatAstKey, suvatSemantic, type SuvatSemantic, type S
 import type { SceneDocument, SceneIssue } from "../types";
 
 const dimensions = {u:"speed",v:"speed",a:"accel",t:"time",s:"length"} as const;
-const aliases: Record<SuvatRole,string[]> = {u:["u","v0","initialvelocity","initialspeed"],v:["v","vf","finalvelocity","finalspeed"],a:["a","acceleration","deceleration"],t:["t","time","duration"],s:["s","d","distance","displacement"]};
+const aliases: Record<SuvatRole,string[]> = {u:["u","v0","u0","vi","initialvelocity","initialspeed","vinitial"],v:["v","vf","v1","finalvelocity","finalspeed","vfinal"],a:["a","acceleration","deceleration","retardation"],t:["t","time","duration","brakingtime"],s:["s","d","x","deltax","dx","distance","displacement","stoppingdistance","brakingdistance"]};
 const key=(text:string) => normalized(text).replace(/[^a-z0-9]/g,"");
 const roleOf=(row:{id:string;symbol:string}):SuvatRole|undefined => {
   const roles=Object.keys(aliases) as SuvatRole[];
@@ -18,11 +18,20 @@ const roleOf=(row:{id:string;symbol:string}):SuvatRole|undefined => {
   const idRole=roles.find(role=>aliases[role].includes(key(row.id)));
   return row.id.length>0 && symbolRole && (!idRole || idRole===symbolRole) ? symbolRole : undefined;
 };
-const namedSemantics: Record<string,SuvatSemantic> = {initialvelocity:"velocity",finalvelocity:"velocity",initialspeed:"speed",finalspeed:"speed",distance:"distance",displacement:"displacement",deceleration:"deceleration"};
+const namedSemantics: Record<string,SuvatSemantic> = {
+  initialvelocity:"velocity",finalvelocity:"velocity",velocity:"velocity",
+  initialspeed:"speed",finalspeed:"speed",speed:"speed",
+  distance:"distance",displacement:"displacement",brakingdistance:"distance",stoppingdistance:"distance",
+  acceleration:"acceleration",deceleration:"deceleration",retardation:"deceleration",
+  time:"time",duration:"time",brakingtime:"time",
+};
+const semanticRoles:Record<SuvatSemantic,readonly SuvatRole[]>={velocity:["u","v"],speed:["u","v"],distance:["s"],displacement:["s"],acceleration:["a"],deceleration:["a"],time:["t"]};
 function auditQuantitySemantics(source:SuvatSource,row:{id:string;symbol:string},role:SuvatRole,requested:boolean):void {
   for(const name of [row.id,row.symbol]){
-    if(key(name)==="deceleration"&&!(Math.abs(source.state.v)<Math.abs(source.state.u)))fail("Plan deceleration name contradicts speed increase");
-    const semantic=namedSemantics[key(name)];if(!semantic)continue;
+    const named=key(name),semantic=namedSemantics[named];if(!semantic)continue;
+    if(/brak|decel|retard|stopping/.test(named)&&!(Math.abs(source.state.v)<Math.abs(source.state.u)))fail("Plan braking/magnitude name contradicts interval");
+    if(named==="stoppingdistance"&&source.state.v!==0)fail("Plan stopping-distance name requires a stopped endpoint");
+    if(!semanticRoles[semantic].includes(role))fail("Plan semantic name disagrees with quantity role");
     if((semantic==="speed"||semantic==="distance"||semantic==="deceleration")&&source.state[role]<0)fail("Plan magnitude name borrows a negative signed role");
     if(requested && !source.asks.some(ask=>ask.role===role&&ask.semantic===semantic))fail("Plan semantic name disagrees with source query");
   }
@@ -102,6 +111,7 @@ function auditPlan(source:SuvatSource,raw:unknown):TurnPlanV3 {
   const laws=new Set(["kinematics_uniform_acceleration","v=u+at","s=(u+v)t/2","s=ut+at^2/2","constant_acceleration"]);
   if(!plan.lawIds.length||plan.lawIds.some(law=>!laws.has(law)))fail("unproved Plan law");
   for(const claim of plan.qualitativeClaims){
+    if(/brak|decel|retard/i.test(claim.claim)&&!(Math.abs(source.state.v)<Math.abs(source.state.u)))fail("Plan claim braking/deceleration premise is false");
     fields(claim,["id","claim","expected","relatedQuantityIds"]);
     if(!claim.relatedQuantityIds?.length||claim.relatedQuantityIds.some(id=>!rowRoles.has(id)))fail("unbound claim quantity");
     const acceleration=/^Acceleration is opposite to motion \(deceleration of magnitude ([\d.]+) m\/s\^2\)\.$/.exec(claim.claim);
