@@ -47,6 +47,7 @@ import { relativeMotionSource, relativeMotionSourceEntityBindings } from "../phy
 import { validateRelativeMotionSourceInputs } from "./relativeMotionScene";
 import { uniformCircularProblemEntitySceneId, uniformCircularSourceDimensionIsCarried } from "../physics/uniformCircularIdentity";
 import type { SceneDocument, SceneIssue } from "../types";
+import { SUVAT_SOURCE_MODEL, suvatDocumentIssues } from "../ir/suvatCallerAuthority";
 
 export const VISUAL_OBLIGATIONS_VERSION = "visual-obligations/v1" as const;
 
@@ -257,6 +258,9 @@ export function checkVisualObligations(
   turnPlan?: unknown,
 ): VisualObligationCheckResult {
   const authority = problem ? {question: problem.question, problemIR: problem, turnPlan} : undefined;
+  const suvatIssues = problem ? suvatDocumentIssues(document, problem.question, problem, turnPlan) : [];
+  if (suvatIssues.length) return {satisfied: false, satisfiedIds: [], unsupportedIds: [],
+    missing: suvatIssues.map(issue => ({obligationId: "suvat_source", kind: "named_body", code: issue.code, message: issue.message, problemEntityIds: problem?.entities.map(entity => entity.id) ?? []}))};
   const progressionIssues = finiteProgressionDocumentIssues(document, authority);
   const sourceIssues = progressionIssues.length ? progressionIssues : finiteBinomialDocumentIssues(document, authority);
   if (sourceIssues.length) return {satisfied: false, satisfiedIds: [],
@@ -527,6 +531,12 @@ function mapProblemEntities(
   };
   for (const obligation of set.obligations) {
     if (obligation.kind !== "named_body") continue;
+    const suvatActor = document.source.sourceModel === SUVAT_SOURCE_MODEL ? document.entities.find(entity =>
+      entity.id === "graph" && entity.provenance?.suvatActorId === obligation.problemEntityId &&
+      entity.provenance?.suvatActorLabel === obligation.problemLabel) : null;
+    if (suvatActor && !consumed.has(suvatActor.id)) {
+      mapping.set(obligation.problemEntityId, suvatActor.id); consumed.add(suvatActor.id); continue;
+    }
     if (polynomialId === obligation.problemEntityId && byId.has(polynomialId) && !consumed.has(polynomialId)) {
       mapping.set(obligation.problemEntityId, polynomialId); consumed.add(polynomialId); continue;
     }

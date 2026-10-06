@@ -5,6 +5,7 @@ import {
   readFiniteBinomialProgram,solveFiniteBinomialProblem,
   readFiniteProgressionSource,readScrewGaugeQuestion,verifyMeasurementSourceAuthority,measurementPlanSourceIssueCodes,
   readUniformCircularRuntimeContract,uniformCircularCallerIssues,uniformCircularRuntimePlanConflicts,
+  readSuvatSource, suvatCallerIssues, suvatPlanIssues,
   buildSolverAuthorityProjection,
   evaluateMathExpression,
   expressionToSafeSource,
@@ -74,6 +75,7 @@ export type ProblemAuthorityV1Outcome = ProblemAuthorityV1Response | ProblemAuth
 export function sourceProblemAdmissionIssueCodes(question:string,problem:unknown,plan:unknown):string[]{
   if(readCircleSourceProgram(question).status!=="none")return circleCallerIssues(question,problem,plan).map(issue=>issue.code);
   if(readPointLineProgram(question).status!=="none")return pointLineCallerIssues(question,problem,plan).map(issue=>issue.code);
+  if (readSuvatSource(question).status !== "none") return suvatCallerIssues(question, problem, plan).map(issue => issue.code);
   const circular=readUniformCircularRuntimeContract(question);
   if(circular) return uniformCircularCallerIssues(question,problem,plan).map(issue=>issue.code);
   if(readScrewGaugeQuestion(question).status!=="none"){
@@ -85,7 +87,7 @@ export function sourceProblemAdmissionIssueCodes(question:string,problem:unknown
 /** Original Plan-only refusal also applies when ProblemIR transport fails. */
 export function refuseSourcePlan(question:string,plan:TurnPlanV3):ProblemAuthorityV1Decline|null {
   const capture = captureSourceCaller(plan);
-  const issueCodes = !capture.ok ? ["invalid_source_data"] : measurementPlanSourceIssueCodes(question, capture.data);
+  const issueCodes = !capture.ok ? ["invalid_source_data"] : [...suvatPlanIssues(question, capture.data).map(issue => issue.code), ...measurementPlanSourceIssueCodes(question, capture.data)];
   if (issueCodes.length) return {status:"source_declined",question,rawProblemIR:null,
     rawTurnPlan:capture.ok?capture.data:capture.evidence,rawContent:"",issueCodes,elapsedMs:0};
   const circleCodes=circlePlanSourceIssues(question,capture.ok?capture.data:plan).map(issue=>issue.code);
@@ -188,7 +190,7 @@ export async function planProblemAuthorityV1(
     const polynomial=readFiniteBinomialProgram(question);
     const matrixProducts=readMatrixProductSourceProgram(question);
     const matrixInput=matrixProducts?liftCompactProblemIR(parsed,question):null;
-    const wholeScalarSource=readFiniteProgressionSource(question).status==="ok" || readScrewGaugeQuestion(question).status!=="none" || readUniformCircularRuntimeContract(question)!=null || readCircleSourceProgram(question).status!=="none" || readPointLineProgram(question).status!=="none";
+    const wholeScalarSource=readFiniteProgressionSource(question).status==="ok" || readScrewGaugeQuestion(question).status!=="none" || readUniformCircularRuntimeContract(question)!=null || readCircleSourceProgram(question).status!=="none" || readPointLineProgram(question).status!=="none" || readSuvatSource(question).status!=="none";
     const sourceInput=polynomial.status==="ok"?liftFinitePolynomialInput(parsed,question):null;
     const decline=(code:string):ProblemAuthorityV1Decline=>({status:"source_declined",question,
       rawProblemIR:parsed,...(turnPlan?{rawTurnPlan:turnPlan}:{}),rawContent:content,issueCodes:[code],elapsedMs:Date.now()-startedAt});

@@ -67,6 +67,8 @@ export * from "./dsa/traceToScene";
 export * from "./dsa/familyTeaching";
 
 export { constantAccelerationSourceProgram } from "./archetypes/generators/constantAcceleration";
+export * from "./ir/suvatSource";
+export * from "./ir/suvatCallerAuthority";
 export * from "./ir/ladderSourceProgram";
 export * from "./ir/rightTriangleSource";
 

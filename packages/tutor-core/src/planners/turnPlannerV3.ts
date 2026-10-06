@@ -2,6 +2,7 @@ import { readPointLineProgram } from "@heytutor/scene-engine";
 import {
   reconcileTurnPlanV3ExplicitArithmetic,
   readUniformCircularRuntimeContract,readScrewGaugeQuestion,readCircleSourceProgram,
+  readSuvatSource, normalizeSuvatPlanWire, suvatPlanIssues,
   validateTurnPlanV3,
   type TurnPlanArithmeticReconciliationResult,
   type TurnPlanV3,
@@ -418,6 +419,12 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
     const lastBrace = text.lastIndexOf("}");
     if (firstBrace < 0 || lastBrace <= firstBrace) return null;
     const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1)) as unknown;
+    if (readSuvatSource(question).status !== "none") {
+      const actual = normalizeSuvatPlanWire(parsed);
+      if (trace) trace.normalized = actual;
+      const checked = validateTurnPlanV3(actual, question);
+      return checked.valid && checked.plan && !suvatPlanIssues(question, actual).length ? checked.plan : null;
+    }
     // These source authorities need the original whole Plan before any
     // arithmetic rewrite or canonicalization can erase textual obligations.
     if(readUniformCircularRuntimeContract(question) || readScrewGaugeQuestion(question).status!=="none" || readCircleSourceProgram(question).status!=="none" || readPointLineProgram(question).status!=="none"){

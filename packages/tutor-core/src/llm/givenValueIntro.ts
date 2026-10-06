@@ -8,6 +8,7 @@
 import { WORK_ZONE, measureTextWidth, workRowFontSize, type TutorSegment } from "@heytutor/drawing";
 import {circlePlanSourceIssues,readCircleSourceProgram} from "@heytutor/scene-engine";
 import { isConceptLessonQuestion } from "./reasoningEffort";
+import { suvatGivenIsSourceOwned } from "@heytutor/scene-engine";
 
 export interface QuestionGiven {
   symbol: string;
@@ -195,7 +196,7 @@ function givenFromPlan(raw: unknown, index: number, question: string, owner: Tur
   // provenance "given". A plausible sourceText is not evidence, and a
   // one-letter symbol matched as a substring is worse than none: "m" is inside
   // "the first law of physics", so the old symbol test passed every time.
-  if (!questionStatesPlanGiven(question, owner, raw.id, raw.value)) {
+  if (!questionStatesPlanGiven(question, owner, raw.id, raw.value) && !suvatGivenIsSourceOwned(question, raw)) {
     return null;
   }
   const board = `${symbol} = ${formatNumber(raw.value)}${unit ? ` ${unit}` : ""}`;

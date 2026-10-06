@@ -37,6 +37,7 @@ import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotion
 import { validateStaticContactTriangleSource } from "../ir/staticContactTriangle";
 import { validateOpticalConjugateSource } from "../ir/opticalConjugateProgram";
 import { validateSceneSourceAuthority } from "../ir/sceneSourceAuthority";
+import { suvatSourceContractIssues } from "../contracts/suvatSourceContract";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
 import { validatePointLineSourceInputs } from "../ir/pointLineSource";
 import { validateSectionPointSourceInputs } from "../ir/sectionFormulaSource";
@@ -211,6 +212,8 @@ const EPSILON = 1e-6;
 export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
+  const suvatIssues = suvatSourceContractIssues(document, options.sourceAuthority);
+  if (suvatIssues.length) return {ok: false, renderScene: null, report: report(document, suvatIssues, 0)};
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
   const structural = validateSceneDocument(document, options);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };

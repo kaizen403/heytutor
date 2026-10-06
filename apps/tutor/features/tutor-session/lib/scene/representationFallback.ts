@@ -39,6 +39,9 @@ import {
   validateSectionFormulaProblemSource,
   validateSectionPointSourceInputs,
   visualObligationRejection,
+  suvatGivenIsSourceOwned,
+  suvatCallerIssues,
+  suvatPlanForSIComparison,
 } from "@heytutor/scene-engine";
 import { isQuotedPhysicalConstant, questionStatesValue } from "@heytutor/tutor-core";
 
@@ -149,9 +152,11 @@ export function selectFastVerifiedRepresentation(
   if (relativeMotionCallerIssues(input.question, input.problemIR, input.turnPlan).length) return null;
   if (sourceRelative && motionPlanConflict(input.question, input.turnPlan)) return null;
   if (pointLineCallerIssues(input.question, input.problemIR, input.turnPlan).length) return null;
+  if (suvatCallerIssues(input.question, input.problemIR, input.turnPlan).length) return null;
   const plan = validateTurnPlanV3(input.turnPlan, input.question).plan;
   if (!plan || plan.visualRequirement === "none") return null;
   if (!sourceRelative && plan.givens.some((given) => !questionStatesValue(input.question, given.value) &&
+      !suvatGivenIsSourceOwned(input.question, given) &&
       !isQuotedPhysicalConstant(given.symbol, given.value))) return null;
   const synthesized = synthesizeFamilyScene({
     question: input.question,
@@ -165,7 +170,8 @@ export function selectFastVerifiedRepresentation(
         (primitive.kind === "label" || primitive.kind === "dimension") && primitive.text?.trim())) return null;
   if (result.tier !== "exact_verified" && (plan.givens.some((given) => !isPlannerQuotedConstant(input.question, given)) ||
       plan.derived.some((quantity) => !questionStatesValue(input.question, quantity.value)))) return null;
-  const agreement = validateSceneQuantityAgreement(result.document.quantities, plan,
+  const comparisonPlan = suvatPlanForSIComparison(input.question, input.problemIR, input.turnPlan) ?? plan;
+  const agreement = validateSceneQuantityAgreement(result.document.quantities, comparisonPlan,
     result.renderScene.primitives.flatMap((primitive) =>
       (primitive.kind === "label" || primitive.kind === "dimension") && typeof primitive.text === "string"
         ? [primitive.text] : []),
@@ -206,6 +212,8 @@ export function selectVerifiedRepresentation(
   if (readScrewGaugeQuestion(input.question).status !== "none") {
     return { ...buildTextOnlySelected(input.question), reason: "measurement apparatus scene profile unsupported" };
   }
+  const suvatIssues = suvatCallerIssues(input.question, input.problemIR, input.turnPlan);
+  if (suvatIssues.length) return {...buildTextOnlySelected(input.question), reason: suvatIssues[0]!.message};
   // The question fixes these motion numbers. A plan that would narrate a
   // different value gets no figure at all, so a stale number is never spoken
   // over a correct (or a planner-drawn) picture.
@@ -557,7 +565,7 @@ function validateSceneDocumentForCaller(
       issues.push({ code: "caller_problem_ir", severity: "fatal",
         message: "Caller ProblemIR must validate against the actual question", path: "sourceAuthority.problemIR" });
     } else {
-      const missing = visualObligationRejection(deriveVisualObligations(checkedProblem.problem), document, checkedProblem.problem);
+      const missing = visualObligationRejection(deriveVisualObligations(checkedProblem.problem), document, checkedProblem.problem, turnPlan);
       if (missing) issues.push({
         code: "source_visual_obligation",
         severity: "fatal",

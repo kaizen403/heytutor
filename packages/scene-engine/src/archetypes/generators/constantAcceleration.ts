@@ -7,7 +7,7 @@
  * role, so a stale narration scalar declines
  * the figure instead of pairing with it.
  *
- * Supported: one interval, +x along the initial motion (u >= 0), the body
+ * Supported: one interval in a signed one-dimensional frame, the body
  * never reverses inside the interval, SI or common metric units. Declined:
  * vertical throws and free fall, several phases, reversal, a body that
  * stops before the stated time, over-determined givens that disagree, a
@@ -16,6 +16,7 @@
 import { SceneBuilder, fmt } from "../document";
 import { parseStemNumber, STEM_NUMBER, type PlanQuantity, type SlotBag, type SlotSource } from "../slots";
 import { maybeNum, type GeneratorContext, type GeneratorTable } from "./context";
+import { readSuvatSource } from "../../ir/suvatSource";
 
 export type SuvatRole = "u" | "v" | "a" | "t" | "s";
 export type SuvatState = Record<SuvatRole, number>;
@@ -106,9 +107,8 @@ export function resolveConstantAcceleration(
     return { ok: false, reason: "the stated quantities do not fix one forward interval" };
   }
   if (!(state.t > 0)) return { ok: false, reason: "the interval would need zero or negative time" };
-  if (state.u < 0) return { ok: false, reason: "initial motion is against the declared +x direction" };
-  if (state.v < 0) return { ok: false, reason: "the body would stop and reverse inside the interval" };
-  if (state.s < 0) return { ok: false, reason: "negative displacement for forward motion" };
+  if (state.u * state.v < 0) return { ok: false, reason: "the body would stop and reverse inside the interval" };
+  if (state.s * (state.u || state.v) < 0) return { ok: false, reason: "displacement contradicts the interval direction" };
   for (const role of ROLES) {
     const given = knowns[role];
     if (given !== undefined && !sourceAgrees(state[role], given)) {
@@ -273,6 +273,8 @@ function constantAccelerationSourceIssue(text: string): string | null {
 /** Source quantities fix the solve; every plan row is a checked claim. */
 export function suvatSlots(stem: string, plan: readonly PlanQuantity[]): SuvatSlots | { conflict: string } {
   const text = normalized(stem);
+  if (!/\buniform(?:ly)?\b|\bconstant acceleration\b/.test(text) &&
+      !(VT_GRAPH.test(text) && /\b(?:horizontal|constant velocity|constant speed)\b/.test(text))) return {conflict:"constant acceleration is not a stated source condition"};
   const scopeIssue = constantAccelerationSourceIssue(text);
   if (scopeIssue) return { conflict: scopeIssue };
   const decelerating = DECELERATION.test(text);
@@ -333,35 +335,37 @@ function uniformAccelerationVt(context: GeneratorContext) {
     const supplied = maybeNum(context, role);
     if (supplied !== null && !sourceAgrees(supplied, resolved.state[role])) return null;
   }
-  const k = displayFactor(t, 0, Math.max(u, v));
-  const top = Math.max(u, v) * k;
-  const span = Math.max(top, 1e-6);
+  const k = displayFactor(t, Math.min(0,u,v), Math.max(0,u,v));
+  const top = Math.max(0,u,v) * k;
+  const bottom = Math.min(0,u,v) * k;
+  const span = Math.max(top-bottom, 1e-6);
   const scene = new SceneBuilder(context.question, "velocity-time graph of one constant-acceleration interval", "uniform_acceleration_vt");
   scene.quantity("q_u", "u", u, "m/s");
   scene.quantity("q_v", "v", v, "m/s");
   scene.quantity("q_a", "a", a, "m/s^2");
   scene.quantity("q_t", "t", t, "s");
   scene.quantity("q_s", "s", s, "m");
-  scene.axes("axes", -0.06 * t, 1.18 * t, -0.12 * span, top + 0.22 * span, "v-t axes", "v-t");
+  scene.axes("axes", -0.06 * t, 1.18 * t, bottom - 0.12 * span, top + 0.22 * span, "v-t axes", "v-t");
   scene.curve("graph", `${u * k} + ${a * k}*x`, 0, t, "velocity v(t) = u + a t", label("a", a, "m/s^2"), 17);
   scene.curve("zero", "0", 0, t, "time axis under the area", undefined, 17);
-  scene.region("area", "graph", "zero", "area under the v-t graph = displacement", 0, t);
+  scene.region("area", u < 0 || v < 0 ? "zero" : "graph", u < 0 || v < 0 ? "graph" : "zero", "signed area under the v-t graph = displacement", 0, t);
   scene.point("start", { x: 0, y: u * k }, "initial velocity on the graph", label("u", u, "m/s"));
   scene.point("end", { x: t, y: v * k }, "final velocity on the graph", label("v", v, "m/s"));
   scene.point("foot", { x: t, y: 0 }, "end of the interval on the time axis", label("t", t, "s"));
-  if (v > 1e-9) scene.segment("drop", "end", "foot", "ordinate at the end of the interval");
-  scene.labelAt("s_label", { x: t / 2, y: Math.max(u, v) * k * 0.3 }, "displacement as the area", label("s", s, "m"));
+  if (Math.abs(v) > 1e-9) scene.segment("drop", "end", "foot", "ordinate at the end of the interval");
+  scene.labelAt("s_label", { x: t / 2, y: (Math.abs(u)>Math.abs(v)?u:v) * k * 0.3 }, "displacement as the area", label("s", s, "m"));
   scene.assert("u_on_graph", "function_value", ["graph"], { x: 0, y: Number((u * k).toFixed(6)) });
   scene.assert("v_on_graph", "function_value", ["graph"], { x: Number(t.toFixed(6)), y: Number((v * k).toFixed(6)) });
   scene.labelled("axes", "start", "end", "foot");
   scene.group("axes_group", ["axes"], "velocity on the vertical axis, time on the horizontal");
-  scene.group("graph_group", ["graph", "start", "end", "foot", ...(v > 1e-9 ? ["drop"] : [])], "a straight line from u to v whose slope is the acceleration", ["axes_group"]);
+  scene.group("graph_group", ["graph", "start", "end", "foot", ...(Math.abs(v) > 1e-9 ? ["drop"] : [])], "a straight line from u to v whose slope is the acceleration", ["axes_group"]);
   scene.group("area_group", ["zero", "area", "s_label"], "the area under the line is the displacement", ["graph_group"]);
   return scene.build();
 }
 
 /** Parent selection/admission can query the existing source program directly. */
 export function constantAccelerationSourceProgram(question: string, quantities: readonly PlanQuantity[] = []) {
+  if (readSuvatSource(question).status === "declined") return null;
   return uniformAccelerationVt({ question, quantities, slots: {}, sources: {}, schematic: false });
 }
 

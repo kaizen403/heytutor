@@ -11,6 +11,8 @@ import { finiteBinomialSourceDocument, readFiniteBinomialProgram } from "../ir/f
  */
 import { staticContactTriangleDocument } from "../ir/staticContactTriangle";
 import { stemKnowns } from "../archetypes/generators/constantAcceleration";
+import { readSuvatSource } from "../ir/suvatSource";
+import { suvatCallerDocument } from "../ir/suvatCallerAuthority";
 import { compileSceneDocument } from "../compile/compiler";
 import { bindStatedCircuitProblem } from "../ir/statedCircuitProblemBinding";
 import { claimsStatedResistorCircuit } from "../ir/statedCircuitAuthority";
@@ -178,6 +180,15 @@ function synthesizeFromFamilies(
   if (readScrewGaugeQuestion(input.question).status !== "none") return null;
   const question = input.question.trim();
   if (!question) return null;
+  const suvat = readSuvatSource(question);
+  if (suvat.status !== "none") {
+    if (suvat.status !== "ok") return null;
+    const document = suvatCallerDocument(question, input.problemIR, input.turnPlan);
+    const compiled = document ? tryCompile(document, {sourceAuthority: {question, problemIR: input.problemIR, turnPlan: input.turnPlan}}) : null;
+    if (!compiled || !isFullProblemIRStructure(input.problemIR) || visualObligationRejection(deriveVisualObligations(input.problemIR), compiled.document, input.problemIR, input.turnPlan)) return null;
+    return {...compiled, tier: "exact_verified", nonMetric: false, family: "state_plot",
+      reason: "Complete source-proved single interval and every original actor, condition, formula and query binding."};
+  }
   if (readMatrixProductSourceProgram(input.question)) {
     if (!isFullProblemIRStructure(input.problemIR)) return null;
     const prepared = prepareMatrixProductSourceAuthority(input.question, input.turnPlan, input.problemIR);

@@ -1,0 +1,44 @@
+{
+  "question": "A car moving at 20 m/s brakes uniformly to rest in 5 s. Find its acceleration and the distance travelled while braking.",
+  "manifest": "/Users/kaizen/heytutor-claude-coord/runtime/manifests-priority-single-20261006/followup-suvat-braking.json",
+  "exchanges": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T1320-w2-e0a85bc9/evidence/followup-suvat-braking-planner-exchanges.json",
+  "exchangesSha256": "0fbdcb173c20fc0131d9680713d8df2de1a75522fbc716ce2bdaf365771e701c",
+  "contents": [
+    {
+      "file": "01-turn-plan-v3-caller.json",
+      "sha256ModelContent": "fbfd06b87d56fbdd57c1abb1eb8d678672ad949c496f78c4cc643898cb18e484"
+    },
+    {
+      "file": "02-turn-plan-v3-caller.json",
+      "sha256ModelContent": "a411ebd1908d0f3a17e712b681ec1e189fccc151ff1f8d4e5da2f6f40523664d"
+    },
+    {
+      "file": "03-problem-ir-v1-caller.json",
+      "sha256ModelContent": "e779c5ce77bd7db798a88451ca3668531a9fcae1fb7c7b3a1869baead950e005"
+    },
+    {
+      "file": "04-scene-document-v2-alternate.json",
+      "sha256ModelContent": "3fbe4b8facc48033413f6eb979e3dd00479196380b4f93c1e785180abc91d126"
+    },
+    {
+      "file": "05-scene-document-v2-primary.json",
+      "sha256ModelContent": "59ced1003027a99113aba407e235e9870b720d4b1fcc3f3de4305ed62d544409"
+    },
+    {
+      "file": "06-scene-document-v2-primary.json",
+      "sha256ModelContent": "45d4a8f4c5e583bf4c7943acda3ef0265f89c756f432bfb6325c259fc15bfff5"
+    },
+    {
+      "file": "07-scene-document-v2-alternate.json",
+      "sha256ModelContent": "62a536f3ea4e5b5bfb67c6d43144b374d15cccb9d4fd9dc625cc68d23bb21097"
+    },
+    {
+      "file": "08-scene-document-v2-primary.json",
+      "sha256ModelContent": "e0a32642e65e5238aa747319921a25af4502f8f3c0a9c33badae343c71496fc5"
+    },
+    {
+      "file": "09-scene-document-v2-alternate.json",
+      "sha256ModelContent": "23123313eca35926eb68834a11b6c284976a7f01fb0364c5d0140034a2f52fa4"
+    }
+  ]
+}

@@ -19,6 +19,7 @@ import { readMatrixProductSourceProgram } from "../compile/matrixSourceBinding";
 import { matrixProductSourceDocumentIssues } from "./matrixProductSourceAuthority";
 import { relativeMotionSource, relativeMotionSourceEntityBindings } from "../physics/relativeMotionSource";
 import type { SceneDocument, SceneIssue } from "../types";
+import { suvatDocumentIssues } from "./suvatCallerAuthority";
 
 /** Re-establish the actual caller's whole-IR authority at each scene boundary. */
 export function validateSceneSourceAuthority(document: SceneDocument, question: string, rawProblem?: unknown, rawPlan?: unknown): SceneIssue[] {
@@ -38,6 +39,7 @@ export function validateSceneSourceAuthority(document: SceneDocument, question: 
     path: "sourceAuthority.question",
   }];
   const issues = [
+    ...suvatDocumentIssues(document, question, rawProblem, rawPlan),
     ...uniformCircularCallerIssues(question, rawProblem, rawPlan),
     ...finiteBinomialDocumentIssues(document, {question, problemIR: rawProblem, turnPlan:rawPlan}),
     ...finiteBinomialPlanIssues(question,rawProblem,rawPlan),

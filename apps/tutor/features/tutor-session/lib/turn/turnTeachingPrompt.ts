@@ -40,7 +40,7 @@ import {
   type LessonBudget,
   type SubjectFamiliarity,
 } from "@heytutor/tutor-core";
-import { isChemistryQuestion, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { isChemistryQuestion, readSuvatSource, suvatGivenIsSourceOwned, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { teachingPromptAddon } from "@/lib/account/userSettings";
 import { BOARD_WORK_ROWS_PER_PAGE } from "../../constants";
 
@@ -146,7 +146,7 @@ function turnPlanPromptAddons(
         const row = given as { value?: unknown; symbol?: unknown; id?: unknown };
         const value = row.value;
         if (typeof value !== "number" || !Number.isFinite(value)) return [];
-        if (questionStatesPlanGiven(question, turnPlan, row.id, value)) return [];
+        if (questionStatesPlanGiven(question, turnPlan, row.id, value) || suvatGivenIsSourceOwned(question, given)) return [];
         const symbol = typeof row.symbol === "string" ? row.symbol
           : typeof row.id === "string" ? row.id
           : null;
@@ -167,6 +167,8 @@ function turnPlanPromptAddons(
   // teaching model ignored it and was right, which is not a guarantee worth
   // relying on. Say what the block actually is.
   const solverVerified = Boolean(solverProjection);
+  const suvat = readSuvatSource(question);
+  const sourceConditions = suvat.status === "ok" ? `\nSOURCE-PROVED MOTION CONDITIONS\nThe source says ${JSON.stringify(suvat.source.condition.quote)}: constant acceleration is explicitly stated. Rest in the source means zero velocity in its proved initial/final role. Teach these as source conditions, never as missing information or an assumed value. Straight-line motion is the bounded one-dimensional model; taking the initial direction as positive is a coordinate convention. The preserved Plan assumption list does not override this source proof. Use the signed acceleration and the proved v-t slope/area. Retain the normal WRITE arithmetic checks.\n` : "";
   // The planner also stores transport and repair notes in this legacy list.
   // Those explain pipeline decisions, never conditions of the student's problem.
   const assumptions = (turnPlan?.assumptions ?? []).filter((text) =>
@@ -177,7 +179,7 @@ function turnPlanPromptAddons(
 ${solverVerified
   ? "Use these verified quantities and qualitative claims for the explanation. Do not replace them with independently guessed values or contradict them."
   : "An independent solver did not confirm these numbers, so they are one working, not an answer key. Use them as the intended route and keep the givens, laws and assumptions. Before you speak any derived value, get it from the line of algebra you have just written; if your own line disagrees with the number below, write your line and say that value instead."}
-${JSON.stringify({
+${sourceConditions}${JSON.stringify({
   givens: turnPlan.givens,
   unknowns: turnPlan.unknowns,
   derived: turnPlan.derived,
