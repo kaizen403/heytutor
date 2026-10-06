@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
 import { MAX_BOARD_TITLE_CHARS, MAX_BOARD_PREVIEW_CHARS, boardStorageBytes, ensureStorageAccounting, withUserStorageLock } from "@/lib/boards/storageQuota";
 import { boardAudioPrefix } from "@/lib/object-store/keys";
+import { effectiveTurnStatus, isTurnKind } from "@/lib/boards/turnStatus";
 
 interface RouteContext {
   params: Promise<{ boardId: string }>;
@@ -39,7 +40,10 @@ export async function GET(request: Request, context: RouteContext) {
     orderBy: { orderIndex: "asc" },
     skip: page * pageSize,
     take: pageSize + 1,
+    // The pre-canonical rows exist only to grow a live turn; never sent out.
+    omit: { submittedSegments: true },
   });
+  const now = Date.now();
   const turnRows = fetchedTurns.slice(0, pageSize);
 
   const turnIds = turnRows.map((t) => t.id);
@@ -78,7 +82,12 @@ export async function GET(request: Request, context: RouteContext) {
       validationReport: turn.validationReport,
       visualStatus: turn.visualStatus,
       sceneArtifacts: turn.sceneArtifacts,
+      // A live turn whose tab stopped checkpointing reads as stopped.
+      status: effectiveTurnStatus(turn.status, turn.updatedAt, now),
+      kind: isTurnKind(turn.kind) ? turn.kind : "lesson",
+      resumeState: turn.resumeState ?? null,
       createdAt: turn.createdAt.getTime(),
+      updatedAt: turn.updatedAt.getTime(),
       segments: (segmentsByTurn.get(turn.id) ?? []).map((segment) => ({
         id: segment.id,
         orderIndex: segment.orderIndex,

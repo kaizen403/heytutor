@@ -128,7 +128,9 @@ export async function canonicalizeTurnSceneMetadata(
     // rest of the artifacts: replay and restore then treated it as a page of
     // its own and dropped the lesson's figure under it.
     const continuation = boardContinuationOf(metadata.sceneArtifacts);
-    const baseArtifacts = retryRequired || degradation || codeLesson || continuation
+    // A validated plan is kept on its own too: a text-only lesson stopped and
+    // reopened needs it for Continue and for a doubt on that page.
+    const baseArtifacts = retryRequired || degradation || codeLesson || continuation || plan
       ? minimalFailureArtifacts(
           plan,
           retryRequired ? "retry_required" : "text_only",
@@ -274,12 +276,18 @@ export async function canonicalizeTurnSceneMetadata(
     renderScene,
     isDsaSceneDocument(document) ? { layout: "code_lesson" } : {},
   );
+  // A turn that continues a page (a resume after Stop, or a doubt) teaches
+  // under a figure an earlier turn on the page already drew. It keeps its
+  // marker so restore, replay and notes keep the page, and the figure intro is
+  // never inserted again into it.
+  const continuation = boardContinuationOf(metadata.sceneArtifacts);
   // Scene-engine owns diagram ink at persist time. Client intro may be missing
   // or diverge under concurrent lecture-lab compiles; replay uses the server
   // reconstruction, never the browser's trusted-geometry payload.
   const persistSegments = mergeServerDiagramIntro(
     metadata.segments,
     expectedPresentation.introSegments,
+    { insertMissing: continuation === null },
   );
   const teachingCommands = canonicalizeTeachingCommands(
     persistSegments,
@@ -370,7 +378,13 @@ export async function canonicalizeTurnSceneMetadata(
       sceneEngineVersion: SCENE_ENGINE_VERSION,
       validationReport: report,
       visualStatus: "validated",
-      sceneArtifacts: codeLesson ? { ...canonicalArtifacts, codeLesson } : canonicalArtifacts,
+      sceneArtifacts: codeLesson || continuation
+        ? {
+            ...canonicalArtifacts,
+            ...(codeLesson ? { codeLesson } : {}),
+            ...(continuation ? { boardContinuation: continuation } : {}),
+          }
+        : canonicalArtifacts,
       segments: teachingCommands.segments,
     },
   };
@@ -456,6 +470,7 @@ function isEpochClearSegment(segment: SubmittedTurnSegment): boolean {
 function mergeServerDiagramIntro(
   submitted: SubmittedTurnSegment[],
   introSegments: TutorSegment[],
+  options: { insertMissing: boolean } = { insertMissing: true },
 ): SubmittedTurnSegment[] {
   const serverIntro: SubmittedTurnSegment[] = introSegments.map((segment) => ({
     orderIndex: 0,
@@ -488,7 +503,7 @@ function mergeServerDiagramIntro(
       : { ...segment, command: null });
     lastIntroPosition = merged.length - 1;
   }
-  const missing = serverIntro.slice(nextIntro);
+  const missing = options.insertMissing ? serverIntro.slice(nextIntro) : [];
   if (missing.length > 0) {
     const insertAt = lastIntroPosition >= 0 ? lastIntroPosition + 1 : leadingClearCount;
     merged.splice(insertAt, 0, ...missing);

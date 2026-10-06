@@ -5,6 +5,8 @@ import vm from "node:vm";
 import ts from "typescript";
 import { readBoundedFormData, RequestBodyError } from "../../lib/http/requestBody";
 import * as storedSceneSource from "../../lib/scene/storedSceneSource";
+import * as turnStatus from "../../lib/boards/turnStatus";
+import { audioPrefixMatchesType } from "../../lib/scene/turnUploadLimits";
 
 const root = resolve(__dirname, "../..");
 // The in-memory Prisma stub intentionally accepts arbitrary query and row shapes.
@@ -114,7 +116,7 @@ const { POST } = load("app/api/boards/[boardId]/turns/route.ts", {
       })) }
       : {},
   }) },
-  "@/lib/scene/turnUploadLimits": { MAX_TURN_UPLOAD_BYTES: 36 * 1024 * 1024, validateTurnUploadHeaders: () => ({ ok: true }), validateTurnUploadParts: () => ({ ok: true }) },
+  "@/lib/scene/turnUploadLimits": { MAX_TURN_UPLOAD_BYTES: 36 * 1024 * 1024, audioPrefixMatchesType, validateTurnUploadHeaders: () => ({ ok: true }), validateTurnUploadParts: () => ({ ok: true }) },
 });
 const { saveTurn } = load("lib/boards/boardsClient.ts", {
   // The real stored-turn source reader (boardsClient gained this import after
@@ -122,6 +124,7 @@ const { saveTurn } = load("lib/boards/boardsClient.ts", {
   "@/lib/scene/storedSceneSource": storedSceneSource,
   "@heytutor/tutor-core": { speechAudioMimeType: () => "audio/mpeg", resolveApiUrl: (url: string) => `https://example.test${url}` },
   "@/lib/boards/boardTitle": { finalizeBoardTitle: () => "title" },
+  "@/lib/boards/turnStatus": turnStatus,
 });
 
 async function main() {

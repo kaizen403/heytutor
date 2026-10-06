@@ -84,7 +84,17 @@ export async function releaseStorageBytes(userId: string, bytes: bigint | number
   });
 }
 
-export interface TurnStorageReservation { userId: string; bytes: number; cleanupId: string }
+export interface TurnStorageReservation {
+  userId: string;
+  bytes: number;
+  cleanupId: string;
+  /** Turn slots the intent holds: 1 for a new turn, 0 for growth of a saved one. Absent means 1. */
+  pendingTurns?: 0 | 1;
+}
+
+function reservedTurnSlots(reservation: TurnStorageReservation): number {
+  return reservation.pendingTurns ?? 1;
+}
 
 const UPLOAD_RECOVERY_MS = 30 * 60_000;
 
@@ -93,6 +103,13 @@ export async function reserveTurnStorage(input: {
   boardId: string;
   bytes: number;
   turnId: string;
+  /**
+   * What the cleanup intent may delete if this save is abandoned. Defaults to
+   * the whole turn folder. A checkpoint save passes its own attempt folder: a
+   * retried create of the same turn must never share a prefix with an
+   * abandoned attempt, or the worker would delete the retry's clips.
+   */
+  prefix?: string;
 }): Promise<TurnStorageReservation> {
   const cleanupId = randomUUID();
   await withUserStorageLock(input.userId, async (tx) => {
@@ -112,11 +129,46 @@ export async function reserveTurnStorage(input: {
       data: { reservedBytes: { increment: BigInt(input.bytes) }, pendingTurns: { increment: 1 } },
     });
     await tx.objectDeletionJob.create({ data: {
-      id: cleanupId, prefix: `lectures/${input.boardId}/${input.turnId}/`, userId: input.userId,
+      id: cleanupId, prefix: input.prefix ?? `lectures/${input.boardId}/${input.turnId}/`, userId: input.userId,
       bytes: BigInt(input.bytes), pendingTurns: 1, nextAttemptAt: new Date(Date.now() + UPLOAD_RECOVERY_MS),
     } });
   });
-  return { userId: input.userId, bytes: input.bytes, cleanupId };
+  return { userId: input.userId, bytes: input.bytes, cleanupId, pendingTurns: 1 };
+}
+
+/**
+ * Charge the bytes a saved turn grows by (new audio plus metadata growth). It
+ * takes the same account lock and byte check as a new turn, but holds no turn
+ * slot: the turn already counts. Its cleanup intent covers only `prefix`, the
+ * attempt's own folder, so abandoning it never touches earlier clips.
+ */
+export async function reserveTurnGrowthStorage(input: {
+  userId: string;
+  boardId: string;
+  turnId: string;
+  bytes: number;
+  prefix: string;
+}): Promise<TurnStorageReservation> {
+  const turnPrefix = `lectures/${input.boardId}/${input.turnId}/`;
+  if (!input.prefix.startsWith(turnPrefix) || input.prefix === turnPrefix) {
+    throw new StorageQuotaError("growth cleanup must cover one upload attempt only", 409);
+  }
+  const cleanupId = randomUUID();
+  await withUserStorageLock(input.userId, async (tx) => {
+    const board = await tx.board.findFirst({ where: { id: input.boardId, userId: input.userId } });
+    if (!board) throw new StorageQuotaError("board not found", 404);
+    const storage = await storageRow(tx, input.userId);
+    checkBytes(storage.reservedBytes, input.bytes);
+    await tx.userStorage.update({
+      where: { userId: input.userId },
+      data: { reservedBytes: { increment: BigInt(input.bytes) } },
+    });
+    await tx.objectDeletionJob.create({ data: {
+      id: cleanupId, prefix: input.prefix, userId: input.userId,
+      bytes: BigInt(input.bytes), pendingTurns: 0, nextAttemptAt: new Date(Date.now() + UPLOAD_RECOVERY_MS),
+    } });
+  });
+  return { userId: input.userId, bytes: input.bytes, cleanupId, pendingTurns: 0 };
 }
 
 /** Settle exactly once from the handler after persistence or an abandoned save. */
@@ -124,7 +176,8 @@ export async function settleTurnStorage(reservation: TurnStorageReservation, ref
   const settle = async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT id FROM object_deletion_jobs WHERE id = ${reservation.cleanupId}::uuid FOR UPDATE`;
     const intent = await tx.objectDeletionJob.findUnique({ where: { id: reservation.cleanupId } });
-    if (!intent || intent.userId !== reservation.userId || intent.attempts !== 0 || intent.pendingTurns !== 1 || intent.nextAttemptAt <= new Date()) {
+    const slots = reservedTurnSlots(reservation);
+    if (!intent || intent.userId !== reservation.userId || intent.attempts !== 0 || intent.pendingTurns !== slots || intent.nextAttemptAt <= new Date()) {
       throw new StorageQuotaError("upload reservation expired", 409);
     }
     const storage = await tx.userStorage.findUnique({ where: { userId: reservation.userId } });
@@ -132,7 +185,7 @@ export async function settleTurnStorage(reservation: TurnStorageReservation, ref
     const bytes = refundBytes ? storage.reservedBytes - BigInt(reservation.bytes) : storage.reservedBytes;
     await tx.userStorage.update({
       where: { userId: reservation.userId },
-      data: { reservedBytes: bytes > 0n ? bytes : 0n, pendingTurns: Math.max(0, storage.pendingTurns - 1) },
+      data: { reservedBytes: bytes > 0n ? bytes : 0n, pendingTurns: Math.max(0, storage.pendingTurns - slots) },
     });
     await tx.objectDeletionJob.delete({ where: { id: reservation.cleanupId } });
   };
@@ -146,9 +199,10 @@ export async function abandonTurnStorage(reservation: TurnStorageReservation, tr
   const abandon = async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT id FROM object_deletion_jobs WHERE id = ${reservation.cleanupId}::uuid FOR UPDATE`;
     const intent = await tx.objectDeletionJob.findUnique({ where: { id: reservation.cleanupId } });
-    if (!intent || intent.userId !== reservation.userId || intent.attempts !== 0 || intent.pendingTurns !== 1) return;
+    const slots = reservedTurnSlots(reservation);
+    if (!intent || intent.userId !== reservation.userId || intent.attempts !== 0 || intent.pendingTurns !== slots) return;
     const storage = await tx.userStorage.findUnique({ where: { userId: reservation.userId } });
-    if (storage) await tx.userStorage.update({ where: { userId: reservation.userId }, data: { pendingTurns: Math.max(0, storage.pendingTurns - 1) } });
+    if (storage && slots > 0) await tx.userStorage.update({ where: { userId: reservation.userId }, data: { pendingTurns: Math.max(0, storage.pendingTurns - slots) } });
     await tx.objectDeletionJob.update({ where: { id: intent.id }, data: { pendingTurns: 0, nextAttemptAt: new Date() } });
   };
   if (transaction) await abandon(transaction);

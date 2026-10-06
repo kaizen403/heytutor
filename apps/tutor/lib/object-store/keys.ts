@@ -8,6 +8,8 @@ export type StoredObjectRef =
       boardId: string;
       turnId: string;
       segmentIndex: number;
+      /** Per upload attempt folder of a checkpoint save; absent on legacy keys. */
+      attemptDir?: string;
       ext: "mp3" | "wav";
     }
   | {
@@ -24,6 +26,32 @@ export function lectureAudioKey(
   contentType = "audio/mpeg",
 ): string {
   return `lectures/${boardId}/${turnId}/${segmentIndex}.${contentType === "audio/wav" ? "wav" : "mp3"}`;
+}
+
+/** A checkpoint upload attempt's folder name: 12 lowercase letters or digits. */
+export const UPLOAD_ATTEMPT_DIR = /^[a-z0-9]{12}$/;
+
+/**
+ * Audio of a progressively saved turn. Each upload attempt writes under its
+ * own folder, so the cleanup of an abandoned attempt can never delete a clip
+ * an earlier checkpoint already committed. `submittedIndex` is the stable
+ * submitted row index, not the canonical one, which can move.
+ */
+export function checkpointAudioKey(
+  boardId: string,
+  turnId: string,
+  attemptDir: string,
+  submittedIndex: number,
+  contentType = "audio/mpeg",
+): string {
+  if (!UPLOAD_ATTEMPT_DIR.test(attemptDir)) throw new Error("invalid upload attempt folder");
+  return `${checkpointAttemptPrefix(boardId, turnId, attemptDir)}${submittedIndex}.${contentType === "audio/wav" ? "wav" : "mp3"}`;
+}
+
+/** The prefix an upload attempt's cleanup intent may delete: that attempt only. */
+export function checkpointAttemptPrefix(boardId: string, turnId: string, attemptDir: string): string {
+  if (!UPLOAD_ATTEMPT_DIR.test(attemptDir)) throw new Error("invalid upload attempt folder");
+  return `lectures/${boardId}/${turnId}/${attemptDir}/`;
 }
 
 export function boardAudioPrefix(boardId: string): string {
@@ -51,16 +79,17 @@ export function parseStoredObjectKey(key: string): StoredObjectRef | null {
   }
 
   const lecture =
-    /^lectures\/([A-Za-z0-9._-]{1,128})\/([A-Za-z0-9._-]{1,128})\/(0|[1-9]\d{0,5})\.(mp3|wav)$/.exec(
+    /^lectures\/([A-Za-z0-9._-]{1,128})\/([A-Za-z0-9._-]{1,128})\/(?:([a-z0-9]{12})\/)?(0|[1-9]\d{0,5})\.(mp3|wav)$/.exec(
       trimmed,
     );
-  if (lecture?.[1] && lecture[2] && lecture[3]) {
+  if (lecture?.[1] && lecture[2] && lecture[4]) {
     return {
       kind: "lecture",
       boardId: lecture[1],
       turnId: lecture[2],
-      segmentIndex: Number(lecture[3]),
-      ext: lecture[4] === "wav" ? "wav" : "mp3",
+      segmentIndex: Number(lecture[4]),
+      ...(lecture[3] ? { attemptDir: lecture[3] } : {}),
+      ext: lecture[5] === "wav" ? "wav" : "mp3",
     };
   }
 

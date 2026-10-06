@@ -14,6 +14,7 @@ import type { SpendActor } from "@/lib/billing/actor";
 import { holdNotesReservation } from "@/lib/billing/notesReservation";
 import { prisma } from "@/lib/db/prisma";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
+import { effectiveTurnStatus, isTurnKind } from "@/lib/boards/turnStatus";
 import {
   assembleLessonNotes,
   notesFromStoredTurn,
@@ -79,7 +80,9 @@ async function loadPersistedTurns(boardId: string) {
     where: { boardId },
     orderBy: { orderIndex: "asc" },
     include: { segments: { orderBy: { orderIndex: "asc" } } },
+    omit: { submittedSegments: true },
   });
+  const now = Date.now();
   return turnRows.map((turn) =>
     notesFromStoredTurn({
       id: turn.id,
@@ -98,6 +101,8 @@ async function loadPersistedTurns(boardId: string) {
         | "retry_required"
         | null,
       sceneArtifacts: turn.sceneArtifacts,
+      status: effectiveTurnStatus(turn.status, turn.updatedAt, now),
+      kind: isTurnKind(turn.kind) ? turn.kind : "lesson",
       segments: turn.segments.map((segment) => ({
         id: segment.id,
         orderIndex: segment.orderIndex,
