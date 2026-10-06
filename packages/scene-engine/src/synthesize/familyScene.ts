@@ -1,3 +1,4 @@
+import { readScrewGaugeQuestion } from "../ir/measurementSourceAuthority";
 import {finiteBinomialPlanIssues} from "../ir/finiteBinomialPlanAuthority";
 import { finiteProgressionSourceProgram } from "../ir/finiteProgressionSourceProgram";
 import { readFiniteProgressionSource } from "../math/finiteProgressionSource";
@@ -171,6 +172,9 @@ function synthesizeFromFamilies(
   input: FamilySceneInput,
   schematic: boolean,
 ): SynthesizedFamilyScene | null {
+  // This whole-source arithmetic profile supplies no verified apparatus scene.
+  // Neither family synthesis nor the last resort may invent one after refusal.
+  if (readScrewGaugeQuestion(input.question).status !== "none") return null;
   const question = input.question.trim();
   if (!question) return null;
   if (readMatrixProductSourceProgram(input.question)) {

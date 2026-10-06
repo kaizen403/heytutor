@@ -23,7 +23,7 @@ import {
   planTurnV3,
   planProblemAuthorityV1,
   refuseProblemAuthorityForPlan,
-  refuseUniformCircularPlan,
+  refuseSourcePlan,
   createFallbackTurnPlanV3,
   inferSceneCapabilities,
   normalizeTutorQuestion,
@@ -1306,7 +1306,7 @@ export function useQuestionHandler(
           };
         };
         const applyDeterministicSourceAuthority = (sourcePlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null): TurnPlanV3 => {
-          const planRefusal=refuseUniformCircularPlan(question,sourcePlan);
+          const planRefusal=refuseSourcePlan(question,sourcePlan);
           if(planRefusal){sourceDecline ??= planRefusal;return withdrawDeclinedProblemAuthority(sourcePlan,sourceDecline);}
           // Section-formula stems: the point's coordinates (or the asked ratio)
           // are solved exactly from the stated endpoints, and an inconsistent or

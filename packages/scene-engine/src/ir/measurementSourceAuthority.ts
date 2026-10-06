@@ -214,20 +214,66 @@ export function verifyMeasurementSourceAuthority(problemRaw: unknown, planRaw: u
   }
   const expectedText = problem.facts.map(f => f.evidence.quote).join(" | ");
   if (!sameIds(target.dependsOn, givenIds) || target.provenance !== "derived" || sourceSpace(target.sourceText ?? "") !== sourceSpace(expectedText) || target.uncertainty !== undefined || !signMatches(target)) return fail("plan_binding_incomplete", "The bound derived row must consume all four unique actual given IDs and only their full source/ask evidence.", v);
+  const wholePlanIssues = measurementPlanSourceIssueCodes(problem.question, captured.plan);
+  if (wholePlanIssues.length) return fail(wholePlanIssues[0]!, "Every original measurement output, unknown, claim and dependency must be proved before correction.", v);
   const expected = v.circular_reading.value;
   const corrected = !close(target.value, expected);
-  // Inspect/withdraw every unsupported numeric row, unknown, and linked claim,
-  // even if the chosen scalar was already correct. The unknown+derived same ID
-  // is a legitimate pair, not a duplicate quantity.
-  const clean = retainBoundPlan(plan, target, expected, corrected);
+  // Only the fully proved bound scalar may be corrected. No original
+  // obligation can be removed to obtain a verified result.
+  const clean = retainBoundPlan(plan, target, expected);
   // Proof uses the immutable own-data capture, while the return contract keeps
   // the validated original complete caller object. No selected graph is made.
-  return { status: "verified", problem: problemRaw as ProblemIR, plan: clean, values: v,
+  return { status: "verified", problem: problemRaw as ProblemIR, plan: structuredClone(clean), values: v,
     issues: [
       ...(corrected ? [{ code: "source_value_corrected", quantityId: target.id, message: `Corrected the fully joined circular division count to ${expected}.` }] : []),
-      ...(clean.derived.length !== plan.derived.length || clean.unknowns.length !== plan.unknowns.length || clean.qualitativeClaims.length !== plan.qualitativeClaims.length ? [{ code: "unsupported_plan_outputs_withdrawn", message: "Withdrew all unsupported numeric outputs, unknowns and claims; retained only the fully proved requested count." }] : []),
     ],
     numericalAuthority: { kind: "screw_gauge", sourceProblemId: problem.id, quantityId: target.id, symbol: target.symbol, unit: "division", value: expected } };
+}
+
+/** Plan-only admission uses source evidence without inventing an IR or
+ * replacing obligations. Shared by early correction and terminal callers. */
+export function measurementPlanSourceIssueCodes(question: string, raw: unknown): string[] {
+  const read = readScrewGaugeQuestion(question);
+  if (read.status === "none") return [];
+  if (read.status === "declined") return [read.issue.code];
+  let data: unknown;
+  try { data = snapshotMathSourceData(raw); } catch { return ["invalid_source_data"]; }
+  if (!hasOnlyFiniteBinomialPlanFields(data)) return ["uncovered_plan_field"];
+  const plan = validateTurnPlanV3(data, question).plan;
+  if (!plan || sourceSpace(plan.question) !== sourceSpace(question)) return ["invalid_turn_plan"];
+  if (plan.visualRequirement !== "none") return ["visual_instrument_profile_gap"];
+  if (plan.assumptions.length || plan.lawIds.some(law => law !== "micrometer_reading") || plan.teachingSequenceHints?.length) return ["unsupported_plan_obligation"];
+  if (plan.givens.length !== 4 || plan.derived.length !== 1 || plan.unknowns.length !== 1) return ["unsupported_plan_output"];
+  const givenIds: string[] = [];
+  const clauses: string[][] = [];
+  for (const role of GIVEN_ROLES) {
+    const rows = plan.givens.filter(row => SYMBOLS[role].includes(row.symbol) && row.provenance === "given" &&
+      signedMetricEqual(row, read.values[role].value) && typeof row.sourceText === "string" &&
+      read.evidence[role].some(e => sourceTextForGiven(row.sourceText, e.quote, role)) &&
+      !row.dependsOn?.length && row.uncertainty === undefined && signMatches(row));
+    if (rows.length !== 1 || givenIds.includes(rows[0]!.id)) return ["source_given_role_unbound"];
+    givenIds.push(rows[0]!.id);
+    clauses.push(read.evidence[role].map(e => sourceSpace(e.quote)));
+  }
+  const target = plan.derived[0]!, unknown = plan.unknowns[0]!;
+  if (target.id !== unknown.id || target.symbol !== unknown.symbol || !target.symbol.trim() ||
+      plan.givens.some(row => row.symbol === target.symbol) || ![target.unit, unknown.unit].every(countUnit) ||
+      target.provenance !== "derived" || !sameIds(target.dependsOn, givenIds) ||
+      target.uncertainty !== undefined || !signMatches(target)) return ["plan_binding_incomplete"];
+  // Facts may be in any order; the full IR guard independently checks the
+  // caller's exact ordered join. Here every original source clause must occur.
+  clauses.push(read.evidence.circular_reading.map(e => sourceSpace(e.quote)));
+  const actual = typeof target.sourceText === "string" ? target.sourceText.split(" | ").map(sourceSpace) : [];
+  for (const alternatives of clauses) {
+    const index = actual.findIndex(quote => alternatives.includes(quote));
+    if (index < 0) return ["plan_binding_incomplete"];
+    actual.splice(index, 1);
+  }
+  if (actual.length) return ["plan_binding_incomplete"];
+  if (plan.qualitativeClaims.some(claim => claim.claim !== "circular_divisions" ||
+      claim.expected !== read.values.circular_reading.value || !sameIds(claim.relatedQuantityIds, [target.id]) ||
+      claim.relatedEntityHints?.length)) return ["unsupported_plan_claim"];
+  return [];
 }
 
 function inspectWholeIR(problem: ProblemIR, v: Record<MeasurementRole, MeasurementValue>): MeasurementAuthorityIssue | null {
@@ -304,11 +350,9 @@ function sourceTextForGiven(text: string | undefined, quote: string, role: Given
   const actual = sourceSpace(text ?? ""); const evidence = sourceSpace(quote);
   return actual === evidence || PREFIXES[role].some(prefix => actual === `${prefix} ${evidence}`);
 }
-function retainBoundPlan(plan: TurnPlanV3, target: TurnPlanQuantityV3, expected: number, corrected: boolean): TurnPlanV3 {
+function retainBoundPlan(plan: TurnPlanV3, target: TurnPlanQuantityV3, expected: number): TurnPlanV3 {
   const derived = [{ ...target, value: expected, ...(target.sign === undefined ? {} : { sign: expected === 0 ? "zero" as const : "positive" as const }) }];
-  const unknowns = plan.unknowns.filter(row => row.id === target.id);
-  const qualitativeClaims = corrected ? [] : plan.qualitativeClaims.filter(claim => claim.claim === "circular_divisions" && claim.expected === expected && sameIds(claim.relatedQuantityIds, [target.id]) && !claim.relatedEntityHints?.length);
-  return { ...plan, derived, unknowns, qualitativeClaims };
+  return { ...plan, derived };
 }
 /** Decline gives no residual numeric answer/unknown/claim authority, including malformed plans. */
 function emptyMeasurementPlan(question: string): TurnPlanV3 {

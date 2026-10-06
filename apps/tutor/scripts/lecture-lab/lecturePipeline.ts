@@ -28,7 +28,7 @@ import {
   normalizeTutorQuestion,
   planProblemAuthorityV1,
   refuseProblemAuthorityForPlan,
-  refuseUniformCircularPlan,
+  refuseSourcePlan,
   planSceneDocumentWithRepair,
   planTurnV3,
   questionRequiresVisual,
@@ -365,7 +365,7 @@ export async function runLecture(
         const retainAuthorityOutcome=(outcome:Awaited<ReturnType<typeof planProblemAuthorityV1>>):ProblemAuthorityV1Response|null=>{
           if(outcome && "status" in outcome){sourceDecline=outcome;return null;}return outcome;
         };
-    const originalPlanRefusal=refuseUniformCircularPlan(question,turnPlan);
+    const originalPlanRefusal=refuseSourcePlan(question,turnPlan);
     if(originalPlanRefusal){sourceDecline=originalPlanRefusal;turnPlan=withdrawDeclinedProblemAuthority(turnPlan,originalPlanRefusal);}
     if (plannedTurn && !sourceDecline && turnPlanNeedsNumericAuthority(question, turnPlan)) {
       const remainingAuthorityMs = Math.max(

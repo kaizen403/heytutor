@@ -1,7 +1,7 @@
 import {
   LocalDeterministicSolverProvider,
   readFiniteBinomialProgram,solveFiniteBinomialProblem,
-  readFiniteProgressionSource,readScrewGaugeQuestion,verifyMeasurementSourceAuthority,
+  readFiniteProgressionSource,readScrewGaugeQuestion,verifyMeasurementSourceAuthority,measurementPlanSourceIssueCodes,
   readUniformCircularRuntimeContract,uniformCircularCallerIssues,uniformCircularRuntimePlanConflicts,
   buildSolverAuthorityProjection,
   evaluateMathExpression,
@@ -28,6 +28,8 @@ import { matrixProductPlanningGuidance } from "./matrixProductGuidance";
 import { readMatrixProductSourceProgram, matrixProductFullIRIssues } from "@heytutor/scene-engine";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
+
+import { captureSourceCaller } from "./sourceCallerData";
 
 const PROBLEM_PLANNER_MODEL = "server";
 
@@ -76,15 +78,32 @@ export function sourceProblemAdmissionIssueCodes(question:string,problem:unknown
   return [];
 }
 /** Original Plan-only refusal also applies when ProblemIR transport fails. */
+export function refuseSourcePlan(question:string,plan:TurnPlanV3):ProblemAuthorityV1Decline|null {
+  const capture = captureSourceCaller(plan);
+  const issueCodes = !capture.ok ? ["invalid_source_data"] : measurementPlanSourceIssueCodes(question, capture.data);
+  if (issueCodes.length) return {status:"source_declined",question,rawProblemIR:null,
+    rawTurnPlan:capture.ok?capture.data:capture.evidence,rawContent:"",issueCodes,elapsedMs:0};
+  return refuseUniformCircularPlan(question, capture.ok ? capture.data : plan);
+}
 export function refuseUniformCircularPlan(question:string,plan:TurnPlanV3):ProblemAuthorityV1Decline|null{
+  const capture = captureSourceCaller(plan);
+  if (!capture.ok) return {status:"source_declined",question,rawProblemIR:null,rawTurnPlan:capture.evidence,rawContent:"",issueCodes:["invalid_source_data"],elapsedMs:0};
   const read=readUniformCircularRuntimeContract(question);
   if(!read)return null;
-  const bad=read.status==="declined" || !hasOnlyFiniteBinomialPlanFields(plan) || uniformCircularRuntimePlanConflicts(question,plan).length>0;
-  return bad?{status:"source_declined",question,rawProblemIR:null,rawTurnPlan:structuredClone(plan),rawContent:JSON.stringify(plan),issueCodes:["ucm_original_plan_declined"],elapsedMs:0}:null;
+  const data=capture.data;
+  const bad=read.status==="declined" || !hasOnlyFiniteBinomialPlanFields(data) || uniformCircularRuntimePlanConflicts(question,data).length>0;
+  return bad?{status:"source_declined",question,rawProblemIR:null,rawTurnPlan:data,rawContent:JSON.stringify(data),issueCodes:["ucm_original_plan_declined"],elapsedMs:0}:null;
 }
 export function refuseProblemAuthorityForPlan(question:string,plan:TurnPlanV3,authority:ProblemAuthorityV1Response):ProblemAuthorityV1Decline|null{
-  const issueCodes=sourceProblemAdmissionIssueCodes(question,authority.problemIR,plan);
-  return issueCodes.length?{status:"source_declined",question,rawProblemIR:structuredClone(authority.problemIR),rawTurnPlan:structuredClone(plan),rawContent:authority.rawContent,issueCodes,elapsedMs:authority.elapsedMs}:null;
+  const captured = captureSourceCaller({plan,authority});
+  if (!captured.ok) {
+    const planCapture = captureSourceCaller(plan);
+    return {status:"source_declined",question,rawProblemIR:captured.evidence,
+      rawTurnPlan:planCapture.ok?planCapture.data:planCapture.evidence,rawContent:"",issueCodes:["invalid_source_data"],elapsedMs:0};
+  }
+  const data=captured.data;
+  const issueCodes=sourceProblemAdmissionIssueCodes(question,data.authority.problemIR,data.plan);
+  return issueCodes.length?{status:"source_declined",question,rawProblemIR:data.authority.problemIR,rawTurnPlan:data.plan,rawContent:data.authority.rawContent,issueCodes,elapsedMs:data.authority.elapsedMs}:null;
 }
 
 /** Compatibility for benches consuming only successful solver responses.
@@ -109,6 +128,14 @@ export async function planProblemAuthorityV1(
   options: ProblemPlannerV1Options,
 ): Promise<ProblemAuthorityV1Outcome> {
   const startedAt = Date.now();
+  // Exported JS callers may carry getters/toJSON. Capture before request
+  // construction, await, validation or refusal evidence can read them.
+  if (turnPlan !== null) {
+    const captured = captureSourceCaller(turnPlan);
+    if (!captured.ok) return {status:"source_declined",question,rawProblemIR:null,rawTurnPlan:captured.evidence,
+      rawContent:"",issueCodes:["invalid_source_data"],elapsedMs:Date.now()-startedAt};
+    turnPlan = captured.data;
+  }
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(
     () => timeoutController.abort(new DOMException("ProblemIR planner deadline exceeded", "TimeoutError")),
@@ -157,7 +184,7 @@ export async function planProblemAuthorityV1(
     const wholeScalarSource=readFiniteProgressionSource(question).status==="ok" || readScrewGaugeQuestion(question).status!=="none" || readUniformCircularRuntimeContract(question)!=null;
     const sourceInput=polynomial.status==="ok"?liftFinitePolynomialInput(parsed,question):null;
     const decline=(code:string):ProblemAuthorityV1Decline=>({status:"source_declined",question,
-      rawProblemIR:structuredClone(parsed),...(turnPlan?{rawTurnPlan:structuredClone(turnPlan)}:{}),rawContent:content,issueCodes:[code],elapsedMs:Date.now()-startedAt});
+      rawProblemIR:parsed,...(turnPlan?{rawTurnPlan:turnPlan}:{}),rawContent:content,issueCodes:[code],elapsedMs:Date.now()-startedAt});
     if(matrixProducts && matrixProductFullIRIssues(question,matrixInput).length)return decline("matrix_product_original_full_ir_declined");
     if(polynomial.status==="ok" && turnPlan && !hasOnlyFiniteBinomialPlanFields(turnPlan))return decline("finite_polynomial_actual_plan_fields_declined");
     // Syntax lifting preserves every submitted record/unknown field. Audit it
@@ -178,7 +205,7 @@ export async function planProblemAuthorityV1(
       return wholeScalarSource?decline("whole_scalar_source_input_declined"):null;
     }
     if(turnPlan){
-      const codes=sourceProblemAdmissionIssueCodes(question, problemValidation.problem, turnPlan);
+      const codes=sourceProblemAdmissionIssueCodes(question, normalized, turnPlan);
       if(codes.length)return decline(codes.join(";"));
     }
     if (claimsStatedResistorCircuit(question) && !bindStatedCircuitProblem(question, problemValidation.problem)) {

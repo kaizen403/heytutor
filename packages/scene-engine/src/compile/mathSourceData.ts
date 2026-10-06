@@ -36,6 +36,8 @@ function dataSnapshot(): (value: unknown) => unknown {
     if (keys > 65536) fail("mathematical source data exceeds65536 own keys");
     for (const name of names) {
       if (typeof name === "string") {
+        strings += name.length;
+        if (strings > 1048576) fail("mathematical source keys and strings exceed1048576 characters");
         if (!Object.hasOwn(descriptors[name]!, "value")) fail("mathematical source accessors are not data and cannot be executed");
       } else fail("mathematical source data cannot contain symbol keys");
     }

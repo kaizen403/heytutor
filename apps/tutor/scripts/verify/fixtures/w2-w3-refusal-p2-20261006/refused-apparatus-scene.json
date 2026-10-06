@@ -1,0 +1,130 @@
+{
+  "schemaVersion": "scene-document/v2",
+  "visualDecision": {
+    "mode": "scene",
+    "reason": "source-defined planar boundaries and dimensions"
+  },
+  "source": {
+    "question": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively. A wire of diameter 2.675 mm is measured with the screw gauge. What would be the reading of divisions on circular scale of the screw gauge, if the zero error of the screw gauge is -0.02 mm? Draw the screw gauge.",
+    "synthesizedFamily": true
+  },
+  "quantities": [],
+  "entities": [
+    {
+      "id": "circle",
+      "kind": "circle",
+      "role": "circular source region",
+      "label": "circle"
+    },
+    {
+      "id": "region_radius",
+      "kind": "dimension",
+      "role": "r dimension",
+      "label": "r = 1.3375 mm"
+    },
+    {
+      "id": "region_center",
+      "kind": "point",
+      "role": "construction helper"
+    },
+    {
+      "id": "radius_rim",
+      "kind": "point",
+      "role": "construction helper"
+    }
+  ],
+  "constructions": [
+    {
+      "id": "make_region_center",
+      "operator": "point",
+      "inputs": {
+        "x": 0,
+        "y": 0,
+        "coordinateSpace": "world"
+      },
+      "outputs": [
+        "region_center"
+      ]
+    },
+    {
+      "id": "make_circle",
+      "operator": "circle",
+      "inputs": {
+        "center": "region_center",
+        "radius": 1.3375
+      },
+      "outputs": [
+        "circle"
+      ]
+    },
+    {
+      "id": "make_radius_rim",
+      "operator": "point",
+      "inputs": {
+        "x": 1.3375,
+        "y": 0,
+        "coordinateSpace": "world"
+      },
+      "outputs": [
+        "radius_rim"
+      ]
+    },
+    {
+      "id": "make_region_radius",
+      "operator": "dimension",
+      "inputs": {
+        "start": "region_center",
+        "end": "radius_rim"
+      },
+      "outputs": [
+        "region_radius"
+      ]
+    }
+  ],
+  "relations": [],
+  "annotations": [],
+  "requiredEntityIds": [
+    "circle",
+    "region_radius"
+  ],
+  "assertions": [
+    {
+      "id": "circle_readable",
+      "predicate": "label_attached",
+      "entities": [
+        "circle"
+      ],
+      "expected": true,
+      "severity": "fatal"
+    },
+    {
+      "id": "region_radius_readable",
+      "predicate": "label_attached",
+      "entities": [
+        "region_radius"
+      ],
+      "expected": true,
+      "severity": "fatal"
+    }
+  ],
+  "revealGroups": [
+    {
+      "id": "region_setup",
+      "entityIds": [
+        "circle",
+        "region_radius"
+      ],
+      "dependsOn": [],
+      "narrationCue": "introduce the boundaries and their given dimensions"
+    }
+  ],
+  "teachingTimeline": [
+    {
+      "id": "show_region",
+      "action": "reveal",
+      "targetId": "region_setup",
+      "dependsOn": [],
+      "narrationIntent": "read the source region before computing its area"
+    }
+  ]
+}

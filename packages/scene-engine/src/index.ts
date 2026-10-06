@@ -86,3 +86,5 @@ export * from "./ir/finiteBinomialPlanAuthority";
 export * from "./ir/measurementSourceAuthority";
 
 export * from "./ir/measurementQuestionPlanAuthority";
+
+export { snapshotMathSourceData } from "./compile/mathSourceData";

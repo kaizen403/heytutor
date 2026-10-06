@@ -1,5 +1,6 @@
 import {
   SCENE_ENGINE_VERSION,
+  readScrewGaugeQuestion,
   buildMatrixSourceDocument,
   compileSceneDocument,
   detectArchetype,
@@ -141,6 +142,7 @@ export function isPlannerQuotedConstant(
 export function selectFastVerifiedRepresentation(
   input: RepresentationSelectionInput,
 ): SelectedRepresentation | null {
+  if (readScrewGaugeQuestion(input.question).status !== "none") return null;
   const plan = validateTurnPlanV3(input.turnPlan, input.question).plan;
   if (!plan || plan.visualRequirement === "none") return null;
   if (plan.givens.some((given) => !questionStatesValue(input.question, given.value) &&
@@ -181,6 +183,11 @@ export function selectFastVerifiedRepresentation(
 export function selectVerifiedRepresentation(
   input: RepresentationSelectionInput,
 ): SelectedRepresentation {
+  // The measurement arithmetic profile has no source-proved apparatus scene.
+  // Refusal, including a terminal empty caller, cannot regain figure authority.
+  if (readScrewGaugeQuestion(input.question).status !== "none") {
+    return { ...buildTextOnlySelected(input.question), reason: "measurement apparatus scene profile unsupported" };
+  }
   // The question fixes these motion numbers. A plan that would narrate a
   // different value gets no figure at all, so a stale number is never spoken
   // over a correct (or a planner-drawn) picture.
