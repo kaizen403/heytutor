@@ -7,15 +7,16 @@
  * uses a declared display value and the tier rule keeps it qualitative.
  */
 import { riverCrossingPlanConflicts, riverCrossingSpeeds, riverShortestPathAsked, riverShortestTimeAsked } from "../../physics/riverCrossingSource";
+import { firstAngle } from "../slots";
 import { DEG, SceneBuilder, add, fmt, polar, rotate, scale, withUnit, type Vec2 } from "../document";
 import { angleExpected, angleLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
 
 const G = 9.8;
 
-function groundLine(scene: SceneBuilder, id: string, from: Vec2, to: Vec2, role = "ground"): string {
+function groundLine(scene: SceneBuilder, id: string, from: Vec2, to: Vec2, role = "ground", label?: string): string {
   scene.point(`${id}_a`, from, `${role} end`);
   scene.point(`${id}_b`, to, `${role} end`);
-  return scene.segment(id, `${id}_a`, `${id}_b`, role);
+  return scene.segment(id, `${id}_a`, `${id}_b`, role, label);
 }
 
 function forceArrow(scene: SceneBuilder, id: string, from: string, direction: Vec2, length: number, role: string, label: string): string {
@@ -25,6 +26,15 @@ function forceArrow(scene: SceneBuilder, id: string, from: string, direction: Ve
 /* ------------------------------------------------------------------------- */
 
 function projectile(context: GeneratorContext) {
+  // A degree elsewhere in the question is not a launch-angle measurement.
+  // Read only the launch clause; symbolic theta keeps display geometry symbolic.
+  const launchClause = context.question.match(/\b(?:launched|projected|thrown)\b[^.;!?]*/i)?.[0]
+    .split(/\b(?:and|hence|show|it|maximum)\b|[()]/i)[0] ?? "";
+  const launchAngle = /\bhorizontally\b/i.test(launchClause) ? 0
+    : /(?:\btheta\b|θ)(?!\s*[=:])/i.test(launchClause) ? null : firstAngle(launchClause);
+  if (context.sources.theta === "plan" && (launchAngle === null || launchAngle !== maybeNum(context, "theta"))) return null;
+  context = { ...context, slots: { ...context.slots, theta: launchAngle ?? 45 },
+    sources: { ...context.sources, theta: launchAngle === null ? "default" : context.sources.theta ?? "stem" } };
   const theta = num(context, "theta", 45);
   const u = num(context, "u", 20);
   const h0 = Math.max(0, num(context, "h0", 0));
@@ -50,14 +60,14 @@ function projectile(context: GeneratorContext) {
   if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
   if (height0 > 0 && grounded(context, "h0")) scene.quantity("h0", "h", height0, "m");
 
-  groundLine(scene, "ground", { x: -0.12 * range, y: 0 }, { x: 1.08 * range, y: 0 });
-  scene.point("O", { x: 0, y: height0 }, "launch point", "O");
+  groundLine(scene, "ground", { x: -0.12 * range, y: 0 }, { x: 1.08 * range, y: 0 }, "level ground", "level ground");
+  scene.point("O", { x: 0, y: height0 }, "projectile point mass launch point origin", "projectile");
   if (height0 > 0) {
     scene.point("foot", { x: 0, y: 0 }, "tower foot");
     scene.segment("tower", "foot", "O", "tower");
     scene.dimension("dim_h0", "foot", "O", "launch height", grounded(context, "h0") ? withUnit(height0, "m") : "h");
   }
-  scene.curve("trajectory", expression, 0, range, "trajectory", undefined, 81);
+  scene.curve("trajectory", expression, 0, range, "parabolic trajectory", "trajectory", 81);
   scene.point("apex", { x: apexX, y: apexY }, "highest point", "H");
   scene.point("landing", { x: range, y: 0 }, "landing point", "B");
   const arrow = Math.max(0.22 * range, 0.15 * apexY, 1);
