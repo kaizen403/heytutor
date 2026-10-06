@@ -251,7 +251,9 @@ function synthesizeFromFamilies(
     problemIR: input.problemIR ?? null,
     schematic,
   });
-  const projectileSource = isProjectileStem(question) && archetypeCandidate?.archetype !== "free_fall";
+  const statedVerticalThrow = archetypeCandidate?.archetype === "free_fall"
+    && /\bthrown\s+vertically\s+(?:up(?:ward)?s?|down(?:ward)?s?)\b/i.test(question);
+  const projectileSource = isProjectileStem(question) && !statedVerticalThrow;
   const archetype = (relativeOutOfModel && archetypeCandidate?.archetype === "relative_motion_line")
     || (projectileSource && archetypeCandidate?.archetype !== "projectile") ? null : archetypeCandidate;
   if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document))) {

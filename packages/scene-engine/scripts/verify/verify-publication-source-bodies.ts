@@ -154,6 +154,12 @@ check("computed vertical throws retain the free-fall scene", () => {
   assert.ok(!vertical.document.quantities.some(row => row.id === "theta"));
   assert.ok(vertical.renderScene.primitives.length > 0);
 });
+check("a launch from a tower cannot inherit a vertical zero-speed drop", () => {
+  for (const question of [
+    "A ball is projected from the top of a 20 m tower at 10 m/s.",
+    "A ball is projected from the top of a 20 m tower at 10 m/s and hits a vertically standing wall.",
+  ]) assert.equal(synthesizeFamilyScene({ question }), null, question);
+});
 assert.equal(JSON.stringify(problemIR), snapshot, "actual source IR must remain unchanged");
 console.log(JSON.stringify({ passed, failed: failures.length, failures }));
 if (failures.length) process.exitCode = 1;
