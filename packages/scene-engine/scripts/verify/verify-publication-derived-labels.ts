@@ -124,4 +124,31 @@ const descendant = compileSceneDocument(supportedButBlocked);
 assert.equal(descendant.ok, false);
 assert.equal(descendant.renderScene, null);
 assert(descendant.report.issues.some((issue) => issue.code === "invalid_display_derived_claim")); checks += 3;
+// A world-coordinate result has no independent display scale. Its label
+// descendants must still preserve typed coordinate authority.
+const translated = fixtures.find((fixture) => fixture.operator === "axis_translation")!;
+for (const hops of [1, 2]) {
+  for (const channel of ["label", "callout", "badge", "quantity"] as const) {
+    for (const valid of [true, false]) {
+      // Badges on label-only entities are unsupported by annotation layout;
+      // forged badge claims must still be rejected by numeric authority first.
+      if (valid && channel === "badge") continue;
+      const document = documentFor(translated);
+      let target = "result0";
+      for (let hop = 0; hop < hops; hop++) {
+        const next = `descendant${hop}`;
+        document.entities.push({ id: next, kind: "label", role: "computed caption", label: "computed" });
+        document.constructions.push({ id: `make_${next}`, operator: "label", inputs: { target, text: "computed" }, outputs: [next] });
+        document.requiredEntityIds.push(next); document.revealGroups[0]!.entityIds.push(next);
+        target = next;
+      }
+      const value = valid ? 3 : 99; // Independently: (4,5)-(1,2)=(3,3).
+      if (channel === "quantity") {
+        document.quantities.push({ id: "descendant_x", symbol: "x", value });
+        document.annotations.push({ id: "descendant_claim", kind: "label", targetIds: [target], quantityId: "descendant_x" });
+      } else document.annotations.push({ id: "descendant_claim", kind: channel, targetIds: [target], text: `x=${value}` });
+      verify(document, valid, `translation ${hops}-hop ${channel} ${valid ? "correct" : "forged"}`);
+    }
+  }
+}
 console.log(`publication derived labels: ${checks} checks passed across ${fixtures.length} operators (compiler and actual presentation)`);

@@ -61,10 +61,26 @@ export function validatePublicationDerivedClaims(
     const check = (run: () => void, path: string): void => {
       try { run(); } catch (error) { issues.push({ code: "invalid_publication_derived_label", severity: "fatal", message: error instanceof Error ? error.message : "Invalid derived label", path, entityIds: [id] }); }
     };
-    const entityIndex = document.entities.findIndex((entity) => entity.id === id);
-    check(() => checkText(document.entities[entityIndex]?.label), `entities[${entityIndex}].label`);
+    // Labels can be derived from other labels. Every descendant keeps the
+    // original result's numeric authority, including annotations that replace
+    // its displayed text. This does not depend on displayLength metadata.
+    const targets = new Set([id]);
+    const pending = [id];
+    while (pending.length > 0) {
+      const target = pending.pop()!;
+      document.constructions.forEach((label, labelIndex) => {
+        if (label.operator !== "label" || (label.inputs.target ?? label.inputs.at ?? label.inputs.point) !== target) return;
+        check(() => checkText(label.inputs.text), `constructions[${labelIndex}].inputs.text`);
+        for (const labelId of label.outputs) {
+          if (!targets.has(labelId)) { targets.add(labelId); pending.push(labelId); }
+        }
+      });
+    }
+    document.entities.forEach((entity, entityIndex) => {
+      if (targets.has(entity.id)) check(() => checkText(entity.label), `entities[${entityIndex}].label`);
+    });
     document.annotations.forEach((annotation, annotationIndex) => {
-      if (!annotation.targetIds.includes(id)) return;
+      if (!annotation.targetIds.some((target) => targets.has(target))) return;
       check(() => {
         checkText(annotation.text);
         if (annotation.quantityId === undefined) return;
@@ -74,14 +90,6 @@ export function validatePublicationDerivedClaims(
         if (typeof expected !== "number") fail("Quantity annotation needs a supported computed scalar meaning");
         compare(String(quantityValue(annotation.quantityId, document)), expected);
       }, `annotations[${annotationIndex}]`);
-    });
-    document.constructions.forEach((label, labelIndex) => {
-      if (label.operator === "label" && (label.inputs.target ?? label.inputs.at ?? label.inputs.point) === id) {
-        check(() => {
-          checkText(label.inputs.text);
-          for (const labelId of label.outputs) checkText(document.entities.find((entity) => entity.id === labelId)?.label);
-        }, `constructions[${labelIndex}].inputs.text`);
-      }
     });
   });
 }
