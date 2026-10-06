@@ -1,0 +1,380 @@
+{
+  "problem": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "actualSignedMeasurementCapture",
+    "question": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively. A wire of diameter 2.675 mm is measured with the screw gauge. What would be the reading of divisions on circular scale of the screw gauge, if the zero error of the screw gauge is -0.02 mm?",
+    "facts": [
+      {
+        "id": "p",
+        "kind": "given",
+        "statement": "pitch",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 118,
+          "quote": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively."
+        }
+      },
+      {
+        "id": "LC",
+        "kind": "given",
+        "statement": "least count",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 118,
+          "quote": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively."
+        }
+      },
+      {
+        "id": "d",
+        "kind": "given",
+        "statement": "wire diameter",
+        "evidence": {
+          "source": "question",
+          "start": 119,
+          "end": 180,
+          "quote": "A wire of diameter 2.675 mm is measured with the screw gauge."
+        }
+      },
+      {
+        "id": "e0",
+        "kind": "given",
+        "statement": "zero error",
+        "evidence": {
+          "source": "question",
+          "start": 265,
+          "end": 306,
+          "quote": "zero error of the screw gauge is -0.02 mm"
+        }
+      },
+      {
+        "id": "circular_reading",
+        "kind": "requested",
+        "statement": "circular scale divisions",
+        "evidence": {
+          "source": "question",
+          "start": 181,
+          "end": 307,
+          "quote": "What would be the reading of divisions on circular scale of the screw gauge, if the zero error of the screw gauge is -0.02 mm?"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "wire",
+        "kind": "body",
+        "label": "wire",
+        "evidenceFactIds": [
+          "d"
+        ]
+      },
+      {
+        "id": "screwGauge",
+        "kind": "component",
+        "label": "screw gauge",
+        "evidenceFactIds": [
+          "p",
+          "LC",
+          "e0"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eCircular",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "p",
+          "LC",
+          "d",
+          "e0",
+          "circular_reading"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "number",
+                "value": 2.675
+              },
+              "right": {
+                "kind": "unary",
+                "operator": "-",
+                "operand": {
+                  "kind": "number",
+                  "value": 0.02
+                }
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 2.5
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 0.005
+          }
+        }
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [],
+    "solveRequests": [
+      {
+        "id": "sCircular",
+        "kind": "evaluate",
+        "expressionId": "eCircular",
+        "resultBinding": {
+          "unit": "division",
+          "symbol": "circular_reading",
+          "evidenceFactIds": [
+            "p",
+            "LC",
+            "d",
+            "e0",
+            "circular_reading"
+          ],
+          "turnPlanQuantityId": "circular_reading"
+        }
+      }
+    ]
+  },
+  "plan": {
+    "givens": [
+      {
+        "id": "p",
+        "unit": "mm",
+        "value": 0.5,
+        "symbol": "p",
+        "provenance": "given",
+        "sourceText": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively."
+      },
+      {
+        "id": "LC",
+        "unit": "mm",
+        "value": 0.005,
+        "symbol": "LC",
+        "provenance": "given",
+        "sourceText": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively."
+      },
+      {
+        "id": "d",
+        "unit": "mm",
+        "value": 2.675,
+        "symbol": "d",
+        "provenance": "given",
+        "sourceText": "A wire of diameter 2.675 mm is measured with the screw gauge."
+      },
+      {
+        "id": "e0",
+        "sign": "negative",
+        "unit": "mm",
+        "value": -0.02,
+        "symbol": "e0",
+        "provenance": "given",
+        "sourceText": "zero error of the screw gauge is -0.02 mm"
+      }
+    ],
+    "lawIds": [
+      "micrometer_reading"
+    ],
+    "derived": [
+      {
+        "id": "circular_reading",
+        "unit": "division",
+        "value": 31,
+        "symbol": "circular_reading",
+        "dependsOn": [
+          "p",
+          "LC",
+          "d",
+          "e0"
+        ],
+        "provenance": "derived",
+        "sourceText": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively. | Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively. | A wire of diameter 2.675 mm is measured with the screw gauge. | zero error of the screw gauge is -0.02 mm | What would be the reading of divisions on circular scale of the screw gauge, if the zero error of the screw gauge is -0.02 mm?"
+      }
+    ],
+    "question": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively. A wire of diameter 2.675 mm is measured with the screw gauge. What would be the reading of divisions on circular scale of the screw gauge, if the zero error of the screw gauge is -0.02 mm?",
+    "unknowns": [
+      {
+        "id": "circular_reading",
+        "unit": "division",
+        "symbol": "circular_reading"
+      }
+    ],
+    "assumptions": [],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [],
+    "visualRequirement": "none"
+  },
+  "rawInput": {
+    "issueCodes": [
+      "expression_source_lineage_incomplete"
+    ],
+    "rawProblemIR": {
+      "facts": [
+        {
+          "id": "p",
+          "kind": "given",
+          "quote": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively.",
+          "statement": "pitch"
+        },
+        {
+          "id": "LC",
+          "kind": "given",
+          "quote": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively.",
+          "statement": "least count"
+        },
+        {
+          "id": "d",
+          "kind": "given",
+          "quote": "A wire of diameter 2.675 mm is measured with the screw gauge.",
+          "statement": "wire diameter"
+        },
+        {
+          "id": "e0",
+          "kind": "given",
+          "quote": "zero error of the screw gauge is -0.02 mm",
+          "statement": "zero error"
+        },
+        {
+          "id": "circular_reading",
+          "kind": "requested",
+          "quote": "What would be the reading of divisions on circular scale of the screw gauge, if the zero error of the screw gauge is -0.02 mm?",
+          "statement": "circular scale divisions"
+        }
+      ],
+      "entities": [
+        {
+          "id": "wire",
+          "kind": "body",
+          "label": "wire",
+          "evidenceFactIds": [
+            "d"
+          ]
+        },
+        {
+          "id": "screwGauge",
+          "kind": "component",
+          "label": "screw gauge",
+          "evidenceFactIds": [
+            "p",
+            "LC",
+            "e0"
+          ]
+        }
+      ],
+      "constraints": [],
+      "expressions": [
+        {
+          "id": "eCircular",
+          "expr": "((2.675+(-0.02))-2.5)/0.005",
+          "valueType": "scalar",
+          "evidenceFactIds": [
+            "p",
+            "LC",
+            "d",
+            "e0",
+            "circular_reading"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "sCircular",
+          "kind": "evaluate",
+          "expressionId": "eCircular",
+          "resultBinding": {
+            "unit": "division",
+            "symbol": "circular_reading",
+            "evidenceFactIds": [
+              "p",
+              "LC",
+              "d",
+              "e0",
+              "circular_reading"
+            ],
+            "turnPlanQuantityId": "circular_reading"
+          }
+        }
+      ],
+      "representationIntents": []
+    },
+    "rawTurnPlan": {
+      "givens": [
+        {
+          "id": "p",
+          "unit": "mm",
+          "value": 0.5,
+          "symbol": "p",
+          "provenance": "given",
+          "sourceText": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively."
+        },
+        {
+          "id": "LC",
+          "unit": "mm",
+          "value": 0.005,
+          "symbol": "LC",
+          "provenance": "given",
+          "sourceText": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively."
+        },
+        {
+          "id": "d",
+          "unit": "mm",
+          "value": 2.675,
+          "symbol": "d",
+          "provenance": "given",
+          "sourceText": "A wire of diameter 2.675 mm is measured with the screw gauge."
+        },
+        {
+          "id": "e0",
+          "sign": "negative",
+          "unit": "mm",
+          "value": -0.02,
+          "symbol": "e0",
+          "provenance": "given",
+          "sourceText": "zero error of the screw gauge is -0.02 mm"
+        }
+      ],
+      "lawIds": [
+        "micrometer_reading"
+      ],
+      "derived": [
+        {
+          "id": "circular_reading",
+          "unit": "division",
+          "value": 31,
+          "symbol": "circular_reading",
+          "dependsOn": [
+            "p",
+            "LC",
+            "d",
+            "e0"
+          ],
+          "provenance": "derived",
+          "sourceText": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively. | Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively. | A wire of diameter 2.675 mm is measured with the screw gauge. | zero error of the screw gauge is -0.02 mm | What would be the reading of divisions on circular scale of the screw gauge, if the zero error of the screw gauge is -0.02 mm?"
+        }
+      ],
+      "question": "Least count corresponding to the main scale and circular scale of a screw gauge are 0.5 mm and 0.005 mm, respectively. A wire of diameter 2.675 mm is measured with the screw gauge. What would be the reading of divisions on circular scale of the screw gauge, if the zero error of the screw gauge is -0.02 mm?",
+      "unknowns": [
+        {
+          "id": "circular_reading",
+          "unit": "division",
+          "symbol": "circular_reading"
+        }
+      ],
+      "assumptions": [],
+      "schemaVersion": "turn-plan/v3",
+      "qualitativeClaims": [],
+      "visualRequirement": "none"
+    }
+  }
+}

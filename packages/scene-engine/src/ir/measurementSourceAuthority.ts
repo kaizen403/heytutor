@@ -273,7 +273,8 @@ function rolePremises(role: MeasurementRole, v: Record<MeasurementRole, Measurem
   return roles.map(r => v[r].factId);
 }
 function expressionRole(root: ExpressionNodeIR, evidence: string[], v: Record<MeasurementRole, MeasurementValue>): MeasurementRole | null {
-  const literal = (node: ExpressionNodeIR, value: number) => node.kind === "number" && close(node.value, value);
+  const literal = (node: ExpressionNodeIR, value: number) => node.kind === "number" ? close(node.value, value)
+    : node.kind === "unary" && node.operand.kind === "number" && close(node.operator === "-" ? -node.operand.value : node.operand.value, value);
   const observed = (node: ExpressionNodeIR) => node.kind === "binary" && node.operator === "+" && literal(node.left, v.true_reading.value) && literal(node.right, v.zero_error.value);
   // The independently parsed observed reading proves the sleeve value. A
   // literal is admissible only for this role, still with exact premise joins;
